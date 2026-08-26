@@ -86,7 +86,7 @@
         A.ambience(state.weather);
         // A new hole is a new look at it: back to the seat behind the ball,
         // and the dial straightened, whatever angle the last one was left at.
-        R.setCam({ yaw: state.aim.yaw, dist: 9, pitch: 0.46, view: 0, mode: 'follow' });
+        R.setCam({ yaw: state.aim.yaw, dist: 9, pitch: 0.46, view: 0, mode: 'follow', lock: false });
         syncView();
         syncSeat();
         R.state.lastBall.set(state.world.ball.x, state.world.ball.y, state.world.ball.z);
@@ -759,32 +759,69 @@
 
     /* Straight: back behind the ball, and level with where a hole starts. The
        zoom is left alone — it is its own control, and someone who has pinched
-       in on a green rarely wants that undone as well. */
+       in on a green rarely wants that undone as well. The lock comes off with
+       it: straight means straight behind the ball, and a locked camera is
+       standing wherever the shot has since turned away from. */
     function straightenView() {
         R.cam.pitch = 0.46;
         if (look) look.pitch = 0.46;
+        R.setLock(false);
         setView(0);
         A.tick(0.5);
     }
 
+    /* The lock. The dial answers "how far round the ball am I standing"; this
+       answers "round from *what*" — from the shot, which turns the camera with
+       it, or from a fixed direction in the world, which does not.
+
+       Unlocked is the game's own habit and the right one while you are playing
+       a shot: turn the aim and the camera comes with you, so left is always
+       left. It is the wrong one the moment you stop playing and start reading
+       — on the overview especially, where a drag to aim swings the entire hole
+       round under you and there is no way to look at the map and aim at the
+       same time. Locked, the shot turns underneath a camera that stays put.
+
+       The renderer hands back the dial offset that keeps the picture still
+       across the change (R.setLock), and setView takes it from there. */
+    function toggleLock() {
+        setView(R.setLock(!R.cam.lock));
+        A.tick(R.cam.lock ? 0.8 : 0.3);
+        toast(R.cam.lock
+            ? 'Camera locked — the shot turns, the view stays'
+            : 'Camera unlocked — it turns with the aim again');
+    }
+
     function syncView() {
+        var locked = R.cam.lock;
         var deg = Math.round(R.cam.view * 180 / Math.PI);
         var straight = deg === 0;
         var side = deg > 0 ? 'right' : 'left';
         // Both ends of the dial are the same place — in front of the ball,
         // looking back down the shot — so both ends say so.
-        var text = straight ? 'Straight'
+        var where = straight ? 'Straight'
             : Math.abs(deg) === 180 ? 'Head on'
             : Math.abs(deg) + '° ' + side;
+        /* The dial always means "how far round from the reference", and the
+           lock is what changes the reference: the shot while it is off, the
+           bearing it was locked at while it is on. So the number stays the
+           dial's own and stays true — it is only measured from somewhere else,
+           which is what the word in front of it says. */
         $('view-knob').style.left = (50 + (R.cam.view / VIEW_MAX) * 50) + '%';
-        $('view-val').textContent = text;
-        $('viewctl').classList.toggle('off-axis', !straight);
+        $('view-val').textContent = locked ? 'Locked · ' + where : where;
+        $('viewctl').classList.toggle('off-axis', !straight || locked);
+        $('viewctl').classList.toggle('locked', locked);
+        $('btn-view-lock').textContent = locked ? '🔒' : '🔓';
+        $('btn-view-lock').classList.toggle('on', locked);
+        $('btn-view-lock').setAttribute('aria-pressed', locked ? 'true' : 'false');
+        $('btn-view-lock').setAttribute('aria-label',
+            locked ? 'Unlock the camera from the aim' : 'Lock the camera so the aim stops turning it');
+        var from = locked ? 'the locked view' : 'the shot';
         var track = $('view-track');
         track.setAttribute('aria-valuenow', String(deg));
-        track.setAttribute('aria-valuetext', straight
-            ? 'Straight behind the ball'
-            : Math.abs(deg) === 180 ? 'In front of the ball, looking back down the shot'
-            : Math.abs(deg) + ' degrees to the ' + side + ' of the shot');
+        track.setAttribute('aria-valuetext', (locked ? 'Camera locked. ' : '') + (straight
+            ? (locked ? 'Straight along the locked view' : 'Straight behind the ball')
+            : Math.abs(deg) === 180 ? 'Turned right round, looking back along ' + from
+            : Math.abs(deg) + ' degrees to the ' + side + ' of ' + from));
     }
 
     /* The track is absolute, the way the power meter is: press anywhere along
@@ -853,6 +890,7 @@
         var fine = e.shiftKey;
         var k = e.key;
 
+        if (k === 'l' || k === 'L') { toggleLock(); return; }
         if (k === ',' || k === '<') { nudgeView(-VIEW_STEP); return; }
         if (k === '.' || k === '>') { nudgeView(VIEW_STEP); return; }
         if (k === '0') { straightenView(); return; }
@@ -1170,6 +1208,7 @@
         $('btn-aim-right').addEventListener('click', function () { nudgeAim(-0.035); });
         $('btn-view-left').addEventListener('click', function () { nudgeView(-VIEW_STEP); });
         $('btn-view-right').addEventListener('click', function () { nudgeView(VIEW_STEP); });
+        $('btn-view-lock').addEventListener('click', toggleLock);
         // A drag that started on the ⌖ and walked away is not a press of it.
         $('btn-view-home').addEventListener('click', function () {
             if (viewTravelled) { viewTravelled = false; return; }

@@ -56,6 +56,10 @@
                offset on whichever seat `mode` has chosen, so the dial still
                walks you round a hole you are looking at side on or from above. */
             view: 0,
+            /* …unless the camera is locked, in which case it is measured off
+               `bearing` — a fixed direction in the world — and the aim is free
+               to turn underneath it without dragging the picture round. */
+            lock: false, bearing: 0,
             kick: 0,          // impact flinch, decays
             speedPull: 0      // extra distance while the ball is quick
         },
@@ -1369,7 +1373,16 @@
 
        Subtracted, not added: c.view is measured the way the player walks —
        positive is round to the right of the shot — and the world turns the
-       other way from underneath them. */
+       other way from underneath them.
+
+       **And c.lock decides what it is measured off.** Unlocked, the reference
+       is the aim, so turning the shot turns the camera with it — which is what
+       makes "drag left, aim left" true, and is exactly wrong when you are
+       reading a map: on the overview, a drag to aim spins the whole hole under
+       you. Locked, the reference is `c.bearing`, a fixed direction in the
+       world, and the shot turns underneath a camera that stays put. The seat
+       still does its job either way — follow still follows the ball down the
+       course, it simply stops swinging round with the aim. */
     var VIEWS = ['follow', 'side', 'over'];
 
     function viewLabel(mode) {
@@ -1382,9 +1395,35 @@
         return R.cam.mode;
     }
 
+    /* Locking and unlocking must not move the picture, only change what holds
+       it there. Locking is easy — the bearing it freezes at is the one it is
+       already looking along. Unlocking is the interesting half: the aim has
+       been turning all the while the lock was on, so handing the camera back
+       to it would snap the view round by however far the shot has travelled.
+       Instead that drift is folded into the dial, which is exactly what it
+       means: how far off the aim line you are now standing. Wrapped to half a
+       turn either way first, because the dial's ends are the same place and a
+       raw difference of four radians would clamp instead of wrapping.
+
+       Returns the view offset the caller should adopt, so the dial's own
+       clamping and readout stay in one place (game.js's setView). */
+    function setLock(on) {
+        var c = R.cam;
+        if (on === c.lock) return c.view;
+        var view = c.view;
+        if (on) {
+            c.bearing = c.yaw;
+        } else {
+            view += c.yaw - c.bearing;
+            view = Math.atan2(Math.sin(view), Math.cos(view));
+        }
+        c.lock = on;
+        return view;
+    }
+
     function updateCamera(hole, ball, dt) {
         var c = R.cam;
-        var yaw = c.yaw - c.view;
+        var yaw = (c.lock ? c.bearing : c.yaw) - c.view;
         var tx, ty, tz, px, py, pz, dist;
         var bx = (hole.bounds.minX + hole.bounds.maxX) / 2;
         var bz = (hole.bounds.minZ + hole.bounds.maxZ) / 2;
@@ -1437,9 +1476,11 @@
             lead = Math.min(lead, Math.max(1.8, dist * Math.tan(sideH) * 0.95));
             /* The point it looks at is down the *aim*, because that is where
                the shot goes; where it stands to look at it is off the *view*,
-               because that is the dial. With the dial straight the two are the
-               same angle and this is square across the shot, which is the seat
-               it is; walk round and it swings from there. */
+               because that is the dial — and off the bearing rather than the
+               aim when the camera is locked. With the dial straight and the
+               lock off the two are the same angle and this is square across
+               the shot, which is the seat it is; walk round, or lock and turn
+               the shot, and it swings from there. */
             var ax = Math.sin(c.yaw), az = Math.cos(c.yaw);
             tx = ball.x + ax * lead;
             ty = ball.y + 0.7;
@@ -1750,6 +1791,7 @@
         setCam: setCam,
         cycleView: cycleView,
         viewLabel: viewLabel,
+        setLock: setLock,
         cam: R.cam,
         // The bag picks against these, and nothing else needs them.
         pickAt: function (nx, ny) {

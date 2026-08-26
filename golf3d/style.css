@@ -624,6 +624,19 @@ canvas:active { cursor: grabbing; }
 .view-step:hover { background: rgba(56, 189, 248, 0.3); }
 .view-step:active { background: var(--accent); color: #06212f; }
 
+/* The lock is a state rather than a nudge, so unlike the two step buttons
+   beside it, it stays lit while it is on. The glyph carries the state as well
+   as the colour — a padlock that is open or shut says it without needing the
+   accent to be visible, which on a bright course it is not always. */
+.view-lock { font-size: 0.78rem; }
+.view-step.on {
+    background: var(--accent);
+    color: #06212f;
+    border-color: transparent;
+    box-shadow: 0 0 10px rgba(56, 189, 248, 0.4);
+}
+.view-step.on:hover { background: var(--accent); }
+
 /* The track and the button that sits on its middle. */
 .view-dial {
     position: relative;
@@ -694,6 +707,13 @@ canvas:active { cursor: grabbing; }
     color: var(--ink);
     border-color: rgba(56, 189, 248, 0.8);
     box-shadow: 0 0 10px rgba(56, 189, 248, 0.35);
+}
+
+/* Locked, the knob is not where the player put it — the shot has been turning
+   underneath it — so it stops looking like a thing they are holding. */
+.viewctl.locked .view-knob {
+    background: rgba(234, 246, 255, 0.55);
+    box-shadow: 0 0 8px rgba(234, 246, 255, 0.35);
 }
 
 .power-track {

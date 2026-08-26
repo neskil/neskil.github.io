@@ -655,6 +655,51 @@ line and the shot lies away to the left of the screen. The ⌖ in the middle of
 the track walks it straight back and levels the pitch with it; the zoom is left
 alone, being its own control. It lights up whenever there is anything to undo.
 
+#### The lock
+
+The dial answers *how far round the ball am I standing*. The padlock beside it
+answers **round from what** — and that is the last piece of the same problem.
+
+Unlocked, the reference is the aim, so turning the shot turns the camera with
+it. That is the game's own habit and the right one while you are playing a
+shot: left is always left. It is the wrong one the moment you stop playing and
+start reading. On the overview it is actively hostile — a drag to aim swings
+the entire hole round underneath you, so there is no way to look at the map and
+aim at the same time, which is most of what an overview is for. Locked, the
+reference is `cam.bearing`, a fixed direction in the world, and the shot turns
+under a camera that stays put.
+
+It is one expression in `updateCamera`:
+
+```js
+var yaw = (c.lock ? c.bearing : c.yaw) - c.view;
+```
+
+Two things are worth keeping if this is ever rebuilt:
+
+- **Neither locking nor unlocking may move the picture.** Locking is easy: the
+  bearing it freezes at is the one it is already looking along. Unlocking is
+  the interesting half, because the aim has been turning the whole time the
+  lock was on, and handing the camera back to it would snap the view round by
+  however far the shot has travelled. So that drift is folded into the dial
+  instead — which is exactly what the dial means, *how far off the aim line you
+  are now standing* — wrapped to half a turn either way first, because the
+  dial's two ends are the same place and a raw difference of four radians would
+  clamp rather than wrap. `render.setLock` returns the offset to adopt and
+  `game.setView` does the clamping, so there is one place that decides what the
+  dial may hold.
+- **The lock changes what the dial is measured from, not what it means.** The
+  readout says `Locked · 45° right` rather than a different number, because the
+  number is still the dial's own — 45° round from the reference — and only the
+  reference has changed. The knob dims while locked, since it is no longer
+  showing something the player is holding.
+
+The seat still does its job either way: follow still follows the ball down the
+course, it simply stops swinging round with the aim. Straightening (`0`) takes
+the lock off with it — straight means straight behind the ball, and a locked
+camera is standing wherever the shot has since turned away from — and so does a
+new hole, along with the pitch and the seat.
+
 Two details are worth keeping if this is ever rebuilt:
 
 - **The press is taken on the dial, not the track.** The ⌖ covers the middle of
@@ -663,9 +708,9 @@ Two details are worth keeping if this is ever rebuilt:
   control at all. So a press that lands on the ⌖ is a reset until it has
   travelled six pixels, and a drag from there on; the button's click is
   swallowed once that happens.
-- **A new hole straightens it**, along with the pitch and the seat. An angle is
-  a thing you chose for the hole in front of you, and the next hole is not that
-  hole.
+- **A new hole straightens it**, along with the pitch, the seat and the lock. An
+  angle is a thing you chose for the hole in front of you, and the next hole is
+  not that hole.
 
 The dial is an offset on the *seat*, not a replacement for it: `V` picks which
 of [three cameras](#the-three-cameras) you are sitting in and this walks you
@@ -1181,7 +1226,8 @@ camera swings with it. Where the camera stands *relative to* that aim is the
 <kbd>↑</kbd><kbd>↓</kbd> power, <kbd>1</kbd>–<kbd>4</kbd> club (<kbd>C</kbd>
 cycles), <kbd>space</kbd> hit, <kbd>shift</kbd> for fine control, <kbd>V</kbd>
 the seat — follow, side on, overview — <kbd>,</kbd><kbd>.</kbd> walk the view
-round the ball, <kbd>0</kbd> straighten it, <kbd>F</kbd> fullscreen,
+round the ball, <kbd>L</kbd> lock it where it is, <kbd>0</kbd> straighten it,
+<kbd>F</kbd> fullscreen,
 <kbd>R</kbd> restart the hole, <kbd>W</kbd> the weather, <kbd>H</kbd> the
 rules, <kbd>M</kbd> sound, <kbd>J</kbd> the music, <kbd>G</kbd> the course
 inspector. Scroll or pinch to zoom.

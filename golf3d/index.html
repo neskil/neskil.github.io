@@ -32,7 +32,7 @@
 
         gtag('config', 'G-9GP823TGLB');
     </script>
-    <link rel="stylesheet" href="style.css?v=1.5.0">
+    <link rel="stylesheet" href="style.css?v=1.5.1">
 </head>
 <body>
     <div class="wrap">
@@ -150,6 +150,13 @@
                 <div class="viewctl" id="viewctl">
                     <span class="ctl-label">View <b id="view-val">Straight</b></span>
                     <div class="view-row">
+                        <!-- The lock decides what the dial is measured off: the
+                             shot, which turns the camera with it, or a fixed
+                             direction in the world, which leaves it alone. -->
+                        <button type="button" class="view-step view-lock" id="btn-view-lock"
+                                title="Lock the camera so aiming stops turning it (L)"
+                                aria-pressed="false"
+                                aria-label="Lock the camera so the aim stops turning it">🔓</button>
                         <button type="button" class="view-step" id="btn-view-left"
                                 title="Walk the view left (,)" aria-label="Walk the view left">↺</button>
                         <div class="view-dial" id="view-dial">
@@ -253,7 +260,10 @@
                     only place you can see how high a lofted one is going and whether it
                     clears what is in the way — and <b>overview</b>, the whole hole from
                     above, which lifts the fog on a misty one so it is still worth
-                    looking at. Scroll or pinch to zoom. The dotted lines in front of the ball are where the shot
+                    looking at. Scroll or pinch to zoom, and <kbd>L</kbd> — or the padlock
+                    beside the View dial — holds the camera still so aiming stops turning
+                    it, which is what makes the overview a map you can aim from rather than
+                    one that spins as you do. The dotted lines in front of the ball are where the shot
                     is headed — real physics, not a guess, so they tell you the truth about rails and
                     ramps. There are three of them rather than one: a lane of a bit less power, a bit
                     more, and what is loaded right now, because touch is too coarse to load an exact
@@ -286,7 +296,7 @@
             <p class="sub kb-help">
                 <kbd>←</kbd><kbd>→</kbd> aim · <kbd>↑</kbd><kbd>↓</kbd> power · <kbd>space</kbd> swing ·
                 <kbd>shift</kbd> fine control · <kbd>,</kbd><kbd>.</kbd> view round the ball ·
-                <kbd>0</kbd> straighten · <kbd>V</kbd> seat ·
+                <kbd>L</kbd> lock it · <kbd>0</kbd> straighten · <kbd>V</kbd> seat ·
                 <kbd>F</kbd> fullscreen · <kbd>R</kbd> restart hole · <kbd>M</kbd> sound · <kbd>J</kbd> music
             </p>
 
@@ -326,10 +336,10 @@
         <summary>Controls</summary>
         <div class="help">
             <span><b>Drag the course to aim</b>, set the power on the meter, then hit <b>Swing</b>. Nothing you do on the course plays a shot by itself.</span>
-            <span><b>The View dial</b> above the meter walks the camera round the ball without moving the shot — the <b>⌖</b> in its middle puts it back behind the ball, and so does a new hole.</span>
+            <span><b>The View dial</b> above the meter walks the camera round the ball without moving the shot — the <b>⌖</b> in its middle puts it back behind the ball, and so does a new hole. The <b>🔓</b> beside it locks the camera where it is, so aiming stops swinging the view round; handy on the overview, where a drag to aim otherwise turns the whole hole under you.</span>
             <span class="kb-help"><kbd>←</kbd><kbd>→</kbd> aim · <kbd>↑</kbd><kbd>↓</kbd> power · <kbd>1</kbd>–<kbd>4</kbd> club
                 · <kbd>space</kbd> swing (<kbd>shift</kbd> for fine control)</span>
-            <span class="kb-help"><kbd>V</kbd> seat: follow, side on, overview · <kbd>,</kbd><kbd>.</kbd> walk round · <kbd>0</kbd> straighten · <kbd>F</kbd> fullscreen · <kbd>R</kbd> restart hole · <kbd>W</kbd> weather · <kbd>M</kbd> sound · <kbd>J</kbd> music · scroll to zoom</span>
+            <span class="kb-help"><kbd>V</kbd> seat: follow, side on, overview · <kbd>,</kbd><kbd>.</kbd> walk round · <kbd>L</kbd> lock the camera · <kbd>0</kbd> straighten · <kbd>F</kbd> fullscreen · <kbd>R</kbd> restart hole · <kbd>W</kbd> weather · <kbd>M</kbd> sound · <kbd>J</kbd> music · scroll to zoom</span>
             <span class="touch-help">Drag sideways to turn, up and down to raise and drop the camera. Drag the View dial to look at the shot from the side. Pinch to zoom, swipe the bag to switch clubs. Turn your phone sideways for a bigger course.</span>
             <span><button type="button" class="linkish" id="btn-help-2">How to play</button></span>
         </div>
@@ -356,20 +366,20 @@
 
     <!-- Load order is dependency order: config, then the pure logic, then the
          things that touch the screen. game.js boots itself on DOMContentLoaded. -->
-    <script src="js/config.js?v=1.5.0"></script>
-    <script src="js/themes.js?v=1.5.0"></script>
-    <script src="js/physics.js?v=1.5.0"></script>
-    <script src="js/courses.js?v=1.5.0"></script>
-    <script src="js/scoring.js?v=1.5.0"></script>
-    <script src="js/audio.js?v=1.5.0"></script>
-    <script src="js/music.js?v=1.5.0"></script>
-    <script src="js/bag.js?v=1.5.0"></script>
-    <script src="js/textures.js?v=1.5.0"></script>
-    <script src="js/shaders.js?v=1.5.0"></script>
-    <script src="js/postfx.js?v=1.5.0"></script>
-    <script src="js/weather.js?v=1.5.0"></script>
-    <script src="js/render.js?v=1.5.0"></script>
-    <script src="js/debug.js?v=1.5.0"></script>
-    <script src="js/game.js?v=1.5.0"></script>
+    <script src="js/config.js?v=1.5.1"></script>
+    <script src="js/themes.js?v=1.5.1"></script>
+    <script src="js/physics.js?v=1.5.1"></script>
+    <script src="js/courses.js?v=1.5.1"></script>
+    <script src="js/scoring.js?v=1.5.1"></script>
+    <script src="js/audio.js?v=1.5.1"></script>
+    <script src="js/music.js?v=1.5.1"></script>
+    <script src="js/bag.js?v=1.5.1"></script>
+    <script src="js/textures.js?v=1.5.1"></script>
+    <script src="js/shaders.js?v=1.5.1"></script>
+    <script src="js/postfx.js?v=1.5.1"></script>
+    <script src="js/weather.js?v=1.5.1"></script>
+    <script src="js/render.js?v=1.5.1"></script>
+    <script src="js/debug.js?v=1.5.1"></script>
+    <script src="js/game.js?v=1.5.1"></script>
 </body>
 </html>
