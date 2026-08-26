@@ -745,7 +745,11 @@ permanently on screen. A phone is 400 points wide and the course is the point.
   (`display: contents`) and the chips sit in the row as before. The view chip
   names the seat the camera is in rather than the one the press would take you
   to, and carries a `min-width` so the bar does not shuffle sideways when the
-  name changes length.
+  name changes length. It is also the *only* thing that names it: switching
+  seats used to raise a toast as well, which put the word Overview in a pill a
+  thumb's width from the chip that had just started saying Overview — the same
+  label twice, across the top of the course, for the one change on screen that
+  announces itself.
 - **Compact chrome** is on wherever the immersive layout is — a narrow window, a
   touch screen, or fullscreen on anything — and `game.js` decides it in one
   place (`syncCompact`) so the bar's two modes cannot disagree with the
@@ -755,10 +759,17 @@ permanently on screen. A phone is 400 points wide and the course is the point.
   camera. Toggling it resizes the renderer, because the canvas has just been
   handed the height the bar was standing in.
 - **The hole card** says what a hole is — name, blurb, par, distance, sky — when
-  the hole loads, and then leaves: four and a half seconds, or the moment you
+  the hole loads, and then leaves: three and a half seconds, or the moment you
   touch the course, whichever comes first. It used to be a line of text pinned
-  under the hole's name for the whole round. The name in the scoreboard and the
-  overlay's drawer both ask for it back.
+  under the hole's name for the whole round, and after that a panel a third of
+  the way down the middle of the course in title-card type — an introduction
+  standing on the hole it was introducing, which on a phone is the hole. Now it
+  is a note in the corner: tucked under the overlay it belongs to, the same
+  width, at caption size, with the course-and-hole line dropped because both the
+  overlay and the scoreboard already carry it. Held sideways, where there is no
+  room for a third line, the sentence about the hole goes too and the name and
+  the numbers stay. Nothing is lost by shrinking it — the name in the scoreboard
+  and the overlay's drawer both ask for all of it back.
 - **The overlay** inside the stage carries the four figures that move during a
   shot — hole, par, strokes, distance — on one line, and the three that merely
   describe the hole behind a caret: name, blurb, and the sky, which is also the
@@ -950,6 +961,23 @@ still meets its neighbours), and a pad's underside reaches the surrounding
 ground so a raised green reads as a plateau rather than a slab in mid-air.
 Boards are the exception and stay thin — a jetty should look like a plank, not
 a causeway.
+
+A pad standing on *another pad* is the second exception, and it had to be
+found the hard way. courses.js says what a pad is and never what is underneath
+it, so the underside reached the surrounding ground whatever was in between —
+which on Tabletop, whose green is a metre up on an apron that runs beneath it,
+meant a metre and a half of side wall driven straight down through the apron:
+two surfaces crossing inside each other, and a seam flickering along the
+intersection wherever the depth buffer could not choose between them. From the
+overview, the one view that puts a raised green against the ground beside it in
+every frame, that seam was the first thing the eye found. So the slab stops at
+the first surface below it instead — the highest pad whose footprint this one
+overlaps, measured across the overlap rather than at a centre that may not be
+inside it, so a ramp underneath is read where it actually passes, and a pad
+with a cup in it is never cut shorter than the cup is deep. A pad over water,
+or over nothing, finds no support and reaches the surround exactly as before.
+Of the eighty-six pads on the five courses exactly one is affected, which is
+the point: this is a fix for a case the data allows and the author used once.
 
 Textures are drawn into canvases at load: grass, sand, planks and rock. No
 image files to ship and no requests to fail.
@@ -1233,10 +1261,20 @@ was falling. Rather than special-case the weather, the camera lifts it.
 things ride on it: the fog's near and far are pushed out past whatever distance
 the map is standing back at (`Math.max`, so a clear day is untouched — it never
 *adds* fog), the rain and the mist banks thin to a seventh of themselves
-(`weather.setAtmosphere`), and two markers come up — a ring under the ball,
-pulsing slowly because from up there the ball is four pixels across, and a ring
-and a column of light in the cup. Both are drawn with the depth test off, so a
-ridge between them hides neither.
+(`weather.setAtmosphere`), and the markers come up — a ring under the ball,
+pulsing slowly because from up there the ball is four pixels across, and two
+rings at the cup, the outer one breathing half a turn behind it so the two ends
+of the shot are never both at their faintest. All of them are drawn with the
+depth test off, so a ridge between them hides neither.
+
+The cup used to get a beacon as well: an open cylinder four metres tall
+standing in the hole, unlit, drawn through everything. Straight down it was
+invisible, which is the only angle it was ever designed for; from the tilt the
+overview actually sits at it was a fat yellow post beside the pin — taller than
+the pin, brighter than the flag, and passing through every rail between it and
+the camera, because the depth test was off. The flagstick already marks the cup
+and is the right height for it, so the beacon is gone and the outer ring does
+its job from the ground.
 
 None of it touches the hole. The weather is exactly what it was the moment you
 drop back behind the ball, the water reads the same lifted fog as the lit

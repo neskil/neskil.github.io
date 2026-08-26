@@ -65,7 +65,7 @@
         },
         smooth: { pos: new THREE.Vector3(), target: new THREE.Vector3(), started: false },
         particles: null, pAlive: 0,
-        marks: null,           // the overview's ball ring, cup ring and beacon
+        marks: null,           // the overview's ball ring and the two at the cup
         lift: 0,               // 0 on the course, 1 overhead; see atmosphere()
         overDist: 0, overRadius: 0,
         lastBall: new THREE.Vector3(),
@@ -747,16 +747,62 @@
         }
     }
 
-    function addPad(group, pad, theme, cup) {
+    /* How far down a pad's sides have to go, which is a different question
+       from how far down they *can* go.
+
+       A pad's slab used to reach the surrounding ground whatever was in
+       between, because that was the only number to hand: courses.js says what
+       a pad is, never what is underneath it. On a hole with a raised green
+       standing on the fairway below — Tabletop's table on its apron, any tier
+       on any course — that meant a metre and a half of side wall driven
+       straight through the pad it stands on, two surfaces crossing inside each
+       other and a seam flickering along the intersection wherever the depth
+       buffer could not choose. From the overview, which is the view that puts
+       a raised green against the ground beside it in every frame, that seam
+       was the first thing the eye found.
+
+       So the slab stops at the first surface below it instead: the highest pad
+       whose footprint this one overlaps, measured over the overlap rather than
+       at a centre that may not be inside it at all, so a ramp underneath is
+       read where it actually passes. A pad over water, or over nothing, finds
+       no support and reaches the surround exactly as before. */
+    function supportUnder(pads, pad, cy) {
+        if (!pads) return null;
+        var best = null;
+        for (var i = 0; i < pads.length; i++) {
+            var q = pads[i];
+            if (q === pad) continue;
+            var x0 = Math.max(pad.x, q.x), x1 = Math.min(pad.x + pad.w, q.x + q.w);
+            var z0 = Math.max(pad.z, q.z), z1 = Math.min(pad.z + pad.d, q.z + q.d);
+            if (x1 - x0 < 0.05 || z1 - z0 < 0.05) continue;
+            // A plane's highest point over a rectangle is one of its corners.
+            var top = Math.max(
+                P.padHeight(q, x0, z0), P.padHeight(q, x1, z0),
+                P.padHeight(q, x0, z1), P.padHeight(q, x1, z1));
+            if (top > cy - 0.1) continue;          // level with it, or above it
+            if (best === null || top > best) best = top;
+        }
+        return best;
+    }
+
+    function addPad(group, pad, theme, cup, pads) {
         var cx = pad.x + pad.w / 2, cz = pad.z + pad.d / 2;
         var sx = pad.sx || 0, sz = pad.sz || 0;
         var cy = P.padHeight(pad, cx, cz);
         var rise = (Math.abs(sx) * pad.w + Math.abs(sz) * pad.d) / 2;
-        var thick = pad.kind === 'wood'
-            ? PLANK_THICK
-            : Math.max(0.6, cy - (theme.surroundY - 0.4) + rise);
         var holed = cup && P.padContains(pad, cup.x, cup.z) &&
             Math.abs(P.padHeight(pad, cup.x, cup.z) - cup.y) < 0.06;
+        // A slab standing on another pad stops just inside it; one standing on
+        // nothing reaches the surrounding ground as it always did. Either way
+        // it is deep enough for the shaft, because a cup that comes out of the
+        // bottom of its own green is worse than any seam.
+        var floor = supportUnder(pads, pad, cy);
+        var least = holed ? C.CUP_DEPTH + 0.25 : 0.2;
+        var thick = pad.kind === 'wood'
+            ? PLANK_THICK
+            : floor !== null
+                ? Math.max(least, cy - floor + 0.06 + rise)
+                : Math.max(0.6, cy - (theme.surroundY - 0.4) + rise);
         var geo = holed
             ? punchedSlab(pad, thick, cup)
             : new THREE.BoxGeometry(pad.w, thick, pad.d);
@@ -1091,7 +1137,7 @@
         addSurround(g, hole, theme);
 
         var i;
-        for (i = 0; i < hole.pads.length; i++) addPad(g, hole.pads[i], theme, hole.cup);
+        for (i = 0; i < hole.pads.length; i++) addPad(g, hole.pads[i], theme, hole.cup, hole.pads);
         for (i = 0; i < hole.walls.length; i++) addWall(g, hole.walls[i]);
         for (i = 0; i < hole.water.length; i++) addWater(g, hole.water[i], theme);
         addCup(g, hole);
@@ -1640,9 +1686,18 @@
 
     /* The two things the map has to show, and the two the eye loses first from
        forty units up: where the ball is and where it is going. A ring on the
-       ground under the ball and a column of light standing in the cup, both
-       drawn with the depth test off so a ridge between them hides neither, and
-       both fading in with the lift rather than snapping on. */
+       ground under each, drawn with the depth test off so a ridge between them
+       hides neither, and fading in with the lift rather than snapping on.
+
+       The cup used to get a beacon too — an open cylinder four metres tall
+       standing in the hole, unlit, drawn through everything. Straight down it
+       was invisible, which is the only angle it was ever designed for; from
+       the tilt the overview actually sits at it was a fat yellow post beside
+       the pin, taller than the pin, brighter than the flag, and passing
+       through every rail between it and the camera because the depth test was
+       off. The flagstick already marks the cup and is the right height for it.
+       What the ring gets instead is a second ring outside it, breathing
+       slowly, which says *here* without standing in the picture. */
     function buildMarkers() {
         R.marks = new THREE.Group();
         R.marks.visible = false;
@@ -1660,20 +1715,10 @@
         }
 
         R.markBall = flat(0.42, 0.58, 0xffffff, 0.9);
-        R.markCup = flat(0.5, 0.72, 0xffd166, 0.9);
+        R.markCup = flat(0.5, 0.66, 0xffd166, 0.9);
+        R.markCupHalo = flat(0.88, 0.98, 0xffd166, 0.36);
 
-        // The beacon. Open-ended and unlit, so it reads as light rather than
-        // as a post somebody could have hit the ball into.
-        var geo = new THREE.CylinderGeometry(0.055, 0.14, 4.2, 10, 1, true);
-        geo.translate(0, 2.1, 0);
-        R.markBeacon = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({
-            color: 0xffd166, transparent: true, opacity: 0.42,
-            depthTest: false, depthWrite: false, fog: false,
-            side: THREE.DoubleSide
-        }));
-        R.markBeacon.renderOrder = 8;
-
-        R.marks.add(R.markBall, R.markCup, R.markBeacon);
+        R.marks.add(R.markBall, R.markCup, R.markCupHalo);
         R.scene.add(R.marks);
     }
 
@@ -1683,13 +1728,15 @@
         if (!R.marks.visible) return;
         R.markBall.position.set(ball.x, ball.y - C.BALL_R + 0.02, ball.z);
         R.markCup.position.set(hole.cup.x, hole.cup.y + 0.02, hole.cup.z);
-        R.markBeacon.position.set(hole.cup.x, hole.cup.y, hole.cup.z);
+        R.markCupHalo.position.set(hole.cup.x, hole.cup.y + 0.02, hole.cup.z);
         // A slow pulse on the ring under the ball, because from up here the
-        // ball is four pixels across and a moving thing is easier to find.
+        // ball is four pixels across and a moving thing is easier to find —
+        // and the same breath on the cup's outer ring, half a turn behind it,
+        // so the two ends of the shot are never both at their faintest.
         var pulse = 0.72 + 0.28 * Math.sin(R.clock * 2.4);
         R.markBall.material.opacity = 0.9 * R.lift * pulse;
         R.markCup.material.opacity = 0.9 * R.lift;
-        R.markBeacon.material.opacity = 0.42 * R.lift;
+        R.markCupHalo.material.opacity = 0.36 * R.lift * (1.44 - pulse);
     }
 
     function frame(dt, world, aim) {
