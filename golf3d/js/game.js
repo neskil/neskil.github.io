@@ -282,8 +282,6 @@
         if (!state || !state.world) return;
         var hole = state.course.holes[state.holeIndex];
         var b = state.world.ball;
-        $('hc-eyebrow').textContent = state.course.name + ' · Hole ' +
-            (state.holeIndex + 1) + ' of ' + state.course.holes.length;
         $('hc-name').textContent = hole.name;
         $('hc-blurb').textContent = hole.blurb;
         $('hc-meta').textContent = 'Par ' + hole.par + ' · ' +
@@ -294,7 +292,7 @@
         // asked for last is the one that says it.
         toggleHudDetail(false);
         clearTimeout(holeCardTimer);
-        holeCardTimer = setTimeout(hideHoleCard, 4600);
+        holeCardTimer = setTimeout(hideHoleCard, 3400);
     }
 
     function hideHoleCard() {
@@ -993,13 +991,18 @@
        you are in rather than which one you would get, because a control that
        names somewhere you are not is a control you press twice.
 
+       And the chip says it *once*. Switching seats used to toast the new one
+       as well, which put the word Overview in a dark pill a thumb's width from
+       the chip that had just started saying Overview — the same label twice,
+       across the top of the course, for the one change on screen that needs no
+       announcing because you are looking straight at it.
+
        The seat and the dial above the power meter are two different questions
        — which one you are sitting in, and how far round from it you have
        walked — so they have a sync each: this one and `syncView`. */
     function cycleSeat() {
-        var mode = R.cycleView();
+        R.cycleView();
         syncSeat();
-        toast(R.viewLabel(mode));
     }
 
     function syncSeat() {
