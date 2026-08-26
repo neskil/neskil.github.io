@@ -1,4 +1,4 @@
-/* Five courses of six holes, as data.
+/* Six courses of six holes, as data.
 
    A hole is a set of pads (the ground), a set of walls (things that bounce),
    a set of water rectangles (things that punish), a tee and a cup. Everything
@@ -6,10 +6,18 @@
    look — is derived below, because a hole that has to repeat itself is a hole
    that will one day disagree with itself.
 
+   Five of the six courses are mini golf. The last one, Ashdown Park, is the
+   long game — tee, fairway, rough, sand, trees, green — and it is authored
+   through `bands` and `tree` rather than a hole at a time; see the comment
+   above them. It uses the same pads, the same walls and the same solver as
+   everything else, which is the point: a parkland hole is not a different
+   game, it is the same one written wider.
+
      pad     an axis-aligned patch of ground, flat or tilted. `kind` picks the
-             friction: green, wood (bridges: slick), sand (a bunker eats a
-             shot), rough. Pads do not overlap unless one is a bridge clearly
-             above another.
+             friction: green (quickest), fairway (mown longer, so a driver
+             runs about a fifth less), wood (bridges: slick), sand (a bunker
+             eats a shot), rough. Pads do not overlap unless one is a bridge
+             clearly above another.
      wall    a box with a base and a height. `yaw` turns it, `move` slides it
              on a sine, `spin` rotates it. A ball higher than the top flies
              over; a ball under the base rolls beneath.
@@ -156,6 +164,100 @@
             q(cx - a, cz + b, run, run, rise, -k, k),
             q(cx + b, cz + b, run, run, 0, k, k)
         ];
+    }
+
+    /* ── the long game ──────────────────────────────────────────────────
+
+       Everything above is mini golf: a lane, a rail, an obstacle in the middle
+       of it. The parkland course at the bottom of this file is not, and it is
+       authored differently, because a full-size hole is not a lane — it is a
+       stack of strips running from the tee up to the green, and the interest
+       is in which strip you land on.
+
+       `bands` lays them out. A row is a depth followed by cells laid west to
+       east from x = 0: [width, kind] and, for a bunker, [width, kind, y]. A
+       null kind leaves a hole in the ground, which is where a lake goes — the
+       water rectangle goes under it and the shoreline into `gaps`, exactly as
+       on the older holes.
+
+       Two things fall out of this for free. Cells of different kinds at the
+       same height are neighbours, so `enclose` puts no rail between a fairway
+       and its rough: the only rails a parkland hole gets are the ones around
+       the outside of the whole property, which is what the boundary fence of a
+       real course is. And a bunker sitting a hand's breadth below the grass is
+       a step the ball can roll into and — just — climb back out of, because
+       DIP is inside CONFIG.STEP_UP. Any deeper and a bunker would be a well. */
+    var DIP = -0.12;
+
+    function bands(z0, rows) {
+        var pads = [], z = z0, i, j, row, c, x;
+        for (i = 0; i < rows.length; i++) {
+            row = rows[i];
+            x = 0;
+            for (j = 1; j < row.length; j++) {
+                c = row[j];
+                if (c[1]) pads.push(pad(x, z, c[0], row[0], c[2] || 0, c[1]));
+                x += c[0];
+            }
+            z += row[0];
+        }
+        return merge(pads);
+    }
+
+    /* Bands are how a hole is *written*; they are not how it should be drawn.
+       Eight rows of a course that is rough down the left the whole way is
+       eight identical strips of rough, and each one costs a slab, a stack of
+       grass shells and a walk round its own boundary. So the rows are glued
+       back together afterwards: two pads of the same kind, the same width and
+       the same height, one ending where the other begins, are one pad.
+
+       This is invisible everywhere else. The seam it removes was a seam the
+       physics could not feel and the eye could not see — the surfaces tile in
+       world space — and `enclose` gives exactly the same rails either way,
+       because it already refused to fence an edge with a neighbour behind it. */
+    function merge(pads) {
+        var changed = true, i, j, a, b;
+        while (changed) {
+            changed = false;
+            for (i = 0; i < pads.length && !changed; i++) {
+                for (j = i + 1; j < pads.length && !changed; j++) {
+                    a = pads[i]; b = pads[j];
+                    if (a.kind !== b.kind || a.x !== b.x || a.w !== b.w || a.y !== b.y) continue;
+                    if (a.sx || a.sz || b.sx || b.sz) continue;
+                    if (Math.abs(a.z + a.d - b.z) > 1e-9 && Math.abs(b.z + b.d - a.z) > 1e-9) continue;
+                    a.d += b.d;
+                    a.z = Math.min(a.z, b.z);
+                    pads.splice(j, 1);
+                    changed = true;
+                }
+            }
+        }
+        return pads;
+    }
+
+    /* A tree, authored by its middle the way you would point at one.
+
+       The solid part is the trunk and only the trunk. That is not a shortcut:
+       nothing in the bag lifts a ball much above a metre and a half — the
+       wedge tops out at about 1.6 — so a tree is a thing you go *round*, and
+       making the canopy solid as well would only mean the ball stopping in
+       mid-air. The trunk is well over the 0.24 the substepping guarantees, and
+       the renderer puts the canopy on top of it. */
+    function tree(cx, cz, opts) {
+        var o = opts || {};
+        var t = o.t === undefined ? 0.62 : o.t;
+        return wall(cx - t / 2, cz - t / 2, t, t, o.h === undefined ? 2.4 : o.h,
+            { base: -0.4, kind: 'tree' });
+    }
+
+    // A stand of them along a line. A treeline is never one tree.
+    function treeline(x0, z0, x1, z1, n, opts) {
+        var out = [], i, f;
+        for (i = 0; i < n; i++) {
+            f = n === 1 ? 0.5 : i / (n - 1);
+            out.push(tree(x0 + (x1 - x0) * f, z0 + (z1 - z0) * f, opts));
+        }
+        return out;
     }
 
     function rect(x, z, w, d, y) { return { x: x, z: z, w: w, d: d, y: y === undefined ? -0.6 : y }; }
@@ -670,6 +772,130 @@
         })
     ];
 
+    /* ── course six: Ashdown Park ────────────────────────────────────────
+
+       Not mini golf. Six holes of the long game at the same scale as the rest
+       of the bag: a driver runs about twenty-one units off a fairway and about
+       fifteen out of rough, so a par 4 here is a drive and an approach and a
+       par 5 is three shots, which is the only definition of par that means
+       anything.
+
+       The vocabulary is the whole point of the course. Fairway is quick, rough
+       is not, sand is where the shot goes to die, and the trees are solid. Miss
+       the short grass and you do not lose the ball — you lose the club you
+       wanted to hit next. */
+
+    var rgh = 'rough', fwy = 'fairway', snd = 'sand', grn = 'green';
+
+    var parkland = [
+        build({
+            name: 'Opening Drive', par: 4,
+            blurb: 'Straight away, then a bunker exactly where the flag is. Pick a side.',
+            pads: bands(0, [
+                [5,  [3.5, rgh], [8, fwy], [7.5, rgh]],
+                [11, [3.5, rgh], [8, fwy], [7.5, rgh]],
+                [6,  [4.5, rgh], [9, fwy], [5.5, rgh]],
+                [4,  [7, rgh], [9, fwy], [3, rgh]],
+                [3,  [7, rgh], [2, fwy], [3.5, snd, DIP], [3.5, fwy], [3, rgh]],
+                [9,  [6, rgh], [10, grn], [3, rgh]],
+                [3,  [19, rgh]]
+            ]),
+            extra: [].concat(
+                treeline(1.7, 8, 1.7, 24, 5),
+                treeline(17.3, 24, 17.3, 34, 3)
+            ),
+            tee: { x: 7.5, z: 2.5 }, cup: { x: 11.5, z: 33.5 }
+        }),
+        build({
+            name: 'Over the Water', par: 3,
+            blurb: 'The pond is on the line to the pin. The dry way in is from the right.',
+            pads: bands(0, [
+                [4,   [3, rgh], [8, fwy], [3, rgh]],
+                [4,   [2, rgh], [6.8, null], [2.2, fwy], [3, rgh]],
+                [3,   [2, rgh], [2.5, snd, DIP], [7.5, grn], [2, rgh]],
+                [7,   [2, rgh], [10, grn], [2, rgh]],
+                [4,   [14, rgh]]
+            ]),
+            water: [rect(2, 4, 6.8, 4, -0.55)],
+            gaps: [shore(rect(2, 4, 6.8, 4))],
+            tee: { x: 9.5, z: 2 }, cup: { x: 6, z: 14 }
+        }),
+        build({
+            name: 'Long Meadow', par: 5,
+            blurb: 'Three shots if you lay up, two and a prayer if you do not.',
+            pads: bands(0, [
+                [5,  [4, rgh], [9, fwy], [7, rgh]],
+                [13, [4, rgh], [9, fwy], [7, rgh]],
+                [4,  [4, rgh], [6, fwy], [3, snd, DIP], [7, rgh]],
+                [8,  [5, rgh], [10, fwy], [5, rgh]],
+                [4,  [3, snd, DIP], [2, rgh], [10, fwy], [5, rgh]],
+                [8,  [6, rgh], [10, fwy], [4, rgh]],
+                [4,  [6, rgh], [3, fwy], [3, snd, DIP], [4, fwy], [4, rgh]],
+                [9,  [5, rgh], [11, grn], [4, rgh]],
+                [3,  [20, rgh]]
+            ]),
+            extra: [].concat(
+                treeline(2, 6, 2, 28, 6),
+                treeline(18.3, 8, 18.3, 23, 4),
+                [tree(18, 47.5), tree(18, 53)]
+            ),
+            tee: { x: 8.5, z: 2.5 }, cup: { x: 10.5, z: 50.5 }
+        }),
+        build({
+            name: 'The Elbow', par: 4,
+            blurb: 'It turns left around an oak that has been there longer than the course.',
+            pads: bands(0, [
+                [5,  [11, rgh], [8, fwy], [3, rgh]],
+                [12, [11, rgh], [8, fwy], [3, rgh]],
+                [5,  [4, rgh], [4, snd, DIP], [11, fwy], [3, rgh]],
+                [6,  [2, rgh], [11, fwy], [9, rgh]],
+                [9,  [1.5, rgh], [10, grn], [10.5, rgh]],
+                [3,  [22, rgh]]
+            ]),
+            extra: [].concat(
+                [tree(10.7, 15.5, { t: 0.8, h: 2.8 })],
+                treeline(9.4, 8, 9.4, 13, 3),
+                treeline(2, 14, 2, 21, 3),
+                treeline(20, 26, 20, 36, 4)
+            ),
+            tee: { x: 15, z: 2.5 }, cup: { x: 6, z: 32.5 }
+        }),
+        build({
+            name: 'Short Stuff', par: 3,
+            blurb: 'One full club to a small green in a ring of sand. Nothing else works.',
+            pads: bands(0, [
+                [4,   [3, rgh], [8, fwy], [3, rgh]],
+                [3,   [14, rgh]],
+                [2.5, [3.5, rgh], [7, snd, DIP], [3.5, rgh]],
+                [8.5, [2.5, rgh], [2, snd, DIP], [5, grn], [2, snd, DIP], [2.5, rgh]],
+                [3.5, [2.5, rgh], [9, grn], [2.5, rgh]],
+                [3,   [14, rgh]]
+            ]),
+            extra: treeline(12.6, 19, 12.6, 23, 2),
+            tee: { x: 7, z: 2 }, cup: { x: 7, z: 15 }
+        }),
+        build({
+            name: 'Homeward', par: 4,
+            blurb: 'Water all down the right for as long as the hole lasts.',
+            pads: bands(0, [
+                [5,  [4, rgh], [9, fwy], [7, rgh]],
+                [4,  [4, rgh], [9, fwy], [2, rgh], [5, null]],
+                [10, [4, rgh], [8, fwy], [2, rgh], [6, null]],
+                [5,  [4, rgh], [8, fwy], [2, rgh], [6, null]],
+                [4,  [5, rgh], [3, fwy], [3, snd, DIP], [3, fwy], [6, null]],
+                [8,  [5, rgh], [10, grn], [5, rgh]],
+                [3,  [20, rgh]]
+            ]),
+            water: [rect(15, 5, 5, 4, -0.55), rect(14, 9, 6, 19, -0.55)],
+            gaps: [shore(rect(14, 5, 6, 23))],
+            extra: [].concat(
+                treeline(2, 6, 2, 27, 6),
+                [tree(17.5, 32), tree(17.5, 35.5)]
+            ),
+            tee: { x: 8.5, z: 2.5 }, cup: { x: 10, z: 32 }
+        })
+    ];
+
     G3.COURSES = [
         {
             id: 'seaside',
@@ -705,6 +931,13 @@
             blurb: 'Up the hill in stages, over what will not move.',
             theme: 'highland',
             holes: highland
+        },
+        {
+            id: 'parkland',
+            name: 'Ashdown Park',
+            blurb: 'The long game: fairway, rough, sand and trees. Two shots to most greens.',
+            theme: 'parkland',
+            holes: parkland
         }
     ];
 
@@ -717,7 +950,7 @@
 
     G3.authoring = {
         pad: pad, wall: wall, spinner: spinner, slider: slider,
-        beam: beam, pen: pen, bowl: bowl,
+        beam: beam, pen: pen, bowl: bowl, bands: bands, tree: tree,
         rect: rect, enclose: enclose, shore: shore, brink: brink, build: build,
         RAIL_T: RAIL_T
     };

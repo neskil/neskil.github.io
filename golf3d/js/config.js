@@ -8,7 +8,7 @@
    — the renderer scales to the viewport, the simulation never sees a pixel. */
 window.G3 = window.G3 || {};
 
-G3.VERSION = '1.6.1';
+G3.VERSION = '1.7.0';
 
 G3.CONFIG = {
     BALL_R: 0.16,
@@ -32,6 +32,7 @@ G3.CONFIG = {
        headless tests step at a fixed dt and trust the result. */
     FRICTION: {
         green: 0.30,
+        fairway: 0.22, // mown, but not shaved: a driver runs about a fifth less
         wood: 0.55,    // bridges and ramps: slick, you carry your speed
         sand: 0.004,   // a bunker eats a shot
         rough: 0.06,

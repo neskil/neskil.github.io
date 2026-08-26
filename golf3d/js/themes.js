@@ -77,6 +77,21 @@
             water: 0x2b6d8d,
             side: '#7d7566'
         },
+        parkland: {
+            /* The one course that is not mini golf, and the palette says so:
+               a long summer afternoon over a lot of grass. The surround is a
+               `floor` rather than water or rock because what lies beyond the
+               boundary fence of a parkland course is more of the same country
+               — so it is tinted grass-green and left to fade into the fog. */
+            sky: [0x4a92d8, 0xd7ecf6],
+            fog: 0xd7ecf6,
+            sun: 0xfff2d6, sunPos: [10, 18, 8], ambient: 0xa8d4ea, ambientI: 0.56,
+            grass: ['#57ae52', '#4a9f49'],
+            rail: 0x8a7355,
+            surroundY: -0.9, surround: 'floor', floor: '#33582f',
+            water: 0x2a7ea6,
+            side: '#8f7a55'
+        },
         works: {
             sky: [0x0d121d, 0x33405e],
             fog: 0x33405e,

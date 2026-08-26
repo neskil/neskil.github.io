@@ -406,7 +406,13 @@
        ALPHATEST define, so the six layers still compile the six programs they
        always did and share this source between them. */
     function turfShader(shader) {
-        shader.uniforms.mowK = { value: Math.PI / TX.MOW };
+        /* `this` is the material — onBeforeCompile is called as a method — and
+           the mow width rides on it rather than being baked in here, because
+           three keys its program cache on this function's own source text.
+           One source, one program, one uniform per material: a fairway gets
+           the wider stripe its coarser tiling already has, and it costs a
+           uniform rather than a second shader. */
+        shader.uniforms.mowK = { value: Math.PI / (this.userData.mow || TX.MOW) };
         shader.vertexShader = SH.TURF_VS_HEAD +
             shader.vertexShader.replace('#include <begin_vertex>', SH.TURF_VS_BODY);
         shader.fragmentShader = SH.TURF_FS_HEAD +
@@ -429,7 +435,22 @@
             });
         }
 
+        /* Greens and fairways are the same turf, and the material is where
+           they stop being the same: a fairway is mown longer, so it is darker,
+           flatter and rougher under the light. The map is the green's own —
+           tiled bigger, which is what widens the mow bands (textures.js,
+           SCALE) — so this costs a material and no canvas at all. */
+        var fairway = new THREE.MeshPhongMaterial({
+            map: tex.green,
+            bumpMap: tex.greenBump,
+            bumpScale: 0.055 + wet * 0.03,
+            color: damp.clone().multiplyScalar(0.80),
+            shininess: 2 + wet * 14,
+            specular: new THREE.Color(0x141d12).lerp(new THREE.Color(0x3d4b50), wet)
+        });
+
         var top = {
+            fairway: fairway,
             sand: tops(tex.sand, 4 + wet * 60, 0x000000, 0x9aa4ac),
             wood: tops(tex.wood, 8 + wet * 80, 0x151515, 0xb0bcc4),
             rough: tops(tex.rough, 3 + wet * 40, 0x000000, 0x7d8a92),
@@ -492,7 +513,7 @@
            tiled sheets stop looking like a course of tiled sheets: patches at
            a scale no tile has, and the mower's stripes in the light rather
            than only in the lie of the blades. */
-        function shells(kind, tex, base, layers) {
+        function shells(kind, tex, base, layers, mow) {
             var out = [], i, f, mat;
             var warm = new THREE.Color('#dff0ae');
             for (i = 0; i < layers; i++) {
@@ -513,6 +534,7 @@
                     transparent: false,
                     side: THREE.FrontSide
                 });
+                mat.userData.mow = mow || TX.MOW;
                 mat.onBeforeCompile = turfShader;
                 out.push(mat);
             }
@@ -523,14 +545,33 @@
             pads: pads,
             shells: {
                 green: shells('green', TX.shellFor('green'), theme.grass[1], SHELL_LAYERS),
+                // The same blades, darker, and striped at the width the
+                // fairway's own tiling is striped at so the two patterns agree.
+                fairway: shells('fairway', TX.shellFor('fairway'),
+                    new THREE.Color(theme.grass[1]).multiplyScalar(0.84).getStyle(),
+                    SHELL_LAYERS, TX.MOW * 1.7),
                 rough: shells('rough', TX.shellFor('rough'), '#3c6b34', SHELL_LAYERS)
             },
             walls: {
                 rail: paint(theme.rail),
                 blade: paint(0xd8523f),
                 gate: paint(0xe0a13a),
-                beam: paint(0x9a6a3c)
+                beam: paint(0x9a6a3c),
+                // A tree is not drawn as a box (see addTree); this is only
+                // what its trunk is made of, and it is matt because bark is.
+                tree: new THREE.MeshLambertMaterial({
+                    color: new THREE.Color(0x6b503a).multiplyScalar(1 - wet * 0.25)
+                })
             },
+            // Two leaf greens, so a treeline is not one colour repeated.
+            leaf: [
+                new THREE.MeshLambertMaterial({
+                    color: new THREE.Color(0x3d7a32).multiplyScalar(1 - wet * 0.22)
+                }),
+                new THREE.MeshLambertMaterial({
+                    color: new THREE.Color(0x59993f).multiplyScalar(1 - wet * 0.22)
+                })
+            ],
             post: new THREE.MeshLambertMaterial({ color: 0x6b7280 })
         };
     }
@@ -597,18 +638,17 @@
        because the shells are the one thing here that costs a draw call per
        pad per layer and a phone is where that shows first.
 
-       The rough gets the same six at twice the height and a wilder lean. No
-       hole uses a rough pad today, but the surface is a real one everywhere
-       else — the friction, the texture, the divot colour — so it grows too,
-       and the first hole to want one will look like somewhere you would
-       rather not be. */
+       A fairway gets the same six half again as tall, and the rough the same
+       six at twice the height with a wilder lean — which, with the darker
+       materials above, is the whole of what tells the three grasses apart
+       from a low camera. */
     var SHELL_LAYERS = (window.matchMedia && window.matchMedia('(pointer: coarse)').matches) ? 4 : 6;
-    var SHELL_HEIGHT = { green: 0.115, rough: 0.26 };
+    var SHELL_HEIGHT = { green: 0.115, fairway: 0.165, rough: 0.26 };
     /* How far the tips lean, per unit of wind. Each is about 40% of that kind's
        height, so a full gale bends the mat over by half its own height and no
        further — past that the top of the stack visibly slides off the bottom
        of it, which is the one way this technique gives itself away. */
-    var SHELL_SWAY = { green: 0.045, rough: 0.10 };
+    var SHELL_SWAY = { green: 0.045, fairway: 0.065, rough: 0.10 };
 
     var FLAG_W = 0.76;
 
@@ -835,7 +875,75 @@
         addShells(group, pad, cup, holed, cx, cy, cz);
     }
 
+    /* A tree.
+
+       The solid part of it is the trunk and only the trunk — courses.js says
+       why — so everything above the first metre is free to be as big as it
+       looks. What it is *not* is a billboard: a course seen from the overview
+       and from the ball's own eyeline in the same round has no view a flat
+       sheet survives, and eight triangles of low-poly canopy cost less than
+       the alpha-tested sheet would anyway.
+
+       Every dimension is shaken out of where the tree stands, so a treeline is
+       a treeline rather than a row of identical bollards, and it is the same
+       treeline every time the hole is built. Half of them are conifers, which
+       is one `if` for twice the wood. */
+    function treeHash(x, z) {
+        var n = Math.sin(x * 12.9898 + z * 78.233) * 43758.5453;
+        return n - Math.floor(n);
+    }
+
+    function addTree(group, wall) {
+        var B = P.wallBox(wall, 0);
+        var a = treeHash(B.cx, B.cz), b = treeHash(B.cz * 1.7, B.cx * 0.9);
+        var trunkR = Math.max(B.hw, B.hd) * 0.55;
+        // Tall enough to look like a tree from the ball, which is lower down
+        // than the collision box needs to be: the wall stops the ball, the
+        // canopy stops the player thinking the hole is open there.
+        var h = wall.h * (1.05 + a * 0.5);
+        var crown = Math.max(B.hw, B.hd) * (2.6 + b * 1.1);
+        var leaf = R.surf.leaf[a < 0.5 ? 0 : 1];
+
+        var trunk = new THREE.Mesh(
+            new THREE.CylinderGeometry(trunkR * 0.7, trunkR * 1.15, h, 7),
+            R.surf.walls.tree
+        );
+        trunk.position.set(B.cx, B.base + h / 2, B.cz);
+        trunk.castShadow = true;
+        trunk.receiveShadow = true;
+        group.add(trunk);
+
+        var top = B.base + h;
+        var i, mesh, geo;
+        if (a < 0.5) {
+            // A conifer: two skirts, the upper one narrower and higher.
+            for (i = 0; i < 2; i++) {
+                geo = new THREE.ConeGeometry(crown * (1 - i * 0.34), crown * (2.1 - i * 0.5), 8);
+                mesh = new THREE.Mesh(geo, leaf);
+                mesh.position.set(B.cx, top - crown * 0.35 + i * crown * 0.95, B.cz);
+                mesh.castShadow = true;
+                group.add(mesh);
+            }
+        } else {
+            // A broadleaf: two blobs, the second shouldered off the first.
+            for (i = 0; i < 2; i++) {
+                geo = new THREE.IcosahedronGeometry(crown * (1 - i * 0.28), 0);
+                geo.scale(1, 0.82, 1);
+                mesh = new THREE.Mesh(geo, leaf);
+                mesh.position.set(
+                    B.cx + (i ? crown * (b - 0.5) * 0.7 : 0),
+                    top + crown * (i ? 0.62 : 0.1),
+                    B.cz + (i ? crown * (a - 0.5) * 0.7 : 0)
+                );
+                mesh.rotation.y = a * 6.283;
+                mesh.castShadow = true;
+                group.add(mesh);
+            }
+        }
+    }
+
     function addWall(group, wall) {
+        if (wall.kind === 'tree') { addTree(group, wall); return; }
         var B = P.wallBox(wall, 0);
         var geo = new THREE.BoxGeometry(wall.w, wall.h, wall.d);
         // One material per kind, shared by every wall wearing it (see

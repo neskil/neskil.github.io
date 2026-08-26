@@ -541,8 +541,8 @@
 
         section('Course data');
         (function () {
-            assert('five courses', G3.COURSES.length === 5);
-            assert('thirty holes in total', ALL.length === 30);
+            assert('six courses', G3.COURSES.length === 6);
+            assert('thirty-six holes in total', ALL.length === 36);
             assert('courseById finds a course', G3.courseById('quarry').id === 'quarry');
             assert('courseById falls back to the first', G3.courseById('nope').id === G3.COURSES[0].id);
 
@@ -664,6 +664,55 @@
             });
 
             assert('no wall is thinner than 0.24', minThick >= 0.24, 'thinnest is ' + minThick.toFixed(3));
+
+            /* A parkland bunker is cut into the grass around it, which is
+               what makes it read as a bunker rather than a beige patch. That
+               cut is also the one thing that could turn it into a well: a ball
+               climbs STEP_UP and no more, so a bunker sunk deeper than that is
+               a hazard you cannot putt out of — only fly out of — and the
+               difference would never show up in a screenshot.
+
+               Only pads that were deliberately sunk are checked. A sand pad
+               level with its neighbours is fine by construction, and one at
+               the foot of somebody else's slope (Highland's 'Over the Top'
+               keeps its sand exactly there, on purpose) is that hole's
+               business rather than this assertion's. */
+            var worstDip = 0, worstDipName = '';
+            ALL.forEach(function (entry) {
+                entry.hole.pads.forEach(function (p) {
+                    if (p.kind !== 'sand' || p.y >= 0) return;
+                    if (-p.y > worstDip) {
+                        worstDip = -p.y;
+                        worstDipName = entry.course.id + '/' + entry.hole.name;
+                    }
+                });
+            });
+            /* A tree stands in the rough or on the edge of a fairway — never
+               in a bunker and never on a green. Both would be absurd to look
+               at, and a trunk in the sand is worse than absurd: it is a wall
+               inside the one surface a ball cannot be putted out of. Easy to
+               do by accident, too, since a treeline is authored as two ends
+               and the bunkers it runs past are authored somewhere else. */
+            var rooted = 0, badTree = '';
+            ALL.forEach(function (entry) {
+                entry.hole.walls.forEach(function (wl) {
+                    if (wl.kind !== 'tree') return;
+                    rooted++;
+                    entry.hole.pads.forEach(function (p) {
+                        if (p.kind !== 'sand' && p.kind !== 'green') return;
+                        if (Math.min(p.x + p.w, wl.x + wl.w) - Math.max(p.x, wl.x) <= 0) return;
+                        if (Math.min(p.z + p.d, wl.z + wl.d) - Math.max(p.z, wl.z) <= 0) return;
+                        badTree = entry.course.id + '/' + entry.hole.name + ', a tree in the ' + p.kind;
+                    });
+                });
+            });
+            assert('no tree grows out of a bunker or a green', !badTree, badTree);
+            assert('there are trees to check', rooted >= 20, rooted + ' trees');
+
+            assert('a ball can climb out of every bunker cut into the grass',
+                worstDip <= C.STEP_UP + 1e-9,
+                worstDipName + ' is sunk ' + worstDip.toFixed(3) +
+                ' and STEP_UP is ' + C.STEP_UP);
             note('tightest window on any moving obstacle: ' + worstGap.toFixed(2) + ' of aim at ' +
                  worstGapName + ' (ball is ' + (C.BALL_R * 2).toFixed(2) + ' across)');
 
@@ -691,7 +740,14 @@
 
                     surf = P.surfaceUnder(hole, x, z, Infinity);
                     if (!surf) { found.gap = true; continue; }
-                    if (surf.pad.kind !== 'green') found[surf.pad.kind] = true;
+                    /* Fairway counts for nothing here, and neither does
+                       green: they are the two surfaces a hole is *supposed*
+                       to be made of, and letting a parkland hole pass this
+                       assertion by having a fairway on it would make the
+                       assertion say nothing at all. */
+                    if (surf.pad.kind !== 'green' && surf.pad.kind !== 'fairway') {
+                        found[surf.pad.kind] = true;
+                    }
                     if (Math.abs(surf.pad.sx || 0) + Math.abs(surf.pad.sz || 0) > 0.05) found.slope = true;
                     if (Math.abs(surf.y - teeY) > 0.25) found.step = true;
                     // Water only counts if the line is over it rather than over

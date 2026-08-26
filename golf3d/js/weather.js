@@ -147,7 +147,8 @@
         quarry: ['clear', 'fair', 'golden', 'dust', 'overcast', 'drizzle'],
         works: ['fair', 'clear', 'mist', 'overcast', 'rain'],
         lagoon: ['clear', 'fair', 'golden', 'mist', 'drizzle', 'rain'],
-        highland: ['fair', 'clear', 'overcast', 'mist', 'drizzle', 'golden']
+        highland: ['fair', 'clear', 'overcast', 'mist', 'drizzle', 'golden'],
+        parkland: ['clear', 'fair', 'golden', 'overcast', 'mist', 'drizzle']
     };
 
     // Skies a course is happy to open on.

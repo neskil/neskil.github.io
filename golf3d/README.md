@@ -1,8 +1,9 @@
 # Loft Links
 
-Five six-hole courses of 3D mini golf. three.js (vendored, r128), plain
-ES5-flavoured JavaScript, no build step and no other dependencies — same as
-everything else here, open `index.html` and it runs.
+Six six-hole courses of 3D golf: five of mini golf, and one — Ashdown Park —
+of the long game, with fairways, rough, bunkers, a lake and trees. three.js
+(vendored, r128), plain ES5-flavoured JavaScript, no build step and no other
+dependencies — same as everything else here, open `index.html` and it runs.
 
 It is a deliberate sibling of [Pocket Links](../golf/README.md) next door: same
 module split, same scoring vocabulary, same rule that the physics is pure and
@@ -17,7 +18,7 @@ them.
 | `index.html` | Page shell: scoreboard, canvas, power/loft controls, banner, course picker, scorecard. |
 | `style.css` | Page chrome. The course itself is all WebGL. |
 | `js/config.js` | Every tuning constant. Nothing else holds a magic number. |
-| `js/courses.js` | The thirty holes, as data, plus the rail generator. |
+| `js/courses.js` | The thirty-six holes, as data, plus the rail generator and the band layout the parkland course is written in. |
 | `js/physics.js` | The simulation. No three.js, no DOM, pure. |
 | `js/scoring.js` | Scorecard arithmetic and the save file. |
 | `js/audio.js` | Synthesised sound effects, the weather's sound bed, the mute and the tab-out — no audio files to ship. |
@@ -353,7 +354,7 @@ obviously correct.
 
 ## The courses
 
-Five, six holes each, and they are meant to be played in the order they are
+Six, six holes each, and they are meant to be played in the order they are
 listed — the picker is a difficulty curve as much as a menu.
 
 | Course | Theme | What it is about |
@@ -363,6 +364,7 @@ listed — the picker is a difficulty curve as much as a menu.
 | Windmill Works | `works` | Gates and blades, after dark. Timing. |
 | Tidewater Reach | `lagoon` | The loft course. Almost nothing here can be reached along the floor. |
 | Highland Steps | `highland` | The same lesson from the other side: things in the way rather than things missing, and the ground handed back as a tool. |
+| Ashdown Park | `parkland` | Not mini golf at all: the long game, where the hole is longer than one swing and the fairway is a place you are trying to be. |
 
 The last two are why the bag has four clubs rather than two. Every hole on
 Tidewater is built round the one thing a chip can do that a putt cannot —
@@ -392,6 +394,51 @@ Which holes are which is not a matter of taste in the tests: the ones that must
 be flown carry `needsLoft: true` and are replayed by the bot with the lofted
 clubs taken away (see [Tests](#tests)).
 
+### Ashdown Park
+
+The sixth course is the long game, and it is the same game — same solver, same
+pads, same walls, same bag. What changes is that a hole is now longer than one
+swing, so where the ball *stops* starts to matter as much as where it is going.
+
+The numbers it is built against, measured off a flat lie at full power:
+
+| | Putter | Driver | Chipper | Wedge |
+| --- | --- | --- | --- | --- |
+| Green | 8.5 | 24.7 | 16.9 | 14.2 |
+| Fairway | 6.8 | 21.3 | 15.6 | 13.4 |
+| Rough | 3.6 | 15.0 | 13.1 | 11.8 |
+| Sand | 1.9 | 11.5 | 11.7 | 10.9 |
+
+So a par 3 is about thirteen units and one full club; a par 4 is around thirty
+— a drive and a pitch; the par 5 is forty-eight, which is three shots, or two
+and an argument with a cross bunker. Missing the fairway does not lose the
+ball. It loses the club you wanted to hit next, which is a better punishment
+because you have to keep playing with it.
+
+The other thing worth knowing is the carry. Nothing in the bag flies further
+than about 7.6 units before its first bounce (the chipper, flat out) and
+nothing gets higher than about 1.6 (the wedge). Both numbers are load-bearing:
+**Over the Water** puts a pond four units deep on the line to the pin, which
+only a full swing clears, and the dry route is a tee shot aimed well right of
+the flag. And the oak on the inside of **The Elbow** cannot be flown by any
+club that exists, which is what makes a dogleg a dogleg rather than a
+suggestion.
+
+| Hole | Par | What it asks |
+| --- | --- | --- |
+| Opening Drive | 4 | A bunker sitting exactly on the line from the tee to the flag. Putt the approach and you are in it. |
+| Over the Water | 3 | Full club over the pond, or a safe one out to the right and a longer putt. |
+| Long Meadow | 5 | Two drivers reach a cross bunker sixty units out. Lay up with a chipper and it is a simple three-shot hole. |
+| The Elbow | 4 | Turns left around a tree. Play right off the tee or bounce off it. |
+| Short Stuff | 3 | A five-unit green ringed by sand. One full club, and no half measures. |
+| Homeward | 4 | Water down the whole right side, and sand across the front of the green. |
+
+Trees are real: the trunk is a wall the ball bounces off, and the canopy over
+it is drawn by `render.js` from a hash of where the tree stands, so a treeline
+is a treeline rather than a row of identical bollards, and it is the same one
+every time the hole is loaded. The canopy is not solid, because nothing in the
+bag can reach it — a solid one would only mean the ball stopping in mid-air.
+
 ## How a hole is built
 
 ```js
@@ -406,11 +453,12 @@ clubs taken away (see [Tests](#tests)).
 }
 ```
 
-- **pad** — `kind` picks the friction: `green`, `wood` (bridges and ramps: slick,
-  you carry your speed), `sand` (a bunker eats a shot), `rough`. `sx`/`sz` tilt
-  it. Pads must not overlap unless one is clearly a bridge above another;
-  two pads fighting for the same point would make the surface lookup depend on
-  array order, and `tests.html` asserts they never do.
+- **pad** — `kind` picks the friction: `green` (the quickest), `fairway` (mown
+  longer, so a driver runs about a fifth less), `wood` (bridges and ramps:
+  slick, you carry your speed), `sand` (a bunker eats a shot), `rough`.
+  `sx`/`sz` tilt it. Pads must not overlap unless one is clearly a bridge above
+  another; two pads fighting for the same point would make the surface lookup
+  depend on array order, and `tests.html` asserts they never do.
 - **water** — a rectangle with a surface height. There is no pad above it, so
   the ball falls in: splash, one stroke, replay the shot from where it was
   played.
@@ -435,6 +483,33 @@ clubs taken away (see [Tests](#tests)).
   meets both of them exactly, so the nine tile without a single step for the
   ball to stub its toe on. The cup goes in the flat floor, because the mouth has
   to sit a clear radius inside one pad and a cup on a seam would not.
+
+- **bands** — how Ashdown Park is written, because a full-size hole is not a
+  lane but a stack of strips. A row is a depth followed by cells laid west to
+  east: `[width, kind]`, or `[width, kind, y]` for a bunker sunk below the
+  grass, or `[width, null]` for a hole in the ground where a lake goes.
+
+  ```js
+  pads: bands(0, [
+      [5,  [4, rgh], [9, fwy], [7, rgh]],                    // the tee
+      [13, [4, rgh], [9, fwy], [7, rgh]],
+      [4,  [4, rgh], [6, fwy], [3, snd, DIP], [7, rgh]],     // and a bunker
+      [9,  [5, rgh], [11, grn], [4, rgh]]                    // the green
+  ])
+  ```
+
+  Rows are how a hole is *written*, not how it is drawn: identical cells in
+  consecutive rows are glued back into one pad afterwards, which takes Long
+  Meadow from twenty-nine slabs to nineteen and removes a seam neither the
+  physics nor the eye could find. Cells of different kinds at the same height
+  are neighbours, so no rail is built between a fairway and its rough — the
+  only rails a parkland hole gets are the boundary fence round the outside,
+  which is what a real course has too.
+- **tree** — a trunk that is a real wall, authored by its middle, with a canopy
+  the renderer puts on top. Only the trunk is solid: no club in the bag lifts a
+  ball much above 1.6 units, so a tree is a thing you go round, and a solid
+  canopy would only mean the ball stopping in mid-air. `treeline()` puts a
+  stand of them along a line.
 
 **Rails are generated, not authored.** `enclose()` walks the boundary of the pad
 union and puts a rail on every edge that has no neighbouring pad at roughly the
@@ -1122,9 +1197,11 @@ top of the stack visibly slides off the bottom of it, which is the one way this
 technique gives itself away.
 
 The rough is the same code with a wilder lean, twice the height and no comb —
-long grass lies every way at once. None of the thirty holes uses a rough pad
-today; the surface is a real one everywhere else in the game, and the day a
-hole wants one it will look like somewhere you would rather not be.
+long grass lies every way at once. The fairway sits between the two: the
+green's own sheets and the green's own colour map, tiled about twice as big so
+the mow bands come out wider, half again as tall, and darkened by its material.
+Three grasses, one set of blades, and what tells them apart is height and
+stripe width — which is what tells them apart on a real course too.
 
 ### The sky
 
@@ -1295,10 +1372,10 @@ depends on is small and knowable: where the ball is, where it is aimed, how
 hard, at what loft, and — only on a hole with a gate or a blade on it — the
 clock, because those keep moving while you stand still.
 
-Exactly six of the thirty holes have anything moving, and all six are Windmill
-Works. On the other twenty-four that is a run of the simulation per *aim* rather
-than one per frame — measured at 3 in 120 frames against 360 — so four of the
-five courses now pay nothing at all to stand and look. On Windmill Works
+Exactly six of the thirty-six holes have anything moving, and all six are
+Windmill Works. On the other thirty that is a run of the simulation per *aim*
+rather than one per frame — measured at 3 in 120 frames against 360 — so five
+of the six courses now pay nothing at all to stand and look. On Windmill Works
 the clock is compared at 24Hz instead of at the frame rate. The gate itself
 still slides every frame, placed by `syncMovers` from the solver's own clock;
 what refreshes at 24Hz is the translucent band of the prediction, which is the
@@ -1322,8 +1399,8 @@ the four things that can move it says otherwise.
 
 ## Tests
 
-Open `tests.html`. 633 assertions covering the surfaces, the collision
-geometry, the cup, the integrator, the bag, all thirty holes of course data
+Open `tests.html`. 722 assertions covering the surfaces, the collision
+geometry, the cup, the integrator, the bag, all thirty-six holes of course data
 and the scorecard, in a few seconds.
 
 The one worth knowing about is the **bot**: a greedy player fans out candidate
