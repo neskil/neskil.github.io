@@ -806,6 +806,89 @@
             }
         })();
 
+        /* ── the overdraw ──────────────────────────────────────────────── */
+
+        section('Overdraw and spray');
+        (function () {
+            assert('the overdraw is a real stretch of meter, and a bounded one',
+                C.OVERDRAW > 0 && C.OVERDRAW <= 0.5, (C.OVERDRAW * 100).toFixed(0) + '%');
+
+            assert('a full swing is 0 into the overdraw, and the end of the meter is 1',
+                P.overdraw(10, 10) === 0 && P.overdraw(10 * (1 + C.OVERDRAW), 10) === 1);
+            assert('anything under a full swing is 0 into it',
+                P.overdraw(4, 10) === 0 && P.overdraw(9.99, 10) === 0);
+            assert('the overdraw is measured per club, not in raw power',
+                approx(P.overdraw(28 * (1 + C.OVERDRAW / 2), 28),
+                       P.overdraw(10.5 * (1 + C.OVERDRAW / 2), 10.5)));
+            assert('past the end of the meter it is still 1', P.overdraw(99, 10) === 1);
+
+            /* The rule the whole trade rests on: inside a full swing the shot
+               is the shot, and the preview is not lying to you. */
+            assert('a full swing sprays by nothing at all',
+                P.spray(0).yaw === 0 && P.spray(0).power === 0);
+            var honest = P.sprayShot(0.7, 12, 0, function () { return 1; });
+            assert('…so the shot played is exactly the shot asked for',
+                honest.yaw === 0.7 && honest.power === 12);
+
+            var half = P.spray(0.5), full = P.spray(1);
+            assert('the worst of it is the configured spray',
+                approx(full.yaw, C.SPRAY_YAW) && approx(full.power, C.SPRAY_POWER));
+            assert('spray grows with the overdraw',
+                half.yaw > 0 && half.yaw < full.yaw && half.power < full.power);
+
+            /* Exponential, not linear: half the overdraw has to buy much less
+               than half the trouble, or there is no reason to stop at 100% and
+               no reason to fear 130%. */
+            assert('and grows exponentially, not in step with the meter',
+                half.yaw < full.yaw * 0.35,
+                'half the overdraw is ' + (half.yaw / full.yaw * 100).toFixed(0) + '% of the spray');
+            var q = P.spray(0.25), t3 = P.spray(0.75);
+            assert('each quarter of the overdraw costs more than the one before',
+                (t3.yaw - half.yaw) > (half.yaw - q.yaw) && (half.yaw - q.yaw) > q.yaw);
+
+            // Both draws are used, and both are bounded by what spray() says.
+            var lo = P.sprayShot(0, 20, 1, function () { return 0; });
+            var hi = P.sprayShot(0, 20, 1, function () { return 1; });
+            assert('a thrashed shot misses left and right of the line',
+                approx(lo.yaw, -C.SPRAY_YAW) && approx(hi.yaw, C.SPRAY_YAW));
+            assert('…and heavy and light of the weight',
+                approx(lo.power, 20 * (1 - C.SPRAY_POWER)) &&
+                approx(hi.power, 20 * (1 + C.SPRAY_POWER)));
+
+            // Line and weight are drawn separately: pulled and thin is two
+            // mistakes, not the same one twice.
+            var seq = [0, 1], k = 0;
+            var mixed = P.sprayShot(0, 20, 1, function () { return seq[k++]; });
+            assert('the line and the weight are two draws',
+                mixed.yaw < 0 && mixed.power > 20);
+
+            /* And the extra power is real: the simulation has to accept a
+               swing past the longest club's ceiling, or the overdraw would be
+               all cost and no distance. */
+            var open = lab({ pads: [A.pad(0, 0, 10, 60)], cup: { x: 5, z: 55 } });
+            var fullSwing = shootFrom(open, { x: 5, z: 1 }, 0, C.MAX_POWER, 0);
+            var thrashed = shootFrom(open, { x: 5, z: 1 }, 0, C.MAX_POWER * (1 + C.OVERDRAW), 0);
+            assert('an overdrawn swing goes further than a full one',
+                thrashed.ball.z > fullSwing.ball.z + 1,
+                fullSwing.ball.z.toFixed(1) + ' → ' + thrashed.ball.z.toFixed(1));
+
+            var w = P.createWorld(open, { x: 5, z: 1 }, 0);
+            P.launch(w, 0, C.MAX_POWER * (1 + C.OVERDRAW), 0);
+            assert('launch() does not clip the overdraw off the top',
+                approx(P.groundSpeed(w.ball), C.MAX_POWER * (1 + C.OVERDRAW), 0.01),
+                P.groundSpeed(w.ball).toFixed(2));
+
+            // The cone is drawn from spray(), so its own constants have to be
+            // the kind a renderer can use: an angle, a width and a cutoff.
+            assert('the cone has a base angle, a width and a range',
+                C.CONE_ANGLE > 0 && C.CONE_ANGLE < 0.2 &&
+                C.CONE_WIDTH > 0 && C.CONE_RANGE > 2);
+            assert('the cone fades out over a real stretch of its length',
+                C.CONE_FADE > 0.1 && C.CONE_FADE < 0.9);
+            assert('a full-power shot outruns the cone, so the cutoff matters',
+                C.MAX_POWER / -Math.log(C.FRICTION.green) > C.CONE_RANGE);
+        })();
+
         /* ── scoring ───────────────────────────────────────────────────── */
 
         section('Scoring and the save file');

@@ -82,6 +82,46 @@ wedge's carry and its apex, not the driver's.
 Picking a club keeps the power already loaded, as a fraction of the
 swing. Swapping mid-aim is meant to be a comparison, not a reset.
 
+### The overdraw
+
+The meter does not stop at a full swing. The last `OVERDRAW` of it — 30%, so
+the track runs to 130% of whatever club is in hand — is real extra power, and
+the only way to get more out of a club than it has. A driver wound to the end
+of the track leaves at 36.4 rather than 28.
+
+What it costs is the promise. The trade is deliberately lopsided in both
+directions:
+
+| | inside a full swing | past one |
+| --- | --- | --- |
+| base power | the meter, exactly | the meter, exactly — it keeps counting |
+| spray | **none at all** | up to ±7° of line and ±16% of weight |
+| how it grows | — | exponentially, not with the meter |
+
+The first half is what makes the second half interesting. **Nothing at or under
+100% sprays by anything**, so a full swing is a shot you can aim at a gap and
+land in it, every time, and the cone drawn in front of the ball is the whole
+truth. Past 100% the two spray figures climb on `(e^kt - 1) / (e^k - 1)` with
+`k = SPRAY_CURVE`: half the overdraw buys about a sixth of the trouble, and the
+last quarter of it buys more than the first three put together. So a sliver past
+a full swing is close to free, 115% is a shot with a bit of a wobble in it, and
+130% is a thrash nobody can aim — which is exactly the shape a decision should
+have. There is no cliff to memorise, only a curve to feel.
+
+Three details worth keeping:
+
+- **The line and the weight are two draws.** `sprayShot` calls its random source
+  twice, so a bad one can be pulled *and* caught thin — one mistake, not the
+  same mistake twice.
+- **It is measured per club, not in raw power.** `overdraw(power, ceiling)` is 0
+  at the club's ceiling and 1 at the end of its overdraw, so thrashing a putter
+  and thrashing a driver are the same mistake told in the same numbers.
+- **The dice are rolled in `game.shoot()`, nowhere else.** `physics.launch()` is
+  as deterministic as it ever was, which is what lets the preview ask the same
+  module how wide the spread is without ever rolling any — the cone in front of
+  the ball is drawn from `spray()`, and the shot is played from `sprayShot()`.
+  The tests hand `sprayShot` a fixed source and check the corners.
+
 ### The picker
 
 The bag sits low in the corner with half of it below the bottom of the screen —
@@ -532,7 +572,7 @@ answer to the camera angle you could not change before.
 **Power is loaded on the meter**, which is a real slider: press anywhere along
 it, drag to trim, tab to it and use the arrows, `Home` and `End`. It is exact,
 repeatable, and independent of the aim, so correcting one never disturbs the
-other.
+other. It also runs **past** a full swing — see [the overdraw](#the-overdraw).
 
 **Swing plays the shot**, and nothing else does — the button, or `space`. It is
 disabled while there is nothing loaded and while the ball is still rolling, so
@@ -558,6 +598,28 @@ tag as a fat dot in the power colour and dims everything after it, so a bank
 shot reads as two legs rather than one odd curve. A second wall inside the same
 window is where honest prediction ends, and that is where it stops.
 
+**And it is a cone, not a line.** What is drawn in front of the ball is one
+simulated flight with a cone opened around it, and the width of that cone is
+exactly how little the game is promising: `physics.spray()` says how far off
+line and off weight this particular swing can come out, the renderer opens the
+cone by that much, and inside a full swing — where the spray is nil — it is a
+narrow wedge that means *exactly here*. Past a full swing it flares, and the
+mouth of it is the miss you are risking.
+
+It also **stops**. The path is walked in ground distance rather than in
+simulation time, cut at `CONE_RANGE` units in front of the ball, and faded out
+over the last stretch of whatever it drew, so it ends by going quiet rather than
+by being chopped off. A driver's roll is longer than that cutoff on purpose: a
+preview that ran the length of the hole was a promise about where the ball would
+stop, and it was never able to keep one. The arrowhead — the landing, or the
+first rail — is drawn **only when it falls inside the cone**, so its absence is
+the game saying it does not know.
+
+This replaced a plane: two power-perturbed arcs, a bit light and a bit heavy,
+with a quad strip between them. That said something true about how coarse a
+thumb on a meter is and nothing at all about the shot being played, and it cost
+three runs of the simulation to say it. The cone costs one.
+
 Everything else is feedback, and all of it is scaled by the same fraction of the
 swing:
 
@@ -566,7 +628,8 @@ swing:
 - a **ring** round the ball that fills as the power winds on, green through
   amber to red;
 - a **ratchet** — one tick per tenth — so a long pull *sounds* like a long pull;
-- the **overswing mark** at 85%, past which the meter turns and pulses;
+- the **overswing mark** at 85%, past which the meter turns and pulses, and the
+  **full-swing line** at 100%, past which it is hatched red;
 - on release, a **divot** of whatever the ball was sitting on, a **camera
   flinch**, and a strike with a low thump under it that only shows up on a big
   one;
@@ -644,7 +707,7 @@ the ball the player has walked from there, and `updateCamera` subtracts one
 from the other — subtracts, because `view` is measured the way a player walks
 and yaw the way the world turns underneath them. Zero is straight behind the
 ball; half a turn either way stands in front of it looking back down the shot.
-Nothing else in the game reads it: the physics, the preview lanes and the aim
+Nothing else in the game reads it: the physics, the preview cone and the aim
 wedge all still hang off `aim.yaw` alone, so a side-on view cannot change where
 a ball goes.
 
@@ -1097,8 +1160,8 @@ the simulation has never heard of any of this.
 ### What a frame does not do
 
 The most expensive thing in a frame is not the picture, it is the **shot
-preview**: three runs of the simulation, up to a second each, at a hundred and
-twenty steps a second. On Double Doors with a putter in hand that is about six
+preview**: a run of the simulation, up to a second, at a hundred and twenty
+steps a second (three runs, until the plane became a cone). On Double Doors with a putter in hand that is about six
 milliseconds of a desktop's frame and rather more than a whole frame of a
 phone's — and it was being paid on every frame the player spent looking at a
 shot they had not touched.
@@ -1109,9 +1172,9 @@ hard, at what loft, and — only on a hole with a gate or a blade on it — the
 clock, because those keep moving while you stand still.
 
 Exactly six of the thirty holes have anything moving, and all six are Windmill
-Works. On the other twenty-four that is three runs of the simulation per *aim*
-rather than three per frame — measured at 3 in 120 frames against 360 — so four
-of the five courses now pay nothing at all to stand and look. On Windmill Works
+Works. On the other twenty-four that is a run of the simulation per *aim* rather
+than one per frame — measured at 3 in 120 frames against 360 — so four of the
+five courses now pay nothing at all to stand and look. On Windmill Works
 the clock is compared at 24Hz instead of at the frame rate. The gate itself
 still slides every frame, placed by `syncMovers` from the solver's own clock;
 what refreshes at 24Hz is the translucent band of the prediction, which is the
@@ -1135,7 +1198,7 @@ the four things that can move it says otherwise.
 
 ## Tests
 
-Open `tests.html`. 614 assertions covering the surfaces, the collision
+Open `tests.html`. 633 assertions covering the surfaces, the collision
 geometry, the cup, the integrator, the bag, all thirty holes of course data
 and the scorecard, in a few seconds.
 
@@ -1223,14 +1286,14 @@ with neither: some people want a hole with weather on it and nothing else.
 Drag back from the ball and let go; drag sideways to swing the aim, and the
 camera swings with it. Where the camera stands *relative to* that aim is the
 [view dial](#the-view-dial), not the drag. Keys: <kbd>←</kbd><kbd>→</kbd> aim,
-<kbd>↑</kbd><kbd>↓</kbd> power, <kbd>1</kbd>–<kbd>4</kbd> club (<kbd>C</kbd>
+<kbd>↑</kbd><kbd>↓</kbd> power (<kbd>End</kbd> a full swing, <kbd>shift</kbd>
++<kbd>End</kbd> the overdraw), <kbd>1</kbd>–<kbd>4</kbd> club (<kbd>C</kbd>
 cycles), <kbd>space</kbd> hit, <kbd>shift</kbd> for fine control, <kbd>V</kbd>
 the seat — follow, side on, overview — <kbd>,</kbd><kbd>.</kbd> walk the view
 round the ball, <kbd>L</kbd> lock it where it is, <kbd>0</kbd> straighten it,
-<kbd>F</kbd> fullscreen,
-<kbd>R</kbd> restart the hole, <kbd>W</kbd> the weather, <kbd>H</kbd> the
-rules, <kbd>M</kbd> sound, <kbd>J</kbd> the music, <kbd>G</kbd> the course
-inspector. Scroll or pinch to zoom.
+<kbd>F</kbd> fullscreen, <kbd>R</kbd> restart the hole, <kbd>W</kbd> the
+weather, <kbd>H</kbd> the rules, <kbd>M</kbd> sound, <kbd>J</kbd> the music,
+<kbd>G</kbd> the course inspector. Scroll or pinch to zoom.
 
 ## Query parameters
 

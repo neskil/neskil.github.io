@@ -32,7 +32,7 @@
 
         gtag('config', 'G-9GP823TGLB');
     </script>
-    <link rel="stylesheet" href="style.css?v=1.5.1">
+    <link rel="stylesheet" href="style.css?v=1.6.1">
 </head>
 <body>
     <div class="wrap">
@@ -177,9 +177,11 @@
                     <div class="power">
                         <span class="ctl-label">Power <b id="power-val">0%</b></span>
                         <div class="power-track" id="power-track" role="slider" tabindex="0"
-                             aria-label="Shot power" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+                             aria-label="Shot power" aria-valuemin="0" aria-valuemax="130" aria-valuenow="0"
+                             aria-valuetext="0% — a full swing is 100%">
                             <div class="power-fill" id="power-fill"></div>
-                            <i class="power-max" aria-hidden="true"></i>
+                            <i class="power-over" id="power-over" aria-hidden="true"></i>
+                            <i class="power-max" id="power-max" aria-hidden="true"></i>
                         </div>
                         <span class="club-hint" id="club-hint" aria-live="polite"></span>
                     </div>
@@ -225,8 +227,10 @@
                     round, and up and down raises and drops the camera so you can look along the
                     shot or down onto it. Nothing you do out there plays a stroke. Then set the
                     power on the meter at the bottom — drag it, or nudge it with
-                    <kbd>↑</kbd><kbd>↓</kbd> — and the ring round the ball fills as it winds on,
-                    turning red when there is nothing left to give. <b>Swing</b> plays the shot,
+                    <kbd>↑</kbd><kbd>↓</kbd> — and the arrow on the ground grows as it winds on,
+                    turning red when there is nothing left to give. The meter runs <b>past</b> a
+                    full swing, into the hatched stretch at the end: see below for what that
+                    costs. <b>Swing</b> plays the shot,
                     and so does <kbd>space</kbd>. The <b>‹</b> and <b>›</b> buttons beside it nudge
                     the aim a hair, for the putts that need it.
                 </li>
@@ -260,15 +264,28 @@
                     only place you can see how high a lofted one is going and whether it
                     clears what is in the way — and <b>overview</b>, the whole hole from
                     above, which lifts the fog on a misty one so it is still worth
-                    looking at. Scroll or pinch to zoom, and <kbd>L</kbd> — or the padlock
-                    beside the View dial — holds the camera still so aiming stops turning
-                    it, which is what makes the overview a map you can aim from rather than
-                    one that spins as you do. The dotted lines in front of the ball are where the shot
-                    is headed — real physics, not a guess, so they tell you the truth about rails and
-                    ramps. There are three of them rather than one: a lane of a bit less power, a bit
-                    more, and what is loaded right now, because touch is too coarse to load an exact
-                    number and the game should not pretend otherwise. Aim the lane at a rail and it
-                    carries on through the bounce, fainter, on the way it comes off.
+                    looking at. Scroll or pinch to zoom, and <kbd>L</kbd> — or the padlock beside the
+                    View dial — holds the camera still so aiming stops turning it, which is what
+                    makes the overview a map you can aim from rather than one that spins as you do.
+                    The <b>cone</b> in front of the ball is where
+                    the shot is headed — real physics, not a guess, so it tells you the truth about
+                    rails and ramps. How wide it opens is how little the game is promising: inside a
+                    full swing it is a narrow wedge and the ball goes exactly down it, and past one
+                    it flares out and reddens by as much as the shot might miss by. Aim it at a rail
+                    and it carries on through the bounce, fainter, on the way it comes off. It also
+                    stops — it fades out a good way short of the horizon rather than running the
+                    length of the hole, and the arrowhead only appears when the ball comes down
+                    inside what has been drawn.
+                </li>
+                <li>
+                    <b>Past a full swing.</b> The meter does not stop at 100%. The last stretch of it
+                    — hatched, past the white line — is <b>overdraw</b>: real extra power, up to 130%
+                    of the club in hand, and the only way to get more out of a club than it has. What
+                    it costs is the promise. Anything at or under a full swing leaves on exactly the
+                    line the cone points down, every time. Past that, the ball starts going out both
+                    sideways and long or short by an amount that climbs faster than the meter does:
+                    the first sliver past 100% is nearly free, and the last of it is a shot nobody can
+                    aim. Watch the cone — it opens by exactly what the game is about to do to you.
                 </li>
                 <li>
                     <b>Read the flag.</b> The pin stands in the cup, and it is the only
@@ -366,20 +383,20 @@
 
     <!-- Load order is dependency order: config, then the pure logic, then the
          things that touch the screen. game.js boots itself on DOMContentLoaded. -->
-    <script src="js/config.js?v=1.5.1"></script>
-    <script src="js/themes.js?v=1.5.1"></script>
-    <script src="js/physics.js?v=1.5.1"></script>
-    <script src="js/courses.js?v=1.5.1"></script>
-    <script src="js/scoring.js?v=1.5.1"></script>
-    <script src="js/audio.js?v=1.5.1"></script>
-    <script src="js/music.js?v=1.5.1"></script>
-    <script src="js/bag.js?v=1.5.1"></script>
-    <script src="js/textures.js?v=1.5.1"></script>
-    <script src="js/shaders.js?v=1.5.1"></script>
-    <script src="js/postfx.js?v=1.5.1"></script>
-    <script src="js/weather.js?v=1.5.1"></script>
-    <script src="js/render.js?v=1.5.1"></script>
-    <script src="js/debug.js?v=1.5.1"></script>
-    <script src="js/game.js?v=1.5.1"></script>
+    <script src="js/config.js?v=1.6.1"></script>
+    <script src="js/themes.js?v=1.6.1"></script>
+    <script src="js/physics.js?v=1.6.1"></script>
+    <script src="js/courses.js?v=1.6.1"></script>
+    <script src="js/scoring.js?v=1.6.1"></script>
+    <script src="js/audio.js?v=1.6.1"></script>
+    <script src="js/music.js?v=1.6.1"></script>
+    <script src="js/bag.js?v=1.6.1"></script>
+    <script src="js/textures.js?v=1.6.1"></script>
+    <script src="js/shaders.js?v=1.6.1"></script>
+    <script src="js/postfx.js?v=1.6.1"></script>
+    <script src="js/weather.js?v=1.6.1"></script>
+    <script src="js/render.js?v=1.6.1"></script>
+    <script src="js/debug.js?v=1.6.1"></script>
+    <script src="js/game.js?v=1.6.1"></script>
 </body>
 </html>

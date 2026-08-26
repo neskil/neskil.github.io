@@ -8,7 +8,7 @@
    — the renderer scales to the viewport, the simulation never sees a pixel. */
 window.G3 = window.G3 || {};
 
-G3.VERSION = '1.5.1';
+G3.VERSION = '1.6.1';
 
 G3.CONFIG = {
     BALL_R: 0.16,
@@ -46,6 +46,33 @@ G3.CONFIG = {
        driver that has only run half its length is still doing about 12. */
     MAX_POWER: 28,
     MIN_POWER: 0.9,
+
+    /* Past a full swing the meter keeps going. OVERDRAW is how much further,
+       as a fraction of the club's own ceiling, and what you get for it is a
+       straight trade:
+
+         base power   grows with the meter into the overdraw, exactly as it
+                      does below it — a driver wound to 130% leaves at 130% of
+                      28, and that is real distance you cannot get any other
+                      way.
+         control      goes, and it goes fast. Anything at or inside a full
+                      swing sprays by nothing at all: the ball leaves on the
+                      line the cone is pointing at, every time, which is what
+                      makes a full swing the honest shot. Past it both the line
+                      and the weight start wandering, on a curve that bends
+                      rather than climbing in step with the meter — the first
+                      sliver of overdraw is nearly free and the last of it is
+                      a shot nobody can aim.
+
+       SPRAY_YAW and SPRAY_POWER are the worst of it, reached at the very end
+       of the overdraw: half a cone of about seven degrees either side, and a
+       sixth of the weight either way. SPRAY_CURVE is how hard the curve bends
+       — it is the k in (e^kt - 1) / (e^k - 1), so 0 would be a straight line
+       and this is emphatically not that. */
+    OVERDRAW: 0.30,
+    SPRAY_YAW: 7 * Math.PI / 180,
+    SPRAY_POWER: 0.16,
+    SPRAY_CURVE: 3.2,
 
     MAX_LOFT: 45 * Math.PI / 180,
 
@@ -110,6 +137,23 @@ G3.CONFIG = {
     OVERSWING: 0.85,      // past this fraction the meter turns and the arrow reddens
     KICK: 0.55,           // camera punch on impact, in units of pull-back
     TRAIL: 56,            // ball trail samples
+
+    /* The aiming cone — the shape drawn out in front of the ball. It is a cone
+       and not a line because a shot is a direction and a weight and neither is
+       promised beyond a full swing: its half-angle is whatever spray the
+       physics will actually apply (physics.spray), plus CONE_ANGLE so that an
+       honest shot, which sprays by nothing, still reads as a wedge rather than
+       a hairline.
+
+       And it stops. CONE_RANGE is how far in front of the ball it is allowed
+       to reach; CONE_FADE is the last fraction of that which fades out, so the
+       picture ends by going quiet rather than by being chopped off. A preview
+       that ran the length of a driver's roll looked like a promise about where
+       the ball would stop, and it was never able to keep one. */
+    CONE_ANGLE: 2.5 * Math.PI / 180,
+    CONE_WIDTH: 0.15,     // half-width at the ball itself, before the angle
+    CONE_RANGE: 9,        // world units of forward reach, whatever the club
+    CONE_FADE: 0.42,      // the tail of it that fades to nothing
 
     SAVE_KEY: 'loftLinks.save.v1',
     MUTE_KEY: 'loftLinks.muted',

@@ -103,7 +103,15 @@
         var b = state.world.ball;
         var frac = state.aim.power / state.club.power;
         var lie = P.surfaceUnder(state.world.hole, b.x, b.z, b.y + C.STEP_UP);
-        if (!P.launch(state.world, state.aim.yaw, state.aim.power, state.club.loft)) return;
+        /* The one place a shot stops being the shot on the meter. Inside a
+           full swing this hands back exactly what it was given, so the ball
+           goes where the cone said it would; past one it wanders, by more the
+           further the meter was wound (physics.spray). The dice are rolled
+           here rather than in launch() so the preview can ask the same module
+           how wide the spread is without ever rolling any. */
+        var shot = P.sprayShot(state.aim.yaw, state.aim.power,
+            P.overdraw(state.aim.power, state.club.power));
+        if (!P.launch(state.world, shot.yaw, shot.power, state.club.loft)) return;
 
         hideHoleCard();
         state.strokes++;
@@ -111,9 +119,13 @@
         syncSwing();
         // Everything that says "that was a hit": the spray off the club, the
         // camera flinching, and a thump that grows with the swing.
-        R.divot(b.x, b.y - C.BALL_R, b.z, state.aim.yaw, frac, lie && lie.pad.kind);
-        R.punch(frac);
-        A.putt(frac);
+        // The spray is the shot's, not the swing's: the divot is thrown along
+        // the line the ball actually left on, and the rest of the noise is
+        // capped, because a thrash is not four times the thump.
+        var feel = Math.min(1, frac);
+        R.divot(b.x, b.y - C.BALL_R, b.z, shot.yaw, feel, lie && lie.pad.kind);
+        R.punch(feel);
+        A.putt(feel);
         state.aim.power = 0;
         syncHud();
     }
@@ -125,7 +137,7 @@
         if (!club || club === state.club) return;
         var frac = state.aim.power / state.club.power;
         state.club = club;
-        state.aim.power = Math.min(club.power, frac * club.power);
+        state.aim.power = Math.min(maxPower(club), frac * club.power);
         syncClubs();
         syncPower();
     }
@@ -396,19 +408,47 @@
         $('shud-dist').textContent = text;
     }
 
+    /* The meter reads in fractions of the club in hand, and it runs past 100%:
+       the track is the ceiling plus the overdraw, with the full-swing mark
+       drawn where 100% actually falls on it. Everything left of that mark is a
+       shot the game will honour exactly; everything right of it buys distance
+       with accuracy, and says so — the number keeps counting up, the fill goes
+       hard red, and the track pulses. */
     function syncPower() {
         var club = state.club;
-        var frac = Math.max(0, Math.min(1, state.aim.power / club.power));
-        var hot = frac > C.OVERSWING;
-        // Green through amber to red, and the same hue the arrow and the ring
-        // are wearing out on the course.
-        var hue = hot ? 0 : 120 * (1 - frac / C.OVERSWING);
+        var frac = Math.max(0, state.aim.power / maxPower(club));   // of the track
+        var swing = Math.max(0, state.aim.power / club.power);      // of a full swing
+        var over = swing > 1;
+        var hot = swing > C.OVERSWING;
+        // Green through amber to red, and the same hue the arrow is wearing
+        // out on the course. Past a full swing it is red and stays red —
+        // there is nothing left to grade.
+        var hue = hot ? 0 : 120 * (1 - swing / C.OVERSWING);
+        var light = over ? 55 + Math.round(P.overdraw(state.aim.power, club.power) * 12) : 55;
         $('power-fill').style.width = (frac * 100).toFixed(1) + '%';
-        $('power-fill').style.color = $('power-fill').style.background = 'hsl(' + hue + ' 85% 55%)';
-        $('power-val').textContent = Math.round(frac * 100) + '%';
+        $('power-fill').style.color = $('power-fill').style.background =
+            'hsl(' + hue + ' 85% ' + light + '%)';
+        $('power-val').textContent = Math.round(swing * 100) + '%';
+        $('power-val').parentNode.classList.toggle('over', over);
         $('power-fill').parentNode.classList.toggle('hot', hot);
-        $('power-track').setAttribute('aria-valuenow', Math.round(frac * 100));
+        $('power-fill').parentNode.classList.toggle('over', over);
+        $('power-track').setAttribute('aria-valuenow', Math.round(swing * 100));
+        // The number alone does not say what 100% means on this track, and a
+        // screen reader is the one place the white line is invisible.
+        $('power-track').setAttribute('aria-valuetext', Math.round(swing * 100) + '%' +
+            (over ? ' — past a full swing, the shot will spray' : ' of a full swing'));
         syncSwing();
+    }
+
+    /* Where 100% falls on a track that runs to 100% + the overdraw. The mark
+       and the shaded stretch past it are placed from the constant rather than
+       from a number in the stylesheet, so retuning OVERDRAW moves them. */
+    function placePowerMarks() {
+        var at = (100 / (1 + C.OVERDRAW)).toFixed(2) + '%';
+        var mark = $('power-max'), zone = $('power-over');
+        if (mark) mark.style.left = at;
+        if (zone) zone.style.left = at;
+        $('power-track').setAttribute('aria-valuemax', Math.round(100 * (1 + C.OVERDRAW)));
     }
 
     /* Swing is the only thing that plays a stroke, so it says plainly when it
@@ -679,9 +719,17 @@
        carries a slider role, so a keyboard or a screen reader gets the same
        three moves as a thumb. */
 
+    /* The end of the meter, which is past a full swing: the club's ceiling
+       plus its overdraw. Loading into that last stretch is deliberate — it is
+       the only way to get more out of a club than it has, and it is the only
+       way to miss with one (see CONFIG.OVERDRAW). */
+    function maxPower(club) {
+        return (club || state.club).power * (1 + C.OVERDRAW);
+    }
+
     function setPower(v) {
         if (!state) return;
-        state.aim.power = Math.max(0, Math.min(state.club.power, v));
+        state.aim.power = Math.max(0, Math.min(maxPower(), v));
         syncPower();
     }
 
@@ -700,7 +748,7 @@
         var track = $('power-track');
         var r = track.getBoundingClientRect();
         if (!r.width) return;
-        setPower(((e.clientX - r.left) / r.width) * state.club.power);
+        setPower(((e.clientX - r.left) / r.width) * maxPower());
     }
 
     var powerDrag = 0;       // pointerId owning the meter, 0 when nobody is
@@ -727,7 +775,9 @@
         if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') { nudgePower(fine ? -0.15 : -0.55); e.preventDefault(); }
         else if (e.key === 'ArrowRight' || e.key === 'ArrowUp') { nudgePower(fine ? 0.15 : 0.55); e.preventDefault(); }
         else if (e.key === 'Home') { setPower(0); e.preventDefault(); }
-        else if (e.key === 'End') { setPower(state.club.power); e.preventDefault(); }
+        // End is a full swing, not the end of the track: the overdraw past it
+        // is a decision, and a keyboard should have to make it on purpose too.
+        else if (e.key === 'End') { setPower(e.shiftKey ? maxPower() : state.club.power); e.preventDefault(); }
         else if (e.key === 'Enter' || e.key === ' ') { shoot(); e.preventDefault(); }
     }
 
@@ -1117,7 +1167,7 @@
 
     /* ── loop ───────────────────────────────────────────────────────────── */
 
-    var intent = { show: false, yaw: 0, power: 0, loft: 0 };
+    var intent = { show: false, yaw: 0, power: 0, loft: 0, over: 0 };
 
     function loop(now) {
         raf = requestAnimationFrame(loop);
@@ -1151,6 +1201,10 @@
         intent.yaw = state.aim.yaw;
         intent.power = state.aim.power;
         intent.loft = state.club.loft;
+        // How far past a full swing this is, 0..1. The renderer opens the cone
+        // by exactly the spread physics would apply — the club's ceiling is
+        // the only part of that sum the renderer has no way to know.
+        intent.over = P.overdraw(state.aim.power, state.club.power);
         R.frame(dt, state.world, intent);
 
         // After the frame, so the inspector's outlines are placed from the
@@ -1224,6 +1278,7 @@
         $('power-track').addEventListener('pointerup', onPowerUp);
         $('power-track').addEventListener('pointercancel', onPowerUp);
         $('power-track').addEventListener('keydown', onPowerKey);
+        placePowerMarks();
         $('fs-prompt-go').addEventListener('click', function () { dismissFsPrompt(true); toggleFullscreen(); });
         $('fs-prompt-dismiss').addEventListener('click', function () { dismissFsPrompt(true); });
         $('btn-full').addEventListener('click', toggleFullscreen);

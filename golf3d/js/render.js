@@ -32,7 +32,7 @@
     var R = {
         ready: false,
         scene: null, camera: null, renderer: null,
-        holeGroup: null, ball: null, aimGroup: null, pathPlane: null, pathHead: null, arrow: null,
+        holeGroup: null, ball: null, aimGroup: null, pathCone: null, pathHead: null, arrow: null,
         flagCloth: null, flagPole: null, cupMesh: null,
         pin: null, flagSwivel: null, flagRest: null, pinShake: 0,
         movers: [],            // { mesh, wall } — updated from physics each frame
@@ -148,52 +148,42 @@
         R.arrow.renderOrder = 5;
         R.aimGroup.add(R.arrow);
 
-        /* The band: a tapered strip behind the ball, opposite the shot, that
-           grows as the pull grows. It is the part of a slingshot you can see
-           straining, and without it a big shot and a small one look the same
-           until the ball moves. */
-        var band = new THREE.BufferGeometry();
-        band.setAttribute('position', new THREE.Float32BufferAttribute(new Array(6 * 3).fill(0), 3));
-        R.band = new THREE.Mesh(band, new THREE.MeshBasicMaterial({
-            color: 0xffffff, transparent: true, opacity: 0.5, side: THREE.DoubleSide,
-            depthTest: false
-        }));
-        R.band.renderOrder = 4;
-        R.aimGroup.add(R.band);
+        /* Predicted path, as a cone. It follows the arc the ball will fly —
+           real physics, sampled — and opens out sideways as it goes, by the
+           spread the shot will actually be played with: nothing inside a full
+           swing, which draws a narrow wedge that means "exactly here", and a
+           wide mouth on an overdrawn one, which means "somewhere in this".
 
-        /* The ring: a full circle round the ball drawn only as far as the power
-           has wound on. RingGeometry lays its triangles out in order round the
-           circle, so a draw range is an arc, and an arc costs nothing. */
-        var ring = new THREE.RingGeometry(0.30, 0.40, 64);
-        R.ringCount = ring.index.count;
-        R.ring = new THREE.Mesh(ring, new THREE.MeshBasicMaterial({
-            color: 0x9ae6b4, transparent: true, opacity: 0.9, side: THREE.DoubleSide,
-            depthTest: false
-        }));
-        R.ring.rotation.x = -Math.PI / 2;
-        R.ring.renderOrder = 7;
-        R.aimGroup.add(R.ring);
-
-        /* Predicted path, as a filled plane rather than a row of dots. Two
-           power-perturbed arcs — a touch light, a touch heavy — bound a
-           quad-strip surface between them: the shape of it *is* the answer to
-           "how far could this go", spanning the min and max air time a loaded
-           shot could land at. An arrowhead at the loaded shot's own landing
-           point (or its first bounce) marks the one result actually aimed
-           at, without pretending the game can promise it. */
-        var perPath = 40;
+           Four components across the strip in place of three, so the colour
+           attribute carries an alpha and the far end can be faded out rather
+           than chopped off. That fade is the point: the cone is cut at
+           CONE_RANGE and goes quiet on the way, so it never draws a promise
+           about a stretch of hole it has not simulated. */
+        var perPath = 48;
         R.pathPerPath = perPath;
+        /* Scratch for the cone: the centreline and its two edges, one object
+           per sample, allocated once. The preview runs on the frame and this
+           is the one place it would otherwise churn a hundred and fifty
+           vectors a rebuild. */
+        R.coneMid = []; R.coneL = []; R.coneR = [];
+        for (var ci = 0; ci < perPath; ci++) {
+            R.coneMid.push({ x: 0, y: 0, z: 0, d: 0 });
+            R.coneL.push({ x: 0, y: 0, z: 0 });
+            R.coneR.push({ x: 0, y: 0, z: 0 });
+        }
+        R.coneHead = { x: 0, y: 0, z: 0 };
+        R.coneBack = { x: 0, y: 0, z: 0 };
         var pvcount = (perPath - 1) * 6;
         var pg = new THREE.BufferGeometry();
         pg.setAttribute('position', new THREE.Float32BufferAttribute(new Array(pvcount * 3).fill(0), 3));
-        pg.setAttribute('color', new THREE.Float32BufferAttribute(new Array(pvcount * 3).fill(1), 3));
-        R.pathPlane = new THREE.Mesh(pg, new THREE.MeshBasicMaterial({
-            color: 0xffffff, transparent: true, opacity: 0.5, side: THREE.DoubleSide,
+        pg.setAttribute('color', new THREE.Float32BufferAttribute(new Array(pvcount * 4).fill(1), 4));
+        R.pathCone = new THREE.Mesh(pg, new THREE.MeshBasicMaterial({
+            color: 0xffffff, transparent: true, opacity: 1, side: THREE.DoubleSide,
             vertexColors: true, depthTest: false
         }));
-        R.pathPlane.renderOrder = 6;
-        R.pathPlane.frustumCulled = false;
-        R.aimGroup.add(R.pathPlane);
+        R.pathCone.renderOrder = 6;
+        R.pathCone.frustumCulled = false;
+        R.aimGroup.add(R.pathCone);
 
         var hg = new THREE.BufferGeometry();
         hg.setAttribute('position', new THREE.Float32BufferAttribute(new Array(3 * 3).fill(0), 3));
@@ -208,7 +198,9 @@
         R.scene.add(R.aimGroup);
     }
 
-    // One quad of the path plane, as two triangles: pA-pB-pC and pA-pC-pD.
+    /* One quad of the cone, as two triangles: pA-pB-pC and pA-pC-pD. A and B
+       are the near edge of the strip, C and D the far one, which is what lets
+       the shading below fade along the cone rather than across it. */
     function putPathQuad(arr, base, pA, pB, pC, pD) {
         var idx = base * 3;
         arr[idx] = pA.x; arr[idx + 1] = pA.y; arr[idx + 2] = pA.z;
@@ -219,9 +211,20 @@
         arr[idx + 15] = pD.x; arr[idx + 16] = pD.y; arr[idx + 17] = pD.z;
     }
 
-    function setPathQuadShade(col, base, shade) {
-        var idx = base * 3;
-        for (var v = 0; v < 6; v++) { col[idx + v * 3] = col[idx + v * 3 + 1] = col[idx + v * 3 + 2] = shade; }
+    /* The same quad's colour: a brightness and an alpha at each end of it.
+       Vertices 0, 1 and 3 are the near edge and 2, 4 and 5 the far one — the
+       order putPathQuad writes them in. */
+    var QUAD_FAR = [0, 0, 1, 0, 1, 1];
+
+    function setPathQuadShade(col, base, shadeA, alphaA, shadeB, alphaB) {
+        var idx = base * 4;
+        for (var v = 0; v < 6; v++) {
+            var far = QUAD_FAR[v];
+            var shade = far ? shadeB : shadeA;
+            var i = idx + v * 4;
+            col[i] = col[i + 1] = col[i + 2] = shade;
+            col[i + 3] = far ? alphaB : alphaA;
+        }
     }
 
     /* A tail of where the ball has just been. Additive blending and a colour
@@ -1187,7 +1190,10 @@
        screen — and the last answer is still the right one, because the
        inputs it was computed from are exactly what is being compared. */
     var PATH_HZ = 24;
-    var _path = { valid: false, x: 0, y: 0, z: 0, yaw: 0, power: 0, loft: 0, t: 0 };
+    // How solid the cone is at its strongest — everything else is a fraction
+    // of this, written into the vertex alpha.
+    var CONE_ALPHA = 0.55;
+    var _path = { valid: false, x: 0, y: 0, z: 0, yaw: 0, power: 0, loft: 0, over: 0, t: 0 };
 
     function clearPathCache() { _path.valid = false; }
 
@@ -1198,81 +1204,170 @@
         var t = R.movers.length ? Math.floor(world.time * PATH_HZ) : 0;
         if (_path.valid && _path.x === b.x && _path.y === b.y && _path.z === b.z &&
             _path.yaw === aim.yaw && _path.power === aim.power &&
-            _path.loft === aim.loft && _path.t === t) return false;
+            _path.loft === aim.loft && _path.over === (aim.over || 0) &&
+            _path.t === t) return false;
         _path.valid = true;
         _path.x = b.x; _path.y = b.y; _path.z = b.z;
         _path.yaw = aim.yaw; _path.power = aim.power; _path.loft = aim.loft;
+        _path.over = aim.over || 0;
         _path.t = t;
         return true;
     }
 
+    /* The cone.
+
+       One simulated path, not three. The old preview drew a plane spanned by a
+       lighter and a heavier version of the same shot, which said something
+       true about touch on a meter and nothing at all about the shot being
+       played; this draws the flight the physics actually predicts and opens a
+       cone around it, whose half-angle is the spread the shot will really be
+       played with — CONE_ANGLE for an honest one (a sliver, so it reads as a
+       wedge rather than a hairline) plus whatever physics.spray will add to an
+       overdrawn one. Inside a full swing the cone is narrow and it is a
+       promise. Past one it opens, and the mouth of it is the miss.
+
+       And it ends. The path is walked in ground distance rather than in
+       simulation time — a driver covers half a hole in the second a putt takes
+       to cover a metre — cut at CONE_RANGE, and faded out over the last of
+       whatever it drew. Where the shot lands inside that range the arrowhead
+       marks the spot; where the cone was cut short there is no arrowhead,
+       because at that point the game genuinely is not saying. */
     function updatePath(world, aim, frac) {
         R.pathBuilds++;      // what the inspector counts (debug.js)
-        // Touch is too coarse to load an exact number, so the plane spans a
-        // spread of power either side of what is loaded — its two edges are
-        // the lightest and heaviest this shot could actually be, and its
-        // width at any point is how much air time is still in question there.
-        var lo = Math.max(C.MIN_POWER, aim.power * 0.82);
-        var hi = Math.min(C.MAX_POWER, aim.power * 1.18);
-        var seconds = 0.5 + frac * 0.5;
         var perPath = R.pathPerPath;
-        var i, k;
+        var i, j;
 
-        var loPts = P.previewPath(world, aim.yaw, lo, aim.loft, seconds);
-        var hiPts = P.previewPath(world, aim.yaw, hi, aim.loft, seconds);
-        var midPts = P.previewPath(world, aim.yaw, aim.power, aim.loft, seconds);
+        var spread = P.spray(aim.over || 0);
+        var angle = C.CONE_ANGLE + spread.yaw;
+        var seconds = 0.5 + frac * 0.5;
+        var pts = P.previewPath(world, aim.yaw, aim.power, aim.loft, seconds);
 
         /* Under MIN_POWER there is no shot to preview: launch() refuses it and
-           previewPath hands back nothing. Park the plane and the arrowhead
+           previewPath hands back nothing. Park the cone and the arrowhead
            rather than reading the last point of an empty path — which is what
            a freshly loaded hole does until the player winds a swing on. The
-           wedge, the band and the ring are drawn by updateAim whatever this
-           decides, because the shot line is worth showing before there is a
-           shot. */
-        R.pathPlane.visible = midPts.length > 1;
-        R.pathHead.visible = midPts.length > 1;
-        if (midPts.length < 2) return;
+           wedge is drawn by updateAim whatever this decides, because the shot
+           line is worth showing before there is a shot. */
+        R.pathCone.visible = pts.length > 1;
+        R.pathHead.visible = pts.length > 1;
+        if (pts.length < 2) return;
 
-        var turn = -1;
-        for (i = 1; i < midPts.length; i++) {
-            if (midPts[i].bounce) { turn = i; break; }
+        // Ground distance to each sample, and to the first bounce.
+        var cum = [0], turnD = -1;
+        for (i = 1; i < pts.length; i++) {
+            cum[i] = cum[i - 1] + Math.hypot(pts[i].x - pts[i - 1].x, pts[i].z - pts[i - 1].z);
+            if (turnD < 0 && pts[i].bounce) turnD = cum[i];
+        }
+        var total = cum[pts.length - 1];
+        var cut = total > C.CONE_RANGE;             // the cone ran out before the shot did
+        var reach = Math.min(total, C.CONE_RANGE);
+        if (reach < 0.05) {
+            R.pathCone.visible = R.pathHead.visible = false;
+            return;
         }
 
-        var nSamples = Math.min(perPath, Math.min(loPts.length, hiPts.length));
-        var segCount = Math.max(0, nSamples - 1);
-        var turnFrac = (turn >= 0 && midPts.length > 1) ? turn / (midPts.length - 1) : -1;
-        var turnSample = turnFrac >= 0 ? Math.round(turnFrac * segCount) : -1;
-
-        var loArr = [], hiArr = [];
-        for (i = 0; i < nSamples; i++) {
-            var kl = Math.min(loPts.length - 1, Math.round(i * ((loPts.length - 1) / Math.max(1, nSamples - 1))));
-            var kh = Math.min(hiPts.length - 1, Math.round(i * ((hiPts.length - 1) / Math.max(1, nSamples - 1))));
-            loArr.push(loPts[kl]);
-            hiArr.push(hiPts[kh]);
+        /* Resample the path evenly in distance. `scan` is where the last
+           lookup left off, so walking the cone from the ball outwards is one
+           pass over the points — and it rewinds as well as advances, because
+           the arrowhead below is looked up after that walk and sits behind
+           where it finished. */
+        var scan = 0;
+        function sampleAt(d, out) {
+            while (scan < pts.length - 2 && cum[scan + 1] < d) scan++;
+            while (scan > 0 && cum[scan] > d) scan--;
+            var a = pts[scan], b = pts[scan + 1];
+            var span = cum[scan + 1] - cum[scan];
+            var t = span > 1e-6 ? (d - cum[scan]) / span : 0;
+            out.x = a.x + (b.x - a.x) * t;
+            out.y = a.y + (b.y - a.y) * t;
+            out.z = a.z + (b.z - a.z) * t;
+            return out;
         }
 
-        var pos = R.pathPlane.geometry.attributes.position.array;
-        var col = R.pathPlane.geometry.attributes.color.array;
+        var mid = R.coneMid, left = R.coneL, right = R.coneR;
+        for (j = 0; j < perPath; j++) {
+            var d = reach * (j / (perPath - 1));
+            sampleAt(d, mid[j]);
+            mid[j].d = d;
+        }
+        /* Sideways is perpendicular to where the ball is going *here*, so the
+           cone bends with a shot that bends — held to whichever world side it
+           started on. Without that last part a ricochet, which reverses the
+           direction of travel, swaps the two edges over and the strip ties
+           itself into a bow across the rail. */
+        var sideX = 0, sideZ = 0;
+        for (j = 0; j < perPath; j++) {
+            var a = mid[Math.max(0, j - 1)], b = mid[Math.min(perPath - 1, j + 1)];
+            var dx = b.x - a.x, dz = b.z - a.z;
+            var len = Math.hypot(dx, dz);
+            if (len < 1e-6) { dx = Math.sin(aim.yaw); dz = Math.cos(aim.yaw); len = 1; }
+            dx /= len; dz /= len;
+            if (j && (dz * sideX - dx * sideZ) < 0) { dx = -dx; dz = -dz; }
+            sideX = dz; sideZ = -dx;
+            /* The cone opens with distance — that is the whole shape of it —
+               but it stops opening at the first bounce. Past a ricochet the
+               spread is no longer a fan out of the clubface, it is one line
+               off a rail, and a cone that kept flaring there drew a wedge the
+               size of the hole out of a shot that has one place to go. */
+            var od = turnD >= 0 ? Math.min(mid[j].d, turnD) : mid[j].d;
+            var half = C.CONE_WIDTH + od * Math.tan(angle);
+            left[j].x = mid[j].x + dz * half;
+            left[j].y = right[j].y = mid[j].y;
+            left[j].z = mid[j].z - dx * half;
+            right[j].x = mid[j].x - dz * half;
+            right[j].z = mid[j].z + dx * half;
+        }
+
+        /* The fade. It starts earlier the wilder the shot is — a thrash is
+           vaguer about where it ends up, and the picture should be too — and
+           it goes all the way to nothing when the cone was cut short. When the
+           shot lands inside the range the tail keeps a little substance, since
+           there is an arrowhead sitting on it saying where. */
+        var fadeFrom = Math.max(0.25, 1 - (C.CONE_FADE + spread.power * 1.4));
+        var tailAlpha = cut ? 0 : 0.34;
+        function alphaAt(t) {
+            if (t <= fadeFrom) return CONE_ALPHA;
+            var k = (t - fadeFrom) / (1 - fadeFrom);
+            return CONE_ALPHA * (tailAlpha + (1 - tailAlpha) * Math.pow(1 - k, 1.7));
+        }
+        /* Past the first bounce the cone is a fainter claim — the line off the
+           rail is right, but everything after a ricochet compounds — and it
+           says so by going see-through rather than by going dark. Darkening it
+           put a brown smear on the grass; dropping the alpha reads as "less
+           sure" against any surface a hole is made of. */
+        function fadeAt(d) { return (turnD >= 0 && d > turnD) ? 0.45 : 1; }
+        function shadeAt(t) { return 1 - t * 0.15; }
+
+        var pos = R.pathCone.geometry.attributes.position.array;
+        var col = R.pathCone.geometry.attributes.color.array;
         for (i = 0; i < perPath - 1; i++) {
             var base = i * 6;
-            if (i < segCount) {
-                var shade = (1 - (i / segCount) * 0.4) * ((turnSample >= 0 && i >= turnSample) ? 0.5 : 1);
-                putPathQuad(pos, base, loArr[i], hiArr[i], hiArr[i + 1], loArr[i + 1]);
-                setPathQuadShade(col, base, shade);
-            } else {
-                for (var v = 0; v < 6; v++) pos[(base + v) * 3 + 1] = -999;
-            }
+            var tA = i / (perPath - 1), tB = (i + 1) / (perPath - 1);
+            putPathQuad(pos, base, left[i], right[i], right[i + 1], left[i + 1]);
+            setPathQuadShade(col, base,
+                shadeAt(tA), alphaAt(tA) * fadeAt(mid[i].d),
+                shadeAt(tB), alphaAt(tB) * fadeAt(mid[i + 1].d));
         }
-        R.pathPlane.geometry.attributes.position.needsUpdate = true;
-        R.pathPlane.geometry.attributes.color.needsUpdate = true;
-        R.pathPlane.geometry.computeBoundingSphere();
+        R.pathCone.geometry.attributes.position.needsUpdate = true;
+        R.pathCone.geometry.attributes.color.needsUpdate = true;
+        R.pathCone.geometry.computeBoundingSphere();
+        // White while the shot is honest, and it takes on the arrow's red as
+        // the overdraw comes on: the cone widening and the cone reddening are
+        // the same fact told twice, and one of them reads from any angle.
+        R.pathCone.material.color.set(0xffffff)
+            .lerp(R.arrow.material.color, Math.min(1, (aim.over || 0) * 1.15));
 
-        // The arrowhead: where the loaded shot itself lands, or first meets a
-        // wall — the one point in the plane that is actually being aimed at.
-        var headIdx = turn >= 0 ? turn : midPts.length - 1;
-        var headPos = midPts[headIdx];
-        var prevPos = midPts[Math.max(0, headIdx - 1)];
-        var hdx = headPos.x - prevPos.x, hdz = headPos.z - prevPos.z;
+        /* The arrowhead: where the loaded shot itself lands, or first meets a
+           wall. Only if that point is inside the cone — a shot that outruns
+           the preview gets no arrowhead, because the honest answer to "where
+           does this stop" is off the end of what was drawn. */
+        var headD = turnD >= 0 ? turnD : total;
+        R.pathHead.visible = headD <= reach + 1e-6;
+        if (!R.pathHead.visible) return;
+
+        var headPos = sampleAt(headD, R.coneHead);
+        var back = sampleAt(Math.max(0, headD - 0.25), R.coneBack);
+        var hdx = headPos.x - back.x, hdz = headPos.z - back.z;
         var hlen = Math.hypot(hdx, hdz) || 1;
         hdx /= hlen; hdz /= hlen;
         var hpx = -hdz, hpz = hdx;
@@ -1294,8 +1389,9 @@
         var b = world.ball;
         var dirX = Math.sin(aim.yaw), dirZ = Math.cos(aim.yaw);
         var rawFrac = Math.max(0, Math.min(1, aim.power / C.MAX_POWER));
-        // The wedge and band keep a floor so the shot direction is always
-        // visible; the ring below uses the real fraction so it reads 0% at 0%.
+        // The wedge keeps a floor so the shot direction is always visible even
+        // at no power at all: the meter is what reads the number, the arrow is
+        // only there to say which way.
         var frac = Math.max(0.08, rawFrac);
         var len = 0.7 + frac * 2.6;
         var halfW = 0.11 + frac * 0.05;
@@ -1317,33 +1413,15 @@
         R.arrow.geometry.attributes.position.needsUpdate = true;
         R.arrow.geometry.computeBoundingSphere();
 
-        // Green through amber to red as the swing fills, and hard red once it
-        // is into the last of it.
-        var hue = frac > C.OVERSWING ? 0 : 0.33 * (1 - frac / C.OVERSWING);
-        R.arrow.material.color.setHSL(hue, 0.85, frac > C.OVERSWING ? 0.62 : 0.55);
-
-        // The band, stretched out behind the ball by the same fraction.
-        var ba = R.band.geometry.attributes.position.array;
-        var back = 0.26 + frac * 2.2;
-        function bandPut(i, sx, sz) {
-            ba[i * 3] = b.x - dirX * sx + px * sz;
-            ba[i * 3 + 1] = y;
-            ba[i * 3 + 2] = b.z - dirZ * sx + pz * sz;
-        }
-        var tip = 0.05 + frac * 0.03;
-        bandPut(0, 0.18, -0.13); bandPut(1, 0.18, 0.13); bandPut(2, back, tip);
-        bandPut(3, 0.18, -0.13); bandPut(4, back, tip); bandPut(5, back, -tip);
-        R.band.geometry.attributes.position.needsUpdate = true;
-        R.band.geometry.computeBoundingSphere();
-        R.band.material.color.copy(R.arrow.material.color);
-        R.band.material.opacity = 0.25 + frac * 0.4;
-
-        // The ring fills clockwise from the shot line as the power winds on.
-        R.ring.position.set(b.x, y, b.z);
-        R.ring.rotation.z = -aim.yaw;
-        R.ring.geometry.setDrawRange(0, Math.max(3, Math.floor(R.ringCount * rawFrac / 3) * 3));
-        R.ring.material.color.copy(R.arrow.material.color);
-        R.ring.visible = rawFrac > 0.02;
+        /* Green through amber to red as the swing fills, hard red once it is
+           into the last of it, and brighter still once the meter is past a
+           full swing — aim.over is 0 up to the club's ceiling and 1 at the end
+           of the overdraw, so the arrow only glows for a shot that is actually
+           being thrashed. */
+        var over = Math.max(0, Math.min(1, aim.over || 0));
+        var hot = over > 0 || frac > C.OVERSWING;
+        var hue = hot ? 0 : 0.33 * (1 - frac / C.OVERSWING);
+        R.arrow.material.color.setHSL(hue, 0.85, hot ? 0.62 + over * 0.16 : 0.55);
 
         // The path is the expensive half of this function, and most frames
         // do not need it recomputed — see updatePath.
