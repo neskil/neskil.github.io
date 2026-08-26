@@ -291,7 +291,9 @@
        A lofted ball leaves the ground immediately, which is the whole point —
        it is how you carry a rail, a bunker or a pond instead of going round. */
     function launch(world, yaw, power, loft) {
-        var p = Math.max(0, Math.min(C.MAX_POWER, power));
+        // The ceiling is the longest club's ceiling plus its overdraw: the
+        // meter is allowed past a full swing, so the simulation has to be too.
+        var p = Math.max(0, Math.min(C.MAX_POWER * (1 + C.OVERDRAW), power));
         if (p < C.MIN_POWER) return false;
         var l = Math.max(0, Math.min(C.MAX_LOFT, loft || 0));
         var flat = Math.cos(l) * p;
@@ -306,6 +308,48 @@
         world.overCup = false;
         if (b.vy > 0.01) world.grounded = false;
         return true;
+    }
+
+    /* ── overdraw ───────────────────────────────────────────────────────
+
+       How far past a full swing the meter was wound, as 0 at the ceiling and 1
+       at the very end of the overdraw. Everything about spray is expressed in
+       this number rather than in raw power, because a putter thrashed and a
+       driver thrashed are the same mistake. */
+    function overdraw(power, ceiling) {
+        if (!ceiling || !C.OVERDRAW) return 0;
+        return Math.max(0, Math.min(1, (power / ceiling - 1) / C.OVERDRAW));
+    }
+
+    /* How wild the shot gets, as the half-angle it can leave off line by and
+       the fraction of its weight it can be out by. Nothing at or inside a full
+       swing sprays at all — inside 100% the ball goes exactly where the cone
+       points, which is the whole reason to stay there. Past it the two numbers
+       climb on an exponential rather than in step with the meter: a curve that
+       is nearly flat where the overdraw starts and near vertical where it
+       ends. See CONFIG.SPRAY_*. */
+    function spray(over) {
+        var t = Math.max(0, Math.min(1, over || 0));
+        if (t <= 0) return { yaw: 0, power: 0 };
+        var k = C.SPRAY_CURVE;
+        var e = (Math.exp(k * t) - 1) / (Math.exp(k) - 1);
+        return { yaw: C.SPRAY_YAW * e, power: C.SPRAY_POWER * e };
+    }
+
+    /* The shot that is actually played, given the one that was asked for. Two
+       draws, not one: a thrashed shot misses left-or-right and heavy-or-light
+       independently, the way a real one does — pull it and catch it thin and
+       you have made two mistakes, not the same mistake twice. `rand` returns
+       [0, 1) and defaults to Math.random; the tests hand in something
+       repeatable. Inside a full swing this returns its arguments untouched. */
+    function sprayShot(yaw, power, over, rand) {
+        var s = spray(over);
+        if (!s.yaw && !s.power) return { yaw: yaw, power: power };
+        var r = rand || Math.random;
+        return {
+            yaw: yaw + (r() * 2 - 1) * s.yaw,
+            power: power * (1 + (r() * 2 - 1) * s.power)
+        };
     }
 
     function speedOf(b) { return Math.hypot(b.vx, b.vy, b.vz); }
@@ -702,6 +746,9 @@
         createWorld: createWorld,
         cloneWorld: cloneWorld,
         launch: launch,
+        overdraw: overdraw,
+        spray: spray,
+        sprayShot: sprayShot,
         advance: advance,
         settle: settle,
         done: done,
