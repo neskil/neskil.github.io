@@ -106,16 +106,10 @@
             --hue: 160;
         }
 
-        html[data-theme="card-golf"] {
+        html[data-theme="card-golf-hub"] {
             --bg-color-1: #08190f;
             --bg-color-2: #102c1b;
             --hue: 140;
-        }
-
-        html[data-theme="card-golf3d"] {
-            --bg-color-1: #06121e;
-            --bg-color-2: #0e2436;
-            --hue: 198;
         }
 
         html[data-theme="card-cv"] {
@@ -459,6 +453,17 @@
             initial-value: 0px;
         }
 
+        /* The mobile focus scale, and the same reasoning as --rx/--ry/--ty: it
+           feeds nothing but .card's own transform, so it stays out of the
+           inheritance chain and the invalidation stops at the card. Registering
+           it is also what makes it animatable at all — an unregistered custom
+           property is a string, and a string interpolates by snapping. */
+        @property --focus-scale {
+            syntax: '<number>';
+            inherits: false;
+            initial-value: 1;
+        }
+
         @property --mx {
             syntax: '<percentage>';
             inherits: true;
@@ -485,6 +490,7 @@
             --mx: 50%;
             --my: 50%;
             --mag: 0;
+            --focus-scale: 1;
             /* Stacked flat layers underneath give the card a slight physical edge/thickness. */
             --edge-shadow:
                 0 1px 0 rgba(4, 6, 16, 0.5),
@@ -501,8 +507,9 @@
             justify-content: space-between;
             align-items: flex-start;
             height: 100%;
-            transform: perspective(1000px) translateY(var(--ty)) rotateX(var(--rx)) rotateY(var(--ry));
-            transition: border-color 0.4s ease, box-shadow 0.4s ease;
+            transform: perspective(1000px) translateY(var(--ty)) rotateX(var(--rx)) rotateY(var(--ry)) scale(var(--focus-scale));
+            transition: border-color 0.4s ease, box-shadow 0.4s ease, opacity 0.42s ease,
+                --focus-scale 0.42s cubic-bezier(0.22, 1, 0.36, 1);
             box-shadow: var(--edge-shadow), 0 6px 14px rgba(0, 0, 0, 0.16);
             cursor: pointer;
             text-decoration: none;
@@ -681,7 +688,7 @@
             color: rgb(34, 211, 238);
         }
 
-        #card-golf {
+        #card-golf-hub {
             --accent-rgb: 74, 222, 128;
             --card-bg-gradient: linear-gradient(135deg, rgba(16, 36, 24, 0.65) 0%, rgba(15, 22, 35, 0.60) 100%);
             --card-hover-gradient: linear-gradient(135deg, rgba(24, 56, 36, 0.80) 0%, rgba(20, 28, 48, 0.75) 100%);
@@ -689,20 +696,129 @@
             --card-hover-border: rgba(134, 239, 172, 0.48);
         }
 
-        #card-golf .card-link {
+        #card-golf-hub .card-link {
             color: rgb(134, 239, 172);
         }
 
-        #card-golf3d {
-            --accent-rgb: 56, 189, 248;
-            --card-bg-gradient: linear-gradient(135deg, rgba(14, 32, 48, 0.65) 0%, rgba(15, 22, 35, 0.60) 100%);
-            --card-hover-gradient: linear-gradient(135deg, rgba(20, 52, 76, 0.80) 0%, rgba(20, 28, 48, 0.75) 100%);
-            --card-border: rgba(56, 189, 248, 0.22);
-            --card-hover-border: rgba(125, 211, 252, 0.48);
+        /* ── The dimension picker: the flip side of #card-golf-hub ───────────
+           Two options, each carrying its own accent and its own record, so the
+           blue one reads as the 3D game without a word saying so. --accent-rgb
+           is a plain inherited property, which is exactly what is wanted here:
+           setting it on the option re-tints the badge, the arrow and the score
+           inside it in one go. ── */
+        #card-golf-hub .card-face-back {
+            gap: 0.65rem;
         }
 
-        #card-golf3d .card-link {
-            color: rgb(125, 211, 252);
+        .dim-head {
+            padding-right: 2.5rem; /* clear of the close button */
+        }
+
+        .dim-title {
+            font-size: 1.05rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .dim-sub {
+            font-size: 0.78rem;
+            color: var(--text-secondary);
+        }
+
+        .dim-option {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.7rem;
+            padding: 0.7rem 0.75rem;
+            border-radius: 14px;
+            text-decoration: none;
+            color: inherit;
+            background: rgba(255, 255, 255, 0.035);
+            border: 1px solid rgba(var(--accent-rgb), 0.22);
+            transition: background 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease,
+                transform 0.25s ease;
+        }
+
+        .dim-option:hover,
+        .dim-option:focus-visible {
+            background: rgba(var(--accent-rgb), 0.12);
+            border-color: rgba(var(--accent-rgb), 0.55);
+            box-shadow: 0 0 18px rgba(var(--accent-rgb), 0.18);
+            transform: translateY(-2px);
+        }
+
+        .dim-2d {
+            --accent-rgb: 74, 222, 128;
+        }
+
+        .dim-3d {
+            --accent-rgb: 56, 189, 248;
+        }
+
+        .dim-badge {
+            flex-shrink: 0;
+            width: 34px;
+            height: 34px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 11px;
+            font-family: 'Outfit', sans-serif;
+            font-size: 0.8rem;
+            font-weight: 800;
+            color: rgb(var(--accent-rgb));
+            background: rgba(var(--accent-rgb), 0.15);
+            border: 1px solid rgba(var(--accent-rgb), 0.35);
+        }
+
+        .dim-body {
+            display: flex;
+            flex-direction: column;
+            gap: 0.18rem;
+            min-width: 0;
+        }
+
+        .dim-name {
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .dim-desc {
+            font-size: 0.76rem;
+            line-height: 1.45;
+            color: var(--text-secondary);
+        }
+
+        .dim-stat {
+            margin-top: 0.15rem;
+            font-family: 'Outfit', sans-serif;
+            font-size: 0.72rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+        }
+
+        .dim-stat .stat-val {
+            color: rgb(var(--accent-rgb));
+            font-weight: 800;
+        }
+
+        .dim-go {
+            width: 16px;
+            height: 16px;
+            flex-shrink: 0;
+            align-self: center;
+            fill: none;
+            stroke: rgb(var(--accent-rgb));
+            stroke-width: 2;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+            opacity: 0.75;
+            transition: transform 0.2s ease;
+        }
+
+        .dim-option:hover .dim-go {
+            transform: translateX(3px);
         }
 
         /* Backdrop for the expanded About card. Blurs and dims the grid behind it
@@ -736,6 +852,7 @@
             --rx: 0deg;
             --ry: 0deg;
             --ty: 0px;
+            --focus-scale: 1;
         }
 
         .flip-card.is-open .card-face {
@@ -790,7 +907,7 @@
             content: none;
         }
 
-        .flip-card .card-link {
+        #card-about .card-link {
             color: rgb(253, 164, 175);
         }
 
@@ -974,7 +1091,8 @@
             border-bottom-color: rgba(255, 255, 255, 0.7);
         }
 
-        .about-close {
+        .about-close,
+        .card-close {
             position: absolute;
             top: 0.9rem;
             right: 0.9rem;
@@ -993,13 +1111,15 @@
             transition: opacity 0.35s ease, color 0.2s ease, background 0.2s ease;
         }
 
-        .about-close svg {
+        .about-close svg,
+        .card-close svg {
             width: 15px;
             height: 15px;
             fill: none;
         }
 
-        .flip-card:hover .about-close {
+        .flip-card:hover .about-close,
+        .flip-card:hover .card-close {
             color: var(--text-primary);
             background: rgba(255, 255, 255, 0.12);
         }
@@ -1366,13 +1486,22 @@
             .grid {
                 grid-template-columns: 1fr;
                 grid-auto-rows: auto;
-                gap: 1rem;
+                gap: 0.75rem;
             }
 
+            /* ── Resting size ──
+               These cards were drawn for a desktop grid and then simply
+               narrowed, which on a phone came out at roughly two and a half of
+               them per screen: eleven cards took most of a minute to scroll
+               past, and every one of them was shouting at full size the whole
+               way. So the resting state — the state you scroll *past* — gets
+               tighter type, a smaller icon, a description clipped to two lines
+               and no link row. The card you actually stop on pays all of that
+               back; see .is-settled below. */
             .card,
             .card-face-front {
-                padding: 1.35rem 1.25rem;
-                border-radius: 18px;
+                padding: 1rem 1.05rem;
+                border-radius: 16px;
                 height: auto;
                 min-height: auto;
                 justify-content: flex-start;
@@ -1412,33 +1541,135 @@
             }
 
             .card-icon {
-                font-size: 1.75rem;
-                width: 44px;
-                height: 44px;
-                margin-bottom: 0.85rem;
+                font-size: 1.5rem;
+                width: 38px;
+                height: 38px;
+                border-radius: 12px;
+                margin-bottom: 0.6rem;
+            }
+
+            .card-icon svg {
+                width: 21px;
+                height: 21px;
             }
 
             .card-title {
-                font-size: 1.25rem;
-                margin-bottom: 0.4rem;
+                font-size: 1.1rem;
+                margin-bottom: 0.25rem;
             }
 
             .card-desc {
-                font-size: 0.825rem;
-                margin-bottom: 1.25rem;
-                line-height: 1.5;
+                font-size: 0.79rem;
+                margin-bottom: 0.5rem;
+                line-height: 1.45;
+                display: -webkit-box;
+                -webkit-box-orient: vertical;
+                -webkit-line-clamp: 2;
+                line-clamp: 2;
+                overflow: hidden;
             }
 
             .card-stat-chip {
-                top: 14px;
-                right: 14px;
+                top: 11px;
+                right: 11px;
                 padding: 2px 8px;
-                font-size: 0.7rem;
-                max-width: calc(100% - 75px);
+                font-size: 0.68rem;
+                max-width: calc(100% - 70px);
             }
 
             .card-link {
                 margin-top: auto;
+                font-size: 0.8rem;
+            }
+
+            /* ── The card you have stopped on ────────────────────────────────
+               A phone has no hover, so nothing in this grid was ever singled
+               out: ten cards at identical weight, and you picked one by
+               reading all of them. Scroll snap gives the column a detent at
+               each card's centre, and the card sitting in that detent is the
+               one that opens up.
+
+               Proximity, not mandatory: the snap should help the scroll land
+               somewhere sensible, not seize the page and refuse to let you
+               flick past three cards at once. And the whole thing is gated on
+               .mobile-focus, set by the script, so with JS off the grid is
+               simply a grid of small cards rather than a grid permanently
+               dimmed for a focus that never arrives. */
+            html {
+                scroll-snap-type: y proximity;
+            }
+
+            .card {
+                scroll-snap-align: center;
+            }
+
+            .mobile-focus .card {
+                opacity: 0.86;
+                --focus-scale: 0.98;
+            }
+
+            .mobile-focus .card.is-focused {
+                opacity: 1;
+                --focus-scale: 1.02;
+                z-index: 2;
+                border-color: var(--card-hover-border, rgba(255, 255, 255, 0.25));
+                box-shadow: var(--edge-shadow), 0 14px 28px rgba(0, 0, 0, 0.28),
+                    0 0 24px rgba(var(--accent-rgb), 0.20);
+            }
+
+            .mobile-focus .card.is-focused .card-bg-hover {
+                opacity: 1;
+            }
+
+            .mobile-focus .card.is-focused .card-icon {
+                background: rgba(var(--accent-rgb), 0.24);
+                border-color: rgba(var(--accent-rgb), 0.5);
+            }
+
+            .mobile-focus .card.is-focused .card-stat-chip {
+                background: rgba(var(--accent-rgb), 0.22);
+                border-color: rgba(var(--accent-rgb), 0.45);
+                color: var(--text-primary);
+            }
+
+            /* An open panel is its own layer over a blurred page; it is not a
+               card in a column any more, so it takes none of this. The z-index
+               is the one that matters: .flip-card.is-open lifts the panel to 301,
+               above the backdrop at 300, and the focus rule above is a class
+               more specific than it. Without this line a card that was focused
+               when you tapped it opens *behind* its own backdrop, visible and
+               entirely unclickable. Declared after the focus rule so it wins on
+               source order rather than on a specificity race. */
+            .mobile-focus .card.is-open {
+                opacity: 1;
+                --focus-scale: 1;
+                z-index: 301;
+            }
+
+            /* The half that costs layout, and so the half that waits for the
+               scroll to stop. Front-face links only: the back of a flip card
+               holds its own controls, and hiding those would strand an open
+               panel with no way out. */
+            .mobile-focus .card:not(.is-settled) > .card-link,
+            .mobile-focus .card:not(.is-settled) .card-face-front .card-link {
+                display: none;
+            }
+
+            .mobile-focus .card.is-settled .card-desc {
+                display: block;
+                overflow: visible;
+                margin-bottom: 0.7rem;
+            }
+        }
+
+        /* Snap is a resting position, not motion, so it stays. The scale does
+           not: shrinking every card you are not looking at is exactly the kind
+           of ambient movement this setting is asking us to stop. Emphasis falls
+           back to opacity and the border, which move once and hold. */
+        @media (max-width: 640px) and (prefers-reduced-motion: reduce) {
+            .mobile-focus .card,
+            .mobile-focus .card.is-focused {
+                --focus-scale: 1;
             }
         }
 
@@ -2009,55 +2240,78 @@
                 </svg></span>
         </a>
 
-        <a href="golf/index.html?v=1.3.0" class="card card-metal" id="card-golf">
-            <div class="card-bg-hover"></div>
-            <div>
-                <div class="card-icon">
-                    <svg viewBox="0 0 24 24">
-                        <ellipse cx="12" cy="19" rx="7.5" ry="2.6" fill="currentColor" fill-opacity="0.12"/>
-                        <path d="M11 19V4.2"/>
-                        <path d="M11.6 4.4l7 2.3-7 2.6z" fill="currentColor" fill-opacity="0.45"/>
-                        <ellipse cx="11" cy="19.2" rx="2.5" ry="1.1" fill="currentColor" fill-opacity="0.75" stroke="none"/>
-                        <circle cx="6.2" cy="17.6" r="1.8"/>
-                        <circle cx="6.2" cy="17.6" r="0.6" fill="currentColor" opacity="0.6" stroke="none"/>
-                    </svg>
-                </div>
-                <h2 class="card-title">Pocket Links</h2>
-                <p class="card-desc">Eighteen holes of mini golf. Bunkers, water, ice, bumpers and gates that will not wait for you. Includes a hole editor that checks its own work.</p>
-                <div class="card-stat-chip" id="stat-golf">
-                    <span class="stat-icon">⛳</span> Best Round: <span class="stat-val">—</span>
+        <!-- ── Mini Golf: one tee, two geometries ──────────────────────────
+             Pocket Links and Loft Links stay two games in two folders, sharing
+             no code and no save data. What they no longer need is a card each:
+             two neighbouring tiles whose only real difference was how many axes
+             they use made the grid read like a list with a duplicate in it. So
+             the grid gets one card, and the choice of dimension moves to its
+             flip side — the same mechanism the About card uses — with each
+             game's own record on its own option, so the pick is informed before
+             you make it. ── -->
+        <div class="card flip-card" id="card-golf-hub">
+            <div class="card-flip-inner">
+                <button type="button" class="card-face card-face-front flip-open" aria-expanded="false"
+                    aria-controls="golf-panel">
+                    <div>
+                        <div class="card-icon">
+                            <svg viewBox="0 0 24 24">
+                                <path d="M12 14.2L3.2 17.6l8.8 3.4 8.8-3.4-8.8-3.4z" fill="currentColor" fill-opacity="0.13"/>
+                                <path d="M12 14.2L3.2 17.6l8.8 3.4 8.8-3.4-8.8-3.4z"/>
+                                <path d="M7.6 16.3l4.4 1.7 4.4-1.7" opacity="0.45"/>
+                                <path d="M13.2 17.3V3.6"/>
+                                <path d="M13.6 3.8l6.2 2.1-6.2 2.3z" fill="currentColor" fill-opacity="0.45"/>
+                                <circle cx="8.3" cy="16.1" r="1.55"/>
+                            </svg>
+                        </div>
+                        <h2 class="card-title">Mini Golf</h2>
+                        <p class="card-desc">Two games of it, in two different geometries: eighteen flat holes with an editor that checks its own work, or five courses of ramps, carries and weather you have to play over. Pick your dimensions.</p>
+                        <div class="card-stat-chip" id="stat-golf-hub">
+                            <span class="stat-icon">⛳</span> <span class="stat-val">2D · 3D</span>
+                        </div>
+                    </div>
+                    <span class="card-link">Pick a tee <svg viewBox="0 0 24 24">
+                            <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                stroke-linejoin="round" />
+                        </svg></span>
+                </button>
+                <div class="card-face card-face-back" id="golf-panel" role="dialog" aria-modal="true"
+                    aria-label="Choose a mini golf game">
+                    <button type="button" class="card-close" data-flip-close aria-label="Close">
+                        <svg viewBox="0 0 24 24">
+                            <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2"
+                                stroke-linecap="round" />
+                        </svg>
+                    </button>
+                    <div class="dim-head">
+                        <div class="dim-title">Mini Golf</div>
+                        <div class="dim-sub">How many dimensions?</div>
+                    </div>
+                    <a class="dim-option dim-2d" href="golf/index.html?v=1.3.0">
+                        <span class="dim-badge">2D</span>
+                        <span class="dim-body">
+                            <span class="dim-name">Pocket Links</span>
+                            <span class="dim-desc">Eighteen holes, seen from above. Bunkers, water, ice, bumpers and gates that will not wait for you — plus a hole editor that checks its own work.</span>
+                            <span class="dim-stat" id="stat-golf"><span class="stat-icon">⛳</span> Best Round: <span class="stat-val">—</span></span>
+                        </span>
+                        <svg class="dim-go" viewBox="0 0 24 24">
+                            <path d="M5 12h14M12 5l7 7-7 7" />
+                        </svg>
+                    </a>
+                    <a class="dim-option dim-3d" href="golf3d/index.html?v=1.2.0">
+                        <span class="dim-badge">3D</span>
+                        <span class="dim-body">
+                            <span class="dim-name">Loft Links 3D</span>
+                            <span class="dim-desc">Five courses of ramps, ledges, water carries, windmill blades and greens you can only reach through the air, each hole under weather of its own — and four clubs to get past them.</span>
+                            <span class="dim-stat" id="stat-golf3d"><span class="stat-icon">🏌️</span> Best Round: <span class="stat-val">—</span></span>
+                        </span>
+                        <svg class="dim-go" viewBox="0 0 24 24">
+                            <path d="M5 12h14M12 5l7 7-7 7" />
+                        </svg>
+                    </a>
                 </div>
             </div>
-            <span class="card-link">Play 18 holes <svg viewBox="0 0 24 24">
-                    <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                        stroke-linejoin="round" />
-                </svg></span>
-        </a>
-
-        <a href="golf3d/index.html?v=1.2.0" class="card card-metal" id="card-golf3d">
-            <div class="card-bg-hover"></div>
-            <div>
-                <div class="card-icon">
-                    <svg viewBox="0 0 24 24">
-                        <path d="M12 13.4L3 17l9 4 9-4-9-3.6z" fill="currentColor" fill-opacity="0.14"/>
-                        <path d="M12 13.4L3 17l9 4 9-4-9-3.6z"/>
-                        <path d="M7.5 15.2l4.5 1.9 4.5-1.9" opacity="0.5"/>
-                        <path d="M13 16.4V4.6"/>
-                        <path d="M13.6 4.8l6 2-6 2.4z" fill="currentColor" fill-opacity="0.45"/>
-                        <circle cx="8.4" cy="15.1" r="1.5"/>
-                    </svg>
-                </div>
-                <h2 class="card-title">Loft Links 3D</h2>
-                <p class="card-desc">Mini golf in three dimensions. Five courses of ramps, ledges, water carries, windmill blades and greens you can only reach through the air, each hole under weather of its own — and four clubs to get past them.</p>
-                <div class="card-stat-chip" id="stat-golf3d">
-                    <span class="stat-icon">🏌️</span> Best Round: <span class="stat-val">—</span>
-                </div>
-            </div>
-            <span class="card-link">Play in 3D <svg viewBox="0 0 24 24">
-                    <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                        stroke-linejoin="round" />
-                </svg></span>
-        </a>
+        </div>
 
         <a href="math/index.html#game" class="card card-metal" id="card-math-game">
             <div class="card-bg-hover"></div>
@@ -2305,8 +2559,7 @@
                 'card-cv': 215,
                 'card-math': 270,
                 'card-math-game': 25,
-                'card-golf': 140,
-                'card-golf3d': 198,
+                'card-golf-hub': 140,
                 'card-about': 345
             };
 
@@ -2364,37 +2617,26 @@
                     this.hue = 160;
                     const items = ['🚗', '🔑', '$/mo', '📉', 'APR'];
                     this.symbol = items[Math.floor(Math.random() * items.length)];
-                } else if (cardId === 'card-golf') {
+                } else if (cardId === 'card-golf-hub') {
                     // Struck ball arcing across the screen. Unlike the other
                     // types this one is under gravity (see update), so it rises,
                     // hangs and drops rather than tracking a straight line.
+                    // The card now stands for both games, so the flights come
+                    // in both flavours: the flat one's green, and the lofted
+                    // one's sky blue thrown a little higher.
+                    const lofted = Math.random() < 0.5;
                     this.type = 'golf';
                     this.x = fromLeft ? -40 : width + 40;
-                    this.y = height * (0.55 + Math.random() * 0.35);
-                    this.vx = fromLeft ? (Math.random() * 1.4 + 2.6) : -(Math.random() * 1.4 + 2.6);
-                    this.vy = -(Math.random() * 1.5 + 3.0);
+                    this.y = height * ((lofted ? 0.6 : 0.55) + Math.random() * (lofted ? 0.3 : 0.35));
+                    this.vx = fromLeft ? (Math.random() * 1.4 + 2.5) : -(Math.random() * 1.4 + 2.5);
+                    this.vy = -(Math.random() * 1.5 + (lofted ? 3.4 : 3.0));
                     this.gravity = 0.05;
                     this.size = Math.random() * 8 + 16;
                     this.maxLife = Math.ceil((width + 80) / Math.abs(this.vx));
                     this.maxAlpha = 0.38;
-                    this.hue = 140;
-                    var swings = ['⛳', '🏌️', 'FORE!'];
+                    this.hue = lofted ? 198 : 140;
+                    var swings = lofted ? ['⛳', '🏌️', 'LOFT'] : ['⛳', '🏌️', 'FORE!'];
                     this.symbol = swings[Math.floor(Math.random() * swings.length)];
-                } else if (cardId === 'card-golf3d') {
-                    // Same struck ball as Pocket Links, thrown a bit higher and
-                    // tinted to this card's sky blue.
-                    this.type = 'golf';
-                    this.x = fromLeft ? -40 : width + 40;
-                    this.y = height * (0.6 + Math.random() * 0.3);
-                    this.vx = fromLeft ? (Math.random() * 1.4 + 2.4) : -(Math.random() * 1.4 + 2.4);
-                    this.vy = -(Math.random() * 1.6 + 3.4);
-                    this.gravity = 0.05;
-                    this.size = Math.random() * 8 + 16;
-                    this.maxLife = Math.ceil((width + 80) / Math.abs(this.vx));
-                    this.maxAlpha = 0.38;
-                    this.hue = 198;
-                    var lofted = ['⛳', '🏌️', 'LOFT'];
-                    this.symbol = lofted[Math.floor(Math.random() * lofted.length)];
                 } else {
                     this.dead = true;
                     return;
@@ -2696,6 +2938,14 @@
                 }
             } catch (e) {}
 
+            /* 5+6. Mini Golf. The two games keep entirely separate records,
+               and the picker shows each on its own option. The chip on the front
+               of the card carries whichever of them exist, so you can see there
+               is something to beat without turning the card over — labelled by
+               dimension rather than merged, since eighteen flat holes and six
+               lofted ones are not the same number. */
+            let bestFlat = null, bestLofted = null;
+
             // 5. Pocket Links
             try {
                 const golfRaw = localStorage.getItem('miniGolf.save.v1');
@@ -2712,6 +2962,7 @@
                                 ? ` <span style="opacity:0.65;font-size:0.7rem;margin-left:3px;">(${data.aces} ace${data.aces === 1 ? '' : 's'})</span>`
                                 : '';
                             golfBadge.innerHTML = `<span class="stat-icon">⛳</span> Best Round: <span class="stat-val">${data.best}${vs ? ' (' + vs + ')' : ''}</span>${aces}`;
+                            bestFlat = data.best;
                             done = true;
                         }
                     }
@@ -2750,9 +3001,23 @@
                             ? ` <span style="opacity:0.65;font-size:0.7rem;margin-left:3px;">(${aces} ace${aces === 1 ? '' : 's'})</span>`
                             : '';
                         loftBadge.innerHTML = `<span class="stat-icon">🏌️</span> Best Round: <span class="stat-val">${best}${vs ? ' (' + vs + ')' : ''}</span>${where}${aceTag}`;
+                        bestLofted = best;
                     } else {
                         loftBadge.innerHTML = `<span class="stat-icon">🏌️</span> Best Round: <span class="stat-val">—</span>`;
                     }
+                }
+            } catch (e) {}
+
+            // 7. The Mini Golf card itself, summarising the two above.
+            try {
+                const hubBadge = document.getElementById('stat-golf-hub');
+                if (hubBadge) {
+                    const parts = [];
+                    if (bestFlat !== null) parts.push(`2D <span class="stat-val">${bestFlat}</span>`);
+                    if (bestLofted !== null) parts.push(`3D <span class="stat-val">${bestLofted}</span>`);
+                    hubBadge.innerHTML = parts.length
+                        ? `<span class="stat-icon">⛳</span> Best: ${parts.join(' · ')}`
+                        : `<span class="stat-icon">⛳</span> <span class="stat-val">2D · 3D</span>`;
                 }
             } catch (e) {}
         }
@@ -3035,10 +3300,28 @@
             return `translate(${dx}px, ${dy}px) scale(${sx}, ${sy})`;
         }
 
+        /* How tall the copy on the back face comes out at a given panel width.
+           The back face is inset:0 inside a card whose height we blank first, so
+           what is left is the content's own height. The write-then-read is a
+           forced reflow on purpose; it runs before anything paints, and the
+           card's own inline geometry is put back before it returns. Measuring at
+           the *target* width matters — that is the width the text will wrap to,
+           and the answer is meaningless at any other. */
+        function backContentHeight(card, w) {
+            const backFace = card.querySelector('.card-face-back');
+            if (!backFace) return 0;
+            const prevW = card.style.width, prevH = card.style.height;
+            card.style.width = w + 'px';
+            card.style.height = 'auto';
+            const h = backFace.scrollHeight;
+            card.style.width = prevW;
+            card.style.height = prevH;
+            return h;
+        }
+
         /* Height comes from the copy rather than a constant, so a panel is exactly as
            tall as it needs to be at any viewport and the text can change length
-           without anyone re-tuning a number. The write-then-read is a forced reflow
-           on purpose; it runs before anything paints. */
+           without anyone re-tuning a number. */
         function flipTargetRect(card, r) {
             const placeholder = card.classList.contains('is-open') && openPlaceholder ? openPlaceholder : card;
             const rect = r || placeholder.getBoundingClientRect();
@@ -3047,9 +3330,7 @@
             let w, h;
             if (isMobile) {
                 w = Math.min(520, window.innerWidth - 24);
-                const backFace = card.querySelector('.card-face-back');
-                const contentH = backFace ? backFace.scrollHeight + 32 : 360;
-                h = Math.min(window.innerHeight - 32, Math.max(200, contentH));
+                h = Math.min(window.innerHeight - 32, Math.max(200, backContentHeight(card, w) + 16));
             } else {
                 const aspectRatio = rect.width / rect.height;
                 const maxW = Math.min(rect.width * 1.45, Math.min(520, window.innerWidth - 36));
@@ -3062,6 +3343,13 @@
                     h = maxH;
                     w = h * aspectRatio;
                 }
+
+                /* The aspect ratio says how large the card *may* grow; the copy
+                   says whether it needs to. Without this, a panel whose back
+                   face is shorter than its front — the dimension picker is two
+                   options and a heading — opens as a tall box with a hole in the
+                   bottom of it. */
+                h = Math.max(200, Math.min(h, backContentHeight(card, w) + 16));
             }
 
             const top = (window.innerHeight - h) / 2;
@@ -3583,6 +3871,141 @@
                     enableOrientation();
                 }
             }
+
+            /* ── The card you have stopped on ────────────────────────────────
+               A phone has no hover, so nothing in this grid was ever singled
+               out. Scroll snap gives the column a detent at each card's centre;
+               this works out which card is in it and marks it, and the CSS
+               above does the rest.
+
+               It runs in two stages, because the two halves cost very different
+               things. While the finger is still moving, all that changes is a
+               transform and an opacity — the focused card comes forward, its
+               neighbours sit back — which the compositor handles with no layout
+               at all, so it can follow the scroll frame for frame. The half
+               that does cost layout, unclamping the description and bringing
+               back the link, waits until the scroll has come to rest.
+
+               Even then, a layout change the moment a finger lets go is a trap.
+               The card that collapses is as often as not the one above the card
+               that expands, so the page shortens over the top of it and the
+               card you stopped on slides out from under you. So the swap is
+               made in one synchronous step with the settling card's top edge
+               measured either side of it, and the scroller moved by the
+               difference: the card you chose stays exactly where it is, and the
+               grid rearranges around it. Snap then re-centres it as it grows,
+               which is the part that reads as the card finding its balance. ── */
+            const mobileFocusMQ = window.matchMedia('(max-width: 640px)');
+            const SETTLE_MS = 140;        // stillness that counts as stopped
+            const FOCUS_HYSTERESIS = 26;  // px a rival must win by to take focus
+
+            let focusActive = false;
+            let focusedCard = null;
+            let settledCard = null;
+            let settleTimer = null;
+            let focusRaf = 0;
+
+            function nearestCard() {
+                const viewportH = window.innerHeight;
+                const mid = viewportH / 2;
+                let best = null, bestDist = Infinity;
+
+                for (const card of cards) {
+                    if (card.classList.contains('is-open')) continue;
+                    const r = card.getBoundingClientRect();
+                    if (r.bottom < 0 || r.top > viewportH) continue;
+                    const dist = Math.abs(r.top + r.height / 2 - mid);
+                    if (dist < bestDist) { bestDist = dist; best = card; }
+                }
+
+                /* Halfway between two cards the winner flips back and forth on a
+                   pixel of scroll, and every flip is a pair of class changes on
+                   backdrop-filtered surfaces. The card holding the detent keeps
+                   it until another is clearly closer. */
+                if (best && focusedCard && best !== focusedCard) {
+                    const r = focusedCard.getBoundingClientRect();
+                    if (r.bottom > 0 && r.top < viewportH) {
+                        const held = Math.abs(r.top + r.height / 2 - mid);
+                        if (held - bestDist < FOCUS_HYSTERESIS) return focusedCard;
+                    }
+                }
+                return best;
+            }
+
+            function setFocus(card) {
+                if (card === focusedCard) return;
+                if (focusedCard) focusedCard.classList.remove('is-focused');
+                focusedCard = card;
+                if (card) card.classList.add('is-focused');
+            }
+
+            /* Both class changes land before either measurement is read, so the
+               whole swap costs one forced layout rather than one per card. */
+            function setSettled(card) {
+                if (!card || card === settledCard) return;
+                const before = card.getBoundingClientRect().top;
+                if (settledCard) settledCard.classList.remove('is-settled');
+                card.classList.add('is-settled');
+                settledCard = card;
+                const drift = card.getBoundingClientRect().top - before;
+                if (drift) window.scrollBy(0, drift);
+                // Card heights just changed, so the tilt loop's cache is stale.
+                invalidateGeometry();
+                if (typeof activateCardTheme === 'function') activateCardTheme(card.id);
+            }
+
+            function settleNow() {
+                if (document.querySelector('.flip-card.is-open')) return;
+                const card = nearestCard();
+                setFocus(card);
+                setSettled(card);
+            }
+
+            function onFocusScroll() {
+                if (!focusRaf) {
+                    focusRaf = requestAnimationFrame(() => {
+                        focusRaf = 0;
+                        if (focusActive) setFocus(nearestCard());
+                    });
+                }
+                clearTimeout(settleTimer);
+                settleTimer = setTimeout(settleNow, SETTLE_MS);
+            }
+
+            function enableFocus() {
+                if (focusActive) return;
+                focusActive = true;
+                document.documentElement.classList.add('mobile-focus');
+                window.addEventListener('scroll', onFocusScroll, { passive: true });
+                settleNow();
+            }
+
+            function disableFocus() {
+                if (!focusActive) return;
+                focusActive = false;
+                window.removeEventListener('scroll', onFocusScroll);
+                clearTimeout(settleTimer);
+                if (focusRaf) { cancelAnimationFrame(focusRaf); focusRaf = 0; }
+                document.documentElement.classList.remove('mobile-focus');
+                setFocus(null);
+                if (settledCard) { settledCard.classList.remove('is-settled'); settledCard = null; }
+                invalidateGeometry();
+            }
+
+            function syncFocusMode() {
+                if (mobileFocusMQ.matches) enableFocus(); else disableFocus();
+            }
+
+            if (mobileFocusMQ.addEventListener) {
+                mobileFocusMQ.addEventListener('change', syncFocusMode);
+            } else if (mobileFocusMQ.addListener) {
+                mobileFocusMQ.addListener(syncFocusMode);  // Safari < 14
+            }
+            window.addEventListener('resize', () => { if (focusActive) settleNow(); });
+            window.addEventListener('orientationchange', () => { if (focusActive) settleNow(); });
+            // A card leaving or rejoining the grid moves every card below it.
+            document.addEventListener('flip:change', () => { if (focusActive) settleNow(); });
+            syncFocusMode();
         })();
     </script>
 </body>
