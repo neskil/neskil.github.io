@@ -173,6 +173,92 @@ and [cuff and divider counts](https://www.moresports.com/blogs/the-extra-mile/wh
 for the bag; [standard club lengths](https://www.hirekogolf.com/hireko-standard-length-golf-club-chart)
 for the clubs.
 
+### Why it still looked like a bin
+
+The numbers above are right and the model was still wrong, for three reasons
+that had nothing to do with proportion. All three are worth writing down
+because each one looks like a taste problem and is in fact a bug.
+
+**The colours were being brightened twice.** three.js at r128 hands a material
+colour straight to the shader and then encodes the finished frame to sRGB on
+the way out, so a colour *written* dark is *lit* as though it were much lighter
+and then leaves lighter still. Black leather at `#2a3138` came off the screen
+as a mid grey; four heads in three different greys all arrived the same shade
+of white, and the whole bag read as a beige bucket lit by a studio flash. Every
+colour in `bag.js` now goes through `ink()` — `convertSRGBToLinear` — at the
+point it is written, and the canvas textures declare `sRGBEncoding` so they are
+decoded the same way. What is written is now what shows. The specular colours
+went with them: white highlights on every metal were what turned four club
+heads into four white blobs, and chrome reflects the sky it is standing under,
+not a flash.
+
+**The mouth was a lid.** A `CylinderGeometry` is capped at both ends by default,
+and the bag's body and its cuff were two solid discs lying across the opening.
+The clubs came *through* that lid rather than standing in the bag, which is
+most of what made it read as sticks in a bin. Both are open-ended now, and what
+the mouth shows is a lining — painted rather than lit, bright at the rim and
+dark at the bottom of the well, because nothing in the scene lights the inside
+of a bag and a flat tone reads as a hole cut in it rather than as a depth.
+
+**Everything that said "golf bag" was below the cut.** The bag stands mostly off
+the bottom of the screen on purpose, and the pocket, the strap, the foot ring
+and the accent band were all down in the part nobody sees: what showed was a
+dark cylinder. The band, the panel, a maker's patch and a carry handle now live
+in the hand's width above the cuff that is actually on screen, and the patch is
+turned to face the camera rather than centred on the bag's nominal front —
+the rig is deliberately twisted off-axis, so a patch centred on local `+z`
+spends half of itself round the side.
+
+Two smaller things came out of the same pass. The clubs bunch tighter and lean
+less, because the old spread put the outer two grips within a centimetre of the
+wall and the lean then carried their shafts out across the bag's own silhouette
+— two clubs in a bag and two propped against it. And each club's **ferrule**,
+the collar between shaft and head, is now that club's own colour: it is the one
+part of a club that is allowed to be any colour at all, it sits above the cuff
+on a shut bag, and it means four clubs bunched in the mouth are four colours
+rather than four silhouettes. The same four colours name the club on its card.
+
+### What a club's card says
+
+Each club carries its own card the whole time the row is open, so four clubs are
+compared at a glance rather than one at a time. Two versions of that card are
+worth contrasting.
+
+The first gave each club a **typeface** of its own — the driver in a heavy sans,
+the wedge in an italic serif, the chipper in a monospace — on the theory that
+four faces would read as four personalities. Four faces on four cards standing
+side by side read as four different games. A club is already told apart by its
+colour and by the shape of the head above the card; the type's only job is to be
+read at a glance from across a phone, and the face that does that best is the one
+the rest of the page is set in. So it is one typeface in two weights now —
+Outfit for words, JetBrains Mono for figures — and the colour carries the
+personality on its own.
+
+The second problem was the two figures. `pwr 14 · loft 22°` is the data with the
+meaning left off: 14 is in units nobody outside `physics.js` has ever seen, and a
+number of degrees is only a picture if you already have the picture. Both are
+drawn now as well as written:
+
+- **Loft** is the face itself, set at the club's real angle, with the line the
+  ball leaves on coming off it. A wedge's card shows a face lying right back and
+  a line going up; a putter's shows a face standing straight and a line along the
+  ground. A face and a launch line are one rotation seen twice, which is the
+  point of drawing both.
+- **Power** is a bar filled against the biggest club in the bag, so "the driver
+  is the reach club" is a length rather than a claim — the driver's bar is full
+  and everything else is measured off it.
+
+The figures stay underneath for anyone who wants them, and the same two, written
+out rather than abbreviated, are in the DOM panel above the row where a screen
+reader can reach them.
+
+One last detail, and it is the reason the type never looked like the page's even
+before any of the above: a canvas draws with whatever font the browser has *at
+the moment `fillText` runs*, and the web font arrives a heartbeat after the first
+frame. Every card was being baked in the fallback face and kept it for the rest
+of the round. `document.fonts.ready` now redraws the four cards and the bag's
+patch once, which costs five canvases, once.
+
 ### Modelling the heads
 
 The heads went through three versions and only the third is any good, which is
