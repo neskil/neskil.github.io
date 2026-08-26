@@ -144,32 +144,6 @@
         R.arrow.renderOrder = 5;
         R.aimGroup.add(R.arrow);
 
-        /* The band: a tapered strip behind the ball, opposite the shot, that
-           grows as the pull grows. It is the part of a slingshot you can see
-           straining, and without it a big shot and a small one look the same
-           until the ball moves. */
-        var band = new THREE.BufferGeometry();
-        band.setAttribute('position', new THREE.Float32BufferAttribute(new Array(6 * 3).fill(0), 3));
-        R.band = new THREE.Mesh(band, new THREE.MeshBasicMaterial({
-            color: 0xffffff, transparent: true, opacity: 0.5, side: THREE.DoubleSide,
-            depthTest: false
-        }));
-        R.band.renderOrder = 4;
-        R.aimGroup.add(R.band);
-
-        /* The ring: a full circle round the ball drawn only as far as the power
-           has wound on. RingGeometry lays its triangles out in order round the
-           circle, so a draw range is an arc, and an arc costs nothing. */
-        var ring = new THREE.RingGeometry(0.30, 0.40, 64);
-        R.ringCount = ring.index.count;
-        R.ring = new THREE.Mesh(ring, new THREE.MeshBasicMaterial({
-            color: 0x9ae6b4, transparent: true, opacity: 0.9, side: THREE.DoubleSide,
-            depthTest: false
-        }));
-        R.ring.rotation.x = -Math.PI / 2;
-        R.ring.renderOrder = 7;
-        R.aimGroup.add(R.ring);
-
         /* Predicted path, as a cone. It follows the arc the ball will fly —
            real physics, sampled — and opens out sideways as it goes, by the
            spread the shot will actually be played with: nothing inside a full
@@ -1268,9 +1242,8 @@
            previewPath hands back nothing. Park the cone and the arrowhead
            rather than reading the last point of an empty path — which is what
            a freshly loaded hole does until the player winds a swing on. The
-           wedge, the band and the ring are drawn by updateAim whatever this
-           decides, because the shot line is worth showing before there is a
-           shot. */
+           wedge is drawn by updateAim whatever this decides, because the shot
+           line is worth showing before there is a shot. */
         R.pathCone.visible = pts.length > 1;
         R.pathHead.visible = pts.length > 1;
         if (pts.length < 2) return;
@@ -1412,8 +1385,9 @@
         var b = world.ball;
         var dirX = Math.sin(aim.yaw), dirZ = Math.cos(aim.yaw);
         var rawFrac = Math.max(0, Math.min(1, aim.power / C.MAX_POWER));
-        // The wedge and band keep a floor so the shot direction is always
-        // visible; the ring below uses the real fraction so it reads 0% at 0%.
+        // The wedge keeps a floor so the shot direction is always visible even
+        // at no power at all: the meter is what reads the number, the arrow is
+        // only there to say which way.
         var frac = Math.max(0.08, rawFrac);
         var len = 0.7 + frac * 2.6;
         var halfW = 0.11 + frac * 0.05;
@@ -1444,29 +1418,6 @@
         var hot = over > 0 || frac > C.OVERSWING;
         var hue = hot ? 0 : 0.33 * (1 - frac / C.OVERSWING);
         R.arrow.material.color.setHSL(hue, 0.85, hot ? 0.62 + over * 0.16 : 0.55);
-
-        // The band, stretched out behind the ball by the same fraction.
-        var ba = R.band.geometry.attributes.position.array;
-        var back = 0.26 + frac * 2.2;
-        function bandPut(i, sx, sz) {
-            ba[i * 3] = b.x - dirX * sx + px * sz;
-            ba[i * 3 + 1] = y;
-            ba[i * 3 + 2] = b.z - dirZ * sx + pz * sz;
-        }
-        var tip = 0.05 + frac * 0.03;
-        bandPut(0, 0.18, -0.13); bandPut(1, 0.18, 0.13); bandPut(2, back, tip);
-        bandPut(3, 0.18, -0.13); bandPut(4, back, tip); bandPut(5, back, -tip);
-        R.band.geometry.attributes.position.needsUpdate = true;
-        R.band.geometry.computeBoundingSphere();
-        R.band.material.color.copy(R.arrow.material.color);
-        R.band.material.opacity = 0.25 + frac * 0.4;
-
-        // The ring fills clockwise from the shot line as the power winds on.
-        R.ring.position.set(b.x, y, b.z);
-        R.ring.rotation.z = -aim.yaw;
-        R.ring.geometry.setDrawRange(0, Math.max(3, Math.floor(R.ringCount * rawFrac / 3) * 3));
-        R.ring.material.color.copy(R.arrow.material.color);
-        R.ring.visible = rawFrac > 0.02;
 
         // The path is the expensive half of this function, and most frames
         // do not need it recomputed — see updatePath.

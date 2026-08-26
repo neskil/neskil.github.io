@@ -420,9 +420,9 @@
         var swing = Math.max(0, state.aim.power / club.power);      // of a full swing
         var over = swing > 1;
         var hot = swing > C.OVERSWING;
-        // Green through amber to red, and the same hue the arrow and the ring
-        // are wearing out on the course. Past a full swing it is red and stays
-        // red — there is nothing left to grade.
+        // Green through amber to red, and the same hue the arrow is wearing
+        // out on the course. Past a full swing it is red and stays red —
+        // there is nothing left to grade.
         var hue = hot ? 0 : 120 * (1 - swing / C.OVERSWING);
         var light = over ? 55 + Math.round(P.overdraw(state.aim.power, club.power) * 12) : 55;
         $('power-fill').style.width = (frac * 100).toFixed(1) + '%';
