@@ -1000,6 +1000,11 @@
         (function () {
             var seenId = {}, seenKey = {}, flat = 0, longest = null;
             assert('there is a bag', C.CLUBS.length >= 2);
+            /* A club whose loft the clamp would trim is a club that does not
+               do what its label says — the wedge sat a degree under the old
+               45° ceiling and read as flat because of it. */
+            assert('the bag has a club that really goes up',
+                Math.max.apply(null, C.CLUBS.map(function (c) { return c.loft; })) >= 50 * Math.PI / 180);
             C.CLUBS.forEach(function (club) {
                 assert(club.id + ': named, keyed and described',
                     !!club.name && !!club.short && !!club.key && !!club.blurb);

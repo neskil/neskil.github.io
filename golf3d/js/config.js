@@ -110,7 +110,13 @@ G3.CONFIG = {
     SPRAY_POWER: 0.16,
     SPRAY_CURVE: 3.2,
 
-    MAX_LOFT: 45 * Math.PI / 180,
+    /* The ceiling on launch angle. It used to be 45°, which is the angle
+       that carries furthest on flat ground and so reads like the right
+       number — but it is a *clamp*, and the bag's highest club sat one
+       degree under it. Anything genuinely lofted was quietly flattened
+       back to a wedge. A lob wedge is 58° in the real bag and it is 58°
+       here, so the ceiling has to be above it. */
+    MAX_LOFT: 62 * Math.PI / 180,
 
     /* The bag. A club is a loft and a ceiling on power, and that is the whole
        of it — the simulation never hears the word "club", it is handed a launch
@@ -144,15 +150,26 @@ G3.CONFIG = {
             loft: 16 * Math.PI / 180, power: 18,
             blurb: 'The long approach. Carries what the driver runs into.'
         },
+        /* The top of the bag is set at the lofts these clubs really carry:
+           a pitching wedge is 45° and a lob wedge is 58°, and at 22° and 42°
+           neither of them was doing what its name says — the pitch flew like
+           a long chip and the wedge could not get over anything the iron
+           could not.
+
+           The power came with them. Carry goes as p² sin 2θ, so lifting the
+           face without touching the ceiling would have moved every landing
+           spot on the course: 11.7 at 45° and 12.1 at 58° carry what 14 at
+           22° and 11.5 at 42° carried. What changes is the height and the
+           stopping, which is the whole reason to reach for either. */
         {
-            id: 'chipper', name: 'Chipper', short: 'CH', key: '4',
-            loft: 22 * Math.PI / 180, power: 14,
-            blurb: 'Hops a rail and keeps running. The all-rounder.'
+            id: 'chipper', name: 'Pitch', short: 'PW', key: '4',
+            loft: 45 * Math.PI / 180, power: 11.7,
+            blurb: 'Up steep and down steeper. Stops near where it lands.'
         },
         {
-            id: 'wedge', name: 'Wedge', short: 'WG', key: '5',
-            loft: 42 * Math.PI / 180, power: 11.5,
-            blurb: 'Up and over water, sand and anything else in the way.'
+            id: 'wedge', name: 'Wedge', short: 'LW', key: '5',
+            loft: 58 * Math.PI / 180, power: 12.1,
+            blurb: 'The lob. Straight up over water, sand and trees.'
         }
     ],
     DEFAULT_CLUB: 'driver',
