@@ -1223,6 +1223,12 @@
         });
         var geo = new THREE.CylinderGeometry(0.09, 0.11, 1.15, 6);
         var gap = 4.5, r, i, k;
+        /* Nothing within this of the tee. A boundary can legitimately run
+           behind a teeing ground and two of these holes have one that does,
+           but the bag rides in front of the camera at a fixed offset and a
+           stake a few units away lines up behind it looking like a marble
+           column. No real course puts a stake on the tee either. */
+        var CLEAR_OF_TEE = 7;
 
         /* A stake goes on the edge of a rectangle unless that edge is inside
            another one — where two rectangles overlap to make a dogleg, the
@@ -1257,6 +1263,7 @@
                     var x = s0[0] + (s0[2] - s0[0]) * t;
                     var z = s0[1] + (s0[3] - s0[1]) * t;
                     if (inside(x, z, r)) continue;
+                    if (Math.hypot(x - hole.tee.x, z - hole.tee.z) < CLEAR_OF_TEE) continue;
                     var top = P.surfaceTop(hole, x, z);
                     if (!top) continue;
                     var m = new THREE.Mesh(geo, mat);
