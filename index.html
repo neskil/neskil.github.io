@@ -76,6 +76,40 @@
             transition: --bg-color-1 0.8s ease-in-out, --bg-color-2 0.8s ease-in-out, --hue 0.8s ease-in-out;
         }
 
+        /* ── The three palettes ─────────────────────────────────────────────
+           A background variant is a colour, not a structure: the ruled grid is on
+           whatever the page is wearing (see #bg-grid). So switching one swings
+           --hue and the two base colours, and everything derived from them
+           follows — the drifting lights, Dawn's sweep, and the grid's own ink.
+           All three are registered @property values carrying the 0.8s transition
+           on html above, so a switch is a slow colour turn rather than a cut.
+
+           These sit below the base html rule and above the card themes on
+           purpose. An attribute selector outranks the bare `html`, and the card
+           themes match at the same specificity further down the sheet, so
+           hovering a card still pulls the palette to that card's colour and
+           releasing it falls back to whichever variant is showing. */
+        html[data-bg="blueprint"] {
+            --bg-color-1: #0f172a;
+            --bg-color-2: #1e1b4b;
+            --hue: 232;
+            --lights: 0.55;
+        }
+
+        html[data-bg="aurora"] {
+            --bg-color-1: #06171c;
+            --bg-color-2: #0c2438;
+            --hue: 168;
+            --lights: 1;
+        }
+
+        html[data-bg="dawn"] {
+            --bg-color-1: #16101f;
+            --bg-color-2: #2b1330;
+            --hue: 340;
+            --lights: 0.5;
+        }
+
         html[data-theme="card-supply-chain"] {
             --bg-color-1: #15110a;
             --bg-color-2: #20170c;
@@ -147,10 +181,12 @@
            hsl(45 60% 25%) field would blaze on top of it. color-mix keeps each
            field a nudge away from whatever the base currently is.
 
-           A variant is one layer for its character (ruled plane, vignette, sweep).
-           The drifting lights and the grain sit outside that and show under all of
-           them, so a new variant is one layer here, one html[data-bg="…"] rule and
-           one entry in BG_VARIANTS. */
+           A variant is a palette (above) plus one layer for its character — a
+           wash, a vignette, a sweep. The drifting lights, the ruled grid and the
+           grain sit outside all of that and show over every one of them, which is
+           what lets the colours rotate without the page appearing to rebuild
+           itself. A new variant is one palette rule, one layer here and one entry
+           in BG_VARIANTS. */
         html {
             --tint-a: color-mix(in oklab, hsl(var(--hue) 70% 45%) 26%, var(--bg-color-1));
             --tint-b: color-mix(in oklab, hsl(calc(var(--hue) + 55) 60% 45%) 22%, var(--bg-color-2));
@@ -237,28 +273,17 @@
             background: radial-gradient(115% 100% at 50% 40%, transparent 42%, rgba(2, 4, 12, 0.78) 100%);
         }
 
-        /* ── 2. Blueprint — a ruled plane over dimmed lights, masked so the grid
-              fades out before it reaches the edges ── */
-        html[data-bg="blueprint"] {
-            --lights: 0.55;
-        }
-
+        /* ── 2. Blueprint — the house palette. Cool indigo, lights turned down,
+              and a wash that deepens towards the bottom so the grid over it reads
+              as a plane lit from above rather than a flat pattern ── */
         [data-bg-layer="blueprint"] {
-            background:
-                repeating-linear-gradient(0deg, hsl(var(--hue) 70% 70% / 0.05) 0 1px, transparent 1px 44px),
-                repeating-linear-gradient(90deg, hsl(var(--hue) 70% 70% / 0.05) 0 1px, transparent 1px 44px);
-            -webkit-mask-image: radial-gradient(120% 90% at 50% 30%, #000 35%, transparent 85%);
-            mask-image: radial-gradient(120% 90% at 50% 30%, #000 35%, transparent 85%);
+            background: linear-gradient(180deg, rgba(2, 4, 12, 0) 28%, rgba(2, 4, 12, 0.5) 100%);
         }
 
         /* ── 3. Dawn — a slow sweep rising from below the fold. The gradient is
               centred past the bottom edge and the whole disc turns once every
               four minutes, so the viewport only ever sees a moving slice of it.
               Deliberately washed out: two tints and a lot of base. ── */
-        html[data-bg="dawn"] {
-            --lights: 0.5;
-        }
-
         [data-bg-layer="dawn"] {
             overflow: hidden;
             /* The sweep is opaque, so it goes under the lights rather than over
@@ -288,6 +313,22 @@
 
         @keyframes bg-sweep-turn {
             to { transform: rotate(360deg); }
+        }
+
+        /* ── The ruled plane ──
+           Always on, over whichever palette is showing — the one piece of the
+           background that does not rotate, and the reason a colour change reads as
+           the light moving rather than the page being swapped out. The ink is
+           hsl(var(--hue) …), so the grid turns with the palette while the lines
+           themselves stay exactly where they were. Masked so it fades out before
+           it reaches the edges. */
+        #bg-grid {
+            opacity: 1;
+            background:
+                repeating-linear-gradient(0deg, hsl(var(--hue) 70% 70% / 0.05) 0 1px, transparent 1px 44px),
+                repeating-linear-gradient(90deg, hsl(var(--hue) 70% 70% / 0.05) 0 1px, transparent 1px 44px);
+            -webkit-mask-image: radial-gradient(120% 90% at 50% 30%, #000 35%, transparent 85%);
+            mask-image: radial-gradient(120% 90% at 50% 30%, #000 35%, transparent 85%);
         }
 
         /* Grain — texture, and it hides the banding dark gradients get on 8-bit
@@ -2280,41 +2321,42 @@
            Which background the page wears is decided here, before first paint,
            so nobody sees the default ramp swap out a moment later.
 
-           Blueprint is the house style, and it is simply what the page wears:
-           every visit gets the ruled plane unless you say otherwise. The others
-           are still here — the vault picker holds any one of them for the life
-           of the tab, and "Shuffle" opts into the old behaviour, where the page
-           re-rolls every 30s of reading and lands somewhere other than Blueprint
-           one roll in four. Either choice lives in sessionStorage, so a new tab
-           starts on Blueprint again.
+           A variant is a palette, not a layout: the ruled grid is on whatever is
+           showing, and switching one turns the colour underneath it. That is
+           cheap enough to do on a timer — nothing moves, nothing reflows, the
+           lines stay where they are and the light changes around them — so by
+           default the page rotates through all three, holding each for a minute
+           and taking 1.4s to cross over.
 
-           Adding a variant is one entry here plus its CSS layer; it turns up in
-           the picker and joins the pool Shuffle draws from. */
+           Every visit opens on Blueprint, the house style, and moves on from
+           there. A pick from the vault holds one palette for the life of the tab
+           and stops the rotation; a new tab starts over on Blueprint.
+
+           Adding a variant is one palette rule, one CSS layer and one entry
+           here; the rotation and the picker both pick it up. */
         const BG_VARIANTS = [
             { id: 'blueprint', label: 'Blueprint' },
             { id: 'aurora', label: 'Aurora' },
             { id: 'dawn', label: 'Dawn' }
         ];
         const BG_DEFAULT = 'blueprint';
-        const BG_SHUFFLE = 'shuffle';
-        const BG_WANDER_CHANCE = 0.25;
+        const BG_ROTATE = 'rotate';
         const BG_MODE_KEY = 'bgVariant.mode';
-        const BG_ROTATE_MS = 30000;
+        const BG_ROTATE_MS = 60000;
 
         let bgCurrent = null;
-        // Either a variant id (held) or BG_SHUFFLE (wandering).
-        let bgMode = BG_DEFAULT;
+        // Either a variant id (held) or BG_ROTATE (cycling).
+        let bgMode = BG_ROTATE;
         let bgTimer = null;
 
         const bgIsKnown = id => BG_VARIANTS.some(v => v.id === id);
-        const bgIsMode = m => m === BG_SHUFFLE || bgIsKnown(m);
+        const bgIsMode = m => m === BG_ROTATE || bgIsKnown(m);
 
-        /* Blueprint three times in four, one of the rest otherwise */
-        function bgRoll() {
-            if (Math.random() >= BG_WANDER_CHANCE) return BG_DEFAULT;
-            const rest = BG_VARIANTS.filter(v => v.id !== BG_DEFAULT);
-            if (!rest.length) return BG_DEFAULT;
-            return rest[Math.floor(Math.random() * rest.length)].id;
+        /* In order, wrapping — a rotation, not a shuffle, so you see all three
+           rather than the same two over and over. */
+        function bgNext() {
+            const at = BG_VARIANTS.findIndex(v => v.id === bgCurrent);
+            return BG_VARIANTS[(at + 1) % BG_VARIANTS.length].id;
         }
 
         function bgApply(id) {
@@ -2325,33 +2367,34 @@
             document.dispatchEvent(new CustomEvent('bg:change'));
         }
 
-        /* A roll that lands on a new variant cross-fades two full-viewport layers over
-           1.4s. Starting that while the page is being scrolled put a compositing spike
-           right on top of the scroll, which read as a stutter — and the whole point of
-           the wander is that you notice it in passing, not that it happens on a
-           schedule. So a roll due mid-scroll waits for the scrolling to stop. */
-        let bgRollPending = false;
+        /* A switch cross-fades two full-viewport layers over 1.4s and animates
+           three registered custom properties under them. Starting that while the
+           page is being scrolled put a compositing spike right on top of the
+           scroll, which read as a stutter — and the whole point of the rotation is
+           that you notice it in passing, not that it happens on a schedule. So a
+           turn due mid-scroll waits for the scrolling to stop. */
+        let bgTurnPending = false;
 
-        function bgTryRoll() {
-            if (bgMode !== BG_SHUFFLE) return;
-            if (scrollIsActive()) { bgRollPending = true; return; }
-            bgRollPending = false;
-            bgApply(bgRoll());
+        function bgTryTurn() {
+            if (bgMode !== BG_ROTATE) return;
+            if (scrollIsActive()) { bgTurnPending = true; return; }
+            bgTurnPending = false;
+            bgApply(bgNext());
         }
 
         function bgStartRotation() {
             clearInterval(bgTimer);
             bgTimer = null;
-            if (bgMode !== BG_SHUFFLE) return;
+            if (bgMode !== BG_ROTATE) return;
             if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-            bgTimer = setInterval(bgTryRoll, BG_ROTATE_MS);
+            bgTimer = setInterval(bgTryTurn, BG_ROTATE_MS);
         }
 
-        /* A variant id holds that one; BG_SHUFFLE hands the page to the rotation. */
+        /* A variant id holds that one; BG_ROTATE hands the page back to the timer. */
         function bgSetMode(mode) {
-            bgMode = bgIsMode(mode) ? mode : BG_DEFAULT;
+            bgMode = bgIsMode(mode) ? mode : BG_ROTATE;
             try { sessionStorage.setItem(BG_MODE_KEY, bgMode); } catch (e) { }
-            if (bgMode === BG_SHUFFLE) {
+            if (bgMode === BG_ROTATE) {
                 bgStartRotation();
             } else {
                 clearInterval(bgTimer);
@@ -2367,14 +2410,15 @@
             let stored = null;
             try { stored = sessionStorage.getItem(BG_MODE_KEY); } catch (e) { }
 
-            bgMode = bgIsMode(stored) ? stored : BG_DEFAULT;
-            bgApply(bgMode === BG_SHUFFLE ? bgRoll() : bgMode);
+            bgMode = bgIsMode(stored) ? stored : BG_ROTATE;
+            // Rotating or not, the page opens on the house style.
+            bgApply(bgMode === BG_ROTATE ? BG_DEFAULT : bgMode);
             bgStartRotation();
         })();
 
-        // A roll that came due mid-scroll gets its turn once the page settles.
+        // A turn that came due mid-scroll gets it once the page settles.
         document.addEventListener('scroll:idle', () => {
-            if (bgRollPending) bgTryRoll();
+            if (bgTurnPending) bgTryTurn();
         });
 
         // No point rotating a background nobody is looking at.
@@ -2382,7 +2426,7 @@
             if (document.hidden) {
                 clearInterval(bgTimer);
                 bgTimer = null;
-            } else if (bgMode === BG_SHUFFLE && !bgTimer) {
+            } else if (bgMode === BG_ROTATE && !bgTimer) {
                 bgStartRotation();
             }
         });
@@ -2554,8 +2598,8 @@
 
     <!-- Background stack, bottom to top: the drifting lights, then whichever
          variant layer is active (only one is at opacity 1 — see BG_VARIANTS),
-         then the grain. Dawn's sweep is opaque and sets itself below the
-         lights in CSS. -->
+         then the ruled grid and the grain, both of which are on over all of
+         them. Dawn's sweep is opaque and sets itself below the lights in CSS. -->
     <div class="bg-variant" id="bg-lights">
         <span class="bg-blob bg-blob-a"></span>
         <span class="bg-blob bg-blob-b"></span>
@@ -2566,6 +2610,7 @@
     </div>
     <div class="bg-variant" data-bg-layer="aurora"></div>
     <div class="bg-variant" data-bg-layer="blueprint"></div>
+    <div class="bg-variant" id="bg-grid"></div>
     <div class="bg-variant" id="bg-grain"></div>
 
     <div id="about-backdrop"></div>
@@ -2616,7 +2661,7 @@
                     <div class="vault-row-icon">🎨</div>
                     <div class="vault-row-body">
                         <div class="vault-row-title">Background</div>
-                        <div class="vault-row-desc" id="vault-bg-desc">Blueprint is the house style. Pick another to hold it for this tab.</div>
+                        <div class="vault-row-desc" id="vault-bg-desc">The grid stays; the colour turns over every minute. Pick one to hold it.</div>
                     </div>
                 </div>
                 <div class="vault-opt-chips" id="vault-bg-chips"></div>
@@ -3297,8 +3342,38 @@
             themeSpawnArmed = false;
         }
 
+        /* ── Letting go of a card's theme ──
+           A hovered card pulls the whole page towards its accent, and until now
+           nothing ever pulled it back: the first card you touched owned the
+           palette for the rest of the visit. That matters more than it did, since
+           the background rotates its colours now and a pinned theme outranks the
+           rotation — you would see the lights and the sweep change under a hue
+           that never moved again. So the theme is released when nothing is
+           hovered, and the page falls back to whichever palette is showing.
+
+           Debounced, because sliding from one card to its neighbour releases the
+           first before it activates the second, and a flick back to base in
+           between would read as a flash. */
+        const THEME_RELEASE_MS = 260;
+        let themeReleaseTimer = null;
+
+        function deactivateCardTheme() {
+            clearTimeout(themeReleaseTimer);
+            themeReleaseTimer = setTimeout(() => {
+                themeReleaseTimer = null;
+                activeThemeCardId = null;
+                document.documentElement.removeAttribute('data-theme');
+                disarmThemeSpawn();
+            }, THEME_RELEASE_MS);
+        }
+
         function activateCardTheme(cardId) {
-            if (!cardId || activeThemeCardId === cardId) return;
+            if (!cardId) return;
+            // Before the early return below: re-entering the card you just left
+            // has to cancel its own pending release.
+            clearTimeout(themeReleaseTimer);
+            themeReleaseTimer = null;
+            if (activeThemeCardId === cardId) return;
             activeThemeCardId = cardId;
 
             clearTimeout(themeDwellTimer);
@@ -4041,9 +4116,9 @@
 
         /* ── Vault switches ──
            The background picker builds itself from BG_VARIANTS, so a new variant
-           turns up here for free. "Shuffle" is the old wandering behaviour, now
-           opt-in: while it runs, the chip of whatever is on screen is outlined
-           rather than filled. The two switches under it are plain on/off. */
+           turns up here for free. "Rotate" is the default: while it runs, the chip
+           of whatever palette is on screen is outlined rather than filled. The two
+           switches under it are plain on/off. */
         const bgChips = document.getElementById('vault-bg-chips');
         const bgDesc = document.getElementById('vault-bg-desc');
 
@@ -4057,7 +4132,7 @@
                 return b;
             };
             BG_VARIANTS.forEach(v => bgChips.appendChild(chip(v.id, v.label)));
-            bgChips.appendChild(chip(BG_SHUFFLE, 'Shuffle'));
+            bgChips.appendChild(chip(BG_ROTATE, 'Rotate'));
             bgChips.addEventListener('click', e => {
                 const btn = e.target.closest('[data-bg-pick]');
                 if (btn) bgSetMode(btn.dataset.bgPick);
@@ -4065,15 +4140,15 @@
         }
 
         function syncBgChips() {
-            const shuffling = bgMode === BG_SHUFFLE;
+            const rotating = bgMode === BG_ROTATE;
             for (const btn of bgChips.children) {
                 const id = btn.dataset.bgPick;
                 btn.setAttribute('aria-pressed', String(id === bgMode));
-                btn.dataset.live = String(shuffling && id === bgCurrent);
+                btn.dataset.live = String(rotating && id === bgCurrent);
             }
-            bgDesc.textContent = shuffling
-                ? 'Wandering — a fresh roll every 30 seconds. Pick one to hold it.'
-                : 'Blueprint is the house style. Held for this tab; a new tab starts over.';
+            bgDesc.textContent = rotating
+                ? 'The grid stays; the colour turns over every minute. Pick one to hold it.'
+                : 'Held for this tab. Rotate hands it back to the timer; a new tab starts over.';
         }
 
         if (bgChips && bgDesc) {
@@ -4486,6 +4561,7 @@
                 function release() {
                     if (card.classList.contains('is-open')) return;
                     state.hovered = false;
+                    if (typeof deactivateCardTheme === 'function') deactivateCardTheme();
                 }
 
                 card.addEventListener('mouseenter', activate);
@@ -4825,7 +4901,10 @@
                 if (card === focusedCard) return;
                 if (focusedCard) focusedCard.classList.remove('is-focused');
                 focusedCard = card;
-                if (!card) return;
+                if (!card) {
+                    if (typeof deactivateCardTheme === 'function') deactivateCardTheme();
+                    return;
+                }
                 card.classList.add('is-focused');
                 if (typeof activateCardTheme === 'function') activateCardTheme(card.id);
             }
