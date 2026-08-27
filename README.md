@@ -16,12 +16,12 @@ Niklas Billgren's personal site, hosted on GitHub Pages. Static HTML/CSS/JS, no 
 | `supply-chain/` | Supply Chain Tycoon — a Mini-Metro-style logistics mini-game (roads, trucks, factories, orders). See [supply-chain/README.md](supply-chain/README.md). |
 | `supply-chain-legacy/` | Frozen single-file snapshot of the pre-rewrite Supply Chain sim. Reachable only from the "vault" row on the landing page; kept out of the sitemap on purpose. |
 | `3d-engine-poc/` | Yard Master — a WebGL container-stacking puzzle (three.js, vendored, no build step). See [3d-engine-poc/README.md](3d-engine-poc/README.md). |
-| `golf/` | Pocket Links — an eighteen-hole 2D mini golf game (canvas, own physics), plus `level-editor.html`, a visual hole editor that runs on the game's own modules. See [golf/README.md](golf/README.md). |
+| `golf/` | Pocket Links — an eighteen-hole 2D mini golf game (canvas, own physics), plus `level-editor.html`, a visual hole editor that runs on the game's own modules. See [golf/README.md](golf/README.md). Shares one landing-page card with `golf3d/`; the card's flip side picks between them. |
 | `golf3d/` | Loft Links — 3D mini golf, three six-hole courses (three.js, vendored; own physics). See [golf3d/README.md](golf3d/README.md). |
 | `surprise/` | Misc. personal page ("Bacons lilla hörna") — an HTML5 UP "Dimension" one-pager with two Phaser toys, plus `cv_legacy/`. Pruned to what it actually serves; see "Pruning surprise/" below before adding to it. |
 | `404.html` | Custom not-found page (GitHub Pages serves it automatically). |
 | `robots.txt` / `sitemap.xml` | Crawler hints. `surprise/` is excluded, being vendored third-party demo code, as are the test harnesses — see "What crawlers see" below. |
-| `assets/` | `og/` link-preview images (one per page) and `portrait.webp` for the About card. |
+| `assets/` | `og/` link-preview images (one per page), `preview/` card-back screenshots for the landing page, and `portrait.webp` for the About card. |
 | `favicon.ico` | Site-wide favicon. |
 
 ## What crawlers see
@@ -75,6 +75,37 @@ shows how to suppress via `localStorage`.
 Absolute URLs are required in the tags; scrapers don't resolve relative paths.
 Test changes with LinkedIn's Post Inspector or Facebook's Sharing Debugger; both
 cache aggressively, so re-scrape after an update.
+
+## Card previews
+
+Every card on the landing page is a flip card: the front is a spine you read
+while scrolling, and turning it over shows a screenshot of the thing running
+plus the button that starts it. Those screenshots live in `assets/preview/` as
+800x420 WebP, one per card, and are held in `data-src` until the card is
+flipped (or, on a machine with a pointer, until the cursor reaches the card).
+Nothing in that folder is fetched on load; together they are under 200 KB.
+
+Two things make them worth the trouble, and both are easy to lose when
+regenerating one:
+
+- **Shoot the thing running, not its menu.** A screenshot of a title screen
+  tells you nothing you did not already read on the front of the card. Drive
+  the app in first — dismiss the tutorial, pick the mission, start the round,
+  answer a question — then shoot. `golf` and `golf3d` were already gameplay in
+  `assets/og/`, and `car` is a designed hero rather than a screenshot, so those
+  three are reused as-is.
+- **Shoot at a width the content fills.** Several pages put their content in a
+  narrow max-width column; at 1200px wide they come out as a stripe of UI in a
+  field of background. 720-1000px wide is usually the frame the column fills.
+
+Cargo Lander is the counter-example to shooting fresh at all: it opens its own
+"How to Play" modal on a clean profile, so it needs the tutorial dismissed
+before the capture, exactly the trap described under "Link previews" above.
+
+There is no image tooling in this repo — no PIL, no ImageMagick, no cwebp. The
+downscale and the WebP encode are done by loading the PNG into a canvas in
+headless Chromium and calling `toDataURL('image/webp', 0.82)`, cover-cropped to
+800x420.
 
 ## Pruning `surprise/`
 
