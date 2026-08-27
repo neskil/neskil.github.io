@@ -674,39 +674,47 @@
     }
 
     /* The loft, drawn: a ball on the ground, the face set at the club's own
-       angle, and the line the ball leaves on. Four degrees is a number; this
-       is what four degrees does, and what forty-two does instead. */
+       angle behind it, and the line the ball leaves on. Four degrees is a
+       number; this is what four degrees does, and what forty-two does instead.
+
+       The club stands behind the ball, where it stands at address — drawn
+       over the ball it read as a club buried in it, and the launch line
+       started from thin air instead of from the ball it is launching. */
     function drawLoft(g, cx, cy, deg, tint) {
         var rad = deg * Math.PI / 180;
-        var R = 40;
+        var R = 34;
+        var bx = cx + 9, by = cy - 5;   // the ball, sitting on the ground
 
+        // The ground, running under both.
         g.strokeStyle = 'rgba(148, 176, 199, 0.45)';
         g.lineWidth = 2;
-        g.beginPath(); g.moveTo(cx - 10, cy); g.lineTo(cx + R, cy); g.stroke();
+        g.beginPath(); g.moveTo(cx - 26, cy); g.lineTo(bx + R, cy); g.stroke();
 
-        var grad = g.createLinearGradient(cx, cy, cx + R * Math.cos(rad), cy - R * Math.sin(rad));
-        grad.addColorStop(0, tint);
-        grad.addColorStop(1, 'rgba(255, 255, 255, 0)');
-        g.strokeStyle = grad;
-        g.lineWidth = 4;
-        g.beginPath();
-        g.moveTo(cx, cy);
-        g.lineTo(cx + R * Math.cos(rad), cy - R * Math.sin(rad));
-        g.stroke();
-
-        // The face, leaned back by the same angle: a face and a launch line
-        // are one rotation seen twice, which is the point of drawing both.
+        /* The face, leaned back by the loft: the top tips away from the ball,
+           which is what opening a face looks like from the side. Drawn first,
+           so the ball sits in front of it rather than behind. */
         g.save();
-        g.translate(cx - 2, cy);
-        g.rotate(rad);
+        g.translate(cx, cy);
+        g.rotate(-rad);
         g.fillStyle = tint;
         g.fillRect(-5, -26, 5, 26);
         g.fillStyle = 'rgba(255, 255, 255, 0.32)';
         g.fillRect(-5, -26, 5, 5);
         g.restore();
 
+        // The line off the face, from the ball rather than from the club.
+        var grad = g.createLinearGradient(bx, by, bx + R * Math.cos(rad), by - R * Math.sin(rad));
+        grad.addColorStop(0, tint);
+        grad.addColorStop(1, 'rgba(255, 255, 255, 0)');
+        g.strokeStyle = grad;
+        g.lineWidth = 4;
+        g.beginPath();
+        g.moveTo(bx, by);
+        g.lineTo(bx + R * Math.cos(rad), by - R * Math.sin(rad));
+        g.stroke();
+
         g.fillStyle = 'rgba(233, 244, 255, 0.92)';
-        g.beginPath(); g.arc(cx - 10, cy - 5, 5, 0, Math.PI * 2); g.fill();
+        g.beginPath(); g.arc(bx, by, 5, 0, Math.PI * 2); g.fill();
     }
 
     // The ceiling on power, against the biggest club in the bag.
@@ -1057,13 +1065,30 @@
         lamp.position.set(0.6, 1.2, 0.9);
         B.rig.add(lamp);
 
-        /* A light that travels with the clubs. The bag's lamp stays in the
+        /* Lights that travel with the clubs. The bag's lamp stays in the
            corner when the picker opens, and the course's own sun is behind
-           the row — without this the heads come forward into their own
-           shadow and every one of them is the same flat grey. */
-        B.lamp = new THREE.PointLight(0xfff6e6, 0.22, 6);
-        B.lamp.position.set(0.35, 0.75, 1.3);
+           the row — without these the heads come forward into their own
+           shadow and every one of them is the same flat grey.
+
+           One lamp was not enough of one: at 0.22 the row was lit only
+           enough to prove it was unlit, and chrome with nothing to reflect
+           reads as slate. So three, which is a studio rather than a torch:
+           a warm key in front and above, off to the side so the crowns
+           take a highlight down one edge instead of a flat wash; a cool
+           fill low on the other side to open the shadow under each head
+           without flattening it back out; and a rim behind, which is what
+           actually separates a shaft from the sky it stands against. */
+        B.lamp = new THREE.PointLight(0xfff6e6, 0.95, 7);
+        B.lamp.position.set(0.55, 1.05, 1.4);
         B.clubRig.add(B.lamp);
+
+        B.fill = new THREE.PointLight(0xcfe2ff, 0.38, 6);
+        B.fill.position.set(-0.85, 0.25, 1.0);
+        B.clubRig.add(B.fill);
+
+        B.rim = new THREE.PointLight(0xffe9c6, 0.45, 5);
+        B.rim.position.set(0.1, 1.35, -1.0);
+        B.clubRig.add(B.rim);
 
         scene.add(B.rig);
 
@@ -1178,7 +1203,12 @@
         B.spin += dt * 0.7;                        // a slow turn, once open
         place(camera, aspect);
         if (B.haze) B.haze.material.opacity = 0.3 * (1 - B.open01);
-        if (B.lamp) B.lamp.intensity = 0.22 + 0.38 * B.open01;
+        /* The rig brightens as it opens: in the bag the clubs are a corner
+           ornament and should sit in the scene's own light, out in the row
+           they are the thing being read and get the full studio. */
+        if (B.lamp) B.lamp.intensity = 0.30 + 0.95 * B.open01;
+        if (B.fill) B.fill.intensity = 0.12 + 0.38 * B.open01;
+        if (B.rim) B.rim.intensity = 0.14 + 0.45 * B.open01;
         B.clubs.forEach(function (c) {
             var to = B.expanded ? c.spot.open : c.spot.closed;
             var chosen = c.id === B.selected;
