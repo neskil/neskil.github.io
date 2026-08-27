@@ -935,6 +935,9 @@
                        contours, so it is deliberately the strict version —
                        "the ball would not stay here", not "this is not flat". */
                     if (P.slopeAt(surf.pad, x, z) > P.holdOf(surf.pad.kind)) found.contour = true;
+                    // And a line that leaves the property is the plainest
+                    // trouble there is: that is what a dogleg *is*.
+                    if (P.outOfBounds(hole, x, z)) found.outOfBounds = true;
                     if (Math.abs(surf.y - teeY) > 0.25) found.step = true;
                     // Water only counts if the line is over it rather than over
                     // a walkway above it — a bridge is not a hazard.

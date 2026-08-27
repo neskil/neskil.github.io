@@ -256,11 +256,31 @@
        boundary that is a *rule* rather than a shape. `hole.fence` is that
        rectangle, and this is checked once, when the ball comes to rest, so a
        ball that runs across the line and back is exactly as fine as it would
-       be with a white stake beside it. */
+       be with a white stake beside it.
+
+       It may also be a *list* of rectangles, in which case in-bounds is inside
+       any of them. That is not generality for its own sake: two overlapping
+       rectangles make an L, and an L is a dogleg — a hole that bends because
+       cutting the corner puts you off the property, which is exactly how a
+       real course bends a hole it has no room to bend with trees. */
+    function inRect(f, x, z) {
+        return x >= f.x && x <= f.x + f.w && z >= f.z && z <= f.z + f.d;
+    }
+
     function outOfBounds(hole, x, z) {
-        var f = hole.fence;
+        var f = hole.fence, i;
         if (!f) return false;
-        return x < f.x || x > f.x + f.w || z < f.z || z > f.z + f.d;
+        if (f.length === undefined) return !inRect(f, x, z);
+        for (i = 0; i < f.length; i++) if (inRect(f[i], x, z)) return false;
+        return true;
+    }
+
+    // The boundary as a list, whatever it was authored as. The renderer walks
+    // it to plant the stakes and the hole's bounds are its extent.
+    function fenceRects(hole) {
+        var f = hole.fence;
+        if (!f) return [];
+        return f.length === undefined ? [f] : f;
     }
 
     function markOutOfBounds(world, events) {
@@ -911,7 +931,8 @@
         holdOf: holdOf,
         padGrad: padGrad,
         slopeAt: slopeAt,
-        outOfBounds: outOfBounds
+        outOfBounds: outOfBounds,
+        fenceRects: fenceRects
     };
 
 })(window.G3);

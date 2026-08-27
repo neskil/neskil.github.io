@@ -500,11 +500,13 @@
            the stakes are inside the picture rather than on the edge of it. */
         var minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity, i, p;
         if (h.open && h.fence) {
-            var f = h.fence, m = 3;
-            h.bounds = {
-                minX: f.x - m, maxX: f.x + f.w + m,
-                minZ: f.z - m, maxZ: f.z + f.d + m
-            };
+            var rects = P.fenceRects(h), m = 3, q, f;
+            for (q = 0; q < rects.length; q++) {
+                f = rects[q];
+                minX = Math.min(minX, f.x - m); maxX = Math.max(maxX, f.x + f.w + m);
+                minZ = Math.min(minZ, f.z - m); maxZ = Math.max(maxZ, f.z + f.d + m);
+            }
+            h.bounds = { minX: minX, maxX: maxX, minZ: minZ, maxZ: maxZ };
             return h;
         }
         for (i = 0; i < h.pads.length; i++) {
@@ -1082,22 +1084,42 @@
             tee: { x: 31, z: 16 }, cup: { x: 31, z: 50 }
         }),
         build({
-            name: 'Bell Heather', par: 3, open: true,
-            blurb: 'A short one into the wind, over a hollow that gathers anything short.',
+            name: 'The Ait', par: 3, open: true,
+            blurb: 'An island in a burn. Seven units of carry, and no way to lay up.',
+            /* The one hole on the course that is target golf rather than
+               ground golf, and it exists because the 7 iron does. Nothing else
+               in the bag flies nine units, so nothing else gets over the
+               water — and the iron only manages it at very nearly a full
+               swing, because carry falls off with the square of the speed
+               while roll only falls off with the speed. Take something off it
+               and you are wet: that trade is the whole hole.
+
+               The ground round the moat is left flat on purpose. Dunes here
+               would be a second thing to read on a hole that already asks for
+               one exact shot, and a hollow beside the water would sit below
+               the surface of it and look like a hole in the world. */
             pads: moor({
-                tee: { x: 26, z: 12 }, seed: 7727, n: 40,
-                area: { x: 3, z: 3, w: 46, d: 50 },
+                tee: { x: 26, z: 22 }, seed: 6421, n: 26,
+                area: { x: 3, z: 3, w: 46, d: 58 },
                 r: 4.5, rMax: 9, grad: 0.22,
-                strips: [[56, [17, rgh], [18, fwy], [17, rgh]]],
-                flat: [keep(26, 28, 7), keep(26, 20.5, 3.8), keep(31.5, 23.5, 3.4)],
-                inlays: [
-                    circle(26, 28, 4.8, grn),
-                    circle(26, 20.5, 2.4, snd),
-                    circle(31.5, 23.5, 2, snd)
-                ]
+                strips: [
+                    [23.5, [52, fwy]],
+                    [5.5, [12, fwy], [28, null], [12, fwy]],
+                    [18, [12, fwy], [4, null], [20, fwy], [4, null], [12, fwy]],
+                    [5, [12, fwy], [28, null], [12, fwy]],
+                    [12, [52, fwy]]
+                ],
+                flat: [keep(26, 38, 22)],
+                inlays: [circle(26, 39, 5.4, grn)]
             }),
-            fence: { x: 10, z: 5, w: 32, d: 38 },
-            tee: { x: 26, z: 12 }, cup: { x: 26, z: 28.5 }
+            water: [
+                rect(12, 23.5, 28, 5.5, -0.55),
+                rect(12, 29, 4, 18, -0.55),
+                rect(36, 29, 4, 18, -0.55),
+                rect(12, 47, 28, 5, -0.55)
+            ],
+            fence: { x: 8, z: 8, w: 36, d: 52 },
+            tee: { x: 26, z: 22 }, cup: { x: 26, z: 39 }
         }),
         build({
             name: 'The Punchbowl', par: 4, open: true,
@@ -1141,48 +1163,63 @@
             tee: { x: 20, z: 12 }, cup: { x: 22, z: 27 }
         }),
         build({
-            name: 'The Long Carry', par: 5, open: true,
-            blurb: 'Three shots over open country. The ground gives back more than the club does.',
+            name: 'Elbow Point', par: 5, open: true,
+            blurb: 'It turns left at the point. Cut the corner and you are off the course.',
+            /* A dogleg with nothing to bend it. There are no trees on a links
+               and no room for a hazard big enough to matter, so what turns
+               this hole is the boundary itself: `fence` is two rectangles that
+               overlap in an L, and the inside of the elbow is simply not the
+               golf course. Which is how a real links does it too — the line of
+               white stakes is the architecture. */
             pads: moor({
-                tee: { x: 30, z: 18 }, seed: 5519, n: 82,
-                area: { x: 3, z: 3, w: 58, d: 100 },
+                tee: { x: 52, z: 14 }, seed: 5519, n: 76,
+                area: { x: 3, z: 3, w: 70, d: 82 },
                 r: 5, rMax: 11, grad: 0.20,
                 strips: [
-                    [40, [19, rgh], [24, fwy], [21, rgh]],
-                    [30, [24, rgh], [22, fwy], [18, rgh]],
-                    [36, [18, rgh], [26, fwy], [20, rgh]]
+                    [52, [38, rgh], [24, fwy], [14, rgh]],
+                    [14, [12, rgh], [50, fwy], [14, rgh]],
+                    [10, [12, rgh], [30, fwy], [34, rgh]],
+                    [12, [76, rgh]]
                 ],
-                flat: [keep(31, 76, 8), keep(25, 66, 4), keep(38, 71, 3.8), keep(30.5, 45, 4)],
+                flat: [keep(24, 68, 8), keep(44, 40, 4), keep(34, 62, 4), keep(19, 61, 3.8)],
                 inlays: [
-                    circle(31, 76, 5.4, grn),
-                    circle(25, 66, 2.5, snd),
-                    circle(38, 71, 2.3, snd),
-                    circle(30.5, 45, 2.6, snd)
+                    circle(24, 68, 5.4, grn),
+                    circle(44, 40, 2.6, snd),
+                    circle(34, 62, 2.5, snd),
+                    circle(19, 61, 2.2, snd)
                 ]
             }),
-            fence: { x: 11, z: 6, w: 42, d: 84 },
-            tee: { x: 30, z: 18 }, cup: { x: 31, z: 76 }
+            fence: [
+                { x: 38, z: 8, w: 28, d: 54 },
+                { x: 10, z: 52, w: 40, d: 26 }
+            ],
+            tee: { x: 52, z: 14 }, cup: { x: 24, z: 68 }
         }),
         build({
             name: 'Home Ground', par: 4, open: true,
-            blurb: 'The last of it, downwind, with the ground running away towards the green.',
+            blurb: 'The last of it turns right at the burnside, and the ground pushes you left.',
             pads: moor({
-                tee: { x: 20, z: 14 }, seed: 2237, n: 58,
-                area: { x: 3, z: 3, w: 56, d: 76 },
+                tee: { x: 16, z: 12 }, seed: 2237, n: 54,
+                area: { x: 3, z: 3, w: 54, d: 58 },
                 r: 5, rMax: 10, grad: 0.21,
                 strips: [
-                    [36, [14, rgh], [22, fwy], [26, rgh]],
-                    [46, [22, rgh], [22, fwy], [18, rgh]]
+                    [30, [8, rgh], [22, fwy], [30, rgh]],
+                    [10, [8, rgh], [36, fwy], [16, rgh]],
+                    [14, [22, rgh], [30, fwy], [8, rgh]],
+                    [10, [60, rgh]]
                 ],
-                flat: [keep(33, 50, 7.5), keep(27, 42, 4), keep(39, 46, 3.6)],
+                flat: [keep(40, 44, 8), keep(26, 38, 4), keep(44, 36, 3.6)],
                 inlays: [
-                    circle(33, 50, 5, grn),
-                    circle(27, 42, 2.5, snd),
-                    circle(39, 46, 2.1, snd)
+                    circle(40, 44, 5, grn),
+                    circle(26, 38, 2.6, snd),
+                    circle(44, 36, 2.2, snd)
                 ]
             }),
-            fence: { x: 9, z: 7, w: 42, d: 54 },
-            tee: { x: 20, z: 14 }, cup: { x: 33, z: 50 }
+            fence: [
+                { x: 8, z: 6, w: 22, d: 38 },
+                { x: 24, z: 34, w: 30, d: 24 }
+            ],
+            tee: { x: 16, z: 12 }, cup: { x: 40, z: 44 }
         })
     ];
 

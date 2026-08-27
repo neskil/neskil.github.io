@@ -519,11 +519,30 @@ rectangle that does that.
 | Hole | Par | What it asks |
 | --- | --- | --- |
 | The Whins | 4 | Rolling the whole way, and a bunker sitting on the line at driving distance. |
-| Bell Heather | 3 | Short, into a green in a saucer, with sand across the front. |
+| The Ait | 3 | An island green in a ring of water. Seven units of carry and no way to lay up. |
 | The Punchbowl | 4 | A ring of humps round the green: anything on the banks comes back down to it. |
 | Stake and Ditch | 3 | Out of bounds tight down the right for the whole hole. |
-| The Long Carry | 5 | Three shots, the second of them blind over a rise. |
-| Home Ground | 4 | The ground throws a straight drive twelve units off line. It is not a bug. |
+| Elbow Point | 5 | A dogleg left. Cutting the corner means carrying ground that is not the golf course. |
+| Home Ground | 4 | A dogleg right, and ground that throws a straight drive off the line. Not a bug. |
+
+**A dogleg with nothing to bend it.** There are no trees on a links and no room
+for a hazard big enough to turn a hole, so what bends these two is the boundary
+itself: `fence` may be a *list* of rectangles, in-bounds is inside any of them,
+and two overlapping rectangles make an L whose inside corner is simply not the
+golf course. The stakes know it — a stake is skipped where its edge falls
+inside another rectangle, because the line through the middle of an elbow is
+not a boundary and a row of posts across it would be describing a wall that is
+not there. You may still fly the corner. That is the trade, and it is the same
+one a real dogleg offers.
+
+**An island needed a club.** Until the 7 iron nothing in the bag carried more
+than about seven and a half units, which put a ceiling on every water hazard in
+the game — all of them are short ones. The Ait's burn is seven units of carry
+from the tee and there is no lay-up, because the ground beyond it is the island
+and there is nothing else to aim at. A full chipper, a full wedge and most of
+an iron all get there; take much off any of them and carry falls away with the
+*square* of the speed while roll only falls away with the speed, so a shot that
+is a club short is not a bit short, it is wet.
 
 The dune fields are generated rather than placed, from a seed per hole, so a
 hole is different from its neighbours and identical on every load — nothing in
