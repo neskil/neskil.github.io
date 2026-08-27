@@ -4,14 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Loft Links — 3D Mini Golf, Five Courses | Niklas Billgren</title>
-    <meta name="description" content="A 3D mini golf game in the browser: five six-hole courses of ramps, ledges, water carries, sliding gates, windmill blades and holes you can only reach through the air, each under weather of its own. Drag to aim, pick a club, read the flag for the wind. No install, no account, works on a phone.">
+    <meta name="description" content="A 3D golf game in the browser: seven six-hole courses of ramps, ledges, water carries, sliding gates and windmill blades, a parkland course of fairways, rough, bunkers and trees, and an open links of rolling dunes with no fences at all. Each hole under weather of its own. Drag to aim, pick a club, read the flag for the wind. No install, no account, works on a phone.">
     <meta name="theme-color" content="#0b1c2c">
     <meta name="color-scheme" content="dark">
     <meta name="author" content="Niklas Billgren">
     <link rel="canonical" href="https://neskil.github.io/golf3d/">
     <meta property="og:site_name" content="Niklas Billgren">
     <meta property="og:title" content="Loft Links — 3D Mini Golf">
-    <meta property="og:description" content="Five courses of 3D mini golf: seaside greens, a quarry of ramps and ledges, a workshop where everything moves, a lagoon you have to fly, and a hillside you have to climb. Every hole has weather of its own — read the flag for the wind. Drag to aim, pick a club, try to beat par.">
+    <meta property="og:description" content="Seven courses of 3D golf: seaside greens, a quarry of ramps and ledges, a workshop where everything moves, a lagoon you have to fly, a hillside you have to climb, a parkland course of fairways, rough, bunkers and trees, and an open links of rolling dunes marked only by white stakes. Every hole has weather of its own — read the flag for the wind. Drag to aim, pick a club, try to beat par.">
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://neskil.github.io/golf3d/">
     <meta property="og:image" content="https://neskil.github.io/assets/og/golf3d.png">
@@ -49,7 +49,7 @@
             <a class="home-link" href="../index.html" title="Back to home" aria-label="Back to home">&#8592;</a>
             <div class="brand">
                 <h1 class="title">Loft <span>Links</span></h1>
-                <p class="tagline">Five courses. Thirty holes. Four clubs, and half of them fly.</p>
+                <p class="tagline">Seven courses. Forty-two holes. Five clubs, and three of them fly.</p>
             </div>
             <div class="topbar-actions">
                 <button class="chip" id="btn-view" title="Behind the ball, side on, or the whole hole (V)">Follow</button>
@@ -220,7 +220,7 @@
     <div class="modal" id="howto">
         <div class="modal-inner" role="dialog" aria-modal="true" aria-labelledby="howto-title">
             <h2 id="howto-title">How to play</h2>
-            <p class="sub">Mini golf, three dimensions, four clubs. Ninety seconds of reading.</p>
+            <p class="sub">Golf, three dimensions, five clubs. Ninety seconds of reading.</p>
 
             <ol class="steps">
                 <li>
@@ -253,12 +253,13 @@
                     line up and turn slowly so you can look at them, and the one under your pointer
                     is explained above. Click a head to take it, or swipe across the bag to step
                     to the next one without opening it. The heads are set at their real lofts, so
-                    the wedge lying right back is the one that goes up. Keys <kbd>1</kbd>–<kbd>4</kbd>
+                    the wedge lying right back is the one that goes up. Keys <kbd>1</kbd>–<kbd>5</kbd>
                     take a club directly, <kbd>C</kbd> steps to the next one, and <kbd>B</kbd> opens
                     the bag. The <b>putter</b> rolls flat and stops where you tell it, the
-                    <b>driver</b> is the reach club, the <b>chipper</b> hops a rail and keeps
-                    running, and the <b>wedge</b> goes up and over water and sand. Each one has its
-                    own ceiling on power, so a full swing means something different in every hand.
+                    <b>driver</b> is the reach club, the <b>7 iron</b> is the long one that carries
+                    rather than runs, the <b>chipper</b> hops a rail and keeps going, and the
+                    <b>wedge</b> goes up and over water and sand. Each one has its own ceiling on
+                    power, so a full swing means something different in every hand.
                 </li>
                 <li>
                     <b>Read the hole first.</b> <kbd>V</kbd> walks between three cameras:
@@ -356,7 +357,7 @@
         <div class="help">
             <span><b>Drag the course to aim</b>, set the power on the meter, then hit <b>Swing</b>. Nothing you do on the course plays a shot by itself.</span>
             <span><b>The View dial</b> above the meter walks the camera round the ball without moving the shot — the <b>⌖</b> in its middle puts it back behind the ball, and so does a new hole. The <b>🔓</b> beside it locks the camera where it is, so aiming stops swinging the view round; handy on the overview, where a drag to aim otherwise turns the whole hole under you.</span>
-            <span class="kb-help"><kbd>←</kbd><kbd>→</kbd> aim · <kbd>↑</kbd><kbd>↓</kbd> power · <kbd>1</kbd>–<kbd>4</kbd> club
+            <span class="kb-help"><kbd>←</kbd><kbd>→</kbd> aim · <kbd>↑</kbd><kbd>↓</kbd> power · <kbd>1</kbd>–<kbd>5</kbd> club
                 · <kbd>space</kbd> swing (<kbd>shift</kbd> for fine control)</span>
             <span class="kb-help"><kbd>V</kbd> seat: follow, side on, overview · <kbd>,</kbd><kbd>.</kbd> walk round · <kbd>L</kbd> lock the camera · <kbd>0</kbd> straighten · <kbd>F</kbd> fullscreen · <kbd>R</kbd> restart hole · <kbd>W</kbd> weather · <kbd>M</kbd> sound · <kbd>J</kbd> music · scroll to zoom</span>
             <span class="touch-help">Drag sideways to turn, up and down to raise and drop the camera. Drag the View dial to look at the shot from the side. Pinch to zoom, swipe the bag to switch clubs. Turn your phone sideways for a bigger course.</span>

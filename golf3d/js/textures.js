@@ -30,7 +30,12 @@
 
     /* How many world units one tile of each surface covers. Change one of
        these and the pads retile; nothing else has to be told. */
-    var SCALE = { green: 3.5, sand: 2, wood: 2, rough: 2 };
+    /* Fairway is not a texture of its own: it is the green's own sheets tiled
+       bigger, so the mow bands come out wider, which is most of what tells a
+       fairway from a green at a glance. The renderer darkens it and grows it
+       longer (buildSurfaces, SHELL_HEIGHT) and that is the whole difference —
+       one number here and two there, rather than another canvas per theme. */
+    var SCALE = { green: 3.5, fairway: 6, sand: 2, wood: 2, rough: 2 };
     var GRASS_BUMP_SCALE = 0.8;      // the blades are finer than the mow bands
 
     /* The width of one pass of the mower, in world units, and the one number
@@ -42,7 +47,7 @@
 
     // A shell tile is one there-and-back of the mower, so the sheet can carry
     // the comb — one band leaning up the green, the next leaning back down.
-    var SHELL_SCALE = { green: MOW * 2, rough: 1.6 };
+    var SHELL_SCALE = { green: MOW * 2, fairway: MOW * 3.4, rough: 1.6 };
 
     var maxAniso = 1;
     var shared = {};                  // the per-theme surface set, disposed together
@@ -407,10 +412,9 @@
            resolution, which is the one thing on the page that scales with how
            much GPU there is likely to be.
 
-           The rough is a quarter of the work for a surface no hole uses yet;
-           it is here because rough is a real surface everywhere else in the
-           game, and the day a hole wants one it should already look like
-           somewhere you would rather not be. */
+           The rough is a quarter of the work of the green's, and it is the
+           sheet that does the most: it is what makes missing a parkland
+           fairway look like a mistake rather than a change of colour. */
         var big = (window.matchMedia && window.matchMedia('(pointer: coarse)').matches) ? 512 : 1024;
         extras.greenShell = dress(shellTexture(big, {
             cells: 100, per: 1, bias: 0.85, len: 11, grow: 9, wide: 0.30,

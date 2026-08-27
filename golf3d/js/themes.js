@@ -77,6 +77,47 @@
             water: 0x2b6d8d,
             side: '#7d7566'
         },
+        parkland: {
+            /* The one course that is not mini golf, and the palette says so:
+               a long summer afternoon over a lot of grass. The surround is a
+               `floor` rather than water or rock because what lies beyond the
+               boundary fence of a parkland course is more of the same country
+               — so it is tinted grass-green and left to fade into the fog. */
+            sky: [0x4a92d8, 0xd7ecf6],
+            fog: 0xd7ecf6,
+            sun: 0xfff2d6, sunPos: [10, 18, 8], ambient: 0xa8d4ea, ambientI: 0.56,
+            grass: ['#57ae52', '#4a9f49'],
+            rail: 0x8a7355,
+            surroundY: -0.9, surround: 'floor', floor: '#33582f',
+            water: 0x2a7ea6,
+            side: '#8f7a55'
+        },
+        links: {
+            /* Open country under a big cold sky. The one theme whose surround
+               matters: on every other course it is scenery beyond a fence, and
+               here it is the horizon the hole runs into, so it is tinted to
+               the same turf as the rough and sits just under the ground rather
+               than a metre below it. Get that wrong and the course reads as a
+               tray of grass sitting on a table. */
+            sky: [0x5f8fc4, 0xd3e4ee],
+            fog: 0xd3e4ee,
+            /* A low sun, and the only one on the course list that is low on
+               purpose. Everything interesting about this course is the shape
+               of the ground, and a sun overhead lights a dune and a lawn
+               identically — it is the raking light that turns a hump into
+               something you can read from the tee and from the overview. */
+            sun: 0xfff0d8, sunPos: [-13, 8.5, 11], ambient: 0xb4cbdd, ambientI: 0.52,
+            grass: ['#7aa657', '#6e9b4e'],
+            rail: 0xe8ece4,
+            /* Tinted to the rough and sitting a hand's breadth under it, both
+               so that the seam where the hole's own ground ends and the
+               country beyond begins is a change of mowing rather than a
+               cliff. It is the only place on the course where that seam is
+               visible at all, and it is thirty units out and in haze. */
+            surroundY: -0.12, surround: 'floor', floor: '#456b39',
+            water: 0x2c6f92,
+            side: '#8a7c58'
+        },
         works: {
             sky: [0x0d121d, 0x33405e],
             fog: 0x33405e,

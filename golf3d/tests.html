@@ -112,6 +112,96 @@
                 approx(P.padHeight(tilt, 4, 0), 0) &&
                 approx(P.padHeight(tilt, 0, 4), 3));
 
+            /* The curved ground. Only two things have to be true of a hump —
+               that its height is what it says and that its gradient is the
+               derivative of that height — because the solver reads the second
+               to decide which way the ball rolls and the renderer reads the
+               first to draw the hill it rolls down. Let those disagree and the
+               ball runs uphill on a picture of a slope, which is the one bug
+               this whole feature could have that nobody would think to look
+               for. So the gradient is checked against a finite difference of
+               the height, over a pad carrying two overlapping humps — because
+               superposition is where a hand-derived derivative goes wrong. */
+            var oneHump = A.pad(0, 0, 20, 20, 0, 'fairway');
+            oneHump.bumps = [{ cx: 8, cz: 9, r: 5, a: 1.2 }];
+            assert('a hump is at its full height in the middle',
+                approx(P.padHeight(oneHump, 8, 9), 1.2));
+            assert('half height half way out',
+                approx(P.padHeight(oneHump, 8 + 2.5, 9), 0.6));
+            assert('and back to the plane at its own radius',
+                approx(P.padHeight(oneHump, 8 + 5, 9), 0));
+            assert('the ground well beyond it is untouched',
+                approx(P.padHeight(oneHump, 19, 1), 0));
+            assert('the summit of a hump is flat', approx(P.slopeAt(oneHump, 8, 9), 0, 1e-9));
+            assert('and so is the ground at its foot',
+                approx(P.slopeAt(oneHump, 8, 4), 0, 1e-9));
+            assert('a hollow is the same hump upside down', (function () {
+                var dip = A.pad(0, 0, 20, 20, 0, 'fairway');
+                dip.bumps = [{ cx: 8, cz: 9, r: 5, a: -1.2 }];
+                return approx(P.padHeight(dip, 8, 9), -1.2) &&
+                    approx(P.padHeight(dip, 10.5, 9), -0.6);
+            })());
+
+            var humped = A.pad(0, 0, 20, 20, 0, 'fairway');
+            humped.bumps = [
+                { cx: 8, cz: 9, r: 5, a: 1.2 },
+                { cx: 12, cz: 11, r: 6, a: -0.8 }
+            ];
+            (function () {
+                var worst = 0, e = 1e-4, px, pz, g, dx, dz, d;
+                for (px = 2; px <= 18; px += 0.5) {
+                    for (pz = 2; pz <= 18; pz += 0.5) {
+                        g = P.padGrad(humped, px, pz, {});
+                        dx = (P.padHeight(humped, px + e, pz) - P.padHeight(humped, px - e, pz)) / (2 * e);
+                        dz = (P.padHeight(humped, px, pz + e) - P.padHeight(humped, px, pz - e)) / (2 * e);
+                        d = Math.max(Math.abs(g.x - dx), Math.abs(g.z - dz));
+                        if (d > worst) worst = d;
+                    }
+                }
+                assert('the gradient of a hump is the derivative of its height',
+                    worst < 1e-5, 'off by ' + worst.toExponential(2));
+            })();
+            assert('a pad\'s own tilt still shows up in its gradient', (function () {
+                var tilted = A.pad(0, 0, 20, 20, 0, 'fairway', 0.3, -0.2);
+                tilted.bumps = [{ cx: 8, cz: 9, r: 5, a: 1.2 }];
+                var g = P.padGrad(tilted, 19, 1, {});   // clear of the hump
+                return approx(g.x, 0.3) && approx(g.z, -0.2);
+            })());
+
+            // A disc pad is the circle inside its footprint, not the footprint.
+            var round = A.circle(10, 10, 4, 'green');
+            assert('a disc pad contains its middle', P.padContains(round, 10, 10));
+            assert('and the rim of its circle', P.padContains(round, 13.99, 10));
+            assert('but not the corner of its box',
+                !P.padContains(round, 13.5, 13.5) && P.padContains(A.pad(6, 6, 8, 8), 13.5, 13.5));
+
+            /* Static friction, which is the whole reason a hole can be built
+               out of slopes. A ball put down at rest on a lie the surface can
+               hold has to still be there afterwards, and one on a lie it
+               cannot hold has to have gone. Both directions matter: the first
+               is what makes a green puttable and the second is what makes a
+               dune a hazard. */
+            (function () {
+                function restsOn(kind, g) {
+                    var lab2 = {
+                        pads: [A.pad(-20, -2, 40, 40, 0, kind, 0, -g)],
+                        water: [], walls: [], tee: { x: 0, z: 0, y: 0 }, cup: { x: 0, z: 300, y: 0 }
+                    };
+                    var w = P.createWorld(lab2, { x: 0, z: 0, y: C.BALL_R }, 0);
+                    w.moving = true; w.grounded = true;
+                    P.settle(w, 6, 1 / 120);
+                    return Math.abs(w.ball.z) < 0.05 && !w.out;
+                }
+                assert('a ball rests on a lie inside the green\'s angle of repose',
+                    restsOn('green', C.HOLD.green - 0.02));
+                assert('and rolls off one outside it',
+                    !restsOn('green', C.HOLD.green + 0.06));
+                assert('rough holds a ball a green would shed',
+                    restsOn('rough', C.HOLD.green + 0.06));
+                assert('and a plank sheds one the green would hold',
+                    !restsOn('wood', C.HOLD.green - 0.02));
+            })();
+
             assert('padContains includes the edges',
                 P.padContains(flat, 2, 3) && P.padContains(flat, 6, 9));
             assert('padContains excludes just outside',
@@ -541,8 +631,8 @@
 
         section('Course data');
         (function () {
-            assert('five courses', G3.COURSES.length === 5);
-            assert('thirty holes in total', ALL.length === 30);
+            assert('seven courses', G3.COURSES.length === 7);
+            assert('forty-two holes in total', ALL.length === 42);
             assert('courseById finds a course', G3.courseById('quarry').id === 'quarry');
             assert('courseById falls back to the first', G3.courseById('nope').id === G3.COURSES[0].id);
 
@@ -608,23 +698,62 @@
                 assert(tag + ': the tee is clear of the walls', !teeBlocked);
                 assert(tag + ': the cup is clear of the walls', !cupBlocked);
 
-                // Pads may only overlap when one is clearly a bridge above the
-                // other; two pads at the same height fighting for a point make
-                // the surface lookup order-dependent.
-                var clash = null;
+                /* Pads may only overlap when the surface lookup can tell them
+                   apart. There are two ways to earn that. One is being clearly
+                   a bridge above the other, which is a height gap. The other is
+                   being an inlay — a green or a bunker laid into the ground it
+                   sits on — which wins the tie by rule rather than by height,
+                   and only ever changes what the ground is made of rather than
+                   where it is. Anything else makes surfaceUnder depend on array
+                   order, which is the bug this assertion exists to prevent.
+
+                   An inlay has to actually be flush, though, or it is a step
+                   nobody authored: checked here across the whole overlap
+                   rather than at its middle, because a flat disc laid on
+                   rolling ground is flush in the centre however wrong it is at
+                   the rim. */
+                var clash = null, seam = null, worstSeam = 0;
                 for (var i = 0; i < h.pads.length && !clash; i++) {
                     for (var j = i + 1; j < h.pads.length && !clash; j++) {
                         var a = h.pads[i], b = h.pads[j];
                         var ox = Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x);
                         var oz = Math.min(a.z + a.d, b.z + b.d) - Math.max(a.z, b.z);
                         if (ox <= 1e-9 || oz <= 1e-9) continue;   // touching is fine
-                        var mx = Math.max(a.x, b.x) + ox / 2, mz = Math.max(a.z, b.z) + oz / 2;
-                        if (Math.abs(P.padHeight(a, mx, mz) - P.padHeight(b, mx, mz)) < 0.35) {
+                        /* Bounding boxes are the cheap reject and nothing more.
+                           Two round bunkers beside a round green have boxes
+                           that overlap and discs that do not, and asking the
+                           boxes would fail a hole that is perfectly well built.
+                           So the overlap is walked with the same padContains
+                           the ball is standing on. */
+                        var x0 = Math.max(a.x, b.x), z0 = Math.max(a.z, b.z);
+                        var sx2, sz2, gap, both = false;
+                        for (sx2 = 0.2; sx2 < ox; sx2 += 0.4) {
+                            for (sz2 = 0.2; sz2 < oz; sz2 += 0.4) {
+                                if (!P.padContains(a, x0 + sx2, z0 + sz2)) continue;
+                                if (!P.padContains(b, x0 + sx2, z0 + sz2)) continue;
+                                both = true;
+                                gap = Math.abs(P.padHeight(a, x0 + sx2, z0 + sz2) -
+                                               P.padHeight(b, x0 + sx2, z0 + sz2));
+                                if (!a.inlay !== !b.inlay) {
+                                    // One is laid into the other: they have to
+                                    // agree everywhere, not merely in the middle.
+                                    if (gap > worstSeam) { worstSeam = gap; seam = tag; }
+                                } else if (gap < 0.35) {
+                                    clash = i + '/' + j;
+                                }
+                            }
+                        }
+                        if (both && !a.inlay && !b.inlay && !clash &&
+                            Math.abs(P.padHeight(a, x0 + ox / 2, z0 + oz / 2) -
+                                     P.padHeight(b, x0 + ox / 2, z0 + oz / 2)) < 0.35) {
                             clash = i + '/' + j;
                         }
                     }
                 }
                 assert(tag + ': no two pads fight for the same ground', !clash, 'pads ' + clash);
+                assert(tag + ': anything inlaid is flush with what it is laid into',
+                    worstSeam <= C.STEP_UP,
+                    (seam || '') + ' is out by ' + worstSeam.toFixed(3));
 
                 /* Every hole has to put something on the line between the tee
                    and the cup: a wall, a hazard, a change of surface, a slope
@@ -664,6 +793,105 @@
             });
 
             assert('no wall is thinner than 0.24', minThick >= 0.24, 'thinnest is ' + minThick.toFixed(3));
+
+            /* A parkland bunker is cut into the grass around it, which is
+               what makes it read as a bunker rather than a beige patch. That
+               cut is also the one thing that could turn it into a well: a ball
+               climbs STEP_UP and no more, so a bunker sunk deeper than that is
+               a hazard you cannot putt out of — only fly out of — and the
+               difference would never show up in a screenshot.
+
+               Only pads that were deliberately sunk are checked. A sand pad
+               level with its neighbours is fine by construction, and one at
+               the foot of somebody else's slope (Highland's 'Over the Top'
+               keeps its sand exactly there, on purpose) is that hole's
+               business rather than this assertion's. */
+            var worstDip = 0, worstDipName = '';
+            ALL.forEach(function (entry) {
+                entry.hole.pads.forEach(function (p) {
+                    if (p.kind !== 'sand' || p.y >= 0) return;
+                    if (-p.y > worstDip) {
+                        worstDip = -p.y;
+                        worstDipName = entry.course.id + '/' + entry.hole.name;
+                    }
+                });
+            });
+            /* A tree stands in the rough or on the edge of a fairway — never
+               in a bunker and never on a green. Both would be absurd to look
+               at, and a trunk in the sand is worse than absurd: it is a wall
+               inside the one surface a ball cannot be putted out of. Easy to
+               do by accident, too, since a treeline is authored as two ends
+               and the bunkers it runs past are authored somewhere else. */
+            var rooted = 0, badTree = '';
+            ALL.forEach(function (entry) {
+                entry.hole.walls.forEach(function (wl) {
+                    if (wl.kind !== 'tree') return;
+                    rooted++;
+                    entry.hole.pads.forEach(function (p) {
+                        if (p.kind !== 'sand' && p.kind !== 'green') return;
+                        if (Math.min(p.x + p.w, wl.x + wl.w) - Math.max(p.x, wl.x) <= 0) return;
+                        if (Math.min(p.z + p.d, wl.z + wl.d) - Math.max(p.z, wl.z) <= 0) return;
+                        badTree = entry.course.id + '/' + entry.hole.name + ', a tree in the ' + p.kind;
+                    });
+                });
+            });
+            assert('no tree grows out of a bunker or a green', !badTree, badTree);
+            assert('there are trees to check', rooted >= 20, rooted + ' trees');
+
+            /* What an open hole owes the player. There is no fence to stop the
+               ball, so three things have to hold or the course is unfair
+               rather than merely open: nothing pretends to be a rail, the
+               boundary contains the parts of the hole you are required to
+               stand on, and — the one that would be invisible until somebody
+               made a green too steep — the lie at every cup is inside its
+               surface's angle of repose. A green that will not hold a ball
+               beside its own hole cannot be putted on at all, and it is the
+               reason CONFIG.HOLD.green is the number it is. */
+            var openHoles = 0;
+            ALL.forEach(function (entry) {
+                var h = entry.hole, tag = entry.course.id + '/' + h.name;
+                if (!h.open) return;
+                openHoles++;
+                assert(tag + ': an open hole has no rails on it',
+                    h.walls.length === 0, h.walls.length + ' walls');
+                assert(tag + ': and a boundary to be outside of', !!h.fence);
+                assert(tag + ': the tee is in bounds',
+                    !P.outOfBounds(h, h.tee.x, h.tee.z));
+                var own = null, q;
+                for (q = 0; q < h.pads.length; q++) {
+                    if (h.pads[q].inlay && P.padContains(h.pads[q], h.cup.x, h.cup.z)) own = h.pads[q];
+                }
+                assert(tag + ': the whole green is in bounds', own && (function () {
+                    var k, a2, ok2 = true;
+                    for (k = 0; k < 16; k++) {
+                        a2 = k / 16 * Math.PI * 2;
+                        if (P.outOfBounds(h, h.cup.x + Math.cos(a2) * own.r,
+                                             h.cup.z + Math.sin(a2) * own.r)) ok2 = false;
+                    }
+                    return ok2;
+                })());
+            });
+            assert('there are open holes to check', openHoles === 6, openHoles + ' found');
+
+            var worstLie = 0, worstLieName = '';
+            ALL.forEach(function (entry) {
+                var h = entry.hole;
+                var lie = P.surfaceUnder(h, h.cup.x + C.HOLE_R + 0.1, h.cup.z, Infinity);
+                if (!lie) return;
+                var g2 = P.slopeAt(lie.pad, h.cup.x + C.HOLE_R + 0.1, h.cup.z) / P.holdOf(lie.pad.kind);
+                if (g2 > worstLie) {
+                    worstLie = g2;
+                    worstLieName = entry.course.id + '/' + entry.hole.name + ' (' + lie.pad.kind + ')';
+                }
+            });
+            assert('every cup sits on ground that will hold a ball beside it',
+                worstLie <= 1, worstLieName + ' is at ' +
+                (worstLie * 100).toFixed(0) + '% of what its surface can hold');
+
+            assert('a ball can climb out of every bunker cut into the grass',
+                worstDip <= C.STEP_UP + 1e-9,
+                worstDipName + ' is sunk ' + worstDip.toFixed(3) +
+                ' and STEP_UP is ' + C.STEP_UP);
             note('tightest window on any moving obstacle: ' + worstGap.toFixed(2) + ' of aim at ' +
                  worstGapName + ' (ball is ' + (C.BALL_R * 2).toFixed(2) + ' across)');
 
@@ -691,8 +919,22 @@
 
                     surf = P.surfaceUnder(hole, x, z, Infinity);
                     if (!surf) { found.gap = true; continue; }
-                    if (surf.pad.kind !== 'green') found[surf.pad.kind] = true;
+                    /* Fairway counts for nothing here, and neither does
+                       green: they are the two surfaces a hole is *supposed*
+                       to be made of, and letting a parkland hole pass this
+                       assertion by having a fairway on it would make the
+                       assertion say nothing at all. */
+                    if (surf.pad.kind !== 'green' && surf.pad.kind !== 'fairway') {
+                        found[surf.pad.kind] = true;
+                    }
                     if (Math.abs(surf.pad.sx || 0) + Math.abs(surf.pad.sz || 0) > 0.05) found.slope = true;
+                    /* And on an open course the ground itself is the trouble:
+                       a line that crosses a lie steeper than the surface will
+                       hold is a line the ball will not simply run along. This
+                       is the only signal the links holes could earn from their
+                       contours, so it is deliberately the strict version —
+                       "the ball would not stay here", not "this is not flat". */
+                    if (P.slopeAt(surf.pad, x, z) > P.holdOf(surf.pad.kind)) found.contour = true;
                     if (Math.abs(surf.y - teeY) > 0.25) found.step = true;
                     // Water only counts if the line is over it rather than over
                     // a walkway above it — a bridge is not a hazard.
@@ -990,6 +1232,37 @@
                has to go somewhere: without that rule the bot parks in a corner
                where every legal shot looks worse than standing still, and plays
                the same nothing until it runs out of strokes. */
+            /* Is there a wall right in front of the ball, between it and the
+               cup? A ball that rolls up against a rail comes to rest touching
+               it, and from there no shot goes forward at all: the ball would
+               have to climb the paint inside its own radius. A player looking
+               at that lie plays sideways or backwards and gives up a stroke on
+               purpose; a greedy bot cannot, because every retreat scores worse
+               than standing still, so it re-plays the same nothing until it
+               runs out of strokes.
+
+               So the bot is told to see the lie, which is the honest fix — a
+               shot that finishes jammed against a rail is genuinely worth
+               about a stroke less than the same distance in the open, and that
+               is what BLOCKED is. Only a wall *in front* counts; one behind or
+               beside the ball costs nothing to play from. */
+            var BLOCKED = 4;
+
+            function blockedLie(hole, ball, cup, time) {
+                var dx = cup.x - ball.x, dz = cup.z - ball.z;
+                var len = Math.hypot(dx, dz);
+                if (len < 1e-6) return false;
+                var px = ball.x + dx / len * (C.BALL_R + 0.2);
+                var pz = ball.z + dz / len * (C.BALL_R + 0.2);
+                var i, B;
+                for (i = 0; i < hole.walls.length; i++) {
+                    B = P.wallBox(hole.walls[i], time);
+                    if (ball.y - C.BALL_R >= B.top || ball.y + C.BALL_R <= B.base) continue;
+                    if (P.circleBox(px, pz, C.BALL_R, B)) return true;
+                }
+                return false;
+            }
+
             function bestShot(hole, from, time, bag) {
                 var cup = hole.cup;
                 var base = Math.atan2(cup.x - from.x, cup.z - from.z);
@@ -1006,7 +1279,8 @@
                     var s;
                     if (w.sunk) s = -1000;
                     else if (w.splash || w.out) s = 500 + d2(w.origin, cup);
-                    else s = d2(w.ball, cup);
+                    else s = d2(w.ball, cup) +
+                        (blockedLie(hole, w.ball, cup, w.time) ? BLOCKED : 0);
                     if (!w.sunk && moved < 1 && s >= here) return;
                     if (!best || s < best.s) best = { s: s, yaw: yaw, club: club, power: power, wait: wait, world: w };
                 }

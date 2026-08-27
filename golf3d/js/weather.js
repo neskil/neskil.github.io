@@ -147,7 +147,11 @@
         quarry: ['clear', 'fair', 'golden', 'dust', 'overcast', 'drizzle'],
         works: ['fair', 'clear', 'mist', 'overcast', 'rain'],
         lagoon: ['clear', 'fair', 'golden', 'mist', 'drizzle', 'rain'],
-        highland: ['fair', 'clear', 'overcast', 'mist', 'drizzle', 'golden']
+        highland: ['fair', 'clear', 'overcast', 'mist', 'drizzle', 'golden'],
+        parkland: ['clear', 'fair', 'golden', 'overcast', 'mist', 'drizzle'],
+        // A links is on a coast and the weather says so: wind, cloud and rain
+        // are the normal condition and a still clear day is the treat.
+        links: ['fair', 'overcast', 'drizzle', 'clear', 'rain', 'golden']
     };
 
     // Skies a course is happy to open on.

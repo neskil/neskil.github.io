@@ -43,18 +43,103 @@
     function lnFrictionOf(kind) {
         return LN[kind] !== undefined ? LN[kind] : Math.log(C.FRICTION_DEFAULT);
     }
+    // The steepest lie this surface will hold a stopped ball on. See CONFIG.HOLD.
+    function holdOf(kind) {
+        return C.HOLD[kind] !== undefined ? C.HOLD[kind] : C.HOLD_DEFAULT;
+    }
 
     /* ── pads: the ground ───────────────────────────────────────────────── */
 
-    /* A pad is { x, z, w, d, y, sx, sz, kind }: an axis-aligned footprint,
-       a height at its (x, z) corner, and a gradient. Height anywhere on it is
+    /* A pad is { x, z, w, d, y, sx, sz, kind }: an axis-aligned footprint, a
+       height at its (x, z) corner, and a gradient. Height anywhere on it is
        that plane evaluated at the point. Tilt both components and you get a
-       diagonal fall line, which is all a breaking green is. */
+       diagonal fall line, which is all a breaking green is.
+
+       Two things may be added to that, and neither changes anything the solver
+       does — which is the point of putting them here. The whole simulation
+       asks the ground exactly two questions, "how high are you" and "which way
+       do you fall", and as long as those two agree with each other it does not
+       care what shape the answer came from.
+
+         bumps   a list of { cx, cz, r, a }: a rise of `a` at (cx, cz) fading
+                 to nothing at radius r. The profile is a raised cosine,
+                 a·(cos(πt) + 1)/2 for t = distance / r, because it is the
+                 cheapest curve that is flat at the top *and* flat where it
+                 meets the ground. Both matter: a crease at the summit is a
+                 ridge the ball feels and nobody drew, and a crease at the foot
+                 is a step at the edge of every hill on the course. Negative
+                 `a` is a hollow. Overlap them and they add, which is how a
+                 field of dunes is written — see `dunes()` in courses.js.
+
+         r       a radius: the pad is the disc inscribed in its footprint
+                 rather than the footprint itself. Greens want to be round, and
+                 a round green on rolling ground is the difference between a
+                 golf course and a diagram of one. A disc still carries the
+                 x/z/w/d of its bounding square, so everything that only wants
+                 to know how much room a pad takes up — the hole's bounds, the
+                 renderer's placement, the eject-from-a-face backstop — needs
+                 to know nothing about it.
+
+       Nothing above is a special case anywhere else in this file. A ramp, a
+       breaking green, a dune field and a crowned green are all one code path,
+       and the only function that had to learn anything new is padGrad. */
     function padHeight(pad, x, z) {
-        return pad.y + (pad.sx || 0) * (x - pad.x) + (pad.sz || 0) * (z - pad.z);
+        var h = pad.y + (pad.sx || 0) * (x - pad.x) + (pad.sz || 0) * (z - pad.z);
+        var b = pad.bumps, i, m, dx, dz, q;
+        if (b) {
+            for (i = 0; i < b.length; i++) {
+                m = b[i];
+                dx = x - m.cx; dz = z - m.cz;
+                q = dx * dx + dz * dz;
+                // The cheap reject first: on a course-sized dune field most
+                // humps are nowhere near the point and never cost a sqrt.
+                if (q >= m.r * m.r) continue;
+                h += m.a * 0.5 * (Math.cos(Math.PI * Math.sqrt(q) / m.r) + 1);
+            }
+        }
+        return h;
     }
 
+    /* Which way the ground falls, as (dh/dx, dh/dz). For a plain pad this is
+       just its tilt; a hump adds its own radial slope, dh/dd = -aπ/2r·sin(πd/r)
+       spread over the direction from its middle. Written into `out` because
+       the grounded branch of the integrator asks for it on every substep and
+       an allocation per substep is an allocation per substep. */
+    var _grad = { x: 0, z: 0 };
+    function padGrad(pad, x, z, out) {
+        out = out || _grad;
+        out.x = pad.sx || 0;
+        out.z = pad.sz || 0;
+        var b = pad.bumps, i, m, dx, dz, q, d, k;
+        if (b) {
+            for (i = 0; i < b.length; i++) {
+                m = b[i];
+                dx = x - m.cx; dz = z - m.cz;
+                q = dx * dx + dz * dz;
+                if (q >= m.r * m.r) continue;
+                d = Math.sqrt(q);
+                if (d < 1e-6) continue;          // the summit is flat
+                k = -m.a * 0.5 * Math.PI / m.r * Math.sin(Math.PI * d / m.r) / d;
+                out.x += k * dx;
+                out.z += k * dz;
+            }
+        }
+        return out;
+    }
+
+    // How steep the ground is here, as a gradient. Only the settling rule and
+    // the tests need the magnitude on its own.
+    function slopeAt(pad, x, z) {
+        var g = padGrad(pad, x, z, _slope);
+        return Math.sqrt(g.x * g.x + g.z * g.z);
+    }
+    var _slope = { x: 0, z: 0 };
+
     function padContains(pad, x, z) {
+        if (pad.r) {
+            var dx = x - (pad.x + pad.w / 2), dz = z - (pad.z + pad.d / 2);
+            return dx * dx + dz * dz <= pad.r * pad.r;
+        }
         return x >= pad.x && x <= pad.x + pad.w && z >= pad.z && z <= pad.z + pad.d;
     }
 
@@ -73,13 +158,29 @@
        of the hole, a cup's depth below. That one substitution is what makes the
        cup a hole rather than a rule: a ball whose centre crosses the rim runs
        out of support and falls, exactly as it would over any other edge. */
+    var INLAY_EPS = 1e-6;
+
     function surfaceUnder(hole, x, z, ceil) {
         var best = null, bestY = -Infinity, pads = hole.pads, i, h;
         for (i = 0; i < pads.length; i++) {
             if (!padContains(pads[i], x, z)) continue;
             h = padHeight(pads[i], x, z);
             if (h > ceil) continue;
-            if (h > bestY) { bestY = h; best = pads[i]; }
+            /* Highest wins, as it always has. The second clause is the one
+               exception the game allows to "pads must not overlap": a pad
+               marked `inlay` is laid *into* the one below it at the same
+               height — a round green on rolling ground — and takes the tie.
+
+               Without it the lookup would be deciding between two pads that
+               are the same height by whichever came first in the array, which
+               is the order-dependence the overlap rule exists to prevent. With
+               it the answer is the same whatever the order, and the surface is
+               continuous either way: an inlay only ever changes what the
+               ground is *made of* underfoot, never where it is. */
+            if (h > bestY + INLAY_EPS ||
+                (pads[i].inlay && h > bestY - INLAY_EPS)) {
+                bestY = h; best = pads[i];
+            }
         }
 
         var cup = hole.cup;
@@ -143,6 +244,31 @@
         if (pick.nx && b.vx * pick.nx < 0) b.vx = -b.vx * C.RESTITUTION;
         if (pick.nz && b.vz * pick.nz < 0) b.vz = -b.vz * C.RESTITUTION;
         events.bounce = true;
+    }
+
+    /* Out of bounds, the way a real course means it: a line you may cross,
+       and are only punished for stopping beyond.
+
+       The older courses do not need this — they are fenced, and a ball that
+       leaves one has physically fallen out of the world, which OOB_Y already
+       catches in mid-air. An open course has no fence and no cliff: the ground
+       runs to the horizon, so nothing ever falls off it and there has to be a
+       boundary that is a *rule* rather than a shape. `hole.fence` is that
+       rectangle, and this is checked once, when the ball comes to rest, so a
+       ball that runs across the line and back is exactly as fine as it would
+       be with a white stake beside it. */
+    function outOfBounds(hole, x, z) {
+        var f = hole.fence;
+        if (!f) return false;
+        return x < f.x || x > f.x + f.w || z < f.z || z > f.z + f.d;
+    }
+
+    function markOutOfBounds(world, events) {
+        var b = world.ball;
+        if (world.sunk || world.splash || world.out) return;
+        if (!outOfBounds(world.hole, b.x, b.z)) return;
+        world.out = true;
+        events.out = true;
     }
 
     function waterAt(hole, x, z) {
@@ -498,6 +624,10 @@
         return true;
     }
 
+    // Scratch for the gradient under the ball: written before it is read on
+    // every substep, never held on to.
+    var _lie = { x: 0, z: 0 };
+
     function substep(world, dt, events) {
         var b = world.ball, hole = world.hole;
         world.time += dt;
@@ -509,7 +639,12 @@
                 b.vy = 0;
             } else {
                 var pad = here.pad;
-                var sx = pad.sx || 0, sz = pad.sz || 0;
+                /* The gradient of the ground under the ball rather than the
+                   pad's own tilt, so a hump accelerates the ball exactly as a
+                   ramp does and neither this line nor anything below it knows
+                   the difference. */
+                var g = padGrad(pad, b.x, b.z, _lie);
+                var sx = g.x, sz = g.z;
 
                 // Downhill acceleration on a tilted plane, projected into the
                 // horizontal: g * gradient / (1 + |gradient|²).
@@ -635,25 +770,41 @@
             return;
         }
 
-        /* At rest — unless it is sitting on a slope, in which case gravity has
-           not finished with it and stopping here would leave the ball hanging
-           on a hillside.
+        /* At rest — if the ground under the ball will hold it there.
 
-           The timer covers the two states where "grounded" never becomes true
-           but the ball has plainly stopped: leaning on something on a slope,
-           and perched on the lip of the cup with the ground missing under it.
-           Without it those shots would run until the clock ran out. */
+           This is the one place static friction lives (CONFIG.HOLD). The drag
+           above is proportional to speed and so has nothing to say about a
+           stopped ball; asked on its own it would let one sit anywhere,
+           including halfway up a ramp. So a slow ball is at rest when the lie
+           beneath it is shallower than its surface's angle of repose, and
+           otherwise it is not at rest at all — it creeps on downhill until it
+           finds somewhere that is, which is what a ball does.
+
+           Two timers cover the cases with no lie to ask. A ball that is not
+           grounded has nothing under it to hold it — leaning on a rail, or
+           perched on the lip of the cup with the green missing beneath — and
+           settles on the short one. And a grounded ball that has crept at
+           under walking pace for STUCK seconds is not on a hillside at all,
+           it is jammed against something; without that backstop a ball wedged
+           against a rail on a bank would run out the shot clock. */
         var slow = speedOf(b) < C.STOP_SPEED;
         if (!slow) {
             world.slowFor = 0;
         } else {
             world.slowFor += dt;
-            var lie = surfaceUnder(hole, b.x, b.z, b.y + C.STEP_UP);
-            var steep = lie && (Math.abs(lie.pad.sx || 0) > 0.02 || Math.abs(lie.pad.sz || 0) > 0.02);
-            if ((world.grounded && !steep) || world.slowFor > C.SLOPE_SETTLE) {
+            var settled;
+            if (world.grounded) {
+                var lie = surfaceUnder(hole, b.x, b.z, b.y + C.STEP_UP);
+                settled = (lie && slopeAt(lie.pad, b.x, b.z) <= holdOf(lie.pad.kind)) ||
+                    world.slowFor > C.STUCK;
+            } else {
+                settled = world.slowFor > C.SLOPE_SETTLE;
+            }
+            if (settled) {
                 b.vx = b.vy = b.vz = 0;
                 if (world.moving) events.rest = true;
                 world.moving = false;
+                markOutOfBounds(world, events);
             }
         }
     }
@@ -756,7 +907,11 @@
         previewPath: previewPath,
         speedOf: speedOf,
         groundSpeed: groundSpeed,
-        frictionOf: frictionOf
+        frictionOf: frictionOf,
+        holdOf: holdOf,
+        padGrad: padGrad,
+        slopeAt: slopeAt,
+        outOfBounds: outOfBounds
     };
 
 })(window.G3);

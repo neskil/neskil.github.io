@@ -8,7 +8,7 @@
    — the renderer scales to the viewport, the simulation never sees a pixel. */
 window.G3 = window.G3 || {};
 
-G3.VERSION = '1.6.1';
+G3.VERSION = '1.8.0';
 
 G3.CONFIG = {
     BALL_R: 0.16,
@@ -32,6 +32,7 @@ G3.CONFIG = {
        headless tests step at a fixed dt and trust the result. */
     FRICTION: {
         green: 0.30,
+        fairway: 0.22, // mown, but not shaved: a driver runs about a fifth less
         wood: 0.55,    // bridges and ramps: slick, you carry your speed
         sand: 0.004,   // a bunker eats a shot
         rough: 0.06,
@@ -39,12 +40,47 @@ G3.CONFIG = {
     },
     FRICTION_DEFAULT: 0.30,
 
-    /* At full power the ball coasts v0 / -ln(k) ≈ 23 units on grass — longer
-       than any hole here. Everything is reachable with one swing and most
-       things are reachable with half of one, so the skill is entirely in not
-       overcooking it: the cup will not take a ball arriving much above 7, and a
-       driver that has only run half its length is still doing about 12. */
-    MAX_POWER: 28,
+    /* Static friction, as the steepest gradient each surface will hold a
+       stopped ball on. Friction above is drag — proportional to speed, and
+       therefore zero at zero speed — which is right for a rolling ball and
+       says nothing at all about a stationary one. Without a second number a
+       ball can never rest on a slope, however gentle, because gravity always
+       wins against nothing; the game used to paper over that with a timer that
+       simply froze anything slow for long enough, and a ball would sit halfway
+       up a ramp looking like a bug because it was one.
+
+       These are the tangents of an angle of repose, so 0.18 is about ten
+       degrees. That is steep for a green and it is not a free choice: the
+       cup on Tidewater's 'Short Side' sits on a lie of 0.16, and a green that
+       will not hold a ball beside its own hole is a green nobody can putt on.
+       Everything coarser holds more, sand holds nearly anything, and a plank
+       holds almost nothing — which is what makes a ramp a ramp.
+
+       What this buys, beyond honesty: a hole can now be built out of slopes
+       rather than out of walls, because a slope can be somewhere the ball
+       *stays*. Whinstone Links is entirely that. It also quietly fixed two
+       older holes that had been lying — Step Up's blurb has always promised
+       that half measures roll back to you, and until now they stopped on the
+       ramp instead. */
+    HOLD: {
+        green: 0.18,
+        fairway: 0.26,
+        wood: 0.05,    // slick: a ball left on a ramp goes back down it
+        sand: 0.55,    // whatever lands in a bunker stays where it lands
+        rough: 0.40,
+        cup: 4         // and the bottom of the hole holds anything at all
+    },
+    HOLD_DEFAULT: 0.18,
+
+    /* At full power the ball coasts v0 / -ln(k) ≈ 27 units on grass. That is
+       longer than any mini golf hole here and shorter than most of a links
+       one, which is the split the number has to serve now: everything on the
+       first five courses is reachable with one swing and most of it with half
+       of one, so the skill there is entirely in not overcooking it — the cup
+       will not take a ball arriving much above 7. On the long courses the same
+       number is a tee shot, and the skill is in what the ground does with it
+       afterwards. */
+    MAX_POWER: 32,
     MIN_POWER: 0.9,
 
     /* Past a full swing the meter keeps going. OVERDRAW is how much further,
@@ -93,16 +129,28 @@ G3.CONFIG = {
         },
         {
             id: 'driver', name: 'Driver', short: 'DR', key: '2',
-            loft: 4 * Math.PI / 180, power: 28,
+            loft: 4 * Math.PI / 180, power: 32,
             blurb: 'The reach club. Barely off the ground, and it runs.'
         },
+        /* The one club that is neither reach nor loft but a real amount of
+           both, and the reason it exists is carry. A driver is in the air for
+           a quarter of a second and a chipper flies eight units at the very
+           most; an iron flies eleven and still runs when it lands, which is
+           what a green with water in front of it needs and what nothing else
+           in the bag could do. It is also the club for a long second shot:
+           two thirds of a driver, and it stops. */
         {
-            id: 'chipper', name: 'Chipper', short: 'CH', key: '3',
+            id: 'iron', name: '7 Iron', short: '7i', key: '3',
+            loft: 16 * Math.PI / 180, power: 18,
+            blurb: 'The long approach. Carries what the driver runs into.'
+        },
+        {
+            id: 'chipper', name: 'Chipper', short: 'CH', key: '4',
             loft: 22 * Math.PI / 180, power: 14,
             blurb: 'Hops a rail and keeps running. The all-rounder.'
         },
         {
-            id: 'wedge', name: 'Wedge', short: 'WG', key: '4',
+            id: 'wedge', name: 'Wedge', short: 'WG', key: '5',
             loft: 42 * Math.PI / 180, power: 11.5,
             blurb: 'Up and over water, sand and anything else in the way.'
         }
@@ -113,8 +161,19 @@ G3.CONFIG = {
     BOUNCE: 0.34,         // vertical speed kept after landing
     LAND_GRIP: 0.86,      // horizontal speed kept on each landing
     LAND_REST: 0.55,      // slower than this after a bounce and it settles
-    STOP_SPEED: 0.24,     // below this on a flat lie the ball is at rest
-    SLOPE_SETTLE: 0.4,    // …and this long at that speed settles it on a slope
+    STOP_SPEED: 0.24,     // below this on a lie that will hold it, the ball is at rest
+
+    /* Two timers for the two ways a ball stops without the lie deciding it.
+       SLOPE_SETTLE is for a ball that is not standing on anything — leaning on
+       a rail, or perched on the lip of the cup with the ground missing under
+       it — where there is no lie to ask. STUCK is the backstop under that:
+       a grounded ball on a slope too steep to hold it should be rolling, so if
+       it has crept at under STOP_SPEED for this long it is not on a slope, it
+       is jammed against something, and the shot is over. Long enough that a
+       ball genuinely rolling downhill never trips it — at that speed it would
+       have to cover half a unit to get there. */
+    SLOPE_SETTLE: 0.4,
+    STUCK: 2.4,
 
     /* A lip the ball climbs rather than bounces off — kerbs between adjacent
        pads. Anything taller has to be authored as a wall or it stops the ball
