@@ -260,6 +260,119 @@
         return out;
     }
 
+    /* ── the open country ───────────────────────────────────────────────
+
+       Everything above is a floor plan: rectangles of ground with fences round
+       them, which is what mini golf is and what a parkland hole turned out to
+       be as well. Whinstone Links is neither. It is one piece of rolling
+       ground running to the horizon, and the three things it needed are all
+       here.
+
+       `hill` is a hump: a rise of `a` at (cx, cz) fading to nothing at radius
+       r. Add them to a pad's `bumps` and the pad stops being flat — physics.js
+       explains the profile, and the short version is that it is smooth at the
+       top and smooth at the foot, so a course made of them has no creases in
+       it anywhere. A negative `a` is a hollow, which is the same thing and
+       does most of the work: dunes are the walls of the hollows between them.
+
+       `dunes` scatters a field of them from a seed, so the ground is different
+       on every hole and the same on every load. It takes a list of circles to
+       stay out of — a green wants flat ground, and so does a tee — because a
+       hump that wandered under the pin would be a hole nobody authored.
+
+       `green` is a disc: a round green laid into the ground rather than cut
+       out of it. It overlaps the terrain under it on purpose and wins, because
+       `surfaceUnder` prefers an inlay at the same height (physics.js). That is
+       the one thing on this course that is not just data — and it is what
+       makes a round green possible at all, since the alternative is cutting a
+       circular hole in a rectangle and there is no rectangle that does that. */
+
+    function hill(cx, cz, r, a) { return { cx: cx, cz: cz, r: r, a: a }; }
+
+    /* A ring of humps standing round a point. Overlapping, they add into one
+       continuous rim rather than a circle of molehills, which is a punchbowl
+       green — and with `a` negative, a dell. `radius` has to be more than `r`
+       clear of anything that must stay flat, because a hump's tail reaches
+       back that far. */
+    function ring(cx, cz, radius, r, a, n) {
+        var out = [], i, t;
+        for (i = 0; i < n; i++) {
+            t = i / n * Math.PI * 2;
+            out.push(hill(cx + Math.cos(t) * radius, cz + Math.sin(t) * radius, r, a));
+        }
+        return out;
+    }
+
+    // A small deterministic generator, so a hole's dunes are the same dunes
+    // every time the page loads. Nothing here may ever call Math.random: a
+    // course that reshuffles itself is a course the tests cannot make any
+    // statement about.
+    function seeded(seed) {
+        var t = seed >>> 0;
+        return function () {
+            t = (t + 0x6d2b79f5) >>> 0;
+            var x = Math.imul(t ^ (t >>> 15), 1 | t);
+            x = (x + Math.imul(x ^ (x >>> 7), 61 | x)) ^ x;
+            return ((x ^ (x >>> 14)) >>> 0) / 4294967296;
+        };
+    }
+
+    /* A field of humps.
+
+       `grad` is the steepest gradient a single hump reaches, not its height —
+       which is the number that decides how the course plays, because it is
+       what CONFIG.HOLD is compared against. A hump's peak gradient is
+       a·π/2r, so asking for a gradient rather than a height is what stops a
+       small hump from being a cone and a large one from being a lawn: they
+       come out the same steepness and different sizes, which is what a dune
+       field looks like. Overlapping humps add, so the ground between them
+       reaches half again as steep, and that is where the interest is. */
+    function dunes(area, n, seed, opts) {
+        var o = opts || {};
+        var rnd = seeded(seed);
+        var clear = o.clear || [];
+        var lo = o.r === undefined ? 5 : o.r, hi = o.rMax === undefined ? 11 : o.rMax;
+        var grad = o.grad === undefined ? 0.2 : o.grad;
+        var out = [], tries = 0, i;
+        while (out.length < n && tries++ < n * 40) {
+            var r = lo + rnd() * (hi - lo);
+            var cx = area.x + rnd() * area.w;
+            var cz = area.z + rnd() * area.d;
+            // Fade to nothing before the edge of the ground, or the horizon
+            // gets a lip on it where the terrain meets the country beyond.
+            if (cx - r < area.x || cx + r > area.x + area.w) continue;
+            if (cz - r < area.z || cz + r > area.z + area.d) continue;
+            var ok = true;
+            for (i = 0; i < clear.length; i++) {
+                var c = clear[i];
+                if (Math.hypot(cx - c.x, cz - c.z) < r + c.r) { ok = false; break; }
+            }
+            if (!ok) continue;
+            // Hollows outnumber hills, because a links is a field of dips with
+            // the ground between them left standing.
+            var g = grad * (0.5 + rnd() * 0.5) * (rnd() < 0.58 ? -1 : 1);
+            out.push(hill(cx, cz, r, g * 2 * r / Math.PI));
+        }
+        return out;
+    }
+
+    // A rectangle of rolling ground.
+    function ground(x, z, w, d, kind, bumps) {
+        var p = pad(x, z, w, d, 0, kind);
+        p.bumps = bumps || [];
+        return p;
+    }
+
+    // A round green, laid into whatever it is standing on.
+    function circle(cx, cz, r, kind, y) {
+        var p = pad(cx - r, cz - r, 2 * r, 2 * r, y || 0, kind || 'green');
+        p.r = r;
+        p.inlay = true;
+        return p;
+    }
+
+    function keep(x, z, r) { return { x: x, z: z, r: r }; }
+
     function rect(x, z, w, d, y) { return { x: x, z: z, w: w, d: d, y: y === undefined ? -0.6 : y }; }
 
     /* ── rail generation ────────────────────────────────────────────────── */
@@ -368,14 +481,32 @@
     function build(h) {
         var P = G3.physics;
         h.water = h.water || [];
-        h.walls = enclose(h.pads, h.gaps || []).concat(h.extra || []);
+        /* An open hole is not enclosed — that is what open means. There is no
+           edge for `enclose` to find a rail for anyway: the ground runs past
+           the fog in every direction, and what keeps the ball on the course is
+           `fence`, a line you are only punished for stopping beyond. */
+        h.walls = (h.open ? [] : enclose(h.pads, h.gaps || [])).concat(h.extra || []);
 
         var t = P.surfaceTop(h, h.tee.x, h.tee.z);
         var c = P.surfaceTop(h, h.cup.x, h.cup.z);
         h.tee.y = t ? t.y : 0;
         h.cup.y = c ? c.y : 0;
 
+        /* Bounds are what the camera frames and what the sun's shadow camera
+           covers. On a fenced hole they are the ground, because the ground is
+           the hole. On an open one the ground is most of a county and framing
+           it would show the player a postage stamp in the middle of a field,
+           so the boundary counts as the hole instead — grown by a little, so
+           the stakes are inside the picture rather than on the edge of it. */
         var minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity, i, p;
+        if (h.open && h.fence) {
+            var f = h.fence, m = 3;
+            h.bounds = {
+                minX: f.x - m, maxX: f.x + f.w + m,
+                minZ: f.z - m, maxZ: f.z + f.d + m
+            };
+            return h;
+        }
         for (i = 0; i < h.pads.length; i++) {
             p = h.pads[i];
             minX = Math.min(minX, p.x); maxX = Math.max(maxX, p.x + p.w);
@@ -896,6 +1027,165 @@
         })
     ];
 
+    /* ── course seven: Whinstone Links ───────────────────────────────────
+
+       An open course. There are no rails on it anywhere, because there is
+       nothing for a rail to be built on: the ground is one piece of rolling
+       country that runs past the fog in every direction, and what keeps you on
+       the hole is a line of white stakes and the rule that you may cross it
+       but not stop beyond it.
+
+       Everything about it falls out of the two things the engine learned to
+       do. The ground has humps in it (`dunes`), so the lie is different
+       everywhere and a shot that finishes on a slope is a shot played from a
+       slope. And a surface now holds a stopped ball only up to its own angle
+       of repose (CONFIG.HOLD), so the humps are not decoration — land on the
+       shoulder of one and the ball will not stay there. That is the course:
+       aim at the flat parts.
+
+       The greens are discs laid into the ground rather than cut out of it,
+       and the dune field is told to keep away from them, so a green is a flat
+       round table in rolling country — which is what a green is. The bunkers
+       are the same trick with sand in them. */
+
+    function moor(spec) {
+        var flat = [keep(spec.tee.x, spec.tee.z, 4.5)].concat(spec.flat || []);
+        var bumps = (spec.bumps || []).concat(dunes(spec.area, spec.n, spec.seed,
+            { clear: flat, r: spec.r, rMax: spec.rMax, a: spec.a }));
+        var pads = bands(0, spec.strips), i;
+        // One field of humps, shared by every strip on the hole. The height of
+        // the ground is a function of where you are and not of which strip you
+        // happen to be standing on, so the seams between them are invisible to
+        // the ball as well as to the eye — and the mown line can wander across
+        // the contours instead of being cut to fit them.
+        for (i = 0; i < pads.length; i++) pads[i].bumps = bumps;
+        return pads.concat(spec.inlays || []);
+    }
+
+    var whinstone = [
+        build({
+            name: 'The Whins', par: 4, open: true,
+            blurb: 'Rolling all the way. There is no flat lie out there but the one you pick.',
+            pads: moor({
+                tee: { x: 31, z: 16 }, seed: 4101, n: 62,
+                area: { x: 3, z: 3, w: 56, d: 78 },
+                r: 5, rMax: 11, grad: 0.21,
+                strips: [[84, [20, rgh], [22, fwy], [20, rgh]]],
+                flat: [keep(31, 50, 7.5), keep(31, 38, 4.2), keep(38.5, 45, 3.8)],
+                inlays: [
+                    circle(31, 50, 5.2, grn),
+                    circle(31, 38, 2.7, snd),
+                    circle(38.5, 45, 2.3, snd)
+                ]
+            }),
+            fence: { x: 11, z: 7, w: 40, d: 58 },
+            tee: { x: 31, z: 16 }, cup: { x: 31, z: 50 }
+        }),
+        build({
+            name: 'Bell Heather', par: 3, open: true,
+            blurb: 'A short one into the wind, over a hollow that gathers anything short.',
+            pads: moor({
+                tee: { x: 26, z: 12 }, seed: 7727, n: 40,
+                area: { x: 3, z: 3, w: 46, d: 50 },
+                r: 4.5, rMax: 9, grad: 0.22,
+                strips: [[56, [17, rgh], [18, fwy], [17, rgh]]],
+                flat: [keep(26, 28, 7), keep(26, 20.5, 3.8), keep(31.5, 23.5, 3.4)],
+                inlays: [
+                    circle(26, 28, 4.8, grn),
+                    circle(26, 20.5, 2.4, snd),
+                    circle(31.5, 23.5, 2, snd)
+                ]
+            }),
+            fence: { x: 10, z: 5, w: 32, d: 38 },
+            tee: { x: 26, z: 12 }, cup: { x: 26, z: 28.5 }
+        }),
+        build({
+            name: 'The Punchbowl', par: 4, open: true,
+            blurb: 'The green sits in a bowl. Anything on the banks comes back to it.',
+            pads: moor({
+                tee: { x: 30, z: 14 }, seed: 3313, n: 55,
+                area: { x: 3, z: 3, w: 54, d: 74 },
+                r: 5, rMax: 10, grad: 0.20,
+                strips: [
+                    [34, [18, rgh], [24, fwy], [18, rgh]],
+                    [46, [22, rgh], [20, fwy], [18, rgh]]
+                ],
+                flat: [keep(28, 47, 13), keep(38, 30, 4)],
+                /* The bowl is authored rather than scattered: a ring of humps
+                   standing round the green, close enough to run together into
+                   one rim and far enough out that none of their tails reaches
+                   the green itself. The dune field is kept away from all of
+                   it, so this is the only thing shaping the ground there. */
+                bumps: ring(28, 47, 12.5, 6.5, 1.3, 8),
+                inlays: [circle(28, 47, 5.4, grn), circle(38, 30, 2.6, snd)]
+            }),
+            fence: { x: 10, z: 6, w: 40, d: 54 },
+            tee: { x: 30, z: 14 }, cup: { x: 28, z: 47 }
+        }),
+        build({
+            name: 'Stake and Ditch', par: 3, open: true,
+            blurb: 'Out of bounds down the whole right side. The stakes are not a suggestion.',
+            pads: moor({
+                tee: { x: 20, z: 12 }, seed: 9091, n: 38,
+                area: { x: 3, z: 3, w: 44, d: 48 },
+                r: 4.5, rMax: 9, grad: 0.21,
+                strips: [[54, [13, rgh], [17, fwy], [20, rgh]]],
+                flat: [keep(22, 27, 7), keep(21, 19.5, 3.8), keep(15.5, 24, 3.3)],
+                inlays: [
+                    circle(22, 27, 4.6, grn),
+                    circle(21, 19.5, 2.2, snd),
+                    circle(15.5, 24, 2, snd)
+                ]
+            }),
+            fence: { x: 8, z: 5, w: 22, d: 36 },
+            tee: { x: 20, z: 12 }, cup: { x: 22, z: 27 }
+        }),
+        build({
+            name: 'The Long Carry', par: 5, open: true,
+            blurb: 'Three shots over open country. The ground gives back more than the club does.',
+            pads: moor({
+                tee: { x: 30, z: 18 }, seed: 5519, n: 82,
+                area: { x: 3, z: 3, w: 58, d: 100 },
+                r: 5, rMax: 11, grad: 0.20,
+                strips: [
+                    [40, [19, rgh], [24, fwy], [21, rgh]],
+                    [30, [24, rgh], [22, fwy], [18, rgh]],
+                    [36, [18, rgh], [26, fwy], [20, rgh]]
+                ],
+                flat: [keep(31, 76, 8), keep(25, 66, 4), keep(38, 71, 3.8), keep(30.5, 45, 4)],
+                inlays: [
+                    circle(31, 76, 5.4, grn),
+                    circle(25, 66, 2.5, snd),
+                    circle(38, 71, 2.3, snd),
+                    circle(30.5, 45, 2.6, snd)
+                ]
+            }),
+            fence: { x: 11, z: 6, w: 42, d: 84 },
+            tee: { x: 30, z: 18 }, cup: { x: 31, z: 76 }
+        }),
+        build({
+            name: 'Home Ground', par: 4, open: true,
+            blurb: 'The last of it, downwind, with the ground running away towards the green.',
+            pads: moor({
+                tee: { x: 20, z: 14 }, seed: 2237, n: 58,
+                area: { x: 3, z: 3, w: 56, d: 76 },
+                r: 5, rMax: 10, grad: 0.21,
+                strips: [
+                    [36, [14, rgh], [22, fwy], [26, rgh]],
+                    [46, [22, rgh], [22, fwy], [18, rgh]]
+                ],
+                flat: [keep(33, 50, 7.5), keep(27, 42, 4), keep(39, 46, 3.6)],
+                inlays: [
+                    circle(33, 50, 5, grn),
+                    circle(27, 42, 2.5, snd),
+                    circle(39, 46, 2.1, snd)
+                ]
+            }),
+            fence: { x: 9, z: 7, w: 42, d: 54 },
+            tee: { x: 20, z: 14 }, cup: { x: 33, z: 50 }
+        })
+    ];
+
     G3.COURSES = [
         {
             id: 'seaside',
@@ -938,6 +1228,13 @@
             blurb: 'The long game: fairway, rough, sand and trees. Two shots to most greens.',
             theme: 'parkland',
             holes: parkland
+        },
+        {
+            id: 'whinstone',
+            name: 'Whinstone Links',
+            blurb: 'Open country, no fences, rolling ground. Aim at the flat parts.',
+            theme: 'links',
+            holes: whinstone
         }
     ];
 
@@ -951,6 +1248,7 @@
     G3.authoring = {
         pad: pad, wall: wall, spinner: spinner, slider: slider,
         beam: beam, pen: pen, bowl: bowl, bands: bands, tree: tree,
+        hill: hill, ring: ring, dunes: dunes, ground: ground, circle: circle, keep: keep,
         rect: rect, enclose: enclose, shore: shore, brink: brink, build: build,
         RAIL_T: RAIL_T
     };

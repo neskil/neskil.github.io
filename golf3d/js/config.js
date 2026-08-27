@@ -8,7 +8,7 @@
    — the renderer scales to the viewport, the simulation never sees a pixel. */
 window.G3 = window.G3 || {};
 
-G3.VERSION = '1.7.0';
+G3.VERSION = '1.8.0';
 
 G3.CONFIG = {
     BALL_R: 0.16,
@@ -39,6 +39,38 @@ G3.CONFIG = {
         cup: 0.004     // the bottom of the hole: whatever lands here stays
     },
     FRICTION_DEFAULT: 0.30,
+
+    /* Static friction, as the steepest gradient each surface will hold a
+       stopped ball on. Friction above is drag — proportional to speed, and
+       therefore zero at zero speed — which is right for a rolling ball and
+       says nothing at all about a stationary one. Without a second number a
+       ball can never rest on a slope, however gentle, because gravity always
+       wins against nothing; the game used to paper over that with a timer that
+       simply froze anything slow for long enough, and a ball would sit halfway
+       up a ramp looking like a bug because it was one.
+
+       These are the tangents of an angle of repose, so 0.18 is about ten
+       degrees. That is steep for a green and it is not a free choice: the
+       cup on Tidewater's 'Short Side' sits on a lie of 0.16, and a green that
+       will not hold a ball beside its own hole is a green nobody can putt on.
+       Everything coarser holds more, sand holds nearly anything, and a plank
+       holds almost nothing — which is what makes a ramp a ramp.
+
+       What this buys, beyond honesty: a hole can now be built out of slopes
+       rather than out of walls, because a slope can be somewhere the ball
+       *stays*. Whinstone Links is entirely that. It also quietly fixed two
+       older holes that had been lying — Step Up's blurb has always promised
+       that half measures roll back to you, and until now they stopped on the
+       ramp instead. */
+    HOLD: {
+        green: 0.18,
+        fairway: 0.26,
+        wood: 0.05,    // slick: a ball left on a ramp goes back down it
+        sand: 0.55,    // whatever lands in a bunker stays where it lands
+        rough: 0.40,
+        cup: 4         // and the bottom of the hole holds anything at all
+    },
+    HOLD_DEFAULT: 0.18,
 
     /* At full power the ball coasts v0 / -ln(k) ≈ 23 units on grass — longer
        than any hole here. Everything is reachable with one swing and most
@@ -114,8 +146,19 @@ G3.CONFIG = {
     BOUNCE: 0.34,         // vertical speed kept after landing
     LAND_GRIP: 0.86,      // horizontal speed kept on each landing
     LAND_REST: 0.55,      // slower than this after a bounce and it settles
-    STOP_SPEED: 0.24,     // below this on a flat lie the ball is at rest
-    SLOPE_SETTLE: 0.4,    // …and this long at that speed settles it on a slope
+    STOP_SPEED: 0.24,     // below this on a lie that will hold it, the ball is at rest
+
+    /* Two timers for the two ways a ball stops without the lie deciding it.
+       SLOPE_SETTLE is for a ball that is not standing on anything — leaning on
+       a rail, or perched on the lip of the cup with the ground missing under
+       it — where there is no lie to ask. STUCK is the backstop under that:
+       a grounded ball on a slope too steep to hold it should be rolling, so if
+       it has crept at under STOP_SPEED for this long it is not on a slope, it
+       is jammed against something, and the shot is over. Long enough that a
+       ball genuinely rolling downhill never trips it — at that speed it would
+       have to cover half a unit to get there. */
+    SLOPE_SETTLE: 0.4,
+    STUCK: 2.4,
 
     /* A lip the ball climbs rather than bounces off — kerbs between adjacent
        pads. Anything taller has to be authored as a wall or it stops the ball

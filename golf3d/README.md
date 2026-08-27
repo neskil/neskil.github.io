@@ -1,9 +1,11 @@
 # Loft Links
 
-Six six-hole courses of 3D golf: five of mini golf, and one — Ashdown Park —
-of the long game, with fairways, rough, bunkers, a lake and trees. three.js
-(vendored, r128), plain ES5-flavoured JavaScript, no build step and no other
-dependencies — same as everything else here, open `index.html` and it runs.
+Seven six-hole courses of 3D golf: five of mini golf, one — Ashdown Park — of
+the long game with fairways, rough, bunkers, a lake and trees, and one —
+Whinstone Links — of open rolling country with no fences on it anywhere.
+three.js (vendored, r128), plain ES5-flavoured JavaScript, no build step and no
+other dependencies — same as everything else here, open `index.html` and it
+runs.
 
 It is a deliberate sibling of [Pocket Links](../golf/README.md) next door: same
 module split, same scoring vocabulary, same rule that the physics is pure and
@@ -18,7 +20,7 @@ them.
 | `index.html` | Page shell: scoreboard, canvas, power/loft controls, banner, course picker, scorecard. |
 | `style.css` | Page chrome. The course itself is all WebGL. |
 | `js/config.js` | Every tuning constant. Nothing else holds a magic number. |
-| `js/courses.js` | The thirty-six holes, as data, plus the rail generator and the band layout the parkland course is written in. |
+| `js/courses.js` | The forty-two holes, as data, plus the rail generator, the band layout the parkland course is written in, and the dune fields the links is made of. |
 | `js/physics.js` | The simulation. No three.js, no DOM, pure. |
 | `js/scoring.js` | Scorecard arithmetic and the save file. |
 | `js/audio.js` | Synthesised sound effects, the weather's sound bed, the mute and the tab-out — no audio files to ship. |
@@ -354,7 +356,7 @@ obviously correct.
 
 ## The courses
 
-Six, six holes each, and they are meant to be played in the order they are
+Seven, six holes each, and they are meant to be played in the order they are
 listed — the picker is a difficulty curve as much as a menu.
 
 | Course | Theme | What it is about |
@@ -365,6 +367,7 @@ listed — the picker is a difficulty curve as much as a menu.
 | Tidewater Reach | `lagoon` | The loft course. Almost nothing here can be reached along the floor. |
 | Highland Steps | `highland` | The same lesson from the other side: things in the way rather than things missing, and the ground handed back as a tool. |
 | Ashdown Park | `parkland` | Not mini golf at all: the long game, where the hole is longer than one swing and the fairway is a place you are trying to be. |
+| Whinstone Links | `links` | No fences, no flat lies and no straight edges. The ground is the hazard. |
 
 The last two are why the bag has four clubs rather than two. Every hole on
 Tidewater is built round the one thing a chip can do that a putt cannot —
@@ -439,6 +442,91 @@ is a treeline rather than a row of identical bollards, and it is the same one
 every time the hole is loaded. The canopy is not solid, because nothing in the
 bag can reach it — a solid one would only mean the ball stopping in mid-air.
 
+### Whinstone Links
+
+The seventh course is the one that stopped being a floor plan. Everything
+before it is rectangles of ground with fences round them; this is a single
+piece of rolling country running past the fog in every direction, and what
+keeps you on the hole is a line of white stakes.
+
+Three things had to exist for it, and each of them is small:
+
+**Ground that curves.** A pad may carry a list of humps — `{ cx, cz, r, a }`,
+a rise of `a` fading to nothing at radius `r` — and its height is the plane
+plus all of them. The profile is a raised cosine, `a·(cos πt + 1)/2`, chosen
+because it is flat at the top *and* flat where it meets the ground: a crease at
+the summit would be a ridge the ball feels and nobody drew, and a crease at the
+foot would be a step at the bottom of every hill on the course. Negative `a` is
+a hollow, and overlapping humps simply add, which is how a dune field is
+written.
+
+Nothing else in the solver changed, because the solver only ever asked the
+ground two questions — how high is it here, and which way does it fall — and
+the second one now comes from `padGrad` instead of from a pad's own tilt. A
+ramp, a breaking green and a sandhill are still one code path. `tests.html`
+checks the gradient against a finite difference of the height at four hundred
+points across two overlapping humps, which is the one thing that could silently
+be wrong: get it backwards and the ball rolls uphill on a picture of a slope.
+
+**Friction that holds.** Until this course the only friction in the game was
+drag — proportional to speed, and therefore *zero* at zero speed, which says
+nothing whatever about a ball that has stopped. A ball could never rest on a
+slope, because gravity always wins against nothing, and the game papered over
+it with a timer that froze anything slow for long enough. That is why a ball
+used to sit halfway up a ramp looking like a bug: it was one.
+
+`CONFIG.HOLD` is the second number — the steepest gradient each surface will
+hold a stopped ball on, which is the tangent of an angle of repose. A slow ball
+is at rest when its lie is inside that and otherwise keeps creeping downhill
+until it finds somewhere that is. This is what makes a hump a hazard rather
+than decoration, and it is the difference between terrain you look at and
+terrain you play.
+
+The green's figure is 0.18, which is steep for a green and is not a free
+choice: the cup on Tidewater's **Short Side** sits on a lie of 0.16, and a
+green that will not hold a ball beside its own hole is a green nobody can putt
+on. There is an assertion to that effect over every cup in the game. Two older
+holes were quietly fixed by the change — **Step Up**'s blurb has always
+promised that half measures roll back to you, and until now they stopped on the
+ramp instead.
+
+**A boundary that is a rule.** With no fence and no cliff, nothing physical
+stops the ball, so out of bounds is `hole.fence`: a rectangle, checked once,
+when the ball comes to rest. Cross the line and come back and you are fine,
+which is what a white stake means. The stakes themselves are scenery and the
+ball goes straight through them, because a stake that bounced it back would be
+a wall telling a lie about the rule it is there to mark.
+
+The greens are discs — `circle()` — laid *into* the ground rather than cut out
+of it, which needed the one genuine exception to "pads must not overlap": a pad
+marked `inlay` wins a height tie in `surfaceUnder`. It is a safe exception
+because an inlay only ever changes what the ground is *made of* underfoot,
+never where it is, and the tests walk every overlap to insist on exactly that.
+The alternative was cutting a circular hole in a rectangle, and there is no
+rectangle that does that.
+
+| Hole | Par | What it asks |
+| --- | --- | --- |
+| The Whins | 4 | Rolling the whole way, and a bunker sitting on the line at driving distance. |
+| Bell Heather | 3 | Short, into a green in a saucer, with sand across the front. |
+| The Punchbowl | 4 | A ring of humps round the green: anything on the banks comes back down to it. |
+| Stake and Ditch | 3 | Out of bounds tight down the right for the whole hole. |
+| The Long Carry | 5 | Three shots, the second of them blind over a rise. |
+| Home Ground | 4 | The ground throws a straight drive twelve units off line. It is not a bug. |
+
+The dune fields are generated rather than placed, from a seed per hole, so a
+hole is different from its neighbours and identical on every load — nothing in
+`courses.js` may ever call `Math.random`, because a course that reshuffles
+itself is a course the tests cannot make any statement about. `dunes()` is
+asked for a *gradient* rather than a height, since gradient is the number
+`HOLD` is compared against and therefore the number that decides how the ground
+plays; the amplitude follows from the radius. It also takes a list of circles to
+keep out of, because a green wants flat ground and so does a tee.
+
+What that ends up worth, measured: the same driver from nine spots across a
+fairway runs anywhere from 12 to 26 units where flat ground gives 21, and
+finishes up to twelve units off the line it was aimed down.
+
 ## How a hole is built
 
 ```js
@@ -453,12 +541,15 @@ bag can reach it — a solid one would only mean the ball stopping in mid-air.
 }
 ```
 
-- **pad** — `kind` picks the friction: `green` (the quickest), `fairway` (mown
+- **pad** — `kind` picks the friction *and* the angle of repose: `green` (the
+  quickest, and the least willing to hold a ball on a slope), `fairway` (mown
   longer, so a driver runs about a fifth less), `wood` (bridges and ramps:
-  slick, you carry your speed), `sand` (a bunker eats a shot), `rough`.
-  `sx`/`sz` tilt it. Pads must not overlap unless one is clearly a bridge above
-  another; two pads fighting for the same point would make the surface lookup
-  depend on array order, and `tests.html` asserts they never do.
+  slick, you carry your speed, and a ball left on one goes back down it),
+  `sand` (a bunker eats a shot and holds whatever lands in it), `rough`.
+  `sx`/`sz` tilt it, `bumps` curve it, `r` makes it a disc. Pads must not
+  overlap unless one is clearly a bridge above another or one is an `inlay`;
+  anything else fighting for the same point would make the surface lookup
+  depend on array order, and `tests.html` asserts it never does.
 - **water** — a rectangle with a surface height. There is no pad above it, so
   the ball falls in: splash, one stroke, replay the shot from where it was
   played.
@@ -510,6 +601,14 @@ bag can reach it — a solid one would only mean the ball stopping in mid-air.
   ball much above 1.6 units, so a tree is a thing you go round, and a solid
   canopy would only mean the ball stopping in mid-air. `treeline()` puts a
   stand of them along a line.
+- **bumps** — humps on a pad, so the ground curves. `hill()` is one,
+  `ring()` a circle of them (a punchbowl, or a dell), `dunes()` a seeded field.
+  See [Whinstone Links](#whinstone-links).
+- **circle** — a disc pad, and an inlay: laid into whatever it is standing on
+  rather than cut out of it. Round greens and round bunkers.
+- **open / fence** — an open hole gets no generated rails at all, and a `fence`
+  rectangle instead: the ball is out of bounds if it comes to *rest* outside
+  it. Marked on the ground with white stakes, which are scenery.
 
 **Rails are generated, not authored.** `enclose()` walks the boundary of the pad
 union and puts a rail on every edge that has no neighbouring pad at roughly the
@@ -1372,10 +1471,10 @@ depends on is small and knowable: where the ball is, where it is aimed, how
 hard, at what loft, and — only on a hole with a gate or a blade on it — the
 clock, because those keep moving while you stand still.
 
-Exactly six of the thirty-six holes have anything moving, and all six are
-Windmill Works. On the other thirty that is a run of the simulation per *aim*
-rather than one per frame — measured at 3 in 120 frames against 360 — so five
-of the six courses now pay nothing at all to stand and look. On Windmill Works
+Exactly six of the forty-two holes have anything moving, and all six are
+Windmill Works. On the other thirty-six that is a run of the simulation per
+*aim* rather than one per frame — measured at 3 in 120 frames against 360 — so
+six of the seven courses now pay nothing at all to stand and look. On Windmill Works
 the clock is compared at 24Hz instead of at the frame rate. The gate itself
 still slides every frame, placed by `syncMovers` from the solver's own clock;
 what refreshes at 24Hz is the translucent band of the prediction, which is the
@@ -1399,8 +1498,8 @@ the four things that can move it says otherwise.
 
 ## Tests
 
-Open `tests.html`. 722 assertions covering the surfaces, the collision
-geometry, the cup, the integrator, the bag, all thirty-six holes of course data
+Open `tests.html`. 892 assertions covering the surfaces, the collision
+geometry, the cup, the integrator, the bag, all forty-two holes of course data
 and the scorecard, in a few seconds.
 
 The one worth knowing about is the **bot**: a greedy player fans out candidate

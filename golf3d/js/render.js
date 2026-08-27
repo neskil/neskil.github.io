@@ -543,6 +543,9 @@
 
         R.surf = {
             pads: pads,
+            // The cut earth under a pad, shared by every pad on the hole — and
+            // by the skirt under a piece of terrain, which is the same stuff.
+            side: side,
             shells: {
                 green: shells('green', TX.shellFor('green'), theme.grass[1], SHELL_LAYERS),
                 // The same blades, darker, and striped at the width the
@@ -695,7 +698,7 @@
 
        Every shell is registered with R.shells, because the wind moves them
        (see `swayShells`) and a mat that does not move is a carpet. */
-    function addShells(group, pad, cup, holed, cx, cy, cz) {
+    function addShells(group, pad, cup, holed, cx, cy, cz, shape) {
         var set = R.surf.shells[pad.kind];
         if (!set) return;
         var sx = pad.sx || 0, sz = pad.sz || 0;
@@ -709,8 +712,17 @@
         for (i = 0; i < set.length; i++) {
             var f = (i + 0.3) / set.length;
             var geo;
-            if (holed) {
+            if (shape) {
+                // The ground's own surface, lifted — see the note on
+                // TERRAIN_RES for why this is a clone and not a second sample.
+                geo = shape.clone();
+                var tp = geo.attributes.position, t;
+                for (t = 0; t < tp.count; t++) tp.setY(t, tp.getY(t) + height * f);
+                tp.needsUpdate = true;
+            } else if (holed) {
                 geo = shellShape(pad, cup);
+            } else if (pad.r) {
+                geo = shellShape(pad, null);
             } else {
                 geo = new THREE.PlaneGeometry(pad.w, pad.d, 1, 1);
                 geo.rotateX(-Math.PI / 2);
@@ -729,7 +741,8 @@
                 geo.computeVertexNormals();
             }
             var mesh = new THREE.Mesh(geo, set[i]);
-            mesh.position.set(cx, cy + height * f, cz);
+            mesh.position.set(cx, cy + (pad.bumps ? 0 : height * f) +
+                (pad.r ? INLAY_LIFT : 0), cz);
             // Lit by the sun and darkened by anything standing on the pad, but
             // casting nothing itself: a cut-out shadow needs a depth material
             // of its own, and six of those per pad would cost more than the
@@ -754,17 +767,23 @@
     function shellShape(pad, cup) {
         var hw = pad.w / 2, hd = pad.d / 2;
         var shape = new THREE.Shape();
-        shape.moveTo(-hw, -hd);
-        shape.lineTo(hw, -hd);
-        shape.lineTo(hw, hd);
-        shape.lineTo(-hw, hd);
-        shape.lineTo(-hw, -hd);
-        var hole = new THREE.Path();
-        var cx = pad.x + hw, cz = pad.z + hd;
-        // A shade wider than the cup, so no blade hangs over the rim.
-        hole.absarc(cup.x - cx, -(cup.z - cz), C.HOLE_R * 1.08, 0, Math.PI * 2, true);
-        shape.holes.push(hole);
-        var geo = new THREE.ShapeGeometry(shape, 24);
+        if (pad.r) {
+            shape.absarc(0, 0, pad.r, 0, Math.PI * 2, false);
+        } else {
+            shape.moveTo(-hw, -hd);
+            shape.lineTo(hw, -hd);
+            shape.lineTo(hw, hd);
+            shape.lineTo(-hw, hd);
+            shape.lineTo(-hw, -hd);
+        }
+        if (cup) {
+            var hole = new THREE.Path();
+            var cx = pad.x + hw, cz = pad.z + hd;
+            // A shade wider than the cup, so no blade hangs over the rim.
+            hole.absarc(cup.x - cx, -(cup.z - cz), C.HOLE_R * 1.08, 0, Math.PI * 2, true);
+            shape.holes.push(hole);
+        }
+        var geo = new THREE.ShapeGeometry(shape, 36);
         geo.rotateX(-Math.PI / 2);
         return geo;
     }
@@ -825,7 +844,172 @@
         return best;
     }
 
+    /* ── shaped pads ────────────────────────────────────────────────────
+
+       Two pad shapes the older courses never needed, both of them for
+       Whinstone Links, and both drawn from the same two questions the solver
+       asks the ground: how high is it here, and what shape is its footprint.
+       Nothing below re-derives a height — every vertex is `padHeight`, so the
+       picture and the simulation cannot drift apart on a hillside any more
+       than they can on a ramp.
+
+         a disc     an outline that is a circle rather than a rectangle. Built
+                    as an extruded shape, which is the same code the cup's own
+                    pad has always used, so a round green punches its hole
+                    exactly as a square one does.
+         terrain    a rectangle whose top is subdivided and pushed up and down
+                    by `padHeight`, with a skirt round its outline. This is the
+                    rolling ground.
+
+       The grass over a piece of terrain is the *same geometry* as the terrain,
+       cloned and lifted, rather than a second surface sampled from the same
+       height field. That is not a saving, it is a correctness rule. Sampled
+       independently at a coarser step the mat cuts the corner off every hump
+       it crosses — sinking into the ground on the convex half and floating off
+       it on the concave half — and a hillside comes out streaked with bright
+       crescents where the two surfaces cross. Cloned, they cannot disagree,
+       because there is only one surface.
+
+       Which makes TERRAIN_RES the one judgement call: it is paid seven times
+       over on every pad, so it is a metre and a bit rather than the half metre
+       the ground alone would like. A dune is five to eleven units across, so
+       that is still ten segments and more over the interesting part of one,
+       and nothing on the course shows a facet. */
+    var TERRAIN_RES = 1.0;
+    // A disc green is laid *into* the ground at the same height, so its top
+    // face and the terrain's are coplanar. A hair of lift is what stops the
+    // two z-fighting over the whole green; it is a third of a millimetre at
+    // the scale of the ball and no ball has ever noticed it.
+    var INLAY_LIFT = 0.012;
+
+    // The outline of a pad, as world-space points, going round once. Used for
+    // the skirt below and nowhere else — everything that needs the *inside*
+    // of a pad asks physics.
+    function padOutline(pad, step) {
+        var pts = [], i, n, a;
+        var cx = pad.x + pad.w / 2, cz = pad.z + pad.d / 2;
+        if (pad.r) {
+            n = Math.max(24, Math.ceil(2 * Math.PI * pad.r / step));
+            for (i = 0; i < n; i++) {
+                a = i / n * Math.PI * 2;
+                pts.push([cx + Math.cos(a) * pad.r, cz + Math.sin(a) * pad.r]);
+            }
+            return pts;
+        }
+        var sides = [
+            [pad.x, pad.z, pad.x + pad.w, pad.z],
+            [pad.x + pad.w, pad.z, pad.x + pad.w, pad.z + pad.d],
+            [pad.x + pad.w, pad.z + pad.d, pad.x, pad.z + pad.d],
+            [pad.x, pad.z + pad.d, pad.x, pad.z]
+        ];
+        for (i = 0; i < sides.length; i++) {
+            var s0 = sides[i];
+            var len = Math.hypot(s0[2] - s0[0], s0[3] - s0[1]);
+            n = Math.max(1, Math.round(len / step));
+            for (var k = 0; k < n; k++) {
+                var t = k / n;
+                pts.push([s0[0] + (s0[2] - s0[0]) * t, s0[1] + (s0[3] - s0[1]) * t]);
+            }
+        }
+        return pts;
+    }
+
+    /* The wall of earth under a piece of terrain: one quad per outline segment,
+       from the ground down to `base`. A box would not do — the top of a box is
+       flat and the whole point of this pad is that its top is not. */
+    function skirtGeometry(pad, base, cx, cy, cz) {
+        var pts = padOutline(pad, TERRAIN_RES * 2);
+        var n = pts.length;
+        var pos = new Float32Array(n * 6 * 3);
+        var i, j = 0, a, b, ay, by;
+        for (i = 0; i < n; i++) {
+            a = pts[i]; b = pts[(i + 1) % n];
+            ay = P.padHeight(pad, a[0], a[1]) - cy;
+            by = P.padHeight(pad, b[0], b[1]) - cy;
+            var ax = a[0] - cx, az = a[1] - cz, bx = b[0] - cx, bz = b[1] - cz;
+            // Two triangles, wound so the outside faces out.
+            pos[j++] = ax; pos[j++] = ay; pos[j++] = az;
+            pos[j++] = bx; pos[j++] = base; pos[j++] = bz;
+            pos[j++] = bx; pos[j++] = by; pos[j++] = bz;
+            pos[j++] = ax; pos[j++] = ay; pos[j++] = az;
+            pos[j++] = ax; pos[j++] = base; pos[j++] = az;
+            pos[j++] = bx; pos[j++] = base; pos[j++] = bz;
+        }
+        var geo = new THREE.BufferGeometry();
+        geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+        geo.computeVertexNormals();
+        return geo;
+    }
+
+    // A rectangle of ground, subdivided and pushed into shape by the same
+    // function the ball stands on.
+
+    function terrainGeometry(pad, res, cx, cy, cz) {
+        var nx = Math.max(1, Math.round(pad.w / res));
+        var nz = Math.max(1, Math.round(pad.d / res));
+        var geo = new THREE.PlaneGeometry(pad.w, pad.d, nx, nz);
+        geo.rotateX(-Math.PI / 2);
+        var pos = geo.attributes.position, i;
+        for (i = 0; i < pos.count; i++) {
+            pos.setY(i, P.padHeight(pad, cx + pos.getX(i), cz + pos.getZ(i)) - cy);
+        }
+        pos.needsUpdate = true;
+        geo.computeVertexNormals();
+        return geo;
+    }
+
+    /* The top of a disc pad, as an extruded shape — with the cup punched out
+       of it if this is the pad the cup is cut into. Same construction as
+       punchedSlab above; the only difference is that the outline is an arc. */
+    function discGeometry(pad, thick, cup, holed) {
+        var shape = new THREE.Shape();
+        shape.absarc(0, 0, pad.r, 0, Math.PI * 2, false);
+        if (holed) {
+            var cx = pad.x + pad.w / 2, cz = pad.z + pad.d / 2;
+            var hole = new THREE.Path();
+            hole.absarc(cup.x - cx, -(cup.z - cz), C.HOLE_R, 0, Math.PI * 2, true);
+            shape.holes.push(hole);
+        }
+        var geo = new THREE.ExtrudeGeometry(shape, {
+            depth: thick, bevelEnabled: false, curveSegments: 44
+        });
+        geo.rotateX(-Math.PI / 2);      // lay it flat: extrusion now runs +y
+        geo.translate(0, -thick / 2, 0);// centred on its middle, like the box
+        return geo;
+    }
+
+    /* A piece of rolling ground: the subdivided top, and the wall of earth
+       under it. Drawn as two meshes rather than one because the top has to be
+       a grid to follow the humps and the sides have to be a strip to follow
+       the outline, and a box is neither. */
+    function addTerrain(group, pad, theme, cup) {
+        var cx = pad.x + pad.w / 2, cz = pad.z + pad.d / 2;
+        var cy = P.padHeight(pad, cx, cz);
+        var base = (theme.surroundY - 0.5) - cy;
+
+        var geo = terrainGeometry(pad, TERRAIN_RES, cx, cy, cz);
+        worldUv(geo, TX.SCALE[pad.kind] || TX.SCALE.green, cx, cz);
+        var mesh = new THREE.Mesh(geo, R.surf.pads[pad.kind]
+            ? R.surf.pads[pad.kind].slab[0] : R.surf.pads.green.slab[0]);
+        mesh.position.set(cx, cy, cz);
+        mesh.receiveShadow = true;
+        mesh.castShadow = true;
+        group.add(mesh);
+
+        var skirt = new THREE.Mesh(skirtGeometry(pad, base, cx, cy, cz),
+            R.surf.side);
+        skirt.position.set(cx, cy, cz);
+        skirt.receiveShadow = true;
+        group.add(skirt);
+
+        // The grass gets this exact surface to stand on. Its UVs are rewritten
+        // at the blades' own scale inside addShells, so handing over a
+        // geometry already tiled for the ground costs nothing.
+        addShells(group, pad, cup, false, cx, cy, cz, geo);
+    }
+
     function addPad(group, pad, theme, cup, pads) {
+        if (pad.bumps) { addTerrain(group, pad, theme, cup); return; }
         var cx = pad.x + pad.w / 2, cz = pad.z + pad.d / 2;
         var sx = pad.sx || 0, sz = pad.sz || 0;
         var cy = P.padHeight(pad, cx, cz);
@@ -843,10 +1027,15 @@
             : floor !== null
                 ? Math.max(least, cy - floor + 0.06 + rise)
                 : Math.max(0.6, cy - (theme.surroundY - 0.4) + rise);
-        var geo = holed
-            ? punchedSlab(pad, thick, cup)
-            : new THREE.BoxGeometry(pad.w, thick, pad.d);
-        if (holed) {
+        // A disc green is laid into the ground it sits in rather than standing
+        // on it, so it needs no more depth than the cup does.
+        if (pad.r) thick = holed ? C.CUP_DEPTH + 0.25 : 0.3;
+        var geo = pad.r
+            ? discGeometry(pad, thick, cup, holed)
+            : holed
+                ? punchedSlab(pad, thick, cup)
+                : new THREE.BoxGeometry(pad.w, thick, pad.d);
+        if (holed && !pad.r) {
             // The box is centred on its own middle; the extruded slab is built
             // that way too, so both share the placement below.
             geo.translate(0, thick / 2, 0);
@@ -865,8 +1054,8 @@
         // The tiling rides on the pad rather than on the texture, which is
         // what lets every pad of a kind share one material (buildSurfaces).
         worldUv(geo, TX.SCALE[pad.kind] || TX.SCALE.green, cx, cz);
-        var mesh = new THREE.Mesh(geo, padMaterial(pad.kind, holed));
-        mesh.position.set(cx, cy - thick / 2, cz);
+        var mesh = new THREE.Mesh(geo, padMaterial(pad.kind, holed || !!pad.r));
+        mesh.position.set(cx, cy - thick / 2 + (pad.r ? INLAY_LIFT : 0), cz);
         mesh.receiveShadow = true;
         mesh.castShadow = true;
         group.add(mesh);
@@ -1014,6 +1203,46 @@
             [murk, murk, top, murk, murk, murk]);
         mesh.position.set(w.x + w.w / 2, w.y - depth / 2, w.z + w.d / 2);
         group.add(mesh);
+    }
+
+    /* The out-of-bounds line, as the only thing that can honestly mark one on
+       a course with no fence: a row of white stakes.
+
+       They are scenery — the ball passes through them, because the boundary is
+       a rule about where the ball *stops* and a stake that bounced it back
+       would be a wall telling a lie about that rule. What they have to do is
+       be visible from the tee at forty units and from the overview at eighty,
+       which is why they are as tall as they are and why they get the brightest
+       white on the hole. Spaced by eye rather than by division, so a long side
+       and a short side have stakes the same distance apart. */
+    function addStakes(group, hole, theme) {
+        var f = hole.fence;
+        if (!f) return;
+        var mat = new THREE.MeshPhongMaterial({
+            color: 0xf2f4ef, shininess: 26, specular: 0x555a55
+        });
+        var geo = new THREE.CylinderGeometry(0.09, 0.11, 1.15, 6);
+        var gap = 4.5, sides = [
+            [f.x, f.z, f.x + f.w, f.z],
+            [f.x + f.w, f.z, f.x + f.w, f.z + f.d],
+            [f.x + f.w, f.z + f.d, f.x, f.z + f.d],
+            [f.x, f.z + f.d, f.x, f.z]
+        ], i, k;
+        for (i = 0; i < sides.length; i++) {
+            var s0 = sides[i];
+            var len = Math.hypot(s0[2] - s0[0], s0[3] - s0[1]);
+            var n = Math.max(1, Math.round(len / gap));
+            for (k = 0; k < n; k++) {
+                var t = k / n;
+                var x = s0[0] + (s0[2] - s0[0]) * t;
+                var z = s0[1] + (s0[3] - s0[1]) * t;
+                var top = P.surfaceTop(hole, x, z);
+                var m = new THREE.Mesh(geo, mat);
+                m.position.set(x, (top ? top.y : 0) + 0.5, z);
+                m.castShadow = true;
+                group.add(m);
+            }
+        }
     }
 
     function addSurround(group, hole, theme) {
@@ -1250,6 +1479,7 @@
         for (i = 0; i < hole.water.length; i++) addWater(g, hole.water[i], theme);
         addCup(g, hole);
         addTeeMark(g, hole);
+        addStakes(g, hole, theme);
 
         // The rain, the mist banks and whatever is drifting in the air are
         // parented to the hole, so the next hole disposes them with it.
