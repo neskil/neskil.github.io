@@ -2027,8 +2027,8 @@
             transform: translateX(3px);
         }
 
-        /* Background picker — same row furniture, but the chips live under it */
-        .vault-bg {
+        /* Option blocks — same row furniture as a link, but with chips under it */
+        .vault-opt {
             margin-top: 0.4rem;
             padding: 0.9rem 1.1rem 1rem;
             background: rgba(255, 255, 255, 0.03);
@@ -2036,20 +2036,20 @@
             border-radius: 14px;
         }
 
-        .vault-bg-head {
+        .vault-opt-head {
             display: flex;
             align-items: center;
             gap: 0.9rem;
         }
 
-        .vault-bg-chips {
+        .vault-opt-chips {
             display: flex;
             flex-wrap: wrap;
             gap: 0.4rem;
             margin-top: 0.85rem;
         }
 
-        .vault-bg-chip {
+        .vault-opt-chip {
             font: inherit;
             font-size: 0.75rem;
             font-weight: 600;
@@ -2062,19 +2062,19 @@
             transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
         }
 
-        .vault-bg-chip:hover {
+        .vault-opt-chip:hover {
             background: rgba(255, 255, 255, 0.11);
             color: #f1f5f9;
         }
 
-        .vault-bg-chip[aria-pressed="true"] {
+        .vault-opt-chip[aria-pressed="true"] {
             background: rgba(99, 102, 241, 0.26);
             border-color: rgba(129, 140, 248, 0.55);
             color: #e0e7ff;
         }
 
-        /* The one currently on screen while rotation is running */
-        .vault-bg-chip[data-live="true"][aria-pressed="false"] {
+        /* The one currently on screen while Shuffle is running */
+        .vault-opt-chip[data-live="true"][aria-pressed="false"] {
             border-color: rgba(255, 255, 255, 0.22);
             color: #cbd5e1;
         }
@@ -2144,6 +2144,112 @@
                 opacity: 0;
             }
         }
+
+        /* ── Quality tiers ───────────────────────────────────────────────────
+           The governor in the head script writes the current tier to
+           <html data-quality>; these are the parts it can only buy back in CSS.
+           They are ordered by cost-per-pixel, worst first, so each step down
+           gives up the most expensive thing still running.
+
+           Everything here is a surface effect. Nothing moves, nothing
+           disappears, no content changes — a degraded page is the same page
+           with less glass on it. */
+
+        /* ── reduced ── */
+
+        /* The tracking shine on the two holo cards is the most expensive thing a
+           mouse can do on this page: a 420%-wide repeating gradient whose
+           background-position follows the cursor, blended in `overlay`, over a
+           20px backdrop-filter. Every mousemove frame repaints and re-blurs the
+           whole card. The plain glare underneath survives, so the cards still
+           track the cursor — they just stop doing it through a second gradient. */
+        html[data-quality="reduced"] #card-cargo-lander .card-face-front::after,
+        html[data-quality="reduced"] #card-supply-chain .card-face-front::after,
+        html[data-quality="minimal"] #card-cargo-lander .card-face-front::after,
+        html[data-quality="minimal"] #card-supply-chain .card-face-front::after {
+            display: none;
+        }
+
+        /* A blur behind a chip that already sits on a blurred card. */
+        html[data-quality="reduced"] .card-stat-chip,
+        html[data-quality="minimal"] .card-stat-chip {
+            backdrop-filter: none;
+            -webkit-backdrop-filter: none;
+        }
+
+        /* soft-light makes the compositor read back everything under the grain,
+           and the grain is inside the backdrop nine cards blur. Plain low-opacity
+           noise over a background this dark reads almost the same. */
+        html[data-quality="reduced"] #bg-grain,
+        html[data-quality="minimal"] #bg-grain {
+            mix-blend-mode: normal;
+            opacity: 0.28;
+        }
+
+        /* ── minimal ── */
+
+        /* The big one: ~7ms a frame on a mid phone, and it is charged again every
+           time anything behind a card changes — which, with a canvas back there,
+           is every frame. Losing it costs the glass look and nothing else, so it
+           goes last and only when the page has already proven it can't cope. */
+        html[data-quality="minimal"] .card,
+        html[data-quality="minimal"] .card-face {
+            backdrop-filter: none;
+            -webkit-backdrop-filter: none;
+        }
+
+        /* Nothing left to track: the glare is pinned to the middle of the card, so
+           pointer moves stop repainting it. The tilt loop writes --mx/--my inline,
+           and an inline declaration is author-normal — !important here is what
+           outranks it without having to stop the loop from writing at all. */
+        html[data-quality="minimal"] .card {
+            --mx: 50% !important;
+            --my: 50% !important;
+        }
+
+        html[data-quality="minimal"] .card::before,
+        html[data-quality="minimal"] .card-face-front::before {
+            opacity: 0.25;
+        }
+
+        /* A 90px blur over 60vw of screen, three times over. */
+        html[data-quality="minimal"] .bg-blob {
+            filter: blur(44px);
+        }
+
+        /* ── FPS readout ─────────────────────────────────────────────────────
+           Bottom-right, deliberately easy to ignore: it is a diagnostic, not
+           chrome. `contain` keeps its half-second text change from touching
+           anything else's layout or paint — a meter that costs frames to read
+           would be telling you about itself. */
+        #fps-meter {
+            position: fixed;
+            right: 10px;
+            bottom: 10px;
+            z-index: 10000;
+            padding: 3px 7px;
+            border-radius: 7px;
+            font: 600 10px/1.35 ui-monospace, SFMono-Regular, Menlo, monospace;
+            letter-spacing: 0.02em;
+            color: rgba(226, 232, 240, 0.72);
+            background: rgba(2, 6, 23, 0.5);
+            border: 1px solid rgba(148, 163, 184, 0.18);
+            pointer-events: none;
+            user-select: none;
+            contain: layout paint style;
+        }
+
+        #fps-meter[hidden] {
+            display: none;
+        }
+
+        #fps-meter[data-state="fair"] {
+            color: rgba(251, 191, 36, 0.85);
+        }
+
+        #fps-meter[data-state="poor"] {
+            color: rgba(248, 113, 113, 0.9);
+        }
     </style>
     <!-- Google tag (gtag.js) -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-9GP823TGLB"></script>
@@ -2174,32 +2280,34 @@
            Which background the page wears is decided here, before first paint,
            so nobody sees the default ramp swap out a moment later.
 
-           Blueprint is the house style. A first-ever visit always gets it; every
-           visit after that rolls a die, and one time in four the page wanders off
-           to one of the others instead. The same roll happens again every 30s of
-           reading, so a long visit drifts now and then — most rolls land back on
-           Blueprint and nothing moves, and when one doesn't, the layers
-           cross-fade (see .bg-variant). A pick from the vault pins one for the
-           life of the tab (sessionStorage) and stops the rolling.
+           Blueprint is the house style, and it is simply what the page wears:
+           every visit gets the ruled plane unless you say otherwise. The others
+           are still here — the vault picker holds any one of them for the life
+           of the tab, and "Shuffle" opts into the old behaviour, where the page
+           re-rolls every 30s of reading and lands somewhere other than Blueprint
+           one roll in four. Either choice lives in sessionStorage, so a new tab
+           starts on Blueprint again.
 
-           Adding a variant is one entry here plus its CSS layer; it joins the
-           pool the 25% is drawn from. */
+           Adding a variant is one entry here plus its CSS layer; it turns up in
+           the picker and joins the pool Shuffle draws from. */
         const BG_VARIANTS = [
             { id: 'blueprint', label: 'Blueprint' },
             { id: 'aurora', label: 'Aurora' },
             { id: 'dawn', label: 'Dawn' }
         ];
         const BG_DEFAULT = 'blueprint';
+        const BG_SHUFFLE = 'shuffle';
         const BG_WANDER_CHANCE = 0.25;
-        const BG_SEEN_KEY = 'bgVariant.seen';
-        const BG_PIN_KEY = 'bgVariant.pinned';
+        const BG_MODE_KEY = 'bgVariant.mode';
         const BG_ROTATE_MS = 30000;
 
         let bgCurrent = null;
-        let bgPinned = null;
+        // Either a variant id (held) or BG_SHUFFLE (wandering).
+        let bgMode = BG_DEFAULT;
         let bgTimer = null;
 
         const bgIsKnown = id => BG_VARIANTS.some(v => v.id === id);
+        const bgIsMode = m => m === BG_SHUFFLE || bgIsKnown(m);
 
         /* Blueprint three times in four, one of the rest otherwise */
         function bgRoll() {
@@ -2225,7 +2333,7 @@
         let bgRollPending = false;
 
         function bgTryRoll() {
-            if (bgPinned) return;
+            if (bgMode !== BG_SHUFFLE) return;
             if (scrollIsActive()) { bgRollPending = true; return; }
             bgRollPending = false;
             bgApply(bgRoll());
@@ -2234,44 +2342,33 @@
         function bgStartRotation() {
             clearInterval(bgTimer);
             bgTimer = null;
-            if (bgPinned) return;
+            if (bgMode !== BG_SHUFFLE) return;
             if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
             bgTimer = setInterval(bgTryRoll, BG_ROTATE_MS);
         }
 
-        /* id === null hands the page back to the rotation */
-        function bgPin(id) {
-            bgPinned = bgIsKnown(id) ? id : null;
-            try {
-                if (bgPinned) sessionStorage.setItem(BG_PIN_KEY, bgPinned);
-                else sessionStorage.removeItem(BG_PIN_KEY);
-            } catch (e) { }
-            if (bgPinned) {
+        /* A variant id holds that one; BG_SHUFFLE hands the page to the rotation. */
+        function bgSetMode(mode) {
+            bgMode = bgIsMode(mode) ? mode : BG_DEFAULT;
+            try { sessionStorage.setItem(BG_MODE_KEY, bgMode); } catch (e) { }
+            if (bgMode === BG_SHUFFLE) {
+                bgStartRotation();
+            } else {
                 clearInterval(bgTimer);
                 bgTimer = null;
-                bgApply(bgPinned);
-            } else {
-                bgStartRotation();
+                bgApply(bgMode);
             }
-            // Pinning what is already on screen is a no-op for bgApply, so the
+            // Picking what is already on screen is a no-op for bgApply, so the
             // picker has to be told either way.
             document.dispatchEvent(new CustomEvent('bg:change'));
         }
 
         (function bgInit() {
-            let pinned = null, seen = null;
-            try { pinned = sessionStorage.getItem(BG_PIN_KEY); } catch (e) { }
-            try { seen = localStorage.getItem(BG_SEEN_KEY); } catch (e) { }
+            let stored = null;
+            try { stored = sessionStorage.getItem(BG_MODE_KEY); } catch (e) { }
 
-            if (bgIsKnown(pinned)) {
-                bgPinned = pinned;
-                bgApply(pinned);
-                return;
-            }
-
-            // First time here is always the house style; after that it can wander.
-            bgApply(seen ? bgRoll() : BG_DEFAULT);
-            try { localStorage.setItem(BG_SEEN_KEY, '1'); } catch (e) { }
+            bgMode = bgIsMode(stored) ? stored : BG_DEFAULT;
+            bgApply(bgMode === BG_SHUFFLE ? bgRoll() : bgMode);
             bgStartRotation();
         })();
 
@@ -2285,10 +2382,168 @@
             if (document.hidden) {
                 clearInterval(bgTimer);
                 bgTimer = null;
-            } else if (!bgPinned && !bgTimer) {
+            } else if (bgMode === BG_SHUFFLE && !bgTimer) {
                 bgStartRotation();
             }
         });
+
+        /* ── Scroll-reactive field ────────────────────────────────────────────
+           The constellation on the canvas used to ride the scroll: the whole
+           field translated up at 0.15 of the scroll offset, and every dot took a
+           shove from the scroll velocity on top of that.
+
+           Two things were wrong with it. The translate was unbounded, so on a
+           long page — every phone, and any desktop window past a screenful — the
+           field slid off the top and left the bottom of the document with no
+           background at all: you could scroll past it. And the canvas sits
+           behind the grid, so it is inside every card's backdrop-filter; making
+           it move with the page meant re-blurring nine cards on every scroll
+           frame, which is the stutter on mobile.
+
+           So the field holds still, and the coupling is off unless you turn it
+           on in the vault. Kept, not deleted: with the shift clamped (see
+           bgParallaxShift) it no longer strands the bottom of the page, and on a
+           desktop it is a nice touch. localStorage, so it survives the tab. */
+        const SCROLL_FIELD_KEY = 'scrollReactiveField';
+        let scrollReactiveField = false;
+        try { scrollReactiveField = localStorage.getItem(SCROLL_FIELD_KEY) === '1'; } catch (e) { }
+
+        function setScrollReactiveField(on) {
+            scrollReactiveField = !!on;
+            try { localStorage.setItem(SCROLL_FIELD_KEY, scrollReactiveField ? '1' : '0'); } catch (e) { }
+            document.dispatchEvent(new CustomEvent('scrollfield:change'));
+        }
+
+        /* ── Performance governor ─────────────────────────────────────────────
+           This page spends its frame budget on three things that all feed each
+           other: a canvas constellation, nine cards blurring whatever is behind
+           them (backdrop-filter), and a tilt loop that repaints those blurred
+           surfaces as they move. The canvas sits *inside* the cards' backdrop,
+           so one canvas frame is also nine 20px blurs — measured at ~7ms a frame
+           on a mid phone, which is most of a 60fps budget on its own.
+
+           Rather than tune for the worst device, the page watches its own frame
+           rate and steps down when it can't keep up. Three tiers:
+
+             full     — everything.
+             reduced  — fewer dots, shorter links, no theme entities, canvas
+                        frame rate capped harder, chip blurs off.
+             minimal  — links off entirely (they are the O(n²) part), a third of
+                        the dots, slowest canvas cadence, and the card and grain
+                        effects that cost the most are dropped in CSS.
+
+           The tier is on <html data-quality>, so CSS reacts to it too. Stepping
+           down takes three bad half-second samples in a row and stepping back up
+           takes eight good seconds, so a single hitch never flips it; and the
+           climb back is allowed twice, after which a device that has proven slow
+           is left alone instead of oscillating. */
+        const PERF_TIERS = ['full', 'reduced', 'minimal'];
+        const PERF_SAMPLE_MS = 500;
+        const PERF_WARMUP_MS = 2500;   // load jank is not a verdict on the device
+        const PERF_DROP_AFTER = 3;     // consecutive bad samples before stepping down
+        const PERF_RAISE_AFTER = 16;   // consecutive good samples before stepping back up
+        const PERF_MAX_CLIMBS = 2;
+
+        /* One flag for "this is a phone-shaped view", shared by the canvas and the
+           governor so they agree on what the target frame rate even is. */
+        const perfLowPowerView = window.matchMedia('(hover: none), (pointer: coarse)').matches
+            || window.innerWidth <= 640;
+        const PERF_TARGET_FPS = perfLowPowerView ? 30 : 60;
+
+        let perfTier = 0;
+        let perfFps = 0;
+
+        function perfSetTier(tier) {
+            tier = Math.max(0, Math.min(PERF_TIERS.length - 1, tier));
+            if (tier === perfTier) return;
+            perfTier = tier;
+            document.documentElement.setAttribute('data-quality', PERF_TIERS[tier]);
+            document.dispatchEvent(new CustomEvent('perf:tier'));
+        }
+
+        document.documentElement.setAttribute('data-quality', PERF_TIERS[0]);
+
+        /* A dedicated rAF that does nothing but count. Measuring inside the canvas
+           loop would measure the canvas throttle instead of the browser. */
+        (function perfWatch() {
+            let frames = 0, windowStart = 0, bad = 0, good = 0, climbs = 0, started = 0;
+
+            function tick(now) {
+                requestAnimationFrame(tick);
+                if (!started) { started = now; windowStart = now; return; }
+                frames++;
+                const elapsed = now - windowStart;
+                if (elapsed < PERF_SAMPLE_MS) return;
+
+                perfFps = (frames * 1000) / elapsed;
+                frames = 0;
+                windowStart = now;
+                document.dispatchEvent(new CustomEvent('perf:fps'));
+
+                // Ignore the first couple of seconds, and any window the tab spent
+                // in the background — neither says anything about the device.
+                if (now - started < PERF_WARMUP_MS || elapsed > PERF_SAMPLE_MS * 4) {
+                    bad = good = 0;
+                    return;
+                }
+
+                if (perfFps < PERF_TARGET_FPS * 0.7) { bad++; good = 0; }
+                else if (perfFps > PERF_TARGET_FPS * 0.92) { good++; bad = 0; }
+                else { bad = good = 0; }
+
+                if (bad >= PERF_DROP_AFTER && perfTier < PERF_TIERS.length - 1) {
+                    bad = 0;
+                    perfSetTier(perfTier + 1);
+                } else if (good >= PERF_RAISE_AFTER && perfTier > 0 && climbs < PERF_MAX_CLIMBS) {
+                    good = 0;
+                    climbs++;
+                    perfSetTier(perfTier - 1);
+                }
+            }
+            requestAnimationFrame(tick);
+        })();
+
+        /* ── The readout ──
+           Off by default — this is a portfolio page, not a benchmark — but the
+           vault has a switch for it, and #fps in the URL turns it on for one look
+           without going through the vault. It prints the tier next to the number,
+           which is the whole point of having it: a low number is only half the
+           story if you can't see what the page has already given up. */
+        const FPS_METER_KEY = 'fpsMeter';
+        let fpsMeterOn = false;
+        try { fpsMeterOn = localStorage.getItem(FPS_METER_KEY) === '1'; } catch (e) { }
+        if (location.hash === '#fps' || /[?&]fps\b/.test(location.search)) fpsMeterOn = true;
+
+        function setFpsMeter(on) {
+            fpsMeterOn = !!on;
+            try { localStorage.setItem(FPS_METER_KEY, fpsMeterOn ? '1' : '0'); } catch (e) { }
+            document.dispatchEvent(new CustomEvent('fpsmeter:change'));
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const meter = document.createElement('div');
+            meter.id = 'fps-meter';
+            meter.setAttribute('aria-hidden', 'true');
+            document.body.appendChild(meter);
+
+            let shownFps = -1, shownTier = -1;
+            function render() {
+                meter.hidden = !fpsMeterOn;
+                if (!fpsMeterOn) return;
+                const fps = Math.round(perfFps);
+                if (fps === shownFps && perfTier === shownTier) return;
+                shownFps = fps; shownTier = perfTier;
+                meter.textContent = fps + ' fps · ' + PERF_TIERS[perfTier];
+                meter.dataset.state = fps >= PERF_TARGET_FPS * 0.92 ? 'good'
+                    : fps >= PERF_TARGET_FPS * 0.7 ? 'fair' : 'poor';
+            }
+
+            render();
+            document.addEventListener('perf:fps', render);
+            document.addEventListener('perf:tier', render);
+            document.addEventListener('fpsmeter:change', render);
+        });
+
     </script>
 </head>
 
@@ -2356,15 +2611,41 @@
                 </div>
                 <span class="vault-row-arrow">→</span>
             </a>
-            <div class="vault-bg">
-                <div class="vault-bg-head">
+            <div class="vault-opt">
+                <div class="vault-opt-head">
                     <div class="vault-row-icon">🎨</div>
                     <div class="vault-row-body">
                         <div class="vault-row-title">Background</div>
-                        <div class="vault-row-desc" id="vault-bg-desc">Mostly Blueprint, occasionally not. Pick one to hold it for this tab.</div>
+                        <div class="vault-row-desc" id="vault-bg-desc">Blueprint is the house style. Pick another to hold it for this tab.</div>
                     </div>
                 </div>
-                <div class="vault-bg-chips" id="vault-bg-chips"></div>
+                <div class="vault-opt-chips" id="vault-bg-chips"></div>
+            </div>
+            <div class="vault-opt">
+                <div class="vault-opt-head">
+                    <div class="vault-row-icon">🌠</div>
+                    <div class="vault-row-body">
+                        <div class="vault-row-title">Scroll-reactive field</div>
+                        <div class="vault-row-desc" id="vault-field-desc"></div>
+                    </div>
+                </div>
+                <div class="vault-opt-chips" id="vault-field-chips">
+                    <button type="button" class="vault-opt-chip" data-field-pick="0">Still</button>
+                    <button type="button" class="vault-opt-chip" data-field-pick="1">Follows scroll</button>
+                </div>
+            </div>
+            <div class="vault-opt">
+                <div class="vault-opt-head">
+                    <div class="vault-row-icon">📈</div>
+                    <div class="vault-row-body">
+                        <div class="vault-row-title">Frame counter</div>
+                        <div class="vault-row-desc" id="vault-fps-desc"></div>
+                    </div>
+                </div>
+                <div class="vault-opt-chips" id="vault-fps-chips">
+                    <button type="button" class="vault-opt-chip" data-fps-pick="0">Off</button>
+                    <button type="button" class="vault-opt-chip" data-fps-pick="1">On</button>
+                </div>
             </div>
         </div>
     </div>
@@ -2970,9 +3251,17 @@
            here is never just a canvas frame — it also dirties nine 20px blurs. On a
            phone that is the difference between a smooth scroll and a stuttering one,
            so mobile runs the field at 30fps and skips the costlier flourishes. */
-        const prefersCheapCanvas = window.matchMedia('(hover: none), (pointer: coarse)').matches
-            || window.innerWidth <= 640;
-        const CANVAS_FRAME_MS = prefersCheapCanvas ? 1000 / 30 : 0;
+        const prefersCheapCanvas = perfLowPowerView;
+
+        /* Frame budget, dot count and link reach all come off the governor's tier
+           (see the head script). A step down buys back the whole chain: fewer dots
+           is fewer links is less canvas painted is fewer card backdrops re-blurred. */
+        const CANVAS_FRAME_MS_BY_TIER = prefersCheapCanvas
+            ? [1000 / 30, 1000 / 24, 1000 / 15]
+            : [0, 1000 / 40, 1000 / 24];
+        const FIELD_SCALE_BY_TIER = [1, 0.6, 0.35];
+        // 0 turns the O(n²) link pass off entirely — the dots stay, the web goes.
+        const LINK_DISTANCE_BY_TIER = [150, 115, 0];
         let lastCanvasFrame = 0;
 
         let width, height;
@@ -3197,10 +3486,31 @@
             }
         }
 
+        /* ── Extent of the ambient field ──
+           The dots live in a band `fieldHeight` tall, which is the viewport plus,
+           when the scroll coupling is on, the strip the parallax can uncover at
+           the bottom. Without that strip the old parallax slid the field up and
+           left bare canvas behind it. */
+        const FIELD_PARALLAX_MAX = 140;
+        let fieldHeight = 0;
+
+        function updateFieldExtent() {
+            fieldHeight = height + (scrollReactiveField ? FIELD_PARALLAX_MAX : 0);
+        }
+
+        /* Clamped: past ~900px of scroll the field simply stops climbing, so no
+           amount of page can slide it out of the viewport. */
+        function bgParallaxShift() {
+            return Math.min(smoothScrollY * 0.15, FIELD_PARALLAX_MAX);
+        }
+
         function resize() {
             width = canvas.width = window.innerWidth;
             height = canvas.height = window.innerHeight;
+            updateFieldExtent();
         }
+
+        document.addEventListener('scrollfield:change', updateFieldExtent);
 
         window.addEventListener('resize', resize);
         resize();
@@ -3244,7 +3554,7 @@
                 const placed = x != null;
                 this.placed = placed;
                 this.x = placed ? x : Math.random() * width;
-                this.y = placed ? y : Math.random() * height;
+                this.y = placed ? y : Math.random() * fieldHeight;
                 // Clicked dots drift outward a touch faster so the burst reads as a burst.
                 const speed = placed ? 2.4 : 1.5;
                 this.vx = (Math.random() - 0.5) * speed;
@@ -3262,8 +3572,13 @@
 
                 if (this.fade < 1) this.fade = Math.min(1, this.fade + 0.06);
 
-                if (this.x < 0 || this.x > width) this.vx = -this.vx;
-                if (this.y < 0 || this.y > height) this.vy = -this.vy;
+                // Clamp as well as reflect: fieldHeight moves when the window
+                // resizes or the scroll coupling is toggled, and a dot left outside
+                // the band would otherwise flip its velocity every frame and stick.
+                if (this.x < 0) { this.x = 0; this.vx = Math.abs(this.vx); }
+                else if (this.x > width) { this.x = width; this.vx = -Math.abs(this.vx); }
+                if (this.y < 0) { this.y = 0; this.vy = Math.abs(this.vy); }
+                else if (this.y > fieldHeight) { this.y = fieldHeight; this.vy = -Math.abs(this.vy); }
 
                 // Mouse proximity: repel + glow
                 if (mouse.smoothX !== null && mouse.presence > 0.001) {
@@ -3305,7 +3620,7 @@
 
         function spawnDotsAt(clientX, clientY) {
             // Undo the parallax shift applied at draw time so dots land under the cursor.
-            const y = clientY + smoothScrollY * 0.15;
+            const y = clientY + bgParallaxShift();
             for (let i = 0; i < CLICK_DOTS; i++) {
                 if (particles.length >= maxParticles) {
                     let idx = particles.findIndex(p => p.placed);
@@ -3498,31 +3813,61 @@
             } catch (e) {}
         }
 
+        // Ambient dots this window would carry at full quality; the tier scales it.
+        let ambientCount = 0;
+
+        /* Tiers trim or top up the field in place rather than re-seeding it, so a
+           step down reads as the constellation thinning out rather than blinking.
+           Trimming takes from the front, which is the ambient end — dots you put
+           there by clicking are the last to go. */
+        function applyFieldBudget() {
+            const scale = FIELD_SCALE_BY_TIER[perfTier];
+            const budget = Math.max(12, Math.round(ambientCount * scale));
+            // Headroom for clicked dots, scaled to the ambient density so a small
+            // window doesn't end up doing big-window work.
+            maxParticles = budget + Math.round(36 * scale);
+            if (particles.length > budget) {
+                particles.splice(0, particles.length - budget);
+            } else {
+                for (let i = particles.length; i < budget; i++) particles.push(new Particle());
+            }
+            if (perfTier > 0) themeEntities = [];
+        }
+
         function init() {
             particles = [];
             themeEntities = [];
             // Responsive amount of particles based on screen size
-            let numberOfParticles = Math.min((width * height) / 12000, 150);
-            // Headroom for clicked dots, scaled to the ambient density so a small
-            // window doesn't end up doing big-window work.
-            maxParticles = Math.round(numberOfParticles) + 36;
-            for (let i = 0; i < numberOfParticles; i++) {
-                particles.push(new Particle());
-            }
+            ambientCount = Math.round(Math.min((width * height) / 12000, 150));
+            applyFieldBudget();
             loadHighScores();
         }
 
-        let scrollY = 0, lastScrollY = 0, scrollVelocity = 0, smoothScrollY = 0;
+        document.addEventListener('perf:tier', applyFieldBudget);
+
+        let scrollY = 0, scrollVelocity = 0, smoothScrollY = 0;
         window.addEventListener('scroll', () => {
             scrollY = window.scrollY;
             if (themeDwellTimer || themeSpawnArmed) disarmThemeSpawn();
         }, { passive: true });
 
         function animate(now) {
-            if (CANVAS_FRAME_MS && now - lastCanvasFrame < CANVAS_FRAME_MS) {
+            const frameBudget = CANVAS_FRAME_MS_BY_TIER[perfTier];
+            if (frameBudget && now - lastCanvasFrame < frameBudget) {
                 requestAnimationFrame(animate);
                 return;
             }
+
+            /* A field that no longer tracks the scroll has nothing to say while the
+               page is moving, and every frame it draws while the page moves costs
+               nine card backdrops as well. So on a phone it holds its last frame
+               until the scroll stops — the dots freeze for a few hundred ms and
+               nobody has ever noticed, which is exactly the point. */
+            if ((prefersCheapCanvas || perfTier > 0) && !scrollReactiveField && scrollIsActive()) {
+                requestAnimationFrame(animate);
+                return;
+            }
+
             lastCanvasFrame = now;
 
             ctx.clearRect(0, 0, width, height);
@@ -3549,19 +3894,24 @@
                 }
             }
 
-            // Smooth scroll tracking + velocity. Half the frame rate needs twice the
-            // step, or the parallax noticeably trails the page on mobile.
+            /* Smooth scroll tracking + velocity. Half the frame rate needs twice the
+               step, or the parallax noticeably trails the page on mobile. With the
+               coupling off the target is 0, so a field that was tracking the scroll
+               when you turned it off glides home rather than jumping. */
+            const parallaxTarget = scrollReactiveField ? scrollY : 0;
             let prevSmooth = smoothScrollY;
-            smoothScrollY += (scrollY - smoothScrollY) * (prefersCheapCanvas ? 0.16 : 0.08);
+            smoothScrollY += (parallaxTarget - smoothScrollY) * (prefersCheapCanvas ? 0.16 : 0.08);
             scrollVelocity = smoothScrollY - prevSmooth;
 
-            // Parallax shift
+            // Parallax shift — 0, and free, while the coupling is off
             ctx.save();
-            ctx.translate(0, -smoothScrollY * 0.15);
+            ctx.translate(0, -bgParallaxShift());
+
+            const linkDistance = LINK_DISTANCE_BY_TIER[perfTier];
 
             for (let i = 0; i < particles.length; i++) {
                 // Apply scroll inertia as a gentle push (like mouse repel)
-                if (Math.abs(scrollVelocity) > 0.5) {
+                if (scrollReactiveField && Math.abs(scrollVelocity) > 0.5) {
                     particles[i].y -= scrollVelocity * 0.3;
                     particles[i].x += (Math.random() - 0.5) * Math.abs(scrollVelocity) * 0.5;
                 }
@@ -3569,15 +3919,17 @@
                 particles[i].update();
                 particles[i].draw();
 
+                if (!linkDistance) continue;
+
                 for (let j = i + 1; j < particles.length; j++) {
                     let dx = particles[i].x - particles[j].x;
                     let dy = particles[i].y - particles[j].y;
                     // Reject on the cheap tests first — this inner loop runs O(n²)
                     // times a frame and most pairs are nowhere near each other, so
                     // the square root is only worth taking for the few that pass.
-                    if (dx > 150 || dx < -150 || dy > 150 || dy < -150) continue;
+                    if (dx > linkDistance || dx < -linkDistance || dy > linkDistance || dy < -linkDistance) continue;
                     const d2 = dx * dx + dy * dy;
-                    if (d2 >= 150 * 150) continue;
+                    if (d2 >= linkDistance * linkDistance) continue;
                     const distance = Math.sqrt(d2);
 
                     // Blend glow of both endpoints for line color
@@ -3603,7 +3955,7 @@
 
             // Spawn background theme entities after a lingering hover over a card
             const allowedThemeCards = ['card-cargo-lander', 'card-supply-chain', 'card-car'];
-            if (themeSpawnArmed && allowedThemeCards.includes(activeThemeCardId) && themeEntities.length < MAX_THEME_ENTITIES && Math.random() < 0.012) {
+            if (perfTier === 0 && themeSpawnArmed && allowedThemeCards.includes(activeThemeCardId) && themeEntities.length < MAX_THEME_ENTITIES && Math.random() < 0.012) {
                 themeEntities.push(new ThemeEntity(activeThemeCardId));
             }
 
@@ -3687,10 +4039,11 @@
         }
         document.addEventListener('keydown', e => { if (e.key === 'Escape') closeVault(); });
 
-        /* Background picker in the vault. The chips are built from BG_VARIANTS, so
-           a new variant turns up here for free. "Auto" is the no-pin state: the
-           rotation keeps running and the chip of whatever is on screen is outlined
-           rather than filled. */
+        /* ── Vault switches ──
+           The background picker builds itself from BG_VARIANTS, so a new variant
+           turns up here for free. "Shuffle" is the old wandering behaviour, now
+           opt-in: while it runs, the chip of whatever is on screen is outlined
+           rather than filled. The two switches under it are plain on/off. */
         const bgChips = document.getElementById('vault-bg-chips');
         const bgDesc = document.getElementById('vault-bg-desc');
 
@@ -3698,34 +4051,82 @@
             const chip = (id, label) => {
                 const b = document.createElement('button');
                 b.type = 'button';
-                b.className = 'vault-bg-chip';
+                b.className = 'vault-opt-chip';
                 b.dataset.bgPick = id;
                 b.textContent = label;
                 return b;
             };
-            bgChips.appendChild(chip('', 'Auto'));
             BG_VARIANTS.forEach(v => bgChips.appendChild(chip(v.id, v.label)));
+            bgChips.appendChild(chip(BG_SHUFFLE, 'Shuffle'));
             bgChips.addEventListener('click', e => {
                 const btn = e.target.closest('[data-bg-pick]');
-                if (btn) bgPin(btn.dataset.bgPick || null);
+                if (btn) bgSetMode(btn.dataset.bgPick);
             });
         }
 
         function syncBgChips() {
+            const shuffling = bgMode === BG_SHUFFLE;
             for (const btn of bgChips.children) {
                 const id = btn.dataset.bgPick;
-                btn.setAttribute('aria-pressed', String(id ? bgPinned === id : !bgPinned));
-                btn.dataset.live = String(!!id && id === bgCurrent);
+                btn.setAttribute('aria-pressed', String(id === bgMode));
+                btn.dataset.live = String(shuffling && id === bgCurrent);
             }
-            bgDesc.textContent = bgPinned
-                ? 'Held for this tab. Auto lets it wander again.'
-                : 'Blueprint most of the time, something else one visit in four. Pick one to hold it.';
+            bgDesc.textContent = shuffling
+                ? 'Wandering — a fresh roll every 30 seconds. Pick one to hold it.'
+                : 'Blueprint is the house style. Held for this tab; a new tab starts over.';
         }
 
         if (bgChips && bgDesc) {
             buildBgChips();
             syncBgChips();
             document.addEventListener('bg:change', syncBgChips);
+        }
+
+        /* A generic on/off pair: two chips, a getter for the current value and a
+           setter, plus the line of copy under the title. */
+        function wireVaultSwitch(chipsId, descId, dataKey, isOn, set, describe) {
+            const chips = document.getElementById(chipsId);
+            const desc = document.getElementById(descId);
+            if (!chips || !desc) return null;
+
+            chips.addEventListener('click', e => {
+                const btn = e.target.closest('button');
+                if (btn && btn.dataset[dataKey] !== undefined) set(btn.dataset[dataKey] === '1');
+            });
+
+            // The setter fires its own change event, which is what calls this back.
+            return function sync() {
+                for (const btn of chips.children) {
+                    btn.setAttribute('aria-pressed', String((btn.dataset[dataKey] === '1') === isOn()));
+                }
+                desc.textContent = describe();
+            };
+        }
+
+        const syncFieldChips = wireVaultSwitch(
+            'vault-field-chips', 'vault-field-desc', 'fieldPick',
+            () => scrollReactiveField,
+            on => setScrollReactiveField(on),
+            () => scrollReactiveField
+                ? 'The constellation drifts with the page. Prettier, and it costs frames while you scroll.'
+                : 'The constellation stays put while you scroll. Cheaper, and the field can never slide off the page.'
+        );
+        if (syncFieldChips) {
+            syncFieldChips();
+            document.addEventListener('scrollfield:change', syncFieldChips);
+        }
+
+        const syncFpsChips = wireVaultSwitch(
+            'vault-fps-chips', 'vault-fps-desc', 'fpsPick',
+            () => fpsMeterOn,
+            on => setFpsMeter(on),
+            () => 'Frames per second and the quality tier, bottom-right. The page steps itself down to '
+                + PERF_TIERS.slice(1).join(' then ') + ' if it cannot hold the rate.'
+        );
+        if (syncFpsChips) {
+            syncFpsChips();
+            document.addEventListener('fpsmeter:change', syncFpsChips);
+            document.addEventListener('perf:tier', syncFpsChips);
         }
 
         /* The About card is a button, not a link: it opens in place instead of
@@ -4020,14 +4421,17 @@
                 s.wroteMx = s.currentMx; s.wroteMy = s.currentMy; s.wroteMag = s.currentMag;
             }
 
-            /* Below these the change is invisible, so it isn't worth a repaint. */
+            /* Below these the change is invisible, so it isn't worth a repaint.
+               A degraded page widens the band: a repaint costs more there, so it
+               takes a bigger movement to be worth one. */
             function needsWrite(s) {
-                return Math.abs(s.currentRx - s.wroteRx) > 0.05
-                    || Math.abs(s.currentRy - s.wroteRy) > 0.05
-                    || Math.abs(s.currentTy - s.wroteTy) > 0.05
-                    || Math.abs(s.currentMx - s.wroteMx) > 0.15
-                    || Math.abs(s.currentMy - s.wroteMy) > 0.15
-                    || Math.abs(s.currentMag - s.wroteMag) > 0.005;
+                const k = perfTier === 0 ? 1 : perfTier === 1 ? 3 : 8;
+                return Math.abs(s.currentRx - s.wroteRx) > 0.05 * k
+                    || Math.abs(s.currentRy - s.wroteRy) > 0.05 * k
+                    || Math.abs(s.currentTy - s.wroteTy) > 0.05 * k
+                    || Math.abs(s.currentMx - s.wroteMx) > 0.15 * k
+                    || Math.abs(s.currentMy - s.wroteMy) > 0.15 * k
+                    || Math.abs(s.currentMag - s.wroteMag) > 0.005 * k;
             }
 
             function getOrCreateState(card, maxTilt, lift) {
@@ -4164,6 +4568,11 @@
             // A phone does not need the ambient bend recomputed 60 times a second;
             // it is a slow, broad curve and halving the rate halves the style work.
             const MOBILE_FRAME_MS = 1000 / 30;
+            /* Same idea applied to a desktop that turns out to be struggling. Each
+               write here repaints a backdrop-filtered surface with a blended
+               gradient on top of it, so the rate this loop runs at is a direct
+               multiplier on the page's most expensive paint. */
+            const TILT_FRAME_MS_BY_TIER = [0, 1000 / 30, 1000 / 20];
             // How far outside the viewport a card still gets updated, so it is already
             // in the right position by the time it scrolls into view.
             const OFFSCREEN_MARGIN = 120;
@@ -4183,9 +4592,14 @@
             function ambientTick(now) {
                 const isMobileView = isTouch || window.innerWidth <= 640;
 
-                // Throttle on mobile. Return before touching lastTick so the
-                // accelerometer baseline still integrates over real elapsed time.
-                if (isMobileView && now - lastFrame < MOBILE_FRAME_MS) {
+                // Throttle on mobile, and on anything the governor has stepped down.
+                // Return before touching lastTick so the accelerometer baseline
+                // still integrates over real elapsed time.
+                const frameBudget = Math.max(
+                    isMobileView ? MOBILE_FRAME_MS : 0,
+                    TILT_FRAME_MS_BY_TIER[perfTier]
+                );
+                if (frameBudget && now - lastFrame < frameBudget) {
                     requestAnimationFrame(ambientTick);
                     return;
                 }
