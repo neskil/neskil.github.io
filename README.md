@@ -97,10 +97,22 @@ regenerating one:
 - **Shoot at a width the content fills.** Several pages put their content in a
   narrow max-width column; at 1200px wide they come out as a stripe of UI in a
   field of background. 720-1000px wide is usually the frame the column fills.
+- **Frame on the subject, don't hide the chrome.** Yard Master's control bar is
+  half the screen in sandbox mode; the preview clips to the yard above it
+  (`page.screenshot({ clip })` against the toolbar's measured top) rather than
+  hiding the element, so what ships is still an unedited screenshot. Same idea
+  for the CV, which is clipped around the portrait rather than the page top.
 
 Cargo Lander is the counter-example to shooting fresh at all: it opens its own
 "How to Play" modal on a clean profile, so it needs the tutorial dismissed
 before the capture, exactly the trap described under "Link previews" above.
+
+A card can carry more than one shot: put several `<img>` in the `.peek-shot`
+and the script stacks them, cross-fades between them every 2.6s and adds dots.
+Cargo Lander uses this for three — a mission in flight, a procedural run in
+another biome, and the level editor with a level loaded. The markup stays a
+plain list, so with the script off the card shows the first shot rather than
+three piled up.
 
 There is no image tooling in this repo — no PIL, no ImageMagick, no cwebp. The
 downscale and the WebP encode are done by loading the PNG into a canvas in
