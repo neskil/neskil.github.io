@@ -48,16 +48,27 @@ places where the answer is GLSL rather than a property. What is left in
 
 ## The bag
 
-Four clubs, in `config.js`. A club is a loft and a ceiling on power and that is
+Five clubs, in `config.js`. A club is a loft and a ceiling on power and that is
 the whole of it — the simulation never hears the word "club", it is handed a
 launch angle and a speed exactly as before.
 
-| Club | Loft | Full swing | Carry | Total | What it is for |
-| --- | --- | --- | --- | --- | --- |
-| Putter | 0° | 10.5 | — | 8.5 | Rolls flat and true. Full power is still a tap, which is what makes it the club you can aim. |
-| Driver | 4° | 28 | 6.1 | 24.8 | The reach club: longer than any hole here, and it skips off the tee on the way. |
-| Chipper | 22° | 14 | 7.5 | 16.9 | Hops a rail — apex about three quarters of a unit — and keeps running. |
-| Wedge | 42° | 11.5 | 7.3 | 14.3 | The high one: apex over a unit and a half, clears anything the courses put in the way, and does not run far when it lands. |
+| Club | Loft | Full swing | Carry | Apex | Total on green | What it is for |
+| --- | --- | --- | --- | --- | --- | --- |
+| Putter | 0° | 10.5 | — | — | 8.5 | Rolls flat and true. Full power is still a tap, which is what makes it the club you can aim. |
+| Driver | 4° | 32 | 8.0 | 0.30 | 29.6 | The reach club. Barely off the ground, and almost all of its length is roll. |
+| 7 Iron | 16° | 18 | 9.5 | 0.83 | 21.6 | The long approach: three quarters of a driver, and it *carries* three quarters of that. |
+| Chipper | 22° | 14 | 7.5 | 0.91 | 16.9 | Hops a rail and keeps running. The all-rounder. |
+| Wedge | 42° | 11.5 | 7.3 | 1.79 | 14.3 | The high one: clears anything the courses put in the way, and does not run far when it lands. |
+
+The iron is the newest and the odd one out, because it is the only club picked
+for its **carry** rather than its length. Everything else in the bag either
+runs (the driver is eight units of flight and twenty of roll) or stops (the
+wedge goes up rather than out); nothing could fly more than about seven and a
+half units of water, which put a hard ceiling on what a hazard could be. The
+iron flies nine and a half and still runs when it lands, and an island green
+became possible the day it was added. Out of rough it goes *further* than the
+driver, for the same reason — it spends the distance in the air, where the long
+grass cannot reach it.
 
 Carry and total are measured on flat grass at a full swing, in world units.
 They are the numbers the courses are built against, and the last column is why
@@ -218,12 +229,12 @@ wall and the lean then carried their shafts out across the bag's own silhouette
 — two clubs in a bag and two propped against it. And each club's **ferrule**,
 the collar between shaft and head, is now that club's own colour: it is the one
 part of a club that is allowed to be any colour at all, it sits above the cuff
-on a shut bag, and it means four clubs bunched in the mouth are four colours
+on a shut bag, and it means five clubs bunched in the mouth are five colours
 rather than four silhouettes. The same four colours name the club on its card.
 
 ### What a club's card says
 
-Each club carries its own card the whole time the row is open, so four clubs are
+Each club carries its own card the whole time the row is open, so five clubs are
 compared at a glance rather than one at a time. Two versions of that card are
 worth contrasting.
 
@@ -303,7 +314,7 @@ its heel, and the hosel is the thing that says so.
 
 The clubs are also **splayed** in the closed bag — each turned a little on its
 own axis — for the same reason. Heads that hang to one side of their shafts
-hide behind each other if four of them stand dead straight in a bunch.
+hide behind each other if five of them stand dead straight in a bunch.
 
 References: [USGA head-size limits](https://www.usga.org/equipment-standards/equipment-rules-2019/equipment-rules/equipment-rules.html),
 and photographs of a driver from above (the pear), an iron from the face (the
@@ -369,7 +380,7 @@ listed — the picker is a difficulty curve as much as a menu.
 | Ashdown Park | `parkland` | Not mini golf at all: the long game, where the hole is longer than one swing and the fairway is a place you are trying to be. |
 | Whinstone Links | `links` | No fences, no flat lies and no straight edges. The ground is the hazard. |
 
-The last two are why the bag has four clubs rather than two. Every hole on
+Tidewater and Highland are why the bag has more than two clubs. Every hole on
 Tidewater is built round the one thing a chip can do that a putt cannot —
 leave the ground — and each asks for it differently: **Stepping Stones** is
 two carries onto islands whose kerbs the driver cannot clear; **Short Side**
@@ -1498,7 +1509,7 @@ the four things that can move it says otherwise.
 
 ## Tests
 
-Open `tests.html`. 892 assertions covering the surfaces, the collision
+Open `tests.html`. 897 assertions covering the surfaces, the collision
 geometry, the cup, the integrator, the bag, all forty-two holes of course data
 and the scorecard, in a few seconds.
 
@@ -1507,7 +1518,7 @@ shots on every hole, keeps the one that finishes nearest the cup, and plays all
 thirty. If a hole is sealed off, unreachable, or has a cup buried where
 nothing can settle, the bot never holes out and the suite goes red. It is
 deterministic, so a failure is reproducible rather than "sometimes red", it
-plays out of the same four clubs the player gets, its candidates include a wait
+plays out of the same five clubs the player gets, its candidates include a wait
 before striking (the timing holes are only solvable with one, and a bot that
 always fires at `t=0` would report a false failure), and a chosen shot has to
 actually go somewhere — without that rule the greedy

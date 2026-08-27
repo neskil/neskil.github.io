@@ -72,12 +72,15 @@ G3.CONFIG = {
     },
     HOLD_DEFAULT: 0.18,
 
-    /* At full power the ball coasts v0 / -ln(k) ≈ 23 units on grass — longer
-       than any hole here. Everything is reachable with one swing and most
-       things are reachable with half of one, so the skill is entirely in not
-       overcooking it: the cup will not take a ball arriving much above 7, and a
-       driver that has only run half its length is still doing about 12. */
-    MAX_POWER: 28,
+    /* At full power the ball coasts v0 / -ln(k) ≈ 27 units on grass. That is
+       longer than any mini golf hole here and shorter than most of a links
+       one, which is the split the number has to serve now: everything on the
+       first five courses is reachable with one swing and most of it with half
+       of one, so the skill there is entirely in not overcooking it — the cup
+       will not take a ball arriving much above 7. On the long courses the same
+       number is a tee shot, and the skill is in what the ground does with it
+       afterwards. */
+    MAX_POWER: 32,
     MIN_POWER: 0.9,
 
     /* Past a full swing the meter keeps going. OVERDRAW is how much further,
@@ -126,16 +129,28 @@ G3.CONFIG = {
         },
         {
             id: 'driver', name: 'Driver', short: 'DR', key: '2',
-            loft: 4 * Math.PI / 180, power: 28,
+            loft: 4 * Math.PI / 180, power: 32,
             blurb: 'The reach club. Barely off the ground, and it runs.'
         },
+        /* The one club that is neither reach nor loft but a real amount of
+           both, and the reason it exists is carry. A driver is in the air for
+           a quarter of a second and a chipper flies eight units at the very
+           most; an iron flies eleven and still runs when it lands, which is
+           what a green with water in front of it needs and what nothing else
+           in the bag could do. It is also the club for a long second shot:
+           two thirds of a driver, and it stops. */
         {
-            id: 'chipper', name: 'Chipper', short: 'CH', key: '3',
+            id: 'iron', name: '7 Iron', short: '7i', key: '3',
+            loft: 16 * Math.PI / 180, power: 18,
+            blurb: 'The long approach. Carries what the driver runs into.'
+        },
+        {
+            id: 'chipper', name: 'Chipper', short: 'CH', key: '4',
             loft: 22 * Math.PI / 180, power: 14,
             blurb: 'Hops a rail and keeps running. The all-rounder.'
         },
         {
-            id: 'wedge', name: 'Wedge', short: 'WG', key: '4',
+            id: 'wedge', name: 'Wedge', short: 'WG', key: '5',
             loft: 42 * Math.PI / 180, power: 11.5,
             blurb: 'Up and over water, sand and anything else in the way.'
         }

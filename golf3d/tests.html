@@ -1232,6 +1232,37 @@
                has to go somewhere: without that rule the bot parks in a corner
                where every legal shot looks worse than standing still, and plays
                the same nothing until it runs out of strokes. */
+            /* Is there a wall right in front of the ball, between it and the
+               cup? A ball that rolls up against a rail comes to rest touching
+               it, and from there no shot goes forward at all: the ball would
+               have to climb the paint inside its own radius. A player looking
+               at that lie plays sideways or backwards and gives up a stroke on
+               purpose; a greedy bot cannot, because every retreat scores worse
+               than standing still, so it re-plays the same nothing until it
+               runs out of strokes.
+
+               So the bot is told to see the lie, which is the honest fix — a
+               shot that finishes jammed against a rail is genuinely worth
+               about a stroke less than the same distance in the open, and that
+               is what BLOCKED is. Only a wall *in front* counts; one behind or
+               beside the ball costs nothing to play from. */
+            var BLOCKED = 4;
+
+            function blockedLie(hole, ball, cup, time) {
+                var dx = cup.x - ball.x, dz = cup.z - ball.z;
+                var len = Math.hypot(dx, dz);
+                if (len < 1e-6) return false;
+                var px = ball.x + dx / len * (C.BALL_R + 0.2);
+                var pz = ball.z + dz / len * (C.BALL_R + 0.2);
+                var i, B;
+                for (i = 0; i < hole.walls.length; i++) {
+                    B = P.wallBox(hole.walls[i], time);
+                    if (ball.y - C.BALL_R >= B.top || ball.y + C.BALL_R <= B.base) continue;
+                    if (P.circleBox(px, pz, C.BALL_R, B)) return true;
+                }
+                return false;
+            }
+
             function bestShot(hole, from, time, bag) {
                 var cup = hole.cup;
                 var base = Math.atan2(cup.x - from.x, cup.z - from.z);
@@ -1248,7 +1279,8 @@
                     var s;
                     if (w.sunk) s = -1000;
                     else if (w.splash || w.out) s = 500 + d2(w.origin, cup);
-                    else s = d2(w.ball, cup);
+                    else s = d2(w.ball, cup) +
+                        (blockedLie(hole, w.ball, cup, w.time) ? BLOCKED : 0);
                     if (!w.sunk && moved < 1 && s >= here) return;
                     if (!best || s < best.s) best = { s: s, yaw: yaw, club: club, power: power, wait: wait, world: w };
                 }
