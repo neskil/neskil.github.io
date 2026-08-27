@@ -202,7 +202,11 @@
             z-index: -2;
             pointer-events: none;
             opacity: 0;
-            transition: opacity 1.4s ease-in-out;
+            /* Matches the 0.8s on html's --bg-color-*/--hue above. It used to be
+               1.4s, which meant a palette change arrived in two stages: the
+               colours landed, then half a second later the vignette or the sweep
+               caught up behind them. */
+            transition: opacity 0.8s ease-in-out;
         }
 
         html[data-bg="aurora"] [data-bg-layer="aurora"],
@@ -219,7 +223,7 @@
         #bg-lights {
             opacity: var(--lights);
             overflow: hidden;
-            transition: opacity 1.4s ease-in-out;
+            transition: opacity 0.8s ease-in-out;
         }
 
         .bg-blob {
@@ -2302,19 +2306,16 @@
         gtag('config', 'G-9GP823TGLB');
     </script>
     <script>
-        /* Shared "is the page being scrolled right now" flag. Anything that would
-           kick off an expensive visual transition checks it first and waits for the
-           quiet moment afterwards rather than landing on top of the scroll. */
+        /* Shared "is the page being scrolled right now" flag, for work that is
+           cheaper to skip while the page is moving than to do well — see the
+           canvas loop, which holds its last frame until this goes quiet. */
         let scrollIdleTimer = null;
         let scrolling = false;
         function scrollIsActive() { return scrolling; }
         window.addEventListener('scroll', () => {
             scrolling = true;
             clearTimeout(scrollIdleTimer);
-            scrollIdleTimer = setTimeout(() => {
-                scrolling = false;
-                document.dispatchEvent(new CustomEvent('scroll:idle'));
-            }, 180);
+            scrollIdleTimer = setTimeout(() => { scrolling = false; }, 180);
         }, { passive: true });
 
         /* ── Background variants ──────────────────────────────────────────────
@@ -2322,15 +2323,24 @@
            so nobody sees the default ramp swap out a moment later.
 
            A variant is a palette, not a layout: the ruled grid is on whatever is
-           showing, and switching one turns the colour underneath it. That is
-           cheap enough to do on a timer — nothing moves, nothing reflows, the
-           lines stay where they are and the light changes around them — so by
-           default the page rotates through all three, holding each for a minute
-           and taking 1.4s to cross over.
+           showing, and switching one turns the colour underneath it. The page
+           rotates through all three — but once per load, not on a timer. A live
+           switch cross-fades two full-viewport layers while three registered
+           custom properties animate under them, and --hue is a plain number, so
+           it takes the long way round the colour wheel: Dawn to Aurora sweeps 340
+           through 284 and 203 before it arrives, which is the page washing
+           through purple and blue on the way. Fine as a deliberate thing you
+           asked for in the vault. Not something to do to someone mid-sentence.
 
-           Every visit opens on Blueprint, the house style, and moves on from
-           there. A pick from the vault holds one palette for the life of the tab
-           and stops the rotation; a new tab starts over on Blueprint.
+           So the turn happens at the one moment there is nothing to cross-fade
+           from. The palette is picked and applied before first paint and held for
+           the whole visit; localStorage remembers where the rotation got to, so
+           each load moves it on one. A first-ever visit opens on Blueprint, the
+           house style.
+
+           A pick from the vault holds one palette for the life of the tab
+           (sessionStorage) and takes it out of the rotation; a new tab is back to
+           rotating.
 
            Adding a variant is one palette rule, one CSS layer and one entry
            here; the rotation and the picker both pick it up. */
@@ -2341,22 +2351,25 @@
         ];
         const BG_DEFAULT = 'blueprint';
         const BG_ROTATE = 'rotate';
-        const BG_MODE_KEY = 'bgVariant.mode';
-        const BG_ROTATE_MS = 60000;
+        const BG_MODE_KEY = 'bgVariant.mode';   // sessionStorage — held, or rotating
+        const BG_LAST_KEY = 'bgVariant.last';   // localStorage — where the rotation got to
 
         let bgCurrent = null;
-        // Either a variant id (held) or BG_ROTATE (cycling).
+        // Either a variant id (held for this tab) or BG_ROTATE (turns over per load).
         let bgMode = BG_ROTATE;
-        let bgTimer = null;
 
         const bgIsKnown = id => BG_VARIANTS.some(v => v.id === id);
         const bgIsMode = m => m === BG_ROTATE || bgIsKnown(m);
 
-        /* In order, wrapping — a rotation, not a shuffle, so you see all three
-           rather than the same two over and over. */
-        function bgNext() {
-            const at = BG_VARIANTS.findIndex(v => v.id === bgCurrent);
+        /* In order, wrapping — a rotation, not a shuffle, so three loads show you
+           three palettes rather than the same one twice. */
+        function bgAfter(id) {
+            const at = BG_VARIANTS.findIndex(v => v.id === id);
             return BG_VARIANTS[(at + 1) % BG_VARIANTS.length].id;
+        }
+
+        function bgRemember(id) {
+            try { localStorage.setItem(BG_LAST_KEY, id); } catch (e) { }
         }
 
         function bgApply(id) {
@@ -2367,40 +2380,14 @@
             document.dispatchEvent(new CustomEvent('bg:change'));
         }
 
-        /* A switch cross-fades two full-viewport layers over 1.4s and animates
-           three registered custom properties under them. Starting that while the
-           page is being scrolled put a compositing spike right on top of the
-           scroll, which read as a stutter — and the whole point of the rotation is
-           that you notice it in passing, not that it happens on a schedule. So a
-           turn due mid-scroll waits for the scrolling to stop. */
-        let bgTurnPending = false;
-
-        function bgTryTurn() {
-            if (bgMode !== BG_ROTATE) return;
-            if (scrollIsActive()) { bgTurnPending = true; return; }
-            bgTurnPending = false;
-            bgApply(bgNext());
-        }
-
-        function bgStartRotation() {
-            clearInterval(bgTimer);
-            bgTimer = null;
-            if (bgMode !== BG_ROTATE) return;
-            if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-            bgTimer = setInterval(bgTryTurn, BG_ROTATE_MS);
-        }
-
-        /* A variant id holds that one; BG_ROTATE hands the page back to the timer. */
+        /* A variant id holds that one for the tab; BG_ROTATE puts it back in the
+           rotation, which leaves the palette on screen where it is and lets the
+           next load move on from it. */
         function bgSetMode(mode) {
             bgMode = bgIsMode(mode) ? mode : BG_ROTATE;
             try { sessionStorage.setItem(BG_MODE_KEY, bgMode); } catch (e) { }
-            if (bgMode === BG_ROTATE) {
-                bgStartRotation();
-            } else {
-                clearInterval(bgTimer);
-                bgTimer = null;
-                bgApply(bgMode);
-            }
+            if (bgMode !== BG_ROTATE) bgApply(bgMode);
+            bgRemember(bgCurrent);
             // Picking what is already on screen is a no-op for bgApply, so the
             // picker has to be told either way.
             document.dispatchEvent(new CustomEvent('bg:change'));
@@ -2409,27 +2396,19 @@
         (function bgInit() {
             let stored = null;
             try { stored = sessionStorage.getItem(BG_MODE_KEY); } catch (e) { }
-
             bgMode = bgIsMode(stored) ? stored : BG_ROTATE;
-            // Rotating or not, the page opens on the house style.
-            bgApply(bgMode === BG_ROTATE ? BG_DEFAULT : bgMode);
-            bgStartRotation();
-        })();
 
-        // A turn that came due mid-scroll gets it once the page settles.
-        document.addEventListener('scroll:idle', () => {
-            if (bgTurnPending) bgTryTurn();
-        });
-
-        // No point rotating a background nobody is looking at.
-        document.addEventListener('visibilitychange', () => {
-            if (document.hidden) {
-                clearInterval(bgTimer);
-                bgTimer = null;
-            } else if (bgMode === BG_ROTATE && !bgTimer) {
-                bgStartRotation();
+            if (bgMode !== BG_ROTATE) {
+                bgApply(bgMode);
+                return;
             }
-        });
+
+            let last = null;
+            try { last = localStorage.getItem(BG_LAST_KEY); } catch (e) { }
+            // No history yet means a first-ever visit, which opens on the house style.
+            bgApply(bgIsKnown(last) ? bgAfter(last) : BG_DEFAULT);
+            bgRemember(bgCurrent);
+        })();
 
         /* ── Scroll-reactive field ────────────────────────────────────────────
            The constellation on the canvas used to ride the scroll: the whole
@@ -2661,7 +2640,7 @@
                     <div class="vault-row-icon">🎨</div>
                     <div class="vault-row-body">
                         <div class="vault-row-title">Background</div>
-                        <div class="vault-row-desc" id="vault-bg-desc">The grid stays; the colour turns over every minute. Pick one to hold it.</div>
+                        <div class="vault-row-desc" id="vault-bg-desc">The grid stays; the colour turns over on the next load. Pick one to hold it.</div>
                     </div>
                 </div>
                 <div class="vault-opt-chips" id="vault-bg-chips"></div>
@@ -4116,9 +4095,10 @@
 
         /* ── Vault switches ──
            The background picker builds itself from BG_VARIANTS, so a new variant
-           turns up here for free. "Rotate" is the default: while it runs, the chip
-           of whatever palette is on screen is outlined rather than filled. The two
-           switches under it are plain on/off. */
+           turns up here for free. "Rotate" is the default, and while it is on, the
+           chip of the palette currently showing is outlined rather than filled —
+           it is what you have, not what you picked. The two switches under it are
+           plain on/off. */
         const bgChips = document.getElementById('vault-bg-chips');
         const bgDesc = document.getElementById('vault-bg-desc');
 
@@ -4147,8 +4127,8 @@
                 btn.dataset.live = String(rotating && id === bgCurrent);
             }
             bgDesc.textContent = rotating
-                ? 'The grid stays; the colour turns over every minute. Pick one to hold it.'
-                : 'Held for this tab. Rotate hands it back to the timer; a new tab starts over.';
+                ? 'The grid stays; the colour turns over on the next load. Pick one to hold it.'
+                : 'Held for this tab. Rotate puts it back in the cycle; a new tab starts over.';
         }
 
         if (bgChips && bgDesc) {
