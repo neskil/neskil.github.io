@@ -1216,31 +1216,54 @@
        white on the hole. Spaced by eye rather than by division, so a long side
        and a short side have stakes the same distance apart. */
     function addStakes(group, hole, theme) {
-        var f = hole.fence;
-        if (!f) return;
+        var rects = P.fenceRects(hole);
+        if (!rects.length) return;
         var mat = new THREE.MeshPhongMaterial({
             color: 0xf2f4ef, shininess: 26, specular: 0x555a55
         });
         var geo = new THREE.CylinderGeometry(0.09, 0.11, 1.15, 6);
-        var gap = 4.5, sides = [
-            [f.x, f.z, f.x + f.w, f.z],
-            [f.x + f.w, f.z, f.x + f.w, f.z + f.d],
-            [f.x + f.w, f.z + f.d, f.x, f.z + f.d],
-            [f.x, f.z + f.d, f.x, f.z]
-        ], i, k;
-        for (i = 0; i < sides.length; i++) {
-            var s0 = sides[i];
-            var len = Math.hypot(s0[2] - s0[0], s0[3] - s0[1]);
-            var n = Math.max(1, Math.round(len / gap));
-            for (k = 0; k < n; k++) {
-                var t = k / n;
-                var x = s0[0] + (s0[2] - s0[0]) * t;
-                var z = s0[1] + (s0[3] - s0[1]) * t;
-                var top = P.surfaceTop(hole, x, z);
-                var m = new THREE.Mesh(geo, mat);
-                m.position.set(x, (top ? top.y : 0) + 0.5, z);
-                m.castShadow = true;
-                group.add(m);
+        var gap = 4.5, r, i, k;
+
+        /* A stake goes on the edge of a rectangle unless that edge is inside
+           another one — where two rectangles overlap to make a dogleg, the
+           line through the middle of the elbow is not a boundary at all and a
+           row of stakes across it would be describing a wall that is not
+           there. Nudged a hair outwards before the test, because the shared
+           edge of two touching rectangles is on the boundary of both. */
+        function inside(x, z, skip) {
+            var q;
+            for (q = 0; q < rects.length; q++) {
+                if (q === skip) continue;
+                if (x > rects[q].x + 0.01 && x < rects[q].x + rects[q].w - 0.01 &&
+                    z > rects[q].z + 0.01 && z < rects[q].z + rects[q].d - 0.01) return true;
+            }
+            return false;
+        }
+
+        for (r = 0; r < rects.length; r++) {
+            var f = rects[r];
+            var sides = [
+                [f.x, f.z, f.x + f.w, f.z],
+                [f.x + f.w, f.z, f.x + f.w, f.z + f.d],
+                [f.x + f.w, f.z + f.d, f.x, f.z + f.d],
+                [f.x, f.z + f.d, f.x, f.z]
+            ];
+            for (i = 0; i < sides.length; i++) {
+                var s0 = sides[i];
+                var len = Math.hypot(s0[2] - s0[0], s0[3] - s0[1]);
+                var n = Math.max(1, Math.round(len / gap));
+                for (k = 0; k < n; k++) {
+                    var t = k / n;
+                    var x = s0[0] + (s0[2] - s0[0]) * t;
+                    var z = s0[1] + (s0[3] - s0[1]) * t;
+                    if (inside(x, z, r)) continue;
+                    var top = P.surfaceTop(hole, x, z);
+                    if (!top) continue;
+                    var m = new THREE.Mesh(geo, mat);
+                    m.position.set(x, top.y + 0.5, z);
+                    m.castShadow = true;
+                    group.add(m);
+                }
             }
         }
     }
