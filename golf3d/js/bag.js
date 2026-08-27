@@ -97,6 +97,7 @@
     var CLUB_LOOK = {
         putter:  { name: '#7dd3fc', metal: 0x38bdf8 },
         driver:  { name: '#fdba74', metal: 0xf97316 },
+        iron:    { name: '#c4b5fd', metal: 0x8b5cf6 },
         chipper: { name: '#86efac', metal: 0x22c55e },
         wedge:   { name: '#fde68a', metal: 0xeab308 }
     };
@@ -178,8 +179,9 @@
 
     /* ── one club ──────────────────────────────────────────────────────── */
 
-    // Real lengths, in metres. A driver is 45 inches, wedges 35.5, a putter 34.
-    var LENGTHS = { driver: 1.14, chipper: 0.95, wedge: 0.90, putter: 0.86 };
+    // Real lengths, in metres. A driver is 45 inches, a 7 iron 38, wedges 35.5,
+    // a putter 34.
+    var LENGTHS = { driver: 1.14, iron: 0.97, chipper: 0.95, wedge: 0.90, putter: 0.86 };
 
     /* Grip, shaft, ferrule, head — bottom to top, because that is the order
        they are stacked in and the order they read in. The head is a different
