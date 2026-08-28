@@ -454,15 +454,19 @@ draw() {
             }
         }
 
-        // 14. Version + FPS counter (bottom-left corner)
+        // 14. Version + FPS counter (bottom-left corner) — on a touch device the
+        // left d-pad button sits in that same corner (#mobile-controls, styled in
+        // index.html), so this gets pushed up clear of it instead of drawing
+        // underneath.
         ctx.save();
         ctx.font = '600 11px "Courier New", monospace';
         ctx.textAlign = 'left';
+        const versionY = this.isTouchDevice ? h - 14 - this.mobileControlsRowHeight() : h - 14;
         ctx.fillStyle = 'rgba(148, 163, 184, 0.5)';
-        ctx.fillText(`v${CargoGame.VERSION}`, 14, h - 14);
+        ctx.fillText(`v${CargoGame.VERSION}`, 14, versionY);
         if (this.displayFps !== undefined) {
             ctx.fillStyle = this.displayFps >= 50 ? 'rgba(74, 222, 128, 0.6)' : 'rgba(251, 191, 36, 0.75)';
-            ctx.fillText(`${this.displayFps} FPS`, 14 + 48, h - 14);
+            ctx.fillText(`${this.displayFps} FPS`, 14 + 48, versionY);
         }
         ctx.restore();
     },
