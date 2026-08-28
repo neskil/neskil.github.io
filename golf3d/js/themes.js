@@ -114,7 +114,7 @@
                country beyond begins is a change of mowing rather than a
                cliff. It is the only place on the course where that seam is
                visible at all, and it is thirty units out and in haze. */
-            surroundY: -0.12, surround: 'floor', floor: '#456b39',
+            surroundY: -0.55, surround: 'floor', floor: '#456b39',
             water: 0x2c6f92,
             side: '#8a7c58'
         },

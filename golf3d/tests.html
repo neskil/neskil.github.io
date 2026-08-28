@@ -26,6 +26,7 @@
     <script src="js/physics.js"></script>
     <script src="js/courses.js"></script>
     <script src="js/scoring.js"></script>
+    <script src="js/minimap.js"></script>
 
     <script>
     (function () {
@@ -1229,6 +1230,51 @@
             } finally {
                 C.SAVE_KEY = realKey;
             }
+        })();
+
+        /* ── the plans ─────────────────────────────────────────────────── */
+
+        /* The course picker draws every hole from the hole data, which means a
+           hole whose bounds are wrong now has somewhere new to be wrong: it
+           comes out as a green smear, or as a speck in the corner of an empty
+           frame, and nobody notices until they open the picker. So every plan
+           is drawn here and asked the two things a plan has to get right —
+           that there is a course in the frame at all, and that the tee and the
+           cup are both inside it. */
+        section('The plans');
+        (function () {
+            if (!G3.minimap) { assert('minimap.js is loaded', false); return; }
+            var W = 48, worstFill = 1, worstName = '', offEdge = 0, offName = '';
+            var t0m = performance.now();
+            ALL.forEach(function (entry) {
+                var h = entry.hole, tag = entry.course.id + '/' + h.name;
+                var cv = G3.minimap.render(h, W, W);
+                var d = cv.getContext('2d').getImageData(0, 0, W, W).data;
+                var on = 0, i;
+                for (i = 3; i < d.length; i += 4) if (d[i] > 0) on++;
+                var fill = on / (W * W);
+                if (fill < worstFill) { worstFill = fill; worstName = tag; }
+
+                /* And the two ends have to be on the paper. The frame is
+                   grown from the same bounds the plan is drawn from, so a hole
+                   whose tee wandered outside its own bounds — which is exactly
+                   what happens when a fence is edited and the ground is not —
+                   fails here rather than in a screenshot. */
+                var b2 = h.bounds;
+                if (h.tee.x < b2.minX - 2 || h.tee.x > b2.maxX + 2 ||
+                    h.tee.z < b2.minZ - 2 || h.tee.z > b2.maxZ + 2 ||
+                    h.cup.x < b2.minX - 2 || h.cup.x > b2.maxX + 2 ||
+                    h.cup.z < b2.minZ - 2 || h.cup.z > b2.maxZ + 2) {
+                    offEdge++; offName = tag;
+                }
+            });
+            assert('every hole draws something', worstFill > 0.08,
+                worstName + ' fills only ' + (worstFill * 100).toFixed(1) + '% of its frame');
+            assert('the tee and the cup are inside the frame the plan is drawn from',
+                offEdge === 0, offName + ' is outside its own bounds');
+            assert('a plan is cached rather than redrawn',
+                G3.minimap.map('seaside', 0, 32, 32) === G3.minimap.map('seaside', 0, 32, 32));
+            note(ALL.length + ' plans drawn in ' + Math.round(performance.now() - t0m) + 'ms');
         })();
 
         /* ── the bot ───────────────────────────────────────────────────── */

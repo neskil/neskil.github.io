@@ -478,7 +478,15 @@
             if (!Object.prototype.hasOwnProperty.call(top, k)) continue;
             pads[k] = {
                 box: [side, side, top[k], side, side, side],
-                slab: [top[k], side]
+                slab: [top[k], side],
+                /* An inlay is laid flush into the ground and is only lifted at
+                   all to stop it z-fighting with what it is laid into, so the
+                   twelve millimetres of wall round its edge is a rendering
+                   artefact rather than a step. Painting that wall in cut earth
+                   drew a brown ring round every green on the links; painting it
+                   in the surface's own turf makes it what it is, which is
+                   nothing. */
+                inlay: [top[k], top[k]]
             };
         }
 
@@ -579,9 +587,9 @@
         };
     }
 
-    function padMaterial(kind, slab) {
+    function padMaterial(kind, shape) {
         var set = R.surf.pads[kind] || R.surf.pads.green;
-        return slab ? set.slab : set.box;
+        return set[shape] || set.box;
     }
 
     /* The tiling, baked in — and anchored to the world rather than to the pad.
@@ -941,10 +949,56 @@
         return geo;
     }
 
+    /* Cut the ground away under anything laid into it.
+
+       An inlay — a round green, a bunker — sits a hair above the terrain and
+       is opaque, so at first glance the ground beneath it cannot matter. It
+       does, twice. The terrain grows grass, and a stack of blades a sixth of a
+       unit tall goes straight up through a bunker that is only twelve
+       millimetres above it: sand with a lawn on it. And the cup is a hole
+       punched through the green, so the ground behind that hole is what you
+       see when you look into it — an unbroken sheet of turf where the hole
+       should be, which is a green with no hole in it at all.
+
+       The ground and the grass on it want opposite rules, and get them.
+
+       The *ground* loses only triangles that are entirely under an inlay,
+       because it must not leave a gap: cut it any harder and there is a ragged
+       hole of open sky a grid cell wide around every green on the course. What
+       survives inside the rim is hidden under the disc, so it costs nothing.
+
+       The *grass* loses every triangle with so much as a corner under one,
+       because it is a sixth of a unit tall and the disc is twelve millimetres
+       up: one surviving triangle is a tuft standing proud of the sand. Cutting
+       it hard leaves about a grid cell of bare ground around each inlay — and
+       that is not a defect, it is an apron. A mown collar round a green and a
+       sandy lip round a bunker are what those things have in real life. */
+    function cutUnder(geo, cover, cx, cz, any) {
+        var pos = geo.attributes.position, idx = geo.index;
+        if (!idx || !cover.length) return geo;
+        var inside = new Uint8Array(pos.count), i, j;
+        for (i = 0; i < pos.count; i++) {
+            for (j = 0; j < cover.length; j++) {
+                if (P.padContains(cover[j], cx + pos.getX(i), cz + pos.getZ(i))) {
+                    inside[i] = 1;
+                    break;
+                }
+            }
+        }
+        var keep = [], a, b, c, n;
+        for (i = 0; i < idx.count; i += 3) {
+            a = idx.getX(i); b = idx.getX(i + 1); c = idx.getX(i + 2);
+            n = inside[a] + inside[b] + inside[c];
+            if (any ? n > 0 : n === 3) continue;
+            keep.push(a, b, c);
+        }
+        geo.setIndex(keep);
+        return geo;
+    }
+
     // A rectangle of ground, subdivided and pushed into shape by the same
     // function the ball stands on.
-
-    function terrainGeometry(pad, res, cx, cy, cz) {
+    function terrainGeometry(pad, res, cx, cy, cz, cover, anyCut) {
         var nx = Math.max(1, Math.round(pad.w / res));
         var nz = Math.max(1, Math.round(pad.d / res));
         var geo = new THREE.PlaneGeometry(pad.w, pad.d, nx, nz);
@@ -954,6 +1008,7 @@
             pos.setY(i, P.padHeight(pad, cx + pos.getX(i), cz + pos.getZ(i)) - cy);
         }
         pos.needsUpdate = true;
+        if (cover) cutUnder(geo, cover, cx, cz, anyCut);
         geo.computeVertexNormals();
         return geo;
     }
@@ -982,12 +1037,16 @@
        under it. Drawn as two meshes rather than one because the top has to be
        a grid to follow the humps and the sides have to be a strip to follow
        the outline, and a box is neither. */
-    function addTerrain(group, pad, theme, cup) {
+    function addTerrain(group, pad, theme, cup, pads) {
         var cx = pad.x + pad.w / 2, cz = pad.z + pad.d / 2;
         var cy = P.padHeight(pad, cx, cz);
         var base = (theme.surroundY - 0.5) - cy;
+        var cover = [], i;
+        for (i = 0; i < (pads || []).length; i++) {
+            if (pads[i].inlay) cover.push(pads[i]);
+        }
 
-        var geo = terrainGeometry(pad, TERRAIN_RES, cx, cy, cz);
+        var geo = terrainGeometry(pad, TERRAIN_RES, cx, cy, cz, cover);
         worldUv(geo, TX.SCALE[pad.kind] || TX.SCALE.green, cx, cz);
         var mesh = new THREE.Mesh(geo, R.surf.pads[pad.kind]
             ? R.surf.pads[pad.kind].slab[0] : R.surf.pads.green.slab[0]);
@@ -1002,14 +1061,15 @@
         skirt.receiveShadow = true;
         group.add(skirt);
 
-        // The grass gets this exact surface to stand on. Its UVs are rewritten
-        // at the blades' own scale inside addShells, so handing over a
-        // geometry already tiled for the ground costs nothing.
-        addShells(group, pad, cup, false, cx, cy, cz, geo);
+        /* The grass gets its own copy, cut harder — see cutUnder. Its UVs are
+           rewritten at the blades' own scale inside addShells, so building it
+           already tiled for the ground costs nothing. */
+        addShells(group, pad, cup, false, cx, cy, cz,
+            cover.length ? terrainGeometry(pad, TERRAIN_RES, cx, cy, cz, cover, true) : geo);
     }
 
     function addPad(group, pad, theme, cup, pads) {
-        if (pad.bumps) { addTerrain(group, pad, theme, cup); return; }
+        if (pad.bumps) { addTerrain(group, pad, theme, cup, pads); return; }
         var cx = pad.x + pad.w / 2, cz = pad.z + pad.d / 2;
         var sx = pad.sx || 0, sz = pad.sz || 0;
         var cy = P.padHeight(pad, cx, cz);
@@ -1054,7 +1114,8 @@
         // The tiling rides on the pad rather than on the texture, which is
         // what lets every pad of a kind share one material (buildSurfaces).
         worldUv(geo, TX.SCALE[pad.kind] || TX.SCALE.green, cx, cz);
-        var mesh = new THREE.Mesh(geo, padMaterial(pad.kind, holed || !!pad.r));
+        var mesh = new THREE.Mesh(geo,
+            padMaterial(pad.kind, pad.inlay ? 'inlay' : (holed ? 'slab' : 'box')));
         mesh.position.set(cx, cy - thick / 2 + (pad.r ? INLAY_LIFT : 0), cz);
         mesh.receiveShadow = true;
         mesh.castShadow = true;
@@ -1314,11 +1375,27 @@
     function addCup(group, hole) {
         var cup = hole.cup;
 
+        /* Everything below is placed off the *rendered* height of the green
+           the cup is cut into, which is not always its real one: an inlaid
+           green is drawn a hair proud of the ground it is laid into, and a rim
+           painted at the true height would be six millimetres under the
+           putting surface and therefore invisible. That is not a small
+           cosmetic loss — the white ring is the only thing that says "hole"
+           from more than a few units away, and without it the links greens
+           read as having no cup at all. */
+        var lift = 0, i;
+        for (i = 0; i < hole.pads.length; i++) {
+            if (hole.pads[i].inlay && P.padContains(hole.pads[i], cup.x, cup.z) &&
+                Math.abs(P.padHeight(hole.pads[i], cup.x, cup.z) - cup.y) < 0.06) {
+                lift = INLAY_LIFT;
+            }
+        }
+
         var liner = new THREE.Mesh(
             new THREE.CylinderGeometry(C.HOLE_R - 0.004, C.HOLE_R - 0.004, C.CUP_DEPTH, 28, 1, true),
             new THREE.MeshLambertMaterial({ color: 0x14170f, side: THREE.BackSide })
         );
-        liner.position.set(cup.x, cup.y - C.CUP_DEPTH / 2, cup.z);
+        liner.position.set(cup.x, cup.y + lift - C.CUP_DEPTH / 2, cup.z);
         group.add(liner);
 
         var floor = new THREE.Mesh(
@@ -1335,7 +1412,7 @@
             new THREE.MeshBasicMaterial({ color: 0xf2f5f0, side: THREE.DoubleSide })
         );
         rim.rotation.x = -Math.PI / 2;
-        rim.position.set(cup.x, cup.y + 0.006, cup.z);
+        rim.position.set(cup.x, cup.y + lift + 0.006, cup.z);
         group.add(rim);
         R.cupMesh = rim;
 
