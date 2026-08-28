@@ -2137,10 +2137,13 @@
                      of keeping it on the right (the "Show UI" button jumping to the
                      opposite side of the screen when unhiding). -->
                 <div id="hud-right-panel"
-                    style="display: flex; flex-direction: column; align-items: flex-end; gap: 16px; pointer-events: auto; transform-origin: top right; margin-left: auto; justify-self: end;">
+                    style="display: flex; flex-direction: column; align-items: flex-end; gap: 16px; pointer-events: none; transform-origin: top right; margin-left: auto; justify-self: end;">
 
-                    <!-- Hide-UI button and options -->
-                    <div style="display: flex; gap: 8px; align-items: center;">
+                    <!-- Hide-UI button and options — pointer-events re-enabled here (not
+                         on the whole panel, see below) so the radar box below it doesn't
+                         steal touches meant for whatever sits behind/under it on short
+                         landscape viewports (e.g. the mobile thrust buttons). -->
+                    <div style="display: flex; gap: 8px; align-items: center; pointer-events: auto;">
                         <div id="hud-toolbar" class="hud-group" style="padding: 6px 8px;">
                             <button class="utility-btn" id="hud-fullscreen-btn"
                                 onclick="game.toggleFullscreen();" title="Fullscreen">📺
@@ -2172,7 +2175,7 @@
                             RADAR</div>
                     </div>
 
-                    <div style="position: relative;">
+                    <div style="position: relative; pointer-events: auto;">
                         <div id="options-dropdown" class="hud-group"
                             style="display: none; flex-direction: column; align-items: flex-start; background: rgba(15, 23, 42, 0.92); width: 175px; position: absolute; top: 0; right: 0; z-index: 20; backdrop-filter: blur(16px);">
                             <button class="utility-btn" onclick="game.goToMenu(); toggleOptionsDropdown();"
@@ -2955,54 +2958,54 @@
     <!-- Matter.js physics engine -->
     <script src="vendor/matter.min.js"></script>
     <!-- Level registry: defines registerLevel(), levels[], upgradeCatalog, quest helpers -->
-    <script src="game/upgrades.js?v=0.22.0"></script>
-    <script src="levels/levels.js?v=0.22.0"></script>
-    <script src="levels/levelGenerator.js?v=0.22.0"></script>
+    <script src="game/upgrades.js?v=0.22.1"></script>
+    <script src="levels/levels.js?v=0.22.1"></script>
+    <script src="levels/levelGenerator.js?v=0.22.1"></script>
     <!-- Individual level configs (each calls registerLevel) -->
 
-    <script src="levels/level1.js?v=0.22.0"></script>
-    <script src="levels/level2.js?v=0.22.0"></script>
-    <script src="levels/level3.js?v=0.22.0"></script>
-    <script src="levels/level4.js?v=0.22.0"></script>
-    <script src="levels/level5.js?v=0.22.0"></script>
-    <script src="levels/level6.js?v=0.22.0"></script>
-    <script src="levels/level7.js?v=0.22.0"></script>
-    <script src="levels/level8.js?v=0.22.0"></script>
-    <script src="levels/level9.js?v=0.22.0"></script>
-    <script src="levels/level10.js?v=0.22.0"></script>
-    <script src="levels/levelTest.js?v=0.22.0"></script>
+    <script src="levels/level1.js?v=0.22.1"></script>
+    <script src="levels/level2.js?v=0.22.1"></script>
+    <script src="levels/level3.js?v=0.22.1"></script>
+    <script src="levels/level4.js?v=0.22.1"></script>
+    <script src="levels/level5.js?v=0.22.1"></script>
+    <script src="levels/level6.js?v=0.22.1"></script>
+    <script src="levels/level7.js?v=0.22.1"></script>
+    <script src="levels/level8.js?v=0.22.1"></script>
+    <script src="levels/level9.js?v=0.22.1"></script>
+    <script src="levels/level10.js?v=0.22.1"></script>
+    <script src="levels/levelTest.js?v=0.22.1"></script>
     <!-- Field descriptors + defaults for level configs. Was editor/tests-only
          until the renderer started reading LEVEL_SCHEMA.facade for terrainDecor
          defaults, so the game now loads it too — keeping one home for defaults
          rather than mirroring them into render/terrain.js. -->
-    <script src="levels/levelSchema.js?v=0.22.0"></script>
-    <script src="levels/collectibleTypes.js?v=0.22.0"></script>
+    <script src="levels/levelSchema.js?v=0.22.1"></script>
+    <script src="levels/collectibleTypes.js?v=0.22.1"></script>
     <!-- Engine -->
-    <script src="audio.js?v=0.22.0"></script>
-    <script src="render/shaders.js?v=0.22.0"></script>
-    <script src="physics/physics.js?v=0.22.0"></script>
-    <script src="physics/collision.js?v=0.22.0"></script>
-    <script src="physics/mechanics.js?v=0.22.0"></script>
-    <script src="physics/entities.js?v=0.22.0"></script>
-    <script src="physics/atmosphere.js?v=0.22.0"></script>
-    <script src="game/game.js?v=0.22.0"></script>
-    <script src="game/input.js?v=0.22.0"></script>
-    <script src="game/menu.js?v=0.22.0"></script>
-    <script src="game/hud.js?v=0.22.0"></script>
-    <script src="game/cargo.js?v=0.22.0"></script>
-    <script src="render/render.js?v=0.22.0"></script>
-    <script src="render/background.js?v=0.22.0"></script>
-    <script src="render/terrain.js?v=0.22.0"></script>
-    <script src="render/entities.js?v=0.22.0"></script>
-    <script src="render/pads.js?v=0.22.0"></script>
-    <script src="render/lander.js?v=0.22.0"></script>
-    <script src="render/creatures.js?v=0.22.0"></script>
-    <script src="render/effects.js?v=0.22.0"></script>
-    <script src="render/night.js?v=0.22.0"></script>
-    <script src="render/fog.js?v=0.22.0"></script>
-    <script src="render/ui.js?v=0.22.0"></script>
+    <script src="audio.js?v=0.22.1"></script>
+    <script src="render/shaders.js?v=0.22.1"></script>
+    <script src="physics/physics.js?v=0.22.1"></script>
+    <script src="physics/collision.js?v=0.22.1"></script>
+    <script src="physics/mechanics.js?v=0.22.1"></script>
+    <script src="physics/entities.js?v=0.22.1"></script>
+    <script src="physics/atmosphere.js?v=0.22.1"></script>
+    <script src="game/game.js?v=0.22.1"></script>
+    <script src="game/input.js?v=0.22.1"></script>
+    <script src="game/menu.js?v=0.22.1"></script>
+    <script src="game/hud.js?v=0.22.1"></script>
+    <script src="game/cargo.js?v=0.22.1"></script>
+    <script src="render/render.js?v=0.22.1"></script>
+    <script src="render/background.js?v=0.22.1"></script>
+    <script src="render/terrain.js?v=0.22.1"></script>
+    <script src="render/entities.js?v=0.22.1"></script>
+    <script src="render/pads.js?v=0.22.1"></script>
+    <script src="render/lander.js?v=0.22.1"></script>
+    <script src="render/creatures.js?v=0.22.1"></script>
+    <script src="render/effects.js?v=0.22.1"></script>
+    <script src="render/night.js?v=0.22.1"></script>
+    <script src="render/fog.js?v=0.22.1"></script>
+    <script src="render/ui.js?v=0.22.1"></script>
     <!-- How to Play modal's animated mission diagram (menu UI, not gameplay) -->
-    <script src="game/tutorial.js?v=0.22.0"></script>
+    <script src="game/tutorial.js?v=0.22.1"></script>
 
     <script>
         // Start the game!
