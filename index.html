@@ -4778,9 +4778,15 @@
 
                 card.addEventListener('touchstart', (e) => {
                     activate();
+                    // A touch that starts a scroll keeps delivering touchmove to
+                    // whichever card it began on, so without this a reduced-motion
+                    // user still gets the card skewed around for the length of the
+                    // scroll gesture — the one thing this setting asked to avoid.
+                    if (reduceMotion.matches) return;
                     if (e.touches[0]) fromPoint(e.touches[0].clientX, e.touches[0].clientY);
                 }, { passive: true });
                 card.addEventListener('touchmove', (e) => {
+                    if (reduceMotion.matches) return;
                     if (e.touches[0]) fromPoint(e.touches[0].clientX, e.touches[0].clientY);
                 }, { passive: true });
                 card.addEventListener('touchend', release);
@@ -4928,9 +4934,11 @@
 
                     if (!state.hovered) {
                         if (isMobileView && reduceMotion.matches) {
-                            // The bend and the accelerometer sway are motion nobody
-                            // asked for. Touching a card still tilts it — that is a
-                            // response to input, not ambient movement.
+                            // Ambient sway, the scroll bend, and direct touch tilt
+                            // (attachTilt's touchmove handler, above) all bail under
+                            // reduced motion, so an untouched or just-released card
+                            // settles flat here rather than holding whatever tilt a
+                            // scroll-by-touch left it at.
                             state.targetRx = 0;
                             state.targetRy = 0;
                             state.targetTy = 0;
