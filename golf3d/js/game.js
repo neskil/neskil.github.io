@@ -1118,26 +1118,49 @@
 
     /* ── menus and cards ────────────────────────────────────────────────── */
 
-    function openMenu() {
+    /* The course picker, and the only one there is: finishing a round opens
+       this rather than a second list of its own, so there is one place where
+       courses are chosen and it always shows the same records.
+
+       `suggestId` is the course the picker is nudging you towards — the one
+       after the round you have just finished. It is marked rather than
+       pre-selected: the whole point of coming back to this list is that you
+       might want a different one. */
+    function openMenu(suggestId) {
         var save = state ? state.save : S.load();
         var host = $('menu-list');
         host.innerHTML = '';
-        G3.COURSES.forEach(function (course) {
-            var rec = S.courseRecord(save, course.id);
-            var par = S.coursePar(course.holes);
-            var btn = document.createElement('button');
-            btn.type = 'button';
-            btn.className = 'course-card';
-            btn.innerHTML =
-                '<span class="cc-name">' + course.name + '</span>' +
-                '<span class="cc-blurb">' + course.blurb + '</span>' +
-                '<span class="cc-meta">' + course.holes.length + ' holes · par ' + par +
-                ' · best ' + (rec.best === null ? '—' : rec.best + ' (' + S.formatVsPar(rec.bestVsPar) + ')') +
-                '</span>';
-            btn.addEventListener('click', function () { newRound(course.id); });
-            host.appendChild(btn);
+        var first = null;
+        G3.COURSE_GROUPS.forEach(function (group) {
+            var courses = G3.coursesInGroup(group.id);
+            if (!courses.length) return;
+            var head = document.createElement('div');
+            head.className = 'course-group';
+            head.innerHTML =
+                '<span class="cg-name">' + group.name + '</span>' +
+                '<span class="cg-blurb">' + group.blurb + '</span>';
+            host.appendChild(head);
+            courses.forEach(function (course) {
+                var rec = S.courseRecord(save, course.id);
+                var par = S.coursePar(course.holes);
+                var btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'course-card' + (course.id === suggestId ? ' up-next' : '');
+                btn.innerHTML =
+                    '<span class="cc-name">' + course.name +
+                    (course.id === suggestId ? '<span class="cc-next">up next</span>' : '') + '</span>' +
+                    '<span class="cc-blurb">' + course.blurb + '</span>' +
+                    '<span class="cc-meta">' + course.holes.length + ' holes · par ' + par +
+                    ' · best ' + (rec.best === null ? '—' : rec.best + ' (' + S.formatVsPar(rec.bestVsPar) + ')') +
+                    '</span>';
+                btn.addEventListener('click', function () { newRound(course.id); });
+                host.appendChild(btn);
+                if (course.id === suggestId) first = btn;
+            });
         });
         $('menu').className = 'modal show';
+        // Keyboard and screen reader land on the course being offered.
+        if (first) { try { first.focus(); } catch (e) { /* ignore */ } }
     }
 
     function closeMenu() { $('menu').className = 'modal'; }
@@ -1165,6 +1188,17 @@
             '<tr><td></td><td>To par</td><td></td><td class="' +
             (tot.vsPar < 0 ? 'under' : tot.vsPar > 0 ? 'over' : 'level') + '">' +
             S.formatVsPar(tot.vsPar) + '</td></tr></tfoot></table>';
+        /* A finished round is the moment to offer another course, and the
+           offer is the picker itself rather than a one-off button: the list
+           is where the records live and where the categories are. Mid-round
+           the same card is just a scorecard, so the button goes away. */
+        var next = $('card-next');
+        if (res) {
+            next.hidden = false;
+            next.textContent = 'Next: ' + G3.courseById(G3.nextCourseId(state.course.id)).name;
+        } else {
+            next.hidden = true;
+        }
         $('scorecard').className = 'modal show';
     }
 
@@ -1259,7 +1293,9 @@
 
         $('banner-next').addEventListener('click', nextHole);
         $('btn-restart').addEventListener('click', restartHole);
-        $('btn-courses').addEventListener('click', openMenu);
+        // Wrapped: openMenu takes the course to nudge towards, and a click
+        // handler would otherwise hand it an Event.
+        $('btn-courses').addEventListener('click', function () { openMenu(); });
         $('btn-card').addEventListener('click', function () { openCard(null); });
         $('btn-view').addEventListener('click', cycleSeat);
         $('btn-swing').addEventListener('click', shoot);
@@ -1315,6 +1351,10 @@
         document.addEventListener('webkitfullscreenchange', onFullscreenChange);
         $('card-close').addEventListener('click', closeCard);
         $('card-again').addEventListener('click', function () { newRound(state.course.id); });
+        $('card-next').addEventListener('click', function () {
+            closeCard();
+            openMenu(G3.nextCourseId(state.course.id));
+        });
         $('menu-close').addEventListener('click', function () {
             if (state && state.world) closeMenu();
         });
