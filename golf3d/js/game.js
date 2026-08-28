@@ -1163,8 +1163,19 @@
             courses.forEach(function (course) {
                 var rec = S.courseRecord(save, course.id);
                 var par = S.coursePar(course.holes);
+                // Expanded from the start on a wide screen, where the strip of
+                // plans never crowded anything out. On a phone every card starts
+                // closed except the one the picker is nudging you towards, so
+                // opening the list costs one screen rather than seven.
+                var opened = !document.body.classList.contains('compact-ui') || course.id === suggestId;
                 var card = document.createElement('div');
-                card.className = 'course-card' + (course.id === suggestId ? ' up-next' : '');
+                card.className = 'course-card' + (course.id === suggestId ? ' up-next' : '') +
+                    (opened ? ' expanded' : '');
+
+                var stripId = 'cc-holes-' + course.id;
+
+                var topRow = document.createElement('div');
+                topRow.className = 'cc-top';
 
                 var top = document.createElement('button');
                 top.type = 'button';
@@ -1177,10 +1188,29 @@
                     ' · best ' + (rec.best === null ? '—' : rec.best + ' (' + S.formatVsPar(rec.bestVsPar) + ')') +
                     '</span>';
                 top.addEventListener('click', function () { newRound(course.id); });
-                card.appendChild(top);
+                topRow.appendChild(top);
+
+                // Only the strip of hole plans collapses — the head above stays
+                // a one-tap "start from hole 1", same as before this button
+                // existed, so folding a card away never costs that shortcut.
+                var toggle = document.createElement('button');
+                toggle.type = 'button';
+                toggle.className = 'cc-toggle';
+                toggle.setAttribute('aria-controls', stripId);
+                toggle.setAttribute('aria-expanded', opened ? 'true' : 'false');
+                toggle.setAttribute('aria-label', 'Hole plans for ' + course.name);
+                toggle.title = 'Show hole plans';
+                toggle.textContent = '⌄';
+                toggle.addEventListener('click', function () {
+                    var open = card.classList.toggle('expanded');
+                    toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+                });
+                topRow.appendChild(toggle);
+                card.appendChild(topRow);
 
                 var strip = document.createElement('div');
                 strip.className = 'cc-holes';
+                strip.id = stripId;
                 /* The cells are shaped like the course's own holes. A mini golf
                    lane is two and a half times as deep as it is wide and a links
                    hole is nearly square; one aspect ratio for both letterboxes

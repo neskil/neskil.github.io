@@ -1076,6 +1076,31 @@ kbd {
 
 .cc-head:hover { background: var(--accent-soft); }
 
+.cc-top { display: flex; align-items: stretch; }
+.cc-top .cc-head { flex: 1 1 auto; }
+
+/* Off entirely outside compact-ui: a mouse and a wide screen never needed
+   this, so the strip just stays open the way it always has. */
+.cc-toggle {
+    display: none;
+    flex: 0 0 auto;
+    align-self: center;
+    width: 2.1rem;
+    height: 2.1rem;
+    margin: 0 0.5rem 0 0;
+    font-size: 1rem;
+    line-height: 1;
+    color: var(--ink-dim);
+    background: none;
+    border: 0;
+    border-radius: 999px;
+    cursor: pointer;
+    transition: transform 0.18s, background 0.18s, color 0.18s;
+}
+
+.cc-toggle:hover { background: var(--accent-soft); color: var(--ink); }
+.course-card.expanded .cc-toggle { transform: rotate(180deg); }
+
 /* A heading per category. The list is seven courses long and the last two
    are a different game from the first five; the heading is what says so. */
 .course-group {
@@ -1168,6 +1193,31 @@ kbd {
 
 @media (max-width: 520px) {
     .cc-holes { grid-template-columns: repeat(3, 1fr); }
+}
+
+/* On a phone the picker is seven courses deep and forty-two plans long —
+   shown flat, that's more scrolling than choosing. So each strip of plans
+   folds behind the course it belongs to, and only the one on offer (or one
+   a tap has opened) stays out. The head above stays a full-width button the
+   whole time, so folding a card away never costs the one-tap "start from
+   hole 1" shortcut. */
+.compact-ui .cc-toggle { display: block; }
+
+.compact-ui .cc-holes {
+    max-height: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+    opacity: 0;
+    overflow: hidden;
+    pointer-events: none;
+    transition: max-height 0.22s ease, opacity 0.18s ease;
+}
+
+.compact-ui .course-card.expanded .cc-holes {
+    max-height: 70vh;
+    padding-bottom: 0.5rem;
+    opacity: 1;
+    pointer-events: auto;
 }
 
 /* ── how to play ────────────────────────────────────────────────────────── */
