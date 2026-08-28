@@ -57,9 +57,9 @@ launch angle and a speed exactly as before.
 | --- | --- | --- | --- | --- | --- | --- |
 | Putter | 0° | 10.5 | — | — | 8.5 | Rolls flat and true. Full power is still a tap, which is what makes it the club you can aim. |
 | Driver | 4° | 32 | 8.0 | 0.30 | 29.6 | The reach club. Barely off the ground, and almost all of its length is roll. |
-| 7 Iron | 16° | 18 | 9.5 | 0.83 | 21.6 | The long approach: three quarters of a driver, and it *carries* three quarters of that. |
-| Chipper | 22° | 14 | 7.5 | 0.91 | 16.9 | Hops a rail and keeps running. The all-rounder. |
-| Wedge | 42° | 11.5 | 7.3 | 1.79 | 14.3 | The high one: clears anything the courses put in the way, and does not run far when it lands. |
+| 7 Iron | 16° | 18 | 9.5 | 0.83 | 21.9 | The long approach: three quarters of a driver, and it *carries* three quarters of that. |
+| Pitch | 45° | 11.7 | 7.6 | 2.04 | 14.6 | Up steep and down steeper. Stops near where it lands. |
+| Wedge | 58° | 12.1 | 7.3 | 3.06 | 13.1 | The lob: straight up, over anything, and it does not run when it lands. |
 
 The iron is the newest and the odd one out, because it is the only club picked
 for its **carry** rather than its length. Everything else in the bag either
@@ -240,17 +240,17 @@ compared at a glance rather than one at a time. Two versions of that card are
 worth contrasting.
 
 The first gave each club a **typeface** of its own — the driver in a heavy sans,
-the wedge in an italic serif, the chipper in a monospace — on the theory that
-four faces would read as four personalities. Four faces on four cards standing
-side by side read as four different games. A club is already told apart by its
+the wedge in an italic serif, the pitch in a monospace — on the theory that a
+face apiece would read as a personality apiece. A face apiece on cards standing
+side by side read as that many different games. A club is already told apart by its
 colour and by the shape of the head above the card; the type's only job is to be
 read at a glance from across a phone, and the face that does that best is the one
 the rest of the page is set in. So it is one typeface in two weights now —
 Outfit for words, JetBrains Mono for figures — and the colour carries the
 personality on its own.
 
-The second problem was the two figures. `pwr 14 · loft 22°` is the data with the
-meaning left off: 14 is in units nobody outside `physics.js` has ever seen, and a
+The second problem was the two figures. `pwr 18 · loft 16°` is the data with the
+meaning left off: 18 is in units nobody outside `physics.js` has ever seen, and a
 number of degrees is only a picture if you already have the picture. Both are
 drawn now as well as written:
 
@@ -417,12 +417,12 @@ swing, so where the ball *stops* starts to matter as much as where it is going.
 
 The numbers it is built against, measured off a flat lie at full power:
 
-| | Putter | Driver | Chipper | Wedge |
-| --- | --- | --- | --- | --- |
-| Green | 8.5 | 24.7 | 16.9 | 14.2 |
-| Fairway | 6.8 | 21.3 | 15.6 | 13.4 |
-| Rough | 3.6 | 15.0 | 13.1 | 11.8 |
-| Sand | 1.9 | 11.5 | 11.7 | 10.9 |
+| | Putter | Driver | 7 Iron | Pitch | Wedge |
+| --- | --- | --- | --- | --- | --- |
+| Green | 8.5 | 29.6 | 21.9 | 14.6 | 13.1 |
+| Fairway | 6.8 | 25.6 | 20.1 | 13.7 | 12.4 |
+| Rough | 3.6 | 18.5 | 16.8 | 12.2 | 11.3 |
+| Sand | 1.9 | 14.4 | 14.9 | 11.3 | 10.6 |
 
 So a par 3 is about thirteen units and one full club; a par 4 is around thirty
 — a drive and a pitch; the par 5 is forty-eight, which is three shots, or two
@@ -431,7 +431,7 @@ ball. It loses the club you wanted to hit next, which is a better punishment
 because you have to keep playing with it.
 
 The other thing worth knowing is the carry. Nothing in the bag flies further
-than about 7.6 units before its first bounce (the chipper, flat out) and
+than about 9.5 units before its first bounce (the iron, flat out) and
 nothing gets higher than about 1.6 (the wedge). Both numbers are load-bearing:
 **Over the Water** puts a pond four units deep on the line to the pin, which
 only a full swing clears, and the dry route is a tee shot aimed well right of
@@ -443,7 +443,7 @@ suggestion.
 | --- | --- | --- |
 | Opening Drive | 4 | A bunker sitting exactly on the line from the tee to the flag. Putt the approach and you are in it. |
 | Over the Water | 3 | Full club over the pond, or a safe one out to the right and a longer putt. |
-| Long Meadow | 5 | Two drivers reach a cross bunker sixty units out. Lay up with a chipper and it is a simple three-shot hole. |
+| Long Meadow | 5 | Two drivers reach a cross bunker sixty units out. Lay up with an iron and it is a simple three-shot hole. |
 | The Elbow | 4 | Turns left around a tree. Play right off the tee or bounce off it. |
 | Short Stuff | 3 | A five-unit green ringed by sand. One full club, and no half measures. |
 | Homeward | 4 | Water down the whole right side, and sand across the front of the green. |
@@ -540,7 +540,7 @@ one a real dogleg offers.
 than about seven and a half units, which put a ceiling on every water hazard in
 the game — all of them are short ones. The Ait's burn is seven units of carry
 from the tee and there is no lay-up, because the ground beyond it is the island
-and there is nothing else to aim at. A full chipper, a full wedge and most of
+and there is nothing else to aim at. A full pitch, a full wedge and most of
 an iron all get there; take much off any of them and carry falls away with the
 *square* of the speed while roll only falls away with the speed, so a shot that
 is a club short is not a bit short, it is wet.
