@@ -839,18 +839,22 @@
         }
 
         /* Mobile Touch Controls */
-        /* Sized up from 60x60/24px — most phone play happens in landscape (per the
-           rotate-tip), where viewport width is well over the 480px breakpoint that
-           used to be the only place these got bigger, so nearly everyone was stuck
-           with the smaller base size. */
+        /* Scales continuously with viewport size via vmin (percent of whichever of
+           width/height is smaller) instead of two fixed breakpoints — a button
+           sized for a big-screen phone in landscape was oversized on a small one
+           and vice versa, and a fixed size on short landscape viewports (most
+           phones, per the rotate-tip) left the stacked up/down thrust buttons
+           tall enough to run into the HUD above them. clamp() keeps it inside a
+           sane min/max so it never gets too small to tap or comically large on a
+           tablet. */
         .mobile-btn {
             background: rgba(255, 255, 255, 0.1);
             border: 1px solid rgba(255, 255, 255, 0.2);
             border-radius: 16px;
-            width: 90px;
-            height: 90px;
+            width: clamp(56px, 20vmin, 100px);
+            height: clamp(56px, 20vmin, 100px);
             color: white;
-            font-size: 32px;
+            font-size: clamp(22px, 7.4vmin, 36px);
             display: flex;
             align-items: center;
             justify-content: center;
@@ -969,13 +973,6 @@
             /* Hide keyboard hints — irrelevant on touch */
             .control-help {
                 display: none;
-            }
-
-            /* Larger touch targets still on narrow/portrait phones */
-            .mobile-btn {
-                width: 100px;
-                height: 100px;
-                font-size: 36px;
             }
 
             #mobile-controls {
@@ -1811,9 +1808,13 @@
             style="display:none; position:fixed; inset:0; z-index:9998; background:rgba(3,7,18,0.88); align-items:center; justify-content:center; flex-direction:column; gap:16px; font-family:inherit; text-align:center; padding:24px;">
             <div style="font-size:3rem; animation: rotate-tip-spin 1.8s ease-in-out infinite;">📱</div>
             <p style="color:#fff; font-size:1.1rem; margin:0; max-width:320px; line-height:1.4;">Rotate your device to
-                <b>landscape</b> for the best view of the mission.</p>
-            <button id="rotate-tip-dismiss" class="btn-secondary" onclick="game.dismissRotateTip()"
-                style="min-width:140px;">Continue in Portrait</button>
+                <b>landscape</b> and go <b>fullscreen</b> for the best view of the mission.</p>
+            <div style="display:flex; gap:10px; flex-wrap:wrap; justify-content:center;">
+                <button class="btn-secondary" onclick="game.toggleFullscreen()"
+                    style="min-width:140px;">📺 Fullscreen</button>
+                <button id="rotate-tip-dismiss" class="btn-secondary" onclick="game.dismissRotateTip()"
+                    style="min-width:140px;">Continue in Portrait</button>
+            </div>
         </div>
 
 
@@ -2146,8 +2147,7 @@
                     <div style="display: flex; gap: 8px; align-items: center; pointer-events: auto;">
                         <div id="hud-toolbar" class="hud-group" style="padding: 6px 8px;">
                             <button class="utility-btn" id="hud-fullscreen-btn"
-                                onclick="game.toggleFullscreen();" title="Fullscreen">📺
-                                Fullscreen</button>
+                                onclick="game.toggleFullscreen();" title="Fullscreen">📺&nbsp;Fullscreen</button>
                             <button class="utility-btn icon-only" id="mute-btn-top" onclick="game.toggleMuteQuick();"
                                 title="Mute/Unmute" style="width: 32px; height: 32px;">🔊</button>
                             <button class="utility-btn icon-only" id="hud-options-btn"
@@ -2958,54 +2958,54 @@
     <!-- Matter.js physics engine -->
     <script src="vendor/matter.min.js"></script>
     <!-- Level registry: defines registerLevel(), levels[], upgradeCatalog, quest helpers -->
-    <script src="game/upgrades.js?v=0.22.1"></script>
-    <script src="levels/levels.js?v=0.22.1"></script>
-    <script src="levels/levelGenerator.js?v=0.22.1"></script>
+    <script src="game/upgrades.js?v=0.22.2"></script>
+    <script src="levels/levels.js?v=0.22.2"></script>
+    <script src="levels/levelGenerator.js?v=0.22.2"></script>
     <!-- Individual level configs (each calls registerLevel) -->
 
-    <script src="levels/level1.js?v=0.22.1"></script>
-    <script src="levels/level2.js?v=0.22.1"></script>
-    <script src="levels/level3.js?v=0.22.1"></script>
-    <script src="levels/level4.js?v=0.22.1"></script>
-    <script src="levels/level5.js?v=0.22.1"></script>
-    <script src="levels/level6.js?v=0.22.1"></script>
-    <script src="levels/level7.js?v=0.22.1"></script>
-    <script src="levels/level8.js?v=0.22.1"></script>
-    <script src="levels/level9.js?v=0.22.1"></script>
-    <script src="levels/level10.js?v=0.22.1"></script>
-    <script src="levels/levelTest.js?v=0.22.1"></script>
+    <script src="levels/level1.js?v=0.22.2"></script>
+    <script src="levels/level2.js?v=0.22.2"></script>
+    <script src="levels/level3.js?v=0.22.2"></script>
+    <script src="levels/level4.js?v=0.22.2"></script>
+    <script src="levels/level5.js?v=0.22.2"></script>
+    <script src="levels/level6.js?v=0.22.2"></script>
+    <script src="levels/level7.js?v=0.22.2"></script>
+    <script src="levels/level8.js?v=0.22.2"></script>
+    <script src="levels/level9.js?v=0.22.2"></script>
+    <script src="levels/level10.js?v=0.22.2"></script>
+    <script src="levels/levelTest.js?v=0.22.2"></script>
     <!-- Field descriptors + defaults for level configs. Was editor/tests-only
          until the renderer started reading LEVEL_SCHEMA.facade for terrainDecor
          defaults, so the game now loads it too — keeping one home for defaults
          rather than mirroring them into render/terrain.js. -->
-    <script src="levels/levelSchema.js?v=0.22.1"></script>
-    <script src="levels/collectibleTypes.js?v=0.22.1"></script>
+    <script src="levels/levelSchema.js?v=0.22.2"></script>
+    <script src="levels/collectibleTypes.js?v=0.22.2"></script>
     <!-- Engine -->
-    <script src="audio.js?v=0.22.1"></script>
-    <script src="render/shaders.js?v=0.22.1"></script>
-    <script src="physics/physics.js?v=0.22.1"></script>
-    <script src="physics/collision.js?v=0.22.1"></script>
-    <script src="physics/mechanics.js?v=0.22.1"></script>
-    <script src="physics/entities.js?v=0.22.1"></script>
-    <script src="physics/atmosphere.js?v=0.22.1"></script>
-    <script src="game/game.js?v=0.22.1"></script>
-    <script src="game/input.js?v=0.22.1"></script>
-    <script src="game/menu.js?v=0.22.1"></script>
-    <script src="game/hud.js?v=0.22.1"></script>
-    <script src="game/cargo.js?v=0.22.1"></script>
-    <script src="render/render.js?v=0.22.1"></script>
-    <script src="render/background.js?v=0.22.1"></script>
-    <script src="render/terrain.js?v=0.22.1"></script>
-    <script src="render/entities.js?v=0.22.1"></script>
-    <script src="render/pads.js?v=0.22.1"></script>
-    <script src="render/lander.js?v=0.22.1"></script>
-    <script src="render/creatures.js?v=0.22.1"></script>
-    <script src="render/effects.js?v=0.22.1"></script>
-    <script src="render/night.js?v=0.22.1"></script>
-    <script src="render/fog.js?v=0.22.1"></script>
-    <script src="render/ui.js?v=0.22.1"></script>
+    <script src="audio.js?v=0.22.2"></script>
+    <script src="render/shaders.js?v=0.22.2"></script>
+    <script src="physics/physics.js?v=0.22.2"></script>
+    <script src="physics/collision.js?v=0.22.2"></script>
+    <script src="physics/mechanics.js?v=0.22.2"></script>
+    <script src="physics/entities.js?v=0.22.2"></script>
+    <script src="physics/atmosphere.js?v=0.22.2"></script>
+    <script src="game/game.js?v=0.22.2"></script>
+    <script src="game/input.js?v=0.22.2"></script>
+    <script src="game/menu.js?v=0.22.2"></script>
+    <script src="game/hud.js?v=0.22.2"></script>
+    <script src="game/cargo.js?v=0.22.2"></script>
+    <script src="render/render.js?v=0.22.2"></script>
+    <script src="render/background.js?v=0.22.2"></script>
+    <script src="render/terrain.js?v=0.22.2"></script>
+    <script src="render/entities.js?v=0.22.2"></script>
+    <script src="render/pads.js?v=0.22.2"></script>
+    <script src="render/lander.js?v=0.22.2"></script>
+    <script src="render/creatures.js?v=0.22.2"></script>
+    <script src="render/effects.js?v=0.22.2"></script>
+    <script src="render/night.js?v=0.22.2"></script>
+    <script src="render/fog.js?v=0.22.2"></script>
+    <script src="render/ui.js?v=0.22.2"></script>
     <!-- How to Play modal's animated mission diagram (menu UI, not gameplay) -->
-    <script src="game/tutorial.js?v=0.22.1"></script>
+    <script src="game/tutorial.js?v=0.22.2"></script>
 
     <script>
         // Start the game!

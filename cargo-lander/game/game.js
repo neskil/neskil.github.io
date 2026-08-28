@@ -12,7 +12,7 @@
 // game.js → game/* → render.js + render/* (render.js instantiates window.game).
 
 class CargoGame {
-    static VERSION = '0.22.1';
+    static VERSION = '0.22.2';
 
     constructor() {
         this.canvas = null;
@@ -215,6 +215,21 @@ class CargoGame {
             this.shaders.resize(targetW, targetH);
         }
         this.checkOrientationPrompt();
+    }
+
+    // Height (in CSS px, from the bottom of the viewport) that the on-screen
+    // left/right d-pad row occupies — read live from the DOM rather than
+    // duplicating the button's clamp()-based CSS size in JS, so it stays
+    // correct as that CSS changes or scales with viewport. render.js calls
+    // this once per frame to keep the bottom-left version/FPS stamp clear of
+    // the button on touch devices; returns 0 while the buttons are hidden
+    // (e.g. not on a touch device, or between missions).
+    mobileControlsRowHeight() {
+        const btn = document.getElementById('btn-left');
+        if (!btn) return 0;
+        const rect = btn.getBoundingClientRect();
+        if (rect.height === 0) return 0;
+        return (window.innerHeight - rect.top) + 6; // + small clearance gap
     }
 
     // Shows a dismissable "rotate to landscape" tip while a mission is active on a

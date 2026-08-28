@@ -162,6 +162,15 @@
                             log.push('SIM ERROR: ' + simErr.message);
                         }
                         window.__parachuteSimLog = log;
+                    } else if (script === 'touchHud') {
+                        // Forces the mobile touch HUD on regardless of the real
+                        // browser/device this probe runs in, so the on-screen
+                        // d-pad/thrust buttons and the bottom-left version/FPS
+                        // stamp can be screenshotted at an arbitrary --window-size
+                        // (e.g. a short landscape phone viewport) without a real
+                        // touchscreen.
+                        g.isTouchDevice = true;
+                        g.updateMobileControlsVisibility();
                     } else if (script === 'dropLight') {
                         const hub = g.physics.deliveryHubs[0];
                         g.physics.lander.landed = true;
