@@ -3368,8 +3368,17 @@
             ? [1000 / 30, 1000 / 24, 1000 / 15]
             : [0, 1000 / 40, 1000 / 24];
         const FIELD_SCALE_BY_TIER = [1, 0.6, 0.35];
-        // 0 turns the O(n²) link pass off entirely — the dots stay, the web goes.
-        const LINK_DISTANCE_BY_TIER = [150, 115, 0];
+        /* 0 turns the O(n²) link pass off entirely — the dots stay, the web goes.
+           Only `minimal` does that, and it is the emergency tier.
+
+           `reduced` used to shorten the reach to 115 as well, which was the wrong
+           knob: dots on their own read as noise, and the web is the thing anybody
+           would say they were looking at. The saving is already in the dot count
+           — 0.6 of them is 0.36 of the pairs, since the pass is quadratic — and
+           that swamps the 1.7x more area a 150px reach admits. Net link work at
+           `reduced` lands near 0.6 of `full` with the web still looking like a
+           web, which is a better trade than a cheaper frame nobody recognises. */
+        const LINK_DISTANCE_BY_TIER = [150, 150, 0];
         let lastCanvasFrame = 0;
 
         let width, height;
@@ -3702,6 +3711,15 @@
                 this.hue = Math.random() * 80 + 200; // blue-purple-indigo band
                 this.glow = 0; // 0..1 proximity brightness
                 this.fade = placed ? 0 : 1; // clicked dots ease in instead of popping
+                // How hard this dot takes an end-of-page shove. Uniform would slide
+                // the whole field as one sheet and the web would never change
+                // shape; a spread means it stretches and recovers.
+                this.bumpBias = 0.6 + Math.random() * 0.8;
+                // Where the shove has it *right now*, relative to where it lives.
+                // An offset rather than a move: it decays to zero, so the dot comes
+                // home and no amount of slamming into the bottom of the page can
+                // walk the whole field off the top of the screen.
+                this.bumpOff = 0;
             }
 
             update() {
@@ -3744,7 +3762,7 @@
                 const saturation = 70 + this.glow * 30;
                 const alpha = (0.6 + this.glow * 0.4) * this.fade;
                 ctx.beginPath();
-                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.arc(this.x, this.y + this.bumpOff, this.radius, 0, Math.PI * 2);
                 ctx.fillStyle = `hsla(${this.hue}, ${saturation}%, ${lightness}%, ${alpha})`;
                 ctx.fill();
             }
@@ -3984,9 +4002,37 @@
         document.addEventListener('perf:tier', applyFieldBudget);
 
         let scrollY = 0, scrollVelocity = 0, smoothScrollY = 0;
+
+        /* ── Running out of page ─────────────────────────────────────────────
+           The field holds still while you scroll (see animate), so the moment
+           the scroll stops is the moment it starts drawing again. An impulse
+           that lands exactly there costs nothing during the scroll and arrives
+           on the one frame anybody is looking at: hit the top or the bottom
+           with some speed on and the dots get shoved the way you were going,
+           then drift back out of it on their own.
+
+           Only on the way *into* an edge, and only above a speed — easing up to
+           the end of the page should not set the whole sky off. */
+        const BUMP_MIN_DELTA = 9;     // px in one scroll event; a nudge is not a slam
+        const BUMP_MAX = 30;
+        let bumpLastY = window.scrollY;
+        let bumpPending = 0, bumpImpulse = 0;
+
         window.addEventListener('scroll', () => {
             scrollY = window.scrollY;
             if (themeDwellTimer || themeSpawnArmed) disarmThemeSpawn();
+
+            const delta = scrollY - bumpLastY;
+            bumpLastY = scrollY;
+            if (Math.abs(delta) < BUMP_MIN_DELTA) return;
+            if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+            const doc = document.documentElement;
+            const atTop = scrollY <= 0 && delta < 0;
+            const atBottom = scrollY + window.innerHeight >= doc.scrollHeight - 1 && delta > 0;
+            if (!atTop && !atBottom) return;
+
+            bumpPending = Math.max(-BUMP_MAX, Math.min(BUMP_MAX, delta));
         }, { passive: true });
 
         function animate(now) {
@@ -4047,7 +4093,22 @@
 
             const linkDistance = LINK_DISTANCE_BY_TIER[perfTier];
 
+            /* Take up whatever the scroll handler left, then bleed it off. The
+               decay is what turns an impulse into a shove: every dot swings out
+               along its own bias and comes back to where it lives over about a
+               second, so the web stretches and recovers instead of the field
+               taking a permanent step up the screen every time you hit the end
+               of the page. */
+            if (bumpPending) { bumpImpulse -= bumpPending; bumpPending = 0; }
+            const bumping = bumpImpulse !== 0;
+            if (bumping) {
+                bumpImpulse *= 0.9;
+                if (Math.abs(bumpImpulse) < 0.08) bumpImpulse = 0;
+            }
+
             for (let i = 0; i < particles.length; i++) {
+                if (bumping) particles[i].bumpOff = bumpImpulse * particles[i].bumpBias;
+                else if (particles[i].bumpOff) particles[i].bumpOff = 0;
                 // Apply scroll inertia as a gentle push (like mouse repel)
                 if (scrollReactiveField && Math.abs(scrollVelocity) > 0.5) {
                     particles[i].y -= scrollVelocity * 0.3;
@@ -4061,7 +4122,7 @@
 
                 for (let j = i + 1; j < particles.length; j++) {
                     let dx = particles[i].x - particles[j].x;
-                    let dy = particles[i].y - particles[j].y;
+                    let dy = (particles[i].y + particles[i].bumpOff) - (particles[j].y + particles[j].bumpOff);
                     // Reject on the cheap tests first — this inner loop runs O(n²)
                     // times a frame and most pairs are nowhere near each other, so
                     // the square root is only worth taking for the few that pass.
@@ -4085,8 +4146,8 @@
                         ? `hsla(${hue}, ${saturation}%, ${lightness}%, ${lineAlpha})`
                         : `rgba(148, 163, 184, ${baseAlpha})`;
                     ctx.lineWidth = 0.8 + combinedGlow * 1.2;
-                    ctx.moveTo(particles[i].x, particles[i].y);
-                    ctx.lineTo(particles[j].x, particles[j].y);
+                    ctx.moveTo(particles[i].x, particles[i].y + particles[i].bumpOff);
+                    ctx.lineTo(particles[j].x, particles[j].y + particles[j].bumpOff);
                     ctx.stroke();
                 }
             }
