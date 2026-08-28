@@ -1047,25 +1047,34 @@ kbd {
     gap: 0.6rem;
 }
 
+/* A card is the course, and the row of plans under it is the six holes.
+   Both halves are buttons: the head starts the round from the first tee, a
+   plan starts it on that hole. */
 .course-card {
-    display: grid;
-    gap: 0.15rem;
-    text-align: left;
-    font: inherit;
-    color: var(--ink);
     background: rgba(255, 255, 255, 0.05);
     border: 1px solid var(--panel-border);
     border-radius: 14px;
-    padding: 0.8rem 0.95rem;
-    cursor: pointer;
-    transition: background 0.18s, border-color 0.18s, transform 0.18s;
+    overflow: hidden;
+    transition: border-color 0.18s;
 }
 
-.course-card:hover {
-    background: var(--accent-soft);
-    border-color: rgba(125, 211, 252, 0.45);
-    transform: translateY(-1px);
+.course-card:hover { border-color: rgba(125, 211, 252, 0.35); }
+
+.cc-head {
+    display: grid;
+    gap: 0.15rem;
+    width: 100%;
+    text-align: left;
+    font: inherit;
+    color: var(--ink);
+    background: none;
+    border: 0;
+    padding: 0.8rem 0.95rem 0.6rem;
+    cursor: pointer;
+    transition: background 0.18s;
 }
+
+.cc-head:hover { background: var(--accent-soft); }
 
 .cc-name { font-weight: 700; font-size: 1.02rem; }
 .cc-blurb { font-size: 0.82rem; color: var(--ink-dim); font-weight: 300; }
@@ -1074,6 +1083,56 @@ kbd {
     font-size: 0.7rem;
     color: var(--accent);
     margin-top: 0.2rem;
+}
+
+/* Six plans across, however wide the dialog is. They stay square-ish because
+   a hole is roughly as deep as it is wide once its surroundings are in frame,
+   and because six ragged rectangles read as a mess. */
+.cc-holes {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 3px;
+    padding: 0 0.5rem 0.5rem;
+}
+
+.cc-hole {
+    position: relative;
+    display: block;
+    padding: 0;
+    aspect-ratio: var(--cc-shape, 0.7);
+    border: 1px solid transparent;
+    border-radius: 7px;
+    overflow: hidden;
+    /* Not black. What is off the edge of a plan is the rest of the world, and
+       the plan should sit on it rather than be cut out of a void. */
+    background: #1b2a24;
+    cursor: pointer;
+    transition: border-color 0.15s, transform 0.15s;
+}
+
+.cc-hole:hover { border-color: var(--accent); transform: translateY(-2px); }
+.cc-hole:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+.cc-map { display: block; width: 100%; height: 100%; }
+
+/* The number in one corner and the par in the other, both on a scrim, because
+   a plan is mostly mid-green and white type on mid-green is unreadable. */
+.cc-num, .cc-par {
+    position: absolute;
+    bottom: 0;
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 0.58rem;
+    line-height: 1;
+    padding: 2px 3px;
+    color: #fff;
+    background: rgba(6, 20, 32, 0.66);
+}
+
+.cc-num { left: 0; border-top-right-radius: 5px; }
+.cc-par { right: 0; border-top-left-radius: 5px; color: var(--accent); }
+
+@media (max-width: 520px) {
+    .cc-holes { grid-template-columns: repeat(3, 1fr); }
 }
 
 /* ── how to play ────────────────────────────────────────────────────────── */
@@ -1292,6 +1351,24 @@ kbd {
 }
 
 .hole-card.show { opacity: 1; transform: translateY(0); }
+
+/* The plan under the blurb. Full width of the card, and given a floor of its
+   own so a hole whose ground does not fill the frame still reads as a shape on
+   a surface rather than as a stain. */
+.hc-map {
+    display: block;
+    /* Centred, and no wider than the card: the aspect ratio is set per hole by
+       minimap.js, so a lane comes out tall and narrow and a links hole nearly
+       square, each filling the frame it is given rather than a shared one. */
+    margin-left: auto;
+    margin-right: auto;
+    max-width: 100%;
+    max-height: 30vh;
+    height: auto;
+    margin-top: 0.4rem;
+    border-radius: 7px;
+    background: #1b2a24;
+}
 
 .hc-name {
     margin: 0;

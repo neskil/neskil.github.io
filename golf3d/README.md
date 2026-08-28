@@ -31,6 +31,7 @@ them.
 | `js/weather.js` | The sky each hole gets, the wind everything answers to, and the rain, mist and motes. |
 | `js/postfx.js` | What happens to the picture after the course is drawn: bloom, light shafts, tone mapping, grade. |
 | `js/render.js` | The course, in three.js: geometry, lights, camera and the frame. |
+| `js/minimap.js` | The hole from above, drawn per pixel out of `physics.surfaceUnder` — the course picker's plans and the one on the hole card. |
 | `js/bag.js` | The club picker: a modelled bag that rides in front of the camera. |
 | `js/debug.js` | The course inspector — `?debug=1`, or <kbd>G</kbd>. The tool for building a hole. |
 | `js/game.js` | Loop, input, and what a shot means. |
@@ -556,6 +557,49 @@ keep out of, because a green wants flat ground and so does a tee.
 What that ends up worth, measured: the same driver from nine spots across a
 fairway runs anywhere from 12 to 26 units where flat ground gives 21, and
 finishes up to twelve units off the line it was aimed down.
+
+## The plans
+
+The course picker used to be a list of names, and with seven courses that are
+no longer all the same kind of golf, a name stopped being enough. "Quarry Ridge
+— ramps, ledges and a long way down" tells you almost nothing next to a picture
+of Halfpipe, and nothing at all about the difference between a six-unit mini
+golf lane and forty units of open links. So every hole is drawn: six plans
+under each course, and one on the card that introduces the hole you are about
+to play. Clicking a plan starts the round on that hole, which is what you want
+when you have come back for the one that beat you.
+
+**Every pixel is a question put to the simulation.** `minimap.js` samples
+`physics.surfaceUnder` — the same function that decides what the ball is
+rolling on — rather than reading the pad list and filling rectangles. That is
+slower, and on a links hole with sixty humps under the point it is a great deal
+slower. It buys two things. The rolling ground draws itself, because the
+shading is a Lambert term over the *real* gradient at that pixel (`padGrad`),
+so a dune reads as a dune rather than as a flat green rectangle. And there is
+nothing to keep in step: the disc greens, the inlaid bunkers and the dune
+fields all turned up in the plans the day they turned up in the game, without a
+line written here, and none of them can turn up here *wrong*.
+
+Three things are not sampled. Walls are drawn on top afterwards, because a rail
+0.3 units thick would come out as a dotted line at thumbnail scale — and a tree
+is drawn as its canopy rather than its trunk, since the trunk is what the ball
+hits and the canopy is what you are looking down at. The tee and the cup are
+drawn at a size you can see rather than at a size that is true: a 0.4-unit cup
+on a hole eighty units long is a third of a pixel.
+
+The palette is flat and daylit rather than the theme's, because a plan is a
+diagram before it is a picture — Windmill Works is played after dark and its
+plans would otherwise be six black squares. Ground beyond the boundary keeps
+its shading and loses its colour, which is the honest way to draw somewhere
+your ball can go and you would rather it did not.
+
+Frames are shaped per course, from the average of its holes: a mini golf lane
+is two and a half times as deep as it is wide and a links hole is nearly
+square, and one aspect ratio for both letterboxes whichever it was not chosen
+for. Plans are drawn once and cached by course, hole and size, so the picker
+costs about a fifth of a second the first time it opens and nothing after that.
+`tests.html` draws all forty-two and checks that each fills its frame and that
+both ends of the hole are inside it.
 
 ## How a hole is built
 
@@ -1528,7 +1572,7 @@ the four things that can move it says otherwise.
 
 ## Tests
 
-Open `tests.html`. 897 assertions covering the surfaces, the collision
+Open `tests.html`. 900 assertions covering the surfaces, the collision
 geometry, the cup, the integrator, the bag, all forty-two holes of course data
 and the scorecard, in a few seconds.
 
