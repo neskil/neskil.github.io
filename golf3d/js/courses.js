@@ -375,6 +375,228 @@
 
     function rect(x, z, w, d, y) { return { x: x, z: z, w: w, d: d, y: y === undefined ? -0.6 : y }; }
 
+    /* ── relief on a drawn hole ─────────────────────────────────────────
+
+       `dunes` above shapes open country, where nothing has an edge that
+       matters: the ground runs to the fog in every direction and a hump may
+       land wherever it likes. A drawn hole is the opposite. Every edge on one
+       means something — a rail is generated from where the ground *stops*, a
+       step is the difference between two pads, a shoreline is a pad edge
+       beside a water rectangle, and a ramp meets the flat at a seam the ball
+       rolls over. Move any of those by a centimetre and the hole stops being
+       the hole that was tested.
+
+       So relief here obeys one rule that `dunes` does not need: **a hump lives
+       entirely inside one pad**. The raised cosine is exactly zero at its own
+       radius, so a hump whose disc fits inside a pad's footprint cannot change
+       the height of that pad's edge by anything at all. Every rail, every
+       step, every shoreline, every ramp junction and every bridge comes out
+       exactly as authored, and only the middle of the ground rolls. That is
+       what makes it safe to switch on for thirty holes that were drawn flat.
+
+       Two more rules come from the tests rather than the geometry. Nothing
+       rolls under the tee or the cup — a lie has to be readable from where you
+       are standing, and a cup has to sit on ground that will hold a ball
+       beside it. And the gradient stays well inside the surface's own angle of
+       repose (CONFIG.HOLD), because a green that sheds a ball everywhere is
+       not a green, it is a roof. */
+
+    /* How much room there is at a point before the pad runs out — the
+       largest hump that can stand there without touching the edge. Zero on
+       the boundary, largest in the middle, negative outside, and the same
+       answer for a disc pad as for a rectangular one. */
+    function roomIn(pad, cx, cz) {
+        if (pad.r) {
+            return pad.r - Math.hypot(cx - (pad.x + pad.w / 2), cz - (pad.z + pad.d / 2));
+        }
+        return Math.min(cx - pad.x, pad.x + pad.w - cx,
+                        cz - pad.z, pad.z + pad.d - cz);
+    }
+
+    /* Scatter humps inside one pad, and only inside it.
+
+       `grad` asks for a steepest gradient and `amp` for a height; a caller
+       gives one or the other. Gradient is the right currency for grass, where
+       what matters is whether the ball stays put, and height is the right one
+       for a bunker floor, where what matters is how deep the thing is.
+
+       The spot is picked first and the size second, which is the whole reason
+       this fills a mini golf lane at all. Drawing a radius and then hunting
+       for somewhere to put it throws away nineteen spots in twenty on ground
+       six units wide with a tee at one end of it — and it throws away the
+       *interesting* ones, the corners and the edges, because those are exactly
+       where a large hump does not fit. Asking a spot how much room it has and
+       sizing the hump to the answer keeps them, and it makes the humps shrink
+       towards the edges of a pad on their own, which is what ground does.
+
+       Peaks do not stack. A new hump keeps clear of the middle of every one
+       already placed and is sized to stay clear of it, so two of them add
+       across their skirts — where the interesting ground is — and never at
+       their summits, where the sum would be twice what was asked for and
+       nobody would notice until a green stopped holding. */
+    function relief(pad, rnd, opts) {
+        var lo = opts.r, hi = Math.max(opts.r, opts.rMax);
+        var clear = opts.clear || [], out = [], tries = 0, i, r, cx, cz, a, room, d;
+        while (out.length < opts.n && tries++ < opts.n * 120) {
+            cx = pad.x + rnd() * pad.w;
+            cz = pad.z + rnd() * pad.d;
+            room = roomIn(pad, cx, cz);
+            for (i = 0; i < clear.length && room >= lo; i++) {
+                d = Math.hypot(cx - clear[i].x, cz - clear[i].z) - clear[i].r;
+                if (d < room) room = d;
+            }
+            for (i = 0; i < out.length && room >= lo; i++) {
+                d = Math.hypot(cx - out[i].cx, cz - out[i].cz);
+                if (d < out[i].r * 0.7) { room = -1; break; }
+                if (d / 0.7 < room) room = d / 0.7;
+            }
+            if (room < lo) continue;
+            r = lo + rnd() * (Math.min(hi, room) - lo);
+            a = opts.amp === undefined
+                ? opts.grad * (0.45 + rnd() * 0.55) * 2 * r / Math.PI
+                : opts.amp * (0.55 + rnd() * 0.45);
+            // Hollows outnumber hills, on grass because a hollow is what the
+            // eye reads as ground rather than as an obstacle, and in sand
+            // because a bunker is a hole with a lip on it.
+            if (rnd() < opts.hollow) a = -a; else a *= (opts.up === undefined ? 1 : opts.up);
+            out.push(hill(cx, cz, r, a));
+        }
+        return out;
+    }
+
+    // Which surfaces roll. Sand gets `scoop` instead, boards stay boards, and
+    // the cup floor is not a pad anybody authored.
+    var ROLLS = { green: 1, fairway: 1, rough: 1 };
+    var MIN_ROLL_AREA = 18;      // square units of pad before it is worth rolling
+    var MIN_ROLL_SIDE = 3.6;     // …and how narrow it is allowed to be
+
+    /* Gentle undulation across the grass of a drawn hole. The numbers are
+       small on purpose: 0.075 of gradient is a little over four degrees, and
+       CONFIG.HOLD.green is 0.18, so the steepest ground a putt ever crosses is
+       still comfortably inside what a green will hold a stopped ball on. What
+       it changes is not where the ball ends up so much as how the hole reads —
+       light and shade across a surface that used to be one flat tone. */
+    function contour(pads, spec) {
+        var o = spec || {}, i, p, span, n, b;
+        var rnd = seeded(o.seed || 7);
+        var lo = o.r === undefined ? 1.1 : o.r;
+        var hi = o.rMax === undefined ? 2.9 : o.rMax;
+        for (i = 0; i < pads.length; i++) {
+            p = pads[i];
+            if (!ROLLS[p.kind]) continue;
+            // A ramp, a bank and an inlaid green are shapes somebody drew on
+            // purpose; this is for the ground that was left flat.
+            if (p.sx || p.sz || p.r || p.inlay) continue;
+            /* Big enough for the roll to be ground rather than an ambush.
+               A stepping stone is a place you have to land the ball and have
+               it *stay*, and a hollow across most of one is not undulation, it
+               is a funnel pointing at the water — Tidewater's middle island is
+               3.4 units across and the bot stopped being able to finish the
+               hole the moment it got one. Anything narrower than a mini golf
+               lane keeps the shape it was drawn with. */
+            span = Math.min(p.w, p.d) / 2;
+            if (span < lo || p.w * p.d < MIN_ROLL_AREA || Math.min(p.w, p.d) < MIN_ROLL_SIDE) continue;
+            n = Math.max(1, Math.round(p.w * p.d * (o.density === undefined ? 0.055 : o.density)));
+            b = relief(p, rnd, {
+                r: lo, rMax: hi, n: n, clear: o.clear,
+                grad: o.grad === undefined ? 0.075 : o.grad, hollow: 0.58
+            });
+            if (b.length) p.bumps = (p.bumps || []).concat(b);
+        }
+        return pads;
+    }
+
+    /* And the bunkers. A bunker used to be a beige rectangle a hand's breadth
+       below the grass, which is a step you can see and a shape you cannot: from
+       the tee it read as a patch of the wrong colour rather than as a hole in
+       the ground. What it was missing is the thing that makes a real one
+       legible at two hundred yards — a floor that dishes away from you and a
+       lip standing over it, so the near edge is in light and the far wall is
+       in shadow.
+
+       Both are humps inside the sand's own footprint, which means the cut edge
+       where the sand meets the grass is exactly where it was, the rails are
+       exactly where they were, and nothing about the hole's plan has moved.
+       Three quarters of them are hollows and the rest are the low shoulders
+       between, kept to a fraction of the depth, because sand piled higher than
+       that stops reading as sand.
+
+       Depth is bounded and tests.html measures it: the floor of a bunker may
+       fall away smoothly, but never further than SCOOP below its own rim, and
+       never at a gradient sand would not hold a ball on. A single hollow is
+       authored at rather less than SCOOP because two of them still add across
+       their skirts — `relief` keeps their summits apart, not their tails — and
+       the number the test enforces is the one on the finished ground rather
+       than the one that was asked for. */
+    var SCOOP = 0.15;
+    var SCOOP_AMP = SCOOP * 0.78;
+
+    function scoop(pads, spec) {
+        var o = spec || {}, i, p, span, lo, hi, area, n, b;
+        var rnd = seeded(o.seed || 11);
+        var depth = o.depth === undefined ? SCOOP_AMP : o.depth;
+        for (i = 0; i < pads.length; i++) {
+            p = pads[i];
+            if (p.kind !== 'sand' || p.sx || p.sz) continue;
+            /* An inlaid bunker keeps its flat floor, and this is the one place
+               in the file where the renderer gets a vote.
+
+               A bunker cut out of `bands` is a real gap in the ground: the
+               fairway beside it stops at its edge and there is nothing under
+               the sand to see. An inlay is not — it is laid *into* a pad that
+               carries straight on underneath it, and the pad under it is drawn
+               as well. render.cutUnder takes the ground away under an inlay,
+               but it takes it away a *triangle* at a time and only where a
+               triangle is wholly inside — so a grid cell's worth of fairway
+               survives all the way round the rim, which is exactly where a
+               dish is shallowest and would show it. Until the terrain mesh can
+               be punched to the circle itself, an inlay is flush or it is
+               wrong. What
+               these bunkers get instead is the rest of the pass: the raked
+               sheet and the height field under it (textures.sandTexture), which
+               is most of what was missing from them anyway. */
+            if (p.inlay) continue;
+            span = (p.r ? p.r : Math.min(p.w, p.d) / 2) - 0.1;
+            if (span < 0.5) continue;
+            /* The floor first, and it is not scattered. Every bunker gets one
+               hollow at its own middle, at the full depth and as wide as the
+               sand is — because a bunker whose floor came out of a dice roll
+               is a bunker that is sometimes a saucer and sometimes nothing at
+               all, and the first pass shipped one at seven centimetres that
+               read as flat from four metres away. The scatter is what happens
+               *around* it: a couple more hollows and the low shoulders between
+               them, kept out of the middle so they break up the rim rather
+               than deepening the bowl. */
+            b = [hill(p.x + p.w / 2, p.z + p.d / 2, span, -depth)];
+            lo = Math.max(0.45, span * 0.45);
+            hi = span * 0.85;
+            area = p.r ? Math.PI * p.r * p.r : p.w * p.d;
+            n = Math.max(0, Math.round(area * 0.13) - 1);
+            if (n && hi > lo) {
+                b = b.concat(relief(p, rnd, {
+                    r: lo, rMax: hi, n: n, amp: depth * 0.55, hollow: 0.6, up: 0.5,
+                    clear: [keep(p.x + p.w / 2, p.z + p.d / 2, span * 0.5)]
+                }));
+            }
+            p.bumps = (p.bumps || []).concat(b);
+        }
+        return pads;
+    }
+
+    /* A seed from the hole's own name, so a hole's ground is the same ground
+       on every load, no two holes on a course share a shape, and renaming one
+       is the only thing that reshapes it. Nothing in this file may ever call
+       Math.random — a course that reshuffles itself is a course the tests
+       cannot make any statement about. */
+    function nameSeed(name) {
+        var h = 2166136261, i;
+        for (i = 0; i < name.length; i++) {
+            h ^= name.charCodeAt(i);
+            h = Math.imul(h, 16777619);
+        }
+        return h >>> 0;
+    }
+
     /* ── rail generation ────────────────────────────────────────────────── */
 
     var RAIL_T = 0.30;          // thickness — comfortably over the tunnelling floor
@@ -478,14 +700,69 @@
 
     /* ── hole assembly ──────────────────────────────────────────────────── */
 
+    /* How much flat ground the tee and the cup keep around them. The cup's is
+       the larger of the two and it is not only about the lie: the renderer
+       cuts the hole out of a flat patch and stitches that patch into the
+       rolling ground around it (render.addTerrain), and CUP_FLAT is the
+       promise that the patch it needs is genuinely flat. TEE_FLAT is smaller
+       because a tee only has to be somewhere you can read the shot from. */
+    var CUP_FLAT = 1.25;
+    var TEE_FLAT = 1.1;
+    /* And how much of that clearing the renderer's patch actually takes: the
+       half-width of the flat square it cuts the cup out of and stitches into
+       the rolling ground. Comfortably inside CUP_FLAT, comfortably outside
+       CONFIG.HOLE_R, and asserted to fit within every cup's own pad. */
+    var CUP_PATCH = 0.8;
+
     function build(h) {
         var P = G3.physics;
         h.water = h.water || [];
+
+        /* Relief, before anything is derived from the ground.
+
+           Every drawn hole gets it — the five mini golf courses and the
+           parkland one alike — off a seed made from the hole's own name, with
+           the tee and the cup kept flat. An open hole does not: Whinstone
+           shapes its own country through `moor`, and running this over it as
+           well would be two authors arguing about the same field.
+
+           A hole may opt out with `flat: true` if its whole point is a
+           surface you can read. Nothing does yet, and the option exists so
+           that the day one does, the answer is a word rather than a special
+           case in here. */
+        if (!h.open && !h.flat) {
+            var seed = nameSeed(h.name);
+            var keeps = [keep(h.tee.x, h.tee.z, TEE_FLAT), keep(h.cup.x, h.cup.z, CUP_FLAT)];
+            scoop(h.pads, { seed: seed ^ 0x5bf03635 });
+            contour(h.pads, {
+                seed: seed,
+                clear: keeps,
+                // The long game is played over a lot more ground, so its humps
+                // are longer and thinner: the same steepness spread over three
+                // times the run, which is a fairway rather than a lawn.
+                r: h.long ? 1.5 : 1.0,
+                rMax: h.long ? 6 : 2.9,
+                density: h.long ? 0.04 : 0.11,
+                grad: h.long ? 0.07 : 0.075
+            });
+        }
+
         /* An open hole is not enclosed — that is what open means. There is no
            edge for `enclose` to find a rail for anyway: the ground runs past
            the fog in every direction, and what keeps the ball on the course is
            `fence`, a line you are only punished for stopping beyond. */
         h.walls = (h.open ? [] : enclose(h.pads, h.gaps || [])).concat(h.extra || []);
+
+        /* Is this the long game? A hole made of fairway and rough is one you
+           walk down with a bag; a hole made entirely of green is a lane you
+           putt along, whatever else is in the way. The difference matters to
+           exactly one thing — whether arriving on a green should hand you the
+           putter (game.autoPutt) — and it is a property of the ground rather
+           than of the course it happens to be filed under, so it is read off
+           the pads rather than written on each hole by hand. */
+        h.longGame = h.pads.some(function (p) {
+            return p.kind === 'fairway' || p.kind === 'rough';
+        });
 
         var t = P.surfaceTop(h, h.tee.x, h.tee.z);
         var c = P.surfaceTop(h, h.cup.x, h.cup.z);
@@ -922,7 +1199,7 @@
 
     var parkland = [
         build({
-            name: 'Opening Drive', par: 4,
+            name: 'Opening Drive', par: 4, long: true,
             blurb: 'Straight away, then a bunker exactly where the flag is. Pick a side.',
             pads: bands(0, [
                 [5,  [3.5, rgh], [8, fwy], [7.5, rgh]],
@@ -940,7 +1217,7 @@
             tee: { x: 7.5, z: 2.5 }, cup: { x: 11.5, z: 33.5 }
         }),
         build({
-            name: 'Over the Water', par: 3,
+            name: 'Over the Water', par: 3, long: true,
             blurb: 'The pond is on the line to the pin. The dry way in is from the right.',
             pads: bands(0, [
                 [4,   [3, rgh], [8, fwy], [3, rgh]],
@@ -954,7 +1231,7 @@
             tee: { x: 9.5, z: 2 }, cup: { x: 6, z: 14 }
         }),
         build({
-            name: 'Long Meadow', par: 5,
+            name: 'Long Meadow', par: 5, long: true,
             blurb: 'Three shots if you lay up, two and a prayer if you do not.',
             pads: bands(0, [
                 [5,  [4, rgh], [9, fwy], [7, rgh]],
@@ -975,7 +1252,7 @@
             tee: { x: 8.5, z: 2.5 }, cup: { x: 10.5, z: 50.5 }
         }),
         build({
-            name: 'The Elbow', par: 4,
+            name: 'The Elbow', par: 4, long: true,
             blurb: 'It turns left around an oak that has been there longer than the course.',
             pads: bands(0, [
                 [5,  [11, rgh], [8, fwy], [3, rgh]],
@@ -994,7 +1271,7 @@
             tee: { x: 15, z: 2.5 }, cup: { x: 6, z: 32.5 }
         }),
         build({
-            name: 'Short Stuff', par: 3,
+            name: 'Short Stuff', par: 3, long: true,
             blurb: 'One full club to a small green in a ring of sand. Nothing else works.',
             pads: bands(0, [
                 [4,   [3, rgh], [8, fwy], [3, rgh]],
@@ -1008,7 +1285,7 @@
             tee: { x: 7, z: 2 }, cup: { x: 7, z: 15 }
         }),
         build({
-            name: 'Homeward', par: 4,
+            name: 'Homeward', par: 4, long: true,
             blurb: 'Water all down the right for as long as the hole lasts.',
             pads: bands(0, [
                 [5,  [4, rgh], [9, fwy], [7, rgh]],
@@ -1061,6 +1338,10 @@
         // the ball as well as to the eye — and the mown line can wander across
         // the contours instead of being cut to fit them.
         for (i = 0; i < pads.length; i++) pads[i].bumps = bumps;
+        /* No scoop out here: every hazard on this course is an inlay, and an
+           inlay is laid into ground that is drawn underneath it (see the note
+           in `scoop`). Whinstone's bunkers are flat sand on rolling country,
+           which is at least what a links bunker often is. */
         return pads.concat(spec.inlays || []);
     }
 
@@ -1318,7 +1599,9 @@
         beam: beam, pen: pen, bowl: bowl, bands: bands, tree: tree,
         hill: hill, ring: ring, dunes: dunes, ground: ground, circle: circle, keep: keep,
         rect: rect, enclose: enclose, shore: shore, brink: brink, build: build,
-        RAIL_T: RAIL_T
+        contour: contour, scoop: scoop, relief: relief,
+        RAIL_T: RAIL_T, SCOOP: SCOOP,
+        CUP_FLAT: CUP_FLAT, TEE_FLAT: TEE_FLAT, CUP_PATCH: CUP_PATCH
     };
 
 })(window.G3);

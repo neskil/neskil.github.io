@@ -192,7 +192,38 @@
             R.state.lastBall.set(w.origin.x, w.origin.y, w.origin.z);
         }
         state.phase = 'aim';
+        autoPutt();
         syncHud();
+    }
+
+    /* On the green, take the putter out.
+
+       Nobody walks up to a ball twelve feet from the pin holding a driver, and
+       until now the game made you remember not to: the club stayed in your
+       hand from the tee all the way to the hole, so the commonest thing that
+       happened on Ashdown Park's greens was a full swing nobody meant to play.
+       Arriving on a putting surface now hands you the putter, once, and you
+       are free to put it back — this only ever fires the moment a shot ends,
+       so a club chosen after that is a club you keep.
+
+       It fires on the **long game only**, and that restriction is the whole
+       reason this is safe. Five of the seven courses are mini golf, where the
+       floor is green from the tee mat to the cup and choosing loft over the
+       thing in the way is the entire game — switching to a putter every time
+       the ball stopped would be fighting the player on every stroke of
+       Tidewater and Highland. `hole.longGame` is read off the ground rather
+       than off the course id (courses.build), so a hole with fairway and rough
+       on it gets this and a lane does not. */
+    function autoPutt() {
+        var hole = state.world.hole;
+        if (!hole.longGame) return;
+        var putter = clubById('putter');
+        if (!putter || state.club === putter) return;
+        var b = state.world.ball;
+        var lie = P.surfaceUnder(hole, b.x, b.z, b.y + C.STEP_UP);
+        if (!lie || lie.pad.kind !== 'green') return;
+        pickClub(putter);
+        toast('On the green — putter');
     }
 
     function holeComplete() {
@@ -433,6 +464,10 @@
         $('power-fill').style.width = (frac * 100).toFixed(1) + '%';
         $('power-fill').style.color = $('power-fill').style.background =
             'hsl(' + hue + ' 85% ' + light + '%)';
+        // The handle rides the leading edge of the fill, because that is where
+        // the value is and therefore where a hand would be holding it.
+        $('power-grip').style.left = (frac * 100).toFixed(1) + '%';
+        $('power-fill').parentNode.classList.toggle('loaded', state.aim.power > 0);
         $('power-val').textContent = Math.round(swing * 100) + '%';
         $('power-val').parentNode.classList.toggle('over', over);
         $('power-fill').parentNode.classList.toggle('hot', hot);
@@ -764,6 +799,9 @@
         if (!state) return;
         powerDrag = e.pointerId;
         try { $('power-track').setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
+        // The cursor turns closed for as long as the meter is being held, which
+        // is the one bit of feedback a mouse can give that a finger cannot.
+        $('power-track').classList.add('dragging');
         powerFromEvent(e);
         e.preventDefault();
     }
@@ -774,6 +812,7 @@
     function onPowerUp(e) {
         if (powerDrag !== e.pointerId) return;
         powerDrag = 0;
+        $('power-track').classList.remove('dragging');
     }
     function onPowerKey(e) {
         var fine = e.shiftKey;

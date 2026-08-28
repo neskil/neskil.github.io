@@ -451,7 +451,19 @@
 
         var top = {
             fairway: fairway,
-            sand: tops(tex.sand, 4 + wet * 60, 0x000000, 0x9aa4ac),
+            /* Sand is the one flat surface with a height field of its own.
+               The rake marks are drawn into the colour map as light and shade,
+               which is a picture of them; the bump map is what makes the sun
+               actually cross them — and the same light that does that is what
+               finds the dish in a scooped bunker (courses.scoop) instead of
+               leaving it a beige patch of the wrong shape. Wet sand is darker,
+               flatter and shinier: rain fills the furrows in. */
+            sand: (function () {
+                var m = tops(tex.sand, 4 + wet * 60, 0x000000, 0x9aa4ac);
+                m.bumpMap = tex.sandBump;
+                m.bumpScale = 0.09 * (1 - wet * 0.6);
+                return m;
+            })(),
             wood: tops(tex.wood, 8 + wet * 80, 0x151515, 0xb0bcc4),
             rough: tops(tex.rough, 3 + wet * 40, 0x000000, 0x7d8a92),
             // The greens get the most of everything: a bump map of the same
@@ -996,20 +1008,132 @@
         return geo;
     }
 
-    // A rectangle of ground, subdivided and pushed into shape by the same
-    // function the ball stands on.
-    function terrainGeometry(pad, res, cx, cy, cz, cover, anyCut) {
-        var nx = Math.max(1, Math.round(pad.w / res));
-        var nz = Math.max(1, Math.round(pad.d / res));
-        var geo = new THREE.PlaneGeometry(pad.w, pad.d, nx, nz);
-        geo.rotateX(-Math.PI / 2);
-        var pos = geo.attributes.position, i;
-        for (i = 0; i < pos.count; i++) {
-            pos.setY(i, P.padHeight(pad, cx + pos.getX(i), cz + pos.getZ(i)) - cy);
+    /* One axis of the terrain grid, as a list of coordinates rather than a
+       segment count — which is the whole reason this is not PlaneGeometry any
+       more. A pad that holds the cup needs a square hole in it for the cup's
+       own patch, and a hole cut at the nearest grid line is a hole in the
+       wrong place. Insert the cut's two edges into the coordinate list and
+       drop the grid lines between them, and the hole comes out exactly where
+       it was asked for with the quads around it still meeting it corner to
+       corner. */
+    function axis(a, b, res, cut) {
+        var n = Math.max(1, Math.round((b - a) / res)), i, t, v = [];
+        for (i = 0; i <= n; i++) {
+            t = a + (b - a) * i / n;
+            if (cut && t > cut[0] - 1e-4 && t < cut[1] + 1e-4) continue;
+            v.push(t);
         }
-        pos.needsUpdate = true;
+        if (cut) v.push(cut[0], cut[1]);
+        v.sort(function (p, q) { return p - q; });
+        return v;
+    }
+
+    /* A rectangle of ground, subdivided and pushed into shape by the same
+       function the ball stands on — with a square missing from it where the
+       cup goes, if this is the pad the cup is cut into.
+
+       Indexed, because the ground is meant to be smooth: `computeVertexNormals`
+       on a shared vertex averages the faces that meet there, and on a
+       non-indexed grid every triangle would get its own normal and a dune
+       would come out looking like a pile of shards. */
+    function terrainGeometry(pad, res, cx, cy, cz, cut, cover, anyCut) {
+        var xs = axis(-pad.w / 2, pad.w / 2, res, cut && [cut.x - cut.h, cut.x + cut.h]);
+        var zs = axis(-pad.d / 2, pad.d / 2, res, cut && [cut.z - cut.h, cut.z + cut.h]);
+        var nx = xs.length, nz = zs.length;
+        var pos = new Float32Array(nx * nz * 3);
+        var uv = new Float32Array(nx * nz * 2);
+        var idx = [], i, j, k;
+
+        for (i = 0; i < nx; i++) {
+            for (j = 0; j < nz; j++) {
+                k = i * nz + j;
+                pos[k * 3] = xs[i];
+                pos[k * 3 + 1] = P.padHeight(pad, cx + xs[i], cz + zs[j]) - cy;
+                pos[k * 3 + 2] = zs[j];
+            }
+        }
+        for (i = 0; i < nx - 1; i++) {
+            for (j = 0; j < nz - 1; j++) {
+                if (cut &&
+                    xs[i] >= cut.x - cut.h - 1e-4 && xs[i + 1] <= cut.x + cut.h + 1e-4 &&
+                    zs[j] >= cut.z - cut.h - 1e-4 && zs[j + 1] <= cut.z + cut.h + 1e-4) continue;
+                var a = i * nz + j, b = i * nz + j + 1;
+                var c = (i + 1) * nz + j + 1, d = (i + 1) * nz + j;
+                // Wound so the face looks up: see the note on the plane's own
+                // rotation above — a triangle going round this way in x/z has
+                // its normal along +y.
+                idx.push(a, b, c, a, c, d);
+            }
+        }
+
+        var geo = new THREE.BufferGeometry();
+        geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+        geo.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
+        geo.setIndex(idx);
+        // …and then take out whatever is laid into this pad. Two cuts on one
+        // grid: the square for the cup's own patch is a hole in the *index*
+        // built above, and this is the same idea applied to the inlays.
         if (cover) cutUnder(geo, cover, cx, cz, anyCut);
         geo.computeVertexNormals();
+        return geo;
+    }
+
+    /* The top of a disc of ground, as rings and sectors rather than as a grid.
+
+       A dished bunker on Whinstone is a disc pad with humps in it, and a grid
+       clipped to a circle would give it a staircase for a rim — which on the
+       one pad whose whole outline the player can see would be the first thing
+       the eye found. Rings go round the outline instead, so the edge is the
+       edge, and the middle is subdivided finely enough to hold the dish. */
+    function discTerrainGeometry(pad, res, cx, cy, cz) {
+        var r = pad.r;
+        var rings = Math.max(3, Math.round(r / Math.min(res, 0.5)));
+        var sect = Math.max(28, Math.round(2 * Math.PI * r / Math.min(res, 0.6)));
+        var pos = [], idx = [], i, j, rr, a, px, pz;
+
+        pos.push(0, P.padHeight(pad, cx, cz) - cy, 0);          // the middle
+        for (i = 1; i <= rings; i++) {
+            rr = r * i / rings;
+            for (j = 0; j < sect; j++) {
+                a = j / sect * Math.PI * 2;
+                px = Math.cos(a) * rr; pz = Math.sin(a) * rr;
+                pos.push(px, P.padHeight(pad, cx + px, cz + pz) - cy, pz);
+            }
+        }
+        function at(ring, j) { return ring === 0 ? 0 : 1 + (ring - 1) * sect + (j % sect); }
+        for (j = 0; j < sect; j++) idx.push(at(0, 0), at(1, j + 1), at(1, j));
+        for (i = 1; i < rings; i++) {
+            for (j = 0; j < sect; j++) {
+                idx.push(at(i, j), at(i, j + 1), at(i + 1, j + 1));
+                idx.push(at(i, j), at(i + 1, j + 1), at(i + 1, j));
+            }
+        }
+        var geo = new THREE.BufferGeometry();
+        geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(pos), 3));
+        geo.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(pos.length / 3 * 2), 2));
+        geo.setIndex(idx);
+        geo.computeVertexNormals();
+        return geo;
+    }
+
+    /* The flat square the cup is cut out of, which is what the hole in the
+       grid above is a hole for. It is flat because courses.js promises it is:
+       nothing rolls within CUP_FLAT of a cup, and this patch is well inside
+       that. `bore` is the radius of the hole in it — the cup's own for the
+       ground, a shade wider for the grass, so no blade hangs over the rim. */
+    function cupPatch(cut, y, bore) {
+        var shape = new THREE.Shape();
+        shape.moveTo(cut.x - cut.h, -(cut.z - cut.h));
+        shape.lineTo(cut.x + cut.h, -(cut.z - cut.h));
+        shape.lineTo(cut.x + cut.h, -(cut.z + cut.h));
+        shape.lineTo(cut.x - cut.h, -(cut.z + cut.h));
+        shape.lineTo(cut.x - cut.h, -(cut.z - cut.h));
+        var hole = new THREE.Path();
+        hole.absarc(cut.x, -cut.z, bore, 0, Math.PI * 2, true);
+        shape.holes.push(hole);
+        var geo = new THREE.ShapeGeometry(shape, 36);
+        geo.rotateX(-Math.PI / 2);
+        geo.translate(0, y, 0);
         return geo;
     }
 
@@ -1037,35 +1161,104 @@
        under it. Drawn as two meshes rather than one because the top has to be
        a grid to follow the humps and the sides have to be a strip to follow
        the outline, and a box is neither. */
+    /* How much room the cup's flat patch takes, either side of the pin. Kept
+       in step with courses.CUP_PATCH, which is the number tests.html asserts
+       every cup has clear of its own pad edge. */
+    var CUP_PATCH = 0.8;
+
+    /* How finely to subdivide a piece of ground — asked of the ground rather
+       than fixed, because the two things that are made of it are three
+       different sizes now.
+
+       TERRAIN_RES was picked for Whinstone, where a dune is five to eleven
+       units across and a metre of grid is ten segments over the interesting
+       part of one. A mini golf lane's contour is a metre across, and the same
+       grid would give it two — a hump drawn as a tent. So the step comes off
+       the smallest hump actually on the pad, three segments to its radius,
+       and it is paid for by every shell over the pad as well as by the ground
+       itself, which is why it is floored rather than left to shrink. */
+    var TERRAIN_MIN = 0.45;
+
+    function terrainRes(pad) {
+        var b = pad.bumps, i, least = Infinity;
+        for (i = 0; i < (b || []).length; i++) least = Math.min(least, b[i].r);
+        if (!isFinite(least)) return TERRAIN_RES;
+        return Math.max(TERRAIN_MIN, Math.min(TERRAIN_RES, least / 3));
+    }
+
     function addTerrain(group, pad, theme, cup, pads) {
         var cx = pad.x + pad.w / 2, cz = pad.z + pad.d / 2;
         var cy = P.padHeight(pad, cx, cz);
-        var base = (theme.surroundY - 0.5) - cy;
-        var cover = [], i;
-        for (i = 0; i < (pads || []).length; i++) {
-            if (pads[i].inlay) cover.push(pads[i]);
+        // Whatever is laid into this pad, so the ground under it can be
+        // taken away rather than left growing grass through a bunker.
+        var cover = [], q;
+        for (q = 0; q < (pads || []).length; q++) {
+            if (pads[q].inlay) cover.push(pads[q]);
+        }
+        /* An inlay is laid *into* the ground rather than standing on it, so
+           its earth wall is a hand's breadth of cut sand and not a column down
+           to the surround — and it is lifted the same hair a flat inlay is, or
+           its rim z-fights with the ground it is exactly flush with. */
+        var base = pad.inlay ? -0.4 : (theme.surroundY - 0.5) - cy;
+        var lift = pad.inlay ? INLAY_LIFT : 0;
+        var mat = R.surf.pads[pad.kind]
+            ? R.surf.pads[pad.kind].slab[0] : R.surf.pads.green.slab[0];
+
+        /* Is the cup cut into this pad? Same question addPad asks, and the
+           same answer: it has to be inside the footprint and the pad has to be
+           the surface the cup's own mouth is at. */
+        var holed = cup && P.padContains(pad, cup.x, cup.z) &&
+            Math.abs(P.padHeight(pad, cup.x, cup.z) - cup.y) < 0.06 && !pad.r;
+        var cut = null;
+        if (holed) {
+            // Clamped to what the pad can actually spare, though courses.js
+            // asserts there is always more than enough.
+            var room = Math.min(cup.x - pad.x, pad.x + pad.w - cup.x,
+                                cup.z - pad.z, pad.z + pad.d - cup.z) - 0.05;
+            cut = { x: cup.x - cx, z: cup.z - cz, h: Math.min(CUP_PATCH, room) };
+            if (cut.h < C.HOLE_R + 0.1) { cut = null; holed = false; }
         }
 
-        var geo = terrainGeometry(pad, TERRAIN_RES, cx, cy, cz, cover);
+        var res = terrainRes(pad);
+        var geo = pad.r
+            ? discTerrainGeometry(pad, res, cx, cy, cz)
+            : terrainGeometry(pad, res, cx, cy, cz, cut, cover);
         worldUv(geo, TX.SCALE[pad.kind] || TX.SCALE.green, cx, cz);
-        var mesh = new THREE.Mesh(geo, R.surf.pads[pad.kind]
-            ? R.surf.pads[pad.kind].slab[0] : R.surf.pads.green.slab[0]);
-        mesh.position.set(cx, cy, cz);
+        var mesh = new THREE.Mesh(geo, mat);
+        mesh.position.set(cx, cy + lift, cz);
         mesh.receiveShadow = true;
         mesh.castShadow = true;
         group.add(mesh);
 
         var skirt = new THREE.Mesh(skirtGeometry(pad, base, cx, cy, cz),
             R.surf.side);
-        skirt.position.set(cx, cy, cz);
+        skirt.position.set(cx, cy + lift, cz);
         skirt.receiveShadow = true;
         group.add(skirt);
 
-        /* The grass gets its own copy, cut harder — see cutUnder. Its UVs are
-           rewritten at the blades' own scale inside addShells, so building it
-           already tiled for the ground costs nothing. */
+        /* The grass gets the ground's own surface to stand on, and where
+           anything is laid into the pad it gets its *own* copy cut harder —
+           see cutUnder. Its UVs are rewritten at the blades' own scale inside
+           addShells, so building it already tiled for the ground costs
+           nothing. */
         addShells(group, pad, cup, false, cx, cy, cz,
-            cover.length ? terrainGeometry(pad, TERRAIN_RES, cx, cy, cz, cover, true) : geo);
+            cover.length
+                ? terrainGeometry(pad, res, cx, cy, cz, cut, cover, true)
+                : geo);
+
+        // …and the cup's patch, which is a second flat surface stitched into
+        // the hole left in the grid, with its own mat of grass over it.
+        if (cut) {
+            var py = P.padHeight(pad, cup.x, cup.z) - cy;
+            var patch = cupPatch(cut, py, C.HOLE_R);
+            worldUv(patch, TX.SCALE[pad.kind] || TX.SCALE.green, cx, cz);
+            var pm = new THREE.Mesh(patch, mat);
+            pm.position.set(cx, cy + lift, cz);
+            pm.receiveShadow = true;
+            group.add(pm);
+            addShells(group, pad, cup, false, cx, cy, cz,
+                cupPatch(cut, py, C.HOLE_R * 1.08));
+        }
     }
 
     function addPad(group, pad, theme, cup, pads) {
@@ -1250,20 +1443,64 @@
     }
 
     function addWater(group, w, theme) {
-        // A box rather than a plane: the pads reach down to the surrounding
-        // ground, so a pond between two of them is a filled channel, and a
-        // sheet floating in the gap would read as a decal. Only the top face
-        // gets the water shader; the sides are the murk underneath it.
+        /* A box rather than a plane: the pads reach down to the surrounding
+           ground, so a pond between two of them is a filled channel, and a
+           sheet floating in the gap would read as a decal. Only the top face
+           gets the water shader; the sides are the murk underneath it.
+
+           What the box did not have was a **bottom**. The surface was drawn at
+           nine tenths opaque over nothing at all, so a pond was a coloured lid:
+           the same tone whether it was a hand deep or three metres, and the
+           only thing telling you which was the height of the rail beside it. So
+           there is a bed now — the bunkers' own sand, sunk and drowned in the
+           water's colour — and the surface is let down to let it through. Deep
+           water still comes out opaque, because the bed is genuinely far away
+           and the fog inside the shader closes over it; a shallow one shows
+           its floor, which is the whole difference between a pond and a hole
+           full of paint.
+
+           The bed is a *shade* inside the box rather than on its floor. A
+           water rectangle is usually wider than the pond it draws — it runs on
+           under the pads either side, which is how the shoreline comes out
+           ragged instead of ruled — so its true floor is under the course, and
+           what has to be visible is the part in the middle. */
         var depth = Math.max(0.6, w.y - theme.surroundY + 0.2);
+        var tint = new THREE.Color(theme.water);
         var murk = new THREE.MeshLambertMaterial({
-            color: new THREE.Color(theme.water).multiplyScalar(0.45)
+            color: tint.clone().multiplyScalar(0.45)
         });
-        var top = waterMaterial(theme, { alpha: 0.9 });
+        var top = waterMaterial(theme, { alpha: 0.86 });
         // Box material order: +x, -x, +y, -y, +z, -z.
         var mesh = new THREE.Mesh(new THREE.BoxGeometry(w.w, depth, w.d),
             [murk, murk, top, murk, murk, murk]);
         mesh.position.set(w.x + w.w / 2, w.y - depth / 2, w.z + w.d / 2);
         group.add(mesh);
+
+        /* …but only where the pond is a hole in the ground. On a course whose
+           whole surround is water the rectangle is a piece of the sea rather
+           than a pool, it sits a few centimetres proud of the surround plane,
+           and a bed under it shows as a dark line ruled across the ocean at
+           the depth of its own edge. The sea does not need a floor drawn for
+           it; it has the horizon. */
+        if (theme.surround === 'water') return;
+
+        var bx = w.x + w.w / 2, bz = w.z + w.d / 2;
+        var bedGeo = new THREE.PlaneGeometry(w.w, w.d);
+        bedGeo.rotateX(-Math.PI / 2);
+        worldUv(bedGeo, TX.SCALE.sand, bx, bz);
+        var bed = new THREE.Mesh(bedGeo, new THREE.MeshLambertMaterial({
+            // Drowned: the sand keeps its grain and gives its colour up to the
+            // water standing on it, which is what silt under a pond looks like.
+            map: TX.surfaces(theme).sand,
+            /* Darkened hard. A bed at the brightness of dry sand comes back
+               through the surface as a sandbar rather than as a floor — the
+               eye reads "shallow" from how *dim* the bottom is, not from
+               seeing it at all. */
+            color: tint.clone().lerp(new THREE.Color(0xa89974), 0.45).multiplyScalar(0.5)
+        }));
+        bed.position.set(bx, w.y - Math.min(depth * 0.7, 0.8), bz);
+        bed.receiveShadow = true;
+        group.add(bed);
     }
 
     /* The out-of-bounds line, as the only thing that can honestly mark one on

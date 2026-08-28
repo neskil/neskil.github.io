@@ -716,20 +716,86 @@ canvas:active { cursor: grabbing; }
     box-shadow: 0 0 8px rgba(234, 246, 255, 0.35);
 }
 
+/* The meter is a control, so it is dressed as one: a grab cursor, a groove
+   with tick marks down it, and a handle standing at the end of the fill. It
+   was already draggable — press anywhere, drag to trim, arrows to nudge — and
+   read as a progress bar, which is the one thing it is not. */
 .power-track {
     position: relative;
-    height: 22px;
+    height: 24px;
     pointer-events: auto;
-    cursor: pointer;
+    cursor: grab;
     touch-action: none;
-    border-radius: 11px;
-    background: rgba(3, 12, 20, 0.62);
+    border-radius: 12px;
+    background:
+        repeating-linear-gradient(90deg,
+            rgba(255, 255, 255, 0.10) 0 1px,
+            transparent 1px 14px),
+        rgba(3, 12, 20, 0.62);
     border: 1px solid rgba(255, 255, 255, 0.2);
     overflow: hidden;
     box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.5);
 }
 
+.power-track:hover { border-color: rgba(255, 255, 255, 0.34); }
+.power-track.dragging { cursor: grabbing; }
 .power-track:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* The handle. It rides the leading edge of the fill, which is where the value
+   is, so it is the thing you reach for and the thing that follows you. Half of
+   it is clipped at either end of the travel and that is fine — a handle parked
+   hard against the stop is what a handle at the stop looks like. */
+.power-grip {
+    position: absolute;
+    top: -1px;
+    bottom: -1px;
+    left: 0;
+    width: 16px;
+    margin-left: -8px;
+    border-radius: 6px;
+    background: linear-gradient(180deg, #f2f7fb, #b8c6d2);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.55), 0 0 10px rgba(255, 255, 255, 0.25);
+    pointer-events: none;
+    transition: left 0.04s linear;
+}
+
+/* Three ridges, because that is how you draw a thing meant to be gripped. */
+.power-grip::after {
+    content: '';
+    position: absolute;
+    inset: 6px 5px;
+    background: repeating-linear-gradient(90deg,
+        rgba(15, 30, 45, 0.55) 0 1px,
+        transparent 1px 3px);
+}
+
+.power-track.hot .power-grip { background: linear-gradient(180deg, #fff1f1, #f3a8a8); }
+
+/* Said once, in the empty meter, and gone the moment anything is loaded on it
+   — an instruction that stays on screen after it has been followed is clutter,
+   and this one is only ever needed before the first shot. */
+.power-cue {
+    position: absolute;
+    /* Centred, not right-aligned: the last quarter of the track is the hatched
+       overdraw stretch, and a line of text laid over that is a line of text
+       nobody can read. The middle is empty whenever this is showing at all. */
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 0.62rem;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: rgba(226, 240, 250, 0.42);
+    pointer-events: none;
+    transition: opacity 0.18s ease;
+}
+
+.power-track.loaded .power-cue { opacity: 0; }
+
+@media (pointer: coarse) {
+    /* A thumb has already found the meter by the time it reads anything. */
+    .power-cue { display: none; }
+}
 
 .power-fill {
     height: 100%;

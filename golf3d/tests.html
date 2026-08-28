@@ -705,6 +705,16 @@
                                            h.cup.z - own.z, own.z + own.d - h.cup.z) : 0;
                 assert(tag + ': the mouth of the cup is clear of the pad edge',
                     clear > C.HOLE_R + 0.05, 'only ' + clear.toFixed(2) + ' to the edge');
+                /* And on ground that rolls, clear of the flat patch the
+                   renderer cuts the cup out of as well — that patch is a
+                   square, not a circle, so it needs more room than the rim
+                   does, and a cup too near the edge of a contoured pad would
+                   have the renderer stitching a hole into thin air. */
+                if (own && own.bumps && own.bumps.length) {
+                    assert(tag + ': and clear of the flat patch it is cut into',
+                        clear > A.CUP_PATCH + 0.05,
+                        'only ' + clear.toFixed(2) + ' for a patch of ' + A.CUP_PATCH);
+                }
 
                 // Neither end may be inside a wall — a cup buried in a rail
                 // cannot be holed and a tee inside one launches from a bounce.
@@ -729,12 +739,21 @@
                    where it is. Anything else makes surfaceUnder depend on array
                    order, which is the bug this assertion exists to prevent.
 
-                   An inlay has to actually be flush, though, or it is a step
-                   nobody authored: checked here across the whole overlap
-                   rather than at its middle, because a flat disc laid on
-                   rolling ground is flush in the centre however wrong it is at
-                   the rim. */
-                var clash = null, seam = null, worstSeam = 0;
+                   An inlay has to actually meet the ground, though, or it is a
+                   step nobody authored — and *where* it has to meet it is at
+                   its own rim, which is the only place the two surfaces are
+                   next to each other. That is the bug this catches: a flat
+                   disc laid on rolling ground is flush in the middle however
+                   wrong it is at the edge, so the middle is not where to look.
+
+                   Inside the rim an inlay is allowed to fall away from the
+                   ground, because that is what a bunker is (courses.scoop) —
+                   but never to rise above it, which would be a lump of sand
+                   standing on the fairway. Two measurements, then: the worst
+                   disagreement in the band around the rim, and the worst
+                   amount by which an inlay stands proud anywhere. */
+                var clash = null, seam = null, worstSeam = 0, proud = 0, proudAt = null;
+                var RIM = 0.4;      // how wide the band around an inlay's edge is
                 for (var i = 0; i < h.pads.length && !clash; i++) {
                     for (var j = i + 1; j < h.pads.length && !clash; j++) {
                         var a = h.pads[i], b = h.pads[j];
@@ -757,9 +776,15 @@
                                 gap = Math.abs(P.padHeight(a, x0 + sx2, z0 + sz2) -
                                                P.padHeight(b, x0 + sx2, z0 + sz2));
                                 if (!a.inlay !== !b.inlay) {
-                                    // One is laid into the other: they have to
-                                    // agree everywhere, not merely in the middle.
-                                    if (gap > worstSeam) { worstSeam = gap; seam = tag; }
+                                    // One is laid into the other. At the rim
+                                    // they have to agree; inside it the inlay
+                                    // may sink and may not rise.
+                                    var lay = a.inlay ? a : b, bed = a.inlay ? b : a;
+                                    var stand = P.padHeight(lay, x0 + sx2, z0 + sz2) -
+                                                P.padHeight(bed, x0 + sx2, z0 + sz2);
+                                    if (stand > proud) { proud = stand; proudAt = tag; }
+                                    if (edgeDist(lay, x0 + sx2, z0 + sz2) <= RIM &&
+                                        gap > worstSeam) { worstSeam = gap; seam = tag; }
                                 } else if (gap < 0.35) {
                                     clash = i + '/' + j;
                                 }
@@ -773,9 +798,12 @@
                     }
                 }
                 assert(tag + ': no two pads fight for the same ground', !clash, 'pads ' + clash);
-                assert(tag + ': anything inlaid is flush with what it is laid into',
+                assert(tag + ': anything inlaid meets the ground at its own rim',
                     worstSeam <= C.STEP_UP,
                     (seam || '') + ' is out by ' + worstSeam.toFixed(3));
+                assert(tag + ': and never stands proud of it',
+                    proud <= C.STEP_UP,
+                    (proudAt || '') + ' stands ' + proud.toFixed(3) + ' above its bed');
 
                 /* Every hole has to put something on the line between the tee
                    and the cup: a wall, a hazard, a change of surface, a slope
@@ -816,28 +844,174 @@
 
             assert('no wall is thinner than 0.24', minThick >= 0.24, 'thinnest is ' + minThick.toFixed(3));
 
-            /* A parkland bunker is cut into the grass around it, which is
-               what makes it read as a bunker rather than a beige patch. That
-               cut is also the one thing that could turn it into a well: a ball
-               climbs STEP_UP and no more, so a bunker sunk deeper than that is
-               a hazard you cannot putt out of — only fly out of — and the
-               difference would never show up in a screenshot.
+            /* A bunker is cut into the grass around it, which is what makes it
+               read as a bunker rather than a beige patch. That cut is also the
+               one thing that could turn it into a well, and there are now two
+               halves of it to keep honest.
 
-               Only pads that were deliberately sunk are checked. A sand pad
-               level with its neighbours is fine by construction, and one at
-               the foot of somebody else's slope (Highland's 'Over the Top'
-               keeps its sand exactly there, on purpose) is that hole's
+               The **step** is the drop at the edge, which is what a ball has to
+               climb to leave: a ball climbs STEP_UP and no more, so a bunker
+               whose rim is sunk further than that is a hazard nothing can be
+               putted out of, and the difference would never show up in a
+               screenshot.
+
+               The **floor** is what `courses.scoop` adds inside that rim — a
+               dish, so the sand has a shape and a shadow instead of being a
+               flat tray. A dish is not a step and the ball is not asked to
+               climb it in one go, so it is allowed to be deeper; what it is not
+               allowed to be is steeper than sand will hold a ball on, or deeper
+               than the scoop says it is. Both are measured on the real height
+               field rather than trusted, because the whole point of authoring
+               a bunker as humps is that nobody writes its depth down.
+
+               Only pads that were deliberately sunk are checked for the step. A
+               sand pad level with its neighbours is fine by construction, and
+               one at the foot of somebody else's slope (Highland's 'Over the
+               Top' keeps its sand exactly there, on purpose) is that hole's
                business rather than this assertion's. */
             var worstDip = 0, worstDipName = '';
+            var worstFloor = 0, worstFloorName = '', worstSandGrad = 0, sandGradName = '';
+            var scooped = 0;
             ALL.forEach(function (entry) {
                 entry.hole.pads.forEach(function (p) {
-                    if (p.kind !== 'sand' || p.y >= 0) return;
-                    if (-p.y > worstDip) {
+                    if (p.kind !== 'sand') return;
+                    if (p.y < 0 && -p.y > worstDip) {
                         worstDip = -p.y;
                         worstDipName = entry.course.id + '/' + entry.hole.name;
                     }
+                    if (!p.bumps || !p.bumps.length) return;
+                    scooped++;
+                    // Walk the pad. The rim is the pad's own plane — the humps
+                    // are zero there by construction — so the floor is however
+                    // far below that the field goes.
+                    var step = 0.2, x, z, rim, dip, g;
+                    for (x = p.x + 0.1; x < p.x + p.w; x += step) {
+                        for (z = p.z + 0.1; z < p.z + p.d; z += step) {
+                            if (!P.padContains(p, x, z)) continue;
+                            rim = p.y + (p.sx || 0) * (x - p.x) + (p.sz || 0) * (z - p.z);
+                            dip = rim - P.padHeight(p, x, z);
+                            if (dip > worstFloor) {
+                                worstFloor = dip;
+                                worstFloorName = entry.course.id + '/' + entry.hole.name;
+                            }
+                            g = P.slopeAt(p, x, z);
+                            if (g > worstSandGrad) {
+                                worstSandGrad = g;
+                                sandGradName = entry.course.id + '/' + entry.hole.name;
+                            }
+                        }
+                    }
                 });
             });
+            /* Fifteen of them: every bunker on the six drawn courses. The ten
+               on Whinstone are inlays and keep a flat floor on purpose —
+               courses.scoop says why. */
+            assert('there are scooped bunkers to check', scooped >= 15, scooped + ' found');
+            assert('and no inlay was scooped', (function () {
+                var bad = 0;
+                ALL.forEach(function (e) {
+                    e.hole.pads.forEach(function (p) {
+                        if (p.kind === 'sand' && p.inlay && p.bumps && p.bumps.length) bad++;
+                    });
+                });
+                return bad === 0;
+            })());
+            assert('a bunker floor dishes no deeper than the scoop says',
+                worstFloor <= A.SCOOP + 1e-9,
+                worstFloorName + ' falls ' + worstFloor.toFixed(3) +
+                ' and SCOOP is ' + A.SCOOP);
+            assert('and never at a gradient sand would not hold a ball on',
+                worstSandGrad <= C.HOLD.sand,
+                sandGradName + ' reaches ' + worstSandGrad.toFixed(3) +
+                ' against ' + C.HOLD.sand);
+
+            /* The same two questions of the grass. `courses.contour` rolls the
+               middle of every drawn pad, and the two things that could go wrong
+               with that are invisible in a screenshot as well: ground steeper
+               than its own angle of repose is ground no ball will stay on, and
+               a hump that reached a pad's edge would have moved a rail, a step
+               or a shoreline that the rest of the file thinks it knows the
+               height of. The second one is checked directly — walk the boundary
+               of every pad and it must still be exactly the plane it was
+               authored as. */
+            var worstRoll = 0, rollName = '', rolled = 0, movedEdge = 0, edgeName = '';
+            ALL.forEach(function (entry) {
+                entry.hole.pads.forEach(function (p) {
+                    if (!p.bumps || !p.bumps.length || p.kind === 'sand') return;
+                    if (entry.hole.open) return;      // Whinstone's ground is its own thing
+                    rolled++;
+                    var step = 0.35, x, z, g, off;
+                    function plane_at(px, pz) {
+                        return p.y + (p.sx || 0) * (px - p.x) + (p.sz || 0) * (pz - p.z);
+                    }
+                    for (x = p.x; x <= p.x + p.w + 1e-9; x += step) {
+                        for (z = p.z; z <= p.z + p.d + 1e-9; z += step) {
+                            if (!P.padContains(p, x, z)) continue;
+                            g = P.slopeAt(p, x, z) / P.holdOf(p.kind);
+                            if (g > worstRoll) {
+                                worstRoll = g;
+                                rollName = entry.course.id + '/' + entry.hole.name + ' (' + p.kind + ')';
+                            }
+                        }
+                    }
+                    // …and the boundary, which may not have moved at all.
+                    for (x = p.x; x <= p.x + p.w + 1e-9; x += 0.2) {
+                        [p.z, p.z + p.d].forEach(function (zz) {
+                            off = Math.abs(P.padHeight(p, Math.min(x, p.x + p.w), zz) -
+                                           plane_at(Math.min(x, p.x + p.w), zz));
+                            if (off > movedEdge) {
+                                movedEdge = off;
+                                edgeName = entry.course.id + '/' + entry.hole.name;
+                            }
+                        });
+                    }
+                    for (z = p.z; z <= p.z + p.d + 1e-9; z += 0.2) {
+                        [p.x, p.x + p.w].forEach(function (xx) {
+                            off = Math.abs(P.padHeight(p, xx, Math.min(z, p.z + p.d)) -
+                                           plane_at(xx, Math.min(z, p.z + p.d)));
+                            if (off > movedEdge) {
+                                movedEdge = off;
+                                edgeName = entry.course.id + '/' + entry.hole.name;
+                            }
+                        });
+                    }
+                });
+            });
+            assert('there is contoured ground to check', rolled >= 25, rolled + ' pads');
+            assert('no contour is steeper than the surface it is cut into',
+                worstRoll <= 1, rollName + ' is at ' + (worstRoll * 100).toFixed(0) +
+                '% of what its surface can hold');
+            assert('and no contour reaches the edge of its own pad',
+                movedEdge < 1e-9, edgeName + ' moved its boundary by ' + movedEdge.toFixed(4));
+
+            /* The flat ground the tee and the cup are promised. The cup's is
+               not only about the lie — render.addTerrain cuts the hole out of a
+               flat patch and stitches that into the rolling ground around it,
+               and this is what says the patch it needs is genuinely flat. */
+            var worstNearCup = 0, nearCupName = '';
+            ALL.forEach(function (entry) {
+                var h = entry.hole, k, a2, x, z, s;
+                if (h.open) return;
+                for (k = 0; k < 24; k++) {
+                    a2 = k / 24 * Math.PI * 2;
+                    [0.45, 0.8, 1].forEach(function (f) {
+                        x = h.cup.x + Math.cos(a2) * A.CUP_FLAT * f;
+                        z = h.cup.z + Math.sin(a2) * A.CUP_FLAT * f;
+                        s = P.surfaceUnder(h, x, z, Infinity);
+                        if (!s || !s.pad.bumps) return;
+                        var off = Math.abs(P.padHeight(s.pad, x, z) -
+                            (s.pad.y + (s.pad.sx || 0) * (x - s.pad.x) +
+                                       (s.pad.sz || 0) * (z - s.pad.z)));
+                        if (off > worstNearCup) {
+                            worstNearCup = off;
+                            nearCupName = entry.course.id + '/' + h.name;
+                        }
+                    });
+                }
+            });
+            assert('the ground a cup stands on is flat for CUP_FLAT around it',
+                worstNearCup < 1e-9,
+                nearCupName + ' rolls by ' + worstNearCup.toFixed(4) + ' inside the cup\'s clearing');
             /* A tree stands in the rough or on the edge of a fairway — never
                in a bunker and never on a green. Both would be absurd to look
                at, and a trunk in the sand is worse than absurd: it is a wall
@@ -979,6 +1153,18 @@
                     }
                 }
                 return Object.keys(found);
+            }
+
+            /* How far inside its own outline a point is. Zero on the edge,
+               largest in the middle, and negative outside — the same answer
+               for a disc pad and a rectangular one, which is what lets the
+               inlay check above look at the rim without caring which it is. */
+            function edgeDist(pad, x, z) {
+                if (pad.r) {
+                    return pad.r - Math.hypot(x - (pad.x + pad.w / 2), z - (pad.z + pad.d / 2));
+                }
+                return Math.min(x - pad.x, pad.x + pad.w - x,
+                                z - pad.z, pad.z + pad.d - z);
             }
 
             // How much ground there is either side of a point, across the line

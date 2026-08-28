@@ -294,13 +294,89 @@
         });
     }
 
+    /* Sand, raked.
+
+       The first version of this was a flat wash of #d8c391 with white grit
+       thrown at it, and on the screen it was not sand — it was paper. Two
+       things were missing and both of them are about light rather than colour.
+
+       A bunker is *raked*, and the furrows are the only thing at a scale the
+       eye can measure: without them there is nothing in the picture to say how
+       big the sand is or which way it faces, and a dished floor and a flat one
+       look identical. They are drawn as a wave rather than as straight lines,
+       because a rake follows the shape of the bunker and a ruled grating reads
+       as corduroy.
+
+       And it was too *pale*. The palette here is written in sRGB and handed to
+       three.js as if it were linear (render.js says why), so a light sand
+       arrives on screen lighter still and clips to white — which is what threw
+       away the shading on every slope cut into it. The base is a couple of
+       stops down from where it was and the grit does the rest; the sand ends
+       up the same brightness it always looked and now has somewhere to go when
+       the light falls off it. */
     function sandTexture() {
         return canvasTex(128, function (g, s) {
-            g.fillStyle = '#d8c391';
+            var n, i, x, y;
+            g.fillStyle = '#b99b68';
             g.fillRect(0, 0, s, s);
-            for (var n = 0; n < 4000; n++) {
-                g.fillStyle = Math.random() < 0.5 ? 'rgba(255,255,255,0.35)' : 'rgba(150,120,70,0.28)';
+            // The furrows: eight per tile, which at SCALE.sand is a pass of the
+            // rake every twenty-five centimetres.
+            for (i = 0; i < 8; i++) {
+                y = (i + 0.5) * s / 8;
+                g.beginPath();
+                for (x = 0; x <= s; x += 4) {
+                    var wob = Math.sin(x / s * Math.PI * 2 + i) * 2.2 +
+                              Math.sin(x / s * Math.PI * 6 + i * 2.3) * 1.1;
+                    if (x === 0) g.moveTo(x, y + wob); else g.lineTo(x, y + wob);
+                }
+                g.strokeStyle = 'rgba(96,74,42,0.30)';
+                g.lineWidth = 3;
+                g.stroke();
+                g.strokeStyle = 'rgba(255,238,200,0.30)';
+                g.lineWidth = 2;
+                g.translate(0, 3);
+                g.stroke();
+                g.setTransform(1, 0, 0, 1, 0, 0);
+            }
+            for (n = 0; n < 5200; n++) {
+                g.fillStyle = Math.random() < 0.5
+                    ? 'rgba(255,246,222,0.30)' : 'rgba(120,92,48,0.26)';
                 g.fillRect(Math.random() * s, Math.random() * s, 1.5, 1.5);
+            }
+        });
+    }
+
+    /* And the same furrows as a height field, so the sun rakes across them
+       instead of lying on a picture of them. Grey is flat; the light side of
+       each furrow is the ridge and the dark side the trough. Grain goes in
+       too, finer and weaker, which is what stops a bunker looking like a
+       moulded plastic tray under a low sun. */
+    function sandBump() {
+        return canvasTex(128, function (g, s) {
+            var i, x, y, n;
+            g.fillStyle = '#808080';
+            g.fillRect(0, 0, s, s);
+            for (i = 0; i < 8; i++) {
+                y = (i + 0.5) * s / 8;
+                g.beginPath();
+                for (x = 0; x <= s; x += 4) {
+                    var wob = Math.sin(x / s * Math.PI * 2 + i) * 2.2 +
+                              Math.sin(x / s * Math.PI * 6 + i * 2.3) * 1.1;
+                    if (x === 0) g.moveTo(x, y + wob); else g.lineTo(x, y + wob);
+                }
+                g.strokeStyle = '#3a3a3a';
+                g.lineWidth = 3.5;
+                g.stroke();
+                g.strokeStyle = '#d2d2d2';
+                g.lineWidth = 3;
+                g.translate(0, 3.5);
+                g.stroke();
+                g.setTransform(1, 0, 0, 1, 0, 0);
+            }
+            for (n = 0; n < 3000; n++) {
+                g.fillStyle = Math.random() < 0.5
+                    ? 'rgba(255,255,255,0.22)' : 'rgba(0,0,0,0.22)';
+                g.fillRect(Math.random() * s, Math.random() * s, 2, 2);
             }
         });
     }
@@ -440,6 +516,7 @@
             // constant rather than a pad size.
             greenBump: dress(grassBump(), SCALE.green / GRASS_BUMP_SCALE),
             sand: dress(sandTexture()),
+            sandBump: dress(sandBump()),
             wood: dress(woodTexture()),
             rough: dress(roughTexture())
         };

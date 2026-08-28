@@ -678,11 +678,102 @@ both ends of the hole are inside it.
 - **bumps** — humps on a pad, so the ground curves. `hill()` is one,
   `ring()` a circle of them (a punchbowl, or a dell), `dunes()` a seeded field.
   See [Whinstone Links](#whinstone-links).
+- **contour / scoop** — the same humps, applied to a *drawn* hole. Every hole
+  that is not `open` gets both automatically in `build()`, off a seed made from
+  the hole's own name, so a hole's ground is the same ground on every load and
+  no two holes share a shape. See [Relief on a drawn hole](#relief-on-a-drawn-hole).
 - **circle** — a disc pad, and an inlay: laid into whatever it is standing on
   rather than cut out of it. Round greens and round bunkers.
 - **open / fence** — an open hole gets no generated rails at all, and a `fence`
   rectangle instead: the ball is out of bounds if it comes to *rest* outside
   it. Marked on the ground with white stakes, which are scenery.
+
+### Relief on a drawn hole
+
+`dunes` shapes open country, where nothing has an edge that matters: the ground
+runs to the fog in every direction and a hump may land wherever it likes. A
+drawn hole is the opposite. Every edge on one *means* something — a rail is
+generated from where the ground stops, a step is the difference between two
+pads, a shoreline is a pad edge beside a water rectangle, a ramp meets the flat
+at a seam the ball rolls over. Move any of those by a centimetre and the hole
+stops being the hole that was tested.
+
+So relief here obeys one rule that `dunes` does not need:
+
+**A hump lives entirely inside one pad.**
+
+The raised cosine is exactly zero at its own radius, so a hump whose disc fits
+inside a pad's footprint cannot change the height of that pad's edge by
+anything at all. Every rail, every step, every shoreline, every ramp junction
+and every bridge comes out exactly as authored, and only the middle of the
+ground rolls. That is what made it safe to switch on across thirty-six holes
+that were drawn flat, and `tests.html` walks the boundary of every contoured
+pad to prove it: *no contour reaches the edge of its own pad*, to within a
+float.
+
+Three more rules come from the tests rather than the geometry.
+
+- **Nothing rolls under the tee or the cup.** A lie has to be readable from
+  where you are standing, and a cup has to sit on ground that will hold a ball
+  beside it. `CUP_FLAT` is also a promise to the renderer — see below.
+- **The gradient stays inside the surface's own angle of repose.** 0.075 is a
+  little over four degrees against `CONFIG.HOLD.green` of 0.18, so the steepest
+  ground a putt ever crosses is comfortably inside what a green will hold a
+  stopped ball on. What it changes is less where the ball ends up than how the
+  hole *reads*: light and shade across a surface that used to be one flat tone.
+- **Ground you have to land on stays flat.** A pad under `MIN_ROLL_AREA` or
+  narrower than `MIN_ROLL_SIDE` keeps the shape it was drawn with. Tidewater's
+  middle stepping stone is 3.4 units across, and a hollow spanning most of one
+  is not undulation — it is a funnel pointing at the water. The bot stopped
+  being able to finish that hole the moment it got one, which is exactly the
+  job the bot is there to do.
+
+Ramps, banks and inlays are skipped outright: those are shapes somebody drew on
+purpose, and this is for the ground that was left flat.
+
+The spot is picked first and the size second, and that is the whole reason it
+fills a mini golf lane at all. Drawing a radius and then hunting for somewhere
+to put it throws away nineteen spots in twenty on ground six units wide with a
+tee at one end — and it throws away the *interesting* ones, the corners and the
+edges, because those are exactly where a large hump does not fit. Asking a spot
+how much room it has and sizing the hump to the answer keeps them, and the
+humps shrink towards the edges of a pad on their own, which is what ground does.
+
+### Bunkers
+
+`scoop` is the same machinery with a depth instead of a gradient. A bunker used
+to be a beige rectangle a hand's breadth below the grass, which is a step you
+can see and a shape you cannot: from the tee it read as a patch of the wrong
+colour rather than as a hole in the ground.
+
+Every bunker now gets one hollow at its own middle, at full depth and as wide as
+the sand is — not scattered, because a bunker whose floor came out of a dice
+roll is sometimes a saucer and sometimes nothing at all. The first pass shipped
+one at seven centimetres and it read as flat from four metres away. The scatter
+is what happens *around* it: a couple more hollows and the low shoulders
+between them, kept out of the middle so they break up the rim rather than
+deepening the bowl.
+
+Depth is bounded and `tests.html` measures it on the finished height field
+rather than trusting the number that was asked for — the floor may fall away
+smoothly, but never further than `SCOOP` below its own rim and never at a
+gradient sand would not hold a ball on. The **step** at the edge is checked
+separately and still against `STEP_UP`, because that is what a ball actually
+has to climb to leave. A dish is not a step and is not climbed in one go.
+
+**An inlaid bunker keeps its flat floor**, and it is the one place in
+`courses.js` where the renderer gets a vote. A bunker cut out of `bands` is a
+real gap in the ground: the fairway beside it stops at its edge and there is
+nothing under the sand to see. An inlay is not — it is laid into a pad that
+carries straight on underneath it, and that pad is drawn as well. Sink the sand
+and what appears in the hollow is the grass that was always there, so a dished
+inlay comes out as a ring of sand round a disc of fairway. `render.cutUnder`
+takes the ground away under an inlay, but a triangle at a time and only where
+one lies wholly inside — so a grid cell of fairway survives right round the
+rim, which is where a dish is shallowest and would show it. Until the terrain
+mesh can be punched to the circle itself, an inlay is flush or it is wrong. Whinstone's
+ten bunkers get the rest of the pass instead — the raked sheet and the height
+field under it — which is most of what was missing from them anyway.
 
 **Rails are generated, not authored.** `enclose()` walks the boundary of the pad
 union and puts a rail on every edge that has no neighbouring pad at roughly the
@@ -974,6 +1065,25 @@ swing:
 
 None of that is in `physics.js`. The simulation is handed a yaw, a speed and a
 loft exactly as it was before.
+
+## Putting
+
+On the long game, arriving on a green hands you the putter.
+
+Nobody walks up to a ball twelve feet from the pin holding a driver, and until
+now the game made you remember not to: the club stayed in your hand from the
+tee all the way to the hole, so the commonest thing that happened on Ashdown
+Park's greens was a full swing nobody meant to play. It fires the moment a shot
+ends and never again, so a club chosen after that is a club you keep.
+
+It fires on the **long game only**, and that restriction is what makes it safe.
+Five of the seven courses are mini golf, where the floor is green from the tee
+mat to the cup and choosing loft over the thing in the way is the entire game —
+switching to a putter every time the ball stopped would be fighting the player
+on every stroke of Tidewater and Highland. `hole.longGame` is read off the
+ground rather than off the course id: a hole with fairway or rough on it is the
+long game, a hole made entirely of green is a lane. That comes out as Ashdown
+Park and Whinstone Links, which is exactly the two courses it should be.
 
 ## The chrome
 
@@ -1572,7 +1682,7 @@ the four things that can move it says otherwise.
 
 ## Tests
 
-Open `tests.html`. 900 assertions covering the surfaces, the collision
+Open `tests.html`. 989 assertions covering the surfaces, the collision
 geometry, the cup, the integrator, the bag, all forty-two holes of course data
 and the scorecard, in a few seconds.
 

@@ -184,12 +184,21 @@
                 <div class="ctl-row">
                     <div class="power">
                         <span class="ctl-label">Power <b id="power-val">0%</b></span>
+                        <!-- The meter has always been a slider you can press
+                             and drag; what it did not have was anything that
+                             said so. The grip is the handle you reach for, the
+                             ridges on it are what a handle looks like, and the
+                             cue is the one line of text that stops being shown
+                             the moment you touch it. -->
                         <div class="power-track" id="power-track" role="slider" tabindex="0"
+                             title="Press or drag to load the shot"
                              aria-label="Shot power" aria-valuemin="0" aria-valuemax="130" aria-valuenow="0"
                              aria-valuetext="0% — a full swing is 100%">
                             <div class="power-fill" id="power-fill"></div>
                             <i class="power-over" id="power-over" aria-hidden="true"></i>
                             <i class="power-max" id="power-max" aria-hidden="true"></i>
+                            <i class="power-grip" id="power-grip" aria-hidden="true"></i>
+                            <span class="power-cue" id="power-cue" aria-hidden="true">press or drag to load</span>
                         </div>
                         <span class="club-hint" id="club-hint" aria-live="polite"></span>
                     </div>
@@ -234,7 +243,8 @@
                     the course to turn: sideways swings the aim and the camera with it, all the way
                     round, and up and down raises and drops the camera so you can look along the
                     shot or down onto it. Nothing you do out there plays a stroke. Then set the
-                    power on the meter at the bottom — drag it, or nudge it with
+                    power on the meter at the bottom — press anywhere along it to load that
+                    much, then hold the handle and drag to trim, or nudge it with
                     <kbd>↑</kbd><kbd>↓</kbd> — and the arrow on the ground grows as it winds on,
                     turning red when there is nothing left to give. The meter runs <b>past</b> a
                     full swing, into the hatched stretch at the end: see below for what that
@@ -362,7 +372,7 @@
         <details class="panel">
         <summary>Controls</summary>
         <div class="help">
-            <span><b>Drag the course to aim</b>, set the power on the meter, then hit <b>Swing</b>. Nothing you do on the course plays a shot by itself.</span>
+            <span><b>Drag the course to aim</b>, press or drag the power meter, then hit <b>Swing</b>. Nothing you do on the course plays a shot by itself.</span>
             <span><b>The View dial</b> above the meter walks the camera round the ball without moving the shot — the <b>⌖</b> in its middle puts it back behind the ball, and so does a new hole. The <b>🔓</b> beside it locks the camera where it is, so aiming stops swinging the view round; handy on the overview, where a drag to aim otherwise turns the whole hole under you.</span>
             <span class="kb-help"><kbd>←</kbd><kbd>→</kbd> aim · <kbd>↑</kbd><kbd>↓</kbd> power · <kbd>1</kbd>–<kbd>5</kbd> club
                 · <kbd>space</kbd> swing (<kbd>shift</kbd> for fine control)</span>
