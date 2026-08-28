@@ -450,15 +450,10 @@
             color: var(--text-secondary);
             font-weight: 300;
             opacity: 0.75;
-        }
-
-        p.byline {
-            font-size: 0.85rem;
-            color: var(--text-secondary);
-            font-weight: 400;
-            letter-spacing: 0.08em;
-            opacity: 0.6;
-            margin-top: 0.6rem;
+            /* A line this long would otherwise run the full width of a desktop
+               window; hold it to a readable measure and let it wrap. */
+            max-width: 40rem;
+            margin-inline: auto;
         }
 
         .grid {
@@ -1813,6 +1808,14 @@
             text-align: center;
         }
 
+        /* The colophon is a footnote about a name change, not a heading: small
+           enough to sit under the links without competing with them. */
+        footer p.colophon {
+            font-size: 0.72rem;
+            line-height: 1.55;
+            opacity: 0.7;
+        }
+
         @media (max-width: 640px) {
             html {
                 background-attachment: scroll;
@@ -2763,9 +2766,8 @@
 
     <header>
         <h1 id="name-trigger" title="Neskil&#39;s Pot-Pourri" style="cursor:default;user-select:none">Neskil&#39;s Pot-Pourri</h1>
-        <p class="subtitle">Small web apps, mostly logistics: games, calculators, and other
-            experiments.</p>
-        <p class="byline">Created by Niklas Billgren</p>
+        <p class="subtitle">Collection of small web apps, mostly logistics inspired games and other stuff
+            vibed into existence by Niklas Billgren</p>
         <span class="secret-hint" id="secret-hint"></span>
     </header>
 
@@ -3356,7 +3358,7 @@
                 Get in touch
             </a>
         </div>
-        <p>&copy; 2026 Niklas Billgren &mdash; formerly Niklas Eskilsson, which is where the
+        <p class="colophon">&copy; 2026 Niklas Billgren &mdash; formerly Eskilsson, which is where the
             <span style="white-space:nowrap">&ldquo;neskil&rdquo;</span> comes from. All rights reserved.</p>
     </footer>
 
