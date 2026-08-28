@@ -1125,90 +1125,115 @@
 
     /* ── menus and cards ────────────────────────────────────────────────── */
 
-    /* The course picker.
+    /* The course picker, and the only one there is: finishing a round opens
+       this rather than a second list of its own, so there is one place where
+       courses are chosen and it always shows the same records.
 
-       It used to be a list of names and it is now a list of *courses*: six
-       plans apiece, drawn by minimap.js from the hole data, because the names
-       were doing a job they could not do. "Quarry Ridge — ramps, ledges and a
-       long way down" tells you almost nothing next to a picture of Halfpipe,
-       and with seven courses on the list that are no longer all the same kind
-       of golf, the difference between a mini golf lane and forty units of
-       open links is the first thing a player needs to see.
+       It used to be a list of names, and names were doing a job they could not
+       do. "Quarry Ridge — ramps, ledges and a long way down" tells you almost
+       nothing next to a picture of Halfpipe, and with seven courses on the
+       list that are no longer all the same kind of golf, the difference
+       between a mini golf lane and forty units of open links is the first
+       thing a player needs to see. So each course carries six plans, drawn by
+       minimap.js out of the hole data, and each plan is also a way in: the
+       card's head starts the round from the first tee, a plan starts it on
+       that hole, which is what you want when you have come back to practise
+       the one that beat you.
 
-       Each plan is also a way in. Clicking the card starts the round at the
-       first hole as it always did; clicking a plan starts it at that hole,
-       which is what you want when you have come back to practise the one that
-       beat you. The plans are drawn once and cached (minimap.js), so opening
-       this a second time costs nothing. */
-    function openMenu() {
+       `suggestId` is the course the picker is nudging you towards — the one
+       after the round you have just finished. It is marked rather than
+       pre-selected: the whole point of coming back to this list is that you
+       might want a different one. */
+    function openMenu(suggestId) {
         var save = state ? state.save : S.load();
         var host = $('menu-list');
         host.innerHTML = '';
-        G3.COURSES.forEach(function (course) {
-            var rec = S.courseRecord(save, course.id);
-            var par = S.coursePar(course.holes);
-            var card = document.createElement('div');
-            card.className = 'course-card';
+        var first = null;
 
-            var head = document.createElement('button');
-            head.type = 'button';
-            head.className = 'cc-head';
+        G3.COURSE_GROUPS.forEach(function (group) {
+            var courses = G3.coursesInGroup(group.id);
+            if (!courses.length) return;
+            var head = document.createElement('div');
+            head.className = 'course-group';
             head.innerHTML =
-                '<span class="cc-name">' + course.name + '</span>' +
-                '<span class="cc-blurb">' + course.blurb + '</span>' +
-                '<span class="cc-meta">' + course.holes.length + ' holes · par ' + par +
-                ' · best ' + (rec.best === null ? '—' : rec.best + ' (' + S.formatVsPar(rec.bestVsPar) + ')') +
-                '</span>';
-            head.addEventListener('click', function () { newRound(course.id); });
-            card.appendChild(head);
+                '<span class="cg-name">' + group.name + '</span>' +
+                '<span class="cg-blurb">' + group.blurb + '</span>';
+            host.appendChild(head);
 
-            var strip = document.createElement('div');
-            strip.className = 'cc-holes';
-            /* The cells are shaped like the course's own holes. A mini golf
-               lane is two and a half times as deep as it is wide and a links
-               hole is nearly square; one aspect ratio for both letterboxes
-               whichever it was not chosen for, and six thin green ribbons in
-               six square frames is a picker that shows you nothing. Averaged
-               over the course and clamped, because one odd hole should not
-               reshape the other five. */
-            var shape = 0;
-            course.holes.forEach(function (hole) {
-                var b = hole.bounds;
-                shape += (b.maxX - b.minX) / Math.max(0.001, b.maxZ - b.minZ);
+            courses.forEach(function (course) {
+                var rec = S.courseRecord(save, course.id);
+                var par = S.coursePar(course.holes);
+                var card = document.createElement('div');
+                card.className = 'course-card' + (course.id === suggestId ? ' up-next' : '');
+
+                var top = document.createElement('button');
+                top.type = 'button';
+                top.className = 'cc-head';
+                top.innerHTML =
+                    '<span class="cc-name">' + course.name +
+                    (course.id === suggestId ? '<span class="cc-next">up next</span>' : '') + '</span>' +
+                    '<span class="cc-blurb">' + course.blurb + '</span>' +
+                    '<span class="cc-meta">' + course.holes.length + ' holes · par ' + par +
+                    ' · best ' + (rec.best === null ? '—' : rec.best + ' (' + S.formatVsPar(rec.bestVsPar) + ')') +
+                    '</span>';
+                top.addEventListener('click', function () { newRound(course.id); });
+                card.appendChild(top);
+
+                var strip = document.createElement('div');
+                strip.className = 'cc-holes';
+                /* The cells are shaped like the course's own holes. A mini golf
+                   lane is two and a half times as deep as it is wide and a links
+                   hole is nearly square; one aspect ratio for both letterboxes
+                   whichever it was not chosen for, and six thin green ribbons in
+                   six square frames is a picker that shows you nothing. Averaged
+                   over the course and clamped, because one odd hole should not
+                   reshape the other five. */
+                var shape = 0;
+                course.holes.forEach(function (hole) {
+                    var b = hole.bounds;
+                    shape += (b.maxX - b.minX) / Math.max(0.001, b.maxZ - b.minZ);
+                });
+                shape = Math.max(0.4, Math.min(1.5, shape / course.holes.length));
+                strip.style.setProperty('--cc-shape', shape.toFixed(3));
+
+                course.holes.forEach(function (hole, i) {
+                    var cell = document.createElement('button');
+                    cell.type = 'button';
+                    cell.className = 'cc-hole';
+                    cell.title = hole.name + ' — par ' + hole.par;
+                    // The plan pass below reads these rather than counting its
+                    // way through the DOM, so the grouping above is free to put
+                    // the courses in any order it likes.
+                    cell.setAttribute('data-course', course.id);
+                    cell.setAttribute('data-hole', i);
+                    cell.innerHTML =
+                        '<canvas class="cc-map"></canvas>' +
+                        '<span class="cc-num">' + (i + 1) + '</span>' +
+                        '<span class="cc-par">' + hole.par + '</span>';
+                    cell.addEventListener('click', function () { newRound(course.id, i); });
+                    strip.appendChild(cell);
+                });
+                card.appendChild(strip);
+                host.appendChild(card);
+                if (course.id === suggestId) first = top;
             });
-            shape = Math.max(0.4, Math.min(1.5, shape / course.holes.length));
-            strip.style.setProperty('--cc-shape', shape.toFixed(3));
-            course.holes.forEach(function (hole, i) {
-                var cell = document.createElement('button');
-                cell.type = 'button';
-                cell.className = 'cc-hole';
-                cell.title = hole.name + ' — par ' + hole.par;
-                cell.innerHTML =
-                    '<canvas class="cc-map"></canvas>' +
-                    '<span class="cc-num">' + (i + 1) + '</span>' +
-                    '<span class="cc-par">' + hole.par + '</span>';
-                cell.addEventListener('click', function () { newRound(course.id, i); });
-                strip.appendChild(cell);
-            });
-            card.appendChild(strip);
-            host.appendChild(card);
         });
+
         $('menu').className = 'modal show';
+        // Keyboard and screen reader land on the course being offered.
+        if (first) { try { first.focus(); } catch (e) { /* ignore */ } }
 
         /* Drawn after the modal is up, so the canvases have a laid-out size to
            be measured against — and one frame later, so the picker appears at
            once rather than after forty-two holes have been rasterised. */
         if (G3.minimap) {
             requestAnimationFrame(function () {
-                var cells = host.querySelectorAll('.cc-hole');
-                G3.COURSES.forEach(function (course, ci) {
-                    course.holes.forEach(function (hole, i) {
-                        var n = 0, q;
-                        for (q = 0; q < ci; q++) n += G3.COURSES[q].holes.length;
-                        var cell = cells[n + i];
-                        if (cell) G3.minimap.into(cell.querySelector('.cc-map'), course.id, i);
-                    });
-                });
+                var cells = host.querySelectorAll('.cc-hole'), k;
+                for (k = 0; k < cells.length; k++) {
+                    G3.minimap.into(cells[k].querySelector('.cc-map'),
+                        cells[k].getAttribute('data-course'),
+                        parseInt(cells[k].getAttribute('data-hole'), 10));
+                }
             });
         }
     }
@@ -1238,6 +1263,17 @@
             '<tr><td></td><td>To par</td><td></td><td class="' +
             (tot.vsPar < 0 ? 'under' : tot.vsPar > 0 ? 'over' : 'level') + '">' +
             S.formatVsPar(tot.vsPar) + '</td></tr></tfoot></table>';
+        /* A finished round is the moment to offer another course, and the
+           offer is the picker itself rather than a one-off button: the list
+           is where the records live and where the categories are. Mid-round
+           the same card is just a scorecard, so the button goes away. */
+        var next = $('card-next');
+        if (res) {
+            next.hidden = false;
+            next.textContent = 'Next: ' + G3.courseById(G3.nextCourseId(state.course.id)).name;
+        } else {
+            next.hidden = true;
+        }
         $('scorecard').className = 'modal show';
     }
 
@@ -1332,7 +1368,9 @@
 
         $('banner-next').addEventListener('click', nextHole);
         $('btn-restart').addEventListener('click', restartHole);
-        $('btn-courses').addEventListener('click', openMenu);
+        // Wrapped: openMenu takes the course to nudge towards, and a click
+        // handler would otherwise hand it an Event.
+        $('btn-courses').addEventListener('click', function () { openMenu(); });
         $('btn-card').addEventListener('click', function () { openCard(null); });
         $('btn-view').addEventListener('click', cycleSeat);
         $('btn-swing').addEventListener('click', shoot);
@@ -1388,6 +1426,10 @@
         document.addEventListener('webkitfullscreenchange', onFullscreenChange);
         $('card-close').addEventListener('click', closeCard);
         $('card-again').addEventListener('click', function () { newRound(state.course.id); });
+        $('card-next').addEventListener('click', function () {
+            closeCard();
+            openMenu(G3.nextCourseId(state.course.id));
+        });
         $('menu-close').addEventListener('click', function () {
             if (state && state.world) closeMenu();
         });

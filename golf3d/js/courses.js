@@ -1223,9 +1223,20 @@
         })
     ];
 
+    /* Seven courses is one list too long to read at a glance, and the last
+       two are not the same game as the first five — a mini golf hole is one
+       swing and a putt, a links hole is a drive and an approach. The group
+       is what the picker sorts on, and it is written here rather than in the
+       menu so a new course arrives already filed. */
+    G3.COURSE_GROUPS = [
+        { id: 'mini', name: 'Mini golf', blurb: 'One swing to the green, or near enough. Six holes each.' },
+        { id: 'long', name: 'The long game', blurb: 'Fairway, rough and sand. Two shots to most greens.' }
+    ];
+
     G3.COURSES = [
         {
             id: 'seaside',
+            group: 'mini',
             name: 'Seaside Green',
             blurb: 'Six flat-ish holes by the water. Learn the pace here.',
             theme: 'seaside',
@@ -1233,6 +1244,7 @@
         },
         {
             id: 'quarry',
+            group: 'mini',
             name: 'Quarry Ridge',
             blurb: 'Ramps, ledges and a long way down. Bring loft.',
             theme: 'quarry',
@@ -1240,6 +1252,7 @@
         },
         {
             id: 'works',
+            group: 'mini',
             name: 'Windmill Works',
             blurb: 'Everything moves. Nothing waits.',
             theme: 'works',
@@ -1247,6 +1260,7 @@
         },
         {
             id: 'tidewater',
+            group: 'mini',
             name: 'Tidewater Reach',
             blurb: 'Water where the fairway should be. Six holes you have to fly.',
             theme: 'lagoon',
@@ -1254,6 +1268,7 @@
         },
         {
             id: 'highland',
+            group: 'mini',
             name: 'Highland Steps',
             blurb: 'Up the hill in stages, over what will not move.',
             theme: 'highland',
@@ -1261,6 +1276,7 @@
         },
         {
             id: 'parkland',
+            group: 'long',
             name: 'Ashdown Park',
             blurb: 'The long game: fairway, rough, sand and trees. Two shots to most greens.',
             theme: 'parkland',
@@ -1268,12 +1284,27 @@
         },
         {
             id: 'whinstone',
+            group: 'long',
             name: 'Whinstone Links',
             blurb: 'Open country, no fences, rolling ground. Aim at the flat parts.',
             theme: 'links',
             holes: whinstone
         }
     ];
+
+    /* The courses of one group, in the order they are written above. */
+    G3.coursesInGroup = function (groupId) {
+        return G3.COURSES.filter(function (c) { return c.group === groupId; });
+    };
+
+    /* The one after this, wrapping round the end of the whole list — what a
+       finished round offers next. */
+    G3.nextCourseId = function (id) {
+        for (var i = 0; i < G3.COURSES.length; i++) {
+            if (G3.COURSES[i].id === id) return G3.COURSES[(i + 1) % G3.COURSES.length].id;
+        }
+        return G3.COURSES[0].id;
+    };
 
     G3.courseById = function (id) {
         for (var i = 0; i < G3.COURSES.length; i++) {
