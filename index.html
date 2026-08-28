@@ -4,21 +4,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Niklas Billgren | Portfolio</title>
-    <meta name="description" content="Personal site of Niklas Billgren, supply chain consultant. Browser games and calculators built around logistics: Supply Chain Tycoon, CargoLander, unit converters, and a car cost-of-ownership model.">
+    <title>Neskil's Pot-Pourri | Niklas Billgren</title>
+    <meta name="description" content="Neskil's Pot-Pourri &mdash; the personal site of Niklas Billgren, supply chain consultant. Browser games and calculators built around logistics: Supply Chain Tycoon, CargoLander, unit converters, and a car cost-of-ownership model.">
     <meta name="author" content="Niklas Billgren">
     <meta name="theme-color" content="#0f1428">
     <meta name="color-scheme" content="dark">
     <link rel="canonical" href="https://neskil.github.io/">
-    <meta property="og:site_name" content="Niklas Billgren">
-    <meta property="og:title" content="Niklas Billgren: logistics, in playable form">
+    <meta property="og:site_name" content="Neskil's Pot-Pourri">
+    <meta property="og:title" content="Neskil's Pot-Pourri: logistics, in playable form">
     <meta property="og:description" content="Browser games and calculators built around supply chain: haul freight in Supply Chain Tycoon, fly cargo in CargoLander, or work out what a car really costs.">
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://neskil.github.io/">
     <meta property="og:image" content="https://neskil.github.io/assets/og/home.png">
     <meta property="og:image:width" content="1200">
     <meta property="og:image:height" content="630">
-    <meta property="og:image:alt" content="Portfolio homepage showing project cards for Supply Chain Tycoon, CargoLander and Quick Converter.">
+    <meta property="og:image:alt" content="The Neskil's Pot-Pourri card grid, showing tiles for Cargo Lander, Supply Chain Tycoon and Yard Master 3D.">
     <meta name="twitter:card" content="summary_large_image">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -76,6 +76,40 @@
             transition: --bg-color-1 0.8s ease-in-out, --bg-color-2 0.8s ease-in-out, --hue 0.8s ease-in-out;
         }
 
+        /* ── The three palettes ─────────────────────────────────────────────
+           A background variant is a colour, not a structure: the ruled grid is on
+           whatever the page is wearing (see #bg-grid). So switching one swings
+           --hue and the two base colours, and everything derived from them
+           follows — the drifting lights, Dawn's sweep, and the grid's own ink.
+           All three are registered @property values carrying the 0.8s transition
+           on html above, so a switch is a slow colour turn rather than a cut.
+
+           These sit below the base html rule and above the card themes on
+           purpose. An attribute selector outranks the bare `html`, and the card
+           themes match at the same specificity further down the sheet, so
+           hovering a card still pulls the palette to that card's colour and
+           releasing it falls back to whichever variant is showing. */
+        html[data-bg="blueprint"] {
+            --bg-color-1: #0f172a;
+            --bg-color-2: #1e1b4b;
+            --hue: 232;
+            --lights: 0.55;
+        }
+
+        html[data-bg="aurora"] {
+            --bg-color-1: #06171c;
+            --bg-color-2: #0c2438;
+            --hue: 168;
+            --lights: 1;
+        }
+
+        html[data-bg="dawn"] {
+            --bg-color-1: #16101f;
+            --bg-color-2: #2b1330;
+            --hue: 340;
+            --lights: 0.5;
+        }
+
         html[data-theme="card-supply-chain"] {
             --bg-color-1: #15110a;
             --bg-color-2: #20170c;
@@ -106,16 +140,10 @@
             --hue: 160;
         }
 
-        html[data-theme="card-golf"] {
+        html[data-theme="card-golf-hub"] {
             --bg-color-1: #08190f;
             --bg-color-2: #102c1b;
             --hue: 140;
-        }
-
-        html[data-theme="card-golf3d"] {
-            --bg-color-1: #06121e;
-            --bg-color-2: #0e2436;
-            --hue: 198;
         }
 
         html[data-theme="card-cv"] {
@@ -153,10 +181,12 @@
            hsl(45 60% 25%) field would blaze on top of it. color-mix keeps each
            field a nudge away from whatever the base currently is.
 
-           A variant is one layer for its character (ruled plane, vignette, sweep).
-           The drifting lights and the grain sit outside that and show under all of
-           them, so a new variant is one layer here, one html[data-bg="…"] rule and
-           one entry in BG_VARIANTS. */
+           A variant is a palette (above) plus one layer for its character — a
+           wash, a vignette, a sweep. The drifting lights, the ruled grid and the
+           grain sit outside all of that and show over every one of them, which is
+           what lets the colours rotate without the page appearing to rebuild
+           itself. A new variant is one palette rule, one layer here and one entry
+           in BG_VARIANTS. */
         html {
             --tint-a: color-mix(in oklab, hsl(var(--hue) 70% 45%) 26%, var(--bg-color-1));
             --tint-b: color-mix(in oklab, hsl(calc(var(--hue) + 55) 60% 45%) 22%, var(--bg-color-2));
@@ -172,7 +202,11 @@
             z-index: -2;
             pointer-events: none;
             opacity: 0;
-            transition: opacity 1.4s ease-in-out;
+            /* Matches the 0.8s on html's --bg-color-*/--hue above. It used to be
+               1.4s, which meant a palette change arrived in two stages: the
+               colours landed, then half a second later the vignette or the sweep
+               caught up behind them. */
+            transition: opacity 0.8s ease-in-out;
         }
 
         html[data-bg="aurora"] [data-bg-layer="aurora"],
@@ -189,7 +223,7 @@
         #bg-lights {
             opacity: var(--lights);
             overflow: hidden;
-            transition: opacity 1.4s ease-in-out;
+            transition: opacity 0.8s ease-in-out;
         }
 
         .bg-blob {
@@ -243,28 +277,17 @@
             background: radial-gradient(115% 100% at 50% 40%, transparent 42%, rgba(2, 4, 12, 0.78) 100%);
         }
 
-        /* ── 2. Blueprint — a ruled plane over dimmed lights, masked so the grid
-              fades out before it reaches the edges ── */
-        html[data-bg="blueprint"] {
-            --lights: 0.55;
-        }
-
+        /* ── 2. Blueprint — the house palette. Cool indigo, lights turned down,
+              and a wash that deepens towards the bottom so the grid over it reads
+              as a plane lit from above rather than a flat pattern ── */
         [data-bg-layer="blueprint"] {
-            background:
-                repeating-linear-gradient(0deg, hsl(var(--hue) 70% 70% / 0.05) 0 1px, transparent 1px 44px),
-                repeating-linear-gradient(90deg, hsl(var(--hue) 70% 70% / 0.05) 0 1px, transparent 1px 44px);
-            -webkit-mask-image: radial-gradient(120% 90% at 50% 30%, #000 35%, transparent 85%);
-            mask-image: radial-gradient(120% 90% at 50% 30%, #000 35%, transparent 85%);
+            background: linear-gradient(180deg, rgba(2, 4, 12, 0) 28%, rgba(2, 4, 12, 0.5) 100%);
         }
 
         /* ── 3. Dawn — a slow sweep rising from below the fold. The gradient is
               centred past the bottom edge and the whole disc turns once every
               four minutes, so the viewport only ever sees a moving slice of it.
               Deliberately washed out: two tints and a lot of base. ── */
-        html[data-bg="dawn"] {
-            --lights: 0.5;
-        }
-
         [data-bg-layer="dawn"] {
             overflow: hidden;
             /* The sweep is opaque, so it goes under the lights rather than over
@@ -294,6 +317,22 @@
 
         @keyframes bg-sweep-turn {
             to { transform: rotate(360deg); }
+        }
+
+        /* ── The ruled plane ──
+           Always on, over whichever palette is showing — the one piece of the
+           background that does not rotate, and the reason a colour change reads as
+           the light moving rather than the page being swapped out. The ink is
+           hsl(var(--hue) …), so the grid turns with the palette while the lines
+           themselves stay exactly where they were. Masked so it fades out before
+           it reaches the edges. */
+        #bg-grid {
+            opacity: 1;
+            background:
+                repeating-linear-gradient(0deg, hsl(var(--hue) 70% 70% / 0.05) 0 1px, transparent 1px 44px),
+                repeating-linear-gradient(90deg, hsl(var(--hue) 70% 70% / 0.05) 0 1px, transparent 1px 44px);
+            -webkit-mask-image: radial-gradient(120% 90% at 50% 30%, #000 35%, transparent 85%);
+            mask-image: radial-gradient(120% 90% at 50% 30%, #000 35%, transparent 85%);
         }
 
         /* Grain — texture, and it hides the banding dark gradients get on 8-bit
@@ -407,9 +446,14 @@
         }
 
         p.subtitle {
-            font-size: 1.25rem;
+            font-size: 1.05rem;
             color: var(--text-secondary);
             font-weight: 300;
+            opacity: 0.75;
+            /* A line this long would otherwise run the full width of a desktop
+               window; hold it to a readable measure and let it wrap. */
+            max-width: 40rem;
+            margin-inline: auto;
         }
 
         .grid {
@@ -458,6 +502,17 @@
             initial-value: 0px;
         }
 
+        /* The mobile focus scale, and the same reasoning as --rx/--ry/--ty: it
+           feeds nothing but .card's own transform, so it stays out of the
+           inheritance chain and the invalidation stops at the card. Registering
+           it is also what makes it animatable at all — an unregistered custom
+           property is a string, and a string interpolates by snapping. */
+        @property --focus-scale {
+            syntax: '<number>';
+            inherits: false;
+            initial-value: 1;
+        }
+
         @property --mx {
             syntax: '<percentage>';
             inherits: true;
@@ -484,6 +539,7 @@
             --mx: 50%;
             --my: 50%;
             --mag: 0;
+            --focus-scale: 1;
             /* Stacked flat layers underneath give the card a slight physical edge/thickness. */
             --edge-shadow:
                 0 1px 0 rgba(4, 6, 16, 0.5),
@@ -500,8 +556,9 @@
             justify-content: space-between;
             align-items: flex-start;
             height: 100%;
-            transform: perspective(1000px) translateY(var(--ty)) rotateX(var(--rx)) rotateY(var(--ry));
-            transition: border-color 0.4s ease, box-shadow 0.4s ease;
+            transform: perspective(1000px) translateY(var(--ty)) rotateX(var(--rx)) rotateY(var(--ry)) scale(var(--focus-scale));
+            transition: border-color 0.4s ease, box-shadow 0.4s ease, opacity 0.42s ease,
+                --focus-scale 0.42s cubic-bezier(0.22, 1, 0.36, 1);
             box-shadow: var(--edge-shadow), 0 6px 14px rgba(0, 0, 0, 0.16);
             cursor: pointer;
             text-decoration: none;
@@ -680,7 +737,7 @@
             color: rgb(34, 211, 238);
         }
 
-        #card-golf {
+        #card-golf-hub {
             --accent-rgb: 74, 222, 128;
             --card-bg-gradient: linear-gradient(135deg, rgba(16, 36, 24, 0.65) 0%, rgba(15, 22, 35, 0.60) 100%);
             --card-hover-gradient: linear-gradient(135deg, rgba(24, 56, 36, 0.80) 0%, rgba(20, 28, 48, 0.75) 100%);
@@ -688,20 +745,433 @@
             --card-hover-border: rgba(134, 239, 172, 0.48);
         }
 
-        #card-golf .card-link {
+        #card-golf-hub .card-link {
             color: rgb(134, 239, 172);
         }
 
-        #card-golf3d {
-            --accent-rgb: 56, 189, 248;
-            --card-bg-gradient: linear-gradient(135deg, rgba(14, 32, 48, 0.65) 0%, rgba(15, 22, 35, 0.60) 100%);
-            --card-hover-gradient: linear-gradient(135deg, rgba(20, 52, 76, 0.80) 0%, rgba(20, 28, 48, 0.75) 100%);
-            --card-border: rgba(56, 189, 248, 0.22);
-            --card-hover-border: rgba(125, 211, 252, 0.48);
+        /* ── The dimension picker: the flip side of #card-golf-hub ───────────
+           Two options, each carrying its own accent and its own record, so the
+           blue one reads as the 3D game without a word saying so. --accent-rgb
+           is a plain inherited property, which is exactly what is wanted here:
+           setting it on the option re-tints the badge, the arrow and the score
+           inside it in one go. ── */
+        #card-golf-hub .card-face-back {
+            gap: 0.65rem;
+            /* .card-face packs to the start; the options want the full width.
+               They happen to get it today because the 3D blurb is long enough to
+               push them there, which is not a thing to rely on. */
+            align-items: stretch;
         }
 
-        #card-golf3d .card-link {
-            color: rgb(125, 211, 252);
+        /* ── The picker on a short screen ────────────────────────────────────
+           This is the tallest panel on the site — two games, each with a picture
+           — and it is sized to its content, so on a short viewport it is the one
+           that runs out of room and starts scrolling inside itself. Both steps
+           below buy height back from the pictures rather than from the copy,
+           because a cropped screenshot still says which game it is and a
+           truncated sentence does not.
+
+           object-fit: cover means the shorter frames crop rather than squash;
+           both shots have their subject through the middle band. ── */
+        @media (max-height: 680px) {
+            #card-golf-hub .dim-shot {
+                aspect-ratio: 800 / 280;
+            }
+
+            .dim-desc {
+                -webkit-line-clamp: 2;
+                line-clamp: 2;
+            }
+
+            .dim-option {
+                padding: 0.5rem;
+                gap: 0.45rem;
+            }
+        }
+
+        /* Two of everything is what makes this panel the tall one, so it is also
+           the one that cannot spend a wider panel on taller pictures: at 820
+           wide, two stacked 16:9 shots want more height than a 1080p screen has.
+           Side by side, the extra width goes into the pictures instead — which
+           is what you want when the whole panel is a choice between two of them.
+
+           The landscape rule below does the same thing for the opposite reason:
+           a phone on its side has barely 350px of panel, which no amount of
+           cropping fits two stacked options into. */
+        @media (min-width: 760px), (max-height: 480px) {
+            #card-golf-hub .card-face-back {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                align-content: start;
+            }
+
+            #card-golf-hub .dim-head {
+                grid-column: 1 / -1;
+            }
+        }
+
+        @media (max-height: 480px) {
+            /* Undo the short-screen crop from the rule above: side by side the
+               shots are half as wide, so they fit at their natural shape. */
+            #card-golf-hub .dim-shot {
+                aspect-ratio: 800 / 420;
+            }
+        }
+
+        .dim-head {
+            padding-right: 2.5rem; /* clear of the close button */
+        }
+
+        .dim-title {
+            font-size: 1.05rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .dim-sub {
+            font-size: 0.78rem;
+            color: var(--text-secondary);
+        }
+
+        .dim-option {
+            display: flex;
+            flex-direction: column;
+            gap: 0.55rem;
+            padding: 0.6rem;
+            border-radius: 14px;
+            text-decoration: none;
+            color: inherit;
+            background: rgba(255, 255, 255, 0.035);
+            border: 1px solid rgba(var(--accent-rgb), 0.22);
+            transition: background 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease,
+                transform 0.25s ease;
+        }
+
+        .dim-option:hover,
+        .dim-option:focus-visible {
+            background: rgba(var(--accent-rgb), 0.12);
+            border-color: rgba(var(--accent-rgb), 0.55);
+            box-shadow: 0 0 18px rgba(var(--accent-rgb), 0.18);
+            transform: translateY(-2px);
+        }
+
+        .dim-2d {
+            --accent-rgb: 74, 222, 128;
+        }
+
+        .dim-3d {
+            --accent-rgb: 56, 189, 248;
+        }
+
+        /* Same frame, same aspect-ratio trick and same lazy load as .peek-shot:
+           the picker is a card back too, it just has two games on it. */
+        .dim-shot {
+            position: relative;
+            display: block;
+            width: 100%;
+            aspect-ratio: 800 / 420;
+            border-radius: 10px;
+            overflow: hidden;
+            background: rgba(0, 0, 0, 0.32);
+            border: 1px solid rgba(var(--accent-rgb), 0.25);
+        }
+
+        .dim-shot img {
+            display: block;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            opacity: 0;
+            transition: opacity 0.45s ease;
+        }
+
+        .dim-shot img.is-loaded {
+            opacity: 1;
+        }
+
+        /* The dimension is a stamp on the picture rather than a tile beside it —
+           the two shots already say flat and lofted before you read anything. */
+        .dim-badge {
+            position: absolute;
+            top: 7px;
+            left: 7px;
+            padding: 2px 8px;
+            border-radius: 7px;
+            font-family: 'Outfit', sans-serif;
+            font-size: 0.72rem;
+            font-weight: 800;
+            letter-spacing: 0.04em;
+            color: rgb(var(--accent-rgb));
+            background: rgba(6, 8, 16, 0.72);
+            border: 1px solid rgba(var(--accent-rgb), 0.45);
+        }
+
+        .dim-body {
+            display: flex;
+            flex-direction: column;
+            gap: 0.18rem;
+            min-width: 0;
+        }
+
+        .dim-name {
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .dim-desc {
+            font-size: 0.75rem;
+            line-height: 1.45;
+            color: var(--text-secondary);
+            /* Two options plus their pictures have to fit one phone panel, and
+               the 3D blurb is the longest copy on the page. */
+            display: -webkit-box;
+            -webkit-box-orient: vertical;
+            -webkit-line-clamp: 3;
+            line-clamp: 3;
+            overflow: hidden;
+        }
+
+        .dim-stat {
+            margin-top: 0.15rem;
+            font-family: 'Outfit', sans-serif;
+            font-size: 0.72rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+        }
+
+        .dim-stat .stat-val {
+            color: rgb(var(--accent-rgb));
+            font-weight: 800;
+        }
+
+
+        /* ── The back of the box ─────────────────────────────────────────────
+           Every card in the grid is a flip card now: the front is the spine you
+           read while scrolling, and turning it over gets you a screenshot of the
+           thing actually running, plus the button that starts it. The picture is
+           the point — it is the one thing a paragraph of description cannot do,
+           and it is why the launch moved back here rather than staying on the
+           front. ── */
+        /* .card-face is declared below this block and packs its children to the
+           start, which is right for the About card's ragged copy and wrong here:
+           the shot, the text and the launch button all want the panel's full
+           width. Two classes to outrank it rather than moving the rule. */
+        .card-face.peek-back {
+            padding: 1rem;
+            gap: 0.75rem;
+            align-items: stretch;
+        }
+
+        /* The frame holds its shape before the image arrives: the aspect ratio
+           is declared, so the panel is measured and sized correctly on the very
+           first flip, while the file is still in flight. Without it the panel
+           opens short and jumps taller the moment the image decodes. */
+        .peek-shot {
+            width: 100%;
+            aspect-ratio: 800 / 420;
+            flex-shrink: 0;
+            border-radius: 12px;
+            overflow: hidden;
+            background: rgba(0, 0, 0, 0.32);
+            border: 1px solid rgba(var(--accent-rgb), 0.28);
+        }
+
+        /* A single shot sits in the flow; a stack of them is laid one on top of
+           another so the frame keeps its aspect-ratio height either way. */
+        .peek-shot {
+            position: relative;
+        }
+
+        .peek-shot img {
+            display: block;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            opacity: 0;
+            transition: opacity 0.45s ease;
+        }
+
+        .peek-shot img.is-loaded {
+            opacity: 1;
+        }
+
+        /* ── More than one shot: a slow deal of the deck ─────────────────────
+           One screenshot of a game with ten missions in it undersells the game.
+           Where a card has several, they cross-fade in place — the frame never
+           moves, only what is inside it — and the one on top drifts very
+           slightly while it holds, which is what stops three still images from
+           reading as a broken carousel. Only the visible one is opaque, so the
+           stack costs one composited layer and no layout at all.
+
+           Cheap enough to run for as long as the panel is open, and it stops
+           dead the moment it closes: see startPeekShow. */
+        .peek-shot-multi img {
+            position: absolute;
+            inset: 0;
+            transition: opacity 0.7s ease;
+        }
+
+        .peek-shot-multi img.is-loaded {
+            opacity: 0;
+        }
+
+        .peek-shot-multi img.is-current {
+            opacity: 1;
+            animation: peekDrift 6s ease-in-out both;
+        }
+
+        @keyframes peekDrift {
+            from { transform: scale(1.045) translate3d(0.6%, -0.4%, 0); }
+            to   { transform: scale(1.0)   translate3d(-0.6%, 0.4%, 0); }
+        }
+
+        /* Dots, so it reads as three pictures rather than one that keeps
+           changing its mind. */
+        .peek-dots {
+            position: absolute;
+            left: 50%;
+            bottom: 8px;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 5px;
+            z-index: 2;
+            pointer-events: none;
+        }
+
+        .peek-dot {
+            width: 5px;
+            height: 5px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.35);
+            box-shadow: 0 0 4px rgba(0, 0, 0, 0.6);
+            transition: background 0.4s ease;
+        }
+
+        .peek-dot.is-current {
+            background: rgba(255, 255, 255, 0.95);
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            /* No deal, no drift — the first shot and nothing else moving. */
+            .peek-shot-multi img.is-current {
+                animation: none;
+            }
+        }
+
+        .peek-body {
+            display: flex;
+            flex-direction: column;
+            gap: 0.3rem;
+            min-width: 0;
+        }
+
+        .peek-title {
+            font-size: 1.08rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .peek-text {
+            font-size: 0.8rem;
+            line-height: 1.5;
+            color: var(--text-secondary);
+        }
+
+        .peek-stat {
+            font-family: 'Outfit', sans-serif;
+            font-size: 0.72rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+        }
+
+        .peek-stat:empty {
+            display: none;
+        }
+
+        .peek-stat .stat-val {
+            color: rgb(var(--accent-rgb));
+            font-weight: 800;
+        }
+
+        .peek-launch {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            padding: 0.72rem 1rem;
+            border-radius: 12px;
+            font-family: 'Outfit', sans-serif;
+            font-size: 0.92rem;
+            font-weight: 700;
+            text-decoration: none;
+            color: rgb(var(--accent-rgb));
+            background: rgba(var(--accent-rgb), 0.14);
+            border: 1px solid rgba(var(--accent-rgb), 0.42);
+            transition: background 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
+        }
+
+        .peek-launch:hover,
+        .peek-launch:focus-visible {
+            background: rgba(var(--accent-rgb), 0.24);
+            border-color: rgba(var(--accent-rgb), 0.72);
+            box-shadow: 0 0 22px rgba(var(--accent-rgb), 0.24);
+        }
+
+        .peek-launch svg {
+            width: 17px;
+            height: 17px;
+            transition: transform 0.2s ease;
+        }
+
+        .peek-launch:hover svg {
+            transform: translateX(3px);
+        }
+
+        /* ── The back of the box, on a phone held sideways ───────────────────
+           A landscape phone has around 350px of panel to give, and a stacked
+           back face wants closer to 470: the screenshot alone is a third of the
+           height at full width. Every preview panel overflowed, and on the
+           taller ones the launch button was below the fold of a panel most
+           people would not think to scroll.
+
+           Side by side it fits with room over — the shot takes one column and
+           spans both rows, the copy and the button take the other. This is the
+           one layout on the site where a landscape screen is the better shape
+           for the job rather than the awkward one. */
+        @media (max-height: 480px) {
+            .card-face.peek-back {
+                display: grid;
+                grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+                align-content: start;
+            }
+
+            .peek-shot {
+                grid-column: 1;
+                grid-row: 1 / -1;
+                align-self: start;
+            }
+
+            .peek-body,
+            .peek-launch {
+                grid-column: 2;
+            }
+
+            /* In this layout the copy runs to the panel's right edge, where the
+               close button is — in portrait it sits over the screenshot instead
+               and needs no help. */
+            .peek-body {
+                padding-right: 2.6rem;
+            }
+        }
+
+        /* The close button sits on the screenshot rather than on card felt, so
+           it needs a ground of its own to stay legible over whatever the shot
+           happens to be. */
+        .peek-back .card-close {
+            background: rgba(6, 8, 16, 0.62);
+            border-color: rgba(255, 255, 255, 0.22);
+            color: #fff;
         }
 
         /* Backdrop for the expanded About card. Blurs and dims the grid behind it
@@ -735,6 +1205,7 @@
             --rx: 0deg;
             --ry: 0deg;
             --ty: 0px;
+            --focus-scale: 1;
         }
 
         .flip-card.is-open .card-face {
@@ -789,7 +1260,7 @@
             content: none;
         }
 
-        .flip-card .card-link {
+        #card-about .card-link {
             color: rgb(253, 164, 175);
         }
 
@@ -973,7 +1444,8 @@
             border-bottom-color: rgba(255, 255, 255, 0.7);
         }
 
-        .about-close {
+        .about-close,
+        .card-close {
             position: absolute;
             top: 0.9rem;
             right: 0.9rem;
@@ -992,13 +1464,15 @@
             transition: opacity 0.35s ease, color 0.2s ease, background 0.2s ease;
         }
 
-        .about-close svg {
+        .about-close svg,
+        .card-close svg {
             width: 15px;
             height: 15px;
             fill: none;
         }
 
-        .flip-card:hover .about-close {
+        .flip-card:hover .about-close,
+        .flip-card:hover .card-close {
             color: var(--text-primary);
             background: rgba(255, 255, 255, 0.12);
         }
@@ -1121,7 +1595,8 @@
         }
 
         /* CV keeps a quieter glare — "dry" on purpose. */
-        #card-cv::before {
+        #card-cv::before,
+        #card-cv .card-face-front::before {
             opacity: calc(0.03 + var(--mag) * 0.12);
         }
 
@@ -1166,7 +1641,8 @@
            flatly washing out the (already fairly low-contrast) body text underneath. ── */
 
         /* Metal: brushed-texture stripes plus a tighter specular highlight that rides the glare position. */
-        .card-metal::before {
+        .card-metal::before,
+        .card-metal .card-face-front::before {
             background:
                 radial-gradient(circle at var(--mx) var(--my), rgba(var(--accent-rgb), 0.55), rgba(var(--accent-rgb), 0) 58%),
                 repeating-linear-gradient(95deg,
@@ -1179,7 +1655,8 @@
         }
 
         /* Paper: faint ruled lines + uneven fiber-like light/shadow patches, minimal shine. */
-        .card-paper::before {
+        .card-paper::before,
+        .card-paper .card-face-front::before {
             background:
                 radial-gradient(circle at var(--mx) var(--my), rgba(var(--accent-rgb), 0.35), rgba(var(--accent-rgb), 0) 58%),
                 repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.025) 0px, rgba(255, 255, 255, 0.025) 1px, transparent 1px, transparent 22px),
@@ -1191,7 +1668,7 @@
 
 
         /* ── Dynamic tracking shine overlay for Supply Chain Tycoon (modeled on CargoLander) ── */
-        #card-supply-chain::after {
+        #card-supply-chain .card-face-front::after {
             content: '';
             position: absolute;
             inset: 0;
@@ -1214,7 +1691,7 @@
         }
 
         /* ── Holo shine (CargoLander card) — layers on top of the standard glare above ── */
-        #card-cargo-lander::after {
+        #card-cargo-lander .card-face-front::after {
             content: '';
             position: absolute;
             inset: 0;
@@ -1331,6 +1808,14 @@
             text-align: center;
         }
 
+        /* The colophon is a footnote about a name change, not a heading: small
+           enough to sit under the links without competing with them. */
+        footer p.colophon {
+            font-size: 0.72rem;
+            line-height: 1.55;
+            opacity: 0.7;
+        }
+
         @media (max-width: 640px) {
             html {
                 background-attachment: scroll;
@@ -1365,13 +1850,23 @@
             .grid {
                 grid-template-columns: 1fr;
                 grid-auto-rows: auto;
-                gap: 1rem;
+                gap: 0.75rem;
             }
 
+            /* ── Resting size ──
+               These cards were drawn for a desktop grid and then simply
+               narrowed, which on a phone came out at roughly two and a half of
+               them per screen: eleven cards took most of a minute to scroll
+               past, and every one of them was shouting at full size the whole
+               way. So the front of a card is now a spine: an icon, a name, and
+               two lines of description. Everything that wants room — the
+               screenshot, the full description, the record, the button that
+               actually starts the thing — lives on the flip side, where there
+               is a whole panel for it. */
             .card,
             .card-face-front {
-                padding: 1.35rem 1.25rem;
-                border-radius: 18px;
+                padding: 1rem 1.05rem;
+                border-radius: 16px;
                 height: auto;
                 min-height: auto;
                 justify-content: flex-start;
@@ -1411,33 +1906,118 @@
             }
 
             .card-icon {
-                font-size: 1.75rem;
-                width: 44px;
-                height: 44px;
-                margin-bottom: 0.85rem;
+                font-size: 1.5rem;
+                width: 38px;
+                height: 38px;
+                border-radius: 12px;
+                margin-bottom: 0.6rem;
+            }
+
+            .card-icon svg {
+                width: 21px;
+                height: 21px;
             }
 
             .card-title {
-                font-size: 1.25rem;
-                margin-bottom: 0.4rem;
+                font-size: 1.1rem;
+                margin-bottom: 0.25rem;
             }
 
             .card-desc {
-                font-size: 0.825rem;
-                margin-bottom: 1.25rem;
-                line-height: 1.5;
+                font-size: 0.79rem;
+                margin-bottom: 0.5rem;
+                line-height: 1.45;
+                display: -webkit-box;
+                -webkit-box-orient: vertical;
+                -webkit-line-clamp: 2;
+                line-clamp: 2;
+                overflow: hidden;
             }
 
             .card-stat-chip {
-                top: 14px;
-                right: 14px;
+                top: 11px;
+                right: 11px;
                 padding: 2px 8px;
-                font-size: 0.7rem;
-                max-width: calc(100% - 75px);
+                font-size: 0.68rem;
+                max-width: calc(100% - 70px);
             }
 
             .card-link {
                 margin-top: auto;
+                font-size: 0.8rem;
+            }
+
+            /* ── The card you are on ─────────────────────────────────────────
+               A phone has no hover, so nothing in this grid was ever singled
+               out: ten cards at identical weight, and you picked one by
+               reading all of them. The card nearest the middle of the screen
+               now comes forward while the rest sit back.
+
+               Transform and opacity only, and that limit is the whole design.
+               An earlier version also unclamped the card's copy once the
+               scroll stopped, which meant re-laying-out the column under a
+               finger that had just let go — and no amount of pinning the
+               card's top edge made that read as anything but a lurch, arriving
+               a beat after you had stopped. Scroll snap went with it: a detent
+               every 150px fought the flick more than it helped it land. What
+               is left costs no layout, so it can track the scroll frame for
+               frame with nothing to lag behind.
+
+               Gated on .mobile-focus, set by the script, so with JS off the
+               grid is a grid of small cards rather than a grid permanently
+               dimmed for a focus that never arrives. */
+            .mobile-focus .card {
+                opacity: 0.86;
+                --focus-scale: 0.98;
+            }
+
+            .mobile-focus .card.is-focused {
+                opacity: 1;
+                --focus-scale: 1.02;
+                z-index: 2;
+                border-color: var(--card-hover-border, rgba(255, 255, 255, 0.25));
+                box-shadow: var(--edge-shadow), 0 14px 28px rgba(0, 0, 0, 0.28),
+                    0 0 24px rgba(var(--accent-rgb), 0.20);
+            }
+
+            .mobile-focus .card.is-focused .card-bg-hover {
+                opacity: 1;
+            }
+
+            .mobile-focus .card.is-focused .card-icon {
+                background: rgba(var(--accent-rgb), 0.24);
+                border-color: rgba(var(--accent-rgb), 0.5);
+            }
+
+            .mobile-focus .card.is-focused .card-stat-chip {
+                background: rgba(var(--accent-rgb), 0.22);
+                border-color: rgba(var(--accent-rgb), 0.45);
+                color: var(--text-primary);
+            }
+
+            /* An open panel is its own layer over a blurred page; it is not a
+               card in a column any more, so it takes none of this. The z-index
+               is the one that matters: .flip-card.is-open lifts the panel to 301,
+               above the backdrop at 300, and the focus rule above is a class
+               more specific than it. Without this line a card that was focused
+               when you tapped it opens *behind* its own backdrop, visible and
+               entirely unclickable. Declared after the focus rule so it wins on
+               source order rather than on a specificity race. */
+            .mobile-focus .card.is-open {
+                opacity: 1;
+                --focus-scale: 1;
+                z-index: 301;
+            }
+
+        }
+
+        /* Shrinking every card you are not looking at is exactly the kind of
+           ambient movement this setting is asking us to stop. Emphasis falls
+           back to opacity and the border, which move once and hold. */
+        @media (max-width: 640px) and (prefers-reduced-motion: reduce) {
+            .mobile-focus .card,
+            .mobile-focus .card.is-focused {
+                --focus-scale: 1;
             }
         }
 
@@ -1582,8 +2162,8 @@
             transform: translateX(3px);
         }
 
-        /* Background picker — same row furniture, but the chips live under it */
-        .vault-bg {
+        /* Option blocks — same row furniture as a link, but with chips under it */
+        .vault-opt {
             margin-top: 0.4rem;
             padding: 0.9rem 1.1rem 1rem;
             background: rgba(255, 255, 255, 0.03);
@@ -1591,20 +2171,20 @@
             border-radius: 14px;
         }
 
-        .vault-bg-head {
+        .vault-opt-head {
             display: flex;
             align-items: center;
             gap: 0.9rem;
         }
 
-        .vault-bg-chips {
+        .vault-opt-chips {
             display: flex;
             flex-wrap: wrap;
             gap: 0.4rem;
             margin-top: 0.85rem;
         }
 
-        .vault-bg-chip {
+        .vault-opt-chip {
             font: inherit;
             font-size: 0.75rem;
             font-weight: 600;
@@ -1617,19 +2197,19 @@
             transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
         }
 
-        .vault-bg-chip:hover {
+        .vault-opt-chip:hover {
             background: rgba(255, 255, 255, 0.11);
             color: #f1f5f9;
         }
 
-        .vault-bg-chip[aria-pressed="true"] {
+        .vault-opt-chip[aria-pressed="true"] {
             background: rgba(99, 102, 241, 0.26);
             border-color: rgba(129, 140, 248, 0.55);
             color: #e0e7ff;
         }
 
-        /* The one currently on screen while rotation is running */
-        .vault-bg-chip[data-live="true"][aria-pressed="false"] {
+        /* The one currently on screen while Shuffle is running */
+        .vault-opt-chip[data-live="true"][aria-pressed="false"] {
             border-color: rgba(255, 255, 255, 0.22);
             color: #cbd5e1;
         }
@@ -1699,6 +2279,112 @@
                 opacity: 0;
             }
         }
+
+        /* ── Quality tiers ───────────────────────────────────────────────────
+           The governor in the head script writes the current tier to
+           <html data-quality>; these are the parts it can only buy back in CSS.
+           They are ordered by cost-per-pixel, worst first, so each step down
+           gives up the most expensive thing still running.
+
+           Everything here is a surface effect. Nothing moves, nothing
+           disappears, no content changes — a degraded page is the same page
+           with less glass on it. */
+
+        /* ── reduced ── */
+
+        /* The tracking shine on the two holo cards is the most expensive thing a
+           mouse can do on this page: a 420%-wide repeating gradient whose
+           background-position follows the cursor, blended in `overlay`, over a
+           20px backdrop-filter. Every mousemove frame repaints and re-blurs the
+           whole card. The plain glare underneath survives, so the cards still
+           track the cursor — they just stop doing it through a second gradient. */
+        html[data-quality="reduced"] #card-cargo-lander .card-face-front::after,
+        html[data-quality="reduced"] #card-supply-chain .card-face-front::after,
+        html[data-quality="minimal"] #card-cargo-lander .card-face-front::after,
+        html[data-quality="minimal"] #card-supply-chain .card-face-front::after {
+            display: none;
+        }
+
+        /* A blur behind a chip that already sits on a blurred card. */
+        html[data-quality="reduced"] .card-stat-chip,
+        html[data-quality="minimal"] .card-stat-chip {
+            backdrop-filter: none;
+            -webkit-backdrop-filter: none;
+        }
+
+        /* soft-light makes the compositor read back everything under the grain,
+           and the grain is inside the backdrop nine cards blur. Plain low-opacity
+           noise over a background this dark reads almost the same. */
+        html[data-quality="reduced"] #bg-grain,
+        html[data-quality="minimal"] #bg-grain {
+            mix-blend-mode: normal;
+            opacity: 0.28;
+        }
+
+        /* ── minimal ── */
+
+        /* The big one: ~7ms a frame on a mid phone, and it is charged again every
+           time anything behind a card changes — which, with a canvas back there,
+           is every frame. Losing it costs the glass look and nothing else, so it
+           goes last and only when the page has already proven it can't cope. */
+        html[data-quality="minimal"] .card,
+        html[data-quality="minimal"] .card-face {
+            backdrop-filter: none;
+            -webkit-backdrop-filter: none;
+        }
+
+        /* Nothing left to track: the glare is pinned to the middle of the card, so
+           pointer moves stop repainting it. The tilt loop writes --mx/--my inline,
+           and an inline declaration is author-normal — !important here is what
+           outranks it without having to stop the loop from writing at all. */
+        html[data-quality="minimal"] .card {
+            --mx: 50% !important;
+            --my: 50% !important;
+        }
+
+        html[data-quality="minimal"] .card::before,
+        html[data-quality="minimal"] .card-face-front::before {
+            opacity: 0.25;
+        }
+
+        /* A 90px blur over 60vw of screen, three times over. */
+        html[data-quality="minimal"] .bg-blob {
+            filter: blur(44px);
+        }
+
+        /* ── FPS readout ─────────────────────────────────────────────────────
+           Bottom-right, deliberately easy to ignore: it is a diagnostic, not
+           chrome. `contain` keeps its half-second text change from touching
+           anything else's layout or paint — a meter that costs frames to read
+           would be telling you about itself. */
+        #fps-meter {
+            position: fixed;
+            right: 10px;
+            bottom: 10px;
+            z-index: 10000;
+            padding: 3px 7px;
+            border-radius: 7px;
+            font: 600 10px/1.35 ui-monospace, SFMono-Regular, Menlo, monospace;
+            letter-spacing: 0.02em;
+            color: rgba(226, 232, 240, 0.72);
+            background: rgba(2, 6, 23, 0.5);
+            border: 1px solid rgba(148, 163, 184, 0.18);
+            pointer-events: none;
+            user-select: none;
+            contain: layout paint style;
+        }
+
+        #fps-meter[hidden] {
+            display: none;
+        }
+
+        #fps-meter[data-state="fair"] {
+            color: rgba(251, 191, 36, 0.85);
+        }
+
+        #fps-meter[data-state="poor"] {
+            color: rgba(248, 113, 113, 0.9);
+        }
     </style>
     <!-- Google tag (gtag.js) -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-9GP823TGLB"></script>
@@ -1710,58 +2396,70 @@
         gtag('config', 'G-9GP823TGLB');
     </script>
     <script>
-        /* Shared "is the page being scrolled right now" flag. Anything that would
-           kick off an expensive visual transition checks it first and waits for the
-           quiet moment afterwards rather than landing on top of the scroll. */
+        /* Shared "is the page being scrolled right now" flag, for work that is
+           cheaper to skip while the page is moving than to do well — see the
+           canvas loop, which holds its last frame until this goes quiet. */
         let scrollIdleTimer = null;
         let scrolling = false;
         function scrollIsActive() { return scrolling; }
         window.addEventListener('scroll', () => {
             scrolling = true;
             clearTimeout(scrollIdleTimer);
-            scrollIdleTimer = setTimeout(() => {
-                scrolling = false;
-                document.dispatchEvent(new CustomEvent('scroll:idle'));
-            }, 180);
+            scrollIdleTimer = setTimeout(() => { scrolling = false; }, 180);
         }, { passive: true });
 
         /* ── Background variants ──────────────────────────────────────────────
            Which background the page wears is decided here, before first paint,
            so nobody sees the default ramp swap out a moment later.
 
-           Blueprint is the house style. A first-ever visit always gets it; every
-           visit after that rolls a die, and one time in four the page wanders off
-           to one of the others instead. The same roll happens again every 30s of
-           reading, so a long visit drifts now and then — most rolls land back on
-           Blueprint and nothing moves, and when one doesn't, the layers
-           cross-fade (see .bg-variant). A pick from the vault pins one for the
-           life of the tab (sessionStorage) and stops the rolling.
+           A variant is a palette, not a layout: the ruled grid is on whatever is
+           showing, and switching one turns the colour underneath it. The page
+           rotates through all three — but once per load, not on a timer. A live
+           switch cross-fades two full-viewport layers while three registered
+           custom properties animate under them, and --hue is a plain number, so
+           it takes the long way round the colour wheel: Dawn to Aurora sweeps 340
+           through 284 and 203 before it arrives, which is the page washing
+           through purple and blue on the way. Fine as a deliberate thing you
+           asked for in the vault. Not something to do to someone mid-sentence.
 
-           Adding a variant is one entry here plus its CSS layer; it joins the
-           pool the 25% is drawn from. */
+           So the turn happens at the one moment there is nothing to cross-fade
+           from. The palette is picked and applied before first paint and held for
+           the whole visit; localStorage remembers where the rotation got to, so
+           each load moves it on one. A first-ever visit opens on Blueprint, the
+           house style.
+
+           A pick from the vault holds one palette for the life of the tab
+           (sessionStorage) and takes it out of the rotation; a new tab is back to
+           rotating.
+
+           Adding a variant is one palette rule, one CSS layer and one entry
+           here; the rotation and the picker both pick it up. */
         const BG_VARIANTS = [
             { id: 'blueprint', label: 'Blueprint' },
             { id: 'aurora', label: 'Aurora' },
             { id: 'dawn', label: 'Dawn' }
         ];
         const BG_DEFAULT = 'blueprint';
-        const BG_WANDER_CHANCE = 0.25;
-        const BG_SEEN_KEY = 'bgVariant.seen';
-        const BG_PIN_KEY = 'bgVariant.pinned';
-        const BG_ROTATE_MS = 30000;
+        const BG_ROTATE = 'rotate';
+        const BG_MODE_KEY = 'bgVariant.mode';   // sessionStorage — held, or rotating
+        const BG_LAST_KEY = 'bgVariant.last';   // localStorage — where the rotation got to
 
         let bgCurrent = null;
-        let bgPinned = null;
-        let bgTimer = null;
+        // Either a variant id (held for this tab) or BG_ROTATE (turns over per load).
+        let bgMode = BG_ROTATE;
 
         const bgIsKnown = id => BG_VARIANTS.some(v => v.id === id);
+        const bgIsMode = m => m === BG_ROTATE || bgIsKnown(m);
 
-        /* Blueprint three times in four, one of the rest otherwise */
-        function bgRoll() {
-            if (Math.random() >= BG_WANDER_CHANCE) return BG_DEFAULT;
-            const rest = BG_VARIANTS.filter(v => v.id !== BG_DEFAULT);
-            if (!rest.length) return BG_DEFAULT;
-            return rest[Math.floor(Math.random() * rest.length)].id;
+        /* In order, wrapping — a rotation, not a shuffle, so three loads show you
+           three palettes rather than the same one twice. */
+        function bgAfter(id) {
+            const at = BG_VARIANTS.findIndex(v => v.id === id);
+            return BG_VARIANTS[(at + 1) % BG_VARIANTS.length].id;
+        }
+
+        function bgRemember(id) {
+            try { localStorage.setItem(BG_LAST_KEY, id); } catch (e) { }
         }
 
         function bgApply(id) {
@@ -1772,78 +2470,193 @@
             document.dispatchEvent(new CustomEvent('bg:change'));
         }
 
-        /* A roll that lands on a new variant cross-fades two full-viewport layers over
-           1.4s. Starting that while the page is being scrolled put a compositing spike
-           right on top of the scroll, which read as a stutter — and the whole point of
-           the wander is that you notice it in passing, not that it happens on a
-           schedule. So a roll due mid-scroll waits for the scrolling to stop. */
-        let bgRollPending = false;
-
-        function bgTryRoll() {
-            if (bgPinned) return;
-            if (scrollIsActive()) { bgRollPending = true; return; }
-            bgRollPending = false;
-            bgApply(bgRoll());
-        }
-
-        function bgStartRotation() {
-            clearInterval(bgTimer);
-            bgTimer = null;
-            if (bgPinned) return;
-            if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-            bgTimer = setInterval(bgTryRoll, BG_ROTATE_MS);
-        }
-
-        /* id === null hands the page back to the rotation */
-        function bgPin(id) {
-            bgPinned = bgIsKnown(id) ? id : null;
-            try {
-                if (bgPinned) sessionStorage.setItem(BG_PIN_KEY, bgPinned);
-                else sessionStorage.removeItem(BG_PIN_KEY);
-            } catch (e) { }
-            if (bgPinned) {
-                clearInterval(bgTimer);
-                bgTimer = null;
-                bgApply(bgPinned);
-            } else {
-                bgStartRotation();
-            }
-            // Pinning what is already on screen is a no-op for bgApply, so the
+        /* A variant id holds that one for the tab; BG_ROTATE puts it back in the
+           rotation, which leaves the palette on screen where it is and lets the
+           next load move on from it. */
+        function bgSetMode(mode) {
+            bgMode = bgIsMode(mode) ? mode : BG_ROTATE;
+            try { sessionStorage.setItem(BG_MODE_KEY, bgMode); } catch (e) { }
+            if (bgMode !== BG_ROTATE) bgApply(bgMode);
+            bgRemember(bgCurrent);
+            // Picking what is already on screen is a no-op for bgApply, so the
             // picker has to be told either way.
             document.dispatchEvent(new CustomEvent('bg:change'));
         }
 
         (function bgInit() {
-            let pinned = null, seen = null;
-            try { pinned = sessionStorage.getItem(BG_PIN_KEY); } catch (e) { }
-            try { seen = localStorage.getItem(BG_SEEN_KEY); } catch (e) { }
+            let stored = null;
+            try { stored = sessionStorage.getItem(BG_MODE_KEY); } catch (e) { }
+            bgMode = bgIsMode(stored) ? stored : BG_ROTATE;
 
-            if (bgIsKnown(pinned)) {
-                bgPinned = pinned;
-                bgApply(pinned);
+            if (bgMode !== BG_ROTATE) {
+                bgApply(bgMode);
                 return;
             }
 
-            // First time here is always the house style; after that it can wander.
-            bgApply(seen ? bgRoll() : BG_DEFAULT);
-            try { localStorage.setItem(BG_SEEN_KEY, '1'); } catch (e) { }
-            bgStartRotation();
+            let last = null;
+            try { last = localStorage.getItem(BG_LAST_KEY); } catch (e) { }
+            // No history yet means a first-ever visit, which opens on the house style.
+            bgApply(bgIsKnown(last) ? bgAfter(last) : BG_DEFAULT);
+            bgRemember(bgCurrent);
         })();
 
-        // A roll that came due mid-scroll gets its turn once the page settles.
-        document.addEventListener('scroll:idle', () => {
-            if (bgRollPending) bgTryRoll();
+        /* ── Scroll-reactive field ────────────────────────────────────────────
+           The constellation on the canvas used to ride the scroll: the whole
+           field translated up at 0.15 of the scroll offset, and every dot took a
+           shove from the scroll velocity on top of that.
+
+           Two things were wrong with it. The translate was unbounded, so on a
+           long page — every phone, and any desktop window past a screenful — the
+           field slid off the top and left the bottom of the document with no
+           background at all: you could scroll past it. And the canvas sits
+           behind the grid, so it is inside every card's backdrop-filter; making
+           it move with the page meant re-blurring nine cards on every scroll
+           frame, which is the stutter on mobile.
+
+           So the field holds still, and the coupling is off unless you turn it
+           on in the vault. Kept, not deleted: with the shift clamped (see
+           bgParallaxShift) it no longer strands the bottom of the page, and on a
+           desktop it is a nice touch. localStorage, so it survives the tab. */
+        const SCROLL_FIELD_KEY = 'scrollReactiveField';
+        let scrollReactiveField = false;
+        try { scrollReactiveField = localStorage.getItem(SCROLL_FIELD_KEY) === '1'; } catch (e) { }
+
+        function setScrollReactiveField(on) {
+            scrollReactiveField = !!on;
+            try { localStorage.setItem(SCROLL_FIELD_KEY, scrollReactiveField ? '1' : '0'); } catch (e) { }
+            document.dispatchEvent(new CustomEvent('scrollfield:change'));
+        }
+
+        /* ── Performance governor ─────────────────────────────────────────────
+           This page spends its frame budget on three things that all feed each
+           other: a canvas constellation, nine cards blurring whatever is behind
+           them (backdrop-filter), and a tilt loop that repaints those blurred
+           surfaces as they move. The canvas sits *inside* the cards' backdrop,
+           so one canvas frame is also nine 20px blurs — measured at ~7ms a frame
+           on a mid phone, which is most of a 60fps budget on its own.
+
+           Rather than tune for the worst device, the page watches its own frame
+           rate and steps down when it can't keep up. Three tiers:
+
+             full     — everything.
+             reduced  — fewer dots, shorter links, no theme entities, canvas
+                        frame rate capped harder, chip blurs off.
+             minimal  — links off entirely (they are the O(n²) part), a third of
+                        the dots, slowest canvas cadence, and the card and grain
+                        effects that cost the most are dropped in CSS.
+
+           The tier is on <html data-quality>, so CSS reacts to it too. Stepping
+           down takes three bad half-second samples in a row and stepping back up
+           takes eight good seconds, so a single hitch never flips it; and the
+           climb back is allowed twice, after which a device that has proven slow
+           is left alone instead of oscillating. */
+        const PERF_TIERS = ['full', 'reduced', 'minimal'];
+        const PERF_SAMPLE_MS = 500;
+        const PERF_WARMUP_MS = 2500;   // load jank is not a verdict on the device
+        const PERF_DROP_AFTER = 3;     // consecutive bad samples before stepping down
+        const PERF_RAISE_AFTER = 16;   // consecutive good samples before stepping back up
+        const PERF_MAX_CLIMBS = 2;
+
+        /* One flag for "this is a phone-shaped view", shared by the canvas and the
+           governor so they agree on what the target frame rate even is. */
+        const perfLowPowerView = window.matchMedia('(hover: none), (pointer: coarse)').matches
+            || window.innerWidth <= 640;
+        const PERF_TARGET_FPS = perfLowPowerView ? 30 : 60;
+
+        let perfTier = 0;
+        let perfFps = 0;
+
+        function perfSetTier(tier) {
+            tier = Math.max(0, Math.min(PERF_TIERS.length - 1, tier));
+            if (tier === perfTier) return;
+            perfTier = tier;
+            document.documentElement.setAttribute('data-quality', PERF_TIERS[tier]);
+            document.dispatchEvent(new CustomEvent('perf:tier'));
+        }
+
+        document.documentElement.setAttribute('data-quality', PERF_TIERS[0]);
+
+        /* A dedicated rAF that does nothing but count. Measuring inside the canvas
+           loop would measure the canvas throttle instead of the browser. */
+        (function perfWatch() {
+            let frames = 0, windowStart = 0, bad = 0, good = 0, climbs = 0, started = 0;
+
+            function tick(now) {
+                requestAnimationFrame(tick);
+                if (!started) { started = now; windowStart = now; return; }
+                frames++;
+                const elapsed = now - windowStart;
+                if (elapsed < PERF_SAMPLE_MS) return;
+
+                perfFps = (frames * 1000) / elapsed;
+                frames = 0;
+                windowStart = now;
+                document.dispatchEvent(new CustomEvent('perf:fps'));
+
+                // Ignore the first couple of seconds, and any window the tab spent
+                // in the background — neither says anything about the device.
+                if (now - started < PERF_WARMUP_MS || elapsed > PERF_SAMPLE_MS * 4) {
+                    bad = good = 0;
+                    return;
+                }
+
+                if (perfFps < PERF_TARGET_FPS * 0.7) { bad++; good = 0; }
+                else if (perfFps > PERF_TARGET_FPS * 0.92) { good++; bad = 0; }
+                else { bad = good = 0; }
+
+                if (bad >= PERF_DROP_AFTER && perfTier < PERF_TIERS.length - 1) {
+                    bad = 0;
+                    perfSetTier(perfTier + 1);
+                } else if (good >= PERF_RAISE_AFTER && perfTier > 0 && climbs < PERF_MAX_CLIMBS) {
+                    good = 0;
+                    climbs++;
+                    perfSetTier(perfTier - 1);
+                }
+            }
+            requestAnimationFrame(tick);
+        })();
+
+        /* ── The readout ──
+           Off by default — this is a portfolio page, not a benchmark — but the
+           vault has a switch for it, and #fps in the URL turns it on for one look
+           without going through the vault. It prints the tier next to the number,
+           which is the whole point of having it: a low number is only half the
+           story if you can't see what the page has already given up. */
+        const FPS_METER_KEY = 'fpsMeter';
+        let fpsMeterOn = false;
+        try { fpsMeterOn = localStorage.getItem(FPS_METER_KEY) === '1'; } catch (e) { }
+        if (location.hash === '#fps' || /[?&]fps\b/.test(location.search)) fpsMeterOn = true;
+
+        function setFpsMeter(on) {
+            fpsMeterOn = !!on;
+            try { localStorage.setItem(FPS_METER_KEY, fpsMeterOn ? '1' : '0'); } catch (e) { }
+            document.dispatchEvent(new CustomEvent('fpsmeter:change'));
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const meter = document.createElement('div');
+            meter.id = 'fps-meter';
+            meter.setAttribute('aria-hidden', 'true');
+            document.body.appendChild(meter);
+
+            let shownFps = -1, shownTier = -1;
+            function render() {
+                meter.hidden = !fpsMeterOn;
+                if (!fpsMeterOn) return;
+                const fps = Math.round(perfFps);
+                if (fps === shownFps && perfTier === shownTier) return;
+                shownFps = fps; shownTier = perfTier;
+                meter.textContent = fps + ' fps · ' + PERF_TIERS[perfTier];
+                meter.dataset.state = fps >= PERF_TARGET_FPS * 0.92 ? 'good'
+                    : fps >= PERF_TARGET_FPS * 0.7 ? 'fair' : 'poor';
+            }
+
+            render();
+            document.addEventListener('perf:fps', render);
+            document.addEventListener('perf:tier', render);
+            document.addEventListener('fpsmeter:change', render);
         });
 
-        // No point rotating a background nobody is looking at.
-        document.addEventListener('visibilitychange', () => {
-            if (document.hidden) {
-                clearInterval(bgTimer);
-                bgTimer = null;
-            } else if (!bgPinned && !bgTimer) {
-                bgStartRotation();
-            }
-        });
     </script>
 </head>
 
@@ -1854,8 +2667,8 @@
 
     <!-- Background stack, bottom to top: the drifting lights, then whichever
          variant layer is active (only one is at opacity 1 — see BG_VARIANTS),
-         then the grain. Dawn's sweep is opaque and sets itself below the
-         lights in CSS. -->
+         then the ruled grid and the grain, both of which are on over all of
+         them. Dawn's sweep is opaque and sets itself below the lights in CSS. -->
     <div class="bg-variant" id="bg-lights">
         <span class="bg-blob bg-blob-a"></span>
         <span class="bg-blob bg-blob-b"></span>
@@ -1866,6 +2679,7 @@
     </div>
     <div class="bg-variant" data-bg-layer="aurora"></div>
     <div class="bg-variant" data-bg-layer="blueprint"></div>
+    <div class="bg-variant" id="bg-grid"></div>
     <div class="bg-variant" id="bg-grain"></div>
 
     <div id="about-backdrop"></div>
@@ -1911,241 +2725,518 @@
                 </div>
                 <span class="vault-row-arrow">→</span>
             </a>
-            <div class="vault-bg">
-                <div class="vault-bg-head">
+            <div class="vault-opt">
+                <div class="vault-opt-head">
                     <div class="vault-row-icon">🎨</div>
                     <div class="vault-row-body">
                         <div class="vault-row-title">Background</div>
-                        <div class="vault-row-desc" id="vault-bg-desc">Mostly Blueprint, occasionally not. Pick one to hold it for this tab.</div>
+                        <div class="vault-row-desc" id="vault-bg-desc">The grid stays; the colour turns over on the next load. Pick one to hold it.</div>
                     </div>
                 </div>
-                <div class="vault-bg-chips" id="vault-bg-chips"></div>
+                <div class="vault-opt-chips" id="vault-bg-chips"></div>
+            </div>
+            <div class="vault-opt">
+                <div class="vault-opt-head">
+                    <div class="vault-row-icon">🌠</div>
+                    <div class="vault-row-body">
+                        <div class="vault-row-title">Scroll-reactive field</div>
+                        <div class="vault-row-desc" id="vault-field-desc"></div>
+                    </div>
+                </div>
+                <div class="vault-opt-chips" id="vault-field-chips">
+                    <button type="button" class="vault-opt-chip" data-field-pick="0">Still</button>
+                    <button type="button" class="vault-opt-chip" data-field-pick="1">Follows scroll</button>
+                </div>
+            </div>
+            <div class="vault-opt">
+                <div class="vault-opt-head">
+                    <div class="vault-row-icon">📈</div>
+                    <div class="vault-row-body">
+                        <div class="vault-row-title">Frame counter</div>
+                        <div class="vault-row-desc" id="vault-fps-desc"></div>
+                    </div>
+                </div>
+                <div class="vault-opt-chips" id="vault-fps-chips">
+                    <button type="button" class="vault-opt-chip" data-fps-pick="0">Off</button>
+                    <button type="button" class="vault-opt-chip" data-fps-pick="1">On</button>
+                </div>
             </div>
         </div>
     </div>
 
     <header>
-        <h1 id="name-trigger" title="Niklas Billgren" style="cursor:default;user-select:none">Niklas Billgren</h1>
-        <p class="subtitle">Welcome to my personal playground</p>
+        <h1 id="name-trigger" title="Neskil&#39;s Pot-Pourri" style="cursor:default;user-select:none">Neskil&#39;s Pot-Pourri</h1>
+        <p class="subtitle">Collection of small web apps, mostly logistics inspired games and other stuff
+            vibed into existence by Niklas Billgren</p>
         <span class="secret-hint" id="secret-hint"></span>
     </header>
 
     <main class="grid">
-        <a href="cargo-lander/index.html?v=0.22.0" class="card" id="card-cargo-lander">
-            <div class="card-bg-hover"></div>
-            <div>
-                <div class="card-icon">
-                    <svg viewBox="0 0 24 24">
-                        <path d="M12 2C8.5 2 6 7 6 12h12c0-5-2.5-10-6-10z" fill="currentColor" fill-opacity="0.12"/>
-                        <path d="M12 2C8.5 2 6 7 6 12h12c0-5-2.5-10-6-10z"/>
-                        <circle cx="12" cy="7" r="2" fill="currentColor" opacity="0.8"/>
-                        <path d="M9 12h6l-1.5 3.5h-3z"/>
-                        <path d="M7 12l-4 8m3-2h-3"/>
-                        <path d="M17 12l4 8m-3-2h3"/>
-                        <path d="M10.5 15.5l1.5 4.5 1.5-4.5" opacity="0.5"/>
-                    </svg>
-                </div>
-                <h2 class="card-title">Cargo Lander</h2>
-                <p class="card-desc">Fly your space truck and deliver space cargo in space! Includes a level editor with undo functionality.</p>
-                <div class="card-stat-chip" id="stat-cargo-lander">
-                    <span class="stat-icon">🚀</span> High Score: <span class="stat-val">—</span>
+        <div class="card flip-card" id="card-cargo-lander">
+            <div class="card-flip-inner">
+                <button type="button" class="card-face card-face-front flip-open" aria-expanded="false"
+                    aria-controls="card-cargo-lander-panel">
+                    <div>
+                        <div class="card-icon">
+                            <svg viewBox="0 0 24 24">
+                                <path d="M12 2C8.5 2 6 7 6 12h12c0-5-2.5-10-6-10z" fill="currentColor" fill-opacity="0.12"/>
+                                <path d="M12 2C8.5 2 6 7 6 12h12c0-5-2.5-10-6-10z"/>
+                                <circle cx="12" cy="7" r="2" fill="currentColor" opacity="0.8"/>
+                                <path d="M9 12h6l-1.5 3.5h-3z"/>
+                                <path d="M7 12l-4 8m3-2h-3"/>
+                                <path d="M17 12l4 8m-3-2h3"/>
+                                <path d="M10.5 15.5l1.5 4.5 1.5-4.5" opacity="0.5"/>
+                            </svg>
+                        </div>
+                        <h2 class="card-title">Cargo Lander</h2>
+                        <p class="card-desc">Fly your space truck and deliver space cargo in space! Includes a level editor with undo functionality.</p>
+                        <div class="card-stat-chip" id="stat-cargo-lander">
+                            <span class="stat-icon">🚀</span> High Score: <span class="stat-val">—</span>
+                        </div>
+                    </div>
+                    <span class="card-link">Take a look <svg viewBox="0 0 24 24">
+                            <path d="M3.6 12a8.4 8.4 0 0 1 14.4-5.9" stroke="currentColor" stroke-width="2"
+                                stroke-linecap="round" stroke-linejoin="round" fill="none" />
+                            <path d="M18.4 2.8v3.7h-3.7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                stroke-linejoin="round" fill="none" />
+                            <path d="M20.4 12a8.4 8.4 0 0 1-14.4 5.9" stroke="currentColor" stroke-width="2"
+                                stroke-linecap="round" stroke-linejoin="round" fill="none" />
+                            <path d="M5.6 21.2v-3.7h3.7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                stroke-linejoin="round" fill="none" />
+                        </svg></span>
+                </button>
+                <div class="card-face card-face-back peek-back" id="card-cargo-lander-panel" role="dialog" aria-modal="true"
+                    aria-label="Cargo Lander">
+                    <button type="button" class="card-close" data-flip-close aria-label="Close">
+                        <svg viewBox="0 0 24 24">
+                            <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2"
+                                stroke-linecap="round" />
+                        </svg>
+                    </button>
+                    <div class="peek-shot">
+                        <img data-src="assets/preview/cargo-lander.webp" alt="Cargo Lander in flight: the lander under thrust over a green basin, fuel and hull gauges across the top." width="800" height="420"
+                            decoding="async">
+                        <img data-src="assets/preview/cargo-lander-2.webp" alt="The lander further into the run, drifting downrange over the basin with the delivery hub ahead." width="800" height="420"
+                            decoding="async">
+                        <img data-src="assets/preview/cargo-lander-3.webp" alt="An endless procedural run: different terrain, the same lander under thrust." width="800" height="420"
+                            decoding="async">
+                    </div>
+                    <div class="peek-body">
+                        <div class="peek-title">Cargo Lander</div>
+                        <p class="peek-text">Fly your space truck and deliver space cargo in space! Includes a level editor with undo functionality.</p>
+                        <div class="peek-stat" data-mirror-stat="stat-cargo-lander"></div>
+                    </div>
+                    <a class="peek-launch" href="cargo-lander/index.html?v=0.22.0">Play Game <svg viewBox="0 0 24 24">
+                            <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2"
+                                stroke-linecap="round" stroke-linejoin="round" fill="none" />
+                        </svg></a>
                 </div>
             </div>
-            <span class="card-link">Play Game <svg viewBox="0 0 24 24">
-                    <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                        stroke-linejoin="round" />
-                </svg></span>
-        </a>
+        </div>
 
-        <a href="supply-chain/index.html?v=1.63.4" class="card card-metal" id="card-supply-chain">
-            <div class="card-bg-hover"></div>
-            <div>
-                <div class="card-icon">
-                    <svg viewBox="0 0 24 24">
-                        <path d="M5.1 6.6c0-1.4 1.6-1.4 1.6-2.8" opacity="0.45"/>
-                        <path d="M7.9 5.4c0-1.1 1.3-1.1 1.3-2.2" opacity="0.3"/>
-                        <path d="M3.6 20.5V7h3v13.5" fill="currentColor" fill-opacity="0.12"/>
-                        <path d="M8 20.5V12l4.1 2.9V12l4.1 2.9V12l4.3 2.9v5.6" fill="currentColor" fill-opacity="0.12"/>
-                        <path d="M2.5 20.5h19"/>
-                        <circle cx="10.5" cy="18" r="1.1" fill="currentColor" opacity="0.75" stroke="none"/>
-                        <circle cx="14.3" cy="18" r="1.1" fill="currentColor" opacity="0.75" stroke="none"/>
-                        <circle cx="18.1" cy="18" r="1.1" fill="currentColor" opacity="0.75" stroke="none"/>
-                    </svg>
-                </div>
-                <h2 class="card-title">Supply Chain Tycoon</h2>
-                <p class="card-desc">A logistics mini-game: build roads, run trucks, manufacture goods, and fill city orders.</p>
-                <div class="card-stat-chip" id="stat-supply-chain">
-                    <span class="stat-icon">🏆</span> <span class="stat-val">—</span>
+        <div class="card card-metal flip-card" id="card-supply-chain">
+            <div class="card-flip-inner">
+                <button type="button" class="card-face card-face-front flip-open" aria-expanded="false"
+                    aria-controls="card-supply-chain-panel">
+                    <div>
+                        <div class="card-icon">
+                            <svg viewBox="0 0 24 24">
+                                <path d="M5.1 6.6c0-1.4 1.6-1.4 1.6-2.8" opacity="0.45"/>
+                                <path d="M7.9 5.4c0-1.1 1.3-1.1 1.3-2.2" opacity="0.3"/>
+                                <path d="M3.6 20.5V7h3v13.5" fill="currentColor" fill-opacity="0.12"/>
+                                <path d="M8 20.5V12l4.1 2.9V12l4.1 2.9V12l4.3 2.9v5.6" fill="currentColor" fill-opacity="0.12"/>
+                                <path d="M2.5 20.5h19"/>
+                                <circle cx="10.5" cy="18" r="1.1" fill="currentColor" opacity="0.75" stroke="none"/>
+                                <circle cx="14.3" cy="18" r="1.1" fill="currentColor" opacity="0.75" stroke="none"/>
+                                <circle cx="18.1" cy="18" r="1.1" fill="currentColor" opacity="0.75" stroke="none"/>
+                            </svg>
+                        </div>
+                        <h2 class="card-title">Supply Chain Tycoon</h2>
+                        <p class="card-desc">A logistics mini-game: build roads, run trucks, manufacture goods, and fill city orders.</p>
+                        <div class="card-stat-chip" id="stat-supply-chain">
+                            <span class="stat-icon">🏆</span> <span class="stat-val">—</span>
+                        </div>
+                    </div>
+                    <span class="card-link">Take a look <svg viewBox="0 0 24 24">
+                            <path d="M3.6 12a8.4 8.4 0 0 1 14.4-5.9" stroke="currentColor" stroke-width="2"
+                                stroke-linecap="round" stroke-linejoin="round" fill="none" />
+                            <path d="M18.4 2.8v3.7h-3.7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                stroke-linejoin="round" fill="none" />
+                            <path d="M20.4 12a8.4 8.4 0 0 1-14.4 5.9" stroke="currentColor" stroke-width="2"
+                                stroke-linecap="round" stroke-linejoin="round" fill="none" />
+                            <path d="M5.6 21.2v-3.7h3.7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                stroke-linejoin="round" fill="none" />
+                        </svg></span>
+                </button>
+                <div class="card-face card-face-back peek-back" id="card-supply-chain-panel" role="dialog" aria-modal="true"
+                    aria-label="Supply Chain Tycoon">
+                    <button type="button" class="card-close" data-flip-close aria-label="Close">
+                        <svg viewBox="0 0 24 24">
+                            <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2"
+                                stroke-linecap="round" />
+                        </svg>
+                    </button>
+                    <div class="peek-shot">
+                        <img data-src="assets/preview/supply-chain.webp" alt="Supply Chain Tycoon: an isometric map with a road under construction, a truck on its way, and the order board open." width="800" height="420"
+                            decoding="async">
+                    </div>
+                    <div class="peek-body">
+                        <div class="peek-title">Supply Chain Tycoon</div>
+                        <p class="peek-text">A logistics mini-game: build roads, run trucks, manufacture goods, and fill city orders.</p>
+                        <div class="peek-stat" data-mirror-stat="stat-supply-chain"></div>
+                    </div>
+                    <a class="peek-launch" href="supply-chain/index.html?v=1.63.4">Play <svg viewBox="0 0 24 24">
+                            <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2"
+                                stroke-linecap="round" stroke-linejoin="round" fill="none" />
+                        </svg></a>
                 </div>
             </div>
-            <span class="card-link">Play <svg viewBox="0 0 24 24">
-                    <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                        stroke-linejoin="round" />
-                </svg></span>
-        </a>
+        </div>
 
-        <a href="3d-engine-poc/index.html" class="card card-metal" id="card-3d-poc">
-            <div class="card-bg-hover"></div>
-            <div>
-                <div class="card-icon">
-                    <svg viewBox="0 0 24 24">
-                        <path d="M12 2L3 7v10l9 5 9-5V7l-9-5z" fill="currentColor" fill-opacity="0.12"/>
-                        <path d="M12 2L3 7l9 5 9-5-9-5z"/>
-                        <path d="M3 7v10l9 5V12L3 7z" opacity="0.6"/>
-                        <path d="M21 7v10l-9 5V12l9-5z" opacity="0.8"/>
-                        <path d="M12 12v10" opacity="0.5"/>
-                    </svg>
-                </div>
-                <h2 class="card-title">Yard Master 3D</h2>
-                <p class="card-desc">3D container-packing puzzle & logistics sim. Stack cargo, follow terminal rules, and optimize your yard envelope.</p>
-                <div class="card-stat-chip" id="stat-3d-poc">
-                    <span class="stat-icon">📦</span> <span class="stat-val">—</span>
+        <div class="card card-metal flip-card" id="card-3d-poc">
+            <div class="card-flip-inner">
+                <button type="button" class="card-face card-face-front flip-open" aria-expanded="false"
+                    aria-controls="card-3d-poc-panel">
+                    <div>
+                        <div class="card-icon">
+                            <svg viewBox="0 0 24 24">
+                                <path d="M12 2L3 7v10l9 5 9-5V7l-9-5z" fill="currentColor" fill-opacity="0.12"/>
+                                <path d="M12 2L3 7l9 5 9-5-9-5z"/>
+                                <path d="M3 7v10l9 5V12L3 7z" opacity="0.6"/>
+                                <path d="M21 7v10l-9 5V12l9-5z" opacity="0.8"/>
+                                <path d="M12 12v10" opacity="0.5"/>
+                            </svg>
+                        </div>
+                        <h2 class="card-title">Yard Master 3D</h2>
+                        <p class="card-desc">3D container-packing puzzle & logistics sim. Stack cargo, follow terminal rules, and optimize your yard envelope.</p>
+                        <div class="card-stat-chip" id="stat-3d-poc">
+                            <span class="stat-icon">📦</span> <span class="stat-val">—</span>
+                        </div>
+                    </div>
+                    <span class="card-link">Take a look <svg viewBox="0 0 24 24">
+                            <path d="M3.6 12a8.4 8.4 0 0 1 14.4-5.9" stroke="currentColor" stroke-width="2"
+                                stroke-linecap="round" stroke-linejoin="round" fill="none" />
+                            <path d="M18.4 2.8v3.7h-3.7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                stroke-linejoin="round" fill="none" />
+                            <path d="M20.4 12a8.4 8.4 0 0 1-14.4 5.9" stroke="currentColor" stroke-width="2"
+                                stroke-linecap="round" stroke-linejoin="round" fill="none" />
+                            <path d="M5.6 21.2v-3.7h3.7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                stroke-linejoin="round" fill="none" />
+                        </svg></span>
+                </button>
+                <div class="card-face card-face-back peek-back" id="card-3d-poc-panel" role="dialog" aria-modal="true"
+                    aria-label="Yard Master 3D">
+                    <button type="button" class="card-close" data-flip-close aria-label="Close">
+                        <svg viewBox="0 0 24 24">
+                            <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2"
+                                stroke-linecap="round" />
+                        </svg>
+                    </button>
+                    <div class="peek-shot">
+                        <img data-src="assets/preview/3d-engine-poc.webp" alt="Yard Master: containers stacked in a 3D yard, with the cargo palette and yard statistics alongside." width="800" height="420"
+                            decoding="async">
+                    </div>
+                    <div class="peek-body">
+                        <div class="peek-title">Yard Master 3D</div>
+                        <p class="peek-text">3D container-packing puzzle & logistics sim. Stack cargo, follow terminal rules, and optimize your yard envelope.</p>
+                        <div class="peek-stat" data-mirror-stat="stat-3d-poc"></div>
+                    </div>
+                    <a class="peek-launch" href="3d-engine-poc/index.html">Play Yard Master <svg viewBox="0 0 24 24">
+                            <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2"
+                                stroke-linecap="round" stroke-linejoin="round" fill="none" />
+                        </svg></a>
                 </div>
             </div>
-            <span class="card-link">Play Yard Master <svg viewBox="0 0 24 24">
-                    <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                        stroke-linejoin="round" />
-                </svg></span>
-        </a>
+        </div>
 
-        <a href="golf/index.html?v=1.3.0" class="card card-metal" id="card-golf">
-            <div class="card-bg-hover"></div>
-            <div>
-                <div class="card-icon">
-                    <svg viewBox="0 0 24 24">
-                        <ellipse cx="12" cy="19" rx="7.5" ry="2.6" fill="currentColor" fill-opacity="0.12"/>
-                        <path d="M11 19V4.2"/>
-                        <path d="M11.6 4.4l7 2.3-7 2.6z" fill="currentColor" fill-opacity="0.45"/>
-                        <ellipse cx="11" cy="19.2" rx="2.5" ry="1.1" fill="currentColor" fill-opacity="0.75" stroke="none"/>
-                        <circle cx="6.2" cy="17.6" r="1.8"/>
-                        <circle cx="6.2" cy="17.6" r="0.6" fill="currentColor" opacity="0.6" stroke="none"/>
-                    </svg>
-                </div>
-                <h2 class="card-title">Pocket Links</h2>
-                <p class="card-desc">Eighteen holes of mini golf. Bunkers, water, ice, bumpers and gates that will not wait for you. Includes a hole editor that checks its own work.</p>
-                <div class="card-stat-chip" id="stat-golf">
-                    <span class="stat-icon">⛳</span> Best Round: <span class="stat-val">—</span>
+        <!-- ── Mini Golf: one tee, two geometries ──────────────────────────
+             Pocket Links and Loft Links stay two games in two folders, sharing
+             no code and no save data. What they no longer need is a card each:
+             two neighbouring tiles whose only real difference was how many axes
+             they use made the grid read like a list with a duplicate in it. So
+             the grid gets one card, and the choice of dimension moves to its
+             flip side — the same mechanism the About card uses — with each
+             game's own record on its own option, so the pick is informed before
+             you make it. ── -->
+        <div class="card flip-card" id="card-golf-hub">
+            <div class="card-flip-inner">
+                <button type="button" class="card-face card-face-front flip-open" aria-expanded="false"
+                    aria-controls="golf-panel">
+                    <div>
+                        <div class="card-icon">
+                            <svg viewBox="0 0 24 24">
+                                <path d="M12 14.2L3.2 17.6l8.8 3.4 8.8-3.4-8.8-3.4z" fill="currentColor" fill-opacity="0.13"/>
+                                <path d="M12 14.2L3.2 17.6l8.8 3.4 8.8-3.4-8.8-3.4z"/>
+                                <path d="M7.6 16.3l4.4 1.7 4.4-1.7" opacity="0.45"/>
+                                <path d="M13.2 17.3V3.6"/>
+                                <path d="M13.6 3.8l6.2 2.1-6.2 2.3z" fill="currentColor" fill-opacity="0.45"/>
+                                <circle cx="8.3" cy="16.1" r="1.55"/>
+                            </svg>
+                        </div>
+                        <h2 class="card-title">Fore Dimensions</h2>
+                        <p class="card-desc">Mini golf in two different geometries: eighteen flat holes with an editor that checks its own work, or seven courses of ramps, carries, fairways and dunes to play over. Pick your dimensions.</p>
+                        <div class="card-stat-chip" id="stat-golf-hub">
+                            <span class="stat-icon">⛳</span> <span class="stat-val">2D · 3D</span>
+                        </div>
+                    </div>
+                    <span class="card-link">Pick a tee <svg viewBox="0 0 24 24">
+                            <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                stroke-linejoin="round" />
+                        </svg></span>
+                </button>
+                <div class="card-face card-face-back" id="golf-panel" role="dialog" aria-modal="true"
+                    aria-label="Choose a mini golf game">
+                    <button type="button" class="card-close" data-flip-close aria-label="Close">
+                        <svg viewBox="0 0 24 24">
+                            <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2"
+                                stroke-linecap="round" />
+                        </svg>
+                    </button>
+                    <div class="dim-head">
+                        <div class="dim-title">Fore Dimensions</div>
+                        <div class="dim-sub">How many dimensions?</div>
+                    </div>
+                    <a class="dim-option dim-2d" href="golf/index.html?v=1.3.0">
+                        <span class="dim-shot">
+                            <img data-src="assets/preview/golf.webp" alt="Pocket Links: a ball on the fairway lined up at the pin, water either side of the approach." width="800"
+                                height="420" decoding="async">
+                            <span class="dim-badge">2D</span>
+                        </span>
+                        <span class="dim-body">
+                            <span class="dim-name">Pocket Links</span>
+                            <span class="dim-desc">Eighteen holes, seen from above. Bunkers, water, ice, bumpers and gates that will not wait for you — plus a hole editor that checks its own work.</span>
+                            <span class="dim-stat" id="stat-golf"><span class="stat-icon">⛳</span> Best Round: <span class="stat-val">—</span></span>
+                        </span>
+                    </a>
+                    <a class="dim-option dim-3d" href="golf3d/index.html?v=1.8.0">
+                        <span class="dim-shot">
+                            <img data-src="assets/preview/golf3d.webp" alt="Loft Links: a raised green over open water, seen from behind the tee with the driver in hand." width="800"
+                                height="420" decoding="async">
+                            <span class="dim-badge">3D</span>
+                        </span>
+                        <span class="dim-body">
+                            <span class="dim-name">Loft Links 3D</span>
+                            <span class="dim-desc">Seven courses: ramps, ledges, water carries and windmill blades, a parkland round of fairways, rough, bunkers and trees, and an open links of rolling dunes with nothing but white stakes to keep you honest. Each hole under weather of its own, and five clubs to get past them.</span>
+                            <span class="dim-stat" id="stat-golf3d"><span class="stat-icon">🏌️</span> Best Round: <span class="stat-val">—</span></span>
+                        </span>
+                    </a>
                 </div>
             </div>
-            <span class="card-link">Play 18 holes <svg viewBox="0 0 24 24">
-                    <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                        stroke-linejoin="round" />
-                </svg></span>
-        </a>
+        </div>
 
-        <a href="golf3d/index.html?v=1.0.0" class="card card-metal" id="card-golf3d">
-            <div class="card-bg-hover"></div>
-            <div>
-                <div class="card-icon">
-                    <svg viewBox="0 0 24 24">
-                        <path d="M12 13.4L3 17l9 4 9-4-9-3.6z" fill="currentColor" fill-opacity="0.14"/>
-                        <path d="M12 13.4L3 17l9 4 9-4-9-3.6z"/>
-                        <path d="M7.5 15.2l4.5 1.9 4.5-1.9" opacity="0.5"/>
-                        <path d="M13 16.4V4.6"/>
-                        <path d="M13.6 4.8l6 2-6 2.4z" fill="currentColor" fill-opacity="0.45"/>
-                        <circle cx="8.4" cy="15.1" r="1.5"/>
-                    </svg>
-                </div>
-                <h2 class="card-title">Loft Links 3D</h2>
-                <p class="card-desc">Mini golf in three dimensions. Three courses of ramps, ledges, water carries and windmill blades, each hole under weather of its own — and four clubs to get past them.</p>
-                <div class="card-stat-chip" id="stat-golf3d">
-                    <span class="stat-icon">🏌️</span> Best Round: <span class="stat-val">—</span>
+        <div class="card card-metal flip-card" id="card-math-game">
+            <div class="card-flip-inner">
+                <button type="button" class="card-face card-face-front flip-open" aria-expanded="false"
+                    aria-controls="card-math-game-panel">
+                    <div>
+                        <div class="card-icon">
+                            <svg viewBox="0 0 24 24">
+                                <circle cx="12" cy="13.5" r="8" fill="currentColor" fill-opacity="0.1"/>
+                                <path d="M12 5.5V3.4"/>
+                                <path d="M9.9 3.4h4.2"/>
+                                <path d="M17.7 7.8l1.8-1.8" opacity="0.6"/>
+                                <path d="M9.6 11.8h4.8M12 9.4v4.8"/>
+                                <path d="M9.6 17.5h4.8" opacity="0.75"/>
+                            </svg>
+                        </div>
+                        <h2 class="card-title">Mental Math Game</h2>
+                        <p class="card-desc">Test your unit conversion skills in a fast-paced 60-second time attack practice mode.</p>
+                        <div class="card-stat-chip" id="stat-math-game">
+                            <span class="stat-icon">⚡</span> High Score: <span class="stat-val">—</span>
+                        </div>
+                    </div>
+                    <span class="card-link">Take a look <svg viewBox="0 0 24 24">
+                            <path d="M3.6 12a8.4 8.4 0 0 1 14.4-5.9" stroke="currentColor" stroke-width="2"
+                                stroke-linecap="round" stroke-linejoin="round" fill="none" />
+                            <path d="M18.4 2.8v3.7h-3.7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                stroke-linejoin="round" fill="none" />
+                            <path d="M20.4 12a8.4 8.4 0 0 1-14.4 5.9" stroke="currentColor" stroke-width="2"
+                                stroke-linecap="round" stroke-linejoin="round" fill="none" />
+                            <path d="M5.6 21.2v-3.7h3.7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                stroke-linejoin="round" fill="none" />
+                        </svg></span>
+                </button>
+                <div class="card-face card-face-back peek-back" id="card-math-game-panel" role="dialog" aria-modal="true"
+                    aria-label="Mental Math Game">
+                    <button type="button" class="card-close" data-flip-close aria-label="Close">
+                        <svg viewBox="0 0 24 24">
+                            <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2"
+                                stroke-linecap="round" />
+                        </svg>
+                    </button>
+                    <div class="peek-shot">
+                        <img data-src="assets/preview/math-game.webp" alt="The practice game mid-question: "34 km to mi" over four answers, with the score and a running clock." width="800" height="420"
+                            decoding="async">
+                    </div>
+                    <div class="peek-body">
+                        <div class="peek-title">Mental Math Game</div>
+                        <p class="peek-text">Test your unit conversion skills in a fast-paced 60-second time attack practice mode.</p>
+                        <div class="peek-stat" data-mirror-stat="stat-math-game"></div>
+                    </div>
+                    <a class="peek-launch" href="math/index.html#game">Start practice <svg viewBox="0 0 24 24">
+                            <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2"
+                                stroke-linecap="round" stroke-linejoin="round" fill="none" />
+                        </svg></a>
                 </div>
             </div>
-            <span class="card-link">Play in 3D <svg viewBox="0 0 24 24">
-                    <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                        stroke-linejoin="round" />
-                </svg></span>
-        </a>
+        </div>
 
-        <a href="math/index.html#game" class="card card-metal" id="card-math-game">
-            <div class="card-bg-hover"></div>
-            <div>
-                <div class="card-icon">
-                    <svg viewBox="0 0 24 24">
-                        <circle cx="12" cy="13.5" r="8" fill="currentColor" fill-opacity="0.1"/>
-                        <path d="M12 5.5V3.4"/>
-                        <path d="M9.9 3.4h4.2"/>
-                        <path d="M17.7 7.8l1.8-1.8" opacity="0.6"/>
-                        <path d="M9.6 11.8h4.8M12 9.4v4.8"/>
-                        <path d="M9.6 17.5h4.8" opacity="0.75"/>
-                    </svg>
-                </div>
-                <h2 class="card-title">Mental Math Game</h2>
-                <p class="card-desc">Test your unit conversion skills in a fast-paced 60-second time attack practice mode.</p>
-                <div class="card-stat-chip" id="stat-math-game">
-                    <span class="stat-icon">⚡</span> High Score: <span class="stat-val">—</span>
+        <div class="card card-metal flip-card" id="card-car">
+            <div class="card-flip-inner">
+                <button type="button" class="card-face card-face-front flip-open" aria-expanded="false"
+                    aria-controls="card-car-panel">
+                    <span class="new-badge">NEW</span>
+                    <div>
+                        <div class="card-icon">
+                            <svg viewBox="0 0 24 24">
+                                <path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2" fill="currentColor" fill-opacity="0.12"/>
+                                <path d="M4.4 10.6h11" opacity="0.5"/>
+                                <path d="M9.2 7.1v3.5" opacity="0.5"/>
+                                <path d="M20.2 13.5h1.3" opacity="0.6"/>
+                                <circle cx="7" cy="17" r="2"/>
+                                <circle cx="17" cy="17" r="2"/>
+                                <circle cx="7" cy="17" r="0.8" fill="currentColor" opacity="0.6" stroke="none"/>
+                                <circle cx="17" cy="17" r="0.8" fill="currentColor" opacity="0.6" stroke="none"/>
+                            </svg>
+                        </div>
+                        <h2 class="card-title">Lease, Rent or Buy?</h2>
+                        <p class="card-desc">Compare leasing, financing, cash, and subscription costs with real depreciation data.</p>
+                    </div>
+                    <span class="card-link">Take a look <svg viewBox="0 0 24 24">
+                            <path d="M3.6 12a8.4 8.4 0 0 1 14.4-5.9" stroke="currentColor" stroke-width="2"
+                                stroke-linecap="round" stroke-linejoin="round" fill="none" />
+                            <path d="M18.4 2.8v3.7h-3.7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                stroke-linejoin="round" fill="none" />
+                            <path d="M20.4 12a8.4 8.4 0 0 1-14.4 5.9" stroke="currentColor" stroke-width="2"
+                                stroke-linecap="round" stroke-linejoin="round" fill="none" />
+                            <path d="M5.6 21.2v-3.7h3.7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                stroke-linejoin="round" fill="none" />
+                        </svg></span>
+                </button>
+                <div class="card-face card-face-back peek-back" id="card-car-panel" role="dialog" aria-modal="true"
+                    aria-label="Lease, Rent or Buy?">
+                    <button type="button" class="card-close" data-flip-close aria-label="Close">
+                        <svg viewBox="0 0 24 24">
+                            <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2"
+                                stroke-linecap="round" />
+                        </svg>
+                    </button>
+                    <div class="peek-shot">
+                        <img data-src="assets/preview/car.webp" alt="Lease, Rent or Buy: four columns comparing cash, loan, lease and monthly rental for the same car." width="800" height="420"
+                            decoding="async">
+                    </div>
+                    <div class="peek-body">
+                        <div class="peek-title">Lease, Rent or Buy?</div>
+                        <p class="peek-text">Compare leasing, financing, cash, and subscription costs with real depreciation data.</p>
+                    </div>
+                    <a class="peek-launch" href="car/index.html">Run the numbers <svg viewBox="0 0 24 24">
+                            <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2"
+                                stroke-linecap="round" stroke-linejoin="round" fill="none" />
+                        </svg></a>
                 </div>
             </div>
-            <span class="card-link">Start practice <svg viewBox="0 0 24 24">
-                    <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                        stroke-linejoin="round" />
-                </svg></span>
-        </a>
+        </div>
 
-        <a href="car/index.html" class="card card-metal" id="card-car">
-            <div class="card-bg-hover"></div>
-            <span class="new-badge">NEW</span>
-            <div>
-                <div class="card-icon">
-                    <svg viewBox="0 0 24 24">
-                        <path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2" fill="currentColor" fill-opacity="0.12"/>
-                        <path d="M4.4 10.6h11" opacity="0.5"/>
-                        <path d="M9.2 7.1v3.5" opacity="0.5"/>
-                        <path d="M20.2 13.5h1.3" opacity="0.6"/>
-                        <circle cx="7" cy="17" r="2"/>
-                        <circle cx="17" cy="17" r="2"/>
-                        <circle cx="7" cy="17" r="0.8" fill="currentColor" opacity="0.6" stroke="none"/>
-                        <circle cx="17" cy="17" r="0.8" fill="currentColor" opacity="0.6" stroke="none"/>
-                    </svg>
+        <div class="card card-metal flip-card" id="card-converter">
+            <div class="card-flip-inner">
+                <button type="button" class="card-face card-face-front flip-open" aria-expanded="false"
+                    aria-controls="card-converter-panel">
+                    <div>
+                        <div class="card-icon">
+                            <svg viewBox="0 0 24 24">
+                                <path d="M3.5 8.8h14.2"/>
+                                <path d="M15.3 6.6l2.4 2.2-2.4 2.2"/>
+                                <path d="M20.5 15.2H6.3"/>
+                                <path d="M8.7 13l-2.4 2.2 2.4 2.2"/>
+                            </svg>
+                        </div>
+                        <h2 class="card-title">Quick Converter</h2>
+                        <p class="card-desc">Feeling confused about freedom units, here is your solution!</p>
+                    </div>
+                    <span class="card-link">Take a look <svg viewBox="0 0 24 24">
+                            <path d="M3.6 12a8.4 8.4 0 0 1 14.4-5.9" stroke="currentColor" stroke-width="2"
+                                stroke-linecap="round" stroke-linejoin="round" fill="none" />
+                            <path d="M18.4 2.8v3.7h-3.7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                stroke-linejoin="round" fill="none" />
+                            <path d="M20.4 12a8.4 8.4 0 0 1-14.4 5.9" stroke="currentColor" stroke-width="2"
+                                stroke-linecap="round" stroke-linejoin="round" fill="none" />
+                            <path d="M5.6 21.2v-3.7h3.7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                stroke-linejoin="round" fill="none" />
+                        </svg></span>
+                </button>
+                <div class="card-face card-face-back peek-back" id="card-converter-panel" role="dialog" aria-modal="true"
+                    aria-label="Quick Converter">
+                    <button type="button" class="card-close" data-flip-close aria-label="Close">
+                        <svg viewBox="0 0 24 24">
+                            <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2"
+                                stroke-linecap="round" />
+                        </svg>
+                    </button>
+                    <div class="peek-shot">
+                        <img data-src="assets/preview/converter.webp" alt="Quick Converter with Distance picked, showing the four directions it will convert between." width="800" height="420"
+                            decoding="async">
+                    </div>
+                    <div class="peek-body">
+                        <div class="peek-title">Quick Converter</div>
+                        <p class="peek-text">Feeling confused about freedom units, here is your solution!</p>
+                    </div>
+                    <a class="peek-launch" href="converter/index.html">Open Converter <svg viewBox="0 0 24 24">
+                            <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2"
+                                stroke-linecap="round" stroke-linejoin="round" fill="none" />
+                        </svg></a>
                 </div>
-                <h2 class="card-title">Lease, Rent or Buy?</h2>
-                <p class="card-desc">Compare leasing, financing, cash, and subscription costs with real depreciation data.</p>
             </div>
-            <span class="card-link">Run the numbers <svg viewBox="0 0 24 24">
-                    <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                        stroke-linejoin="round" />
-                </svg></span>
-        </a>
+        </div>
 
-        <a href="converter/index.html" class="card card-metal" id="card-converter">
-            <div class="card-bg-hover"></div>
-            <div>
-                <div class="card-icon">
-                    <svg viewBox="0 0 24 24">
-                        <path d="M3.5 8.8h14.2"/>
-                        <path d="M15.3 6.6l2.4 2.2-2.4 2.2"/>
-                        <path d="M20.5 15.2H6.3"/>
-                        <path d="M8.7 13l-2.4 2.2 2.4 2.2"/>
-                    </svg>
+        <div class="card card-metal flip-card" id="card-math">
+            <div class="card-flip-inner">
+                <button type="button" class="card-face card-face-front flip-open" aria-expanded="false"
+                    aria-controls="card-math-panel">
+                    <div>
+                        <div class="card-icon">
+                            <svg viewBox="0 0 24 24">
+                                <rect x="2.5" y="7" width="19" height="10" rx="2.2" fill="currentColor" fill-opacity="0.1"/>
+                                <path d="M6.3 7v3.2M9.9 7v2M13.5 7v3.2M17.1 7v2"/>
+                                <path d="M7.6 17v-2.6M12 17v-2.6M16.4 17v-2.6" opacity="0.55"/>
+                            </svg>
+                        </div>
+                        <h2 class="card-title">EU/US Unit Cheat Sheet</h2>
+                        <p class="card-desc">Quick reference cheatsheet for practical mental conversions between EU and US units.</p>
+                    </div>
+                    <span class="card-link">Take a look <svg viewBox="0 0 24 24">
+                            <path d="M3.6 12a8.4 8.4 0 0 1 14.4-5.9" stroke="currentColor" stroke-width="2"
+                                stroke-linecap="round" stroke-linejoin="round" fill="none" />
+                            <path d="M18.4 2.8v3.7h-3.7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                stroke-linejoin="round" fill="none" />
+                            <path d="M20.4 12a8.4 8.4 0 0 1-14.4 5.9" stroke="currentColor" stroke-width="2"
+                                stroke-linecap="round" stroke-linejoin="round" fill="none" />
+                            <path d="M5.6 21.2v-3.7h3.7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                stroke-linejoin="round" fill="none" />
+                        </svg></span>
+                </button>
+                <div class="card-face card-face-back peek-back" id="card-math-panel" role="dialog" aria-modal="true"
+                    aria-label="EU/US Unit Cheat Sheet">
+                    <button type="button" class="card-close" data-flip-close aria-label="Close">
+                        <svg viewBox="0 0 24 24">
+                            <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2"
+                                stroke-linecap="round" />
+                        </svg>
+                    </button>
+                    <div class="peek-shot">
+                        <img data-src="assets/preview/math.webp" alt="The cheat sheet’s temperature card: "double + 30" for Celsius to Fahrenheit, worked through twice." width="800" height="420"
+                            decoding="async">
+                    </div>
+                    <div class="peek-body">
+                        <div class="peek-title">EU/US Unit Cheat Sheet</div>
+                        <p class="peek-text">Quick reference cheatsheet for practical mental conversions between EU and US units.</p>
+                    </div>
+                    <a class="peek-launch" href="math/index.html">View cheatsheet <svg viewBox="0 0 24 24">
+                            <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2"
+                                stroke-linecap="round" stroke-linejoin="round" fill="none" />
+                        </svg></a>
                 </div>
-                <h2 class="card-title">Quick Converter</h2>
-                <p class="card-desc">Feeling confused about freedom units, here is your solution!</p>
             </div>
-            <span class="card-link">Open Converter <svg viewBox="0 0 24 24">
-                    <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                        stroke-linejoin="round" />
-                </svg></span>
-        </a>
-
-        <a href="math/index.html" class="card card-metal" id="card-math">
-            <div class="card-bg-hover"></div>
-            <div>
-                <div class="card-icon">
-                    <svg viewBox="0 0 24 24">
-                        <rect x="2.5" y="7" width="19" height="10" rx="2.2" fill="currentColor" fill-opacity="0.1"/>
-                        <path d="M6.3 7v3.2M9.9 7v2M13.5 7v3.2M17.1 7v2"/>
-                        <path d="M7.6 17v-2.6M12 17v-2.6M16.4 17v-2.6" opacity="0.55"/>
-                    </svg>
-                </div>
-                <h2 class="card-title">EU/US Unit Cheat Sheet</h2>
-                <p class="card-desc">Quick reference cheatsheet for practical mental conversions between EU and US units.</p>
-            </div>
-            <span class="card-link">View cheatsheet <svg viewBox="0 0 24 24">
-                    <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                        stroke-linejoin="round" />
-                </svg></span>
-        </a>
+        </div>
 
         <div class="card flip-card" id="card-about">
             <div class="card-flip-inner">
@@ -2201,28 +3292,59 @@
             </div>
         </div>
 
-        <a href="cv/index.html" class="card card-paper" id="card-cv">
-            <div class="card-bg-hover"></div>
-            <div>
-                <div class="card-icon">
-                    <svg viewBox="0 0 24 24">
-                        <path d="M14.2 2.8H6.4a2 2 0 0 0-2 2v14.6a2 2 0 0 0 2 2h11.2a2 2 0 0 0 2-2V8.2z" fill="currentColor" fill-opacity="0.08"/>
-                        <path d="M14.2 2.8v5.4h5.4" fill="currentColor" fill-opacity="0.18"/>
-                        <circle cx="9.2" cy="12" r="2.1" fill="currentColor" opacity="0.8" stroke="none"/>
-                        <path d="M13 11h3.8" opacity="0.7"/>
-                        <path d="M13 13.4h3" opacity="0.7"/>
-                        <path d="M7.1 16.9h9.7"/>
-                        <path d="M7.1 19.1h6.4" opacity="0.6"/>
-                    </svg>
+        <div class="card card-paper flip-card" id="card-cv">
+            <div class="card-flip-inner">
+                <button type="button" class="card-face card-face-front flip-open" aria-expanded="false"
+                    aria-controls="card-cv-panel">
+                    <div>
+                        <div class="card-icon">
+                            <svg viewBox="0 0 24 24">
+                                <path d="M14.2 2.8H6.4a2 2 0 0 0-2 2v14.6a2 2 0 0 0 2 2h11.2a2 2 0 0 0 2-2V8.2z" fill="currentColor" fill-opacity="0.08"/>
+                                <path d="M14.2 2.8v5.4h5.4" fill="currentColor" fill-opacity="0.18"/>
+                                <circle cx="9.2" cy="12" r="2.1" fill="currentColor" opacity="0.8" stroke="none"/>
+                                <path d="M13 11h3.8" opacity="0.7"/>
+                                <path d="M13 13.4h3" opacity="0.7"/>
+                                <path d="M7.1 16.9h9.7"/>
+                                <path d="M7.1 19.1h6.4" opacity="0.6"/>
+                            </svg>
+                        </div>
+                        <h2 class="card-title">Curriculum Vitae</h2>
+                        <p class="card-desc">Overview of my background, education, and skills in logistics and software development.</p>
+                    </div>
+                    <span class="card-link">Take a look <svg viewBox="0 0 24 24">
+                            <path d="M3.6 12a8.4 8.4 0 0 1 14.4-5.9" stroke="currentColor" stroke-width="2"
+                                stroke-linecap="round" stroke-linejoin="round" fill="none" />
+                            <path d="M18.4 2.8v3.7h-3.7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                stroke-linejoin="round" fill="none" />
+                            <path d="M20.4 12a8.4 8.4 0 0 1-14.4 5.9" stroke="currentColor" stroke-width="2"
+                                stroke-linecap="round" stroke-linejoin="round" fill="none" />
+                            <path d="M5.6 21.2v-3.7h3.7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                stroke-linejoin="round" fill="none" />
+                        </svg></span>
+                </button>
+                <div class="card-face card-face-back peek-back" id="card-cv-panel" role="dialog" aria-modal="true"
+                    aria-label="Curriculum Vitae">
+                    <button type="button" class="card-close" data-flip-close aria-label="Close">
+                        <svg viewBox="0 0 24 24">
+                            <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2"
+                                stroke-linecap="round" />
+                        </svg>
+                    </button>
+                    <div class="peek-shot">
+                        <img data-src="assets/preview/cv.webp" alt="The CV page: a profile summary above the start of the experience timeline." width="800" height="420"
+                            decoding="async">
+                    </div>
+                    <div class="peek-body">
+                        <div class="peek-title">Curriculum Vitae</div>
+                        <p class="peek-text">Overview of my background, education, and skills in logistics and software development.</p>
+                    </div>
+                    <a class="peek-launch" href="cv/index.html">View CV <svg viewBox="0 0 24 24">
+                            <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2"
+                                stroke-linecap="round" stroke-linejoin="round" fill="none" />
+                        </svg></a>
                 </div>
-                <h2 class="card-title">Curriculum Vitae</h2>
-                <p class="card-desc">Overview of my background, education, and skills in logistics and software development.</p>
             </div>
-            <span class="card-link">View CV <svg viewBox="0 0 24 24">
-                    <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                        stroke-linejoin="round" />
-                </svg></span>
-        </a>
+        </div>
 
     </main>
 
@@ -2236,7 +3358,8 @@
                 Get in touch
             </a>
         </div>
-        <p>&copy; 2026 Niklas Billgren. All rights reserved.</p>
+        <p class="colophon">&copy; 2026 Niklas Billgren &mdash; formerly Eskilsson, which is where the
+            <span style="white-space:nowrap">&ldquo;neskil&rdquo;</span> comes from. All rights reserved.</p>
     </footer>
 
     <script>
@@ -2248,9 +3371,17 @@
            here is never just a canvas frame — it also dirties nine 20px blurs. On a
            phone that is the difference between a smooth scroll and a stuttering one,
            so mobile runs the field at 30fps and skips the costlier flourishes. */
-        const prefersCheapCanvas = window.matchMedia('(hover: none), (pointer: coarse)').matches
-            || window.innerWidth <= 640;
-        const CANVAS_FRAME_MS = prefersCheapCanvas ? 1000 / 30 : 0;
+        const prefersCheapCanvas = perfLowPowerView;
+
+        /* Frame budget, dot count and link reach all come off the governor's tier
+           (see the head script). A step down buys back the whole chain: fewer dots
+           is fewer links is less canvas painted is fewer card backdrops re-blurred. */
+        const CANVAS_FRAME_MS_BY_TIER = prefersCheapCanvas
+            ? [1000 / 30, 1000 / 24, 1000 / 15]
+            : [0, 1000 / 40, 1000 / 24];
+        const FIELD_SCALE_BY_TIER = [1, 0.6, 0.35];
+        // 0 turns the O(n²) link pass off entirely — the dots stay, the web goes.
+        const LINK_DISTANCE_BY_TIER = [150, 115, 0];
         let lastCanvasFrame = 0;
 
         let width, height;
@@ -2286,8 +3417,38 @@
             themeSpawnArmed = false;
         }
 
+        /* ── Letting go of a card's theme ──
+           A hovered card pulls the whole page towards its accent, and until now
+           nothing ever pulled it back: the first card you touched owned the
+           palette for the rest of the visit. That matters more than it did, since
+           the background rotates its colours now and a pinned theme outranks the
+           rotation — you would see the lights and the sweep change under a hue
+           that never moved again. So the theme is released when nothing is
+           hovered, and the page falls back to whichever palette is showing.
+
+           Debounced, because sliding from one card to its neighbour releases the
+           first before it activates the second, and a flick back to base in
+           between would read as a flash. */
+        const THEME_RELEASE_MS = 260;
+        let themeReleaseTimer = null;
+
+        function deactivateCardTheme() {
+            clearTimeout(themeReleaseTimer);
+            themeReleaseTimer = setTimeout(() => {
+                themeReleaseTimer = null;
+                activeThemeCardId = null;
+                document.documentElement.removeAttribute('data-theme');
+                disarmThemeSpawn();
+            }, THEME_RELEASE_MS);
+        }
+
         function activateCardTheme(cardId) {
-            if (!cardId || activeThemeCardId === cardId) return;
+            if (!cardId) return;
+            // Before the early return below: re-entering the card you just left
+            // has to cancel its own pending release.
+            clearTimeout(themeReleaseTimer);
+            themeReleaseTimer = null;
+            if (activeThemeCardId === cardId) return;
             activeThemeCardId = cardId;
 
             clearTimeout(themeDwellTimer);
@@ -2304,8 +3465,7 @@
                 'card-cv': 215,
                 'card-math': 270,
                 'card-math-game': 25,
-                'card-golf': 140,
-                'card-golf3d': 198,
+                'card-golf-hub': 140,
                 'card-about': 345
             };
 
@@ -2363,37 +3523,26 @@
                     this.hue = 160;
                     const items = ['🚗', '🔑', '$/mo', '📉', 'APR'];
                     this.symbol = items[Math.floor(Math.random() * items.length)];
-                } else if (cardId === 'card-golf') {
+                } else if (cardId === 'card-golf-hub') {
                     // Struck ball arcing across the screen. Unlike the other
                     // types this one is under gravity (see update), so it rises,
                     // hangs and drops rather than tracking a straight line.
+                    // The card now stands for both games, so the flights come
+                    // in both flavours: the flat one's green, and the lofted
+                    // one's sky blue thrown a little higher.
+                    const lofted = Math.random() < 0.5;
                     this.type = 'golf';
                     this.x = fromLeft ? -40 : width + 40;
-                    this.y = height * (0.55 + Math.random() * 0.35);
-                    this.vx = fromLeft ? (Math.random() * 1.4 + 2.6) : -(Math.random() * 1.4 + 2.6);
-                    this.vy = -(Math.random() * 1.5 + 3.0);
+                    this.y = height * ((lofted ? 0.6 : 0.55) + Math.random() * (lofted ? 0.3 : 0.35));
+                    this.vx = fromLeft ? (Math.random() * 1.4 + 2.5) : -(Math.random() * 1.4 + 2.5);
+                    this.vy = -(Math.random() * 1.5 + (lofted ? 3.4 : 3.0));
                     this.gravity = 0.05;
                     this.size = Math.random() * 8 + 16;
                     this.maxLife = Math.ceil((width + 80) / Math.abs(this.vx));
                     this.maxAlpha = 0.38;
-                    this.hue = 140;
-                    var swings = ['⛳', '🏌️', 'FORE!'];
+                    this.hue = lofted ? 198 : 140;
+                    var swings = lofted ? ['⛳', '🏌️', 'LOFT'] : ['⛳', '🏌️', 'FORE!'];
                     this.symbol = swings[Math.floor(Math.random() * swings.length)];
-                } else if (cardId === 'card-golf3d') {
-                    // Same struck ball as Pocket Links, thrown a bit higher and
-                    // tinted to this card's sky blue.
-                    this.type = 'golf';
-                    this.x = fromLeft ? -40 : width + 40;
-                    this.y = height * (0.6 + Math.random() * 0.3);
-                    this.vx = fromLeft ? (Math.random() * 1.4 + 2.4) : -(Math.random() * 1.4 + 2.4);
-                    this.vy = -(Math.random() * 1.6 + 3.4);
-                    this.gravity = 0.05;
-                    this.size = Math.random() * 8 + 16;
-                    this.maxLife = Math.ceil((width + 80) / Math.abs(this.vx));
-                    this.maxAlpha = 0.38;
-                    this.hue = 198;
-                    var lofted = ['⛳', '🏌️', 'LOFT'];
-                    this.symbol = lofted[Math.floor(Math.random() * lofted.length)];
                 } else {
                     this.dead = true;
                     return;
@@ -2487,10 +3636,31 @@
             }
         }
 
+        /* ── Extent of the ambient field ──
+           The dots live in a band `fieldHeight` tall, which is the viewport plus,
+           when the scroll coupling is on, the strip the parallax can uncover at
+           the bottom. Without that strip the old parallax slid the field up and
+           left bare canvas behind it. */
+        const FIELD_PARALLAX_MAX = 140;
+        let fieldHeight = 0;
+
+        function updateFieldExtent() {
+            fieldHeight = height + (scrollReactiveField ? FIELD_PARALLAX_MAX : 0);
+        }
+
+        /* Clamped: past ~900px of scroll the field simply stops climbing, so no
+           amount of page can slide it out of the viewport. */
+        function bgParallaxShift() {
+            return Math.min(smoothScrollY * 0.15, FIELD_PARALLAX_MAX);
+        }
+
         function resize() {
             width = canvas.width = window.innerWidth;
             height = canvas.height = window.innerHeight;
+            updateFieldExtent();
         }
+
+        document.addEventListener('scrollfield:change', updateFieldExtent);
 
         window.addEventListener('resize', resize);
         resize();
@@ -2534,7 +3704,7 @@
                 const placed = x != null;
                 this.placed = placed;
                 this.x = placed ? x : Math.random() * width;
-                this.y = placed ? y : Math.random() * height;
+                this.y = placed ? y : Math.random() * fieldHeight;
                 // Clicked dots drift outward a touch faster so the burst reads as a burst.
                 const speed = placed ? 2.4 : 1.5;
                 this.vx = (Math.random() - 0.5) * speed;
@@ -2552,8 +3722,13 @@
 
                 if (this.fade < 1) this.fade = Math.min(1, this.fade + 0.06);
 
-                if (this.x < 0 || this.x > width) this.vx = -this.vx;
-                if (this.y < 0 || this.y > height) this.vy = -this.vy;
+                // Clamp as well as reflect: fieldHeight moves when the window
+                // resizes or the scroll coupling is toggled, and a dot left outside
+                // the band would otherwise flip its velocity every frame and stick.
+                if (this.x < 0) { this.x = 0; this.vx = Math.abs(this.vx); }
+                else if (this.x > width) { this.x = width; this.vx = -Math.abs(this.vx); }
+                if (this.y < 0) { this.y = 0; this.vy = Math.abs(this.vy); }
+                else if (this.y > fieldHeight) { this.y = fieldHeight; this.vy = -Math.abs(this.vy); }
 
                 // Mouse proximity: repel + glow
                 if (mouse.smoothX !== null && mouse.presence > 0.001) {
@@ -2595,7 +3770,7 @@
 
         function spawnDotsAt(clientX, clientY) {
             // Undo the parallax shift applied at draw time so dots land under the cursor.
-            const y = clientY + smoothScrollY * 0.15;
+            const y = clientY + bgParallaxShift();
             for (let i = 0; i < CLICK_DOTS; i++) {
                 if (particles.length >= maxParticles) {
                     let idx = particles.findIndex(p => p.placed);
@@ -2695,6 +3870,14 @@
                 }
             } catch (e) {}
 
+            /* 5+6. Mini Golf. The two games keep entirely separate records,
+               and the picker shows each on its own option. The chip on the front
+               of the card carries whichever of them exist, so you can see there
+               is something to beat without turning the card over — labelled by
+               dimension rather than merged, since eighteen flat holes and six
+               lofted ones are not the same number. */
+            let bestFlat = null, bestLofted = null;
+
             // 5. Pocket Links
             try {
                 const golfRaw = localStorage.getItem('miniGolf.save.v1');
@@ -2711,6 +3894,7 @@
                                 ? ` <span style="opacity:0.65;font-size:0.7rem;margin-left:3px;">(${data.aces} ace${data.aces === 1 ? '' : 's'})</span>`
                                 : '';
                             golfBadge.innerHTML = `<span class="stat-icon">⛳</span> Best Round: <span class="stat-val">${data.best}${vs ? ' (' + vs + ')' : ''}</span>${aces}`;
+                            bestFlat = data.best;
                             done = true;
                         }
                     }
@@ -2749,38 +3933,91 @@
                             ? ` <span style="opacity:0.65;font-size:0.7rem;margin-left:3px;">(${aces} ace${aces === 1 ? '' : 's'})</span>`
                             : '';
                         loftBadge.innerHTML = `<span class="stat-icon">🏌️</span> Best Round: <span class="stat-val">${best}${vs ? ' (' + vs + ')' : ''}</span>${where}${aceTag}`;
+                        bestLofted = best;
                     } else {
                         loftBadge.innerHTML = `<span class="stat-icon">🏌️</span> Best Round: <span class="stat-val">—</span>`;
                     }
                 }
             } catch (e) {}
+
+            /* The back of a card repeats its record next to the launch button,
+               which is the moment it is worth knowing. Rather than have every
+               block above write two elements, mirror the front chip once they
+               are all filled in — one place to change when a chip changes. */
+            document.querySelectorAll('[data-mirror-stat]').forEach(el => {
+                const src = document.getElementById(el.dataset.mirrorStat);
+                if (src) el.innerHTML = src.innerHTML;
+            });
+
+            // 7. The Mini Golf card itself, summarising the two above.
+            try {
+                const hubBadge = document.getElementById('stat-golf-hub');
+                if (hubBadge) {
+                    const parts = [];
+                    if (bestFlat !== null) parts.push(`2D <span class="stat-val">${bestFlat}</span>`);
+                    if (bestLofted !== null) parts.push(`3D <span class="stat-val">${bestLofted}</span>`);
+                    hubBadge.innerHTML = parts.length
+                        ? `<span class="stat-icon">⛳</span> Best: ${parts.join(' · ')}`
+                        : `<span class="stat-icon">⛳</span> <span class="stat-val">2D · 3D</span>`;
+                }
+            } catch (e) {}
+        }
+
+        // Ambient dots this window would carry at full quality; the tier scales it.
+        let ambientCount = 0;
+
+        /* Tiers trim or top up the field in place rather than re-seeding it, so a
+           step down reads as the constellation thinning out rather than blinking.
+           Trimming takes from the front, which is the ambient end — dots you put
+           there by clicking are the last to go. */
+        function applyFieldBudget() {
+            const scale = FIELD_SCALE_BY_TIER[perfTier];
+            const budget = Math.max(12, Math.round(ambientCount * scale));
+            // Headroom for clicked dots, scaled to the ambient density so a small
+            // window doesn't end up doing big-window work.
+            maxParticles = budget + Math.round(36 * scale);
+            if (particles.length > budget) {
+                particles.splice(0, particles.length - budget);
+            } else {
+                for (let i = particles.length; i < budget; i++) particles.push(new Particle());
+            }
+            if (perfTier > 0) themeEntities = [];
         }
 
         function init() {
             particles = [];
             themeEntities = [];
             // Responsive amount of particles based on screen size
-            let numberOfParticles = Math.min((width * height) / 12000, 150);
-            // Headroom for clicked dots, scaled to the ambient density so a small
-            // window doesn't end up doing big-window work.
-            maxParticles = Math.round(numberOfParticles) + 36;
-            for (let i = 0; i < numberOfParticles; i++) {
-                particles.push(new Particle());
-            }
+            ambientCount = Math.round(Math.min((width * height) / 12000, 150));
+            applyFieldBudget();
             loadHighScores();
         }
 
-        let scrollY = 0, lastScrollY = 0, scrollVelocity = 0, smoothScrollY = 0;
+        document.addEventListener('perf:tier', applyFieldBudget);
+
+        let scrollY = 0, scrollVelocity = 0, smoothScrollY = 0;
         window.addEventListener('scroll', () => {
             scrollY = window.scrollY;
             if (themeDwellTimer || themeSpawnArmed) disarmThemeSpawn();
         }, { passive: true });
 
         function animate(now) {
-            if (CANVAS_FRAME_MS && now - lastCanvasFrame < CANVAS_FRAME_MS) {
+            const frameBudget = CANVAS_FRAME_MS_BY_TIER[perfTier];
+            if (frameBudget && now - lastCanvasFrame < frameBudget) {
                 requestAnimationFrame(animate);
                 return;
             }
+
+            /* A field that no longer tracks the scroll has nothing to say while the
+               page is moving, and every frame it draws while the page moves costs
+               nine card backdrops as well. So on a phone it holds its last frame
+               until the scroll stops — the dots freeze for a few hundred ms and
+               nobody has ever noticed, which is exactly the point. */
+            if ((prefersCheapCanvas || perfTier > 0) && !scrollReactiveField && scrollIsActive()) {
+                requestAnimationFrame(animate);
+                return;
+            }
+
             lastCanvasFrame = now;
 
             ctx.clearRect(0, 0, width, height);
@@ -2807,19 +4044,24 @@
                 }
             }
 
-            // Smooth scroll tracking + velocity. Half the frame rate needs twice the
-            // step, or the parallax noticeably trails the page on mobile.
+            /* Smooth scroll tracking + velocity. Half the frame rate needs twice the
+               step, or the parallax noticeably trails the page on mobile. With the
+               coupling off the target is 0, so a field that was tracking the scroll
+               when you turned it off glides home rather than jumping. */
+            const parallaxTarget = scrollReactiveField ? scrollY : 0;
             let prevSmooth = smoothScrollY;
-            smoothScrollY += (scrollY - smoothScrollY) * (prefersCheapCanvas ? 0.16 : 0.08);
+            smoothScrollY += (parallaxTarget - smoothScrollY) * (prefersCheapCanvas ? 0.16 : 0.08);
             scrollVelocity = smoothScrollY - prevSmooth;
 
-            // Parallax shift
+            // Parallax shift — 0, and free, while the coupling is off
             ctx.save();
-            ctx.translate(0, -smoothScrollY * 0.15);
+            ctx.translate(0, -bgParallaxShift());
+
+            const linkDistance = LINK_DISTANCE_BY_TIER[perfTier];
 
             for (let i = 0; i < particles.length; i++) {
                 // Apply scroll inertia as a gentle push (like mouse repel)
-                if (Math.abs(scrollVelocity) > 0.5) {
+                if (scrollReactiveField && Math.abs(scrollVelocity) > 0.5) {
                     particles[i].y -= scrollVelocity * 0.3;
                     particles[i].x += (Math.random() - 0.5) * Math.abs(scrollVelocity) * 0.5;
                 }
@@ -2827,15 +4069,17 @@
                 particles[i].update();
                 particles[i].draw();
 
+                if (!linkDistance) continue;
+
                 for (let j = i + 1; j < particles.length; j++) {
                     let dx = particles[i].x - particles[j].x;
                     let dy = particles[i].y - particles[j].y;
                     // Reject on the cheap tests first — this inner loop runs O(n²)
                     // times a frame and most pairs are nowhere near each other, so
                     // the square root is only worth taking for the few that pass.
-                    if (dx > 150 || dx < -150 || dy > 150 || dy < -150) continue;
+                    if (dx > linkDistance || dx < -linkDistance || dy > linkDistance || dy < -linkDistance) continue;
                     const d2 = dx * dx + dy * dy;
-                    if (d2 >= 150 * 150) continue;
+                    if (d2 >= linkDistance * linkDistance) continue;
                     const distance = Math.sqrt(d2);
 
                     // Blend glow of both endpoints for line color
@@ -2861,7 +4105,7 @@
 
             // Spawn background theme entities after a lingering hover over a card
             const allowedThemeCards = ['card-cargo-lander', 'card-supply-chain', 'card-car'];
-            if (themeSpawnArmed && allowedThemeCards.includes(activeThemeCardId) && themeEntities.length < MAX_THEME_ENTITIES && Math.random() < 0.012) {
+            if (perfTier === 0 && themeSpawnArmed && allowedThemeCards.includes(activeThemeCardId) && themeEntities.length < MAX_THEME_ENTITIES && Math.random() < 0.012) {
                 themeEntities.push(new ThemeEntity(activeThemeCardId));
             }
 
@@ -2945,10 +4189,12 @@
         }
         document.addEventListener('keydown', e => { if (e.key === 'Escape') closeVault(); });
 
-        /* Background picker in the vault. The chips are built from BG_VARIANTS, so
-           a new variant turns up here for free. "Auto" is the no-pin state: the
-           rotation keeps running and the chip of whatever is on screen is outlined
-           rather than filled. */
+        /* ── Vault switches ──
+           The background picker builds itself from BG_VARIANTS, so a new variant
+           turns up here for free. "Rotate" is the default, and while it is on, the
+           chip of the palette currently showing is outlined rather than filled —
+           it is what you have, not what you picked. The two switches under it are
+           plain on/off. */
         const bgChips = document.getElementById('vault-bg-chips');
         const bgDesc = document.getElementById('vault-bg-desc');
 
@@ -2956,34 +4202,82 @@
             const chip = (id, label) => {
                 const b = document.createElement('button');
                 b.type = 'button';
-                b.className = 'vault-bg-chip';
+                b.className = 'vault-opt-chip';
                 b.dataset.bgPick = id;
                 b.textContent = label;
                 return b;
             };
-            bgChips.appendChild(chip('', 'Auto'));
             BG_VARIANTS.forEach(v => bgChips.appendChild(chip(v.id, v.label)));
+            bgChips.appendChild(chip(BG_ROTATE, 'Rotate'));
             bgChips.addEventListener('click', e => {
                 const btn = e.target.closest('[data-bg-pick]');
-                if (btn) bgPin(btn.dataset.bgPick || null);
+                if (btn) bgSetMode(btn.dataset.bgPick);
             });
         }
 
         function syncBgChips() {
+            const rotating = bgMode === BG_ROTATE;
             for (const btn of bgChips.children) {
                 const id = btn.dataset.bgPick;
-                btn.setAttribute('aria-pressed', String(id ? bgPinned === id : !bgPinned));
-                btn.dataset.live = String(!!id && id === bgCurrent);
+                btn.setAttribute('aria-pressed', String(id === bgMode));
+                btn.dataset.live = String(rotating && id === bgCurrent);
             }
-            bgDesc.textContent = bgPinned
-                ? 'Held for this tab. Auto lets it wander again.'
-                : 'Blueprint most of the time, something else one visit in four. Pick one to hold it.';
+            bgDesc.textContent = rotating
+                ? 'The grid stays; the colour turns over on the next load. Pick one to hold it.'
+                : 'Held for this tab. Rotate puts it back in the cycle; a new tab starts over.';
         }
 
         if (bgChips && bgDesc) {
             buildBgChips();
             syncBgChips();
             document.addEventListener('bg:change', syncBgChips);
+        }
+
+        /* A generic on/off pair: two chips, a getter for the current value and a
+           setter, plus the line of copy under the title. */
+        function wireVaultSwitch(chipsId, descId, dataKey, isOn, set, describe) {
+            const chips = document.getElementById(chipsId);
+            const desc = document.getElementById(descId);
+            if (!chips || !desc) return null;
+
+            chips.addEventListener('click', e => {
+                const btn = e.target.closest('button');
+                if (btn && btn.dataset[dataKey] !== undefined) set(btn.dataset[dataKey] === '1');
+            });
+
+            // The setter fires its own change event, which is what calls this back.
+            return function sync() {
+                for (const btn of chips.children) {
+                    btn.setAttribute('aria-pressed', String((btn.dataset[dataKey] === '1') === isOn()));
+                }
+                desc.textContent = describe();
+            };
+        }
+
+        const syncFieldChips = wireVaultSwitch(
+            'vault-field-chips', 'vault-field-desc', 'fieldPick',
+            () => scrollReactiveField,
+            on => setScrollReactiveField(on),
+            () => scrollReactiveField
+                ? 'The constellation drifts with the page. Prettier, and it costs frames while you scroll.'
+                : 'The constellation stays put while you scroll. Cheaper, and the field can never slide off the page.'
+        );
+        if (syncFieldChips) {
+            syncFieldChips();
+            document.addEventListener('scrollfield:change', syncFieldChips);
+        }
+
+        const syncFpsChips = wireVaultSwitch(
+            'vault-fps-chips', 'vault-fps-desc', 'fpsPick',
+            () => fpsMeterOn,
+            on => setFpsMeter(on),
+            () => 'Frames per second and the quality tier, bottom-right. The page steps itself down to '
+                + PERF_TIERS.slice(1).join(' then ') + ' if it cannot hold the rate.'
+        );
+        if (syncFpsChips) {
+            syncFpsChips();
+            document.addEventListener('fpsmeter:change', syncFpsChips);
+            document.addEventListener('perf:tier', syncFpsChips);
         }
 
         /* The About card is a button, not a link: it opens in place instead of
@@ -3034,34 +4328,50 @@
             return `translate(${dx}px, ${dy}px) scale(${sx}, ${sy})`;
         }
 
-        /* Height comes from the copy rather than a constant, so a panel is exactly as
-           tall as it needs to be at any viewport and the text can change length
-           without anyone re-tuning a number. The write-then-read is a forced reflow
-           on purpose; it runs before anything paints. */
-        function flipTargetRect(card, r) {
-            const placeholder = card.classList.contains('is-open') && openPlaceholder ? openPlaceholder : card;
-            const rect = r || placeholder.getBoundingClientRect();
+        /* How tall the copy on the back face comes out at a given panel width.
+           The back face is inset:0 inside a card whose height we blank first, so
+           what is left is the content's own height. The write-then-read is a
+           forced reflow on purpose; it runs before anything paints, and the
+           card's own inline geometry is put back before it returns. Measuring at
+           the *target* width matters — that is the width the text will wrap to,
+           and the answer is meaningless at any other. */
+        function backContentHeight(card, w) {
+            const backFace = card.querySelector('.card-face-back');
+            if (!backFace) return 0;
+            const prevW = card.style.width, prevH = card.style.height;
+            card.style.width = w + 'px';
+            card.style.height = 'auto';
+            const h = backFace.scrollHeight;
+            card.style.width = prevW;
+            card.style.height = prevH;
+            return h;
+        }
+
+        /* Width is whatever the viewport can spare; height is whatever the back
+           face needs at that width, capped by the screen. Both come from the
+           content rather than from constants, so a panel is exactly as tall as
+           what is in it and nobody has to re-tune a number when the copy changes
+           or a card gains a screenshot.
+
+           The desktop branch used to derive its height from the card's aspect
+           ratio instead, which is fine only while every back face happens to be
+           the same shape as its front. It is not: the dimension picker is two
+           options and a heading, and opened as a tall box with a hole in the
+           bottom; the preview backs are a 800x420 shot plus a paragraph and a
+           button, and wanted more. */
+        function flipTargetRect(card) {
             const isMobile = window.innerWidth <= 640;
-
-            let w, h;
-            if (isMobile) {
-                w = Math.min(520, window.innerWidth - 24);
-                const backFace = card.querySelector('.card-face-back');
-                const contentH = backFace ? backFace.scrollHeight + 32 : 360;
-                h = Math.min(window.innerHeight - 32, Math.max(200, contentH));
-            } else {
-                const aspectRatio = rect.width / rect.height;
-                const maxW = Math.min(rect.width * 1.45, Math.min(520, window.innerWidth - 36));
-                const maxH = window.innerHeight - 40;
-
-                w = maxW;
-                h = w / aspectRatio;
-
-                if (h > maxH) {
-                    h = maxH;
-                    w = h * aspectRatio;
-                }
-            }
+            /* 520 was a phone number that a desktop inherited: on a 1080p screen
+               it left the screenshot smaller than the card it came from. The
+               panel now takes a share of the width it is actually given, floored
+               at the old value so nothing shrinks, and capped at 820 — past that
+               the 800px-wide shot would be upscaled, and a blurry preview is
+               worse than a small one. */
+            const w = isMobile
+                ? Math.min(520, window.innerWidth - 24)
+                : Math.min(820, Math.max(520, window.innerWidth * 0.52), window.innerWidth - 36);
+            const maxH = window.innerHeight - (isMobile ? 32 : 40);
+            const h = Math.min(maxH, Math.max(200, backContentHeight(card, w) + 6));
 
             const top = (window.innerHeight - h) / 2;
             const left = (window.innerWidth - w) / 2;
@@ -3081,6 +4391,7 @@
         function restoreFlip(fade) {
             clearTimeout(flipTimer);
             flipTimer = null;
+            stopPeekShow();
             if (!openCard) return;
 
             const card = openCard;
@@ -3112,13 +4423,93 @@
             document.dispatchEvent(new CustomEvent('flip:change'));
         }
 
+        /* Ten screenshots is ~190KB that nobody has asked for yet, so they are
+           held in data-src and fetched the first time a card is turned over —
+           or, on a machine with a pointer, the moment the cursor reaches the
+           card, which is far enough ahead of the click that the image is
+           usually decoded before the flip finishes. The frame around it is
+           sized by aspect-ratio either way, so a slow one costs nothing but a
+           fade. */
+        function loadPeek(card) {
+            card.querySelectorAll('img[data-src]').forEach(img => {
+                img.src = img.dataset.src;
+                img.removeAttribute('data-src');
+                if (img.complete) img.classList.add('is-loaded');
+                else img.addEventListener('load', () => img.classList.add('is-loaded'), { once: true });
+            });
+        }
+
+        /* ── A card whose back holds more than one screenshot ────────────────
+           Marked up as a plain stack of <img>; everything that makes it a slide
+           show is added here, so with the script off the card still shows its
+           first shot rather than three of them piled up. The interval only runs
+           while a panel is open — there is exactly one of those at a time, so
+           there is exactly one timer, cleared on close. */
+        const SHOT_MS = 2600;
+        // The tilt loop keeps its own copy of this inside its closure; the flip
+        // code is a different scope and needs its own handle on the same query.
+        const reducedMotionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+        let peekShow = null;
+
+        function stopPeekShow() {
+            if (!peekShow) return;
+            clearInterval(peekShow);
+            peekShow = null;
+        }
+
+        function startPeekShow(card) {
+            stopPeekShow();
+            const shot = card.querySelector('.peek-shot');
+            if (!shot) return;
+            const imgs = [...shot.querySelectorAll('img')];
+            if (imgs.length < 2) return;
+
+            shot.classList.add('peek-shot-multi');
+
+            let dots = shot.querySelector('.peek-dots');
+            if (!dots) {
+                dots = document.createElement('div');
+                dots.className = 'peek-dots';
+                dots.setAttribute('aria-hidden', 'true');
+                imgs.forEach(() => dots.appendChild(document.createElement('span')).className = 'peek-dot');
+                shot.appendChild(dots);
+            }
+            const dotEls = [...dots.children];
+
+            /* Only the first shot carries alt text once they are a set: a screen
+               reader wants one description of the picture, not three read out as
+               the timer moves. */
+            imgs.forEach((img, i) => {
+                if (i > 0) img.alt = '';
+                img.classList.toggle('is-current', i === 0);
+            });
+            dotEls.forEach((d, i) => d.classList.toggle('is-current', i === 0));
+
+            if (reducedMotionQuery.matches) return;
+
+            let i = 0;
+            peekShow = setInterval(() => {
+                imgs[i].classList.remove('is-current');
+                dotEls[i].classList.remove('is-current');
+                i = (i + 1) % imgs.length;
+                imgs[i].classList.add('is-current');
+                dotEls[i].classList.add('is-current');
+            }, SHOT_MS);
+        }
+
         function openFlip(card) {
             if (openCard === card) return;
+            loadPeek(card);
 
             // A close may still be running with its restore queued. Finish it rather
             // than cancelling it: the placeholder is positioned from the card's
             // parentNode, and mid-close that parent is still <body>.
             restoreFlip(false);
+
+            // After the restore, never before it: restoreFlip stops the slide show
+            // as part of tearing down whatever was open, and started above it would
+            // clear the timer it had just set.
+            startPeekShow(card);
 
             const r = card.getBoundingClientRect();
             openPlaceholder = document.createElement('div');
@@ -3134,7 +4525,7 @@
             card.classList.add('is-open');
 
             // Measured with same proportions
-            const t = flipTargetRect(card, r);
+            const t = flipTargetRect(card);
             openRect = t;
 
             // Start at initial grid rect
@@ -3158,6 +4549,7 @@
             if (!openCard) return;
             const card = openCard;
             clearTimeout(flipTimer);
+            stopPeekShow();
 
             if (!openPlaceholder) { restoreFlip(false); return; }
 
@@ -3174,6 +4566,7 @@
 
         document.querySelectorAll('.flip-card').forEach(card => {
             card.querySelector('.flip-open').addEventListener('click', () => openFlip(card));
+            card.addEventListener('pointerenter', () => loadPeek(card), { once: true });
             card.querySelectorAll('[data-flip-close]').forEach(el => {
                 el.addEventListener('click', closeFlip);
             });
@@ -3250,14 +4643,17 @@
                 s.wroteMx = s.currentMx; s.wroteMy = s.currentMy; s.wroteMag = s.currentMag;
             }
 
-            /* Below these the change is invisible, so it isn't worth a repaint. */
+            /* Below these the change is invisible, so it isn't worth a repaint.
+               A degraded page widens the band: a repaint costs more there, so it
+               takes a bigger movement to be worth one. */
             function needsWrite(s) {
-                return Math.abs(s.currentRx - s.wroteRx) > 0.05
-                    || Math.abs(s.currentRy - s.wroteRy) > 0.05
-                    || Math.abs(s.currentTy - s.wroteTy) > 0.05
-                    || Math.abs(s.currentMx - s.wroteMx) > 0.15
-                    || Math.abs(s.currentMy - s.wroteMy) > 0.15
-                    || Math.abs(s.currentMag - s.wroteMag) > 0.005;
+                const k = perfTier === 0 ? 1 : perfTier === 1 ? 3 : 8;
+                return Math.abs(s.currentRx - s.wroteRx) > 0.05 * k
+                    || Math.abs(s.currentRy - s.wroteRy) > 0.05 * k
+                    || Math.abs(s.currentTy - s.wroteTy) > 0.05 * k
+                    || Math.abs(s.currentMx - s.wroteMx) > 0.15 * k
+                    || Math.abs(s.currentMy - s.wroteMy) > 0.15 * k
+                    || Math.abs(s.currentMag - s.wroteMag) > 0.005 * k;
             }
 
             function getOrCreateState(card, maxTilt, lift) {
@@ -3312,6 +4708,7 @@
                 function release() {
                     if (card.classList.contains('is-open')) return;
                     state.hovered = false;
+                    if (typeof deactivateCardTheme === 'function') deactivateCardTheme();
                 }
 
                 card.addEventListener('mouseenter', activate);
@@ -3394,6 +4791,11 @@
             // A phone does not need the ambient bend recomputed 60 times a second;
             // it is a slow, broad curve and halving the rate halves the style work.
             const MOBILE_FRAME_MS = 1000 / 30;
+            /* Same idea applied to a desktop that turns out to be struggling. Each
+               write here repaints a backdrop-filtered surface with a blended
+               gradient on top of it, so the rate this loop runs at is a direct
+               multiplier on the page's most expensive paint. */
+            const TILT_FRAME_MS_BY_TIER = [0, 1000 / 30, 1000 / 20];
             // How far outside the viewport a card still gets updated, so it is already
             // in the right position by the time it scrolls into view.
             const OFFSCREEN_MARGIN = 120;
@@ -3413,9 +4815,14 @@
             function ambientTick(now) {
                 const isMobileView = isTouch || window.innerWidth <= 640;
 
-                // Throttle on mobile. Return before touching lastTick so the
-                // accelerometer baseline still integrates over real elapsed time.
-                if (isMobileView && now - lastFrame < MOBILE_FRAME_MS) {
+                // Throttle on mobile, and on anything the governor has stepped down.
+                // Return before touching lastTick so the accelerometer baseline
+                // still integrates over real elapsed time.
+                const frameBudget = Math.max(
+                    isMobileView ? MOBILE_FRAME_MS : 0,
+                    TILT_FRAME_MS_BY_TIER[perfTier]
+                );
+                if (frameBudget && now - lastFrame < frameBudget) {
                     requestAnimationFrame(ambientTick);
                     return;
                 }
@@ -3582,6 +4989,117 @@
                     enableOrientation();
                 }
             }
+
+            /* ── The card you are on ─────────────────────────────────────────
+               A phone has no hover, so nothing in this grid was ever singled
+               out. This marks whichever card is nearest the middle of the
+               screen, and the CSS above brings it forward and takes the page's
+               background hue with it.
+
+               One frame of work per scroll frame, and nothing in it touches
+               layout: a class swap that drives a transform, an opacity and a
+               hue that is already on an 0.8s lerp of its own. That is a
+               deliberate ceiling. The version before this also expanded the
+               card once the scroll went still, which meant re-laying-out the
+               column a beat after the finger left the glass — the one moment
+               where anything moving reads as the page lagging rather than
+               answering. Cheap enough to do every frame beats clever enough to
+               need its own moment. ── */
+            const mobileFocusMQ = window.matchMedia('(max-width: 640px)');
+            const FOCUS_HYSTERESIS = 26;  // px a rival must win by to take focus
+
+            let focusActive = false;
+            let focusedCard = null;
+            let focusRaf = 0;
+
+            function nearestCard() {
+                const viewportH = window.innerHeight;
+                const mid = viewportH / 2;
+                let best = null, bestDist = Infinity;
+
+                for (const card of cards) {
+                    if (card.classList.contains('is-open')) continue;
+                    const r = card.getBoundingClientRect();
+                    if (r.bottom < 0 || r.top > viewportH) continue;
+                    const dist = Math.abs(r.top + r.height / 2 - mid);
+                    if (dist < bestDist) { bestDist = dist; best = card; }
+                }
+
+                /* Halfway between two cards the winner flips back and forth on a
+                   pixel of scroll, and every flip is a pair of class changes on
+                   backdrop-filtered surfaces. The card holding the detent keeps
+                   it until another is clearly closer. */
+                if (best && focusedCard && best !== focusedCard) {
+                    const r = focusedCard.getBoundingClientRect();
+                    if (r.bottom > 0 && r.top < viewportH) {
+                        const held = Math.abs(r.top + r.height / 2 - mid);
+                        if (held - bestDist < FOCUS_HYSTERESIS) return focusedCard;
+                    }
+                }
+                return best;
+            }
+
+            /* The page's background hue follows the focused card. It needs no
+               debounce of its own: --bg-color-1/2 and --hue are on an 0.8s
+               transition, so a fast scroll past six cards is one hue chasing
+               the finger rather than six flashes. Dwelling is what the theme's
+               own THEME_DWELL_MS gate watches for before it spawns anything. */
+            function setFocus(card) {
+                if (card === focusedCard) return;
+                if (focusedCard) focusedCard.classList.remove('is-focused');
+                focusedCard = card;
+                if (!card) {
+                    if (typeof deactivateCardTheme === 'function') deactivateCardTheme();
+                    return;
+                }
+                card.classList.add('is-focused');
+                if (typeof activateCardTheme === 'function') activateCardTheme(card.id);
+            }
+
+            function refocus() {
+                if (document.querySelector('.flip-card.is-open')) return;
+                setFocus(nearestCard());
+            }
+
+            function onFocusScroll() {
+                if (focusRaf) return;
+                focusRaf = requestAnimationFrame(() => {
+                    focusRaf = 0;
+                    if (focusActive) setFocus(nearestCard());
+                });
+            }
+
+            function enableFocus() {
+                if (focusActive) return;
+                focusActive = true;
+                document.documentElement.classList.add('mobile-focus');
+                window.addEventListener('scroll', onFocusScroll, { passive: true });
+                refocus();
+            }
+
+            function disableFocus() {
+                if (!focusActive) return;
+                focusActive = false;
+                window.removeEventListener('scroll', onFocusScroll);
+                if (focusRaf) { cancelAnimationFrame(focusRaf); focusRaf = 0; }
+                document.documentElement.classList.remove('mobile-focus');
+                setFocus(null);
+            }
+
+            function syncFocusMode() {
+                if (mobileFocusMQ.matches) enableFocus(); else disableFocus();
+            }
+
+            if (mobileFocusMQ.addEventListener) {
+                mobileFocusMQ.addEventListener('change', syncFocusMode);
+            } else if (mobileFocusMQ.addListener) {
+                mobileFocusMQ.addListener(syncFocusMode);  // Safari < 14
+            }
+            window.addEventListener('resize', () => { if (focusActive) refocus(); });
+            window.addEventListener('orientationchange', () => { if (focusActive) refocus(); });
+            // A card leaving or rejoining the grid moves every card below it.
+            document.addEventListener('flip:change', () => { if (focusActive) refocus(); });
+            syncFocusMode();
         })();
     </script>
 </body>

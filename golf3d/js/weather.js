@@ -145,7 +145,13 @@
     var BY_THEME = {
         seaside: ['clear', 'fair', 'golden', 'mist', 'drizzle', 'rain'],
         quarry: ['clear', 'fair', 'golden', 'dust', 'overcast', 'drizzle'],
-        works: ['fair', 'clear', 'mist', 'overcast', 'rain']
+        works: ['fair', 'clear', 'mist', 'overcast', 'rain'],
+        lagoon: ['clear', 'fair', 'golden', 'mist', 'drizzle', 'rain'],
+        highland: ['fair', 'clear', 'overcast', 'mist', 'drizzle', 'golden'],
+        parkland: ['clear', 'fair', 'golden', 'overcast', 'mist', 'drizzle'],
+        // A links is on a coast and the weather says so: wind, cloud and rain
+        // are the normal condition and a still clear day is the treat.
+        links: ['fair', 'overcast', 'drizzle', 'clear', 'rain', 'golden']
     };
 
     // Skies a course is happy to open on.
@@ -161,6 +167,9 @@
         theme: 'seaside',
         override: null,          // ?weather= or the W key, kept for the round
         wind: { dir: 0.8, speed: 0.5, x: 0, z: 0, gust: 0 },
+        // How much of the weather is actually in front of the camera, 1 all of
+        // it. The renderer pulls this down when the camera goes overhead.
+        atmos: 1,
         dirBase: 0.8,            // the hole's prevailing bearing; build() sets it
         group: null,
         rain: null, motes: null, mist: [], birds: [],
@@ -324,7 +333,7 @@
         'varying float vFade;',
         'void main(){',
         '  float speed = 0.75 + seed * 0.55;',
-        '  float ph = fract(position.y + time * speed);',   // 1 at the top
+        '  float ph = fract(position.y - time * speed);',   // 1 at the top
         '  float dropped = (1.0 - ph) * box.y;',
         '  vec3 p;',
         '  p.x = origin.x + position.x * box.x + wind.x * dropped * 0.26;',
@@ -385,6 +394,10 @@
         var mesh = new THREE.LineSegments(geo, mat);
         mesh.frustumCulled = false;      // the shader moves it; the bounds lie
         mesh.renderOrder = 3;
+        // What the rain looks like at full strength, kept so that thinning the
+        // air for the overview (see setAtmosphere) has something to come back
+        // to. The weather owns its own numbers; the camera only scales them.
+        mesh.userData.baseAlpha = mat.uniforms.alpha.value;
         group.add(mesh);
         W.rain = mesh;
     }
@@ -453,6 +466,7 @@
             m.position.set(cx, theme.surroundY + 0.5 + i * 0.55, cz);
             m.renderOrder = 2;
             m.userData.spin = (i % 2 ? 1 : -1) * (0.006 + i * 0.004);
+            m.userData.baseOpacity = m.material.opacity;
             group.add(m);
             W.mist.push(m);
         }
@@ -548,6 +562,7 @@
 
         if (W.rain) {
             var u = W.rain.material.uniforms;
+            u.alpha.value = W.rain.userData.baseAlpha * W.atmos;
             u.time.value = t * 0.55;
             u.wind.value.set(w.x, w.z);
             u.origin.value.set(camera.position.x, camera.position.y + 9, camera.position.z);
@@ -575,6 +590,8 @@
 
         for (var m = 0; m < W.mist.length; m++) {
             var sheet = W.mist[m];
+            sheet.material.opacity = sheet.userData.baseOpacity * W.atmos;
+            sheet.visible = sheet.material.opacity > 0.004;
             sheet.rotation.z += sheet.userData.spin * dt;
             sheet.position.x += w.x * dt * 0.05;
             sheet.position.z += w.z * dt * 0.05;
@@ -592,6 +609,18 @@
         cycle: cycle,
         setOverride: setOverride,
         windSpeedKph: windSpeedKph,
+
+        /* Thin the air out. The overview is a map, and a map you cannot read
+           is not worth the keystroke: on a misty hole the rain, the mist banks
+           and the fog between the camera and the ground turned the whole thing
+           into a grey rectangle. The renderer eases this down as the camera
+           lifts and back up as it drops, and the weather on the ground is
+           exactly as it was — this scales what is drawn, not what the hole is
+           playing in. */
+        setAtmosphere: function (scale) {
+            W.atmos = Math.max(0, Math.min(1, scale));
+        },
+        get atmosphere() { return W.atmos; },
         get now() { return W.now; },
         get override() { return W.override; },
         get wind() { return W.wind; },

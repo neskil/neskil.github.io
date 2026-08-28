@@ -39,6 +39,7 @@
         clubs: [],           // { group, meshes, label, target, now }
         pickables: [],
         expanded: false,
+        settled: false,        // shut, still, and nothing left to ease
         selected: null,
         ray: null,
         ndc: null,
@@ -47,33 +48,115 @@
         // Where the rig is, as a blend between tucked away and front and
         // centre. Everything about the open state is this number.
         open01: 0,
-        spin: 0
+        spin: 0,
+        // How the open row is arranged, and how big it can be — both read off
+        // the shape of the screen, so they are recomputed rather than baked.
+        cols: 0,
+        openScale: 2,
+        openY: -0.26,
+        crest: 1.31          // how tall the bag stands with its clubs in it
     };
+
+    /* ── colour ────────────────────────────────────────────────────────── */
+
+    /* Every colour below is written in sRGB — the same hex the stylesheet uses
+       — and converted here, once, at the point it is written.
+
+       This is not a nicety. three.js at r128 hands a material colour to the
+       shader untouched and then encodes the finished frame to sRGB on the way
+       out, so a colour written dark is lit as though it were much lighter and
+       leaves lighter still: #2a3138 leather came back off the screen as a mid
+       grey. That is the whole reason the bag read as a beige bucket rather
+       than the black cart bag it was modelled as, and why four clubs whose
+       heads are three different greys all arrived the same shade of white.
+       Converting on the way in puts the written palette back on the screen. */
+    function ink(hex) { return new THREE.Color(hex).convertSRGBToLinear(); }
+
+    /* A canvas is drawn in sRGB too, and three.js will decode it for us if it
+       is told what it is holding. Without this the labels come out of the same
+       double-encoding the materials did: pale, washed and low in contrast. */
+    function srgbCanvas(cv) {
+        var t = new THREE.CanvasTexture(cv);
+        if (THREE.sRGBEncoding !== undefined) t.encoding = THREE.sRGBEncoding;
+        t.anisotropy = 4;
+        return t;
+    }
+
+    /* One typeface, in two weights, for every word this file draws — the
+       names on the club cards and the maker's patch on the bag alike. What
+       the first pass did instead, and why it did not work, is under `labels`
+       below. */
+    var FACE = '"Outfit", system-ui, -apple-system, "Segoe UI", sans-serif';
+    var FIGS = '"JetBrains Mono", ui-monospace, "SFMono-Regular", monospace';
+
+    /* One palette per club, and it is the same palette everywhere the club
+       appears: the collar under its head in the bag, its name on its label,
+       and the two figures under the name. Four coloured collars standing in
+       the cuff is what makes the shut bag read as four *different* clubs at a
+       glance — and it is already the picker's legend before the picker opens. */
+    var CLUB_LOOK = {
+        putter:  { name: '#7dd3fc', metal: 0x38bdf8 },
+        driver:  { name: '#fdba74', metal: 0xf97316 },
+        iron:    { name: '#c4b5fd', metal: 0x8b5cf6 },
+        chipper: { name: '#86efac', metal: 0x22c55e },
+        wedge:   { name: '#fde68a', metal: 0xeab308 }
+    };
+    function look(id) { return CLUB_LOOK[id] || CLUB_LOOK.chipper; }
 
     /* ── materials ─────────────────────────────────────────────────────── */
 
+    /* Specular colours are as considered as the diffuse ones. A white
+       highlight on every metal is what turned four heads into four white
+       blobs: chrome reflects the sky it is standing under, not a studio
+       flash, so the speculars here are grey and the shininess is low enough
+       that the highlight is a sheen across the crown rather than one hard
+       dot per light. */
     function mats() {
         return {
-            leather: new THREE.MeshLambertMaterial({ color: 0x2a3138 }),
-            panel: new THREE.MeshLambertMaterial({ color: 0x39424b }),
-            trim: new THREE.MeshLambertMaterial({ color: 0x38bdf8 }),
-            dark: new THREE.MeshLambertMaterial({ color: 0x14181d }),
-            /* Broad and soft rather than mirror-bright: the course has
-               three lights of its own and the picker adds a fourth, and a
-               shininess up in the hundreds gives a crown one hard white spot
-               per light instead of one long sheen. */
+            leather: new THREE.MeshLambertMaterial({ color: ink(0x59636f) }),
+            panel: new THREE.MeshLambertMaterial({ color: ink(0x6d7886) }),
+            trim: new THREE.MeshLambertMaterial({ color: ink(0x2b93c8) }),
+            dark: new THREE.MeshLambertMaterial({ color: ink(0x353d47) }),
+            /* The inside of the bag, which used to be the outside of the
+               world: a cylinder is single-sided, so looking down into the
+               mouth looked straight through the far wall at the sea.
+
+               It is lit by nothing the scene owns — a light out here
+               reaches the far wall and no other — so it is painted rather
+               than lit: bright at the rim where the daylight gets in, dark
+               at the bottom of the well. A flat tone made the mouth a hole
+               cut in the bag; the fall-off is what makes it a depth. */
+            liner: new THREE.MeshBasicMaterial({ map: linerTexture(), side: THREE.BackSide }),
+            well: new THREE.MeshBasicMaterial({ color: ink(0x191f26) }),
             crown: new THREE.MeshPhongMaterial({
-                color: 0x212b38, shininess: 26, specular: 0x556373
+                color: ink(0x36435a), shininess: 26, specular: ink(0x39434f)
             }),
-            insert: new THREE.MeshPhongMaterial({ color: 0x1e2932, shininess: 20, specular: 0x333c44 }),
-            steel: new THREE.MeshPhongMaterial({ color: 0xc2cad3, shininess: 80, specular: 0x8892a0 }),
-            grip: new THREE.MeshLambertMaterial({ color: 0x23272e }),
-            head: new THREE.MeshPhongMaterial({ color: 0xa9b3bf, shininess: 90, specular: 0xffffff }),
-            face: new THREE.MeshPhongMaterial({ color: 0xdfe7ee, shininess: 60, specular: 0x777f88 }),
+            insert: new THREE.MeshPhongMaterial({ color: ink(0x1e2932), shininess: 20, specular: ink(0x252c33) }),
+            steel: new THREE.MeshPhongMaterial({ color: ink(0x8f9aa6), shininess: 60, specular: ink(0x5a636d) }),
+            grip: new THREE.MeshLambertMaterial({ color: ink(0x1d2127) }),
+            head: new THREE.MeshPhongMaterial({ color: ink(0x929daa), shininess: 70, specular: ink(0x646d77) }),
+            face: new THREE.MeshPhongMaterial({ color: ink(0xb9c4cf), shininess: 50, specular: ink(0x4c545c) }),
             grooves: new THREE.MeshPhongMaterial({
-                map: grooveTexture(), shininess: 45, specular: 0x666e77, side: THREE.DoubleSide
+                map: grooveTexture(), shininess: 40, specular: ink(0x4c545c), side: THREE.DoubleSide
             })
         };
+    }
+
+    // Daylight falling into an open bag, drawn: a strip, light at the top.
+    var _liner = null;
+    function linerTexture() {
+        if (_liner) return _liner;
+        var cv = document.createElement('canvas');
+        cv.width = 4; cv.height = 64;
+        var g = cv.getContext('2d');
+        var grd = g.createLinearGradient(0, 0, 0, 64);
+        grd.addColorStop(0, '#5b6773');
+        grd.addColorStop(0.28, '#39424c');
+        grd.addColorStop(1, '#12171d');
+        g.fillStyle = grd;
+        g.fillRect(0, 0, 4, 64);
+        _liner = srgbCanvas(cv);
+        return _liner;
     }
 
     // Grooves, drawn: a dozen lines across a face is a texture, not geometry.
@@ -83,21 +166,22 @@
         var cv = document.createElement('canvas');
         cv.width = cv.height = 64;
         var g = cv.getContext('2d');
-        g.fillStyle = '#cfd8e0';
+        g.fillStyle = '#b6c1cc';
         g.fillRect(0, 0, 64, 64);
-        g.strokeStyle = 'rgba(40, 50, 60, 0.55)';
+        g.strokeStyle = 'rgba(28, 36, 45, 0.6)';
         g.lineWidth = 2;
         for (var y = 8; y < 60; y += 6) {
             g.beginPath(); g.moveTo(4, y); g.lineTo(60, y); g.stroke();
         }
-        _grooves = new THREE.CanvasTexture(cv);
+        _grooves = srgbCanvas(cv);
         return _grooves;
     }
 
     /* ── one club ──────────────────────────────────────────────────────── */
 
-    // Real lengths, in metres. A driver is 45 inches, wedges 35.5, a putter 34.
-    var LENGTHS = { driver: 1.14, chipper: 0.95, wedge: 0.90, putter: 0.86 };
+    // Real lengths, in metres. A driver is 45 inches, a 7 iron 38, wedges 35.5,
+    // a putter 34.
+    var LENGTHS = { driver: 1.14, iron: 0.97, chipper: 0.95, wedge: 0.90, putter: 0.86 };
 
     /* Grip, shaft, ferrule, head — bottom to top, because that is the order
        they are stacked in and the order they read in. The head is a different
@@ -121,12 +205,23 @@
         cap.position.y = 0.007;
         g.add(cap);
 
-        // The ferrule: the little collar where shaft meets head. Two millimetres
-        // of trim that does more for "this is a golf club" than anything else
-        // on the shaft.
-        var ferrule = new THREE.Mesh(new THREE.CylinderGeometry(0.0105, 0.0095, 0.028, 10), M.dark);
+        /* The ferrule: the little collar where shaft meets head. Two
+           millimetres of trim that does more for "this is a golf club" than
+           anything else on the shaft — and, since it is the one part of a
+           club that is allowed to be any colour at all, this is where each
+           club wears its own. It sits above the cuff on a shut bag, so four
+           clubs bunched in the mouth are four colours rather than four
+           silhouettes. */
+        var ferrule = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.0112, 0.0096, 0.030, 10),
+            new THREE.MeshPhongMaterial({
+                color: ink(look(club.id).metal), shininess: 44, specular: ink(0x3a4249)
+            }));
         ferrule.position.y = len - 0.03;
         g.add(ferrule);
+        var collar = new THREE.Mesh(new THREE.CylinderGeometry(0.0118, 0.0118, 0.007, 10), M.dark);
+        collar.position.y = len - 0.047;
+        g.add(collar);
 
         var head = new THREE.Group();
         head.position.y = len - 0.004;
@@ -335,33 +430,109 @@
 
     /* A cart bag: 0.89 tall, a 0.26 cuff, and the details that make it one
        rather than a cylinder — a divider cross in the mouth, stitched seams, a
-       zip pocket, a padded strap and a foot ring. */
+       zip pocket, a padded strap and a foot ring.
+
+       Where those details *sit* matters as much as having them. The bag stands
+       mostly below the bottom of the screen on purpose, so everything that
+       says "golf bag" rather than "bin" has to live in the hand's width of it
+       that shows: the cuff, the piping under it, the panel with the name on
+       it and the carry handle. The pocket, the strap and the foot
+       ring are still modelled, and are still the first things you see if the
+       window is tall enough to show them, but they are no longer carrying the
+       silhouette on their own. */
     var BAG_H = 0.89, BAG_R = 0.13, WELL = 0.72;
+
+    /* Which way round the bag is standing, as an angle about its own axis.
+       `place` twists the whole rig by -TWIST so it is seen from the corner
+       rather than square on, which means the part of it facing the camera is
+       this far round from local +z. Anything meant to be *read* — the name on
+       the side — is centred here rather than on the bag's nominal front. */
+    var TWIST = 0.62, FACING = TWIST;
+
+    /* The name on the side, drawn rather than modelled. A bag with nothing on
+       it is a container; a bag with a maker on it is somebody's. */
+    var _mono = null;
+    function monogramTexture() {
+        if (_mono) return _mono;
+        var cv = document.createElement('canvas');
+        cv.width = 256; cv.height = 144;
+        var g = cv.getContext('2d');
+        g.fillStyle = '#414d59';
+        g.fillRect(0, 0, 256, 144);
+        g.strokeStyle = 'rgba(148, 210, 240, 0.75)';
+        g.lineWidth = 5;
+        g.strokeRect(9, 9, 238, 126);
+        g.textAlign = 'center';
+        g.textBaseline = 'middle';
+        // Big enough to survive being a centimetre of curved canvas on a
+        // laptop: a maker's patch nobody can read is a smudge.
+        g.fillStyle = '#f2f9ff';
+        g.font = '800 62px ' + FACE;
+        g.fillText('LOFT', 128, 52);
+        g.fillStyle = '#a8dcf5';
+        g.font = '800 46px ' + FACE;
+        g.fillText('LINKS', 128, 104);
+        _mono = srgbCanvas(cv);
+        return _mono;
+    }
 
     function buildBody(M) {
         var g = new THREE.Group();
 
-        var body = new THREE.Mesh(new THREE.CylinderGeometry(BAG_R, BAG_R * 0.86, BAG_H, 24), M.leather);
+        /* Open at the top, both here and at the cuff. A three.js cylinder is
+           capped by default, and those two caps were a pair of solid discs
+           lying across the mouth: the clubs came *through* the lid rather
+           than standing in the bag, which is most of why the whole thing read
+           as a bin with sticks in it. The lining below is what the mouth
+           shows now. */
+        var body = new THREE.Mesh(
+            new THREE.CylinderGeometry(BAG_R, BAG_R * 0.86, BAG_H, 24, 1, true), M.leather);
         body.position.y = BAG_H / 2;
         g.add(body);
 
-        // A lighter panel round the middle, and the accent as a narrow band —
-        // the same trick every bag maker uses to stop it reading as a tube.
-        var panel = new THREE.Mesh(new THREE.CylinderGeometry(BAG_R * 1.012, BAG_R * 0.96, 0.3, 24), M.panel);
-        panel.position.y = BAG_H * 0.56;
+        // The lining, and the floor of the well the grips rest on. Both exist
+        // only so that the mouth reads as an inside.
+        var liner = new THREE.Mesh(
+            new THREE.CylinderGeometry(BAG_R * 0.99, BAG_R * 0.84, WELL + 0.01, 20, 1, true), M.liner);
+        liner.position.y = BAG_H - (WELL + 0.01) / 2 + 0.005;
+        g.add(liner);
+        var floor = new THREE.Mesh(new THREE.CircleGeometry(BAG_R * 0.84, 20), M.well);
+        floor.rotation.x = -Math.PI / 2;
+        floor.position.y = BAG_H - WELL;
+        g.add(floor);
+
+        /* The panel with the name on it, and the accent piping over it, both
+           held up under the cuff where they can be seen. Below about y = 0.55
+           the bag is off the bottom of the screen on a phone. */
+        var panel = new THREE.Mesh(new THREE.CylinderGeometry(BAG_R * 1.015, BAG_R * 0.985, 0.24, 24), M.panel);
+        panel.position.y = BAG_H * 0.74;
         g.add(panel);
-        var band = new THREE.Mesh(new THREE.CylinderGeometry(BAG_R * 1.03, BAG_R * 1.02, 0.035, 24), M.trim);
-        band.position.y = BAG_H * 0.42;
+
+        /* Centred on the face the camera is actually looking at, not on the
+           bag's own front: the rig stands turned off-axis so it reads as an
+           object with sides, and a patch centred on local +z spent half of
+           itself round the side. FACING is that turn. */
+        _monoMat = new THREE.MeshLambertMaterial({ map: monogramTexture(), side: THREE.DoubleSide });
+        var mono = new THREE.Mesh(
+            new THREE.CylinderGeometry(BAG_R * 1.03, BAG_R * 1.02, 0.115, 16, 1, true,
+                FACING - 0.58, 1.16),
+            _monoMat);
+        mono.position.y = BAG_H * 0.74;
+        g.add(mono);
+
+        var band = new THREE.Mesh(new THREE.CylinderGeometry(BAG_R * 1.035, BAG_R * 1.03, 0.018, 24), M.trim);
+        band.position.y = BAG_H * 0.86;
         g.add(band);
 
-        [0.30, 0.72].forEach(function (f) {
+        [0.40, 0.62].forEach(function (f) {
             var seam = new THREE.Mesh(new THREE.TorusGeometry(BAG_R * 0.99, 0.004, 6, 26), M.dark);
             seam.rotation.x = Math.PI / 2;
             seam.position.y = BAG_H * f;
             g.add(seam);
         });
 
-        var cuff = new THREE.Mesh(new THREE.CylinderGeometry(BAG_R * 1.06, BAG_R * 1.02, 0.075, 24), M.dark);
+        var cuff = new THREE.Mesh(
+            new THREE.CylinderGeometry(BAG_R * 1.06, BAG_R * 1.02, 0.075, 24, 1, true), M.dark);
         cuff.position.y = BAG_H - 0.035;
         g.add(cuff);
         var lip = new THREE.Mesh(new THREE.TorusGeometry(BAG_R * 1.06, 0.011, 8, 26), M.dark);
@@ -369,10 +540,18 @@
         lip.position.y = BAG_H;
         g.add(lip);
 
+        /* The carry handle over the mouth. It is the one part of a bag nobody
+           mistakes for anything else, and at this crop it is right in the
+           middle of what shows. */
+        var handle = new THREE.Mesh(new THREE.TorusGeometry(0.052, 0.008, 6, 18, Math.PI), M.panel);
+        handle.rotation.y = Math.PI / 2;
+        handle.position.set(-BAG_R * 0.72, BAG_H - 0.02, 0);
+        g.add(handle);
+
         // The divider cross. Real bags run fourteen full-length slots; four is
         // as many as reads at this size, and it is what the clubs sit in.
         [0, Math.PI / 2].forEach(function (a) {
-            var d = new THREE.Mesh(new THREE.BoxGeometry(BAG_R * 2.05, 0.05, 0.008), M.dark);
+            var d = new THREE.Mesh(new THREE.BoxGeometry(BAG_R * 1.94, 0.05, 0.008), M.dark);
             d.position.y = BAG_H - 0.03;
             d.rotation.y = a;
             g.add(d);
@@ -387,26 +566,26 @@
         g.add(foot);
 
         var pocket = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.24, 0.075), M.panel);
-        pocket.position.set(0, 0.34, 0.10);
+        pocket.position.set(0, 0.30, 0.10);
         g.add(pocket);
         var zip = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.008, 0.006), M.trim);
-        zip.position.set(0, 0.45, 0.142);
+        zip.position.set(0, 0.41, 0.142);
         g.add(zip);
         var pull = new THREE.Mesh(new THREE.BoxGeometry(0.012, 0.03, 0.005), M.trim);
-        pull.position.set(0.06, 0.432, 0.145);
+        pull.position.set(0.06, 0.392, 0.145);
         g.add(pull);
 
         var ball = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.13, 0.06), M.panel);
-        ball.position.set(0.105, 0.2, 0.045);
+        ball.position.set(0.105, 0.18, 0.045);
         ball.rotation.y = -0.7;
         g.add(ball);
 
-        var strap = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.66, 0.012), M.dark);
-        strap.position.set(-0.115, 0.46, 0.045);
+        var strap = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.60, 0.012), M.dark);
+        strap.position.set(-0.115, 0.42, 0.045);
         strap.rotation.z = 0.16;
         g.add(strap);
         var pad = new THREE.Mesh(new THREE.BoxGeometry(0.055, 0.22, 0.022), M.panel);
-        pad.position.set(-0.13, 0.55, 0.045);
+        pad.position.set(-0.125, 0.50, 0.045);
         pad.rotation.z = 0.16;
         g.add(pad);
 
@@ -423,35 +602,185 @@
 
     /* ── labels ────────────────────────────────────────────────────────── */
 
+    /* One typeface (FACE and FIGS, at the top of this file), in two weights,
+       for everything on a label.
+
+       The first pass gave each club a *font* of its own — the driver in a
+       heavy sans, the wedge in an italic serif, the chipper in a monospace —
+       on the theory that four different faces would read as four different
+       personalities. Four faces on four cards standing side by side read as
+       four different games. A club is told apart by its colour and by the
+       shape of the head above the card; the type's whole job is to be read
+       at a glance from across a phone, and the face that does that best is
+       the one the rest of the page is already set in.
+
+       Labels are drawn on a canvas, and a canvas draws with whatever font the
+       browser has *at the moment fillText runs*. The web font arrives a
+       heartbeat later than the first frame does, so every label was being
+       baked in the fallback face and kept it for the rest of the round —
+       which is a good half of why the type never looked like the page's.
+       Redrawing once the font is in costs four canvases, once. */
+    var _labelled = [];
+    var _monoMat = null;
+    function watchFonts() {
+        if (!document.fonts || !document.fonts.ready) return;
+        document.fonts.ready.then(function () {
+            _labelled.forEach(function (c) {
+                c.label.material.map = labelTexture(c.club);
+                c.label.material.needsUpdate = true;
+            });
+            if (_monoMat) {
+                _mono = null;
+                _monoMat.map = monogramTexture();
+                _monoMat.needsUpdate = true;
+            }
+        })['catch'](function () { /* no fonts API, no redraw, no harm */ });
+    }
+
+    /* ── one label ─────────────────────────────────────────────────────── */
+
+    /* What a label has to answer is "what does this club do", and the two
+       numbers that answer it are the loft and the ceiling on power. They used
+       to be a line of shorthand — `pwr 14 · loft 22°` — which is the data and
+       none of the meaning: 14 is in units nobody outside physics.js has ever
+       seen, and a number of degrees is only a picture if you already have the
+       picture.
+
+       So both are drawn as well as written. The loft is the face itself, at
+       the angle it is really set to, with the launch line off it: a wedge's
+       card shows a face lying right back and a line going up, a putter's
+       shows a face standing straight and a line along the ground. The power
+       is a bar filled against the biggest club in the bag, so "the driver is
+       the reach club" is a length rather than a claim. The figures stay
+       underneath for anyone who wants them. */
+
+    var LABEL_W = 368, LABEL_H = 166;
+
+    function maxPower() {
+        var m = 0;
+        C.CLUBS.forEach(function (c) { m = Math.max(m, c.power); });
+        return m || 1;
+    }
+
+    function roundRect(g, x, y, w, h, r) {
+        if (g.roundRect) { g.beginPath(); g.roundRect(x, y, w, h, r); return; }
+        g.beginPath();
+        g.moveTo(x + r, y);
+        g.arcTo(x + w, y, x + w, y + h, r);
+        g.arcTo(x + w, y + h, x, y + h, r);
+        g.arcTo(x, y + h, x, y, r);
+        g.arcTo(x, y, x + w, y, r);
+        g.closePath();
+    }
+
+    /* The loft, drawn: a ball on the ground, the face set at the club's own
+       angle behind it, and the line the ball leaves on. Four degrees is a
+       number; this is what four degrees does, and what forty-two does instead.
+
+       The club stands behind the ball, where it stands at address — drawn
+       over the ball it read as a club buried in it, and the launch line
+       started from thin air instead of from the ball it is launching. */
+    function drawLoft(g, cx, cy, deg, tint) {
+        var rad = deg * Math.PI / 180;
+        var R = 34;
+        var bx = cx + 9, by = cy - 5;   // the ball, sitting on the ground
+
+        // The ground, running under both.
+        g.strokeStyle = 'rgba(148, 176, 199, 0.45)';
+        g.lineWidth = 2;
+        g.beginPath(); g.moveTo(cx - 26, cy); g.lineTo(bx + R, cy); g.stroke();
+
+        /* The face, leaned back by the loft: the top tips away from the ball,
+           which is what opening a face looks like from the side. Drawn first,
+           so the ball sits in front of it rather than behind. */
+        g.save();
+        g.translate(cx, cy);
+        g.rotate(-rad);
+        g.fillStyle = tint;
+        g.fillRect(-5, -26, 5, 26);
+        g.fillStyle = 'rgba(255, 255, 255, 0.32)';
+        g.fillRect(-5, -26, 5, 5);
+        g.restore();
+
+        // The line off the face, from the ball rather than from the club.
+        var grad = g.createLinearGradient(bx, by, bx + R * Math.cos(rad), by - R * Math.sin(rad));
+        grad.addColorStop(0, tint);
+        grad.addColorStop(1, 'rgba(255, 255, 255, 0)');
+        g.strokeStyle = grad;
+        g.lineWidth = 4;
+        g.beginPath();
+        g.moveTo(bx, by);
+        g.lineTo(bx + R * Math.cos(rad), by - R * Math.sin(rad));
+        g.stroke();
+
+        g.fillStyle = 'rgba(233, 244, 255, 0.92)';
+        g.beginPath(); g.arc(bx, by, 5, 0, Math.PI * 2); g.fill();
+    }
+
+    // The ceiling on power, against the biggest club in the bag.
+    function drawPower(g, x, y, w, h, frac, tint) {
+        roundRect(g, x, y, w, h, h / 2);
+        g.fillStyle = 'rgba(148, 176, 199, 0.20)';
+        g.fill();
+        roundRect(g, x, y, Math.max(h, w * frac), h, h / 2);
+        g.fillStyle = tint;
+        g.fill();
+    }
+
     function labelTexture(club) {
         var cv = document.createElement('canvas');
-        cv.width = 320; cv.height = 96;
+        cv.width = LABEL_W; cv.height = LABEL_H;
         var g = cv.getContext('2d');
-        g.clearRect(0, 0, 320, 96);
+        var tint = look(club.id);
+        g.clearRect(0, 0, LABEL_W, LABEL_H);
 
-        g.fillStyle = 'rgba(6, 20, 32, 0.86)';
-        g.strokeStyle = 'rgba(125, 211, 252, 0.5)';
+        /* The card. Darker and more opaque than it was: it is read against
+           bright grass and brighter water, and a card you have to squint
+           through is a card nobody reads. */
+        roundRect(g, 4, 4, LABEL_W - 8, LABEL_H - 8, 22);
+        g.fillStyle = 'rgba(5, 16, 26, 0.94)';
+        g.fill();
+        g.strokeStyle = 'rgba(125, 211, 252, 0.32)';
         g.lineWidth = 3;
-        if (g.roundRect) {
-            g.beginPath(); g.roundRect(4, 4, 312, 88, 18); g.fill(); g.stroke();
-        } else {
-            g.fillRect(4, 4, 312, 88);
-            g.strokeRect(4, 4, 312, 88);
-        }
+        g.stroke();
 
-        g.fillStyle = '#eaf6ff';
-        g.font = '600 40px Outfit, system-ui, sans-serif';
+        /* The name, in the page's own face, in one flat colour: a gradient
+           across four letters is a smear at the size this is read from. */
         g.textAlign = 'center';
         g.textBaseline = 'middle';
-        g.fillText(club.name, 160, 38);
+        g.fillStyle = tint.name;
+        g.font = '800 44px ' + FACE;
+        g.fillText(club.name, LABEL_W / 2, 42);
 
-        g.fillStyle = '#7dd3fc';
-        g.font = '600 24px "JetBrains Mono", ui-monospace, monospace';
-        g.fillText(club.key + ' · ' + Math.round(club.loft * 180 / Math.PI) + '°', 160, 72);
+        g.strokeStyle = 'rgba(148, 176, 199, 0.20)';
+        g.lineWidth = 2;
+        g.beginPath(); g.moveTo(44, 72); g.lineTo(LABEL_W - 44, 72); g.stroke();
 
-        var t = new THREE.CanvasTexture(cv);
-        t.needsUpdate = true;
-        return t;
+        g.textAlign = 'left';
+        var deg = Math.round(club.loft * 180 / Math.PI);
+
+        // Left: the loft, as a figure and as the picture of it.
+        g.fillStyle = 'rgba(159, 182, 201, 0.9)';
+        g.font = '700 16px ' + FACE;
+        g.fillText('LOFT', 26, 92);
+        g.fillStyle = '#eaf6ff';
+        g.font = '700 27px ' + FIGS;
+        g.fillText(deg + '\u00b0', 26, 124);
+        drawLoft(g, 112, 134, deg, tint.name);
+
+        // Right: the ceiling on power, as a figure and as a length. The bar
+        // is filled against the biggest club in the bag, so "the driver is
+        // the reach club" is something you can see rather than work out.
+        var x = 206;
+        g.fillStyle = 'rgba(159, 182, 201, 0.9)';
+        g.font = '700 16px ' + FACE;
+        g.fillText('POWER', x, 92);
+        g.fillStyle = '#eaf6ff';
+        g.font = '700 27px ' + FIGS;
+        g.fillText(String(club.power), x, 124);
+        drawPower(g, x, 142, LABEL_W - 26 - x, 11, club.power / maxPower(), tint.name);
+
+        return srgbCanvas(cv);
     }
 
     function hazeTexture() {
@@ -464,52 +793,198 @@
         grd.addColorStop(1, 'rgba(4, 14, 24, 0)');
         g.fillStyle = grd;
         g.fillRect(0, 0, 128, 128);
-        return new THREE.CanvasTexture(cv);
+        return srgbCanvas(cv);
     }
 
     function buildLabel(club) {
         var sprite = new THREE.Sprite(new THREE.SpriteMaterial({
             map: labelTexture(club), transparent: true, opacity: 0, depthTest: false
         }));
-        sprite.scale.set(0.30, 0.09, 1);
+        sprite.scale.set(0.26, 0.26 * LABEL_H / LABEL_W, 1);
         sprite.renderOrder = 20;
         return sprite;
     }
 
     /* ── layout ────────────────────────────────────────────────────────── */
 
-    /* Where each club sits, closed and open. Closed they are bunched in the
-       mouth of the bag leaning back; open they fan across the screen, stand up,
-       and come forward far enough to be worth clicking. */
-    function layout(i, n, len) {
+    /* The open row, in numbers.
+
+       The gaps first: clubs in a single row stand closer together than a label
+       is wide and the labels are staggered to two heights to survive it, which
+       is a trick that only works once — a wrapped grid has to hold its labels
+       a full label apart instead. Then what a row costs in height: from the
+       top of a head down to the bottom of the label hanging under it, which is
+       further in a staggered row than a level one.
+
+       Everything the fit below does is arithmetic on these six numbers and the
+       frustum, so a new club, a new label size or a phone nobody has held yet
+       all come out right without a new constant. */
+    var COL_ROW = 0.175, COL_GRID = 0.32, ROW = 0.42;
+    var HALF_LABEL = 0.145;                // half a label, and a hair over
+    var HEAD_TOP = 0.21;                   // head above the row's own line
+    var TAIL_ROW = 0.40, TAIL_GRID = 0.15; // label below it, staggered or not
+
+    var OPEN_DEPTH = 1.3;      // how far in front of the lens the clubs come
+    var MAX_OPEN = 2;          // and how big they are allowed to get there
+
+    /* And the corner the shut bag stands in, in the same spirit: how far out
+       toward the left edge, and how far its tallest head crests above whatever
+       the shot controls are using along the bottom. Fractions of the frame,
+       not distances in metres — a fixed offset in camera space is a different
+       place on every screen, and the one that tucked the bag into the corner
+       of a laptop put it off the side of a phone held upright, where the
+       frustum is half as wide but exactly as tall. */
+    var BAG_DEPTH = 1.5, BAG_SCALE = 0.46;
+    var BAG_EDGE = 0.74;       // 1 would be the left edge itself
+    var BAG_CLEAR = 0.20;      // in half-heights, above the controls' top
+    /* …and however deep the controls are, the heads crest somewhere between
+       these two. A tall monitor makes the meter a thin strip near the bottom,
+       and a bag that only had to clear that would sink out of sight. */
+    var BAG_LOW = -0.52, BAG_HIGH = -0.28;
+
+    /* The band of the screen the clubs may use. Not the whole of it: the panel
+       naming the club is along the top and the power meter and Swing are along
+       the bottom, and a label that lands under either is a label nobody can
+       read.
+
+       Both of those are DOM, and how much room they take is a font size, a
+       line count and a phone away from anything the renderer knows — so game.js
+       measures them and says (`setBand`), in fractions of the stage's height.
+       These are the fallbacks for the frame before it has. */
+    var BAND = { top: 0.22, bottom: 0.20 };
+
+    /* Below this the heads are too small to tell apart, and a row that cannot
+       reach it wraps into a grid instead. In practice a phone held upright
+       clears it and keeps the single row; it is a five-club bag in a letterbox
+       window that wraps. */
+    var MIN_ROW = 0.62;
+
+    /* Where each club sits when the bag is shut: bunched in its mouth, leaning
+       back, and each one turned to show its own head. The heads hang out to one
+       side of their shafts, so four clubs stood dead straight in a tight bunch
+       simply hide behind each other — splaying them is what makes the bag read
+       as four clubs. */
+    function closedSpot(i, n) {
         var spread = (i - (n - 1) / 2);
         var floor = BAG_H - WELL;          // where a grip rests in its well
+        /* Tighter, and leaning less, than the first arrangement. A bunch as
+           wide as this one was put the outer two grips within a centimetre of
+           the wall, and the lean then carried their shafts out across the
+           bag's own silhouette: two clubs in a bag and two propped against
+           it. Everything here now stands inside the mouth it came out of. */
         return {
-            /* Fanned, and each one turned to show its own head. The heads
-               hang out to one side of their shafts now, so four clubs stood
-               dead straight in a tight bunch simply hide behind each other —
-               splaying them is what makes the bag read as four clubs. */
-            closed: {
-                x: spread * 0.052, y: floor, z: spread * 0.048,
-                rz: -0.13 - spread * 0.05, rx: 0.05, ry: spread * 0.55, scale: 1
-            },
-            // Out of the bag altogether: stood up in a row across the middle of
-            // the view, evenly spaced and square to the camera, where they can
-            // be looked at properly.
-            /* Out of the bag and right up to the camera, heads in a row at eye
-               level with the shafts running down out of frame.
-
-               A club is 45 inches of shaft and four of head. Shown whole at a
-               size where the head can be read it is a lamp post, and the head
-               is the entire thing you are choosing between — so the row is
-               aligned on the heads (`-len` puts each one at the same height)
-               and cropped by the bottom of the screen. The different lengths
-               still show where they belong, which is standing in the bag. */
-            open: {
-                x: spread * 0.16, y: -len + 0.15, z: 0,
-                rz: 0, rx: 0, ry: 0, scale: 1
-            }
+            x: spread * 0.034, y: floor, z: spread * 0.030,
+            rz: -0.075 - spread * 0.028, rx: 0.03, ry: spread * 0.55, scale: 1
         };
+    }
+
+    /* And where it goes when the bag opens: out of it altogether and right up
+       to the camera, heads at eye level with the shafts running down out of
+       frame.
+
+       A club is 45 inches of shaft and four of head. Shown whole at a size
+       where the head can be read it is a lamp post, and the head is the entire
+       thing you are choosing between — so the row is aligned on the heads
+       (`-len` puts every one of them at the same height) and cropped by the
+       bottom of the screen.
+
+       `cols` is what makes this survive a phone held upright. One row of four
+       is right on a laptop and runs off both edges of a portrait screen, which
+       is half as wide as it is tall: the frustum is a fixed shape and the row
+       was not. Fewer columns and more rows, and the whole thing is then scaled
+       to what the frustum will actually take (see `fitOpen`). */
+    function openSpot(i, cols, rows, n, len) {
+        var col = i % cols;
+        var row = Math.floor(i / cols);
+        return {
+            x: (col - (cols - 1) / 2) * (cols === n ? COL_ROW : COL_GRID),
+            // Rows stack downward, and the block is recentred on itself so
+            // adding one does not push the first row off the top.
+            y: -len + 0.15 - row * ROW + (rows - 1) * ROW / 2,
+            z: 0, rz: 0, rx: 0, ry: 0, scale: 1
+        };
+    }
+
+    /* What a given arrangement costs: half its width, half its height, and
+       where its own middle sits relative to the line the clubs are laid out
+       on. The last one matters because the block is not symmetrical — every
+       label hangs below its head — so centring it means knowing how far off
+       centre it already is. */
+    function openMetrics(cols, rows, n) {
+        var grid = cols !== n;
+        var top = HEAD_TOP;
+        var bottom = -(grid ? TAIL_GRID : TAIL_ROW) - (rows - 1) * ROW;
+        return {
+            halfW: (cols - 1) / 2 * (grid ? COL_GRID : COL_ROW) + HALF_LABEL,
+            halfH: (top - bottom) / 2,
+            // openSpot recentres the rows on the layout line, so the block's
+            // middle moves back up by half of what the extra rows added.
+            mid: (top + bottom) / 2 + (rows - 1) * ROW / 2
+        };
+    }
+
+    /* How big the arrangement can be at OPEN_DEPTH, and where it has to sit to
+       be centred in the band it is allowed. Both half-extents of the frustum
+       are known there and both of the block are known from the layout, so this
+       is a division rather than a guess — which is the whole difference
+       between fitting every screen and fitting the one it was tuned on. */
+    function fitOpen(camera, aspect, cols, rows, n) {
+        var halfH = Math.tan((camera.fov || 52) * Math.PI / 360) * OPEN_DEPTH;
+        var halfW = halfH * aspect;
+        var m = openMetrics(cols, rows, n);
+        // The band, in the same units as the frustum: the middle of the screen
+        // is 0 and the top edge is 1, so a strip taking a fifth of the height
+        // off the top brings the ceiling down to 0.6.
+        var top = 1 - 2 * BAND.top, bottom = -(1 - 2 * BAND.bottom);
+        var scale = Math.min(
+            MAX_OPEN,
+            halfW * 0.94 / m.halfW,
+            halfH * (top - bottom) / 2 / m.halfH
+        );
+        return {
+            cols: cols,
+            rows: rows,
+            scale: scale,
+            y: halfH * (top + bottom) / 2 - m.mid * scale
+        };
+    }
+
+    /* One row of four, and only something else when one row of four cannot be
+       read: the arrangement is halved until it either fits at a usable size or
+       there is nothing left to halve. A row is what the clubs are *for* — four
+       heads side by side, compared at a glance — so it is what they get
+       wherever the screen allows it. */
+    function openFit(camera, aspect) {
+        var n = B.clubs.length;
+        var cols = n, fit;
+        for (;;) {
+            fit = fitOpen(camera, aspect, cols, Math.ceil(n / cols), n);
+            if (fit.scale >= MIN_ROW || cols <= 2) return fit;
+            cols = Math.max(2, Math.ceil(cols / 2));
+        }
+    }
+
+    /* Re-place the clubs for a new arrangement. Only the open half changes —
+       the bag itself is the same bag whatever shape the window is. */
+    function relayoutOpen(cols) {
+        var n = B.clubs.length;
+        var rows = Math.ceil(n / cols);
+        B.cols = cols;
+        B.clubs.forEach(function (c, i) {
+            c.spot.open = openSpot(i, cols, rows, n, c.len);
+            // Labels are wider than the gap between two clubs, so in a single
+            // row alternate ones are dropped further to stagger them into two
+            // heights — exactly the pairing that would otherwise collide. In a
+            // grid the rows have already done that job.
+            /* The stagger is measured against the closest pair, not the
+               average one: the cards hang under the heads they belong to and
+               a driver's head is a different shape from a putter's, so the
+               gap between two neighbouring cards is not the same gap twice.
+               At 0.20 the tightest of them cleared by a fifth of a card,
+               which on screen is two cards touching. */
+            var drop = 0.08 + (cols === n ? (i % 2) * 0.26 : 0);
+            if (c.label) c.label.position.set(c.labelBase.x, c.labelBase.y - drop, c.labelBase.z);
+        });
     }
 
     function build(scene) {
@@ -517,6 +992,7 @@
         B.rig = new THREE.Group();
         B.pickables = [];
         B.clubs = [];
+        _labelled = [];
 
         var body = buildBody(M);
         B.rig.add(body.group);
@@ -530,16 +1006,32 @@
 
         C.CLUBS.forEach(function (club, i) {
             var built = buildClub(club, mats());
-            var spot = layout(i, C.CLUBS.length, built.len);
+            var spot = { closed: closedSpot(i, C.CLUBS.length), open: null };
             var label = buildLabel(club);
 
             built.group.add(label);
-            // Above the head. The clubs are real lengths, so the labels stagger
-            // themselves — driver highest, putter lowest.
-            label.position.set(0.02, built.len + 0.1, 0.02);
+            // Centred on the head it belongs to, not guessed at: a driver's
+            // body, a blade's toe and a mallet's wings all sit at a different
+            // offset from the shaft, so the one fixed x/z this used before
+            // was only ever right for one of the four. The box read straight
+            // off the head geometry is right for all of them. Just under the
+            // head rather than above it, because the open row is cropped to
+            // the bottom of the screen and the heads already sit right
+            // against the "pick a club" panel above.
+            //
+            // Where it hangs from is read off the head geometry rather than
+            // guessed at: a driver's body, a blade's toe and a mallet's wings
+            // all sit at a different offset from the shaft, so the one fixed
+            // x/z this used before was only ever right for one of the four.
+            // How far below it hangs is the arrangement's business
+            // (`relayoutOpen`), so only the anchor is kept here.
+            built.head.updateMatrixWorld(true);
+            var headBox = new THREE.Box3().setFromObject(built.head);
+            var headMid = headBox.getCenter(new THREE.Vector3());
 
             B.clubRig.add(built.group);
             B.pickables.push(built.hit);
+            _labelled.push({ club: club, label: label });
             B.clubs.push({
                 id: club.id,
                 club: club,
@@ -547,8 +1039,9 @@
                 group: built.group,
                 head: built.head,
                 label: label,
+                labelBase: { x: headMid.x, y: headBox.min.y, z: headMid.z },
                 spot: spot,
-                now: { x: spot.closed.x, y: spot.closed.y, z: spot.closed.z, rz: spot.closed.rz, rx: spot.closed.rx, ry: spot.closed.ry, scale: 1, lift: 0, glow: 0 }
+                now: { x: spot.closed.x, y: spot.closed.y, z: spot.closed.z, rz: spot.closed.rz, rx: spot.closed.rx, ry: spot.closed.ry, scale: 1, lift: 0, glow: 0, labelOp: 0 }
             });
         });
 
@@ -568,19 +1061,52 @@
         B.haze = haze;
         B.rig.add(haze);
 
-        var lamp = new THREE.PointLight(0xfff2dd, 0.55, 3.2);
+        var lamp = new THREE.PointLight(0xfff2dd, 0.42, 3.2);
         lamp.position.set(0.6, 1.2, 0.9);
         B.rig.add(lamp);
 
-        /* A light that travels with the clubs. The bag's lamp stays in the
+        /* Lights that travel with the clubs. The bag's lamp stays in the
            corner when the picker opens, and the course's own sun is behind
-           the row — without this the heads come forward into their own
-           shadow and every one of them is the same flat grey. */
-        B.lamp = new THREE.PointLight(0xfff6e6, 0.3, 6);
-        B.lamp.position.set(0.35, 0.75, 1.3);
+           the row — without these the heads come forward into their own
+           shadow and every one of them is the same flat grey.
+
+           One lamp was not enough of one: at 0.22 the row was lit only
+           enough to prove it was unlit, and chrome with nothing to reflect
+           reads as slate. So three, which is a studio rather than a torch:
+           a warm key in front and above, off to the side so the crowns
+           take a highlight down one edge instead of a flat wash; a cool
+           fill low on the other side to open the shadow under each head
+           without flattening it back out; and a rim behind, which is what
+           actually separates a shaft from the sky it stands against. */
+        B.lamp = new THREE.PointLight(0xfff6e6, 0.95, 7);
+        B.lamp.position.set(0.55, 1.05, 1.4);
         B.clubRig.add(B.lamp);
 
+        B.fill = new THREE.PointLight(0xcfe2ff, 0.38, 6);
+        B.fill.position.set(-0.85, 0.25, 1.0);
+        B.clubRig.add(B.fill);
+
+        B.rim = new THREE.PointLight(0xffe9c6, 0.45, 5);
+        B.rim.position.set(0.1, 1.35, -1.0);
+        B.clubRig.add(B.rim);
+
         scene.add(B.rig);
+
+        // How high the bag stands, from the clubs actually in it: the tallest
+        // head, from the well it rests in. A longer club in the config makes
+        // the bag sit lower rather than poking out of the top of the corner.
+        B.crest = 0;
+        B.clubs.forEach(function (c) {
+            B.crest = Math.max(B.crest, BAG_H - WELL + c.len);
+        });
+
+        // A starting arrangement, so a club has somewhere to be before the
+        // first frame has measured the window.
+        relayoutOpen(B.clubs.length);
+
+        // And redraw the labels — and the name on the bag — once the page's
+        // own typeface has actually arrived.
+        watchFonts();
 
         B.ray = new THREE.Raycaster();
         B.ndc = new THREE.Vector2();
@@ -593,28 +1119,51 @@
 
     var _off = new THREE.Vector3();
 
-    /* Parked at an offset in camera space and turned off-axis so it reads as an
-       object with sides. Opening slides the whole rig from the corner — where
-       it is deliberately half off the bottom of the screen — to the middle of
-       the view, and squares it up to the camera on the way. */
+    /* Parked in the corner of the frame and turned off-axis so it reads as an
+       object with sides. Opening slides the whole rig from there to the middle
+       of the view, squaring it up to the camera on the way.
+
+       Where that corner is gets worked out the same way the open row does:
+       against the frustum, so the bag stands in the same place on a laptop, a
+       phone on its side and a phone held upright. It is deliberately half off
+       the bottom and half off the left — only the cuff and the heads standing
+       in it are meant to show — but half off is a fraction, and the fixed
+       offsets this used before were a quarter of the way into a wide screen
+       and clean off the side of a narrow one. */
     function place(camera, aspect) {
         if (!B.ready) return;
         var k = B.open01;
-        var wide = aspect > 0.95;
 
-        // The bag: low in a corner, half of it below the bottom of the screen.
-        // Only the cuff and the heads standing in it are meant to show.
-        var cx = wide ? -0.76 : -0.48, cy = wide ? -0.88 : -0.96, cz = -1.5;
-        put(B.rig, camera, cx, cy, cz, 0.52, -0.62, 0.1);
+        var bagH = Math.tan((camera.fov || 52) * Math.PI / 360) * BAG_DEPTH;
+        var bagW = bagH * aspect;
+        var cz = -BAG_DEPTH;
+        var cx = -bagW * BAG_EDGE;
+        // Cresting just above the controls, wherever they have ended up: the
+        // heads are what say "your clubs are here", so they are the part that
+        // has to clear the meter, and the rest of the bag can go under it.
+        var crest = Math.max(BAG_LOW, Math.min(BAG_HIGH,
+            BAG_CLEAR - (1 - 2 * BAND.bottom)));
+        var cy = bagH * crest - B.crest * BAG_SCALE;
+        put(B.rig, camera, cx, cy, cz, BAG_SCALE, -TWIST, 0.1);
+
+        /* How the clubs are arranged, how big they get and how high they sit
+           are all measured against this window, every frame — the lens opens as
+           the ball speeds up and a phone can be turned over mid-round, so none
+           of the three is a constant. The rearrangement itself only runs when
+           the answer changes. */
+        var fit = openFit(camera, aspect);
+        if (fit.cols !== B.cols) relayoutOpen(fit.cols);
+        B.openScale = fit.scale;
+        B.openY = fit.y;
 
         // The clubs: the same place when shut, the middle of the view when
         // open, squaring up to the camera as they come.
         put(B.clubRig, camera,
             cx + (0 - cx) * k,
-            cy + (-0.26 - cy) * k,
-            cz + (-1.3 - cz) * k,
-            0.52 + 1.48 * k,          // they come up to the lens
-            -0.62 + 0.62 * k,
+            cy + (B.openY - cy) * k,
+            cz + (-OPEN_DEPTH - cz) * k,
+            BAG_SCALE + (B.openScale - BAG_SCALE) * k,   // up to the lens
+            -TWIST + TWIST * k,
             0.1 - 0.1 * k);
     }
 
@@ -628,8 +1177,25 @@
         rig.scale.setScalar(scale);
     }
 
+    /* A shut bag is a still object. It rides in camera space so it still has
+       to be *placed* every frame — the lens opens as the ball speeds up, and a
+       phone can be turned over mid-round — but once the clubs have eased back
+       into it there is nothing left to ease: the closed spin is multiplied by
+       open01, which is zero, and every club is already where it is going. So
+       the loop below stops running until something asks it to start again, and
+       what can ask is exactly four things (below). Four traverses of four club
+       models a frame is not much; it is also not nothing, and it was buying
+       precisely no change on screen. */
     function update(dt, camera, aspect) {
         if (!B.ready) return;
+        if (B.settled && !B.expanded) { place(camera, aspect); return; }
+
+        var moved = 0;
+        function ease1(now, to, k) {
+            var d = (to - now) * k;
+            if (Math.abs(d) > moved) moved = Math.abs(d);
+            return now + d;
+        }
 
         var ease = 1 - Math.pow(0.0008, dt);      // ~0.25s to settle
         B.open01 += ((B.expanded ? 1 : 0) - B.open01) * ease;
@@ -637,7 +1203,12 @@
         B.spin += dt * 0.7;                        // a slow turn, once open
         place(camera, aspect);
         if (B.haze) B.haze.material.opacity = 0.3 * (1 - B.open01);
-        if (B.lamp) B.lamp.intensity = 0.3 + 0.85 * B.open01;
+        /* The rig brightens as it opens: in the bag the clubs are a corner
+           ornament and should sit in the scene's own light, out in the row
+           they are the thing being read and get the full studio. */
+        if (B.lamp) B.lamp.intensity = 0.30 + 0.95 * B.open01;
+        if (B.fill) B.fill.intensity = 0.12 + 0.38 * B.open01;
+        if (B.rim) B.rim.intensity = 0.14 + 0.45 * B.open01;
         B.clubs.forEach(function (c) {
             var to = B.expanded ? c.spot.open : c.spot.closed;
             var chosen = c.id === B.selected;
@@ -647,26 +1218,28 @@
             var lift = chosen ? (B.expanded ? 0.022 : 0.045) : 0;
             var glow = chosen ? 1 : (B.hover === c.id ? 0.5 : 0);
 
-            c.now.x += (to.x - c.now.x) * ease;
-            c.now.y += (to.y - c.now.y) * ease;
-            c.now.z += (to.z - c.now.z) * ease;
-            c.now.rz += (to.rz - c.now.rz) * ease;
-            c.now.rx += (to.rx - c.now.rx) * ease;
-            c.now.ry += (to.ry - c.now.ry) * ease;
+            c.now.x = ease1(c.now.x, to.x, ease);
+            c.now.y = ease1(c.now.y, to.y, ease);
+            c.now.z = ease1(c.now.z, to.z, ease);
+            c.now.rz = ease1(c.now.rz, to.rz, ease);
+            c.now.rx = ease1(c.now.rx, to.rx, ease);
+            c.now.ry = ease1(c.now.ry, to.ry, ease);
             /* No size bump for the club in hand. The open row is aligned on
                the *heads*, and scaling a club scales its length, so a 1.08
                bump lifted the driver's head four times further than the lift
                itself did — invisible in the bag, a hundred pixels out of line
                in the picker. It is marked by the glow and the panel instead. */
-            c.now.scale += (to.scale - c.now.scale) * ease;
-            c.now.lift += (lift - c.now.lift) * ease;
-            c.now.glow += (glow - c.now.glow) * ease;
+            c.now.scale = ease1(c.now.scale, to.scale, ease);
+            c.now.lift = ease1(c.now.lift, lift, ease);
+            c.now.glow = ease1(c.now.glow, glow, ease);
 
             c.group.position.set(c.now.x, c.now.y + c.now.lift, c.now.z);
-            // Turning on its own axis while it is out of the bag, so the head
-            // can be seen from every side. The one in hand turns to face front
-            // instead of spinning, so it is obvious which is which.
-            var turn = c.now.ry + B.open01 * (chosen ? 0 : 1) * B.spin;
+            // Turning on its own axis while it is in the bag, so a glance
+            // at the cuff still reads as four different heads. Once the row
+            // is out where it can be read, all four hold still instead —
+            // every club now carries its own label the whole time it is
+            // open, and a label is not worth reading while it orbits past.
+            var turn = c.now.ry + B.open01 * (B.expanded ? 0 : 1) * B.spin;
             c.group.rotation.set(c.now.rx, turn, c.now.rz);
             c.group.scale.setScalar(c.now.scale);
 
@@ -680,10 +1253,20 @@
                 if (o.material && o.material.emissive) o.material.emissive.setRGB(e * 0.45, e * 0.7, e);
             });
 
-            // The name is written in the panel above (game.js), not floated
-            // over the course on a sprite.
-            if (c.label) c.label.visible = false;
+            // The full write-up still lives in the panel above (game.js,
+            // where it can be read by a screen reader); this is the fast
+            // version, floating right over the club it belongs to, all four
+            // up together the moment the row is open so every club can be
+            // compared at a glance rather than one at a time.
+            if (c.label) {
+                c.now.labelOp = ease1(c.now.labelOp, B.expanded ? 1 : 0, ease);
+                c.label.material.opacity = c.now.labelOp;
+                c.label.visible = c.now.labelOp > 0.01;
+            }
         });
+
+        // Shut, and nothing moved worth a pixel: stop until something changes.
+        B.settled = !B.expanded && B.open01 === 0 && moved < 1e-5;
     }
 
     /* ── picking ───────────────────────────────────────────────────────── */
@@ -730,11 +1313,24 @@
         return hits.length ? 'bag' : null;
     }
 
-    function setExpanded(on) { B.expanded = !!on; }
-    function toggle() { B.expanded = !B.expanded; return B.expanded; }
-    function setSelected(id) { B.selected = id; }
-    function setHover(id) { B.hover = id; }
+    /* The four things that can give the bag something to do again. Anything
+       that changes where a club is going, or how it is lit, has to come
+       through one of these — which is what makes the early-out in update()
+       safe to trust. */
+    function setExpanded(on) { B.expanded = !!on; B.settled = false; }
+    function toggle() { B.expanded = !B.expanded; B.settled = false; return B.expanded; }
+    function setSelected(id) { B.selected = id; B.settled = false; }
+    function setHover(id) { if (id !== B.hover) B.settled = false; B.hover = id; }
     function isExpanded() { return B.expanded; }
+
+    /* What the DOM is using at the top and the bottom of the stage, as
+       fractions of its height. Clamped rather than trusted: a mid-transition
+       measurement or a stage of no height should move the clubs a little, not
+       fold them into a point. */
+    function setBand(top, bottom) {
+        if (top > 0) BAND.top = Math.max(0.06, Math.min(0.45, top));
+        if (bottom > 0) BAND.bottom = Math.max(0.06, Math.min(0.45, bottom));
+    }
 
     G3.bag = {
         build: build,
@@ -744,6 +1340,7 @@
         setExpanded: setExpanded,
         setSelected: setSelected,
         setHover: setHover,
+        setBand: setBand,
         isExpanded: isExpanded,
         state: B
     };

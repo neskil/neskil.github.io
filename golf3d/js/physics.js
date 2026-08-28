@@ -43,18 +43,103 @@
     function lnFrictionOf(kind) {
         return LN[kind] !== undefined ? LN[kind] : Math.log(C.FRICTION_DEFAULT);
     }
+    // The steepest lie this surface will hold a stopped ball on. See CONFIG.HOLD.
+    function holdOf(kind) {
+        return C.HOLD[kind] !== undefined ? C.HOLD[kind] : C.HOLD_DEFAULT;
+    }
 
     /* ── pads: the ground ───────────────────────────────────────────────── */
 
-    /* A pad is { x, z, w, d, y, sx, sz, kind }: an axis-aligned footprint,
-       a height at its (x, z) corner, and a gradient. Height anywhere on it is
+    /* A pad is { x, z, w, d, y, sx, sz, kind }: an axis-aligned footprint, a
+       height at its (x, z) corner, and a gradient. Height anywhere on it is
        that plane evaluated at the point. Tilt both components and you get a
-       diagonal fall line, which is all a breaking green is. */
+       diagonal fall line, which is all a breaking green is.
+
+       Two things may be added to that, and neither changes anything the solver
+       does — which is the point of putting them here. The whole simulation
+       asks the ground exactly two questions, "how high are you" and "which way
+       do you fall", and as long as those two agree with each other it does not
+       care what shape the answer came from.
+
+         bumps   a list of { cx, cz, r, a }: a rise of `a` at (cx, cz) fading
+                 to nothing at radius r. The profile is a raised cosine,
+                 a·(cos(πt) + 1)/2 for t = distance / r, because it is the
+                 cheapest curve that is flat at the top *and* flat where it
+                 meets the ground. Both matter: a crease at the summit is a
+                 ridge the ball feels and nobody drew, and a crease at the foot
+                 is a step at the edge of every hill on the course. Negative
+                 `a` is a hollow. Overlap them and they add, which is how a
+                 field of dunes is written — see `dunes()` in courses.js.
+
+         r       a radius: the pad is the disc inscribed in its footprint
+                 rather than the footprint itself. Greens want to be round, and
+                 a round green on rolling ground is the difference between a
+                 golf course and a diagram of one. A disc still carries the
+                 x/z/w/d of its bounding square, so everything that only wants
+                 to know how much room a pad takes up — the hole's bounds, the
+                 renderer's placement, the eject-from-a-face backstop — needs
+                 to know nothing about it.
+
+       Nothing above is a special case anywhere else in this file. A ramp, a
+       breaking green, a dune field and a crowned green are all one code path,
+       and the only function that had to learn anything new is padGrad. */
     function padHeight(pad, x, z) {
-        return pad.y + (pad.sx || 0) * (x - pad.x) + (pad.sz || 0) * (z - pad.z);
+        var h = pad.y + (pad.sx || 0) * (x - pad.x) + (pad.sz || 0) * (z - pad.z);
+        var b = pad.bumps, i, m, dx, dz, q;
+        if (b) {
+            for (i = 0; i < b.length; i++) {
+                m = b[i];
+                dx = x - m.cx; dz = z - m.cz;
+                q = dx * dx + dz * dz;
+                // The cheap reject first: on a course-sized dune field most
+                // humps are nowhere near the point and never cost a sqrt.
+                if (q >= m.r * m.r) continue;
+                h += m.a * 0.5 * (Math.cos(Math.PI * Math.sqrt(q) / m.r) + 1);
+            }
+        }
+        return h;
     }
 
+    /* Which way the ground falls, as (dh/dx, dh/dz). For a plain pad this is
+       just its tilt; a hump adds its own radial slope, dh/dd = -aπ/2r·sin(πd/r)
+       spread over the direction from its middle. Written into `out` because
+       the grounded branch of the integrator asks for it on every substep and
+       an allocation per substep is an allocation per substep. */
+    var _grad = { x: 0, z: 0 };
+    function padGrad(pad, x, z, out) {
+        out = out || _grad;
+        out.x = pad.sx || 0;
+        out.z = pad.sz || 0;
+        var b = pad.bumps, i, m, dx, dz, q, d, k;
+        if (b) {
+            for (i = 0; i < b.length; i++) {
+                m = b[i];
+                dx = x - m.cx; dz = z - m.cz;
+                q = dx * dx + dz * dz;
+                if (q >= m.r * m.r) continue;
+                d = Math.sqrt(q);
+                if (d < 1e-6) continue;          // the summit is flat
+                k = -m.a * 0.5 * Math.PI / m.r * Math.sin(Math.PI * d / m.r) / d;
+                out.x += k * dx;
+                out.z += k * dz;
+            }
+        }
+        return out;
+    }
+
+    // How steep the ground is here, as a gradient. Only the settling rule and
+    // the tests need the magnitude on its own.
+    function slopeAt(pad, x, z) {
+        var g = padGrad(pad, x, z, _slope);
+        return Math.sqrt(g.x * g.x + g.z * g.z);
+    }
+    var _slope = { x: 0, z: 0 };
+
     function padContains(pad, x, z) {
+        if (pad.r) {
+            var dx = x - (pad.x + pad.w / 2), dz = z - (pad.z + pad.d / 2);
+            return dx * dx + dz * dz <= pad.r * pad.r;
+        }
         return x >= pad.x && x <= pad.x + pad.w && z >= pad.z && z <= pad.z + pad.d;
     }
 
@@ -73,13 +158,29 @@
        of the hole, a cup's depth below. That one substitution is what makes the
        cup a hole rather than a rule: a ball whose centre crosses the rim runs
        out of support and falls, exactly as it would over any other edge. */
+    var INLAY_EPS = 1e-6;
+
     function surfaceUnder(hole, x, z, ceil) {
         var best = null, bestY = -Infinity, pads = hole.pads, i, h;
         for (i = 0; i < pads.length; i++) {
             if (!padContains(pads[i], x, z)) continue;
             h = padHeight(pads[i], x, z);
             if (h > ceil) continue;
-            if (h > bestY) { bestY = h; best = pads[i]; }
+            /* Highest wins, as it always has. The second clause is the one
+               exception the game allows to "pads must not overlap": a pad
+               marked `inlay` is laid *into* the one below it at the same
+               height — a round green on rolling ground — and takes the tie.
+
+               Without it the lookup would be deciding between two pads that
+               are the same height by whichever came first in the array, which
+               is the order-dependence the overlap rule exists to prevent. With
+               it the answer is the same whatever the order, and the surface is
+               continuous either way: an inlay only ever changes what the
+               ground is *made of* underfoot, never where it is. */
+            if (h > bestY + INLAY_EPS ||
+                (pads[i].inlay && h > bestY - INLAY_EPS)) {
+                bestY = h; best = pads[i];
+            }
         }
 
         var cup = hole.cup;
@@ -97,6 +198,97 @@
     // the cup from course data that only carries x/z.
     function surfaceTop(hole, x, z) {
         return surfaceUnder(hole, x, z, Infinity);
+    }
+
+    /* Is the ball's centre inside the ground at this point? Pads are surfaces
+       rather than solids, so "inside" has to be said in terms of them: there
+       is ground here, and every bit of it is above the centre — nothing to
+       stand on, and a face between the ball and the daylight. Being under a
+       bridge is not this: there the deck is above the ball but the ground
+       below is what surfaceUnder hands back, so it never fires.
+
+       The centre, not the crown. A sphere resting on a surface has its centre
+       a radius above it, so a centre below the surface is a ball that is in
+       the hillside rather than on it — and measuring from the crown instead
+       leaves a radius-deep band around every riser where the ball is already
+       inside the face and nothing has noticed. */
+    function inFace(hole, x, z, y) {
+        return !surfaceUnder(hole, x, z, y) && !!surfaceUnder(hole, x, z, Infinity);
+    }
+
+    /* Last resort for a ball that is inside a face and cannot be got out by
+       undoing the step that put it there — one that came down the face itself,
+       or arrived by some route where the previous position was buried too.
+       Shove the centre through the nearest edge of the pad it is under,
+       preferring an edge that leaves it in the open.
+
+       Without this the ball has nowhere to go: every step restores a position
+       that is itself inside the hill, so it sinks until it is out of the
+       world. That is the ball falling through the terrace risers. */
+    function ejectFromFace(hole, b, events) {
+        var s = surfaceUnder(hole, b.x, b.z, Infinity);
+        if (!s || s.pad === CUP_PAD || !s.pad.w || !s.pad.d) return;
+        var pad = s.pad, r = C.BALL_R;
+        var ways = [
+            { d: b.x - pad.x, x: pad.x - r, z: b.z, nx: -1, nz: 0 },
+            { d: pad.x + pad.w - b.x, x: pad.x + pad.w + r, z: b.z, nx: 1, nz: 0 },
+            { d: b.z - pad.z, x: b.x, z: pad.z - r, nx: 0, nz: -1 },
+            { d: pad.z + pad.d - b.z, x: b.x, z: pad.z + pad.d + r, nx: 0, nz: 1 }
+        ];
+        ways.sort(function (a, c) { return a.d - c.d; });
+        var pick = ways[0], i;
+        for (i = 0; i < ways.length; i++) {
+            if (!inFace(hole, ways[i].x, ways[i].z, b.y)) { pick = ways[i]; break; }
+        }
+        b.x = pick.x; b.z = pick.z;
+        if (pick.nx && b.vx * pick.nx < 0) b.vx = -b.vx * C.RESTITUTION;
+        if (pick.nz && b.vz * pick.nz < 0) b.vz = -b.vz * C.RESTITUTION;
+        events.bounce = true;
+    }
+
+    /* Out of bounds, the way a real course means it: a line you may cross,
+       and are only punished for stopping beyond.
+
+       The older courses do not need this — they are fenced, and a ball that
+       leaves one has physically fallen out of the world, which OOB_Y already
+       catches in mid-air. An open course has no fence and no cliff: the ground
+       runs to the horizon, so nothing ever falls off it and there has to be a
+       boundary that is a *rule* rather than a shape. `hole.fence` is that
+       rectangle, and this is checked once, when the ball comes to rest, so a
+       ball that runs across the line and back is exactly as fine as it would
+       be with a white stake beside it.
+
+       It may also be a *list* of rectangles, in which case in-bounds is inside
+       any of them. That is not generality for its own sake: two overlapping
+       rectangles make an L, and an L is a dogleg — a hole that bends because
+       cutting the corner puts you off the property, which is exactly how a
+       real course bends a hole it has no room to bend with trees. */
+    function inRect(f, x, z) {
+        return x >= f.x && x <= f.x + f.w && z >= f.z && z <= f.z + f.d;
+    }
+
+    function outOfBounds(hole, x, z) {
+        var f = hole.fence, i;
+        if (!f) return false;
+        if (f.length === undefined) return !inRect(f, x, z);
+        for (i = 0; i < f.length; i++) if (inRect(f[i], x, z)) return false;
+        return true;
+    }
+
+    // The boundary as a list, whatever it was authored as. The renderer walks
+    // it to plant the stakes and the hole's bounds are its extent.
+    function fenceRects(hole) {
+        var f = hole.fence;
+        if (!f) return [];
+        return f.length === undefined ? [f] : f;
+    }
+
+    function markOutOfBounds(world, events) {
+        var b = world.ball;
+        if (world.sunk || world.splash || world.out) return;
+        if (!outOfBounds(world.hole, b.x, b.z)) return;
+        world.out = true;
+        events.out = true;
     }
 
     function waterAt(hole, x, z) {
@@ -219,7 +411,8 @@
             slowFor: 0,
             sunk: false,
             splash: false,
-            out: false
+            out: false,
+            overCup: false      // has the ball been over the mouth? see cupContact
         };
     }
 
@@ -235,7 +428,8 @@
             moving: w.moving,
             sunk: w.sunk,
             splash: w.splash,
-            out: w.out
+            out: w.out,
+            overCup: w.overCup
         };
     }
 
@@ -243,7 +437,9 @@
        A lofted ball leaves the ground immediately, which is the whole point —
        it is how you carry a rail, a bunker or a pond instead of going round. */
     function launch(world, yaw, power, loft) {
-        var p = Math.max(0, Math.min(C.MAX_POWER, power));
+        // The ceiling is the longest club's ceiling plus its overdraw: the
+        // meter is allowed past a full swing, so the simulation has to be too.
+        var p = Math.max(0, Math.min(C.MAX_POWER * (1 + C.OVERDRAW), power));
         if (p < C.MIN_POWER) return false;
         var l = Math.max(0, Math.min(C.MAX_LOFT, loft || 0));
         var flat = Math.cos(l) * p;
@@ -255,8 +451,51 @@
         world.moving = true;
         world.splash = false;
         world.out = false;
+        world.overCup = false;
         if (b.vy > 0.01) world.grounded = false;
         return true;
+    }
+
+    /* ── overdraw ───────────────────────────────────────────────────────
+
+       How far past a full swing the meter was wound, as 0 at the ceiling and 1
+       at the very end of the overdraw. Everything about spray is expressed in
+       this number rather than in raw power, because a putter thrashed and a
+       driver thrashed are the same mistake. */
+    function overdraw(power, ceiling) {
+        if (!ceiling || !C.OVERDRAW) return 0;
+        return Math.max(0, Math.min(1, (power / ceiling - 1) / C.OVERDRAW));
+    }
+
+    /* How wild the shot gets, as the half-angle it can leave off line by and
+       the fraction of its weight it can be out by. Nothing at or inside a full
+       swing sprays at all — inside 100% the ball goes exactly where the cone
+       points, which is the whole reason to stay there. Past it the two numbers
+       climb on an exponential rather than in step with the meter: a curve that
+       is nearly flat where the overdraw starts and near vertical where it
+       ends. See CONFIG.SPRAY_*. */
+    function spray(over) {
+        var t = Math.max(0, Math.min(1, over || 0));
+        if (t <= 0) return { yaw: 0, power: 0 };
+        var k = C.SPRAY_CURVE;
+        var e = (Math.exp(k * t) - 1) / (Math.exp(k) - 1);
+        return { yaw: C.SPRAY_YAW * e, power: C.SPRAY_POWER * e };
+    }
+
+    /* The shot that is actually played, given the one that was asked for. Two
+       draws, not one: a thrashed shot misses left-or-right and heavy-or-light
+       independently, the way a real one does — pull it and catch it thin and
+       you have made two mistakes, not the same mistake twice. `rand` returns
+       [0, 1) and defaults to Math.random; the tests hand in something
+       repeatable. Inside a full swing this returns its arguments untouched. */
+    function sprayShot(yaw, power, over, rand) {
+        var s = spray(over);
+        if (!s.yaw && !s.power) return { yaw: yaw, power: power };
+        var r = rand || Math.random;
+        return {
+            yaw: yaw + (r() * 2 - 1) * s.yaw,
+            power: power * (1 + (r() * 2 - 1) * s.power)
+        };
     }
 
     function speedOf(b) { return Math.hypot(b.vx, b.vy, b.vz); }
@@ -327,7 +566,23 @@
         // Out of reach of the rim: nothing about the cup applies, whatever
         // height the ball is at. (Testing the height here instead would hand
         // the shaft to every ball on a level below the green.)
-        if (d > C.HOLE_R + C.BALL_R) return false;
+        if (d > C.HOLE_R + C.BALL_R) { world.overCup = false; return false; }
+
+        /* The mouth of the cup is open from above and from nowhere else.
+
+           The shaft is modelled as a cylinder with no sides above the rim,
+           which is fine while the only way to reach it is across the green.
+           Give a hole a raised green with an open edge — a tabletop, a summit,
+           a crater wall — and a ball can fly in *under* the putting surface,
+           arrive inside the mouth on the way past, and be counted as holed
+           from below. That is a hole in one that never touched the green.
+
+           So the shaft only accepts a ball that has been over it: centre
+           inside the mouth, at or above the rim. A putt crossing the lip
+           qualifies, a lob dropping in qualifies, and a shot passing beneath
+           the green does not. The flag clears as soon as the ball is out of
+           reach of the rim again, so a lip-out cannot bank the permission. */
+        if (d < C.HOLE_R && b.y >= cup.y) world.overCup = true;
 
         var ux = d > 1e-9 ? dx / d : 1, uz = d > 1e-9 ? dz / d : 0;
         var e = 1 + C.CUP_RESTITUTION;
@@ -350,8 +605,8 @@
         }
 
         // The shaft wall, once the ball's centre is under the green and inside
-        // the mouth of the hole.
-        if (b.y < cup.y && d < C.HOLE_R) {
+        // the mouth of the hole — and only for a ball that came in through it.
+        if (b.y < cup.y && d < C.HOLE_R && world.overCup) {
             var maxR = C.HOLE_R - C.BALL_R;
             if (d > maxR) {
                 b.x = cup.x + ux * maxR;
@@ -389,6 +644,10 @@
         return true;
     }
 
+    // Scratch for the gradient under the ball: written before it is read on
+    // every substep, never held on to.
+    var _lie = { x: 0, z: 0 };
+
     function substep(world, dt, events) {
         var b = world.ball, hole = world.hole;
         world.time += dt;
@@ -400,7 +659,12 @@
                 b.vy = 0;
             } else {
                 var pad = here.pad;
-                var sx = pad.sx || 0, sz = pad.sz || 0;
+                /* The gradient of the ground under the ball rather than the
+                   pad's own tilt, so a hump accelerates the ball exactly as a
+                   ramp does and neither this line nor anything below it knows
+                   the difference. */
+                var g = padGrad(pad, b.x, b.z, _lie);
+                var sx = g.x, sz = g.z;
 
                 // Downhill acceleration on a tilted plane, projected into the
                 // horizontal: g * gradient / (1 + |gradient|²).
@@ -453,12 +717,52 @@
                 }
             }
         } else {
+            var px = b.x, pz = b.z, py = b.y;
             b.vy -= C.GRAVITY * dt;
             b.x += b.vx * dt;
             b.z += b.vz * dt;
             b.y += b.vy * dt;
 
             var land = surfaceUnder(hole, b.x, b.z, b.y);
+
+            /* A cliff met in mid-air. Pads are surfaces, not solids, so
+               nothing in the model stops a ball flying into the *side* of
+               something: it sails on through the hillside and out of the
+               world underneath. That is how a ball vanishes into a terrace
+               riser, and how one used to arrive in the mouth of a raised cup
+               from below and be counted as holed.
+
+               There is no support at the ball's own height (that is what a
+               null `land` means) and yet there is ground here, so the centre
+               is inside something. The one thing left to decide is which way
+               it got in, and the height it started the step at says so: a
+               centre that was above this ground has come down onto the top of
+               it and wants a landing, and one that was below it has flown into
+               the face and wants a wall.
+
+               The face is resolved one axis at a time, like the kerb backstop
+               on the ground, so a glancing blow slides along it instead of
+               stopping dead — and if that still leaves the ball inside (it
+               came down the face itself, say), it is pushed out bodily rather
+               than left to sink. It costs a lookup, and only over a void or a
+               riser, which is the only place the ball can be inside
+               anything. */
+            if (!land) {
+                var col = surfaceUnder(hole, b.x, b.z, Infinity);
+                if (col && py >= col.y) {
+                    land = col;             // came down on top of it
+                } else if (col) {
+                    if (inFace(hole, b.x, pz, b.y)) {
+                        b.x = px; b.vx = -b.vx * C.RESTITUTION; events.bounce = true;
+                    }
+                    if (inFace(hole, px, b.z, b.y)) {
+                        b.z = pz; b.vz = -b.vz * C.RESTITUTION; events.bounce = true;
+                    }
+                    if (inFace(hole, b.x, b.z, b.y)) ejectFromFace(hole, b, events);
+                    land = surfaceUnder(hole, b.x, b.z, b.y);
+                }
+            }
+
             if (land && b.y - C.BALL_R <= land.y) {
                 b.y = land.y + C.BALL_R;
                 var impact = -b.vy;
@@ -486,25 +790,41 @@
             return;
         }
 
-        /* At rest — unless it is sitting on a slope, in which case gravity has
-           not finished with it and stopping here would leave the ball hanging
-           on a hillside.
+        /* At rest — if the ground under the ball will hold it there.
 
-           The timer covers the two states where "grounded" never becomes true
-           but the ball has plainly stopped: leaning on something on a slope,
-           and perched on the lip of the cup with the ground missing under it.
-           Without it those shots would run until the clock ran out. */
+           This is the one place static friction lives (CONFIG.HOLD). The drag
+           above is proportional to speed and so has nothing to say about a
+           stopped ball; asked on its own it would let one sit anywhere,
+           including halfway up a ramp. So a slow ball is at rest when the lie
+           beneath it is shallower than its surface's angle of repose, and
+           otherwise it is not at rest at all — it creeps on downhill until it
+           finds somewhere that is, which is what a ball does.
+
+           Two timers cover the cases with no lie to ask. A ball that is not
+           grounded has nothing under it to hold it — leaning on a rail, or
+           perched on the lip of the cup with the green missing beneath — and
+           settles on the short one. And a grounded ball that has crept at
+           under walking pace for STUCK seconds is not on a hillside at all,
+           it is jammed against something; without that backstop a ball wedged
+           against a rail on a bank would run out the shot clock. */
         var slow = speedOf(b) < C.STOP_SPEED;
         if (!slow) {
             world.slowFor = 0;
         } else {
             world.slowFor += dt;
-            var lie = surfaceUnder(hole, b.x, b.z, b.y + C.STEP_UP);
-            var steep = lie && (Math.abs(lie.pad.sx || 0) > 0.02 || Math.abs(lie.pad.sz || 0) > 0.02);
-            if ((world.grounded && !steep) || world.slowFor > C.SLOPE_SETTLE) {
+            var settled;
+            if (world.grounded) {
+                var lie = surfaceUnder(hole, b.x, b.z, b.y + C.STEP_UP);
+                settled = (lie && slopeAt(lie.pad, b.x, b.z) <= holdOf(lie.pad.kind)) ||
+                    world.slowFor > C.STUCK;
+            } else {
+                settled = world.slowFor > C.SLOPE_SETTLE;
+            }
+            if (settled) {
                 b.vx = b.vy = b.vz = 0;
                 if (world.moving) events.rest = true;
                 world.moving = false;
+                markOutOfBounds(world, events);
             }
         }
     }
@@ -597,6 +917,9 @@
         createWorld: createWorld,
         cloneWorld: cloneWorld,
         launch: launch,
+        overdraw: overdraw,
+        spray: spray,
+        sprayShot: sprayShot,
         advance: advance,
         settle: settle,
         done: done,
@@ -604,7 +927,12 @@
         previewPath: previewPath,
         speedOf: speedOf,
         groundSpeed: groundSpeed,
-        frictionOf: frictionOf
+        frictionOf: frictionOf,
+        holdOf: holdOf,
+        padGrad: padGrad,
+        slopeAt: slopeAt,
+        outOfBounds: outOfBounds,
+        fenceRects: fenceRects
     };
 
 })(window.G3);
