@@ -636,10 +636,31 @@
             assert('courseById finds a course', G3.courseById('quarry').id === 'quarry');
             assert('courseById falls back to the first', G3.courseById('nope').id === G3.COURSES[0].id);
 
+            var groupIds = G3.COURSE_GROUPS.map(function (g) { return g.id; });
+            assert('the groups are named and described', G3.COURSE_GROUPS.every(function (g) {
+                return !!g.id && !!g.name && !!g.blurb;
+            }));
+
             G3.COURSES.forEach(function (course) {
                 assert(course.name + ': six holes', course.holes.length === 6);
                 assert(course.name + ': has a theme and a blurb', !!course.theme && !!course.blurb);
+                /* A course with no group, or one nobody prints a heading for,
+                   would simply not appear in the picker. */
+                assert(course.name + ': is filed under a group that exists',
+                    groupIds.indexOf(course.group) >= 0, course.group);
             });
+
+            assert('every course is in exactly one group\'s list',
+                G3.COURSE_GROUPS.reduce(function (n, g) {
+                    return n + G3.coursesInGroup(g.id).length;
+                }, 0) === G3.COURSES.length);
+
+            assert('the next course is the one after it',
+                G3.nextCourseId(G3.COURSES[0].id) === G3.COURSES[1].id);
+            assert('and the last one wraps round to the first',
+                G3.nextCourseId(G3.COURSES[G3.COURSES.length - 1].id) === G3.COURSES[0].id);
+            assert('an unknown course still offers somewhere to go',
+                !!G3.courseById(G3.nextCourseId('nope')));
 
             var minThick = Infinity, worstGap = Infinity, worstGapName = '';
             ALL.forEach(function (entry) {

@@ -1067,6 +1067,41 @@ kbd {
     transform: translateY(-1px);
 }
 
+/* A heading per category. The list is seven courses long and the last two
+   are a different game from the first five; the heading is what says so. */
+.course-group {
+    display: grid;
+    gap: 0.1rem;
+    margin: 0.5rem 0 -0.1rem;
+}
+.course-group:first-child { margin-top: 0; }
+.cg-name {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--accent);
+}
+.cg-blurb { font-size: 0.78rem; color: var(--ink-dim); font-weight: 300; }
+
+/* The course a finished round is offering next. */
+.course-card.up-next {
+    border-color: rgba(125, 211, 252, 0.55);
+    background: var(--accent-soft);
+}
+.cc-next {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 0.62rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--accent);
+    border: 1px solid rgba(125, 211, 252, 0.45);
+    border-radius: 999px;
+    padding: 0.08rem 0.42rem;
+    margin-left: 0.5rem;
+    vertical-align: 0.1em;
+}
+
 .cc-name { font-weight: 700; font-size: 1.02rem; }
 .cc-blurb { font-size: 0.82rem; color: var(--ink-dim); font-weight: 300; }
 .cc-meta {
