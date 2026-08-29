@@ -1728,6 +1728,12 @@
         el.textContent = (failed ? '✗ ' + failed + ' failed, ' : '✓ ') + passed + ' passed' +
             ' — ' + Math.round(performance.now() - t0) + 'ms';
         window.TEST_RESULT = { passed: passed, failed: failed, fails: window.FAILS };
+        // The same four globals shader-tests.html sets, so one headless driver
+        // can read either suite. CLAUDE.md documents the contract; this is the
+        // half of it that was only ever documented.
+        window.PASSED = passed;
+        window.FAILED = failed;
+        window.DONE = true;
     })();
     </script>
 </body>

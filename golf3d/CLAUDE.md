@@ -1,7 +1,8 @@
 # Claude Code — Project Context (golf3d)
 
-**Loft Links**: seven six-hole courses of 3D golf on vendored three.js (r128),
-ES5-flavoured plain JavaScript, no build step. Open `index.html` and it runs.
+**Loft Links**: ten six-hole courses of 3D golf in three groups — mini, crazy
+and the long game — on vendored three.js (r128), ES5-flavoured plain
+JavaScript, no build step. Open `index.html` and it runs.
 
 Doc map: **[README.md](README.md)** owns the architecture, the file roles and
 load order, why each shader is written the way it is, the course-authoring
@@ -52,7 +53,7 @@ headless driver to read.
 
 | Page | Covers | Needs |
 | --- | --- | --- |
-| `tests.html` | Physics, pads and surfaces, walls and gates, scoring, course geometry. ~989 assertions, no three.js and **no WebGL** — that purity is the point, it is what keeps it fast and portable. It can tell you a hole is built wrong and can never tell you a shader is wrong. | nothing |
+| `tests.html` | Physics, pads and surfaces, walls and gates, scoring, course geometry. ~1390 assertions, no three.js and **no WebGL** — that purity is the point, it is what keeps it fast and portable. It can tell you a hole is built wrong and can never tell you a shader is wrong. | nothing |
 | `shader-tests.html` | The half the above structurally cannot do: compiles every shader for real through the real `render.js`, both water paths, the runtime quality switch, the uniform boundary, one `frame()`, and every theme. | a GL context |
 
 `shader-tests.html` skips its GPU half with a note (not a failure) when there
