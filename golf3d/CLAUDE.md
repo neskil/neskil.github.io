@@ -25,9 +25,11 @@ either here — point at them.
   Don't open a PR for it. A PR is for when the owner asks for one, or when
   landing it needs a call that isn't yours — a conflict where both sides
   changed the same behaviour, or a change reaching outside `golf3d/`.
-- **Verify before committing at all**: `tests.html` must stay fully green, and
-  anything visual needs to be looked at in a real browser (recipe below) rather
-  than reasoned about. A shader that compiles is not a shader that looks right.
+- **Verify before committing at all**: both `tests.html` and
+  `shader-tests.html` must stay fully green, and anything visual still needs to
+  be looked at in a real browser (recipe below) rather than reasoned about. A
+  shader that compiles is not a shader that looks right — the suites can prove
+  the first and never the second.
 - Bump `G3.VERSION` (top of `js/config.js`) on every commit that ships a
   user-visible change — patch for fixes, minor for features — and update the
   matching `?v=X.Y.Z` cache-busting string on **every** local `<script>` and
@@ -37,31 +39,51 @@ either here — point at them.
 
 ## Verification
 
-`tests.html` is headless and needs a local server (the modules are separate
-`<script>` tags, so `file://` will not do):
+**Two suites, and both must be green.** Each needs a local server — the modules
+are separate `<script>` tags, so `file://` will not do:
 
 ```sh
 python3 -m http.server 8899          # from the repo root, not from golf3d/
 ```
 
-Then load `http://localhost:8899/golf3d/tests.html` and read the summary line —
-it prints `✓ N passed` or lists the failures. It covers the physics, the pads
-and surfaces, the walls and gates, and the course geometry; it does **not**
-load WebGL, so it can tell you a hole is built wrong and can never tell you a
-shader is wrong.
+Both print the same summary line (`✓ N passed`, or the failures) and both set
+`window.DONE`, `window.PASSED`, `window.FAILED` and `window.FAILS` for a
+headless driver to read.
 
-For anything visual, drive the real page with Playwright (installed globally;
-`NODE_PATH=$(npm root -g)`) on SwiftShader:
+| Page | Covers | Needs |
+| --- | --- | --- |
+| `tests.html` | Physics, pads and surfaces, walls and gates, scoring, course geometry. ~989 assertions, no three.js and **no WebGL** — that purity is the point, it is what keeps it fast and portable. It can tell you a hole is built wrong and can never tell you a shader is wrong. | nothing |
+| `shader-tests.html` | The half the above structurally cannot do: compiles every shader for real through the real `render.js`, both water paths, the runtime quality switch, the uniform boundary, one `frame()`, and every theme. | a GL context |
+
+`shader-tests.html` skips its GPU half with a note (not a failure) when there
+is no WebGL, so it is safe to run anywhere; on this box it runs on SwiftShader:
 
 ```js
 chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] })
 ```
 
-`?course=<id>&hole=1..6&weather=<id>` jumps straight to a hole under a chosen
-sky, which is what makes a before/after screenshot pair reproducible. Listen on
-`pageerror` and on `console` for `THREE.WebGL` — **a GLSL compile failure does
-not throw**, it logs and leaves you with a black or untextured surface, so a
-screenshot that looks plausible is not on its own proof the shader compiled.
+Same launch for driving the game itself, where `?course=<id>&hole=1..6&weather=<id>`
+jumps straight to a hole under a chosen sky — which is what makes a before/after
+screenshot pair reproducible.
+
+**Neither suite replaces looking at it.** They prove a shader compiles, links,
+and has the uniforms it declares; they say nothing about whether the sea looks
+like a sea. Screenshot anything visual.
+
+### Why `shader-tests.html` watches the console
+
+**A GLSL compile failure does not throw.** three.js writes to `console.error`
+and carries on drawing nothing, so a screenshot that looks plausible is not
+proof a shader compiled, and a `try/catch` will not catch it either. The suite
+therefore spies on `console.error` *and* asks the driver directly
+(`getProgramParameter(p.program, gl.LINK_STATUS)` over `renderer.info.programs`).
+If you add a shader test, do both — one alone will miss cases.
+
+The tests are mutation-checked: breaking the pretty path alone, the plain path
+alone, an `#endif`, the wave LOD's placement, or either side of the JS/GLSL
+uniform boundary each fails a *different* named assertion. If you change the
+suite, re-run that exercise — a shader test that cannot fail is worse than
+none, because it reads as coverage.
 
 ## Things that will bite
 
