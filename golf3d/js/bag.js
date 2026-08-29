@@ -936,15 +936,23 @@
         // is 0 and the top edge is 1, so a strip taking a fifth of the height
         // off the top brings the ceiling down to 0.6.
         var top = 1 - 2 * BAND.top, bottom = -(1 - 2 * BAND.bottom);
-        var scale = Math.min(
-            MAX_OPEN,
-            halfW * 0.94 / m.halfW,
-            halfH * (top - bottom) / 2 / m.halfH
-        );
+        var widthScale = halfW * 0.94 / m.halfW;
+        var heightScale = halfH * (top - bottom) / 2 / m.halfH;
+        var scale = Math.min(MAX_OPEN, widthScale, heightScale);
         return {
             cols: cols,
             rows: rows,
             scale: scale,
+            // Wrapping into more rows only wins back room when the row was
+            // too *wide* for the frustum. On a short screen — a phone on its
+            // side, where width is the one thing not in short supply — it is
+            // the band above and below that is pinching the scale, and an
+            // extra row only pinches it harder: more rows means a taller
+            // block, and a taller block is worse off in the same band. So
+            // this says whether halving the columns can actually help,
+            // which is what keeps that case from halving its way to a
+            // vanishing row instead of stopping at the widest one it has.
+            narrowerHelps: widthScale < heightScale,
             y: halfH * (top + bottom) / 2 - m.mid * scale
         };
     }
@@ -959,7 +967,7 @@
         var cols = n, fit;
         for (;;) {
             fit = fitOpen(camera, aspect, cols, Math.ceil(n / cols), n);
-            if (fit.scale >= MIN_ROW || cols <= 2) return fit;
+            if (fit.scale >= MIN_ROW || cols <= 2 || !fit.narrowerHelps) return fit;
             cols = Math.max(2, Math.ceil(cols / 2));
         }
     }
