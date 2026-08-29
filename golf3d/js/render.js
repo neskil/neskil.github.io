@@ -1414,14 +1414,39 @@
         }
     }
 
+    /* Pretty water on or off, for the whole game. It is one define rather than
+       one shader: the two seas are the same source, so there is no second copy
+       to keep in step, and switching costs a recompile of a material that is
+       drawn on at most a handful of meshes. Kept on R so a hole built after
+       the switch comes out the same as the one that was on screen during it —
+       buildHole throws every water material away and makes new ones. */
+    R.prettyWater = true;
+
+    function setWaterQuality(on) {
+        on = !!on;
+        if (on === R.prettyWater) return on;
+        R.prettyWater = on;
+        for (var i = 0; i < R.waterMats.length; i++) {
+            var m = R.waterMats[i];
+            if (on) m.defines.PRETTY = '';
+            else delete m.defines.PRETTY;
+            m.needsUpdate = true;
+        }
+        return on;
+    }
+
     function waterMaterial(theme, opts) {
         var deep = lin(theme.water);
         var shallow = deep.clone().lerp(lin(0xffffff), 0.18);
         var mat = new THREE.ShaderMaterial({
+            defines: R.prettyWater ? { PRETTY: '' } : {},
             uniforms: {
                 deep: { value: deep },
                 shallow: { value: shallow },
                 skyColour: { value: lin(theme.sky[1]) },
+                // The dome's own two stops, so a reflection of the sky is a
+                // reflection of *this* sky and not of a remembered blue.
+                skyTop: { value: lin(theme.sky[0]) },
                 sunColour: { value: lin(theme.sun) },
                 fogColour: { value: new THREE.Color(theme.fog) },   // see skyDome
                 sunDir: { value: new THREE.Vector3(0, 1, 0) },
@@ -1843,6 +1868,9 @@
             // An overcast sea reflects an overcast sky, not the blue one the
             // theme was drawn against.
             u.skyColour.value.copy(skyTint(theme.sky[1], weather, true)).lerp(lin(weather.cloudBase), weather.cloud * 0.8);
+            // Overcast flattens the gradient as well as darkening it: a solid
+            // deck reflects as one grey sheet, not as a dome with a bright top.
+            u.skyTop.value.copy(skyTint(theme.sky[0], weather, true)).lerp(lin(weather.cloudBase), weather.cloud * 0.85);
             u.fogColour.value.copy(skyTint(theme.fog, weather, false));
         }
         if (R.sky) R.sky.uniforms.sunDir.value.copy(R.sunDir);
@@ -2599,6 +2627,8 @@
         cycleView: cycleView,
         viewLabel: viewLabel,
         setLock: setLock,
+        setWaterQuality: setWaterQuality,
+        get prettyWater() { return R.prettyWater; },
         cam: R.cam,
         // The bag picks against these, and nothing else needs them.
         pickAt: function (nx, ny) {

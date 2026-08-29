@@ -992,6 +992,7 @@
         if (k === '0') { straightenView(); return; }
         if (k === 'm' || k === 'M') { toggleMute(); return; }
         if (k === 'j' || k === 'J') { toggleMusic(); return; }
+        if (k === 'o' || k === 'O') { toggleWater(); return; }
         if (k === 'r' || k === 'R') { restartHole(); return; }
         if (k === 'v' || k === 'V') { cycleSeat(); return; }
         if (k === 'f' || k === 'F') { toggleFullscreen(); return; }
@@ -1160,6 +1161,38 @@
         $('btn-mute').classList.toggle('on', !m);
         $('btn-music').classList.toggle('on', j && !m);
         $('btn-music').setAttribute('aria-label', j ? 'Turn the music off' : 'Turn the music on');
+    }
+
+    /* ── the water switch ───────────────────────────────────────────────── */
+
+    /* Reflections, crest foam, sun glitter and a Fresnel-honest transparency,
+       against a plain sea that is the same waves and one flat sky colour. It
+       is a fill-rate bill and nothing else — no geometry changes, no gameplay
+       — so it is a switch rather than a quality preset, and it lives next to
+       the sound chips because it is the same kind of decision: something you
+       turn off when the machine is struggling or the fan is loud.
+
+       Read from storage before the first hole is built, so nothing is ever
+       compiled twice on the way in. */
+    function prettyWaterWanted() {
+        try { return localStorage.getItem(C.WATER_KEY) !== '1'; } catch (e) { return true; }
+    }
+
+    function toggleWater() {
+        var on = !R.prettyWater;
+        R.setWaterQuality(on);
+        try { localStorage.setItem(C.WATER_KEY, on ? '0' : '1'); } catch (e) { /* ignore */ }
+        syncWater();
+        toast(on ? 'Fancy water on — reflections, foam and glitter'
+                 : 'Fancy water off — kinder to the frame rate');
+    }
+
+    function syncWater() {
+        var on = R.prettyWater;
+        $('btn-water').classList.toggle('on', on);
+        $('water-icon').textContent = on ? '≈' : '~';
+        $('btn-water').setAttribute('aria-label',
+            on ? 'Turn the fancy water off' : 'Turn the fancy water on');
     }
 
     /* ── menus and cards ────────────────────────────────────────────────── */
@@ -1471,6 +1504,7 @@
         $('btn-help-2').addEventListener('click', openHowTo);
         $('btn-mute').addEventListener('click', toggleMute);
         $('btn-music').addEventListener('click', toggleMusic);
+        $('btn-water').addEventListener('click', toggleWater);
         $('btn-weather').addEventListener('click', cycleWeather);
         $('shud-sky').addEventListener('click', cycleWeather);
         $('hole-name').addEventListener('click', showHoleCard);
@@ -1503,7 +1537,12 @@
             if (state && state.world) closeMenu();
         });
 
+        // Before the first buildHole, so the sea is compiled once, the way the
+        // player left it.
+        R.setWaterQuality(prettyWaterWanted());
+
         syncSound();
+        syncWater();
         syncView();
         syncSeat();
 
