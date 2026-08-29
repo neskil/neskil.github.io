@@ -1536,6 +1536,62 @@ texture the moment the camera goes overhead, which is exactly the thing this
 replaced. Rain lands on it as well: a hash grid picks a drop per cell and a
 ring expands out of it, tilting the normal as it goes.
 
+#### The trains are level-of-detailed, and this is not optional
+
+A wave whose whole wavelength fits inside the pixel it lands in is not detail,
+it is noise — it crawls, it aliases, and it does not go away when you stand
+still. The sea is the one surface in the game that runs to the horizon, so it
+is also the only one where a pixel can span tens of metres: seen edge-on from a
+low camera the top trains used to turn the middle distance into television
+static. Each train is therefore weighed against the world-space width of the
+pixel it is being drawn into and faded out before it reaches it. The width is
+distance over the view ray's own steepness, because the stretch is what causes
+the problem — looking down at water a pixel is small, looking along it a pixel
+is a field.
+
+The pleasant side effect is that the horizon comes out mirror-flat rather than
+boiling. With every train faded, what is left is a plane reflecting the sky,
+which is exactly what distant water looks like.
+
+#### Two seas, one source, one define
+
+Everything above is the plain sea, and it is what a slow machine gets. Behind
+`#ifdef PRETTY` in the same string — flipped by `render.setWaterQuality`, which
+sets the define and marks the materials for recompile — there is a second one
+that adds the four things that cost real fill rate:
+
+- **A reflected sky, not a colour.** The plain sea mixes towards a single flat
+  blue, which is right about the average and wrong about everything else. The
+  pretty one bounces the view ray off the wave it actually landed on and
+  evaluates a small stand-in for the dome at it — gradient, sun, horizon haze,
+  off the dome's own uniforms so the sea is under the same weather as the sky
+  above it. What that buys is the sun drawing a *streak* down the water and
+  breaking up on the chop, which is the most recognisable thing a sea does and
+  the one thing a constant cannot fake. It is deliberately not the real sky
+  shader: the clouds are the expensive half of that one, and a cloud reflected
+  in chop is a grey smear.
+- **Crests.** The trains now accumulate height as well as slope — one `sin`
+  each, on a phase the `cos` already paid for — which buys the top of a wave:
+  foam where it breaks, cut with drifting noise so it reads as patches and not
+  as a contour line, and light coming *through* the wave towards a camera on
+  the far side of it. That last term is the only one in the shader that gets
+  stronger as the water gets rougher, which is also true of the real thing.
+- **Glitter.** A fine noise *gradient* on the normal — what a specular reads is
+  the tilt — so the highlight breaks into moving sparks instead of a smooth
+  sheen. Faded out with the same footprint as everything else, for the same
+  reason and more urgently: unresolved glitter is white noise, and a bright
+  highlight is the worst place in the frame to put any.
+- **An honest alpha.** A pond's surface goes opaque at a grazing angle and
+  clear looking down. Fresnel already knows that ratio, so the pretty path
+  spends it instead of sitting at one hardcoded 0.86, and foam — which is air —
+  is opaque. A sea, already at alpha 1, is unaffected.
+
+It is a fill-rate bill and nothing else: no geometry changes, no gameplay, so
+it is a switch rather than a quality preset. <kbd>O</kbd> or the **Water** chip,
+next to the sound chips because it is the same kind of decision — the thing you
+turn off when the fan gets loud. Remembered *off* rather than on, so a machine
+that has never been asked gets the good one.
+
 ### Light
 
 Three lights, and the weather sets all three. The sun changes most — an
@@ -1777,7 +1833,8 @@ the seat — follow, side on, overview — <kbd>,</kbd><kbd>.</kbd> walk the vie
 round the ball, <kbd>L</kbd> lock it where it is, <kbd>0</kbd> straighten it,
 <kbd>F</kbd> fullscreen, <kbd>R</kbd> restart the hole, <kbd>W</kbd> the
 weather, <kbd>H</kbd> the rules, <kbd>M</kbd> sound, <kbd>J</kbd> the music,
-<kbd>G</kbd> the course inspector. Scroll or pinch to zoom.
+<kbd>O</kbd> the fancy water, <kbd>G</kbd> the course inspector. Scroll or
+pinch to zoom.
 
 ## Query parameters
 
