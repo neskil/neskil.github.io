@@ -8,7 +8,7 @@
    — the renderer scales to the viewport, the simulation never sees a pixel. */
 window.G3 = window.G3 || {};
 
-G3.VERSION = '1.10.0';
+G3.VERSION = '1.12.0';
 
 G3.CONFIG = {
     BALL_R: 0.16,
@@ -172,6 +172,26 @@ G3.CONFIG = {
             blurb: 'The lob. Straight up over water, sand and trees.'
         }
     ],
+
+    /* Clubs that are not in the default bag, and are handed out a hole at a
+       time (courses `bag`, G3.bagFor).
+
+       The mallet exists because of the holes that take the loft away. A lane
+       you may only putt down is a good hole and a putter is the wrong club for
+       it: 10.5 of power runs about nine units, which is most of a mini golf
+       lane and nowhere near a hole in one, so a putting hole played with the
+       putter is two safe taps and no decision in either of them. Seventeen
+       runs the length of one, which turns the same hole into a single
+       committed shot that is either in or fifteen units past — and that is the
+       hole. It is not in the default bag because a flat club with that much
+       reach would quietly become the answer to half the course. */
+    EXTRA_CLUBS: [
+        {
+            id: 'mallet', name: 'Mallet', short: 'ML', key: '6',
+            loft: 0, power: 17,
+            blurb: 'A putter with a hammer behind it. Rolls flat, and rolls a long way.'
+        }
+    ],
     DEFAULT_CLUB: 'driver',
 
     RESTITUTION: 0.62,    // horizontal speed kept after a rail bounce
@@ -242,3 +262,7 @@ G3.CONFIG = {
        good one. */
     WATER_KEY: 'loftLinks.plainWater'
 };
+
+/* Every club the game knows about, default bag first. A hole's `bag` names
+   ids out of this list; nothing else may. */
+G3.CONFIG.ALL_CLUBS = G3.CONFIG.CLUBS.concat(G3.CONFIG.EXTRA_CLUBS);

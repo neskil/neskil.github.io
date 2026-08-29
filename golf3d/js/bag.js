@@ -859,6 +859,44 @@
        window that wraps. */
     var MIN_ROW = 0.62;
 
+    /* The clubs actually in the bag on this hole. Everything that arranges,
+       measures or picks a club works off this rather than off `B.clubs`,
+       which is the whole modelled set — so a hole played out of two clubs
+       gets two clubs in the mouth of the bag, two heads in the open row, and
+       no way to select a third. */
+    function live() {
+        var out = [], i;
+        for (i = 0; i < B.clubs.length; i++) if (B.clubs[i].on) out.push(B.clubs[i]);
+        return out;
+    }
+
+    /* Hand the bag this hole's clubs, by id and in order. Called on every
+       hole, because a hole that says nothing is still saying "all five". */
+    function setBag(clubs) {
+        var want = {}, i;
+        (clubs || C.CLUBS).forEach(function (c) { want[c.id] = 1; });
+        for (i = 0; i < B.clubs.length; i++) {
+            B.clubs[i].on = !!want[B.clubs[i].id];
+            B.clubs[i].group.visible = B.clubs[i].on;
+        }
+        var row = live();
+        B.crest = 0;
+        row.forEach(function (c, i2) {
+            c.spot.closed = closedSpot(i2, row.length);
+            /* Snapped rather than animated into place. The bag changes between
+               holes, with the screen going through a hole card either way, and
+               a club sliding across the corner of the view to a new slot on
+               the first frame of a new hole reads as a glitch rather than as
+               an arrangement. */
+            c.now.x = c.spot.closed.x; c.now.y = c.spot.closed.y; c.now.z = c.spot.closed.z;
+            c.now.rz = c.spot.closed.rz; c.now.rx = c.spot.closed.rx; c.now.ry = c.spot.closed.ry;
+            c.now.lift = 0; c.now.glow = 0; c.now.labelOp = 0;
+            B.crest = Math.max(B.crest, BAG_H - WELL + c.len);
+        });
+        relayoutOpen(row.length);
+        B.settled = false;
+    }
+
     /* Where each club sits when the bag is shut: bunched in its mouth, leaning
        back, and each one turned to show its own head. The heads hang out to one
        side of their shafts, so four clubs stood dead straight in a tight bunch
@@ -963,7 +1001,7 @@
        heads side by side, compared at a glance — so it is what they get
        wherever the screen allows it. */
     function openFit(camera, aspect) {
-        var n = B.clubs.length;
+        var n = live().length;
         var cols = n, fit;
         for (;;) {
             fit = fitOpen(camera, aspect, cols, Math.ceil(n / cols), n);
@@ -975,10 +1013,11 @@
     /* Re-place the clubs for a new arrangement. Only the open half changes —
        the bag itself is the same bag whatever shape the window is. */
     function relayoutOpen(cols) {
-        var n = B.clubs.length;
+        var row = live();
+        var n = row.length;
         var rows = Math.ceil(n / cols);
         B.cols = cols;
-        B.clubs.forEach(function (c, i) {
+        row.forEach(function (c, i) {
             c.spot.open = openSpot(i, cols, rows, n, c.len);
             // Labels are wider than the gap between two clubs, so in a single
             // row alternate ones are dropped further to stagger them into two
@@ -1012,9 +1051,14 @@
            clubs are simply in the bag. */
         B.clubRig = new THREE.Group();
 
-        C.CLUBS.forEach(function (club, i) {
+        /* Every club the game knows about is modelled, not just the ones in
+           today's bag: a hole may hand out a club the default bag does not
+           have (courses.bagFor), and rebuilding a putter's geometry on the tee
+           of hole four is not something to do a hole at a time. `setBag` is
+           what decides which of them are in the bag, in play and on screen. */
+        C.ALL_CLUBS.forEach(function (club, i) {
             var built = buildClub(club, mats());
-            var spot = { closed: closedSpot(i, C.CLUBS.length), open: null };
+            var spot = { closed: closedSpot(i, C.ALL_CLUBS.length), open: null };
             var label = buildLabel(club);
 
             built.group.add(label);
@@ -1103,14 +1147,9 @@
         // How high the bag stands, from the clubs actually in it: the tallest
         // head, from the well it rests in. A longer club in the config makes
         // the bag sit lower rather than poking out of the top of the corner.
-        B.crest = 0;
-        B.clubs.forEach(function (c) {
-            B.crest = Math.max(B.crest, BAG_H - WELL + c.len);
-        });
-
-        // A starting arrangement, so a club has somewhere to be before the
-        // first frame has measured the window.
-        relayoutOpen(B.clubs.length);
+        // The default bag, so there is one before the first hole has asked
+        // for its own — and B.crest and the arrangement with it.
+        setBag(C.CLUBS);
 
         // And redraw the labels — and the name on the bag — once the page's
         // own typeface has actually arrived.
@@ -1218,6 +1257,9 @@
         if (B.fill) B.fill.intensity = 0.12 + 0.38 * B.open01;
         if (B.rim) B.rim.intensity = 0.14 + 0.45 * B.open01;
         B.clubs.forEach(function (c) {
+            // A club that is not in this hole's bag is not on screen and has
+            // no slot in the arrangement to be moved towards.
+            if (!c.on || !c.spot.open) return;
             var to = B.expanded ? c.spot.open : c.spot.closed;
             var chosen = c.id === B.selected;
             // Kept small: at the zoom the open row uses, a tenth of a unit is
@@ -1305,7 +1347,7 @@
         if (B.expanded) {
             var aspect = camera.aspect || 1;
             var best = null, bestD = 0.2;       // a generous target in a row
-            B.clubs.forEach(function (c) {
+            live().forEach(function (c) {
                 var d = Math.min(
                     screenGap(c.group, c.len - 0.02, nx, ny, aspect, camera),
                     screenGap(c.group, c.len + 0.1, nx, ny, aspect, camera)
@@ -1345,6 +1387,7 @@
         update: update,
         pick: pick,
         toggle: toggle,
+        setBag: setBag,
         setExpanded: setExpanded,
         setSelected: setSelected,
         setHover: setHover,

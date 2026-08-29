@@ -118,6 +118,69 @@
             water: 0x2c6f92,
             side: '#8a7c58'
         },
+        /* The arcade. A basement at night with the lights left on: a black
+           ceiling, one warm neon over the table and a floor that is not
+           pretending to be ground at all. The grass is the baize on a table
+           rather than a lawn, so it is darker and bluer than any of the
+           daylight courses, and the rails are painted the colour of the
+           cabinet. Stars, because the roof is nominally the sky and a flat
+           black one reads as a bug. */
+        arcade: {
+            sky: [0x120a20, 0x3a1c52],
+            fog: 0x3a1c52,
+            sun: 0xffc8f0, sunPos: [5, 15, 5], ambient: 0x8a5ec4, ambientI: 0.85,
+            grass: ['#1f6b63', '#1a5d57'],
+            rail: 0xf472b6,
+            stars: 0.7,
+            cloudLum: 0.16,
+            surroundY: -2.2, surround: 'floor', floor: '#20122e',
+            water: 0x1c5f8f,
+            side: '#3b2a4a'
+        },
+        /* Brass and dusk. The court is a machine and it is lit like one — a
+           low warm sun off to one side so every blade and every gate throws a
+           long shadow across the floor, which is the one thing that makes a
+           mechanism readable from the tee. The surround is workshop floor, and
+           the rails are the same brass as the works. */
+        clockwork: {
+            sky: [0x4a2f14, 0xe0a45c],
+            fog: 0xe0a45c,
+            sun: 0xffd79a, sunPos: [-11, 9, 6], ambient: 0xc08c50, ambientI: 0.62,
+            grass: ['#4a7f45', '#40713d'],
+            rail: 0xc9974a,
+            cloudLum: 0.85,
+            surroundY: -2.5, surround: 'floor', floor: '#3a2b1e',
+            water: 0x2d6a86,
+            side: '#6b543a'
+        },
+        /* Heathland, early and grey-blue. The point of the course is that the
+           ground you want is narrow and the ground you get is everywhere else,
+           and that only reads if the light is flat enough to show the mown
+           line against the heather rather than drowning it in contrast. So:
+           a high thin overcast, a cool sun, and a surround tinted to the
+           heather so the hole runs out into more of the same country. */
+        heath: {
+            sky: [0x6b7fa8, 0xd6d2df],
+            fog: 0xd6d2df,
+            /* Low, for the same reason Whinstone's is low and it matters more
+               here: everything interesting about this course is the shape of
+               the ground, and a sun overhead lights a crest and a lawn exactly
+               alike. Under a raking light a hump has a lit side and a shaded
+               one and can be read from the tee; under a high one it is a patch
+               of grass the same colour as the grass around it. */
+            sun: 0xf6ecdc, sunPos: [-13, 7.5, 10], ambient: 0xb8b6c8, ambientI: 0.58,
+            grass: ['#5f9a4e', '#548c46'],
+            rail: 0x8a7f93,
+            /* Lower than the other drawn courses, and for a reason the other
+               drawn courses do not have: Dunmore has a ravine on it, and the
+               floor of that ravine is nearly a unit below the hole. A surround
+               at the usual hand's breadth would be drawn straight across it and
+               the one landform on the course you can actually fall into would
+               be invisible from the tee. */
+            surroundY: -1.5, surround: 'floor', floor: '#5a4a63',
+            water: 0x35657f,
+            side: '#7a6a58'
+        },
         works: {
             sky: [0x0d121d, 0x33405e],
             fog: 0x33405e,

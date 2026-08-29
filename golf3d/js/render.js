@@ -579,6 +579,9 @@
                 rail: paint(theme.rail),
                 blade: paint(0xd8523f),
                 gate: paint(0xe0a13a),
+                // A bumper is meant to be aimed at, so it is the one thing on a
+                // hole painted a colour nothing else on it wears.
+                bumper: paint(0xf0409a),
                 beam: paint(0x9a6a3c),
                 // A tree is not drawn as a box (see addTree); this is only
                 // what its trunk is made of, and it is matt because bark is.
