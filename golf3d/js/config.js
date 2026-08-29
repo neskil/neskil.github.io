@@ -135,8 +135,8 @@ G3.CONFIG = {
         },
         {
             id: 'driver', name: 'Driver', short: 'DR', key: '2',
-            loft: 4 * Math.PI / 180, power: 32,
-            blurb: 'The reach club. Barely off the ground, and it runs.'
+            loft: 6 * Math.PI / 180, power: 32,
+            blurb: 'The reach club. Low and long, and it runs.'
         },
         /* The one club that is neither reach nor loft but a real amount of
            both, and the reason it exists is carry. A driver is in the air for
