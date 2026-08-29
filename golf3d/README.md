@@ -36,7 +36,8 @@ them.
 | `js/debug.js` | The course inspector — `?debug=1`, or <kbd>G</kbd>. The tool for building a hole. |
 | `js/game.js` | Loop, input, and what a shot means. |
 | `vendor/three.min.js` | three.js r128, vendored. |
-| `tests.html` | Headless test harness. Open it; green is green. |
+| `tests.html` | Headless test harness — pure logic, no WebGL. Open it; green is green. |
+| `shader-tests.html` | The other half: compiles every shader for real against a live context. Green is green there too. |
 
 The three files above `weather.js` in that list are three of the four different
 jobs the renderer used to do in one file. Picking colours, drawing a texture,
@@ -1769,6 +1770,40 @@ Being pure logic, `tests.html` needs no WebGL, no canvas and no AudioContext. It
 loads `config.js`, `physics.js`, `courses.js` and `scoring.js` and nothing else
 — the weather, the renderer and the post chain are all absent from it, which is
 the strongest statement available that none of them can change a score.
+
+### The shaders, which that suite cannot see
+
+The purity above has a price, and it is worth naming: a suite that never
+compiles a shader cannot tell you one is broken. Worse, **a GLSL compile
+failure does not throw** — three.js writes to `console.error` and carries on
+drawing nothing — so it will not surface as an exception, and a screenshot of a
+sea that still looks like a sea is not proof either, because the *other* path
+is the one that broke.
+
+`shader-tests.html` is the other half. It brings up a real context, builds real
+holes through the real `render.js`, and checks:
+
+- **both water paths**, pretty and plain, compile and link. Independently:
+  breaking one leaves the other's assertions green, which is the point — nobody
+  screenshots the cheap path, so nothing else would have caught it.
+- **the quality switch itself**, which recompiles live materials rather than
+  rebuilding the hole, and is therefore a third code path neither of the above
+  covers.
+- **the JS/GLSL uniform boundary, in both directions.** A uniform declared in
+  the shader and missing from the material throws a `TypeError` on the first
+  frame that touches it; one supplied by the material and no longer read by the
+  shader is dead weight that no compile will ever complain about. The first is
+  a crash a long way from the edit, the second is silent forever.
+- **one `frame()`**, because the per-frame uniform writes live there and not in
+  the build.
+- **every theme**, since the sky and water take their colours from it and a bad
+  one is a program that fails to link on exactly one course.
+
+It skips its GPU half with a note rather than a failure where there is no
+WebGL, so it stays runnable anywhere; the source-level checks run regardless.
+
+Both suites report identically (`✓ N passed`, plus `window.DONE` / `FAILS` for
+a headless driver), so whatever runs one can run the other.
 
 ## Saving
 

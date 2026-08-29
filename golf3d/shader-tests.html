@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Loft Links — shader tests</title>
+    <meta name="robots" content="noindex">
+    <style>
+        body { background: #061422; color: #eaf6ff; font-family: 'JetBrains Mono', ui-monospace, monospace; padding: 1rem; line-height: 1.5; }
+        .pass { color: #4ade80; }
+        .fail { color: #f87171; font-weight: bold; }
+        .skip { color: #fbbf24; }
+        h2 { font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.1em; color: #9fb6c9; margin: 1.4rem 0 0.3rem; border-bottom: 1px solid #ffffff1a; padding-bottom: 0.2rem; }
+        #summary { font-size: 1.2rem; margin-bottom: 0.5rem; padding: 0.6rem 0.9rem; border-radius: 10px; background: #ffffff0d; }
+        #summary.ok { color: #4ade80; }
+        #summary.bad { color: #f87171; }
+        .note { color: #9fb6c9; font-size: 0.8rem; }
+        canvas { position: fixed; left: -9999px; width: 320px; height: 200px; }
+    </style>
+</head>
+<body>
+    <div id="summary">running…</div>
+    <div id="results"></div>
+
+    <!-- The other half of the suite, and the half tests.html deliberately
+         cannot be. tests.html is pure logic — no three.js, no WebGL — which is
+         what keeps it fast and what lets it run anywhere; the price is that it
+         cannot tell you a shader is broken, because it never compiles one.
+
+         This page pays that price instead. It brings up a real WebGL context,
+         builds real holes through the real render.js, and asks the driver
+         whether the programs actually linked. It needs a GPU (or SwiftShader),
+         so it is allowed to be the slower, more fragile of the two. If no
+         context can be had it says so and skips rather than failing: "this
+         machine has no WebGL" is not a bug in the game. -->
+    <canvas id="gl"></canvas>
+
+    <script src="vendor/three.min.js"></script>
+    <script src="js/config.js"></script>
+    <script src="js/themes.js"></script>
+    <script src="js/physics.js"></script>
+    <script src="js/courses.js"></script>
+    <script src="js/textures.js"></script>
+    <script src="js/shaders.js"></script>
+    <script src="js/postfx.js"></script>
+    <script src="js/weather.js"></script>
+    <script src="js/render.js"></script>
+
+    <script>
+    (function () {
+        'use strict';
+
+        var SH = G3.shaders, R = G3.render, P = G3.physics;
+        var passed = 0, failed = 0, skipped = 0;
+        window.FAILS = [];
+        var out = document.getElementById('results');
+        var t0 = performance.now();
+
+        function section(name) {
+            var h = document.createElement('h2');
+            h.textContent = name;
+            out.appendChild(h);
+        }
+
+        function assert(name, cond, detail) {
+            var div = document.createElement('div');
+            if (cond) {
+                passed++;
+                div.className = 'pass';
+                div.textContent = '✓ ' + name;
+            } else {
+                failed++;
+                window.FAILS.push(name + (detail ? ' — ' + detail : ''));
+                div.className = 'fail';
+                div.textContent = 'FAIL: ' + name + (detail ? ' — ' + detail : '');
+            }
+            out.appendChild(div);
+        }
+
+        function skip(name, why) {
+            skipped++;
+            var div = document.createElement('div');
+            div.className = 'skip';
+            div.textContent = '○ skipped: ' + name + ' — ' + why;
+            out.appendChild(div);
+        }
+
+        function note(text) {
+            var div = document.createElement('div');
+            div.className = 'note';
+            div.textContent = '  ' + text;
+            out.appendChild(div);
+        }
+
+        /* Run something that touches the renderer and turn a throw into a
+           failed assertion rather than a dead page.
+
+           This is not defensiveness for its own sake. The failure that made it
+           necessary: drop a uniform from the material and leave it in the GLSL,
+           and `u.<name>.value` throws inside buildHole — which used to take the
+           whole suite down mid-run, leaving the summary reading "running…"
+           forever and a headless driver waiting out its timeout. A suite that
+           hangs on the very bug it exists to report is worse than no suite, so
+           every renderer call goes through here. */
+        function attempt(name, fn) {
+            try {
+                fn();
+                return { ok: true };
+            } catch (e) {
+                var where = (e.stack || '').split('\n')[1] || '';
+                assert(name, false, e.message + (where ? ' @' + where.trim() : ''));
+                return { ok: false, err: e };
+            }
+        }
+
+        /* ── reading the GLSL as text ───────────────────────────────────────
+
+           Cheap, contextless checks that still catch the two mistakes this
+           codebase is actually prone to: an `#ifdef` left open, and a uniform
+           that exists on one side of the JS/GLSL boundary and not the other.
+           Neither needs a GPU, so they run even where the rest of this page
+           has to skip. */
+
+        // Every `uniform <type> a, b, c;` declaration, flattened to names.
+        function declaredUniforms(src) {
+            var names = [], re = /^\s*uniform\s+\w+\s+([^;]+);/gm, m;
+            while ((m = re.exec(src)) !== null) {
+                m[1].split(',').forEach(function (n) {
+                    n = n.trim().replace(/\[.*$/, '');
+                    if (n) names.push(n);
+                });
+            }
+            return names;
+        }
+
+        // Does the source mention this name anywhere other than its own
+        // declaration? Used to find uniforms the JS supplies and the GLSL has
+        // stopped reading.
+        function usesName(src, name) {
+            var re = new RegExp('\\b' + name + '\\b', 'g');
+            var hits = (src.match(re) || []).length;
+            var declared = declaredUniforms(src).filter(function (n) { return n === name; }).length;
+            return hits > declared;
+        }
+
+        function ifdefBalance(src) {
+            var open = (src.match(/^\s*#if(def|ndef)?\b/gm) || []).length;
+            var close = (src.match(/^\s*#endif\b/gm) || []).length;
+            return open - close;
+        }
+
+        section('SHADER SOURCE');
+
+        var SOURCES = {
+            SKY_VS: SH.SKY_VS, SKY_FS: SH.SKY_FS,
+            WATER_VS: SH.WATER_VS, WATER_FS: SH.WATER_FS,
+            TURF_FS_HEAD: SH.TURF_FS_HEAD, TURF_FS_BODY: SH.TURF_FS_BODY
+        };
+
+        Object.keys(SOURCES).forEach(function (k) {
+            assert(k + ' is a non-empty string',
+                typeof SOURCES[k] === 'string' && SOURCES[k].length > 0);
+        });
+
+        // TURF_FS_BODY carries an #ifdef ALPHATEST/#endif pair of its own, and
+        // WATER_FS is now mostly #ifdef PRETTY — an unbalanced one of either
+        // takes the whole program out, with an error that points at three.js's
+        // prelude rather than at the line that did it.
+        Object.keys(SOURCES).forEach(function (k) {
+            var d = ifdefBalance(SOURCES[k]);
+            assert(k + ' has balanced #if/#endif', d === 0,
+                d > 0 ? d + ' unclosed' : (-d) + ' unopened');
+        });
+
+        assert('WATER_FS guards its pretty path behind PRETTY',
+            /#ifdef PRETTY/.test(SH.WATER_FS));
+
+        /* The wave level-of-detail is an aliasing fix, not an effect: the sea
+           runs to the horizon, so a train finer than the pixel it lands in is
+           static in both paths. It therefore has to sit outside the ifdef, and
+           this is the test that says so — the cheap path losing it is a
+           regression nobody would see in a screenshot of the pretty one. */
+        (function () {
+            var body = SH.WATER_FS;
+            var fpDecl = body.indexOf('float fp =');
+            // Not "before the first #ifdef" — the pretty helpers are declared
+            // above main() — but "at nesting depth zero", which is the thing
+            // actually being claimed: no conditional wraps it.
+            var depth = fpDecl > -1 ? ifdefBalance(body.slice(0, fpDecl)) : -1;
+            assert('the wave LOD footprint is computed for both water paths',
+                fpDecl > -1 && depth === 0,
+                fpDecl < 0 ? 'no `float fp =` found' : 'nested ' + depth + ' deep');
+
+            // Same claim, for the trains that consume it: the five base ones
+            // must be unconditional, whatever the pretty path adds after them.
+            var firstTrain = body.indexOf('train(g, hgt, hsum, w,');
+            var trainDepth = firstTrain > -1 ? ifdefBalance(body.slice(0, firstTrain)) : -1;
+            assert('the base wave trains are unconditional',
+                firstTrain > -1 && trainDepth === 0,
+                firstTrain < 0 ? 'no base train call found' : 'nested ' + trainDepth + ' deep');
+        })();
+
+        section('SKY AND WATER UNIFORMS');
+
+        /* The bug this is here for: adding a uniform to the GLSL and forgetting
+           the JS half, or the reverse. The first shows up as a shader that
+           silently reads zero, the second as a `u.<name>.value` TypeError on
+           whichever frame first touches it — both a long way from the edit. */
+        var waterDecl = declaredUniforms(SH.WATER_FS).concat(declaredUniforms(SH.WATER_VS));
+        var skyDecl = declaredUniforms(SH.SKY_FS).concat(declaredUniforms(SH.SKY_VS));
+
+        // three.js declares these itself in its prelude; the shader may use
+        // them without ever owning them.
+        var BUILT_IN = ['modelMatrix', 'modelViewMatrix', 'projectionMatrix',
+            'viewMatrix', 'normalMatrix', 'cameraPosition'];
+
+        section('COMPILING THEM FOR REAL');
+
+        var canvas = document.getElementById('gl');
+        var renderer = null, glOK = false;
+
+        try {
+            // Ask for a context the same way render.js will, so a machine that
+            // cannot give us one fails here rather than halfway through a hole.
+            var probe = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+            glOK = !!probe;
+        } catch (e) {
+            glOK = false;
+        }
+
+        function finish() {
+            var ms = Math.round(performance.now() - t0);
+            var el = document.getElementById('summary');
+            el.className = failed ? 'bad' : 'ok';
+            el.textContent = (failed ? '✗ ' + failed + ' failed, ' + passed + ' passed'
+                                     : '✓ ' + passed + ' passed')
+                + (skipped ? ', ' + skipped + ' skipped' : '')
+                + ' — ' + ms + 'ms';
+            window.DONE = true;
+            window.PASSED = passed;
+            window.FAILED = failed;
+            window.SKIPPED = skipped;
+        }
+
+        if (!glOK) {
+            skip('every WebGL test', 'no WebGL context on this machine');
+            note('The source checks above still ran. For the compile tests, open this');
+            note('page in a browser with WebGL, or headless Chromium on SwiftShader.');
+            finish();
+            return;
+        }
+
+        /* ── the real thing ─────────────────────────────────────────────────
+
+           three.js does not throw when a program fails to link: it writes to
+           console.error and carries on drawing nothing. That is exactly why a
+           screenshot is not proof a shader compiled, and it is why this suite
+           watches the console as well as asking the driver directly. */
+        var caught = [];
+        var realError = console.error;
+        console.error = function () {
+            caught.push(Array.prototype.slice.call(arguments).join(' '));
+            realError.apply(console, arguments);
+        };
+
+        function drainErrors() {
+            var got = caught.slice();
+            caught.length = 0;
+            return got;
+        }
+
+        // Ask the driver, rather than believing three.js's silence.
+        function unlinkedPrograms() {
+            var gl = renderer.getContext(), bad = [];
+            renderer.info.programs.forEach(function (p) {
+                if (!p.program) return;
+                if (!gl.getProgramParameter(p.program, gl.LINK_STATUS)) {
+                    bad.push(p.name || '(unnamed)');
+                }
+            });
+            return bad;
+        }
+
+        // A hole that actually has water on it, so the water shader is in the
+        // scene rather than merely constructed.
+        function holeWithWater() {
+            for (var i = 0; i < G3.COURSES.length; i++) {
+                var c = G3.COURSES[i];
+                for (var j = 0; j < c.holes.length; j++) {
+                    if (c.holes[j].water && c.holes[j].water.length) {
+                        return { course: c, hole: c.holes[j] };
+                    }
+                }
+            }
+            return null;
+        }
+
+        /* Everything from here needs the renderer, and every one of it runs
+           inside the try/finally below: whatever happens — a throw we did not
+           anticipate, a driver that dies halfway — the console gets handed
+           back and the summary gets written. A suite is allowed to fail; it is
+           not allowed to leave the page saying "running…". */
+        try {
+
+        var initOK = attempt('the renderer comes up', function () {
+            canvas.width = 320; canvas.height = 200;
+            R.init(canvas);
+        }).ok;
+        if (!initOK) return;
+        assert('the renderer comes up', !!R.state.renderer && R.state.ready);
+
+        renderer = R.state.renderer;
+
+        var found = holeWithWater();
+        assert('there is a hole with water to test against', !!found);
+
+        function renderOnce() {
+            renderer.render(R.state.scene, R.state.camera);
+        }
+
+        if (found) {
+            var themeName = found.course.theme;
+
+            /* Both water paths, built and drawn the way the game builds and
+               draws them. The plain one matters as much as the pretty one and
+               is the easier of the two to break unnoticed: nobody screenshots
+               the cheap path. */
+            [true, false].forEach(function (pretty) {
+                var label = pretty ? 'pretty' : 'plain';
+                drainErrors();
+                var built = attempt('the ' + label + ' hole builds and draws', function () {
+                    R.setWaterQuality(pretty);
+                    R.buildHole(found.hole, themeName, null);
+                    renderOnce();
+                });
+                if (!built.ok) return;
+
+                assert('the ' + label + ' water shader is on the hole',
+                    R.state.waterMats.length > 0);
+                assert('the ' + label + ' water material agrees with the switch',
+                    R.state.waterMats.every(function (m) {
+                        return ('PRETTY' in m.defines) === pretty;
+                    }));
+
+                var errs = drainErrors();
+                assert('building and drawing the ' + label + ' sea logs nothing',
+                    errs.length === 0, errs.join(' | ').slice(0, 400));
+                var bad = unlinkedPrograms();
+                assert('every program links with the ' + label + ' sea',
+                    bad.length === 0, bad.join(', '));
+            });
+
+            /* The switch itself. Flipping it marks the live materials for
+               recompile rather than rebuilding the hole, which is a different
+               code path from either of the two above and the one a player
+               actually takes. */
+            section('THE WATER SWITCH');
+            var switchReady = attempt('a pretty hole to flip the switch on', function () {
+                R.setWaterQuality(true);
+                R.buildHole(found.hole, themeName, null);
+                renderOnce();
+            }).ok;
+            drainErrors();
+
+            if (switchReady) {
+            R.setWaterQuality(false);
+            renderOnce();
+            var offErrs = drainErrors();
+            assert('turning the fancy water off recompiles cleanly',
+                offErrs.length === 0 && unlinkedPrograms().length === 0,
+                offErrs.join(' | ').slice(0, 400));
+            assert('and the materials lost the define',
+                R.state.waterMats.every(function (m) { return !('PRETTY' in m.defines); }));
+
+            R.setWaterQuality(true);
+            renderOnce();
+            var onErrs = drainErrors();
+            assert('turning it back on recompiles cleanly',
+                onErrs.length === 0 && unlinkedPrograms().length === 0,
+                onErrs.join(' | ').slice(0, 400));
+            assert('and the materials got it back',
+                R.state.waterMats.every(function (m) { return 'PRETTY' in m.defines; }));
+            }
+
+            /* Uniforms, now that a real material exists to compare the source
+               against. Checked in both directions, because the two failures
+               look nothing alike and both are silent until they are not. */
+            section('UNIFORMS, AGAINST A REAL MATERIAL');
+            if (!R.state.waterMats.length) {
+                skip('the uniform comparison', 'no water material survived the build');
+            } else {
+                var wu = R.state.waterMats[0].uniforms;
+                waterDecl.forEach(function (n) {
+                    if (BUILT_IN.indexOf(n) > -1) return;
+                    assert('the water material supplies `' + n + '`', wu[n] !== undefined);
+                });
+                Object.keys(wu).forEach(function (n) {
+                    assert('the water shader still reads `' + n + '`',
+                        usesName(SH.WATER_FS, n) || usesName(SH.WATER_VS, n));
+                });
+            }
+
+            if (R.state.sky) {
+                var su = R.state.sky.uniforms;
+                skyDecl.forEach(function (n) {
+                    if (BUILT_IN.indexOf(n) > -1) return;
+                    assert('the sky material supplies `' + n + '`', su[n] !== undefined);
+                });
+            }
+
+            /* And one frame through the real per-frame path, which is where
+               the uniform writes live — `u.skyTop.value` on a material that
+               never declared skyTop is a TypeError, and it happens on frame
+               one of a hole nobody may have loaded yet. */
+            section('A FRAME, THE WAY THE GAME DRAWS ONE');
+            if (!R.state.waterMats.length) {
+                skip('the frame test', 'no water material survived the build');
+            } else {
+                var before = R.state.waterMats[0].uniforms.time.value;
+                drainErrors();
+                var ran = attempt('render.frame() runs without throwing', function () {
+                    var world = P.createWorld(found.hole,
+                        { x: found.hole.tee.x, z: found.hole.tee.z }, 0);
+                    R.frame(0.016, world, { yaw: 0, power: 0 });
+                    R.frame(0.016, world, { yaw: 0, power: 0 });
+                });
+                if (ran.ok) {
+                    assert('render.frame() runs without throwing', true);
+                    assert('and it advances the water clock',
+                        R.state.waterMats[0].uniforms.time.value > before);
+                }
+                var frameErrs = drainErrors();
+                assert('and it logs nothing', frameErrs.length === 0,
+                    frameErrs.join(' | ').slice(0, 400));
+            }
+
+            /* Every theme, because the sky and the water take their colours
+               from it and a theme is a plain object anyone can add one to. A
+               bad one is a program that will not link on exactly one course. */
+            section('EVERY THEME COMPILES');
+            G3.COURSES.forEach(function (course) {
+                drainErrors();
+                var ok = true, why = '';
+                try {
+                    R.buildHole(course.holes[0], course.theme, null);
+                    renderOnce();
+                } catch (e) { ok = false; why = e.message; }
+                var errs = drainErrors();
+                var bad = unlinkedPrograms();
+                assert(course.id + ': builds and draws clean',
+                    ok && errs.length === 0 && bad.length === 0,
+                    why || errs.concat(bad).join(' | ').slice(0, 300));
+            });
+        }
+
+        } catch (e) {
+            assert('the suite runs to the end', false,
+                e.message + ' @' + ((e.stack || '').split('\n')[1] || '').trim());
+        } finally {
+            console.error = realError;
+            finish();
+        }
+    })();
+    </script>
+</body>
+</html>
