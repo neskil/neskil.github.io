@@ -11,7 +11,7 @@
     <link rel="canonical" href="https://neskil.github.io/golf3d/">
     <meta property="og:site_name" content="Niklas Billgren">
     <meta property="og:title" content="Loft Links — 3D Mini Golf">
-    <meta property="og:description" content="Seven courses of 3D golf: seaside greens, a quarry of ramps and ledges, a workshop where everything moves, a lagoon you have to fly, a hillside you have to climb, a parkland course of fairways, rough, bunkers and trees, and an open links of rolling dunes marked only by white stakes. Every hole has weather of its own — read the flag for the wind. Drag to aim, pick a club, try to beat par.">
+    <meta property="og:description" content="Ten courses of 3D golf in three kinds: mini golf on seaside greens, a quarry of ramps and ledges, a lagoon you have to fly and a hillside you have to climb; crazy golf in a workshop where everything moves, a pinball parlour of bumpers and a clockwork court you have to time; and the long game over parkland, heath and an open links of rolling dunes marked only by white stakes. Every hole has weather of its own — read the flag for the wind. Drag to aim, pick a club, try to beat par.">
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://neskil.github.io/golf3d/">
     <meta property="og:image" content="https://neskil.github.io/assets/og/golf3d.png">
@@ -32,7 +32,7 @@
 
         gtag('config', 'G-9GP823TGLB');
     </script>
-    <link rel="stylesheet" href="style.css?v=1.10.0">
+    <link rel="stylesheet" href="style.css?v=1.12.0">
 </head>
 <body>
     <div class="wrap">
@@ -49,7 +49,7 @@
             <a class="home-link" href="../index.html" title="Back to home" aria-label="Back to home">&#8592;</a>
             <div class="brand">
                 <h1 class="title">Loft <span>Links</span></h1>
-                <p class="tagline">Seven courses. Forty-two holes. Five clubs, and three of them fly.</p>
+                <p class="tagline">Ten courses in three kinds. Sixty holes. Not every one lends you the whole bag.</p>
             </div>
             <div class="topbar-actions">
                 <button class="chip" id="btn-view" title="Behind the ball, side on, or the whole hole (V)">Follow</button>
@@ -347,7 +347,12 @@
         <div class="modal-inner" role="dialog" aria-modal="true" aria-labelledby="menu-title">
             <h2 id="menu-title">Pick a course</h2>
             <p class="sub">Records are kept per course — tap a plan to start on that hole.</p>
-            <div id="menu-list" class="course-list"></div>
+            <!-- One tab per kind of golf. Ten courses shown flat is a list
+                 nobody reads; shown a kind at a time it is three or four. -->
+            <div class="menu-tabs" id="menu-tabs" role="tablist"
+                 aria-label="Kind of course"></div>
+            <p class="menu-tab-blurb" id="menu-tab-blurb"></p>
+            <div id="menu-list" class="course-list" role="tabpanel"></div>
             <div class="modal-actions">
                 <button type="button" id="menu-close">Keep playing</button>
             </div>
@@ -404,21 +409,21 @@
 
     <!-- Load order is dependency order: config, then the pure logic, then the
          things that touch the screen. game.js boots itself on DOMContentLoaded. -->
-    <script src="js/config.js?v=1.10.0"></script>
-    <script src="js/themes.js?v=1.10.0"></script>
-    <script src="js/physics.js?v=1.10.0"></script>
-    <script src="js/courses.js?v=1.10.0"></script>
-    <script src="js/scoring.js?v=1.10.0"></script>
-    <script src="js/audio.js?v=1.10.0"></script>
-    <script src="js/music.js?v=1.10.0"></script>
-    <script src="js/bag.js?v=1.10.0"></script>
-    <script src="js/textures.js?v=1.10.0"></script>
-    <script src="js/shaders.js?v=1.10.0"></script>
-    <script src="js/postfx.js?v=1.10.0"></script>
-    <script src="js/weather.js?v=1.10.0"></script>
-    <script src="js/render.js?v=1.10.0"></script>
-    <script src="js/minimap.js?v=1.10.0"></script>
-    <script src="js/debug.js?v=1.10.0"></script>
-    <script src="js/game.js?v=1.10.0"></script>
+    <script src="js/config.js?v=1.12.0"></script>
+    <script src="js/themes.js?v=1.12.0"></script>
+    <script src="js/physics.js?v=1.12.0"></script>
+    <script src="js/courses.js?v=1.12.0"></script>
+    <script src="js/scoring.js?v=1.12.0"></script>
+    <script src="js/audio.js?v=1.12.0"></script>
+    <script src="js/music.js?v=1.12.0"></script>
+    <script src="js/bag.js?v=1.12.0"></script>
+    <script src="js/textures.js?v=1.12.0"></script>
+    <script src="js/shaders.js?v=1.12.0"></script>
+    <script src="js/postfx.js?v=1.12.0"></script>
+    <script src="js/weather.js?v=1.12.0"></script>
+    <script src="js/render.js?v=1.12.0"></script>
+    <script src="js/minimap.js?v=1.12.0"></script>
+    <script src="js/debug.js?v=1.12.0"></script>
+    <script src="js/game.js?v=1.12.0"></script>
 </body>
 </html>

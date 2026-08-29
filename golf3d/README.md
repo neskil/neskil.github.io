@@ -1,8 +1,12 @@
 # Loft Links
 
-Seven six-hole courses of 3D golf: five of mini golf, one — Ashdown Park — of
-the long game with fairways, rough, bunkers, a lake and trees, and one —
-Whinstone Links — of open rolling country with no fences on it anywhere.
+Ten six-hole courses of 3D golf in three kinds. **Mini golf**: four courses of
+lanes, rails and ledges. **Crazy golf**: three of blades, gates, bumpers and
+pendulums, where the shot is a matter of timing rather than of aim. **The long
+game**: three full-size courses — Ashdown Park's parkland of fairways, rough,
+bunkers and trees; Whinstone Links, open rolling country with no fences on it
+anywhere; and Dunmore Heath, where the interest is the shape of the ground
+itself — crests, hollows, a punchbowl, a spiral and one dry ravine.
 three.js (vendored, r128), plain ES5-flavoured JavaScript, no build step and no
 other dependencies — same as everything else here, open `index.html` and it
 runs.
@@ -20,7 +24,7 @@ them.
 | `index.html` | Page shell: scoreboard, canvas, power/loft controls, banner, course picker, scorecard. |
 | `style.css` | Page chrome. The course itself is all WebGL. |
 | `js/config.js` | Every tuning constant. Nothing else holds a magic number. |
-| `js/courses.js` | The forty-two holes, as data, plus the rail generator, the band layout the parkland course is written in, and the dune fields the links is made of. |
+| `js/courses.js` | The sixty holes, as data, plus the rail generator, the band layout the long-game courses are written in, the dune fields the links is made of, the landforms Dunmore Heath is shaped by, and the bag each hole is played out of. |
 | `js/physics.js` | The simulation. No three.js, no DOM, pure. |
 | `js/scoring.js` | Scorecard arithmetic and the save file. |
 | `js/audio.js` | Synthesised sound effects, the weather's sound bed, the mute and the tab-out — no audio files to ship. |
@@ -32,7 +36,7 @@ them.
 | `js/postfx.js` | What happens to the picture after the course is drawn: bloom, light shafts, tone mapping, grade. |
 | `js/render.js` | The course, in three.js: geometry, lights, camera and the frame. |
 | `js/minimap.js` | The hole from above, drawn per pixel out of `physics.surfaceUnder` — the course picker's plans and the one on the hole card. |
-| `js/bag.js` | The club picker: a modelled bag that rides in front of the camera. |
+| `js/bag.js` | The club picker: a modelled bag that rides in front of the camera, holding whichever clubs this hole hands out. |
 | `js/debug.js` | The course inspector — `?debug=1`, or <kbd>G</kbd>. The tool for building a hole. |
 | `js/game.js` | Loop, input, and what a shot means. |
 | `vendor/three.min.js` | three.js r128, vendored. |
@@ -49,9 +53,10 @@ places where the answer is GLSL rather than a property. What is left in
 
 ## The bag
 
-Five clubs, in `config.js`. A club is a loft and a ceiling on power and that is
-the whole of it — the simulation never hears the word "club", it is handed a
-launch angle and a speed exactly as before.
+Five clubs by default, in `config.js`, and a sixth a hole may ask for. A club
+is a loft and a ceiling on power and that is the whole of it — the simulation
+never hears the word "club", it is handed a launch angle and a speed exactly as
+before.
 
 | Club | Loft | Full swing | Carry | Apex | Total on green | What it is for |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -60,6 +65,39 @@ launch angle and a speed exactly as before.
 | 7 Iron | 16° | 18 | 9.5 | 0.83 | 21.9 | The long approach: three quarters of a driver, and it *carries* three quarters of that. |
 | Pitch | 45° | 11.7 | 7.6 | 2.04 | 14.6 | Up steep and down steeper. Stops near where it lands. |
 | Wedge | 58° | 12.1 | 7.3 | 3.06 | 13.1 | The lob: straight up, over anything, and it does not run when it lands. |
+| Mallet | 0° | 17 | — | — | ~14 | Not in the default bag. A putter with a hammer behind it, handed out on holes that are played along the floor. |
+
+### What is in the bag today
+
+A hole may name its own bag — `bag: ['putter', 'mallet']` — out of
+`CONFIG.ALL_CLUBS`, and `G3.bagFor(hole)` is the one place that resolves it.
+Everything downstream reads that rather than `CONFIG.CLUBS`: the number keys,
+the cycle, the modelled bag in the corner (`bag.setBag`), the auto-putt, and
+the bot in `tests.html`, which plays every hole out of the bag the hole hands
+out. So "solvable" now means solvable with the clubs you are actually given.
+
+Taking the loft away is the cheapest obstacle in the game — no geometry, no
+moving part, nothing to collide with — and it is the only one that changes what
+the *player* has to do rather than what the ball has to get past. It is what
+The Mill, Bumper City and The Long Hand needed: each was a fine timing hole
+with a wedge in the bag that could be chipped straight over the thing it was
+about. Double Doors and The Backboard lose the lob for the same reason and keep
+the driver, because those are holes about a line rather than about pace.
+
+The mallet exists because of the other half of that. A lane you may only putt
+down is a good hole and the putter is the wrong club for it: 10.5 of power runs
+about nine units, which is most of a mini golf lane and nowhere near a hole in
+one, so the hole becomes two safe taps and no decision in either. Seventeen
+runs the length of one, and the same hole is a single committed shot that is
+either in or fifteen units past. It stays out of the default bag because a flat
+club with that much reach would quietly become the answer to half the course.
+
+The bag is modelled once, for every club the game knows about, and `setBag`
+decides which of them are in the mouth of it, in the open row and pickable —
+rebuilding a putter's geometry on the tee of the fourth hole is not something
+to do a hole at a time. A restricted bag is also the first thing to know about
+a hole and the one thing its plan cannot show, so the hole card names the
+clubs whenever there are not five of them.
 
 The iron is the newest and the odd one out, because it is the only club picked
 for its **carry** rather than its length. Everything else in the bag either
@@ -368,18 +406,24 @@ obviously correct.
 
 ## The courses
 
-Seven, six holes each, and they are meant to be played in the order they are
-listed — the picker is a difficulty curve as much as a menu.
+Ten, six holes each, filed under three groups — and the group is not a heading
+in the picker, it is a tab (see [The picker](#the-picker)). The three are not
+variations of one another: a mini golf hole is one swing and a putt, a crazy
+golf hole is a mechanism you have to time, and a long-game hole is a drive and
+an approach.
 
-| Course | Theme | What it is about |
-| --- | --- | --- |
-| Seaside Green | `seaside` | Flat-ish holes by the water. Pace, and a first bridge to fly if you would rather not walk it. |
-| Quarry Ridge | `quarry` | Ramps, ledges and a long way down. Height as a hazard. |
-| Windmill Works | `works` | Gates and blades, after dark. Timing. |
-| Tidewater Reach | `lagoon` | The loft course. Almost nothing here can be reached along the floor. |
-| Highland Steps | `highland` | The same lesson from the other side: things in the way rather than things missing, and the ground handed back as a tool. |
-| Ashdown Park | `parkland` | Not mini golf at all: the long game, where the hole is longer than one swing and the fairway is a place you are trying to be. |
-| Whinstone Links | `links` | No fences, no flat lies and no straight edges. The ground is the hazard. |
+| Course | Group | Theme | What it is about |
+| --- | --- | --- | --- |
+| Seaside Green | mini | `seaside` | Flat-ish holes by the water. Pace, and a first bridge to fly if you would rather not walk it. |
+| Quarry Ridge | mini | `quarry` | Ramps, ledges and a long way down. Height as a hazard. |
+| Tidewater Reach | mini | `lagoon` | The loft course. Almost nothing here can be reached along the floor. |
+| Highland Steps | mini | `highland` | The same lesson from the other side: things in the way rather than things missing, and the ground handed back as a tool. |
+| Windmill Works | crazy | `works` | Gates and blades, after dark. Timing. |
+| Pinball Parlour | crazy | `arcade` | A table, not a course: bumpers, a plunger chute and a pen with no door. The posts *are* the route. |
+| Clockwork Court | crazy | `clockwork` | Six mechanisms at six rates. Escapement, pendulum, cogs, ratchet, and one blade the width of the court. |
+| Ashdown Park | long | `parkland` | The long game: the hole is longer than one swing and the fairway is a place you are trying to be. |
+| Whinstone Links | long | `links` | No fences, no flat lies and no straight edges. The ground is the hazard. |
+| Dunmore Heath | long | `heath` | The long game again, shaped rather than furnished: crests, hollows, a punchbowl, a whorl and one dry ravine. |
 
 Tidewater and Highland are why the bag has more than two clubs. Every hole on
 Tidewater is built round the one thing a chip can do that a putt cannot —
@@ -560,7 +604,7 @@ finishes up to twelve units off the line it was aimed down.
 
 ## The plans
 
-The course picker used to be a list of names, and with seven courses that are
+The course picker used to be a list of names, and with ten courses that are
 no longer all the same kind of golf, a name stopped being enough. "Quarry Ridge
 — ramps, ledges and a long way down" tells you almost nothing next to a picture
 of Halfpipe, and nothing at all about the difference between a six-unit mini
@@ -593,12 +637,21 @@ plans would otherwise be six black squares. Ground beyond the boundary keeps
 its shading and loses its colour, which is the honest way to draw somewhere
 your ball can go and you would rather it did not.
 
+**And the picker is now three pickers.** At seven courses the list with
+headings in it was already long; at ten it stopped being a picker, because
+nobody arrives wanting to browse all three kinds of golf. So the headings
+became tabs — one group on screen at a time, its own colour running through
+every card and plan frame under it, and the plans for the other two never
+drawn, which is also why it opens faster than it did with seven courses on it.
+The one thing a filtered list can hide from you is the course it is offering
+next, so when that course is behind another tab, that tab gets a dot.
+
 Frames are shaped per course, from the average of its holes: a mini golf lane
 is two and a half times as deep as it is wide and a links hole is nearly
 square, and one aspect ratio for both letterboxes whichever it was not chosen
 for. Plans are drawn once and cached by course, hole and size, so the picker
 costs about a fifth of a second the first time it opens and nothing after that.
-`tests.html` draws all forty-two and checks that each fills its frame and that
+`tests.html` draws all sixty and checks that each fills its frame and that
 both ends of the hole are inside it.
 
 ## How a hole is built
@@ -738,6 +791,50 @@ tee at one end — and it throws away the *interesting* ones, the corners and th
 edges, because those are exactly where a large hump does not fit. Asking a spot
 how much room it has and sizing the hump to the answer keeps them, and the
 humps shrink towards the edges of a pad on their own, which is what ground does.
+
+### Landforms
+
+Relief is undulation: humps small enough to live inside one pad, gentle enough
+that what they change is how the ground *reads*. That is right for a mini golf
+lane and much too polite for a full-size hole, where the shape of the country
+is supposed to be the hole. Dunmore Heath is built the other way round, out of
+landforms bigger than any one pad — and that is exactly the problem `contour`
+was written to dodge. A hump crossing from the fairway to the rough leaves the
+two at different heights along their shared edge, and `enclose` reads that as a
+place where the ground stops: a fence, down the middle of a hole nobody fenced.
+
+`shape` is the way out, and it is the trick `moor` already plays on the links.
+Give **every pad on the hole the same field** and the height of the ground
+becomes a function of where you are standing rather than of which strip you
+happen to be standing on. The seams stop existing — for the solver, for
+`enclose` and for the eye — and a crest can run clean across a hole. A hole
+that has been given a field says `shaped: true`, which is how it opts out of
+the automatic `contour` pass; two authors shaping the same ground is the one
+thing that would undo all of this.
+
+| Helper | What it makes |
+| --- | --- |
+| `hill(cx, cz, r, a)` | One raised cosine. Negative `a` is a hollow, and hollows do most of the work. |
+| `ridge(x0, z0, x1, z1, r, a, n)` | Overlapping humps along a line: one long crest with a flat top, rather than a row of molehills. |
+| `ring(cx, cz, radius, r, a, n)` | A rim standing round a point — a punchbowl, or with `a` negative a dell. |
+| `whorl(cx, cz, r0, r1, r, a, n, turns)` | Humps and hollows walked out along a spiral, alternating sign. From the tee it reads as one slope and is four; a putt across it breaks twice in opposite directions. Alternating the sign is also what keeps it playable, since neighbours cancel across their skirts rather than adding. |
+| `ravine(x, z, w, d, depth)` | A strip of ground far below what is either side of it, with both long seams left bare so it plays as a drop and not as a walled trench. Returns its gaps with it, inset from the ends so the boundary rail is untouched. |
+
+Two rules survive from `relief`, and `tests.html` enforces both rather than
+trusting anyone to remember them. A landform's disc has to lie wholly inside
+the property, so the *outer* boundary — the edge `enclose` builds a rail on —
+comes out exactly as drawn; on a shaped hole the per-pad version of that check
+is relaxed to the outer edge only, because crossing a seam is the whole point.
+And no ground may be steeper than the surface it is cut into will hold a ball
+on, which is what decides the shape of the punchbowl: a rim steep enough to
+feed a ball back to the pin is far steeper than a green holds, so the rim
+stands out in the heather and the green is the small flat disc in the middle
+that every hump stops short of. Which is what a punchbowl is.
+
+The last thing a landform course needs is not geometry at all. Dunmore's sun is
+low, for the same reason Whinstone's is: a sun overhead lights a crest and a
+lawn exactly alike, and under a raking light a hump has a lit side and a shaded
+one and can be read from the tee.
 
 ### Bunkers
 
@@ -1077,7 +1174,7 @@ Park's greens was a full swing nobody meant to play. It fires the moment a shot
 ends and never again, so a club chosen after that is a club you keep.
 
 It fires on the **long game only**, and that restriction is what makes it safe.
-Five of the seven courses are mini golf, where the floor is green from the tee
+Seven of the ten courses are mini or crazy golf, where the floor is green from the tee
 mat to the cup and choosing loft over the thing in the way is the entire game —
 switching to a putter every time the ball stopped would be fighting the player
 on every stroke of Tidewater and Highland. `hole.longGame` is read off the
@@ -1711,10 +1808,10 @@ depends on is small and knowable: where the ball is, where it is aimed, how
 hard, at what loft, and — only on a hole with a gate or a blade on it — the
 clock, because those keep moving while you stand still.
 
-Exactly six of the forty-two holes have anything moving, and all six are
+Sixteen of the sixty holes have anything moving, and all of them are
 Windmill Works. On the other thirty-six that is a run of the simulation per
 *aim* rather than one per frame — measured at 3 in 120 frames against 360 — so
-six of the seven courses now pay nothing at all to stand and look. On Windmill Works
+seven of the ten courses now pay nothing at all to stand and look. On Windmill Works
 the clock is compared at 24Hz instead of at the frame rate. The gate itself
 still slides every frame, placed by `syncMovers` from the solver's own clock;
 what refreshes at 24Hz is the translucent band of the prediction, which is the
@@ -1739,7 +1836,7 @@ the four things that can move it says otherwise.
 ## Tests
 
 Open `tests.html`. 989 assertions covering the surfaces, the collision
-geometry, the cup, the integrator, the bag, all forty-two holes of course data
+geometry, the cup, the integrator, the bag, all sixty holes of course data
 and the scorecard, in a few seconds.
 
 The one worth knowing about is the **bot**: a greedy player fans out candidate

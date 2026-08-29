@@ -25,11 +25,18 @@
 
     function $(id) { return document.getElementById(id); }
 
+    /* The bag this hole is played out of, and finding a club inside it. Most
+       holes are the whole default bag; some name their own (courses.bagFor),
+       and on those a club that is not in the bag is not a club — asking for it
+       by id, by number key or by cycling gets you the first one that is. */
+    function bag() {
+        return (state && state.bag) || C.CLUBS;
+    }
+
     function clubById(id) {
-        for (var i = 0; i < C.CLUBS.length; i++) {
-            if (C.CLUBS[i].id === id) return C.CLUBS[i];
-        }
-        return C.CLUBS[0];
+        var b = bag(), i;
+        for (i = 0; i < b.length; i++) if (b[i].id === id) return b[i];
+        return b[0];
     }
 
     function toast(msg, kind) {
@@ -57,6 +64,7 @@
             scores: [],
             world: null,
             aim: { yaw: 0, power: 0, show: true },
+            bag: C.CLUBS,
             club: clubById(state && state.club ? state.club.id : C.DEFAULT_CLUB),
             drag: null,
             save: state && state.save ? state.save : S.load(),
@@ -75,6 +83,18 @@
         // Only x/z: createWorld puts the ball on top of the pad, and the tee's
         // own y is the ground there, not the ball's centre.
         state.world = P.createWorld(hole, { x: hole.tee.x, z: hole.tee.z }, 0);
+        /* This hole's bag, before anything reads state.club: a hole may hand
+           out fewer clubs than the last one, and the club in hand has to be
+           one of them. Kept if it survived the change, so walking down a
+           course does not keep resetting you to the driver. */
+        state.bag = G3.bagFor(hole);
+        if (state.bag.indexOf(state.club) < 0) {
+            state.club = clubById(state.club ? state.club.id : C.DEFAULT_CLUB);
+        }
+        if (G3.bag && G3.bag.setBag) {
+            G3.bag.setBag(state.bag);
+            G3.bag.setSelected(state.club.id);
+        }
         state.phase = 'aim';
         state.aim.power = 0;
         state.aim.show = true;
@@ -152,9 +172,9 @@
     // way just walks backward instead of doing nothing.
     function cycleClub(dir) {
         if (!state) return;
-        var n = C.CLUBS.length;
-        var i = (C.CLUBS.indexOf(state.club) + dir + n) % n;
-        pickClub(C.CLUBS[i]);
+        var b = bag(), n = b.length;
+        var i = (b.indexOf(state.club) + dir + n) % n;
+        pickClub(b[i]);
     }
 
     function handleEvents(ev) {
@@ -217,7 +237,8 @@
     function autoPutt() {
         var hole = state.world.hole;
         if (!hole.longGame) return;
-        var putter = clubById('putter');
+        var putter = null, b = bag(), i;
+        for (i = 0; i < b.length; i++) if (b[i].id === 'putter') putter = b[i];
         if (!putter || state.club === putter) return;
         var b = state.world.ball;
         var lie = P.surfaceUnder(hole, b.x, b.z, b.y + C.STEP_UP);
@@ -322,8 +343,16 @@
         $('hc-name').textContent = hole.name;
         $('hc-blurb').textContent = hole.blurb;
         if (G3.minimap) G3.minimap.into($('hc-map'), state.course.id, state.holeIndex, true);
+        /* A restricted bag is the first thing to know about a hole and the one
+           thing the picture of it cannot show: walking to the tee of a putting
+           hole with the wedge in your hand and finding out at the top of the
+           backswing is not a puzzle, it is a surprise. So the card names the
+           clubs whenever there are not five of them. */
         $('hc-meta').textContent = 'Par ' + hole.par + ' · ' +
             Math.hypot(hole.cup.x - b.x, hole.cup.z - b.z).toFixed(1) + ' m' +
+            (state.bag !== C.CLUBS
+                ? ' · ' + state.bag.map(function (c) { return c.name; }).join(' + ') + ' only'
+                : '') +
             (state.weather ? ' · ' + state.weather.icon + ' ' + state.weather.label : '');
         $('hole-card').classList.add('show');
         // The card and the overlay's drawer say the same thing; whichever was
@@ -1004,7 +1033,7 @@
             return;
         }
         if (k >= '1' && k <= '9') {
-            var byKey = C.CLUBS.filter(function (c) { return c.key === k; })[0];
+            var byKey = bag().filter(function (c) { return c.key === k; })[0];
             if (byKey) { pickClub(byKey); if (G3.bag) G3.bag.setExpanded(false); syncPicker(); return; }
         }
         if (k === 'c' || k === 'C') {
@@ -1203,141 +1232,200 @@
 
        It used to be a list of names, and names were doing a job they could not
        do. "Quarry Ridge — ramps, ledges and a long way down" tells you almost
-       nothing next to a picture of Halfpipe, and with seven courses on the
-       list that are no longer all the same kind of golf, the difference
-       between a mini golf lane and forty units of open links is the first
-       thing a player needs to see. So each course carries six plans, drawn by
-       minimap.js out of the hole data, and each plan is also a way in: the
-       card's head starts the round from the first tee, a plan starts it on
-       that hole, which is what you want when you have come back to practise
-       the one that beat you.
+       nothing next to a picture of Halfpipe, so each course carries six plans,
+       drawn by minimap.js out of the hole data, and each plan is also a way in:
+       the card's head starts the round from the first tee, a plan starts it on
+       that hole, which is what you want when you have come back to practise the
+       one that beat you.
+
+       And it used to be one scroll with headings in it. At seven courses that
+       was already long; at ten it stopped being a picker at all, because the
+       three kinds of golf on the list are not variations of each other and
+       nobody arrives wanting to browse all of them. So the headings became
+       tabs: one kind on screen at a time, its own colour running through the
+       cards, and the plans for the other two never drawn — which is also why
+       the picker opens faster than it did with seven courses on it.
 
        `suggestId` is the course the picker is nudging you towards — the one
-       after the round you have just finished. It is marked rather than
-       pre-selected: the whole point of coming back to this list is that you
-       might want a different one. */
-    function openMenu(suggestId) {
-        var save = state ? state.save : S.load();
-        var host = $('menu-list');
-        host.innerHTML = '';
-        var first = null;
+       after the round you have just finished. It picks the opening tab and is
+       marked inside it, rather than pre-selected: the whole point of coming
+       back to this list is that you might want a different one, and possibly a
+       different kind. */
 
+    var menuGroup = null;      // which tab is open
+    var menuSuggest = null;    // …and the course being offered, if any
+
+    function groupOf(id) {
+        var c = G3.courseById(id);
+        return c ? c.group : G3.COURSE_GROUPS[0].id;
+    }
+
+    function openMenu(suggestId) {
+        menuSuggest = suggestId || null;
+        menuGroup = suggestId ? groupOf(suggestId) :
+            (state && state.course ? groupOf(state.course.id) : G3.COURSE_GROUPS[0].id);
+        drawTabs();
+        var focus = drawCourses();
+        $('menu').className = 'modal show';
+        // Keyboard and screen reader land on the course being offered, or on
+        // the first one in the open tab if nothing is.
+        if (focus) { try { focus.focus(); } catch (e) { /* ignore */ } }
+        drawPlans();
+    }
+
+    /* The tabs. Each carries the group's mark, its name and how many courses
+       are filed under it, and the one holding the course on offer carries a
+       dot as well — so a player who has just finished the last mini golf course
+       can see that what is up next is behind another tab, which is the one
+       thing a filtered list can hide from you. */
+    function drawTabs() {
+        var host = $('menu-tabs');
+        host.innerHTML = '';
         G3.COURSE_GROUPS.forEach(function (group) {
             var courses = G3.coursesInGroup(group.id);
             if (!courses.length) return;
-            var head = document.createElement('div');
-            head.className = 'course-group';
-            head.innerHTML =
-                '<span class="cg-name">' + group.name + '</span>' +
-                '<span class="cg-blurb">' + group.blurb + '</span>';
-            host.appendChild(head);
-
-            courses.forEach(function (course) {
-                var rec = S.courseRecord(save, course.id);
-                var par = S.coursePar(course.holes);
-                // Expanded from the start on a wide screen, where the strip of
-                // plans never crowded anything out. On a phone every card starts
-                // closed except the one the picker is nudging you towards, so
-                // opening the list costs one screen rather than seven.
-                var opened = !document.body.classList.contains('compact-ui') || course.id === suggestId;
-                var card = document.createElement('div');
-                card.className = 'course-card' + (course.id === suggestId ? ' up-next' : '') +
-                    (opened ? ' expanded' : '');
-
-                var stripId = 'cc-holes-' + course.id;
-
-                var topRow = document.createElement('div');
-                topRow.className = 'cc-top';
-
-                var top = document.createElement('button');
-                top.type = 'button';
-                top.className = 'cc-head';
-                top.innerHTML =
-                    '<span class="cc-name">' + course.name +
-                    (course.id === suggestId ? '<span class="cc-next">up next</span>' : '') + '</span>' +
-                    '<span class="cc-blurb">' + course.blurb + '</span>' +
-                    '<span class="cc-meta">' + course.holes.length + ' holes · par ' + par +
-                    ' · best ' + (rec.best === null ? '—' : rec.best + ' (' + S.formatVsPar(rec.bestVsPar) + ')') +
-                    '</span>';
-                top.addEventListener('click', function () { newRound(course.id); });
-                topRow.appendChild(top);
-
-                // Only the strip of hole plans collapses — the head above stays
-                // a one-tap "start from hole 1", same as before this button
-                // existed, so folding a card away never costs that shortcut.
-                var toggle = document.createElement('button');
-                toggle.type = 'button';
-                toggle.className = 'cc-toggle';
-                toggle.setAttribute('aria-controls', stripId);
-                toggle.setAttribute('aria-expanded', opened ? 'true' : 'false');
-                toggle.setAttribute('aria-label', 'Hole plans for ' + course.name);
-                toggle.title = 'Show hole plans';
-                toggle.textContent = '⌄';
-                toggle.addEventListener('click', function () {
-                    var open = card.classList.toggle('expanded');
-                    toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
-                });
-                topRow.appendChild(toggle);
-                card.appendChild(topRow);
-
-                var strip = document.createElement('div');
-                strip.className = 'cc-holes';
-                strip.id = stripId;
-                /* The cells are shaped like the course's own holes. A mini golf
-                   lane is two and a half times as deep as it is wide and a links
-                   hole is nearly square; one aspect ratio for both letterboxes
-                   whichever it was not chosen for, and six thin green ribbons in
-                   six square frames is a picker that shows you nothing. Averaged
-                   over the course and clamped, because one odd hole should not
-                   reshape the other five. */
-                var shape = 0;
-                course.holes.forEach(function (hole) {
-                    var b = hole.bounds;
-                    shape += (b.maxX - b.minX) / Math.max(0.001, b.maxZ - b.minZ);
-                });
-                shape = Math.max(0.4, Math.min(1.5, shape / course.holes.length));
-                strip.style.setProperty('--cc-shape', shape.toFixed(3));
-
-                course.holes.forEach(function (hole, i) {
-                    var cell = document.createElement('button');
-                    cell.type = 'button';
-                    cell.className = 'cc-hole';
-                    cell.title = hole.name + ' — par ' + hole.par;
-                    // The plan pass below reads these rather than counting its
-                    // way through the DOM, so the grouping above is free to put
-                    // the courses in any order it likes.
-                    cell.setAttribute('data-course', course.id);
-                    cell.setAttribute('data-hole', i);
-                    cell.innerHTML =
-                        '<canvas class="cc-map"></canvas>' +
-                        '<span class="cc-num">' + (i + 1) + '</span>' +
-                        '<span class="cc-par">' + hole.par + '</span>';
-                    cell.addEventListener('click', function () { newRound(course.id, i); });
-                    strip.appendChild(cell);
-                });
-                card.appendChild(strip);
-                host.appendChild(card);
-                if (course.id === suggestId) first = top;
+            var on = group.id === menuGroup;
+            var tab = document.createElement('button');
+            tab.type = 'button';
+            tab.className = 'menu-tab' + (on ? ' on' : '');
+            tab.setAttribute('role', 'tab');
+            tab.setAttribute('aria-selected', on ? 'true' : 'false');
+            tab.setAttribute('aria-controls', 'menu-list');
+            tab.style.setProperty('--cg-tint', group.tint);
+            tab.innerHTML =
+                '<span class="mt-icon" aria-hidden="true">' + group.icon + '</span>' +
+                '<span class="mt-name">' + group.name + '</span>' +
+                '<span class="mt-count">' + courses.length + '</span>' +
+                (menuSuggest && groupOf(menuSuggest) === group.id && !on
+                    ? '<span class="mt-dot" title="up next"></span>' : '');
+            tab.addEventListener('click', function () {
+                if (menuGroup === group.id) return;
+                menuGroup = group.id;
+                drawTabs();
+                drawCourses();
+                drawPlans();
             });
+            host.appendChild(tab);
+        });
+        var g = G3.COURSE_GROUPS.filter(function (x) { return x.id === menuGroup; })[0];
+        $('menu-tab-blurb').textContent = g ? g.blurb : '';
+        $('menu-list').style.setProperty('--cg-tint', g ? g.tint : '#7dd3fc');
+    }
+
+    /* The cards of the open tab. Returns what focus should land on. */
+    function drawCourses() {
+        var save = state ? state.save : S.load();
+        var host = $('menu-list');
+        host.innerHTML = '';
+        var focus = null, firstHead = null;
+
+        G3.coursesInGroup(menuGroup).forEach(function (course) {
+            var rec = S.courseRecord(save, course.id);
+            var par = S.coursePar(course.holes);
+            // Expanded from the start on a wide screen, where the strip of
+            // plans never crowded anything out. On a phone every card starts
+            // closed except the one the picker is nudging you towards, so
+            // opening the list costs one screen rather than four.
+            var opened = !document.body.classList.contains('compact-ui') || course.id === menuSuggest;
+            var card = document.createElement('div');
+            card.className = 'course-card' + (course.id === menuSuggest ? ' up-next' : '') +
+                (opened ? ' expanded' : '');
+
+            var stripId = 'cc-holes-' + course.id;
+
+            var topRow = document.createElement('div');
+            topRow.className = 'cc-top';
+
+            var top = document.createElement('button');
+            top.type = 'button';
+            top.className = 'cc-head';
+            top.innerHTML =
+                '<span class="cc-name">' + course.name +
+                (course.id === menuSuggest ? '<span class="cc-next">up next</span>' : '') + '</span>' +
+                '<span class="cc-blurb">' + course.blurb + '</span>' +
+                '<span class="cc-meta">' + course.holes.length + ' holes · par ' + par +
+                ' · best ' + (rec.best === null ? '—' : rec.best + ' (' + S.formatVsPar(rec.bestVsPar) + ')') +
+                '</span>';
+            top.addEventListener('click', function () { newRound(course.id); });
+            topRow.appendChild(top);
+
+            // Only the strip of hole plans collapses — the head above stays
+            // a one-tap "start from hole 1", same as before this button
+            // existed, so folding a card away never costs that shortcut.
+            var toggle = document.createElement('button');
+            toggle.type = 'button';
+            toggle.className = 'cc-toggle';
+            toggle.setAttribute('aria-controls', stripId);
+            toggle.setAttribute('aria-expanded', opened ? 'true' : 'false');
+            toggle.setAttribute('aria-label', 'Hole plans for ' + course.name);
+            toggle.title = 'Show hole plans';
+            toggle.textContent = '⌄';
+            toggle.addEventListener('click', function () {
+                var open = card.classList.toggle('expanded');
+                toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+            });
+            topRow.appendChild(toggle);
+            card.appendChild(topRow);
+
+            var strip = document.createElement('div');
+            strip.className = 'cc-holes';
+            strip.id = stripId;
+            /* The cells are shaped like the course's own holes. A mini golf
+               lane is two and a half times as deep as it is wide and a links
+               hole is nearly square; one aspect ratio for both letterboxes
+               whichever it was not chosen for, and six thin green ribbons in
+               six square frames is a picker that shows you nothing. Averaged
+               over the course and clamped, because one odd hole should not
+               reshape the other five. */
+            var shape = 0;
+            course.holes.forEach(function (hole) {
+                var b = hole.bounds;
+                shape += (b.maxX - b.minX) / Math.max(0.001, b.maxZ - b.minZ);
+            });
+            shape = Math.max(0.4, Math.min(1.5, shape / course.holes.length));
+            strip.style.setProperty('--cc-shape', shape.toFixed(3));
+
+            course.holes.forEach(function (hole, i) {
+                var cell = document.createElement('button');
+                cell.type = 'button';
+                cell.className = 'cc-hole';
+                cell.title = hole.name + ' — par ' + hole.par;
+                // The plan pass below reads these rather than counting its
+                // way through the DOM, so the ordering above is free to change.
+                cell.setAttribute('data-course', course.id);
+                cell.setAttribute('data-hole', i);
+                cell.innerHTML =
+                    '<canvas class="cc-map"></canvas>' +
+                    '<span class="cc-num">' + (i + 1) + '</span>' +
+                    '<span class="cc-par">' + hole.par + '</span>';
+                cell.addEventListener('click', function () { newRound(course.id, i); });
+                strip.appendChild(cell);
+            });
+            card.appendChild(strip);
+            host.appendChild(card);
+            if (!firstHead) firstHead = top;
+            if (course.id === menuSuggest) focus = top;
         });
 
-        $('menu').className = 'modal show';
-        // Keyboard and screen reader land on the course being offered.
-        if (first) { try { first.focus(); } catch (e) { /* ignore */ } }
+        host.scrollTop = 0;
+        return focus || firstHead;
+    }
 
-        /* Drawn after the modal is up, so the canvases have a laid-out size to
-           be measured against — and one frame later, so the picker appears at
-           once rather than after forty-two holes have been rasterised. */
-        if (G3.minimap) {
-            requestAnimationFrame(function () {
-                var cells = host.querySelectorAll('.cc-hole'), k;
-                for (k = 0; k < cells.length; k++) {
-                    G3.minimap.into(cells[k].querySelector('.cc-map'),
-                        cells[k].getAttribute('data-course'),
-                        parseInt(cells[k].getAttribute('data-hole'), 10));
-                }
-            });
-        }
+    /* Drawn after the modal is up, so the canvases have a laid-out size to be
+       measured against — and one frame later, so the picker appears at once
+       rather than after a tab's worth of holes has been rasterised. Only the
+       open tab is drawn, which is most of what made this cheap again. */
+    function drawPlans() {
+        if (!G3.minimap) return;
+        var host = $('menu-list');
+        requestAnimationFrame(function () {
+            var cells = host.querySelectorAll('.cc-hole'), k;
+            for (k = 0; k < cells.length; k++) {
+                G3.minimap.into(cells[k].querySelector('.cc-map'),
+                    cells[k].getAttribute('data-course'),
+                    parseInt(cells[k].getAttribute('data-hole'), 10));
+            }
+        });
     }
 
     function closeMenu() { $('menu').className = 'modal'; }

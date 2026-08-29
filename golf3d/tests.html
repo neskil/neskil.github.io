@@ -632,8 +632,8 @@
 
         section('Course data');
         (function () {
-            assert('seven courses', G3.COURSES.length === 7);
-            assert('forty-two holes in total', ALL.length === 42);
+            assert('ten courses', G3.COURSES.length === 10);
+            assert('sixty holes in total', ALL.length === 60);
             assert('courseById finds a course', G3.courseById('quarry').id === 'quarry');
             assert('courseById falls back to the first', G3.courseById('nope').id === G3.COURSES[0].id);
 
@@ -662,6 +662,39 @@
                 G3.nextCourseId(G3.COURSES[G3.COURSES.length - 1].id) === G3.COURSES[0].id);
             assert('an unknown course still offers somewhere to go',
                 !!G3.courseById(G3.nextCourseId('nope')));
+
+            /* A hole may name its own bag, and there are three ways to get
+               that wrong that nothing else would catch: naming a club that
+               does not exist (`bagFor` drops it, and a hole meant to be
+               played with two clubs quietly becomes a hole played with one),
+               naming none of them, and asking for loft on a hole whose whole
+               point is that there is none to be had. */
+            var restricted = 0;
+            ALL.forEach(function (entry) {
+                var h = entry.hole, tag = entry.course.id + '/' + h.name;
+                if (!h.bag) return;
+                restricted++;
+                assert(tag + ': every club it asks for exists',
+                    G3.bagFor(h).length === h.bag.length,
+                    h.bag.join(', ') + ' → ' + G3.bagFor(h).map(function (c) { return c.id; }).join(', '));
+                assert(tag + ': and it is a smaller bag than the default one',
+                    G3.bagFor(h).length < C.CLUBS.length);
+                // A hole cannot both require loft and refuse to hand any out.
+                if (h.needsLoft) {
+                    assert(tag + ': a hole that needs loft is given some',
+                        G3.bagFor(h).some(function (c) { return c.loft >= 10 * Math.PI / 180; }));
+                }
+            });
+            assert('some holes are played out of a smaller bag', restricted >= 4,
+                restricted + ' found');
+            assert('the extra clubs are not in the default bag',
+                C.EXTRA_CLUBS.every(function (x) {
+                    return C.CLUBS.indexOf(x) < 0;
+                }) && C.ALL_CLUBS.length === C.CLUBS.length + C.EXTRA_CLUBS.length);
+            assert('a hole that names nothing gets the default bag',
+                G3.bagFor({}) === C.CLUBS && G3.bagFor(null) === C.CLUBS);
+            assert('and one that names only nonsense gets it too',
+                G3.bagFor({ bag: ['spoon'] }) === C.CLUBS);
 
             var minThick = Infinity, worstGap = Infinity, worstGapName = '';
             ALL.forEach(function (entry) {
@@ -714,6 +747,23 @@
                     assert(tag + ': and clear of the flat patch it is cut into',
                         clear > A.CUP_PATCH + 0.05,
                         'only ' + clear.toFixed(2) + ' for a patch of ' + A.CUP_PATCH);
+                    /* And the ground the flat patch is stitched into has to
+                       hold a ball. `contour` keeps its humps clear of the cup
+                       by construction; a landform (courses.shape) is placed by
+                       hand and spans several pads, so the rule that used to be
+                       remembered is measured here instead — a green with a
+                       crest running over the pin is a green nothing stops on,
+                       and the picture of it looks perfectly fine. */
+                    var worstLie = 0, a3, ang3;
+                    for (a3 = 0; a3 < 12; a3++) {
+                        ang3 = a3 / 12 * Math.PI * 2;
+                        worstLie = Math.max(worstLie, P.slopeAt(own,
+                            h.cup.x + Math.cos(ang3) * A.CUP_PATCH,
+                            h.cup.z + Math.sin(ang3) * A.CUP_PATCH));
+                    }
+                    assert(tag + ': the ground beside the cup will hold a ball',
+                        worstLie <= P.holdOf(own.kind),
+                        'slope ' + worstLie.toFixed(3) + ' against ' + P.holdOf(own.kind));
                 }
 
                 // Neither end may be inside a wall — a cup buried in a rail
@@ -933,8 +983,36 @@
                or a shoreline that the rest of the file thinks it knows the
                height of. The second one is checked directly — walk the boundary
                of every pad and it must still be exactly the plane it was
-               authored as. */
+               authored as.
+
+               A *shaped* hole (courses.shape) earns a weaker version of the
+               second question and answers it just as strictly. Its landforms
+               are meant to cross from one strip to the next: the whole point of
+               giving every pad the same field is that a crest can run clean
+               across a hole, and a per-pad edge that has not moved would mean
+               it could not. What must still be exactly where it was drawn is
+               the boundary of the *property* — the edge with nothing behind it,
+               which is the one `enclose` builds a rail on — so that is the edge
+               this walks instead. An interior seam between two pads carrying
+               the same field cannot step, because both sides moved together.
+
+               `open` holes are exempt from the whole question: Whinstone has no
+               rails at all, so there is no edge to protect. */
             var worstRoll = 0, rollName = '', rolled = 0, movedEdge = 0, edgeName = '';
+
+            // Is there other ground just outside this point, in this direction?
+            // An edge with a neighbour is an interior seam; one without is the
+            // boundary of the hole.
+            function outerEdge(hole, p, x, z, dx, dz) {
+                var i, q;
+                for (i = 0; i < hole.pads.length; i++) {
+                    q = hole.pads[i];
+                    if (q === p) continue;
+                    if (P.padContains(q, x + dx * 0.12, z + dz * 0.12)) return false;
+                }
+                return true;
+            }
+
             ALL.forEach(function (entry) {
                 entry.hole.pads.forEach(function (p) {
                     if (!p.bumps || !p.bumps.length || p.kind === 'sand') return;
@@ -954,26 +1032,24 @@
                             }
                         }
                     }
-                    // …and the boundary, which may not have moved at all.
+                    // …and the boundary, which may not have moved at all. On a
+                    // shaped hole that means the outer boundary; see above.
+                    var shaped = !!entry.hole.shaped;
+                    function boundary(px, pz, dx, dz) {
+                        if (shaped && !outerEdge(entry.hole, p, px, pz, dx, dz)) return;
+                        off = Math.abs(P.padHeight(p, px, pz) - plane_at(px, pz));
+                        if (off > movedEdge) {
+                            movedEdge = off;
+                            edgeName = entry.course.id + '/' + entry.hole.name;
+                        }
+                    }
                     for (x = p.x; x <= p.x + p.w + 1e-9; x += 0.2) {
-                        [p.z, p.z + p.d].forEach(function (zz) {
-                            off = Math.abs(P.padHeight(p, Math.min(x, p.x + p.w), zz) -
-                                           plane_at(Math.min(x, p.x + p.w), zz));
-                            if (off > movedEdge) {
-                                movedEdge = off;
-                                edgeName = entry.course.id + '/' + entry.hole.name;
-                            }
-                        });
+                        boundary(Math.min(x, p.x + p.w), p.z, 0, -1);
+                        boundary(Math.min(x, p.x + p.w), p.z + p.d, 0, 1);
                     }
                     for (z = p.z; z <= p.z + p.d + 1e-9; z += 0.2) {
-                        [p.x, p.x + p.w].forEach(function (xx) {
-                            off = Math.abs(P.padHeight(p, xx, Math.min(z, p.z + p.d)) -
-                                           plane_at(xx, Math.min(z, p.z + p.d)));
-                            if (off > movedEdge) {
-                                movedEdge = off;
-                                edgeName = entry.course.id + '/' + entry.hole.name;
-                            }
-                        });
+                        boundary(p.x, Math.min(z, p.z + p.d), -1, 0);
+                        boundary(p.x + p.w, Math.min(z, p.z + p.d), 1, 0);
                     }
                 });
             });
@@ -1600,7 +1676,10 @@
             var b0 = performance.now();
             ALL.forEach(function (entry) {
                 var h = entry.hole;
-                var r = play(h, 8);
+                // Out of the bag the hole hands out, not out of the whole
+                // bag: a hole that takes the loft away has to be solvable
+                // without it, and that is exactly what this now says.
+                var r = play(h, 8, G3.bagFor(h));
                 assert(entry.course.id + '/' + h.name + ': the bot holes out with the clubs it has (par ' + h.par + ')',
                     r.sunk, r.sunk ? '' : 'gave up after ' + r.strokes + ' strokes');
                 if (r.sunk) {
@@ -1630,7 +1709,10 @@
                 var h = entry.hole;
                 if (!h.needsLoft) return;
                 marked++;
-                var r = play(h, 10, flatBag);
+                var mine = G3.bagFor(h).filter(function (c) {
+                    return c.loft < 10 * Math.PI / 180;
+                });
+                var r = play(h, 10, mine.length ? mine : flatBag);
                 assert(entry.course.id + '/' + h.name + ': cannot be played along the floor',
                     !r.sunk, 'the flat bag holed out in ' + r.strokes);
             });

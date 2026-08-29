@@ -1089,7 +1089,7 @@ kbd {
 .modal.show { opacity: 1; pointer-events: auto; }
 
 .modal-inner {
-    width: min(480px, 100%);
+    width: min(520px, 100%);
     max-height: 88vh;
     overflow-y: auto;
     background: linear-gradient(160deg, rgba(20, 40, 58, 0.96), rgba(8, 20, 32, 0.96));
@@ -1108,7 +1108,93 @@ kbd {
 
 /* ── course picker ──────────────────────────────────────────────────────── */
 
+/* One tab per kind of golf. Ten courses in one scroll is a list; three or
+   four under a tab is a choice — and the tab is also where the kind gets its
+   colour, which then runs through every card and every plan frame under it, so
+   you can tell at a glance whether you are looking at windmills or at links. */
+.menu-tabs {
+    display: flex;
+    gap: 0.3rem;
+    margin: 0.2rem 0 0.5rem;
+}
+
+.menu-tab {
+    position: relative;
+    flex: 1 1 0;
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: 0.35rem;
+    min-width: 0;
+    padding: 0.45rem 0.5rem;
+    font: inherit;
+    font-size: 0.78rem;
+    color: var(--ink-dim);
+    text-align: left;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid var(--panel-border);
+    border-radius: 11px;
+    cursor: pointer;
+    transition: background 0.16s, border-color 0.16s, color 0.16s;
+}
+
+.menu-tab:hover { color: var(--ink); border-color: color-mix(in srgb, var(--cg-tint) 45%, transparent); }
+
+.menu-tab.on {
+    color: var(--ink);
+    border-color: color-mix(in srgb, var(--cg-tint) 65%, transparent);
+    background: color-mix(in srgb, var(--cg-tint) 15%, transparent);
+}
+
+.menu-tab:focus-visible { outline: 2px solid var(--cg-tint); outline-offset: 1px; }
+
+.mt-icon { font-size: 0.95rem; line-height: 1; color: var(--cg-tint); }
+.mt-name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-weight: 600;
+}
+.mt-count {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 0.62rem;
+    line-height: 1;
+    padding: 0.15rem 0.3rem;
+    border-radius: 999px;
+    color: var(--cg-tint);
+    background: color-mix(in srgb, var(--cg-tint) 18%, transparent);
+}
+
+/* The course on offer is behind another tab. Without this the picker would
+   quietly hide the one thing it exists to suggest. */
+.mt-dot {
+    position: absolute;
+    top: -3px;
+    right: -3px;
+    width: 8px;
+    height: 8px;
+    border-radius: 999px;
+    background: var(--cg-tint);
+    box-shadow: 0 0 0 2px rgba(8, 20, 32, 0.9);
+}
+
+.menu-tab-blurb {
+    margin: 0 0 0.7rem;
+    font-size: 0.78rem;
+    font-weight: 300;
+    color: var(--ink-dim);
+}
+
+/* Narrow enough that three names will not fit: keep the mark and the count,
+   drop the words. The blurb underneath is still saying which kind is open. */
+@media (max-width: 420px) {
+    .menu-tab { grid-template-columns: auto auto; justify-content: center; }
+    .mt-name { display: none; }
+}
+
 .course-list {
+    --cg-tint: #7dd3fc;
     display: grid;
     gap: 0.6rem;
 }
@@ -1124,7 +1210,7 @@ kbd {
     transition: border-color 0.18s;
 }
 
-.course-card:hover { border-color: rgba(125, 211, 252, 0.35); }
+.course-card:hover { border-color: color-mix(in srgb, var(--cg-tint) 40%, transparent); }
 
 .cc-head {
     display: grid;
@@ -1140,7 +1226,7 @@ kbd {
     transition: background 0.18s;
 }
 
-.cc-head:hover { background: var(--accent-soft); }
+.cc-head:hover { background: color-mix(in srgb, var(--cg-tint) 12%, transparent); }
 
 .cc-top { display: flex; align-items: stretch; }
 .cc-top .cc-head { flex: 1 1 auto; }
@@ -1167,35 +1253,19 @@ kbd {
 .cc-toggle:hover { background: var(--accent-soft); color: var(--ink); }
 .course-card.expanded .cc-toggle { transform: rotate(180deg); }
 
-/* A heading per category. The list is seven courses long and the last two
-   are a different game from the first five; the heading is what says so. */
-.course-group {
-    display: grid;
-    gap: 0.1rem;
-    margin: 0.5rem 0 -0.1rem;
-}
-.course-group:first-child { margin-top: 0; }
-.cg-name {
-    font-family: 'JetBrains Mono', ui-monospace, monospace;
-    font-size: 0.7rem;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    color: var(--accent);
-}
-.cg-blurb { font-size: 0.78rem; color: var(--ink-dim); font-weight: 300; }
 
 /* The course a finished round is offering next. */
 .course-card.up-next {
-    border-color: rgba(125, 211, 252, 0.55);
-    background: var(--accent-soft);
+    border-color: color-mix(in srgb, var(--cg-tint) 60%, transparent);
+    background: color-mix(in srgb, var(--cg-tint) 13%, transparent);
 }
 .cc-next {
     font-family: 'JetBrains Mono', ui-monospace, monospace;
     font-size: 0.62rem;
     letter-spacing: 0.1em;
     text-transform: uppercase;
-    color: var(--accent);
-    border: 1px solid rgba(125, 211, 252, 0.45);
+    color: var(--cg-tint);
+    border: 1px solid color-mix(in srgb, var(--cg-tint) 50%, transparent);
     border-radius: 999px;
     padding: 0.08rem 0.42rem;
     margin-left: 0.5rem;
@@ -1207,7 +1277,7 @@ kbd {
 .cc-meta {
     font-family: 'JetBrains Mono', ui-monospace, monospace;
     font-size: 0.7rem;
-    color: var(--accent);
+    color: var(--cg-tint);
     margin-top: 0.2rem;
 }
 
@@ -1236,8 +1306,8 @@ kbd {
     transition: border-color 0.15s, transform 0.15s;
 }
 
-.cc-hole:hover { border-color: var(--accent); transform: translateY(-2px); }
-.cc-hole:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.cc-hole:hover { border-color: var(--cg-tint); transform: translateY(-2px); }
+.cc-hole:focus-visible { outline: 2px solid var(--cg-tint); outline-offset: 1px; }
 
 .cc-map { display: block; width: 100%; height: 100%; }
 
@@ -1255,13 +1325,13 @@ kbd {
 }
 
 .cc-num { left: 0; border-top-right-radius: 5px; }
-.cc-par { right: 0; border-top-left-radius: 5px; color: var(--accent); }
+.cc-par { right: 0; border-top-left-radius: 5px; color: var(--cg-tint); }
 
 @media (max-width: 520px) {
     .cc-holes { grid-template-columns: repeat(3, 1fr); }
 }
 
-/* On a phone the picker is seven courses deep and forty-two plans long —
+/* Even inside one tab the picker is three or four courses deep on a phone —
    shown flat, that's more scrolling than choosing. So each strip of plans
    folds behind the course it belongs to, and only the one on offer (or one
    a tap has opened) stays out. The head above stays a full-width button the
