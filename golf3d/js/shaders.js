@@ -157,7 +157,46 @@
        its drop off centre, gates on a hash so most cells are empty, and runs
        on its own phase and speed — then the whole thing is done twice more, at
        scales and bearings that do not divide into each other. What is left is
-       rings arriving scattered and out of step, which is what rain does. */
+       rings arriving scattered and out of step, which is what rain does.
+
+       ── two seas, one source ──
+
+       Everything above is the *plain* sea, and it is what a phone gets. Behind
+       `#ifdef PRETTY` there is a second one, compiled from the same string by
+       flipping a define (render.setWaterQuality), which adds the four things
+       that cost real fill rate:
+
+         · **a reflected sky, not a colour.** The plain sea mixes towards one
+           flat blue. The pretty one reflects the actual view ray off the
+           actual wave normal and evaluates a small stand-in for the sky dome
+           at it — gradient, sun, horizon haze — so the sun draws a *streak*
+           down the water that breaks up on the chop, which is the single most
+           recognisable thing a sea does and the one you cannot fake with a
+           constant.
+         · **crests.** The trains now accumulate height as well as slope, which
+           costs one sin each and buys the top of a wave: foam where it peaks,
+           and light coming *through* it towards a camera on the far side.
+         · **glitter.** A fine noise-gradient on the normal, faded out with
+           distance, so the specular breaks into moving sparks instead of a
+           smooth sheen.
+         · **an honest alpha.** A pond's surface goes opaque at a grazing angle
+           and clear looking down, rather than sitting at one hardcoded 0.86.
+
+       ── the part that is not optional ──
+
+       Both seas are level-of-detailed now. A wave train whose wavelength is
+       smaller than the pixel it lands in is not detail, it is noise: it
+       crawls, it aliases, and on a sea seen edge-on — where one pixel can span
+       tens of metres — the top trains used to turn the middle distance into
+       television static. `train()` therefore weighs each wave against the
+       world-space size of the pixel it is being drawn into and fades it out
+       before it reaches that size. The footprint is divided by the view ray's
+       own steepness, because that is where the stretching comes from: looking
+       down at water, a pixel is small; looking along it, a pixel is a field.
+
+       That fade is also why the horizon comes out mirror-flat and calm-looking
+       rather than boiling: with every train faded, what is left is a plane
+       reflecting the sky, which is exactly what distant water is. */
 
     var WATER_VS = [
         'varying vec3 vWorld;',
@@ -169,15 +208,28 @@
     ].join('\n');
 
     var WATER_FS = [
-        'uniform vec3 deep, shallow, skyColour, sunColour, fogColour, sunDir;',
+        'uniform vec3 deep, shallow, skyColour, skyTop, sunColour, fogColour, sunDir;',
         'uniform float time, gloss, rain, fogNear, fogFar, alpha, chop;',
         'uniform vec2 wind;',
         'varying vec3 vWorld;',
 
-        // One travelling wave, accumulated as a slope rather than a height:
-        // the height is never needed, only what it does to the normal.
-        'void wave(inout vec2 g, vec2 dir, float freq, float amp, float speed, vec2 p, float t){',
-        '  g += dir * (cos(dot(p, dir) * freq + t * speed) * amp * freq);',
+        /* One travelling wave. The slope is what the normal is built from; the
+           height is what tells the pretty path where the crests are, and it is
+           accumulated alongside because the sin is already paid for by the cos.
+
+           `fp` is the world-space width of the pixel this fragment covers, and
+           `k` is the verdict on whether this train survives it: a wave whose
+           whole wavelength fits inside one pixel is deleted rather than
+           sampled, because sampling it is how you get static. `hsum` follows
+           the same weighting so that the height stays normalisable — a crest
+           test against a fixed number would drift as the far trains fade. */
+        'void train(inout vec2 g, inout float hgt, inout float hsum,',
+        '           vec2 dir, float freq, float amp, float speed, vec2 p, float t, float fp){',
+        '  float k = clamp(6.2831 / (freq * fp * 8.0), 0.0, 1.0);',
+        '  float ph = dot(p, dir) * freq + t * speed;',
+        '  g    += dir * (cos(ph) * amp * freq * k);',
+        '  hgt  += sin(ph) * amp * k;',
+        '  hsum += amp * k;',
         '}',
 
         /* Two randoms per cell, without a sin in sight: sin-based hashes lose
@@ -188,6 +240,31 @@
         '  q += dot(q, q.yzx + 33.33);',
         '  return fract((q.xx + q.yz) * q.zy);',
         '}',
+
+        '#ifdef PRETTY',
+        'float vnoise2(vec2 p){',
+        '  vec2 i = floor(p), f = fract(p);',
+        '  f = f * f * (3.0 - 2.0 * f);',
+        '  float a = hash22(i).x, b = hash22(i + vec2(1.0, 0.0)).x;',
+        '  float c = hash22(i + vec2(0.0, 1.0)).x, d = hash22(i + vec2(1.0, 1.0)).x;',
+        '  return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);',
+        '}',
+
+        /* A stand-in for the sky dome, cheap enough to call per fragment. It
+           is deliberately *not* the sky shader: the clouds are the expensive
+           half of that one and a cloud reflected in chop is a grey smear, but
+           the gradient, the sun and the horizon haze are the three things the
+           eye actually checks a reflection against. Sharing the dome uniforms
+           is what keeps the sea under the same weather as the sky above it. */
+        'vec3 skyAt(vec3 r){',
+        '  vec3 c = mix(skyColour, skyTop, smoothstep(0.0, 0.5, max(r.y, 0.0)));',
+        '  float sd = max(dot(r, sunDir), 0.0);',
+        '  c += sunColour * (pow(sd, 26.0) * 0.55 + pow(sd, 5.0) * 0.10) * gloss;',
+        // Reflections of the horizon are reflections of the fog, or the sea
+        // meets the sky in a hard line the sky itself does not have.
+        '  return mix(c, fogColour, smoothstep(0.16, -0.03, r.y));',
+        '}',
+        '#endif',
 
         /* One layer of drops: a ring per cell of a grid at `scale`, but pushed
            off the cell centre, most of them switched off, and each on its own
@@ -210,16 +287,37 @@
         '  float t = time;',
         '  vec2 w = normalize(wind + vec2(1e-3));',
         '  vec2 wp = vec2(-w.y, w.x);',
+
+        '  vec3 toCam = cameraPosition - vWorld;',
+        '  float dist = length(toCam);',
+        '  vec3 v = toCam / max(dist, 1e-4);',
+        /* How wide, in metres, the pixel under this fragment is. Distance is
+           half of it; the other half is that a ray skimming along the surface
+           covers far more water per pixel than one looking down at it, which
+           is why the far half of a sea seen from a low camera is the part that
+           boils. Dividing by the ray's steepness is that whole correction. */
+        '  float fp = dist * 0.0022 / max(abs(v.y), 0.05);',
+
         /* Five trains, and every number in here is chosen not to divide into
            the others. Harmonic frequencies on similar bearings beat against
            each other into a plaid that reads as a tiled texture the moment the
            camera goes overhead — which is exactly what this replaced. */
         '  vec2 g = vec2(0.0);',
-        '  wave(g, w, 1.27, 0.046 * chop, 1.31, p, t);',
-        '  wave(g, normalize(w + wp * 0.75), 2.11, 0.026 * chop, 1.77, p, t);',
-        '  wave(g, normalize(w - wp * 1.35), 3.67, 0.014 * chop, 2.39, p, t);',
-        '  wave(g, normalize(-w + wp * 0.45), 6.31, 0.0072 * chop, 3.07, p, t);',
-        '  wave(g, normalize(w * 0.35 - wp), 9.87, 0.0036 * chop, 4.13, p, t);',
+        '  float hgt = 0.0, hsum = 1e-4;',
+        '  train(g, hgt, hsum, w, 1.27, 0.046 * chop, 1.31, p, t, fp);',
+        '  train(g, hgt, hsum, normalize(w + wp * 0.75), 2.11, 0.026 * chop, 1.77, p, t, fp);',
+        '  train(g, hgt, hsum, normalize(w - wp * 1.35), 3.67, 0.014 * chop, 2.39, p, t, fp);',
+        '  train(g, hgt, hsum, normalize(-w + wp * 0.45), 6.31, 0.0072 * chop, 3.07, p, t, fp);',
+        '  train(g, hgt, hsum, normalize(w * 0.35 - wp), 9.87, 0.0036 * chop, 4.13, p, t, fp);',
+        '#ifdef PRETTY',
+        /* Three more, an octave apart and on bearings of their own. They are
+           only ever visible within a few metres of the camera — the footprint
+           test above deletes them well before the middle distance — which is
+           exactly the range where the plain sea reads as smooth plastic. */
+        '  train(g, hgt, hsum, normalize(-w - wp * 0.62), 14.30, 0.0021 * chop, 5.21, p, t, fp);',
+        '  train(g, hgt, hsum, normalize(w * 1.4 + wp * 0.28), 21.70, 0.0012 * chop, 6.47, p, t, fp);',
+        '  train(g, hgt, hsum, normalize(wp * 0.9 - w * 0.2), 33.10, 0.0007 * chop, 8.03, p, t, fp);',
+        '#endif',
 
         /* Three layers, each on a grid the others are not aligned to: the
            second is turned by about 37 degrees, the third by about 68 the
@@ -232,15 +330,59 @@
         '    g += drops(rotB * p - vec2(6.1, 19.4), 3.40, t + 7.7, 0.95) * 0.30 * rain;',
         '  }',
 
+        '#ifdef PRETTY',
+        /* Glitter. Not a wave — a fine, incoherent wobble in the normal, which
+           is what turns the specular from a smooth sheen into a field of
+           moving sparks. It is a gradient rather than a value (two differences
+           of the same noise) because what the specular reads is the tilt, and
+           it is faded out with the footprint for the usual reason: unresolved
+           glitter is white noise, and white noise on a bright highlight is the
+           worst place in the frame to have any. */
+        '  float mk = clamp(1.0 - fp * 9.0, 0.0, 1.0);',
+        '  if (mk > 0.001) {',
+        '    vec2 q = p * 6.0 + w * t * 0.6;',
+        '    float c0 = vnoise2(q);',
+        '    g += vec2(c0 - vnoise2(q + vec2(0.11, 0.0)),',
+        '              c0 - vnoise2(q + vec2(0.0, 0.11))) * 0.9 * mk * chop;',
+        '  }',
+        '#endif',
+
         '  vec3 n = normalize(vec3(-g.x, 1.0, -g.y));',
-        '  vec3 v = normalize(cameraPosition - vWorld);',
         '  float ndv = max(dot(n, v), 0.0);',
 
         // Schlick, with water's 0.02 at normal incidence. This is the whole
         // trick: a mirror at the horizon, a pond at your feet.
         '  float fres = 0.02 + 0.98 * pow(1.0 - ndv, 5.0);',
         '  vec3 body = mix(deep, shallow, clamp(ndv * 1.25, 0.0, 1.0));',
-        '  vec3 col = mix(body, skyColour, clamp(fres, 0.0, 0.92));',
+        /* What the surface is reflecting. Flat, in the cheap sea — one colour
+           for the whole sheet, which is right about the average and wrong
+           about everything else. In the pretty one the view ray is actually
+           bounced off the wave it landed on, so the reflection moves with the
+           water: the sun's streak, the bright half of the sky on the faces
+           tilted up towards it, the haze on the ones tilted towards the
+           horizon. Same Fresnel either way — only the thing on the far side
+           of it changes. */
+        '#ifdef PRETTY',
+        '  vec3 refl = skyAt(reflect(-v, n));',
+        '#else',
+        '  vec3 refl = skyColour;',
+        '#endif',
+        '  vec3 col = mix(body, refl, clamp(fres, 0.0, 0.92));',
+
+        '#ifdef PRETTY',
+        /* Light through the top of a wave. A crest is a few centimetres of
+           water with the sun behind it, and it glows: that glow is why a sea
+           lit from the far side reads as water and not as tinfoil. `hn` is the
+           height normalised by the trains that actually survived the LOD, so
+           the test means "near the top of whatever wave is left here"; `back`
+           is the camera looking into the sun through the wave, with the sun
+           pushed slightly below the horizon so the effect survives a high sun.
+           It is worth noting this is the one term that goes *up* as the water
+           gets rougher, which is also true of the real thing. */
+        '  float hn = hgt / hsum;',
+        '  float back = pow(max(dot(v, -normalize(vec3(sunDir.x, -sunDir.y * 0.35, sunDir.z))), 0.0), 3.0);',
+        '  col += mix(shallow, sunColour, 0.4) * smoothstep(0.10, 0.95, hn) * back * 0.55 * gloss;',
+        '#endif',
 
         // Sun glint. Two exponents: a broad sheen and the hard sparkle on the
         // crests, which is the part that makes it move.
@@ -249,9 +391,36 @@
         '  col += sunColour * pow(spec, 48.0) * 0.34 * gloss;',
         '  col += sunColour * pow(spec, 320.0) * 1.10 * gloss;',
 
-        '  float depth = length(cameraPosition - vWorld);',
-        '  col = mix(col, fogColour, smoothstep(fogNear, fogFar, depth));',
-        '  gl_FragColor = vec4(col, alpha);',
+        '  float foam = 0.0;',
+        '#ifdef PRETTY',
+        /* Foam, on the crests and only once there is a wind worth the name —
+           a millpond does not break. The height test alone gives smooth bands
+           along the wave, which is a contour line and not foam, so it is cut
+           with two octaves of drifting noise; what is left is patches that
+           appear on the peaks, tear, and are gone by the trough. It fades with
+           the footprint as well: sub-pixel foam is just a haze that lightens
+           the whole sea and steals the horizon. */
+        '  float fw = smoothstep(0.55, 0.98, hn) * smoothstep(0.6, 1.5, chop);',
+        '  float fn = vnoise2(p * 2.6 - w * t * 0.5) * 0.6 + vnoise2(p * 7.0 + w * t * 0.9) * 0.4;',
+        '  foam = clamp(fw * smoothstep(0.35, 0.75, fn), 0.0, 1.0) * clamp(1.0 - fp * 2.0, 0.0, 1.0);',
+        '  col = mix(col, vec3(0.92, 0.96, 0.98), foam * 0.85);',
+        '#endif',
+
+        '  col = mix(col, fogColour, smoothstep(fogNear, fogFar, dist));',
+
+        /* How much of the bed shows through. The flat number the cheap path
+           uses is a compromise between the two ends of the same pond: looking
+           straight down you should see the floor, and along the surface you
+           should see none of it, because the light reaching your eye from that
+           direction bounced off the top. Fresnel already knows that ratio, so
+           the pretty path spends it — and foam, being air, is opaque. A sea
+           (alpha 1) is unaffected either way; the term is scaled by what is
+           left to give. */
+        '  float a = alpha;',
+        '#ifdef PRETTY',
+        '  a = clamp(alpha + (1.0 - alpha) * (fres * 0.85 + foam), 0.0, 1.0);',
+        '#endif',
+        '  gl_FragColor = vec4(col, a);',
         '}'
     ].join('\n');
 

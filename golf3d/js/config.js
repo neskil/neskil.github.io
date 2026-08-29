@@ -8,7 +8,7 @@
    — the renderer scales to the viewport, the simulation never sees a pixel. */
 window.G3 = window.G3 || {};
 
-G3.VERSION = '1.9.0';
+G3.VERSION = '1.10.0';
 
 G3.CONFIG = {
     BALL_R: 0.16,
@@ -235,5 +235,10 @@ G3.CONFIG = {
     MUTE_KEY: 'loftLinks.muted',
     MUSIC_KEY: 'loftLinks.music',
     SEEN_KEY: 'loftLinks.seenHowTo',
-    FS_PROMPT_KEY: 'loftLinks.fsPromptDismissed'
+    FS_PROMPT_KEY: 'loftLinks.fsPromptDismissed',
+    /* Remembered off rather than remembered on: the pretty sea is the default,
+       so the only thing worth storing is a player who has turned it off — and
+       storing it that way means a machine that has never been asked gets the
+       good one. */
+    WATER_KEY: 'loftLinks.plainWater'
 };
