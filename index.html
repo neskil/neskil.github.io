@@ -3372,6 +3372,7 @@
            phone that is the difference between a smooth scroll and a stuttering one,
            so mobile runs the field at 30fps and skips the costlier flourishes. */
         const prefersCheapCanvas = perfLowPowerView;
+        const canvasReduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
 
         /* Frame budget, dot count and link reach all come off the governor's tier
            (see the head script). A step down buys back the whole chain: fewer dots
@@ -4058,8 +4059,11 @@
                page is moving, and every frame it draws while the page moves costs
                nine card backdrops as well. So on a phone it holds its last frame
                until the scroll stops — the dots freeze for a few hundred ms and
-               nobody has ever noticed, which is exactly the point. */
-            if ((prefersCheapCanvas || perfTier > 0) && !scrollReactiveField && scrollIsActive()) {
+               nobody has ever noticed, which is exactly the point. Reduced motion
+               gets the same treatment for the same reason, on any device: the
+               field stays on screen exactly as it was, it just stops redrawing
+               itself while the page is moving underneath it. */
+            if ((prefersCheapCanvas || perfTier > 0 || canvasReduceMotion.matches) && !scrollReactiveField && scrollIsActive()) {
                 requestAnimationFrame(animate);
                 return;
             }
