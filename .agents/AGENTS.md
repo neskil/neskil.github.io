@@ -11,7 +11,7 @@ Put a fact in exactly one place; point at it rather than restating it.
 | --- | --- |
 | **AGENTS.md** (this file) | Workspace-wide rules: structure, stack, styling, git conventions — what applies to every page. |
 | **[README.md](../README.md)** | Site layout table, link-preview (OG image) recipe, local dev server. |
-| `cargo-lander/CLAUDE.md`, `supply-chain/CLAUDE.md`, `3d-engine-poc/CLAUDE.md` | Per-project standing instructions, versioning/cache-busting, and headless verification recipes. Read the relevant one before touching that folder — do not re-derive its test commands here, they drift. |
+| `cargo-lander/CLAUDE.md`, `supply-chain/CLAUDE.md`, `3d-engine-poc/CLAUDE.md`, `golf3d/CLAUDE.md` | Per-project standing instructions, versioning/cache-busting, and headless verification recipes. Read the relevant one before touching that folder — do not re-derive its test commands here, they drift. |
 | `car/PLAN.md` | Open TODOs for the car cost calculator, ordered by impact. |
 
 ## Project & page structure
