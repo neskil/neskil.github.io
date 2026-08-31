@@ -1,16 +1,25 @@
 # Loft Links
 
 Ten six-hole courses of 3D golf in three kinds. **Mini golf**: four courses of
-lanes, rails and ledges. **Crazy golf**: three of blades, gates, bumpers and
-pendulums, where the shot is a matter of timing rather than of aim. **The long
-game**: three full-size courses — Ashdown Park, a parkland on a hillside, with
-terraces, a blind green in a dell and a lake the whole hole tilts into;
-Whinstone Links, open rolling country with no fences on it anywhere; and
-Dunmore Heath, where the interest is the shape of the ground itself — crests,
-hollows, a punchbowl, a spiral, one dry ravine and a fairway that climbs.
-three.js (vendored, r128), plain ES5-flavoured JavaScript, no build step and no
-other dependencies — same as everything else here, open `index.html` and it
-runs.
+lanes, rails, ledges and one horseshoe. **Crazy golf**: three of blades, gates,
+bumpers, angled banks and pendulums, where the shot is a matter of timing
+rather than of aim. **The long game**: three full-size courses with no fence on
+any of them — Ashdown Park, a parkland on a hillside, with terraces, a blind
+green in a dell and a lake the whole hole tilts into; Whinstone Links, open
+rolling country; and Dunmore Heath, where the interest is the shape of the
+ground itself — crests, hollows, a punchbowl, a spiral, one dry ravine and a
+fairway that climbs. three.js (vendored, r128), plain ES5-flavoured JavaScript,
+no build step and no other dependencies — same as everything else here, open
+`index.html` and it runs.
+
+Two rules run through the whole card. **A course gets harder as you play it** —
+hole one introduces something, the middle develops it and the sixth asks for all
+of it at once — and the same climb runs across each group, so the four mini
+courses are in the order of how much they ask for and so are the three crazy
+ones and the three long ones. **A hole is not the hole beside it**: sixty holes
+on one list is sixty chances to write the same corridor again, and the way out
+is the *plan* rather than the furniture. See
+[The order the holes are in](#the-order-the-holes-are-in).
 
 It is a deliberate sibling of [Pocket Links](../golf/README.md) next door: same
 module split, same scoring vocabulary, same rule that the physics is pure and
@@ -418,16 +427,29 @@ an approach.
 
 | Course | Group | Theme | What it is about |
 | --- | --- | --- | --- |
-| Seaside Green | mini | `seaside` | Flat-ish holes by the water. Pace, and a first bridge to fly if you would rather not walk it. |
-| Quarry Ridge | mini | `quarry` | Ramps, ledges and a long way down. Height as a hazard. |
+| Seaside Green | mini | `seaside` | Flat-ish holes by the water. Pace, a first bridge to fly, a horseshoe you play round rather than at, and a jetty with a bend in it. |
+| Quarry Ridge | mini | `quarry` | Ramps, a road with a corner in it and a long way down off every edge. Height as a hazard. |
 | Tidewater Reach | mini | `lagoon` | The loft course. Almost nothing here can be reached along the floor. |
 | Highland Steps | mini | `highland` | The same lesson from the other side: things in the way rather than things missing, and the ground handed back as a tool. |
 | Windmill Works | crazy | `works` | Gates and blades, after dark. Timing. |
-| Pinball Parlour | crazy | `arcade` | A table, not a course: bumpers, a plunger chute and a pen with no door. The posts *are* the route. |
+| Pinball Parlour | crazy | `arcade` | A table, not a course: bumpers, a plunger chute and two banks set across the throat. The posts *are* the route. |
 | Clockwork Court | crazy | `clockwork` | Six mechanisms at six rates. Escapement, pendulum, cogs, ratchet, and one blade the width of the court. |
-| Ashdown Park | long | `parkland` | The long game, on a hillside: terraces, a crest, a cross-fall into a lake, and two round greens. |
-| Whinstone Links | long | `links` | No fences, no flat lies and no straight edges. The ground is the hazard. |
+| Ashdown Park | long | `parkland` | The long game, on a hillside: terraces, a crest, a cross-fall into a lake, and two round greens. No fence — the park carries on past the stakes. |
+| Whinstone Links | long | `links` | No flat lies and no straight edges. The ground is the hazard. |
 | Dunmore Heath | long | `heath` | The long game again, shaped rather than furnished: crests, hollows, a punchbowl, a whorl, one dry ravine and a hillside you climb. |
+
+Seaside and Quarry are where the plan does the work rather than the furniture.
+**The Zigzag** is two bars of beach with the gap in a different place in each,
+so the lane through them is two turns and a ball hit at the flag is in the
+second one. **The Horseshoe** goes up one leg, across the top and back down the
+other round a block of ground that is simply not there, with the return leg
+leaning at the sea wall — and the lean has to run *along* x rather than across
+it, because the return leg shares its whole western edge with the top of the
+horseshoe and two pads only meet without a step where the tilt runs along the
+seam. **The Jetty** is a plank over the shallows with a kink in the middle, and
+**The Ledge** is the same idea in a quarry: two metres of road with a corner in
+it, every edge a brink except the outside of the bend, which keeps its wall
+because a corner with nothing on the outside of it is a corner nobody can hold.
 
 Tidewater and Highland are why the bag has more than two clubs. Every hole on
 Tidewater is built round the one thing a chip can do that a putt cannot —
@@ -436,7 +458,8 @@ two carries onto islands whose kerbs the driver cannot clear; **Short Side**
 puts sand across the front, a kerb on the green and two metres of room behind
 the pin; **The Letterbox** is four walls and no door; **Tabletop** puts the
 green a metre up with nothing to run up, which is a shot only the wedge owns;
-**The Reach** finishes in a crater that gathers whatever lands in it. And then
+**The Reach** goes out to a rock off to the right and back across the water into
+a crater that gathers whatever lands in it. And then
 **Under the Boardwalk**, which is the joke at the course's expense: a bar too
 tall to fly, standing high enough off the ground that a putt runs under it. The
 club that has answered every other hole is suddenly the wrong one; land it
@@ -457,10 +480,59 @@ Which holes are which is not a matter of taste in the tests: the ones that must
 be flown carry `needsLoft: true` and are replayed by the bot with the lofted
 clubs taken away (see [Tests](#tests)).
 
+The three crazy courses each own one mechanism and the difference between them
+is what the mechanism is *for*. Windmill Works asks you to find the gap;
+Clockwork Court asks you to find the moment. Pinball Parlour asks for neither —
+the obstacles there are not between you and the cup, they *are* the route, which
+is why it is the one course built out of things that do not move. **The
+Slingshots** is the clearest case: two rails set across the table at thirty-five
+degrees with a post in the throat between them, so there are four ways past and
+not one of them is straight. A window either side of the post with half a metre
+of aim each and a bank right there to throw a near miss across the table, or
+round the outside, which is wider and twice as long and lands you in the pair of
+posts guarding the pin. **The Flippers** uses the same furniture the other way
+up: a V that funnels everything into a window a metre wide, with the two bats on
+the far side of it.
+
+### The order the holes are in
+
+Two rules, and both are about the list rather than about any hole on it.
+
+**A course gets harder as you play it.** Hole one introduces something, the
+middle of the card develops it and the sixth asks for all of it at once, so a
+course is a climb rather than six variations on a theme. Seaside Green is the
+plainest statement of it: a lane with two baffles, then a corner, then two bars
+of beach with the gap in a different place in each, then water, then a horseshoe
+you play round rather than at, and finally a plank over the sea with a bend in
+the middle of it. Each of those is a different *kind* of trouble as well as more
+of it — a wall, a corner, a surface that costs you control, a hazard that costs
+you a stroke, a hole that is not aimed at the flag, and a hole with nothing to
+bounce off at all.
+
+The same climb runs across a group. The four mini courses are in order of how
+much they ask for and so are the three crazy ones and the three long ones, which
+is what `G3.COURSES` is ordered by and what `nextCourseId` hands you at the end
+of a round.
+
+Because the order carries meaning, moving a hole is a change to the course and
+not a tidy-up. Nothing else depends on it — a hole's ground is seeded from its
+own *name* (`nameSeed`), so reordering a card cannot reshape a single hump.
+
+**A hole is not the hole beside it.** Sixty holes on one list is sixty chances
+to write the same corridor again, and the escape is the plan rather than the
+furniture. Before this pass, forty-eight of the sixty were a rectangle running
+north with the tee at one end and the cup at the other, and the only thing that
+made one different from the next was what sat in the middle of it. A hole that
+turns, a hole played round a block of ground that is not there, a road with a
+corner in it, a hole with two ways to the green and a reason to pick one — those
+read as different courses from the tee in a way that a second windmill never
+will. If a new hole's plan can be described as "a lane with an X in the middle",
+it needs a different X *and* a different lane.
+
 ### Ashdown Park
 
-The sixth course is the long game, and it is the same game — same solver, same
-pads, same walls, same bag. What changes is that a hole is now longer than one
+The first of the three long-game courses, and it is the same game — same
+solver, same pads, same walls, same bag. What changes is that a hole is now longer than one
 swing, so where the ball *stops* starts to matter as much as where it is going.
 
 The numbers it is built against, measured off a flat lie at full power:
@@ -491,14 +563,73 @@ nobody reaches that green in two. And the oak on the inside of **The Elbow**
 cannot be flown by any club that exists, which is what makes a dogleg a dogleg
 rather than a suggestion.
 
-| Hole | Par | What it asks | Borrowed from |
-| --- | --- | --- | --- |
-| Opening Drive | 4 | Downhill off a bluff, over a crest at driving distance, then up on to the shelf the green sits on. The bunker is still exactly on the line. | |
-| Over the Water | 3 | Full club over the pond to a round green on a shelf, or a safe one out to the right and a longer putt. | |
-| Long Meadow | 5 | A belt of sand four units deep lying across the fairway. Nothing in the bag carries it from behind it, so the hole is three shots for everybody. | Hell's Half Acre, Pine Valley 7 |
-| The Elbow | 4 | Turns left around an oak, under a shoulder of high rough that will not let a cut drive run out, then climbs to a shelf. | |
-| The Dell | 3 | Blind. The green lies in a hollow with a ring of mounds round it and the top of the flag is all you get. | The Dell, Lahinch 5 |
-| Homeward | 4 | The lake cuts diagonally across the hole and the whole park tilts into it. Bite off as much as you dare. | Cape |
+| # | Hole | Par | What it asks | Borrowed from |
+| --- | --- | --- | --- | --- |
+| 1 | Opening Drive | 4 | Downhill off a bluff, over a crest at driving distance, then up on to the shelf the green sits on. The bunker is still exactly on the line. | |
+| 2 | Long Meadow | 5 | A belt of sand four units deep lying across the fairway. Nothing in the bag carries it from behind it, so the hole is three shots for everybody. | Hell's Half Acre, Pine Valley 7 |
+| 3 | The Elbow | 4 | Turns left around an oak, under a shoulder of high rough that will not let a cut drive run out, then climbs to a shelf. | |
+| 4 | Over the Water | 3 | Full club over the pond to a round green on a shelf, or a safe one out to the right and a longer putt. | |
+| 5 | The Dell | 3 | Blind. The green lies in a hollow with a ring of mounds round it and the top of the flag is all you get. | The Dell, Lahinch 5 |
+| 6 | Homeward | 4 | The lake cuts diagonally across the hole and the whole park tilts into it. Bite off as much as you dare. | Cape |
+
+The card climbs (see [The order the holes are in](#the-order-the-holes-are-in)):
+an opener with no forced carry on it, then a par 5 that is a grind rather than a
+terror, then the dogleg, and only then the two short holes that will actually
+take a ball off you — the pond, and the one you cannot see the bottom of the
+flag on. Homeward is last because it is the only hole here where every shot is
+played off a slope running towards water.
+
+### No fence on the long game
+
+Ashdown Park and Dunmore Heath were fenced for two versions, and it was never a
+decision: `bands` writes a property, `enclose` fences a property, and nobody had
+asked whether a full-size hole wanted one. It does not. A rail down both sides
+of a parkland hole is a bathtub with trees painted on it. It stops the ball
+where a real course would let it run, it reads as a kerb from the tee, and six
+holes on a hillside come out looking like six lanes of mini golf drawn wide.
+
+Whinstone had been playing the other way since it was built, and the reason it
+could is nothing to do with being a links: its ground simply runs a dozen units
+past its boundary in every direction, so there is somewhere for a ball that
+crosses the line to *be*. `commons` gives a hole written in rows the same thing
+without rewriting the hole:
+
+```js
+var park = commons(0, [
+    [5,  [4, rgh], [9, fwy], [7, rgh]],
+    [13, [4, rgh], [9, fwy], [7, rgh]],
+    [9,  [5, rgh], [11, grn], [4, rgh]]
+]);                                   // → { pads, fence }
+```
+
+Every row grows a margin of rough on both ends, a flat apron goes in before the
+first row and after the last, and the x origin moves out to `-m` so every
+coordinate the hole was already written in is exactly where it was. What comes
+back is the ground *and* the property line the rows describe, which the hole
+hands straight to `fence`.
+
+The margins belonging to the **rows** is the whole trick. A strip of country
+leaves the property at exactly the height and the tilt of the row it continues,
+so there is no step anywhere down either side of the hole — and therefore
+nothing for `enclose` to build a rail on even if it were asked. The head apron
+stands at the level the first row starts from and the tail apron carries on at
+the level the last one ended, so the two ends are seamless as well. Terraces,
+climbs and cross-falls all survive it: the hillside on **The Beacon** simply
+runs off across the country now, because the rows that climb are the rows that
+were widened.
+
+One hole in twelve wants less country on one side, which is why the four margins
+are settable separately. **Homeward** falls a twenty-fifth of a unit for every
+one across and its lake lies at the bottom of that fall, so a full twelve-unit
+apron out east would finish half a unit *under* the surface of the water. It
+takes five, and the lake gets a far bank rather than a drowned one.
+
+What this changed about playing them is not subtle, and it was free: a ball that
+used to bounce off a rail and stay on the hole now runs on into country, and out
+of bounds is a line you may cross and are only punished for stopping beyond. The
+tests grew a matching assertion — an open hole must have ground outside its own
+boundary on every side, because a fence with a cliff behind it is just a rail
+that costs a stroke.
 
 **The park is on a hill.** The first pass at this course was flat, and flat is
 what a floor plan gets you: six corridors of mown grass with a bunker where the
@@ -542,10 +673,13 @@ bag can reach it — a solid one would only mean the ball stopping in mid-air.
 
 ### Whinstone Links
 
-The seventh course is the one that stopped being a floor plan. Everything
-before it is rectangles of ground with fences round them; this is a single
-piece of rolling country running past the fog in every direction, and what
-keeps you on the hole is a line of white stakes.
+The course that stopped being a floor plan, and the one the other two long
+courses learned from. Every mini and crazy hole is rectangles of ground with
+fences round them; this is a single piece of rolling country running past the
+fog in every direction, and what keeps you on the hole is a line of white
+stakes. Ashdown and Dunmore borrow the boundary through `commons` (see
+[No fence on the long game](#no-fence-on-the-long-game)); what they cannot
+borrow is the ground, and out here the ground is the whole course.
 
 Three things had to exist for it, and each of them is small:
 
@@ -618,14 +752,18 @@ field is told to keep away from a green by radius, a cup is asserted to have
 room inside one, the tests walk a green's rim looking for the boundary — and a
 shape that stays inside that circle cannot invalidate any of them.
 
-| Hole | Par | What it asks |
-| --- | --- | --- |
-| The Whins | 4 | Rolling the whole way, and a bunker sitting on the line at driving distance. |
-| The Ait | 3 | An island green in a ring of water. Seven units of carry and no way to lay up. |
-| The Punchbowl | 4 | A ring of humps round the green: anything on the banks comes back down to it. |
-| Stake and Ditch | 3 | Out of bounds tight down the right for the whole hole. |
-| Elbow Point | 5 | A dogleg left. Cutting the corner means carrying ground that is not the golf course. |
-| Home Ground | 4 | A dogleg right, and ground that throws a straight drive off the line. Not a bug. |
+| # | Hole | Par | What it asks |
+| --- | --- | --- | --- |
+| 1 | The Whins | 4 | Rolling the whole way, and a bunker sitting on the line at driving distance. |
+| 2 | The Punchbowl | 4 | A ring of humps round the green: anything on the banks comes back down to it. |
+| 3 | Stake and Ditch | 3 | Out of bounds tight down the right for the whole hole. |
+| 4 | Home Ground | 4 | A dogleg right, and ground that throws a straight drive off the line. Not a bug. |
+| 5 | The Ait | 3 | An island green in a ring of water. Seven units of carry and no way to lay up. |
+| 6 | Elbow Point | 5 | A dogleg left. Cutting the corner means carrying ground that is not the golf course. |
+
+The punchbowl comes second because it is the one hole out here that *helps* —
+the banks feed a poor shot back to the pin — and the island comes fifth because
+it is the only one that will not take a lay-up for an answer.
 
 **A dogleg with nothing to bend it.** There are no trees on a links and no room
 for a hazard big enough to turn a hole, so what bends these two is the boundary
@@ -794,9 +932,24 @@ both ends of the hole are inside it.
   no two holes share a shape. See [Relief on a drawn hole](#relief-on-a-drawn-hole).
 - **circle** — a disc pad, and an inlay: laid into whatever it is standing on
   rather than cut out of it. Round greens and round bunkers.
+- **bank** — a wall standing at an angle, authored by its middle, its length
+  and how far round it is turned. The solver has understood a rotated box since
+  the first blade, and until Pinball Parlour needed a slingshot nothing standing
+  *still* had ever used it. A rail square across a lane sends the ball back the
+  way it came; one turned thirty-five degrees sends it somewhere neither of you
+  chose.
 - **open / fence** — an open hole gets no generated rails at all, and a `fence`
   rectangle instead: the ball is out of bounds if it comes to *rest* outside
   it. Marked on the ground with white stakes, which are scenery.
+- **commons** — `bands` with the country round it, and how the two parkland
+  courses stopped being bathtubs. It grows every row by a margin of rough on
+  both ends and puts a flat apron before the first row and after the last, then
+  hands back the ground *and* the property line to use as the `fence`. The
+  margins belong to the rows, which is the whole trick: a strip of country
+  leaves the property at exactly the height and tilt of the row it continues, so
+  there is no step down either side of the hole and nothing for `enclose` to
+  build a rail on even if it were asked. See
+  [No fence on the long game](#no-fence-on-the-long-game).
 
 ### Relief on a drawn hole
 
@@ -875,7 +1028,7 @@ thing that would undo all of this.
 | `ridge(x0, z0, x1, z1, r, a, n)` | Overlapping humps along a line: one long crest with a flat top, rather than a row of molehills. |
 | `ring(cx, cz, radius, r, a, n)` | A rim standing round a point — a punchbowl, or with `a` negative a dell. |
 | `whorl(cx, cz, r0, r1, r, a, n, turns)` | Humps and hollows walked out along a spiral, alternating sign. From the tee it reads as one slope and is four; a putt across it breaks twice in opposite directions. Alternating the sign is also what keeps it playable, since neighbours cancel across their skirts rather than adding. |
-| `ravine(x, z, w, d, depth)` | A strip of ground far below what is either side of it, with both long seams left bare so it plays as a drop and not as a walled trench. Returns its gaps with it, inset from the ends so the boundary rail is untouched. |
+| `ravine(x, z, w, d, depth)` | A strip of ground far below what is either side of it, with both long seams left bare so it plays as a drop and not as a walled trench. It still returns its gaps, inset from the ends so a boundary rail would be untouched; on an open hole there is no rail to protect and the ends of the gulley are simply banks. |
 
 And two that are not fields at all — they change where the ground *is* rather
 than adding humps to it, and they are what gave both parkland courses their
@@ -886,10 +1039,19 @@ height:
 | `[{ d, y, sz }, …cells]` | A `bands` row written as an options object instead of a bare depth. `sz` tilts the row along the line of play and the level carries over into the next row on its own; `y` sets it outright. A cell's third number stays what it always was — an offset from whatever the row is standing at — so `DIP` is still `DIP` on a fairway a metre above the tee. |
 | `tilt(pads, sx, sz, ox, oz)` | A cross-fall laid over a whole hole at once: every pad lifted by the plane's own height at its corner, so the surfaces meet exactly where they used to and the hole is now on the side of a hill. Bunkers are dished before it runs (`scoop` skips a pad that is already tilted) and landforms are added after, so the gradient the tests measure is the sum — a cross-fall spends part of the surface's angle of repose and the field lives inside the rest. Which is exactly the trade a sidehill lie is. |
 
+Dunmore's own card climbs like every other one here: **Bell Heather** (a crest
+across the driving line), **Gorse Corner** (a bend with the hillside falling
+away from it), **The Beacon** (twenty units of climb with the green over the top
+of it), **The Waste** (sand where the fairway should be, and a punchbowl),
+**Long Ling** (a par 5 with the whorl in the middle of the second shot) and
+**The Ravine**, which is last because it is the only one where laying up is a
+whole stroke and taking it on is a whole hole.
+
 Two rules survive from `relief`, and `tests.html` enforces both rather than
 trusting anyone to remember them. A landform's disc has to lie wholly inside
-the property, so the *outer* boundary — the edge `enclose` builds a rail on —
-comes out exactly as drawn; on a shaped hole the per-pad version of that check
+the property — now a good deal larger than the property line, since `commons`
+put a dozen units of country round it — so the outer edge of the ground comes
+out exactly as drawn; on a shaped hole the per-pad version of that check
 is relaxed to the outer edge only, because crossing a seam is the whole point.
 And no ground may be steeper than the surface it is cut into will hold a ball
 on, which is what decides the shape of the punchbowl: a rim steep enough to
