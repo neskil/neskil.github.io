@@ -340,7 +340,15 @@
         R.scene.remove(g);
     }
 
+    /* No `ridge` on a theme means no hills: the arcade is a basement and the
+       works is a shed, and neither has a horizon. The uniforms still have to
+       exist — a shader that declares one and is not given it reads zero on
+       some drivers and fails to link on others — so the off switch is a
+       height of nought rather than a missing value. */
+    var NO_RIDGE = { colour: '#000000', cap: '#000000', h: 0, rough: 0.5 };
+
     function skyDome(theme, weather) {
+        var ridge = theme.ridge || NO_RIDGE;
         var mat = new THREE.ShaderMaterial({
             side: THREE.BackSide, depthWrite: false, fog: false,
             uniforms: {
@@ -369,6 +377,28 @@
                 hazeTop: { value: Math.max(0.10, Math.min(0.34, 0.40 - 0.17 * weather.fog)) },
                 // Only after dark, and a solid overcast puts them out.
                 starI: { value: (theme.stars || 0) * (1 - weather.cloud * 0.85) },
+                /* The hills on the horizon, in the fog's colour space rather
+                   than the sky's — see the note on fogColour above. Their feet
+                   are mixed into the fog and their tops are read against it,
+                   so a converted ridge would be a different-coloured hill
+                   sitting in the right-coloured air.
+
+                   Not weather-tinted, and alone in here in not being. Every
+                   fade a range takes it already takes towards `fogColour`,
+                   which *is* tinted — so the weather reaches it anyway, at the
+                   strength the distance calls for. Tinting the rock as well
+                   put a golden hour through it twice and left the hills the
+                   colour of the sky they were supposed to stand against. */
+                ridgeColour: { value: new THREE.Color(ridge.colour) },
+                ridgeCap: { value: new THREE.Color(ridge.cap) },
+                // Weather is allowed to take the horizon away. A sea fog that
+                // hides the far side of a pond has no business leaving a
+                // mountain range crisply drawn above it.
+                ridgeH: { value: ridge.h * Math.max(0, 1.45 - 0.45 * weather.fog) },
+                ridgeRough: { value: ridge.rough },
+                // Where the ground stops and the sky starts, from where the
+                // camera is now. Rewritten every frame; see `frame`.
+                ridgeFoot: { value: -0.022 },
                 drift: { value: new THREE.Vector2() }
             },
             vertexShader: SH.SKY_VS,
@@ -1601,24 +1631,158 @@
         }
     }
 
-    function addSurround(group, hole, theme) {
-        var mat;
-        if (theme.surround === 'water') {
-            mat = waterMaterial(theme, {});
-        } else {
-            // Cached by tint in textures.js: two holes on the same course
-            // stand on the same rock, and it used to be redrawn for each.
-            mat = new THREE.MeshLambertMaterial({
-                map: TX.rock(theme.surround === 'rock'
-                    ? (theme.ground || '#9c8466')
-                    : (theme.floor || '#3f4450'))
-            });
+    /* ── the country beyond the hole ────────────────────────────────────
+
+       Everything from the edge of the course to the fog. It used to be one
+       flat 600-unit square with a small rock texture repeated across it a
+       hundred and fifty times, and it looked like exactly that: a tiled sheet
+       of lino with the course sitting on top.
+
+       Three things wrong with it, and they need three different fixes.
+
+       **It tiled.** Fixed in the shader — see SUR_* in shaders.js — with noise
+       whose period nothing else on the plane shares.
+
+       **It was flat.** A course stands in country, and country rolls. The
+       surround now rolls too, but only where rolling cannot hurt: dead flat
+       out to the last corner of the hole and a margin beyond it, then easing
+       into its full relief over the next fifty units. That ramp is not a
+       nicety. The pads' skirts reach down to `surroundY - 0.5` and the links
+       courses run their rough out to meet this mesh; ground that moved
+       underneath either would open a gap between the hole and the world it is
+       standing in, which is the one seam on the course a player is close
+       enough to see.
+
+       **It was a square, subdivided once.** Relief needs vertices, and a grid
+       fine enough to hold a hill at forty units would be spending the same
+       triangles at two hundred and eighty, where a whole hillside is four
+       pixels of fog. So it is rings and sectors instead, on a radius that
+       grows as a power of the ring index — about three units between rings
+       where the hills are legible, forty out at the rim nobody can see. Twelve
+       thousand triangles buys what a grid would have wanted eighty thousand
+       for.
+
+       The rim is still three hundred units out, which is what the fog needs:
+       past the far end of the thickest weather, so the horizon is a fade and
+       never an edge. */
+
+    var SUR_R = 300;        // to the rim, and the thickest fog ends before it
+    var SUR_SECT = 96;      // wedges round; enough that a ridge is not faceted
+    var SUR_RINGS = 64;
+    var SUR_TILE = 9;       // world units per repeat of the rock texture
+    /* Where the relief starts and where it is fully grown, measured out from
+       the hole's own last corner. */
+    var SUR_FLAT = 8, SUR_RAMP = 55;
+
+    /* A value noise of its own, and deliberately not the shader's: this one
+       runs once per vertex at build time on the CPU, and the two never have to
+       agree about anything. Two octaves — a fifty-unit swell with an
+       eighteen-unit one riding on it — which is as much shape as ground seen
+       through fog can show. */
+    function surHash(x, z) {
+        var n = Math.sin(x * 127.1 + z * 311.7) * 43758.5453;
+        return n - Math.floor(n);
+    }
+    function surNoise(x, z) {
+        var i = Math.floor(x), j = Math.floor(z);
+        var fx = x - i, fz = z - j;
+        fx = fx * fx * (3 - 2 * fx);
+        fz = fz * fz * (3 - 2 * fz);
+        var a = surHash(i, j), b = surHash(i + 1, j);
+        var c = surHash(i, j + 1), d = surHash(i + 1, j + 1);
+        return (a + (b - a) * fx) + ((c + (d - c) * fx) - (a + (b - a) * fx)) * fz;
+    }
+    /* How far up this piece of ground is, given where it is in the world and
+       how far it is from the middle of the hole. The two arguments are two
+       different questions: the shape is world-space, so six holes on one
+       course are standing in six different parts of the same country rather
+       than six copies of one hill; the ramp is measured from the hole's own
+       centre, because what it is protecting is the seam round *this* hole. */
+    function surRelief(wx, wz, r, amp, flatR) {
+        var k = (r - flatR) / SUR_RAMP;
+        if (k <= 0) return 0;
+        k = k >= 1 ? 1 : k * k * (3 - 2 * k);
+        var n = surNoise(wx * 0.020, wz * 0.020) * 0.64 + surNoise(wx * 0.056, wz * 0.056) * 0.36;
+        return (n - 0.5) * 2 * amp * k;
+    }
+
+    function surroundGeometry(amp, flatR, cx, cz) {
+        var pos = [], uv = [], idx = [], i, j, rr, a;
+
+        function vert(px, pz, r) {
+            pos.push(px, amp ? surRelief(cx + px, cz + pz, r, amp, flatR) : 0, pz);
+            // The tiling rides on the world position, not on the ring index:
+            // rings that grow apart would otherwise stretch the rock with them.
+            uv.push((cx + px) / SUR_TILE, (cz + pz) / SUR_TILE);
         }
-        // Big enough that its edge is beyond the fog, so the horizon is a fade
-        // and not a line.
-        var mesh = new THREE.Mesh(new THREE.PlaneGeometry(600, 600), mat);
-        mesh.rotation.x = -Math.PI / 2;
-        mesh.position.set((hole.bounds.minX + hole.bounds.maxX) / 2, theme.surroundY, (hole.bounds.minZ + hole.bounds.maxZ) / 2);
+
+        vert(0, 0, 0);
+        for (i = 1; i <= SUR_RINGS; i++) {
+            rr = SUR_R * Math.pow(i / SUR_RINGS, 2.2);
+            for (j = 0; j < SUR_SECT; j++) {
+                a = j / SUR_SECT * Math.PI * 2;
+                vert(Math.cos(a) * rr, Math.sin(a) * rr, rr);
+            }
+        }
+        function at(ring, k) { return ring === 0 ? 0 : 1 + (ring - 1) * SUR_SECT + (k % SUR_SECT); }
+        // Wound the same way the pads' tops are, so the face looks up.
+        for (j = 0; j < SUR_SECT; j++) idx.push(at(0, 0), at(1, j + 1), at(1, j));
+        for (i = 1; i < SUR_RINGS; i++) {
+            for (j = 0; j < SUR_SECT; j++) {
+                idx.push(at(i, j), at(i, j + 1), at(i + 1, j + 1));
+                idx.push(at(i, j), at(i + 1, j + 1), at(i + 1, j));
+            }
+        }
+
+        var geo = new THREE.BufferGeometry();
+        geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(pos), 3));
+        geo.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(uv), 2));
+        geo.setIndex(idx);
+        geo.computeVertexNormals();
+        return geo;
+    }
+
+    /* The splice that de-tiles it, as one function every surround points at —
+       the same plumbing as `turfShader`, and for the same reason: three keys
+       its program cache on this function's source, so every course in a round
+       shares one compile. */
+    function surroundShader(shader) {
+        shader.vertexShader = SH.SUR_VS_HEAD +
+            shader.vertexShader.replace('#include <begin_vertex>', SH.SUR_VS_BODY);
+        shader.fragmentShader = SH.SUR_FS_HEAD +
+            shader.fragmentShader.replace('#include <map_fragment>', SH.SUR_FS_BODY);
+    }
+
+    function addSurround(group, hole, theme) {
+        var cx = (hole.bounds.minX + hole.bounds.maxX) / 2;
+        var cz = (hole.bounds.minZ + hole.bounds.maxZ) / 2;
+
+        if (theme.surround === 'water') {
+            // The sea makes its own shape out of its own waves, and it is flat
+            // by definition; it keeps the plane it always had.
+            var sea = new THREE.Mesh(new THREE.PlaneGeometry(600, 600), waterMaterial(theme, {}));
+            sea.rotation.x = -Math.PI / 2;
+            sea.position.set(cx, theme.surroundY, cz);
+            group.add(sea);
+            return;
+        }
+
+        // Cached by tint in textures.js: two holes on the same course stand on
+        // the same rock, and it used to be redrawn for each.
+        var mat = new THREE.MeshLambertMaterial({
+            map: TX.rock(theme.surround === 'rock'
+                ? (theme.ground || '#9c8466')
+                : (theme.floor || '#3f4450'))
+        });
+        mat.onBeforeCompile = surroundShader;
+
+        // Out to the far corner of the hole, and then the margin. A dogleg's
+        // bounding box is bigger than the hole in it, which is the safe way
+        // round to be wrong.
+        var flatR = Math.hypot(hole.bounds.maxX - cx, hole.bounds.maxZ - cz) + SUR_FLAT;
+        var mesh = new THREE.Mesh(surroundGeometry(theme.relief || 0, flatR, cx, cz), mat);
+        mesh.position.set(cx, theme.surroundY, cz);
+        mesh.receiveShadow = true;
         group.add(mesh);
     }
 
@@ -2518,6 +2682,15 @@
             u.chop.value = 0.55 + Math.min(1.6, wind.speed * 1.5);
         }
         if (R.sky && G3.weather) R.sky.uniforms.drift.value.copy(G3.weather.cloudOffset);
+        /* Where the rim of the world sits, in the sky shader's own units, from
+           where the camera has just finished moving to. The hills on the
+           horizon are anchored to it (shaders.js), and it is a different
+           number from the tee than it is from the overview — half a degree
+           against ten — which is exactly why it cannot be a constant. */
+        if (R.sky && R.theme) {
+            R.sky.uniforms.ridgeFoot.value =
+                -Math.min(0.5, (R.camera.position.y - R.theme.surroundY) / SUR_R);
+        }
 
         flapFlag(dt, wind);
 

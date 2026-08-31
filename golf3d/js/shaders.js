@@ -45,7 +45,8 @@
 
     var SKY_FS = [
         'uniform vec3 top, bottom, fogColour, sunColour, cloudTop, cloudBase, sunDir;',
-        'uniform float cover, sunI, sharp, hazeTop, starI;',
+        'uniform vec3 ridgeColour, ridgeCap;',
+        'uniform float cover, sunI, sharp, hazeTop, starI, ridgeH, ridgeRough, ridgeFoot;',
         'uniform vec2 drift;',
         'varying vec3 vDir;',
 
@@ -94,6 +95,34 @@
         '  return smoothstep(0.34, 0.02, length(gf)) * (0.25 + 0.75 * mag);',
         '}',
 
+        /* The country the course is standing in, drawn as a silhouette rather
+           than as geometry. A ridge line is a one-dimensional height field
+           read round the horizon: for each ray, walk a point round a circle in
+           the ray's own compass direction and sample the same value noise the
+           clouds use. Everything below that height is hill, everything above
+           it is sky.
+
+           The circle matters. The obvious parameter is `atan(d.z, d.x)`, and
+           it puts a seam due north where the angle wraps — one straight
+           vertical cut through a mountain, in the one place a player turning
+           on the tee will sweep past. Sampling the noise at a *point on a
+           circle* has no wrap to get wrong.
+
+           `ridgeRough` is the octave falloff, and it is the difference between
+           a moor and an alp: at 0.4 each octave adds a fifth of the last and
+           the skyline rolls, at 0.6 it adds most of it and the skyline breaks
+           into peaks. */
+        'float ridgeLine(vec2 p){',
+        '  float v = 0.0, a = 0.5, w = 0.0;',
+        '  for (int i = 0; i < 4; i++) {',
+        '    v += a * vnoise(p);',
+        '    w += a;',
+        '    p = p * 2.07 + vec2(3.1, 7.7);',
+        '    a *= ridgeRough;',
+        '  }',
+        '  return v / max(w, 1e-4);',
+        '}',
+
         'void main(){',
         '  vec3 d = normalize(vDir);',
         '  float h = d.y;',
@@ -131,6 +160,76 @@
            without that the fog would swallow the water and then stop dead at a
            horizon with a hard-edged cloud deck sitting on it. */
         '  sky = mix(sky, fogColour, smoothstep(hazeTop, -0.04, h));',
+
+        /* Two ranges, the far one drawn first and the near one over it, so the
+           skyline has a depth to it that one row of hills does not.
+
+           Painted last, over the horizon haze rather than under it, and
+           carrying its own instead. Under it the range took two fades — the
+           band's own and then the sky's — and came out the exact colour of the
+           air it was standing in, which is a mountain you cannot see. One
+           fade, run between this skyline's own foot and its own top, is also
+           the whole of what makes the far range read as further off than the
+           near one. How much of any of it survives a sea fog is settled in the
+           uniform instead: `ridgeH` collapses as the weather thickens, and at
+           nought there is no horizon at all.
+
+           **Everything here is measured in hundredths of a radian**, and that
+           is not timidity — it is where the camera is looking. This one is
+           pitched down at a golf ball, so it shows a couple of degrees of sky
+           above the skyline and no more. A range built to the height a
+           mountain has in a photograph would not read as a mountain here: the
+           player would be standing inside it, with its top a screen and a half
+           above the frame, and the whole picture would just be a
+           differently-coloured sky.
+
+           `ridgeFoot` is the other half of that, and it is the one number in
+           here the JS has to work out: the elevation of the rim of the ground
+           mesh from wherever the camera is standing (render.js, per frame).
+           That rim is where the sky starts, and it is not the horizon — from
+           a tee it is a fortieth of a radian below it, from the overview a
+           sixth. A range anchored at nought floats above the ground on the
+           first and paints itself across the floor on the second; anchored a
+           few thousandths under the rim it meets the ground on both, because
+           it is now measured against the same thing the player is looking at.
+
+           So the hills run from just under the rim up to their skyline and
+           take their whole fade over that span — squared, because the bottom
+           half of a range twenty miles off is mostly the air in front of
+           it.
+
+           Below `HBASE` a range is the colour of the fog and therefore
+           invisible, which is what keeps it off the floor of an overview
+           looking down past the edge of the world. */
+        '  if (ridgeH > 0.001) {',
+        '    float base = ridgeFoot - 0.006;',
+        '    vec2 nz = normalize(d.xz + vec2(1e-5));',
+        '    float foot = smoothstep(ridgeFoot - 0.024, ridgeFoot - 0.005, h);',
+        '    float aa = 0.0012;',
+
+        '    float tFar = ridgeH * (0.26 + 0.40 * ridgeLine(nz * 2.1 + 17.0));',
+        '    float bFar = clamp((h - base) / max(tFar - base, 1e-3), 0.0, 1.0);',
+        // Aerial perspective, and it is the whole reason a distant range reads
+        // as distant: the foot of a hill is the colour of the air in front of
+        // it and only the top carries any of its own.
+        '    vec3 cFar = mix(fogColour, ridgeColour, 0.08 + 0.44 * bFar * bFar);',
+        '    sky = mix(sky, cFar, smoothstep(tFar + aa, tFar - aa, h) * foot);',
+
+        '    float tNear = ridgeH * (0.44 + 0.56 * ridgeLine(nz * 3.3 + 61.0));',
+        '    float band = clamp((h - base) / max(tNear - base, 1e-3), 0.0, 1.0);',
+        // Gullies: a noise stretched hard in height, so the face of the range
+        // is grained the way a hillside is instead of being a flat cut-out.
+        '    float gully = vnoise(vec2(dot(nz, vec2(11.0, -8.0)), h * 340.0));',
+        '    vec3 cNear = mix(fogColour, ridgeColour, 0.10 + 0.90 * band * band) * (0.95 + 0.11 * gully);',
+        // Snow, or bare sunlit rock — whatever the theme calls the top of its
+        // own hills — and only on the last of the height.
+        '    cNear = mix(cNear, ridgeCap, smoothstep(0.86, 0.995, band) * 0.6);',
+        // The side facing the sun is the lit side. One dot product, and it is
+        // what stops the range from reading as a paper cut-out.
+        '    cNear += sunColour * max(dot(nz, normalize(sunDir.xz + vec2(1e-4))), 0.0) * 0.05 * sunI * band;',
+        '    sky = mix(sky, cNear, smoothstep(tNear + aa, tNear - aa, h) * foot);',
+        '  }',
+
         '  gl_FragColor = vec4(sky, 1.0);',
         '}'
     ].join('\n');
@@ -495,6 +594,72 @@
         '#endif'
     ].join('\n');
 
+    /* ── the surround ───────────────────────────────────────────────────
+
+       The ground beyond the course is one enormous mesh with one small
+       texture on it, and that is a bargain everywhere except in the one place
+       it shows: a tile a few metres across, laid out flat and lit evenly, is
+       a grid, and once the eye has found the grid it cannot stop finding it.
+       The old plane repeated its 256² rock a hundred and fifty times and read
+       as wallpaper from the tee.
+
+       The fix is not a bigger texture — it is a second signal that does not
+       share the first one's period. Three octaves of world-space value noise,
+       at scales that do not divide into the tiling or into each other, vary
+       how bright the ground is and drift it between a warm tint and a cool
+       one. The texture keeps supplying the grain; the noise supplies
+       everything above the grain, and where a tile edge used to line up with
+       its neighbour it now lands in the middle of a patch that does not care
+       where the tile is.
+
+       World space, not UV space, is the point: the patches stay put as the
+       camera moves and they are the same size on every course, whatever that
+       course's surround is tiled at.
+
+       Spliced at `<map_fragment>`, the first moment the texture has been read
+       and the last before the light gets hold of the result. */
+
+    var SUR_VS_HEAD = 'varying vec3 vSur;\n';
+    var SUR_VS_BODY = [
+        '#include <begin_vertex>',
+        '\tvSur = ( modelMatrix * vec4( transformed, 1.0 ) ).xyz;'
+    ].join('\n');
+
+    var SUR_FS_HEAD = [
+        'varying vec3 vSur;',
+        'float surHash(vec2 p){',
+        '  p = fract(p * vec2(211.17, 97.43));',
+        '  p += dot(p, p + 27.83);',
+        '  return fract(p.x * p.y);',
+        '}',
+        'float surNoise(vec2 p){',
+        '  vec2 i = floor(p), f = fract(p);',
+        '  f = f * f * (3.0 - 2.0 * f);',
+        '  float a = surHash(i), b = surHash(i + vec2(1.0, 0.0));',
+        '  float c = surHash(i + vec2(0.0, 1.0)), d = surHash(i + vec2(1.0, 1.0));',
+        '  return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);',
+        '}',
+        ''
+    ].join('\n');
+
+    var SUR_FS_BODY = [
+        '#include <map_fragment>',
+        // Roughly fifty metres, twelve, and three: the widest is the one that
+        // breaks the tiling, the middle is what makes the ground look like
+        // country, and the finest is there so the near field is not a smooth
+        // wash under the player's feet.
+        '	float sBig = surNoise(vSur.xz * 0.021);',
+        '	float sMid = surNoise(vSur.xz * 0.085);',
+        '	float sFine = surNoise(vSur.xz * 0.34);',
+        '	float sN = sBig * 0.52 + sMid * 0.31 + sFine * 0.17;',
+        '	diffuseColor.rgb *= 0.74 + 0.54 * sN;',
+        // Ground is never one colour: dry patches run warm and the hollows
+        // between them run cool. Two percent either way is enough — any more
+        // and a rock course starts looking like it is under a disco light.
+        '	diffuseColor.rgb *= mix(vec3(1.05, 1.01, 0.93), vec3(0.93, 0.97, 1.04),',
+        '		smoothstep(0.30, 0.76, sBig * 0.7 + sMid * 0.3));'
+    ].join('\n');
+
     G3.shaders = {
         SKY_VS: SKY_VS,
         SKY_FS: SKY_FS,
@@ -503,7 +668,11 @@
         TURF_VS_HEAD: TURF_VS_HEAD,
         TURF_VS_BODY: TURF_VS_BODY,
         TURF_FS_HEAD: TURF_FS_HEAD,
-        TURF_FS_BODY: TURF_FS_BODY
+        TURF_FS_BODY: TURF_FS_BODY,
+        SUR_VS_HEAD: SUR_VS_HEAD,
+        SUR_VS_BODY: SUR_VS_BODY,
+        SUR_FS_HEAD: SUR_FS_HEAD,
+        SUR_FS_BODY: SUR_FS_BODY
     };
 
 })(window.G3);
