@@ -116,7 +116,7 @@ body::before {
    next to five siblings and reads like nothing in a list of five items. */
 .chip-text { display: none; }
 
-button.chip {
+button.chip, a.chip {
     font: inherit;
     font-size: 0.85rem;
     color: var(--ink);
@@ -128,9 +128,13 @@ button.chip {
     transition: background 0.18s, border-color 0.18s, transform 0.18s;
 }
 
-button.chip:hover { background: var(--accent-soft); border-color: rgba(125, 211, 252, 0.45); }
-button.chip:active { transform: translateY(1px); }
+button.chip:hover, a.chip:hover { background: var(--accent-soft); border-color: rgba(125, 211, 252, 0.45); }
+button.chip:active, a.chip:active { transform: translateY(1px); }
 button.chip.on { background: var(--accent); color: #06212f; border-color: transparent; }
+
+/* The one chip that is a link rather than a button: the editor. Same shape,
+   and none of the underline a browser would otherwise give it. */
+a.chip { text-decoration: none; display: inline-block; }
 
 /* The view chip names where the camera is, and the three names are different
    lengths — without a floor under it the whole topbar shuffles sideways every

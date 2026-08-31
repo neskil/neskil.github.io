@@ -32,7 +32,7 @@
 
         gtag('config', 'G-9GP823TGLB');
     </script>
-    <link rel="stylesheet" href="style.css?v=1.12.0">
+    <link rel="stylesheet" href="style.css?v=1.13.0">
 </head>
 <body>
     <div class="wrap">
@@ -59,6 +59,7 @@
                     <button class="chip" id="btn-restart" title="Restart this hole (R)">↻ Hole</button>
                     <button class="chip" id="btn-card" title="Scorecard">Card</button>
                     <button class="chip" id="btn-help" title="How to play (H)" aria-label="How to play">?<span class="chip-text"> How to play</span></button>
+                    <a class="chip" id="chip-editor" href="level-editor.html" title="Build a hole of your own">&#9998;<span class="chip-text"> Editor</span></a>
                     <button class="chip" id="btn-mute" title="Sound (M)" aria-label="Unmute"><span id="mute-icon">🔇</span><span class="chip-text"> Sound</span></button>
                     <button class="chip" id="btn-music" title="Background music (J)" aria-label="Turn the music off"><span id="music-icon">♪</span><span class="chip-text"> Jazz</span></button>
                     <button class="chip" id="btn-water" title="Reflections, foam and glitter on the water (O)" aria-label="Turn the fancy water off"><span id="water-icon">≈</span><span class="chip-text"> Water</span></button>
@@ -409,21 +410,22 @@
 
     <!-- Load order is dependency order: config, then the pure logic, then the
          things that touch the screen. game.js boots itself on DOMContentLoaded. -->
-    <script src="js/config.js?v=1.12.0"></script>
-    <script src="js/themes.js?v=1.12.0"></script>
-    <script src="js/physics.js?v=1.12.0"></script>
-    <script src="js/courses.js?v=1.12.0"></script>
-    <script src="js/scoring.js?v=1.12.0"></script>
-    <script src="js/audio.js?v=1.12.0"></script>
-    <script src="js/music.js?v=1.12.0"></script>
-    <script src="js/bag.js?v=1.12.0"></script>
-    <script src="js/textures.js?v=1.12.0"></script>
-    <script src="js/shaders.js?v=1.12.0"></script>
-    <script src="js/postfx.js?v=1.12.0"></script>
-    <script src="js/weather.js?v=1.12.0"></script>
-    <script src="js/render.js?v=1.12.0"></script>
-    <script src="js/minimap.js?v=1.12.0"></script>
-    <script src="js/debug.js?v=1.12.0"></script>
-    <script src="js/game.js?v=1.12.0"></script>
+    <script src="js/config.js?v=1.13.0"></script>
+    <script src="js/themes.js?v=1.13.0"></script>
+    <script src="js/physics.js?v=1.13.0"></script>
+    <script src="js/courses.js?v=1.13.0"></script>
+    <script src="js/custom.js?v=1.13.0"></script>
+    <script src="js/scoring.js?v=1.13.0"></script>
+    <script src="js/audio.js?v=1.13.0"></script>
+    <script src="js/music.js?v=1.13.0"></script>
+    <script src="js/bag.js?v=1.13.0"></script>
+    <script src="js/textures.js?v=1.13.0"></script>
+    <script src="js/shaders.js?v=1.13.0"></script>
+    <script src="js/postfx.js?v=1.13.0"></script>
+    <script src="js/weather.js?v=1.13.0"></script>
+    <script src="js/render.js?v=1.13.0"></script>
+    <script src="js/minimap.js?v=1.13.0"></script>
+    <script src="js/debug.js?v=1.13.0"></script>
+    <script src="js/game.js?v=1.13.0"></script>
 </body>
 </html>

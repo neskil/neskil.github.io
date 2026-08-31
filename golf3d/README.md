@@ -39,6 +39,8 @@ them.
 | `js/bag.js` | The club picker: a modelled bag that rides in front of the camera, holding whichever clubs this hole hands out. |
 | `js/debug.js` | The course inspector — `?debug=1`, or <kbd>G</kbd>. The tool for building a hole. |
 | `js/game.js` | Loop, input, and what a shot means. |
+| `js/custom.js` | The hole the editor is playtesting, read out of `localStorage` and filed as a one-hole course. Does nothing unless the URL asks for `?course=custom`. |
+| `level-editor.html` + `editor/` | The [hole editor](#the-hole-editor): a plan you draw on and the game's own renderer showing what you drew. |
 | `vendor/three.min.js` | three.js r128, vendored. |
 | `tests.html` | Headless test harness — pure logic, no WebGL. Open it; green is green. |
 | `shader-tests.html` | The other half: compiles every shader for real against a live context. Green is green there too. |
@@ -1979,3 +1981,50 @@ complaining about, in the weather you were complaining about it in.
 `&debug=1` opens the [course inspector](#the-inspector) with the hole, which is
 how you would start a session spent building one. <kbd>G</kbd> does the same
 thing at any point without reloading.
+
+`?course=custom` plays the hole open in the [editor](#the-hole-editor) — the
+one it wrote to `localStorage` when you pressed Playtest. It is the only course
+id that is not in `courses.js`, and `js/custom.js` files it only when the URL
+asks for it by name: a half-finished lane from an editor session has no
+business standing in the course picker, or being offered as the next round at
+the end of a real one.
+
+## The hole editor
+
+`level-editor.html` is the same idea as the one next door in `golf/`, with the
+one difference the third dimension forces: there are two pictures of the hole
+rather than one.
+
+The left is a **plan** you draw on, because rectangles on the floor is what a
+hole in this game *is* — pads, walls, water, gaps — and dragging them about in
+perspective would be a worse way to say the same thing. The right is
+`render.buildHole` on the result, rebuilt as you draw, because the plan cannot
+tell you how a ramp reads from the tee and the renderer can. Press "Play" and
+the same pane hands you the real bag and the real solver, on the hole as it
+stands.
+
+Everything in it is the game's own code. `courses.js` supplies `build` and the
+authoring helpers, so the rails in the editor are the rails `enclose` will
+generate; `physics.js` moves the ball; `render.js` draws it. There is no second
+implementation of any of it, which is the whole point of building the editor on
+the game rather than beside it.
+
+Three consequences worth knowing before you open it:
+
+- **The rails are not yours to move.** They are drawn greyed because
+  `enclose()` produced them from the edge of your ground. Move the ground, or
+  cut a `gap` — an editor that let you drag a generated rail would be an editor
+  that lies about how the file works.
+- **The name shapes the ground.** Relief is seeded from the hole's name
+  (`nameSeed`), so renaming a hole re-rolls its humps. That is true of the file
+  too; the editor just lets you watch it happen.
+- **The checks are `tests.html`, ported.** Wall thickness, the cup's flat
+  patch, a gate that can seal the hole shut, the greedy bot playing out of the
+  real bag and the flat-bag replay for a `needsLoft` hole — the same rules, so
+  a hole that passes in the editor is a hole the suite will accept. Finding out
+  here is cheaper than finding out at the test run.
+
+Export writes the hole as a `build({ … })` literal in the file's own
+vocabulary, ready to paste into a course array in `courses.js`; the paste box
+reads one back, helpers and all, by evaluating it with `G3.authoring` in scope
+and stubbing `build` to hand the object straight back.
