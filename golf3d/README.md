@@ -1264,17 +1264,28 @@ Nothing else in the game reads it: the physics, the preview cone and the aim
 wedge all still hang off `aim.yaw` alone, so a side-on view cannot change where
 a ball goes.
 
-The control for it sits above the power meter — the same shape, because it is
-the same kind of thing: press anywhere to stand there, drag to walk round, and
-the knob is *where you are*, so sliding it right stands you to the right of the
-line and the shot lies away to the left of the screen. The ⌖ in the middle of
-the track walks it straight back and levels the pitch with it; the zoom is left
-alone, being its own control. It lights up whenever there is anything to undo.
+The control for it is a dial along the **top** of the stage — the same shape as
+the power meter, because it is the same kind of thing: press anywhere to stand
+there, drag to walk round, and the knob is *where you are*, so sliding it right
+stands you to the right of the line and the shot lies away to the left of the
+screen. The ⌖ in the middle of the track walks it straight back and levels the
+pitch with it; the zoom is left alone, being its own control. It lights up
+whenever there is anything to undo.
+
+It used to sit on its own line above the power meter, and the two of them plus
+the Swing row made three tiers of small controls stacked into the bottom corner
+of a phone. That is three chances to press the wrong one, and the meter — the
+one control a round touches on every single shot — was the tier that could
+least afford to be thin. Nothing on the view dial is wanted with a shot half
+loaded, so it costs nothing at the top and gives the meter back the height.
+Where it stands is a breakpoint: top right on anything wide enough to share the
+line with the hole's figures, and the full width under the topbar on a phone,
+where the hole card and the fullscreen offer stack below it.
 
 #### The lock
 
-The dial answers *how far round the ball am I standing*. The padlock beside it
-answers **round from what** — and that is the last piece of the same problem.
+The dial answers *how far round the ball am I standing*. The padlock at the
+left of the row answers **round from what** — and that is the last piece of the same problem.
 
 Unlocked, the reference is the aim, so turning the shot turns the camera with
 it. That is the game's own habit and the right one while you are playing a
@@ -1967,6 +1978,43 @@ round the ball, <kbd>L</kbd> lock it where it is, <kbd>0</kbd> straighten it,
 weather, <kbd>H</kbd> the rules, <kbd>M</kbd> sound, <kbd>J</kbd> the music,
 <kbd>O</kbd> the fancy water, <kbd>G</kbd> the course inspector. Scroll or
 pinch to zoom.
+
+### Under a thumb
+
+Everything above is a mouse's account of it. A finger is a blunter instrument
+and the overlay is sized for one — the rules that make the difference, in one
+place, because every one of them was learned from the same complaint:
+
+- **A tap is not a drag.** A finger never lands and lifts on the same pixel, so
+  without a deadzone every tap on the course was also a small, unasked-for turn
+  of the aim. `onMove` holds the look drag until the pointer has travelled
+  (7px on touch, 2px on a mouse) and then *rebases the origin* to where it
+  took, so taking the deadzone costs no jump.
+- **The press band is bigger than the control.** The power meter takes its
+  press on `.power-hit`, a transparent band a few pixels taller than the
+  painted bar, and still measures the value off the bar. Without it a thumb
+  landing just short fell through to the canvas behind and swung the camera —
+  which is what "it didn't register" looks like from the other side.
+- **Nothing on the stage waits for a double tap.** `touch-action: manipulation`
+  on every button, `none` on the ones over the course; a control that pauses
+  300ms to see whether a second tap is coming reads as one that ignored the
+  first.
+- **A capture can be lost without a `pointerup`.** Every drag control listens
+  for `lostpointercapture` as well as `pointercancel`, or it stays "held" and
+  swallows the next press.
+- **A dead button is indistinguishable from a missed press.** Swing is disabled
+  only while the stroke is somebody else's — the ball rolling, the hole over.
+  Standing over an empty meter it stays pressable and answers by flashing the
+  meter (`.asking`) and showing the line that says what to do with it;
+  `aria-disabled` carries the same fact to a screen reader without taking the
+  press away.
+- **A nudge that has to be repeated repeats itself.** The two aim nudges and
+  the two view steps take their press on `pointerdown` and keep going while
+  held (`holdToRepeat`) — a step is small on purpose, and eleven taps to walk
+  round the ball is a control nobody trusts by the fourth.
+- **Coarse pointers get their own sizes**, in one `@media (pointer: coarse)`
+  block: a 48px meter, 44px view buttons, 54px aim nudges. The old numbers — a
+  24px meter, a 26px dial — are targets a mouse hits every time.
 
 ## Query parameters
 

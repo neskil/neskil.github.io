@@ -264,6 +264,25 @@ canvas:active { cursor: grabbing; }
    the meter on the left, Swing and the two aim nudges on the right. It is the
    only part of the overlay that takes a press, so everything in it opts back
    into pointer events one control at a time. */
+/* A press is a press, not a maybe-double-tap: without this every button over
+   the course waits ~300ms to see whether a second tap is coming, which reads
+   as a control that did not register. The stage's own controls go further and
+   refuse the scroll gesture too — the page continues below the fold, and a
+   drag that starts on Swing should never take the course with it. */
+button,
+.home-link,
+.panel > summary { touch-action: manipulation; }
+
+.swing,
+.aim-nudge,
+.view-step,
+.view-home,
+.hud-line,
+.hud-sky,
+.power-hit,
+.power-track,
+.view-dial { touch-action: none; }
+
 .controls {
     position: absolute;
     left: 12px;
@@ -278,9 +297,11 @@ canvas:active { cursor: grabbing; }
     pointer-events: none;
 }
 
-/* The shot itself — the meter and the three buttons that play it — is one
-   row; the view dial sits on its own line above, because where you stand is
-   not part of loading a shot. */
+/* The shot itself — the meter and the three buttons that play it — and
+   nothing else. Where you stand used to sit on a second line above this one
+   and now sits at the top of the stage: three tiers of small controls stacked
+   into the bottom corner of a phone is three chances to press the wrong one,
+   and the meter was the tier that could least afford to be thin. */
 .ctl-row {
     display: flex;
     align-items: flex-end;
@@ -593,11 +614,28 @@ canvas:active { cursor: grabbing; }
    shot line — zero straight behind the ball, half a turn either way to stand
    in front of it. The ⌖ in the middle walks it back, and so does a new hole,
    so no angle you leave behind can follow you onto the next one. */
+/* And it stands at the top of the stage, not in the bar that plays the shot.
+   Nothing on this row is wanted with a shot half loaded — you walk round the
+   ball, then you load — so it costs nothing up here, and what it leaves
+   behind is the width and the height the meter needed. */
 .viewctl {
-    align-self: flex-end;
-    width: min(272px, 46%);
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    z-index: 5;
+    width: min(300px, calc(100% - 24px));
     min-width: 0;
+    /* A scrim, like the topbar: the controls take a press, the gaps between
+       them let a drag through to the course underneath. */
+    pointer-events: none;
+    /* .stage runs at line-height 0 so the canvas sits flush in it. Anything
+       with words in it that moves onto the stage has to put that back, or the
+       label above the row is a line of text in a box of no height. */
+    line-height: 1.2;
+    transition: opacity 0.2s;
 }
+
+.viewctl .ctl-label { text-align: right; }
 
 .view-row {
     display: flex;
@@ -608,14 +646,14 @@ canvas:active { cursor: grabbing; }
 .view-step {
     flex: none;
     font: inherit;
-    font-size: 0.95rem;
+    font-size: 1rem;
     line-height: 1;
-    width: 30px;
-    height: 26px;
+    width: 36px;
+    height: 32px;
     color: var(--ink);
     background: rgba(6, 20, 32, 0.72);
     border: 1px solid rgba(255, 255, 255, 0.2);
-    border-radius: 9px;
+    border-radius: 10px;
     cursor: pointer;
     pointer-events: auto;
     transition: background 0.15s;
@@ -628,7 +666,7 @@ canvas:active { cursor: grabbing; }
    beside it, it stays lit while it is on. The glyph carries the state as well
    as the colour — a padlock that is open or shut says it without needing the
    accent to be visible, which on a bright course it is not always. */
-.view-lock { font-size: 0.78rem; }
+.view-lock { font-size: 0.85rem; }
 .view-step.on {
     background: var(--accent);
     color: #06212f;
@@ -637,12 +675,15 @@ canvas:active { cursor: grabbing; }
 }
 .view-step.on:hover { background: var(--accent); }
 
-/* The track and the button that sits on its middle. */
+/* The track and the button that sits on its middle. The dial is taller than
+   the groove drawn in it on purpose: the whole height takes the press, so the
+   thing you are aiming at with a thumb is the row, not the 14 pixels of it
+   that happen to be painted. */
 .view-dial {
     position: relative;
     flex: 1 1 auto;
     min-width: 0;
-    height: 26px;
+    height: 32px;
     display: flex;
     align-items: center;
     pointer-events: auto;
@@ -652,7 +693,7 @@ canvas:active { cursor: grabbing; }
 .view-track {
     position: relative;
     width: 100%;
-    height: 12px;
+    height: 14px;
     pointer-events: auto;
     cursor: ew-resize;
     touch-action: none;
@@ -668,9 +709,9 @@ canvas:active { cursor: grabbing; }
     position: absolute;
     top: 50%;
     left: 50%;
-    width: 12px;
-    height: 12px;
-    margin: -6px 0 0 -6px;
+    width: 14px;
+    height: 14px;
+    margin: -7px 0 0 -7px;
     border-radius: 50%;
     background: var(--accent);
     box-shadow: 0 0 10px rgba(56, 189, 248, 0.8);
@@ -685,10 +726,10 @@ canvas:active { cursor: grabbing; }
     top: 50%;
     transform: translate(-50%, -50%);
     font: inherit;
-    font-size: 0.8rem;
+    font-size: 0.88rem;
     line-height: 1;
-    width: 24px;
-    height: 24px;
+    width: 28px;
+    height: 28px;
     padding: 0;
     color: rgba(234, 246, 255, 0.75);
     background: rgba(6, 20, 32, 0.92);
@@ -716,28 +757,47 @@ canvas:active { cursor: grabbing; }
     box-shadow: 0 0 8px rgba(234, 246, 255, 0.35);
 }
 
-/* The meter is a control, so it is dressed as one: a grab cursor, a groove
-   with tick marks down it, and a handle standing at the end of the fill. It
-   was already draggable — press anywhere, drag to trim, arrows to nudge — and
-   read as a progress bar, which is the one thing it is not. */
-.power-track {
+/* The band the press is taken on. It is the meter plus a few pixels of air
+   above and below, and it is invisible: what it buys is that a thumb landing
+   just short of the bar still lands on the bar. Everything below measures the
+   value off .power-track, which is the painted part and has not moved. */
+.power-hit {
     position: relative;
-    height: 24px;
+    padding: 9px 0;
+    margin: -9px 0;
     pointer-events: auto;
     cursor: grab;
     touch-action: none;
-    border-radius: 12px;
+}
+
+.power-hit.dragging { cursor: grabbing; }
+
+/* The meter is a control, so it is dressed as one: a grab cursor, a groove
+   with tick marks down it, and a handle standing at the end of the fill. It
+   was already draggable — press anywhere, drag to trim, arrows to nudge — and
+   read as a progress bar, which is the one thing it is not.
+
+   It is also the one control a phone reaches for on every single shot, so it
+   is the one that gets the height: thirty-odd pixels on a mouse and getting
+   on for fifty under a thumb. */
+.power-track {
+    position: relative;
+    height: 34px;
+    pointer-events: auto;
+    cursor: grab;
+    touch-action: none;
+    border-radius: 17px;
     background:
         repeating-linear-gradient(90deg,
             rgba(255, 255, 255, 0.10) 0 1px,
-            transparent 1px 14px),
+            transparent 1px 16px),
         rgba(3, 12, 20, 0.62);
     border: 1px solid rgba(255, 255, 255, 0.2);
     overflow: hidden;
     box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.5);
 }
 
-.power-track:hover { border-color: rgba(255, 255, 255, 0.34); }
+.power-hit:hover .power-track { border-color: rgba(255, 255, 255, 0.34); }
 .power-track.dragging { cursor: grabbing; }
 .power-track:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
@@ -750,9 +810,9 @@ canvas:active { cursor: grabbing; }
     top: -1px;
     bottom: -1px;
     left: 0;
-    width: 16px;
-    margin-left: -8px;
-    border-radius: 6px;
+    width: 20px;
+    margin-left: -10px;
+    border-radius: 8px;
     background: linear-gradient(180deg, #f2f7fb, #b8c6d2);
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.55), 0 0 10px rgba(255, 255, 255, 0.25);
     pointer-events: none;
@@ -763,7 +823,7 @@ canvas:active { cursor: grabbing; }
 .power-grip::after {
     content: '';
     position: absolute;
-    inset: 6px 5px;
+    inset: 10px 6px;
     background: repeating-linear-gradient(90deg,
         rgba(15, 30, 45, 0.55) 0 1px,
         transparent 1px 3px);
@@ -782,20 +842,21 @@ canvas:active { cursor: grabbing; }
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    font-size: 0.62rem;
+    font-size: 0.68rem;
     letter-spacing: 0.09em;
     text-transform: uppercase;
-    color: rgba(226, 240, 250, 0.42);
+    color: rgba(226, 240, 250, 0.5);
+    white-space: nowrap;
     pointer-events: none;
     transition: opacity 0.18s ease;
 }
 
 .power-track.loaded .power-cue { opacity: 0; }
 
-@media (pointer: coarse) {
-    /* A thumb has already found the meter by the time it reads anything. */
-    .power-cue { display: none; }
-}
+/* It used to be hidden under a thumb, on the theory that a thumb finds the
+   meter before it reads anything. It does — and then it presses Swing on an
+   empty one, which is the one press in the game that cannot do anything. The
+   line stays, and .asking below is what points at it. */
 
 .power-fill {
     height: 100%;
@@ -813,7 +874,7 @@ canvas:active { cursor: grabbing; }
     top: 0;
     bottom: 0;
     left: 76.92%;
-    width: 2px;
+    width: 3px;
     background: rgba(255, 255, 255, 0.75);
 }
 
@@ -851,6 +912,71 @@ canvas:active { cursor: grabbing; }
 @keyframes powerPulse {
     from { filter: brightness(1); }
     to { filter: brightness(1.45); }
+}
+
+/* Swing, with nothing on the meter. The stroke cannot be played and the button
+   used to be disabled, which on a touchscreen is indistinguishable from a
+   press that missed — you tap, nothing moves, and the game looks broken. So
+   the button stays pressable and answers by pointing at what is missing: the
+   meter flashes and says, for as long as the flash lasts, what to do with it. */
+.power-track.asking {
+    animation: powerAsk 0.9s ease-out;
+}
+
+.power-track.asking .power-cue {
+    opacity: 1;
+    color: var(--ink);
+}
+
+@keyframes powerAsk {
+    0%, 100% { border-color: rgba(255, 255, 255, 0.2); box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.5); }
+    18%, 58% {
+        border-color: var(--accent);
+        box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.5), 0 0 16px rgba(56, 189, 248, 0.6);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .power-track.asking { animation-duration: 0.01s; }
+    .power-track.asking .power-cue { opacity: 1; }
+}
+
+/* Swingable but not loaded: dimmed like the disabled state it replaced, and
+   still a button. */
+.swing.unready {
+    opacity: 0.5;
+    box-shadow: none;
+    background: rgba(255, 255, 255, 0.22);
+    color: rgba(234, 246, 255, 0.9);
+}
+
+.swing.unready:hover { transform: none; }
+
+/* ── under a thumb ──────────────────────────────────────────────────────── */
+
+/* Everything a finger has to land on, at a size a finger lands on. The numbers
+   here are the whole of the "it doesn't register" complaint: a 24px meter and
+   a 26px dial are targets a mouse hits every time and a thumb misses often
+   enough to feel like the game is ignoring it. */
+@media (pointer: coarse) {
+    .power-hit { padding: 11px 0; margin: -11px 0; }
+    .power-track { height: 48px; border-radius: 24px; }
+    .power-grip { width: 26px; margin-left: -13px; border-radius: 10px; }
+    .power-grip::after { inset: 16px 8px; }
+    .power-cue { font-size: 0.72rem; }
+    .power .ctl-label { font-size: 0.72rem; }
+
+    .view-step { width: 46px; height: 44px; font-size: 1.15rem; border-radius: 13px; }
+    .view-lock { font-size: 1rem; }
+    .view-dial { height: 44px; }
+    .view-track { height: 18px; border-radius: 9px; }
+    .view-knob { width: 20px; height: 20px; margin: -10px 0 0 -10px; }
+    .view-home { width: 38px; height: 38px; font-size: 1.1rem; }
+    .view-row { gap: 0.45rem; }
+    .viewctl .ctl-label { font-size: 0.72rem; }
+
+    .aim-nudge { width: 54px; font-size: 1.5rem; border-radius: 14px; }
+    .swing { padding: 0.95rem 1rem; font-size: 1.05rem; border-radius: 14px; }
 }
 
 /* ── hole-complete banner ───────────────────────────────────────────────── */
@@ -941,10 +1067,12 @@ canvas:active { cursor: grabbing; }
    dismissed once waved off, so it never nags. */
 /* Parked under the topbar on the side the overlay is not on, so the offer is
    never something to read the hole through. */
+/* Under the view bar rather than on top of it: both want the top right
+   corner, and only one of them is there for the whole round. */
 .fs-prompt {
     position: absolute;
     right: 12px;
-    top: 12px;
+    top: 76px;
     transform: translateY(-10px);
     display: flex;
     align-items: center;
@@ -1511,7 +1639,7 @@ kbd {
     /* One row is not enough for the meter and the buttons on a phone, so they
        stack — both kept clear of the bag standing in the corner. */
     .controls {
-        gap: 0.45rem;
+        gap: 0.55rem;
         padding-left: min(34%, 150px);
         left: 10px;
         right: 10px;
@@ -1521,13 +1649,10 @@ kbd {
     .ctl-row {
         flex-direction: column;
         align-items: stretch;
-        gap: 0.45rem;
+        gap: 0.55rem;
     }
 
-    /* A thumb wants the whole width to drag the view along. */
-    .viewctl { align-self: stretch; width: auto; }
-
-    .swing { flex: 1 1 auto; padding: 0.65rem 1rem; }
+    .swing { flex: 1 1 auto; }
 
     .panel, .best-line { margin-left: 0.8rem; margin-right: 0.8rem; }
     .panel:last-of-type { margin-bottom: 2rem; }
@@ -1624,6 +1749,7 @@ kbd {
 /* Opening the bag dims the course; anything else floating over it would be
    read through four turning clubs. */
 .stage.picker-open .stage-hud,
+.stage.picker-open .viewctl,
 .stage.picker-open .fs-prompt,
 .stage.picker-open .hole-card {
     opacity: 0;
@@ -1702,11 +1828,30 @@ body.compact-ui .topbar-menu .chip {
    the top of the stage starts below the bar instead — including the club
    picker's text, which is the one that used to run straight into it. */
 body.compact-ui .stage-hud { top: 52px; left: 10px; }
-body.compact-ui .fs-prompt { top: 52px; right: 10px; }
+body.compact-ui .fs-prompt { top: 122px; right: 10px; }
+body.compact-ui .viewctl { top: 52px; right: 10px; }
+
 /* Under the overlay rather than beside it: the two say different things about
    the same hole, and one column of them reads as one thing to glance at. */
 body.compact-ui .hole-card { top: 94px; left: 10px; }
 body.compact-ui .picker { padding-top: 52px; }
+
+/* Narrow enough that the view bar and the hole's figures cannot share a line:
+   the bar takes the full width under the topbar, and everything that starts at
+   the top of the stage starts under the bar instead. A phone is the one screen
+   where the dial is worth the whole width anyway — it is the only pointer that
+   cannot land on a 140px one. */
+@media (max-width: 640px) {
+    body.compact-ui .viewctl {
+        left: 10px;
+        right: 10px;
+        width: auto;
+    }
+    body.compact-ui .viewctl .ctl-label { text-align: left; }
+    body.compact-ui .stage-hud { top: 122px; }
+    body.compact-ui .hole-card { top: 176px; }
+}
+
 
 /* ── the panels below the fold ──────────────────────────────────────────── */
 
@@ -1764,8 +1909,9 @@ body.compact-ui .picker { padding-top: 52px; }
     body.compact-ui .topbar { padding: 0.3rem 0.5rem; }
     body.compact-ui .title { font-size: 0.95rem; }
     body.compact-ui .home-link { width: 28px; height: 28px; font-size: 0.9rem; }
+    body.compact-ui .viewctl { top: 44px; }
     body.compact-ui .stage-hud { top: 44px; }
-    body.compact-ui .fs-prompt { top: 44px; }
+    body.compact-ui .fs-prompt { top: 112px; }
     body.compact-ui .hole-card { top: 84px; }
     body.compact-ui button.chip { padding: 0.3rem 0.55rem; font-size: 0.75rem; }
 
@@ -1775,6 +1921,18 @@ body.compact-ui .picker { padding-top: 52px; }
     .hc-meta { margin-top: 0.2rem; }
 
     body.compact-ui .picker { padding-top: 44px; }
+
+    /* Sideways, height is the scarce thing and the controls are the ones
+       spending it: still thumb-sized, just not luxurious. */
+    .power-track { height: 38px; border-radius: 19px; }
+    .power-grip { width: 24px; margin-left: -12px; }
+    .power-grip::after { inset: 11px 7px; }
+    .swing { padding: 0.7rem 1rem; }
+    .aim-nudge { font-size: 1.35rem; }
+    .view-step { height: 40px; }
+    .view-dial { height: 40px; }
+    .view-home { width: 34px; height: 34px; }
+
     .picker-title { display: none; }
     .picker-name { font-size: clamp(1.05rem, 3vw, 1.35rem); }
     .picker-blurb {
@@ -1790,7 +1948,8 @@ body.compact-ui .picker { padding-top: 52px; }
    arrow already says where you are. */
 @media (max-height: 420px) {
     body.compact-ui .brand { display: none; }
+    body.compact-ui .viewctl { top: 40px; }
     body.compact-ui .stage-hud { top: 40px; }
-    body.compact-ui .fs-prompt { top: 40px; }
+    body.compact-ui .fs-prompt { top: 108px; }
     body.compact-ui .picker { padding-top: 40px; }
 }

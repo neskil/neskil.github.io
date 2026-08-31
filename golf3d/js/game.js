@@ -125,7 +125,7 @@
 
     function shoot() {
         if (state.phase !== 'aim') return;
-        if (state.aim.power < C.MIN_POWER) return;
+        if (state.aim.power < C.MIN_POWER) { askForPower(); return; }
         var b = state.world.ball;
         var frac = state.aim.power / state.club.power;
         var lie = P.surfaceUnder(state.world.hole, b.x, b.z, b.y + C.STEP_UP);
@@ -525,9 +525,19 @@
     function syncSwing() {
         var btn = $('btn-swing');
         if (!btn) return;
-        var ready = state.phase === 'aim' && state.aim.power >= C.MIN_POWER;
-        btn.disabled = !ready;
+        var aiming = state.phase === 'aim';
+        var ready = aiming && state.aim.power >= C.MIN_POWER;
+        /* Disabled only while the stroke is somebody else's — the ball is
+           rolling, or the hole is over. Standing over an empty meter it stays
+           pressable on purpose: a disabled button gives a touchscreen nothing
+           at all back, which is exactly what a press that missed gives, and the
+           player cannot tell the two apart. Pressed, it says what is missing
+           (askForPower); aria-disabled says the same to a screen reader without
+           taking the press away. */
+        btn.disabled = !aiming;
         btn.classList.toggle('ready', ready);
+        btn.classList.toggle('unready', aiming && !ready);
+        btn.setAttribute('aria-disabled', ready ? 'false' : 'true');
     }
 
     /* The club in hand lives in the bag now — a modelled one, parked in front
@@ -706,8 +716,11 @@
 
         // Looking around is allowed at any time — while the ball rolls too,
         // since the camera is following it and you may want another angle on
-        // where it is going.
-        look = { id: e.pointerId, x: e.clientX, y: e.clientY, yaw: state.aim.yaw, pitch: R.cam.pitch };
+        // where it is going. It does not start until the pointer has actually
+        // travelled: see onMove.
+        look = { id: e.pointerId, x: e.clientX, y: e.clientY,
+                 yaw: state.aim.yaw, pitch: R.cam.pitch, live: false,
+                 slop: e.pointerType === 'mouse' ? 2 : 7 };
     }
 
     function onMove(e) {
@@ -736,6 +749,20 @@
         }
 
         if (look && look.id === e.pointerId) {
+            /* A finger never lands and lifts on the same pixel, so without a
+               deadzone every tap on the course was also a small, unasked-for
+               turn of the aim — a shot that drifts each time you touch the
+               glass reads as controls with a mind of their own. Past the
+               deadzone the origin is moved to where the drag took, so taking
+               it costs nothing: no jump, and the first pixel of real drag is
+               the first pixel of turn. */
+            if (!look.live) {
+                if (Math.abs(e.clientX - look.x) < look.slop &&
+                    Math.abs(e.clientY - look.y) < look.slop) return;
+                look.live = true;
+                look.x = e.clientX;
+                look.y = e.clientY;
+            }
             // Screen-right spins the view to the right, and dragging down
             // lifts the camera, the way pushing the ground away would.
             state.aim.yaw = look.yaw - (e.clientX - look.x) * 0.008;
@@ -824,12 +851,18 @@
 
     var powerDrag = 0;       // pointerId owning the meter, 0 when nobody is
 
+    /* The press is taken on the band around the meter rather than on the
+       painted bar, so a thumb landing a few pixels high still lands on it.
+       The value is still read off the bar itself — powerFromEvent measures the
+       track — so the band is slop and nothing else. */
     function onPowerDown(e) {
         if (!state) return;
+        if (e.pointerType === 'mouse' && e.button !== 0) return;
         powerDrag = e.pointerId;
-        try { $('power-track').setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
+        try { $('power-hit').setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
         // The cursor turns closed for as long as the meter is being held, which
         // is the one bit of feedback a mouse can give that a finger cannot.
+        $('power-hit').classList.add('dragging');
         $('power-track').classList.add('dragging');
         powerFromEvent(e);
         e.preventDefault();
@@ -841,8 +874,26 @@
     function onPowerUp(e) {
         if (powerDrag !== e.pointerId) return;
         powerDrag = 0;
+        $('power-hit').classList.remove('dragging');
         $('power-track').classList.remove('dragging');
     }
+
+    /* Swing pressed with nothing loaded. The button is no longer disabled for
+       it — a dead button and a press that missed look identical under a thumb
+       — so this is the answer it gives instead: the meter flashes and says
+       what to do with it. */
+    function askForPower() {
+        var track = $('power-track');
+        track.classList.remove('asking');
+        void track.offsetWidth;      // restart the flash rather than swallow it
+        track.classList.add('asking');
+        clearTimeout(askForPower._t);
+        askForPower._t = setTimeout(function () {
+            track.classList.remove('asking');
+        }, 950);
+        A.tick(0.2);
+    }
+
     function onPowerKey(e) {
         var fine = e.shiftKey;
         // The window handler would otherwise nudge a second time.
@@ -858,6 +909,53 @@
 
     function zoom(delta) {
         R.cam.dist = Math.max(4, Math.min(24, R.cam.dist + delta));
+    }
+
+    /* ── press and hold ─────────────────────────────────────────────────────
+
+       The four nudge buttons — two for the aim, two for the view — move things
+       by a fixed step, and a step is small on purpose. On a keyboard that is
+       fine: the key repeats. Under a thumb it was eleven separate taps to walk
+       the camera round the ball, and a tap that has to be repeated eleven
+       times is a tap you stop trusting somewhere around the fourth.
+
+       So they repeat while held. The press is taken on pointerdown rather than
+       on click, which also means the nudge lands the moment the finger does
+       instead of on release — the same change that makes the rest of the
+       overlay feel like it is listening. */
+    function holdToRepeat(id, step, every) {
+        var el = $(id), wait = 0, tick = 0;
+
+        function stop() {
+            clearTimeout(wait);
+            clearInterval(tick);
+            wait = tick = 0;
+        }
+
+        el.addEventListener('pointerdown', function (e) {
+            if (e.pointerType === 'mouse' && e.button !== 0) return;
+            // Held past the edge of a 46px button is still held: the capture
+            // keeps the repeat running and guarantees the release arrives.
+            try { el.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
+            stop();
+            step();
+            wait = setTimeout(function () { tick = setInterval(step, every); }, 340);
+            e.preventDefault();
+        });
+        ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(function (name) {
+            el.addEventListener(name, stop);
+        });
+
+        /* No click handler, so the keyboard needs its own way in. Taking the
+           default on keydown is what stops the browser synthesising a click on
+           top of this, and stopping propagation is what keeps space from also
+           reaching the window handler and playing the shot. */
+        el.addEventListener('keydown', function (e) {
+            if (e.key !== 'Enter' && e.key !== ' ') return;
+            e.preventDefault();
+            e.stopPropagation();
+            step();
+        });
     }
 
     /* ── the view dial ──────────────────────────────────────────────────────
@@ -1564,10 +1662,10 @@
         $('btn-card').addEventListener('click', function () { openCard(null); });
         $('btn-view').addEventListener('click', cycleSeat);
         $('btn-swing').addEventListener('click', shoot);
-        $('btn-aim-left').addEventListener('click', function () { nudgeAim(0.035); });
-        $('btn-aim-right').addEventListener('click', function () { nudgeAim(-0.035); });
-        $('btn-view-left').addEventListener('click', function () { nudgeView(-VIEW_STEP); });
-        $('btn-view-right').addEventListener('click', function () { nudgeView(VIEW_STEP); });
+        holdToRepeat('btn-aim-left', function () { nudgeAim(0.035); }, 60);
+        holdToRepeat('btn-aim-right', function () { nudgeAim(-0.035); }, 60);
+        holdToRepeat('btn-view-left', function () { nudgeView(-VIEW_STEP); }, 110);
+        holdToRepeat('btn-view-right', function () { nudgeView(VIEW_STEP); }, 110);
         $('btn-view-lock').addEventListener('click', toggleLock);
         // A drag that started on the ⌖ and walked away is not a press of it.
         $('btn-view-home').addEventListener('click', function () {
@@ -1578,11 +1676,17 @@
         $('view-dial').addEventListener('pointermove', onViewMove);
         $('view-dial').addEventListener('pointerup', onViewUp);
         $('view-dial').addEventListener('pointercancel', onViewUp);
+        // A capture can be taken away without a pointerup ever arriving — a
+        // system gesture, the element re-laid-out under the finger. Left
+        // unhandled the control stays "held" and the next press is ignored,
+        // which is the other half of "it stopped registering".
+        $('view-dial').addEventListener('lostpointercapture', onViewUp);
         $('view-track').addEventListener('keydown', onViewKey);
-        $('power-track').addEventListener('pointerdown', onPowerDown);
-        $('power-track').addEventListener('pointermove', onPowerMove);
-        $('power-track').addEventListener('pointerup', onPowerUp);
-        $('power-track').addEventListener('pointercancel', onPowerUp);
+        $('power-hit').addEventListener('pointerdown', onPowerDown);
+        $('power-hit').addEventListener('pointermove', onPowerMove);
+        $('power-hit').addEventListener('pointerup', onPowerUp);
+        $('power-hit').addEventListener('pointercancel', onPowerUp);
+        $('power-hit').addEventListener('lostpointercapture', onPowerUp);
         $('power-track').addEventListener('keydown', onPowerKey);
         placePowerMarks();
         $('fs-prompt-go').addEventListener('click', function () { dismissFsPrompt(true); toggleFullscreen(); });

@@ -32,7 +32,7 @@
 
         gtag('config', 'G-9GP823TGLB');
     </script>
-    <link rel="stylesheet" href="style.css?v=1.12.0">
+    <link rel="stylesheet" href="style.css?v=1.13.0">
 </head>
 <body>
     <div class="wrap">
@@ -134,6 +134,41 @@
                 </div>
             </div>
 
+            <!-- Where the camera stands, which is a different question from
+                 where the shot is going: the aim is still the drag on the
+                 course. The button in the middle of the dial walks it back
+                 behind the ball, and so does a new hole.
+
+                 It lives at the top of the stage rather than in the bar at the
+                 bottom. Two reasons, and both are about the thumb: nothing up
+                 here is reached mid-shot, and everything that left the bottom
+                 bar is width and height the power meter now has. -->
+            <div class="viewctl" id="viewctl">
+                <span class="ctl-label">View <b id="view-val">Straight</b></span>
+                <div class="view-row">
+                    <!-- The lock decides what the dial is measured off: the
+                         shot, which turns the camera with it, or a fixed
+                         direction in the world, which leaves it alone. -->
+                    <button type="button" class="view-step view-lock" id="btn-view-lock"
+                            title="Lock the camera so aiming stops turning it (L)"
+                            aria-pressed="false"
+                            aria-label="Lock the camera so the aim stops turning it">🔓</button>
+                    <button type="button" class="view-step" id="btn-view-left"
+                            title="Walk the view left (,)" aria-label="Walk the view left">↺</button>
+                    <div class="view-dial" id="view-dial">
+                        <div class="view-track" id="view-track" role="slider" tabindex="0"
+                             aria-label="View angle" aria-valuemin="-180" aria-valuemax="180"
+                             aria-valuenow="0" aria-valuetext="Straight behind the ball">
+                            <i class="view-knob" id="view-knob" aria-hidden="true"></i>
+                        </div>
+                        <button type="button" class="view-home" id="btn-view-home"
+                                title="Straighten the view (0)" aria-label="Straighten the view">⌖</button>
+                    </div>
+                    <button type="button" class="view-step" id="btn-view-right"
+                            title="Walk the view right (.)" aria-label="Walk the view right">↻</button>
+                </div>
+            </div>
+
             <!-- What the hole is, said once when it loads and then out of the
                  way — a note under the overlay rather than a card across the
                  course. The scoreboard name and the overlay both ask for it
@@ -152,36 +187,6 @@
             </div>
 
             <div class="controls">
-                <!-- Where the camera stands, which is a different question from
-                     where the shot is going: the aim is still the drag on the
-                     course. The button in the middle of the dial walks it back
-                     behind the ball, and so does a new hole. -->
-                <div class="viewctl" id="viewctl">
-                    <span class="ctl-label">View <b id="view-val">Straight</b></span>
-                    <div class="view-row">
-                        <!-- The lock decides what the dial is measured off: the
-                             shot, which turns the camera with it, or a fixed
-                             direction in the world, which leaves it alone. -->
-                        <button type="button" class="view-step view-lock" id="btn-view-lock"
-                                title="Lock the camera so aiming stops turning it (L)"
-                                aria-pressed="false"
-                                aria-label="Lock the camera so the aim stops turning it">🔓</button>
-                        <button type="button" class="view-step" id="btn-view-left"
-                                title="Walk the view left (,)" aria-label="Walk the view left">↺</button>
-                        <div class="view-dial" id="view-dial">
-                            <div class="view-track" id="view-track" role="slider" tabindex="0"
-                                 aria-label="View angle" aria-valuemin="-180" aria-valuemax="180"
-                                 aria-valuenow="0" aria-valuetext="Straight behind the ball">
-                                <i class="view-knob" id="view-knob" aria-hidden="true"></i>
-                            </div>
-                            <button type="button" class="view-home" id="btn-view-home"
-                                    title="Straighten the view (0)" aria-label="Straighten the view">⌖</button>
-                        </div>
-                        <button type="button" class="view-step" id="btn-view-right"
-                                title="Walk the view right (.)" aria-label="Walk the view right">↻</button>
-                    </div>
-                </div>
-
                 <div class="ctl-row">
                     <div class="power">
                         <span class="ctl-label">Power <b id="power-val">0%</b></span>
@@ -190,16 +195,26 @@
                              said so. The grip is the handle you reach for, the
                              ridges on it are what a handle looks like, and the
                              cue is the one line of text that stops being shown
-                             the moment you touch it. -->
-                        <div class="power-track" id="power-track" role="slider" tabindex="0"
-                             title="Press or drag to load the shot"
-                             aria-label="Shot power" aria-valuemin="0" aria-valuemax="130" aria-valuenow="0"
-                             aria-valuetext="0% — a full swing is 100%">
-                            <div class="power-fill" id="power-fill"></div>
-                            <i class="power-over" id="power-over" aria-hidden="true"></i>
-                            <i class="power-max" id="power-max" aria-hidden="true"></i>
-                            <i class="power-grip" id="power-grip" aria-hidden="true"></i>
-                            <span class="power-cue" id="power-cue" aria-hidden="true">press or drag to load</span>
+                             the moment you touch it.
+
+                             The press is taken on the band around the meter
+                             rather than on the meter itself, and the value is
+                             still measured off the meter. A thumb that lands a
+                             few pixels high is a thumb that meant the meter;
+                             without the band that press fell through to the
+                             course behind and swung the camera instead, which
+                             is what "it didn't register" looks like. -->
+                        <div class="power-hit" id="power-hit">
+                            <div class="power-track" id="power-track" role="slider" tabindex="0"
+                                 title="Press or drag to load the shot"
+                                 aria-label="Shot power" aria-valuemin="0" aria-valuemax="130" aria-valuenow="0"
+                                 aria-valuetext="0% — a full swing is 100%">
+                                <div class="power-fill" id="power-fill"></div>
+                                <i class="power-over" id="power-over" aria-hidden="true"></i>
+                                <i class="power-max" id="power-max" aria-hidden="true"></i>
+                                <i class="power-grip" id="power-grip" aria-hidden="true"></i>
+                                <span class="power-cue" id="power-cue" aria-hidden="true">press or drag to load</span>
+                            </div>
                         </div>
                         <span class="club-hint" id="club-hint" aria-live="polite"></span>
                     </div>
@@ -250,19 +265,24 @@
                     turning red when there is nothing left to give. The meter runs <b>past</b> a
                     full swing, into the hatched stretch at the end: see below for what that
                     costs. <b>Swing</b> plays the shot,
-                    and so does <kbd>space</kbd>. The <b>‹</b> and <b>›</b> buttons beside it nudge
-                    the aim a hair, for the putts that need it.
+                    and so does <kbd>space</kbd>. Press it with the meter still empty and there is
+                    nothing to play, so it says so — the meter flashes rather than the button
+                    sitting there dead. The <b>‹</b> and <b>›</b> buttons beside it nudge
+                    the aim a hair, for the putts that need it, and hold them down to keep
+                    nudging.
                 </li>
                 <li>
                     <b>Stand where you like.</b> Aiming and looking are two different things.
-                    The <b>View</b> dial above the power meter walks you round the ball without
-                    touching the shot: slide the knob right to stand to the right of the line,
+                    The <b>View</b> dial along the top of the course walks you round the ball
+                    without touching the shot: slide the knob right to stand to the right of the line,
                     left to stand to the left, either end to get in front of the ball and look
                     back down it. The shot still turns the camera with it when you drag the
                     course, so a side-on angle stays side-on while you aim. The <b>⌖</b> in the
                     middle of the dial puts you straight back behind the ball — and so does a new
                     hole, so nothing you left at an angle follows you onto the next one.
-                    <kbd>,</kbd> and <kbd>.</kbd> walk round a step at a time, <kbd>0</kbd>
+                    <kbd>,</kbd> and <kbd>.</kbd> walk round a step at a time, and so do the
+                    <b>↺</b> and <b>↻</b> buttons at either end — held down they keep walking,
+                    which beats eleven taps to get round the far side. <kbd>0</kbd>
                     straightens up.
                 </li>
                 <li>
@@ -284,7 +304,7 @@
                     only place you can see how high a lofted one is going and whether it
                     clears what is in the way — and <b>overview</b>, the whole hole from
                     above, which lifts the fog on a misty one so it is still worth
-                    looking at. Scroll or pinch to zoom, and <kbd>L</kbd> — or the padlock beside the
+                    looking at. Scroll or pinch to zoom, and <kbd>L</kbd> — or the padlock at the left of the
                     View dial — holds the camera still so aiming stops turning it, which is what
                     makes the overview a map you can aim from rather than one that spins as you do.
                     The <b>cone</b> in front of the ball is where
@@ -379,11 +399,11 @@
         <summary>Controls</summary>
         <div class="help">
             <span><b>Drag the course to aim</b>, press or drag the power meter, then hit <b>Swing</b>. Nothing you do on the course plays a shot by itself.</span>
-            <span><b>The View dial</b> above the meter walks the camera round the ball without moving the shot — the <b>⌖</b> in its middle puts it back behind the ball, and so does a new hole. The <b>🔓</b> beside it locks the camera where it is, so aiming stops swinging the view round; handy on the overview, where a drag to aim otherwise turns the whole hole under you.</span>
+            <span><b>The View dial</b> along the top of the course walks the camera round the ball without moving the shot — the <b>⌖</b> in its middle puts it back behind the ball, and so does a new hole. The <b>🔓</b> beside it locks the camera where it is, so aiming stops swinging the view round; handy on the overview, where a drag to aim otherwise turns the whole hole under you.</span>
             <span class="kb-help"><kbd>←</kbd><kbd>→</kbd> aim · <kbd>↑</kbd><kbd>↓</kbd> power · <kbd>1</kbd>–<kbd>5</kbd> club
                 · <kbd>space</kbd> swing (<kbd>shift</kbd> for fine control)</span>
             <span class="kb-help"><kbd>V</kbd> seat: follow, side on, overview · <kbd>,</kbd><kbd>.</kbd> walk round · <kbd>L</kbd> lock the camera · <kbd>0</kbd> straighten · <kbd>F</kbd> fullscreen · <kbd>R</kbd> restart hole · <kbd>W</kbd> weather · <kbd>M</kbd> sound · <kbd>J</kbd> music · <kbd>O</kbd> fancy water · scroll to zoom</span>
-            <span class="touch-help">Drag sideways to turn, up and down to raise and drop the camera. Drag the View dial to look at the shot from the side. Pinch to zoom, swipe the bag to switch clubs. Turn your phone sideways for a bigger course.</span>
+            <span class="touch-help">Drag sideways to turn, up and down to raise and drop the camera — a tap on its own leaves the aim where it was. Drag the View dial along the top to look at the shot from the side, and hold a nudge button to keep it moving. Pinch to zoom, swipe the bag to switch clubs. Turn your phone sideways for a bigger course.</span>
             <span><button type="button" class="linkish" id="btn-help-2">How to play</button></span>
         </div>
         </details>
@@ -409,21 +429,21 @@
 
     <!-- Load order is dependency order: config, then the pure logic, then the
          things that touch the screen. game.js boots itself on DOMContentLoaded. -->
-    <script src="js/config.js?v=1.12.0"></script>
-    <script src="js/themes.js?v=1.12.0"></script>
-    <script src="js/physics.js?v=1.12.0"></script>
-    <script src="js/courses.js?v=1.12.0"></script>
-    <script src="js/scoring.js?v=1.12.0"></script>
-    <script src="js/audio.js?v=1.12.0"></script>
-    <script src="js/music.js?v=1.12.0"></script>
-    <script src="js/bag.js?v=1.12.0"></script>
-    <script src="js/textures.js?v=1.12.0"></script>
-    <script src="js/shaders.js?v=1.12.0"></script>
-    <script src="js/postfx.js?v=1.12.0"></script>
-    <script src="js/weather.js?v=1.12.0"></script>
-    <script src="js/render.js?v=1.12.0"></script>
-    <script src="js/minimap.js?v=1.12.0"></script>
-    <script src="js/debug.js?v=1.12.0"></script>
-    <script src="js/game.js?v=1.12.0"></script>
+    <script src="js/config.js?v=1.13.0"></script>
+    <script src="js/themes.js?v=1.13.0"></script>
+    <script src="js/physics.js?v=1.13.0"></script>
+    <script src="js/courses.js?v=1.13.0"></script>
+    <script src="js/scoring.js?v=1.13.0"></script>
+    <script src="js/audio.js?v=1.13.0"></script>
+    <script src="js/music.js?v=1.13.0"></script>
+    <script src="js/bag.js?v=1.13.0"></script>
+    <script src="js/textures.js?v=1.13.0"></script>
+    <script src="js/shaders.js?v=1.13.0"></script>
+    <script src="js/postfx.js?v=1.13.0"></script>
+    <script src="js/weather.js?v=1.13.0"></script>
+    <script src="js/render.js?v=1.13.0"></script>
+    <script src="js/minimap.js?v=1.13.0"></script>
+    <script src="js/debug.js?v=1.13.0"></script>
+    <script src="js/game.js?v=1.13.0"></script>
 </body>
 </html>
