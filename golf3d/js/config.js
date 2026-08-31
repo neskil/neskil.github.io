@@ -8,7 +8,7 @@
    — the renderer scales to the viewport, the simulation never sees a pixel. */
 window.G3 = window.G3 || {};
 
-G3.VERSION = '1.17.0';
+G3.VERSION = '1.18.0';
 
 G3.CONFIG = {
     BALL_R: 0.16,
@@ -260,7 +260,13 @@ G3.CONFIG = {
        so the only thing worth storing is a player who has turned it off — and
        storing it that way means a machine that has never been asked gets the
        good one. */
-    WATER_KEY: 'loftLinks.plainWater'
+    WATER_KEY: 'loftLinks.plainWater',
+    /* Same trick as the water, the other way up for each: the frame-rate
+       readout is on unless it has been turned off, and the view row starts
+       folded on a phone and open everywhere else, so only a player who has
+       actually pressed the thing has anything stored. */
+    FPS_KEY: 'loftLinks.hideFps',
+    VIEWCTL_KEY: 'loftLinks.viewCtlOpen'
 };
 
 /* Every club the game knows about, default bag first. A hole's `bag` names
