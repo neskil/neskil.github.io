@@ -32,7 +32,7 @@ them.
 | `js/music.js` | The house band: a smooth jazz quartet, synthesised a bar at a time. |
 | `js/themes.js` | What each course looks like: a palette per theme, and nothing else. |
 | `js/textures.js` | Every texture, drawn into a canvas at load, and the rule that keeps them shared. |
-| `js/shaders.js` | The shaders written by hand rather than by three.js: the sky, the water, and the turf spliced into three.js's own. |
+| `js/shaders.js` | The shaders written by hand rather than by three.js: the sky, the water, and the two splices into three.js's own — the turf and the ground beyond the course. |
 | `js/weather.js` | The sky each hole gets, the wind everything answers to, and the rain, mist and motes. |
 | `js/postfx.js` | What happens to the picture after the course is drawn: bloom, light shafts, tone mapping, grade. |
 | `js/render.js` | The course, in three.js: geometry, lights, camera and the frame. |
@@ -1693,6 +1693,46 @@ the mow bands come out wider, half again as tall, and darkened by its material.
 Three grasses, one set of blades, and what tells them apart is height and
 stripe width — which is what tells them apart on a real course too.
 
+### The country beyond the hole
+
+Everything from the edge of the course out to the fog. It was one flat
+600-unit square with a 256² rock canvas repeated across it a hundred and fifty
+times, and it looked like exactly that: a tiled sheet of lino with a golf hole
+sitting on it. Three things were wrong with it and they needed three different
+answers.
+
+**It tiled**, and the fix is not a bigger texture — it is a second signal that
+does not share the first one's period. Three octaves of world-space value
+noise, at fifty metres, twelve and three, vary how bright the ground is and
+drift it between a warm tint and a cool one; the texture goes on supplying the
+grain and the noise supplies everything above it, so a tile edge now lands in
+the middle of a patch that does not care where the tile is. It rides on the
+world position rather than the UVs, so the patches stay put as the camera moves
+and come out the same size on every course. The rock canvas itself was also one
+scale of blob and is now three — boulders, stones, and single-texel grit — for
+the same reason: one scale is a period, and a period is what the eye finds.
+
+**It was flat**, and a course stands in country, and country rolls. The
+surround rolls too, but only where rolling cannot hurt: dead flat out to the
+last corner of the hole and a margin past it, then easing into full relief over
+the next fifty units. That ramp is not a nicety. Pad skirts reach down to
+`surroundY - 0.5` and the links courses run their rough out to meet this mesh;
+ground that moved underneath either would open a gap between the hole and the
+world it stands in, and that is the one seam on the course a player is close
+enough to see. How far it rolls is `relief` in the theme, and a theme without
+one keeps a floor that is meant to be a floor — the arcade is a basement and
+the works is a shed.
+
+**It was a square subdivided once.** Relief needs vertices, and a grid fine
+enough to hold a hill at forty units would be spending the same triangles at
+two hundred and eighty, where a whole hillside is four pixels of fog. So it is
+rings and sectors on a radius that grows as a power of the ring index: about
+three units between rings where the hills are legible, forty out at a rim
+nobody can see. Twelve thousand triangles buys what a grid would have wanted
+eighty thousand for. The rim is still three hundred units out, because that is
+what the fog needs — past the far end of the thickest weather, so the horizon
+is a fade and never an edge.
+
 ### The sky
 
 A two-stop gradient, which was fine until you looked up. It is now the one
@@ -1724,6 +1764,48 @@ The night course gets **stars**: a hash grid on the sphere's own angles, one
 cell in twenty holding one, each twinkling on a period of its own — and its
 clouds are multiplied down, because a white cloud over a night sky reads as a
 hole in it.
+
+And on most courses it gets **hills**, drawn rather than built. A ridge line is
+a one-dimensional height field read round the horizon: for each ray, take a
+point on a circle in the ray's own compass direction and sample the same value
+noise the clouds use; everything below that height is hill and everything above
+it is sky. Two ranges, the far one first and the near one over it, so the
+skyline has depth. The circle is not an incidental detail — the obvious
+parameter is `atan(d.z, d.x)`, and it puts a seam due north where the angle
+wraps, one straight vertical cut through a mountain in the place a player
+turning on the tee sweeps past most often.
+
+Two numbers make it work, and both were learned the hard way.
+
+The first is that **everything here is measured in hundredths of a radian**.
+The camera is pitched down at a golf ball two metres away; it has about three
+degrees of sky above the horizon to give, and a range built to the height a
+mountain has in a photograph is not a mountain here — the player is standing
+inside it with its skyline a screen and a half above the frame, and the whole
+picture is just a differently-coloured sky. An alp on Highland Steps tops out
+at 0.022 radians. A real range twenty miles off subtends about the same.
+
+The second is `ridgeFoot`, which is where the bottom of the sky is, and the one
+number in the shader that the JS has to work out per frame: the elevation of
+the rim of the ground mesh from wherever the camera is standing. That rim is
+*not* the horizon — from a tee it is a fortieth of a radian below it, from the
+overview a sixth. Anchor the hills at nought and they float above the ground on
+the first and paint themselves across the floor on the second. Anchored a few
+thousandths under the rim they meet the ground in both, because they are being
+measured against the same thing the player is looking at. Between that foot and
+the skyline the range takes one squared fade towards the fog colour, which is
+the whole of what makes the far range read as further off than the near one —
+and the bottom half of a range twenty miles away really is mostly the air in
+front of it.
+
+The range is painted over the horizon haze rather than under it and carries its
+own instead. Under it a hill took two fades, the band's and then the sky's, and
+came out the exact colour of the air it was standing in. What the weather does
+to it is settled in one uniform: `ridgeH` collapses as the fog thickens, and at
+nought there is no horizon at all. Its rock is the one colour in the sky shader
+that is *not* weather-tinted, because every fade it takes is already towards a
+`fogColour` that is — tint the rock as well and a golden hour goes through it
+twice.
 
 ### The water
 

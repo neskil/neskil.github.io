@@ -26,6 +26,23 @@
      ground     tints the rock, so two rock courses are not the same place.
      floor      the same for a `floor` surround.
      birds      false to keep them out of the sky.
+     ridge      the country on the horizon, drawn on the sky dome rather than
+                built: `colour` the rock or heather of it, `cap` what the tops
+                catch — snow on a mountain, bare sun on a mesa — `h` how far up
+                the skyline stands *above the true horizon*, in radians, and
+                it is a small number: the camera is pitched down at a golf ball
+                and has perhaps two degrees of sky over the horizon to give,
+                so a range whose top is a degree up already fills it. How big
+                the hills look is mostly not this — it is the long haze fade
+                below them, which reaches down to wherever the ground actually
+                closes off the sky (shaders.js, HBASE). This number only says
+                where the skyline itself falls: 0.007 is a line of hills across
+                the water, 0.022 is an alp. `rough` is how broken that skyline
+                is — 0.4 rolls, 0.6 has peaks. Leave it out and the horizon is flat, which is
+                what a course played indoors or inside a works wants.
+     relief     how many units the surrounding ground rolls, out where it can
+                no longer touch the hole. Leave it out for a floor that is
+                meant to be a floor.
 
    The weather (weather.js) moves all of this around at run time; these are
    the numbers it starts from. */
@@ -40,6 +57,10 @@
             grass: ['#4fae54', '#43a04a'],
             rail: 0xf4f7f5,
             surroundY: -0.95, surround: 'water',
+            /* A coast on the far side of the water, low and blue with
+               distance. It is scenery, not a place you can reach — but it is
+               what turns the sea from a floor into a sea. */
+            ridge: { colour: '#5c7686', cap: '#a8c0cc', h: 0.008, rough: 0.44 },
             water: 0x2079ab,
             side: '#a08a5f'
         },
@@ -50,6 +71,11 @@
             grass: ['#6f9c4e', '#628f45'],
             rail: 0xc7ae8c,
             surroundY: -2.4, surround: 'rock',
+            /* Mesa country: the quarry is a bite out of a desert, and the
+               rest of that desert is on the horizon. Tall, broken, and capped
+               with the same bare sun that is on the sand. */
+            ridge: { colour: '#8a5f37', cap: '#d9ab6b', h: 0.016, rough: 0.55 },
+            relief: 3.4,
             water: 0x2f7fa8,
             side: '#8d7355'
         },
@@ -60,6 +86,7 @@
             grass: ['#5cba62', '#4faa55'],
             rail: 0xfbf4e4,
             surroundY: -0.78, surround: 'water',
+            ridge: { colour: '#4e7d80', cap: '#9fcfc4', h: 0.007, rough: 0.42 },
             water: 0x11a5c0,
             side: '#c9b287'
         },
@@ -74,6 +101,11 @@
                twice as bright as it looks here once the sun, the hemisphere
                and the tone map have all had a go at it. */
             surroundY: -2.7, surround: 'rock', ground: '#454c3c',
+            /* The one course with real mountains behind it, and the only
+               one with snow on them: high, broken and cold enough that the
+               tops stay white under a sun that is warming everything else. */
+            ridge: { colour: '#3f4f70', cap: '#e6eef7', h: 0.022, rough: 0.60 },
+            relief: 4.2,
             water: 0x2b6d8d,
             side: '#7d7566'
         },
@@ -89,6 +121,8 @@
             grass: ['#57ae52', '#4a9f49'],
             rail: 0x8a7355,
             surroundY: -0.9, surround: 'floor', floor: '#33582f',
+            ridge: { colour: '#3f5c42', cap: '#7a9670', h: 0.010, rough: 0.40 },
+            relief: 2.6,
             water: 0x2a7ea6,
             side: '#8f7a55'
         },
@@ -115,6 +149,8 @@
                cliff. It is the only place on the course where that seam is
                visible at all, and it is thirty units out and in haze. */
             surroundY: -0.55, surround: 'floor', floor: '#456b39',
+            ridge: { colour: '#4e6540', cap: '#87996a', h: 0.010, rough: 0.45 },
+            relief: 3.0,
             water: 0x2c6f92,
             side: '#8a7c58'
         },
@@ -178,6 +214,8 @@
                the one landform on the course you can actually fall into would
                be invisible from the tee. */
             surroundY: -1.5, surround: 'floor', floor: '#5a4a63',
+            ridge: { colour: '#4d4763', cap: '#8f86a6', h: 0.014, rough: 0.50 },
+            relief: 3.6,
             water: 0x35657f,
             side: '#7a6a58'
         },

@@ -436,20 +436,50 @@
         });
     }
 
+    /* The ground beyond the course, and the one texture in here that is asked
+       to cover a hundred metres rather than a pad.
+
+       It used to be nine hundred soft blobs all cut from the same fourteen-unit
+       stencil, which at any distance is one grey wash and up close is nine
+       hundred identical bruises — and, worst of all, a *period*: one blob size
+       means one scale, and one scale is the scale at which the eye finds the
+       tile. It is now three passes of the same idea at three sizes an octave
+       and a bit apart, so what the shader's own noise adds on top (SUR_* in
+       shaders.js) lands on grain rather than on wallpaper.
+
+       The last pass is pixel-fine grit, which is what stops the ground under
+       the player's feet from being a smooth gradient — and it is drawn as
+       single texels rather than as arcs because a hundred and sixty thousand
+       one-pixel `arc()` calls is a page freeze and a `fillRect` is not. */
     function rockTexture(tint) {
-        return canvasTex(256, function (g, s) {
+        return canvasTex(512, function (g, s) {
+            var n, r, x, y;
             g.fillStyle = tint;
             g.fillRect(0, 0, s, s);
-            for (var n = 0; n < 900; n++) {
-                var r = 3 + Math.random() * 14;
-                g.fillStyle = 'rgba(0,0,0,' + (Math.random() * 0.13) + ')';
-                g.beginPath();
-                g.arc(Math.random() * s, Math.random() * s, r, 0, 6.283);
-                g.fill();
-                g.fillStyle = 'rgba(255,255,255,' + (Math.random() * 0.08) + ')';
-                g.beginPath();
-                g.arc(Math.random() * s, Math.random() * s, r * 0.6, 0, 6.283);
-                g.fill();
+            // Three scales: boulders, stones, gravel.
+            var passes = [[46, 26, 0.10, 0.05], [220, 11, 0.13, 0.07], [900, 4, 0.15, 0.09]];
+            for (var p = 0; p < passes.length; p++) {
+                var count = passes[p][0], big = passes[p][1];
+                for (n = 0; n < count; n++) {
+                    r = big * (0.35 + Math.random() * 0.65);
+                    x = Math.random() * s; y = Math.random() * s;
+                    g.fillStyle = 'rgba(0,0,0,' + (Math.random() * passes[p][2]) + ')';
+                    g.beginPath();
+                    g.arc(x, y, r, 0, 6.283);
+                    g.fill();
+                    // The lit side of the same stone, offset rather than
+                    // concentric: a ring round a shadow is a bubble, a crescent
+                    // beside one is a rock with the sun on it.
+                    g.fillStyle = 'rgba(255,255,255,' + (Math.random() * passes[p][3]) + ')';
+                    g.beginPath();
+                    g.arc(x - r * 0.30, y - r * 0.30, r * 0.62, 0, 6.283);
+                    g.fill();
+                }
+            }
+            for (n = 0; n < 9000; n++) {
+                g.fillStyle = Math.random() < 0.5
+                    ? 'rgba(0,0,0,0.10)' : 'rgba(255,255,255,0.09)';
+                g.fillRect(Math.random() * s | 0, Math.random() * s | 0, 1, 1);
             }
         });
     }
@@ -562,11 +592,13 @@
         shared = {};
     }
 
-    /* The surround, which is one huge plane and so keeps its own repeat.
+    /* The surround. Its tiling is baked into the mesh's own UVs the way a
+       pad's is (render.js, SUR_TILE), so the texture itself repeats once and
+       every course can share the one upload.
        Cached by tint: two holes on the same course ask for the same rock, and
-       rebuilding it was a 256² canvas thrown away every hole load. */
+       rebuilding it was a canvas thrown away every hole load. */
     function rock(tint) {
-        if (!rocks[tint]) rocks[tint] = dress(rockTexture(tint), 150);
+        if (!rocks[tint]) rocks[tint] = dress(rockTexture(tint));
         return rocks[tint];
     }
 
