@@ -157,7 +157,10 @@
             n = Math.max(32, Math.ceil(2 * Math.PI * pad.r / OUTLINE_STEP));
             for (i = 0; i < n; i++) {
                 a = i / n * Math.PI * 2;
-                pts.push(at(cx + Math.cos(a) * pad.r, cz + Math.sin(a) * pad.r));
+                // The disc's own edge, wave and all (physics.padRadius) — this
+                // is meant to show where the solver says the pad stops.
+                var rr = P.padRadius(pad, a);
+                pts.push(at(cx + Math.cos(a) * rr, cz + Math.sin(a) * rr));
             }
             return line(pts, COLOUR[pad.kind] || COLOUR.green, true);
         }

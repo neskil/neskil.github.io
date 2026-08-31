@@ -410,9 +410,10 @@
            the mow width rides on it rather than being baked in here, because
            three keys its program cache on this function's own source text.
            One source, one program, one uniform per material: a fairway gets
-           the wider stripe its coarser tiling already has, and it costs a
-           uniform rather than a second shader. */
-        shader.uniforms.mowK = { value: Math.PI / (this.userData.mow || TX.MOW) };
+           the gang mower's wider stripe, a green gets none at all (mowK 0,
+           which lands the stripe term on its own midpoint and leaves the
+           colour alone), and it costs a uniform rather than a shader apiece. */
+        shader.uniforms.mowK = { value: this.userData.mowK };
         shader.vertexShader = SH.TURF_VS_HEAD +
             shader.vertexShader.replace('#include <begin_vertex>', SH.TURF_VS_BODY);
         shader.fragmentShader = SH.TURF_FS_HEAD +
@@ -435,13 +436,13 @@
             });
         }
 
-        /* Greens and fairways are the same turf, and the material is where
-           they stop being the same: a fairway is mown longer, so it is darker,
-           flatter and rougher under the light. The map is the green's own —
-           tiled bigger, which is what widens the mow bands (textures.js,
-           SCALE) — so this costs a material and no canvas at all. */
+        /* Greens and fairways are the same turf, and this is where they stop
+           being the same: a fairway is mown longer, so it is darker, flatter
+           and rougher under the light — and it is the one of the two that is
+           striped, so it wears the banded map (textures.js, grassTexture)
+           while the green wears the plain one. */
         var fairway = new THREE.MeshPhongMaterial({
-            map: tex.green,
+            map: tex.fairway,
             bumpMap: tex.greenBump,
             bumpScale: 0.055 + wet * 0.03,
             color: damp.clone().multiplyScalar(0.80),
@@ -468,7 +469,9 @@
             rough: tops(tex.rough, 3 + wet * 40, 0x000000, 0x7d8a92),
             // The greens get the most of everything: a bump map of the same
             // blades that are in the colour map, so the light rakes across the
-            // mow bands rather than lying on them flat.
+            // turf rather than lying on it flat. No bands in that colour map
+            // and no stripe in the shells below — a green is cut in one
+            // direction and reads as one tone.
             green: new THREE.MeshPhongMaterial({
                 map: tex.green,
                 bumpMap: tex.greenBump,
@@ -554,7 +557,9 @@
                     transparent: false,
                     side: THREE.FrontSide
                 });
-                mat.userData.mow = mow || TX.MOW;
+                // Zero is a width, not a missing argument: it is the green,
+                // asking for no stripe. Hence the explicit test.
+                mat.userData.mowK = mow === 0 ? 0 : Math.PI / (mow || TX.MOW);
                 mat.onBeforeCompile = turfShader;
                 out.push(mat);
             }
@@ -567,12 +572,16 @@
             // by the skirt under a piece of terrain, which is the same stuff.
             side: side,
             shells: {
-                green: shells('green', TX.shellFor('green'), theme.grass[1], SHELL_LAYERS),
+                // No stripe on a green: the bands in the shader are the
+                // fairway's cut, and a green that carries them is a green
+                // wearing a fairway's coat (textures.js, SCALE).
+                green: shells('green', TX.shellFor('green'), theme.grass[1],
+                    SHELL_LAYERS, 0),
                 // The same blades, darker, and striped at the width the
-                // fairway's own tiling is striped at so the two patterns agree.
+                // fairway's own map is banded at so the two patterns agree.
                 fairway: shells('fairway', TX.shellFor('fairway'),
                     new THREE.Color(theme.grass[1]).multiplyScalar(0.84).getStyle(),
-                    SHELL_LAYERS, TX.MOW * 1.7),
+                    SHELL_LAYERS, TX.MOW_WIDE),
                 rough: shells('rough', TX.shellFor('rough'), '#3c6b34', SHELL_LAYERS)
             },
             walls: {
@@ -787,11 +796,39 @@
        has no thickness, so it is the same shape run through ShapeGeometry —
        whose UVs come out in the shape's own coordinates, which is to say world
        units, which is what the caller scales by. */
+    /* A round pad's outline as a Shape, in the coordinates the two extruders
+       below build in: x is world x and y is *minus* world z, which is what the
+       rotateX(-90°) after them undoes. So the shape's own angle runs backwards
+       against the world's, and the radius has to be asked for at -b.
+
+       A disc with no wave on it comes out as the circle absarc used to draw.
+       One with a wave comes out as a polygon fine enough that the chord never
+       cuts more than a few millimetres inside the curve — which matters,
+       because the grass mat around this pad is conformed to the *curve*
+       (cutUnder) and a coarse outline here would show as a hairline of ground
+       between the two. */
+    function discShape(pad) {
+        var shape = new THREE.Shape();
+        if (!pad.wave) {
+            shape.absarc(0, 0, pad.r, 0, Math.PI * 2, false);
+            return shape;
+        }
+        var n = Math.max(64, Math.ceil(2 * Math.PI * pad.r / 0.18)), i, b, rr;
+        for (i = 0; i < n; i++) {
+            b = i / n * Math.PI * 2;
+            rr = P.padRadius(pad, -b);
+            if (i) shape.lineTo(Math.cos(b) * rr, Math.sin(b) * rr);
+            else shape.moveTo(Math.cos(b) * rr, Math.sin(b) * rr);
+        }
+        shape.closePath();
+        return shape;
+    }
+
     function shellShape(pad, cup) {
         var hw = pad.w / 2, hd = pad.d / 2;
-        var shape = new THREE.Shape();
+        var shape = pad.r ? discShape(pad) : new THREE.Shape();
         if (pad.r) {
-            shape.absarc(0, 0, pad.r, 0, Math.PI * 2, false);
+            // …the outline is the disc's own, built above.
         } else {
             shape.moveTo(-hw, -hd);
             shape.lineTo(hw, -hd);
@@ -915,7 +952,8 @@
             n = Math.max(24, Math.ceil(2 * Math.PI * pad.r / step));
             for (i = 0; i < n; i++) {
                 a = i / n * Math.PI * 2;
-                pts.push([cx + Math.cos(a) * pad.r, cz + Math.sin(a) * pad.r]);
+                var rr = P.padRadius(pad, a);
+                pts.push([cx + Math.cos(a) * rr, cz + Math.sin(a) * rr]);
             }
             return pts;
         }
@@ -982,33 +1020,79 @@
        hole of open sky a grid cell wide around every green on the course. What
        survives inside the rim is hidden under the disc, so it costs nothing.
 
-       The *grass* loses every triangle with so much as a corner under one,
-       because it is a sixth of a unit tall and the disc is twelve millimetres
-       up: one surviving triangle is a tuft standing proud of the sand. Cutting
-       it hard leaves about a grid cell of bare ground around each inlay — and
-       that is not a defect, it is an apron. A mown collar round a green and a
-       sandy lip round a bunker are what those things have in real life. */
-    function cutUnder(geo, cover, cx, cz, any) {
+       The *grass* may not keep a single blade inside one, because it is a
+       sixth of a unit tall and the disc is twelve millimetres up: one
+       surviving triangle is a tuft standing in the sand. It used to lose every
+       triangle with so much as a corner under an inlay, and that left a grid
+       cell of bare ground all the way round every green and every bunker on
+       the course — a pale, stair-stepped ring, cut to the terrain grid rather
+       than to the thing it was supposed to be a collar for. It read as a
+       mistake because it was one: the shape of it came from the mesh and not
+       from the hole.
+
+       So the grass is *conformed* to the outline instead. A triangle wholly
+       inside an inlay goes, as before; a triangle that straddles the rim keeps
+       its place and has each corner that fell inside pulled out onto the
+       outline itself — radially, and back onto the ground's own height field
+       at its new spot, so the mat still lies on the ground it grew from. The
+       mesh is indexed, so a corner moved for one triangle moves for every
+       triangle that shares it and the mat cannot tear. What comes out is grass
+       that stops exactly where the green starts, on the same curve the disc is
+       drawn from and with no ground showing between the two. */
+    function cutUnder(geo, cover, cx, cz, any, pad, cy) {
         var pos = geo.attributes.position, idx = geo.index;
         if (!idx || !cover.length) return geo;
         var inside = new Uint8Array(pos.count), i, j;
         for (i = 0; i < pos.count; i++) {
             for (j = 0; j < cover.length; j++) {
                 if (P.padContains(cover[j], cx + pos.getX(i), cz + pos.getZ(i))) {
-                    inside[i] = 1;
+                    inside[i] = j + 1;
                     break;
                 }
             }
         }
-        var keep = [], a, b, c, n;
+        var keep = [], stays = new Uint8Array(pos.count), a, b, c, n;
         for (i = 0; i < idx.count; i += 3) {
             a = idx.getX(i); b = idx.getX(i + 1); c = idx.getX(i + 2);
-            n = inside[a] + inside[b] + inside[c];
-            if (any ? n > 0 : n === 3) continue;
+            n = !!inside[a] + !!inside[b] + !!inside[c];
+            if (n === 3) continue;              // wholly under an inlay: gone
             keep.push(a, b, c);
+            stays[a] = stays[b] = stays[c] = 1;
         }
         geo.setIndex(keep);
+        /* And then the corners that stayed while standing inside something —
+           in a second pass, so that a vertex is moved once whichever of its
+           triangles is walked first, and so that the walk above sees every
+           triangle in the shape it was built with. */
+        if (any) {
+            for (i = 0; i < pos.count; i++) {
+                if (inside[i] && stays[i]) {
+                    conform(pos, i, cover[inside[i] - 1], cx, cz, pad, cy);
+                }
+            }
+            pos.needsUpdate = true;
+        }
         return geo;
+    }
+
+    /* One vertex of the grass mat, pushed out of an inlay and onto its edge.
+
+       Straight out from the inlay's middle, which is not quite the nearest
+       point on a waved outline but is within a millimetre of it at the depth
+       of wave a green carries — and unlike the nearest point it cannot fold
+       two neighbouring vertices onto the same place. The height comes back
+       off the pad the mat belongs to, because the vertex has moved across
+       ground that rolls. */
+    function conform(pos, i, inlay, cx, cz, pad, cy) {
+        var qx = inlay.x + inlay.w / 2, qz = inlay.z + inlay.d / 2;
+        var dx = cx + pos.getX(i) - qx, dz = cz + pos.getZ(i) - qz;
+        var d = Math.hypot(dx, dz);
+        var ang = d > 1e-6 ? Math.atan2(dz, dx) : 0;
+        var rr = P.padRadius(inlay, ang);
+        var wx = qx + Math.cos(ang) * rr, wz = qz + Math.sin(ang) * rr;
+        pos.setX(i, wx - cx);
+        pos.setZ(i, wz - cz);
+        if (pad) pos.setY(i, P.padHeight(pad, wx, wz) - cy);
     }
 
     /* One axis of the terrain grid, as a list of coordinates rather than a
@@ -1076,7 +1160,7 @@
         // …and then take out whatever is laid into this pad. Two cuts on one
         // grid: the square for the cup's own patch is a hole in the *index*
         // built above, and this is the same idea applied to the inlays.
-        if (cover) cutUnder(geo, cover, cx, cz, anyCut);
+        if (cover) cutUnder(geo, cover, cx, cz, anyCut, pad, cy);
         geo.computeVertexNormals();
         return geo;
     }
@@ -1091,14 +1175,21 @@
     function discTerrainGeometry(pad, res, cx, cy, cz) {
         var r = pad.r;
         var rings = Math.max(3, Math.round(r / Math.min(res, 0.5)));
-        var sect = Math.max(28, Math.round(2 * Math.PI * r / Math.min(res, 0.6)));
+        // A waved rim needs sectors of its own: the tightest harmonic on one
+        // is a fifth of a turn, and a rim sampled coarser than that reads as a
+        // polygon rather than as a shape.
+        var sect = Math.max(28, Math.round(2 * Math.PI * r /
+            Math.min(res, pad.wave ? 0.3 : 0.6)));
         var pos = [], idx = [], i, j, rr, a, px, pz;
 
         pos.push(0, P.padHeight(pad, cx, cz) - cy, 0);          // the middle
         for (i = 1; i <= rings; i++) {
-            rr = r * i / rings;
             for (j = 0; j < sect; j++) {
                 a = j / sect * Math.PI * 2;
+                // Every ring is the outline scaled down, so the rim is the
+                // outline itself and the wave on it reaches all the way in
+                // rather than being a ripple on the last ring alone.
+                rr = P.padRadius(pad, a) * i / rings;
                 px = Math.cos(a) * rr; pz = Math.sin(a) * rr;
                 pos.push(px, P.padHeight(pad, cx + px, cz + pz) - cy, pz);
             }
@@ -1144,8 +1235,7 @@
        of it if this is the pad the cup is cut into. Same construction as
        punchedSlab above; the only difference is that the outline is an arc. */
     function discGeometry(pad, thick, cup, holed) {
-        var shape = new THREE.Shape();
-        shape.absarc(0, 0, pad.r, 0, Math.PI * 2, false);
+        var shape = discShape(pad);
         if (holed) {
             var cx = pad.x + pad.w / 2, cz = pad.z + pad.d / 2;
             var hole = new THREE.Path();
@@ -1157,7 +1247,32 @@
         });
         geo.rotateX(-Math.PI / 2);      // lay it flat: extrusion now runs +y
         geo.translate(0, -thick / 2, 0);// centred on its middle, like the box
+        if (pad.inlay) levelRim(geo);
         return geo;
+    }
+
+    /* Point an inlay's rim wall at the sky.
+
+       An inlay is flush with the ground it is laid into and is lifted twelve
+       millimetres only so the two do not z-fight, so the band of wall that
+       lift exposes is a rendering artefact rather than a step — and shaded as
+       a wall, with the sun raking across it, twelve millimetres is enough to
+       draw a lit hairline right round every green on the links. The wall is
+       already painted in the surface's own turf (buildSurfaces); giving it the
+       turf's *normal* as well is the other half of the same argument, and it
+       is what makes the seam read as nothing rather than as an edge.
+
+       Nothing is lost by it: a wall this tall carries no shape worth lighting,
+       and the geometry is untouched — a ball still rolls off the rim exactly
+       where it did. */
+    function levelRim(geo) {
+        var groups = geo.groups, nrm = geo.attributes.normal, g, i, end;
+        for (g = 0; g < groups.length; g++) {
+            if (groups[g].materialIndex !== 1) continue;   // the walls, not the cap
+            end = groups[g].start + groups[g].count;
+            for (i = groups[g].start; i < end; i++) nrm.setXYZ(i, 0, 1, 0);
+        }
+        nrm.needsUpdate = true;
     }
 
     /* A piece of rolling ground: the subdivided top, and the wall of earth

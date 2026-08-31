@@ -169,10 +169,43 @@
                 return approx(g.x, 0.3) && approx(g.z, -0.2);
             })());
 
-            // A disc pad is the circle inside its footprint, not the footprint.
+            /* A disc pad is the shape inside its footprint, not the footprint
+               — and the shape is a circle with a wave on it, not a circle
+               (courses.WAVE). What the wave may do is bounded in one
+               direction only, and everything else on a hole is built on that
+               bound: a disc never reaches past its own r, so a clearance
+               measured against r is a clearance the shape cannot break. */
             var round = A.circle(10, 10, 4, 'green');
             assert('a disc pad contains its middle', P.padContains(round, 10, 10));
-            assert('and the rim of its circle', P.padContains(round, 13.99, 10));
+            assert('and the point just inside its own edge', (function () {
+                var k, a2, rr, ok2 = true;
+                for (k = 0; k < 64; k++) {
+                    a2 = k / 64 * Math.PI * 2;
+                    rr = P.padRadius(round, a2);
+                    if (!P.padContains(round, 10 + Math.cos(a2) * (rr - 0.01),
+                                              10 + Math.sin(a2) * (rr - 0.01))) ok2 = false;
+                    if (P.padContains(round, 10 + Math.cos(a2) * (rr + 0.01),
+                                             10 + Math.sin(a2) * (rr + 0.01))) ok2 = false;
+                }
+                return ok2;
+            })());
+            assert('a waved disc stays inside the circle it is cut from', (function () {
+                var k, a2, rr, ok2 = true, bitten = false;
+                for (k = 0; k < 64; k++) {
+                    a2 = k / 64 * Math.PI * 2;
+                    rr = P.padRadius(round, a2);
+                    if (rr > round.r + 1e-9) ok2 = false;
+                    if (rr < round.r - 0.05) bitten = true;
+                }
+                return ok2 && bitten;
+            })());
+            assert('and a disc with no wave on it is the circle it always was',
+                (function () {
+                    var plain = A.pad(6, 6, 8, 8, 0, 'green');
+                    plain.r = 4;
+                    return P.padRadius(plain, 1.1) === 4 &&
+                        P.padContains(plain, 13.99, 10) && !P.padContains(plain, 14.01, 10);
+                })());
             assert('but not the corner of its box',
                 !P.padContains(round, 13.5, 13.5) && P.padContains(A.pad(6, 6, 8, 8), 13.5, 13.5));
 
@@ -1237,7 +1270,9 @@
                inlay check above look at the rim without caring which it is. */
             function edgeDist(pad, x, z) {
                 if (pad.r) {
-                    return pad.r - Math.hypot(x - (pad.x + pad.w / 2), z - (pad.z + pad.d / 2));
+                    var dx = x - (pad.x + pad.w / 2), dz = z - (pad.z + pad.d / 2);
+                    // Off the disc's own waved edge, not off its circle.
+                    return P.padRadius(pad, Math.atan2(dz, dx)) - Math.hypot(dx, dz);
                 }
                 return Math.min(x - pad.x, pad.x + pad.w - x,
                                 z - pad.z, pad.z + pad.d - z);
