@@ -340,15 +340,7 @@
         R.scene.remove(g);
     }
 
-    /* No `ridge` on a theme means no hills: the arcade is a basement and the
-       works is a shed, and neither has a horizon. The uniforms still have to
-       exist — a shader that declares one and is not given it reads zero on
-       some drivers and fails to link on others — so the off switch is a
-       height of nought rather than a missing value. */
-    var NO_RIDGE = { colour: '#000000', cap: '#000000', h: 0, rough: 0.5 };
-
     function skyDome(theme, weather) {
-        var ridge = theme.ridge || NO_RIDGE;
         var mat = new THREE.ShaderMaterial({
             side: THREE.BackSide, depthWrite: false, fog: false,
             uniforms: {
@@ -377,28 +369,6 @@
                 hazeTop: { value: Math.max(0.10, Math.min(0.34, 0.40 - 0.17 * weather.fog)) },
                 // Only after dark, and a solid overcast puts them out.
                 starI: { value: (theme.stars || 0) * (1 - weather.cloud * 0.85) },
-                /* The hills on the horizon, in the fog's colour space rather
-                   than the sky's — see the note on fogColour above. Their feet
-                   are mixed into the fog and their tops are read against it,
-                   so a converted ridge would be a different-coloured hill
-                   sitting in the right-coloured air.
-
-                   Not weather-tinted, and alone in here in not being. Every
-                   fade a range takes it already takes towards `fogColour`,
-                   which *is* tinted — so the weather reaches it anyway, at the
-                   strength the distance calls for. Tinting the rock as well
-                   put a golden hour through it twice and left the hills the
-                   colour of the sky they were supposed to stand against. */
-                ridgeColour: { value: new THREE.Color(ridge.colour) },
-                ridgeCap: { value: new THREE.Color(ridge.cap) },
-                // Weather is allowed to take the horizon away. A sea fog that
-                // hides the far side of a pond has no business leaving a
-                // mountain range crisply drawn above it.
-                ridgeH: { value: ridge.h * Math.max(0, 1.45 - 0.45 * weather.fog) },
-                ridgeRough: { value: ridge.rough },
-                // Where the ground stops and the sky starts, from where the
-                // camera is now. Rewritten every frame; see `frame`.
-                ridgeFoot: { value: -0.022 },
                 drift: { value: new THREE.Vector2() }
             },
             vertexShader: SH.SKY_VS,
@@ -1901,6 +1871,196 @@
         group.add(mesh);
     }
 
+    /* ── the hills on the horizon ───────────────────────────────────────
+
+       Real ranges, standing on the ground the course stands on, two hundred
+       units out.
+
+       They were painted first — a silhouette computed in the sky shader from
+       the ray's own compass direction — and painting is genuinely the cheaper
+       answer: no vertices, no draw call, and a skyline as fine as the screen
+       is. What it cannot do is be somewhere. A painted range is fixed to the
+       dome, so it does not shift as the player walks up the fairway, it cannot
+       pass behind the flag or in front of the sun, one range cannot occlude
+       another except in the order the code happens to draw them, and light on
+       it is a dot product with a direction rather than with a slope. All of
+       that is what "distant scenery" is made of, and none of it survives being
+       flat. So: geometry.
+
+       **Two bands, as annuli.** For each ring of a band the height is a ridged
+       fractal noise sampled at the vertex's own place in the world — folded
+       about its middle (`1 - |2n-1|`), which turns the blobs a plain noise
+       makes into the creases a mountain has — tapered by a sine across the
+       band so both edges come back to nothing. The far band is lower, wider
+       out, and hazier, and the two overlap by a few units so the near one's
+       feet are always inside the far one rather than beside it.
+
+       **They are buried, not placed.** The mesh's origin is `RIDGE_SINK`
+       *below* the surround, so the taper's ends are under the ground rather
+       than meeting it at a visible hem — which matters because the ground out
+       there rolls by up to a theme's `relief`, and a hem laid exactly on a
+       nominal height would be above the ground on one bearing and below it on
+       the next. Sunk deeper than any relief can lift, the join is the ground's
+       own edge every time, and the surround's own rises read as foothills in
+       front of the range instead of as a seam through it.
+
+       **Nothing lights them.** At two hundred units every vertex of every
+       range is the same distance from the same sun, so a light would spend a
+       per-frame calculation arriving at what the build already knows. The
+       rock, the snow, the sun on the western faces and the haze eating the
+       feet are all folded into one vertex colour here, and the shader
+       (shaders.js → the hills on the horizon) hands it to the frame buffer
+       untouched. That is also what keeps them the same colour as the sky they
+       stand against: three.js's fog would have painted them out entirely at
+       this distance, and its tone map and encode would have moved them off the
+       colour the raw sky shader writes.
+
+       The heights are small — a "mountain" here is nine to seventeen units.
+       That is not modesty, it is arithmetic: at two hundred units and an eye
+       four above the ground, seventeen units is 0.065 radians, and this camera
+       is pitched down at a golf ball and has about 0.06 radians of sky above
+       the horizon to give. A range built to look like a photograph would top
+       out a screen and a half above the frame. */
+
+    var RIDGE_SECT = 384;   // wedges round: 0.016 rad each, so a crest is a
+                            // crest rather than a row of facets
+    var RIDGE_RINGS = 6;
+    var RIDGE_SINK = 7;     // how far under the surround the skirts start
+    /* Inner and outer radius, how much of the theme's peak height this band
+       gets, and how much extra air is in front of it. */
+    var RIDGE_BANDS = [
+        { r0: 168, r1: 238, k: 1.00, haze: 0.00 },
+        { r0: 230, r1: 292, k: 0.70, haze: 0.38 }
+    ];
+
+    /* Ridged fractal noise, on the surround's own hash. Each octave is folded
+       about its middle before it is added, which is the whole difference
+       between a hill and a mountain: `vnoise` alone gives rounded lumps with
+       rounded troughs, and one fold turns every trough into a crest and leaves
+       the valleys wide. `rough` is the octave falloff — 0.4 is a moor, 0.6 is
+       an alp. */
+    function ridgeNoise(x, z, rough) {
+        var v = 0, a = 0.5, w = 0, i, n;
+        for (i = 0; i < 4; i++) {
+            n = surNoise(x, z);
+            v += a * (1 - Math.abs(2 * n - 1));
+            w += a;
+            x = x * 2.07 + 3.1;
+            z = z * 2.07 + 7.7;
+            a *= rough;
+        }
+        return v / w;
+    }
+
+    function ridgeBand(band, ridge, theme, weather, cx, cz) {
+        var peak = ridge.peak * band.k;
+        var pos = [], tint = [], idx = [], i, j, t, rr, ang, px, pz, h;
+
+        for (i = 0; i <= RIDGE_RINGS; i++) {
+            t = i / RIDGE_RINGS;
+            rr = band.r0 + (band.r1 - band.r0) * t;
+            for (j = 0; j < RIDGE_SECT; j++) {
+                ang = j / RIDGE_SECT * Math.PI * 2;
+                px = Math.cos(ang) * rr;
+                pz = Math.sin(ang) * rr;
+                // The crest runs round the middle of the band and both edges
+                // come back to the ground, so the range has a front and a back
+                // rather than an outline.
+                h = peak * ridgeNoise((cx + px) * 0.011, (cz + pz) * 0.011, ridge.rough) *
+                    Math.sin(Math.PI * t);
+                pos.push(px, RIDGE_SINK + h, pz);
+                tint.push(0, 0, 0);           // filled below, off the normals
+            }
+        }
+        function at(ring, k) { return ring * RIDGE_SECT + (k % RIDGE_SECT); }
+        for (i = 0; i < RIDGE_RINGS; i++) {
+            for (j = 0; j < RIDGE_SECT; j++) {
+                idx.push(at(i, j), at(i, j + 1), at(i + 1, j + 1));
+                idx.push(at(i, j), at(i + 1, j + 1), at(i + 1, j));
+            }
+        }
+
+        var geo = new THREE.BufferGeometry();
+        geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(pos), 3));
+        geo.setIndex(idx);
+        geo.computeVertexNormals();
+
+        /* And now the light and the air, once, here — see the note above on
+           why this is not a material's job.
+
+           `air` is how much of the range the weather leaves: a clear day gets
+           nearly all of it, a sea fog has no business leaving a mountain range
+           crisply drawn above the water it has just swallowed. */
+        var air = Math.max(0, Math.min(1, 1.45 - 0.45 * weather.fog)) * (1 - band.haze);
+        var fog = skyTint(theme.fog, weather, false);
+        var rock = new THREE.Color(ridge.colour);
+        var cap = new THREE.Color(ridge.cap);
+        var nrm = geo.attributes.normal.array;
+        var col = new THREE.Color();
+        var sun = _ridgeSun.copy(R.sunDir).normalize();
+        var out = new Float32Array(pos.length);
+        for (i = 0; i < pos.length / 3; i++) {
+            /* How far up this range's own height it is: nought at the ground
+               it stands on, one at the tallest peak the band can have. The
+               sink comes back off first — measured from the buried hem, every
+               vertex would read as half a mountain further up than it is, and
+               the whole range would come out wearing the colour of its own
+               summit. */
+            var f = Math.max(0, Math.min(1, (pos[i * 3 + 1] - RIDGE_SINK) / Math.max(peak, 1e-3)));
+            /* Aerial perspective — but a *linear* ramp off a high floor, and
+               that is the one number in here that had to be found by looking.
+               The obvious curve is a square off nothing, and it is what the
+               sky's own haze uses: air thickens with distance, so the foot of
+               a far hill should be nearly the colour of the air. It comes out
+               as a pale smear. The reason is that this camera cannot see a
+               range from top to bottom — it has about a fifteenth of a radian
+               of sky over the horizon, a range fills most of it, and the part
+               it fills is the part where a squared fade has already given
+               everything away. Off a floor of a third, the whole visible slice
+               of a hill carries some rock. */
+            col.copy(fog).lerp(rock, (0.30 + 0.70 * f) * air);
+            // Snow, or bare sunlit rock — whatever the theme calls the top of
+            // its own hills — and only on the last of the height.
+            if (f > 0.78) col.lerp(cap, Math.min(1, (f - 0.78) / 0.20) * 0.45 * air);
+            // The slope facing the sun is the lit one. This is the half a
+            // painted skyline could never have: it is the *ground's* tilt, so
+            // one face of a crest is lit and the other is not.
+            var nl = nrm[i * 3] * sun.x + nrm[i * 3 + 1] * sun.y + nrm[i * 3 + 2] * sun.z;
+            var lit = 1 + (Math.max(0, nl) * 0.30 - 0.12) * air * weather.sun;
+            out[i * 3] = col.r * lit;
+            out[i * 3 + 1] = col.g * lit;
+            out[i * 3 + 2] = col.b * lit;
+        }
+        geo.setAttribute('tint', new THREE.BufferAttribute(out, 3));
+        geo.deleteAttribute('normal');      // baked; nothing reads it again
+        return geo;
+    }
+
+    var _ridgeSun = new THREE.Vector3();
+
+    function addRidges(group, hole, theme, weather) {
+        var ridge = theme.ridge;
+        // No hills on a theme that has none: the arcade is a basement and the
+        // works is a shed, and neither has a horizon.
+        if (!ridge) return;
+
+        var cx = (hole.bounds.minX + hole.bounds.maxX) / 2;
+        var cz = (hole.bounds.minZ + hole.bounds.maxZ) / 2;
+        var mat = new THREE.ShaderMaterial({
+            vertexShader: SH.RIDGE_VS, fragmentShader: SH.RIDGE_FS, fog: false
+        });
+        for (var b = 0; b < RIDGE_BANDS.length; b++) {
+            var mesh = new THREE.Mesh(
+                ridgeBand(RIDGE_BANDS[b], ridge, theme, weather, cx, cz), mat);
+            mesh.position.set(cx, theme.surroundY - RIDGE_SINK, cz);
+            // Drawn after the dome and before everything near, and it neither
+            // casts nor catches a shadow: the shadow camera is 120 units deep
+            // and these are past two hundred.
+            mesh.renderOrder = -1 + (b === 0 ? 0.2 : 0.1);
+            group.add(mesh);
+        }
+    }
+
     /* The hole through the green is real geometry (see punchedSlab); what is
        added here is the liner that makes the shaft read as a shaft, the floor
        the ball comes to rest on, the white rim, and the pin.
@@ -2123,6 +2283,7 @@
         g.add(skyDome(theme, weather));
         lights(g, hole, theme, weather);
         addSurround(g, hole, theme);
+        addRidges(g, hole, theme, weather);
 
         var i;
         for (i = 0; i < hole.pads.length; i++) addPad(g, hole.pads[i], theme, hole.cup, hole.pads);
@@ -2797,16 +2958,6 @@
             u.chop.value = 0.55 + Math.min(1.6, wind.speed * 1.5);
         }
         if (R.sky && G3.weather) R.sky.uniforms.drift.value.copy(G3.weather.cloudOffset);
-        /* Where the rim of the world sits, in the sky shader's own units, from
-           where the camera has just finished moving to. The hills on the
-           horizon are anchored to it (shaders.js), and it is a different
-           number from the tee than it is from the overview — half a degree
-           against ten — which is exactly why it cannot be a constant. */
-        if (R.sky && R.theme) {
-            R.sky.uniforms.ridgeFoot.value =
-                -Math.min(0.5, (R.camera.position.y - R.theme.surroundY) / SUR_R);
-        }
-
         flapFlag(dt, wind);
 
         // The bag rides in front of the camera, so it is placed after the

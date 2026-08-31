@@ -45,8 +45,7 @@
 
     var SKY_FS = [
         'uniform vec3 top, bottom, fogColour, sunColour, cloudTop, cloudBase, sunDir;',
-        'uniform vec3 ridgeColour, ridgeCap;',
-        'uniform float cover, sunI, sharp, hazeTop, starI, ridgeH, ridgeRough, ridgeFoot;',
+        'uniform float cover, sunI, sharp, hazeTop, starI;',
         'uniform vec2 drift;',
         'varying vec3 vDir;',
 
@@ -95,33 +94,6 @@
         '  return smoothstep(0.34, 0.02, length(gf)) * (0.25 + 0.75 * mag);',
         '}',
 
-        /* The country the course is standing in, drawn as a silhouette rather
-           than as geometry. A ridge line is a one-dimensional height field
-           read round the horizon: for each ray, walk a point round a circle in
-           the ray's own compass direction and sample the same value noise the
-           clouds use. Everything below that height is hill, everything above
-           it is sky.
-
-           The circle matters. The obvious parameter is `atan(d.z, d.x)`, and
-           it puts a seam due north where the angle wraps — one straight
-           vertical cut through a mountain, in the one place a player turning
-           on the tee will sweep past. Sampling the noise at a *point on a
-           circle* has no wrap to get wrong.
-
-           `ridgeRough` is the octave falloff, and it is the difference between
-           a moor and an alp: at 0.4 each octave adds a fifth of the last and
-           the skyline rolls, at 0.6 it adds most of it and the skyline breaks
-           into peaks. */
-        'float ridgeLine(vec2 p){',
-        '  float v = 0.0, a = 0.5, w = 0.0;',
-        '  for (int i = 0; i < 4; i++) {',
-        '    v += a * vnoise(p);',
-        '    w += a;',
-        '    p = p * 2.07 + vec2(3.1, 7.7);',
-        '    a *= ridgeRough;',
-        '  }',
-        '  return v / max(w, 1e-4);',
-        '}',
 
         'void main(){',
         '  vec3 d = normalize(vDir);',
@@ -160,75 +132,6 @@
            without that the fog would swallow the water and then stop dead at a
            horizon with a hard-edged cloud deck sitting on it. */
         '  sky = mix(sky, fogColour, smoothstep(hazeTop, -0.04, h));',
-
-        /* Two ranges, the far one drawn first and the near one over it, so the
-           skyline has a depth to it that one row of hills does not.
-
-           Painted last, over the horizon haze rather than under it, and
-           carrying its own instead. Under it the range took two fades — the
-           band's own and then the sky's — and came out the exact colour of the
-           air it was standing in, which is a mountain you cannot see. One
-           fade, run between this skyline's own foot and its own top, is also
-           the whole of what makes the far range read as further off than the
-           near one. How much of any of it survives a sea fog is settled in the
-           uniform instead: `ridgeH` collapses as the weather thickens, and at
-           nought there is no horizon at all.
-
-           **Everything here is measured in hundredths of a radian**, and that
-           is not timidity — it is where the camera is looking. This one is
-           pitched down at a golf ball, so it shows a couple of degrees of sky
-           above the skyline and no more. A range built to the height a
-           mountain has in a photograph would not read as a mountain here: the
-           player would be standing inside it, with its top a screen and a half
-           above the frame, and the whole picture would just be a
-           differently-coloured sky.
-
-           `ridgeFoot` is the other half of that, and it is the one number in
-           here the JS has to work out: the elevation of the rim of the ground
-           mesh from wherever the camera is standing (render.js, per frame).
-           That rim is where the sky starts, and it is not the horizon — from
-           a tee it is a fortieth of a radian below it, from the overview a
-           sixth. A range anchored at nought floats above the ground on the
-           first and paints itself across the floor on the second; anchored a
-           few thousandths under the rim it meets the ground on both, because
-           it is now measured against the same thing the player is looking at.
-
-           So the hills run from just under the rim up to their skyline and
-           take their whole fade over that span — squared, because the bottom
-           half of a range twenty miles off is mostly the air in front of
-           it.
-
-           Below `HBASE` a range is the colour of the fog and therefore
-           invisible, which is what keeps it off the floor of an overview
-           looking down past the edge of the world. */
-        '  if (ridgeH > 0.001) {',
-        '    float base = ridgeFoot - 0.006;',
-        '    vec2 nz = normalize(d.xz + vec2(1e-5));',
-        '    float foot = smoothstep(ridgeFoot - 0.024, ridgeFoot - 0.005, h);',
-        '    float aa = 0.0012;',
-
-        '    float tFar = ridgeH * (0.26 + 0.40 * ridgeLine(nz * 2.1 + 17.0));',
-        '    float bFar = clamp((h - base) / max(tFar - base, 1e-3), 0.0, 1.0);',
-        // Aerial perspective, and it is the whole reason a distant range reads
-        // as distant: the foot of a hill is the colour of the air in front of
-        // it and only the top carries any of its own.
-        '    vec3 cFar = mix(fogColour, ridgeColour, 0.08 + 0.44 * bFar * bFar);',
-        '    sky = mix(sky, cFar, smoothstep(tFar + aa, tFar - aa, h) * foot);',
-
-        '    float tNear = ridgeH * (0.44 + 0.56 * ridgeLine(nz * 3.3 + 61.0));',
-        '    float band = clamp((h - base) / max(tNear - base, 1e-3), 0.0, 1.0);',
-        // Gullies: a noise stretched hard in height, so the face of the range
-        // is grained the way a hillside is instead of being a flat cut-out.
-        '    float gully = vnoise(vec2(dot(nz, vec2(11.0, -8.0)), h * 340.0));',
-        '    vec3 cNear = mix(fogColour, ridgeColour, 0.10 + 0.90 * band * band) * (0.95 + 0.11 * gully);',
-        // Snow, or bare sunlit rock — whatever the theme calls the top of its
-        // own hills — and only on the last of the height.
-        '    cNear = mix(cNear, ridgeCap, smoothstep(0.86, 0.995, band) * 0.6);',
-        // The side facing the sun is the lit side. One dot product, and it is
-        // what stops the range from reading as a paper cut-out.
-        '    cNear += sunColour * max(dot(nz, normalize(sunDir.xz + vec2(1e-4))), 0.0) * 0.05 * sunI * band;',
-        '    sky = mix(sky, cNear, smoothstep(tNear + aa, tNear - aa, h) * foot);',
-        '  }',
 
         '  gl_FragColor = vec4(sky, 1.0);',
         '}'
@@ -594,6 +497,41 @@
         '#endif'
     ].join('\n');
 
+    /* ── the hills on the horizon ───────────────────────────────────────
+
+       Two lines of GLSL, and they are two lines on purpose.
+
+       The ranges are real geometry (render.js → the hills on the horizon), a
+       long way out and lit by nothing: at two hundred units every one of them
+       is the same distance from the same sun, so what a light would compute
+       per frame is exactly what the build already knows per vertex. Their
+       colour — the rock, the snow on the tops, the haze eating the feet, the
+       side that faces the sun — is baked into a vertex attribute when the hole
+       is built, and this shader's whole job is to not interfere with it.
+
+       Which is why it is a `ShaderMaterial` rather than a Basic one with
+       `vertexColors`. The horizon has to *match the sky*, and the sky is a raw
+       shader that writes its colours out untouched — no fog, no tone map, no
+       encode. A built-in material would take all three on the way to the frame
+       buffer and a hill painted the fog's own colour would come out a
+       different one from the fog behind it, which is a seam along the exact
+       line this whole feature exists to hide. Same treatment, same colour, no
+       seam. */
+
+    var RIDGE_VS = [
+        'attribute vec3 tint;',
+        'varying vec3 vTint;',
+        'void main(){',
+        '  vTint = tint;',
+        '  gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);',
+        '}'
+    ].join('\n');
+
+    var RIDGE_FS = [
+        'varying vec3 vTint;',
+        'void main(){ gl_FragColor = vec4(vTint, 1.0); }'
+    ].join('\n');
+
     /* ── the surround ───────────────────────────────────────────────────
 
        The ground beyond the course is one enormous mesh with one small
@@ -672,7 +610,9 @@
         SUR_VS_HEAD: SUR_VS_HEAD,
         SUR_VS_BODY: SUR_VS_BODY,
         SUR_FS_HEAD: SUR_FS_HEAD,
-        SUR_FS_BODY: SUR_FS_BODY
+        SUR_FS_BODY: SUR_FS_BODY,
+        RIDGE_VS: RIDGE_VS,
+        RIDGE_FS: RIDGE_FS
     };
 
 })(window.G3);

@@ -153,7 +153,9 @@
         var SOURCES = {
             SKY_VS: SH.SKY_VS, SKY_FS: SH.SKY_FS,
             WATER_VS: SH.WATER_VS, WATER_FS: SH.WATER_FS,
-            TURF_FS_HEAD: SH.TURF_FS_HEAD, TURF_FS_BODY: SH.TURF_FS_BODY
+            TURF_FS_HEAD: SH.TURF_FS_HEAD, TURF_FS_BODY: SH.TURF_FS_BODY,
+            SUR_FS_HEAD: SH.SUR_FS_HEAD, SUR_FS_BODY: SH.SUR_FS_BODY,
+            RIDGE_VS: SH.RIDGE_VS, RIDGE_FS: SH.RIDGE_FS
         };
 
         Object.keys(SOURCES).forEach(function (k) {
@@ -173,6 +175,24 @@
 
         assert('WATER_FS guards its pretty path behind PRETTY',
             /#ifdef PRETTY/.test(SH.WATER_FS));
+
+        /* A splice replaces the chunk it is spliced at, so it has to put that
+           chunk back. Drop `<map_fragment>` from the surround's body and the
+           ground silently loses its texture — it still compiles, still draws,
+           and comes out a flat colour that looks like a lighting bug. */
+        assert('the surround splice keeps the map fragment it replaces',
+            SH.SUR_FS_BODY.indexOf('#include <map_fragment>') === 0);
+        assert('the surround splice keeps the vertex chunk it replaces',
+            SH.SUR_VS_BODY.indexOf('#include <begin_vertex>') === 0);
+        assert('the surround body reads the varying its head declares',
+            /varying vec3 vSur;/.test(SH.SUR_FS_HEAD) && /vSur\./.test(SH.SUR_FS_BODY) &&
+            /vSur =/.test(SH.SUR_VS_BODY));
+
+        /* The hills have no uniforms, so their JS/GLSL boundary is one
+           attribute: render.js bakes `tint` per vertex and this is the half
+           that reads it. Rename either end and the ranges come out black. */
+        assert('the ridge shader declares the attribute render.js bakes',
+            /attribute vec3 tint;/.test(SH.RIDGE_VS) && /vTint/.test(SH.RIDGE_FS));
 
         /* The wave level-of-detail is an aliasing fix, not an effect: the sea
            runs to the horizon, so a train finer than the pixel it lands in is
@@ -380,6 +400,32 @@
             assert('and the materials got it back',
                 R.state.waterMats.every(function (m) { return 'PRETTY' in m.defines; }));
             }
+
+            /* And the other half of the ridge boundary, against the real
+               geometry: every range the build put in the scene carries a
+               `tint` for every vertex it has. A missing attribute is not a
+               compile error — it reads as zero, and a black mountain range on
+               a blue sky is the sort of thing a screenshot of the tee will not
+               show you. */
+            section('THE HILLS ON THE HORIZON');
+            (function () {
+                var ranges = [];
+                R.state.holeGroup.traverse(function (o) {
+                    if (o.material && o.material.vertexShader === SH.RIDGE_VS) ranges.push(o);
+                });
+                assert('the themed hole built its ranges', ranges.length === 2,
+                    ranges.length + ' found');
+                ranges.forEach(function (m, i) {
+                    var pos = m.geometry.attributes.position;
+                    var tint = m.geometry.attributes.tint;
+                    assert('range ' + i + ' has a tint for every vertex',
+                        !!tint && tint.count === pos.count,
+                        tint ? tint.count + ' vs ' + pos.count : 'no tint attribute');
+                    assert('range ' + i + ' is not left black',
+                        !!tint && Array.prototype.some.call(tint.array, function (v) { return v > 0.02; }));
+                    assert('range ' + i + ' is out past the fog', !m.material.fog);
+                });
+            })();
 
             /* Uniforms, now that a real material exists to compare the source
                against. Checked in both directions, because the two failures
