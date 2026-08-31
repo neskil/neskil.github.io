@@ -32,7 +32,7 @@
 
         gtag('config', 'G-9GP823TGLB');
     </script>
-    <link rel="stylesheet" href="style.css?v=1.17.0">
+    <link rel="stylesheet" href="style.css?v=1.18.0">
 </head>
 <body>
     <div class="wrap">
@@ -62,6 +62,7 @@
                     <a class="chip" id="chip-editor" href="level-editor.html" title="Build a hole of your own">&#9998;<span class="chip-text"> Editor</span></a>
                     <button class="chip" id="btn-mute" title="Sound (M)" aria-label="Unmute"><span id="mute-icon">🔇</span><span class="chip-text"> Sound</span></button>
                     <button class="chip" id="btn-music" title="Background music (J)" aria-label="Turn the music off"><span id="music-icon">♪</span><span class="chip-text"> Jazz</span></button>
+                    <button class="chip" id="btn-fps" title="Show the frame rate (P)" aria-pressed="false"><span id="fps-icon">▦</span><span class="chip-text"> FPS</span></button>
                     <button class="chip" id="btn-water" title="Reflections, foam and glitter on the water (O)" aria-label="Turn the fancy water off"><span id="water-icon">≈</span><span class="chip-text"> Water</span></button>
                 </div>
                 <button class="chip chip-menu" id="btn-menu" title="More" aria-label="More controls"
@@ -145,8 +146,17 @@
                  here is reached mid-shot, and everything that left the bottom
                  bar is width and height the power meter now has. -->
             <div class="viewctl" id="viewctl">
-                <span class="ctl-label">View <b id="view-val">Straight</b></span>
-                <div class="view-row">
+                <!-- The label is the handle. Where you stand is worth a glance
+                     on every hole and worth *adjusting* on very few, so the row
+                     folds away behind the one line that says what it currently
+                     reads — which is the half you actually look at. Folded, it
+                     is a pill; open, it is the row it always was, a size down.
+                     On a phone it starts folded, because a phone is where the
+                     course has the least room to spare. -->
+                <button type="button" class="ctl-label view-toggle" id="view-toggle"
+                        aria-expanded="true" aria-controls="view-row"
+                        title="Show or hide the view controls">View <b id="view-val">Straight</b><span class="ctl-caret" aria-hidden="true">▾</span></button>
+                <div class="view-row" id="view-row">
                     <!-- The lock decides what the dial is measured off: the
                          shot, which turns the camera with it, or a fixed
                          direction in the world, which leaves it alone. -->
@@ -188,6 +198,13 @@
             </div>
 
             <div class="controls">
+                <!-- Frames per second, and nothing else. It rides above the
+                     meter rather than in a corner of its own so it can never
+                     land on top of anything: the bar it sits in is already the
+                     one strip of the stage nothing else is allowed into. On
+                     by default and deliberately quiet; the choice is kept in
+                     localStorage and turned over with P or from the ☰ menu. -->
+                <div class="fps" id="fps" aria-hidden="true">— fps</div>
                 <div class="ctl-row">
                     <div class="power">
                         <span class="ctl-label">Power <b id="power-val">0%</b></span>
@@ -355,7 +372,7 @@
                 <kbd>←</kbd><kbd>→</kbd> aim · <kbd>↑</kbd><kbd>↓</kbd> power · <kbd>space</kbd> swing ·
                 <kbd>shift</kbd> fine control · <kbd>,</kbd><kbd>.</kbd> view round the ball ·
                 <kbd>L</kbd> lock it · <kbd>0</kbd> straighten · <kbd>V</kbd> seat ·
-                <kbd>F</kbd> fullscreen · <kbd>R</kbd> restart hole · <kbd>M</kbd> sound · <kbd>J</kbd> music · <kbd>O</kbd> fancy water
+                <kbd>F</kbd> fullscreen · <kbd>R</kbd> restart hole · <kbd>M</kbd> sound · <kbd>J</kbd> music · <kbd>O</kbd> fancy water · <kbd>P</kbd> frame rate
             </p>
 
             <div class="modal-actions">
@@ -403,7 +420,7 @@
             <span><b>The View dial</b> along the top of the course walks the camera round the ball without moving the shot — the <b>⌖</b> in its middle puts it back behind the ball, and so does a new hole. The <b>🔓</b> beside it locks the camera where it is, so aiming stops swinging the view round; handy on the overview, where a drag to aim otherwise turns the whole hole under you.</span>
             <span class="kb-help"><kbd>←</kbd><kbd>→</kbd> aim · <kbd>↑</kbd><kbd>↓</kbd> power · <kbd>1</kbd>–<kbd>5</kbd> club
                 · <kbd>space</kbd> swing (<kbd>shift</kbd> for fine control)</span>
-            <span class="kb-help"><kbd>V</kbd> seat: follow, side on, overview · <kbd>,</kbd><kbd>.</kbd> walk round · <kbd>L</kbd> lock the camera · <kbd>0</kbd> straighten · <kbd>F</kbd> fullscreen · <kbd>R</kbd> restart hole · <kbd>W</kbd> weather · <kbd>M</kbd> sound · <kbd>J</kbd> music · <kbd>O</kbd> fancy water · scroll to zoom</span>
+            <span class="kb-help"><kbd>V</kbd> seat: follow, side on, overview · <kbd>,</kbd><kbd>.</kbd> walk round · <kbd>L</kbd> lock the camera · <kbd>0</kbd> straighten · <kbd>F</kbd> fullscreen · <kbd>R</kbd> restart hole · <kbd>W</kbd> weather · <kbd>M</kbd> sound · <kbd>J</kbd> music · <kbd>O</kbd> fancy water · <kbd>P</kbd> frame rate · scroll to zoom</span>
             <span class="touch-help">Drag sideways to turn, up and down to raise and drop the camera — a tap on its own leaves the aim where it was. Drag the View dial along the top to look at the shot from the side, and hold a nudge button to keep it moving. Pinch to zoom, swipe the bag to switch clubs. Turn your phone sideways for a bigger course.</span>
             <span><button type="button" class="linkish" id="btn-help-2">How to play</button></span>
         </div>
@@ -430,22 +447,22 @@
 
     <!-- Load order is dependency order: config, then the pure logic, then the
          things that touch the screen. game.js boots itself on DOMContentLoaded. -->
-    <script src="js/config.js?v=1.17.0"></script>
-    <script src="js/themes.js?v=1.17.0"></script>
-    <script src="js/physics.js?v=1.17.0"></script>
-    <script src="js/courses.js?v=1.17.0"></script>
-    <script src="js/custom.js?v=1.17.0"></script>
-    <script src="js/scoring.js?v=1.17.0"></script>
-    <script src="js/audio.js?v=1.17.0"></script>
-    <script src="js/music.js?v=1.17.0"></script>
-    <script src="js/bag.js?v=1.17.0"></script>
-    <script src="js/textures.js?v=1.17.0"></script>
-    <script src="js/shaders.js?v=1.17.0"></script>
-    <script src="js/postfx.js?v=1.17.0"></script>
-    <script src="js/weather.js?v=1.17.0"></script>
-    <script src="js/render.js?v=1.17.0"></script>
-    <script src="js/minimap.js?v=1.17.0"></script>
-    <script src="js/debug.js?v=1.17.0"></script>
-    <script src="js/game.js?v=1.17.0"></script>
+    <script src="js/config.js?v=1.18.0"></script>
+    <script src="js/themes.js?v=1.18.0"></script>
+    <script src="js/physics.js?v=1.18.0"></script>
+    <script src="js/courses.js?v=1.18.0"></script>
+    <script src="js/custom.js?v=1.18.0"></script>
+    <script src="js/scoring.js?v=1.18.0"></script>
+    <script src="js/audio.js?v=1.18.0"></script>
+    <script src="js/music.js?v=1.18.0"></script>
+    <script src="js/bag.js?v=1.18.0"></script>
+    <script src="js/textures.js?v=1.18.0"></script>
+    <script src="js/shaders.js?v=1.18.0"></script>
+    <script src="js/postfx.js?v=1.18.0"></script>
+    <script src="js/weather.js?v=1.18.0"></script>
+    <script src="js/render.js?v=1.18.0"></script>
+    <script src="js/minimap.js?v=1.18.0"></script>
+    <script src="js/debug.js?v=1.18.0"></script>
+    <script src="js/game.js?v=1.18.0"></script>
 </body>
 </html>

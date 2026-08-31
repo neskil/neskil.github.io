@@ -1339,6 +1339,18 @@ screen. The ⌖ in the middle of the track walks it straight back and levels the
 pitch with it; the zoom is left alone, being its own control. It lights up
 whenever there is anything to undo.
 
+The row **folds**. What the dial is set to is worth a glance on every hole and
+worth changing on very few, so the label above it — `View Straight` — is the
+handle: it carries the reading and the row hides behind it. Folded it is one
+pill in the corner; open it is the row it always was, a size down from what it
+used to be, because nothing on it is reached mid-shot and so none of it needs a
+thumb's worth of target the way the meter does. A phone starts folded and
+anything wider starts open, and one press either way is remembered
+(`VIEWCTL_KEY`) and then holds on every screen. The class goes on `.stage` as
+well as on the row: the two things that move out of the row's way — the hole's
+figures and the hole card — sit *above* it in the DOM, where a sibling selector
+cannot reach them.
+
 It used to sit on its own line above the power meter, and the two of them plus
 the Swing row made three tiers of small controls stacked into the bottom corner
 of a phone. That is three chances to press the wrong one, and the meter — the
@@ -1412,6 +1424,27 @@ round from wherever that puts you. Straight is behind the ball in follow and
 square across the shot side on, and the dial turns either of them — and the
 overview with them, so a hole looked at from one end stays looked at from that
 end.
+
+### The frame-rate readout
+
+One number at the right-hand end of the shot bar, on by default and
+deliberately quiet (`FPS_KEY` stores only a player who has turned it off,
+<kbd>P</kbd> or the ☰ menu turns it over). It rides *inside* `.controls`
+rather than in a corner of its own, which is the whole of its layout: that bar
+is already the one strip of the stage nothing else is allowed into, so the
+readout can never land on top of anything at any width.
+
+Two things about the measurement are deliberate. It averages over half a
+second, because an instantaneous `1/dt` on a phone flickers through a
+fifteen-frame range and reads as noise — a number you cannot hold still is a
+number you cannot compare against the last time you looked. And it is taken
+from the **raw** frame delta, not the one the loop clamps to 0.05: that clamp
+is the physics' business, it is what stops a dropped second from teleporting
+the ball through a wall, and measuring through it would put a floor of 20
+under the readout — blind at exactly the frame rate worth reading. A long
+frame is data and is counted as one; only `visibilitychange` throws the
+half-measured window away, because a backgrounded tab is not a slow frame, it
+is no frame at all.
 
 ## Weather
 
@@ -2190,8 +2223,8 @@ the seat — follow, side on, overview — <kbd>,</kbd><kbd>.</kbd> walk the vie
 round the ball, <kbd>L</kbd> lock it where it is, <kbd>0</kbd> straighten it,
 <kbd>F</kbd> fullscreen, <kbd>R</kbd> restart the hole, <kbd>W</kbd> the
 weather, <kbd>H</kbd> the rules, <kbd>M</kbd> sound, <kbd>J</kbd> the music,
-<kbd>O</kbd> the fancy water, <kbd>G</kbd> the course inspector. Scroll or
-pinch to zoom.
+<kbd>O</kbd> the fancy water, <kbd>P</kbd> the frame rate, <kbd>G</kbd> the
+course inspector. Scroll or pinch to zoom.
 
 ### Under a thumb
 
@@ -2216,6 +2249,29 @@ place, because every one of them was learned from the same complaint:
 - **A capture can be lost without a `pointerup`.** Every drag control listens
   for `lostpointercapture` as well as `pointercancel`, or it stays "held" and
   swallows the next press.
+- **And the ledger of live fingers has to be swept from every direction.**
+  This is the same fault as the one above with the worst possible blast
+  radius, and it is worth spelling out because it presents as something else
+  entirely. `game.js` keeps a `pointers` map of what is on the glass, and
+  counts it to tell a look drag from a pinch. A phone will not always say when
+  a touch ends — a release outside the canvas, a capture taken away by a
+  system gesture, the fullscreen switch in the topbar, the notification shade,
+  a palm. One missed release and the ghost entry is permanent: the *next*
+  press counts two pointers, becomes a pinch, and from then on every drag on
+  the course does nothing at all — while the meter and the dial, which own
+  their own captures, carry on working perfectly. What that looks like from
+  the sofa is "the middle of the screen stopped registering and the edges
+  still work", which is a bug report about hit-testing for a fault that has
+  nothing to do with where you pressed. So the sweep comes from four sides:
+  `pointerdown` on a **primary** pointer clears the map outright (the browser
+  only calls a pointer primary when nothing else is down, so the glass
+  provably *was* empty), the canvas listens for `lostpointercapture`, a
+  window-level `pointerup`/`pointercancel` net closes a release the canvas
+  never saw — ending the drag where it was rather than reverting it, which is
+  its own kind of not registering — and `visibilitychange` and `blur` clear
+  everything. `forget()` also drops out of a pinch as soon as fewer than two
+  fingers remain, rather than waiting for the glass to be completely clear:
+  waiting was the state one missed release could get stuck in.
 - **A dead button is indistinguishable from a missed press.** Swing is disabled
   only while the stroke is somebody else's — the ball rolling, the hole over.
   Standing over an empty meter it stays pressable and answers by flashing the

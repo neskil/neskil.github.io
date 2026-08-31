@@ -631,7 +631,36 @@
     var pinchIds = null;     // the two the pinch is measuring, so lifting a
                              // third finger cannot swap the pair under it
     var pinchDist = 0;       // their spread at the last sample; 0 = unseeded
-    var pinching = false;    // a pinch owns the input until all fingers lift
+    var pinching = false;    // a pinch owns the input until the glass clears
+
+    /* ── keeping the ledger honest ──────────────────────────────────────────
+
+       Everything above is bookkeeping about fingers that are *supposed* to
+       still be on the glass, and a phone will not always say when one leaves.
+       A release outside the canvas, a capture taken away by a system gesture,
+       the fullscreen switch in the topbar, the notification shade, a palm
+       that grazed the screen — each can end a touch without a pointerup ever
+       arriving here.
+
+       Left unswept, one missed release is permanent: the ghost finger keeps
+       its entry, the next real press counts two pointers and turns into a
+       pinch, and from then on *every* drag on the course does nothing at all
+       while the meter and the dial — which own their own captures — carry on
+       working. That is what "the middle of the screen stopped registering"
+       is, and why it never comes back until the page is reloaded. So the
+       ledger is swept from every direction there is. */
+
+    // Nothing is on the glass. Used whenever the page has been away or the
+    // window has stopped being the thing the finger was touching.
+    function clearPointers() {
+        pointers = {};
+        pinching = false;
+        pinchIds = null;
+        pinchDist = 0;
+        bagGesture = null;
+        cancelLook();
+        look = null;
+    }
 
     function pinchSpread() {
         if (!pinchIds) return 0;
@@ -680,6 +709,13 @@
     }
 
     function onDown(e) {
+        /* The primary pointer is the first finger of a gesture, which the
+           browser only calls primary when no other one is down. So the glass
+           was empty an instant ago whatever this ledger believes, and
+           anything still in it is a ghost. This is the sweep that matters:
+           it is the one that runs on the very press that a stale entry would
+           otherwise turn into a pinch. */
+        if (e.isPrimary) clearPointers();
         // A pointer that has already gone cannot be captured; that is not a
         // reason to lose track of it.
         try { canvas.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
@@ -800,13 +836,37 @@
         forget(e.pointerId);
     }
 
+    /* The net, and only the net: by the time this runs the canvas has usually
+       handled the release already and there is nothing left to close. What it
+       is here for is the release the canvas never saw — a capture that was
+       never granted, a finger lifted over the topbar. That is an ordinary end
+       to the drag, not a cancelled one, so the view stays where the drag left
+       it; cancelLook would snap it back, which is its own kind of "it didn't
+       register". */
+    function onRelease(e) {
+        if (!pointers[e.pointerId]) return;
+        if (bagGesture && bagGesture.id === e.pointerId) bagGesture = null;
+        if (look && look.id === e.pointerId) look = null;
+        forget(e.pointerId);
+    }
+
     function forget(id) {
         delete pointers[id];
         if (!pinching) return;
-        if (pinchIds && (pinchIds[0] === String(id) || pinchIds[1] === String(id))) seedPinch();
-        // The pinch is over only once the glass is clear, so the finger still
-        // resting there cannot start a shot on its own.
-        if (!Object.keys(pointers).length) { pinching = false; pinchIds = null; pinchDist = 0; }
+        var left = Object.keys(pointers);
+        if (left.length >= 2) {
+            if (pinchIds && (pinchIds[0] === String(id) || pinchIds[1] === String(id))) seedPinch();
+            return;
+        }
+        /* One finger left, or none: there is nothing left to measure, so the
+           pinch is over. It used to hold on until the glass was completely
+           clear, which was one missed release away from owning the input for
+           good. The finger still down does not inherit a look drag — it never
+           asked for one — but the next press it makes is a fresh gesture
+           again rather than a second helping of a pinch. */
+        pinching = false;
+        pinchIds = null;
+        pinchDist = 0;
     }
 
     /* ── loading the shot ───────────────────────────────────────────────────
@@ -1120,6 +1180,7 @@
         if (k === 'm' || k === 'M') { toggleMute(); return; }
         if (k === 'j' || k === 'J') { toggleMusic(); return; }
         if (k === 'o' || k === 'O') { toggleWater(); return; }
+        if (k === 'p' || k === 'P') { toggleFps(); return; }
         if (k === 'r' || k === 'R') { restartHole(); return; }
         if (k === 'v' || k === 'V') { cycleSeat(); return; }
         if (k === 'f' || k === 'F') { toggleFullscreen(); return; }
@@ -1320,6 +1381,93 @@
         $('water-icon').textContent = on ? '≈' : '~';
         $('btn-water').setAttribute('aria-label',
             on ? 'Turn the fancy water off' : 'Turn the fancy water on');
+    }
+
+    /* ── the frame-rate readout ─────────────────────────────────────────── */
+
+    /* One number, averaged over half a second and written to the DOM only when
+       it changes. Averaging is the whole point: an instantaneous 1/dt on a
+       phone flickers through a fifteen-frame range and reads as noise, and a
+       readout you cannot hold still is a readout you cannot compare against
+       the last time you looked. Half a second is long enough to settle and
+       short enough that a stutter still shows up as one.
+
+       It costs a counter and, twice a second, one textContent. Nothing here
+       measures anything the frame was not already doing. */
+    var fpsAcc = 0, fpsFrames = 0, fpsShown = -1;
+
+    function fpsWanted() {
+        try { return localStorage.getItem(C.FPS_KEY) !== '1'; } catch (e) { return true; }
+    }
+
+    function toggleFps() {
+        var on = $('fps').hidden;          // hidden now means we are turning it on
+        try { localStorage.setItem(C.FPS_KEY, on ? '0' : '1'); } catch (e) { /* ignore */ }
+        syncFps();
+        toast(on ? 'Frame rate on' : 'Frame rate off');
+    }
+
+    function syncFps() {
+        var on = fpsWanted();
+        $('fps').hidden = !on;
+        $('btn-fps').classList.toggle('on', on);
+        $('btn-fps').setAttribute('aria-pressed', on ? 'true' : 'false');
+        $('btn-fps').setAttribute('aria-label', on ? 'Hide the frame rate' : 'Show the frame rate');
+        if (!on) { fpsAcc = 0; fpsFrames = 0; fpsShown = -1; }
+    }
+
+    function tickFps(dt) {
+        if ($('fps').hidden) return;
+        fpsAcc += dt;
+        fpsFrames++;
+        if (fpsAcc < 0.5) return;
+        var fps = Math.round(fpsFrames / fpsAcc);
+        fpsAcc = 0;
+        fpsFrames = 0;
+        if (fps === fpsShown) return;
+        fpsShown = fps;
+        var el = $('fps');
+        el.textContent = fps + ' fps';
+        el.classList.toggle('low', fps < 45 && fps >= 30);
+        el.classList.toggle('bad', fps < 30);
+    }
+
+    /* ── the view row, folded ───────────────────────────────────────────── */
+
+    /* What the row is *set to* is worth a glance on every hole; changing it is
+       worth a press on very few. So the label carries the reading and the row
+       hides behind it. A phone starts folded because a phone is where those
+       pixels are worth the most, and anything wider starts open because there
+       the row costs nothing — but one press either way is remembered, and from
+       then on it is the player's answer on every screen. */
+    function viewCtlOpenByDefault() {
+        return !(window.matchMedia && window.matchMedia('(max-width: 640px), (pointer: coarse)').matches);
+    }
+
+    function viewCtlWanted() {
+        try {
+            var v = localStorage.getItem(C.VIEWCTL_KEY);
+            if (v === '1') return true;
+            if (v === '0') return false;
+        } catch (e) { /* ignore */ }
+        return viewCtlOpenByDefault();
+    }
+
+    function toggleViewCtl() {
+        var open = $('viewctl').classList.contains('collapsed');
+        try { localStorage.setItem(C.VIEWCTL_KEY, open ? '1' : '0'); } catch (e) { /* ignore */ }
+        syncViewCtl(open);
+    }
+
+    function syncViewCtl(open) {
+        if (open === undefined) open = viewCtlWanted();
+        $('viewctl').classList.toggle('collapsed', !open);
+        // The class goes on the stage as well as on the row, because the two
+        // things that have to move out of the row's way — the hole's figures
+        // and the hole card — sit *above* it in the DOM and cannot be reached
+        // from it with a sibling selector.
+        $('stage').classList.toggle('view-collapsed', !open);
+        $('view-toggle').setAttribute('aria-expanded', open ? 'true' : 'false');
     }
 
     /* ── menus and cards ────────────────────────────────────────────────── */
@@ -1573,8 +1721,17 @@
 
     function loop(now) {
         raf = requestAnimationFrame(loop);
-        var dt = Math.min(0.05, (now - last) / 1000);
+        var raw = (now - last) / 1000;
+        var dt = Math.min(0.05, raw);
         last = now;
+        /* Counted off the raw delta, not the clamped one, and before the
+           early-out. The clamp is the physics' business — it is what stops a
+           dropped second from teleporting the ball through a wall — and it
+           puts a floor of 20 under anything measured through it, which is a
+           readout that goes blind at exactly the frame rate worth reading.
+           And a frame the game had nothing to do on is still a frame the
+           machine drew, which is the kind around a stall. */
+        tickFps(raw);
         if (!state || !state.world) return;
 
         if (state.phase === 'rolling') {
@@ -1643,6 +1800,32 @@
         canvas.addEventListener('pointermove', onMove);
         canvas.addEventListener('pointerup', onUp);
         canvas.addEventListener('pointercancel', onCancel);
+        // The same capture that keeps a drag alive off the edge of the canvas
+        // can be taken away without a pointerup — the dial and the meter both
+        // learned this already, and the course is the one that pays most for
+        // it, because the ghost it leaves behind reads as a pinch.
+        canvas.addEventListener('lostpointercapture', onCancel);
+        /* And the net under all of it. A release the canvas never hears about
+           still reaches the window, so the ledger closes the entry either
+           way; and a page that goes away — tabbed out, backgrounded,
+           fullscreen switched under a finger — comes back to a clear glass
+           rather than to whatever was down when it left. */
+        window.addEventListener('pointerup', onRelease);
+        window.addEventListener('pointercancel', onRelease);
+        window.addEventListener('blur', clearPointers);
+        document.addEventListener('visibilitychange', function () {
+            if (!document.hidden) return;
+            clearPointers();
+            /* And throw away the half-measured frame-rate window with it. A
+               backgrounded tab stops being asked for frames, so the gap either
+               side of it is not a slow frame — it is no frame at all, and
+               averaging it in would report single figures for the first half
+               second back. A genuinely long frame, on the other hand, is
+               exactly what the number is for, so nothing here judges one by
+               its length. */
+            fpsAcc = 0;
+            fpsFrames = 0;
+        });
         canvas.addEventListener('wheel', function (e) {
             e.preventDefault();
             zoom(e.deltaY * 0.004);
@@ -1667,6 +1850,8 @@
         holdToRepeat('btn-view-left', function () { nudgeView(-VIEW_STEP); }, 110);
         holdToRepeat('btn-view-right', function () { nudgeView(VIEW_STEP); }, 110);
         $('btn-view-lock').addEventListener('click', toggleLock);
+        $('view-toggle').addEventListener('click', toggleViewCtl);
+        $('btn-fps').addEventListener('click', toggleFps);
         // A drag that started on the ⌖ and walked away is not a press of it.
         $('btn-view-home').addEventListener('click', function () {
             if (viewTravelled) { viewTravelled = false; return; }
@@ -1710,6 +1895,8 @@
             if (e.target && e.target.closest && e.target.closest('.topbar-actions')) return;
             closeTopMenu();
         }, true);
+        syncFps();
+        syncViewCtl();
         syncCompact();
         if (compactQuery) {
             if (compactQuery.addEventListener) compactQuery.addEventListener('change', syncCompact);
