@@ -32,7 +32,7 @@ them.
 | `js/music.js` | The house band: a smooth jazz quartet, synthesised a bar at a time. |
 | `js/themes.js` | What each course looks like: a palette per theme, and nothing else. |
 | `js/textures.js` | Every texture, drawn into a canvas at load, and the rule that keeps them shared. |
-| `js/shaders.js` | The shaders written by hand rather than by three.js: the sky, the water, and the two splices into three.js's own — the turf and the ground beyond the course. |
+| `js/shaders.js` | The shaders written by hand rather than by three.js: the sky, the water, the hills on the horizon, and the two splices into three.js's own — the turf and the ground beyond the course. |
 | `js/weather.js` | The sky each hole gets, the wind everything answers to, and the rain, mist and motes. |
 | `js/postfx.js` | What happens to the picture after the course is drawn: bloom, light shafts, tone mapping, grade. |
 | `js/render.js` | The course, in three.js: geometry, lights, camera and the frame. |
@@ -1765,47 +1765,70 @@ cell in twenty holding one, each twinkling on a period of its own — and its
 clouds are multiplied down, because a white cloud over a night sky reads as a
 hole in it.
 
-And on most courses it gets **hills**, drawn rather than built. A ridge line is
-a one-dimensional height field read round the horizon: for each ray, take a
-point on a circle in the ray's own compass direction and sample the same value
-noise the clouds use; everything below that height is hill and everything above
-it is sky. Two ranges, the far one first and the near one over it, so the
-skyline has depth. The circle is not an incidental detail — the obvious
-parameter is `atan(d.z, d.x)`, and it puts a seam due north where the angle
-wraps, one straight vertical cut through a mountain in the place a player
-turning on the tee sweeps past most often.
+### The hills on the horizon
 
-Two numbers make it work, and both were learned the hard way.
+Most courses have ranges behind them, and they are real geometry standing on
+the ground the course stands on, two hundred units out.
 
-The first is that **everything here is measured in hundredths of a radian**.
-The camera is pitched down at a golf ball two metres away; it has about three
-degrees of sky above the horizon to give, and a range built to the height a
-mountain has in a photograph is not a mountain here — the player is standing
-inside it with its skyline a screen and a half above the frame, and the whole
-picture is just a differently-coloured sky. An alp on Highland Steps tops out
-at 0.022 radians. A real range twenty miles off subtends about the same.
+They were painted first, and painting is genuinely the cheaper answer: a
+silhouette computed in the sky shader from the ray's own compass direction, no
+vertices, no draw call, and a skyline as fine as the screen is. What it cannot
+do is *be somewhere*. A painted range is fixed to the dome, so it does not
+shift as you walk up the fairway, it cannot pass behind the flag or in front of
+the sun, one range cannot occlude another except in the order the code happens
+to draw them, and light on it is a dot product with a compass bearing rather
+than with a slope. All of that is what distant scenery is made of and none of
+it survives being flat.
 
-The second is `ridgeFoot`, which is where the bottom of the sky is, and the one
-number in the shader that the JS has to work out per frame: the elevation of
-the rim of the ground mesh from wherever the camera is standing. That rim is
-*not* the horizon — from a tee it is a fortieth of a radian below it, from the
-overview a sixth. Anchor the hills at nought and they float above the ground on
-the first and paint themselves across the floor on the second. Anchored a few
-thousandths under the rim they meet the ground in both, because they are being
-measured against the same thing the player is looking at. Between that foot and
-the skyline the range takes one squared fade towards the fog colour, which is
-the whole of what makes the far range read as further off than the near one —
-and the bottom half of a range twenty miles away really is mostly the air in
-front of it.
+**Two bands, as annuli.** Height is a ridged fractal noise sampled at each
+vertex's own place in the world — each octave folded about its middle
+(`1 - |2n-1|`), which is the whole difference between a hill and a mountain:
+plain value noise gives rounded lumps with rounded troughs, and one fold turns
+every trough into a crest and leaves the valleys wide. A sine across the band
+brings both edges back to the ground, so a range has a front and a back rather
+than an outline. The far band is lower, further out and hazier, and the two
+overlap by a few units so the near one's feet are always *inside* the far one.
 
-The range is painted over the horizon haze rather than under it and carries its
-own instead. Under it a hill took two fades, the band's and then the sky's, and
-came out the exact colour of the air it was standing in. What the weather does
-to it is settled in one uniform: `ridgeH` collapses as the fog thickens, and at
-nought there is no horizon at all. Its rock is the one colour in the sky shader
-that is *not* weather-tinted, because every fade it takes is already towards a
-`fogColour` that is — tint the rock as well and a golden hour goes through it
-twice.
+**They are buried, not placed.** The mesh origin is seven units below the
+surround, so the taper's ends finish underground rather than hemming along a
+line. That matters because the ground out there rolls by up to the theme's
+`relief`: a hem laid on the nominal height would be above the ground on one
+bearing and below it on the next. Sunk deeper than any relief can lift, the
+join is the ground's own edge every time, and the surround's rises read as
+foothills in front of the range rather than as a seam through it.
+
+**Nothing lights them, and nothing fogs them.** At two hundred units every
+vertex of every range is the same distance from the same sun, so a light would
+spend a per-frame calculation arriving at what the build already knows. The
+rock, the snow on the tops, the sun on the western faces and the haze eating
+the feet are folded into one vertex colour when the hole is built, and a
+two-line shader hands it to the frame buffer untouched. That last part is not
+laziness — it is what keeps the hills the same colour as the sky they stand
+against. three.js's own fog would have painted them out completely at this
+distance, and its tone map and its encode would both have moved them off the
+colour the raw sky shader writes, leaving a seam along the exact line the whole
+feature exists to hide.
+
+Two numbers were found by looking rather than by reasoning.
+
+The **peaks are small** — nine to twelve units. That is arithmetic, not
+modesty: at two hundred units with an eye four above the ground, twelve units
+is 0.04 radians, and this camera is pitched down at a golf ball and has about
+0.06 radians of sky above the horizon to give. A range built to the height a
+mountain has in a photograph tops out a screen and a half above the frame, and
+what you see of it is the pale bottom.
+
+And the **aerial fade is linear off a high floor** rather than the square off
+nothing that the sky's own haze uses. The physics says square: air thickens
+with distance, so the foot of a far hill should be nearly the colour of the air
+in front of it. It comes out as a smear, for the same reason as above — the
+camera can only see the part of a range where a squared fade has already given
+everything away. Off a floor of a third, every visible slice of a hill carries
+some rock.
+
+What the weather does to them is one multiplier: it collapses as the fog
+thickens, and a sea fog that has swallowed the water has no business leaving a
+mountain range crisply drawn above it.
 
 ### The water
 
@@ -2086,6 +2109,17 @@ holes through the real `render.js`, and checks:
   the build.
 - **every theme**, since the sky and water take their colours from it and a bad
   one is a program that fails to link on exactly one course.
+- **the two splices keep the chunk they replace.** `onBeforeCompile` works by
+  swapping one of three.js's `#include`s for your own text, and text that
+  forgets to put the include back still compiles and still draws — the turf
+  loses its cut-out, the ground loses its texture and comes out a flat colour
+  that reads as a lighting bug.
+- **the hills' one attribute, from both ends.** They have no uniforms, so their
+  JS/GLSL boundary is `tint`: baked per vertex in `render.js`, declared in the
+  vertex shader. Rename either end and the ranges come out black — which is not
+  a compile error, because a missing attribute reads as zero. So the suite
+  checks the shader declares it *and* that every range in a built hole carries
+  one per vertex and is not left black.
 
 It skips its GPU half with a note rather than a failure where there is no
 WebGL, so it stays runnable anywhere; the source-level checks run regardless.
