@@ -465,13 +465,21 @@
     var WAVE_LOBES = [2, 3, 5];
     var WAVE_SHARE = [0.5, 0.3, 0.2];
 
-    function wave(cx, cz, r) {
-        var rnd = seeded(Math.round(cx * 733 + cz * 9173 + r * 51419));
+    /* Give a disc pad the edge it is going to be drawn and rolled off, from
+       where it stands and how big it is. Every disc goes through here — the
+       ones `circle()` builds below and the ones the hole editor draws — so a
+       hole looks the same in the editor as it does in the game, and moving a
+       green two units along re-cuts its edge rather than sliding a stencil. */
+    function shapeDisc(p) {
+        var cx = p.x + p.w / 2, cz = p.z + p.d / 2;
+        var rnd = seeded(Math.round(cx * 733 + cz * 9173 + p.r * 51419));
         var terms = [], i;
         for (i = 0; i < WAVE_LOBES.length; i++) {
             terms.push([WAVE_LOBES[i], WAVE * WAVE_SHARE[i], rnd() * Math.PI * 2]);
         }
-        return { bite: WAVE, terms: terms };
+        p.wave = { bite: WAVE, terms: terms };
+        p.rIn = p.r * (1 - 2 * WAVE);
+        return p;
     }
 
     // A round green, laid into whatever it is standing on. Round-ish: see
@@ -480,10 +488,8 @@
     function circle(cx, cz, r, kind, y) {
         var p = pad(cx - r, cz - r, 2 * r, 2 * r, y || 0, kind || 'green');
         p.r = r;
-        p.wave = wave(cx, cz, r);
-        p.rIn = r * (1 - 2 * WAVE);
         p.inlay = true;
-        return p;
+        return shapeDisc(p);
     }
 
     function keep(x, z, r) { return { x: x, z: z, r: r }; }
@@ -2444,6 +2450,7 @@
         tree: tree, treeline: treeline,
         hill: hill, ring: ring, ridge: ridge, whorl: whorl, ravine: ravine,
         shape: shape, dunes: dunes, ground: ground, circle: circle, keep: keep,
+        shapeDisc: shapeDisc,
         rect: rect, enclose: enclose, shore: shore, brink: brink, build: build,
         contour: contour, scoop: scoop, relief: relief,
         RAIL_T: RAIL_T, SCOOP: SCOOP,

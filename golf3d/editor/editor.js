@@ -195,14 +195,18 @@
         return o;
     }
 
-    // A disc's rectangle is its bounding box, so the two have to agree after
-    // anything that moves or resizes it.
+    /* A disc's rectangle is its bounding box, so the two have to agree after
+       anything that moves or resizes it — and so does its edge, which is not
+       quite a circle (courses.shapeDisc). Re-cutting it here rather than
+       drawing a circle and hoping is what makes the plan, the preview and the
+       exported `circle()` call agree about where the green stops. */
     function squareUp(p) {
         if (!p.r) return;
         var cx = p.x + p.w / 2, cz = p.z + p.d / 2;
         p.r = Math.max(MIN_SIDE, Math.min(p.w, p.d) / 2);
         p.w = p.d = p.r * 2;
         p.x = cx - p.r; p.z = cz - p.r;
+        A.shapeDisc(p);
     }
 
     function list(key) { return S.hole[key]; }
@@ -340,12 +344,21 @@
         ctx.rect(sx(s.x), sz(s.z), s.w * view.scale, s.d * view.scale);
     }
 
-    // Pads are rectangles unless they carry a radius, in which case they are
-    // the disc `circle()` made and have to read as one.
+    /* Pads are rectangles unless they carry a radius, in which case they are
+       the disc `circle()` made and have to read as one — waved edge and all,
+       walked off the same physics.padRadius the ball rolls off, so the plan
+       cannot promise a shape the hole does not have. */
     function padPath(p) {
         if (!p.r) { rectPath(p); return; }
+        var cx = sx(p.x + p.w / 2), cz = sz(p.z + p.d / 2);
+        var n = Math.max(32, Math.round(p.r * view.scale)), i, a, rr;
         ctx.beginPath();
-        ctx.arc(sx(p.x + p.w / 2), sz(p.z + p.d / 2), p.r * view.scale, 0, 7);
+        for (i = 0; i <= n; i++) {
+            a = i / n * Math.PI * 2;
+            rr = P.padRadius(p, a) * view.scale;
+            ctx[i ? 'lineTo' : 'moveTo'](cx + Math.cos(a) * rr, cz + Math.sin(a) * rr);
+        }
+        ctx.closePath();
     }
 
     function drawGrid() {
@@ -1127,7 +1140,11 @@
        {ok, warn, text, why}; the panel prints them in order. */
 
     function edgeDist(pad, x, z) {
-        if (pad.r) return pad.r - Math.hypot(x - (pad.x + pad.w / 2), z - (pad.z + pad.d / 2));
+        if (pad.r) {
+            // Off the disc's own waved edge, not off the circle it is cut from.
+            var dx = x - (pad.x + pad.w / 2), dz = z - (pad.z + pad.d / 2);
+            return P.padRadius(pad, Math.atan2(dz, dx)) - Math.hypot(dx, dz);
+        }
         return Math.min(x - pad.x, pad.x + pad.w - x, z - pad.z, pad.z + pad.d - z);
     }
 
