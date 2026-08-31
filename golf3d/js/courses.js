@@ -192,7 +192,7 @@
        is in which strip you land on.
 
        `bands` lays them out. A row is a depth followed by cells laid west to
-       east from x = 0: [width, kind] and, for a bunker, [width, kind, y]. A
+       east from x = 0: [width, kind] and, for a bunker, [width, kind, dy]. A
        null kind leaves a hole in the ground, which is where a lake goes — the
        water rectangle goes under it and the shoreline into `gaps`, exactly as
        on the older holes.
@@ -203,22 +203,76 @@
        the outside of the whole property, which is what the boundary fence of a
        real course is. And a bunker sitting a hand's breadth below the grass is
        a step the ball can roll into and — just — climb back out of, because
-       DIP is inside CONFIG.STEP_UP. Any deeper and a bunker would be a well. */
+       DIP is inside CONFIG.STEP_UP. Any deeper and a bunker would be a well.
+
+       ── the row that climbs ──
+
+       A row may be written as an options object instead of a bare depth, and
+       that is how a hole gets height in it:
+
+         [{ d: 5, sz: 0.16 }, [6, rgh], [10, fwy], [3, rgh]]
+
+       `sz` tilts the whole row along the line of play, and the level carries
+       over into the next row on its own — write the rises and the terraces
+       follow. `y` sets the level outright where a hole would rather say it
+       than count it. A cell's third number stays what it always was, an offset
+       from whatever the row is standing at, so DIP is still DIP on a fairway
+       that is a metre above the tee.
+
+       The reason the tilt belongs to the *row* rather than to the cell is the
+       one thing that could go wrong with it: every cell in a row shares a
+       z-range, so a row-wide tilt leaves every west–east seam at exactly the
+       height it was, and `enclose` still finds no rail between a fairway and
+       its rough. A cell that tilted on its own would step away from its
+       neighbour and fence itself in. */
     var DIP = -0.12;
 
     function bands(z0, rows) {
-        var pads = [], z = z0, i, j, row, c, x;
+        var pads = [], z = z0, y = 0, i, j, row, spec, sz, c, x;
         for (i = 0; i < rows.length; i++) {
             row = rows[i];
+            spec = typeof row[0] === 'number' ? { d: row[0] } : row[0];
+            if (spec.y !== undefined) y = spec.y;
+            sz = spec.sz || 0;
             x = 0;
             for (j = 1; j < row.length; j++) {
                 c = row[j];
-                if (c[1]) pads.push(pad(x, z, c[0], row[0], c[2] || 0, c[1]));
+                if (c[1]) pads.push(pad(x, z, c[0], spec.d, y + (c[2] || 0), c[1], 0, sz));
                 x += c[0];
             }
-            z += row[0];
+            z += spec.d;
+            y += sz * spec.d;
         }
         return merge(pads);
+    }
+
+    /* And the other axis, which is not a row at all: a cross-fall laid over a
+       whole hole at once.
+
+       A sidehill lie is the one piece of golf ground `bands` could never write,
+       because a slope across the hole is a slope *within* every row, and a cell
+       that tilted west to east would end at a different height from the cell
+       beside it — a step down the length of the hole, and a rail down the
+       middle of it. Tilting every pad together is what fixes that: each one is
+       lifted by the plane's own height at its corner, so the surfaces still
+       meet exactly where they used to and the only thing that changed is that
+       the hole is now on the side of a hill.
+
+       It composes with everything else. Bunkers are dished before this runs
+       (`scoop` has no opinion about ground it has not been shown yet, and skips
+       a pad that is already tilted), landforms are added after it, and the
+       gradient the tests measure is the sum — so a cross-fall spends part of
+       the surface's angle of repose and the field has to live inside the rest.
+       Which is exactly the trade a sidehill lie is. */
+    function tilt(pads, sx, sz, ox, oz) {
+        var i, p;
+        for (i = 0; i < pads.length; i++) {
+            p = pads[i];
+            p.y += (sx || 0) * (p.x - (ox || 0)) + (sz || 0) * (p.z - (oz || 0));
+            p.sx = (p.sx || 0) + (sx || 0);
+            p.sz = (p.sz || 0) + (sz || 0);
+        }
+        return pads;
     }
 
     /* Bands are how a hole is *written*; they are not how it should be drawn.
@@ -259,20 +313,30 @@
        wedge tops out at about 1.6 — so a tree is a thing you go *round*, and
        making the canopy solid as well would only mean the ball stopping in
        mid-air. The trunk is well over the 0.24 the substepping guarantees, and
-       the renderer puts the canopy on top of it. */
+       the renderer puts the canopy on top of it.
+
+       `y` is the ground the tree is standing on, and it matters the moment a
+       hole has terraces in it: a trunk is placed off its own base rather than
+       off the ground under it, so a tree on a shelf a metre up is a tree buried
+       to the knee unless it is told where the shelf is. */
     function tree(cx, cz, opts) {
         var o = opts || {};
         var t = o.t === undefined ? 0.62 : o.t;
         return wall(cx - t / 2, cz - t / 2, t, t, o.h === undefined ? 2.4 : o.h,
-            { base: -0.4, kind: 'tree' });
+            { base: (o.y || 0) - 0.4, kind: 'tree' });
     }
 
-    // A stand of them along a line. A treeline is never one tree.
+    /* A stand of them along a line. A treeline is never one tree — and where
+       the line runs up a slope, `y0`/`y1` walk the ground up with it. */
     function treeline(x0, z0, x1, z1, n, opts) {
-        var out = [], i, f;
+        var out = [], i, f, o = opts || {}, y0 = o.y0, y1 = o.y1, c;
         for (i = 0; i < n; i++) {
             f = n === 1 ? 0.5 : i / (n - 1);
-            out.push(tree(x0 + (x1 - x0) * f, z0 + (z1 - z0) * f, opts));
+            c = o;
+            if (y0 !== undefined) {
+                c = { t: o.t, h: o.h, y: y0 + ((y1 === undefined ? y0 : y1) - y0) * f };
+            }
+            out.push(tree(x0 + (x1 - x0) * f, z0 + (z1 - z0) * f, c));
         }
         return out;
     }
@@ -1316,117 +1380,259 @@
        The vocabulary is the whole point of the course. Fairway is quick, rough
        is not, sand is where the shot goes to die, and the trees are solid. Miss
        the short grass and you do not lose the ball — you lose the club you
-       wanted to hit next. */
+       wanted to hit next.
+
+       ── the park is on a hill ──
+
+       The first pass at this course was flat, and flat is what a floor plan
+       gets you: six corridors of mown grass with trees down the side and a
+       bunker where the interest was supposed to be. Whinstone Links, two
+       courses later, is the argument against it — a hole whose ground is
+       doing something is a hole you have to read before you can play it.
+
+       So the park has height in it now, and it comes from three places that
+       stack rather than compete. `bands` rows tilt and carry their level into
+       the next row, so a hole climbs to a shelf or falls off a bluff and the
+       terraces come out as real ground rather than as a step with a fence on
+       it. `shape` lays one landform field across every pad of a hole, so a
+       crest or a gathering hollow runs clean from the rough to the fairway and
+       back. And `tilt` puts a whole hole on the side of a hill, which is the
+       one piece of golf ground `bands` could never write.
+
+       Two of the holes are round: the greens on **Over the Water** and **The
+       Dell** are discs laid into the ground the way the links greens are, and
+       the reason is not decoration. A rectangle has a near edge and a far edge
+       and the same answer from every angle; a circle in a ring of trouble has
+       a side you should be on, and finding it is the shot.
+
+       The shapes themselves are borrowed, because the good ones were settled a
+       century ago and are worth stealing from: a cross bunker no drive can
+       carry (Pine Valley's Hell's Half Acre), a green blind in a hollow
+       between two mounds (Lahinch's Dell), and a hole bent round the edge of a
+       lake where the honest question is how much of it you are prepared to
+       take on (the Cape). */
 
     var rgh = 'rough', fwy = 'fairway', snd = 'sand', grn = 'green';
 
     var parkland = [
-        build({
-            name: 'Opening Drive', par: 4, long: true,
-            blurb: 'Straight away, then a bunker exactly where the flag is. Pick a side.',
-            pads: bands(0, [
-                [5,  [3.5, rgh], [8, fwy], [7.5, rgh]],
-                [11, [3.5, rgh], [8, fwy], [7.5, rgh]],
-                [6,  [4.5, rgh], [9, fwy], [5.5, rgh]],
-                [4,  [7, rgh], [9, fwy], [3, rgh]],
-                [3,  [7, rgh], [2, fwy], [3.5, snd, DIP], [3.5, fwy], [3, rgh]],
-                [9,  [6, rgh], [10, grn], [3, rgh]],
-                [3,  [19, rgh]]
-            ]),
-            extra: [].concat(
-                treeline(1.7, 8, 1.7, 24, 5),
-                treeline(17.3, 24, 17.3, 34, 3)
-            ),
-            tee: { x: 7.5, z: 2.5 }, cup: { x: 11.5, z: 33.5 }
-        }),
-        build({
-            name: 'Over the Water', par: 3, long: true,
-            blurb: 'The pond is on the line to the pin. The dry way in is from the right.',
-            pads: bands(0, [
-                [4,   [3, rgh], [8, fwy], [3, rgh]],
-                [4,   [2, rgh], [6.8, null], [2.2, fwy], [3, rgh]],
-                [3,   [2, rgh], [2.5, snd, DIP], [7.5, grn], [2, rgh]],
-                [7,   [2, rgh], [10, grn], [2, rgh]],
-                [4,   [14, rgh]]
-            ]),
-            water: [rect(2, 4, 6.8, 4, -0.55)],
-            gaps: [shore(rect(2, 4, 6.8, 4))],
-            tee: { x: 9.5, z: 2 }, cup: { x: 6, z: 14 }
-        }),
-        build({
-            name: 'Long Meadow', par: 5, long: true,
-            blurb: 'Three shots if you lay up, two and a prayer if you do not.',
-            pads: bands(0, [
-                [5,  [4, rgh], [9, fwy], [7, rgh]],
-                [13, [4, rgh], [9, fwy], [7, rgh]],
-                [4,  [4, rgh], [6, fwy], [3, snd, DIP], [7, rgh]],
-                [8,  [5, rgh], [10, fwy], [5, rgh]],
-                [4,  [3, snd, DIP], [2, rgh], [10, fwy], [5, rgh]],
-                [8,  [6, rgh], [10, fwy], [4, rgh]],
-                [4,  [6, rgh], [3, fwy], [3, snd, DIP], [4, fwy], [4, rgh]],
-                [9,  [5, rgh], [11, grn], [4, rgh]],
-                [3,  [20, rgh]]
-            ]),
-            extra: [].concat(
-                treeline(2, 6, 2, 28, 6),
-                treeline(18.3, 8, 18.3, 23, 4),
-                [tree(18, 47.5), tree(18, 53)]
-            ),
-            tee: { x: 8.5, z: 2.5 }, cup: { x: 10.5, z: 50.5 }
-        }),
-        build({
-            name: 'The Elbow', par: 4, long: true,
-            blurb: 'It turns left around an oak that has been there longer than the course.',
-            pads: bands(0, [
-                [5,  [11, rgh], [8, fwy], [3, rgh]],
-                [12, [11, rgh], [8, fwy], [3, rgh]],
-                [5,  [4, rgh], [4, snd, DIP], [11, fwy], [3, rgh]],
-                [6,  [2, rgh], [11, fwy], [9, rgh]],
-                [9,  [1.5, rgh], [10, grn], [10.5, rgh]],
-                [3,  [22, rgh]]
-            ]),
-            extra: [].concat(
-                [tree(10.7, 15.5, { t: 0.8, h: 2.8 })],
-                treeline(9.4, 8, 9.4, 13, 3),
-                treeline(2, 14, 2, 21, 3),
-                treeline(20, 26, 20, 36, 4)
-            ),
-            tee: { x: 15, z: 2.5 }, cup: { x: 6, z: 32.5 }
-        }),
-        build({
-            name: 'Short Stuff', par: 3, long: true,
-            blurb: 'One full club to a small green in a ring of sand. Nothing else works.',
-            pads: bands(0, [
-                [4,   [3, rgh], [8, fwy], [3, rgh]],
-                [3,   [14, rgh]],
-                [2.5, [3.5, rgh], [7, snd, DIP], [3.5, rgh]],
-                [8.5, [2.5, rgh], [2, snd, DIP], [5, grn], [2, snd, DIP], [2.5, rgh]],
-                [3.5, [2.5, rgh], [9, grn], [2.5, rgh]],
-                [3,   [14, rgh]]
-            ]),
-            extra: treeline(12.6, 19, 12.6, 23, 2),
-            tee: { x: 7, z: 2 }, cup: { x: 7, z: 15 }
-        }),
-        build({
-            name: 'Homeward', par: 4, long: true,
-            blurb: 'Water all down the right for as long as the hole lasts.',
-            pads: bands(0, [
-                [5,  [4, rgh], [9, fwy], [7, rgh]],
-                [4,  [4, rgh], [9, fwy], [2, rgh], [5, null]],
-                [10, [4, rgh], [8, fwy], [2, rgh], [6, null]],
-                [5,  [4, rgh], [8, fwy], [2, rgh], [6, null]],
-                [4,  [5, rgh], [3, fwy], [3, snd, DIP], [3, fwy], [6, null]],
-                [8,  [5, rgh], [10, grn], [5, rgh]],
-                [3,  [20, rgh]]
-            ]),
-            water: [rect(15, 5, 5, 4, -0.55), rect(14, 9, 6, 19, -0.55)],
-            gaps: [shore(rect(14, 5, 6, 23))],
-            extra: [].concat(
-                treeline(2, 6, 2, 27, 6),
-                [tree(17.5, 32), tree(17.5, 35.5)]
-            ),
-            tee: { x: 8.5, z: 2.5 }, cup: { x: 10, z: 32 }
-        })
+        (function () {
+            /* Downhill off a bluff, along the floor of the park, and back up
+               on to a shelf the green sits on. The crest halfway down is what
+               makes the drive a decision: run the ball over it and the hole
+               shortens by four units, come up on the near side of it and the
+               approach is played blind over the top. */
+            var field = [].concat(
+                ridge(5, 16, 14, 19, 4.5, 0.30, 4),
+                [hill(3, 34, 3, -0.6), hill(18.5, 35.5, 2.5, 0.5)]
+            );
+            var pads = bands(0, [
+                [{ d: 5, y: 1.2 },      [3.5, rgh], [8, fwy], [9.5, rgh]],
+                [{ d: 5, sz: -0.24 },   [3.5, rgh], [8, fwy], [9.5, rgh]],
+                [10,                    [3.5, rgh], [8, fwy], [9.5, rgh]],
+                [5,                     [4.5, rgh], [9, fwy], [7.5, rgh]],
+                [3,                     [7, rgh], [2, fwy], [3.5, snd, DIP], [3.5, fwy], [5, rgh]],
+                [{ d: 3, sz: 0.18 },    [6, rgh], [10, fwy], [5, rgh]],
+                [9,                     [6, rgh], [10, grn], [5, rgh]],
+                [4,                     [21, rgh]]
+            ]);
+            return build({
+                name: 'Opening Drive', par: 4, long: true, shaped: true,
+                blurb: 'Downhill off the bluff, over the crest, and back up to a green on a shelf.',
+                pads: shape(scoop(pads, { seed: 21 }), field),
+                extra: [].concat(
+                    treeline(1.7, 11, 1.7, 24, 5),
+                    treeline(19.5, 13, 19.5, 26, 4),
+                    [tree(1.6, 3, { y: 1.2 }), tree(2.4, 41.5, { y: 0.54 }),
+                     tree(19, 41.5, { y: 0.54 })]
+                ),
+                tee: { x: 7.5, z: 2.5 }, cup: { x: 11.5, z: 36 }
+            });
+        })(),
+        (function () {
+            /* The pond hole, and the green is a disc now: a round table on a
+               shelf a third of a unit above the water, with sand short-left,
+               sand long-right and a bank behind it that will hold a strong one
+               up. Only the iron carries the water on the line to the flag —
+               carry falls off with the square of the speed, so taking anything
+               off it is how you get wet — and the dry way in is still out to
+               the right, off the tongue of fairway the pond does not reach. */
+            var field = [].concat(
+                ridge(4.5, 22, 13.5, 22, 2.0, 0.45, 5),
+                [hill(1.6, 18, 1.6, -0.23)]
+            );
+            var pads = bands(0, [
+                [{ d: 3.5, y: 0.7 },    [3, rgh], [9, fwy], [6, rgh]],
+                [{ d: 2, sz: -0.35 },   [18, rgh]],
+                [4,                     [2.5, rgh], [7.5, null], [2.5, fwy], [5.5, rgh]],
+                [{ d: 2, sz: 0.15 },    [2.5, rgh], [13, fwy], [2.5, rgh]],
+                [3,                     [1.5, rgh], [2.6, snd, DIP], [11.4, fwy], [2.5, rgh]],
+                [5.5,                   [2.5, rgh], [10, fwy], [3, snd, DIP], [2.5, rgh]],
+                [4,                     [18, rgh]]
+            ]);
+            return build({
+                name: 'Over the Water', par: 3, long: true, shaped: true,
+                blurb: 'Off a bluff, over the pond, on to a round green on a shelf. The dry way in is right.',
+                pads: shape(scoop(pads, { seed: 23 }), field)
+                    .concat([circle(7.5, 16, 3.6, grn, 0.3)]),
+                water: [rect(2.5, 5.5, 7.5, 4, -0.55)],
+                gaps: [shore(rect(2.5, 5.5, 7.5, 4))],
+                extra: [].concat(
+                    treeline(16.6, 4, 16.6, 12, 3),
+                    [tree(1.2, 3, { y: 0.7 })]
+                ),
+                tee: { x: 10.5, z: 1.75 }, cup: { x: 7.5, z: 16.5 }
+            });
+        })(),
+        (function () {
+            /* Hell's Half Acre, which is Pine Valley's seventh and the best
+               argument in golf against the second shot being a formality: a
+               belt of sand four units deep lying across the fairway at the end
+               of a good drive. Nothing in the bag carries it from behind it —
+               the longest carry here is about nine and a half units and that is
+               the iron flat out — so the hole is three shots for everybody, and
+               the only question is whether you lay up short of the belt with
+               something you can control or run out of fairway trying to get
+               closer to it. The hollow at twenty-six gathers the timid one. */
+            var field = [].concat(
+                ridge(5, 16, 14, 16, 4.5, 0.28, 4),
+                [hill(9, 26.5, 2.5, -0.36), hill(19, 37, 3, 0.45)]
+            );
+            var pads = bands(0, [
+                [{ d: 5, y: 0.6 },      [4, rgh], [9, fwy], [9, rgh]],
+                [{ d: 2, sz: -0.3 },    [22, rgh]],
+                [13,                    [4, rgh], [9, fwy], [9, rgh]],
+                [4,                     [4, rgh], [7, fwy], [3, snd, DIP], [8, rgh]],
+                [5,                     [5, rgh], [10, fwy], [7, rgh]],
+                [4,                     [4, rgh], [14, snd, DIP], [4, rgh]],
+                [8,                     [6, rgh], [11, fwy], [5, rgh]],
+                [{ d: 3, sz: 0.2 },     [6, rgh], [11, fwy], [5, rgh]],
+                [9,                     [5, rgh], [12, grn], [5, rgh]],
+                [3,                     [22, rgh]]
+            ]);
+            return build({
+                name: 'Long Meadow', par: 5, long: true, shaped: true,
+                blurb: 'A belt of sand across the fairway that no club carries. Lay up, then pitch it.',
+                pads: shape(scoop(pads, { seed: 25 }), field),
+                extra: [].concat(
+                    treeline(2, 9, 2, 30, 6),
+                    treeline(20.3, 12, 20.3, 26, 4),
+                    [tree(3, 49, { y: 0.6 }), tree(19.5, 50, { y: 0.6 })]
+                ),
+                tee: { x: 8.5, z: 2.5 }, cup: { x: 11, z: 48.5 }
+            });
+        })(),
+        (function () {
+            /* It still turns left around the oak, and the oak still cannot be
+               flown by anything in the bag, which is what makes a dogleg a
+               dogleg rather than a suggestion. What is new is the ground: the
+               tee stands on a bluff, the corner sits under a shoulder of high
+               rough that will not let a cut drive run out, and the green is on
+               a shelf four fifths of a unit above the fairway with sand eating
+               into its front left. */
+            var field = [].concat(
+                ridge(12, 11, 18, 13, 3.5, 0.26, 3),
+                [hill(18, 19, 3.5, 0.45), hill(17, 32.5, 3, -0.5)]
+            );
+            var pads = bands(0, [
+                [{ d: 5, y: 0.9 },      [12, rgh], [8, fwy], [2, rgh]],
+                [{ d: 2.5, sz: -0.36 }, [22, rgh]],
+                [9.5,                   [12, rgh], [8, fwy], [2, rgh]],
+                [5,                     [4, rgh], [4, snd, DIP], [12, fwy], [2, rgh]],
+                [{ d: 4, sz: 0.14 },    [2, rgh], [12, fwy], [8, rgh]],
+                [3,                     [2, rgh], [3, snd, DIP], [9, fwy], [8, rgh]],
+                [7,                     [2, rgh], [11, grn], [9, rgh]],
+                [3,                     [22, rgh]]
+            ]);
+            return build({
+                name: 'The Elbow', par: 4, long: true, shaped: true,
+                blurb: 'It turns left around an oak older than the course, then climbs to a shelf.',
+                pads: shape(scoop(pads, { seed: 27 }), field),
+                extra: [].concat(
+                    [tree(11.9, 16, { t: 0.9, h: 3 })],
+                    treeline(9.6, 8, 10.4, 13.5, 3),
+                    treeline(1.5, 10, 1.5, 21, 4),
+                    treeline(20.5, 27, 20.5, 34, 3, { y0: 0.56, y1: 0.56 })
+                ),
+                tee: { x: 16, z: 2.5 }, cup: { x: 7, z: 32.5 }
+            });
+        })(),
+        (function () {
+            /* The Dell, which is Lahinch's fifth and the most honest blind hole
+               ever built: a green lying in a hollow between two mounds, with
+               nothing to aim at but the top of the flag. There is no sand on
+               it and it does not need any — the trouble is that you cannot see
+               where the ball finished, and the ring of ground round the green
+               will feed a good one in and hold a bad one out.
+
+               The ring is authored rather than scattered, for the same reason
+               Whinstone's punchbowl is: eight humps standing far enough out
+               that not one of their tails reaches the putting surface, so the
+               green is a flat round table at the bottom of a bowl of heath. */
+            var field = ring(10, 19, 6.4, 3.4, 0.68, 8);
+            var pads = bands(0, [
+                [{ d: 4, y: 0.6 },      [5, rgh], [10, fwy], [5, rgh]],
+                [{ d: 2.5, sz: -0.24 }, [20, rgh]],
+                [3,                     [6, rgh], [8, fwy], [6, rgh]],
+                [20,                    [20, rgh]]
+            ]);
+            return build({
+                name: 'The Dell', par: 3, long: true, shaped: true,
+                blurb: 'Blind. The green lies in a hollow between two mounds and the flag is all you get.',
+                pads: shape(pads, field).concat([circle(10, 19, 3.0, grn, 0)]),
+                extra: [].concat(
+                    treeline(1.4, 9, 1.4, 26, 5),
+                    treeline(18.6, 9, 18.6, 26, 5)
+                ),
+                tee: { x: 10, z: 2 }, cup: { x: 10, z: 19 }
+            });
+        })(),
+        (function () {
+            /* The Cape: a lake eating diagonally into the fairway from the
+               right, and a tee shot that is a wager rather than a target. Every
+               unit of water you take on is a unit off the approach, and the
+               shoreline moves further across the hole the further down it you
+               go, so there is no line that is safe all the way — only a line
+               you are prepared to defend.
+
+               The whole park tilts into the lake as well (`tilt`), a fifteenth
+               of a unit of fall for every one across, which is the thing that
+               makes the wager honest: a drive that finishes on the fairway is
+               still on ground running towards the water, and the approach is
+               played off a sidehill lie every time. */
+            var field = [].concat(
+                ridge(3, 12, 8, 15, 3.0, 0.25, 3),
+                [hill(6, 27, 1.9, -0.22), hill(8, 39.5, 2.2, 0.4)]
+            );
+            var pads = bands(0, [
+                [5,  [4, rgh], [9, fwy], [9, rgh]],
+                [4,  [4, rgh], [9, fwy], [3, rgh], [6, null]],
+                [4,  [4, rgh], [8, fwy], [2, rgh], [8, null]],
+                [4,  [4, rgh], [7, fwy], [2, rgh], [9, null]],
+                [4,  [4, rgh], [6, fwy], [2, rgh], [10, null]],
+                [4,  [4, rgh], [7, fwy], [2, rgh], [9, null]],
+                [4,  [5, rgh], [3, fwy], [3, snd, DIP], [4, fwy], [7, rgh]],
+                [8,  [5, rgh], [11, grn], [6, rgh]],
+                [5,  [22, rgh]]
+            ]);
+            return build({
+                name: 'Homeward', par: 4, long: true, shaped: true,
+                blurb: 'The lake cuts across the hole and the ground falls into it. Bite off what you dare.',
+                pads: shape(tilt(scoop(pads, { seed: 29 }), -0.06, 0, 22, 0), field),
+                water: [
+                    rect(16, 5, 6, 4, -0.55),
+                    rect(14, 9, 8, 4, -0.55),
+                    rect(13, 13, 9, 4, -0.55),
+                    rect(12, 17, 10, 4, -0.55),
+                    rect(13, 21, 9, 4, -0.55)
+                ],
+                gaps: [shore(rect(12, 5, 10, 20))],
+                extra: [].concat(
+                    treeline(2, 8, 2, 26, 6, { y0: 1.2, y1: 1.2 }),
+                    [tree(19.5, 33, { y: 0.15 }), tree(19.5, 36, { y: 0.15 })]
+                ),
+                tee: { x: 8.5, z: 2.5 }, cup: { x: 10.5, z: 33 }
+            });
+        })()
     ];
 
     /* ── course seven: Whinstone Links ───────────────────────────────────
@@ -1796,26 +2002,35 @@
         })
     ];
 
-    /* ── course ten: Dunmore Heath ───────────────────────────────────────
+    /* ── course ten: Dunmore Heath ─────────────────────────────
 
        The long game again, and deliberately not a second Ashdown Park.
 
-       Ashdown is a parkland course, and what defines a parkland hole is what
-       stands *beside* the fairway: trees, and a lot of them. The ground under
-       it is nearly flat, because a hole whose interest is in the trees does
-       not need any other kind. Dunmore is the opposite proposition on both
-       counts. There is almost nothing in the air here. What there is instead
+       Ashdown is a park with a hillside under it: trees down both sides, a
+       terrace or two, and the shape of the country as the setting rather than
+       as the hole. Dunmore has almost nothing in the air. What it has instead
        is the ground itself — a crest across the driving line, a hollow that
-       gathers everything short, a punchbowl green, a spiral of country that
-       breaks a putt twice in opposite directions, and one ravine that is not a
-       hazard so much as a decision.
+       gathers everything short, a punchbowl, a spiral of country that breaks a
+       putt twice in opposite directions, one ravine that is not a hazard so
+       much as a decision, and a fairway that climbs a hillside for twenty
+       units and hides the green over the top of it.
 
        All of it is one field per hole, shared by every strip (`shape`), which
        is what lets a crest run clean from boundary to boundary without the
        rail generator finding a cliff down the middle of the fairway. The holes
-       are half again the size of Ashdown's for the same reason: a landform
+       are half again the size of Ashdown’s for the same reason: a landform
        needs room to be a landform, and a ridge with six units either side of
        it is a speed bump.
+
+       The two things it borrows from the courses either side of it are the
+       ones that turned out to be about ground rather than about furniture. A
+       green may be a disc laid into the heather (Whinstone’s trick), and a row
+       of `bands` may tilt and carry its level into the next one, so a hole
+       climbs to a shelf or lies on the side of a hill instead of standing on a
+       table. **The Beacon** is entirely the second of those: twenty units of
+       fairway rising at a ninth, and a green you cannot see from the tee
+       because it is over the shoulder of the climb rather than behind a hump
+       somebody drew.
 
        And the rough is heather. It is `rough` like anywhere else — the engine
        has one word for it — but the fairways here are narrow and it runs right
@@ -1824,27 +2039,31 @@
 
     var dunmore = [
         (function () {
-            /* One crest at driving distance, and a hollow left of the green
-               that gathers everything hit short and safe. The crest is four
-               overlapping humps rather than one wide one because a single
-               raised cosine wide enough to cross a hole is also tall enough
-               in the middle to be a pimple; four at a third of the height
-               each add along their line into a ridge with a flat top. */
+            /* One crest at driving distance, a hollow in the heather to the
+               right of it, and a climb on to the shelf the green sits on. The
+               crest is four overlapping humps rather than one wide one because
+               a single raised cosine wide enough to cross a hole is also tall
+               enough in the middle to be a pimple; four at a third of the
+               height each add along their line into a ridge with a flat top. */
             var field = ridge(5, 13, 17, 13, 5, 0.42, 4)
-                .concat([hill(3, 30, 3, -0.7)]);
+                .concat([hill(3, 33, 3, -0.7), hill(19, 20, 3, -0.55)]);
             var pads = bands(0, [
-                [6,  [7, rgh], [8, fwy], [7, rgh]],
-                [12, [7, rgh], [8, fwy], [7, rgh]],
-                [6,  [6, rgh], [4, snd, DIP], [6, fwy], [6, rgh]],
-                [7,  [6, rgh], [10, fwy], [6, rgh]],
-                [6,  [6, rgh], [10, grn], [6, rgh]],
-                [3,  [22, rgh]]
+                [6,                     [7, rgh], [8, fwy], [7, rgh]],
+                [12,                    [7, rgh], [8, fwy], [7, rgh]],
+                [6,                     [6, rgh], [4, snd, DIP], [6, fwy], [6, rgh]],
+                [{ d: 4, sz: 0.15 },    [6, rgh], [10, fwy], [6, rgh]],
+                [3,                     [6, rgh], [10, fwy], [6, rgh]],
+                [6,                     [6, rgh], [10, grn], [6, rgh]],
+                [3,                     [22, rgh]]
             ]);
             return build({
                 name: 'Bell Heather', par: 4, long: true, shaped: true,
-                blurb: 'A ridge across the driving line, and a hollow left of the green for anything timid.',
+                blurb: 'A ridge across the driving line, then a climb to a shelf with a hollow beside it.',
                 pads: shape(scoop(pads, { seed: 3 }), field),
-                extra: treeline(2, 7, 2, 22, 4),
+                extra: [].concat(
+                    treeline(2, 7, 2, 22, 4),
+                    [tree(2.2, 34, { y: 0.6 }), tree(19.8, 34.5, { y: 0.6 })]
+                ),
                 tee: { x: 11, z: 3 }, cup: { x: 11, z: 35.5 }
             });
         })(),
@@ -1857,25 +2076,40 @@
                in the heather, which holds better than twice as much, and the
                green is the small flat disc of ground in the middle that every
                one of the six humps stops short of. Which is what a punchbowl
-               is: a small green at the bottom of a bowl of something else. */
-            var field = ring(10, 21.5, 6.5, 3.5, 0.85, 6);
+               is: a small green at the bottom of a bowl of something else.
+
+               The green is a disc rather than a rectangle for the same reason
+               Whinstone’s are: a bowl is round, and a square green at the
+               bottom of a round one reads as a mistake from the tee. Every
+               hump on the ring is placed to stop exactly at its rim — nothing
+               may roll under an inlay, because an inlay wins a tie in
+               `surfaceUnder` and loses outright to ground that has been lifted
+               above it. */
+            var field = ring(10, 21, 6.5, 3.5, 0.85, 6);
             var pads = bands(0, [
-                [5, [6, rgh], [8, fwy], [6, rgh]],
-                [6, [4, rgh], [12, snd, DIP], [4, rgh]],
-                [8, [20, rgh]],
-                [5, [8, rgh], [4, grn], [8, rgh]],
-                [9, [20, rgh]]
+                [{ d: 5, y: 0.5 },      [6, rgh], [8, fwy], [6, rgh]],
+                [{ d: 2, sz: -0.25 },   [20, rgh]],
+                [4,                     [4, rgh], [12, snd, DIP], [4, rgh]],
+                [20,                    [20, rgh]]
             ]);
             return build({
                 name: 'The Waste', par: 3, long: true, shaped: true,
-                blurb: 'Sand where the fairway should be, and a small green at the bottom of a bowl.',
-                pads: shape(scoop(pads, { seed: 5 }), field),
-                tee: { x: 10, z: 2.5 }, cup: { x: 10, z: 21.5 }
+                blurb: 'Sand where the fairway should be, and a round green at the bottom of a bowl.',
+                pads: shape(scoop(pads, { seed: 5 }), field)
+                    .concat([circle(10, 21, 3.0, grn, 0)]),
+                tee: { x: 10, z: 2.5 }, cup: { x: 10, z: 21 }
             });
         })(),
         (function () {
+            /* The hole bends right around a stand of gorse, and the whole
+               hillside falls away to the left of it (`tilt`) — a thirtieth
+               of a unit down for every one across, which is not much to look
+               at and is the difference between a drive that holds the corner
+               and one that finishes in the heather at the bottom. Every shot
+               on the hole is played off a sidehill lie, and the hollow at the
+               end of it keeps whatever the slope hands over. */
             var field = [hill(4.5, 30, 4.5, -0.95)]
-                .concat(ridge(5, 28.5, 17, 28.5, 4.5, 0.36, 4));
+                .concat(ridge(5, 28.5, 17, 28.5, 4.5, 0.29, 4));
             var pads = bands(0, [
                 [6,  [4, rgh], [8, fwy], [10, rgh]],
                 [12, [4, rgh], [8, fwy], [10, rgh]],
@@ -1886,12 +2120,12 @@
             ]);
             return build({
                 name: 'Gorse Corner', par: 4, long: true, shaped: true,
-                blurb: 'It bends right around a stand of gorse, over a hollow that keeps what it takes.',
-                pads: shape(scoop(pads, { seed: 7 }), field),
+                blurb: 'It bends right around the gorse, and the whole hillside falls away to the left.',
+                pads: shape(tilt(scoop(pads, { seed: 7 }), 0.032, 0, 0, 0), field),
                 extra: [].concat(
-                    treeline(10.5, 16, 10.7, 23, 3),
-                    treeline(1.8, 9, 1.8, 26, 4),
-                    [tree(20, 28), tree(20, 32)]
+                    treeline(10.5, 16, 10.7, 23, 3, { y0: 0.34, y1: 0.34 }),
+                    treeline(1.8, 9, 1.8, 26, 4, { y0: 0.06, y1: 0.06 }),
+                    [tree(20, 28, { y: 0.64 }), tree(20, 32, { y: 0.64 })]
                 ),
                 tee: { x: 7, z: 3 }, cup: { x: 14, z: 35 }
             });
@@ -1900,29 +2134,36 @@
             /* The whorl, and the reason this hole is a par 5 rather than a
                long par 4: the spiral sits in the middle of the second shot,
                so the lie you get for the third is decided by which arm of it
-               you finished on. From the tee it looks like one slope. */
+               you finished on. From the tee it looks like one slope.
+
+               And then a swale across the front of the green, which is the
+               Biarritz idea done in grass rather than in a putting surface:
+               three overlapping hollows lying across the line, so a running
+               approach is thrown up in the air a unit short of the shelf and
+               the only shot that gets close is the one that carries all of it. */
             var field = ridge(5, 12, 17, 12, 4.5, 0.36, 4)
                 .concat(whorl(11, 33, 2, 5, 5, 0.38, 9, 1.5))
-                .concat([hill(19, 46, 3, -0.6)]);
+                .concat(ridge(8, 41.5, 16, 41.5, 2.2, -0.3, 3))
+                .concat([hill(19.5, 19, 2.5, -0.55)]);
             var pads = bands(0, [
-                [6,  [5, rgh], [9, fwy], [8, rgh]],
-                [12, [6, rgh], [8, fwy], [8, rgh]],
-                [4,  [6, rgh], [4, snd, DIP], [6, fwy], [6, rgh]],
-                [14, [7, rgh], [9, fwy], [6, rgh]],
-                [8,  [8, rgh], [9, fwy], [5, rgh]],
-                [5,  [7, rgh], [10, fwy], [5, rgh]],
-                [6,  [6, rgh], [11, grn], [5, rgh]],
-                [3,  [22, rgh]]
+                [6,                     [5, rgh], [9, fwy], [8, rgh]],
+                [12,                    [6, rgh], [8, fwy], [8, rgh]],
+                [4,                     [6, rgh], [4, snd, DIP], [6, fwy], [6, rgh]],
+                [14,                    [7, rgh], [9, fwy], [6, rgh]],
+                [8,                     [8, rgh], [9, fwy], [5, rgh]],
+                [{ d: 4, sz: 0.16 },    [7, rgh], [10, fwy], [5, rgh]],
+                [7,                     [6, rgh], [11, grn], [5, rgh]],
+                [3,                     [22, rgh]]
             ]);
             return build({
                 name: 'Long Ling', par: 5, long: true, shaped: true,
-                blurb: 'Fifty units of heather with the ground turning under it. It breaks both ways.',
+                blurb: 'Fifty units of heather with the ground turning under it, and a swale across the last of it.',
                 pads: shape(scoop(pads, { seed: 11 }), field),
                 extra: [].concat(
                     treeline(2, 9, 2, 32, 6),
-                    [tree(20, 47), tree(20, 51)]
+                    [tree(20, 47, { y: 0.48 }), tree(20, 51, { y: 0.64 })]
                 ),
-                tee: { x: 9.5, z: 3 }, cup: { x: 11.5, z: 54 }
+                tee: { x: 9.5, z: 3 }, cup: { x: 11.5, z: 52.5 }
             });
         })(),
         (function () {
@@ -1930,53 +2171,69 @@
                is ground, a metre below the ground either side of it, that you
                are perfectly entitled to play out of and will wish you had not
                had to. Lay up short of it and the hole is a comfortable par
-               five in four shots; take it on and it is a par four. */
+               five in four shots; take it on and it is a par four.
+
+               The far bank climbs, which is what turns the second half of it
+               into a second decision: the green sits two thirds of a unit
+               above the crossing with a mound at its left shoulder, so the
+               approach is uphill and blind to the surface whichever side of
+               the ravine you play it from. */
             var cut = ravine(0, 17, 20, 5, 0.95);
             var field = ridge(4, 9, 16, 9, 4, 0.34, 3)
-                .concat([hill(17.5, 29, 2.5, -0.6)]);
+                .concat([hill(17.5, 30, 2.5, -0.6), hill(2.8, 32, 2.2, 0.45)]);
             var pads = bands(0, [
-                [6,  [4, rgh], [9, fwy], [7, rgh]],
-                [11, [4, rgh], [9, fwy], [7, rgh]],
-                [5,  [20, null]],
-                [6,  [4, rgh], [10, fwy], [6, rgh]],
-                [7,  [5, rgh], [10, grn], [5, rgh]],
-                [3,  [20, rgh]]
+                [6,                     [4, rgh], [9, fwy], [7, rgh]],
+                [11,                    [4, rgh], [9, fwy], [7, rgh]],
+                [5,                     [20, null]],
+                [{ d: 4, sz: 0.16 },    [4, rgh], [10, fwy], [6, rgh]],
+                [3,                     [4, rgh], [10, fwy], [6, rgh]],
+                [7,                     [5, rgh], [10, grn], [5, rgh]],
+                [3,                     [20, rgh]]
             ]).concat([cut.pad]);
             return build({
                 name: 'The Ravine', par: 4, long: true, shaped: true,
-                blurb: 'A dry gulley across the whole hole. Carry it, lay up short of it, or play out of it.',
+                blurb: 'A dry gulley across the whole hole, and the far bank climbs away from it.',
                 pads: shape(scoop(pads, { seed: 13 }), field),
                 gaps: cut.gaps,
                 extra: [].concat(
                     treeline(1.7, 8, 1.7, 15, 3),
-                    [tree(18.3, 30), tree(18.3, 34)]
+                    [tree(18.3, 31, { y: 0.64 }), tree(18.3, 35, { y: 0.64 })]
                 ),
-                tee: { x: 9.5, z: 3 }, cup: { x: 10, z: 32.5 }
+                tee: { x: 9.5, z: 3 }, cup: { x: 10, z: 33 }
             });
         })(),
         (function () {
-            /* Uphill, and the rise is one hump wide enough to be a hillside:
-               ten units of radius, which puts its steepest ground at about
-               a fifth and its top well out of sight of the tee. The green sits
-               beyond the far shoulder with a mound either side of it, so the
-               approach is blind and the two ways of missing it are not the
-               same miss. */
-            var field = [hill(11, 17, 10, 1.5), hill(3, 32, 3, 0.75), hill(19.5, 31, 2.5, 0.55)];
+            /* Uphill, and the hill is the hole. Twenty units of fairway rising
+               at a ninth of a unit for every one along it — not a hump with a
+               summit but a hillside with a top, which is a different thing to
+               play up and the reason this is written as tilted rows rather
+               than as one wide raised cosine. A cosine broad enough to cross
+               the hole is steeper in its middle than a fairway will hold a
+               stopped ball on; a constant grade at a ninth is inside it the
+               whole way, and it climbs a unit and a half.
+
+               The green is over the shoulder rather than behind anything, so
+               the approach is blind for the honest reason: the ground between
+               you and it is higher than both of you. A mound at each side of
+               the green and a hollow short-left make the two ways of missing
+               it different misses. */
+            var field = [hill(3, 32.5, 3, 0.7), hill(19.5, 32, 2.5, 0.6),
+                         hill(6.5, 26.5, 2.4, 0.38)];
             var pads = bands(0, [
-                [6,  [5, rgh], [9, fwy], [8, rgh]],
-                [12, [6, rgh], [8, fwy], [8, rgh]],
-                [6,  [6, rgh], [9, fwy], [7, rgh]],
-                [5,  [5, rgh], [4, fwy], [4, snd, DIP], [4, fwy], [5, rgh]],
-                [8,  [6, rgh], [11, grn], [5, rgh]],
-                [3,  [22, rgh]]
+                [6,                     [5, rgh], [9, fwy], [8, rgh]],
+                [{ d: 12, sz: 0.09 },   [6, rgh], [8, fwy], [8, rgh]],
+                [{ d: 6, sz: 0.09 },    [6, rgh], [9, fwy], [7, rgh]],
+                [5,                     [5, rgh], [4, fwy], [4, snd, DIP], [4, fwy], [5, rgh]],
+                [8,                     [6, rgh], [11, grn], [5, rgh]],
+                [3,                     [22, rgh]]
             ]);
             return build({
                 name: 'The Beacon', par: 4, long: true, shaped: true,
-                blurb: 'A whole hillside standing in the middle of the fairway. The green is behind it.',
+                blurb: 'The fairway climbs a hillside for twenty units. The green is over the top of it.',
                 pads: shape(scoop(pads, { seed: 17 }), field),
                 extra: [].concat(
-                    treeline(1.8, 8, 1.8, 24, 4),
-                    treeline(20.2, 26, 20.2, 34, 3)
+                    treeline(1.8, 8, 1.8, 24, 4, { y0: 0.18, y1: 1.62 }),
+                    treeline(20.2, 26, 20.2, 34, 3, { y0: 1.62, y1: 1.62 })
                 ),
                 tee: { x: 10, z: 3 }, cup: { x: 11.5, z: 34 }
             });
@@ -2144,7 +2401,8 @@
 
     G3.authoring = {
         pad: pad, wall: wall, spinner: spinner, slider: slider,
-        beam: beam, pen: pen, bumper: bumper, bowl: bowl, bands: bands, tree: tree,
+        beam: beam, pen: pen, bumper: bumper, bowl: bowl, bands: bands, tilt: tilt,
+        tree: tree, treeline: treeline,
         hill: hill, ring: ring, ridge: ridge, whorl: whorl, ravine: ravine,
         shape: shape, dunes: dunes, ground: ground, circle: circle, keep: keep,
         rect: rect, enclose: enclose, shore: shore, brink: brink, build: build,
