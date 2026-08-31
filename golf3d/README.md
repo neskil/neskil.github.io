@@ -562,6 +562,21 @@ never where it is, and the tests walk every overlap to insist on exactly that.
 The alternative was cutting a circular hole in a rectangle, and there is no
 rectangle that does that.
 
+**A disc is not quite a circle.** Every one of them carries three low harmonics
+on its rim — two, three and five lobes, phased off its own position so a hole
+looks the same on every load and no two discs come out as the same shape turned
+round — and `physics.padRadius` is the single function that says where that rim
+is. The renderer builds its outline from it, the ball rolls off it, the minimap
+samples it, and the inspector draws it, so there is no second opinion about
+where a green stops.
+
+The wave only ever bites **inwards**: the radius runs from `r` down to
+`r(1 - 2·WAVE)` and never out past `r`. That bound is what makes the shape free.
+Every clearance on a hole is measured against the disc's own `r` — the dune
+field is told to keep away from a green by radius, a cup is asserted to have
+room inside one, the tests walk a green's rim looking for the boundary — and a
+shape that stays inside that circle cannot invalidate any of them.
+
 | Hole | Par | What it asks |
 | --- | --- | --- |
 | The Whins | 4 | Rolling the whole way, and a bunker sitting on the line at driving distance. |
@@ -866,12 +881,14 @@ nothing under the sand to see. An inlay is not — it is laid into a pad that
 carries straight on underneath it, and that pad is drawn as well. Sink the sand
 and what appears in the hollow is the grass that was always there, so a dished
 inlay comes out as a ring of sand round a disc of fairway. `render.cutUnder`
-takes the ground away under an inlay, but a triangle at a time and only where
-one lies wholly inside — so a grid cell of fairway survives right round the
-rim, which is where a dish is shallowest and would show it. Until the terrain
-mesh can be punched to the circle itself, an inlay is flush or it is wrong. Whinstone's
-ten bunkers get the rest of the pass instead — the raked sheet and the height
-field under it — which is most of what was missing from them anyway.
+takes the *ground* away under an inlay a triangle at a time and only where one
+lies wholly inside — it must not leave a gap — so a grid cell of fairway
+survives right round the rim, which is where a dish is shallowest and would
+show it. The grass over it is conformed to the outline and has no such rim, but
+the ground under the sand still does: until the terrain mesh itself can be
+punched to the curve, an inlay is flush or it is wrong. Whinstone's ten bunkers
+get the rest of the pass instead — the raked sheet and the height field under
+it — which is most of what was missing from them anyway.
 
 **Rails are generated, not authored.** `enclose()` walks the boundary of the pad
 union and puts a rail on every edge that has no neighbouring pad at roughly the
@@ -1459,7 +1476,7 @@ were each paying for their own copy of the same one.
 
 Anchoring those UVs to the world rather than to the pad came later and is the
 subject of [the mower](#the-mower) below: a pad-anchored tiling restarts its
-pattern at every seam, which on a green means the mow bands stop and start
+pattern at every seam, which on a fairway means the mow bands stop and start
 again at each join.
 
 The exception that proves the rule is the green's bump map, which tiles finer
@@ -1467,9 +1484,10 @@ than its colour map. That is a *ratio* rather than a pad size — a constant —
 so it is the one texture that still carries a `repeat`.
 
 The green is the one surface the camera is always looking at, so it gets the
-most attention — mow bands with a soft seam, broad mottling so the tiling does
-not show as a grid, a mat of blade strokes, and a bump map of the same blades so
-the light rakes across it. It is also the only surface on Phong rather than
+most attention — broad mottling so the tiling does not show as a grid, a mat of
+blade strokes, and a bump map of the same blades so the light rakes across it.
+The fairway is the same sheet redrawn with the mower's bands on it, soft-seamed,
+at the width its own tiling wants ([the mower](#the-mower)). It is also the only surface on Phong rather than
 Lambert; a little sheen is the difference between mown grass and green paint.
 
 ### The grass stands up
@@ -1482,6 +1500,21 @@ technique in here that is not a texture.
 
 The pad's own outline is drawn again six times at rising heights, all six
 within twelve centimetres of the surface, each wearing the same blade sheet.
+
+**Where a green or a bunker is laid into that ground, the mat is cut to the
+outline rather than to the grid.** The blades are a sixth of a unit tall and an
+inlay sits twelve millimetres above the ground, so one surviving triangle is a
+tuft standing in the sand: the grass may not keep anything inside the rim. It
+used to lose every triangle with so much as a corner under one, which left a
+grid cell of bare ground all the way round every disc on the links — a pale,
+stair-stepped ring cut to the terrain mesh instead of to the thing it was meant
+to collar, and it read as a mistake because it was one. Now a triangle wholly
+inside goes as before, and one that straddles the rim keeps its place with each
+corner that fell inside pulled radially out onto the outline and back down onto
+the height field at its new spot. The mesh is indexed, so a corner moved for one
+triangle moves for all of them and the mat cannot tear; what comes out is grass
+that stops exactly where the green starts, on the same curve the disc is drawn
+from.
 What makes it work is one channel: **the sheet's alpha is a height field**, and
 layer *n* of *N* keeps a texel only where alpha ≥ n/N. Every shell up the stack
 keeps fewer blades than the one below, the tips are the last thing left, and
@@ -1516,11 +1549,22 @@ version redrew them on every change of course.
 
 #### The mower
 
-A golf green is striped, and the stripes are not paint: a mower goes up one
+A golf fairway is striped, and the stripes are not paint: a mower goes up one
 pass and back down the next, and the blades lie the way they were last driven
 over. Shell texturing can say that directly, so the sheet's top half is combed
 one way and its bottom half the other, and a tile is exactly two passes of the
 mower across.
+
+**The greens are not striped**, and that is a deliberate difference rather than
+an omission. A green is cut every morning in one direction by a walking mower
+and reads as a single tone; the two-tone banding everybody recognises is a gang
+mower's fairway cut. Both used to come off one canvas tiled at two sizes, which
+gave every green a fairway's coat — and the wider the tiling, the more it looked
+like one. So the banding is drawn into a fairway map of its own at `MOW_WIDE`,
+the green's map is the same sheet without it, and the shader's stripe is turned
+off on the green's shells by handing them a `mowK` of zero. What is left on a
+green is the comb in the blades, which is a little life in the nap and not a
+band.
 
 For that to mean anything the sheet has to know where it is, so **the pad UVs
 are anchored to the world rather than to the pad** — the world x and z divided
@@ -1529,9 +1573,10 @@ whatever UVs the geometry arrived with. Every seam disappears: the bands run
 unbroken across a hole instead of restarting at each pad edge, two pads of the
 same size stop being copies of each other, and a box, an extruded slab and a
 plane all come out agreeing with each other, which they did not before. The
-green's colour map got the same treatment and the same band width, so the
+fairway's colour map got the same treatment and the same band width, so the
 stripes survive into the distance after the shells have mipped away.
-`textures.MOW` is the one number the three of them have to agree on.
+`textures.MOW` and `MOW_WIDE` are the numbers the three of them have to agree
+on.
 
 #### The turf shader
 
@@ -1546,14 +1591,17 @@ to know where in the *world* a fragment is rather than where in the tile:
   which is also the thing that stops a repeating sheet reading as a repeating
   sheet.
 - **The mower's light.** The comb is in the sheet, but a comb on flat planes
-  changes only the silhouette, and most of what you see in a striped green is
+  changes only the silhouette, and most of what you see in a striped fairway is
   the light coming back differently off blades leaning towards you and away.
-  That is a few percent of brightness alternating every `MOW`, and it is worth
-  more than the comb it is drawn on top of.
+  That is a few percent of brightness alternating every `MOW_WIDE`, and it is
+  worth more than the comb it is drawn on top of. A green passes `mowK` 0 and
+  the term lands on its own midpoint, which is no stripe at all — one uniform,
+  no branch, no second shader.
 - **Colour that is not one colour**, from the same noise, quietly.
 
-One uniform, `mowK` — π over the mower's width — because writing 3.59 in two
-files is how two files stop agreeing.
+One uniform, `mowK` — π over the mower's width, or zero for the surfaces that
+are not striped — because writing 3.59 in two files is how two files stop
+agreeing.
 
 #### What it costs
 

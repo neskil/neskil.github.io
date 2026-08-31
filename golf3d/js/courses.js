@@ -380,10 +380,44 @@
         return p;
     }
 
-    // A round green, laid into whatever it is standing on.
+    /* How far off its own circle a disc is allowed to wander, as a fraction
+       of its radius, and in how many lobes.
+
+       A green is not a circle and a bunker is not a coin. Both are drawn here
+       as a disc with three low harmonics laid over the rim — two, three and
+       five lobes, so no two of them line up and the outline never repeats
+       inside one turn — and the whole of it bites *inwards*: the radius runs
+       from r down to r(1 - 2·WAVE) and never out past r. That is what keeps
+       the rest of the file honest. Every clearance on a hole is measured
+       against the disc's own r — the dune field is told to keep away from a
+       green by radius, a cup is asserted to have room inside one, the tests
+       walk a green's rim looking for the boundary — and a shape that stays
+       inside that circle cannot invalidate any of them.
+
+       The phases come off the disc's own position and size, so a hole looks
+       the same every time it is built, and two greens on one course do not
+       come out as the same shape turned round. */
+    var WAVE = 0.075;
+    var WAVE_LOBES = [2, 3, 5];
+    var WAVE_SHARE = [0.5, 0.3, 0.2];
+
+    function wave(cx, cz, r) {
+        var rnd = seeded(Math.round(cx * 733 + cz * 9173 + r * 51419));
+        var terms = [], i;
+        for (i = 0; i < WAVE_LOBES.length; i++) {
+            terms.push([WAVE_LOBES[i], WAVE * WAVE_SHARE[i], rnd() * Math.PI * 2]);
+        }
+        return { bite: WAVE, terms: terms };
+    }
+
+    // A round green, laid into whatever it is standing on. Round-ish: see
+    // WAVE above for the shape of its edge, and physics.padRadius for the
+    // one function that answers where that edge is.
     function circle(cx, cz, r, kind, y) {
         var p = pad(cx - r, cz - r, 2 * r, 2 * r, y || 0, kind || 'green');
         p.r = r;
+        p.wave = wave(cx, cz, r);
+        p.rIn = r * (1 - 2 * WAVE);
         p.inlay = true;
         return p;
     }
@@ -424,7 +458,10 @@
        answer for a disc pad as for a rectangular one. */
     function roomIn(pad, cx, cz) {
         if (pad.r) {
-            return pad.r - Math.hypot(cx - (pad.x + pad.w / 2), cz - (pad.z + pad.d / 2));
+            var dx = cx - (pad.x + pad.w / 2), dz = cz - (pad.z + pad.d / 2);
+            // Off the wavy edge rather than off the circle it is cut from —
+            // see WAVE above; on a plain disc the two are the same number.
+            return G3.physics.padRadius(pad, Math.atan2(dz, dx)) - Math.hypot(dx, dz);
         }
         return Math.min(cx - pad.x, pad.x + pad.w - cx,
                         cz - pad.z, pad.z + pad.d - cz);
@@ -573,7 +610,9 @@
                sheet and the height field under it (textures.sandTexture), which
                is most of what was missing from them anyway. */
             if (p.inlay) continue;
-            span = (p.r ? p.r : Math.min(p.w, p.d) / 2) - 0.1;
+            // The inner radius on a disc, not the outer one: a hollow as wide
+            // as the circle would reach past the wave's troughs (see WAVE).
+            span = (p.r ? p.rIn || p.r : Math.min(p.w, p.d) / 2) - 0.1;
             if (span < 0.5) continue;
             /* The floor first, and it is not scattered. Every bunker gets one
                hollow at its own middle, at the full depth and as wide as the
@@ -587,7 +626,7 @@
             b = [hill(p.x + p.w / 2, p.z + p.d / 2, span, -depth)];
             lo = Math.max(0.45, span * 0.45);
             hi = span * 0.85;
-            area = p.r ? Math.PI * p.r * p.r : p.w * p.d;
+            area = p.r ? Math.PI * span * span : p.w * p.d;
             n = Math.max(0, Math.round(area * 0.13) - 1);
             if (n && hi > lo) {
                 b = b.concat(relief(p, rnd, {

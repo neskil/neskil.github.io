@@ -135,10 +135,44 @@
     }
     var _slope = { x: 0, z: 0 };
 
+    /* How far a round pad reaches in one direction, which is not the same
+       answer in every direction.
+
+       A green is a shape that was mown rather than one that was compassed, so
+       an inlaid disc carries a handful of low harmonics — its `wave` — that
+       pull the edge in and out again over the course of a turn. The angle is
+       measured the way the renderer measures it, atan2(dz, dx), so the outline
+       the ball rolls off is the outline that was drawn.
+
+       The one rule the wave obeys is that it only ever bites **inwards**: the
+       radius runs between `pad.rIn` and `pad.r` and never past it. Everything
+       that reasons about a disc from the outside — the dune field's keep-outs,
+       the room a cup needs, the tests that walk a green's rim for out of
+       bounds — measures against pad.r, and a shape that stays inside that
+       circle cannot break any of them. A pad with no wave is the circle it
+       always was. */
+    function padRadius(pad, ang) {
+        var w = pad.wave, i, s;
+        if (!w) return pad.r;
+        s = -w.bite;
+        for (i = 0; i < w.terms.length; i++) {
+            s += w.terms[i][1] * Math.sin(w.terms[i][0] * ang + w.terms[i][2]);
+        }
+        return pad.r * (1 + s);
+    }
+
     function padContains(pad, x, z) {
         if (pad.r) {
             var dx = x - (pad.x + pad.w / 2), dz = z - (pad.z + pad.d / 2);
-            return dx * dx + dz * dz <= pad.r * pad.r;
+            var q = dx * dx + dz * dz;
+            /* The two cheap answers first. This is asked of every pad on the
+               hole on every substep, and the trigonometry above is only worth
+               paying for in the band between the wave's troughs and its
+               crests — which is a tenth of the disc. */
+            if (q > pad.r * pad.r) return false;
+            if (!pad.wave || q <= pad.rIn * pad.rIn) return true;
+            var rr = padRadius(pad, Math.atan2(dz, dx));
+            return q <= rr * rr;
         }
         return x >= pad.x && x <= pad.x + pad.w && z >= pad.z && z <= pad.z + pad.d;
     }
@@ -907,6 +941,7 @@
     G3.physics = {
         padHeight: padHeight,
         padContains: padContains,
+        padRadius: padRadius,
         surfaceUnder: surfaceUnder,
         surfaceTop: surfaceTop,
         waterAt: waterAt,

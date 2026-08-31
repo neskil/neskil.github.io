@@ -17,7 +17,7 @@
    than beside the geometry.
 
    Those UVs are anchored to the **world**, not to the pad. A pad-anchored
-   tiling restarts its pattern at every seam, which on a green means the mow
+   tiling restarts its pattern at every seam, which on a fairway means the mow
    bands stop and start again at each join; anchored to the world they run
    unbroken across a whole hole, and two pads of the same size stop being
    copies of each other.
@@ -30,23 +30,38 @@
 
     /* How many world units one tile of each surface covers. Change one of
        these and the pads retile; nothing else has to be told. */
-    /* Fairway is not a texture of its own: it is the green's own sheets tiled
-       bigger, so the mow bands come out wider, which is most of what tells a
-       fairway from a green at a glance. The renderer darkens it and grows it
-       longer (buildSurfaces, SHELL_HEIGHT) and that is the whole difference —
-       one number here and two there, rather than another canvas per theme. */
+    /* Fairway and green are the same turf drawn twice: the same mottling, the
+       same blades, the same tiling arithmetic — and one difference, which is
+       that the fairway is the one with the mower's stripes on it.
+
+       That is where they part company, and it is the right place for them to.
+       A green is cut every morning in one direction by a walking mower and
+       reads as a single tone; the two-tone banding everybody recognises is a
+       fairway cut, laid down by a machine going up one pass and back down the
+       next. Drawing the bands into both — which is what tiling one canvas at
+       two sizes did — gave the greens a fairway's coat, and the wider the mow
+       the more it looked like it. So there are two canvases now, and the
+       renderer darkens the fairway and grows it longer on top of that
+       (buildSurfaces, SHELL_HEIGHT). */
     var SCALE = { green: 3.5, fairway: 6, sand: 2, wood: 2, rough: 2 };
     var GRASS_BUMP_SCALE = 0.8;      // the blades are finer than the mow bands
 
     /* The width of one pass of the mower, in world units, and the one number
-       three separate things have to agree on: the pale-and-dark banding drawn
-       into the green's colour map, the direction the blades are combed in the
-       shell sheet below, and the stripe the renderer's turf shader brightens.
-       Get them out of step and a green has two sets of stripes on it. */
+       the things that draw a stripe have to agree on: the pale-and-dark
+       banding drawn into the fairway's colour map, the direction the blades
+       are combed in the shell sheet below, and the stripe the renderer's turf
+       shader brightens. Get them out of step and a fairway has two sets of
+       stripes on it.
+
+       MOW is the walking mower's width, which is the comb in the shell sheet
+       and the scale nothing else on a hole is cut at; MOW_WIDE is the gang
+       mower that does the fairways, and it is the number the bands and the
+       shader's stripe are drawn at out there. */
     var MOW = 0.875;
+    var MOW_WIDE = MOW * 1.7;
 
     // A shell tile is one there-and-back of the mower, so the sheet can carry
-    // the comb — one band leaning up the green, the next leaning back down.
+    // the comb — one pass leaning away, the next leaning back.
     var SHELL_SCALE = { green: MOW * 2, fairway: MOW * 3.4, rough: 1.6 };
 
     var maxAniso = 1;
@@ -64,23 +79,31 @@
     }
 
     /* Grass is three things stacked: a mow pattern, a mat of blades, and dirt.
-       The mow bands are what make a green read as a surface rather than a flat
+       The bands are what make a fairway read as a surface rather than a flat
        colour when the camera is low, the blades give it something for the light
        to catch at close range, and the mottling stops the tiling from showing
-       as a grid on the big pads. */
-    function grassTexture(theme) {
+       as a grid on the big pads.
+
+       `mow` is the width of one pass in world units, and `scale` how many world
+       units this tile covers — the two of them are the band in texels. A green
+       asks for no mow at all and gets the sheet without the bands: mottled,
+       bladed and one tone, which is what a green is. It is filled halfway
+       between the theme's two grass colours rather than with the darker of
+       them, so the surface keeps the tone the banded one averaged out to and
+       only the cut lines go. */
+    function grassTexture(theme, scale, mow) {
         return canvasTex(512, function (g, s) {
             var i, n, x, y, a;
-            g.fillStyle = theme.grass[0];
+            g.fillStyle = mow ? theme.grass[0]
+                : new THREE.Color(theme.grass[0])
+                    .lerp(new THREE.Color(theme.grass[1]), 0.5).getStyle();
             g.fillRect(0, 0, s, s);
 
-            /* Mow bands, with a soft seam so the roller looks like a roller
-               — one pass of the mower wide, which is what the shell sheet is
-               combed to and what the turf shader brightens. `band` is that
-               width in texels: MOW world units of a tile that covers
-               SCALE.green of them. */
-            var band = Math.round(s * MOW / SCALE.green);
-            for (i = 0; i < s; i += band * 2) {
+            /* Mow bands, with a soft seam so the roller looks like a roller —
+               one pass of the mower wide, which is what the turf shader
+               brightens at the same width out on the same ground. */
+            var band = mow ? Math.round(s * mow / scale) : 0;
+            for (i = 0; band && i < s; i += band * 2) {
                 var grd = g.createLinearGradient(0, i, 0, i + band);
                 grd.addColorStop(0, theme.grass[1]);
                 grd.addColorStop(1, theme.grass[0]);
@@ -170,10 +193,14 @@
 
        And the **comb**: the top half of the sheet leans one way and the bottom
        half the other, because a tile is `MOW * 2` across and a mower goes up
-       one stripe and back down the next. That is where the stripes on a green
-       come from, and it is the reason the sheet is anchored to the world
-       rather than to the pad (see `render.worldUv`) — so the bands run
-       unbroken across every pad of a hole instead of restarting at each seam.
+       one stripe and back down the next. It is the lie of the blades that
+       makes a fairway's bands look mown rather than painted, and it is the
+       reason the sheet is anchored to the world rather than to the pad (see
+       `render.worldUv`) — so the bands run unbroken across every pad of a hole
+       instead of restarting at each seam. On a green, where nothing else is
+       striped, what survives of it is a little life in the nap and no band at
+       all: the sheet is the same, and the colour map and the shader that would
+       have banded it are not (grassTexture, render.buildSurfaces).
 
        None of this depends on the theme — the blades are a pale neutral green
        and the course's own colour arrives as the material's — so the sheets
@@ -510,7 +537,11 @@
         disposeSurfaces();
         shared = {
             theme: theme,
-            green: dress(grassTexture(theme)),
+            green: dress(grassTexture(theme, SCALE.green, 0)),
+            // The same turf with the gang mower's bands drawn into it, at the
+            // tiling the fairway pads are given (SCALE) so a band comes out
+            // MOW_WIDE across on the ground.
+            fairway: dress(grassTexture(theme, SCALE.fairway, MOW_WIDE)),
             // The one texture that still tiles by `repeat`: the blades are
             // finer than the mow bands by a fixed ratio, and a ratio is a
             // constant rather than a pad size.
@@ -543,6 +574,7 @@
         SCALE: SCALE,
         SHELL_SCALE: SHELL_SCALE,
         MOW: MOW,
+        MOW_WIDE: MOW_WIDE,
         canvas: canvasTex,
         prepare: prepare,
         surfaces: surfaces,
