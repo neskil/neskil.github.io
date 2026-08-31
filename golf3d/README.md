@@ -3,10 +3,11 @@
 Ten six-hole courses of 3D golf in three kinds. **Mini golf**: four courses of
 lanes, rails and ledges. **Crazy golf**: three of blades, gates, bumpers and
 pendulums, where the shot is a matter of timing rather than of aim. **The long
-game**: three full-size courses — Ashdown Park's parkland of fairways, rough,
-bunkers and trees; Whinstone Links, open rolling country with no fences on it
-anywhere; and Dunmore Heath, where the interest is the shape of the ground
-itself — crests, hollows, a punchbowl, a spiral and one dry ravine.
+game**: three full-size courses — Ashdown Park, a parkland on a hillside, with
+terraces, a blind green in a dell and a lake the whole hole tilts into;
+Whinstone Links, open rolling country with no fences on it anywhere; and
+Dunmore Heath, where the interest is the shape of the ground itself — crests,
+hollows, a punchbowl, a spiral, one dry ravine and a fairway that climbs.
 three.js (vendored, r128), plain ES5-flavoured JavaScript, no build step and no
 other dependencies — same as everything else here, open `index.html` and it
 runs.
@@ -24,7 +25,7 @@ them.
 | `index.html` | Page shell: scoreboard, canvas, power/loft controls, banner, course picker, scorecard. |
 | `style.css` | Page chrome. The course itself is all WebGL. |
 | `js/config.js` | Every tuning constant. Nothing else holds a magic number. |
-| `js/courses.js` | The sixty holes, as data, plus the rail generator, the band layout the long-game courses are written in, the dune fields the links is made of, the landforms Dunmore Heath is shaped by, and the bag each hole is played out of. |
+| `js/courses.js` | The sixty holes, as data, plus the rail generator, the band layout the long-game courses are written in — rows that tilt and carry their level into the next one, and a cross-fall that puts a whole hole on the side of a hill — the dune fields the links is made of, the landforms the two parkland courses are shaped by, and the bag each hole is played out of. |
 | `js/physics.js` | The simulation. No three.js, no DOM, pure. |
 | `js/scoring.js` | Scorecard arithmetic and the save file. |
 | `js/audio.js` | Synthesised sound effects, the weather's sound bed, the mute and the tab-out — no audio files to ship. |
@@ -422,9 +423,9 @@ an approach.
 | Windmill Works | crazy | `works` | Gates and blades, after dark. Timing. |
 | Pinball Parlour | crazy | `arcade` | A table, not a course: bumpers, a plunger chute and a pen with no door. The posts *are* the route. |
 | Clockwork Court | crazy | `clockwork` | Six mechanisms at six rates. Escapement, pendulum, cogs, ratchet, and one blade the width of the court. |
-| Ashdown Park | long | `parkland` | The long game: the hole is longer than one swing and the fairway is a place you are trying to be. |
+| Ashdown Park | long | `parkland` | The long game, on a hillside: terraces, a crest, a cross-fall into a lake, and two round greens. |
 | Whinstone Links | long | `links` | No fences, no flat lies and no straight edges. The ground is the hazard. |
-| Dunmore Heath | long | `heath` | The long game again, shaped rather than furnished: crests, hollows, a punchbowl, a whorl and one dry ravine. |
+| Dunmore Heath | long | `heath` | The long game again, shaped rather than furnished: crests, hollows, a punchbowl, a whorl, one dry ravine and a hillside you climb. |
 
 Tidewater and Highland are why the bag has more than two clubs. Every hole on
 Tidewater is built round the one thing a chip can do that a putt cannot —
@@ -479,19 +480,57 @@ The other thing worth knowing is the carry. Nothing in the bag flies further
 than about 9.5 units before its first bounce (the iron, flat out) and
 nothing gets higher than about 1.6 (the wedge). Both numbers are load-bearing:
 **Over the Water** puts a pond four units deep on the line to the pin, which
-only a full swing clears, and the dry route is a tee shot aimed well right of
-the flag. And the oak on the inside of **The Elbow** cannot be flown by any
-club that exists, which is what makes a dogleg a dogleg rather than a
-suggestion.
+only a full swing of the iron clears — carry falls off with the square of the
+speed while roll only falls off with the speed, so taking anything off it is how
+you get wet — and the dry route is a tee shot aimed well right of the flag. The
+same number is what makes **Long Meadow**'s cross bunker work from the other
+direction: a belt four units deep cannot be carried at all from behind it, so
+nobody reaches that green in two. And the oak on the inside of **The Elbow**
+cannot be flown by any club that exists, which is what makes a dogleg a dogleg
+rather than a suggestion.
 
-| Hole | Par | What it asks |
-| --- | --- | --- |
-| Opening Drive | 4 | A bunker sitting exactly on the line from the tee to the flag. Putt the approach and you are in it. |
-| Over the Water | 3 | Full club over the pond, or a safe one out to the right and a longer putt. |
-| Long Meadow | 5 | Two drivers reach a cross bunker sixty units out. Lay up with an iron and it is a simple three-shot hole. |
-| The Elbow | 4 | Turns left around a tree. Play right off the tee or bounce off it. |
-| Short Stuff | 3 | A five-unit green ringed by sand. One full club, and no half measures. |
-| Homeward | 4 | Water down the whole right side, and sand across the front of the green. |
+| Hole | Par | What it asks | Borrowed from |
+| --- | --- | --- | --- |
+| Opening Drive | 4 | Downhill off a bluff, over a crest at driving distance, then up on to the shelf the green sits on. The bunker is still exactly on the line. | |
+| Over the Water | 3 | Full club over the pond to a round green on a shelf, or a safe one out to the right and a longer putt. | |
+| Long Meadow | 5 | A belt of sand four units deep lying across the fairway. Nothing in the bag carries it from behind it, so the hole is three shots for everybody. | Hell's Half Acre, Pine Valley 7 |
+| The Elbow | 4 | Turns left around an oak, under a shoulder of high rough that will not let a cut drive run out, then climbs to a shelf. | |
+| The Dell | 3 | Blind. The green lies in a hollow with a ring of mounds round it and the top of the flag is all you get. | The Dell, Lahinch 5 |
+| Homeward | 4 | The lake cuts diagonally across the hole and the whole park tilts into it. Bite off as much as you dare. | Cape |
+
+**The park is on a hill.** The first pass at this course was flat, and flat is
+what a floor plan gets you: six corridors of mown grass with a bunker where the
+interest was supposed to be. Whinstone Links, two courses later, is the argument
+against it — a hole whose ground is doing something is a hole you have to read
+before you can play it. So the height comes from three places that stack rather
+than compete:
+
+- **`bands` rows tilt**, and carry their level into the next row. Write the
+  rises and the terraces follow, so a hole falls off a bluff or climbs to a
+  shelf and the change of level is real ground rather than a step with a fence
+  on it. The tilt belongs to the *row* rather than to the cell for the one
+  reason that could go wrong with it: every cell in a row shares a z-range, so a
+  row-wide tilt leaves every west–east seam exactly where it was and `enclose`
+  still finds no rail between a fairway and its rough.
+- **`shape` lays one landform field across every pad**, exactly as it does on
+  Dunmore, so a crest or a gathering hollow runs clean from the rough to the
+  fairway and back.
+- **`tilt` puts a whole hole on the side of a hill** — the one piece of golf
+  ground `bands` could never write, because a slope *across* the hole is a slope
+  within every row and a cell that tilted west to east would end at a different
+  height from the cell beside it. Lifting every pad by the plane's own height at
+  its corner is what fixes that: the surfaces still meet where they used to, and
+  the only thing that changed is that **Homeward** now drains into its lake and
+  every approach on it is played off a sidehill lie.
+
+Two of the greens are round — discs laid into the ground the way the links
+greens are — and the reason is not decoration. A rectangle has a near edge and a
+far edge and the same answer from every angle; a circle in a ring of trouble has
+a side you should be on, and finding it is the shot. The rule that comes with
+one is absolute and the tests enforce it: **nothing in the field may roll under
+an inlay.** An inlay wins a *tie* in `surfaceUnder` and loses outright to ground
+that has been lifted above it, so a hump reaching under a green would turn the
+middle of that green into fairway.
 
 Trees are real: the trunk is a wall the ball bounces off, and the canopy over
 it is drawn by `render.js` from a hash of where the tree stands, so a treeline
@@ -820,6 +859,15 @@ thing that would undo all of this.
 | `ring(cx, cz, radius, r, a, n)` | A rim standing round a point — a punchbowl, or with `a` negative a dell. |
 | `whorl(cx, cz, r0, r1, r, a, n, turns)` | Humps and hollows walked out along a spiral, alternating sign. From the tee it reads as one slope and is four; a putt across it breaks twice in opposite directions. Alternating the sign is also what keeps it playable, since neighbours cancel across their skirts rather than adding. |
 | `ravine(x, z, w, d, depth)` | A strip of ground far below what is either side of it, with both long seams left bare so it plays as a drop and not as a walled trench. Returns its gaps with it, inset from the ends so the boundary rail is untouched. |
+
+And two that are not fields at all — they change where the ground *is* rather
+than adding humps to it, and they are what gave both parkland courses their
+height:
+
+| Helper | What it makes |
+| --- | --- |
+| `[{ d, y, sz }, …cells]` | A `bands` row written as an options object instead of a bare depth. `sz` tilts the row along the line of play and the level carries over into the next row on its own; `y` sets it outright. A cell's third number stays what it always was — an offset from whatever the row is standing at — so `DIP` is still `DIP` on a fairway a metre above the tee. |
+| `tilt(pads, sx, sz, ox, oz)` | A cross-fall laid over a whole hole at once: every pad lifted by the plane's own height at its corner, so the surfaces meet exactly where they used to and the hole is now on the side of a hill. Bunkers are dished before it runs (`scoop` skips a pad that is already tilted) and landforms are added after, so the gradient the tests measure is the sum — a cross-fall spends part of the surface's angle of repose and the field lives inside the rest. Which is exactly the trade a sidehill lie is. |
 
 Two rules survive from `relief`, and `tests.html` enforces both rather than
 trusting anyone to remember them. A landform's disc has to lie wholly inside
