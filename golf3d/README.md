@@ -2640,6 +2640,17 @@ place, because every one of them was learned from the same complaint:
   on every button, `none` on the ones over the course; a control that pauses
   300ms to see whether a second tap is coming reads as one that ignored the
   first.
+- **A control that is doing something invisible has to say so.** The camera
+  lock is the case that keeps coming back as a bug report. Locked, the sideways
+  half of a look drag goes into the shot and nowhere near the view — that *is*
+  the lock, it is what lets you aim on the overview without the hole spinning
+  under you — but on screen it is indistinguishable from a drag the game never
+  received. Measured: the same drag moves the camera 3.3 world units unlocked
+  and 0.4 locked, and the 0.4 is the camera easing after the ball rather than
+  the drag. Up and down still tilts, so it presents as "the view is only
+  sometimes responsive". A locked drag past 24px now pulses the padlock — and
+  the view pill with it, since the padlock is not on screen at all when the row
+  is folded — and says once per lock what it is doing instead.
 - **A capture can be lost without a `pointerup`.** Every drag control listens
   for `lostpointercapture` as well as `pointercancel`, or it stays "held" and
   swallows the next press.

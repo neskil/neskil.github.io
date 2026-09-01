@@ -44,8 +44,16 @@
         var el = $('toast');
         el.textContent = msg;
         el.className = 'toast show' + (kind ? ' ' + kind : '');
+        /* The fullscreen offer stands in the same band and is the only thing
+           up there that outlives a message, so it steps aside for one. It is
+           a standing invitation and this is an answer to something you just
+           did; the transient one wins. */
+        $('stage').classList.add('toasting');
         clearTimeout(toast._t);
-        toast._t = setTimeout(function () { el.className = 'toast'; }, 2300);
+        toast._t = setTimeout(function () {
+            el.className = 'toast';
+            $('stage').classList.remove('toasting');
+        }, 2300);
     }
 
     /* ── round state ────────────────────────────────────────────────────── */
@@ -79,6 +87,7 @@
 
     function loadHole(i) {
         closeGate();
+        saidLocked = false;
         var hole = state.course.holes[i];
         state.holeIndex = i;
         state.strokes = 0;
@@ -945,6 +954,9 @@
             // Screen-right spins the view to the right, and dragging down
             // lifts the camera, the way pushing the ground away would.
             state.aim.yaw = look.yaw - (e.clientX - look.x) * 0.008;
+            // …unless the camera is locked, in which case the sideways half of
+            // that goes into the shot and nowhere near the view. Say so.
+            if (Math.abs(e.clientX - look.x) > 24) sayLocked();
             R.cam.pitch = Math.max(0.06, Math.min(1.3, look.pitch + (e.clientY - look.y) * 0.004));
         }
     }
@@ -1215,10 +1227,37 @@
        across the change (R.setLock), and setView takes it from there. */
     function toggleLock() {
         setView(R.setLock(!R.cam.lock));
+        saidLocked = false;
         A.tick(R.cam.lock ? 0.8 : 0.3);
         toast(R.cam.lock
             ? 'Camera locked — the shot turns, the view stays'
             : 'Camera unlocked — it turns with the aim again');
+    }
+
+    /* A locked camera turns a look drag into an aim drag, and the sideways
+       half of the gesture stops moving the picture. That is the whole point of
+       the lock — it is what lets you aim on the overview without the hole
+       spinning under you — but it is indistinguishable from a drag the game
+       did not receive, which is what it kept getting reported as. Measured:
+       the same drag moves the camera 3.3 units unlocked and 0.4 locked, and
+       the 0.4 is the camera easing after the ball, not the drag.
+
+       So the lock says it. Once per lock — a warning on every drag is noise,
+       and by the second one the point has been made — plus a pulse on the
+       padlock itself, which also lights the view pill when the row is folded
+       away and the padlock is not on screen at all. */
+    var saidLocked = false;
+
+    function sayLocked() {
+        if (!R.cam.lock) return;
+        $('viewctl').classList.add('lock-hint');
+        clearTimeout(sayLocked._t);
+        sayLocked._t = setTimeout(function () {
+            $('viewctl').classList.remove('lock-hint');
+        }, 1400);
+        if (saidLocked) return;
+        saidLocked = true;
+        toast('Camera locked — dragging aims, it does not turn the view (L)');
     }
 
     function syncView() {
