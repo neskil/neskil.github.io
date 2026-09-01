@@ -1096,11 +1096,17 @@
             /* The flat ground the tee and the cup are promised. The cup's is
                not only about the lie — render.addTerrain cuts the hole out of a
                flat patch and stitches that into the rolling ground around it,
-               and this is what says the patch it needs is genuinely flat. */
+               and this is what says the patch it needs is genuinely flat.
+
+               Every hole, open ones included. A cup on a links green is cut
+               into an inlaid disc that has no humps on it at all, so this used
+               to be a no-op out there and was skipped as one; on the two
+               parkland courses the green is a cell of a row with the hole's
+               whole landform field laid over it, and there it is the only
+               thing standing between a crest and the pin. */
             var worstNearCup = 0, nearCupName = '';
             ALL.forEach(function (entry) {
                 var h = entry.hole, k, a2, x, z, s;
-                if (h.open) return;
                 for (k = 0; k < 24; k++) {
                     a2 = k / 24 * Math.PI * 2;
                     [0.45, 0.8, 1].forEach(function (f) {
@@ -1157,26 +1163,50 @@
                 var h = entry.hole, tag = entry.course.id + '/' + h.name;
                 if (!h.open) return;
                 openHoles++;
+                /* No *rails*, which is not the same as no walls: a parkland
+                   hole has trees on it and they are as solid open as they were
+                   fenced. What may not be there is the thing `enclose` builds,
+                   because a boundary you can bounce off is not a boundary you
+                   may cross. */
                 assert(tag + ': an open hole has no rails on it',
-                    h.walls.length === 0, h.walls.length + ' walls');
+                    h.walls.every(function (wl) { return wl.kind !== 'rail'; }),
+                    h.walls.filter(function (wl) { return wl.kind === 'rail'; }).length + ' rails');
                 assert(tag + ': and a boundary to be outside of', !!h.fence);
                 assert(tag + ': the tee is in bounds',
                     !P.outOfBounds(h, h.tee.x, h.tee.z));
+                /* A disc green is measured off its own radius; a green cut out
+                   of `bands` is a cell of a row and has no radius to measure,
+                   so it is held to the clearing every cup is promised. Either
+                   way the statement is the same one: the surface you have to
+                   putt on may not be partly out of bounds. */
                 var own = null, q;
                 for (q = 0; q < h.pads.length; q++) {
                     if (h.pads[q].inlay && P.padContains(h.pads[q], h.cup.x, h.cup.z)) own = h.pads[q];
                 }
-                assert(tag + ': the whole green is in bounds', own && (function () {
+                var gr = own ? own.r : A.CUP_FLAT;
+                assert(tag + ': the whole green is in bounds', (function () {
                     var k, a2, ok2 = true;
                     for (k = 0; k < 16; k++) {
                         a2 = k / 16 * Math.PI * 2;
-                        if (P.outOfBounds(h, h.cup.x + Math.cos(a2) * own.r,
-                                             h.cup.z + Math.sin(a2) * own.r)) ok2 = false;
+                        if (P.outOfBounds(h, h.cup.x + Math.cos(a2) * gr,
+                                             h.cup.z + Math.sin(a2) * gr)) ok2 = false;
                     }
                     return ok2;
                 })());
+                /* And the ground has to run past the line. An open hole is
+                   only fair if a ball that crosses the boundary lands on
+                   something: a fence with a cliff behind it is a rail that
+                   costs a stroke. */
+                assert(tag + ': there is country outside the boundary',
+                    P.fenceRects(h).every(function (f) {
+                        return [[f.x - 2, f.z + f.d / 2], [f.x + f.w + 2, f.z + f.d / 2],
+                                [f.x + f.w / 2, f.z - 2], [f.x + f.w / 2, f.z + f.d + 2]]
+                            .some(function (pt) {
+                                return !!P.surfaceUnder(h, pt[0], pt[1], Infinity);
+                            });
+                    }));
             });
-            assert('there are open holes to check', openHoles === 6, openHoles + ' found');
+            assert('there are open holes to check', openHoles === 18, openHoles + ' found');
 
             var worstLie = 0, worstLieName = '';
             ALL.forEach(function (entry) {
