@@ -32,7 +32,7 @@
 
         gtag('config', 'G-9GP823TGLB');
     </script>
-    <link rel="stylesheet" href="style.css?v=1.18.0">
+    <link rel="stylesheet" href="style.css?v=1.19.0">
 </head>
 <body>
     <div class="wrap">
@@ -153,9 +153,24 @@
                      is a pill; open, it is the row it always was, a size down.
                      On a phone it starts folded, because a phone is where the
                      course has the least room to spare. -->
-                <button type="button" class="ctl-label view-toggle" id="view-toggle"
-                        aria-expanded="true" aria-controls="view-row"
-                        title="Show or hide the view controls">View <b id="view-val">Straight</b><span class="ctl-caret" aria-hidden="true">▾</span></button>
+                <!-- One line of pills above the row: what is in your hand,
+                     then where you are standing. The club used to be readable
+                     only off the modelled bag in the corner — which says it,
+                     but not at a glance and not at all once the bag is behind
+                     the meter. It is a button, and it opens the picker, so the
+                     thing that names the club is also the thing that changes
+                     it. -->
+                <div class="ctl-head">
+                    <button type="button" class="club-chip" id="club-chip"
+                            title="The club in hand — press to pick another (B)">
+                        <i class="club-dot" id="club-dot" aria-hidden="true"></i>
+                        <b id="club-name">Driver</b>
+                        <span class="club-loft" id="club-loft">4°</span>
+                    </button>
+                    <button type="button" class="ctl-label view-toggle" id="view-toggle"
+                            aria-expanded="true" aria-controls="view-row"
+                            title="Show or hide the view controls">View <b id="view-val">Straight</b><span class="ctl-caret" aria-hidden="true">▾</span></button>
+                </div>
                 <div class="view-row" id="view-row">
                     <!-- The lock decides what the dial is measured off: the
                          shot, which turns the camera with it, or a fixed
@@ -207,7 +222,14 @@
                 <div class="fps" id="fps" aria-hidden="true">— fps</div>
                 <div class="ctl-row">
                     <div class="power">
-                        <span class="ctl-label">Power <b id="power-val">0%</b></span>
+                        <!-- The reading is the power itself, against the
+                             club's full swing, because that is the number the
+                             ticks in the groove are counting. A percentage said
+                             the same thing about every club and so said nothing
+                             about any of them: 60% is nine units with a putter
+                             and nineteen with a driver, and it is the nine and
+                             the nineteen you are aiming with. -->
+                        <span class="ctl-label">Power <b id="power-val">0.0</b><span class="power-of" id="power-of">/ 32</span></span>
                         <!-- The meter has always been a slider you can press
                              and drag; what it did not have was anything that
                              said so. The grip is the handle you reach for, the
@@ -447,22 +469,22 @@
 
     <!-- Load order is dependency order: config, then the pure logic, then the
          things that touch the screen. game.js boots itself on DOMContentLoaded. -->
-    <script src="js/config.js?v=1.18.0"></script>
-    <script src="js/themes.js?v=1.18.0"></script>
-    <script src="js/physics.js?v=1.18.0"></script>
-    <script src="js/courses.js?v=1.18.0"></script>
-    <script src="js/custom.js?v=1.18.0"></script>
-    <script src="js/scoring.js?v=1.18.0"></script>
-    <script src="js/audio.js?v=1.18.0"></script>
-    <script src="js/music.js?v=1.18.0"></script>
-    <script src="js/bag.js?v=1.18.0"></script>
-    <script src="js/textures.js?v=1.18.0"></script>
-    <script src="js/shaders.js?v=1.18.0"></script>
-    <script src="js/postfx.js?v=1.18.0"></script>
-    <script src="js/weather.js?v=1.18.0"></script>
-    <script src="js/render.js?v=1.18.0"></script>
-    <script src="js/minimap.js?v=1.18.0"></script>
-    <script src="js/debug.js?v=1.18.0"></script>
-    <script src="js/game.js?v=1.18.0"></script>
+    <script src="js/config.js?v=1.19.0"></script>
+    <script src="js/themes.js?v=1.19.0"></script>
+    <script src="js/physics.js?v=1.19.0"></script>
+    <script src="js/courses.js?v=1.19.0"></script>
+    <script src="js/custom.js?v=1.19.0"></script>
+    <script src="js/scoring.js?v=1.19.0"></script>
+    <script src="js/audio.js?v=1.19.0"></script>
+    <script src="js/music.js?v=1.19.0"></script>
+    <script src="js/bag.js?v=1.19.0"></script>
+    <script src="js/textures.js?v=1.19.0"></script>
+    <script src="js/shaders.js?v=1.19.0"></script>
+    <script src="js/postfx.js?v=1.19.0"></script>
+    <script src="js/weather.js?v=1.19.0"></script>
+    <script src="js/render.js?v=1.19.0"></script>
+    <script src="js/minimap.js?v=1.19.0"></script>
+    <script src="js/debug.js?v=1.19.0"></script>
+    <script src="js/game.js?v=1.19.0"></script>
 </body>
 </html>

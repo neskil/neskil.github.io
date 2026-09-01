@@ -497,7 +497,7 @@
         // the value is and therefore where a hand would be holding it.
         $('power-grip').style.left = (frac * 100).toFixed(1) + '%';
         $('power-fill').parentNode.classList.toggle('loaded', state.aim.power > 0);
-        $('power-val').textContent = Math.round(swing * 100) + '%';
+        $('power-val').textContent = state.aim.power.toFixed(1);
         $('power-val').parentNode.classList.toggle('over', over);
         $('power-fill').parentNode.classList.toggle('hot', hot);
         $('power-fill').parentNode.classList.toggle('over', over);
@@ -518,6 +518,39 @@
         if (mark) mark.style.left = at;
         if (zone) zone.style.left = at;
         $('power-track').setAttribute('aria-valuemax', Math.round(100 * (1 + C.OVERDRAW)));
+    }
+
+    /* One tick per unit of power, every fifth one brighter — so the groove is
+       a ruler with the club's own numbers on it rather than a bar that is
+       60% of something.
+
+       This is the difference between the two ends of the bag being told apart
+       and not: a putter's thirteen widely spaced marks and a driver's forty-one
+       tight ones are visibly different instruments before either is loaded, and
+       once one is, the fill has crossed a countable number of them. The old
+       groove had a mark every 16 screen pixels, which counted the bar and not
+       the shot, and read identically whatever was in your hand. */
+    function drawPowerTicks(club) {
+        var top = maxPower(club);
+        if (!(top > 0)) return;
+        var step = 100 / top;                 // one unit of power, as a % of the track
+        /* Below about four pixels a tick stops being a mark and starts being a
+           moiré, so the minor ones drop out and the fives carry the scale on
+           their own. Four rather than six: a driver's forty-one marks packed
+           tight *is* the reading — a club with a lot of power looks like one —
+           and thinning them to eight throws that away to buy legibility of
+           marks nobody counts one at a time anyway. */
+        var w = $('power-track').getBoundingClientRect().width || 320;
+        var minor = (w * step / 100) >= 4;
+        var layers = [];
+        if (minor) {
+            layers.push('repeating-linear-gradient(90deg, rgba(255,255,255,0.11) 0 1px,' +
+                ' transparent 1px, transparent ' + step.toFixed(4) + '%)');
+        }
+        layers.push('repeating-linear-gradient(90deg, rgba(255,255,255,0.30) 0 1px,' +
+            ' transparent 1px, transparent ' + (step * 5).toFixed(4) + '%)');
+        $('power-track').style.backgroundImage = layers.join(',');
+        $('power-of').textContent = '/ ' + club.power;
     }
 
     /* Swing is the only thing that plays a stroke, so it says plainly when it
@@ -547,6 +580,19 @@
     function syncClubs() {
         if (G3.bag) G3.bag.setSelected(state.club.id);
         $('club-hint').textContent = state.club.name + ' — ' + state.club.blurb;
+        /* And the pill at the top of the stage says it in the club's own
+           colour. The modelled bag has always carried this, and carries it
+           better — but it is in the corner, it is small, and on a phone the
+           meter stands in front of it. Which club is in your hand is the one
+           thing you have to know before every single shot, so it is also
+           written where the other two per-shot readings are. */
+        $('club-name').textContent = state.club.name;
+        $('club-loft').textContent = Math.round(state.club.loft * 180 / Math.PI) + '°';
+        $('club-chip').style.setProperty('--club',
+            (G3.bag && G3.bag.look ? G3.bag.look(state.club.id).name : '#eaf6ff'));
+        $('club-chip').setAttribute('aria-label',
+            'Club in hand: ' + state.club.name + '. Press to pick another.');
+        drawPowerTicks(state.club);
         syncPicker();
     }
 
@@ -1835,6 +1881,7 @@
             R.resize();
             syncCompact();
             measurePickerBand();
+            if (state) drawPowerTicks(state.club);
         });
 
         $('banner-next').addEventListener('click', nextHole);
@@ -1851,6 +1898,11 @@
         holdToRepeat('btn-view-right', function () { nudgeView(VIEW_STEP); }, 110);
         $('btn-view-lock').addEventListener('click', toggleLock);
         $('view-toggle').addEventListener('click', toggleViewCtl);
+        // Naming the club and changing it are the same button: the pill opens
+        // the picker, which is where the choice already lives.
+        $('club-chip').addEventListener('click', function () {
+            if (G3.bag) { G3.bag.toggle(); syncPicker(); }
+        });
         $('btn-fps').addEventListener('click', toggleFps);
         // A drag that started on the ⌖ and walked away is not a press of it.
         $('btn-view-home').addEventListener('click', function () {
