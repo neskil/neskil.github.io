@@ -35,8 +35,16 @@
         rough:   [ 60, 104,  54],
         sand:    [222, 204, 154],
         wood:    [176, 132,  80],
+        ice:     [188, 218, 234],
         cup:     [ 24,  32,  20]
     };
+    /* And the machinery, which is not a surface at all — a belt is a board and
+       a launch pad is a board, and on a plan the thing that matters about
+       either is that it is *not* a board. So they are drawn in one hot colour
+       over whatever they are made of, because on a thumbnail the question a
+       player is asking is "what does that do to my ball", and a wooden
+       rectangle three pixels wide answers it wrong. */
+    var MACHINE = [244, 122, 178];
     var WATER = [46, 118, 158];
     var BEYOND = [30, 44, 36];        // ground outside the boundary
     var RAIL = [232, 236, 230];
@@ -124,7 +132,9 @@
                     if (!pond) continue;                  // nothing here: transparent
                     col = WATER; lit = 1;
                 } else {
-                    col = INK[surf.pad.kind] || INK.green;
+                    col = (surf.pad.push || surf.pad.spring)
+                        ? MACHINE
+                        : (INK[surf.pad.kind] || INK.green);
                     lit = shade(surf.pad, x, z);
                 }
 
@@ -174,6 +184,31 @@
             g.fillRect(-B.hw * scale, -B.hd * scale,
                 Math.max(1, B.hw * 2 * scale), Math.max(1, B.hd * 2 * scale));
             g.restore();
+        }
+
+        /* The pipes, drawn as both ends and the line between them. On the
+           ground a mouth is a hole you have to find; on a plan it is the only
+           thing that explains why the hole is shaped the way it is, so the
+           plan gives away what the tee does not — where you come out. */
+        var ws = hole.warps || [], q, wp;
+        for (q = 0; q < ws.length; q++) {
+            wp = ws[q];
+            g.strokeStyle = 'rgba(244,122,178,0.45)';
+            g.lineWidth = Math.max(1, 0.12 * scale);
+            g.setLineDash([Math.max(2, 0.5 * scale), Math.max(2, 0.5 * scale)]);
+            g.beginPath();
+            g.moveTo(toX(wp.x), toY(wp.z));
+            g.lineTo(toX(wp.tx), toY(wp.tz));
+            g.stroke();
+            g.setLineDash([]);
+            g.fillStyle = 'rgb(244,122,178)';
+            g.beginPath();
+            g.arc(toX(wp.x), toY(wp.z), Math.max(2, wp.r * scale), 0, 6.283);
+            g.fill();
+            g.fillStyle = 'rgba(16,20,26,0.9)';
+            g.beginPath();
+            g.arc(toX(wp.x), toY(wp.z), Math.max(1, wp.r * 0.6 * scale), 0, 6.283);
+            g.fill();
         }
 
         // The tee, and the hole itself. Both are drawn at a size you can see

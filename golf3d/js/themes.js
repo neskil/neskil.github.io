@@ -25,6 +25,11 @@
      cloudLum   scales the cloud colours, for the same reason.
      ground     tints the rock, so two rock courses are not the same place.
      floor      the same for a `floor` surround.
+     machine    what the marks on a travelator, a launch pad and a pipe mouth
+                are painted (render.js, "the machinery"). They have to be the
+                first thing read from the tee, and what colour does that
+                depends on what the ground is: hot pink at a fair, cold cyan on
+                the ice. Left out, they are the amber everything else uses.
      birds      false to keep them out of the sky.
      ridge      the ranges on the horizon, two hundred units out and built:
                 `colour` the rock or heather of them, `cap` what the tops catch
@@ -214,6 +219,51 @@
             relief: 3.6,
             water: 0x35657f,
             side: '#7a6a58'
+        },
+        /* ── the adventure courses ──────────────────────────────────────
+
+           Two palettes for the two things a course made of machinery can be.
+
+           Icehouse Yard is lit like a cold clear morning and it is the one
+           theme in the file where the *specular* is the subject: ice reads as
+           ice because of what the light does on top of it, so the sun is low
+           and off to one side where it can lie along the surface, and the
+           surround is snow — a rock surround tinted almost white, rolling a
+           little, with alps behind it. The turf is a frosted green rather than
+           a summer one, because a bright lawn beside a sheet of ice looks like
+           two different courses photographed together. */
+        icehouse: {
+            sky: [0x4d84be, 0xd9eaf6],
+            fog: 0xd9eaf6,
+            sun: 0xfff2e4, sunPos: [-12, 7, 9], ambient: 0xc2daec, ambientI: 0.8,
+            grass: ['#7fae97', '#74a28c'],
+            rail: 0xeaf4fa,
+            machine: 0x39c8ff,
+            surroundY: -1.5, surround: 'rock', ground: '#c4d6e2',
+            relief: 3.5,
+            ridge: { colour: '#8ba2b6', cap: '#f4fafd', peak: 13, rough: 0.62 },
+            water: 0x2a6f9c,
+            side: '#8aa9bd'
+        },
+        /* And the fair, which is the other half of adventure golf and has to
+           look like somewhere you would queue up to play: dusk over a pier,
+           lamps rather than sun, and the machinery in hot pink so a belt and a
+           launch pad are the brightest things on the hole. That last part is
+           the whole reason `machine` is a theme key at all — the marks on the
+           ground have to be the first thing you see from the tee, and what
+           colour does that depends entirely on what the ground is. */
+        fairground: {
+            sky: [0x241b47, 0xef7f72],
+            fog: 0xef7f72,
+            sun: 0xffd7a4, sunPos: [8, 10, -7], ambient: 0x9c74c2, ambientI: 0.85,
+            grass: ['#2f8f60', '#288056'],
+            rail: 0xf7e267,
+            machine: 0xff5aa0,
+            stars: 0.45,
+            cloudLum: 0.55,
+            surroundY: -2.4, surround: 'floor', floor: '#2c2039',
+            water: 0x2b6f8f,
+            side: '#5b4070'
         },
         works: {
             sky: [0x0d121d, 0x33405e],

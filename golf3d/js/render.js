@@ -491,6 +491,14 @@
                 return m;
             })(),
             wood: tops(tex.wood, 8 + wet * 80, 0x151515, 0xb0bcc4),
+            /* Ice gets the hardest specular on the course and the whitest
+               highlight, because that is the only thing separating it from a
+               pale patch of floor: the texture underneath it is depth and this
+               is the surface over the top of it. Rain barely changes it —
+               water on ice is still ice — so unlike every other surface here
+               the wet term only takes it a little further the way it already
+               was. */
+            ice: tops(tex.ice, 90 + wet * 40, 0xdff0ff, 0xffffff),
             rough: tops(tex.rough, 3 + wet * 40, 0x000000, 0x7d8a92),
             // The greens get the most of everything: a bump map of the same
             // blades that are in the colour map, so the light rakes across the
@@ -1461,6 +1469,178 @@
         addShells(group, pad, cup, holed, cx, cy, cz);
     }
 
+    /* ── the machinery ──────────────────────────────────────────────────
+
+       A belt, a launch pad and a pipe mouth are all the same problem: the
+       ground does something, and the ground looks exactly like ground. There
+       is nothing for the ball to hit, so there is no wall to see, and a player
+       who cannot tell a travelator from a plank until the ball is on it is
+       being asked to learn the hole by losing a stroke on it.
+
+       So each of the three gets one mark, and the marks obey one rule: **flat
+       and above the surface, never proud of it.** Anything with height on it
+       reads as something the ball would bounce off, and none of these are —
+       a belt is a floor, a launch pad is a floor, a mouth is a hole in one.
+       Chevrons, a ring and a throat, all a centimetre up so they do not fight
+       the pad they are drawn on, and all unlit `MeshBasicMaterial` so they
+       stay legible in the works after dark and on the ice at noon alike.
+
+       They are drawn from the same data the physics reads — `pad.push`,
+       `pad.spring`, `hole.warps` — rather than from a second list of scenery,
+       so a mark cannot end up pointing the wrong way or drawn where nothing
+       happens. That is not tidiness: the first version of the belt had its
+       arrows authored separately and the very first hole written with one had
+       them backwards. */
+
+    /* How far a mark floats above the ground it is painted on, and the two
+       things it has to clear before it is visible at all.
+
+       **INLAY_LIFT**, and not merely equal it: a launch pad is an inlay, an
+       inlay is already lifted by that much to stop it z-fighting with the pad
+       it is laid into, and a ring drawn at the same height as the disc it sits
+       on comes out as a band of speckle. Which is exactly what the first one
+       did.
+
+       **The grass.** A green wears a stack of shells a little over a tenth of
+       a unit tall (SHELL_HEIGHT), so a decal five centimetres up is a decal
+       inside a lawn: from a low camera the near rim of it shows and the far
+       rim is behind the blades, which is not a subtle bug to look at — a pipe
+       mouth came out as a black hole with a pink smile under it. */
+    var MARK_LIFT = 0.022;
+
+    function markY(pad, x, z) {
+        return P.padHeight(pad, x, z) +
+            (pad.inlay ? INLAY_LIFT : 0) +
+            (SHELL_HEIGHT[pad.kind] || 0) + MARK_LIFT;
+    }
+
+    function markMat(colour, opacity) {
+        return new THREE.MeshBasicMaterial({
+            color: colour, transparent: opacity < 1, opacity: opacity,
+            depthWrite: false, side: THREE.DoubleSide
+        });
+    }
+
+    /* A chevron lying flat and pointing along +z, so that `rotation.y = yaw`
+       turns it to face wherever the belt pushes.
+
+       The sign of it is the one thing here that is easy to get wrong and
+       impossible to notice in a still: a `ShapeGeometry` is built in the xy
+       plane, and laying it down with rotateX(-90°) sends shape **+y to world
+       -z**. So a chevron drawn pointing up the page comes out pointing back
+       down the hole, and the arrows on the first belt ever written were
+       exactly backwards. The apex is at -y here for that reason and no
+       other. */
+    function chevronShape(w, d, t) {
+        var sh = new THREE.Shape();
+        sh.moveTo(-w, d);
+        sh.lineTo(0, 0);
+        sh.lineTo(w, d);
+        sh.lineTo(w, d - t);
+        sh.lineTo(0, -t);
+        sh.lineTo(-w, d - t);
+        sh.closePath();
+        return sh;
+    }
+
+    /* A travelator: chevrons along it, spaced by how hard it pushes, so a
+       fast belt is a dense one and the picture carries the number. */
+    function addBelt(group, pad, theme) {
+        var ax = pad.push.x, az = pad.push.z;
+        var mag = Math.hypot(ax, az);
+        if (!mag) return;
+        var yaw = Math.atan2(ax, az);
+        var run = Math.abs(Math.cos(yaw)) * pad.d + Math.abs(Math.sin(yaw)) * pad.w;
+        var across = Math.abs(Math.cos(yaw)) * pad.w + Math.abs(Math.sin(yaw)) * pad.d;
+        var wide = Math.min(0.62, across * 0.34);
+        var step = Math.max(0.8, 2.4 - mag * 0.1);
+        var n = Math.max(1, Math.floor(run / step));
+        var cx = pad.x + pad.w / 2, cz = pad.z + pad.d / 2;
+        var geo = new THREE.ShapeGeometry(chevronShape(wide, wide * 0.85, wide * 0.42));
+        geo.rotateX(-Math.PI / 2);
+        var mat = markMat(theme.machine || 0xffd34d, 0.95);
+        var i, f, ox, oz, m;
+        for (i = 0; i < n; i++) {
+            f = (i + 0.5) / n - 0.5;
+            ox = Math.sin(yaw) * f * run;
+            oz = Math.cos(yaw) * f * run;
+            m = new THREE.Mesh(geo, mat);
+            m.rotation.y = yaw;
+            m.position.set(cx + ox, markY(pad, cx + ox, cz + oz), cz + oz);
+            group.add(m);
+        }
+    }
+
+    /* A launch pad: a sprung face with a rim round it, drawn the same way the
+       pipe mouth is and for the same reason — a decal on the floor is only a
+       decal from the one angle the light happens to be at, and this is a thing
+       the player has to be able to pick out from the tee and then aim a ball
+       at from six units away. The face is flat (the pad under it is flat, and
+       anything domed would be geometry the ball visibly passes through), so
+       the reading comes from the rim and from the two rings inside it. */
+    function addSpring(group, pad, theme) {
+        var cx = pad.x + pad.w / 2, cz = pad.z + pad.d / 2;
+        var r = pad.r || Math.min(pad.w, pad.d) / 2;
+        var y = markY(pad, cx, cz);
+        var col = theme.machine || 0xffd34d;
+        // A shade wider than the pad it is drawn on, so no sliver of the
+        // board underneath shows between the rim and the grass.
+        var face = new THREE.Mesh(new THREE.CircleGeometry(r * 1.0, 34),
+            markMat(col, 0.95));
+        face.rotation.x = -Math.PI / 2;
+        face.position.set(cx, y, cz);
+        group.add(face);
+        // Two darker rings on the face, which is what a sprung membrane looks
+        // like and, more usefully, what makes the middle of one findable.
+        var inner = new THREE.Mesh(new THREE.RingGeometry(r * 0.36, r * 0.46, 28),
+            markMat(0x1a1420, 0.35));
+        inner.rotation.x = -Math.PI / 2;
+        inner.position.set(cx, y + 0.004, cz);
+        group.add(inner);
+        var rim = new THREE.Mesh(new THREE.TorusGeometry(r * 1.02, 0.055, 8, 32),
+            new THREE.MeshLambertMaterial({ color: col }));
+        rim.rotation.x = -Math.PI / 2;
+        rim.position.set(cx, y + 0.04, cz);
+        rim.castShadow = true;
+        group.add(rim);
+    }
+
+    /* A pipe mouth: a bright collar and a throat that goes nowhere the eye can
+       follow, which is the entire visual argument that the ball will come out
+       somewhere else. */
+    function addMouth(group, hole, w, theme) {
+        var s = P.surfaceTop(hole, w.x, w.z);
+        var y = s ? markY(s.pad, w.x, w.z) : MARK_LIFT;
+        var dark = new THREE.Mesh(new THREE.CircleGeometry(w.r * 0.8, 26),
+            new THREE.MeshBasicMaterial({ color: 0x080b12 }));
+        dark.rotation.x = -Math.PI / 2;
+        dark.position.set(w.x, y, w.z);
+        group.add(dark);
+        // And a throat under it, for the moment the ball goes past one at its
+        // own eyeline.
+        var throat = new THREE.Mesh(
+            new THREE.CylinderGeometry(w.r * 0.8, w.r * 0.58, 0.7, 24, 1, true),
+            new THREE.MeshBasicMaterial({ color: 0x0a0d14, side: THREE.BackSide }));
+        throat.position.set(w.x, y - 0.35, w.z);
+        group.add(throat);
+        /* The rim is the one mark on this course with real thickness, and it
+           earns it: a flat ring painted round a black hole is only visible
+           from the side of it nearest the camera — the far half is at a
+           grazing angle behind the near lip and simply is not there, so a
+           mouth came out as a hole with a smile under it. A torus is the same
+           shape with a body, and it reads from every angle a ball is ever
+           looked at from. It stands a third of STEP_UP proud, which is well
+           inside a kerb the ball would climb anyway, and it is not solid:
+           nothing on this course is a wall unless it is in `walls`. */
+        var rim = new THREE.Mesh(
+            new THREE.TorusGeometry(w.r * 0.86, 0.055, 8, 30),
+            new THREE.MeshLambertMaterial({ color: theme.machine || 0xffd34d }));
+        rim.rotation.x = -Math.PI / 2;
+        rim.position.set(w.x, y + 0.045, w.z);
+        rim.castShadow = true;
+        group.add(rim);
+    }
+
     /* A tree.
 
        The solid part of it is the trunk and only the trunk — courses.js says
@@ -2312,6 +2492,12 @@
 
         var i;
         for (i = 0; i < hole.pads.length; i++) addPad(g, hole.pads[i], theme, hole.cup, hole.pads);
+        // The marks on the machinery, after the ground they are drawn on.
+        for (i = 0; i < hole.pads.length; i++) {
+            if (hole.pads[i].push) addBelt(g, hole.pads[i], theme);
+            if (hole.pads[i].spring) addSpring(g, hole.pads[i], theme);
+        }
+        for (i = 0; i < (hole.warps || []).length; i++) addMouth(g, hole, hole.warps[i], theme);
         for (i = 0; i < hole.walls.length; i++) addWall(g, hole.walls[i]);
         for (i = 0; i < hole.water.length; i++) addWater(g, hole.water[i], theme);
         addCup(g, hole);
@@ -2472,7 +2658,7 @@
         var spread = P.spray(aim.over || 0);
         var angle = C.CONE_ANGLE + spread.yaw;
         var seconds = 0.5 + frac * 0.5;
-        var pts = P.previewPath(world, aim.yaw, aim.power, aim.loft, seconds);
+        var pts = P.previewPath(world, aim.yaw, aim.power, aim.loft, seconds, aim.bite);
 
         /* Under MIN_POWER there is no shot to preview: launch() refuses it and
            previewPath hands back nothing. Park the cone and the arrowhead

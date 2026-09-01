@@ -82,7 +82,41 @@
 
        Nothing above is a special case anywhere else in this file. A ramp, a
        breaking green, a dune field and a crowned green are all one code path,
-       and the only function that had to learn anything new is padGrad. */
+       and the only function that had to learn anything new is padGrad.
+
+       ── ground that does something ──
+
+       Two more, and they are a different kind of thing: the ones above change
+       where the ground *is*, and these change what it does to a ball sitting
+       on it. They still live on the pad rather than in a list of gadgets
+       somewhere, because the alternative is a second kind of object with its
+       own footprint, its own overlap rules and its own place in every lookup —
+       and a travelator is not an object standing on the floor, it *is* the
+       floor.
+
+         push    { x, z }: an acceleration applied to a grounded ball, in units
+                 per second squared. A belt. It is not a shove — it is a force
+                 the ball is under the whole time it is on the pad, so drag
+                 balances it at |push| / -ln(friction) and the belt has a
+                 speed of its own that a ball approaches from either side.
+                 A pad with one is never a lie that holds: see the rest check
+                 at the bottom of substep, and the reason a belt you can fall
+                 asleep on is not a belt.
+
+         spring  an upward speed, in units per second, given to any ball that
+                 touches the pad — rolling on to it or landing on it, because a
+                 trampoline does not care how you arrived. sqrt(2·GRAVITY·h) is
+                 what reaches height h, so 8.5 clears two units. It fades on
+                 each firing within a shot (CONFIG.SPRING_DECAY) and that is
+                 the whole of what stops a ball bouncing until the clock does.
+
+       And one that belongs to the hole rather than to a pad, because it is a
+       relation between two places and not a property of either:
+
+         warps   [{ x, z, r, tx, tz, yaw }]: a mouth of radius r at (x, z) that
+                 puts the ball down at (tx, tz) travelling along `yaw` at the
+                 speed it arrived with. One way, so a two-way pipe is written
+                 as two of them and a chute is written as one. */
     function padHeight(pad, x, z) {
         var h = pad.y + (pad.sx || 0) * (x - pad.x) + (pad.sz || 0) * (z - pad.z);
         var b = pad.bumps, i, m, dx, dz, q;
@@ -325,6 +359,46 @@
         events.out = true;
     }
 
+    /* The mouth the ball is over, if any, and only if the ball is low enough
+       to go down it. A pipe is a hole in the floor: a putt finds it and a
+       lofted shot sails across the top of it, which is what makes "keep it
+       down" a thing a hole can ask for without a single wall.
+
+       The exit is placed on whatever ground is at the far end and the ball
+       leaves along the pipe's own yaw at the speed it went in. Not the
+       direction it arrived from: a pipe has a mouth, and coming out of one
+       pointing wherever you happened to enter would make the far end
+       unaimable — which is the one thing the far end has to be. */
+    function warpUnder(hole, b) {
+        var ws = hole.warps, i, w, s;
+        if (!ws) return null;
+        for (i = 0; i < ws.length; i++) {
+            w = ws[i];
+            var dx = b.x - w.x, dz = b.z - w.z;
+            if (dx * dx + dz * dz > w.r * w.r) continue;
+            s = surfaceUnder(hole, b.x, b.z, b.y + C.STEP_UP);
+            if (!s || b.y - C.BALL_R > s.y + C.WARP_MOUTH) continue;
+            return w;
+        }
+        return null;
+    }
+
+    function takeWarp(world, events) {
+        var b = world.ball;
+        var w = warpUnder(world.hole, b);
+        if (!w) return;
+        var sp = Math.sqrt(b.vx * b.vx + b.vz * b.vz);
+        var out = surfaceTop(world.hole, w.tx, w.tz);
+        b.x = w.tx; b.z = w.tz;
+        b.y = (out ? out.y : 0) + C.BALL_R;
+        b.vx = Math.sin(w.yaw) * sp;
+        b.vz = Math.cos(w.yaw) * sp;
+        b.vy = 0;
+        world.grounded = true;
+        world.warpFor = C.WARP_LOCK;
+        events.warp = true;
+    }
+
     function waterAt(hole, x, z) {
         var w = hole.water, i;
         if (!w) return null;
@@ -447,6 +521,8 @@
             sunk: false,
             splash: false,
             out: false,
+            sprung: 0,          // springs fired this shot; each is worth less
+            warpFor: 0,         // seconds before a mouth will swallow again
             overCup: false      // has the ball been over the mouth? see cupContact
         };
     }
@@ -455,7 +531,7 @@
         var b = w.ball;
         return {
             hole: w.hole,
-            ball: { x: b.x, y: b.y, z: b.z, vx: b.vx, vy: b.vy, vz: b.vz },
+            ball: { x: b.x, y: b.y, z: b.z, vx: b.vx, vy: b.vy, vz: b.vz, bite: b.bite || 0 },
             origin: { x: w.origin.x, y: w.origin.y, z: w.origin.z },
             time: w.time,
             grounded: w.grounded,
@@ -465,14 +541,24 @@
             sunk: w.sunk,
             splash: w.splash,
             out: w.out,
+            sprung: w.sprung || 0,
+            warpFor: w.warpFor || 0,
             overCup: w.overCup
         };
     }
 
     /* Aim is a compass yaw in the xz plane; loft lifts the shot out of it.
        A lofted ball leaves the ground immediately, which is the whole point —
-       it is how you carry a rail, a bunker or a pond instead of going round. */
-    function launch(world, yaw, power, loft) {
+       it is how you carry a rail, a bunker or a pond instead of going round.
+
+       `bite` is backspin, and it is the third number a shot has ever carried.
+       It is the fraction of the ball's *ground* speed that the first landing
+       takes away, spent once and gone — which is what backspin does and, more
+       to the point, the only property that separates two clubs of the same
+       loft and the same power. The simulation still does not hear the word
+       "club": it is handed an angle, a speed and now a number for how much the
+       first bounce costs. config.js decides which club supplies which. */
+    function launch(world, yaw, power, loft, bite) {
         /* The ceiling is the longest club's ceiling, plus its overdraw, plus
            what a clean strike at the top of that overdraw is worth (deliver).
            The meter is allowed past a full swing and the gate is allowed to
@@ -489,11 +575,14 @@
         b.vx = Math.sin(yaw) * flat;
         b.vz = Math.cos(yaw) * flat;
         b.vy = Math.sin(l) * p;
+        b.bite = Math.max(0, Math.min(0.95, bite || 0));
         world.moving = true;
         world.spin = 0;
         world.splash = false;
         world.out = false;
         world.overCup = false;
+        world.sprung = 0;
+        world.warpFor = 0;
         if (b.vy > 0.01) world.grounded = false;
         return true;
     }
@@ -700,6 +789,17 @@
         return true;
     }
 
+    /* What a spring is worth this time. Each firing within one shot is worth
+       SPRING_DECAY of the last, and once it would be under the speed a landing
+       settles at the pad has nothing left to give and behaves like ground.
+       Bounded, deterministic, and the reason a trampoline cannot hold a shot
+       open until MAX_SHOT_SECONDS closes it. */
+    function springKick(world, pad) {
+        if (!pad || !pad.spring) return 0;
+        var v = pad.spring * Math.pow(C.SPRING_DECAY, world.sprung);
+        return v > C.LAND_REST ? v : 0;
+    }
+
     // Scratch for the gradient under the ball: written before it is read on
     // every substep, never held on to.
     var _lie = { x: 0, z: 0 };
@@ -728,6 +828,19 @@
                     var k = C.GRAVITY / (1 + sx * sx + sz * sz);
                     b.vx -= k * sx * dt;
                     b.vz -= k * sz * dt;
+                }
+
+                /* And the belt, which is the same idea with a different cause:
+                   a slope accelerates the ball because of where the ground is
+                   and a travelator because of what it is doing, and neither of
+                   them is anything the rest of the step needs to know about.
+                   Drag balances it — see the note in config.js — so a pad with
+                   a push has a speed rather than a shove, and a ball put down
+                   on one against the run of it is turned round rather than
+                   stopped. */
+                if (pad.push) {
+                    b.vx += pad.push.x * dt;
+                    b.vz += pad.push.z * dt;
                 }
 
                 var fr = frictionOf(pad.kind);
@@ -770,6 +883,16 @@
                     b.vy = climb > 0 ? climb : 0;
                 } else {
                     b.y = next.y + C.BALL_R;
+                    // Rolled on to a launch pad. A trampoline does not ask how
+                    // you got there, so this is the same event as landing on
+                    // one and it goes through the same counter.
+                    var roll = springKick(world, next.pad);
+                    if (roll) {
+                        world.grounded = false;
+                        world.sprung++;
+                        b.vy = roll;
+                        events.land = true;
+                    }
                 }
             }
         } else {
@@ -840,12 +963,35 @@
             if (land && b.y - C.BALL_R <= land.y) {
                 b.y = land.y + C.BALL_R;
                 var impact = -b.vy;
-                b.vx *= C.LAND_GRIP;
-                b.vz *= C.LAND_GRIP;
-                b.vy = impact * C.BOUNCE;
-                // Most of the bend does not survive the ground. What is left
-                // still shapes a second hop; nothing survives to the roll,
-                // where the slope is the only thing entitled to steer.
+                var kick = springKick(world, land.pad);
+                if (kick) {
+                    // A launch pad keeps the run on: it is a thing you cross
+                    // on the way somewhere, not a thing you land in.
+                    world.sprung++;
+                    b.vy = kick;
+                } else {
+                    b.vx *= C.LAND_GRIP;
+                    b.vz *= C.LAND_GRIP;
+                    b.vy = impact * C.BOUNCE;
+                }
+                /* Backspin, spent on the first thing the ball touches. It is
+                   taken off the ground speed rather than off the bounce,
+                   because what a checked wedge does is arrive and stay — the
+                   hop is the same hop and the run after it is not. */
+                if (b.bite) {
+                    b.vx *= (1 - b.bite);
+                    b.vz *= (1 - b.bite);
+                    b.bite = 0;
+                }
+                /* Most of the bend does not survive the ground. What is left
+                   still shapes a second hop; nothing survives to the roll,
+                   where the slope is the only thing entitled to steer.
+
+                   It comes off a launch pad as well as off ordinary ground,
+                   and deliberately: a trampoline is contact, and a shot that
+                   kept its whole curve through one would come off the pad
+                   bending exactly as hard as it arrived — which is not what
+                   anything hitting anything does. */
                 world.spin *= C.SPIN_LAND;
                 events.land = true;
                 if (b.vy < C.LAND_REST) {
@@ -856,6 +1002,12 @@
         }
 
         collideWalls(world, dt, events);
+
+        /* And the pipes, after the walls have had their say — a mouth set into
+           the floor beside a rail should swallow the ball that has just come
+           off the rail, not the one that is still inside it. */
+        if (world.warpFor > 0) world.warpFor -= dt;
+        else takeWarp(world, events);
 
         if (cupContact(world, events)) return;
         if (drown(world, events)) return;
@@ -893,7 +1045,16 @@
             var settled;
             if (world.grounded) {
                 var lie = surfaceUnder(hole, b.x, b.z, b.y + C.STEP_UP);
-                settled = (lie && slopeAt(lie.pad, b.x, b.z) <= holdOf(lie.pad.kind)) ||
+                /* A travelator is never a lie that holds, whatever its
+                   gradient says. The drag above is the only thing that ever
+                   balances a belt, and drag is zero at zero speed — so without
+                   this a ball that arrived slowly enough would be declared at
+                   rest on a moving floor and sit there, which is both wrong
+                   and the exact bug a player would report as "the belt is
+                   broken". The STUCK backstop still catches a ball the belt is
+                   holding against a wall, because that one really has stopped. */
+                settled = (lie && !lie.pad.push &&
+                        slopeAt(lie.pad, b.x, b.z) <= holdOf(lie.pad.kind)) ||
                     world.slowFor > C.STUCK;
             } else {
                 settled = world.slowFor > C.SLOPE_SETTLE;
@@ -941,9 +1102,9 @@
         return world;
     }
 
-    function simulateShot(hole, from, yaw, power, loft, time) {
+    function simulateShot(hole, from, yaw, power, loft, time, bite) {
         var w = createWorld(hole, from, time);
-        if (!launch(w, yaw, power, loft)) return w;
+        if (!launch(w, yaw, power, loft, bite)) return w;
         return settle(w);
     }
 
@@ -961,15 +1122,20 @@
        spends its whole window reaching the wall would otherwise come off it in
        three dots. A second wall inside that window is where honest prediction
        ends, so that is where it stops. */
-    function previewPath(world, yaw, power, loft, seconds) {
+    function previewPath(world, yaw, power, loft, seconds, bite) {
         var w = cloneWorld(world);
-        if (!launch(w, yaw, power, loft)) return [];
+        if (!launch(w, yaw, power, loft, bite)) return [];
         var pts = [{ x: w.ball.x, y: w.ball.y, z: w.ball.z }];
         var steps = Math.ceil((seconds || 0.7) / C.SIM_DT);
         var grant = Math.ceil(steps * 0.6);
         var turn = -1, i, ev, p;
         for (i = 0; i < steps; i++) {
             ev = advance(w, C.SIM_DT, {});
+            // A pipe is where the prediction stops. Carrying on would draw a
+            // dotted line straight across the hole from one mouth to the
+            // other, which is a picture of the ball travelling through ground
+            // it never touches.
+            if (ev.warp) break;
             p = { x: w.ball.x, y: w.ball.y, z: w.ball.z };
             pts.push(p);
             if (ev.land || ev.splash || ev.sunk || ev.out || !w.moving) break;
@@ -1012,7 +1178,9 @@
         padGrad: padGrad,
         slopeAt: slopeAt,
         outOfBounds: outOfBounds,
-        fenceRects: fenceRects
+        fenceRects: fenceRects,
+        warpUnder: warpUnder,
+        springKick: springKick
     };
 
 })(window.G3);

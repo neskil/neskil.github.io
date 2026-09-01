@@ -151,7 +151,7 @@
            handed to whoever was holding the club. */
         var asked = { yaw: state.aim.yaw, power: P.deliver(state.aim.power, state.club.power) };
         var shot = g ? SW.apply(asked, g) : { yaw: asked.yaw, power: asked.power, spin: 0 };
-        if (!P.launch(state.world, shot.yaw, shot.power, state.club.loft)) return;
+        if (!P.launch(state.world, shot.yaw, shot.power, state.club.loft, state.club.bite)) return;
         // launch() clears the spin, so the bend goes on after it.
         state.world.spin = shot.spin || 0;
         if (g) sayStrike(g);
@@ -1864,7 +1864,7 @@
 
     /* ── loop ───────────────────────────────────────────────────────────── */
 
-    var intent = { show: false, yaw: 0, power: 0, loft: 0, over: 0 };
+    var intent = { show: false, yaw: 0, power: 0, loft: 0, bite: 0, over: 0 };
 
     function loop(now) {
         raf = requestAnimationFrame(loop);
@@ -1911,6 +1911,7 @@
         // ball that is going to be played.
         intent.power = P.deliver(state.aim.power, state.club.power);
         intent.loft = state.club.loft;
+        intent.bite = state.club.bite || 0;
         // How far past a full swing this is, 0..1. The renderer opens the cone
         // by exactly the spread physics would apply — the club's ceiling is
         // the only part of that sum the renderer has no way to know.

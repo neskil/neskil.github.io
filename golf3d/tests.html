@@ -81,8 +81,9 @@
             var h = {
                 pads: opts.pads || [A.pad(0, 0, 10, 20)],
                 water: opts.water || [],
+                warps: opts.warps || null,
                 walls: [],
-                tee: { x: 5, z: 2 },
+                tee: opts.tee || { x: 5, z: 2 },
                 cup: opts.cup || { x: 5, z: 15 }
             };
             h.walls = opts.walls || [];
@@ -93,11 +94,24 @@
             return h;
         }
 
-        function shootFrom(hole, from, yaw, power, loft, time, dt) {
+        function shootFrom(hole, from, yaw, power, loft, time, dt, bite) {
             var w = P.createWorld(hole, from, time || 0);
-            P.launch(w, yaw, power, loft || 0);
+            P.launch(w, yaw, power, loft || 0, bite);
             P.settle(w, C.MAX_SHOT_SECONDS, dt);
             return w;
+        }
+
+        // Play a shot and hand back the events as well as the world, for the
+        // mechanics below — a pipe is only observable as an event.
+        function shotEvents(hole, from, yaw, power, loft, bite) {
+            var w = P.createWorld(hole, from, 0), all = {}, i, ev;
+            P.launch(w, yaw, power, loft || 0, bite);
+            for (i = 0; i < Math.ceil(C.MAX_SHOT_SECONDS / C.SIM_DT); i++) {
+                ev = P.advance(w, C.SIM_DT, {});
+                for (var k in ev) if (ev[k]) all[k] = (all[k] || 0) + 1;
+                if (P.done(w)) break;
+            }
+            return { world: w, events: all, seconds: i * C.SIM_DT };
         }
 
         /* ── pads and surfaces ──────────────────────────────────────────── */
@@ -666,8 +680,8 @@
 
         section('Course data');
         (function () {
-            assert('ten courses', G3.COURSES.length === 10);
-            assert('sixty holes in total', ALL.length === 60);
+            assert('twelve courses', G3.COURSES.length === 12);
+            assert('seventy-two holes in total', ALL.length === 72);
             assert('courseById finds a course', G3.courseById('quarry').id === 'quarry');
             assert('courseById falls back to the first', G3.courseById('nope').id === G3.COURSES[0].id);
 
@@ -1344,6 +1358,221 @@
             }
         })();
 
+        /* ── ground that does something ─────────────────────────────────── */
+
+        /* Ice, travelators, launch pads, pipes and backspin. Five mechanics
+           that are each about four lines of physics.js, which is exactly why
+           they need a section of their own: a change that quietly stops a belt
+           pushing is a change nothing else in this file would notice, and the
+           courses that depend on them would go on passing the bot because a
+           dead belt is simply a plank.
+
+           So every one of these is written to fail if the mechanic is removed
+           rather than merely to pass while it is there. Where that means
+           comparing two shots, the pair is the assertion. */
+
+        section('Ground that does something');
+        (function () {
+            var flat = lab({ pads: [A.pad(0, 0, 10, 60)], cup: { x: 5, z: 55 } });
+            var iced = lab({ pads: [A.pad(0, 0, 10, 60, 0, 'ice')], cup: { x: 5, z: 55 } });
+
+            // ── ice ──
+            assert('ice is the slickest surface in the game',
+                C.FRICTION.ice > C.FRICTION.wood && C.FRICTION.ice > C.FRICTION.green);
+            assert('…and holds a stopped ball on less than a plank does',
+                C.HOLD.ice < C.HOLD.wood);
+            var onGrass = shootFrom(flat, { x: 5, z: 2 }, 0, 10.5, 0).ball.z - 2;
+            var onIce = shootFrom(iced, { x: 5, z: 2 }, 0, 10.5, 0).ball.z - 2;
+            assert('a putt runs three times as far on ice as on grass',
+                onIce > onGrass * 3,
+                onIce.toFixed(1) + ' against ' + onGrass.toFixed(1));
+            /* The number the whole of Icehouse Yard is designed against, and
+               the reason it is asserted rather than remembered: every hole on
+               that course is laid out so that a full swing is too much, and a
+               friction tweak that shortened this by a third would leave six
+               holes nobody can reach the pin on. */
+            assert('and a full putter on ice outruns the longest mini golf hole',
+                onIce > 28 && onIce < 36, 'runs ' + onIce.toFixed(1));
+            var slopedIce = lab({
+                pads: [A.pad(0, 0, 10, 30, 1.2, 'ice', 0, -0.04), A.pad(0, 30, 10, 8)],
+                cup: { x: 5, z: 34 }
+            });
+            assert('a ball cannot come to rest on ice with any fall on it',
+                shootFrom(slopedIce, { x: 5, z: 3 }, 0, C.MIN_POWER * 1.1, 0).ball.z > 29,
+                'stopped at z=' + shootFrom(slopedIce, { x: 5, z: 3 }, 0, C.MIN_POWER * 1.1, 0).ball.z.toFixed(1));
+
+            // ── the travelator ──
+            var plain = lab({
+                pads: [A.pad(0, 0, 10, 8), A.pad(0, 8, 10, 8, 0, 'wood'), A.pad(0, 16, 10, 30)],
+                cup: { x: 5, z: 40 }
+            });
+            var belted = lab({
+                pads: [A.pad(0, 0, 10, 8), A.belt(0, 8, 10, 8, 0, 9), A.pad(0, 16, 10, 30)],
+                cup: { x: 5, z: 40 }
+            });
+            var noBelt = shootFrom(plain, { x: 5, z: 2 }, 0, 10.5, 0).ball.z;
+            var withBelt = shootFrom(belted, { x: 5, z: 2 }, 0, 10.5, 0).ball.z;
+            assert('a belt carries a ball further than the same board would',
+                withBelt > noBelt + 4,
+                withBelt.toFixed(1) + ' against ' + noBelt.toFixed(1));
+            var across = lab({
+                pads: [A.pad(0, 0, 20, 8), A.belt(0, 8, 20, 4, 8, 0), A.pad(0, 12, 20, 14)],
+                tee: { x: 4, z: 2 }, cup: { x: 4, z: 22 }
+            });
+            assert('a belt across the line throws the ball off it',
+                shootFrom(across, { x: 4, z: 2 }, 0, 13, 0).ball.x > 8,
+                'finished at x=' + shootFrom(across, { x: 4, z: 2 }, 0, 13, 0).ball.x.toFixed(1));
+            /* The bug this exists to prevent, and it is not hypothetical: drag
+               is proportional to speed and therefore says nothing about a
+               stopped ball, so without the `push` clause in the rest check a
+               ball that arrived on a belt slowly enough would be declared at
+               rest on a moving floor and sit there for ever. */
+            var parked = shootFrom(belted, { x: 5, z: 10 }, Math.PI, 1.6, 0);
+            assert('no ball ever comes to rest on a travelator',
+                parked.ball.z > 16 && !parked.moving,
+                'settled at z=' + parked.ball.z.toFixed(1));
+
+            // ── the launch pad ──
+            var padded = lab({
+                pads: [A.pad(0, 0, 10, 40), A.sprung(5, 10, 1.2, 9.6)],
+                cup: { x: 5, z: 35 }
+            });
+            var sprung = shotEvents(padded, { x: 5, z: 2 }, 0, 10.5, 0);
+            assert('a launch pad fires at a ball that rolls on to it',
+                sprung.world.sprung >= 1, 'sprung ' + sprung.world.sprung + ' times');
+            var apex = (function () {
+                var w = P.createWorld(padded, { x: 5, z: 2 }, 0), top = 0, i;
+                P.launch(w, 0, 10.5, 0);
+                for (i = 0; i < 4000 && !P.done(w); i++) {
+                    P.advance(w, C.SIM_DT, {});
+                    if (w.ball.y > top) top = w.ball.y;
+                }
+                return top;
+            })();
+            // v²/2g, which is the whole of what a pad is worth, and the number
+            // every hole with one on it is laid out against.
+            assert('and throws it as high as its rating says',
+                Math.abs(apex - (C.BALL_R + 9.6 * 9.6 / (2 * C.GRAVITY))) < 0.15,
+                'apex ' + apex.toFixed(2));
+            assert('the kick fades on every firing within a shot',
+                P.springKick({ sprung: 1 }, { spring: 9.6 }) <
+                P.springKick({ sprung: 0 }, { spring: 9.6 }));
+            assert('…and runs out rather than fading for ever',
+                P.springKick({ sprung: 9 }, { spring: 9.6 }) === 0);
+            /* Which is what stops the clock being the thing that ends a shot.
+               A wedge dropped dead on the middle of a launch pad has no run on
+               it to carry it off, so it lands on the pad, and lands on it
+               again, and the only reason that terminates is SPRING_DECAY. */
+            var lob = C.ALL_CLUBS.filter(function (c) { return c.id === 'wedge'; })[0];
+            var dropped = shotEvents(
+                lab({ pads: [A.pad(0, 0, 10, 26), A.sprung(5, 9.4, 1.5, 10.4)], cup: { x: 5, z: 22 } }),
+                { x: 5, z: 2 }, 0, lob.power, lob.loft);
+            assert('a ball dropped dead on a launch pad still settles',
+                !dropped.world.moving && dropped.seconds < C.MAX_SHOT_SECONDS - 2,
+                'still going after ' + dropped.seconds.toFixed(1) + 's');
+
+            // ── the pipe ──
+            var piped = lab({
+                pads: [A.pad(0, 0, 10, 12), A.pad(0, 24, 10, 16)],
+                warps: [A.pipe(5, 10, 5, 26, 0, 1.0)],
+                cup: { x: 5, z: 36 }
+            });
+            var down = shotEvents(piped, { x: 5, z: 2 }, 0, 10.5, 0);
+            assert('a putt into a mouth comes out of the far end',
+                down.events.warp === 1 && down.world.ball.z > 24,
+                'warps ' + (down.events.warp || 0) + ', z=' + down.world.ball.z.toFixed(1));
+            assert('…and only once, whatever the far end is sitting in',
+                down.events.warp === 1);
+            assert('the pipe hands back the speed it was given',
+                down.world.ball.z > 27, 'only reached ' + down.world.ball.z.toFixed(1));
+            /* A mouth is a hole in the floor, so it swallows a ball on the
+               floor and nothing else. Without this a pipe would be a magnet
+               and "keep it down" would stop being a thing a hole can ask. */
+            var overhead = P.createWorld(piped, { x: 5, z: 10 }, 0);
+            overhead.ball.y = 1.4;
+            overhead.grounded = false;
+            assert('a ball in the air over a mouth is not swallowed',
+                !P.warpUnder(piped, overhead.ball));
+            assert('and one on the floor over it is',
+                !!P.warpUnder(piped, { x: 5, z: 10, y: C.BALL_R }));
+            var pipeless = lab({
+                pads: [A.pad(0, 0, 10, 12), A.pad(0, 24, 10, 16)],
+                cup: { x: 5, z: 36 }
+            });
+            assert('and a hole with no pipes on it warps nothing',
+                !shotEvents(pipeless, { x: 5, z: 2 }, 0, 10.5, 0).events.warp);
+
+            // ── backspin ──
+            var green = lab({ pads: [A.pad(0, 0, 10, 60)], cup: { x: 5, z: 55 } });
+            var free = shootFrom(green, { x: 5, z: 2 }, 0, 13.5, 38 * Math.PI / 180, 0, undefined, 0);
+            var checked = shootFrom(green, { x: 5, z: 2 }, 0, 13.5, 38 * Math.PI / 180, 0, undefined, 0.78);
+            assert('backspin costs the shot most of its run and none of its carry',
+                checked.ball.z < free.ball.z - 6 && checked.ball.z > 8,
+                'checked ' + checked.ball.z.toFixed(1) + ' against ' + free.ball.z.toFixed(1));
+            assert('and it is spent on the first landing, not on every one',
+                (function () {
+                    var w = P.createWorld(green, { x: 5, z: 2 }, 0), i;
+                    P.launch(w, 0, 13.5, 38 * Math.PI / 180, 0.78);
+                    for (i = 0; i < 4000 && !P.done(w); i++) {
+                        P.advance(w, C.SIM_DT, {});
+                        if (!w.ball.bite) break;
+                    }
+                    return w.ball.bite === 0 && i < 4000;
+                })());
+            var spinner = C.ALL_CLUBS.filter(function (c) { return c.bite; });
+            assert('exactly one club in the bag carries backspin',
+                spinner.length === 1 && spinner[0].id === 'checker');
+            assert('…and it is not in the default bag',
+                C.CLUBS.indexOf(spinner[0]) < 0);
+
+            // ── and what a hole is allowed to be built out of ──
+            var machines = 0, mouths = 0, iceHoles = 0, bad = '';
+            ALL.forEach(function (entry) {
+                var h = entry.hole, tag = entry.course.id + '/' + h.name;
+                h.pads.forEach(function (p) {
+                    if (p.spring) {
+                        machines++;
+                        /* A launch pad is an inlay, and an inlay only wins a
+                           *tie* in surfaceUnder — so a pad laid on ground that
+                           has been rolled above it is a pad the ball never
+                           touches. `build` keeps the ground under one flat;
+                           this is what says it worked. */
+                        var under = null, q;
+                        for (q = 0; q < h.pads.length; q++) {
+                            if (h.pads[q] === p || h.pads[q].inlay) continue;
+                            if (P.padContains(h.pads[q], p.x + p.w / 2, p.z + p.d / 2)) under = h.pads[q];
+                        }
+                        if (under && Math.abs(P.padHeight(under, p.x + p.w / 2, p.z + p.d / 2) -
+                                P.padHeight(p, p.x + p.w / 2, p.z + p.d / 2)) > 1e-9) {
+                            bad = tag + ': a launch pad is buried in the ground under it';
+                        }
+                        if (p.spring <= C.LAND_REST) bad = tag + ': a launch pad too weak to fire';
+                    }
+                    if (p.push) {
+                        machines++;
+                        if (!p.push.x && !p.push.z) bad = tag + ': a travelator that pushes nowhere';
+                    }
+                    if (p.kind === 'ice') iceHoles++;
+                });
+                (h.warps || []).forEach(function (wp) {
+                    mouths++;
+                    // Out of one mouth and straight into another is a ball
+                    // ping-ponging until the lock happens to expire somewhere.
+                    (h.warps || []).forEach(function (other) {
+                        if (Math.hypot(wp.tx - other.x, wp.tz - other.z) < other.r) {
+                            bad = tag + ': a pipe empties into a mouth';
+                        }
+                    });
+                    if (!P.surfaceTop(h, wp.tx, wp.tz)) bad = tag + ': a pipe empties into thin air';
+                    if (P.outOfBounds(h, wp.tx, wp.tz)) bad = tag + ': a pipe empties out of bounds';
+                });
+            });
+            assert('every piece of machinery on the course is built legally', !bad, bad);
+            assert('there is machinery to check', machines >= 8, machines + ' found');
+            assert('there are pipes to check', mouths >= 2, mouths + ' found');
+            assert('and ice to play on', iceHoles >= 6, iceHoles + ' pads');
+        })();
+
         /* ── the bag ───────────────────────────────────────────────────── */
 
         section('Clubs');
@@ -1861,10 +2090,10 @@
 
             function d2(a, b) { return Math.hypot(a.x - b.x, a.z - b.z); }
 
-            function trial(hole, from, yaw, power, loft, time) {
+            function trial(hole, from, yaw, power, loft, time, bite) {
                 sims++;
                 var w = P.createWorld(hole, from, time);
-                if (!P.launch(w, yaw, power, loft)) return null;
+                if (!P.launch(w, yaw, power, loft, bite)) return null;
                 P.settle(w, BOT_SECONDS, BOT_DT);
                 return w;
             }
@@ -1924,7 +2153,9 @@
                 bag = bag || C.CLUBS;
 
                 function consider(yaw, club, power, wait) {
-                    var w = trial(hole, from, yaw, power, club.loft, time + wait);
+                    // The club's own backspin, so the bot is playing the clubs
+                    // the player is handed rather than five-sixths of them.
+                    var w = trial(hole, from, yaw, power, club.loft, time + wait, club.bite);
                     if (!w) return;
                     var moved = Math.hypot(w.ball.x - from.x, w.ball.z - from.z);
                     var s;

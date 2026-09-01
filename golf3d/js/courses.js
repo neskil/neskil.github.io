@@ -222,6 +222,67 @@
         ];
     }
 
+    /* ── ground that does something ─────────────────────────────────────
+
+       Everything above is furniture: a thing standing on the floor that the
+       ball hits. These three are the floor itself doing something, which is a
+       different proposition to play against — you cannot bounce off a
+       travelator or aim at a pipe the way you aim at a rail, you can only
+       decide whether to be on it. physics.js holds the rules; this is the
+       vocabulary a hole is written in.
+
+       **`sprung`** is a launch pad: touch it, go up. It is a disc laid into
+       the floor rather than a slab standing on it, so a lane can have one in
+       the middle of it without being cut into three, and `build` keeps the
+       ground under it flat for the reason written there. `v` is an upward
+       speed and sqrt(2·GRAVITY·h) is what reaches height h — so 8.5 clears
+       two units and 10.4 clears three.
+
+       **`belt`** is a travelator: a pad with an acceleration on it. Author it
+       as a strip the ball crosses (a belt running across the hole is a hazard)
+       or as a lane it rides (one running down the hole is a lift). It is a
+       plain pad, not an inlay, so it tiles with its neighbours like any other
+       piece of ground.
+
+       **`pipe`** is a mouth and where it puts you. One way — `pipes()` returns
+       the pair when a hole wants two-way — because a chute is as useful as a
+       pipe and a one-way list is the honest shape for both. The exit direction
+       belongs to the pipe rather than to the ball for the reason in
+       physics.js: the far end has to be aimable.
+
+       All three carry the rule that makes them safe to scatter about a hole:
+       none of them is a wall, so none of them can shut a hole, and the ball's
+       route past any of them is the floor it is standing on. */
+
+    function sprung(cx, cz, r, v, y) {
+        var p = pad(cx - r, cz - r, 2 * r, 2 * r, y || 0, 'wood');
+        p.r = r;
+        p.rIn = r;          // a clean circle: a trampoline is not a wavy green
+        p.inlay = true;
+        p.spring = v === undefined ? 8.5 : v;
+        return p;
+    }
+
+    function belt(x, z, w, d, ax, az, opts) {
+        var o = opts || {};
+        var p = pad(x, z, w, d, o.y || 0, o.kind || 'wood');
+        p.push = { x: ax, z: az };
+        return p;
+    }
+
+    function pipe(x, z, tx, tz, yaw, r) {
+        return { x: x, z: z, r: r === undefined ? 0.85 : r, tx: tx, tz: tz, yaw: yaw || 0 };
+    }
+
+    // Both ends of a two-way one, each pointing away from the other.
+    function pipes(ax, az, bx, bz, r) {
+        var yaw = Math.atan2(bx - ax, bz - az);
+        return [
+            pipe(ax, az, bx, bz, yaw, r),
+            pipe(bx, bz, ax, az, yaw + Math.PI, r)
+        ];
+    }
+
     /* ── the long game ──────────────────────────────────────────────────
 
        Everything above is mini golf: a lane, a rail, an obstacle in the middle
@@ -711,8 +772,11 @@
             p = pads[i];
             if (!ROLLS[p.kind]) continue;
             // A ramp, a bank and an inlaid green are shapes somebody drew on
-            // purpose; this is for the ground that was left flat.
-            if (p.sx || p.sz || p.r || p.inlay) continue;
+            // purpose; this is for the ground that was left flat. So is a
+            // travelator: a belt with a hump in it is a machine somebody has
+            // dropped, and the ball would take the hump's word over the
+            // motor's.
+            if (p.sx || p.sz || p.r || p.inlay || p.push || p.spring) continue;
             /* Big enough for the roll to be ground rather than an ambush.
                A stepping stone is a place you have to land the ball and have
                it *stay*, and a hollow across most of one is not undulation, it
@@ -1041,6 +1105,23 @@
        CONFIG.HOLE_R, and asserted to fit within every cup's own pad. */
     var CUP_PATCH = 0.8;
 
+    /* Every circle on a hole that has to stand on flat ground: the footprint
+       of anything with a motor in it, plus a little for the rim. */
+    function machineKeeps(h, out) {
+        var i, p, r;
+        for (i = 0; i < h.pads.length; i++) {
+            p = h.pads[i];
+            if (!p.spring && !p.push) continue;
+            r = p.r ? p.r : Math.hypot(p.w, p.d) / 2;
+            out.push(keep(p.x + p.w / 2, p.z + p.d / 2, r + 0.3));
+        }
+        for (i = 0; i < (h.warps || []).length; i++) {
+            out.push(keep(h.warps[i].x, h.warps[i].z, h.warps[i].r + 0.5));
+            out.push(keep(h.warps[i].tx, h.warps[i].tz, h.warps[i].r + 0.5));
+        }
+        return out;
+    }
+
     function build(h) {
         var P = G3.physics;
         h.water = h.water || [];
@@ -1067,6 +1148,16 @@
         if (!h.open && !h.flat && !h.shaped) {
             var seed = nameSeed(h.name);
             var keeps = [keep(h.tee.x, h.tee.z, TEE_FLAT), keep(h.cup.x, h.cup.z, CUP_FLAT)];
+            /* And flat under the machinery, for a reason the tee and the cup
+               only half share. A launch pad and a pipe mouth are laid *into*
+               the floor as inlays, and an inlay wins a tie in `surfaceUnder`
+               and loses outright to ground that has been lifted above it — so
+               a single hump under a trampoline does not make it a lumpy
+               trampoline, it makes it a trampoline the ball rolls straight
+               over without ever touching. Machinery on rolling ground also
+               simply looks wrong: a belt follows the floor it is bolted to and
+               a hump is not a floor anybody bolts a belt to. */
+            machineKeeps(h, keeps);
             scoop(h.pads, { seed: seed ^ 0x5bf03635 });
             contour(h.pads, {
                 seed: seed,
@@ -2291,6 +2382,277 @@
         })
     ];
 
+    /* ── adventure golf, the first of two: Icehouse Yard ──────────────────
+
+       A fourth kind of golf, and the thing it has that the other three do not
+       is a floor with an opinion. Mini golf gives you a lane and a rail, crazy
+       golf gives you a machine to time, the long game gives you country to
+       read — and all three of them are played on ground that sits still and
+       waits. Here the ground is the obstacle: a surface that will not let the
+       ball stop, a belt that carries it somewhere it did not ask to go, a pad
+       that throws it in the air, a pipe that puts it somewhere else entirely.
+
+       This course is the first of those, and it is one idea all the way
+       through: **nothing stops.** A putter at full power runs eight and a half
+       units on a green and thirty-two on ice, so every hole here is about
+       weight and none of them is about reach. What that turns into, hole by
+       hole, is a course where the interesting question is always *where do I
+       want the ball to stop*, and the only honest answers are grass, sand, or
+       something the ball has run out of speed before reaching.
+
+       The grip numbers are in config.js and they are the whole course: ice
+       keeps 72% of its speed per second where a green keeps 30%, and holds a
+       stopped ball on a gradient of about two thirds of a degree. Flat ice is
+       somewhere a ball can rest. Tilted ice is a one-way street, and The
+       Draught is nothing but that. */
+
+    var ice = 'ice';
+
+    var icehouse = [
+        build({
+            /* The opener, and it teaches the one number the course is built
+               on by giving you nowhere to hide from it: twenty units of bare
+               ice with a patch of grass at the end. Half a swing of the putter
+               is already too much. */
+            name: 'Cold Store', par: 3,
+            blurb: 'Twenty units of ice and a patch of grass at the end of it. Half a swing is too much.',
+            pads: [
+                pad(0, 0, 6, 3),
+                pad(0, 3, 6, 17, 0, ice),
+                pad(0, 20, 6, 6)
+            ],
+            tee: { x: 3, z: 1.5 }, cup: { x: 3, z: 23 }
+        }),
+        build({
+            /* Grit across the ice, with a gap in it. Sand keeps four
+               thousandths of the ball's speed per second, so the strip is not
+               an obstacle you cross slowly — it is one you do not cross at
+               all. The gap is a metre and a half wide at the far side, which
+               makes this the first hole on the course where the line matters
+               as much as the weight. */
+            name: 'The Salt Line', par: 3,
+            blurb: 'A bar of grit across the ice with one gap in it. Sand does not let go.',
+            pads: [
+                pad(0, 0, 6, 2.5),
+                pad(0, 2.5, 6, 6.5, 0, ice),
+                pad(0, 9, 4.4, 1.6, 0, 'sand'), pad(4.4, 9, 1.6, 1.6, 0, ice),
+                pad(0, 10.6, 6, 8, 0, ice),
+                pad(0, 18.6, 6, 5)
+            ],
+            tee: { x: 2, z: 1.4 }, cup: { x: 3.4, z: 21 }
+        }),
+        build({
+            /* Iced ground with a fall on it, which is a different object
+               altogether from iced ground that is flat. CONFIG.HOLD.ice is a
+               gradient of about two thirds of a degree, so a sheet with any
+               tilt at all is somewhere the ball cannot stop — it is a chute
+               with no walls. The whole hole is one: a ledge to play from, a
+               sheet falling away east, and a gutter of ordinary grass at the
+               bottom of it with the pin in it. Land anywhere on the ice and
+               the ice decides where you finish; the only choice you have is
+               how far down the gutter that turns out to be. */
+            name: 'The Draught', par: 3,
+            blurb: 'The whole sheet falls east and ice holds nothing. The gutter at the bottom is the hole.',
+            pads: [
+                pad(0, 0, 2.4, 9, 0.72),
+                pad(2.4, 0, 5.6, 18, 0.72, ice, -0.12857, 0),
+                pad(8, 0, 2.6, 18)
+            ],
+            tee: { x: 1.2, z: 2 }, cup: { x: 9.3, z: 15 }
+        }),
+        build({
+            /* And the first travelator: a belt running across the ice at the
+               turn, which is the one thing on this course that can move a ball
+               that has stopped. Too slow into it and the belt is the whole of
+               your second shot; too fast and it puts you in the grit on the
+               far side. */
+            name: 'The Sluice', par: 3,
+            blurb: 'A belt across the corner, and grit on the far side of it. Let it take you round.',
+            pads: [
+                pad(0, 0, 5, 4),
+                pad(0, 4, 5, 8, 0, ice),
+                belt(0, 12, 5, 3.4, 7.5, 0),
+                pad(0, 15.4, 5, 2.6, 0, 'sand'),
+                pad(5, 12, 6, 3.4, 0, ice),
+                pad(11, 12, 5, 3.4)
+            ],
+            tee: { x: 2.5, z: 1.6 }, cup: { x: 13.4, z: 13.7 }
+        }),
+        build({
+            /* The Checker's hole, and the reason the club exists. The green is
+               a sheet of ice standing half a unit above everything around it:
+               there is no running a ball up on to it, because there is nothing
+               to run up, and there is no stopping one on it either, because it
+               is ice. The bag is a putter that cannot get there, an iron that
+               gets there and keeps going, and one club that arrives and stays. */
+            name: 'Glass Table', par: 3, needsLoft: true,
+            bag: ['putter', 'iron', 'checker'],
+            blurb: 'An iced table with nothing to run up and nothing to stop on. One club in the bag arrives and stays.',
+            pads: [
+                pad(0, 0, 9, 7),
+                pad(1, 8.4, 7, 7, 0.55, ice)
+            ],
+            gaps: [brink({ x: 1, z: 8.4, w: 7, d: 7 }, 0.4)],
+            tee: { x: 4.5, z: 2 }, cup: { x: 4.5, z: 11.9 }
+        }),
+        build({
+            /* The finisher: a long iced hall, a belt at the corner that is the
+               only way round it, and a green of honest grass at the far end —
+               the first flat, grippy, ordinary ground the course has offered in
+               six holes, and by now it reads as a reward. */
+            name: 'The Cold Room', par: 4,
+            blurb: 'Down the hall, round the belt, and out on to the only grass in the building.',
+            pads: [
+                pad(0, 0, 5, 3),
+                pad(0, 3, 5, 9, 0, ice),
+                belt(0, 12, 5, 4, 6.5, 0),
+                pad(0, 16, 5, 3, 0, 'sand'),
+                pad(5, 12, 9, 4, 0, ice),
+                pad(14, 12, 6, 4)
+            ],
+            extra: [wall(5, 16, 9, 0.34, 0.55, { base: -0.1 })],
+            tee: { x: 2.5, z: 1.5 }, cup: { x: 17, z: 14 }
+        })
+    ];
+
+    /* ── adventure golf, the last of two: Helter Skelter ───────────────────
+
+       The other half of the idea. Icehouse Yard takes the friction away and
+       changes nothing else; this one leaves the floor exactly as grippy as a
+       green has always been and gives it machinery instead — launch pads,
+       travelators and pipes.
+
+       All three are the ground rather than things standing on it, and that is
+       what makes them a different proposition to play against. A rail is
+       something you can aim at: hit it at the right angle and it gives you
+       back a shot you chose. None of these will. You cannot bank off a belt
+       or put spin on a pipe; the only decision any of them offers is whether
+       to be on it, and after that they are simply what happens next. Which is
+       exactly what a fairground ride is, and why the course is one. */
+
+    var skelter = [
+        build({
+            /* Launch pads, introduced the only honest way: a wall with no way
+               round it, a pad in front of the wall, and a bag with no loft in
+               it at all. The ball goes over because the floor throws it over,
+               and the first time it happens is worth the whole course. */
+            name: 'The Springboard', par: 3, bag: ['putter', 'mallet'],
+            blurb: 'A wall too tall to fly and a bag with nothing that flies. Stand on the pad instead.',
+            pads: [
+                pad(0, 0, 6, 20),
+                sprung(3, 8.6, 1.3, 10.2)
+            ],
+            extra: [wall(-0.2, 10.2, 6.4, 0.4, 1.35, { base: -0.1 })],
+            tee: { x: 3, z: 1.6 }, cup: { x: 3, z: 16.5 }
+        }),
+        build({
+            /* And the pipes. Eleven units of water, which is more than
+               anything in the bag carries — the iron is the longest flight in
+               the game at about nine and a half — so the mouth is not a short
+               cut, it is the hole. It sits off the middle of the floor on
+               purpose: a pipe you cannot miss is a corridor with extra steps. */
+            name: 'Through the Pipe', par: 3,
+            blurb: 'Nothing in the bag carries this. Find the mouth; it comes out facing the pin.',
+            pads: [
+                pad(0, 0, 8, 10),
+                pad(0, 21, 8, 9)
+            ],
+            water: [rect(-2, 10, 12, 11, -0.8)],
+            gaps: [shore(rect(-2, 10, 12, 11), 0.6)],
+            warps: [pipe(5.6, 7.4, 2.4, 24, 0, 0.95)],
+            tee: { x: 2.6, z: 1.6 }, cup: { x: 4, z: 28 }
+        }),
+        build({
+            /* Three belts across the floor, running east, west and east. A
+               ball putted straight at the flag arrives a long way east of it,
+               and the amount it arrives east by depends on how hard it was
+               hit — a slow ball spends longer on each belt and is thrown
+               further. So the aim and the weight stop being two decisions and
+               become one, which is a thing no rail in this file has ever
+               managed to do. */
+            name: 'Crosstown', par: 4,
+            blurb: 'Three walkways, running three ways. Aim where the flag is not.',
+            pads: [
+                pad(0, 0, 14, 6),
+                belt(0, 6, 14, 3, 7, 0),
+                pad(0, 9, 14, 2),
+                belt(0, 11, 14, 3, -7, 0),
+                pad(0, 14, 14, 2),
+                belt(0, 16, 14, 3, 7, 0),
+                pad(0, 19, 14, 7)
+            ],
+            tee: { x: 7, z: 2 }, cup: { x: 7, z: 23 }
+        }),
+        build({
+            /* Two moats and two launch pads, and the pads are the bridges.
+               Getting on to one is a putt; getting off it well is a matter of
+               how fast you were going when you did, because a launch pad
+               throws the ball straight up and hands the crossing to whatever
+               forward speed it already had.
+
+               It is deliberately *not* flagged `needsLoft`, and the reason is
+               worth writing down because it looks like an oversight: the flag
+               means "there is no route along the floor", and a launch pad is a
+               route along the floor. The bot proved it — handed a bag with no
+               loft in it at all, it holed this in one. Which is the nicest
+               thing that could be said about the mechanic. */
+            name: 'Bounce Alley', par: 3,
+            blurb: 'Two moats, two launch pads and no bridge. The pace you arrive at is the distance you fly.',
+            pads: [
+                pad(0, 0, 8, 6),
+                sprung(4, 4.4, 1.3, 9.8),
+                pad(0, 11, 8, 5),
+                sprung(4, 13.6, 1.3, 9.8),
+                pad(0, 21, 8, 7)
+            ],
+            water: [rect(-2, 6, 12, 5, -0.8), rect(-2, 16, 12, 5, -0.8)],
+            gaps: [shore(rect(-2, 6, 12, 5), 0.6), shore(rect(-2, 16, 12, 5), 0.6)],
+            tee: { x: 4, z: 1.6 }, cup: { x: 4, z: 25 }
+        }),
+        build({
+            /* Up on to the gallery, along it on the belt, and off the end of
+               it. The window on the first shot is the whole hole: too slow and
+               the pad drops you back where you started, too hard and you are
+               still climbing when you reach the front of the gallery and you
+               hit the face of it. */
+            name: 'Up and Over', par: 4,
+            blurb: 'A pad on to the gallery, a walkway along it, and a drop off the far end.',
+            pads: [
+                pad(0, 0, 6, 9),
+                sprung(3, 7.4, 1.3, 10.2),
+                pad(0, 10.6, 6, 3, 1.8),
+                belt(0, 13.6, 6, 5, 0, 9, { y: 1.8 }),
+                pad(0, 18.6, 6, 3, 1.8),
+                pad(0, 21.6, 8, 7)
+            ],
+            gaps: [brink({ x: 0, z: 10.6, w: 6, d: 11 }, 0.4)],
+            tee: { x: 3, z: 2 }, cup: { x: 4, z: 25 }
+        }),
+        build({
+            /* Everything the course has, in the order it was learned: a belt
+               that sets the line, a pad that gets you over the hoarding, and a
+               mouth on the far side of it that is the only way on to the
+               green. Nothing here moves and nothing here is timed — the whole
+               hole is a machine that has already made up its mind, and the
+               only thing left to decide is how hard to hit it. */
+            name: 'The Whole Fair', par: 4,
+            blurb: 'Belt, launch pad, hoarding, pipe. None of it moves and none of it is on your side.',
+            pads: [
+                pad(0, 0, 9, 5),
+                belt(0, 5, 9, 3, -5.5, 0),
+                pad(0, 8, 9, 4),
+                sprung(2.4, 10.4, 1.3, 10.2),
+                pad(0, 13, 9, 6),
+                pad(0, 21, 9, 7)
+            ],
+            water: [rect(-2, 19, 13, 2, -0.8)],
+            gaps: [shore(rect(-2, 19, 13, 2), 0.6)],
+            extra: [wall(-0.2, 12.2, 9.4, 0.4, 1.3, { base: -0.1 })],
+            warps: [pipe(2.4, 16.4, 6.4, 24.4, 0, 0.95)],
+            tee: { x: 6.4, z: 1.6 }, cup: { x: 4.6, z: 26 }
+        })
+    ];
+
     /* ── the long game, the last of three: Dunmore Heath ──────────────────
 
        The long game again, and deliberately not a second Ashdown Park.
@@ -2563,6 +2925,17 @@
             blurb: 'Blades, gates, posts and pendulums. Aim less; time it better.'
         },
         {
+            /* The fourth kind, and the newest. The other three are all played
+               on ground that sits still: mini golf hands you a lane and a
+               rail, crazy golf a machine to time, the long game country to
+               read. Here the floor is the obstacle — it will not let the ball
+               stop, or it carries it off, or it throws it in the air, or it
+               puts it somewhere else entirely. */
+            id: 'adventure', name: 'Adventure golf', icon: '\u21AF',
+            tint: '#fbbf24',
+            blurb: 'Ice, travelators, launch pads and pipes. The floor is not on your side.'
+        },
+        {
             id: 'long', name: 'Long game', icon: '\u27FF',
             tint: '#86efac',
             blurb: 'Full-size holes and no fences on any of them. Two shots to most greens, and a line of stakes where the course stops.'
@@ -2625,6 +2998,22 @@
             blurb: 'Six mechanisms, each running at its own rate. Timing is the whole of it.',
             theme: 'clockwork',
             holes: clockwork
+        },
+        {
+            id: 'icehouse',
+            group: 'adventure',
+            name: 'Icehouse Yard',
+            blurb: 'Nothing stops. Six holes where the only question is where you want to run out of speed.',
+            theme: 'icehouse',
+            holes: icehouse
+        },
+        {
+            id: 'skelter',
+            group: 'adventure',
+            name: 'Helter Skelter',
+            blurb: 'Launch pads, walkways and pipes. The floor decides; you only decide how hard.',
+            theme: 'fairground',
+            holes: skelter
         },
         {
             id: 'parkland',
@@ -2703,6 +3092,7 @@
         pad: pad, wall: wall, spinner: spinner, slider: slider,
         beam: beam, pen: pen, bumper: bumper, bank: bank, bowl: bowl, bands: bands, tilt: tilt,
         commons: commons,
+        sprung: sprung, belt: belt, pipe: pipe, pipes: pipes,
         tree: tree, treeline: treeline,
         hill: hill, ring: ring, ridge: ridge, whorl: whorl, ravine: ravine,
         shape: shape, dunes: dunes, ground: ground, circle: circle, keep: keep,
