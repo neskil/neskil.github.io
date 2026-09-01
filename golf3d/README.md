@@ -1,24 +1,27 @@
 # Loft Links
 
-Ten six-hole courses of 3D golf in three kinds. **Mini golf**: four courses of
-lanes, rails, ledges and one horseshoe. **Crazy golf**: three of blades, gates,
-bumpers, angled banks and pendulums, where the shot is a matter of timing
-rather than of aim. **The long game**: three full-size courses with no fence on
-any of them — Ashdown Park, a parkland on a hillside, with terraces, a blind
-green in a dell and a lake the whole hole tilts into; Whinstone Links, open
-rolling country; and Dunmore Heath, where the interest is the shape of the
-ground itself — crests, hollows, a punchbowl, a spiral, one dry ravine and a
-fairway that climbs. three.js (vendored, r128), plain ES5-flavoured JavaScript,
-no build step and no other dependencies — same as everything else here, open
+Twelve six-hole courses of 3D golf in four kinds. **Mini golf**: four courses
+of lanes, rails, ledges and one horseshoe. **Crazy golf**: three of blades,
+gates, bumpers, angled banks and pendulums, where the shot is a matter of
+timing rather than of aim. **Adventure golf**: two where the floor itself is
+the obstacle — ice that will not let the ball stop, travelators that carry it
+off, launch pads that throw it in the air and pipes that put it somewhere else
+entirely. **The long game**: three full-size courses with no fence on any of
+them — Ashdown Park, a parkland on a hillside, with terraces, a blind green in
+a dell and a lake the whole hole tilts into; Whinstone Links, open rolling
+country; and Dunmore Heath, where the interest is the shape of the ground
+itself — crests, hollows, a punchbowl, a spiral, one dry ravine and a fairway
+that climbs. three.js (vendored, r128), plain ES5-flavoured JavaScript, no
+build step and no other dependencies — same as everything else here, open
 `index.html` and it runs.
 
 Two rules run through the whole card. **A course gets harder as you play it** —
 hole one introduces something, the middle develops it and the sixth asks for all
 of it at once — and the same climb runs across each group, so the four mini
-courses are in the order of how much they ask for and so are the three crazy
-ones and the three long ones. **A hole is not the hole beside it**: sixty holes
-on one list is sixty chances to write the same corridor again, and the way out
-is the *plan* rather than the furniture. See
+courses are in the order of how much they ask for and so are the crazy, the
+adventure and the long ones. **A hole is not the hole beside it**: seventy-two
+holes on one list is seventy-two chances to write the same corridor again, and
+the way out is the *plan* rather than the furniture. See
 [The order the holes are in](#the-order-the-holes-are-in).
 
 It is a deliberate sibling of [Pocket Links](../golf/README.md) next door: same
@@ -66,19 +69,47 @@ places where the answer is GLSL rather than a property. What is left in
 
 ## The bag
 
-Five clubs by default, in `config.js`, and a sixth a hole may ask for. A club
-is a loft and a ceiling on power and that is the whole of it — the simulation
-never hears the word "club", it is handed a launch angle and a speed exactly as
-before.
+Five clubs by default, in `config.js`, and two more a hole may ask for. A club
+was a loft and a ceiling on power and nothing else for a long time — the
+simulation never hears the word "club", it is handed a launch angle and a
+speed — and it is now a loft, a ceiling and one number about what happens
+*after* the ball lands. See [Backspin](#backspin).
 
 | Club | Loft | Full swing | Carry | Apex | Total on green | What it is for |
 | --- | --- | --- | --- | --- | --- | --- |
-| Putter | 0° | 10.5 | — | — | 8.5 | Rolls flat and true. Full power is still a tap, which is what makes it the club you can aim. |
-| Driver | 4° | 32 | 8.0 | 0.30 | 29.6 | The reach club. Barely off the ground, and almost all of its length is roll. |
-| 7 Iron | 16° | 18 | 9.5 | 0.83 | 21.9 | The long approach: three quarters of a driver, and it *carries* three quarters of that. |
-| Pitch | 45° | 11.7 | 7.6 | 2.04 | 14.6 | Up steep and down steeper. Stops near where it lands. |
-| Wedge | 58° | 12.1 | 7.3 | 3.06 | 13.1 | The lob: straight up, over anything, and it does not run when it lands. |
-| Mallet | 0° | 17 | — | — | ~14 | Not in the default bag. A putter with a hammer behind it, handed out on holes that are played along the floor. |
+| Putter | 0° | 10.5 | — | — | 9.2 | Rolls flat and true. Full power is still a tap, which is what makes it the club you can aim. |
+| Driver | 4° | 32 | 9.3 | 0.30 | 29.1 | The reach club. Barely off the ground, and almost all of its length is roll. |
+| 7 Iron | 16° | 18 | 9.8 | 0.83 | 21.0 | The long approach: three quarters of a driver, and it *carries* three quarters of that. |
+| Pitch | 45° | 11.7 | 7.6 | 2.03 | 13.7 | Up steep and down steeper. Stops near where it lands. |
+| Wedge | 58° | 12.1 | 7.3 | 3.05 | 12.4 | The lob: straight up, over anything, and it does not run when it lands. |
+| Mallet | 0° | 17 | — | — | 13.4 | Not in the default bag. A putter with a hammer behind it, handed out on holes that are played along the floor. |
+| Checker | 38° | 13.5 | 9.9 | 2.06 | 11.2 | Not in the default bag. An iron's carry with a unit and a bit of run on the end of it: `bite: 0.78`. |
+
+### Backspin
+
+`bite` is the fraction of the ball's ground speed that its **first** landing
+takes away, spent once and gone. It is the third number a shot has ever
+carried, and it exists because a bag of loft and power has no way at all to
+write two clubs that differ in what happens after the ball comes down. Every
+club in the file until now said how far and how high; none of them could say
+whether the thing stops.
+
+The numbers in the table above are what that buys. The Checker and the 7 Iron
+carry within a tenth of a unit of each other — 9.9 against 9.8 — and finish
+ten units apart, because the iron's landing hands it eleven units of run and
+the Checker's hands it one and a bit.
+
+It is not in the default bag, and the reason is the same one that keeps the
+mallet out of it: a club that lands and stops would be the answer to half the
+older courses, most of which are built on the assumption that arriving and
+staying are two separate problems. Icehouse Yard's **Glass Table** is the hole
+it was written for — a green made of ice, standing half a unit above everything
+around it, so there is nothing to run a ball up and nothing to stop one on
+once it is up there.
+
+The simulation still does not hear the word "club": `launch()` takes an angle,
+a speed and a number for what the first bounce costs, and `config.js` decides
+which club supplies which.
 
 ### What is in the bag today
 
@@ -419,11 +450,12 @@ obviously correct.
 
 ## The courses
 
-Ten, six holes each, filed under three groups — and the group is not a heading
-in the picker, it is a tab (see [The picker](#the-picker)). The three are not
-variations of one another: a mini golf hole is one swing and a putt, a crazy
-golf hole is a mechanism you have to time, and a long-game hole is a drive and
-an approach.
+Twelve, six holes each, filed under four groups — and the group is not a
+heading in the picker, it is a tab (see [The picker](#the-picker)). The four
+are not variations of one another: a mini golf hole is one swing and a putt, a
+crazy golf hole is a mechanism you have to time, an adventure hole is a floor
+that does something to the ball, and a long-game hole is a drive and an
+approach.
 
 | Course | Group | Theme | What it is about |
 | --- | --- | --- | --- |
@@ -434,6 +466,8 @@ an approach.
 | Windmill Works | crazy | `works` | Gates and blades, after dark. Timing. |
 | Pinball Parlour | crazy | `arcade` | A table, not a course: bumpers, a plunger chute and two banks set across the throat. The posts *are* the route. |
 | Clockwork Court | crazy | `clockwork` | Six mechanisms at six rates. Escapement, pendulum, cogs, ratchet, and one blade the width of the court. |
+| Icehouse Yard | adventure | `icehouse` | Nothing stops. A putter runs eight and a half units on grass and thirty-two on ice. |
+| Helter Skelter | adventure | `fairground` | Launch pads, travelators and pipes. The floor decides; you only decide how hard. |
 | Ashdown Park | long | `parkland` | The long game, on a hillside: terraces, a crest, a cross-fall into a lake, and two round greens. No fence — the park carries on past the stakes. |
 | Whinstone Links | long | `links` | No flat lies and no straight edges. The ground is the hazard. |
 | Dunmore Heath | long | `heath` | The long game again, shaped rather than furnished: crests, hollows, a punchbowl, a whorl, one dry ravine and a hillside you climb. |
@@ -510,7 +544,7 @@ you a stroke, a hole that is not aimed at the flag, and a hole with nothing to
 bounce off at all.
 
 The same climb runs across a group. The four mini courses are in order of how
-much they ask for and so are the three crazy ones and the three long ones, which
+much they ask for and so are the crazy, the adventure and the long ones, which
 is what `G3.COURSES` is ordered by and what `nextCourseId` hands you at the end
 of a round.
 
@@ -518,16 +552,136 @@ Because the order carries meaning, moving a hole is a change to the course and
 not a tidy-up. Nothing else depends on it — a hole's ground is seeded from its
 own *name* (`nameSeed`), so reordering a card cannot reshape a single hump.
 
-**A hole is not the hole beside it.** Sixty holes on one list is sixty chances
-to write the same corridor again, and the escape is the plan rather than the
-furniture. Before this pass, forty-eight of the sixty were a rectangle running
-north with the tee at one end and the cup at the other, and the only thing that
-made one different from the next was what sat in the middle of it. A hole that
+**A hole is not the hole beside it.** Seventy-two holes on one list is
+seventy-two chances to write the same corridor again, and the escape is the plan
+rather than the furniture. Before the pass that broke this up, forty-eight of
+the sixty holes then on the card were a rectangle running north with the tee at
+one end and the cup at the other, and the only thing that made one different
+from the next was what sat in the middle of it. A hole that
 turns, a hole played round a block of ground that is not there, a road with a
 corner in it, a hole with two ways to the green and a reason to pick one — those
 read as different courses from the tee in a way that a second windmill never
 will. If a new hole's plan can be described as "a lane with an X in the middle",
 it needs a different X *and* a different lane.
+
+### Adventure golf
+
+The fourth kind, and the thing it has that the other three do not is a floor
+with an opinion. Mini golf hands you a lane and a rail; crazy golf a machine to
+time; the long game country to read. All three are played on ground that sits
+still and waits. Here the ground *is* the obstacle.
+
+Four mechanics, and the whole of what makes them a different proposition to
+play against is that none of them is a wall. A rail is something you can aim
+at — hit it at the right angle and it gives you back a shot you chose. You
+cannot bank off a belt or put spin on a pipe. The only decision any of these
+offers is whether to be on it, and after that they are simply what happens
+next.
+
+| | What it is | Where it lives | The number that matters |
+| --- | --- | --- | --- |
+| **Ice** | A surface, like sand or wood: `kind: 'ice'` | `CONFIG.FRICTION` / `CONFIG.HOLD` | Keeps 72% of its speed per second where a green keeps 30% — a full putter runs 32 units instead of 9. Holds a stopped ball on a gradient of two thirds of a degree, so any fall at all is a one-way street. |
+| **Travelator** | An acceleration on a pad: `pad.push = { x, z }` | `physics.substep`, grounded branch | Drag balances it at `|push| / -ln(friction)`, so a belt has a *speed* rather than a shove, and a ball put down against the run of it is turned round instead of stopped. |
+| **Launch pad** | An upward speed given to anything that touches it: `pad.spring` | landing and rolling, both | `sqrt(2·GRAVITY·h)` reaches height h — 8.5 clears two units, 10.4 clears three. |
+| **Pipe** | A mouth and where it puts you: `hole.warps = [{ x, z, r, tx, tz, yaw }]` | `physics.takeWarp` | One way. A two-way pipe is two of them; `pipes()` returns the pair. |
+
+Three details in those are load-bearing.
+
+**A belt is never a lie that holds.** Drag is proportional to speed and
+therefore says nothing at all about a stopped ball, so without an explicit
+clause in the rest check a ball that arrived on a travelator slowly enough
+would be declared at rest on a moving floor and sit there — which is both wrong
+and exactly the bug a player would report as "the belt is broken". The `STUCK`
+backstop still catches a ball a belt is holding against a wall, because that
+one really has stopped.
+
+**A launch pad loses height every time it fires**, by `SPRING_DECAY`, and once
+the kick would be under `LAND_REST` the pad is just a pad. That is not realism,
+it is termination: a pad returning a fixed launch speed is a pad a ball can
+bounce on for ever, and the shot that finds it is a wedge dropped dead on the
+middle of one with no run left to carry it off. Four bounces takes a spring to
+a seventh of its rating, the ball settles, and the shot clock is never the
+thing that ends it.
+
+**A pipe swallows a ball on the floor and nothing else.** `WARP_MOUTH` is how
+far above the ground the mouth still reaches: a putt goes down it and a lofted
+shot sails over the top, which is what lets a hole ask you to keep it down
+without a single wall. The exit direction belongs to the pipe rather than to
+the ball, because a pipe has a mouth and coming out of one pointing wherever
+you happened to enter would make the far end unaimable — which is the one thing
+the far end has to be.
+
+And one that is about drawing rather than physics: **the ground under
+machinery is kept flat**, the same way it is under the tee and the cup
+(`courses.machineKeeps`). A launch pad is an inlay, an inlay wins a *tie* in
+`surfaceUnder` and loses outright to ground lifted above it, so a single hump
+of `contour` under a trampoline does not make a lumpy trampoline — it makes one
+the ball rolls straight over without ever touching.
+
+#### Drawing something that is not there
+
+A belt, a launch pad and a pipe mouth are all the same problem: the ground does
+something, and ground looks like ground. There is nothing for the ball to hit,
+so there is no wall to see, and a player who cannot tell a travelator from a
+plank until the ball is on it is being asked to learn the hole by losing a
+stroke on it.
+
+So each gets one mark, drawn from the same data the physics reads —
+`pad.push`, `pad.spring`, `hole.warps` — rather than from a second list of
+scenery. That is not tidiness: the first version had the belt's arrows
+authored separately and the very first hole written with one had them
+backwards. `theme.machine` is what they are painted, because the marks have to
+be the first thing read from the tee and what colour does that depends on what
+the ground is: cold cyan on the ice, hot pink at the fair.
+
+Three things about them were each wrong once and are worth writing down:
+
+- **A decal has to clear the grass.** A green wears a stack of shells a little
+  over a tenth of a unit tall, so a ring painted five centimetres up is a ring
+  inside a lawn — the near rim shows and the far rim is behind the blades. A
+  pipe mouth came out as a black hole with a pink smile under it.
+- **And it has to clear `INLAY_LIFT`, not equal it.** A launch pad is an inlay
+  and an inlay is already lifted by that much; a ring at the same height as the
+  disc it sits on comes out as a band of speckle.
+- **A flat ring is only visible from one side of itself.** Even clear of
+  both, a decal round a dark hole reads from the near edge and vanishes at the
+  far one. The rims on the mouth and the launch pad are real geometry — a torus
+  standing a third of `STEP_UP` proud, which is well inside a kerb the ball
+  would climb anyway, and not solid: nothing on the course is a wall unless it
+  is in `walls`.
+
+#### Icehouse Yard
+
+One idea for six holes: **nothing stops.** Every hole is about weight and none
+of them is about reach, which turns the interesting question into *where do I
+want the ball to run out of speed* — and the only honest answers are grass,
+sand, or somewhere it never arrives.
+
+| # | Hole | Par | What it asks |
+| --- | --- | --- | --- |
+| 1 | Cold Store | 3 | Twenty units of bare ice and a patch of grass at the end. Half a swing is too much. |
+| 2 | The Salt Line | 3 | A bar of grit across the sheet with one gap in it. Sand keeps four thousandths of the ball's speed. |
+| 3 | The Draught | 3 | The sheet falls east and ice holds nothing, so the gutter of ordinary grass at the bottom of it is the hole. |
+| 4 | The Sluice | 3 | A belt across the corner and grit on the far side of it. |
+| 5 | Glass Table | 3 | An iced green half a unit up. Nothing to run up, nothing to stop on, and one club in the bag that arrives and stays. |
+| 6 | The Cold Room | 4 | Down the hall, round the belt, and out on to the only grass in the building. |
+
+#### Helter Skelter
+
+The other half of the idea: the floor is as grippy as a green has always been
+and has machinery in it instead. **The Springboard** is the introduction and it
+is deliberately blunt — a wall too tall to fly, and a bag with nothing in it
+that flies. **Crosstown** is the one that could not have been built before:
+three belts running east, west and east, so a ball putted straight at the flag
+arrives a long way east of it and *how far* east depends on how hard it was
+hit, because a slow ball spends longer on each belt. Aim and weight stop being
+two decisions and become one, which nothing else in this file has managed.
+
+**Bounce Alley** is two moats with a launch pad on each island and no bridge —
+and it is deliberately *not* flagged `needsLoft`, which looks like an oversight
+and is not. The flag means "there is no route along the floor", and a launch
+pad is a route along the floor. The bot proved it: handed a bag with no loft in
+it at all, it holed the thing in one.
 
 ### Ashdown Park
 
@@ -932,6 +1086,10 @@ both ends of the hole are inside it.
   no two holes share a shape. See [Relief on a drawn hole](#relief-on-a-drawn-hole).
 - **circle** — a disc pad, and an inlay: laid into whatever it is standing on
   rather than cut out of it. Round greens and round bunkers.
+- **sprung / belt / pipe** — the ground doing something rather than sitting
+  still: a launch pad laid into the floor as a disc, a pad with an acceleration
+  on it, and a mouth with somewhere it puts you. See
+  [Adventure golf](#adventure-golf).
 - **bank** — a wall standing at an angle, authored by its middle, its length
   and how far round it is turned. The solver has understood a rotated box since
   the first blade, and until Pinball Parlour needed a slingshot nothing standing
@@ -2245,13 +2403,13 @@ the four things that can move it says otherwise.
 
 ## Tests
 
-Open `tests.html`. 989 assertions covering the surfaces, the collision
-geometry, the cup, the integrator, the bag, all sixty holes of course data
-and the scorecard, in a few seconds.
+Open `tests.html`. ~1700 assertions covering the surfaces, the collision
+geometry, the cup, the integrator, the bag, the ground that does something, all
+seventy-two holes of course data and the scorecard, in a few seconds.
 
 The one worth knowing about is the **bot**: a greedy player fans out candidate
 shots on every hole, keeps the one that finishes nearest the cup, and plays all
-thirty. If a hole is sealed off, unreachable, or has a cup buried where
+seventy-two. If a hole is sealed off, unreachable, or has a cup buried where
 nothing can settle, the bot never holes out and the suite goes red. It is
 deterministic, so a failure is reproducible rather than "sometimes red", it
 plays out of the same five clubs the player gets, its candidates include a wait
@@ -2260,6 +2418,18 @@ always fires at `t=0` would report a false failure), and a chosen shot has to
 actually go somewhere — without that rule the greedy
 player parks in a corner where every legal shot looks worse than standing still
 and plays the same nothing until it runs out of strokes.
+
+One section is written the other way round from the rest, and it is the one
+covering [Adventure golf](#adventure-golf). Ice, travelators, launch pads,
+pipes and backspin are about four lines of `physics.js` each, and a change that
+quietly stops a belt pushing is a change nothing else in the suite would
+notice — the courses built on them would go on passing the bot, because a dead
+belt is simply a plank. So every assertion there is written to fail if the
+mechanic is *removed* rather than merely to pass while it is present, usually
+by comparing two shots where the pair is the assertion. Breaking the belt, the
+launch pad, the pipe, the backspin, the belt's rest rule, ice's friction and
+ice's grip each fails a different named assertion; if you change that section,
+re-run the exercise.
 
 Then it plays some of them again **out of half a bag.** A hole flagged
 `needsLoft` exists to be flown, and a hole like that which turns out to have a

@@ -43,7 +43,7 @@
        the more it looked like it. So there are two canvases now, and the
        renderer darkens the fairway and grows it longer on top of that
        (buildSurfaces, SHELL_HEIGHT). */
-    var SCALE = { green: 3.5, fairway: 6, sand: 2, wood: 2, rough: 2 };
+    var SCALE = { green: 3.5, fairway: 6, sand: 2, wood: 2, rough: 2, ice: 5 };
     var GRASS_BUMP_SCALE = 0.8;      // the blades are finer than the mow bands
 
     /* The width of one pass of the mower, in world units, and the one number
@@ -425,6 +425,60 @@
         });
     }
 
+    /* Ice, and the trick to it is that ice is not a colour, it is a *depth*.
+       A flat pale-blue sheet reads as painted concrete however shiny the
+       material over it is; what says "frozen" is stuff suspended under the
+       surface — trapped bubbles, a milky bloom where it froze fast, and old
+       cracks that have healed into white feathers.
+
+       So it is drawn in that order and none of it touches the top: a cold base,
+       broad blooms the size of a bathtub, a scatter of bubbles, and last the
+       cracks — long, branching, and white rather than dark, because a crack in
+       ice is air and air in ice is bright. The specular in render.js is what
+       supplies the wet-looking top, and it can only look like a surface if
+       there is something visibly beneath it. */
+    function iceTexture() {
+        return canvasTex(256, function (g, s) {
+            var i, n, x, y, a, len, k;
+            g.fillStyle = '#9dc6dc';
+            g.fillRect(0, 0, s, s);
+            for (n = 0; n < 26; n++) {                    // the milky blooms
+                x = Math.random() * s; y = Math.random() * s;
+                var rad = s * (0.06 + Math.random() * 0.14);
+                var grd = g.createRadialGradient(x, y, 0, x, y, rad);
+                grd.addColorStop(0, 'rgba(255,255,255,0.42)');
+                grd.addColorStop(1, 'rgba(255,255,255,0)');
+                g.fillStyle = grd;
+                g.fillRect(x - rad, y - rad, rad * 2, rad * 2);
+            }
+            for (n = 0; n < 340; n++) {                   // trapped air
+                g.fillStyle = 'rgba(255,255,255,' + (0.16 + Math.random() * 0.34).toFixed(3) + ')';
+                var br = 1 + Math.random() * 2.2;
+                g.beginPath();
+                g.arc(Math.random() * s, Math.random() * s, br, 0, 6.283);
+                g.fill();
+            }
+            g.lineCap = 'round';
+            for (n = 0; n < 14; n++) {                    // healed cracks
+                x = Math.random() * s; y = Math.random() * s;
+                a = Math.random() * 6.283;
+                g.strokeStyle = 'rgba(255,255,255,0.62)';
+                g.lineWidth = 1.4;
+                for (k = 0; k < 5; k++) {
+                    len = s * (0.04 + Math.random() * 0.09);
+                    var nx = x + Math.cos(a) * len, ny = y + Math.sin(a) * len;
+                    g.beginPath(); g.moveTo(x, y); g.lineTo(nx, ny); g.stroke();
+                    x = nx; y = ny;
+                    a += (Math.random() - 0.5) * 1.1;
+                }
+            }
+            for (n = 0; n < 700; n++) {                   // frost grain
+                g.fillStyle = 'rgba(255,255,255,0.14)';
+                g.fillRect(Math.random() * s, Math.random() * s, 1, 1);
+            }
+        });
+    }
+
     function roughTexture() {
         return canvasTex(128, function (g, s) {
             g.fillStyle = '#3c6b34';
@@ -579,6 +633,7 @@
             sand: dress(sandTexture()),
             sandBump: dress(sandBump()),
             wood: dress(woodTexture()),
+            ice: dress(iceTexture()),
             rough: dress(roughTexture())
         };
         return shared;

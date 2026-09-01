@@ -1,8 +1,8 @@
 # Claude Code — Project Context (golf3d)
 
-**Loft Links**: ten six-hole courses of 3D golf in three groups — mini, crazy
-and the long game — on vendored three.js (r128), ES5-flavoured plain
-JavaScript, no build step. Open `index.html` and it runs.
+**Loft Links**: twelve six-hole courses of 3D golf in four groups — mini,
+crazy, adventure and the long game — on vendored three.js (r128), ES5-flavoured
+plain JavaScript, no build step. Open `index.html` and it runs.
 
 Doc map: **[README.md](README.md)** owns the architecture, the file roles and
 load order, why each shader is written the way it is, the course-authoring
@@ -53,7 +53,7 @@ headless driver to read.
 
 | Page | Covers | Needs |
 | --- | --- | --- |
-| `tests.html` | Physics, pads and surfaces, walls and gates, scoring, course geometry. ~1450 assertions, no three.js and **no WebGL** — that purity is the point, it is what keeps it fast and portable. It can tell you a hole is built wrong and can never tell you a shader is wrong. | nothing |
+| `tests.html` | Physics, pads and surfaces, walls and gates, scoring, course geometry. ~1700 assertions, no three.js and **no WebGL** — that purity is the point, it is what keeps it fast and portable. It can tell you a hole is built wrong and can never tell you a shader is wrong. | nothing |
 | `shader-tests.html` | The half the above structurally cannot do: compiles every shader for real through the real `render.js`, both water paths, the runtime quality switch, the uniform boundary, one `frame()`, and every theme. | a GL context |
 
 `shader-tests.html` skips its GPU half with a note (not a failure) when there
@@ -97,6 +97,13 @@ none, because it reads as coverage.
   arrays of GLSL source strings. The turf is a third thing: four fragments
   spliced into three.js's Lambert via `onBeforeCompile`. Changing any of them
   means reading GLSL, not setting a property.
+- **A pad may now *do* something as well as be somewhere**: `push` is a
+  travelator, `spring` a launch pad, and a hole's `warps` are pipes. All three
+  are read by `physics.js` alone and drawn from that same data by `render.js`,
+  so there is no second list of scenery to keep in step — see README →
+  "Adventure golf". The one that bites: a launch pad is an **inlay**, and an
+  inlay loses outright to ground lifted above it, so anything with a motor in
+  it needs the ground under it kept flat (`courses.machineKeeps`).
 - **The pretty water path is `#ifdef PRETTY` inside the one water shader**,
   flipped by `render.setWaterQuality()` and remembered in `localStorage`. Keep
   both paths in that single source — a forked copy will drift — and keep the

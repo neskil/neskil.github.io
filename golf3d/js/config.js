@@ -8,7 +8,7 @@
    — the renderer scales to the viewport, the simulation never sees a pixel. */
 window.G3 = window.G3 || {};
 
-G3.VERSION = '1.19.0';
+G3.VERSION = '1.20.0';
 
 G3.CONFIG = {
     BALL_R: 0.16,
@@ -34,6 +34,15 @@ G3.CONFIG = {
         green: 0.30,
         fairway: 0.22, // mown, but not shaved: a driver runs about a fifth less
         wood: 0.55,    // bridges and ramps: slick, you carry your speed
+        /* Ice, and the number is chosen off the length of a lane rather than
+           off any physics. A putter at full power coasts v/-ln(k): eight and a
+           half units on a green, seventeen on a plank, and thirty-two here —
+           twice the length of the longest mini golf hole in the file. That is
+           the whole design of Icehouse Yard in one constant. Nothing on that
+           course is about reaching the flag; everything is about not sailing
+           past it, and a surface where a third of a swing is already too much
+           is what makes a tap a decision. */
+        ice: 0.72,
         sand: 0.004,   // a bunker eats a shot
         rough: 0.06,
         cup: 0.004     // the bottom of the hole: whatever lands here stays
@@ -66,6 +75,10 @@ G3.CONFIG = {
         green: 0.18,
         fairway: 0.26,
         wood: 0.05,    // slick: a ball left on a ramp goes back down it
+        /* Lower than a plank by a factor of four, which is what makes an iced
+           slope a one-way street: 0.012 is a gradient of about two thirds of a
+           degree, so the only ice a ball stays on is ice somebody drew flat. */
+        ice: 0.012,
         sand: 0.55,    // whatever lands in a bunker stays where it lands
         rough: 0.40,
         cup: 4         // and the bottom of the hole holds anything at all
@@ -190,6 +203,28 @@ G3.CONFIG = {
             id: 'mallet', name: 'Mallet', short: 'ML', key: '6',
             loft: 0, power: 17,
             blurb: 'A putter with a hammer behind it. Rolls flat, and rolls a long way.'
+        },
+        /* The first club in the bag that is not a loft and a ceiling.
+
+           `bite` is backspin: the fraction of the ball's ground speed the
+           first landing takes away, spent once and gone. It exists because
+           there was no way to write two clubs that differed in what happens
+           *after* the ball lands — a bag of loft and power can say how far and
+           how high and has nothing at all to say about whether the thing stops
+           — and because Icehouse Yard is a course where that is the only
+           question. Nothing rolls to a stop on ice. A green you cannot run a
+           ball up to has to be flown at, and a ball flown at it has to be
+           made to stay.
+
+           So: an iron's carry, three quarters of its run gone on the first
+           bounce, and it is not in the default bag. A club that lands and
+           stops would be the answer to half the older courses, most of which
+           are built on the assumption that arriving and staying are two
+           different problems. */
+        {
+            id: 'checker', name: 'Checker', short: 'CK', key: '7',
+            loft: 38 * Math.PI / 180, power: 13.5, bite: 0.78,
+            blurb: 'Lands and stops. The one club that gives up its run on purpose.'
         }
     ],
     DEFAULT_CLUB: 'driver',
@@ -199,6 +234,34 @@ G3.CONFIG = {
     LAND_GRIP: 0.86,      // horizontal speed kept on each landing
     LAND_REST: 0.55,      // slower than this after a bounce and it settles
     STOP_SPEED: 0.24,     // below this on a lie that will hold it, the ball is at rest
+
+    /* ── ground that does something ─────────────────────────────────────
+
+       Three things a pad may carry besides its height, all of them read by
+       physics.js and none of them a special case anywhere else: `push` is a
+       travelator, `spring` is a launch pad, and a hole's `warps` are pipes.
+       The numbers that bound them live here.
+
+       **A spring loses height every time it fires.** Not for realism — for
+       termination. A pad that returns a fixed launch speed is a pad a ball can
+       bounce on for ever, and the one shot that finds it is a wedge dropped
+       dead on the middle of one with no run left to carry it off. So each
+       firing within a shot is worth SPRING_DECAY of the last, and once the
+       kick would be under LAND_REST the pad is just a pad and the ball lands
+       on it. Four bounces takes a spring to a seventh of its rating, which is
+       under the floor for anything worth authoring: the ball settles, the shot
+       ends, and the clock is never the thing that stops it.
+
+       **A warp is locked for a moment after it fires**, or the ball arrives at
+       the far end, finds itself inside a mouth and goes straight back. The
+       lock is generous next to how long a ball spends crossing a mouth at any
+       speed worth warping at. WARP_MOUTH is how far above the ground the pipe
+       still swallows: a rolling ball goes down it and a lofted one flies over,
+       which is what makes a pipe something you have to be on the floor to
+       use. */
+    SPRING_DECAY: 0.62,
+    WARP_LOCK: 0.4,
+    WARP_MOUTH: 0.18,
 
     /* Two timers for the two ways a ball stops without the lie deciding it.
        SLOPE_SETTLE is for a ball that is not standing on anything — leaning on

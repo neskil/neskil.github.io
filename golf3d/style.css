@@ -1303,19 +1303,27 @@ kbd {
 
 /* ── course picker ──────────────────────────────────────────────────────── */
 
-/* One tab per kind of golf. Ten courses in one scroll is a list; three or
-   four under a tab is a choice — and the tab is also where the kind gets its
+/* One tab per kind of golf. Twelve courses in one scroll is a list; two or
+   three under a tab is a choice — and the tab is also where the kind gets its
    colour, which then runs through every card and every plan frame under it, so
-   you can tell at a glance whether you are looking at windmills or at links. */
+   you can tell at a glance whether you are looking at windmills or at links.
+
+   The row **wraps**, and that is what a fourth kind cost. Four equal columns
+   of the picker's width leave about sixty pixels for a name, which turns
+   "Adventure golf" into "Advent…" and, worse, "Long game" into "Long …" —
+   three tabs that had been fine for a year. A flex basis wide enough for a
+   real name is the fix: four across where there is room and two-by-two where
+   there is not, rather than four ellipses everywhere. */
 .menu-tabs {
     display: flex;
+    flex-wrap: wrap;
     gap: 0.3rem;
     margin: 0.2rem 0 0.5rem;
 }
 
 .menu-tab {
     position: relative;
-    flex: 1 1 0;
+    flex: 1 1 8.6rem;
     display: grid;
     grid-template-columns: auto 1fr auto;
     align-items: center;
@@ -1381,10 +1389,11 @@ kbd {
     color: var(--ink-dim);
 }
 
-/* Narrow enough that three names will not fit: keep the mark and the count,
-   drop the words. The blurb underneath is still saying which kind is open. */
+/* Narrow enough that even two names to a row will not fit: keep the mark and
+   the count, drop the words, and let all four sit on one line again. The blurb
+   underneath is still saying which kind is open. */
 @media (max-width: 420px) {
-    .menu-tab { grid-template-columns: auto auto; justify-content: center; }
+    .menu-tab { flex: 1 1 0; grid-template-columns: auto auto; justify-content: center; }
     .mt-name { display: none; }
 }
 

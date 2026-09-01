@@ -395,7 +395,7 @@
             /* An iron. The blade is extruded backward from x = 0, so the face
                is the plane the shaft stands on and the loft rotation tilts
                exactly the thing you are looking at. */
-            var wedgey = club.id === 'wedge';
+            var wedgey = club.id === 'wedge' || club.id === 'checker';
             var h = wedgey ? 0.053 : 0.047;
             var blade = extruded(bladeShape(h), 0.011, 0.003);
             blade.rotateY(-Math.PI / 2);         // extrusion runs to -x, toe to +z

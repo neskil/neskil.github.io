@@ -137,7 +137,7 @@
            how wide the spread is without ever rolling any. */
         var shot = P.sprayShot(state.aim.yaw, state.aim.power,
             P.overdraw(state.aim.power, state.club.power));
-        if (!P.launch(state.world, shot.yaw, shot.power, state.club.loft)) return;
+        if (!P.launch(state.world, shot.yaw, shot.power, state.club.loft, state.club.bite)) return;
 
         hideHoleCard();
         state.strokes++;
@@ -1717,7 +1717,7 @@
 
     /* ── loop ───────────────────────────────────────────────────────────── */
 
-    var intent = { show: false, yaw: 0, power: 0, loft: 0, over: 0 };
+    var intent = { show: false, yaw: 0, power: 0, loft: 0, bite: 0, over: 0 };
 
     function loop(now) {
         raf = requestAnimationFrame(loop);
@@ -1760,6 +1760,7 @@
         intent.yaw = state.aim.yaw;
         intent.power = state.aim.power;
         intent.loft = state.club.loft;
+        intent.bite = state.club.bite || 0;
         // How far past a full swing this is, 0..1. The renderer opens the cone
         // by exactly the spread physics would apply — the club's ceiling is
         // the only part of that sum the renderer has no way to know.
