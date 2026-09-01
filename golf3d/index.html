@@ -32,7 +32,7 @@
 
         gtag('config', 'G-9GP823TGLB');
     </script>
-    <link rel="stylesheet" href="style.css?v=1.19.0">
+    <link rel="stylesheet" href="style.css?v=1.20.0">
 </head>
 <body>
     <div class="wrap">
@@ -254,6 +254,17 @@
                                 <i class="power-max" id="power-max" aria-hidden="true"></i>
                                 <i class="power-grip" id="power-grip" aria-hidden="true"></i>
                                 <span class="power-cue" id="power-cue" aria-hidden="true">press or drag to load</span>
+                                <!-- The swing gate, drawn inside the meter it
+                                     belongs to rather than beside it: the
+                                     marker runs along the bar you just loaded
+                                     and the zone sits on the white full-swing
+                                     line that was already there. See
+                                     js/swing.js for what it is for. -->
+                                <div class="gate" id="gate" hidden aria-hidden="true">
+                                    <i class="gate-zone" id="gate-zone"></i>
+                                    <i class="gate-mark" id="gate-mark"></i>
+                                    <span class="gate-name" id="gate-name"></span>
+                                </div>
                             </div>
                         </div>
                         <span class="club-hint" id="club-hint" aria-live="polite"></span>
@@ -360,12 +371,27 @@
                 <li>
                     <b>Past a full swing.</b> The meter does not stop at 100%. The last stretch of it
                     — hatched, past the white line — is <b>overdraw</b>: real extra power, up to 130%
-                    of the club in hand, and the only way to get more out of a club than it has. What
-                    it costs is the promise. Anything at or under a full swing leaves on exactly the
-                    line the cone points down, every time. Past that, the ball starts going out both
-                    sideways and long or short by an amount that climbs faster than the meter does:
-                    the first sliver past 100% is nearly free, and the last of it is a shot nobody can
-                    aim. Watch the cone — it opens by exactly what the game is about to do to you.
+                    of the club in hand and a bonus on top of that for striking it well, which is the
+                    only way to get more out of a club than it has. The bonus is almost all at the
+                    very end: half way up the overdraw is worth a few percent, the top of it a good
+                    deal more. What it costs is the promise. Anything at or under a full swing leaves
+                    on exactly the line the cone points down, every time.
+                </li>
+                <li>
+                    <b>The swing gate.</b> Past a full swing, Swing no longer plays the shot — it
+                    starts one. A marker runs along the meter you just loaded, and pressing
+                    <kbd>space</kbd> or Strike again is where the club meets the ball. Hit the green
+                    zone, which sits on the white full-swing line, and you keep everything: all of
+                    the overdraw, the bonus, and the exact line the cone was pointing down. Miss it
+                    and the shot goes the way you missed — <b>early pulls, late pushes</b> — and it
+                    keeps bending that way in the air, which is why a bad one finishes so much
+                    further off than it left. The further past 100% you wound it, the smaller the
+                    zone and the faster the marker: at the very top it is a sixteenth of a second.
+                    There are four gates and they rotate, so you meet all of them: strike on the
+                    line; catch it coming back off the top; press at the top and then strike; and one
+                    where the marker goes dark for the run in and you have to strike on rhythm.
+                    Nothing forces you into any of it — stay inside a full swing and there is no gate
+                    at all.
                 </li>
                 <li>
                     <b>Read the flag.</b> The pin stands in the cup, and it is the only
@@ -469,22 +495,23 @@
 
     <!-- Load order is dependency order: config, then the pure logic, then the
          things that touch the screen. game.js boots itself on DOMContentLoaded. -->
-    <script src="js/config.js?v=1.19.0"></script>
-    <script src="js/themes.js?v=1.19.0"></script>
-    <script src="js/physics.js?v=1.19.0"></script>
-    <script src="js/courses.js?v=1.19.0"></script>
-    <script src="js/custom.js?v=1.19.0"></script>
-    <script src="js/scoring.js?v=1.19.0"></script>
-    <script src="js/audio.js?v=1.19.0"></script>
-    <script src="js/music.js?v=1.19.0"></script>
-    <script src="js/bag.js?v=1.19.0"></script>
-    <script src="js/textures.js?v=1.19.0"></script>
-    <script src="js/shaders.js?v=1.19.0"></script>
-    <script src="js/postfx.js?v=1.19.0"></script>
-    <script src="js/weather.js?v=1.19.0"></script>
-    <script src="js/render.js?v=1.19.0"></script>
-    <script src="js/minimap.js?v=1.19.0"></script>
-    <script src="js/debug.js?v=1.19.0"></script>
-    <script src="js/game.js?v=1.19.0"></script>
+    <script src="js/config.js?v=1.20.0"></script>
+    <script src="js/themes.js?v=1.20.0"></script>
+    <script src="js/physics.js?v=1.20.0"></script>
+    <script src="js/courses.js?v=1.20.0"></script>
+    <script src="js/custom.js?v=1.20.0"></script>
+    <script src="js/scoring.js?v=1.20.0"></script>
+    <script src="js/swing.js?v=1.20.0"></script>
+    <script src="js/audio.js?v=1.20.0"></script>
+    <script src="js/music.js?v=1.20.0"></script>
+    <script src="js/bag.js?v=1.20.0"></script>
+    <script src="js/textures.js?v=1.20.0"></script>
+    <script src="js/shaders.js?v=1.20.0"></script>
+    <script src="js/postfx.js?v=1.20.0"></script>
+    <script src="js/weather.js?v=1.20.0"></script>
+    <script src="js/render.js?v=1.20.0"></script>
+    <script src="js/minimap.js?v=1.20.0"></script>
+    <script src="js/debug.js?v=1.20.0"></script>
+    <script src="js/game.js?v=1.20.0"></script>
 </body>
 </html>

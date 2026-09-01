@@ -331,6 +331,88 @@ button,
     pointer-events: none;
 }
 
+/* ── the swing gate ─────────────────────────────────────────────────────── */
+
+/* It lives inside the meter, over the top of the fill, because it is the same
+   strip: the bar you wound is the bar the club now swings along. Nothing here
+   takes a press — Swing and the space bar are the only ways to strike, so
+   there is one place the timing is read from and it is the one your thumb is
+   already on. */
+.gate {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    border-radius: inherit;
+    overflow: hidden;
+}
+
+/* The zone. It sits on the white full-swing line that was already painted on
+   the bar, which is the whole of the rule: strike it at a full swing. Amber
+   while the club is going back, and green the moment it is worth hitting. */
+.gate-zone {
+    position: absolute;
+    top: 3px;
+    bottom: 3px;
+    border-radius: 4px;
+    background: rgba(251, 191, 36, 0.28);
+    box-shadow: inset 0 0 0 1px rgba(251, 191, 36, 0.6);
+    transition: background 0.12s, box-shadow 0.12s;
+}
+
+.gate.live .gate-zone {
+    background: rgba(74, 222, 128, 0.34);
+    box-shadow: inset 0 0 0 1px rgba(74, 222, 128, 0.85), 0 0 14px rgba(74, 222, 128, 0.4);
+}
+
+/* The clubhead. Two pixels of hard white, because a soft marker on a moving
+   bar is a marker you cannot time to better than its own blur. */
+.gate-mark {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 3px;
+    margin-left: -1.5px;
+    border-radius: 2px;
+    background: #fff;
+    box-shadow: 0 0 10px rgba(255, 255, 255, 0.9);
+}
+
+/* What this gate wants, in one line, over the bar. It replaces the "press or
+   drag to load" cue, which has stopped being true by the time it is up. */
+.gate-name {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    font-size: 0.68rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    color: rgba(234, 246, 255, 0.92);
+    text-shadow: 0 1px 6px rgba(0, 0, 0, 0.9);
+}
+
+/* The meter stops offering to be dragged while the club is moving. */
+.power-track.gate { cursor: default; }
+.power-track.gate .power-cue,
+.power-track.gate .power-grip { opacity: 0; }
+
+/* Strike is the same button as Swing and says so by being the same button —
+   but it is the one moment in the shot that is measured in tenths, so it gets
+   the accent it has been withholding. */
+.swing.striking {
+    background: var(--under, #4ade80);
+    animation: strike-pulse 0.55s ease-in-out infinite;
+}
+
+@keyframes strike-pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.5); }
+    50% { box-shadow: 0 0 0 7px rgba(74, 222, 128, 0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .swing.striking { animation: none; }
+}
+
 /* Under thirty it stops being a number and starts being a complaint. */
 .fps.low { color: rgba(251, 191, 36, 0.85); }
 .fps.bad { color: rgba(248, 113, 113, 0.9); }

@@ -26,6 +26,7 @@
     <script src="js/physics.js"></script>
     <script src="js/courses.js"></script>
     <script src="js/scoring.js"></script>
+    <script src="js/swing.js"></script>
     <script src="js/minimap.js"></script>
 
     <script>
@@ -1447,6 +1448,84 @@
                 approx(P.groundSpeed(w.ball), C.MAX_POWER * (1 + C.OVERDRAW), 0.01),
                 P.groundSpeed(w.ball).toFixed(2));
 
+            /* Nor the bonus on top of it. The biggest club at the top of its
+               overdraw, struck clean, is the fastest ball the game can produce
+               — and it is the one shot a ceiling written in terms of the
+               meter alone would quietly shave. */
+            (function () {
+                var best = P.deliver(C.MAX_POWER * (1 + C.OVERDRAW), C.MAX_POWER);
+                var w2 = P.createWorld(open, { x: 5, z: 1 }, 0);
+                P.launch(w2, 0, best, 0);
+                assert('nor the clean-strike bonus on top of it',
+                    approx(P.groundSpeed(w2.ball), best, 0.01),
+                    P.groundSpeed(w2.ball).toFixed(2) + ' of ' + best.toFixed(2));
+            })();
+
+            /* ── what the overdraw is worth ────────────────────────────────
+
+               The meter is linear and delivery is not: past a full swing the
+               club gives back more than the bar says, squared in the overdraw
+               so the prize sits where the risk does. */
+            assert('inside a full swing the meter is the shot, exactly',
+                P.deliver(7, 10) === 7 && P.deliver(10, 10) === 10);
+            assert('past a full swing the club delivers more than the meter reads',
+                P.deliver(10 * (1 + C.OVERDRAW), 10) > 10 * (1 + C.OVERDRAW));
+            assert('and the bonus is the whole of OVER_GAIN at the very top',
+                approx(P.deliver(10 * (1 + C.OVERDRAW), 10),
+                       10 * (1 + C.OVERDRAW) * (1 + C.OVER_GAIN)));
+            /* Squared, so half way up is a quarter of the prize — the first
+               half of the overdraw is nearly free of risk and has to be nearly
+               free of reward too, or there is no decision anywhere on the bar. */
+            (function () {
+                var half = P.deliver(10 * (1 + C.OVERDRAW / 2), 10) / (10 * (1 + C.OVERDRAW / 2)) - 1;
+                var full = P.deliver(10 * (1 + C.OVERDRAW), 10) / (10 * (1 + C.OVERDRAW)) - 1;
+                assert('half the overdraw is a quarter of the bonus',
+                    approx(half / full, 0.25, 0.01),
+                    (half / full * 100).toFixed(0) + '%');
+            })();
+            assert('delivery never runs backwards up the bar', (function () {
+                var prev = -1;
+                for (var q = 0; q <= 1.0001; q += 0.05) {
+                    var d = P.deliver(10 * (1 + C.OVERDRAW * q), 10);
+                    if (d <= prev) return false;
+                    prev = d;
+                }
+                return true;
+            })());
+
+            /* ── sidespin ──────────────────────────────────────────────────
+
+               Only the gate puts it on, it bends the flight and nothing else,
+               and the ground takes it away. */
+            (function () {
+                var flat = lab({ pads: [A.pad(0, 0, 40, 60)], cup: { x: 20, z: 55 } });
+                function shotWithSpin(spin) {
+                    var w = P.createWorld(flat, { x: 20, z: 1 }, 0);
+                    P.launch(w, 0, 22, 20 * Math.PI / 180);
+                    w.spin = spin;
+                    for (var i = 0; i < 4000 && !P.done(w); i++) P.advance(w, 1 / 240, {});
+                    return w.ball;
+                }
+                var straight = shotWithSpin(0);
+                var drawn = shotWithSpin(-1);
+                var faded = shotWithSpin(1);
+                assert('spin bends the shot off the line it left on',
+                    Math.abs(drawn.x - straight.x) > 0.4,
+                    'moved ' + (drawn.x - straight.x).toFixed(2));
+                assert('and the two signs bend it opposite ways',
+                    (drawn.x - straight.x) * (faded.x - straight.x) < 0);
+                assert('a bent shot is not a longer one',
+                    Math.abs(drawn.z - straight.z) < Math.abs(drawn.x - straight.x) * 3 + 4);
+                assert('launch() clears the spin, so it cannot outlive its shot', (function () {
+                    var w = P.createWorld(flat, { x: 20, z: 1 }, 0);
+                    w.spin = 1;
+                    P.launch(w, 0, 10, 0);
+                    return w.spin === 0;
+                })());
+                assert('the ground takes nearly all of it on the first bounce',
+                    C.SPIN_LAND > 0 && C.SPIN_LAND < 0.5);
+            })();
+
             // The cone is drawn from spray(), so its own constants have to be
             // the kind a renderer can use: an angle, a width and a cutoff.
             assert('the cone has a base angle, a width and a range',
@@ -1456,6 +1535,176 @@
                 C.CONE_FADE > 0.1 && C.CONE_FADE < 0.9);
             assert('a full-power shot outruns the cone, so the cutoff matters',
                 C.MAX_POWER / -Math.log(C.FRICTION.green) > C.CONE_RANGE);
+        })();
+
+        /* ── the swing gate ────────────────────────────────────────────── */
+
+        section('The swing gate');
+        (function () {
+            var SW = G3.swing;
+
+            // A helper: run a gate to a given position and press it there.
+            function pressAt(variant, over, at, pos, alsoTop) {
+                var g = SW.start(variant, over, at);
+                var guard = 0;
+                while (!g.done && guard++ < 20000) {
+                    if (alsoTop && g.stage === 0 && g.dir > 0 && g.pos >= g.top - 0.002) SW.press(g);
+                    // Walk it to the target and press exactly there, on the
+                    // half of the swing the gate is live for.
+                    if (SW.live(g) && ((g.dir < 0 && g.pos <= pos) || (g.dir > 0 && g.pos >= pos))) {
+                        SW.press(g);
+                        break;
+                    }
+                    SW.tick(g, 1 / 600);
+                }
+                return g;
+            }
+
+            assert('a full swing does not arm the gate', !SW.arms(0));
+            assert('nor does the first sliver of overdraw', !SW.arms(C.SWING.ARM * 0.5));
+            assert('a real thrash does', SW.arms(1) && SW.arms(C.SWING.ARM * 2));
+
+            /* The target is the white line the bar already had on it. Nothing
+               about the rule needs saying because the furniture says it. */
+            assert('the gate is struck at a full swing, wherever the meter went',
+                approx(SW.markAt(), 1 / (1 + C.OVERDRAW)));
+
+            /* Harder the further you wind it, on both counts, and on the same
+               curve the spray runs on — so the gate tightens exactly where the
+               shot gets wild rather than on a schedule of its own. */
+            assert('the strike zone shrinks as the overdraw grows',
+                SW.windowFor(0) > SW.windowFor(0.5) && SW.windowFor(0.5) > SW.windowFor(1));
+            assert('and the marker speeds up',
+                SW.speedFor(0) < SW.speedFor(0.5) && SW.speedFor(0.5) < SW.speedFor(1));
+            assert('the last quarter of the overdraw costs more room than the first',
+                (SW.windowFor(0) - SW.windowFor(0.25)) < (SW.windowFor(0.75) - SW.windowFor(1)),
+                'first ' + (SW.windowFor(0) - SW.windowFor(0.25)).toFixed(3) +
+                ' vs last ' + (SW.windowFor(0.75) - SW.windowFor(1)).toFixed(3));
+
+            assert('all four gates exist and are distinct',
+                SW.VARIANTS.length === 4 &&
+                SW.VARIANTS.length === SW.VARIANTS.filter(function (v, i, a) { return a.indexOf(v) === i; }).length);
+            assert('a round meets all four in its first four thrashes', (function () {
+                var seen = {};
+                for (var i = 0; i < 4; i++) seen[SW.pick(i)] = 1;
+                return Object.keys(seen).length === 4;
+            })());
+            assert('and the rotation wraps rather than falling off the end',
+                SW.pick(4) === SW.pick(0) && SW.pick(-1) === SW.pick(3));
+
+            /* The prize. A clean strike is the whole point of taking the gate
+               on, so it has to hand the shot back untouched. */
+            (function () {
+                var g = pressAt('tempo', 0.8, 0.95, SW.markAt());
+                assert('a strike on the line is perfect', g.perfect && g.off === 0);
+                var out = SW.apply({ yaw: 0.4, power: 20 }, g);
+                assert('and a perfect strike does not move the shot at all',
+                    out.yaw === 0.4 && out.power === 20 && out.spin === 0);
+            })();
+
+            /* And the punishment, which is the old envelope exactly: a total
+               miss costs the spray the dice used to roll at this overdraw,
+               and nothing about how wild a thrash can get has changed. */
+            (function () {
+                var g = SW.start('tempo', 1, 1);
+                var guard = 0;
+                while (!g.done && guard++ < 20000) SW.tick(g, 1 / 600);
+                assert('never swinging runs the gate out', g.done && !g.struck);
+                assert('and counts as the latest possible strike', g.off === 1);
+                var out = SW.apply({ yaw: 0, power: 20 }, g);
+                var worst = P.spray(1);
+                assert('a total miss is exactly the spray the dice used to roll',
+                    approx(Math.abs(out.yaw), worst.yaw),
+                    out.yaw.toFixed(4) + ' vs ' + worst.yaw.toFixed(4));
+                assert('a mishit is always lighter, never heavier',
+                    out.power < 20 && approx(out.power, 20 * (1 - worst.power)));
+                assert('and it bends in the air as well as leaving off line',
+                    out.spin !== 0);
+            })();
+
+            /* Early pulls, late pushes, and the bend goes the same way as the
+               push — which is what makes a mishit read as one mistake rather
+               than two unrelated ones. */
+            (function () {
+                var early = pressAt('tempo', 1, 1, SW.markAt() - SW.windowFor(1) - 0.1);
+                var late = pressAt('tempo', 1, 1, SW.markAt() + SW.windowFor(1) + 0.1);
+                assert('early and late miss opposite ways',
+                    early.off < 0 && late.off > 0);
+                var a = SW.apply({ yaw: 0, power: 20 }, early);
+                var b = SW.apply({ yaw: 0, power: 20 }, late);
+                assert('so the two shots leave on opposite sides of the line',
+                    a.yaw * b.yaw < 0);
+                assert('and each one bends the way it was already going',
+                    a.yaw * a.spin > 0 && b.yaw * b.spin > 0);
+                assert('a near miss costs less than a far one', (function () {
+                    var near = pressAt('tempo', 1, 1, SW.markAt() + SW.windowFor(1) + 0.02);
+                    return Math.abs(near.off) < Math.abs(late.off);
+                })());
+            })();
+
+            /* The gates that turn are live on the way down only. A player who
+               swings at the ball on the backswing has not hit the ball. */
+            (function () {
+                var g = SW.start('return', 0.8, 0.95);
+                assert('the return gate is dead on the way up', !SW.live(g));
+                var guard = 0;
+                while (!g.turned && guard++ < 20000) SW.tick(g, 1 / 600);
+                assert('it turns at the power that was loaded, not the end of the bar',
+                    approx(g.pos, g.top, 0.01) && g.top < 1);
+                assert('and comes alive coming down', SW.live(g));
+            })();
+            (function () {
+                var g = SW.start('return', 0.8, 0.95);
+                SW.press(g);
+                assert('a swing on the backswing ends it as an early miss',
+                    g.done && g.off < 0);
+            })();
+
+            /* The double gate: a press at the top, then the strike, and a bad
+               top follows you down into a good one. */
+            (function () {
+                var clean = pressAt('double', 0.8, 0.95, SW.markAt(), true);
+                assert('a clean top and a clean strike is still perfect',
+                    clean.perfect, 'off ' + clean.off.toFixed(3));
+                var sloppy = pressAt('double', 0.8, 0.95, SW.markAt(), false);
+                assert('missing the top press entirely is not free',
+                    !sloppy.perfect && Math.abs(sloppy.off) > 0,
+                    'off ' + sloppy.off.toFixed(3));
+            })();
+
+            /* The fade gate hides the marker for the run in, and only that. */
+            (function () {
+                var g = SW.start('fade', 0.8, 1);
+                assert('the fade gate shows the marker at the start', SW.visible(g));
+                var guard = 0;
+                while (SW.visible(g) && !g.done && guard++ < 20000) SW.tick(g, 1 / 600);
+                assert('and hides it before the line', !g.done && g.pos < SW.markAt(),
+                    'went dark at ' + g.pos.toFixed(3));
+                while (!SW.visible(g) && !g.done && guard++ < 20000) SW.tick(g, 1 / 600);
+                assert('and gives it back after, so a miss can be read',
+                    !g.done && g.pos > SW.markAt(),
+                    'came back at ' + g.pos.toFixed(3));
+                assert('every other gate stays visible throughout',
+                    SW.visible(SW.start('tempo', 0.8, 1)) && SW.visible(SW.start('return', 0.8, 1)));
+            })();
+
+            /* Whatever the gate does, it cannot reach outside the envelope the
+               overdraw already had. This is the assertion that keeps the
+               tuning honest: `off` is bounded, so `apply` is too. */
+            assert('no gate can push a shot further off line than the spray allows', (function () {
+                var worst = P.spray(1).yaw;
+                for (var v = 0; v < SW.VARIANTS.length; v++) {
+                    for (var at = 0.8; at <= 1.001; at += 0.05) {
+                        for (var p = 0; p <= 1.001; p += 0.05) {
+                            var g = pressAt(SW.VARIANTS[v], 1, at, p, v === 2);
+                            var o = SW.apply({ yaw: 0, power: 20 }, g);
+                            if (Math.abs(o.yaw) > worst + 1e-9) return false;
+                            if (o.power > 20 + 1e-9 || o.power < 0) return false;
+                        }
+                    }
+                }
+                return true;
+            })());
         })();
 
         /* ── scoring ───────────────────────────────────────────────────── */

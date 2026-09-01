@@ -17,6 +17,7 @@
     var S = G3.scoring;
     var A = G3.audio;
     var R = G3.render;
+    var SW = G3.swing;
 
     var canvas;
     var state = null;
@@ -77,6 +78,7 @@
     }
 
     function loadHole(i) {
+        closeGate();
         var hole = state.course.holes[i];
         state.holeIndex = i;
         state.strokes = 0;
@@ -123,25 +125,43 @@
 
     /* ── the shot ───────────────────────────────────────────────────────── */
 
+    /* Swing does one of three things, depending on what is already happening:
+       plays the shot, opens the gate, or presses it. One button, because the
+       gate is part of the swing rather than a second control beside it — and
+       because the key, the button and a tap on the meter all arrive here. */
     function shoot() {
+        if (gate) { pressGate(); return; }
         if (state.phase !== 'aim') return;
         if (state.aim.power < C.MIN_POWER) { askForPower(); return; }
+        var over = P.overdraw(state.aim.power, state.club.power);
+        if (SW.arms(over)) { openGate(over); return; }
+        strike(null);
+    }
+
+    /* The shot itself. `g` is the gate that was just played, or null for a
+       swing that never needed one. */
+    function strike(g) {
         var b = state.world.ball;
         var frac = state.aim.power / state.club.power;
         var lie = P.surfaceUnder(state.world.hole, b.x, b.z, b.y + C.STEP_UP);
         /* The one place a shot stops being the shot on the meter. Inside a
            full swing this hands back exactly what it was given, so the ball
-           goes where the cone said it would; past one it wanders, by more the
-           further the meter was wound (physics.spray). The dice are rolled
-           here rather than in launch() so the preview can ask the same module
-           how wide the spread is without ever rolling any. */
-        var shot = P.sprayShot(state.aim.yaw, state.aim.power,
-            P.overdraw(state.aim.power, state.club.power));
+           goes where the cone said it would. Past one it is the gate that
+           decides — the same envelope the dice used to roll (physics.spray),
+           handed to whoever was holding the club. */
+        var asked = { yaw: state.aim.yaw, power: P.deliver(state.aim.power, state.club.power) };
+        var shot = g ? SW.apply(asked, g) : { yaw: asked.yaw, power: asked.power, spin: 0 };
         if (!P.launch(state.world, shot.yaw, shot.power, state.club.loft)) return;
+        // launch() clears the spin, so the bend goes on after it.
+        state.world.spin = shot.spin || 0;
+        if (g) sayStrike(g);
 
         hideHoleCard();
         state.strokes++;
         state.phase = 'rolling';
+        // The gate goes before the button is asked what it says, or Swing
+        // spends the whole roll still offering to Strike.
+        closeGate();
         syncSwing();
         // Everything that says "that was a hit": the spray off the club, the
         // camera flinching, and a thump that grows with the swing.
@@ -154,6 +174,80 @@
         A.putt(feel);
         state.aim.power = 0;
         syncHud();
+    }
+
+    /* ── the swing gate ─────────────────────────────────────────────────────
+
+       Everything the gate needs from the game is here: opening it, ticking it
+       on the frame, pressing it, and saying what happened. The gate itself
+       (swing.js) knows none of this — it is arithmetic over a plain object,
+       which is what lets tests.html cover it without a browser. */
+    var gate = null;
+
+    function openGate(over) {
+        gate = SW.start(SW.pick(state.strokes), over, state.aim.power / maxPower());
+        A.tick(0.5);
+        $('power-track').classList.add('gate');
+        $('gate').hidden = false;
+        $('gate-zone').style.left = ((gate.mark - gate.win) * 100).toFixed(2) + '%';
+        $('gate-zone').style.width = (gate.win * 200).toFixed(2) + '%';
+        $('gate-name').textContent = GATE_SAYS[gate.variant];
+        syncGate();
+        syncSwing();
+    }
+
+    function closeGate() {
+        gate = null;
+        $('power-track').classList.remove('gate');
+        $('gate').hidden = true;
+    }
+
+    function pressGate() {
+        if (!gate) return;
+        var wasStage = gate.stage;
+        SW.press(gate);
+        // The press at the top of the backswing is not the strike: it is
+        // answered with a tick and the marker keeps going.
+        if (!gate.done) { if (gate.stage !== wasStage) A.tick(0.65); syncGate(); return; }
+        strike(gate);
+    }
+
+    function tickGate(dt) {
+        if (!gate) return;
+        SW.tick(gate, dt);
+        if (gate.done) { strike(gate); return; }
+        syncGate();
+    }
+
+    function syncGate() {
+        if (!gate) return;
+        var m = $('gate-mark');
+        m.style.left = (gate.pos * 100).toFixed(2) + '%';
+        m.hidden = !SW.visible(gate);
+        $('gate').classList.toggle('live', SW.live(gate));
+        $('gate').classList.toggle('backswing', gate.variant === 'double' && gate.stage === 0);
+        // On the gate with a backswing press, the target moves — so the zone
+        // has to move with it, or it is pointing at the wrong half of the bar.
+        var t = SW.targetOf(gate);
+        $('gate-zone').style.left = ((t - gate.win) * 100).toFixed(2) + '%';
+    }
+
+    var GATE_SAYS = {
+        tempo: 'Strike on the line',
+        'return': 'Catch it coming back',
+        double: 'Press at the top, then strike',
+        fade: 'It goes dark — strike on rhythm'
+    };
+
+    /* What the strike was, in the fewest words that are still an answer. The
+       ball is about to say the rest of it. */
+    function sayStrike(g) {
+        if (g.perfect) { toast('Flushed it — all of the overdraw, none of the spray'); return; }
+        var a = Math.abs(g.off);
+        var way = g.off < 0 ? 'pulled' : 'pushed';
+        if (a < 0.34) toast('A touch ' + (g.off < 0 ? 'early' : 'late') + ' — ' + way + ' a little');
+        else if (a < 0.75) toast('Off the middle — ' + way + ', and it will bend');
+        else toast(g.struck ? 'Thrashed it — ' + way + ' miles' : 'Never swung — the club came through on its own', 'bad');
     }
 
     /* Picking a club is picking a loft and a ceiling on power. The power
@@ -285,6 +379,7 @@
     function hideBanner() { $('banner').className = 'banner'; }
 
     function restartHole() {
+        closeGate();
         if (state.phase === 'finished') return;
         loadHole(state.holeIndex);
         toast('Hole restarted');
@@ -559,7 +654,9 @@
         var btn = $('btn-swing');
         if (!btn) return;
         var aiming = state.phase === 'aim';
-        var ready = aiming && state.aim.power >= C.MIN_POWER;
+        var ready = aiming && (gate || state.aim.power >= C.MIN_POWER);
+        btn.textContent = gate ? 'Strike' : 'Swing';
+        btn.classList.toggle('striking', !!gate);
         /* Disabled only while the stroke is somebody else's — the ball is
            rolling, or the hole is over. Standing over an empty meter it stays
            pressable on purpose: a disabled button gives a touchscreen nothing
@@ -933,6 +1030,10 @@
 
     function setPower(v) {
         if (!state) return;
+        // The club is already moving: what is loaded is what is going to be
+        // hit, and a meter that could still be trimmed mid-swing would make
+        // the gate a formality.
+        if (gate) return;
         state.aim.power = Math.max(0, Math.min(maxPower(), v));
         syncPower();
     }
@@ -944,7 +1045,7 @@
     }
 
     function nudgeAim(by) {
-        if (!state || state.phase !== 'aim') return;
+        if (!state || state.phase !== 'aim' || gate) return;
         state.aim.yaw += by;
     }
 
@@ -1786,6 +1887,7 @@
             syncDistance();
             if (P.done(state.world)) endShot();
         } else {
+            tickGate(dt);
             // Gates and blades keep their own time whether or not the ball is
             // rolling, so the preview you aim with is the course you will hit.
             state.world.time += dt;
@@ -1804,7 +1906,10 @@
         // fresh literal every frame was sixty allocations a second for nothing.
         intent.show = state.phase === 'aim';
         intent.yaw = state.aim.yaw;
-        intent.power = state.aim.power;
+        // What the club delivers, not what the meter reads: past a full swing
+        // the two are different (physics.deliver) and the cone has to draw the
+        // ball that is going to be played.
+        intent.power = P.deliver(state.aim.power, state.club.power);
         intent.loft = state.club.loft;
         // How far past a full swing this is, 0..1. The renderer opens the cone
         // by exactly the spread physics would apply — the club's ceiling is
@@ -2022,7 +2127,12 @@
         pickClub: pickClub,
         toggleFullscreen: toggleFullscreen,
         openHowTo: openHowTo,
-        get state() { return state; }
+        get state() { return state; },
+        /* The swing gate, for the inspector and for a driver that has to time
+           a strike without a thumb. Read-only from out here in the sense that
+           matters: pressing it still goes through `shoot`, which is the one
+           path a strike may take. */
+        get gate() { return gate; }
     };
 
 })(window.G3);
