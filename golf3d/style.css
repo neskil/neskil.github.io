@@ -948,6 +948,26 @@ button,
     box-shadow: 0 0 10px rgba(56, 189, 248, 0.35);
 }
 
+/* A drag that the lock has just swallowed. It pulses the padlock, and the view
+   pill with it — because when the row is folded the padlock is not on screen,
+   and the pill is the only thing left that can carry the answer. */
+.viewctl.lock-hint .view-lock,
+.viewctl.lock-hint .view-toggle {
+    animation: lock-hint 0.45s ease-in-out 2;
+}
+
+@keyframes lock-hint {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(251, 191, 36, 0); }
+    50% { box-shadow: 0 0 0 4px rgba(251, 191, 36, 0.55); }
+}
+
+.viewctl.lock-hint .view-toggle b { color: var(--gold, #fbbf24); }
+
+@media (prefers-reduced-motion: reduce) {
+    .viewctl.lock-hint .view-lock,
+    .viewctl.lock-hint .view-toggle { animation: none; box-shadow: 0 0 0 3px rgba(251, 191, 36, 0.5); }
+}
+
 /* Locked, the knob is not where the player put it — the shot has been turning
    underneath it — so it stops looking like a thing they are holding. */
 .viewctl.locked .view-knob {
@@ -1238,10 +1258,17 @@ button,
 
 /* ── toast and fallback ─────────────────────────────────────────────────── */
 
+/* Toasts land *under* the row of pills at the top of the stage rather than on
+   top of it. At 16px they were sharing that band with the view control and the
+   club in hand, and a message long enough to wrap came out through the back of
+   its own box and across both of them. The offset moves with the view row,
+   because that row is the tallest thing above it and it folds. */
 .toast {
     position: absolute;
     left: 50%;
-    top: 16px;
+    top: 76px;
+    max-width: min(28rem, calc(100% - 32px));
+    text-align: center;
     transform: translate(-50%, -10px);
     background: rgba(5, 18, 28, 0.92);
     border: 1px solid var(--panel-border);
@@ -1256,6 +1283,12 @@ button,
 }
 
 .toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+/* On a phone the topbar floats over the course and the pills sit below it, so
+   everything starts further down. Measured against the two layouts rather than
+   guessed: the top furniture ends at 119 folded and 151 open. */
+body.compact-ui .toast { top: 166px; }
+body.compact-ui .stage.view-collapsed .toast { top: 134px; }
 .toast.bad { border-color: rgba(248, 113, 113, 0.5); color: var(--over); }
 
 /* ── fullscreen prompt ─────────────────────────────────────────────────── */
@@ -1939,7 +1972,8 @@ kbd {
    of fullscreen gives way to the drawer when that is what was asked for. The
    hole card used to push it aside too, and no longer needs to — it is a note
    in the other corner now, well clear of it. */
-.stage-hud.open ~ .fs-prompt {
+.stage-hud.open ~ .fs-prompt,
+.stage.toasting .fs-prompt {
     opacity: 0;
     pointer-events: none;
 }
