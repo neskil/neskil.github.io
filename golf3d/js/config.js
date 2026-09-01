@@ -8,7 +8,7 @@
    — the renderer scales to the viewport, the simulation never sees a pixel. */
 window.G3 = window.G3 || {};
 
-G3.VERSION = '1.19.0';
+G3.VERSION = '1.21.0';
 
 G3.CONFIG = {
     BALL_R: 0.16,
@@ -109,6 +109,57 @@ G3.CONFIG = {
     SPRAY_YAW: 7 * Math.PI / 180,
     SPRAY_POWER: 0.16,
     SPRAY_CURVE: 3.2,
+
+    /* And what the far end of the overdraw is actually worth, over and above
+       the meter's own reading. The meter is linear — 130% of the ceiling is
+       130% of the ceiling — and on its own that made the last third of the bar
+       a poor deal: you took all of the spray for a tenth more reach.
+
+       OVER_GAIN is a bonus on top, and it is squared in the overdraw rather
+       than proportional to it, so it lives almost entirely at the end: half
+       way up the overdraw is worth 3% and the top of it 14%. That is the shape
+       the risk already had — the spray curve is flat at the bottom and near
+       vertical at the top — and now the reward has it too, which is what makes
+       the top of the bar a decision instead of a mistake. */
+    OVER_GAIN: 0.14,
+
+    /* Sidespin, the one thing a shot can carry that is not in its velocity.
+       Only the swing gate puts it there (see swing.js): a pull draws and a
+       push fades, so a mishit keeps being the same mishit all the way to the
+       ground rather than just leaving at a slightly wrong angle.
+
+       ACCEL is per unit of spin per unit of ground speed, because a ball that
+       is barely moving does not bend — the curve is strongest off the club and
+       eases as the shot runs out, which is the shape a real one has. LAND is
+       what survives a bounce: most of it does not, and a ball that kept
+       curving along the ground would be a putt with a mind of its own. */
+    SPIN_ACCEL: 0.55,
+    SPIN_LAND: 0.25,
+
+    /* The swing gate itself — what a shot past a full swing has to do to keep
+       its line. All of the difficulty is these six numbers.
+
+       WIN_* is the half-width of the strike zone as a fraction of the whole
+       bar, at the start of the overdraw and at the end of it; SPEED_* is how
+       fast the marker crosses the bar at the same two points. Both run on the
+       spray curve, so the gate tightens exactly where the shot gets wild.
+
+       MISS_SPAN is how far past the edge of the zone counts as a total miss —
+       a fifth of the bar, so there is a graded middle rather than a cliff.
+       TOP_WEIGHT is how much of a bad backswing press the strike inherits on
+       the gate that has one. SPIN is how much bend a miss puts on the ball,
+       per radian of the line error it already cost. */
+    SWING: {
+        ARM: 0.05,
+        WIN_MAX: 0.115,
+        WIN_MIN: 0.045,
+        SPEED_MIN: 0.72,
+        SPEED_MAX: 1.50,
+        MISS_SPAN: 0.20,
+        TOP_WEIGHT: 0.45,
+        FADE_LEAD: 0.16,
+        SPIN: 5.5
+    },
 
     /* The ceiling on launch angle. It used to be 45°, which is the angle
        that carries furthest on flat ground and so reads like the right

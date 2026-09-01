@@ -1393,6 +1393,9 @@
         setHover: setHover,
         setBand: setBand,
         isExpanded: isExpanded,
+        // The palette, so the DOM can say a club in the same colour the canvas
+        // does rather than keeping a second copy of it.
+        look: look,
         state: B
     };
 

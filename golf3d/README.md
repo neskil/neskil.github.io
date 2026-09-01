@@ -37,6 +37,7 @@ them.
 | `js/courses.js` | The sixty holes, as data, plus the rail generator, the band layout the long-game courses are written in — rows that tilt and carry their level into the next one, and a cross-fall that puts a whole hole on the side of a hill — the dune fields the links is made of, the landforms the two parkland courses are shaped by, and the bag each hole is played out of. |
 | `js/physics.js` | The simulation. No three.js, no DOM, pure. |
 | `js/scoring.js` | Scorecard arithmetic and the save file. |
+| `js/swing.js` | The swing gate: what a shot past a full swing costs. No DOM, no three.js. |
 | `js/audio.js` | Synthesised sound effects, the weather's sound bed, the mute and the tab-out — no audio files to ship. |
 | `js/music.js` | The house band: a smooth jazz quartet, synthesised a bar at a time. |
 | `js/themes.js` | What each course looks like: a palette per theme, and nothing else. |
@@ -161,7 +162,9 @@ directions:
 | | inside a full swing | past one |
 | --- | --- | --- |
 | base power | the meter, exactly | the meter, exactly — it keeps counting |
+| bonus power | none | up to `OVER_GAIN` more, for striking it well |
 | spray | **none at all** | up to ±7° of line and ±16% of weight |
+| who decides it | — | you do, at [the swing gate](#the-swing-gate) |
 | how it grows | — | exponentially, not with the meter |
 
 The first half is what makes the second half interesting. **Nothing at or under
@@ -182,11 +185,68 @@ Three details worth keeping:
 - **It is measured per club, not in raw power.** `overdraw(power, ceiling)` is 0
   at the club's ceiling and 1 at the end of its overdraw, so thrashing a putter
   and thrashing a driver are the same mistake told in the same numbers.
-- **The dice are rolled in `game.shoot()`, nowhere else.** `physics.launch()` is
-  as deterministic as it ever was, which is what lets the preview ask the same
-  module how wide the spread is without ever rolling any — the cone in front of
-  the ball is drawn from `spray()`, and the shot is played from `sprayShot()`.
-  The tests hand `sprayShot` a fixed source and check the corners.
+- **The dice are not rolled at all any more.** `sprayShot` is still there and
+  still tested — it is the model of how wild a thrash *can* be — but a shot past
+  a full swing now goes through the swing gate below, and the gate spends
+  exactly that envelope on your timing instead of on a random source. The cone
+  in front of the ball is still drawn from `spray()`, so the picture and the
+  punishment are still the same number.
+- **The prize is at the top, where the risk is.** `deliver(power, ceiling)` adds
+  `OVER_GAIN` on top of the meter's own reading, squared in the overdraw — so
+  half way up is worth a quarter of the bonus and the very top is worth all of
+  it. Without that, the last third of the bar was all cost: you took the whole
+  of the spray for a tenth more reach. Both the shot and the preview go through
+  `deliver`, or the cone would be drawing a shorter ball than the one played.
+
+### The swing gate
+
+Past a full swing, **Swing no longer plays the shot — it starts one.** A marker
+runs along the meter you just loaded and a second press is where the club meets
+the ball. That press is where the dice used to be.
+
+The old overdraw was honest about the trade and right about its shape, and the
+player still had no part in it: you wound it up, you pressed, and the game
+decided. A shot you cannot influence is not a risk you took, it is weather.
+
+Three things hold the design together, and all three are about reusing what was
+already on the screen:
+
+- **The target is the full-swing mark.** The white line at 100% was already
+  painted on the bar and already meant "a full swing", so the rule needs no
+  explaining: wind past it for the distance, but strike it *at* a full swing to
+  keep the line.
+- **The envelope is the old one.** A total miss costs exactly `spray(over)` —
+  the same ±7° and ±16% the dice could already hand you — so nothing about how
+  wild a thrash can get has changed, only who decides it. The tuning stays in
+  CONFIG, in one place, where it was.
+- **A miss bends as well as pushes.** Early pulls and draws, late pushes and
+  fades (`world.spin`, integrated only while the ball is airborne, and mostly
+  gone at the first bounce). A mishit that keeps curving is one you can read
+  from the tee, and it is the difference between "the game moved my ball" and
+  "I came over the top of it".
+
+The difficulty is two numbers and both run on the *same* `SPRAY_CURVE` the
+spray does, so the gate tightens exactly where the shot gets wild rather than on
+a schedule of its own:
+
+| overdraw | zone | marker | window |
+| --- | --- | --- | --- |
+| a sliver | 0.23 bar | 0.72 bar/s | ~320 ms |
+| half | 0.20 bar | 0.91 bar/s | ~215 ms |
+| all of it | 0.09 bar | 1.50 bar/s | ~60 ms |
+
+Four gates, rotating by stroke rather than at random — meeting all four in the
+first four thrashes is how they get learned, and a random pick can hand you the
+same one three times before you have seen another. All four are the same golf
+swing with more or less of it to do: **tempo** (one pass; strike on the line),
+**return** (up to the power you loaded, turn, strike it coming down),
+**double** (the same, plus a press at the top, whose accuracy the strike
+inherits) and **fade** (tempo, with the marker dark for the run in and back
+after — rhythm, not sight).
+
+`js/swing.js` knows nothing about the DOM or three.js: it is arithmetic over a
+plain object, which is what lets `tests.html` cover all four gates, both edges
+of every miss and the bound on the envelope without a browser.
 
 ### The picker
 
@@ -1326,7 +1386,9 @@ it, drag to trim, tab to it and use the arrows, `Home` and `End`. It is exact,
 repeatable, and independent of the aim, so correcting one never disturbs the
 other. It also runs **past** a full swing — see [the overdraw](#the-overdraw).
 
-**Swing plays the shot**, and nothing else does — the button, or `space`. It is
+**Swing plays the shot**, and nothing else does — the button, or `space`. Past
+a full swing it opens [the swing gate](#the-swing-gate) instead, and the second
+press is the one that plays it. It is
 disabled while there is nothing loaded and while the ball is still rolling, so
 it says what the game will accept rather than swallowing the press. The `‹` and
 `›` buttons beside it nudge the aim by a hair, which is the part a drag is too

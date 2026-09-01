@@ -442,6 +442,7 @@
             time: time || 0,
             grounded: true,
             moving: false,
+            spin: 0,            // sidespin, signed; bends the ball in flight only
             slowFor: 0,
             sunk: false,
             splash: false,
@@ -458,6 +459,7 @@
             origin: { x: w.origin.x, y: w.origin.y, z: w.origin.z },
             time: w.time,
             grounded: w.grounded,
+            spin: w.spin || 0,
             slowFor: w.slowFor,
             moving: w.moving,
             sunk: w.sunk,
@@ -471,9 +473,14 @@
        A lofted ball leaves the ground immediately, which is the whole point —
        it is how you carry a rail, a bunker or a pond instead of going round. */
     function launch(world, yaw, power, loft) {
-        // The ceiling is the longest club's ceiling plus its overdraw: the
-        // meter is allowed past a full swing, so the simulation has to be too.
-        var p = Math.max(0, Math.min(C.MAX_POWER * (1 + C.OVERDRAW), power));
+        /* The ceiling is the longest club's ceiling, plus its overdraw, plus
+           what a clean strike at the top of that overdraw is worth (deliver).
+           The meter is allowed past a full swing and the gate is allowed to
+           pay out on top of it, so the simulation has to be too — a clamp that
+           knows about only the first two silently ate the whole of the prize
+           on the one club big enough to reach it. */
+        var top = C.MAX_POWER * (1 + C.OVERDRAW) * (1 + C.OVER_GAIN);
+        var p = Math.max(0, Math.min(top, power));
         if (p < C.MIN_POWER) return false;
         var l = Math.max(0, Math.min(C.MAX_LOFT, loft || 0));
         var flat = Math.cos(l) * p;
@@ -483,6 +490,7 @@
         b.vz = Math.cos(yaw) * flat;
         b.vy = Math.sin(l) * p;
         world.moving = true;
+        world.spin = 0;
         world.splash = false;
         world.out = false;
         world.overCup = false;
@@ -499,6 +507,20 @@
     function overdraw(power, ceiling) {
         if (!ceiling || !C.OVERDRAW) return 0;
         return Math.max(0, Math.min(1, (power / ceiling - 1) / C.OVERDRAW));
+    }
+
+    /* What the club actually delivers, given what the meter says. Below a full
+       swing these are the same number and always have been. Above one the
+       meter's linear reading is topped up by CONFIG.OVER_GAIN, squared in the
+       overdraw so that almost all of it sits at the very end — the same place
+       the spray curve puts almost all of the risk.
+
+       Both the shot and the preview of it go through here, or the cone would
+       be drawing a shorter ball than the one that gets played. */
+    function deliver(power, ceiling) {
+        var t = overdraw(power, ceiling);
+        if (!t) return power;
+        return power * (1 + C.OVER_GAIN * t * t);
     }
 
     /* How wild the shot gets, as the half-angle it can leave off line by and
@@ -752,6 +774,24 @@
             }
         } else {
             var px = b.x, pz = b.z, py = b.y;
+            /* Sidespin, and only here: a ball bends in the air and rolls where
+               the ground tells it to. The push is square to where the ball is
+               going and proportional to how fast it is going, so the curve is
+               at its hardest off the clubface and eases as the shot runs out —
+               which is why a bent shot looks like a banana and not an arc of a
+               circle. */
+            if (world.spin) {
+                var gs = Math.hypot(b.vx, b.vz);
+                if (gs > 1e-4) {
+                    // Both components come off the velocity as it was: turning
+                    // one and then reading it back to turn the other is a
+                    // rotation of the wrong thing by the wrong amount.
+                    var ovx = b.vx, ovz = b.vz;
+                    var sa = C.SPIN_ACCEL * world.spin * gs * dt;
+                    b.vx += (ovz / gs) * sa;
+                    b.vz += (-ovx / gs) * sa;
+                }
+            }
             b.vy -= C.GRAVITY * dt;
             b.x += b.vx * dt;
             b.z += b.vz * dt;
@@ -803,6 +843,10 @@
                 b.vx *= C.LAND_GRIP;
                 b.vz *= C.LAND_GRIP;
                 b.vy = impact * C.BOUNCE;
+                // Most of the bend does not survive the ground. What is left
+                // still shapes a second hop; nothing survives to the roll,
+                // where the slope is the only thing entitled to steer.
+                world.spin *= C.SPIN_LAND;
                 events.land = true;
                 if (b.vy < C.LAND_REST) {
                     b.vy = 0;
@@ -953,6 +997,7 @@
         cloneWorld: cloneWorld,
         launch: launch,
         overdraw: overdraw,
+        deliver: deliver,
         spray: spray,
         sprayShot: sprayShot,
         advance: advance,

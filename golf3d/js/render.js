@@ -185,6 +185,31 @@
         R.pathCone.frustumCulled = false;
         R.aimGroup.add(R.pathCone);
 
+        /* A hairline down the middle of the cone, on the same samples and in
+           the same pass. The cone answers "how sure is this", which is the
+           question that matters once the meter is past a full swing — and in
+           answering it, a soft-edged fan a metre wide stopped answering the
+           plainer one underneath: *where exactly is this going*. So the centre
+           gets a line. It is added after the cone and shares its render order,
+           so it lands on top of it, and it is the only new geometry the
+           preview draws. */
+        var lg = new THREE.BufferGeometry();
+        lg.setAttribute('position', new THREE.Float32BufferAttribute(new Array(pvcount * 3).fill(0), 3));
+        lg.setAttribute('color', new THREE.Float32BufferAttribute(new Array(pvcount * 4).fill(1), 4));
+        R.pathLine = new THREE.Mesh(lg, new THREE.MeshBasicMaterial({
+            color: 0xffffff, transparent: true, opacity: 1, side: THREE.DoubleSide,
+            vertexColors: true, depthTest: false
+        }));
+        R.pathLine.renderOrder = 6;
+        R.pathLine.frustumCulled = false;
+        R.aimGroup.add(R.pathLine);
+        // Its own edges, so filling it cannot disturb the cone's.
+        R.lineL = []; R.lineR = [];
+        for (ci = 0; ci < perPath; ci++) {
+            R.lineL.push({ x: 0, y: 0, z: 0 });
+            R.lineR.push({ x: 0, y: 0, z: 0 });
+        }
+
         var hg = new THREE.BufferGeometry();
         hg.setAttribute('position', new THREE.Float32BufferAttribute(new Array(3 * 3).fill(0), 3));
         R.pathHead = new THREE.Mesh(hg, new THREE.MeshBasicMaterial({
@@ -2391,7 +2416,15 @@
     var PATH_HZ = 24;
     // How solid the cone is at its strongest — everything else is a fraction
     // of this, written into the vertex alpha.
-    var CONE_ALPHA = 0.55;
+    var CONE_ALPHA = 0.62;
+    /* The centre line: solid enough to be the thing you follow, and half a
+       finger wide at the ball. It widens very slightly down its length for the
+       same reason a road marking does — a constant world width is a shrinking
+       screen width, and the far end of a long drive is where the line is doing
+       the most work. */
+    var LINE_ALPHA = 0.92;
+    var LINE_HALF = 0.032;
+    var LINE_GROW = 0.0035;
     var _path = { valid: false, x: 0, y: 0, z: 0, yaw: 0, power: 0, loft: 0, over: 0, t: 0 };
 
     function clearPathCache() { _path.valid = false; }
@@ -2447,7 +2480,7 @@
            a freshly loaded hole does until the player winds a swing on. The
            wedge is drawn by updateAim whatever this decides, because the shot
            line is worth showing before there is a shot. */
-        R.pathCone.visible = pts.length > 1;
+        R.pathCone.visible = R.pathLine.visible = pts.length > 1;
         R.pathHead.visible = pts.length > 1;
         if (pts.length < 2) return;
 
@@ -2461,7 +2494,7 @@
         var cut = total > C.CONE_RANGE;             // the cone ran out before the shot did
         var reach = Math.min(total, C.CONE_RANGE);
         if (reach < 0.05) {
-            R.pathCone.visible = R.pathHead.visible = false;
+            R.pathCone.visible = R.pathLine.visible = R.pathHead.visible = false;
             return;
         }
 
@@ -2484,6 +2517,7 @@
         }
 
         var mid = R.coneMid, left = R.coneL, right = R.coneR;
+        var lineL = R.lineL, lineR = R.lineR;
         for (j = 0; j < perPath; j++) {
             var d = reach * (j / (perPath - 1));
             sampleAt(d, mid[j]);
@@ -2515,6 +2549,13 @@
             left[j].z = mid[j].z - dx * half;
             right[j].x = mid[j].x - dz * half;
             right[j].z = mid[j].z + dx * half;
+            // The line rides the same normal, a hair either side of centre.
+            var lh = LINE_HALF + mid[j].d * LINE_GROW;
+            lineL[j].x = mid[j].x + dz * lh;
+            lineL[j].y = lineR[j].y = mid[j].y;
+            lineL[j].z = mid[j].z - dx * lh;
+            lineR[j].x = mid[j].x - dz * lh;
+            lineR[j].z = mid[j].z + dx * lh;
         }
 
         /* The fade. It starts earlier the wilder the shot is — a thrash is
@@ -2539,6 +2580,8 @@
 
         var pos = R.pathCone.geometry.attributes.position.array;
         var col = R.pathCone.geometry.attributes.color.array;
+        var lpos = R.pathLine.geometry.attributes.position.array;
+        var lcol = R.pathLine.geometry.attributes.color.array;
         for (i = 0; i < perPath - 1; i++) {
             var base = i * 6;
             var tA = i / (perPath - 1), tB = (i + 1) / (perPath - 1);
@@ -2546,15 +2589,27 @@
             setPathQuadShade(col, base,
                 shadeAt(tA), alphaAt(tA) * fadeAt(mid[i].d),
                 shadeAt(tB), alphaAt(tB) * fadeAt(mid[i + 1].d));
+            /* The line fades on the same curve as the cone it sits in — it is
+               the same claim, drawn tighter, so it must not outlive it — but
+               scaled off its own, higher, ceiling. */
+            var kA = alphaAt(tA) / CONE_ALPHA, kB = alphaAt(tB) / CONE_ALPHA;
+            putPathQuad(lpos, base, lineL[i], lineR[i], lineR[i + 1], lineL[i + 1]);
+            setPathQuadShade(lcol, base,
+                1, LINE_ALPHA * kA * fadeAt(mid[i].d),
+                1, LINE_ALPHA * kB * fadeAt(mid[i + 1].d));
         }
         R.pathCone.geometry.attributes.position.needsUpdate = true;
         R.pathCone.geometry.attributes.color.needsUpdate = true;
         R.pathCone.geometry.computeBoundingSphere();
+        R.pathLine.geometry.attributes.position.needsUpdate = true;
+        R.pathLine.geometry.attributes.color.needsUpdate = true;
+        R.pathLine.geometry.computeBoundingSphere();
         // White while the shot is honest, and it takes on the arrow's red as
         // the overdraw comes on: the cone widening and the cone reddening are
         // the same fact told twice, and one of them reads from any angle.
         R.pathCone.material.color.set(0xffffff)
             .lerp(R.arrow.material.color, Math.min(1, (aim.over || 0) * 1.15));
+        R.pathLine.material.color.copy(R.pathCone.material.color);
 
         /* The arrowhead: where the loaded shot itself lands, or first meets a
            wall. Only if that point is inside the cone — a shot that outruns
