@@ -68,18 +68,30 @@ window.VizApp = (function () {
     /* ---------- the readout panel ---------- */
 
     var readout = {
-        show: function (title, rows) {
+        /* rows is [label, value] pairs. An optional link turns the panel into
+         * something you can act on — the city scene uses it so clicking a
+         * tower offers to open that project rather than navigating on a
+         * mis-click. A link makes the panel interactive, so pointer-events
+         * come back on only in that case. */
+        show: function (title, rows, link) {
             if (!el.readout) return;
             var html = '<div class="readout-title">' + esc(title) + '</div>';
             for (var i = 0; i < rows.length; i++) {
                 html += '<div class="readout-row"><span>' + esc(rows[i][0]) +
                         '</span><b>' + esc(rows[i][1]) + '</b></div>';
             }
+            if (link) {
+                html += '<a class="readout-link" href="' + esc(link.href) + '">' +
+                        esc(link.label) + ' <span aria-hidden="true">&#8594;</span></a>';
+            }
             el.readout.innerHTML = html;
+            el.readout.style.pointerEvents = link ? 'auto' : 'none';
             el.readout.classList.add('show');
         },
         hide: function () {
-            if (el.readout) el.readout.classList.remove('show');
+            if (!el.readout) return;
+            el.readout.classList.remove('show');
+            el.readout.style.pointerEvents = 'none';
         }
     };
 
@@ -356,6 +368,7 @@ window.VizApp = (function () {
             minPhi: opt.minPhi != null ? opt.minPhi : 0.22,
             maxPhi: opt.maxPhi != null ? opt.maxPhi : Math.PI - 0.22,
             spin: opt.spin || 0,
+            target: opt.target || new THREE.Vector3(0, 0, 0),
             dragging: false,
             moved: 0,
             hold: 0          /* seconds of auto-spin suppression after a nudge */
@@ -449,11 +462,11 @@ window.VizApp = (function () {
 
             var sp = Math.sin(o.phi);
             camera.position.set(
-                o.radius * sp * Math.sin(o.theta),
-                o.radius * Math.cos(o.phi),
-                o.radius * sp * Math.cos(o.theta)
+                o.target.x + o.radius * sp * Math.sin(o.theta),
+                o.target.y + o.radius * Math.cos(o.phi),
+                o.target.z + o.radius * sp * Math.cos(o.theta)
             );
-            camera.lookAt(0, 0, 0);
+            camera.lookAt(o.target);
         };
 
         o.dispose = function () {
