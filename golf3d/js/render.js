@@ -67,6 +67,7 @@
         particles: null, pAlive: 0,
         marks: null,           // the overview's ball ring and the two at the cup
         lift: 0,               // 0 on the course, 1 overhead; see atmosphere()
+        fly: null,             // the intro sweep while one is running; see flyCamera()
         overDist: 0, overRadius: 0,
         lastBall: new THREE.Vector3(),
         clock: 0
@@ -2546,6 +2547,9 @@
         R.scene.add(g);
         R.holeGroup = g;
         R.smooth.started = false;
+        // Whatever was being flown over is no longer the course. game.js starts
+        // the next one, if the player wants one at all.
+        R.fly = null;
         // A new hole is a new world; nothing the last one's preview was
         // computed from can be assumed to mean the same thing.
         clearPathCache();
@@ -2574,6 +2578,7 @@
     var _axis = new THREE.Vector3();
     var _camPos = new THREE.Vector3();
     var _camTarget = new THREE.Vector3();
+    var _seat = { px: 0, py: 0, pz: 0, tx: 0, ty: 0, tz: 0 };
     var _wind = { x: 0.4, z: 0.9, speed: 0.5 };
 
     function rollBall(pos) {
@@ -2836,7 +2841,9 @@
     }
 
     function updateAim(world, aim) {
-        var show = !!(aim && aim.show && !world.moving && !world.sunk);
+        // The cone is where *this* shot is going, and during the intro there is
+        // no shot yet — only the hole. It comes back the frame the sweep ends.
+        var show = !!(aim && aim.show && !world.moving && !world.sunk && !R.fly);
         R.aimGroup.visible = show;
         if (!show) return;
 
@@ -2953,7 +2960,17 @@
         return view;
     }
 
-    function updateCamera(hole, ball, dt) {
+    /* Where the camera would stand this instant if nothing else were going on:
+       the seat the player has chosen, turned by the dial, at the distance the
+       zoom has asked for. It is split out from updateCamera below because two
+       things need the answer and only one of them is the camera — the intro
+       flyover ends *at* the seat, and it can only do that exactly if it is
+       reading the same arithmetic rather than a second copy of it.
+
+       Fills the object it is handed: {px,py,pz} for the eye, {tx,ty,tz} for
+       what it is looking at. No smoothing — that is the caller's, because the
+       flyover does its own. */
+    function seatFor(hole, ball, out) {
         var c = R.cam;
         var yaw = (c.lock ? c.bearing : c.yaw) - c.view;
         var tx, ty, tz, px, py, pz, dist;
@@ -3042,6 +3059,84 @@
             pz = ball.z - Math.cos(yaw) * back;
         }
 
+        out.px = px; out.py = py; out.pz = pz;
+        out.tx = tx; out.ty = ty; out.tz = tz;
+        return out;
+    }
+
+    /* The intro sweep, while one is running. It writes the smoothed pair
+       directly rather than easing towards them, because the path is already
+       smooth and a lerp on top of it would lag the whole move by a beat.
+
+       Two things fall out of writing them rather than skipping them. The sweep
+       can be cut off at any frame — game.js does it on the first press of
+       anything — and the camera simply carries on from wherever it had got to,
+       easing back to the seat on the same lerp every other frame uses; there
+       is no hand-off to write. And when it runs to the end there is nothing to
+       ease at all: the last key *is* the seat, and the ease has taken the
+       speed to nothing by the time it arrives.
+
+       `lift` is what the air is told about it — see atmosphere(). A camera
+       thirty units up is looking through fog chosen for one standing on the
+       green, and the map already has the machinery for exactly that. */
+    function flyCamera(hole, ball, dt) {
+        var f = R.fly;
+        f.t += dt;
+        G3.flyover.retarget(f.plan, _seat);
+        if (f.t >= f.plan.dur) { R.fly = null; return false; }
+
+        var pose = G3.flyover.at(f.plan, f.t);
+        R.smooth.pos.set(pose.px, pose.py, pose.pz);
+        R.smooth.target.set(pose.tx, pose.ty, pose.tz);
+        R.smooth.started = true;
+        R.camera.position.copy(R.smooth.pos);
+        R.camera.lookAt(R.smooth.target);
+
+        var over = pose.py - flyGround(hole, pose.px, pose.pz, ball.y);
+        f.lift = Math.max(0, Math.min(C.FLY.AIR_MAX,
+            (over - C.FLY.AIR_FROM) / C.FLY.AIR_SPAN));
+        // What the fog has to be pushed past, in the terms atmosphere() reads:
+        // how far this frame is looking, and how wide the hole is.
+        R.overDist = Math.hypot(pose.px - pose.tx, pose.py - pose.ty, pose.pz - pose.tz);
+        R.overRadius = Math.hypot(hole.bounds.maxX - hole.bounds.minX,
+                                  hole.bounds.maxZ - hole.bounds.minZ) / 2;
+        return true;
+    }
+
+    function flyGround(hole, x, z, fallback) {
+        var s = P.surfaceTop(hole, x, z);
+        return s ? s.y : fallback;
+    }
+
+    /* A flyover for this hole, from the seat the camera is about to take up.
+       Refused rather than half-started if the pieces are not there: the module
+       is optional in the way every other one here is, and a page that failed to
+       load it should still play. */
+    function startFlyover(hole, ball) {
+        if (!R.ready || !G3.flyover) return false;
+        seatFor(hole, ball, _seat);
+        R.fly = { plan: G3.flyover.plan(hole, ball, _seat), t: 0, lift: 0 };
+        return true;
+    }
+
+    // Cutting it short is a deletion and nothing more; the frame after this one
+    // eases from wherever the camera stands back to the seat, on the lerp it
+    // would have been using anyway.
+    function skipFlyover() {
+        if (!R.fly) return false;
+        R.fly = null;
+        return true;
+    }
+
+    function flying() { return !!R.fly; }
+
+    function updateCamera(hole, ball, dt) {
+        seatFor(hole, ball, _seat);
+        if (R.fly && flyCamera(hole, ball, dt)) return;
+
+        var px = _seat.px, py = _seat.py, pz = _seat.pz;
+        var tx = _seat.tx, ty = _seat.ty, tz = _seat.tz;
+
         if (!R.smooth.started) {
             R.smooth.pos.set(px, py, pz);
             R.smooth.target.set(tx, ty, tz);
@@ -3074,6 +3169,12 @@
        the mist it was, and looks it the moment you are back behind the ball. */
     function atmosphere(dt) {
         var want = R.cam.mode === 'over' ? 1 : 0;
+        /* The intro sweep asks for the same thing, in proportion to how far off
+           the ground it is: at the apex it is as far up as the map and looking
+           through as much weather, and near the tee it is on the course and
+           wants the hole's own air back. It eases through this on the way down
+           rather than at the end, so there is no pop as it lands. */
+        if (R.fly && R.fly.lift > want) want = R.fly.lift;
         R.lift += (want - R.lift) * (1 - Math.pow(0.008, dt));
         if (R.lift < 0.002) R.lift = 0;
         if (R.lift > 0.998) R.lift = 1;
@@ -3132,7 +3233,11 @@
 
     function placeMarkers(hole, ball) {
         if (!R.marks) return;
-        R.marks.visible = R.lift > 0.01;
+        /* Not during the intro. These two rings are a map's legend — drawn
+           through the ground so a ridge hides neither — and a sweep over the
+           course with the depth test off is a sweep with two glowing discs
+           riding over the hills in front of it. */
+        R.marks.visible = R.lift > 0.01 && !R.fly;
         if (!R.marks.visible) return;
         R.markBall.position.set(ball.x, ball.y - C.BALL_R + 0.02, ball.z);
         R.markCup.position.set(hole.cup.x, hole.cup.y + 0.02, hole.cup.z);
@@ -3215,9 +3320,15 @@
         if (R.sky && G3.weather) R.sky.uniforms.drift.value.copy(G3.weather.cloudOffset);
         flapFlag(dt, wind);
 
-        // The bag rides in front of the camera, so it is placed after the
-        // camera has finished moving and before anything is drawn.
-        if (G3.bag) G3.bag.update(dt, R.camera, R.camera.aspect);
+        /* The bag rides in front of the camera, so it is placed after the
+           camera has finished moving and before anything is drawn — and it is
+           put away for the intro, because a bag of clubs pinned to the corner
+           of a shot flying thirty units over the course is the one thing in the
+           picture that says the camera is not really up there. */
+        if (G3.bag) {
+            G3.bag.setVisible(!R.fly);
+            G3.bag.update(dt, R.camera, R.camera.aspect);
+        }
 
         if (R.fx && G3.postfx.render(R.scene, R.camera, sunOnScreen(), dt)) return;
         R.renderer.setRenderTarget(null);
@@ -3321,6 +3432,9 @@
         divot: divot,
         punch: punch,
         setCam: setCam,
+        startFlyover: startFlyover,
+        skipFlyover: skipFlyover,
+        flying: flying,
         cycleView: cycleView,
         viewLabel: viewLabel,
         setLock: setLock,

@@ -32,7 +32,7 @@
 
         gtag('config', 'G-9GP823TGLB');
     </script>
-    <link rel="stylesheet" href="style.css?v=1.24.0">
+    <link rel="stylesheet" href="style.css?v=1.25.0">
 </head>
 <body>
     <div class="wrap">
@@ -63,6 +63,7 @@
                     <button class="chip" id="btn-mute" title="Sound (M)" aria-label="Unmute"><span id="mute-icon">🔇</span><span class="chip-text"> Sound</span></button>
                     <button class="chip" id="btn-music" title="Background music (J)" aria-label="Turn the music off"><span id="music-icon">♪</span><span class="chip-text"> Jazz</span></button>
                     <button class="chip" id="btn-fps" title="Show the frame rate (P)" aria-pressed="false"><span id="fps-icon">▦</span><span class="chip-text"> FPS</span></button>
+                    <button class="chip" id="btn-fly" title="A look at the hole before you play it" aria-pressed="true">🎬<span class="chip-text"> Flyover</span></button>
                     <button class="chip" id="btn-water" title="Reflections, foam and glitter on the water (O)" aria-label="Turn the fancy water off"><span id="water-icon">≈</span><span class="chip-text"> Water</span></button>
                 </div>
                 <button class="chip chip-menu" id="btn-menu" title="More" aria-label="More controls"
@@ -212,6 +213,11 @@
                         aria-label="Plan of the hole"></canvas>
             </div>
 
+            <!-- Said once, quietly, while the intro is running, and gone the
+                 instant anything is pressed. An intro nobody has been told how
+                 to leave is a loading screen. -->
+            <div class="fly-hint" id="fly-hint" hidden>Flyover — press anything to skip</div>
+
             <div class="controls">
                 <!-- Frames per second, and nothing else. It rides above the
                      meter rather than in a corner of its own so it can never
@@ -348,6 +354,16 @@
                     rather than runs, the <b>pitch</b> goes up steep and stops where it lands,
                     and the <b>wedge</b> is the lob — straight up over water, sand and trees.
                     Each one has its own ceiling on power, so a full swing means something different in every hand.
+                </li>
+                <li>
+                    <b>The hole introduces itself.</b> Every new hole opens with a flyover: it
+                    starts over the green looking back at the flag, sweeps down the course and
+                    lands exactly where you play from, behind the ball. It is a look at the shape
+                    of the thing before you have to think about the shot — where the green is,
+                    what is between you and it, and which way round the trouble goes. Press
+                    anything at all to cut it short and get straight to the tee, and if you would
+                    rather never see it, the <b>🎬 Flyover</b> chip behind ☰ turns it off for good.
+                    Restarting a hole does not replay it.
                 </li>
                 <li>
                     <b>Read the hole first.</b> <kbd>V</kbd> walks between three cameras:
@@ -495,23 +511,24 @@
 
     <!-- Load order is dependency order: config, then the pure logic, then the
          things that touch the screen. game.js boots itself on DOMContentLoaded. -->
-    <script src="js/config.js?v=1.24.0"></script>
-    <script src="js/themes.js?v=1.24.0"></script>
-    <script src="js/physics.js?v=1.24.0"></script>
-    <script src="js/courses.js?v=1.24.0"></script>
-    <script src="js/custom.js?v=1.24.0"></script>
-    <script src="js/scoring.js?v=1.24.0"></script>
-    <script src="js/swing.js?v=1.24.0"></script>
-    <script src="js/audio.js?v=1.24.0"></script>
-    <script src="js/music.js?v=1.24.0"></script>
-    <script src="js/bag.js?v=1.24.0"></script>
-    <script src="js/textures.js?v=1.24.0"></script>
-    <script src="js/shaders.js?v=1.24.0"></script>
-    <script src="js/postfx.js?v=1.24.0"></script>
-    <script src="js/weather.js?v=1.24.0"></script>
-    <script src="js/render.js?v=1.24.0"></script>
-    <script src="js/minimap.js?v=1.24.0"></script>
-    <script src="js/debug.js?v=1.24.0"></script>
-    <script src="js/game.js?v=1.24.0"></script>
+    <script src="js/config.js?v=1.25.0"></script>
+    <script src="js/themes.js?v=1.25.0"></script>
+    <script src="js/physics.js?v=1.25.0"></script>
+    <script src="js/courses.js?v=1.25.0"></script>
+    <script src="js/custom.js?v=1.25.0"></script>
+    <script src="js/scoring.js?v=1.25.0"></script>
+    <script src="js/swing.js?v=1.25.0"></script>
+    <script src="js/audio.js?v=1.25.0"></script>
+    <script src="js/music.js?v=1.25.0"></script>
+    <script src="js/bag.js?v=1.25.0"></script>
+    <script src="js/textures.js?v=1.25.0"></script>
+    <script src="js/shaders.js?v=1.25.0"></script>
+    <script src="js/postfx.js?v=1.25.0"></script>
+    <script src="js/weather.js?v=1.25.0"></script>
+    <script src="js/flyover.js?v=1.25.0"></script>
+    <script src="js/render.js?v=1.25.0"></script>
+    <script src="js/minimap.js?v=1.25.0"></script>
+    <script src="js/debug.js?v=1.25.0"></script>
+    <script src="js/game.js?v=1.25.0"></script>
 </body>
 </html>

@@ -1291,6 +1291,78 @@ body.compact-ui .toast { top: 166px; }
 body.compact-ui .stage.view-collapsed .toast { top: 134px; }
 .toast.bad { border-color: rgba(248, 113, 113, 0.5); color: var(--over); }
 
+/* ── the flyover's one line ────────────────────────────────────────────── */
+
+/* Quiet on purpose: it is not news, it is the way out. It stands where the
+   power meter normally is, which it can only do because the meter is not there
+   — the chrome steps aside for the length of the sweep (below), and the one
+   thing left on screen beside this line is the hole card in the top left, which
+   is the caption this whole picture is for. */
+.fly-hint {
+    position: absolute;
+    left: 50%;
+    bottom: 14px;
+    transform: translateX(-50%);
+    max-width: calc(100% - 32px);
+    text-align: center;
+    background: rgba(5, 18, 28, 0.72);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    color: var(--muted);
+    font-size: 0.78rem;
+    letter-spacing: 0.02em;
+    line-height: 1.2;
+    padding: 0.35rem 0.8rem;
+    border-radius: 999px;
+    pointer-events: none;
+    z-index: 6;
+    animation: fly-hint-in 0.5s ease both;
+}
+
+@keyframes fly-hint-in {
+    from { opacity: 0; transform: translate(-50%, 6px); }
+    to   { opacity: 1; transform: translate(-50%, 0); }
+}
+
+/* The course, and nothing over it. Every one of these is an answer to a
+   question about the shot you are about to play, and during the intro there is
+   no shot yet — the meter reads zero, the dial points at a seat the camera is
+   not sitting in, and the club in your hand is not being asked for. They fade
+   rather than vanish, so the moment the sweep lands reads as arriving at the
+   tee rather than as a page finishing loading.
+
+   They keep their layout while they are gone: opacity and pointer-events only.
+   Nothing here is measured against them mid-sweep, and a control that moved
+   would take the bag's band and the power ticks with it. And losing the hits
+   costs nothing — a press on one of these is a press that ends the flyover,
+   and the window hears it either way. */
+.stage.flying .controls,
+.stage.flying .viewctl,
+.stage.flying .stage-hud,
+.stage.flying .picker,
+.stage.flying .fs-prompt {
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.35s ease;
+}
+
+.stage .controls,
+.stage .viewctl,
+.stage .stage-hud {
+    transition: opacity 0.45s ease 0.1s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .fly-hint { animation: none; }
+    .stage.flying .controls,
+    .stage.flying .viewctl,
+    .stage.flying .stage-hud,
+    .stage.flying .picker,
+    .stage.flying .fs-prompt,
+    .stage .controls,
+    .stage .viewctl,
+    .stage .stage-hud { transition: none; }
+}
+
 /* ── fullscreen prompt ─────────────────────────────────────────────────── */
 
 /* The topbar chip does the same job, but it is one icon among six and easy

@@ -1687,7 +1687,11 @@
             toast('Could not hand the hole over: ' + e.message, 'bad');
             return;
         }
-        window.open('index.html?course=custom&hole=1&weather=' + encodeURIComponent(S.hole.weather), '_blank');
+        /* &fly=0, because a playtest is a loop: draw, look, change, look again,
+           and a five-second sweep over a hole you have been staring at all
+           afternoon is five seconds on every one of those turns. */
+        window.open('index.html?course=custom&hole=1&fly=0&weather=' +
+                    encodeURIComponent(S.hole.weather), '_blank');
     }
 
     /* ── keys ───────────────────────────────────────────────────────────── */
