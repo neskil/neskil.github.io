@@ -79,7 +79,7 @@ speed — and it is now a loft, a ceiling and one number about what happens
 | Club | Loft | Full swing | Carry | Apex | Total on green | What it is for |
 | --- | --- | --- | --- | --- | --- | --- |
 | Putter | 0° | 10.5 | — | — | 9.2 | Rolls flat and true. Full power is still a tap, which is what makes it the club you can aim. |
-| Driver | 4° | 32 | 9.3 | 0.30 | 29.1 | The reach club. Barely off the ground, and almost all of its length is roll. |
+| Driver | 6° | 32 | 15.3 | 0.47 | 34.5 | The reach club. The longest flight in the bag and much the lowest — it cannot clear a rail, it just takes a while to come down. |
 | 7 Iron | 16° | 18 | 9.8 | 0.83 | 21.0 | The long approach: three quarters of a driver, and it *carries* three quarters of that. |
 | Pitch | 45° | 11.7 | 7.6 | 2.03 | 13.7 | Up steep and down steeper. Stops near where it lands. |
 | Wedge | 58° | 12.1 | 7.3 | 3.05 | 12.4 | The lob: straight up, over anything, and it does not run when it lands. |
@@ -753,10 +753,10 @@ The numbers it is built against, measured off a flat lie at full power:
 
 | | Putter | Driver | 7 Iron | Pitch | Wedge |
 | --- | --- | --- | --- | --- | --- |
-| Green | 8.5 | 29.6 | 21.9 | 14.6 | 13.1 |
-| Fairway | 6.8 | 25.6 | 20.1 | 13.7 | 12.4 |
-| Rough | 3.6 | 18.5 | 16.8 | 12.2 | 11.3 |
-| Sand | 1.9 | 14.4 | 14.9 | 11.3 | 10.6 |
+| Green | 8.5 | 34.5 | 21.9 | 14.6 | 13.1 |
+| Fairway | 6.8 | 30.6 | 20.1 | 13.7 | 12.4 |
+| Rough | 3.6 | 23.5 | 16.8 | 12.2 | 11.3 |
+| Sand | 1.9 | 19.4 | 14.9 | 11.3 | 10.6 |
 
 So a par 3 is about thirteen units and one full club; a par 4 is around thirty
 — a drive and a pitch; the par 5 is forty-eight, which is three shots, or two
@@ -764,9 +764,13 @@ and an argument with a cross bunker. Missing the fairway does not lose the
 ball. It loses the club you wanted to hit next, which is a better punishment
 because you have to keep playing with it.
 
-The other thing worth knowing is the carry. Nothing in the bag flies further
-than about 9.5 units before its first bounce (the iron, flat out) and
-nothing gets higher than about 1.6 (the wedge). Both numbers are load-bearing:
+The other thing worth knowing is the carry, and it is not the same question as
+the flight. The driver flies furthest before its first bounce — about 15 units
+— and it does it at an apex of half a unit, which is under every rail on the
+property: it is a long skim, not a carry, and anything standing up in front of
+it stops it dead. Of the clubs that actually get *over* something, the iron
+carries furthest, about 9.5 units flat out, and nothing gets higher than about
+1.6 (the wedge). Both numbers are load-bearing:
 **Over the Water** puts a pond four units deep on the line to the pin, which
 only a full swing of the iron clears — carry falls off with the square of the
 speed while roll only falls off with the speed, so taking anything off it is how
@@ -1642,19 +1646,42 @@ The rule the chrome is built to: **a thing that only needs saying once should
 only be said once**, and everything else should be one press away rather than
 permanently on screen. A phone is 400 points wide and the course is the point.
 
-- **The topbar** is one row and never more than one. The view and fullscreen
-  stay out where a thumb can reach them mid-shot; Courses, restart, the card,
-  the rules, sound and the music fold behind ☰ — a real menu that shuts on a
+- **One overlay family, sized by how often a hand goes to it.** Everything that
+  floats over the course used to be three separate looks within a thumb's width
+  of each other: square chips in the bar, a rounded slab of figures under them,
+  and uppercase letter-spaced pills beside that — three type scales, two radii,
+  two casings. They are one pill now, off one set of `--ov-*` tokens, and the
+  only thing that varies is size, which *is* the ranking. `.pill-lg` is the
+  club, pressed on nearly every shot. `.pill-sm` is the camera — the seat and
+  the view dial's handle — pressed a few times a hole. The bar's chips are the
+  tier under both, and everything rarer than that has no size at all until ☰ is
+  opened.
+- **The topbar** is one row and never more than one: back, the hole's figures,
+  fullscreen, ☰. Courses, restart, the card, the rules, sound, the music, the
+  frame rate and the water fold behind the menu — a real one, which shuts on a
   press outside it, on `Escape`, and on picking anything out of it. Wide enough
-  for all eight and the wrapper drops out of the layout entirely
-  (`display: contents`) and the chips sit in the row as before. The view chip
-  names the seat the camera is in rather than the one the press would take you
-  to, and carries a `min-width` so the bar does not shuffle sideways when the
-  name changes length. It is also the *only* thing that names it: switching
-  seats used to raise a toast as well, which put the word Overview in a pill a
-  thumb's width from the chip that had just started saying Overview — the same
-  label twice, across the top of the course, for the one change on screen that
-  announces itself.
+  for all of them and the wrapper drops out of the layout entirely
+  (`display: contents`) and the chips sit in the row as before.
+- **The wordmark is not in the bar while you play.** On a phone the top-left was
+  a line of branding over a line of figures — two rows of chrome saying one
+  useful thing between them — so the figures took the bar and the name went. It
+  says the same six letters on every hole of every round; the back arrow already
+  says where you are and the tab still says what this is, and the clubhouse
+  layout below the fold keeps the whole of it. What that bought is width: the
+  four figures now fit on one line down to a 320-point screen without clipping.
+- **The camera controls are together**, in the pill row under the bar rather
+  than split between the bar and the stage. The seat chip and the view dial's
+  handle answer the same question — where am I standing — and they used to be
+  forty points and two visual languages apart. The seat chip names the seat the
+  camera is in rather than the one the press would take you to, and carries a
+  `min-width` so the row does not shuffle sideways when the name changes length.
+  It is also the *only* thing that names it: switching seats used to raise a
+  toast as well, which put the word Overview in a pill a thumb's width from the
+  chip that had just started saying Overview — the same label twice, across the
+  top of the course, for the one change on screen that announces itself.
+- **The row is ordered by rising frequency, left to right**, so the club — the
+  one pill a round presses on nearly every shot — is hard against the right-hand
+  edge, which is the easiest thing on the row to hit with a thumb.
 - **Compact chrome** is on wherever the immersive layout is — a narrow window, a
   touch screen, or fullscreen on anything — and `game.js` decides it in one
   place (`syncCompact`) so the bar's two modes cannot disagree with the
@@ -1675,18 +1702,31 @@ permanently on screen. A phone is 400 points wide and the course is the point.
   room for a third line, the sentence about the hole goes too and the name and
   the numbers stay. Nothing is lost by shrinking it — the name in the scoreboard
   and the overlay's drawer both ask for all of it back.
-- **The overlay** inside the stage carries the four figures that move during a
-  shot — hole, par, strokes, distance — on one line, and the three that merely
-  describe the hole behind a caret: name, blurb, and the sky, which is also the
-  button that changes it.
+- **The overlay** carries the four figures that move during a shot — hole, par,
+  strokes, distance — on one line, and the three that merely describe the hole
+  behind a caret: name, blurb, and the sky, which is also the button that
+  changes it. It is a row *of the topbar*, not a thing floating under it, so the
+  drawer hangs off it as a dropdown rather than growing the bar and pushing the
+  course down. Opening it dims the pill row: reading what a hole is and walking
+  round it are two different moments, and the drawer opens straight over the
+  pills that do the second one. That leaves nothing on the stage as a sibling of
+  the overlay, so what it dims is told from `<body>` — `hud-open` and
+  `picker-open` — rather than from `.stage`.
 - **How to play** opens by itself on a first visit — before the course picker,
   which appears when the rules are closed — and after that lives behind the `?`
   button and `H`. The flag is one key in `localStorage`.
 - **Fullscreen** (`F`, or the ⛶ button) goes fullscreen on the *viewport*, not
   the document, so the canvas and every overlay inside it come along and the
   page chrome does not. The scoreboard above the canvas is gone in that mode,
-  and the compact overlay takes over. The one-off offer to use it sits out of
-  the play area and times out rather than waiting to be dismissed.
+  and the compact overlay takes over. It is the one offer kept out in the bar
+  rather than behind the fold, and it **wears a ring until it has been taken**:
+  in a browser tab this game is playing in about two thirds of a phone and
+  nothing on the course says so, and the one-off banner is gone within nine
+  seconds of a first visit. The ring is what is left pointing at the control
+  afterwards — it stops for good on the first fullscreen round (`FS_SEEN_KEY`),
+  not on dismissing the banner, because waving away a sentence is not the same
+  as knowing where the button is. Only one of the two speaks at a time: while
+  the banner is up, `body.fs-offering` stills the ring.
 - **To cup** in the scoreboard counts down live while the ball rolls. It is the
   number the club choice is actually about.
 - The **club picker** is the modelled bag described above. What is left in the
@@ -1739,9 +1779,11 @@ of a phone. That is three chances to press the wrong one, and the meter — the
 one control a round touches on every single shot — was the tier that could
 least afford to be thin. Nothing on the view dial is wanted with a shot half
 loaded, so it costs nothing at the top and gives the meter back the height.
-Where it stands is a breakpoint: top right on anything wide enough to share the
-line with the hole's figures, and the full width under the topbar on a phone,
-where the hole card and the fullscreen offer stack below it.
+Where it stands is a breakpoint: top right on anything wide enough, and the
+full width under the topbar on a phone, where the hole card and the fullscreen
+offer stack below it. The hole's figures no longer share that line — they are up
+in the bar — which is what gave the pill row the width to hold three pills on a
+320-point screen.
 
 #### The lock
 

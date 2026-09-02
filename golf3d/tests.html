@@ -34,6 +34,14 @@
         'use strict';
 
         var C = G3.CONFIG, P = G3.physics, S = G3.scoring, A = G3.authoring;
+
+        /* Where the bag stops keeping the ball down and starts putting it in
+           the air. It is not a config value — the simulation only ever sees a
+           launch angle — it is the line these tests draw so that "a lofted
+           club" means one thing in all three places that ask. It sits between
+           the driver and the 7 iron on purpose: the driver climbs enough to
+           run out, the iron is the first club in the bag that carries. */
+        var LOFTED = 13 * Math.PI / 180;
         var passed = 0, failed = 0;
         window.FAILS = [];
         var out = document.getElementById('results');
@@ -730,7 +738,7 @@
                 // A hole cannot both require loft and refuse to hand any out.
                 if (h.needsLoft) {
                     assert(tag + ': a hole that needs loft is given some',
-                        G3.bagFor(h).some(function (c) { return c.loft >= 10 * Math.PI / 180; }));
+                        G3.bagFor(h).some(function (c) { return c.loft >= LOFTED; }));
                 }
             });
             assert('some holes are played out of a smaller bag', restricted >= 4,
@@ -2247,7 +2255,7 @@
                several deliberately do — Under the Boardwalk wants one. */
             var b1 = performance.now(), flatBag = [], marked = 0;
             C.CLUBS.forEach(function (club) {
-                if (club.loft < 10 * Math.PI / 180) flatBag.push(club);
+                if (club.loft < LOFTED) flatBag.push(club);
             });
             assert('there are flat clubs to try', flatBag.length >= 2);
             ALL.forEach(function (entry) {
@@ -2255,7 +2263,7 @@
                 if (!h.needsLoft) return;
                 marked++;
                 var mine = G3.bagFor(h).filter(function (c) {
-                    return c.loft < 10 * Math.PI / 180;
+                    return c.loft < LOFTED;
                 });
                 var r = play(h, 10, mine.length ? mine : flatBag);
                 assert(entry.course.id + '/' + h.name + ': cannot be played along the floor',

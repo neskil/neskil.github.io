@@ -15,7 +15,56 @@
     --over: #fca5a5;
     --under: #86efac;
     --gold: #fbbf24;
+
+    /* One surface for everything that floats over the course. The chrome on
+       the stage used to be three families — square chips in the bar, a slab of
+       figures under it, uppercase pills beside that — three type scales, two
+       radii and two casings, all within a thumb's width of each other. They
+       are one family now, and the only thing that varies between them is size,
+       which is set by how often a hand goes to it. */
+    --ov-bg: rgba(6, 20, 32, 0.72);
+    --ov-bg-open: rgb(9, 24, 38);
+    --ov-border: rgba(255, 255, 255, 0.18);
+    --ov-hot: rgba(56, 189, 248, 0.28);
+    --ov-shadow: 0 20px 50px rgba(0, 0, 0, 0.55);
 }
+
+/* ── the overlay family ─────────────────────────────────────────────────── */
+
+/* Pressed every shot, a few times a hole, or once a round: three sizes of one
+   pill, and the size is the ranking. `.pill-lg` is the club, `.pill-sm` is the
+   camera, and the bar's chips are the tier below both — everything rarer than
+   that is behind ☰ and has no size at all until it is opened. */
+.pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.34rem;
+    margin: 0;
+    font: inherit;
+    font-weight: 500;
+    line-height: 1.2;
+    color: var(--ink);
+    background: var(--ov-bg);
+    border: 1px solid var(--ov-border);
+    border-radius: 999px;
+    cursor: pointer;
+    pointer-events: auto;
+    white-space: nowrap;
+    text-shadow: none;
+    transition: background 0.15s, border-color 0.15s;
+}
+
+.pill:hover { background: var(--ov-hot); border-color: rgba(125, 211, 252, 0.45); }
+.pill:active { background: var(--accent); color: #06212f; }
+
+.pill.on {
+    background: var(--accent);
+    color: #06212f;
+    border-color: transparent;
+}
+
+.pill-sm { padding: 0.3rem 0.6rem; font-size: 0.72rem; }
+.pill-lg { padding: 0.38rem 0.72rem; font-size: 0.8rem; font-weight: 600; }
 
 * { box-sizing: border-box; }
 
@@ -118,13 +167,16 @@ body::before {
 
 button.chip, a.chip {
     font: inherit;
-    font-size: 0.85rem;
+    font-size: 0.8rem;
+    font-weight: 500;
+    line-height: 1.2;
     color: var(--ink);
     background: var(--panel);
     border: 1px solid var(--panel-border);
-    border-radius: 10px;
-    padding: 0.45rem 0.8rem;
+    border-radius: 999px;
+    padding: 0.42rem 0.8rem;
     cursor: pointer;
+    white-space: nowrap;
     transition: background 0.18s, border-color 0.18s, transform 0.18s;
 }
 
@@ -136,10 +188,15 @@ button.chip.on { background: var(--accent); color: #06212f; border-color: transp
    and none of the underline a browser would otherwise give it. */
 a.chip { text-decoration: none; display: inline-block; }
 
-/* The view chip names where the camera is, and the three names are different
-   lengths — without a floor under it the whole topbar shuffles sideways every
-   time you press V. */
-#btn-view { min-width: 5.8rem; }
+/* Floating over the course the bar's chips are the same surface as everything
+   else on it; standing above it in the clubhouse they keep the panel glass the
+   scoreboard under them is made of. */
+body.compact-ui button.chip, body.compact-ui a.chip {
+    background: var(--ov-bg);
+    border-color: var(--ov-border);
+}
+
+body.compact-ui button.chip:hover, body.compact-ui a.chip:hover { background: var(--ov-hot); }
 
 /* ── scoreboard ─────────────────────────────────────────────────────────── */
 
@@ -553,22 +610,27 @@ button,
 
 /* Hole, par, strokes and distance — the four figures that move during a
    shot — on one line, with everything that merely describes the hole one tap
-   underneath. The line itself is the button that opens the rest. */
+   underneath. The line itself is the button that opens the rest.
+
+   It rides in the topbar, in the space the wordmark holds on a wide screen,
+   rather than floating under it. Two rows of chrome down the top-left of a
+   phone — the name of the game over the state of the hole — was one row too
+   many, and the one that could go is the one that says the same thing on every
+   screen of every round. */
 .stage-hud {
-    position: absolute;
-    top: 12px;
-    left: 12px;
+    position: relative;
     display: none;
-    max-width: calc(100% - 24px);
-    border-radius: 12px;
+    min-width: 0;
+    border-radius: 999px;
     color: var(--ink);
-    background: rgba(6, 20, 32, 0.7);
-    border: 1px solid rgba(255, 255, 255, 0.14);
+    background: var(--ov-bg);
+    border: 1px solid var(--ov-border);
     backdrop-filter: blur(6px);
     line-height: 1.3;
-    overflow: hidden;
     transition: opacity 0.2s;
 }
+
+.stage-hud.open { background: var(--ov-hot); }
 
 .hud-line {
     display: flex;
@@ -585,9 +647,16 @@ button,
     border: 0;
     cursor: pointer;
     text-align: left;
+    /* Four readings on one line, and one line is the whole point: wrapped, it
+       is a second row of chrome down the top of the course — which is the row
+       this overlay moved into the topbar to stop being. */
+    white-space: nowrap;
 }
 
-.hud-line span + span { padding-left: 0.6rem; border-left: 1px solid rgba(255, 255, 255, 0.15); }
+.hud-line span + span { padding-left: 0.6rem; border-left: 1px solid rgba(255, 255, 255, 0.18); }
+
+/* The one figure of the four that is worth a second look mid-shot. */
+#shud-dist { color: var(--accent); }
 
 .hud-caret {
     border-left: 0 !important;
@@ -599,10 +668,22 @@ button,
 
 .stage-hud.open .hud-caret { transform: rotate(180deg); }
 
+/* Open, it hangs under the line rather than growing it: the line is a row in
+   the topbar now, and a drawer that pushed the bar taller would push the
+   course down with it. Same trick as the ☰ menu on the other end of the bar,
+   and the same surface, so the two read as one kind of thing. */
 .hud-detail {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    z-index: 8;
+    width: max-content;
+    max-width: min(34ch, 78vw);
     padding: 0 0.65rem 0.55rem;
-    border-top: 1px solid rgba(255, 255, 255, 0.1);
-    max-width: 34ch;
+    border: 1px solid var(--ov-border);
+    border-radius: 14px;
+    background: var(--ov-bg-open);
+    box-shadow: var(--ov-shadow);
 }
 
 .hud-name { font-size: 0.92rem; font-weight: 800; letter-spacing: -0.01em; margin-top: 0.4rem; }
@@ -618,17 +699,17 @@ button,
 .hud-sky {
     margin-top: 0.4rem;
     font: inherit;
-    font-size: 0.74rem;
+    font-size: 0.72rem;
     color: var(--ink-dim);
     background: rgba(255, 255, 255, 0.06);
-    border: 1px solid var(--panel-border);
+    border: 1px solid var(--ov-border);
     border-radius: 999px;
-    padding: 0.15rem 0.55rem;
+    padding: 0.2rem 0.6rem;
     cursor: pointer;
     white-space: nowrap;
 }
 
-.hud-sky:hover { color: var(--ink); background: rgba(255, 255, 255, 0.12); }
+.hud-sky:hover { color: var(--ink); background: var(--ov-hot); }
 
 /* Fullscreen is taken on the viewport, so the topbar, the overlay and the
    modals come with it: the same immersive layout the phone gets, on any
@@ -768,46 +849,27 @@ button,
     margin-bottom: 0.25rem;
 }
 
-/* Sized and cased together, and with no margin of their own: .ctl-head owns
-   the gap between them and the space under the line, so the two pills sit on
-   one baseline instead of two pixels apart. */
-.club-chip,
-.view-toggle {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.3rem;
-    margin: 0;
-    padding: 0.2rem 0.5rem;
-    font: inherit;
-    font-size: 0.6rem;
-    font-weight: 400;
-    line-height: 1.2;
-    text-transform: uppercase;
-    letter-spacing: 0.09em;
-    color: rgba(234, 246, 255, 0.85);
-    background: rgba(6, 20, 32, 0.72);
-    border: 1px solid rgba(255, 255, 255, 0.18);
-    border-radius: 999px;
-    cursor: pointer;
-    pointer-events: auto;
-    text-shadow: none;
-    transition: background 0.15s;
-}
+/* Both are `.pill` now; what is left here is only what makes each of them
+   itself. They used to be uppercase and letter-spaced at 0.6rem — a third
+   casing and a third type scale within an inch of the bar's chips and the
+   hole's figures, which is most of why the corner read as clutter. */
+.view-toggle b { color: var(--ink); font-variant-numeric: tabular-nums; font-weight: 600; }
 
-.view-toggle:hover,
-.club-chip:hover { background: rgba(56, 189, 248, 0.28); }
-.view-toggle b { color: var(--ink); font-variant-numeric: tabular-nums; }
+/* The seat chip names where the camera is, and the three names are different
+   lengths — without a floor under it the row shuffles sideways on every press. */
+#btn-view { justify-content: center; min-width: 4.6rem; }
 
 /* The club's own colour, the same one it wears on its collar in the bag and on
    its card in the picker — so the pill and the bag are already saying the same
    thing before either is read. It is set from bag.js's palette rather than
    restated here, because a second copy of five colours is a second copy to
    drift. */
-.club-chip b { color: var(--club, var(--ink)); }
+.club-chip b { color: var(--club, var(--ink)); font-weight: 700; }
+.club-chip:active b, .club-chip:active .club-loft { color: inherit; }
 
 .club-dot {
-    width: 7px;
-    height: 7px;
+    width: 8px;
+    height: 8px;
     border-radius: 50%;
     background: var(--club, var(--ink));
     box-shadow: 0 0 6px var(--club, transparent);
@@ -815,7 +877,7 @@ button,
 
 .club-loft {
     font-family: 'JetBrains Mono', ui-monospace, monospace;
-    font-size: 0.92em;
+    font-size: 0.86em;
     letter-spacing: 0;
     color: var(--ink-dim);
 }
@@ -846,18 +908,18 @@ button,
     font: inherit;
     font-size: 0.85rem;
     line-height: 1;
-    width: 30px;
+    width: 32px;
     height: 27px;
     color: var(--ink);
-    background: rgba(6, 20, 32, 0.72);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    border-radius: 10px;
+    background: var(--ov-bg);
+    border: 1px solid var(--ov-border);
+    border-radius: 999px;
     cursor: pointer;
     pointer-events: auto;
     transition: background 0.15s;
 }
 
-.view-step:hover { background: rgba(56, 189, 248, 0.3); }
+.view-step:hover { background: var(--ov-hot); }
 .view-step:active { background: var(--accent); color: #06212f; }
 
 /* The lock is a state rather than a nudge, so unlike the two step buttons
@@ -895,9 +957,9 @@ button,
     pointer-events: auto;
     cursor: ew-resize;
     touch-action: none;
-    border-radius: 6px;
+    border-radius: 999px;
     background: rgba(3, 12, 20, 0.62);
-    border: 1px solid rgba(255, 255, 255, 0.2);
+    border: 1px solid var(--ov-border);
     box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.5);
 }
 
@@ -931,7 +993,7 @@ button,
     padding: 0;
     color: rgba(234, 246, 255, 0.75);
     background: rgba(6, 20, 32, 0.92);
-    border: 1px solid rgba(255, 255, 255, 0.28);
+    border: 1px solid var(--ov-border);
     border-radius: 50%;
     cursor: pointer;
     pointer-events: auto;
@@ -1308,10 +1370,10 @@ body.compact-ui .stage.view-collapsed .toast { top: 134px; }
     display: flex;
     align-items: center;
     gap: 0.6rem;
-    background: rgba(5, 18, 28, 0.92);
-    border: 1px solid var(--panel-border);
+    background: var(--ov-bg-open);
+    border: 1px solid var(--ov-border);
     color: var(--ink);
-    font-size: 0.82rem;
+    font-size: 0.8rem;
     padding: 0.55rem 0.6rem 0.55rem 0.9rem;
     border-radius: 999px;
     opacity: 0;
@@ -1441,11 +1503,26 @@ kbd {
     background: rgba(3, 10, 18, 0.74);
     backdrop-filter: blur(6px);
     opacity: 0;
+    visibility: hidden;
     pointer-events: none;
-    transition: opacity 0.22s;
+    /* Out only. A modal is a surface you press, and a fade *in* is a window in
+       which it is already taking presses and not yet on screen — CSS turns
+       `pointer-events` on the moment the class lands and then eases the opacity
+       over frames the main thread may not get to for a while. Building the
+       course picker costs a tab's worth of hole plans, so on a phone that
+       window was long enough to tap into: the list was live, invisible, and a
+       press meant for the course underneath picked a course out of it. It
+       arrives at once now, and the fade is kept for leaving, where nothing is
+       being aimed at. */
+    transition: opacity 0.22s, visibility 0s linear 0.22s;
 }
 
-.modal.show { opacity: 1; pointer-events: auto; }
+.modal.show {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+    transition: none;
+}
 
 .modal-inner {
     width: min(520px, 100%);
@@ -1460,7 +1537,7 @@ kbd {
     transition: transform 0.22s;
 }
 
-.modal.show .modal-inner { transform: none; }
+.modal.show .modal-inner { transform: none; transition: none; }
 
 .modal h2 { margin: 0; font-size: 1.35rem; letter-spacing: -0.02em; }
 .modal .sub { margin: 0.25rem 0 1rem; font-size: 0.82rem; color: var(--ink-dim); font-weight: 300; }
@@ -1924,11 +2001,11 @@ kbd {
     top: 12px;
     transform: translateY(-6px);
     width: min(30ch, calc(100% - 24px));
-    padding: 0.45rem 0.6rem 0.5rem;
+    padding: 0.5rem 0.7rem 0.55rem;
     line-height: 1.3;
-    border-radius: 12px;
-    background: rgba(6, 20, 32, 0.7);
-    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-radius: 14px;
+    background: var(--ov-bg);
+    border: 1px solid var(--ov-border);
     backdrop-filter: blur(6px);
     opacity: 0;
     pointer-events: none;
@@ -1981,7 +2058,11 @@ kbd {
    of fullscreen gives way to the drawer when that is what was asked for. The
    hole card used to push it aside too, and no longer needs to — it is a note
    in the other corner now, well clear of it. */
-.stage-hud.open ~ .fs-prompt,
+/* Reading what the hole is and walking round it are two different moments, and
+   the drawer opens straight over the pills that do the second one. One thing
+   over the course at a time — the same rule the bag already follows. */
+body.hud-open .viewctl,
+body.hud-open .fs-prompt,
 .stage.toasting .fs-prompt {
     opacity: 0;
     pointer-events: none;
@@ -1989,7 +2070,7 @@ kbd {
 
 /* Opening the bag dims the course; anything else floating over it would be
    read through four turning clubs. */
-.stage.picker-open .stage-hud,
+body.picker-open .stage-hud,
 .stage.picker-open .viewctl,
 .stage.picker-open .fs-prompt,
 .stage.picker-open .hole-card {
@@ -2012,8 +2093,8 @@ body.compact-ui .topbar {
     right: 0;
     z-index: 6;
     margin: 0;
-    padding: 0.45rem 0.6rem;
-    gap: 0.5rem;
+    padding: 0.45rem 0.55rem;
+    gap: 0.4rem;
     background: linear-gradient(to bottom,
         rgba(4, 14, 24, 0.85) 0%, rgba(4, 14, 24, 0.5) 62%, rgba(4, 14, 24, 0) 100%);
     pointer-events: none;
@@ -2023,8 +2104,12 @@ body.compact-ui .topbar {
    a drag that starts on the sky above the course still turns the camera. */
 body.compact-ui .topbar > * { pointer-events: auto; }
 
-body.compact-ui .tagline { display: none; }
-body.compact-ui .title { font-size: 1.05rem; white-space: nowrap; }
+/* The wordmark is the thing in this bar that is worth nothing while you play:
+   it says the same six letters on every hole of every round, and it was saying
+   them in the one strip of screen the hole's own figures wanted. The back
+   arrow already says where you are, the tab still says what this is, and the
+   clubhouse layout below the fold keeps the whole of it. */
+body.compact-ui .brand { display: none; }
 
 body.compact-ui .home-link {
     width: 32px;
@@ -2035,6 +2120,12 @@ body.compact-ui .home-link {
 body.compact-ui .chip-menu { display: inline-block; }
 body.compact-ui .chip-text { display: inline; }
 
+/* The word costs about thirty pixels, and the figures beside it want them
+   first on the narrowest phones — under 400px the ring is the whole reminder. */
+@media (max-width: 399px) {
+    body.compact-ui #btn-full .chip-text { display: none; }
+}
+
 body.compact-ui .topbar-menu {
     display: grid;
     position: absolute;
@@ -2044,10 +2135,10 @@ body.compact-ui .topbar-menu {
     gap: 0.35rem;
     min-width: 170px;
     padding: 0.4rem;
-    background: rgba(9, 24, 38, 0.97);
-    border: 1px solid var(--panel-border);
+    background: var(--ov-bg-open);
+    border: 1px solid var(--ov-border);
     border-radius: 14px;
-    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.55);
+    box-shadow: var(--ov-shadow);
     opacity: 0;
     transform: translateY(-6px);
     pointer-events: none;
@@ -2065,16 +2156,67 @@ body.compact-ui .topbar-menu .chip {
     background: rgba(255, 255, 255, 0.04);
 }
 
+/* A standing reminder rather than a banner to dismiss: in a browser tab this
+   game is playing in about two thirds of a phone, and nothing on the course
+   says so. The chip that fixes it wears a ring until it has been pressed once
+   — after that the player knows where it is, and it goes quiet for good. The
+   one-shot banner still makes the offer in words; this is what is left of it
+   afterwards. */
+body.fs-offering #btn-full { animation: none; box-shadow: none; }
+
+#btn-full.reminding {
+    border-color: var(--accent);
+    color: var(--ink);
+    animation: fs-ring 2.6s ease-in-out infinite;
+}
+
+@keyframes fs-ring {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(56, 189, 248, 0); }
+    50%      { box-shadow: 0 0 0 4px rgba(56, 189, 248, 0.28); }
+}
+
+/* Same rule the view controls' hint follows: the cue stays, the motion goes. */
+@media (prefers-reduced-motion: reduce) {
+    #btn-full.reminding {
+        animation: none;
+        box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.34);
+    }
+}
+
 /* Clear of the floating bar rather than under it. Everything that starts at
    the top of the stage starts below the bar instead — including the club
    picker's text, which is the one that used to run straight into it. */
-body.compact-ui .stage-hud { top: 52px; left: 10px; }
+body.compact-ui .stage-hud { display: block; }
+
+/* A phone has to fit the four figures, the back arrow and three chips across
+   one bar, so the figures are set as tight as they read: the separators carry
+   the grouping the whitespace used to. */
+body.compact-ui .stage-hud { flex: 0 1 auto; }
+
+body.compact-ui .hud-line {
+    gap: 0.32rem;
+    padding: 0.28rem 0.42rem;
+    font-size: 0.68rem;
+    overflow: hidden;
+}
+
+body.compact-ui .hud-line span + span { padding-left: 0.32rem; }
+
+/* Never a second row of chips: the bar is one row, and the figures beside it
+   are what gives when the two together will not fit. */
+body.compact-ui .topbar-actions {
+    flex: none;
+    flex-wrap: nowrap;
+}
+
+body.compact-ui button.chip, body.compact-ui a.chip { padding: 0.4rem 0.6rem; font-size: 0.75rem; }
 body.compact-ui .fs-prompt { top: 122px; right: 10px; }
 body.compact-ui .viewctl { top: 52px; right: 10px; }
 
-/* Under the overlay rather than beside it: the two say different things about
-   the same hole, and one column of them reads as one thing to glance at. */
-body.compact-ui .hole-card { top: 94px; left: 10px; }
+/* The overlay it used to hang under is up in the bar now, so the card comes up
+   to the corner the overlay left: still the first thing under the chrome on
+   that side, and still the same width as the drawer that asks for it back. */
+body.compact-ui .hole-card { top: 52px; left: 10px; }
 body.compact-ui .picker { padding-top: 52px; }
 
 /* Narrow enough that the view bar and the hole's figures cannot share a line:
@@ -2088,13 +2230,11 @@ body.compact-ui .picker { padding-top: 52px; }
         right: 10px;
         width: auto;
     }
-    body.compact-ui .stage-hud { top: 122px; }
-    body.compact-ui .hole-card { top: 176px; }
+    body.compact-ui .hole-card { top: 122px; }
 
     /* Folded, the row is not there to be cleared: everything under it comes
        back up by exactly the height it stopped taking. */
-    body.compact-ui .stage.view-collapsed .stage-hud { top: 90px; }
-    body.compact-ui .stage.view-collapsed .hole-card { top: 144px; }
+    body.compact-ui .stage.view-collapsed .hole-card { top: 90px; }
 }
 
 
@@ -2152,12 +2292,10 @@ body.compact-ui .picker { padding-top: 52px; }
 /* A phone held sideways has half the height and twice the need for it. */
 @media (max-height: 520px) {
     body.compact-ui .topbar { padding: 0.3rem 0.5rem; }
-    body.compact-ui .title { font-size: 0.95rem; }
     body.compact-ui .home-link { width: 28px; height: 28px; font-size: 0.9rem; }
     body.compact-ui .viewctl { top: 44px; }
-    body.compact-ui .stage-hud { top: 44px; }
     body.compact-ui .fs-prompt { top: 112px; }
-    body.compact-ui .hole-card { top: 84px; }
+    body.compact-ui .hole-card { top: 44px; }
     body.compact-ui button.chip { padding: 0.3rem 0.55rem; font-size: 0.75rem; }
 
     /* Sideways there is no room for a third line of it: the name and the
@@ -2189,12 +2327,13 @@ body.compact-ui .picker { padding-top: 52px; }
     .picker-stats { margin-top: 0.15rem; font-size: 0.68rem; }
 }
 
-/* Shorter still and the wordmark is the first thing that can go: the back
-   arrow already says where you are. */
+/* Shorter still and the figures give up their separators before they give up a
+   line: the same four readings, closer together. */
 @media (max-height: 420px) {
-    body.compact-ui .brand { display: none; }
     body.compact-ui .viewctl { top: 40px; }
-    body.compact-ui .stage-hud { top: 40px; }
+    body.compact-ui .hole-card { top: 40px; }
     body.compact-ui .fs-prompt { top: 108px; }
     body.compact-ui .picker { padding-top: 40px; }
+    .hud-line { font-size: 0.7rem; gap: 0.4rem; padding: 0.25rem 0.5rem; }
+    .hud-line span + span { padding-left: 0.4rem; }
 }
