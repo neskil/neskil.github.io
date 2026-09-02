@@ -124,10 +124,10 @@ out. So "solvable" now means solvable with the clubs you are actually given.
 Taking the loft away is the cheapest obstacle in the game — no geometry, no
 moving part, nothing to collide with — and it is the only one that changes what
 the *player* has to do rather than what the ball has to get past. It is what
-The Mill, Bumper City and The Long Hand needed: each was a fine timing hole
+The Mill, Bumper City and The Gearbox needed: each was a fine timing hole
 with a wedge in the bag that could be chipped straight over the thing it was
-about. Double Doors and The Backboard lose the lob for the same reason and keep
-the driver, because those are holes about a line rather than about pace.
+about. The Backboard loses the lob for the same reason and keeps the driver,
+because that is a hole about a line rather than about pace.
 
 The mallet exists because of the other half of that. A lane you may only putt
 down is a good hole and the putter is the wrong club for it: 10.5 of power runs
@@ -525,7 +525,7 @@ approach.
 | Highland Steps | mini | `highland` | The same lesson from the other side: things in the way rather than things missing, and the ground handed back as a tool. |
 | Windmill Works | crazy | `works` | Gates and blades, after dark. Timing. |
 | Pinball Parlour | crazy | `arcade` | A table, not a course: bumpers, a plunger chute and two banks set across the throat. The posts *are* the route. |
-| Clockwork Court | crazy | `clockwork` | Six mechanisms at six rates. Escapement, pendulum, cogs, ratchet, and one blade the width of the court. |
+| Clockwork Court | crazy | `clockwork` | Six mechanisms at six rates. Two bats that stop, a pendulum, three staggered cogs, a ratchet, and a finish with two lanes to pick between. |
 | Icehouse Yard | adventure | `icehouse` | Nothing stops. A putter runs eight and a half units on grass and thirty-two on ice. |
 | Helter Skelter | adventure | `fairground` | Launch pads, travelators and pipes. The floor decides; you only decide how hard. |
 | Ashdown Park | long | `parkland` | The long game, on a hillside: terraces, a crest, a cross-fall into a lake, and two round greens. No fence — the park carries on past the stakes. |
@@ -588,6 +588,50 @@ posts guarding the pin. **The Flippers** uses the same furniture the other way
 up: a V that funnels everything into a window a metre wide, with the two bats on
 the far side of it.
 
+### Walls you go through, and bats that stop
+
+Every wall in this file was solid from its base to its top for a long time, and
+every obstacle was therefore something to go *round*, over, or under
+(`beam`). An **aperture** is the fourth thing: a wall you go **through**, at a
+place somebody chose. It is four walls and no new physics — jambs either side
+of the opening, a sill under it, a lintel over it — with each piece left out
+when it would have no size, so one function writes all of these:
+
+| | `sill` | `head` | What it plays like |
+| --- | --- | --- | --- |
+| a doorway | 0 | below `h` | A putt through it and nothing else. A line, and no help with the weight. |
+| a letterbox | above the ball | `h` | Nothing on the ground gets through; the club is chosen by how high the slot is. |
+| a window | above the ball | below `h` | A hoop you shoot through by any other name. Too low hits the sill, too high hits the lintel: a weight rather than a line. |
+| a portcullis | — | — | `gap: 0`, and it is a wall again. |
+
+The window is the only obstacle in the game a rolling ball cannot pass and a
+lofted one can — the exact inverse of `beam`, which is the only one the other
+way round. **Jackpot** puts a doorway and a window in the same wall so the two
+routes are two different shots to the same place, and adds a pipe mouth behind
+the left-hand post so the luckiest line on the hole is a bad one, which is also
+true of pinball.
+
+A doorway always gets a lintel, and that is not decoration. Without one it is
+two blocks with a gap between them — which is what the older holes wrote by
+hand — and from the tee that reads as a hole in the fence rather than as a way
+through.
+
+A **flipper** is a bat that sweeps between two angles and *stops at each of
+them*, which is the whole of what separates it from a blade. A spinner is
+always coming round again, so the shot at one is a gap in a cycle and the skill
+is counting. A bat rests, sweeps and rests, so the shot is a moment and the
+skill is seeing it coming. The two feel nothing alike to play even though they
+are the same rotated box, and `wallBox` gains four lines for it: the yaw runs on
+a cosine between the ends, and `spin` is set to the *rate* of that rather than
+to zero, so the ball gets the same shove off a moving bat that it gets off a
+blade. A bat that swept through a ball without hitting it would look exactly
+like this and play like a wall.
+
+Both are authored the way everything else in `courses.js` is —
+`aperture(x, z, w, d, { gap, at, sill, head })`, `flipper(cx, cz, len, { rest,
+arc, speed })` — and the one number to watch is `gap` against the jambs, since
+a wall may not be thinner than 0.24 anywhere.
+
 ### The order the holes are in
 
 Two rules, and both are about the list rather than about any hole on it.
@@ -644,6 +688,7 @@ next.
 | **Travelator** | An acceleration on a pad: `pad.push = { x, z }` | `physics.substep`, grounded branch | Drag balances it at `|push| / -ln(friction)`, so a belt has a *speed* rather than a shove, and a ball put down against the run of it is turned round instead of stopped. |
 | **Launch pad** | An upward speed given to anything that touches it: `pad.spring` | landing and rolling, both | `sqrt(2·GRAVITY·h)` reaches height h — 8.5 clears two units, 10.4 clears three. |
 | **Pipe** | A mouth and where it puts you: `hole.warps = [{ x, z, r, tx, tz, yaw }]` | `physics.takeWarp` | One way. A two-way pipe is two of them; `pipes()` returns the pair. |
+| **Gravity** | One number on the hole: `hole.gravity` | `physics.gravityOf` | Carry goes as 1/g and so does apex, so two fifths of a g is two and a half times both. The gradient a surface holds a ball on does not move at all. |
 
 Three details in those are load-bearing.
 
@@ -662,6 +707,18 @@ bounce on for ever, and the shot that finds it is a wedge dropped dead on the
 middle of one with no run left to carry it off. Four bounces takes a spring to
 a seventh of its rating, the ball settles, and the shot clock is never the
 thing that ends it.
+
+**Gravity belongs to the hole, not to a zone.** It is the cheapest
+hole-shaped idea in the file — nothing about the course changes and everything
+about playing it does. At two fifths of a g every club in the bag is a
+different club and not one of their numbers moved: a launch pad throws the ball
+three and a half units up instead of one and a half, a moat seven units across
+stops being a carry and becomes a flight. Gravity you can be *half inside*
+would be gravity nobody can aim in, and the first thing a player does with a
+shot they cannot predict is stop trying — so **The Gravitron** changes it for
+the whole hole and hands you a bag with no loft in it, because in two fifths of
+a g a wedge carries twenty units and every hazard on the hole is decoration.
+The only thing that puts the ball in the air is the floor.
 
 **A pipe swallows a ball on the floor and nothing else.** `WARP_MOUTH` is how
 far above the ground the mouth still reaches: a putt goes down it and a lofted
@@ -737,7 +794,10 @@ arrives a long way east of it and *how far* east depends on how hard it was
 hit, because a slow ball spends longer on each belt. Aim and weight stop being
 two decisions and become one, which nothing else in this file has managed.
 
-**Bounce Alley** is two moats with a launch pad on each island and no bridge —
+**The Gravitron** closes the course on two fifths of a g: two launch pads, two
+moats a putt could never carry, and a doorway on the middle island so that
+landing there is only half the problem. **Bounce Alley** is two moats with a
+launch pad on each island and no bridge —
 and it is deliberately *not* flagged `needsLoft`, which looks like an oversight
 and is not. The flag means "there is no route along the floor", and a launch
 pad is a route along the floor. The bot proved it: handed a bag with no loft in
@@ -1150,6 +1210,12 @@ both ends of the hole are inside it.
   still: a launch pad laid into the floor as a disc, a pad with an acceleration
   on it, and a mouth with somewhere it puts you. See
   [Adventure golf](#adventure-golf).
+- **aperture** — a wall you go *through*: jambs, a sill and a lintel round an
+  opening somebody placed. A doorway, a letterbox, a hoop or a portcullis
+  depending on where the opening starts and stops. See
+  [Walls you go through](#walls-you-go-through-and-bats-that-stop).
+- **flipper** — a bat that sweeps between two angles and stops at each end. A
+  blade is a cycle; this is a moment.
 - **bank** — a wall standing at an angle, authored by its middle, its length
   and how far round it is turned. The solver has understood a rotated box since
   the first blade, and until Pinball Parlour needed a slingshot nothing standing
@@ -2428,7 +2494,7 @@ the simulation has never heard of any of this.
 
 The most expensive thing in a frame is not the picture, it is the **shot
 preview**: a run of the simulation, up to a second, at a hundred and twenty
-steps a second (three runs, until the plane became a cone). On Double Doors with a putter in hand that is about six
+steps a second (three runs, until the plane became a cone). On Through the Wall with a putter in hand that is about six
 milliseconds of a desktop's frame and rather more than a whole frame of a
 phone's — and it was being paid on every frame the player spent looking at a
 shot they had not touched.
@@ -2465,9 +2531,9 @@ the four things that can move it says otherwise.
 
 ## Tests
 
-Open `tests.html`. ~1700 assertions covering the surfaces, the collision
-geometry, the cup, the integrator, the bag, the ground that does something, all
-seventy-two holes of course data and the scorecard, in a few seconds.
+Open `tests.html`. ~1760 assertions covering the surfaces, the collision
+geometry, the cup, the integrator, the bag, the ground that does something, the
+walls you go through, all seventy-two holes of course data and the scorecard.
 
 The one worth knowing about is the **bot**: a greedy player fans out candidate
 shots on every hole, keeps the one that finishes nearest the cup, and plays all
@@ -2481,17 +2547,22 @@ actually go somewhere — without that rule the greedy
 player parks in a corner where every legal shot looks worse than standing still
 and plays the same nothing until it runs out of strokes.
 
-One section is written the other way round from the rest, and it is the one
-covering [Adventure golf](#adventure-golf). Ice, travelators, launch pads,
-pipes and backspin are about four lines of `physics.js` each, and a change that
-quietly stops a belt pushing is a change nothing else in the suite would
-notice — the courses built on them would go on passing the bot, because a dead
-belt is simply a plank. So every assertion there is written to fail if the
-mechanic is *removed* rather than merely to pass while it is present, usually
-by comparing two shots where the pair is the assertion. Breaking the belt, the
-launch pad, the pipe, the backspin, the belt's rest rule, ice's friction and
-ice's grip each fails a different named assertion; if you change that section,
-re-run the exercise.
+Two sections are written the other way round from the rest: the one covering
+[Adventure golf](#adventure-golf) and the one covering
+[walls you go through](#walls-you-go-through-and-bats-that-stop). Ice,
+travelators, launch pads, pipes, backspin, apertures, flippers and gravity are
+a handful of lines each, and a change that quietly stops a belt pushing is a
+change nothing else in the suite would notice — the courses built on them would
+go on passing the bot, because a dead belt is simply a plank, an aperture with
+its opening sealed is a wall, a flipper that does not swing is a blade at a
+funny angle, and a gravity multiplier nobody reads is 1.
+
+So every assertion in both is written to fail if the mechanic is *removed*
+rather than merely to pass while it is present, usually by comparing two shots
+where the pair is the assertion. Breaking the belt, the launch pad, the pipe,
+the backspin, the belt's rest rule, ice's friction, ice's grip, the flipper's
+swing, the aperture's sill or the per-hole gravity each fails a different named
+assertion; if you change either section, re-run the exercise.
 
 Then it plays some of them again **out of half a bag.** A hole flagged
 `needsLoft` exists to be flown, and a hole like that which turns out to have a

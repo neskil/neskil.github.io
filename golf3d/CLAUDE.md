@@ -53,7 +53,7 @@ headless driver to read.
 
 | Page | Covers | Needs |
 | --- | --- | --- |
-| `tests.html` | Physics, pads and surfaces, walls and gates, scoring, course geometry. ~1700 assertions, no three.js and **no WebGL** — that purity is the point, it is what keeps it fast and portable. It can tell you a hole is built wrong and can never tell you a shader is wrong. | nothing |
+| `tests.html` | Physics, pads and surfaces, walls and gates, scoring, course geometry. ~1760 assertions, no three.js and **no WebGL** — that purity is the point, it is what keeps it fast and portable. It can tell you a hole is built wrong and can never tell you a shader is wrong. | nothing |
 | `shader-tests.html` | The half the above structurally cannot do: compiles every shader for real through the real `render.js`, both water paths, the runtime quality switch, the uniform boundary, one `frame()`, and every theme. | a GL context |
 
 `shader-tests.html` skips its GPU half with a note (not a failure) when there
@@ -97,6 +97,10 @@ none, because it reads as coverage.
   arrays of GLSL source strings. The turf is a third thing: four fragments
   spliced into three.js's Lambert via `onBeforeCompile`. Changing any of them
   means reading GLSL, not setting a property.
+- **A wall may move three ways, not two**: `move` slides it, `spin` turns it
+  round, and `swing` sweeps it between two angles and stops at each end (a
+  flipper). Anything that filters for movers has to ask about all three — the
+  renderer's `R.movers`, and the tests' gate-window assertion, both did not.
 - **A pad may now *do* something as well as be somewhere**: `push` is a
   travelator, `spring` a launch pad, and a hole's `warps` are pipes. All three
   are read by `physics.js` alone and drawn from that same data by `render.js`,

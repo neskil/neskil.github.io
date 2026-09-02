@@ -1734,11 +1734,12 @@
         mesh.receiveShadow = true;
         group.add(mesh);
 
-        if (wall.move || wall.spin) {
+        if (wall.move || wall.spin || wall.swing) {
             R.movers.push({ mesh: mesh, wall: wall, h: wall.h });
-            if (wall.spin) {
+            if (wall.spin || wall.swing) {
                 // A blade needs something to turn on, or it reads as a floating
-                // plank.
+                // plank; so does a flipper, and on a flipper the pivot is the
+                // thing that says which end is hinged.
                 var post = new THREE.Mesh(
                     new THREE.CylinderGeometry(0.16, 0.2, wall.h + 1.5, 12),
                     R.surf.post

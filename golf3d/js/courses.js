@@ -156,6 +156,103 @@
         ];
     }
 
+    /* ── a hole in the wall ─────────────────────────────────────────────
+
+       Every wall in this file until now was solid from its base to its top,
+       and every obstacle was therefore something to go *round*, or over, or
+       under (`beam`). An aperture is the fourth thing: a wall you go
+       **through**, at a place somebody chose.
+
+       It is four walls and no new physics — jambs either side of the opening,
+       a sill under it and a lintel over it — and each of the four is left out
+       when it would have no size, so one function writes all of these:
+
+         a doorway     sill 0: the opening starts at the floor, and a putt
+                       through it is the whole shot. Aim, and nothing else.
+         a letterbox   sill above the ball: nothing on the ground gets through
+                       and the club is chosen by how high the slot is.
+         a window      sill above the ball *and* a lintel over it, which is a
+                       hoop you shoot through by any other name: too low and
+                       you hit the sill, too high and you hit the lintel, and
+                       the shot is a weight rather than a line. It is the only
+                       obstacle in the game a rolling ball cannot pass and a
+                       lofted one can — the exact inverse of `beam`, which is
+                       the only one the other way round.
+         a portcullis  the whole wall, when the opening is nothing.
+
+       The one number worth watching is `gap` against the jambs: a wall may not
+       be thinner than 0.24 anywhere (the substepping guarantee), so an opening
+       that leaves less than that either side is one the tests reject rather
+       than one the ball tunnels through. */
+    function aperture(x, z, w, d, opts) {
+        var o = opts || {};
+        var base = o.base === undefined ? -0.1 : o.base;
+        var h = o.h === undefined ? 1.4 : o.h;
+        var gap = o.gap === undefined ? 1.2 : o.gap;
+        var sill = o.sill === undefined ? 0 : o.sill;
+        var head = o.head === undefined ? h : o.head;
+        var kind = o.kind || 'rail';
+        var flat = w >= d;                       // which way the wall runs
+        var span = flat ? w : d;
+        /* Where the opening is, measured from the wall's own start. Centred
+           unless a hole says otherwise — and holes do say otherwise, because a
+           door in the middle of a lane is a door on the line you were already
+           aiming down. */
+        var at = o.at === undefined ? span / 2 : o.at;
+        var jamb = at - gap / 2;
+        var far = span - at - gap / 2;
+        var out = [];
+
+        function piece(px, pz, pw, pd, pb, ph) {
+            if (ph <= 1e-6 || pw <= 1e-6 || pd <= 1e-6) return;
+            out.push(wall(px, pz, pw, pd, ph, { base: pb, kind: kind }));
+        }
+
+        if (flat) {
+            piece(x, z, jamb, d, base, h);
+            piece(x + w - far, z, far, d, base, h);
+        } else {
+            piece(x, z, w, jamb, base, h);
+            piece(x, z + d - far, w, far, base, h);
+        }
+        var ox = flat ? x + jamb : x, oz = flat ? z : z + jamb;
+        var ow = flat ? gap : w, od = flat ? d : gap;
+        piece(ox, oz, ow, od, base, sill);                    // under the window
+        piece(ox, oz, ow, od, base + head, h - head);         // and over it
+        return out;
+    }
+
+    /* A flipper: a bat that sweeps between two angles and **stops at each of
+       them**, which is the whole of what separates it from a blade. A spinner
+       is always coming round again, so the shot at one is a gap in a cycle; a
+       flipper rests, sweeps, and rests, so the shot at one is a moment — and
+       the two feel nothing alike to play even though they are the same box
+       turning.
+
+       It turns about its own middle, the way every blade in this file does,
+       because that is what the solver's rotated box actually is. A real
+       flipper is hinged at one end and this is not that: what it is is a bat
+       with a rest, and the rest is the part a player is timing.
+
+       `rest` is where it sits and `arc` how far it sweeps, both in radians;
+       `speed` is the rate of the sine driving it, so it is at one end of its
+       travel every π/speed seconds. Authored by the middle, like `spinner`,
+       because that is the point it turns about. */
+    function flipper(cx, cz, len, opts) {
+        var o = opts || {};
+        var t = o.t === undefined ? 0.34 : o.t;
+        var rest = o.rest || 0;
+        var arc = o.arc === undefined ? 1.0 : o.arc;
+        var w = wall(cx - len / 2, cz - t / 2, len, t, o.h === undefined ? 0.6 : o.h,
+            { base: o.base === undefined ? -0.1 : o.base, kind: 'blade' });
+        w.swing = {
+            from: rest, to: rest + arc,
+            speed: o.speed === undefined ? 2.2 : o.speed,
+            phase: o.phase || 0
+        };
+        return w;
+    }
+
     /* A bumper: a short square post the ball comes off at speed, and the one
        obstacle on the crazy courses that is not there to stop you. A rail
        redirects a ball along itself; a post standing in open ground sends it
@@ -1423,18 +1520,25 @@
             tee: { x: 2.5, z: 1.6 }, cup: { x: 2.5, z: 13 }
         }),
         build({
-            name: 'Double Doors', par: 3, bag: ['putter', 'driver', 'iron'],
-            blurb: 'Two gates, out of step on purpose, and nothing in the bag that clears them.',
-            pads: [pad(0, 0, 6, 16)],
-            extra: [
-                wall(0, 5, 1.4, 0.4, 0.6, { base: -0.1 }),
-                wall(4.6, 5, 1.4, 0.4, 0.6, { base: -0.1 }),
-                slider(1.5, 5, 1.5, 0.4, { amp: 0.8, speed: 1.5 }),
-                wall(0, 10.5, 1.4, 0.4, 0.6, { base: -0.1 }),
-                wall(4.6, 10.5, 1.4, 0.4, 0.6, { base: -0.1 }),
-                slider(1.5, 10.5, 1.5, 0.4, { amp: 0.8, speed: 1.9, phase: Math.PI })
-            ],
-            tee: { x: 3, z: 1.5 }, cup: { x: 3, z: 14 }
+            /* This used to be Double Doors, which was First Gear played twice
+               with the second gate out of phase — a fine idea and the third
+               hole on the course to ask the same question. What stands here
+               instead is the first wall in the file the ball goes *through*:
+               solid across the lane, with one doorway in it, over on the right
+               where the tee shot is not already pointing.
+
+               And then a blade behind it, which is what makes the two halves
+               of the hole different questions rather than the same one twice.
+               The door is a line and the blade is a moment, and neither is any
+               use without the other. */
+            name: 'Through the Wall', par: 3,
+            blurb: 'One door in the wall, off to the right, and one blade behind it. Line first, then the moment.',
+            pads: [pad(0, 0, 7, 18)],
+            extra: [].concat(
+                aperture(-0.2, 6, 7.4, 0.4, { gap: 1.5, at: 5.4, h: 1.7, head: 1.15 }),
+                [spinner(3.5, 11, 3.8, 0.4, { spin: 1.6 })]
+            ),
+            tee: { x: 2.2, z: 1.6 }, cup: { x: 3.5, z: 15.4 }
         }),
         build({
             name: 'The Sweeper', par: 3,
@@ -2222,14 +2326,29 @@
             tee: { x: 3.5, z: 1.5 }, cup: { x: 3.5, z: 14.4 }
         }),
         build({
-            name: 'Tilt', par: 3,
-            blurb: 'The whole table leans into the gutter. Nothing you leave short stays put.',
+            /* Tilt was a leaning table with two posts on it, and the lean was
+               the whole hole — which meant there was one shot on it and the
+               only question was whether you had hit it hard enough.
+
+               Two ramps and a drain is the same table with a decision in it.
+               The shallow ramp on the left is five units long and forgiving
+               and puts you at the back of the deck; the steep one on the right
+               is three and wants real pace and puts you beside the pin. Between
+               them is the drain, which is sand, and sand keeps four thousandths
+               of the ball's speed — miss both and the next shot is played from
+               a standing start in a hole. */
+            name: 'Two Ramps', par: 3,
+            blurb: 'Two ways up to the deck, one steep and one long, and a drain down the middle of them.',
             pads: [
-                pad(0, 0, 1.8, 15, 0, 'sand'),
-                pad(1.8, 0, 5.2, 15, 0, 'green', 0.1, 0)
+                pad(0, 0, 9, 7),
+                pad(0.6, 7, 2.4, 5, 0, 'wood', 0, 0.24),
+                pad(3.4, 7, 2.2, 5, 0, 'sand'),
+                pad(6, 7, 2.4, 3, 0, 'wood', 0, 0.4),
+                pad(6, 10, 2.4, 2, 1.2),
+                pad(0, 12, 9, 6, 1.2)
             ],
-            extra: [bumper(3.4, 6.5), bumper(5.4, 9.5)],
-            tee: { x: 5.6, z: 1.6 }, cup: { x: 3.2, z: 12.8 }
+            extra: [bumper(4.5, 4.2)],
+            tee: { x: 4.5, z: 1.6 }, cup: { x: 6.6, z: 15 }
         }),
         build({
             /* Two banks across the mouth of the table, set as a V that opens
@@ -2276,20 +2395,43 @@
             tee: { x: 4.5, z: 1.5 }, cup: { x: 4.5, z: 14.2 }
         }),
         build({
+            /* The finisher, and the one hole on the course with two honest
+               routes to the flag. A wall across the table with a doorway cut in
+               the left of it and a window cut in the right, and the two are
+               different shots rather than two of the same:
+
+                 the door    is on the floor and a metre wide. A putt goes
+                             through it and nothing else does, so it is a line,
+                             and it puts you on the far side with the pace you
+                             chose.
+                 the window  starts half a unit up and is wider. Nothing on the
+                             ground gets through, so it is a weight — and the
+                             ball arrives on the other side already in the air,
+                             which is a different lie again.
+
+               A gate would have been the obvious thing here and this course has
+               one already. A wall with two ways through it is the thing a gate
+               cannot be: a choice that is still a choice after you have made
+               it.
+
+               And a third way, because this is a pinball table and a ball
+               vanishing down a hole to reappear somewhere across the room is
+               the most pinball thing there is. The mouth is tucked behind the
+               left-hand post where nobody aims on purpose, and it comes out
+               past the wall on the right — so the luckiest shot on the hole is
+               a bad one, which is also true of pinball. */
             name: 'Jackpot', par: 4,
-            blurb: 'Pins, a gate, a bar to roll under and one more post on the flag.',
-            pads: [pad(0, 0, 7, 21)],
+            blurb: 'A door on the floor, a window in the air, and a hole in the table for the lucky. Three ways past one wall.',
+            pads: [pad(0, 0, 9.4, 21)],
+            warps: [pipe(1.4, 6.6, 7.7, 13.4, 0, 0.85)],
             extra: [].concat(
-                [bumper(1.8, 5), bumper(5.2, 5)],
-                [
-                    wall(0, 9, 2, 0.4, 0.6, { base: -0.1 }),
-                    wall(5, 9, 2, 0.4, 0.6, { base: -0.1 }),
-                    slider(2.1, 9, 1.6, 0.4, { amp: 0.85, speed: 1.7 })
-                ],
-                beam(1.2, 14.5, 4.6, 0.5),
-                [bumper(3.5, 17.1)]
+                [bumper(2.2, 5), bumper(7.2, 5)],
+                aperture(-0.2, 9.6, 4.9, 0.4, { gap: 1.1, at: 2.3, h: 1.7, head: 1.1 }),
+                aperture(4.7, 9.6, 5.1, 0.4, { gap: 1.7, at: 2.4, h: 1.6, sill: 0.5, head: 1.45 }),
+                [bumper(2.6, 14.4), bumper(6.8, 14.4)],
+                [bumper(4.7, 17.6)]
             ),
-            tee: { x: 3.5, z: 1.5 }, cup: { x: 3.5, z: 19.3 }
+            tee: { x: 4.7, z: 1.5 }, cup: { x: 4.7, z: 19.4 }
         })
     ];
 
@@ -2304,14 +2446,26 @@
 
     var clockwork = [
         build({
+            /* Two bats rather than two blades, and that one word is the whole
+               difference. A blade is always coming round again, so the shot at
+               one is a gap in a cycle and the skill is counting. A bat sweeps,
+               *stops*, and sweeps back — so the shot is a moment, and the skill
+               is seeing it coming. An escapement is the part of a clock that
+               turns a continuous push into a series of stops, which is exactly
+               what has happened to this hole.
+
+               They are half a beat apart and each leaves a different side of
+               the court open at rest, so the two stops are not the same stop
+               and a ball through the first is not automatically through the
+               second. */
             name: 'Escapement', par: 3,
-            blurb: 'Two blades turning against each other. There is a beat; find it.',
-            pads: [pad(0, 0, 5.5, 15)],
+            blurb: 'Two bats, half a beat apart. They stop at each end of the sweep, and the stop is the shot.',
+            pads: [pad(0, 0, 6, 15)],
             extra: [
-                spinner(1.6, 7.5, 2.6, 0.4, { spin: 1.8 }),
-                spinner(3.9, 10.5, 2.6, 0.4, { spin: -2.4 })
+                flipper(1.8, 6.6, 3.0, { rest: -0.55, arc: 1.1, speed: 2.1 }),
+                flipper(4.2, 10.2, 3.0, { rest: 0.55, arc: -1.1, speed: 2.1, phase: Math.PI })
             ],
-            tee: { x: 2.75, z: 1.5 }, cup: { x: 2.75, z: 13.3 }
+            tee: { x: 3, z: 1.5 }, cup: { x: 3, z: 13.2 }
         }),
         build({
             name: 'Pendulum', par: 3,
@@ -2327,11 +2481,25 @@
             tee: { x: 3, z: 1.5 }, cup: { x: 3, z: 15 }
         }),
         build({
-            name: 'The Long Hand', par: 3, bag: ['putter', 'mallet'],
-            blurb: 'One blade the width of the court, turning slowly. Slowly is worse.',
-            pads: [pad(0, 0, 7, 16)],
-            extra: [spinner(3.5, 8, 6.4, 0.4, { spin: 0.8 })],
-            tee: { x: 3.5, z: 1.5 }, cup: { x: 3.5, z: 14 }
+            /* The Long Hand was one blade the width of the court turning
+               slowly, and slowly was indeed worse — but it was also one
+               obstacle in a rectangle, which is what three other holes on this
+               course already were.
+
+               The gearbox keeps the slow blade and gives it something to
+               guard: a door in a wall, off to the right, with the blade
+               sweeping across the front of it. There is one line through the
+               door and the blade is on it for most of the cycle, so the hole
+               is aim and timing at once rather than either on its own. No loft
+               in the bag, because a wall you can chip is not a wall. */
+            name: 'The Gearbox', par: 3, bag: ['putter', 'mallet'],
+            blurb: 'One door, one slow blade turning across the front of it, and nothing in the bag that goes over.',
+            pads: [pad(0, 0, 7, 17)],
+            extra: [].concat(
+                aperture(-0.2, 9.4, 7.4, 0.4, { gap: 1.5, at: 5.0, h: 1.7, head: 1.15 }),
+                [spinner(4.8, 6.6, 4.0, 0.4, { spin: 1.0 })]
+            ),
+            tee: { x: 2.2, z: 1.5 }, cup: { x: 4.8, z: 14.4 }
         }),
         build({
             /* Three blades used to stand on the same centreline, which made
@@ -2366,19 +2534,43 @@
             tee: { x: 2.5, z: 1.6 }, cup: { x: 2.5, z: 16 }
         }),
         build({
+            /* The last hole on the last timing course, and it is the only one
+               here that offers a way round rather than a way through. The court
+               is nine wide and split down the middle for its whole length:
+               everything the hole has is on one side or the other, and the two
+               sides are different problems.
+
+                 the west lane  a sliding gate and then a bat, both of them
+                                fast. Two moments, and they are eight units
+                                apart, which is long enough that arriving at
+                                the second with the pace the first wanted is
+                                the actual difficulty.
+                 the east lane  no clock at all — a door in a wall and a bar to
+                                roll under. Nothing on that side is timed and
+                                nothing on it is wide.
+
+               So the choice is not "which is easier", it is "which kind of
+               hard": a hole that asks whether you would rather count or aim,
+               at midnight, with everything running. */
             name: 'Midnight', par: 4,
-            blurb: 'Gate, blade, bar, cup. All four are counting, and none of them wait.',
-            pads: [pad(0, 0, 6, 22)],
+            blurb: 'Two lanes to the same flag: one with a clock on it, one with a door. Count, or aim.',
+            pads: [pad(0, 0, 9, 24)],
             extra: [].concat(
+                // the spine, with a way into each lane at the top
+                [wall(4.3, 3.4, 0.4, 14.4, 0.62, { base: -0.1 })],
+                // west: a gate, then a bat
                 [
-                    wall(0, 5, 1.5, 0.4, 0.6, { base: -0.1 }),
-                    wall(4.5, 5, 1.5, 0.4, 0.6, { base: -0.1 }),
-                    slider(1.6, 5, 1.4, 0.4, { amp: 0.8, speed: 1.9 })
+                    wall(0, 6.6, 1.1, 0.4, 0.6, { base: -0.1 }),
+                    wall(3.1, 6.6, 1.2, 0.4, 0.6, { base: -0.1 }),
+                    slider(1.2, 6.6, 1.5, 0.4, { amp: 0.62, speed: 2.0 })
                 ],
-                [spinner(3, 11, 3.6, 0.4, { spin: -1.7 })],
-                beam(0.7, 16, 4.6, 0.5)
+                [flipper(2.15, 13.4, 2.6, { rest: -0.5, arc: 1.0, speed: 2.4 })],
+                // east: a door and a bar, neither of which is counting
+                aperture(4.7, 7.6, 4.5, 0.4, { gap: 1.2, at: 1.5, h: 1.7, head: 1.1 }),
+                beam(5.1, 14.2, 3.6, 0.5),
+                [bumper(6.6, 20.4)]
             ),
-            tee: { x: 3, z: 1.5 }, cup: { x: 3, z: 19.6 }
+            tee: { x: 4.5, z: 1.6 }, cup: { x: 4.5, z: 21.8 }
         })
     ];
 
@@ -2629,27 +2821,42 @@
             tee: { x: 3, z: 2 }, cup: { x: 4, z: 25 }
         }),
         build({
-            /* Everything the course has, in the order it was learned: a belt
-               that sets the line, a pad that gets you over the hoarding, and a
-               mouth on the far side of it that is the only way on to the
-               green. Nothing here moves and nothing here is timed — the whole
-               hole is a machine that has already made up its mind, and the
-               only thing left to decide is how hard to hit it. */
-            name: 'The Whole Fair', par: 4,
-            blurb: 'Belt, launch pad, hoarding, pipe. None of it moves and none of it is on your side.',
+            /* Gravity is a number, and this is the hole that changes it.
+
+               Two fifths of a g. Nothing about the course is different — same
+               pads, same friction, same angle of repose, same solver — and
+               everything about playing it is, because carry goes as 1/g and so
+               does apex. A launch pad rated at seven throws the ball three and
+               a half units up instead of one and a half and hangs it there for
+               two seconds, and a moat seven units across stops being a carry
+               and becomes a flight.
+
+               The bag is a putter and a mallet, which is to say no loft at all,
+               and that is what keeps the hole honest: in a third of a g a wedge
+               carries twenty units and every hazard here is decoration. The
+               only thing that puts the ball in the air is the floor, and the
+               only thing that decides where it lands is how hard you hit it
+               before you got there. The putter reaches the far island. The
+               mallet flies it into the second moat. That is the hole.
+
+               A doorway on the middle island, off to the left, because a hole
+               where the only skill is weight is half a hole — you have to land
+               on the island *and* be able to get from where you landed to the
+               second pad. */
+            name: 'The Gravitron', par: 4, gravity: 0.4,
+            bag: ['putter', 'mallet'],
+            blurb: 'Two fifths of a g. The pads throw you three times as far and nothing in the bag flies at all.',
             pads: [
-                pad(0, 0, 9, 5),
-                belt(0, 5, 9, 3, -5.5, 0),
-                pad(0, 8, 9, 4),
-                sprung(2.4, 10.4, 1.3, 10.2),
-                pad(0, 13, 9, 6),
-                pad(0, 21, 9, 7)
+                pad(0, 0, 9, 7),
+                sprung(4.5, 5.4, 1.4, 7.2),
+                pad(0, 14, 9, 7),
+                sprung(4.5, 19.4, 1.4, 7.2),
+                pad(0, 28, 9, 8)
             ],
-            water: [rect(-2, 19, 13, 2, -0.8)],
-            gaps: [shore(rect(-2, 19, 13, 2), 0.6)],
-            extra: [wall(-0.2, 12.2, 9.4, 0.4, 1.3, { base: -0.1 })],
-            warps: [pipe(2.4, 16.4, 6.4, 24.4, 0, 0.95)],
-            tee: { x: 6.4, z: 1.6 }, cup: { x: 4.6, z: 26 }
+            water: [rect(-2, 7, 13, 7, -0.8), rect(-2, 21, 13, 7, -0.8)],
+            gaps: [shore(rect(-2, 7, 13, 7), 0.6), shore(rect(-2, 21, 13, 7), 0.6)],
+            extra: aperture(-0.2, 16.8, 9.4, 0.4, { gap: 1.5, at: 2.6, h: 1.7, head: 1.15 }),
+            tee: { x: 4.5, z: 1.8 }, cup: { x: 4.5, z: 32 }
         })
     ];
 
@@ -3093,6 +3300,7 @@
         beam: beam, pen: pen, bumper: bumper, bank: bank, bowl: bowl, bands: bands, tilt: tilt,
         commons: commons,
         sprung: sprung, belt: belt, pipe: pipe, pipes: pipes,
+        aperture: aperture, flipper: flipper,
         tree: tree, treeline: treeline,
         hill: hill, ring: ring, ridge: ridge, whorl: whorl, ravine: ravine,
         shape: shape, dunes: dunes, ground: ground, circle: circle, keep: keep,
