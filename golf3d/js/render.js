@@ -697,8 +697,6 @@
         return c;
     }
 
-    var PLANK_THICK = 0.3;
-
     /* ── the grass ──────────────────────────────────────────────────────
 
        How many shells a green gets, and how tall the mat is. Six is where the
@@ -1426,11 +1424,26 @@
         // bottom of its own green is worse than any seam.
         var floor = supportUnder(pads, pad, cy);
         var least = holed ? C.CUP_DEPTH + 0.25 : 0.2;
-        var thick = pad.kind === 'wood'
-            ? PLANK_THICK
-            : floor !== null
-                ? Math.max(least, cy - floor + 0.06 + rise)
-                : Math.max(0.6, cy - (theme.surroundY - 0.4) + rise);
+        /* Every slab reaches down to something — the pad below it, or the
+           ground the whole course is standing on. There used to be one
+           exception: a `wood` pad was drawn three tenths of a unit thick
+           whatever it was doing, because the first wooden thing in the file
+           was a bridge and a bridge is a plank.
+
+           It was wrong the moment anything else was made of wood. A ramp cut
+           into a lane, a chute down the side of a pinball table, a travelator
+           set into a floor — each of those is a piece of *ground*, with solid
+           ground either side of it going down two and a half units to the
+           surround, and each was drawn as a wafer floating over a hole in the
+           world. From the tee you could not tell. Turn the view a quarter and
+           Plunger Lane's chute was a plank with daylight under it.
+
+           There is no exception now. A boardwalk over the sea comes out as a
+           timber causeway rather than as a floating sheet, which is both what
+           a jetty is and the only version of it that has an underneath. */
+        var thick = floor !== null
+            ? Math.max(least, cy - floor + 0.06 + rise)
+            : Math.max(0.6, cy - (theme.surroundY - 0.4) + rise);
         // A disc green is laid into the ground it sits in rather than standing
         // on it, so it needs no more depth than the cup does.
         if (pad.r) thick = holed ? C.CUP_DEPTH + 0.25 : 0.3;
