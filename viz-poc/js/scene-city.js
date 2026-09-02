@@ -108,6 +108,16 @@
         var cells = spiral(order.length);
         var group = new THREE.Group();
 
+        /* A spiral of fourteen does not end where it started, so the plots run
+         * from -1 to 2 on both axes and the city sits off to one corner of the
+         * thing the camera is aimed at. Recentre on the plots actually used. */
+        var minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
+        for (var c = 0; c < cells.length; c++) {
+            minX = Math.min(minX, cells[c][0]); maxX = Math.max(maxX, cells[c][0]);
+            minZ = Math.min(minZ, cells[c][1]); maxZ = Math.max(maxZ, cells[c][1]);
+        }
+        var offX = (minX + maxX) / 2, offZ = (minZ + maxZ) / 2;
+
         for (var i = 0; i < order.length; i++) {
             var b = order[i];
             /* Square root on the footprint and a gentler curve on height:
@@ -121,7 +131,7 @@
             geo.translate(0, h / 2, 0);                 /* stand it on the ground */
 
             var mesh = new THREE.Mesh(geo, towerMaterial(b));
-            mesh.position.set(cells[i][0] * CELL, 0, cells[i][1] * CELL);
+            mesh.position.set((cells[i][0] - offX) * CELL, 0, (cells[i][1] - offZ) * CELL);
             mesh.userData.block = b;
             mesh.userData.height = h;
             group.add(mesh);
@@ -303,6 +313,10 @@
             vw = w; vh = h;
             camera.aspect = w / h;
             camera.updateProjectionMatrix();
+            if (orbit) {
+                var need = VizApp.fitDistance(camera, 24);
+                if (orbit.tRadius < need) { orbit.tRadius = need; orbit.radius = need; }
+            }
         },
 
         onPointerMove: function (p) {

@@ -316,6 +316,11 @@
             vw = w; vh = h;
             camera.aspect = w / h;
             camera.updateProjectionMatrix();
+            if (orbit) {
+                /* 2.0 covers the word, which is the widest shape of the four. */
+                var need = VizApp.fitDistance(camera, 2.0);
+                if (orbit.tRadius < need) { orbit.tRadius = need; orbit.radius = need; }
+            }
             mat.uniforms.uScale.value =
                 h / (2 * Math.tan(camera.fov * Math.PI / 360)) * 0.0032;
         },

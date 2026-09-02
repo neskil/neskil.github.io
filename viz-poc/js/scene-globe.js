@@ -623,6 +623,13 @@
             /* Point sizes are in pixels but gl_PointSize is not, so they are
              * scaled by the same factor the projection uses for height. Without
              * this a dot is a speck on a laptop and a saucer on a phone. */
+            /* Back off far enough that the globe fits the narrow axis too.
+             * Only ever pushes out, so a deliberate zoom survives a resize. */
+            if (orbit) {
+                var need = VizApp.fitDistance(camera, R * 1.16);
+                if (orbit.tRadius < need) { orbit.tRadius = need; orbit.radius = need; }
+            }
+
             var scale = h / (2 * Math.tan(camera.fov * DEG / 2)) * 0.0040;
             dots.material.uniforms.uScale.value = scale;
             ports.material.uniforms.uScale.value = scale;

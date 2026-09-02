@@ -164,10 +164,17 @@ window.VizApp = (function () {
         });
     }
 
+    var captionTimer = 0;
+
     function paintCaption(mod) {
         if (!el.caption) return;
+        /* Cancel any swap still in flight. Two scene changes inside the fade
+         * would otherwise leave two timers racing, and the caption settles on
+         * whichever lands last rather than on the scene you are looking at. */
+        if (captionTimer) window.clearTimeout(captionTimer);
         el.caption.classList.add('swapping');
-        window.setTimeout(function () {
+        captionTimer = window.setTimeout(function () {
+            captionTimer = 0;
             el.captionTitle.textContent = mod.title || mod.label;
             el.captionText.textContent = mod.blurb || '';
             el.captionHint.textContent = mod.hint || '';
@@ -316,6 +323,15 @@ window.VizApp = (function () {
         document.addEventListener('visibilitychange', function () {
             running = !document.hidden;
             if (running) clock.getDelta();
+        });
+
+        /* A deep link should work when it is edited as well as when it is
+         * opened: changing only the fragment does not reload the page, so
+         * without this #city typed into the bar of a running Data Room does
+         * nothing at all. */
+        window.addEventListener('hashchange', function () {
+            var id = (location.hash || '').replace('#', '');
+            if (scenes[id]) select(id, false);
         });
 
         var wanted = (location.hash || '').replace('#', '');
@@ -483,11 +499,23 @@ window.VizApp = (function () {
 
     function clamp(v, lo, hi) { return v < lo ? lo : (v > hi ? hi : v); }
 
+    /* How far a camera has to sit for a sphere of the given radius to fit on
+     * BOTH axes. A perspective camera's fov is vertical only, so on a portrait
+     * phone the horizontal field is the narrow one and anything sized to the
+     * vertical gets its sides cut off — which is what a globe filling a laptop
+     * does the moment it meets a handset. */
+    function fitDistance(camera, radius) {
+        var vHalf = camera.fov * Math.PI / 360;
+        var hHalf = Math.atan(Math.tan(vHalf) * camera.aspect);
+        return radius / Math.sin(Math.min(vHalf, hHalf));
+    }
+
     return {
         ROSTER: ROSTER,
         register: register,
         makeOrbit: makeOrbit,
         clamp: clamp,
+        fitDistance: fitDistance,
         select: select,
         start: start,
         setAccent: setAccent,
