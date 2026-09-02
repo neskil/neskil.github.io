@@ -217,8 +217,11 @@
         flyHintUp = on;
         $('fly-hint').hidden = !on;
         // The chrome steps aside for the length of it; the stylesheet owns what
-        // that means, this owns when.
+        // that means, this owns when. Both, because the hole's figures ride in
+        // the topbar rather than on the stage — same reason `hud-open` and
+        // `picker-open` are told from the body.
         $('stage').classList.toggle('flying', on);
+        document.body.classList.toggle('flying', on);
     }
 
     function toggleFlyover() {
@@ -647,6 +650,10 @@
         var open = typeof force === 'boolean' ? force : !hud.classList.contains('open');
         if (open) hideHoleCard();
         hud.classList.toggle('open', open);
+        /* The overlay is a row of the topbar now, so nothing on the stage is a
+           sibling of it any more: what it dims out of its way is told from the
+           body instead. */
+        document.body.classList.toggle('hud-open', open);
         $('hud-detail').hidden = !open;
         $('hud-toggle').setAttribute('aria-expanded', open ? 'true' : 'false');
     }
@@ -842,6 +849,8 @@
         // Four turning clubs are hard enough to read without the overlay, the
         // hole card and the fullscreen offer sitting on top of them.
         $('stage').classList.toggle('picker-open', open);
+        // The overlay left the stage for the topbar; it is dimmed from here.
+        document.body.classList.toggle('picker-open', open);
         if (!open) return;
         hideHoleCard();
         measurePickerBand();
@@ -1586,7 +1595,7 @@
         $('btn-full').classList.toggle('on', on);
         document.body.classList.toggle('is-full', on);
         syncCompact();
-        if (on) dismissFsPrompt(false);
+        if (on) { dismissFsPrompt(false); markFsSeen(); }
         // The canvas has a new size the moment the browser swaps modes, and
         // again when it swaps back.
         setTimeout(function () { R.resize(); measurePickerBand(); }, 60);
@@ -1598,12 +1607,31 @@
        so it is not something to dismiss twice. */
     var fsPromptTimer = 0;
 
+    /* The ⛶ chip is the standing half of the same offer. It wears a ring until
+       the player has been fullscreen once — the banner says it in words and
+       then goes, and this is what is left pointing at the control afterwards.
+       Dismissing the banner does not stop it: waving away a sentence is not the
+       same as knowing where the button is. */
+    function fsSeen() {
+        try { return localStorage.getItem(C.FS_SEEN_KEY) === '1'; } catch (e) { return false; }
+    }
+    function markFsSeen() {
+        try { localStorage.setItem(C.FS_SEEN_KEY, '1'); } catch (e) { /* ignore */ }
+        syncFsReminder();
+    }
+    function syncFsReminder() {
+        var el = $('btn-full');
+        var can = !!($('stage').requestFullscreen || $('stage').webkitRequestFullscreen);
+        el.classList.toggle('reminding', can && !fsSeen() && !fullscreenElement());
+    }
+
     function fsPromptDismissed() {
         try { return localStorage.getItem(C.FS_PROMPT_KEY) === '1'; } catch (e) { return false; }
     }
     function dismissFsPrompt(remember) {
         clearTimeout(fsPromptTimer);
         $('fs-prompt').classList.remove('show');
+        document.body.classList.remove('fs-offering');
         if (remember) { try { localStorage.setItem(C.FS_PROMPT_KEY, '1'); } catch (e) { /* ignore */ } }
     }
     /* Said once, after the hole has introduced itself, and then gone by itself:
@@ -1617,8 +1645,10 @@
         fsPromptTimer = setTimeout(function () {
             if (fsPromptDismissed() || fullscreenElement()) return;
             $('fs-prompt').classList.add('show');
+            document.body.classList.add('fs-offering');
             fsPromptTimer = setTimeout(function () {
                 $('fs-prompt').classList.remove('show');
+                document.body.classList.remove('fs-offering');
             }, 9000);
         }, 5200);
     }
@@ -1816,6 +1846,12 @@
 
     var menuGroup = null;      // which tab is open
     var menuSuggest = null;    // …and the course being offered, if any
+    /* A course has been picked and the round is being built. Loading one is the
+       longest thing a press on this page can start, and a phone that has not
+       repainted yet is a phone still collecting taps: without this the second
+       impatient tap lands on whatever card is under it and takes you somewhere
+       you did not choose. One pick per opening of the list. */
+    var menuTaking = false;
 
     function groupOf(id) {
         var c = G3.courseById(id);
@@ -1823,6 +1859,7 @@
     }
 
     function openMenu(suggestId) {
+        menuTaking = false;
         menuSuggest = suggestId || null;
         menuGroup = suggestId ? groupOf(suggestId) :
             (state && state.course ? groupOf(state.course.id) : G3.COURSE_GROUPS[0].id);
@@ -1908,7 +1945,7 @@
                 '<span class="cc-meta">' + course.holes.length + ' holes · par ' + par +
                 ' · best ' + (rec.best === null ? '—' : rec.best + ' (' + S.formatVsPar(rec.bestVsPar) + ')') +
                 '</span>';
-            top.addEventListener('click', function () { newRound(course.id); });
+            top.addEventListener('click', function () { takeCourse(course.id); });
             topRow.appendChild(top);
 
             // Only the strip of hole plans collapses — the head above stays
@@ -1960,7 +1997,7 @@
                     '<canvas class="cc-map"></canvas>' +
                     '<span class="cc-num">' + (i + 1) + '</span>' +
                     '<span class="cc-par">' + hole.par + '</span>';
-                cell.addEventListener('click', function () { newRound(course.id, i); });
+                cell.addEventListener('click', function () { takeCourse(course.id, i); });
                 strip.appendChild(cell);
             });
             card.appendChild(strip);
@@ -1988,6 +2025,14 @@
                     parseInt(cells[k].getAttribute('data-hole'), 10));
             }
         });
+    }
+
+    /* Every way out of the course picker goes through here, so the latch is set
+       in one place rather than at each of the two kinds of button. */
+    function takeCourse(id, hole) {
+        if (menuTaking) return;
+        menuTaking = true;
+        newRound(id, hole);
     }
 
     function closeMenu() { $('menu').className = 'modal'; maybeFly(); }
@@ -2215,6 +2260,7 @@
         $('fs-prompt-go').addEventListener('click', function () { dismissFsPrompt(true); toggleFullscreen(); });
         $('fs-prompt-dismiss').addEventListener('click', function () { dismissFsPrompt(true); });
         $('btn-full').addEventListener('click', toggleFullscreen);
+        syncFsReminder();
         $('btn-help').addEventListener('click', openHowTo);
         $('btn-help-2').addEventListener('click', openHowTo);
         $('btn-mute').addEventListener('click', toggleMute);

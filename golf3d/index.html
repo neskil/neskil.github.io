@@ -32,7 +32,7 @@
 
         gtag('config', 'G-9GP823TGLB');
     </script>
-    <link rel="stylesheet" href="style.css?v=1.25.0">
+    <link rel="stylesheet" href="style.css?v=1.26.0">
 </head>
 <body>
     <div class="wrap">
@@ -51,9 +51,37 @@
                 <h1 class="title">Loft <span>Links</span></h1>
                 <p class="tagline">Ten courses in three kinds. Sixty holes. Not every one lends you the whole bag.</p>
             </div>
+
+            <!-- Six figures on one line is a paragraph; the four that change
+                 during a shot stay up, and the three that describe the hole
+                 (name, blurb, sky) live one tap down.
+
+                 It sits in the bar rather than under it, and takes the
+                 wordmark's place there: on a phone the bar was a line of
+                 branding over a line of figures, two rows of chrome saying one
+                 useful thing between them. The name of the game is on the page
+                 you came from and on the tab; what the hole is doing is not. -->
+            <div class="stage-hud" id="stage-hud">
+                <button type="button" class="hud-line" id="hud-toggle"
+                        aria-expanded="false" aria-controls="hud-detail" title="This hole">
+                    <span id="shud-hole">1/6</span>
+                    <span id="shud-par">Par 3</span>
+                    <span id="shud-strokes">0</span>
+                    <span id="shud-dist">—</span>
+                    <span class="hud-caret" aria-hidden="true">▾</span>
+                </button>
+                <div class="hud-detail" id="hud-detail" hidden>
+                    <div class="hud-name" id="shud-name">—</div>
+                    <div class="hud-blurb" id="shud-blurb">—</div>
+                    <button type="button" class="hud-sky" id="shud-sky" title="Change the weather (W)">☀ Clear</button>
+                </div>
+            </div>
             <div class="topbar-actions">
-                <button class="chip" id="btn-view" title="Behind the ball, side on, or the whole hole (V)">Follow</button>
-                <button class="chip" id="btn-full" title="Play fullscreen (F)" aria-label="Play fullscreen">⛶</button>
+                <!-- The one offer in the bar rather than behind the fold, and the
+                     one that wears a ring until it has been taken: a phone
+                     playing this in a browser tab is playing it in two thirds of
+                     the screen, and there is nothing on the course to say so. -->
+                <button class="chip" id="btn-full" title="Play fullscreen (F)" aria-label="Play fullscreen">⛶<span class="chip-text"> Full</span></button>
                 <div class="topbar-menu" id="topbar-menu">
                     <button class="chip" id="btn-courses" title="Pick a course">Courses</button>
                     <button class="chip" id="btn-restart" title="Restart this hole (R)">↻ Hole</button>
@@ -118,25 +146,6 @@
                 <p class="picker-stats" id="picker-stats"></p>
             </div>
 
-            <!-- Six figures on one line is a paragraph; the four that change
-                 during a shot stay up, and the three that describe the hole
-                 (name, blurb, sky) live one tap down. -->
-            <div class="stage-hud" id="stage-hud">
-                <button type="button" class="hud-line" id="hud-toggle"
-                        aria-expanded="false" aria-controls="hud-detail" title="This hole">
-                    <span id="shud-hole">1/6</span>
-                    <span id="shud-par">Par 3</span>
-                    <span id="shud-strokes">0</span>
-                    <span id="shud-dist">—</span>
-                    <span class="hud-caret" aria-hidden="true">▾</span>
-                </button>
-                <div class="hud-detail" id="hud-detail" hidden>
-                    <div class="hud-name" id="shud-name">—</div>
-                    <div class="hud-blurb" id="shud-blurb">—</div>
-                    <button type="button" class="hud-sky" id="shud-sky" title="Change the weather (W)">☀ Clear</button>
-                </div>
-            </div>
-
             <!-- Where the camera stands, which is a different question from
                  where the shot is going: the aim is still the drag on the
                  course. The button in the middle of the dial walks it back
@@ -162,15 +171,17 @@
                      thing that names the club is also the thing that changes
                      it. -->
                 <div class="ctl-head">
-                    <button type="button" class="club-chip" id="club-chip"
+                    <button type="button" class="pill pill-sm" id="btn-view"
+                            title="Behind the ball, side on, or the whole hole (V)">Follow</button>
+                    <button type="button" class="pill pill-sm view-toggle" id="view-toggle"
+                            aria-expanded="true" aria-controls="view-row"
+                            title="Show or hide the view controls">View <b id="view-val">Straight</b><span class="ctl-caret" aria-hidden="true">▾</span></button>
+                    <button type="button" class="pill pill-lg club-chip" id="club-chip"
                             title="The club in hand — press to pick another (B)">
                         <i class="club-dot" id="club-dot" aria-hidden="true"></i>
                         <b id="club-name">Driver</b>
-                        <span class="club-loft" id="club-loft">4°</span>
+                        <span class="club-loft" id="club-loft">6°</span>
                     </button>
-                    <button type="button" class="ctl-label view-toggle" id="view-toggle"
-                            aria-expanded="true" aria-controls="view-row"
-                            title="Show or hide the view controls">View <b id="view-val">Straight</b><span class="ctl-caret" aria-hidden="true">▾</span></button>
                 </div>
                 <div class="view-row" id="view-row">
                     <!-- The lock decides what the dial is measured off: the
@@ -511,24 +522,24 @@
 
     <!-- Load order is dependency order: config, then the pure logic, then the
          things that touch the screen. game.js boots itself on DOMContentLoaded. -->
-    <script src="js/config.js?v=1.25.0"></script>
-    <script src="js/themes.js?v=1.25.0"></script>
-    <script src="js/physics.js?v=1.25.0"></script>
-    <script src="js/courses.js?v=1.25.0"></script>
-    <script src="js/custom.js?v=1.25.0"></script>
-    <script src="js/scoring.js?v=1.25.0"></script>
-    <script src="js/swing.js?v=1.25.0"></script>
-    <script src="js/audio.js?v=1.25.0"></script>
-    <script src="js/music.js?v=1.25.0"></script>
-    <script src="js/bag.js?v=1.25.0"></script>
-    <script src="js/textures.js?v=1.25.0"></script>
-    <script src="js/shaders.js?v=1.25.0"></script>
-    <script src="js/postfx.js?v=1.25.0"></script>
-    <script src="js/weather.js?v=1.25.0"></script>
-    <script src="js/flyover.js?v=1.25.0"></script>
-    <script src="js/render.js?v=1.25.0"></script>
-    <script src="js/minimap.js?v=1.25.0"></script>
-    <script src="js/debug.js?v=1.25.0"></script>
-    <script src="js/game.js?v=1.25.0"></script>
+    <script src="js/config.js?v=1.26.0"></script>
+    <script src="js/themes.js?v=1.26.0"></script>
+    <script src="js/physics.js?v=1.26.0"></script>
+    <script src="js/courses.js?v=1.26.0"></script>
+    <script src="js/custom.js?v=1.26.0"></script>
+    <script src="js/scoring.js?v=1.26.0"></script>
+    <script src="js/swing.js?v=1.26.0"></script>
+    <script src="js/audio.js?v=1.26.0"></script>
+    <script src="js/music.js?v=1.26.0"></script>
+    <script src="js/bag.js?v=1.26.0"></script>
+    <script src="js/textures.js?v=1.26.0"></script>
+    <script src="js/shaders.js?v=1.26.0"></script>
+    <script src="js/postfx.js?v=1.26.0"></script>
+    <script src="js/weather.js?v=1.26.0"></script>
+    <script src="js/flyover.js?v=1.26.0"></script>
+    <script src="js/render.js?v=1.26.0"></script>
+    <script src="js/minimap.js?v=1.26.0"></script>
+    <script src="js/debug.js?v=1.26.0"></script>
+    <script src="js/game.js?v=1.26.0"></script>
 </body>
 </html>

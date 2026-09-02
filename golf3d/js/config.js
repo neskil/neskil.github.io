@@ -8,7 +8,7 @@
    — the renderer scales to the viewport, the simulation never sees a pixel. */
 window.G3 = window.G3 || {};
 
-G3.VERSION = '1.25.0';
+G3.VERSION = '1.26.0';
 
 G3.CONFIG = {
     BALL_R: 0.16,
@@ -199,7 +199,7 @@ G3.CONFIG = {
         },
         {
             id: 'driver', name: 'Driver', short: 'DR', key: '2',
-            loft: 4 * Math.PI / 180, power: 32,
+            loft: 6 * Math.PI / 180, power: 32,
             blurb: 'The reach club. Barely off the ground, and it runs.'
         },
         /* The one club that is neither reach nor loft but a real amount of
@@ -418,6 +418,9 @@ G3.CONFIG = {
     MUSIC_KEY: 'loftLinks.music',
     SEEN_KEY: 'loftLinks.seenHowTo',
     FS_PROMPT_KEY: 'loftLinks.fsPromptDismissed',
+    /* Set the first time a round is played fullscreen, and never unset: it is
+       what stops the ⛶ chip reminding someone who already knows. */
+    FS_SEEN_KEY: 'loftLinks.fsSeen',
     /* Remembered off rather than remembered on: the pretty sea is the default,
        so the only thing worth storing is a player who has turned it off — and
        storing it that way means a machine that has never been asked gets the
