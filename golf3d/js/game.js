@@ -85,7 +85,10 @@
         maybeShowFsPrompt();
     }
 
-    function loadHole(i) {
+    /* `again` is a hole being restarted rather than arrived at, which is the
+       one difference that matters here: the intro flyover is a first look at a
+       hole, and you have already had it. */
+    function loadHole(i, again) {
         closeGate();
         saidLocked = false;
         var hole = state.course.holes[i];
@@ -129,7 +132,117 @@
         R.state.lastBall.set(state.world.ball.x, state.world.ball.y, state.world.ball.z);
         hideBanner();
         syncHud();
+        state.flyPending = !again;
         showHoleCard();
+        maybeFly();
+    }
+
+    /* ── the intro flyover ──────────────────────────────────────────────── */
+
+    /* render.js flies it and flyover.js draws the path; what is decided here is
+       the only part of it that is about a player rather than about a camera —
+       whether it happens, when it is allowed to start, and what stops it.
+
+       **Whether.** Three states, not two. A player who has pressed the chip has
+       said something and it is remembered; a player who never has gets the
+       answer their machine already gave, because prefers-reduced-motion is
+       exactly this question asked once for the whole system. `?fly=0` and
+       `?fly=1` override both for the session, which is what makes a screenshot
+       of a hole reproducible.
+
+       **When.** Not behind a modal. The first hole of the first course is
+       loaded before the course picker opens over it, so a sweep started at
+       load would play to nobody and be over by the time the player picked
+       anything. So the intro is *pending* from the moment the hole is built
+       and starts when there is nothing in front of it — which is the moment the
+       picker or the how-to closes, and is where a player is actually looking.
+
+       **What stops it.** Anything at all. The listeners in boot() are on the
+       window and take the capture phase, so a press on a chip, a key, a scroll
+       or a finger on the course all cut it short before they do their own job.
+       An intro you have to sit through is a loading screen. */
+
+    var booted = false;
+    var flyOverride = null;      // ?fly=…, which outranks the stored answer
+
+    function reducedMotion() {
+        try {
+            return !!(window.matchMedia &&
+                      window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+        } catch (e) { return false; }
+    }
+
+    function flyWanted() {
+        if (flyOverride !== null) return flyOverride;
+        try {
+            var v = localStorage.getItem(C.FLY_KEY);
+            if (v === '1') return true;
+            if (v === '0') return false;
+        } catch (e) { /* ignore */ }
+        return !reducedMotion();
+    }
+
+    function modalUp() {
+        return $('menu').classList.contains('show') ||
+               $('howto').classList.contains('show') ||
+               $('scorecard').classList.contains('show');
+    }
+
+    function maybeFly() {
+        if (!booted || !state || !state.world) return;
+        if (!state.flyPending) return;
+        if (!flyWanted()) { state.flyPending = false; syncFlyHint(); return; }
+        if (modalUp()) return;
+        state.flyPending = false;
+        // The card went up with the hole; if a sweep is starting it becomes
+        // that sweep's caption and has to outlast it.
+        if (R.startFlyover(state.world.hole, state.world.ball)) holdHoleCard();
+        syncFlyHint();
+    }
+
+    function skipFly() {
+        if (!R.flying()) return;
+        R.skipFlyover();
+        syncFlyHint();
+    }
+
+    /* Asked on every frame, because the sweep can end on any of them and
+       nothing else knows when. It costs a boolean compare unless the answer has
+       actually changed, which is twice a hole. */
+    var flyHintUp = false;
+
+    function syncFlyHint() {
+        var on = R.flying();
+        if (on === flyHintUp) return;
+        flyHintUp = on;
+        $('fly-hint').hidden = !on;
+        // The chrome steps aside for the length of it; the stylesheet owns what
+        // that means, this owns when.
+        $('stage').classList.toggle('flying', on);
+    }
+
+    function toggleFlyover() {
+        var on = !flyWanted();
+        flyOverride = null;
+        try { localStorage.setItem(C.FLY_KEY, on ? '1' : '0'); } catch (e) { /* ignore */ }
+        syncFlyover();
+        toast(on ? 'Flyover on — a look at the hole before you play it'
+                 : 'Flyover off — straight to the tee');
+        // Turning it on mid-hole is a request to see this one, not the next.
+        if (on && state && state.world && state.strokes === 0 && state.phase === 'aim') {
+            state.flyPending = true;
+            maybeFly();
+        } else if (!on) {
+            skipFly();
+        }
+    }
+
+    function syncFlyover() {
+        var on = flyWanted();
+        $('btn-fly').classList.toggle('on', on);
+        $('btn-fly').setAttribute('aria-pressed', on ? 'true' : 'false');
+        $('btn-fly').setAttribute('aria-label',
+            on ? 'Turn the hole flyover off' : 'Turn the hole flyover on');
     }
 
     /* ── the shot ───────────────────────────────────────────────────────── */
@@ -390,7 +503,7 @@
     function restartHole() {
         closeGate();
         if (state.phase === 'finished') return;
-        loadHole(state.holeIndex);
+        loadHole(state.holeIndex, true);
         toast('Hole restarted');
     }
 
@@ -463,7 +576,23 @@
         // asked for last is the one that says it.
         toggleHudDetail(false);
         clearTimeout(holeCardTimer);
-        holeCardTimer = setTimeout(hideHoleCard, 3400);
+        holeCardTimer = setTimeout(hideHoleCard, cardDwell());
+    }
+
+    /* Long enough to read, and never shorter than the flyover — the card is
+       this hole's name, its length and its plan, which is the caption the sweep
+       is the picture for, and the two should go away together. */
+    function cardDwell() {
+        var f = R.state.fly;
+        return f ? Math.max(3400, f.plan.dur * 1000 + 500) : 3400;
+    }
+
+    // The card is already up and already drawn; all that needs to move is when
+    // it goes. Redrawing it would redraw the plan, which is the expensive half.
+    function holdHoleCard() {
+        if (!$('hole-card').classList.contains('show')) { showHoleCard(); return; }
+        clearTimeout(holeCardTimer);
+        holeCardTimer = setTimeout(hideHoleCard, cardDwell());
     }
 
     function hideHoleCard() {
@@ -1503,7 +1632,8 @@
         try { localStorage.setItem(C.SEEN_KEY, '1'); } catch (e) { /* ignore */ }
         // On a first visit the rules come before the course list, so the list
         // is what you get when you have read them.
-        if (menuAfterHowTo) { menuAfterHowTo = false; openMenu(); }
+        if (menuAfterHowTo) { menuAfterHowTo = false; openMenu(); return; }
+        maybeFly();
     }
 
     function seenHowTo() {
@@ -1860,7 +1990,7 @@
         });
     }
 
-    function closeMenu() { $('menu').className = 'modal'; }
+    function closeMenu() { $('menu').className = 'modal'; maybeFly(); }
 
     function openCard(res) {
         var holes = state.course.holes;
@@ -1899,7 +2029,7 @@
         $('scorecard').className = 'modal show';
     }
 
-    function closeCard() { $('scorecard').className = 'modal'; }
+    function closeCard() { $('scorecard').className = 'modal'; maybeFly(); }
 
     /* ── loop ───────────────────────────────────────────────────────────── */
 
@@ -1956,6 +2086,9 @@
         // the only part of that sum the renderer has no way to know.
         intent.over = P.overdraw(state.aim.power, state.club.power);
         R.frame(dt, state.world, intent);
+
+        // The sweep can end on any frame and nothing else would notice.
+        syncFlyHint();
 
         // After the frame, so the inspector's outlines are placed from the
         // same clock the course was just drawn on.
@@ -2022,6 +2155,13 @@
             zoom(e.deltaY * 0.004);
         }, { passive: false });
         window.addEventListener('keydown', onKey);
+        /* The net that cuts the intro short. On the window and in the capture
+           phase, so it runs before the chip, the key or the drag it shares an
+           event with does its own job — every one of those is a player who has
+           finished looking. */
+        window.addEventListener('pointerdown', skipFly, true);
+        window.addEventListener('keydown', skipFly, true);
+        window.addEventListener('wheel', skipFly, { capture: true, passive: true });
         window.addEventListener('resize', function () {
             R.resize();
             syncCompact();
@@ -2049,6 +2189,7 @@
             if (G3.bag) { G3.bag.toggle(); syncPicker(); }
         });
         $('btn-fps').addEventListener('click', toggleFps);
+        $('btn-fly').addEventListener('click', toggleFlyover);
         // A drag that started on the ⌖ and walked away is not a press of it.
         $('btn-view-home').addEventListener('click', function () {
             if (viewTravelled) { viewTravelled = false; return; }
@@ -2093,6 +2234,7 @@
             closeTopMenu();
         }, true);
         syncFps();
+        syncFlyover();
         syncViewCtl();
         syncCompact();
         if (compactQuery) {
@@ -2127,6 +2269,9 @@
         // ?weather=rain holds for the whole round, the same as picking it with
         // W would; anything unrecognised is simply ignored.
         if (q.weather && G3.weather) G3.weather.setOverride(q.weather);
+        // ?fly=0 or ?fly=1 for the session, which is what makes a screenshot of
+        // a hole reproducible whatever this machine's motion preference is.
+        if (q.fly === '0' || q.fly === '1') { flyOverride = q.fly === '1'; syncFlyover(); }
         if (q.course) {
             var course = G3.courseById(q.course);
             var at = q.hole
@@ -2149,6 +2294,13 @@
         // The course inspector (debug.js), which installs its own key and
         // pointer handling and draws nothing until it is switched on.
         if (G3.debug) G3.debug.init(canvas);
+
+        /* And now, with the round loaded and whatever was going to open over it
+           open. maybeFly() refuses to do anything before this point precisely
+           so that the question "is there a modal in front of the course" has a
+           true answer when it is finally asked. */
+        booted = true;
+        maybeFly();
 
         // One measurement before the first frame, so the bag stands in the
         // right corner of the round rather than the frame after it.

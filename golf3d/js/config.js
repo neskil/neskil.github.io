@@ -8,7 +8,7 @@
    — the renderer scales to the viewport, the simulation never sees a pixel. */
 window.G3 = window.G3 || {};
 
-G3.VERSION = '1.24.0';
+G3.VERSION = '1.25.0';
 
 G3.CONFIG = {
     BALL_R: 0.16,
@@ -365,6 +365,54 @@ G3.CONFIG = {
     CONE_RANGE: 9,        // world units of forward reach, whatever the club
     CONE_FADE: 0.42,      // the tail of it that fades to nothing
 
+    /* The intro flyover (flyover.js): the sweep from over the green back to
+       the tee that a new hole opens with. Seconds, and world units.
+
+       The length is off the hole rather than flat — BASE plus PER_UNIT for
+       every unit between tee and cup, clamped — because a nine-metre putting
+       lane does not need the run that a par five earns. LIFT is the apex as a
+       fraction of that same distance, clamped by the two either side of it, so
+       a short hole still gets off the ground and a long one does not end up in
+       orbit. BOW is how far the middle of the path leans off the tee-to-cup
+       line, which is what makes it a fly *over* the hole rather than a dolly
+       down the middle of it.
+
+       CLEAR is the one number with a failure behind it: the path is drawn
+       between four points and knows nothing about the hill between two of
+       them, so the curve is walked LIFT_SAMPLES times, LIFT_PASSES over, and
+       any point closer than this to the ground underneath raises the keys it
+       sits between. SETTLE is the last fraction of the run where that
+       requirement fades out — the arrival is a camera standing on the course,
+       and it is the one point in the path that may not be moved. */
+    FLY: {
+        BASE_SECONDS: 2.4,
+        PER_UNIT: 0.045,
+        MIN_SECONDS: 2.8,
+        MAX_SECONDS: 6.5,
+        PACE: 0.6,          // how far the time follows the chord lengths
+        LIFT: 0.55,         // apex, as a fraction of the hole's length…
+        LIFT_MIN: 7,        // …with a floor and a ceiling in world units
+        LIFT_MAX: 30,
+        BOW: 0.14,          // how far off the line the middle of it leans
+        BOW_MAX: 7,
+        PAST_CUP: 0.28,     // how far beyond the cup it opens
+        PAST_MIN: 4,
+        PAST_MAX: 13,
+        CLEAR: 3.0,         // never nearer than this to whatever is underneath
+        SETTLE: 0.18,       // the tail of the run where that stops applying
+        LIFT_SAMPLES: 36,
+        LIFT_PASSES: 4,
+        /* And how much of the overview's cleared air it borrows on the way
+           past — see render.js's atmosphere(). Nothing until it is AIR_FROM
+           units off the ground, all of AIR_MAX by AIR_FROM + AIR_SPAN, and back
+           to the hole's own weather as it comes down. Short of 1 on purpose: a
+           sweep is over the course rather than a map of it, and a hole in mist
+           should still look like a hole in mist. */
+        AIR_FROM: 6,
+        AIR_SPAN: 18,
+        AIR_MAX: 0.85
+    },
+
     SAVE_KEY: 'loftLinks.save.v1',
     MUTE_KEY: 'loftLinks.muted',
     MUSIC_KEY: 'loftLinks.music',
@@ -380,7 +428,11 @@ G3.CONFIG = {
        folded on a phone and open everywhere else, so only a player who has
        actually pressed the thing has anything stored. */
     FPS_KEY: 'loftLinks.hideFps',
-    VIEWCTL_KEY: 'loftLinks.viewCtlOpen'
+    VIEWCTL_KEY: 'loftLinks.viewCtlOpen',
+    /* The one setting with three states rather than two: '1' asked for, '0'
+       waved off, and nothing at all — which is most players, and which follows
+       prefers-reduced-motion instead of guessing. See game.js's flyWanted. */
+    FLY_KEY: 'loftLinks.flyover'
 };
 
 /* Every club the game knows about, default bag first. A hole's `bag` names

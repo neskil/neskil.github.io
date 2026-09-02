@@ -28,6 +28,7 @@
     <script src="js/scoring.js"></script>
     <script src="js/swing.js"></script>
     <script src="js/minimap.js"></script>
+    <script src="js/flyover.js"></script>
 
     <script>
     (function () {
@@ -91,6 +92,16 @@
             var c = P.surfaceTop(h, h.cup.x, h.cup.z);
             h.tee.y = t ? t.y : 0;
             h.cup.y = c ? c.y : 0;
+            // What the real builder works out at the end of every hole, and
+            // the one field on a hole that is about looking at it rather than
+            // playing it. The flyover frames off it; nothing else here reads it.
+            var minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity, q, pd;
+            for (q = 0; q < h.pads.length; q++) {
+                pd = h.pads[q];
+                minX = Math.min(minX, pd.x); maxX = Math.max(maxX, pd.x + pd.w);
+                minZ = Math.min(minZ, pd.z); maxZ = Math.max(maxZ, pd.z + pd.d);
+            }
+            h.bounds = { minX: minX, maxX: maxX, minZ: minZ, maxZ: maxZ };
             return h;
         }
 
@@ -2408,6 +2419,267 @@
             assert('some holes are marked as needing loft', marked >= 6, marked + ' marked');
             note(marked + ' holes checked against the flat bag in ' +
                  Math.round(performance.now() - b1) + 'ms');
+        })();
+
+        /* ── the intro flyover ─────────────────────────────────────────── */
+
+        /* flyover.js is pure the way physics.js is pure, which is the whole
+           reason it can be tested here at all: a camera path is normally the
+           one thing you can only check by looking at it, and this one is four
+           points, a curve through them and a rule about the ground.
+
+           What is worth asserting is not "does it look nice" — nothing here can
+           answer that, and the screenshot pass in CLAUDE.md is where that lives.
+           It is the three things that would ruin it silently: it must arrive
+           exactly at the seat the game is about to use, it must never be inside
+           a hillside, and it must not kink. */
+        (function () {
+            section('The intro flyover');
+
+            var F = C.FLY;
+            assert('the module is loaded', !!G3.flyover);
+
+            // The seat the game would take up behind the ball, worked out the
+            // way render.js works it out. The flyover ends here, whatever else
+            // it does; handing it in is the contract.
+            function seatBehind(hole, ball, dist, pitch) {
+                dist = dist || 9;
+                pitch = pitch === undefined ? 0.46 : pitch;
+                var yaw = Math.atan2(hole.cup.x - ball.x, hole.cup.z - ball.z);
+                var back = dist * Math.cos(pitch);
+                return {
+                    px: ball.x - Math.sin(yaw) * back,
+                    py: ball.y + dist * Math.sin(pitch),
+                    pz: ball.z - Math.cos(yaw) * back,
+                    tx: ball.x, ty: ball.y + 0.35, tz: ball.z
+                };
+            }
+
+            function teeBall(hole) {
+                var s = P.surfaceTop(hole, hole.tee.x, hole.tee.z);
+                return { x: hole.tee.x, y: (s ? s.y : 0) + C.BALL_R, z: hole.tee.z };
+            }
+
+            function groundAt(hole, x, z, fallback) {
+                var s = P.surfaceTop(hole, x, z);
+                return s ? s.y : fallback;
+            }
+
+            // A copy, because `at` hands back the plan's own scratch and every
+            // one of these tests wants two poses at once.
+            function poseAt(plan, t) {
+                var p = G3.flyover.at(plan, t);
+                return { px: p.px, py: p.py, pz: p.pz, tx: p.tx, ty: p.ty, tz: p.tz };
+            }
+
+            /* ── the arrival ── */
+
+            var flat = lab({ pads: [A.pad(0, 0, 12, 30)], tee: { x: 6, z: 3 }, cup: { x: 6, z: 26 } });
+            var flatBall = teeBall(flat);
+            var flatSeat = seatBehind(flat, flatBall);
+            var plan = G3.flyover.plan(flat, flatBall, flatSeat);
+
+            assert('a plan is four keys', plan.keys.length === 4, plan.keys.length + ' keys');
+            assert('the run is inside its bounds',
+                plan.dur >= F.MIN_SECONDS - 1e-9 && plan.dur <= F.MAX_SECONDS + 1e-9,
+                plan.dur + 's');
+
+            var landed = poseAt(plan, plan.dur);
+            var exact = ['px', 'py', 'pz', 'tx', 'ty', 'tz'].every(function (k) {
+                return approx(landed[k], flatSeat[k], 1e-9);
+            });
+            assert('it lands exactly on the seat, to the last decimal', exact,
+                JSON.stringify(landed));
+            var over = poseAt(plan, plan.dur * 3);
+            assert('and stays there however long it is asked for',
+                approx(over.px, flatSeat.px, 1e-9) && approx(over.pz, flatSeat.pz, 1e-9));
+
+            /* ── the opening ── */
+
+            var start = poseAt(plan, 0);
+            var ux = (flat.cup.x - flatBall.x), uz = (flat.cup.z - flatBall.z);
+            var d = Math.hypot(ux, uz);
+            ux /= d; uz /= d;
+            function along(x, z) { return (x - flatBall.x) * ux + (z - flatBall.z) * uz; }
+
+            assert('it opens beyond the cup', along(start.px, start.pz) > d,
+                along(start.px, start.pz).toFixed(2) + ' vs ' + d.toFixed(2));
+            assert('looking back at it',
+                approx(along(start.tx, start.tz), d, 0.2) &&
+                along(start.px, start.pz) > along(start.tx, start.tz));
+            assert('and above it', start.py > flat.cup.y + 2, start.py.toFixed(2));
+
+            /* ── the travel ── */
+
+            /* It runs one way down the hole. Not perfectly monotone — the path
+               is bowed and eased, and a curve through four points wanders a
+               little — but a sweep that doubles back is a sweep that reads as a
+               mistake, so the tolerance here is tight rather than absent. */
+            (function () {
+                var i, s, prev = Infinity, worst = 0, pose;
+                for (i = 0; i <= 80; i++) {
+                    pose = G3.flyover.at(plan, plan.dur * i / 80);
+                    s = along(pose.px, pose.pz);
+                    if (s - prev > worst) worst = s - prev;
+                    prev = s;
+                }
+                assert('it travels down the hole without doubling back', worst < 0.35,
+                    'backed up ' + worst.toFixed(3) + ' units');
+            })();
+
+            /* No kink at a key. The tangents are the non-uniform Catmull-Rom
+               ones for exactly this reason; the uniform form, on keys spaced by
+               chord length rather than evenly, jerks at every beat. Measured as
+               the longest step against the mean step, which is what a jerk
+               actually looks like at a fixed sample rate. */
+            (function () {
+                var i, a, b, step, longest = 0, total = 0, n = 240;
+                b = poseAt(plan, 0);
+                for (i = 1; i <= n; i++) {
+                    a = b;
+                    b = poseAt(plan, plan.dur * i / n);
+                    step = Math.hypot(b.px - a.px, b.py - a.py, b.pz - a.pz);
+                    total += step;
+                    if (step > longest) longest = step;
+                }
+                // The global ease alone puts the middle at about 1.5x the mean.
+                assert('the path does not kink at a key', longest < (total / n) * 2.6,
+                    longest.toFixed(3) + ' against a mean of ' + (total / n).toFixed(3));
+            })();
+
+            // Slow off the green, quick over the middle, stopped at the seat.
+            // The last of those is the hand-off: there is nothing for the
+            // game's own camera to absorb when it takes over.
+            (function () {
+                var a = poseAt(plan, plan.dur * 0.002), b = poseAt(plan, 0);
+                var open = Math.hypot(a.px - b.px, a.py - b.py, a.pz - b.pz);
+                var c = poseAt(plan, plan.dur), e = poseAt(plan, plan.dur * 0.998);
+                var shut = Math.hypot(c.px - e.px, c.py - e.py, c.pz - e.pz);
+                var m1 = poseAt(plan, plan.dur * 0.5), m2 = poseAt(plan, plan.dur * 0.502);
+                var mid = Math.hypot(m1.px - m2.px, m1.py - m2.py, m1.pz - m2.pz);
+                assert('it starts slowly', open < mid * 0.35, open.toFixed(4));
+                assert('and arrives stopped', shut < mid * 0.35, shut.toFixed(4));
+            })();
+
+            /* ── the ground ── */
+
+            /* The one that has teeth. A curve drawn between four points knows
+               nothing about the hill between two of them, and a camera through
+               a hillside is the failure a player cannot un-see. Sampled finer
+               than the lift pass itself samples, so this is checking the curve
+               rather than agreeing with the loop that built it. */
+            function clearance(hole, ball, seat, samples) {
+                var p = G3.flyover.plan(hole, ball, seat);
+                var fallback = Math.max(ball.y, hole.cup.y);
+                var i, prog, pose, g, worst = Infinity;
+                for (i = 0; i <= samples; i++) {
+                    prog = i / samples;
+                    // Past the settle window the path is arriving at a camera
+                    // that stands on the course, so there is nothing to clear.
+                    if (prog > 1 - F.SETTLE) break;
+                    pose = G3.flyover.at(p, prog * p.dur);
+                    g = groundAt(hole, pose.px, pose.pz, fallback);
+                    worst = Math.min(worst, pose.py - g);
+                }
+                return worst;
+            }
+
+            (function () {
+                // A wall of ground across the middle of the hole, well above
+                // the apex the path would otherwise take over a flat one — so
+                // this fails outright if the lift pass stops running.
+                var hill = lab({
+                    pads: [A.pad(0, 0, 12, 12), A.pad(0, 12, 12, 8, 22), A.pad(0, 20, 12, 12)],
+                    tee: { x: 6, z: 3 }, cup: { x: 6, z: 28 }
+                });
+                var b = teeBall(hill);
+                var worst = clearance(hill, b, seatBehind(hill, b), 200);
+                assert('it clears a ridge across the middle of the hole', worst > 1.2,
+                    'came within ' + worst.toFixed(2) + ' units of it');
+            })();
+
+            (function () {
+                var t0 = performance.now(), worst = Infinity, where = '', n = 0;
+                ALL.forEach(function (entry) {
+                    var h = entry.hole, b = teeBall(h);
+                    var c = clearance(h, b, seatBehind(h, b), 120);
+                    n++;
+                    if (c < worst) { worst = c; where = entry.course.id + '/' + h.name; }
+                });
+                assert('every hole in the file is flown over rather than through',
+                    worst > 1.2, where + ' came within ' + worst.toFixed(2) + ' units');
+                note(n + ' holes planned and swept in ' +
+                     Math.round(performance.now() - t0) + 'ms');
+            })();
+
+            /* ── the shape of it ── */
+
+            // Bowed towards the course, not away from it: a dolly straight down
+            // the axis of a hole shows you its length and nothing else.
+            (function () {
+                var wide = lab({
+                    pads: [A.pad(0, 0, 8, 30), A.pad(8, 0, 16, 30)],
+                    tee: { x: 4, z: 3 }, cup: { x: 4, z: 26 }
+                });
+                var b = teeBall(wide);
+                var p = G3.flyover.plan(wide, b, seatBehind(wide, b));
+                var mid = poseAt(p, p.dur * 0.45);
+                assert('the sweep leans over the course rather than off its edge',
+                    mid.px > 5, 'x = ' + mid.px.toFixed(2));
+            })();
+
+            // A long hole earns a longer look; both ends are clamped.
+            (function () {
+                assert('a short hole gets the shortest run',
+                    approx(G3.flyover.seconds(2), F.MIN_SECONDS, 1e-9));
+                assert('a long one gets the longest',
+                    approx(G3.flyover.seconds(400), F.MAX_SECONDS, 1e-9));
+                assert('and in between it follows the hole',
+                    G3.flyover.seconds(80) > G3.flyover.seconds(30));
+            })();
+
+            /* ── the seat moving under it ── */
+
+            (function () {
+                var b = teeBall(flat);
+                var p = G3.flyover.plan(flat, b, seatBehind(flat, b));
+                var opened = poseAt(p, 0);
+                var moved = seatBehind(flat, b, 16, 0.9);
+                G3.flyover.retarget(p, moved);
+                var landing = poseAt(p, p.dur);
+                assert('retargeting moves the arrival',
+                    approx(landing.px, moved.px, 1e-9) && approx(landing.py, moved.py, 1e-9));
+                var reopened = poseAt(p, 0);
+                assert('and leaves the opening where it was',
+                    approx(reopened.px, opened.px, 1e-9) && approx(reopened.pz, opened.pz, 1e-9));
+            })();
+
+            /* ── the degenerate hole ── */
+
+            // The editor can hand the game a cup on top of the tee, and a path
+            // down a line of length zero is a path of NaNs unless it is asked.
+            (function () {
+                var same = lab({ tee: { x: 5, z: 10 }, cup: { x: 5, z: 10 } });
+                var b = teeBall(same);
+                var seat = { px: 5, py: 4, pz: 1, tx: 5, ty: 0.5, tz: 10 };
+                var p = G3.flyover.plan(same, b, seat);
+                var i, pose, finite = true;
+                for (i = 0; i <= 40; i++) {
+                    pose = G3.flyover.at(p, p.dur * i / 40);
+                    if (!isFinite(pose.px) || !isFinite(pose.py) || !isFinite(pose.pz) ||
+                        !isFinite(pose.tx) || !isFinite(pose.ty) || !isFinite(pose.tz)) finite = false;
+                }
+                assert('a cup on top of the tee still gives a path', finite);
+                var end = poseAt(p, p.dur);
+                assert('and it still ends on the seat',
+                    approx(end.px, seat.px, 1e-9) && approx(end.pz, seat.pz, 1e-9));
+            })();
+
+            // The pose is the plan's own scratch, and every frame of every
+            // sweep reads it. Handing back a fresh object instead would be
+            // sixty allocations a second for the length of the intro.
+            assert('sampling allocates nothing',
+                G3.flyover.at(plan, 0) === G3.flyover.at(plan, 1));
         })();
 
         /* ── done ──────────────────────────────────────────────────────── */

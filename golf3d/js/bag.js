@@ -1233,6 +1233,17 @@
        what can ask is exactly four things (below). Four traverses of four club
        models a frame is not much; it is also not nothing, and it was buying
        precisely no change on screen. */
+    /* Off screen for the length of something that is not the game — the intro
+       flyover is the only caller. Both rigs, because the bag and the clubs in
+       it are two groups hung off the scene rather than one: they are placed
+       from the camera every frame and would otherwise ride along on a shot
+       that is meant to look like nobody is holding anything. */
+    function setVisible(on) {
+        if (!B.ready) return;
+        if (B.rig) B.rig.visible = on;
+        if (B.clubRig) B.clubRig.visible = on;
+    }
+
     function update(dt, camera, aspect) {
         if (!B.ready) return;
         if (B.settled && !B.expanded) { place(camera, aspect); return; }
@@ -1388,6 +1399,7 @@
         pick: pick,
         toggle: toggle,
         setBag: setBag,
+        setVisible: setVisible,
         setExpanded: setExpanded,
         setSelected: setSelected,
         setHover: setHover,

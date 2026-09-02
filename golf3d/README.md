@@ -48,6 +48,7 @@ them.
 | `js/shaders.js` | The shaders written by hand rather than by three.js: the sky, the water, the hills on the horizon, and the two splices into three.js's own — the turf and the ground beyond the course. |
 | `js/weather.js` | The sky each hole gets, the wind everything answers to, and the rain, mist and motes. |
 | `js/postfx.js` | What happens to the picture after the course is drawn: bloom, light shafts, tone mapping, grade. |
+| `js/flyover.js` | The intro sweep's path: four keys, a curve through them, and the rule that keeps it out of the hillside. Pure — no three.js, no DOM. |
 | `js/render.js` | The course, in three.js: geometry, lights, camera and the frame. |
 | `js/minimap.js` | The hole from above, drawn per pixel out of `physics.surfaceUnder` — the course picker's plans and the one on the hole card. |
 | `js/bag.js` | The club picker: a modelled bag that rides in front of the camera, holding whichever clubs this hole hands out. |
@@ -2490,6 +2491,70 @@ drop back behind the ball, the water reads the same lifted fog as the lit
 materials so the sea cannot go grey while the greens beside it stay clear, and
 the simulation has never heard of any of this.
 
+### The fourth camera, which is not a seat
+
+A hole is a shape before it is a shot, and the one moment a player can be shown
+that shape is before they have played the first one. So a new hole opens over
+the green, sweeps back down the course, and arrives at the seat the game was
+going to put the camera in anyway.
+
+**Backwards, and deliberately.** A broadcast flyover runs tee to green because
+it can cut away at the end. This one cannot cut anywhere — its last frame is
+the first frame of the game — so it runs green to tee, and the arrival *is* the
+hand-off. `flyover.js` is handed the seat `render.js` has just worked out
+(`seatFor`, which is the body `updateCamera` used to be, split out precisely so
+there is one copy of that arithmetic rather than two), and the last key of the
+path is that seat, to the last decimal. The global ease has taken the speed to
+nothing by the time it lands, so there is nothing left for the game's own camera
+to absorb: it simply carries on.
+
+The same fact is what makes it interruptible. The sweep writes `R.smooth`
+directly rather than easing towards it, so cutting it short is a deletion —
+`R.fly = null` — and the next frame eases from wherever the camera had got to
+back to the seat, on the same lerp every other frame uses. There is no hand-off
+code for the skip, because there is nothing for it to do. Anything at all cuts
+it: the listeners are on the window in the capture phase, so a press on a chip,
+a key, a scroll or a finger on the course all end it before they do their own
+job. An intro you have to sit through is a loading screen.
+
+**Four keys, and each is there for a different reason.** Beyond the cup looking
+back at it; the top of the arc over the middle of the hole, looking down the
+ground the ball has to cross; coming down, still travelling, looking at the tee;
+and the seat. The middle two are bowed off the tee-to-cup line, towards
+whichever side the course's own bounds are on, because a dolly straight down the
+axis of a hole shows you its length and nothing else — a hole is wide as well as
+long. The curve through them is Catmull-Rom written out as Hermite, because the
+keys are spaced by chord length rather than evenly and the uniform form kinks at
+every beat when they are not. How long the whole thing runs is off the hole
+rather than flat: a nine-metre putting lane does not need the run Ashdown's
+opening drive earns.
+
+**And it clears the ground.** A curve drawn between four points knows nothing
+about the hill between two of them, and a camera through a hillside is the one
+failure of the whole idea a player cannot un-see. So the path is walked, and
+wherever it is nearer the ground than `CLEAR` the two keys it sits between are
+raised — weighted by how near each one is, which keeps the lift local instead of
+tipping the whole sweep up — and that repeats until a pass changes nothing,
+because a lift can expose a second dip further along. The requirement fades over
+the last of the run: the arrival is a camera standing on the course, and it is
+the one point in the path that may not move. All of it is pure arithmetic over
+`physics.surfaceTop`, which is why [the logic suite](#tests) can assert that
+every one of the sixty holes is flown *over* rather than through.
+
+While it runs, everything that is an answer to a question about the shot steps
+aside — the meter, the dial, the club chip, the bag in the corner, the aiming
+cone, the overview's markers — because during the intro there is no shot yet.
+What is left is the course, the hole card in the top left, which is the caption
+this picture is for, and one line saying how to leave. It also borrows the
+overview's `R.lift` in proportion to how far off the ground it is, so a sweep
+over a misty hole is not a grey rectangle, and eases back down through it on the
+way in rather than popping at the end.
+
+It is on unless the machine has asked for less motion, off if the player has
+said so on the 🎬 chip, and `?fly=0` or `?fly=1` overrides both for the session
+— which is what keeps a screenshot of a hole reproducible. Restarting a hole
+does not replay it; you have already had the look.
+
 ### What a frame does not do
 
 The most expensive thing in a frame is not the picture, it is the **shot
@@ -2531,9 +2596,10 @@ the four things that can move it says otherwise.
 
 ## Tests
 
-Open `tests.html`. ~1760 assertions covering the surfaces, the collision
+Open `tests.html`. ~1780 assertions covering the surfaces, the collision
 geometry, the cup, the integrator, the bag, the ground that does something, the
-walls you go through, all seventy-two holes of course data and the scorecard.
+walls you go through, all seventy-two holes of course data, the scorecard and
+the intro flyover's path.
 
 The one worth knowing about is the **bot**: a greedy player fans out candidate
 shots on every hole, keeps the one that finishes nearest the cup, and plays all
@@ -2563,6 +2629,19 @@ where the pair is the assertion. Breaking the belt, the launch pad, the pipe,
 the backspin, the belt's rest rule, ice's friction, ice's grip, the flipper's
 swing, the aperture's sill or the per-hole gravity each fails a different named
 assertion; if you change either section, re-run the exercise.
+
+The [flyover](#the-fourth-camera-which-is-not-a-seat) is in here for the same
+reason the physics is: it is pure, so a camera path — normally the one thing you
+can only check by looking at it — is four points, a curve through them and a rule
+about the ground, and all three can be asserted. Not whether it looks nice;
+nothing here can answer that, and the screenshot pass in `CLAUDE.md` is where
+that lives. What is asserted is the three things that would ruin it silently: it
+arrives on the seat to the last decimal, it never kinks, and it is never inside
+a hillside — that last one over all sixty holes, sampled finer than the pass
+that built the path samples, so it is checking the curve rather than agreeing
+with the loop. Those are mutation-checked too: uniform tangents, a missing lift
+pass, an arrival a hair short of the seat, a bow to the wrong side and a missing
+ease each fail a different named assertion.
 
 Then it plays some of them again **out of half a bag.** A hole flagged
 `needsLoft` exists to be flown, and a hole like that which turns out to have a
@@ -2689,7 +2768,9 @@ round the ball, <kbd>L</kbd> lock it where it is, <kbd>0</kbd> straighten it,
 <kbd>F</kbd> fullscreen, <kbd>R</kbd> restart the hole, <kbd>W</kbd> the
 weather, <kbd>H</kbd> the rules, <kbd>M</kbd> sound, <kbd>J</kbd> the music,
 <kbd>O</kbd> the fancy water, <kbd>P</kbd> the frame rate, <kbd>G</kbd> the
-course inspector. Scroll or pinch to zoom.
+course inspector. Scroll or pinch to zoom. A new hole opens with a
+[flyover](#the-fourth-camera-which-is-not-a-seat) — anything at all skips it,
+and the 🎬 chip turns it off for good.
 
 ### Under a thumb
 
@@ -2769,6 +2850,13 @@ skipping the picker, `&hole=1..6` jumps to a hole, and
 `&weather=clear|fair|overcast|drizzle|rain|mist|golden|dust` fixes the sky for
 the round. Handy for screenshots and for linking someone at the hole you are
 complaining about, in the weather you were complaining about it in.
+
+`&fly=0` and `&fly=1` force the intro
+[flyover](#the-fourth-camera-which-is-not-a-seat) off or on for the session,
+outranking both the chip and the machine's motion preference — without which a
+screenshot of a hole is a screenshot of whatever the camera happened to be doing
+at that instant. The editor's Playtest link carries `&fly=0` for the same
+reason a playtest is a loop: draw, look, change, look again.
 
 `&debug=1` opens the [course inspector](#the-inspector) with the hole, which is
 how you would start a session spent building one. <kbd>G</kbd> does the same

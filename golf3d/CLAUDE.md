@@ -108,6 +108,13 @@ none, because it reads as coverage.
   "Adventure golf". The one that bites: a launch pad is an **inlay**, and an
   inlay loses outright to ground lifted above it, so anything with a motor in
   it needs the ground under it kept flat (`courses.machineKeeps`).
+- **The intro flyover ends *at* the live seat, not near it.** `flyover.js` is
+  handed the pose `render.js`'s `seatFor` has just worked out and makes it the
+  last key of the path, re-read every frame; that exactness is the whole
+  hand-off, and it is what lets a skip be `R.fly = null` with no transition code
+  anywhere. Anything that adds a second copy of the seat arithmetic, or that
+  rounds the last key, breaks a named assertion in `tests.html` rather than
+  merely looking slightly wrong.
 - **The pretty water path is `#ifdef PRETTY` inside the one water shader**,
   flipped by `render.setWaterQuality()` and remembered in `localStorage`. Keep
   both paths in that single source — a forked copy will drift — and keep the
