@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Data Room — 3D visualization PoC | Niklas Billgren</title>
+    <!-- Work in progress. No canonical, no OG tags, no analytics and no
+         sitemap entry until this graduates to a real card — see PLAN.md,
+         "Graduating to a real card", for the checklist. The Disallow in
+         /robots.txt and this noindex are the belt-and-braces pair the root
+         README describes for pages that are reachable but not published. -->
+    <meta name="robots" content="noindex">
+    <meta name="theme-color" content="#070b16">
+    <meta name="color-scheme" content="dark">
+    <meta name="author" content="Niklas Billgren">
+    <link rel="icon" href="../favicon.ico">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css?v=0.1.0">
+</head>
+<body>
+    <div id="stage"></div>
+    <div id="vignette"></div>
+
+    <div class="topbar">
+        <a class="home-link glass" href="../index.html" title="Back to home" aria-label="Back to home">&#8592;</a>
+        <div class="brand glass" style="padding:0.4rem 0.8rem">
+            <span class="brand-name">Data Room</span>
+            <span class="brand-tag">Visualization sketchbook</span>
+        </div>
+        <span class="wip-badge">Work in progress</span>
+    </div>
+
+    <div class="caption glass" id="caption">
+        <h1 class="caption-title" id="caption-title">&nbsp;</h1>
+        <p class="caption-text" id="caption-text">&nbsp;</p>
+        <p class="caption-hint" id="caption-hint"></p>
+    </div>
+
+    <div class="readout glass" id="readout" aria-live="polite"></div>
+
+    <div class="switcher glass" id="switcher" role="group" aria-label="Choose a visualization"></div>
+
+    <div id="fps">—</div>
+
+    <div id="boot">
+        <div class="boot-inner">
+            <div class="boot-spinner" id="boot-spinner"></div>
+            <div class="boot-title" id="boot-title">Data Room</div>
+            <div class="boot-text" id="boot-text">Warming up the renderer…</div>
+        </div>
+    </div>
+
+    <script src="vendor/three.min.js"></script>
+    <script src="vendor/OrbitControls.js"></script>
+    <script src="js/app.js?v=0.1.0"></script>
+    <script src="js/data/land.js?v=0.1.0"></script>
+    <script src="js/data/ports.js?v=0.1.0"></script>
+    <script src="js/scene-globe.js?v=0.1.0"></script>
+    <script>VizApp.start();</script>
+</body>
+</html>

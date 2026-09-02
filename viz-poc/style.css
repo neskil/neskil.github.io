@@ -1,0 +1,445 @@
+/* Data Room — proof of concept.
+   Follows the site theme from .agents/AGENTS.md: dark slate ground,
+   translucent glass panels, one vivid accent per scene. The accent is a
+   variable the active scene sets, so the chrome retints itself when you
+   switch scenes rather than every scene living inside the same blue box. */
+
+:root {
+    --bg: #0f172a;
+    --bg-deep: #070b16;
+    --ink: #e2e8f0;
+    --ink-dim: #94a3b8;
+    --ink-faint: #64748b;
+
+    /* Overwritten per scene by VizApp.setAccent(). */
+    --accent: #38bdf8;
+    --accent-rgb: 56, 189, 248;
+
+    --panel: rgba(15, 23, 42, 0.62);
+    --panel-line: rgba(148, 163, 184, 0.16);
+    --radius: 14px;
+    --shadow: 0 18px 44px rgba(2, 6, 23, 0.55);
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+    margin: 0;
+    height: 100%;
+    overflow: hidden;
+    background: var(--bg-deep);
+    color: var(--ink);
+    font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+    -webkit-font-smoothing: antialiased;
+    overscroll-behavior: none;
+}
+
+/* The canvas is the page. Everything else floats over it. */
+#stage {
+    position: fixed;
+    inset: 0;
+    display: block;
+    touch-action: none;
+}
+
+#stage canvas { display: block; }
+
+/* A vignette sold as part of the art: it darkens the corners so the HUD
+   glass has something to sit against no matter what the scene is doing. */
+#vignette {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    background: radial-gradient(ellipse at 50% 45%,
+        rgba(0, 0, 0, 0) 38%,
+        rgba(3, 7, 18, 0.42) 78%,
+        rgba(3, 7, 18, 0.72) 100%);
+    z-index: 1;
+}
+
+.glass {
+    background: var(--panel);
+    border: 1px solid var(--panel-line);
+    border-radius: var(--radius);
+    backdrop-filter: blur(14px) saturate(1.2);
+    -webkit-backdrop-filter: blur(14px) saturate(1.2);
+    box-shadow: var(--shadow);
+}
+
+/* ---------- top bar ---------- */
+
+.topbar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.85rem 1.1rem;
+    pointer-events: none;
+}
+
+.topbar > * { pointer-events: auto; }
+
+.home-link {
+    display: grid;
+    place-items: center;
+    width: 38px;
+    height: 38px;
+    flex: 0 0 auto;
+    border-radius: 11px;
+    color: var(--ink-dim);
+    font-size: 1.15rem;
+    text-decoration: none;
+    transition: color 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+}
+
+.home-link:hover {
+    color: var(--ink);
+    border-color: rgba(var(--accent-rgb), 0.5);
+    transform: translateX(-2px);
+}
+
+.brand {
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+    padding: 0.3rem 0.2rem;
+    min-width: 0;
+}
+
+.brand-name {
+    font-family: 'Outfit', system-ui, sans-serif;
+    font-weight: 600;
+    font-size: 1.02rem;
+    letter-spacing: 0.01em;
+    line-height: 1.1;
+    white-space: nowrap;
+}
+
+.brand-tag {
+    font-size: 0.68rem;
+    color: var(--ink-faint);
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.wip-badge {
+    flex: 0 0 auto;
+    margin-left: auto;
+    padding: 0.3rem 0.6rem;
+    border-radius: 999px;
+    border: 1px solid rgba(251, 191, 36, 0.32);
+    background: rgba(251, 191, 36, 0.10);
+    color: #fcd34d;
+    font-size: 0.63rem;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+/* ---------- scene switcher ---------- */
+
+.switcher {
+    position: fixed;
+    left: 50%;
+    bottom: 1.1rem;
+    transform: translateX(-50%);
+    z-index: 10;
+    display: flex;
+    gap: 0.3rem;
+    padding: 0.32rem;
+    max-width: calc(100vw - 1.6rem);
+    overflow-x: auto;
+    scrollbar-width: none;
+}
+
+.switcher::-webkit-scrollbar { display: none; }
+
+.scene-chip {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.5rem 0.85rem;
+    border: 1px solid transparent;
+    border-radius: 10px;
+    background: transparent;
+    color: var(--ink-dim);
+    font-family: inherit;
+    font-size: 0.82rem;
+    font-weight: 500;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: color 0.2s ease, background 0.2s ease, border-color 0.2s ease;
+}
+
+.scene-chip:hover {
+    color: var(--ink);
+    background: rgba(148, 163, 184, 0.10);
+}
+
+.scene-chip[aria-pressed="true"] {
+    color: #fff;
+    background: rgba(var(--accent-rgb), 0.16);
+    border-color: rgba(var(--accent-rgb), 0.45);
+}
+
+.scene-chip .dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: currentColor;
+    opacity: 0.55;
+}
+
+.scene-chip[aria-pressed="true"] .dot {
+    background: var(--accent);
+    opacity: 1;
+    box-shadow: 0 0 9px var(--accent);
+}
+
+/* A chip for a scene that isn't written yet: visible on purpose, so the
+   switcher doubles as the roadmap while this is a PoC. */
+.scene-chip[data-pending="true"] {
+    opacity: 0.42;
+    cursor: not-allowed;
+}
+
+.scene-chip[data-pending="true"]:hover {
+    background: transparent;
+    color: var(--ink-dim);
+}
+
+/* ---------- scene caption ---------- */
+
+.caption {
+    position: fixed;
+    left: 1.1rem;
+    bottom: 4.6rem;
+    z-index: 9;
+    width: min(23rem, calc(100vw - 2.2rem));
+    padding: 0.85rem 1rem;
+    transition: opacity 0.35s ease, transform 0.35s ease;
+}
+
+.caption.swapping {
+    opacity: 0;
+    transform: translateY(6px);
+}
+
+.caption-title {
+    font-family: 'Outfit', system-ui, sans-serif;
+    font-size: 1.05rem;
+    font-weight: 600;
+    margin: 0 0 0.3rem;
+    color: #fff;
+}
+
+.caption-text {
+    margin: 0;
+    font-size: 0.82rem;
+    line-height: 1.5;
+    color: var(--ink-dim);
+}
+
+.caption-hint {
+    margin: 0.55rem 0 0;
+    font-size: 0.74rem;
+    color: rgba(var(--accent-rgb), 0.9);
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+/* ---------- readout (scene-specific numbers, top right) ---------- */
+
+.readout {
+    position: fixed;
+    top: 4.6rem;
+    right: 1.1rem;
+    z-index: 9;
+    width: min(15rem, calc(100vw - 2.2rem));
+    padding: 0.8rem 0.9rem;
+    font-size: 0.78rem;
+    opacity: 0;
+    transform: translateY(-6px);
+    pointer-events: none;
+    transition: opacity 0.25s ease, transform 0.25s ease;
+}
+
+.readout.show {
+    opacity: 1;
+    transform: none;
+}
+
+.readout-title {
+    font-family: 'Outfit', system-ui, sans-serif;
+    font-weight: 600;
+    font-size: 0.92rem;
+    color: #fff;
+    margin-bottom: 0.45rem;
+}
+
+.readout-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.8rem;
+    padding: 0.16rem 0;
+    color: var(--ink-dim);
+}
+
+.readout-row b {
+    color: var(--ink);
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+}
+
+/* ---------- perf counter ---------- */
+
+#fps {
+    position: fixed;
+    right: 1.1rem;
+    bottom: 1.25rem;
+    z-index: 10;
+    padding: 0.3rem 0.55rem;
+    border-radius: 8px;
+    background: rgba(2, 6, 23, 0.5);
+    border: 1px solid var(--panel-line);
+    color: var(--ink-faint);
+    font-family: ui-monospace, 'JetBrains Mono', monospace;
+    font-size: 0.68rem;
+    font-variant-numeric: tabular-nums;
+}
+
+/* ---------- boot / failure states ---------- */
+
+#boot {
+    position: fixed;
+    inset: 0;
+    z-index: 20;
+    display: grid;
+    place-items: center;
+    background: var(--bg-deep);
+    transition: opacity 0.5s ease;
+}
+
+#boot.gone {
+    opacity: 0;
+    pointer-events: none;
+}
+
+.boot-inner {
+    text-align: center;
+    max-width: 30rem;
+    padding: 1.5rem;
+}
+
+.boot-title {
+    font-family: 'Outfit', system-ui, sans-serif;
+    font-size: 1.3rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+}
+
+.boot-text {
+    color: var(--ink-dim);
+    font-size: 0.88rem;
+    line-height: 1.6;
+}
+
+.boot-text a { color: var(--accent); }
+
+.boot-spinner {
+    width: 30px;
+    height: 30px;
+    margin: 0 auto 1rem;
+    border: 2px solid rgba(148, 163, 184, 0.22);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: boot-spin 0.9s linear infinite;
+}
+
+@keyframes boot-spin { to { transform: rotate(360deg); } }
+
+@media (prefers-reduced-motion: reduce) {
+    .boot-spinner { animation: none; }
+    .caption, .readout { transition: none; }
+}
+
+/* ---------- phones ---------- */
+
+@media (max-width: 680px) {
+    .brand-tag { display: none; }
+    .caption {
+        bottom: 4.4rem;
+        left: 0.7rem;
+        right: 0.7rem;
+        width: auto;
+        padding: 0.7rem 0.85rem;
+    }
+    .caption-text { font-size: 0.78rem; }
+    .readout {
+        top: auto;
+        bottom: 11.5rem;
+        right: 0.7rem;
+        width: min(13rem, calc(100vw - 1.4rem));
+    }
+    .switcher { bottom: 0.7rem; }
+    .scene-chip { padding: 0.45rem 0.7rem; font-size: 0.76rem; }
+    #fps { display: none; }
+}
+
+/* ---------- legend ----------
+   Three arc colours mean nothing on their own, so this is not decoration:
+   it is the non-colour half of the encoding, and it ships with any scene
+   that uses colour to say which is which. */
+
+.legend {
+    position: fixed;
+    left: 1.1rem;
+    top: 4.6rem;
+    z-index: 9;
+    padding: 0.7rem 0.85rem;
+    font-size: 0.76rem;
+    line-height: 1.6;
+    color: var(--ink-dim);
+}
+
+.legend-head {
+    font-family: 'Outfit', system-ui, sans-serif;
+    font-size: 0.64rem;
+    letter-spacing: 0.11em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    margin-bottom: 0.35rem;
+}
+
+.legend-row {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    white-space: nowrap;
+}
+
+.legend-chip {
+    width: 10px;
+    height: 10px;
+    border-radius: 3px;
+    flex: 0 0 auto;
+    box-shadow: 0 0 7px currentColor;
+}
+
+@media (max-width: 680px) {
+    .legend {
+        top: 3.9rem;
+        left: 0.7rem;
+        padding: 0.5rem 0.6rem;
+        font-size: 0.7rem;
+        line-height: 1.45;
+    }
+}
