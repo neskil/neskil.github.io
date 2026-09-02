@@ -48,6 +48,25 @@
         return C.HOLD[kind] !== undefined ? C.HOLD[kind] : C.HOLD_DEFAULT;
     }
 
+    /* How hard down is, on this hole.
+
+       One number, and it is the cheapest hole-shaped idea in the file: nothing
+       about the course changes and everything about playing it does. At a
+       third of a g a wedge hangs for three seconds and carries twenty units, a
+       launch pad throws the ball three times as high, and a ramp that used to
+       stop a ball rolls it off the end — because carry goes as 1/g, apex goes
+       as 1/g, and the gradient a surface will hold a ball on does not move at
+       all. Every club in the bag is a different club and not one of their
+       numbers changed.
+
+       It belongs to the hole rather than to a zone the ball wanders in and out
+       of, and that is a design decision rather than a shortcut: gravity you
+       can be half inside is gravity nobody can aim in, and the first thing a
+       player does with a shot they cannot predict is stop trying. */
+    function gravityOf(hole) {
+        return C.GRAVITY * (hole && hole.gravity ? hole.gravity : 1);
+    }
+
     /* ── pads: the ground ───────────────────────────────────────────────── */
 
     /* A pad is { x, z, w, d, y, sx, sz, kind }: an axis-aligned footprint, a
@@ -429,6 +448,25 @@
             spin = w.spin;
             yaw += w.spin * t;
         }
+        /* A flipper: a bat that sweeps between two angles instead of going
+           round. It is the third way a wall is allowed to move and the first
+           one with a *rest*, which is the whole of why it plays differently
+           from a blade — a spinner is always coming round again and the shot
+           is a gap in a cycle, a flipper stops at each end and the shot is a
+           moment. Eased at both ends by the cosine, because a bat that
+           reversed at full speed would be a bat that teleports.
+
+           `spin` is set to the angular rate rather than to zero, so the solver
+           gives the ball the same shove off a moving flipper as it does off a
+           blade (wallPointVelocity). A bat that swept through the ball without
+           hitting it would look exactly like this and play like a wall. */
+        if (w.swing) {
+            var sw = w.swing;
+            var ph = t * sw.speed + (sw.phase || 0);
+            var half = (sw.to - sw.from) / 2;
+            yaw += sw.from + half * (1 - Math.cos(ph));
+            spin += half * Math.sin(ph) * sw.speed;
+        }
         // `out` lets the solver reuse one object across thousands of substeps.
         // Callers that keep the result (the renderer) simply omit it.
         var B = out || {};
@@ -705,7 +743,7 @@
        a statement about geometry rather than a threshold: the ball is under the
        rim and has not got the vertical speed to climb back out. */
     function cupContact(world, events) {
-        var b = world.ball, cup = world.hole.cup;
+        var b = world.ball, hole = world.hole, cup = hole.cup;
         var dx = b.x - cup.x, dz = b.z - cup.z;
         var d = Math.hypot(dx, dz);
         // Out of reach of the rim: nothing about the cup applies, whatever
@@ -764,7 +802,7 @@
                 }
             }
             // Under the rim with no way back up: that is the ball holed.
-            var apex = b.y + (b.vy > 0 ? (b.vy * b.vy) / (2 * C.GRAVITY) : 0);
+            var apex = b.y + (b.vy > 0 ? (b.vy * b.vy) / (2 * gravityOf(hole)) : 0);
             if (b.y + C.BALL_R < cup.y - 0.01 && apex < cup.y - 0.02) {
                 b.y = cup.y - C.CUP_DEPTH + C.BALL_R;
                 b.vx = b.vy = b.vz = 0;
@@ -806,6 +844,7 @@
 
     function substep(world, dt, events) {
         var b = world.ball, hole = world.hole;
+        var grav = gravityOf(hole);
         world.time += dt;
 
         if (world.grounded) {
@@ -825,7 +864,7 @@
                 // Downhill acceleration on a tilted plane, projected into the
                 // horizontal: g * gradient / (1 + |gradient|²).
                 if (sx || sz) {
-                    var k = C.GRAVITY / (1 + sx * sx + sz * sz);
+                    var k = grav / (1 + sx * sx + sz * sz);
                     b.vx -= k * sx * dt;
                     b.vz -= k * sz * dt;
                 }
@@ -915,7 +954,7 @@
                     b.vz += (-ovx / gs) * sa;
                 }
             }
-            b.vy -= C.GRAVITY * dt;
+            b.vy -= grav * dt;
             b.x += b.vx * dt;
             b.z += b.vz * dt;
             b.y += b.vy * dt;
@@ -1175,6 +1214,7 @@
         groundSpeed: groundSpeed,
         frictionOf: frictionOf,
         holdOf: holdOf,
+        gravityOf: gravityOf,
         padGrad: padGrad,
         slopeAt: slopeAt,
         outOfBounds: outOfBounds,
