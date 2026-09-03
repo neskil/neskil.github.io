@@ -500,6 +500,68 @@ window.VizApp = (function () {
         return o;
     }
 
+    /* ---------- quality ladder ----------
+     *
+     * For the scenes whose cost is per-pixel rather than per-thing: a ray
+     * march has no fixed budget, it just costs whatever the window is worth,
+     * so on a weak GPU it is the one thing here that can make the page
+     * unresponsive. A softer picture is a better outcome than a stuck one.
+     *
+     * Rungs run cheapest-first and carry whatever the scene wants alongside
+     * `scale` — march length, iteration count. `apply` is handed the chosen
+     * rung whenever it changes, and the renderer's pixel ratio is set from it.
+     */
+    function makeQualityLadder(renderer, rungs, apply) {
+        var dpr = window.devicePixelRatio || 1;
+        var cap = rungs.length - 1;
+        while (cap > 0 && rungs[cap].scale > dpr) cap--;
+
+        var level = cap, lastGrade = 0, frames = 0, good = 0;
+
+        function set() {
+            renderer.setPixelRatio(rungs[level].scale);
+            renderer.setSize(window.innerWidth, window.innerHeight, false);
+            apply(rungs[level]);
+        }
+
+        set();
+
+        return {
+            /* Timed off the clock, not off the loop's dt. The loop clamps dt
+             * to 100ms so a backgrounded tab does not resume with a huge step
+             * — right for animation, wrong for measurement, because the frames
+             * this needs to catch are exactly the ones whose real cost the
+             * clamp throws away. Fed clamped values, a machine managing one
+             * frame every two seconds looks like it is managing ten. */
+            tick: function () {
+                var now = (window.performance && performance.now) ? performance.now() : Date.now();
+                if (!lastGrade) { lastGrade = now; frames = 0; return; }
+
+                frames++;
+                var elapsed = (now - lastGrade) / 1000;
+                if (elapsed < 1.1) return;      /* one slow frame is not a verdict */
+
+                var fps = frames / elapsed;
+                lastGrade = now; frames = 0;
+
+                if (fps < 28 && level > 0) {
+                    level--; good = 0; set();
+                } else if (fps > 56 && level < cap) {
+                    /* Two clear windows before climbing back, or a scene that
+                     * only just manages the higher rung oscillates. */
+                    if (++good >= 2) { level++; good = 0; set(); }
+                } else {
+                    good = 0;
+                }
+            },
+
+            dispose: function () {
+                renderer.setPixelRatio(Math.min(dpr, 2));
+                renderer.setSize(window.innerWidth, window.innerHeight, false);
+            }
+        };
+    }
+
     function clamp(v, lo, hi) { return v < lo ? lo : (v > hi ? hi : v); }
 
     /* How far a camera has to sit for a sphere of the given radius to fit on
@@ -517,6 +579,7 @@ window.VizApp = (function () {
         ROSTER: ROSTER,
         register: register,
         makeOrbit: makeOrbit,
+        makeQualityLadder: makeQualityLadder,
         clamp: clamp,
         fitDistance: fitDistance,
         select: select,

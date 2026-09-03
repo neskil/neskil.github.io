@@ -20,19 +20,7 @@
     var mouse = { x: 0, y: 0, tx: 0, ty: 0 };
     var depth = 0, depthTarget = 0;
 
-    /* This is the one scene whose cost scales with pixels rather than with
-     * things, so it is also the only one that can bring a weak GPU to its
-     * knees — and an unresponsive page is worse than a slightly softer cloud.
-     * The ladder trades resolution and march length for frame rate, measured
-     * rather than guessed from the user agent. */
-    var LADDER = [
-        { scale: 0.55, steps: 28 },
-        { scale: 0.75, steps: 36 },
-        { scale: 1.00, steps: 44 },
-        { scale: 1.25, steps: 48 }
-    ];
-    var level = 3, levelCap = 3;
-    var lastGrade = 0, fpsFrames = 0, goodWindows = 0;
+    var ladder = null;
 
     var FRAG = [
         'precision highp float;',
@@ -171,49 +159,6 @@
         '}'
     ].join('\n');
 
-    function applyLevel(renderer) {
-        renderer.setPixelRatio(LADDER[level].scale);
-        renderer.setSize(window.innerWidth, window.innerHeight, false);
-        if (mat) mat.uniforms.uSteps.value = LADDER[level].steps;
-    }
-
-    /* Sampled over roughly a second: a single slow frame is a garbage
-     * collection or a tab regaining focus, not a verdict on the machine.
-     *
-     * Timed off the clock rather than off the loop's dt on purpose. The shell
-     * clamps dt to 100ms so that a tab coming back from the background does
-     * not resume with a thirty-second step — right for animation, wrong for
-     * measurement, because the frames this wants to catch are exactly the ones
-     * whose real cost the clamp throws away. Fed clamped values a machine
-     * managing one frame every two seconds looks like it is managing ten. */
-    function gradeFrame() {
-        var now = (window.performance && performance.now) ? performance.now() : Date.now();
-        if (!lastGrade) { lastGrade = now; fpsFrames = 0; return; }
-
-        fpsFrames++;
-        var elapsed = (now - lastGrade) / 1000;
-        if (elapsed < 1.1) return;
-
-        var fps = fpsFrames / elapsed;
-        lastGrade = now; fpsFrames = 0;
-
-        if (fps < 28 && level > 0) {
-            level--;
-            goodWindows = 0;
-            applyLevel(ctxRef.renderer);
-        } else if (fps > 56 && level < levelCap) {
-            /* Two clear windows before climbing back, or a scene that only
-             * just manages the higher rung oscillates between the two. */
-            if (++goodWindows >= 2) {
-                level++;
-                goodWindows = 0;
-                applyLevel(ctxRef.renderer);
-            }
-        } else {
-            goodWindows = 0;
-        }
-    }
-
     function onWheel(e) {
         e.preventDefault();
         depthTarget = VizApp.clamp(depthTarget + e.deltaY * 0.0016, -1.2, 1.6);
@@ -262,11 +207,16 @@
              * fixed number of things however big the window is; this draws a
              * 56-step march per pixel, so it opts out of the retina buffer
              * and hands it back on the way out. */
-            levelCap = 3;
-            while (levelCap > 0 && LADDER[levelCap].scale > (window.devicePixelRatio || 1)) levelCap--;
-            level = levelCap;
-            lastGrade = 0; fpsFrames = 0; goodWindows = 0;
-            applyLevel(ctx.renderer);
+            /* Cheapest rung first. Resolution and march length come down
+             * together — both cost the same kind of time here. */
+            ladder = VizApp.makeQualityLadder(ctx.renderer, [
+                { scale: 0.55, steps: 28 },
+                { scale: 0.75, steps: 36 },
+                { scale: 1.00, steps: 44 },
+                { scale: 1.25, steps: 48 }
+            ], function (rung) {
+                mat.uniforms.uSteps.value = rung.steps;
+            });
 
             canvasEl = ctx.canvas;
             canvasEl.addEventListener('wheel', onWheel, { passive: false });
@@ -278,7 +228,7 @@
         },
 
         update: function (dt, t) {
-            gradeFrame();
+            ladder.tick();
             mat.uniforms.uTime.value = ctxRef.reducedMotion ? t * 0.25 : t;
 
             /* Ease towards the pointer rather than tracking it: a raw value
@@ -308,10 +258,8 @@
 
         dispose: function () {
             if (canvasEl) canvasEl.removeEventListener('wheel', onWheel);
-            if (ctxRef && ctxRef.renderer) {
-                ctxRef.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
-                ctxRef.renderer.setSize(window.innerWidth, window.innerHeight, false);
-            }
+            if (ladder) ladder.dispose();
+            ladder = null;
             VizApp.readout.hide();
             canvasEl = null; ctxRef = null; quad = null; mat = null;
         }

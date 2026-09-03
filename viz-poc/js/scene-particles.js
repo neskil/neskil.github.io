@@ -21,6 +21,7 @@
 
     var scene, camera, orbit, points, geo, mat;
     var count = 0, shapeIdx = 0, phase = 0, stage = '';
+    var renderer = null;
     var burst = 0;
     var vw = 1, vh = 1;
     var mouseWorld = new THREE.Vector3();
@@ -274,6 +275,7 @@
         accent: '#a78bfa',
 
         init: function (ctx) {
+            renderer = ctx.renderer;
             scene = new THREE.Scene();
             camera = new THREE.PerspectiveCamera(45, ctx.width / ctx.height, 0.1, 100);
             scene.add(build(ctx));
@@ -321,8 +323,10 @@
                 var need = VizApp.fitDistance(camera, 2.0);
                 if (orbit.tRadius < need) { orbit.tRadius = need; orbit.radius = need; }
             }
+            /* Buffer pixels, not CSS pixels — see the same note in the globe. */
+            var dpr = renderer ? renderer.getPixelRatio() : 1;
             mat.uniforms.uScale.value =
-                h / (2 * Math.tan(camera.fov * Math.PI / 360)) * 0.0032;
+                h / (2 * Math.tan(camera.fov * Math.PI / 360)) * 0.0032 * dpr;
         },
 
         onPointerMove: function (p) {
@@ -348,7 +352,7 @@
         dispose: function () {
             if (orbit) orbit.dispose();
             VizApp.readout.hide();
-            points = null; geo = null; mat = null;
+            renderer = null; points = null; geo = null; mat = null;
         }
     });
 })();
