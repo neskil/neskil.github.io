@@ -29,6 +29,10 @@
     <priority>0.8</priority>
   </url>
   <url>
+    <loc>https://neskil.github.io/viz-poc/</loc>
+    <priority>0.8</priority>
+  </url>
+  <url>
     <loc>https://neskil.github.io/converter/</loc>
     <priority>0.7</priority>
   </url>

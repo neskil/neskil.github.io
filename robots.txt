@@ -16,10 +16,4 @@ Disallow: /cargo-lander/probe-screenshot.html
 Disallow: /supply-chain/audio-check.html
 Disallow: /supply-chain/research-zoom-check.html
 
-# Work in progress, reachable only from the "Under Construction" card on the
-# landing page. Same belt-and-braces as above — it also carries a noindex tag —
-# and it is deliberately absent from sitemap.xml. Both lines come out when it
-# graduates to a real card; see viz-poc/PLAN.md.
-Disallow: /viz-poc/
-
 Sitemap: https://neskil.github.io/sitemap.xml
