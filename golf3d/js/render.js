@@ -630,6 +630,15 @@
                 // what its trunk is made of, and it is matt because bark is.
                 tree: new THREE.MeshLambertMaterial({
                     color: new THREE.Color(0x6b503a).multiplyScalar(1 - wet * 0.25)
+                }),
+                /* Nor is a rock (see addRock). Matt for the same reason bark
+                   is, and tinted per theme off the same key the horizon ridge
+                   is cut from, so the stone on a hole and the stone on the
+                   skyline behind it are the same rock. */
+                rock: new THREE.MeshLambertMaterial({
+                    color: new THREE.Color(
+                        (theme.ridge && theme.ridge.cap) || 0x8b8578
+                    ).multiplyScalar((1 - wet * 0.22) * 0.86)
                 })
             },
             // Two leaf greens, so a treeline is not one colour repeated.
@@ -1722,8 +1731,37 @@
         }
     }
 
+    /* A rock.
+
+       Solid all the way up, unlike a tree — courses.js says why — so the three
+       lumps drawn here are the three lumps the ball bounces off, near enough
+       that nothing about it reads as a lie. Every dimension comes out of where
+       it stands, through the same hash a canopy uses, so an outcrop of five is
+       five different stones and it is the same five on every load. */
+    function addRock(group, wall) {
+        var B = P.wallBox(wall, 0);
+        var a = treeHash(B.cx * 1.31, B.cz), b = treeHash(B.cz, B.cx * 2.07);
+        var s = Math.max(B.hw, B.hd), i, mesh, geo, f;
+        for (i = 0; i < 3; i++) {
+            f = 1 - i * 0.32;
+            geo = new THREE.IcosahedronGeometry(s * f * (0.9 + a * 0.5), 0);
+            geo.scale(1, 0.72 + b * 0.45, 1);
+            mesh = new THREE.Mesh(geo, R.surf.walls.rock);
+            mesh.position.set(
+                B.cx + (i ? s * (a - 0.42) * (i === 1 ? 1.3 : -1.2) : 0),
+                B.base + wall.h * (i ? 0.24 : 0.46),
+                B.cz + (i ? s * (b - 0.42) * (i === 1 ? -1.2 : 1.3) : 0)
+            );
+            mesh.rotation.set(a * 6.283, (a + b) * 3.141, b * 6.283);
+            mesh.castShadow = true;
+            mesh.receiveShadow = true;
+            group.add(mesh);
+        }
+    }
+
     function addWall(group, wall) {
         if (wall.kind === 'tree') { addTree(group, wall); return; }
+        if (wall.kind === 'rock') { addRock(group, wall); return; }
         var B = P.wallBox(wall, 0);
         var geo = new THREE.BoxGeometry(wall.w, wall.h, wall.d);
         // One material per kind, shared by every wall wearing it (see

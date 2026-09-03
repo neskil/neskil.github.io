@@ -988,16 +988,67 @@
                sand pad level with its neighbours is fine by construction, and
                one at the foot of somebody else's slope (Highland's 'Over the
                Top' keeps its sand exactly there, on purpose) is that hole's
-               business rather than this assertion's. */
+               business rather than this assertion's.
+
+               The step is measured against the ground the bunker is cut into
+               rather than against zero, and that distinction is not pedantry —
+               it is the whole assertion on a hole with terrain on it. Sunk
+               used to be read straight off the pad's own `y`, which says how
+               far below *sea level* the sand is, and on the flat holes this
+               was written for the two numbers are the same. On a hole whose
+               fairway falls a metre and a half into a hollow they are not: the
+               bunker in Dunmore's 'Gorse Corner' lies DIP below the fairway
+               beside it, exactly as authored, and read as sunk a third of a
+               unit because the whole row it is in has descended. What a ball
+               has to climb is the drop at the *rim*, so that is what is
+               sampled — the ground a probe's width outside each edge, against
+               the sand at the edge itself. */
             var worstDip = 0, worstDipName = '';
             var worstFloor = 0, worstFloorName = '', worstSandGrad = 0, sandGradName = '';
             var scooped = 0;
+
+            // The worst drop from the ground outside a pad's edge on to the
+            // pad itself. Zero for a bunker flush with its surroundings.
+            function sunkBy(hole, p) {
+                var probe = 0.3, worst = 0, x, z;
+                function edge(px, pz, dx, dz) {
+                    var i, q, out = null, hh;
+                    for (i = 0; i < hole.pads.length; i++) {
+                        q = hole.pads[i];
+                        if (q === p || q.kind === 'sand') continue;
+                        if (!P.padContains(q, px + dx * probe, pz + dz * probe)) continue;
+                        // The probe says *which* pad is outside; the height is
+                        // read back at the edge itself. Reading it at the probe
+                        // would add whatever that pad's own slope covers in
+                        // 0.3 of a unit, and report a flush bunker on a
+                        // hillside as a step nothing climbs out of.
+                        hh = P.padHeight(q, px, pz);
+                        if (out === null || hh > out) out = hh;
+                    }
+                    if (out === null) return;
+                    var drop = out - P.padHeight(p, px, pz);
+                    if (drop > worst) worst = drop;
+                }
+                for (x = p.x; x <= p.x + p.w + 1e-9; x += 0.3) {
+                    edge(Math.min(x, p.x + p.w), p.z, 0, -1);
+                    edge(Math.min(x, p.x + p.w), p.z + p.d, 0, 1);
+                }
+                for (z = p.z; z <= p.z + p.d + 1e-9; z += 0.3) {
+                    edge(p.x, Math.min(z, p.z + p.d), -1, 0);
+                    edge(p.x + p.w, Math.min(z, p.z + p.d), 1, 0);
+                }
+                return worst;
+            }
+
             ALL.forEach(function (entry) {
                 entry.hole.pads.forEach(function (p) {
                     if (p.kind !== 'sand') return;
-                    if (p.y < 0 && -p.y > worstDip) {
-                        worstDip = -p.y;
-                        worstDipName = entry.course.id + '/' + entry.hole.name;
+                    if (p.y < 0) {
+                        var sunk = sunkBy(entry.hole, p);
+                        if (sunk > worstDip) {
+                            worstDip = sunk;
+                            worstDipName = entry.course.id + '/' + entry.hole.name;
+                        }
                     }
                     if (!p.bumps || !p.bumps.length) return;
                     scooped++;

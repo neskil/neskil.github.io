@@ -209,12 +209,13 @@
             grass: ['#5f9a4e', '#548c46'],
             rail: 0x8a7f93,
             /* Lower than the other drawn courses, and for a reason the other
-               drawn courses do not have: Dunmore has a ravine on it, and the
-               floor of that ravine is nearly a unit below the hole. A surround
+               drawn courses do not have: Dunmore has a gorge on it, and the
+               floor of that gorge is over two units below the hole. A surround
                at the usual hand's breadth would be drawn straight across it and
                the one landform on the course you can actually fall into would
-               be invisible from the tee. */
-            surroundY: -1.5, surround: 'floor', floor: '#5a4a63',
+               be invisible from the tee — so this number is the ravine's own
+               depth with room to spare, and it moves when the ravine does. */
+            surroundY: -3.2, surround: 'floor', floor: '#5a4a63',
             ridge: { colour: '#4d4763', cap: '#8f86a6', peak: 11, rough: 0.50 },
             relief: 3.6,
             water: 0x35657f,
