@@ -21,9 +21,10 @@
     var scene, camera, orbit, ray, ndc;
     var towers = [], labels = [];
     var hovered = null, pinned = null;
+    var ground = null;
+    var spinRate = 0.045, metric = 'loc', showLabels = true;
     var down = { x: 0, y: 0 };
     var vw = 1, vh = 1;
-    var legendEl = null;
 
     /* ---------- layout ---------- */
 
@@ -134,6 +135,10 @@
             mesh.position.set((cells[i][0] - offX) * CELL, 0, (cells[i][1] - offZ) * CELL);
             mesh.userData.block = b;
             mesh.userData.height = h;
+            /* Kept so the height control can rebuild the box without
+             * re-deriving a footprint that never changes. */
+            mesh.userData.w = w;
+            mesh.userData.d = d;
             group.add(mesh);
             towers.push(mesh);
 
@@ -143,6 +148,32 @@
             labels.push(label);
         }
         return group;
+    }
+
+    function metricValue(b, m) {
+        return m === 'files' ? b.files : (m === 'commits' ? b.commits : b.loc);
+    }
+
+    /* Swap what height means. Only the box is rebuilt — footprint, position,
+     * colour and the window pattern all stand for something else and must not
+     * move when you change the vertical axis, or the city looks like a
+     * different city rather than the same one re-measured. */
+    function rebuildHeights() {
+        var maxV = 1, i;
+        for (i = 0; i < towers.length; i++) {
+            maxV = Math.max(maxV, metricValue(towers[i].userData.block, metric));
+        }
+        for (i = 0; i < towers.length; i++) {
+            var mesh = towers[i];
+            var b = mesh.userData.block;
+            var h = 2.0 + Math.pow(metricValue(b, metric) / maxV, 0.72) * 19;
+            var g = new THREE.BoxGeometry(mesh.userData.w, h, mesh.userData.d);
+            g.translate(0, h / 2, 0);
+            mesh.geometry.dispose();
+            mesh.geometry = g;
+            mesh.userData.height = h;
+            labels[i].position.y = h + 1.4;
+        }
     }
 
     /* ---------- labels ---------- */
@@ -228,6 +259,7 @@
             var u = towers[i].material.uniforms;
             u.uHover.value = towers[i] === focus ? 1 : 0;
             u.uDim.value = focus ? (towers[i] === focus ? 1 : 0.42) : 1;
+            labels[i].visible = showLabels;
             labels[i].material.opacity = focus
                 ? (towers[i] === focus ? 1 : 0.14)
                 : LABEL_REST;
@@ -252,20 +284,6 @@
         ], withLink ? { href: b.href, label: 'Open ' + b.label } : null);
     }
 
-    /* ---------- legend ---------- */
-
-    function buildLegend() {
-        var el = document.createElement('div');
-        el.className = 'legend glass';
-        el.innerHTML =
-            '<div class="legend-head">How to read it</div>' +
-            '<div class="legend-row"><span class="legend-bar"></span>Height &middot; lines of code</div>' +
-            '<div class="legend-row"><span class="legend-plot"></span>Footprint &middot; file count</div>' +
-            '<div class="legend-row"><span class="legend-ramp"></span>Windows &middot; recently touched</div>';
-        document.body.appendChild(el);
-        return el;
-    }
-
     /* ---------- scene module ---------- */
 
     VizApp.register({
@@ -278,6 +296,31 @@
         hint: 'Drag to orbit · scroll to zoom · click a tower to open it',
         accent: '#7dd3fc',
 
+        legend: [
+            { swatch: 'bar',  label: 'Height \u00b7 lines of code' },
+            { swatch: 'plot', label: 'Footprint \u00b7 files' },
+            { swatch: 'ramp', label: 'Windows \u00b7 recently touched' }
+        ],
+
+        controls: function () {
+            return [
+                { id: 'spin', type: 'slider', label: 'Spin', min: 0, max: 0.30, step: 0.005,
+                  value: spinRate,
+                  format: function (v) { return v === 0 ? 'still' : v.toFixed(2) + ' rad/s'; },
+                  apply: function (v) { spinRate = v; if (orbit) orbit.spin = v; } },
+                { id: 'height', type: 'choice', label: 'Tower height',
+                  value: metric,
+                  options: [['loc', 'Lines'], ['files', 'Files'], ['commits', 'Commits']],
+                  apply: function (v) { metric = v; rebuildHeights(); } },
+                { id: 'labels', type: 'toggle', label: 'Name plates',
+                  value: true,
+                  apply: function (v) { showLabels = v; setHighlight(); } },
+                { id: 'ground', type: 'toggle', label: 'Ground grid',
+                  value: true,
+                  apply: function (v) { if (ground) ground.visible = v; } }
+            ];
+        },
+
         init: function (ctx) {
             scene = new THREE.Scene();
             scene.fog = new THREE.Fog(0x070b16, 70, 240);
@@ -285,7 +328,8 @@
             ray = new THREE.Raycaster();
             ndc = new THREE.Vector2();
 
-            scene.add(buildGround());
+            ground = buildGround();
+            scene.add(ground);
             scene.add(buildCity(window.VizCity));
 
             orbit = VizApp.makeOrbit(camera, ctx.canvas, {
@@ -296,10 +340,9 @@
                  * into a floor plan. */
                 phi: 66 * DEG, minPhi: 18 * DEG, maxPhi: 84 * DEG,
                 target: new THREE.Vector3(0, 7, 0),
-                spin: ctx.reducedMotion ? 0 : 0.045
+                spin: ctx.reducedMotion ? 0 : spinRate
             });
 
-            legendEl = buildLegend();
             vw = ctx.width; vh = ctx.height;
             this.resize(ctx.width, ctx.height);
             return { scene: scene, camera: camera };
@@ -359,8 +402,6 @@
 
         dispose: function () {
             if (orbit) orbit.dispose();
-            if (legendEl && legendEl.parentNode) legendEl.parentNode.removeChild(legendEl);
-            legendEl = null;
             document.body.style.cursor = '';
             towers = []; labels = [];
             hovered = null; pinned = null;

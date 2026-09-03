@@ -19,6 +19,7 @@
     var scene, camera, quad, mat, canvasEl, ctxRef;
     var mouse = { x: 0, y: 0, tx: 0, ty: 0 };
     var depth = 0, depthTarget = 0;
+    var timeGain = 1, nebTime = 0;
 
     var ladder = null;
 
@@ -29,6 +30,10 @@
         'uniform vec2 uMouse;',
         'uniform float uDepth;',
         'uniform float uSteps;',
+        'uniform float uDensity;',
+        'uniform float uWarp;',
+        'uniform float uGlow;',
+        'uniform float uParallax;',
         'varying vec2 vUv;',
 
         'float hash13(vec3 p) {',
@@ -74,7 +79,7 @@
          * on a slow machine. The z axis goes unwarped — the ray runs along it
          * and the displacement barely shows. */
         '  vec2 w = vec2(vnoise(q * 1.7), vnoise(q * 1.7 + 7.3)) - 0.5;',
-        '  q.xy += w * 0.62;',
+        '  q.xy += w * uWarp;',
         '  float d = fbm(q * 2.1);',
         /* Subtract a higher frequency rather than adding one: it eats holes in
          * the cloud, and the holes are what read as filaments. Adding detail
@@ -83,7 +88,7 @@
         /* Without a falloff the noise fills the frame edge to edge and reads
          * as fog. The shell is what makes it a cloud with somewhere to be. */
         '  float shell = 1.0 - smoothstep(0.30, 1.45, length(p * vec3(0.78, 1.0, 0.78)));',
-        '  return max(0.0, (d - 0.36) * shell * 3.6);',
+        '  return max(0.0, (d - 0.36) * shell * 3.6 * uDensity);',
         '}',
 
         'vec3 stars(vec3 rd) {',
@@ -109,7 +114,7 @@
         /* Parallax: swing the ray, do not move the cloud. Rotating the camera
          * gives real depth cues between the near and far side of the volume;
          * translating the noise just slides a texture. */
-        '  float ax = uMouse.x * 0.30, ay = uMouse.y * 0.22;',
+        '  float ax = uMouse.x * 0.30 * uParallax, ay = uMouse.y * 0.22 * uParallax;',
         '  float ca = cos(ax), sa = sin(ax);',
         '  rd.xz = mat2(ca, -sa, sa, ca) * rd.xz;',
         '  ro.xz = mat2(ca, -sa, sa, ca) * ro.xz;',
@@ -142,7 +147,7 @@
         '      float heat = smoothstep(0.05, 0.55, dens);',
         '      vec3 emit = mix(vec3(0.09, 0.32, 0.92), vec3(0.96, 0.20, 0.58), heat);',
         '      emit = mix(emit, vec3(1.00, 0.80, 0.52), pow(heat, 3.2) * 0.45);',
-        '      col += emit * dens * trans * STEP * 5.2;',
+        '      col += emit * dens * trans * STEP * uGlow;',
         '      trans *= exp(-dens * STEP * 2.6);',
         '      if (trans < 0.02) break;',
         '    }',
@@ -174,6 +179,33 @@
         hint: 'Move the pointer to look around · scroll to move through it',
         accent: '#f472b6',
 
+        controls: function () {
+            return [
+                { id: 'drift', type: 'slider', label: 'Drift', min: 0, max: 3, step: 0.05,
+                  value: 1,
+                  format: function (v) { return v === 0 ? 'frozen' : v.toFixed(2) + '\u00d7'; },
+                  apply: function (v) { timeGain = v; } },
+                { id: 'dens', type: 'slider', label: 'Density', min: 0.55, max: 1.6, step: 0.02,
+                  value: 1,
+                  format: function (v) { return v.toFixed(2) + '\u00d7'; },
+                  apply: function (v) { mat.uniforms.uDensity.value = v; } },
+                { id: 'warp', type: 'slider', label: 'Curl', min: 0, max: 1.4, step: 0.02,
+                  value: 0.62,
+                  format: function (v) { return v.toFixed(2); },
+                  apply: function (v) { mat.uniforms.uWarp.value = v; } },
+                { id: 'glow', type: 'slider', label: 'Brightness', min: 2, max: 9, step: 0.2,
+                  value: 5.2,
+                  format: function (v) { return v.toFixed(1); },
+                  apply: function (v) { mat.uniforms.uGlow.value = v; } },
+                { id: 'parallax', type: 'slider', label: 'Parallax', min: 0, max: 2, step: 0.05,
+                  value: 1,
+                  format: function (v) { return v === 0 ? 'locked' : v.toFixed(2) + '\u00d7'; },
+                  apply: function (v) { mat.uniforms.uParallax.value = v; } },
+                { id: 'recentre', type: 'action', label: 'Back to the middle',
+                  apply: function () { depthTarget = 0; } }
+            ];
+        },
+
         init: function (ctx) {
             ctxRef = ctx;
             scene = new THREE.Scene();
@@ -188,7 +220,11 @@
                     uTime: { value: 0 },
                     uMouse: { value: new THREE.Vector2(0, 0) },
                     uDepth: { value: 0 },
-                    uSteps: { value: 48 }
+                    uSteps: { value: 48 },
+                    uDensity: { value: 1 },
+                    uWarp: { value: 0.62 },
+                    uGlow: { value: 5.2 },
+                    uParallax: { value: 1 }
                 },
                 vertexShader: [
                     'varying vec2 vUv;',
@@ -223,13 +259,16 @@
 
             mouse.x = mouse.y = mouse.tx = mouse.ty = 0;
             depth = depthTarget = 0;
+            nebTime = 0;
+            timeGain = 1;
             this.resize(ctx.width, ctx.height);
             return { scene: scene, camera: camera };
         },
 
         update: function (dt, t) {
             ladder.tick();
-            mat.uniforms.uTime.value = ctxRef.reducedMotion ? t * 0.25 : t;
+            nebTime += dt * timeGain * (ctxRef.reducedMotion ? 0.25 : 1);
+            mat.uniforms.uTime.value = nebTime;
 
             /* Ease towards the pointer rather than tracking it: a raw value
              * makes the whole frame twitch, because every pixel moves. */
