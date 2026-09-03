@@ -20,7 +20,10 @@ window.VizApp = (function () {
         { id: 'globe',     label: 'Trade flows' },
         { id: 'city',      label: 'Site as a city' },
         { id: 'particles', label: 'Particle field' },
-        { id: 'nebula',    label: 'Nebula' }
+        { id: 'nebula',    label: 'Nebula' },
+        { id: 'boids',     label: 'Flocking' },
+        { id: 'mandelbulb',label: 'Mandelbulb' },
+        { id: 'commits',   label: 'Commit helix' }
     ];
 
     var scenes = {};        // id -> scene module
