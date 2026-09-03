@@ -257,24 +257,46 @@ already on the screen:
   from the tee, and it is the difference between "the game moved my ball" and
   "I came over the top of it".
 
-The difficulty is two numbers and both run on the *same* `SPRAY_CURVE` the
-spray does, so the gate tightens exactly where the shot gets wild rather than on
-a schedule of its own:
+The difficulty is two numbers, a zone that narrows and a marker that speeds up,
+but **the number to tune against is neither of them**: it is the time the marker
+spends inside the zone, `2·win / speed`, because that is the one the player
+experiences. The gate originally ran both on `SPRAY_CURVE`, the same exponential
+as the spray, which is tidy — the gate tightens exactly where the shot gets
+wild — and was wrong in one specific way. The spray is allowed to be nothing for
+most of the meter and everything at the end, because nobody is being asked to
+*do* anything about it. The gate is. On that curve the demand fell off a cliff
+in the last quarter of the wind-up and bottomed out at **60 ms**, which is not a
+hard shot: it is shorter than the time it takes to see the marker arrive and
+move a thumb, so a full thrash was a coin toss with extra steps.
 
-| overdraw | zone | marker | window |
-| --- | --- | --- | --- |
-| a sliver | 0.23 bar | 0.72 bar/s | ~320 ms |
-| half | 0.20 bar | 0.91 bar/s | ~215 ms |
-| all of it | 0.09 bar | 1.50 bar/s | ~60 ms |
+So the gate keeps the ramp and takes the cliff out. It has its own `SWING.CURVE`
+(1.8 against the spray's 3.2), and the ends are set so the tightest demand on
+the bar is still reactable:
 
-Four gates, rotating by stroke rather than at random — meeting all four in the
-first four thrashes is how they get learned, and a random pick can hand you the
-same one three times before you have seen another. All four are the same golf
-swing with more or less of it to do: **tempo** (one pass; strike on the line),
-**return** (up to the power you loaded, turn, strike it coming down),
-**double** (the same, plus a press at the top, whose accuracy the strike
-inherits) and **fade** (tempo, with the marker dark for the run in and back
-after — rhythm, not sight).
+| overdraw | zone | marker | window | run-up |
+| --- | --- | --- | --- | --- |
+| a sliver | 0.30 bar | 0.60 bar/s | ~500 ms | ~1280 ms |
+| half | 0.26 bar | 0.72 bar/s | ~365 ms | ~1075 ms |
+| all of it | 0.16 bar | 1.00 bar/s | ~160 ms | ~770 ms |
+
+The run-up column is the other half of "reactable" and the half that is easy to
+forget: a marker you can only see for a moment before it arrives cannot be
+anticipated however wide the zone is. `tests.html` asserts a floor under both,
+and that pair of assertions exists because the 60 ms version shipped.
+
+Four gates, rotating **by hole** rather than by stroke or at random. By stroke
+meant the rhythm you had just started to read was replaced by a different one on
+the very next thrash — four gates met at once and none of them learned — and a
+random pick can hand you the same one three times before you have seen another.
+A hole is long enough to get the feel of one and short enough that a round still
+meets all four. All four are the same golf swing with more or less of it to do:
+**tempo** (one pass; strike on the line), **return** (up to the power you
+loaded, turn, strike it coming down), **double** (the same, plus a press at the
+top, whose accuracy the strike inherits) and **fade** (tempo, with the marker
+dark for the run in and back after — rhythm, not sight).
+
+The first `SWING.ARM` of overdraw does not arm the gate at all: a hoop to jump
+through over a shot that can barely go wrong is a hoop for its own sake.
 
 `js/swing.js` knows nothing about the DOM or three.js: it is arithmetic over a
 plain object, which is what lets `tests.html` cover all four gates, both edges

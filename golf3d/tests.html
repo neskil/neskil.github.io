@@ -2003,10 +2003,39 @@
                 'first ' + (SW.windowFor(0) - SW.windowFor(0.25)).toFixed(3) +
                 ' vs last ' + (SW.windowFor(0.75) - SW.windowFor(1)).toFixed(3));
 
+            /* The number the player actually experiences, which is neither of
+               the two the gate is built from: how long the marker spends inside
+               the zone, in seconds. Width and speed are free to be retuned
+               against each other, and this is what neither of them is allowed
+               to break — a demand under about a seventh of a second is not a
+               hard shot, it is a coin toss, because it is shorter than the time
+               it takes to see the marker arrive and move a thumb.
+
+               It was 60ms at the top of the meter once, which is how this
+               assertion came to exist. */
+            (function () {
+                var floor = 0.15, worst = Infinity, worstAt = 0, t;
+                for (t = 0; t <= 1.0001; t += 0.05) {
+                    var ms = 2 * SW.windowFor(t) / SW.speedFor(t);
+                    if (ms < worst) { worst = ms; worstAt = t; }
+                }
+                assert('there is time to react at every point of the overdraw',
+                    worst >= floor,
+                    'tightest is ' + Math.round(worst * 1000) + 'ms at ' +
+                    Math.round(worstAt * 100) + '% overdraw');
+            })();
+
+            /* And the run in to it, which is the half that makes the demand
+               readable: a marker you can only see for a moment before it
+               arrives cannot be anticipated however wide the zone is. */
+            assert('and enough run-up to read the marker coming',
+                SW.markAt() / SW.speedFor(1) > 0.5,
+                Math.round(SW.markAt() / SW.speedFor(1) * 1000) + 'ms at a full thrash');
+
             assert('all four gates exist and are distinct',
                 SW.VARIANTS.length === 4 &&
                 SW.VARIANTS.length === SW.VARIANTS.filter(function (v, i, a) { return a.indexOf(v) === i; }).length);
-            assert('a round meets all four in its first four thrashes', (function () {
+            assert('a round meets all four in its first four holes', (function () {
                 var seen = {};
                 for (var i = 0; i < 4; i++) seen[SW.pick(i)] = 1;
                 return Object.keys(seen).length === 4;

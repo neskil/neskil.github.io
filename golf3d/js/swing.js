@@ -43,9 +43,13 @@
     var C = G3.CONFIG;
 
     /* The four gates in the order a round meets them. Kept as a list rather
-       than picked at random: meeting all four in the first four thrashes is
-       how they get learned, and a random one can hand you `fade` three times
-       before you have seen `tempo` once. */
+       than picked at random: meeting all four in order is how they get
+       learned, and a random one can hand you `fade` three times before you
+       have seen `tempo` once.
+
+       What is handed to `pick` is the *hole*, not the stroke — see game.js.
+       One gate per hole is the difference between learning a rhythm and being
+       shown a new one every time you wind the meter up. */
     var VARIANTS = ['tempo', 'return', 'double', 'fade'];
 
     function pick(n) {
@@ -56,12 +60,17 @@
        The white line the player can already see, as a fraction. */
     function markAt() { return 1 / (1 + C.OVERDRAW); }
 
-    /* The same exponential the spray is built on, so "harder" and "wilder"
-       bend together rather than drifting apart: nearly free where the overdraw
-       starts, and everything at the end of it. */
+    /* The same shape of exponential the spray is built on, and its own
+       constant. Sharing SPRAY_CURVE outright made "harder" and "wilder" bend
+       together, which reads well and played badly: the spray is allowed to be
+       nothing for most of the meter and everything at the end, because the
+       player is not being asked to *do* anything about it. The gate is, and a
+       demand that goes from comfortable to impossible over the last few pixels
+       of wind-up is one nobody can meet. So it keeps the ramp and takes the
+       cliff out — see CONFIG.SWING.CURVE. */
     function ease(over) {
         var t = Math.max(0, Math.min(1, over || 0));
-        var k = C.SPRAY_CURVE;
+        var k = C.SWING.CURVE;
         return (Math.exp(k * t) - 1) / (Math.exp(k) - 1);
     }
 

@@ -309,8 +309,13 @@
        which is what lets tests.html cover it without a browser. */
     var gate = null;
 
+    /* The gate is chosen by the hole, not by the stroke. Rotating it every time
+       the meter went past a full swing meant the rhythm you had just started to
+       read was replaced by a different one on the very next thrash — four gates
+       met at once and none of them learned. A hole is long enough to get the
+       feel of one and short enough that a round still meets all four. */
     function openGate(over) {
-        gate = SW.start(SW.pick(state.strokes), over, state.aim.power / maxPower());
+        gate = SW.start(SW.pick(state.holeIndex), over, state.aim.power / maxPower());
         A.tick(0.5);
         $('power-track').classList.add('gate');
         $('gate').hidden = false;

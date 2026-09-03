@@ -8,7 +8,7 @@
    — the renderer scales to the viewport, the simulation never sees a pixel. */
 window.G3 = window.G3 || {};
 
-G3.VERSION = '1.26.0';
+G3.VERSION = '1.27.0';
 
 G3.CONFIG = {
     BALL_R: 0.16,
@@ -150,27 +150,46 @@ G3.CONFIG = {
     SPIN_LAND: 0.25,
 
     /* The swing gate itself — what a shot past a full swing has to do to keep
-       its line. All of the difficulty is these six numbers.
+       its line. All of the difficulty is these numbers.
 
        WIN_* is the half-width of the strike zone as a fraction of the whole
        bar, at the start of the overdraw and at the end of it; SPEED_* is how
-       fast the marker crosses the bar at the same two points. Both run on the
-       spray curve, so the gate tightens exactly where the shot gets wild.
+       fast the marker crosses the bar at the same two points.
 
-       MISS_SPAN is how far past the edge of the zone counts as a total miss —
-       a fifth of the bar, so there is a graded middle rather than a cliff.
-       TOP_WEIGHT is how much of a bad backswing press the strike inherits on
-       the gate that has one. SPIN is how much bend a miss puts on the ball,
-       per radian of the line error it already cost. */
+       Both are set so that the *time* in the zone stays reactable, which is
+       the number a player actually experiences and the one worth tuning
+       against: 2·WIN/SPEED seconds. At the end of the overdraw that used to
+       come out at 60ms — a tenth of the time it takes to see something and
+       move — so a full thrash was not a hard shot, it was a coin toss with
+       extra steps. It is 160ms there now, and half a second at the bottom.
+
+       CURVE is the gate's own difficulty ramp, and it is deliberately gentler
+       than SPRAY_CURVE. Sharing the spray's 3.2 was tidy and it put nearly all
+       of the tightening in the last quarter of the meter, so the gate went
+       from comfortable to impossible over a few pixels of wind-up. It still
+       ramps — the last quarter costs more room than the first, which is what
+       makes winding it further a real decision — it just does it over the
+       whole bar rather than falling off a cliff at the end.
+
+       ARM is the sliver of overdraw that stays free. A gate over a shot that
+       can barely go wrong is a hoop for its own sake, so it is set where the
+       spray starts to be worth anything at all.
+
+       MISS_SPAN is how far past the edge of the zone counts as a total miss,
+       so there is a graded middle rather than a cliff. TOP_WEIGHT is how much
+       of a bad backswing press the strike inherits on the gate that has one.
+       SPIN is how much bend a miss puts on the ball, per radian of the line
+       error it already cost. */
     SWING: {
-        ARM: 0.05,
-        WIN_MAX: 0.115,
-        WIN_MIN: 0.045,
-        SPEED_MIN: 0.72,
-        SPEED_MAX: 1.50,
-        MISS_SPAN: 0.20,
-        TOP_WEIGHT: 0.45,
-        FADE_LEAD: 0.16,
+        ARM: 0.12,
+        WIN_MAX: 0.150,
+        WIN_MIN: 0.080,
+        SPEED_MIN: 0.60,
+        SPEED_MAX: 1.00,
+        CURVE: 1.8,
+        MISS_SPAN: 0.26,
+        TOP_WEIGHT: 0.30,
+        FADE_LEAD: 0.10,
         SPIN: 5.5
     },
 
