@@ -22,7 +22,9 @@ window.VizApp = (function () {
         { id: 'particles', label: 'Particle field' },
         { id: 'nebula',    label: 'Nebula' },
         { id: 'boids',     label: 'Flocking' },
-        { id: 'mandelbulb',label: 'Mandelbulb' }
+        { id: 'mandelbulb',label: 'Mandelbulb' },
+        { id: 'attractor', label: 'Attractors' },
+        { id: 'waves',     label: 'Wave field' }
     ];
 
     var scenes = {};        // id -> scene module
