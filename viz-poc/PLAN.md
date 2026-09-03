@@ -1,7 +1,7 @@
 # Data Room — plan
 
-A proof of concept for a "3D visualization" card on the landing page. Four
-visualizations behind one scene switcher. **All four are built** — what is
+A proof of concept for a "3D visualization" card on the landing page. Seven
+visualizations behind one scene switcher. **All seven are built** — what is
 left is the release work in the last section, not the scenes.
 
 Nothing here is released: the page carries `noindex`, sits behind a
@@ -12,7 +12,7 @@ Right now it is reachable from the **Under Construction** card (`#card-wip`) on
 the landing page, which is what `.agents/AGENTS.md` keeps that card's CSS
 around for.
 
-## The four scenes
+## The scenes
 
 In switcher order. Each is a self-contained module under `js/` that registers
 itself with `VizApp`; the shell owns the renderer, the loop and the HUD, so a
@@ -64,6 +64,32 @@ rather than with the number of things on screen, so it carries a measured
 quality ladder: if frames get slow it drops render scale and march length a
 rung at a time, and hands the full-resolution buffer back on the way out.
 
+### 5. Flocking — `scene-boids.js` ✅
+
+Three flocks of instanced agents on the classic three rules, plus one that
+keeps them in the bowl and one that follows the pointer. Nothing steers them.
+
+The rules are twenty lines; the work is the uniform grid that makes asking
+1.7M pairs a frame into asking twenty-seven cells per agent, binned by a
+counting sort into flat typed arrays with no per-frame allocation.
+
+### 6. Mandelbulb — `scene-mandelbulb.js` ✅
+
+A distance-estimator march of the power-8 Mandelbulb, coloured by orbit trap,
+with the exponent breathing between 7 and 9 so it folds petals rather than
+cutting between shapes. Shares the nebula's quality ladder and is stricter
+about it: iteration count comes down with resolution, because a rounder bulb
+is the right thing to lose first.
+
+### 7. Commit helix — `scene-commits.js` ✅
+
+Every commit in this repository on a spiral through time. Height is mostly the
+date so bursts and gaps show, size is lines moved, colour is which corner of
+the site it touched. Hover one to read its subject.
+
+The most self-referential thing here, and the one that dates fastest — see the
+gaps below.
+
 ## Graduating to a real card
 
 When this stops being a PoC, in this order:
@@ -85,10 +111,11 @@ When this stops being a PoC, in this order:
 
 ## Known gaps, if this goes further
 
-- **`js/data/city.js` is measured by hand.** It was accurate on 2026-09-02 and
-  drifts from the day it is written. Nothing breaks as it ages — a building is
-  just the wrong height — but a stale Data Room tower is the sort of thing
-  that reads as carelessness rather than as a snapshot.
+- **`js/data/city.js` and `js/data/commits.js` are measured by hand.** Both
+  were accurate on 2026-09-03 and drift from the day they are written. Nothing
+  breaks as they age — a building is the wrong height, the helix is short a few
+  turns — but a stale Data Room is the sort of thing that reads as carelessness
+  rather than as a snapshot. Regenerate both before shipping.
 - **The land mask is coarse and hand-drawn.** Good enough for a dot the size
   of a dot; not good enough for anyone to navigate by, and it will look wrong
   to anyone who knows a coastline well.

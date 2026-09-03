@@ -34,6 +34,7 @@
     var dots, ports, portGeo, arcs, arcGeo, pulses, pulseGeo, atmosphere;
     var legendEl = null;
 
+    var renderer = null;
     var portList = [], laneList = [];
     var laneSamples = [];            /* per lane: Float32Array of sampled points */
     var laneRange = [];              /* per lane: [firstVertex, vertexCount] in arcGeo */
@@ -579,6 +580,7 @@
         accent: '#38bdf8',
 
         init: function (ctx) {
+            renderer = ctx.renderer;
             scene = new THREE.Scene();
             camera = new THREE.PerspectiveCamera(38, ctx.width / ctx.height, 0.1, 200);
             group = new THREE.Group();
@@ -630,7 +632,11 @@
                 if (orbit.tRadius < need) { orbit.tRadius = need; orbit.radius = need; }
             }
 
-            var scale = h / (2 * Math.tan(camera.fov * DEG / 2)) * 0.0040;
+            /* gl_PointSize counts buffer pixels, and the buffer is the CSS
+             * size times the renderer's pixel ratio. Without that factor a dot
+             * sized in CSS pixels comes out half as big on a retina screen. */
+            var dpr = renderer ? renderer.getPixelRatio() : 1;
+            var scale = h / (2 * Math.tan(camera.fov * DEG / 2)) * 0.0040 * dpr;
             dots.material.uniforms.uScale.value = scale;
             ports.material.uniforms.uScale.value = scale;
             pulses.material.uniforms.uScale.value = scale;
@@ -684,6 +690,7 @@
             if (legendEl && legendEl.parentNode) legendEl.parentNode.removeChild(legendEl);
             legendEl = null;
             document.body.style.cursor = '';
+            renderer = null;
             portList = []; laneList = []; laneSamples = []; laneRange = []; pulseList = [];
             hovered = null; pinned = null;
         }

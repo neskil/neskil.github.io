@@ -42,7 +42,19 @@ html, body {
     touch-action: none;
 }
 
-#stage canvas { display: block; }
+/* The renderer is called with updateStyle off, so the canvas element carries
+   no CSS size of its own and would lay out at its buffer's pixel dimensions.
+   That is wrong in both directions: on a retina screen the buffer is twice the
+   viewport and the canvas overflows it, and whenever a scene's quality ladder
+   drops the pixel ratio the buffer shrinks and the canvas stops covering the
+   page. Pinning it to the viewport lets the buffer be any size it likes and
+   the browser scale it to fit — which is the entire point of rendering at a
+   lower resolution. */
+#stage canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+}
 
 /* A vignette sold as part of the art: it darkens the corners so the HUD
    glass has something to sit against no matter what the scene is doing. */
@@ -373,6 +385,13 @@ html, body {
 
 /* ---------- phones ---------- */
 
+/* The frame counter is a developer's affordance, and the switcher is the
+   navigation. Below this the two share the bottom edge and the counter wins on
+   z-order, so it stands down well before the phone breakpoint. */
+@media (max-width: 900px) {
+    #fps { display: none; }
+}
+
 @media (max-width: 680px) {
     .brand-tag { display: none; }
     .caption {
@@ -391,7 +410,6 @@ html, body {
     }
     .switcher { bottom: 0.7rem; }
     .scene-chip { padding: 0.45rem 0.7rem; font-size: 0.76rem; }
-    #fps { display: none; }
 }
 
 /* ---------- legend ----------
@@ -491,4 +509,16 @@ html, body {
     flex: 0 0 auto;
     border-radius: 2px;
     background: linear-gradient(to right, #123049, #2f6f9e, #8ad4fb);
+}
+
+/* A commit subject is a sentence, not a value — it does not fit the readout's
+   two-column rows, so it gets its own block under them. */
+.readout-note {
+    margin-top: 0.55rem;
+    padding-top: 0.5rem;
+    border-top: 1px solid var(--panel-line);
+    font-size: 0.75rem;
+    line-height: 1.45;
+    color: var(--ink);
+    overflow-wrap: anywhere;
 }
