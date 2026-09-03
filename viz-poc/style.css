@@ -1,27 +1,46 @@
 /* Data Room — proof of concept.
-   Follows the site theme from .agents/AGENTS.md: dark slate ground,
-   translucent glass panels, one vivid accent per scene. The accent is a
-   variable the active scene sets, so the chrome retints itself when you
-   switch scenes rather than every scene living inside the same blue box. */
+ *
+ * Follows the site theme from .agents/AGENTS.md: dark slate ground,
+ * translucent glass panels, one vivid accent per scene. The accent is a
+ * variable the active scene sets, so the chrome retints itself when you
+ * switch scenes rather than every scene living inside the same blue box.
+ *
+ * The rule that shapes everything here: the visualization is the page and
+ * this is instrumentation. Nothing is a permanent panel if it can be a
+ * button that opens one — on a phone, four lines of prose is half the
+ * screen. Scene notes and controls are folded away until asked for, the
+ * legend is a single line, and the whole lot folds to one chevron.
+ */
 
 :root {
-    --bg: #0f172a;
     --bg-deep: #070b16;
-    --ink: #e2e8f0;
-    --ink-dim: #94a3b8;
-    --ink-faint: #64748b;
+    /* Dark, but a step up from the near-black the first pass had. The panels
+       sit slightly above the background rather than dissolving into it, and
+       the secondary ink is bright enough to read at 0.7rem on a phone in
+       daylight. Still unmistakably dark mode — this is a lift, not a flip. */
+    --ink: #eaf0f8;
+    --ink-dim: #aab8ca;
+    --ink-faint: #7f8fa4;
 
     /* Overwritten per scene by VizApp.setAccent(). */
     --accent: #38bdf8;
     --accent-rgb: 56, 189, 248;
 
-    --panel: rgba(15, 23, 42, 0.62);
-    --panel-line: rgba(148, 163, 184, 0.16);
-    --radius: 14px;
-    --shadow: 0 18px 44px rgba(2, 6, 23, 0.55);
+    --panel: rgba(26, 36, 58, 0.70);
+    --panel-line: rgba(160, 178, 200, 0.20);
+    --radius: 11px;
+    --shadow: 0 10px 30px rgba(2, 6, 23, 0.5);
+
+    --gap: 0.55rem;
+    --safe-b: env(safe-area-inset-bottom, 0px);
 }
 
 * { box-sizing: border-box; }
+
+/* The panels below set `display` on a class, and a class selector beats the
+   user-agent sheet's `[hidden] { display: none }` — so without this every
+   element the shell folds away with `.hidden = true` stays on screen. */
+[hidden] { display: none !important; }
 
 html, body {
     margin: 0;
@@ -56,16 +75,14 @@ html, body {
     height: 100%;
 }
 
-/* A vignette sold as part of the art: it darkens the corners so the HUD
-   glass has something to sit against no matter what the scene is doing. */
 #vignette {
     position: fixed;
     inset: 0;
     pointer-events: none;
     background: radial-gradient(ellipse at 50% 45%,
-        rgba(0, 0, 0, 0) 38%,
-        rgba(3, 7, 18, 0.42) 78%,
-        rgba(3, 7, 18, 0.72) 100%);
+        rgba(0, 0, 0, 0) 42%,
+        rgba(3, 7, 18, 0.34) 80%,
+        rgba(3, 7, 18, 0.62) 100%);
     z-index: 1;
 }
 
@@ -73,99 +90,508 @@ html, body {
     background: var(--panel);
     border: 1px solid var(--panel-line);
     border-radius: var(--radius);
-    backdrop-filter: blur(14px) saturate(1.2);
-    -webkit-backdrop-filter: blur(14px) saturate(1.2);
+    backdrop-filter: blur(13px) saturate(1.15);
+    -webkit-backdrop-filter: blur(13px) saturate(1.15);
     box-shadow: var(--shadow);
 }
+
+/* ---------- folding the whole interface away ---------- */
+
+#chrome {
+    transition: opacity 0.22s ease, transform 0.22s ease;
+}
+
+#chrome.hidden {
+    opacity: 0;
+    transform: translateY(-6px);
+    pointer-events: none;
+}
+
+.reveal {
+    position: fixed;
+    top: calc(0.5rem + env(safe-area-inset-top, 0px));
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 12;
+    display: grid;
+    place-items: center;
+    width: 42px;
+    height: 26px;
+    padding: 0;
+    border: 1px solid var(--panel-line);
+    border-radius: 999px;
+    background: rgba(26, 36, 58, 0.66);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    color: var(--ink-dim);
+    cursor: pointer;
+    transition: color 0.2s ease, background 0.2s ease;
+}
+
+.reveal:hover { color: var(--ink); background: rgba(34, 46, 72, 0.85); }
+.reveal svg { width: 17px; height: 17px; }
+
+/* ---------- icon buttons ---------- */
+
+.icon-btn {
+    display: grid;
+    place-items: center;
+    width: 32px;
+    height: 32px;
+    flex: 0 0 auto;
+    padding: 0;
+    border-radius: 9px;
+    color: var(--ink-dim);
+    text-decoration: none;
+    cursor: pointer;
+    transition: color 0.18s ease, background 0.18s ease;
+}
+
+.icon-btn.flat {
+    background: transparent;
+    border: none;
+    font: inherit;
+}
+
+.icon-btn svg {
+    width: 17px;
+    height: 17px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.9;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.icon-btn:hover { color: var(--ink); background: rgba(148, 163, 184, 0.12); }
+
+.icon-btn[aria-pressed="true"] {
+    color: #fff;
+    background: rgba(var(--accent-rgb), 0.20);
+}
+
+/* Two glyphs in one button; only the one matching the state is drawn. */
+#btn-full .ico-shrink { display: none; }
+#btn-full[aria-pressed="true"] .ico-expand { display: none; }
+#btn-full[aria-pressed="true"] .ico-shrink { display: block; }
 
 /* ---------- top bar ---------- */
 
 .topbar {
     position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
+    top: calc(var(--gap) + env(safe-area-inset-top, 0px));
+    left: var(--gap);
+    right: var(--gap);
     z-index: 10;
     display: flex;
     align-items: center;
-    gap: 0.75rem;
-    padding: 0.85rem 1.1rem;
+    gap: 0.4rem;
     pointer-events: none;
 }
 
 .topbar > * { pointer-events: auto; }
 
-.home-link {
-    display: grid;
-    place-items: center;
-    width: 38px;
-    height: 38px;
-    flex: 0 0 auto;
-    border-radius: 11px;
-    color: var(--ink-dim);
-    font-size: 1.15rem;
-    text-decoration: none;
-    transition: color 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
-}
-
-.home-link:hover {
-    color: var(--ink);
-    border-color: rgba(var(--accent-rgb), 0.5);
-    transform: translateX(-2px);
-}
-
 .brand {
     display: flex;
-    flex-direction: column;
-    gap: 0.1rem;
-    padding: 0.3rem 0.2rem;
+    align-items: center;
+    gap: 0.45rem;
+    height: 32px;
+    padding: 0 0.7rem;
     min-width: 0;
 }
 
 .brand-name {
     font-family: 'Outfit', system-ui, sans-serif;
     font-weight: 600;
-    font-size: 1.02rem;
+    font-size: 0.88rem;
     letter-spacing: 0.01em;
-    line-height: 1.1;
     white-space: nowrap;
 }
 
-.brand-tag {
-    font-size: 0.68rem;
-    color: var(--ink-faint);
-    letter-spacing: 0.09em;
-    text-transform: uppercase;
-    white-space: nowrap;
-}
-
-.wip-badge {
+/* The work-in-progress badge was a word and a border; it is a dot now. It
+   still says the same thing to anyone who wonders, via the tooltip. */
+.wip-dot {
+    width: 7px;
+    height: 7px;
     flex: 0 0 auto;
+    border-radius: 50%;
+    background: #fbbf24;
+    box-shadow: 0 0 7px rgba(251, 191, 36, 0.8);
+}
+
+.tool-group {
+    display: flex;
+    align-items: center;
+    gap: 0.1rem;
     margin-left: auto;
-    padding: 0.3rem 0.6rem;
-    border-radius: 999px;
-    border: 1px solid rgba(251, 191, 36, 0.32);
-    background: rgba(251, 191, 36, 0.10);
-    color: #fcd34d;
-    font-size: 0.63rem;
+    padding: 0 0.15rem;
+    height: 32px;
+}
+
+/* ---------- scene notes ---------- */
+
+.info-card {
+    position: fixed;
+    left: var(--gap);
+    bottom: calc(3.6rem + var(--safe-b));
+    z-index: 9;
+    width: min(21rem, calc(100vw - var(--gap) * 2));
+    padding: 0.7rem 0.8rem;
+}
+
+.info-title {
+    font-family: 'Outfit', system-ui, sans-serif;
+    font-size: 0.95rem;
     font-weight: 600;
-    letter-spacing: 0.1em;
+    margin: 0 0 0.25rem;
+    color: #fff;
+}
+
+.info-text {
+    margin: 0;
+    font-size: 0.78rem;
+    line-height: 1.45;
+    color: var(--ink-dim);
+}
+
+.info-hint {
+    margin: 0.45rem 0 0;
+    font-size: 0.72rem;
+    color: rgba(var(--accent-rgb), 0.92);
+}
+
+/* ---------- controls ---------- */
+
+.panel {
+    position: fixed;
+    top: calc(3.1rem + env(safe-area-inset-top, 0px));
+    right: var(--gap);
+    z-index: 11;
+    width: min(15.5rem, calc(100vw - var(--gap) * 2));
+    max-height: min(28rem, calc(100vh - 9rem));
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.panel-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.5rem 0.5rem 0.4rem 0.75rem;
+    border-bottom: 1px solid var(--panel-line);
+    font-family: 'Outfit', system-ui, sans-serif;
+    font-size: 0.74rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
     text-transform: uppercase;
+    color: var(--ink-faint);
+}
+
+.panel-close {
+    display: grid;
+    place-items: center;
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--ink-faint);
+    cursor: pointer;
+}
+
+.panel-close:hover { color: var(--ink); background: rgba(148, 163, 184, 0.12); }
+.panel-close svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
+
+.panel-body {
+    padding: 0.6rem 0.75rem 0.75rem;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.ctl { margin-bottom: 0.75rem; }
+.ctl:last-child { margin-bottom: 0; }
+
+.ctl-row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.5rem;
+    margin-bottom: 0.28rem;
+}
+
+.ctl-label {
+    font-size: 0.75rem;
+    color: var(--ink-dim);
+}
+
+.ctl-value {
+    font-family: ui-monospace, 'JetBrains Mono', monospace;
+    font-size: 0.7rem;
+    font-variant-numeric: tabular-nums;
+    color: var(--ink);
+}
+
+/* A range input styled to match rather than left as the platform's. The
+   track carries the accent so the panel retints with the scene. */
+.ctl input[type="range"] {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 4px;
+    border-radius: 2px;
+    background: linear-gradient(to right,
+        rgba(var(--accent-rgb), 0.85) 0 var(--fill, 50%),
+        rgba(148, 163, 184, 0.22) var(--fill, 50%) 100%);
+    outline: none;
+    cursor: pointer;
+}
+
+.ctl input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #fff;
+    border: 2px solid var(--accent);
+    cursor: pointer;
+}
+
+.ctl input[type="range"]::-moz-range-thumb {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: #fff;
+    border: 2px solid var(--accent);
+    cursor: pointer;
+}
+
+.ctl-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    width: 100%;
+    padding: 0.3rem 0;
+    border: none;
+    background: transparent;
+    color: var(--ink-dim);
+    font: inherit;
+    font-size: 0.75rem;
+    cursor: pointer;
+}
+
+.ctl-switch {
+    position: relative;
+    width: 32px;
+    height: 18px;
+    flex: 0 0 auto;
+    border-radius: 999px;
+    background: rgba(148, 163, 184, 0.24);
+    transition: background 0.18s ease;
+}
+
+.ctl-switch::after {
+    content: '';
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: #cbd5e1;
+    transition: transform 0.18s ease, background 0.18s ease;
+}
+
+.ctl-toggle[aria-pressed="true"] { color: var(--ink); }
+.ctl-toggle[aria-pressed="true"] .ctl-switch { background: rgba(var(--accent-rgb), 0.55); }
+.ctl-toggle[aria-pressed="true"] .ctl-switch::after { transform: translateX(14px); background: #fff; }
+
+.ctl-choices {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+}
+
+.ctl-choice {
+    padding: 0.28rem 0.5rem;
+    border: 1px solid transparent;
+    border-radius: 7px;
+    background: rgba(148, 163, 184, 0.10);
+    color: var(--ink-dim);
+    font: inherit;
+    font-size: 0.72rem;
+    cursor: pointer;
+    transition: color 0.18s ease, background 0.18s ease, border-color 0.18s ease;
+}
+
+.ctl-choice:hover { color: var(--ink); }
+
+.ctl-choice[aria-pressed="true"] {
+    color: #fff;
+    background: rgba(var(--accent-rgb), 0.18);
+    border-color: rgba(var(--accent-rgb), 0.45);
+}
+
+.ctl-action {
+    width: 100%;
+    padding: 0.4rem;
+    border: 1px solid rgba(var(--accent-rgb), 0.35);
+    border-radius: 8px;
+    background: rgba(var(--accent-rgb), 0.12);
+    color: #fff;
+    font: inherit;
+    font-size: 0.74rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.ctl-action:hover { background: rgba(var(--accent-rgb), 0.24); }
+
+.panel-empty {
+    font-size: 0.75rem;
+    color: var(--ink-faint);
+    line-height: 1.5;
+}
+
+/* ---------- readout ---------- */
+
+.readout {
+    position: fixed;
+    top: calc(3.1rem + env(safe-area-inset-top, 0px));
+    right: var(--gap);
+    z-index: 9;
+    width: min(13.5rem, calc(100vw - var(--gap) * 2));
+    padding: 0.6rem 0.7rem;
+    font-size: 0.74rem;
+    opacity: 0;
+    transform: translateY(-5px);
+    pointer-events: none;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.readout.show { opacity: 1; transform: none; }
+
+/* The controls panel and the readout want the same corner; the panel is the
+   one the reader asked for, so the readout steps aside while it is open. */
+#chrome.controls-open .readout { display: none; }
+
+.readout-title {
+    font-family: 'Outfit', system-ui, sans-serif;
+    font-weight: 600;
+    font-size: 0.85rem;
+    color: #fff;
+    margin-bottom: 0.35rem;
+}
+
+.readout-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.7rem;
+    padding: 0.12rem 0;
+    color: var(--ink-dim);
+}
+
+.readout-row b {
+    color: var(--ink);
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+}
+
+.readout-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    margin-top: 0.5rem;
+    padding: 0.3rem 0.55rem;
+    border-radius: 7px;
+    border: 1px solid rgba(var(--accent-rgb), 0.4);
+    background: rgba(var(--accent-rgb), 0.12);
+    color: #fff;
+    font-size: 0.73rem;
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.readout-link:hover { background: rgba(var(--accent-rgb), 0.24); }
+
+/* ---------- legend ----------
+   One line, not a box. Colour alone never carries an encoding, so this is
+   not optional — but it does not need a panel to say four short words. */
+
+.legend {
+    position: fixed;
+    left: var(--gap);
+    right: var(--gap);
+    bottom: calc(2.85rem + var(--safe-b));
+    z-index: 9;
+    display: flex;
+    gap: 0.75rem;
+    padding: 0 0.1rem;
+    overflow-x: auto;
+    scrollbar-width: none;
+    font-size: 0.7rem;
+    color: var(--ink-dim);
+    text-shadow: 0 1px 6px rgba(3, 7, 18, 0.9);
+    pointer-events: none;
+}
+
+.legend::-webkit-scrollbar { display: none; }
+
+.legend-row {
+    display: flex;
+    align-items: center;
+    gap: 0.32rem;
     white-space: nowrap;
+    flex: 0 0 auto;
+}
+
+.legend-chip {
+    width: 8px;
+    height: 8px;
+    border-radius: 2px;
+    flex: 0 0 auto;
+    box-shadow: 0 0 6px currentColor;
+}
+
+.legend-bar {
+    width: 5px;
+    height: 11px;
+    flex: 0 0 auto;
+    border-radius: 1px;
+    background: linear-gradient(to top, #1e3a5f, #7dd3fc);
+}
+
+.legend-plot {
+    width: 10px;
+    height: 8px;
+    flex: 0 0 auto;
+    border-radius: 2px;
+    border: 1px solid rgba(125, 211, 252, 0.7);
+    background: rgba(125, 211, 252, 0.16);
+}
+
+.legend-ramp {
+    width: 20px;
+    height: 7px;
+    flex: 0 0 auto;
+    border-radius: 2px;
+    background: linear-gradient(to right, #123049, #2f6f9e, #8ad4fb);
 }
 
 /* ---------- scene switcher ---------- */
 
 .switcher {
     position: fixed;
-    left: 50%;
-    bottom: 1.1rem;
-    transform: translateX(-50%);
+    left: var(--gap);
+    right: var(--gap);
+    bottom: calc(var(--gap) + var(--safe-b));
     z-index: 10;
     display: flex;
-    gap: 0.3rem;
-    padding: 0.32rem;
-    max-width: calc(100vw - 1.6rem);
+    gap: 0.2rem;
+    padding: 0.22rem;
     overflow-x: auto;
     scrollbar-width: none;
 }
@@ -176,159 +602,60 @@ html, body {
     flex: 0 0 auto;
     display: flex;
     align-items: center;
-    gap: 0.4rem;
-    padding: 0.5rem 0.85rem;
+    gap: 0.35rem;
+    padding: 0.36rem 0.6rem;
     border: 1px solid transparent;
-    border-radius: 10px;
+    border-radius: 8px;
     background: transparent;
     color: var(--ink-dim);
     font-family: inherit;
-    font-size: 0.82rem;
+    font-size: 0.76rem;
     font-weight: 500;
     white-space: nowrap;
     cursor: pointer;
-    transition: color 0.2s ease, background 0.2s ease, border-color 0.2s ease;
+    transition: color 0.18s ease, background 0.18s ease, border-color 0.18s ease;
 }
 
-.scene-chip:hover {
-    color: var(--ink);
-    background: rgba(148, 163, 184, 0.10);
-}
+.scene-chip:hover { color: var(--ink); background: rgba(148, 163, 184, 0.10); }
 
 .scene-chip[aria-pressed="true"] {
     color: #fff;
     background: rgba(var(--accent-rgb), 0.16);
-    border-color: rgba(var(--accent-rgb), 0.45);
+    border-color: rgba(var(--accent-rgb), 0.42);
 }
 
 .scene-chip .dot {
-    width: 7px;
-    height: 7px;
+    width: 6px;
+    height: 6px;
     border-radius: 50%;
     background: currentColor;
-    opacity: 0.55;
+    opacity: 0.5;
 }
 
 .scene-chip[aria-pressed="true"] .dot {
     background: var(--accent);
     opacity: 1;
-    box-shadow: 0 0 9px var(--accent);
-}
-
-/* A chip for a scene that isn't written yet: visible on purpose, so the
-   switcher doubles as the roadmap while this is a PoC. */
-.scene-chip[data-pending="true"] {
-    opacity: 0.42;
-    cursor: not-allowed;
-}
-
-.scene-chip[data-pending="true"]:hover {
-    background: transparent;
-    color: var(--ink-dim);
-}
-
-/* ---------- scene caption ---------- */
-
-.caption {
-    position: fixed;
-    left: 1.1rem;
-    bottom: 4.6rem;
-    z-index: 9;
-    width: min(23rem, calc(100vw - 2.2rem));
-    padding: 0.85rem 1rem;
-    transition: opacity 0.35s ease, transform 0.35s ease;
-}
-
-.caption.swapping {
-    opacity: 0;
-    transform: translateY(6px);
-}
-
-.caption-title {
-    font-family: 'Outfit', system-ui, sans-serif;
-    font-size: 1.05rem;
-    font-weight: 600;
-    margin: 0 0 0.3rem;
-    color: #fff;
-}
-
-.caption-text {
-    margin: 0;
-    font-size: 0.82rem;
-    line-height: 1.5;
-    color: var(--ink-dim);
-}
-
-.caption-hint {
-    margin: 0.55rem 0 0;
-    font-size: 0.74rem;
-    color: rgba(var(--accent-rgb), 0.9);
-    display: flex;
-    align-items: center;
-    gap: 0.35rem;
-}
-
-/* ---------- readout (scene-specific numbers, top right) ---------- */
-
-.readout {
-    position: fixed;
-    top: 4.6rem;
-    right: 1.1rem;
-    z-index: 9;
-    width: min(15rem, calc(100vw - 2.2rem));
-    padding: 0.8rem 0.9rem;
-    font-size: 0.78rem;
-    opacity: 0;
-    transform: translateY(-6px);
-    pointer-events: none;
-    transition: opacity 0.25s ease, transform 0.25s ease;
-}
-
-.readout.show {
-    opacity: 1;
-    transform: none;
-}
-
-.readout-title {
-    font-family: 'Outfit', system-ui, sans-serif;
-    font-weight: 600;
-    font-size: 0.92rem;
-    color: #fff;
-    margin-bottom: 0.45rem;
-}
-
-.readout-row {
-    display: flex;
-    justify-content: space-between;
-    gap: 0.8rem;
-    padding: 0.16rem 0;
-    color: var(--ink-dim);
-}
-
-.readout-row b {
-    color: var(--ink);
-    font-weight: 600;
-    font-variant-numeric: tabular-nums;
+    box-shadow: 0 0 8px var(--accent);
 }
 
 /* ---------- perf counter ---------- */
 
 #fps {
     position: fixed;
-    right: 1.1rem;
-    bottom: 1.25rem;
+    right: var(--gap);
+    bottom: calc(2.9rem + var(--safe-b));
     z-index: 10;
-    padding: 0.3rem 0.55rem;
-    border-radius: 8px;
-    background: rgba(2, 6, 23, 0.5);
-    border: 1px solid var(--panel-line);
+    padding: 0.16rem 0.4rem;
+    border-radius: 6px;
+    background: rgba(26, 36, 58, 0.5);
     color: var(--ink-faint);
     font-family: ui-monospace, 'JetBrains Mono', monospace;
-    font-size: 0.68rem;
+    font-size: 0.64rem;
     font-variant-numeric: tabular-nums;
+    pointer-events: none;
 }
 
-/* ---------- boot / failure states ---------- */
+/* ---------- boot / failure ---------- */
 
 #boot {
     position: fixed;
@@ -337,39 +664,27 @@ html, body {
     display: grid;
     place-items: center;
     background: var(--bg-deep);
-    transition: opacity 0.5s ease;
+    transition: opacity 0.45s ease;
 }
 
-#boot.gone {
-    opacity: 0;
-    pointer-events: none;
-}
+#boot.gone { opacity: 0; pointer-events: none; }
 
-.boot-inner {
-    text-align: center;
-    max-width: 30rem;
-    padding: 1.5rem;
-}
+.boot-inner { text-align: center; max-width: 30rem; padding: 1.5rem; }
 
 .boot-title {
     font-family: 'Outfit', system-ui, sans-serif;
-    font-size: 1.3rem;
+    font-size: 1.2rem;
     font-weight: 600;
-    margin-bottom: 0.5rem;
+    margin-bottom: 0.45rem;
 }
 
-.boot-text {
-    color: var(--ink-dim);
-    font-size: 0.88rem;
-    line-height: 1.6;
-}
-
+.boot-text { color: var(--ink-dim); font-size: 0.85rem; line-height: 1.55; }
 .boot-text a { color: var(--accent); }
 
 .boot-spinner {
-    width: 30px;
-    height: 30px;
-    margin: 0 auto 1rem;
+    width: 28px;
+    height: 28px;
+    margin: 0 auto 0.9rem;
     border: 2px solid rgba(148, 163, 184, 0.22);
     border-top-color: var(--accent);
     border-radius: 50%;
@@ -380,145 +695,29 @@ html, body {
 
 @media (prefers-reduced-motion: reduce) {
     .boot-spinner { animation: none; }
-    .caption, .readout { transition: none; }
+    #chrome, .readout { transition: none; }
 }
 
-/* ---------- phones ---------- */
+/* ---------- phones ----------
+   Little changes, because the layout above was already written for a small
+   screen. The notes card is the one thing that must not become a wall. */
 
-/* The frame counter is a developer's affordance, and the switcher is the
-   navigation. Below this the two share the bottom edge and the counter wins on
-   z-order, so it stands down well before the phone breakpoint. */
-@media (max-width: 900px) {
+@media (max-width: 680px) {
     #fps { display: none; }
-}
-
-@media (max-width: 680px) {
-    .brand-tag { display: none; }
-    .caption {
-        bottom: 4.4rem;
-        left: 0.7rem;
-        right: 0.7rem;
+    .info-card {
+        left: var(--gap);
+        right: var(--gap);
         width: auto;
-        padding: 0.7rem 0.85rem;
+        max-height: 40vh;
+        overflow-y: auto;
     }
-    .caption-text { font-size: 0.78rem; }
-    .readout {
-        top: auto;
-        bottom: 11.5rem;
-        right: 0.7rem;
-        width: min(13rem, calc(100vw - 1.4rem));
-    }
-    .switcher { bottom: 0.7rem; }
-    .scene-chip { padding: 0.45rem 0.7rem; font-size: 0.76rem; }
+    .panel { max-height: min(24rem, calc(100vh - 8rem)); }
+    .scene-chip { padding: 0.34rem 0.55rem; font-size: 0.73rem; }
 }
 
-/* ---------- legend ----------
-   Three arc colours mean nothing on their own, so this is not decoration:
-   it is the non-colour half of the encoding, and it ships with any scene
-   that uses colour to say which is which. */
-
-.legend {
-    position: fixed;
-    left: 1.1rem;
-    top: 4.6rem;
-    z-index: 9;
-    padding: 0.7rem 0.85rem;
-    font-size: 0.76rem;
-    line-height: 1.6;
-    color: var(--ink-dim);
-}
-
-.legend-head {
-    font-family: 'Outfit', system-ui, sans-serif;
-    font-size: 0.64rem;
-    letter-spacing: 0.11em;
-    text-transform: uppercase;
-    color: var(--ink-faint);
-    margin-bottom: 0.35rem;
-}
-
-.legend-row {
-    display: flex;
-    align-items: center;
-    gap: 0.45rem;
-    white-space: nowrap;
-}
-
-.legend-chip {
-    width: 10px;
-    height: 10px;
-    border-radius: 3px;
-    flex: 0 0 auto;
-    box-shadow: 0 0 7px currentColor;
-}
-
-@media (max-width: 680px) {
-    .legend {
-        top: 3.9rem;
-        left: 0.7rem;
-        padding: 0.5rem 0.6rem;
-        font-size: 0.7rem;
-        line-height: 1.45;
-    }
-}
-
-.readout-link {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.3rem;
-    margin-top: 0.6rem;
-    padding: 0.34rem 0.6rem;
-    border-radius: 8px;
-    border: 1px solid rgba(var(--accent-rgb), 0.4);
-    background: rgba(var(--accent-rgb), 0.12);
-    color: #fff;
-    font-size: 0.76rem;
-    font-weight: 600;
-    text-decoration: none;
-    transition: background 0.2s ease, border-color 0.2s ease;
-}
-
-.readout-link:hover {
-    background: rgba(var(--accent-rgb), 0.24);
-    border-color: rgba(var(--accent-rgb), 0.7);
-}
-
-/* Legend swatches for the city scene: the three channels it encodes,
-   each drawn as the thing it stands for rather than a coloured square. */
-
-.legend-bar {
-    width: 6px;
-    height: 13px;
-    flex: 0 0 auto;
-    border-radius: 1px;
-    background: linear-gradient(to top, #1e3a5f, #7dd3fc);
-}
-
-.legend-plot {
-    width: 12px;
-    height: 9px;
-    flex: 0 0 auto;
-    border-radius: 2px;
-    border: 1px solid rgba(125, 211, 252, 0.7);
-    background: rgba(125, 211, 252, 0.16);
-}
-
-.legend-ramp {
-    width: 26px;
-    height: 8px;
-    flex: 0 0 auto;
-    border-radius: 2px;
-    background: linear-gradient(to right, #123049, #2f6f9e, #8ad4fb);
-}
-
-/* A commit subject is a sentence, not a value — it does not fit the readout's
-   two-column rows, so it gets its own block under them. */
-.readout-note {
-    margin-top: 0.55rem;
-    padding-top: 0.5rem;
-    border-top: 1px solid var(--panel-line);
-    font-size: 0.75rem;
-    line-height: 1.45;
-    color: var(--ink);
-    overflow-wrap: anywhere;
+/* A landscape phone has almost no vertical room; the notes card is the first
+   thing to give it back. */
+@media (max-height: 460px) {
+    .info-card { max-height: 42vh; overflow-y: auto; }
+    .legend { bottom: calc(2.6rem + var(--safe-b)); }
 }

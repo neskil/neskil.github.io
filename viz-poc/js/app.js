@@ -23,7 +23,8 @@ window.VizApp = (function () {
         { id: 'nebula',    label: 'Nebula' },
         { id: 'boids',     label: 'Flocking' },
         { id: 'mandelbulb',label: 'Mandelbulb' },
-        { id: 'commits',   label: 'Commit helix' }
+        { id: 'attractor', label: 'Attractors' },
+        { id: 'waves',     label: 'Wave field' }
     ];
 
     var scenes = {};        // id -> scene module
@@ -38,6 +39,7 @@ window.VizApp = (function () {
     var el = {};
     var pointer = { x: 0, y: 0, px: 0, py: 0, inside: false };
     var reducedMotion = false;
+    var controlSpecs = [];
 
     /* ---------- perf counter ---------- */
 
@@ -124,6 +126,176 @@ window.VizApp = (function () {
         };
     }
 
+    /* ---------- legend ----------
+     *
+     * Built by the shell from a scene's declaration rather than by each scene
+     * appending its own element to the body. Four scenes doing that by hand
+     * was four chances to leak one on a scene change, and it had already
+     * happened once. */
+    function paintLegend(mod) {
+        if (!el.legend) return;
+        var rows = mod && mod.legend;
+        if (typeof rows === 'function') rows = rows();
+        if (!rows || !rows.length) {
+            el.legend.hidden = true;
+            el.legend.innerHTML = '';
+            return;
+        }
+        var html = '';
+        for (var i = 0; i < rows.length; i++) {
+            var r = rows[i];
+            var swatch = r.swatch === 'bar' ? '<span class="legend-bar"></span>'
+                       : r.swatch === 'plot' ? '<span class="legend-plot"></span>'
+                       : r.swatch === 'ramp' ? '<span class="legend-ramp"></span>'
+                       : '<span class="legend-chip" style="background:' + esc(r.color) + '"></span>';
+            html += '<span class="legend-row">' + swatch + esc(r.label) + '</span>';
+        }
+        el.legend.innerHTML = html;
+        el.legend.hidden = false;
+    }
+
+    /* ---------- controls ----------
+     *
+     * A scene declares what it exposes and the shell renders it. Keeping the
+     * widgets out of the scenes means one place decides how a slider looks and
+     * behaves, and a scene's control list stays a description of what it can
+     * do rather than a pile of DOM.
+     */
+    function paintControls(mod) {
+        if (!el.controlsBody) return;
+        var specs = mod && mod.controls;
+        if (typeof specs === 'function') specs = specs();
+        controlSpecs = specs || [];
+        el.controlsBody.innerHTML = '';
+
+        if (!controlSpecs.length) {
+            var none = document.createElement('p');
+            none.className = 'panel-empty';
+            none.textContent = 'This one has nothing to adjust. Drag it around instead.';
+            el.controlsBody.appendChild(none);
+            return;
+        }
+
+        for (var i = 0; i < controlSpecs.length; i++) {
+            el.controlsBody.appendChild(buildControl(controlSpecs[i]));
+        }
+    }
+
+    function buildControl(spec) {
+        var wrap = document.createElement('div');
+        wrap.className = 'ctl';
+
+        if (spec.type === 'toggle') {
+            var btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'ctl-toggle';
+            btn.setAttribute('aria-pressed', spec.value ? 'true' : 'false');
+            btn.innerHTML = '<span>' + esc(spec.label) + '</span><span class="ctl-switch"></span>';
+            btn.addEventListener('click', function () {
+                spec.value = !spec.value;
+                btn.setAttribute('aria-pressed', spec.value ? 'true' : 'false');
+                if (spec.apply) spec.apply(spec.value);
+            });
+            wrap.appendChild(btn);
+            return wrap;
+        }
+
+        if (spec.type === 'choice') {
+            wrap.appendChild(labelRow(spec.label, ''));
+            var row = document.createElement('div');
+            row.className = 'ctl-choices';
+            spec.options.forEach(function (opt) {
+                var b = document.createElement('button');
+                b.type = 'button';
+                b.className = 'ctl-choice';
+                b.textContent = opt[1];
+                b.setAttribute('aria-pressed', opt[0] === spec.value ? 'true' : 'false');
+                b.addEventListener('click', function () {
+                    spec.value = opt[0];
+                    row.querySelectorAll('.ctl-choice').forEach(function (o) {
+                        o.setAttribute('aria-pressed', 'false');
+                    });
+                    b.setAttribute('aria-pressed', 'true');
+                    if (spec.apply) spec.apply(spec.value);
+                });
+                row.appendChild(b);
+            });
+            wrap.appendChild(row);
+            return wrap;
+        }
+
+        if (spec.type === 'action') {
+            var act = document.createElement('button');
+            act.type = 'button';
+            act.className = 'ctl-action';
+            act.textContent = spec.label;
+            act.addEventListener('click', function () { if (spec.apply) spec.apply(); });
+            wrap.appendChild(act);
+            return wrap;
+        }
+
+        /* slider */
+        var fmt = spec.format || function (v) { return String(v); };
+        var head = labelRow(spec.label, fmt(spec.value));
+        var out = head.querySelector('.ctl-value');
+        var input = document.createElement('input');
+        input.type = 'range';
+        input.min = spec.min;
+        input.max = spec.max;
+        input.step = spec.step;
+        input.value = spec.value;
+        paintFill(input, spec);
+        input.addEventListener('input', function () {
+            spec.value = parseFloat(input.value);
+            out.textContent = fmt(spec.value);
+            paintFill(input, spec);
+            if (spec.apply) spec.apply(spec.value);
+        });
+        wrap.appendChild(head);
+        wrap.appendChild(input);
+        return wrap;
+    }
+
+    /* One control changing another is common enough to be worth supporting:
+     * on the Mandelbulb, dragging the power slider means you want that power,
+     * so the "breathe" toggle that would overwrite it every frame turns
+     * itself off — and the switch has to be seen to move, or the panel is
+     * lying about the state of the scene. */
+    function setControl(id, value) {
+        for (var i = 0; i < controlSpecs.length; i++) {
+            if (controlSpecs[i].id !== id) continue;
+            var spec = controlSpecs[i];
+            spec.value = value;
+            var node = el.controlsBody.children[i];
+            if (!node) return;
+            var toggle = node.querySelector('.ctl-toggle');
+            if (toggle) { toggle.setAttribute('aria-pressed', value ? 'true' : 'false'); return; }
+            var range = node.querySelector('input[type="range"]');
+            if (range) {
+                range.value = value;
+                paintFill(range, spec);
+                var out = node.querySelector('.ctl-value');
+                if (out) out.textContent = (spec.format || String)(value);
+            }
+            return;
+        }
+    }
+
+    /* The filled part of a range track is drawn with a gradient stop, so it
+     * has to be recomputed rather than left to the browser. */
+    function paintFill(input, spec) {
+        var pct = (spec.value - spec.min) / (spec.max - spec.min) * 100;
+        input.style.setProperty('--fill', pct.toFixed(1) + '%');
+    }
+
+    function labelRow(label, value) {
+        var row = document.createElement('div');
+        row.className = 'ctl-row';
+        row.innerHTML = '<span class="ctl-label">' + esc(label) + '</span>' +
+                        '<span class="ctl-value">' + esc(value) + '</span>';
+        return row;
+    }
+
     function select(id, viaUser) {
         var mod = scenes[id];
         if (!mod || mod === current) return;
@@ -138,6 +310,8 @@ window.VizApp = (function () {
         built = mod.init(ctx()) || {};
         setAccent(mod.accent || '#38bdf8');
         paintCaption(mod);
+        paintLegend(mod);
+        paintControls(mod);
         paintChips();
         resize();
 
@@ -170,20 +344,18 @@ window.VizApp = (function () {
     var captionTimer = 0;
 
     function paintCaption(mod) {
-        if (!el.caption) return;
+        if (!el.info) return;
         /* Cancel any swap still in flight. Two scene changes inside the fade
          * would otherwise leave two timers racing, and the caption settles on
          * whichever lands last rather than on the scene you are looking at. */
         if (captionTimer) window.clearTimeout(captionTimer);
-        el.caption.classList.add('swapping');
         captionTimer = window.setTimeout(function () {
             captionTimer = 0;
-            el.captionTitle.textContent = mod.title || mod.label;
-            el.captionText.textContent = mod.blurb || '';
-            el.captionHint.textContent = mod.hint || '';
-            el.captionHint.style.display = mod.hint ? '' : 'none';
-            el.caption.classList.remove('swapping');
-        }, reducedMotion ? 0 : 180);
+            el.infoTitle.textContent = mod.title || mod.label;
+            el.infoText.textContent = mod.blurb || '';
+            el.infoHint.textContent = mod.hint || '';
+            el.infoHint.style.display = mod.hint ? '' : 'none';
+        }, reducedMotion ? 0 : 60);
     }
 
     function paintChips() {
@@ -260,6 +432,156 @@ window.VizApp = (function () {
         if (current && current.onPointerLeave) current.onPointerLeave();
     }
 
+    /* ---------- the interface itself ----------
+     *
+     * Three states worth remembering between visits, because a reader who
+     * folded the chrome away once meant it: whether the notes are open,
+     * whether the controls are open, and whether the chrome is showing at all.
+     * Fullscreen is deliberately not remembered — browsers will not grant it
+     * without a gesture, so restoring it is not ours to promise.
+     */
+    var KEY = 'dataroom.ui';
+    var ui = { info: false, controls: false, hidden: false };
+
+    function loadUi() {
+        try {
+            var raw = localStorage.getItem(KEY);
+            if (raw) {
+                var v = JSON.parse(raw);
+                ui.info = !!v.info;
+                ui.controls = !!v.controls;
+                ui.hidden = !!v.hidden;
+            } else {
+                /* First visit: show the notes on a screen with room for them
+                 * and not on a phone, where they would be half the picture. */
+                ui.info = window.innerWidth >= 900 && window.innerHeight >= 620;
+            }
+        } catch (e) {
+            /* Private windows and blocked site data both throw here. The
+             * interface still has to come up. */
+            ui.info = window.innerWidth >= 900;
+        }
+    }
+
+    function saveUi() {
+        try { localStorage.setItem(KEY, JSON.stringify(ui)); } catch (e) {}
+    }
+
+    function syncUi() {
+        if (el.info) el.info.hidden = !ui.info;
+        if (el.panel) el.panel.hidden = !ui.controls;
+        if (el.chrome) {
+            el.chrome.classList.toggle('hidden', ui.hidden);
+            el.chrome.classList.toggle('controls-open', ui.controls);
+        }
+        if (el.reveal) el.reveal.hidden = !ui.hidden;
+        setPressed('btn-info', ui.info);
+        setPressed('btn-controls', ui.controls);
+    }
+
+    function setPressed(id, on) {
+        var b = document.getElementById(id);
+        if (b) b.setAttribute('aria-pressed', on ? 'true' : 'false');
+    }
+
+    /* ---------- fullscreen ---------- */
+
+    function fsElement() {
+        return document.fullscreenElement || document.webkitFullscreenElement || null;
+    }
+
+    function fsSupported() {
+        var d = document.documentElement;
+        return !!(d.requestFullscreen || d.webkitRequestFullscreen);
+    }
+
+    function toggleFullscreen() {
+        var d = document.documentElement;
+        if (fsElement()) {
+            (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+        } else {
+            var req = d.requestFullscreen || d.webkitRequestFullscreen;
+            if (req) {
+                var p = req.call(d);
+                /* Safari's returns undefined; Chrome's rejects if the gesture
+                 * was not trusted. Either way a refusal must not throw. */
+                if (p && p.catch) p.catch(function () {});
+            }
+        }
+    }
+
+    function wireChrome() {
+        var byId = function (id) { return document.getElementById(id); };
+
+        byId('btn-info').addEventListener('click', function () {
+            ui.info = !ui.info;
+            syncUi();
+            saveUi();
+        });
+
+        byId('btn-controls').addEventListener('click', function () {
+            ui.controls = !ui.controls;
+            syncUi();
+            saveUi();
+        });
+
+        byId('controls-close').addEventListener('click', function () {
+            ui.controls = false;
+            syncUi();
+            saveUi();
+        });
+
+        byId('btn-hide').addEventListener('click', function () {
+            ui.hidden = true;
+            syncUi();
+            saveUi();
+        });
+
+        el.reveal.addEventListener('click', function () {
+            ui.hidden = false;
+            syncUi();
+            saveUi();
+        });
+
+        var full = byId('btn-full');
+        if (!fsSupported()) {
+            /* iPhone Safari has no element fullscreen. Rather than offer a
+             * button that does nothing, drop it — hiding the chrome is the
+             * gesture that survives everywhere. */
+            full.remove();
+        } else {
+            full.addEventListener('click', toggleFullscreen);
+            var onFs = function () {
+                setPressed('btn-full', !!fsElement());
+                /* The viewport changes size on the way in and out, and some
+                 * browsers do not fire resize for it. */
+                window.setTimeout(resize, 60);
+            };
+            document.addEventListener('fullscreenchange', onFs);
+            document.addEventListener('webkitfullscreenchange', onFs);
+        }
+
+        /* Keyboard, for anyone on a laptop: f for fullscreen, h to fold the
+         * chrome, i for the notes, c for the controls, Escape to close what
+         * is open. Ignored while typing, though nothing here takes typing. */
+        window.addEventListener('keydown', function (e) {
+            if (e.metaKey || e.ctrlKey || e.altKey) return;
+            var tag = (e.target && e.target.tagName) || '';
+            if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+
+            var k = e.key.toLowerCase();
+            if (k === 'f' && fsSupported()) { toggleFullscreen(); }
+            else if (k === 'h') { ui.hidden = !ui.hidden; syncUi(); saveUi(); }
+            else if (k === 'i') { ui.info = !ui.info; syncUi(); saveUi(); }
+            else if (k === 'c') { ui.controls = !ui.controls; syncUi(); saveUi(); }
+            else if (k === 'escape') {
+                if (ui.controls) { ui.controls = false; syncUi(); saveUi(); }
+                else if (ui.info) { ui.info = false; syncUi(); saveUi(); }
+            } else return;
+            e.preventDefault();
+        });
+    }
+
     /* ---------- boot ---------- */
 
     function fail(title, text) {
@@ -273,14 +595,19 @@ window.VizApp = (function () {
 
     function start() {
         el.stage = document.getElementById('stage');
+        el.chrome = document.getElementById('chrome');
         el.switcher = document.getElementById('switcher');
-        el.caption = document.getElementById('caption');
-        el.captionTitle = document.getElementById('caption-title');
-        el.captionText = document.getElementById('caption-text');
-        el.captionHint = document.getElementById('caption-hint');
+        el.info = document.getElementById('info-card');
+        el.infoTitle = document.getElementById('info-title');
+        el.infoText = document.getElementById('info-text');
+        el.infoHint = document.getElementById('info-hint');
+        el.legend = document.getElementById('legend');
+        el.panel = document.getElementById('controls-panel');
+        el.controlsBody = document.getElementById('controls-body');
         el.readout = document.getElementById('readout');
         el.fps = document.getElementById('fps');
         el.boot = document.getElementById('boot');
+        el.reveal = document.getElementById('btn-reveal');
 
         reducedMotion = window.matchMedia &&
             window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -312,6 +639,9 @@ window.VizApp = (function () {
 
         clock = new THREE.Clock();
         buildSwitcher();
+        loadUi();
+        wireChrome();
+        syncUi();
 
         window.addEventListener('resize', resize);
         window.addEventListener('orientationchange', function () { setTimeout(resize, 120); });
@@ -580,6 +910,7 @@ window.VizApp = (function () {
         register: register,
         makeOrbit: makeOrbit,
         makeQualityLadder: makeQualityLadder,
+        setControl: setControl,
         clamp: clamp,
         fitDistance: fitDistance,
         select: select,

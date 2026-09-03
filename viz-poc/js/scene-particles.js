@@ -17,6 +17,7 @@
 
     var SHAPES = ['Sphere', 'Torus knot', 'Galaxy', 'The name'];
     var HOLD = 2.6, MORPH = 2.4;      /* seconds still, seconds in transit */
+    var pushGain = 1;
     var WORD = 3;                     /* index of the flat shape in SHAPES */
 
     var scene, camera, orbit, points, geo, mat;
@@ -274,6 +275,33 @@
         hint: 'Move the pointer to push them · click to scatter',
         accent: '#a78bfa',
 
+        controls: function () {
+            return [
+                { id: 'hold', type: 'slider', label: 'Hold each shape', min: 0.4, max: 8, step: 0.2,
+                  value: HOLD,
+                  format: function (v) { return v.toFixed(1) + 's'; },
+                  apply: function (v) { HOLD = v; } },
+                { id: 'morph', type: 'slider', label: 'Morph time', min: 0.4, max: 6, step: 0.2,
+                  value: MORPH,
+                  format: function (v) { return v.toFixed(1) + 's'; },
+                  apply: function (v) { MORPH = v; } },
+                { id: 'push', type: 'slider', label: 'Pointer force', min: 0, max: 2, step: 0.05,
+                  value: pushGain,
+                  format: function (v) { return v === 0 ? 'off' : v.toFixed(2); },
+                  apply: function (v) { pushGain = v; } },
+                { id: 'size', type: 'slider', label: 'Point size', min: 1, max: 6, step: 0.1,
+                  value: 2.6,
+                  format: function (v) { return v.toFixed(1) + 'px'; },
+                  apply: function (v) { mat.uniforms.uSize.value = v; } },
+                { id: 'spin', type: 'slider', label: 'Spin', min: 0, max: 0.4, step: 0.01,
+                  value: 0.10,
+                  format: function (v) { return v === 0 ? 'still' : v.toFixed(2); },
+                  apply: function (v) { if (orbit) orbit.spin = v; } },
+                { id: 'next', type: 'action', label: 'Skip to the next shape',
+                  apply: function () { phase = HOLD + MORPH; } }
+            ];
+        },
+
         init: function (ctx) {
             renderer = ctx.renderer;
             scene = new THREE.Scene();
@@ -338,7 +366,7 @@
             _ray.setFromCamera(_ndc, camera);
             if (_ray.ray.intersectPlane(_plane, mouseWorld)) {
                 mat.uniforms.uMouse.value.copy(mouseWorld);
-                mat.uniforms.uPush.value = 0.55;
+                mat.uniforms.uPush.value = 0.55 * pushGain;
             }
         },
 

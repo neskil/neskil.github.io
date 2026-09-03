@@ -28,9 +28,15 @@
     var BOUNDS = 21;             /* agents are steered back inside this radius */
     var PERCEPT = 3.4;           /* neighbour radius, and the grid's cell size */
     var SEPARATE = 1.7;
-    var MAX_SPEED = 11.0;
-    var MIN_SPEED = 4.0;
     var MAX_FORCE = 26.0;
+
+    /* The rule weights, in one object so the controls can reach them. These
+     * are the whole behaviour: turn cohesion off and the flocks dissolve into
+     * a gas, turn separation off and they collapse to a point. */
+    var W = {
+        sep: 3.6, ali: 1.5, coh: 0.9, stranger: 0.55,
+        maxSpeed: 11.0, minSpeed: 4.0, lure: 16
+    };
 
     var scene, camera, orbit, mesh, light;
     var N = 0;
@@ -74,9 +80,9 @@
             pos[i * 3]     = cx + r * Math.sin(b) * Math.cos(a);
             pos[i * 3 + 1] =      r * Math.cos(b);
             pos[i * 3 + 2] = cz + r * Math.sin(b) * Math.sin(a);
-            vel[i * 3]     = (Math.random() - 0.5) * MAX_SPEED;
-            vel[i * 3 + 1] = (Math.random() - 0.5) * MAX_SPEED;
-            vel[i * 3 + 2] = (Math.random() - 0.5) * MAX_SPEED;
+            vel[i * 3]     = (Math.random() - 0.5) * W.maxSpeed;
+            vel[i * 3 + 1] = (Math.random() - 0.5) * W.maxSpeed;
+            vel[i * 3 + 2] = (Math.random() - 0.5) * W.maxSpeed;
         }
 
         DIM = Math.ceil((BOUNDS * 2.6) / CELL);
@@ -108,6 +114,25 @@
         }
         if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
         return mesh;
+    }
+
+    /* Throw them back into their starting balls. The rules take it from
+     * there, and watching three clouds sort themselves back into flocks is
+     * half the point of the scene. */
+    function scatter() {
+        for (var i = 0; i < N; i++) {
+            var f = flock[i];
+            var a = Math.random() * Math.PI * 2, b = Math.acos(Math.random() * 2 - 1);
+            var r = Math.pow(Math.random(), 0.5) * 5.5;
+            var cx = Math.cos(f / FLOCK_COLORS.length * Math.PI * 2) * 9;
+            var cz = Math.sin(f / FLOCK_COLORS.length * Math.PI * 2) * 9;
+            pos[i * 3]     = cx + r * Math.sin(b) * Math.cos(a);
+            pos[i * 3 + 1] =      r * Math.cos(b);
+            pos[i * 3 + 2] = cz + r * Math.sin(b) * Math.sin(a);
+            vel[i * 3]     = (Math.random() - 0.5) * W.maxSpeed;
+            vel[i * 3 + 1] = (Math.random() - 0.5) * W.maxSpeed;
+            vel[i * 3 + 2] = (Math.random() - 0.5) * W.maxSpeed;
+        }
     }
 
     /* ---------- the grid ---------- */
@@ -193,7 +218,7 @@
                                 sepX -= ox * inv; sepY -= oy * inv; sepZ -= oz * inv;
                             }
                             if (!sameFlock) {
-                                var inv2 = 0.55 / d2;
+                                var inv2 = W.stranger / d2;
                                 sepX -= ox * inv2; sepY -= oy * inv2; sepZ -= oz * inv2;
                             }
                             if (sameFlock) {
@@ -206,15 +231,15 @@
                 }
             }
 
-            var ax = sepX * 3.6, ay = sepY * 3.6, az = sepZ * 3.6;
+            var ax = sepX * W.sep, ay = sepY * W.sep, az = sepZ * W.sep;
 
             if (nSame > 0) {
-                ax += (aliX / nSame - vel[i * 3]) * 1.5;
-                ay += (aliY / nSame - vel[i * 3 + 1]) * 1.5;
-                az += (aliZ / nSame - vel[i * 3 + 2]) * 1.5;
-                ax += (cohX / nSame - px) * 0.9;
-                ay += (cohY / nSame - py) * 0.9;
-                az += (cohZ / nSame - pz) * 0.9;
+                ax += (aliX / nSame - vel[i * 3]) * W.ali;
+                ay += (aliY / nSame - vel[i * 3 + 1]) * W.ali;
+                az += (aliZ / nSame - vel[i * 3 + 2]) * W.ali;
+                ax += (cohX / nSame - px) * W.coh;
+                ay += (cohY / nSame - py) * W.coh;
+                az += (cohZ / nSame - pz) * W.coh;
             }
 
             /* Back into the bowl. A hard wall makes them bounce like gravel;
@@ -230,7 +255,7 @@
                 var ld = Math.sqrt(lx * lx + ly * ly + lz * lz) || 1;
                 /* Falls off with distance, so the pointer bends the flock
                  * nearby instead of yanking the whole bowl at once. */
-                var k = (lurePush ? -34 : 16) / (ld * ld + 3.0);
+                var k = (lurePush ? -W.lure * 2.1 : W.lure) / (ld * ld + 3.0);
                 ax += lx / ld * k; ay += ly / ld * k; az += lz / ld * k;
             }
 
@@ -247,7 +272,7 @@
             /* A floor as well as a ceiling on speed: a boid that stalls hangs
              * in the air pointing nowhere, which reads as a bug. */
             var sp = Math.sqrt(vx * vx + vy * vy + vz * vz) || 1;
-            var want = sp > MAX_SPEED ? MAX_SPEED : (sp < MIN_SPEED ? MIN_SPEED : sp);
+            var want = sp > W.maxSpeed ? W.maxSpeed : (sp < W.minSpeed ? W.minSpeed : sp);
             var sc = want / sp;
 
             vel[m * 3] = vx * sc; vel[m * 3 + 1] = vy * sc; vel[m * 3 + 2] = vz * sc;
@@ -279,6 +304,45 @@
                'comes out of that and nothing else.',
         hint: 'Move the pointer to draw them in · hold to scatter them',
         accent: '#60a5fa',
+
+        /* Species, not data series — no colour here claims a meaning you would
+         * have to look up — but naming them is still cheaper than wondering. */
+        legend: [
+            { label: 'Three flocks, same rules', color: '#3987e5' },
+            { label: '', color: '#d95926' },
+            { label: '', color: '#199e70' }
+        ],
+
+        controls: function () {
+            return [
+                { id: 'sep', type: 'slider', label: 'Keep your distance', min: 0, max: 9, step: 0.2,
+                  value: W.sep,
+                  format: function (v) { return v.toFixed(1); },
+                  apply: function (v) { W.sep = v; } },
+                { id: 'ali', type: 'slider', label: 'Match your neighbours', min: 0, max: 5, step: 0.1,
+                  value: W.ali,
+                  format: function (v) { return v.toFixed(1); },
+                  apply: function (v) { W.ali = v; } },
+                { id: 'coh', type: 'slider', label: 'Stay with the group', min: 0, max: 4, step: 0.1,
+                  value: W.coh,
+                  format: function (v) { return v.toFixed(1); },
+                  apply: function (v) { W.coh = v; } },
+                { id: 'stranger', type: 'slider', label: 'Avoid other flocks', min: 0, max: 2, step: 0.05,
+                  value: W.stranger,
+                  format: function (v) { return v === 0 ? 'they mix' : v.toFixed(2); },
+                  apply: function (v) { W.stranger = v; } },
+                { id: 'speed', type: 'slider', label: 'Top speed', min: 4, max: 22, step: 0.5,
+                  value: W.maxSpeed,
+                  format: function (v) { return v.toFixed(0); },
+                  apply: function (v) { W.maxSpeed = Math.max(v, W.minSpeed + 0.5); } },
+                { id: 'lure', type: 'slider', label: 'Pointer pull', min: 0, max: 40, step: 1,
+                  value: W.lure,
+                  format: function (v) { return v === 0 ? 'ignored' : v.toFixed(0); },
+                  apply: function (v) { W.lure = v; } },
+                { id: 'scatter', type: 'action', label: 'Shuffle them',
+                  apply: function () { scatter(); } }
+            ];
+        },
 
         init: function (ctx) {
             scene = new THREE.Scene();

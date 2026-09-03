@@ -32,9 +32,10 @@
 
     var scene, camera, orbit, group;
     var dots, ports, portGeo, arcs, arcGeo, pulses, pulseGeo, atmosphere;
-    var legendEl = null;
 
     var renderer = null;
+    var graticule = null;
+    var spinRate = 0.055, laneGain = 1, pulseGain = 1, trunkOnly = false;
     var portList = [], laneList = [];
     var laneSamples = [];            /* per lane: Float32Array of sampled points */
     var laneRange = [];              /* per lane: [firstVertex, vertexCount] in arcGeo */
@@ -446,7 +447,7 @@
 
         for (var i = 0; i < pulseList.length; i++) {
             var p = pulseList[i];
-            p.t += p.speed * dt;
+            p.t += p.speed * dt * pulseGain;
             if (p.t >= 1) p.t -= 1;
 
             var s = laneSamples[p.lane];
@@ -474,8 +475,10 @@
         var a = arcGeo.attributes.aAlpha.array;
         var profile = arcGeo.userData.profile;
         for (var l = 0; l < laneList.length; l++) {
-            var on = !lit || lit[l];
-            var mul = (on ? laneList[l].baseAlpha : 0.05) * (lit && on ? 1.9 : 1);
+            var lane = laneList[l];
+            var allowed = !trunkOnly || isTrunk(lane.corridor);
+            var on = (!lit || lit[l]) && allowed;
+            var mul = (on ? lane.baseAlpha : 0.05) * (lit && on ? 1.9 : 1) * laneGain;
             var range = laneRange[l];
             for (var v = range[0]; v < range[0] + range[1]; v++) a[v] = profile[v] * mul;
         }
@@ -483,7 +486,9 @@
 
         var pa = pulseGeo.attributes.aAlpha.array;
         for (var p = 0; p < pulseList.length; p++) {
-            pa[p] = (!lit || lit[pulseList[p].lane]) ? 1 : 0.06;
+            var pl = laneList[pulseList[p].lane];
+            var shown = (!lit || lit[pulseList[p].lane]) && (!trunkOnly || isTrunk(pl.corridor));
+            pa[p] = shown ? 1 : 0.06;
         }
         pulseGeo.attributes.aAlpha.needsUpdate = true;
 
@@ -545,28 +550,6 @@
         ]);
     }
 
-    /* ---------- legend ---------- */
-
-    /* Three colours are three colours whether or not anyone tells you what
-     * they mean, so the legend is not optional — it is the half of the
-     * encoding that isn't colour. */
-    function buildLegend() {
-        var el = document.createElement('div');
-        el.className = 'legend glass';
-        var rows = [];
-        for (var k in TRUNK) rows.push([k, TRUNK[k]]);
-        rows.push([OTHER_LABEL, OTHER_COLOR]);
-
-        var html = '<div class="legend-head">Corridor</div>';
-        for (var i = 0; i < rows.length; i++) {
-            html += '<div class="legend-row"><span class="legend-chip" style="background:#' +
-                    rows[i][1].toString(16).padStart(6, '0') + '"></span>' + rows[i][0] + '</div>';
-        }
-        el.innerHTML = html;
-        document.body.appendChild(el);
-        return el;
-    }
-
     /* ---------- scene module ---------- */
 
     VizApp.register({
@@ -579,6 +562,38 @@
         hint: 'Drag to spin · hover a port for its lanes · click to face it',
         accent: '#38bdf8',
 
+        /* Three colours mean nothing on their own, so this is not decoration:
+         * it is the half of the encoding that is not colour. */
+        legend: function () {
+            var rows = [];
+            for (var k in TRUNK) rows.push({ label: k, color: '#' + TRUNK[k].toString(16).padStart(6, '0') });
+            rows.push({ label: OTHER_LABEL, color: '#' + OTHER_COLOR.toString(16).padStart(6, '0') });
+            return rows;
+        },
+
+        controls: function () {
+            return [
+                { id: 'spin', type: 'slider', label: 'Spin', min: 0, max: 0.30, step: 0.005,
+                  value: spinRate,
+                  format: function (v) { return v === 0 ? 'still' : v.toFixed(2) + ' rad/s'; },
+                  apply: function (v) { spinRate = v; if (orbit) orbit.spin = v; } },
+                { id: 'lanes', type: 'slider', label: 'Lane brightness', min: 0.2, max: 2.5, step: 0.1,
+                  value: laneGain,
+                  format: function (v) { return v.toFixed(1) + '\u00d7'; },
+                  apply: function (v) { laneGain = v; applyLaneAlpha(); } },
+                { id: 'pulse', type: 'slider', label: 'Cargo speed', min: 0, max: 3, step: 0.1,
+                  value: pulseGain,
+                  format: function (v) { return v === 0 ? 'held' : v.toFixed(1) + '\u00d7'; },
+                  apply: function (v) { pulseGain = v; } },
+                { id: 'grat', type: 'toggle', label: 'Graticule',
+                  value: true,
+                  apply: function (v) { if (graticule) graticule.visible = v; } },
+                { id: 'trunk', type: 'toggle', label: 'Trunk corridors only',
+                  value: false,
+                  apply: function (v) { trunkOnly = v; applyLaneAlpha(); } }
+            ];
+        },
+
         init: function (ctx) {
             renderer = ctx.renderer;
             scene = new THREE.Scene();
@@ -587,7 +602,8 @@
 
             group.add(buildShell());
             group.add(buildDots());
-            group.add(buildGraticule());
+            graticule = buildGraticule();
+            group.add(graticule);
             group.add(buildPorts());
             group.add(buildLanes());
             group.add(buildPulses());
@@ -603,10 +619,9 @@
                 /* Open on the Asia-Europe run rather than the mid-Atlantic:
                  * it is where most of the arcs are. */
                 theta: 75 * DEG, phi: 78 * DEG,
-                spin: ctx.reducedMotion ? 0 : 0.055
+                spin: ctx.reducedMotion ? 0 : spinRate
             });
 
-            legendEl = buildLegend();
             vw = ctx.width; vh = ctx.height;
             this.resize(ctx.width, ctx.height);
             return { scene: scene, camera: camera };
@@ -687,8 +702,6 @@
 
         dispose: function () {
             if (orbit) orbit.dispose();
-            if (legendEl && legendEl.parentNode) legendEl.parentNode.removeChild(legendEl);
-            legendEl = null;
             document.body.style.cursor = '';
             renderer = null;
             portList = []; laneList = []; laneSamples = []; laneRange = []; pulseList = [];

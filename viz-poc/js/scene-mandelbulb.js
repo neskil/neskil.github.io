@@ -20,6 +20,7 @@
 
     var scene, camera, rayCam, orbit, mat, quad, ladder, ctxRef;
     var basis = new THREE.Matrix3();
+    var breathe = true, heldPower = 8;
 
     var FRAG = [
         'precision highp float;',
@@ -31,6 +32,8 @@
         'uniform float uSteps;',
         'uniform float uIter;',
         'uniform float uPower;',
+        'uniform float uRim;',
+        'uniform float uHue;',
         'varying vec2 vUv;',
 
         /* Distance to the surface, and how close the orbit came to the origin
@@ -125,9 +128,9 @@
                     * actually traversed rather than sampled at one point. */
         '    float cx = trap / (trap + 0.75);',
         '    cx = mix(cx, 0.5 + 0.5 * n.y, 0.35);',
-        '    vec3 base = pal(clamp(cx, 0.0, 1.0));',
+        '    vec3 base = pal(fract(clamp(cx, 0.0, 1.0) + uHue));',
         '    col = base * (0.22 + 1.05 * dif + back) * ao;',
-        '    col += vec3(0.35, 0.55, 1.00) * fres * 0.55;',
+        '    col += vec3(0.35, 0.55, 1.00) * fres * uRim;',
         '  } else {',
         '    float g = 1.0 - length(uv) * 0.32;',
         '    col = vec3(0.016, 0.026, 0.055) * clamp(g, 0.0, 1.0);',
@@ -149,6 +152,30 @@
         hint: 'Drag to orbit · scroll to close in · the power breathes between 7 and 9',
         accent: '#c084fc',
 
+        controls: function () {
+            return [
+                { id: 'breathe', type: 'toggle', label: 'Breathe the power',
+                  value: true,
+                  apply: function (v) { breathe = v; } },
+                { id: 'power', type: 'slider', label: 'Power', min: 2, max: 14, step: 0.1,
+                  value: 8,
+                  format: function (v) { return v.toFixed(1); },
+                  apply: function (v) { heldPower = v; breathe = false; VizApp.setControl('breathe', false); } },
+                { id: 'spin', type: 'slider', label: 'Spin', min: 0, max: 0.35, step: 0.01,
+                  value: 0.07,
+                  format: function (v) { return v === 0 ? 'still' : v.toFixed(2); },
+                  apply: function (v) { if (orbit) orbit.spin = v; } },
+                { id: 'shade', type: 'slider', label: 'Rim light', min: 0, max: 2, step: 0.05,
+                  value: 0.55,
+                  format: function (v) { return v.toFixed(2); },
+                  apply: function (v) { mat.uniforms.uRim.value = v; } },
+                { id: 'hue', type: 'slider', label: 'Colour shift', min: 0, max: 1, step: 0.02,
+                  value: 0,
+                  format: function (v) { return v.toFixed(2); },
+                  apply: function (v) { mat.uniforms.uHue.value = v; } }
+            ];
+        },
+
         init: function (ctx) {
             ctxRef = ctx;
             scene = new THREE.Scene();
@@ -168,7 +195,9 @@
                     uTime: { value: 0 },
                     uSteps: { value: 64 },
                     uIter: { value: 6 },
-                    uPower: { value: 8 }
+                    uPower: { value: 8 },
+                    uRim: { value: 0.55 },
+                    uHue: { value: 0 }
                 },
                 vertexShader: [
                     'varying vec2 vUv;',
@@ -202,6 +231,8 @@
                 mat.uniforms.uIter.value = rung.iter;
             });
 
+            breathe = true;
+            heldPower = 8;
             this.resize(ctx.width, ctx.height);
             VizApp.readout.show('Mandelbulb', [
                 ['Power', '8'],
@@ -219,7 +250,9 @@
             /* Breathing the exponent is the one animation here. The shape is
              * continuous in it, so the bulb grows and folds petals rather than
              * cutting between two models. */
-            var power = ctxRef.reducedMotion ? 8 : 8 + Math.sin(t * 0.13) * 1.15;
+            var power = breathe
+                ? (ctxRef.reducedMotion ? 8 : 8 + Math.sin(t * 0.13) * 1.15)
+                : heldPower;
             mat.uniforms.uPower.value = power;
             mat.uniforms.uTime.value = t;
 
