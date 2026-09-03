@@ -2471,6 +2471,48 @@
         group.add(fill.target);
     }
 
+    /* How far a hole asks you to see.
+
+       The fog distances above are absolute metres, and they were chosen on a
+       mini-golf hole: twenty-four to the near edge and ninety-five to the far
+       one, against a hole you could putt across in thirteen. That is a
+       backdrop. The long game plays the same numbers against a hole ten times
+       the area — Gorse Corner is a thirty-three metre par four — and a mist
+       (the thickest sky there is, fog 0.42) puts its far edge at forty. The
+       flag is then nine tenths of the way into the cloud and the hole is a
+       white rectangle with a ball in it: not weather, a fault.
+
+       So the fog is measured in holes rather than in metres. `reach` is what
+       this hole actually asks the eye to cross — the shot in front of you, or
+       half the ground the hole stands on, whichever is further — and the far
+       edge is held at three of them. Three is not a taste: it is what the
+       thickest sky on a mini hole already comes to, so the rule is a floor
+       that reads as "at least as much air as Seaside Green gets in a mist"
+       and nothing else. A clear sky is never near it, a mini hole moves by a
+       metre or two at most, and what actually changes is the long game under
+       a thick sky — which is the case that was broken. A mist on a big hole
+       becomes the same mist seen across more ground, not a thinner one.
+
+       Both edges are scaled together, so the curve keeps its shape — the air
+       thickens over the same fraction of the view it always did.
+
+       The cap is the surround: `addSurround` draws ground to three hundred
+       units and the sky dome takes over past it, so fog that reached the rim
+       would show the seam. A hand-built hole from the level editor can be any
+       size at all, which is the case that needs the guard. */
+    function fogReach(hole) {
+        var b = hole.bounds;
+        var half = Math.hypot(b.maxX - b.minX, b.maxZ - b.minZ) / 2;
+        var shot = Math.hypot(hole.cup.x - hole.tee.x, hole.cup.z - hole.tee.z);
+        return Math.max(half, shot);
+    }
+
+    function fogScale(hole, far) {
+        if (!hole || !hole.bounds || !far) return 1;
+        var k = Math.max(1, fogReach(hole) * 3 / far);
+        return Math.min(k, 260 / far);
+    }
+
     /* A hole is built once, and the weather it is built under is baked into
        every material in it — the wetness of the grass, the softness of the
        shadows, the colour of the fill. That is why changing the weather
@@ -2499,6 +2541,11 @@
         // different hole rather than a different filter over the same one.
         R.fogNear = 24 * weather.fog;
         R.fogFar = 95 * weather.fog;
+        // ...and the hole scales it again, because those two numbers were
+        // written for a mini-golf hole. See fogReach().
+        var fogK = fogScale(hole, R.fogFar);
+        R.fogNear *= fogK;
+        R.fogFar *= fogK;
         R.scene.fog = new THREE.Fog(skyTint(theme.fog, weather, false), R.fogNear, R.fogFar);
         g.add(skyDome(theme, weather));
         lights(g, hole, theme, weather);
