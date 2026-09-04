@@ -7,11 +7,13 @@ timing rather than of aim. **Adventure golf**: two where the floor itself is
 the obstacle — ice that will not let the ball stop, travelators that carry it
 off, launch pads that throw it in the air and pipes that put it somewhere else
 entirely. **The long game**: three full-size courses with no fence on any of
-them — Ashdown Park, a parkland on a hillside, with terraces, a blind green in
-a dell and a lake the whole hole tilts into; Whinstone Links, open rolling
-country; and Dunmore Heath, where the interest is the shape of the ground
-itself — crests, hollows, a punchbowl, a spiral, one dry ravine and a fairway
-that climbs. three.js (vendored, r128), plain ES5-flavoured JavaScript, no
+them, and the only three built out of the shape of their own ground — Ashdown
+Park, a parkland falling three units off a bluff and climbing back to a shelf,
+with a blind green in a dell between two hills and a lake the whole hole tilts
+into; Whinstone Links, open rolling country with a whinstone sandhill the size
+of a hill down the right of one of them; and Dunmore Heath, where the interest
+is nothing else at all — crests, hollows, a punchbowl, a spiral, four units of
+hillside to climb and a gorge two units deep across the last of it. three.js (vendored, r128), plain ES5-flavoured JavaScript, no
 build step and no other dependencies — same as everything else here, open
 `index.html` and it runs.
 
@@ -551,8 +553,8 @@ approach.
 | Clockwork Court | crazy | `clockwork` | Six mechanisms at six rates. Two bats that stop, a pendulum, three staggered cogs, a ratchet, and a finish with two lanes to pick between. |
 | Icehouse Yard | adventure | `icehouse` | Nothing stops. A putter runs eight and a half units on grass and thirty-two on ice. |
 | Helter Skelter | adventure | `fairground` | Launch pads, travelators and pipes. The floor decides; you only decide how hard. |
-| Ashdown Park | long | `parkland` | The long game, on a hillside: terraces, a crest, a cross-fall into a lake, and two round greens. No fence — the park carries on past the stakes. |
-| Whinstone Links | long | `links` | No flat lies and no straight edges. The ground is the hazard. |
+| Ashdown Park | long | `parkland` | The long game, on a hillside: bluffs, a crest, a cross-fall into a lake, and two round greens. No fence — the park carries on past the stakes. |
+| Whinstone Links | long | `links` | No flat lies and no straight edges. The ground is the hazard, and on one hole it is a sandhill. |
 | Dunmore Heath | long | `heath` | The long game again, shaped rather than furnished: crests, hollows, a punchbowl, a whorl, one dry ravine and a hillside you climb. |
 
 Seaside and Quarry are where the plan does the work rather than the furniture.
@@ -866,12 +868,12 @@ rather than a suggestion.
 
 | # | Hole | Par | What it asks | Borrowed from |
 | --- | --- | --- | --- | --- |
-| 1 | Opening Drive | 4 | Downhill off a bluff, over a crest at driving distance, then up on to the shelf the green sits on. The bunker is still exactly on the line. | |
-| 2 | Long Meadow | 5 | A belt of sand four units deep lying across the fairway. Nothing in the bag carries it from behind it, so the hole is three shots for everybody. | Hell's Half Acre, Pine Valley 7 |
-| 3 | The Elbow | 4 | Turns left around an oak, under a shoulder of high rough that will not let a cut drive run out, then climbs to a shelf. | |
-| 4 | Over the Water | 3 | Full club over the pond to a round green on a shelf, or a safe one out to the right and a longer putt. | |
-| 5 | The Dell | 3 | Blind. The green lies in a hollow with a ring of mounds round it and the top of the flag is all you get. | The Dell, Lahinch 5 |
-| 6 | Homeward | 4 | The lake cuts diagonally across the hole and the whole park tilts into it. Bite off as much as you dare. | Cape |
+| 1 | Opening Drive | 4 | Three units down off a bluff, over a crest at driving distance, then two back up on to the shelf the green sits on. The bunker is still exactly on the line. | |
+| 2 | Long Meadow | 5 | A belt of sand four units deep lying across the fairway, and two units of climb to the green behind it. Nothing in the bag carries the belt from behind it, so the hole is three shots for everybody. | Hell's Half Acre, Pine Valley 7 |
+| 3 | The Elbow | 4 | Off a high tee, left around an oak, under a shoulder of high rough that will not let a cut drive run out, then a two-unit climb to a shelf. | |
+| 4 | Over the Water | 3 | Four units above the pond, and a full club over it to a round green on a shelf. Or a safe one out to the right and a longer putt. | |
+| 5 | The Dell | 3 | Blind, off a bluff into a dell between two hills, with a ring of mounds round the green and the top of the flag all you get. | The Dell, Lahinch 5 |
+| 6 | Homeward | 4 | The lake cuts diagonally across the hole, the fairway runs downhill to it and the whole park tilts into it as well. Bite off as much as you dare. | Cape |
 
 The card climbs (see [The order the holes are in](#the-order-the-holes-are-in)):
 an opener with no forced carry on it, then a par 5 that is a grind rather than a
@@ -1057,7 +1059,7 @@ shape that stays inside that circle cannot invalidate any of them.
 | --- | --- | --- | --- |
 | 1 | The Whins | 4 | Rolling the whole way, and a bunker sitting on the line at driving distance. |
 | 2 | The Punchbowl | 4 | A ring of humps round the green: anything on the banks comes back down to it. |
-| 3 | Stake and Ditch | 3 | Out of bounds tight down the right for the whole hole. |
+| 3 | The Sandhill | 4 | A whinstone dune four units high down the right, and the boundary along the foot of it. Everything you gain by playing away from one you give back to the other. |
 | 4 | Home Ground | 4 | A dogleg right, and ground that throws a straight drive off the line. Not a bug. |
 | 5 | The Ait | 3 | An island green in a ring of water. Seven units of carry and no way to lay up. |
 | 6 | Elbow Point | 5 | A dogleg left. Cutting the corner means carrying ground that is not the golf course. |
@@ -1065,6 +1067,25 @@ shape that stays inside that circle cannot invalidate any of them.
 The punchbowl comes second because it is the one hole out here that *helps* —
 the banks feed a poor shot back to the pin — and the island comes fifth because
 it is the only one that will not take a lay-up for an answer.
+
+**The hole that used to be third was called Stake and Ditch, and it was a
+corridor.** One strip of fairway, a green at the end of it, a bunker either
+side and a boundary drawn tight down the right — and the boundary was the whole
+hole, which is to say the whole hole was a rule rather than a piece of ground.
+Measured against its neighbours it was also the flattest thing on the property
+by a factor of three: a unit and a quarter of relief where the rest of the
+course has three and a half, on a course whose entire argument is that the
+ground is the hazard.
+
+So the stakes stayed and the ground arrived. `massif` puts a dune the size of a
+hill down the right of **The Sandhill** — whinstone is the rock the course is
+named for, which is why there are outcrops on the crest of it — and the
+boundary runs along its foot, so the two halves of the hole are one question
+instead of two. A dune this size cannot be flown and is not meant to be:
+nothing in the bag gets above about three units, so four and a half of sandhill
+is a thing you go round. What it does instead is throw anything that lands on
+its flank straight back down — into the fairway if you were lucky and over the
+line if you were not.
 
 **A dogleg with nothing to bend it.** There are no trees on a links and no room
 for a hazard big enough to turn a hole, so what bends these two is the boundary
@@ -1219,11 +1240,22 @@ both ends of the hole are inside it.
   are neighbours, so no rail is built between a fairway and its rough — the
   only rails a parkland hole gets are the boundary fence round the outside,
   which is what a real course has too.
+- **crag / crags** — rock, and the reason two of the three long courses no
+  longer look empty: a heath and a links have no trees on them and do have
+  stone. Unlike a canopy a boulder is solid all the way up — that is the
+  ordinary case, and a canopy is the exception only because nothing in the bag
+  can fly over one — so what the renderer draws is what the ball hits. `crags`
+  scatters a group of them from a seed. Authored by its middle, like a tree.
 - **tree** — a trunk that is a real wall, authored by its middle, with a canopy
   the renderer puts on top. Only the trunk is solid: no club in the bag lifts a
   ball much above 1.6 units, so a tree is a thing you go round, and a solid
   canopy would only mean the ball stopping in mid-air. `treeline()` puts a
-  stand of them along a line.
+  stand of them along a line. **Leave `y` out and `build` seats it on the
+  ground**: the height a tree stands at is a second copy of the height field,
+  and on a course that climbs four units the copy goes stale — trunks were
+  standing a clear two units in the air on holes whose rows had been retilted.
+  Name a `y` only where a tree is meant to stand somewhere other than on the
+  ground under its own middle.
 - **bumps** — humps on a pad, so the ground curves. `hill()` is one,
   `ring()` a circle of them (a punchbowl, or a dell), `dunes()` a seeded field.
   See [Whinstone Links](#whinstone-links).
@@ -1339,7 +1371,8 @@ thing that would undo all of this.
 | `ridge(x0, z0, x1, z1, r, a, n)` | Overlapping humps along a line: one long crest with a flat top, rather than a row of molehills. |
 | `ring(cx, cz, radius, r, a, n)` | A rim standing round a point — a punchbowl, or with `a` negative a dell. |
 | `whorl(cx, cz, r0, r1, r, a, n, turns)` | Humps and hollows walked out along a spiral, alternating sign. From the tee it reads as one slope and is four; a putt across it breaks twice in opposite directions. Alternating the sign is also what keeps it playable, since neighbours cancel across their skirts rather than adding. |
-| `ravine(x, z, w, d, depth)` | A strip of ground far below what is either side of it, with both long seams left bare so it plays as a drop and not as a walled trench. It still returns its gaps, inset from the ends so a boundary rail would be untouched; on an open hole there is no rail to protect and the ends of the gulley are simply banks. |
+| `massif(cx, cz, r, a, n)` | A mountain: a broad base carrying the height, with a ring of shoulders at a little under half its radius to give it a skyline. One raised cosine cannot be both — its steepest flank is `a·π/2r`, so a peak tall enough to read is a cone nothing stays on and one wide enough to be safe is a pudding. `a` is what the *base* is worth; the summit comes out higher and the gradient is the sum, both measured by `tests.html` rather than trusted from the call. |
+| `ravine(x, z, w, d, depth, opts)` | A strip of ground far below what is either side of it, with both long seams left bare so it plays as a drop and not as a walled trench. `opts.along` turns it a quarter turn, so the same helper writes a carry across the hole or a gulley down the side of one. `opts.bank` is the width its walls take out of `d` — a number, or `[near, far]`, and past about a unit of depth it is not optional. See [The gorge](#the-gorge). |
 
 And two that are not fields at all — they change where the ground *is* rather
 than adding humps to it, and they are what gave both parkland courses their
@@ -1351,12 +1384,96 @@ height:
 | `tilt(pads, sx, sz, ox, oz)` | A cross-fall laid over a whole hole at once: every pad lifted by the plane's own height at its corner, so the surfaces meet exactly where they used to and the hole is now on the side of a hill. Bunkers are dished before it runs (`scoop` skips a pad that is already tilted) and landforms are added after, so the gradient the tests measure is the sum — a cross-fall spends part of the surface's angle of repose and the field lives inside the rest. Which is exactly the trade a sidehill lie is. |
 
 Dunmore's own card climbs like every other one here: **Bell Heather** (a crest
-across the driving line), **Gorse Corner** (a bend with the hillside falling
-away from it), **The Beacon** (twenty units of climb with the green over the top
-of it), **The Waste** (sand where the fairway should be, and a punchbowl),
-**Long Ling** (a par 5 with the whorl in the middle of the second shot) and
-**The Ravine**, which is last because it is the only one where laying up is a
-whole stroke and taking it on is a whole hole.
+across the driving line, on its own flat row so its skirt is not spending a
+gradient the fairway has already spent), **Gorse Corner** (a bend with the
+hillside falling away from it in two directions at once), **The Beacon** (four
+units of climb over twenty-six, with the green over the top of it), **The
+Waste** (sand where the fairway should be, and a punchbowl in a bowl of
+country), **Long Ling** (a par 5 over a shoulder and down the other side, with
+the whorl in the middle of the third shot) and **The Ravine**, which is last
+because it is the only one where laying up is a whole stroke and taking it on
+is a whole hole.
+
+### The gorge
+
+The Ravine was a ditch a unit deep and is now a gorge over two, and the
+difference is not the number — it is that past about a unit, a ravine with
+vertical sides stops being a hazard and becomes a hole in the rules.
+
+The bot is what proved it, and it is the clearest thing the simulator has ever
+said. Handed a two-unit trench with cliffs either side, it drove into the
+bottom of it, rolled to the far wall, came to rest hard against it, and then
+played eight strokes from the same square foot of gravel. Nothing in the bag
+gets out of that lie: a wedge leaves the ground at fifty-eight degrees and
+needs a unit and a half of run before it is two units up, and there is nothing
+in front of the ball but wall. A shallower ditch hides this completely, because
+a wedge clears half a unit from a standing start.
+
+So `ravine` grew walls, and they are not the same wall on both sides:
+
+- **The far side is a bank** — a strip of ground tilted at `depth/bank`, which
+  the ball rolls down and can be pitched, or driven, back up. Nothing holds a
+  stopped ball on a slope that steep, so what a gorge costs is still the whole
+  hole; what it no longer costs is the round.
+- **The near side is a lip.** The first version banked both sides equally and
+  the hazard quietly stopped being one: a drive pitching on to a fifty-degree
+  ramp reflects forward and up, sails the whole gorge and lands beside the
+  flag, and the bot holed the par four in two. A near wall wide enough to play
+  out of is also wide enough to bounce a drive clean across. Which is the way
+  round a real barranca is cut anyway, since the near side is the one the water
+  was undercutting.
+
+One thing in the renderer had to change with it, and it is the first time the
+camera has ever gone *below* the lip of anything. A pad's skirt — the wall of
+cut earth under it — is wound so its outside faces out, which is the only side
+there was ever anything to see from: every pad on the first eleven courses
+stands above the surround, so you are always outside the wall looking in. From
+inside a gorge you are looking at the country's own skirts from behind, and a
+single-sided wall seen from behind is not a wall, it is a hole with the
+surround showing through it. Two units of ravine came out as a mauve gash
+round the rim. `R.surf.side` is double-sided now, which costs nothing anywhere
+else: the back of a skirt is only ever visible from inside a hole in the world.
+
+**What the suite grew when the ground did.** Four assertions arrived with the
+height, and three of the four caught something the same afternoon they were
+written — which is the only reason to trust the fourth.
+
+- **A green holds a ball everywhere on it, and so does a written fairway.**
+  The contour-steepness walk skips `open` holes outright, with a comment saying
+  Whinstone's ground is its own thing. That was true when Whinstone was the
+  only open hole on the card; it is now eighteen of them, and "the long game is
+  exempt" had quietly become "the courses with the most terrain on them are the
+  ones nothing measures". The replacement is narrower and says what it means: a
+  links fairway is a scattered dune field and is *supposed* to be wild, but no
+  green anywhere may shed a ball, and a hole written in rows has no excuse for a
+  fairway you cannot stop on. Every one of the twelve parkland and heath holes
+  was over that line at some point while the climbs were being written, because
+  a row's tilt and the landform on top of it add and the sum is nobody's number
+  until it is measured.
+- **Every long-game hole has real height in it.** The one statement about these
+  courses that nothing else makes, and the one that would go quietly if a hole
+  were flattened to fix something else. Two and a half units inside the
+  boundary is not a demanding line — it is where relief stops being visible
+  from the tee — and the whole of Ashdown Park sat under it before the climbs
+  were written.
+- **Every tree and rock stands on the ground under it.** A trunk is placed off
+  its own base rather than off the ground, so the height in the hole and the
+  height in the field are two copies of one fact; the copies had drifted, and
+  trunks were standing two units in the air. `build` seats them off the field
+  now, and this is what says so.
+- **A bunker's sink is measured at its rim, not against sea level.** It used to
+  be read straight off the pad's own `y`, which on a flat hole is the same
+  number and on a fairway falling a metre and a half into a hollow is not: a
+  bunker lying `DIP` below the grass beside it read as sunk a third of a unit
+  and failed an assertion about a hole built exactly right.
+
+And one thing in the camera. The seat behind the ball looks a little over it,
+which is right on flat ground and wrong on a hole climbing four units in
+twenty-six: from the tee of The Beacon the hillside filled the frame, and the
+player was aiming at a wall of grass. The target now lifts by however much the
+ground has risen `CONFIG.AIM_LOOK` down the aim — measured, so it is free on
+every flat hole in the file — and ground that *falls* away is left alone,
+because an aim looking into a valley is the shot.
 
 Two rules survive from `relief`, and `tests.html` enforces both rather than
 trusting anyone to remember them. A landform's disc has to lie wholly inside

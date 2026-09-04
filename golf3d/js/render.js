@@ -451,8 +451,23 @@
         var tex = TX.surfaces(theme);
         // Wet ground is darker ground, whatever it is made of.
         var damp = new THREE.Color(1, 1, 1).multiplyScalar(1 - wet * 0.24);
+        /* Cut earth, and double-sided on purpose.
+
+           A skirt is wound so its outside faces out, which is the only side
+           there was ever anything to see from: every pad on the first eleven
+           courses stands *above* the surround, so you are always outside the
+           wall looking in at the course. A gorge is the first piece of ground
+           where the camera goes below the lip and looks at the country's own
+           skirts from the inside — and a single-sided wall seen from behind is
+           not a wall, it is a hole with the surround showing through it. Two
+           units of Dunmore's ravine came out as a mauve gash round the rim.
+
+           Doubling costs nothing anywhere else: a skirt is under the ground it
+           hangs from, so the back of one is only ever visible from inside a
+           hole in the world, which is exactly the case this is for. */
         var side = new THREE.MeshLambertMaterial({
-            color: new THREE.Color(theme.side).multiplyScalar(1 - wet * 0.20)
+            color: new THREE.Color(theme.side).multiplyScalar(1 - wet * 0.20),
+            side: THREE.DoubleSide
         });
 
         function tops(map, shine, dry, soaked) {
@@ -3090,7 +3105,17 @@
                the ball is struck, and it drifts back as the ball gets quick, so
                a hard shot feels quick rather than merely distant. */
             dist = c.dist + c.speedPull - c.kick * C.KICK * 4;
-            tx = ball.x; ty = ball.y + 0.35; tz = ball.z;
+            /* Lifted by the hill in front of it, if there is one. See
+               CONFIG.AIM_LOOK for why: a seat that looks a little over the
+               ball is looking straight into the slope on a hole that climbs,
+               and the sample is what keeps the answer honest on the thirty
+               holes that do not climb at all. */
+            var ahead = P.surfaceTop(hole, ball.x + Math.sin(yaw) * C.AIM_LOOK,
+                                           ball.z + Math.cos(yaw) * C.AIM_LOOK);
+            var rise = ahead ? Math.max(0, ahead.y - ball.y) : 0;
+            tx = ball.x;
+            ty = ball.y + 0.35 + Math.min(rise, C.AIM_RISE) * C.AIM_TILT;
+            tz = ball.z;
             var back = dist * Math.cos(c.pitch);
             px = ball.x - Math.sin(yaw) * back;
             py = ball.y + dist * Math.sin(c.pitch);

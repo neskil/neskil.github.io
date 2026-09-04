@@ -1220,22 +1220,175 @@
                at, and a trunk in the sand is worse than absurd: it is a wall
                inside the one surface a ball cannot be putted out of. Easy to
                do by accident, too, since a treeline is authored as two ends
-               and the bunkers it runs past are authored somewhere else. */
+               and the bunkers it runs past are authored somewhere else. A rock
+               is the same argument with a harder edge on it: a boulder is
+               solid all the way up, so one standing in a bunker is a wall
+               inside a surface nothing is putted out of. */
             var rooted = 0, badTree = '';
             ALL.forEach(function (entry) {
                 entry.hole.walls.forEach(function (wl) {
-                    if (wl.kind !== 'tree') return;
+                    if (wl.kind !== 'tree' && wl.kind !== 'rock') return;
                     rooted++;
                     entry.hole.pads.forEach(function (p) {
                         if (p.kind !== 'sand' && p.kind !== 'green') return;
                         if (Math.min(p.x + p.w, wl.x + wl.w) - Math.max(p.x, wl.x) <= 0) return;
                         if (Math.min(p.z + p.d, wl.z + wl.d) - Math.max(p.z, wl.z) <= 0) return;
-                        badTree = entry.course.id + '/' + entry.hole.name + ', a tree in the ' + p.kind;
+                        badTree = entry.course.id + '/' + entry.hole.name +
+                            ', a ' + wl.kind + ' in the ' + p.kind;
                     });
                 });
             });
-            assert('no tree grows out of a bunker or a green', !badTree, badTree);
-            assert('there are trees to check', rooted >= 20, rooted + ' trees');
+            assert('nothing grows or stands out of a bunker or a green', !badTree, badTree);
+            assert('there is scenery to check', rooted >= 20, rooted + ' trees and rocks');
+
+            /* And it stands **on** something.
+
+               A trunk is placed off its own base rather than off the ground
+               under it, and for as long as the parkland course was a table
+               with one step in it, carrying that height by hand was fine. It
+               stopped being fine the moment a hole climbed four units: the
+               number in the hole and the number in the ground are two copies
+               of the same fact, and the copies drifted — trees stood a clear
+               two units in the air, and a screenshot of the tee would not have
+               shown it because the offenders were down the far side.
+
+               `courses.build` now seats anything carrying a `seat` off the
+               height field, which removes the copy. This is what says so, and
+               it is deliberately checked for every tree and rock rather than
+               only the seated ones: a hole that names a height by hand is
+               still making a claim about the ground, and the claim is still
+               worth measuring. The tolerance is a tree's own sink — a trunk is
+               *meant* to be buried to the ankle — plus a little, because a
+               treeline may legitimately walk up a slope its ends were measured
+               at rather than following every hump between them. */
+            var worstFooting = 0, footingAt = '';
+            ALL.forEach(function (entry) {
+                entry.hole.walls.forEach(function (wl) {
+                    if (wl.kind !== 'tree' && wl.kind !== 'rock') return;
+                    var cx = wl.x + wl.w / 2, cz = wl.z + wl.d / 2;
+                    var g = P.surfaceTop(entry.hole, cx, cz);
+                    // Standing off the end of the ground is its own bug, and a
+                    // worse one: nothing to stand on at all.
+                    var off = g ? Math.abs(wl.base + (wl.seat || 0.4) - g.y) : 99;
+                    if (off > worstFooting) {
+                        worstFooting = off;
+                        footingAt = entry.course.id + '/' + entry.hole.name +
+                            ' at (' + cx.toFixed(1) + ', ' + cz.toFixed(1) + ')';
+                    }
+                });
+            });
+            assert('every tree and rock stands on the ground under it',
+                worstFooting <= 0.35,
+                footingAt + ' is out by ' + worstFooting.toFixed(2));
+
+            /* ── the mown ground holds a ball ────────────────────────────
+
+               The steepness check above walks every contoured pad and skips
+               `open` holes outright, with a comment saying Whinstone's ground
+               is its own thing. That was true when Whinstone was the only open
+               hole on the card. It is now eighteen of them, and half those
+               holes have four units of climb on them, so "the long game is
+               exempt" had quietly become "the courses with the most terrain on
+               them are the ones nothing measures".
+
+               What replaces it is narrower and says what it means. The links
+               is a scattered dune field and its *fairways* are supposed to be
+               wild — a lie on the shoulder of a dune is the whole course, and
+               `dunes` has no way to keep off ground it is not told about. So:
+
+               - **Every green holds a ball, everywhere on it.** No exceptions,
+                 open or drawn, links or parkland. A green steeper than
+                 CONFIG.HOLD.green sheds a ball from wherever it lands, which
+                 makes it a roof rather than a green, and the existing checks
+                 only ever looked at the ring around the cup — a landform
+                 crossing the far side of a green would pass every one of them.
+               - **A hole written in rows keeps its fairway inside the angle of
+                 repose too.** A `shaped` hole's field is placed by hand, pad
+                 by pad, so there is no excuse for a fairway you cannot stop on
+                 — and it is exactly the thing that goes wrong when a row is
+                 given more tilt: the tilt and the landform on top of it add,
+                 and the sum is nobody's number until it is measured. Every one
+                 of the twelve parkland and heath holes was over this line at
+                 some point while the climbs were being written.
+
+               Both are measured inside the boundary, because ground outside
+               the stakes is country rather than golf course. */
+            var worstMown = 0, mownAt = '', mownKinds = 0;
+            ALL.forEach(function (entry) {
+                var h = entry.hole;
+                h.pads.forEach(function (p) {
+                    if (!p.bumps || !p.bumps.length) return;
+                    var mown = p.kind === 'green' ||
+                        (p.kind === 'fairway' && h.shaped);
+                    if (!mown) return;
+                    mownKinds++;
+                    var hold = P.holdOf(p.kind), x, z, g;
+                    for (x = p.x; x <= p.x + p.w + 1e-9; x += 0.3) {
+                        for (z = p.z; z <= p.z + p.d + 1e-9; z += 0.3) {
+                            if (!P.padContains(p, x, z)) continue;
+                            if (h.fence && P.outOfBounds(h, x, z)) continue;
+                            g = P.slopeAt(p, x, z) / hold;
+                            if (g > worstMown) {
+                                worstMown = g;
+                                mownAt = entry.course.id + '/' + h.name +
+                                    ' (' + p.kind + ' at ' + x.toFixed(1) + ', ' + z.toFixed(1) + ')';
+                            }
+                        }
+                    }
+                });
+            });
+            assert('there is mown ground on rolling holes to check', mownKinds >= 20,
+                mownKinds + ' pads');
+            assert('a green — and a written fairway — holds a ball everywhere on it',
+                worstMown <= 1, mownAt + ' is at ' +
+                (worstMown * 100).toFixed(0) + '% of what its surface can hold');
+
+            /* ── and the long game has ground on it ──────────────────────
+
+               The one statement about these courses that no other assertion
+               makes, and the one that would go quietly if somebody flattened a
+               hole to fix something else. Every hole in the long game is
+               supposed to be built out of the shape of its own ground: not a
+               corridor with a bunker in it, but a piece of country with height
+               in it that you have to read before you can play it.
+
+               Two and a half units is not a demanding line — it is a little
+               over a ball's diameter every two units of a par four, and every
+               hole on the three courses clears it. It is set where it is
+               because that is roughly where relief stops being visible from
+               the tee: the whole of Ashdown Park sat under it before the
+               climbs were written, which is exactly the state this exists to
+               keep it out of. Measured inside the boundary, because a mountain
+               out in the country is scenery rather than golf. */
+            var relief = {}, thinnest = Infinity, thinnestAt = '';
+            ALL.forEach(function (entry) {
+                var h = entry.hole;
+                if (!h.long && entry.course.group !== 'long') return;
+                var lo = Infinity, hi = -Infinity, x, z, sf;
+                var b = h.bounds;
+                for (x = b.minX; x <= b.maxX; x += 0.7) {
+                    for (z = b.minZ; z <= b.maxZ; z += 0.7) {
+                        if (P.outOfBounds(h, x, z)) continue;
+                        sf = P.surfaceUnder(h, x, z, Infinity);
+                        if (!sf) continue;
+                        if (sf.y < lo) lo = sf.y;
+                        if (sf.y > hi) hi = sf.y;
+                    }
+                }
+                var range = hi - lo;
+                relief[entry.course.id] = (relief[entry.course.id] || 0) + range / 6;
+                if (range < thinnest) {
+                    thinnest = range;
+                    thinnestAt = entry.course.id + '/' + h.name;
+                }
+            });
+            assert('every long-game hole has real height in it',
+                thinnest >= 2.5,
+                thinnestAt + ' has ' + thinnest.toFixed(2) + ' of relief inside its boundary');
+            note('relief per long course, averaged over its six holes: ' +
+                Object.keys(relief).map(function (k) {
+                    return k + ' ' + relief[k].toFixed(1);
+                }).join(', '));
 
             /* What an open hole owes the player. There is no fence to stop the
                ball, so three things have to hold or the course is unfair

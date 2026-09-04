@@ -367,6 +367,23 @@ G3.CONFIG = {
     KICK: 0.55,           // camera punch on impact, in units of pull-back
     TRAIL: 56,            // ball trail samples
 
+    /* The seat behind the ball looks a little over it, which is the right
+       answer on ground that is flat and the wrong one on ground that climbs.
+       The long game now has holes rising four units in twenty-six, and from
+       the tee of one the hillside filled the frame: no horizon, no flag, no
+       way to judge a line — a wall of grass, and the player aiming at it.
+
+       So the target lifts by however much the ground has risen `AIM_LOOK`
+       ahead down the aim, times AIM_TILT, and no more than AIM_RISE. Measured
+       rather than guessed, which is what makes it free on every flat hole in
+       the file: on level ground the rise is zero and the seat is exactly what
+       it always was. Ground that *falls* away is left alone on purpose — an
+       aim looking down into a valley is the shot, and dropping the target
+       would put the camera's nose in the turf behind the ball. */
+    AIM_LOOK: 16,         // how far down the aim the ground is sampled
+    AIM_TILT: 1,          // how much of that rise the target takes
+    AIM_RISE: 4.5,        // and the ceiling on it
+
     /* The aiming cone — the shape drawn out in front of the ball. It is a cone
        and not a line because a shot is a direction and a weight and neither is
        promised beyond a full swing: its half-angle is whatever spray the

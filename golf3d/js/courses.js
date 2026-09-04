@@ -2018,13 +2018,14 @@
                shortens by four units, come up on the near side of it and the
                approach is played blind over the top. */
             var field = [].concat(
-                ridge(5, 16, 14, 19, 4.5, 0.30, 4),
+                ridge(5, 19, 14, 21, 4.5, 0.30, 4),
                 massif(-6, 18, 12, 2.2, 5),
-                [hill(3, 33, 3, -0.6), hill(18.5, 37, 2.5, 0.5)]
+                [hill(3, 33, 3, -0.6), hill(18.5, 41, 2.5, 0.5)]
             );
             var park = commons(0, [
-                [{ d: 5, y: 2.8 },      [3.5, rgh], [8, fwy], [9.5, rgh]],
-                [{ d: 7, sz: -0.26 },   [3.5, rgh], [8, fwy], [9.5, rgh]],
+                [{ d: 5, y: 4.0 },      [3.5, rgh], [8, fwy], [9.5, rgh]],
+                [{ d: 3, sz: -0.7 },    [21, rgh]],
+                [{ d: 6, sz: -0.15 },   [3.5, rgh], [8, fwy], [9.5, rgh]],
                 [10,                    [3.5, rgh], [8, fwy], [9.5, rgh]],
                 [5,                     [4.5, rgh], [9, fwy], [7.5, rgh]],
                 [3,                     [7, rgh], [2, fwy], [3.5, snd, DIP], [3.5, fwy], [5, rgh]],
@@ -2034,16 +2035,16 @@
             ]);
             return build({
                 name: 'Opening Drive', par: 4, long: true, shaped: true, open: true,
-                blurb: 'Two units down off the bluff, over the crest, and two back up to a green on a shelf.',
+                blurb: 'Three units down off the bluff, over the crest, and back up to a green on a shelf.',
                 pads: shape(scoop(park.pads, { seed: 21 }), field),
                 fence: park.fence,
                 extra: [].concat(
-                    treeline(1.7, 11, 1.7, 24, 5),
-                    treeline(19.5, 13, 19.5, 26, 4),
-                    crags(1.4, 6, 2.4, 4, 7101, { s: 1.2, h: 0.9 }),
-                    [tree(1.6, 3), tree(2.4, 45.5), tree(19, 45.5)]
+                    treeline(1.7, 14, 1.7, 27, 5),
+                    treeline(19.5, 16, 19.5, 29, 4),
+                    crags(-2, 10, 3.5, 6, 7101, { s: 1.4, h: 1.1 }),
+                    [tree(1.6, 3), tree(2.4, 47.5), tree(19, 47.5)]
                 ),
-                tee: { x: 7.5, z: 2.5 }, cup: { x: 11.5, z: 40 }
+                tee: { x: 7.5, z: 2.5 }, cup: { x: 11.5, z: 41.5 }
             });
         })(),
         (function () {
@@ -2062,13 +2063,13 @@
                 [hill(9, 28.5, 2.5, -0.36), hill(20, 41, 3, 0.45)]
             );
             var park = commons(0, [
-                [{ d: 5, y: 2.6 },      [4, rgh], [9, fwy], [9, rgh]],
-                [{ d: 4, sz: -0.5 },    [22, rgh]],
+                [{ d: 5, y: 3.2 },      [4, rgh], [9, fwy], [9, rgh]],
+                [{ d: 4, sz: -0.65 },   [22, rgh]],
                 [13,                    [4, rgh], [9, fwy], [9, rgh]],
                 [4,                     [4, rgh], [7, fwy], [3, snd, DIP], [8, rgh]],
                 [5,                     [5, rgh], [10, fwy], [7, rgh]],
                 [4,                     [4, rgh], [14, snd, DIP], [4, rgh]],
-                [{ d: 8, sz: 0.18 },    [6, rgh], [11, fwy], [5, rgh]],
+                [{ d: 8, sz: 0.2 },     [6, rgh], [11, fwy], [5, rgh]],
                 [5,                     [6, rgh], [11, fwy], [5, rgh]],
                 [9,                     [5, rgh], [12, grn], [5, rgh]],
                 [3,                     [22, rgh]]
@@ -2101,11 +2102,11 @@
                 [hill(18, 19, 3.5, 0.45), hill(17, 35, 3, -0.5)]
             );
             var park = commons(0, [
-                [{ d: 5, y: 2.6 },      [12, rgh], [8, fwy], [2, rgh]],
-                [{ d: 4, sz: -0.45 },   [22, rgh]],
+                [{ d: 5, y: 3.4 },      [12, rgh], [8, fwy], [2, rgh]],
+                [{ d: 4, sz: -0.65 },   [22, rgh]],
                 [9.5,                   [12, rgh], [8, fwy], [2, rgh]],
                 [5,                     [4, rgh], [4, snd, DIP], [12, fwy], [2, rgh]],
-                [{ d: 6, sz: 0.2 },     [2, rgh], [12, fwy], [8, rgh]],
+                [{ d: 6, sz: 0.22 },    [2, rgh], [12, fwy], [8, rgh]],
                 [3,                     [2, rgh], [3, snd, DIP], [9, fwy], [8, rgh]],
                 [7,                     [2, rgh], [11, grn], [9, rgh]],
                 [3,                     [22, rgh]]
@@ -2139,10 +2140,10 @@
                 [hill(1.6, 18, 1.6, -0.23)]
             );
             var park = commons(0, [
-                [{ d: 3.5, y: 2.4 },    [3, rgh], [9, fwy], [6, rgh]],
-                [{ d: 2, sz: -0.6 },    [18, rgh]],
+                [{ d: 3.5, y: 4.2 },    [3, rgh], [9, fwy], [6, rgh]],
+                [{ d: 2, sz: -1.35 },   [18, rgh]],
                 [4,                     [2.5, rgh], [7.5, null], [2.5, fwy], [5.5, rgh]],
-                [{ d: 2, sz: 0.25 },    [2.5, rgh], [13, fwy], [2.5, rgh]],
+                [{ d: 2, sz: 0.24 },    [2.5, rgh], [13, fwy], [2.5, rgh]],
                 [3,                     [1.5, rgh], [2.6, snd, DIP], [11.4, fwy], [2.5, rgh]],
                 [5.5,                   [2.5, rgh], [10, fwy], [3, snd, DIP], [2.5, rgh]],
                 [4,                     [18, rgh]]
@@ -2151,12 +2152,12 @@
                 name: 'Over the Water', par: 3, long: true, shaped: true, open: true,
                 blurb: 'Off a high bluff, over the pond in the bottom, on to a round green on a shelf.',
                 pads: shape(scoop(park.pads, { seed: 23 }), field)
-                    .concat([circle(7.5, 16, 3.6, grn, 1.7)]),
+                    .concat([circle(7.5, 16, 3.6, grn, 1.98)]),
                 fence: park.fence,
-                water: [rect(2.5, 5.5, 7.5, 4, 0.6)],
+                water: [rect(2.5, 5.5, 7.5, 4, 1.0)],
                 extra: [].concat(
                     treeline(16.6, 4, 16.6, 12, 3),
-                    crags(1.4, 9, 2.4, 4, 7119, { s: 1.15, h: 0.85 }),
+                    crags(-5, 14, 3.5, 5, 7119, { s: 1.4, h: 1.1 }),
                     [tree(1.2, 3)]
                 ),
                 tee: { x: 10.5, z: 1.75 }, cup: { x: 7.5, z: 16.5 }
@@ -2174,19 +2175,19 @@
                Whinstone's punchbowl is: eight humps standing far enough out
                that not one of their tails reaches the putting surface, so the
                green is a flat round table at the bottom of a bowl of heath. */
-            var field = ring(10, 21, 6.4, 3.4, 1.05, 8)
+            var field = ring(10, 21, 6.4, 3.4, 1.2, 8)
                 .concat(massif(-8, 21, 12, 2.4, 5))
                 .concat(massif(28, 21, 12, 2.4, 5));
             var park = commons(0, [
-                [{ d: 4, y: 2.2 },      [5, rgh], [10, fwy], [5, rgh]],
-                [{ d: 3, sz: -0.55 },   [20, rgh]],
+                [{ d: 4, y: 3.2 },      [5, rgh], [10, fwy], [5, rgh]],
+                [{ d: 3, sz: -0.88 },   [20, rgh]],
                 [3,                     [6, rgh], [8, fwy], [6, rgh]],
                 [20,                    [20, rgh]]
             ], { m: 18 });
             return build({
                 name: 'The Dell', par: 3, long: true, shaped: true, open: true,
                 blurb: 'Blind, off a bluff into a dell between two hills. The top of the flag is all you get.',
-                pads: shape(park.pads, field).concat([circle(10, 21, 3.0, grn, 0.55)]),
+                pads: shape(park.pads, field).concat([circle(10, 21, 3.0, grn, 0.56)]),
                 fence: park.fence,
                 extra: [].concat(
                     treeline(1.4, 9, 1.4, 26, 5),
@@ -2340,22 +2341,55 @@
             tee: { x: 30, z: 14 }, cup: { x: 28, z: 47 }
         }),
         build({
-            name: 'Stake and Ditch', par: 3, open: true,
-            blurb: 'Out of bounds down the whole right side. The stakes are not a suggestion.',
+            /* The hole that used to be here was called Stake and Ditch and it
+               was a corridor. One strip of fairway, a green at the end of it,
+               a bunker either side and a boundary drawn tight down the right —
+               and the boundary was the whole hole, which is to say the whole
+               hole was a rule rather than a piece of ground. Measured against
+               its neighbours it was also the flattest thing on the property by
+               a factor of three: a unit and a quarter of relief where the rest
+               of the course has three and a half, on a course whose entire
+               argument is that the ground is the hazard.
+
+               So the stakes stayed and the ground arrived. `massif` puts a
+               whinstone dune the size of a hill down the right of it — the
+               rock the course is named for, and the reason there are outcrops
+               on the crest of it — and the boundary runs along the foot,
+               which makes the two halves of the hole one question instead of
+               two. Everything you gain by playing away from the dune you give
+               back to the stakes.
+
+               A dune this size cannot be flown and is not meant to be: nothing
+               in the bag gets above about three units, so four and a half of
+               sandhill is a thing you go round. What it does instead is throw
+               anything that lands on its flank straight back down — into the
+               fairway if you were lucky and over the line if you were not. */
+            name: 'The Sandhill', par: 4, open: true,
+            blurb: 'A whinstone dune the size of a hill down the right, and the stakes along the foot of it.',
             pads: moor({
-                tee: { x: 20, z: 12 }, seed: 9091, n: 38,
-                area: { x: 3, z: 3, w: 44, d: 48 },
-                r: 4.5, rMax: 9, grad: 0.21,
-                strips: [[54, [13, rgh], [17, fwy], [20, rgh]]],
-                flat: [keep(22, 27, 7), keep(21, 19.5, 3.8), keep(15.5, 24, 3.3)],
+                tee: { x: 15, z: 10 }, seed: 7717, n: 44,
+                area: { x: 3, z: 3, w: 52, d: 54 },
+                r: 5, rMax: 10, grad: 0.21,
+                bumps: massif(33, 30, 15, 3.8, 6),
+                strips: [
+                    [30, [7, rgh], [19, fwy], [32, rgh]],
+                    [16, [5, rgh], [19, fwy], [34, rgh]],
+                    [14, [58, rgh]]
+                ],
+                flat: [keep(33, 30, 16), keep(14, 50, 7.5),
+                       keep(13.5, 26, 3.6), keep(9, 41, 3.2)],
                 inlays: [
-                    circle(22, 27, 4.6, grn),
-                    circle(21, 19.5, 2.2, snd),
-                    circle(15.5, 24, 2, snd)
+                    circle(14, 50, 5.0, grn),
+                    circle(13.5, 26, 2.4, snd),
+                    circle(9, 41, 2.2, snd)
                 ]
             }),
-            fence: { x: 8, z: 5, w: 22, d: 36 },
-            tee: { x: 20, z: 12 }, cup: { x: 22, z: 27 }
+            extra: [].concat(
+                crags(33, 30, 5, 7, 7717, { s: 1.6, h: 1.2 }),
+                crags(27, 20, 4, 4, 7727, { s: 1.2, h: 0.9 })
+            ),
+            fence: { x: 4, z: 5, w: 24, d: 52 },
+            tee: { x: 15, z: 10 }, cup: { x: 14, z: 50 }
         }),
         build({
             name: 'Home Ground', par: 4, open: true,
@@ -3078,14 +3112,14 @@
                a single raised cosine wide enough to cross a hole is also tall
                enough in the middle to be a pimple; four at a third of the
                height each add along their line into a ridge with a flat top. */
-            var field = ridge(5, 17, 17, 17, 6.5, 0.7, 3)
-                .concat(massif(-3.5, 15, 11, 1.6, 5))
+            var field = ridge(5, 19, 17, 19, 6.5, 0.7, 3)
+                .concat(massif(-3.5, 15, 11, 2.5, 5))
                 .concat([hill(3, 40, 3.4, -0.8), hill(19, 22, 3, -0.55)]);
             var heath = commons(0, [
                 [6,                     [7, rgh], [8, fwy], [7, rgh]],
-                [{ d: 5, sz: 0.16 },    [7, rgh], [8, fwy], [7, rgh]],
+                [{ d: 6, sz: 0.19 },    [7, rgh], [8, fwy], [7, rgh]],
                 [14,                    [7, rgh], [8, fwy], [7, rgh]],
-                [{ d: 5, sz: -0.18 },   [6, rgh], [4, snd, DIP], [6, fwy], [6, rgh]],
+                [{ d: 5, sz: -0.23 },   [6, rgh], [4, snd, DIP], [6, fwy], [6, rgh]],
                 [{ d: 5, sz: 0.2 },     [6, rgh], [10, fwy], [6, rgh]],
                 [3,                     [6, rgh], [10, fwy], [6, rgh]],
                 [6,                     [6, rgh], [10, grn], [6, rgh]],
@@ -3098,7 +3132,7 @@
                 fence: heath.fence,
                 extra: [].concat(
                     treeline(2, 7, 2, 22, 4),
-                    crags(1.5, 17, 3.4, 5, 8101, { s: 1.3, h: 1.0 }),
+                    crags(1.5, 19, 3.4, 5, 8101, { s: 1.3, h: 1.0 }),
                     crags(20.5, 16, 3, 4, 8117, { s: 1.15, h: 0.9 }),
                     [tree(2.2, 41), tree(19.8, 41.5)]
                 ),
@@ -3200,12 +3234,12 @@
                may roll under an inlay, because an inlay wins a tie in
                `surfaceUnder` and loses outright to ground that has been lifted
                above it. */
-            var field = ring(10, 21, 6.5, 3.5, 1.15, 6)
+            var field = ring(10, 21, 6.5, 3.5, 1.4, 6)
                 .concat(massif(-6, 20, 12, 2.2, 5))
                 .concat(massif(27, 17, 11, 1.9, 5));
             var heath = commons(0, [
-                [{ d: 5, y: 2.2 },      [6, rgh], [8, fwy], [6, rgh]],
-                [{ d: 3, sz: -0.5 },    [20, rgh]],
+                [{ d: 5, y: 3.1 },      [6, rgh], [8, fwy], [6, rgh]],
+                [{ d: 3, sz: -0.8 },    [20, rgh]],
                 [{ d: 4, sz: -0.1 },    [4, rgh], [12, snd, DIP], [4, rgh]],
                 [20,                    [20, rgh]]
             ], { w: 16, e: 16 });
@@ -3216,8 +3250,8 @@
                     .concat([circle(10, 21, 3.0, grn, 0.3)]),
                 fence: heath.fence,
                 extra: [].concat(
-                    crags(2.5, 12, 3, 5, 8353, { s: 1.3, h: 1.0 }),
-                    crags(17.5, 11.5, 2.8, 4, 8363, { s: 1.2, h: 0.9 })
+                    crags(-4, 17, 3.5, 6, 8353, { s: 1.4, h: 1.1 }),
+                    crags(24, 15, 3.2, 5, 8363, { s: 1.3, h: 1.0 })
                 ),
                 tee: { x: 10, z: 2.5 }, cup: { x: 10, z: 21 }
             });
@@ -3233,18 +3267,18 @@
                three overlapping hollows lying across the line, so a running
                approach is thrown up in the air a unit short of the shelf and
                the only shot that gets close is the one that carries all of it. */
-            var field = ridge(5, 16.5, 17, 16.5, 5.5, 0.55, 3)
-                .concat(massif(-5, 34, 12, 2.1, 5))
-                .concat(whorl(11, 42, 1.8, 3.5, 4, 0.3, 9, 1.5))
-                .concat(ridge(8, 51.4, 16, 51.4, 2.5, -0.38, 3))
+            var field = ridge(5, 17.5, 17, 17.5, 5.5, 0.55, 3)
+                .concat(massif(-5, 40, 12, 2.1, 5))
+                .concat(whorl(11, 47, 1.8, 3.5, 4, 0.3, 9, 1.5))
+                .concat(ridge(8, 54.4, 16, 54.4, 2.5, -0.38, 3))
                 .concat([hill(19.5, 17, 2.5, -0.55)]);
             var heath = commons(0, [
                 [6,                     [5, rgh], [9, fwy], [8, rgh]],
-                [{ d: 5, sz: 0.16 },    [6, rgh], [8, fwy], [8, rgh]],
+                [{ d: 6, sz: 0.19 },    [6, rgh], [8, fwy], [8, rgh]],
                 [11,                    [6, rgh], [8, fwy], [8, rgh]],
-                [{ d: 4, sz: -0.16 },   [6, rgh], [8, fwy], [8, rgh]],
+                [{ d: 5, sz: -0.22 },   [6, rgh], [8, fwy], [8, rgh]],
                 [4,                     [6, rgh], [4, snd, DIP], [6, fwy], [6, rgh]],
-                [{ d: 4, sz: -0.1 },    [7, rgh], [9, fwy], [6, rgh]],
+                [{ d: 5, sz: -0.16 },   [7, rgh], [9, fwy], [6, rgh]],
                 [20,                    [7, rgh], [9, fwy], [6, rgh]],
                 [{ d: 4, sz: 0.16 },    [7, rgh], [10, fwy], [5, rgh]],
                 [7,                     [6, rgh], [11, grn], [5, rgh]],
@@ -3258,9 +3292,9 @@
                 extra: [].concat(
                     treeline(2, 9, 2, 32, 6),
                     crags(19.6, 15, 3.2, 5, 8377, { s: 1.3, h: 1.0 }),
-                    [tree(20, 57), tree(20, 61)]
+                    [tree(20, 60), tree(20, 64)]
                 ),
-                tee: { x: 9.5, z: 3 }, cup: { x: 11.5, z: 61.5 }
+                tee: { x: 9.5, z: 3 }, cup: { x: 11.5, z: 64.5 }
             });
         })(),
         (function () {
@@ -3278,7 +3312,7 @@
             var cut = ravine(0, 17, 20, 13.4, 2.2, { bank: [0, 3.2] });
             var field = ridge(4, 9, 16, 9, 4, 0.34, 3)
                 .concat(massif(24, 14, 11, 1.8, 5))
-                .concat([hill(17.5, 33, 2.5, -0.6), hill(2.8, 35, 2.2, 0.45)]);
+                .concat([hill(17.5, 33, 2.5, -0.6), hill(2.0, 42, 2.4, 0.5)]);
             var heath = commons(0, [
                 [6,                     [4, rgh], [9, fwy], [7, rgh]],
                 [11,                    [4, rgh], [9, fwy], [7, rgh]],
