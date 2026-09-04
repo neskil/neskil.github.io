@@ -578,12 +578,24 @@
        `y` is the ground the tree is standing on, and it matters the moment a
        hole has terraces in it: a trunk is placed off its own base rather than
        off the ground under it, so a tree on a shelf a metre up is a tree buried
-       to the knee unless it is told where the shelf is. */
+       to the knee unless it is told where the shelf is.
+
+       Leave `y` out and `build` looks the ground up instead, which is the
+       answer that cannot go stale. Carrying the number by hand was fine while
+       the parkland course was a table with a step in it; on ground that climbs
+       four units and falls into a gorge it is a second copy of the height
+       field kept in step by memory, and it was not being kept — trees stood a
+       clear two units in the air on holes whose rows had been retilted, and
+       nothing in the suite said so. The number is still worth having where a
+       tree is meant to stand somewhere other than on the ground under its own
+       middle; everywhere else, omitting it is now the better answer. */
     function tree(cx, cz, opts) {
         var o = opts || {};
         var t = o.t === undefined ? 0.62 : o.t;
-        return wall(cx - t / 2, cz - t / 2, t, t, o.h === undefined ? 2.4 : o.h,
+        var w = wall(cx - t / 2, cz - t / 2, t, t, o.h === undefined ? 2.4 : o.h,
             { base: (o.y || 0) - 0.4, kind: 'tree' });
+        if (o.y === undefined) w.seat = 0.4;      // how far its base sinks
+        return w;
     }
 
     /* A stand of them along a line. A treeline is never one tree — and where
@@ -597,6 +609,50 @@
                 c = { t: o.t, h: o.h, y: y0 + ((y1 === undefined ? y0 : y1) - y0) * f };
             }
             out.push(tree(x0 + (x1 - x0) * f, z0 + (z1 - z0) * f, c));
+        }
+        return out;
+    }
+
+    /* A rock, and the reason it exists is that two of the three long courses
+       have no trees on them and are not supposed to look empty. A heath has
+       stone in it and so does a links, and a boulder is the one piece of
+       scenery that belongs on ground whose whole subject is its own shape: it
+       stands on the skyline of a crest and tells you there is a crest.
+
+       Where a tree is solid only in its trunk, a rock is solid all the way up.
+       That is not a special case, it is the ordinary one — a canopy is the
+       exception, and it is an exception because nothing in the bag can fly
+       over it, so a solid one would only ever mean the ball stopping in
+       mid-air. A boulder is under a metre high and every lofted club in the
+       bag clears it, so what is drawn is what the ball hits.
+
+       Authored by its middle like a tree, and `y` is the ground it stands on
+       for the same reason: a rock is placed off its own base, so one on a
+       shelf a metre up is buried to the shoulder unless it is told where the
+       shelf is. render.js shakes its lumps out of where it stands, so an
+       outcrop is an outcrop rather than three copies of one stone. */
+    function crag(cx, cz, opts) {
+        var o = opts || {};
+        var s = o.s === undefined ? 1.15 : o.s;
+        var w = wall(cx - s / 2, cz - s / 2, s, s, o.h === undefined ? 0.85 : o.h,
+            { base: (o.y || 0) - 0.3, kind: 'rock' });
+        if (o.y === undefined) w.seat = 0.3;
+        return w;
+    }
+
+    /* An outcrop: a scatter of them about a point, from a seed, so a hole gets
+       a group of stones of different sizes rather than a row of identical
+       ones. Deterministic like everything else in this file — a course that
+       reshuffles itself is a course the tests cannot make a statement about. */
+    function crags(cx, cz, spread, n, seed, opts) {
+        var rnd = seeded(seed), out = [], i, o = opts || {}, t;
+        for (i = 0; i < n; i++) {
+            t = rnd() * Math.PI * 2;
+            out.push(crag(cx + Math.cos(t) * spread * (0.3 + rnd() * 0.7),
+                          cz + Math.sin(t) * spread * (0.3 + rnd() * 0.7),
+                          { s: (o.s === undefined ? 1.15 : o.s) * (0.6 + rnd() * 0.8),
+                            h: (o.h === undefined ? 0.85 : o.h) * (0.6 + rnd() * 0.7),
+                            y: o.y }));
         }
         return out;
     }
@@ -642,6 +698,33 @@
             out.push(hill(cx + Math.cos(t) * radius, cz + Math.sin(t) * radius, r, a));
         }
         return out;
+    }
+
+    /* A mountain, rather than a hump with ambitions.
+
+       One raised cosine is the wrong shape for a landform this size, and the
+       arithmetic is what says so: its steepest flank is a*PI/2r, so four units
+       of height on a radius of ten reaches a gradient of 0.63 and is a cone
+       nothing stays on. Widening it until the flank is holdable fixes the
+       gradient and costs the shape — a cosine broad enough to be safe is a
+       pudding, and a pudding read from the tee is not a mountain.
+
+       So a massif is a broad base with a ring of shoulders standing on it at a
+       little under half its radius. The base carries the height at a gradient
+       the ground can hold; the shoulders are a fifth of it apiece, they add on
+       the way up the flank where the interest is, and they leave the summit
+       alone — which is what gives the thing a skyline instead of a dome.
+
+       `a` is what the *base* is worth, so the top comes out higher than the
+       number asked for, and the gradient that matters is the sum. Both are
+       measured on the finished height field by tests.html rather than trusted
+       from here. The rule of thumb the courses are written against: a peak of
+       `a` on a radius of about 2*a*PI/HOLD is one a fairway will still hold a
+       stopped ball on, and anything steeper belongs in the rough — which is
+       the honest reason you play round a mountain rather than over it. */
+    function massif(cx, cz, r, a, n) {
+        return [hill(cx, cz, r, a)].concat(
+            ring(cx, cz, r * 0.42, r * 0.4, a * 0.2, n === undefined ? 5 : n));
     }
 
     // A small deterministic generator, so a hole's dunes are the same dunes
@@ -1059,12 +1142,70 @@
        to build this badly: grown far enough to open both long seams and inset
        from the ends, so the boundary rail at either end of the ravine floor
        stays where it is and the hole does not quietly acquire a hole in its
-       own fence. */
-    function ravine(x, z, w, d, depth, kind) {
+       own fence.
+
+       `along` turns it a quarter turn. A gulley *across* the hole is a carry
+       and a decision taken once; one running *down* the side of it is a
+       lateral hazard you are flirting with on every shot, and the only thing
+       that differs between them is which pair of seams is the long one. So it
+       is the same helper with the gaps put on the other two edges, rather than
+       a second one that would drift.
+
+       ── why a deep one needs banks ──
+
+       `bank` is the width the two walls take out of `d`, and below about a
+       unit of depth it is worth nothing: a ball at the foot of a low step gets
+       out with a wedge and the wall may as well be vertical. Past that it is
+       the difference between a hazard and a hole in the rules, and the bot is
+       what proved it. A gorge two units deep with vertical sides collects a
+       drive, the ball rolls to the far wall and comes to rest hard against it,
+       and from there *no shot in the bag gets out*: a wedge leaves the ground
+       at 58 degrees and needs a unit and a half of run before it is two units
+       up, and there is nothing in front of the ball but wall. It played eight
+       strokes from the same square foot of gravel.
+
+       So the walls are ground rather than cliff: a strip either side, tilted
+       at depth/bank, which the ball rolls down and can be pitched — or driven
+       — back up. Nothing holds a stopped ball on a slope that steep (see
+       CONFIG.HOLD), so what a deep gorge costs is still the whole hole; what
+       it no longer costs is the round.
+
+       The two sides want different answers, though, which is why `bank` may be
+       a pair rather than a number. A near wall wide enough to play out of is
+       also a ramp: a drive pitching on to it at fifty degrees reflects forward
+       and up, sails the whole gorge and lands beside the flag, and the hazard
+       has quietly stopped being one — the bot went tee to green off the first
+       swing and holed out in two on a par four. So the near side is a lip,
+       steep enough to throw a ball that lands on it back up rather than
+       across, and the far side is the bank you get out on. Which is also the
+       way round a real barranca is cut, since the near side is the one the
+       water was undercutting. */
+    function ravine(x, z, w, d, depth, opts) {
+        var o = typeof opts === 'string' ? { kind: opts } : (opts || {});
         var m = 0.45, inset = 0.6;
+        var dep = depth === undefined ? 0.95 : depth;
+        var bs = o.bank || 0;
+        var bn = bs.length ? bs[0] : bs, bf = bs.length ? bs[1] : bs;
+        var kind = o.kind || 'rough';
+        var along = !!o.along;
+        var fx = x + (along ? bn : 0), fz = z + (along ? 0 : bn);
+        var fw = w - (along ? bn + bf : 0), fd = d - (along ? 0 : bn + bf);
+        var floor = pad(fx, fz, fw, fd, -dep, kind);
+        var walls = [];
+        if (along) {
+            if (bn > 0) walls.push(pad(x, z, bn, d, 0, kind, -dep / bn, 0));
+            if (bf > 0) walls.push(pad(x + w - bf, z, bf, d, -dep, kind, dep / bf, 0));
+        } else {
+            if (bn > 0) walls.push(pad(x, z, w, bn, 0, kind, 0, -dep / bn));
+            if (bf > 0) walls.push(pad(x, z + d - bf, w, bf, -dep, kind, 0, dep / bf));
+        }
         return {
-            pad: pad(x, z, w, d, -(depth === undefined ? 0.95 : depth), kind || 'rough'),
-            gaps: [
+            pad: floor,
+            pads: [floor].concat(walls),
+            gaps: along ? [
+                { x: x - m, z: z + inset, w: 2 * m, d: d - 2 * inset },
+                { x: x + w - m, z: z + inset, w: 2 * m, d: d - 2 * inset }
+            ] : [
                 { x: x + inset, z: z - m, w: w - 2 * inset, d: 2 * m },
                 { x: x + inset, z: z + d - m, w: w - 2 * inset, d: 2 * m }
             ]
@@ -1220,7 +1361,7 @@
     }
 
     function build(h) {
-        var P = G3.physics;
+        var P = G3.physics, i;
         h.water = h.water || [];
 
         /* Relief, before anything is derived from the ground.
@@ -1275,6 +1416,21 @@
            `fence`, a line you are only punished for stopping beyond. */
         h.walls = (h.open ? [] : enclose(h.pads, h.gaps || [])).concat(h.extra || []);
 
+        /* And whatever grows out of the ground is put on the ground. A tree or
+           a rock authored without a `y` carries a `seat` — how far its base
+           sinks below the surface it stands on — and this is the one place
+           that number meets the height field. See `tree` for why it is worth
+           doing here rather than in the hole: the alternative is every author
+           keeping a copy of the ground in their head, and on a course with
+           four units of climb on it that copy goes stale the first time a row
+           is retilted. tests.html measures the result rather than trusting it. */
+        for (i = 0; i < h.walls.length; i++) {
+            var wl = h.walls[i];
+            if (!wl.seat) continue;
+            var seat = P.surfaceTop(h, wl.x + wl.w / 2, wl.z + wl.d / 2);
+            if (seat) wl.base = seat.y - wl.seat;
+        }
+
         /* Is this the long game? A hole made of fairway and rough is one you
            walk down with a bag; a hole made entirely of green is a lane you
            putt along, whatever else is in the way. The difference matters to
@@ -1297,7 +1453,7 @@
            it would show the player a postage stamp in the middle of a field,
            so the boundary counts as the hole instead — grown by a little, so
            the stakes are inside the picture rather than on the edge of it. */
-        var minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity, i, p;
+        var minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity, p;
         if (h.open && h.fence) {
             var rects = P.fenceRects(h), m = 3, q, f;
             for (q = 0; q < rects.length; q++) {
@@ -1862,31 +2018,33 @@
                shortens by four units, come up on the near side of it and the
                approach is played blind over the top. */
             var field = [].concat(
-                ridge(5, 16, 14, 19, 4.5, 0.30, 4),
-                [hill(3, 34, 3, -0.6), hill(18.5, 35.5, 2.5, 0.5)]
+                ridge(5, 19, 14, 21, 4.5, 0.30, 4),
+                massif(-6, 18, 12, 2.2, 5),
+                [hill(3, 33, 3, -0.6), hill(18.5, 41, 2.5, 0.5)]
             );
             var park = commons(0, [
-                [{ d: 5, y: 1.2 },      [3.5, rgh], [8, fwy], [9.5, rgh]],
-                [{ d: 5, sz: -0.24 },   [3.5, rgh], [8, fwy], [9.5, rgh]],
+                [{ d: 5, y: 4.0 },      [3.5, rgh], [8, fwy], [9.5, rgh]],
+                [{ d: 3, sz: -0.7 },    [21, rgh]],
+                [{ d: 6, sz: -0.15 },   [3.5, rgh], [8, fwy], [9.5, rgh]],
                 [10,                    [3.5, rgh], [8, fwy], [9.5, rgh]],
                 [5,                     [4.5, rgh], [9, fwy], [7.5, rgh]],
                 [3,                     [7, rgh], [2, fwy], [3.5, snd, DIP], [3.5, fwy], [5, rgh]],
-                [{ d: 3, sz: 0.18 },    [6, rgh], [10, fwy], [5, rgh]],
+                [{ d: 5, sz: 0.24 },    [6, rgh], [10, fwy], [5, rgh]],
                 [9,                     [6, rgh], [10, grn], [5, rgh]],
                 [4,                     [21, rgh]]
             ]);
             return build({
                 name: 'Opening Drive', par: 4, long: true, shaped: true, open: true,
-                blurb: 'Downhill off the bluff, over the crest, and back up to a green on a shelf.',
+                blurb: 'Three units down off the bluff, over the crest, and back up to a green on a shelf.',
                 pads: shape(scoop(park.pads, { seed: 21 }), field),
                 fence: park.fence,
                 extra: [].concat(
-                    treeline(1.7, 11, 1.7, 24, 5),
-                    treeline(19.5, 13, 19.5, 26, 4),
-                    [tree(1.6, 3, { y: 1.2 }), tree(2.4, 41.5, { y: 0.54 }),
-                     tree(19, 41.5, { y: 0.54 })]
+                    treeline(1.7, 14, 1.7, 27, 5),
+                    treeline(19.5, 16, 19.5, 29, 4),
+                    crags(-2, 10, 3.5, 6, 7101, { s: 1.4, h: 1.1 }),
+                    [tree(1.6, 3), tree(2.4, 47.5), tree(19, 47.5)]
                 ),
-                tee: { x: 7.5, z: 2.5 }, cup: { x: 11.5, z: 36 }
+                tee: { x: 7.5, z: 2.5 }, cup: { x: 11.5, z: 41.5 }
             });
         })(),
         (function () {
@@ -1901,20 +2059,21 @@
                closer to it. The hollow at twenty-six gathers the timid one. */
             var field = [].concat(
                 ridge(5, 16, 14, 16, 4.5, 0.28, 4),
-                [hill(9, 26.5, 2.5, -0.36), hill(19, 37, 3, 0.45)]
+                massif(28, 26, 13, 2.4, 5),
+                [hill(9, 28.5, 2.5, -0.36), hill(20, 41, 3, 0.45)]
             );
             var park = commons(0, [
-                [{ d: 5, y: 0.6 },      [4, rgh], [9, fwy], [9, rgh]],
-                [{ d: 2, sz: -0.3 },    [22, rgh]],
+                [{ d: 5, y: 3.2 },      [4, rgh], [9, fwy], [9, rgh]],
+                [{ d: 4, sz: -0.65 },   [22, rgh]],
                 [13,                    [4, rgh], [9, fwy], [9, rgh]],
                 [4,                     [4, rgh], [7, fwy], [3, snd, DIP], [8, rgh]],
                 [5,                     [5, rgh], [10, fwy], [7, rgh]],
                 [4,                     [4, rgh], [14, snd, DIP], [4, rgh]],
-                [8,                     [6, rgh], [11, fwy], [5, rgh]],
-                [{ d: 3, sz: 0.2 },     [6, rgh], [11, fwy], [5, rgh]],
+                [{ d: 8, sz: 0.2 },     [6, rgh], [11, fwy], [5, rgh]],
+                [5,                     [6, rgh], [11, fwy], [5, rgh]],
                 [9,                     [5, rgh], [12, grn], [5, rgh]],
                 [3,                     [22, rgh]]
-            ]);
+            ], { e: 18 });
             return build({
                 name: 'Long Meadow', par: 5, long: true, shaped: true, open: true,
                 blurb: 'A belt of sand across the fairway that no club carries. Lay up, then pitch it.',
@@ -1923,9 +2082,10 @@
                 extra: [].concat(
                     treeline(2, 9, 2, 30, 6),
                     treeline(20.3, 12, 20.3, 26, 4),
-                    [tree(3, 49, { y: 0.6 }), tree(19.5, 50, { y: 0.6 })]
+                    crags(1.5, 5, 2.4, 4, 7107, { s: 1.2, h: 0.9 }),
+                    [tree(3, 53), tree(19.5, 54)]
                 ),
-                tee: { x: 8.5, z: 2.5 }, cup: { x: 11, z: 48.5 }
+                tee: { x: 8.5, z: 2.5 }, cup: { x: 11, z: 52.5 }
             });
         })(),
         (function () {
@@ -1937,31 +2097,33 @@
                a shelf four fifths of a unit above the fairway with sand eating
                into its front left. */
             var field = [].concat(
-                ridge(12, 11, 18, 13, 3.5, 0.26, 3),
-                [hill(18, 19, 3.5, 0.45), hill(17, 32.5, 3, -0.5)]
+                ridge(12, 13, 18, 15, 3.5, 0.26, 3),
+                massif(30, 20, 13, 2.3, 5),
+                [hill(18, 19, 3.5, 0.45), hill(17, 35, 3, -0.5)]
             );
             var park = commons(0, [
-                [{ d: 5, y: 0.9 },      [12, rgh], [8, fwy], [2, rgh]],
-                [{ d: 2.5, sz: -0.36 }, [22, rgh]],
+                [{ d: 5, y: 3.4 },      [12, rgh], [8, fwy], [2, rgh]],
+                [{ d: 4, sz: -0.65 },   [22, rgh]],
                 [9.5,                   [12, rgh], [8, fwy], [2, rgh]],
                 [5,                     [4, rgh], [4, snd, DIP], [12, fwy], [2, rgh]],
-                [{ d: 4, sz: 0.14 },    [2, rgh], [12, fwy], [8, rgh]],
+                [{ d: 6, sz: 0.22 },    [2, rgh], [12, fwy], [8, rgh]],
                 [3,                     [2, rgh], [3, snd, DIP], [9, fwy], [8, rgh]],
                 [7,                     [2, rgh], [11, grn], [9, rgh]],
                 [3,                     [22, rgh]]
-            ]);
+            ], { e: 20 });
             return build({
                 name: 'The Elbow', par: 4, long: true, shaped: true, open: true,
-                blurb: 'It turns left around an oak older than the course, then climbs to a shelf.',
+                blurb: 'Off a bluff, left around an oak older than the course, then two units up to a shelf.',
                 pads: shape(scoop(park.pads, { seed: 27 }), field),
                 fence: park.fence,
                 extra: [].concat(
                     [tree(11.9, 16, { t: 0.9, h: 3 })],
-                    treeline(9.6, 8, 10.4, 13.5, 3),
-                    treeline(1.5, 10, 1.5, 21, 4),
-                    treeline(20.5, 27, 20.5, 34, 3, { y0: 0.56, y1: 0.56 })
+                    treeline(9.6, 10, 10.4, 15, 3),
+                    treeline(1.5, 12, 1.5, 23, 4),
+                    treeline(20.5, 30, 20.5, 37, 3),
+                    crags(19.5, 20, 3, 5, 7113, { s: 1.3, h: 1.0 })
                 ),
-                tee: { x: 16, z: 2.5 }, cup: { x: 7, z: 32.5 }
+                tee: { x: 16, z: 2.5 }, cup: { x: 7, z: 36 }
             });
         })(),
         (function () {
@@ -1974,27 +2136,29 @@
                the right, off the tongue of fairway the pond does not reach. */
             var field = [].concat(
                 ridge(4.5, 22, 13.5, 22, 2.0, 0.45, 5),
+                massif(-9, 16, 11, 2.1, 5),
                 [hill(1.6, 18, 1.6, -0.23)]
             );
             var park = commons(0, [
-                [{ d: 3.5, y: 0.7 },    [3, rgh], [9, fwy], [6, rgh]],
-                [{ d: 2, sz: -0.35 },   [18, rgh]],
+                [{ d: 3.5, y: 4.2 },    [3, rgh], [9, fwy], [6, rgh]],
+                [{ d: 2, sz: -1.35 },   [18, rgh]],
                 [4,                     [2.5, rgh], [7.5, null], [2.5, fwy], [5.5, rgh]],
-                [{ d: 2, sz: 0.15 },    [2.5, rgh], [13, fwy], [2.5, rgh]],
+                [{ d: 2, sz: 0.24 },    [2.5, rgh], [13, fwy], [2.5, rgh]],
                 [3,                     [1.5, rgh], [2.6, snd, DIP], [11.4, fwy], [2.5, rgh]],
                 [5.5,                   [2.5, rgh], [10, fwy], [3, snd, DIP], [2.5, rgh]],
                 [4,                     [18, rgh]]
-            ]);
+            ], { w: 22 });
             return build({
                 name: 'Over the Water', par: 3, long: true, shaped: true, open: true,
-                blurb: 'Off a bluff, over the pond, on to a round green on a shelf. The dry way in is right.',
+                blurb: 'Off a high bluff, over the pond in the bottom, on to a round green on a shelf.',
                 pads: shape(scoop(park.pads, { seed: 23 }), field)
-                    .concat([circle(7.5, 16, 3.6, grn, 0.3)]),
+                    .concat([circle(7.5, 16, 3.6, grn, 1.98)]),
                 fence: park.fence,
-                water: [rect(2.5, 5.5, 7.5, 4, -0.55)],
+                water: [rect(2.5, 5.5, 7.5, 4, 1.0)],
                 extra: [].concat(
                     treeline(16.6, 4, 16.6, 12, 3),
-                    [tree(1.2, 3, { y: 0.7 })]
+                    crags(-5, 14, 3.5, 5, 7119, { s: 1.4, h: 1.1 }),
+                    [tree(1.2, 3)]
                 ),
                 tee: { x: 10.5, z: 1.75 }, cup: { x: 7.5, z: 16.5 }
             });
@@ -2011,23 +2175,27 @@
                Whinstone's punchbowl is: eight humps standing far enough out
                that not one of their tails reaches the putting surface, so the
                green is a flat round table at the bottom of a bowl of heath. */
-            var field = ring(10, 19, 6.4, 3.4, 0.68, 8);
+            var field = ring(10, 21, 6.4, 3.4, 1.2, 8)
+                .concat(massif(-8, 21, 12, 2.4, 5))
+                .concat(massif(28, 21, 12, 2.4, 5));
             var park = commons(0, [
-                [{ d: 4, y: 0.6 },      [5, rgh], [10, fwy], [5, rgh]],
-                [{ d: 2.5, sz: -0.24 }, [20, rgh]],
+                [{ d: 4, y: 3.2 },      [5, rgh], [10, fwy], [5, rgh]],
+                [{ d: 3, sz: -0.88 },   [20, rgh]],
                 [3,                     [6, rgh], [8, fwy], [6, rgh]],
                 [20,                    [20, rgh]]
-            ]);
+            ], { m: 18 });
             return build({
                 name: 'The Dell', par: 3, long: true, shaped: true, open: true,
-                blurb: 'Blind. The green lies in a hollow between two mounds and the flag is all you get.',
-                pads: shape(park.pads, field).concat([circle(10, 19, 3.0, grn, 0)]),
+                blurb: 'Blind, off a bluff into a dell between two hills. The top of the flag is all you get.',
+                pads: shape(park.pads, field).concat([circle(10, 21, 3.0, grn, 0.56)]),
                 fence: park.fence,
                 extra: [].concat(
                     treeline(1.4, 9, 1.4, 26, 5),
-                    treeline(18.6, 9, 18.6, 26, 5)
+                    treeline(18.6, 9, 18.6, 26, 5),
+                    crags(1.2, 15, 3, 5, 7127, { s: 1.3, h: 1.0 }),
+                    crags(18.8, 22, 3, 4, 7131, { s: 1.2, h: 0.95 })
                 ),
-                tee: { x: 10, z: 2 }, cup: { x: 10, z: 19 }
+                tee: { x: 10, z: 2 }, cup: { x: 10, z: 21 }
             });
         })(),
         (function () {
@@ -2053,34 +2221,36 @@
                drowned one. */
             var field = [].concat(
                 ridge(3, 12, 8, 15, 3.0, 0.25, 3),
+                massif(-10, 20, 13, 2.6, 5),
                 [hill(6, 27, 1.9, -0.22), hill(8, 39.5, 2.2, 0.4)]
             );
             var park = commons(0, [
-                [5,  [4, rgh], [9, fwy], [9, rgh]],
-                [4,  [4, rgh], [9, fwy], [3, rgh], [6, null]],
-                [4,  [4, rgh], [8, fwy], [2, rgh], [8, null]],
-                [4,  [4, rgh], [7, fwy], [2, rgh], [9, null]],
-                [4,  [4, rgh], [6, fwy], [2, rgh], [10, null]],
-                [4,  [4, rgh], [7, fwy], [2, rgh], [9, null]],
+                [{ d: 5, y: 1.6 },      [4, rgh], [9, fwy], [9, rgh]],
+                [{ d: 4, sz: -0.09 },   [4, rgh], [9, fwy], [3, rgh], [6, null]],
+                [{ d: 4, sz: -0.09 },   [4, rgh], [8, fwy], [2, rgh], [8, null]],
+                [{ d: 4, sz: -0.09 },   [4, rgh], [7, fwy], [2, rgh], [9, null]],
+                [{ d: 4, sz: -0.09 },   [4, rgh], [6, fwy], [2, rgh], [10, null]],
+                [{ d: 4, sz: -0.09 },   [4, rgh], [7, fwy], [2, rgh], [9, null]],
                 [4,  [5, rgh], [3, fwy], [3, snd, DIP], [4, fwy], [7, rgh]],
                 [8,  [5, rgh], [11, grn], [6, rgh]],
                 [5,  [22, rgh]]
-            ], { e: 5 });
+            ], { e: 5, w: 24 });
             return build({
                 name: 'Homeward', par: 4, long: true, shaped: true, open: true,
                 blurb: 'The lake cuts across the hole and the ground falls into it. Bite off what you dare.',
-                pads: shape(tilt(scoop(park.pads, { seed: 29 }), -0.04, 0, 22, 0), field),
+                pads: shape(tilt(scoop(park.pads, { seed: 29 }), -0.055, 0, 22, 0), field),
                 fence: park.fence,
                 water: [
-                    rect(16, 5, 6, 4, -0.85),
-                    rect(14, 9, 8, 4, -0.85),
+                    rect(16, 5, 6, 4, -0.55),
+                    rect(14, 9, 8, 4, -0.7),
                     rect(13, 13, 9, 4, -0.85),
-                    rect(12, 17, 10, 4, -0.85),
-                    rect(13, 21, 9, 4, -0.85)
+                    rect(12, 17, 10, 4, -1.0),
+                    rect(13, 21, 9, 4, -1.1)
                 ],
                 extra: [].concat(
-                    treeline(2, 8, 2, 26, 6, { y0: 1.2, y1: 1.2 }),
-                    [tree(19.5, 33, { y: 0.15 }), tree(19.5, 36, { y: 0.15 })]
+                    treeline(2, 8, 2, 26, 6),
+                    crags(1.4, 30, 3, 5, 7137, { s: 1.3, h: 1.0 }),
+                    [tree(19.5, 33), tree(19.5, 36)]
                 ),
                 tee: { x: 8.5, z: 2.5 }, cup: { x: 10.5, z: 33 }
             });
@@ -2171,22 +2341,55 @@
             tee: { x: 30, z: 14 }, cup: { x: 28, z: 47 }
         }),
         build({
-            name: 'Stake and Ditch', par: 3, open: true,
-            blurb: 'Out of bounds down the whole right side. The stakes are not a suggestion.',
+            /* The hole that used to be here was called Stake and Ditch and it
+               was a corridor. One strip of fairway, a green at the end of it,
+               a bunker either side and a boundary drawn tight down the right —
+               and the boundary was the whole hole, which is to say the whole
+               hole was a rule rather than a piece of ground. Measured against
+               its neighbours it was also the flattest thing on the property by
+               a factor of three: a unit and a quarter of relief where the rest
+               of the course has three and a half, on a course whose entire
+               argument is that the ground is the hazard.
+
+               So the stakes stayed and the ground arrived. `massif` puts a
+               whinstone dune the size of a hill down the right of it — the
+               rock the course is named for, and the reason there are outcrops
+               on the crest of it — and the boundary runs along the foot,
+               which makes the two halves of the hole one question instead of
+               two. Everything you gain by playing away from the dune you give
+               back to the stakes.
+
+               A dune this size cannot be flown and is not meant to be: nothing
+               in the bag gets above about three units, so four and a half of
+               sandhill is a thing you go round. What it does instead is throw
+               anything that lands on its flank straight back down — into the
+               fairway if you were lucky and over the line if you were not. */
+            name: 'The Sandhill', par: 4, open: true,
+            blurb: 'A whinstone dune the size of a hill down the right, and the stakes along the foot of it.',
             pads: moor({
-                tee: { x: 20, z: 12 }, seed: 9091, n: 38,
-                area: { x: 3, z: 3, w: 44, d: 48 },
-                r: 4.5, rMax: 9, grad: 0.21,
-                strips: [[54, [13, rgh], [17, fwy], [20, rgh]]],
-                flat: [keep(22, 27, 7), keep(21, 19.5, 3.8), keep(15.5, 24, 3.3)],
+                tee: { x: 15, z: 10 }, seed: 7717, n: 44,
+                area: { x: 3, z: 3, w: 52, d: 54 },
+                r: 5, rMax: 10, grad: 0.21,
+                bumps: massif(33, 30, 15, 3.8, 6),
+                strips: [
+                    [30, [7, rgh], [19, fwy], [32, rgh]],
+                    [16, [5, rgh], [19, fwy], [34, rgh]],
+                    [14, [58, rgh]]
+                ],
+                flat: [keep(33, 30, 16), keep(14, 50, 7.5),
+                       keep(13.5, 26, 3.6), keep(9, 41, 3.2)],
                 inlays: [
-                    circle(22, 27, 4.6, grn),
-                    circle(21, 19.5, 2.2, snd),
-                    circle(15.5, 24, 2, snd)
+                    circle(14, 50, 5.0, grn),
+                    circle(13.5, 26, 2.4, snd),
+                    circle(9, 41, 2.2, snd)
                 ]
             }),
-            fence: { x: 8, z: 5, w: 22, d: 36 },
-            tee: { x: 20, z: 12 }, cup: { x: 22, z: 27 }
+            extra: [].concat(
+                crags(33, 30, 5, 7, 7717, { s: 1.6, h: 1.2 }),
+                crags(27, 20, 4, 4, 7727, { s: 1.2, h: 0.9 })
+            ),
+            fence: { x: 4, z: 5, w: 24, d: 52 },
+            tee: { x: 15, z: 10 }, cup: { x: 14, z: 50 }
         }),
         build({
             name: 'Home Ground', par: 4, open: true,
@@ -2909,13 +3112,15 @@
                a single raised cosine wide enough to cross a hole is also tall
                enough in the middle to be a pimple; four at a third of the
                height each add along their line into a ridge with a flat top. */
-            var field = ridge(5, 13, 17, 13, 5, 0.42, 4)
-                .concat([hill(3, 33, 3, -0.7), hill(19, 20, 3, -0.55)]);
+            var field = ridge(5, 19, 17, 19, 6.5, 0.7, 3)
+                .concat(massif(-3.5, 15, 11, 2.5, 5))
+                .concat([hill(3, 40, 3.4, -0.8), hill(19, 22, 3, -0.55)]);
             var heath = commons(0, [
                 [6,                     [7, rgh], [8, fwy], [7, rgh]],
-                [12,                    [7, rgh], [8, fwy], [7, rgh]],
-                [6,                     [6, rgh], [4, snd, DIP], [6, fwy], [6, rgh]],
-                [{ d: 4, sz: 0.15 },    [6, rgh], [10, fwy], [6, rgh]],
+                [{ d: 6, sz: 0.19 },    [7, rgh], [8, fwy], [7, rgh]],
+                [14,                    [7, rgh], [8, fwy], [7, rgh]],
+                [{ d: 5, sz: -0.23 },   [6, rgh], [4, snd, DIP], [6, fwy], [6, rgh]],
+                [{ d: 5, sz: 0.2 },     [6, rgh], [10, fwy], [6, rgh]],
                 [3,                     [6, rgh], [10, fwy], [6, rgh]],
                 [6,                     [6, rgh], [10, grn], [6, rgh]],
                 [3,                     [22, rgh]]
@@ -2927,9 +3132,11 @@
                 fence: heath.fence,
                 extra: [].concat(
                     treeline(2, 7, 2, 22, 4),
-                    [tree(2.2, 34, { y: 0.6 }), tree(19.8, 34.5, { y: 0.6 })]
+                    crags(1.5, 19, 3.4, 5, 8101, { s: 1.3, h: 1.0 }),
+                    crags(20.5, 16, 3, 4, 8117, { s: 1.15, h: 0.9 }),
+                    [tree(2.2, 41), tree(19.8, 41.5)]
                 ),
-                tee: { x: 11, z: 3 }, cup: { x: 11, z: 35.5 }
+                tee: { x: 11, z: 3 }, cup: { x: 11, z: 41 }
             });
         })(),
         (function () {
@@ -2940,27 +3147,30 @@
                and one that finishes in the heather at the bottom. Every shot
                on the hole is played off a sidehill lie, and the hollow at the
                end of it keeps whatever the slope hands over. */
-            var field = [hill(4.5, 30, 4.5, -0.95)]
-                .concat(ridge(5, 28.5, 17, 28.5, 4.5, 0.29, 4));
+            var field = [hill(4.5, 33, 4.5, -0.95)]
+                .concat(massif(28, 20, 12, 2.0, 5))
+                .concat(ridge(5, 31.5, 17, 31.5, 4.5, 0.29, 4));
             var heath = commons(0, [
-                [6,  [4, rgh], [8, fwy], [10, rgh]],
-                [12, [4, rgh], [8, fwy], [10, rgh]],
-                [6,  [5, rgh], [4, snd, DIP], [9, fwy], [4, rgh]],
-                [7,  [8, rgh], [11, fwy], [3, rgh]],
-                [6,  [9, rgh], [10, grn], [3, rgh]],
-                [3,  [22, rgh]]
-            ]);
+                [6,                    [4, rgh], [8, fwy], [10, rgh]],
+                [{ d: 8, sz: 0.12 },   [4, rgh], [8, fwy], [10, rgh]],
+                [{ d: 7, sz: -0.19 },  [4, rgh], [8, fwy], [10, rgh]],
+                [{ d: 6, sz: -0.14 },  [5, rgh], [4, snd, DIP], [9, fwy], [4, rgh]],
+                [7,                    [8, rgh], [11, fwy], [3, rgh]],
+                [6,                    [9, rgh], [10, grn], [3, rgh]],
+                [3,                    [22, rgh]]
+            ], { e: 18 });
             return build({
                 name: 'Gorse Corner', par: 4, long: true, shaped: true, open: true,
                 blurb: 'It bends right around the gorse, and the whole hillside falls away to the left.',
                 pads: shape(tilt(scoop(heath.pads, { seed: 7 }), 0.032, 0, 0, 0), field),
                 fence: heath.fence,
                 extra: [].concat(
-                    treeline(10.5, 16, 10.7, 23, 3, { y0: 0.34, y1: 0.34 }),
-                    treeline(1.8, 9, 1.8, 26, 4, { y0: 0.06, y1: 0.06 }),
-                    [tree(20, 28, { y: 0.64 }), tree(20, 32, { y: 0.64 })]
+                    treeline(10.5, 16, 10.7, 23, 3),
+                    treeline(1.8, 9, 1.8, 26, 4),
+                    crags(19.5, 17, 3, 5, 8311, { s: 1.3, h: 1.0 }),
+                    [tree(20, 31), tree(20, 35)]
                 ),
-                tee: { x: 7, z: 3 }, cup: { x: 14, z: 35 }
+                tee: { x: 7, z: 3 }, cup: { x: 14, z: 38 }
             });
         })(),
         (function () {
@@ -2978,26 +3188,32 @@
                you and it is higher than both of you. A mound at each side of
                the green and a hollow short-left make the two ways of missing
                it different misses. */
-            var field = [hill(3, 32.5, 3, 0.7), hill(19.5, 32, 2.5, 0.6),
-                         hill(6.5, 26.5, 2.4, 0.38)];
+            var field = [].concat(
+                massif(-4, 21, 10, 1.7, 5),
+                [hill(3, 39.5, 3, 0.7), hill(19.5, 39, 2.5, 0.6),
+                 hill(6.5, 35, 3.6, 0.4)]
+            );
             var heath = commons(0, [
                 [6,                     [5, rgh], [9, fwy], [8, rgh]],
-                [{ d: 12, sz: 0.09 },   [6, rgh], [8, fwy], [8, rgh]],
-                [{ d: 6, sz: 0.09 },    [6, rgh], [9, fwy], [7, rgh]],
-                [5,                     [5, rgh], [4, fwy], [4, snd, DIP], [4, fwy], [5, rgh]],
+                [{ d: 9,  sz: 0.14 },   [6, rgh], [8, fwy], [8, rgh]],
+                [{ d: 11, sz: 0.21 },   [6, rgh], [8, fwy], [8, rgh]],
+                [{ d: 6,  sz: 0.15 },   [6, rgh], [9, fwy], [7, rgh]],
+                [{ d: 5, sz: -0.07 },   [5, rgh], [4, fwy], [4, snd, DIP], [4, fwy], [5, rgh]],
                 [8,                     [6, rgh], [11, grn], [5, rgh]],
                 [3,                     [22, rgh]]
             ]);
             return build({
                 name: 'The Beacon', par: 4, long: true, shaped: true, open: true,
-                blurb: 'The fairway climbs a hillside for twenty units. The green is over the top of it.',
+                blurb: 'Four units of climb over twenty-six, and the green is over the top of it.',
                 pads: shape(scoop(heath.pads, { seed: 17 }), field),
                 fence: heath.fence,
                 extra: [].concat(
-                    treeline(1.8, 8, 1.8, 24, 4, { y0: 0.18, y1: 1.62 }),
-                    treeline(20.2, 26, 20.2, 34, 3, { y0: 1.62, y1: 1.62 })
+                    treeline(1.8, 8, 1.8, 24, 4),
+                    treeline(20.2, 30, 20.2, 40, 4),
+                    crags(2.6, 28, 3.6, 6, 8231, { s: 1.4, h: 1.1 }),
+                    crags(19.4, 24, 3, 4, 8237, { s: 1.2, h: 0.95 })
                 ),
-                tee: { x: 10, z: 3 }, cup: { x: 11.5, z: 34 }
+                tee: { x: 10, z: 3 }, cup: { x: 11.5, z: 41 }
             });
         })(),
         (function () {
@@ -3018,19 +3234,25 @@
                may roll under an inlay, because an inlay wins a tie in
                `surfaceUnder` and loses outright to ground that has been lifted
                above it. */
-            var field = ring(10, 21, 6.5, 3.5, 0.85, 6);
+            var field = ring(10, 21, 6.5, 3.5, 1.4, 6)
+                .concat(massif(-6, 20, 12, 2.2, 5))
+                .concat(massif(27, 17, 11, 1.9, 5));
             var heath = commons(0, [
-                [{ d: 5, y: 0.5 },      [6, rgh], [8, fwy], [6, rgh]],
-                [{ d: 2, sz: -0.25 },   [20, rgh]],
-                [4,                     [4, rgh], [12, snd, DIP], [4, rgh]],
+                [{ d: 5, y: 3.1 },      [6, rgh], [8, fwy], [6, rgh]],
+                [{ d: 3, sz: -0.8 },    [20, rgh]],
+                [{ d: 4, sz: -0.1 },    [4, rgh], [12, snd, DIP], [4, rgh]],
                 [20,                    [20, rgh]]
-            ]);
+            ], { w: 16, e: 16 });
             return build({
                 name: 'The Waste', par: 3, long: true, shaped: true, open: true,
-                blurb: 'Sand where the fairway should be, and a round green at the bottom of a bowl.',
+                blurb: 'Off a shelf, over the waste, to a round green at the bottom of a bowl between two hills.',
                 pads: shape(scoop(heath.pads, { seed: 5 }), field)
-                    .concat([circle(10, 21, 3.0, grn, 0)]),
+                    .concat([circle(10, 21, 3.0, grn, 0.3)]),
                 fence: heath.fence,
+                extra: [].concat(
+                    crags(-4, 17, 3.5, 6, 8353, { s: 1.4, h: 1.1 }),
+                    crags(24, 15, 3.2, 5, 8363, { s: 1.3, h: 1.0 })
+                ),
                 tee: { x: 10, z: 2.5 }, cup: { x: 10, z: 21 }
             });
         })(),
@@ -3045,30 +3267,34 @@
                three overlapping hollows lying across the line, so a running
                approach is thrown up in the air a unit short of the shelf and
                the only shot that gets close is the one that carries all of it. */
-            var field = ridge(5, 12, 17, 12, 4.5, 0.36, 4)
-                .concat(whorl(11, 33, 2, 5, 5, 0.38, 9, 1.5))
-                .concat(ridge(8, 41.5, 16, 41.5, 2.2, -0.3, 3))
-                .concat([hill(19.5, 19, 2.5, -0.55)]);
+            var field = ridge(5, 17.5, 17, 17.5, 5.5, 0.55, 3)
+                .concat(massif(-5, 40, 12, 2.1, 5))
+                .concat(whorl(11, 47, 1.8, 3.5, 4, 0.3, 9, 1.5))
+                .concat(ridge(8, 54.4, 16, 54.4, 2.5, -0.38, 3))
+                .concat([hill(19.5, 17, 2.5, -0.55)]);
             var heath = commons(0, [
                 [6,                     [5, rgh], [9, fwy], [8, rgh]],
-                [12,                    [6, rgh], [8, fwy], [8, rgh]],
+                [{ d: 6, sz: 0.19 },    [6, rgh], [8, fwy], [8, rgh]],
+                [11,                    [6, rgh], [8, fwy], [8, rgh]],
+                [{ d: 5, sz: -0.22 },   [6, rgh], [8, fwy], [8, rgh]],
                 [4,                     [6, rgh], [4, snd, DIP], [6, fwy], [6, rgh]],
-                [14,                    [7, rgh], [9, fwy], [6, rgh]],
-                [8,                     [8, rgh], [9, fwy], [5, rgh]],
+                [{ d: 5, sz: -0.16 },   [7, rgh], [9, fwy], [6, rgh]],
+                [20,                    [7, rgh], [9, fwy], [6, rgh]],
                 [{ d: 4, sz: 0.16 },    [7, rgh], [10, fwy], [5, rgh]],
                 [7,                     [6, rgh], [11, grn], [5, rgh]],
                 [3,                     [22, rgh]]
-            ]);
+            ], { w: 16 });
             return build({
                 name: 'Long Ling', par: 5, long: true, shaped: true, open: true,
-                blurb: 'Fifty units of heather with the ground turning under it, and a swale across the last of it.',
+                blurb: 'Fifty-five units of heather over a shoulder and down the other side, with a swale across the last of it.',
                 pads: shape(scoop(heath.pads, { seed: 11 }), field),
                 fence: heath.fence,
                 extra: [].concat(
                     treeline(2, 9, 2, 32, 6),
-                    [tree(20, 47, { y: 0.48 }), tree(20, 51, { y: 0.64 })]
+                    crags(19.6, 15, 3.2, 5, 8377, { s: 1.3, h: 1.0 }),
+                    [tree(20, 60), tree(20, 64)]
                 ),
-                tee: { x: 9.5, z: 3 }, cup: { x: 11.5, z: 52.5 }
+                tee: { x: 9.5, z: 3 }, cup: { x: 11.5, z: 64.5 }
             });
         })(),
         (function () {
@@ -3083,28 +3309,31 @@
                above the crossing with a mound at its left shoulder, so the
                approach is uphill and blind to the surface whichever side of
                the ravine you play it from. */
-            var cut = ravine(0, 17, 20, 5.5, 0.95);
+            var cut = ravine(0, 17, 20, 13.4, 2.2, { bank: [0, 3.2] });
             var field = ridge(4, 9, 16, 9, 4, 0.34, 3)
-                .concat([hill(17.5, 30, 2.5, -0.6), hill(2.8, 32, 2.2, 0.45)]);
+                .concat(massif(24, 14, 11, 1.8, 5))
+                .concat([hill(17.5, 33, 2.5, -0.6), hill(2.0, 42, 2.4, 0.5)]);
             var heath = commons(0, [
                 [6,                     [4, rgh], [9, fwy], [7, rgh]],
                 [11,                    [4, rgh], [9, fwy], [7, rgh]],
-                [5.5,                   [20, null]],
-                [{ d: 4, sz: 0.16 },    [4, rgh], [10, fwy], [6, rgh]],
-                [3,                     [4, rgh], [10, fwy], [6, rgh]],
+                [13.4,                  [20, null]],
+                [{ d: 5, sz: 0.22 },    [4, rgh], [10, fwy], [6, rgh]],
+                [{ d: 4, sz: 0.13 },    [4, rgh], [10, fwy], [6, rgh]],
                 [7,                     [5, rgh], [10, grn], [5, rgh]],
                 [3,                     [20, rgh]]
-            ]);
+            ], { e: 16 });
             return build({
                 name: 'The Ravine', par: 4, long: true, shaped: true, open: true,
-                blurb: 'A dry gulley across the whole hole, and the far bank climbs away from it.',
-                pads: shape(scoop(heath.pads.concat([cut.pad]), { seed: 13 }), field),
+                blurb: 'A gorge two units deep across the whole hole, and the far bank climbs out of it.',
+                pads: shape(scoop(heath.pads.concat(cut.pads), { seed: 13 }), field),
                 fence: heath.fence,
                 extra: [].concat(
                     treeline(1.7, 8, 1.7, 15, 3),
-                    [tree(18.3, 31, { y: 0.64 }), tree(18.3, 35, { y: 0.64 })]
+                    crags(2.4, 23, 3, 5, 8291, { s: 1.2, h: 0.8 }),
+                    crags(17.6, 24, 2.6, 4, 8297, { s: 1.1, h: 0.75 }),
+                    [tree(18.3, 42), tree(18.3, 45)]
                 ),
-                tee: { x: 9.5, z: 3 }, cup: { x: 10, z: 33 }
+                tee: { x: 9.5, z: 3 }, cup: { x: 10, z: 43 }
             });
         })()
     ];

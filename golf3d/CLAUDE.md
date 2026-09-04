@@ -115,6 +115,24 @@ none, because it reads as coverage.
   anywhere. Anything that adds a second copy of the seat arithmetic, or that
   rounds the last key, breaks a named assertion in `tests.html` rather than
   merely looking slightly wrong.
+- **A landform's skirt lands in whatever row it falls in, and the row has
+  already spent part of the fairway's angle of repose.** A crest is about 0.2
+  of gradient at its steepest, a climbing row is 0.15 to 0.22, and they add
+  where their signs agree — so a crest whose disc overlaps a tilted row puts
+  the fairway over `CONFIG.HOLD.fairway` and the ball will not stay on it.
+  Every landform on the two parkland courses is placed inside a *flat* row for
+  that reason, and the assertion that catches it is "a green — and a written
+  fairway — holds a ball everywhere on it". Widen a hump rather than shrinking
+  it: height comes from `a`, gradient from `a/r`, so `massif` gets tall by
+  getting broad.
+- **A ravine deeper than about a unit needs banked walls or it is not a
+  hazard, it is a trap.** Nothing in the bag gets a ball out of a lie hard
+  against a two-unit cliff. And the two sides want different widths — a near
+  wall wide enough to play out of is a ramp a drive bounces clean across the
+  gorge off. See README → "The gorge".
+- **Trees and rocks with no `y` are seated on the ground by `build`.** Naming a
+  height by hand is a second copy of the height field; the copies drift the
+  first time a row is retilted, and the tests measure it now.
 - **The pretty water path is `#ifdef PRETTY` inside the one water shader**,
   flipped by `render.setWaterQuality()` and remembered in `localStorage`. Keep
   both paths in that single source — a forked copy will drift — and keep the
