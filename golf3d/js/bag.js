@@ -188,11 +188,35 @@
        shape per club and is turned by the club's own loft about the axis across
        the face, which is the whole point of looking at it: an open face means
        the ball goes up. */
+    /* A shaft tapers from a 0.0085 grip end to a 0.0055 tip, so a shortened
+       stand-in for it (see STUB below) is cut from the same cone rather than
+       drawn as a uniform rod: its cut end takes whatever radius the full
+       shaft would have had at that height. */
+    function taperedShaft(len, height) {
+        height = Math.min(height, len);
+        var rTop = 0.0055, rBottom = 0.0085;
+        var rCut = rBottom + (rTop - rBottom) * ((len - height) / len);
+        return new THREE.CylinderGeometry(rTop, rCut, height, 10);
+    }
+
+    /* How much shaft shows near the head once the picker has wrapped into a
+       grid of more than one row (see relayoutOpen / syncStubs). A shaft is
+       real-world length — 0.86 to 1.14 metres — and a row is 0.42 apart, so
+       drawn whole every club's shaft runs on well past the row under it and
+       out the far side of whatever club is parked there. Cut to a stub short
+       enough to clear the next row down, a club still reads as a club — head,
+       ferrule and a hand's width of shaft — without appearing to belong to
+       its neighbour's card. */
+    var STUB = 0.34;
+
     function buildClub(club, M) {
         var g = new THREE.Group();
         var len = LENGTHS[club.id] || 0.95;
 
-        var shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.0055, 0.0085, len, 10), M.steel);
+        var fullGeo = taperedShaft(len, len);
+        var stubLen = Math.min(len, STUB);
+        var stubGeo = taperedShaft(len, stubLen);
+        var shaft = new THREE.Mesh(fullGeo, M.steel);
         shaft.position.y = len / 2;
         g.add(shaft);
 
@@ -240,7 +264,11 @@
 
         g.userData.clubId = club.id;
         g.userData.len = len;
-        return { group: g, hit: hit, head: head, len: len };
+        return {
+            group: g, hit: hit, head: head, len: len,
+            shaft: shaft, fullGeo: fullGeo, stubGeo: stubGeo, stubLen: stubLen,
+            grip: grip, cap: cap
+        };
     }
 
     /* Heads, modelled from photographs rather than guessed at. A driver is a
@@ -1010,6 +1038,29 @@
         }
     }
 
+    /* Swap a club between its real shaft and the stub cut from the same cone
+       (see STUB, above `buildClub`) — grip and cap go with it, since a stub
+       does not reach far enough down to need them. Cheap to call every time
+       the arrangement changes: it is a geometry pointer and two booleans,
+       not a rebuild. */
+    function applyStub(c, on) {
+        if (c.stubOn === on) return;
+        c.stubOn = on;
+        c.shaft.geometry = on ? c.stubGeo : c.fullGeo;
+        c.shaft.position.y = on ? c.len - c.stubLen / 2 : c.len / 2;
+        c.grip.visible = !on;
+        c.cap.visible = !on;
+    }
+
+    /* Only a wrapped grid — more than one row — sets a club's shaft back to
+       its stub; a single row has nothing under it for a long shaft to run
+       into, and the bag when shut wants every club whole. */
+    function syncStubs() {
+        var row = live();
+        var grid = B.expanded && B.cols !== row.length;
+        row.forEach(function (c) { applyStub(c, grid); });
+    }
+
     /* Re-place the clubs for a new arrangement. Only the open half changes —
        the bag itself is the same bag whatever shape the window is. */
     function relayoutOpen(cols) {
@@ -1017,6 +1068,7 @@
         var n = row.length;
         var rows = Math.ceil(n / cols);
         B.cols = cols;
+        syncStubs();
         row.forEach(function (c, i) {
             c.spot.open = openSpot(i, cols, rows, n, c.len);
             // Labels are wider than the gap between two clubs, so in a single
@@ -1093,6 +1145,8 @@
                 label: label,
                 labelBase: { x: headMid.x, y: headBox.min.y, z: headMid.z },
                 spot: spot,
+                shaft: built.shaft, fullGeo: built.fullGeo, stubGeo: built.stubGeo,
+                stubLen: built.stubLen, grip: built.grip, cap: built.cap, stubOn: false,
                 now: { x: spot.closed.x, y: spot.closed.y, z: spot.closed.z, rz: spot.closed.rz, rx: spot.closed.rx, ry: spot.closed.ry, scale: 1, lift: 0, glow: 0, labelOp: 0 }
             });
         });
@@ -1378,8 +1432,8 @@
        that changes where a club is going, or how it is lit, has to come
        through one of these — which is what makes the early-out in update()
        safe to trust. */
-    function setExpanded(on) { B.expanded = !!on; B.settled = false; }
-    function toggle() { B.expanded = !B.expanded; B.settled = false; return B.expanded; }
+    function setExpanded(on) { B.expanded = !!on; B.settled = false; syncStubs(); }
+    function toggle() { B.expanded = !B.expanded; B.settled = false; syncStubs(); return B.expanded; }
     function setSelected(id) { B.selected = id; B.settled = false; }
     function setHover(id) { if (id !== B.hover) B.settled = false; B.hover = id; }
     function isExpanded() { return B.expanded; }
