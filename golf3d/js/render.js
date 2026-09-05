@@ -2662,11 +2662,14 @@
     /* ── per-frame ──────────────────────────────────────────────────────── */
 
     // Walls that move are placed from the same function the solver uses.
+    // The box is read and thrown away in the same two lines, so it is handed
+    // somewhere to land: wallBox allocates when it is not.
+    var _box = {};
     function syncMovers(t) {
         var i, m, B;
         for (i = 0; i < R.movers.length; i++) {
             m = R.movers[i];
-            B = P.wallBox(m.wall, t);
+            B = P.wallBox(m.wall, t, _box);
             m.mesh.position.set(B.cx, B.base + m.h / 2, B.cz);
             m.mesh.rotation.y = B.yaw;
         }

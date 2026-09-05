@@ -34,9 +34,16 @@ either here — point at them.
 - Bump `G3.VERSION` (top of `js/config.js`) on every commit that ships a
   user-visible change — patch for fixes, minor for features — and update the
   matching `?v=X.Y.Z` cache-busting string on **every** local `<script>` and
-  `<link>` in `index.html`. GitHub Pages caches hard; a stale query string
-  means phones keep running the old JS after a deploy. Skip only for
-  docs/comment-only or pure-refactor commits.
+  `<link>` in **both** `index.html` **and** `level-editor.html`. GitHub Pages
+  caches hard; a stale query string means phones keep running the old JS after
+  a deploy. Skip only for docs/comment-only or pure-refactor commits.
+
+  Both files, and the same string in both. `level-editor.html` sat on `1.15.0`
+  for thirteen releases because this rule named only `index.html`, and the two
+  are separate cache keys for the *same* modules: the editor was serving a
+  browser its own months-old copy of `physics.js` while the game next door got
+  the current one. An editor whose whole claim is that it runs the game's code
+  cannot be running a different build of it.
 
 ## Verification
 
@@ -100,7 +107,12 @@ none, because it reads as coverage.
 - **A wall may move three ways, not two**: `move` slides it, `spin` turns it
   round, and `swing` sweeps it between two angles and stops at each end (a
   flipper). Anything that filters for movers has to ask about all three — the
-  renderer's `R.movers`, and the tests' gate-window assertion, both did not.
+  renderer's `R.movers`, the tests' gate-window assertion, and then the
+  editor's ported copy of that assertion, its ghost boxes, its plan-repaint
+  trigger and its `cloneShape`, all of which asked about two. That is five
+  places over three files that have each independently written
+  `w.move || w.spin`; if you add a fourth kind of motion, grep for both names
+  together before you do anything else.
 - **A pad may now *do* something as well as be somewhere**: `push` is a
   travelator, `spring` a launch pad, and a hole's `warps` are pipes. All three
   are read by `physics.js` alone and drawn from that same data by `render.js`,
@@ -133,6 +145,13 @@ none, because it reads as coverage.
 - **Trees and rocks with no `y` are seated on the ground by `build`.** Naming a
   height by hand is a second copy of the height field; the copies drift the
   first time a row is retilted, and the tests measure it now.
+- **`Math.hypot` does not belong in `physics.js`, and the reject in
+  `collideWalls` must come before `wallBox`.** Both look like de-idiomatised
+  code and both are load-bearing: hypot costs ~15x `sqrt` for an overflow guard
+  nothing here needs, and the reject measured off an already-built box pays the
+  transform it exists to skip. Between them they were about half of the
+  predicted path. There is a note on each at the site; read it before tidying
+  either back.
 - **The pretty water path is `#ifdef PRETTY` inside the one water shader**,
   flipped by `render.setWaterQuality()` and remembered in `localStorage`. Keep
   both paths in that single source — a forked copy will drift — and keep the

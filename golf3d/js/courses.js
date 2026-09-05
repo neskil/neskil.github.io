@@ -75,6 +75,13 @@
         return { x: x, z: z, w: w, d: d, y: y || 0, kind: kind || 'green', sx: sx || 0, sz: sz || 0 };
     }
 
+    /* A wall, and the three ways it is allowed to move: `move` slides it,
+       `spin` turns it round, `swing` sweeps it between two angles and rests at
+       each. All three are options here because all three are things the solver
+       reads off a wall — flipper() below is a nicer way to say the third, not
+       the only way. It was the only way, which meant a hole editor writing a
+       wall out longhand could say two of the three and quietly lose the flipper
+       on the way back in. */
     function wall(x, z, w, d, h, opts) {
         var o = opts || {};
         return {
@@ -83,6 +90,7 @@
             yaw: o.yaw || 0,
             move: o.move || null,
             spin: o.spin || 0,
+            swing: o.swing || null,
             kind: o.kind || 'rail'
         };
     }

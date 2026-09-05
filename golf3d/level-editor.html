@@ -24,7 +24,7 @@
     gtag('config', 'G-9GP823TGLB');
 </script>
 <link rel="icon" href="../favicon.ico">
-<link rel="stylesheet" href="editor/editor.css?v=1.15.0">
+<link rel="stylesheet" href="editor/editor.css?v=1.30.0">
 </head>
 <body>
 
@@ -182,6 +182,16 @@
           what make a ramp. <b>Rails are not drawn</b>: the game fences the
           edge of the ground for you, and a <b>Gap</b> rectangle is how you ask
           it not to.</div>
+        <div style="margin-top:6px"><b>A wall moves three ways</b>: it can
+          <b>slide</b> on a sine, <b>spin</b> about its middle, or <b>swing</b>
+          between two angles and rest at each — a flipper. The plan ghosts
+          where any of them is going, and the checks walk a full cycle of each
+          looking for the phase that shuts the hole.</div>
+        <div style="margin-top:6px"><b>Machinery</b> is a floor with a motor:
+          a pad can <b>push</b> like a travelator or be <b>sprung</b> like a
+          trampoline, and a hole can carry <b>pipes</b> — drawn here as a ring,
+          a cross and the line between. Pipes are authored in the file; the
+          editor carries, draws and exports them rather than inventing one.</div>
         <div style="margin-top:6px"><b>Play mode</b> drags to aim, the slider
           loads the swing, <b>Space</b> hits it and <b>R</b> puts the ball back
           on the tee — the real clubs, the real solver.</div>
@@ -236,15 +246,15 @@
      inspector are the game's chrome rather than the hole's, so they are the
      four the editor does not load. -->
 <script src="vendor/three.min.js"></script>
-<script src="js/config.js?v=1.15.0"></script>
-<script src="js/themes.js?v=1.15.0"></script>
-<script src="js/physics.js?v=1.15.0"></script>
-<script src="js/courses.js?v=1.15.0"></script>
-<script src="js/textures.js?v=1.15.0"></script>
-<script src="js/shaders.js?v=1.15.0"></script>
-<script src="js/postfx.js?v=1.15.0"></script>
-<script src="js/weather.js?v=1.15.0"></script>
-<script src="js/render.js?v=1.15.0"></script>
-<script src="editor/editor.js?v=1.15.0"></script>
+<script src="js/config.js?v=1.30.0"></script>
+<script src="js/themes.js?v=1.30.0"></script>
+<script src="js/physics.js?v=1.30.0"></script>
+<script src="js/courses.js?v=1.30.0"></script>
+<script src="js/textures.js?v=1.30.0"></script>
+<script src="js/shaders.js?v=1.30.0"></script>
+<script src="js/postfx.js?v=1.30.0"></script>
+<script src="js/weather.js?v=1.30.0"></script>
+<script src="js/render.js?v=1.30.0"></script>
+<script src="editor/editor.js?v=1.30.0"></script>
 </body>
 </html>

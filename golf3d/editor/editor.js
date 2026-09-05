@@ -123,6 +123,7 @@
             extra: [],
             water: [],
             gaps: [],
+            warps: [],
             tee: { x: 3, z: 1.5 },
             cup: { x: 3, z: 12 }
         };
@@ -150,6 +151,20 @@
                quietly fenced in. The export says so rather than pretending. */
             open: !!h.open,
             fence: h.fence || null,
+            /* Pipes ride along for the same reason, and they are the one piece
+               of a hole that is neither a rectangle nor a marker — a mouth and
+               a destination, so there is no tool on the plan that could draw
+               one. The plan shows both ends and the line between them, `build`
+               keeps the ground under them flat, physics moves the ball through
+               them and the export writes them back out as pipe(). What the
+               editor will not do is invent one. */
+            warps: (Array.isArray(h.warps) ? h.warps : []).map(function (w) {
+                return {
+                    x: num(w.x, 0), z: num(w.z, 0),
+                    tx: num(w.tx, 0), tz: num(w.tz, 0),
+                    r: Math.max(0.2, num(w.r, 0.85)), yaw: num(w.yaw, 0)
+                };
+            }),
             tee: { x: num(h.tee && h.tee.x, 3), z: num(h.tee && h.tee.z, 1.5) },
             cup: { x: num(h.cup && h.cup.x, 3), z: num(h.cup && h.cup.z, 12) }
         };
@@ -169,11 +184,27 @@
             o.kind = PAD_COLOR[s.kind] ? s.kind : 'green';
             o.sx = num(s.sx, 0);
             o.sz = num(s.sz, 0);
+            /* A pad may *do* something as well as be somewhere: `push` is a
+               travelator and `spring` a launch pad. The editor has no tool
+               that draws either — they are authored in the file, by belt()
+               and sprung() — but it has to carry them, because a hole loaded
+               in here and exported again is meant to be the same hole. It was
+               not: the machinery came off in the round trip and the export
+               wrote out a plain floor. */
+            if (s.push) o.push = { x: num(s.push.x, 0), z: num(s.push.z, 0) };
+            if (s.spring) o.spring = num(s.spring, 8.5);
             /* A round pad — `circle()` in the file — is a square pad carrying a
                radius, and it is the one kind allowed to overlap the ground it
                is laid into. Both facts have to survive the round trip, or a
-               green laid on a fairway comes back as a square arguing with it. */
-            if (s.r) { o.r = num(s.r, 0.5); o.inlay = true; squareUp(o); }
+               green laid on a fairway comes back as a square arguing with it.
+
+               A trampoline is the exception to the wavy edge: sprung() cuts a
+               clean circle on purpose, and running shapeDisc over it would
+               scallop the one pad whose whole job is to be a disc. */
+            if (s.r && o.spring) {
+                o.r = num(s.r, 0.5); o.rIn = o.r; o.inlay = true;
+                o.w = o.d = o.r * 2;
+            } else if (s.r) { o.r = num(s.r, 0.5); o.inlay = true; squareUp(o); }
             else if (s.inlay) o.inlay = true;
         }
         if (key === 'water') o.y = num(s.y, -0.6);
@@ -191,6 +222,19 @@
                     phase: num(s.move.phase, 0)
                 };
             }
+            /* A wall moves three ways, not two. `move` slides it, `spin` turns
+               it round and `swing` sweeps it between two angles and stops at
+               each end — a flipper. This carried the first two and dropped the
+               third, so a flipper hole loaded in here came back as a plank
+               bolted to the floor, and the export said so. */
+            if (s.swing) {
+                o.swing = {
+                    from: num(s.swing.from, 0),
+                    to: num(s.swing.to, 1),
+                    speed: num(s.swing.speed, 2.2),
+                    phase: num(s.swing.phase, 0)
+                };
+            }
         }
         return o;
     }
@@ -206,6 +250,10 @@
         p.r = Math.max(MIN_SIDE, Math.min(p.w, p.d) / 2);
         p.w = p.d = p.r * 2;
         p.x = cx - p.r; p.z = cz - p.r;
+        // Except a trampoline, which sprung() cuts as a clean circle on
+        // purpose: a scalloped launch pad is a launch pad with a bite out of
+        // one side, and the bite is where the ball rolls off instead of up.
+        if (p.spring) { p.rIn = p.r; delete p.wave; return; }
         A.shapeDisc(p);
     }
 
@@ -224,7 +272,7 @@
         var h = {
             name: src.name, blurb: src.blurb, par: src.par,
             needsLoft: src.needsLoft, flat: src.flat,
-            open: src.open, fence: src.fence,
+            open: src.open, fence: src.fence, warps: src.warps,
             pads: src.pads, extra: src.extra, water: src.water, gaps: src.gaps,
             tee: { x: src.tee.x, z: src.tee.z },
             cup: { x: src.cup.x, z: src.cup.z }
@@ -427,6 +475,8 @@
             ctx.strokeStyle = 'rgba(0,0,0,.45)';
             ctx.lineWidth = 1;
             padPath(p); ctx.stroke();
+            if (p.push) drawPushArrow(p);
+            if (p.spring) drawSpring(p);
             if ((p.sx || p.sz) && p.w * view.scale > 26) drawSlopeArrow(p);
             if (p.y && p.w * view.scale > 34 && p.d * view.scale > 18) {
                 ctx.fillStyle = 'rgba(255,255,255,.55)';
@@ -455,7 +505,7 @@
         // the other end of the stroke.
         list('extra').forEach(function (wl, i) {
             var selected = S.sel && S.sel.key === 'extra' && S.sel.idx === i;
-            if (wl.move || wl.spin) {
+            if (wl.move || wl.spin || wl.swing) {
                 drawWallBox(wl, t + 1.4, null, 'rgba(210,153,34,.5)', [4, 3]);
                 drawWallBox(wl, t + 2.8, null, 'rgba(210,153,34,.35)', [4, 3]);
             }
@@ -473,6 +523,7 @@
             rectPath(g); ctx.fill();
         });
 
+        drawPipes();
         drawMarker(S.hole.tee.x, S.hole.tee.z, '#e6edf3', 'T');
         drawMarker(S.hole.cup.x, S.hole.cup.z, '#f2c744', 'H');
 
@@ -507,6 +558,76 @@
         ctx.lineTo(cx + ux * len * 0.6 - uz * len * 0.25, cz + uz * len * 0.6 + ux * len * 0.25);
         ctx.lineTo(cx + ux * len * 0.6 + uz * len * 0.25, cz + uz * len * 0.6 - ux * len * 0.25);
         ctx.fill();
+    }
+
+    /* What a pad *does*, drawn on its face, because none of it has a shape of
+       its own on a plan: a belt is a floor with a direction, a launch pad is a
+       floor with a number, and both look exactly like wood until they are
+       said. The arrow is the run of the belt rather than the fall of the
+       ground, which is why it is drawn in the belt's own amber and the slope
+       arrow is drawn in white. */
+    function drawPushArrow(p) {
+        var cx = sx(p.x + p.w / 2), cz = sz(p.z + p.d / 2);
+        var g = Math.sqrt(p.push.x * p.push.x + p.push.z * p.push.z);
+        if (!g) return;
+        var ux = p.push.x / g, uz = p.push.z / g;
+        var len = Math.min(p.w, p.d) * view.scale * 0.4;
+        ctx.strokeStyle = 'rgba(240,180,60,.9)';
+        ctx.fillStyle = 'rgba(240,180,60,.9)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(cx - ux * len, cz - uz * len);
+        ctx.lineTo(cx + ux * len, cz + uz * len);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(cx + ux * len, cz + uz * len);
+        ctx.lineTo(cx + ux * len * 0.55 - uz * len * 0.3, cz + uz * len * 0.55 + ux * len * 0.3);
+        ctx.lineTo(cx + ux * len * 0.55 + uz * len * 0.3, cz + uz * len * 0.55 - ux * len * 0.3);
+        ctx.fill();
+    }
+
+    function drawSpring(p) {
+        var cx = sx(p.x + p.w / 2), cz = sz(p.z + p.d / 2);
+        var r = (p.r || Math.min(p.w, p.d) / 2) * view.scale;
+        ctx.strokeStyle = 'rgba(240,180,60,.9)';
+        ctx.lineWidth = 2;
+        var k;
+        for (k = 0; k < 3; k++) {
+            ctx.beginPath();
+            ctx.arc(cx, cz, r * (0.35 + k * 0.3), 0, 7);
+            ctx.stroke();
+        }
+    }
+
+    /* A pipe, which is the one thing on a hole that is somewhere and somewhere
+       else at once. The mouth is the ring the ball falls into, the cross is
+       where it comes out, and the dashed line between them is the only picture
+       of a journey that happens under the floor. */
+    function drawPipes() {
+        var ws = S.hole.warps;
+        if (!ws || !ws.length) return;
+        ctx.save();
+        ws.forEach(function (w) {
+            var ax = sx(w.x), az = sz(w.z), bx = sx(w.tx), bz = sz(w.tz);
+            var r = Math.max(3, w.r * view.scale);
+            ctx.setLineDash([5, 4]);
+            ctx.strokeStyle = 'rgba(121,192,255,.45)';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.moveTo(ax, az); ctx.lineTo(bx, bz); ctx.stroke();
+            ctx.setLineDash([]);
+            ctx.strokeStyle = '#79c0ff';
+            ctx.lineWidth = 2;
+            ctx.beginPath(); ctx.arc(ax, az, r, 0, 7); ctx.stroke();
+            ctx.fillStyle = 'rgba(121,192,255,.18)';
+            ctx.fill();
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.moveTo(bx - r * 0.6, bz - r * 0.6); ctx.lineTo(bx + r * 0.6, bz + r * 0.6);
+            ctx.moveTo(bx + r * 0.6, bz - r * 0.6); ctx.lineTo(bx - r * 0.6, bz + r * 0.6);
+            ctx.stroke();
+        });
+        ctx.restore();
     }
 
     function drawMarker(x, z, color, letter) {
@@ -769,9 +890,14 @@
                 sw.style.background = L.key === 'pads' ? (PAD_COLOR[s.kind] || L.color) : L.color;
                 var name = document.createElement('span');
                 name.className = 'sname';
+                // What it is, how big, and — the part worth a word — what it
+                // does, because a gate, a blade, a flipper and a plank are all
+                // "Wall 3.00×0.30" until one of them shuts the hole.
+                var does = s.swing ? ' flipper' : s.spin ? ' blade' : s.move ? ' gate'
+                    : s.spring ? ' sprung' : s.push ? ' belt' : '';
                 name.textContent = (L.key === 'pads' ? s.kind : L.label) + ' ' +
                     (s.r ? '\u2300' + (s.r * 2).toFixed(2)
-                         : s.w.toFixed(2) + '×' + s.d.toFixed(2));
+                         : s.w.toFixed(2) + '×' + s.d.toFixed(2)) + does;
                 var meta = document.createElement('span');
                 meta.className = 'smeta';
                 meta.textContent = '@' + s.x.toFixed(1) + ',' + s.z.toFixed(1);
@@ -826,6 +952,31 @@
         row.appendChild(lb); row.appendChild(input);
         host.appendChild(row);
         return input;
+    }
+
+    /* A checkbox that turns a whole sub-object on and off — a slide, a swing.
+       `set` is handed the new state and writes it; everything else (the undo
+       mark, the rebuild, redrawing the panel the box lives in) is the same
+       every time, which is why it is in here rather than at each call. */
+    function toggle(host, label, on, set) {
+        var row = document.createElement('div');
+        row.className = 'row';
+        var lb = document.createElement('label');
+        lb.className = 'lbl';
+        var cb = document.createElement('input');
+        cb.type = 'checkbox';
+        cb.checked = on;
+        cb.addEventListener('change', function () {
+            pushHistory();
+            set(cb.checked);
+            changed();
+            syncInspector();
+        });
+        lb.appendChild(cb);
+        lb.appendChild(document.createTextNode(' ' + label));
+        row.appendChild(lb);
+        host.appendChild(row);
+        return cb;
     }
 
     function pick(host, label, options, get, set) {
@@ -887,6 +1038,48 @@
             field(host, 'sz', function () { return s.sz; }, function (v) { s.sz = v; }, 0.05);
             note(host, 'A tilt is rise per unit across the pad: 0.3 is a ramp, ' +
                  '0.12 is a green that breaks. Positive sx falls towards −x.');
+
+            /* What the pad *does*. Both of these are floors with a motor in
+               them, and the one rule they share is the one in the README: a
+               machine is an inlay, an inlay loses outright to ground lifted
+               above it, and `build` keeps the relief flat under both — which
+               it can only do because the document now carries them. */
+            head(host, 'Machinery');
+            toggle(host, 'runs like a travelator', !!s.push, function (on) {
+                s.push = on ? { x: 0, z: 3 } : null;
+                if (!on) delete s.push;
+            });
+            if (s.push) {
+                field(host, 'push x', function () { return s.push.x; },
+                    function (v) { s.push.x = v; }, 0.5);
+                field(host, 'push z', function () { return s.push.z; },
+                    function (v) { s.push.z = v; }, 0.5);
+                note(host, 'A speed rather than a shove — drag balances it, so a ball ' +
+                     'put down against the run of the belt is turned round rather than stopped.');
+            }
+            toggle(host, 'throws the ball up', !!s.spring, function (on) {
+                if (!on) { delete s.spring; return; }
+                /* sprung() writes a wooden disc with a clean edge, so the pad
+                   is made into one. Exporting a tilted green rectangle as a
+                   sprung() call would be exporting a hole the file cannot
+                   say. */
+                s.spring = 8.5;
+                s.kind = 'wood';
+                s.sx = s.sz = 0;
+                s.r = Math.max(MIN_SIDE, Math.min(s.w, s.d) / 2);
+                s.rIn = s.r;
+                s.inlay = true;
+                s.w = s.d = s.r * 2;
+                delete s.wave;
+            });
+            if (s.spring) {
+                field(host, 'launch', function () { return s.spring; },
+                    function (v) { s.spring = Math.max(0, v); }, 0.5);
+                note(host, 'Upward speed off the pad, and it fades on every bounce ' +
+                     '(SPRING_DECAY) so a hole cannot be played by trampolining forever. ' +
+                     'A launch pad is a wooden disc — that is what sprung() writes, and ' +
+                     'the export has to be able to say it.');
+            }
         }
         if (S.sel.key === 'water') {
             field(host, 'y', function () { return s.y; }, function (v) { s.y = v; });
@@ -899,30 +1092,40 @@
             field(host, 'yaw', function () { return s.yaw; }, function (v) { s.yaw = v; }, 0.05);
             field(host, 'spin', function () { return s.spin; }, function (v) { s.spin = v; }, 0.1);
             head(host, 'Slide');
-            var row = document.createElement('div');
-            row.className = 'row';
-            var lb = document.createElement('label');
-            lb.className = 'lbl';
-            var cb = document.createElement('input');
-            cb.type = 'checkbox';
-            cb.checked = !!s.move;
-            cb.addEventListener('change', function () {
-                pushHistory();
-                s.move = cb.checked ? { axis: 'x', amp: 1.5, speed: 1.1, phase: 0 } : null;
-                if (!cb.checked) delete s.move;
-                changed();
-                syncInspector();
+            toggle(host, 'slides on a sine', !!s.move, function (on) {
+                s.move = on ? { axis: 'x', amp: 1.5, speed: 1.1, phase: 0 } : null;
+                if (!on) delete s.move;
             });
-            lb.appendChild(cb);
-            lb.appendChild(document.createTextNode(' slides on a sine'));
-            row.appendChild(lb);
-            host.appendChild(row);
             if (s.move) {
                 pick(host, 'axis', ['x', 'z'], function () { return s.move.axis; },
                     function (v) { s.move.axis = v; });
                 field(host, 'amp', function () { return s.move.amp; }, function (v) { s.move.amp = v; });
                 field(host, 'speed', function () { return s.move.speed; }, function (v) { s.move.speed = v; }, 0.1);
                 field(host, 'phase', function () { return s.move.phase; }, function (v) { s.move.phase = v; }, 0.1);
+            }
+
+            /* And the third way a wall moves. A spinner is always coming round
+               again, so the shot is a gap in a cycle; a flipper stops at each
+               end, so the shot is a moment. That rest is the whole of why it
+               plays differently, and it is why it earns a section of its own
+               rather than a second axis on the slide. */
+            head(host, 'Swing');
+            toggle(host, 'sweeps between two angles', !!s.swing, function (on) {
+                s.swing = on ? { from: -0.5, to: 0.5, speed: 2.2, phase: 0 } : null;
+                if (!on) delete s.swing;
+            });
+            if (s.swing) {
+                field(host, 'from', function () { return s.swing.from; },
+                    function (v) { s.swing.from = v; }, 0.05);
+                field(host, 'to', function () { return s.swing.to; },
+                    function (v) { s.swing.to = v; }, 0.05);
+                field(host, 'speed', function () { return s.swing.speed; },
+                    function (v) { s.swing.speed = v; }, 0.1);
+                field(host, 'phase', function () { return s.swing.phase; },
+                    function (v) { s.swing.phase = v; }, 0.1);
+                note(host, 'Two angles in radians, and it rests at each. It is at ' +
+                     'one end or the other every \u03c0/speed seconds, so a slow ' +
+                     'sweep is a long wait — which is the shot.');
             }
             note(host, 'Anything that moves has to leave the ball a way past at ' +
                  'every phase of its stroke — the checks below prove it, and the bot will not finish a hole that can shut.');
@@ -1040,8 +1243,10 @@
         } else if (animate || mode === 'play') {
             world.time += dt;
             // Only the plan's moving parts need repainting on the clock, and
-            // only if the hole has any.
-            if (list('extra').some(function (w) { return w.move || w.spin; })) draw();
+            // only if the hole has any — all three kinds of them, or a hole
+            // whose only machine is a flipper sits still on the plan while it
+            // sweeps in the 3D pane beside it.
+            if (list('extra').some(function (w) { return w.move || w.spin || w.swing; })) draw();
         }
 
         if (!gl) return;
@@ -1239,15 +1444,32 @@
                 thinnest.x.toFixed(1) + ',' + thinnest.z.toFixed(1));
         }
 
-        // A gate or a blade always leaves a way past.
-        var movers = built.walls.filter(function (wl) { return wl.move || wl.spin; });
+        /* A gate, a blade or a flipper always leaves a way past.
+
+           All three, which is the whole of why this is worth saying twice:
+           this check is tests.html's, ported, and the suite asks about `swing`
+           because a flipper is the one mover with a *rest* — it stops at each
+           end, and an arc that puts it across the lane at rest is a hole that
+           is shut for as long as the player is looking at it. Filtering for
+           two of the three meant the editor passed a hole the suite would
+           refuse, which is the one thing the Check panel exists not to do.
+
+           Each is sampled over its own cycle rather than over a fixed eight
+           seconds, which is what the suite does and what makes a slow flipper
+           and a fast gate equally well covered: a period cut into 32 always
+           lands on both ends of the sweep. */
+        var movers = built.walls.filter(function (wl) { return wl.move || wl.spin || wl.swing; });
         if (movers.length) {
             var worst = Infinity, at = 0;
             movers.forEach(function (wl) {
                 var z = wl.z + wl.d / 2;
+                var period = wl.spin ? (2 * Math.PI / Math.abs(wl.spin))
+                    : wl.swing ? (2 * Math.PI / Math.abs(wl.swing.speed || 1))
+                    : (2 * Math.PI / Math.abs(wl.move.speed || 1));
                 for (var k = 0; k < 32; k++) {
-                    var g = widestGap(built, z, k * 0.25);
-                    if (g < worst) { worst = g; at = k * 0.25; }
+                    var t = period * k / 32;
+                    var g = widestGap(built, z, t);
+                    if (g < worst) { worst = g; at = t; }
                 }
             });
             add(worst > C.BALL_R * 2 + 0.05, 'the moving parts always leave a way past',
@@ -1503,6 +1725,22 @@
     }
 
     function padCall(p) {
+        /* Machinery first, because a belt and a launch pad are pads that have
+           had something done to them and the file has a word for each: writing
+           either back out as a bare pad() would export the floor and leave the
+           motor behind. */
+        if (p.spring) {
+            return 'sprung(' + [n(p.x + p.w / 2), n(p.z + p.d / 2),
+                n(p.r || Math.min(p.w, p.d) / 2), n(p.spring), n(p.y)].join(', ') + ')';
+        }
+        if (p.push) {
+            var bo = [];
+            if (p.y) bo.push('y: ' + n(p.y));
+            if (p.kind !== 'wood') bo.push("kind: '" + p.kind + "'");
+            return 'belt(' + [n(p.x), n(p.z), n(p.w), n(p.d),
+                n(p.push.x), n(p.push.z)].join(', ') +
+                (bo.length ? ', { ' + bo.join(', ') + ' }' : '') + ')';
+        }
         if (p.r) {
             return 'circle(' + [n(p.x + p.w / 2), n(p.z + p.d / 2), n(p.r),
                 "'" + p.kind + "'", n(p.y)].join(', ') + ')';
@@ -1525,6 +1763,16 @@
             opts.push('move: { axis: \'' + w.move.axis + '\', amp: ' + n(w.move.amp) +
                 ', speed: ' + n(w.move.speed) +
                 (w.move.phase ? ', phase: ' + n(w.move.phase) : '') + ' }');
+        }
+        /* A flipper is authored by flipper() in the file, off its middle and
+           its length; wall() takes the swing as an option, which is the shape
+           that survives being dragged about on a plan. Both make the same
+           object, and this is the one the editor can honestly claim to have
+           written. */
+        if (w.swing) {
+            opts.push('swing: { from: ' + n(w.swing.from) + ', to: ' + n(w.swing.to) +
+                ', speed: ' + n(w.swing.speed) +
+                (w.swing.phase ? ', phase: ' + n(w.swing.phase) : '') + ' }');
         }
         return 'wall(' + [n(w.x), n(w.z), n(w.w), n(w.d), n(w.h)].join(', ') +
             (opts.length ? ', { ' + opts.join(', ') + ' }' : '') + ')';
@@ -1563,6 +1811,15 @@
             L.push('    gaps: [' + h.gaps.map(function (g) {
                 return 'rect(' + [n(g.x), n(g.z), n(g.w), n(g.d)].join(', ') + ')';
             }).join(', ') + '],');
+        }
+        if (h.warps && h.warps.length) {
+            L.push('    warps: [');
+            h.warps.forEach(function (w, i) {
+                L.push('        pipe(' + [n(w.x), n(w.z), n(w.tx), n(w.tz),
+                    n(w.yaw), n(w.r)].join(', ') + ')' +
+                    (i < h.warps.length - 1 ? ',' : ''));
+            });
+            L.push('    ],');
         }
         if (h.open) {
             L.push('    open: true,');
@@ -1621,11 +1878,13 @@
             needsLoft: h.needsLoft, flat: h.flat,
             pads: h.pads.map(function (p) {
                 return { x: p.x, z: p.z, w: p.w, d: p.d, y: p.y, kind: p.kind,
-                    sx: p.sx, sz: p.sz, r: p.r, inlay: p.inlay };
+                    sx: p.sx, sz: p.sz, r: p.r, inlay: p.inlay,
+                    push: p.push, spring: p.spring };
             }),
             extra: authoredWalls,
             water: h.water,
             gaps: h.gaps || [],
+            warps: h.warps || [],
             tee: h.tee, cup: h.cup
         });
     }
