@@ -657,6 +657,12 @@ Both are authored the way everything else in `courses.js` is —
 arc, speed })` — and the one number to watch is `gap` against the jambs, since
 a wall may not be thinner than 0.24 anywhere.
 
+`flipper()` is a nicer way to say it, not the only way: `wall()` takes `swing`
+as an option beside `move` and `spin`, because all three are things the solver
+reads off a wall and a hole written longhand — by the editor's export, say —
+has to be able to say any of them. It could say two, which is how a flipper
+survived being loaded into the editor and came back a plank.
+
 ### The order the holes are in
 
 Two rules, and both are about the list rather than about any hole on it.
@@ -1674,6 +1680,21 @@ Details that are easy to get wrong and are pinned by tests:
 - **The clock runs while you aim.** Gates slide and blades turn whether or not
   the ball is moving, so the predicted path is drawn from the clock the shot
   will actually be played on.
+- **The wall loop rejects before it transforms, and does its own arithmetic to
+  do it.** Every wall on the hole is asked about on every substep, so the order
+  of the two tests in `collideWalls` is the difference between a preview path
+  that costs a frame on a phone and one that costs half of it. The reject used
+  to be measured off the box `wallBox` had already built, which meant paying
+  the whole transform to be told the ball was nowhere near; it now comes off
+  the wall's own numbers, as the half-perimeter (never smaller than the
+  half-diagonal, and no square root) plus a slider's whole travel.
+- **`Math.hypot` is not in here, on purpose.** It rescales its arguments so
+  that a vector which would square to infinity still comes back right, and it
+  costs some fifteen times the plain `sqrt` for the guard. Nothing the solver
+  holds is near those magnitudes — a ball's speed is single digits, a hole is
+  under a hundred units across — so the guard buys accuracy that is already
+  there. Together with the reject above, this took the predicted path on the
+  heaviest hole from 1.6ms to 0.9ms, and a played shot from 7.0ms to 4.9ms.
 
 ## The cup
 
@@ -3085,7 +3106,26 @@ Three consequences worth knowing before you open it:
   a hole that passes in the editor is a hole the suite will accept. Finding out
   here is cheaper than finding out at the test run.
 
+**A hole is more than its rectangles, and the round trip has to carry all of
+it.** A wall may slide, spin *or* swing; a pad may push like a travelator or
+throw like a trampoline; a hole may have pipes. The editor draws rectangles, so
+for a long time it read rectangles and wrote rectangles — and ten of the sixty
+shipped holes came back out of it with the machinery stripped off and a flipper
+turned into a plank. All of it now survives load, preview, play and export:
+the plan ghosts a flipper's sweep the way it ghosts a gate's, draws a belt's
+run and a launch pad's rings on the pad's face, and draws a pipe as a ring, a
+cross and the line between; the checks walk a full cycle of every mover
+including the swinging ones; and the export writes `swing:`, `belt()`,
+`sprung()` and `pipe()` back out.
+
+The one it will not *invent* is the pipe, because a pipe is the only part of a
+hole that is neither a rectangle nor a marker — a mouth and a destination — and
+there is no drag on a plan that means it. It rides along, exactly as `open` and
+`fence` do for a links hole.
+
 Export writes the hole as a `build({ … })` literal in the file's own
 vocabulary, ready to paste into a course array in `courses.js`; the paste box
 reads one back, helpers and all, by evaluating it with `G3.authoring` in scope
-and stubbing `build` to hand the object straight back.
+and stubbing `build` to hand the object straight back. Load a hole, export it,
+paste it back and export again: the two are the same text, which is the whole
+test that nothing fell off in between.

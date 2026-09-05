@@ -467,8 +467,9 @@
             yaw += sw.from + half * (1 - Math.cos(ph));
             spin += half * Math.sin(ph) * sw.speed;
         }
-        // `out` lets the solver reuse one object across thousands of substeps.
-        // Callers that keep the result (the renderer) simply omit it.
+        // `out` lets a caller reuse one object rather than allocate per call —
+        // the solver across thousands of substeps, the renderer once per mover
+        // per frame. Omitting it is for the one-off: a test, an inspector.
         var B = out || {};
         B.cx = cx; B.cz = cz;
         B.hw = w.w / 2; B.hd = w.d / 2;
@@ -476,7 +477,6 @@
         B.vx = vx; B.vz = vz;
         B.base = w.base || 0;
         B.top = (w.base || 0) + w.h;
-        B.reach = Math.hypot(w.w, w.d) / 2;   // bounding radius, for early rejection
         B.src = w;
         return B;
     }
@@ -681,8 +681,22 @@
         };
     }
 
-    function speedOf(b) { return Math.hypot(b.vx, b.vy, b.vz); }
-    function groundSpeed(b) { return Math.hypot(b.vx, b.vz); }
+    /* Length of a vector, by sqrt of the sum of squares rather than by
+       Math.hypot — here and everywhere else in this file that sits inside the
+       substep.
+
+       They are not the same function. hypot rescales its arguments first, so
+       that a vector whose components would square to infinity, or underflow to
+       nothing, still comes back with the right answer; it pays for that guard
+       on every call, and measured in V8 it costs some fifteen times the sqrt.
+       Nothing the solver holds is anywhere near those magnitudes — a ball's
+       speed is single digits and a hole is under a hundred units across — so
+       the guard buys accuracy that is already there and the sqrt is exact over
+       the whole range. The substep asks for this on every step and the wall
+       loop asked for one per wall, which is why it was worth a third of the
+       preview path. */
+    function speedOf(b) { return Math.sqrt(b.vx * b.vx + b.vy * b.vy + b.vz * b.vz); }
+    function groundSpeed(b) { return Math.sqrt(b.vx * b.vx + b.vz * b.vz); }
 
     /* ── the step ───────────────────────────────────────────────────────── */
 
@@ -697,13 +711,26 @@
             // and it needs none of the trigonometry.
             if (b.y - C.BALL_R >= (w.base || 0) + w.h || b.y + C.BALL_R <= (w.base || 0)) continue;
 
-            B = wallBox(w, world.time, SCRATCH);
-            // Then a bounding-circle reject, which is what keeps a hole with
-            // twenty rails from costing twenty box transforms per substep.
-            dx = b.x - B.cx; dz = b.z - B.cz;
-            reach = B.reach + C.BALL_R;
+            /* Then the bounding-circle reject, which is what keeps a hole with
+               twenty rails from costing twenty box transforms per substep —
+               and it has to be read off the wall's own numbers to do that,
+               because the transform *is* the expensive half. It used to be
+               measured from the box wallBox had already built, so every wall
+               on the hole paid the whole transform to be told it was nowhere
+               near; that reject cost more than the collision it was skipping.
+
+               The radius is the half-perimeter rather than the half-diagonal,
+               which is never smaller and wants no square root — a rail, which
+               is long and thin, is the shape it is tightest on, and on a post
+               the slack is a few centimetres of a hole. A wall that slides
+               carries its whole travel in there as well, so the circle covers
+               it wherever on the stroke the clock has put it; one that turns,
+               or that swings, does not move its middle at all. */
+            dx = b.x - (w.x + w.w / 2); dz = b.z - (w.z + w.d / 2);
+            reach = (w.w + w.d) / 2 + (w.move ? Math.abs(w.move.amp) : 0) + C.BALL_R;
             if (dx * dx + dz * dz > reach * reach) continue;
 
+            B = wallBox(w, world.time, SCRATCH);
             hit = circleBox(b.x, b.z, C.BALL_R, B);
             if (!hit) continue;
 
@@ -745,7 +772,7 @@
     function cupContact(world, events) {
         var b = world.ball, hole = world.hole, cup = hole.cup;
         var dx = b.x - cup.x, dz = b.z - cup.z;
-        var d = Math.hypot(dx, dz);
+        var d = Math.sqrt(dx * dx + dz * dz);
         // Out of reach of the rim: nothing about the cup applies, whatever
         // height the ball is at. (Testing the height here instead would hand
         // the shaft to every ball on a level below the green.)
@@ -773,7 +800,7 @@
         // The rim edge: distance from the ball's centre to the nearest point of
         // the rim circle, in the plane that contains both.
         var rx = d - C.HOLE_R, ry = b.y - cup.y;
-        var rd = Math.hypot(rx, ry);
+        var rd = Math.sqrt(rx * rx + ry * ry);
         if (rd < C.BALL_R && rd > 1e-9) {
             var nx = (rx / rd) * ux, ny = ry / rd, nz = (rx / rd) * uz;
             var depth = C.BALL_R - rd;
@@ -943,7 +970,7 @@
                which is why a bent shot looks like a banana and not an arc of a
                circle. */
             if (world.spin) {
-                var gs = Math.hypot(b.vx, b.vz);
+                var gs = Math.sqrt(b.vx * b.vx + b.vz * b.vz);
                 if (gs > 1e-4) {
                     // Both components come off the velocity as it was: turning
                     // one and then reading it back to turn the other is a
