@@ -51,6 +51,7 @@ them.
 | `js/weather.js` | The sky each hole gets, the wind everything answers to, and the rain, mist and motes. |
 | `js/postfx.js` | What happens to the picture after the course is drawn: bloom, light shafts, tone mapping, grade. |
 | `js/flyover.js` | The intro sweep's path: four keys, a curve through them, and the rule that keeps it out of the hillside. Pure — no three.js, no DOM. |
+| `js/bot.js` | The greedy player: fan out candidate shots, keep the one that finishes nearest the cup, refine twice. Pure — no three.js, no DOM. What proves every hole is solvable in `tests.html`, and what plays for you in [simulation mode](#the-caddie-simulation-mode). |
 | `js/render.js` | The course, in three.js: geometry, lights, camera and the frame. |
 | `js/minimap.js` | The hole from above, drawn per pixel out of `physics.surfaceUnder` — the course picker's plans and the one on the hole card. |
 | `js/bag.js` | The club picker: a modelled bag that rides in front of the camera, holding whichever clubs this hole hands out. |
@@ -2097,6 +2098,40 @@ frame is data and is counted as one; only `visibilitychange` throws the
 half-measured window away, because a backgrounded tab is not a slow frame, it
 is no frame at all.
 
+## The caddie: simulation mode
+
+Hidden, and on purpose. Type **aide** anywhere on the course and a 🤖
+**Simulate** chip appears in the menu, for good — press it and `js/bot.js`, the
+same greedy player that proves in `tests.html` that all seventy-two holes are
+solvable, takes the club and plays the hole out from wherever your ball is
+standing. Press it again, or <kbd>Esc</kbd>, to take the club back.
+
+It is the only way to *see* the thing the suite has only ever counted. The bot
+reads the hole (a couple of hundred whole shots simulated, which is the pause
+you are watching), picks a club, aims, loads the meter and swings — through the
+same four things a player touches, so what you are watching is a shot the game
+played rather than a line drawn on top of one. Then it rests a beat, looks at
+where the ball actually finished, and does it again. Each shot says which club,
+how much of it, how many candidates it tried and how long that took.
+
+Three details make it watchable and honest:
+
+- **It thinks on the frame after it says so.** The search stops the world for
+  about a tenth of a second, and a freeze under a message reads as thought
+  where the same freeze under a still course reads as a stall.
+- **The roll is stepped at a fixed 1/60 while it plays.** `physics.advance`
+  sub-steps by speed rather than to a fixed clock, so a frame of any other
+  length is a slightly different roll — and the plan was made at 1/60. Left-over
+  frame time is carried, so the ball still runs at real speed on a 144 Hz
+  screen. Without this, a putt the bot holed in simulation lips out on yours.
+- **It re-plans every stroke.** Nothing is scripted, so it recovers from a shot
+  that did not go where it thought — including one that finds the water.
+
+The bot played here has a narrower fan than the one the suite runs (`BOT_FAN`
+against the suite's 16), because there a shot costs whatever it costs and here a
+player is holding still while it thinks. `BOT_PAUSE` is the beat between shots
+and `BOT_MAX_STROKES` is where it gives up and hands the club back.
+
 ## Weather
 
 Every hole has a sky of its own, and it is the same sky every time you come
@@ -2803,9 +2838,10 @@ geometry, the cup, the integrator, the bag, the ground that does something, the
 walls you go through, all seventy-two holes of course data, the scorecard and
 the intro flyover's path.
 
-The one worth knowing about is the **bot**: a greedy player fans out candidate
-shots on every hole, keeps the one that finishes nearest the cup, and plays all
-seventy-two. If a hole is sealed off, unreachable, or has a cup buried where
+The one worth knowing about is the **bot** (`js/bot.js`, and the game plays it
+too — see [simulation mode](#the-caddie-simulation-mode)): a greedy player fans
+out candidate shots on every hole, keeps the one that finishes nearest the cup,
+and plays all seventy-two. If a hole is sealed off, unreachable, or has a cup buried where
 nothing can settle, the bot never holes out and the suite goes red. It is
 deterministic, so a failure is reproducible rather than "sometimes red", it
 plays out of the same five clubs the player gets, its candidates include a wait
@@ -2857,7 +2893,8 @@ and Two Roads' low road are the whole point of those holes, and The Gorge will
 let you lay up and blast it for the price of a stroke.
 
 Being pure logic, `tests.html` needs no WebGL, no canvas and no AudioContext. It
-loads `config.js`, `physics.js`, `courses.js` and `scoring.js` and nothing else
+loads `config.js`, `physics.js`, `courses.js`, `scoring.js` and `bot.js` and
+nothing else
 — the weather, the renderer and the post chain are all absent from it, which is
 the strongest statement available that none of them can change a score.
 
@@ -2972,7 +3009,9 @@ weather, <kbd>H</kbd> the rules, <kbd>M</kbd> sound, <kbd>J</kbd> the music,
 <kbd>O</kbd> the fancy water, <kbd>P</kbd> the frame rate, <kbd>G</kbd> the
 course inspector. Scroll or pinch to zoom. A new hole opens with a
 [flyover](#the-fourth-camera-which-is-not-a-seat) — anything at all skips it,
-and the 🎬 chip turns it off for good.
+and the 🎬 chip turns it off for good. And one that is not on the list on
+purpose: typing **aide** unlocks the [simulation
+mode](#the-caddie-simulation-mode) chip.
 
 ### Under a thumb
 

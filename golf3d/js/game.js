@@ -79,6 +79,7 @@
             save: state && state.save ? state.save : S.load(),
             phase: 'aim'
         };
+        stopSim(null);
         closeMenu();
         closeCard();
         loadHole(at);
@@ -1541,6 +1542,8 @@
         var fine = e.shiftKey;
         var k = e.key;
 
+        listenForCode(k);
+
         if (k === 'l' || k === 'L') { toggleLock(); return; }
         if (k === ',' || k === '<') { nudgeView(-VIEW_STEP); return; }
         if (k === '.' || k === '>') { nudgeView(VIEW_STEP); return; }
@@ -1555,6 +1558,7 @@
         if (k === 'w' || k === 'W') { cycleWeather(); return; }
         if (k === '?' || k === 'h' || k === 'H') { openHowTo(); return; }
         if (k === 'Escape') {
+            if (sim) { stopSim('Your club again'); return; }
             if (G3.bag && G3.bag.isExpanded()) { G3.bag.setExpanded(false); syncPicker(); return; }
             closeHowTo();
             return;
@@ -2120,9 +2124,157 @@
 
     function closeCard() { $('scorecard').className = 'modal'; maybeFly(); }
 
+    /* ── the bot plays it ───────────────────────────────────────────────
+
+       The secret in the menu. `js/bot.js` is the greedy player tests.html uses
+       to prove every hole is solvable — thousands of simulated shots a stroke,
+       keep the one that finishes nearest the cup — and this is that same code
+       playing on the real course, at real speed, from wherever the ball is
+       standing now. It is the only way to actually see what the suite has only
+       ever counted.
+
+       Three things make it watchable rather than a blur. It thinks on the
+       frame *after* it says it is thinking, so the freeze lands under a
+       message instead of under a still course. It rests a beat between shots.
+       And while it is playing, the roll is stepped in fixed 1/60 chunks rather
+       than on the frame — the plan was made at that step, so anything else
+       slowly drifts away from the shot the bot chose and the putt it holed in
+       simulation lips out on screen.
+
+       It drives the game through the same three things a player touches — the
+       club, the aim, the meter — and then `strike`. Nothing here reaches past
+       them, so what you watch is a shot the game played, not a shot drawn on
+       top of it. */
+
+    var sim = null;
+
+    function botFound() {
+        try { return localStorage.getItem(C.BOT_KEY) === '1'; } catch (e) { return false; }
+    }
+
+    /* The code, typed anywhere on the course. Every letter still does its own
+       job on the way past — this listens rather than swallows — which is why
+       the word is made of keys the game has nothing bound to. */
+    var typed = '';
+
+    function listenForCode(k) {
+        if (!k || k.length !== 1) return;
+        typed = (typed + k.toLowerCase()).slice(-C.BOT_CODE.length);
+        if (typed !== C.BOT_CODE || botFound()) return;
+        try { localStorage.setItem(C.BOT_KEY, '1'); } catch (e) { /* ignore */ }
+        syncSim();
+        toast('Caddie found — “Simulate” in the menu lets it play for you');
+    }
+
+    function syncSim() {
+        var btn = $('btn-sim');
+        if (!btn) return;
+        btn.hidden = !botFound();
+        btn.classList.toggle('on', !!sim);
+        btn.setAttribute('aria-pressed', sim ? 'true' : 'false');
+        btn.title = sim ? 'Stop the bot (take the club back)'
+                        : 'Let the bot play this hole from here';
+    }
+
+    function toggleSim() {
+        if (sim) { stopSim('Your club again'); return; }
+        startSim();
+    }
+
+    function startSim() {
+        if (!G3.bot || !state || state.phase === 'finished') return;
+        // A flyover is a look at a hole nobody is about to play by hand.
+        skipFly();
+        closeGate();
+        hideHoleCard();
+        sim = { stage: 'rest', t: C.BOT_PAUSE, strokes: 0, at: 0, said: false };
+        state.aim.power = 0;
+        syncPower();
+        syncSim();
+        toast('The caddie has the club — press Simulate or Esc to take it back');
+    }
+
+    function stopSim(why) {
+        if (!sim) return;
+        sim = null;
+        simAcc = 0;
+        syncSim();
+        if (why) toast(why);
+    }
+
+    /* One frame of the bot's turn. Four stages, and the only one that costs
+       anything is `think`. */
+    function tickSim(beat) {
+        if (state.phase === 'holed' || state.phase === 'finished') {
+            stopSim(null);
+            return;
+        }
+        if (sim.stage === 'rest') {
+            sim.t -= beat;
+            if (sim.t <= 0) { sim.stage = 'think'; sim.said = false; }
+            return;
+        }
+        if (sim.stage === 'think') {
+            if (state.phase !== 'aim' || modalUp()) return;
+            // Said on one frame, done on the next: the search stops the world
+            // for a moment and this is what stands in front of it.
+            if (!sim.said) { sim.said = true; toast('The caddie is reading the hole…'); return; }
+            planShot();
+            return;
+        }
+        if (sim.stage === 'wait') {
+            // A shot chosen for a moving gate is a shot chosen for a moment.
+            if (state.world.time >= sim.at) playPlanned();
+            return;
+        }
+        // 'watch': the roll is the game's business until it ends.
+        if (state.phase === 'aim') {
+            if (sim.strokes >= C.BOT_MAX_STROKES) {
+                stopSim('The caddie is out of strokes — your club again');
+                return;
+            }
+            sim.stage = 'rest';
+            sim.t = C.BOT_PAUSE;
+        }
+    }
+
+    function planShot() {
+        var w = state.world, b = w.ball;
+        var from = { x: b.x, y: b.y, z: b.z };
+        var t0 = performance.now();
+        var shot = G3.bot.bestShot(w.hole, from, w.time, bag(), { fan: C.BOT_FAN });
+        if (!shot) { stopSim('The caddie cannot see a shot from there'); return; }
+        sim.shot = shot;
+        sim.at = w.time + shot.wait;
+        sim.stage = 'wait';
+        pickClub(shot.club);
+        if (G3.bag) G3.bag.setExpanded(false);
+        syncPicker();
+        state.aim.yaw = shot.yaw;
+        setPower(shot.power);
+        toast(shot.club.name + ' — ' + shot.power.toFixed(1) +
+              (shot.wait ? ', on the beat' : '') +
+              ' · ' + shot.sims + ' shots tried in ' +
+              Math.round(performance.now() - t0) + 'ms');
+    }
+
+    function playPlanned() {
+        sim.stage = 'watch';
+        sim.strokes++;
+        // Through the same door the Swing button uses. The bot never draws
+        // past a full swing, so no gate arms and `shoot` goes straight to it.
+        shoot();
+        // A shot the physics refused would leave it standing here for ever.
+        if (state.phase !== 'rolling') stopSim('That shot would not go — your club again');
+    }
+
     /* ── loop ───────────────────────────────────────────────────────────── */
 
     var intent = { show: false, yaw: 0, power: 0, loft: 0, bite: 0, over: 0 };
+
+    // The bot's fixed roll, and the frame time left over from it.
+    var SIM_STEP = 1 / 60;
+    var simAcc = 0;
 
     function loop(now) {
         raf = requestAnimationFrame(loop);
@@ -2139,11 +2291,36 @@
         tickFps(raw);
         if (!state || !state.world) return;
 
+        /* The bot's beat between shots is measured on the wall clock rather
+           than the clamped frame time: it is a pause for a person to follow
+           what just happened, and on a machine slow enough for the clamp to
+           bite, a "second" of clamped time is several real ones. */
+        if (sim) tickSim(Math.min(0.25, raw));
+
         if (state.phase === 'rolling') {
-            var ev = P.advance(state.world, dt, {});
-            handleEvents(ev);
-            syncDistance();
-            if (P.done(state.world)) endShot();
+            /* Under the bot, the same step it planned on. Its shot was chosen
+               by settling a copy of this world at 1/60, and physics.advance
+               sub-steps by speed rather than to a fixed clock, so a frame of
+               any other length is a slightly different roll — enough, over a
+               long putt, to turn the shot it holed into one it did not. Left
+               over frames are carried, so the ball still runs at real speed on
+               a screen of any refresh rate. */
+            var ev;
+            if (sim) {
+                simAcc = Math.min(simAcc + dt, 0.25);
+                while (simAcc >= SIM_STEP && state.phase === 'rolling') {
+                    simAcc -= SIM_STEP;
+                    ev = P.advance(state.world, SIM_STEP, {});
+                    handleEvents(ev);
+                    if (P.done(state.world)) { endShot(); break; }
+                }
+                syncDistance();
+            } else {
+                ev = P.advance(state.world, dt, {});
+                handleEvents(ev);
+                syncDistance();
+                if (P.done(state.world)) endShot();
+            }
         } else {
             tickGate(dt);
             // Gates and blades keep their own time whether or not the ball is
@@ -2281,6 +2458,8 @@
         });
         $('btn-fps').addEventListener('click', toggleFps);
         $('btn-fly').addEventListener('click', toggleFlyover);
+        $('btn-sim').addEventListener('click', toggleSim);
+        syncSim();
         // A drag that started on the ⌖ and walked away is not a press of it.
         $('btn-view-home').addEventListener('click', function () {
             if (viewTravelled) { viewTravelled = false; return; }

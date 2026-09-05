@@ -8,7 +8,7 @@
    — the renderer scales to the viewport, the simulation never sees a pixel. */
 window.G3 = window.G3 || {};
 
-G3.VERSION = '1.30.0';
+G3.VERSION = '1.31.0';
 
 G3.CONFIG = {
     BALL_R: 0.16,
@@ -471,7 +471,24 @@ G3.CONFIG = {
     /* The one setting with three states rather than two: '1' asked for, '0'
        waved off, and nothing at all — which is most players, and which follows
        prefers-reduced-motion instead of guessing. See game.js's flyWanted. */
-    FLY_KEY: 'loftLinks.flyover'
+    FLY_KEY: 'loftLinks.flyover',
+    /* The secret. Set once the code has been typed, and never unset: the chip
+       that lets the bot play for you is hidden until someone has gone looking
+       for it, and then it stays found. */
+    BOT_KEY: 'loftLinks.botFound',
+    /* The word that finds it, typed anywhere on the course. Made of letters
+       the game has nothing bound to (l m j o p r v f w h b c g and the digits
+       all do something already), so spelling it does not cycle your clubs and
+       throw the debug overlay up on the way past. */
+    BOT_CODE: 'aide',
+    /* How the bot plays when a player is watching rather than when a test
+       suite is counting. The fan is narrower than the suite's because every
+       candidate is a whole shot simulated inside one frame and the game is
+       holding still while it thinks; PAUSE is the beat between shots, which is
+       what the mode is for — you are meant to be able to follow it. */
+    BOT_FAN: 12,
+    BOT_PAUSE: 1.1,
+    BOT_MAX_STROKES: 12
 };
 
 /* Every club the game knows about, default bag first. A hole's `bag` names

@@ -29,6 +29,7 @@
     <script src="js/swing.js"></script>
     <script src="js/minimap.js"></script>
     <script src="js/flyover.js"></script>
+    <script src="js/bot.js"></script>
 
     <script>
     (function () {
@@ -2482,136 +2483,18 @@
 
         section('The bot plays every hole');
         (function () {
-            var BOT_DT = 1 / 60, BOT_SECONDS = 12, sims = 0;
+            /* The bot itself is js/bot.js — the same module the game's
+               simulation mode plays with, which is the point: what passes here
+               is what a player can watch happen. All this section owns is the
+               claim made of it. */
+            var BOT = G3.bot, sims = 0;
 
-            function d2(a, b) { return Math.hypot(a.x - b.x, a.z - b.z); }
-
-            function trial(hole, from, yaw, power, loft, time, bite) {
-                sims++;
-                var w = P.createWorld(hole, from, time);
-                if (!P.launch(w, yaw, power, loft, bite)) return null;
-                P.settle(w, BOT_SECONDS, BOT_DT);
-                return w;
-            }
-
-            /* A greedy player: fan out candidate shots, keep the one that ends
-               nearest the cup, repeat. Two refinements around the best coarse
-               shot give it the precision to actually hole out.
-
-               It plays out of the same bag the player gets, so this is a test
-               that the holes are solvable with the clubs that exist rather than
-               with any loft the physics would accept.
-
-               Two details matter. Holes with moving parts get candidates that
-               wait before striking, because a bot that always fires at t=0
-               would report a false failure on a timing hole. And a chosen shot
-               has to go somewhere: without that rule the bot parks in a corner
-               where every legal shot looks worse than standing still, and plays
-               the same nothing until it runs out of strokes. */
-            /* Is there a wall right in front of the ball, between it and the
-               cup? A ball that rolls up against a rail comes to rest touching
-               it, and from there no shot goes forward at all: the ball would
-               have to climb the paint inside its own radius. A player looking
-               at that lie plays sideways or backwards and gives up a stroke on
-               purpose; a greedy bot cannot, because every retreat scores worse
-               than standing still, so it re-plays the same nothing until it
-               runs out of strokes.
-
-               So the bot is told to see the lie, which is the honest fix — a
-               shot that finishes jammed against a rail is genuinely worth
-               about a stroke less than the same distance in the open, and that
-               is what BLOCKED is. Only a wall *in front* counts; one behind or
-               beside the ball costs nothing to play from. */
-            var BLOCKED = 4;
-
-            function blockedLie(hole, ball, cup, time) {
-                var dx = cup.x - ball.x, dz = cup.z - ball.z;
-                var len = Math.hypot(dx, dz);
-                if (len < 1e-6) return false;
-                var px = ball.x + dx / len * (C.BALL_R + 0.2);
-                var pz = ball.z + dz / len * (C.BALL_R + 0.2);
-                var i, B;
-                for (i = 0; i < hole.walls.length; i++) {
-                    B = P.wallBox(hole.walls[i], time);
-                    if (ball.y - C.BALL_R >= B.top || ball.y + C.BALL_R <= B.base) continue;
-                    if (P.circleBox(px, pz, C.BALL_R, B)) return true;
-                }
-                return false;
-            }
-
-            function bestShot(hole, from, time, bag) {
-                var cup = hole.cup;
-                var base = Math.atan2(cup.x - from.x, cup.z - from.z);
-                var moves = hole.walls.some(function (wl) { return wl.move || wl.spin; });
-                var waits = moves ? [0, 0.45, 0.95, 1.5] : [0];
-                var here = d2(from, cup);
-                var best = null;
-                bag = bag || C.CLUBS;
-
-                function consider(yaw, club, power, wait) {
-                    // The club's own backspin, so the bot is playing the clubs
-                    // the player is handed rather than five-sixths of them.
-                    var w = trial(hole, from, yaw, power, club.loft, time + wait, club.bite);
-                    if (!w) return;
-                    var moved = Math.hypot(w.ball.x - from.x, w.ball.z - from.z);
-                    var s;
-                    if (w.sunk) s = -1000;
-                    else if (w.splash || w.out) s = 500 + d2(w.origin, cup);
-                    else s = d2(w.ball, cup) +
-                        (blockedLie(hole, w.ball, cup, w.time) ? BLOCKED : 0);
-                    if (!w.sunk && moved < 1 && s >= here) return;
-                    if (!best || s < best.s) best = { s: s, yaw: yaw, club: club, power: power, wait: wait, world: w };
-                }
-
-                var i, N = 16;
-                bag.forEach(function (club) {
-                    for (i = 0; i < N; i++) {
-                        [0.35, 0.7, 1].forEach(function (f) {
-                            consider(base + (i / N) * Math.PI * 2, club, club.power * f, 0);
-                        });
-                    }
-                });
-
-                var b0 = best;
-                if (!b0) return null;
-                [-2, -1, 0, 1, 2].forEach(function (k) {
-                    bag.forEach(function (club) {
-                        [0.25, 0.5, 0.75, 1].forEach(function (f) {
-                            waits.forEach(function (wait) {
-                                consider(b0.yaw + k * 0.11, club, club.power * f, wait);
-                            });
-                        });
-                    });
-                });
-                var b1 = best;
-                [-3, -2, -1, 0, 1, 2, 3].forEach(function (k) {
-                    [-0.7, -0.35, 0, 0.35, 0.7].forEach(function (dp) {
-                        waits.forEach(function (wait) {
-                            consider(b1.yaw + k * 0.03, b1.club,
-                                Math.max(C.MIN_POWER, Math.min(b1.club.power, b1.power + dp)), wait);
-                        });
-                    });
-                });
-                return best;
-            }
+            assert('the bot module is loaded', !!BOT);
 
             function play(hole, maxStrokes, bag) {
-                var from = { x: hole.tee.x, z: hole.tee.z, y: hole.tee.y + C.BALL_R };
-                var time = 0, strokes = 0, penalties = 0, s, shot;
-                for (s = 0; s < maxStrokes; s++) {
-                    shot = bestShot(hole, from, time, bag);
-                    if (!shot) break;
-                    strokes++;
-                    time = shot.world.time;
-                    if (shot.world.sunk) return { sunk: true, strokes: strokes + penalties };
-                    if (shot.world.splash || shot.world.out) {
-                        penalties++;
-                        from = { x: shot.world.origin.x, z: shot.world.origin.z, y: shot.world.origin.y };
-                    } else {
-                        from = { x: shot.world.ball.x, z: shot.world.ball.z, y: shot.world.ball.y };
-                    }
-                }
-                return { sunk: false, strokes: strokes + penalties };
+                var r = BOT.play(hole, maxStrokes, bag);
+                r.shots.forEach(function (sh) { sims += sh.sims || 0; });
+                return r;
             }
 
             var b0 = performance.now();
