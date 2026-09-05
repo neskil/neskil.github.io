@@ -40,6 +40,10 @@ const VENDORED = 'surprise';
 // enter. The one page where noindex-without-Disallow is correct.
 const NO_DISALLOW_NEEDED = new Set(['404.html']);
 
+// A frozen pre-rewrite snapshot, kept as it shipped — see README → Layout.
+// Adding a tag to it would make it something other than the snapshot it is.
+const FROZEN = new Set(['supply-chain-legacy/index.html']);
+
 const problems = [];
 const fail = (file, msg) => problems.push({ file, msg });
 
@@ -134,13 +138,61 @@ async function main() {
             fail(rel, 'is disallowed in robots.txt but carries no noindex — add the meta tag too');
         }
 
+        // Every page a visitor can actually land on, promoted or not.
+        // AGENTS.md → "Analytics"; a page nobody counts is a page nobody knows
+        // is being used, and the level editors are real features.
+        if (!FROZEN.has(rel) && !html.includes(GA_ID)) {
+            fail(rel, `no analytics tag (${GA_ID})`);
+        }
+        // A page with no viewport renders at desktop width on a phone, zoomed
+        // out to illegibility. cargo-lander/level-editor.html shipped that way.
+        if (!/<meta[^>]+name=["']viewport["']/i.test(html)) {
+            fail(rel, 'no <meta name="viewport"> — renders unusably on mobile');
+        }
+
         if (promoted) {
             if (blocked) fail(rel, 'is in sitemap.xml but disallowed in robots.txt');
             if (!meta(html, 'description')) fail(rel, 'no <meta name="description">');
             if (!/twitter:card/.test(html)) fail(rel, 'no twitter:card meta');
-            if (!html.includes(GA_ID)) fail(rel, `no analytics tag (${GA_ID})`);
             for (const prop of ['title', 'description', 'type', 'url', 'image']) {
                 if (!og(html, prop)) fail(rel, `no og:${prop} meta`);
+            }
+        }
+
+        // ── Structured data ──────────────────────────────────────────────
+        // Every promoted page carries one JSON-LD graph, and what it claims has
+        // to survive contact with the rest of the page: a block that says the
+        // page lives at a different URL, or points at an image that isn't
+        // there, is worse than no block at all — search engines act on it.
+        const blocks = [...html.matchAll(/<script[^>]+application\/ld\+json[^>]*>([\s\S]*?)<\/script>/gi)];
+        if (promoted && !blocks.length) fail(rel, 'no JSON-LD structured data');
+
+        for (const [, body] of blocks) {
+            let data;
+            try {
+                data = JSON.parse(body);
+            } catch (err) {
+                fail(rel, `JSON-LD does not parse: ${err.message}`);
+                continue;
+            }
+            const nodes = data['@graph'] || [data];
+            if (data['@context'] !== 'https://schema.org') {
+                fail(rel, 'JSON-LD @context is not https://schema.org');
+            }
+            if (nodes[0]?.url && nodes[0].url !== SITE + path) {
+                fail(rel, `JSON-LD url is ${nodes[0].url}, should be ${SITE + path}`);
+            }
+            // Any absolute site URL it names — url, image, a Person's portrait —
+            // has to resolve. `@id` values are identifiers, not links, so a
+            // fragment like "/#website" is left alone.
+            for (const node of nodes) {
+                for (const key of ['url', 'image']) {
+                    const value = node[key];
+                    if (typeof value !== 'string' || !value.startsWith(SITE + '/')) continue;
+                    const target = value.replace(SITE + '/', '') || 'index.html';
+                    const asDir = target.endsWith('/') ? target + 'index.html' : target;
+                    if (!(await exists(asDir))) fail(rel, `JSON-LD ${key} has no file: ${value}`);
+                }
             }
         }
 

@@ -44,6 +44,45 @@
     <!-- Vendored so the whole thing runs from file:// with no server -->
     <script src="vendor/three.min.js"></script>
     <script src="vendor/OrbitControls.js"></script>
+<script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@graph": [
+            {
+                "@type": "VideoGame",
+                "url": "https://neskil.github.io/3d-engine-poc/",
+                "description": "A 3D container packing puzzle: stack the manifest into the tightest possible envelope. Line missions, terminal regulations and a free-build cargo yard sandbox, in WebGL.",
+                "image": "https://neskil.github.io/assets/og/3d-engine-poc.png",
+                "name": "Yard Master: 3D Container Stacking",
+                "author": {
+                    "@id": "https://neskil.github.io/#niklas"
+                },
+                "isPartOf": {
+                    "@id": "https://neskil.github.io/#website"
+                },
+                "applicationCategory": "GameApplication",
+                "operatingSystem": "Any",
+                "browserRequirements": "Requires JavaScript and WebGL or Canvas support",
+                "offers": {
+                    "@type": "Offer",
+                    "price": "0",
+                    "priceCurrency": "USD"
+                }
+            },
+            {
+                "@type": "Person",
+                "@id": "https://neskil.github.io/#niklas",
+                "name": "Niklas Billgren",
+                "url": "https://neskil.github.io/",
+                "jobTitle": "Supply chain consultant",
+                "image": "https://neskil.github.io/assets/portrait.webp",
+                "sameAs": [
+                    "https://www.linkedin.com/in/niklas-eskilsson/"
+                ]
+            }
+        ]
+    }
+    </script>
 </head>
 <body>
     <div id="canvas-container"></div>

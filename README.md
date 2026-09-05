@@ -24,14 +24,24 @@ Niklas Billgren's personal site, hosted on GitHub Pages. Static HTML/CSS/JS, no 
 | `robots.txt` / `sitemap.xml` | Crawler hints. `surprise/` is excluded, being vendored third-party demo code, as are the test harnesses — see "What crawlers see" below. |
 | `assets/` | `og/` link-preview images (one per page), `preview/` card-back screenshots for the landing page, and `portrait.webp` for the About card. |
 | `favicon.ico` | Site-wide favicon. |
+| `CLAUDE.md` | Root pointer so agents load `.agents/AGENTS.md`, which is not a path Claude Code looks in by itself. |
 | `tools/` | Dependency-free Node scripts: the test runner, the site checker, and a static server. See "Checks" below. |
 | `.github/workflows/ci.yml` | Runs both checks on every push and pull request. |
 
 ## What crawlers see
 
 Every page that is meant to be found carries a `<link rel="canonical">`, a
-`<meta name="description">`, and the Open Graph / Twitter tags described below,
-and appears in `sitemap.xml`.
+`<meta name="description">`, the Open Graph / Twitter tags described below, and
+a JSON-LD block, and appears in `sitemap.xml`.
+
+The JSON-LD says in `schema.org` terms what the Open Graph tags say in prose:
+each page is a `VideoGame`, a `WebApplication`, or the site or profile itself,
+authored by one `Person` node that every page repeats by `@id`. Its `url`,
+`description` and `image` are the same strings as the page's canonical,
+description and `og:image` — deliberately, so the two can be checked against
+each other. Change one and change the other, or `check-site.mjs` will say so:
+markup that disagrees with the page is worse than none, because a crawler acts
+on it.
 
 Everything else must opt out, and does so twice: a `Disallow` line in
 `robots.txt` so the page is never fetched, and `<meta name="robots"
@@ -206,13 +216,21 @@ It sorts every page into one of three classes and checks each accordingly:
 
 | Class | How it is decided | What is required |
 | --- | --- | --- |
-| promoted | listed in `sitemap.xml` | canonical, description, the full OG set, `twitter:card`, the analytics tag, an `og:image` that exists on disk |
+| promoted | listed in `sitemap.xml` | canonical, description, the full OG set, `twitter:card`, an `og:image` that exists on disk, and a JSON-LD block that agrees with all of it |
 | excluded | carries `noindex` | a matching `robots.txt` `Disallow`, and absence from the sitemap |
 | unlisted | neither | nothing beyond the universal rules — but any tag it *does* carry must still be right |
 
+Every page a visitor can land on — promoted or not — also needs the analytics
+tag and a `viewport` meta. Those two are not about crawlers: an untagged page
+is one nobody knows is being used, and a page with no `viewport` renders at
+desktop width on a phone, which is how `cargo-lander/level-editor.html` shipped
+until the check went in. The one exception is `supply-chain-legacy/`, a frozen
+snapshot that is meant to stay exactly as it was.
+
 It also checks that every `<loc>` in the sitemap resolves to a real file, that
 no `Disallow` rule matches nothing (a stale rule protects nothing), that every
-`og:image` and canonical is absolute and correct, that every page declares a
+`og:image` and canonical is absolute and correct, that every JSON-LD block
+parses and every site URL inside it resolves, that every page declares a
 language, and that internal `href`/`src` references resolve.
 
 Neither script covers `surprise/` — it is vendored third-party code, disallowed

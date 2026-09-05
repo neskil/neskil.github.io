@@ -9,6 +9,7 @@ Put a fact in exactly one place; point at it rather than restating it.
 
 | Doc | Owns |
 | --- | --- |
+| **[CLAUDE.md](../CLAUDE.md)** | A root pointer to this file, nothing more. Claude Code loads a root `CLAUDE.md` automatically but does not look in `.agents/`, so without it these rules are only found by someone going to look. |
 | **AGENTS.md** (this file) | Workspace-wide rules: structure, stack, styling, git conventions — what applies to every page. |
 | **[README.md](../README.md)** | Site layout table, link-preview (OG image) recipe, local dev server, and the `tools/` checks (what they enforce and why). |
 | `cargo-lander/CLAUDE.md`, `supply-chain/CLAUDE.md`, `3d-engine-poc/CLAUDE.md`, `golf3d/CLAUDE.md`, `viz-poc/CLAUDE.md` | Per-project standing instructions, versioning/cache-busting, and headless verification recipes. Read the relevant one before touching that folder — do not re-derive its test commands here, they drift. |
@@ -48,8 +49,16 @@ Folder-based routing — each major page or app is fully isolated with its own
     instruction, for flat surfaces, hairline borders and a clay accent. Do
     not "restore" glassmorphism there — see the palette comment at the top
     of `car/style.css` and `car/PLAN.md`.
-- **Analytics**: every newly released public page's `<head>` must include
-  the Google Analytics tag (`G-9GP823TGLB`).
+- **Analytics**: every page a visitor can land on must include the Google
+  Analytics tag (`G-9GP823TGLB`) in its `<head>` — not just the ones in the
+  sitemap. `tools/check-site.mjs` enforces this; the only exception is
+  `supply-chain-legacy/`, a frozen snapshot kept as it shipped.
+- **Mobile**: every page needs `<meta name="viewport" content="width=device-width,
+  initial-scale=1.0">`. Also enforced — a page without it is unusable on a phone.
+- **Structured data**: every page in the sitemap carries a JSON-LD block whose
+  `url`, `description` and `image` repeat the page's own canonical, description
+  and `og:image`. Edit one and edit the other; see README.md → "What crawlers
+  see".
 
 ## Git & version control
 
