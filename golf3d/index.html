@@ -32,7 +32,7 @@
 
         gtag('config', 'G-9GP823TGLB');
     </script>
-    <link rel="stylesheet" href="style.css?v=1.28.0">
+    <link rel="stylesheet" href="style.css?v=1.29.0">
 <script type="application/ld+json">
     {
         "@context": "https://schema.org",
@@ -132,6 +132,9 @@
                     <button class="chip" id="btn-fps" title="Show the frame rate (P)" aria-pressed="false"><span id="fps-icon">▦</span><span class="chip-text"> FPS</span></button>
                     <button class="chip" id="btn-fly" title="A look at the hole before you play it" aria-pressed="true">🎬<span class="chip-text"> Flyover</span></button>
                     <button class="chip" id="btn-water" title="Reflections, foam and glitter on the water (O)" aria-label="Turn the fancy water off"><span id="water-icon">≈</span><span class="chip-text"> Water</span></button>
+                    <!-- Hidden until the code has been typed on the course; see
+                         game.js's listenForCode. -->
+                    <button class="chip" id="btn-sim" title="Let the bot play this hole from here" aria-pressed="false" hidden>🤖<span class="chip-text"> Simulate</span></button>
                 </div>
                 <button class="chip chip-menu" id="btn-menu" title="More" aria-label="More controls"
                         aria-expanded="false" aria-controls="topbar-menu">☰</button>
@@ -561,24 +564,25 @@
 
     <!-- Load order is dependency order: config, then the pure logic, then the
          things that touch the screen. game.js boots itself on DOMContentLoaded. -->
-    <script src="js/config.js?v=1.28.0"></script>
-    <script src="js/themes.js?v=1.28.0"></script>
-    <script src="js/physics.js?v=1.28.0"></script>
-    <script src="js/courses.js?v=1.28.0"></script>
-    <script src="js/custom.js?v=1.28.0"></script>
-    <script src="js/scoring.js?v=1.28.0"></script>
-    <script src="js/swing.js?v=1.28.0"></script>
-    <script src="js/audio.js?v=1.28.0"></script>
-    <script src="js/music.js?v=1.28.0"></script>
-    <script src="js/bag.js?v=1.28.0"></script>
-    <script src="js/textures.js?v=1.28.0"></script>
-    <script src="js/shaders.js?v=1.28.0"></script>
-    <script src="js/postfx.js?v=1.28.0"></script>
-    <script src="js/weather.js?v=1.28.0"></script>
-    <script src="js/flyover.js?v=1.28.0"></script>
-    <script src="js/render.js?v=1.28.0"></script>
-    <script src="js/minimap.js?v=1.28.0"></script>
-    <script src="js/debug.js?v=1.28.0"></script>
-    <script src="js/game.js?v=1.28.0"></script>
+    <script src="js/config.js?v=1.29.0"></script>
+    <script src="js/themes.js?v=1.29.0"></script>
+    <script src="js/physics.js?v=1.29.0"></script>
+    <script src="js/courses.js?v=1.29.0"></script>
+    <script src="js/custom.js?v=1.29.0"></script>
+    <script src="js/scoring.js?v=1.29.0"></script>
+    <script src="js/swing.js?v=1.29.0"></script>
+    <script src="js/audio.js?v=1.29.0"></script>
+    <script src="js/music.js?v=1.29.0"></script>
+    <script src="js/bag.js?v=1.29.0"></script>
+    <script src="js/textures.js?v=1.29.0"></script>
+    <script src="js/shaders.js?v=1.29.0"></script>
+    <script src="js/postfx.js?v=1.29.0"></script>
+    <script src="js/weather.js?v=1.29.0"></script>
+    <script src="js/flyover.js?v=1.29.0"></script>
+    <script src="js/bot.js?v=1.29.0"></script>
+    <script src="js/render.js?v=1.29.0"></script>
+    <script src="js/minimap.js?v=1.29.0"></script>
+    <script src="js/debug.js?v=1.29.0"></script>
+    <script src="js/game.js?v=1.29.0"></script>
 </body>
 </html>
