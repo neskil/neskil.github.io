@@ -2148,6 +2148,62 @@ body.picker-open .stage-hud,
     pointer-events: none;
 }
 
+/* Called up on request rather than shown unasked, and in the opposite corner
+   from the hole card on purpose — the two have no reason to ever be up at
+   once, but there is no reason to make that a rule either. A dot rather than
+   a redraw: the plan under it is static, so the one thing that needs to move
+   every frame is the marker, not the canvas. */
+.mini-map {
+    position: absolute;
+    right: 12px;
+    top: 12px;
+    width: min(30ch, calc(100% - 24px));
+    padding: 0.4rem;
+    border-radius: 14px;
+    background: var(--ov-bg);
+    border: 1px solid var(--ov-border);
+    backdrop-filter: blur(6px);
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(-6px);
+    transition: opacity 0.2s ease, transform 0.2s ease;
+    z-index: 4;
+}
+
+.mini-map.show { opacity: 1; transform: translateY(0); pointer-events: auto; }
+
+.stage.picker-open .mini-map, body.hud-open .mini-map {
+    opacity: 0;
+    pointer-events: none;
+}
+
+.mm-canvas {
+    display: block;
+    width: 100%;
+    height: auto;
+    border-radius: 7px;
+    background: #1b2a24;
+}
+
+.mm-ball {
+    position: absolute;
+    width: 8px;
+    height: 8px;
+    margin: -4px 0 0 -4px;
+    border-radius: 50%;
+    background: #ffe27a;
+    border: 1px solid rgba(20, 24, 16, 0.8);
+    box-shadow: 0 0 4px rgba(0, 0, 0, 0.6);
+    pointer-events: none;
+}
+
+body.compact-ui .mini-map { top: 52px; right: 10px; }
+
+@media (max-width: 640px) {
+    body.compact-ui .mini-map { top: 122px; }
+    body.compact-ui .stage.view-collapsed .mini-map { top: 90px; }
+}
+
 /* ── compact chrome ─────────────────────────────────────────────────────── */
 
 /* Set from game.js wherever the immersive layout is on — a phone, a coarse

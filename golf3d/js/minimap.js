@@ -100,6 +100,22 @@
         return out;
     }
 
+    /* The one piece of arithmetic that turns a world coordinate into a pixel
+       on a plan of a given size — shared by the renderer below and by anyone
+       who needs to put a live marker (a ball, say) on a plan already drawn,
+       without re-deriving how that plan was framed. */
+    function transform(hole, w, h) {
+        var b = extent(hole);
+        var pad = 1.5;
+        var wx = (b.maxX - b.minX) + pad * 2, wz = (b.maxZ - b.minZ) + pad * 2;
+        var scale = Math.min(w / wx, h / wz);
+        return {
+            ox: (b.minX - pad) - (w / scale - wx) / 2,
+            oz: (b.minZ - pad) - (h / scale - wz) / 2,
+            scale: scale
+        };
+    }
+
     /* One hole, drawn to fit `w` by `h`. The scale is the same on both axes —
        a plan that stretched a hole to fill its frame would be lying about the
        one thing a plan is for. */
@@ -110,12 +126,8 @@
         var img = g.createImageData(w, h);
         var d = img.data;
 
-        var b = extent(hole);
-        var pad = 1.5;
-        var wx = (b.maxX - b.minX) + pad * 2, wz = (b.maxZ - b.minZ) + pad * 2;
-        var scale = Math.min(w / wx, h / wz);
-        var ox = (b.minX - pad) - (w / scale - wx) / 2;
-        var oz = (b.minZ - pad) - (h / scale - wz) / 2;
+        var tf = transform(hole, w, h);
+        var scale = tf.scale, ox = tf.ox, oz = tf.oz;
 
         var px, py, i, x, z, surf, col, lit, pond, outside;
         for (py = 0; py < h; py++) {
@@ -274,6 +286,6 @@
         canvas.getContext('2d').drawImage(src, 0, 0);
     }
 
-    G3.minimap = { render: render, map: map, into: into, aspect: aspect };
+    G3.minimap = { render: render, map: map, into: into, aspect: aspect, transform: transform };
 
 })(window.G3);
