@@ -32,7 +32,7 @@
 
         gtag('config', 'G-9GP823TGLB');
     </script>
-    <link rel="stylesheet" href="style.css?v=1.28.0">
+    <link rel="stylesheet" href="style.css?v=1.29.0">
 <script type="application/ld+json">
     {
         "@context": "https://schema.org",
@@ -125,6 +125,7 @@
                     <button class="chip" id="btn-courses" title="Pick a course">Courses</button>
                     <button class="chip" id="btn-restart" title="Restart this hole (R)">↻ Hole</button>
                     <button class="chip" id="btn-card" title="Scorecard">Card</button>
+                    <button class="chip" id="btn-map" title="Show the course map" aria-pressed="false">🗺️<span class="chip-text"> Map</span></button>
                     <button class="chip" id="btn-help" title="How to play (H)" aria-label="How to play">?<span class="chip-text"> How to play</span></button>
                     <a class="chip" id="chip-editor" href="level-editor.html" title="Build a hole of your own">&#9998;<span class="chip-text"> Editor</span></a>
                     <button class="chip" id="btn-mute" title="Sound (M)" aria-label="Unmute"><span id="mute-icon">🔇</span><span class="chip-text"> Sound</span></button>
@@ -267,6 +268,15 @@
                  instant anything is pressed. An intro nobody has been told how
                  to leave is a loading screen. -->
             <div class="fly-hint" id="fly-hint" hidden>Flyover — press anything to skip</div>
+
+            <!-- The same plan the hole card shows, called back up on request
+                 while you play, with the one thing the card cannot show: where
+                 you are standing on it right now. -->
+            <div class="mini-map" id="mini-map" aria-hidden="true">
+                <canvas class="mm-canvas" id="mm-canvas" width="240" height="150"
+                        aria-label="Plan of the hole"></canvas>
+                <i class="mm-ball" id="mm-ball" aria-hidden="true"></i>
+            </div>
 
             <div class="controls">
                 <!-- Frames per second, and nothing else. It rides above the
@@ -561,24 +571,24 @@
 
     <!-- Load order is dependency order: config, then the pure logic, then the
          things that touch the screen. game.js boots itself on DOMContentLoaded. -->
-    <script src="js/config.js?v=1.28.0"></script>
-    <script src="js/themes.js?v=1.28.0"></script>
-    <script src="js/physics.js?v=1.28.0"></script>
-    <script src="js/courses.js?v=1.28.0"></script>
-    <script src="js/custom.js?v=1.28.0"></script>
-    <script src="js/scoring.js?v=1.28.0"></script>
-    <script src="js/swing.js?v=1.28.0"></script>
-    <script src="js/audio.js?v=1.28.0"></script>
-    <script src="js/music.js?v=1.28.0"></script>
-    <script src="js/bag.js?v=1.28.0"></script>
-    <script src="js/textures.js?v=1.28.0"></script>
-    <script src="js/shaders.js?v=1.28.0"></script>
-    <script src="js/postfx.js?v=1.28.0"></script>
-    <script src="js/weather.js?v=1.28.0"></script>
-    <script src="js/flyover.js?v=1.28.0"></script>
-    <script src="js/render.js?v=1.28.0"></script>
-    <script src="js/minimap.js?v=1.28.0"></script>
-    <script src="js/debug.js?v=1.28.0"></script>
-    <script src="js/game.js?v=1.28.0"></script>
+    <script src="js/config.js?v=1.29.0"></script>
+    <script src="js/themes.js?v=1.29.0"></script>
+    <script src="js/physics.js?v=1.29.0"></script>
+    <script src="js/courses.js?v=1.29.0"></script>
+    <script src="js/custom.js?v=1.29.0"></script>
+    <script src="js/scoring.js?v=1.29.0"></script>
+    <script src="js/swing.js?v=1.29.0"></script>
+    <script src="js/audio.js?v=1.29.0"></script>
+    <script src="js/music.js?v=1.29.0"></script>
+    <script src="js/bag.js?v=1.29.0"></script>
+    <script src="js/textures.js?v=1.29.0"></script>
+    <script src="js/shaders.js?v=1.29.0"></script>
+    <script src="js/postfx.js?v=1.29.0"></script>
+    <script src="js/weather.js?v=1.29.0"></script>
+    <script src="js/flyover.js?v=1.29.0"></script>
+    <script src="js/render.js?v=1.29.0"></script>
+    <script src="js/minimap.js?v=1.29.0"></script>
+    <script src="js/debug.js?v=1.29.0"></script>
+    <script src="js/game.js?v=1.29.0"></script>
 </body>
 </html>

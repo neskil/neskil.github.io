@@ -91,6 +91,8 @@
     function loadHole(i, again) {
         closeGate();
         saidLocked = false;
+        // The plan drawn under the dot is this hole's; a new one invalidates it.
+        toggleMiniMap(false);
         var hole = state.course.holes[i];
         state.holeIndex = i;
         state.strokes = 0;
@@ -587,13 +589,12 @@
         holeCardTimer = setTimeout(hideHoleCard, cardDwell());
     }
 
-    /* Long enough to read, and never shorter than the flyover — the card is
-       this hole's name, its length and its plan, which is the caption the sweep
-       is the picture for, and the two should go away together. */
-    function cardDwell() {
-        var f = R.state.fly;
-        return f ? Math.max(3400, f.plan.dur * 1000 + 500) : 3400;
-    }
+    /* Long enough to read and no longer — a fixed beat rather than one stretched
+       to the flyover's own length. The card is a caption sitting in the corner
+       of the course, not a curtain over it: on anything but the shortest hole
+       the sweep runs well past this, and the plan has no business still
+       covering ground the camera has moved on to show for real. */
+    function cardDwell() { return 3400; }
 
     // The card is already up and already drawn; all that needs to move is when
     // it goes. Redrawing it would redraw the plan, which is the expensive half.
@@ -606,6 +607,44 @@
     function hideHoleCard() {
         clearTimeout(holeCardTimer);
         $('hole-card').classList.remove('show');
+    }
+
+    /* ── the live map ───────────────────────────────────────────────────── */
+
+    /* The same plan the hole card shows, called back up on request instead of
+       timing out on its own — and with the one thing the card cannot show,
+       because the card is drawn once and never again: where the ball actually
+       is right now. The plan itself is still drawn once per open, since the
+       ground under it does not move; only the dot walks. */
+    var miniMapOn = false;
+    var miniMapTf = null;
+
+    function toggleMiniMap(force) {
+        if (!G3.minimap || !state) return;
+        miniMapOn = typeof force === 'boolean' ? force : !miniMapOn;
+        $('btn-map').classList.toggle('on', miniMapOn);
+        $('btn-map').setAttribute('aria-pressed', miniMapOn ? 'true' : 'false');
+        $('mini-map').classList.toggle('show', miniMapOn);
+        $('mini-map').setAttribute('aria-hidden', miniMapOn ? 'false' : 'true');
+        if (miniMapOn) {
+            var canvas = $('mm-canvas');
+            G3.minimap.into(canvas, state.course.id, state.holeIndex, true);
+            miniMapTf = G3.minimap.transform(state.course.holes[state.holeIndex],
+                canvas.width, canvas.height);
+            syncMiniMapBall();
+        }
+    }
+
+    // Every frame the map is open, and nothing else — the canvas it sits over
+    // is only ever redrawn when the map is opened or the hole changes under it.
+    function syncMiniMapBall() {
+        if (!miniMapOn || !miniMapTf || !state || !state.world) return;
+        var canvas = $('mm-canvas');
+        var dpr = canvas.width / (canvas.clientWidth || canvas.width);
+        var b = state.world.ball;
+        var dot = $('mm-ball');
+        dot.style.left = ((b.x - miniMapTf.ox) * miniMapTf.scale / dpr) + 'px';
+        dot.style.top = ((b.z - miniMapTf.oz) * miniMapTf.scale / dpr) + 'px';
     }
 
     /* ── the collapsible chrome ─────────────────────────────────────────── */
@@ -2115,6 +2154,7 @@
         // The wind gusts whether or not anything is happening, so the readout
         // under the hole name is refreshed on the frame rather than the shot.
         syncWind();
+        syncMiniMapBall();
 
         // The camera rides the aim, so turning one turns the other; how far
         // round the ball it stands from there is the view dial's business
@@ -2225,6 +2265,7 @@
         // handler would otherwise hand it an Event.
         $('btn-courses').addEventListener('click', function () { openMenu(); });
         $('btn-card').addEventListener('click', function () { openCard(null); });
+        $('btn-map').addEventListener('click', function () { toggleMiniMap(); });
         $('btn-view').addEventListener('click', cycleSeat);
         $('btn-swing').addEventListener('click', shoot);
         holdToRepeat('btn-aim-left', function () { nudgeAim(0.035); }, 60);
