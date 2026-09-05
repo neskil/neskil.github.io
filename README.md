@@ -24,6 +24,8 @@ Niklas Billgren's personal site, hosted on GitHub Pages. Static HTML/CSS/JS, no 
 | `robots.txt` / `sitemap.xml` | Crawler hints. `surprise/` is excluded, being vendored third-party demo code, as are the test harnesses — see "What crawlers see" below. |
 | `assets/` | `og/` link-preview images (one per page), `preview/` card-back screenshots for the landing page, and `portrait.webp` for the About card. |
 | `favicon.ico` | Site-wide favicon. |
+| `tools/` | Dependency-free Node scripts: the test runner, the site checker, and a static server. See "Checks" below. |
+| `.github/workflows/ci.yml` | Runs both checks on every push and pull request. |
 
 ## What crawlers see
 
@@ -38,16 +40,25 @@ something reaches it by a route `robots.txt` doesn't cover. Belt and braces,
 because the two mechanisms fail differently — `robots.txt` cannot suppress a
 URL that other sites link to, and a `noindex` tag is never read if the fetch
 is blocked. That set is the headless test harnesses (`*/tests.html`,
-`3d-engine-poc/physics-tests.html`) and the screenshot/audio probes
-(`cargo-lander/syntax-check.html`, `cargo-lander/probe-screenshot.html`,
-`supply-chain/audio-check.html`, `supply-chain/research-zoom-check.html`).
+`3d-engine-poc/physics-tests.html`, `golf3d/shader-tests.html`) and the
+screenshot/audio probes (`cargo-lander/syntax-check.html`,
+`cargo-lander/probe-screenshot.html`, `supply-chain/audio-check.html`,
+`supply-chain/research-zoom-check.html`).
+
+`404.html` is the one deliberate exception: it carries `noindex` but no
+`Disallow`, because GitHub Pages serves it for every missing URL and a crawler
+sent there has to be able to fetch it.
 
 `cargo-lander/level-editor.html`, `golf/level-editor.html` and
 `golf3d/level-editor.html` are *not* in that set — all three are real features
 linked from their games, and stay indexable.
 
 Add a new test or probe page and it needs both lines, or it will quietly show
-up in search results next to the pages you meant to publish.
+up in search results next to the pages you meant to publish. `node
+tools/check-site.mjs` fails if you forget one — that is what it is for, and it
+is the reason `golf3d/shader-tests.html` stopped being missing from
+`robots.txt` (`Disallow: /*/tests.html` does not match `shader-tests.html`;
+the wildcard needs a `/` immediately before `tests.html`).
 
 ## Link previews
 
@@ -155,12 +166,64 @@ never existed in this repo, and both game pages link root-absolute favicons
 Note this reclaims working-copy and Pages-deploy size, not `.git` — the blobs
 stay in history, so a fresh clone is unchanged until someone rewrites it.
 
+## Checks
+
+Two commands, both dependency-free — no `package.json`, no lockfile, nothing to
+install. The site has no build step and neither does the tooling for it; all
+they need is Node 18+ and a Chrome or Chromium on the machine.
+
+```
+node tools/run-tests.mjs      # every headless suite in the repo
+node tools/check-site.mjs     # robots/sitemap/meta/link invariants
+```
+
+`.github/workflows/ci.yml` runs both on every push and pull request.
+
+**`run-tests.mjs`** serves the repo over HTTP (the harnesses fetch their
+modules, so `file://` gives CORS errors) and loads each suite in headless
+Chrome — the same `--virtual-time-budget` trick as the screenshot recipe above,
+so eighteen seconds of page timers return in about one. It reads the verdict
+out of each harness's `<div id="summary">` and exits non-zero if any suite is
+red. Currently eight suites, 4,199 assertions, about 20 seconds.
+
+Two things about it are deliberate:
+
+- **Suites are discovered, not listed.** Any `*tests.html` with a
+  `#summary` is one. Give a project a harness and it is picked up with no edit
+  to the runner — the same reason `supply-chain/tests.html` derives its module
+  list instead of repeating it.
+- **An unreadable summary is a failure, not a pass.** The eight harnesses
+  predate any shared contract and each phrase their result differently, so the
+  parser understands all of them; when it cannot, it says so and goes red. "The
+  page didn't say" and "the page said everything is fine" must not collapse
+  into the same green tick.
+
+Pass a substring to narrow it: `node tools/run-tests.mjs golf3d`.
+
+**`check-site.mjs`** enforces what "What crawlers see" and "Link previews"
+describe, so those sections stop being things a reader is trusted to remember.
+It sorts every page into one of three classes and checks each accordingly:
+
+| Class | How it is decided | What is required |
+| --- | --- | --- |
+| promoted | listed in `sitemap.xml` | canonical, description, the full OG set, `twitter:card`, the analytics tag, an `og:image` that exists on disk |
+| excluded | carries `noindex` | a matching `robots.txt` `Disallow`, and absence from the sitemap |
+| unlisted | neither | nothing beyond the universal rules — but any tag it *does* carry must still be right |
+
+It also checks that every `<loc>` in the sitemap resolves to a real file, that
+no `Disallow` rule matches nothing (a stale rule protects nothing), that every
+`og:image` and canonical is absolute and correct, that every page declares a
+language, and that internal `href`/`src` references resolve.
+
+Neither script covers `surprise/` — it is vendored third-party code, disallowed
+wholesale, and not ours to hold to the house rules.
+
 ## Development
 
 No build tooling — open any `index.html` directly, or serve the repo root with a static file server (recommended so relative `<script>`/`<link>` paths resolve correctly), e.g.:
 
 ```
-python -m http.server 8000
+node tools/serve.mjs 8000      # or: python -m http.server 8000
 ```
 
 Then visit `http://localhost:8000/`.

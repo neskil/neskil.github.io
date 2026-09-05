@@ -10,7 +10,7 @@ Put a fact in exactly one place; point at it rather than restating it.
 | Doc | Owns |
 | --- | --- |
 | **AGENTS.md** (this file) | Workspace-wide rules: structure, stack, styling, git conventions — what applies to every page. |
-| **[README.md](../README.md)** | Site layout table, link-preview (OG image) recipe, local dev server. |
+| **[README.md](../README.md)** | Site layout table, link-preview (OG image) recipe, local dev server, and the `tools/` checks (what they enforce and why). |
 | `cargo-lander/CLAUDE.md`, `supply-chain/CLAUDE.md`, `3d-engine-poc/CLAUDE.md`, `golf3d/CLAUDE.md`, `viz-poc/CLAUDE.md` | Per-project standing instructions, versioning/cache-busting, and headless verification recipes. Read the relevant one before touching that folder — do not re-derive its test commands here, they drift. |
 | `car/PLAN.md` | Open TODOs for the car cost calculator, ordered by impact. |
 
@@ -62,12 +62,28 @@ Folder-based routing — each major page or app is fully isolated with its own
 
 ## Testing & verification
 
+- **Before pushing, run both checks** — they are what CI runs, so a red one
+  is a red build:
+
+  ```
+  node tools/run-tests.mjs      # every headless suite (~20s)
+  node tools/check-site.mjs     # robots/sitemap/meta/link invariants
+  ```
+
+  Neither needs an install step. See README.md → "Checks" for what they
+  cover and how suites are discovered.
 - Plain pages (`/cv/`, `/games/`, `/math/`, `/converter/`, `/car/`) need no
   local server — open and exercise them directly over `file://`.
 - `cargo-lander/`, `supply-chain/`, and `3d-engine-poc/` each have a real
   headless test suite and their own verification recipe — see that
   project's `CLAUDE.md` (do not hand-roll a substitute command here, it will
-  go stale the moment their suite changes).
+  go stale the moment their suite changes). `run-tests.mjs` runs them all in
+  one go; the per-project recipes are still the ones to reach for when
+  debugging a single failure.
+- **A new project's test harness needs no wiring.** Name it `*tests.html`,
+  give it a `<div id="summary">` that ends up saying "N passed" / "N failed",
+  and the runner finds it. It also needs the `noindex` + `robots.txt`
+  `Disallow` pair — `check-site.mjs` will fail until it has both.
 - Regenerating an OG link-preview screenshot: see README.md → "Link
   previews" for the exact `chromium --headless` invocation and its gotchas
   (crop height, pinning entry animations, suppressing first-run modals).

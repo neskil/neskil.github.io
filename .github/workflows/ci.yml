@@ -1,0 +1,55 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# A newer push to the same branch makes an in-flight run irrelevant.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  site:
+    name: Site invariants
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      # robots.txt / sitemap.xml / canonical / OG tags / internal links.
+      # No install step: the checker has no dependencies, same as the site.
+      - run: node tools/check-site.mjs
+
+  tests:
+    name: Headless test suites
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      # The runner image ships Google Chrome; the fallback is here so the job
+      # survives an image change rather than going mysteriously red.
+      - name: Locate a headless browser
+        run: |
+          set -eu
+          for candidate in /usr/bin/google-chrome /usr/bin/google-chrome-stable /usr/bin/chromium-browser /usr/bin/chromium; do
+            if [ -x "$candidate" ]; then browser="$candidate"; break; fi
+          done
+          if [ -z "${browser:-}" ]; then
+            sudo apt-get update
+            sudo apt-get install -y --no-install-recommends chromium
+            browser="$(command -v chromium)"
+          fi
+          echo "CHROME=$browser" >> "$GITHUB_ENV"
+          "$browser" --version
+
+      - run: node tools/run-tests.mjs

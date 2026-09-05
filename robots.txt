@@ -11,6 +11,7 @@ Disallow: /surprise/
 # — this file stops the fetch, the tag stops the indexing if it happens anyway.
 Disallow: /*/tests.html
 Disallow: /3d-engine-poc/physics-tests.html
+Disallow: /golf3d/shader-tests.html
 Disallow: /cargo-lander/syntax-check.html
 Disallow: /cargo-lander/probe-screenshot.html
 Disallow: /supply-chain/audio-check.html

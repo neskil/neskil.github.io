@@ -91,7 +91,10 @@ viewport.
 
 - **No test harness.** Every other project of this size in the repo has a
   `tests.html`. This should get one, plus the `robots.txt` Disallow and
-  `noindex` that go with a test page.
+  `noindex` that go with a test page. Nothing needs wiring up beyond that:
+  `tools/run-tests.mjs` discovers any `*tests.html` with a `<div id="summary">`,
+  and `tools/check-site.mjs` fails until the Disallow and the `noindex` are
+  both there.
 - **`js/data/city.js` is measured by hand** and was accurate on 2026-09-03. It
   drifts from the day it is written. Nothing breaks as it ages — a building is
   the wrong height — but regenerate it when it starts to look wrong.
