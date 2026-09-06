@@ -543,8 +543,16 @@ button,
 /* ── the club picker ────────────────────────────────────────────────────── */
 
 /* The clubs themselves are modelled and drawn on the canvas; this is the part
-   that has to be readable, so it is text. It sits above the row of clubs and
-   dims the course behind them. */
+   that has to be readable, so it is text.
+
+   It used to dim the course as well, and it could not: this is a layer over
+   the whole canvas, and the clubs are drawn on that canvas, so every bit of
+   dimming it spent on the course it spent on them too — five heads that had
+   just been carried up to the lens to be looked at, greyed by the thing meant
+   to be showing them off. The dimming is now a plane hung behind the row
+   inside the scene (`bag.js`, the scrim), which the clubs' own depth cuts
+   themselves out of. What is left here is a vignette: enough to keep the
+   name and the blurb off a bright horizon, and not enough to touch the row. */
 .picker {
     position: absolute;
     inset: 0;
@@ -554,7 +562,7 @@ button,
     gap: 0.18rem;
     padding: clamp(0.8rem, 5vh, 2.6rem) 1rem 0;
     text-align: center;
-    background: radial-gradient(ellipse at 50% 62%, rgba(4, 14, 24, 0.1), rgba(4, 14, 24, 0.62) 70%);
+    background: radial-gradient(ellipse at 50% 62%, rgba(4, 14, 24, 0), rgba(4, 14, 24, 0.34) 78%);
     opacity: 0;
     pointer-events: none;
     transition: opacity 0.22s ease;

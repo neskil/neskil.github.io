@@ -90,16 +90,33 @@
     var FIGS = '"JetBrains Mono", ui-monospace, "SFMono-Regular", monospace';
 
     /* One palette per club, and it is the same palette everywhere the club
-       appears: the collar under its head in the bag, its name on its label,
+       appears: the collar under its head in the bag, the paint on the head
+       itself, the halo behind it when it is in hand, its name on its label,
        and the two figures under the name. Four coloured collars standing in
        the cuff is what makes the shut bag read as four *different* clubs at a
-       glance — and it is already the picker's legend before the picker opens. */
+       glance — and it is already the picker's legend before the picker opens.
+
+       `steel` and `shine` are the second half of that, and they were what the
+       row was missing. Colour on a ferrule two millimetres tall is a legend;
+       colour on the *head* is what tells four clubs apart at the size a phone
+       shows them, and a real bag does it the same way — a driver crown is
+       painted near black, an iron is polished chrome, a lob wedge is a dull
+       raw finish that deliberately does not flash. Three finishes, not one
+       grey, and the difference is a shade and a shininess rather than a new
+       material per club.
+
+       Two of these are new because two clubs had no entry at all: `look()`
+       falls back to the pitch's green, so the mallet and the checker — both
+       handed out a hole at a time — arrived wearing another club's colour on
+       a hole where they are the only unfamiliar thing in the bag. */
     var CLUB_LOOK = {
-        putter:  { name: '#7dd3fc', metal: 0x38bdf8 },
-        driver:  { name: '#fdba74', metal: 0xf97316 },
-        iron:    { name: '#c4b5fd', metal: 0x8b5cf6 },
-        chipper: { name: '#86efac', metal: 0x22c55e },
-        wedge:   { name: '#fde68a', metal: 0xeab308 }
+        putter:  { name: '#7dd3fc', metal: 0x38bdf8, steel: 0x46566b, shine: 34 },
+        driver:  { name: '#fdba74', metal: 0xf97316, steel: 0x2f3b4f, shine: 82 },
+        iron:    { name: '#c4b5fd', metal: 0x8b5cf6, steel: 0x9aa6b4, shine: 76 },
+        chipper: { name: '#86efac', metal: 0x22c55e, steel: 0x929daa, shine: 70 },
+        wedge:   { name: '#fde68a', metal: 0xeab308, steel: 0x767d88, shine: 22 },
+        mallet:  { name: '#f0abfc', metal: 0xc026d3, steel: 0x3f4a5a, shine: 30 },
+        checker: { name: '#5eead4', metal: 0x14b8a6, steel: 0x7c848f, shine: 24 }
     };
     function look(id) { return CLUB_LOOK[id] || CLUB_LOOK.chipper; }
 
@@ -111,8 +128,25 @@
        flash, so the speculars here are grey and the shininess is low enough
        that the highlight is a sheen across the crown rather than one hard
        dot per light. */
-    function mats() {
+    /* `club` is optional: the bag's own body has no club and takes the
+       defaults. Everything a head is made of is built here rather than in
+       `buildHead` so that one club owns one set of materials — which is what
+       lets the club in hand be lit on its own without every other head
+       lighting up with it. */
+    function mats(club) {
+        var L = club ? look(club.id) : null;
+        var steel = L ? L.steel : 0x929daa;
+        var shine = L ? L.shine : 70;
         return {
+            /* The paint: the club's own colour, on the parts of a head that
+               are allowed to be any colour at all — a driver's sole plate and
+               alignment mark, a mallet's sight line. It is
+               the same hex as the ferrule below it and as the name on the
+               card, so a club is one colour in three places rather than a
+               grey head with a coloured collar under it. */
+            paint: new THREE.MeshPhongMaterial({
+                color: ink(L ? L.metal : 0x38bdf8), shininess: 46, specular: ink(0x3a4249)
+            }),
             leather: new THREE.MeshLambertMaterial({ color: ink(0x59636f) }),
             panel: new THREE.MeshLambertMaterial({ color: ink(0x6d7886) }),
             trim: new THREE.MeshLambertMaterial({ color: ink(0x2b93c8) }),
@@ -129,12 +163,12 @@
             liner: new THREE.MeshBasicMaterial({ map: linerTexture(), side: THREE.BackSide }),
             well: new THREE.MeshBasicMaterial({ color: ink(0x191f26) }),
             crown: new THREE.MeshPhongMaterial({
-                color: ink(0x36435a), shininess: 26, specular: ink(0x39434f)
+                color: ink(L ? L.steel : 0x36435a), shininess: shine, specular: ink(0x39434f)
             }),
             insert: new THREE.MeshPhongMaterial({ color: ink(0x1e2932), shininess: 20, specular: ink(0x252c33) }),
             steel: new THREE.MeshPhongMaterial({ color: ink(0x8f9aa6), shininess: 60, specular: ink(0x5a636d) }),
             grip: new THREE.MeshLambertMaterial({ color: ink(0x1d2127) }),
-            head: new THREE.MeshPhongMaterial({ color: ink(0x929daa), shininess: 70, specular: ink(0x646d77) }),
+            head: new THREE.MeshPhongMaterial({ color: ink(steel), shininess: shine, specular: ink(0x646d77) }),
             face: new THREE.MeshPhongMaterial({ color: ink(0xb9c4cf), shininess: 50, specular: ink(0x4c545c) }),
             grooves: new THREE.MeshPhongMaterial({
                 map: grooveTexture(), shininess: 40, specular: ink(0x4c545c), side: THREE.DoubleSide
@@ -262,10 +296,20 @@
         hit.userData.clubId = club.id;
         g.add(hit);
 
+        /* Everything that has to hang *beside* the head without turning with
+           it goes in here, and `update` keeps its yaw the negative of the
+           club's own. Two things need that and both are new: the card, which
+           is anchored on the head's own bounding box and would swing out of
+           line the moment the head was turned to show its face; and the halo
+           behind the club in hand, which is a sprite and would orbit the
+           shaft rather than stay behind the thing it is marking. */
+        var pivot = new THREE.Group();
+        g.add(pivot);
+
         g.userData.clubId = club.id;
         g.userData.len = len;
         return {
-            group: g, hit: hit, head: head, len: len,
+            group: g, hit: hit, head: head, len: len, pivot: pivot,
             shaft: shaft, fullGeo: fullGeo, stubGeo: stubGeo, stubLen: stubLen,
             grip: grip, cap: cap
         };
@@ -386,6 +430,26 @@
             face.position.set(0.0404, 0.042, 0.044);
             g.add(face);
 
+            /* The sole plate, which is where a real driver wears its maker's
+               colour and half the reason the row no longer reads as four grey
+               blobs. A head is built in the frame it stands in — grip down,
+               `+Y` running on past the shaft to the sole — so in the bag and
+               in the open row the sole is the face pointing at the sky, which
+               makes it the one panel of a driver the picker can always see.
+               Squashed flat and sunk into the body, so what shows is the rim
+               of it round the crown rather than a second ball stuck on. */
+            var sole = new THREE.Mesh(new THREE.SphereGeometry(0.043, 20, 12), M.paint);
+            sole.scale.set(0.92, 0.30, 1.24);
+            sole.position.set(-0.002, 0.062, 0.044);
+            g.add(sole);
+
+            // And the alignment mark, pointing where the ball goes: the
+            // same colour again, on the other side of the head, so the club
+            // is still its own colour from whichever side it is turned to.
+            var aim = new THREE.Mesh(new THREE.BoxGeometry(0.026, 0.003, 0.005), M.paint);
+            aim.position.set(0.022, 0.0135, 0.044);
+            g.add(aim);
+
             /* Short. A long one climbs straight out through the crown,
                which is the one thing a driver never does. */
             hosel = new THREE.Mesh(new THREE.CylinderGeometry(0.0095, 0.0105, 0.032, 12), M.head);
@@ -404,8 +468,13 @@
             insert.position.set(0.0265, 0.030, 0.042);
             g.add(insert);
 
-            // The sight line, pointing where the ball goes.
-            var sight = new THREE.Mesh(new THREE.BoxGeometry(0.034, 0.003, 0.005), M.trim);
+            /* The sight line, pointing where the ball goes — in the club's
+               own colour rather than the bag's trim. It was the one accent on
+               a head that was already painted, and painting it the same blue
+               on every putter-shaped club meant a mallet handed out for one
+               hole arrived wearing the putter's colour on the one part of it
+               a player looks at. */
+            var sight = new THREE.Mesh(new THREE.BoxGeometry(0.034, 0.003, 0.005), M.paint);
             sight.position.set(-0.006, 0.0138, 0.042);
             g.add(sight);
 
@@ -654,7 +723,10 @@
         if (!document.fonts || !document.fonts.ready) return;
         document.fonts.ready.then(function () {
             _labelled.forEach(function (c) {
-                c.label.material.map = labelTexture(c.club);
+                var held = c.label.material.map === c.label.userData.held;
+                c.label.userData.idle = labelTexture(c.club, false);
+                c.label.userData.held = labelTexture(c.club, true);
+                c.label.material.map = held ? c.label.userData.held : c.label.userData.idle;
                 c.label.material.needsUpdate = true;
             });
             if (_monoMat) {
@@ -682,7 +754,14 @@
        the reach club" is a length rather than a claim. The figures stay
        underneath for anyone who wants them. */
 
-    var LABEL_W = 368, LABEL_H = 166;
+    /* The card, and the band across the top of it. The band is new and it is
+       carrying two facts that were only ever in the DOM panel above the row:
+       which number key takes this club, and whether it is the one in hand.
+       The first is the reason the band exists on every card rather than only
+       on one — a picker that has to be clicked is a picker that is slower
+       than the keyboard it is hiding, and "KEY 3" on the card is where
+       somebody looking at the clubs will actually see it. */
+    var LABEL_W = 368, LABEL_H = 192, LABEL_BAND = 26;
 
     function maxPower() {
         var m = 0;
@@ -755,7 +834,16 @@
         g.fill();
     }
 
-    function labelTexture(club) {
+    /* Two of these per club: the ordinary card, and the one the club in hand
+       wears. A picker whose only answer to "which one am I holding" is a
+       slightly brighter lump of chrome is a picker that has to be counted
+       rather than read, and the club in hand is the one fact the row exists
+       to change. So the card says it: the border and the name's underline
+       take the club's own colour, and a chip along the bottom spells it out
+       in words. Two canvases a club, drawn once at load and swapped by
+       pointer — cheaper than tinting a sprite and legible in a way a tint
+       is not. */
+    function labelTexture(club, held) {
         var cv = document.createElement('canvas');
         cv.width = LABEL_W; cv.height = LABEL_H;
         var g = cv.getContext('2d');
@@ -766,16 +854,39 @@
            bright grass and brighter water, and a card you have to squint
            through is a card nobody reads. */
         roundRect(g, 4, 4, LABEL_W - 8, LABEL_H - 8, 22);
-        g.fillStyle = 'rgba(5, 16, 26, 0.94)';
+        g.fillStyle = held ? 'rgba(7, 22, 34, 0.96)' : 'rgba(5, 16, 26, 0.94)';
         g.fill();
-        g.strokeStyle = 'rgba(125, 211, 252, 0.32)';
-        g.lineWidth = 3;
+        g.strokeStyle = held ? tint.name : 'rgba(125, 211, 252, 0.32)';
+        g.lineWidth = held ? 5 : 3;
         g.stroke();
+
+        /* The band. Painted inside the card's own rounded outline — a
+           rectangle across the top of a rounded card puts two square corners
+           back on it — and in the club's colour only when the club is in
+           hand, which is the difference between a strip of information and a
+           badge. */
+        g.save();
+        roundRect(g, 4, 4, LABEL_W - 8, LABEL_H - 8, 22);
+        g.clip();
+        g.globalAlpha = held ? 0.22 : 0.10;
+        g.fillStyle = held ? tint.name : '#9fb6c9';
+        g.fillRect(4, 4, LABEL_W - 8, LABEL_BAND);
+        g.restore();
+
+        g.textAlign = 'center';
+        g.textBaseline = 'middle';
+        g.font = '800 15px ' + FACE;
+        g.fillStyle = held ? tint.name : 'rgba(159, 182, 201, 0.82)';
+        g.fillText(held ? 'IN HAND' : 'KEY ' + club.key, LABEL_W / 2, 18);
+
+        /* Everything below the band is drawn where it always was, shifted
+           down by the band's own height rather than re-tuned — the layout of
+           a card is a picture that works, and moving it is not the same as
+           redrawing it. */
+        g.translate(0, LABEL_BAND);
 
         /* The name, in the page's own face, in one flat colour: a gradient
            across four letters is a smear at the size this is read from. */
-        g.textAlign = 'center';
-        g.textBaseline = 'middle';
         g.fillStyle = tint.name;
         g.font = '800 44px ' + FACE;
         g.fillText(club.name, LABEL_W / 2, 42);
@@ -811,6 +922,26 @@
         return srgbCanvas(cv);
     }
 
+    /* The halo behind the club in hand: white in the middle and gone by the
+       rim, so the sprite's own `color` is what tints it. Drawn once and
+       shared by every club, since the tint is the material's and not the
+       texture's. */
+    var _halo = null;
+    function haloTexture() {
+        if (_halo) return _halo;
+        var cv = document.createElement('canvas');
+        cv.width = cv.height = 128;
+        var g = cv.getContext('2d');
+        var grd = g.createRadialGradient(64, 64, 2, 64, 64, 62);
+        grd.addColorStop(0, 'rgba(255, 255, 255, 0.95)');
+        grd.addColorStop(0.42, 'rgba(255, 255, 255, 0.34)');
+        grd.addColorStop(1, 'rgba(255, 255, 255, 0)');
+        g.fillStyle = grd;
+        g.fillRect(0, 0, 128, 128);
+        _halo = srgbCanvas(cv);
+        return _halo;
+    }
+
     function hazeTexture() {
         var cv = document.createElement('canvas');
         cv.width = cv.height = 128;
@@ -825,12 +956,23 @@
     }
 
     function buildLabel(club) {
+        var idle = labelTexture(club, false);
         var sprite = new THREE.Sprite(new THREE.SpriteMaterial({
-            map: labelTexture(club), transparent: true, opacity: 0, depthTest: false
+            map: idle, transparent: true, opacity: 0, depthTest: false
         }));
+        sprite.userData.idle = idle;
+        sprite.userData.held = labelTexture(club, true);
         sprite.scale.set(0.26, 0.26 * LABEL_H / LABEL_W, 1);
         sprite.renderOrder = 20;
         return sprite;
+    }
+
+    // Which of a card's two faces is showing, swapped rather than redrawn.
+    function faceLabel(label, held) {
+        var want = held ? label.userData.held : label.userData.idle;
+        if (label.material.map === want) return;
+        label.material.map = want;
+        label.material.needsUpdate = true;
     }
 
     /* ── layout ────────────────────────────────────────────────────────── */
@@ -847,13 +989,41 @@
        Everything the fit below does is arithmetic on these six numbers and the
        frustum, so a new club, a new label size or a phone nobody has held yet
        all come out right without a new constant. */
+    /* How far round each club stands in the open row, and it is the whole
+       reason the row is worth opening. A head is built with its face looking
+       down +X and its toe out to +Z, and the rig squares itself up to the
+       camera when it opens — so at a yaw of nothing you are looking at the
+       *back* of every head in the bag. The face is the part that differs
+       between a driver and a wedge; a row that hides it is a row of grey
+       lumps with captions.
+
+       Three quarters of the way round rather than square on to it: a face
+       seen flat is a disc and tells you nothing about how far back it leans,
+       and the lean is the other half of what a club is. This shows both. */
+    var OPEN_YAW = -0.72;
+
     var COL_ROW = 0.175, COL_GRID = 0.32, ROW = 0.42;
     var HALF_LABEL = 0.145;                // half a label, and a hair over
     var HEAD_TOP = 0.21;                   // head above the row's own line
-    var TAIL_ROW = 0.40, TAIL_GRID = 0.15; // label below it, staggered or not
+    /* …and the label below it, staggered or not. Both are measured off the
+       card: a staggered row drops the low half of it by 0.26 and the card
+       itself is half of 0.26 x LABEL_H/LABEL_W tall, so the block reaches
+       0.34 + 0.068 below the line the heads stand on. Growing the card by a
+       band at the top grew this with it. */
+    var TAIL_ROW = 0.42, TAIL_GRID = 0.16;
 
     var OPEN_DEPTH = 1.3;      // how far in front of the lens the clubs come
     var MAX_OPEN = 2;          // and how big they are allowed to get there
+
+    /* And where the scrim hangs, which is a compromise with one number on
+       each side. Too near and it is in front of the heads; too far and the
+       ground under a camera zoomed all the way in can come between it and
+       the lens, leaving a bright wedge along the bottom of the frame. The
+       row occupies 1.1 to 1.5 out from the lens at full size, and the
+       closest the camera is ever allowed to the ball is four units, so
+       1.62 clears the first with room and the second by miles. */
+    var SCRIM_DEPTH = 1.62;
+    var SCRIM = 0.72;          // …and how dark it gets, fully open
 
     /* And the corner the shut bag stands in, in the same spirit: how far out
        toward the left edge, and how far its tallest head crests above whatever
@@ -967,7 +1137,7 @@
             // Rows stack downward, and the block is recentred on itself so
             // adding one does not push the first row off the top.
             y: -len + 0.15 - row * ROW + (rows - 1) * ROW / 2,
-            z: 0, rz: 0, rx: 0, ry: 0, scale: 1
+            z: 0, rz: 0, rx: 0, ry: OPEN_YAW, scale: 1
         };
     }
 
@@ -1109,11 +1279,11 @@
            of hole four is not something to do a hole at a time. `setBag` is
            what decides which of them are in the bag, in play and on screen. */
         C.ALL_CLUBS.forEach(function (club, i) {
-            var built = buildClub(club, mats());
+            var built = buildClub(club, mats(club));
             var spot = { closed: closedSpot(i, C.ALL_CLUBS.length), open: null };
             var label = buildLabel(club);
 
-            built.group.add(label);
+            built.pivot.add(label);
             // Centred on the head it belongs to, not guessed at: a driver's
             // body, a blade's toe and a mallet's wings all sit at a different
             // offset from the shaft, so the one fixed x/z this used before
@@ -1133,6 +1303,31 @@
             var headBox = new THREE.Box3().setFromObject(built.head);
             var headMid = headBox.getCenter(new THREE.Vector3());
 
+            /* The halo: a disc of the club's own colour behind its head, lit
+               only for the club in hand and half lit for the one under the
+               pointer. Emissive alone was doing that job and could not — a
+               driver crown is nearly black on purpose, and the light needed
+               to make a black crown glow is the light that floods a chrome
+               blade white, so the club being marked was the one you could
+               see least of. A halo marks a club without touching how the
+               club itself is lit, and it is the same colour as the name on
+               its card, so the answer to "which one is in my hand" is a
+               colour rather than a brightness. */
+            var halo = new THREE.Sprite(new THREE.SpriteMaterial({
+                map: haloTexture(), color: ink(look(club.id).metal),
+                transparent: true, opacity: 0, depthTest: false, depthWrite: false
+            }));
+            /* Not additive, and no bigger than the head it is behind. Both
+               were the first version and both were wrong for the same reason:
+               the picture goes through bloom on the way out, so an additive
+               sprite the size of a club head comes back as a coloured cloud
+               the size of a fist and the marker is louder than the thing it
+               is marking. */
+            halo.scale.set(0.15, 0.15, 1);
+            halo.position.set(headMid.x, headMid.y, headMid.z);
+            halo.renderOrder = 8;
+            built.pivot.add(halo);
+
             B.clubRig.add(built.group);
             B.pickables.push(built.hit);
             _labelled.push({ club: club, label: label });
@@ -1143,11 +1338,13 @@
                 group: built.group,
                 head: built.head,
                 label: label,
+                pivot: built.pivot,
+                halo: halo,
                 labelBase: { x: headMid.x, y: headBox.min.y, z: headMid.z },
                 spot: spot,
                 shaft: built.shaft, fullGeo: built.fullGeo, stubGeo: built.stubGeo,
                 stubLen: built.stubLen, grip: built.grip, cap: built.cap, stubOn: false,
-                now: { x: spot.closed.x, y: spot.closed.y, z: spot.closed.z, rz: spot.closed.rz, rx: spot.closed.rx, ry: spot.closed.ry, scale: 1, lift: 0, glow: 0, labelOp: 0 }
+                now: { x: spot.closed.x, y: spot.closed.y, z: spot.closed.z, rz: spot.closed.rz, rx: spot.closed.rx, ry: spot.closed.ry, scale: 1, lift: 0, glow: 0, labelOp: 0, turn01: 0 }
             });
         });
 
@@ -1195,6 +1392,35 @@
         B.rim = new THREE.PointLight(0xffe9c6, 0.45, 5);
         B.rim.position.set(0.1, 1.35, -1.0);
         B.clubRig.add(B.rim);
+
+        /* The scrim: the course, dimmed, while the row is out.
+
+           The picker has always claimed to dim the course behind the clubs
+           and what actually did it was a CSS gradient over the whole canvas —
+           which dims the clubs by exactly as much, because they are drawn on
+           that canvas. The clubs are the one thing that should not be dimmed,
+           so a curtain over the top can never be the answer; it has to be
+           hung *behind* them, in the scene.
+
+           Which is what this is: a plane sized to the frustum, held a little
+           further from the lens than the row, with its depth test on and its
+           depth write off. Transparent objects are drawn after opaque ones,
+           so by the time this is painted every club has already written its
+           own depth — and every fragment of the scrim that lands behind a
+           club is thrown away by that. The result is the course going dark
+           and the row staying exactly as lit as it was, out of one plane and
+           no second pass. */
+        B.scrim = new THREE.Mesh(
+            new THREE.PlaneGeometry(1, 1),
+            new THREE.MeshBasicMaterial({
+                color: ink(0x030a14), transparent: true, opacity: 0,
+                depthWrite: false, fog: false
+            })
+        );
+        B.scrim.renderOrder = 6;
+        B.scrim.visible = false;
+        B.scrim.frustumCulled = false;
+        scene.add(B.scrim);
 
         scene.add(B.rig);
 
@@ -1256,6 +1482,22 @@
         if (fit.cols !== B.cols) relayoutOpen(fit.cols);
         B.openScale = fit.scale;
         B.openY = fit.y;
+
+        /* The scrim, a little further out than the row and sized to whatever
+           the frustum is there. Wider than it needs to be on purpose: the
+           camera's own aspect is what this is measured against, and a plane
+           cut to it exactly shows a hairline of undimmed course down the edge
+           the moment the lens opens between the measurement and the frame. */
+        if (B.scrim) {
+            var sh = Math.tan((camera.fov || 52) * Math.PI / 360) * SCRIM_DEPTH;
+            B.scrim.visible = k > 0.005;
+            B.scrim.material.opacity = SCRIM * k;
+            B.scrim.scale.set(sh * aspect * 2.4, sh * 2.4, 1);
+            put(B.scrim, camera, 0, 0, -SCRIM_DEPTH, 1, 0, 0);
+            // put() sets the scale from its own argument; this one is set
+            // from the frustum above, so it goes back afterwards.
+            B.scrim.scale.set(sh * aspect * 2.4, sh * 2.4, 1);
+        }
 
         // The clubs: the same place when shut, the middle of the view when
         // open, squaring up to the camera as they come.
@@ -1327,11 +1569,17 @@
             if (!c.on || !c.spot.open) return;
             var to = B.expanded ? c.spot.open : c.spot.closed;
             var chosen = c.id === B.selected;
+            var under = B.expanded && B.hover === c.id;
             // Kept small: at the zoom the open row uses, a tenth of a unit is
             // a fifth of the screen and the club in hand floats away from the
             // others instead of standing a little proud of them.
-            var lift = chosen ? (B.expanded ? 0.022 : 0.045) : 0;
-            var glow = chosen ? 1 : (B.hover === c.id ? 0.5 : 0);
+            /* The club under the pointer stands up as well as the one in
+               hand, and further, because a hover has to answer *before* the
+               click: the row is five near-identical silhouettes and the one
+               thing a player wants to know while moving across them is which
+               one they are about to take. */
+            var lift = under ? 0.042 : (chosen ? (B.expanded ? 0.022 : 0.045) : 0);
+            var glow = chosen ? 1 : (under ? 0.62 : 0);
 
             c.now.x = ease1(c.now.x, to.x, ease);
             c.now.y = ease1(c.now.y, to.y, ease);
@@ -1349,14 +1597,21 @@
             c.now.glow = ease1(c.now.glow, glow, ease);
 
             c.group.position.set(c.now.x, c.now.y + c.now.lift, c.now.z);
-            // Turning on its own axis while it is in the bag, so a glance
-            // at the cuff still reads as four different heads. Once the row
-            // is out where it can be read, all four hold still instead —
-            // every club now carries its own label the whole time it is
-            // open, and a label is not worth reading while it orbits past.
-            var turn = c.now.ry + B.open01 * (B.expanded ? 0 : 1) * B.spin;
+            /* Turning on its own axis while it is in the bag, so a glance at
+               the cuff still reads as four different heads. Once the row is
+               out, the clubs stand at OPEN_YAW and hold still — a card is not
+               worth reading while it orbits past — with one exception: the
+               club under the pointer keeps turning, which is the only way to
+               see a face from every side and the thing the row was always
+               described as doing. */
+            c.now.turn01 = ease1(c.now.turn01, under ? 1 : 0, ease);
+            var turn = c.now.ry +
+                B.open01 * (B.expanded ? c.now.turn01 : 1) * B.spin;
             c.group.rotation.set(c.now.rx, turn, c.now.rz);
             c.group.scale.setScalar(c.now.scale);
+            // …and whatever hangs beside the head rather than on it stays put
+            // while it turns. See `pivot` in buildClub.
+            if (c.pivot) c.pivot.rotation.y = -turn;
 
             // The club in hand catches a light of its own. Every club owns its
             // materials, so this stays on the one club it is meant for.
@@ -1367,6 +1622,14 @@
             c.group.traverse(function (o) {
                 if (o.material && o.material.emissive) o.material.emissive.setRGB(e * 0.45, e * 0.7, e);
             });
+            // The halo does the rest, and it is the half that shows on a dark
+            // crown. Only while the row is open: a coloured glow behind a club
+            // standing in a shut bag is a light source nothing in the corner
+            // of the screen explains.
+            if (c.halo) {
+                c.halo.material.opacity = 0.52 * c.now.glow * B.open01;
+                c.halo.visible = c.halo.material.opacity > 0.01;
+            }
 
             // The full write-up still lives in the panel above (game.js,
             // where it can be read by a screen reader); this is the fast
@@ -1377,6 +1640,13 @@
                 c.now.labelOp = ease1(c.now.labelOp, B.expanded ? 1 : 0, ease);
                 c.label.material.opacity = c.now.labelOp;
                 c.label.visible = c.now.labelOp > 0.01;
+                faceLabel(c.label, chosen);
+                /* And the cards that are neither in hand nor under the
+                   pointer stand back. Five cards at the same weight is five
+                   things asking to be read at once; a card at three quarters
+                   is still legible and is plainly not the one being talked
+                   about. */
+                c.label.material.color.setScalar(0.72 + 0.28 * c.now.glow);
             }
         });
 

@@ -1,4 +1,4 @@
-/* Ten courses of six holes, as data.
+/* Twelve courses of six holes, as data.
 
    A hole is a set of pads (the ground), a set of walls (things that bounce),
    a set of water rectangles (things that punish), a tee and a cup. Everything
@@ -6,12 +6,12 @@
    look — is derived below, because a hole that has to repeat itself is a hole
    that will one day disagree with itself.
 
-   Four of the ten courses are mini golf, three are crazy golf and three are
-   the long game — tee, fairway, rough, sand, trees, green — authored through
-   `bands` and `tree` rather than a hole at a time; see the comment above them.
-   They use the same pads, the same walls and the same solver as everything
-   else, which is the point: a parkland hole is not a different game, it is the
-   same one written wider.
+   Four of the twelve courses are mini golf, three are crazy golf, two are
+   adventure golf and three are the long game — tee, fairway, rough, sand,
+   trees, green — authored through `bands` and `tree` rather than a hole at a
+   time; see the comment above them. They use the same pads, the same walls
+   and the same solver as everything else, which is the point: a parkland hole
+   is not a different game, it is the same one written wider.
 
    ── two rules about the order things are in ──
 
@@ -21,14 +21,15 @@
    holes are in the order they are written in rather than the order they were
    built in, and why moving one is a change to the course rather than a tidy-up.
    The same rule runs across a group: the four mini courses are in order of how
-   much they ask for, and so are the three crazy ones and the three long ones.
+   much they ask for, and so are the three crazy ones, the two adventure ones
+   and the three long ones.
 
-   **A hole is not the hole beside it.** Sixty holes on one list is sixty
-   chances to write the same corridor again, and the way out is the plan rather
-   than the furniture: a hole that turns, a hole that goes round something, a
-   hole played over a corner, a hole with two ways to the green and a reason to
-   pick one. If a new hole's plan can be described as "a lane with an X in the
-   middle", it needs a different X *and* a different lane.
+   **A hole is not the hole beside it.** Seventy-two holes on one list is
+   seventy-two chances to write the same corridor again, and the way out is the
+   plan rather than the furniture: a hole that turns, a hole that goes round
+   something, a hole played over a corner, a hole with two ways to the green
+   and a reason to pick one. If a new hole's plan can be described as "a lane
+   with an X in the middle", it needs a different X *and* a different lane.
 
      pad     an axis-aligned patch of ground, flat or tilted. `kind` picks the
              friction: green (quickest), fairway (mown longer, so a driver
@@ -1488,24 +1489,65 @@
        every course in this file is written to — a hole that introduces a thing,
        a hole or two that develops it, and a sixth that asks for all of it at
        once — and it is why the sixth hole here is a jetty with a bend in it
-       and the first is a lane with two baffles across it.
+       and the first is a lane with a rail across the corner of it that turns
+       the ball for you.
 
        Difficulty is not one number. On this course it is added a piece at a
-       time and each piece is a different kind of trouble: a wall you play the
-       angles off, a corner, sand that costs you a stroke of control, water
+       time and each piece is a different kind of trouble: an angle that does
+       the work, a corner that does not, sand that costs you a stroke of
+       control, water
        that costs you a stroke outright, a lane that runs away from you, and
        finally a plank over the sea with a turn in the middle of it. */
 
     var seaside = [
         build({
+            /* The first hole anybody plays, and it is now a bounce hole: one
+               lane, one baffle, and a rail across the far corner set at
+               forty-five degrees, which turns a ball running north into one
+               running east and puts it on the pin.
+
+               It was a flat six-by-fifteen slab with two bars across it, and
+               everything wrong with that was in the first impression rather
+               than in the golf. A lane with two staggered gaps is a hole you
+               solve by tapping twice; nothing about it says what the game is
+               for. An angled wall does, in one shot and without a word of
+               explanation: aim at the corner rather than at the flag, and the
+               corner does the turning.
+
+               Three things keep it the easiest hole on the card:
+
+               - **The angle is a right angle.** Forty-five degrees turns a
+                 north-bound ball due east, so where it ends up is a line
+                 anybody can read off the tee — the bank's face is the mirror,
+                 and the flag is on the other side of it.
+               - **The aim is worth something and the miss is cheap.** Where
+                 the ball meets the bank is where it turns, so a hit an eighth
+                 of the lane too low runs east an eighth of the lane short of
+                 the pin. There is nothing to fall off and nothing to lose a
+                 stroke to: a bad one leaves a putt.
+               - **The baffle only takes the straight line away.** It reaches
+                 in from the east rail and leaves the whole west side open, so
+                 there is one obvious road up the hole and one obvious thing
+                 to do at the top of it.
+
+               An angled wall standing still was Pinball Parlour's invention
+               and this is the other thing it is good for. There a bank is a
+               slingshot that throws the ball somewhere neither of you chose;
+               here it is a mirror, aimed on purpose, which is the friendliest
+               use an angle has. */
             name: 'Sea Legs', par: 3,
-            blurb: 'Right, then left, then in. Find your pace before the sea does.',
-            pads: [pad(0, 0, 6, 15)],
+            blurb: 'Up the left and off the angle — the corner turns it for you.',
+            pads: [pad(0, 0, 6, 13)],
             extra: [
-                wall(-0.2, 5.4, 3.6, 0.35, 0.55, { base: -0.1 }),
-                wall(2.6, 9.4, 3.6, 0.35, 0.55, { base: -0.1 })
+                // The baffle: in from the east rail, the west side left open.
+                wall(2.3, 6.4, 3.7, 0.3, 0.55, { base: -0.1 }),
+                /* The kicker, across the far corner. Long enough that both
+                   ends bury themselves in the rails it meets, or the triangle
+                   behind it would be a pocket a ball could find its way into
+                   and a corner nobody could play out of. */
+                bank(1, 11.9, 3.6, -Math.PI / 4, { t: 0.3, h: 0.55 })
             ],
-            tee: { x: 4.4, z: 1.6 }, cup: { x: 1.6, z: 13 }
+            tee: { x: 1.5, z: 1.5 }, cup: { x: 4.4, z: 12 }
         }),
         build({
             name: 'The Bend', par: 3,
@@ -3346,7 +3388,7 @@
         })()
     ];
 
-    /* Ten courses is far too long a list to read as one list, and the three
+    /* Twelve courses is far too long a list to read as one list, and the four
        kinds of golf on it are not variations of each other — a mini golf hole
        is one swing and a putt, a crazy golf hole is a machine you have to time,
        and a links hole is a drive and an approach. So the group is not a
