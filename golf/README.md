@@ -1,8 +1,8 @@
 # Pocket Links
 
-An eighteen-hole 2D mini golf game. Canvas, plain ES5-flavoured JavaScript, no
-build step and no dependencies — same as everything else here, open
-`index.html` and it runs.
+A 2D mini golf game with two courses on one field — an eighteen and a nine.
+Canvas, plain ES5-flavoured JavaScript, no build step and no dependencies —
+same as everything else here, open `index.html` and it runs.
 
 ## Files
 
@@ -11,7 +11,7 @@ build step and no dependencies — same as everything else here, open
 | `index.html` | Page shell: scoreboard, canvas, banner, scorecard modal. |
 | `style.css` | Page chrome. The course itself is all canvas. |
 | `js/config.js` | Every tuning constant. Nothing else holds a magic number. |
-| `js/courses.js` | The eighteen holes, as data. |
+| `js/courses.js` | Both courses, as data. |
 | `js/physics.js` | The simulation. No DOM, no canvas, pure. |
 | `js/scoring.js` | Scorecard arithmetic and the save file. |
 | `js/audio.js` | Synthesised sound effects — no audio files to ship. |
@@ -21,6 +21,44 @@ build step and no dependencies — same as everything else here, open
 | `editor/editor.js` | All of it. Runs on the game's own modules, owns no copy of any of them. |
 | `editor/editor.css` | Sidebar chrome. The green in there is the game's renderer. |
 | `tests.html` | Headless test harness. Open it; green is green. |
+
+## The two courses
+
+`GOLF.COURSES` is a rack of cards, each `{ id, name, blurb, holes }`, and
+`GOLF.COURSE` is whichever one is being played. Everything downstream — the
+loop, the scorecard, the editor, the suite — reads `GOLF.COURSE` and never
+learns there was a choice; `GOLF.selectCourse(id)` is the one place that
+changes, and it answers `null` for an id that is not on the rack, which is
+the whole handling a stale stored preference needs.
+
+- **The Old Eighteen** is the course this game has always been: one idea per
+  hole on the front nine, the same vocabulary played straight at you on the
+  back.
+- **The Wild Nine** assumes you have played it. Nothing new is in the
+  vocabulary — a room whose only door faces the far cushion, a lattice of
+  posts with no straight line through it, two hills breaking opposite ways,
+  bars that sweep the fairway, a zigzag of bridges, a green that sheds
+  everything you leave on it, a staircase funnel, an iced slalom, and one of
+  everything to close. What *is* new is which of the physics they lean on:
+  a moving wall does not only block, it pushes (physics.js adds the wall's
+  own velocity along the contact normal, so a gate cannot swallow a resting
+  ball), and Wiper Blades is the first hole to make that the point rather
+  than a safety valve.
+
+Three of those nine started out with a free way round the obstacle they were
+built on — over the top of the funnel, up the side lane of the lattice, along
+the cushion past the wipers. None of them is walled off. They are all lined
+with **rough** instead, which is the same answer hole one gives: the short
+line has to be earned, the long one costs a stroke's worth of roll and
+nothing more.
+
+**A course switch is not destructive and does not ask.** Each course keeps
+its own round in progress and its own record, under keys qualified by the
+course id — see [Saving](#saving) — so leaving one mid-round and coming back
+puts you on the tee of the hole you left, which is the same promise a refresh
+makes. Nine holes and eighteen are not comparable totals, which is the other
+half of why the save file is split: a nine-hole round would take the
+eighteen-hole record the first time anyone played one.
 
 ## How a hole is built
 
@@ -60,8 +98,9 @@ a pocket is six posts with one mouth — rather than from richer geometry.
 The field is a fixed 960×640 world that the canvas scales to fit, so every
 constant means the same thing on a phone and on a desktop.
 
-**Four rules a new hole has to respect**, all asserted in `tests.html` rather
-than left to memory:
+**Four rules a new hole has to respect** — on either course; a rule the second
+course is exempt from is a rule the second course will break — all asserted in
+`tests.html` rather than left to memory:
 
 - **No rectangle thinner than 20px, and no bumper under `BUMPER_MIN_R`.**
   Substepping caps ball travel at half a radius (~3.75px) per step, which is
@@ -233,8 +272,9 @@ times a second.
 ## The round in progress
 
 Eighteen holes is a long sitting and a browser tab is a fragile place to keep
-one, so the card is written to `miniGolf.round.v1` after every hole and the
-game resumes there on load. What is not stored is the hole you were standing
+one, so the card is written to the round key after every hole and the game
+resumes there on load — one key per course, so switching cards mid-round
+leaves each of them where it was. What is not stored is the hole you were standing
 on — no ball position, no stroke count, no clock for the moving gates.
 Serialising the whole world would mean trusting it to still be legal after a
 course edit; resuming at the tee of that hole is a rule that fits in a sentence
@@ -243,7 +283,10 @@ and cannot be wrong. You get the hole back, not the lie.
 A stored card is discarded rather than trusted when it is corrupt, when its
 index is off the end of the course, when the round never actually started, or
 when it was written for a course with a different number of holes — which is
-what happened to every nine-hole save the day this became eighteen.
+what happened to every nine-hole save the day this became eighteen. That last
+check is a belt to the braces of the per-course keys rather than the thing
+that separates the two cards: a card from the Wild Nine is never offered to
+the eighteen in the first place, because it is not under the eighteen's key.
 
 ## The editor
 
@@ -297,16 +340,24 @@ and would beat any real eighteen-hole record the first time anyone tried a
 draft.
 
 `level-editor.html?runTests=1` runs the editor's own tests — the export/parse
-round trip over all eighteen shipped holes, the checks passing everything
-that ships and catching three holes deliberately broken, and undo/redo. It is
+round trip over every shipped hole on both courses, the checks passing
+everything that ships and catching three holes deliberately broken, and
+undo/redo. It is
 a real feature linked from the game, so unlike `tests.html` it stays
 indexable; the self-test overlay only appears with the query string.
 
 ## Tests
 
-Open `tests.html`. 297 assertions covering geometry, the integrator, the four
-surfaces, the overswing, the course data, the scorecard and the resumable
-round, in about 500ms.
+Open `tests.html`. 410 assertions covering geometry, the integrator, the four
+surfaces, the overswing, the course data on both courses, the scorecard, the
+per-course save keys and the resumable round, in about a second.
+
+Everything about the course data is checked for every course on the rack, not
+for whichever one `GOLF.COURSE` points at — a rule the second course is exempt
+from is a rule the second course will break. The hole counts themselves are
+pinned rather than derived (eighteen and nine), because the stored round is
+validated against them: changing one has to be a deliberate edit in two
+places.
 
 The one worth knowing about is the **bot**: a greedy player tries a fan of
 candidate shots on every hole, keeps the one that finishes nearest the cup, and
@@ -318,10 +369,13 @@ failure.
 
 Three things keep it from being a "sometimes red" test nobody trusts:
 
-- **A seed per hole**, not one stream down the course. Sharing a stream means
-  editing the second hole reshuffles the shots every later hole is played with,
-  so a change here turns a hole there red — a report about the PRNG, not about
-  the course.
+- **A seed per hole**, not one stream down the course — and per hole *within*
+  its course, so adding a whole second card does not reshuffle the eighteen.
+  Sharing a stream means editing the second hole reshuffles the shots every
+  later hole is played with, so a change here turns a hole there red — a report
+  about the PRNG, not about the course. The three checks that do share a stream
+  (resting position, shot length, escapes) walk the rack in order with the
+  eighteen first, for the same reason.
 - **An escape from local minima.** Nearest-the-cup is greedy and a mini golf
   course is made of local minima: the wall you have to play away from, the moat
   you have to go round. When a turn buys no ground the bot takes an arbitrary
@@ -341,7 +395,17 @@ rule in the root README.
 Two keys carry a round. `miniGolf.round.v1` is the one in progress, described
 above; `miniGolf.save.v1` is the record — best round, that round's card, rounds
 played and a running ace count. The landing page reads the record for the
-card's stat chip. (The editor keeps its work in progress under
+card's stat chip.
+
+Both are qualified by the course being played, and the first course on the
+rack keeps the bare key: the Old Eighteen goes on writing `miniGolf.round.v1`
+and `miniGolf.save.v1`, and the Wild Nine writes `miniGolf.round.v1.wild` and
+`miniGolf.save.v1.wild`. That is what leaves a record a player already has
+where they left it, and what lets the landing page go on reading
+`miniGolf.save.v1` without knowing there are two courses. Which one you were
+last on is remembered separately, under `miniGolf.course.v1`; `?course=<id>`
+overrides it, and an id that is not on the rack is ignored rather than
+fatal. (The editor keeps its work in progress under
 `miniGolf.editor.v1` and hands a playtest over in session storage under
 `miniGolf.playtest.v1`; neither goes near either of them, and a playtest is
 locked out of both the record and the round in progress — a one-hole round of

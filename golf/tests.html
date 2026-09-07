@@ -505,47 +505,80 @@
         /* ── course data ────────────────────────────────────────────────── */
         section('Course data');
 
+        /* Every hole on the rack, course by course, in the order the rack
+           lists them. The order matters to the shared random streams below:
+           the eighteen come first, so their shots are the shots they have
+           always been played with and adding a course cannot turn one of
+           them red. */
+        function everyHole(fn) {
+            GOLF.COURSES.forEach(function (course) {
+                course.holes.forEach(function (h, i) { fn(h, i, course); });
+            });
+        }
+
+        /* Everything in this section holds for every course on the rack, not
+           just the one GOLF.COURSE happens to point at. A rule the second
+           course is exempt from is a rule the second course will break. */
+
         (function () {
+            assert('the rack holds more than one course', GOLF.COURSES.length > 1);
+            assert('every course has an id, a name and a blurb',
+                GOLF.COURSES.every(function (c) { return c.id && c.name && c.blurb; }));
+            var ids = GOLF.COURSES.map(function (c) { return c.id; });
+            assert('course ids are unique — they key the save file',
+                ids.every(function (id, i) { return ids.indexOf(id) === i; }));
+            // Pinned rather than derived: the hole count is what the stored
+            // round is validated against, so a change to it has to be a
+            // deliberate one made here as well as in courses.js.
+            assert('the old eighteen still has eighteen holes',
+                GOLF.COURSES[0].holes.length === 18, 'got ' + GOLF.COURSES[0].holes.length);
+            assert('the wild nine has nine', GOLF.COURSES[1].holes.length === 9,
+                'got ' + GOLF.COURSES[1].holes.length);
+            assert('GOLF.COURSE starts on the first course of the rack',
+                GOLF.COURSE === GOLF.COURSES[0].holes && GOLF.COURSE_ID === GOLF.COURSES[0].id);
+        })();
+
+        GOLF.COURSES.forEach(function (course) {
             var all = [], posts = [];
-            GOLF.COURSE.forEach(function (h) {
+            course.holes.forEach(function (h) {
                 all = all.concat(h.walls, h.water, h.sand, h.rough, h.ice, h.slopes);
                 posts = posts.concat(h.bumpers);
             });
 
-            var n = GOLF.COURSE.length;
-            assert('the course has eighteen holes', n === 18, 'got ' + n);
-            assert('total par is sane', GOLF.coursePar() >= 2 * n && GOLF.coursePar() <= 5 * n,
-                'par ' + GOLF.coursePar() + ' over ' + n + ' holes');
+            var n = course.holes.length;
+            var par = course.holes.reduce(function (t, h) { return t + h.par; }, 0);
+            assert(course.id + ': total par is sane', par >= 2 * n && par <= 5 * n,
+                'par ' + par + ' over ' + n + ' holes');
 
             // The normaliser exists so nothing downstream has to guard; if it
             // ever stops running, everything else fails in confusing ways.
-            var lists = GOLF.COURSE.every(function (h) {
+            var lists = course.holes.every(function (h) {
                 return ['walls', 'water', 'sand', 'rough', 'ice', 'bumpers', 'slopes'].every(function (k) {
                     return Array.isArray(h[k]);
                 });
             });
-            assert('every hole has every hazard list, declared or not', lists);
+            assert(course.id + ': every hole has every hazard list, declared or not', lists);
 
             var thin = all.filter(function (r) { return Math.min(r.w, r.h) < 20; });
-            assert('every rectangle is at least 20px thick', thin.length === 0,
+            assert(course.id + ': every rectangle is at least 20px thick', thin.length === 0,
                 thin.length + ' too thin — the substep cap cannot protect them');
 
             var small = posts.filter(function (b) { return b.r < C.BUMPER_MIN_R; });
-            assert('every bumper is at least BUMPER_MIN_R across the radius', small.length === 0,
+            assert(course.id + ': every bumper is at least BUMPER_MIN_R across the radius', small.length === 0,
                 small.length + ' too small — the substep cap cannot protect them');
 
-            var named = GOLF.COURSE.every(function (h) { return h.name && h.blurb; });
-            assert('every hole has a name and a blurb', named);
+            var named = course.holes.every(function (h) { return h.name && h.blurb; });
+            assert(course.id + ': every hole has a name and a blurb', named);
 
             // Hazards are not decoration: each one has to be in play somewhere.
             ['walls', 'water', 'sand', 'rough', 'ice', 'bumpers', 'slopes'].forEach(function (k) {
-                assert('the course uses ' + k + ' somewhere',
-                    GOLF.COURSE.some(function (h) { return h[k].length > 0; }));
+                assert(course.id + ': the course uses ' + k + ' somewhere',
+                    course.holes.some(function (h) { return h[k].length > 0; }));
             });
-        })();
+        });
 
-        GOLF.COURSE.forEach(function (h, i) {
-            var tag = 'hole ' + (i + 1) + ' (' + h.name + ')';
+        everyHole(function (h, i, course) {
+            var tag = course.id + ' hole ' + (i + 1) + ' (' + h.name + ')';
             var margin = C.BALL_R + 1;
 
             assert(tag + ': par is between 2 and 5', h.par >= 2 && h.par <= 5);
@@ -695,6 +728,36 @@
                 bad && typeof bad === 'object' && 'best' in bad);
         })();
 
+        /* One card per course. Nine holes and eighteen are not comparable
+           totals, so they cannot share a record — and the course everyone has
+           already played has to keep the bare key its record is under. */
+        (function () {
+            var first = GOLF.COURSES[0].id, second = GOLF.COURSES[1].id;
+            assert('the first course keeps the bare save key', S.key(C.SAVE_KEY) === C.SAVE_KEY);
+
+            GOLF.selectCourse(second);
+            assert('a second course gets a key of its own',
+                S.key(C.SAVE_KEY) === C.SAVE_KEY + '.' + second &&
+                S.key(C.ROUND_KEY) === C.ROUND_KEY + '.' + second);
+
+            // A round stored under one course must not be readable as the
+            // other's, whatever the hole counts happen to be.
+            S.saveRound(3, [2, 3, 4], GOLF.COURSE);
+            var mine = S.loadRound(GOLF.COURSE);
+            GOLF.selectCourse(first);
+            assert('the round in progress does not leak across courses',
+                mine !== null && S.loadRound(GOLF.COURSE) === null);
+
+            GOLF.selectCourse(second);
+            S.clearRound();
+            assert('clearing a round clears that course\'s key', S.loadRound(GOLF.COURSE) === null);
+
+            assert('an id that is not on the rack changes nothing',
+                GOLF.selectCourse('no-such-course') === null && GOLF.COURSE_ID === second);
+            GOLF.selectCourse(first);
+            assert('and the rack can always be put back', GOLF.COURSE === GOLF.COURSES[0].holes);
+        })();
+
         /* The round in progress. Eighteen holes is long enough that losing one
            to a refresh matters, and every one of these rejections is a way a
            stored card could come back wrong rather than merely absent. */
@@ -818,17 +881,24 @@
 
         (function () {
             var LIMIT = 10;
-            var total = 0, allDone = true;
-            GOLF.COURSE.forEach(function (h, i) {
-                var shots = botCanFinish(h, i, { maxShots: LIMIT, tries: 60, attempts: 3 });
-                assert('hole ' + (i + 1) + ' (' + h.name + ') can be holed out', shots !== null,
-                    'the bot failed to finish it in ' + LIMIT + ' shots, three times over');
-                if (shots === null) { allDone = false; } else { total += shots; }
+            /* The seed is per hole and per course index, not per position in
+               one long stream down the rack. Sharing a stream means adding a
+               hole — or a whole course — reshuffles the shots every later
+               hole is played with, so a change here turns a hole there red. */
+            GOLF.COURSES.forEach(function (course) {
+                var total = 0, allDone = true;
+                course.holes.forEach(function (h, i) {
+                    var shots = botCanFinish(h, i, { maxShots: LIMIT, tries: 60, attempts: 3 });
+                    assert(course.id + ' hole ' + (i + 1) + ' (' + h.name + ') can be holed out', shots !== null,
+                        'the bot failed to finish it in ' + LIMIT + ' shots, three times over');
+                    if (shots === null) { allDone = false; } else { total += shots; }
+                });
+                var par = course.holes.reduce(function (t, h) { return t + h.par; }, 0);
+                if (allDone) {
+                    note('bot round on ' + course.name + ': ' + total + ' strokes against a par of ' +
+                         par + ' (' + S.formatVsPar(total - par) + ')');
+                }
             });
-            if (allDone) {
-                note('bot round: ' + total + ' strokes against a par of ' + GOLF.coursePar() +
-                     ' (' + S.formatVsPar(total - GOLF.coursePar()) + ')');
-            }
         })();
 
         /* Resting position sanity: after any shot the ball must never be left
@@ -837,7 +907,7 @@
         (function () {
             var rand = mulberry32(7);
             var stuck = 0, samples = 0;
-            GOLF.COURSE.forEach(function (h) {
+            everyHole(function (h) {
                 var statics = h.walls.filter(function (w) { return !w.move; });
                 if (!statics.length && !h.bumpers.length) return;
                 for (var i = 0; i < 60; i++) {
@@ -862,7 +932,7 @@
         (function () {
             var rand = mulberry32(4242);
             var slowest = 0, hung = 0, name = '';
-            GOLF.COURSE.forEach(function (h) {
+            everyHole(function (h) {
                 for (var i = 0; i < 30; i++) {
                     var w = P.createWorld(h, h.tee, rand() * 6);
                     P.launch(w, rand() * Math.PI * 2, C.MAX_POWER);
@@ -876,7 +946,7 @@
                     if (w.moving) hung++;
                 }
             });
-            note('longest shot on the course: ' + slowest.toFixed(1) + 's on ' + name +
+            note('longest shot on the rack: ' + slowest.toFixed(1) + 's on ' + name +
                  ' (limit ' + C.MAX_SHOT_SECONDS + 's)');
             assert('every full-power shot settles inside MAX_SHOT_SECONDS', hung === 0,
                 hung + ' shots were still rolling');
@@ -885,7 +955,7 @@
         (function () {
             var rand = mulberry32(99);
             var escaped = 0;
-            GOLF.COURSE.forEach(function (h) {
+            everyHole(function (h) {
                 for (var i = 0; i < 40; i++) {
                     var w = P.simulateShot(h, h.tee, rand() * Math.PI * 2, C.MAX_POWER);
                     if (w.ball.x < 0 || w.ball.x > C.WORLD_W || w.ball.y < 0 || w.ball.y > C.WORLD_H) escaped++;
