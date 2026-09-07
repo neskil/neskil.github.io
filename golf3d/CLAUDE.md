@@ -6,9 +6,12 @@ plain JavaScript, no build step. Open `index.html` and it runs.
 
 Doc map: **[README.md](README.md)** owns the architecture, the file roles and
 load order, why each shader is written the way it is, the course-authoring
-vocabulary, and the controls. Workspace-wide rules (stack, styling, commit
-prefixes) live in [`.agents/AGENTS.md`](../.agents/AGENTS.md). Don't restate
-either here — point at them.
+vocabulary, and the controls. **[PLAN.md](PLAN.md)** owns the open work —
+what is worth doing next, ordered by impact, with the constraints that stopped
+earlier attempts written down so they are not rediscovered. Workspace-wide
+rules (stack, styling, commit prefixes) live in
+[`.agents/AGENTS.md`](../.agents/AGENTS.md). Don't restate any of them here —
+point at them.
 
 ## Standing instructions
 

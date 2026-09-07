@@ -36,6 +36,7 @@ them.
 
 | Path | What it is |
 | --- | --- |
+| `PLAN.md` | The open work, ordered by impact, and the constraints that stopped earlier attempts at it. |
 | `index.html` | Page shell: scoreboard, canvas, power/loft controls, banner, course picker, scorecard. |
 | `style.css` | Page chrome. The course itself is all WebGL. |
 | `js/config.js` | Every tuning constant. Nothing else holds a magic number. |
@@ -310,10 +311,41 @@ of every miss and the bound on the envelope without a browser.
 The bag sits low in the corner with half of it below the bottom of the screen —
 enough to say "your clubs are here" and small enough to ignore. Click it and the
 *clubs* come out: they travel to the middle of the view, line up with their
-heads at eye level and their shafts running out of frame, and turn slowly on
-their own axes so the face can be read from every side. The course dims behind
-them, the club under the pointer is named and explained above, and clicking one
-takes it and drops them back in the bag.
+heads at eye level and their shafts running out of frame, and stand three
+quarters of the way round so the face of each one is looking at you. The course
+dims behind them, the club under the pointer stands up out of the row and turns
+slowly on its own axis, the club in hand wears a halo of its own colour and
+says so on its card, and clicking one takes it and drops them back in the bag.
+
+Three of those are recent and each replaced something that did not work:
+
+- **The row is turned.** A head is modelled with its face looking down its own
+  `+X` and the rig squares itself up to the camera as it opens, so at a yaw of
+  nothing you were looking at the *back* of every club in the bag: five grey
+  lumps distinguished by their captions. `OPEN_YAW` is three quarters of a
+  right angle rather than a whole one, because a face seen flat is a disc and
+  says nothing about how far back it leans — and the lean is the other half of
+  what a club is. Anything that has to hang *beside* a head rather than on it
+  — the card, the halo — lives in a pivot that carries the negative of that
+  yaw, or the cards would swing out of line with the clubs they name.
+- **The course dims behind the clubs, and now it really is behind them.** What
+  did the dimming was a CSS gradient over the canvas, which is the same canvas
+  the clubs are drawn on: every bit of dimming it spent on the hole it spent on
+  the five heads that had just been carried up to the lens to be looked at. The
+  scrim is a plane in the scene now, hung a little further out than the row
+  with its depth test on and its depth write off. Transparent things are drawn
+  after opaque ones, so by the time it is painted every club has already
+  written its own depth and every fragment of the scrim behind a club is thrown
+  away — the course goes dark, the row does not, out of one plane and no second
+  pass. The stylesheet keeps a vignette, which is all it was ever able to do
+  honestly.
+- **The club in hand is marked with a colour rather than a brightness.** The
+  mark used to be emissive on the club's own materials, and that cannot work
+  across a bag: a driver crown is nearly black on purpose, and the light needed
+  to make a black crown glow is the light that floods a chrome blade white, so
+  the club being marked was the one you could see least of. A halo behind the
+  head — the club's own colour, the same one on its card — marks it without
+  touching how it is lit.
 
 The bag stays where it is while that happens, which is why there are two rigs:
 one parked in the corner holding the bag, one that travels holding the clubs.
@@ -435,6 +467,23 @@ The figures stay underneath for anyone who wants them, and the same two, written
 out rather than abbreviated, are in the DOM panel above the row where a screen
 reader can reach them.
 
+There is a third thing on the card now, in a band across the top of it, and it
+is two facts rather than one: **which number key takes this club**, on every
+card, and **IN HAND** on the one you are holding. The first is there because a
+picker that has to be clicked is slower than the keyboard it is hiding, and the
+place somebody looking at the clubs will actually read the shortcut is on the
+club. The second is there because "which one am I holding" is the single fact
+the row exists to change, and until the card said it the only answer on the
+canvas was a slightly brighter lump of chrome. Each club therefore has two
+cards, drawn once at load and swapped by pointer — the held one takes the
+club's own colour for its border and its band. Swapping a texture is cheaper
+than tinting a sprite and legible in a way a tint is not.
+
+The other cards stand back rather than staying level with it: a card at three
+quarters brightness is still readable and is plainly not the one being talked
+about, where five cards at full weight are five things asking to be read at
+once.
+
 One last detail, and it is the reason the type never looked like the page's even
 before any of the above: a canvas draws with whatever font the browser has *at
 the moment `fillText` runs*, and the web font arrives a heartbeat after the first
@@ -452,6 +501,23 @@ opinions and are not.
 edges** gave them silhouettes but a club head is a curved volume, and the best
 an extrusion can do is a rounded brick — the driver came out a slab and the
 irons came out L-shapes. What they are now:
+
+Before any of the shapes, though: **the heads are three finishes and five
+colours, not one grey.** Shape alone was never going to carry it at the size a
+phone shows a row of five, and a real bag does not ask it to — a driver crown is
+painted near black, an iron is polished chrome, a lob wedge is a dull raw finish
+that deliberately does not flash. That is a shade and a shininess per club out
+of `CLUB_LOOK`, which was already carrying each club's colour for its ferrule
+and its card, so it is one table rather than a material per club. On top of it
+each head wears its own colour on the one part of a real one that is allowed to
+be any colour at all: a driver's sole plate and alignment mark, the badge behind
+an iron, a mallet's sight line. Colour on a ferrule two millimetres tall is a
+legend; colour on the head is what tells five clubs apart at a glance.
+
+`CLUB_LOOK` also gained the two entries it was missing. `look()` falls back to
+the pitch's green, so the mallet and the checker — both handed out a hole at a
+time — arrived wearing another club's colour on exactly the hole where they are
+the only unfamiliar thing in the bag.
 
 - **Driver** — a sphere pushed into shape: squashed to 60% height, swelling
   wider toward the back so it pears, and sliced off flat at `x = 0.040` where
@@ -545,7 +611,7 @@ approach.
 
 | Course | Group | Theme | What it is about |
 | --- | --- | --- | --- |
-| Seaside Green | mini | `seaside` | Flat-ish holes by the water. Pace, a first bridge to fly, a horseshoe you play round rather than at, and a jetty with a bend in it. |
+| Seaside Green | mini | `seaside` | Flat-ish holes by the water. A bounce off an angled rail to open with, pace, a first bridge to fly, a horseshoe you play round rather than at, and a jetty with a bend in it. |
 | Quarry Ridge | mini | `quarry` | Ramps, a road with a corner in it and a long way down off every edge. Height as a hazard. |
 | Tidewater Reach | mini | `lagoon` | The loft course. Almost nothing here can be reached along the floor. |
 | Highland Steps | mini | `highland` | The same lesson from the other side: things in the way rather than things missing, and the ground handed back as a tool. |
@@ -557,6 +623,22 @@ approach.
 | Ashdown Park | long | `parkland` | The long game, on a hillside: bluffs, a crest, a cross-fall into a lake, and two round greens. No fence — the park carries on past the stakes. |
 | Whinstone Links | long | `links` | No flat lies and no straight edges. The ground is the hazard, and on one hole it is a sandhill. |
 | Dunmore Heath | long | `heath` | The long game again, shaped rather than furnished: crests, hollows, a punchbowl, a whorl, one dry ravine and a hillside you climb. |
+
+**Sea Legs**, the first hole anybody plays, is a bounce hole: one lane, one
+baffle reaching in from the east rail, and a rail across the far corner set at
+forty-five degrees. It was a flat six-by-fifteen slab with two staggered bars
+across it, which is a hole you solve by tapping twice and a first impression of
+the whole game that reads as a rectangle floating in the sea. An angled wall
+says what the game is for without a word of explanation: aim at the corner
+rather than at the flag, and the corner turns a ball running north into one
+running east and puts it on the pin. It stays the easiest hole on the card
+because forty-five degrees is a *right* angle — where the ball meets the bank is
+where it turns, so the line is one anybody can read off the tee — and because
+there is nothing to fall off and no stroke to lose: a miss leaves a putt. An
+angled wall standing still was [Pinball Parlour's](#the-courses) invention and
+this is the other thing one is good for. There a bank is a slingshot that throws
+the ball somewhere neither of you chose; here it is a mirror, aimed on purpose,
+which is the friendliest use an angle has.
 
 Seaside and Quarry are where the plan does the work rather than the furniture.
 **The Zigzag** is two bars of beach with the gap in a different place in each,
@@ -671,13 +753,14 @@ Two rules, and both are about the list rather than about any hole on it.
 **A course gets harder as you play it.** Hole one introduces something, the
 middle of the card develops it and the sixth asks for all of it at once, so a
 course is a climb rather than six variations on a theme. Seaside Green is the
-plainest statement of it: a lane with two baffles, then a corner, then two bars
-of beach with the gap in a different place in each, then water, then a horseshoe
-you play round rather than at, and finally a plank over the sea with a bend in
-the middle of it. Each of those is a different *kind* of trouble as well as more
-of it — a wall, a corner, a surface that costs you control, a hazard that costs
-you a stroke, a hole that is not aimed at the flag, and a hole with nothing to
-bounce off at all.
+plainest statement of it: a lane with a rail across the far corner of it, then a
+corner you have to judge yourself, then two bars of beach with the gap in a
+different place in each, then water, then a horseshoe you play round rather than
+at, and finally a plank over the sea with a bend in the middle of it. Each of
+those is a different *kind* of trouble as well as more of it — an angle that
+does the turning for you, one that does not, a surface that costs you control, a
+hazard that costs you a stroke, a hole that is not aimed at the flag, and a hole
+with nothing to bounce off at all.
 
 The same climb runs across a group. The four mini courses are in order of how
 much they ask for and so are the crazy, the adventure and the long ones, which
@@ -1287,7 +1370,9 @@ both ends of the hole are inside it.
   the first blade, and until Pinball Parlour needed a slingshot nothing standing
   *still* had ever used it. A rail square across a lane sends the ball back the
   way it came; one turned thirty-five degrees sends it somewhere neither of you
-  chose.
+  chose. Forty-five is the one angle that does neither — it turns a ball through
+  a right angle, which is a line anybody can read, and that is what the first
+  hole on the card is built round.
 - **open / fence** — an open hole gets no generated rails at all, and a `fence`
   rectangle instead: the ball is out of bounds if it comes to *rest* outside
   it. Marked on the ground with white stakes, which are scenery.
