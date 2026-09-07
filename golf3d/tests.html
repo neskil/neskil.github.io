@@ -700,8 +700,8 @@
 
         section('Course data');
         (function () {
-            assert('twelve courses', G3.COURSES.length === 12);
-            assert('seventy-two holes in total', ALL.length === 72);
+            assert('fourteen courses', G3.COURSES.length === 14);
+            assert('eighty-four holes in total', ALL.length === 84);
             assert('courseById finds a course', G3.courseById('quarry').id === 'quarry');
             assert('courseById falls back to the first', G3.courseById('nope').id === G3.COURSES[0].id);
 

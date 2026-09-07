@@ -1,4 +1,4 @@
-/* Twelve courses of six holes, as data.
+/* Fourteen courses of six holes, as data.
 
    A hole is a set of pads (the ground), a set of walls (things that bounce),
    a set of water rectangles (things that punish), a tee and a cup. Everything
@@ -6,7 +6,7 @@
    look — is derived below, because a hole that has to repeat itself is a hole
    that will one day disagree with itself.
 
-   Four of the twelve courses are mini golf, three are crazy golf, two are
+   Four of the fourteen courses are mini golf, four are crazy golf, three are
    adventure golf and three are the long game — tee, fairway, rough, sand,
    trees, green — authored through `bands` and `tree` rather than a hole at a
    time; see the comment above them. They use the same pads, the same walls
@@ -21,11 +21,11 @@
    holes are in the order they are written in rather than the order they were
    built in, and why moving one is a change to the course rather than a tidy-up.
    The same rule runs across a group: the four mini courses are in order of how
-   much they ask for, and so are the three crazy ones, the two adventure ones
+   much they ask for, and so are the four crazy ones, the three adventure ones
    and the three long ones.
 
-   **A hole is not the hole beside it.** Seventy-two holes on one list is
-   seventy-two chances to write the same corridor again, and the way out is the
+   **A hole is not the hole beside it.** Eighty-four holes on one list is
+   eighty-four chances to write the same corridor again, and the way out is the
    plan rather than the furniture: a hole that turns, a hole that goes round
    something, a hole played over a corner, a hole with two ways to the green
    and a reason to pick one. If a new hole's plan can be described as "a lane
@@ -1704,7 +1704,7 @@
         })
     ];
 
-    /* ── crazy golf, the first of three: Windmill Works ──────────────── */
+    /* ── crazy golf, the first of four: Windmill Works ───────────────── */
 
     var works = [
         build({
@@ -2541,7 +2541,7 @@
     ];
 
 
-    /* ── crazy golf, the second of three: Pinball Parlour ─────────────────
+    /* ── crazy golf, the second of four: Pinball Parlour ──────────────────
 
        The first course on the list that is not trying to be a golf course at
        all. Everything else here — even Windmill Works with its blades — is
@@ -2688,7 +2688,7 @@
         })
     ];
 
-    /* ── crazy golf, the last of three: Clockwork Court ───────────────────
+    /* ── crazy golf, the third of four: Clockwork Court ───────────────────
 
        Windmill Works asks you to find the gap. This one asks you to find the
        *moment*: every hole on it is a mechanism running at its own rate, and
@@ -2827,7 +2827,196 @@
         })
     ];
 
-    /* ── adventure golf, the first of two: Icehouse Yard ──────────────────
+    /* ── crazy golf, the fourth of four: The Millrace ──────────────────────
+
+       The other three timing courses are played over a floor. Windmill Works
+       asks you to find the gap, Clockwork Court asks you to find the moment,
+       Pinball Parlour asks for neither and makes the furniture the route — and
+       on all three of them a mistimed shot is a bounce. The blade throws the
+       ball back down the lane, you walk after it, and you have lost a stroke
+       of position and nothing else.
+
+       Here every machine stands over water, and that one change is the whole
+       course. The mill is driven by the river, so the river runs through every
+       hole on it: along the lane, under the crossing, round the outside of the
+       bend. What that does to the golf is turn timing from a matter of
+       *position* into a matter of *price*. A window you would take on any of
+       the other three courses is a window you have to mean here, because the
+       cost of being wrong is a stroke and the shot again from where you played
+       it.
+
+       Which makes laying up a real option for the first time on a crazy golf
+       course. Three of these six can be played short of the machine on purpose
+       and the fourth shot from there is an easy one; the card says par and the
+       water says whether you believed it. */
+
+    var millrace = [
+        build({
+            /* The opener says the rule of the course in one picture: the race
+               runs down the east side of the lane for its whole length, there
+               is no rail between the two, and the paddle sweeps out over the
+               water and back across the lane.
+
+               It is the friendliest arrangement of that rule. The paddle turns
+               about a point west of the middle of the lane, so the two ways
+               past it are not the same size: a metre and a bit against the
+               west rail, and rather more than two on the east — where the
+               river is. Play away from the water and you are threading the
+               narrow side; take the room and you are playing along the bank.
+               Nothing on the hole is tight, and the choice it asks for is the
+               one every other hole here asks for again. */
+            name: 'Headrace', par: 3,
+            blurb: 'The race runs down the whole east side and the paddle sweeps across the rest. Pick a side.',
+            pads: [pad(0, 0, 7, 16)],
+            water: [rect(7, -1, 6, 18, -0.7)],
+            gaps: [{ x: 6.6, z: -1, w: 0.8, d: 18 }],
+            extra: [spinner(3.0, 8, 3.6, 0.4, { spin: 1.3 })],
+            tee: { x: 2.2, z: 1.6 }, cup: { x: 2.6, z: 13.6 }
+        }),
+        build({
+            /* Two crossings and one gate for both of them, which is a nicer
+               problem than a gate on one crossing: whichever plank the gate is
+               sitting on, the other one is open, so the hole can never be shut
+               and the only question is which way to go and when.
+
+               The numbers are the hole. The planks are at 1.0 and 5.8, the
+               gate is 2.4 wide and swings 2.4 either side of 3.3, so it covers
+               the west plank exactly at one end of its travel and the east one
+               exactly at the other. And a sine *dwells* at the ends of its
+               travel and crosses the middle at speed — so the gate rests on
+               one plank, hurries over the water, and rests on the other, which
+               means the moment when both crossings are open is a moment rather
+               than a state. A ball that sets off for the plank the gate is
+               leaving arrives after it has gone; one that sets off for the
+               plank it is heading for arrives to find it shut. That is the
+               entire hole, and it is readable from the tee, which is what a
+               second hole on a course ought to be. */
+            name: 'Two Planks', par: 3,
+            blurb: 'One gate for two crossings. It cannot shut both, and it is always on its way to one of them.',
+            pads: [
+                pad(0, 0, 9, 7),
+                pad(1, 7, 2.2, 4, 0, 'wood'),
+                pad(5.8, 7, 2.2, 4, 0, 'wood'),
+                pad(0, 11, 9, 7)
+            ],
+            water: [rect(-2, 7, 13, 4, -0.8)],
+            gaps: [shore(rect(-2, 7, 13, 4), 0.7)],
+            extra: [slider(3.3, 8.6, 2.4, 0.4, { amp: 2.4, speed: 1.1 })],
+            tee: { x: 4.5, z: 1.6 }, cup: { x: 4.5, z: 15 }
+        }),
+        build({
+            /* The wheel itself, and the one hole on the course with no way
+               round: a single plank over the race with the undershot wheel
+               turning on top of it. The wheel is longer than the plank is
+               wide, so at the bottom of every turn it covers the crossing
+               completely and its ends are out over the water either side.
+
+               It turns at 0.9, which is a seven-second revolution, and it
+               shuts the crossing for about a second and a half of each one.
+               That is not long. It is also the only crossing there is, and the
+               wheel sweeps a ball off the plank as readily as it stops one —
+               so a shot that sets off a beat early does not come back down the
+               lane the way a mistimed shot does in the works, it goes in the
+               race. That is the difference between this hole and every
+               windmill in the file. */
+            name: 'The Undershot', par: 3,
+            blurb: 'One plank, one wheel on it, and no dry way round. Count the turn before you hit it.',
+            pads: [
+                pad(0, 0, 7, 7),
+                pad(2, 7, 3, 5, 0, 'wood'),
+                pad(0, 12, 7, 7)
+            ],
+            water: [rect(-3, 7, 13, 5, -0.8)],
+            gaps: [shore(rect(-3, 7, 13, 5), 0.7)],
+            extra: [spinner(3.5, 9.5, 4.2, 0.42, { spin: 0.9 })],
+            tee: { x: 3.5, z: 1.6 }, cup: { x: 3.4, z: 15.4 }
+        }),
+        build({
+            /* Over the weir, which is the one place on a mill where the water
+               is doing the falling rather than the turning. The face is a
+               plank ramp: slick, and steeper than anything holds a ball on, so
+               whatever goes over the top arrives at the bottom with pace it
+               did not choose — and the tailrace is open down the whole east
+               side of the lower lane, with a bat standing at the foot of the
+               fall.
+
+               The bat is what makes the drop a decision instead of a slide.
+               A ball that reaches it at rest is turned east, at the race; the
+               same ball half a beat later is turned west, on to the side of
+               the lane the pin is on. It is not stopped by the thing either
+               way — it is *sent*, and which of those two it is, is the hole.
+               Which is also the whole reason this course is built out of water
+               rather than rails: the price of reading it wrong is a stroke
+               rather than a walk. */
+            name: 'The Weir', par: 4,
+            blurb: 'Down the face and into the bat at the bottom. It will send you at the pin or at the race.',
+            pads: [
+                pad(0, 0, 6, 8, 1.1),
+                pad(0, 8, 6, 2.5, 1.1, 'wood', 0, -0.44),
+                pad(0, 10.5, 7, 10)
+            ],
+            water: [rect(7, 9, 5, 12, -0.7)],
+            gaps: [{ x: 6.6, z: 9, w: 0.8, d: 12 }],
+            extra: [flipper(3.2, 13.2, 3.0, { rest: -0.5, arc: 1.05, speed: 2.0 })],
+            tee: { x: 3, z: 1.8 }, cup: { x: 2.6, z: 18 }
+        }),
+        build({
+            /* The turn, and the water is on the outside of it — which is what
+               a tailrace is: the channel the wheel throws its water into,
+               running away from the mill along the bottom of the bend.
+
+               A corner with a hazard on the outside is a different shot from a
+               corner with a rail there, and the difference is that the rail
+               forgives an overcooked one. Nothing here does. The blade in the
+               straight decides when you may set off; the bat in the corner
+               decides where the ball goes when it arrives, and the corner has
+               no back wall to catch a ball the bat sends wide. */
+            name: 'The Tailrace', par: 4,
+            blurb: 'North, then east along the channel — with a blade to time and a bat where the rail should be.',
+            pads: [pad(0, 0, 5, 12), pad(5, 8, 9, 4)],
+            water: [rect(5, 12, 10, 4, -0.7)],
+            gaps: [{ x: 5.0, z: 11.6, w: 9.2, d: 0.8 }],
+            extra: [
+                spinner(2.5, 5.5, 3.2, 0.4, { spin: 1.6 }),
+                flipper(7.6, 10, 2.8, { rest: 0.4, arc: -1.0, speed: 1.9 })
+            ],
+            tee: { x: 2.5, z: 1.6 }, cup: { x: 12, z: 10 }
+        }),
+        build({
+            /* The finisher, and the only hole on the course that offers a dry
+               way to the green. The pond is nine wide and six deep with a
+               plank across the middle of it and a gate on the plank; east of
+               the water there is a bank you can walk round, and it is twice as
+               far and it lands you in sand.
+
+               The gate is narrower than the plank on purpose. It cannot shut
+               the crossing — there is always seventy centimetres of daylight
+               at one end or the other — so the short way is never *closed*,
+               it is only ever tight, which is a harder thing to decline than a
+               shut door. And both roads finish at the same wheel in front of
+               the pin, because a hole with two routes should ask the same last
+               question of each of them. */
+            name: 'Full Flow', par: 4,
+            blurb: 'The plank and the gate, or the long dry bank and the sand. Both of them end at the wheel.',
+            pads: [
+                pad(0, 0, 12, 7),
+                pad(1.2, 7, 2.4, 6, 0, 'wood'),
+                pad(7, 7, 5, 6),
+                pad(0, 13, 7, 8),
+                pad(7, 13, 5, 2.5, 0, 'sand'),
+                pad(7, 15.5, 5, 5.5)
+            ],
+            water: [rect(-2, 7, 9, 6, -0.8)],
+            gaps: [shore(rect(-2, 7, 9, 6), 0.7)],
+            extra: [
+                slider(1.55, 9.4, 1.7, 0.4, { amp: 1.15, speed: 1.8 }),
+                spinner(3.4, 14.8, 3.8, 0.42, { spin: 1.5 })
+            ],
+            tee: { x: 5, z: 1.8 }, cup: { x: 3.4, z: 17.6 }
+        })
+    ];
+
+    /* ── adventure golf, the first of three: Icehouse Yard ────────────────
 
        A fourth kind of golf, and the thing it has that the other three do not
        is a floor with an opinion. Mini golf gives you a lane and a rail, crazy
@@ -2960,7 +3149,7 @@
         })
     ];
 
-    /* ── adventure golf, the last of two: Helter Skelter ───────────────────
+    /* ── adventure golf, the second of three: Helter Skelter ───────────────
 
        The other half of the idea. Icehouse Yard takes the friction away and
        changes nothing else; this one leaves the floor exactly as grippy as a
@@ -3110,6 +3299,217 @@
             gaps: [shore(rect(-2, 7, 13, 7), 0.6), shore(rect(-2, 21, 13, 7), 0.6)],
             extra: aperture(-0.2, 16.8, 9.4, 0.4, { gap: 1.5, at: 2.6, h: 1.7, head: 1.15 }),
             tee: { x: 4.5, z: 1.8 }, cup: { x: 4.5, z: 32 }
+        })
+    ];
+
+    /* ── adventure golf, the last of three: Cinder Cone ────────────────────
+
+       Icehouse Yard takes the friction away. Helter Skelter leaves the floor
+       alone and bolts machinery to it. This one puts both on the side of a
+       mountain and points everything downhill.
+
+       The idea is one sentence: **the mountain is trying to put the ball back
+       at the bottom.** Every belt below the rim has the fall in it — one
+       running straight back at the tee, two more pushing south and east off
+       the side of a shelf — and every vent throws the ball up a step it could
+       not have climbed. So the question on an Icehouse hole is where you want
+       to run out of speed, the question on a Helter Skelter hole is whether to
+       be on the machine, and the question here is whether you have brought
+       enough with you, because the ground is spending it for you the whole way
+       up.
+
+       The exception is the last hole, and it is the reward for the other five:
+       the belt round the rim of the crater is the one piece of ground on the
+       mountain that is level, and it is the only one that carries the ball
+       where it wants to go.
+
+       Nothing on the course is new physics. A belt with a negative push is the
+       same belt Crosstown rides, turned to face you; a vent is Skelter's
+       launch pad with the fairground taken off it. What is new is that they
+       are all pulling the same way, which is what a hill is. */
+
+    var cinder = [
+        build({
+            /* The first hole states the arithmetic and nothing else: two and a
+               half units of ash running back down the slope at four units per
+               second squared, three and a half units in front of the tee.
+
+               Those three numbers are the hole, and they were picked by
+               playing it rather than by working it out. A full swing of the
+               putter reaches the ash with about six of pace left, crosses with
+               two, and stops three short of the pin — so the hole asks for
+               everything the flattest club in the bag has and still leaves you
+               a putt. Four fifths of the same swing is handed back to your
+               feet. And a driver at full power is worse than either: it
+               crosses, hits the far rail and comes all the way home, which is
+               the other half of the lesson and the half this course keeps
+               coming back to. Nothing is lost by being short here. That stops
+               being true on the third hole. */
+            name: 'The Ash Slide', par: 3,
+            blurb: 'A band of ash running back down at you. A full swing of the putter just gets over; anything less is returned.',
+            pads: [
+                pad(0, 0, 6, 5),
+                belt(0, 5, 6, 2.5, 0, -4),
+                pad(0, 7.5, 6, 7)
+            ],
+            tee: { x: 3, z: 1.5 }, cup: { x: 3, z: 12 }
+        }),
+        build({
+            /* And the vent, which is the other half of the vocabulary: the
+               only thing on the mountain that moves a ball *up* it.
+
+               The shelf stands 1.8 above the lawn and is drawn as a bridge
+               over it, so the ground carries on underneath — a ball that comes
+               up short lands back on the lawn rather than in a hazard, and the
+               shot is simply taken again. That is deliberate for a second
+               hole. What is not forgiving is the window: the vent is worth
+               2.45 units of height and holds the ball above the level of the
+               shelf for a little over half a second, so what it wants is a
+               ball arriving at somewhere between four and ten units per second
+               — fast enough to cross the three and a half units of open air
+               before it comes back down, slow enough not to cross the shelf as
+               well. A full putter is at the top of that window and a driver is
+               a long way over it.
+
+               Both ends of the shelf are open and its sides are not, which is
+               what makes it a landing rather than a tray. Coming up short and
+               going long cost exactly the same thing here, which is nothing
+               but the shot: the lawn runs on underneath from the tee to the
+               back of the hole, so a ball that misses the shelf at either end
+               lands on grass and is played again from where it stops. */
+            name: 'Fumarole', par: 3,
+            blurb: 'The vent is the lift, and the shelf is open at both ends. Arrive with the pace it wants.',
+            pads: [
+                pad(0, 0, 7, 24),
+                sprung(3.5, 7.6, 1.3, 9.4),
+                pad(0, 11, 7, 5, 1.8)
+            ],
+            gaps: [
+                brink({ x: 0, z: 11, w: 7, d: 0 }, 0.4),
+                brink({ x: 0, z: 16, w: 7, d: 0 }, 0.4)
+            ],
+            tee: { x: 3.5, z: 2 }, cup: { x: 3.5, z: 13.6 }
+        }),
+        build({
+            /* Eleven units of crater lake, which is more than anything in the
+               bag carries, and two tube mouths side by side in the ash in
+               front of it. One of them comes out on the far shore facing the
+               pin. The other comes out where you started.
+
+               A pipe with a bad end on it is the hole Jackpot was making the
+               same point with on the pinball table: the luckiest-looking line
+               is a bad one, and a course made of machinery you cannot aim
+               ought to have at least one machine that is not on your side. It
+               is the third hole rather than the sixth because the punishment
+               is only distance — the ball comes out on grass, facing the way
+               you were, with the whole hole still in front of it.
+
+               Which mouth is which is not marked, and it does not have to be:
+               they are three and a half units apart, and a player who takes
+               the wrong one takes the other next time. */
+            name: 'Lava Tube', par: 3,
+            blurb: 'Two mouths in the ash and eleven units of lake. One of them comes out at the pin; one comes out here.',
+            pads: [
+                pad(0, 0, 9, 10),
+                pad(0, 21, 9, 9)
+            ],
+            water: [rect(-2, 10, 13, 11, -0.8)],
+            gaps: [shore(rect(-2, 10, 13, 11), 0.6)],
+            warps: [
+                pipe(2.6, 8, 3.2, 23, 0, 0.9),
+                pipe(6.4, 8, 7.8, 2.2, Math.PI, 0.9)
+            ],
+            tee: { x: 2.2, z: 1.8 }, cup: { x: 4.6, z: 26.5 }
+        }),
+        build({
+            /* A shelf cut across the face of the cone, with the drop on the
+               east side of it for its whole length and two bands of scree
+               running over it. The belts push south and east at once — down
+               the fall and off the edge — which is what makes them different
+               from anything on Crosstown, where a travelator across the hole
+               is a hazard you can aim off and the worst it costs is the line.
+               Here the worst it costs is the ball.
+
+               Five units of shelf is not much road. What keeps it playable is
+               that the push is gentle and the bands are thin: a ball crossing
+               one at any real pace is on it for a third of a second and comes
+               off a metre south and east of where it would have been, which is
+               a correction you can take on the tee if you know it is coming.
+               A ball that stops on one does not stop on it for long. */
+            name: 'The Scree', par: 4,
+            blurb: 'A shelf with the drop down one side and two bands of scree running across it. Aim off, and keep moving.',
+            pads: [
+                pad(0, 0, 5, 9, 1.2),
+                belt(0, 9, 5, 2.5, 3, -2.5, { y: 1.2 }),
+                pad(0, 11.5, 5, 4, 1.2),
+                belt(0, 15.5, 5, 2.5, 3, -2.5, { y: 1.2 }),
+                pad(0, 18, 5, 6, 1.2)
+            ],
+            water: [rect(5, -1, 6, 26, 0.1)],
+            gaps: [{ x: 4.6, z: -1, w: 0.8, d: 26 }],
+            tee: { x: 2.4, z: 2 }, cup: { x: 2.4, z: 21.5 }
+        }),
+        build({
+            /* Three vents in twenty units of ash, and this time none of them
+               is a lift — they are simply in the way. A launch pad is the one
+               obstacle in the game that does not stop a ball, redirect it or
+               slow it down: it throws the ball in the air and hands it back
+               travelling exactly as it was, a second and a half later and a
+               long way further on. So a hole made of them is not a hole you
+               steer past, it is a hole you either miss or accept.
+
+               They are staggered so that the line round the first is the line
+               into the second, which is the only way three of anything is a
+               plan rather than three attempts at the same shot. And they are
+               rated low — 7.6 is a bounce a unit and a half high — because a
+               vent you cannot survive is a coin toss, and a vent that costs
+               you the length of the hole is a hole. */
+            name: 'Blowhole', par: 3,
+            blurb: 'Three vents and no way to steer once one has you. The line round the first is the line into the second.',
+            pads: [
+                pad(0, 0, 8, 20),
+                sprung(2.4, 6.5, 1.1, 7.6),
+                sprung(5.8, 10.5, 1.1, 7.6),
+                sprung(3.2, 14.5, 1.1, 7.6)
+            ],
+            tee: { x: 4, z: 1.8 }, cup: { x: 5.8, z: 17.6 }
+        }),
+        build({
+            /* The finisher, and it is the whole course in one hole: the vent
+               to get up, the scree to be carried along, the tube to get in.
+
+               The crater floor has no way into it along the ground. The rim
+               stands 2.2 above the lake that rings it and keeps its inner rail
+               all the way round, so the pin is reached by riding the rim east
+               until the tube swallows you — or, for anybody who would rather
+               not trust the machinery, by flying the whole thing from the lawn,
+               which is a shot that exists and is not a comfortable one.
+
+               The belt is what makes the ride readable. A travelator has a
+               speed of its own that a ball approaches from either side, so it
+               does not matter how hard the second shot is hit: everything
+               arrives at the mouth at about six units per second and comes out
+               of the far end at the same, which is a putt's worth of pace
+               across a crater floor eleven wide. The machine spends the shot
+               for you, and the only thing you own is getting on to it. */
+            name: 'Caldera', par: 4,
+            blurb: 'Up the vent, along the rim on the scree, and in through the tube. There is no other road into the crater.',
+            pads: [
+                pad(0, 0, 8, 10),
+                sprung(4, 8.2, 1.3, 10.4),
+                pad(0, 11, 2, 3.5, 2.2, 'wood'),
+                belt(2, 11, 12, 3.5, 3.5, 0, { y: 2.2, kind: 'wood' }),
+                pad(14, 11, 3.4, 3.5, 2.2, 'wood'),
+                pad(0, 15, 9, 10, 1)
+            ],
+            water: [rect(-2, 10, 22, 5, -0.8)],
+            gaps: [
+                { x: -1, z: 9.5, w: 21, d: 1.0 },        // the lawn's shoreline
+                { x: -0.6, z: 10.7, w: 8.6, d: 0.6 },    // the face of the rim, where you land
+                { x: -1, z: 14.7, w: 21, d: 0.9 }        // and the crater's own
+            ],
+            warps: [pipe(15.7, 12.75, 4, 18, 0, 0.95)],
+            tee: { x: 4, z: 2 }, cup: { x: 4.5, z: 21.5 }
         })
     ];
 
@@ -3388,13 +3788,13 @@
         })()
     ];
 
-    /* Twelve courses is far too long a list to read as one list, and the four
-       kinds of golf on it are not variations of each other — a mini golf hole
+    /* Fourteen courses is far too long a list to read as one list, and the
+       four kinds of golf on it are not variations of each other — a mini golf hole
        is one swing and a putt, a crazy golf hole is a machine you have to time,
        and a links hole is a drive and an approach. So the group is not a
        heading any more, it is a filter: the picker opens on one kind at a
-       time, and a player who came for windmills never scrolls past forty holes
-       of parkland to reach them.
+       time, and a player who came for windmills never scrolls past forty-eight
+       holes of parkland to reach them.
 
        `tint` is the group's colour in that picker and `icon` its mark. Both
        live here rather than in the menu, so a new course arrives already filed
@@ -3408,7 +3808,7 @@
         {
             id: 'crazy', name: 'Crazy golf', icon: '\u2699',
             tint: '#f0abfc',
-            blurb: 'Blades, gates, posts and pendulums. Aim less; time it better.'
+            blurb: 'Blades, gates, posts and pendulums — and, on the last course, a river under every one of them. Aim less; time it better.'
         },
         {
             /* The fourth kind, and the newest. The other three are all played
@@ -3419,7 +3819,7 @@
                puts it somewhere else entirely. */
             id: 'adventure', name: 'Adventure golf', icon: '\u21AF',
             tint: '#fbbf24',
-            blurb: 'Ice, travelators, launch pads and pipes. The floor is not on your side.'
+            blurb: 'Ice, travelators, launch pads, pipes and steam vents. The floor is not on your side.'
         },
         {
             id: 'long', name: 'Long game', icon: '\u27FF',
@@ -3486,6 +3886,14 @@
             holes: clockwork
         },
         {
+            id: 'millrace',
+            group: 'crazy',
+            name: 'The Millrace',
+            blurb: 'Every machine on the course stands over water. A mistimed shot is not a bounce here; it is a stroke.',
+            theme: 'mill',
+            holes: millrace
+        },
+        {
             id: 'icehouse',
             group: 'adventure',
             name: 'Icehouse Yard',
@@ -3500,6 +3908,14 @@
             blurb: 'Launch pads, walkways and pipes. The floor decides; you only decide how hard.',
             theme: 'fairground',
             holes: skelter
+        },
+        {
+            id: 'cinder',
+            group: 'adventure',
+            name: 'Cinder Cone',
+            blurb: 'Everything on the mountain runs downhill. The vents are the only way up it.',
+            theme: 'volcano',
+            holes: cinder
         },
         {
             id: 'parkland',
