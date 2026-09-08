@@ -1,6 +1,8 @@
 # Pocket Links
 
-A 2D mini golf game with two courses on one field — an eighteen and a nine.
+A 2D mini golf game with four courses on one field — an eighteen, a six and
+two nines — plus a fifth that is generated from a seed and is different every
+time you ask for one.
 Canvas, plain ES5-flavoured JavaScript, no build step and no dependencies —
 same as everything else here, open `index.html` and it runs.
 
@@ -11,7 +13,8 @@ same as everything else here, open `index.html` and it runs.
 | `index.html` | Page shell: scoreboard, canvas, banner, scorecard modal. |
 | `style.css` | Page chrome. The course itself is all canvas. |
 | `js/config.js` | Every tuning constant. Nothing else holds a magic number. |
-| `js/courses.js` | Both courses, as data. |
+| `js/courses.js` | Every hand-built course, as data. |
+| `js/generator.js` | Courses dealt from a seed. See [The draw](#the-draw). |
 | `js/physics.js` | The simulation. No DOM, no canvas, pure. |
 | `js/scoring.js` | Scorecard arithmetic and the save file. |
 | `js/audio.js` | Synthesised sound effects — no audio files to ship. |
@@ -22,7 +25,7 @@ same as everything else here, open `index.html` and it runs.
 | `editor/editor.css` | Sidebar chrome. The green in there is the game's renderer. |
 | `tests.html` | Headless test harness. Open it; green is green. |
 
-## The two courses
+## The four courses
 
 `GOLF.COURSES` is a rack of cards, each `{ id, name, blurb, holes }`, and
 `GOLF.COURSE` is whichever one is being played. Everything downstream — the
@@ -31,9 +34,29 @@ learns there was a choice; `GOLF.selectCourse(id)` is the one place that
 changes, and it answers `null` for an id that is not on the rack, which is
 the whole handling a stale stored preference needs.
 
+Only the *first* position on the rack is load-bearing. The card at the head
+of it keeps the bare save keys (see [Saving](#saving)), so moving something
+else to the front would quietly take over a record a player already has.
+Everything else about the order is taste: the eighteen, then the short card,
+then the two that assume you have played one of the others.
+
 - **The Old Eighteen** is the course this game has always been: one idea per
   hole on the front nine, the same vocabulary played straight at you on the
   back.
+- **The Short Six** is the card for the twenty minutes you actually have.
+  Par two or three all the way round, nothing hidden, the whole of every hole
+  visible from the tee — a wide gate, a bunker sat on the straight line, a
+  causeway with a rink in front of it, one slow bar to time, a gentle tilt,
+  and a close that puts three of those together. It is the one to hand
+  somebody who has never played the thing.
+- **The Tidewater Nine** puts water on all nine, which is the only hazard
+  that does not slow the ball or push it about — it takes the shot off you
+  and asks for it again. That makes it a course about weight rather than
+  about lines, and it is why the crossings are wide: ninety pixels at the
+  tightest and mostly a hundred and twenty, because a hole that punishes a
+  miss with a stroke cannot also demand a thread. The two slopes on it drain
+  into rough rather than into the lakes, for the same reason nothing else
+  does — a hazard with no shot in it is not a hazard, it is a tax.
 - **The Wild Nine** assumes you have played it. Nothing new is in the
   vocabulary — a room whose only door faces the far cushion, a lattice of
   posts with no straight line through it, two hills breaking opposite ways,
@@ -52,13 +75,87 @@ with **rough** instead, which is the same answer hole one gives: the short
 line has to be earned, the long one costs a stroke's worth of roll and
 nothing more.
 
+**The die deals a card you did not choose.** The 🎲 chip (or `D`, or
+`?course=random` as a link) picks a course off the rack at random and starts
+it. It never deals the one already under you — a press that changed nothing
+would read as a broken button rather than as luck — so it goes through
+exactly the path the picker does and lands you on the same tee a refresh
+would: a random *choice*, not a random *round*.
+
 **A course switch is not destructive and does not ask.** Each course keeps
 its own round in progress and its own record, under keys qualified by the
 course id — see [Saving](#saving) — so leaving one mid-round and coming back
 puts you on the tee of the hole you left, which is the same promise a refresh
-makes. Nine holes and eighteen are not comparable totals, which is the other
-half of why the save file is split: a nine-hole round would take the
+makes. Six holes, nine and eighteen are not comparable totals, which is the
+other half of why the save file is split: a six-hole round would take the
 eighteen-hole record the first time anyone played one.
+
+## The draw
+
+`generator.js` deals a ninth-hole card nobody has played: nine holes built
+from a seed, legal by construction, and checked before they are handed over.
+The ✦ chip (or `G`) deals a new one; `?seed=<base36>` deals a named one, and
+so does anything else you put in that parameter — `?seed=birthday` hashes to
+a seed like everything that is not one already. The seed is shown in the
+tagline and remembered, so a refresh gives you the course you were playing
+rather than a new one.
+
+Three decisions carry the design.
+
+**A hole is a line with bands across it.** Every generated hole is built in a
+frame — an *along* axis running tee to cup, a *cross* axis at right angles to
+it — and every feature is a band laid across the cross axis somewhere along
+the way. That is not a limitation of the vocabulary, it is what makes the
+result playable without simulating it: a band that always leaves a mouth in
+it can always be got through, so a hole made of such bands has a way from the
+tee to the cup by construction rather than by luck. It also means a feature
+is written once and works four ways — the along axis runs left to right,
+right to left, up the field or down it, and nothing inside a builder knows
+which.
+
+Each builder is also handed *where the straight line from the tee to the cup
+crosses its band*, which is the difference between a hazard and scenery. The
+ones that block put themselves on that line (a bunker, a dogleg's blocker,
+two posts to be putted between); the ones with a way through put their mouth
+beside it, far enough that the straight shot does not simply go through the
+gap and near enough that the answer is a correction rather than a different
+hole. The first draft ignored the line, and it produced nine fields with
+something interesting happening in the corner of each.
+
+**Rules are checked, not remembered.** `GOLF.validateHole` is the rule book
+out of `tests.html` — thicknesses, post radii, tee and cup clearance, gates
+that stray off the field or seal it shut — as a function rather than as a
+page of assertions. The generator runs it on every hole it builds and
+re-rolls the ones that fail. The suite runs *the same function* over the
+shipped rack, which is the pin that stops the two drifting apart: break a
+rule in one place and both go red. A `strict` pass adds what a hand-built
+hole is allowed to argue with and a generated one is not — nothing solid
+inside a slope zone, a collar of rough wide enough to catch what a slope
+sheds, no cup or tee on a hill. Crown Green puts the cup inside its own
+crown and means it; a generator doing that by accident is a hole that never
+comes to rest.
+
+**One feature per hole, dealt from a shuffled deck.** There are nine
+features and nine holes, and each is used exactly once, which is what
+guarantees a card carries every hazard the game has. Drawn independently, a
+draw with no water on it would turn up sooner or later — and that is a field,
+not a course. Trimmings (a collar of rough, a bunker, a rink, two posts) are
+drawn freely on top, up to three bands a hole; a hole played up the field
+gets one, because after the tee and the cup have had their clearance there
+is one band's worth of room left in 640px.
+
+Par is counted rather than played: the length of the hole, how many bands
+are on it, and whether any of them is one of the four that really cost a
+stroke. Running the bot at boot to measure par would be a second and a half
+of a phone's time to learn what arithmetic already knows.
+
+**A draw is not a course you can hold a record on.** No two of them are the
+same field, so a best round across them would measure which seeds were kind
+rather than who played well — the card says `record: false` and the game
+reads that off the card rather than off a list of ids. The round in progress
+*is* kept, because losing an evening to a refresh is a different thing, and
+the seed goes into the stored round: a card written for one draw is never
+offered to the next.
 
 ## How a hole is built
 
@@ -340,7 +437,7 @@ and would beat any real eighteen-hole record the first time anyone tried a
 draft.
 
 `level-editor.html?runTests=1` runs the editor's own tests — the export/parse
-round trip over every shipped hole on both courses, the checks passing
+round trip over every shipped hole on every course, the checks passing
 everything that ships and catching three holes deliberately broken, and
 undo/redo. It is
 a real feature linked from the game, so unlike `tests.html` it stays
@@ -348,14 +445,25 @@ indexable; the self-test overlay only appears with the query string.
 
 ## Tests
 
-Open `tests.html`. 410 assertions covering geometry, the integrator, the four
-surfaces, the overswing, the course data on both courses, the scorecard, the
-per-course save keys and the resumable round, in about a second.
+Open `tests.html`. 645 assertions covering geometry, the integrator, the four
+surfaces, the overswing, the course data on every course, the generator, the
+scorecard, the per-course save keys and the resumable round, in about two
+seconds.
+
+The generated courses are held to the shipped ones' standard and then some.
+Twelve fixed seeds — fixed, because a suite that fails one run in fifty is a
+suite nobody believes — go through the strict rule book, the hazard-coverage
+rule and the par check; eight of them are played by the bot, hole by hole,
+and six are shot at from every angle to prove that nothing generated hangs,
+escapes the field or ends up inside a wall. The shipped rack is run through
+`GOLF.validateHole` in the same section, which is what keeps the generator's
+copy of the rules and this file's copy honest with each other.
 
 Everything about the course data is checked for every course on the rack, not
 for whichever one `GOLF.COURSE` points at — a rule the second course is exempt
 from is a rule the second course will break. The hole counts themselves are
-pinned rather than derived (eighteen and nine), because the stored round is
+pinned rather than derived — by course id, not by rack position, since the
+order is taste and the length of a card is not — because the stored round is
 validated against them: changing one has to be a deliberate edit in two
 places.
 
@@ -402,10 +510,13 @@ rack keeps the bare key: the Old Eighteen goes on writing `miniGolf.round.v1`
 and `miniGolf.save.v1`, and the Wild Nine writes `miniGolf.round.v1.wild` and
 `miniGolf.save.v1.wild`. That is what leaves a record a player already has
 where they left it, and what lets the landing page go on reading
-`miniGolf.save.v1` without knowing there are two courses. Which one you were
+`miniGolf.save.v1` without knowing there is a rack at all. Which one you were
 last on is remembered separately, under `miniGolf.course.v1`; `?course=<id>`
-overrides it, and an id that is not on the rack is ignored rather than
-fatal. (The editor keeps its work in progress under
+overrides it, `?course=random` deals one, and an id that is on neither list
+is ignored rather than fatal. The procedural card keeps its seed under
+`miniGolf.draw.v1` and its round under `miniGolf.round.v1.draw` — with the
+seed inside the round, so a re-roll is not offered the scorecard of the draw
+before it — and never writes a record at all. (The editor keeps its work in progress under
 `miniGolf.editor.v1` and hands a playtest over in session storage under
 `miniGolf.playtest.v1`; neither goes near either of them, and a playtest is
 locked out of both the record and the round in progress — a one-hole round of

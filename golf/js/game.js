@@ -41,12 +41,64 @@
     function bootCourse() {
         if (GOLF.PLAYTEST) return;
         var wanted = (/[?&]course=([\w-]+)/.exec(window.location.search) || [])[1];
+        // ?course=random is the die by link: a shareable "surprise me" that
+        // does not name a card, so it cannot go stale when the rack changes.
+        if (wanted === 'random') {
+            var id = randomCourseId();
+            if (id) GOLF.selectCourse(id);
+            return;
+        }
         if (!wanted) {
             try { wanted = localStorage.getItem(C.COURSE_KEY); } catch (e) { /* storage off */ }
         }
         // selectCourse answers null for an id that is not on the rack, which
         // is the whole handling it needs: stay on the default.
         if (wanted) GOLF.selectCourse(wanted);
+    }
+
+    /* ── the draw ────────────────────────────────────────────────────────
+
+       The procedural card. generator.js builds it and never touches the
+       rack; this is the one place that puts one on. The seed comes from the
+       URL, then from storage, then from a coin — so a link is reproducible,
+       a refresh gives you back the course you were playing, and a first
+       visit gets something nobody has seen. */
+
+    function bootDraw() {
+        if (GOLF.PLAYTEST || !GOLF.installDraw) return;
+        var G = GOLF.generator;
+        var wanted = (/[?&]seed=([\w-]+)/.exec(window.location.search) || [])[1];
+        var seed = G.seedFrom(wanted);
+        if (seed === null) {
+            try { seed = G.seedFrom(localStorage.getItem(C.DRAW_KEY)); } catch (e) { /* storage off */ }
+        }
+        if (seed === null) seed = G.randomSeed();
+        rememberSeed(GOLF.installDraw(seed).seed);
+    }
+
+    function rememberSeed(seed) {
+        try { localStorage.setItem(C.DRAW_KEY, GOLF.generator.seedLabel(seed)); } catch (e) { /* storage off */ }
+    }
+
+    /* Deal a fresh one. The round in progress under the old seed is not
+       cleared and does not have to be: scoring.js will not hand a card
+       written for one draw to another, so `newRound(true)` here starts
+       clean of its own accord. */
+    function newDraw() {
+        if (GOLF.PLAYTEST || !GOLF.installDraw) return;
+        var course = GOLF.installDraw(GOLF.generator.randomSeed());
+        rememberSeed(course.seed);
+        if (!playCourse(course.id, null)) return;
+        toast('New draw — seed ' + GOLF.generator.seedLabel(course.seed));
+    }
+
+    /* A draw is not a course you can hold a record on: no two of them are
+       the same field, so a best round across them would measure which seeds
+       were kind rather than who played well. The card says so itself, which
+       keeps the rule with the course rather than in a list of ids here. */
+    function isRecorded() {
+        var course = currentCourse();
+        return !GOLF.PLAYTEST && !(course && course.record === false);
     }
 
     function currentCourse() {
@@ -64,25 +116,63 @@
         if (tagline && course) tagline.textContent = course.name + ' — ' + course.blurb;
     }
 
+    /* Switching is not destructive and does not ask. The card for the course
+       you are leaving was written when you holed out on it, and each course
+       resumes from its own key, so coming back puts you on the tee of the
+       hole you left — the same promise a refresh makes. Every route onto a
+       course goes through here: the picker, the die, and the boot. */
+    function playCourse(id, how) {
+        if (!GOLF.selectCourse(id)) return false;
+        try { localStorage.setItem(C.COURSE_KEY, GOLF.COURSE_ID); } catch (e) { /* storage off */ }
+        newRound(true);
+        syncCourse();
+        if (how) {
+            // newRound has already toasted a resume; say both things at once
+            // rather than letting one message wipe the other off the screen.
+            var course = currentCourse();
+            toast(how + ' — ' + (course ? course.name : id) +
+                  (state.holeIndex > 0 ? ', resumed at hole ' + (state.holeIndex + 1) : ''));
+        }
+        return true;
+    }
+
+    /* A rack you have to name a card from before you can play it is a menu.
+       The die is the other way round: press it and something you did not
+       choose comes up. It never deals the card already under you — a press
+       that changed nothing would read as a broken button rather than as luck
+       — so with one course on the rack there is nothing to deal. */
+    function randomCourseId() {
+        var pool = GOLF.COURSES.filter(function (c) { return c.id !== GOLF.COURSE_ID; });
+        if (!pool.length) return null;
+        return pool[Math.floor(Math.random() * pool.length)].id;
+    }
+
+    function dealRandomCourse() {
+        if (GOLF.PLAYTEST) return;
+        var id = randomCourseId();
+        if (!id) { toast('Only one course on the rack'); return; }
+        playCourse(id, 'Random draw');
+    }
+
     function buildCoursePicker() {
         var sel = $('course-select');
-        if (!sel) return;
-        if (GOLF.PLAYTEST) { sel.hidden = true; return; }
+        var die = $('btn-shuffle');
+        if (GOLF.PLAYTEST) {
+            if (sel) sel.hidden = true;
+            if (die) die.hidden = true;
+            return;
+        }
 
-        sel.innerHTML = GOLF.COURSES.map(function (c) {
-            return '<option value="' + c.id + '">' + c.name + ' · ' + c.holes.length + '</option>';
-        }).join('');
+        if (sel) {
+            sel.innerHTML = GOLF.COURSES.map(function (c) {
+                return '<option value="' + c.id + '">' + c.name + ' · ' + c.holes.length + '</option>';
+            }).join('');
+            sel.addEventListener('change', function () { playCourse(sel.value, null); });
+        }
+        if (die) die.addEventListener('click', dealRandomCourse);
 
-        /* Switching is not destructive and does not ask. The card for the
-           course you are leaving was written when you holed out on it, and
-           each course resumes from its own key, so coming back puts you on
-           the tee of the hole you left — the same promise a refresh makes. */
-        sel.addEventListener('change', function () {
-            if (!GOLF.selectCourse(sel.value)) return;
-            try { localStorage.setItem(C.COURSE_KEY, GOLF.COURSE_ID); } catch (e) { /* storage off */ }
-            newRound(true);
-            syncCourse();
-        });
+        var draw = $('btn-draw');
+        if (draw) draw.addEventListener('click', newDraw);
     }
 
     /* ── round state ────────────────────────────────────────────────────── */
@@ -251,12 +341,12 @@
            "round" of three strokes would walk straight into the best-round
            record. So it is scored and shown, and never written down. */
         var res;
-        if (GOLF.PLAYTEST) {
-            res = { save: state.save, isBest: false, totals: S.totals(state.scores, GOLF.COURSE) };
-        } else {
-            clearStoredRound();
+        if (!GOLF.PLAYTEST) clearStoredRound();
+        if (isRecorded()) {
             res = S.recordRound(state.save, state.scores, GOLF.COURSE);
             state.save = S.save(res.save);
+        } else {
+            res = { save: state.save, isBest: false, totals: S.totals(state.scores, GOLF.COURSE) };
         }
         state.phase = 'finished';
         $('banner').classList.remove('show');
@@ -290,12 +380,22 @@
             ? (res.isBest ? 'New personal best!' : 'Round complete')
             : 'Scorecard';
         $('card-title').textContent = headline;
-        $('card-sub').textContent = res
-            ? t.strokes + ' strokes, ' + S.formatVsPar(t.vsPar) + ' · best ' +
-              (state.save.best === null ? '—' : state.save.best) +
-              ' · ' + state.save.rounds + ' round' + (state.save.rounds === 1 ? '' : 's') +
-              ' · ' + state.save.aces + ' ace' + (state.save.aces === 1 ? '' : 's')
-            : 'Through ' + t.played + ' hole' + (t.played === 1 ? '' : 's');
+        var summary;
+        if (!res) {
+            summary = 'Through ' + t.played + ' hole' + (t.played === 1 ? '' : 's');
+        } else if (!isRecorded()) {
+            // Not an apology: a draw nobody else has played has no record to
+            // beat, and pretending otherwise would put a nine-hole score up
+            // against the eighteen.
+            summary = t.strokes + ' strokes, ' + S.formatVsPar(t.vsPar) +
+                ' · not recorded — no two draws are the same course';
+        } else {
+            summary = t.strokes + ' strokes, ' + S.formatVsPar(t.vsPar) + ' · best ' +
+                (state.save.best === null ? '—' : state.save.best) +
+                ' · ' + state.save.rounds + ' round' + (state.save.rounds === 1 ? '' : 's') +
+                ' · ' + state.save.aces + ' ace' + (state.save.aces === 1 ? '' : 's');
+        }
+        $('card-sub').textContent = summary;
         $('card-again').style.display = res ? '' : 'none';
         $('scorecard').classList.add('show');
     }
@@ -372,6 +472,8 @@
             if (k === 'm' || k === 'M') { setMuted(A.toggleMute()); return; }
             if (k === 'f' || k === 'F') { toggleFullscreen(); return; }
             if (k === 'r' || k === 'R') { restartHole(); return; }
+            if (k === 'd' || k === 'D') { dealRandomCourse(); return; }
+            if (k === 'g' || k === 'G') { newDraw(); return; }
             if (k === 'Escape') { closeCard(); return; }
 
             if (state.phase === 'holed' && (k === ' ' || k === 'Enter')) {
@@ -595,6 +697,10 @@
         ctx = canvas.getContext('2d');
 
         markSafeZone();
+        // Before bootCourse and before the picker: a stored preference of
+        // 'draw' has to find a card to select, and the picker has to be able
+        // to list one.
+        bootDraw();
         bootCourse();
         buildCoursePicker();
         newRound(true);
@@ -624,7 +730,14 @@
         requestAnimationFrame(loop);
     }
 
-    GOLF.game = { init: init, newRound: newRound, getState: function () { return state; } };
+    GOLF.game = {
+        init: init,
+        newRound: newRound,
+        playCourse: playCourse,
+        randomCourseId: randomCourseId,
+        newDraw: newDraw,
+        getState: function () { return state; }
+    };
 
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', init);

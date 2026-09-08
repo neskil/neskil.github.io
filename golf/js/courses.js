@@ -1,4 +1,4 @@
-/* Two courses, twenty-seven holes.
+/* Four courses, forty-two holes.
 
    `GOLF.COURSES` is the rack — each entry `{ id, name, blurb, holes }` — and
    `GOLF.COURSE` is whichever card is being played, which is what every
@@ -486,10 +486,288 @@
         }
     ];
 
-    /* Two cards on one field. `GOLF.COURSE` is whichever one is being played
-       — the classic eighteen unless something says otherwise — and every
-       consumer downstream keeps reading exactly that, so a course is chosen
-       in one place and nowhere else has to know there is a choice. */
+
+    /* ── The Short Six ──────────────────────────────────────────────────
+
+       The card for the twenty minutes you actually have. Nothing on it is
+       new and nothing on it is hidden: every hole is one question asked in
+       the open, the whole of it visible from the tee, and par is two or
+       three all the way round. The eighteen teach the vocabulary a hole at a
+       time and the Wild Nine assume you know it; this is the same vocabulary
+       with the difficulty taken out and the length with it — a round you can
+       finish before the kettle boils, and the one to hand somebody who has
+       never played the thing. */
+
+    var SHORT = [
+        {
+            name: 'Front Door',
+            blurb: 'Wide open, one gate, and the gate is wider than it looks.',
+            par: 2,
+            /* Opening Drive with the door taken off its hinges: a 180px mouth
+               rather than a 160px one, and the same rough down both cushions
+               saying the same thing — the middle of the field is where the
+               ball wants to be. */
+            tee: { x: 140, y: 320 },
+            hole: { x: 830, y: 320 },
+            walls: [r(520, 0, 24, 230), r(520, 410, 24, 230)],
+            rough: [r(0, 0, 960, 80), r(0, 560, 960, 80)]
+        },
+        {
+            name: 'Teacup',
+            blurb: 'A saucer of sand across the straight line. Round it, or through it and short.',
+            par: 3,
+            /* One bunker, sat exactly on the line from tee to cup, and no
+               wall anywhere: the hole is a choice about weight rather than a
+               problem about geometry. Through the sand is the short way and
+               costs you the roll; round it is free and costs you the angle. */
+            tee: { x: 120, y: 540 },
+            hole: { x: 840, y: 140 },
+            sand: [r(330, 180, 300, 300)],
+            rough: [r(0, 0, 300, 70)]
+        },
+        {
+            name: 'Little Island',
+            blurb: 'A ninety-pixel causeway, and a rink in front of it to make the weight hard.',
+            par: 3,
+            /* Island Green shrunk to one shot, plus the one thing that makes
+               a short hole worth playing twice: the approach is iced, so the
+               ball arrives at the causeway carrying whatever it left the tee
+               with. */
+            tee: { x: 120, y: 320 },
+            hole: { x: 760, y: 320 },
+            water: [
+                r(600, 190, 60, 90), r(600, 370, 60, 80),    // near bank, causeway at y 280-370
+                r(600, 190, 300, 60), r(600, 390, 300, 60),  // top and bottom
+                r(840, 190, 60, 260)                         // far bank
+            ],
+            ice: [r(380, 240, 180, 160)]
+        },
+        {
+            name: 'Metronome',
+            blurb: 'One bar, one rhythm, and all the room in the world either side of it.',
+            par: 3,
+            /* A gate hole for somebody who has never timed a gate: a single
+               bar on a slow sine with 220px of daylight above or below it at
+               every phase, so the shot is there whenever you are ready for
+               it. Traffic asks the same question with two bars and no
+               daylight. */
+            tee: { x: 120, y: 320 },
+            hole: { x: 860, y: 320 },
+            walls: [
+                { x: 480, y: 200, w: 26, h: 200, move: { axis: 'y', amp: 180, speed: 1.2, phase: 0 } }
+            ],
+            rough: [r(0, 0, 960, 70), r(0, 570, 960, 70)]
+        },
+        {
+            name: 'Tilt',
+            blurb: 'The middle leans south. Aim north of the flag and let the field do the rest.',
+            par: 3,
+            /* The Break at half the gradient, and the same rule underneath
+               it: the slope stops 40px short of the rough and 180px short of
+               the cushion, so everything it sheds comes to rest on the collar
+               rather than rattling at the bottom of the hill for ever. */
+            tee: { x: 110, y: 540 },
+            hole: { x: 850, y: 180 },
+            rough: [r(240, 500, 480, 140)],
+            slopes: [{ x: 300, y: 120, w: 340, h: 340, ax: 0, ay: 140 }]
+        },
+        {
+            name: 'Last Round',
+            blurb: 'A wall to go round, a bunker to miss and two posts on the doorstep.',
+            par: 3,
+            /* Six holes is too short a card to close with one of everything,
+               so this closes with one of three: the blocker from hole one,
+               the sand from hole two, and a pair of posts that turn a
+               straight approach into a bank shot. */
+            tee: { x: 100, y: 560 },
+            hole: { x: 860, y: 120 },
+            walls: [r(420, 300, 26, 340)],
+            sand: [r(560, 380, 220, 180)],
+            rough: [r(0, 0, 380, 80)],
+            bumpers: [post(700, 180, 24), post(820, 300, 24)]
+        }
+    ];
+
+    /* ── The Tidewater Nine ─────────────────────────────────────────────
+
+       Nine holes with water on every one of them, which is the one hazard
+       that does not slow the ball down or push it about — it simply takes
+       the shot off you and asks for it again. A course made of it is a
+       course about weight: rough, sand and ice all forgive a stroke that is
+       merely too much, and water does not.
+
+       So the crossings are wide — ninety pixels at the tightest, and most of
+       them a hundred and twenty — because a hole that punishes a miss that
+       hard cannot also demand a thread. What it demands is that you know how
+       far the ball is going before you hit it, which is the one thing the
+       game refuses to put a number on. */
+
+    var TIDE = [
+        {
+            name: 'Low Tide',
+            blurb: 'A channel through the middle, and rough on the far bank for anything that overcooks it.',
+            par: 3,
+            /* The opener states the terms: the water is crossable in one
+               ordinary shot, and the penalty for the shot after it running
+               on is a stroke's worth of roll rather than a stroke. */
+            tee: { x: 110, y: 320 },
+            hole: { x: 860, y: 320 },
+            water: [r(380, 0, 180, 230), r(380, 410, 180, 230)],
+            rough: [r(600, 0, 360, 110), r(600, 530, 360, 110)]
+        },
+        {
+            name: 'The Spit',
+            blurb: 'A hundred and twenty pixels of dry land, five hundred long, with the flag off the end of it.',
+            par: 3,
+            /* Two lakes and the strip between them. The Narrows is a
+               staircase you cross; this is a corridor you travel down, so
+               the line is fixed and the whole hole is the weight — too much
+               and the far cushion returns the ball into open water. */
+            tee: { x: 110, y: 350 },
+            hole: { x: 880, y: 330 },
+            water: [r(300, 110, 520, 180), r(300, 410, 520, 180)],
+            sand: [r(880, 420, 80, 180)]
+        },
+        {
+            name: 'Floes',
+            blurb: 'Two crossings, both of them iced. Whatever you leave the tee with, you arrive with.',
+            par: 4,
+            /* The crossings are not narrow — a hundred and twenty pixels
+               each — and they are still the hardest thing on the card,
+               because the only surface on them is the one that does not
+               slow the ball down. Cold Snap puts ice in front of a lake;
+               this puts it on the bridge. */
+            tee: { x: 100, y: 560 },
+            hole: { x: 870, y: 110 },
+            water: [
+                r(300, 0, 140, 300), r(300, 420, 140, 220),   // crossing at y 300-420
+                r(600, 0, 140, 180), r(600, 300, 140, 340)    // crossing at y 180-300
+            ],
+            ice: [r(300, 300, 140, 120), r(600, 180, 140, 120)]
+        },
+        {
+            name: 'Harbour Gate',
+            blurb: 'The gate slides up into the wall and lingers shut. Wait for the daylight.',
+            par: 4,
+            /* A sliding door hung the way Sliding Doors hangs its two: shut
+               is one end of the travel rather than the middle of it, so the
+               gate closes, dwells, and opens again. Vertical, this time —
+               the door slides up into the top wall and leaves the whole
+               doorway open when it does. */
+            tee: { x: 110, y: 540 },
+            hole: { x: 880, y: 180 },
+            walls: [
+                r(460, 0, 26, 240), r(460, 460, 26, 180),     // the doorway, y 240-460
+                { x: 460, y: 145, w: 26, h: 200, move: { axis: 'y', amp: 105, speed: 1.2, phase: Math.PI / 2 } }
+            ],
+            water: [r(560, 380, 300, 140)],
+            rough: [r(560, 0, 400, 90)]
+        },
+        {
+            name: 'The Skerries',
+            blurb: 'Four rocks in open water, and none of them where you want one.',
+            par: 3,
+            /* Pinball with the cushions taken away: the posts are the same
+               posts, but a ricochet off one of them costs a stroke rather
+               than a yard, so the hole is about which of them you are
+               willing to be near. */
+            tee: { x: 100, y: 320 },
+            hole: { x: 870, y: 320 },
+            // Four pools rather than two banks: the channel through the rocks
+            // is 300px wide at the pinch and the whole of it is over water,
+            // so a ricochet has somewhere to be lost.
+            water: [
+                r(360, 0, 240, 140), r(360, 500, 240, 140),
+                r(760, 0, 200, 170), r(760, 470, 200, 170)
+            ],
+            rough: [r(0, 0, 300, 90), r(0, 550, 300, 90)],
+            bumpers: [
+                post(430, 250, 24), post(520, 390, 24),
+                post(640, 250, 24), post(730, 390, 24)
+            ]
+        },
+        {
+            name: 'Ebb',
+            blurb: 'The bank draws everything east into the reeds. The lake is south, and it does not draw.',
+            par: 4,
+            /* A slope that sheds sideways into 180px of rough — the collar is
+               what makes it legal, since a ball the hill pushes has to come
+               to rest somewhere that is not the hill. The lake is nowhere
+               near the run-off on purpose: a slope that drained into water
+               would be a hazard with no shot in it. */
+            tee: { x: 110, y: 560 },
+            hole: { x: 850, y: 120 },
+            water: [r(280, 440, 420, 160)],
+            rough: [r(580, 80, 180, 300)],
+            slopes: [{ x: 280, y: 80, w: 300, h: 300, ax: 130, ay: 0 }]
+        },
+        {
+            name: 'The Bar',
+            blurb: 'A sandbar is the only way across, and sand is the only brake you get.',
+            par: 3,
+            /* Two hundred pixels of bunker between two lakes. Anything that
+               reaches the bar stops on it, which is the point — the crossing
+               is generous and the shot off it is from a lie that gives you
+               nothing back. */
+            tee: { x: 120, y: 320 },
+            hole: { x: 840, y: 320 },
+            water: [r(360, 0, 220, 220), r(360, 420, 220, 220)],
+            sand: [r(360, 220, 220, 200)],
+            rough: [r(620, 0, 340, 90), r(620, 550, 340, 90)]
+        },
+        {
+            name: 'Riptide',
+            blurb: 'Over the channel, and then the whole far half runs north.',
+            par: 4,
+            /* The crossing is the easy half. The far side tilts toward the
+               top cushion and is collared with 140px of rough before it, so
+               the tilt can push the ball off the green but never pin it
+               against anything — the rule every slope on the rack is built
+               to. */
+            tee: { x: 90, y: 320 },
+            hole: { x: 880, y: 320 },
+            water: [r(300, 0, 140, 250), r(300, 390, 140, 250)],
+            rough: [r(460, 0, 260, 140)],
+            slopes: [{ x: 460, y: 140, w: 260, h: 400, ax: 0, ay: -120 }]
+        },
+        {
+            name: 'High Water',
+            blurb: 'Ice off the tee, a blocker, a gate, a lake, a bunker, two rocks — and a last green that runs to the flag.',
+            par: 5,
+            /* Every card here closes with one of everything, and this one
+               closes with one of everything wet. The tilt at the end is the
+               gift: it runs north, straight at the cup, and it is drawn to
+               keep the two rules a slope has to keep. Nothing solid stands
+               inside it — a post in a slope zone is a ball pinned somewhere
+               it is never counted as at rest — and it stops 170px short of
+               the top cushion, which is further than anything it sheds can
+               roll. */
+            tee: { x: 90, y: 580 },
+            hole: { x: 880, y: 110 },
+            walls: [
+                r(380, 300, 26, 340),
+                { x: 640, y: 150, w: 26, h: 200, move: { axis: 'y', amp: 130, speed: 1.35, phase: 0.4 } }
+            ],
+            water: [r(420, 420, 240, 140)],
+            sand: [r(700, 430, 200, 150)],
+            ice: [r(120, 120, 220, 200)],
+            bumpers: [post(720, 300, 24), post(830, 400, 24)],
+            slopes: [{ x: 820, y: 170, w: 140, h: 180, ax: 0, ay: -100 }]
+        }
+    ];
+
+    /* The rack. `GOLF.COURSE` is whichever card is being played — the classic
+       eighteen unless something says otherwise — and every consumer
+       downstream keeps reading exactly that, so a course is chosen in one
+       place and nowhere else has to know there is a choice.
+
+       The order is the order the picker shows and the die draws from, and it
+       is meant to be read: the eighteen first because it is the game, then
+       the short card for somebody with twenty minutes, then the two that
+       assume you have played one of the others. Only the first position is
+       load-bearing — the course at the head of the rack keeps the bare save
+       keys it has always had (see scoring.js), so moving something else to
+       the front would silently take over the record a player already has. */
     GOLF.COURSES = [
         {
             id: 'links',
@@ -498,10 +776,22 @@
             holes: LINKS
         },
         {
+            id: 'short',
+            name: 'The Short Six',
+            blurb: 'Six holes, nothing hidden, and a round inside twenty minutes.',
+            holes: SHORT
+        },
+        {
             id: 'wild',
             name: 'The Wild Nine',
             blurb: 'Nine holes that assume you have played the eighteen.',
             holes: WILD
+        },
+        {
+            id: 'tide',
+            name: 'The Tidewater Nine',
+            blurb: 'Water in play on all nine. The only hazard that asks for the shot back.',
+            holes: TIDE
         }
     ];
 
@@ -518,6 +808,11 @@
 
     GOLF.COURSE_ID = GOLF.COURSES[0].id;
     GOLF.COURSE = GOLF.COURSES[0].holes;
+    /* Only a generated card has one. It is what tells a stored round which
+       draw it was written for — see scoring.js — and it is null for every
+       hand-built course, which is the same as saying "there is only one of
+       you". */
+    GOLF.COURSE_SEED = null;
 
     /* Swap the card being played. Returns the course, or null for an id that
        is not on the rack — a stored preference from a course that has since
@@ -527,6 +822,7 @@
             if (GOLF.COURSES[i].id !== id) continue;
             GOLF.COURSE_ID = id;
             GOLF.COURSE = GOLF.COURSES[i].holes;
+            GOLF.COURSE_SEED = typeof GOLF.COURSES[i].seed === 'number' ? GOLF.COURSES[i].seed : null;
             return GOLF.COURSES[i];
         }
         return null;

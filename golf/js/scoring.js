@@ -8,9 +8,9 @@
 
     /* ── one save file per course ───────────────────────────────────────
 
-       Nine holes and eighteen are not comparable totals: a nine-hole round
-       would take the eighteen-hole record the first time anyone played one,
-       and a card written for one course cannot be resumed on the other. So
+       Six holes, nine and eighteen are not comparable totals: a six-hole
+       round would take the eighteen-hole record the first time anyone played
+       one, and a card written for one course cannot be resumed on another. So
        every key below is qualified by the course being played.
 
        The first course on the rack keeps the bare key it has always had,
@@ -97,10 +97,17 @@
        a rule that fits in a sentence and cannot be wrong. You get the hole
        back, not the lie. */
 
+    /* The seed is stored with the card for the one course that has one. A
+       generated draw keeps its round under the same key every time, and no
+       two draws are the same field, so without this a re-roll would offer
+       the round from the last draw to the next one — a scorecard for holes
+       that no longer exist. Null for every hand-built course, which costs
+       them nothing. */
     function saveRound(holeIndex, scores, course) {
         try {
             localStorage.setItem(key(C.ROUND_KEY), JSON.stringify({
                 holes: course.length,
+                seed: typeof GOLF.COURSE_SEED === 'number' ? GOLF.COURSE_SEED : null,
                 holeIndex: holeIndex,
                 scores: Array.prototype.slice.call(scores, 0, course.length)
             }));
@@ -109,14 +116,17 @@
 
     /* Returns a resumable round, or null. Null covers every kind of nonsense:
        no save, corrupt JSON, a card from a course with a different number of
-       holes (the eighteen-hole rewrite invalidated every nine-hole save), an
-       index off the end, and a round that had not actually started. */
+       holes (the eighteen-hole rewrite invalidated every nine-hole save), a
+       card from another draw of the procedural course, an index off the end,
+       and a round that had not actually started. */
     function loadRound(course) {
         try {
             var raw = localStorage.getItem(key(C.ROUND_KEY));
             if (!raw) return null;
             var d = JSON.parse(raw);
             if (!d || !Array.isArray(d.scores) || d.holes !== course.length) return null;
+            var seed = typeof GOLF.COURSE_SEED === 'number' ? GOLF.COURSE_SEED : null;
+            if ((typeof d.seed === 'number' ? d.seed : null) !== seed) return null;
             if (typeof d.holeIndex !== 'number' || d.holeIndex < 1 || d.holeIndex >= course.length) return null;
 
             var scores = [], played = 0;

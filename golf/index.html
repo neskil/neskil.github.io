@@ -3,15 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pocket Links — 27-Hole Mini Golf | Niklas Billgren</title>
-    <meta name="description" content="Twenty-seven holes of mini golf in the browser, across two courses. Drag to aim, mind the water, the bunkers, the rough, the ice, the bumpers and the gates that will not wait. The arrow gives you the line and nothing else — the weight of the shot is yours. Plays fullscreen, remembers your round, no install and no account.">
+    <title>Pocket Links — 42-Hole Mini Golf | Niklas Billgren</title>
+    <meta name="description" content="Forty-two holes of mini golf in the browser, across four courses — plus a fifth dealt from a seed, different every time you ask. Drag to aim, mind the water, the bunkers, the rough, the ice, the bumpers and the gates that will not wait. The arrow gives you the line and nothing else — the weight of the shot is yours. Plays fullscreen, remembers your round, no install and no account.">
     <meta name="theme-color" content="#0c2418">
     <meta name="color-scheme" content="dark">
     <meta name="author" content="Niklas Billgren">
     <link rel="canonical" href="https://neskil.github.io/golf/">
     <meta property="og:site_name" content="Niklas Billgren">
-    <meta property="og:title" content="Pocket Links — 27-Hole Mini Golf">
-    <meta property="og:description" content="Two courses, twenty-seven holes of browser mini golf: bunkers, water, ice, bumpers, breaking greens, moving gates and a green that sheds everything you leave on it. Drag, release, try to beat par.">
+    <meta property="og:title" content="Pocket Links — 42-Hole Mini Golf">
+    <meta property="og:description" content="Four courses, forty-two holes of browser mini golf — and a course generator that deals nine more nobody has played. Bunkers, water, ice, bumpers, breaking greens and moving gates. Drag, release, try to beat par.">
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://neskil.github.io/golf/">
     <meta property="og:image" content="https://neskil.github.io/assets/og/golf.png">
@@ -32,7 +32,7 @@
 
         gtag('config', 'G-9GP823TGLB');
     </script>
-    <link rel="stylesheet" href="style.css?v=1.4.0">
+    <link rel="stylesheet" href="style.css?v=1.5.0">
 <script type="application/ld+json">
     {
         "@context": "https://schema.org",
@@ -40,9 +40,9 @@
             {
                 "@type": "VideoGame",
                 "url": "https://neskil.github.io/golf/",
-                "description": "Twenty-seven holes of mini golf in the browser, across two courses. Drag to aim, mind the water, the bunkers, the rough, the ice, the bumpers and the gates that will not wait. The arrow gives you the line and nothing else — the weight of the shot is yours. Plays fullscreen, remembers your round, no install and no account.",
+                "description": "Forty-two holes of mini golf in the browser, across four courses — plus a fifth dealt from a seed, different every time you ask. Drag to aim, mind the water, the bunkers, the rough, the ice, the bumpers and the gates that will not wait. The arrow gives you the line and nothing else — the weight of the shot is yours. Plays fullscreen, remembers your round, no install and no account.",
                 "image": "https://neskil.github.io/assets/og/golf.png",
-                "name": "Pocket Links — 27-Hole Mini Golf",
+                "name": "Pocket Links — 42-Hole Mini Golf",
                 "author": {
                     "@id": "https://neskil.github.io/#niklas"
                 },
@@ -79,14 +79,21 @@
             <a class="home-link" href="../index.html" title="Back to home" aria-label="Back to home">&#8592;</a>
             <div>
                 <h1 class="title">Pocket <span>Links</span></h1>
-                <p class="tagline">Two courses. One putter. No caddie.</p>
+                <p class="tagline">Four courses, or one dealt on the spot. No caddie.</p>
             </div>
             <div class="topbar-actions">
-                <!-- Two cards on one field. Switching is not destructive: each
-                     course keeps its own round and its own record, so leaving
-                     one mid-round and coming back puts you on the tee of the
-                     hole you left. -->
+                <!-- Four cards on one field. Switching is not destructive:
+                     each course keeps its own round and its own record, so
+                     leaving one mid-round and coming back puts you on the tee
+                     of the hole you left. -->
                 <select class="chip" id="course-select" title="Course" aria-label="Course"></select>
+                <!-- The die deals a card you did not choose. It never deals
+                     the one you are already on, so a press always changes the
+                     field under you. -->
+                <button class="chip" id="btn-shuffle" title="Deal a random course (D)" aria-label="Random course">&#127922;</button>
+                <!-- The procedural card. Every press builds nine holes
+                     nobody has played, from a seed you can share. -->
+                <button class="chip" id="btn-draw" title="Generate a brand new course (G)">&#10022; New draw</button>
                 <button class="chip" id="btn-restart" title="Restart this hole (R)">↻ Hole</button>
                 <button class="chip" id="btn-card" title="Scorecard">Card</button>
                 <a class="chip" href="level-editor.html" title="Build a hole of your own">&#9998; Editor</a>
@@ -163,7 +170,8 @@
                 opens into the cone the ball may actually leave in.</span>
             <span class="kb-help"><kbd>←</kbd><kbd>→</kbd> aim · <kbd>↑</kbd><kbd>↓</kbd> power · <kbd>space</kbd> hit
                 (<kbd>shift</kbd> for fine control)</span>
-            <span class="kb-help"><kbd>R</kbd> restart hole · <kbd>F</kbd> fullscreen · <kbd>M</kbd> sound</span>
+            <span class="kb-help"><kbd>R</kbd> restart hole · <kbd>D</kbd> deal a random course ·
+                <kbd>G</kbd> generate a new one · <kbd>F</kbd> fullscreen · <kbd>M</kbd> sound</span>
             <span class="touch-help">Turn your phone sideways for a bigger course.</span>
         </div>
 
@@ -194,8 +202,8 @@
 
     <!-- Load order is dependency order: config, then the pure logic, then the
          things that touch the screen. game.js boots itself on DOMContentLoaded. -->
-    <script src="js/config.js?v=1.4.0"></script>
-    <script src="js/courses.js?v=1.4.0"></script>
+    <script src="js/config.js?v=1.5.0"></script>
+    <script src="js/courses.js?v=1.5.0"></script>
     <script>
         /* Playtest hand-off from the hole editor. It writes one hole into
            session storage and sends the player here with ?playtest=1; swapping
@@ -229,10 +237,12 @@
             } catch (e) { /* storage disabled: fall through to the real course */ }
         })();
     </script>
-    <script src="js/physics.js?v=1.4.0"></script>
-    <script src="js/scoring.js?v=1.4.0"></script>
-    <script src="js/audio.js?v=1.4.0"></script>
-    <script src="js/render.js?v=1.4.0"></script>
-    <script src="js/game.js?v=1.4.0"></script>
+    <script src="js/physics.js?v=1.5.0"></script>
+    <!-- Adds nothing to the rack by itself; game.js deals the draw on boot. -->
+    <script src="js/generator.js?v=1.5.0"></script>
+    <script src="js/scoring.js?v=1.5.0"></script>
+    <script src="js/audio.js?v=1.5.0"></script>
+    <script src="js/render.js?v=1.5.0"></script>
+    <script src="js/game.js?v=1.5.0"></script>
 </body>
 </html>
