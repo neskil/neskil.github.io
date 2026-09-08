@@ -8,7 +8,7 @@
    — the renderer scales to the viewport, the simulation never sees a pixel. */
 window.G3 = window.G3 || {};
 
-G3.VERSION = '1.33.0';
+G3.VERSION = '1.34.0';
 
 G3.CONFIG = {
     BALL_R: 0.16,
@@ -475,6 +475,14 @@ G3.CONFIG = {
     /* The secret. Set once the code has been typed, and never unset: the chip
        that lets the bot play for you is hidden until someone has gone looking
        for it, and then it stays found. */
+    /* Shuffle — the course drawn for you rather than chosen. Two settings:
+       whether a finished round offers a draw instead of the next course on the
+       list (off unless asked for, so nobody is surprised by a surprise), and
+       which of G3.SHUFFLE_MODES the draw is made under. The mode is remembered
+       even while shuffle is off, because it is also what the picker's own
+       "Surprise me" button draws under. */
+    SHUFFLE_KEY: 'loftLinks.shuffle',
+    SHUFFLE_MODE_KEY: 'loftLinks.shuffleMode',
     BOT_KEY: 'loftLinks.botFound',
     /* The word that finds it, typed anywhere on the course. Made of letters
        the game has nothing bound to (l m j o p r v f w h b c g and the digits

@@ -1913,6 +1913,7 @@
             (state && state.course ? groupOf(state.course.id) : G3.COURSE_GROUPS[0].id);
         drawTabs();
         var focus = drawCourses();
+        drawShuffle(menuGroup);
         $('menu').className = 'modal show';
         // Keyboard and screen reader land on the course being offered, or on
         // the first one in the open tab if nothing is.
@@ -1951,6 +1952,9 @@
                 drawTabs();
                 drawCourses();
                 drawPlans();
+                // "Same kind" means the tab you are looking at, so the draw
+                // and its counts move with it.
+                drawShuffle(menuGroup);
             });
             host.appendChild(tab);
         });
@@ -2083,6 +2087,124 @@
         newRound(id, hole);
     }
 
+    /* ── shuffle ─────────────────────────────────────────────────────────
+
+       The picker's other button, and the mode behind it. `courses.js` owns the
+       draw — which courses a mode is allowed to hand you and what it falls
+       back to when that set is empty — and everything here is the two settings
+       that survive a reload plus the wording of one button.
+
+       The mode is remembered whether or not shuffle is on, because the same
+       mode is what the "Surprise me" button draws under: turning the switch
+       off should stop the game choosing for you, not forget how you liked it
+       chosen. */
+
+    var shuffleMode = 'any';
+    var shuffleOn = false;
+
+    function loadShuffle() {
+        try {
+            shuffleOn = localStorage.getItem(C.SHUFFLE_KEY) === '1';
+            var m = localStorage.getItem(C.SHUFFLE_MODE_KEY);
+            if (m) shuffleMode = G3.shuffleModeById(m).id;
+        } catch (e) { /* storage off: the defaults above are the answer */ }
+    }
+
+    function saveShuffle() {
+        try {
+            localStorage.setItem(C.SHUFFLE_KEY, shuffleOn ? '1' : '0');
+            localStorage.setItem(C.SHUFFLE_MODE_KEY, shuffleMode);
+        } catch (e) { /* ignore */ }
+    }
+
+    /* What a draw made right now would be made out of. `group` is which kind
+       "same kind" means: inside the picker that is the open tab, so switching
+       tabs re-aims the button — anywhere else it is the kind of the course you
+       are standing on. */
+    function shuffleOpts(group) {
+        return {
+            mode: shuffleMode,
+            from: state && state.course ? state.course.id : null,
+            group: group || (state && state.course ? groupOf(state.course.id) : null),
+            save: state ? state.save : null
+        };
+    }
+
+    /* The block under the course list: one chip per mode carrying how many
+       courses it can actually offer, and a line under the button saying what
+       is about to happen. The count is what makes the modes worth reading —
+       "New to you · 3" is a reason to press it and "· 0" is why the line below
+       then says the net has been widened. */
+    function drawShuffle(group) {
+        var host = $('shuffle-modes');
+        host.innerHTML = '';
+        G3.SHUFFLE_MODES.forEach(function (mode) {
+            var on = mode.id === shuffleMode;
+            var chip = document.createElement('button');
+            chip.type = 'button';
+            chip.className = 'sh-mode' + (on ? ' on' : '');
+            chip.setAttribute('aria-pressed', on ? 'true' : 'false');
+            chip.title = mode.blurb;
+            var draw = G3.shuffleDraw({
+                mode: mode.id,
+                from: state && state.course ? state.course.id : null,
+                group: group,
+                save: state ? state.save : null
+            });
+            chip.innerHTML =
+                '<span class="sh-mode-icon" aria-hidden="true">' + mode.icon + '</span>' +
+                '<span class="sh-mode-name">' + mode.name + '</span>' +
+                '<span class="sh-mode-n">' + (draw.eased ? '0' : draw.courses.length) + '</span>';
+            chip.addEventListener('click', function () {
+                if (shuffleMode === mode.id) return;
+                shuffleMode = mode.id;
+                saveShuffle();
+                drawShuffle(group);
+            });
+            host.appendChild(chip);
+        });
+
+        var picked = G3.shuffleModeById(shuffleMode);
+        var draw = G3.shuffleDraw(shuffleOpts(group));
+        $('shuffle-sub').textContent = draw.eased
+            ? easedNote(picked.id) + ' \u2014 drawing from ' + draw.courses.length + ' instead'
+            : picked.blurb + ' ' + draw.courses.length + ' to draw from.';
+
+        /* Named on the element as well as in it: the words beside the toggle
+           are display:none on a phone, which takes them out of the
+           accessibility tree with them. */
+        var keep = $('shuffle-keep');
+        var keepSays = shuffleOn
+            ? 'Shuffling every round. Press to stop.'
+            : 'Draw the next course at the end of every round';
+        keep.setAttribute('aria-checked', shuffleOn ? 'true' : 'false');
+        keep.setAttribute('aria-label', keepSays);
+        keep.title = keepSays;
+    }
+
+    /* Said out loud rather than silently widened: a mode that has run out has
+       run out *because of something the player did*, and that is worth
+       knowing. */
+    function easedNote(mode) {
+        if (mode === 'fresh') return 'You have finished a round on all of them';
+        if (mode === 'record') return 'No records to beat yet';
+        if (mode === 'kind') return 'Nothing else of this kind';
+        return 'Nowhere else to go';
+    }
+
+    /* Draw one and go. Deliberately not a confirmation step: a surprise you
+       have to approve in a list is not a surprise, so the course loads and the
+       toast is the reveal — the scoreboard has the name in it a moment later
+       either way. */
+    function takeRandom(group) {
+        // Same latch as the cards: one pick per opening of the list, so an
+        // impatient second tap does not draw twice and load the second one.
+        if (menuTaking) return;
+        var id = G3.randomCourseId(shuffleOpts(group));
+        takeCourse(id);
+        toast('\uD83C\uDFB2 ' + G3.courseById(id).name);
+    }
+
     function closeMenu() { $('menu').className = 'modal'; maybeFly(); }
 
     function openCard(res) {
@@ -2115,7 +2237,12 @@
         var next = $('card-next');
         if (res) {
             next.hidden = false;
-            next.textContent = 'Next: ' + G3.courseById(G3.nextCourseId(state.course.id)).name;
+            /* Shuffle is the mode where this button stops naming where you are
+               going. Naming it would be the whole of the draw given away on
+               the card before the press. */
+            next.textContent = shuffleOn
+                ? '\uD83C\uDFB2 Surprise me'
+                : 'Next: ' + G3.courseById(G3.nextCourseId(state.course.id)).name;
         } else {
             next.hidden = true;
         }
@@ -2520,7 +2647,23 @@
         $('card-again').addEventListener('click', function () { newRound(state.course.id); });
         $('card-next').addEventListener('click', function () {
             closeCard();
+            /* With shuffle on this button is the draw itself and does not go
+               near the picker — the latch is released here because a press on
+               it is the start of a new pick, exactly as opening the list is. */
+            if (shuffleOn) {
+                menuTaking = false;
+                takeRandom(groupOf(state.course.id));
+                return;
+            }
             openMenu(G3.nextCourseId(state.course.id));
+        });
+        $('shuffle-go').addEventListener('click', function () { takeRandom(menuGroup); });
+        /* No toast on this one: it is pressed with the picker open, and the
+           toast band is behind the modal. The switch is its own answer. */
+        $('shuffle-keep').addEventListener('click', function () {
+            shuffleOn = !shuffleOn;
+            saveShuffle();
+            drawShuffle(menuGroup);
         });
         $('menu-close').addEventListener('click', function () {
             if (state && state.world) closeMenu();
@@ -2537,12 +2680,18 @@
 
         var q = params();
         state = { save: S.load() };
+        loadShuffle();
         // ?weather=rain holds for the whole round, the same as picking it with
         // W would; anything unrecognised is simply ignored.
         if (q.weather && G3.weather) G3.weather.setOverride(q.weather);
         // ?fly=0 or ?fly=1 for the session, which is what makes a screenshot of
         // a hole reproducible whatever this machine's motion preference is.
         if (q.fly === '0' || q.fly === '1') { flyOverride = q.fly === '1'; syncFlyover(); }
+        /* ?course=random draws one the same way the picker's button does,
+           under whatever mode is remembered. The rest of the query string
+           still means what it did: ?hole= counts from 1 into whatever course
+           came up. */
+        if (q.course === 'random') q.course = G3.randomCourseId(shuffleOpts());
         if (q.course) {
             var course = G3.courseById(q.course);
             var at = q.hole

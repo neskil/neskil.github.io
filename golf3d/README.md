@@ -42,7 +42,7 @@ them.
 | `index.html` | Page shell: scoreboard, canvas, power/loft controls, banner, course picker, scorecard. |
 | `style.css` | Page chrome. The course itself is all WebGL. |
 | `js/config.js` | Every tuning constant. Nothing else holds a magic number. |
-| `js/courses.js` | The sixty holes, as data, plus the rail generator, the band layout the long-game courses are written in — rows that tilt and carry their level into the next one, and a cross-fall that puts a whole hole on the side of a hill — the dune fields the links is made of, the landforms the two parkland courses are shaped by, and the bag each hole is played out of. |
+| `js/courses.js` | The sixty holes, as data, plus the rail generator, the band layout the long-game courses are written in — rows that tilt and carry their level into the next one, and a cross-fall that puts a whole hole on the side of a hill — the dune fields the links is made of, the landforms the two parkland courses are shaped by, the bag each hole is played out of, and the [draw](#the-draw) behind the picker's die. |
 | `js/physics.js` | The simulation. No three.js, no DOM, pure. |
 | `js/scoring.js` | Scorecard arithmetic and the save file. |
 | `js/swing.js` | The swing gate: what a shot past a full swing costs. No DOM, no three.js. |
@@ -1309,6 +1309,55 @@ for. Plans are drawn once and cached by course, hole and size, so the picker
 costs about a fifth of a second the first time it opens and nothing after that.
 `tests.html` draws all sixty and checks that each fills its frame and that
 both ends of the hole are inside it.
+
+### The draw
+
+Fourteen courses is more than a list is good for, and the order they are in is
+the order they were *built* in — Seaside Green first because it was the first
+one that existed. So the picker has a second way out of it, stuck to the bottom
+of the scroll: a die, four chips saying how it should be thrown, and a switch
+that turns the throw into the mode.
+
+The four modes exist because "random" on its own answers the wrong question
+after the first few rounds:
+
+| Mode | Draws from | When it runs out |
+| --- | --- | --- |
+| **Anything** | all fourteen | — |
+| **Same kind** | the tab you are looking at, not the kind you are standing in | widens to anything |
+| **New to you** | courses with no finished round on them | the ones you have played *least* |
+| **Beat a best** | courses that already have a record on them | widens to anything |
+
+Two rules hold across all four. **Never the course you are already on** — a
+surprise that hands you back the hole you are looking at is the one result
+nobody wants — and **a mode never comes back empty**. "New to you" stops
+meaning anything the moment you have played all fourteen and "beat a best"
+means nothing before the first round is finished; a button that does nothing on
+press is worse than one that widens its net, so each mode has a written-down
+fallback, `shuffleDraw` reports whether it took it, and the line under the
+button says so out loud: *you have finished a round on all of them — drawing
+from 12 instead*. Each chip carries the count it can actually offer, which is
+what makes the modes worth reading: "New to you · 3" is a reason to press it,
+and "· 0" is why the line below then says the net has been widened.
+
+**The draw itself is pure.** `G3.shuffleDraw` and `G3.randomCourseId` in
+`courses.js` take the mode, where you are standing, which tab is open and the
+save file, and the random source is handed *in* — so `tests.html` holds the
+dice and every assertion about the draw is exact rather than statistical.
+`game.js` owns the two things that cannot be: the DOM and the two keys under
+[Saving](#saving).
+
+The switch is what makes it a mode rather than a button. With it on, the end of
+a round stops offering the next course down the list and offers a throw
+instead — and **stops naming it**, because a card that says where you are going
+has given away the whole of the draw before the press. Pressing it does not
+open the picker either: a surprise you have to approve in a list is not a
+surprise, so the course loads and a toast is the reveal.
+
+It is stuck to the bottom of the scroll rather than sitting under the last
+card, because "under the list" and "off the bottom of it" are the same place
+otherwise — four courses with their plans out is two screens of scrolling on a
+laptop, and a block nobody scrolls to is a feature nobody has.
 
 ## How a hole is built
 
@@ -3085,7 +3134,11 @@ course because a personal best at Seaside Green says nothing about Windmill
 Works, and merging them would just reward playing the easy one. The landing
 page reads the same key for the card's stat chip. Mute state lives separately
 under `loftLinks.muted` — and *absent* there means muted, which is how a first
-visit is silent — with the band's own switch under `loftLinks.music`. Both writes are wrapped — a browser with storage
+visit is silent — with the band's own switch under `loftLinks.music`. [Shuffle](#the-draw) keeps two of its own: `loftLinks.shuffle`, set only when
+somebody has asked for a drawn course at the end of every round, and
+`loftLinks.shuffleMode`, which is remembered whether or not shuffle is on —
+turning the switch off should stop the game choosing for you, not forget how
+you liked it chosen. All these writes are wrapped — a browser with storage
 disabled should cost you your records, not your round.
 
 ## Sound
@@ -3225,6 +3278,12 @@ skipping the picker, `&hole=1..6` jumps to a hole, and
 `&weather=clear|fair|overcast|drizzle|rain|mist|golden|dust` fixes the sky for
 the round. Handy for screenshots and for linking someone at the hole you are
 complaining about, in the weather you were complaining about it in.
+
+`?course=random` throws the die instead, under whatever mode is remembered —
+the same draw the picker's own button makes, so `&hole=` still counts from 1
+into whichever course came up. It is the one value of `course=` that makes a
+link *not* reproducible, which is the point of it and the reason a screenshot
+should never use it.
 
 `&fly=0` and `&fly=1` force the intro
 [flyover](#the-fourth-camera-which-is-not-a-seat) off or on for the session,
