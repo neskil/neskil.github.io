@@ -42,7 +42,7 @@ them.
 | `index.html` | Page shell: scoreboard, canvas, power/loft controls, banner, course picker, scorecard. |
 | `style.css` | Page chrome. The course itself is all WebGL. |
 | `js/config.js` | Every tuning constant. Nothing else holds a magic number. |
-| `js/courses.js` | The sixty holes, as data, plus the rail generator, the band layout the long-game courses are written in — rows that tilt and carry their level into the next one, and a cross-fall that puts a whole hole on the side of a hill — the dune fields the links is made of, the landforms the two parkland courses are shaped by, and the bag each hole is played out of. |
+| `js/courses.js` | The eighty-four holes, as data, plus the rail generator, the band layout the long-game courses are written in — rows that tilt and carry their level into the next one, and a cross-fall that puts a whole hole on the side of a hill — the dune fields the links is made of, the landforms the two parkland courses are shaped by, and the bag each hole is played out of. |
 | `js/physics.js` | The simulation. No three.js, no DOM, pure. |
 | `js/audit.js` | The [geometry audit](#the-pictures-which-neither-suite-can-see): the faults that are invisible to the ball and obvious in a screenshot. Pure — read by `tests.html`, by the inspector and by the turntable. |
 | `js/scoring.js` | Scorecard arithmetic and the save file. |

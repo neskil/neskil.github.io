@@ -1,6 +1,6 @@
 # Claude Code — Project Context (golf3d)
 
-**Loft Links**: twelve six-hole courses of 3D golf in four groups — mini,
+**Loft Links**: fourteen six-hole courses of 3D golf in four groups — mini,
 crazy, adventure and the long game — on vendored three.js (r128), ES5-flavoured
 plain JavaScript, no build step. Open `index.html` and it runs.
 
