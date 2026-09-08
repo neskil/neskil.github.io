@@ -1858,6 +1858,66 @@
         return mat;
     }
 
+    /* The rim a pond is held in.
+
+       A water rectangle on a course whose surround is not the sea is a box
+       standing on the ground the course stands on, and its surface is wherever
+       the hole says it is — which on a quarry hole is the best part of two
+       units above the quarry floor. Drawn as it was, that came out as a slab
+       of water floating over the desert with four dark blue walls: from the
+       tee it was hidden behind the pads, and from any low angle it was the
+       most obviously wrong thing in the picture. Thirteen of them, over five
+       courses; the turntable found every one and no assertion could have.
+
+       Nothing about the *data* is wrong — a pond has to be at the height the
+       ball splashes at. What was missing is the thing that would hold water
+       there, so this is it: a kerb of the ground the course itself is standing
+       on, run round the rectangle from the surface down to the surround. The
+       pond then reads as a hole cut in the same block of rock the greens are
+       sitting on, which is exactly what every other pad on the hole already
+       looks like.
+
+       **Its top is level with the water and never above it.** A rim standing
+       proud would be a wall the ball goes straight through — the shoreline is
+       a splash, not a bounce — and the one rule the scenery in this game obeys
+       is that what you can see is what the ball hits.
+
+       Four boxes rather than one grown box, because a grown box has a top face
+       under the water as well and two surfaces at the same height flicker
+       against each other. Where a pad borders the pond the kerb is under it,
+       inside a slab that reaches the same ground, and is never seen. */
+    var BANK_W = 0.4;
+
+    function addBank(group, w, theme, depth) {
+        // Nothing to hold up: on a theme whose floor is near the waterline the
+        // flanks are a few centimetres and the kerb would be a hairline.
+        if (depth < 0.45) return;
+        var mat = new THREE.MeshLambertMaterial({
+            map: TX.rock(theme.surround === 'rock'
+                ? (theme.ground || '#9c8466')
+                : (theme.floor || '#3f4450'))
+        });
+        mat.onBeforeCompile = surroundShader;
+        // Middle, middle, width, depth. The two long sides run the whole way
+        // and overlap the short ones at the corners, which is how the rim
+        // closes without a mitre.
+        var y = w.y - depth / 2, i, s, mesh;
+        var sides = [
+            [w.x - BANK_W / 2, w.z + w.d / 2, BANK_W, w.d + BANK_W * 2],
+            [w.x + w.w + BANK_W / 2, w.z + w.d / 2, BANK_W, w.d + BANK_W * 2],
+            [w.x + w.w / 2, w.z - BANK_W / 2, w.w, BANK_W],
+            [w.x + w.w / 2, w.z + w.d + BANK_W / 2, w.w, BANK_W]
+        ];
+        for (i = 0; i < sides.length; i++) {
+            s = sides[i];
+            mesh = new THREE.Mesh(new THREE.BoxGeometry(s[2], depth, s[3]), mat);
+            mesh.position.set(s[0], y, s[1]);
+            mesh.receiveShadow = true;
+            mesh.castShadow = true;
+            group.add(mesh);
+        }
+    }
+
     function addWater(group, w, theme) {
         /* A box rather than a plane: the pads reach down to the surrounding
            ground, so a pond between two of them is a filled channel, and a
@@ -1899,6 +1959,8 @@
            the depth of its own edge. The sea does not need a floor drawn for
            it; it has the horizon. */
         if (theme.surround === 'water') return;
+
+        addBank(group, w, theme, depth);
 
         var bx = w.x + w.w / 2, bz = w.z + w.d / 2;
         var bedGeo = new THREE.PlaneGeometry(w.w, w.d);

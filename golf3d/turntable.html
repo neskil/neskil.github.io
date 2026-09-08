@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Loft Links — turntable</title>
+    <meta name="robots" content="noindex">
+    <style>
+        :root { --ink: #eaf6ff; --dim: #9fb6c9; --bad: #f87171; --warn: #fbbf24; }
+        body { background: #061422; color: var(--ink); font-family: 'JetBrains Mono', ui-monospace, monospace; margin: 0; padding: 12px; line-height: 1.45; }
+        h1 { font-size: 0.95rem; letter-spacing: 0.1em; text-transform: uppercase; margin: 0 0 2px; }
+        #summary { font-size: 0.8rem; color: var(--dim); margin-bottom: 10px; }
+        .course { margin-bottom: 18px; }
+        .course > h2 { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.1em; color: #7fd4ff; margin: 10px 0 4px; }
+        .row { display: flex; gap: 4px; align-items: flex-start; margin-bottom: 4px; }
+        .tile { position: relative; }
+        .tile img { display: block; background: #000; }
+        .tile .cap { position: absolute; left: 0; bottom: 0; right: 0; font-size: 0.62rem; padding: 1px 4px;
+                     background: #000000a8; color: #cfe6f5; letter-spacing: 0.04em; }
+        .tile .who { position: absolute; left: 0; top: 0; font-size: 0.62rem; padding: 1px 4px;
+                     background: #000000a8; color: #ffe9a8; }
+        .findings { font-size: 0.68rem; color: var(--dim); margin: 0 0 8px 2px; }
+        .findings .err { color: var(--bad); }
+        .findings .warn { color: var(--warn); }
+        .findings .clean { color: #4ade80; }
+        /* The renderer draws into this one canvas, tile by tile; every picture
+           on the page is a still copied off it. Kept on-screen-sized but out of
+           the way, so nothing about the layout can change what was rendered. */
+        #gl { position: fixed; left: -9999px; top: 0; }
+    </style>
+</head>
+<body>
+    <h1>Turntable</h1>
+    <div id="summary">starting…</div>
+    <div id="sheet"></div>
+
+    <!-- Every hole in the game, drawn from a fixed set of angles by the game's
+         own renderer, so a whole course can be looked over in one picture.
+
+         Why this page exists: tests.html can prove a hole is built to the rules
+         and can never say what it looks like, and looking at ninety holes
+         by hand — one at a time, in a browser, turning the camera — is the kind
+         of job that gets done once and then never again. A contact sheet is a
+         job that gets done every release.
+
+         The angles are chosen for what each one can show that the others
+         cannot: a plan view finds cracks and overlaps between pads, a low
+         graze finds geometry floating over the ground or sunk into it, the
+         four compass views find anything that only reads wrong from one side,
+         and the tee is the shot the player is actually being asked to judge.
+
+         ?course=<id|all>  &hole=1..6  &weather=<id>  &tile=<px>  &views=<list>
+         Drive it headlessly with tools/turntable.mjs. -->
+    <canvas id="gl"></canvas>
+
+    <script src="vendor/three.min.js"></script>
+    <script src="js/config.js?v=1.35.0"></script>
+    <script src="js/themes.js?v=1.35.0"></script>
+    <script src="js/physics.js?v=1.35.0"></script>
+    <script src="js/courses.js?v=1.35.0"></script>
+    <script src="js/audit.js?v=1.35.0"></script>
+    <script src="js/textures.js?v=1.35.0"></script>
+    <script src="js/shaders.js?v=1.35.0"></script>
+    <script src="js/postfx.js?v=1.35.0"></script>
+    <script src="js/weather.js?v=1.35.0"></script>
+    <script src="js/flyover.js?v=1.35.0"></script>
+    <script src="js/render.js?v=1.35.0"></script>
+
+    <script>
+    (function () {
+        'use strict';
+
+        var R = G3.render, P = G3.physics, C = G3.CONFIG;
+        var qs = new URLSearchParams(location.search);
+        var TILE_W = Math.max(120, parseInt(qs.get('tile'), 10) || 300);
+        var TILE_H = Math.round(TILE_W * 0.66);
+        var summary = document.getElementById('summary');
+        var sheet = document.getElementById('sheet');
+        var canvas = document.getElementById('gl');
+
+        /* The angles. Each is a bearing to stand on and how far above the
+           ground to stand, in degrees, and each earns its place by showing
+           something the others hide — see the comment at the top of the file.
+           `tee` is not an orbit at all: it is the game's own opening seat. */
+        var VIEWS = {
+            tee:   { label: 'tee', seat: true },
+            plan:  { label: 'plan', bearing: 180, elev: 88, fit: 1.0 },
+            n:     { label: 'N 22°', bearing: 0, elev: 22 },
+            e:     { label: 'E 22°', bearing: 90, elev: 22 },
+            s:     { label: 'S 22°', bearing: 180, elev: 22 },
+            w:     { label: 'W 22°', bearing: 270, elev: 22 },
+            graze: { label: 'graze 5°', bearing: 135, elev: 5, fit: 0.72 },
+            hero:  { label: 'hero 40°', bearing: 205, elev: 40, fit: 0.92 }
+        };
+        var order = (qs.get('views') || 'tee,plan,n,e,s,w,graze,hero')
+            .split(',').map(function (s) { return s.trim(); })
+            .filter(function (s) { return VIEWS[s]; });
+
+        var wantCourse = qs.get('course') || 'all';
+        var wantHole = parseInt(qs.get('hole'), 10) || 0;
+        var wantWeather = qs.get('weather') || '';
+
+        var jobs = [];
+        G3.COURSES.forEach(function (course) {
+            if (wantCourse !== 'all' && course.id !== wantCourse) return;
+            course.holes.forEach(function (hole, i) {
+                if (wantHole && i + 1 !== wantHole) return;
+                jobs.push({ course: course, hole: hole, index: i });
+            });
+        });
+
+        canvas.width = TILE_W; canvas.height = TILE_H;
+        canvas.style.width = TILE_W + 'px';
+        canvas.style.height = TILE_H + 'px';
+        R.init(canvas);
+        R.resize();
+
+        var still = document.createElement('canvas');
+        still.width = TILE_W; still.height = TILE_H;
+        var sctx = still.getContext('2d');
+
+        /* Stand the camera on a bearing round the hole, high enough to see it
+           and far enough back to fit it. This is the one piece of camera
+           arithmetic on the page that the game does not already own: the game
+           has three seats and a dial, and none of them can be put five degrees
+           above the ground, which is the angle that finds a rail hanging in
+           mid-air. Everything else here is the renderer's. */
+        function place(hole, view) {
+            var b = hole.bounds;
+            var cx = (b.minX + b.maxX) / 2, cz = (b.minZ + b.maxZ) / 2;
+            var radius = Math.hypot((b.maxX - b.minX) / 2, (b.maxZ - b.minZ) / 2) * 1.1 * (view.fit || 1);
+            var vFov = R.state.camera.fov * Math.PI / 360;
+            var hFov = Math.atan(Math.tan(vFov) * R.state.camera.aspect);
+            var dist = radius / Math.tan(Math.min(vFov, hFov));
+            var mid = P.surfaceTop(hole, cx, cz);
+            var cy = mid ? mid.y : 0;
+            var yaw = view.bearing * Math.PI / 180, el = view.elev * Math.PI / 180;
+            var cam = R.state.camera;
+            cam.position.set(cx - Math.sin(yaw) * Math.cos(el) * dist,
+                             cy + Math.sin(el) * dist,
+                             cz - Math.cos(yaw) * Math.cos(el) * dist);
+            cam.lookAt(cx, cy, cz);
+            cam.updateMatrixWorld();
+        }
+
+        function drawTile(job, key) {
+            var view = VIEWS[key], hole = job.hole;
+            var world = P.createWorld(hole, { x: hole.tee.x, z: hole.tee.z });
+            R.state.ball.position.set(world.ball.x, world.ball.y, world.ball.z);
+
+            if (view.seat) {
+                /* The opening seat, from the game rather than from here: the
+                   dial straight, the aim down the hole, no smoothing to ease
+                   out of and no flyover to interrupt. Whatever the player is
+                   shown when a hole loads is what lands in this tile. */
+                R.state.fly = null;
+                R.state.smooth.started = false;
+                R.setCam({
+                    mode: 'follow', view: 0, lock: false, kick: 0, speedPull: 0,
+                    yaw: Math.atan2(hole.cup.x - hole.tee.x, hole.cup.z - hole.tee.z)
+                });
+                R.frame(1 / 60, world, null);
+            } else {
+                place(hole, view);
+                if (R.state.fx) G3.postfx.render(R.state.scene, R.state.camera, null, 1 / 60);
+                else R.state.renderer.render(R.state.scene, R.state.camera);
+            }
+            sctx.drawImage(canvas, 0, 0, TILE_W, TILE_H);
+            return still.toDataURL('image/png');
+        }
+
+        function tileEl(src, label, who) {
+            var d = document.createElement('div');
+            d.className = 'tile';
+            var img = document.createElement('img');
+            img.src = src; img.width = TILE_W; img.height = TILE_H;
+            img.alt = label;
+            d.appendChild(img);
+            if (who) {
+                var w = document.createElement('div');
+                w.className = 'who'; w.textContent = who;
+                d.appendChild(w);
+            }
+            var cap = document.createElement('div');
+            cap.className = 'cap'; cap.textContent = label;
+            d.appendChild(cap);
+            return d;
+        }
+
+        var courseEl = null, lastCourse = null, drawn = 0;
+        var totals = { errors: 0, warnings: 0 };
+
+        function draw(job) {
+            if (job.course !== lastCourse) {
+                lastCourse = job.course;
+                courseEl = document.createElement('div');
+                courseEl.className = 'course';
+                var h = document.createElement('h2');
+                h.textContent = job.course.name + ' — ' + job.course.theme;
+                courseEl.appendChild(h);
+                sheet.appendChild(courseEl);
+            }
+
+            var kind = wantWeather && G3.weather.KINDS[wantWeather]
+                ? G3.weather.KINDS[wantWeather]
+                : G3.weather.pick(job.course.id, job.index, job.course.theme);
+            R.buildHole(job.hole, job.course.theme, kind);
+            R.state.clock = 4;      // past the first instant, so the flag is flying
+
+            var row = document.createElement('div');
+            row.className = 'row';
+            order.forEach(function (key, i) {
+                row.appendChild(tileEl(drawTile(job, key), VIEWS[key].label,
+                    i === 0 ? (job.index + 1) + '. ' + job.hole.name : ''));
+                drawn++;
+            });
+            courseEl.appendChild(row);
+
+            // What the audit makes of the same hole, printed under its pictures
+            // so the two halves of the answer are read together.
+            var found = G3.audit ? G3.audit.hole(job.hole) : [];
+            var line = document.createElement('div');
+            line.className = 'findings';
+            if (!found.length) {
+                line.innerHTML = '<span class="clean">✓ clean</span>';
+            } else {
+                line.innerHTML = found.map(function (f) {
+                    if (f.sev === 'error') totals.errors++; else totals.warnings++;
+                    return '<span class="' + (f.sev === 'error' ? 'err' : 'warn') + '">' +
+                        f.code + '</span> ' + f.msg;
+                }).join(' &nbsp;·&nbsp; ');
+            }
+            courseEl.appendChild(line);
+        }
+
+        /* One task, all of it, and that is not laziness.
+
+           The first version drew a hole per animation frame, which is the
+           polite thing to do to a tab and the wrong thing to do to a
+           screenshot: `chromium --screenshot` fires when its virtual-time
+           budget runs out, whether or not the page has finished, and a sheet
+           that quietly comes out with two of six holes on it is worse than no
+           sheet at all — it looks exactly like a finished one. Drawn in a
+           single task the page is either complete when the shutter opens or
+           has not painted at all, and the difference is obvious. The tab is
+           frozen for the twenty seconds it takes, which is a fair price for a
+           picture you can trust; the summary below says so before it starts. */
+        summary.textContent = 'drawing ' + jobs.length + ' holes × ' + order.length +
+            ' angles — the tab is busy until it is done…';
+        setTimeout(function () {
+            jobs.forEach(draw);
+            summary.textContent = jobs.length + ' holes, ' + drawn + ' stills — ' +
+                totals.errors + ' errors, ' + totals.warnings +
+                ' warnings from the geometry audit';
+            window.DONE = true;
+        }, 0);
+    })();
+    </script>
+</body>
+</html>

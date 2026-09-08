@@ -17,7 +17,7 @@ Niklas Billgren's personal site, hosted on GitHub Pages. Static HTML/CSS/JS, no 
 | `supply-chain-legacy/` | Frozen single-file snapshot of the pre-rewrite Supply Chain sim. Reachable only from the "vault" row on the landing page; kept out of the sitemap on purpose. |
 | `3d-engine-poc/` | Yard Master — a WebGL container-stacking puzzle (three.js, vendored, no build step). See [3d-engine-poc/README.md](3d-engine-poc/README.md). |
 | `golf/` | Pocket Links — a 2D mini golf game (canvas, own physics) with two courses on one field, an eighteen and a nine, plus `level-editor.html`, a visual hole editor that runs on the game's own modules. See [golf/README.md](golf/README.md). Shares one landing-page card with `golf3d/`; the card's flip side picks between them. |
-| `golf3d/` | Loft Links — 3D mini golf, three six-hole courses (three.js, vendored; own physics), plus `level-editor.html`, a plan-and-preview hole editor that runs on the game's own modules. See [golf3d/README.md](golf3d/README.md). |
+| `golf3d/` | Loft Links — 3D golf, fifteen six-hole courses in four groups (three.js, vendored; own physics), plus `level-editor.html`, a plan-and-preview hole editor that runs on the game's own modules, and `turntable.html`, which draws every hole from eight angles as a contact sheet per course. See [golf3d/README.md](golf3d/README.md). |
 | `viz-poc/` | Data Room — eight interactive 3D visualizations behind one scene switcher: a trade-flow globe, this repo drawn as a city, a particle morph field, a raymarched nebula, boid flocking, a Mandelbulb, four strange attractors and a wave field. Every scene has live controls; the whole interface folds away. See [viz-poc/CLAUDE.md](viz-poc/CLAUDE.md). |
 | `surprise/` | Misc. personal page ("Bacons lilla hörna") — an HTML5 UP "Dimension" one-pager with two Phaser toys, plus `cv_legacy/`. Pruned to what it actually serves; see "Pruning surprise/" below before adding to it. |
 | `404.html` | Custom not-found page (GitHub Pages serves it automatically). |
@@ -53,7 +53,7 @@ is blocked. That set is the headless test harnesses (`*/tests.html`,
 `3d-engine-poc/physics-tests.html`, `golf3d/shader-tests.html`) and the
 screenshot/audio probes (`cargo-lander/syntax-check.html`,
 `cargo-lander/probe-screenshot.html`, `supply-chain/audio-check.html`,
-`supply-chain/research-zoom-check.html`).
+`supply-chain/research-zoom-check.html`, `golf3d/turntable.html`).
 
 `404.html` is the one deliberate exception: it carries `noindex` but no
 `Disallow`, because GitHub Pages serves it for every missing URL and a crawler
@@ -194,7 +194,7 @@ modules, so `file://` gives CORS errors) and loads each suite in headless
 Chrome — the same `--virtual-time-budget` trick as the screenshot recipe above,
 so eighteen seconds of page timers return in about one. It reads the verdict
 out of each harness's `<div id="summary">` and exits non-zero if any suite is
-red. Currently eight suites, 4,199 assertions, about 20 seconds.
+red. Currently eight suites, 4,938 assertions, about 20 seconds.
 
 Two things about it are deliberate:
 
@@ -209,6 +209,18 @@ Two things about it are deliberate:
   into the same green tick.
 
 Pass a substring to narrow it: `node tools/run-tests.mjs golf3d`.
+
+**What the runner does not cover, and should not.** A project may also own a
+tool that produces a *picture* rather than a verdict, and the discovery rule
+above is what keeps the two apart: a harness is a `*tests.html` with a
+`#summary`, and anything that cannot answer green or red has no business
+being run by something that exits non-zero. `golf3d/turntable.html` is the one
+of those — it draws every hole in the game from eight fixed angles as a contact
+sheet per course, driven by `golf3d/tools/turntable.mjs`, and what it is for is
+the class of fault that is invisible to the simulation and obvious in a
+screenshot. Its machine-checkable half lives in `golf3d/js/audit.js` and *is*
+asserted, by `golf3d/tests.html`, in the run above. See golf3d/README.md →
+"The pictures, which neither suite can see".
 
 **`check-site.mjs`** enforces what "What crawlers see" and "Link previews"
 describe, so those sections stop being things a reader is trusted to remember.

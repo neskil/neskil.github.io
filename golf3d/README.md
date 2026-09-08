@@ -43,8 +43,9 @@ them.
 | `index.html` | Page shell: scoreboard, canvas, power/loft controls, banner, course picker, scorecard. |
 | `style.css` | Page chrome. The course itself is all WebGL. |
 | `js/config.js` | Every tuning constant. Nothing else holds a magic number. |
-| `js/courses.js` | The sixty holes, as data, plus the rail generator, the band layout the long-game courses are written in — rows that tilt and carry their level into the next one, and a cross-fall that puts a whole hole on the side of a hill — the dune fields the links is made of, the landforms the two parkland courses are shaped by, and the bag each hole is played out of. |
+| `js/courses.js` | The ninety holes, as data, plus the rail generator, the band layout the long-game courses are written in — rows that tilt and carry their level into the next one, and a cross-fall that puts a whole hole on the side of a hill — the dune fields the links is made of, the landforms the two parkland courses are shaped by, and the bag each hole is played out of. |
 | `js/physics.js` | The simulation. No three.js, no DOM, pure. |
+| `js/audit.js` | The [geometry audit](#the-pictures-which-neither-suite-can-see): the faults that are invisible to the ball and obvious in a screenshot. Pure — read by `tests.html`, by the inspector and by the turntable. |
 | `js/scoring.js` | Scorecard arithmetic and the save file. |
 | `js/swing.js` | The swing gate: what a shot past a full swing costs. No DOM, no three.js. |
 | `js/audio.js` | Synthesised sound effects, the weather's sound bed, the mute and the tab-out — no audio files to ship. |
@@ -66,6 +67,7 @@ them.
 | `vendor/three.min.js` | three.js r128, vendored. |
 | `tests.html` | Headless test harness — pure logic, no WebGL. Open it; green is green. |
 | `shader-tests.html` | The other half: compiles every shader for real against a live context. Green is green there too. |
+| `turntable.html` + `tools/turntable.mjs` | [The turntable](#the-pictures-which-neither-suite-can-see): every hole drawn from eight fixed angles, as one contact sheet per course, with the audit's findings printed under each row. |
 
 The three files above `weather.js` in that list are three of the four different
 jobs the renderer used to do in one file. Picking colours, drawing a texture,
@@ -3102,6 +3104,94 @@ WebGL, so it stays runnable anywhere; the source-level checks run regardless.
 
 Both suites report identically (`✓ N passed`, plus `window.DONE` / `FAILS` for
 a headless driver), so whatever runs one can run the other.
+
+### The pictures, which neither suite can see
+
+Between them the two suites can say a hole is built to the rules and that every
+shader on it compiles. Neither can say whether it *looks* built, and the faults
+that live in that gap are a particular kind: they are invisible to the ball, so
+no assertion about the simulation will ever find them, and they are the first
+thing anybody notices in a screenshot. Two pads that miss each other by a
+centimetre leave a hairline of daylight in the floor. A boulder seated off its
+own middle disappears into the hump it is standing on and becomes a wall nobody
+can see. A pond whose surface is a metre and a half above the quarry floor is
+drawn as a slab of water floating over the desert.
+
+Every one of those passed the whole of `tests.html`, on shipped holes.
+
+**`turntable.html`** is the eye's half. It draws every hole in the game with the
+game's own renderer from eight fixed angles and lays them out as one contact
+sheet per course — ninety holes in fifteen pictures. The angles are not
+decoration; each is there for something the others hide:
+
+| View | What only it shows |
+| --- | --- |
+| **tee** | The shot the player is actually asked to judge — the game's own opening seat, not a camera invented for the sheet. |
+| **plan** | Cracks, overlaps and slivers between pads. Anything wrong with the tiling of the floor is a line on a plan and nothing at all in perspective. |
+| **N / E / S / W at 22°** | Anything that only reads wrong from one side. Half the faults on this list were invisible from three of the four. |
+| **graze at 5°** | Geometry floating over the ground or sunk into it. Standing almost on the deck is what turns a two-centimetre gap under a rail into a visible strip of sky. |
+| **hero at 40°** | The picture the hole would be sold with, which is a fair question to ask of it. |
+
+```sh
+node golf3d/tools/turntable.mjs                        # all fifteen, ~6 minutes
+node golf3d/tools/turntable.mjs quarry --hole 4 --tile 640 --views graze,hero
+```
+
+The sheets are written outside the repo and are not committed — they are
+regenerated in a couple of minutes and a picture of a hole goes stale the
+moment the hole changes. `?course=`, `&hole=`, `&views=`, `&tile=` and
+`&weather=` all work on the page itself, which is the way to look at one hole
+while changing it.
+
+**`js/audit.js`** is the machine's half of the same job, and the two are meant
+to be read together — which is why the sheet prints the audit's findings for a
+hole directly under the row of pictures of it. It holds the rules that are
+*seen and measured*: a rule that cannot be seen belongs in `tests.html` with the
+rest of the physics, and one that can be seen but not measured is what the
+turntable is for. It reports
+
+- **`crack`** — two pads that all but meet. The ball cannot fall through a
+  four-centimetre gap, so it is not a hazard; it is a line of the surround
+  showing through the floor.
+- **`bare-step`** — two pads meeting at a step between 0.02 and 0.3. Under 0.02
+  they are level; at 0.3 `enclose` builds a rail and it reads as the terrace it
+  is. In between is a lip the ball trips over and nothing is drawn on. A
+  bunker's own `DIP` is exempt, because that lip is authored.
+- **`prop-sunk` / `prop-afloat` / `prop-adrift`** — scenery that is not where it
+  looks like it is. A tree and a rock are solid all the way up, so one the
+  ground has closed over is an obstacle the ball hits and the player cannot see.
+- **`water-over-land` / `water-hidden`** — a pond drawn over the grass beside
+  it, and a rectangle left under the floor that costs a shader and shows
+  nothing.
+- **`sliver-pad`**, **`twin-wall`**, **`stone-on-stone`** — a pad narrower than
+  the ball, the same box drawn twice, and two stones of an outcrop sharing most
+  of one footprint, which is one stone drawn twice with a seam flickering
+  through it.
+
+`tests.html` holds every hole on the card to **zero errors**, so a new hole
+cannot quietly ship one, and prints the warning count so a jump in it is visible
+on the way past. The audit is mutation-checked like the shader suite: each rule
+has a probe hole built to break exactly it, because an audit that cannot fail
+reads as coverage. And the [inspector](#the-inspector) runs the same file on the
+hole you are drawing, so the panel, the suite and the sheet cannot disagree —
+there is one copy of each rule.
+
+**What the first pass found**, over the fourteen courses on the card at the
+time:
+
+- Thirteen ponds on five courses standing proud of the ground around them, drawn
+  as blocks of water with four dark flanks. Fixed by giving a pond a rim of the
+  ground it is cut into (`render.addBank`), so it reads as a hole in the same
+  block of rock the greens are standing on. Its top is level with the water and
+  never above it, because a rim standing proud would be a wall the ball goes
+  straight through.
+- Sixteen stones piled on other stones, and two swallowed by the ground under
+  them. `crags` now rolls again rather than dropping a stone where one already
+  is, and `build` grows a prop rather than lifting it when the ground rises
+  across its own footprint — see [Landforms](#landforms).
+- Nothing else. The remaining findings were all authored on purpose: a bunker's
+  lip, a tabletop's kerb, and the rails `enclose` builds *inside* a riser, which
+  look buried because they are — that box is the collider for the step's face.
 
 ## Saving
 
