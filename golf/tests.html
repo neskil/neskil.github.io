@@ -510,6 +510,10 @@
            the eighteen come first, so their shots are the shots they have
            always been played with and adding a course cannot turn one of
            them red. */
+        function byId(id) {
+            return GOLF.COURSES.filter(function (c) { return c.id === id; })[0] || null;
+        }
+
         function everyHole(fn) {
             GOLF.COURSES.forEach(function (course) {
                 course.holes.forEach(function (h, i) { fn(h, i, course); });
@@ -527,13 +531,22 @@
             var ids = GOLF.COURSES.map(function (c) { return c.id; });
             assert('course ids are unique — they key the save file',
                 ids.every(function (id, i) { return ids.indexOf(id) === i; }));
-            // Pinned rather than derived: the hole count is what the stored
-            // round is validated against, so a change to it has to be a
-            // deliberate one made here as well as in courses.js.
-            assert('the old eighteen still has eighteen holes',
-                GOLF.COURSES[0].holes.length === 18, 'got ' + GOLF.COURSES[0].holes.length);
-            assert('the wild nine has nine', GOLF.COURSES[1].holes.length === 9,
-                'got ' + GOLF.COURSES[1].holes.length);
+            /* Pinned rather than derived: the hole count is what the stored
+               round is validated against, so a change to it has to be a
+               deliberate one made here as well as in courses.js. Pinned by
+               id rather than by rack position, because the order of the rack
+               is a matter of taste and the length of a card is not. */
+            var counts = { links: 18, short: 6, wild: 9, tide: 9 };
+            Object.keys(counts).forEach(function (id) {
+                var c = byId(id);
+                assert(id + ' is on the rack', !!c);
+                if (c) {
+                    assert(id + ' still has ' + counts[id] + ' holes', c.holes.length === counts[id],
+                        'got ' + c.holes.length);
+                }
+            });
+            assert('every course on the rack is pinned above',
+                GOLF.COURSES.length === Object.keys(counts).length, 'rack of ' + GOLF.COURSES.length);
             assert('GOLF.COURSE starts on the first course of the rack',
                 GOLF.COURSE === GOLF.COURSES[0].holes && GOLF.COURSE_ID === GOLF.COURSES[0].id);
         })();

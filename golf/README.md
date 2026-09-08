@@ -1,6 +1,7 @@
 # Pocket Links
 
-A 2D mini golf game with two courses on one field — an eighteen and a nine.
+A 2D mini golf game with four courses on one field — an eighteen, a six and
+two nines.
 Canvas, plain ES5-flavoured JavaScript, no build step and no dependencies —
 same as everything else here, open `index.html` and it runs.
 
@@ -11,7 +12,7 @@ same as everything else here, open `index.html` and it runs.
 | `index.html` | Page shell: scoreboard, canvas, banner, scorecard modal. |
 | `style.css` | Page chrome. The course itself is all canvas. |
 | `js/config.js` | Every tuning constant. Nothing else holds a magic number. |
-| `js/courses.js` | Both courses, as data. |
+| `js/courses.js` | Every course, as data. |
 | `js/physics.js` | The simulation. No DOM, no canvas, pure. |
 | `js/scoring.js` | Scorecard arithmetic and the save file. |
 | `js/audio.js` | Synthesised sound effects — no audio files to ship. |
@@ -22,7 +23,7 @@ same as everything else here, open `index.html` and it runs.
 | `editor/editor.css` | Sidebar chrome. The green in there is the game's renderer. |
 | `tests.html` | Headless test harness. Open it; green is green. |
 
-## The two courses
+## The four courses
 
 `GOLF.COURSES` is a rack of cards, each `{ id, name, blurb, holes }`, and
 `GOLF.COURSE` is whichever one is being played. Everything downstream — the
@@ -31,9 +32,29 @@ learns there was a choice; `GOLF.selectCourse(id)` is the one place that
 changes, and it answers `null` for an id that is not on the rack, which is
 the whole handling a stale stored preference needs.
 
+Only the *first* position on the rack is load-bearing. The card at the head
+of it keeps the bare save keys (see [Saving](#saving)), so moving something
+else to the front would quietly take over a record a player already has.
+Everything else about the order is taste: the eighteen, then the short card,
+then the two that assume you have played one of the others.
+
 - **The Old Eighteen** is the course this game has always been: one idea per
   hole on the front nine, the same vocabulary played straight at you on the
   back.
+- **The Short Six** is the card for the twenty minutes you actually have.
+  Par two or three all the way round, nothing hidden, the whole of every hole
+  visible from the tee — a wide gate, a bunker sat on the straight line, a
+  causeway with a rink in front of it, one slow bar to time, a gentle tilt,
+  and a close that puts three of those together. It is the one to hand
+  somebody who has never played the thing.
+- **The Tidewater Nine** puts water on all nine, which is the only hazard
+  that does not slow the ball or push it about — it takes the shot off you
+  and asks for it again. That makes it a course about weight rather than
+  about lines, and it is why the crossings are wide: ninety pixels at the
+  tightest and mostly a hundred and twenty, because a hole that punishes a
+  miss with a stroke cannot also demand a thread. The two slopes on it drain
+  into rough rather than into the lakes, for the same reason nothing else
+  does — a hazard with no shot in it is not a hazard, it is a tax.
 - **The Wild Nine** assumes you have played it. Nothing new is in the
   vocabulary — a room whose only door faces the far cushion, a lattice of
   posts with no straight line through it, two hills breaking opposite ways,
@@ -63,8 +84,8 @@ would: a random *choice*, not a random *round*.
 its own round in progress and its own record, under keys qualified by the
 course id — see [Saving](#saving) — so leaving one mid-round and coming back
 puts you on the tee of the hole you left, which is the same promise a refresh
-makes. Nine holes and eighteen are not comparable totals, which is the other
-half of why the save file is split: a nine-hole round would take the
+makes. Six holes, nine and eighteen are not comparable totals, which is the
+other half of why the save file is split: a six-hole round would take the
 eighteen-hole record the first time anyone played one.
 
 ## How a hole is built
@@ -347,7 +368,7 @@ and would beat any real eighteen-hole record the first time anyone tried a
 draft.
 
 `level-editor.html?runTests=1` runs the editor's own tests — the export/parse
-round trip over every shipped hole on both courses, the checks passing
+round trip over every shipped hole on every course, the checks passing
 everything that ships and catching three holes deliberately broken, and
 undo/redo. It is
 a real feature linked from the game, so unlike `tests.html` it stays
@@ -355,14 +376,15 @@ indexable; the self-test overlay only appears with the query string.
 
 ## Tests
 
-Open `tests.html`. 410 assertions covering geometry, the integrator, the four
-surfaces, the overswing, the course data on both courses, the scorecard, the
+Open `tests.html`. 591 assertions covering geometry, the integrator, the four
+surfaces, the overswing, the course data on every course, the scorecard, the
 per-course save keys and the resumable round, in about a second.
 
 Everything about the course data is checked for every course on the rack, not
 for whichever one `GOLF.COURSE` points at — a rule the second course is exempt
 from is a rule the second course will break. The hole counts themselves are
-pinned rather than derived (eighteen and nine), because the stored round is
+pinned rather than derived — by course id, not by rack position, since the
+order is taste and the length of a card is not — because the stored round is
 validated against them: changing one has to be a deliberate edit in two
 places.
 
@@ -409,10 +431,10 @@ rack keeps the bare key: the Old Eighteen goes on writing `miniGolf.round.v1`
 and `miniGolf.save.v1`, and the Wild Nine writes `miniGolf.round.v1.wild` and
 `miniGolf.save.v1.wild`. That is what leaves a record a player already has
 where they left it, and what lets the landing page go on reading
-`miniGolf.save.v1` without knowing there are two courses. Which one you were
+`miniGolf.save.v1` without knowing there is a rack at all. Which one you were
 last on is remembered separately, under `miniGolf.course.v1`; `?course=<id>`
-overrides it, and an id that is not on the rack is ignored rather than
-fatal. (The editor keeps its work in progress under
+overrides it, `?course=random` deals one, and an id that is on neither list
+is ignored rather than fatal. (The editor keeps its work in progress under
 `miniGolf.editor.v1` and hands a playtest over in session storage under
 `miniGolf.playtest.v1`; neither goes near either of them, and a playtest is
 locked out of both the record and the round in progress — a one-hole round of

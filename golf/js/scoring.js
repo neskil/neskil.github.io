@@ -8,9 +8,9 @@
 
     /* ── one save file per course ───────────────────────────────────────
 
-       Nine holes and eighteen are not comparable totals: a nine-hole round
-       would take the eighteen-hole record the first time anyone played one,
-       and a card written for one course cannot be resumed on the other. So
+       Six holes, nine and eighteen are not comparable totals: a six-hole
+       round would take the eighteen-hole record the first time anyone played
+       one, and a card written for one course cannot be resumed on another. So
        every key below is qualified by the course being played.
 
        The first course on the rack keeps the bare key it has always had,
