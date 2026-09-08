@@ -190,6 +190,30 @@
             water: 0x2d6a86,
             side: '#6b543a'
         },
+        /* And the mill, which is the opposite kind of place on purpose. The
+           other three crazy courses are lit for their machinery — the works
+           after dark, the parlour under its cabinet, the court at dusk with
+           everything throwing a long shadow — and this one is a bright
+           morning on a river, because the water is the hazard and water only
+           reads as water when there is a sky in it.
+
+           So: a high clean sun, meadow beyond the fence, and rails limewashed
+           rather than painted, which is what mill timber actually is and also
+           the only colour that stays legible against both the grass and the
+           race. The river is a shade greener than the sea on the other courses
+           — it is a leat off a hillside, not a lagoon. */
+        mill: {
+            sky: [0x5aa0d8, 0xdfeef2],
+            fog: 0xdfeef2,
+            sun: 0xfff4dd, sunPos: [8, 15, -6], ambient: 0xaed4e6, ambientI: 0.6,
+            grass: ['#59a94e', '#4d9a45'],
+            rail: 0xe8e2d2,
+            surroundY: -0.85, surround: 'floor', floor: '#3f6b35',
+            relief: 2.2,
+            ridge: { colour: '#4b6b46', cap: '#93ab7f', peak: 8, rough: 0.42 },
+            water: 0x2f86a8,
+            side: '#8a7a5e'
+        },
         /* Heathland, early and grey-blue. The point of the course is that the
            ground you want is narrow and the ground you get is everywhere else,
            and that only reads if the light is flat enough to show the mown
@@ -223,7 +247,8 @@
         },
         /* ── the adventure courses ──────────────────────────────────────
 
-           Two palettes for the two things a course made of machinery can be.
+           Three palettes for the three things a course made of machinery can
+           be.
 
            Icehouse Yard is lit like a cold clear morning and it is the one
            theme in the file where the *specular* is the subject: ice reads as
@@ -265,6 +290,38 @@
             surroundY: -2.4, surround: 'floor', floor: '#2c2039',
             water: 0x2b6f8f,
             side: '#5b4070'
+        },
+        /* The third of them, and the one where the ground itself is the
+           subject. Cinder Cone is played at dusk on the side of a live
+           mountain, so the light comes from two directions that do not agree:
+           a low sun going down behind the cone, and an ember glow off the
+           bottom of the sky that the fog carries all the way to the horizon.
+           That is why the fog is the hot colour rather than the sky's top —
+           distance here should look *warmer* than what is in front of you,
+           which is the one thing that says the haze is ash rather than water.
+
+           The ground is basalt, tinted dark and rolling a long way out, with a
+           ridge behind it lit on top rather than capped with snow. Turf grows
+           on volcanic soil and grows well, so the grass is the deepest green
+           on the card and it is the only bright thing in the picture besides
+           the machinery — which is mint, because amber marks on ember ground
+           are marks nobody can find, and finding them is the whole job of the
+           colour. No birds. */
+        volcano: {
+            sky: [0x1e0f26, 0x9a4b2e],
+            fog: 0x9a4b2e,
+            sun: 0xffb47a, sunPos: [-9, 7, 8], ambient: 0x7a4638, ambientI: 0.62,
+            grass: ['#4e8a4c', '#43793f'],
+            rail: 0xc9b6a4,
+            machine: 0x5ef2d0,
+            stars: 0.5,
+            cloudLum: 0.35,
+            birds: false,
+            surroundY: -2.6, surround: 'rock', ground: '#2f2830',
+            relief: 3.8,
+            ridge: { colour: '#3a2836', cap: '#c9744a', peak: 13, rough: 0.58 },
+            water: 0x1d5f6b,
+            side: '#4b332c'
         },
         works: {
             sky: [0x0d121d, 0x33405e],

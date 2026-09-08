@@ -1,12 +1,14 @@
 # Loft Links
 
-Twelve six-hole courses of 3D golf in four kinds. **Mini golf**: four courses
-of lanes, rails, ledges and one horseshoe. **Crazy golf**: three of blades,
+Fourteen six-hole courses of 3D golf in four kinds. **Mini golf**: four courses
+of lanes, rails, ledges and one horseshoe. **Crazy golf**: four of blades,
 gates, bumpers, angled banks and pendulums, where the shot is a matter of
-timing rather than of aim. **Adventure golf**: two where the floor itself is
-the obstacle — ice that will not let the ball stop, travelators that carry it
-off, launch pads that throw it in the air and pipes that put it somewhere else
-entirely. **The long game**: three full-size courses with no fence on any of
+timing rather than of aim — and on the last of them, of what a mistimed one
+costs, because every machine on The Millrace stands over water. **Adventure
+golf**: three where the floor itself is the obstacle — ice that will not let
+the ball stop, travelators that carry it off, launch pads that throw it in the
+air, pipes that put it somewhere else entirely, and a volcano where all of that
+is pointed downhill. **The long game**: three full-size courses with no fence on any of
 them, and the only three built out of the shape of their own ground — Ashdown
 Park, a parkland falling three units off a bluff and climbing back to a shelf,
 with a blind green in a dell between two hills and a lake the whole hole tilts
@@ -21,8 +23,8 @@ Two rules run through the whole card. **A course gets harder as you play it** �
 hole one introduces something, the middle develops it and the sixth asks for all
 of it at once — and the same climb runs across each group, so the four mini
 courses are in the order of how much they ask for and so are the crazy, the
-adventure and the long ones. **A hole is not the hole beside it**: seventy-two
-holes on one list is seventy-two chances to write the same corridor again, and
+adventure and the long ones. **A hole is not the hole beside it**: eighty-four
+holes on one list is eighty-four chances to write the same corridor again, and
 the way out is the *plan* rather than the furniture. See
 [The order the holes are in](#the-order-the-holes-are-in).
 
@@ -602,7 +604,7 @@ obviously correct.
 
 ## The courses
 
-Twelve, six holes each, filed under four groups — and the group is not a
+Fourteen, six holes each, filed under four groups — and the group is not a
 heading in the picker, it is a tab (see [The picker](#the-picker)). The four
 are not variations of one another: a mini golf hole is one swing and a putt, a
 crazy golf hole is a mechanism you have to time, an adventure hole is a floor
@@ -618,8 +620,10 @@ approach.
 | Windmill Works | crazy | `works` | Gates and blades, after dark. Timing. |
 | Pinball Parlour | crazy | `arcade` | A table, not a course: bumpers, a plunger chute and two banks set across the throat. The posts *are* the route. |
 | Clockwork Court | crazy | `clockwork` | Six mechanisms at six rates. Two bats that stop, a pendulum, three staggered cogs, a ratchet, and a finish with two lanes to pick between. |
+| The Millrace | crazy | `mill` | The same machines with the river underneath them. A mistimed shot is a stroke here rather than a bounce, so laying up is a real option for the first time on a timing course. |
 | Icehouse Yard | adventure | `icehouse` | Nothing stops. A putter runs eight and a half units on grass and thirty-two on ice. |
 | Helter Skelter | adventure | `fairground` | Launch pads, travelators and pipes. The floor decides; you only decide how hard. |
+| Cinder Cone | adventure | `volcano` | The same machinery pointed downhill. Belts that run back at you, vents that are the only way up, and two lava tubes — one of which comes out where you started. |
 | Ashdown Park | long | `parkland` | The long game, on a hillside: bluffs, a crest, a cross-fall into a lake, and two round greens. No fence — the park carries on past the stakes. |
 | Whinstone Links | long | `links` | No flat lies and no straight edges. The ground is the hazard, and on one hole it is a sandhill. |
 | Dunmore Heath | long | `heath` | The long game again, shaped rather than furnished: crests, hollows, a punchbowl, a whorl, one dry ravine and a hillside you climb. |
@@ -682,7 +686,7 @@ Which holes are which is not a matter of taste in the tests: the ones that must
 be flown carry `needsLoft: true` and are replayed by the bot with the lofted
 clubs taken away (see [Tests](#tests)).
 
-The three crazy courses each own one mechanism and the difference between them
+The four crazy courses each own one mechanism and the difference between them
 is what the mechanism is *for*. Windmill Works asks you to find the gap;
 Clockwork Court asks you to find the moment. Pinball Parlour asks for neither —
 the obstacles there are not between you and the cup, they *are* the route, which
@@ -695,6 +699,24 @@ round the outside, which is wider and twice as long and lands you in the pair of
 posts guarding the pin. **The Flippers** uses the same furniture the other way
 up: a V that funnels everything into a window a metre wide, with the two bats on
 the far side of it.
+
+The Millrace asks a fourth question, and it is not about the machine at all —
+it is about the price of getting it wrong. Every obstacle on the other three
+courses stands on a floor, so a mistimed shot is a bounce: you lose position and
+walk after the ball. Here the river runs through every hole, under the crossing
+or along the lane or round the outside of the bend, and a mistimed shot is a
+stroke and the same shot again. That one change is what makes laying up a real
+option on a timing course for the first time. **Two Planks** is the clearest
+statement of it: two crossings and one gate for both of them, covering the west
+one at one end of its travel and the east one at the other. A sine dwells at the
+ends and crosses the middle at speed, so the gate rests on one plank, hurries
+over the water, and rests on the other — the hole can never be shut, and the
+moment when both crossings are open is a moment rather than a state. **The Undershot** is the opposite — one plank, one wheel longer than
+the plank is wide, and no dry way round it at all; it shuts the crossing for
+only about a second and a half of each seven-second turn, and the wheel sweeps a
+ball off the plank as readily as it stops one — and **Full Flow** offers the
+dry way at last: a bank round the east side that is twice as long and lands you
+in sand, with both roads finishing at the same wheel in front of the pin.
 
 ### Walls you go through, and bats that stop
 
@@ -771,8 +793,8 @@ Because the order carries meaning, moving a hole is a change to the course and
 not a tidy-up. Nothing else depends on it — a hole's ground is seeded from its
 own *name* (`nameSeed`), so reordering a card cannot reshape a single hump.
 
-**A hole is not the hole beside it.** Seventy-two holes on one list is
-seventy-two chances to write the same corridor again, and the escape is the plan
+**A hole is not the hole beside it.** Eighty-four holes on one list is
+eighty-four chances to write the same corridor again, and the escape is the plan
 rather than the furniture. Before the pass that broke this up, forty-eight of
 the sixty holes then on the card were a rectangle running north with the tee at
 one end and the cup at the other, and the only thing that made one different
@@ -884,7 +906,7 @@ Three things about them were each wrong once and are worth writing down:
 
 #### Icehouse Yard
 
-One idea for six holes: **nothing stops.** Every hole is about weight and none
+The first of the three, and one idea for six holes: **nothing stops.** Every hole is about weight and none
 of them is about reach, which turns the interesting question into *where do I
 want the ball to run out of speed* — and the only honest answers are grass,
 sand, or somewhere it never arrives.
@@ -900,7 +922,7 @@ sand, or somewhere it never arrives.
 
 #### Helter Skelter
 
-The other half of the idea: the floor is as grippy as a green has always been
+The second of the three, and the other half of the idea: the floor is as grippy as a green has always been
 and has machinery in it instead. **The Springboard** is the introduction and it
 is deliberately blunt — a wall too tall to fly, and a bag with nothing in it
 that flies. **Crosstown** is the one that could not have been built before:
@@ -917,6 +939,33 @@ and it is deliberately *not* flagged `needsLoft`, which looks like an oversight
 and is not. The flag means "there is no route along the floor", and a launch
 pad is a route along the floor. The bot proved it: handed a bag with no loft in
 it at all, it holed the thing in one.
+
+#### Cinder Cone
+
+The third, and the one where all of that machinery is pointed the same way.
+Icehouse Yard takes the friction away and changes nothing else; Helter Skelter
+bolts machines to an ordinary floor; this one puts both on the side of a live
+mountain and lets the hill decide which direction everything runs in. **Every
+belt on the course runs back down the fall rather than across it**, every vent
+throws the ball up a step it could not have climbed, and the two tubes are the
+only things on the course that move a ball sideways at all.
+
+| # | Hole | Par | What it asks |
+| --- | --- | --- | --- |
+| 1 | The Ash Slide | 3 | Two and a half units of ash running back down at four. A full putter just gets over; four fifths of one is handed back to your feet, and a full driver crosses, hits the far rail and comes all the way home. |
+| 2 | Fumarole | 3 | The vent is the lift, and the shelf it throws you on to is open at both ends. Short and long cost the same thing: the lawn runs on underneath, so a miss is played again from the grass. |
+| 3 | Lava Tube | 3 | Eleven units of crater lake — more than anything in the bag carries — and two mouths in the ash in front of it. One comes out at the pin. One comes out where you started. |
+| 4 | The Scree | 4 | A shelf with the drop down one side of it and two bands of scree that push south *and* east at once. On Crosstown a belt across the hole costs you the line; here it costs you the ball. |
+| 5 | Blowhole | 3 | Three vents, none of them a lift. A launch pad is the one obstacle in the game that neither stops the ball nor turns it — it hands the ball back travelling exactly as it was, a second later and somewhere else. |
+| 6 | Caldera | 4 | The whole course in one hole: the vent to get up, the belt along the rim to be carried along, and the tube to get in. The crater has no way into it along the ground. |
+
+**Caldera is the hole the belt's own physics wrote.** A travelator has a speed
+of its own that a ball approaches from either side, so it does not matter how
+hard the shot on to the rim is hit: everything arrives at the mouth at about the
+same pace and comes out of the far end at that pace, which is a putt's worth
+across the crater floor. The machine spends the shot for you and the only thing
+you own is getting on to it — and the bot, handed the hole cold, holes it in one
+by rolling a putter into the vent and letting the mountain do the rest.
 
 ### Ashdown Park
 
@@ -2187,7 +2236,7 @@ is no frame at all.
 
 Hidden, and on purpose. Type **aide** anywhere on the course and a 🤖
 **Simulate** chip appears in the menu, for good — press it and `js/bot.js`, the
-same greedy player that proves in `tests.html` that all seventy-two holes are
+same greedy player that proves in `tests.html` that all eighty-four holes are
 solvable, takes the club and plays the hole out from wherever your ball is
 standing. Press it again, or <kbd>Esc</kbd>, to take the club back.
 
@@ -2918,15 +2967,15 @@ the four things that can move it says otherwise.
 
 ## Tests
 
-Open `tests.html`. ~1780 assertions covering the surfaces, the collision
+Open `tests.html`. ~2020 assertions covering the surfaces, the collision
 geometry, the cup, the integrator, the bag, the ground that does something, the
-walls you go through, all seventy-two holes of course data, the scorecard and
+walls you go through, all eighty-four holes of course data, the scorecard and
 the intro flyover's path.
 
 The one worth knowing about is the **bot** (`js/bot.js`, and the game plays it
 too — see [simulation mode](#the-caddie-simulation-mode)): a greedy player fans
 out candidate shots on every hole, keeps the one that finishes nearest the cup,
-and plays all seventy-two. If a hole is sealed off, unreachable, or has a cup buried where
+and plays all eighty-four. If a hole is sealed off, unreachable, or has a cup buried where
 nothing can settle, the bot never holes out and the suite goes red. It is
 deterministic, so a failure is reproducible rather than "sometimes red", it
 plays out of the same five clubs the player gets, its candidates include a wait
