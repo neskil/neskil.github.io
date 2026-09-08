@@ -375,6 +375,19 @@
         if (hole.fence && P.outOfBounds(hole, hole.tee.x, hole.tee.z)) {
             out.push('the tee is out of bounds');
         }
+
+        /* …and the geometry audit on top, because the two halves are one
+           question while a hole is being drawn. The rules above are the ones
+           the ball can find; `js/audit.js` holds the ones only a picture can —
+           a crack between two pads, a stone the ground has closed over, a pond
+           drawn above its own bank. Same file the suite holds the courses to
+           and the turntable captions its stills with, so there is one copy of
+           each rule and the panel cannot drift from the build. */
+        if (G3.audit) {
+            G3.audit.hole(hole).forEach(function (f) {
+                out.push(f.code + ': ' + f.msg);
+            });
+        }
         return out;
     }
 

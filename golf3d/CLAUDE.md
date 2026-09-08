@@ -66,6 +66,22 @@ headless driver to read.
 | `tests.html` | Physics, pads and surfaces, walls and gates, scoring, course geometry. ~2020 assertions, no three.js and **no WebGL** — that purity is the point, it is what keeps it fast and portable. It can tell you a hole is built wrong and can never tell you a shader is wrong. | nothing |
 | `shader-tests.html` | The half the above structurally cannot do: compiles every shader for real through the real `render.js`, both water paths, the runtime quality switch, the uniform boundary, one `frame()`, and every theme. | a GL context |
 
+And one tool that is not a suite. `turntable.html` draws all eighty-four holes
+from eight fixed angles — tee, plan, four compass bearings, a five-degree graze
+and a hero shot — as one contact sheet per course, with `js/audit.js`'s findings
+printed under each row:
+
+```sh
+node golf3d/tools/turntable.mjs                        # all fourteen, ~5 min
+node golf3d/tools/turntable.mjs quarry --hole 4 --tile 640 --views graze,hero
+```
+
+It is the screenshot pass, done in one go rather than a hole at a time, and it
+is how the geometry faults the suites structurally cannot see were found — see
+README → "The pictures, which neither suite can see". Run it after anything that
+touches `courses.js` or the way the renderer builds a hole. The sheets land
+outside the repo and are not committed.
+
 `shader-tests.html` skips its GPU half with a note (not a failure) when there
 is no WebGL, so it is safe to run anywhere; on this box it runs on SwiftShader:
 
@@ -147,7 +163,17 @@ none, because it reads as coverage.
   gorge off. See README → "The gorge".
 - **Trees and rocks with no `y` are seated on the ground by `build`.** Naming a
   height by hand is a second copy of the height field; the copies drift the
-  first time a row is retilted, and the tests measure it now.
+  first time a row is retilted, and the tests measure it now. Seating is off the
+  prop's **middle**, and the check is over its whole **footprint**: where the
+  ground rises across a stone it is the stone's *height* that gives, not its
+  base. Lifting it instead opens the same gap on the downhill side, which is a
+  boulder hovering over the grass — see `PROUD` in `courses.js`.
+- **A hole full of water has to be held up by something.** A water rectangle on
+  a course whose surround is not the sea has its surface wherever the hole says,
+  which on a quarry hole is most of two units above the quarry floor. Without a
+  rim that is a slab of water floating over the desert; `render.addBank` puts
+  one round it, level with the water and never above it. Above it would be a
+  wall the ball goes straight through, and the shoreline is a splash.
 - **`Math.hypot` does not belong in `physics.js`, and the reject in
   `collideWalls` must come before `wallBox`.** Both look like de-idiomatised
   code and both are load-bearing: hypot costs ~15x `sqrt` for an overflow guard

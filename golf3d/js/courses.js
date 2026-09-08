@@ -649,19 +649,49 @@
         return w;
     }
 
+    var CRAG_TRIES = 12;         // …rolls of the dice before a stone settles
+    /* How much of the smaller of two stones the larger is allowed to cover.
+       Overlapping is the whole trick — stones that merely touch read as a row
+       of cobbles rather than as an outcrop — but two that share half their
+       footprint are one stone drawn twice, with the seam between the two
+       surfaces flickering wherever they cross and the smaller sometimes
+       swallowed outright. Half is the line: below it an outcrop, above it a
+       duplicate. */
+    var CRAG_SHARE = 0.5;
+
     /* An outcrop: a scatter of them about a point, from a seed, so a hole gets
        a group of stones of different sizes rather than a row of identical
        ones. Deterministic like everything else in this file — a course that
        reshuffles itself is a course the tests cannot make a statement about. */
     function crags(cx, cz, spread, n, seed, opts) {
-        var rnd = seeded(seed), out = [], i, o = opts || {}, t;
+        var rnd = seeded(seed), out = [], i, o = opts || {}, t, x, z, s, h, k, ok;
+        var j, b, bs, ox, oz;
         for (i = 0; i < n; i++) {
-            t = rnd() * Math.PI * 2;
-            out.push(crag(cx + Math.cos(t) * spread * (0.3 + rnd() * 0.7),
-                          cz + Math.sin(t) * spread * (0.3 + rnd() * 0.7),
-                          { s: (o.s === undefined ? 1.15 : o.s) * (0.6 + rnd() * 0.8),
-                            h: (o.h === undefined ? 0.85 : o.h) * (0.6 + rnd() * 0.7),
-                            y: o.y }));
+            /* Rejection sampling, and the loop is the point. The scatter used
+               to take the first spot the dice gave it, and on a six-stone
+               outcrop that meant a pair landing within a few centimetres of
+               each other about once a hole — which the turntable's plan view
+               shows as one lumpy stone and the audit reports as
+               `stone-on-stone`. Rolling again costs nothing here (this runs
+               once, at load) and it is still the same outcrop on every load,
+               because the retries come out of the same seeded stream. */
+            for (k = 0; k < CRAG_TRIES; k++) {
+                t = rnd() * Math.PI * 2;
+                x = cx + Math.cos(t) * spread * (0.3 + rnd() * 0.7);
+                z = cz + Math.sin(t) * spread * (0.3 + rnd() * 0.7);
+                s = (o.s === undefined ? 1.15 : o.s) * (0.6 + rnd() * 0.8);
+                h = (o.h === undefined ? 0.85 : o.h) * (0.6 + rnd() * 0.7);
+                ok = true;
+                for (j = 0; j < out.length && ok; j++) {
+                    b = out[j]; bs = Math.min(b.w, b.d);
+                    ox = Math.min(x + s / 2, b.x + b.w) - Math.max(x - s / 2, b.x);
+                    oz = Math.min(z + s / 2, b.z + b.d) - Math.max(z - s / 2, b.z);
+                    if (ox <= 0 || oz <= 0) continue;
+                    if (Math.min(ox, oz) / Math.min(s, bs) >= CRAG_SHARE) ok = false;
+                }
+                if (ok) break;
+            }
+            out.push(crag(x, z, { s: s, h: h, y: o.y }));
         }
         return out;
     }
@@ -1352,6 +1382,11 @@
        CONFIG.HOLE_R, and asserted to fit within every cup's own pad. */
     var CUP_PATCH = 0.8;
 
+    /* How far a stone or a trunk has to stand above the highest ground under
+       its own footprint. A ball's radius, near enough: less than that and the
+       thing is a bump in the grass with a wall inside it. */
+    var PROUD = 0.16;
+
     /* Every circle on a hole that has to stand on flat ground: the footprint
        of anything with a motor in it, plus a little for the rim. */
     function machineKeeps(h, out) {
@@ -1437,7 +1472,36 @@
             var wl = h.walls[i];
             if (!wl.seat) continue;
             var seat = P.surfaceTop(h, wl.x + wl.w / 2, wl.z + wl.d / 2);
-            if (seat) wl.base = seat.y - wl.seat;
+            if (!seat) continue;
+            wl.base = seat.y - wl.seat;
+            /* …and never so deep that the ground closes over it.
+
+               The middle is the right place to seat a stone and the wrong
+               place to *check* one. On a hump or a hillside the ground under a
+               boulder's shoulders stands higher than the ground under its
+               navel, and a low stone seated off its middle can end up entirely
+               beneath a surface that rises across its own footprint — which is
+               a solid thing the ball hits and the player cannot see, the one
+               rule scenery is not allowed to break.
+
+               So the footprint gets measured, and what gives is the stone's
+               *height* rather than where it is standing. Lifting it instead
+               was the first answer and it is the wrong one: clearing the
+               uphill shoulder by raising the whole box opens the same gap
+               again on the downhill side, which is a boulder hovering over the
+               grass. Growing it keeps the base exactly where the ground put it
+               and pushes the top out through the high side, which is what a
+               half-buried stone on a hillside actually looks like. Flat ground
+               measures the same everywhere and nothing happens at all, which
+               is why the thirty-odd holes with trees on them are untouched. */
+            var hi = seat.y, sx, sz, g;
+            for (sx = 0; sx <= 4; sx++) {
+                for (sz = 0; sz <= 4; sz++) {
+                    g = P.surfaceTop(h, wl.x + wl.w * sx / 4, wl.z + wl.d * sz / 4);
+                    if (g && g.y > hi) hi = g.y;
+                }
+            }
+            if (wl.base + wl.h < hi + PROUD) wl.h = hi + PROUD - wl.base;
         }
 
         /* Is this the long game? A hole made of fairway and rough is one you
@@ -3996,7 +4060,7 @@
         commons: commons,
         sprung: sprung, belt: belt, pipe: pipe, pipes: pipes,
         aperture: aperture, flipper: flipper,
-        tree: tree, treeline: treeline,
+        tree: tree, treeline: treeline, crag: crag, crags: crags,
         hill: hill, ring: ring, ridge: ridge, whorl: whorl, ravine: ravine,
         shape: shape, dunes: dunes, ground: ground, circle: circle, keep: keep,
         shapeDisc: shapeDisc,

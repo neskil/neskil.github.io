@@ -25,6 +25,7 @@
     <script src="js/config.js"></script>
     <script src="js/physics.js"></script>
     <script src="js/courses.js"></script>
+    <script src="js/audit.js"></script>
     <script src="js/scoring.js"></script>
     <script src="js/swing.js"></script>
     <script src="js/minimap.js"></script>
@@ -2432,6 +2433,95 @@
             } finally {
                 C.SAVE_KEY = realKey;
             }
+        })();
+
+        /* ── the geometry audit ─────────────────────────────────────────── */
+
+        /* Everything above asks whether a hole is built to the rules. This asks
+           whether it would survive being *looked at* — the faults that are
+           invisible to the ball and obvious in a screenshot: a crack between
+           two pads, a boulder swallowed by the hump it is standing on, a pond
+           drawn above its own bank. `js/audit.js` holds the rules and
+           `turntable.html` prints them under the pictures of the same hole;
+           what happens here is that the courses are held to zero of them, so a
+           new hole cannot quietly ship one.
+
+           Errors fail the build. Warnings do not — they are the cases that are
+           usually deliberate (a bare step somebody meant, two stones of an
+           outcrop leaning together) and the count is printed so that a jump in
+           it is visible on the way past. */
+        section('The geometry audit');
+        (function () {
+            var found = G3.audit.all();
+            var errors = found.filter(function (f) { return f.sev === 'error'; });
+            var warnings = found.filter(function (f) { return f.sev === 'warn'; });
+
+            assert('every hole is clean of geometry errors', errors.length === 0,
+                errors.slice(0, 4).map(function (f) {
+                    return f.course + '/' + f.hole + ': ' + f.code + ' — ' + f.msg;
+                }).join(' | ') + (errors.length > 4 ? ' (+' + (errors.length - 4) + ' more)' : ''));
+            note(warnings.length + ' warnings across ' + ALL.length + ' holes' +
+                (warnings.length ? ': ' + warnings.map(function (f) { return f.code; })
+                    .filter(function (c, i, a) { return a.indexOf(c) === i; }).join(', ') : ''));
+
+            /* And the audit has to be able to fail, or the assertion above is
+               a green tick that means nothing. Each rule gets a hole built to
+               break exactly it — the same exercise shader-tests.html runs on
+               its own suite, and for the same reason. A test that cannot fail
+               reads as coverage and is worse than none. */
+            function bare(over) {
+                var h = { name: 'probe', pads: over.pads, walls: over.walls || [],
+                          water: over.water || [], tee: { x: 0.5, z: 0.5 }, cup: { x: 1, z: 1 } };
+                return G3.audit.hole(h);
+            }
+            function caught(findings, code) {
+                return findings.some(function (f) { return f.code === code; });
+            }
+
+            assert('a clean probe hole reports nothing',
+                bare({ pads: [A.pad(0, 0, 6, 6), A.pad(6, 0, 6, 6)] }).length === 0);
+            assert('…and a crack between two pads is caught',
+                caught(bare({ pads: [A.pad(0, 0, 6, 6), A.pad(6.04, 0, 6, 6)] }), 'crack'));
+            assert('…and a step too small for a rail',
+                caught(bare({ pads: [A.pad(0, 0, 6, 6), A.pad(6, 0, 6, 6, 0.1)] }), 'bare-step'));
+            assert('…and a pad narrower than the ball',
+                caught(bare({ pads: [A.pad(0, 0, 6, 6), A.pad(6, 0, 0.2, 6)] }), 'sliver-pad'));
+            assert('…and a rock the ground has closed over',
+                caught(bare({ pads: [A.pad(0, 0, 6, 6, 1)],
+                              walls: [A.crag(3, 3, { y: 0, h: 0.5 })] }), 'prop-sunk'));
+            assert('…and one standing in mid-air',
+                caught(bare({ pads: [A.pad(0, 0, 6, 6)],
+                              walls: [A.crag(3, 3, { y: 1.4 })] }), 'prop-afloat'));
+            assert('…and one standing on nothing at all',
+                caught(bare({ pads: [A.pad(0, 0, 6, 6)],
+                              walls: [A.crag(30, 30, { y: 0 })] }), 'prop-adrift'));
+            assert('…and water lying over the grass',
+                caught(bare({ pads: [A.pad(0, 0, 6, 6)],
+                              water: [A.rect(1, 1, 3, 3, 0.4)] }), 'water-over-land'));
+            assert('…and water with ground over all of it',
+                caught(bare({ pads: [A.pad(0, 0, 6, 6)],
+                              water: [A.rect(1, 1, 3, 3, -0.6)] }), 'water-hidden'));
+            assert('…and the same wall twice',
+                caught(bare({ pads: [A.pad(0, 0, 6, 6)],
+                              walls: [A.wall(2, 2, 1, 0.3, 0.6), A.wall(2, 2, 1, 0.3, 0.6)] }),
+                    'twin-wall'));
+            assert('…and one stone drawn on top of another',
+                caught(bare({ pads: [A.pad(0, 0, 6, 6)],
+                              walls: [A.crag(3, 3, { y: 0 }), A.crag(3.1, 3.05, { y: 0 })] }),
+                    'stone-on-stone'));
+
+            /* The outcrop scatter is the reason the last of those exists, so
+               it gets its own statement: `crags` rolls again rather than
+               dropping a stone where one already is, and it is still the same
+               outcrop every load. */
+            var seeded1 = A.crags(0, 0, 3, 6, 99, { y: 0 });
+            var seeded2 = A.crags(0, 0, 3, 6, 99, { y: 0 });
+            assert('an outcrop is the same outcrop on every load',
+                seeded1.every(function (c, i) {
+                    return approx(c.x, seeded2[i].x, 1e-12) && approx(c.z, seeded2[i].z, 1e-12);
+                }));
+            assert('and no two of its stones are in the same place',
+                !caught(bare({ pads: [A.pad(-9, -9, 18, 18)], walls: seeded1 }), 'stone-on-stone'));
         })();
 
         /* ── the plans ─────────────────────────────────────────────────── */
