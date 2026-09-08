@@ -4248,6 +4248,130 @@
         return G3.COURSES[0].id;
     };
 
+    /* ── shuffle: the course picked for you ──────────────────────────────
+
+       The list is fifteen courses long and most players walk it in the order
+       it is written, which is the order it was *built* in — Seaside Green
+       first because it was the first one that existed. Shuffle is the other
+       way through it: finish a round and the next course is drawn rather than
+       chosen, and the reveal is half of it.
+
+       The draw is a pure function of a mode, where you are standing and what
+       the save file says, with the random source handed in — so the tests can
+       hold the dice and this file never has to guess what a fair coin looks
+       like. Everything that reads a DOM or a localStorage lives in game.js.
+
+       Four modes, because "random" on its own answers the wrong question after
+       the first few rounds. Who has just finished Windmill Works wants either
+       more of the same or deliberately not-the-same, and who has played eleven
+       of the fifteen wants one of the other four. */
+    G3.SHUFFLE_MODES = [
+        {
+            /* The mark is a scatter rather than a die: the button beside
+               these already carries the die, and U+2684 is missing from the
+               page's own font — so a die here is a tofu box on the one chip
+               that is selected by default. */
+            id: 'any', name: 'Anything', icon: '\u2733',
+            blurb: 'Any course but the one you are on.'
+        },
+        {
+            id: 'kind', name: 'Same kind', icon: '\u2261',
+            blurb: 'Stays with the kind you are looking at.'
+        },
+        {
+            id: 'fresh', name: 'New to you', icon: '\u2726',
+            blurb: 'Only what you have never finished.'
+        },
+        {
+            id: 'record', name: 'Beat a best', icon: '\u2605',
+            blurb: 'Only courses you already hold a record on.'
+        }
+    ];
+
+    /* Rounds finished on a course, out of a save file that may be missing,
+       empty, or from a version that had never heard of this course. */
+    function roundsOn(save, id) {
+        var rec = save && save.courses ? save.courses[id] : null;
+        return rec && typeof rec.rounds === 'number' ? rec.rounds : 0;
+    }
+
+    /* What a mode would actually draw from, and whether it had to give ground
+       to get there.
+
+       `opts`: `mode`, `from` (the course you are on, never drawn), `group`
+       (which kind `kind` means — the open tab in the picker, not necessarily
+       the group of `from`), and `save`.
+
+       **A mode never comes back empty.** "New to you" stops meaning anything
+       the moment you have played all fifteen, and "beat a best" means nothing
+       before the first round is finished; a picker whose button does nothing
+       on press is worse than one that quietly widens its net. So each mode has
+       a written-down fallback and says when it took it, and `eased` is what
+       lets the button say the net has been widened instead of quietly lying
+       about what it is drawing from. */
+    G3.shuffleDraw = function (opts) {
+        opts = opts || {};
+        var save = opts.save || null;
+        var from = opts.from || null;
+        var mode = 'any', i;
+        for (i = 0; i < G3.SHUFFLE_MODES.length; i++) {
+            if (G3.SHUFFLE_MODES[i].id === opts.mode) mode = opts.mode;
+        }
+
+        /* Never the course you are standing on: "surprise me" that hands you
+           back the hole you are looking at is the one result nobody wants.
+           Filtered first, so every mode below inherits it. */
+        var pool = G3.COURSES.filter(function (c) { return c.id !== from; });
+        var list = pool, eased = false;
+
+        if (mode === 'kind') {
+            var group = opts.group ||
+                (from && G3.courseById(from) ? G3.courseById(from).group : null);
+            list = pool.filter(function (c) { return c.group === group; });
+            if (!list.length) { list = pool; eased = true; }
+        } else if (mode === 'fresh') {
+            list = pool.filter(function (c) { return roundsOn(save, c.id) === 0; });
+            if (!list.length) {
+                /* Played everything: fall back to the ones played least rather
+                   than to anything at all. It is the same intent — go where you
+                   have been least — and it keeps working for the rest of the
+                   save file's life. */
+                var least = Infinity;
+                pool.forEach(function (c) { least = Math.min(least, roundsOn(save, c.id)); });
+                list = pool.filter(function (c) { return roundsOn(save, c.id) === least; });
+                eased = true;
+            }
+        } else if (mode === 'record') {
+            list = pool.filter(function (c) { return roundsOn(save, c.id) > 0; });
+            if (!list.length) { list = pool; eased = true; }
+        }
+
+        // One course on the list and you are on it. Cannot happen today; it is
+        // one line, and the alternative is a draw that returns nothing.
+        if (!list.length) { list = G3.COURSES; eased = true; }
+
+        return { mode: mode, courses: list, eased: eased };
+    };
+
+    /* One course out of that draw. `rng` is anything that returns 0 ≤ n < 1;
+       it defaults to Math.random and is clamped rather than trusted, because a
+       source that returns exactly 1 (or nothing at all) should cost you a
+       slightly unfair draw, not an undefined course id. */
+    G3.randomCourseId = function (opts) {
+        var draw = G3.shuffleDraw(opts);
+        var rng = (opts && opts.rng) || Math.random;
+        var n = rng();
+        var i = Math.floor((typeof n === 'number' && n >= 0 && n < 1 ? n : 0) * draw.courses.length);
+        return draw.courses[Math.max(0, Math.min(draw.courses.length - 1, i))].id;
+    };
+
+    G3.shuffleModeById = function (id) {
+        for (var i = 0; i < G3.SHUFFLE_MODES.length; i++) {
+            if (G3.SHUFFLE_MODES[i].id === id) return G3.SHUFFLE_MODES[i];
+        }
+        return G3.SHUFFLE_MODES[0];
+    };
+
     /* The bag a hole is played out of.
 
        Most holes are played out of the whole bag and say nothing. A hole that

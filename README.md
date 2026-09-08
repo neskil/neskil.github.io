@@ -194,7 +194,7 @@ modules, so `file://` gives CORS errors) and loads each suite in headless
 Chrome — the same `--virtual-time-budget` trick as the screenshot recipe above,
 so eighteen seconds of page timers return in about one. It reads the verdict
 out of each harness's `<div id="summary">` and exits non-zero if any suite is
-red. Currently eight suites, 4,938 assertions, about 20 seconds.
+red. Currently eight suites, 4,957 assertions, about 20 seconds.
 
 Two things about it are deliberate:
 
