@@ -30,6 +30,61 @@
         toast._t = setTimeout(function () { el.className = 'toast'; }, 2200);
     }
 
+    /* ── which card is being played ──────────────────────────────────────
+
+       Chosen once, on boot, and nowhere else: everything downstream goes on
+       reading GOLF.COURSE and never learns there was a choice. A playtest
+       has already replaced GOLF.COURSE with the single hole the editor
+       handed over, so it opts out of all of this — the picker included,
+       which would otherwise swap the course out from under a draft. */
+
+    function bootCourse() {
+        if (GOLF.PLAYTEST) return;
+        var wanted = (/[?&]course=([\w-]+)/.exec(window.location.search) || [])[1];
+        if (!wanted) {
+            try { wanted = localStorage.getItem(C.COURSE_KEY); } catch (e) { /* storage off */ }
+        }
+        // selectCourse answers null for an id that is not on the rack, which
+        // is the whole handling it needs: stay on the default.
+        if (wanted) GOLF.selectCourse(wanted);
+    }
+
+    function currentCourse() {
+        for (var i = 0; i < GOLF.COURSES.length; i++) {
+            if (GOLF.COURSES[i].id === GOLF.COURSE_ID) return GOLF.COURSES[i];
+        }
+        return null;
+    }
+
+    function syncCourse() {
+        var sel = $('course-select');
+        if (sel) sel.value = GOLF.COURSE_ID;
+        var course = currentCourse();
+        var tagline = document.querySelector('.tagline');
+        if (tagline && course) tagline.textContent = course.name + ' — ' + course.blurb;
+    }
+
+    function buildCoursePicker() {
+        var sel = $('course-select');
+        if (!sel) return;
+        if (GOLF.PLAYTEST) { sel.hidden = true; return; }
+
+        sel.innerHTML = GOLF.COURSES.map(function (c) {
+            return '<option value="' + c.id + '">' + c.name + ' · ' + c.holes.length + '</option>';
+        }).join('');
+
+        /* Switching is not destructive and does not ask. The card for the
+           course you are leaving was written when you holed out on it, and
+           each course resumes from its own key, so coming back puts you on
+           the tee of the hole you left — the same promise a refresh makes. */
+        sel.addEventListener('change', function () {
+            if (!GOLF.selectCourse(sel.value)) return;
+            try { localStorage.setItem(C.COURSE_KEY, GOLF.COURSE_ID); } catch (e) { /* storage off */ }
+            newRound(true);
+            syncCourse();
+        });
+    }
+
     /* ── round state ────────────────────────────────────────────────────── */
 
     /* A playtest is the editor handing over a single hole. It is not a round:
@@ -540,7 +595,10 @@
         ctx = canvas.getContext('2d');
 
         markSafeZone();
+        bootCourse();
+        buildCoursePicker();
         newRound(true);
+        if (!GOLF.PLAYTEST) syncCourse();
         bindInput();
         setMuted(A.isMuted());
 

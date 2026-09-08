@@ -1440,8 +1440,13 @@
     $('btn-load').addEventListener('click', function () {
         var v = $('load-select').value;
         if (v === '') return;
-        var src = GOLF.COURSE[+v];
-        loadHole(src, 'hole ' + (+v + 1));
+        // "courseId:index" rather than a bare index: the rack holds more than
+        // one course now, and an index alone stopped naming a hole.
+        var at = v.split(':');
+        var course = GOLF.COURSES.filter(function (c) { return c.id === at[0]; })[0];
+        if (!course) return;
+        var src = course.holes[+at[1]];
+        loadHole(src, course.id + ' hole ' + (+at[1] + 1));
         fitView();
         toast('Loaded “' + src.name + '”');
     });
@@ -1486,7 +1491,7 @@
     });
 
     $('btn-copy-ai').addEventListener('click', function () {
-        var prompt = 'I am building a hole for Pocket Links, an eighteen-hole 2D mini golf game. ' +
+        var prompt = 'I am building a hole for Pocket Links, a 2D mini golf game. ' +
             'A hole is pure data: axis-aligned rectangles, round posts and two points, on a fixed ' +
             C.WORLD_W + '×' + C.WORLD_H + ' field where y grows downward.\n\n' +
             '```javascript\n' + buildOut() + '\n```\n\n' +
@@ -1614,11 +1619,16 @@
     /* ── boot ───────────────────────────────────────────────────────────── */
 
     function boot() {
-        GOLF.COURSE.forEach(function (h, i) {
-            var opt = document.createElement('option');
-            opt.value = i;
-            opt.textContent = (i + 1) + '. ' + h.name + ' (par ' + h.par + ')';
-            $('load-select').appendChild(opt);
+        GOLF.COURSES.forEach(function (course) {
+            var group = document.createElement('optgroup');
+            group.label = course.name;
+            course.holes.forEach(function (h, i) {
+                var opt = document.createElement('option');
+                opt.value = course.id + ':' + i;
+                opt.textContent = (i + 1) + '. ' + h.name + ' (par ' + h.par + ')';
+                group.appendChild(opt);
+            });
+            $('load-select').appendChild(group);
         });
 
         var saved = restoreSaved();
@@ -1655,14 +1665,20 @@
             else { fail++; out.push('<div class="t-fail">✕ ' + name + (why ? ' — ' + why : '') + '</div>'); }
         }
 
-        GOLF.COURSE.forEach(function (h, i) {
-            var round = parseHole(buildOut(normalize(h)));
-            var a = JSON.stringify(normalize(h)), b = JSON.stringify(round);
-            check('hole ' + (i + 1) + ' (' + h.name + ') survives an export/parse round trip', a === b,
+        var everyShipped = GOLF.COURSES.reduce(function (all, c) {
+            return all.concat(c.holes.map(function (h, i) {
+                return { hole: h, tag: c.id + ' hole ' + (i + 1) + ' (' + h.name + ')' };
+            }));
+        }, []);
+
+        everyShipped.forEach(function (entry) {
+            var round = parseHole(buildOut(normalize(entry.hole)));
+            var a = JSON.stringify(normalize(entry.hole)), b = JSON.stringify(round);
+            check(entry.tag + ' survives an export/parse round trip', a === b,
                 'differs after the round trip');
         });
 
-        var shipped = GOLF.COURSE.map(function (h) { return runChecks(normalize(h)); });
+        var shipped = everyShipped.map(function (e) { return runChecks(normalize(e.hole)); });
         var broken = shipped.filter(function (rep) {
             return rep.some(function (c) { return c.level === 'fail'; });
         });

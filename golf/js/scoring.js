@@ -6,6 +6,22 @@
 
     var C = GOLF.CONFIG;
 
+    /* ── one save file per course ───────────────────────────────────────
+
+       Nine holes and eighteen are not comparable totals: a nine-hole round
+       would take the eighteen-hole record the first time anyone played one,
+       and a card written for one course cannot be resumed on the other. So
+       every key below is qualified by the course being played.
+
+       The first course on the rack keeps the bare key it has always had,
+       which is what leaves the record a player already has where they left
+       it — and what keeps the landing page reading `miniGolf.save.v1` for
+       its stat chip without knowing any of this. */
+    function key(base) {
+        var first = GOLF.COURSES && GOLF.COURSES[0].id;
+        return (!GOLF.COURSE_ID || GOLF.COURSE_ID === first) ? base : base + '.' + GOLF.COURSE_ID;
+    }
+
     /* Golf names the first few scores and gives up after that, which is about
        right: nobody has a word for eight over. */
     function term(strokes, par) {
@@ -46,7 +62,7 @@
 
     function load() {
         try {
-            var raw = localStorage.getItem(C.SAVE_KEY);
+            var raw = localStorage.getItem(key(C.SAVE_KEY));
             if (!raw) return emptySave();
             var d = JSON.parse(raw);
             var s = emptySave();
@@ -63,7 +79,7 @@
 
     function save(data) {
         try {
-            localStorage.setItem(C.SAVE_KEY, JSON.stringify(data));
+            localStorage.setItem(key(C.SAVE_KEY), JSON.stringify(data));
         } catch (e) { /* private mode, quota, whatever — not worth a crash */ }
         return data;
     }
@@ -83,7 +99,7 @@
 
     function saveRound(holeIndex, scores, course) {
         try {
-            localStorage.setItem(C.ROUND_KEY, JSON.stringify({
+            localStorage.setItem(key(C.ROUND_KEY), JSON.stringify({
                 holes: course.length,
                 holeIndex: holeIndex,
                 scores: Array.prototype.slice.call(scores, 0, course.length)
@@ -97,7 +113,7 @@
        index off the end, and a round that had not actually started. */
     function loadRound(course) {
         try {
-            var raw = localStorage.getItem(C.ROUND_KEY);
+            var raw = localStorage.getItem(key(C.ROUND_KEY));
             if (!raw) return null;
             var d = JSON.parse(raw);
             if (!d || !Array.isArray(d.scores) || d.holes !== course.length) return null;
@@ -115,7 +131,7 @@
     }
 
     function clearRound() {
-        try { localStorage.removeItem(C.ROUND_KEY); } catch (e) { /* ignore */ }
+        try { localStorage.removeItem(key(C.ROUND_KEY)); } catch (e) { /* ignore */ }
     }
 
     /* Fold a finished round into the save. Returns the new save plus whether
@@ -140,6 +156,7 @@
     }
 
     GOLF.scoring = {
+        key: key,
         term: term,
         formatVsPar: formatVsPar,
         totals: totals,

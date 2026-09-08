@@ -119,6 +119,24 @@ body::before {
 .chip:hover { background: var(--accent-soft); border-color: rgba(134, 239, 172, 0.4); }
 .chip:active { transform: translateY(1px); }
 
+/* The course picker is a <select> wearing the chip. A native menu is the
+   right control for two named things — it says how many there are, works
+   with a thumb and a keyboard, and needs no popup of our own — but it
+   arrives with a platform background and a light-mode option list, so the
+   appearance is reset and the arrow drawn back on by hand. */
+select.chip {
+    appearance: none;
+    -webkit-appearance: none;
+    padding-right: 1.7rem;
+    background-image: linear-gradient(45deg, transparent 50%, var(--ink-dim) 50%),
+                      linear-gradient(135deg, var(--ink-dim) 50%, transparent 50%);
+    background-position: right 0.85rem center, right 0.6rem center;
+    background-size: 5px 5px, 5px 5px;
+    background-repeat: no-repeat;
+}
+
+select.chip option { color: var(--ink); background: #10251b; }
+
 /* ── scoreboard ─────────────────────────────────────────────────────────── */
 
 .scoreboard {

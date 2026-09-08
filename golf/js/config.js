@@ -7,7 +7,7 @@
    and on a desktop and none of the tuning below is resolution dependent. */
 window.GOLF = window.GOLF || {};
 
-GOLF.VERSION = '1.3.0';
+GOLF.VERSION = '1.4.0';
 
 GOLF.CONFIG = {
     WORLD_W: 960,
@@ -103,5 +103,9 @@ GOLF.CONFIG = {
     WATER_PENALTY: 1,
 
     SAVE_KEY: 'miniGolf.save.v1',
-    ROUND_KEY: 'miniGolf.round.v1'
+    ROUND_KEY: 'miniGolf.round.v1',
+    /* Which of the two cards you were last playing. Only the choice is kept
+       here — the round and the record for each course live under keys of
+       their own, qualified by the course id. See scoring.js. */
+    COURSE_KEY: 'miniGolf.course.v1'
 };
