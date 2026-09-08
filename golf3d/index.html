@@ -32,7 +32,7 @@
 
         gtag('config', 'G-9GP823TGLB');
     </script>
-    <link rel="stylesheet" href="style.css?v=1.34.0">
+    <link rel="stylesheet" href="style.css?v=1.35.0">
 <script type="application/ld+json">
     {
         "@context": "https://schema.org",
@@ -518,6 +518,31 @@
                  aria-label="Kind of course"></div>
             <p class="menu-tab-blurb" id="menu-tab-blurb"></p>
             <div id="menu-list" class="course-list" role="tabpanel"></div>
+            <!-- Shuffle: the other way through fourteen courses, for when
+                 the list has stopped being a choice and started being a menu
+                 you scroll past. The chips say how the draw is made and the
+                 button makes it; the switch is what turns it into a mode, so
+                 the end of a round offers a draw rather than the next course
+                 down the list. The draw itself is courses.js → shuffleDraw. -->
+            <div class="shuffle" id="shuffle">
+                <div class="sh-row">
+                    <button type="button" class="sh-go" id="shuffle-go">
+                        <span class="sh-die" aria-hidden="true">🎲</span>
+                        <span class="sh-go-text">
+                            <b>Surprise me</b>
+                            <span class="sh-sub" id="shuffle-sub"></span>
+                        </span>
+                    </button>
+                    <button type="button" class="sh-keep" id="shuffle-keep"
+                            role="switch" aria-checked="false"
+                            title="Draw the next course at the end of every round">
+                        <span class="sh-mark" aria-hidden="true"></span>
+                        <span class="sh-keep-text">Every round</span>
+                    </button>
+                </div>
+                <div class="sh-modes" id="shuffle-modes" role="group"
+                     aria-label="How the course is drawn"></div>
+            </div>
             <div class="modal-actions">
                 <button type="button" id="menu-close">Keep playing</button>
             </div>
@@ -574,25 +599,25 @@
 
     <!-- Load order is dependency order: config, then the pure logic, then the
          things that touch the screen. game.js boots itself on DOMContentLoaded. -->
-    <script src="js/config.js?v=1.34.0"></script>
-    <script src="js/themes.js?v=1.34.0"></script>
-    <script src="js/physics.js?v=1.34.0"></script>
-    <script src="js/courses.js?v=1.34.0"></script>
-    <script src="js/custom.js?v=1.34.0"></script>
-    <script src="js/scoring.js?v=1.34.0"></script>
-    <script src="js/swing.js?v=1.34.0"></script>
-    <script src="js/audio.js?v=1.34.0"></script>
-    <script src="js/music.js?v=1.34.0"></script>
-    <script src="js/bag.js?v=1.34.0"></script>
-    <script src="js/textures.js?v=1.34.0"></script>
-    <script src="js/shaders.js?v=1.34.0"></script>
-    <script src="js/postfx.js?v=1.34.0"></script>
-    <script src="js/weather.js?v=1.34.0"></script>
-    <script src="js/flyover.js?v=1.34.0"></script>
-    <script src="js/bot.js?v=1.34.0"></script>
-    <script src="js/render.js?v=1.34.0"></script>
-    <script src="js/minimap.js?v=1.34.0"></script>
-    <script src="js/debug.js?v=1.34.0"></script>
-    <script src="js/game.js?v=1.34.0"></script>
+    <script src="js/config.js?v=1.35.0"></script>
+    <script src="js/themes.js?v=1.35.0"></script>
+    <script src="js/physics.js?v=1.35.0"></script>
+    <script src="js/courses.js?v=1.35.0"></script>
+    <script src="js/custom.js?v=1.35.0"></script>
+    <script src="js/scoring.js?v=1.35.0"></script>
+    <script src="js/swing.js?v=1.35.0"></script>
+    <script src="js/audio.js?v=1.35.0"></script>
+    <script src="js/music.js?v=1.35.0"></script>
+    <script src="js/bag.js?v=1.35.0"></script>
+    <script src="js/textures.js?v=1.35.0"></script>
+    <script src="js/shaders.js?v=1.35.0"></script>
+    <script src="js/postfx.js?v=1.35.0"></script>
+    <script src="js/weather.js?v=1.35.0"></script>
+    <script src="js/flyover.js?v=1.35.0"></script>
+    <script src="js/bot.js?v=1.35.0"></script>
+    <script src="js/render.js?v=1.35.0"></script>
+    <script src="js/minimap.js?v=1.35.0"></script>
+    <script src="js/debug.js?v=1.35.0"></script>
+    <script src="js/game.js?v=1.35.0"></script>
 </body>
 </html>

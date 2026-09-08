@@ -1881,6 +1881,193 @@ kbd {
     pointer-events: auto;
 }
 
+/* ── shuffle ────────────────────────────────────────────────────────────── */
+
+/* Under the list rather than over it: the list is still the way most rounds
+   are chosen, and a die at the top of a picker reads as "we chose for you
+   already". It sits on the tab's colour like everything else in here, so
+   drawing inside one kind looks like part of that kind.
+
+   And stuck to the bottom of the scroll, because "under the list" and "off
+   the bottom of it" are the same place otherwise: four courses with their
+   plans out is two screens of scrolling on a laptop, and a block nobody
+   scrolls to is a feature nobody has. Sticky wants an opaque backing — the
+   cards pass underneath it — which is the one reason this is not the same
+   translucent white the cards are. */
+.shuffle {
+    position: sticky;
+    bottom: 0;
+    z-index: 1;
+    margin-top: 0.7rem;
+    padding: 0.6rem;
+    border: 1px solid var(--panel-border);
+    border-radius: 14px;
+    background: rgba(12, 27, 42, 0.92);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+}
+
+.sh-row { display: flex; gap: 0.5rem; align-items: stretch; }
+
+.sh-go {
+    flex: 1 1 auto;
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    min-width: 0;
+    font: inherit;
+    text-align: left;
+    color: var(--ink);
+    padding: 0.5rem 0.7rem;
+    border-radius: 11px;
+    border: 1px solid color-mix(in srgb, var(--cg-tint) 45%, transparent);
+    background: color-mix(in srgb, var(--cg-tint) 12%, transparent);
+    cursor: pointer;
+    transition: background 0.18s, border-color 0.18s;
+}
+
+.sh-go:hover { background: color-mix(in srgb, var(--cg-tint) 22%, transparent); }
+.sh-go:active { transform: translateY(1px); }
+.sh-go:focus-visible { outline: 2px solid var(--cg-tint); outline-offset: 2px; }
+
+/* The one thing on the block that is allowed to move, and only on a press:
+   the draw is the moment, and it lands under the pointer rather than on the
+   course behind the modal, which is still showing the hole you were on. */
+.sh-die { font-size: 1.4rem; line-height: 1; }
+.sh-go:active .sh-die { animation: sh-roll 0.4s ease; }
+
+@keyframes sh-roll {
+    from { transform: rotate(0deg) scale(1); }
+    50%  { transform: rotate(180deg) scale(1.18); }
+    to   { transform: rotate(360deg) scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .sh-go:active .sh-die { animation: none; }
+}
+
+.sh-go-text { display: grid; gap: 0.1rem; min-width: 0; }
+.sh-go-text b { font-size: 0.9rem; }
+
+/* Wraps rather than truncates: the line it has to be able to say in full is
+   the one where a mode has run out and the draw has widened, and half of
+   "you have finished a round on all of them" is worse than two lines. */
+.sh-sub {
+    font-size: 0.72rem;
+    font-weight: 300;
+    line-height: 1.35;
+    color: var(--ink-dim);
+}
+
+/* A switch, not a second way to draw: it says what happens at the *end* of
+   the next round. */
+.sh-keep {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font: inherit;
+    font-size: 0.75rem;
+    color: var(--ink-dim);
+    padding: 0.5rem 0.7rem;
+    border-radius: 11px;
+    border: 1px solid var(--panel-border);
+    background: rgba(255, 255, 255, 0.04);
+    cursor: pointer;
+    transition: background 0.18s, border-color 0.18s, color 0.18s;
+}
+
+.sh-keep:hover { color: var(--ink); }
+.sh-keep:focus-visible { outline: 2px solid var(--cg-tint); outline-offset: 2px; }
+
+.sh-mark {
+    width: 26px;
+    height: 15px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.12);
+    position: relative;
+    transition: background 0.18s;
+}
+
+.sh-mark::after {
+    content: '';
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 11px;
+    height: 11px;
+    border-radius: 999px;
+    background: var(--ink-dim);
+    transition: transform 0.18s, background 0.18s;
+}
+
+.sh-keep[aria-checked="true"] {
+    color: var(--ink);
+    border-color: color-mix(in srgb, var(--cg-tint) 55%, transparent);
+}
+
+.sh-keep[aria-checked="true"] .sh-mark { background: color-mix(in srgb, var(--cg-tint) 45%, transparent); }
+.sh-keep[aria-checked="true"] .sh-mark::after { transform: translateX(11px); background: var(--cg-tint); }
+
+.sh-modes {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.3rem;
+    margin-top: 0.5rem;
+}
+
+.sh-mode {
+    flex: 1 1 6.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.3rem;
+    min-width: 0;
+    font: inherit;
+    font-size: 0.72rem;
+    color: var(--ink-dim);
+    padding: 0.35rem 0.4rem;
+    border-radius: 9px;
+    border: 1px solid var(--panel-border);
+    background: rgba(255, 255, 255, 0.03);
+    cursor: pointer;
+    transition: background 0.16s, border-color 0.16s, color 0.16s;
+}
+
+.sh-mode:hover { color: var(--ink); }
+.sh-mode:focus-visible { outline: 2px solid var(--cg-tint); outline-offset: 1px; }
+
+.sh-mode.on {
+    color: var(--ink);
+    border-color: color-mix(in srgb, var(--cg-tint) 60%, transparent);
+    background: color-mix(in srgb, var(--cg-tint) 15%, transparent);
+}
+
+.sh-mode-icon { color: var(--cg-tint); line-height: 1; }
+.sh-mode-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* The count is the honest part of the block: "New to you · 3" is the whole
+   reason to press it, and "· 0" is why the button then says it has widened. */
+.sh-mode-n {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 0.62rem;
+    color: var(--cg-tint);
+    opacity: 0.85;
+}
+
+/* On a phone the switch's words go and the toggle carries it, the same trade
+   the tabs make one block up. */
+@media (max-width: 420px) {
+    /* The words go and the toggle carries it — and with them goes the reason
+       for the switch to stand as tall as a two-line button, so it stops
+       stretching too. Its name comes off `aria-label` from here down. */
+    .sh-keep-text { display: none; }
+    .sh-keep { align-self: center; }
+    /* Two by two rather than three and a stray: four chips across a phone
+       leaves no room for the names, and the names are the choice. */
+    .sh-modes { display: grid; grid-template-columns: 1fr 1fr; }
+}
+
 /* ── how to play ────────────────────────────────────────────────────────── */
 
 .steps {
