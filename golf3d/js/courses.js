@@ -1,4 +1,4 @@
-/* Fourteen courses of six holes, as data.
+/* Fifteen courses of six holes, as data.
 
    A hole is a set of pads (the ground), a set of walls (things that bounce),
    a set of water rectangles (things that punish), a tee and a cup. Everything
@@ -6,7 +6,7 @@
    look — is derived below, because a hole that has to repeat itself is a hole
    that will one day disagree with itself.
 
-   Four of the fourteen courses are mini golf, four are crazy golf, three are
+   Four of the fifteen courses are mini golf, five are crazy golf, three are
    adventure golf and three are the long game — tee, fairway, rough, sand,
    trees, green — authored through `bands` and `tree` rather than a hole at a
    time; see the comment above them. They use the same pads, the same walls
@@ -21,11 +21,11 @@
    holes are in the order they are written in rather than the order they were
    built in, and why moving one is a change to the course rather than a tidy-up.
    The same rule runs across a group: the four mini courses are in order of how
-   much they ask for, and so are the four crazy ones, the three adventure ones
+   much they ask for, and so are the five crazy ones, the three adventure ones
    and the three long ones.
 
-   **A hole is not the hole beside it.** Eighty-four holes on one list is
-   eighty-four chances to write the same corridor again, and the way out is the
+   **A hole is not the hole beside it.** Ninety holes on one list is ninety
+   chances to write the same corridor again, and the way out is the
    plan rather than the furniture: a hole that turns, a hole that goes round
    something, a hole played over a corner, a hole with two ways to the green
    and a reason to pick one. If a new hole's plan can be described as "a lane
@@ -1704,7 +1704,7 @@
         })
     ];
 
-    /* ── crazy golf, the first of four: Windmill Works ───────────────── */
+    /* ── crazy golf, the first of five: Windmill Works ───────────────── */
 
     var works = [
         build({
@@ -2541,7 +2541,7 @@
     ];
 
 
-    /* ── crazy golf, the second of four: Pinball Parlour ──────────────────
+    /* ── crazy golf, the second of five: Pinball Parlour ──────────────────
 
        The first course on the list that is not trying to be a golf course at
        all. Everything else here — even Windmill Works with its blades — is
@@ -2688,7 +2688,7 @@
         })
     ];
 
-    /* ── crazy golf, the third of four: Clockwork Court ───────────────────
+    /* ── crazy golf, the third of five: Clockwork Court ───────────────────
 
        Windmill Works asks you to find the gap. This one asks you to find the
        *moment*: every hole on it is a mechanism running at its own rate, and
@@ -2827,7 +2827,7 @@
         })
     ];
 
-    /* ── crazy golf, the fourth of four: The Millrace ──────────────────────
+    /* ── crazy golf, the fourth of five: The Millrace ──────────────────────
 
        The other three timing courses are played over a floor. Windmill Works
        asks you to find the gap, Clockwork Court asks you to find the moment,
@@ -3013,6 +3013,225 @@
                 spinner(3.4, 14.8, 3.8, 0.42, { spin: 1.5 })
             ],
             tee: { x: 5, z: 1.8 }, cup: { x: 3.4, z: 17.6 }
+        })
+    ];
+
+    /* ── crazy golf, the fifth of five: The Belfry ─────────────────────────
+
+       Four courses of machinery already ask four different questions. Windmill
+       Works asks you to find the gap, which is a question about *where*.
+       Clockwork Court asks you to find the moment, which is a question about
+       *when*. Pinball Parlour asks neither and makes the furniture the route.
+       The Millrace asks what being wrong costs.
+
+       This one asks a fifth, and it is the only one that cannot be answered by
+       looking at one machine: **every hole here has two of them, geared to each
+       other.** Two gates at two rates, two bells at three against two, four
+       shutters a quarter-beat apart, a door on each side of a wall with a
+       different clock behind it. Each machine on its own is an easy one —
+       there is always a way past every single obstacle on this course, and
+       most of them are wide. What is not easy is arriving at the second one
+       having set off at the right moment for the first.
+
+       So the skill is counting bars rather than beats. A ball that clears the
+       opening gate on the first stroke of the cycle reaches the second gate
+       half a beat later than one that cleared it on the last, and the second
+       gate does not care which of those you did — it is running to its own
+       time, and the two only agree every so often. Change ringing is exactly
+       that arithmetic and it is where the course gets its name: bells rung not
+       as a tune but as a sequence of permutations, and you wait for the one you
+       want to come round.
+
+       Two things keep it fair, and both are load-bearing:
+
+       - **Nothing here can shut a hole.** Every mechanism leaves a window in
+         its own line at every phase — the tests demand that of the whole file,
+         and here it is also the design, because a course about compound timing
+         with a shut door on it would be a course about waiting.
+       - **The rates are small whole numbers.** 2:1, 3:2, 1:4, and a wave of
+         four bats a quarter of a cycle apart. A player can hear those; nobody
+         can count 7:5, and a pattern nobody can count is a pattern that reads
+         as random — which is the one thing a timing course must never be. */
+
+    var belfry = [
+        build({
+            /* The plainest statement of the idea: two gates in the same lane,
+               the far one running at half the rate of the near one.
+
+               Each is a gate the near end of Windmill Works would have been
+               happy with — a slider between two jambs, a metre and a half of
+               daylight at the tightest — and either of them alone is a shot
+               anybody makes. Together they are a different thing, because the
+               far gate goes through one cycle for every two of the near one:
+               the pair only shows you the same picture every other beat, and a
+               ball let through the first at the wrong end of its swing arrives
+               at the second exactly when it is closing.
+
+               The second gate starts half a cycle out of phase, which is what
+               puts the good window somewhere other than the start of the
+               pattern. Without that the answer to the hole is "hit it at once"
+               and the arithmetic never comes up. */
+            name: 'Half Time', par: 3,
+            blurb: 'Two gates, and the far one runs at half the rate of the near one. They agree every other beat.',
+            pads: [pad(0, 0, 6, 17)],
+            extra: [
+                wall(0, 6, 1.5, 0.4, 0.6, { base: -0.1 }),
+                wall(4.5, 6, 1.5, 0.4, 0.6, { base: -0.1 }),
+                slider(1.6, 6, 1.4, 0.4, { amp: 0.75, speed: 2.0 }),
+                wall(0, 11, 1.5, 0.4, 0.6, { base: -0.1 }),
+                wall(4.5, 11, 1.5, 0.4, 0.6, { base: -0.1 }),
+                slider(3.0, 11, 1.4, 0.4, { amp: 0.75, speed: 1.0, phase: Math.PI })
+            ],
+            tee: { x: 3, z: 1.6 }, cup: { x: 3, z: 14.6 }
+        }),
+        build({
+            /* Three against two, which is the first rhythm anybody learns that
+               cannot be tapped with one hand: the two bells come back into step
+               every third turn of the fast one and every second turn of the
+               slow one, and in between they are never quite where they were.
+
+               It is played round a corner rather than down a lane, and the
+               corner is what makes the ratio matter. On a straight hole the
+               second machine is simply further away, so hitting the ball
+               harder is a way of choosing when you arrive at it. Here the ball
+               has to stop turning before it goes east, so the time between the
+               two bells is set by the corner rather than by the club — and the
+               only thing left to choose is which turn of the fast bell you set
+               off on. */
+            name: 'Three Against Two', par: 3,
+            blurb: 'Two bells at three against two, with a corner between them to fix how long you take.',
+            pads: [pad(0, 0, 5, 10), pad(5, 6, 7, 4)],
+            extra: [
+                spinner(2.5, 5, 3.2, 0.4, { spin: 2.1 }),
+                spinner(8, 8, 3.2, 0.4, { spin: 1.4 })
+            ],
+            tee: { x: 2.5, z: 1.5 }, cup: { x: 10.5, z: 8 }
+        }),
+        build({
+            /* Rounds — the bells struck in order from the treble down, which
+               is where change ringing starts and the only sequence in it
+               anybody can hear without being told. Four shutters across the
+               lane, each a quarter of a cycle behind the one before it, so the
+               open side travels away from you down the hole at a fixed rate.
+               Set off on the beat and the gap stays in front of the ball the
+               whole way — about two fifths of every cycle is a departure that
+               rides it clean to the cup. Set off on any of the rest and the
+               first shutter is across the lane when you get there, which costs
+               a bounce and nothing else. That is the trade the hole is built
+               on: an ace is on the table, and missing it leaves you playing
+               the same hole again from four units up it.
+
+               **The shutters are not evenly spaced, and that is the hole.** A
+               ball is not a metronome — it is slowing down the whole time — so
+               a wave moving at a constant rate can only be ridden by a ball
+               whose gaps shrink to match. On a floor with a friction of k the
+               ball's speed decays by e^(-k·d) over a distance d, so a quarter
+               of a cycle later it has covered e^(-kT) of what it covered
+               before: the spacing is geometric, and every gap here is 0.70 of
+               the one before it. Four units, then 2.8, then 1.94.
+
+               Which is also why the floor is boards. On grass a ball loses
+               1.2 of speed per unit and the gaps would have to more than halve
+               each time — three shutters in the space of two — and the fourth
+               would be somewhere the ball was barely moving. On planks it
+               loses 0.6, and the geometry above comes out at a spacing you can
+               see from the tee and read as a wave. The speed the whole hole is
+               drawn around is 7.9 at the first shutter, which is what a full
+               swing of the putter has left by the time it gets there.
+
+               Nothing here can shut the lane: a shutter is 3.6 of a 6-unit
+               floor and slides 1.2 either way, so there are 2.4 units of
+               daylight at one side or the other at every phase, and the
+               tightest moment is 1.2 down each. Being wrong costs a bounce,
+               not the hole. */
+            name: 'Rounds', par: 4,
+            blurb: 'Four shutters, each a quarter-beat behind the last, opening away from you. The gaps shrink because the ball is slowing.',
+            pads: [pad(0, 0, 6, 22, 0, 'wood')],
+            extra: [
+                slider(1.2, 6.0, 3.6, 0.4, { amp: 1.2, speed: 2.6, phase: Math.PI / 2 }),
+                slider(1.2, 10.0, 3.6, 0.4, { amp: 1.2, speed: 2.6, phase: 0 }),
+                slider(1.2, 12.8, 3.6, 0.4, { amp: 1.2, speed: 2.6, phase: -Math.PI / 2 }),
+                slider(1.2, 14.74, 3.6, 0.4, { amp: 1.2, speed: 2.6, phase: -Math.PI })
+            ],
+            tee: { x: 1.2, z: 1.6 }, cup: { x: 1.2, z: 19 }
+        }),
+        build({
+            /* Two doors in one wall, and a different clock behind each of
+               them: a bat on the left running fast, a bell on the right
+               running slow. Neither door is harder to hit than the other. What
+               differs is what you have to know before you take the shot,
+               because the machine behind a door is the one thing a door hides.
+
+               So this is the course's question asked backwards. Everywhere
+               else the two machines are both in front of you and the problem
+               is fitting them together; here the second one is out of sight
+               from the tee and the first thing to work out is which of them
+               you would rather be arriving at. The wall is far enough up the
+               hole that a lay-up short of it is a real option and the two
+               doors are then a metre apart — which is the polite version of
+               this hole, and the card says par three either way. */
+            name: 'Change Ringing', par: 3,
+            blurb: 'Two doors in one wall with a different clock behind each. Pick the one whose beat you can count.',
+            pads: [pad(0, 0, 8, 18)],
+            extra: [].concat(
+                aperture(-0.2, 7, 4.4, 0.4, { gap: 1.4, at: 2.2, h: 1.7, head: 1.15 }),
+                aperture(4.2, 7, 4.0, 0.4, { gap: 1.4, at: 2.0, h: 1.7, head: 1.15 }),
+                [
+                    flipper(2.0, 10.4, 2.6, { rest: -0.45, arc: 0.95, speed: 2.4 }),
+                    spinner(6.2, 11, 3.0, 0.4, { spin: 1.5 })
+                ]
+            ),
+            tee: { x: 4, z: 1.6 }, cup: { x: 4, z: 15.4 }
+        }),
+        build({
+            /* The tenor is the deepest bell in a ring and the slowest, and it
+               is what the others are rung against. So: one of them, five units
+               long and turning at 0.7 — nine seconds a revolution, which is
+               slower than anything else in the file — with a small one in the
+               straight before it going four times as fast.
+
+               Four to one is the easiest ratio on the course to hear and the
+               hardest to use, because the fast bell is the one you have to get
+               past first and it hands you four different departure times per
+               turn of the slow one. Three of them are wrong. The dogleg is
+               what makes that a decision rather than a guess: the elbow is
+               somewhere to stop, so a player who does not fancy the maths can
+               play two shots and take the tenor on its own. */
+            name: 'The Tenor', par: 4,
+            blurb: 'A small bell at four to one in front of the biggest one in the tower. Or stop in the elbow and take them one at a time.',
+            pads: [pad(0, 0, 6, 9), pad(0, 9, 13, 5)],
+            extra: [
+                spinner(3, 5, 2.4, 0.35, { spin: 2.8 }),
+                spinner(7, 11.5, 5.0, 0.5, { spin: 0.7 })
+            ],
+            tee: { x: 3, z: 1.5 }, cup: { x: 11, z: 11.5 }
+        }),
+        build({
+            /* The finisher, and the one hole here with two ways round rather
+               than two things in a row. The frame the bells hang in stands in
+               the middle of the floor — solid, six units of it, no way through
+               — and the two lanes past it are a different rhythm each.
+
+               The west lane has a bell swinging across it at 2.4, so the
+               window comes round every one and a third seconds and is gone
+               again; the east lane has a bat at 1.2 that rests, sweeps and
+               rests, so its window is long and it comes round half as often.
+               Fast and often against slow and roomy. Both lanes rejoin in
+               front of the green.
+
+               That is the whole course in one hole and it is deliberately not
+               a hard one: the last hole on a card should be the one you can
+               tell somebody about afterwards, and "I went round the other
+               side" is a better story than a shot nobody could have made. */
+            name: 'Full Circle', par: 4,
+            blurb: 'The bell frame splits the floor. Fast and often on the west, slow and roomy on the east.',
+            pads: [pad(0, 0, 11, 21)],
+            extra: [
+                wall(4, 7, 3, 6, 0.75, { base: -0.1 }),
+                slider(1.0, 10, 1.4, 0.4, { amp: 0.9, speed: 2.4 }),
+                flipper(9.0, 10, 3.0, { rest: 0.5, arc: -1.0, speed: 1.2 })
+            ],
+            tee: { x: 5.5, z: 1.6 }, cup: { x: 5.5, z: 18 }
         })
     ];
 
@@ -3788,12 +4007,12 @@
         })()
     ];
 
-    /* Fourteen courses is far too long a list to read as one list, and the
+    /* Fifteen courses is far too long a list to read as one list, and the
        four kinds of golf on it are not variations of each other — a mini golf hole
        is one swing and a putt, a crazy golf hole is a machine you have to time,
        and a links hole is a drive and an approach. So the group is not a
        heading any more, it is a filter: the picker opens on one kind at a
-       time, and a player who came for windmills never scrolls past forty-eight
+       time, and a player who came for windmills never scrolls past fifty-four
        holes of parkland to reach them.
 
        `tint` is the group's colour in that picker and `icon` its mark. Both
@@ -3892,6 +4111,14 @@
             blurb: 'Every machine on the course stands over water. A mistimed shot is not a bounce here; it is a stroke.',
             theme: 'mill',
             holes: millrace
+        },
+        {
+            id: 'belfry',
+            group: 'crazy',
+            name: 'The Belfry',
+            blurb: 'Two machines on every hole, geared to each other. Count bars rather than beats.',
+            theme: 'belfry',
+            holes: belfry
         },
         {
             id: 'icehouse',

@@ -1,10 +1,11 @@
 # Loft Links
 
-Fourteen six-hole courses of 3D golf in four kinds. **Mini golf**: four courses
-of lanes, rails, ledges and one horseshoe. **Crazy golf**: four of blades,
+Fifteen six-hole courses of 3D golf in four kinds. **Mini golf**: four courses
+of lanes, rails, ledges and one horseshoe. **Crazy golf**: five of blades,
 gates, bumpers, angled banks and pendulums, where the shot is a matter of
-timing rather than of aim — and on the last of them, of what a mistimed one
-costs, because every machine on The Millrace stands over water. **Adventure
+timing rather than of aim — of what a mistimed one costs on The Millrace, where
+every machine stands over water, and of counting bars rather than beats in The
+Belfry, where every hole has two machines geared to each other. **Adventure
 golf**: three where the floor itself is the obstacle — ice that will not let
 the ball stop, travelators that carry it off, launch pads that throw it in the
 air, pipes that put it somewhere else entirely, and a volcano where all of that
@@ -23,8 +24,8 @@ Two rules run through the whole card. **A course gets harder as you play it** �
 hole one introduces something, the middle develops it and the sixth asks for all
 of it at once — and the same climb runs across each group, so the four mini
 courses are in the order of how much they ask for and so are the crazy, the
-adventure and the long ones. **A hole is not the hole beside it**: eighty-four
-holes on one list is eighty-four chances to write the same corridor again, and
+adventure and the long ones. **A hole is not the hole beside it**: ninety holes
+on one list is ninety chances to write the same corridor again, and
 the way out is the *plan* rather than the furniture. See
 [The order the holes are in](#the-order-the-holes-are-in).
 
@@ -604,7 +605,7 @@ obviously correct.
 
 ## The courses
 
-Fourteen, six holes each, filed under four groups — and the group is not a
+Fifteen, six holes each, filed under four groups — and the group is not a
 heading in the picker, it is a tab (see [The picker](#the-picker)). The four
 are not variations of one another: a mini golf hole is one swing and a putt, a
 crazy golf hole is a mechanism you have to time, an adventure hole is a floor
@@ -621,6 +622,7 @@ approach.
 | Pinball Parlour | crazy | `arcade` | A table, not a course: bumpers, a plunger chute and two banks set across the throat. The posts *are* the route. |
 | Clockwork Court | crazy | `clockwork` | Six mechanisms at six rates. Two bats that stop, a pendulum, three staggered cogs, a ratchet, and a finish with two lanes to pick between. |
 | The Millrace | crazy | `mill` | The same machines with the river underneath them. A mistimed shot is a stroke here rather than a bounce, so laying up is a real option for the first time on a timing course. |
+| The Belfry | crazy | `belfry` | Two machines on every hole, geared to each other: 2:1, 3:2, 1:4, and four shutters a quarter-beat apart. Counting bars rather than beats. |
 | Icehouse Yard | adventure | `icehouse` | Nothing stops. A putter runs eight and a half units on grass and thirty-two on ice. |
 | Helter Skelter | adventure | `fairground` | Launch pads, travelators and pipes. The floor decides; you only decide how hard. |
 | Cinder Cone | adventure | `volcano` | The same machinery pointed downhill. Belts that run back at you, vents that are the only way up, and two lava tubes — one of which comes out where you started. |
@@ -686,7 +688,7 @@ Which holes are which is not a matter of taste in the tests: the ones that must
 be flown carry `needsLoft: true` and are replayed by the bot with the lofted
 clubs taken away (see [Tests](#tests)).
 
-The four crazy courses each own one mechanism and the difference between them
+The five crazy courses each own one mechanism and the difference between them
 is what the mechanism is *for*. Windmill Works asks you to find the gap;
 Clockwork Court asks you to find the moment. Pinball Parlour asks for neither —
 the obstacles there are not between you and the cup, they *are* the route, which
@@ -717,6 +719,30 @@ only about a second and a half of each seven-second turn, and the wheel sweeps a
 ball off the plank as readily as it stops one — and **Full Flow** offers the
 dry way at last: a bank round the east side that is twice as long and lands you
 in sand, with both roads finishing at the same wheel in front of the pin.
+
+The Belfry asks the fifth question, and it is the only one that cannot be
+answered by looking at one machine: **every hole on it has two of them, geared
+to each other.** Two gates where the far one runs at half the rate of the near
+one; two bells at three against two, with a corner between them to fix how long
+the ball takes to get from one to the other; a small bell at four to one in
+front of the slowest blade in the file; a door on each side of a wall with a
+different clock behind each. Every individual obstacle there is an easy one —
+none of them can shut a hole and most leave more than a metre — and the
+difficulty is entirely in arriving at the second one having set off at the right
+moment for the first.
+
+**Rounds** is the hole that idea was worth building for. Four shutters across a
+boarded floor, each a quarter of a cycle behind the one before it, so the open
+side travels away from the tee at a fixed rate — and they are *not* evenly
+spaced, because a ball is not a metronome. It is slowing down the whole way, so
+the wave can only be ridden if the gaps shrink to match: a ball's speed decays
+by `e^(-k·d)` over a distance `d`, so each gap is `e^(-kT)` of the one before it
+for a quarter-cycle `T`, which here is 0.70 — four units, then 2.8, then 1.94.
+The floor is planks for the same reason. On grass `k` is 1.2 per unit and the
+gaps would more than halve each time; on boards it is 0.6 and the spacing comes
+out at something you can see from the tee and read as a wave. About two fifths
+of every cycle is a departure that rides it clean to the cup; the rest is a
+bounce off the first shutter and no other punishment at all.
 
 ### Walls you go through, and bats that stop
 
@@ -793,8 +819,8 @@ Because the order carries meaning, moving a hole is a change to the course and
 not a tidy-up. Nothing else depends on it — a hole's ground is seeded from its
 own *name* (`nameSeed`), so reordering a card cannot reshape a single hump.
 
-**A hole is not the hole beside it.** Eighty-four holes on one list is
-eighty-four chances to write the same corridor again, and the escape is the plan
+**A hole is not the hole beside it.** Ninety holes on one list is ninety
+chances to write the same corridor again, and the escape is the plan
 rather than the furniture. Before the pass that broke this up, forty-eight of
 the sixty holes then on the card were a rectangle running north with the tee at
 one end and the cup at the other, and the only thing that made one different
@@ -2236,7 +2262,7 @@ is no frame at all.
 
 Hidden, and on purpose. Type **aide** anywhere on the course and a 🤖
 **Simulate** chip appears in the menu, for good — press it and `js/bot.js`, the
-same greedy player that proves in `tests.html` that all eighty-four holes are
+same greedy player that proves in `tests.html` that all ninety holes are
 solvable, takes the club and plays the hole out from wherever your ball is
 standing. Press it again, or <kbd>Esc</kbd>, to take the club back.
 
@@ -2967,15 +2993,15 @@ the four things that can move it says otherwise.
 
 ## Tests
 
-Open `tests.html`. ~2020 assertions covering the surfaces, the collision
+Open `tests.html`. ~2160 assertions covering the surfaces, the collision
 geometry, the cup, the integrator, the bag, the ground that does something, the
-walls you go through, all eighty-four holes of course data, the scorecard and
-the intro flyover's path.
+walls you go through, all ninety holes of course data, the scorecard and the
+intro flyover's path.
 
 The one worth knowing about is the **bot** (`js/bot.js`, and the game plays it
 too — see [simulation mode](#the-caddie-simulation-mode)): a greedy player fans
 out candidate shots on every hole, keeps the one that finishes nearest the cup,
-and plays all eighty-four. If a hole is sealed off, unreachable, or has a cup buried where
+and plays all ninety. If a hole is sealed off, unreachable, or has a cup buried where
 nothing can settle, the bot never holes out and the suite goes red. It is
 deterministic, so a failure is reproducible rather than "sometimes red", it
 plays out of the same five clubs the player gets, its candidates include a wait

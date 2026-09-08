@@ -214,6 +214,27 @@
             water: 0x2f86a8,
             side: '#8a7a5e'
         },
+        /* Up in the bell loft at dusk, which is the one crazy golf course
+           played somewhere with a view. The louvres are open on a cold blue
+           evening over the roofs — hence a ridge, on a course that is
+           otherwise indoors — and the light inside is what is left of the
+           sunset coming through them, low and warm against a lot of cold grey
+           stone. The turf is baize rather than lawn, like the parlour's,
+           because a bright green floor eight storeys up reads as a mistake.
+           The rails are lead and the ring is brass. */
+        belfry: {
+            sky: [0x141d33, 0x63769a],
+            fog: 0x63769a,
+            sun: 0xffdcae, sunPos: [11, 8, -6], ambient: 0x8593b2, ambientI: 0.7,
+            grass: ['#2f6b4a', '#296044'],
+            rail: 0xa8b2c0,
+            stars: 0.6,
+            cloudLum: 0.32,
+            surroundY: -2.4, surround: 'floor', floor: '#2a2f3b',
+            ridge: { colour: '#2f3b52', cap: '#7e8ba6', peak: 9, rough: 0.5 },
+            water: 0x2b5f7f,
+            side: '#5a5f6b'
+        },
         /* Heathland, early and grey-blue. The point of the course is that the
            ground you want is narrow and the ground you get is everywhere else,
            and that only reads if the light is flat enough to show the mown
