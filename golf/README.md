@@ -52,6 +52,13 @@ with **rough** instead, which is the same answer hole one gives: the short
 line has to be earned, the long one costs a stroke's worth of roll and
 nothing more.
 
+**The die deals a card you did not choose.** The 🎲 chip (or `D`, or
+`?course=random` as a link) picks a course off the rack at random and starts
+it. It never deals the one already under you — a press that changed nothing
+would read as a broken button rather than as luck — so it goes through
+exactly the path the picker does and lands you on the same tee a refresh
+would: a random *choice*, not a random *round*.
+
 **A course switch is not destructive and does not ask.** Each course keeps
 its own round in progress and its own record, under keys qualified by the
 course id — see [Saving](#saving) — so leaving one mid-round and coming back

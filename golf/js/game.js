@@ -41,6 +41,13 @@
     function bootCourse() {
         if (GOLF.PLAYTEST) return;
         var wanted = (/[?&]course=([\w-]+)/.exec(window.location.search) || [])[1];
+        // ?course=random is the die by link: a shareable "surprise me" that
+        // does not name a card, so it cannot go stale when the rack changes.
+        if (wanted === 'random') {
+            var id = randomCourseId();
+            if (id) GOLF.selectCourse(id);
+            return;
+        }
         if (!wanted) {
             try { wanted = localStorage.getItem(C.COURSE_KEY); } catch (e) { /* storage off */ }
         }
@@ -64,25 +71,60 @@
         if (tagline && course) tagline.textContent = course.name + ' — ' + course.blurb;
     }
 
+    /* Switching is not destructive and does not ask. The card for the course
+       you are leaving was written when you holed out on it, and each course
+       resumes from its own key, so coming back puts you on the tee of the
+       hole you left — the same promise a refresh makes. Every route onto a
+       course goes through here: the picker, the die, and the boot. */
+    function playCourse(id, how) {
+        if (!GOLF.selectCourse(id)) return false;
+        try { localStorage.setItem(C.COURSE_KEY, GOLF.COURSE_ID); } catch (e) { /* storage off */ }
+        newRound(true);
+        syncCourse();
+        if (how) {
+            // newRound has already toasted a resume; say both things at once
+            // rather than letting one message wipe the other off the screen.
+            var course = currentCourse();
+            toast(how + ' — ' + (course ? course.name : id) +
+                  (state.holeIndex > 0 ? ', resumed at hole ' + (state.holeIndex + 1) : ''));
+        }
+        return true;
+    }
+
+    /* A rack you have to name a card from before you can play it is a menu.
+       The die is the other way round: press it and something you did not
+       choose comes up. It never deals the card already under you — a press
+       that changed nothing would read as a broken button rather than as luck
+       — so with one course on the rack there is nothing to deal. */
+    function randomCourseId() {
+        var pool = GOLF.COURSES.filter(function (c) { return c.id !== GOLF.COURSE_ID; });
+        if (!pool.length) return null;
+        return pool[Math.floor(Math.random() * pool.length)].id;
+    }
+
+    function dealRandomCourse() {
+        if (GOLF.PLAYTEST) return;
+        var id = randomCourseId();
+        if (!id) { toast('Only one course on the rack'); return; }
+        playCourse(id, 'Random draw');
+    }
+
     function buildCoursePicker() {
         var sel = $('course-select');
-        if (!sel) return;
-        if (GOLF.PLAYTEST) { sel.hidden = true; return; }
+        var die = $('btn-shuffle');
+        if (GOLF.PLAYTEST) {
+            if (sel) sel.hidden = true;
+            if (die) die.hidden = true;
+            return;
+        }
 
-        sel.innerHTML = GOLF.COURSES.map(function (c) {
-            return '<option value="' + c.id + '">' + c.name + ' · ' + c.holes.length + '</option>';
-        }).join('');
-
-        /* Switching is not destructive and does not ask. The card for the
-           course you are leaving was written when you holed out on it, and
-           each course resumes from its own key, so coming back puts you on
-           the tee of the hole you left — the same promise a refresh makes. */
-        sel.addEventListener('change', function () {
-            if (!GOLF.selectCourse(sel.value)) return;
-            try { localStorage.setItem(C.COURSE_KEY, GOLF.COURSE_ID); } catch (e) { /* storage off */ }
-            newRound(true);
-            syncCourse();
-        });
+        if (sel) {
+            sel.innerHTML = GOLF.COURSES.map(function (c) {
+                return '<option value="' + c.id + '">' + c.name + ' · ' + c.holes.length + '</option>';
+            }).join('');
+            sel.addEventListener('change', function () { playCourse(sel.value, null); });
+        }
+        if (die) die.addEventListener('click', dealRandomCourse);
     }
 
     /* ── round state ────────────────────────────────────────────────────── */
@@ -372,6 +414,7 @@
             if (k === 'm' || k === 'M') { setMuted(A.toggleMute()); return; }
             if (k === 'f' || k === 'F') { toggleFullscreen(); return; }
             if (k === 'r' || k === 'R') { restartHole(); return; }
+            if (k === 'd' || k === 'D') { dealRandomCourse(); return; }
             if (k === 'Escape') { closeCard(); return; }
 
             if (state.phase === 'holed' && (k === ' ' || k === 'Enter')) {
@@ -624,7 +667,13 @@
         requestAnimationFrame(loop);
     }
 
-    GOLF.game = { init: init, newRound: newRound, getState: function () { return state; } };
+    GOLF.game = {
+        init: init,
+        newRound: newRound,
+        playCourse: playCourse,
+        randomCourseId: randomCourseId,
+        getState: function () { return state; }
+    };
 
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', init);
