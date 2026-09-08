@@ -25,6 +25,7 @@
     <script src="js/config.js"></script>
     <script src="js/courses.js"></script>
     <script src="js/physics.js"></script>
+    <script src="js/generator.js"></script>
     <script src="js/scoring.js"></script>
 
     <script>
@@ -975,6 +976,175 @@
                 }
             });
             assert('no shot escapes the field on any hole', escaped === 0, escaped + ' escaped');
+        })();
+
+        /* ── the generator ──────────────────────────────────────────────── */
+        section('Procedural courses');
+
+        /* A generated hole gets no benefit of the doubt: it goes through the
+           same rules as a shipped one, and then the same bot.
+
+           The rules themselves live in generator.js as `GOLF.validateHole`
+           rather than here, so the generator can re-roll a hole that breaks
+           one. That would be a second rule book waiting to drift from this
+           one, except for the first assertion below: every shipped hole has
+           to pass the shared function too. Break one and the other goes red.
+
+           Seeds are fixed rather than drawn, for the reason the bot's are:
+           a suite that fails one run in fifty is a suite nobody believes. */
+
+        var SEEDS = [1, 7, 42, 1234, 20260908, 0xC0FFEE, 987654321, 31337,
+                     555, 900001, 12, 77777];
+
+        (function () {
+            var G = GOLF.generator;
+            assert('the generator is loaded', !!G && typeof GOLF.generateCourse === 'function');
+
+            // Loading generator.js must not put anything on the rack: the
+            // picker, the save keys and every course test above assume the
+            // rack is the hand-built one.
+            assert('loading the generator leaves the rack alone',
+                GOLF.COURSES.every(function (c) { return c.id !== G.DRAW_ID; }));
+
+            // The shared rule book, run over the courses somebody wrote by
+            // hand. This is the pin between the two.
+            var shipped = [];
+            everyHole(function (h, i, course) {
+                var bad = GOLF.validateHole(h);
+                if (bad.length) shipped.push(course.id + ' ' + h.name + ': ' + bad[0]);
+            });
+            assert('every shipped hole passes the generator\'s own rule book', shipped.length === 0,
+                shipped.slice(0, 3).join(' · '));
+
+            var a = GOLF.generateCourse(4242);
+            var b = GOLF.generateCourse(4242);
+            var c = GOLF.generateCourse(4243);
+            assert('the same seed deals the same course',
+                JSON.stringify(a.holes) === JSON.stringify(b.holes));
+            assert('a different seed deals a different one',
+                JSON.stringify(a.holes) !== JSON.stringify(c.holes));
+            assert('a seed reads back off a URL as itself',
+                G.seedFrom(G.seedLabel(4242)) === 4242);
+            assert('anything else becomes a seed rather than a crash',
+                typeof G.seedFrom('a birthday, or something like one') === 'number');
+            assert('a draw is not a course you can hold a record on', a.record === false);
+            assert('a draw carries its seed', a.seed === 4242);
+        })();
+
+        (function () {
+            var families = ['walls', 'water', 'sand', 'rough', 'ice', 'bumpers', 'slopes'];
+            var problems = [], thin = 0, features = 0;
+
+            SEEDS.forEach(function (seed) {
+                var course = GOLF.generateCourse(seed);
+                var tag = 'seed ' + GOLF.generator.seedLabel(seed);
+                var names = {};
+                var seen = {};
+
+                assert(tag + ': deals nine holes', course.holes.length === 9,
+                    'got ' + course.holes.length);
+
+                course.holes.forEach(function (h, i) {
+                    var bad = GOLF.validateHole(h, { strict: true });
+                    if (bad.length) problems.push(tag + ' hole ' + (i + 1) + ': ' + bad[0]);
+                    if (names[h.name]) problems.push(tag + ': two holes called ' + h.name);
+                    names[h.name] = true;
+                    if (!h.name || !h.blurb) problems.push(tag + ' hole ' + (i + 1) + ': no name or blurb');
+                    families.forEach(function (k) {
+                        if (!Array.isArray(h[k])) thin++;
+                        if (h[k].length) seen[k] = true;
+                        features += h[k].length ? 1 : 0;
+                    });
+                });
+
+                var par = course.holes.reduce(function (t, h) { return t + h.par; }, 0);
+                assert(tag + ': total par is sane', par >= 18 && par <= 45, 'par ' + par);
+
+                // One feature per hole, dealt from a shuffled deck of nine —
+                // so a draw always carries the whole vocabulary. Drawn
+                // independently, a course with no water on it would turn up
+                // sooner or later, and that is a field rather than a course.
+                var missing = families.filter(function (k) { return !seen[k]; });
+                assert(tag + ': every hazard the game has is somewhere on the card',
+                    missing.length === 0, 'missing ' + missing.join(', '));
+            });
+
+            assert('every generated hole passes the strict rule book', problems.length === 0,
+                problems.length + ' problem(s): ' + problems.slice(0, 3).join(' · '));
+            assert('every generated hole has every hazard list', thin === 0);
+            note('across ' + SEEDS.length + ' draws: ' +
+                 (features / (SEEDS.length * 9)).toFixed(1) + ' hazard kinds per hole');
+        })();
+
+        /* And then the bot, which is the only test that knows whether a hole
+           can actually be finished. The generator argues that it never builds
+           a band without a mouth in it; this is what checks the argument. */
+        (function () {
+            var LIMIT = 10;
+            var failed = [], total = 0, holes = 0;
+            SEEDS.slice(0, 8).forEach(function (seed, s) {
+                var course = GOLF.generateCourse(seed);
+                course.holes.forEach(function (h, i) {
+                    var shots = botCanFinish(h, s * 31 + i, { maxShots: LIMIT, tries: 60, attempts: 3 });
+                    holes++;
+                    if (shots === null) failed.push(GOLF.generator.seedLabel(seed) + ' hole ' + (i + 1));
+                    else total += shots;
+                });
+            });
+            assert('the bot holes out on every generated hole', failed.length === 0,
+                failed.length + ' of ' + holes + ' never finished: ' + failed.slice(0, 4).join(', '));
+            note('bot on ' + holes + ' generated holes: ' + (total / holes).toFixed(2) + ' strokes a hole');
+        })();
+
+        /* The two measured rules, on generated ground. A hole nobody wrote is
+           exactly where a slope that pins the ball or a rink it never leaves
+           would turn up. */
+        (function () {
+            var rand = mulberry32(606);
+            var hung = 0, slowest = 0, escaped = 0, stuck = 0, holes = 0;
+            SEEDS.slice(0, 6).forEach(function (seed) {
+                GOLF.generateCourse(seed).holes.forEach(function (h) {
+                    holes++;
+                    for (var i = 0; i < 24; i++) {
+                        var w = P.createWorld(h, h.tee, rand() * 6);
+                        P.launch(w, rand() * Math.PI * 2, C.MAX_POWER);
+                        var steps = 0, cap = Math.ceil(C.MAX_SHOT_SECONDS / C.SIM_DT);
+                        while (w.moving && steps < cap) { P.advance(w, C.SIM_DT); steps++; }
+                        if (w.moving) hung++;
+                        if (steps * C.SIM_DT > slowest) slowest = steps * C.SIM_DT;
+                        if (w.ball.x < 0 || w.ball.x > C.WORLD_W || w.ball.y < 0 || w.ball.y > C.WORLD_H) escaped++;
+                        var statics = h.walls.filter(function (x) { return !x.move; });
+                        if (statics.some(function (x) { return P.circleRect(w.ball.x, w.ball.y, C.BALL_R - 0.5, x) !== null; }) ||
+                            h.bumpers.some(function (b) { return P.circleCircle(w.ball.x, w.ball.y, C.BALL_R - 0.5, b) !== null; })) {
+                            stuck++;
+                        }
+                    }
+                });
+            });
+            assert('every full-power shot on a generated hole settles', hung === 0, hung + ' still rolling');
+            assert('no shot escapes a generated field', escaped === 0, escaped + ' escaped');
+            assert('no shot ends inside a wall or a post on a generated hole', stuck === 0,
+                stuck + ' ended overlapping');
+            note('longest shot over ' + holes + ' generated holes: ' + slowest.toFixed(1) + 's (limit ' +
+                 C.MAX_SHOT_SECONDS + 's)');
+        })();
+
+        /* The round in progress, on a card that can be re-dealt under it. */
+        (function () {
+            var course = GOLF.generateCourse(99).holes;
+            var wasId = GOLF.COURSE_ID, wasSeed = GOLF.COURSE_SEED;
+            GOLF.COURSE_ID = 'draw';
+            GOLF.COURSE_SEED = 99;
+            S.saveRound(4, [3, 4, 2, 5], course);
+            assert('a draw resumes its own round', S.loadRound(course) !== null);
+            GOLF.COURSE_SEED = 100;
+            assert('a round written for one draw is not offered to the next',
+                S.loadRound(course) === null);
+            GOLF.COURSE_SEED = 99;
+            S.clearRound();
+            GOLF.COURSE_ID = wasId;
+            GOLF.COURSE_SEED = wasSeed;
+            assert('clearing it leaves the hand-built courses alone', S.loadRound(GOLF.COURSES[0].holes) === null);
         })();
 
         /* ── done ───────────────────────────────────────────────────────── */

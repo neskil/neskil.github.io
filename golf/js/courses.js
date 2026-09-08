@@ -808,6 +808,11 @@
 
     GOLF.COURSE_ID = GOLF.COURSES[0].id;
     GOLF.COURSE = GOLF.COURSES[0].holes;
+    /* Only a generated card has one. It is what tells a stored round which
+       draw it was written for — see scoring.js — and it is null for every
+       hand-built course, which is the same as saying "there is only one of
+       you". */
+    GOLF.COURSE_SEED = null;
 
     /* Swap the card being played. Returns the course, or null for an id that
        is not on the rack — a stored preference from a course that has since
@@ -817,6 +822,7 @@
             if (GOLF.COURSES[i].id !== id) continue;
             GOLF.COURSE_ID = id;
             GOLF.COURSE = GOLF.COURSES[i].holes;
+            GOLF.COURSE_SEED = typeof GOLF.COURSES[i].seed === 'number' ? GOLF.COURSES[i].seed : null;
             return GOLF.COURSES[i];
         }
         return null;

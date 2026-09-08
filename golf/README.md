@@ -1,7 +1,8 @@
 # Pocket Links
 
 A 2D mini golf game with four courses on one field — an eighteen, a six and
-two nines.
+two nines — plus a fifth that is generated from a seed and is different every
+time you ask for one.
 Canvas, plain ES5-flavoured JavaScript, no build step and no dependencies —
 same as everything else here, open `index.html` and it runs.
 
@@ -12,7 +13,8 @@ same as everything else here, open `index.html` and it runs.
 | `index.html` | Page shell: scoreboard, canvas, banner, scorecard modal. |
 | `style.css` | Page chrome. The course itself is all canvas. |
 | `js/config.js` | Every tuning constant. Nothing else holds a magic number. |
-| `js/courses.js` | Every course, as data. |
+| `js/courses.js` | Every hand-built course, as data. |
+| `js/generator.js` | Courses dealt from a seed. See [The draw](#the-draw). |
 | `js/physics.js` | The simulation. No DOM, no canvas, pure. |
 | `js/scoring.js` | Scorecard arithmetic and the save file. |
 | `js/audio.js` | Synthesised sound effects — no audio files to ship. |
@@ -87,6 +89,73 @@ puts you on the tee of the hole you left, which is the same promise a refresh
 makes. Six holes, nine and eighteen are not comparable totals, which is the
 other half of why the save file is split: a six-hole round would take the
 eighteen-hole record the first time anyone played one.
+
+## The draw
+
+`generator.js` deals a ninth-hole card nobody has played: nine holes built
+from a seed, legal by construction, and checked before they are handed over.
+The ✦ chip (or `G`) deals a new one; `?seed=<base36>` deals a named one, and
+so does anything else you put in that parameter — `?seed=birthday` hashes to
+a seed like everything that is not one already. The seed is shown in the
+tagline and remembered, so a refresh gives you the course you were playing
+rather than a new one.
+
+Three decisions carry the design.
+
+**A hole is a line with bands across it.** Every generated hole is built in a
+frame — an *along* axis running tee to cup, a *cross* axis at right angles to
+it — and every feature is a band laid across the cross axis somewhere along
+the way. That is not a limitation of the vocabulary, it is what makes the
+result playable without simulating it: a band that always leaves a mouth in
+it can always be got through, so a hole made of such bands has a way from the
+tee to the cup by construction rather than by luck. It also means a feature
+is written once and works four ways — the along axis runs left to right,
+right to left, up the field or down it, and nothing inside a builder knows
+which.
+
+Each builder is also handed *where the straight line from the tee to the cup
+crosses its band*, which is the difference between a hazard and scenery. The
+ones that block put themselves on that line (a bunker, a dogleg's blocker,
+two posts to be putted between); the ones with a way through put their mouth
+beside it, far enough that the straight shot does not simply go through the
+gap and near enough that the answer is a correction rather than a different
+hole. The first draft ignored the line, and it produced nine fields with
+something interesting happening in the corner of each.
+
+**Rules are checked, not remembered.** `GOLF.validateHole` is the rule book
+out of `tests.html` — thicknesses, post radii, tee and cup clearance, gates
+that stray off the field or seal it shut — as a function rather than as a
+page of assertions. The generator runs it on every hole it builds and
+re-rolls the ones that fail. The suite runs *the same function* over the
+shipped rack, which is the pin that stops the two drifting apart: break a
+rule in one place and both go red. A `strict` pass adds what a hand-built
+hole is allowed to argue with and a generated one is not — nothing solid
+inside a slope zone, a collar of rough wide enough to catch what a slope
+sheds, no cup or tee on a hill. Crown Green puts the cup inside its own
+crown and means it; a generator doing that by accident is a hole that never
+comes to rest.
+
+**One feature per hole, dealt from a shuffled deck.** There are nine
+features and nine holes, and each is used exactly once, which is what
+guarantees a card carries every hazard the game has. Drawn independently, a
+draw with no water on it would turn up sooner or later — and that is a field,
+not a course. Trimmings (a collar of rough, a bunker, a rink, two posts) are
+drawn freely on top, up to three bands a hole; a hole played up the field
+gets one, because after the tee and the cup have had their clearance there
+is one band's worth of room left in 640px.
+
+Par is counted rather than played: the length of the hole, how many bands
+are on it, and whether any of them is one of the four that really cost a
+stroke. Running the bot at boot to measure par would be a second and a half
+of a phone's time to learn what arithmetic already knows.
+
+**A draw is not a course you can hold a record on.** No two of them are the
+same field, so a best round across them would measure which seeds were kind
+rather than who played well — the card says `record: false` and the game
+reads that off the card rather than off a list of ids. The round in progress
+*is* kept, because losing an evening to a refresh is a different thing, and
+the seed goes into the stored round: a card written for one draw is never
+offered to the next.
 
 ## How a hole is built
 
@@ -376,9 +445,19 @@ indexable; the self-test overlay only appears with the query string.
 
 ## Tests
 
-Open `tests.html`. 591 assertions covering geometry, the integrator, the four
-surfaces, the overswing, the course data on every course, the scorecard, the
-per-course save keys and the resumable round, in about a second.
+Open `tests.html`. 645 assertions covering geometry, the integrator, the four
+surfaces, the overswing, the course data on every course, the generator, the
+scorecard, the per-course save keys and the resumable round, in about two
+seconds.
+
+The generated courses are held to the shipped ones' standard and then some.
+Twelve fixed seeds — fixed, because a suite that fails one run in fifty is a
+suite nobody believes — go through the strict rule book, the hazard-coverage
+rule and the par check; eight of them are played by the bot, hole by hole,
+and six are shot at from every angle to prove that nothing generated hangs,
+escapes the field or ends up inside a wall. The shipped rack is run through
+`GOLF.validateHole` in the same section, which is what keeps the generator's
+copy of the rules and this file's copy honest with each other.
 
 Everything about the course data is checked for every course on the rack, not
 for whichever one `GOLF.COURSE` points at — a rule the second course is exempt
@@ -434,7 +513,10 @@ where they left it, and what lets the landing page go on reading
 `miniGolf.save.v1` without knowing there is a rack at all. Which one you were
 last on is remembered separately, under `miniGolf.course.v1`; `?course=<id>`
 overrides it, `?course=random` deals one, and an id that is on neither list
-is ignored rather than fatal. (The editor keeps its work in progress under
+is ignored rather than fatal. The procedural card keeps its seed under
+`miniGolf.draw.v1` and its round under `miniGolf.round.v1.draw` — with the
+seed inside the round, so a re-roll is not offered the scorecard of the draw
+before it — and never writes a record at all. (The editor keeps its work in progress under
 `miniGolf.editor.v1` and hands a playtest over in session storage under
 `miniGolf.playtest.v1`; neither goes near either of them, and a playtest is
 locked out of both the record and the round in progress — a one-hole round of

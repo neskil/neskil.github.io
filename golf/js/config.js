@@ -7,7 +7,7 @@
    and on a desktop and none of the tuning below is resolution dependent. */
 window.GOLF = window.GOLF || {};
 
-GOLF.VERSION = '1.4.0';
+GOLF.VERSION = '1.5.0';
 
 GOLF.CONFIG = {
     WORLD_W: 960,
@@ -107,5 +107,9 @@ GOLF.CONFIG = {
     /* Which of the two cards you were last playing. Only the choice is kept
        here — the round and the record for each course live under keys of
        their own, qualified by the course id. See scoring.js. */
-    COURSE_KEY: 'miniGolf.course.v1'
+    COURSE_KEY: 'miniGolf.course.v1',
+    /* The seed the procedural card was last dealt from. Kept so a refresh
+       gives you back the course you were playing rather than a new one —
+       the holes themselves are never stored, because the seed *is* them. */
+    DRAW_KEY: 'miniGolf.draw.v1'
 };

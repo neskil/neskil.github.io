@@ -56,6 +56,51 @@
         if (wanted) GOLF.selectCourse(wanted);
     }
 
+    /* ── the draw ────────────────────────────────────────────────────────
+
+       The procedural card. generator.js builds it and never touches the
+       rack; this is the one place that puts one on. The seed comes from the
+       URL, then from storage, then from a coin — so a link is reproducible,
+       a refresh gives you back the course you were playing, and a first
+       visit gets something nobody has seen. */
+
+    function bootDraw() {
+        if (GOLF.PLAYTEST || !GOLF.installDraw) return;
+        var G = GOLF.generator;
+        var wanted = (/[?&]seed=([\w-]+)/.exec(window.location.search) || [])[1];
+        var seed = G.seedFrom(wanted);
+        if (seed === null) {
+            try { seed = G.seedFrom(localStorage.getItem(C.DRAW_KEY)); } catch (e) { /* storage off */ }
+        }
+        if (seed === null) seed = G.randomSeed();
+        rememberSeed(GOLF.installDraw(seed).seed);
+    }
+
+    function rememberSeed(seed) {
+        try { localStorage.setItem(C.DRAW_KEY, GOLF.generator.seedLabel(seed)); } catch (e) { /* storage off */ }
+    }
+
+    /* Deal a fresh one. The round in progress under the old seed is not
+       cleared and does not have to be: scoring.js will not hand a card
+       written for one draw to another, so `newRound(true)` here starts
+       clean of its own accord. */
+    function newDraw() {
+        if (GOLF.PLAYTEST || !GOLF.installDraw) return;
+        var course = GOLF.installDraw(GOLF.generator.randomSeed());
+        rememberSeed(course.seed);
+        if (!playCourse(course.id, null)) return;
+        toast('New draw — seed ' + GOLF.generator.seedLabel(course.seed));
+    }
+
+    /* A draw is not a course you can hold a record on: no two of them are
+       the same field, so a best round across them would measure which seeds
+       were kind rather than who played well. The card says so itself, which
+       keeps the rule with the course rather than in a list of ids here. */
+    function isRecorded() {
+        var course = currentCourse();
+        return !GOLF.PLAYTEST && !(course && course.record === false);
+    }
+
     function currentCourse() {
         for (var i = 0; i < GOLF.COURSES.length; i++) {
             if (GOLF.COURSES[i].id === GOLF.COURSE_ID) return GOLF.COURSES[i];
@@ -125,6 +170,9 @@
             sel.addEventListener('change', function () { playCourse(sel.value, null); });
         }
         if (die) die.addEventListener('click', dealRandomCourse);
+
+        var draw = $('btn-draw');
+        if (draw) draw.addEventListener('click', newDraw);
     }
 
     /* ── round state ────────────────────────────────────────────────────── */
@@ -293,12 +341,12 @@
            "round" of three strokes would walk straight into the best-round
            record. So it is scored and shown, and never written down. */
         var res;
-        if (GOLF.PLAYTEST) {
-            res = { save: state.save, isBest: false, totals: S.totals(state.scores, GOLF.COURSE) };
-        } else {
-            clearStoredRound();
+        if (!GOLF.PLAYTEST) clearStoredRound();
+        if (isRecorded()) {
             res = S.recordRound(state.save, state.scores, GOLF.COURSE);
             state.save = S.save(res.save);
+        } else {
+            res = { save: state.save, isBest: false, totals: S.totals(state.scores, GOLF.COURSE) };
         }
         state.phase = 'finished';
         $('banner').classList.remove('show');
@@ -332,12 +380,22 @@
             ? (res.isBest ? 'New personal best!' : 'Round complete')
             : 'Scorecard';
         $('card-title').textContent = headline;
-        $('card-sub').textContent = res
-            ? t.strokes + ' strokes, ' + S.formatVsPar(t.vsPar) + ' · best ' +
-              (state.save.best === null ? '—' : state.save.best) +
-              ' · ' + state.save.rounds + ' round' + (state.save.rounds === 1 ? '' : 's') +
-              ' · ' + state.save.aces + ' ace' + (state.save.aces === 1 ? '' : 's')
-            : 'Through ' + t.played + ' hole' + (t.played === 1 ? '' : 's');
+        var summary;
+        if (!res) {
+            summary = 'Through ' + t.played + ' hole' + (t.played === 1 ? '' : 's');
+        } else if (!isRecorded()) {
+            // Not an apology: a draw nobody else has played has no record to
+            // beat, and pretending otherwise would put a nine-hole score up
+            // against the eighteen.
+            summary = t.strokes + ' strokes, ' + S.formatVsPar(t.vsPar) +
+                ' · not recorded — no two draws are the same course';
+        } else {
+            summary = t.strokes + ' strokes, ' + S.formatVsPar(t.vsPar) + ' · best ' +
+                (state.save.best === null ? '—' : state.save.best) +
+                ' · ' + state.save.rounds + ' round' + (state.save.rounds === 1 ? '' : 's') +
+                ' · ' + state.save.aces + ' ace' + (state.save.aces === 1 ? '' : 's');
+        }
+        $('card-sub').textContent = summary;
         $('card-again').style.display = res ? '' : 'none';
         $('scorecard').classList.add('show');
     }
@@ -415,6 +473,7 @@
             if (k === 'f' || k === 'F') { toggleFullscreen(); return; }
             if (k === 'r' || k === 'R') { restartHole(); return; }
             if (k === 'd' || k === 'D') { dealRandomCourse(); return; }
+            if (k === 'g' || k === 'G') { newDraw(); return; }
             if (k === 'Escape') { closeCard(); return; }
 
             if (state.phase === 'holed' && (k === ' ' || k === 'Enter')) {
@@ -638,6 +697,10 @@
         ctx = canvas.getContext('2d');
 
         markSafeZone();
+        // Before bootCourse and before the picker: a stored preference of
+        // 'draw' has to find a card to select, and the picker has to be able
+        // to list one.
+        bootDraw();
         bootCourse();
         buildCoursePicker();
         newRound(true);
@@ -672,6 +735,7 @@
         newRound: newRound,
         playCourse: playCourse,
         randomCourseId: randomCourseId,
+        newDraw: newDraw,
         getState: function () { return state; }
     };
 
