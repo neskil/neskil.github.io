@@ -8,7 +8,7 @@
    — the renderer scales to the viewport, the simulation never sees a pixel. */
 window.G3 = window.G3 || {};
 
-G3.VERSION = '1.39.0';
+G3.VERSION = '1.40.0';
 
 G3.CONFIG = {
     BALL_R: 0.16,
@@ -421,19 +421,24 @@ G3.CONFIG = {
        requirement fades out — the arrival is a camera standing on the course,
        and it is the one point in the path that may not be moved. */
     FLY: {
-        BASE_SECONDS: 2.4,
-        PER_UNIT: 0.045,
-        MIN_SECONDS: 2.8,
-        MAX_SECONDS: 6.5,
+        /* Longer and wider than it was, and both for the same reason: what
+           reads as "jumpy" on a phone is angular speed against frame rate.
+           Half a second more run and a camera a third further out both cut how
+           far the picture moves between two frames, without changing anything
+           about the path — which was never the problem. */
+        BASE_SECONDS: 3.0,
+        PER_UNIT: 0.05,
+        MIN_SECONDS: 3.4,
+        MAX_SECONDS: 7.2,
         PACE: 0.6,          // how far the time follows the chord lengths
-        LIFT: 0.55,         // apex, as a fraction of the hole's length…
-        LIFT_MIN: 7,        // …with a floor and a ceiling in world units
-        LIFT_MAX: 30,
-        BOW: 0.14,          // how far off the line the middle of it leans
-        BOW_MAX: 7,
-        PAST_CUP: 0.28,     // how far beyond the cup it opens
-        PAST_MIN: 4,
-        PAST_MAX: 13,
+        LIFT: 0.66,         // apex, as a fraction of the hole's length…
+        LIFT_MIN: 9,        // …with a floor and a ceiling in world units
+        LIFT_MAX: 32,
+        BOW: 0.16,          // how far off the line the middle of it leans
+        BOW_MAX: 8,
+        PAST_CUP: 0.34,     // how far beyond the cup it opens
+        PAST_MIN: 5.5,
+        PAST_MAX: 15,
         CLEAR: 3.0,         // never nearer than this to whatever is underneath
         SETTLE: 0.18,       // the tail of the run where that stops applying
         LIFT_SAMPLES: 36,
@@ -447,6 +452,34 @@ G3.CONFIG = {
         AIR_FROM: 6,
         AIR_SPAN: 18,
         AIR_MAX: 0.85
+    },
+
+    /* The demo's own camera. Nobody is aiming, so the seat behind the ball is
+       the one seat the picture does not need: what a demo is for is the hole,
+       and a hole is a shape best read from off to one side and moving.
+
+       It frames the whole hole with air around it, turns slowly enough that
+       the motion is felt rather than watched, and sits at a tilt that still
+       reads as three dimensions rather than as a plan. FOLLOW is the part that
+       matters on the long game: a par five does not fit in one frame at any
+       distance worth looking at, so past HOLD the look point walks towards the
+       ball, and by HOLD + SPAN it is most of the way there. The walk itself is
+       not smoothed here — the camera's own lerp in updateCamera does that, and
+       it is the same one every other seat is eased on. */
+    DEMO_CAM: {
+        SPIN: 0.08,         // radians a second: a turn round the hole in ~80s
+        TILT: 0.72,         // ~41° down, so it is an orbit and not a map
+        FIT: 1.3,           // how much air is left around the hole it frames
+        MAX_RADIUS: 30,     // …and the most of a hole it will ever stand back for
+        HOLD: 13,           // a hole smaller than this is watched whole
+        SPAN: 30,           // …and one this much bigger is followed all but fully
+        FOLLOW: 0.85,       // how far towards the ball the look point may walk
+        /* And it comes in as it starts following. Standing back far enough to
+           hold a par five while looking at the ball halfway down it frames a
+           field of grass with a speck in the middle; if the whole hole is not
+           what is being shown, what is being shown may as well be near. */
+        NEAR_RADIUS: 15,
+        LIFT: 0.7           // how much of the overview's cleared air it borrows
     },
 
     SAVE_KEY: 'loftLinks.save.v1',
@@ -483,21 +516,6 @@ G3.CONFIG = {
        "Surprise me" button draws under. */
     SHUFFLE_KEY: 'loftLinks.shuffle',
     SHUFFLE_MODE_KEY: 'loftLinks.shuffleMode',
-    BOT_KEY: 'loftLinks.botFound',
-    /* The other way in, and the reason the count exists: holes you have
-       actually played, so the caddie can turn up on its own for somebody who
-       never types anything. Nine is more than a course — long enough that
-       "what would a good player have done with that lie?" is a question you
-       have asked by then, and short enough to happen in one sitting. Holes
-       the demo walked while nobody was watching are not counted; they are
-       not yours. */
-    HOLES_KEY: 'loftLinks.holesPlayed',
-    BOT_UNLOCK_HOLES: 9,
-    /* The word that finds it, typed anywhere on the course. Made of letters
-       the game has nothing bound to (l m j o p r v f w h b c g and the digits
-       all do something already), so spelling it does not cycle your clubs and
-       throw the debug overlay up on the way past. */
-    BOT_CODE: 'aide',
     /* How the bot plays when a player is watching rather than when a test
        suite is counting. The fan is narrower than the suite's because every
        candidate is a whole shot simulated inside one frame and the game is
@@ -505,6 +523,21 @@ G3.CONFIG = {
        what the mode is for — you are meant to be able to follow it. */
     BOT_FAN: 12,
     BOT_PAUSE: 1.1,
+    /* The wind-up: how long the aim takes to swing round to the shot it has
+       chosen, and how long the meter then takes to fill. Together they are the
+       lead the plan is made for — see planShot — so lengthening either one
+       lengthens the moment the gates are simulated forward by, and nothing
+       else has to know. Long enough to read as a swing, short enough that a
+       hole of them is not a wait. */
+    BOT_TURN: 0.7,
+    BOT_WIND: 0.55,
+    /* How fast the aim is allowed to swing round, in radians a second. A
+       half-turn takes all of BOT_TURN and a two-degree correction takes almost
+       none of it — what is left over is spent standing still over the ball,
+       which is what a player does with it too. The budget the plan is made
+       for is BOT_TURN + BOT_WIND either way, so the beat a gate was chosen on
+       does not move when the angle does. */
+    BOT_TURN_RATE: 3.0,
     BOT_MAX_STROKES: 12,
 
     /* Demo mode — the same bot, playing to an empty room. What is

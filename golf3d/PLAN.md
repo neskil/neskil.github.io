@@ -148,16 +148,27 @@ style there and reads as a model on a table on purpose — §1 is about what sta
 
 Kept short, and only where it explains a constraint above.
 
-- **Demo mode, and the caddie's second door** (v1.39.0). The page no longer
-  opens on the course list: the bot plays a course under a title until somebody
-  touches something, and comes back to it when the list is left alone for
-  `DEMO_IDLE` — README → "Demo mode: the game playing itself". Two constraints
-  came out of building it and are worth keeping: a demo may only take back a
-  screen with no stroke on it (so `idleReady` reads the round rather than the
-  clock), and nothing it plays may reach the card, which is why a demo course
-  ends in `demoNext` and never in `finishRound`. The caddie now also unlocks
-  itself after `BOT_UNLOCK_HOLES` holed-out holes, so the 🤖 chip is no longer
-  reachable only by somebody who knew to type at it.
+- **Demo mode, and the caddie out of hiding** (v1.40.0). The page no longer
+  opens on the course list: the bot plays a course under a title card until
+  somebody touches something, and comes back to it when the list is left alone
+  for `DEMO_IDLE` — README → "Demo mode: the game playing itself". Three
+  constraints came out of building it and are worth keeping: a demo may only
+  take back a screen with no stroke on it (so `idleReady` reads the round
+  rather than the clock); nothing it plays may reach the card, which is why a
+  demo course ends in `demoNext` and never in `finishRound`; and anything that
+  gives a `hidden` element a `display` has to say `[hidden] { display: none }`
+  too, or the element does not go away — the card sat over a live round for a
+  release because of exactly that.
+
+  Four things came out of watching it run. The caddie now winds up — the aim
+  turns and the meter fills before it swings, and the plan is made for the
+  world that wind-up will land in, so a gate's beat still holds. The demo has a
+  camera of its own (`R.cam.mode === 'demo'`): stood back to hold the hole,
+  turning slowly round it, walking towards the ball on holes too long to frame.
+  The flyover's one cut is covered by a fade and its ease is smootherstep, both
+  because the complaint about it was frame-to-frame speed rather than shape.
+  And 🤖 Autoplay is an ordinary chip in the menu now: the typed code and the
+  nine-hole unlock are gone, with `BOT_KEY`, `BOT_CODE` and `HOLES_KEY`.
 
 - **The turntable, and the geometry audit** (v1.34.0). Eighty-four holes drawn
   from eight angles as fourteen contact sheets, with machine-checked findings

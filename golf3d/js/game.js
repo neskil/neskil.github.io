@@ -132,9 +132,13 @@
             : null;
         R.buildHole(hole, state.course.theme, state.weather);
         A.ambience(state.weather);
-        // A new hole is a new look at it: back to the seat behind the ball,
-        // and the dial straightened, whatever angle the last one was left at.
-        R.setCam({ yaw: state.aim.yaw, dist: 9, pitch: 0.46, view: 0, mode: 'follow', lock: false });
+        /* A new hole is a new look at it: back to the seat behind the ball,
+           and the dial straightened, whatever angle the last one was left at.
+           Under the demo it is the demo's seat instead — decided here rather
+           than at the door, because every hole comes through this line and a
+           camera set once would be reset by the next one. */
+        R.setCam({ yaw: state.aim.yaw, dist: 9, pitch: 0.46, view: 0,
+                   mode: demo ? 'demo' : 'follow', lock: false });
         syncView();
         syncSeat();
         R.state.lastBall.set(state.world.ball.x, state.world.ball.y, state.world.ball.z);
@@ -224,6 +228,16 @@
         if (on === flyHintUp) return;
         flyHintUp = on;
         $('fly-hint').hidden = !on;
+        /* And the cut is covered. Removed, reflowed and re-added because an
+           animation that is already on the element does not restart when the
+           class is set again, and a hole after the first would get no fade at
+           all. */
+        if (on) {
+            var fade = $('fly-fade');
+            fade.classList.remove('run');
+            void fade.offsetWidth;
+            fade.classList.add('run');
+        }
         // The chrome steps aside for the length of it; the stylesheet owns what
         // that means, this owns when. Both, because the hole's figures ride in
         // the topbar rather than on the stage — same reason `hud-open` and
@@ -484,9 +498,6 @@
         state.scores[state.holeIndex] = state.strokes;
         state.phase = 'holed';
         syncSwing();
-        // Holes played is what unlocks the caddie for somebody who never types
-        // the code; a hole is played when it is holed out. See countHolePlayed.
-        countHolePlayed();
 
         var t = S.term(state.strokes, hole.par);
         if (t.kind === 'ace') A.ace(); else A.sink();
@@ -1550,8 +1561,6 @@
         var fine = e.shiftKey;
         var k = e.key;
 
-        listenForCode(k);
-
         if (k === 'l' || k === 'L') { toggleLock(); return; }
         if (k === ',' || k === '<') { nudgeView(-VIEW_STEP); return; }
         if (k === '.' || k === '>') { nudgeView(VIEW_STEP); return; }
@@ -2341,7 +2350,9 @@
        keep the one that finishes nearest the cup — and this is that same code
        playing on the real course, at real speed, from wherever the ball is
        standing now. It is the only way to actually see what the suite has only
-       ever counted.
+       ever counted, and it is a chip in the menu like any other: it was hidden
+       behind a typed word for a while, and a control nobody can find is a
+       control nobody has.
 
        Three things make it watchable rather than a blur. It thinks on the
        frame *after* it says it is thinking, so the freeze lands under a
@@ -2358,54 +2369,9 @@
 
     var sim = null;
 
-    function botFound() {
-        try { return localStorage.getItem(C.BOT_KEY) === '1'; } catch (e) { return false; }
-    }
-
-    function findBot(why) {
-        try { localStorage.setItem(C.BOT_KEY, '1'); } catch (e) { /* ignore */ }
-        syncSim();
-        toast(why);
-    }
-
-    /* The code, typed anywhere on the course. Every letter still does its own
-       job on the way past — this listens rather than swallows — which is why
-       the word is made of keys the game has nothing bound to. */
-    var typed = '';
-
-    function listenForCode(k) {
-        if (!k || k.length !== 1) return;
-        typed = (typed + k.toLowerCase()).slice(-C.BOT_CODE.length);
-        if (typed !== C.BOT_CODE || botFound()) return;
-        findBot('Caddie found — “Simulate” in the menu lets it play for you');
-    }
-
-    /* The other door, for everybody who never goes looking: play enough holes
-       and the caddie turns up on its own. It is the same chip and the same
-       bot — what has changed by then is that you have stood over a lie and
-       wondered what a better player would have done with it, which is the
-       only question this answers.
-
-       Counted in holes rather than rounds, so a course walked out of order or
-       left half-played still gets there, and counted only for holes somebody
-       played: the demo walks a course every time nobody is watching, and none
-       of that is yours. */
-    function holesPlayed() {
-        try { return parseInt(localStorage.getItem(C.HOLES_KEY), 10) || 0; } catch (e) { return 0; }
-    }
-
-    function countHolePlayed() {
-        if (demo || botFound()) return;
-        var n = holesPlayed() + 1;
-        try { localStorage.setItem(C.HOLES_KEY, String(n)); } catch (e) { return; }
-        if (n < C.BOT_UNLOCK_HOLES) return;
-        findBot('Caddie unlocked — “Simulate” in the menu plays a hole the way it would');
-    }
-
     function syncSim() {
         var btn = $('btn-sim');
         if (!btn) return;
-        btn.hidden = !botFound();
         btn.classList.toggle('on', !!sim);
         btn.setAttribute('aria-pressed', sim ? 'true' : 'false');
         btn.title = sim ? 'Stop the bot (take the club back)'
@@ -2423,7 +2389,11 @@
         skipFly();
         closeGate();
         hideHoleCard();
-        sim = { stage: 'rest', t: C.BOT_PAUSE, strokes: 0, at: 0, said: false };
+        // `t` is the stage's own clock — counting down through the rest, up
+        // through the turn and the wind-up — and `shot`, `fromYaw` and `toYaw`
+        // are filled in by planShot when there is something to aim at.
+        sim = { stage: 'rest', t: C.BOT_PAUSE, strokes: 0, at: 0, said: false,
+                shot: null, fromYaw: 0, toYaw: 0 };
         state.aim.power = 0;
         syncPower();
         syncSim();
@@ -2438,8 +2408,37 @@
         if (why) toast(why);
     }
 
-    /* One frame of the bot's turn. Four stages, and the only one that costs
-       anything is `think`. */
+    /* The wind-up, which is the difference between a player and a teleport.
+
+       The bot used to point the camera at its answer and strike on the same
+       frame: the view snapped round, the meter went from nothing to full
+       between two frames, and the ball left. Every one of those is a thing a
+       person does *over* a moment, and a shot with no moment before it reads
+       as a glitch rather than as a swing — which is exactly what it looked
+       like in the demo, where there is nothing else on screen to watch.
+
+       So the club is taken, then the aim turns, then the meter winds up, and
+       only then does it swing. Both stages drive the same two numbers a thumb
+       drives, so the arrow on the ground grows out of the ball the way it does
+       under your own hand.
+
+       The one thing this cannot do is cost the shot its timing. A gate is
+       where it is at a moment, and `bot.bestShot` chooses a shot *for* a
+       moment — so the plan is made for the world as it will be `BOT_LEAD`
+       seconds from now, which is exactly the time the wind-up is about to
+       spend, and the beat it names is still met to the frame. */
+    function easeInOut(x) { return x < 0 ? 0 : x > 1 ? 1 : x * x * (3 - 2 * x); }
+
+    // The short way round, which is the way a person turns.
+    function turnTowards(from, to, f) {
+        var d = (to - from) % (Math.PI * 2);
+        if (d > Math.PI) d -= Math.PI * 2;
+        if (d < -Math.PI) d += Math.PI * 2;
+        return from + d * f;
+    }
+
+    /* One frame of the bot's turn. Six stages now, and the only one that costs
+       anything is still `think`. */
     function tickSim(beat) {
         if (state.phase === 'holed' || state.phase === 'finished') {
             stopSim(null);
@@ -2456,6 +2455,30 @@
             // for a moment and this is what stands in front of it.
             if (!sim.said) { sim.said = true; toast('The caddie is reading the hole…'); return; }
             planShot();
+            return;
+        }
+        if (sim.stage === 'turn') {
+            sim.t += beat;
+            state.aim.yaw = turnTowards(sim.fromYaw, sim.toYaw,
+                                        easeInOut(sim.t / sim.turnDur));
+            // The stage is always BOT_TURN long even when the turn inside it is
+            // not: the leftover is a beat spent standing over the ball, and the
+            // shot's timing is budgeted on the whole of it either way.
+            if (sim.t < C.BOT_TURN) return;
+            state.aim.yaw = sim.toYaw;
+            sim.stage = 'wind';
+            sim.t = 0;
+            return;
+        }
+        if (sim.stage === 'wind') {
+            sim.t += beat;
+            // Up the meter rather than onto it: setPower is the same door the
+            // drag and the arrow keys use, so the cone on the ground opens with
+            // it and the reading under the bar counts up.
+            setPower(sim.shot.power * easeInOut(sim.t / C.BOT_WIND));
+            if (sim.t < C.BOT_WIND) return;
+            setPower(sim.shot.power);
+            sim.stage = 'wait';
             return;
         }
         if (sim.stage === 'wait') {
@@ -2477,17 +2500,28 @@
     function planShot() {
         var w = state.world, b = w.ball;
         var from = { x: b.x, y: b.y, z: b.z };
+        var lead = C.BOT_TURN + C.BOT_WIND;
         var t0 = performance.now();
-        var shot = G3.bot.bestShot(w.hole, from, w.time, bag(), { fan: C.BOT_FAN });
+        /* Planned for the world the wind-up is about to arrive in, not the one
+           it is leaving: every blade and gate on the hole will have turned by
+           `lead` before this shot is struck, and a shot chosen for the wrong
+           moment is chosen against a different hole. */
+        var shot = G3.bot.bestShot(w.hole, from, w.time + lead, bag(), { fan: C.BOT_FAN });
         if (!shot) { stopSim('The caddie cannot see a shot from there'); return; }
         sim.shot = shot;
-        sim.at = w.time + shot.wait;
-        sim.stage = 'wait';
+        sim.at = w.time + lead + shot.wait;
+        sim.stage = 'turn';
+        sim.t = 0;
+        sim.fromYaw = state.aim.yaw;
+        sim.toYaw = shot.yaw;
+        sim.turnDur = Math.max(0.18, Math.min(C.BOT_TURN,
+            Math.abs(turnTowards(sim.fromYaw, sim.toYaw, 1) - sim.fromYaw) / C.BOT_TURN_RATE));
+        // The club is taken now: it is the one part of a shot that happens
+        // before the address rather than during it.
         pickClub(shot.club);
         if (G3.bag) G3.bag.setExpanded(false);
         syncPicker();
-        state.aim.yaw = shot.yaw;
-        setPower(shot.power);
+        setPower(0);
         toast(shot.club.name + ' — ' + shot.power.toFixed(1) +
               (shot.wait ? ', on the beat' : '') +
               ' · ' + shot.sims + ' shots tried in ' +
@@ -2613,6 +2647,9 @@
         if (!demo) return;
         demo = null;
         stopSim(null);
+        // The seat goes back with the club. leaveDemo deals a fresh round on
+        // top of this, which sets it again — this is for every other way out.
+        if (R.cam.mode === 'demo') R.setCam({ mode: 'follow', view: 0 });
         document.body.classList.remove('demo');
         $('demo').hidden = true;
     }
