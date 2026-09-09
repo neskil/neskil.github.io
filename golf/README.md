@@ -10,7 +10,7 @@ same as everything else here, open `index.html` and it runs.
 
 | Path | What it is |
 | --- | --- |
-| `index.html` | Page shell: scoreboard, canvas, banner, scorecard modal. |
+| `index.html` | Page shell: bar, scoreboard, canvas, banner, course picker and scorecard modals. |
 | `style.css` | Page chrome. The course itself is all canvas. |
 | `js/config.js` | Every tuning constant. Nothing else holds a magic number. |
 | `js/courses.js` | Every hand-built course, as data. |
@@ -18,12 +18,14 @@ same as everything else here, open `index.html` and it runs.
 | `js/physics.js` | The simulation. No DOM, no canvas, pure. |
 | `js/scoring.js` | Scorecard arithmetic and the save file. |
 | `js/audio.js` | Synthesised sound effects — no audio files to ship. |
+| `js/plan.js` | Flat hole thumbnails for the course picker. Nothing on the board reads it. |
 | `js/render.js` | All drawing, plus the (visual-only) particle system. |
 | `js/game.js` | Loop, input, and what a shot means. |
 | `level-editor.html` | Visual hole editor. See [The editor](#the-editor). |
 | `editor/editor.js` | All of it. Runs on the game's own modules, owns no copy of any of them. |
 | `editor/editor.css` | Sidebar chrome. The green in there is the game's renderer. |
-| `tests.html` | Headless test harness. Open it; green is green. |
+| `tests.html` | Headless test harness for the logic. Open it; green is green. |
+| `ui-tests.html` | The same, for the page chrome — the bar, the ☰ panel, the picker. |
 
 ## The four courses
 
@@ -75,7 +77,7 @@ with **rough** instead, which is the same answer hole one gives: the short
 line has to be earned, the long one costs a stroke's worth of roll and
 nothing more.
 
-**The die deals a card you did not choose.** The 🎲 chip (or `D`, or
+**The die deals a card you did not choose.** The 🎲 in the picker (or `D`, or
 `?course=random` as a link) picks a course off the rack at random and starts
 it. It never deals the one already under you — a press that changed nothing
 would read as a broken button rather than as luck — so it goes through
@@ -90,11 +92,62 @@ makes. Six holes, nine and eighteen are not comparable totals, which is the
 other half of why the save file is split: a six-hole round would take the
 eighteen-hole record the first time anyone played one.
 
+## The bar, and the picker behind it
+
+The bar used to be eight controls laid flat: a `<select>` of courses, a die,
+a draw, restart, card, editor, sound, fullscreen. On a phone that ran off the
+end of the row, and on a laptop it was a wall of chrome standing between the
+player and the board. Three of the eight were about *which course*, which is
+a question big enough to have a page of its own.
+
+So it is five chips and a ⛶ now, and on a compact screen — a phone, a coarse
+pointer, a short window, or fullscreen on anything — four of the five fold
+behind ☰. Fullscreen stays out there, because it is the one control worth
+reaching for with a shot half aimed. `compact-ui` on `<body>` is the switch;
+off it, `.topbar-menu` is `display: contents` and the chips are simply the row
+they always were, so nothing has to be undone.
+
+**The picker** (`#menu`, `C` or the ⛳ chip) is what replaced the `<select>`.
+A menu of names is the one control that can say nothing about what it is
+offering: not how long a round is, not what is on the field, not what you
+last went round it in, not whether a round of yours is already waiting — and
+it cannot offer a *hole* at all, only a course. The dialog is one card per
+course, and every hole on every card is a plan you can press:
+
+- **The head** starts that course where you left it, which is exactly what
+  choosing it from the old menu did.
+- **A plan** starts a fresh round on that hole. Not a resumed one: a card
+  with the first six holes filled in and a player who teed off on the seventh
+  is a total that means nothing.
+- **The draw's card** carries a ✦ Re-deal, because it is the one card on the
+  rack that can be replaced rather than merely chosen. It also says *not
+  recorded* rather than showing an empty best — a rule, not a record nobody
+  has managed.
+
+The plans are `plan.js`, and they are a second drawing of the hole rather
+than a small screenshot of it. `render.js` paints mown stripes, turf speckle,
+rake lines, a waving pennant and a vignette; none of that survives being
+shrunk to eighty pixels, where it is noise on top of the one thing the
+picture has to say. So the plan is flat — no texture, no clock, hazards
+pushed further apart in colour than the board's are, and the tee and the pin
+drawn far larger than life because a ball is three quarters of a pixel at
+that size. It reads the hole's own arrays, so it cannot disagree about what
+is on the field; what it does not know is *time*, which is why a moving gate
+is drawn at rest under hazard stripes instead of somewhere it happens to be.
+
+Each plan is cached by course, hole and pixel size — the draw's key carries
+its seed as well, since two draws are two courses under one id — so the
+second opening of the picker rasterises nothing. On a phone every card but
+the one you are standing on starts folded: fifty-one plans laid flat is four
+screens of scrolling before you reach the last card, and the head above each
+fold is still a one-tap start.
+
 ## The draw
 
 `generator.js` deals a ninth-hole card nobody has played: nine holes built
 from a seed, legal by construction, and checked before they are handed over.
-The ✦ chip (or `G`) deals a new one; `?seed=<base36>` deals a named one, and
+The ✦ Re-deal button on the draw's own card in the picker (or `G`) deals a
+new one; `?seed=<base36>` deals a named one, and
 so does anything else you put in that parameter — `?seed=birthday` hashes to
 a seed like everything that is not one already. The seed is shown in the
 tagline and remembered, so a refresh gives you the course you were playing
@@ -489,11 +542,37 @@ indexable; the self-test overlay only appears with the query string.
 
 ## Tests
 
+Two harnesses, and the runner finds both.
+
 Open `tests.html`. 648 assertions covering geometry, the integrator, the four
 surfaces, the overswing, the course data on every course, the generator, the
 scorecard, the per-course save keys and the resumable round, in a few seconds
 — most of them the bot's, which now searches for a way round every hole on
 the rack and every hole of twelve draws.
+
+Open `ui-tests.html` for the other half: 57 assertions about the *page*. It
+loads `index.html` in a frame with the cross-origin tags stripped out — no
+font stylesheet, no analytics, so nothing waits on a network — and then
+presses things. Unlike `golf3d/ui-tests.html` it keeps the page's own scripts:
+there is no WebGL here, so the real game boots in a frame in milliseconds and
+the picker can be opened, pressed and measured rather than merely read.
+
+It exists because two of the bugs found while building the picker were
+invisible to every assertion in the other file, and neither was a broken
+rule — both were working rules landing on an element nobody was looking at:
+
+- `.chip-menu { display: none }` was written *above* `.chip { display:
+  inline-flex }`. Both are one class deep, so the later rule won and ☰ stood
+  in the bar on a desktop, beside the five chips it exists to replace.
+- A plan drawn into a folded strip is drawn against a zero-width box and then
+  cached at that size, so unfolding the strip showed a row of one-pixel
+  smears that no amount of redrawing would replace.
+
+Transitions are killed in the frame rather than waited out: most of what is
+read is read just after a class was added, and an element mid-transition
+reports the state it is *leaving* — which would have passed both of the
+above. The suite also snapshots every `miniGolf.*` key before it starts and
+puts them back at the end, so opening it costs you a second and not a record.
 
 The generated courses are held to the shipped ones' standard and then some.
 Twelve fixed seeds — fixed, because a suite that fails one run in fifty is a

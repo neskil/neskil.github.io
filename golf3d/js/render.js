@@ -61,7 +61,8 @@
                to turn underneath it without dragging the picture round. */
             lock: false, bearing: 0,
             kick: 0,          // impact flinch, decays
-            speedPull: 0      // extra distance while the ball is quick
+            speedPull: 0,     // extra distance while the ball is quick
+            demoT: 0          // how long the demo's orbit has been turning
         },
         smooth: { pos: new THREE.Vector3(), target: new THREE.Vector3(), started: false },
         particles: null, pAlive: 0,
@@ -3090,7 +3091,9 @@
     var VIEWS = ['follow', 'side', 'over'];
 
     function viewLabel(mode) {
-        return mode === 'over' ? 'Overview' : (mode === 'side' ? 'Side on' : 'Follow');
+        if (mode === 'over') return 'Overview';
+        if (mode === 'side') return 'Side on';
+        return mode === 'demo' ? 'Demo' : 'Follow';
     }
 
     function cycleView() {
@@ -3162,6 +3165,37 @@
             px = bx - Math.sin(yaw) * Math.cos(tilt) * dist;
             py = Math.sin(tilt) * dist;
             pz = bz - Math.cos(yaw) * Math.cos(tilt) * dist;
+        } else if (c.mode === 'demo') {
+            /* Nobody is aiming, so nothing here is measured off the aim. The
+               camera stands far enough back to hold the hole, turns round it
+               on its own clock, and looks at the middle of it — except on a
+               hole too long to hold, where the look point walks towards the
+               ball by DEMO_CAM.FOLLOW and the shot stays in the frame. The
+               walk is not smoothed here; updateCamera's lerp is what smooths
+               every seat, and this is a seat like the others. */
+            var D = C.DEMO_CAM;
+            var dex = (hole.bounds.maxX - hole.bounds.minX) / 2;
+            var dez = (hole.bounds.maxZ - hole.bounds.minZ) / 2;
+            var span = Math.hypot(dex, dez);
+            var follow = Math.max(0, Math.min(D.FOLLOW, (span - D.HOLD) / D.SPAN));
+            // What it is framing: the whole hole while it is watching the whole
+            // hole, and the ball's own neighbourhood once it has started
+            // following one — the two are the same question asked twice.
+            var whole = Math.min(span * D.FIT, D.MAX_RADIUS);
+            var shown = whole + (D.NEAR_RADIUS - whole) * (follow / D.FOLLOW);
+            var dv = R.camera.fov * Math.PI / 360;
+            var dh = Math.atan(Math.tan(dv) * R.camera.aspect);
+            dist = shown / Math.tan(Math.min(dv, dh));
+            R.overDist = dist;
+            R.overRadius = shown;
+
+            var spin = c.demoT * D.SPIN;
+            tx = bx + (ball.x - bx) * follow;
+            ty = ball.y * follow;
+            tz = bz + (ball.z - bz) * follow;
+            px = tx - Math.sin(spin) * Math.cos(D.TILT) * dist;
+            py = ty + Math.sin(D.TILT) * dist;
+            pz = tz - Math.cos(spin) * Math.cos(D.TILT) * dist;
         } else if (c.mode === 'side') {
             /* Square on to the shot. The camera looks at a point down the aim
                line rather than at the ball, so the ball sits at one edge of the
@@ -3306,6 +3340,10 @@
     function flying() { return !!R.fly; }
 
     function updateCamera(hole, ball, dt) {
+        // The demo's orbit is on its own clock rather than the world's: the
+        // world stops for a moment every time the bot thinks, and a camera
+        // that stopped with it would say so.
+        if (R.cam.mode === 'demo') R.cam.demoT += dt;
         seatFor(hole, ball, _seat);
         if (R.fly && flyCamera(hole, ball, dt)) return;
 
@@ -3343,7 +3381,8 @@
        The weather on the ground is untouched: the hole is playing in exactly
        the mist it was, and looks it the moment you are back behind the ball. */
     function atmosphere(dt) {
-        var want = R.cam.mode === 'over' ? 1 : 0;
+        var want = R.cam.mode === 'over' ? 1
+                 : (R.cam.mode === 'demo' ? C.DEMO_CAM.LIFT : 0);
         /* The intro sweep asks for the same thing, in proportion to how far off
            the ground it is: at the apex it is as far up as the map and looking
            through as much weather, and near the tee it is on the course and
@@ -3499,9 +3538,11 @@
            camera has finished moving and before anything is drawn — and it is
            put away for the intro, because a bag of clubs pinned to the corner
            of a shot flying thirty units over the course is the one thing in the
-           picture that says the camera is not really up there. */
+           picture that says the camera is not really up there. The demo's
+           orbit is the same picture and the same tell, with the extra reason
+           that there is nobody there to pick a club out of it. */
         if (G3.bag) {
-            G3.bag.setVisible(!R.fly);
+            G3.bag.setVisible(!R.fly && R.cam.mode !== 'demo');
             G3.bag.update(dt, R.camera, R.camera.aspect);
         }
 

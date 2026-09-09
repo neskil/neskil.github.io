@@ -109,8 +109,6 @@
     }
 
     function syncCourse() {
-        var sel = $('course-select');
-        if (sel) sel.value = GOLF.COURSE_ID;
         var course = currentCourse();
         var tagline = document.querySelector('.tagline');
         if (tagline && course) tagline.textContent = course.name + ' — ' + course.blurb;
@@ -121,17 +119,30 @@
        resumes from its own key, so coming back puts you on the tee of the
        hole you left — the same promise a refresh makes. Every route onto a
        course goes through here: the picker, the die, and the boot. */
-    function playCourse(id, how) {
+    function playCourse(id, how, startAt) {
         if (!GOLF.selectCourse(id)) return false;
+        // The picker asked the question this is the answer to, so it goes
+        // away here rather than at each of the four buttons that can start a
+        // course — the die and the re-deal are also reachable by key, with
+        // the dialog open and nothing else to shut it.
+        closeMenu();
         try { localStorage.setItem(C.COURSE_KEY, GOLF.COURSE_ID); } catch (e) { /* storage off */ }
-        newRound(true);
+        /* Naming a hole is asking to start there, which is a new round and
+           not a resumed one — a card with the first six holes filled in and a
+           player who teed off on the seventh is a total that means nothing.
+           Naming only a course is the old promise: you get back the round you
+           left. */
+        var named = typeof startAt === 'number';
+        newRound(!named, named ? startAt : 0);
         syncCourse();
         if (how) {
             // newRound has already toasted a resume; say both things at once
             // rather than letting one message wipe the other off the screen.
             var course = currentCourse();
             toast(how + ' — ' + (course ? course.name : id) +
-                  (state.holeIndex > 0 ? ', resumed at hole ' + (state.holeIndex + 1) : ''));
+                  (state.holeIndex > 0
+                      ? (named ? ', from hole ' : ', resumed at hole ') + (state.holeIndex + 1)
+                      : ''));
         }
         return true;
     }
@@ -147,32 +158,273 @@
         return pool[Math.floor(Math.random() * pool.length)].id;
     }
 
+    // Answers whether it actually dealt one, so a caller that latches itself
+    // against a second press does not stay latched on a press that did
+    // nothing.
     function dealRandomCourse() {
-        if (GOLF.PLAYTEST) return;
+        if (GOLF.PLAYTEST) return false;
         var id = randomCourseId();
-        if (!id) { toast('Only one course on the rack'); return; }
-        playCourse(id, 'Random draw');
+        if (!id) { toast('Only one course on the rack'); return false; }
+        return playCourse(id, 'Random draw');
     }
 
-    function buildCoursePicker() {
-        var sel = $('course-select');
-        var die = $('btn-shuffle');
+    /* ── the course picker ───────────────────────────────────────────────
+
+       What used to be a <select> naming four cards. A menu of names is the
+       one control that can tell you nothing about what it is offering: how
+       long a round is, what the field has on it, what you last went round it
+       in, whether there is a round of yours already waiting on it — and it
+       cannot offer a hole at all, only a course. So the choice is a dialog
+       now, one card per course, and every hole on every card is a plan you
+       can press.
+
+       It is built fresh each time it opens rather than kept and shown. The
+       records change as you play, the resume line changes every hole, and the
+       draw is a different course every time it is re-rolled; a picker built
+       once at boot would be wrong about all three by the second round. */
+
+    // One press per opening. Loading a course is the longest thing a button on
+    // this page starts, and on a phone that has not repainted yet the second
+    // impatient tap lands on whichever card has slid under it.
+    var menuTaking = false;
+
+    function openMenu() {
+        if (GOLF.PLAYTEST) return;
+        menuTaking = false;
+        drawCourses();
+        $('menu').classList.add('show');
+        var first = $('menu-list').querySelector('.cc-head');
+        if (first) { try { first.focus(); } catch (e) { /* ignore */ } }
+        drawPlans();
+    }
+
+    function closeMenu() { $('menu').classList.remove('show'); }
+
+    /* Every way out of the picker goes through here, so the latch is set in
+       one place rather than at each of the two kinds of button. */
+    function takeCourse(id, hole) {
+        if (menuTaking) return;
+        menuTaking = true;
+        playCourse(id, 'Course', hole);
+    }
+
+    /* What one card says about itself under the blurb: length, par, the
+       record, and the round waiting on it if there is one. The record line is
+       the reason `scoring.js` takes a course id — all five are priced at once
+       and none of it may move `GOLF.COURSE_ID`, which is the pointer the ball
+       is rolling on. */
+    function courseMeta(course) {
+        var bits = [course.holes.length + ' holes', 'par ' + GOLF.coursePar(course.holes)];
+        if (course.record === false) {
+            // A draw holds no record, and saying "best —" for ever reads as a
+            // record nobody has managed rather than as a rule.
+            bits.push('not recorded');
+        } else {
+            var rec = S.load(course.id);
+            bits.push('best ' + (rec.best === null
+                ? '\u2014'
+                : rec.best + ' (' + S.formatVsPar(rec.bestVsPar) + ')'));
+        }
+        var seed = typeof course.seed === 'number' ? course.seed : null;
+        var carry = S.loadRound(course.holes, course.id, seed);
+        if (carry) bits.push('resumes at hole ' + (carry.holeIndex + 1));
+        return bits.join(' \u00b7 ');
+    }
+
+    function drawCourses() {
+        var host = $('menu-list');
+        host.innerHTML = '';
+
+        GOLF.COURSES.forEach(function (course) {
+            var here = course.id === GOLF.COURSE_ID;
+            // Open from the start on a wide screen, where a strip of plans has
+            // never crowded anything out. On a phone only the card you are
+            // standing on starts open.
+            var opened = !document.body.classList.contains('compact-ui') || here;
+            var stripId = 'cc-holes-' + course.id;
+            var card = document.createElement('div');
+            card.className = 'course-card' + (here ? ' playing' : '') +
+                (opened ? ' expanded' : '');
+
+            var topRow = document.createElement('div');
+            topRow.className = 'cc-top';
+
+            // The head is the whole card except the plans: pressing it starts
+            // this course the way choosing it from the old menu did, which is
+            // to say from wherever you left it.
+            var head = document.createElement('button');
+            head.type = 'button';
+            head.className = 'cc-head';
+            head.innerHTML =
+                '<span class="cc-name">' + course.name +
+                (here ? '<span class="cc-here">playing</span>' : '') + '</span>' +
+                '<span class="cc-blurb">' + course.blurb + '</span>' +
+                '<span class="cc-meta">' + courseMeta(course) + '</span>';
+            head.addEventListener('click', function () { takeCourse(course.id); });
+            topRow.appendChild(head);
+
+            /* Only the strip folds, and only on a compact screen. Fifty-one
+               plans stacked flat is four screens of scrolling on a phone
+               before you have reached the last card; folded, the whole rack
+               is one. The head stays a full-width button either way, so a
+               folded card still costs one tap to start. */
+            var toggle = document.createElement('button');
+            toggle.type = 'button';
+            toggle.className = 'cc-toggle';
+            toggle.setAttribute('aria-controls', stripId);
+            toggle.setAttribute('aria-expanded', opened ? 'true' : 'false');
+            toggle.setAttribute('aria-label', 'Hole plans for ' + course.name);
+            toggle.title = 'Show hole plans';
+            toggle.textContent = '⌄';
+            toggle.addEventListener('click', function () {
+                var open = card.classList.toggle('expanded');
+                toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+                // The plans in a strip that was folded when the dialog opened
+                // were skipped for having no laid-out box; now there is one.
+                if (open) drawPlans(card);
+            });
+            topRow.appendChild(toggle);
+
+            /* The draw is the one card on the rack that can be replaced rather
+               than merely chosen, so it is the one card that carries a second
+               button. It sits on the card it re-rolls instead of in the bar,
+               where "New draw" was a chip nobody could place until they had
+               pressed it once. */
+            if (GOLF.installDraw && course.id === GOLF.generator.DRAW_ID) {
+                var again = document.createElement('button');
+                again.type = 'button';
+                again.className = 'cc-redraw';
+                again.title = 'Deal nine holes nobody has played (G)';
+                again.innerHTML = '\u2726<span> Re-deal</span>';
+                again.addEventListener('click', function () {
+                    if (menuTaking) return;
+                    menuTaking = true;
+                    newDraw();
+                });
+                topRow.appendChild(again);
+            }
+            card.appendChild(topRow);
+
+            var strip = document.createElement('div');
+            strip.className = 'cc-holes';
+            strip.id = stripId;
+            course.holes.forEach(function (hole, i) {
+                var cell = document.createElement('button');
+                cell.type = 'button';
+                cell.className = 'cc-hole';
+                cell.title = hole.name + ' \u2014 par ' + hole.par;
+                // Read back by the plan pass rather than counted out of the
+                // DOM, so the order above is free to change.
+                cell.setAttribute('data-course', course.id);
+                cell.setAttribute('data-hole', i);
+                cell.innerHTML =
+                    '<canvas class="cc-map" aria-hidden="true"></canvas>' +
+                    '<span class="cc-num">' + (i + 1) + '</span>' +
+                    '<span class="cc-par">' + hole.par + '</span>';
+                cell.addEventListener('click', function () { takeCourse(course.id, i); });
+                strip.appendChild(cell);
+            });
+            card.appendChild(strip);
+            host.appendChild(card);
+        });
+
+        host.scrollTop = 0;
+    }
+
+    /* Draw the plans in `root`, or in the whole list. plan.js caches what it
+       draws, so a second opening of the picker pays for none of it and a card
+       unfolded twice is drawn once.
+
+       On the first opening this is put off a frame: the dialog has just been
+       filled with fifty-one canvases, and rasterising them all before the
+       browser has painted anything is the difference between a picker that
+       opens and a picker that hesitates. Unfolding one card is not that —
+       nine plans at most, wanted the instant the strip is open — so that
+       path draws where it stands. */
+    function drawPlans(root) {
+        if (!GOLF.plan) return;
+        var draw = function () {
+            var cells = (root || $('menu-list')).querySelectorAll('.cc-hole');
+            for (var k = 0; k < cells.length; k++) {
+                // A folded strip lays nothing out. Drawing into it would cache
+                // a plan one pixel wide under the size the strip will have.
+                if (!cells[k].clientWidth) continue;
+                var id = cells[k].getAttribute('data-course');
+                var course = null;
+                for (var j = 0; j < GOLF.COURSES.length; j++) {
+                    if (GOLF.COURSES[j].id === id) { course = GOLF.COURSES[j]; break; }
+                }
+                GOLF.plan.into(cells[k].querySelector('.cc-map'), id,
+                    parseInt(cells[k].getAttribute('data-hole'), 10),
+                    course && typeof course.seed === 'number' ? course.seed : null);
+            }
+        };
+        if (root) draw(); else requestAnimationFrame(draw);
+    }
+
+    function bindCoursePicker() {
+        // A playtest is one hole handed over by the editor. There is no rack
+        // to pick from and no round to swap out from under a draft.
         if (GOLF.PLAYTEST) {
-            if (sel) sel.hidden = true;
-            if (die) die.hidden = true;
+            $('btn-courses').hidden = true;
             return;
         }
+        $('btn-courses').addEventListener('click', openMenu);
+        $('menu-close').addEventListener('click', closeMenu);
+        $('menu-shuffle').addEventListener('click', function () {
+            if (menuTaking) return;
+            menuTaking = dealRandomCourse();
+        });
+        $('menu').addEventListener('click', function (e) {
+            if (e.target === $('menu')) closeMenu();
+        });
+    }
 
-        if (sel) {
-            sel.innerHTML = GOLF.COURSES.map(function (c) {
-                return '<option value="' + c.id + '">' + c.name + ' · ' + c.holes.length + '</option>';
-            }).join('');
-            sel.addEventListener('change', function () { playCourse(sel.value, null); });
+    /* ── the ☰ panel ─────────────────────────────────────────────────────
+
+       Compact chrome: a phone, a coarse pointer, or fullscreen on anything.
+       Four of the five chips fold behind ☰ and fullscreen stays out, because
+       it is the one you reach for with a shot half aimed. Off a compact
+       screen the panel is `display: contents` and the chips are simply the row
+       they always were — nothing here has to be undone. */
+
+    var compactQuery = null;
+
+    function syncCompact() {
+        if (!compactQuery && window.matchMedia) {
+            compactQuery = window.matchMedia(
+                '(max-width: 760px), (max-height: 560px), (pointer: coarse)');
         }
-        if (die) die.addEventListener('click', dealRandomCourse);
+        var on = (compactQuery ? compactQuery.matches : false) || !!fullscreenEl();
+        document.body.classList.toggle('compact-ui', on);
+        if (!on) closeTopMenu();
+    }
 
-        var draw = $('btn-draw');
-        if (draw) draw.addEventListener('click', newDraw);
+    function closeTopMenu() {
+        $('topbar-menu').classList.remove('open');
+        $('btn-menu').classList.remove('on');
+        $('btn-menu').setAttribute('aria-expanded', 'false');
+    }
+
+    function toggleTopMenu() {
+        var el = $('topbar-menu');
+        var open = !el.classList.contains('open');
+        el.classList.toggle('open', open);
+        $('btn-menu').classList.toggle('on', open);
+        $('btn-menu').setAttribute('aria-expanded', open ? 'true' : 'false');
+    }
+
+    function bindTopMenu() {
+        $('btn-menu').addEventListener('click', toggleTopMenu);
+        // Anything pressed inside the panel has answered the question the
+        // panel was asking, so the panel goes away with it.
+        $('topbar-menu').addEventListener('click', closeTopMenu);
+        document.addEventListener('pointerdown', function (e) {
+            if (!$('topbar-menu').classList.contains('open')) return;
+            if ($('topbar-menu').contains(e.target) || $('btn-menu').contains(e.target)) return;
+            closeTopMenu();
+        });
+        syncCompact();
     }
 
     /* ── round state ────────────────────────────────────────────────────── */
@@ -188,9 +440,11 @@
         if (!GOLF.PLAYTEST) S.clearRound();
     }
 
-    /* `resume` is true only on boot. Every other caller — the Play again
-       button, a fresh start — means a new round and says so. */
-    function newRound(resume) {
+    /* `resume` is true on boot and on any switch that did not name a hole.
+       Every other caller — the Play again button, a plan pressed in the
+       picker — means a new round and says so; `startAt` is where that new
+       round tees off, which is the first hole unless a plan named another. */
+    function newRound(resume, startAt) {
         var carry = (resume && !GOLF.PLAYTEST) ? S.loadRound(GOLF.COURSE) : null;
         if (!carry) clearStoredRound();
         state = {
@@ -206,7 +460,8 @@
             splashAt: 0
         };
         if (carry) state.scores = carry.scores;
-        loadHole(carry ? carry.holeIndex : 0);
+        var at = Math.max(0, Math.min(GOLF.COURSE.length - 1, startAt || 0));
+        loadHole(carry ? carry.holeIndex : at);
         closeCard();
         syncHud();
         if (carry) {
@@ -472,9 +727,13 @@
             if (k === 'm' || k === 'M') { setMuted(A.toggleMute()); return; }
             if (k === 'f' || k === 'F') { toggleFullscreen(); return; }
             if (k === 'r' || k === 'R') { restartHole(); return; }
+            if (k === 'c' || k === 'C') { openMenu(); return; }
             if (k === 'd' || k === 'D') { dealRandomCourse(); return; }
             if (k === 'g' || k === 'G') { newDraw(); return; }
-            if (k === 'Escape') { closeCard(); return; }
+            // One key shuts whatever is open, and the panel counts: a ☰ left
+            // hanging over the board is chrome with no way off it on a
+            // keyboard.
+            if (k === 'Escape') { closeCard(); closeMenu(); closeTopMenu(); return; }
 
             if (state.phase === 'holed' && (k === ' ' || k === 'Enter')) {
                 e.preventDefault();
@@ -507,8 +766,10 @@
         toast('Hole restarted' + penalty);
     }
 
+    // Only the icon: the chip carries a label beside it now, and setting the
+    // button's text would take the label with it.
     function setMuted(m) {
-        $('btn-mute').textContent = m ? '🔇' : '🔊';
+        $('mute-icon').textContent = m ? '🔇' : '🔊';
         $('btn-mute').setAttribute('aria-label', m ? 'Unmute' : 'Mute');
     }
 
@@ -599,9 +860,11 @@
     function syncFullscreen() {
         var on = !!fullscreenEl();
         document.body.classList.toggle('is-full', on);
-        var btn = $('btn-full');
-        btn.textContent = on ? '⤡' : '⛶';
-        btn.setAttribute('aria-label', on ? 'Leave fullscreen' : 'Fullscreen');
+        $('full-icon').textContent = on ? '⤡' : '⛶';
+        $('btn-full').setAttribute('aria-label', on ? 'Leave fullscreen' : 'Fullscreen');
+        // Fullscreen is compact chrome whatever the screen is: the bar is the
+        // only thing standing between the player and a bigger board.
+        syncCompact();
         // The browser resizes the element before it fires the event, but the
         // hidden chrome has not been laid out yet on every engine.
         resize();
@@ -702,7 +965,8 @@
         // to list one.
         bootDraw();
         bootCourse();
-        buildCoursePicker();
+        bindCoursePicker();
+        bindTopMenu();
         newRound(true);
         if (!GOLF.PLAYTEST) syncCourse();
         bindInput();
@@ -726,6 +990,9 @@
         });
 
         window.addEventListener('resize', resize);
+        // The ☰ threshold and the board's size are two answers to the same
+        // question — how much room is there — so one listener asks both.
+        window.addEventListener('resize', syncCompact);
         resize();
         requestAnimationFrame(loop);
     }
@@ -736,6 +1003,8 @@
         playCourse: playCourse,
         randomCourseId: randomCourseId,
         newDraw: newDraw,
+        openMenu: openMenu,
+        closeMenu: closeMenu,
         getState: function () { return state; }
     };
 

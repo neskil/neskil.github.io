@@ -86,18 +86,36 @@ body::before {
 
 .title span { color: var(--accent); }
 
+/* One line, always. It carries the course's name and blurb once a course is
+   chosen, which on a narrow desktop window is two lines of wrap — and a
+   second line of wordmark is a second row of chrome above the board. */
 .tagline {
     margin: 0.1rem 0 0;
     font-size: 0.85rem;
     color: var(--ink-dim);
     font-weight: 300;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
+.brand { min-width: 0; }
+
+/* Never squeezed: the bar shrinks by ellipsising the wordmark's second line,
+   not by wrapping "Courses" onto two. */
 .topbar-actions {
+    position: relative;
+    flex: none;
     margin-left: auto;
     display: flex;
     gap: 0.5rem;
 }
+
+/* Off a compact screen the panel is not a panel: the chips inside it are laid
+   out by .topbar-actions exactly as they were when they were its own
+   children, and ☰ is not on the page at all. Everything that makes this a
+   menu is in the compact block at the foot of the file. */
+.topbar-menu { display: contents; }
 
 /* Buttons and links both wear this: the editor link sits in the same row as
    the restart and mute buttons and has no business looking different. */
@@ -119,23 +137,22 @@ body::before {
 .chip:hover { background: var(--accent-soft); border-color: rgba(134, 239, 172, 0.4); }
 .chip:active { transform: translateY(1px); }
 
-/* The course picker is a <select> wearing the chip. A native menu is the
-   right control for two named things — it says how many there are, works
-   with a thumb and a keyboard, and needs no popup of our own — but it
-   arrives with a platform background and a light-mode option list, so the
-   appearance is reset and the arrow drawn back on by hand. */
-select.chip {
-    appearance: none;
-    -webkit-appearance: none;
-    padding-right: 1.7rem;
-    background-image: linear-gradient(45deg, transparent 50%, var(--ink-dim) 50%),
-                      linear-gradient(135deg, var(--ink-dim) 50%, transparent 50%);
-    background-position: right 0.85rem center, right 0.6rem center;
-    background-size: 5px 5px, 5px 5px;
-    background-repeat: no-repeat;
+/* After `.chip`, not before it: both are one class deep, so the one that wins
+   is the one written last, and ☰ declared above would have been overruled by
+   the very rule that makes it a chip. */
+.chip-menu { display: none; }
+
+/* A lit chip — ☰ while its panel is open. */
+button.chip.on, a.chip.on {
+    background: var(--accent);
+    color: #052e16;
+    border-color: transparent;
 }
 
-select.chip option { color: var(--ink); background: #10251b; }
+/* The word beside the icon. Out on a wide bar where there is room to read it,
+   and out again inside the ☰ panel where each chip has a line to itself; gone
+   only in the one place it cannot fit, which is the compact bar itself. */
+.chip-text { white-space: nowrap; margin-left: 0.35rem; }
 
 /* ── scoreboard ─────────────────────────────────────────────────────────── */
 
@@ -598,6 +615,193 @@ kbd {
 
 .modal-actions button:hover { transform: translateY(-1px); }
 
+/* ── course picker ──────────────────────────────────────────────────────── */
+
+/* Wider than the scorecard: this one is carrying forty-two hole plans and a
+   460px column would show them at the size of a full stop. */
+#menu .modal-inner { width: min(680px, 100%); }
+
+.course-list {
+    display: grid;
+    gap: 0.6rem;
+}
+
+/* A card is one course, and the strip under it is that course's holes. Both
+   halves are buttons — the head starts the round where you left it, a plan
+   starts a fresh one on that hole. */
+.course-card {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--panel-border);
+    border-radius: 14px;
+    overflow: hidden;
+    transition: border-color 0.18s;
+}
+
+.course-card:hover { border-color: rgba(134, 239, 172, 0.4); }
+
+.course-card.playing {
+    border-color: rgba(74, 222, 128, 0.55);
+    background: rgba(74, 222, 128, 0.10);
+}
+
+.cc-top { display: flex; align-items: stretch; }
+
+.cc-head {
+    flex: 1 1 auto;
+    display: grid;
+    gap: 0.15rem;
+    min-width: 0;
+    text-align: left;
+    font: inherit;
+    color: var(--ink);
+    background: none;
+    border: 0;
+    padding: 0.75rem 0.9rem 0.55rem;
+    cursor: pointer;
+    transition: background 0.18s;
+}
+
+.cc-head:hover { background: rgba(74, 222, 128, 0.10); }
+
+.cc-name { font-weight: 700; font-size: 1.02rem; }
+.cc-blurb { font-size: 0.82rem; color: var(--ink-dim); font-weight: 300; }
+
+.cc-meta {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 0.68rem;
+    color: var(--accent);
+    margin-top: 0.2rem;
+}
+
+/* The card you are standing on. */
+.cc-here {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 0.6rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--accent);
+    border: 1px solid rgba(74, 222, 128, 0.5);
+    border-radius: 999px;
+    padding: 0.08rem 0.42rem;
+    margin-left: 0.5rem;
+    vertical-align: 0.1em;
+}
+
+/* Off entirely outside the compact layout: a wide screen has room for every
+   strip at once, so there is nothing to fold and nothing to press. */
+.cc-toggle {
+    display: none;
+    flex: 0 0 auto;
+    align-self: center;
+    width: 2.1rem;
+    height: 2.1rem;
+    margin: 0 0.4rem 0 0;
+    font: inherit;
+    font-size: 1rem;
+    line-height: 1;
+    color: var(--ink-dim);
+    background: none;
+    border: 0;
+    border-radius: 999px;
+    cursor: pointer;
+    transition: transform 0.18s, background 0.18s, color 0.18s;
+}
+
+.cc-toggle:hover { background: var(--accent-soft); color: var(--ink); }
+.course-card.expanded .cc-toggle { transform: rotate(180deg); }
+
+/* Only the draw has one: it is the one card that can be replaced rather than
+   merely chosen. */
+.cc-redraw {
+    flex: 0 0 auto;
+    align-self: center;
+    margin: 0 0.6rem 0 0.3rem;
+    font: inherit;
+    font-size: 0.78rem;
+    color: var(--ink);
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid var(--panel-border);
+    border-radius: 999px;
+    padding: 0.35rem 0.75rem;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.18s, border-color 0.18s;
+}
+
+.cc-redraw:hover { background: var(--accent-soft); border-color: rgba(134, 239, 172, 0.4); }
+
+/* Six across, whatever the dialog's width. The field is a fixed 3:2, so every
+   plan is 3:2 and the strip cannot come out ragged. */
+.cc-holes {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 4px;
+    padding: 0 0.5rem 0.5rem;
+}
+
+.cc-hole {
+    position: relative;
+    display: block;
+    padding: 0;
+    aspect-ratio: 3 / 2;
+    border: 1px solid transparent;
+    border-radius: 7px;
+    overflow: hidden;
+    /* Not black: what is off the edge of a plan is the rest of the field, and
+       a thumbnail should sit on it rather than be cut out of a void. */
+    background: #16311f;
+    cursor: pointer;
+    transition: border-color 0.15s, transform 0.15s;
+}
+
+.cc-hole:hover { border-color: var(--accent); transform: translateY(-2px); }
+.cc-hole:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+.cc-map { display: block; width: 100%; height: 100%; }
+
+/* The number in one corner and the par in the other, both on a scrim: a plan
+   is mostly mid-green, and white type on mid-green cannot be read. */
+.cc-num, .cc-par {
+    position: absolute;
+    bottom: 0;
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 0.56rem;
+    line-height: 1;
+    padding: 2px 3px;
+    color: #fff;
+    background: rgba(4, 18, 10, 0.7);
+}
+
+.cc-num { left: 0; border-top-right-radius: 5px; }
+.cc-par { right: 0; border-top-left-radius: 5px; color: var(--accent); }
+
+@media (max-width: 560px) {
+    .cc-holes { grid-template-columns: repeat(3, 1fr); }
+}
+
+/* Fifty-one plans laid flat is four screens of scrolling on a phone before
+   you have reached the last card. Folded, the whole rack is one — and the
+   head above each fold is still a one-tap start, so nothing is behind the
+   toggle except the choice of which hole. */
+body.compact-ui .cc-toggle { display: block; }
+
+body.compact-ui .cc-holes {
+    max-height: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+    opacity: 0;
+    overflow: hidden;
+    pointer-events: none;
+    transition: max-height 0.22s ease, opacity 0.18s ease;
+}
+
+body.compact-ui .course-card.expanded .cc-holes {
+    max-height: 70vh;
+    padding-bottom: 0.5rem;
+    opacity: 1;
+    pointer-events: auto;
+}
+
 /* ── narrow screens ─────────────────────────────────────────────────────── */
 
 @media (max-width: 700px) {
@@ -616,6 +820,73 @@ kbd {
     .title { font-size: 1.2rem; }
     .tagline { display: none; }
     .hole-blurb { white-space: normal; }
+}
+
+/* ── the compact bar ────────────────────────────────────────────────────
+
+   Set from game.js wherever there is no room for a row of labelled chips: a
+   phone, a coarse pointer, a short window, or fullscreen on anything. Four of
+   the five fold behind ☰ and fullscreen stays out, because it is the one chip
+   worth reaching for with a shot half aimed.
+
+   It is a class rather than a media query because one of the four conditions
+   is not a property of the screen at all. Fullscreen is a state, and in it a
+   bar of chrome is a strip of board the player asked for and did not get. */
+
+body.compact-ui .chip-menu { display: inline-block; }
+body.compact-ui .tagline { display: none; }
+body.compact-ui .title { font-size: 1.15rem; }
+
+body.compact-ui .topbar-menu {
+    display: grid;
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    z-index: 20;
+    gap: 0.35rem;
+    min-width: 168px;
+    padding: 0.4rem;
+    background: rgba(9, 30, 20, 0.96);
+    border: 1px solid var(--panel-border);
+    border-radius: 14px;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.55);
+    opacity: 0;
+    transform: translateY(-6px);
+    pointer-events: none;
+    transition: opacity 0.16s ease, transform 0.16s ease;
+}
+
+body.compact-ui .topbar-menu.open {
+    opacity: 1;
+    transform: none;
+    pointer-events: auto;
+}
+
+/* Inside the panel every chip has a line of its own, so the labels come back
+   — a column of bare glyphs is a puzzle, not a menu. */
+body.compact-ui .topbar-menu .chip {
+    justify-content: flex-start;
+    text-align: left;
+    background: rgba(255, 255, 255, 0.05);
+}
+
+/* …and in the bar itself they go, which is the whole of what makes the bar
+   fit. The two that stay out there are an icon each. */
+body.compact-ui .topbar-actions > .chip .chip-text { display: none; }
+
+body.compact-ui .home-link {
+    width: 32px;
+    height: 32px;
+    font-size: 1rem;
+}
+
+/* The panel's own backing out-specifies the lit state above while saying
+   nothing about its colour, which would leave ☰ dark green on dark green for
+   exactly as long as its panel is open. Said again, after it. */
+body.compact-ui button.chip.on, body.compact-ui a.chip.on {
+    background: var(--accent);
+    color: #052e16;
+    border-color: transparent;
 }
 
 @media (prefers-reduced-motion: reduce) {

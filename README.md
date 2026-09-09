@@ -16,7 +16,7 @@ Niklas Billgren's personal site, hosted on GitHub Pages. Static HTML/CSS/JS, no 
 | `supply-chain/` | Supply Chain Tycoon — a Mini-Metro-style logistics mini-game (roads, trucks, factories, orders). See [supply-chain/README.md](supply-chain/README.md). |
 | `supply-chain-legacy/` | Frozen single-file snapshot of the pre-rewrite Supply Chain sim. Reachable only from the "vault" row on the landing page; kept out of the sitemap on purpose. |
 | `3d-engine-poc/` | Yard Master — a WebGL container-stacking puzzle (three.js, vendored, no build step). See [3d-engine-poc/README.md](3d-engine-poc/README.md). |
-| `golf/` | Pocket Links — a 2D mini golf game (canvas, own physics) with two courses on one field, an eighteen and a nine, plus `level-editor.html`, a visual hole editor that runs on the game's own modules. See [golf/README.md](golf/README.md). Shares one landing-page card with `golf3d/`; the card's flip side picks between them. |
+| `golf/` | Pocket Links — a 2D mini golf game (canvas, own physics): four hand-built courses and a procedural draw, picked from a dialog of hole plans, plus `level-editor.html`, a visual hole editor that runs on the game's own modules. See [golf/README.md](golf/README.md). Shares one landing-page card with `golf3d/`; the card's flip side picks between them. |
 | `golf3d/` | Loft Links — 3D golf, fifteen six-hole courses in four groups (three.js, vendored; own physics), plus `level-editor.html`, a plan-and-preview hole editor that runs on the game's own modules, and `turntable.html`, which draws every hole from eight angles as a contact sheet per course. See [golf3d/README.md](golf3d/README.md). |
 | `viz-poc/` | Data Room — eight interactive 3D visualizations behind one scene switcher: a trade-flow globe, this repo drawn as a city, a particle morph field, a raymarched nebula, boid flocking, a Mandelbulb, four strange attractors and a wave field. Every scene has live controls; the whole interface folds away. See [viz-poc/CLAUDE.md](viz-poc/CLAUDE.md). |
 | `surprise/` | Misc. personal page ("Bacons lilla hörna") — an HTML5 UP "Dimension" one-pager with two Phaser toys, plus `cv_legacy/`. Pruned to what it actually serves; see "Pruning surprise/" below before adding to it. |
@@ -50,8 +50,8 @@ something reaches it by a route `robots.txt` doesn't cover. Belt and braces,
 because the two mechanisms fail differently — `robots.txt` cannot suppress a
 URL that other sites link to, and a `noindex` tag is never read if the fetch
 is blocked. That set is the headless test harnesses (`*/tests.html`,
-`3d-engine-poc/physics-tests.html`, `golf3d/shader-tests.html`,
-`golf3d/ui-tests.html`) and the
+`3d-engine-poc/physics-tests.html`, `golf/ui-tests.html`,
+`golf3d/shader-tests.html`, `golf3d/ui-tests.html`) and the
 screenshot/audio probes (`cargo-lander/syntax-check.html`,
 `cargo-lander/probe-screenshot.html`, `supply-chain/audio-check.html`,
 `supply-chain/research-zoom-check.html`, `golf3d/turntable.html`).

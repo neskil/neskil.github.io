@@ -56,7 +56,7 @@ them.
 | `js/weather.js` | The sky each hole gets, the wind everything answers to, and the rain, mist and motes. |
 | `js/postfx.js` | What happens to the picture after the course is drawn: bloom, light shafts, tone mapping, grade. |
 | `js/flyover.js` | The intro sweep's path: four keys, a curve through them, and the rule that keeps it out of the hillside. Pure — no three.js, no DOM. |
-| `js/bot.js` | The greedy player: fan out candidate shots, keep the one that finishes nearest the cup, refine twice. Pure — no three.js, no DOM. What proves every hole is solvable in `tests.html`, and what plays for you in [simulation mode](#the-caddie-simulation-mode). |
+| `js/bot.js` | The greedy player: fan out candidate shots, keep the one that finishes nearest the cup, refine twice. Pure — no three.js, no DOM. What proves every hole is solvable in `tests.html`, and what plays for you in [autoplay](#the-caddie-autoplay). |
 | `js/render.js` | The course, in three.js: geometry, lights, camera and the frame. |
 | `js/minimap.js` | The hole from above, drawn per pixel out of `physics.surfaceUnder` — the course picker's plans and the one on the hole card. |
 | `js/bag.js` | The club picker: a modelled bag that rides in front of the camera, holding whichever clubs this hole hands out. |
@@ -2381,13 +2381,19 @@ frame is data and is counted as one; only `visibilitychange` throws the
 half-measured window away, because a backgrounded tab is not a slow frame, it
 is no frame at all.
 
-## The caddie: simulation mode
+## The caddie: autoplay
 
-Hidden, and on purpose. Type **aide** anywhere on the course and a 🤖
-**Simulate** chip appears in the menu, for good — press it and `js/bot.js`, the
-same greedy player that proves in `tests.html` that all ninety holes are
-solvable, takes the club and plays the hole out from wherever your ball is
-standing. Press it again, or <kbd>Esc</kbd>, to take the club back.
+🤖 **Autoplay**, in the ☰ menu with the other things you do to a round. Press
+it and `js/bot.js`, the same greedy player that proves in `tests.html` that all
+ninety holes are solvable, takes the club and plays the hole out from wherever
+your ball is standing. Press it again, or <kbd>Esc</kbd>, to take the club
+back.
+
+It was hidden behind a word you had to know to type, and then behind that word
+or nine holed-out holes. Both are gone. A control nobody can find is a control
+nobody has, and what this one does — show the shot a player who could read the
+hole would play out of your lie — is the most useful answer in the game to the
+question a stuck player is actually asking.
 
 It is the only way to *see* the thing the suite has only ever counted. The bot
 reads the hole (a couple of hundred whole shots simulated, which is the pause
@@ -2397,8 +2403,21 @@ played rather than a line drawn on top of one. Then it rests a beat, looks at
 where the ball actually finished, and does it again. Each shot says which club,
 how much of it, how many candidates it tried and how long that took.
 
-Three details make it watchable and honest:
+Four details make it watchable and honest:
 
+- **It winds up.** It used to point the camera at its answer and strike on the
+  same frame: the view snapped round, the meter went from nothing to full
+  between two frames, and the ball left — which reads as a glitch rather than a
+  swing, and read as one badly in the demo, where there is nothing else on
+  screen to look at. Now the club is taken, the aim turns (`BOT_TURN`, at
+  `BOT_TURN_RATE` — a two-degree correction takes almost none of it and the
+  leftover is spent standing over the ball), the meter winds up (`BOT_WIND`),
+  and only then does it swing. Both stages drive the same two numbers a thumb
+  drives, so the cone on the ground opens out of the ball exactly as it does
+  under your own hand. And the plan is made for the world as it will be
+  `BOT_TURN + BOT_WIND` from now rather than as it is: every blade and gate on
+  the hole turns during a wind-up, and a shot chosen for the wrong moment is a
+  shot chosen against a different hole.
 - **It thinks on the frame after it says so.** The search stops the world for
   about a tenth of a second, and a freeze under a message reads as thought
   where the same freeze under a still course reads as a stall.
@@ -2415,16 +2434,6 @@ against the suite's 16), because there a shot costs whatever it costs and here a
 player is holding still while it thinks. `BOT_PAUSE` is the beat between shots
 and `BOT_MAX_STROKES` is where it gives up and hands the club back.
 
-**There is a second door, and it opens by itself.** Hole out
-`BOT_UNLOCK_HOLES` holes — nine, more than a course — and the chip turns up
-with a line saying so, whether or not you ever type anything. The code is for
-somebody who went looking; this is for everybody else, and it is deliberately
-not immediate: by the ninth hole you have stood over a lie and wondered what a
-better player would have done with it, which is the only question the caddie
-answers. The count is `HOLES_KEY` in `localStorage`, incremented in
-`holeComplete` and never by [demo mode](#demo-mode-the-game-playing-itself) —
-holes walked while nobody was watching are not holes you played.
-
 ## Demo mode: the game playing itself
 
 Open the page without naming a course and nobody is dropped into the course
@@ -2438,7 +2447,7 @@ room empties: leave the course list alone for `DEMO_IDLE` seconds and the demo
 comes back.
 
 What is playing is `js/bot.js` — the same greedy player as
-[Simulate](#the-caddie-simulation-mode), driving the same club, aim, meter and
+[Autoplay](#the-caddie-autoplay), driving the same club, aim, meter and
 strike a thumb does. Nothing is scripted and nothing is a recording; the sixth
 stroke of a demo hole is chosen from where the fifth actually finished. It
 gives none of the secret away either: the 🤖 chip stays hidden until the code
@@ -2473,7 +2482,39 @@ The chrome fades for the length of it, the same way and for the same reason it
 fades under the [flyover](#the-fourth-camera-which-is-not-a-seat) — a meter,
 a dial and a club are answers to questions about a shot of yours, and on this
 screen there is no shot of yours. The banner goes with them: the caddie holing
-out is not your birdie, and a card announcing one would be a lie.
+out is not your birdie, and a card announcing one would be a lie. The title
+card itself sits low on the stage and small, for the same reason: the hole, the
+ball and the line of the shot are in the middle of the frame, and a card
+centred on them covers the only thing worth watching.
+
+### The camera nobody is sitting in
+
+The seat behind the ball is the one seat a demo does not need. Nobody is
+aiming, and what a demo is *for* is the hole — which is a shape, best read from
+off to one side and moving. So `R.cam.mode` goes to `demo` for the length of
+it, and `seatFor` gains a fourth answer: stand back far enough to hold the
+whole hole with air around it, tilt down about forty degrees so it still reads
+as three dimensions rather than as a plan, and turn slowly round it —
+`DEMO_CAM.SPIN`, a full revolution in about eighty seconds, on its own clock
+rather than the world's, because the world stops for a moment every time the
+bot thinks and a camera that stopped with it would say so.
+
+The long game is the case that shapes the rest of it. A par five does not fit
+in one frame at any distance worth looking at, so past `DEMO_CAM.HOLD` the look
+point walks from the middle of the hole towards the ball, and the camera comes
+*in* as it does — standing back far enough to hold a hole while looking at a
+ball halfway down it frames a field of grass with a speck in the middle. None
+of that walk is smoothed here: `updateCamera`'s own lerp is what smooths every
+seat in the game, and this is a seat like the others.
+
+Two things ride along with it. The air is lifted most of the way to the
+overview's (`DEMO_CAM.LIFT`), because a camera thirty units back is looking
+through fog chosen for one standing on the green — but only most of the way, so
+a hole in the rain still looks like a hole in the rain. And the modelled bag is
+put away, for the same reason the flyover puts it away: a bag of clubs pinned
+to the corner of a shot from forty units up is the one thing in the picture
+that says the camera is not really up there, and there is nobody here to pick a
+club out of it anyway.
 
 ## Weather
 
@@ -3130,6 +3171,26 @@ overview's `R.lift` in proportion to how far off the ground it is, so a sweep
 over a misty hole is not a grey rectangle, and eases back down through it on the
 way in rather than popping at the end.
 
+**The one cut it has is covered.** The frame before a sweep is the tee and the
+first frame of it is thirty units over the green; nothing else in the game moves
+the camera that far in one frame, and a jump that size reads as a dropped frame
+rather than as an edit. So `.fly-fade` is painted over the stage at full
+strength the instant the sweep starts and fades off over half a second, and the
+cut happens behind it. Only ever at the start: the end of a sweep is not a cut,
+because the path lands on the seat the game was going to use anyway.
+
+**And it moves less per frame than it used to.** What reads as "jumpy" on a
+phone is angular speed against frame rate, not the shape of the path — which
+was already a spline. Three things were changed for it, and none of them is the
+curve: the run is about half a second longer, the camera stands a third further
+back and opens further beyond the cup, and the global ease is smootherstep
+rather than smoothstep. That last one costs two multiplies and buys the second
+derivative — smoothstep leaves the camera still *accelerating* at both ends, so
+the sweep starts with a shove and lands with a lurch, and on a phone drawing
+thirty frames a second those two moments are the whole impression of it. The
+suite's "does not kink at a key" assertion is what says the faster middle that
+buys is still inside what a sweep may do.
+
 It is on unless the machine has asked for less motion, off if the player has
 said so on the 🎬 chip, and `?fly=0` or `?fly=1` overrides both for the session
 — which is what keeps a screenshot of a hole reproducible. Restarting a hole
@@ -3182,7 +3243,7 @@ walls you go through, all ninety holes of course data, the scorecard and the
 intro flyover's path.
 
 The one worth knowing about is the **bot** (`js/bot.js`, and the game plays it
-too — see [simulation mode](#the-caddie-simulation-mode)): a greedy player fans
+too — see [autoplay](#the-caddie-autoplay)): a greedy player fans
 out candidate shots on every hole, keeps the one that finishes nearest the cup,
 and plays all ninety. If a hole is sealed off, unreachable, or has a cup buried where
 nothing can settle, the bot never holes out and the suite goes red. It is
@@ -3484,11 +3545,10 @@ weather, <kbd>H</kbd> the rules, <kbd>M</kbd> sound, <kbd>J</kbd> the music,
 <kbd>O</kbd> the fancy water, <kbd>P</kbd> the frame rate, <kbd>G</kbd> the
 course inspector. Scroll or pinch to zoom. A new hole opens with a
 [flyover](#the-fourth-camera-which-is-not-a-seat) — anything at all skips it,
-and the 🎬 chip turns it off for good. And one that is not on the list on
-purpose: typing **aide** unlocks the [simulation
-mode](#the-caddie-simulation-mode) chip, which nine holed-out holes also do on
-their own. Touch nothing at all and you get [demo
-mode](#demo-mode-the-game-playing-itself) instead, which any of the above ends.
+and the 🎬 chip turns it off for good. 🤖 **Autoplay** behind ☰ hands the hole to
+[the caddie](#the-caddie-autoplay) and <kbd>Esc</kbd> takes it back. Touch
+nothing at all and you get [demo mode](#demo-mode-the-game-playing-itself)
+instead, which any of the above ends.
 
 ### Under a thumb
 
