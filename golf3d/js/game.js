@@ -41,6 +41,11 @@
     }
 
     function toast(msg, kind) {
+        // Nothing talks over the demo screen. The caddie's running
+        // commentary is for a player who pressed Simulate and wants to know
+        // what it is thinking; on a title card it is chatter across the one
+        // thing the screen is for.
+        if (demo) return;
         var el = $('toast');
         el.textContent = msg;
         el.className = 'toast show' + (kind ? ' ' + kind : '');
@@ -479,6 +484,9 @@
         state.scores[state.holeIndex] = state.strokes;
         state.phase = 'holed';
         syncSwing();
+        // Holes played is what unlocks the caddie for somebody who never types
+        // the code; a hole is played when it is holed out. See countHolePlayed.
+        countHolePlayed();
 
         var t = S.term(state.strokes, hole.par);
         if (t.kind === 'ace') A.ace(); else A.sink();
@@ -1687,6 +1695,8 @@
        thing to do before playing, and two things arriving at once on the same
        corner of a phone is neither of them being read. */
     function maybeShowFsPrompt() {
+        // Not over the demo: the offer is for somebody about to play.
+        if (demo) return;
         if (fsPromptDismissed() || fullscreenElement()) return;
         if (!($('stage').requestFullscreen || $('stage').webkitRequestFullscreen)) return;
         clearTimeout(fsPromptTimer);
@@ -2279,6 +2289,12 @@
         try { return localStorage.getItem(C.BOT_KEY) === '1'; } catch (e) { return false; }
     }
 
+    function findBot(why) {
+        try { localStorage.setItem(C.BOT_KEY, '1'); } catch (e) { /* ignore */ }
+        syncSim();
+        toast(why);
+    }
+
     /* The code, typed anywhere on the course. Every letter still does its own
        job on the way past — this listens rather than swallows — which is why
        the word is made of keys the game has nothing bound to. */
@@ -2288,9 +2304,29 @@
         if (!k || k.length !== 1) return;
         typed = (typed + k.toLowerCase()).slice(-C.BOT_CODE.length);
         if (typed !== C.BOT_CODE || botFound()) return;
-        try { localStorage.setItem(C.BOT_KEY, '1'); } catch (e) { /* ignore */ }
-        syncSim();
-        toast('Caddie found — “Simulate” in the menu lets it play for you');
+        findBot('Caddie found — “Simulate” in the menu lets it play for you');
+    }
+
+    /* The other door, for everybody who never goes looking: play enough holes
+       and the caddie turns up on its own. It is the same chip and the same
+       bot — what has changed by then is that you have stood over a lie and
+       wondered what a better player would have done with it, which is the
+       only question this answers.
+
+       Counted in holes rather than rounds, so a course walked out of order or
+       left half-played still gets there, and counted only for holes somebody
+       played: the demo walks a course every time nobody is watching, and none
+       of that is yours. */
+    function holesPlayed() {
+        try { return parseInt(localStorage.getItem(C.HOLES_KEY), 10) || 0; } catch (e) { return 0; }
+    }
+
+    function countHolePlayed() {
+        if (demo || botFound()) return;
+        var n = holesPlayed() + 1;
+        try { localStorage.setItem(C.HOLES_KEY, String(n)); } catch (e) { return; }
+        if (n < C.BOT_UNLOCK_HOLES) return;
+        findBot('Caddie unlocked — “Simulate” in the menu plays a hole the way it would');
     }
 
     function syncSim() {
@@ -2395,6 +2431,180 @@
         if (state.phase !== 'rolling') stopSim('That shot would not go — your club again');
     }
 
+    /* ── demo mode ───────────────────────────────────────────────────────
+
+       What an arcade cabinet does with nobody standing at it, which is where
+       the idea and the shape both come from. The caddie plays a course, the
+       title stands over it, and the first thing anybody does starts a game.
+
+       It is the same `js/bot.js` the Simulate chip drives — what you are
+       watching is the game playing itself through the club, the aim and the
+       meter, not a recording — and it gives none of that away: the chip
+       stays hidden until the code is typed or nine holes are played. What
+       differs is whose round it is. Simulate plays *your* ball from where you left it and hands the
+       club back; this owns the round outright, walks the course hole by hole
+       and throws every score away. Nothing that happens with nobody watching
+       may reach the card, so `finishRound` is never the thing that ends a demo
+       course — `demoNext` is, and it deals another.
+
+       Three rules, and all three are about not being in the way:
+
+       - **It never interrupts a game.** The only screen it may take back is
+         one with no stroke on it: the course list nobody has picked from, or
+         a tee somebody walked away from before playing. Play one shot and the
+         idle clock stops existing for the rest of that round.
+       - **Anything leaves it.** A key, a press, a wheel, the button. And the
+         press that leaves is spent on leaving — it is stopped in the capture
+         phase, so the first thing you touch starts a game rather than also
+         swinging the camera or taking a club on the way past.
+       - **A machine that asked for less motion does not get a demo it never
+         asked for.** prefers-reduced-motion skips it exactly as it skips the
+         flyover, `?demo=0` and `?demo=1` override both for the session,
+         and a `?course=` deep link is somebody who has already chosen — none
+         of those three ever see it. */
+
+    var demo = null;          // { playing, wait } while the demo is running
+    var demoOverride = null;  // ?demo=…, which outranks the machine
+    var idleAt = 0;           // when the last thing a person did happened
+
+    function demoWanted() {
+        if (!G3.bot) return false;
+        if (demoOverride !== null) return demoOverride;
+        return !reducedMotion();
+    }
+
+    /* Every kind of "somebody is there": a key, a press, a wheel, or a mouse
+       crossing the window. The last one is why the idle wait can be as long as
+       it is and still mean something — a reader with a hand on the mouse is
+       not an empty room, and nothing else here would notice them. */
+    function noteActivity() { idleAt = performance.now(); }
+
+    function onActivity(e) {
+        noteActivity();
+        if (!demo) return;
+        if (e && e.stopPropagation) e.stopPropagation();
+        leaveDemo();
+    }
+
+    function startDemo() {
+        if (demo || !G3.bot) return;
+        demo = { playing: false, wait: 0 };
+        document.body.classList.add('demo');
+        $('demo').hidden = false;
+        demoRound();
+    }
+
+    /* A course drawn the way the picker's die draws one, and a hole out of the
+       middle of it as readily as the first: a demo that always opens on the
+       same tee is a screenshot, not a demonstration. The draw is
+       deliberately not the player's remembered shuffle mode — "new to you"
+       and the rest are about a round you are going to play, and this is not
+       one — but it does take `from`, so the next course is never the one that
+       has just been on screen. */
+    function demoRound() {
+        var id = G3.randomCourseId({
+            mode: 'any',
+            from: state && state.course ? state.course.id : null
+        });
+        var course = G3.courseById(id);
+        demo.playing = false;
+        demo.wait = 0;
+        newRound(id, Math.floor(Math.random() * course.holes.length));
+        syncDemo();
+    }
+
+    function demoNext() {
+        demo.playing = false;
+        demo.wait = 0;
+        stopSim(null);
+        if (state.holeIndex < state.course.holes.length - 1) {
+            loadHole(state.holeIndex + 1);
+            syncDemo();
+        } else {
+            demoRound();
+        }
+    }
+
+    function syncDemo() {
+        if (!demo || !state || !state.course) return;
+        var hole = state.course.holes[state.holeIndex];
+        $('dm-sub').textContent = state.course.name + ' · ' + hole.name +
+            ' — hole ' + (state.holeIndex + 1) + ' of ' + state.course.holes.length;
+    }
+
+    function stopDemo() {
+        if (!demo) return;
+        demo = null;
+        stopSim(null);
+        document.body.classList.remove('demo');
+        $('demo').hidden = true;
+    }
+
+    /* Out of the demo and into a game. The round on screen is the caddie's —
+       a hole picked out of the middle of a course, with strokes on it nobody
+       played — so it is dealt again from the first tee before anyone is
+       handed the club, and then the game opens exactly where it always did:
+       the rules for a first-time player, the course list for everybody else. */
+    function leaveDemo() {
+        if (!demo) return;
+        var id = state.course.id;
+        stopDemo();
+        newRound(id);
+        /* That round was built with nothing in front of it, so its sweep has
+           already started and the picker is about to stand over it. Cut it and
+           put it back to pending: it then plays when the picker closes, which
+           is where it belongs and where boot() leaves it. */
+        skipFly();
+        state.flyPending = true;
+        if (seenHowTo()) { openMenu(); return; }
+        menuAfterHowTo = true;
+        openHowTo();
+    }
+
+    /* One frame of the demo. The bot plays the hole; this decides which hole
+       it is playing and when it has stopped playing it — holed, or out of
+       strokes, or handed a lie it cannot see a shot from, all of which look
+       the same from here and all of which mean the same thing: hold it long
+       enough to see, then move along. */
+    function tickDemo(beat) {
+        if (demo.wait > 0) {
+            demo.wait -= beat;
+            if (demo.wait <= 0) demoNext();
+            return;
+        }
+        if (state.phase === 'holed' || state.phase === 'finished' ||
+            (demo.playing && !sim)) {
+            demo.wait = C.DEMO_HOLD;
+            return;
+        }
+        // The hole introduces itself first. The flyover is the best thing on
+        // this screen and the demo can wait the four seconds out.
+        if (R.flying()) return;
+        if (!demo.playing) {
+            demo.playing = true;
+            startSim();
+        }
+    }
+
+    /* Nobody has touched anything for a while. Whether that is an empty room
+       or somebody reading is the whole question, and it is answered off what
+       is on screen rather than off the clock: a round with a stroke played on
+       it is somebody's game and is never taken away, and neither is the
+       how-to or a scorecard somebody is looking at. */
+    function idleReady() {
+        if (demo || !state || !state.world || !demoWanted()) return false;
+        if (document.hidden) return false;
+        if ($('howto').classList.contains('show')) return false;
+        if ($('scorecard').classList.contains('show')) return false;
+        if (state.phase !== 'aim' || state.strokes > 0) return false;
+        return !S.totals(state.scores, state.course.holes).played;
+    }
+
+    function tickIdle(now) {
+        if (!idleReady()) { idleAt = now; return; }
+        if (now - idleAt >= C.DEMO_IDLE * 1000) startDemo();
+    }
+
     /* ── loop ───────────────────────────────────────────────────────────── */
 
     var intent = { show: false, yaw: 0, power: 0, loft: 0, bite: 0, over: 0 };
@@ -2418,10 +2628,15 @@
         tickFps(raw);
         if (!state || !state.world) return;
 
-        /* The bot's beat between shots is measured on the wall clock rather
-           than the clamped frame time: it is a pause for a person to follow
-           what just happened, and on a machine slow enough for the clamp to
-           bite, a "second" of clamped time is several real ones. */
+        /* The bot's beat between shots, and the demo's beat between holes,
+           are both measured on the wall clock rather than the clamped frame
+           time: they are pauses for a person to follow what just happened,
+           and on a machine slow enough for the clamp to bite, a "second" of
+           clamped time is several real ones. The idle clock is on the same
+           wall clock for the same reason — it is counting somebody's absence,
+           not the game's frames. */
+        if (demo) tickDemo(Math.min(0.25, raw));
+        else tickIdle(now);
         if (sim) tickSim(Math.min(0.25, raw));
 
         if (state.phase === 'rolling') {
@@ -2556,6 +2771,16 @@
         window.addEventListener('pointerdown', skipFly, true);
         window.addEventListener('keydown', skipFly, true);
         window.addEventListener('wheel', skipFly, { capture: true, passive: true });
+        /* The same three, one phase later in the same capture, plus a mouse
+           moving over the page: together they are "somebody is there". They
+           reset the idle clock, and they are what starts a game when the
+           demo screen is up. A move is deliberately not one of the three —
+           a pointer crossing the window is a person in the room, not a person
+           asking for anything. */
+        window.addEventListener('pointerdown', onActivity, true);
+        window.addEventListener('keydown', onActivity, true);
+        window.addEventListener('wheel', onActivity, { capture: true, passive: true });
+        window.addEventListener('pointermove', noteActivity, { passive: true });
         window.addEventListener('resize', function () {
             R.resize();
             syncCompact();
@@ -2586,6 +2811,11 @@
         $('btn-fps').addEventListener('click', toggleFps);
         $('btn-fly').addEventListener('click', toggleFlyover);
         $('btn-sim').addEventListener('click', toggleSim);
+        // Belt and braces: a press anywhere has already left the demo by the
+        // time this fires, but a keyboard activating the focused button has
+        // not — and the button is the one thing on that screen that says what
+        // pressing does.
+        $('dm-start').addEventListener('click', leaveDemo);
         syncSim();
         // A drag that started on the ⌖ and walked away is not a press of it.
         $('btn-view-home').addEventListener('click', function () {
@@ -2687,6 +2917,10 @@
         // ?fly=0 or ?fly=1 for the session, which is what makes a screenshot of
         // a hole reproducible whatever this machine's motion preference is.
         if (q.fly === '0' || q.fly === '1') { flyOverride = q.fly === '1'; syncFlyover(); }
+        // ?demo=0 or 1, for the same reason and with the same reach: a
+        // driver taking a picture of the game should never be handed a demo,
+        // and one taking a picture of the demo should not have to wait for it.
+        if (q.demo === '0' || q.demo === '1') demoOverride = q.demo === '1';
         /* ?course=random draws one the same way the picker's button does,
            under whatever mode is remembered. The rest of the query string
            still means what it did: ?hole= counts from 1 into whatever course
@@ -2698,6 +2932,13 @@
                 ? Math.max(1, Math.min(course.holes.length, parseInt(q.hole, 10) || 1)) - 1
                 : 0;
             newRound(q.course, at);
+        } else if (demoWanted()) {
+            /* Nobody has named a course, so nobody is waiting: the caddie
+               plays one until somebody says otherwise. This is also what puts
+               a hole on screen — startDemo deals its own round, which is
+               why the branch below is the only one that loads a course by
+               hand. */
+            startDemo();
         } else {
             // Something has to be on screen behind the menu, and the first hole
             // of the first course is as good an advert as any. A first-time
@@ -2727,6 +2968,9 @@
         measurePickerBand();
 
         last = performance.now();
+        // The idle clock starts at the door, not at zero: a page that has just
+        // loaded has been sitting there for no time at all.
+        noteActivity();
         raf = requestAnimationFrame(loop);
     }
 
@@ -2744,7 +2988,11 @@
            a strike without a thumb. Read-only from out here in the sense that
            matters: pressing it still goes through `shoot`, which is the one
            path a strike may take. */
-        get gate() { return gate; }
+        get gate() { return gate; },
+        /* Whether the demo is up, for a driver taking a picture of it — and
+           for one that has to know it is *not*, which is the question a
+           screenshot of anything else silently depends on. */
+        get demo() { return !!demo; }
     };
 
 })(window.G3);

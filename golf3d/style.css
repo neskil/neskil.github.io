@@ -1433,6 +1433,151 @@ body.flying .stage-hud,
     .stage-hud { transition: none; }
 }
 
+/* ── the demo screen ────────────────────────────────────────────────── */
+
+/* The screen itself is `.demo-screen` rather than `.demo`, and the class on
+   the body is the plain one: the two live in the same stylesheet, and a rule
+   written for the body would otherwise land on the panel as well — which is
+   how the body briefly became an absolutely positioned grid.
+
+   Over the course, not instead of it: the demo behind this is the whole
+   point, so what sits on the glass is a column of text down the middle and a
+   scrim top and bottom to keep it readable over whatever sky the hole came up
+   with. Nothing here takes a press except the button — every press starts a
+   game anyway (game.js), and a panel that swallowed drags would make the
+   course behind it look frozen. */
+.demo-screen {
+    position: absolute;
+    inset: 0;
+    z-index: 9;
+    display: grid;
+    place-items: center;
+    padding: 1rem;
+    text-align: center;
+    pointer-events: none;
+    background:
+        linear-gradient(180deg, rgba(4, 12, 22, 0.42), rgba(4, 12, 22, 0) 30%),
+        linear-gradient(0deg, rgba(4, 12, 22, 0.5), rgba(4, 12, 22, 0) 42%);
+    animation: demo-in 0.6s ease both;
+}
+
+@keyframes demo-in {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+}
+
+/* A glass plate, the same one the rest of the site is made of. The scrim
+   above and below is not enough on its own: a hole under a bright sky is a
+   white wall behind white text, and the one screen a first-time visitor is
+   guaranteed to see cannot be the one that is hard to read. It is kept narrow
+   so the course still frames it. */
+.dm-panel {
+    display: grid;
+    gap: 0.5rem;
+    justify-items: center;
+    max-width: min(30rem, 100%);
+    padding: 1.15rem 1.7rem 1.3rem;
+    border-radius: 20px;
+    background: rgba(6, 18, 30, 0.46);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(7px);
+    -webkit-backdrop-filter: blur(7px);
+    box-shadow: 0 20px 50px rgba(2, 8, 16, 0.4);
+}
+
+.dm-eyebrow {
+    margin: 0;
+    font-size: 0.6rem;
+    font-weight: 700;
+    letter-spacing: 0.34em;
+    text-transform: uppercase;
+    color: var(--accent);
+}
+
+.dm-title {
+    margin: 0;
+    font-family: 'Outfit', system-ui, sans-serif;
+    font-size: clamp(2rem, 7vw, 3.4rem);
+    font-weight: 800;
+    line-height: 1;
+    letter-spacing: -0.03em;
+    color: var(--ink);
+    text-shadow: 0 2px 28px rgba(2, 8, 16, 0.7);
+}
+
+.dm-title span { color: var(--accent); }
+
+/* What is actually being played, which is the line that turns a title card
+   into a demonstration: it names the course and the hole the caddie is
+   standing on, and it changes as the round walks on. */
+.dm-sub {
+    margin: 0;
+    font-size: 0.84rem;
+    font-weight: 300;
+    color: var(--ink-dim);
+    text-shadow: 0 1px 12px rgba(2, 8, 16, 0.8);
+}
+
+.dm-start {
+    pointer-events: auto;
+    margin-top: 0.5rem;
+    font: inherit;
+    font-size: 0.95rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    color: #06212f;
+    background: var(--accent);
+    border: 0;
+    border-radius: 999px;
+    padding: 0.6rem 1.6rem;
+    cursor: pointer;
+    box-shadow: 0 10px 30px rgba(6, 33, 47, 0.45);
+    animation: demo-pulse 2.4s ease-in-out infinite;
+}
+
+.dm-start:hover { background: #7dd3fc; }
+.dm-start:active { transform: translateY(1px); }
+.dm-start:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
+
+@keyframes demo-pulse {
+    0%, 100% { box-shadow: 0 10px 30px rgba(6, 33, 47, 0.45); }
+    50%      { box-shadow: 0 10px 30px rgba(6, 33, 47, 0.45), 0 0 0 8px rgba(56, 189, 248, 0.14); }
+}
+
+.dm-hint {
+    margin: 0;
+    font-size: 0.72rem;
+    color: var(--muted);
+    letter-spacing: 0.04em;
+}
+
+/* The same fade the flyover uses, and for the same reason: every one of these
+   answers a question about a shot, and on this screen there is no shot of
+   yours to ask it about. The banner goes with them — the caddie holing out is
+   not your birdie, and a card that announced one would be lying. */
+body.demo .stage .controls,
+body.demo .stage .viewctl,
+body.demo .stage-hud,
+body.demo .stage .picker,
+body.demo .stage .fs-prompt,
+body.demo .stage .hole-card,
+body.demo .stage .mini-map,
+body.demo .stage .banner {
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.35s ease;
+}
+
+/* The flyover's own hint is taken out rather than faded, because it arrives
+   with an entry animation and a filled animation beats a plain `opacity: 0`
+   in the cascade — it would sit there at full strength under a panel that
+   already says what pressing anything does. */
+body.demo .stage .fly-hint { display: none; }
+
+@media (prefers-reduced-motion: reduce) {
+    .demo, .dm-start { animation: none; }
+}
+
 /* ── fullscreen prompt ─────────────────────────────────────────────────── */
 
 /* The topbar chip does the same job, but it is one icon among six and easy

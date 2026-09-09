@@ -8,7 +8,7 @@
    — the renderer scales to the viewport, the simulation never sees a pixel. */
 window.G3 = window.G3 || {};
 
-G3.VERSION = '1.36.0';
+G3.VERSION = '1.37.0';
 
 G3.CONFIG = {
     BALL_R: 0.16,
@@ -484,6 +484,15 @@ G3.CONFIG = {
     SHUFFLE_KEY: 'loftLinks.shuffle',
     SHUFFLE_MODE_KEY: 'loftLinks.shuffleMode',
     BOT_KEY: 'loftLinks.botFound',
+    /* The other way in, and the reason the count exists: holes you have
+       actually played, so the caddie can turn up on its own for somebody who
+       never types anything. Nine is more than a course — long enough that
+       "what would a good player have done with that lie?" is a question you
+       have asked by then, and short enough to happen in one sitting. Holes
+       the demo walked while nobody was watching are not counted; they are
+       not yours. */
+    HOLES_KEY: 'loftLinks.holesPlayed',
+    BOT_UNLOCK_HOLES: 9,
     /* The word that finds it, typed anywhere on the course. Made of letters
        the game has nothing bound to (l m j o p r v f w h b c g and the digits
        all do something already), so spelling it does not cycle your clubs and
@@ -496,7 +505,20 @@ G3.CONFIG = {
        what the mode is for — you are meant to be able to follow it. */
     BOT_FAN: 12,
     BOT_PAUSE: 1.1,
-    BOT_MAX_STROKES: 12
+    BOT_MAX_STROKES: 12,
+
+    /* Demo mode — the same bot, playing to an empty room. What is
+       tuned here is a person's patience rather than the bot's: how long the
+       game waits before deciding nobody is there, and how long it holds a
+       finished hole before drawing the next one.
+
+       IDLE is deliberately long. The screen it is allowed to take back is the
+       course list, and fifteen cards with a plan of every hole on them is a
+       page somebody may genuinely be reading — a demo that interrupts that is
+       not a demo, it is a page that will not sit still. Anything at all
+       resets it: a key, a press, a wheel, or a mouse crossing the window. */
+    DEMO_IDLE: 45,
+    DEMO_HOLD: 2.6
 };
 
 /* Every club the game knows about, default bag first. A hole's `bag` names
