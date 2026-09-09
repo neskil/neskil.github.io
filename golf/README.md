@@ -100,7 +100,7 @@ a seed like everything that is not one already. The seed is shown in the
 tagline and remembered, so a refresh gives you the course you were playing
 rather than a new one.
 
-Three decisions carry the design.
+Four decisions carry the design.
 
 **A hole is a line with bands across it.** Every generated hole is built in a
 frame — an *along* axis running tee to cup, a *cross* axis at right angles to
@@ -112,6 +112,15 @@ tee to the cup by construction rather than by luck. It also means a feature
 is written once and works four ways — the along axis runs left to right,
 right to left, up the field or down it, and nothing inside a builder knows
 which.
+
+**And about a third of them are not a line at all.** Nine corridors on one
+card is nine of the same hole wearing different furniture, and the shape of a
+hole is the first thing you read off the screen. So a frame also carries a
+*window* on its cross axis rather than the whole of it, and that one change
+buys a second shape: a long wall down the field with one end left open, the
+tee behind it and the cup round the end. Each leg is a frame of its own,
+windowed on its own lane, so every builder written for the full field works
+inside a lane without knowing it is in one — see [The elbow](#the-elbow).
 
 Each builder is also handed *where the straight line from the tee to the cup
 crosses its band*, which is the difference between a hazard and scenery. The
@@ -156,6 +165,41 @@ reads that off the card rather than off a list of ids. The round in progress
 *is* kept, because losing an evening to a refresh is a different thing, and
 the seed goes into the stored round: a card written for one draw is never
 offered to the next.
+
+## The elbow
+
+Two ways round the wall. A **bend** puts the cup near the mouth, so the way to
+it is to carry on down the lane and turn once. A **hairpin** puts it back at
+the closed end of the far lane: out the whole length of the field, round, and
+the whole length back. Both are dealt, about evenly.
+
+Three things make it work.
+
+**A lane cannot hold everything.** A lane is half the field wide, and the
+vocabulary was written for the whole of it — a sweeping bar needs 470px of
+cross axis to swing in and has nowhere to go in a 280px corridor. So every
+feature declares the cross extent it needs (`minV`) and a lane draws only from
+the ones that fit. At the full width of the field none of them is ever
+refused, which is why a straight hole is built exactly as it was.
+
+**The mouth is the band's mouth, one size up.** A band across a corridor is
+playable because it always leaves a way through; the elbow is playable for the
+same reason, with the gap at the end of the wall as the way through. Nothing
+may be built within a band's clearance of it, so the corner is open by
+construction rather than by luck.
+
+**The shape is checked, not assumed.** The straight line from the tee to the
+cup has to actually run into the wall. Without that check the generator
+happily deals a tee and a cup that can see each other over the end of it,
+which is a wall standing beside a hole rather than a hole built round a wall.
+
+The hairpin cost something to have, and it is the interesting part. The bot in
+`tests.html` used to find its way by getting nearer the cup, and a hairpin
+asks a player to spend the entire way out getting further away — so the bot
+could finish a bend and could not finish a hairpin at all, and reported the
+shape as unplayable. The choices were to drop the shape, to stop asking the
+bot whether the hole can be finished, or to make the bot plan. It plans now:
+see [Tests](#tests).
 
 ## How a hole is built
 
@@ -445,15 +489,17 @@ indexable; the self-test overlay only appears with the query string.
 
 ## Tests
 
-Open `tests.html`. 645 assertions covering geometry, the integrator, the four
+Open `tests.html`. 648 assertions covering geometry, the integrator, the four
 surfaces, the overswing, the course data on every course, the generator, the
-scorecard, the per-course save keys and the resumable round, in about two
-seconds.
+scorecard, the per-course save keys and the resumable round, in a few seconds
+— most of them the bot's, which now searches for a way round every hole on
+the rack and every hole of twelve draws.
 
 The generated courses are held to the shipped ones' standard and then some.
 Twelve fixed seeds — fixed, because a suite that fails one run in fifty is a
 suite nobody believes — go through the strict rule book, the hazard-coverage
-rule and the par check; eight of them are played by the bot, hole by hole,
+rule, the par check and the shape count (a draw that dealt nine corridors
+would pass every other rule and still be nine of the same hole); eight of them are played by the bot, hole by hole,
 and six are shot at from every angle to prove that nothing generated hangs,
 escapes the field or ends up inside a wall. The shipped rack is run through
 `GOLF.validateHole` in the same section, which is what keeps the generator's
@@ -467,13 +513,31 @@ order is taste and the length of a card is not — because the stored round is
 validated against them: changing one has to be a deliberate edit in two
 places.
 
-The one worth knowing about is the **bot**: a greedy player tries a fan of
-candidate shots on every hole, keeps the one that finishes nearest the cup, and
-plays the course. If a hole is sealed off, unreachable, or has a cup buried
-where nothing can settle, the bot never holes out and the suite goes red. Its
-candidates include a random wait before striking — the moving-gate holes are only
-solvable with timing, and a bot that always fires at `t=0` would report a false
-failure.
+The one worth knowing about is the **bot**, and it searches rather than plays.
+The field is bucketed into 48px cells; the tee is where the search starts;
+every state fans out candidate shots and records the cell each one comes to
+rest in. Cells come off the queue in stroke order, so the first putt that
+drops is the fewest strokes the search found, and the line behind it is real —
+every edge is a simulated shot played from where the one before it left the
+ball. If a hole is sealed off, unreachable, or has a cup buried where nothing
+can settle, nothing the search tries ever drops and the suite goes red.
+
+It used to be a greedy player: fan out shots, keep the one that finished
+nearest the cup, play it. Greed has local minima and a mini golf course is
+*made* of them — the wall you have to play away from, the moat you have to go
+round — so it carried a hack for exactly that (when a turn bought no ground,
+take an arbitrary candidate rather than the best one), and the hack got it
+round a dogleg and no further. A hole built round a long wall asks the player
+to spend a whole leg getting further from the cup, and the greedy bot could
+not finish one at all. That is what the [elbow](#the-elbow) needed, and
+searching is the honest way to give it: the bot is allowed to be a better
+*planner* than a greedy walk, because a player looking at the screen is one.
+
+What has not changed is the stroke. Power, aim spread, the wait before
+striking and the overswing scatter are the player's, exactly as before — a bot
+with a truer stroke than the game allows would sign off holes only finishable
+by a shot nobody can reliably play. So the claim the suite makes is unchanged:
+there exists a sequence of shots a player could hit that finishes this hole.
 
 Three things keep it from being a "sometimes red" test nobody trusts:
 
@@ -484,15 +548,15 @@ Three things keep it from being a "sometimes red" test nobody trusts:
   about the PRNG, not about the course. The three checks that do share a stream
   (resting position, shot length, escapes) walk the rack in order with the
   eighteen first, for the same reason.
-- **An escape from local minima.** Nearest-the-cup is greedy and a mini golf
-  course is made of local minima: the wall you have to play away from, the moat
-  you have to go round. When a turn buys no ground the bot takes an arbitrary
-  candidate instead of the best one. Without it, the bot reports doglegs and
-  island greens as unplayable, which is how Bank Shot and Island Green used to
-  pass only by luck of the one shared seed.
-- **A few attempts per hole.** The claim under test is that the hole is
-  finishable, not that this bot is good at it. Three attempts took the false-red
-  rate to zero over 360 randomised runs of the course.
+- **A random wait before striking.** The moving-gate holes are only solvable
+  with timing, and a bot that always fires at `t=0` would report a false
+  failure. For the same reason a cell may be expanded twice rather than once:
+  the first arrival fixes the clock as well as the position, and a cell that is
+  a dead end at one phase of a sweeping bar is a way through at another.
+- **A second attempt per hole.** The claim under test is that the hole is
+  finishable, not that this search got lucky. The greedy walk needed three
+  goes; a search that has swept the reachable field once rarely changes its
+  mind on the second sweep.
 
 Being pure logic, `tests.html` needs no canvas and no AudioContext. It is
 excluded from search results by both `robots.txt` and its own `noindex`, per the
