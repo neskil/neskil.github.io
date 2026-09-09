@@ -16,10 +16,17 @@
        The first course on the rack keeps the bare key it has always had,
        which is what leaves the record a player already has where they left
        it — and what keeps the landing page reading `miniGolf.save.v1` for
-       its stat chip without knowing any of this. */
-    function key(base) {
+       its stat chip without knowing any of this.
+
+       The course defaults to the one being played, and every caller that
+       cares about a *different* one names it: the picker asks four courses
+       for their records at once, and none of that is allowed to move
+       `GOLF.COURSE_ID` — swapping the global to read a key would swap the
+       card under the player's feet. */
+    function key(base, courseId) {
+        var id = courseId === undefined ? GOLF.COURSE_ID : courseId;
         var first = GOLF.COURSES && GOLF.COURSES[0].id;
-        return (!GOLF.COURSE_ID || GOLF.COURSE_ID === first) ? base : base + '.' + GOLF.COURSE_ID;
+        return (!id || id === first) ? base : base + '.' + id;
     }
 
     /* Golf names the first few scores and gives up after that, which is about
@@ -60,9 +67,9 @@
         return { best: null, bestVsPar: null, rounds: 0, aces: 0, bestCard: null };
     }
 
-    function load() {
+    function load(courseId) {
         try {
-            var raw = localStorage.getItem(key(C.SAVE_KEY));
+            var raw = localStorage.getItem(key(C.SAVE_KEY, courseId));
             if (!raw) return emptySave();
             var d = JSON.parse(raw);
             var s = emptySave();
@@ -118,14 +125,20 @@
        no save, corrupt JSON, a card from a course with a different number of
        holes (the eighteen-hole rewrite invalidated every nine-hole save), a
        card from another draw of the procedural course, an index off the end,
-       and a round that had not actually started. */
-    function loadRound(course) {
+       and a round that had not actually started.
+
+       The two optional arguments are the picker's: it asks every course on
+       the rack whether it has a round waiting, and it has to ask about a card
+       that is not the one loaded. Left out, they mean the course being
+       played, which is what every other caller wants. */
+    function loadRound(course, courseId, courseSeed) {
         try {
-            var raw = localStorage.getItem(key(C.ROUND_KEY));
+            var raw = localStorage.getItem(key(C.ROUND_KEY, courseId));
             if (!raw) return null;
             var d = JSON.parse(raw);
             if (!d || !Array.isArray(d.scores) || d.holes !== course.length) return null;
-            var seed = typeof GOLF.COURSE_SEED === 'number' ? GOLF.COURSE_SEED : null;
+            var want = courseSeed === undefined ? GOLF.COURSE_SEED : courseSeed;
+            var seed = typeof want === 'number' ? want : null;
             if ((typeof d.seed === 'number' ? d.seed : null) !== seed) return null;
             if (typeof d.holeIndex !== 'number' || d.holeIndex < 1 || d.holeIndex >= course.length) return null;
 
