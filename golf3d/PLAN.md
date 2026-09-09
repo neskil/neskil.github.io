@@ -37,9 +37,9 @@ bucket of range balls. `bag.js` is the precedent — a whole file of things draw
 but not simulated — and the test above would then say what it means: *solid*
 scenery stands on the ground, decor does not have to.
 
-§6 is the same complaint from the other end and about the other twelve holes:
-this one is that there is nothing standing on the table, that one is that the
-long game's table has a visible edge.
+The long game's version of this — a table with a visible edge — is now the
+skirt (README → "The skirt"). This one is the other half and the harder half:
+there is nothing standing *on* the table.
 
 ## 2. Mini golf cannot have a gathering green
 
@@ -104,34 +104,7 @@ under the *pointer*, so with no pointer there is nothing to describe. A roving
 tabindex over a list of five buttons, mirrored to `bag.setHover`, would make the
 picker as usable as the rest of the chrome.
 
-## 6. The long game stands on a plinth
-
-Every non-tee view on the turntable's sheets for Ashdown Park, Whinstone Links
-and Dunmore Heath shows the same thing: a slab of country with a vertical edge,
-standing two to three units above a flat plane of nothing. The graze view is
-where it is worst — a green wedge on a tan floor, with the cut running the whole
-width of the picture — and the tee view is the one angle that never shows it,
-which is exactly why it survived this long.
-
-`commons` already solved the version of this *inside* a hole: the margins belong
-to the rows, so the country leaves the property at the height and tilt of the row
-it continues and there is no step at the stakes. What it does not do is get from
-there to `theme.surroundY`, and the drop is taken in one edge.
-
-The fix is the same idea one ring further out — a **skirt**: the boundary
-rectangle grown by some units, falling from the course's own edge height to the
-surround over that distance, in the surround's material. `addSurround` already
-builds a disc with relief on it and would be the place. Two things to watch: the
-skirt has to read off the *edge* height rather than a single number, because a
-hole that climbs four units has a different edge height on each side; and the
-ridges (`addRidges`) are sunk `RIDGE_SINK` below the surround for a reason, so
-raising the ground near the course must not lift their feet out of it.
-
-The mini and crazy courses do not want this. A slab in the sea is the house
-style there and reads as a model on a table on purpose — §1 is about what stands
-*on* the table, not about hiding its edge.
-
-## 7. Smaller things
+## 6. Smaller things
 
 - **An ace should say so.** Hole one is now built to be holed in one and the
   banner does not distinguish it from any other birdie.
@@ -174,6 +147,12 @@ Kept short, and only where it explains a constraint above.
   And 🤖 Autoplay is an ordinary chip in the menu now: the typed code and the
   nine-hole unlock are gone, with `BOT_KEY`, `BOT_CODE` and `HOLES_KEY`.
 
+- **The long game stopped standing on a plinth** (v1.42.0). An open hole's
+  ground now falls away to the country around it over a bank whose length comes
+  from its own height, read off the hole a bearing at a time. It was the last of
+  the turntable's three findings below, held back as a design call rather than a
+  fault; the call went the obvious way once two parkland sheets were put side by
+  side. README → "The skirt" owns the two things it depends on.
 - **The turntable, and the geometry audit** (v1.34.0). Eighty-four holes drawn
   from eight angles as fourteen contact sheets, with machine-checked findings
   printed under each row — README → "The pictures, which neither suite can see".
@@ -182,8 +161,9 @@ Kept short, and only where it explains a constraint above.
   (fixed — a pond gets a rim of the ground it is cut into), sixteen stones piled
   on other stones and two swallowed by the hump under them (fixed — `crags` rolls
   again rather than dropping a stone where one already is, and a prop grows
-  rather than lifting where the ground rises across it), and §6 above, which is
-  a design question rather than a fault.
+  rather than lifting where the ground rises across it), and the long game
+  standing on a plinth, which was a design question rather than a fault and is
+  the entry above.
 
 - **Sea Legs is a bounce hole** (v1.32.0). One lane, one baffle in from the east
   rail, and a rail across the far corner at forty-five degrees that turns a

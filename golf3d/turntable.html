@@ -32,6 +32,12 @@
 <body>
     <h1>Turntable</h1>
     <div id="summary">starting…</div>
+    <!-- Every course id, for the driver to read back. It asks the page rather
+         than reading `courses.js`, because a regex over the file is a second
+         answer to "what courses are there" and it drifted the first time
+         anything else in that file was given an `id` — the picker's four draw
+         modes were shot as four empty courses. -->
+    <div id="courses" hidden></div>
     <div id="sheet"></div>
 
     <!-- Every hole in the game, drawn from a fixed set of angles by the game's
@@ -54,17 +60,17 @@
     <canvas id="gl"></canvas>
 
     <script src="vendor/three.min.js"></script>
-    <script src="js/config.js?v=1.36.0"></script>
-    <script src="js/themes.js?v=1.36.0"></script>
-    <script src="js/physics.js?v=1.36.0"></script>
-    <script src="js/courses.js?v=1.36.0"></script>
-    <script src="js/audit.js?v=1.36.0"></script>
-    <script src="js/textures.js?v=1.36.0"></script>
-    <script src="js/shaders.js?v=1.36.0"></script>
-    <script src="js/postfx.js?v=1.36.0"></script>
-    <script src="js/weather.js?v=1.36.0"></script>
-    <script src="js/flyover.js?v=1.36.0"></script>
-    <script src="js/render.js?v=1.36.0"></script>
+    <script src="js/config.js?v=1.42.0"></script>
+    <script src="js/themes.js?v=1.42.0"></script>
+    <script src="js/physics.js?v=1.42.0"></script>
+    <script src="js/courses.js?v=1.42.0"></script>
+    <script src="js/audit.js?v=1.42.0"></script>
+    <script src="js/textures.js?v=1.42.0"></script>
+    <script src="js/shaders.js?v=1.42.0"></script>
+    <script src="js/postfx.js?v=1.42.0"></script>
+    <script src="js/weather.js?v=1.42.0"></script>
+    <script src="js/flyover.js?v=1.42.0"></script>
+    <script src="js/render.js?v=1.42.0"></script>
 
     <script>
     (function () {
@@ -99,6 +105,9 @@
         var wantCourse = qs.get('course') || 'all';
         var wantHole = parseInt(qs.get('hole'), 10) || 0;
         var wantWeather = qs.get('weather') || '';
+
+        document.getElementById('courses').textContent =
+            G3.COURSES.map(function (c) { return c.id; }).join(',');
 
         var jobs = [];
         G3.COURSES.forEach(function (course) {

@@ -22,7 +22,7 @@ import { promisify } from 'node:util';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { startServer } from '../../tools/serve.mjs';
-import { findChrome } from '../../tools/chrome.mjs';
+import { findChrome, dumpDom } from '../../tools/chrome.mjs';
 
 const run = promisify(execFile);
 const args = process.argv.slice(2);
@@ -40,13 +40,19 @@ const views = opt('views', 'tee,plan,n,e,s,w,graze,hero');
 const hole = opt('hole', '');
 const wanted = args.filter((a) => !a.startsWith('--'));
 
-// Every course id, read from the file rather than listed here, so a fifteenth
-// course is picked up without an edit.
+/* Every course id, asked of the page rather than listed here, so a sixteenth
+   course is picked up without an edit to this file.
+   It used to be a regex over `courses.js`, which is the same idea done the
+   unreliable way: the pattern matched every `id:` after `G3.COURSES = [`, and
+   the moment the picker's four draw modes were added below the courses it
+   shot four empty sheets called "any", "kind", "fresh" and "record". The page
+   builds its own list from `G3.COURSES`; this reads that back. */
 async function courseIds(origin) {
-    const res = await fetch(`${origin}/golf3d/js/courses.js`);
-    const src = await res.text();
-    const block = src.slice(src.indexOf('G3.COURSES = ['));
-    return [...block.matchAll(/id:\s*'([a-z0-9-]+)'/g)].map((m) => m[1]);
+    const dom = await dumpDom(`${origin}/golf3d/turntable.html?course=none&tile=40`,
+        { budgetMs: 20000 });
+    const el = dom.match(/<div[^>]*id="courses"[^>]*>([^<]*)<\/div>/i);
+    if (!el || !el[1].trim()) throw new Error('turntable.html did not report its course list');
+    return el[1].trim().split(',');
 }
 
 const COLS = views.split(',').length;

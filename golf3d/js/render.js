@@ -1893,12 +1893,7 @@
         // Nothing to hold up: on a theme whose floor is near the waterline the
         // flanks are a few centimetres and the kerb would be a hairline.
         if (depth < 0.45) return;
-        var mat = new THREE.MeshLambertMaterial({
-            map: TX.rock(theme.surround === 'rock'
-                ? (theme.ground || '#9c8466')
-                : (theme.floor || '#3f4450'))
-        });
-        mat.onBeforeCompile = surroundShader;
+        var mat = groundMaterial(theme);
         // Middle, middle, width, depth. The two long sides run the whole way
         // and overlap the short ones at the corners, which is how the rim
         // closes without a mitre.
@@ -2174,7 +2169,176 @@
             shader.fragmentShader.replace('#include <map_fragment>', SH.SUR_FS_BODY);
     }
 
-    function addSurround(group, hole, theme) {
+    /* The country the course is standing on, as a material. Three things ask
+       for it — the surround itself, the skirt that gets from the course down to
+       it, and the rim round a pond — and they must ask the same way: the tint
+       is cached by colour in textures.js, so two holes on one course stand on
+       the same rock rather than redrawing it, and the splice above is what
+       de-tiles it. A second copy of these six lines is a second answer to
+       "what is the ground made of". */
+    function groundMaterial(theme) {
+        var mat = new THREE.MeshLambertMaterial({
+            map: TX.rock(theme.surround === 'rock'
+                ? (theme.ground || '#9c8466')
+                : (theme.floor || '#3f4450'))
+        });
+        mat.onBeforeCompile = surroundShader;
+        return mat;
+    }
+
+    /* ── the skirt ──────────────────────────────────────────────────────
+
+       How the long game gets from its own ground down to the country around
+       it, instead of ending in a cliff.
+
+       An open hole is a piece of country rather than a slab on a table:
+       `commons` grows every row by a margin of rough so the ground leaves the
+       property at exactly the height and tilt of the row it continues, and
+       there is no step at the stakes. What none of that ever did was get from
+       *there* to `theme.surroundY`, which on the heath is three units further
+       down and on a hole that climbs is seven. The whole drop was taken in one
+       edge, and every angle except the tee showed it: a green wedge on a flat
+       plane, with the cut running the width of the picture. The tee is the one
+       seat that cannot see it, which is why it lasted as long as it did.
+
+       So the ground falls away instead. The shape is read off the hole rather
+       than named: a bearing at a time, march in from outside until there is
+       ground, and that is where the country ends and at what height. A hole
+       that climbs four units has a different edge height on every side and
+       this picks all of them up, which a single number could not.
+
+       Four things make it fit rather than merely exist:
+
+       - **A hillside's length comes from its height.** Seven units of fall in
+         seven units of ground is a one-in-one bank, which from the hero angle
+         reads as the cliff it replaced. So the run is `SKIRT_RUN` times the
+         drop — the deepest one on the hole, so the ring stays a ring — and the
+         flat the surround holds around the course is widened to match it.
+       - **It tucks under.** The inner ring is `SKIRT_TUCK` *inside* the edge it
+         found, so it disappears under the slab rather than trying to meet a
+         jagged row-end with a radial ring. The pads are drawn on top of it and
+         hide the join.
+       - **It is a curve, not a ramp.** `SKIRT_STEPS` rings and a smoothstep, so
+         the ground rolls over at the top and flattens out at the bottom the way
+         a hillside does. A straight ramp reads as a ramp.
+       - **It finishes a hair proud of the surround**, for the same reason a
+         pond's rim does: two faces at exactly one height flicker against each
+         other.
+
+       The drawn holes do not get one and should not. A slab in the sea is the
+       house style there and reads as a model on a table on purpose. */
+    var SKIRT_RUN = 2.6;        // units of fall spread per unit of drop
+    var SKIRT_MIN = 6;          // …but never a shorter bank than this
+    var SKIRT_MAX = 22;         // …nor one that runs to the horizon
+    var SKIRT_TUCK = 0.6;       // how far inside the ground's edge it starts
+    var SKIRT_SECT = 96;        // bearings, as many as the surround has wedges
+    var SKIRT_STEPS = 5;        // rings across it, so the fall is a curve
+    var SKIRT_LIP = 0.03;       // …ending this far over the surround, not on it
+
+    /* Where the ground ends on one bearing, and how high it is there. Marched
+       from outside in, because what is wanted is the *outer* edge: a hole with
+       a lake or a ravine in it has ground on both sides of a gap, and coming
+       from the middle would stop at the near lip of it. Coarse first and then
+       fine over the last stride, which is some six samples a bearing rather
+       than two hundred. */
+    function groundEdge(hole, cx, cz, ang, rMax) {
+        var ca = Math.cos(ang), sa = Math.sin(ang), r, s, g;
+        for (r = rMax; r > 0.5; r -= 1) {
+            if (P.surfaceTop(hole, cx + ca * r, cz + sa * r)) break;
+        }
+        if (r <= 0.5) return null;
+        for (s = r + 1; s > r; s -= 0.15) {
+            g = P.surfaceTop(hole, cx + ca * s, cz + sa * s);
+            if (g) return { r: s, y: g.y };
+        }
+        return { r: r, y: P.surfaceTop(hole, cx + ca * r, cz + sa * r).y };
+    }
+
+    /* The shape of the fall, worked out once and read by two things — the
+       skirt draws it, and the surround has to know how much flat to keep
+       around the course so the noise and the bank are never arguing over the
+       same vertex. Null for the holes that do not get one. */
+    function skirtPlan(hole, theme) {
+        if (!hole.open || theme.surround === 'water') return null;
+
+        var b = hole.bounds;
+        var cx = (b.minX + b.maxX) / 2, cz = (b.minZ + b.maxZ) / 2;
+        /* Where to start marching from, and it is **not** `hole.bounds`. On an
+           open hole those are the property line, deliberately — they are what
+           the camera frames, and framing the ground would show the player a
+           postage stamp in the middle of a county. The ground runs on past the
+           stakes by every margin `commons` grew, so a march begun at the fence
+           begins *inside* the course: it finds ground on the first sample and
+           reports the middle of a fairway as the edge of the world. On The Dell
+           that was twenty-eight bearings out of ninety-six. So the start is read
+           off the pads, which are the ground. */
+        var reach = 0, q, p, j, e;
+        for (q = 0; q < hole.pads.length; q++) {
+            p = hole.pads[q];
+            reach = Math.max(reach, Math.hypot(
+                Math.max(Math.abs(p.x - cx), Math.abs(p.x + p.w - cx)),
+                Math.max(Math.abs(p.z - cz), Math.abs(p.z + p.d - cz))));
+        }
+
+        var edge = [], drop = 0;
+        for (j = 0; j < SKIRT_SECT; j++) {
+            e = groundEdge(hole, cx, cz, j / SKIRT_SECT * Math.PI * 2, reach + 2);
+            edge.push(e);
+            if (e) drop = Math.max(drop, e.y - theme.surroundY);
+        }
+        // A course already lying near the country around it — the links is half
+        // a unit above its own — has nothing worth falling.
+        if (drop < 0.35) return null;
+
+        var width = Math.max(SKIRT_MIN, Math.min(SKIRT_MAX, drop * SKIRT_RUN));
+        return { cx: cx, cz: cz, edge: edge, width: width, outer: reach + width + 2 };
+    }
+
+    function addSkirt(group, hole, theme, plan) {
+        if (!plan) return;
+        var pos = [], uv = [], idx = [], j, k, e, t, r, ang, ca, sa;
+
+        for (j = 0; j < SKIRT_SECT; j++) {
+            e = plan.edge[j];
+            if (!e) continue;
+            ang = j / SKIRT_SECT * Math.PI * 2;
+            ca = Math.cos(ang); sa = Math.sin(ang);
+            for (k = 0; k <= SKIRT_STEPS; k++) {
+                t = k / SKIRT_STEPS;
+                r = e.r - SKIRT_TUCK + (plan.width + SKIRT_TUCK) * t;
+                pos.push(ca * r,
+                    theme.surroundY + SKIRT_LIP +
+                        (1 - t * t * (3 - 2 * t)) * (e.y - theme.surroundY),
+                    sa * r);
+                uv.push((plan.cx + ca * r) / SUR_TILE, (plan.cz + sa * r) / SUR_TILE);
+            }
+        }
+        // Every bearing found ground, or the ring has a gap in it and is not a
+        // ring; the march only fails on a hole with no pads at all.
+        if (pos.length !== SKIRT_SECT * (SKIRT_STEPS + 1) * 3) return;
+
+        var ring = SKIRT_STEPS + 1, a0, a1;
+        for (j = 0; j < SKIRT_SECT; j++) {
+            a0 = j * ring; a1 = ((j + 1) % SKIRT_SECT) * ring;
+            for (k = 0; k < SKIRT_STEPS; k++) {
+                idx.push(a0 + k, a1 + k, a1 + k + 1);
+                idx.push(a0 + k, a1 + k + 1, a0 + k + 1);
+            }
+        }
+
+        var geo = new THREE.BufferGeometry();
+        geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(pos), 3));
+        geo.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(uv), 2));
+        geo.setIndex(idx);
+        geo.computeVertexNormals();
+
+        var mesh = new THREE.Mesh(geo, groundMaterial(theme));
+        mesh.position.set(plan.cx, 0, plan.cz);
+        mesh.receiveShadow = true;
+        group.add(mesh);
+    }
+
+    function addSurround(group, hole, theme, plan) {
         var cx = (hole.bounds.minX + hole.bounds.maxX) / 2;
         var cz = (hole.bounds.minZ + hole.bounds.maxZ) / 2;
 
@@ -2188,19 +2352,16 @@
             return;
         }
 
-        // Cached by tint in textures.js: two holes on the same course stand on
-        // the same rock, and it used to be redrawn for each.
-        var mat = new THREE.MeshLambertMaterial({
-            map: TX.rock(theme.surround === 'rock'
-                ? (theme.ground || '#9c8466')
-                : (theme.floor || '#3f4450'))
-        });
-        mat.onBeforeCompile = surroundShader;
+        var mat = groundMaterial(theme);
 
         // Out to the far corner of the hole, and then the margin. A dogleg's
         // bounding box is bigger than the hole in it, which is the safe way
         // round to be wrong.
         var flatR = Math.hypot(hole.bounds.maxX - cx, hole.bounds.maxZ - cz) + SUR_FLAT;
+        // …and past the skirt, where there is one. The noise and the bank both
+        // move the same vertices, and ground that rolls under a hillside puts a
+        // hump through it.
+        if (plan) flatR = Math.max(flatR, plan.outer);
         var mesh = new THREE.Mesh(surroundGeometry(theme.relief || 0, flatR, cx, cz), mat);
         mesh.position.set(cx, theme.surroundY, cz);
         mesh.receiveShadow = true;
@@ -2665,7 +2826,9 @@
         R.scene.fog = new THREE.Fog(skyTint(theme.fog, weather, false), R.fogNear, R.fogFar);
         g.add(skyDome(theme, weather));
         lights(g, hole, theme, weather);
-        addSurround(g, hole, theme);
+        var skirt = skirtPlan(hole, theme);
+        addSurround(g, hole, theme, skirt);
+        addSkirt(g, hole, theme, skirt);
         addRidges(g, hole, theme, weather);
 
         var i;
