@@ -148,7 +148,7 @@ style there and reads as a model on a table on purpose — §1 is about what sta
 
 Kept short, and only where it explains a constraint above.
 
-- **Demo mode, and the caddie's second door** (v1.37.0). The page no longer
+- **Demo mode, and the caddie's second door** (v1.39.0). The page no longer
   opens on the course list: the bot plays a course under a title until somebody
   touches something, and comes back to it when the list is left alone for
   `DEMO_IDLE` — README → "Demo mode: the game playing itself". Two constraints

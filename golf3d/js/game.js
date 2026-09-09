@@ -2561,6 +2561,10 @@
 
     function startDemo() {
         if (demo || !G3.bot) return;
+        // A fullscreen offer left over from the round nobody came back to has
+        // nobody to accept it — and it is on a timer, so left alone it would
+        // arrive over the demo a few seconds from now.
+        dismissFsPrompt(false);
         demo = { playing: false, wait: 0 };
         document.body.classList.add('demo');
         $('demo').hidden = false;
