@@ -54,6 +54,10 @@
         cols: 0,
         openScale: 2,
         openY: -0.26,
+        // How far out of the bag the club in hand stands, as a multiple of
+        // the offset `heldSpot` is written in. Read off the frustum in
+        // `place`, for the reason written there.
+        heldK: 1,
         crest: 1.31          // how tall the bag stands with its clubs in it
     };
 
@@ -109,16 +113,49 @@
        falls back to the pitch's green, so the mallet and the checker — both
        handed out a hole at a time — arrived wearing another club's colour on
        a hole where they are the only unfamiliar thing in the bag. */
+    /* `finish` is the third of them, and it is what a shade and a shininess
+       could never say on their own: a polished head *reflects the place it is
+       standing*, and a brushed one smears the same reflection into a streak.
+       Both are envMap work rather than colour work — see `studioEnv` — and
+       naming the finish here is what keeps one club's look in one line.
+
+       The wedge is chrome now rather than the raw grey it was. That entry
+       used to carry the whole job of telling it from the iron, on a shade of
+       grey four millimetres tall; it is told apart by its *shape* now — its
+       own high-toed outline and a sole you can see the bounce on — which
+       reads at any size, and it frees the finish to be the mirror a real
+       chrome wedge is. The iron takes the brushed one in its place, which is
+       what a players' blade actually wears. */
     var CLUB_LOOK = {
-        putter:  { name: '#7dd3fc', metal: 0x38bdf8, steel: 0x46566b, shine: 34 },
-        driver:  { name: '#fdba74', metal: 0xf97316, steel: 0x2f3b4f, shine: 82 },
-        iron:    { name: '#c4b5fd', metal: 0x8b5cf6, steel: 0x9aa6b4, shine: 76 },
-        chipper: { name: '#86efac', metal: 0x22c55e, steel: 0x929daa, shine: 70 },
-        wedge:   { name: '#fde68a', metal: 0xeab308, steel: 0x767d88, shine: 22 },
-        mallet:  { name: '#f0abfc', metal: 0xc026d3, steel: 0x3f4a5a, shine: 30 },
-        checker: { name: '#5eead4', metal: 0x14b8a6, steel: 0x7c848f, shine: 24 }
+        putter:  { name: '#7dd3fc', metal: 0x38bdf8, steel: 0x515f72, shine: 34, finish: 'satin' },
+        driver:  { name: '#fdba74', metal: 0xf97316, steel: 0x2f3b4f, shine: 82, finish: 'pvd' },
+        iron:    { name: '#c4b5fd', metal: 0x8b5cf6, steel: 0x9aa6b4, shine: 76, finish: 'brushed' },
+        chipper: { name: '#86efac', metal: 0x22c55e, steel: 0x929daa, shine: 70, finish: 'satin' },
+        wedge:   { name: '#fde68a', metal: 0xeab308, steel: 0x76828f, shine: 96, finish: 'chrome' },
+        mallet:  { name: '#f0abfc', metal: 0xc026d3, steel: 0x4a5568, shine: 30, finish: 'satin' },
+        checker: { name: '#5eead4', metal: 0x14b8a6, steel: 0x8d97a3, shine: 24, finish: 'brushed' }
     };
     function look(id) { return CLUB_LOOK[id] || CLUB_LOOK.chipper; }
+
+    /* What each finish does to the metal, and all four are the same three
+       numbers: how much of the room it gives back, how tight the highlight
+       is, and what colour that highlight is.
+
+       `reflect` is a Phong `reflectivity` under `MixOperation`, which is a
+       straight blend between the painted colour and the reflected room — so
+       chrome at 0.50 is half room and a black PVD driver at 0.18 is mostly
+       paint with the sky caught along one edge. `streak` asks for the brushed
+       texture below, which is what turns a highlight into the grain a milled
+       head has. */
+    var FINISH = {
+        chrome:  { reflect: 0.50, shine: 96, spec: 0x828f9d, streak: false },
+        brushed: { reflect: 0.30, shine: 44, spec: 0x67727f, streak: true },
+        satin:   { reflect: 0.22, shine: 38, spec: 0x59626d, streak: true },
+        pvd:     { reflect: 0.18, shine: 120, spec: 0x5b6572, streak: false }
+    };
+    function finishOf(club) {
+        return FINISH[club ? look(club.id).finish : 'satin'] || FINISH.satin;
+    }
 
     /* ── materials ─────────────────────────────────────────────────────── */
 
@@ -128,6 +165,133 @@
        flash, so the speculars here are grey and the shininess is low enough
        that the highlight is a sheen across the crown rather than one hard
        dot per light. */
+    /* ── the room the metal reflects ───────────────────────────────────── */
+
+    /* Something for chrome to be chrome *at*. This is the one thing three
+       lamps and a high shininess could not buy: a polished head is not a
+       bright grey object, it is a mirror, and a mirror with nothing in front
+       of it is a grey object. Lit and no more, every head in the row came
+       back the same pale slate — which is exactly what the first pass looked
+       like, and why turning one in the picker showed you nothing but its
+       outline changing.
+
+       So: one equirectangular strip, drawn once, standing in for the place
+       the bag is parked. Sky overhead, a warm band at the horizon, dark
+       ground below, and three soft lamps for the light itself. The lamps are
+       the working half — they are what sweeps across a crown as it turns
+       and along a wedge's sole as the camera comes round, and motion in a
+       highlight is the whole difference between metal and paint.
+
+       It is deliberately not the course's own sky. A reflection has to read
+       at four millimetres tall against whatever is behind it, and the real
+       sky over a night hole is black: a mirror of it is indistinguishable
+       from a matte black head. This one is the same fair weather everywhere,
+       which is what a product shot does and for the same reason.
+
+       Equirectangular rather than a cube map because it is one canvas rather
+       than six, and `MixOperation` rather than the default multiply because
+       multiply can only ever darken — a chrome head needs the room *added*
+       to it, not used as a stencil. */
+    var _env = null;
+    function studioEnv() {
+        if (_env) return _env;
+        var W = 256, H = 128;
+        var cv = document.createElement('canvas');
+        cv.width = W; cv.height = H;
+        var g = cv.getContext('2d');
+
+        var sky = g.createLinearGradient(0, 0, 0, H);
+        /* Written dark on purpose. A reflection reads by *contrast*, not by
+           brightness — and this one goes through bloom on the way out, so a
+           sky drawn as bright as the real one comes back off a chrome wedge
+           as a white blob with a glow round it, which is the one thing worse
+           than the flat grey it replaced. Dark room, bright lights. */
+        sky.addColorStop(0.00, '#9ebcda');     // zenith
+        sky.addColorStop(0.38, '#6d8aa6');
+        sky.addColorStop(0.49, '#877a68');     // the horizon's own warmth
+        sky.addColorStop(0.52, '#333b45');     // and the ground under it
+        sky.addColorStop(1.00, '#0c1015');
+        g.fillStyle = sky;
+        g.fillRect(0, 0, W, H);
+
+        /* The lights. Soft-edged and well above the horizon, because a bar
+           drawn hard comes back off a curved head as a cut-out rectangle —
+           and one drawn low sits in the reflection of the ground, where the
+           head never points. */
+        [[0.20, 0.20, 0.16, 'rgba(255, 252, 244, 0.62)'],
+         [0.62, 0.28, 0.10, 'rgba(206, 228, 250, 0.46)'],
+         [0.88, 0.16, 0.07, 'rgba(255, 240, 216, 0.38)']].forEach(function (bar) {
+            var cx = bar[0] * W, cy = bar[1] * H, r = bar[2] * W;
+            var glow = g.createRadialGradient(cx, cy, 0, cx, cy, r);
+            glow.addColorStop(0, bar[3]);
+            glow.addColorStop(1, 'rgba(255, 255, 255, 0)');
+            g.fillStyle = glow;
+            g.fillRect(cx - r, cy - r, r * 2, r * 2);
+        });
+
+        _env = new THREE.CanvasTexture(cv);
+        _env.mapping = THREE.EquirectangularReflectionMapping;
+        if (THREE.sRGBEncoding !== undefined) _env.encoding = THREE.sRGBEncoding;
+        return _env;
+    }
+
+    /* The grain on a head that is not a mirror. A brushed or milled face is
+       polished in one direction only, so its highlight is a streak rather
+       than a dot — and a streak is what says "machined" at the size these are
+       drawn. It rides on `specularMap`, which modulates the highlight alone:
+       the paint underneath keeps the club's own colour and only the shine is
+       combed. */
+    var _brush = null;
+    function brushTexture() {
+        if (_brush) return _brush;
+        var W = 64, H = 64;
+        var cv = document.createElement('canvas');
+        cv.width = W; cv.height = H;
+        var g = cv.getContext('2d');
+        g.fillStyle = '#b4b4b4';
+        g.fillRect(0, 0, W, H);
+        /* Streaks along one axis, at a handful of weights, so the grain is
+           uneven the way a real brushed face is rather than a comb.
+
+           Sown from a counter rather than from `Math.random`, so the picture
+           is the same one on every load. A texture that differs run to run
+           makes a before-and-after screenshot pair differ for a reason that
+           has nothing to do with the change under it, and this repo settles
+           anything visual by looking at exactly such a pair. */
+        var seed = 12345;
+        function rnd() { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; }
+        for (var i = 0; i < 150; i++) {
+            var x = rnd() * W;
+            var v = 0.5 + rnd() * 0.5;
+            g.strokeStyle = 'rgba(255, 255, 255, ' + (0.10 * v).toFixed(3) + ')';
+            g.lineWidth = 0.5 + rnd() * 1.5;
+            g.beginPath(); g.moveTo(x, 0); g.lineTo(x, H); g.stroke();
+            g.strokeStyle = 'rgba(0, 0, 0, ' + (0.10 * v).toFixed(3) + ')';
+            g.beginPath();
+            g.moveTo(x + 1.2, 0); g.lineTo(x + 1.2, H); g.stroke();
+        }
+        _brush = new THREE.CanvasTexture(cv);
+        _brush.wrapS = _brush.wrapT = THREE.RepeatWrapping;
+        _brush.repeat.set(3, 3);
+        return _brush;
+    }
+
+    /* One metal, built from a finish rather than from four loose numbers at
+       each call site. Everything that is meant to look like steel goes
+       through here, so "what does chrome look like" is answered once. */
+    function metal(color, fin, over) {
+        var m = new THREE.MeshPhongMaterial({
+            color: ink(color),
+            shininess: over && over.shininess !== undefined ? over.shininess : fin.shine,
+            specular: ink(fin.spec),
+            envMap: studioEnv(),
+            combine: THREE.MixOperation,
+            reflectivity: over && over.reflect !== undefined ? over.reflect : fin.reflect
+        });
+        if (fin.streak) m.specularMap = brushTexture();
+        return m;
+    }
+
     /* `club` is optional: the bag's own body has no club and takes the
        defaults. Everything a head is made of is built here rather than in
        `buildHead` so that one club owns one set of materials — which is what
@@ -137,6 +301,7 @@
         var L = club ? look(club.id) : null;
         var steel = L ? L.steel : 0x929daa;
         var shine = L ? L.shine : 70;
+        var fin = finishOf(club);
         return {
             /* The paint: the club's own colour, on the parts of a head that
                are allowed to be any colour at all — a driver's sole plate and
@@ -145,7 +310,10 @@
                card, so a club is one colour in three places rather than a
                grey head with a coloured collar under it. */
             paint: new THREE.MeshPhongMaterial({
-                color: ink(L ? L.metal : 0x38bdf8), shininess: 46, specular: ink(0x3a4249)
+                color: ink(L ? L.metal : 0x38bdf8), shininess: 46, specular: ink(0x3a4249),
+                // A painted panel is lacquered, not matte: a little of the
+                // room in it, and far less than the bare steel beside it.
+                envMap: studioEnv(), combine: THREE.MixOperation, reflectivity: 0.14
             }),
             leather: new THREE.MeshLambertMaterial({ color: ink(0x59636f) }),
             panel: new THREE.MeshLambertMaterial({ color: ink(0x6d7886) }),
@@ -162,16 +330,29 @@
                cut in the bag; the fall-off is what makes it a depth. */
             liner: new THREE.MeshBasicMaterial({ map: linerTexture(), side: THREE.BackSide }),
             well: new THREE.MeshBasicMaterial({ color: ink(0x191f26) }),
-            crown: new THREE.MeshPhongMaterial({
-                color: ink(L ? L.steel : 0x36435a), shininess: shine, specular: ink(0x39434f)
-            }),
+            crown: metal(L ? L.steel : 0x36435a, fin, { shininess: shine }),
             insert: new THREE.MeshPhongMaterial({ color: ink(0x1e2932), shininess: 20, specular: ink(0x252c33) }),
-            steel: new THREE.MeshPhongMaterial({ color: ink(0x8f9aa6), shininess: 60, specular: ink(0x5a636d) }),
+            /* The shaft. Chrome whoever is holding it — a shaft is the one
+               part of a club nobody finishes to match the head — and the one
+               place the reflection is doing the most work per triangle: a
+               plain grey rod against a bright sky is a scratch on the frame,
+               and the same rod with the room in it is a shaft. */
+            steel: metal(0x8d98a4, FINISH.chrome, { reflect: 0.30, shininess: 72 }),
             grip: new THREE.MeshLambertMaterial({ color: ink(0x1d2127) }),
-            head: new THREE.MeshPhongMaterial({ color: ink(steel), shininess: shine, specular: ink(0x646d77) }),
-            face: new THREE.MeshPhongMaterial({ color: ink(0xb9c4cf), shininess: 50, specular: ink(0x4c545c) }),
+            head: metal(steel, fin, { shininess: shine }),
+            /* A driver face is a bright insert whatever the crown is doing,
+               so it takes the mirror rather than the club's own finish. */
+            face: metal(0xa8b4c0, FINISH.chrome, { reflect: 0.34, shininess: 62 }),
+            /* And the milled face, which is the one metal that is a picture
+               rather than a colour. It keeps the club's own finish so a
+               chrome wedge's grooves flash and a brushed iron's do not — but
+               never the brushed streak, which would cross its own grooves. */
             grooves: new THREE.MeshPhongMaterial({
-                map: grooveTexture(), shininess: 40, specular: ink(0x4c545c), side: THREE.DoubleSide
+                map: faceTexture(club), bumpMap: faceTexture(club), bumpScale: 0.0016,
+                shininess: fin.shine, specular: ink(fin.spec),
+                envMap: studioEnv(), combine: THREE.MixOperation,
+                reflectivity: fin.reflect * 0.55,
+                side: THREE.DoubleSide
             })
         };
     }
@@ -193,22 +374,58 @@
         return _liner;
     }
 
-    // Grooves, drawn: a dozen lines across a face is a texture, not geometry.
-    var _grooves = null;
-    function grooveTexture() {
-        if (_grooves) return _grooves;
+    /* Grooves, drawn: a dozen lines across a face is a texture, not geometry.
+
+       Two faces rather than one, because the two clubs that wear them are
+       not making the same claim. An iron's grooves are a handful of wide
+       lines over the middle of the face; a wedge's are twice as many, twice
+       as fine, run the whole way across, and sit in a face that has been
+       milled between them — that milling is most of why a wedge photographs
+       the way it does, and it is the thing the old single texture had no way
+       to say. Both are cached per shape rather than per club: five clubs
+       asking for the same picture should not draw it five times.
+
+       The same canvas goes in as `bumpMap` as well as `map`, which is what
+       makes a groove an incision rather than a stripe — the lines catch the
+       light along one edge and lose it along the other as the head turns. */
+    var _faces = {};
+    function faceTexture(club) {
+        var fine = !!club && (club.id === 'wedge' || club.id === 'checker');
+        var key = fine ? 'milled' : 'grooved';
+        if (_faces[key]) return _faces[key];
+        var N = 128;
         var cv = document.createElement('canvas');
-        cv.width = cv.height = 64;
+        cv.width = cv.height = N;
         var g = cv.getContext('2d');
-        g.fillStyle = '#b6c1cc';
-        g.fillRect(0, 0, 64, 64);
-        g.strokeStyle = 'rgba(28, 36, 45, 0.6)';
-        g.lineWidth = 2;
-        for (var y = 8; y < 60; y += 6) {
-            g.beginPath(); g.moveTo(4, y); g.lineTo(60, y); g.stroke();
+        g.fillStyle = fine ? '#c9d4de' : '#b6c1cc';
+        g.fillRect(0, 0, N, N);
+
+        if (fine) {
+            // The milling: fine concentric-looking passes across the face,
+            // under the grooves rather than instead of them.
+            g.lineWidth = 1;
+            for (var m = 0; m < N; m += 2) {
+                g.strokeStyle = 'rgba(255, 255, 255, ' + (m % 4 ? 0.05 : 0.11) + ')';
+                g.beginPath(); g.moveTo(0, m + 0.5); g.lineTo(N, m + 0.5); g.stroke();
+            }
         }
-        _grooves = srgbCanvas(cv);
-        return _grooves;
+
+        var step = fine ? 8 : 12, pad = fine ? 4 : 10;
+        g.lineWidth = fine ? 2.5 : 4;
+        for (var y = step; y < N - step / 2; y += step) {
+            g.strokeStyle = 'rgba(24, 32, 41, 0.72)';
+            g.beginPath(); g.moveTo(pad, y); g.lineTo(N - pad, y); g.stroke();
+            // The lip under each groove, which is the half a flat line was
+            // missing: an edge that has been cut has a bright side.
+            g.lineWidth = 1;
+            g.strokeStyle = 'rgba(255, 255, 255, 0.30)';
+            g.beginPath();
+            g.moveTo(pad, y + (fine ? 2 : 3)); g.lineTo(N - pad, y + (fine ? 2 : 3));
+            g.stroke();
+            g.lineWidth = fine ? 2.5 : 4;
+        }
+        _faces[key] = srgbCanvas(cv);
+        return _faces[key];
     }
 
     /* ── one club ──────────────────────────────────────────────────────── */
@@ -273,7 +490,8 @@
         var ferrule = new THREE.Mesh(
             new THREE.CylinderGeometry(0.0112, 0.0096, 0.030, 10),
             new THREE.MeshPhongMaterial({
-                color: ink(look(club.id).metal), shininess: 44, specular: ink(0x3a4249)
+                color: ink(look(club.id).metal), shininess: 44, specular: ink(0x3a4249),
+                envMap: studioEnv(), combine: THREE.MixOperation, reflectivity: 0.16
             }));
         ferrule.position.y = len - 0.03;
         g.add(ferrule);
@@ -382,6 +600,48 @@
         return sh;
     }
 
+    /* A wedge, which is not a tall iron however often it is drawn as one.
+
+       Held to the face, the two are different outlines and the difference is
+       the whole of what the picker exists to show. An iron is a blade: a
+       straight topline, a small toe, a sole no thicker than the rest of it.
+       A wedge is a teardrop — the topline climbs from the heel and rolls
+       over a high, round toe, the face is a good centimetre taller, and the
+       sole is a broad bar with the leading edge sitting proud of it. That
+       last part is the bounce, and it is the one feature of a wedge a golfer
+       would look for first.
+
+       Same frame as `bladeShape`: heel at x = 0, toe out to +x, and +y
+       running from the topline down to the sole. Real numbers again — a
+       58-degree wedge is about 78mm heel to toe with a 58mm face, against a
+       7 iron's 76 by 50. */
+    function wedgeShape(h) {
+        var sh = new THREE.Shape();
+        sh.moveTo(0.006, 0.014);                                  // heel end of the topline
+        sh.quadraticCurveTo(0.034, 0.005, 0.058, 0.012);          // …climbing toward the toe
+        sh.quadraticCurveTo(0.076, 0.019, 0.079, 0.040);          // and round the high toe
+        sh.quadraticCurveTo(0.080, h - 0.008, 0.062, h);          // down its trailing edge
+        sh.lineTo(0.022, h);                                      // the sole, flat and broad
+        sh.quadraticCurveTo(0.004, h - 0.001, 0.002, h - 0.022);  // the heel corner, rounded
+        sh.quadraticCurveTo(0.000, 0.022, 0.006, 0.014);          // and up the heel
+        return sh;
+    }
+
+    /* The sole of one: a bar the whole width of the head rather than the
+       muscle pad an iron gets, and thicker than the blade it hangs off so the
+       leading edge stands proud of it. Drawn from the sole up rather than
+       from the back, because that is where a wedge keeps its weight. */
+    function bounceShape(h) {
+        var sh = new THREE.Shape();
+        sh.moveTo(0.014, h - 0.021);
+        sh.lineTo(0.058, h - 0.017);
+        sh.quadraticCurveTo(0.068, h - 0.015, 0.066, h - 0.005);
+        sh.quadraticCurveTo(0.064, h - 0.001, 0.054, h - 0.002);
+        sh.lineTo(0.020, h - 0.004);
+        sh.quadraticCurveTo(0.006, h - 0.006, 0.014, h - 0.021);
+        return sh;
+    }
+
     /* A mallet, seen from above: the flat face at +x, wings swept back. +y is
        heel to toe here; the extrusion is the head's height. */
     function malletShape() {
@@ -397,6 +657,37 @@
         sh.lineTo(f - 0.010, -w);
         sh.quadraticCurveTo(f, -w, f, -w + 0.008);
         return sh;
+    }
+
+    /* The face, cut to the head's own outline instead of laid over it as a
+       rectangle. A plane wide enough to carry the grooves across a blade is
+       wider than the blade is at its topline and at its heel, so its corners
+       stood out past the curve of the head — a flat card of grooves floating
+       in front of a rounded club, which is exactly what it looked like.
+
+       This is the same outline the head is built from, shrunk about its own
+       middle so the grooves stop short of the edge the way milling does, and
+       given fresh UVs over its own box: `ShapeGeometry` hands out the shape's
+       own coordinates as texture coordinates, which for a head measured in
+       metres is the first 8% of the picture stretched over the whole face. */
+    function facePlate(shape, inset) {
+        var geo = new THREE.ShapeGeometry(shape, 16);
+        geo.computeBoundingBox();
+        var b = geo.boundingBox;
+        var cx = (b.min.x + b.max.x) / 2, cy = (b.min.y + b.max.y) / 2;
+        geo.translate(-cx, -cy, 0);
+        geo.scale(inset, inset, 1);
+        geo.translate(cx, cy, 0);
+
+        geo.computeBoundingBox();
+        b = geo.boundingBox;
+        var w = b.max.x - b.min.x, hh = b.max.y - b.min.y;
+        var pos = geo.attributes.position, uv = geo.attributes.uv;
+        for (var i = 0; i < pos.count; i++) {
+            uv.setXY(i, (pos.getX(i) - b.min.x) / w, (pos.getY(i) - b.min.y) / hh);
+        }
+        uv.needsUpdate = true;
+        return geo;
     }
 
     function extruded(shape, depth, bevel) {
@@ -493,30 +784,49 @@
                is the plane the shaft stands on and the loft rotation tilts
                exactly the thing you are looking at. */
             var wedgey = club.id === 'wedge' || club.id === 'checker';
-            var h = wedgey ? 0.053 : 0.047;
-            var blade = extruded(bladeShape(h), 0.011, 0.003);
+            var h = wedgey ? 0.058 : 0.047;
+            var deep = wedgey ? 0.012 : 0.011;   // a wedge is a heavier head
+            /* A hair of a bevel on the wedge rather than the blade's, and it
+               is the difference between a shape and a pill: bevelSize runs
+               outward from *both* ends of a 12mm extrusion, so the 3mm an
+               iron can carry rounded a wedge's outline away entirely and
+               left two chrome cylinders lying against each other. Its
+               silhouette is the whole reason it has its own shape. */
+            var bev = wedgey ? 0.0016 : 0.003;
+            var blade = extruded(wedgey ? wedgeShape(h) : bladeShape(h), deep, bev);
             blade.rotateY(-Math.PI / 2);         // extrusion runs to -x, toe to +z
             var iron = new THREE.Mesh(blade, M.head);
             g.add(iron);
 
-            /* A muscle back: a thicker pad along the sole behind the blade.
-               It is what stops an iron reading as a butter knife, and it is
-               where the weight really is. */
-            var mus = extruded(muscleShape(h), 0.011, 0.004);
-            mus.rotateY(-Math.PI / 2);
-            mus.translate(-0.009, 0, 0);
-            g.add(new THREE.Mesh(mus, M.head));
+            /* Behind the blade: a muscle pad on an iron, and on a wedge the
+               full-width sole that carries its bounce. Both are the same
+               trick — a second, thicker extrusion set back from the face —
+               and both are what stop a lofted club reading as a butter knife.
 
-            var faceI = new THREE.Mesh(
-                new THREE.PlaneGeometry(0.056, h - 0.016),
-                M.grooves
-            );
-            faceI.rotation.y = Math.PI / 2;
-            faceI.position.set(0.0034, h / 2 + 0.002, 0.040);
-            g.add(faceI);
+               Set back far enough that its own front cap is buried inside the
+               blade, since coincident caps z-fight, and no further: a sole
+               standing a whole head's depth off the back is not bounce, it is
+               a second club behind the first, which is what it looked like
+               from anywhere but the face. */
+            var back = wedgey
+                ? extruded(bounceShape(h), 0.014, 0.0022)
+                : extruded(muscleShape(h), 0.011, 0.004);
+            back.rotateY(-Math.PI / 2);
+            back.translate(wedgey ? -0.004 : -0.009, 0, 0);
+            g.add(new THREE.Mesh(back, M.head));
 
-            hosel = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.0092, 0.040, 12), M.head);
-            hosel.position.set(-0.004, 0.016, 0.003);
+            var plate = facePlate(wedgey ? wedgeShape(h) : bladeShape(h), 0.86);
+            plate.rotateY(-Math.PI / 2);          // …into the blade's own frame
+            plate.translate(bev + 0.0008, 0, 0);  // and a hair proud of its cap
+            g.add(new THREE.Mesh(plate, M.grooves));
+
+            /* And the neck. A wedge's is longer and stands more upright than
+               an iron's — it is the club you hold closest to the shaft — and
+               at this size the difference between the two necks reads before
+               the difference between the two faces does. */
+            hosel = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.0066, 0.0080, wedgey ? 0.046 : 0.040, 12), M.head);
+            hosel.position.set(-0.004, wedgey ? 0.018 : 0.016, 0.003);
             g.add(hosel);
         }
 
@@ -1191,8 +1501,9 @@
                a club sliding across the corner of the view to a new slot on
                the first frame of a new hole reads as a glitch rather than as
                an arrangement. */
-            c.now.x = c.spot.closed.x; c.now.y = c.spot.closed.y; c.now.z = c.spot.closed.z;
-            c.now.rz = c.spot.closed.rz; c.now.rx = c.spot.closed.rx; c.now.ry = c.spot.closed.ry;
+            var rest = restSpot(c);
+            c.now.x = rest.x; c.now.y = rest.y; c.now.z = rest.z;
+            c.now.rz = rest.rz; c.now.rx = rest.rx; c.now.ry = rest.ry;
             c.now.lift = 0; c.now.glow = 0; c.now.labelOp = 0;
             B.crest = Math.max(B.crest, BAG_H - WELL + c.len);
         });
@@ -1217,6 +1528,53 @@
             x: spread * 0.034, y: floor, z: spread * 0.030,
             rz: -0.075 - spread * 0.028, rx: 0.03, ry: spread * 0.55, scale: 1
         };
+    }
+
+    /* …and where the club in hand stands instead, which is not in the bag at
+       all: out of the mouth, down on the ground in front of it and leaning
+       back against the cuff, the way anybody who is about to play a shot
+       parks the club they are about to play it with.
+
+       The shut bag's whole job is to answer "your clubs are here" without
+       being opened, and it was answering only half of it. Five heads bunched
+       in a cuff say what you have; nothing there said which one is in your
+       hand — that lived in a chip along the top of the screen and in a colour
+       on a ferrule two millimetres tall. Standing the chosen club out of the
+       bunch says it in the place a player is already looking, and it says it
+       in silhouette, which survives being four hundred pixels away on a
+       phone.
+
+       It stands on the ground rather than in the well, so it is a little
+       lower than the bunch and the same real length it always was; it leans a
+       few degrees out, away from the bag's silhouette rather than across it;
+       and its yaw is nearer face-on than anything in the mouth, because this
+       is the one club worth reading and so the one turned to be read.
+
+       Two things about the numbers. They are worked in the *camera's* axes
+       and written back in the bag's, since the bag is stood at an angle to
+       the lens (`TWIST`) and the two do not agree — the first pass read as
+       "0.18 to the right", landed a fifth of a unit nearer the lens than the
+       bag, and perspective then carried it left *across* the bag rather than
+       clear of it. And they are scaled by `heldK`, which is the same lesson
+       `BAG_EDGE` is written in fractions of the frame for: a fixed offset in
+       metres is a different place on every screen. A fifth of a laptop's
+       frustum is half of a phone's held upright, so a club that stood neatly
+       beside the bag on a desk stood in the middle of the hole on a phone,
+       over the power meter. `place` measures it off the frustum. */
+    function heldSpot() {
+        var k = B.heldK;
+        return {
+            x: 0.36 * k, y: 0.05, z: -0.10 * k,
+            rz: -0.06, rx: 0.04, ry: -0.42, scale: 1
+        };
+    }
+
+    /* Which of the two a club is resting at while the bag is shut. Everything
+       that puts a club away goes through here rather than reaching for
+       `spot.closed`, so the club in hand leaves the bunch on selection and
+       goes back into it the moment another one is taken. */
+    function restSpot(c) {
+        return c.id === B.selected ? heldSpot() : c.spot.closed;
     }
 
     /* And where it goes when the bag opens: out of it altogether and right up
@@ -1485,8 +1843,11 @@
         var haze = new THREE.Sprite(new THREE.SpriteMaterial({
             map: hazeTexture(), transparent: true, opacity: 0.3, depthWrite: false
         }));
-        haze.scale.set(1.5, 2.0, 1);
-        haze.position.set(0.05, 0.75, -0.3);
+        // Wide enough to take in the club standing beside the bag as well as
+        // the bag: chrome against a bright sky needs something behind it, and
+        // the club in hand is the one most often against open sky.
+        haze.scale.set(1.9, 2.0, 1);
+        haze.position.set(0.11, 0.72, -0.3);
         B.haze = haze;
         B.rig.add(haze);
 
@@ -1599,6 +1960,20 @@
         var cy = bagH * crest - B.crest * BAG_SCALE;
         put(B.rig, camera, cx, cy, cz, BAG_SCALE, -TWIST, 0.1);
 
+        /* And how far out of the bag the club in hand may stand: a fifth of
+           the half-width the bag was placed against, expressed as a multiple
+           of the offset `heldSpot` is written in. Clamped at both ends — a
+           phone held upright should still put the club clearly outside the
+           bag, and an ultrawide should not park it halfway across the hole. */
+        var heldK = Math.max(0.55, Math.min(1.25, bagW * 0.208 / 0.16));
+        /* …and a change to it is a fifth thing that can give a shut bag
+           something to do again. `update` stops easing once nothing is
+           moving, and a window resized or a phone turned over moves the
+           whole rig from `place` without ever asking a club to ease
+           anywhere — so without this the club in hand keeps the offset it
+           was standing at on the old frustum. */
+        if (Math.abs(heldK - B.heldK) > 1e-4) { B.heldK = heldK; B.settled = false; }
+
         /* How the clubs are arranged, how big they get and how high they sit
            are all measured against this window, every frame — the lens opens as
            the ball speeds up and a phone can be turned over mid-round, so none
@@ -1693,8 +2068,8 @@
             // A club that is not in this hole's bag is not on screen and has
             // no slot in the arrangement to be moved towards.
             if (!c.on || !c.spot.open) return;
-            var to = B.expanded ? c.spot.open : c.spot.closed;
             var chosen = c.id === B.selected;
+            var to = B.expanded ? c.spot.open : restSpot(c);
             var under = B.expanded && B.hover === c.id;
             // Kept small: at the zoom the open row uses, a tenth of a unit is
             // a fifth of the screen and the club in hand floats away from the
@@ -1704,7 +2079,10 @@
                click: the row is five near-identical silhouettes and the one
                thing a player wants to know while moving across them is which
                one they are about to take. */
-            var lift = under ? 0.042 : (chosen ? (B.expanded ? 0.022 : 0.045) : 0);
+            /* Shut, the club in hand no longer needs lifting clear of the
+               bunch — it is not in the bunch (see `heldSpot`), and a lift on
+               top of that is a club hovering over the grass. */
+            var lift = under ? 0.042 : (chosen && B.expanded ? 0.022 : 0);
             var glow = chosen ? 1 : (under ? 0.62 : 0);
 
             c.now.x = ease1(c.now.x, to.x, ease);
@@ -1744,7 +2122,12 @@
             /* Gentle. A driver crown is nearly black, and any more than
                this floods it pale blue — the club in hand ends up the one you
                can see least of. */
-            var e = 0.15 * c.now.glow;
+            /* And only while the row is out. Shut, the club in hand is
+               already marked by standing outside the bag (`heldSpot`) —
+               lighting it as well put a lamp on the one club with nothing
+               behind it, and bloom turned a chrome head so lit into a white
+               blob with a coloured ring round it. */
+            var e = 0.10 * c.now.glow * B.open01;
             c.group.traverse(function (o) {
                 if (o.material && o.material.emissive) o.material.emissive.setRGB(e * 0.45, e * 0.7, e);
             });
@@ -1753,7 +2136,11 @@
             // standing in a shut bag is a light source nothing in the corner
             // of the screen explains.
             if (c.halo) {
-                c.halo.material.opacity = 0.52 * c.now.glow * B.open01;
+                /* Dimmer than it was, because the metal behind it is not the
+                   flat grey it was drawn against: a polished head already
+                   carries its own highlight, and a halo bright enough to
+                   mark a slate blade blooms straight over a chrome one. */
+                c.halo.material.opacity = 0.36 * c.now.glow * B.open01;
                 c.halo.visible = c.halo.material.opacity > 0.01;
             }
 
