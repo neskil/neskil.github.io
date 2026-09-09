@@ -722,13 +722,7 @@
     function watchFonts() {
         if (!document.fonts || !document.fonts.ready) return;
         document.fonts.ready.then(function () {
-            _labelled.forEach(function (c) {
-                var held = c.label.material.map === c.label.userData.held;
-                c.label.userData.idle = labelTexture(c.club, false);
-                c.label.userData.held = labelTexture(c.club, true);
-                c.label.material.map = held ? c.label.userData.held : c.label.userData.idle;
-                c.label.material.needsUpdate = true;
-            });
+            redrawCards();
             if (_monoMat) {
                 _mono = null;
                 _monoMat.map = monogramTexture();
@@ -761,7 +755,24 @@
        on one — a picker that has to be clicked is a picker that is slower
        than the keyboard it is hiding, and "KEY 3" on the card is where
        somebody looking at the clubs will actually see it. */
-    var LABEL_W = 368, LABEL_H = 192, LABEL_BAND = 26;
+    /* A card comes in two shapes, and which one is drawn is the layout's
+       business rather than the club's.
+
+       One shape could not do both jobs. Side by side in a row there is width
+       going spare and height there is not, so the loft and the power stand in
+       two columns; wrapped into a grid on a phone it is the other way round —
+       two columns on a card a third of a screen wide is two columns of
+       nothing, and the figures were coming out nine pixels tall. Stacked, the
+       same card spends its width on the figures instead, and they land at
+       twice the size on the screen that could least afford the small ones.
+
+       Both are drawn at a size the canvas can be read at and then scaled to
+       the frustum (`fitOpen`), so these are proportions rather than pixels. */
+    var CARDS = {
+        row:  { w: 400, h: 190, band: 28, world: 0.30 },
+        grid: { w: 328, h: 252, band: 28, world: 0.285 }
+    };
+    var CARD = CARDS.row;
 
     function maxPower() {
         var m = 0;
@@ -844,17 +855,22 @@
        pointer — cheaper than tinting a sprite and legible in a way a tint
        is not. */
     function labelTexture(club, held) {
+        var W = CARD.w, H = CARD.h, BAND_H = CARD.band;
         var cv = document.createElement('canvas');
-        cv.width = LABEL_W; cv.height = LABEL_H;
+        cv.width = W; cv.height = H;
         var g = cv.getContext('2d');
         var tint = look(club.id);
-        g.clearRect(0, 0, LABEL_W, LABEL_H);
+        g.clearRect(0, 0, W, H);
 
         /* The card. Darker and more opaque than it was: it is read against
            bright grass and brighter water, and a card you have to squint
            through is a card nobody reads. */
-        roundRect(g, 4, 4, LABEL_W - 8, LABEL_H - 8, 22);
-        g.fillStyle = held ? 'rgba(7, 22, 34, 0.96)' : 'rgba(5, 16, 26, 0.94)';
+        roundRect(g, 4, 4, W - 8, H - 8, 24);
+        /* All but opaque. The card stands in front of its own shaft and in
+           front of whatever the course is doing behind it, and at 0.94 a
+           chrome shaft came through the middle of every name as a pale
+           stripe. */
+        g.fillStyle = held ? 'rgba(7, 22, 34, 0.985)' : 'rgba(5, 16, 26, 0.975)';
         g.fill();
         g.strokeStyle = held ? tint.name : 'rgba(125, 211, 252, 0.32)';
         g.lineWidth = held ? 5 : 3;
@@ -866,60 +882,86 @@
            hand, which is the difference between a strip of information and a
            badge. */
         g.save();
-        roundRect(g, 4, 4, LABEL_W - 8, LABEL_H - 8, 22);
+        roundRect(g, 4, 4, W - 8, H - 8, 24);
         g.clip();
         g.globalAlpha = held ? 0.22 : 0.10;
         g.fillStyle = held ? tint.name : '#9fb6c9';
-        g.fillRect(4, 4, LABEL_W - 8, LABEL_BAND);
+        g.fillRect(4, 4, W - 8, BAND_H);
         g.restore();
 
         g.textAlign = 'center';
         g.textBaseline = 'middle';
-        g.font = '800 15px ' + FACE;
+        g.font = '800 16px ' + FACE;
         g.fillStyle = held ? tint.name : 'rgba(159, 182, 201, 0.82)';
-        g.fillText(held ? 'IN HAND' : 'KEY ' + club.key, LABEL_W / 2, 18);
-
-        /* Everything below the band is drawn where it always was, shifted
-           down by the band's own height rather than re-tuned — the layout of
-           a card is a picture that works, and moving it is not the same as
-           redrawing it. */
-        g.translate(0, LABEL_BAND);
+        g.fillText(held ? 'IN HAND' : 'KEY ' + club.key, W / 2, 4 + BAND_H / 2);
 
         /* The name, in the page's own face, in one flat colour: a gradient
            across four letters is a smear at the size this is read from. */
         g.fillStyle = tint.name;
-        g.font = '800 44px ' + FACE;
-        g.fillText(club.name, LABEL_W / 2, 42);
+        g.font = '800 46px ' + FACE;
+        g.fillText(club.name, W / 2, BAND_H + 42);
 
+        var rule = BAND_H + 74;
         g.strokeStyle = 'rgba(148, 176, 199, 0.20)';
         g.lineWidth = 2;
-        g.beginPath(); g.moveTo(44, 72); g.lineTo(LABEL_W - 44, 72); g.stroke();
+        g.beginPath(); g.moveTo(40, rule); g.lineTo(W - 40, rule); g.stroke();
 
         g.textAlign = 'left';
         var deg = Math.round(club.loft * 180 / Math.PI);
+        var frac = club.power / maxPower();
 
-        // Left: the loft, as a figure and as the picture of it.
-        g.fillStyle = 'rgba(159, 182, 201, 0.9)';
-        g.font = '700 16px ' + FACE;
-        g.fillText('LOFT', 26, 92);
-        g.fillStyle = '#eaf6ff';
-        g.font = '700 27px ' + FIGS;
-        g.fillText(deg + '\u00b0', 26, 124);
-        drawLoft(g, 112, 134, deg, tint.name);
-
-        // Right: the ceiling on power, as a figure and as a length. The bar
-        // is filled against the biggest club in the bag, so "the driver is
-        // the reach club" is something you can see rather than work out.
-        var x = 206;
-        g.fillStyle = 'rgba(159, 182, 201, 0.9)';
-        g.font = '700 16px ' + FACE;
-        g.fillText('POWER', x, 92);
-        g.fillStyle = '#eaf6ff';
-        g.font = '700 27px ' + FIGS;
-        g.fillText(String(club.power), x, 124);
-        drawPower(g, x, 142, LABEL_W - 26 - x, 11, club.power / maxPower(), tint.name);
+        if (CARD === CARDS.grid) stackedFigures(g, W, H, rule, deg, club, frac, tint);
+        else sideBySideFigures(g, W, H, rule, deg, club, frac, tint);
 
         return srgbCanvas(cv);
+    }
+
+    /* Side by side, for a card standing in a row: the loft on the left with
+       the picture of it, the power on the right with the bar. */
+    function sideBySideFigures(g, W, H, rule, deg, club, frac, tint) {
+        var top = rule + 22;
+        var x2 = Math.round(W * 0.54);
+
+        g.fillStyle = 'rgba(159, 182, 201, 0.9)';
+        g.font = '700 17px ' + FACE;
+        g.fillText('LOFT', 28, top);
+        g.fillText('POWER', x2, top);
+
+        g.fillStyle = '#eaf6ff';
+        g.font = '700 36px ' + FIGS;
+        g.fillText(deg + '\u00b0', 28, top + 36);
+        g.fillText(String(club.power), x2, top + 36);
+
+        drawLoft(g, 118, top + 46, deg, tint.name);
+        drawPower(g, x2, top + 58, W - 28 - x2, 13, frac, tint.name);
+    }
+
+    /* Stacked, for a card in a grid: one reading to a line, and the figures
+       given the width the second column used to take. This is the shape a
+       phone gets, and the numbers on it are the point of the change — a loft
+       is a fact you read at a glance or not at all. */
+    function stackedFigures(g, W, H, rule, deg, club, frac, tint) {
+        var mid = rule + 56;                 // the loft line
+        var low = H - 30;                    // …and the power line
+
+        g.fillStyle = 'rgba(159, 182, 201, 0.9)';
+        g.font = '700 18px ' + FACE;
+        g.fillText('LOFT', 26, mid - 34);
+        g.fillText('POWER', 26, low - 34);
+
+        g.fillStyle = '#eaf6ff';
+        g.font = '700 50px ' + FIGS;
+        g.fillText(deg + '\u00b0', 26, mid);
+        g.fillText(String(club.power), 26, low);
+
+        drawLoft(g, W - 108, mid + 12, deg, tint.name);
+        drawPower(g, W - 150, low + 4, 124, 14, frac, tint.name);
+
+        g.strokeStyle = 'rgba(148, 176, 199, 0.14)';
+        g.lineWidth = 2;
+        g.beginPath();
+        g.moveTo(26, (mid + low) / 2 - 22); g.lineTo(W - 26, (mid + low) / 2 - 22);
+        g.stroke();
     }
 
     /* The halo behind the club in hand: white in the middle and gone by the
@@ -962,9 +1004,40 @@
         }));
         sprite.userData.idle = idle;
         sprite.userData.held = labelTexture(club, true);
-        sprite.scale.set(0.26, 0.26 * LABEL_H / LABEL_W, 1);
+        sizeLabel(sprite);
         sprite.renderOrder = 20;
         return sprite;
+    }
+
+    function sizeLabel(sprite) {
+        sprite.scale.set(CARD.world, CARD.world * CARD.h / CARD.w, 1);
+    }
+
+    /* Swap every card to the other shape and redraw it: two canvases a club,
+       and only when the arrangement actually changes shape — a window resized,
+       a phone turned over, or a hole handing out a bag of a different size.
+       Redrawing rather than scaling one texture is the whole point: a stacked
+       card is not a squashed row card, it is a different arrangement of the
+       same four readings. */
+    function setCardShape(want) {
+        if (CARD === want) return;
+        CARD = want;
+        redrawCards();
+    }
+
+    /* Both faces of every card, drawn again from whatever is true now — the
+       shape the layout has asked for, or the typeface that has just arrived.
+       Which face is showing survives the swap; the card under it does not
+       otherwise change. */
+    function redrawCards() {
+        _labelled.forEach(function (c) {
+            var held = c.label.material.map === c.label.userData.held;
+            c.label.userData.idle = labelTexture(c.club, false);
+            c.label.userData.held = labelTexture(c.club, true);
+            c.label.material.map = held ? c.label.userData.held : c.label.userData.idle;
+            c.label.material.needsUpdate = true;
+            sizeLabel(c.label);
+        });
     }
 
     // Which of a card's two faces is showing, swapped rather than redrawn.
@@ -1002,15 +1075,53 @@
        and the lean is the other half of what a club is. This shows both. */
     var OPEN_YAW = -0.72;
 
-    var COL_ROW = 0.175, COL_GRID = 0.32, ROW = 0.42;
-    var HALF_LABEL = 0.145;                // half a label, and a hair over
     var HEAD_TOP = 0.21;                   // head above the row's own line
-    /* …and the label below it, staggered or not. Both are measured off the
-       card: a staggered row drops the low half of it by 0.26 and the card
-       itself is half of 0.26 x LABEL_H/LABEL_W tall, so the block reaches
-       0.34 + 0.068 below the line the heads stand on. Growing the card by a
-       band at the top grew this with it. */
-    var TAIL_ROW = 0.42, TAIL_GRID = 0.16;
+
+    /* Everything else about the arrangement is the card's own size, so it is
+       worked out from the card rather than tuned to one: how far apart two
+       clubs stand is a card and a gap, how far apart two rows stand is a card
+       and the head of the row below it, and how far the block reaches under
+       the line the heads are on is half a card and the drop.
+
+       The cards used to be closer together than they are wide and staggered
+       to two heights to survive it, which is a trick that works exactly once
+       and was the reason a five-club bag on a phone came out as a pile.
+       Standing them a card apart costs width — and width is what a single row
+       is *for*, so a screen without it now wraps into a grid instead of
+       overlapping its way through.
+
+       These hang off the card rather than off the bag, and that is what keeps
+       the fit from chasing its own tail. The shape a card is drawn in depends
+       on how many columns there are; the room a column needs depends on the
+       card; so measuring a candidate arrangement against whatever card
+       happens to be drawn at that moment is a loop, and one that flips
+       between two arrangements a frame apart at the window sizes where they
+       are close. Every candidate is measured against the card *it* would
+       use, so the answer is the frustum's alone. */
+    function derive(card) {
+        var halfH = card.world * card.h / card.w / 2;
+        card.col = card.world + 0.05;         // two clubs, side by side
+        card.half = card.world / 2 + 0.01;    // half a card, and a hair over
+        // Low enough that the whole head clears the top of its own card. A
+        // card that covers the head is a caption standing in front of the
+        // thing it captions, and the head — the face, and how far back it
+        // leans — is what the row is opened to compare.
+        card.drop = halfH + 0.06;
+        card.tail = card.drop + halfH;
+        // A row has to clear the heads of the row under it, not just its own
+        // card: the head stands HEAD_TOP above its line and the card hangs
+        // `tail` below.
+        card.stack = card.tail + HEAD_TOP + 0.055;
+        return card;
+    }
+    derive(CARDS.row);
+    derive(CARDS.grid);
+
+    /* Which card an arrangement is drawn with: a row has width to spend on
+       two columns of figures, a grid has not. */
+    function cardFor(cols, n) {
+        return cols === n && n > 1 ? CARDS.row : CARDS.grid;
+    }
 
     var OPEN_DEPTH = 1.3;      // how far in front of the lens the clubs come
     var MAX_OPEN = 2;          // and how big they are allowed to get there
@@ -1050,12 +1161,6 @@
        measures them and says (`setBand`), in fractions of the stage's height.
        These are the fallbacks for the frame before it has. */
     var BAND = { top: 0.22, bottom: 0.20 };
-
-    /* Below this the heads are too small to tell apart, and a row that cannot
-       reach it wraps into a grid instead. In practice a phone held upright
-       clears it and keeps the single row; it is a five-club bag in a letterbox
-       window that wraps. */
-    var MIN_ROW = 0.62;
 
     /* The clubs actually in the bag on this hole. Everything that arranges,
        measures or picks a club works off this rather than off `B.clubs`,
@@ -1130,13 +1235,19 @@
        was not. Fewer columns and more rows, and the whole thing is then scaled
        to what the frustum will actually take (see `fitOpen`). */
     function openSpot(i, cols, rows, n, len) {
+        var card = cardFor(cols, n);
         var col = i % cols;
         var row = Math.floor(i / cols);
+        // The last row of a grid is usually short, and a short row left-aligned
+        // under a full one reads as a mistake rather than as an arrangement —
+        // five clubs two abreast used to hang the fifth off the left. Each row
+        // is centred on what is actually in it.
+        var inRow = Math.min(cols, n - row * cols);
         return {
-            x: (col - (cols - 1) / 2) * (cols === n ? COL_ROW : COL_GRID),
+            x: (col - (inRow - 1) / 2) * card.col,
             // Rows stack downward, and the block is recentred on itself so
             // adding one does not push the first row off the top.
-            y: -len + 0.15 - row * ROW + (rows - 1) * ROW / 2,
+            y: -len + 0.15 - row * card.stack + (rows - 1) * card.stack / 2,
             z: 0, rz: 0, rx: 0, ry: OPEN_YAW, scale: 1
         };
     }
@@ -1147,15 +1258,15 @@
        label hangs below its head — so centring it means knowing how far off
        centre it already is. */
     function openMetrics(cols, rows, n) {
-        var grid = cols !== n;
+        var card = cardFor(cols, n);
         var top = HEAD_TOP;
-        var bottom = -(grid ? TAIL_GRID : TAIL_ROW) - (rows - 1) * ROW;
+        var bottom = -card.tail - (rows - 1) * card.stack;
         return {
-            halfW: (cols - 1) / 2 * (grid ? COL_GRID : COL_ROW) + HALF_LABEL,
+            halfW: (cols - 1) / 2 * card.col + card.half,
             halfH: (top - bottom) / 2,
             // openSpot recentres the rows on the layout line, so the block's
             // middle moves back up by half of what the extra rows added.
-            mid: (top + bottom) / 2 + (rows - 1) * ROW / 2
+            mid: (top + bottom) / 2 + (rows - 1) * card.stack / 2
         };
     }
 
@@ -1179,33 +1290,46 @@
             cols: cols,
             rows: rows,
             scale: scale,
-            // Wrapping into more rows only wins back room when the row was
-            // too *wide* for the frustum. On a short screen — a phone on its
-            // side, where width is the one thing not in short supply — it is
-            // the band above and below that is pinching the scale, and an
-            // extra row only pinches it harder: more rows means a taller
-            // block, and a taller block is worse off in the same band. So
-            // this says whether halving the columns can actually help,
-            // which is what keeps that case from halving its way to a
-            // vanishing row instead of stopping at the widest one it has.
-            narrowerHelps: widthScale < heightScale,
             y: halfH * (top + bottom) / 2 - m.mid * scale
         };
     }
 
-    /* One row of four, and only something else when one row of four cannot be
-       read: the arrangement is halved until it either fits at a usable size or
-       there is nothing left to halve. A row is what the clubs are *for* — four
-       heads side by side, compared at a glance — so it is what they get
-       wherever the screen allows it. */
+    /* Every arrangement the bag could be laid out in, measured, and the one
+       that draws the clubs biggest wins.
+
+       This used to halve the columns until the row was either usable or
+       unhalvable, guarded by a rule about whether narrowing could help at all
+       — and it got a phone wrong in both directions at once. Held upright it
+       kept a five-club row that fitted only because the cards were allowed to
+       overlap; on its side it dropped to a row so small the cards were
+       unreadable and then had a rule saying not to try anything else. Asking
+       every candidate what scale it would actually get is both shorter and
+       right: wrapping wins when a row has run out of width, and cannot win
+       when the band above and below is what is pinching, because a taller
+       block scores worse in the same band and simply loses.
+
+       A row is still what the clubs are *for* — heads side by side, compared
+       at a glance — so it holds the tie: an arrangement with more rows has to
+       be a clear margin better before it takes the row's place, rather than
+       winning on a hundredth. */
     function openFit(camera, aspect) {
         var n = live().length;
-        var cols = n, fit;
-        for (;;) {
+        var best = null, seen = {}, rows, cols, fit;
+        if (!n) return fitOpen(camera, aspect, 1, 1, 1);
+        for (rows = 1; rows <= n; rows++) {
+            cols = Math.ceil(n / rows);
+            /* Counting by rows rather than by columns is what keeps the
+               candidates balanced — five clubs get 5, 3, 2 and 1 across,
+               never the ragged 4 that leaves one club alone under four. Two
+               row counts can land on the same width (five clubs in four rows
+               and in three both come to 2 across), and the second is the same
+               arrangement measured twice. */
+            if (seen[cols]) continue;
+            seen[cols] = 1;
             fit = fitOpen(camera, aspect, cols, Math.ceil(n / cols), n);
-            if (fit.scale >= MIN_ROW || cols <= 2 || !fit.narrowerHelps) return fit;
-            cols = Math.max(2, Math.ceil(cols / 2));
+            if (!best || fit.scale > best.scale * 1.06) best = fit;
         }
+        return best;
     }
 
     /* Swap a club between its real shaft and the stub cut from the same cone
@@ -1238,21 +1362,20 @@
         var n = row.length;
         var rows = Math.ceil(n / cols);
         B.cols = cols;
+        setCardShape(cardFor(cols, n));
         syncStubs();
         row.forEach(function (c, i) {
             c.spot.open = openSpot(i, cols, rows, n, c.len);
-            // Labels are wider than the gap between two clubs, so in a single
-            // row alternate ones are dropped further to stagger them into two
-            // heights — exactly the pairing that would otherwise collide. In a
-            // grid the rows have already done that job.
-            /* The stagger is measured against the closest pair, not the
-               average one: the cards hang under the heads they belong to and
-               a driver's head is a different shape from a putter's, so the
-               gap between two neighbouring cards is not the same gap twice.
-               At 0.20 the tightest of them cleared by a fifth of a card,
-               which on screen is two cards touching. */
-            var drop = 0.08 + (cols === n ? (i % 2) * 0.26 : 0);
-            if (c.label) c.label.position.set(c.labelBase.x, c.labelBase.y - drop, c.labelBase.z);
+            /* Every card hangs at the same height now. The row used to drop
+               alternate ones to stagger them into two heights, which is what
+               a row of cards closer together than they are wide needs — and
+               they now stand a full card apart (see `metrics`), so there is
+               nothing left to dodge. A level row is also the one you can read
+               across: five cards at two heights are compared a pair at a
+               time. */
+            if (c.label) {
+                c.label.position.set(c.labelBase.x, c.labelBase.y - CARD.drop, c.labelBase.z);
+            }
         });
     }
 
@@ -1284,21 +1407,24 @@
             var label = buildLabel(club);
 
             built.pivot.add(label);
-            // Centred on the head it belongs to, not guessed at: a driver's
-            // body, a blade's toe and a mallet's wings all sit at a different
-            // offset from the shaft, so the one fixed x/z this used before
-            // was only ever right for one of the four. The box read straight
-            // off the head geometry is right for all of them. Just under the
-            // head rather than above it, because the open row is cropped to
-            // the bottom of the screen and the heads already sit right
-            // against the "pick a club" panel above.
-            //
-            // Where it hangs from is read off the head geometry rather than
-            // guessed at: a driver's body, a blade's toe and a mallet's wings
-            // all sit at a different offset from the shaft, so the one fixed
-            // x/z this used before was only ever right for one of the four.
-            // How far below it hangs is the arrangement's business
-            // (`relayoutOpen`), so only the anchor is kept here.
+            /* Hung on the club's own axis, and at the same height on every
+               club. It used to be centred on the head instead, on the grounds
+               that a driver's body, a blade's toe and a mallet's wings all sit
+               at a different offset from the shaft — which is true of the
+               head and is exactly why it is the wrong thing to hang a card
+               from. Five clubs are laid out by their shafts, so five cards
+               hung off five differently-shaped heads come out at five
+               different heights and five different offsets: a row of cards
+               that reads as five things dropped rather than a row, and, once
+               the cards were big enough to read, one that overlapped its
+               neighbours in the places the heads happened to lean.
+
+               So the anchor is the shaft, and how far below it the card hangs
+               is the arrangement's business (`metrics`/`relayoutOpen`) — far
+               enough that the head above it stays in full view, which is what
+               the row is being opened to look at. The head's own box is still
+               read here, for the halo, which is a marker *on* the head and
+               does belong to it. */
             built.head.updateMatrixWorld(true);
             var headBox = new THREE.Box3().setFromObject(built.head);
             var headMid = headBox.getCenter(new THREE.Vector3());
@@ -1340,7 +1466,7 @@
                 label: label,
                 pivot: built.pivot,
                 halo: halo,
-                labelBase: { x: headMid.x, y: headBox.min.y, z: headMid.z },
+                labelBase: { x: 0, y: built.len - 0.02, z: 0 },
                 spot: spot,
                 shaft: built.shaft, fullGeo: built.fullGeo, stubGeo: built.stubGeo,
                 stubLen: built.stubLen, grip: built.grip, cap: built.cap, stubOn: false,
@@ -1675,6 +1801,35 @@
         return Math.hypot((_head.x - nx) * aspect, _head.y - ny);
     }
 
+    /* Where a card is on the screen, as a rectangle. A sprite always faces the
+       lens, so its size in the frame is its world size over the frustum's at
+       the depth it is standing — no projection of corners needed, and it is
+       the same arithmetic `fitOpen` sizes the row with, run backwards.
+
+       Returns the half-extents alongside the middle, both in the same -1..1
+       the pointer arrives in. */
+    var _card = new THREE.Vector3(), _cardScale = new THREE.Vector3();
+    function cardRect(label, camera) {
+        // How big it is drawn is its *world* scale, which is what the sprite
+        // shader measures off the model matrix — the rig it hangs in is scaled
+        // to the frustum every frame, so the sprite's own numbers are half the
+        // answer.
+        label.getWorldScale(_cardScale);
+        _card.setFromMatrixPosition(label.matrixWorld);
+        _card.applyMatrix4(camera.matrixWorldInverse);
+        var dist = -_card.z;
+        if (dist <= 0.01) return null;
+        var halfH = Math.tan((camera.fov || 52) * Math.PI / 360) * dist;
+        var halfW = halfH * (camera.aspect || 1);
+        // applyMatrix4 divides through by w, so this lands in the same -1..1
+        // the pointer arrives in.
+        _card.applyMatrix4(camera.projectionMatrix);
+        return {
+            x: _card.x, y: _card.y,
+            hx: _cardScale.x / 2 / halfW, hy: _cardScale.y / 2 / halfH
+        };
+    }
+
     function pick(nx, ny, camera, scene) {
         if (!B.ready) return null;
         scene.updateMatrixWorld(true);
@@ -1682,6 +1837,28 @@
         if (B.expanded) {
             var aspect = camera.aspect || 1;
             var best = null, bestD = 0.2;       // a generous target in a row
+
+            /* The card first, and by the rectangle it actually occupies.
+
+               It is the biggest, squarest thing on the screen with a club's
+               name written across it, so it is what a finger goes for — and
+               for a long time the only thing that answered was the head above
+               it, which on a phone is a chrome lump the width of a thumbnail.
+               A picker you have to aim at is a picker that loses to the
+               keyboard it is standing in for.
+
+               Cards do not overlap each other (see `metrics`), so the first
+               one the point falls inside is the answer; there is no nearest
+               to work out. */
+            var hit = null;
+            live().forEach(function (c) {
+                if (hit || !c.label || !c.label.visible) return;
+                var r = cardRect(c.label, camera);
+                if (!r) return;
+                if (Math.abs(nx - r.x) <= r.hx && Math.abs(ny - r.y) <= r.hy) hit = c.id;
+            });
+            if (hit) return hit;
+
             live().forEach(function (c) {
                 var d = Math.min(
                     screenGap(c.group, c.len - 0.02, nx, ny, aspect, camera),
