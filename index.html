@@ -2816,6 +2816,81 @@
     </header>
 
     <main class="grid">
+        <!-- ── Mini Golf: one tee, two geometries ──────────────────────────
+             Pocket Links and Loft Links stay two games in two folders, sharing
+             no code and no save data. What they no longer need is a card each:
+             two neighbouring tiles whose only real difference was how many axes
+             they use made the grid read like a list with a duplicate in it. So
+             the grid gets one card, and the choice of dimension moves to its
+             flip side — the same mechanism the About card uses — with each
+             game's own record on its own option, so the pick is informed before
+             you make it. ── -->
+        <div class="card flip-card" id="card-golf-hub">
+            <div class="card-flip-inner">
+                <button type="button" class="card-face card-face-front flip-open" aria-expanded="false"
+                    aria-controls="golf-panel">
+                    <div>
+                        <div class="card-icon">
+                            <svg viewBox="0 0 24 24">
+                                <path d="M12 14.2L3.2 17.6l8.8 3.4 8.8-3.4-8.8-3.4z" fill="currentColor" fill-opacity="0.13"/>
+                                <path d="M12 14.2L3.2 17.6l8.8 3.4 8.8-3.4-8.8-3.4z"/>
+                                <path d="M7.6 16.3l4.4 1.7 4.4-1.7" opacity="0.45"/>
+                                <path d="M13.2 17.3V3.6"/>
+                                <path d="M13.6 3.8l6.2 2.1-6.2 2.3z" fill="currentColor" fill-opacity="0.45"/>
+                                <circle cx="8.3" cy="16.1" r="1.55"/>
+                            </svg>
+                        </div>
+                        <h2 class="card-title">Fore Dimensions</h2>
+                        <p class="card-desc">Mini golf in two different geometries: forty-two flat holes across four courses plus a generator that deals nine more, with an editor that checks its own work, or fifteen courses of ramps, carries, bumpers, ice, fairways and dunes to play over. Pick your dimensions.</p>
+                        <div class="card-stat-chip" id="stat-golf-hub">
+                            <span class="stat-icon">⛳</span> <span class="stat-val">2D · 3D</span>
+                        </div>
+                    </div>
+                    <span class="card-link">Pick a tee <svg viewBox="0 0 24 24">
+                            <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                stroke-linejoin="round" />
+                        </svg></span>
+                </button>
+                <div class="card-face card-face-back" id="golf-panel" role="dialog" aria-modal="true"
+                    aria-label="Choose a mini golf game">
+                    <button type="button" class="card-close" data-flip-close aria-label="Close">
+                        <svg viewBox="0 0 24 24">
+                            <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2"
+                                stroke-linecap="round" />
+                        </svg>
+                    </button>
+                    <div class="dim-head">
+                        <div class="dim-title">Fore Dimensions</div>
+                        <div class="dim-sub">How many dimensions?</div>
+                    </div>
+                    <a class="dim-option dim-3d" href="golf3d/index.html?v=1.9.0">
+                        <span class="dim-shot">
+                            <img data-src="assets/preview/golf3d.webp" alt="Loft Links: a raised mini golf hole over open water at golden hour, seen from behind the ball with the club bag in the corner and the live scoring HUD overhead." width="800"
+                                height="420" decoding="async">
+                            <span class="dim-badge">3D</span>
+                        </span>
+                        <span class="dim-body">
+                            <span class="dim-name">Loft Links 3D</span>
+                            <span class="dim-desc">Fifteen courses in four kinds: mini golf over ramps, ledges and water carries; crazy golf past windmill blades, pinball bumpers, clockwork, a waterwheel over the millrace and a belfry of geared machines; adventure golf on ice, travelators, pipes and the steam vents of a volcano; and the long game over parkland, heath and an open links of rolling dunes with nothing but white stakes to keep you honest. Each hole under weather of its own, and five clubs to get past them.</span>
+                            <span class="dim-stat" id="stat-golf3d"><span class="stat-icon">🏌️</span> Best Round: <span class="stat-val">—</span></span>
+                        </span>
+                    </a>
+                    <a class="dim-option dim-2d" href="golf/index.html?v=1.3.0">
+                        <span class="dim-shot">
+                            <img data-src="assets/preview/golf.webp" alt="Pocket Links: a ball on the fairway lined up at the pin, water either side of the approach." width="800"
+                                height="420" decoding="async">
+                            <span class="dim-badge">2D</span>
+                        </span>
+                        <span class="dim-body">
+                            <span class="dim-name">Pocket Links</span>
+                            <span class="dim-desc">Four courses seen from above — an eighteen, a quick six and two nines — plus a fifth generated from a seed. Bunkers, water, ice, bumpers and gates that will not wait for you, and a hole editor that checks its own work.</span>
+                            <span class="dim-stat" id="stat-golf"><span class="stat-icon">⛳</span> Best Round: <span class="stat-val">—</span></span>
+                        </span>
+                    </a>
+                </div>
+            </div>
+        </div>
+
         <div class="card flip-card" id="card-cargo-lander">
             <div class="card-flip-inner">
                 <button type="button" class="card-face card-face-front flip-open" aria-expanded="false"
@@ -2989,81 +3064,6 @@
                             <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2"
                                 stroke-linecap="round" stroke-linejoin="round" fill="none" />
                         </svg></a>
-                </div>
-            </div>
-        </div>
-
-        <!-- ── Mini Golf: one tee, two geometries ──────────────────────────
-             Pocket Links and Loft Links stay two games in two folders, sharing
-             no code and no save data. What they no longer need is a card each:
-             two neighbouring tiles whose only real difference was how many axes
-             they use made the grid read like a list with a duplicate in it. So
-             the grid gets one card, and the choice of dimension moves to its
-             flip side — the same mechanism the About card uses — with each
-             game's own record on its own option, so the pick is informed before
-             you make it. ── -->
-        <div class="card flip-card" id="card-golf-hub">
-            <div class="card-flip-inner">
-                <button type="button" class="card-face card-face-front flip-open" aria-expanded="false"
-                    aria-controls="golf-panel">
-                    <div>
-                        <div class="card-icon">
-                            <svg viewBox="0 0 24 24">
-                                <path d="M12 14.2L3.2 17.6l8.8 3.4 8.8-3.4-8.8-3.4z" fill="currentColor" fill-opacity="0.13"/>
-                                <path d="M12 14.2L3.2 17.6l8.8 3.4 8.8-3.4-8.8-3.4z"/>
-                                <path d="M7.6 16.3l4.4 1.7 4.4-1.7" opacity="0.45"/>
-                                <path d="M13.2 17.3V3.6"/>
-                                <path d="M13.6 3.8l6.2 2.1-6.2 2.3z" fill="currentColor" fill-opacity="0.45"/>
-                                <circle cx="8.3" cy="16.1" r="1.55"/>
-                            </svg>
-                        </div>
-                        <h2 class="card-title">Fore Dimensions</h2>
-                        <p class="card-desc">Mini golf in two different geometries: forty-two flat holes across four courses plus a generator that deals nine more, with an editor that checks its own work, or fifteen courses of ramps, carries, bumpers, ice, fairways and dunes to play over. Pick your dimensions.</p>
-                        <div class="card-stat-chip" id="stat-golf-hub">
-                            <span class="stat-icon">⛳</span> <span class="stat-val">2D · 3D</span>
-                        </div>
-                    </div>
-                    <span class="card-link">Pick a tee <svg viewBox="0 0 24 24">
-                            <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                                stroke-linejoin="round" />
-                        </svg></span>
-                </button>
-                <div class="card-face card-face-back" id="golf-panel" role="dialog" aria-modal="true"
-                    aria-label="Choose a mini golf game">
-                    <button type="button" class="card-close" data-flip-close aria-label="Close">
-                        <svg viewBox="0 0 24 24">
-                            <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2"
-                                stroke-linecap="round" />
-                        </svg>
-                    </button>
-                    <div class="dim-head">
-                        <div class="dim-title">Fore Dimensions</div>
-                        <div class="dim-sub">How many dimensions?</div>
-                    </div>
-                    <a class="dim-option dim-2d" href="golf/index.html?v=1.3.0">
-                        <span class="dim-shot">
-                            <img data-src="assets/preview/golf.webp" alt="Pocket Links: a ball on the fairway lined up at the pin, water either side of the approach." width="800"
-                                height="420" decoding="async">
-                            <span class="dim-badge">2D</span>
-                        </span>
-                        <span class="dim-body">
-                            <span class="dim-name">Pocket Links</span>
-                            <span class="dim-desc">Four courses seen from above — an eighteen, a quick six and two nines — plus a fifth generated from a seed. Bunkers, water, ice, bumpers and gates that will not wait for you, and a hole editor that checks its own work.</span>
-                            <span class="dim-stat" id="stat-golf"><span class="stat-icon">⛳</span> Best Round: <span class="stat-val">—</span></span>
-                        </span>
-                    </a>
-                    <a class="dim-option dim-3d" href="golf3d/index.html?v=1.9.0">
-                        <span class="dim-shot">
-                            <img data-src="assets/preview/golf3d.webp" alt="Loft Links: a raised mini golf hole over open water at golden hour, seen from behind the ball with the club bag in the corner and the live scoring HUD overhead." width="800"
-                                height="420" decoding="async">
-                            <span class="dim-badge">3D</span>
-                        </span>
-                        <span class="dim-body">
-                            <span class="dim-name">Loft Links 3D</span>
-                            <span class="dim-desc">Fifteen courses in four kinds: mini golf over ramps, ledges and water carries; crazy golf past windmill blades, pinball bumpers, clockwork, a waterwheel over the millrace and a belfry of geared machines; adventure golf on ice, travelators, pipes and the steam vents of a volcano; and the long game over parkland, heath and an open links of rolling dunes with nothing but white stakes to keep you honest. Each hole under weather of its own, and five clubs to get past them.</span>
-                            <span class="dim-stat" id="stat-golf3d"><span class="stat-icon">🏌️</span> Best Round: <span class="stat-val">—</span></span>
-                        </span>
-                    </a>
                 </div>
             </div>
         </div>
@@ -4282,7 +4282,7 @@
             }
 
             // Spawn background theme entities after a lingering hover over a card
-            const allowedThemeCards = ['card-cargo-lander', 'card-supply-chain', 'card-car'];
+            const allowedThemeCards = ['card-cargo-lander', 'card-supply-chain', 'card-car', 'card-golf-hub'];
             if (perfTier === 0 && themeSpawnArmed && allowedThemeCards.includes(activeThemeCardId) && themeEntities.length < MAX_THEME_ENTITIES && Math.random() < 0.012) {
                 themeEntities.push(new ThemeEntity(activeThemeCardId));
             }
