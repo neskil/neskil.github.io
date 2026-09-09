@@ -710,6 +710,28 @@
             assert('the groups are named and described', G3.COURSE_GROUPS.every(function (g) {
                 return !!g.id && !!g.name && !!g.blurb;
             }));
+            assert('and each has a mark and a colour of its own',
+                G3.COURSE_GROUPS.every(function (g) { return !!g.icon && /^#[0-9a-f]{6}$/i.test(g.tint); }));
+
+            /* The draw is dressed as a fifth kind, out of the same four
+               fields, because the picker builds every tab on the row the same
+               way — a tab missing a tint is a whole panel of `color-mix()`
+               declarations thrown away, which is exactly how the block used to
+               ship in white outline. */
+            (function () {
+                var d = G3.SHUFFLE_GROUP;
+                assert('the draw is dressed like a kind of golf',
+                    !!d && !!d.id && !!d.name && !!d.icon && !!d.blurb && /^#[0-9a-f]{6}$/i.test(d.tint));
+                /* And is not one. Nothing may be filed under it: a course that
+                   was would be reachable only from a tab that never draws a
+                   list. */
+                assert('…but it is not a group any course belongs to',
+                    groupIds.indexOf(d.id) < 0 && G3.coursesInGroup(d.id).length === 0);
+                assert('and it is telling the tabs apart by colour, not just by name',
+                    G3.COURSE_GROUPS.every(function (g) {
+                        return g.tint.toLowerCase() !== d.tint.toLowerCase();
+                    }));
+            })();
 
             G3.COURSES.forEach(function (course) {
                 assert(course.name + ': six holes', course.holes.length === 6);

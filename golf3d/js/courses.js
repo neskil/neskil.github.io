@@ -4111,6 +4111,24 @@
         }
     ];
 
+    /* The picker's fifth tab, and the only one that is not a shelf of courses:
+       the draw itself. It is described here, beside the four kinds, because
+       the picker dresses every tab out of the same four fields — mark, name,
+       tint, blurb — and the one tab whose colour and wording lived in game.js
+       would be the one that drifted away from the rest of the row.
+
+       `id` is deliberately not a group any course belongs to: nothing filters
+       by it, `coursesInGroup('shuffle')` is empty on purpose, and the count on
+       the tab is how many courses the current mode could hand you rather than
+       how many are filed under it. The mark is the shuffle arrows rather than
+       a die for the same reason the "Anything" chip is not one — see
+       SHUFFLE_MODES below. */
+    G3.SHUFFLE_GROUP = {
+        id: 'shuffle', name: 'Surprise me', icon: '\u21C4',
+        tint: '#c4b5fd',
+        blurb: 'Let the picker choose. Say what it is allowed to draw from, and whether it keeps drawing at the end of every round.'
+    };
+
     G3.COURSES = [
         {
             id: 'seaside',

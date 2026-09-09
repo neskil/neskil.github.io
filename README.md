@@ -50,7 +50,8 @@ something reaches it by a route `robots.txt` doesn't cover. Belt and braces,
 because the two mechanisms fail differently — `robots.txt` cannot suppress a
 URL that other sites link to, and a `noindex` tag is never read if the fetch
 is blocked. That set is the headless test harnesses (`*/tests.html`,
-`3d-engine-poc/physics-tests.html`, `golf3d/shader-tests.html`) and the
+`3d-engine-poc/physics-tests.html`, `golf3d/shader-tests.html`,
+`golf3d/ui-tests.html`) and the
 screenshot/audio probes (`cargo-lander/syntax-check.html`,
 `cargo-lander/probe-screenshot.html`, `supply-chain/audio-check.html`,
 `supply-chain/research-zoom-check.html`, `golf3d/turntable.html`).
@@ -194,7 +195,7 @@ modules, so `file://` gives CORS errors) and loads each suite in headless
 Chrome — the same `--virtual-time-budget` trick as the screenshot recipe above,
 so eighteen seconds of page timers return in about one. It reads the verdict
 out of each harness's `<div id="summary">` and exits non-zero if any suite is
-red. Currently eight suites, 4,957 assertions, about 20 seconds.
+red. Currently nine suites, 4,977 assertions, about 20 seconds.
 
 Two things about it are deliberate:
 
@@ -202,7 +203,7 @@ Two things about it are deliberate:
   `#summary` is one. Give a project a harness and it is picked up with no edit
   to the runner — the same reason `supply-chain/tests.html` derives its module
   list instead of repeating it.
-- **An unreadable summary is a failure, not a pass.** The eight harnesses
+- **An unreadable summary is a failure, not a pass.** The harnesses
   predate any shared contract and each phrase their result differently, so the
   parser understands all of them; when it cannot, it says so and goes red. "The
   page didn't say" and "the page said everything is fine" must not collapse

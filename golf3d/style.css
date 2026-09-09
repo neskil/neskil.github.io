@@ -1377,7 +1377,7 @@ body.compact-ui .stage.view-collapsed .toast { top: 134px; }
     text-align: center;
     background: rgba(5, 18, 28, 0.72);
     border: 1px solid rgba(255, 255, 255, 0.12);
-    color: var(--muted);
+    color: var(--ink-dim);
     font-size: 0.78rem;
     letter-spacing: 0.02em;
     line-height: 1.2;
@@ -1718,8 +1718,19 @@ kbd {
     .mt-name { display: none; }
 }
 
+/* The open tab's colour, and the one thing in this dialog every tinted rule
+   reads. It is declared on the dialog rather than on the list because the
+   draw's panel is a *sibling* of the list, not a child of it: scoped to
+   `.course-list`, every `color-mix(… var(--cg-tint) …)` over in the shuffle
+   block resolved against nothing, and an undefined custom property inside a
+   `color-mix` is not a colour that falls back — it is a declaration that is
+   thrown away at computed-value time. So the lit chip lost its fill and took a
+   `currentColor` border, the mode marks and counts lost their colour to
+   inheritance, and the whole block came out drawn in white outline. `drawTabs`
+   sets the real one per panel; this is what it starts from. */
+#menu .modal-inner { --cg-tint: #7dd3fc; }
+
 .course-list {
-    --cg-tint: #7dd3fc;
     display: grid;
     gap: 0.6rem;
 }
@@ -1883,34 +1894,32 @@ kbd {
 
 /* ── shuffle ────────────────────────────────────────────────────────────── */
 
-/* Under the list rather than over it: the list is still the way most rounds
-   are chosen, and a die at the top of a picker reads as "we chose for you
-   already". It sits on the tab's colour like everything else in here, so
-   drawing inside one kind looks like part of that kind.
+/* A panel of its own, and the last tab on the row rather than a block pinned
+   under whichever list is open. It was sticky under the cards for exactly one
+   reason — "under the list" and "off the bottom of it" are the same place when
+   four courses with their plans out is two screens of scrolling — and a tab
+   answers that better than a sticky footer did: nothing to scroll past, and
+   the draw stops reading as an appendix to mini golf just because mini golf
+   was the tab you happened to be on. It keeps its own colour from
+   SHUFFLE_GROUP, the way each kind keeps its own.
 
-   And stuck to the bottom of the scroll, because "under the list" and "off
-   the bottom of it" are the same place otherwise: four courses with their
-   plans out is two screens of scrolling on a laptop, and a block nobody
-   scrolls to is a feature nobody has. Sticky wants an opaque backing — the
-   cards pass underneath it — which is the one reason this is not the same
-   translucent white the cards are. */
+   Nothing passes underneath it any more, so it goes back to the same
+   translucent surface the cards are made of; the opaque backing was the price
+   of `position: sticky` and it went with it. */
 .shuffle {
-    position: sticky;
-    bottom: 0;
-    z-index: 1;
-    margin-top: 0.7rem;
-    padding: 0.6rem;
-    border: 1px solid var(--panel-border);
+    padding: 0.7rem;
+    border: 1px solid color-mix(in srgb, var(--cg-tint) 30%, var(--panel-border));
     border-radius: 14px;
-    background: rgba(12, 27, 42, 0.92);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
+    background: rgba(255, 255, 255, 0.05);
 }
 
-.sh-row { display: flex; gap: 0.5rem; align-items: stretch; }
-
+/* Three rows down the panel now, not two beside each other: the draw, what it
+   is allowed to draw from, and whether it keeps doing it. A tab's worth of
+   width is enough for the switch to say what it does in words again — it spent
+   two years as a bare toggle beside the button because that was all the room
+   there was next to it. */
 .sh-go {
-    flex: 1 1 auto;
+    width: 100%;
     display: flex;
     align-items: center;
     gap: 0.6rem;
@@ -1947,7 +1956,19 @@ kbd {
 }
 
 .sh-go-text { display: grid; gap: 0.1rem; min-width: 0; }
-.sh-go-text b { font-size: 0.9rem; }
+.sh-go-text b { font-size: 1rem; }
+
+/* Names the row of chips under it. The chips carry counts and the counts are
+   the whole reason to read them; without a word above, four numbers under a
+   button that says "Surprise me" read as part of the button. */
+.sh-label {
+    margin: 0.75rem 0 0.35rem;
+    font-size: 0.68rem;
+    font-weight: 500;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+}
 
 /* Wraps rather than truncates: the line it has to be able to say in full is
    the one where a mode has run out and the draw has widened, and half of
@@ -1962,12 +1983,15 @@ kbd {
 /* A switch, not a second way to draw: it says what happens at the *end* of
    the next round. */
 .sh-keep {
-    flex: 0 0 auto;
+    width: 100%;
+    margin-top: 0.5rem;
     display: flex;
     align-items: center;
-    gap: 0.4rem;
+    justify-content: space-between;
+    gap: 0.6rem;
     font: inherit;
-    font-size: 0.75rem;
+    font-size: 0.78rem;
+    text-align: left;
     color: var(--ink-dim);
     padding: 0.5rem 0.7rem;
     border-radius: 11px;
@@ -1981,6 +2005,7 @@ kbd {
 .sh-keep:focus-visible { outline: 2px solid var(--cg-tint); outline-offset: 2px; }
 
 .sh-mark {
+    flex: 0 0 auto;
     width: 26px;
     height: 15px;
     border-radius: 999px;
@@ -2013,7 +2038,6 @@ kbd {
     display: flex;
     flex-wrap: wrap;
     gap: 0.3rem;
-    margin-top: 0.5rem;
 }
 
 .sh-mode {
@@ -2055,14 +2079,7 @@ kbd {
     opacity: 0.85;
 }
 
-/* On a phone the switch's words go and the toggle carries it, the same trade
-   the tabs make one block up. */
 @media (max-width: 420px) {
-    /* The words go and the toggle carries it — and with them goes the reason
-       for the switch to stand as tall as a two-line button, so it stops
-       stretching too. Its name comes off `aria-label` from here down. */
-    .sh-keep-text { display: none; }
-    .sh-keep { align-self: center; }
     /* Two by two rather than three and a stray: four chips across a phone
        leaves no room for the names, and the names are the choice. */
     .sh-modes { display: grid; grid-template-columns: 1fr 1fr; }
@@ -2475,6 +2492,26 @@ body.compact-ui .topbar-menu.open {
 body.compact-ui .topbar-menu .chip {
     text-align: left;
     background: rgba(255, 255, 255, 0.04);
+}
+
+/* …but only the chips that are *off*, and this is where that is said.
+
+   `.on` is a state, and both of the rules that repaint a chip for the compact
+   layout — the panel's flat backing just above, and the overlay glass the bar
+   is made of further up — out-specify the state's background while saying
+   nothing about its colour. A lit chip is dark ink (#06212f) on the accent, so
+   what those two left behind was #06212f on navy: "FPS", "Flyover" and
+   "Water", the three chips that are on the moment the game boots, and ☰ itself
+   from the moment the panel opened. It is not a broken rule anywhere — it is
+   two working rules landing on an element neither was written for.
+
+   Both class hooks, and after both of them, so it wins on order as well as on
+   specificity. Anything else that repaints a chip in this layout has to be
+   answered here too; `ui-tests.html` lights every chip and measures. */
+body.compact-ui button.chip.on, body.compact-ui a.chip.on {
+    background: var(--accent);
+    color: #06212f;
+    border-color: transparent;
 }
 
 /* A standing reminder rather than a banner to dismiss: in a browser tab this
