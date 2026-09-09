@@ -1342,9 +1342,20 @@ both ends of the hole are inside it.
 
 Fifteen courses is more than a list is good for, and the order they are in is
 the order they were *built* in — Seaside Green first because it was the first
-one that existed. So the picker has a second way out of it, stuck to the bottom
-of the scroll: a die, four chips saying how it should be thrown, and a switch
+one that existed. So the picker has a second way out of it, and it is the fifth
+tab on the row: a die, four chips saying how it should be thrown, and a switch
 that turns the throw into the mode.
+
+**It is a tab because it is a way of getting a course**, which is what the row
+above it is a row of. It spent its first year as a block pinned to the bottom
+of the list, which put it under whichever kind happened to be open and made the
+draw read as an appendix to mini golf; and being sticky cost it an opaque
+backing, a z-index and a blur, all so the cards could pass underneath. As a tab
+it trades places with the list — exactly one of the two is on screen — and
+carries its own colour out of `G3.SHUFFLE_GROUP` the way each kind carries
+its own. The count on it is what the current mode could hand you *right now*,
+not a shelf of courses filed under it: nothing is filed under it, and
+`coursesInGroup('shuffle')` is empty on purpose.
 
 The four modes exist because "random" on its own answers the wrong question
 after the first few rounds:
@@ -1352,7 +1363,7 @@ after the first few rounds:
 | Mode | Draws from | When it runs out |
 | --- | --- | --- |
 | **Anything** | all fifteen | — |
-| **Same kind** | the tab you are looking at, not the kind you are standing in | widens to anything |
+| **Same kind** | the last *kind* tab you looked at, not the kind you are standing in | widens to anything |
 | **New to you** | courses with no finished round on them | the ones you have played *least* |
 | **Beat a best** | courses that already have a record on them | widens to anything |
 
@@ -1382,10 +1393,22 @@ has given away the whole of the draw before the press. Pressing it does not
 open the picker either: a surprise you have to approve in a list is not a
 surprise, so the course loads and a toast is the reveal.
 
-It is stuck to the bottom of the scroll rather than sitting under the last
-card, because "under the list" and "off the bottom of it" are the same place
-otherwise — four courses with their plans out is two screens of scrolling on a
-laptop, and a block nobody scrolls to is a feature nobody has.
+"Same kind" is the one thing a tab of its own could have broken, because the
+draw's tab is not a kind. It reads `menuKind` — the last kind tab that *was*
+open — which is what "the tab you are looking at" always meant in practice, and
+which falls back to the kind of the course you are standing on outside the
+picker and on the first opening. `closeMenu` clears it: a tab you were looking
+at five rounds ago is not where you are standing.
+
+The tint is the part that bit. Every declaration in this panel is a
+`color-mix()` over the open tab's colour, and the colour used to be declared on
+`.course-list` — which the panel is a *sibling* of, not a child. An undefined
+custom property inside a `color-mix()` is not a colour that falls back; the
+whole declaration is dropped at computed-value time, so the button lost its fill
+and took a `currentColor` border, the marks and counts lost theirs to
+inheritance, and the block shipped drawn in white outline. It is declared on the
+dialog now, and `ui-tests.html` sweeps the stylesheet for the same shape of
+fault everywhere else.
 
 ## How a hole is built
 
@@ -3154,10 +3177,50 @@ WebGL, so it stays runnable anywhere; the source-level checks run regardless.
 Both suites report identically (`✓ N passed`, plus `window.DONE` / `FAILS` for
 a headless driver), so whatever runs one can run the other.
 
+### The chrome, which neither suite could see either
+
+`tests.html` proves a hole is built right and `shader-tests.html` proves a
+shader compiles. Between them they had nothing to say about the *page* — the
+chips, the picker, the modals — which is where two bugs shipped that a player
+meets before either suite's subject matter:
+
+- The picker's draw panel read `var(--cg-tint)` from nearly every declaration
+  in it, and the tint was scoped to `.course-list`, which the panel is a
+  *sibling* of. The panel came out drawn in white outline with no fill on it.
+- A lit chip is dark ink on the accent, and both rules that repaint a chip for
+  the compact layout out-specify the accent while saying nothing about the ink.
+  "FPS", "Flyover", "Water" and ☰ itself came out navy on navy.
+
+Neither is a broken rule. Both are rules that *work* and land on an element the
+author was not looking at — which is why **`ui-tests.html`** measures rather
+than reads. It loads `index.html` with its scripts stripped out (no three.js,
+no WebGL, no boot: just the real markup under the real stylesheet, in a frame
+it can add a class to), then:
+
+- **Sweeps the stylesheet.** For every declaration that reads a custom property
+  with no fallback, it finds the elements the rule can land on and asks each of
+  them for that property. An empty answer is the fault, and the fault is
+  invisible by nature: what the element gets instead is `unset`, which is
+  `currentColor` for a border and the inherited value for a colour, so it
+  paints something plausible rather than nothing at all. This is what found a
+  third one — `.fly-hint` had been asking for `--muted`, a variable that has
+  not existed for a long time.
+- **Lights every control and measures it.** `.on` is the page's one "switched
+  on" class; each chip is toggled into it in the layout it is lit in, and the
+  contrast between its ink and its own composited background has to clear 3:1
+  in both states. Transitions are killed in the frame first — a chip measured
+  mid-transition reports the colour it is *leaving*, which is the old state,
+  and would have passed the very bug the file exists for.
+
+It is mutation-checked the same way the shader suite is: scoping the tint back
+to `.course-list`, deleting the lit-chip rule, restoring `--muted`, or
+un-hiding the draw panel each fails a different named assertion.
+
 ### The pictures, which neither suite can see
 
-Between them the two suites can say a hole is built to the rules and that every
-shader on it compiles. Neither can say whether it *looks* built, and the faults
+Between them the suites can say a hole is built to the rules, that every shader
+on it compiles, and that the chrome around it is readable. None can say whether
+a hole *looks* built, and the faults
 that live in that gap are a particular kind: they are invisible to the ball, so
 no assertion about the simulation will ever find them, and they are the first
 thing anybody notices in a screenshot. Two pads that miss each other by a
