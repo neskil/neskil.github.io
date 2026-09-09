@@ -8,7 +8,7 @@
    — the renderer scales to the viewport, the simulation never sees a pixel. */
 window.G3 = window.G3 || {};
 
-G3.VERSION = '1.41.0';
+G3.VERSION = '1.42.0';
 
 G3.CONFIG = {
     BALL_R: 0.16,
@@ -508,14 +508,23 @@ G3.CONFIG = {
     /* The secret. Set once the code has been typed, and never unset: the chip
        that lets the bot play for you is hidden until someone has gone looking
        for it, and then it stays found. */
-    /* Shuffle — the course drawn for you rather than chosen. Two settings:
+    /* Shuffle — the course drawn for you rather than chosen. Three settings:
        whether a finished round offers a draw instead of the next course on the
-       list (off unless asked for, so nobody is surprised by a surprise), and
-       which of G3.SHUFFLE_MODES the draw is made under. The mode is remembered
-       even while shuffle is off, because it is also what the picker's own
-       "Surprise me" button draws under. */
+       list (off unless asked for, so nobody is surprised by a surprise),
+       which of G3.SHUFFLE_MODES the draw is made under, and which kinds of
+       golf it is allowed to reach for. The mode is remembered even while
+       shuffle is off, because it is also what the picker's own "Surprise me"
+       button draws under.
+
+       The kinds are stored as the ones left *out*, comma-joined — so an empty
+       value is "all of them", which is both the default and what every save
+       file written before this setting existed says. Stored the other way
+       round, as the kinds to include, a fifth group of courses would arrive
+       already unticked for every existing player, because their save file
+       would be a list that had never heard of it. */
     SHUFFLE_KEY: 'loftLinks.shuffle',
     SHUFFLE_MODE_KEY: 'loftLinks.shuffleMode',
+    SHUFFLE_SKIP_KEY: 'loftLinks.shuffleSkip',
     /* How the bot plays when a player is watching rather than when a test
        suite is counting. The fan is narrower than the suite's because every
        candidate is a whole shot simulated inside one frame and the game is

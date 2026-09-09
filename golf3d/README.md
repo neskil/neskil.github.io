@@ -1428,11 +1428,59 @@ The line under the button is not a fifth description. It says the one thing
 about pressing it a player cannot see coming: *loads a course straight away —
 no list, no second tap*.
 
+### …and which kinds it may reach for
+
+Under the modes is a row of ticks, one per kind of golf, and it answers a
+different question from the mode above it. **A mode narrows by history** —
+where you have been, what you hold a record on — and its answer moves as you
+play. **The ticks narrow by what the courses are**, and that answer does not
+move: somebody who bounces off crazy golf does not want it drawn on *any*
+mode, and should be able to say so once rather than re-reading the reveal
+every time it comes up. So `kinds` is filtered before the mode rather than
+being a fifth mode — which is also the only shape under which "same kind" and
+"only these kinds" can both be true at once.
+
+Ticks rather than another radiogroup, because they are not one of a set: any
+two of them, or three, is a sensible answer. Each chip carries the same mark,
+name and count the tabs at the top of the dialog carry, and keeps its own
+group's tint, so a lit chip and the tab it corresponds to read as the same
+shelf. A kind that is out is struck through on its name and *not* faded as
+well — four things already separate the two states, and an `opacity` on top of
+them is the one that takes an unticked chip under `ui-tests.html`'s own 3:1
+floor. The chip nobody can read is the chip nobody presses to put a kind back.
+
+Same bargain as the modes: **untick everything and the draw does not die.**
+`shuffleDraw` reports `widened`, uses every kind, and the line under the row
+says so — *nothing is ticked, so the draw is back to every kind*. That is why
+the row does not have to refuse the last press; a tick you cannot untick is
+worse than one that tells you what it did. `widened` is deliberately not
+`eased`: the two say the net was widened for different reasons, and the picker
+prints them in different places.
+
+Every count in the panel is made out of the same draw the button will make,
+the ticks included — the four mode counts, the figure on the draw's own tab,
+and the sentence under the chips. That is one call per row into `shuffleDraw`
+with the *whole* of `shuffleOpts()` and a single field replaced; the afternoon
+these were built out of a hand-listed subset of the options instead, the mode
+rows said fourteen while the tab beside them said six.
+
+The ticks are stored as the kinds left **out** (`loftLinks.shuffleSkip`), so an
+empty value is "all of them" — which is both the default and what every save
+file written before the setting existed says. Stored the other way round, as
+the kinds to include, a fifth group of courses would arrive already unticked
+for every existing player, because their save file would be a list that had
+never heard of it.
+
+The demo does not read them, and does not read the mode either. Both are what
+somebody wants dealt to *them*; the attract loop is showing the game to a room
+it is talking to, and it draws from all fifteen — see `demoRound`.
+
 **The draw itself is pure.** `G3.shuffleDraw` and `G3.randomCourseId` in
-`courses.js` take the mode, where you are standing, which tab is open and the
-save file, and the random source is handed *in* — so `tests.html` holds the
-dice and every assertion about the draw is exact rather than statistical.
-`game.js` owns the two things that cannot be: the DOM and the two keys under
+`courses.js` take the mode, where you are standing, which tab is open, which
+kinds are ticked and the save file, and the random source is handed *in* — so
+`tests.html` holds the dice and every assertion about the draw is exact rather
+than statistical.
+`game.js` owns the two things that cannot be: the DOM and the three keys under
 [Saving](#saving).
 
 The switch is what makes it a mode rather than a button. With it on, the end of
@@ -3483,11 +3531,14 @@ course because a personal best at Seaside Green says nothing about Windmill
 Works, and merging them would just reward playing the easy one. The landing
 page reads the same key for the card's stat chip. Mute state lives separately
 under `loftLinks.muted` — and *absent* there means muted, which is how a first
-visit is silent — with the band's own switch under `loftLinks.music`. [Shuffle](#the-draw) keeps two of its own: `loftLinks.shuffle`, set only when
-somebody has asked for a drawn course at the end of every round, and
+visit is silent — with the band's own switch under `loftLinks.music`.
+[Shuffle](#the-draw) keeps three of its own: `loftLinks.shuffle`, set only when
+somebody has asked for a drawn course at the end of every round;
 `loftLinks.shuffleMode`, which is remembered whether or not shuffle is on —
 turning the switch off should stop the game choosing for you, not forget how
-you liked it chosen. All these writes are wrapped — a browser with storage
+you liked it chosen; and `loftLinks.shuffleSkip`, the kinds of golf left out of
+the draw, stored as the ones excluded so that an empty value is every kind and
+a new group of courses arrives ticked rather than hidden. All these writes are wrapped — a browser with storage
 disabled should cost you your records, not your round.
 
 ## Sound

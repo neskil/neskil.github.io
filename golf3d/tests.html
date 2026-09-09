@@ -843,6 +843,90 @@
                     G3.shuffleDraw({ mode: 'fresh' }).courses.length === G3.COURSES.length &&
                     G3.shuffleDraw({ mode: 'record' }).eased);
 
+                /* ── which kinds the draw may reach for ─────────────────
+
+                   A second filter, asked before the mode and answering a
+                   different question: not "where have I been" but "what do I
+                   want dealt to me at all". The properties worth pinning are
+                   that it holds on every mode, that it is read rather than
+                   trusted, and that it cannot leave the button with nothing
+                   to press. */
+                var groupIdList = G3.COURSE_GROUPS.map(function (g) { return g.id; });
+
+                assert('kinds left unsaid means every kind',
+                    G3.shuffleDraw({ mode: 'any' }).courses.length === G3.COURSES.length &&
+                    G3.shuffleDraw({ mode: 'any' }).kinds.join() === groupIdList.join() &&
+                    !G3.shuffleDraw({ mode: 'any' }).widened);
+                var mini = G3.shuffleDraw({ mode: 'any', kinds: ['mini'] });
+                assert('one kind ticked draws only that kind',
+                    mini.courses.length === G3.coursesInGroup('mini').length &&
+                    mini.courses.every(function (c) { return c.group === 'mini'; }) &&
+                    !mini.widened);
+                var two = G3.shuffleDraw({ mode: 'any', kinds: ['mini', 'long'] });
+                assert('…and two ticked draws from both, and nothing else',
+                    two.courses.length === G3.coursesInGroup('mini').length +
+                        G3.coursesInGroup('long').length &&
+                    two.courses.every(function (c) {
+                        return c.group === 'mini' || c.group === 'long';
+                    }));
+                assert('the ticks hold on every mode, not just "anything"',
+                    modeIds.every(function (m) {
+                        return G3.shuffleDraw({
+                            mode: m, from: 'seaside', group: 'crazy',
+                            kinds: ['long'], save: played
+                        }).courses.every(function (c) { return c.group === 'long'; });
+                    }));
+                /* The one mode whose own filter can disagree with the ticks:
+                   "same kind" is aimed at a kind that has been left out, so
+                   there is nothing of that kind to offer. It eases to what
+                   the ticks *do* allow rather than to the whole list — the
+                   ticks are the coarser answer and outlive the mode. */
+                var crossed = G3.shuffleDraw({
+                    mode: 'kind', from: 'seaside', group: 'mini', kinds: ['long']
+                });
+                assert('"same kind" aimed at a kind you have ruled out stays inside the ticks',
+                    crossed.eased && !crossed.widened && crossed.courses.length ===
+                        G3.coursesInGroup('long').length &&
+                    crossed.courses.every(function (c) { return c.group === 'long'; }));
+                /* Read rather than trusted, the same as the mode and the
+                   random source: a group id nothing answers to is dropped,
+                   and dropping every one of them is the empty set below. */
+                var noise = G3.shuffleDraw({ mode: 'any', kinds: ['mini', 'nope', 'shuffle'] });
+                assert('a kind nothing answers to is dropped, not drawn from',
+                    noise.kinds.join() === 'mini' && !noise.widened &&
+                    noise.courses.every(function (c) { return c.group === 'mini'; }));
+                [[], ['nope'], ['shuffle']].forEach(function (kinds) {
+                    var none = G3.shuffleDraw({ mode: 'any', from: 'seaside', kinds: kinds });
+                    assert('ticking nothing widens back to every kind rather than offering none: ' +
+                        (kinds.join() || '(empty)'),
+                        none.widened && none.kinds.join() === groupIdList.join() &&
+                        none.courses.length === G3.COURSES.length - 1);
+                });
+                assert('and the dice still name a course when they do',
+                    !!G3.courseById(G3.randomCourseId({
+                        mode: 'fresh', from: 'seaside', kinds: [], rng: fixed(0.5)
+                    })));
+                assert('the ticks reach the dice, not just the count',
+                    [0, 0.25, 0.5, 0.99].every(function (n) {
+                        return G3.courseById(G3.randomCourseId({
+                            mode: 'any', from: 'seaside', kinds: ['crazy'], rng: fixed(n)
+                        })).group === 'crazy';
+                    }));
+
+                /* `shuffleKinds` is the same normalising, for the picker's own
+                   sentence rather than for a draw — and it is the one place
+                   the empty set stays empty, because "you have ruled out
+                   everything" and "these two" need different words. */
+                assert('shuffleKinds hands back the groups, in the picker\'s order',
+                    G3.shuffleKinds().map(function (g) { return g.id; }).join() ===
+                        groupIdList.join() &&
+                    G3.shuffleKinds(['long', 'mini']).map(function (g) { return g.id; })
+                        .join() === groupIdList.filter(function (id) {
+                            return id === 'mini' || id === 'long';
+                        }).join());
+                assert('…and an empty set of ticks stays empty there',
+                    G3.shuffleKinds([]).length === 0 && G3.shuffleKinds(['nope']).length === 0);
+
                 assert('the dice pick out of the draw, in order',
                     G3.randomCourseId({ mode: 'any', from: null, rng: fixed(0) }) === ids[0] &&
                     G3.randomCourseId({ mode: 'any', from: null, rng: fixed(0.999) }) ===
