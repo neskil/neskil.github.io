@@ -814,16 +814,41 @@
         /* ── the bot ────────────────────────────────────────────────────── */
         section('Playability (bot)');
 
-        /* Every hole has to be finishable. Rather than assert that by eye,
-           a greedy bot plays the course: at each turn it tries a fan of
-           candidate shots, keeps the one that ends nearest the cup, and plays
-           it for real. If a hole is sealed off, unreachable, or has a cup
-           buried where nothing can settle, the bot never holes out and this
-           goes red.
+        /* Every hole has to be finishable. Rather than assert that by eye, a
+           bot searches for a way round it: if a hole is sealed off,
+           unreachable, or has a cup buried where nothing can settle, nothing
+           the search tries ever drops and this goes red.
 
-           Candidates include a random wait before striking, because the
-           moving-gate holes are only solvable with timing and a bot that
-           always fires at t=0 would report a false failure.
+           It searches rather than walks, and that is the whole of it. The old
+           bot played greedily — fan out a handful of shots, keep the one that
+           finished nearest the cup, play it — and greed has local minima that
+           a mini golf course is *made* of: the wall you have to play away
+           from, the moat you have to go round. It carried a hack for exactly
+           that (when a turn bought no ground, take an arbitrary shot instead
+           of the best one) and the hack got it round a dogleg and no further.
+           A hole that asks the player to spend a whole leg getting further
+           from the cup — anything built round a long wall — it could not
+           finish, and reported as unplayable.
+
+           So: a breadth-first search over shots. The field is bucketed into
+           `BOT_CELL` squares, the tee is where the search starts, and every
+           state fans out the same shots the greedy bot did and records the
+           cell each one comes to rest in. Cells come off the queue in stroke
+           order, so the first putt that drops is the fewest strokes the
+           search found, and the line behind it is real — every edge is a
+           simulated shot played from where the one before it left the ball.
+
+           A cell may be expanded `BOT_VISITS` times rather than once. That is
+           for the moving gates: the first arrival in a cell fixes the clock
+           as well as the position, and a cell that is a dead end at one phase
+           of a sweeping bar is a way through at another.
+
+           What has *not* changed is the stroke. Power, aim spread, the wait
+           before striking and the overswing scatter are the player's, exactly
+           as they were — a bot with a truer stroke than the game allows would
+           sign off holes only finishable by a shot nobody can reliably play.
+           It is allowed to be a better planner than a greedy walk, because a
+           player looking at the screen is one.
 
            Each hole gets its own seed rather than sharing one stream down the
            course. With a shared stream, adding or editing any hole reshuffles
@@ -831,60 +856,66 @@
            hole can turn the eighth red — which is a report about the PRNG, not
            about the course. Per-hole seeds keep a failure local to the hole
            that caused it. */
-        function playHole(hole, rand, opts) {
-            var maxShots = opts.maxShots, tries = opts.tries;
-            var pos = { x: hole.tee.x, y: hole.tee.y };
-            var time = 0;
-            var shots = 0;
-            var prevD = Math.hypot(pos.x - hole.hole.x, pos.y - hole.hole.y);
+        var BOT_CELL = 48;      // world px; a putt has to move about this far to be progress
+        var BOT_VISITS = 2;     // expansions of one cell, for timing round the moving gates
 
-            while (shots < maxShots) {
-                var best = null, first = null;
-                for (var k = 0; k < tries; k++) {
-                    var toHole = Math.atan2(hole.hole.y - pos.y, hole.hole.x - pos.x);
+        function playHole(hole, rand, opts) {
+            var maxShots = opts.maxShots;
+            var fan = opts.tries;
+            // A hole nothing can finish would otherwise sweep every cell of
+            // the field twice over before saying so; this is the ceiling on
+            // how long a red hole is allowed to take to go red.
+            var budget = opts.budget || 9000;
+            var cols = Math.ceil(C.WORLD_W / BOT_CELL);
+            var visits = {};
+
+            function cell(x, y) {
+                return Math.floor(y / BOT_CELL) * cols + Math.floor(x / BOT_CELL);
+            }
+
+            // The queue is in non-decreasing stroke order by construction: a
+            // state only ever appends states one stroke deeper, so nothing
+            // needs sorting and the first hole-out is the shallowest one.
+            var queue = [{ x: hole.tee.x, y: hole.tee.y, time: 0, shots: 0 }];
+            visits[cell(hole.tee.x, hole.tee.y)] = 1;
+            var sims = 0;
+
+            for (var head = 0; head < queue.length; head++) {
+                var s = queue[head];
+                // The queue is in stroke order, so once one state is out of
+                // strokes so is everything behind it.
+                if (s.shots >= maxShots) break;
+
+                for (var k = 0; k < fan; k++) {
+                    if (sims >= budget) return null;
+                    var toHole = Math.atan2(hole.hole.y - s.y, hole.hole.x - s.x);
                     var angle = rand() < 0.65
                         ? toHole + (rand() - 0.5) * 0.9
                         : rand() * Math.PI * 2;
                     var power = C.MIN_POWER + rand() * (C.MAX_POWER - C.MIN_POWER);
                     var wait = rand() * 3;
-                    // The bot overswings on the same terms the player does. A
-                    // bot with a truer stroke than the game allows would sign
-                    // off holes that are only finishable by a shot nobody can
-                    // reliably play.
                     angle += P.scatter(power, rand());
 
-                    var w = P.simulateShot(hole, pos, angle, power, time + wait);
-                    if (w.sunk) { best = { w: w, d: -1 }; break; }
-                    if (w.splash) continue;
-                    var d = Math.hypot(w.ball.x - hole.hole.x, w.ball.y - hole.hole.y);
-                    if (!best || d < best.d) best = { w: w, d: d };
-                    if (!first) first = { w: w, d: d };
+                    var w = P.simulateShot(hole, s, angle, power, s.time + wait);
+                    sims++;
+                    if (w.sunk) return s.shots + 1;
+                    if (w.splash) continue;              // a stroke and a replay; not an edge
+
+                    var c = cell(w.ball.x, w.ball.y);
+                    if ((visits[c] || 0) >= BOT_VISITS) continue;
+                    visits[c] = (visits[c] || 0) + 1;
+                    queue.push({ x: w.ball.x, y: w.ball.y, time: w.time, shots: s.shots + 1 });
                 }
-
-                if (!best) { time += 1; shots++; continue; }   // everything drowned; try again later
-
-                /* Nearest-the-cup has local minima, and a mini golf course is
-                   made of them: the wall you have to play away from, the moat
-                   you have to go round. Greed alone parks the ball against the
-                   near side of the obstacle and re-picks the same shot for
-                   ever. So when a turn buys no ground, take the first
-                   candidate the fan produced instead of the best one — an
-                   arbitrary shot that gets the ball somewhere else. Without
-                   this the bot reports doglegs and islands as unplayable. */
-                var pick = (first && best.d >= prevD - 5) ? first : best;
-                shots++;
-                pos = { x: pick.w.ball.x, y: pick.w.ball.y };
-                time = pick.w.time;
-                prevD = pick.d < 0 ? 0 : pick.d;
-                if (pick.w.sunk) return shots;
             }
             return null;
         }
 
         /* The claim under test is that the hole is finishable, not that this
-           particular bot is good at it, so a hole gets a few fresh attempts
-           before it is called unplayable. Measured over 360 randomised runs of
-           the whole course, three attempts took the false-red rate to zero. */
+           particular search got lucky, so a hole gets a second go with a
+           fresh stream before it is called unplayable. The greedy bot needed
+           three; a search that has swept the reachable field once rarely
+           changes its mind on the second sweep, and two runs of it cost more
+           than three runs of the walk did. */
         function botCanFinish(hole, index, opts) {
             for (var a = 0; a < opts.attempts; a++) {
                 var shots = playHole(hole, mulberry32(20260815 + index * 7919 + a * 104729), opts);
@@ -902,14 +933,14 @@
             GOLF.COURSES.forEach(function (course) {
                 var total = 0, allDone = true;
                 course.holes.forEach(function (h, i) {
-                    var shots = botCanFinish(h, i, { maxShots: LIMIT, tries: 60, attempts: 3 });
+                    var shots = botCanFinish(h, i, { maxShots: LIMIT, tries: 28, attempts: 2 });
                     assert(course.id + ' hole ' + (i + 1) + ' (' + h.name + ') can be holed out', shots !== null,
-                        'the bot failed to finish it in ' + LIMIT + ' shots, three times over');
+                        'the search found no way to finish it in ' + LIMIT + ' shots, twice over');
                     if (shots === null) { allDone = false; } else { total += shots; }
                 });
                 var par = course.holes.reduce(function (t, h) { return t + h.par; }, 0);
                 if (allDone) {
-                    note('bot round on ' + course.name + ': ' + total + ' strokes against a par of ' +
+                    note('best line found on ' + course.name + ': ' + total + ' strokes against a par of ' +
                          par + ' (' + S.formatVsPar(total - par) + ')');
                 }
             });
@@ -1076,6 +1107,60 @@
                  (features / (SEEDS.length * 9)).toFixed(1) + ' hazard kinds per hole');
         })();
 
+        /* The shape of the card, not just the furniture on it. A draw that
+           dealt nine corridors with different hazards in them would pass
+           every rule above and still be nine of the same hole, so this counts
+           the holes built round a *spine*: one static wall that reaches a
+           cushion, runs most of the length of the field, and has the tee on
+           one side of it and the cup on the other.
+
+           It is deliberately a property rather than a name — a dogleg's
+           blocker answers to it too, and that is fine, because the claim
+           being made is about what the player is looking at rather than about
+           which builder produced it. */
+        (function () {
+            function spine(h) {
+                return h.walls.some(function (w) {
+                    if (w.move) return false;
+                    var horiz = w.w >= w.h;
+                    var len = horiz ? w.w : w.h;
+                    var field = horiz ? C.WORLD_W : C.WORLD_H;
+                    if (len < field * 0.6) return false;
+                    var a0 = horiz ? w.x : w.y;
+                    if (a0 > 1 && a0 + len < field - 1) return false;   // has to reach a cushion
+                    var b0 = horiz ? w.y : w.x;
+                    var b1 = b0 + (horiz ? w.h : w.w);
+                    var t = horiz ? h.tee.y : h.tee.x;
+                    var c = horiz ? h.hole.y : h.hole.x;
+                    return (t < b0 && c > b1) || (c < b0 && t > b1);
+                });
+            }
+
+            var round = 0, total = 0, flat = [], cheap = [];
+            SEEDS.forEach(function (seed) {
+                var course = GOLF.generateCourse(seed);
+                var here = 0;
+                course.holes.forEach(function (h, i) {
+                    total++;
+                    if (!spine(h)) return;
+                    here++; round++;
+                    if (h.par < 3) cheap.push(GOLF.generator.seedLabel(seed) + ' hole ' + (i + 1));
+                });
+                if (!here) flat.push(GOLF.generator.seedLabel(seed));
+            });
+
+            assert('every draw deals a hole built round a wall, not only corridors',
+                flat.length === 0, 'nothing but corridors on: ' + flat.join(', '));
+            assert('and not so many that the card is nothing else',
+                round / total < 0.6, Math.round(round / total * 100) + '%');
+            // A wall between the tee and the cup is a stroke before anything
+            // else on the hole has been considered, so it is never a two.
+            assert('a hole with a wall between the tee and the cup is never a two',
+                cheap.length === 0, cheap.slice(0, 3).join(' · '));
+            note('across ' + SEEDS.length + ' draws: ' + Math.round(round / total * 100) +
+                 '% of holes are played round a wall rather than through bands');
+        })();
+
         /* And then the bot, which is the only test that knows whether a hole
            can actually be finished. The generator argues that it never builds
            a band without a mouth in it; this is what checks the argument. */
@@ -1085,15 +1170,15 @@
             SEEDS.slice(0, 8).forEach(function (seed, s) {
                 var course = GOLF.generateCourse(seed);
                 course.holes.forEach(function (h, i) {
-                    var shots = botCanFinish(h, s * 31 + i, { maxShots: LIMIT, tries: 60, attempts: 3 });
+                    var shots = botCanFinish(h, s * 31 + i, { maxShots: LIMIT, tries: 28, attempts: 2 });
                     holes++;
                     if (shots === null) failed.push(GOLF.generator.seedLabel(seed) + ' hole ' + (i + 1));
                     else total += shots;
                 });
             });
-            assert('the bot holes out on every generated hole', failed.length === 0,
+            assert('the search finds a way to hole out on every generated hole', failed.length === 0,
                 failed.length + ' of ' + holes + ' never finished: ' + failed.slice(0, 4).join(', '));
-            note('bot on ' + holes + ' generated holes: ' + (total / holes).toFixed(2) + ' strokes a hole');
+            note('best line over ' + holes + ' generated holes: ' + (total / holes).toFixed(2) + ' strokes a hole');
         })();
 
         /* The two measured rules, on generated ground. A hole nobody wrote is
