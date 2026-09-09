@@ -2258,6 +2258,90 @@ kbd {
    longest of the four — so the count sits on the name's line at every width,
    and the row keeps the shape a reader learns once. */
 
+/* ── which kinds the draw may reach for ─────────────────────────────────
+   Chips in a wrapping row rather than rows of their own: a kind needs a mark,
+   a name and a count, all of which fit on one line, and four of them side by
+   side read as "any of these" — which is what a set of ticks is, and what
+   four full-width rows would have said was another list of four modes.
+
+   Each carries its own group's tint, set on the element by drawKinds, so
+   these are the same colours as the tabs at the top of the dialog. That is
+   the whole reason they are legible as shelves: `--cg-tint` on the panel is
+   the draw's own violet, and a chip that overrides it is naming a kind. */
+.sh-kinds {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.3rem;
+}
+
+.sh-kind {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    min-width: 0;
+    font: inherit;
+    font-size: 0.78rem;
+    color: var(--ink-dim);
+    padding: 0.34rem 0.55rem;
+    border-radius: 999px;
+    border: 1px solid var(--panel-border);
+    background: rgba(255, 255, 255, 0.03);
+    cursor: pointer;
+    transition: background 0.16s, border-color 0.16s, color 0.16s;
+}
+
+.sh-kind:hover { color: var(--ink); }
+.sh-kind:focus-visible { outline: 2px solid var(--cg-tint); outline-offset: 1px; }
+
+/* Lit is the tinted surface the mode rows use, not the topbar's `.chip.on`
+   accent: this is inside the picker, where a kind's colour is the kind's own
+   and `.on` would paint four chips the same. `color` is set here as well as
+   the background — see CLAUDE.md, "anything that repaints a chip's background
+   has to repaint its colour too". */
+.sh-kind.on {
+    color: var(--ink);
+    border-color: color-mix(in srgb, var(--cg-tint) 60%, transparent);
+    background: color-mix(in srgb, var(--cg-tint) 15%, transparent);
+}
+
+/* A kind that is out says so on its name, and is not faded to say it again.
+   Four things already separate the two states — the border, the fill, the
+   ink and this line — and an `opacity` on top of them is the one that takes
+   an unticked chip under the suite's own 3:1 floor. A chip nobody can read is
+   a chip nobody puts back in. */
+.sh-kind[aria-checked="false"] .sk-name { text-decoration: line-through; }
+
+.sk-icon { color: var(--cg-tint); line-height: 1; }
+
+.sk-name {
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* The same currency as the tabs' own counts, a few rows up the dialog: how
+   many courses are filed under this kind. Not what the draw would offer —
+   that number is on the mode, which is what narrows by history. */
+.sk-n {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 0.64rem;
+    color: var(--cg-tint);
+    opacity: 0.85;
+}
+
+/* The line under the chips: what the ticks have actually left the draw. Same
+   type as `.sh-sub` under the button, because it is doing the same job in the
+   same panel — it just needs a paragraph's margins, which that one, sitting
+   inside a grid, does not. */
+.sh-says {
+    margin: 0.35rem 0 0;
+    font-size: 0.72rem;
+    font-weight: 300;
+    line-height: 1.35;
+    color: var(--ink-dim);
+}
+
 /* ── how to play ────────────────────────────────────────────────────────── */
 
 .steps {

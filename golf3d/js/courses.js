@@ -4343,7 +4343,17 @@
 
        `opts`: `mode`, `from` (the course you are on, never drawn), `group`
        (which kind `kind` means — the open tab in the picker, not necessarily
-       the group of `from`), and `save`.
+       the group of `from`), `kinds` (the kinds of golf the draw may use at
+       all) and `save`.
+
+       `kinds` and `mode` are two different questions and both are asked here.
+       A mode narrows by *history* — where you have been, what you hold a
+       record on — and the answer moves as you play. `kinds` narrows by what
+       the courses *are*, and that answer does not move: someone who does not
+       want the long game does not want it drawn on any mode, and told the
+       picker so once. So it is filtered before the mode rather than being a
+       fifth mode, which is also the only shape under which "same kind" and
+       "only these kinds" can both be true at the same time.
 
        **A mode never comes back empty.** "New to you" stops meaning anything
        the moment you have played all fifteen, and "beat a best" means nothing
@@ -4365,6 +4375,28 @@
            back the hole you are looking at is the one result nobody wants.
            Filtered first, so every mode below inherits it. */
         var pool = G3.COURSES.filter(function (c) { return c.id !== from; });
+
+        /* …and then only the kinds of golf the draw has been left. The ticks
+           are the player's, so they are read rather than trusted: an id no
+           group answers to is dropped, and `kinds` left out entirely means
+           every kind, which is what a save file written before this existed —
+           and every caller that does not care — is saying.
+
+           A set that leaves nothing to draw from is not a set this can
+           honour, and the answer is the same one the modes give: use every
+           kind and say so, rather than come back empty. `widened` is that
+           admission, and it is deliberately not `eased` — the two say the net
+           was widened for different reasons and the picker prints them in
+           different places. */
+        var allKinds = G3.COURSE_GROUPS.map(function (g) { return g.id; });
+        var kinds = allKinds.filter(function (id) {
+            return !opts.kinds || opts.kinds.indexOf(id) >= 0;
+        });
+        var widened = false;
+        var ofKind = pool.filter(function (c) { return kinds.indexOf(c.group) >= 0; });
+        if (ofKind.length) pool = ofKind;
+        else { kinds = allKinds; widened = true; }
+
         var list = pool, eased = false;
 
         if (mode === 'kind') {
@@ -4393,7 +4425,23 @@
         // one line, and the alternative is a draw that returns nothing.
         if (!list.length) { list = G3.COURSES; eased = true; }
 
-        return { mode: mode, courses: list, eased: eased };
+        return {
+            mode: mode, courses: list, eased: eased,
+            kinds: kinds, widened: widened
+        };
+    };
+
+    /* The kinds of golf a set of ticks actually leaves the draw, in the order
+       the picker prints them, with anything unrecognised dropped — the same
+       normalising `shuffleDraw` does, for the caller that has to *say* what
+       the draw is allowed rather than make one. A tick list that leaves
+       nothing comes back empty here rather than widened: the sentence for
+       "you have ruled out everything" is not the sentence for "these two",
+       and the picker needs to be able to tell them apart. */
+    G3.shuffleKinds = function (kinds) {
+        return G3.COURSE_GROUPS.filter(function (g) {
+            return !kinds || kinds.indexOf(g.id) >= 0;
+        });
     };
 
     /* One course out of that draw. `rng` is anything that returns 0 ≤ n < 1;

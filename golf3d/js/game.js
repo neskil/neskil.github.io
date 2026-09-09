@@ -2175,12 +2175,26 @@
 
     var shuffleMode = 'any';
     var shuffleOn = false;
+    /* Which kinds of golf the draw is *not* allowed to reach for, as a set of
+       group ids. Empty is every kind, which is the default — see
+       CONFIG.SHUFFLE_SKIP_KEY for why this is stored the way round it is. */
+    var shuffleSkip = {};
 
     function loadShuffle() {
         try {
             shuffleOn = localStorage.getItem(C.SHUFFLE_KEY) === '1';
             var m = localStorage.getItem(C.SHUFFLE_MODE_KEY);
             if (m) shuffleMode = G3.shuffleModeById(m).id;
+            var skip = localStorage.getItem(C.SHUFFLE_SKIP_KEY);
+            shuffleSkip = {};
+            if (skip) {
+                skip.split(',').forEach(function (id) {
+                    // Only ids a group still answers to: a renamed or retired
+                    // group left in a save file would otherwise be a tick
+                    // nothing on screen can ever untick.
+                    if (G3.groupById(id)) shuffleSkip[id] = true;
+                });
+            }
         } catch (e) { /* storage off: the defaults above are the answer */ }
     }
 
@@ -2188,19 +2202,33 @@
         try {
             localStorage.setItem(C.SHUFFLE_KEY, shuffleOn ? '1' : '0');
             localStorage.setItem(C.SHUFFLE_MODE_KEY, shuffleMode);
+            localStorage.setItem(C.SHUFFLE_SKIP_KEY, Object.keys(shuffleSkip).join(','));
         } catch (e) { /* ignore */ }
+    }
+
+    // The other side of the same set: what the draw *may* use, which is what
+    // courses.js asks for.
+    function shuffleKindIds() {
+        return G3.COURSE_GROUPS.filter(function (g) { return !shuffleSkip[g.id]; })
+            .map(function (g) { return g.id; });
     }
 
     /* What a draw made right now would be made out of. The kind "same kind"
        means is `menuKind`: inside the picker that is the last kind tab you
        opened, so switching tabs re-aims the button — anywhere else, and on the
        draw's own tab before you have touched another, it is the kind of the
-       course you are standing on. */
+       course you are standing on.
+
+       `kinds` is the other one, and it does not move with the tabs: it is the
+       row of ticks under the modes, and it holds for every mode and every
+       draw the game makes for a player — the button, the end of a shuffled
+       round, and `?course=random`. */
     function shuffleOpts() {
         return {
             mode: shuffleMode,
             from: state && state.course ? state.course.id : null,
             group: menuKind || (state && state.course ? groupOf(state.course.id) : null),
+            kinds: shuffleKindIds(),
             save: state ? state.save : null
         };
     }
@@ -2226,10 +2254,18 @@
                and `aria-pressed` says the opposite. */
             chip.setAttribute('role', 'radio');
             chip.setAttribute('aria-checked', on ? 'true' : 'false');
+            /* Every field of `opts` and one of them replaced. A count in this
+               panel has to be made out of the same draw the button will
+               make, and a hand-listed subset of the options is a second copy
+               of that list — which is how these four spent an afternoon
+               saying 14 while the tab beside them, built out of the whole of
+               `opts`, said 6. If you add an option to a draw, it belongs
+               here in the same breath. */
             var draw = G3.shuffleDraw({
                 mode: mode.id,
                 from: opts.from,
                 group: opts.group,
+                kinds: opts.kinds,
                 save: opts.save
             });
             var n = draw.courses.length;
@@ -2255,6 +2291,8 @@
            press, the course just loads. */
         $('shuffle-sub').textContent = 'Loads a course straight away \u2014 no list, no second tap.';
 
+        drawKinds(opts);
+
         /* Named on the element as well as in it: the words beside the toggle
            are display:none on a phone, which takes them out of the
            accessibility tree with them. */
@@ -2279,6 +2317,91 @@
         if (draw.eased) return mode.eased;
         var g = mode.blurbKind ? G3.groupById(group) : null;
         return mode.blurb + (g ? ' ' + mode.blurbKind.replace('%s', g.name.toLowerCase()) : '');
+    }
+
+    /* ── which kinds the draw may reach for ──────────────────────────────
+
+       One tick per kind of golf, under the four modes. It is a different
+       question from the mode above it and it is asked separately for that
+       reason: a mode narrows by what you have played, and this narrows by
+       what the courses *are*. Somebody who bounces off crazy golf does not
+       want it drawn on any mode, and should be able to say so once rather
+       than re-reading the reveal every time it comes up.
+
+       Ticks rather than a fifth mode, because they are not one of a set: any
+       two of them, or three, is a sensible answer. They carry the same mark,
+       name and count the tabs at the top of this dialog carry, and each keeps
+       its own group's colour — so a lit chip and the tab it corresponds to
+       are recognisably the same shelf.
+
+       Untick everything and the draw does not die: `shuffleDraw` widens back
+       to every kind and says it had to, which the line under the row prints.
+       That is the same bargain the modes make, and it is why the row does not
+       have to refuse the last press — a tick you cannot untick is worse than
+       one that tells you what it did. */
+    function drawKinds(opts) {
+        var host = $('shuffle-kinds');
+        host.innerHTML = '';
+        G3.COURSE_GROUPS.forEach(function (group) {
+            var courses = G3.coursesInGroup(group.id);
+            // A group with nothing filed under it is not a choice — the tabs
+            // skip it for the same reason.
+            if (!courses.length) return;
+            var on = !shuffleSkip[group.id];
+            var chip = document.createElement('button');
+            chip.type = 'button';
+            chip.className = 'sh-kind' + (on ? ' on' : '');
+            chip.setAttribute('role', 'checkbox');
+            chip.setAttribute('aria-checked', on ? 'true' : 'false');
+            chip.style.setProperty('--cg-tint', group.tint);
+            chip.title = on
+                ? group.name + ' is in the draw. Press to leave it out.'
+                : group.name + ' is left out. Press to put it back in.';
+            chip.innerHTML =
+                '<span class="sk-icon" aria-hidden="true">' + group.icon + '</span>' +
+                '<span class="sk-name">' + group.name + '</span>' +
+                '<span class="sk-n">' + courses.length + '</span>';
+            chip.addEventListener('click', function () {
+                if (shuffleSkip[group.id]) delete shuffleSkip[group.id];
+                else shuffleSkip[group.id] = true;
+                saveShuffle();
+                // Both, and in this order: every count in the panel and the
+                // one on the draw's tab is made out of this set, so a tick
+                // that repainted only itself would leave five numbers stale.
+                drawShuffle();
+                drawTabs();
+            });
+            host.appendChild(chip);
+        });
+        $('shuffle-kinds-says').textContent = kindsSay(G3.shuffleDraw(opts));
+    }
+
+    /* What the row of ticks has actually left the draw, in a sentence.
+
+       Three states and they are genuinely different: everything is in, some
+       of it is, or the ticks have ruled out so much that the draw could not
+       honour them and widened. The last one is the one worth words — a
+       player who has just unticked their fourth kind needs to be told that
+       the button did not stop working, and why. */
+    function kindsSay(draw) {
+        var kinds = G3.shuffleKinds(shuffleKindIds());
+        if (!kinds.length) {
+            return 'Nothing is ticked, so the draw is back to every kind. ' +
+                'Tick the ones you want it to reach for.';
+        }
+        if (kinds.length === G3.COURSE_GROUPS.length) return 'Every kind is in the draw.';
+        var names = kinds.map(function (g) { return g.name.toLowerCase(); });
+        var last = names.pop();
+        var said = names.length ? names.join(', ') + ' and ' + last : last;
+        /* Ticked, and still nothing to draw: the one kind left is the one
+           course you are standing on. It cannot happen with fifteen courses
+           filed three and four to a shelf, and it is one sentence — the
+           alternative is a line claiming a draw the button is not making. */
+        if (draw.widened) {
+            return 'There is nothing but this course under ' + said +
+                ', so the draw is back to every kind.';
+        }
+        return 'Drawing from ' + said + ' only.';
     }
 
     /* Draw one and go. Deliberately not a confirmation step: a surprise you
@@ -2589,10 +2712,12 @@
     /* A course drawn the way the picker's die draws one, and a hole out of the
        middle of it as readily as the first: a demo that always opens on the
        same tee is a screenshot, not a demonstration. The draw is
-       deliberately not the player's remembered shuffle mode — "new to you"
-       and the rest are about a round you are going to play, and this is not
-       one — but it does take `from`, so the next course is never the one that
-       has just been on screen. */
+       deliberately not the player's remembered shuffle mode, nor the kinds
+       they have left the draw — "new to you" and the rest are about a round
+       you are going to play, and this is not one; and the ticks say what
+       somebody wants dealt to them, not what the game may show a room it is
+       talking to. But it does take `from`, so the next course is never the
+       one that has just been on screen. */
     function demoRound() {
         var id = G3.randomCourseId({
             mode: 'any',

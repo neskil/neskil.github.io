@@ -334,6 +334,24 @@
                 !!doc.getElementById('shuffle-go') && !!doc.getElementById('shuffle-modes') &&
                 !!doc.getElementById('shuffle-keep'));
 
+            /* The row of kinds is a *group* of ticks, not a fifth set of
+               modes: any combination of them is a sensible answer, and a
+               radiogroup would say the opposite to anyone reading the page
+               through a screen reader rather than looking at it. Both
+               containers are labelled, because "What it draws from" and
+               "Kinds of golf it may draw" are the only things that tell the
+               two rows apart once the chips inside them are read out. */
+            var kinds = doc.getElementById('shuffle-kinds');
+            assert('the kinds of golf are a group of ticks, not a radiogroup',
+                !!kinds && kinds.getAttribute('role') === 'group' &&
+                doc.getElementById('shuffle-modes').getAttribute('role') === 'radiogroup');
+            assert('…and both rows in the draw are labelled',
+                !!doc.getElementById(kinds.getAttribute('aria-labelledby')) &&
+                !!doc.getElementById(doc.getElementById('shuffle-modes')
+                    .getAttribute('aria-labelledby')));
+            assert('the line saying what the ticks left the draw is there to fill in',
+                !!doc.getElementById('shuffle-kinds-says'));
+
             /* ── a lit control is still readable ────────────────────────── */
 
             /* `.on` is the page's one "this is switched on" class, and it is
@@ -396,6 +414,40 @@
                     ratio.toFixed(2) + ':1');
                 el.classList.remove('on');
             });
+
+            /* The kinds row is built by drawKinds, so the sweep above finds an
+               empty container where the chips are. One is stood up here by
+               hand instead — the same element and the same two classes — and
+               measured in both states, because a tick that is out has to stay
+               as readable as one that is in: it is the chip somebody presses
+               to put a kind back.
+
+               It carries the panel's own tint rather than a group's. The four
+               group colours are set on the element at runtime and are out of
+               this suite's reach (so are the tabs' — same mechanism); what is
+               in reach is the rule, which is where the ink-on-repainted-
+               background bug lives. */
+            var kindsRow = doc.getElementById('shuffle-kinds');
+            var probe = doc.createElement('button');
+            probe.type = 'button';
+            probe.className = 'sh-kind';
+            probe.innerHTML = '<span class="sk-icon">⚑</span>' +
+                '<span class="sk-name">Mini golf</span><span class="sk-n">4</span>';
+            kindsRow.appendChild(probe);
+            [true, false].forEach(function (on) {
+                probe.classList.toggle('on', on);
+                probe.setAttribute('aria-checked', on ? 'true' : 'false');
+                var cs = win.getComputedStyle(probe);
+                var ratio = contrast(parseColor(cs.color), effectiveBg(probe));
+                assert('a kind of golf reads when it is ' + (on ? 'in the draw' : 'left out'),
+                    ratio >= CONTRAST, ratio.toFixed(2) + ':1 — ' + cs.color +
+                    ' on ' + cs.backgroundColor);
+            });
+            assert('and a kind that is left out says so on its name, not by fading',
+                win.getComputedStyle(probe.querySelector('.sk-name')).textDecorationLine
+                    .indexOf('line-through') >= 0 &&
+                win.getComputedStyle(probe).opacity === '1');
+            kindsRow.removeChild(probe);
 
             /* ── the picker takes the stage ──────────────────────────────── */
 
