@@ -779,6 +779,19 @@
                     G3.SHUFFLE_MODES.length >= 2 && G3.SHUFFLE_MODES.every(function (m) {
                         return !!m.id && !!m.name && !!m.icon && !!m.blurb;
                     }));
+                /* Both sentences, because the picker prints one of the two on
+                   every option and a mode with no `eased` line would go blank
+                   at exactly the moment it most needs to explain itself — the
+                   moment its own net has run out and quietly widened. */
+                assert('…and says what it means once it has run out, too',
+                    G3.SHUFFLE_MODES.every(function (m) { return !!m.eased; }));
+                assert('a mode whose meaning moves names what it has moved to',
+                    G3.SHUFFLE_MODES.every(function (m) {
+                        return !m.blurbKind || m.blurbKind.indexOf('%s') >= 0;
+                    }));
+                assert('groupById finds a kind, and is honest about one that is not',
+                    G3.groupById('mini').name === 'Mini golf' && G3.groupById('nope') === null &&
+                    G3.groupById(G3.SHUFFLE_GROUP.id) === null);
                 assert('and no two of them share an id',
                     modeIds.filter(function (id, i) { return modeIds.indexOf(id) !== i; }).length === 0);
                 assert('shuffleModeById finds one, and falls back to the first',

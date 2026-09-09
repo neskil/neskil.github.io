@@ -2034,24 +2034,28 @@ kbd {
 .sh-keep[aria-checked="true"] .sh-mark { background: color-mix(in srgb, var(--cg-tint) 45%, transparent); }
 .sh-keep[aria-checked="true"] .sh-mark::after { transform: translateX(11px); background: var(--cg-tint); }
 
+/* Four rows, not four chips in a grid. A chip has room for a name and a
+   number and nowhere to say what the name means, so the meaning lived in a
+   `title` — which is a tooltip, which a phone does not have, which made these
+   four unlabelled on the device most rounds are played on. A row has room for
+   the sentence, and the sentence is the whole point of offering four. */
 .sh-modes {
-    display: flex;
-    flex-wrap: wrap;
+    display: grid;
     gap: 0.3rem;
 }
 
 .sh-mode {
-    flex: 1 1 6.5rem;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.3rem;
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: baseline;
+    gap: 0.1rem 0.45rem;
     min-width: 0;
     font: inherit;
-    font-size: 0.72rem;
+    font-size: 0.82rem;
+    text-align: left;
     color: var(--ink-dim);
-    padding: 0.35rem 0.4rem;
-    border-radius: 9px;
+    padding: 0.5rem 0.6rem;
+    border-radius: 10px;
     border: 1px solid var(--panel-border);
     background: rgba(255, 255, 255, 0.03);
     cursor: pointer;
@@ -2068,22 +2072,42 @@ kbd {
 }
 
 .sh-mode-icon { color: var(--cg-tint); line-height: 1; }
-.sh-mode-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sh-mode-name {
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
 
-/* The count is the honest part of the block: "New to you · 3" is the whole
-   reason to press it, and "· 0" is why the button then says it has widened. */
+/* The count is the honest part of the row: "New to you · 3 courses" is the
+   whole reason to press it. It says "courses" rather than standing as a bare
+   number, because a lone figure at the end of a line is a number without a
+   noun — and it counts what the draw would *actually* offer, widened net
+   included, so it can never disagree with the sentence under it. */
 .sh-mode-n {
+    grid-column: 3;
+    justify-self: end;
     font-family: 'JetBrains Mono', ui-monospace, monospace;
-    font-size: 0.62rem;
+    font-size: 0.66rem;
+    white-space: nowrap;
     color: var(--cg-tint);
     opacity: 0.85;
 }
 
-@media (max-width: 420px) {
-    /* Two by two rather than three and a stray: four chips across a phone
-       leaves no room for the names, and the names are the choice. */
-    .sh-modes { display: grid; grid-template-columns: 1fr 1fr; }
+/* What the option does, in a sentence, under its own name. */
+.sh-mode-says {
+    grid-column: 2 / -1;
+    font-size: 0.74rem;
+    font-weight: 300;
+    line-height: 1.35;
+    color: var(--ink-dim);
 }
+
+.sh-mode.on .sh-mode-says { color: var(--ink); opacity: 0.85; }
+
+/* No phone rule for these. The mode names are short — "Beat a best" is the
+   longest of the four — so the count sits on the name's line at every width,
+   and the row keeps the shape a reader learns once. */
 
 /* ── how to play ────────────────────────────────────────────────────────── */
 
