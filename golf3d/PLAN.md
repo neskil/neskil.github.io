@@ -148,6 +148,17 @@ style there and reads as a model on a table on purpose — §1 is about what sta
 
 Kept short, and only where it explains a constraint above.
 
+- **Demo mode, and the caddie's second door** (v1.39.0). The page no longer
+  opens on the course list: the bot plays a course under a title until somebody
+  touches something, and comes back to it when the list is left alone for
+  `DEMO_IDLE` — README → "Demo mode: the game playing itself". Two constraints
+  came out of building it and are worth keeping: a demo may only take back a
+  screen with no stroke on it (so `idleReady` reads the round rather than the
+  clock), and nothing it plays may reach the card, which is why a demo course
+  ends in `demoNext` and never in `finishRound`. The caddie now also unlocks
+  itself after `BOT_UNLOCK_HOLES` holed-out holes, so the 🤖 chip is no longer
+  reachable only by somebody who knew to type at it.
+
 - **The turntable, and the geometry audit** (v1.34.0). Eighty-four holes drawn
   from eight angles as fourteen contact sheets, with machine-checked findings
   printed under each row — README → "The pictures, which neither suite can see".

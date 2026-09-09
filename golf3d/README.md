@@ -2381,6 +2381,66 @@ against the suite's 16), because there a shot costs whatever it costs and here a
 player is holding still while it thinks. `BOT_PAUSE` is the beat between shots
 and `BOT_MAX_STROKES` is where it gives up and hands the club back.
 
+**There is a second door, and it opens by itself.** Hole out
+`BOT_UNLOCK_HOLES` holes — nine, more than a course — and the chip turns up
+with a line saying so, whether or not you ever type anything. The code is for
+somebody who went looking; this is for everybody else, and it is deliberately
+not immediate: by the ninth hole you have stood over a lie and wondered what a
+better player would have done with it, which is the only question the caddie
+answers. The count is `HOLES_KEY` in `localStorage`, incremented in
+`holeComplete` and never by [demo mode](#demo-mode-the-game-playing-itself) —
+holes walked while nobody was watching are not holes you played.
+
+## Demo mode: the game playing itself
+
+Open the page without naming a course and nobody is dropped into the course
+list any more. The caddie is already playing — a course drawn at random, a hole
+out of the middle of it, the flyover, then shot after shot — under a title and
+a **Start game** button. Press anything at all and the demo stands down: a
+fresh round of the course you were watching, and then the rules if you have
+never read them, the course list if you have. It is an arcade cabinet's attract
+mode, and the shape is borrowed wholesale, down to going back to it when the
+room empties: leave the course list alone for `DEMO_IDLE` seconds and the demo
+comes back.
+
+What is playing is `js/bot.js` — the same greedy player as
+[Simulate](#the-caddie-simulation-mode), driving the same club, aim, meter and
+strike a thumb does. Nothing is scripted and nothing is a recording; the sixth
+stroke of a demo hole is chosen from where the fifth actually finished. It
+gives none of the secret away either: the 🤖 chip stays hidden until the code
+is typed or nine holes are played.
+
+Three rules hold it in place, and all three are about not being in the way.
+
+- **It never interrupts a game.** The only screen it may take back is one with
+  no stroke on it — a course list nobody has picked from, or a tee somebody
+  walked away from before playing. Play one shot and the idle clock stops
+  existing for the rest of that round; the rules and the scorecard are out of
+  bounds for it too, because those are things somebody is reading. That test is
+  `idleReady`, and it reads the round rather than the clock.
+- **Anything leaves it, and leaves it only.** A key, a press, a wheel, the
+  button. The press that ends the demo is spent ending it — the listeners sit
+  in the capture phase and stop the event there, so the first thing you touch
+  starts a game rather than also swinging the camera or muting the sound on the
+  way past. A mouse merely crossing the window resets the idle clock without
+  starting anything, which is what makes a wait as long as 45 seconds mean
+  something: a reader with a hand on the mouse is not an empty room.
+- **A machine that asked for less motion does not get a demo it never asked
+  for.** `prefers-reduced-motion` skips it exactly as it skips the flyover, and
+  so does any `?course=` link, because that is somebody who has already chosen.
+
+Nothing it does reaches the card. `finishRound` is never what ends a demo
+course — `demoNext` is, and it deals another — so no round is recorded, no
+personal best moves, and the holes do not count towards the caddie. The
+scoreboard above the course still reads live, which is the one thing a cabinet
+does show you: strokes going up on a hole you are not playing.
+
+The chrome fades for the length of it, the same way and for the same reason it
+fades under the [flyover](#the-fourth-camera-which-is-not-a-seat) — a meter,
+a dial and a club are answers to questions about a shot of yours, and on this
+screen there is no shot of yours. The banner goes with them: the caddie holing
+out is not your birdie, and a card announcing one would be a lie.
+
 ## Weather
 
 Every hole has a sky of its own, and it is the same sky every time you come
@@ -3392,7 +3452,9 @@ course inspector. Scroll or pinch to zoom. A new hole opens with a
 [flyover](#the-fourth-camera-which-is-not-a-seat) — anything at all skips it,
 and the 🎬 chip turns it off for good. And one that is not on the list on
 purpose: typing **aide** unlocks the [simulation
-mode](#the-caddie-simulation-mode) chip.
+mode](#the-caddie-simulation-mode) chip, which nine holed-out holes also do on
+their own. Touch nothing at all and you get [demo
+mode](#demo-mode-the-game-playing-itself) instead, which any of the above ends.
 
 ### Under a thumb
 
@@ -3485,6 +3547,12 @@ outranking both the chip and the machine's motion preference — without which a
 screenshot of a hole is a screenshot of whatever the camera happened to be doing
 at that instant. The editor's Playtest link carries `&fly=0` for the same
 reason a playtest is a loop: draw, look, change, look again.
+
+`&demo=0` and `&demo=1` force [demo mode](#demo-mode-the-game-playing-itself)
+off or on for the session, the same way and for the same reason `&fly=` does:
+a driver taking a picture of the game should never be handed a demo, and one
+taking a picture of the demo should not have to wait 45 seconds for it. A
+`?course=` link never sees it either way — naming a course is choosing one.
 
 `&debug=1` opens the [course inspector](#the-inspector) with the hole, which is
 how you would start a session spent building one. <kbd>G</kbd> does the same

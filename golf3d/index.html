@@ -32,7 +32,7 @@
 
         gtag('config', 'G-9GP823TGLB');
     </script>
-    <link rel="stylesheet" href="style.css?v=1.38.0">
+    <link rel="stylesheet" href="style.css?v=1.39.0">
 <script type="application/ld+json">
     {
         "@context": "https://schema.org",
@@ -271,6 +271,22 @@
                  instant anything is pressed. An intro nobody has been told how
                  to leave is a loading screen. -->
             <div class="fly-hint" id="fly-hint" hidden>Flyover — press anything to skip</div>
+
+            <!-- Demo mode, drawn over the course rather than instead of
+                 it: what is behind this is the caddie playing a real hole,
+                 and that is the half worth looking at. Up when nobody has
+                 asked for a course yet and when nobody has touched anything
+                 for a while — game.js owns which, and owns the rule that it
+                 never takes back a round somebody is playing. -->
+            <div class="demo-screen" id="demo" hidden>
+                <div class="dm-panel">
+                    <p class="dm-eyebrow">Demo</p>
+                    <p class="dm-title">Loft <span>Links</span></p>
+                    <p class="dm-sub" id="dm-sub">The caddie is playing —</p>
+                    <button type="button" class="dm-start" id="dm-start">Start game</button>
+                    <p class="dm-hint">or press anything at all</p>
+                </div>
+            </div>
 
             <!-- The same plan the hole card shows, called back up on request
                  while you play, with the one thing the card cannot show: where
@@ -606,26 +622,26 @@
 
     <!-- Load order is dependency order: config, then the pure logic, then the
          things that touch the screen. game.js boots itself on DOMContentLoaded. -->
-    <script src="js/config.js?v=1.38.0"></script>
-    <script src="js/themes.js?v=1.38.0"></script>
-    <script src="js/physics.js?v=1.38.0"></script>
-    <script src="js/courses.js?v=1.38.0"></script>
-    <script src="js/audit.js?v=1.38.0"></script>
-    <script src="js/custom.js?v=1.38.0"></script>
-    <script src="js/scoring.js?v=1.38.0"></script>
-    <script src="js/swing.js?v=1.38.0"></script>
-    <script src="js/audio.js?v=1.38.0"></script>
-    <script src="js/music.js?v=1.38.0"></script>
-    <script src="js/bag.js?v=1.38.0"></script>
-    <script src="js/textures.js?v=1.38.0"></script>
-    <script src="js/shaders.js?v=1.38.0"></script>
-    <script src="js/postfx.js?v=1.38.0"></script>
-    <script src="js/weather.js?v=1.38.0"></script>
-    <script src="js/flyover.js?v=1.38.0"></script>
-    <script src="js/bot.js?v=1.38.0"></script>
-    <script src="js/render.js?v=1.38.0"></script>
-    <script src="js/minimap.js?v=1.38.0"></script>
-    <script src="js/debug.js?v=1.38.0"></script>
-    <script src="js/game.js?v=1.38.0"></script>
+    <script src="js/config.js?v=1.39.0"></script>
+    <script src="js/themes.js?v=1.39.0"></script>
+    <script src="js/physics.js?v=1.39.0"></script>
+    <script src="js/courses.js?v=1.39.0"></script>
+    <script src="js/audit.js?v=1.39.0"></script>
+    <script src="js/custom.js?v=1.39.0"></script>
+    <script src="js/scoring.js?v=1.39.0"></script>
+    <script src="js/swing.js?v=1.39.0"></script>
+    <script src="js/audio.js?v=1.39.0"></script>
+    <script src="js/music.js?v=1.39.0"></script>
+    <script src="js/bag.js?v=1.39.0"></script>
+    <script src="js/textures.js?v=1.39.0"></script>
+    <script src="js/shaders.js?v=1.39.0"></script>
+    <script src="js/postfx.js?v=1.39.0"></script>
+    <script src="js/weather.js?v=1.39.0"></script>
+    <script src="js/flyover.js?v=1.39.0"></script>
+    <script src="js/bot.js?v=1.39.0"></script>
+    <script src="js/render.js?v=1.39.0"></script>
+    <script src="js/minimap.js?v=1.39.0"></script>
+    <script src="js/debug.js?v=1.39.0"></script>
+    <script src="js/game.js?v=1.39.0"></script>
 </body>
 </html>
