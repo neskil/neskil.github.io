@@ -2203,18 +2203,22 @@
             var chip = document.createElement('button');
             chip.type = 'button';
             chip.className = 'sh-mode' + (on ? ' on' : '');
-            chip.setAttribute('aria-pressed', on ? 'true' : 'false');
-            chip.title = mode.blurb;
+            /* One of four, not four independent switches: a radio says that
+               and `aria-pressed` says the opposite. */
+            chip.setAttribute('role', 'radio');
+            chip.setAttribute('aria-checked', on ? 'true' : 'false');
             var draw = G3.shuffleDraw({
                 mode: mode.id,
                 from: opts.from,
                 group: opts.group,
                 save: opts.save
             });
+            var n = draw.courses.length;
             chip.innerHTML =
                 '<span class="sh-mode-icon" aria-hidden="true">' + mode.icon + '</span>' +
                 '<span class="sh-mode-name">' + mode.name + '</span>' +
-                '<span class="sh-mode-n">' + (draw.eased ? '0' : draw.courses.length) + '</span>';
+                '<span class="sh-mode-n">' + n + (n === 1 ? ' course' : ' courses') + '</span>' +
+                '<span class="sh-mode-says">' + modeSays(mode, draw, opts.group) + '</span>';
             chip.addEventListener('click', function () {
                 if (shuffleMode === mode.id) return;
                 shuffleMode = mode.id;
@@ -2225,11 +2229,12 @@
             host.appendChild(chip);
         });
 
-        var picked = G3.shuffleModeById(shuffleMode);
-        var draw = G3.shuffleDraw(opts);
-        $('shuffle-sub').textContent = draw.eased
-            ? easedNote(picked.id) + ' \u2014 drawing from ' + draw.courses.length + ' instead'
-            : picked.blurb + ' ' + draw.courses.length + ' to draw from.';
+        /* The line under the button is not a fifth description — the four
+           above it are the descriptions now, and the count of what the picked
+           one offers is on the picked one. This says the only thing about the
+           button a player cannot see coming: there is no list and no second
+           press, the course just loads. */
+        $('shuffle-sub').textContent = 'Loads a course straight away \u2014 no list, no second tap.';
 
         /* Named on the element as well as in it: the words beside the toggle
            are display:none on a phone, which takes them out of the
@@ -2243,14 +2248,18 @@
         keep.title = keepSays;
     }
 
-    /* Said out loud rather than silently widened: a mode that has run out has
-       run out *because of something the player did*, and that is worth
-       knowing. */
-    function easedNote(mode) {
-        if (mode === 'fresh') return 'You have finished a round on all of them';
-        if (mode === 'record') return 'No records to beat yet';
-        if (mode === 'kind') return 'Nothing else of this kind';
-        return 'Nowhere else to go';
+    /* What one option says about itself, on the option.
+
+       A mode that has run out has run out *because of something the player
+       did*, and the sentence saying so replaces the description rather than
+       joining it: "only courses you have never finished" is no longer true of
+       what this button would draw, and a count of 14 beside it would be a
+       flat contradiction. The wording of both is in `courses.js` beside the
+       mode; this picks which one is true right now. */
+    function modeSays(mode, draw, group) {
+        if (draw.eased) return mode.eased;
+        var g = mode.blurbKind ? G3.groupById(group) : null;
+        return mode.blurb + (g ? ' ' + mode.blurbKind.replace('%s', g.name.toLowerCase()) : '');
     }
 
     /* Draw one and go. Deliberately not a confirmation step: a surprise you

@@ -1367,17 +1367,32 @@ after the first few rounds:
 | **New to you** | courses with no finished round on them | the ones you have played *least* |
 | **Beat a best** | courses that already have a record on them | widens to anything |
 
+**Each of the four says all of that on itself**, in a sentence under its own
+name, with the number of courses it would actually hand you on the same line.
+They used to be four chips carrying a name and a bare figure, with the meaning
+in a `title` — which is a tooltip, which a phone does not have, which made the
+four of them unlabelled on the device most rounds are played on. "Same kind"
+is the one whose meaning moves with where you are standing, so its line names
+the kind rather than pointing at it: *right now that is mini golf*.
+
 Two rules hold across all four. **Never the course you are already on** — a
 surprise that hands you back the hole you are looking at is the one result
 nobody wants — and **a mode never comes back empty**. "New to you" stops
 meaning anything the moment you have played all fifteen and "beat a best"
 means nothing before the first round is finished; a button that does nothing on
 press is worse than one that widens its net, so each mode has a written-down
-fallback, `shuffleDraw` reports whether it took it, and the line under the
-button says so out loud: *you have finished a round on all of them — drawing
-from 12 instead*. Each chip carries the count it can actually offer, which is
-what makes the modes worth reading: "New to you · 3" is a reason to press it,
-and "· 0" is why the line below then says the net has been widened.
+fallback, `shuffleDraw` reports whether it took it, and the option says so out
+loud in place of its own description: *you have finished a round on all of them
+— this draws from the ones you have played least*. It **replaces** the
+description rather than joining it, because "only courses you have never
+finished" is no longer true of what the button would draw, and printing it
+beside a count of fourteen is a flat contradiction. The count is always what
+the draw would really offer, widened net included, so the figure and the
+sentence beside it can never disagree.
+
+The line under the button is not a fifth description. It says the one thing
+about pressing it a player cannot see coming: *loads a course straight away —
+no list, no second tap*.
 
 **The draw itself is pure.** `G3.shuffleDraw` and `G3.randomCourseId` in
 `courses.js` take the mode, where you are standing, which tab is open and the
