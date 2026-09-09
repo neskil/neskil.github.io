@@ -29,9 +29,9 @@ point at them.
   Don't open a PR for it. A PR is for when the owner asks for one, or when
   landing it needs a call that isn't yours — a conflict where both sides
   changed the same behaviour, or a change reaching outside `golf3d/`.
-- **Verify before committing at all**: both `tests.html` and
-  `shader-tests.html` must stay fully green, and anything visual still needs to
-  be looked at in a real browser (recipe below) rather than reasoned about. A
+- **Verify before committing at all**: `tests.html`, `shader-tests.html` and
+  `ui-tests.html` must stay fully green, and anything visual still needs to be
+  looked at in a real browser (recipe below) rather than reasoned about. A
   shader that compiles is not a shader that looks right — the suites can prove
   the first and never the second.
 - Bump `G3.VERSION` (top of `js/config.js`) on every commit that ships a
@@ -50,21 +50,23 @@ point at them.
 
 ## Verification
 
-**Two suites, and both must be green.** Each needs a local server — the modules
-are separate `<script>` tags, so `file://` will not do:
+**Three suites, and all three must be green.** Each needs a local server — the
+modules are separate `<script>` tags, and the third one *fetches* index.html, so
+`file://` will not do:
 
 ```sh
 python3 -m http.server 8899          # from the repo root, not from golf3d/
 ```
 
-Both print the same summary line (`✓ N passed`, or the failures) and both set
-`window.DONE`, `window.PASSED`, `window.FAILED` and `window.FAILS` for a
-headless driver to read.
+All three print the same summary line (`✓ N passed`, or the failures) and all
+three set `window.DONE`, `window.PASSED`, `window.FAILED` and `window.FAILS`
+for a headless driver to read.
 
 | Page | Covers | Needs |
 | --- | --- | --- |
 | `tests.html` | Physics, pads and surfaces, walls and gates, scoring, course geometry. ~2160 assertions, no three.js and **no WebGL** — that purity is the point, it is what keeps it fast and portable. It can tell you a hole is built wrong and can never tell you a shader is wrong. | nothing |
 | `shader-tests.html` | The half the above structurally cannot do: compiles every shader for real through the real `render.js`, both water paths, the runtime quality switch, the uniform boundary, one `frame()`, and every theme. | a GL context |
+| `ui-tests.html` | The page rather than the game: index.html's own markup under the real stylesheet, with the scripts stripped out. Sweeps every `var(--x)` in `style.css` for one that is undefined where the rule lands, and lights every chip to check a switched-on control still reads. See README → "The chrome, which neither suite could see either". | nothing |
 
 And one tool that is not a suite. `turntable.html` draws all ninety holes
 from eight fixed angles — tee, plan, four compass bearings, a five-degree graze
@@ -113,6 +115,22 @@ suite, re-run that exercise — a shader test that cannot fail is worse than
 none, because it reads as coverage.
 
 ## Things that will bite
+
+- **A `color-mix()` over an undefined custom property is a dropped
+  declaration, not a fallback colour.** The picker's tint used to be declared
+  on `.course-list` and the draw panel is a *sibling* of that list, so every
+  tinted rule in the panel was thrown away at computed-value time — and what
+  the elements got instead was `unset`, which is `currentColor` for a border
+  and the inherited value for a colour. The block shipped drawn in white
+  outline and looked deliberate. `#menu .modal-inner` owns the fallback now;
+  `ui-tests.html` sweeps the whole sheet for the same shape.
+- **`.on` is dark ink on the accent, so anything that repaints a chip's
+  background has to repaint its colour too.** Both compact-layout rules set a
+  background at a specificity that beats `button.chip.on` while saying nothing
+  about the ink, which left the three chips that are lit at boot — and ☰ the
+  moment its panel opened — painted #06212f on navy. The answer is
+  `body.compact-ui button.chip.on`, after both of them. If you add a third
+  surface for chips, add its state rule in the same breath.
 
 - **The lit materials hand three.js an sRGB hex as a linear albedo, on
   purpose** — that is the palette, not a bug to fix. The two unlit shaders (sky

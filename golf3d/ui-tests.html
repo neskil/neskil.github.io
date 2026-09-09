@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Loft Links — page chrome tests</title>
+    <meta name="robots" content="noindex">
+    <style>
+        body { background: #061422; color: #eaf6ff; font-family: 'JetBrains Mono', ui-monospace, monospace; padding: 1rem; line-height: 1.5; }
+        .pass { color: #4ade80; }
+        .fail { color: #f87171; font-weight: bold; }
+        h2 { font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.1em; color: #9fb6c9; margin: 1.4rem 0 0.3rem; border-bottom: 1px solid #ffffff1a; padding-bottom: 0.2rem; }
+        #summary { font-size: 1.2rem; margin-bottom: 0.5rem; padding: 0.6rem 0.9rem; border-radius: 10px; background: #ffffff0d; }
+        #summary.ok { color: #4ade80; }
+        #summary.bad { color: #f87171; }
+        .note { color: #9fb6c9; font-size: 0.8rem; }
+        /* Off screen rather than hidden: a display:none iframe lays nothing
+           out, and every assertion below is about laid-out, painted chrome. */
+        #stage { position: absolute; left: -9999px; top: 0; width: 412px; height: 900px; border: 0; }
+    </style>
+</head>
+<body>
+    <div id="summary">running…</div>
+    <div id="results"></div>
+    <iframe id="stage" title="index.html under test"></iframe>
+
+    <script>
+    /* The third suite, and the one about the page rather than the game.
+
+       `tests.html` proves a hole is built right and `shader-tests.html` proves
+       a shader compiles; between them they had nothing to say about the
+       clubhouse — the chips, the picker, the modals — which is where two bugs
+       shipped that a player sees before anything either suite covers:
+
+         · The course picker's shuffle block read `var(--cg-tint)` from every
+           other declaration in it, and the tint was scoped to `.course-list`,
+           which the block is a *sibling* of. An undefined custom property
+           inside a `color-mix()` is not a colour that falls back — the whole
+           declaration is thrown away at computed-value time — so the block
+           came out in white outline with no fill anywhere on it.
+         · A lit chip is dark ink on the accent, and the ☰ panel repainted its
+           background without its colour, which left the three chips that are
+           on by default painted navy on navy.
+
+       Neither is a broken rule. Both are rules that *work* and land on an
+       element the author was not looking at, which is why they are checked
+       here against the real markup and the real stylesheet rather than read.
+
+       The page is loaded with its scripts stripped out. That is the whole
+       trick: no three.js, no WebGL, no boot, no timers — just index.html's own
+       DOM under golf3d/style.css, in a frame this file can add a class to and
+       measure. What it cannot see is anything the game builds at runtime (the
+       course cards, the mode chips), and the generic sweep below is written so
+       that what is absent is skipped rather than silently passed. */
+    (function () {
+        'use strict';
+
+        var passed = 0, failed = 0;
+        window.FAILS = [];
+        var out = document.getElementById('results');
+        var t0 = performance.now();
+
+        function section(name) {
+            var h = document.createElement('h2');
+            h.textContent = name;
+            out.appendChild(h);
+        }
+
+        function assert(name, cond, detail) {
+            var div = document.createElement('div');
+            if (cond) {
+                passed++;
+                div.className = 'pass';
+                div.textContent = '✓ ' + name;
+            } else {
+                failed++;
+                window.FAILS.push(name + (detail ? ' — ' + detail : ''));
+                div.className = 'fail';
+                div.textContent = 'FAIL: ' + name + (detail ? ' — ' + detail : '');
+            }
+            out.appendChild(div);
+        }
+
+        function note(text) {
+            var div = document.createElement('div');
+            div.className = 'note';
+            div.textContent = '  ' + text;
+            out.appendChild(div);
+        }
+
+        function done() {
+            var el = document.getElementById('summary');
+            el.className = failed ? 'bad' : 'ok';
+            el.textContent = (failed ? '✗ ' + failed + ' failed, ' : '✓ ') + passed + ' passed' +
+                ' — ' + Math.round(performance.now() - t0) + 'ms';
+            window.TEST_RESULT = { passed: passed, failed: failed, fails: window.FAILS };
+            window.PASSED = passed;
+            window.FAILED = failed;
+            window.DONE = true;
+        }
+
+        /* ── colour ─────────────────────────────────────────────────────── */
+
+        /* Chromium hands back `rgb()`/`rgba()` for a plain colour and
+           `color(srgb …)` — floats, and a slash before the alpha — for
+           anything that came out of a `color-mix()`. Both shapes turn up on
+           the same element, so both are read here. */
+        function parseColor(str) {
+            if (!str || str === 'transparent' || str === 'none') return { r: 0, g: 0, b: 0, a: 0 };
+            var m = str.match(/^rgba?\(([^)]+)\)$/);
+            if (m) {
+                var p = m[1].split(/[\s,/]+/).filter(function (s) { return s.length; });
+                return { r: +p[0], g: +p[1], b: +p[2], a: p.length > 3 ? +p[3] : 1 };
+            }
+            m = str.match(/^color\(srgb\s+([^)]+)\)$/);
+            if (m) {
+                var q = m[1].split(/[\s/]+/).filter(function (s) { return s.length; });
+                return { r: +q[0] * 255, g: +q[1] * 255, b: +q[2] * 255, a: q.length > 3 ? +q[3] : 1 };
+            }
+            return null;
+        }
+
+        function over(top, bottom) {
+            return {
+                r: top.r * top.a + bottom.r * (1 - top.a),
+                g: top.g * top.a + bottom.g * (1 - top.a),
+                b: top.b * top.a + bottom.b * (1 - top.a),
+                a: 1
+            };
+        }
+
+        /* What is actually behind an element's text: its own background
+           composited over its ancestors', down to the page's ground colour.
+           An approximation on purpose — it cannot see the gradient, the
+           backdrop blur or the 3D course under the bar — and it is the right
+           one, because every case it is asked about is a control that paints
+           its own backing. */
+        var GROUND = { r: 6, g: 18, b: 30, a: 1 };
+
+        function effectiveBg(el) {
+            var stack = [], n, c;
+            for (n = el; n && n.nodeType === 1; n = n.parentElement) {
+                c = parseColor(getComputedStyle(n).backgroundColor);
+                if (!c) continue;
+                if (c.a > 0) stack.push(c);
+                if (c.a >= 0.999) break;
+            }
+            var acc = GROUND, i;
+            for (i = stack.length - 1; i >= 0; i--) acc = over(stack[i], acc);
+            return acc;
+        }
+
+        function luminance(c) {
+            function ch(v) {
+                v /= 255;
+                return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+            }
+            return 0.2126 * ch(c.r) + 0.7152 * ch(c.g) + 0.0722 * ch(c.b);
+        }
+
+        function contrast(fg, bg) {
+            var f = over(fg, bg);
+            var a = luminance(f), b = luminance(bg);
+            return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+        }
+
+        /* ── the page, with its scripts taken out ───────────────────────── */
+
+        /* Everything cross-origin goes too: the font stylesheet and the
+           analytics tag are the two things on this page that reach the
+           network, and a suite that waits on either is a suite that is red on
+           a machine behind a proxy. */
+        function chromeOnly(html) {
+            return html
+                .replace(/<script[\s\S]*?<\/script>/gi, '')
+                .replace(/<link[^>]+https?:\/\/[^>]*>/gi, '')
+                .replace(/<\/head>/i,
+                    '<style>*,*::before,*::after{transition:none!important;animation:none!important}</style></head>');
+        }
+
+        /* Transitions are killed above rather than waited out. Half of what is
+           measured here is read one frame after a class is added, and a chip
+           mid-transition reports the colour it is leaving — which is the old
+           state, and would have passed the very bug this file exists for. */
+
+        function load(html) {
+            return new Promise(function (resolve) {
+                var frame = document.getElementById('stage');
+                frame.addEventListener('load', function () { resolve(frame.contentDocument); }, { once: true });
+                frame.srcdoc = html;
+            });
+        }
+
+        /* ── selectors ──────────────────────────────────────────────────── */
+
+        /* A rule's selector, cut back to the part `querySelectorAll` can
+           answer: state and pseudo-elements are dropped, because "which
+           elements could this rule ever land on" is the question, not "which
+           are hovered right now". */
+        var STATE = /:{1,2}(hover|active|focus|focus-visible|focus-within|visited|target|disabled|checked|placeholder|before|after|first-line|selection|-webkit-[a-z-]+|marker|backdrop)\b(\([^)]*\))?/gi;
+
+        function matchable(selector) {
+            var s = selector.replace(STATE, '').trim();
+            if (!s || /^[>+~]/.test(s)) return null;
+            return s;
+        }
+
+        /* Only the reads that have nowhere to go if the property is missing.
+           `var(--club, var(--ink))` is a declaration that survives a missing
+           `--club` by design and is not this file's business; `var(--club)` on
+           its own is the one that gets thrown away. */
+        function varsIn(value) {
+            var names = [], m;
+            var re = /var\(\s*(--[A-Za-z0-9_-]+)\s*\)/g;
+            while ((m = re.exec(value))) names.push(m[1]);
+            return names;
+        }
+
+        /* Every style rule in the sheet, media queries walked into. */
+        function allRules(sheet) {
+            var out = [];
+            (function walk(rules) {
+                var i, r;
+                for (i = 0; i < rules.length; i++) {
+                    r = rules[i];
+                    if (r.style && r.selectorText) out.push(r);
+                    if (r.cssRules) walk(r.cssRules);
+                }
+            })(sheet.cssRules);
+            return out;
+        }
+
+        /* ── the suite ──────────────────────────────────────────────────── */
+
+        fetch('index.html').then(function (r) { return r.text(); })
+            .then(function (html) { return load(chromeOnly(html)); })
+            .then(function (doc) {
+                var win = doc.defaultView;
+                run(doc, win);
+            })
+            .catch(function (e) {
+                assert('the page loads at all', false, String(e && e.message || e));
+            })
+            .then(done);
+
+        function run(doc, win) {
+            var body = doc.body;
+
+            /* ── every custom property resolves where it is used ────────── */
+
+            section('custom properties resolve where they are used');
+
+            var sheet = null, i;
+            for (i = 0; i < doc.styleSheets.length; i++) {
+                if (/style\.css/.test(doc.styleSheets[i].href || '')) sheet = doc.styleSheets[i];
+            }
+            assert('style.css is loaded and readable', !!sheet && !!sheet.cssRules);
+            if (!sheet) return;
+
+            /* The sweep. For every declaration in the stylesheet that reads a
+               custom property, find the elements the rule can land on and ask
+               each of them for that property. An empty answer is the bug: the
+               declaration is dropped, and what the element gets instead is
+               `unset` — `currentColor` for a border, the inherited value for a
+               colour — which is why this class of fault paints something
+               plausible rather than nothing at all.
+
+               A rule whose elements the game builds at runtime matches nothing
+               here and is skipped; the count below says how much of the sheet
+               was actually reachable, so a page rebuilt entirely from script
+               cannot quietly turn this into an empty test. */
+            var checked = 0, seen = {}, bad = [], rules = allRules(sheet);
+            rules.forEach(function (rule) {
+                var sel = matchable(rule.selectorText);
+                if (!sel) return;
+                var wanted = [], k, name;
+                for (k = 0; k < rule.style.length; k++) {
+                    name = rule.style[k];
+                    // A rule that *defines* a property is not a rule that
+                    // needs it defined elsewhere.
+                    varsIn(rule.style.getPropertyValue(name)).forEach(function (v) {
+                        if (!rule.style.getPropertyValue(v)) wanted.push(v);
+                    });
+                }
+                if (!wanted.length) return;
+                var els;
+                try { els = doc.querySelectorAll(sel); } catch (e) { return; }
+                var n;
+                for (n = 0; n < els.length && n < 30; n++) {
+                    var cs = win.getComputedStyle(els[n]);
+                    wanted.forEach(function (v) {
+                        checked++;
+                        if (cs.getPropertyValue(v).trim()) return;
+                        var key = sel + ' ' + v;
+                        if (seen[key]) return;
+                        seen[key] = 1;
+                        bad.push(v + ' is undefined on ' + sel);
+                    });
+                }
+            });
+            note(rules.length + ' rules in the sheet, ' + checked + ' property lookups on real elements');
+            assert('the sheet is reachable from this page\'s markup', checked > 60,
+                'only ' + checked + ' lookups — has the markup moved out of index.html?');
+            assert('no declaration reads a custom property that is undefined where it lands',
+                !bad.length, bad.slice(0, 6).join('; '));
+
+            /* Said again as an invariant rather than as a sweep, because the
+               sweep only sees the elements index.html ships: the picker builds
+               its cards and its mode chips from script, and every one of them
+               reads this. If the tint is on the dialog, they all inherit it —
+               wherever a future panel is hung. */
+            section('the course picker is tinted end to end');
+            var inMenu = doc.querySelectorAll('#menu .modal-inner, #menu .modal-inner *');
+            var untinted = [];
+            for (i = 0; i < inMenu.length; i++) {
+                if (!win.getComputedStyle(inMenu[i]).getPropertyValue('--cg-tint').trim()) {
+                    untinted.push(inMenu[i].id || inMenu[i].className || inMenu[i].tagName);
+                }
+            }
+            assert('every element in the picker resolves --cg-tint', !untinted.length,
+                untinted.slice(0, 6).join(', '));
+            assert('…including the draw panel, which is a sibling of the list, not a child',
+                !!win.getComputedStyle(doc.getElementById('shuffle')).getPropertyValue('--cg-tint').trim());
+
+            /* ── the draw is a tab, and the list is what opens ───────────── */
+
+            section('the draw is the picker\'s fifth tab');
+            var shuffle = doc.getElementById('shuffle');
+            assert('the draw panel is a tabpanel', shuffle.getAttribute('role') === 'tabpanel');
+            assert('and starts hidden, so the picker opens on courses', shuffle.hidden === true,
+                'a picker that opens on the tab that picks for you has answered the question');
+            assert('the list and the draw are siblings in one dialog',
+                shuffle.parentElement === doc.getElementById('menu-list').parentElement);
+            assert('the draw still carries the button that makes one',
+                !!doc.getElementById('shuffle-go') && !!doc.getElementById('shuffle-modes') &&
+                !!doc.getElementById('shuffle-keep'));
+
+            /* ── a lit control is still readable ────────────────────────── */
+
+            /* `.on` is the page's one "this is switched on" class, and it is
+               dark ink on the accent everywhere it is used. Anything that
+               repaints a control's background without repainting its colour
+               puts that ink on the wrong ground — which is the ☰ panel bug,
+               and it is invisible to a reviewer reading either rule on its
+               own. So: light every control that can be lit, in the layout it
+               is lit in, and measure. */
+            section('a lit control is still readable');
+
+            body.className = 'compact-ui';
+            doc.getElementById('topbar-menu').classList.add('open');
+            doc.getElementById('menu').className = 'modal show';
+            shuffle.hidden = false;
+
+            var CONTRAST = 3;
+            var controls = doc.querySelectorAll('.topbar button.chip, .topbar a.chip, #menu button');
+            var dark = [], lit = [];
+            for (i = 0; i < controls.length; i++) {
+                var el = controls[i];
+                if (!el.getClientRects().length) continue;
+                ['off', 'on'].forEach(function (state) {
+                    el.classList.toggle('on', state === 'on');
+                    var cs = win.getComputedStyle(el);
+                    var fg = parseColor(cs.color);
+                    if (!fg) return;
+                    var ratio = contrast(fg, effectiveBg(el));
+                    (state === 'on' ? lit : dark).push(ratio);
+                    // Named in the log whether or not the assertion below
+                    // fails: "worst is 1.16:1" is not something you can go and
+                    // fix, and this is the line that says which chip it was.
+                    if (ratio < CONTRAST) {
+                        note((el.id || el.className) + ' (' + state + ') ' +
+                            ratio.toFixed(2) + ':1 — ' + cs.color + ' on ' + cs.backgroundColor);
+                    }
+                });
+                el.classList.remove('on');
+            }
+
+            function worst(list) {
+                return list.reduce(function (a, b) { return Math.min(a, b); }, Infinity);
+            }
+            assert(controls.length + ' controls measured, in both states',
+                dark.length > 10 && lit.length === dark.length);
+            assert('every control reads against its own background when off',
+                worst(dark) >= CONTRAST, 'worst is ' + worst(dark).toFixed(2) + ':1');
+            assert('and when it is lit — the ☰ panel painted three of them navy on navy',
+                worst(lit) >= CONTRAST, 'worst is ' + worst(lit).toFixed(2) + ':1');
+
+            /* One named case, so a regression says which chip rather than
+               "something in the bar". These three are the chips that are on
+               the moment the game boots. */
+            ['btn-fps', 'btn-fly', 'btn-water'].forEach(function (id) {
+                var el = doc.getElementById(id);
+                el.classList.add('on');
+                var cs = win.getComputedStyle(el);
+                var ratio = contrast(parseColor(cs.color), effectiveBg(el));
+                assert('#' + id + ' reads when lit inside the ☰ panel', ratio >= CONTRAST,
+                    ratio.toFixed(2) + ':1');
+                el.classList.remove('on');
+            });
+
+            /* ── the panel a phone actually gets ────────────────────────── */
+
+            section('nothing in the chrome overflows a phone');
+            var w = doc.documentElement.clientWidth;
+            var wide = [];
+            var visible = doc.querySelectorAll('.topbar-menu .chip, #menu .modal-inner, .shuffle, .shuffle button');
+            for (i = 0; i < visible.length; i++) {
+                var r = visible[i].getBoundingClientRect();
+                if (r.width > w + 1) wide.push((visible[i].id || visible[i].className) + ' ' + Math.round(r.width) + 'px');
+            }
+            assert('no control in the bar or the picker is wider than the viewport',
+                !wide.length, wide.slice(0, 4).join(', ') + ' (viewport ' + w + 'px)');
+        }
+    })();
+    </script>
+</body>
+</html>

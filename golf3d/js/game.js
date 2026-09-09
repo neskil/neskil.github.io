@@ -1903,6 +1903,12 @@
        different kind. */
 
     var menuGroup = null;      // which tab is open
+    /* …and the last *kind* tab that was, which is not always the same thing:
+       the draw is a tab of its own now, and "same kind" still has to mean a
+       kind of golf. So the shuffle tab borrows the one you were last looking
+       at, which is what switching tabs and then drawing always meant. Null
+       outside the picker, where the kind is the one you are standing on. */
+    var menuKind = null;
     var menuSuggest = null;    // …and the course being offered, if any
     /* A course has been picked and the round is being built. Loading one is the
        longest thing a press on this page can start, and a phone that has not
@@ -1921,9 +1927,13 @@
         menuSuggest = suggestId || null;
         menuGroup = suggestId ? groupOf(suggestId) :
             (state && state.course ? groupOf(state.course.id) : G3.COURSE_GROUPS[0].id);
+        /* Never on the draw: the list is what was asked for, and a picker that
+           opens on the tab that picks for you has answered the question
+           instead of asking it. */
+        menuKind = menuGroup;
+        drawShuffle();
         drawTabs();
         var focus = drawCourses();
-        drawShuffle(menuGroup);
         $('menu').className = 'modal show';
         // Keyboard and screen reader land on the course being offered, or on
         // the first one in the open tab if nothing is.
@@ -1935,49 +1945,94 @@
        are filed under it, and the one holding the course on offer carries a
        dot as well — so a player who has just finished the last mini golf course
        can see that what is up next is behind another tab, which is the one
-       thing a filtered list can hide from you. */
+       thing a filtered list can hide from you.
+
+       The last tab on the row is the draw, and it is a tab because it is a way
+       of getting a course, which is what this dialog is a row of: it used to
+       be a block pinned under whichever list happened to be open, which read
+       as an appendix to mini golf when mini golf was the tab you were on. Its
+       count is what the current mode could hand you right now rather than a
+       shelf it is filed under, and its panel is `#shuffle` rather than
+       `#menu-list` — the two swap places, so exactly one is ever on screen. */
     function drawTabs() {
         var host = $('menu-tabs');
         host.innerHTML = '';
         G3.COURSE_GROUPS.forEach(function (group) {
             var courses = G3.coursesInGroup(group.id);
             if (!courses.length) return;
-            var on = group.id === menuGroup;
-            var tab = document.createElement('button');
-            tab.type = 'button';
-            tab.className = 'menu-tab' + (on ? ' on' : '');
-            tab.setAttribute('role', 'tab');
-            tab.setAttribute('aria-selected', on ? 'true' : 'false');
-            tab.setAttribute('aria-controls', 'menu-list');
-            tab.style.setProperty('--cg-tint', group.tint);
-            tab.innerHTML =
-                '<span class="mt-icon" aria-hidden="true">' + group.icon + '</span>' +
-                '<span class="mt-name">' + group.name + '</span>' +
-                '<span class="mt-count">' + courses.length + '</span>' +
-                (menuSuggest && groupOf(menuSuggest) === group.id && !on
-                    ? '<span class="mt-dot" title="up next"></span>' : '');
-            tab.addEventListener('click', function () {
-                if (menuGroup === group.id) return;
-                menuGroup = group.id;
-                drawTabs();
-                drawCourses();
-                drawPlans();
-                // "Same kind" means the tab you are looking at, so the draw
-                // and its counts move with it.
-                drawShuffle(menuGroup);
-            });
-            host.appendChild(tab);
+            host.appendChild(menuTab(group, courses.length, 'menu-list'));
         });
-        var g = G3.COURSE_GROUPS.filter(function (x) { return x.id === menuGroup; })[0];
-        $('menu-tab-blurb').textContent = g ? g.blurb : '';
-        $('menu-list').style.setProperty('--cg-tint', g ? g.tint : '#7dd3fc');
+        host.appendChild(menuTab(G3.SHUFFLE_GROUP,
+            G3.shuffleDraw(shuffleOpts()).courses.length, 'shuffle'));
+
+        var g = openTab();
+        $('menu-tab-blurb').textContent = g.blurb;
+        /* The list keeps the last kind's colour even while the draw is the tab
+           on screen: it is hidden, not recoloured, and a tab switch back should
+           not have to repaint it. The draw's panel owns its own, which is also
+           the fallback every tinted rule in this dialog resolves against —
+           see style.css, `#menu .modal-inner`. */
+        if (g.id !== G3.SHUFFLE_GROUP.id) $('menu-list').style.setProperty('--cg-tint', g.tint);
+        $('shuffle').style.setProperty('--cg-tint', G3.SHUFFLE_GROUP.tint);
     }
 
-    /* The cards of the open tab. Returns what focus should land on. */
+    /* Whichever of the five is open — a kind of golf, or the draw. */
+    function openTab() {
+        if (menuGroup === G3.SHUFFLE_GROUP.id) return G3.SHUFFLE_GROUP;
+        var g = G3.COURSE_GROUPS.filter(function (x) { return x.id === menuGroup; })[0];
+        return g || G3.COURSE_GROUPS[0];
+    }
+
+    /* One tab, dressed out of the four fields every group and the draw both
+       have. `panel` is the id of what it shows, so the tab and the thing it
+       opens are named in one place. */
+    function menuTab(group, count, panel) {
+        var on = group.id === menuGroup;
+        var tab = document.createElement('button');
+        tab.type = 'button';
+        tab.className = 'menu-tab' + (on ? ' on' : '') +
+            (group.id === G3.SHUFFLE_GROUP.id ? ' menu-tab-draw' : '');
+        tab.setAttribute('role', 'tab');
+        tab.setAttribute('aria-selected', on ? 'true' : 'false');
+        tab.setAttribute('aria-controls', panel);
+        tab.title = group.name;
+        tab.style.setProperty('--cg-tint', group.tint);
+        tab.innerHTML =
+            '<span class="mt-icon" aria-hidden="true">' + group.icon + '</span>' +
+            '<span class="mt-name">' + group.name + '</span>' +
+            '<span class="mt-count">' + count + '</span>' +
+            (menuSuggest && groupOf(menuSuggest) === group.id && !on
+                ? '<span class="mt-dot" title="up next"></span>' : '');
+        tab.addEventListener('click', function () {
+            if (menuGroup === group.id) return;
+            menuGroup = group.id;
+            // "Same kind" means the kind you are looking at, so the draw and
+            // its counts move with the tabs — and the draw's own tab, which is
+            // not a kind, leaves that pointing where it last was.
+            if (group.id !== G3.SHUFFLE_GROUP.id) menuKind = group.id;
+            drawShuffle();
+            drawTabs();
+            drawCourses();
+            drawPlans();
+        });
+        return tab;
+    }
+
+    /* The cards of the open tab. Returns what focus should land on.
+
+       On the draw's tab there are no cards: the list steps aside for
+       `#shuffle` and the button that makes the draw is what focus lands on.
+       Emptying the list rather than merely hiding it is what keeps the plans
+       cheap — `drawPlans` walks whatever cells it finds, and a hidden tab's
+       are cells with no laid-out size to be drawn at. */
     function drawCourses() {
         var save = state ? state.save : S.load();
         var host = $('menu-list');
         host.innerHTML = '';
+        var onDraw = menuGroup === G3.SHUFFLE_GROUP.id;
+        host.hidden = onDraw;
+        $('shuffle').hidden = !onDraw;
+        if (onDraw) return $('shuffle-go');
         var focus = null, firstHead = null;
 
         G3.coursesInGroup(menuGroup).forEach(function (course) {
@@ -2127,25 +2182,30 @@
         } catch (e) { /* ignore */ }
     }
 
-    /* What a draw made right now would be made out of. `group` is which kind
-       "same kind" means: inside the picker that is the open tab, so switching
-       tabs re-aims the button — anywhere else it is the kind of the course you
-       are standing on. */
-    function shuffleOpts(group) {
+    /* What a draw made right now would be made out of. The kind "same kind"
+       means is `menuKind`: inside the picker that is the last kind tab you
+       opened, so switching tabs re-aims the button — anywhere else, and on the
+       draw's own tab before you have touched another, it is the kind of the
+       course you are standing on. */
+    function shuffleOpts() {
         return {
             mode: shuffleMode,
             from: state && state.course ? state.course.id : null,
-            group: group || (state && state.course ? groupOf(state.course.id) : null),
+            group: menuKind || (state && state.course ? groupOf(state.course.id) : null),
             save: state ? state.save : null
         };
     }
 
-    /* The block under the course list: one chip per mode carrying how many
-       courses it can actually offer, and a line under the button saying what
-       is about to happen. The count is what makes the modes worth reading —
-       "New to you · 3" is a reason to press it and "· 0" is why the line below
-       then says the net has been widened. */
-    function drawShuffle(group) {
+    /* The draw's own tab: one chip per mode carrying how many courses it can
+       actually offer, and a line under the button saying what is about to
+       happen. The count is what makes the modes worth reading — "New to you ·
+       3" is a reason to press it and "· 0" is why the line below then says the
+       net has been widened.
+
+       Redrawn before `drawTabs` wherever both run, because the tab's own count
+       is the same draw and would otherwise be one press behind the chips. */
+    function drawShuffle() {
+        var opts = shuffleOpts();
         var host = $('shuffle-modes');
         host.innerHTML = '';
         G3.SHUFFLE_MODES.forEach(function (mode) {
@@ -2153,32 +2213,38 @@
             var chip = document.createElement('button');
             chip.type = 'button';
             chip.className = 'sh-mode' + (on ? ' on' : '');
-            chip.setAttribute('aria-pressed', on ? 'true' : 'false');
-            chip.title = mode.blurb;
+            /* One of four, not four independent switches: a radio says that
+               and `aria-pressed` says the opposite. */
+            chip.setAttribute('role', 'radio');
+            chip.setAttribute('aria-checked', on ? 'true' : 'false');
             var draw = G3.shuffleDraw({
                 mode: mode.id,
-                from: state && state.course ? state.course.id : null,
-                group: group,
-                save: state ? state.save : null
+                from: opts.from,
+                group: opts.group,
+                save: opts.save
             });
+            var n = draw.courses.length;
             chip.innerHTML =
                 '<span class="sh-mode-icon" aria-hidden="true">' + mode.icon + '</span>' +
                 '<span class="sh-mode-name">' + mode.name + '</span>' +
-                '<span class="sh-mode-n">' + (draw.eased ? '0' : draw.courses.length) + '</span>';
+                '<span class="sh-mode-n">' + n + (n === 1 ? ' course' : ' courses') + '</span>' +
+                '<span class="sh-mode-says">' + modeSays(mode, draw, opts.group) + '</span>';
             chip.addEventListener('click', function () {
                 if (shuffleMode === mode.id) return;
                 shuffleMode = mode.id;
                 saveShuffle();
-                drawShuffle(group);
+                drawShuffle();
+                drawTabs();
             });
             host.appendChild(chip);
         });
 
-        var picked = G3.shuffleModeById(shuffleMode);
-        var draw = G3.shuffleDraw(shuffleOpts(group));
-        $('shuffle-sub').textContent = draw.eased
-            ? easedNote(picked.id) + ' \u2014 drawing from ' + draw.courses.length + ' instead'
-            : picked.blurb + ' ' + draw.courses.length + ' to draw from.';
+        /* The line under the button is not a fifth description — the four
+           above it are the descriptions now, and the count of what the picked
+           one offers is on the picked one. This says the only thing about the
+           button a player cannot see coming: there is no list and no second
+           press, the course just loads. */
+        $('shuffle-sub').textContent = 'Loads a course straight away \u2014 no list, no second tap.';
 
         /* Named on the element as well as in it: the words beside the toggle
            are display:none on a phone, which takes them out of the
@@ -2192,30 +2258,37 @@
         keep.title = keepSays;
     }
 
-    /* Said out loud rather than silently widened: a mode that has run out has
-       run out *because of something the player did*, and that is worth
-       knowing. */
-    function easedNote(mode) {
-        if (mode === 'fresh') return 'You have finished a round on all of them';
-        if (mode === 'record') return 'No records to beat yet';
-        if (mode === 'kind') return 'Nothing else of this kind';
-        return 'Nowhere else to go';
+    /* What one option says about itself, on the option.
+
+       A mode that has run out has run out *because of something the player
+       did*, and the sentence saying so replaces the description rather than
+       joining it: "only courses you have never finished" is no longer true of
+       what this button would draw, and a count of 14 beside it would be a
+       flat contradiction. The wording of both is in `courses.js` beside the
+       mode; this picks which one is true right now. */
+    function modeSays(mode, draw, group) {
+        if (draw.eased) return mode.eased;
+        var g = mode.blurbKind ? G3.groupById(group) : null;
+        return mode.blurb + (g ? ' ' + mode.blurbKind.replace('%s', g.name.toLowerCase()) : '');
     }
 
     /* Draw one and go. Deliberately not a confirmation step: a surprise you
        have to approve in a list is not a surprise, so the course loads and the
        toast is the reveal — the scoreboard has the name in it a moment later
        either way. */
-    function takeRandom(group) {
+    function takeRandom() {
         // Same latch as the cards: one pick per opening of the list, so an
         // impatient second tap does not draw twice and load the second one.
         if (menuTaking) return;
-        var id = G3.randomCourseId(shuffleOpts(group));
+        var id = G3.randomCourseId(shuffleOpts());
         takeCourse(id);
         toast('\uD83C\uDFB2 ' + G3.courseById(id).name);
     }
 
-    function closeMenu() { $('menu').className = 'modal'; maybeFly(); }
+    /* `menuKind` goes with it: outside the picker "same kind" is the kind of
+       the course you are standing on, and a tab you were looking at five
+       rounds ago is not that. */
+    function closeMenu() { menuKind = null; $('menu').className = 'modal'; maybeFly(); }
 
     function openCard(res) {
         var holes = state.course.holes;
@@ -2882,18 +2955,18 @@
                it is the start of a new pick, exactly as opening the list is. */
             if (shuffleOn) {
                 menuTaking = false;
-                takeRandom(groupOf(state.course.id));
+                takeRandom();
                 return;
             }
             openMenu(G3.nextCourseId(state.course.id));
         });
-        $('shuffle-go').addEventListener('click', function () { takeRandom(menuGroup); });
+        $('shuffle-go').addEventListener('click', function () { takeRandom(); });
         /* No toast on this one: it is pressed with the picker open, and the
            toast band is behind the modal. The switch is its own answer. */
         $('shuffle-keep').addEventListener('click', function () {
             shuffleOn = !shuffleOn;
             saveShuffle();
-            drawShuffle(menuGroup);
+            drawShuffle();
         });
         $('menu-close').addEventListener('click', function () {
             if (state && state.world) closeMenu();

@@ -4111,6 +4111,24 @@
         }
     ];
 
+    /* The picker's fifth tab, and the only one that is not a shelf of courses:
+       the draw itself. It is described here, beside the four kinds, because
+       the picker dresses every tab out of the same four fields — mark, name,
+       tint, blurb — and the one tab whose colour and wording lived in game.js
+       would be the one that drifted away from the rest of the row.
+
+       `id` is deliberately not a group any course belongs to: nothing filters
+       by it, `coursesInGroup('shuffle')` is empty on purpose, and the count on
+       the tab is how many courses the current mode could hand you rather than
+       how many are filed under it. The mark is the shuffle arrows rather than
+       a die for the same reason the "Anything" chip is not one — see
+       SHUFFLE_MODES below. */
+    G3.SHUFFLE_GROUP = {
+        id: 'shuffle', name: 'Surprise me', icon: '\u21C4',
+        tint: '#c4b5fd',
+        blurb: 'Let the picker choose. Say what it is allowed to draw from, and whether it keeps drawing at the end of every round.'
+    };
+
     G3.COURSES = [
         {
             id: 'seaside',
@@ -4239,6 +4257,15 @@
         return G3.COURSES.filter(function (c) { return c.group === groupId; });
     };
 
+    /* A kind by its id, or null. The picker needs the *name* of a group it
+       only holds the id of — "same kind" says which kind out loud. */
+    G3.groupById = function (groupId) {
+        for (var i = 0; i < G3.COURSE_GROUPS.length; i++) {
+            if (G3.COURSE_GROUPS[i].id === groupId) return G3.COURSE_GROUPS[i];
+        }
+        return null;
+    };
+
     /* The one after this, wrapping round the end of the whole list — what a
        finished round offers next. */
     G3.nextCourseId = function (id) {
@@ -4265,6 +4292,17 @@
        the first few rounds. Who has just finished Windmill Works wants either
        more of the same or deliberately not-the-same, and who has played eleven
        of the fifteen wants one of the other four. */
+    /* Each mode says three things, and the picker prints all three on the
+       option itself rather than hiding any of them in a `title`: a phone has
+       no hover, so a tooltip is not a shorter explanation — it is no
+       explanation.
+
+       `blurb` is what the mode does. `eased` is what it says instead once it
+       has run out and widened, which is the honest half — a count that has
+       fallen to nothing needs a sentence, not a zero. `blurbKind` is an extra
+       clause the picker appends when it can fill it in; "same kind" is the one
+       mode whose meaning moves with where you are standing, and naming the
+       kind beats pointing at it. */
     G3.SHUFFLE_MODES = [
         {
             /* The mark is a scatter rather than a die: the button beside
@@ -4272,19 +4310,24 @@
                page's own font — so a die here is a tofu box on the one chip
                that is selected by default. */
             id: 'any', name: 'Anything', icon: '\u2733',
-            blurb: 'Any course but the one you are on.'
+            blurb: 'Any course on the list, except the one you are playing.',
+            eased: 'Nowhere else to go — this draws from all of them.'
         },
         {
             id: 'kind', name: 'Same kind', icon: '\u2261',
-            blurb: 'Stays with the kind you are looking at.'
+            blurb: 'Stays with the kind of golf you are playing.',
+            blurbKind: 'Right now that is %s.',
+            eased: 'Nothing else of this kind — this draws from all of them.'
         },
         {
             id: 'fresh', name: 'New to you', icon: '\u2726',
-            blurb: 'Only what you have never finished.'
+            blurb: 'Only courses you have never finished a round on.',
+            eased: 'You have finished a round on all of them — this draws from the ones you have played least.'
         },
         {
             id: 'record', name: 'Beat a best', icon: '\u2605',
-            blurb: 'Only courses you already hold a record on.'
+            blurb: 'Only courses you already hold a record on.',
+            eased: 'No records to beat yet — this draws from all of them.'
         }
     ];
 
