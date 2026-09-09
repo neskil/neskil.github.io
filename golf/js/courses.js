@@ -828,8 +828,10 @@
         return null;
     };
 
-    GOLF.coursePar = function () {
-        return GOLF.COURSE.reduce(function (t, h) { return t + h.par; }, 0);
+    /* Par for a card. The one being played unless another is named — the
+       picker prices all five at once and cannot move the pointer to do it. */
+    GOLF.coursePar = function (holes) {
+        return (holes || GOLF.COURSE).reduce(function (t, h) { return t + h.par; }, 0);
     };
 
 })(window.GOLF);

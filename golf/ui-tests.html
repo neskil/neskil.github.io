@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Pocket Links — page chrome tests</title>
+    <meta name="robots" content="noindex">
+    <style>
+        body { background: #071a10; color: #ecfdf5; font-family: 'JetBrains Mono', ui-monospace, monospace; padding: 1rem; line-height: 1.5; }
+        .pass { color: #4ade80; }
+        .fail { color: #f87171; font-weight: bold; }
+        h2 { font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.1em; color: #a7c4b5; margin: 1.4rem 0 0.3rem; border-bottom: 1px solid #ffffff1a; padding-bottom: 0.2rem; }
+        #summary { font-size: 1.2rem; margin-bottom: 0.5rem; padding: 0.6rem 0.9rem; border-radius: 10px; background: #ffffff0d; }
+        #summary.ok { color: #4ade80; }
+        #summary.bad { color: #f87171; }
+        .note { color: #a7c4b5; font-size: 0.8rem; }
+        /* Off screen rather than hidden: a display:none iframe lays nothing
+           out, and half of what is asserted below is about laid-out boxes. */
+        #stage { position: absolute; left: -9999px; top: 0; width: 1100px; height: 900px; border: 0; }
+    </style>
+</head>
+<body>
+    <div id="summary">running…</div>
+    <div id="results"></div>
+    <iframe id="stage" title="index.html under test"></iframe>
+
+    <script>
+    /* The second suite, and the one about the page rather than the game.
+
+       `tests.html` is pure logic — config, courses, physics, scoring, the
+       generator — and by design it never opens a document. That left the
+       clubhouse untested: the chips, the ☰ panel and the course picker, which
+       is the first thing a player touches and the last thing anything here
+       had an opinion about. Two of the bugs found while building the picker
+       were invisible to every assertion in the other file:
+
+         · `.chip-menu { display: none }` was written *above* `.chip
+           { display: inline-flex }`. Both are one class deep, so the later
+           rule won and ☰ stood in the bar on a desktop, beside the five
+           chips it exists to replace. Nothing is broken in either rule.
+         · A plan drawn into a folded strip is drawn against a zero-width box
+           and then cached at that size, so unfolding the strip showed six
+           one-pixel smears that no amount of redrawing would replace.
+
+       Unlike `golf3d/ui-tests.html` this loads the page *with* its scripts:
+       there is no WebGL here and no three.js, so the real game boots in a
+       frame in a few milliseconds and the picker can actually be opened,
+       pressed and measured rather than merely read.
+
+       What is stripped is everything cross-origin — the font stylesheet and
+       the analytics tag — because a suite that waits on the network is a
+       suite that is red behind a proxy. */
+    (function () {
+        'use strict';
+
+        var passed = 0, failed = 0;
+        window.FAILS = [];
+        var out = document.getElementById('results');
+        var t0 = performance.now();
+
+        function section(name) {
+            var h = document.createElement('h2');
+            h.textContent = name;
+            out.appendChild(h);
+        }
+
+        function assert(name, cond, detail) {
+            var div = document.createElement('div');
+            if (cond) {
+                passed++;
+                div.className = 'pass';
+                div.textContent = '✓ ' + name;
+            } else {
+                failed++;
+                window.FAILS.push(name + (detail ? ' — ' + detail : ''));
+                div.className = 'fail';
+                div.textContent = 'FAIL: ' + name + (detail ? ' — ' + detail : '');
+            }
+            out.appendChild(div);
+        }
+
+        function note(text) {
+            var div = document.createElement('div');
+            div.className = 'note';
+            div.textContent = '  ' + text;
+            out.appendChild(div);
+        }
+
+        function done() {
+            var el = document.getElementById('summary');
+            el.className = failed ? 'bad' : 'ok';
+            el.textContent = (failed ? '✗ ' + failed + ' failed, ' : '✓ ') + passed + ' passed' +
+                ' — ' + Math.round(performance.now() - t0) + 'ms';
+            window.TEST_RESULT = { passed: passed, failed: failed, fails: window.FAILS };
+            window.PASSED = passed;
+            window.FAILED = failed;
+            window.DONE = true;
+        }
+
+        /* ── the page under test ────────────────────────────────────────── */
+
+        /* An `about:srcdoc` frame inherits this document's origin and base
+           URL, so the relative script tags resolve and localStorage is the
+           same store the real page uses. That store is put back at the end:
+           a player who opens this file should lose a second, not a record. */
+        var STORE = {};
+
+        function saveStore() {
+            try {
+                for (var i = 0; i < localStorage.length; i++) {
+                    var k = localStorage.key(i);
+                    if (/^miniGolf\./.test(k)) STORE[k] = localStorage.getItem(k);
+                }
+                Object.keys(STORE).forEach(function (k) { localStorage.removeItem(k); });
+            } catch (e) { /* storage off: nothing to protect */ }
+        }
+
+        function restoreStore() {
+            try {
+                for (var i = localStorage.length - 1; i >= 0; i--) {
+                    var k = localStorage.key(i);
+                    if (/^miniGolf\./.test(k)) localStorage.removeItem(k);
+                }
+                Object.keys(STORE).forEach(function (k) { localStorage.setItem(k, STORE[k]); });
+            } catch (e) { /* ignore */ }
+        }
+
+        function chromeOnly(html) {
+            return html
+                .replace(/<script[^>]*\ssrc="https?:[^>]*><\/script>/gi, '')
+                .replace(/<link[^>]+https?:\/\/[^>]*>/gi, '')
+                .replace(/<\/head>/i,
+                    '<style>*,*::before,*::after{transition:none!important;animation:none!important}</style></head>');
+        }
+
+        /* Transitions are killed rather than waited out. Most of what is read
+           below is read one frame after a class was added, and an element
+           mid-transition reports the state it is leaving — which is the old
+           one, and would pass the very bugs this file exists for. */
+
+        function load(html) {
+            return new Promise(function (resolve, reject) {
+                var frame = document.getElementById('stage');
+                frame.addEventListener('load', function () {
+                    var w = frame.contentWindow, tries = 0;
+                    (function wait() {
+                        if (w.GOLF && w.GOLF.game && w.GOLF.game.getState()) return resolve(frame);
+                        if (++tries > 400) return reject(new Error('the game never booted in the frame'));
+                        setTimeout(wait, 10);
+                    })();
+                }, { once: true });
+                frame.srcdoc = html;
+            });
+        }
+
+        function frame() { return document.getElementById('stage').contentWindow; }
+        function doc() { return document.getElementById('stage').contentDocument; }
+        function $(id) { return doc().getElementById(id); }
+        function css(el, prop) { return doc().defaultView.getComputedStyle(el)[prop]; }
+        /* Laid out *and* painted. A shut ☰ panel is `opacity: 0` with its
+           boxes still in the flow, so a box test alone reports every chip
+           behind it as on screen — which is the state this suite most has to
+           be able to tell apart. */
+        function shown(el) {
+            if (!el || !(el.offsetWidth + el.offsetHeight)) return false;
+            for (var n = el; n && n.nodeType === 1; n = n.parentElement) {
+                var st = doc().defaultView.getComputedStyle(n);
+                if (st.visibility === 'hidden' || +st.opacity === 0) return false;
+            }
+            return true;
+        }
+
+        /* Long enough for the plans to have been drawn. They are drawn from a
+           `requestAnimationFrame` inside the frame, and waiting on one of
+           *those* from out here is waiting on another window's queue — which
+           headless, running on a fast-forwarded clock with the frame parked
+           off screen, is under no obligation to service at all. A timer is
+           the one thing `--virtual-time-budget` is guaranteed to run. */
+        function tick() {
+            return new Promise(function (r) { setTimeout(r, 60); });
+        }
+
+        function compact(on) {
+            doc().body.classList.toggle('compact-ui', on);
+        }
+
+        function parseColor(str) {
+            var m = str && str.match(/^rgba?\(([^)]+)\)$/);
+            if (!m) return null;
+            var p = m[1].split(/[\s,/]+/).filter(function (s) { return s.length; });
+            return { r: +p[0], g: +p[1], b: +p[2], a: p.length > 3 ? +p[3] : 1 };
+        }
+
+        /* Whether a canvas has anything on it. A plan drawn into a folded
+           strip, or into a canvas nobody sized, comes back one pixel wide and
+           uniformly transparent — both of which this catches. */
+        function painted(canvas) {
+            if (!canvas || canvas.width < 8) return false;
+            var g = canvas.getContext('2d');
+            var d = g.getImageData(0, 0, canvas.width, canvas.height).data;
+            var seen = {}, n = 0;
+            for (var i = 0; i < d.length; i += 4) {
+                if (d[i + 3] === 0) continue;
+                var key = d[i] + ',' + d[i + 1] + ',' + d[i + 2];
+                if (!seen[key]) { seen[key] = 1; n++; }
+                if (n > 3) return true;
+            }
+            return false;
+        }
+
+        /* ── the suite ──────────────────────────────────────────────────── */
+
+        function run() {
+            var G = frame().GOLF;
+            var startedOn = G.COURSE_ID;
+
+            section('the topbar, wide');
+
+            compact(false);
+            var CHIPS = ['btn-full', 'btn-courses', 'btn-restart', 'btn-card', 'chip-editor', 'btn-mute'];
+            CHIPS.forEach(function (id) {
+                assert('#' + id + ' is in the bar', shown($(id)));
+            });
+            assert('the ☰ button is not in a wide bar', !shown($('btn-menu')),
+                'display: ' + css($('btn-menu'), 'display'));
+            assert('every chip keeps its label out here',
+                CHIPS.every(function (id) { return shown($(id).querySelector('.chip-text')); }));
+            assert('the whole bar is one row',
+                $('btn-full').getBoundingClientRect().top === $('btn-mute').getBoundingClientRect().top);
+            assert('nothing in the bar runs off the page',
+                doc().documentElement.scrollWidth <= doc().documentElement.clientWidth,
+                doc().documentElement.scrollWidth + ' > ' + doc().documentElement.clientWidth);
+            assert('the picker starts shut', !$('menu').classList.contains('show'));
+
+            section('the topbar, compact');
+
+            compact(true);
+            assert('the ☰ button appears', shown($('btn-menu')));
+            assert('the panel is shut to begin with', !shown($('btn-courses')),
+                'a chip behind an unopened ☰ is on screen');
+            assert('fullscreen stays out of the panel', shown($('btn-full')));
+            assert('the labelled word goes from the chips left in the bar',
+                !shown($('btn-full').querySelector('.chip-text')));
+
+            $('btn-menu').click();
+            assert('☰ opens the panel', shown($('btn-courses')));
+            assert('the panel says it is open', $('btn-menu').getAttribute('aria-expanded') === 'true');
+            assert('the chips get their words back inside the panel',
+                shown($('btn-courses').querySelector('.chip-text')));
+
+            /* The bug this pair exists for: the panel and the bar both repaint
+               a chip's background without saying anything about its colour,
+               which leaves a lit ☰ painted dark green on dark green. */
+            var lit = parseColor(css($('btn-menu'), 'backgroundColor'));
+            var panel = parseColor(css($('topbar-menu'), 'backgroundColor'));
+            assert('a lit ☰ is painted on the accent, not on the panel backing',
+                lit && lit.g > 150 && lit.r < 140,
+                'background ' + css($('btn-menu'), 'backgroundColor'));
+            assert('its ink is dark enough to read on that',
+                parseColor(css($('btn-menu'), 'color')).g < 120,
+                'colour ' + css($('btn-menu'), 'color'));
+            assert('the panel itself is opaque enough to sit over the board',
+                panel && panel.a > 0.9, 'alpha ' + (panel && panel.a));
+
+            $('btn-menu').click();
+            assert('☰ shuts the panel again', !shown($('btn-courses')));
+            compact(false);
+
+            section('the course picker');
+
+            $('btn-courses').click();
+            assert('the Courses chip opens the picker', $('menu').classList.contains('show'));
+
+            var cards = doc().querySelectorAll('#menu-list .course-card');
+            assert('one card per course on the rack', cards.length === G.COURSES.length,
+                cards.length + ' cards for ' + G.COURSES.length + ' courses');
+            note(G.COURSES.map(function (c) { return c.id; }).join(', '));
+
+            var plansOk = true, headsOk = true;
+            for (var i = 0; i < cards.length; i++) {
+                if (cards[i].querySelectorAll('.cc-hole').length !== G.COURSES[i].holes.length) plansOk = false;
+                if (!cards[i].querySelector('.cc-head')) headsOk = false;
+            }
+            assert('every hole of every course has a plan of its own', plansOk);
+            assert('every card is a button in its own right', headsOk);
+
+            var here = doc().querySelector('#menu-list .course-card.playing');
+            assert('the card being played is marked', !!here);
+            assert('…and it is the one the game is on',
+                here && here.querySelector('.cc-head').textContent.indexOf(
+                    G.COURSES.filter(function (c) { return c.id === G.COURSE_ID; })[0].name) === 0);
+
+            var redraws = doc().querySelectorAll('#menu-list .cc-redraw');
+            assert('only the draw can be re-dealt', redraws.length === 1,
+                redraws.length + ' re-deal buttons');
+            assert('…and it is on the draw’s own card',
+                redraws.length === 1 &&
+                redraws[0].closest('.course-card').querySelector('.cc-head')
+                    .textContent.indexOf('Random Draw') === 0);
+
+            var meta = doc().querySelector('#menu-list .course-card .cc-meta').textContent;
+            assert('a card prices itself: holes, par and the record',
+                /\d+ holes/.test(meta) && /par \d+/.test(meta) && /best/.test(meta), meta);
+            var drawMeta = redraws[0].closest('.course-card').querySelector('.cc-meta').textContent;
+            assert('the draw says it holds no record rather than showing an empty one',
+                /not recorded/.test(drawMeta), drawMeta);
+
+            // The picker prices every card at once, which means reading four
+            // other courses' save keys. None of that may move the pointer the
+            // ball is rolling on.
+            assert('pricing the rack did not move the course being played',
+                G.COURSE_ID === startedOn, G.COURSE_ID + ' was ' + startedOn);
+
+            return tick().then(function () {
+                section('the hole plans');
+
+                var cells = doc().querySelectorAll('#menu-list .cc-hole');
+                assert('a plan canvas is sized from its laid-out box',
+                    cells[0].querySelector('.cc-map').width > 40,
+                    'width ' + cells[0].querySelector('.cc-map').width);
+                assert('and something was actually drawn on it',
+                    painted(cells[0].querySelector('.cc-map')));
+                var lastCard = cards[cards.length - 1];
+                assert('the last card’s plans are drawn too, not just the first’s',
+                    painted(lastCard.querySelector('.cc-map')));
+                assert('every plan carries its number and its par',
+                    cells[0].querySelector('.cc-num').textContent === '1' &&
+                    /^\d+$/.test(cells[0].querySelector('.cc-par').textContent));
+
+                // Two draws are two courses under one id. A cache that keyed on
+                // the id alone would hand the second one the first one's plans.
+                var a = G.plan.plan('links', 0, 64, 43, null);
+                var b = G.plan.plan('links', 0, 64, 43, null);
+                assert('a plan is drawn once and kept', a === b);
+                assert('a different seed is a different plan',
+                    G.plan.plan(G.generator.DRAW_ID, 0, 64, 43, 1) !==
+                    G.plan.plan(G.generator.DRAW_ID, 0, 64, 43, 2));
+                assert('a hole that is not there draws nothing rather than throwing',
+                    G.plan.plan('links', 999, 64, 43, null) === null);
+
+                section('picking with it');
+
+                // Second course on the rack, third hole: a plan press is a new
+                // round teeing off there, not a resumed one.
+                var second = G.COURSES[1];
+                cards[1].querySelectorAll('.cc-hole')[2].click();
+                assert('pressing a plan takes you to that course', G.COURSE_ID === second.id);
+                assert('…and starts you on that hole',
+                    frame().GOLF.game.getState().holeIndex === 2);
+                assert('…on a card with nothing filled in',
+                    frame().GOLF.game.getState().scores.filter(function (s) {
+                        return typeof s === 'number';
+                    }).length === 0);
+                assert('choosing shuts the picker', !$('menu').classList.contains('show'));
+
+                $('btn-courses').click();
+                var first = G.COURSES[0];
+                doc().querySelectorAll('#menu-list .course-card')[0]
+                    .querySelector('.cc-head').click();
+                assert('pressing a card head takes you to that course', G.COURSE_ID === first.id);
+                assert('…from the first tee when there is no round waiting',
+                    frame().GOLF.game.getState().holeIndex === 0);
+
+                section('getting out of it');
+
+                $('btn-courses').click();
+                var W = frame();
+                doc().dispatchEvent(new W.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+                assert('Escape shuts the picker', !$('menu').classList.contains('show'));
+
+                $('btn-courses').click();
+                $('menu').click();                     // the scrim, not the dialog
+                assert('a press outside the dialog shuts it', !$('menu').classList.contains('show'));
+
+                $('btn-courses').click();
+                $('menu-close').click();
+                assert('Keep playing shuts it', !$('menu').classList.contains('show'));
+
+                assert('C opens it from the keyboard', (function () {
+                    W.dispatchEvent(new W.KeyboardEvent('keydown', { key: 'c' }));
+                    return $('menu').classList.contains('show');
+                })());
+                $('menu-close').click();
+
+                section('folded strips on a phone');
+
+                compact(true);
+                $('btn-courses').click();
+                var open = doc().querySelectorAll('#menu-list .course-card.expanded');
+                assert('only the card you are standing on starts open', open.length === 1,
+                    open.length + ' cards open');
+                assert('…and it is the one being played', open[0].classList.contains('playing'));
+                var shut = doc().querySelector('#menu-list .course-card:not(.expanded)');
+                assert('a folded strip lays nothing out',
+                    shut.querySelector('.cc-holes').clientHeight === 0);
+                assert('its head is still a one-tap start', shown(shut.querySelector('.cc-head')));
+
+                shut.querySelector('.cc-toggle').click();
+                assert('the toggle unfolds it', shut.classList.contains('expanded'));
+                assert('…and says so', shut.querySelector('.cc-toggle')
+                    .getAttribute('aria-expanded') === 'true');
+
+                return tick().then(function () {
+                    /* The second bug: a plan drawn while its strip was folded
+                       is drawn at a zero-width box and cached there. */
+                    assert('the plans in an unfolded strip are drawn at full size',
+                        painted(shut.querySelector('.cc-map')),
+                        'width ' + shut.querySelector('.cc-map').width);
+                    $('menu-close').click();
+                    compact(false);
+                    done();
+                });
+            });
+        }
+
+        saveStore();
+
+        // The page's own markup, fetched rather than inlined so this file can
+        // never drift from the one it is testing.
+        fetch('index.html')
+            .then(function (r) { return r.text(); })
+            .then(function (html) { return load(chromeOnly(html)); })
+            .then(run)
+            .catch(function (e) {
+                assert('the suite ran to the end', false, e && e.message);
+                done();
+            })
+            .then(restoreStore, restoreStore);
+    })();
+    </script>
+</body>
+</html>
