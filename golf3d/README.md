@@ -322,7 +322,7 @@ dims behind them, the club under the pointer stands up out of the row and turns
 slowly on its own axis, the club in hand wears a halo of its own colour and
 says so on its card, and clicking one takes it and drops them back in the bag.
 
-Three of those are recent and each replaced something that did not work:
+Four of those are recent and each replaced something that did not work:
 
 - **The row is turned.** A head is modelled with its face looking down its own
   `+X` and the rig squares itself up to the camera as it opens, so at a yaw of
@@ -351,6 +351,22 @@ Three of those are recent and each replaced something that did not work:
   the club being marked was the one you could see least of. A halo behind the
   head — the club's own colour, the same one on its card — marks it without
   touching how it is lit.
+- **The club in hand stands outside the bag.** The shut bag's whole job is to
+  answer "your clubs are here" without being opened, and it was answering only
+  half of it: five heads bunched in a cuff say what you *have*, and nothing on
+  the canvas said which one was in your hand — that lived in a chip along the
+  top of the screen and in a ferrule two millimetres tall. The chosen club
+  leaves the bunch now and stands on the ground beside the bag, leaning a few
+  degrees out and turned nearer face-on than anything in the mouth, so the
+  answer is a silhouette rather than a shade. Two things follow from that.
+  The emissive marker on a shut bag went with it — the club is already the one
+  standing apart, and lighting it as well put a lamp on the one club with
+  nothing behind it, which bloom then turned into a white blob. And how far out
+  it stands is a fraction of the frustum rather than a distance in metres
+  (`heldK`, measured in `place`), for the same reason `BAG_EDGE` is: a fifth of
+  a laptop's frustum is half of a phone's held upright, and a fixed offset put
+  the club neatly beside the bag on a desk and in the middle of the hole, over
+  the power meter, on a phone.
 
 The bag stays where it is while that happens, which is why there are two rigs:
 one parked in the corner holding the bag, one that travels holding the clubs.
@@ -541,17 +557,47 @@ edges** gave them silhouettes but a club head is a curved volume, and the best
 an extrusion can do is a rounded brick — the driver came out a slab and the
 irons came out L-shapes. What they are now:
 
-Before any of the shapes, though: **the heads are three finishes and five
+Before any of the shapes, though: **the heads are four finishes and five
 colours, not one grey.** Shape alone was never going to carry it at the size a
 phone shows a row of five, and a real bag does not ask it to — a driver crown is
-painted near black, an iron is polished chrome, a lob wedge is a dull raw finish
-that deliberately does not flash. That is a shade and a shininess per club out
-of `CLUB_LOOK`, which was already carrying each club's colour for its ferrule
-and its card, so it is one table rather than a material per club. On top of it
-each head wears its own colour on the one part of a real one that is allowed to
-be any colour at all: a driver's sole plate and alignment mark, the badge behind
-an iron, a mallet's sight line. Colour on a ferrule two millimetres tall is a
-legend; colour on the head is what tells five clubs apart at a glance.
+painted near black, a players' iron is brushed, a chrome wedge is a mirror.
+That is a shade, a shininess and a *finish* per club out of `CLUB_LOOK`, which
+was already carrying each club's colour for its ferrule and its card, so it is
+one table rather than a material per club. On top of it each head wears its own
+colour on the one part of a real one that is allowed to be any colour at all: a
+driver's sole plate and alignment mark, the badge behind an iron, a mallet's
+sight line. Colour on a ferrule two millimetres tall is a legend; colour on the
+head is what tells five clubs apart at a glance.
+
+**And the finish is a reflection, not a shininess.** This is the one thing three
+lamps and a high specular could not buy: a polished head is not a bright grey
+object, it is a mirror, and a mirror with nothing in front of it is a grey
+object. Lit and no more, every head in the row came back the same pale slate,
+and turning one in the picker showed you nothing but its outline changing. So
+`studioEnv()` draws a room for them to reflect — one equirectangular canvas,
+sky overhead, a warm band at the horizon, dark ground below, three soft lamps —
+hung on every metal as an `envMap` under `MixOperation`, which blends the room
+*into* the colour where the default multiply could only ever darken it. The
+lamps are the working half: they are what sweeps across a crown as a club turns
+under the pointer, and motion in a highlight is the whole difference between
+metal and paint.
+
+Two things about that room are deliberate. It is **not the course's own sky** —
+a reflection has to read at four millimetres tall, and the real sky over a night
+hole is black, which off a chrome head is indistinguishable from a matte one; it
+is the same fair weather everywhere, which is what a product shot does and for
+the same reason. And it is **written dark**, because the picture goes through
+bloom on the way out: drawn as bright as a real sky, a chrome wedge came back as
+a white blob with a glow round it, which is worse than the flat grey it
+replaced. Dark room, bright lamps. The halo marking the club in hand was dimmed
+in the same pass, for the same reason — a halo bright enough to mark a slate
+blade blooms straight over a polished one.
+
+The finishes that are not mirrors get a **grain** instead: a `specularMap` of
+fine streaks (`brushTexture`), which combs the highlight into the line a
+machined face leaves rather than a dot. It is sown from a counter rather than
+`Math.random`, so a before-and-after screenshot pair differs only for the reason
+under test.
 
 `CLUB_LOOK` also gained the two entries it was missing. `look()` falls back to
 the pitch's green, so the mallet and the checker — both handed out a hole at a
@@ -569,13 +615,36 @@ the only unfamiliar thing in the bag.
   which is where the weight in a real iron is and what stops a blade reading as
   a butter knife. As a box bolted to the back it read as a step; following the
   sole, it reads as an iron.
+- **Wedges** — their own outline, not a taller iron, which is what they were
+  drawn as for a long time. Held to the face the two are different shapes and
+  the difference is the whole of what the picker exists to show: a wedge's
+  topline climbs from the heel and rolls over a high, round toe, its face is a
+  good centimetre taller, and its sole is a broad bar the full width of the head
+  with the leading edge proud of it — the bounce, and the first thing a golfer
+  would look for. Three things were needed to make that read at the size it is
+  drawn. The **bevel** came down to a sixth of an iron's: `bevelSize` runs
+  outward from both ends of a 12mm extrusion, so the 3mm a blade carries happily
+  rounded a wedge's outline away entirely and left two chrome cylinders lying
+  against each other. The **sole** is set back only far enough that its own
+  front cap is buried inside the blade — further out, and it is not bounce, it
+  is a second club behind the first. And the **face** is cut to the head's own
+  outline (`facePlate`) rather than laid over it as a rectangle, whose corners
+  stood out past the curve as a flat card of grooves floating in front of a
+  rounded club. `ShapeGeometry` hands out the shape's own coordinates as texture
+  coordinates, which for a head measured in metres is the first 8% of the
+  picture stretched over the whole face, so the plate's UVs are rewritten over
+  its own box. Its grooves are their own texture too: twice as many as an iron's,
+  twice as fine, over a milled ground, and the same canvas goes in as `bumpMap`
+  as well as `map` so a groove is an incision that catches the light along one
+  edge rather than a stripe.
 - **Putter** — a mallet: a wide, low, rounded slab with wings swept back behind
   the face, a dark insert across the face, a sight line on the crown, and a
   plumber's neck rather than a shaft pushed into the middle.
 
 Sizes are the real ones. The USGA caps a driver head at **127mm heel to toe and
 71mm tall** and a 460cc head sits right on that limit; an iron blade is about
-**76mm heel to toe**; a mallet is about **105mm across and 55mm front to back**.
+**76mm heel to toe with a 50mm face**, a 58-degree wedge about **78mm by 58mm**;
+a mallet is about **105mm across and 55mm front to back**.
 
 Everything is built in the head's own frame, and **that frame is the club as it
 stands in a bag** — grip down in the well, head up where it can be seen and
