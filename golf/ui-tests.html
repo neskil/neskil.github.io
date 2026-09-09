@@ -174,9 +174,28 @@
            *those* from out here is waiting on another window's queue — which
            headless, running on a fast-forwarded clock with the frame parked
            off screen, is under no obligation to service at all. A timer is
-           the one thing `--virtual-time-budget` is guaranteed to run. */
-        function tick() {
-            return new Promise(function (r) { setTimeout(r, 60); });
+           the one thing `--virtual-time-budget` is guaranteed to run.
+
+           A timer *polled*, rather than one wait of a length that is usually
+           enough. One 60ms window is enough almost always and not always:
+           with the other suites running beside this one the frame can miss
+           it, and the two plan assertions below then go red on a page that is
+           perfectly fine — which is the kind of red nobody believes and
+           everybody re-runs. Polling asks the same question over the same
+           span instead of once at the end of it, so it costs nothing when the
+           answer is already yes and waits when it is not. The cap is there so
+           a genuinely unpainted plan still fails the assertion rather than
+           hanging the suite. */
+        function tick(ready) {
+            return new Promise(function (resolve) {
+                var waited = 0;
+                (function poll() {
+                    if (waited >= 60 && (!ready || ready())) return resolve();
+                    if (waited >= 1200) return resolve();     // let the assertion say it
+                    waited += 10;
+                    setTimeout(poll, 10);
+                })();
+            });
         }
 
         function compact(on) {
@@ -310,7 +329,11 @@
             assert('pricing the rack did not move the course being played',
                 G.COURSE_ID === startedOn, G.COURSE_ID + ' was ' + startedOn);
 
-            return tick().then(function () {
+            return tick(function () {
+                var first = doc().querySelector('#menu-list .cc-hole .cc-map');
+                var last = cards[cards.length - 1].querySelector('.cc-map');
+                return painted(first) && painted(last);
+            }).then(function () {
                 section('the hole plans');
 
                 var cells = doc().querySelectorAll('#menu-list .cc-hole');
@@ -399,7 +422,9 @@
                 assert('…and says so', shut.querySelector('.cc-toggle')
                     .getAttribute('aria-expanded') === 'true');
 
-                return tick().then(function () {
+                return tick(function () {
+                    return painted(shut.querySelector('.cc-map'));
+                }).then(function () {
                     /* The second bug: a plan drawn while its strip was folded
                        is drawn at a zero-width box and cached there. */
                     assert('the plans in an unfolded strip are drawn at full size',
