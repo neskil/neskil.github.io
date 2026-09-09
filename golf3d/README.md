@@ -371,14 +371,48 @@ size fits a laptop and runs off both edges of a phone held upright, because the
 frustum is half as wide as it is tall there and the row was a constant. So
 `fitOpen` divides instead: the frustum's two half-extents at the depth the clubs
 come to, against the block's own two half-extents from the layout, scaled to
-whichever binds. What is left of the screen after the panel naming the club and
-the power meter have taken theirs is measured in the DOM and handed over
-(`setBand`), because how tall a paragraph is at a given font on a given phone is
-not something the renderer could work out. A row is what the clubs are *for* —
-four heads side by side, compared at a glance — so it is what they get wherever
-the screen allows; below a floor where the heads stop being tellable apart it
-wraps into a grid, with its labels a full label apart since only a single row
-can stagger them into two heights.
+whichever binds. What is left of the screen after the panel naming the club has
+taken its share is measured in the DOM and handed over (`setBand`), because how
+tall a paragraph is at a given font on a given phone is not something the
+renderer could work out — and the shot controls stand down entirely while the
+picker is up, since a club you are still choosing is not one you can swing.
+That strip is most of the bottom third of a phone held sideways, and it is the
+screen the row had least of.
+
+Which arrangement it gets is then an auction rather than a rule: every shape
+the bag could be laid out in — one row, two, three — is measured, and the one
+that draws the clubs biggest wins, with the single row holding the tie because
+a row is what the clubs are *for*. Wrapping wins when a row has run out of
+width, and cannot win when it is the bands above and below that are pinching,
+because a taller block scores worse in the same band and simply loses. The
+older rule halved the columns until the row was either usable or unhalvable
+and got a phone wrong in both directions at once: held upright it kept a
+five-club row that fitted only because the cards were allowed to overlap and
+stagger to two heights, and on its side it dropped to a row too small to read
+and then declined to try anything else.
+
+**The card is the target, not the head.** It is the biggest, squarest thing on
+the screen with a club's name written across it, so it is what a finger goes
+for; for a long time the only thing that answered a press was the head above
+it, which on a phone is a chrome lump the width of a thumbnail. `pick` measures
+the card's own rectangle — a sprite's size in the frame is its world size over
+the frustum's at the depth it stands, which is `fitOpen`'s arithmetic run
+backwards — and the head, by nearest screen distance, is the fallback.
+
+Cards hang from the **shaft**, at the same height on every club, and they come
+in two shapes. The first is what makes a row a row: hung off the heads instead,
+as they were, five differently-shaped heads put five cards at five heights and
+five offsets, which reads as five things dropped rather than as a row — and
+once the cards were big enough to read on a phone, they overlapped wherever the
+heads happened to lean. The second is the viewport's business. Side by side in
+a row there is width going spare and height there is not, so the loft and the
+power stand in two columns; wrapped into a grid on a phone it is the other way
+round, and two columns on a card a third of a screen wide is two columns of
+nothing — the figures were coming out nine pixels tall. Stacked, the same card
+spends its width on the figures instead and they land at twice the size, on the
+screen that could least afford the small ones. `relayoutOpen` picks the shape and both
+faces of every card are redrawn, which happens when a window is resized, a
+phone is turned over, or a hole hands out a bag of a different size.
 
 The first version was drawn from memory and came out looking like a bin, so the
 second is built to the real thing's numbers: a cart bag is about **35 inches
@@ -386,7 +420,7 @@ tall with a 9–10.5 inch cuff** and fourteen full-length dividers — nearly fo
 times as tall as it is wide, where mine had been under two — and it holds a
 **45 inch driver, 35.5 inch wedges and a 34 inch putter**. Those lengths are
 why the driver towers over the other heads and the putter barely clears the
-cuff, and why the labels stagger themselves without being told to.
+cuff.
 
 References: [golf bag sizes](https://golfersauthority.com/how-tall-is-a-golf-bag/)
 and [cuff and divider counts](https://www.moresports.com/blogs/the-extra-mile/what-size-golf-bag-do-i-need)

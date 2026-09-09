@@ -666,7 +666,8 @@
 
     function syncCompact() {
         if (!compactQuery && window.matchMedia) {
-            compactQuery = window.matchMedia('(max-width: 900px), (pointer: coarse)');
+            compactQuery = window.matchMedia(
+                '(max-width: 900px), (max-height: 560px), (pointer: coarse)');
         }
         var on = (compactQuery ? compactQuery.matches : false) || !!fullscreenElement();
         var was = document.body.classList.contains('compact-ui');
@@ -904,9 +905,9 @@
         $('stage').classList.toggle('picker-open', open);
         // The overlay left the stage for the topbar; it is dimmed from here.
         document.body.classList.toggle('picker-open', open);
+        measurePickerBand();
         if (!open) return;
         hideHoleCard();
-        measurePickerBand();
 
         // Whichever club is under the pointer, or the one in hand.
         var id = (G3.bag && G3.bag.state.hover) || state.club.id;
@@ -938,10 +939,18 @@
         if (!stage.height || !ctl) return;
         var text = $('picker-stats').getBoundingClientRect();
         var bar = ctl.getBoundingClientRect();
-        G3.bag.setBand(
-            (text.bottom - stage.top) / stage.height + 0.02,
-            (stage.bottom - bar.top) / stage.height + 0.02
-        );
+        /* The shot controls stand down while the picker is up (see
+           `.stage.picker-open .controls`), and the clubs get the strip they
+           were using. It is most of the bottom third of a phone on its side,
+           which is the screen the row had least of — and nothing down there is
+           any use mid-pick: you cannot swing a club you are still choosing.
+
+           They are only faded, so the bar still measures its full height; what
+           changes is whether the row has to keep off it. */
+        var bottom = $('stage').classList.contains('picker-open')
+            ? 0.06
+            : (stage.bottom - bar.top) / stage.height + 0.02;
+        G3.bag.setBand((text.bottom - stage.top) / stage.height + 0.02, bottom);
     }
 
     /* ── input ──────────────────────────────────────────────────────────────
@@ -2565,6 +2574,12 @@
         // nobody to accept it — and it is on a timer, so left alone it would
         // arrive over the demo a few seconds from now.
         dismissFsPrompt(false);
+        /* And a bag left open goes back in the corner. The clubs are modelled
+           on the canvas rather than laid out in the DOM, so the fade that
+           takes the rest of the chrome off the demo screen cannot touch them:
+           without this, walking away with the picker up leaves five cards
+           floating over "The caddie is playing". */
+        if (G3.bag && G3.bag.isExpanded()) { G3.bag.setExpanded(false); syncPicker(); }
         demo = { playing: false, wait: 0 };
         document.body.classList.add('demo');
         $('demo').hidden = false;

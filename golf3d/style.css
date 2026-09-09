@@ -356,6 +356,9 @@ button,
     gap: 0.5rem;
     line-height: 1.2;
     pointer-events: none;
+    /* They stand down while the picker is up; see `.stage.picker-open`, far
+       below, for why. The demo's own fade declares its own timing. */
+    transition: opacity 0.2s ease;
 }
 
 /* The shot itself — the meter and the three buttons that play it — and
@@ -2372,8 +2375,15 @@ kbd {
 /* On a phone — and on any window short or narrow enough that the clubhouse
    chrome would eat the course — the canvas takes the viewport and the
    scoreboard folds into the overlay it already has. Everything else stays
-   where it was, one scroll below the fold. */
-@media (max-width: 900px), (pointer: coarse) {
+   where it was, one scroll below the fold.
+
+   Short counts as well as narrow, and it did not used to: a window 480 tall
+   kept the title, the strapline and the six-figure scoreboard, which between
+   them are 200 of those pixels, and what was left for the course was a strip
+   too short to open the club picker into. The three questions this asks are
+   the same three `syncCompact` asks in game.js — edit one and edit the
+   other. */
+@media (max-width: 900px), (max-height: 560px), (pointer: coarse) {
     body { padding: 0; }
 
     .wrap { max-width: none; }
@@ -2528,6 +2538,26 @@ body.picker-open .stage-hud,
 .stage.picker-open .hole-card {
     opacity: 0;
     pointer-events: none;
+}
+
+/* The shot controls go with them, and they are the ones worth the most: the
+   meter and the buttons are the deepest strip of the stage, and on a phone
+   held sideways they were taking a third of the height the clubs are laid out
+   in — which is why the row came out too small to read there. Nothing in the
+   bar is any use while the picker is up either; a club you are still choosing
+   is not one you can swing. A press where they were shuts the picker, which is
+   what a press on the course does anyway.
+
+   The children, not just the bar: `.controls` is `pointer-events: none`
+   already and every control inside it turns them back on, so switching the
+   container off again says nothing about the meter or the Swing button. */
+.stage.picker-open .controls,
+.stage.picker-open .controls * {
+    pointer-events: none;
+}
+
+.stage.picker-open .controls {
+    opacity: 0;
 }
 
 /* Called up on request rather than shown unasked, and in the opposite corner

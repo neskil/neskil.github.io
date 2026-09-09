@@ -397,6 +397,36 @@
                 el.classList.remove('on');
             });
 
+            /* ── the picker takes the stage ──────────────────────────────── */
+
+            /* Opening the bag stands the shot controls down, and the clubs are
+               laid out in the room that frees (`measurePickerBand` in game.js
+               hands the renderer a bottom band of almost nothing while the
+               picker is up). Two halves, and the second is the one that is
+               easy to get wrong: `.controls` is `pointer-events: none` already
+               and every control inside it turns them back on, so switching the
+               container off says nothing about the meter or the Swing button —
+               which would leave a full-width invisible button over the clubs. */
+            section('the picker takes the stage');
+
+            var stage = doc.getElementById('stage');
+            var swing = doc.querySelector('.swing');
+            var meter = doc.getElementById('power-track');
+            stage.classList.add('picker-open');
+            assert('the shot controls are out of sight while the picker is up',
+                win.getComputedStyle(doc.querySelector('.controls')).opacity === '0');
+            ['swing', 'power meter'].forEach(function (name, i) {
+                var el = i ? meter : swing;
+                if (!el) return;
+                assert('the ' + name + ' cannot be pressed through the picker',
+                    win.getComputedStyle(el).pointerEvents === 'none');
+            });
+
+            stage.classList.remove('picker-open');
+            assert('…and both come back when it shuts',
+                win.getComputedStyle(doc.querySelector('.controls')).opacity === '1' &&
+                (!swing || win.getComputedStyle(swing).pointerEvents !== 'none'));
+
             /* ── the panel a phone actually gets ────────────────────────── */
 
             section('nothing in the chrome overflows a phone');

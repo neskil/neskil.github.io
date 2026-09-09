@@ -70,15 +70,19 @@ floor sunk below it, so it can be laid into a lane without a step.
 
 ## 3. The picker is sized by its cards, not its clubs
 
-`fitOpen` measures the block from `HALF_LABEL` and `TAIL_ROW`, both of which are
-the card. On a laptop the row settles at about 1.17 of scale, which puts each
-head at roughly twenty pixels — and the head is the entire thing being chosen
-between. The card is 0.26 wide against a head of about 0.10.
+`fitOpen` measures the block from the card's own `half` and `tail` — so the
+card, not the club, is what the arrangement is fitting, and the head is the
+entire thing being chosen between. v1.38.0 pushed further this way
+on purpose: the figures on a phone were nine pixels tall, and a loft you cannot
+read is not a reading, so the card grew and the grid card spends its width on
+the numbers. The heads did not shrink — the scale is what it was — but the
+ratio is now about 0.29 of card against 0.10 of head.
 
 Worth trying: a **compact card** when the band the row is allowed is short —
 the name and the colour chip only, with the loft and power drawings appearing
 on the club under the pointer. That keeps "five clubs compared at a glance"
-(which is the whole design) while letting the heads take the room back.
+(which is the whole design) while letting the heads take the room back. The two
+card shapes are already there to hang a third off (`CARDS` in `bag.js`).
 
 ## 4. The card says loft and power; the courses are built on carry
 
@@ -178,4 +182,11 @@ Kept short, and only where it explains a constraint above.
 - **The picker dims the course behind the clubs rather than in front of them**
   (v1.32.0), marks the club in hand with a halo and a card of its own, names
   each club's number key on its card, and stands the row three quarters round so
-  the faces are visible. §3 and §4 are what is left.
+  the faces are visible.
+- **The card is the thing you press, and it is legible on a phone** (v1.38.0).
+  `pick` measures the card's own rectangle rather than answering only to the
+  head above it; the cards hang from the shaft at one height instead of from
+  five differently-shaped heads; the arrangement is chosen by measuring every
+  shape the bag could take rather than by halving until something fits; and the
+  shot controls stand down while the picker is up, which is most of the bottom
+  third of a phone held sideways. §3, §4 and §5 are what is left.
