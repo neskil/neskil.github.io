@@ -37,16 +37,23 @@ point at them.
 - Bump `G3.VERSION` (top of `js/config.js`) on every commit that ships a
   user-visible change — patch for fixes, minor for features — and update the
   matching `?v=X.Y.Z` cache-busting string on **every** local `<script>` and
-  `<link>` in **both** `index.html` **and** `level-editor.html`. GitHub Pages
+  `<link>` in **all three** pages that load the modules: `index.html`,
+  `level-editor.html` **and** `turntable.html`. GitHub Pages
   caches hard; a stale query string means phones keep running the old JS after
   a deploy. Skip only for docs/comment-only or pure-refactor commits.
 
-  Both files, and the same string in both. `level-editor.html` sat on `1.15.0`
-  for thirteen releases because this rule named only `index.html`, and the two
-  are separate cache keys for the *same* modules: the editor was serving a
+  All three, and the same string in all three. `level-editor.html` sat on
+  `1.15.0` for thirteen releases because this rule named only `index.html`, and
+  they are separate cache keys for the *same* modules: the editor was serving a
   browser its own months-old copy of `physics.js` while the game next door got
   the current one. An editor whose whole claim is that it runs the game's code
   cannot be running a different build of it.
+
+  Then `turntable.html` did the same thing — six releases, for the same reason,
+  because the rule had been widened once and named two. It is the worse case of
+  the two: a tool whose entire job is to show you what the current build looks
+  like, quietly photographing an old one. If a fourth page ever loads `js/`,
+  it goes in this list on the same commit.
 
 ## Verification
 
@@ -186,6 +193,15 @@ none, because it reads as coverage.
   ground rises across a stone it is the stone's *height* that gives, not its
   base. Lifting it instead opens the same gap on the downhill side, which is a
   boulder hovering over the grass — see `PROUD` in `courses.js`.
+- **The long game's ground falls away; the mini courses' does not.** An open
+  hole gets a `skirt` — a bank read off its own edge, a bearing at a time, that
+  gets from the course down to `theme.surroundY` instead of taking the whole
+  drop in one edge. Two things it depends on: the march starts at the *pads*,
+  never at `hole.bounds` (those are the property line, and the ground runs past
+  the stakes — start there and the march reports the middle of a fairway as the
+  edge of the world), and `addSurround` is handed the plan so its flat apron
+  reaches past the bank. Widening one without the other puts the surround's
+  noise through the hillside. See README → "The skirt".
 - **A hole full of water has to be held up by something.** A water rectangle on
   a course whose surround is not the sea has its surface wherever the hole says,
   which on a quarry hole is most of two units above the quarry floor. Without a

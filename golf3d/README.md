@@ -2884,6 +2884,63 @@ eighty thousand for. The rim is still three hundred units out, because that is
 what the fog needs — past the far end of the thickest weather, so the horizon
 is a fade and never an edge.
 
+#### The skirt, and why only the long game gets one
+
+Everything above is about the country. This is about the join, and it was the
+one place the two never met.
+
+`commons` had already solved the version of this *inside* a hole: the margins
+belong to the rows, so a strip of country leaves the property at exactly the
+height and tilt of the row it continues and there is no step at the stakes —
+see [No fence on the long game](#no-fence-on-the-long-game). What nothing did
+was get from there to `theme.surroundY`, which on the heath is three units
+further down and on a hole that climbs is seven. The whole drop was taken in
+one edge. Every angle except the tee showed it: a green wedge standing on a
+flat plane, with the cut running the width of the picture, and the tee is the
+one seat that cannot see it, which is why it survived eighteen holes and
+several rewrites of everything around it.
+
+So the ground falls away instead, and the shape of the fall is **read off the
+hole rather than named**. A bearing at a time, `skirtPlan` marches in from
+outside the pads until it finds ground: that is where the country ends, and how
+high it is there. A hole that climbs four units has a different edge height on
+every side, and a single number could not have had them all.
+
+Four details are what make it fit rather than merely exist.
+
+- **A hillside's length comes from its height.** Seven units of fall in seven
+  units of ground is a one-in-one bank, which from the hero angle reads as the
+  cliff it replaced. The run is `SKIRT_RUN` times the drop instead — the
+  deepest drop on the hole, so the ring stays a ring rather than pinching in
+  and out — and the flat the surround holds around the course is widened to
+  match, because the noise and the bank both move the same vertices and ground
+  that rolls under a hillside puts a hump through it.
+- **It tucks under.** The inner ring starts `SKIRT_TUCK` *inside* the edge it
+  found and disappears beneath the slab. A radial ring cannot meet a jagged
+  row-end and should not try; the pads are drawn on top of it and hide the join.
+- **It is a curve.** Five rings and a smoothstep, so the ground rolls over at
+  the top and flattens at the bottom the way a hillside does. A straight ramp
+  reads as a ramp.
+- **It finishes a hair proud of the surround**, for the same reason a pond's rim
+  does: two faces at exactly one height flicker against each other.
+
+**The march does not start at `hole.bounds`.** On an open hole those are the
+property line, deliberately — they are what the camera frames, and framing the
+ground instead would show the player a postage stamp in the middle of a county.
+The ground runs on past the stakes by every margin `commons` grew, so a march
+begun at the fence begins *inside* the course: it finds ground on its first
+sample and reports the middle of a fairway as the edge of the world. On The Dell
+that was twenty-eight bearings out of ninety-six. The start is read off the pads,
+which are the ground. It costs 3.4 ms on the worst hole in the file, once, at
+build.
+
+**The drawn holes do not get one, and should not.** A slab in the sea is the
+house style on the mini and crazy courses and reads as a model on a table on
+purpose — see PLAN.md §1, which is about what stands *on* the table rather than
+about hiding its edge. `skirtPlan` returns nothing for them, and a course whose
+ground already lies near the country around it gets nothing either: the links is
+half a unit above its own, and half a unit is not a hillside.
+
 ### The sky
 
 A two-stop gradient, which was fine until you looked up. It is now the one
