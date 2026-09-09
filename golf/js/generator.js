@@ -47,6 +47,19 @@
     var DRAW_ID = 'draw';
     var DRAW_HOLES = 9;
 
+    // Every hazard list a hole carries, which is what a builder's output gets
+    // merged into. courses.js fills in the ones a hand-built hole leaves out;
+    // nothing generated here is allowed to leave one out in the first place.
+    var FAMILIES = ['walls', 'water', 'sand', 'rough', 'ice', 'bumpers', 'slopes'];
+
+    /* How many holes ask to be an elbow. Rather more than end up one: a lane
+       is half a field wide and four of the nine features need more cross axis
+       than that, so about half of what asks for the shape cannot have it and
+       is dealt straight instead. Asking for half a card lands two or three,
+       which is what the shape is worth — it is a change of pace, and nine
+       bends is as samey as nine corridors. */
+    var ELBOW_SHARE = 0.5;
+
     /* ── randomness ─────────────────────────────────────────────────────── */
 
     // The same generator tests.html plays the bot with. Small, fast, and
@@ -111,12 +124,22 @@
        Bands are centred on their along position rather than started at it,
        which is what keeps a feature indifferent to whether the along axis
        runs up or down: reversing the direction reverses `at()` and nothing
-       else. */
-    function makeFrame(horizontal, teeU, cupU) {
+       else.
+
+       A frame also owns a *window* on the cross axis rather than the whole
+       of it. For a straight hole that window is the field, cushion to
+       cushion, and there is nothing to think about. For one lane of an
+       elbow (see below) it is the cushion and the divider — and because
+       every builder writes its cross coordinates against `0` and `f.V`
+       rather than against the field, the same builder works inside a lane
+       without knowing it is in one. */
+    function makeFrame(horizontal, teeU, cupU, v0, v1) {
+        if (v0 === undefined) { v0 = 0; v1 = horizontal ? C.WORLD_H : C.WORLD_W; }
         var f = {
             horizontal: horizontal,
             U: horizontal ? C.WORLD_W : C.WORLD_H,   // the along extent of the field
-            V: horizontal ? C.WORLD_H : C.WORLD_W,   // the cross extent
+            V: v1 - v0,                              // the cross extent of the window
+            V0: v0,                                  // where that window starts
             teeU: teeU,
             cupU: cupU,
             span: Math.abs(cupU - teeU)
@@ -126,12 +149,12 @@
 
         f.rect = function (u, du, v, dv) {
             return horizontal
-                ? { x: u, y: v, w: du, h: dv }
-                : { x: v, y: u, w: dv, h: du };
+                ? { x: u, y: v0 + v, w: du, h: dv }
+                : { x: v0 + v, y: u, w: dv, h: du };
         };
 
         f.point = function (u, v) {
-            return horizontal ? { x: u, y: v } : { x: v, y: u };
+            return horizontal ? { x: u, y: v0 + v } : { x: v0 + v, y: u };
         };
 
         // A slope always pushes along the cross axis: across the line of the
@@ -211,14 +234,25 @@
        The names and phrases live with the feature that earns them, so a hole
        called The Ford has water on it and a hole called Nettles has posts.
        Names assembled out of two word lists read as noise the second time
-       you see one; these read as a course. */
+       you see one; these read as a course.
+
+       `minV` is how much cross axis the builder needs to produce something
+       worth playing. At the full width of the field every one of them fits,
+       so on a straight hole it never says no; it is what a lane of an elbow
+       reads to know that a bar with 470px of travel has nowhere to sweep in
+       a 280px corridor. */
 
     var FEATURES = {
         gate: {
             names: ['The Doorway', 'Threadneedle', 'Keyhole', 'The Gap'],
             phrase: 'a mouth in the wall to thread',
+            minV: 250,
             build: function (rng, f, u, v) {
-                var mouth = between(rng, 150, 210);
+                // A share of the cross axis rather than a flat width. Across
+                // the field these are the numbers they always were; inside a
+                // lane they come down with it, and the two walls either side
+                // stay thick enough to be walls.
+                var mouth = between(rng, Math.min(150, f.V * 0.3), Math.min(210, f.V * 0.42));
                 // Beside the line, not on it: the wall has to be in the way
                 // before the mouth is worth aiming at.
                 var c = clamp(v + (rng() < 0.5 ? -1 : 1) * between(rng, mouth * 0.6, mouth * 0.6 + 120),
@@ -231,6 +265,7 @@
         dogleg: {
             names: ['The Elbow', 'Round the Back', 'The Turn Again', 'Blindside'],
             phrase: 'a blocker to go round, with sand on the inside of the turn',
+            minV: 420,
             build: function (rng, f, u, v) {
                 // The blocker comes from whichever cushion the line is
                 // nearer, and is long enough to cover it with room to spare:
@@ -251,6 +286,7 @@
         moat: {
             names: ['The Ford', 'Deep Water', 'The Crossing', 'One Bridge'],
             phrase: 'water with one bridge over it',
+            minV: 240,
             build: function (rng, f, u, v) {
                 var depth = between(rng, 100, 150);
                 var bridge = between(rng, 110, 150);
@@ -271,6 +307,7 @@
         lattice: {
             names: ['Nettles', 'The Thicket', 'Pincushion', 'The Rookery'],
             phrase: 'staggered posts with no straight line through them',
+            minV: 400,
             build: function (rng, f, u) {
                 var rows = rng() < 0.65 ? 2 : 3;
                 var rowGap = between(rng, 105, 130);
@@ -291,6 +328,7 @@
         bar: {
             names: ['The Wiper', 'Second Hand', 'The Metronome', 'Windscreen'],
             phrase: 'a bar sweeping across that will not wait for you',
+            minV: 480,
             build: function (rng, f, u, v) {
                 var len = between(rng, 170, 230);
                 var amp = between(rng, 90, 150);
@@ -317,6 +355,7 @@
         tilt: {
             names: ['The Cant', 'Sidehill', 'The Camber', 'Off the Level'],
             phrase: 'a bank that sheds everything to one side',
+            minV: 400,
             build: function (rng, f, u) {
                 var len = between(rng, 190, 250);
                 var drain = 150;                       // the rough collar it sheds into
@@ -339,6 +378,7 @@
         rink: {
             names: ['Black Ice', 'The Rink', 'Cold Water', 'Skating'],
             phrase: 'a stretch of ice that gives nothing back',
+            minV: 0,
             build: function (rng, f, u) {
                 var depth = between(rng, 140, 200);
                 return { ice: [f.rect(u - depth / 2, depth, 0, f.V)] };
@@ -348,9 +388,12 @@
         bunker: {
             names: ['The Beach', 'Sandy Lie', 'The Waste', 'Heavy Going'],
             phrase: 'sand sat on the line',
+            minV: 250,
             build: function (rng, f, u, v) {
                 var depth = between(rng, 130, 190);
-                var width = between(rng, 150, 300);
+                // Capped so it still has 40px of grass either side of it in
+                // a lane. Across the field the cap is never the binding one.
+                var width = between(rng, 150, Math.min(300, f.V - 80));
                 // Sand sat on the line, which is what the blurb promises.
                 var c = clamp(v, 40 + width / 2, f.V - 40 - width / 2);
                 return { sand: [f.rect(u - depth / 2, depth, c - width / 2, width)] };
@@ -360,9 +403,10 @@
         pocket: {
             names: ['Two Guards', 'The Gateposts', 'Narrow Minds', 'The Sentries'],
             phrase: 'two posts to be putted between',
+            minV: 280,
             build: function (rng, f, u, v) {
                 var rad = between(rng, 22, 26);
-                var mouth = between(rng, 110, 160);
+                var mouth = between(rng, Math.min(110, f.V * 0.3), Math.min(160, f.V * 0.4));
                 // Straddling the line: the posts are the doorway the direct
                 // route has to come through.
                 var c = clamp(v, 80 + mouth / 2, f.V - 80 - mouth / 2);
@@ -382,6 +426,7 @@
     var TRIMMINGS = {
         collar: {
             phrase: 'rough down both cushions',
+            minV: 400,
             build: function (rng, f, u) {
                 // Kept short on purpose. A 500px stretch of collar is a
                 // footprint nothing else on the hole can be spaced against,
@@ -627,7 +672,7 @@
             walls: [], water: [], sand: [], rough: [], ice: [], bumpers: [], slopes: []
         };
         parts.forEach(function (p) {
-            ['walls', 'water', 'sand', 'rough', 'ice', 'bumpers', 'slopes'].forEach(function (k) {
+            FAMILIES.forEach(function (k) {
                 if (p.part[k]) hole[k] = hole[k].concat(p.part[k]);
             });
         });
@@ -642,6 +687,212 @@
 
         hole.primary = keys.filter(function (k) { return k.set === FEATURES; })[0].key;
         hole.phrases = parts.map(function (p) { return p.entry.set[p.entry.key].phrase; });
+        return hole;
+    }
+
+    /* ── the elbow ──────────────────────────────────────────────────────
+
+       Everything above builds one straight line with bands across it, and
+       nine of those on a card is nine of the same hole wearing different
+       furniture. The shape of a hole is the first thing a player reads off
+       the screen, so this is the second shape: a long wall down the field
+       with one end left open, the tee behind it and the cup round the end of
+       it. There is no straight line from the tee to the cup at all — which
+       is the one thing a band laid across a corridor can never take away,
+       because a band always has a mouth in it.
+
+       It comes two ways. A **bend** puts the cup near the mouth, so the way
+       to it is to carry on down the lane and turn once. A **hairpin** puts
+       it back at the closed end of the far lane, so the route runs the whole
+       length of the field, round, and the whole length back — and for most
+       of the way out, the cup is getting further away, not nearer. Both are
+       dealt; the hairpin is the shape worth having and it is the one that
+       cost something, because the bot in tests.html used to find its way by
+       getting nearer the cup and could not play one at all. That bot is now
+       a breadth-first search over shots rather than a greedy walk, which is
+       the honest fix: it plans like a player looking at the screen, and its
+       stroke — power, spread, overswing — is untouched.
+
+       It is the same machinery underneath. Each leg is a frame of its own,
+       and a frame carries the cross window it lives in, so every builder
+       above works inside a lane without knowing it is in one. What a lane
+       cannot do is fit everything — a bar that needs 470px of travel has
+       nowhere to sweep in a 280px lane — so each feature declares its `minV`
+       and a lane draws only from the ones that fit.
+
+       Two things are checked rather than assumed. The straight line from the
+       tee to the cup has to actually run into the wall, or the shape is a
+       wall with a hole played past it; and no band may come within a band's
+       clearance of the mouth, so the way round stays open by construction,
+       exactly as a band's own mouth does. */
+
+    var ELBOW_NAMES = {
+        bend:    ['The Long Wall', 'Round the Corner', 'Blind Corner',
+                  'The Sidestep', 'Behind the Wall', 'The Detour'],
+        hairpin: ['The Hairpin', 'Switchback', 'Round the Houses',
+                  'The Long Way', 'Elbow Room', 'The Return']
+    };
+    var ELBOW_PHRASE = {
+        bend: 'a wall down the field to get round',
+        hairpin: 'out, round the end of a wall, and all the way back'
+    };
+
+    var DIVIDER_T = 26;      // thick enough to be a wall, per the rule book
+    var CORNER_CLEAR = 40;   // how far short of the mouth a leg stops
+    var LANE_MIN = 265;      // a lane narrower than this is a gutter
+
+    /* Does the straight line from the tee to the cup run into the wall? A
+       walk along it rather than a solved intersection: the step is well under
+       the thickness of what it is looking for, and this runs a few dozen
+       times a draw rather than a few thousand. */
+    function lineHits(a, b, rect) {
+        var steps = 160;
+        for (var i = 0; i <= steps; i++) {
+            var t = i / steps;
+            if (P.pointInRect(a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t, rect)) return true;
+        }
+        return false;
+    }
+
+    function tryElbow(rng, primary, cap) {
+        // Legs across the field twice as often as up it, for the reason a
+        // straight hole is dealt that way: 960px of along axis carries a leg
+        // and 640 barely does. The two are not one hole rotated — the field
+        // is 3:2, so the lanes come out wide and short one way and narrow
+        // and long the other.
+        var horizontal = rng() < 0.62;
+        var U = horizontal ? C.WORLD_W : C.WORLD_H;
+        var V = horizontal ? C.WORLD_H : C.WORLD_W;
+
+        // The wall sits near the middle: both lanes have to be wide enough to
+        // line a putt up in, and a 200px lane is a gutter.
+        var dv = between(rng, V * 0.46, V * 0.54);
+        var laneA = dv, laneB = V - dv - DIVIDER_T;
+        if (Math.min(laneA, laneB) < LANE_MIN) return null;
+
+        /* Which end is open, and by how much. `sign` runs from the closed end
+           towards the mouth, and everything below is written along it, which
+           is what saves a mirrored copy of the whole layout. */
+        var openFar = rng() < 0.5;
+        var sign = openFar ? 1 : -1;
+        var edge = openFar ? 0 : U;
+        // The mouth is the only way through, so it is generous on purpose and
+        // has a floor as well as a share: threading a 140px gap from 300px
+        // away is a trick, not a corner.
+        var gap = between(rng, Math.max(190, U * 0.22), Math.max(215, U * 0.30));
+        var cornerU = edge + sign * (U - gap);
+        var turnU = cornerU - sign * CORNER_CLEAR;
+
+        function closedEnd() { return edge + sign * between(rng, 80, Math.min(155, U * 0.17)); }
+
+        var hairpin = rng() < 0.45;
+        var teeU = closedEnd();
+        var cupU = hairpin
+            ? closedEnd()                                    // back where it started
+            : cornerU - sign * between(rng, -40, U * 0.15);  // round the corner and stop
+
+        var teeV = between(rng, 70, laneA - 70);
+        var cupV = between(rng, 70, laneB - 70);
+
+        var outer = makeFrame(horizontal, 0, U);
+        var divider = outer.rect(openFar ? 0 : cornerU, U - gap, dv, DIVIDER_T);
+
+        /* The leg out, and on a hairpin the leg back. `aim` is the line a band
+           places itself against, the way `v` is on a straight hole: out of the
+           tee towards the mouth, and out of the mouth towards the cup. */
+        var legs = [{
+            f: makeFrame(horizontal, teeU, turnU, 0, laneA),
+            V: laneA, aim: [teeV, laneA / 2]
+        }];
+        if (hairpin) {
+            legs.push({
+                f: makeFrame(horizontal, turnU, cupU, dv + DIVIDER_T, V),
+                V: laneB, aim: [laneB / 2, cupV]
+            });
+        }
+
+        var tee = legs[0].f.point(teeU, teeV);
+        var cup = makeFrame(horizontal, 0, U, dv + DIVIDER_T, V).point(cupU, cupV);
+
+        // The shape has to be the shape. A tee and a cup that can see each
+        // other over the end of the wall is a hole with a wall beside it.
+        if (!lineHits(tee, cup, divider)) return null;
+
+        /* The deck's feature goes in whichever lane will hold it; trimmings
+           fill what is left of the budget, and a leg under 520px only has
+           room for one band once the tee (or the cup) and the mouth have had
+           their clearance. */
+        var primaryLeg = -1;
+        for (var L = 0; L < legs.length; L++) {
+            if (FEATURES[primary].minV <= legs[L].V) { primaryLeg = L; break; }
+        }
+        if (primaryLeg < 0) return null;
+
+        var budget = cap;
+        legs.forEach(function (leg) { leg.entries = []; });
+        legs[primaryLeg].entries.push({ set: FEATURES, key: primary });
+        budget--;
+        legs.forEach(function (leg) {
+            var room = (leg.f.span > 520 ? 2 : 1) - leg.entries.length;
+            var fits = TRIMMING_KEYS.filter(function (k) { return TRIMMINGS[k].minV <= leg.V; });
+            while (room-- > 0 && budget > 0 && fits.length && rng() < 0.55) {
+                leg.entries.push({ set: TRIMMINGS, key: fits[Math.floor(rng() * fits.length)] });
+                budget--;
+            }
+            leg.entries = shuffled(rng, leg.entries);
+        });
+
+        var hole = {
+            tee: tee, hole: cup,
+            walls: [divider], water: [], sand: [], rough: [], ice: [],
+            bumpers: [], slopes: []
+        };
+
+        var used = [];
+        for (L = 0; L < legs.length; L++) {
+            var leg = legs[L];
+            if (!leg.entries.length) continue;
+            var slots = HOLE_SLOTS[leg.entries.length];
+            var lo = Math.min(leg.f.teeU, leg.f.cupU);
+            var hi = Math.max(leg.f.teeU, leg.f.cupU);
+            var spans = [];
+            for (var i = 0; i < leg.entries.length; i++) {
+                var entry = leg.entries[i];
+                var frac = slots[i] + between(rng, -0.03, 0.03);
+                var part = entry.set[entry.key].build(rng, leg.f, leg.f.at(frac),
+                    leg.aim[0] + (leg.aim[1] - leg.aim[0]) * frac);
+                if (!part) return null;
+
+                // The tee or the cup at one end, the mouth of the turn at the
+                // other, and 60px between anything and its neighbour.
+                var span = footprint(leg.f, part);
+                if (span.lo < lo + 80 || span.hi > hi - 80) return null;
+                for (var j = 0; j < spans.length; j++) {
+                    if (span.lo < spans[j].hi + 60 && spans[j].lo < span.hi + 60) return null;
+                }
+                spans.push(span);
+
+                FAMILIES.forEach(function (k) {
+                    if (part[k]) hole[k] = hole[k].concat(part[k]);
+                });
+                used.push(entry);
+            }
+        }
+
+        /* Par starts at three rather than two: the wall is between the tee and
+           the cup, so getting round it is a shot before anything else on the
+           hole has been considered. */
+        var route = Math.abs(turnU - teeU) + Math.abs(cupU - turnU) +
+                    (laneA - teeV) + DIVIDER_T + cupV;
+        var par = 3;
+        if (route > 1000) par++;
+        if (used.some(function (e) { return COSTLY[e.key] && e.set === FEATURES; })) par++;
+        hole.par = Math.max(2, Math.min(5, par));
+
+        hole.primary = primary;
+        hole.names = ELBOW_NAMES[hairpin ? 'hairpin' : 'bend'];
+        hole.phrases = [ELBOW_PHRASE[hairpin ? 'hairpin' : 'bend']].concat(
+            used.map(function (e) { return e.set[e.key].phrase; }));
         return hole;
     }
 
@@ -665,8 +916,11 @@
 
     function capitalise(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
 
-    function nameHole(rng, primary, used) {
-        var pool = FEATURES[primary].names;
+    /* An elbow brings its own names, because the shape of it is the thing
+       worth naming: a hairpin whose primary feature is a bunker is The
+       Hairpin, not Sandy Lie. Everything else is named off its feature, so a
+       hole called The Ford has water on it. */
+    function nameHole(rng, pool, used) {
         var start = Math.floor(rng() * pool.length);
         for (var i = 0; i < pool.length; i++) {
             var name = pool[(start + i) % pool.length];
@@ -692,17 +946,27 @@
        hazard. So the cap comes down instead, and the primary feature, the
        one the deck cares about, is the last thing to go. */
     function makeHole(rng, primary, used) {
+        /* Which shape this hole wants, decided once rather than per attempt:
+           a card that re-rolled the shape every go would come out straight
+           almost always, because a straight hole is the easier thing to fit.
+           Four goes at an elbow and then the straight one — the shape is
+           worth some of the budget and not all of it, and a hole is never
+           dropped for the want of it. */
+        var wantsElbow = rng() < ELBOW_SHARE;
         var hole = null;
         for (var attempt = 0; attempt < 12 && !hole; attempt++) {
             var cap = attempt < 6 ? 3 : attempt < 9 ? 2 : 1;
-            var candidate = tryHole(rng, primary, cap);
+            var candidate = (wantsElbow && attempt < 4)
+                ? tryElbow(rng, primary, cap)
+                : tryHole(rng, primary, cap);
             if (candidate && validateHole(candidate, { strict: true }).length === 0) hole = candidate;
         }
         if (!hole) hole = fallbackHole(rng, primary);
-        hole.name = nameHole(rng, hole.primary, used);
+        hole.name = nameHole(rng, hole.names || FEATURES[hole.primary].names, used);
         hole.blurb = blurbFor(hole);
         delete hole.phrases;
         delete hole.primary;
+        delete hole.names;
         return hole;
     }
 
