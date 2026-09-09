@@ -1391,6 +1391,30 @@ body.compact-ui .stage.view-collapsed .toast { top: 134px; }
     animation: fly-hint-in 0.5s ease both;
 }
 
+/* Painted over the whole stage for half a second at the start of a sweep, so
+   the jump from the tee to a camera high over the green happens behind it. It
+   only ever fades *out* — the end of a sweep is not a cut, the path lands on
+   the seat the game was going to use anyway. */
+.fly-fade {
+    position: absolute;
+    inset: 0;
+    z-index: 5;
+    background: var(--bg-1);
+    opacity: 0;
+    pointer-events: none;
+}
+
+.fly-fade.run { animation: fly-fade-out 0.55s ease-out both; }
+
+@keyframes fly-fade-out {
+    from { opacity: 1; }
+    to   { opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .fly-fade.run { animation-duration: 0.2s; }
+}
+
 @keyframes fly-hint-in {
     from { opacity: 0; transform: translate(-50%, 6px); }
     to   { opacity: 1; transform: translate(-50%, 0); }
@@ -1454,8 +1478,13 @@ body.flying .stage-hud,
     inset: 0;
     z-index: 9;
     display: grid;
-    place-items: center;
-    padding: 1rem;
+    /* Low, and out of the picture. The hole, the ball and the shot all live in
+       the middle of the frame — a card centred on them is a card over the only
+       thing worth watching — so it sits along the bottom, where the meter
+       stands during a round and where nothing stands during a demo. */
+    align-content: end;
+    justify-items: center;
+    padding: 1rem 1rem 7vh;
     text-align: center;
     pointer-events: none;
     background:
@@ -1463,6 +1492,12 @@ body.flying .stage-hud,
         linear-gradient(0deg, rgba(4, 12, 22, 0.5), rgba(4, 12, 22, 0) 42%);
     animation: demo-in 0.6s ease both;
 }
+
+/* `display: grid` above is an author declaration and `[hidden]` is a user-agent
+   one, so the attribute loses and the card stayed on the screen after it had
+   been dismissed — visible, on top, over a round that had already started.
+   Anything that gives a hidden element a display has to say this too. */
+.demo-screen[hidden] { display: none; }
 
 @keyframes demo-in {
     from { opacity: 0; }
@@ -1476,11 +1511,11 @@ body.flying .stage-hud,
    so the course still frames it. */
 .dm-panel {
     display: grid;
-    gap: 0.5rem;
+    gap: 0.34rem;
     justify-items: center;
-    max-width: min(30rem, 100%);
-    padding: 1.15rem 1.7rem 1.3rem;
-    border-radius: 20px;
+    max-width: min(24rem, 100%);
+    padding: 0.8rem 1.3rem 0.9rem;
+    border-radius: 16px;
     background: rgba(6, 18, 30, 0.46);
     border: 1px solid rgba(255, 255, 255, 0.1);
     backdrop-filter: blur(7px);
@@ -1490,7 +1525,7 @@ body.flying .stage-hud,
 
 .dm-eyebrow {
     margin: 0;
-    font-size: 0.6rem;
+    font-size: 0.56rem;
     font-weight: 700;
     letter-spacing: 0.34em;
     text-transform: uppercase;
@@ -1500,7 +1535,7 @@ body.flying .stage-hud,
 .dm-title {
     margin: 0;
     font-family: 'Outfit', system-ui, sans-serif;
-    font-size: clamp(2rem, 7vw, 3.4rem);
+    font-size: clamp(1.5rem, 5vw, 2.2rem);
     font-weight: 800;
     line-height: 1;
     letter-spacing: -0.03em;
@@ -1515,7 +1550,7 @@ body.flying .stage-hud,
    standing on, and it changes as the round walks on. */
 .dm-sub {
     margin: 0;
-    font-size: 0.84rem;
+    font-size: 0.76rem;
     font-weight: 300;
     color: var(--ink-dim);
     text-shadow: 0 1px 12px rgba(2, 8, 16, 0.8);
@@ -1523,16 +1558,16 @@ body.flying .stage-hud,
 
 .dm-start {
     pointer-events: auto;
-    margin-top: 0.5rem;
+    margin-top: 0.35rem;
     font: inherit;
-    font-size: 0.95rem;
+    font-size: 0.86rem;
     font-weight: 700;
     letter-spacing: 0.02em;
     color: #06212f;
     background: var(--accent);
     border: 0;
     border-radius: 999px;
-    padding: 0.6rem 1.6rem;
+    padding: 0.5rem 1.3rem;
     cursor: pointer;
     box-shadow: 0 10px 30px rgba(6, 33, 47, 0.45);
     animation: demo-pulse 2.4s ease-in-out infinite;
@@ -1549,7 +1584,7 @@ body.flying .stage-hud,
 
 .dm-hint {
     margin: 0;
-    font-size: 0.72rem;
+    font-size: 0.68rem;
     color: var(--ink-dim);
     opacity: 0.8;
     letter-spacing: 0.04em;

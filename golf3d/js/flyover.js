@@ -170,10 +170,17 @@
         }
     }
 
-    // Slow away from the green, quick over the middle, and stopped by the time
-    // it reaches the seat — which is the whole hand-off: there is no velocity
-    // left to absorb, so the game's own camera simply carries on from here.
-    function ease(x) { return x * x * (3 - 2 * x); }
+    /* Slow away from the green, quick over the middle, and stopped by the time
+       it reaches the seat — which is the whole hand-off: there is no velocity
+       left to absorb, so the game's own camera simply carries on from here.
+
+       Smootherstep rather than smoothstep, which costs two multiplies and buys
+       the second derivative: smoothstep leaves the camera *accelerating* at
+       both ends, so the sweep starts with a shove and lands with a lurch, and
+       on a phone drawing 30 frames a second those two moments are the whole
+       impression of it. This one leaves and arrives with no acceleration
+       either, and the only price is a slightly faster middle. */
+    function ease(x) { return x * x * x * (x * (x * 6 - 15) + 10); }
 
     /* Where the camera is and what it is looking at, `t` seconds in. Fills and
        returns the scratch it is handed — nothing here allocates, because this
