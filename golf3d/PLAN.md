@@ -125,7 +125,7 @@ picker as usable as the rest of the chrome.
 
 Kept short, and only where it explains a constraint above.
 
-- **Two more courses: Apogee Yard and Redstone Canyon** (v1.44.0). A hundred
+- **Two more courses: Apogee Yard and Redstone Canyon** (v1.45.0). A hundred
   and two holes now, and three findings worth keeping. **A ravine that runs
   *along* a hole cannot cross a row that climbs** — the cut is authored at
   absolute heights and a tilted row carries its level into the next one, so the

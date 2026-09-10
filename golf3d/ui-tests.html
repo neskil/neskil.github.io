@@ -361,6 +361,21 @@
                and it is invisible to a reviewer reading either rule on its
                own. So: light every control that can be lit, in the layout it
                is lit in, and measure. */
+            /* The Autoplay chip is a switch, not a button that does a thing
+               once: it turns the caddie on and leaves it on, hole after hole
+               and course after course. `aria-pressed` is the only part of
+               that a screen reader can hear, and `syncSim` writes to it on
+               every change — so it has to be there in the shipped markup for
+               there to be anything to write to. */
+            section('Autoplay says it is a switch');
+            var autoChip = doc.getElementById('btn-sim');
+            assert('the Autoplay chip is in the bar', !!autoChip);
+            assert('…and starts out saying it is off, not merely unstyled',
+                autoChip.getAttribute('aria-pressed') === 'false' &&
+                !autoChip.classList.contains('on'));
+            assert('…and names what it does, for a pointer that can hover',
+                (autoChip.title || '').length > 12, autoChip.title);
+
             section('a lit control is still readable');
 
             body.className = 'compact-ui';

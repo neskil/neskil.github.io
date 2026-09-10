@@ -97,6 +97,14 @@
     function loadHole(i, again) {
         closeGate();
         saidLocked = false;
+        /* A new hole is a new hole for the caddie too. Whatever it was doing
+           on the last one is over, and a walker has to be told: it reads "the
+           bot was started and `sim` is gone" as "this hole is finished", and
+           a hole arriving under that reading is a hole walked straight past.
+           Every way to a new hole comes through here, which is why it is here
+           and not in the four callers. */
+        if (auto) { auto.playing = false; auto.wait = 0; }
+        if (demo) { demo.playing = false; demo.wait = 0; }
         // The plan drawn under the dot is this hole's; a new one invalidates it.
         toggleMiniMap(false);
         var hole = state.course.holes[i];
@@ -521,9 +529,33 @@
         }
     }
 
+    /* The end of a round, and the one place a record is written.
+
+       **A round the caddie has had the club in is not a round anybody
+       played**, so nothing about it reaches the save file: not the best, not
+       the count of rounds, not the aces. And the stain is the *session* rather
+       than the round, because by the time the card is being written the game
+       has no way to tell whose four of six holes those were — Autoplay can be
+       switched off halfway down a course, and "the caddie played two of these"
+       is not a personal best either way. Erring the other way would mean a
+       record set by the bot, which is the one thing a record must never be.
+
+       The card still opens and still adds up: what you just watched happen is
+       worth reading, it simply is not worth keeping. `autoUsed` is set by the
+       press on the Autoplay chip; the demo never sets it and never reaches
+       this function at all, because `demoNext` ends a demo course and its
+       rounds have always been thrown away. */
     function finishRound() {
-        var res = S.recordRound(state.save, state.course.id, state.scores, state.course.holes);
-        state.save = S.save(res.save);
+        var res;
+        if (autoUsed) {
+            res = {
+                save: state.save, isBest: false, unrecorded: true,
+                totals: S.totals(state.scores, state.course.holes)
+            };
+        } else {
+            res = S.recordRound(state.save, state.course.id, state.scores, state.course.holes);
+            state.save = S.save(res.save);
+        }
         state.phase = 'finished';
         openCard(res);
     }
@@ -583,8 +615,18 @@
        both ask for it back, so nothing is lost by letting it go. */
     var holeCardTimer = 0;
 
-    function showHoleCard() {
+    function showHoleCard(asked) {
         if (!state || !state.world) return;
+        /* On a phone it is not a caption, it is a curtain. The stage is the
+           whole viewport there, and the card — plan and all — takes the middle
+           of it: what the intro flyover then sweeps over is the half of the
+           hole either side of the thing introducing it. So it comes up by
+           itself on the roomy layout only. Nothing on the compact one is
+           without it: the overlay's drawer carries the name, the blurb and the
+           figures, and the map button draws the same plan, live. Asked for by
+           name — a tap on the hole in the scoreboard — it still comes up
+           anywhere. */
+        if (!asked && document.body.classList.contains('compact-ui')) return;
         var hole = state.course.holes[state.holeIndex];
         var b = state.world.ball;
         $('hc-name').textContent = hole.name;
@@ -684,6 +726,10 @@
         var was = document.body.classList.contains('compact-ui');
         document.body.classList.toggle('compact-ui', on);
         if (!on) closeTopMenu();
+        // A card that was up on the roomy layout has no business surviving the
+        // move to the one it is a curtain on — rotating a phone, or going
+        // fullscreen, is exactly when the course wants the room back.
+        if (was !== on && on) hideHoleCard();
         // Compact chrome takes the topbar out of the flow, which hands the
         // canvas the height it was standing in. That is a new size for the
         // renderer, and one nothing else would tell it about: the window has
@@ -757,7 +803,7 @@
         R.buildHole(state.course.holes[state.holeIndex], state.course.theme, state.weather);
         A.ambience(state.weather);
         syncWeather();
-        if ($('hole-card').classList.contains('show')) showHoleCard();
+        if ($('hole-card').classList.contains('show')) showHoleCard(true);
         toast(state.weather.icon + '  ' + state.weather.label);
     }
 
@@ -1584,6 +1630,7 @@
         if (k === 'w' || k === 'W') { cycleWeather(); return; }
         if (k === '?' || k === 'h' || k === 'H') { openHowTo(); return; }
         if (k === 'Escape') {
+            if (auto) { stopAuto('Your club again'); return; }
             if (sim) { stopSim('Your club again'); return; }
             if (G3.bag && G3.bag.isExpanded()) { G3.bag.setExpanded(false); syncPicker(); return; }
             closeHowTo();
@@ -2446,7 +2493,12 @@
         var tot = res ? res.totals : S.totals(state.scores, holes);
         var par = S.coursePar(holes);
         $('card-title').textContent = res ? 'Round complete' : 'Scorecard';
-        $('card-sub').textContent = state.course.name + (res && res.isBest ? ' — a new personal best.' : '');
+        /* Three things the subtitle can be, and the third is the one worth
+           having: a card that says nothing about *not* being kept is a card
+           that has quietly lost somebody a record they thought they set. */
+        $('card-sub').textContent = state.course.name +
+            (res && res.unrecorded ? ' — not recorded: the caddie has had the club this session.'
+             : res && res.isBest ? ' — a new personal best.' : '');
         $('card-body').innerHTML =
             '<table class="card-table"><thead><tr><th></th><th>Hole</th><th>Par</th><th>Score</th></tr></thead>' +
             '<tbody>' + rows + '</tbody>' +
@@ -2504,15 +2556,11 @@
     function syncSim() {
         var btn = $('btn-sim');
         if (!btn) return;
-        btn.classList.toggle('on', !!sim);
-        btn.setAttribute('aria-pressed', sim ? 'true' : 'false');
-        btn.title = sim ? 'Stop the bot (take the club back)'
-                        : 'Let the bot play this hole from here';
-    }
-
-    function toggleSim() {
-        if (sim) { stopSim('Your club again'); return; }
-        startSim();
+        var on = !!(auto || sim);
+        btn.classList.toggle('on', on);
+        btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+        btn.title = auto ? 'Stop Autoplay (take the club back)'
+                         : 'Let the caddie play on — hole after hole, course after course';
     }
 
     function startSim() {
@@ -2529,7 +2577,6 @@
         state.aim.power = 0;
         syncPower();
         syncSim();
-        toast('The caddie has the club — press Simulate or Esc to take it back');
     }
 
     function stopSim(why) {
@@ -2670,21 +2717,147 @@
         if (state.phase !== 'rolling') stopSim('That shot would not go — your club again');
     }
 
+    /* ── a caddie walking a course on its own ────────────────────────────
+
+       Autoplay and the demo are the same machine with two different answers
+       to one question. Both start the bot on a hole and watch for it to stop;
+       both then hold a beat and move along. Only "along" differs — the demo
+       deals itself another random course and throws every score away, and
+       Autoplay walks the player's own round through to its end and on to the
+       next course. That shared middle is `tickWalk`, and it is shared rather
+       than copied because the subtle half is the *stopping* test, which took
+       three goes to get right and would only ever have been fixed on one of
+       the two copies. */
+
+    /* `w` is `{ playing, wait }`. `playing` means "the bot has been started on
+       this hole", which is not the same as `sim` being alive — and the pair of
+       them is the whole trick: a caddie that has stopped for *any* reason
+       (holed out, out of strokes, no shot it can see, a lie it refused) is
+       noticed here without this ever having to ask which. */
+    function tickWalk(w, beat, moveOn) {
+        if (w.wait > 0) {
+            w.wait -= beat;
+            if (w.wait <= 0) moveOn();
+            return;
+        }
+        if (state.phase === 'holed' || state.phase === 'finished' ||
+            (w.playing && !sim)) {
+            w.wait = C.DEMO_HOLD;
+            return;
+        }
+        // The hole introduces itself first. The flyover is the best thing on
+        // the screen and a caddie with nowhere to be can wait it out.
+        if (R.flying()) return;
+        if (!w.playing) {
+            w.playing = true;
+            startSim();
+        }
+    }
+
+    /* ── autoplay ────────────────────────────────────────────────────────
+
+       The chip used to end with the hole: the bot holed out, the club came
+       back, and watching a course played meant pressing it six times. It says
+       "Autoplay", so it plays on — hole after hole, and at the end of a course
+       on to the next one.
+
+       **Which course next is not a new decision.** It is the one the scorecard
+       already offers: with shuffle on, a draw under the player's own mode and
+       the kinds they have left in it; with shuffle off, the next course down
+       the list. Autoplay is the game choosing for you, and it chooses the way
+       the game already offers to.
+
+       **The card never opens.** `finishRound` is a round's own end and it is
+       also a modal, which would stall the caddie mid-think — so the last hole
+       of a course hands straight on to the first of the next, and no card is
+       written. Nothing is lost by that: a round played under Autoplay is not
+       recorded anyway.
+
+       **It costs you the session's records.** Not the round's — the session's.
+       See `finishRound`: once the caddie has had the club, the game has no way
+       to tell whose four of six holes those were, and a personal best is a
+       claim about a player. Reloading the page is a new sitting.
+
+       Three ways out, and no others: the chip, Esc, and the demo taking the
+       screen. Picking a course out of the list is deliberately *not* one of
+       them — that is choosing what the caddie plays, not asking for the club
+       back. */
+
+    var auto = null;       // { playing, wait } while Autoplay is walking
+    /* Whether the caddie has had the club at all this sitting. Deliberately
+       not stored anywhere: it is a claim about this session, and a reload is
+       a new one. */
+    var autoUsed = false;
+
+    function toggleAuto() {
+        if (auto) { stopAuto('Your club again'); return; }
+        startAuto();
+    }
+
+    function startAuto() {
+        if (!G3.bot || !state || !state.world) return;
+        /* Nothing is started here. `tickWalk` starts the bot on the next
+           frame, which is what lets a press during the intro flyover wait the
+           sweep out instead of cutting it short — `startSim` would have
+           skipped it. */
+        auto = { playing: false, wait: 0 };
+        /* The moment the round stops being yours, and it is the *press* rather
+           than the first shot the caddie plays. Somebody who switches this on
+           and straight off again has still asked for it, and the alternative
+           reading — set it in `startSim`, where the club actually changes
+           hands — is both later and wrong in the other direction: the demo
+           goes through `startSim` too, and watching the attract loop for a
+           moment must not cost somebody the rest of their session. */
+        autoUsed = true;
+        syncSim();
+        /* Said once, on the press, rather than on every hole it walks: the one
+           thing about pressing this that a player cannot see coming is what it
+           costs them. */
+        toast('Autoplay — the caddie plays on. No records this session; press again or Esc to stop.');
+    }
+
+    function stopAuto(why) {
+        if (!auto) return;
+        auto = null;
+        stopSim(null);
+        syncSim();
+        if (why) toast(why);
+    }
+
+    /* The next thing to play: a hole if this course has one left, and a whole
+       course if it does not. `newRound` shuts the card and the picker on its
+       way past, so a round that ended while nobody was holding the club does
+       not leave one standing in front of the caddie. */
+    function autoNext() {
+        stopSim(null);
+        if (state.holeIndex < state.course.holes.length - 1) {
+            loadHole(state.holeIndex + 1);
+            return;
+        }
+        var id = shuffleOn ? G3.randomCourseId(shuffleOpts())
+                           : G3.nextCourseId(state.course.id);
+        newRound(id);
+        toast('Autoplay — ' + G3.courseById(id).name);
+    }
+
+    function tickAuto(beat) { tickWalk(auto, beat, autoNext); }
+
     /* ── demo mode ───────────────────────────────────────────────────────
 
        What an arcade cabinet does with nobody standing at it, which is where
        the idea and the shape both come from. The caddie plays a course, the
        title stands over it, and the first thing anybody does starts a game.
 
-       It is the same `js/bot.js` the Simulate chip drives — what you are
-       watching is the game playing itself through the club, the aim and the
-       meter, not a recording — and it gives none of that away: the chip
-       stays hidden until the code is typed or nine holes are played. What
-       differs is whose round it is. Simulate plays *your* ball from where you left it and hands the
-       club back; this owns the round outright, walks the course hole by hole
+       It is the same `js/bot.js` the Autoplay chip drives, walking a course
+       through the same `tickWalk` — what you are watching is the game playing
+       itself through the club, the aim and the meter, not a recording. What
+       differs is whose round it is, and where the walk goes next. Autoplay
+       plays the round *you* are in and hands on to the next course down the
+       list; this owns its rounds outright, deals itself a fresh one at random
        and throws every score away. Nothing that happens with nobody watching
        may reach the card, so `finishRound` is never the thing that ends a demo
-       course — `demoNext` is, and it deals another.
+       course — `demoNext` is, and it deals another. (Autoplay never reaches it
+       either, for the same reason and by the same route.)
 
        Three rules, and all three are about not being in the way:
 
@@ -2697,10 +2870,12 @@
          phase, so the first thing you touch starts a game rather than also
          swinging the camera or taking a club on the way past.
        - **A machine that asked for less motion does not get a demo it never
-         asked for.** prefers-reduced-motion skips it exactly as it skips the
-         flyover, `?demo=0` and `?demo=1` override both for the session,
-         and a `?course=` deep link is somebody who has already chosen — none
-         of those three ever see it. */
+         asked for.** It reads `flyWanted()`, so prefers-reduced-motion skips
+         it exactly as it skips the flyover — and, just as importantly, a
+         player who has pressed the ✈ chip to ask for the sweep *back* gets
+         this back with it. `?demo=0` and `?demo=1` outrank both for the
+         session, and a `?course=` deep link is somebody who has already
+         chosen — none of those ever see it. */
 
     var demo = null;          // { playing, wait } while the demo is running
     var demoOverride = null;  // ?demo=…, which outranks the machine
@@ -2709,7 +2884,17 @@
     function demoWanted() {
         if (!G3.bot) return false;
         if (demoOverride !== null) return demoOverride;
-        return !reducedMotion();
+        /* And then the same three states the flyover has, off the same stored
+           answer — because it is the same question, and the demo is strictly
+           more of it. `reducedMotion()` is a machine's default rather than
+           anybody's decision, and the ✈ chip is where a decision actually
+           gets made: a player who has switched the intro sweep *on* on a
+           reduce-motion machine has said in as many words that the game may
+           move by itself, and until this line there was no way for them to
+           say it about the demo at all — no chip, nothing but `?demo=1` in the
+           address bar. Switching the sweep off says the opposite and is
+           honoured the same way round. */
+        return flyWanted();
     }
 
     /* Every kind of "somebody is there": a key, a press, a wheel, or a mouse
@@ -2815,30 +3000,8 @@
         openHowTo();
     }
 
-    /* One frame of the demo. The bot plays the hole; this decides which hole
-       it is playing and when it has stopped playing it — holed, or out of
-       strokes, or handed a lie it cannot see a shot from, all of which look
-       the same from here and all of which mean the same thing: hold it long
-       enough to see, then move along. */
-    function tickDemo(beat) {
-        if (demo.wait > 0) {
-            demo.wait -= beat;
-            if (demo.wait <= 0) demoNext();
-            return;
-        }
-        if (state.phase === 'holed' || state.phase === 'finished' ||
-            (demo.playing && !sim)) {
-            demo.wait = C.DEMO_HOLD;
-            return;
-        }
-        // The hole introduces itself first. The flyover is the best thing on
-        // this screen and the demo can wait the four seconds out.
-        if (R.flying()) return;
-        if (!demo.playing) {
-            demo.playing = true;
-            startSim();
-        }
-    }
+    // One frame of the demo: the walk, with `demoNext` for "along".
+    function tickDemo(beat) { tickWalk(demo, beat, demoNext); }
 
     /* Nobody has touched anything for a while. Whether that is an empty room
        or somebody reading is the whole question, and it is answered off what
@@ -2890,6 +3053,11 @@
            wall clock for the same reason — it is counting somebody's absence,
            not the game's frames. */
         if (demo) tickDemo(Math.min(0.25, raw));
+        else if (auto) tickAuto(Math.min(0.25, raw));
+        // A caddie playing is not an empty room. `idleReady` would refuse
+        // anyway the moment a stroke is on the card, but between two holes it
+        // would not, and the demo taking a screen somebody is watching play
+        // itself is the one interruption nobody asked for.
         else tickIdle(now);
         if (sim) tickSim(Math.min(0.25, raw));
 
@@ -3064,7 +3232,7 @@
         });
         $('btn-fps').addEventListener('click', toggleFps);
         $('btn-fly').addEventListener('click', toggleFlyover);
-        $('btn-sim').addEventListener('click', toggleSim);
+        $('btn-sim').addEventListener('click', toggleAuto);
         // Belt and braces: a press anywhere has already left the demo by the
         // time this fires, but a keyboard activating the focused button has
         // not — and the button is the one thing on that screen that says what
@@ -3104,7 +3272,10 @@
         $('btn-water').addEventListener('click', toggleWater);
         $('btn-weather').addEventListener('click', cycleWeather);
         $('shud-sky').addEventListener('click', cycleWeather);
-        $('hole-name').addEventListener('click', showHoleCard);
+        // Asked for by name, so it comes up on any layout — the one showing
+        // the card is allowed to be over the course, because the press that
+        // put it there is the press that wanted it.
+        $('hole-name').addEventListener('click', function () { showHoleCard(true); });
         $('hud-toggle').addEventListener('click', function () { toggleHudDetail(); });
         $('btn-menu').addEventListener('click', toggleTopMenu);
         // Anything picked out of the menu is the last thing the menu is for.
