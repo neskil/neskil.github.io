@@ -2892,7 +2892,12 @@ body.compact-ui .viewctl { top: 52px; right: 10px; }
 
 /* The overlay it used to hang under is up in the bar now, so the card comes up
    to the corner the overlay left: still the first thing under the chrome on
-   that side, and still the same width as the drawer that asks for it back. */
+   that side, and still the same width as the drawer that asks for it back.
+
+   Here it only ever appears because somebody asked for it — game.js stops the
+   hole from putting it up on the compact layout at all. Full width and a plan
+   under the blurb is a third of a phone screen, held over the course for the
+   first three and a half seconds of the hole, which is the flyover. */
 body.compact-ui .hole-card { top: 52px; left: 10px; }
 body.compact-ui .picker { padding-top: 52px; }
 

@@ -2330,6 +2330,19 @@ permanently on screen. A phone is 400 points wide and the course is the point.
   room for a third line, the sentence about the hole goes too and the name and
   the numbers stay. Nothing is lost by shrinking it — the name in the scoreboard
   and the overlay's drawer both ask for all of it back.
+
+  **On the compact layout it no longer comes up by itself at all.** There the
+  stage is the whole viewport, and a card that is the width of a phone with a
+  plan under the blurb is a third of that screen — held over the course for the
+  three and a half seconds that are also the intro flyover, which is to say
+  over the one shot of the hole the flyover exists to give you. Shrinking it
+  further would only make an unreadable card out of a blocking one, so what
+  gives is the showing: the drawer carries the name, the blurb and the figures,
+  the map button draws the same plan live, and a tap on the hole's name in the
+  scoreboard still calls the card itself back on any screen. `showHoleCard`
+  takes an `asked` flag for exactly that one distinction — a card the hole put
+  up, and a card you asked for — and `syncCompact` drops one that is already up
+  when the layout flips under it.
 - **The overlay** carries the four figures that move during a shot — hole, par,
   strokes, distance — on one line, and the three that merely describe the hole
   behind a caret: name, blurb, and the sky, which is also the button that
@@ -3339,8 +3352,10 @@ every one of the sixty holes is flown *over* rather than through.
 While it runs, everything that is an answer to a question about the shot steps
 aside — the meter, the dial, the club chip, the bag in the corner, the aiming
 cone, the overview's markers — because during the intro there is no shot yet.
-What is left is the course, the hole card in the top left, which is the caption
-this picture is for, and one line saying how to leave. It also borrows the
+What is left is the course, the hole card in the top left — the caption this
+picture is for, on a screen with room for a caption beside the picture rather
+than across it, which is why a phone does not get one — and one line saying how
+to leave. It also borrows the
 overview's `R.lift` in proportion to how far off the ground it is, so a sweep
 over a misty hole is not a grey rectangle, and eases back down through it on the
 way in rather than popping at the end.
