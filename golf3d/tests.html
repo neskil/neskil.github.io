@@ -701,8 +701,8 @@
 
         section('Course data');
         (function () {
-            assert('fifteen courses', G3.COURSES.length === 15);
-            assert('ninety holes in total', ALL.length === 90);
+            assert('seventeen courses', G3.COURSES.length === 17);
+            assert('a hundred and two holes in total', ALL.length === 102);
             assert('courseById finds a course', G3.courseById('quarry').id === 'quarry');
             assert('courseById falls back to the first', G3.courseById('nope').id === G3.COURSES[0].id);
 
@@ -1674,7 +1674,7 @@
                             });
                     }));
             });
-            assert('there are open holes to check', openHoles === 18, openHoles + ' found');
+            assert('there are open holes to check', openHoles === 24, openHoles + ' found');
 
             var worstLie = 0, worstLieName = '';
             ALL.forEach(function (entry) {
@@ -2152,7 +2152,12 @@
                 var h = entry.hole, tag = entry.course.id + '/' + h.name;
                 if (h.gravity) {
                     shifted++;
-                    if (h.gravity <= 0 || h.gravity > 2) worst = tag + ': gravity out of range';
+                    /* A sanity bound rather than a design rule: it is here to
+                       catch a hole that says 20 when it meant 2, not to have
+                       an opinion about how heavy a heavy hole may be. Apogee
+                       Yard is built out of this number and walks it from 0.3
+                       to 2.4, so the bound has to be wider than the card. */
+                    if (h.gravity <= 0 || h.gravity > 3) worst = tag + ': gravity out of range';
                 }
                 h.walls.forEach(function (wl) {
                     if (wl.swing) {

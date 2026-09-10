@@ -1,6 +1,6 @@
 # Claude Code — Project Context (golf3d)
 
-**Loft Links**: fifteen six-hole courses of 3D golf in four groups — mini,
+**Loft Links**: seventeen six-hole courses of 3D golf in four groups — mini,
 crazy, adventure and the long game — on vendored three.js (r128), ES5-flavoured
 plain JavaScript, no build step. Open `index.html` and it runs.
 
@@ -75,13 +75,13 @@ for a headless driver to read.
 | `shader-tests.html` | The half the above structurally cannot do: compiles every shader for real through the real `render.js`, both water paths, the runtime quality switch, the uniform boundary, one `frame()`, and every theme. | a GL context |
 | `ui-tests.html` | The page rather than the game: index.html's own markup under the real stylesheet, with the scripts stripped out. Sweeps every `var(--x)` in `style.css` for one that is undefined where the rule lands, and lights every chip to check a switched-on control still reads. See README → "The chrome, which neither suite could see either". | nothing |
 
-And one tool that is not a suite. `turntable.html` draws all ninety holes
+And one tool that is not a suite. `turntable.html` draws all hundred and two holes
 from eight fixed angles — tee, plan, four compass bearings, a five-degree graze
 and a hero shot — as one contact sheet per course, with `js/audit.js`'s findings
 printed under each row:
 
 ```sh
-node golf3d/tools/turntable.mjs                        # all fifteen, ~6 min
+node golf3d/tools/turntable.mjs                        # all seventeen, ~7 min
 node golf3d/tools/turntable.mjs quarry --hole 4 --tile 640 --views graze,hero
 ```
 

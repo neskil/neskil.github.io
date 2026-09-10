@@ -3,15 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Loft Links — 3D Mini Golf, Fifteen Courses | Niklas Billgren</title>
-    <meta name="description" content="A 3D golf game in the browser: fifteen six-hole courses in four kinds — mini golf over ramps, ledges and water carries; crazy golf past sliding gates, windmill blades, a waterwheel over the millrace and a bell loft where the machines are geared to each other; adventure golf on ice, travelators, pipes and the steam vents of a volcano; and the long game over parkland, heath and an open links of rolling dunes with no fences at all. Each hole under weather of its own. Drag to aim, pick a club, read the flag for the wind. No install, no account, works on a phone.">
+    <title>Loft Links — 3D Mini Golf, Seventeen Courses | Niklas Billgren</title>
+    <meta name="description" content="A 3D golf game in the browser: seventeen six-hole courses in four kinds — mini golf over ramps, ledges and water carries; crazy golf past sliding gates, windmill blades, a waterwheel over the millrace and a bell loft where the machines are geared to each other; adventure golf on ice, travelators, pipes, the steam vents of a volcano and a moon yard where the ball weighs something different on every hole; and the long game over parkland, heath, an open links of rolling dunes and a canyon country built out of ground that is missing. Each hole under weather of its own. Drag to aim, pick a club, read the flag for the wind. No install, no account, works on a phone.">
     <meta name="theme-color" content="#0b1c2c">
     <meta name="color-scheme" content="dark">
     <meta name="author" content="Niklas Billgren">
     <link rel="canonical" href="https://neskil.github.io/golf3d/">
     <meta property="og:site_name" content="Niklas Billgren">
     <meta property="og:title" content="Loft Links — 3D Mini Golf">
-    <meta property="og:description" content="Fifteen courses of 3D golf in four kinds: mini golf on seaside greens, a quarry of ramps and ledges, a lagoon you have to fly and a hillside you have to climb; crazy golf in a workshop where everything moves, a pinball parlour of bumpers, a clockwork court you have to time, a mill where every machine stands over water and a belfry where they are geared to each other; adventure golf where the floor itself is the obstacle — ice, travelators, pipes, and a volcano whose vents are the only way up it; and the long game over parkland, heath and an open links of rolling dunes marked only by white stakes. Every hole has weather of its own — read the flag for the wind. Drag to aim, pick a club, try to beat par.">
+    <meta property="og:description" content="Seventeen courses of 3D golf in four kinds: mini golf on seaside greens, a quarry of ramps and ledges, a lagoon you have to fly and a hillside you have to climb; crazy golf in a workshop where everything moves, a pinball parlour of bumpers, a clockwork court you have to time, a mill where every machine stands over water and a belfry where they are geared to each other; adventure golf where the floor itself is the obstacle — ice, travelators, pipes, a volcano whose vents are the only way up it, and a moon yard played at six different gravities; and the long game over parkland, heath, an open links of rolling dunes and a canyon you have to carry, skirt or climb out of. Every hole has weather of its own — read the flag for the wind. Drag to aim, pick a club, try to beat par.">
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://neskil.github.io/golf3d/">
     <meta property="og:image" content="https://neskil.github.io/assets/og/golf3d.png">
@@ -32,7 +32,7 @@
 
         gtag('config', 'G-9GP823TGLB');
     </script>
-    <link rel="stylesheet" href="style.css?v=1.44.0">
+    <link rel="stylesheet" href="style.css?v=1.45.0">
 <script type="application/ld+json">
     {
         "@context": "https://schema.org",
@@ -40,7 +40,7 @@
             {
                 "@type": "VideoGame",
                 "url": "https://neskil.github.io/golf3d/",
-                "description": "A 3D golf game in the browser: fifteen six-hole courses in four kinds — mini golf over ramps, ledges and water carries; crazy golf past sliding gates, windmill blades, a waterwheel over the millrace and a bell loft where the machines are geared to each other; adventure golf on ice, travelators, pipes and the steam vents of a volcano; and the long game over parkland, heath and an open links of rolling dunes with no fences at all. Each hole under weather of its own. Drag to aim, pick a club, read the flag for the wind. No install, no account, works on a phone.",
+                "description": "A 3D golf game in the browser: seventeen six-hole courses in four kinds — mini golf over ramps, ledges and water carries; crazy golf past sliding gates, windmill blades, a waterwheel over the millrace and a bell loft where the machines are geared to each other; adventure golf on ice, travelators, pipes, the steam vents of a volcano and a moon yard where the ball weighs something different on every hole; and the long game over parkland, heath, an open links of rolling dunes and a canyon country built out of ground that is missing. Each hole under weather of its own. Drag to aim, pick a club, read the flag for the wind. No install, no account, works on a phone.",
                 "image": "https://neskil.github.io/assets/og/golf3d.png",
                 "name": "Loft Links — 3D Mini Golf",
                 "author": {
@@ -88,7 +88,7 @@
             <a class="home-link" href="../index.html" title="Back to home" aria-label="Back to home">&#8592;</a>
             <div class="brand">
                 <h1 class="title">Loft <span>Links</span></h1>
-                <p class="tagline">Fifteen courses in four kinds. Ninety holes. Not every one lends you the whole bag.</p>
+                <p class="tagline">Seventeen courses in four kinds. A hundred and two holes. Not every one lends you the whole bag.</p>
             </div>
 
             <!-- Six figures on one line is a paragraph; the four that change
@@ -540,13 +540,13 @@
         <div class="modal-inner" role="dialog" aria-modal="true" aria-labelledby="menu-title">
             <h2 id="menu-title">Pick a course</h2>
             <p class="sub">Records are kept per course — tap a plan to start on that hole.</p>
-            <!-- One tab per kind of golf. Fifteen courses shown flat is a list
+            <!-- One tab per kind of golf. Seventeen courses shown flat is a list
                  nobody reads; shown a kind at a time it is three or four. -->
             <div class="menu-tabs" id="menu-tabs" role="tablist"
                  aria-label="Kind of course"></div>
             <p class="menu-tab-blurb" id="menu-tab-blurb"></p>
             <div id="menu-list" class="course-list" role="tabpanel"></div>
-            <!-- Shuffle: the other way through fifteen courses, for when the
+            <!-- Shuffle: the other way through seventeen courses, for when the
                  list has stopped being a choice and started being a menu you
                  scroll past. It is the last tab on the row rather than a block
                  under whichever list is open, so it trades places with
@@ -645,26 +645,26 @@
 
     <!-- Load order is dependency order: config, then the pure logic, then the
          things that touch the screen. game.js boots itself on DOMContentLoaded. -->
-    <script src="js/config.js?v=1.44.0"></script>
-    <script src="js/themes.js?v=1.44.0"></script>
-    <script src="js/physics.js?v=1.44.0"></script>
-    <script src="js/courses.js?v=1.44.0"></script>
-    <script src="js/audit.js?v=1.44.0"></script>
-    <script src="js/custom.js?v=1.44.0"></script>
-    <script src="js/scoring.js?v=1.44.0"></script>
-    <script src="js/swing.js?v=1.44.0"></script>
-    <script src="js/audio.js?v=1.44.0"></script>
-    <script src="js/music.js?v=1.44.0"></script>
-    <script src="js/bag.js?v=1.44.0"></script>
-    <script src="js/textures.js?v=1.44.0"></script>
-    <script src="js/shaders.js?v=1.44.0"></script>
-    <script src="js/postfx.js?v=1.44.0"></script>
-    <script src="js/weather.js?v=1.44.0"></script>
-    <script src="js/flyover.js?v=1.44.0"></script>
-    <script src="js/bot.js?v=1.44.0"></script>
-    <script src="js/render.js?v=1.44.0"></script>
-    <script src="js/minimap.js?v=1.44.0"></script>
-    <script src="js/debug.js?v=1.44.0"></script>
-    <script src="js/game.js?v=1.44.0"></script>
+    <script src="js/config.js?v=1.45.0"></script>
+    <script src="js/themes.js?v=1.45.0"></script>
+    <script src="js/physics.js?v=1.45.0"></script>
+    <script src="js/courses.js?v=1.45.0"></script>
+    <script src="js/audit.js?v=1.45.0"></script>
+    <script src="js/custom.js?v=1.45.0"></script>
+    <script src="js/scoring.js?v=1.45.0"></script>
+    <script src="js/swing.js?v=1.45.0"></script>
+    <script src="js/audio.js?v=1.45.0"></script>
+    <script src="js/music.js?v=1.45.0"></script>
+    <script src="js/bag.js?v=1.45.0"></script>
+    <script src="js/textures.js?v=1.45.0"></script>
+    <script src="js/shaders.js?v=1.45.0"></script>
+    <script src="js/postfx.js?v=1.45.0"></script>
+    <script src="js/weather.js?v=1.45.0"></script>
+    <script src="js/flyover.js?v=1.45.0"></script>
+    <script src="js/bot.js?v=1.45.0"></script>
+    <script src="js/render.js?v=1.45.0"></script>
+    <script src="js/minimap.js?v=1.45.0"></script>
+    <script src="js/debug.js?v=1.45.0"></script>
+    <script src="js/game.js?v=1.45.0"></script>
 </body>
 </html>

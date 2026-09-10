@@ -1,4 +1,4 @@
-/* Fifteen courses of six holes, as data.
+/* Seventeen courses of six holes, as data.
 
    A hole is a set of pads (the ground), a set of walls (things that bounce),
    a set of water rectangles (things that punish), a tee and a cup. Everything
@@ -6,8 +6,8 @@
    look — is derived below, because a hole that has to repeat itself is a hole
    that will one day disagree with itself.
 
-   Four of the fifteen courses are mini golf, five are crazy golf, three are
-   adventure golf and three are the long game — tee, fairway, rough, sand,
+   Four of the seventeen courses are mini golf, five are crazy golf, four are
+   adventure golf and four are the long game — tee, fairway, rough, sand,
    trees, green — authored through `bands` and `tree` rather than a hole at a
    time; see the comment above them. They use the same pads, the same walls
    and the same solver as everything else, which is the point: a parkland hole
@@ -24,7 +24,8 @@
    much they ask for, and so are the five crazy ones, the three adventure ones
    and the three long ones.
 
-   **A hole is not the hole beside it.** Ninety holes on one list is ninety
+   **A hole is not the hole beside it.** A hundred and two holes on one list is a
+   hundred and two
    chances to write the same corridor again, and the way out is the
    plan rather than the furniture: a hole that turns, a hole that goes round
    something, a hole played over a corner, a hole with two ways to the green
@@ -3796,6 +3797,190 @@
         })
     ];
 
+    /* ── adventure golf, the fourth of four: Apogee Yard ───────────────────
+
+       The other three adventure courses change the floor. Icehouse takes the
+       friction out of it, Helter Skelter bolts machinery to it and Cinder Cone
+       tilts the whole thing downhill — and all three leave the ball alone. This
+       one leaves the floor alone and changes what the ball *weighs*.
+
+       `hole.gravity` was written for one hole on Helter Skelter and it is the
+       cheapest hole-shaped idea in the file: nothing about the course changes
+       and everything about playing it does. Carry goes as 1/g and so does
+       apex, so half a g is a bag where every club reaches twice as far and
+       flies twice as high, and two g is a bag where the longest flight in the
+       game is under six units. The angle of repose does not move at all —
+       `HOLD` is a gradient, and a gradient does not care what the ball weighs
+       — so the ground under all six holes is ordinary ground.
+
+       What that does to a hole is worth stating, because it is the whole card:
+
+       - **Light gravity takes distance away as a defence.** A moat nothing
+         could carry at home is a formality at half a g, so the holes that are
+         light are defended by what you have to *stop* on — a small target with
+         a long way down behind it — rather than by how far away it is.
+       - **Heavy gravity gives it back, and takes the air.** At two g nothing
+         in the bag flies six units or rises much above a knee, so a gap in the
+         floor is a wall: the only road is the floor, and the machinery that
+         throws a ball three units up at home barely clears a step.
+
+       So the card alternates — light, heavy, light, heavy — and finishes with
+       the two lightest holes on it, where the ball is in the air for the best
+       part of four seconds and the longest club on the hole is a putter.
+
+       There is no water anywhere on the yard. A ball that leaves the ground
+       here falls past `OOB_Y` and comes back as a stroke, which is the same
+       price a splash costs and the honest one for a course with no sea on it. */
+
+    var apogee = [
+        build({
+            /* The introduction, and it is one number said out loud: half a g.
+               Fourteen units of nothing between the two slabs — more than the
+               iron carries at home and more than the driver does — and at half
+               a g every club in the bag flies it with room to spare.
+
+               Nothing else is on the hole on purpose. The first tee of a
+               course whose whole idea is that the ball weighs less should be a
+               shot the player has already played somewhere else, so that what
+               they notice is the only thing that has changed. */
+            name: 'Hang Time', par: 3, gravity: 0.5,
+            blurb: 'Half a g. The gap is wider than anything in the bag carries at home — hit it anyway.',
+            pads: [
+                pad(0, 0, 8, 9),
+                pad(0, 23, 10, 10)
+            ],
+            gaps: [{ x: -1, z: 8.6, w: 12, d: 14.8 }],
+            tee: { x: 4, z: 2 }, cup: { x: 5, z: 28 }
+        }),
+        build({
+            /* And the other way, which is the half of the idea nobody expects.
+               At two g the longest flight in the bag is the driver's, and it is
+               five and a half units; a wedge rises about as high as the rail
+               beside it. So the eight units of gap here cannot be flown by
+               anything, at any power, and the plank is not the safe route — it
+               is the only one.
+
+               It is off to the east, so the hole is three shots long in the
+               shape of a Z: out to the plank, across it, back to the pin. A
+               heavy ball is the one thing in this game that makes a putt the
+               brave shot. */
+            name: 'Dead Weight', par: 3, gravity: 2,
+            blurb: 'Twice the weight, and nothing in the bag flies six units. The plank is the road.',
+            pads: [
+                pad(0, 0, 7, 8),
+                pad(4.4, 8, 1.8, 8, 0, 'wood'),
+                pad(0, 16, 7, 8)
+            ],
+            gaps: [{ x: -1, z: 7.6, w: 9, d: 8.8 }],
+            tee: { x: 2.2, z: 2 }, cup: { x: 2.4, z: 21 }
+        }),
+        build({
+            /* Light again, and this time the hole is what you have to stop on.
+
+               A ball that arrives on a flat green at half a g arrives with the
+               same speed it would have had at home and then keeps every bit of
+               it for twice as long a bounce, so the green here is a crater: a
+               floor, four ramps and four corners, with the rim doing the job
+               the ground cannot. It is an island, and there is nothing behind
+               it, which is the whole reason the rim is worth having. */
+            name: 'The Crater', par: 3, gravity: 0.45,
+            blurb: 'Nothing stops out here. The rim of the crater is the only thing that will.',
+            pads: [pad(0, 0, 8, 8)].concat(bowl(5, 24, 7.2, 3, 0.55)),
+            gaps: [{ x: -1, z: 7.6, w: 10, d: 1 }],
+            tee: { x: 4, z: 2 }, cup: { x: 5, z: 24 }
+        }),
+        build({
+            /* The heavy hole with a motor in it. Two steps of one point two
+               and no ramp on to either — the same shape Highland's Stairway
+               is, except that there the answer is a club that flies and here
+               there is no such thing. What is left is the floor throwing the
+               ball for you, and it is throwing something twice as heavy: a
+               launch pad rated at thirteen reaches four and three quarter
+               units at home and just under two at the two and two fifths of a
+               g this hole is played at, so a step of one point two is a step
+               it clears with about half a ball's worth of daylight by the time
+               the ball has travelled far enough forward to land on it.
+
+               Nothing has been done to the pads. They are the Helter Skelter
+               pads, at the Helter Skelter ratings, and the whole difference is
+               what is standing on them. */
+            name: 'Deadlift', par: 3, gravity: 2.4,
+            blurb: 'Two steps up, no ramps, and the pads have twice the weight to lift.',
+            pads: [
+                pad(0, 0, 7, 10),
+                sprung(3.5, 8, 1.2, 13),
+                pad(0, 10, 7, 6, 1.2),
+                sprung(3.5, 14, 1.2, 13, 1.2),
+                pad(0, 16, 7, 8, 2.4)
+            ],
+            tee: { x: 3.5, z: 2 }, cup: { x: 3.5, z: 20.5 }
+        }),
+        build({
+            /* The pipe, and the reason it is on this course rather than on
+               Helter Skelter's: a mouth swallows a ball that is on the floor
+               and lets a lofted one sail over the top (`WARP_MOUTH`), and at
+               two fifths of a g almost nothing wants to be on the floor. The
+               bag has one lofted club in it, and the temptation to use it is
+               the hole.
+
+               Twenty-four units of nothing, which is more than the chipper
+               carries even at this weight, so the mouth is the only way off
+               the tee. It comes out on the shelf in the middle facing the pin,
+               and what is left is the second crossing — twelve units, which is
+               exactly what the chipper is in the bag for. Two ways of keeping
+               the ball down, one after the other, and they are not the same
+               shot. */
+            name: 'The Mouth', par: 4, gravity: 0.4,
+            bag: ['putter', 'mallet', 'chipper'],
+            blurb: 'The mouth only takes a ball that is on the floor, and out here almost nothing is.',
+            pads: [
+                pad(0, 0, 9, 10),
+                pad(0, 34, 9, 8),
+                pad(0, 54, 10, 10)
+            ],
+            gaps: [
+                { x: -1, z: 9.6, w: 12, d: 24.8 },
+                { x: -1, z: 41.6, w: 13, d: 12.8 }
+            ],
+            warps: [pipe(6.4, 7.4, 4.5, 37, 0, 0.95)],
+            tee: { x: 2.6, z: 2 }, cup: { x: 5, z: 59 }
+        }),
+        build({
+            /* The finish, and the lightest hole on the card. Three tenths of a
+               g: a launch pad rated at ten and a half throws the ball nine and
+               a half units into the air and holds it there for the best part
+               of four seconds, and everything it does in that time was decided
+               before it left the ground.
+
+               The bag is a putter and a mallet, which is to say nothing that
+               flies, and that is what makes the hole legible. The only thing
+               putting the ball in the air is the floor; the only thing you
+               choose is how fast it is going when it gets there. Two thirds of
+               a putter lands on the front of the shelf and rolls to the pin. A
+               full one is forty units and gone, and the mallet is not a club
+               on this hole at all.
+
+               The band of dust across the back is the only mercy on the yard
+               and it is a grudging one: sand keeps four thousandths of the
+               ball's speed in a second, so anything that reaches it stops
+               where it lands — on the hole, out of position, and a long way
+               from the flag. The shelf is also narrower than the tee and set
+               off to the east of it, so the flight is a line as well as a
+               weight. */
+            name: 'Apogee', par: 3, gravity: 0.3,
+            bag: ['putter', 'mallet'],
+            blurb: 'The pad throws it nine units up and the flight lasts four seconds. Everything is decided before it leaves.',
+            pads: [
+                pad(0, 0, 8, 8),
+                sprung(4, 5.2, 1.4, 10.5),
+                pad(3, 22, 8, 18),
+                pad(3, 40, 8, 6, 0, 'sand')
+            ],
+            gaps: [{ x: -1, z: 7.6, w: 14, d: 14.8 }],
+            tee: { x: 4, z: 2 }, cup: { x: 7.5, z: 36 }
+        })
+    ];
+
     /* ── the long game, the last of three: Dunmore Heath ──────────────────
 
        The long game again, and deliberately not a second Ashdown Park.
@@ -4071,7 +4256,296 @@
         })()
     ];
 
-    /* Fifteen courses is far too long a list to read as one list, and the
+
+    /* ── the long game, the fourth of four: Redstone Canyon ────────────────
+
+       Ashdown Park is a park, Whinstone is a dune field and Dunmore is a moor.
+       All three are made of ground that rises: a crest, a shoulder, a hillside
+       with the green over the top of it. This one is made of ground that is
+       *missing*.
+
+       Dunmore's last hole is the whole idea in one: a gorge two units deep
+       across the fairway, which is not a water hazard and not a bunker but
+       ground you are entitled to play out of and will wish you had not had to.
+       It is the best decision on that card and it happens once. Here it
+       happens six times, and the point of the course is that a canyon is a
+       different question every time depending on where it runs:
+
+       - **across** the hole, and it is a carry with a lay-up beside it;
+       - **along** it, and it is an edge every shot on the hole is played away
+         from;
+       - **down the middle** of it, and it is two routes — a high road round it
+         and a low road through it that is shorter and costs a climb;
+       - **twice**, and the fairway is a chain of islands;
+       - and once with the green on the far lip, where the canyon is not
+         something to get past but the thing you have to stop beside.
+
+       `ravine` writes all of them. It is one helper, `opts.along` turns it a
+       quarter turn, and `opts.bank` is how much of its depth each long side
+       spends climbing out — a number, or `[near, far]`. Past about a unit of
+       depth that is not decoration: nothing in the bag gets a ball out of a
+       lie hard against a two-unit cliff, so a wall the ball can come back up
+       has to be a ramp, and a *near* wall wide enough to play out of is a ramp
+       a drive bounces clean across the canyon off. Which is why every crossing
+       here is sheer on the near side and banked on the far one, and why the
+       one hole you are meant to play *along* the floor of is banked on both.
+
+       The rough is scrub — `rough` like everywhere else, the engine has one
+       word for it — and what stands in it is stone rather than timber. There
+       are no trees on the course at all: `crags` is the whole of its furniture,
+       which is what a canyon rim has on it. */
+
+    var redstone = [
+        (function () {
+            /* The introduction, and it says the one thing the player has to
+               understand before any of the other five make sense: the canyon
+               is not reachable from the tee and it is not avoidable either.
+
+               Nothing in the bag carries twelve units, so the drive cannot fly
+               it — but a full drive *runs* into it, because the fairway in
+               front of it is only fourteen units long and the driver's total
+               is thirty. So the tee shot is the decision: how close to the lip
+               do you want to leave yourself, knowing the second shot has to
+               carry from wherever you stop to the far bank. Stop at the lip
+               and the carry is nine units, which is an iron. Bail out to the
+               front of the fairway and it is fourteen, which is nothing. */
+            var cut = ravine(0, 18, 22, 9.5, 1.8, { bank: [0, 2.6] });
+            var field = ridge(4, 10, 18, 10, 5, 0.36, 3)
+                .concat(massif(27, 15, 11, 2.1, 5))
+                .concat([hill(2.2, 38, 2.8, -0.6), hill(20, 33, 3, 0.45)]);
+            var land = commons(0, [
+                [6,                    [5, rgh], [11, fwy], [6, rgh]],
+                [12,                   [5, rgh], [11, fwy], [6, rgh]],
+                [9.5,                  [22, null]],
+                [{ d: 4, sz: 0.18 },   [5, rgh], [11, fwy], [6, rgh]],
+                [4,                    [5, rgh], [11, fwy], [6, rgh]],
+                [7,                    [6, rgh], [11, grn], [5, rgh]],
+                [3,                    [22, rgh]]
+            ], { e: 14 });
+            return build({
+                name: 'First Cut', par: 4, long: true, shaped: true, open: true,
+                blurb: 'A canyon at the end of the fairway. The drive decides how long the carry is going to be.',
+                pads: shape(land.pads.concat(cut.pads), field),
+                fence: land.fence,
+                extra: [].concat(
+                    crags(2.6, 11, 3, 5, 9101, { s: 1.3, h: 1.0 }),
+                    crags(19.4, 34, 2.8, 4, 9107, { s: 1.2, h: 0.9 }),
+                    crags(19.6, 9, 2.6, 3, 9109, { s: 1.1, h: 0.8 })
+                ),
+                tee: { x: 10, z: 3 }, cup: { x: 11, z: 40 }
+            });
+        })(),
+        (function () {
+            /* The same canyon turned a quarter turn, so it is not something to
+               get over — it is the edge of the hole, running down the whole
+               west side of it, and the fairway leans at it.
+
+               A thirtieth of a unit of cross-fall for every one across is not
+               much to look at and it is the difference between a drive that
+               holds the fairway and one that is in the bottom of the canyon
+               with a two-unit wall between it and the pin. The east wall is
+               banked, so a ball down there is not lost — it is two shots from
+               where it should have been.
+
+               **The rows do not climb on this hole and they do not on The
+               Narrows either, and that is a rule rather than a preference.** A
+               ravine is authored at absolute heights — its lip is zero and its
+               floor is `-depth` — while a row that tilts carries its level
+               into the next one, so a canyon that runs *along* thirty units of
+               climbing ground has its lip at nought where the fairway beside
+               it has reached two and a half. What that builds is not a canyon:
+               it is a trench with a cliff on the inside of it that nothing in
+               the bag can escape. A crossing is immune, because it lives
+               inside one row. The height on a hole with a canyon down the side
+               of it therefore comes from the field and from the depth of the
+               cut, and the cross-fall — which lifts every pad, the canyon's
+               included — is the one tilt that is safe to lay over it. */
+            var cut = ravine(0, 6, 6.5, 38, 2, { along: true, bank: [0, 2.6] });
+            /* No hollow anywhere near the fairway on this one. The massif
+               east of the property is already spending a fifth of what the
+               fairway will hold by the time its skirt reaches the short grass,
+               and a dish laid on top of that is the one arithmetic in this
+               file that is nobody's number until it is measured — the gradients
+               add where their signs agree. The shape of this hole is the cut
+               down the west side of it; it does not need a second idea. */
+            var field = massif(28, 24, 12, 2.2, 5)
+                .concat(ridge(8, 14, 20, 14, 5, 0.3, 3));
+            var land = commons(0, [
+                [6,                     [6.5, null], [11, fwy], [5, rgh]],
+                [10,                    [6.5, null], [11, fwy], [5, rgh]],
+                [10,                    [6.5, null], [11, fwy], [5, rgh]],
+                [6,                     [6.5, null], [12, fwy], [4, rgh]],
+                [4,                     [6.5, null], [12, fwy], [4, rgh]],
+                [8,                     [6.5, null], [10, grn], [5.5, rgh]],
+                [3,                     [22, rgh]]
+            ], { w: 15 });
+            return build({
+                name: 'The Rim', par: 4, long: true, shaped: true, open: true,
+                blurb: 'The canyon runs the length of the hole down the left, and the fairway leans at it.',
+                pads: shape(tilt(land.pads.concat(cut.pads), -0.032, 0, 22, 0), field),
+                fence: land.fence,
+                extra: [].concat(
+                    crags(20, 12, 3, 5, 9211, { s: 1.3, h: 1.0 }),
+                    crags(19.5, 30, 2.8, 4, 9217, { s: 1.2, h: 0.9 }),
+                    crags(2.5, 44, 3, 4, 9219, { s: 1.25, h: 0.95 })
+                ),
+                tee: { x: 13, z: 3 }, cup: { x: 12, z: 41 }
+            });
+        })(),
+        (function () {
+            /* A par three over the canyon, and the green is on the far lip
+               rather than a comfortable distance beyond it. There is no bail
+               out long — the ground behind the green climbs into the massif
+               and feeds anything hot back at the pin — so the shot is a carry
+               of about eleven units that has to stop inside twenty. That is
+               the iron, and it is very nearly the only club that does it. */
+            var cut = ravine(0, 8, 20, 11, 2.1, { bank: [0, 3] });
+            var field = massif(-5, 18, 12, 2.4, 5)
+                .concat(massif(25, 26, 11, 2.2, 5))
+                .concat([hill(10, 32.5, 4, 0.4)]);
+            var land = commons(0, [
+                [8,                    [6, rgh], [8, fwy], [6, rgh]],
+                [11,                   [20, null]],
+                [{ d: 4, sz: 0.2 },    [5, rgh], [10, fwy], [5, rgh]],
+                [7,                    [5, rgh], [10, grn], [5, rgh]],
+                [6,                    [20, rgh]]
+            ], { w: 14, e: 14 });
+            return build({
+                name: 'Stone Bridge', par: 3, long: true, shaped: true, open: true,
+                blurb: 'Eleven units of canyon and a green on the far lip. Short is the bottom; long is the wall.',
+                pads: shape(land.pads.concat(cut.pads), field),
+                fence: land.fence,
+                extra: [].concat(
+                    crags(2.4, 13, 3, 5, 9301, { s: 1.35, h: 1.05 }),
+                    crags(17.6, 13, 2.8, 4, 9307, { s: 1.2, h: 0.9 }),
+                    crags(18, 32, 2.6, 3, 9311, { s: 1.15, h: 0.85 })
+                ),
+                tee: { x: 10, z: 3.5 }, cup: { x: 10, z: 26 }
+            });
+        })(),
+        (function () {
+            /* The canyon takes a bite out of the east half of the hole
+               rather than crossing all of it, so for the first time there is a
+               way round as well as a way over — and the two are not the same
+               hole.
+
+               Round it is seven units of fairway down the west side, no carry
+               at all, and it leaves the approach coming in across the corner
+               to a green set off to the east. Over it is a carry of eight
+               units from the fairway to the far bank, and what it buys is the
+               pin dead ahead. That is the trade the whole hole is: a shot you
+               do not have to play, or a shot at the flag.
+
+               The far bank climbs and the near one does not, which is the rule
+               every crossing on this course is built to — a near wall wide
+               enough to play out of is a ramp a drive skips clean across the
+               canyon off, and a far wall that does not climb is a two-unit
+               cliff between a ball and the rest of the hole. */
+            var cut = ravine(11, 22, 11, 10, 1.8, { bank: [0, 2.6] });
+            var field = massif(-6, 24, 12, 2.3, 5)
+                .concat(ridge(4, 14, 4, 34, 4, 0.3, 3))
+                .concat([hill(5, 44, 3.5, -0.5), hill(19, 12, 3.2, 0.5)]);
+            var land = commons(0, [
+                [10,                   [4, rgh], [12, fwy], [6, rgh]],
+                [12,                   [4, rgh], [12, fwy], [6, rgh]],
+                [10,                   [4, rgh], [7, fwy], [11, null]],
+                [6,                    [4, rgh], [12, fwy], [6, rgh]],
+                [{ d: 5, sz: 0.18 },   [4, rgh], [12, fwy], [6, rgh]],
+                [8,                    [9, rgh], [10, grn], [3, rgh]],
+                [3,                    [22, rgh]]
+            ], { m: 14 });
+            return build({
+                name: 'Long Way Round', par: 4, long: true, shaped: true, open: true,
+                blurb: 'The canyon eats the east half of the fairway. Go round it, or go at the flag.',
+                pads: shape(land.pads.concat(cut.pads), field),
+                fence: land.fence,
+                extra: [].concat(
+                    crags(2.6, 26, 3, 5, 9401, { s: 1.3, h: 1.0 }),
+                    crags(19.4, 38, 3, 5, 9407, { s: 1.25, h: 0.95 }),
+                    crags(2.8, 46, 2.8, 4, 9411, { s: 1.2, h: 0.9 })
+                ),
+                tee: { x: 9, z: 4 }, cup: { x: 15, z: 48 }
+            });
+        })(),
+        (function () {
+            /* The canyon meanders, so it crosses twice and the fairway between
+               the two crossings is an island twelve units long with a wall at
+               each end of it. Landing on it is the hole: short is the first
+               canyon, long is the second, and there is no run-out either way
+               because both far banks climb.
+
+               The island is also the only flat ground on the hole, which is
+               what makes the third shot the easy one and the second the shot
+               nobody wants to play twice. */
+            var one = ravine(0, 14, 22, 8, 1.7, { bank: [0, 2.4] });
+            var two = ravine(0, 34, 22, 8.5, 1.9, { bank: [0, 2.6] });
+            var field = massif(28, 20, 12, 2.2, 5)
+                .concat(massif(-6, 34, 11, 2.0, 5))
+                .concat([hill(20, 45, 3, 0.45), hill(2.5, 26, 2.6, -0.45)]);
+            var land = commons(0, [
+                [6,                    [5, rgh], [12, fwy], [5, rgh]],
+                [8,                    [5, rgh], [12, fwy], [5, rgh]],
+                [8,                    [22, null]],
+                [12,                   [5, rgh], [12, fwy], [5, rgh]],
+                [8.5,                  [22, null]],
+                [{ d: 4, sz: 0.18 },   [5, rgh], [12, fwy], [5, rgh]],
+                [8,                    [6, rgh], [11, grn], [5, rgh]],
+                [3,                    [22, rgh]]
+            ], { w: 14, e: 14 });
+            return build({
+                name: 'Switchback', par: 5, long: true, shaped: true, open: true,
+                blurb: 'It crosses twice, and the fairway between the crossings is twelve units of island.',
+                pads: shape(land.pads.concat(one.pads).concat(two.pads), field),
+                fence: land.fence,
+                extra: [].concat(
+                    crags(2.6, 20, 3, 5, 9501, { s: 1.3, h: 1.0 }),
+                    crags(19.4, 40, 3, 5, 9507, { s: 1.25, h: 0.95 }),
+                    crags(3, 46, 2.6, 3, 9511, { s: 1.15, h: 0.85 })
+                ),
+                tee: { x: 11, z: 3 }, cup: { x: 11, z: 50 }
+            });
+        })(),
+        (function () {
+            /* The finish, and the only hole where the canyon is behind you
+               once it is crossed. Everything after it climbs: four units of it
+               over the last twenty, onto the mesa the green sits on, with the
+               surface out of sight from anywhere below the last rise.
+
+               A par five that is really a par four with a canyon in front of
+               it. The carry is the same eleven units it has been all day and
+               the difference is that this time there are two more shots to
+               play afterwards, uphill, off ground that is tilted the whole
+               way. */
+            var cut = ravine(0, 16, 22, 10, 2, { bank: [0, 2.8] });
+            var field = massif(-6, 40, 13, 2.6, 5)
+                .concat(ridge(5, 44, 17, 44, 5, 0.34, 3))
+                .concat([hill(20.5, 10, 3.2, -0.5)]);
+            var land = commons(0, [
+                [6,                     [5, rgh], [12, fwy], [5, rgh]],
+                [10,                    [5, rgh], [12, fwy], [5, rgh]],
+                [10,                    [22, null]],
+                [{ d: 6, sz: 0.2 },     [5, rgh], [11, fwy], [6, rgh]],
+                [{ d: 8, sz: 0.16 },    [5, rgh], [11, fwy], [6, rgh]],
+                [{ d: 6, sz: 0.14 },    [6, rgh], [10, fwy], [6, rgh]],
+                [8,                     [6, rgh], [11, grn], [5, rgh]],
+                [3,                     [22, rgh]]
+            ], { e: 15 });
+            return build({
+                name: 'Redstone', par: 5, long: true, shaped: true, open: true,
+                blurb: 'Over the canyon, then four units of climb onto the mesa the green is cut into.',
+                pads: shape(land.pads.concat(cut.pads), field),
+                fence: land.fence,
+                extra: [].concat(
+                    crags(2.6, 9, 3, 5, 9601, { s: 1.35, h: 1.05 }),
+                    crags(19.4, 33, 3, 4, 9607, { s: 1.25, h: 0.95 }),
+                    crags(2.8, 44, 2.8, 4, 9611, { s: 1.2, h: 0.9 })
+                ),
+                tee: { x: 11, z: 3 }, cup: { x: 11, z: 52 }
+            });
+        })()
+    ];
+
+    /* Seventeen courses is far too long a list to read as one list, and the
        four kinds of golf on it are not variations of each other — a mini golf hole
        is one swing and a putt, a crazy golf hole is a machine you have to time,
        and a links hole is a drive and an approach. So the group is not a
@@ -4227,6 +4701,14 @@
             holes: cinder
         },
         {
+            id: 'apogee',
+            group: 'adventure',
+            name: 'Apogee Yard',
+            blurb: 'Six holes and six weights of ball. The course never moves; what the ball does in the air is a different game on every one.',
+            theme: 'lunar',
+            holes: apogee
+        },
+        {
             id: 'parkland',
             group: 'long',
             name: 'Ashdown Park',
@@ -4249,6 +4731,14 @@
             blurb: 'Narrow fairways on an open hillside. Miss one and the heather has you; miss it badly and the heath does.',
             theme: 'heath',
             holes: dunmore
+        },
+        {
+            id: 'redstone',
+            group: 'long',
+            name: 'Redstone Canyon',
+            blurb: 'Six holes built round ground that is missing. Carry it, play along it, or go down into it — the canyon asks a different question on every one.',
+            theme: 'canyon',
+            holes: redstone
         }
     ];
 
@@ -4277,7 +4767,7 @@
 
     /* ── shuffle: the course picked for you ──────────────────────────────
 
-       The list is fifteen courses long and most players walk it in the order
+       The list is seventeen courses long and most players walk it in the order
        it is written, which is the order it was *built* in — Seaside Green
        first because it was the first one that existed. Shuffle is the other
        way through it: finish a round and the next course is drawn rather than
@@ -4291,7 +4781,7 @@
        Four modes, because "random" on its own answers the wrong question after
        the first few rounds. Who has just finished Windmill Works wants either
        more of the same or deliberately not-the-same, and who has played eleven
-       of the fifteen wants one of the other four. */
+       of the seventeen wants one of the other four. */
     /* Each mode says three things, and the picker prints all three on the
        option itself rather than hiding any of them in a `title`: a phone has
        no hover, so a tooltip is not a shorter explanation — it is no
@@ -4356,7 +4846,7 @@
        "only these kinds" can both be true at the same time.
 
        **A mode never comes back empty.** "New to you" stops meaning anything
-       the moment you have played all fifteen, and "beat a best" means nothing
+       the moment you have played all seventeen, and "beat a best" means nothing
        before the first round is finished; a picker whose button does nothing
        on press is worse than one that quietly widens its net. So each mode has
        a written-down fallback and says when it took it, and `eased` is what

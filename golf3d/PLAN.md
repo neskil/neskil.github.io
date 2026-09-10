@@ -125,6 +125,20 @@ picker as usable as the rest of the chrome.
 
 Kept short, and only where it explains a constraint above.
 
+- **Two more courses: Apogee Yard and Redstone Canyon** (v1.45.0). A hundred
+  and two holes now, and three findings worth keeping. **A ravine that runs
+  *along* a hole cannot cross a row that climbs** — the cut is authored at
+  absolute heights and a tilted row carries its level into the next one, so the
+  lip ends up units below the fairway beside it and the canyon becomes a trench
+  nothing escapes; height on those holes comes from the field, and a cross-fall
+  is the one tilt safe to lay over a cut, because it lifts the canyon too.
+  **A landform inside a tilted row spends the repose twice** — already written
+  down for the parkland courses and it caught four holes here, one of them a
+  hollow centred on a cup. And **a new theme needs its own weather list or it
+  inherits the seaside's**, which put drizzle on the moon; the turntable, not
+  the suites, is what showed that `golden` and `dust` photograph a lunar yard
+  as a tan desert with a lawn on it.
+
 - **Demo mode, and the caddie out of hiding** (v1.41.0). The page no longer
   opens on the course list: the bot plays a course under a title card until
   somebody touches something, and comes back to it when the list is left alone

@@ -8,7 +8,7 @@
    — the renderer scales to the viewport, the simulation never sees a pixel. */
 window.G3 = window.G3 || {};
 
-G3.VERSION = '1.44.0';
+G3.VERSION = '1.45.0';
 
 G3.CONFIG = {
     BALL_R: 0.16,
@@ -555,7 +555,7 @@ G3.CONFIG = {
        finished hole before drawing the next one.
 
        IDLE is deliberately long. The screen it is allowed to take back is the
-       course list, and fifteen cards with a plan of every hole on them is a
+       course list, and seventeen cards with a plan of every hole on them is a
        page somebody may genuinely be reading — a demo that interrupts that is
        not a demo, it is a page that will not sit still. Anything at all
        resets it: a key, a press, a wheel, or a mouse crossing the window. */
