@@ -32,7 +32,7 @@
 
         gtag('config', 'G-9GP823TGLB');
     </script>
-    <link rel="stylesheet" href="style.css?v=1.43.0">
+    <link rel="stylesheet" href="style.css?v=1.44.0">
 <script type="application/ld+json">
     {
         "@context": "https://schema.org",
@@ -127,10 +127,13 @@
                     <button class="chip" id="btn-card" title="Scorecard">Card</button>
                     <button class="chip" id="btn-map" title="Show the course map" aria-pressed="false">🗺️<span class="chip-text"> Map</span></button>
                     <!-- The caddie, and an ordinary control: it plays the hole
-                         out from wherever your ball is standing, and pressing
-                         it again takes the club back. It sits with the things
-                         you do to a round rather than with the settings. -->
-                    <button class="chip" id="btn-sim" title="Let the bot play this hole from here" aria-pressed="false">🤖<span class="chip-text"> Autoplay</span></button>
+                         out from wherever your ball is standing and then keeps
+                         going — the next hole, and at the end of a course the
+                         next course. Pressing it again, or Esc, takes the club
+                         back. It sits with the things you do to a round rather
+                         than with the settings, and it costs the session's
+                         records: see game.js → finishRound. -->
+                    <button class="chip" id="btn-sim" title="Let the caddie play on — hole after hole, course after course" aria-pressed="false">🤖<span class="chip-text"> Autoplay</span></button>
                     <button class="chip" id="btn-help" title="How to play (H)" aria-label="How to play">?<span class="chip-text"> How to play</span></button>
                     <a class="chip" id="chip-editor" href="level-editor.html" title="Build a hole of your own">&#9998;<span class="chip-text"> Editor</span></a>
                     <button class="chip" id="btn-mute" title="Sound (M)" aria-label="Unmute"><span id="mute-icon">🔇</span><span class="chip-text"> Sound</span></button>
@@ -642,26 +645,26 @@
 
     <!-- Load order is dependency order: config, then the pure logic, then the
          things that touch the screen. game.js boots itself on DOMContentLoaded. -->
-    <script src="js/config.js?v=1.43.0"></script>
-    <script src="js/themes.js?v=1.43.0"></script>
-    <script src="js/physics.js?v=1.43.0"></script>
-    <script src="js/courses.js?v=1.43.0"></script>
-    <script src="js/audit.js?v=1.43.0"></script>
-    <script src="js/custom.js?v=1.43.0"></script>
-    <script src="js/scoring.js?v=1.43.0"></script>
-    <script src="js/swing.js?v=1.43.0"></script>
-    <script src="js/audio.js?v=1.43.0"></script>
-    <script src="js/music.js?v=1.43.0"></script>
-    <script src="js/bag.js?v=1.43.0"></script>
-    <script src="js/textures.js?v=1.43.0"></script>
-    <script src="js/shaders.js?v=1.43.0"></script>
-    <script src="js/postfx.js?v=1.43.0"></script>
-    <script src="js/weather.js?v=1.43.0"></script>
-    <script src="js/flyover.js?v=1.43.0"></script>
-    <script src="js/bot.js?v=1.43.0"></script>
-    <script src="js/render.js?v=1.43.0"></script>
-    <script src="js/minimap.js?v=1.43.0"></script>
-    <script src="js/debug.js?v=1.43.0"></script>
-    <script src="js/game.js?v=1.43.0"></script>
+    <script src="js/config.js?v=1.44.0"></script>
+    <script src="js/themes.js?v=1.44.0"></script>
+    <script src="js/physics.js?v=1.44.0"></script>
+    <script src="js/courses.js?v=1.44.0"></script>
+    <script src="js/audit.js?v=1.44.0"></script>
+    <script src="js/custom.js?v=1.44.0"></script>
+    <script src="js/scoring.js?v=1.44.0"></script>
+    <script src="js/swing.js?v=1.44.0"></script>
+    <script src="js/audio.js?v=1.44.0"></script>
+    <script src="js/music.js?v=1.44.0"></script>
+    <script src="js/bag.js?v=1.44.0"></script>
+    <script src="js/textures.js?v=1.44.0"></script>
+    <script src="js/shaders.js?v=1.44.0"></script>
+    <script src="js/postfx.js?v=1.44.0"></script>
+    <script src="js/weather.js?v=1.44.0"></script>
+    <script src="js/flyover.js?v=1.44.0"></script>
+    <script src="js/bot.js?v=1.44.0"></script>
+    <script src="js/render.js?v=1.44.0"></script>
+    <script src="js/minimap.js?v=1.44.0"></script>
+    <script src="js/debug.js?v=1.44.0"></script>
+    <script src="js/game.js?v=1.44.0"></script>
 </body>
 </html>
