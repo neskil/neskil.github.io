@@ -319,6 +319,20 @@
             to { transform: rotate(360deg); }
         }
 
+        /* The sweep belongs to Dawn, but it was turning under all three palettes:
+           the layer it lives on is `opacity: 0` on Blueprint and Aurora, and an
+           opacity of nothing still leaves a running compositor animation on a
+           2661x2661 conic gradient — 7.1 megapixels turning forever behind a page
+           that never shows it, on two loads out of every three.
+
+           Paused rather than removed, and keyed off the same attribute the layer's
+           opacity is: switching to Dawn from the vault picks the rotation back up
+           where it left off, which for a disc turning once every four minutes is
+           indistinguishable from having run the whole time. */
+        html:not([data-bg="dawn"]) .bg-sweep {
+            animation-play-state: paused;
+        }
+
         /* ── The ruled plane ──
            Always on, over whichever palette is showing — the one piece of the
            background that does not rotate, and the reason a colour change reads as
@@ -1185,12 +1199,27 @@
             z-index: 300;
             opacity: 0;
             pointer-events: none;
-            transition: opacity 0.45s ease;
+            /* `opacity: 0` does not get you out of a backdrop-filter. The element
+               is still painted, so the blur is still computed — over the whole
+               viewport, on both of these, on every frame, for a panel that is
+               shut. Measured on the grid at 1280x900 that was 1.95 of the page's
+               3.42 megapixels of blurred surface: more than half the per-frame
+               blur went on two things nobody could see, and the canvas behind
+               them re-dirtied it constantly.
+
+               `visibility: hidden` is not painted at all, so the blur goes with
+               it. The cross-fade is unchanged: visibility flips to visible at the
+               start of the opening transition and back only after the closing one
+               has run, so opacity still carries both directions. */
+            visibility: hidden;
+            transition: opacity 0.45s ease, visibility 0s linear 0.45s;
         }
 
         #about-backdrop.open {
             opacity: 1;
             pointer-events: all;
+            visibility: visible;
+            transition: opacity 0.45s ease, visibility 0s linear 0s;
         }
 
         /* Opening lifts the card out of the grid (a placeholder holds its cell) and
@@ -2045,12 +2074,17 @@
             z-index: 200;
             opacity: 0;
             pointer-events: none;
-            transition: opacity 0.35s ease;
+            /* Same as #about-backdrop: hidden rather than merely transparent, so a
+               shut vault stops blurring the viewport. See the note there. */
+            visibility: hidden;
+            transition: opacity 0.35s ease, visibility 0s linear 0.35s;
         }
 
         #vault-backdrop.open {
             opacity: 1;
             pointer-events: all;
+            visibility: visible;
+            transition: opacity 0.35s ease, visibility 0s linear 0s;
         }
 
         #vault-panel {
@@ -3487,10 +3521,23 @@
 
         /* Frame budget, dot count and link reach all come off the governor's tier
            (see the head script). A step down buys back the whole chain: fewer dots
-           is fewer links is less canvas painted is fewer card backdrops re-blurred. */
+           is fewer links is less canvas painted is fewer card backdrops re-blurred.
+
+           Desktop `full` used to be 0 — uncapped, i.e. one canvas frame per display
+           refresh. On a 60Hz panel that is what it always was; on the 120Hz and
+           144Hz screens that are now ordinary it was two to two-and-a-half times
+           the work, and the work is not the canvas: every frame drawn here
+           re-dirties the backdrop of the eighteen blurred surfaces above it, so the
+           refresh rate of the monitor was quietly setting how often the whole glass
+           stack got re-filtered.
+
+           75 sits just under a 60Hz cadence (a 13.3ms budget against a 16.7ms
+           frame), so a 60Hz display still draws every frame and loses nothing,
+           while 120Hz halves and 144Hz drops to ~72. Nobody has ever picked a
+           drifting constellation at 75fps out of one at 144. */
         const CANVAS_FRAME_MS_BY_TIER = prefersCheapCanvas
             ? [1000 / 30, 1000 / 24, 1000 / 15]
-            : [0, 1000 / 40, 1000 / 24];
+            : [1000 / 75, 1000 / 40, 1000 / 24];
         const FIELD_SCALE_BY_TIER = [1, 0.6, 0.35];
         /* 0 turns the O(n²) link pass off entirely — the dots stay, the web goes.
            Only `minimal` does that, and it is the emergency tier.
