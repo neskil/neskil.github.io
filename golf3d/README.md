@@ -2515,9 +2515,41 @@ is no frame at all.
 
 🤖 **Autoplay**, in the ☰ menu with the other things you do to a round. Press
 it and `js/bot.js`, the same greedy player that proves in `tests.html` that all
-ninety holes are solvable, takes the club and plays the hole out from wherever
-your ball is standing. Press it again, or <kbd>Esc</kbd>, to take the club
-back.
+ninety holes are solvable, takes the club and plays — from wherever your ball
+is standing, and then **on**: the next hole when this one is holed, and the
+next course when the sixth one is. Press it again, or <kbd>Esc</kbd>, to take
+the club back.
+
+**Which course is next is not a new decision.** It is the one the scorecard
+already offers: with [shuffle](#the-draw) on, a draw under your own mode and
+the kinds you have left in it; with shuffle off, the next course down the list.
+Autoplay is the game choosing for you, and it chooses the way the game already
+offers to. The card never opens on the way past — `finishRound` is a modal, and
+a modal stalls the caddie mid-think — so the last hole of a course hands
+straight on to the first of the next.
+
+**It costs you the session's records.** Not the round's: the session's. Once
+the caddie has had the club, `finishRound` stops writing to the save file
+entirely — no best, no round count, no aces — and the card says so in place of
+"a new personal best". The reason it is the whole sitting rather than the round
+is that by the time a card is being written the game has no way to tell whose
+four of six holes those were: Autoplay can be switched off halfway down a
+course. Erring the other way would mean a record set by the bot, which is the
+one thing a record must never be. Reloading the page is a new sitting. Watching
+[the demo](#demo-mode-the-game-playing-itself) is not the same thing and costs
+you nothing — it never touches the flag, because its rounds were never yours to
+begin with.
+
+Walking a course is `tickWalk`, and it is **shared with the demo** rather than
+copied: both start the bot on a hole and watch for it to stop, both then hold
+`DEMO_HOLD` and move along, and only "along" differs. The subtle half is the
+stopping test — `playing && !sim`, which catches holed out, out of strokes, no
+shot it can see and a lie it refused without ever asking which — and a second
+copy of that is a second copy to get wrong. The other shared piece is in
+`loadHole`: a new hole clears the walker's `playing`, because a walker that
+arrives at a hole still believing the last one is in progress reads "the bot
+was started and `sim` is gone" as "this hole is finished" and walks straight
+past it.
 
 It was hidden behind a word you had to know to type, and then behind that word
 or nine holed-out holes. Both are gone. A control nobody can find is a control
@@ -2577,11 +2609,13 @@ room empties: leave the course list alone for `DEMO_IDLE` seconds and the demo
 comes back.
 
 What is playing is `js/bot.js` — the same greedy player as
-[Autoplay](#the-caddie-autoplay), driving the same club, aim, meter and
-strike a thumb does. Nothing is scripted and nothing is a recording; the sixth
-stroke of a demo hole is chosen from where the fifth actually finished. It
-gives none of the secret away either: the 🤖 chip stays hidden until the code
-is typed or nine holes are played.
+[Autoplay](#the-caddie-autoplay), walking a course through the same `tickWalk`,
+driving the same club, aim, meter and strike a thumb does. Nothing is scripted
+and nothing is a recording; the sixth stroke of a demo hole is chosen from
+where the fifth actually finished. What differs from Autoplay is only whose
+round it is and where the walk goes next: Autoplay plays the round you are in
+and hands on down the list, and this owns its rounds outright, deals itself
+another at random, and throws every score away.
 
 Three rules hold it in place, and all three are about not being in the way.
 
@@ -2599,12 +2633,21 @@ Three rules hold it in place, and all three are about not being in the way.
   starting anything, which is what makes a wait as long as 45 seconds mean
   something: a reader with a hand on the mouse is not an empty room.
 - **A machine that asked for less motion does not get a demo it never asked
-  for.** `prefers-reduced-motion` skips it exactly as it skips the flyover, and
-  so does any `?course=` link, because that is somebody who has already chosen.
+  for.** It reads `flyWanted()`, so `prefers-reduced-motion` skips it exactly
+  as it skips the flyover — and, just as importantly, a player who has pressed
+  the ✈ chip to ask for the sweep *back* gets this back with it. That second
+  half is the newer one and it closes a real hole: `reducedMotion()` is a
+  machine's default rather than anybody's decision, and until the demo read the
+  same three-state answer the flyover has, a player on a reduce-motion machine
+  had no way to turn the demo on at all — no chip, nothing but `?demo=1` typed
+  into the address bar. `?demo=0` and `?demo=1` still outrank both, and so does
+  any `?course=` link, because that is somebody who has already chosen.
 
 Nothing it does reaches the card. `finishRound` is never what ends a demo
-course — `demoNext` is, and it deals another — so no round is recorded, no
-personal best moves, and the holes do not count towards the caddie. The
+course — `demoNext` is, and it deals another — so no round is recorded and no
+personal best moves. Nor does watching it cost you one later: the flag that
+stops Autoplay's rounds being recorded is set by the press on the chip, and
+the demo never presses it. The
 scoreboard above the course still reads live, which is the one thing a cabinet
 does show you: strokes going up on a hole you are not playing.
 
@@ -3737,10 +3780,12 @@ weather, <kbd>H</kbd> the rules, <kbd>M</kbd> sound, <kbd>J</kbd> the music,
 <kbd>O</kbd> the fancy water, <kbd>P</kbd> the frame rate, <kbd>G</kbd> the
 course inspector. Scroll or pinch to zoom. A new hole opens with a
 [flyover](#the-fourth-camera-which-is-not-a-seat) — anything at all skips it,
-and the 🎬 chip turns it off for good. 🤖 **Autoplay** behind ☰ hands the hole to
-[the caddie](#the-caddie-autoplay) and <kbd>Esc</kbd> takes it back. Touch
-nothing at all and you get [demo mode](#demo-mode-the-game-playing-itself)
-instead, which any of the above ends.
+and the 🎬 chip turns it off for good. 🤖 **Autoplay** behind ☰ hands the round
+to [the caddie](#the-caddie-autoplay) — which then plays on, hole after hole
+and course after course, at the cost of the session's records — and
+<kbd>Esc</kbd> takes it back. Touch nothing at all and you get
+[demo mode](#demo-mode-the-game-playing-itself) instead, which any of the above
+ends.
 
 ### Under a thumb
 
