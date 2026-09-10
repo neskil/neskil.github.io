@@ -583,8 +583,18 @@
        both ask for it back, so nothing is lost by letting it go. */
     var holeCardTimer = 0;
 
-    function showHoleCard() {
+    function showHoleCard(asked) {
         if (!state || !state.world) return;
+        /* On a phone it is not a caption, it is a curtain. The stage is the
+           whole viewport there, and the card — plan and all — takes the middle
+           of it: what the intro flyover then sweeps over is the half of the
+           hole either side of the thing introducing it. So it comes up by
+           itself on the roomy layout only. Nothing on the compact one is
+           without it: the overlay's drawer carries the name, the blurb and the
+           figures, and the map button draws the same plan, live. Asked for by
+           name — a tap on the hole in the scoreboard — it still comes up
+           anywhere. */
+        if (!asked && document.body.classList.contains('compact-ui')) return;
         var hole = state.course.holes[state.holeIndex];
         var b = state.world.ball;
         $('hc-name').textContent = hole.name;
@@ -684,6 +694,10 @@
         var was = document.body.classList.contains('compact-ui');
         document.body.classList.toggle('compact-ui', on);
         if (!on) closeTopMenu();
+        // A card that was up on the roomy layout has no business surviving the
+        // move to the one it is a curtain on — rotating a phone, or going
+        // fullscreen, is exactly when the course wants the room back.
+        if (was !== on && on) hideHoleCard();
         // Compact chrome takes the topbar out of the flow, which hands the
         // canvas the height it was standing in. That is a new size for the
         // renderer, and one nothing else would tell it about: the window has
@@ -757,7 +771,7 @@
         R.buildHole(state.course.holes[state.holeIndex], state.course.theme, state.weather);
         A.ambience(state.weather);
         syncWeather();
-        if ($('hole-card').classList.contains('show')) showHoleCard();
+        if ($('hole-card').classList.contains('show')) showHoleCard(true);
         toast(state.weather.icon + '  ' + state.weather.label);
     }
 
@@ -3104,7 +3118,10 @@
         $('btn-water').addEventListener('click', toggleWater);
         $('btn-weather').addEventListener('click', cycleWeather);
         $('shud-sky').addEventListener('click', cycleWeather);
-        $('hole-name').addEventListener('click', showHoleCard);
+        // Asked for by name, so it comes up on any layout — the one showing
+        // the card is allowed to be over the course, because the press that
+        // put it there is the press that wanted it.
+        $('hole-name').addEventListener('click', function () { showHoleCard(true); });
         $('hud-toggle').addEventListener('click', function () { toggleHudDetail(); });
         $('btn-menu').addEventListener('click', toggleTopMenu);
         // Anything picked out of the menu is the last thing the menu is for.
