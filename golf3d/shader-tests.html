@@ -219,6 +219,36 @@
                 firstTrain < 0 ? 'no base train call found' : 'nested ' + trainDepth + ' deep');
         })();
 
+        /* The turf's own level of detail, and the same argument as the sea's:
+           past the distance a blade covers a pixel, a cut-out is a stipple
+           rather than grass (README → "Where the blades give up"). Two things
+           have to hold and neither shows up in a compile.
+
+           It has to sit *outside* `#ifdef ALPHATEST` — the whole point is to
+           lift alpha before the discard decides, and a splice that closed the
+           gaps after it would compile, draw, and change nothing at all. And
+           the colour half has to survive with it: closing the gaps without
+           `shellFar` leaves the top shell's own tint covering the ground,
+           which is a sixth too bright and no test but this one would say so.
+
+           Its two uniforms are handed across from the material's `userData`
+           in render.js's `turfShader`, so a rename on either side is a shader
+           silently reading zero or a throw inside `buildHole`. */
+        (function () {
+            var body = SH.TURF_FS_BODY, head = SH.TURF_FS_HEAD;
+            var lod = body.indexOf('fwidth(');
+            var depth = lod > -1 ? ifdefBalance(body.slice(0, lod)) : -1;
+            assert('the turf LOD is measured before the cut-out is decided',
+                lod > -1 && depth === 0,
+                lod < 0 ? 'no fwidth() found' : 'nested ' + depth + ' deep');
+            assert('the turf LOD closes the gaps and takes the far colour with it',
+                /diffuseColor\.a = mix\(/.test(body) && /shellFar/.test(body));
+            ['mowK', 'shellFar'].forEach(function (n) {
+                assert('the turf declares `' + n + '` and reads it',
+                    declaredUniforms(head).indexOf(n) > -1 && usesName(head + body, n));
+            });
+        })();
+
         section('SKY AND WATER UNIFORMS');
 
         /* The bug this is here for: adding a uniform to the GLSL and forgetting
@@ -424,6 +454,44 @@
                     assert('range ' + i + ' is not left black',
                         !!tint && Array.prototype.some.call(tint.array, function (v) { return v > 0.02; }));
                     assert('range ' + i + ' is out past the fog', !m.material.fog);
+                });
+            })();
+
+            /* The turf stack's JS half, against the materials the build made.
+
+               `fwidth` is core in WebGL 2 and an extension in WebGL 1, and a
+               shader that uses it without declaring the extension does not
+               compile there — silently, the way every GLSL failure in here
+               fails. This machine may well be on a WebGL 2 context, in which
+               case nothing below would ever notice the declaration going
+               missing; asserting it is the only thing standing between that
+               and a phone with a blank course on it. */
+            section('THE TURF STACK');
+            (function () {
+                var sets = R.state.surf && R.state.surf.shells;
+                if (!sets) { skip('the shell materials', 'no surfaces built'); return; }
+                Object.keys(sets).forEach(function (kind) {
+                    var mats = sets[kind];
+                    assert(kind + ' has a stack of shells', mats.length > 1);
+                    assert(kind + "'s shells declare the derivatives extension",
+                        mats.every(function (m) {
+                            return m.extensions && m.extensions.derivatives === true;
+                        }));
+                    assert(kind + "'s shells carry both uniforms across",
+                        mats.every(function (m) {
+                            return typeof m.userData.mowK === 'number' &&
+                                m.userData.shellFar && m.userData.shellFar.isVector3;
+                        }));
+                    /* And the far colour is a correction rather than a repaint:
+                       the layer it multiplies is the one standing in for the
+                       stack, so it is near 1 and never wild. A zero here is a
+                       course that goes black at distance. */
+                    assert(kind + "'s far colour is a nudge, not a repaint",
+                        mats.every(function (m) {
+                            var v = m.userData.shellFar;
+                            return v.x > 0.2 && v.x < 5 && v.y > 0.2 && v.y < 5 &&
+                                v.z > 0.2 && v.z < 5;
+                        }));
                 });
             })();
 

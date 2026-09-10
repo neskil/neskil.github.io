@@ -2974,6 +2974,47 @@ the course's own colour arrives as the material's, so the sheets are built once
 at start-up (about a tenth of a second) and never rebuilt — where the first
 version redrew them on every change of course.
 
+#### Where the blades give up
+
+A cut-out has a distance past which it is a lie, and the stack used to keep
+telling it. Once one pixel covers more ground than one blade, the mip the sheet
+is sampled from has already averaged the air into the blades; the test then
+keeps whichever texels happen to land above it and throws away the rest, so a
+mat of grass comes apart into a stipple — one that crawls as the camera turns,
+and that combs into hard sawtooth wedges on ground falling away from the eye,
+where a pixel covers metres of it. On a parkland hole seen from the demo's seat
+it made a hillside look shredded, and it made two neighbouring pads of the same
+grass read as two different surfaces, because the dissolve is not the same on
+any two of them.
+
+So the splice measures it. `fwidth` of the world position is exactly how much
+ground a pixel covers, and past `TURF_LOD.near` the shell stops cutting out and
+starts closing up: at `far`, four times further on, its alpha is 1 everywhere
+and the layer is the solid mat it was standing in for. The tips close first,
+because the top shells are the ones testing hardest — a distant lie flattens
+rather than thinning, which is what grass does to the eye anyway.
+
+Both numbers are **resolutions, not distances**, which is the point of writing
+it this way: the same hole keeps its blades further down the fairway on a screen
+with the pixels to draw them, and gives them up sooner on a phone, and neither
+has to be told which it is.
+
+The colour needs a second half, though. What covers the ground once the gaps
+have closed is the *top* shell, and the top shell is the lit tip of a stand of
+grass rather than the whole of one — converge on its own colour and a frame
+comes out a sixth brighter than it should be. So each material carries
+`shellFar`, what that layer has to be multiplied by to arrive at the stack's
+far colour, and the shader lerps to it on the same curve. The far colour is the
+one number in here that was **measured rather than chosen**: it is the shade at
+which a collapsed frame matches a supersampled render of the same frame, which
+is what the aliased one had been failing to be all along.
+
+`fwidth` is a derivative — core in WebGL 2, an extension in WebGL 1 — so the
+shell materials declare `extensions.derivatives`. A shader that uses it without
+declaring it does not compile on a WebGL 1 context, and a GLSL compile failure
+here is silent (see "Why `shader-tests.html` watches the console"). The suite
+is worth running with `--disable-webgl2` after anything that touches this.
+
 #### The mower
 
 A golf fairway is striped, and the stripes are not paint: a mower goes up one
