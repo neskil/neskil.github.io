@@ -151,7 +151,28 @@
         parkland: ['clear', 'fair', 'golden', 'overcast', 'mist', 'drizzle'],
         // A links is on a coast and the weather says so: wind, cloud and rain
         // are the normal condition and a still clear day is the treat.
-        links: ['fair', 'overcast', 'drizzle', 'clear', 'rain', 'golden']
+        links: ['fair', 'overcast', 'drizzle', 'clear', 'rain', 'golden'],
+        /* And the one course with no air on it, which is a shorter list than
+           any other course has and is meant to be. Every other kind of weather
+           in the file works by putting something between the camera and the
+           hole — cloud, haze, rain, a sun low enough to tint the sky — and on
+           a course whose whole look is a black sky with stars in it, all of
+           them read as an atmosphere the place does not have. The turntable
+           made that argument better than any reasoning could: under `golden`
+           and `dust` the yard photographs as a tan desert with a green lawn on
+           it and not one thing about it says moon. So: two clear skies, and
+           the difference between them is the light. Without an entry of its
+           own the theme would have fallen back to the seaside's list and
+           rained on the moon. */
+        lunar: ['clear', 'fair'],
+        /* Desert, and nearly the quarry's list — the same country a long way
+           further along. It leaves out the dust, which is the one kind that
+           does not survive being stretched over a fifty-unit hole: a haze
+           that reads as heat over a mini golf slab twenty units away turns the
+           far end of a par five, and the whole of that hole's plan in the
+           picker, into a white rectangle. Fog is a function of distance, and
+           these are the longest holes on the card. */
+        canyon: ['clear', 'golden', 'fair', 'overcast', 'clear', 'golden']
     };
 
     // Skies a course is happy to open on.

@@ -344,6 +344,61 @@
             water: 0x1d5f6b,
             side: '#4b332c'
         },
+        /* Red rock, late in the afternoon. The two desert palettes on the
+           card are a quarry and this, and the thing that keeps them apart is
+           that a quarry is a bite somebody took out of the ground and a canyon
+           is what water did to it over a very long time: warmer, redder, and
+           lit from low down so the walls of the cut have a shadowed side. That
+           matters more here than on any other course, because the hole is the
+           ground that is *missing* — a canyon with no shadow in it reads as a
+           dark rectangle painted on a lawn.
+
+           `side` is the colour of the cut face of a raised pad, which on this
+           course is every wall of every ravine, so it is doing real work
+           rather than trimming an edge. */
+        canyon: {
+            sky: [0x5c7fb4, 0xecd0ac],
+            fog: 0xecd0ac,
+            sun: 0xffd9a2, sunPos: [-14, 9, 8], ambient: 0xc9a582, ambientI: 0.55,
+            grass: ['#7c9c4a', '#6f9042'],
+            rail: 0xb08a63,
+            surroundY: -1.1, surround: 'rock', ground: '#8d4f34',
+            relief: 3.9,
+            ridge: { colour: '#7d3f2b', cap: '#d9955c', peak: 12, rough: 0.52 },
+            water: 0x2f7f9a,
+            side: '#a85c39'
+        },
+        /* The yard where the ball weighs a different amount on every hole, and
+           the palette has one job: to make that look like a reason rather than
+           a rule. So it is the only course with no sky worth speaking of —
+           a black band overhead falling to the dust colour of the ground —
+           with the stars up at full and the clouds turned almost all the way
+           down, because what few there are should read as haze off the
+           regolith rather than as weather.
+
+           The sun is white and low and there is nothing in the air to soften
+           it, which is what gives the shadows their edge; `ambientI` is the
+           lowest on the card for the same reason. The machinery goes cold
+           cyan, as it does on the ice, because the ground here is a warm grey
+           and amber would sink into it. And no birds. */
+        lunar: {
+            sky: [0x05060c, 0x2b2f3c],
+            fog: 0x2b2f3c,
+            sun: 0xfffdf6, sunPos: [-11, 9, 6], ambient: 0x565f7a, ambientI: 0.42,
+            grass: ['#55705f', '#4b6656'],
+            rail: 0xcfd6dd,
+            machine: 0x39c8ff,
+            stars: 1,
+            cloudLum: 0.12,
+            birds: false,
+            surroundY: -2.9, surround: 'rock', ground: '#6b6a63',
+            relief: 3.6,
+            /* Crater walls rather than mountains: broad, low and lit on top by
+               the same white sun that is on the fairway. */
+            ridge: { colour: '#4a4a48', cap: '#b7b3a4', peak: 10, rough: 0.5 },
+            water: 0x2b6f8f,
+            side: '#75705f'
+        },
         works: {
             sky: [0x0d121d, 0x33405e],
             fog: 0x33405e,

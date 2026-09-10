@@ -2403,7 +2403,7 @@
         var last = names.pop();
         var said = names.length ? names.join(', ') + ' and ' + last : last;
         /* Ticked, and still nothing to draw: the one kind left is the one
-           course you are standing on. It cannot happen with fifteen courses
+           course you are standing on. It cannot happen with seventeen courses
            filed three and four to a shelf, and it is one sentence — the
            alternative is a line claiming a draw the button is not making. */
         if (draw.widened) {
