@@ -462,9 +462,23 @@
         '\tvTurf = ( modelMatrix * vec4( transformed, 1.0 ) ).xyz;'
     ].join('\n');
 
+    /* Where the cut-out stops being worth having, in world units of ground
+       per pixel. A blade in the sheets textures.js draws is about a
+       hundredth of a unit across at the rough's tiling and half that at the
+       green's, so the mip has begun averaging the gaps away by LOD_NEAR and
+       has nothing left of them by LOD_FAR, four times further out. Both are
+       resolutions rather than distances, which is the point: the same hole
+       keeps its blades further down the fairway on a screen with the pixels
+       to draw them and gives them up sooner on a phone, without either being
+       told which it is. */
+    var TURF_LOD = { near: 0.014, far: 0.046 };
+
     var TURF_FS_HEAD = [
         'varying vec3 vTurf;',
         'uniform float mowK;',
+        'uniform vec3 shellFar;',
+        'const float LOD_NEAR = ' + TURF_LOD.near.toFixed(4) + ';',
+        'const float LOD_FAR = ' + TURF_LOD.far.toFixed(4) + ';',
         'float turfHash(vec2 p){',
         '  p = fract(p * vec2(127.31, 311.7));',
         '  p += dot(p, p + 34.21);',
@@ -492,6 +506,35 @@
         // paint when the camera comes down to the ground.
         '  diffuseColor.a *= mix(0.96, 1.04, mow);',
         '  diffuseColor.rgb *= mix(0.90, 1.10, mow) * (0.96 + 0.08 * turf);',
+        /* And the stack closes up once it is too far off to be resolved.
+
+           `fwidth` of the world position is how much ground one pixel covers,
+           which is the number the cut-out is actually competing with: once a
+           pixel is wider than a blade, the mip it samples has averaged the
+           gaps into the blades, the test throws away whichever texels came out
+           short of it, and what is left is not grass at a distance — it is a
+           stipple, and one that crawls as the camera turns. On ground falling
+           away from the eye, where a pixel covers metres rather than
+           centimetres, it combs into wedges instead: the sawtooth that made a
+           parkland hillside look shredded from the demo's seat.
+
+           So past that point the shell stops being a cut-out and becomes what
+           it is standing in for: a solid mat of its own colour, which is the
+           average the mip was trying to give us all along. The tips fill in
+           first because the top shells are the ones testing hardest — a
+           distant lie flattens rather than thinning, which is what grass does
+           to the eye anyway. It is the projected tiling that aliases, so the
+           rate is measured in x and z only; the y a slope adds is stretch the
+           top-down UVs never see. */
+        '  float px = max(fwidth(vTurf.x), fwidth(vTurf.z));',
+        '  float solid = smoothstep(LOD_NEAR, LOD_FAR, px);',
+        '  diffuseColor.a = mix(diffuseColor.a, 1.0, solid);',
+        // Closing the gaps is only half of it: what covers the ground out
+        // there is the top shell, and the top shell is the lit tip of a stand
+        // of grass rather than the whole of one. `shellFar` is what takes
+        // whichever layer survives to the colour the stack had — see
+        // render.js's shells().
+        '  diffuseColor.rgb *= mix(vec3(1.0), shellFar, solid);',
         '#ifdef ALPHATEST',
         '  if ( diffuseColor.a < ALPHATEST ) discard;',
         '#endif'

@@ -441,6 +441,8 @@
            which lands the stripe term on its own midpoint and leaves the
            colour alone), and it costs a uniform rather than a shader apiece. */
         shader.uniforms.mowK = { value: this.userData.mowK };
+        // …and the far colour rides on it for the same reason.
+        shader.uniforms.shellFar = { value: this.userData.shellFar };
         shader.vertexShader = SH.TURF_VS_HEAD +
             shader.vertexShader.replace('#include <begin_vertex>', SH.TURF_VS_BODY);
         shader.fragmentShader = SH.TURF_FS_HEAD +
@@ -587,10 +589,29 @@
            a scale no tile has, and the mower's stripes in the light rather
            than only in the lie of the blades. */
         function shells(kind, tex, base, layers, mow) {
-            var out = [], i, f, mat;
+            var out = [], i, f, mat, tint;
             var warm = new THREE.Color('#dff0ae');
+            /* One layer's colour: darker at the roots, and the last of it
+               warming towards the light. */
+            function shade(at) {
+                return new THREE.Color(base)
+                    .multiplyScalar((0.40 + 0.68 * at) * (1 - wet * 0.24))
+                    .lerp(warm, at * at * 0.16 * (1 - wet));
+            }
+            /* And the colour the whole stack comes to from far enough away
+               that the gaps between the blades have closed — which is what
+               the shader's LOD leaves standing when it stops cutting out (see
+               shaders.js → the turf). It is the one number here that was
+               measured rather than chosen: past the LOD the top shell is what
+               is left covering the ground, and a frame that converges on its
+               own colour comes out a sixth brighter than a supersampled render
+               of the same frame, because a stack seen close up is blades *and*
+               the shade between them. This is the height whose shade matches
+               that render. */
+            var mean = shade(0.43);
             for (i = 0; i < layers; i++) {
                 f = (i + 0.3) / layers;
+                tint = shade(f);
                 mat = new THREE.MeshLambertMaterial({
                     map: tex,
                     /* Never quite 0 — a layer that keeps every texel is a
@@ -598,18 +619,30 @@
                        never quite 1, or the top shell is empty on a hole where
                        the turf shader has thinned it. */
                     alphaTest: 0.05 + (layers > 1 ? i / (layers - 1) : 0) * 0.74,
-                    color: new THREE.Color(base)
-                        .multiplyScalar((0.40 + 0.68 * f) * (1 - wet * 0.24))
-                        .lerp(warm, f * f * 0.16 * (1 - wet)),
+                    color: tint,
                     // Opaque with a cut-out, not blended: alphaTest writes
                     // depth, so six layers sort themselves and cost no more
                     // than six opaque draws.
                     transparent: false,
                     side: THREE.FrontSide
                 });
+                /* What that layer has to be multiplied by to arrive at the
+                   stack's far colour, which is the only way a per-layer
+                   material can converge on a colour that is not its own. */
+                mat.userData.shellFar = new THREE.Vector3(
+                    mean.r / Math.max(tint.r, 1e-3),
+                    mean.g / Math.max(tint.g, 1e-3),
+                    mean.b / Math.max(tint.b, 1e-3)
+                );
                 // Zero is a width, not a missing argument: it is the green,
                 // asking for no stripe. Hence the explicit test.
                 mat.userData.mowK = mow === 0 ? 0 : Math.PI / (mow || TX.MOW);
+                /* The splice asks how much ground a pixel covers, which is a
+                   derivative — core in WebGL 2 and an extension in WebGL 1,
+                   where a shader that uses `fwidth` without declaring it does
+                   not compile. Declaring it costs nothing on a context that
+                   already has it. */
+                mat.extensions = { derivatives: true };
                 mat.onBeforeCompile = turfShader;
                 out.push(mat);
             }
