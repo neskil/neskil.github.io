@@ -12,36 +12,7 @@ to be worked out again.
 
 ---
 
-## 1. A drawn hole has nothing around it
-
-A mini golf hole is a slab of green floating in the sea with an entirely empty
-horizon. The long game has trees and rocks and looks like a place; the twenty-four
-mini and crazy holes look like a model on a table, and the first one anybody
-plays is the worst case of it.
-
-**Why it is not just a matter of adding `crag()` calls.** Two assertions in
-`tests.html` close that door, and both are right:
-
-- *"every tree and rock stands on the ground under it"* — `surfaceTop` returns
-  nothing off the pads, so anything placed in the water fails outright.
-- *"nothing grows or stands out of a bunker or a green"* — so it cannot go on
-  the hole either.
-
-Between them, scenery on a drawn hole has nowhere legal to stand, and that is
-the correct answer for `tree` and `crag`, which are **solid** — they are things
-the ball hits. What is missing is the other kind: a **`decor` list** of props
-that the renderer draws and the simulation has never heard of, placed off the
-pads with an explicit `y` (there is no ground under them to be seated on). A
-buoy, a marker post, a rowing boat pulled up on the shallows, a bench, a bin, a
-bucket of range balls. `bag.js` is the precedent — a whole file of things drawn
-but not simulated — and the test above would then say what it means: *solid*
-scenery stands on the ground, decor does not have to.
-
-The long game's version of this — a table with a visible edge — is now the
-skirt (README → "The skirt"). This one is the other half and the harder half:
-there is nothing standing *on* the table.
-
-## 2. Mini golf cannot have a gathering green
+## 1. Mini golf cannot have a gathering green
 
 A punchbowl — a low rim all round the cup, so a ball with the right weight
 gathers and a hot one comes back off the far side — is the most satisfying
@@ -68,7 +39,7 @@ a green blended into a lane does not. What is missing is a **`dish`**: the same
 nine-pad trick, but with the rim at the height of the ground it meets and the
 floor sunk below it, so it can be laid into a lane without a step.
 
-## 3. The picker is sized by its cards, not its clubs
+## 2. The picker is sized by its cards, not its clubs
 
 `fitOpen` measures the block from the card's own `half` and `tail` — so the
 card, not the club, is what the arrangement is fitting, and the head is the
@@ -84,7 +55,7 @@ on the club under the pointer. That keeps "five clubs compared at a glance"
 (which is the whole design) while letting the heads take the room back. The two
 card shapes are already there to hang a third off (`CARDS` in `bag.js`).
 
-## 4. The card says loft and power; the courses are built on carry
+## 3. The card says loft and power; the courses are built on carry
 
 README → "The bag" says it outright: carry and total on flat grass are the
 numbers the holes are designed against, and the two figures on the card are
@@ -95,7 +66,7 @@ And `bite` — the checker's whole reason to exist, the one club that lands and
 stops — has **no representation anywhere on the card**. A club whose entire
 point is invisible in the picker is a club nobody will choose on purpose.
 
-## 5. The clubs are not reachable from the keyboard, only *by* it
+## 4. The clubs are not reachable from the keyboard, only *by* it
 
 The number keys take a club, and that is now on every card. But the open row
 itself has no keyboard model: no focus, no arrow-key walk along it, nothing a
@@ -104,7 +75,7 @@ under the *pointer*, so with no pointer there is nothing to describe. A roving
 tabindex over a list of five buttons, mirrored to `bag.setHover`, would make the
 picker as usable as the rest of the chrome.
 
-## 6. Smaller things
+## 5. Smaller things & feature backlog
 
 - **An ace should say so.** Hole one is now built to be holed in one and the
   banner does not distinguish it from any other birdie.
@@ -117,13 +88,25 @@ picker as usable as the rest of the chrome.
   of the screen on every window anybody uses. Either move them into the band
   that shows or stop building them.
 - **`tests.html` walks greens on a 0.3 grid** and misses peaks between samples
-  (see §2). A finer grid, or sampling at each hump's own steepest radius.
+  (see §1). A finer grid, or sampling at each hump's own steepest radius.
+- **Driving range / free practice mode**: a sandbox tee to test shots with any club.
+- **Pass-and-play local multiplayer**: 2–4 players taking turns with color-coded balls.
+- **1-click level editor sharing**: export custom holes as a compressed URL or snippet.
 
 ---
 
 ## Done recently
 
 Kept short, and only where it explains a constraint above.
+
+- **Visual decor system for course atmosphere** (v1.46.0). Added
+  `decor(kind, x, z, y, opts)` and helper constructors (`buoy`, `piling`,
+  `bench`, `boat`, `bin`) in `courses.js`, rendered via `addDecor` in
+  `render.js`. Solid props (`tree`, `crag`) must stand on legal ground and
+  collide with balls; decor props are purely visual, placed off the pads with
+  an explicit `y` to dress the water and horizon. Initial decor seeded across
+  Seaside Green (Sea Legs, The Bend, The Zigzag, Low Tide, The Horseshoe, The
+  Jetty), and asserted in `tests.html`.
 
 - **Two more courses: Apogee Yard and Redstone Canyon** (v1.45.0). A hundred
   and two holes now, and three findings worth keeping. **A ravine that runs

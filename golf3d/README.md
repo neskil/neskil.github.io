@@ -70,6 +70,7 @@ them.
 | `vendor/three.min.js` | three.js r128, vendored. |
 | `tests.html` | Headless test harness — pure logic, no WebGL. Open it; green is green. |
 | `shader-tests.html` | The other half: compiles every shader for real against a live context. Green is green there too. |
+| `ui-tests.html` | Headless CSS/UI test harness: checks custom property definitions and active control states. |
 | `turntable.html` + `tools/turntable.mjs` | [The turntable](#the-pictures-which-neither-suite-can-see): every hole drawn from eight fixed angles, as one contact sheet per course, with the audit's findings printed under each row. |
 
 The three files above `weather.js` in that list are three of the four different
@@ -3600,7 +3601,7 @@ the four things that can move it says otherwise.
 
 ## Tests
 
-Open `tests.html`. ~2160 assertions covering the surfaces, the collision
+Open `tests.html`. Over 2,460 assertions covering the surfaces, the collision
 geometry, the cup, the integrator, the bag, the ground that does something, the
 walls you go through, all hundred and two holes of course data, the scorecard and the
 intro flyover's path.

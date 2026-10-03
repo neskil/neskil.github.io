@@ -28,7 +28,7 @@ rule governs these docs too.
 ## Before you push
 
 ```
-node tools/run-tests.mjs      # every headless suite (~20s, 8 suites)
+node tools/run-tests.mjs      # every headless suite (~20s, 10 suites)
 node tools/check-site.mjs     # robots/sitemap/meta/JSON-LD/link invariants
 ```
 

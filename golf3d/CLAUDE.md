@@ -71,7 +71,7 @@ for a headless driver to read.
 
 | Page | Covers | Needs |
 | --- | --- | --- |
-| `tests.html` | Physics, pads and surfaces, walls and gates, scoring, course geometry. ~2160 assertions, no three.js and **no WebGL** — that purity is the point, it is what keeps it fast and portable. It can tell you a hole is built wrong and can never tell you a shader is wrong. | nothing |
+| `tests.html` | Physics, pads and surfaces, walls and gates, scoring, course geometry. ~2,460 assertions, no three.js and **no WebGL** — that purity is the point, it is what keeps it fast and portable. It can tell you a hole is built wrong and can never tell you a shader is wrong. | nothing |
 | `shader-tests.html` | The half the above structurally cannot do: compiles every shader for real through the real `render.js`, both water paths, the runtime quality switch, the uniform boundary, one `frame()`, and every theme. | a GL context |
 | `ui-tests.html` | The page rather than the game: index.html's own markup under the real stylesheet, with the scripts stripped out. Sweeps every `var(--x)` in `style.css` for one that is undefined where the rule lands, and lights every chip to check a switched-on control still reads. See README → "The chrome, which neither suite could see either". | nothing |
 

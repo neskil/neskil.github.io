@@ -1,12 +1,12 @@
 # CargoLander — Plan: Hygiene Sweep + Night Ops Levels
 
+> **Status: Shipped (v0.10.0)**. All items in this execution plan landed in July 2026 and are summarized in [HISTORY.md](HISTORY.md). Live backlog lives in [README.md](README.md) → [TODO / Open backlog](README.md#todo--open-backlog). Kept for historical reference.
+
 Execution plan. **Read [CLAUDE.md](CLAUDE.md) first** — its standing
 instructions apply to every item here: `node --check` each modified file, run
 [tests.html](tests.html) to **0 failed**, exercise new mechanics against the
 live `game`/`game.physics` objects, bump `CargoGame.VERSION`, then commit and
-push. One item = one commit. Check steps off (`[x]`) as they land; when done,
-archive a summary into HISTORY.md and delete this file, per project
-convention.
+push. One item = one commit. Check steps off (`[x]`) as they land.
 
 Other ideas surfaced during this review were moved to README.md → "Long-term
 vision" / "Idea parking lot" instead of kept here — this plan is scoped to
