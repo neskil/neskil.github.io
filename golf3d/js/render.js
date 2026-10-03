@@ -185,6 +185,7 @@
         }));
         R.pathCone.renderOrder = 6;
         R.pathCone.frustumCulled = false;
+        R.pathCone.visible = false;
         R.aimGroup.add(R.pathCone);
 
         /* A hairline down the middle of the cone, on the same samples and in
@@ -204,6 +205,7 @@
         }));
         R.pathLine.renderOrder = 6;
         R.pathLine.frustumCulled = false;
+        R.pathLine.visible = false;
         R.aimGroup.add(R.pathLine);
         // Its own edges, so filling it cannot disturb the cone's.
         R.lineL = []; R.lineR = [];
@@ -220,6 +222,7 @@
         }));
         R.pathHead.renderOrder = 7;
         R.pathHead.frustumCulled = false;
+        R.pathHead.visible = false;
         R.aimGroup.add(R.pathHead);
 
         R.scene.add(R.aimGroup);
@@ -3233,8 +3236,8 @@
            previewPath hands back nothing. Park the cone and the arrowhead
            rather than reading the last point of an empty path — which is what
            a freshly loaded hole does until the player winds a swing on. The
-           wedge is drawn by updateAim whatever this decides, because the shot
-           line is worth showing before there is a shot. */
+           wedge is drawn only when there is no shot, so the shot preview never
+           carries a duplicate arrow. */
         R.pathCone.visible = R.pathLine.visible = pts.length > 1;
         R.pathHead.visible = pts.length > 1;
         if (pts.length < 2) return;
@@ -3408,22 +3411,6 @@
         var halfW = 0.11 + frac * 0.05;
         var y = b.y - C.BALL_R + 0.02;
 
-        // Wedge: a shaft and a head, six vertices, written straight into the
-        // buffer so nothing is allocated per frame.
-        var px = -dirZ, pz = dirX;   // perpendicular
-        var a = R.arrow.geometry.attributes.position.array;
-        function put(i, sx, sz) {
-            a[i * 3] = b.x + dirX * sx + px * sz;
-            a[i * 3 + 1] = y;
-            a[i * 3 + 2] = b.z + dirZ * sx + pz * sz;
-        }
-        var shaft = len * 0.72;
-        put(0, 0.22, -halfW); put(1, 0.22, halfW); put(2, shaft, halfW);
-        put(3, 0.22, -halfW); put(4, shaft, halfW); put(5, shaft, -halfW);
-        put(6, shaft, -halfW * 2.4); put(7, shaft, halfW * 2.4); put(8, len, 0);
-        R.arrow.geometry.attributes.position.needsUpdate = true;
-        R.arrow.geometry.computeBoundingSphere();
-
         /* Green through amber to red as the swing fills, hard red once it is
            into the last of it, and brighter still once the meter is past a
            full swing — aim.over is 0 up to the club's ceiling and 1 at the end
@@ -3437,6 +3424,29 @@
         // The path is the expensive half of this function, and most frames
         // do not need it recomputed — see updatePath.
         if (pathStale(world, aim)) updatePath(world, aim, frac);
+
+        // The ground arrow only shows the aim line before a shot is loaded;
+        // once the preview cone and arrowhead are active, hide it so the two
+        // arrowheads never overlap.
+        R.arrow.visible = !R.pathCone.visible;
+
+        if (R.arrow.visible) {
+            // Wedge: a shaft and a head, six vertices, written straight into the
+            // buffer so nothing is allocated per frame.
+            var px = -dirZ, pz = dirX;   // perpendicular
+            var a = R.arrow.geometry.attributes.position.array;
+            function put(i, sx, sz) {
+                a[i * 3] = b.x + dirX * sx + px * sz;
+                a[i * 3 + 1] = y;
+                a[i * 3 + 2] = b.z + dirZ * sx + pz * sz;
+            }
+            var shaft = len * 0.72;
+            put(0, 0.22, -halfW); put(1, 0.22, halfW); put(2, shaft, halfW);
+            put(3, 0.22, -halfW); put(4, shaft, halfW); put(5, shaft, -halfW);
+            put(6, shaft, -halfW * 2.4); put(7, shaft, halfW * 2.4); put(8, len, 0);
+            R.arrow.geometry.attributes.position.needsUpdate = true;
+            R.arrow.geometry.computeBoundingSphere();
+        }
     }
 
     /* Camera. The player never flies it directly — there are three seats and V
