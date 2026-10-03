@@ -721,6 +721,7 @@
     function piling(x, z, y, opts) { return decor('piling', x, z, y, opts); }
     function bench(x, z, y, opts) { return decor('bench', x, z, y, opts); }
     function boat(x, z, y, opts) { return decor('boat', x, z, y, opts); }
+    function sailboat(x, z, y, opts) { return decor('sailboat', x, z, y, opts); }
     function bin(x, z, y, opts) { return decor('bin', x, z, y, opts); }
 
     /* ── the open country ───────────────────────────────────────────────
@@ -1717,7 +1718,7 @@
             ],
             tee: { x: 2.25, z: 1.5 }, cup: { x: 10.8, z: 2.4 },
             decor: [
-                boat(6.5, 3.5, 0, { yaw: Math.PI / 2 }),
+                sailboat(6.5, 3.5, 0, { yaw: 0.5 }),
                 piling(6.5, 6.5, 0),
                 buoy(6.5, 1.0, 0)
             ]
@@ -5061,6 +5062,7 @@
         shapeDisc: shapeDisc,
         rect: rect, enclose: enclose, shore: shore, brink: brink, build: build,
         contour: contour, scoop: scoop, relief: relief,
+        buoy: buoy, piling: piling, bench: bench, boat: boat, sailboat: sailboat, bin: bin,
         RAIL_T: RAIL_T, SCOOP: SCOOP,
         CUP_FLAT: CUP_FLAT, TEE_FLAT: TEE_FLAT, CUP_PATCH: CUP_PATCH
     };

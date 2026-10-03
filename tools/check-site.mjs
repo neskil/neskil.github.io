@@ -55,7 +55,7 @@ async function walk(dir = ROOT, out = []) {
         if (entry.name.startsWith('.') || entry.name === 'node_modules') continue;
         const full = join(dir, entry.name);
         if (entry.isDirectory()) await walk(full, out);
-        else out.push(relative(ROOT, full));
+        else out.push(relative(ROOT, full).replace(/\\/g, '/'));
     }
     return out;
 }

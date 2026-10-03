@@ -727,6 +727,9 @@
                 }),
                 binBody: new THREE.MeshLambertMaterial({
                     color: new THREE.Color(0x2f3640)
+                }),
+                model: new THREE.MeshLambertMaterial({
+                    vertexColors: true
                 })
             }
         };
@@ -1954,44 +1957,27 @@
                 backSlat.castShadow = true;
                 dg.add(backSlat);
             }
-        } else if (kind === 'boat') {
-            // Small wooden dinghy / skiff.
-            var hullGeo = new THREE.BoxGeometry(0.75, 0.28, 1.8);
-            var hull = new THREE.Mesh(hullGeo, surf.boatHull);
-            hull.position.y = 0.10;
-            hull.castShadow = true;
-            hull.receiveShadow = true;
-            dg.add(hull);
-
-            var bowGeo = new THREE.ConeGeometry(0.38, 0.6, 4);
-            var bow = new THREE.Mesh(bowGeo, surf.boatHull);
-            bow.position.set(0, 0.10, 1.15);
-            bow.rotation.x = -Math.PI / 2;
-            bow.rotation.y = Math.PI / 4;
-            bow.scale.set(1, 1, 0.7);
-            bow.castShadow = true;
-            dg.add(bow);
-
-            var t1 = new THREE.Mesh(new THREE.BoxGeometry(0.68, 0.04, 0.22), surf.woodPale);
-            t1.position.set(0, 0.22, 0.1);
-            dg.add(t1);
-
-            var t2 = new THREE.Mesh(new THREE.BoxGeometry(0.68, 0.04, 0.22), surf.woodPale);
-            t2.position.set(0, 0.22, -0.55);
-            dg.add(t2);
-
-            var oarGeo = new THREE.CylinderGeometry(0.02, 0.02, 1.4, 5);
-            var oar1 = new THREE.Mesh(oarGeo, surf.woodPale);
-            oar1.position.set(0.15, 0.28, 0);
-            oar1.rotation.set(0.1, 0.4, 1.2);
-            dg.add(oar1);
-
-            var oar2 = new THREE.Mesh(oarGeo, surf.woodPale);
-            oar2.position.set(-0.15, 0.28, -0.1);
-            oar2.rotation.set(-0.1, -0.4, -1.2);
-            dg.add(oar2);
-
-            dg.rotation.z += 0.04;
+        } else if (kind === 'boat' || kind === 'rowboat') {
+            // Authentic 3D wooden rowboat or dinghy (CC0 Kenney Watercraft Kit).
+            var modelName = (d.variant === 1) ? 'dinghy' : 'rowboat';
+            var mesh = G3.getModelMesh ? G3.getModelMesh(modelName, surf.model) : null;
+            if (mesh) {
+                mesh.position.y = -0.12;
+                mesh.scale.set(0.85, 0.85, 0.85);
+                dg.add(mesh);
+            }
+            dg.rotation.z += 0.03;
+            dg.rotation.x -= 0.02;
+        } else if (kind === 'sailboat') {
+            // Elegant single-masted coastal sailboat (CC0 Kenney Watercraft Kit).
+            var sMesh = G3.getModelMesh ? G3.getModelMesh('sailboat', surf.model) : null;
+            if (sMesh) {
+                sMesh.position.y = -0.18;
+                sMesh.scale.set(0.75, 0.75, 0.75);
+                dg.add(sMesh);
+            }
+            dg.rotation.z += 0.02;
+            dg.rotation.x -= 0.01;
         } else if (kind === 'bin') {
             // Park / course waste receptacle
             var binGeo = new THREE.CylinderGeometry(0.20, 0.18, 0.58, 8);
