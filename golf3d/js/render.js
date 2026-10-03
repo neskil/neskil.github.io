@@ -699,7 +699,36 @@
                     color: new THREE.Color(0x59993f).multiplyScalar(1 - wet * 0.22)
                 })
             ],
-            post: new THREE.MeshLambertMaterial({ color: 0x6b7280 })
+            post: new THREE.MeshLambertMaterial({ color: 0x6b7280 }),
+            decor: {
+                wood: new THREE.MeshLambertMaterial({
+                    color: new THREE.Color(0x5c4228).multiplyScalar(1 - wet * 0.2)
+                }),
+                woodPale: new THREE.MeshLambertMaterial({
+                    color: new THREE.Color(0xb08d57).multiplyScalar(1 - wet * 0.15)
+                }),
+                rope: new THREE.MeshLambertMaterial({
+                    color: new THREE.Color(0x8a7050).multiplyScalar(1 - wet * 0.2)
+                }),
+                metalDark: new THREE.MeshLambertMaterial({
+                    color: new THREE.Color(0x2d3436)
+                }),
+                buoyRed: new THREE.MeshLambertMaterial({
+                    color: new THREE.Color(0xd63031)
+                }),
+                buoyWhite: new THREE.MeshLambertMaterial({
+                    color: new THREE.Color(0xf5f6fa)
+                }),
+                buoyYellow: new THREE.MeshLambertMaterial({
+                    color: new THREE.Color(0xf1c40f)
+                }),
+                boatHull: new THREE.MeshLambertMaterial({
+                    color: new THREE.Color(0x34495e)
+                }),
+                binBody: new THREE.MeshLambertMaterial({
+                    color: new THREE.Color(0x2f3640)
+                })
+            }
         };
     }
 
@@ -1808,6 +1837,178 @@
         }
     }
 
+    /* Visual decor: props drawn to dress the hole. They are non-solid and have
+       no presence in physics.js. Geometries are disposed cleanly by disposeGroup. */
+    function addDecor(group, item, theme) {
+        var d = item || {};
+        var kind = d.kind;
+        var x = d.x, y = d.y, z = d.z;
+        var s = d.scale || 1;
+        var yaw = d.yaw || 0;
+        var dg = new THREE.Group();
+        dg.position.set(x, y, z);
+        dg.rotation.y = yaw;
+        if (d.pitch) dg.rotation.x = d.pitch;
+        if (d.roll) dg.rotation.z = d.roll;
+        if (s !== 1) dg.scale.set(s, s, s);
+
+        var surf = R.surf.decor;
+        if (!surf) return;
+
+        if (kind === 'buoy') {
+            // A floating nautical can/marker buoy.
+            var keelGeo = new THREE.CylinderGeometry(0.12, 0.05, 0.35, 7);
+            var keel = new THREE.Mesh(keelGeo, surf.metalDark);
+            keel.position.y = -0.22;
+            dg.add(keel);
+
+            var floatGeo = new THREE.CylinderGeometry(0.28, 0.24, 0.38, 8);
+            var floatMesh = new THREE.Mesh(floatGeo, d.variant === 1 ? surf.buoyYellow : surf.buoyRed);
+            floatMesh.position.y = 0.12;
+            floatMesh.castShadow = true;
+            dg.add(floatMesh);
+
+            var bandGeo = new THREE.CylinderGeometry(0.29, 0.29, 0.12, 8);
+            var band = new THREE.Mesh(bandGeo, surf.buoyWhite);
+            band.position.y = 0.15;
+            dg.add(band);
+
+            var topGeo = new THREE.ConeGeometry(0.18, 0.42, 8);
+            var topMesh = new THREE.Mesh(topGeo, d.variant === 1 ? surf.buoyYellow : surf.buoyRed);
+            topMesh.position.y = 0.48;
+            topMesh.castShadow = true;
+            dg.add(topMesh);
+
+            var lampGeo = new THREE.SphereGeometry(0.06, 6, 6);
+            var lamp = new THREE.Mesh(lampGeo, surf.buoyWhite);
+            lamp.position.y = 0.72;
+            dg.add(lamp);
+
+            dg.rotation.z += 0.08;
+            dg.rotation.x -= 0.05;
+        } else if (kind === 'piling') {
+            // A cluster of 3 timber mooring pilings with rope lashing.
+            var p1 = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.14, 1.8, 7), surf.wood);
+            p1.position.set(0, 0.5, 0);
+            p1.rotation.y = 0.3;
+            p1.castShadow = true;
+            p1.receiveShadow = true;
+            dg.add(p1);
+
+            var p2 = new THREE.Mesh(new THREE.CylinderGeometry(0.10, 0.12, 1.5, 7), surf.wood);
+            p2.position.set(-0.16, 0.35, 0.12);
+            p2.rotation.z = -0.04;
+            p2.castShadow = true;
+            p2.receiveShadow = true;
+            dg.add(p2);
+
+            var p3 = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.11, 1.3, 7), surf.wood);
+            p3.position.set(0.14, 0.25, -0.10);
+            p3.rotation.x = 0.05;
+            p3.castShadow = true;
+            p3.receiveShadow = true;
+            dg.add(p3);
+
+            var rope = new THREE.Mesh(new THREE.TorusGeometry(0.24, 0.04, 5, 10), surf.rope);
+            rope.position.set(0, 0.82, 0);
+            rope.rotation.x = Math.PI / 2;
+            dg.add(rope);
+        } else if (kind === 'bench') {
+            // Outdoor slatted park bench.
+            var legMat = surf.metalDark;
+            var woodMat = surf.woodPale;
+            var legGeo = new THREE.BoxGeometry(0.06, 0.44, 0.42);
+            var leftLeg = new THREE.Mesh(legGeo, legMat);
+            leftLeg.position.set(-0.48, 0.22, 0);
+            leftLeg.castShadow = true;
+            dg.add(leftLeg);
+
+            var rightLeg = new THREE.Mesh(legGeo, legMat);
+            rightLeg.position.set(0.48, 0.22, 0);
+            rightLeg.castShadow = true;
+            dg.add(rightLeg);
+
+            var i;
+            for (i = -1; i <= 1; i++) {
+                var slat = new THREE.Mesh(new THREE.BoxGeometry(1.12, 0.035, 0.09), woodMat);
+                slat.position.set(0, 0.44, i * 0.12);
+                slat.castShadow = true;
+                dg.add(slat);
+            }
+
+            var backSupportGeo = new THREE.BoxGeometry(0.05, 0.40, 0.05);
+            var bs1 = new THREE.Mesh(backSupportGeo, legMat);
+            bs1.position.set(-0.48, 0.60, -0.19);
+            bs1.rotation.x = -0.15;
+            dg.add(bs1);
+
+            var bs2 = new THREE.Mesh(backSupportGeo, legMat);
+            bs2.position.set(0.48, 0.60, -0.19);
+            bs2.rotation.x = -0.15;
+            dg.add(bs2);
+
+            for (i = 0; i < 2; i++) {
+                var backSlat = new THREE.Mesh(new THREE.BoxGeometry(1.12, 0.09, 0.03), woodMat);
+                backSlat.position.set(0, 0.54 + i * 0.14, -0.18 - i * 0.02);
+                backSlat.rotation.x = -0.15;
+                backSlat.castShadow = true;
+                dg.add(backSlat);
+            }
+        } else if (kind === 'boat') {
+            // Small wooden dinghy / skiff.
+            var hullGeo = new THREE.BoxGeometry(0.75, 0.28, 1.8);
+            var hull = new THREE.Mesh(hullGeo, surf.boatHull);
+            hull.position.y = 0.10;
+            hull.castShadow = true;
+            hull.receiveShadow = true;
+            dg.add(hull);
+
+            var bowGeo = new THREE.ConeGeometry(0.38, 0.6, 4);
+            var bow = new THREE.Mesh(bowGeo, surf.boatHull);
+            bow.position.set(0, 0.10, 1.15);
+            bow.rotation.x = -Math.PI / 2;
+            bow.rotation.y = Math.PI / 4;
+            bow.scale.set(1, 1, 0.7);
+            bow.castShadow = true;
+            dg.add(bow);
+
+            var t1 = new THREE.Mesh(new THREE.BoxGeometry(0.68, 0.04, 0.22), surf.woodPale);
+            t1.position.set(0, 0.22, 0.1);
+            dg.add(t1);
+
+            var t2 = new THREE.Mesh(new THREE.BoxGeometry(0.68, 0.04, 0.22), surf.woodPale);
+            t2.position.set(0, 0.22, -0.55);
+            dg.add(t2);
+
+            var oarGeo = new THREE.CylinderGeometry(0.02, 0.02, 1.4, 5);
+            var oar1 = new THREE.Mesh(oarGeo, surf.woodPale);
+            oar1.position.set(0.15, 0.28, 0);
+            oar1.rotation.set(0.1, 0.4, 1.2);
+            dg.add(oar1);
+
+            var oar2 = new THREE.Mesh(oarGeo, surf.woodPale);
+            oar2.position.set(-0.15, 0.28, -0.1);
+            oar2.rotation.set(-0.1, -0.4, -1.2);
+            dg.add(oar2);
+
+            dg.rotation.z += 0.04;
+        } else if (kind === 'bin') {
+            // Park / course waste receptacle
+            var binGeo = new THREE.CylinderGeometry(0.20, 0.18, 0.58, 8);
+            var binMesh = new THREE.Mesh(binGeo, surf.binBody);
+            binMesh.position.y = 0.29;
+            binMesh.castShadow = true;
+            dg.add(binMesh);
+
+            var lidGeo = new THREE.CylinderGeometry(0.22, 0.22, 0.06, 8);
+            var lid = new THREE.Mesh(lidGeo, surf.metalDark);
+            lid.position.y = 0.60;
+            dg.add(lid);
+        }
+
+        group.add(dg);
+    }
+
     function addWall(group, wall) {
         if (wall.kind === 'tree') { addTree(group, wall); return; }
         if (wall.kind === 'rock') { addRock(group, wall); return; }
@@ -2877,6 +3078,7 @@
         addCup(g, hole);
         addTeeMark(g, hole);
         addStakes(g, hole, theme);
+        for (i = 0; i < (hole.decor || []).length; i++) addDecor(g, hole.decor[i], theme);
 
         // The rain, the mist banks and whatever is drifting in the air are
         // parented to the hole, so the next hole disposes them with it.

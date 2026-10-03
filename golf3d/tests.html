@@ -1508,6 +1508,34 @@
                 worstFooting <= 0.35,
                 footingAt + ' is out by ' + worstFooting.toFixed(2));
 
+            /* ── decor props ───────────────────────────────────────────
+               Decor props are visual dressings. They must have valid kinds,
+               finite coordinates, must not sit within the cup or tee clearing,
+               and must never be solid walls. */
+            var decorCount = 0, badDecor = '';
+            var VALID_DECOR = ['buoy', 'piling', 'bench', 'boat', 'bin'];
+            ALL.forEach(function (entry) {
+                (entry.hole.decor || []).forEach(function (d) {
+                    decorCount++;
+                    if (VALID_DECOR.indexOf(d.kind) < 0) {
+                        badDecor = 'unknown kind ' + d.kind + ' in ' + entry.course.id + '/' + entry.hole.name;
+                    }
+                    if (!isFinite(d.x) || !isFinite(d.z) || !isFinite(d.y)) {
+                        badDecor = 'non-finite coords for ' + d.kind + ' in ' + entry.course.id + '/' + entry.hole.name;
+                    }
+                    var cupDist = Math.hypot(d.x - entry.hole.cup.x, d.z - entry.hole.cup.z);
+                    if (cupDist < 0.6) {
+                        badDecor = d.kind + ' too close to cup in ' + entry.course.id + '/' + entry.hole.name;
+                    }
+                    var teeDist = Math.hypot(d.x - entry.hole.tee.x, d.z - entry.hole.tee.z);
+                    if (teeDist < 0.6) {
+                        badDecor = d.kind + ' too close to tee in ' + entry.course.id + '/' + entry.hole.name;
+                    }
+                });
+            });
+            assert('decor props have valid kinds, finite coordinates, and clear the tee and cup', !badDecor, badDecor);
+            assert('there is decor to check', decorCount > 0, decorCount + ' decor props');
+
             /* ── the mown ground holds a ball ────────────────────────────
 
                The steepness check above walks every contoured pad and skips

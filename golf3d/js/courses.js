@@ -697,6 +697,32 @@
         return out;
     }
 
+    /* ── decor: props drawn for atmosphere, not simulated ───────────────
+       Solid scenery (trees, rocks) collides with the ball and must stand
+       on the ground under it. Decor props are the other kind: purely
+       visual dressings drawn by render.js that the physics simulation has
+       never heard of, placed off the pads (or in the water) with an explicit
+       y height. */
+    function decor(kind, x, z, y, opts) {
+        var o = opts || {};
+        return {
+            kind: kind,
+            x: x, z: z,
+            y: y !== undefined ? y : (o.y !== undefined ? o.y : 0),
+            yaw: o.yaw || 0,
+            pitch: o.pitch || 0,
+            roll: o.roll || 0,
+            scale: o.scale || 1,
+            variant: o.variant || 0
+        };
+    }
+
+    function buoy(x, z, y, opts) { return decor('buoy', x, z, y, opts); }
+    function piling(x, z, y, opts) { return decor('piling', x, z, y, opts); }
+    function bench(x, z, y, opts) { return decor('bench', x, z, y, opts); }
+    function boat(x, z, y, opts) { return decor('boat', x, z, y, opts); }
+    function bin(x, z, y, opts) { return decor('bin', x, z, y, opts); }
+
     /* ── the open country ───────────────────────────────────────────────
 
        Everything above is a floor plan: rectangles of ground with fences round
@@ -1408,6 +1434,7 @@
     function build(h) {
         var P = G3.physics, i;
         h.water = h.water || [];
+        h.decor = (h.decor || []).slice();
 
         /* Relief, before anything is derived from the ground.
 
@@ -1612,13 +1639,25 @@
                    and a corner nobody could play out of. */
                 bank(1, 11.9, 3.6, -Math.PI / 4, { t: 0.3, h: 0.55 })
             ],
-            tee: { x: 1.5, z: 1.5 }, cup: { x: 4.4, z: 12 }
+            tee: { x: 1.5, z: 1.5 }, cup: { x: 4.4, z: 12 },
+            decor: [
+                bench(-1.4, 1.5, 0, { yaw: Math.PI / 2 }),
+                bin(-1.4, 2.7, 0),
+                buoy(-3.5, 7.5, 0),
+                piling(7.8, 4.0, 0),
+                boat(8.4, 10.0, 0, { yaw: -0.4 })
+            ]
         }),
         build({
             name: 'The Bend', par: 3,
             blurb: 'Left turn at the top. The corner rail is your friend.',
             pads: [pad(0, 0, 4.5, 9), pad(0, 9, 13, 4.5)],
-            tee: { x: 2.25, z: 1.5 }, cup: { x: 11.5, z: 11.25 }
+            tee: { x: 2.25, z: 1.5 }, cup: { x: 11.5, z: 11.25 },
+            decor: [
+                buoy(6.5, 4.5, 0, { variant: 1 }),
+                piling(-1.6, 6.0, 0),
+                bench(11.5, 7.5, 0, { yaw: 0 })
+            ]
         }),
         build({
             /* Two bars of beach with the gap in a different place in each, so
@@ -1635,7 +1674,13 @@
                 pad(0, 9, 2, 2.5), pad(2, 9, 4, 2.5, 0, 'sand'),
                 pad(0, 11.5, 6, 5)
             ],
-            tee: { x: 3, z: 1.8 }, cup: { x: 3, z: 14.5 }
+            tee: { x: 3, z: 1.8 }, cup: { x: 3, z: 14.5 },
+            decor: [
+                piling(-1.8, 7.0, 0),
+                piling(7.8, 9.0, 0),
+                buoy(-3.2, 13.0, 0),
+                boat(-4.5, 3.5, 0, { yaw: 0.8 })
+            ]
         }),
         build({
             name: 'Low Tide', par: 3,
@@ -1643,7 +1688,12 @@
             pads: [pad(0, 0, 5, 5), pad(3.5, 5, 1.5, 4, 0, 'wood'), pad(0, 9, 5, 6)],
             water: [rect(0, 5, 3.5, 4, -0.55)],
             gaps: [shore(rect(0, 5, 3.5, 4))],
-            tee: { x: 1.6, z: 2 }, cup: { x: 2.3, z: 12.5 }
+            tee: { x: 1.6, z: 2 }, cup: { x: 2.3, z: 12.5 },
+            decor: [
+                piling(-0.8, 7.0, -0.55),
+                buoy(-3.0, 7.0, -0.55),
+                bench(-1.5, 2.0, 0, { yaw: Math.PI / 2 })
+            ]
         }),
         build({
             /* The first hole on the course that is not played towards the
@@ -1665,7 +1715,12 @@
                 pad(4.5, 8, 4, 4),
                 pad(8.5, 0, 4.5, 12, 0, 'green', -0.09, 0)
             ],
-            tee: { x: 2.25, z: 1.5 }, cup: { x: 10.8, z: 2.4 }
+            tee: { x: 2.25, z: 1.5 }, cup: { x: 10.8, z: 2.4 },
+            decor: [
+                boat(6.5, 3.5, 0, { yaw: Math.PI / 2 }),
+                piling(6.5, 6.5, 0),
+                buoy(6.5, 1.0, 0)
+            ]
         }),
         build({
             name: 'The Jetty', par: 4,
@@ -1679,7 +1734,15 @@
             ],
             water: [rect(-1, 5.5, 8, 8.7, -0.7)],
             gaps: [shore(rect(-1, 5.5, 8, 8.7), 0.6)],
-            tee: { x: 3, z: 2 }, cup: { x: 3.6, z: 16.8 }
+            tee: { x: 3, z: 2 }, cup: { x: 3.6, z: 16.8 },
+            decor: [
+                piling(-0.2, 6.2, -0.7),
+                piling(5.4, 10.5, -0.7),
+                piling(2.2, 13.5, -0.7),
+                buoy(-3.5, 9.0, -0.7),
+                buoy(8.5, 11.0, -0.7, { variant: 1 }),
+                boat(6.8, 7.0, -0.7, { yaw: -0.6 })
+            ]
         })
     ];
 
