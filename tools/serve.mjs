@@ -11,7 +11,7 @@ import { stat } from 'node:fs/promises';
 import { join, normalize, extname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-export const ROOT = fileURLToPath(new URL('..', import.meta.url));
+export const ROOT = normalize(fileURLToPath(new URL('..', import.meta.url)));
 
 const TYPES = {
     '.html': 'text/html; charset=utf-8',
