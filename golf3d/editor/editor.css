@@ -195,11 +195,37 @@ canvas { display: block; }
 #splitter:hover, #splitter.active { background: #58a6ff; }
 #pane-plan canvas, #pane-view canvas { width: 100%; height: 100%; }
 
+.plan-proj-bar, .view-preset-bar {
+    position: absolute; top: 8px; left: 8px; z-index: 6;
+    display: flex; gap: 3px; align-items: center;
+    background: rgba(13,17,23,.92); border: 1px solid #30363d;
+    border-radius: 6px; padding: 3px 6px; backdrop-filter: blur(6px);
+}
+.view-preset-bar { max-width: calc(100% - 66px); overflow-x: auto; }
+.plan-proj-bar .btn, .view-preset-bar .btn {
+    padding: 3px 6px; font-size: 11px; line-height: 1.2;
+}
+.proj-lbl {
+    font-size: 10px; color: #8b949e; text-transform: uppercase;
+    margin-right: 3px; font-weight: bold; flex-shrink: 0;
+}
+
+#view-gizmo {
+    position: absolute; top: 8px; right: 8px; z-index: 6;
+    width: 48px; height: 48px; cursor: pointer;
+    background: rgba(13,17,23,.82); border: 1px solid #30363d;
+    border-radius: 50%; backdrop-filter: blur(6px);
+    transition: border-color 0.15s, transform 0.15s;
+}
+#view-gizmo:hover { border-color: #58a6ff; transform: scale(1.05); }
+
 .pane-tag {
     position: absolute; top: 8px; right: 8px; z-index: 4;
     background: rgba(13,17,23,.8); border: 1px solid #30363d; border-radius: 5px;
     padding: 3px 8px; font-size: 11px; color: #8b949e; pointer-events: none;
 }
+#pane-view .pane-tag { top: 62px; right: 8px; }
+
 #view-fallback {
     position: absolute; inset: 0; display: none; align-items: center;
     justify-content: center; text-align: center; padding: 20px;
@@ -227,12 +253,12 @@ canvas { display: block; }
 #statusbar b { color: #c9d1d9; font-weight: normal; }
 
 #hud {
-    position: absolute; top: 10px; left: 10px;
-    background: rgba(13,17,23,.8); border: 1px solid #30363d; border-radius: 6px;
-    padding: 7px 12px; font-size: 12px; color: #c9d1d9; pointer-events: none;
-    line-height: 1.6;
+    position: absolute; bottom: 32px; left: 10px;
+    background: rgba(13,17,23,.85); border: 1px solid #30363d; border-radius: 6px;
+    padding: 6px 10px; font-size: 11px; color: #c9d1d9; pointer-events: none;
+    line-height: 1.5; backdrop-filter: blur(4px);
 }
-#hud .big { font-size: 15px; color: #58a6ff; font-weight: bold; }
+#hud .big { font-size: 14px; color: #58a6ff; font-weight: bold; }
 #hud.play { border-color: #34d399; }
 #hud.play .big { color: #34d399; }
 

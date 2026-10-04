@@ -5066,6 +5066,7 @@
         sprung: sprung, belt: belt, pipe: pipe, pipes: pipes,
         aperture: aperture, flipper: flipper,
         tree: tree, treeline: treeline, crag: crag, crags: crags,
+        decor: decor, buoy: buoy, piling: piling, bench: bench, boat: boat, bin: bin,
         hill: hill, ring: ring, ridge: ridge, whorl: whorl, ravine: ravine,
         shape: shape, dunes: dunes, ground: ground, circle: circle, keep: keep,
         shapeDisc: shapeDisc,

@@ -24,7 +24,7 @@
     gtag('config', 'G-9GP823TGLB');
 </script>
 <link rel="icon" href="../favicon.ico">
-<link rel="stylesheet" href="editor/editor.css?v=1.48.0">
+<link rel="stylesheet" href="editor/editor.css?v=1.49.0">
 </head>
 <body>
 
@@ -55,22 +55,44 @@
       </span>
     </div>
     <div id="tools">
-      <button class="btn on" data-tool="select" title="Select and drag (V)">▣ Select</button>
-      <button class="btn" data-tool="pad" title="Drag out ground (1)"><i class="swatch" style="background:#4a9a52"></i>Ground</button>
-      <button class="btn" data-tool="extra" title="Drag out a wall (2)"><i class="swatch" style="background:#6d4a2e"></i>Wall</button>
-      <button class="btn" data-tool="water" title="Drag out water (3)"><i class="swatch" style="background:#1b6d9e"></i>Water</button>
-      <button class="btn" data-tool="gaps" title="Drag out a gap in the rails (4)"><i class="swatch" style="background:#b58bff"></i>Gap</button>
+      <button class="btn on" data-tool="select" title="Select, move &amp; resize (V)">▣ Select</button>
+      <button class="btn" data-tool="pad" title="Drag out ground rectangle (1)"><i class="swatch" style="background:#4a9a52"></i>Ground</button>
+      <button class="btn" data-tool="disc" title="Place circular disc green / bunker"><i class="swatch round" style="background:#4a9a52"></i>Disc</button>
+      <button class="btn" data-tool="belt" title="Conveyor travelator belt"><i class="swatch" style="background:#8a6337"></i>Belt</button>
+      <button class="btn" data-tool="sprung" title="Launch trampoline pad"><i class="swatch round" style="background:#f0b43c"></i>Spring</button>
+      <button class="btn" data-tool="extra" title="Drag out wall / rail (2)"><i class="swatch" style="background:#6d4a2e"></i>Wall</button>
+      <button class="btn" data-tool="bumper" title="Pinball bumper (8)"><i class="swatch" style="background:#f0409a"></i>Bumper</button>
+      <button class="btn" data-tool="spinner" title="Spinning blade obstacle"><i class="swatch" style="background:#d8523f"></i>Spinner</button>
+      <button class="btn" data-tool="slider" title="Sliding gate obstacle"><i class="swatch" style="background:#e0a13a"></i>Slider</button>
+      <button class="btn" data-tool="flipper" title="Swinging bat flipper"><i class="swatch" style="background:#d8523f"></i>Flipper</button>
+      <button class="btn" data-tool="beam" title="Overhead barrier bar on posts"><i class="swatch" style="background:#9a6a3c"></i>Beam</button>
+      <button class="btn" data-tool="tree" title="Scenery tree with solid trunk collider (9)">🌳 Tree</button>
+      <button class="btn" data-tool="rock" title="Scenery boulder rock collider (0)">🪨 Rock</button>
+      <button class="btn" data-tool="water" title="Drag out water pool (3)"><i class="swatch" style="background:#1b6d9e"></i>Water</button>
+      <button class="btn" data-tool="gaps" title="Drag out gap in perimeter rails (4)"><i class="swatch" style="background:#b58bff"></i>Gap</button>
+      <button class="btn" data-tool="pipe" title="Warp pipe: click mouth and drag to destination (7)">🌀 Pipe</button>
+      <button class="btn" data-tool="decor" title="Atmospheric decor prop (buoy, bench, boat, bin, piling)">⛵ Decor</button>
       <button class="btn" data-tool="tee" title="Place the tee (5)">⛳ Tee</button>
       <button class="btn" data-tool="cup" title="Place the cup (6)">◉ Cup</button>
     </div>
-    <div class="row" style="margin-top:8px">
-      <span class="lbl lbl-w">Ground:</span>
-      <select id="f-padkind" style="flex:1" title="What the next pad you draw is made of">
-        <option value="green">green</option>
-        <option value="fairway">fairway</option>
-        <option value="rough">rough</option>
-        <option value="sand">sand</option>
-        <option value="wood">wood</option>
+    <div class="row" id="row-padkind" style="margin-top:7px">
+      <span class="lbl lbl-w">Surface:</span>
+      <select id="f-padkind" style="flex:1" title="What the next ground or disc pad you draw is made of">
+        <option value="green">green (putting turf)</option>
+        <option value="fairway">fairway (turf)</option>
+        <option value="rough">rough (tall grass)</option>
+        <option value="sand">sand (bunker)</option>
+        <option value="wood">wood (timber board)</option>
+      </select>
+    </div>
+    <div class="row" id="row-decorkind" style="margin-top:7px; display:none;">
+      <span class="lbl lbl-w">Prop:</span>
+      <select id="f-decorkind" style="flex:1" title="Atmospheric dressing prop to place">
+        <option value="buoy">buoy (nautical marker buoy)</option>
+        <option value="piling">piling (timber mooring post cluster)</option>
+        <option value="bench">bench (park / clubhouse seating)</option>
+        <option value="boat">boat (wooden rowing dinghy)</option>
+        <option value="bin">bin (course waste receptacle)</option>
       </select>
     </div>
     <div class="row" style="margin-top:5px">
@@ -205,12 +227,31 @@
   <div id="panes">
     <div id="pane-plan">
       <canvas id="plan"></canvas>
-      <div class="pane-tag">plan</div>
+      <div class="plan-proj-bar" id="plan-proj-bar">
+        <span class="proj-lbl">Plan:</span>
+        <button class="btn on" data-proj="top" title="Top-down floor plan (X / Z)">Top [X/Z]</button>
+        <button class="btn" data-proj="side" title="Side elevation profile (Z / Y) — see ramps, slopes &amp; heights!">Side [Z/Y]</button>
+        <button class="btn" data-proj="front" title="Front cross-section (X / Y) — cross-slopes &amp; widths">Front [X/Y]</button>
+      </div>
+      <div class="pane-tag" id="plan-tag">plan (top-down)</div>
     </div>
     <div id="splitter"></div>
     <div id="pane-view">
       <canvas id="view"></canvas>
-      <div class="pane-tag">the game's renderer</div>
+      <div class="view-preset-bar" id="view-preset-bar">
+        <span class="proj-lbl">3D View:</span>
+        <button class="btn on" data-preset="tee" title="Tee sightline — view down fairway">Tee</button>
+        <button class="btn" data-preset="cup" title="Cup view — view from green back down hole">Cup</button>
+        <button class="btn" data-preset="top" title="Top view — 3D overhead plan">Top</button>
+        <button class="btn" data-preset="front" title="Front view — looking along Z">Front</button>
+        <button class="btn" data-preset="side" title="Side view — elevation view along X">Side</button>
+        <button class="btn" data-preset="graze" title="Graze 5° — low angle to catch floating rails and gaps">Graze</button>
+        <button class="btn" data-preset="hero" title="Hero view — 40° isometric perspective">Hero</button>
+        <button class="btn" data-preset="orbit" title="Orbit — free rotation &amp; pan">Orbit</button>
+        <button class="btn btn-blue" id="btn-focus-3d" title="Focus camera on selected object (F)">⌖ Focus</button>
+      </div>
+      <canvas id="view-gizmo" width="48" height="48" title="Click an axis to align 3D view"></canvas>
+      <div class="pane-tag" id="view-tag">the game's renderer</div>
       <div id="view-fallback">This browser will not give the editor a WebGL
         context, so the 3D half is off. The plan, the checks and the export all
         still work.</div>
@@ -246,17 +287,17 @@
      inspector are the game's chrome rather than the hole's, so they are the
      four the editor does not load. -->
 <script src="vendor/three.min.js"></script>
-<script src="js/config.js?v=1.48.0"></script>
-<script src="js/themes.js?v=1.48.0"></script>
-<script src="js/physics.js?v=1.48.0"></script>
-<script src="js/courses.js?v=1.48.0"></script>
-    <script src="js/audit.js?v=1.48.0"></script>
-<script src="js/textures.js?v=1.48.0"></script>
-<script src="js/shaders.js?v=1.48.0"></script>
-<script src="js/postfx.js?v=1.48.0"></script>
-<script src="js/weather.js?v=1.48.0"></script>
-<script src="js/models.js?v=1.48.0"></script>
-<script src="js/render.js?v=1.48.0"></script>
-<script src="editor/editor.js?v=1.48.0"></script>
+<script src="js/config.js?v=1.49.0"></script>
+<script src="js/themes.js?v=1.49.0"></script>
+<script src="js/physics.js?v=1.49.0"></script>
+<script src="js/courses.js?v=1.49.0"></script>
+<script src="js/audit.js?v=1.49.0"></script>
+<script src="js/textures.js?v=1.49.0"></script>
+<script src="js/shaders.js?v=1.49.0"></script>
+<script src="js/postfx.js?v=1.49.0"></script>
+<script src="js/weather.js?v=1.49.0"></script>
+<script src="js/models.js?v=1.49.0"></script>
+<script src="js/render.js?v=1.49.0"></script>
+<script src="editor/editor.js?v=1.49.0"></script>
 </body>
 </html>
