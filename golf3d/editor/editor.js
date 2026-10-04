@@ -8,22 +8,28 @@
    game because the same integrator moved the ball.
 
    Two pictures of one hole, side by side. The left is a plan you draw on,
-   because rectangles on the floor is what a hole in this game *is* — pads,
-   walls, water, gaps — and dragging them about in perspective would be a
-   worse way to say the same thing. The right is `render.buildHole` on the
-   result, rebuilt as you draw, because the plan cannot tell you how a ramp
-   reads from the tee and the renderer can.
+   supporting multiple orthographic projections:
+   - Top-down [X/Z]: standard floor plan
+   - Side elevation [Z/Y]: vertical profile showing true slopes, ramps, water depth,
+     clearances under beams, tree/rock silhouettes, and allowing direct height editing
+   - Front cross-section [X/Y]: lateral tilt and cross-slopes
 
-   What the editor deliberately does not draw is the rails. `enclose()` fences
-   the edge of the ground and the editor shows you what it produced, greyed;
-   the way to move a rail is to move the ground under it, or to cut a `gap`.
-   An editor that let you push a generated rail about would be an editor that
-   lies about how the file works.
+   The right is `render.buildHole` on the result, rebuilt as you draw, equipped with
+   comprehensive 3D perspective presets (Tee sightline, Cup reverse, Top, Front,
+   Side, 5° Graze angle, Hero 40° isometric, and free Orbit with pan/zoom) plus
+   an interactive 3D orientation gizmo.
+
+   Full placement vocabulary:
+   - Pads (rectangles, circular discs, travelator belts, launch spring trampolines)
+   - Walls (rails, angled banks, pinball bumpers, spinning blades, sliding gates,
+     flipper bats, overhead beams on posts, trees, rocks)
+   - Water pools & Gap rail suppressors
+   - Warp pipes (mouth, destination exit, trajectory line and exit yaw angle)
+   - Visual decor props (nautical buoys, timber pilings, clubhouse benches, boats, bins)
 
    The checks in the Check panel are the rules from tests.html, ported one for
    one, and the bot is the same greedy player. A hole that passes here is a
-   hole the suite will accept, which is the point: finding out at the editor
-   rather than at the test run.
+   hole the suite will accept.
 
    ES5-flavoured, like the rest of golf3d/. No build step, no dependencies. */
 (function (G3) {
@@ -36,16 +42,17 @@
 
     /* ── the vocabulary ─────────────────────────────────────────────────── */
 
-    /* The four lists a hole is drawn from, in the order the plan paints them.
-       Hit-testing walks it backwards, so a wall lying on a pad is the thing
-       you grab. `gaps` are last because they are an annotation on the rails
-       rather than a part of the hole, and you have to be able to pick one up
-       off whatever it is sitting on. */
+    /* The six lists a hole is drawn from, in the order the plan paints them.
+       Hit-testing walks it backwards, so a wall or decor lying on a pad is the
+       thing you grab. `gaps` are after extra because they cut holes in rails,
+       `warps` and `decor` are on top. */
     var LISTS = [
         { key: 'pads',  label: 'Ground', color: '#4a9a52' },
         { key: 'water', label: 'Water',  color: '#1b6d9e' },
         { key: 'extra', label: 'Wall',   color: '#6d4a2e' },
-        { key: 'gaps',  label: 'Gap',    color: '#b58bff' }
+        { key: 'gaps',  label: 'Gap',    color: '#b58bff' },
+        { key: 'warps', label: 'Pipe',   color: '#79c0ff' },
+        { key: 'decor', label: 'Decor',  color: '#e3b341' }
     ];
     var LIST_KEYS = LISTS.map(function (l) { return l.key; });
 
@@ -54,6 +61,24 @@
     var PAD_COLOR = {
         green: '#4a9a52', fairway: '#3f7d43', rough: '#2b5a30',
         sand: '#c8b184', wood: '#8a6337', cup: '#4a9a52'
+    };
+
+    var EXTRA_KIND_COLOR = {
+        rail: '#6d4a2e',
+        bumper: '#f0409a',
+        blade: '#d8523f',
+        gate: '#e0a13a',
+        beam: '#9a6a3c',
+        tree: '#2d6a3f',
+        rock: '#7a7a85'
+    };
+
+    var DECOR_KIND_LABEL = {
+        buoy: 'Buoy',
+        piling: 'Piling',
+        bench: 'Bench',
+        boat: 'Boat',
+        bin: 'Bin'
     };
 
     var MIN_SIDE = 0.24;       // the thinnest wall the substep cap can protect
@@ -69,6 +94,8 @@
     var planCanvas = $('plan');
     var ctx = planCanvas.getContext('2d');
     var viewCanvas = $('view');
+    var gizmoCanvas = $('view-gizmo');
+    var gizmoCtx = gizmoCanvas ? gizmoCanvas.getContext('2d') : null;
 
     /* ── state ──────────────────────────────────────────────────────────── */
 
@@ -81,14 +108,23 @@
         sel: null,        // {key, idx} | {key:'tee'} | {key:'cup'} | null
         tool: 'select',
         padKind: 'green',
+        decorKind: 'buoy',
         snap: 0.5,
         grid: false,
         loadedFrom: ''
     };
 
-    var view = { x: 0, z: 0, scale: 40 };   // world → plan pixels
-    var mouse = { wx: 0, wz: 0, sx: 0, sy: 0 };
-    var drag = null;        // {type:'move'|'resize'|'draw'|'pan'|'marker', …}
+    var planProj = 'top';                         // 'top' | 'side' | 'front'
+    var view = { x: 0, z: 0, y: 0, scale: 40 };   // world → plan pixels
+    var cam = {
+        preset: 'tee',
+        target: { x: 3, y: 0, z: 7 },
+        dist: 12,
+        yaw: 0,
+        pitch: 0.46
+    };
+    var mouse = { wx: 0, wz: 0, wy: 0, sx: 0, sy: 0 };
+    var drag = null;        // {type:'move'|'resize'|'draw'|'pan'|'marker'|'move_elev'|'move_front', …}
     var mode = 'edit';      // 'edit' | 'play'
     var animate = true;     // does the clock run in edit mode
     var spaceHeld = false;
@@ -124,6 +160,7 @@
             water: [],
             gaps: [],
             warps: [],
+            decor: [],
             tee: { x: 3, z: 1.5 },
             cup: { x: 3, z: 12 }
         };
@@ -143,28 +180,8 @@
             weather: (G3.weather && G3.weather.KINDS[h.weather]) ? h.weather : 'fair',
             needsLoft: !!h.needsLoft,
             flat: !!h.flat,
-            /* An open hole — Whinstone's country, authored by `moor` rather
-               than by a list of pads — has no rails and a fence instead. The
-               editor cannot *write* one, and it can carry one: the two fields
-               ride along untouched so a links hole loaded in here still builds,
-               plays and previews as the open hole it is, rather than being
-               quietly fenced in. The export says so rather than pretending. */
             open: !!h.open,
             fence: h.fence || null,
-            /* Pipes ride along for the same reason, and they are the one piece
-               of a hole that is neither a rectangle nor a marker — a mouth and
-               a destination, so there is no tool on the plan that could draw
-               one. The plan shows both ends and the line between them, `build`
-               keeps the ground under them flat, physics moves the ball through
-               them and the export writes them back out as pipe(). What the
-               editor will not do is invent one. */
-            warps: (Array.isArray(h.warps) ? h.warps : []).map(function (w) {
-                return {
-                    x: num(w.x, 0), z: num(w.z, 0),
-                    tx: num(w.tx, 0), tz: num(w.tz, 0),
-                    r: Math.max(0.2, num(w.r, 0.85)), yaw: num(w.yaw, 0)
-                };
-            }),
             tee: { x: num(h.tee && h.tee.x, 3), z: num(h.tee && h.tee.z, 1.5) },
             cup: { x: num(h.cup && h.cup.x, 3), z: num(h.cup && h.cup.z, 12) }
         };
@@ -175,6 +192,28 @@
     }
 
     function cloneShape(key, s) {
+        s = s || {};
+        if (key === 'warps') {
+            return {
+                x: num(s.x, 0), z: num(s.z, 0),
+                tx: num(s.tx, s.x !== undefined ? s.x : 0),
+                tz: num(s.tz, s.z !== undefined ? s.z + 4 : 4),
+                r: Math.max(0.2, num(s.r, 0.85)),
+                yaw: num(s.yaw, 0)
+            };
+        }
+        if (key === 'decor') {
+            return {
+                kind: typeof s.kind === 'string' ? s.kind : (S.decorKind || 'buoy'),
+                x: num(s.x, 0), z: num(s.z, 0),
+                y: num(s.y, 0),
+                yaw: num(s.yaw, 0),
+                pitch: num(s.pitch, 0),
+                roll: num(s.roll, 0),
+                scale: num(s.scale, 1),
+                variant: num(s.variant, 0)
+            };
+        }
         var o = {
             x: num(s.x, 0), z: num(s.z, 0),
             w: Math.max(MIN_SIDE, num(s.w, 1)), d: Math.max(MIN_SIDE, num(s.d, 1))
@@ -184,23 +223,8 @@
             o.kind = PAD_COLOR[s.kind] ? s.kind : 'green';
             o.sx = num(s.sx, 0);
             o.sz = num(s.sz, 0);
-            /* A pad may *do* something as well as be somewhere: `push` is a
-               travelator and `spring` a launch pad. The editor has no tool
-               that draws either — they are authored in the file, by belt()
-               and sprung() — but it has to carry them, because a hole loaded
-               in here and exported again is meant to be the same hole. It was
-               not: the machinery came off in the round trip and the export
-               wrote out a plain floor. */
             if (s.push) o.push = { x: num(s.push.x, 0), z: num(s.push.z, 0) };
             if (s.spring) o.spring = num(s.spring, 8.5);
-            /* A round pad — `circle()` in the file — is a square pad carrying a
-               radius, and it is the one kind allowed to overlap the ground it
-               is laid into. Both facts have to survive the round trip, or a
-               green laid on a fairway comes back as a square arguing with it.
-
-               A trampoline is the exception to the wavy edge: sprung() cuts a
-               clean circle on purpose, and running shapeDisc over it would
-               scallop the one pad whose whole job is to be a disc. */
             if (s.r && o.spring) {
                 o.r = num(s.r, 0.5); o.rIn = o.r; o.inlay = true;
                 o.w = o.d = o.r * 2;
@@ -214,6 +238,7 @@
             o.yaw = num(s.yaw, 0);
             o.spin = num(s.spin, 0);
             o.kind = typeof s.kind === 'string' ? s.kind : 'rail';
+            if (s.seat !== undefined) o.seat = num(s.seat, 0.4);
             if (s.move) {
                 o.move = {
                     axis: s.move.axis === 'z' ? 'z' : 'x',
@@ -222,11 +247,6 @@
                     phase: num(s.move.phase, 0)
                 };
             }
-            /* A wall moves three ways, not two. `move` slides it, `spin` turns
-               it round and `swing` sweeps it between two angles and stops at
-               each end — a flipper. This carried the first two and dropped the
-               third, so a flipper hole loaded in here came back as a plank
-               bolted to the floor, and the export said so. */
             if (s.swing) {
                 o.swing = {
                     from: num(s.swing.from, 0),
@@ -261,7 +281,7 @@
 
     function selShape() {
         if (!S.sel || S.sel.key === 'tee' || S.sel.key === 'cup') return null;
-        return list(S.sel.key)[S.sel.idx] || null;
+        return (list(S.sel.key) || [])[S.sel.idx] || null;
     }
 
     /* The hole the game would see. `build` mutates its argument — it scoops
@@ -272,7 +292,9 @@
         var h = {
             name: src.name, blurb: src.blurb, par: src.par,
             needsLoft: src.needsLoft, flat: src.flat,
-            open: src.open, fence: src.fence, warps: src.warps,
+            open: src.open, fence: src.fence,
+            warps: src.warps || [],
+            decor: src.decor || [],
             pads: src.pads, extra: src.extra, water: src.water, gaps: src.gaps,
             tee: { x: src.tee.x, z: src.tee.z },
             cup: { x: src.cup.x, z: src.cup.z }
@@ -340,41 +362,115 @@
 
     function sx(x) { return (x - view.x) * view.scale; }
     function sz(z) { return (z - view.z) * view.scale; }
+    function sy(y) {
+        var h = planCanvas.clientHeight;
+        return h / 2 - (y - (view.y || 0)) * view.scale;
+    }
+
     function wx(px) { return px / view.scale + view.x; }
     function wz(py) { return py / view.scale + view.z; }
+    function wy(py) {
+        var h = planCanvas.clientHeight;
+        return -(py - h / 2) / view.scale + (view.y || 0);
+    }
 
     function fit() {
         var b = bounds();
         var w = planCanvas.clientWidth, h = planCanvas.clientHeight;
         var m = 40;
-        var s = Math.min((w - m * 2) / Math.max(0.5, b.maxX - b.minX),
-                         (h - m * 2) / Math.max(0.5, b.maxZ - b.minZ));
-        view.scale = Math.max(6, Math.min(160, s));
-        view.x = (b.minX + b.maxX) / 2 - w / 2 / view.scale;
-        view.z = (b.minZ + b.maxZ) / 2 - h / 2 / view.scale;
+        if (planProj === 'side') {
+            var s = Math.min((w - m * 2) / Math.max(0.5, b.maxZ - b.minZ),
+                             (h - m * 2) / Math.max(2, b.maxY - b.minY + 2));
+            view.scale = Math.max(6, Math.min(160, s));
+            view.z = (b.minZ + b.maxZ) / 2 - w / 2 / view.scale;
+            view.y = (b.minY + b.maxY) / 2;
+        } else if (planProj === 'front') {
+            var s = Math.min((w - m * 2) / Math.max(0.5, b.maxX - b.minX),
+                             (h - m * 2) / Math.max(2, b.maxY - b.minY + 2));
+            view.scale = Math.max(6, Math.min(160, s));
+            view.x = (b.minX + b.maxX) / 2 - w / 2 / view.scale;
+            view.y = (b.minY + b.maxY) / 2;
+        } else {
+            var s = Math.min((w - m * 2) / Math.max(0.5, b.maxX - b.minX),
+                             (h - m * 2) / Math.max(0.5, b.maxZ - b.minZ));
+            view.scale = Math.max(6, Math.min(160, s));
+            view.x = (b.minX + b.maxX) / 2 - w / 2 / view.scale;
+            view.z = (b.minZ + b.maxZ) / 2 - h / 2 / view.scale;
+        }
         draw();
     }
 
     function bounds() {
-        var b = { minX: Infinity, maxX: -Infinity, minZ: Infinity, maxZ: -Infinity };
+        var b = { minX: Infinity, maxX: -Infinity, minZ: Infinity, maxZ: -Infinity, minY: -0.8, maxY: 2.5 };
         var any = false;
         LIST_KEYS.forEach(function (k) {
-            list(k).forEach(function (s) {
+            (list(k) || []).forEach(function (s) {
                 any = true;
-                b.minX = Math.min(b.minX, s.x); b.maxX = Math.max(b.maxX, s.x + s.w);
-                b.minZ = Math.min(b.minZ, s.z); b.maxZ = Math.max(b.maxZ, s.z + s.d);
+                if (k === 'warps') {
+                    var r = s.r || 0.85;
+                    b.minX = Math.min(b.minX, s.x - r, s.tx - r);
+                    b.maxX = Math.max(b.maxX, s.x + r, s.tx + r);
+                    b.minZ = Math.min(b.minZ, s.z - r, s.tz - r);
+                    b.maxZ = Math.max(b.maxZ, s.z + r, s.tz + r);
+                } else if (k === 'decor') {
+                    b.minX = Math.min(b.minX, s.x - 1); b.maxX = Math.max(b.maxX, s.x + 1);
+                    b.minZ = Math.min(b.minZ, s.z - 1); b.maxZ = Math.max(b.maxZ, s.z + 1);
+                    b.minY = Math.min(b.minY, s.y || 0); b.maxY = Math.max(b.maxY, (s.y || 0) + 1.5);
+                } else {
+                    b.minX = Math.min(b.minX, s.x); b.maxX = Math.max(b.maxX, s.x + s.w);
+                    b.minZ = Math.min(b.minZ, s.z); b.maxZ = Math.max(b.maxZ, s.z + s.d);
+                    if (s.y !== undefined) {
+                        b.minY = Math.min(b.minY, s.y);
+                        b.maxY = Math.max(b.maxY, s.y + (s.h || 0) + ((s.sz || 0) > 0 ? s.sz * s.d : 0));
+                    }
+                }
             });
         });
-        if (!any) return { minX: -2, maxX: 10, minZ: -2, maxZ: 16 };
+        if (S.hole && S.hole.tee) {
+            b.minX = Math.min(b.minX, S.hole.tee.x - 1); b.maxX = Math.max(b.maxX, S.hole.tee.x + 1);
+            b.minZ = Math.min(b.minZ, S.hole.tee.z - 1); b.maxZ = Math.max(b.maxZ, S.hole.tee.z + 1);
+        }
+        if (S.hole && S.hole.cup) {
+            b.minX = Math.min(b.minX, S.hole.cup.x - 1); b.maxX = Math.max(b.maxX, S.hole.cup.x + 1);
+            b.minZ = Math.min(b.minZ, S.hole.cup.z - 1); b.maxZ = Math.max(b.maxZ, S.hole.cup.z + 1);
+        }
+        if (!any) return { minX: -2, maxX: 10, minZ: -2, maxZ: 16, minY: -0.8, maxY: 2.5 };
         return b;
     }
 
     function zoomBy(f, ax, ay) {
-        var bx = wx(ax), bz = wz(ay);
-        view.scale = Math.max(6, Math.min(220, view.scale * f));
-        view.x = bx - ax / view.scale;
-        view.z = bz - ay / view.scale;
+        if (planProj === 'side') {
+            var bz = wz(ax), by = wy(ay);
+            view.scale = Math.max(6, Math.min(220, view.scale * f));
+            view.z = bz - ax / view.scale;
+            view.y = by + (ay - planCanvas.clientHeight / 2) / view.scale;
+        } else if (planProj === 'front') {
+            var bx = wx(ax), by = wy(ay);
+            view.scale = Math.max(6, Math.min(220, view.scale * f));
+            view.x = bx - ax / view.scale;
+            view.y = by + (ay - planCanvas.clientHeight / 2) / view.scale;
+        } else {
+            var bx = wx(ax), bz = wz(ay);
+            view.scale = Math.max(6, Math.min(220, view.scale * f));
+            view.x = bx - ax / view.scale;
+            view.z = bz - ay / view.scale;
+        }
         draw();
+    }
+
+    function setPlanProj(proj) {
+        if (planProj === proj) return;
+        planProj = proj;
+        [].forEach.call(document.querySelectorAll('#plan-proj-bar .btn'), function (b) {
+            b.classList.toggle('on', b.dataset.proj === proj);
+        });
+        var tag = $('plan-tag');
+        if (tag) {
+            tag.textContent = proj === 'side' ? 'elevation profile (side Z/Y)'
+                : proj === 'front' ? 'cross-section (front X/Y)'
+                : 'plan (top-down X/Z)';
+        }
+        fit();
     }
 
     /* ── the plan ───────────────────────────────────────────────────────── */
@@ -410,16 +506,67 @@
     }
 
     function drawGrid() {
-        var step = S.snap >= 1 ? 1 : (view.scale > 60 ? 0.5 : 1);
-        while (step * view.scale < 14) step *= 2;
         var w = planCanvas.clientWidth, h = planCanvas.clientHeight;
         ctx.lineWidth = 1;
-        var x0 = Math.floor(view.x / step) * step, x, z;
+
+        if (planProj === 'side') {
+            // Horizontal is Z, vertical is Y (elevation)
+            var stepZ = S.snap >= 1 ? 1 : (view.scale > 60 ? 0.5 : 1);
+            while (stepZ * view.scale < 14) stepZ *= 2;
+            var z0 = Math.floor(view.z / stepZ) * stepZ, z;
+            for (z = z0; sz(z) < w; z += stepZ) {
+                ctx.strokeStyle = Math.abs(z) < 1e-6 ? '#3f4b57' : '#1b2129';
+                ctx.beginPath(); ctx.moveTo(sz(z), 0); ctx.lineTo(sz(z), h); ctx.stroke();
+            }
+            // Elevation lines along Y
+            var stepY = 0.5;
+            if (view.scale < 25) stepY = 1.0;
+            var minY = wy(h), maxY = wy(0);
+            var y0 = Math.floor(minY / stepY) * stepY, y;
+            ctx.font = '9px monospace';
+            for (y = y0; y <= maxY; y += stepY) {
+                var py = sy(y);
+                ctx.strokeStyle = Math.abs(y) < 1e-6 ? '#4e5d6c' : '#1b2129';
+                ctx.beginPath(); ctx.moveTo(0, py); ctx.lineTo(w, py); ctx.stroke();
+                ctx.fillStyle = Math.abs(y) < 1e-6 ? '#8b949e' : '#484f58';
+                ctx.fillText((y >= 0 ? '+' : '') + y.toFixed(1) + 'm', 6, py - 3);
+            }
+            return;
+        }
+
+        if (planProj === 'front') {
+            // Horizontal is X, vertical is Y
+            var stepX = S.snap >= 1 ? 1 : (view.scale > 60 ? 0.5 : 1);
+            while (stepX * view.scale < 14) stepX *= 2;
+            var x0 = Math.floor(view.x / stepX) * stepX, x;
+            for (x = x0; sx(x) < w; x += stepX) {
+                ctx.strokeStyle = Math.abs(x) < 1e-6 ? '#3f4b57' : '#1b2129';
+                ctx.beginPath(); ctx.moveTo(sx(x), 0); ctx.lineTo(sx(x), h); ctx.stroke();
+            }
+            var stepY = 0.5;
+            if (view.scale < 25) stepY = 1.0;
+            var minY = wy(h), maxY = wy(0);
+            var y0 = Math.floor(minY / stepY) * stepY, y;
+            ctx.font = '9px monospace';
+            for (y = y0; y <= maxY; y += stepY) {
+                var py = sy(y);
+                ctx.strokeStyle = Math.abs(y) < 1e-6 ? '#4e5d6c' : '#1b2129';
+                ctx.beginPath(); ctx.moveTo(0, py); ctx.lineTo(w, py); ctx.stroke();
+                ctx.fillStyle = Math.abs(y) < 1e-6 ? '#8b949e' : '#484f58';
+                ctx.fillText((y >= 0 ? '+' : '') + y.toFixed(1) + 'm', 6, py - 3);
+            }
+            return;
+        }
+
+        // Top-down view
+        var step = S.snap >= 1 ? 1 : (view.scale > 60 ? 0.5 : 1);
+        while (step * view.scale < 14) step *= 2;
+        var x0 = Math.floor(view.x / step) * step, x;
         for (x = x0; sx(x) < w; x += step) {
             ctx.strokeStyle = Math.abs(x) < 1e-6 ? '#3f4b57' : '#1b2129';
             ctx.beginPath(); ctx.moveTo(sx(x), 0); ctx.lineTo(sx(x), h); ctx.stroke();
         }
-        var z0 = Math.floor(view.z / step) * step;
+        var z0 = Math.floor(view.z / step) * step, z;
         for (z = z0; sz(z) < h; z += step) {
             ctx.strokeStyle = Math.abs(z) < 1e-6 ? '#3f4b57' : '#1b2129';
             ctx.beginPath(); ctx.moveTo(0, sz(z)); ctx.lineTo(w, sz(z)); ctx.stroke();
@@ -447,26 +594,16 @@
         ctx.restore();
     }
 
-    function draw() {
-        var w = planCanvas.clientWidth, h = planCanvas.clientHeight;
-        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-        ctx.clearRect(0, 0, w, h);
-        ctx.fillStyle = '#0a0f14';
-        ctx.fillRect(0, 0, w, h);
-        if (S.grid) drawGrid();
-
+    function drawTopView() {
         var t = world ? world.time : 0;
 
-        // Water sits under everything the ball can stand on, so it is painted
-        // first and its outline again afterwards: a bridge over a pond has to
-        // read as a bridge, and the shoreline has to stay visible under it.
+        // Water sits under everything the ball can stand on
         list('water').forEach(function (q) {
             ctx.fillStyle = 'rgba(27,109,158,.75)';
             rectPath(q); ctx.fill();
         });
 
-        // The ground. A pad that is tilted or raised says so on its face,
-        // because height is the one thing a plan cannot show.
+        // The ground pads
         list('pads').forEach(function (p) {
             ctx.fillStyle = PAD_COLOR[p.kind] || PAD_COLOR.green;
             ctx.globalAlpha = 0.85;
@@ -490,8 +627,7 @@
             rectPath(q); ctx.stroke();
         });
 
-        // The generated rails, greyed and unselectable: this is `enclose`
-        // showing its work, not part of the document.
+        // Generated rails, greyed and unselectable
         if (built) {
             var authored = list('extra').length;
             built.walls.forEach(function (wl, i) {
@@ -500,19 +636,49 @@
             });
         }
 
-        // The walls you wrote. A mover also draws the box it swings through,
-        // dashed, because the whole question about a gate is what it does at
-        // the other end of the stroke.
+        // The authored walls and obstacles
         list('extra').forEach(function (wl, i) {
             var selected = S.sel && S.sel.key === 'extra' && S.sel.idx === i;
+            var fill = EXTRA_KIND_COLOR[wl.kind] || '#6d4a2e';
+            var stroke = selected ? '#58a6ff' : 'rgba(0,0,0,.6)';
+
             if (wl.move || wl.spin || wl.swing) {
                 drawWallBox(wl, t + 1.4, null, 'rgba(210,153,34,.5)', [4, 3]);
                 drawWallBox(wl, t + 2.8, null, 'rgba(210,153,34,.35)', [4, 3]);
             }
-            drawWallBox(wl, t, '#6d4a2e', selected ? '#58a6ff' : 'rgba(0,0,0,.6)');
+
+            if (wl.kind === 'tree') {
+                // Circular canopy with central trunk collider
+                var cx = sx(wl.x + wl.w / 2), cz = sz(wl.z + wl.d / 2);
+                var rCanopy = Math.max(8, 1.2 * view.scale);
+                ctx.save();
+                ctx.fillStyle = 'rgba(45, 106, 63, 0.7)';
+                ctx.beginPath(); ctx.arc(cx, cz, rCanopy, 0, 7); ctx.fill();
+                ctx.strokeStyle = selected ? '#58a6ff' : 'rgba(30, 80, 45, 0.9)';
+                ctx.lineWidth = selected ? 2 : 1;
+                ctx.stroke();
+                drawWallBox(wl, t, '#4a3525', '#241a12');
+                ctx.restore();
+            } else if (wl.kind === 'rock') {
+                var cx = sx(wl.x + wl.w / 2), cz = sz(wl.z + wl.d / 2);
+                var rRock = Math.max(6, (Math.min(wl.w, wl.d) / 2) * view.scale);
+                ctx.save();
+                ctx.fillStyle = '#7a7a85';
+                ctx.strokeStyle = selected ? '#58a6ff' : '#4b4b54';
+                ctx.lineWidth = selected ? 2 : 1;
+                ctx.beginPath(); ctx.arc(cx, cz, rRock, 0, 7); ctx.fill(); ctx.stroke();
+                ctx.restore();
+            } else if (wl.kind === 'bumper') {
+                drawWallBox(wl, t, '#f0409a', selected ? '#58a6ff' : '#a02060');
+                var cx = sx(wl.x + wl.w / 2), cz = sz(wl.z + wl.d / 2);
+                ctx.fillStyle = '#ffffff';
+                ctx.beginPath(); ctx.arc(cx, cz, Math.max(2, 0.12 * view.scale), 0, 7); ctx.fill();
+            } else {
+                drawWallBox(wl, t, fill, stroke);
+            }
         });
 
-        // Gaps: the rectangles that tell `enclose` to leave the edge open.
+        // Gaps
         list('gaps').forEach(function (g) {
             ctx.save();
             ctx.setLineDash([6, 4]);
@@ -524,15 +690,305 @@
         });
 
         drawPipes();
+        drawDecor();
         drawMarker(S.hole.tee.x, S.hole.tee.z, '#e6edf3', 'T');
         drawMarker(S.hole.cup.x, S.hole.cup.z, '#f2c744', 'H');
 
-        // The ball, wherever the shared world has left it.
+        // Ball
         if (world) {
             ctx.beginPath();
             ctx.arc(sx(world.ball.x), sz(world.ball.z), Math.max(2.5, C.BALL_R * view.scale), 0, 7);
             ctx.fillStyle = '#ffffff';
             ctx.fill();
+            ctx.strokeStyle = '#000000'; ctx.lineWidth = 0.5; ctx.stroke();
+        }
+    }
+
+    function drawSideElevation() {
+        var w = planCanvas.clientWidth, h = planCanvas.clientHeight;
+
+        // Ground baseline y = 0
+        ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+        ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(0, sy(0)); ctx.lineTo(w, sy(0)); ctx.stroke();
+
+        // 1. Water
+        list('water').forEach(function (q) {
+            var z0 = sz(q.z), z1 = sz(q.z + q.d);
+            var ySurf = sy(q.y), yBed = sy(q.y - 0.7);
+            ctx.fillStyle = 'rgba(27,109,158,.45)';
+            ctx.fillRect(Math.min(z0, z1), Math.min(ySurf, yBed), Math.abs(z1 - z0), Math.abs(yBed - ySurf));
+            ctx.strokeStyle = '#58a6ff'; ctx.lineWidth = 2;
+            ctx.beginPath(); ctx.moveTo(z0, ySurf); ctx.lineTo(z1, ySurf); ctx.stroke();
+        });
+
+        // 2. Pads (ground slabs & slopes)
+        list('pads').forEach(function (p) {
+            var z0 = p.z, z1 = p.z + p.d;
+            var szSlope = p.sz || 0;
+            var y0 = p.y, y1 = p.y + szSlope * p.d;
+            var px0 = sz(z0), py0 = sy(y0);
+            var px1 = sz(z1), py1 = sy(y1);
+            var depth = 0.35 * view.scale;
+
+            ctx.save();
+            ctx.beginPath();
+            ctx.moveTo(px0, py0);
+            ctx.lineTo(px1, py1);
+            ctx.lineTo(px1, py1 + depth);
+            ctx.lineTo(px0, py0 + depth);
+            ctx.closePath();
+            ctx.fillStyle = PAD_COLOR[p.kind] || PAD_COLOR.green;
+            ctx.globalAlpha = 0.85;
+            ctx.fill();
+            ctx.globalAlpha = 1;
+            ctx.strokeStyle = 'rgba(255,255,255,0.7)';
+            ctx.lineWidth = 2;
+            ctx.beginPath(); ctx.moveTo(px0, py0); ctx.lineTo(px1, py1); ctx.stroke();
+            ctx.strokeStyle = 'rgba(0,0,0,0.5)';
+            ctx.lineWidth = 1;
+            ctx.stroke();
+
+            // Push arrows on slope
+            if (p.push && Math.abs(p.push.z) > 0.1) {
+                var midX = (px0 + px1) / 2, midY = (py0 + py1) / 2;
+                var dir = p.push.z > 0 ? 1 : -1;
+                ctx.strokeStyle = 'rgba(240,180,60,.9)';
+                ctx.fillStyle = 'rgba(240,180,60,.9)';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(midX - dir * 12, midY);
+                ctx.lineTo(midX + dir * 12, midY);
+                ctx.stroke();
+            }
+            if (p.spring) {
+                var midX = (px0 + px1) / 2, midY = (py0 + py1) / 2;
+                ctx.strokeStyle = 'rgba(240,180,60,.9)';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(midX, midY + depth);
+                ctx.lineTo(midX, midY + depth + 14);
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.moveTo(midX, midY - 6);
+                ctx.lineTo(midX, midY - 18);
+                ctx.lineTo(midX - 4, midY - 12);
+                ctx.moveTo(midX, midY - 18);
+                ctx.lineTo(midX + 4, midY - 12);
+                ctx.stroke();
+            }
+            ctx.restore();
+        });
+
+        // 3. Walls / Obstacles in side elevation
+        list('extra').forEach(function (wl, i) {
+            var selected = S.sel && S.sel.key === 'extra' && S.sel.idx === i;
+            var z0 = sz(wl.z), z1 = sz(wl.z + wl.d);
+            var yBase = sy(wl.base !== undefined ? wl.base : -0.4);
+            var yTop = sy((wl.base !== undefined ? wl.base : -0.4) + wl.h);
+            var left = Math.min(z0, z1), width = Math.max(4, Math.abs(z1 - z0));
+            var top = Math.min(yBase, yTop), height = Math.abs(yBase - yTop);
+
+            ctx.save();
+            if (wl.kind === 'beam') {
+                ctx.fillStyle = '#9a6a3c';
+                ctx.strokeStyle = selected ? '#58a6ff' : '#332211';
+                ctx.lineWidth = 1.5;
+                // Overhead bar: base 0.55, h 1.35
+                var barTop = sy(1.35), barBot = sy(0.55);
+                ctx.fillRect(left, Math.min(barTop, barBot), width, Math.abs(barBot - barTop));
+                ctx.strokeRect(left, Math.min(barTop, barBot), width, Math.abs(barBot - barTop));
+                // Posts at ends
+                var postW = Math.max(3, 0.28 * view.scale);
+                var postBot = sy(wl.base !== undefined ? wl.base : -0.4);
+                ctx.fillRect(left, Math.min(barBot, postBot), postW, Math.abs(postBot - barBot));
+                ctx.fillRect(left + width - postW, Math.min(barBot, postBot), postW, Math.abs(postBot - barBot));
+            } else if (wl.kind === 'tree') {
+                var trunkW = Math.max(4, 0.3 * view.scale);
+                ctx.fillStyle = '#4a3525';
+                ctx.fillRect(left + width / 2 - trunkW / 2, top, trunkW, height);
+                ctx.fillStyle = '#2d6a3f';
+                ctx.beginPath();
+                ctx.arc(left + width / 2, top - 8, Math.max(10, width * 0.8), 0, 7);
+                ctx.fill();
+            } else if (wl.kind === 'rock') {
+                ctx.fillStyle = '#7a7a85';
+                ctx.strokeStyle = selected ? '#58a6ff' : '#444';
+                ctx.beginPath();
+                ctx.arc(left + width / 2, yBase, width * 0.5, Math.PI, 0);
+                ctx.fill(); ctx.stroke();
+            } else if (wl.kind === 'bumper') {
+                ctx.fillStyle = '#f0409a';
+                ctx.strokeStyle = selected ? '#58a6ff' : '#881144';
+                ctx.fillRect(left, top, width, height);
+                ctx.strokeRect(left, top, width, height);
+            } else {
+                ctx.fillStyle = EXTRA_KIND_COLOR[wl.kind] || '#6d4a2e';
+                ctx.strokeStyle = selected ? '#58a6ff' : 'rgba(0,0,0,0.6)';
+                ctx.lineWidth = 1.5;
+                ctx.fillRect(left, top, width, height);
+                ctx.strokeRect(left, top, width, height);
+            }
+            ctx.restore();
+        });
+
+        // 4. Decor in side view
+        (list('decor') || []).forEach(function (d, i) {
+            var pz = sz(d.z), py = sy(d.y || 0);
+            var selected = S.sel && S.sel.key === 'decor' && S.sel.idx === i;
+            ctx.save();
+            ctx.strokeStyle = selected ? '#58a6ff' : '#e3b341';
+            ctx.fillStyle = '#e3b341';
+            ctx.beginPath();
+            ctx.arc(pz, py, 6, 0, 7);
+            ctx.fill(); ctx.stroke();
+            ctx.fillStyle = 'rgba(255,255,255,0.7)';
+            ctx.font = '9px monospace';
+            ctx.fillText(d.kind, pz + 8, py + 3);
+            ctx.restore();
+        });
+
+        // 5. Pipes in side view
+        (list('warps') || []).forEach(function (w) {
+            var z0 = sz(w.z), z1 = sz(w.tz);
+            var y0 = sy(0), y1 = sy(0);
+            ctx.save();
+            ctx.strokeStyle = '#79c0ff';
+            ctx.lineWidth = 2;
+            ctx.beginPath(); ctx.arc(z0, y0, 5, 0, 7); ctx.stroke();
+            ctx.beginPath(); ctx.arc(z1, y1, 5, 0, 7); ctx.stroke();
+            ctx.setLineDash([4, 4]);
+            ctx.strokeStyle = 'rgba(121,192,255,0.5)';
+            ctx.beginPath();
+            ctx.moveTo(z0, y0);
+            ctx.quadraticCurveTo((z0 + z1) / 2, Math.max(y0, y1) + 25, z1, y1);
+            ctx.stroke();
+            ctx.restore();
+        });
+
+        // 6. Tee and Cup
+        var teePad = P.surfaceTop(built || S.hole, S.hole.tee.x, S.hole.tee.z);
+        var teeY = teePad ? teePad.y : 0;
+        var pzTee = sz(S.hole.tee.z), pyTee = sy(teeY);
+        ctx.fillStyle = '#e6edf3';
+        ctx.beginPath(); ctx.arc(pzTee, pyTee, 6, 0, 7); ctx.fill();
+        ctx.strokeStyle = '#fff'; ctx.stroke();
+
+        var cupY = built && built.cup ? built.cup.y : 0;
+        var pzCup = sz(S.hole.cup.z), pyCup = sy(cupY);
+        ctx.fillStyle = '#f2c744';
+        ctx.beginPath(); ctx.arc(pzCup, pyCup, 6, 0, 7); ctx.fill();
+        ctx.strokeStyle = '#e6edf3'; ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.moveTo(pzCup, pyCup); ctx.lineTo(pzCup, pyCup - 22); ctx.stroke();
+        ctx.fillStyle = '#f2c744';
+        ctx.beginPath(); ctx.moveTo(pzCup, pyCup - 22); ctx.lineTo(pzCup + 10, pyCup - 17); ctx.lineTo(pzCup, pyCup - 12); ctx.fill();
+
+        // 7. Ball
+        if (world) {
+            ctx.beginPath();
+            ctx.arc(sz(world.ball.z), sy(world.ball.y), Math.max(2.5, C.BALL_R * view.scale), 0, 7);
+            ctx.fillStyle = '#ffffff'; ctx.fill();
+            ctx.strokeStyle = '#000'; ctx.lineWidth = 1; ctx.stroke();
+        }
+    }
+
+    function drawFrontElevation() {
+        var w = planCanvas.clientWidth, h = planCanvas.clientHeight;
+
+        ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+        ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(0, sy(0)); ctx.lineTo(w, sy(0)); ctx.stroke();
+
+        list('water').forEach(function (q) {
+            var x0 = sx(q.x), x1 = sx(q.x + q.w);
+            var ySurf = sy(q.y), yBed = sy(q.y - 0.7);
+            ctx.fillStyle = 'rgba(27,109,158,.45)';
+            ctx.fillRect(Math.min(x0, x1), Math.min(ySurf, yBed), Math.abs(x1 - x0), Math.abs(yBed - ySurf));
+            ctx.strokeStyle = '#58a6ff'; ctx.lineWidth = 2;
+            ctx.beginPath(); ctx.moveTo(x0, ySurf); ctx.lineTo(x1, ySurf); ctx.stroke();
+        });
+
+        list('pads').forEach(function (p) {
+            var x0 = p.x, x1 = p.x + p.w;
+            var sxSlope = p.sx || 0;
+            var y0 = p.y, y1 = p.y + sxSlope * p.w;
+            var px0 = sx(x0), py0 = sy(y0);
+            var px1 = sx(x1), py1 = sy(y1);
+            var depth = 0.35 * view.scale;
+
+            ctx.save();
+            ctx.beginPath();
+            ctx.moveTo(px0, py0);
+            ctx.lineTo(px1, py1);
+            ctx.lineTo(px1, py1 + depth);
+            ctx.lineTo(px0, py0 + depth);
+            ctx.closePath();
+            ctx.fillStyle = PAD_COLOR[p.kind] || PAD_COLOR.green;
+            ctx.globalAlpha = 0.85;
+            ctx.fill();
+            ctx.globalAlpha = 1;
+            ctx.strokeStyle = 'rgba(255,255,255,0.7)';
+            ctx.lineWidth = 2;
+            ctx.beginPath(); ctx.moveTo(px0, py0); ctx.lineTo(px1, py1); ctx.stroke();
+            ctx.restore();
+        });
+
+        list('extra').forEach(function (wl, i) {
+            var selected = S.sel && S.sel.key === 'extra' && S.sel.idx === i;
+            var x0 = sx(wl.x), x1 = sx(wl.x + wl.w);
+            var yBase = sy(wl.base !== undefined ? wl.base : -0.4);
+            var yTop = sy((wl.base !== undefined ? wl.base : -0.4) + wl.h);
+            var left = Math.min(x0, x1), width = Math.max(4, Math.abs(x1 - x0));
+            var top = Math.min(yBase, yTop), height = Math.abs(yBase - yTop);
+
+            ctx.save();
+            ctx.fillStyle = EXTRA_KIND_COLOR[wl.kind] || '#6d4a2e';
+            ctx.strokeStyle = selected ? '#58a6ff' : 'rgba(0,0,0,0.6)';
+            ctx.lineWidth = 1.5;
+            ctx.fillRect(left, top, width, height);
+            ctx.strokeRect(left, top, width, height);
+            ctx.restore();
+        });
+
+        (list('decor') || []).forEach(function (d, i) {
+            var px = sx(d.x), py = sy(d.y || 0);
+            var selected = S.sel && S.sel.key === 'decor' && S.sel.idx === i;
+            ctx.save();
+            ctx.strokeStyle = selected ? '#58a6ff' : '#e3b341';
+            ctx.fillStyle = '#e3b341';
+            ctx.beginPath(); ctx.arc(px, py, 6, 0, 7); ctx.fill(); ctx.stroke();
+            ctx.restore();
+        });
+
+        var pxTee = sx(S.hole.tee.x), pyTee = sy(0);
+        ctx.fillStyle = '#e6edf3';
+        ctx.beginPath(); ctx.arc(pxTee, pyTee, 6, 0, 7); ctx.fill();
+
+        var pxCup = sx(S.hole.cup.x), pyCup = sy(0);
+        ctx.fillStyle = '#f2c744';
+        ctx.beginPath(); ctx.arc(pxCup, pyCup, 6, 0, 7); ctx.fill();
+
+        if (world) {
+            ctx.beginPath();
+            ctx.arc(sx(world.ball.x), sy(world.ball.y), Math.max(2.5, C.BALL_R * view.scale), 0, 7);
+            ctx.fillStyle = '#ffffff'; ctx.fill();
+        }
+    }
+
+    function draw() {
+        var w = planCanvas.clientWidth, h = planCanvas.clientHeight;
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        ctx.clearRect(0, 0, w, h);
+        ctx.fillStyle = '#0a0f14';
+        ctx.fillRect(0, 0, w, h);
+        if (S.grid) drawGrid();
+
+        if (planProj === 'side') {
+            drawSideElevation();
+        } else if (planProj === 'front') {
+            drawFrontElevation();
+        } else {
+            drawTopView();
         }
 
         drawSelection();
@@ -560,12 +1016,6 @@
         ctx.fill();
     }
 
-    /* What a pad *does*, drawn on its face, because none of it has a shape of
-       its own on a plan: a belt is a floor with a direction, a launch pad is a
-       floor with a number, and both look exactly like wood until they are
-       said. The arrow is the run of the belt rather than the fall of the
-       ground, which is why it is drawn in the belt's own amber and the slope
-       arrow is drawn in white. */
     function drawPushArrow(p) {
         var cx = sx(p.x + p.w / 2), cz = sz(p.z + p.d / 2);
         var g = Math.sqrt(p.push.x * p.push.x + p.push.z * p.push.z);
@@ -599,24 +1049,21 @@
         }
     }
 
-    /* A pipe, which is the one thing on a hole that is somewhere and somewhere
-       else at once. The mouth is the ring the ball falls into, the cross is
-       where it comes out, and the dashed line between them is the only picture
-       of a journey that happens under the floor. */
     function drawPipes() {
         var ws = S.hole.warps;
         if (!ws || !ws.length) return;
         ctx.save();
-        ws.forEach(function (w) {
+        ws.forEach(function (w, i) {
+            var selected = S.sel && S.sel.key === 'warps' && S.sel.idx === i;
             var ax = sx(w.x), az = sz(w.z), bx = sx(w.tx), bz = sz(w.tz);
-            var r = Math.max(3, w.r * view.scale);
+            var r = Math.max(3, (w.r || 0.85) * view.scale);
             ctx.setLineDash([5, 4]);
-            ctx.strokeStyle = 'rgba(121,192,255,.45)';
+            ctx.strokeStyle = selected ? '#58a6ff' : 'rgba(121,192,255,.45)';
             ctx.lineWidth = 1.5;
             ctx.beginPath();
             ctx.moveTo(ax, az); ctx.lineTo(bx, bz); ctx.stroke();
             ctx.setLineDash([]);
-            ctx.strokeStyle = '#79c0ff';
+            ctx.strokeStyle = selected ? '#58a6ff' : '#79c0ff';
             ctx.lineWidth = 2;
             ctx.beginPath(); ctx.arc(ax, az, r, 0, 7); ctx.stroke();
             ctx.fillStyle = 'rgba(121,192,255,.18)';
@@ -626,6 +1073,80 @@
             ctx.moveTo(bx - r * 0.6, bz - r * 0.6); ctx.lineTo(bx + r * 0.6, bz + r * 0.6);
             ctx.moveTo(bx + r * 0.6, bz - r * 0.6); ctx.lineTo(bx - r * 0.6, bz + r * 0.6);
             ctx.stroke();
+
+            // Exit direction arrow
+            if (w.yaw !== undefined) {
+                var yaw = w.yaw;
+                var arrowLen = Math.max(12, r * 1.4);
+                var arrowEx = bx + Math.sin(yaw) * arrowLen;
+                var arrowEz = bz + Math.cos(yaw) * arrowLen;
+                ctx.strokeStyle = '#79c0ff';
+                ctx.beginPath(); ctx.moveTo(bx, bz); ctx.lineTo(arrowEx, arrowEz); ctx.stroke();
+            }
+        });
+        ctx.restore();
+    }
+
+    function drawDecor() {
+        var decs = S.hole.decor;
+        if (!decs || !decs.length) return;
+        ctx.save();
+        decs.forEach(function (d, i) {
+            var px = sx(d.x), pz = sz(d.z);
+            var selected = S.sel && S.sel.key === 'decor' && S.sel.idx === i;
+            var scale = (d.scale || 1) * view.scale * 0.45;
+            ctx.save();
+            ctx.translate(px, pz);
+            ctx.rotate(-(d.yaw || 0));
+
+            ctx.lineWidth = 1.5;
+            if (d.kind === 'buoy') {
+                ctx.fillStyle = '#f0883e';
+                ctx.strokeStyle = selected ? '#58a6ff' : '#ffffff';
+                ctx.beginPath();
+                ctx.arc(0, 0, Math.max(4, scale), 0, 7);
+                ctx.fill(); ctx.stroke();
+                ctx.fillStyle = '#ffffff';
+                ctx.beginPath();
+                ctx.arc(0, 0, Math.max(2, scale * 0.45), 0, 7);
+                ctx.fill();
+            } else if (d.kind === 'piling') {
+                ctx.fillStyle = '#6d4a2e';
+                ctx.strokeStyle = selected ? '#58a6ff' : '#000000';
+                [-scale * 0.5, 0, scale * 0.5].forEach(function (dx, k) {
+                    var dy = (k % 2 === 0 ? -scale * 0.3 : scale * 0.3);
+                    ctx.beginPath();
+                    ctx.arc(dx, dy, Math.max(2.5, scale * 0.35), 0, 7);
+                    ctx.fill(); ctx.stroke();
+                });
+            } else if (d.kind === 'bench') {
+                ctx.fillStyle = '#8a6337';
+                ctx.strokeStyle = selected ? '#58a6ff' : '#2b1d0c';
+                ctx.fillRect(-scale * 0.9, -scale * 0.35, scale * 1.8, scale * 0.7);
+                ctx.strokeRect(-scale * 0.9, -scale * 0.35, scale * 1.8, scale * 0.7);
+            } else if (d.kind === 'boat') {
+                ctx.fillStyle = '#a67c52';
+                ctx.strokeStyle = selected ? '#58a6ff' : '#332211';
+                ctx.beginPath();
+                ctx.moveTo(0, -scale * 1.4);
+                ctx.bezierCurveTo(scale * 0.8, -scale * 0.5, scale * 0.7, scale * 0.9, 0, scale * 1.2);
+                ctx.bezierCurveTo(-scale * 0.7, scale * 0.9, -scale * 0.8, -scale * 0.5, 0, -scale * 1.4);
+                ctx.fill(); ctx.stroke();
+            } else { // bin
+                ctx.fillStyle = '#484f58';
+                ctx.strokeStyle = selected ? '#58a6ff' : '#21262d';
+                ctx.beginPath();
+                ctx.arc(0, 0, Math.max(3.5, scale * 0.6), 0, 7);
+                ctx.fill(); ctx.stroke();
+            }
+
+            ctx.restore();
+            if (view.scale > 30) {
+                ctx.fillStyle = 'rgba(255,255,255,0.7)';
+                ctx.font = '9px monospace';
+                ctx.textAlign = 'center';
+                ctx.fillText(d.kind, px, pz + scale + 10);
+            }
         });
         ctx.restore();
     }
@@ -645,6 +1166,43 @@
 
     function drawSelection() {
         if (!S.sel) return;
+        if (planProj === 'side') {
+            if (S.sel.key === 'tee' || S.sel.key === 'cup') {
+                var m = S.hole[S.sel.key];
+                var pz = sz(m.z), py = sy(0);
+                ctx.strokeStyle = '#58a6ff'; ctx.lineWidth = 2;
+                ctx.beginPath(); ctx.arc(pz, py, 11, 0, 7); ctx.stroke();
+                return;
+            }
+            var s = selShape();
+            if (!s) return;
+            var z0 = sz(s.z), z1 = sz(s.z + (s.d || (s.r ? s.r * 2 : 2)));
+            var y0 = sy(s.y !== undefined ? s.y : (s.base !== undefined ? s.base : 0));
+            var y1 = sy((s.y !== undefined ? s.y : (s.base !== undefined ? s.base : 0)) + (s.h || 0.6));
+            ctx.strokeStyle = '#58a6ff'; ctx.lineWidth = 2;
+            ctx.strokeRect(Math.min(z0, z1), Math.min(y0, y1), Math.abs(z1 - z0), Math.abs(y0 - y1));
+            return;
+        }
+
+        if (planProj === 'front') {
+            if (S.sel.key === 'tee' || S.sel.key === 'cup') {
+                var m = S.hole[S.sel.key];
+                var px = sx(m.x), py = sy(0);
+                ctx.strokeStyle = '#58a6ff'; ctx.lineWidth = 2;
+                ctx.beginPath(); ctx.arc(px, py, 11, 0, 7); ctx.stroke();
+                return;
+            }
+            var s = selShape();
+            if (!s) return;
+            var x0 = sx(s.x), x1 = sx(s.x + (s.w || (s.r ? s.r * 2 : 2)));
+            var y0 = sy(s.y !== undefined ? s.y : (s.base !== undefined ? s.base : 0));
+            var y1 = sy((s.y !== undefined ? s.y : (s.base !== undefined ? s.base : 0)) + (s.h || 0.6));
+            ctx.strokeStyle = '#58a6ff'; ctx.lineWidth = 2;
+            ctx.strokeRect(Math.min(x0, x1), Math.min(y0, y1), Math.abs(x1 - x0), Math.abs(y0 - y1));
+            return;
+        }
+
+        // Top view selection
         if (S.sel.key === 'tee' || S.sel.key === 'cup') {
             var m = S.hole[S.sel.key];
             ctx.strokeStyle = '#58a6ff'; ctx.lineWidth = 2;
@@ -654,8 +1212,22 @@
         var s = selShape();
         if (!s) return;
         ctx.strokeStyle = '#58a6ff'; ctx.lineWidth = 2;
-        rectPath(s); ctx.stroke();
-        // Corner grips, which is where a resize starts.
+        if (S.sel.key === 'decor') {
+            ctx.beginPath(); ctx.arc(sx(s.x), sz(s.z), Math.max(8, (s.scale || 1) * view.scale * 0.5), 0, 7); ctx.stroke();
+            return;
+        }
+        if (S.sel.key === 'warps') {
+            var r = (s.r || 0.85) * view.scale;
+            ctx.beginPath(); ctx.arc(sx(s.x), sz(s.z), r + 4, 0, 7); ctx.stroke();
+            ctx.beginPath(); ctx.arc(sx(s.tx), sz(s.tz), r + 4, 0, 7); ctx.stroke();
+            return;
+        }
+        if (s.r) {
+            padPath(s); ctx.stroke();
+        } else {
+            rectPath(s); ctx.stroke();
+        }
+        // Corner grips
         corners(s).forEach(function (c) {
             ctx.fillStyle = '#58a6ff';
             ctx.fillRect(c.px - 3, c.pz - 3, 6, 6);
@@ -663,6 +1235,17 @@
     }
 
     function corners(s) {
+        if (!s) return [];
+        if (s.r) {
+            var cx = sx(s.x + s.w / 2), cz = sz(s.z + s.d / 2);
+            var r = s.r * view.scale;
+            return [
+                { hx: -1, hz: 0, px: cx - r, pz: cz },
+                { hx: 1, hz: 0, px: cx + r, pz: cz },
+                { hx: 0, hz: -1, px: cx, pz: cz - r },
+                { hx: 0, hz: 1, px: cx, pz: cz + r }
+            ];
+        }
         return [
             { hx: -1, hz: -1, px: sx(s.x), pz: sz(s.z) },
             { hx: 1, hz: -1, px: sx(s.x + s.w), pz: sz(s.z) },
@@ -677,18 +1260,104 @@
         var names = ['cup', 'tee'], i, m;
         for (i = 0; i < names.length; i++) {
             m = S.hole[names[i]];
-            if (Math.hypot(px - sx(m.x), pz - sz(m.z)) <= 10) return names[i];
+            if (!m) continue;
+            if (planProj === 'side') {
+                if (Math.hypot(px - sz(m.z), pz - sy(0)) <= 12) return names[i];
+            } else if (planProj === 'front') {
+                if (Math.hypot(px - sx(m.x), pz - sy(0)) <= 12) return names[i];
+            } else {
+                if (Math.hypot(px - sx(m.x), pz - sz(m.z)) <= 10) return names[i];
+            }
         }
         return null;
     }
 
     function shapeAt(px, pz) {
-        var x = wx(px), z = wz(pz), i, k, arr, s;
+        var i, k, arr, s;
+        if (planProj === 'side') {
+            var z = wz(px), y = wy(pz);
+            for (k = LISTS.length - 1; k >= 0; k--) {
+                arr = list(LISTS[k].key) || [];
+                for (i = arr.length - 1; i >= 0; i--) {
+                    s = arr[i];
+                    if (LISTS[k].key === 'decor') {
+                        if (Math.hypot(px - sz(s.z), pz - sy(s.y || 0)) <= 14) return { key: 'decor', idx: i };
+                    } else if (LISTS[k].key === 'warps') {
+                        if (Math.hypot(px - sz(s.z), pz - sy(0)) <= 12 || Math.hypot(px - sz(s.tz), pz - sy(0)) <= 12) {
+                            return { key: 'warps', idx: i };
+                        }
+                    } else if (LISTS[k].key === 'extra') {
+                        var yb = s.base !== undefined ? s.base : -0.4, yt = yb + (s.h || 0.6);
+                        if (z >= s.z && z <= s.z + s.d && y >= yb - 0.25 && y <= yt + 0.25) {
+                            return { key: 'extra', idx: i };
+                        }
+                    } else if (LISTS[k].key === 'pads') {
+                        var padY = (s.y || 0) + (s.sz || 0) * (z - s.z);
+                        if (z >= s.z && z <= s.z + s.d && Math.abs(y - padY) <= 0.45) {
+                            return { key: 'pads', idx: i };
+                        }
+                    } else if (LISTS[k].key === 'water') {
+                        if (z >= s.z && z <= s.z + s.d && y <= (s.y || -0.6) + 0.2 && y >= (s.y || -0.6) - 0.7) {
+                            return { key: 'water', idx: i };
+                        }
+                    } else if (z >= s.z && z <= s.z + s.d) {
+                        return { key: LISTS[k].key, idx: i };
+                    }
+                }
+            }
+            return null;
+        }
+
+        if (planProj === 'front') {
+            var x = wx(px), y = wy(pz);
+            for (k = LISTS.length - 1; k >= 0; k--) {
+                arr = list(LISTS[k].key) || [];
+                for (i = arr.length - 1; i >= 0; i--) {
+                    s = arr[i];
+                    if (LISTS[k].key === 'decor') {
+                        if (Math.hypot(px - sx(s.x), pz - sy(s.y || 0)) <= 14) return { key: 'decor', idx: i };
+                    } else if (LISTS[k].key === 'warps') {
+                        if (Math.hypot(px - sx(s.x), pz - sy(0)) <= 12 || Math.hypot(px - sx(s.tx), pz - sy(0)) <= 12) {
+                            return { key: 'warps', idx: i };
+                        }
+                    } else if (LISTS[k].key === 'extra') {
+                        var yb = s.base !== undefined ? s.base : -0.4, yt = yb + (s.h || 0.6);
+                        if (x >= s.x && x <= s.x + s.w && y >= yb - 0.25 && y <= yt + 0.25) {
+                            return { key: 'extra', idx: i };
+                        }
+                    } else if (LISTS[k].key === 'pads') {
+                        var padY = (s.y || 0) + (s.sx || 0) * (x - s.x);
+                        if (x >= s.x && x <= s.x + s.w && Math.abs(y - padY) <= 0.45) {
+                            return { key: 'pads', idx: i };
+                        }
+                    } else if (x >= s.x && x <= s.x + s.w) {
+                        return { key: LISTS[k].key, idx: i };
+                    }
+                }
+            }
+            return null;
+        }
+
+        // Top view
+        var x = wx(px), z = wz(pz);
         for (k = LISTS.length - 1; k >= 0; k--) {
-            arr = list(LISTS[k].key);
+            arr = list(LISTS[k].key) || [];
             for (i = arr.length - 1; i >= 0; i--) {
                 s = arr[i];
-                if (x >= s.x && x <= s.x + s.w && z >= s.z && z <= s.z + s.d) {
+                if (LISTS[k].key === 'decor') {
+                    if (Math.hypot(x - s.x, z - s.z) <= (s.scale || 1) * 0.8) return { key: 'decor', idx: i };
+                } else if (LISTS[k].key === 'warps') {
+                    var r = s.r || 0.85;
+                    if (Math.hypot(x - s.x, z - s.z) <= r || Math.hypot(x - s.tx, z - s.tz) <= r) {
+                        return { key: 'warps', idx: i };
+                    }
+                } else if (LISTS[k].key === 'extra' && s.yaw) {
+                    var B = P.wallBox(s, 0);
+                    if (P.circleBox(x, z, 0.2, B)) return { key: 'extra', idx: i };
+                } else if (s.r) {
+                    var cx = s.x + s.w / 2, cz = s.z + s.d / 2;
+                    if (Math.hypot(x - cx, z - cz) <= s.r) return { key: LISTS[k].key, idx: i };
+                } else if (x >= s.x && x <= s.x + s.w && z >= s.z && z <= s.z + s.d) {
                     return { key: LISTS[k].key, idx: i };
                 }
             }
@@ -719,17 +1388,110 @@
         return { px: e.clientX - r.left, pz: e.clientY - r.top };
     }
 
+    function listKeyForTool(tool) {
+        if (tool === 'pads' || tool === 'pad' || tool === 'disc' || tool === 'belt' || tool === 'sprung') return 'pads';
+        if (tool === 'extra' || tool === 'bumper' || tool === 'spinner' || tool === 'slider' || tool === 'flipper' || tool === 'beam' || tool === 'tree' || tool === 'rock') return 'extra';
+        if (tool === 'water') return 'water';
+        if (tool === 'gaps') return 'gaps';
+        if (tool === 'pipe' || tool === 'warps') return 'warps';
+        if (tool === 'decor') return 'decor';
+        return null;
+    }
+
+    function defaultsFor(key, x, z) {
+        var o = { x: x, z: z, w: MIN_SIDE, d: MIN_SIDE };
+        if (key === 'pads' || key === 'pad') {
+            o = { x: x, z: z, w: 4, d: 4, y: 0, kind: S.padKind, sx: 0, sz: 0 };
+        } else if (key === 'disc') {
+            o = { x: x - 1.5, z: z - 1.5, w: 3, d: 3, r: 1.5, inlay: true, kind: S.padKind, y: 0, sx: 0, sz: 0 };
+        } else if (key === 'belt') {
+            o = { x: x, z: z, w: 2, d: 5, y: 0, kind: S.padKind === 'green' ? 'wood' : S.padKind, push: { x: 0, z: 3 } };
+        } else if (key === 'sprung') {
+            o = { x: x - 0.8, z: z - 0.8, w: 1.6, d: 1.6, r: 0.8, rIn: 0.8, inlay: true, kind: 'wood', y: 0, spring: 8.5 };
+        } else if (key === 'extra') {
+            o = { x: x, z: z, w: 3, d: 0.34, h: 0.6, base: -0.1, kind: 'rail', yaw: 0 };
+        } else if (key === 'bumper') {
+            o = { x: x - 0.25, z: z - 0.25, w: 0.5, d: 0.5, h: 0.5, base: -0.1, kind: 'bumper', yaw: 0 };
+        } else if (key === 'spinner') {
+            o = { x: x - 1.25, z: z - 0.15, w: 2.5, d: 0.3, h: 0.6, base: -0.1, spin: 1.6, kind: 'blade', yaw: 0 };
+        } else if (key === 'slider') {
+            o = { x: x - 1.25, z: z - 0.15, w: 2.5, d: 0.3, h: 0.6, base: -0.1, move: { axis: 'x', amp: 1.5, speed: 1.1, phase: 0 }, kind: 'gate', yaw: 0 };
+        } else if (key === 'flipper') {
+            o = { x: x - 1.1, z: z - 0.17, w: 2.2, d: 0.34, h: 0.6, base: -0.1, swing: { from: -0.5, to: 0.5, speed: 2.2, phase: 0 }, kind: 'blade', yaw: 0 };
+        } else if (key === 'beam') {
+            o = { x: x - 1.5, z: z - 0.14, w: 3.0, d: 0.28, h: 1.35, base: 0.55, kind: 'beam', yaw: 0 };
+        } else if (key === 'tree') {
+            o = { x: x - 0.31, z: z - 0.31, w: 0.62, d: 0.62, h: 2.4, base: -0.4, kind: 'tree', seat: 0.4 };
+        } else if (key === 'rock') {
+            o = { x: x - 0.575, z: z - 0.575, w: 1.15, d: 1.15, h: 0.85, base: -0.3, kind: 'rock', seat: 0.3 };
+        } else if (key === 'water') {
+            o = { x: x, z: z, w: 4, d: 4, y: -0.6 };
+        } else if (key === 'gaps') {
+            o = { x: x, z: z, w: 2, d: 2 };
+        } else if (key === 'pipe') {
+            o = { x: x, z: z, tx: x, tz: z + 4, r: 0.85, yaw: 0 };
+        } else if (key === 'decor') {
+            o = { kind: S.decorKind || 'buoy', x: x, z: z, y: 0, yaw: 0, pitch: 0, roll: 0, scale: 1, variant: 0 };
+        }
+        return o;
+    }
+
     function onPlanDown(e) {
         planCanvas.setPointerCapture(e.pointerId);
         var p = planPoint(e);
         mouse.sx = p.px; mouse.sy = p.pz;
 
         if (e.button === 1 || spaceHeld) {
-            drag = { type: 'pan', px: p.px, pz: p.pz, vx: view.x, vz: view.z };
+            drag = { type: 'pan', px: p.px, pz: p.pz, vx: view.x, vz: view.z, vy: view.y };
             return;
         }
         if (mode === 'play') return;
 
+        // Elevation Profile Side View (Z / Y)
+        if (planProj === 'side') {
+            var mk = markerAt(p.px, p.pz);
+            if (mk && S.tool === 'select') {
+                pushHistory();
+                S.sel = { key: mk };
+                drag = { type: 'marker_elev', which: mk };
+                changed();
+                return;
+            }
+            var hit = shapeAt(p.px, p.pz);
+            S.sel = hit;
+            if (hit) {
+                pushHistory();
+                var s = selShape();
+                var currentY = s.y !== undefined ? s.y : (s.base !== undefined ? s.base : 0);
+                drag = { type: 'move_elev', oz: wz(p.px) - s.z, oy: wy(p.pz) - currentY };
+            }
+            changed();
+            return;
+        }
+
+        // Front Cross-Section View (X / Y)
+        if (planProj === 'front') {
+            var mk = markerAt(p.px, p.pz);
+            if (mk && S.tool === 'select') {
+                pushHistory();
+                S.sel = { key: mk };
+                drag = { type: 'marker_front', which: mk };
+                changed();
+                return;
+            }
+            var hit = shapeAt(p.px, p.pz);
+            S.sel = hit;
+            if (hit) {
+                pushHistory();
+                var s = selShape();
+                var currentY = s.y !== undefined ? s.y : (s.base !== undefined ? s.base : 0);
+                drag = { type: 'move_front', ox: wx(p.px) - s.x, oy: wy(p.pz) - currentY };
+            }
+            changed();
+            return;
+        }
+
+        // Standard Top-Down Plan View (X / Z)
         if (S.tool === 'tee' || S.tool === 'cup') {
             pushHistory();
             S.hole[S.tool].x = snapped(wx(p.px), e);
@@ -755,7 +1517,7 @@
             var s0 = selShape();
             drag = {
                 type: 'resize', hx: grip.hx, hz: grip.hz,
-                x0: s0.x, z0: s0.z, w0: s0.w, d0: s0.d
+                x0: s0.x, z0: s0.z, w0: s0.w, d0: s0.d, r0: s0.r
             };
             return;
         }
@@ -772,28 +1534,36 @@
             return;
         }
 
-        // A tool with a rectangle behind it: drag one out.
+        // Tool placement
         pushHistory();
         var nx = snapped(wx(p.px), e), nz = snapped(wz(p.pz), e);
-        var shape = cloneShape(S.tool, defaultsFor(S.tool, nx, nz));
-        list(S.tool).push(shape);
-        S.sel = { key: S.tool, idx: list(S.tool).length - 1 };
-        drag = { type: 'draw', ax: nx, az: nz };
-        changed();
-    }
+        var targetListKey = listKeyForTool(S.tool);
+        if (!targetListKey) return;
 
-    function defaultsFor(key, x, z) {
-        var o = { x: x, z: z, w: MIN_SIDE, d: MIN_SIDE };
-        if (key === 'pads') { o.kind = S.padKind; o.y = 0; }
-        if (key === 'water') o.y = -0.6;
-        if (key === 'extra') { o.h = 0.6; o.base = -0.1; }
-        return o;
+        var shapeData = defaultsFor(S.tool, nx, nz);
+        var shape = cloneShape(targetListKey, shapeData);
+        list(targetListKey).push(shape);
+        S.sel = { key: targetListKey, idx: list(targetListKey).length - 1 };
+
+        if (S.tool === 'pipe') {
+            drag = { type: 'pipe_drag', ax: nx, az: nz };
+        } else if (S.tool === 'disc' || S.tool === 'sprung') {
+            drag = { type: 'disc_drag', ax: nx, az: nz };
+        } else if (['bumper', 'tree', 'rock', 'decor'].indexOf(S.tool) !== -1) {
+            // Instant stamped objects
+            drag = null;
+        } else {
+            // Rect drag
+            shape.w = MIN_SIDE; shape.d = MIN_SIDE;
+            drag = { type: 'draw', ax: nx, az: nz };
+        }
+        changed();
     }
 
     function onPlanMove(e) {
         var p = planPoint(e);
         mouse.sx = p.px; mouse.sy = p.pz;
-        mouse.wx = wx(p.px); mouse.wz = wz(p.pz);
+        mouse.wx = wx(p.px); mouse.wz = wz(p.pz); mouse.wy = wy(p.pz);
 
         if (!drag) {
             planCanvas.style.cursor = spaceHeld ? 'grab'
@@ -805,11 +1575,20 @@
         }
 
         if (drag.type === 'pan') {
-            view.x = drag.vx - (p.px - drag.px) / view.scale;
-            view.z = drag.vz - (p.pz - drag.pz) / view.scale;
+            if (planProj === 'side') {
+                view.z = drag.vz - (p.px - drag.px) / view.scale;
+                view.y = (drag.vy || 0) + (p.pz - drag.pz) / view.scale;
+            } else if (planProj === 'front') {
+                view.x = drag.vx - (p.px - drag.px) / view.scale;
+                view.y = (drag.vy || 0) + (p.pz - drag.pz) / view.scale;
+            } else {
+                view.x = drag.vx - (p.px - drag.px) / view.scale;
+                view.z = drag.vz - (p.pz - drag.pz) / view.scale;
+            }
             draw();
             return;
         }
+
         if (drag.type === 'marker') {
             var m = S.hole[drag.which];
             m.x = snapped(wx(p.px), e);
@@ -817,12 +1596,50 @@
             changed(false);
             return;
         }
+        if (drag.type === 'marker_elev') {
+            var m = S.hole[drag.which];
+            m.z = snapped(wz(p.px), e);
+            changed(false);
+            return;
+        }
+        if (drag.type === 'marker_front') {
+            var m = S.hole[drag.which];
+            m.x = snapped(wx(p.px), e);
+            changed(false);
+            return;
+        }
+
         var s = selShape();
         if (!s) return;
+
+        if (drag.type === 'move_elev') {
+            s.z = snapped(wz(p.px) - drag.oz, e);
+            var ny = Math.round((wy(p.pz) - drag.oy) * 10) / 10;
+            if (s.base !== undefined) s.base = ny; else s.y = ny;
+            changed(false);
+            return;
+        }
+
+        if (drag.type === 'move_front') {
+            s.x = snapped(wx(p.px) - drag.ox, e);
+            var ny = Math.round((wy(p.pz) - drag.oy) * 10) / 10;
+            if (s.base !== undefined) s.base = ny; else s.y = ny;
+            changed(false);
+            return;
+        }
 
         if (drag.type === 'move') {
             s.x = snapped(wx(p.px) - drag.ox, e);
             s.z = snapped(wz(p.pz) - drag.oz, e);
+        } else if (drag.type === 'pipe_drag') {
+            var bx = snapped(wx(p.px), e), bz = snapped(wz(p.pz), e);
+            s.tx = bx; s.tz = bz;
+            s.yaw = Math.atan2(bx - s.x, bz - s.z);
+        } else if (drag.type === 'disc_drag') {
+            var bx = snapped(wx(p.px), e), bz = snapped(wz(p.pz), e);
+            var rad = Math.max(0.5, Math.hypot(bx - drag.ax, bz - drag.az));
+            s.r = rad; s.w = rad * 2; s.d = rad * 2;
+            s.x = drag.ax - rad; s.z = drag.az - rad;
         } else if (drag.type === 'draw') {
             var bx = snapped(wx(p.px), e), bz = snapped(wz(p.pz), e);
             s.x = Math.min(drag.ax, bx); s.z = Math.min(drag.az, bz);
@@ -830,10 +1647,17 @@
             s.d = Math.max(MIN_SIDE, Math.abs(bz - drag.az));
         } else if (drag.type === 'resize') {
             var gx = snapped(wx(p.px), e), gz = snapped(wz(p.pz), e);
-            if (drag.hx < 0) { var rx = drag.x0 + drag.w0; s.x = Math.min(gx, rx - MIN_SIDE); s.w = rx - s.x; }
-            else { s.w = Math.max(MIN_SIDE, gx - drag.x0); s.x = drag.x0; }
-            if (drag.hz < 0) { var rz = drag.z0 + drag.d0; s.z = Math.min(gz, rz - MIN_SIDE); s.d = rz - s.z; }
-            else { s.d = Math.max(MIN_SIDE, gz - drag.z0); s.z = drag.z0; }
+            if (s.r) {
+                var cx = s.x + s.w / 2, cz = s.z + s.d / 2;
+                var nr = Math.max(MIN_SIDE, Math.hypot(gx - cx, gz - cz));
+                s.r = nr; s.w = nr * 2; s.d = nr * 2;
+                s.x = cx - nr; s.z = cz - nr;
+            } else {
+                if (drag.hx < 0) { var rx = drag.x0 + drag.w0; s.x = Math.min(gx, rx - MIN_SIDE); s.w = rx - s.x; }
+                else if (drag.hx > 0) { s.w = Math.max(MIN_SIDE, gx - drag.x0); s.x = drag.x0; }
+                if (drag.hz < 0) { var rz = drag.z0 + drag.d0; s.z = Math.min(gz, rz - MIN_SIDE); s.d = rz - s.z; }
+                else if (drag.hz > 0) { s.d = Math.max(MIN_SIDE, gz - drag.z0); s.z = drag.z0; }
+            }
         }
         if (S.sel.key === 'pads') squareUp(s);
         changed(false);
@@ -841,8 +1665,6 @@
 
     function onPlanUp() {
         if (drag && drag.type !== 'pan') {
-            // A rectangle nobody actually dragged out is a misclick, not a
-            // shape. Undo it rather than leaving a speck on the hole.
             var s = selShape();
             if (drag.type === 'draw' && s && s.w <= MIN_SIDE && s.d <= MIN_SIDE) {
                 list(S.sel.key).splice(S.sel.idx, 1);
@@ -874,6 +1696,7 @@
         $('f-needsloft').checked = S.hole.needsLoft;
         $('f-flat').checked = S.hole.flat;
         $('f-padkind').value = S.padKind;
+        if ($('f-decorkind')) $('f-decorkind').value = S.decorKind || 'buoy';
     }
 
     function syncShapeList() {
@@ -881,23 +1704,33 @@
         host.innerHTML = '';
         var total = 0;
         LISTS.forEach(function (L) {
-            list(L.key).forEach(function (s, i) {
+            (list(L.key) || []).forEach(function (s, i) {
                 total++;
                 var row = document.createElement('div');
                 row.className = 'sitem' + (S.sel && S.sel.key === L.key && S.sel.idx === i ? ' active' : '');
                 var sw = document.createElement('i');
-                sw.className = 'swatch';
-                sw.style.background = L.key === 'pads' ? (PAD_COLOR[s.kind] || L.color) : L.color;
+                sw.className = 'swatch' + (s.r ? ' round' : '');
+                if (L.key === 'pads') sw.style.background = PAD_COLOR[s.kind] || L.color;
+                else if (L.key === 'extra') sw.style.background = EXTRA_KIND_COLOR[s.kind] || L.color;
+                else sw.style.background = L.color;
+
                 var name = document.createElement('span');
                 name.className = 'sname';
-                // What it is, how big, and — the part worth a word — what it
-                // does, because a gate, a blade, a flipper and a plank are all
-                // "Wall 3.00×0.30" until one of them shuts the hole.
+
                 var does = s.swing ? ' flipper' : s.spin ? ' blade' : s.move ? ' gate'
                     : s.spring ? ' sprung' : s.push ? ' belt' : '';
-                name.textContent = (L.key === 'pads' ? s.kind : L.label) + ' ' +
-                    (s.r ? '\u2300' + (s.r * 2).toFixed(2)
-                         : s.w.toFixed(2) + '×' + s.d.toFixed(2)) + does;
+                var label = L.label;
+                if (L.key === 'pads') label = s.kind;
+                else if (L.key === 'extra' && s.kind && s.kind !== 'rail') label = s.kind;
+                else if (L.key === 'decor') label = (DECOR_KIND_LABEL[s.kind] || s.kind);
+
+                var dims = '';
+                if (L.key === 'warps') dims = '⌀' + ((s.r || 0.85) * 2).toFixed(2);
+                else if (L.key === 'decor') dims = 'x' + (s.scale || 1).toFixed(1);
+                else if (s.r) dims = '⌀' + (s.r * 2).toFixed(2);
+                else dims = s.w.toFixed(2) + '×' + s.d.toFixed(2);
+
+                name.textContent = label + ' ' + dims + does;
                 var meta = document.createElement('span');
                 meta.className = 'smeta';
                 meta.textContent = '@' + s.x.toFixed(1) + ',' + s.z.toFixed(1);
@@ -928,9 +1761,6 @@
         }
     }
 
-    /* The inspector writes straight into the shape and rebuilds on each
-       keystroke, which is what makes a slope something you can dial in while
-       watching the 3D pane rather than something you guess and re-run. */
     function field(host, label, get, set, step) {
         var row = document.createElement('div');
         row.className = 'row';
@@ -954,10 +1784,6 @@
         return input;
     }
 
-    /* A checkbox that turns a whole sub-object on and off — a slide, a swing.
-       `set` is handed the new state and writes it; everything else (the undo
-       mark, the rebuild, redrawing the panel the box lives in) is the same
-       every time, which is why it is in here rather than at each call. */
     function toggle(host, label, on, set) {
         var row = document.createElement('div');
         row.className = 'row';
@@ -1020,49 +1846,118 @@
             }
             return;
         }
+
         var s = selShape();
         if (!s) return;
         var L = LISTS.filter(function (l) { return l.key === S.sel.key; })[0];
-        head(host, L.label);
-        field(host, 'x', function () { return s.x; }, function (v) { s.x = v; });
-        field(host, 'z', function () { return s.z; }, function (v) { s.z = v; });
-        field(host, 'w', function () { return s.w; }, function (v) { s.w = Math.max(MIN_SIDE, v); });
-        field(host, 'd', function () { return s.d; }, function (v) { s.d = Math.max(MIN_SIDE, v); });
+        head(host, (s.kind || L.label));
+
+        if (S.sel.key === 'warps') {
+            head(host, 'Entrance (Mouth)');
+            field(host, 'x', function () { return s.x; }, function (v) { s.x = v; });
+            field(host, 'z', function () { return s.z; }, function (v) { s.z = v; });
+            field(host, 'radius (r)', function () { return s.r; }, function (v) { s.r = Math.max(0.2, v); }, 0.05);
+
+            head(host, 'Exit (Destination)');
+            field(host, 'tx', function () { return s.tx; }, function (v) { s.tx = v; });
+            field(host, 'tz', function () { return s.tz; }, function (v) { s.tz = v; });
+            field(host, 'exit yaw (rad)', function () { return s.yaw; }, function (v) { s.yaw = v; }, 0.1);
+            note(host, 'A warp pipe is a one-way chute: enters at mouth (x,z) and exits at destination (tx,tz) facing yaw.');
+            return;
+        }
+
+        if (S.sel.key === 'decor') {
+            pick(host, 'kind', ['buoy', 'piling', 'bench', 'boat', 'bin'],
+                function () { return s.kind; }, function (v) { s.kind = v; });
+            field(host, 'x', function () { return s.x; }, function (v) { s.x = v; });
+            field(host, 'z', function () { return s.z; }, function (v) { s.z = v; });
+            field(host, 'y (height)', function () { return s.y || 0; }, function (v) { s.y = v; }, 0.05);
+            field(host, 'yaw (rad)', function () { return s.yaw || 0; }, function (v) { s.yaw = v; }, 0.1);
+            field(host, 'scale', function () { return s.scale || 1; }, function (v) { s.scale = Math.max(0.1, v); }, 0.1);
+            field(host, 'variant', function () { return s.variant || 0; }, function (v) { s.variant = Math.round(v); }, 1);
+            note(host, 'Atmospheric visual dressing prop: non-colliding, rendered directly in 3D.');
+            return;
+        }
+
+        if (s.r) {
+            field(host, 'radius (r)', function () { return s.r; }, function (v) { s.r = Math.max(MIN_SIDE, v); squareUp(s); });
+            field(host, 'center x', function () { return s.x + s.w / 2; }, function (v) { s.x = v - s.w / 2; });
+            field(host, 'center z', function () { return s.z + s.d / 2; }, function (v) { s.z = v - s.d / 2; });
+        } else {
+            field(host, 'x', function () { return s.x; }, function (v) { s.x = v; });
+            field(host, 'z', function () { return s.z; }, function (v) { s.z = v; });
+            field(host, 'w (width)', function () { return s.w; }, function (v) { s.w = Math.max(MIN_SIDE, v); });
+            field(host, 'd (depth)', function () { return s.d; }, function (v) { s.d = Math.max(MIN_SIDE, v); });
+        }
 
         if (S.sel.key === 'pads') {
             pick(host, 'kind', ['green', 'fairway', 'rough', 'sand', 'wood'],
                 function () { return s.kind; }, function (v) { s.kind = v; });
-            field(host, 'y', function () { return s.y; }, function (v) { s.y = v; });
-            head(host, 'Tilt');
-            field(host, 'sx', function () { return s.sx; }, function (v) { s.sx = v; }, 0.05);
-            field(host, 'sz', function () { return s.sz; }, function (v) { s.sz = v; }, 0.05);
-            note(host, 'A tilt is rise per unit across the pad: 0.3 is a ramp, ' +
-                 '0.12 is a green that breaks. Positive sx falls towards −x.');
 
-            /* What the pad *does*. Both of these are floors with a motor in
-               them, and the one rule they share is the one in the README: a
-               machine is an inlay, an inlay loses outright to ground lifted
-               above it, and `build` keeps the relief flat under both — which
-               it can only do because the document now carries them. */
+            // Shape toggle: Rectangle vs Circular Disc
+            var shapeRow = document.createElement('div');
+            shapeRow.className = 'row';
+            var shLbl = document.createElement('span'); shLbl.className = 'lbl'; shLbl.textContent = 'Shape:';
+            var btnRect = document.createElement('button'); btnRect.className = 'btn' + (!s.r ? ' on' : ''); btnRect.textContent = 'Rect';
+            var btnDisc = document.createElement('button'); btnDisc.className = 'btn' + (s.r ? ' on' : ''); btnDisc.textContent = 'Disc';
+            btnRect.addEventListener('click', function () {
+                pushHistory();
+                delete s.r; delete s.rIn; delete s.wave; s.inlay = false;
+                changed();
+                syncInspector();
+            });
+            btnDisc.addEventListener('click', function () {
+                pushHistory();
+                s.r = Math.max(MIN_SIDE, Math.min(s.w, s.d) / 2);
+                s.inlay = true;
+                squareUp(s);
+                changed();
+                syncInspector();
+            });
+            shapeRow.appendChild(shLbl); shapeRow.appendChild(btnRect); shapeRow.appendChild(btnDisc);
+            host.appendChild(shapeRow);
+
+            field(host, 'y (height)', function () { return s.y; }, function (v) { s.y = v; });
+            head(host, 'Tilt & Slopes');
+
+            // Quick slope buttons
+            var slopeRow = document.createElement('div');
+            slopeRow.className = 'row';
+            slopeRow.style.flexWrap = 'wrap'; slopeRow.style.gap = '3px';
+            var slopes = [
+                { name: 'Flat', sx: 0, sz: 0 },
+                { name: 'Ramp +Z', sx: 0, sz: 0.3 },
+                { name: 'Ramp -Z', sx: 0, sz: -0.3 },
+                { name: 'Tilt +X', sx: 0.12, sz: 0 },
+                { name: 'Tilt -X', sx: -0.12, sz: 0 }
+            ];
+            slopes.forEach(function (sl) {
+                var btn = document.createElement('button');
+                btn.className = 'btn'; btn.textContent = sl.name;
+                btn.addEventListener('click', function () {
+                    pushHistory();
+                    s.sx = sl.sx; s.sz = sl.sz;
+                    changed();
+                    syncInspector();
+                });
+                slopeRow.appendChild(btn);
+            });
+            host.appendChild(slopeRow);
+
+            field(host, 'sx (tilt X)', function () { return s.sx; }, function (v) { s.sx = v; }, 0.05);
+            field(host, 'sz (tilt Z)', function () { return s.sz; }, function (v) { s.sz = v; }, 0.05);
+
             head(host, 'Machinery');
-            toggle(host, 'runs like a travelator', !!s.push, function (on) {
+            toggle(host, 'runs like a travelator (belt)', !!s.push, function (on) {
                 s.push = on ? { x: 0, z: 3 } : null;
                 if (!on) delete s.push;
             });
             if (s.push) {
-                field(host, 'push x', function () { return s.push.x; },
-                    function (v) { s.push.x = v; }, 0.5);
-                field(host, 'push z', function () { return s.push.z; },
-                    function (v) { s.push.z = v; }, 0.5);
-                note(host, 'A speed rather than a shove — drag balances it, so a ball ' +
-                     'put down against the run of the belt is turned round rather than stopped.');
+                field(host, 'push x', function () { return s.push.x; }, function (v) { s.push.x = v; }, 0.5);
+                field(host, 'push z', function () { return s.push.z; }, function (v) { s.push.z = v; }, 0.5);
             }
-            toggle(host, 'throws the ball up', !!s.spring, function (on) {
+            toggle(host, 'throws the ball up (sprung)', !!s.spring, function (on) {
                 if (!on) { delete s.spring; return; }
-                /* sprung() writes a wooden disc with a clean edge, so the pad
-                   is made into one. Exporting a tilted green rectangle as a
-                   sprung() call would be exporting a hole the file cannot
-                   say. */
                 s.spring = 8.5;
                 s.kind = 'wood';
                 s.sx = s.sz = 0;
@@ -1073,66 +1968,61 @@
                 delete s.wave;
             });
             if (s.spring) {
-                field(host, 'launch', function () { return s.spring; },
-                    function (v) { s.spring = Math.max(0, v); }, 0.5);
-                note(host, 'Upward speed off the pad, and it fades on every bounce ' +
-                     '(SPRING_DECAY) so a hole cannot be played by trampolining forever. ' +
-                     'A launch pad is a wooden disc — that is what sprung() writes, and ' +
-                     'the export has to be able to say it.');
+                field(host, 'launch velocity', function () { return s.spring; }, function (v) { s.spring = Math.max(0, v); }, 0.5);
             }
         }
+
         if (S.sel.key === 'water') {
-            field(host, 'y', function () { return s.y; }, function (v) { s.y = v; });
-            note(host, 'The surface height. Leave no pad above it and the ball ' +
-                 'falls in — and cut a gap over the shoreline, or the rail fences the pond.');
+            field(host, 'y (water level)', function () { return s.y; }, function (v) { s.y = v; });
         }
+
         if (S.sel.key === 'extra') {
-            field(host, 'h', function () { return s.h; }, function (v) { s.h = Math.max(0.05, v); });
+            pick(host, 'kind', ['rail', 'bumper', 'blade', 'gate', 'beam', 'tree', 'rock'],
+                function () { return s.kind || 'rail'; }, function (v) { s.kind = v; });
+            field(host, 'h (height)', function () { return s.h; }, function (v) { s.h = Math.max(0.05, v); });
             field(host, 'base', function () { return s.base; }, function (v) { s.base = v; });
-            field(host, 'yaw', function () { return s.yaw; }, function (v) { s.yaw = v; }, 0.05);
-            field(host, 'spin', function () { return s.spin; }, function (v) { s.spin = v; }, 0.1);
+            field(host, 'yaw (rad)', function () { return s.yaw; }, function (v) { s.yaw = v; }, 0.05);
+
+            // Quick yaw presets
+            var yawRow = document.createElement('div');
+            yawRow.className = 'row'; yawRow.style.gap = '3px';
+            [0, 0.785, 1.57, 2.356, 3.14].forEach(function (rad, k) {
+                var btn = document.createElement('button');
+                btn.className = 'btn'; btn.textContent = [ '0°', '45°', '90°', '135°', '180°' ][k];
+                btn.addEventListener('click', function () {
+                    pushHistory(); s.yaw = rad; changed(); syncInspector();
+                });
+                yawRow.appendChild(btn);
+            });
+            host.appendChild(yawRow);
+
+            if (s.kind === 'blade' || s.spin) {
+                field(host, 'spin (rad/s)', function () { return s.spin; }, function (v) { s.spin = v; }, 0.1);
+            }
+
             head(host, 'Slide');
-            toggle(host, 'slides on a sine', !!s.move, function (on) {
+            toggle(host, 'slides on a sine (gate)', !!s.move, function (on) {
                 s.move = on ? { axis: 'x', amp: 1.5, speed: 1.1, phase: 0 } : null;
                 if (!on) delete s.move;
             });
             if (s.move) {
-                pick(host, 'axis', ['x', 'z'], function () { return s.move.axis; },
-                    function (v) { s.move.axis = v; });
+                pick(host, 'axis', ['x', 'z'], function () { return s.move.axis; }, function (v) { s.move.axis = v; });
                 field(host, 'amp', function () { return s.move.amp; }, function (v) { s.move.amp = v; });
                 field(host, 'speed', function () { return s.move.speed; }, function (v) { s.move.speed = v; }, 0.1);
                 field(host, 'phase', function () { return s.move.phase; }, function (v) { s.move.phase = v; }, 0.1);
             }
 
-            /* And the third way a wall moves. A spinner is always coming round
-               again, so the shot is a gap in a cycle; a flipper stops at each
-               end, so the shot is a moment. That rest is the whole of why it
-               plays differently, and it is why it earns a section of its own
-               rather than a second axis on the slide. */
             head(host, 'Swing');
-            toggle(host, 'sweeps between two angles', !!s.swing, function (on) {
+            toggle(host, 'sweeps between angles (flipper)', !!s.swing, function (on) {
                 s.swing = on ? { from: -0.5, to: 0.5, speed: 2.2, phase: 0 } : null;
                 if (!on) delete s.swing;
             });
             if (s.swing) {
-                field(host, 'from', function () { return s.swing.from; },
-                    function (v) { s.swing.from = v; }, 0.05);
-                field(host, 'to', function () { return s.swing.to; },
-                    function (v) { s.swing.to = v; }, 0.05);
-                field(host, 'speed', function () { return s.swing.speed; },
-                    function (v) { s.swing.speed = v; }, 0.1);
-                field(host, 'phase', function () { return s.swing.phase; },
-                    function (v) { s.swing.phase = v; }, 0.1);
-                note(host, 'Two angles in radians, and it rests at each. It is at ' +
-                     'one end or the other every \u03c0/speed seconds, so a slow ' +
-                     'sweep is a long wait — which is the shot.');
+                field(host, 'from', function () { return s.swing.from; }, function (v) { s.swing.from = v; }, 0.05);
+                field(host, 'to', function () { return s.swing.to; }, function (v) { s.swing.to = v; }, 0.05);
+                field(host, 'speed', function () { return s.swing.speed; }, function (v) { s.swing.speed = v; }, 0.1);
+                field(host, 'phase', function () { return s.swing.phase; }, function (v) { s.swing.phase = v; }, 0.1);
             }
-            note(host, 'Anything that moves has to leave the ball a way past at ' +
-                 'every phase of its stroke — the checks below prove it, and the bot will not finish a hole that can shut.');
-        }
-        if (S.sel.key === 'gaps') {
-            note(host, 'No rail is built inside this rectangle. Grow it a little ' +
-                 'past whatever it is opening — a shoreline wants about 0.45 of slack.');
         }
     }
 
@@ -1186,7 +2076,7 @@
         el._t = setTimeout(function () { el.className = cls || ''; }, 1800);
     }
 
-    /* ── the 3D pane ────────────────────────────────────────────────────── */
+    /* ── the 3D pane & camera ────────────────────────────────────────────── */
 
     function initView() {
         if (!window.THREE) return false;
@@ -1205,12 +2095,170 @@
         viewCanvas.width = Math.max(1, Math.round(w * dpr));
         viewCanvas.height = Math.max(1, Math.round(h * dpr));
         R.resize();
+        drawGizmo();
     }
 
-    /* One rebuild of the scene, and a fresh world on the tee to go with it.
-       Called from the frame loop rather than from the edit, so dragging a pad
-       across the plan costs one scene rebuild per frame at worst instead of
-       one per pointer event. */
+    function applyCam(instant) {
+        if (!gl) return;
+        R.setCam({
+            mode: 'editor',
+            target: { x: cam.target.x, y: cam.target.y, z: cam.target.z },
+            dist: cam.dist,
+            yaw: cam.yaw,
+            pitch: cam.pitch,
+            instant: !!instant
+        });
+        drawGizmo();
+    }
+
+    function setCamPreset(preset) {
+        cam.preset = preset;
+        [].forEach.call(document.querySelectorAll('#view-preset-bar .btn'), function (b) {
+            b.classList.toggle('on', b.dataset.preset === preset);
+        });
+
+        var b = bounds();
+        var cx = (b.minX + b.maxX) / 2, cz = (b.minZ + b.maxZ) / 2;
+        var span = Math.max(b.maxX - b.minX, b.maxZ - b.minZ);
+
+        if (preset === 'tee') {
+            var tx = S.hole.tee.x, tz = S.hole.tee.z;
+            var hx = S.hole.cup.x, hz = S.hole.cup.z;
+            var yaw = Math.atan2(hx - tx, hz - tz);
+            var dist = Math.max(7, Math.hypot(hx - tx, hz - tz) * 0.7);
+            cam.target = { x: (tx + hx) / 2, y: 0.2, z: (tz + hz) / 2 };
+            cam.yaw = yaw; cam.pitch = 0.32; cam.dist = dist;
+        } else if (preset === 'cup') {
+            var tx = S.hole.tee.x, tz = S.hole.tee.z;
+            var hx = S.hole.cup.x, hz = S.hole.cup.z;
+            var yaw = Math.atan2(tx - hx, tz - hz);
+            var dist = Math.max(7, Math.hypot(hx - tx, hz - tz) * 0.7);
+            cam.target = { x: (tx + hx) / 2, y: 0.2, z: (tz + hz) / 2 };
+            cam.yaw = yaw; cam.pitch = 0.32; cam.dist = dist;
+        } else if (preset === 'top') {
+            cam.target = { x: cx, y: 0, z: cz };
+            cam.yaw = 0; cam.pitch = 1.52;
+            cam.dist = Math.max(10, span * 1.15);
+        } else if (preset === 'front') {
+            cam.target = { x: cx, y: 0.5, z: cz };
+            cam.yaw = 0; cam.pitch = 0.12;
+            cam.dist = Math.max(8, span * 1.1);
+        } else if (preset === 'side') {
+            cam.target = { x: cx, y: 0.5, z: cz };
+            cam.yaw = Math.PI / 2; cam.pitch = 0.12;
+            cam.dist = Math.max(8, span * 1.1);
+        } else if (preset === 'graze') {
+            var tx = S.hole.tee.x, tz = S.hole.tee.z;
+            var hx = S.hole.cup.x, hz = S.hole.cup.z;
+            var yaw = Math.atan2(hx - tx, hz - tz);
+            cam.target = { x: tx + (hx - tx) * 0.25, y: 0.1, z: tz + (hz - tz) * 0.25 };
+            cam.yaw = yaw; cam.pitch = 0.08; cam.dist = 7;
+        } else if (preset === 'hero') {
+            cam.target = { x: cx, y: 0.2, z: cz };
+            cam.yaw = Math.PI * 0.25; cam.pitch = 0.65;
+            cam.dist = Math.max(10, span * 1.15);
+        }
+        applyCam(true);
+    }
+
+    function focusObject() {
+        var b = bounds();
+        var target = { x: (b.minX + b.maxX) / 2, y: 0.2, z: (b.minZ + b.maxZ) / 2 };
+        var dist = Math.max(10, Math.max(b.maxX - b.minX, b.maxZ - b.minZ) * 1.1);
+
+        if (S.sel) {
+            if (S.sel.key === 'tee' || S.sel.key === 'cup') {
+                var m = S.hole[S.sel.key];
+                target = { x: m.x, y: 0.2, z: m.z };
+                dist = 6;
+            } else if (S.sel.key === 'decor') {
+                var d = (S.hole.decor || [])[S.sel.idx];
+                if (d) { target = { x: d.x, y: d.y || 0, z: d.z }; dist = 5; }
+            } else if (S.sel.key === 'warps') {
+                var w = (S.hole.warps || [])[S.sel.idx];
+                if (w) { target = { x: (w.x + w.tx) / 2, y: 0, z: (w.z + w.tz) / 2 }; dist = Math.max(6, Math.hypot(w.tx - w.x, w.tz - w.z) * 1.3); }
+            } else {
+                var s = selShape();
+                if (s) {
+                    target = { x: s.x + s.w / 2, y: s.y || s.base || 0, z: s.z + s.d / 2 };
+                    dist = Math.max(5, Math.max(s.w, s.d) * 1.6);
+                }
+            }
+        }
+        cam.target = target;
+        cam.dist = dist;
+        applyCam(true);
+        toast('Camera focused', 'good');
+    }
+
+    function drawGizmo() {
+        if (!gizmoCtx) return;
+        var g = gizmoCtx;
+        var cx = 24, cy = 24, radius = 17;
+        g.clearRect(0, 0, 48, 48);
+
+        var yaw = cam.yaw, pitch = cam.pitch;
+        var lookDir = { x: Math.sin(yaw) * Math.cos(pitch), y: -Math.sin(pitch), z: Math.cos(yaw) * Math.cos(pitch) };
+        var right = { x: Math.cos(yaw), y: 0, z: -Math.sin(yaw) };
+        var up = { x: Math.sin(pitch) * Math.sin(yaw), y: Math.cos(pitch), z: Math.sin(pitch) * Math.cos(yaw) };
+
+        var axes = [
+            { id: 'x', label: 'X', col: '#f85149', v: { x: 1, y: 0, z: 0 } },
+            { id: 'y', label: 'Y', col: '#56d364', v: { x: 0, y: 1, z: 0 } },
+            { id: 'z', label: 'Z', col: '#58a6ff', v: { x: 0, y: 0, z: 1 } }
+        ];
+
+        axes.forEach(function (a) {
+            a.sx = cx + (a.v.x * right.x + a.v.y * right.y + a.v.z * right.z) * radius;
+            a.sy = cy - (a.v.x * up.x + a.v.y * up.y + a.v.z * up.z) * radius;
+            a.depth = a.v.x * lookDir.x + a.v.y * lookDir.y + a.v.z * lookDir.z;
+        });
+
+        axes.sort(function (a, b) { return a.depth - b.depth; });
+
+        // Center dot
+        g.fillStyle = 'rgba(255,255,255,0.2)';
+        g.beginPath(); g.arc(cx, cy, 3, 0, 7); g.fill();
+
+        axes.forEach(function (a) {
+            g.strokeStyle = a.col;
+            g.lineWidth = 2;
+            g.beginPath(); g.moveTo(cx, cy); g.lineTo(a.sx, a.sy); g.stroke();
+            g.fillStyle = a.col;
+            g.beginPath(); g.arc(a.sx, a.sy, 6, 0, 7); g.fill();
+            g.fillStyle = '#0d1117';
+            g.font = 'bold 8px sans-serif';
+            g.textAlign = 'center'; g.textBaseline = 'middle';
+            g.fillText(a.label, a.sx, a.sy);
+        });
+    }
+
+    function onGizmoClick(e) {
+        var r = gizmoCanvas.getBoundingClientRect();
+        var px = e.clientX - r.left, py = e.clientY - r.top;
+        var cx = 24, cy = 24;
+        var dx = px - cx, dy = py - cy;
+        if (Math.abs(dx) > Math.abs(dy)) {
+            // Horizontal snap: Side view (+X or -X)
+            cam.preset = 'side';
+            cam.yaw = dx > 0 ? Math.PI / 2 : -Math.PI / 2;
+            cam.pitch = 0.12;
+        } else {
+            // Vertical snap: Top view (+Y) or Front view (+Z)
+            if (dy < 0) {
+                cam.preset = 'top';
+                cam.yaw = 0; cam.pitch = 1.52;
+            } else {
+                cam.preset = 'front';
+                cam.yaw = 0; cam.pitch = 0.12;
+            }
+        }
+        [].forEach.call(document.querySelectorAll('#view-preset-bar .btn'), function (b) {
+            b.classList.toggle('on', b.dataset.preset === cam.preset);
+        });
+        applyCam(true);
+    }
+
     function rebuildView() {
         needsRebuild = false;
         if (!built) return;
@@ -1224,8 +2272,10 @@
         world = P.createWorld(built, from, world ? world.time : 0);
         if (mode !== 'play') {
             aim.yaw = Math.atan2(built.cup.x - built.tee.x, built.cup.z - built.tee.z);
+            applyCam(true);
+        } else {
+            if (gl) R.setCam({ yaw: aim.yaw, dist: 9, pitch: 0.46, view: 0, mode: 'follow', lock: false });
         }
-        if (gl) R.setCam({ yaw: aim.yaw, dist: 9, pitch: 0.46, view: 0, mode: 'follow', lock: false });
     }
 
     function loop(now) {
@@ -1242,20 +2292,21 @@
             draw();
         } else if (animate || mode === 'play') {
             world.time += dt;
-            // Only the plan's moving parts need repainting on the clock, and
-            // only if the hole has any — all three kinds of them, or a hole
-            // whose only machine is a flipper sits still on the plan while it
-            // sweeps in the 3D pane beside it.
             if (list('extra').some(function (w) { return w.move || w.spin || w.swing; })) draw();
         }
 
         if (!gl) return;
-        aim.show = mode === 'play' && play && play.phase === 'aim';
-        aim.loft = club.loft;
-        aim.power = mode === 'play' && play ? play.power : 0;
-        aim.over = P.overdraw(aim.power, club.power);
-        R.cam.yaw = aim.yaw;
+        if (mode === 'play') {
+            aim.show = play && play.phase === 'aim';
+            aim.loft = club.loft;
+            aim.power = play ? play.power : 0;
+            aim.over = P.overdraw(aim.power, club.power);
+            R.cam.yaw = aim.yaw;
+        } else {
+            aim.show = false;
+        }
         R.frame(dt, world, aim);
+        drawGizmo();
     }
 
     /* ── play mode ──────────────────────────────────────────────────────── */
@@ -1290,8 +2341,6 @@
 
     function hit() {
         if (mode !== 'play' || !play || play.phase !== 'aim') return;
-        // A holed ball is the end of that round of the hole, not a lie to play
-        // the next shot from: the next press puts it back on the tee.
         if (play.done) { resetBall(); return; }
         var power = Math.max(C.MIN_POWER, play.power);
         var shot = P.sprayShot(aim.yaw, power, P.overdraw(power, club.power));
@@ -1324,37 +2373,62 @@
         draw();
     }
 
-    // Dragging the 3D pane turns the aim, which is the game's own gesture.
     var look = null;
     function onViewDown(e) {
         viewCanvas.setPointerCapture(e.pointerId);
-        look = { x: e.clientX, y: e.clientY, yaw: aim.yaw, pitch: gl ? R.cam.pitch : 0 };
+        var isPan = (e.button === 1 || e.button === 2 || e.shiftKey);
+        look = {
+            isPan: isPan,
+            x: e.clientX, y: e.clientY,
+            yaw: mode === 'play' ? aim.yaw : cam.yaw,
+            pitch: mode === 'play' ? (gl ? R.cam.pitch : 0.46) : cam.pitch,
+            targetX: cam.target.x, targetY: cam.target.y, targetZ: cam.target.z
+        };
     }
+
     function onViewMove(e) {
         if (!look) return;
-        aim.yaw = look.yaw - (e.clientX - look.x) * 0.008;
-        if (gl) {
-            R.cam.pitch = Math.max(0.08, Math.min(1.25, look.pitch + (e.clientY - look.y) * 0.004));
+        if (mode === 'play') {
+            aim.yaw = look.yaw - (e.clientX - look.x) * 0.008;
+            if (gl) R.cam.pitch = Math.max(0.08, Math.min(1.25, look.pitch + (e.clientY - look.y) * 0.004));
+            return;
         }
+
+        if (look.isPan) {
+            // 3D camera pan
+            var rightX = Math.cos(cam.yaw), rightZ = -Math.sin(cam.yaw);
+            var fwdX = -Math.sin(cam.yaw), fwdZ = -Math.cos(cam.yaw);
+            var panFactor = cam.dist * 0.0018;
+            var dx = (e.clientX - look.x) * panFactor;
+            var dy = (e.clientY - look.y) * panFactor;
+            cam.target.x = look.targetX - rightX * dx + fwdX * dy * Math.sin(cam.pitch);
+            cam.target.z = look.targetZ - rightZ * dx + fwdZ * dy * Math.sin(cam.pitch);
+            cam.target.y = look.targetY + dy * Math.cos(cam.pitch);
+            cam.preset = 'orbit';
+        } else {
+            // 3D camera orbit
+            cam.yaw = look.yaw - (e.clientX - look.x) * 0.008;
+            cam.pitch = Math.max(0.04, Math.min(1.54, look.pitch + (e.clientY - look.y) * 0.006));
+            cam.preset = 'orbit';
+        }
+        [].forEach.call(document.querySelectorAll('#view-preset-bar .btn'), function (b) {
+            b.classList.toggle('on', b.dataset.preset === 'orbit');
+        });
+        applyCam(true);
     }
+
     function onViewUp() { look = null; }
 
     /* ── the checks ─────────────────────────────────────────────────────── */
 
-    /* The rules from tests.html, ported one for one. Each returns
-       {ok, warn, text, why}; the panel prints them in order. */
-
     function edgeDist(pad, x, z) {
         if (pad.r) {
-            // Off the disc's own waved edge, not off the circle it is cut from.
             var dx = x - (pad.x + pad.w / 2), dz = z - (pad.z + pad.d / 2);
             return P.padRadius(pad, Math.atan2(dz, dx)) - Math.hypot(dx, dz);
         }
         return Math.min(x - pad.x, pad.x + pad.w - x, z - pad.z, pad.z + pad.d - z);
     }
 
-    // The pad the cup was sunk into, which is not what `surfaceTop` answers at
-    // the cup itself: there the surface is the bottom of the shaft.
     function ownPad(cup) {
         var own = null;
         if (!built) return null;
@@ -1365,8 +2439,6 @@
         return own;
     }
 
-    // The widest stretch of open ground along a line at a moment in time —
-    // what proves a gate cannot seal a hole shut. Straight out of tests.html.
     function widestGap(h, z, t) {
         var step = 0.05, best = 0, run = 0, x;
         var boxes = h.walls.map(function (wl) { return P.wallBox(wl, t); });
@@ -1397,17 +2469,11 @@
         }
         add(true, 'the hole builds');
 
-        // Tee and cup stand on something.
         var t = P.surfaceTop(built, built.tee.x, built.tee.z);
         var c = P.surfaceTop(built, built.cup.x, built.cup.z);
         add(!!t, 'the tee is on the ground', t ? '' : 'nothing under it');
         add(!!c, 'the cup is on the ground', c ? '' : 'nothing under it');
 
-        /* The whole mouth of the cup has to be inside one pad, and on ground
-           that rolls it has to be clear of the flat square the renderer cuts
-           the cup out of as well. `surfaceTop` at the cup answers with the
-           synthetic cup pad rather than the ground it was sunk into, so the
-           owning pad is found the way tests.html finds it. */
         var own = ownPad(built.cup);
         if (own) {
             var clear = edgeDist(own, built.cup.x, built.cup.z);
@@ -1419,8 +2485,6 @@
             }
         }
 
-        // Neither end may be inside a wall — a cup buried in a rail cannot be
-        // holed, and a tee inside one launches from a bounce.
         var teeBlocked = false, cupBlocked = false;
         built.walls.forEach(function (wl) {
             var B = P.wallBox(wl, 0);
@@ -1432,7 +2496,6 @@
         add(!teeBlocked, 'the tee is not inside a wall');
         add(!cupBlocked, 'the cup is not inside a wall');
 
-        // Nothing thinner than the substep cap can protect.
         var minThick = Infinity, thinnest = null;
         built.walls.forEach(function (wl) {
             var m = Math.min(wl.w, wl.d);
@@ -1444,20 +2507,6 @@
                 thinnest.x.toFixed(1) + ',' + thinnest.z.toFixed(1));
         }
 
-        /* A gate, a blade or a flipper always leaves a way past.
-
-           All three, which is the whole of why this is worth saying twice:
-           this check is tests.html's, ported, and the suite asks about `swing`
-           because a flipper is the one mover with a *rest* — it stops at each
-           end, and an arc that puts it across the lane at rest is a hole that
-           is shut for as long as the player is looking at it. Filtering for
-           two of the three meant the editor passed a hole the suite would
-           refuse, which is the one thing the Check panel exists not to do.
-
-           Each is sampled over its own cycle rather than over a fixed eight
-           seconds, which is what the suite does and what makes a slow flipper
-           and a fast gate equally well covered: a period cut into 32 always
-           lands on both ends of the sweep. */
         var movers = built.walls.filter(function (wl) { return wl.move || wl.spin || wl.swing; });
         if (movers.length) {
             var worst = Infinity, at = 0;
@@ -1477,24 +2526,19 @@
                 ', and the ball is ' + (C.BALL_R * 2).toFixed(2) + ' across');
         }
 
-        // Pads that overlap at the same height are two floors arguing.
         var pads = built.pads, clash = null;
         for (var i = 0; i < pads.length && !clash; i++) {
             for (var j = i + 1; j < pads.length; j++) {
                 var a = pads[i], b = pads[j];
                 if (a.x + a.w <= b.x + 1e-6 || b.x + b.w <= a.x + 1e-6) continue;
                 if (a.z + a.d <= b.z + 1e-6 || b.z + b.d <= a.z + 1e-6) continue;
-                if (a.inlay || b.inlay) continue;   // an inlay is laid *into* the ground below it
+                if (a.inlay || b.inlay) continue;
                 if (Math.abs((a.y || 0) - (b.y || 0)) < 0.3) { clash = [i, j]; break; }
             }
         }
         add(!clash, 'no two pads overlap at the same height',
             clash ? 'pads #' + (clash[0] + 1) + ' and #' + (clash[1] + 1) : '', true);
 
-        /* Water with ground over all of it is water the ball never reaches.
-           Over *some* of it is a bridge, which is a hole rather than a
-           mistake, so the whole rectangle is sampled and only a pond that is
-           covered end to end is worth mentioning. */
         var covered = null;
         built.water.forEach(function (q, qi) {
             if (covered !== null) return;
@@ -1510,15 +2554,9 @@
         add(covered === null, 'the water is reachable',
             covered === null ? '' : 'water #' + (covered + 1) + ' has ground over it', true);
 
-        // The cup is not in the water, and neither is the tee.
-        if (c) {
-            add(!P.waterAt(built, built.cup.x, built.cup.z), 'the cup is dry');
-        }
-
-        // Par is in the range the scorecard draws.
+        if (c) add(!P.waterAt(built, built.cup.x, built.cup.z), 'the cup is dry');
         add(S.hole.par >= 2 && S.hole.par <= 6, 'par is between 2 and 6');
 
-        // And a hole nobody can see the end of is a hole nobody plays twice.
         var span = Math.hypot(built.cup.x - built.tee.x, built.cup.z - built.tee.z);
         add(span > 2, 'the cup is a shot away from the tee',
             'only ' + span.toFixed(1) + ' units', true);
@@ -1564,12 +2602,6 @@
 
     /* ── the bot ────────────────────────────────────────────────────────── */
 
-    /* The greedy player from tests.html, unchanged in substance: fan out
-       candidate shots, keep the one that finishes nearest the cup, refine
-       twice, repeat. It plays out of the bag the player gets, so a hole it
-       cannot finish is a hole that cannot be finished with the clubs that
-       exist. It runs a stroke at a time on a timer, because a hole takes a
-       second or two of solid simulation and a frozen editor looks broken. */
     var BOT_DT = 1 / 60, BOT_SECONDS = 12, BLOCKED = 4;
 
     function d2(a, b) { return Math.hypot(a.x - b.x, a.z - b.z); }
@@ -1718,17 +2750,11 @@
     /* ── export ─────────────────────────────────────────────────────────── */
 
     function n(v) {
-        // Short numbers: the file is read by people, and 3.5000000000000004 is
-        // what a chain of snaps leaves behind.
         var r = Math.round(v * 1000) / 1000;
         return String(r);
     }
 
     function padCall(p) {
-        /* Machinery first, because a belt and a launch pad are pads that have
-           had something done to them and the file has a word for each: writing
-           either back out as a bare pad() would export the floor and leave the
-           motor behind. */
         if (p.spring) {
             return 'sprung(' + [n(p.x + p.w / 2), n(p.z + p.d / 2),
                 n(p.r || Math.min(p.w, p.d) / 2), n(p.spring), n(p.y)].join(', ') + ')';
@@ -1759,16 +2785,12 @@
         if (w.yaw) opts.push('yaw: ' + n(w.yaw));
         if (w.spin) opts.push('spin: ' + n(w.spin));
         if (w.kind && w.kind !== 'rail') opts.push("kind: '" + w.kind + "'");
+        if (w.seat !== undefined) opts.push('seat: ' + n(w.seat));
         if (w.move) {
             opts.push('move: { axis: \'' + w.move.axis + '\', amp: ' + n(w.move.amp) +
                 ', speed: ' + n(w.move.speed) +
                 (w.move.phase ? ', phase: ' + n(w.move.phase) : '') + ' }');
         }
-        /* A flipper is authored by flipper() in the file, off its middle and
-           its length; wall() takes the swing as an option, which is the shape
-           that survives being dragged about on a plan. Both make the same
-           object, and this is the one the editor can honestly claim to have
-           written. */
         if (w.swing) {
             opts.push('swing: { from: ' + n(w.swing.from) + ', to: ' + n(w.swing.to) +
                 ', speed: ' + n(w.swing.speed) +
@@ -1776,6 +2798,20 @@
         }
         return 'wall(' + [n(w.x), n(w.z), n(w.w), n(w.d), n(w.h)].join(', ') +
             (opts.length ? ', { ' + opts.join(', ') + ' }' : '') + ')';
+    }
+
+    function decorCall(d) {
+        var opts = [];
+        if (d.yaw) opts.push('yaw: ' + n(d.yaw));
+        if (d.pitch) opts.push('pitch: ' + n(d.pitch));
+        if (d.roll) opts.push('roll: ' + n(d.roll));
+        if (d.scale !== 1 && d.scale !== undefined) opts.push('scale: ' + n(d.scale));
+        if (d.variant) opts.push('variant: ' + n(d.variant));
+        var optStr = opts.length ? ', { ' + opts.join(', ') + ' }' : '';
+        if (['buoy', 'piling', 'bench', 'boat', 'bin'].indexOf(d.kind) !== -1) {
+            return d.kind + '(' + [n(d.x), n(d.z), n(d.y)].join(', ') + optStr + ')';
+        }
+        return "decor('" + d.kind + "', " + [n(d.x), n(d.z), n(d.y)].join(', ') + optStr + ')';
     }
 
     function exportSource() {
@@ -1821,6 +2857,13 @@
             });
             L.push('    ],');
         }
+        if (h.decor && h.decor.length) {
+            L.push('    decor: [');
+            h.decor.forEach(function (d, i) {
+                L.push('        ' + decorCall(d) + (i < h.decor.length - 1 ? ',' : ''));
+            });
+            L.push('    ],');
+        }
         if (h.open) {
             L.push('    open: true,');
             if (h.fence && !h.fence.length) {
@@ -1836,12 +2879,6 @@
 
     function syncExport() { $('out').value = exportSource(); }
 
-    /* Reading a hole back out of the file. The literal is evaluated with the
-       game's own authoring helpers in scope, so anything courses.js can write
-       — pad(), wall(), spinner(), slider(), beam(), rect(), shore() — parses,
-       and `build` is stubbed to hand the plain object straight back rather
-       than deriving from it. What arrives is the document; the editor derives
-       the rest itself. */
     function parseSource(text) {
         var names = [], vals = [];
         Object.keys(A).forEach(function (k) {
@@ -1852,7 +2889,6 @@
         var fn = Function.apply(null, names.concat([body]));
         var h = fn.apply(null, vals);
         if (!h || !h.pads) throw new Error('that is not a hole — no pads in it');
-        // `extra` may hold arrays (beam() returns three walls), so flatten.
         var flat = [];
         (h.extra || []).forEach(function (w) {
             if (Array.isArray(w)) flat.push.apply(flat, w); else flat.push(w);
@@ -1863,14 +2899,9 @@
 
     /* ── loading the courses that ship ──────────────────────────────────── */
 
-    /* A hole in courses.js has already been through `build` — its pads carry
-       relief, its walls include the generated rails — so it cannot be handed
-       back to the editor as a document. What can: the authored fields, with
-       the rails dropped and the pads' bumps stripped. It is the same hole to
-       within the relief `build` will put back, which is derived from the name
-       and therefore identical. */
     function documentFrom(course, h) {
-        var authoredWalls = h.walls.filter(function (wl) { return wl.kind !== 'rail'; });
+        var authoredWalls = (h.extra && h.extra.length) ? h.extra
+            : h.walls.filter(function (wl) { return wl.kind !== 'rail' || wl.move || wl.spin || wl.swing || wl.yaw; });
         return normalize({
             name: h.name, blurb: h.blurb, par: h.par, theme: course.theme,
             open: h.open, fence: h.fence,
@@ -1885,6 +2916,7 @@
             water: h.water,
             gaps: h.gaps || [],
             warps: h.warps || [],
+            decor: h.decor || [],
             tee: h.tee, cup: h.cup
         });
     }
@@ -1912,6 +2944,7 @@
         S.sel = null;
         changed();
         fit();
+        setCamPreset('tee');
         toast(S.hole.open
             ? 'Loaded ' + h.name + ' — an open hole: its ground is a snapshot, not its source'
             : 'Loaded ' + h.name);
@@ -1931,9 +2964,6 @@
         return null;
     }
 
-    /* The game reads this key on boot (js/custom.js) and files whatever it
-       finds as a one-hole course of its own, so Playtest is the real game on
-       the real hole rather than a second renderer pretending. */
     function playtest() {
         var rows = check();
         var bad = rows.filter(function (r) { return !r.ok && !r.warn; });
@@ -1946,16 +2976,16 @@
             toast('Could not hand the hole over: ' + e.message, 'bad');
             return;
         }
-        /* &fly=0, because a playtest is a loop: draw, look, change, look again,
-           and a five-second sweep over a hole you have been staring at all
-           afternoon is five seconds on every one of those turns. */
         window.open('index.html?course=custom&hole=1&fly=0&weather=' +
                     encodeURIComponent(S.hole.weather), '_blank');
     }
 
     /* ── keys ───────────────────────────────────────────────────────────── */
 
-    var TOOL_KEYS = { '1': 'pads', '2': 'extra', '3': 'water', '4': 'gaps', '5': 'tee', '6': 'cup' };
+    var TOOL_KEYS = {
+        '1': 'pad', '2': 'extra', '3': 'water', '4': 'gaps', '5': 'tee', '6': 'cup',
+        '7': 'pipe', '8': 'bumper', '9': 'tree', '0': 'rock'
+    };
 
     function onKey(e) {
         var tag = (e.target.tagName || '').toLowerCase();
@@ -1977,7 +3007,7 @@
         if (e.key === 'e' || e.key === 'E') { setMode('edit'); return; }
         if (e.key === 'p' || e.key === 'P') { setMode('play'); return; }
         if (e.key === 'g' || e.key === 'G') { S.grid = !S.grid; $('btn-grid').classList.toggle('on', S.grid); draw(); return; }
-        if (e.key === 'f' || e.key === 'F') { fit(); return; }
+        if (e.key === 'f' || e.key === 'F') { fit(); focusObject(); return; }
         if (mode === 'play') {
             if (e.key === 'r' || e.key === 'R') { resetBall(); return; }
             if (e.key === 'Enter') { hit(); return; }
@@ -2027,16 +3057,18 @@
         [].forEach.call(document.querySelectorAll('#tools .btn'), function (b) {
             b.classList.toggle('on', b.dataset.tool === tool);
         });
+
+        // Show/hide contextual rows for Surface and Prop selection
+        var rowPad = $('row-padkind');
+        var rowDecor = $('row-decorkind');
+        if (rowPad) rowPad.style.display = (tool === 'pad' || tool === 'disc' || tool === 'belt' || tool === 'sprung') ? '' : 'none';
+        if (rowDecor) rowDecor.style.display = (tool === 'decor') ? '' : 'none';
     }
 
     /* ── wiring ─────────────────────────────────────────────────────────── */
 
     function boot() {
-        // The tool buttons speak the document's own list names; `select`,
-        // `tee` and `cup` are the three that are not lists.
-        var TOOL_FOR = { select: 'select', pad: 'pads', extra: 'extra', water: 'water', gaps: 'gaps', tee: 'tee', cup: 'cup' };
         [].forEach.call(document.querySelectorAll('#tools .btn'), function (b) {
-            b.dataset.tool = TOOL_FOR[b.dataset.tool] || b.dataset.tool;
             b.addEventListener('click', function () { setTool(b.dataset.tool); });
         });
         [].forEach.call(document.querySelectorAll('[data-snap]'), function (b) {
@@ -2049,8 +3081,28 @@
             });
         });
 
-        // The sky and the theme lists come from the game rather than from a
-        // copy in here, so a new theme turns up in the editor by existing.
+        // Projection buttons in plan pane
+        [].forEach.call(document.querySelectorAll('#plan-proj-bar .btn'), function (b) {
+            b.addEventListener('click', function () {
+                setPlanProj(b.dataset.proj);
+            });
+        });
+
+        // 3D View Presets
+        [].forEach.call(document.querySelectorAll('#view-preset-bar .btn[data-preset]'), function (b) {
+            b.addEventListener('click', function () {
+                setCamPreset(b.dataset.preset);
+            });
+        });
+
+        if ($('btn-focus-3d')) {
+            $('btn-focus-3d').addEventListener('click', focusObject);
+        }
+
+        if (gizmoCanvas) {
+            gizmoCanvas.addEventListener('click', onGizmoClick);
+        }
+
         var themeSel = $('f-theme');
         Object.keys(G3.THEMES).forEach(function (id) {
             var o = document.createElement('option');
@@ -2091,8 +3143,14 @@
         });
         $('f-padkind').addEventListener('change', function () {
             S.padKind = this.value;
-            if (S.tool === 'select') setTool('pads');
+            if (S.tool === 'select') setTool('pad');
         });
+        if ($('f-decorkind')) {
+            $('f-decorkind').addEventListener('change', function () {
+                S.decorKind = this.value;
+                if (S.tool === 'select') setTool('decor');
+            });
+        }
 
         $('btn-undo').addEventListener('click', undo);
         $('btn-redo').addEventListener('click', redo);
@@ -2115,6 +3173,7 @@
             S.sel = null;
             changed();
             fit();
+            setCamPreset('tee');
         });
         $('btn-check').addEventListener('click', check);
         $('btn-bot').addEventListener('click', runBot);
@@ -2145,6 +3204,7 @@
                 S.sel = null;
                 changed();
                 fit();
+                setCamPreset('tee');
                 toast('Parsed ' + h.name, 'good');
             } catch (e) {
                 toast('Could not parse that: ' + e.message, 'bad');
@@ -2157,7 +3217,10 @@
         $('btn-zoom-out').addEventListener('click', function () {
             zoomBy(0.8, planCanvas.clientWidth / 2, planCanvas.clientHeight / 2);
         });
-        $('btn-fit').addEventListener('click', fit);
+        $('btn-fit').addEventListener('click', function () {
+            fit();
+            focusObject();
+        });
 
         planCanvas.addEventListener('pointerdown', onPlanDown);
         planCanvas.addEventListener('pointermove', onPlanMove);
@@ -2174,9 +3237,13 @@
         viewCanvas.addEventListener('pointermove', onViewMove);
         viewCanvas.addEventListener('pointerup', onViewUp);
         viewCanvas.addEventListener('pointercancel', onViewUp);
+        viewCanvas.addEventListener('contextmenu', function (e) { e.preventDefault(); });
         viewCanvas.addEventListener('wheel', function (e) {
             e.preventDefault();
-            if (gl) R.cam.dist = Math.max(3, Math.min(40, R.cam.dist + e.deltaY * 0.01));
+            if (gl) {
+                cam.dist = Math.max(2, Math.min(60, cam.dist + e.deltaY * 0.015));
+                applyCam(true);
+            }
         }, { passive: false });
 
         window.addEventListener('keydown', onKey);
@@ -2197,6 +3264,7 @@
         resizeView();
         needsRebuild = true;
         fit();
+        setCamPreset('tee');
         check();
 
         last = performance.now();
@@ -2211,8 +3279,6 @@
         S.hole.weather = $('f-weather').value;
         S.hole.needsLoft = $('f-needsloft').checked;
         S.hole.flat = $('f-flat').checked;
-        // The name seeds the relief, so renaming a hole reshapes its ground —
-        // which is exactly what happens in the file, and worth seeing here.
         needsRebuild = true;
         rebuild();
         savePlan();
@@ -2286,7 +3352,6 @@
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
     else boot();
 
-    // What the self-test in tests.html reaches for.
     G3.editor = {
         get hole() { return S.hole; },
         set hole(h) { S.hole = normalize(h); changed(); },
@@ -2296,7 +3361,10 @@
         exportSource: exportSource,
         documentFrom: documentFrom,
         runChecks: runChecks,
-        get built() { return built; }
+        get built() { return built; },
+        setCamPreset: setCamPreset,
+        setPlanProj: setPlanProj,
+        focusObject: focusObject
     };
 
 })(window.G3);

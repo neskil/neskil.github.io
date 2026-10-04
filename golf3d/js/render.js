@@ -3549,6 +3549,22 @@
         var bx = (hole.bounds.minX + hole.bounds.maxX) / 2;
         var bz = (hole.bounds.minZ + hole.bounds.maxZ) / 2;
 
+        if (c.mode === 'editor') {
+            tx = c.target ? c.target.x : bx;
+            ty = c.target ? c.target.y : 0;
+            tz = c.target ? c.target.z : bz;
+            dist = c.dist !== undefined ? c.dist : 12;
+            var pitch = c.pitch !== undefined ? c.pitch : 0.46;
+            px = tx - Math.sin(c.yaw) * Math.cos(pitch) * dist;
+            py = ty + Math.sin(pitch) * dist;
+            pz = tz - Math.cos(c.yaw) * Math.cos(pitch) * dist;
+            R.overDist = dist;
+            R.overRadius = Math.max(10, dist * 0.6);
+            out.px = px; out.py = py; out.pz = pz;
+            out.tx = tx; out.ty = ty; out.tz = tz;
+            return out;
+        }
+
         if (c.mode === 'over') {
             // Fit the pad bounding box: back off along the aim line far enough
             // that the hole's bounding radius is inside the narrower of the two
@@ -3754,10 +3770,11 @@
         var px = _seat.px, py = _seat.py, pz = _seat.pz;
         var tx = _seat.tx, ty = _seat.ty, tz = _seat.tz;
 
-        if (!R.smooth.started) {
+        if (!R.smooth.started || (R.cam.mode === 'editor' && R.cam.instant)) {
             R.smooth.pos.set(px, py, pz);
             R.smooth.target.set(tx, ty, tz);
             R.smooth.started = true;
+            if (R.cam.instant) R.cam.instant = false;
         } else {
             var k = 1 - Math.pow(0.0016, dt);   // frame-rate independent easing
             R.smooth.pos.lerp(_camPos.set(px, py, pz), k);
@@ -3786,7 +3803,8 @@
        the mist it was, and looks it the moment you are back behind the ball. */
     function atmosphere(dt) {
         var want = R.cam.mode === 'over' ? 1
-                 : (R.cam.mode === 'demo' ? C.DEMO_CAM.LIFT : 0);
+                 : (R.cam.mode === 'demo' ? C.DEMO_CAM.LIFT
+                 : (R.cam.mode === 'editor' ? 0.75 : 0));
         /* The intro sweep asks for the same thing, in proportion to how far off
            the ground it is: at the apex it is as far up as the map and looking
            through as much weather, and near the tee it is on the course and
