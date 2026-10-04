@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex">
+  <title>CargoPacker Tests</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, monospace;
+      background: #0f172a;
+      color: #f8fafc;
+      padding: 2rem;
+      margin: 0;
+    }
+    h1 {
+      font-size: 1.5rem;
+      margin-bottom: 0.5rem;
+      color: #38bdf8;
+    }
+    #summary {
+      font-size: 1.2rem;
+      font-weight: bold;
+      padding: 0.75rem 1rem;
+      border-radius: 6px;
+      margin-bottom: 1.5rem;
+      display: inline-block;
+    }
+    .pass {
+      background: rgba(16, 185, 129, 0.2);
+      color: #34d399;
+      border: 1px solid #10b981;
+    }
+    .fail {
+      background: rgba(239, 68, 68, 0.2);
+      color: #f87171;
+      border: 1px solid #ef4444;
+    }
+    .test-log {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+    .test-log li {
+      padding: 0.4rem 0.6rem;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      font-size: 0.95rem;
+    }
+    .test-log li.fail-item {
+      color: #f87171;
+      background: rgba(239, 68, 68, 0.1);
+    }
+    .test-log li.pass-item {
+      color: #94a3b8;
+    }
+    .test-log li.pass-item strong {
+      color: #34d399;
+    }
+  </style>
+</head>
+<body>
+  <h1>Cargo Packer 3D &mdash; Core Test Harness</h1>
+  <div id="summary">Running tests...</div>
+  <ul id="test-log" class="test-log"></ul>
+
+  <!-- Load Core Modules (Strictly NO Three.js) -->
+  <script src="core/types.js"></script>
+  <script src="core/collision.js"></script>
+  <script src="core/metrics.js"></script>
+  <script src="core/extremePoints.js"></script>
+  <script src="core/wallBuilding.js"></script>
+  <script src="core/firstFit.js"></script>
+  <script src="core/manifests.js"></script>
+
+  <script>
+    (function() {
+      'use strict';
+
+      const logEl = document.getElementById('test-log');
+      const summaryEl = document.getElementById('summary');
+
+      let passed = 0;
+      let failed = 0;
+      const failures = [];
+
+      function assert(desc, condition, details = '') {
+        const li = document.createElement('li');
+        if (condition) {
+          passed++;
+          li.className = 'pass-item';
+          li.innerHTML = `<strong>PASS</strong>: ${desc}`;
+        } else {
+          failed++;
+          failures.push(`${desc} — ${details}`);
+          li.className = 'fail-item';
+          li.innerHTML = `<strong>FAIL</strong>: ${desc} ${details ? `(${details})` : ''}`;
+        }
+        logEl.appendChild(li);
+      }
+
+      function assertClose(desc, actual, expected, eps = 1e-3) {
+        const diff = Math.abs(actual - expected);
+        assert(desc, diff <= eps, `expected ~${expected}, got ${actual} (diff ${diff.toFixed(4)})`);
+      }
+
+      const CP = window.CargoPacker;
+
+      // ── Test 1: Container Specs ──────────────────────────────
+      assert('ISO 20 container volume calculated correctly',
+        Math.abs(CP.CONTAINERS.iso20.volume - (2.352 * 2.393 * 5.898)) < 1e-4);
+      assert('ISO 40 container volume > ISO 20 container volume',
+        CP.CONTAINERS.iso40.volume > CP.CONTAINERS.iso20.volume);
+      assert('EUR-Pallet specs exist and have correct dimensions',
+        CP.CONTAINERS.pallet.width === 0.80 && CP.CONTAINERS.pallet.length === 1.20);
+
+      // ── Test 2: Orientation Permutations ─────────────────────
+      const cubeOris = CP.getOrientations(0.5, 0.5, 0.5, 'any');
+      assert('Cube produces exactly 1 unique orientation', cubeOris.length === 1);
+
+      const boxOris = CP.getOrientations(0.4, 0.3, 0.2, 'any');
+      assert('Box with 3 unique dimensions produces 6 orientations', boxOris.length === 6);
+
+      const uprightOris = CP.getOrientations(0.6, 0.9, 0.4, 'this_side_up');
+      assert('this_side_up orientation locks height dimension to 0.9',
+        uprightOris.length === 2 && uprightOris.every(o => Math.abs(o.h - 0.9) < 1e-4));
+
+      // ── Test 3: AABB Collision Primitives ────────────────────
+      const b1 = { x: 0, y: 0, z: 0, w: 1, h: 1, d: 1 };
+      const b2_touch = { x: 1, y: 0, z: 0, w: 1, h: 1, d: 1 }; // touching edge
+      const b3_overlap = { x: 0.5, y: 0.5, z: 0.5, w: 1, h: 1, d: 1 }; // penetrating
+      const b4_far = { x: 5, y: 5, z: 5, w: 1, h: 1, d: 1 };
+
+      assert('Touching boxes do not collide (intersectAABB)', !CP.intersectAABB(b1, b2_touch));
+      assert('Overlapping boxes collide (intersectAABB)', CP.intersectAABB(b1, b3_overlap));
+      assert('Distant boxes do not collide (intersectAABB)', !CP.intersectAABB(b1, b4_far));
+
+      // ── Test 4: Container Boundary Check ─────────────────────
+      const cont = CP.CONTAINERS.iso20;
+      assert('Box inside container passes containment test',
+        CP.insideContainer({ x: 0, y: 0, z: 0, w: 1, h: 1, d: 1 }, cont));
+      assert('Box exceeding container width fails containment test',
+        !CP.insideContainer({ x: 2.0, y: 0, z: 0, w: 1, h: 1, d: 1 }, cont));
+      assert('Box with negative coordinate fails containment test',
+        !CP.insideContainer({ x: -0.1, y: 0, z: 0, w: 1, h: 1, d: 1 }, cont));
+
+      // ── Test 5: Floor and Stack Support ──────────────────────
+      const floorBox = { x: 0, y: 0, z: 0, w: 1, h: 1, d: 1 };
+      assert('Floor box has 100% support ratio',
+        CP.computeSupport(floorBox, []).ratio === 1.0);
+
+      const stackBoxFull = { x: 0, y: 1.0, z: 0, w: 1, h: 1, d: 1 };
+      assert('Box directly stacked on top has 100% support ratio',
+        CP.computeSupport(stackBoxFull, [floorBox]).ratio === 1.0);
+
+      const stackBoxHalf = { x: 0.5, y: 1.0, z: 0, w: 1, h: 1, d: 1 };
+      assertClose('Box overhang by half has 50% support ratio',
+        CP.computeSupport(stackBoxHalf, [floorBox]).ratio, 0.5, 0.01);
+
+      const stackBoxFloating = { x: 5.0, y: 1.0, z: 0, w: 1, h: 1, d: 1 };
+      assert('Floating box has 0% support ratio',
+        CP.computeSupport(stackBoxFloating, [floorBox]).ratio === 0.0);
+
+      // ── Test 6: Center of Gravity & Metrics ──────────────────
+      const balancedBoxes = [
+        { x: 0, y: 0, z: 0, w: 1, h: 1, d: 1, weight: 100 },
+        { x: cont.width - 1, y: 0, z: 0, w: 1, h: 1, d: 1, weight: 100 },
+        { x: 0, y: 0, z: cont.length - 1, w: 1, h: 1, d: 1, weight: 100 },
+        { x: cont.width - 1, y: 0, z: cont.length - 1, w: 1, h: 1, d: 1, weight: 100 }
+      ];
+      const mBalanced = CP.computeMetrics(balancedBoxes, cont);
+      assertClose('Symmetric 4-corner load centers CoG X near midpoint',
+        mBalanced.cog.x, cont.width / 2, 0.01);
+      assertClose('Symmetric 4-corner load centers CoG Z near midpoint',
+        mBalanced.cog.z, cont.length / 2, 0.01);
+      assert('Balanced load status is optimal',
+        mBalanced.cog.status === 'optimal');
+
+      // ── Test 7: Extreme Point Generator ──────────────────────
+      const initEPs = [{ x: 0, y: 0, z: 0 }];
+      const placedFirst = { x: 0, y: 0, z: 0, w: 1, h: 1, d: 1 };
+      const updatedEPs = CP.updateExtremePoints(placedFirst, initEPs, [placedFirst], cont);
+      assert('Extreme Points generated on all 3 orthogonal corners',
+        updatedEPs.length >= 3);
+      assert('Original (0,0,0) is pruned because box occupies it',
+        !updatedEPs.some(p => p.x === 0 && p.y === 0 && p.z === 0));
+
+      // ── Test 8: Extreme Points Algorithm on FMCG Manifest ─────
+      const fmcgItems = CP.getFmcgManifest();
+      const epResult = CP.packExtremePoints(fmcgItems, cont, { minSupportRatio: 0.60 });
+
+      assert('Extreme Points algorithm placed majority of items', epResult.placed.length >= 50);
+      assert('Extreme Points packed over 90% of available manifest items',
+        (epResult.placed.length / fmcgItems.length) >= 0.90);
+
+      // Verify no collisions among placed boxes
+      let epCollisions = 0;
+      for (let i = 0; i < epResult.placed.length; i++) {
+        for (let j = i + 1; j < epResult.placed.length; j++) {
+          if (CP.intersectAABB(epResult.placed[i], epResult.placed[j])) {
+            epCollisions++;
+          }
+        }
+      }
+      assert('Extreme Points placements have ZERO overlaps (0 collisions)', epCollisions === 0);
+
+      // Verify all placed boxes are strictly within container bounds
+      const epAllInside = epResult.placed.every(b => CP.insideContainer(b, cont));
+      assert('Extreme Points placements are 100% inside container envelope', epAllInside);
+
+      // ── Test 9: Wall Building Algorithm on FMCG Manifest ──────
+      const wbResult = CP.packWallBuilding(fmcgItems, cont, { minSupportRatio: 0.60 });
+      assert('Wall-Building algorithm placed items', wbResult.placed.length > 10);
+
+      let wbCollisions = 0;
+      for (let i = 0; i < wbResult.placed.length; i++) {
+        for (let j = i + 1; j < wbResult.placed.length; j++) {
+          if (CP.intersectAABB(wbResult.placed[i], wbResult.placed[j])) {
+            wbCollisions++;
+          }
+        }
+      }
+      assert('Wall-Building placements have ZERO overlaps (0 collisions)', wbCollisions === 0);
+      assert('Wall-Building placements are 100% inside container envelope',
+        wbResult.placed.every(b => CP.insideContainer(b, cont)));
+
+      // ── Test 10: First-Fit Shelf Algorithm on FMCG Manifest ───
+      const ffResult = CP.packFirstFit(fmcgItems, cont);
+      assert('First-Fit algorithm placed items', ffResult.placed.length > 10);
+
+      let ffCollisions = 0;
+      for (let i = 0; i < ffResult.placed.length; i++) {
+        for (let j = i + 1; j < ffResult.placed.length; j++) {
+          if (CP.intersectAABB(ffResult.placed[i], ffResult.placed[j])) {
+            ffCollisions++;
+          }
+        }
+      }
+      assert('First-Fit placements have ZERO overlaps (0 collisions)', ffCollisions === 0);
+      assert('First-Fit placements are 100% inside container envelope',
+        ffResult.placed.every(b => CP.insideContainer(b, cont)));
+
+      // ── Test 11: Pallet Stacking Benchmark ────────────────────
+      const palletItems = CP.getPalletManifest();
+      const palletCont = CP.CONTAINERS.pallet;
+      const palletResult = CP.packExtremePoints(palletItems, palletCont, { minSupportRatio: 0.60 });
+
+      assert('Pallet items successfully placed on EUR-Pallet', palletResult.placed.length > 10);
+      assert('Pallet placements respect EUR-Pallet width (0.80m) and length (1.20m)',
+        palletResult.placed.every(b => CP.insideContainer(b, palletCont)));
+
+      // ── Test 12: Determinism Verification ─────────────────────
+      const run1 = CP.packExtremePoints(CP.getFmcgManifest(), cont);
+      const run2 = CP.packExtremePoints(CP.getFmcgManifest(), cont);
+
+      assert('Deterministic run count matches', run1.placed.length === run2.placed.length);
+      let coordsMatch = true;
+      for (let i = 0; i < run1.placed.length; i++) {
+        if (
+          Math.abs(run1.placed[i].x - run2.placed[i].x) > 1e-4 ||
+          Math.abs(run1.placed[i].y - run2.placed[i].y) > 1e-4 ||
+          Math.abs(run1.placed[i].z - run2.placed[i].z) > 1e-4
+        ) {
+          coordsMatch = false;
+          break;
+        }
+      }
+      assert('Deterministic packing generates bit-for-bit identical coordinates', coordsMatch);
+
+      // ── Summary & Verdict ─────────────────────────────────────
+      const summaryText = `${passed} passed, ${failed} failed`;
+      summaryEl.textContent = summaryText;
+      summaryEl.className = failed === 0 ? 'pass' : 'fail';
+      document.title = failed === 0 ? 'ALL TESTS PASSED' : 'FAILED — tests';
+
+      window.__TEST_RESULT__ = {
+        passed: passed,
+        failed: failed,
+        failures: failures
+      };
+    })();
+  </script>
+</body>
+</html>

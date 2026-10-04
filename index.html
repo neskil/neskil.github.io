@@ -164,6 +164,12 @@
             --hue: 25;
         }
 
+        html[data-theme="card-cargo-packer"] {
+            --bg-color-1: #091a24;
+            --bg-color-2: #0f2b3c;
+            --hue: 195;
+        }
+
         html[data-theme="card-math-game"] {
             --bg-color-1: #161218;
             --bg-color-2: #261612;
@@ -1679,6 +1685,18 @@
             color: rgb(125, 211, 252);
         }
 
+        #card-cargo-packer {
+            --accent-rgb: 56, 189, 248;
+            --card-bg-gradient: linear-gradient(135deg, rgba(14, 38, 54, 0.65) 0%, rgba(15, 22, 35, 0.60) 100%);
+            --card-hover-gradient: linear-gradient(135deg, rgba(20, 58, 80, 0.80) 0%, rgba(20, 28, 48, 0.75) 100%);
+            --card-border: rgba(56, 189, 248, 0.22);
+            --card-hover-border: rgba(125, 211, 252, 0.48);
+        }
+
+        #card-cargo-packer .card-link {
+            color: rgb(125, 211, 252);
+        }
+
         /* ── Materials: layered onto the same tilt-tracking glare (.card::before). Uses
            overlay blend so bright texture only lifts already-light pixels instead of
            flatly washing out the (already fairly low-contrast) body text underneath. ── */
@@ -3102,6 +3120,60 @@
             </div>
         </div>
 
+        <div class="card card-metal flip-card" id="card-cargo-packer">
+            <div class="card-flip-inner">
+                <button type="button" class="card-face card-face-front flip-open" aria-expanded="false"
+                    aria-controls="card-cargo-packer-panel">
+                    <span class="new-badge">NEW</span>
+                    <div>
+                        <div class="card-icon">
+                            <svg viewBox="0 0 24 24">
+                                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" fill="currentColor" fill-opacity="0.12"/>
+                                <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
+                                <line x1="12" y1="22.08" x2="12" y2="12"/>
+                            </svg>
+                        </div>
+                        <h2 class="card-title">Cargo Packer 3D</h2>
+                        <p class="card-desc">Interactive 3D container packing algorithms. Watch Extreme Points and Wall-Building pack freight with live Center of Gravity tracking.</p>
+                        <div class="card-stat-chip">
+                            <span class="stat-icon">📦</span> 3D Bin Packing
+                        </div>
+                    </div>
+                    <span class="card-link">Take a look <svg viewBox="0 0 24 24">
+                            <path d="M3.6 12a8.4 8.4 0 0 1 14.4-5.9" stroke="currentColor" stroke-width="2"
+                                stroke-linecap="round" stroke-linejoin="round" fill="none" />
+                            <path d="M18.4 2.8v3.7h-3.7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                stroke-linejoin="round" fill="none" />
+                            <path d="M20.4 12a8.4 8.4 0 0 1-14.4 5.9" stroke="currentColor" stroke-width="2"
+                                stroke-linecap="round" stroke-linejoin="round" fill="none" />
+                            <path d="M5.6 21.2v-3.7h3.7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                stroke-linejoin="round" fill="none" />
+                        </svg></span>
+                </button>
+                <div class="card-face card-face-back peek-back" id="card-cargo-packer-panel" role="dialog" aria-modal="true"
+                    aria-label="Cargo Packer 3D">
+                    <button type="button" class="card-close" data-flip-close aria-label="Close">
+                        <svg viewBox="0 0 24 24">
+                            <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2"
+                                stroke-linecap="round" />
+                        </svg>
+                    </button>
+                    <div class="peek-shot">
+                        <img data-src="assets/preview/cargo-packer.webp" alt="Cargo Packer 3D: interactive 3D container packing visualizer with real-time Center of Gravity gauge." width="800" height="420"
+                            decoding="async">
+                    </div>
+                    <div class="peek-body">
+                        <div class="peek-title">Cargo Packer 3D</div>
+                        <p class="peek-text">Simulate and compare operations research 3D container loading algorithms in real-time WebGL with live Center of Gravity tracking.</p>
+                    </div>
+                    <a class="peek-launch" href="cargo-packer/index.html">Open Cargo Packer <svg viewBox="0 0 24 24">
+                            <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2"
+                                stroke-linecap="round" stroke-linejoin="round" fill="none" />
+                        </svg></a>
+                </div>
+            </div>
+        </div>
+
         <div class="card card-metal flip-card" id="card-math-game">
             <div class="card-flip-inner">
                 <button type="button" class="card-face card-face-front flip-open" aria-expanded="false"
@@ -3633,6 +3705,7 @@
                 'card-cv': 215,
                 'card-math': 270,
                 'card-math-game': 25,
+                'card-cargo-packer': 195,
                 'card-golf-hub': 140,
                 'card-about': 345
             };

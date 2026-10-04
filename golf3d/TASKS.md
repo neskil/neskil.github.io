@@ -36,3 +36,26 @@ Tracking implementation progress for requested features and physics enhancements
   - Accessible via topbar button (`#btn-range`), menu header (`#menu-btn-range`), or keyboard shortcut (`T`).
   - Automatic ball reset after each shot with distance toast reporting (`🎯 Driver · 124.5m · carry 85.2m`).
   - Scorecard displays practice summary and statistics rather than competitive par scoring.
+
+## Decor and Environment Tracking
+
+- [x] **Decor Prop Pipeline (`courses.js` & `render.js`)**
+  - Authoring helpers: `buoy`, `piling`, `bench`, `boat`, `sailboat`, `bin`.
+  - Non-solid, pure visual dressing; does not collide with or alter ball physics.
+  - Safe disposal management via `disposeGroup()` on hole transitions.
+  - Full headless validation in `tests.html` (`VALID_DECOR`, coordinates check, cup/tee clearance).
+- [x] **Free 3D Asset Integration (CC0 Public Domain)**
+  - Kenney Watercraft Kit models downloaded directly into `golf3d/assets/models/` (`LICENSE.txt` CC0 1.0 Universal).
+  - Built `golf3d/js/models.js` storing vertex positions, normals, and vertex colors mapped from palette.
+  - Works 100% offline, zero build step, and over `file://` with no CORS restrictions or runtime async loader dependencies.
+  - Replaced crude procedural box/cone boat with authentic rowboat, dinghy, and single-masted sailboat models.
+- [x] **Expanded 3D Asset Library (Kenney Kits - CC0 Public Domain)**
+  - Added new models into `golf3d/assets/models/`: `palm.obj`, `pine.obj`, `barrel.obj`, `crate.obj`, `sign.obj`, `windmill.obj`.
+  - Stored pre-parsed vertex positions, normals, and vertex colors in `golf3d/js/models.js`.
+  - Added authoring helpers in `courses.js` (`palm`, `pine`, `barrel`, `crate`, `sign`, `windmill`) and exposed on `G3.authoring`.
+- [x] **Contextual Elevation Snapping & Tasteful Decor Placements**
+  - Automatic surface top and water elevation detection in `render.js` (`P.surfaceTop` / `P.waterAt` / `theme.surroundY`).
+  - Removed unnatural placements (open sea windmill, floating sea palms, crates floating in open ocean without a dock).
+  - Thematically distributed decor: nautical maritime composition for Seaside Green, Dutch windmill & crates for Windmill Works, tropical palms & lagoon boats for Tidewater Reach, canyon pines & mining crates for Quarry Ridge, tee amenities & parkland pines for Ashdown Park.
+- [ ] **Gentle Ambient Motion**
+  - Subtle wave bobbing for floating watercraft and buoys in `render.js`.

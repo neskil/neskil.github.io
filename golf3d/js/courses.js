@@ -730,11 +730,18 @@
        never heard of, placed off the pads (or in the water) with an explicit
        y height. */
     function decor(kind, x, z, y, opts) {
+        if (typeof y === 'object' && y !== null && opts === undefined) {
+            opts = y;
+            y = undefined;
+        }
+        var hasY = y !== undefined;
         var o = opts || {};
+        if (!hasY && o.y !== undefined) hasY = true;
         return {
             kind: kind,
             x: x, z: z,
             y: y !== undefined ? y : (o.y !== undefined ? o.y : 0),
+            explicitY: hasY,
             yaw: o.yaw || 0,
             pitch: o.pitch || 0,
             roll: o.roll || 0,
@@ -1674,12 +1681,11 @@
             ],
             tee: { x: 1.5, z: 1.5 }, cup: { x: 4.4, z: 12 },
             decor: [
-                bench(-1.4, 1.5, 0, { yaw: Math.PI / 2 }),
-                bin(-1.4, 2.7, 0),
-                barrel(8.2, 2.0, 0), crate(8.6, 3.0, 0, { yaw: 0.4 }),
-                buoy(-3.5, 7.5, 0),
-                piling(7.8, 4.0, 0),
-                boat(8.4, 10.0, 0, { yaw: -0.4 })
+                sign(0.4, 0.6, { yaw: 0.6 }),
+                buoy(-3.5, 7.5),
+                boat(-3.8, 3.2, { yaw: 0.8 }),
+                piling(7.8, 4.0),
+                boat(8.4, 10.0, { yaw: -0.4 })
             ]
         }),
         build({
@@ -1688,10 +1694,10 @@
             pads: [pad(0, 0, 4.5, 9), pad(0, 9, 13, 4.5)],
             tee: { x: 2.25, z: 1.5 }, cup: { x: 11.5, z: 11.25 },
             decor: [
-                buoy(6.5, 4.5, 0, { variant: 1 }),
-                piling(-1.6, 6.0, 0),
-                palm(-2.4, 2.0, 0), palm(14.2, 14.5, 0, { yaw: 2 }),
-                bench(11.5, 7.5, 0, { yaw: 0 })
+                buoy(6.5, 4.5, { variant: 1 }),
+                piling(-1.6, 6.0),
+                boat(-3.2, 3.5, { yaw: 0.6 }),
+                sailboat(14.5, 6.0, { yaw: -1.2 })
             ]
         }),
         build({
@@ -1711,11 +1717,11 @@
             ],
             tee: { x: 3, z: 1.8 }, cup: { x: 3, z: 14.5 },
             decor: [
-                piling(-1.8, 7.0, 0),
-                piling(7.8, 9.0, 0),
-                sign(7.4, 1.5, 0, { yaw: -0.5 }), windmill(-3.2, 9.0, 0),
-                buoy(-3.2, 13.0, 0),
-                boat(-4.5, 3.5, 0, { yaw: 0.8 })
+                piling(-1.8, 7.0),
+                piling(7.8, 9.0),
+                buoy(7.5, 4.0),
+                buoy(-3.2, 13.0),
+                boat(-4.5, 3.5, { yaw: 0.8 })
             ]
         }),
         build({
@@ -1726,9 +1732,11 @@
             gaps: [shore(rect(0, 5, 3.5, 4))],
             tee: { x: 1.6, z: 2 }, cup: { x: 2.3, z: 12.5 },
             decor: [
+                piling(3.2, 5.5, -0.55),
+                piling(3.2, 8.5, -0.55),
+                buoy(1.5, 7.0, -0.55),
                 piling(-0.8, 7.0, -0.55),
-                buoy(-3.0, 7.0, -0.55),
-                bench(-1.5, 2.0, 0, { yaw: Math.PI / 2 })
+                buoy(-3.0, 7.0)
             ]
         }),
         build({
@@ -1753,9 +1761,9 @@
             ],
             tee: { x: 2.25, z: 1.5 }, cup: { x: 10.8, z: 2.4 },
             decor: [
-                sailboat(6.5, 3.5, 0, { yaw: 0.5 }),
-                piling(6.5, 6.5, 0),
-                buoy(6.5, 1.0, 0)
+                sailboat(6.5, 3.5, { yaw: 0.5 }),
+                piling(6.5, 6.5),
+                buoy(6.5, 1.0)
             ]
         }),
         build({
@@ -1793,7 +1801,14 @@
                 pad(0, 5, 6, 3, 0, 'green', 0, 0.3),
                 pad(0, 8, 6, 6, 0.9)
             ],
-            tee: { x: 3, z: 1.5 }, cup: { x: 3, z: 12 }
+            tee: { x: 3, z: 1.5 }, cup: { x: 3, z: 12 },
+            decor: [
+                sign(0.8, 1.2, { yaw: 0.3 }),
+                pine(-2.8, 6.0),
+                pine(8.8, 10.0, { yaw: 1.2 }),
+                crate(-1.8, 2.0),
+                barrel(-2.2, 1.2)
+            ]
         }),
         build({
             name: 'The Drop', par: 3,
@@ -1880,14 +1895,26 @@
                 wall(4.5, 6.8, 1.5, 0.4, 0.6, { base: -0.1 }),
                 slider(1.6, 6.8, 1.4, 0.4, { amp: 0.75, speed: 1.6 })
             ],
-            tee: { x: 3, z: 1.6 }, cup: { x: 3, z: 12 }
+            tee: { x: 3, z: 1.6 }, cup: { x: 3, z: 12 },
+            decor: [
+                sign(4.8, 1.0, { yaw: -0.4 }),
+                crate(-1.8, 3.5, { yaw: 0.3 }),
+                barrel(-1.8, 2.5),
+                crate(7.8, 3.5, { yaw: -0.4 }),
+                barrel(7.8, 4.5)
+            ]
         }),
         build({
             name: 'The Mill', par: 3, bag: ['putter', 'mallet'],
             blurb: 'Sixty centimetres of daylight either side of the blade — and no way over it.',
             pads: [pad(0, 0, 5, 15)],
             extra: [spinner(2.5, 8, 3.6, 0.4, { spin: 1.7 })],
-            tee: { x: 2.5, z: 1.6 }, cup: { x: 2.5, z: 13 }
+            tee: { x: 2.5, z: 1.6 }, cup: { x: 2.5, z: 13 },
+            decor: [
+                windmill(-3.5, 8.0, { yaw: 0.5 }),
+                crate(-2.0, 3.0),
+                barrel(-2.0, 4.0)
+            ]
         }),
         build({
             /* This used to be Double Doors, which was First Gear played twice
@@ -1980,7 +2007,14 @@
                 pad(0, 13.5, 6, 5.5)
             ],
             water: [rect(-4, 4.5, 14, 9, -0.7)],
-            tee: { x: 2.75, z: 1.8 }, cup: { x: 3, z: 16.5 }
+            tee: { x: 2.75, z: 1.8 }, cup: { x: 3, z: 16.5 },
+            decor: [
+                palm(0.8, 18.0),
+                palm(5.2, 18.0, { yaw: 2 }),
+                buoy(-2.5, 8.5),
+                sailboat(10.5, 9.0, { yaw: 0.8 }),
+                piling(-1.5, 6.0)
+            ]
         }),
         build({
             name: 'Short Side', par: 3, needsLoft: true,
@@ -2258,7 +2292,13 @@
                     crags(-2, 10, 3.5, 6, 7101, { s: 1.4, h: 1.1 }),
                     [tree(1.6, 3), tree(2.4, 47.5), tree(19, 47.5)]
                 ),
-                tee: { x: 7.5, z: 2.5 }, cup: { x: 11.5, z: 41.5 }
+                tee: { x: 7.5, z: 2.5 }, cup: { x: 11.5, z: 41.5 },
+                decor: [
+                    sign(5.5, 2.5, { yaw: 0.2 }),
+                    bench(5.2, 4.2, { yaw: 0.3 }),
+                    bin(5.2, 5.5),
+                    pine(21.5, 10.0, { yaw: 0.7 })
+                ]
             });
         })(),
         (function () {
