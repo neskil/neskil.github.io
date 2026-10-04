@@ -3655,9 +3655,9 @@
             tz = ball.z + az * lead;
 
             var perpX = Math.cos(yaw), perpZ = -Math.sin(yaw);   // the view, turned 90°
-            var out = (tx - bx) * perpX + (tz - bz) * perpZ;
-            var want = out >= 0 ? 1 : -1;
-            if (c.sideSign !== want && Math.abs(out) > 0.6) c.sideSign = want;
+            var outward = (tx - bx) * perpX + (tz - bz) * perpZ;
+            var want = outward >= 0 ? 1 : -1;
+            if (c.sideSign !== want && Math.abs(outward) > 0.6) c.sideSign = want;
 
             dist -= c.kick * C.KICK * 4;
             // Low: about fourteen degrees above the shot. Any higher and the
