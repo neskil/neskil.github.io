@@ -1845,12 +1845,26 @@
 
     /* Visual decor: props drawn to dress the hole. They are non-solid and have
        no presence in physics.js. Geometries are disposed cleanly by disposeGroup. */
-    var PROP_SCALE = { barrel: 0.4, crate: 0.4, palm: 0.55, pine: 1.3, sign: 2.2, windmill: 1.3 };
+    var PROP_SCALE = { barrel: 0.45, crate: 0.45, palm: 0.75, pine: 1.8, sign: 2.2, windmill: 1.8 };
 
-    function addDecor(group, item, theme) {
+    function addDecor(group, item, theme, hole) {
         var d = item || {};
         var kind = d.kind;
         var x = d.x, y = d.y, z = d.z;
+        if (!d.explicitY && hole) {
+            var isAquatic = (kind === 'buoy' || kind === 'piling' || kind === 'boat' || kind === 'rowboat' || kind === 'sailboat');
+            var w = P.waterAt ? P.waterAt(hole, x, z) : null;
+            var surfTop = P.surfaceTop ? P.surfaceTop(hole, x, z) : null;
+            if (isAquatic) {
+                if (w) y = w.y;
+                else if (theme && theme.surroundY !== undefined) y = theme.surroundY;
+                else if (surfTop) y = surfTop.y;
+            } else {
+                if (surfTop) y = surfTop.y;
+                else if (w) y = w.y;
+                else if (theme && theme.surroundY !== undefined) y = theme.surroundY;
+            }
+        }
         var s = d.scale || 1;
         var yaw = d.yaw || 0;
         var dg = new THREE.Group();
@@ -3077,7 +3091,7 @@
         addCup(g, hole);
         addTeeMark(g, hole);
         addStakes(g, hole, theme);
-        for (i = 0; i < (hole.decor || []).length; i++) addDecor(g, hole.decor[i], theme);
+        for (i = 0; i < (hole.decor || []).length; i++) addDecor(g, hole.decor[i], theme, hole);
 
         // The rain, the mist banks and whatever is drifting in the air are
         // parented to the hole, so the next hole disposes them with it.

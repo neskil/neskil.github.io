@@ -22,7 +22,10 @@ Tracking feature ideas, suggestions, and active implementations for **Loft Links
   - Added new models into `golf3d/assets/models/`: `palm.obj`, `pine.obj`, `barrel.obj`, `crate.obj`, `sign.obj`, `windmill.obj`.
   - Stored pre-parsed vertex positions, normals, and vertex colors in `golf3d/js/models.js`.
   - Added authoring helpers in `courses.js` (`palm`, `pine`, `barrel`, `crate`, `sign`, `windmill`) and exposed on `G3.authoring`.
-  - Added to `VALID_DECOR` in `tests.html` and rendered with proportional scaling via `PROP_SCALE` in `render.js`.
+- [x] **Contextual Elevation Snapping & Tasteful Decor Placements**
+  - Automatic surface top and water elevation detection in `render.js` (`P.surfaceTop` / `P.waterAt` / `theme.surroundY`).
+  - Removed unnatural placements (open sea windmill, floating sea palms, crates floating in open ocean without a dock).
+  - Thematically distributed decor: nautical maritime composition for Seaside Green, Dutch windmill & crates for Windmill Works, tropical palms & lagoon boats for Tidewater Reach, canyon pines & mining crates for Quarry Ridge, tee amenities & parkland pines for Ashdown Park.
 - [ ] **Gentle Ambient Motion**
   - Subtle wave bobbing for floating watercraft and buoys in `render.js`.
 
