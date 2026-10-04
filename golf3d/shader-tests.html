@@ -548,6 +548,32 @@
                     frameErrs.join(' | ').slice(0, 400));
             }
 
+            section('CAMERA SEATS AND SIDE-ON VIEW');
+            var ranSeats = attempt('view seats move the camera', function () {
+                var world = P.createWorld(found.hole,
+                    { x: found.hole.tee.x, z: found.hole.tee.z }, 0);
+                R.cam.mode = 'follow';
+                for (var i = 0; i < 20; i++) R.frame(0.016, world, { yaw: 0, power: 0 });
+                var followPos = R.state.camera.position.clone();
+
+                var nextMode = R.cycleView();
+                assert('cycleView cycles to side mode', nextMode === 'side' && R.cam.mode === 'side');
+                for (var j = 0; j < 30; j++) R.frame(0.016, world, { yaw: 0, power: 0 });
+                var sidePos = R.state.camera.position.clone();
+                assert('side-on view moves camera to a distinct position',
+                    followPos.distanceTo(sidePos) > 1.0);
+
+                var overMode = R.cycleView();
+                assert('cycleView cycles to over mode', overMode === 'over' && R.cam.mode === 'over');
+                for (var k = 0; k < 30; k++) R.frame(0.016, world, { yaw: 0, power: 0 });
+                var overPos = R.state.camera.position.clone();
+                assert('overview moves camera to a distinct position',
+                    sidePos.distanceTo(overPos) > 1.0);
+
+                R.cycleView(); // back to follow
+            });
+            if (!ranSeats.ok) assert('view seats move the camera', false, ranSeats.err);
+
             /* Every theme, because the sky and the water take their colours
                from it and a theme is a plain object anyone can add one to. A
                bad one is a program that will not link on exactly one course. */
