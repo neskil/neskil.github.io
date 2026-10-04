@@ -71,6 +71,7 @@
     function newRound(courseId, startAt) {
         var course = G3.courseById(courseId);
         var at = Math.max(0, Math.min(course.holes.length - 1, startAt || 0));
+        var defaultClubId = course.isRange ? 'dr' : (state && state.club ? state.club.id : C.DEFAULT_CLUB);
         state = {
             course: course,
             holeIndex: at,
@@ -79,7 +80,7 @@
             world: null,
             aim: { yaw: 0, power: 0, show: true },
             bag: C.CLUBS,
-            club: clubById(state && state.club ? state.club.id : C.DEFAULT_CLUB),
+            club: clubById(defaultClubId),
             drag: null,
             save: state && state.save ? state.save : S.load(),
             phase: 'aim'
@@ -455,6 +456,18 @@
         if (ev.sunk) R.sinkAt(b.x, b.y + C.CUP_DEPTH, b.z);
     }
 
+    function resetRangeBall() {
+        if (!state || !state.course.isRange) return;
+        var hole = state.world.hole;
+        state.world = P.createWorld(hole, { x: hole.tee.x, z: hole.tee.z }, 0);
+        R.state.lastBall.set(hole.tee.x, state.world.ball.y, hole.tee.z);
+        state.phase = 'aim';
+        state.aim.power = 0;
+        state.aim.show = true;
+        state.aim.yaw = Math.atan2(hole.cup.x - hole.tee.x, hole.cup.z - hole.tee.z);
+        syncHud();
+    }
+
     function endShot() {
         var w = state.world;
         if (w.sunk) { holeComplete(); return; }
@@ -466,7 +479,16 @@
             R.state.lastBall.set(w.origin.x, w.origin.y, w.origin.z);
         }
         state.phase = 'aim';
-        autoPutt();
+        if (state.course.isRange) {
+            var rDist = Math.hypot(w.ball.x - w.hole.tee.x, w.ball.z - w.hole.tee.z);
+            var carryText = w.carry ? ' · carry ' + w.carry.toFixed(1) + 'm' : '';
+            toast('🎯 ' + state.club.name + ' · ' + rDist.toFixed(1) + 'm' + carryText);
+            setTimeout(function () {
+                if (state && state.course.isRange) resetRangeBall();
+            }, 2000);
+        } else {
+            autoPutt();
+        }
         syncHud();
     }
 
@@ -503,6 +525,15 @@
 
     function holeComplete() {
         var hole = state.course.holes[state.holeIndex];
+        if (state.course.isRange) {
+            A.ace();
+            var d = Math.hypot(hole.cup.x - hole.tee.x, hole.cup.z - hole.tee.z);
+            toast('🎯 TARGET HIT! Cup holed from ' + d.toFixed(1) + 'm!');
+            setTimeout(function () {
+                if (state && state.course.isRange) resetRangeBall();
+            }, 1800);
+            return;
+        }
         state.scores[state.holeIndex] = state.strokes;
         state.phase = 'holed';
         syncSwing();
@@ -511,12 +542,19 @@
         if (t.kind === 'ace') A.ace(); else A.sink();
 
         var last = state.holeIndex === state.course.holes.length - 1;
-        $('banner-term').textContent = t.label;
-        $('banner-term').className = 'banner-term ' + t.kind;
-        $('banner-detail').textContent = state.strokes + (state.strokes === 1 ? ' stroke' : ' strokes') +
-            ' · par ' + hole.par;
+        if (t.kind === 'ace') {
+            $('banner-term').textContent = 'ACE!';
+            $('banner-term').className = 'banner-term ace';
+            $('banner-detail').textContent = 'Hole in one · 1 stroke · par ' + hole.par;
+            $('banner').className = 'banner show ace';
+        } else {
+            $('banner-term').textContent = t.label;
+            $('banner-term').className = 'banner-term ' + t.kind;
+            $('banner-detail').textContent = state.strokes + (state.strokes === 1 ? ' stroke' : ' strokes') +
+                ' · par ' + hole.par;
+            $('banner').className = 'banner show';
+        }
         $('banner-next').textContent = last ? 'See the card →' : 'Next hole →';
-        $('banner').className = 'banner show';
         syncHud();
     }
 
@@ -575,36 +613,47 @@
         var hole = state.course.holes[state.holeIndex];
         var t = S.totals(state.scores, state.course.holes);
         $('course-name').textContent = state.course.name;
-        $('hole-num').textContent = (state.holeIndex + 1) + ' / ' + state.course.holes.length;
         $('hole-name').textContent = hole.name;
-        $('hole-par').textContent = hole.par;
         $('hole-strokes').textContent = state.strokes;
-        $('total-strokes').textContent = t.strokes;
 
-        var vs = $('total-vspar');
-        vs.textContent = t.played ? S.formatVsPar(t.vsPar) : '—';
-        vs.className = 'stat-value ' + (t.vsPar < 0 ? 'under' : t.vsPar > 0 ? 'over' : 'level');
+        if (state.course.isRange) {
+            $('hole-num').textContent = 'Practice';
+            $('hole-par').textContent = '\u2014';
+            $('total-strokes').textContent = state.strokes;
+            var vs = $('total-vspar');
+            vs.textContent = 'Practice';
+            vs.className = 'stat-value level';
+            $('best-round').textContent = '\u2014';
+            $('shud-hole').textContent = 'Range';
+            $('shud-par').textContent = 'Practice';
+            $('shud-strokes').textContent = state.strokes + (state.strokes === 1 ? ' shot' : ' shots');
+            $('shud-name').textContent = hole.name;
+            $('shud-blurb').textContent = hole.blurb;
+        } else {
+            $('hole-num').textContent = (state.holeIndex + 1) + ' / ' + state.course.holes.length;
+            $('hole-par').textContent = hole.par;
+            $('total-strokes').textContent = t.strokes;
 
-        var rec = S.courseRecord(state.save, state.course.id);
-        $('best-round').textContent = rec.best === null
-            ? '—'
-            : rec.best + ' (' + S.formatVsPar(rec.bestVsPar) + ')';
+            var vs = $('total-vspar');
+            vs.textContent = t.played ? S.formatVsPar(t.vsPar) : '\u2014';
+            vs.className = 'stat-value ' + (t.vsPar < 0 ? 'under' : t.vsPar > 0 ? 'over' : 'level');
+
+            var rec = S.courseRecord(state.save, state.course.id);
+            $('best-round').textContent = rec.best === null
+                ? '\u2014'
+                : rec.best + ' (' + S.formatVsPar(rec.bestVsPar) + ')';
+
+            $('shud-hole').textContent = (state.holeIndex + 1) + '/' + state.course.holes.length;
+            $('shud-par').textContent = 'Par ' + hole.par;
+            $('shud-strokes').textContent = state.strokes + (state.strokes === 1 ? ' stroke' : ' strokes');
+            $('shud-name').textContent = hole.name;
+            $('shud-blurb').textContent = hole.blurb;
+        }
 
         syncDistance();
         syncClubs();
         syncPower();
         syncWeather();
-
-        // The compact overlay carries the same figures as the scoreboard, for
-        // the layouts where the scoreboard is off screen — fullscreen, and the
-        // immersive phone layout where the canvas owns the viewport. Only the
-        // four that move during a shot are on the line; the name, the blurb
-        // and the sky are in the half that opens.
-        $('shud-hole').textContent = (state.holeIndex + 1) + '/' + state.course.holes.length;
-        $('shud-par').textContent = 'Par ' + hole.par;
-        $('shud-strokes').textContent = state.strokes + (state.strokes === 1 ? ' stroke' : ' strokes');
-        $('shud-name').textContent = hole.name;
-        $('shud-blurb').textContent = hole.blurb;
     }
 
     /* ── the hole card ──────────────────────────────────────────────────── */
@@ -949,6 +998,13 @@
         syncPicker();
     }
 
+    function focusPickerClub(id) {
+        var container = $('picker-clubs');
+        if (!container) return;
+        var btn = container.querySelector('[data-club="' + id + '"]');
+        if (btn) btn.focus();
+    }
+
     /* The written half of the club picker. The clubs are modelled and turning
        on the canvas; what each one is *for* is text, and text belongs in the
        DOM where it can be read, selected and announced. */
@@ -971,15 +1027,115 @@
         var club = clubById(id);
         $('picker-name').textContent = club.name;
         $('picker-blurb').textContent = club.blurb;
-        /* The same two figures the club's own card carries (bag.js), written
-           out rather than abbreviated: `pwr 14 · loft 22°` was the data with
-           the meaning left off, and this is the line a screen reader reads
-           aloud. The card draws them; this says them. */
+        /* The figures the club's own card carries (bag.js), written out:
+           loft, power, carry distance, and rollout / bite. */
+        var carryText = club.carry ? ' · carry <b>' + club.carry + 'm</b>' : '';
+        var totalText = club.total ? ' · roll <b>' + club.total + 'm</b>' : '';
+        var biteText = club.bite ? ' · bite <b>' + Math.round(club.bite * 100) + '%</b>' : '';
         $('picker-stats').innerHTML =
             'Key <b>' + club.key + '</b> · loft <b>' +
             Math.round(club.loft * 180 / Math.PI) + '°</b> · full swing <b>' +
-            club.power + '</b>' +
+            club.power + '</b>' + carryText + totalText + biteText +
             (club.id === state.club.id ? ' · <b>in hand</b>' : '');
+
+        var container = $('picker-clubs');
+        if (container) {
+            var b = bag();
+            var btns = container.querySelectorAll('.picker-club-btn');
+            var needsRebuild = btns.length !== b.length;
+            if (!needsRebuild) {
+                for (var i = 0; i < b.length; i++) {
+                    if (btns[i].getAttribute('data-club') !== b[i].id) {
+                        needsRebuild = true;
+                        break;
+                    }
+                }
+            }
+            if (needsRebuild) {
+                container.innerHTML = '';
+                b.forEach(function (c) {
+                    var btn = document.createElement('button');
+                    btn.type = 'button';
+                    btn.className = 'picker-club-btn';
+                    btn.setAttribute('data-club', c.id);
+                    btn.setAttribute('role', 'radio');
+                    btn.textContent = c.key + ' ' + c.name;
+                    btn.addEventListener('click', function () {
+                        pickClub(c);
+                        if (G3.bag) G3.bag.setExpanded(false);
+                        A.tick(1);
+                        syncPicker();
+                    });
+                    btn.addEventListener('pointerenter', function () {
+                        if (G3.bag) { G3.bag.setHover(c.id); syncPicker(); }
+                    });
+                    btn.addEventListener('pointerleave', function () {
+                        if (G3.bag && G3.bag.state.hover === c.id) { G3.bag.setHover(null); syncPicker(); }
+                    });
+                    btn.addEventListener('focus', function () {
+                        if (G3.bag) { G3.bag.setHover(c.id); syncPicker(); }
+                    });
+                    container.appendChild(btn);
+                });
+                btns = container.querySelectorAll('.picker-club-btn');
+
+                container.onkeydown = function (e) {
+                    var k = e.key;
+                    if (k === 'ArrowLeft' || k === 'ArrowUp') {
+                        cycleClub(-1);
+                        if (G3.bag) G3.bag.setHover(state.club.id);
+                        syncPicker();
+                        focusPickerClub(state.club.id);
+                        e.preventDefault();
+                    } else if (k === 'ArrowRight' || k === 'ArrowDown') {
+                        cycleClub(1);
+                        if (G3.bag) G3.bag.setHover(state.club.id);
+                        syncPicker();
+                        focusPickerClub(state.club.id);
+                        e.preventDefault();
+                    } else if (k === 'Home') {
+                        var bFirst = bag();
+                        if (bFirst.length) {
+                            pickClub(bFirst[0]);
+                            if (G3.bag) G3.bag.setHover(bFirst[0].id);
+                            syncPicker();
+                            focusPickerClub(bFirst[0].id);
+                        }
+                        e.preventDefault();
+                    } else if (k === 'End') {
+                        var bLast = bag();
+                        if (bLast.length) {
+                            pickClub(bLast[bLast.length - 1]);
+                            if (G3.bag) G3.bag.setHover(bLast[bLast.length - 1].id);
+                            syncPicker();
+                            focusPickerClub(bLast[bLast.length - 1].id);
+                        }
+                        e.preventDefault();
+                    } else if (k === 'Enter' || k === ' ') {
+                        if (G3.bag && G3.bag.state.hover) {
+                            pickClub(clubById(G3.bag.state.hover));
+                        }
+                        if (G3.bag) G3.bag.setExpanded(false);
+                        syncPicker();
+                        e.preventDefault();
+                    } else if (k === 'Escape') {
+                        if (G3.bag) G3.bag.setExpanded(false);
+                        syncPicker();
+                        e.preventDefault();
+                    }
+                };
+            }
+            var activeId = (G3.bag && G3.bag.state.hover) || state.club.id;
+            for (var j = 0; j < btns.length; j++) {
+                var btnEl = btns[j];
+                var cId = btnEl.getAttribute('data-club');
+                var isSelected = cId === state.club.id;
+                var isActive = cId === activeId;
+                btnEl.classList.toggle('selected', isSelected);
+                btnEl.setAttribute('aria-checked', isSelected ? 'true' : 'false');
+                btnEl.setAttribute('tabindex', isActive ? '0' : '-1');
+            }
+        }
     }
 
     /* How much of the stage the club panel and the shot controls have taken,
@@ -1624,6 +1780,7 @@
         if (k === 'j' || k === 'J') { toggleMusic(); return; }
         if (k === 'o' || k === 'O') { toggleWater(); return; }
         if (k === 'p' || k === 'P') { toggleFps(); return; }
+        if (k === 't' || k === 'T') { newRound('range'); return; }
         if (k === 'r' || k === 'R') { restartHole(); return; }
         if (k === 'v' || k === 'V') { cycleSeat(); return; }
         if (k === 'f' || k === 'F') { toggleFullscreen(); return; }
@@ -1634,7 +1791,58 @@
             if (sim) { stopSim('Your club again'); return; }
             if (G3.bag && G3.bag.isExpanded()) { G3.bag.setExpanded(false); syncPicker(); return; }
             closeHowTo();
+            closeTopMenu();
+            hideHoleCard();
             return;
+        }
+        if (G3.bag && G3.bag.isExpanded()) {
+            if (k === 'ArrowLeft' || k === 'ArrowUp') {
+                cycleClub(-1);
+                if (G3.bag) G3.bag.setHover(state.club.id);
+                syncPicker();
+                focusPickerClub(state.club.id);
+                e.preventDefault();
+                return;
+            }
+            if (k === 'ArrowRight' || k === 'ArrowDown') {
+                cycleClub(1);
+                if (G3.bag) G3.bag.setHover(state.club.id);
+                syncPicker();
+                focusPickerClub(state.club.id);
+                e.preventDefault();
+                return;
+            }
+            if (k === 'Home') {
+                var bFirst = bag();
+                if (bFirst.length) {
+                    pickClub(bFirst[0]);
+                    if (G3.bag) G3.bag.setHover(bFirst[0].id);
+                    syncPicker();
+                    focusPickerClub(bFirst[0].id);
+                }
+                e.preventDefault();
+                return;
+            }
+            if (k === 'End') {
+                var bLast = bag();
+                if (bLast.length) {
+                    pickClub(bLast[bLast.length - 1]);
+                    if (G3.bag) G3.bag.setHover(bLast[bLast.length - 1].id);
+                    syncPicker();
+                    focusPickerClub(bLast[bLast.length - 1].id);
+                }
+                e.preventDefault();
+                return;
+            }
+            if (k === 'Enter' || k === ' ') {
+                if (G3.bag.state.hover) {
+                    pickClub(clubById(G3.bag.state.hover));
+                }
+                G3.bag.setExpanded(false);
+                syncPicker();
+                e.preventDefault();
+                return;
+            }
         }
         if (k >= '1' && k <= '9') {
             var byKey = bag().filter(function (c) { return c.key === k; })[0];
@@ -1644,17 +1852,19 @@
             // C cycles; with the bag open it walks the row instead of shutting
             // it, which is how you compare two clubs without the mouse.
             cycleClub(1);
+            if (G3.bag && G3.bag.isExpanded()) {
+                G3.bag.setHover(state.club.id);
+                focusPickerClub(state.club.id);
+            }
             syncPicker();
             return;
         }
-        if (k === 'Escape') {
-            closeTopMenu();
-            if (G3.bag && G3.bag.isExpanded()) { G3.bag.setExpanded(false); syncPicker(); }
-            hideHoleCard();
-            return;
-        }
         if (k === 'b' || k === 'B') {
-            if (G3.bag) { G3.bag.toggle(); syncPicker(); }
+            if (G3.bag) {
+                G3.bag.toggle();
+                syncPicker();
+                if (G3.bag.isExpanded()) focusPickerClub(state.club.id);
+            }
             return;
         }
         if (state.phase === 'holed' && (k === 'Enter' || k === ' ')) { e.preventDefault(); nextHole(); return; }
@@ -2479,6 +2689,18 @@
     function closeMenu() { menuKind = null; $('menu').className = 'modal'; maybeFly(); }
 
     function openCard(res) {
+        if (state.course.isRange) {
+            $('card-title').textContent = 'Driving Range';
+            $('card-sub').textContent = 'Free practice mode · ' + state.strokes + (state.strokes === 1 ? ' shot hit' : ' shots hit');
+            $('card-body').innerHTML =
+                '<div style="padding: 18px 8px; text-align: center; color: #cbd5e1; font-size: 0.95rem; line-height: 1.6;">' +
+                '<p>Take unlimited full swings and target shots across the practice range.</p>' +
+                '<p style="margin-top: 10px; color: #94a3b8; font-size: 0.85rem;">Distance markers at 50m, 100m, 150m, 200m, 250m, and 300m.</p>' +
+                '</div>';
+            $('card-next').hidden = true;
+            $('scorecard').className = 'modal show';
+            return;
+        }
         var holes = state.course.holes;
         var rows = '', i, sc, t;
         for (i = 0; i < holes.length; i++) {
@@ -3215,6 +3437,8 @@
         // Wrapped: openMenu takes the course to nudge towards, and a click
         // handler would otherwise hand it an Event.
         $('btn-courses').addEventListener('click', function () { openMenu(); });
+        if ($('btn-range')) $('btn-range').addEventListener('click', function () { newRound('range'); });
+        if ($('menu-btn-range')) $('menu-btn-range').addEventListener('click', function () { closeMenu(); newRound('range'); });
         $('btn-card').addEventListener('click', function () { openCard(null); });
         $('btn-map').addEventListener('click', function () { toggleMiniMap(); });
         $('btn-view').addEventListener('click', cycleSeat);
@@ -3228,7 +3452,11 @@
         // Naming the club and changing it are the same button: the pill opens
         // the picker, which is where the choice already lives.
         $('club-chip').addEventListener('click', function () {
-            if (G3.bag) { G3.bag.toggle(); syncPicker(); }
+            if (G3.bag) {
+                G3.bag.toggle();
+                syncPicker();
+                if (G3.bag.isExpanded()) focusPickerClub(state.club.id);
+            }
         });
         $('btn-fps').addEventListener('click', toggleFps);
         $('btn-fly').addEventListener('click', toggleFlyover);

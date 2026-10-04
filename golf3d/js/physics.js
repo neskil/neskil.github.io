@@ -621,6 +621,8 @@
         world.overCup = false;
         world.sprung = 0;
         world.warpFor = 0;
+        world.firstLand = null;
+        world.carry = 0;
         if (b.vy > 0.01) world.grounded = false;
         return true;
     }
@@ -1028,6 +1030,7 @@
 
             if (land && b.y - C.BALL_R <= land.y) {
                 b.y = land.y + C.BALL_R;
+                if (!world.firstLand) world.firstLand = { x: b.x, y: b.y, z: b.z };
                 var impact = -b.vy;
                 var kick = springKick(world, land.pad);
                 if (kick) {
@@ -1129,6 +1132,7 @@
                 b.vx = b.vy = b.vz = 0;
                 if (world.moving) events.rest = true;
                 world.moving = false;
+                world.carry = world.firstLand ? Math.hypot(world.firstLand.x - world.origin.x, world.firstLand.z - world.origin.z) : 0;
                 markOutOfBounds(world, events);
             }
         }

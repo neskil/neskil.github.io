@@ -32,7 +32,7 @@
 
         gtag('config', 'G-9GP823TGLB');
     </script>
-    <link rel="stylesheet" href="style.css?v=1.49.0">
+    <link rel="stylesheet" href="style.css?v=1.50.0">
 <script type="application/ld+json">
     {
         "@context": "https://schema.org",
@@ -123,6 +123,7 @@
                 <button class="chip" id="btn-full" title="Play fullscreen (F)" aria-label="Play fullscreen">⛶<span class="chip-text"> Full</span></button>
                 <div class="topbar-menu" id="topbar-menu">
                     <button class="chip" id="btn-courses" title="Pick a course">Courses</button>
+                    <button class="chip" id="btn-range" title="Driving range practice (T)">🎯<span class="chip-text"> Range</span></button>
                     <button class="chip" id="btn-restart" title="Restart this hole (R)">↻ Hole</button>
                     <button class="chip" id="btn-card" title="Scorecard">Card</button>
                     <button class="chip" id="btn-map" title="Show the course map" aria-pressed="false">🗺️<span class="chip-text"> Map</span></button>
@@ -192,6 +193,7 @@
                 <p class="picker-name" id="picker-name">Driver</p>
                 <p class="picker-blurb" id="picker-blurb"></p>
                 <p class="picker-stats" id="picker-stats"></p>
+                <div class="picker-clubs" id="picker-clubs" role="radiogroup" aria-label="Available clubs"></div>
             </div>
 
             <!-- Where the camera stands, which is a different question from
@@ -538,7 +540,10 @@
 
     <div class="modal" id="menu">
         <div class="modal-inner" role="dialog" aria-modal="true" aria-labelledby="menu-title">
-            <h2 id="menu-title">Pick a course</h2>
+            <div class="menu-head-row">
+                <h2 id="menu-title">Pick a course</h2>
+                <button type="button" class="chip chip-range" id="menu-btn-range" title="Driving range practice (T)">🎯<span class="chip-text"> Driving Range</span></button>
+            </div>
             <p class="sub">Records are kept per course — tap a plan to start on that hole.</p>
             <!-- One tab per kind of golf. Seventeen courses shown flat is a list
                  nobody reads; shown a kind at a time it is three or four. -->
@@ -645,27 +650,27 @@
 
     <!-- Load order is dependency order: config, then the pure logic, then the
          things that touch the screen. game.js boots itself on DOMContentLoaded. -->
-    <script src="js/config.js?v=1.49.0"></script>
-    <script src="js/themes.js?v=1.49.0"></script>
-    <script src="js/physics.js?v=1.49.0"></script>
-    <script src="js/courses.js?v=1.49.0"></script>
-    <script src="js/audit.js?v=1.49.0"></script>
-    <script src="js/custom.js?v=1.49.0"></script>
-    <script src="js/scoring.js?v=1.49.0"></script>
-    <script src="js/swing.js?v=1.49.0"></script>
-    <script src="js/audio.js?v=1.49.0"></script>
-    <script src="js/music.js?v=1.49.0"></script>
-    <script src="js/bag.js?v=1.49.0"></script>
-    <script src="js/textures.js?v=1.49.0"></script>
-    <script src="js/shaders.js?v=1.49.0"></script>
-    <script src="js/postfx.js?v=1.49.0"></script>
-    <script src="js/weather.js?v=1.49.0"></script>
-    <script src="js/flyover.js?v=1.49.0"></script>
-    <script src="js/bot.js?v=1.49.0"></script>
-    <script src="js/models.js?v=1.49.0"></script>
-    <script src="js/render.js?v=1.49.0"></script>
-    <script src="js/minimap.js?v=1.49.0"></script>
-    <script src="js/debug.js?v=1.49.0"></script>
-    <script src="js/game.js?v=1.49.0"></script>
+    <script src="js/config.js?v=1.50.0"></script>
+    <script src="js/themes.js?v=1.50.0"></script>
+    <script src="js/physics.js?v=1.50.0"></script>
+    <script src="js/courses.js?v=1.50.0"></script>
+    <script src="js/audit.js?v=1.50.0"></script>
+    <script src="js/custom.js?v=1.50.0"></script>
+    <script src="js/scoring.js?v=1.50.0"></script>
+    <script src="js/swing.js?v=1.50.0"></script>
+    <script src="js/audio.js?v=1.50.0"></script>
+    <script src="js/music.js?v=1.50.0"></script>
+    <script src="js/bag.js?v=1.50.0"></script>
+    <script src="js/textures.js?v=1.50.0"></script>
+    <script src="js/shaders.js?v=1.50.0"></script>
+    <script src="js/postfx.js?v=1.50.0"></script>
+    <script src="js/weather.js?v=1.50.0"></script>
+    <script src="js/flyover.js?v=1.50.0"></script>
+    <script src="js/bot.js?v=1.50.0"></script>
+    <script src="js/models.js?v=1.50.0"></script>
+    <script src="js/render.js?v=1.50.0"></script>
+    <script src="js/minimap.js?v=1.50.0"></script>
+    <script src="js/debug.js?v=1.50.0"></script>
+    <script src="js/game.js?v=1.50.0"></script>
 </body>
 </html>

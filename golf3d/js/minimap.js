@@ -226,18 +226,40 @@
         // The tee, and the hole itself. Both are drawn at a size you can see
         // rather than at a size that is true: a 0.4-unit cup on a hole eighty
         // units long is a third of a pixel.
-        var r = Math.max(2.2, C.HOLE_R * scale);
-        g.fillStyle = 'rgba(255,255,255,0.85)';
+        var r = Math.max(2.5, C.HOLE_R * scale);
+
+        // The tee: a prominent tee box marker (amber circle with white ball & shadow)
+        var tx = toX(hole.tee.x), ty = toY(hole.tee.z);
+        var tr = Math.max(3.2, r * 1.05);
+        g.fillStyle = 'rgba(6, 20, 34, 0.85)';
         g.beginPath();
-        g.arc(toX(hole.tee.x), toY(hole.tee.z), Math.max(1.8, r * 0.8), 0, 6.283);
+        g.arc(tx, ty, tr + 1.2, 0, 6.283);
+        g.fill();
+        g.fillStyle = '#fbbf24';
+        g.beginPath();
+        g.arc(tx, ty, tr, 0, 6.283);
+        g.fill();
+        g.fillStyle = '#ffffff';
+        g.beginPath();
+        g.arc(tx, ty, Math.max(1.5, tr * 0.45), 0, 6.283);
         g.fill();
 
+        // The cup: dark hole with crisp white rim and red pin flag
+        var cx = toX(hole.cup.x), cy = toY(hole.cup.z);
         g.fillStyle = '#12160f';
         g.beginPath();
-        g.arc(toX(hole.cup.x), toY(hole.cup.z), r, 0, 6.283);
+        g.arc(cx, cy, r, 0, 6.283);
         g.fill();
         g.strokeStyle = '#ffffff';
-        g.lineWidth = Math.max(1, r * 0.45);
+        g.lineWidth = Math.max(1.2, r * 0.45);
+        g.stroke();
+        g.strokeStyle = '#ef4444';
+        g.lineWidth = Math.max(1, r * 0.35);
+        g.beginPath();
+        g.moveTo(cx, cy);
+        g.lineTo(cx, cy - Math.max(4, r * 1.6));
+        g.lineTo(cx + Math.max(3, r * 1.1), cy - Math.max(2.8, r * 1.1));
+        g.lineTo(cx, cy - Math.max(1.6, r * 0.6));
         g.stroke();
 
         return cv;

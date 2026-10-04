@@ -8,7 +8,7 @@
    — the renderer scales to the viewport, the simulation never sees a pixel. */
 window.G3 = window.G3 || {};
 
-G3.VERSION = '1.49.0';
+G3.VERSION = '1.50.0';
 
 G3.CONFIG = {
     BALL_R: 0.16,
@@ -213,12 +213,12 @@ G3.CONFIG = {
     CLUBS: [
         {
             id: 'putter', name: 'Putter', short: 'PT', key: '1',
-            loft: 0, power: 10.5,
+            loft: 0, power: 10.5, carry: 0, total: 9.2,
             blurb: 'Rolls flat and true. Nothing else stops where you tell it.'
         },
         {
             id: 'driver', name: 'Driver', short: 'DR', key: '2',
-            loft: 6 * Math.PI / 180, power: 32,
+            loft: 6 * Math.PI / 180, power: 32, carry: 15.3, total: 34.5,
             blurb: 'The reach club. Barely off the ground, and it runs.'
         },
         /* The one club that is neither reach nor loft but a real amount of
@@ -230,7 +230,7 @@ G3.CONFIG = {
            two thirds of a driver, and it stops. */
         {
             id: 'iron', name: '7 Iron', short: '7i', key: '3',
-            loft: 16 * Math.PI / 180, power: 18,
+            loft: 16 * Math.PI / 180, power: 18, carry: 9.8, total: 21.0,
             blurb: 'The long approach. Carries what the driver runs into.'
         },
         /* The top of the bag is set at the lofts these clubs really carry:
@@ -246,12 +246,12 @@ G3.CONFIG = {
            stopping, which is the whole reason to reach for either. */
         {
             id: 'chipper', name: 'Pitch', short: 'PW', key: '4',
-            loft: 45 * Math.PI / 180, power: 11.7,
+            loft: 45 * Math.PI / 180, power: 11.7, carry: 7.6, total: 13.7,
             blurb: 'Up steep and down steeper. Stops near where it lands.'
         },
         {
             id: 'wedge', name: 'Wedge', short: 'LW', key: '5',
-            loft: 58 * Math.PI / 180, power: 12.1,
+            loft: 58 * Math.PI / 180, power: 12.1, carry: 7.3, total: 12.4,
             blurb: 'The lob. Straight up over water, sand and trees.'
         }
     ],
@@ -271,7 +271,7 @@ G3.CONFIG = {
     EXTRA_CLUBS: [
         {
             id: 'mallet', name: 'Mallet', short: 'ML', key: '6',
-            loft: 0, power: 17,
+            loft: 0, power: 17, carry: 0, total: 13.4,
             blurb: 'A putter with a hammer behind it. Rolls flat, and rolls a long way.'
         },
         /* The first club in the bag that is not a loft and a ceiling.
@@ -293,7 +293,7 @@ G3.CONFIG = {
            different problems. */
         {
             id: 'checker', name: 'Checker', short: 'CK', key: '7',
-            loft: 38 * Math.PI / 180, power: 13.5, bite: 0.78,
+            loft: 38 * Math.PI / 180, power: 13.5, bite: 0.78, carry: 9.9, total: 11.2,
             blurb: 'Lands and stops. The one club that gives up its run on purpose.'
         }
     ],

@@ -329,6 +329,32 @@
         ];
     }
 
+    /* A gathering green in nine pads: the outer rim sits flush at the height of
+       the ground it meets, four ramps slope down to a sunken flat floor, and four
+       banked corner pads complete the gather without any step. Unlike bowl(),
+       which stands proud as an island crater, a dish can be laid directly into a
+       lane or fairway at height `y` (default 0) while keeping the center flat for
+       the cup and the slopes within green repose limits. */
+    function dish(cx, cz, outer, flat, depth, y) {
+        var base = y || 0;
+        var d = depth === undefined ? 0.08 : depth;
+        var f = flat === undefined ? 2.6 : flat;
+        var a = outer / 2, b = f / 2, run = a - b, k = d / run;
+        function q(x, z, w, dpad, ypad, sx, sz) { return pad(x, z, w, dpad, ypad, 'green', sx, sz); }
+        var floorY = base - d;
+        return [
+            q(cx - b, cz - b, f, f, floorY, 0, 0),                         // sunken flat floor
+            q(cx - a, cz - b, run, f, base, -k, 0),                       // west ramp
+            q(cx + b, cz - b, run, f, floorY, k, 0),                      // east ramp
+            q(cx - b, cz - a, f, run, base, 0, -k),                       // south ramp
+            q(cx - b, cz + b, f, run, floorY, 0, k),                      // north ramp
+            q(cx - a, cz - a, run, run, base + d, -k, -k),                // SW corner
+            q(cx + b, cz - a, run, run, base, k, -k),                     // SE corner
+            q(cx - a, cz + b, run, run, base, -k, k),                     // NW corner
+            q(cx + b, cz + b, run, run, floorY, k, k)                     // NE corner
+        ];
+    }
+
     /* ── ground that does something ─────────────────────────────────────
 
        Everything above is furniture: a thing standing on the floor that the
@@ -5052,7 +5078,49 @@
         return out.length ? out : C.CLUBS;
     };
 
+    /* ── driving range: free practice sandbox ────────────────────────── */
+
+    var rangeHole = build({
+        name: 'Driving Range',
+        par: 0,
+        open: true,
+        blurb: 'Free practice tee to test shots with any club. Target greens, distance markers and unlimited balls.',
+        bag: ['driver', 'iron', 'chipper', 'wedge', 'putter', 'mallet', 'checker'],
+        pads: [
+            pad(7, 2, 6, 6, 0.1, 'wood'),                         // elevated tee deck
+            pad(8.5, 3.5, 3, 3, 0.14, 'green'),                   // tee mat
+            pad(-15, 0, 50, 80, 0, 'fairway'),                    // wide main fairway
+            pad(-25, -5, 10, 90, 0, 'rough'),                     // west rough
+            pad(35, -5, 10, 90, 0, 'rough'),                      // east rough
+            pad(-15, 80, 50, 15, 0, 'rough'),                     // back rough
+            // Target greens at 10m, 20m, 30m, 40m, 50m
+            pad(7, 13, 6, 4, 0.05, 'green'),                      // 10m target green
+            pad(6, 22, 8, 5, 0.05, 'green'),                      // 20m target green
+            pad(5, 32, 10, 6, 0.05, 'green'),                     // 30m target green
+            pad(5, 42, 10, 6, 0.05, 'green'),                     // 40m target green
+            pad(4, 52, 12, 6, 0.05, 'green'),                     // 50m target green
+            // Practice bunkers
+            pad(18, 22, 6, 7, -0.15, 'sand'),
+            pad(-6, 32, 6, 7, -0.15, 'sand'),
+            pad(19, 44, 6, 7, -0.15, 'sand')
+        ],
+        tee: { x: 10, z: 5 },
+        cup: { x: 10, z: 35 }
+    });
+
+    var rangeCourse = {
+        id: 'range',
+        group: 'practice',
+        name: 'Driving Range',
+        blurb: 'Free practice tee to test shots with any club. Target greens, distance markers and unlimited balls.',
+        theme: 'parkland',
+        isRange: true,
+        holes: [rangeHole]
+    };
+    G3.RANGE_COURSE = rangeCourse;
+
     G3.courseById = function (id) {
+        if (id === 'range') return G3.RANGE_COURSE;
         for (var i = 0; i < G3.COURSES.length; i++) {
             if (G3.COURSES[i].id === id) return G3.COURSES[i];
         }
@@ -5061,7 +5129,7 @@
 
     G3.authoring = {
         pad: pad, wall: wall, spinner: spinner, slider: slider,
-        beam: beam, pen: pen, bumper: bumper, bank: bank, bowl: bowl, bands: bands, tilt: tilt,
+        beam: beam, pen: pen, bumper: bumper, bank: bank, bowl: bowl, dish: dish, bands: bands, tilt: tilt,
         commons: commons,
         sprung: sprung, belt: belt, pipe: pipe, pipes: pipes,
         aperture: aperture, flipper: flipper,

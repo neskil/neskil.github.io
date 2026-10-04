@@ -523,6 +523,36 @@
                 'x = ' + broken.ball.x.toFixed(2));
             assert('a shot on a slope still comes to rest', !broken.moving);
 
+            /* The dish gathering green: 9 pads with flush outer rim, sunken floor,
+               smooth corner banking, and slope within green repose limits. */
+            var dPads = A.dish(5, 12, 7.0, 2.6, 0.08, 0);
+            assert('dish produces nine pads', dPads.length === 9);
+            assert('all dish pads are green', dPads.every(function (p) { return p.kind === 'green'; }));
+            var dHole = lab({ pads: dPads, cup: { x: 5, z: 12 } });
+            var dCenter = P.surfaceUnder(dHole, 5, 12.8, Infinity);
+            assert('dish floor is sunk by depth', dCenter && approx(dCenter.y, -0.08, 1e-6));
+            assert('dish floor is flat', dCenter && dCenter.pad.sx === 0 && dCenter.pad.sz === 0);
+            var dRimW = P.surfaceUnder(dHole, 1.51, 12, Infinity);
+            var dRimE = P.surfaceUnder(dHole, 8.49, 12, Infinity);
+            var dRimS = P.surfaceUnder(dHole, 5, 8.51, Infinity);
+            var dRimN = P.surfaceUnder(dHole, 5, 15.49, Infinity);
+            assert('dish outer rims meet surrounding base height',
+                dRimW && approx(dRimW.y, 0, 0.01) &&
+                dRimE && approx(dRimE.y, 0, 0.01) &&
+                dRimS && approx(dRimS.y, 0, 0.01) &&
+                dRimN && approx(dRimN.y, 0, 0.01));
+            // Check that worst slope is well within green hold limit (0.18)
+            var worstDishSlope = 0;
+            dPads.forEach(function (p) {
+                var s = Math.hypot(p.sx || 0, p.sz || 0);
+                if (s > worstDishSlope) worstDishSlope = s;
+            });
+            assert('dish slope is within green hold limit', worstDishSlope <= C.HOLD.green,
+                'worst dish slope is ' + worstDishSlope.toFixed(4) + ' vs hold ' + C.HOLD.green);
+            // Ball rolling onto dish slopes down toward the cup
+            var gathered = shootFrom(dHole, { x: 5, z: 9.0 }, 0, 1.5);
+            assert('ball on dish gathers towards cup', gathered.ball.z > 9.2);
+
             /* The cup. There is no capture rule to test any more — the hole is
                a hole — so these check the geometry and then measure what falls
                out of it. */
@@ -753,6 +783,26 @@
                 G3.nextCourseId(G3.COURSES[G3.COURSES.length - 1].id) === G3.COURSES[0].id);
             assert('an unknown course still offers somewhere to go',
                 !!G3.courseById(G3.nextCourseId('nope')));
+
+            (function () {
+                var range = G3.courseById('range');
+                assert('courseById finds driving range', range && range.id === 'range');
+                assert('driving range is marked as range course', range.isRange === true);
+                assert('driving range has one practice hole', range.holes.length === 1);
+                assert('driving range hole has tee and target cup', !!range.holes[0].tee && !!range.holes[0].cup);
+                assert('driving range bag has full set of clubs', range.holes[0].bag && range.holes[0].bag.length >= 7);
+                assert('driving range cup is a target ahead of tee', (range.holes[0].cup.z - range.holes[0].tee.z) >= 30);
+
+                assert('all clubs have non-negative carry distance', C.CLUBS.every(function (c) { return c.carry >= 0; }));
+                assert('lofted clubs have positive carry distance', C.CLUBS.filter(function (c) { return c.loft > 0; }).every(function (c) { return c.carry > 0; }));
+                assert('all clubs have total distance >= carry', C.CLUBS.every(function (c) { return c.total >= c.carry; }));
+                assert('all extra clubs have carry and total', C.EXTRA_CLUBS.every(function (c) {
+                    return c.carry >= 0 && c.total >= c.carry;
+                }));
+                var driver = C.CLUBS.filter(function (c) { return c.id === 'driver'; })[0];
+                var wedge = C.CLUBS.filter(function (c) { return c.id === 'wedge'; })[0];
+                assert('driver carries farther than wedge', driver && wedge && driver.carry > wedge.carry);
+            })();
 
             /* ── shuffle ────────────────────────────────────────────────
 

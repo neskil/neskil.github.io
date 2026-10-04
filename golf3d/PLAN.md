@@ -12,34 +12,7 @@ to be worked out again.
 
 ---
 
-## 1. Mini golf cannot have a gathering green
-
-A punchbowl — a low rim all round the cup, so a ball with the right weight
-gathers and a hot one comes back off the far side — is the most satisfying
-thing in mini golf and is currently unbuildable at this scale. Two constraints
-collide:
-
-- `CUP_FLAT` is 1.25 and the test holds it to 1e-9, so a rim hump of radius `r`
-  has to stand at least `1.25 + r` from the pin, and it reaches `1.25 + 2r`
-  the other way. The green has to be about `2.5 + 4r` across before a rim fits
-  on it at all.
-- Height comes from `a` and gradient from `a·π/2r`, and `contour` has already
-  spent 0.075 of the 0.18 a green will hold. So the rim has to be shallow *and*
-  wide, and a mini green is not wide.
-
-Measured on a 7.4 x 7.2 green with `ring(cup, 2.45, 1.05, 0.075, 9)`: the rim
-is 0.08 tall — a quarter of a ball — and the worst gradient anywhere on the
-green is already 0.189, over the 0.18 a green holds. (The suite passes it: that
-check walks a 0.3 grid and steps over the peak. Worth tightening on its own
-merits.)
-
-`bowl()` is not the answer either — it is an *island*, its outer rim standing
-proud of whatever is beside it, which is what Tidewater's crater wants and what
-a green blended into a lane does not. What is missing is a **`dish`**: the same
-nine-pad trick, but with the rim at the height of the ground it meets and the
-floor sunk below it, so it can be laid into a lane without a step.
-
-## 2. The picker is sized by its cards, not its clubs
+## 1. The picker is sized by its cards, not its clubs
 
 `fitOpen` measures the block from the card's own `half` and `tail` — so the
 card, not the club, is what the arrangement is fitting, and the head is the
@@ -55,32 +28,8 @@ on the club under the pointer. That keeps "five clubs compared at a glance"
 (which is the whole design) while letting the heads take the room back. The two
 card shapes are already there to hang a third off (`CARDS` in `bag.js`).
 
-## 3. The card says loft and power; the courses are built on carry
+## 2. Smaller things & feature backlog
 
-README → "The bag" says it outright: carry and total on flat grass are the
-numbers the holes are designed against, and the two figures on the card are
-loft and full swing. A player deciding whether a wedge clears the water is
-being shown neither of the numbers that answer it.
-
-And `bite` — the checker's whole reason to exist, the one club that lands and
-stops — has **no representation anywhere on the card**. A club whose entire
-point is invisible in the picker is a club nobody will choose on purpose.
-
-## 4. The clubs are not reachable from the keyboard, only *by* it
-
-The number keys take a club, and that is now on every card. But the open row
-itself has no keyboard model: no focus, no arrow-key walk along it, nothing a
-screen reader can move through. The DOM panel above describes whichever club is
-under the *pointer*, so with no pointer there is nothing to describe. A roving
-tabindex over a list of five buttons, mirrored to `bag.setHover`, would make the
-picker as usable as the rest of the chrome.
-
-## 5. Smaller things & feature backlog
-
-- **An ace should say so.** Hole one is now built to be holed in one and the
-  banner does not distinguish it from any other birdie.
-- **The course-picker plans do not show the tee.** `minimap` draws the ground
-  and the cup; where you start is half of reading a hole from the picker.
 - **The bot could prove a hole is ace-able**, not only solvable, on the holes
   where that is the design. Sea Legs is the first hole where the ace *is* the
   point, and nothing measures that it stays available.
@@ -89,7 +38,6 @@ picker as usable as the rest of the chrome.
   that shows or stop building them.
 - **`tests.html` walks greens on a 0.3 grid** and misses peaks between samples
   (see §1). A finer grid, or sampling at each hump's own steepest radius.
-- **Driving range / free practice mode**: a sandbox tee to test shots with any club.
 - **Pass-and-play local multiplayer**: 2–4 players taking turns with color-coded balls.
 - **1-click level editor sharing**: export custom holes as a compressed URL or snippet.
 
@@ -98,6 +46,22 @@ picker as usable as the rest of the chrome.
 ## Done recently
 
 Kept short, and only where it explains a constraint above.
+
+- **Gathering greens, club telemetry, keyboard roving tabindex, ace banner, tee minimaps, and driving range** (v1.50.0).
+  - Added `dish(cx, cz, outer, flat, depth, y)` constructor in `courses.js`
+    to author nine-pad gathering greens with outer rims flush to the fairway and
+    sunken flat floors around the cup, held within repose limits.
+  - Added carry and total roll distances to `CLUBS` and `EXTRA_CLUBS` in
+    `config.js`, displayed on 3D club cards in `bag.js` alongside a gold
+    `BITE 78%` badge for the Checker.
+  - Added roving `tabindex` and arrow key navigation (`ArrowLeft`/`ArrowRight`/
+    `Home`/`End`/`Enter`/`Space`) across the open club picker with DOM stats readout.
+  - Added celebratory "ACE!" announcement banner with gold trim and glow for
+    1-stroke holes in one.
+  - Added white tee box marker and red flag pin cup indicator on course picker
+    minimaps in `minimap.js`.
+  - Added full Driving Range sandbox practice mode (`G3.RANGE_COURSE`, id `'range'`)
+    with distance markers, unlimited balls, toast shot telemetry, and dedicated scorecard view.
 
 - **Visual decor system for course atmosphere** (v1.46.0). Added
   `decor(kind, x, z, y, opts)` and helper constructors (`buoy`, `piling`,

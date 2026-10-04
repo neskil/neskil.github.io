@@ -1203,7 +1203,9 @@
         g.textBaseline = 'middle';
         g.font = '800 16px ' + FACE;
         g.fillStyle = held ? tint.name : 'rgba(159, 182, 201, 0.82)';
-        g.fillText(held ? 'IN HAND' : 'KEY ' + club.key, W / 2, 4 + BAND_H / 2);
+        var bandText = held ? 'IN HAND' : 'KEY ' + club.key;
+        if (club.bite) bandText += ' \u00b7 BITE ' + Math.round(club.bite * 100) + '%';
+        g.fillText(bandText, W / 2, 4 + BAND_H / 2);
 
         /* The name, in the page's own face, in one flat colour: a gradient
            across four letters is a smear at the size this is read from. */
@@ -1226,46 +1228,77 @@
         return srgbCanvas(cv);
     }
 
-    /* Side by side, for a card standing in a row: the loft on the left with
-       the picture of it, the power on the right with the bar. */
+    /* Side by side, for a card standing in a row: carry & loft on the left,
+       total distance, power & bite on the right. */
     function sideBySideFigures(g, W, H, rule, deg, club, frac, tint) {
         var top = rule + 22;
         var x2 = Math.round(W * 0.54);
+        var carryStr = club.carry ? String(club.carry) : '\u2014';
+        var totalStr = club.total ? String(club.total) : String(club.power);
 
         g.fillStyle = 'rgba(159, 182, 201, 0.9)';
-        g.font = '700 17px ' + FACE;
-        g.fillText('LOFT', 28, top);
-        g.fillText('POWER', x2, top);
+        g.font = '700 15px ' + FACE;
+        g.fillText('CARRY \u00b7 ' + deg + '\u00b0', 28, top);
+        g.fillText('TOTAL \u00b7 PWR ' + club.power, x2, top);
 
         g.fillStyle = '#eaf6ff';
-        g.font = '700 36px ' + FIGS;
-        g.fillText(deg + '\u00b0', 28, top + 36);
-        g.fillText(String(club.power), x2, top + 36);
+        g.font = '700 34px ' + FIGS;
+        g.fillText(carryStr, 28, top + 34);
+        g.fillText(totalStr, x2, top + 34);
 
-        drawLoft(g, 118, top + 46, deg, tint.name);
-        drawPower(g, x2, top + 58, W - 28 - x2, 13, frac, tint.name);
+        if (club.bite) {
+            roundRect(g, W - 116, top + 42, 88, 22, 6);
+            g.fillStyle = 'rgba(20, 184, 166, 0.25)';
+            g.fill();
+            g.strokeStyle = '#5eead4';
+            g.lineWidth = 1.5;
+            g.stroke();
+            g.fillStyle = '#5eead4';
+            g.font = '800 12px ' + FACE;
+            g.textAlign = 'center';
+            g.fillText('BITE ' + Math.round(club.bite * 100) + '%', W - 72, top + 53);
+            g.textAlign = 'left';
+        } else {
+            drawPower(g, x2, top + 56, W - 28 - x2, 11, frac, tint.name);
+        }
+        drawLoft(g, 126, top + 44, deg, tint.name);
     }
 
-    /* Stacked, for a card in a grid: one reading to a line, and the figures
-       given the width the second column used to take. This is the shape a
-       phone gets, and the numbers on it are the point of the change — a loft
-       is a fact you read at a glance or not at all. */
+    /* Stacked, for a card in a grid: carry and loft on line one, total
+       distance and power/bite on line two. */
     function stackedFigures(g, W, H, rule, deg, club, frac, tint) {
-        var mid = rule + 56;                 // the loft line
-        var low = H - 30;                    // …and the power line
+        var mid = rule + 56;                 // the carry line
+        var low = H - 30;                    // …and the total line
+        var carryStr = club.carry ? String(club.carry) : '\u2014';
+        var totalStr = club.total ? String(club.total) : String(club.power);
 
         g.fillStyle = 'rgba(159, 182, 201, 0.9)';
-        g.font = '700 18px ' + FACE;
-        g.fillText('LOFT', 26, mid - 34);
-        g.fillText('POWER', 26, low - 34);
+        g.font = '700 16px ' + FACE;
+        g.fillText('CARRY \u00b7 ' + deg + '\u00b0', 26, mid - 34);
+        g.fillText('TOTAL \u00b7 PWR ' + club.power, 26, low - 34);
 
         g.fillStyle = '#eaf6ff';
-        g.font = '700 50px ' + FIGS;
-        g.fillText(deg + '\u00b0', 26, mid);
-        g.fillText(String(club.power), 26, low);
+        g.font = '700 46px ' + FIGS;
+        g.fillText(carryStr, 26, mid);
+        g.fillText(totalStr, 26, low);
 
-        drawLoft(g, W - 108, mid + 12, deg, tint.name);
-        drawPower(g, W - 150, low + 4, 124, 14, frac, tint.name);
+        drawLoft(g, W - 108, mid + 10, deg, tint.name);
+
+        if (club.bite) {
+            roundRect(g, W - 130, low - 16, 104, 24, 6);
+            g.fillStyle = 'rgba(20, 184, 166, 0.25)';
+            g.fill();
+            g.strokeStyle = '#5eead4';
+            g.lineWidth = 1.5;
+            g.stroke();
+            g.fillStyle = '#5eead4';
+            g.font = '800 13px ' + FACE;
+            g.textAlign = 'center';
+            g.fillText('BITE ' + Math.round(club.bite * 100) + '%', W - 78, low - 4);
+            g.textAlign = 'left';
+        } else {
+            drawPower(g, W - 150, low + 4, 124, 14, frac, tint.name);
+        }
 
         g.strokeStyle = 'rgba(148, 176, 199, 0.14)';
         g.lineWidth = 2;
