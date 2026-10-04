@@ -723,6 +723,12 @@
     function boat(x, z, y, opts) { return decor('boat', x, z, y, opts); }
     function sailboat(x, z, y, opts) { return decor('sailboat', x, z, y, opts); }
     function bin(x, z, y, opts) { return decor('bin', x, z, y, opts); }
+    function barrel(x, z, y, opts) { return decor('barrel', x, z, y, opts); }
+    function crate(x, z, y, opts) { return decor('crate', x, z, y, opts); }
+    function palm(x, z, y, opts) { return decor('palm', x, z, y, opts); }
+    function pine(x, z, y, opts) { return decor('pine', x, z, y, opts); }
+    function sign(x, z, y, opts) { return decor('sign', x, z, y, opts); }
+    function windmill(x, z, y, opts) { return decor('windmill', x, z, y, opts); }
 
     /* ── the open country ───────────────────────────────────────────────
 
@@ -1644,6 +1650,7 @@
             decor: [
                 bench(-1.4, 1.5, 0, { yaw: Math.PI / 2 }),
                 bin(-1.4, 2.7, 0),
+                barrel(8.2, 2.0, 0), crate(8.6, 3.0, 0, { yaw: 0.4 }),
                 buoy(-3.5, 7.5, 0),
                 piling(7.8, 4.0, 0),
                 boat(8.4, 10.0, 0, { yaw: -0.4 })
@@ -1657,6 +1664,7 @@
             decor: [
                 buoy(6.5, 4.5, 0, { variant: 1 }),
                 piling(-1.6, 6.0, 0),
+                palm(-2.4, 2.0, 0), palm(14.2, 14.5, 0, { yaw: 2 }),
                 bench(11.5, 7.5, 0, { yaw: 0 })
             ]
         }),
@@ -1679,6 +1687,7 @@
             decor: [
                 piling(-1.8, 7.0, 0),
                 piling(7.8, 9.0, 0),
+                sign(7.4, 1.5, 0, { yaw: -0.5 }), windmill(-3.2, 9.0, 0),
                 buoy(-3.2, 13.0, 0),
                 boat(-4.5, 3.5, 0, { yaw: 0.8 })
             ]
@@ -5063,6 +5072,7 @@
         rect: rect, enclose: enclose, shore: shore, brink: brink, build: build,
         contour: contour, scoop: scoop, relief: relief,
         buoy: buoy, piling: piling, bench: bench, boat: boat, sailboat: sailboat, bin: bin,
+        barrel: barrel, crate: crate, palm: palm, pine: pine, sign: sign, windmill: windmill,
         RAIL_T: RAIL_T, SCOOP: SCOOP,
         CUP_FLAT: CUP_FLAT, TEE_FLAT: TEE_FLAT, CUP_PATCH: CUP_PATCH
     };

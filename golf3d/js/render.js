@@ -1845,6 +1845,8 @@
 
     /* Visual decor: props drawn to dress the hole. They are non-solid and have
        no presence in physics.js. Geometries are disposed cleanly by disposeGroup. */
+    var PROP_SCALE = { barrel: 0.4, crate: 0.4, palm: 0.55, pine: 1.3, sign: 2.2, windmill: 1.3 };
+
     function addDecor(group, item, theme) {
         var d = item || {};
         var kind = d.kind;
@@ -1981,6 +1983,14 @@
             }
             dg.rotation.z += 0.02;
             dg.rotation.x -= 0.01;
+        } else if (PROP_SCALE[kind]) {
+            // Land props from the CC0 kits: barrel, crate, palm, pine, sign, windmill.
+            var pMesh = G3.getModelMesh ? G3.getModelMesh(kind, surf.model) : null;
+            if (pMesh) {
+                var ps = PROP_SCALE[kind];
+                pMesh.scale.set(ps, ps, ps);
+                dg.add(pMesh);
+            }
         } else if (kind === 'bin') {
             // Park / course waste receptacle
             var binGeo = new THREE.CylinderGeometry(0.20, 0.18, 0.58, 8);

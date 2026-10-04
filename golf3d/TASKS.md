@@ -18,12 +18,11 @@ Tracking feature ideas, suggestions, and active implementations for **Loft Links
   - Built `golf3d/js/models.js` storing vertex positions, normals, and vertex colors mapped from palette.
   - Works 100% offline, zero build step, and over `file://` with no CORS restrictions or runtime async loader dependencies.
   - Replaced crude procedural box/cone boat with authentic rowboat, dinghy, and single-masted sailboat models.
-- [ ] **Foliage & Tree Variety**
-  - Add low-poly palms for coastal holes (`seaside`, `tidewater`).
-  - Pine/evergreen variations for mountain & quarry courses.
-- [ ] **Nautical & Course Dressings**
-  - Pier moorings, dock cleats, ropes, lighthouses on coastal courses.
-  - Windmill machinery details and gears on crazy golf holes.
+- [x] **Expanded 3D Asset Library (Kenney Kits - CC0 Public Domain)**
+  - Added new models into `golf3d/assets/models/`: `palm.obj`, `pine.obj`, `barrel.obj`, `crate.obj`, `sign.obj`, `windmill.obj`.
+  - Stored pre-parsed vertex positions, normals, and vertex colors in `golf3d/js/models.js`.
+  - Added authoring helpers in `courses.js` (`palm`, `pine`, `barrel`, `crate`, `sign`, `windmill`) and exposed on `G3.authoring`.
+  - Added to `VALID_DECOR` in `tests.html` and rendered with proportional scaling via `PROP_SCALE` in `render.js`.
 - [ ] **Gentle Ambient Motion**
   - Subtle wave bobbing for floating watercraft and buoys in `render.js`.
 
