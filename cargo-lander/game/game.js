@@ -12,7 +12,7 @@
 // game.js → game/* → render.js + render/* (render.js instantiates window.game).
 
 class CargoGame {
-    static VERSION = '0.22.2';
+    static VERSION = '0.23.0';
 
     constructor() {
         this.canvas = null;
@@ -23,6 +23,8 @@ class CargoGame {
         this.gameState = 'menu';
         this.currentLevelIndex = 0;
         this.isPlaytest = false;
+        this.autopilotActive = false;
+        this.botInstance = null;
 
         // Economy & Progression
         this.globalCash = parseInt(localStorage.getItem('cargoLanderCash')) || 1000;
@@ -476,6 +478,8 @@ class CargoGame {
             this.career.hasUsedDrone = true;
             this.saveCareer();
         }
+        this.autopilotActive = false;
+        this.botInstance = null;
         this.crashHandled = false;
         this._fireworksTriggered = false;
         // Mission panel starts expanded each mission; clearing the event
@@ -1165,9 +1169,39 @@ class CargoGame {
         }
     }
 
+    toggleAutopilot() {
+        if (this.gameState !== 'playing') return;
+        this.autopilotActive = !this.autopilotActive;
+        if (this.autopilotActive) {
+            if (!this.botInstance && typeof CargoBot === 'function') {
+                this.botInstance = new CargoBot(this);
+            }
+            if (this.botInstance) this.botInstance.reset();
+            this.addMessage('🤖 AUTOPILOT ENGAGED', '#38bdf8');
+        } else {
+            this.addMessage('MANUAL FLIGHT RESTORED', '#94a3b8');
+        }
+    }
+
     // Merges keyboard, gamepad (gp_*) and touch-joystick (joy_*) keys into the
     // inputState object handed to physics.update().
     bundleInput() {
+        if (this.autopilotActive && this.botInstance && this.gameState === 'playing') {
+            const b = this.botInstance.getInputs();
+            return {
+                up: b.up,
+                down: b.down,
+                left: b.left,
+                right: b.right,
+                q: b.q,
+                e: b.e,
+                mouseX: this.mouseX,
+                mouseY: this.mouseY,
+                mouseLeft: this.mouseLeft,
+                mouseRight: this.mouseRight
+            };
+        }
+
         this.pollGamepad();
         const keys = this.keys;
 

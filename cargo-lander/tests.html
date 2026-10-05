@@ -296,24 +296,24 @@ window.confirm = () => true;
   'game' singleton is created but init() is NOT called here — tests call it explicitly.
 -->
 <script src="vendor/matter.min.js"></script>
-<script src="levels/levelSchema.js?v=0.22.2"></script>
-<script src="game/upgrades.js?v=0.22.2"></script>
-<script src="levels/levels.js?v=0.22.2"></script>
-<script src="levels/levelGenerator.js?v=0.22.2"></script>
-<script src="levels/level1.js?v=0.22.2"></script>
-<script src="levels/level2.js?v=0.22.2"></script>
-<script src="levels/level3.js?v=0.22.2"></script>
-<script src="levels/level4.js?v=0.22.2"></script>
-<script src="levels/level5.js?v=0.22.2"></script>
-<script src="levels/level6.js?v=0.22.2"></script>
-<script src="levels/level7.js?v=0.22.2"></script>
-<script src="levels/level8.js?v=0.22.2"></script>
-<script src="levels/level9.js?v=0.22.2"></script>
-<script src="levels/level10.js?v=0.22.2"></script>
-<script src="levels/levelTest.js?v=0.22.2"></script>
-<script src="levels/collectibleTypes.js?v=0.22.2"></script>
-<script src="audio.js?v=0.22.2"></script>
-<script src="render/shaders.js?v=0.22.2"></script>
+<script src="levels/levelSchema.js?v=0.23.0"></script>
+<script src="game/upgrades.js?v=0.23.0"></script>
+<script src="levels/levels.js?v=0.23.0"></script>
+<script src="levels/levelGenerator.js?v=0.23.0"></script>
+<script src="levels/level1.js?v=0.23.0"></script>
+<script src="levels/level2.js?v=0.23.0"></script>
+<script src="levels/level3.js?v=0.23.0"></script>
+<script src="levels/level4.js?v=0.23.0"></script>
+<script src="levels/level5.js?v=0.23.0"></script>
+<script src="levels/level6.js?v=0.23.0"></script>
+<script src="levels/level7.js?v=0.23.0"></script>
+<script src="levels/level8.js?v=0.23.0"></script>
+<script src="levels/level9.js?v=0.23.0"></script>
+<script src="levels/level10.js?v=0.23.0"></script>
+<script src="levels/levelTest.js?v=0.23.0"></script>
+<script src="levels/collectibleTypes.js?v=0.23.0"></script>
+<script src="audio.js?v=0.23.0"></script>
+<script src="render/shaders.js?v=0.23.0"></script>
 <script>
 // Patch ShaderOverlay so it gracefully handles null WebGL context.
 // top-level `class` in shaders.js creates a non-reassignable lexical binding,
@@ -350,27 +350,28 @@ window.confirm = () => true;
   };
 })();
 </script>
-<script src="physics/physics.js?v=0.22.2"></script>
-<script src="physics/collision.js?v=0.22.2"></script>
-<script src="physics/mechanics.js?v=0.22.2"></script>
-<script src="physics/entities.js?v=0.22.2"></script>
-<script src="physics/atmosphere.js?v=0.22.2"></script>
-<script src="game/game.js?v=0.22.2"></script>
-<script src="game/input.js?v=0.22.2"></script>
-<script src="game/menu.js?v=0.22.2"></script>
-<script src="game/hud.js?v=0.22.2"></script>
-<script src="game/cargo.js?v=0.22.2"></script>
-<script src="render/render.js?v=0.22.2"></script>
-<script src="render/background.js?v=0.22.2"></script>
-<script src="render/terrain.js?v=0.22.2"></script>
-<script src="render/entities.js?v=0.22.2"></script>
-<script src="render/pads.js?v=0.22.2"></script>
-<script src="render/lander.js?v=0.22.2"></script>
-<script src="render/creatures.js?v=0.22.2"></script>
-<script src="render/effects.js?v=0.22.2"></script>
-<script src="render/night.js?v=0.22.2"></script>
-<script src="render/fog.js?v=0.22.2"></script>
-<script src="render/ui.js?v=0.22.2"></script>
+<script src="physics/physics.js?v=0.23.0"></script>
+<script src="physics/collision.js?v=0.23.0"></script>
+<script src="physics/mechanics.js?v=0.23.0"></script>
+<script src="physics/entities.js?v=0.23.0"></script>
+<script src="physics/atmosphere.js?v=0.23.0"></script>
+<script src="game/game.js?v=0.23.0"></script>
+<script src="game/input.js?v=0.23.0"></script>
+<script src="game/menu.js?v=0.23.0"></script>
+<script src="game/hud.js?v=0.23.0"></script>
+<script src="game/cargo.js?v=0.23.0"></script>
+<script src="game/bot.js?v=0.23.0"></script>
+<script src="render/render.js?v=0.23.0"></script>
+<script src="render/background.js?v=0.23.0"></script>
+<script src="render/terrain.js?v=0.23.0"></script>
+<script src="render/entities.js?v=0.23.0"></script>
+<script src="render/pads.js?v=0.23.0"></script>
+<script src="render/lander.js?v=0.23.0"></script>
+<script src="render/creatures.js?v=0.23.0"></script>
+<script src="render/effects.js?v=0.23.0"></script>
+<script src="render/night.js?v=0.23.0"></script>
+<script src="render/fog.js?v=0.23.0"></script>
+<script src="render/ui.js?v=0.23.0"></script>
 
 <script>
 // ─── 3. HELPER: build a minimal input-state object for physics.update() ──────
@@ -809,6 +810,59 @@ test('Facade rendering runs for every level without throwing', () => {
       lv.terrainDecor = original;
     }
   }
+});
+
+// ─── 4a. PLAYABILITY & AUTOPILOT (CARGOBOT) ─────────────────────────────────
+category('Playability & Autopilot (CargoBot)');
+
+test('CargoBot Controller Availability', () => {
+  assert(typeof CargoBot === 'function', 'CargoBot class should exist');
+  const bot = new CargoBot(testGame);
+  assert(bot != null, 'CargoBot instance should be constructible');
+});
+
+test('CargoBot Flight: HQ to Collection Point Touchdown', () => {
+  mockLocalStorage.clear();
+  const g = new CargoGame();
+  g.init('cargoCanvas');
+  g.startLevel(0);
+  const bot = new CargoBot(g);
+
+  g.physics.ambientTraffic = [];
+  g.physics.trafficSpawnTimer = -999999;
+  let landedAtDepot = false;
+  for (let frame = 0; frame < 1500; frame++) {
+    if (g.physics.ambientTraffic) g.physics.ambientTraffic.length = 0;
+    const inputs = bot.getInputs();
+    g.keys = {
+      arrowup: inputs.up,
+      arrowdown: inputs.down,
+      arrowleft: inputs.left,
+      arrowright: inputs.right,
+      q: inputs.q,
+      e: inputs.e,
+    };
+    g.update(1.0);
+    if (g.physics.lander.landed && g.physics.lander.currentPad === 'collection') {
+      landedAtDepot = true;
+      break;
+    }
+    if (g.physics.lander.crashed) {
+      throw new Error(`Lander crashed at frame ${frame}, pos: (${Math.round(g.physics.lander.x)}, ${Math.round(g.physics.lander.y)})`);
+    }
+  }
+  assert(landedAtDepot, `Expected lander to touch down on collection pad within 1500 frames; final state: ${bot.state}/${bot.subState}, pos: (${Math.round(g.physics.lander.x)}, ${Math.round(g.physics.lander.y)}), vx: ${g.physics.lander.vx.toFixed(2)}, vy: ${g.physics.lander.vy.toFixed(2)}`);
+});
+
+test('CargoBot Autonomous Mission Run (Full Delivery Loop)', () => {
+  mockLocalStorage.clear();
+  const g = new CargoGame();
+  g.init('cargoCanvas');
+  const result = CargoBot.simulateMission(g, 0, 4000, { clearTraffic: true });
+  const l = g.physics.lander;
+  assert(result.completed, `Expected mission to complete; frames: ${result.frames}, state: ${result.finalState}, lander: (${Math.round(l.x)}, ${Math.round(l.y)}), v: (${l.vx.toFixed(2)}, ${l.vy.toFixed(2)}), crashed: ${l.crashed}, delivered: ${result.delivered}`);
+  assert(result.delivered >= 1, `Expected at least 1 delivery; got ${result.delivered}`);
+  assert(!result.crashed, 'Lander must not crash during autonomous mission');
 });
 
 // ─── 4b. LEVEL CONFIG VALIDATION ─────────────────────────────────────────────

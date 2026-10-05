@@ -70,6 +70,9 @@ Object.assign(CargoGame.prototype, {
             if (e.key.toLowerCase() === 'h') {
                 this.toggleUI();
             }
+            if (e.key.toLowerCase() === 'b') {
+                if (this.toggleAutopilot) this.toggleAutopilot();
+            }
         });
 
         // Key up

@@ -44,6 +44,7 @@
 <script src="game/menu.js"></script>
 <script src="game/hud.js"></script>
 <script src="game/cargo.js"></script>
+<script src="game/bot.js"></script>
 <script src="render/render.js"></script>
 <script src="render/background.js"></script>
 <script src="render/terrain.js"></script>
@@ -62,6 +63,7 @@
   const checks = {
     'CargoGame class':            () => typeof CargoGame === 'function',
     'CargoPhysics class':         () => typeof CargoPhysics === 'function',
+    'CargoBot class':             () => typeof CargoBot === 'function',
     'levels registered (>= 11)':  () => Array.isArray(levels) && levels.length >= 11,
     'LEVEL_SCHEMA':               () => typeof LEVEL_SCHEMA === 'object',
     'game/input.js mixin':        () => typeof CargoGame.prototype.setupEventListeners === 'function' && typeof CargoGame.prototype.pollGamepad === 'function',
