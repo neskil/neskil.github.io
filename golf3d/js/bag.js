@@ -48,7 +48,6 @@
         // Where the rig is, as a blend between tucked away and front and
         // centre. Everything about the open state is this number.
         open01: 0,
-        spin: 0,
         // How the open row is arranged, and how big it can be — both read off
         // the shape of the screen, so they are recomputed rather than baked.
         cols: 0,
@@ -1861,7 +1860,7 @@
                 spot: spot,
                 shaft: built.shaft, fullGeo: built.fullGeo, stubGeo: built.stubGeo,
                 stubLen: built.stubLen, grip: built.grip, cap: built.cap, stubOn: false,
-                now: { x: spot.closed.x, y: spot.closed.y, z: spot.closed.z, rz: spot.closed.rz, rx: spot.closed.rx, ry: spot.closed.ry, scale: 1, lift: 0, glow: 0, labelOp: 0, turn01: 0 }
+                now: { x: spot.closed.x, y: spot.closed.y, z: spot.closed.z, rz: spot.closed.rz, rx: spot.closed.rx, ry: spot.closed.ry, scale: 1, lift: 0, glow: 0, labelOp: 0, spin: 0 }
             });
         });
 
@@ -2088,7 +2087,6 @@
         var ease = 1 - Math.pow(0.0008, dt);      // ~0.25s to settle
         B.open01 += ((B.expanded ? 1 : 0) - B.open01) * ease;
         if (B.open01 < 0.001) B.open01 = 0;
-        B.spin += dt * 0.7;                        // a slow turn, once open
         place(camera, aspect);
         if (B.haze) B.haze.material.opacity = 0.3 * (1 - B.open01);
         /* The rig brightens as it opens: in the bag the clubs are a corner
@@ -2134,16 +2132,22 @@
             c.now.glow = ease1(c.now.glow, glow, ease);
 
             c.group.position.set(c.now.x, c.now.y + c.now.lift, c.now.z);
-            /* Turning on its own axis while it is in the bag, so a glance at
-               the cuff still reads as four different heads. Once the row is
-               out, the clubs stand at OPEN_YAW and hold still — a card is not
-               worth reading while it orbits past — with one exception: the
-               club under the pointer keeps turning, which is the only way to
-               see a face from every side and the thing the row was always
-               described as doing. */
-            c.now.turn01 = ease1(c.now.turn01, under ? 1 : 0, ease);
-            var turn = c.now.ry +
-                B.open01 * (B.expanded ? c.now.turn01 : 1) * B.spin;
+            /* The clubs stand at OPEN_YAW and hold still in the row — a card
+               is not worth reading while it orbits past — with one exception:
+               the club under the pointer turns gently on its own axis, which
+               is the only way to inspect the face and loft from every side.
+               Kept to a calm showcase rate (~16°/s) and tracked per club so
+               hovering never causes an accumulated spin jump. Unhovering
+               eases the club back to OPEN_YAW via the shortest route. */
+            if (under) {
+                c.now.spin += dt * 0.28;
+                if (c.now.spin > Math.PI) c.now.spin -= 2 * Math.PI;
+                else if (c.now.spin < -Math.PI) c.now.spin += 2 * Math.PI;
+            } else if (c.now.spin !== 0) {
+                c.now.spin = ease1(c.now.spin, 0, ease);
+                if (Math.abs(c.now.spin) < 0.001) c.now.spin = 0;
+            }
+            var turn = c.now.ry + B.open01 * c.now.spin;
             c.group.rotation.set(c.now.rx, turn, c.now.rz);
             c.group.scale.setScalar(c.now.scale);
             // …and whatever hangs beside the head rather than on it stays put
