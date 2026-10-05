@@ -57,5 +57,11 @@ Tracking implementation progress for requested features and physics enhancements
   - Automatic surface top and water elevation detection in `render.js` (`P.surfaceTop` / `P.waterAt` / `theme.surroundY`).
   - Removed unnatural placements (open sea windmill, floating sea palms, crates floating in open ocean without a dock).
   - Thematically distributed decor: nautical maritime composition for Seaside Green, Dutch windmill & crates for Windmill Works, tropical palms & lagoon boats for Tidewater Reach, canyon pines & mining crates for Quarry Ridge, tee amenities & parkland pines for Ashdown Park.
+- [x] **Full Level Editor Decor Support (`level-editor.html` & `editor/editor.js`)**
+  - Added all 12 decor prop kinds (`buoy`, `piling`, `bench`, `boat`, `sailboat`, `bin`, `barrel`, `crate`, `palm`, `pine`, `sign`, `windmill`) to tool dropdown and inspector picker.
+  - Distinct 2D plan canvas vector renderings for every prop with selection orientation indicators.
+  - Auto-detected default elevation on stamp placement + one-click "Auto-snap elevation" button in inspector.
+  - Quick yaw angle preset buttons (0°, 45°, 90°, 180°, 270°) and keyboard shortcuts (`D` to equip decor tool, `R` to rotate selected in edit mode).
+  - Clean export via `decorCall` generating concise helper syntax and validation in `runChecks()`.
 - [ ] **Gentle Ambient Motion**
   - Subtle wave bobbing for floating watercraft and buoys in `render.js`.

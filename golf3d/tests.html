@@ -1586,6 +1586,18 @@
             assert('decor props have valid kinds, finite coordinates, and clear the tee and cup', !badDecor, badDecor);
             assert('there is decor to check', decorCount > 0, decorCount + ' decor props');
 
+            // Authoring decor helpers & flexible argument handling
+            var helperKinds = ['buoy', 'piling', 'bench', 'boat', 'sailboat', 'bin', 'barrel', 'crate', 'palm', 'pine', 'sign', 'windmill'];
+            var helpersOk = helperKinds.every(function (k) {
+                return typeof A[k] === 'function' && A[k](1, 2).kind === k;
+            });
+            assert('all decor authoring helpers are exported and produce correct kinds', helpersOk);
+            var autoYDecor = A.sign(1, 2, { yaw: 0.5 });
+            var explicitYDecor = A.sign(1, 2, 1.4, { yaw: 0.5 });
+            assert('decor helper shifts opts and tracks explicitY state',
+                autoYDecor.explicitY === false && autoYDecor.yaw === 0.5 &&
+                explicitYDecor.explicitY === true && explicitYDecor.y === 1.4 && explicitYDecor.yaw === 0.5);
+
             /* ── the mown ground holds a ball ────────────────────────────
 
                The steepness check above walks every contoured pad and skips

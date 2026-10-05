@@ -24,7 +24,7 @@
     gtag('config', 'G-9GP823TGLB');
 </script>
 <link rel="icon" href="../favicon.ico">
-<link rel="stylesheet" href="editor/editor.css?v=1.50.1">
+<link rel="stylesheet" href="editor/editor.css?v=1.51.0">
 </head>
 <body>
 
@@ -71,7 +71,7 @@
       <button class="btn" data-tool="water" title="Drag out water pool (3)"><i class="swatch" style="background:#1b6d9e"></i>Water</button>
       <button class="btn" data-tool="gaps" title="Drag out gap in perimeter rails (4)"><i class="swatch" style="background:#b58bff"></i>Gap</button>
       <button class="btn" data-tool="pipe" title="Warp pipe: click mouth and drag to destination (7)">🌀 Pipe</button>
-      <button class="btn" data-tool="decor" title="Atmospheric decor prop (buoy, bench, boat, bin, piling)">⛵ Decor</button>
+      <button class="btn" data-tool="decor" title="Atmospheric decor prop (buoy, boat, sailboat, palm, pine, windmill, crate, barrel, sign, bench...)">⛵ Decor</button>
       <button class="btn" data-tool="tee" title="Place the tee (5)">⛳ Tee</button>
       <button class="btn" data-tool="cup" title="Place the cup (6)">◉ Cup</button>
     </div>
@@ -91,8 +91,15 @@
         <option value="buoy">buoy (nautical marker buoy)</option>
         <option value="piling">piling (timber mooring post cluster)</option>
         <option value="bench">bench (park / clubhouse seating)</option>
-        <option value="boat">boat (wooden rowing dinghy)</option>
+        <option value="boat">boat (wooden rowing boat / dinghy)</option>
+        <option value="sailboat">sailboat (coastal sailing craft)</option>
         <option value="bin">bin (course waste receptacle)</option>
+        <option value="barrel">barrel (wooden storage barrel)</option>
+        <option value="crate">crate (wooden cargo crate)</option>
+        <option value="palm">palm (tropical palm tree)</option>
+        <option value="pine">pine (coniferous woodland tree)</option>
+        <option value="sign">sign (course wooden signpost)</option>
+        <option value="windmill">windmill (mini-golf Dutch windmill tower)</option>
       </select>
     </div>
     <div class="row" style="margin-top:5px">
@@ -190,11 +197,11 @@
     <details class="sec">
       <summary class="sec-title"><span class="sec-title-text">Help &amp; Shortcuts</span></summary>
       <div class="sec-content hint">
-        <div><b>V</b> select · <b>1</b>–<b>6</b> pick a tool · <b>E</b>/<b>P</b> edit or play</div>
-        <div><b>Drag</b> on the plan with a tool to draw a rectangle</div>
+        <div><b>V</b> select · <b>D</b> decor · <b>1</b>–<b>6</b> pick a tool · <b>E</b>/<b>P</b> edit/play</div>
+        <div><b>R</b> rotate selected (Shift+R fine) · <b>Arrows</b> nudge · <b>Del</b> delete</div>
+        <div><b>Drag</b> on the plan with a tool to draw a rectangle or place a prop</div>
         <div><b>Shift</b> while dragging = snap ×4 · <b>Alt</b> = ignore snap</div>
-        <div><b>Arrows</b> nudge · <b>Del</b> delete · <b>Ctrl+D</b> duplicate</div>
-        <div><b>Ctrl+Z</b> / <b>Ctrl+Shift+Z</b> undo, redo · <b>G</b> grid</div>
+        <div><b>Ctrl+D</b> duplicate · <b>Ctrl+Z</b> / <b>Ctrl+Shift+Z</b> undo/redo · <b>G</b> grid</div>
         <div><b>Space+drag</b> or middle-drag pans · scroll zooms · <b>F</b> fits</div>
         <hr style="border:0; border-top:1px solid #30363d; margin:8px 0;">
         <div>The plan looks down on the hole: <b>x</b> runs right, <b>z</b> runs
@@ -287,17 +294,17 @@
      inspector are the game's chrome rather than the hole's, so they are the
      four the editor does not load. -->
 <script src="vendor/three.min.js"></script>
-<script src="js/config.js?v=1.50.1"></script>
-<script src="js/themes.js?v=1.50.1"></script>
-<script src="js/physics.js?v=1.50.1"></script>
-<script src="js/courses.js?v=1.50.1"></script>
-<script src="js/audit.js?v=1.50.1"></script>
-<script src="js/textures.js?v=1.50.1"></script>
-<script src="js/shaders.js?v=1.50.1"></script>
-<script src="js/postfx.js?v=1.50.1"></script>
-<script src="js/weather.js?v=1.50.1"></script>
-<script src="js/models.js?v=1.50.1"></script>
-<script src="js/render.js?v=1.50.1"></script>
-<script src="editor/editor.js?v=1.50.1"></script>
+<script src="js/config.js?v=1.51.0"></script>
+<script src="js/themes.js?v=1.51.0"></script>
+<script src="js/physics.js?v=1.51.0"></script>
+<script src="js/courses.js?v=1.51.0"></script>
+<script src="js/audit.js?v=1.51.0"></script>
+<script src="js/textures.js?v=1.51.0"></script>
+<script src="js/shaders.js?v=1.51.0"></script>
+<script src="js/postfx.js?v=1.51.0"></script>
+<script src="js/weather.js?v=1.51.0"></script>
+<script src="js/models.js?v=1.51.0"></script>
+<script src="js/render.js?v=1.51.0"></script>
+<script src="editor/editor.js?v=1.51.0"></script>
 </body>
 </html>

@@ -78,7 +78,14 @@
         piling: 'Piling',
         bench: 'Bench',
         boat: 'Boat',
-        bin: 'Bin'
+        sailboat: 'Sailboat',
+        bin: 'Bin',
+        barrel: 'Barrel',
+        crate: 'Crate',
+        palm: 'Palm',
+        pine: 'Pine',
+        sign: 'Sign',
+        windmill: 'Windmill'
     };
 
     var MIN_SIDE = 0.24;       // the thinnest wall the substep cap can protect
@@ -1101,7 +1108,7 @@
 
             ctx.lineWidth = 1.5;
             if (d.kind === 'buoy') {
-                ctx.fillStyle = '#f0883e';
+                ctx.fillStyle = d.variant === 1 ? '#e3b341' : '#f0523e';
                 ctx.strokeStyle = selected ? '#58a6ff' : '#ffffff';
                 ctx.beginPath();
                 ctx.arc(0, 0, Math.max(4, scale), 0, 7);
@@ -1122,9 +1129,13 @@
             } else if (d.kind === 'bench') {
                 ctx.fillStyle = '#8a6337';
                 ctx.strokeStyle = selected ? '#58a6ff' : '#2b1d0c';
-                ctx.fillRect(-scale * 0.9, -scale * 0.35, scale * 1.8, scale * 0.7);
-                ctx.strokeRect(-scale * 0.9, -scale * 0.35, scale * 1.8, scale * 0.7);
-            } else if (d.kind === 'boat') {
+                ctx.fillRect(-scale * 1.0, -scale * 0.35, scale * 2.0, scale * 0.7);
+                ctx.strokeRect(-scale * 1.0, -scale * 0.35, scale * 2.0, scale * 0.7);
+                ctx.strokeStyle = 'rgba(0,0,0,0.3)';
+                ctx.beginPath();
+                ctx.moveTo(-scale * 1.0, 0); ctx.lineTo(scale * 1.0, 0);
+                ctx.stroke();
+            } else if (d.kind === 'boat' || d.kind === 'rowboat') {
                 ctx.fillStyle = '#a67c52';
                 ctx.strokeStyle = selected ? '#58a6ff' : '#332211';
                 ctx.beginPath();
@@ -1132,12 +1143,116 @@
                 ctx.bezierCurveTo(scale * 0.8, -scale * 0.5, scale * 0.7, scale * 0.9, 0, scale * 1.2);
                 ctx.bezierCurveTo(-scale * 0.7, scale * 0.9, -scale * 0.8, -scale * 0.5, 0, -scale * 1.4);
                 ctx.fill(); ctx.stroke();
+                ctx.strokeStyle = 'rgba(0,0,0,0.4)';
+                ctx.beginPath();
+                ctx.moveTo(-scale * 0.5, 0); ctx.lineTo(scale * 0.5, 0);
+                ctx.stroke();
+            } else if (d.kind === 'sailboat') {
+                ctx.fillStyle = '#f0f3f6';
+                ctx.strokeStyle = selected ? '#58a6ff' : '#234455';
+                ctx.beginPath();
+                ctx.moveTo(0, -scale * 1.6);
+                ctx.bezierCurveTo(scale * 0.7, -scale * 0.6, scale * 0.65, scale * 1.0, 0, scale * 1.4);
+                ctx.bezierCurveTo(-scale * 0.65, scale * 1.0, -scale * 0.7, -scale * 0.6, 0, -scale * 1.6);
+                ctx.fill(); ctx.stroke();
+                // Boom & Sail
+                ctx.strokeStyle = '#388bfd';
+                ctx.lineWidth = 2.0;
+                ctx.beginPath();
+                ctx.moveTo(0, -scale * 0.2); ctx.lineTo(scale * 0.6, scale * 0.7);
+                ctx.stroke();
+                // Mast
+                ctx.fillStyle = '#23262a';
+                ctx.beginPath(); ctx.arc(0, -scale * 0.2, Math.max(2, scale * 0.2), 0, 7); ctx.fill();
+            } else if (d.kind === 'barrel') {
+                ctx.fillStyle = '#7a4e28';
+                ctx.strokeStyle = selected ? '#58a6ff' : '#2a1a0d';
+                ctx.beginPath();
+                ctx.arc(0, 0, Math.max(3.5, scale * 0.65), 0, 7);
+                ctx.fill(); ctx.stroke();
+                ctx.strokeStyle = 'rgba(0,0,0,0.35)';
+                ctx.beginPath(); ctx.arc(0, 0, Math.max(2, scale * 0.4), 0, 7); ctx.stroke();
+            } else if (d.kind === 'crate') {
+                ctx.fillStyle = '#a87842';
+                ctx.strokeStyle = selected ? '#58a6ff' : '#3d2510';
+                var cs = Math.max(4, scale * 0.65);
+                ctx.fillRect(-cs, -cs, cs * 2, cs * 2);
+                ctx.strokeRect(-cs, -cs, cs * 2, cs * 2);
+                ctx.strokeStyle = 'rgba(0,0,0,0.3)';
+                ctx.beginPath();
+                ctx.moveTo(-cs, -cs); ctx.lineTo(cs, cs);
+                ctx.moveTo(cs, -cs); ctx.lineTo(-cs, cs);
+                ctx.stroke();
+            } else if (d.kind === 'palm') {
+                ctx.fillStyle = '#2ea44f';
+                ctx.strokeStyle = selected ? '#58a6ff' : '#145c26';
+                ctx.beginPath();
+                for (var f = 0; f < 6; f++) {
+                    var fa = f * Math.PI / 3;
+                    var fl = scale * 1.3;
+                    ctx.moveTo(0, 0);
+                    ctx.lineTo(Math.cos(fa) * fl, Math.sin(fa) * fl);
+                }
+                ctx.stroke();
+                ctx.fillStyle = '#7a5127';
+                ctx.beginPath(); ctx.arc(0, 0, Math.max(2.5, scale * 0.35), 0, 7); ctx.fill(); ctx.stroke();
+            } else if (d.kind === 'pine') {
+                ctx.fillStyle = '#236938';
+                ctx.strokeStyle = selected ? '#58a6ff' : '#0d381b';
+                ctx.beginPath();
+                var pts = 8;
+                for (var pIdx = 0; pIdx < pts * 2; pIdx++) {
+                    var pa = pIdx * Math.PI / pts;
+                    var pr = (pIdx % 2 === 0) ? scale * 1.2 : scale * 0.6;
+                    var px0 = Math.cos(pa) * pr, py0 = Math.sin(pa) * pr;
+                    if (pIdx === 0) ctx.moveTo(px0, py0); else ctx.lineTo(px0, py0);
+                }
+                ctx.closePath();
+                ctx.fill(); ctx.stroke();
+            } else if (d.kind === 'sign') {
+                ctx.fillStyle = '#c79c5e';
+                ctx.strokeStyle = selected ? '#58a6ff' : '#452a10';
+                ctx.fillRect(-scale * 0.8, -scale * 0.3, scale * 1.6, scale * 0.6);
+                ctx.strokeRect(-scale * 0.8, -scale * 0.3, scale * 1.6, scale * 0.6);
+                ctx.fillStyle = '#452a10';
+                ctx.beginPath(); ctx.arc(0, scale * 0.4, Math.max(2, scale * 0.2), 0, 7); ctx.fill();
+            } else if (d.kind === 'windmill') {
+                ctx.fillStyle = '#d9d2c5';
+                ctx.strokeStyle = selected ? '#58a6ff' : '#575147';
+                var ws = Math.max(5, scale * 0.85);
+                ctx.fillRect(-ws, -ws, ws * 2, ws * 2);
+                ctx.strokeRect(-ws, -ws, ws * 2, ws * 2);
+                ctx.strokeStyle = selected ? '#58a6ff' : '#9e2a2b';
+                ctx.lineWidth = 2.0;
+                var bl = scale * 1.6;
+                ctx.beginPath();
+                ctx.moveTo(-bl, 0); ctx.lineTo(bl, 0);
+                ctx.moveTo(0, -bl); ctx.lineTo(0, bl);
+                ctx.stroke();
+                ctx.fillStyle = '#e8a598';
+                ctx.fillRect(bl * 0.4, -scale * 0.2, bl * 0.5, scale * 0.4);
+                ctx.fillRect(-bl * 0.9, -scale * 0.2, bl * 0.5, scale * 0.4);
+                ctx.fillRect(-scale * 0.2, bl * 0.4, scale * 0.4, bl * 0.5);
+                ctx.fillRect(-scale * 0.2, -bl * 0.9, scale * 0.4, bl * 0.5);
             } else { // bin
                 ctx.fillStyle = '#484f58';
                 ctx.strokeStyle = selected ? '#58a6ff' : '#21262d';
                 ctx.beginPath();
                 ctx.arc(0, 0, Math.max(3.5, scale * 0.6), 0, 7);
                 ctx.fill(); ctx.stroke();
+            }
+
+            if (selected) {
+                ctx.strokeStyle = '#58a6ff';
+                ctx.lineWidth = 2;
+                var arrLen = Math.max(14, scale * 1.6);
+                ctx.beginPath();
+                ctx.moveTo(0, 0);
+                ctx.lineTo(0, -arrLen);
+                ctx.lineTo(-3, -arrLen + 5);
+                ctx.moveTo(0, -arrLen);
+                ctx.lineTo(3, -arrLen + 5);
+                ctx.stroke();
             }
 
             ctx.restore();
@@ -1345,7 +1460,7 @@
             for (i = arr.length - 1; i >= 0; i--) {
                 s = arr[i];
                 if (LISTS[k].key === 'decor') {
-                    if (Math.hypot(x - s.x, z - s.z) <= (s.scale || 1) * 0.8) return { key: 'decor', idx: i };
+                    if (Math.hypot(x - s.x, z - s.z) <= Math.max(0.55, (s.scale || 1) * 0.8)) return { key: 'decor', idx: i };
                 } else if (LISTS[k].key === 'warps') {
                     var r = s.r || 0.85;
                     if (Math.hypot(x - s.x, z - s.z) <= r || Math.hypot(x - s.tx, z - s.tz) <= r) {
@@ -1431,7 +1546,24 @@
         } else if (key === 'pipe') {
             o = { x: x, z: z, tx: x, tz: z + 4, r: 0.85, yaw: 0 };
         } else if (key === 'decor') {
-            o = { kind: S.decorKind || 'buoy', x: x, z: z, y: 0, yaw: 0, pitch: 0, roll: 0, scale: 1, variant: 0 };
+            var dKind = S.decorKind || 'buoy';
+            var isAquatic = (dKind === 'buoy' || dKind === 'piling' || dKind === 'boat' || dKind === 'rowboat' || dKind === 'sailboat');
+            var initY = 0;
+            if (S.hole) {
+                var wtr = P.waterAt ? P.waterAt(S.hole, x, z) : null;
+                var st = P.surfaceTop ? P.surfaceTop(S.hole, x, z) : null;
+                var thm = G3.THEMES && G3.THEMES[S.hole.theme];
+                if (isAquatic) {
+                    if (wtr) initY = wtr.y;
+                    else if (thm && thm.surroundY !== undefined) initY = thm.surroundY;
+                    else if (st) initY = st.y;
+                } else {
+                    if (st) initY = st.y;
+                    else if (wtr) initY = wtr.y;
+                    else if (thm && thm.surroundY !== undefined) initY = thm.surroundY;
+                }
+            }
+            o = { kind: dKind, x: x, z: z, y: Math.round(initY * 100) / 100, yaw: 0, pitch: 0, roll: 0, scale: 1, variant: 0 };
         }
         return o;
     }
@@ -1867,12 +1999,66 @@
         }
 
         if (S.sel.key === 'decor') {
-            pick(host, 'kind', ['buoy', 'piling', 'bench', 'boat', 'bin'],
+            pick(host, 'kind', ['buoy', 'piling', 'bench', 'boat', 'sailboat', 'bin', 'barrel', 'crate', 'palm', 'pine', 'sign', 'windmill'],
                 function () { return s.kind; }, function (v) { s.kind = v; });
             field(host, 'x', function () { return s.x; }, function (v) { s.x = v; });
             field(host, 'z', function () { return s.z; }, function (v) { s.z = v; });
             field(host, 'y (height)', function () { return s.y || 0; }, function (v) { s.y = v; }, 0.05);
+
+            var snapRow = document.createElement('div');
+            snapRow.className = 'row';
+            var btnAuto = document.createElement('button');
+            btnAuto.className = 'btn';
+            btnAuto.textContent = 'Auto-snap elevation';
+            btnAuto.title = 'Snap elevation to the ground or water surface top under (x, z)';
+            btnAuto.style.flex = '1';
+            btnAuto.addEventListener('click', function () {
+                pushHistory();
+                var kind = s.kind;
+                var isAquatic = (kind === 'buoy' || kind === 'piling' || kind === 'boat' || kind === 'rowboat' || kind === 'sailboat');
+                var defY = 0;
+                if (S.hole) {
+                    var w = P.waterAt ? P.waterAt(S.hole, s.x, s.z) : null;
+                    var surfTop = P.surfaceTop ? P.surfaceTop(S.hole, s.x, s.z) : null;
+                    var thm = G3.THEMES && G3.THEMES[S.hole.theme];
+                    if (isAquatic) {
+                        if (w) defY = w.y;
+                        else if (thm && thm.surroundY !== undefined) defY = thm.surroundY;
+                        else if (surfTop) defY = surfTop.y;
+                    } else {
+                        if (surfTop) defY = surfTop.y;
+                        else if (w) defY = w.y;
+                        else if (thm && thm.surroundY !== undefined) defY = thm.surroundY;
+                    }
+                }
+                s.y = Math.round(defY * 100) / 100;
+                changed();
+                syncInspector();
+            });
+            snapRow.appendChild(btnAuto);
+            host.appendChild(snapRow);
+
             field(host, 'yaw (rad)', function () { return s.yaw || 0; }, function (v) { s.yaw = v; }, 0.1);
+
+            var yawRow = document.createElement('div');
+            yawRow.className = 'row'; yawRow.style.gap = '3px';
+            [
+                { l: '0°', r: 0 },
+                { l: '45°', r: 0.785 },
+                { l: '90°', r: 1.571 },
+                { l: '180°', r: 3.142 },
+                { l: '270°', r: 4.712 }
+            ].forEach(function (item) {
+                var btn = document.createElement('button');
+                btn.className = 'btn'; btn.textContent = item.l;
+                btn.style.flex = '1';
+                btn.addEventListener('click', function () {
+                    pushHistory(); s.yaw = item.r; changed(); syncInspector();
+                });
+                yawRow.appendChild(btn);
+            });
+            host.appendChild(yawRow);
+
             field(host, 'scale', function () { return s.scale || 1; }, function (v) { s.scale = Math.max(0.1, v); }, 0.1);
             field(host, 'variant', function () { return s.variant || 0; }, function (v) { s.variant = Math.round(v); }, 1);
             note(host, 'Atmospheric visual dressing prop: non-colliding, rendered directly in 3D.');
@@ -2561,6 +2747,22 @@
         add(span > 2, 'the cup is a shot away from the tee',
             'only ' + span.toFixed(1) + ' units', true);
 
+        var badDecor = null;
+        var VALID_DECS = ['buoy', 'piling', 'bench', 'boat', 'rowboat', 'sailboat', 'bin', 'barrel', 'crate', 'palm', 'pine', 'sign', 'windmill'];
+        (S.hole.decor || []).forEach(function (d, di) {
+            if (badDecor) return;
+            if (VALID_DECS.indexOf(d.kind) === -1) {
+                badDecor = 'decor #' + (di + 1) + ' has unknown kind ' + d.kind;
+            } else if (!isFinite(d.x) || !isFinite(d.z) || !isFinite(d.y)) {
+                badDecor = 'decor #' + (di + 1) + ' has non-finite coords';
+            } else if (Math.hypot(d.x - built.tee.x, d.z - built.tee.z) < 0.6) {
+                badDecor = (DECOR_KIND_LABEL[d.kind] || d.kind) + ' #' + (di + 1) + ' is within 0.6m of the tee';
+            } else if (Math.hypot(d.x - built.cup.x, d.z - built.cup.z) < 0.6) {
+                badDecor = (DECOR_KIND_LABEL[d.kind] || d.kind) + ' #' + (di + 1) + ' is within 0.6m of the cup';
+            }
+        });
+        add(!badDecor, 'decor clears the tee and cup', badDecor || '', false);
+
         return out;
     }
 
@@ -2808,10 +3010,15 @@
         if (d.scale !== 1 && d.scale !== undefined) opts.push('scale: ' + n(d.scale));
         if (d.variant) opts.push('variant: ' + n(d.variant));
         var optStr = opts.length ? ', { ' + opts.join(', ') + ' }' : '';
-        if (['buoy', 'piling', 'bench', 'boat', 'bin'].indexOf(d.kind) !== -1) {
-            return d.kind + '(' + [n(d.x), n(d.z), n(d.y)].join(', ') + optStr + ')';
+        var validHelpers = ['buoy', 'piling', 'bench', 'boat', 'sailboat', 'bin', 'barrel', 'crate', 'palm', 'pine', 'sign', 'windmill'];
+        var args = [n(d.x), n(d.z)];
+        if (d.y && d.y !== 0) {
+            args.push(n(d.y));
         }
-        return "decor('" + d.kind + "', " + [n(d.x), n(d.z), n(d.y)].join(', ') + optStr + ')';
+        if (validHelpers.indexOf(d.kind) !== -1) {
+            return d.kind + '(' + args.join(', ') + optStr + ')';
+        }
+        return "decor('" + d.kind + "', " + [n(d.x), n(d.z), n(d.y || 0)].join(', ') + optStr + ')';
     }
 
     function exportSource() {
@@ -3003,6 +3210,7 @@
             return;
         }
         if (e.key === 'v' || e.key === 'V') { setTool('select'); return; }
+        if (e.key === 'd' || e.key === 'D') { setTool('decor'); return; }
         if (TOOL_KEYS[e.key]) { setTool(TOOL_KEYS[e.key]); return; }
         if (e.key === 'e' || e.key === 'E') { setMode('edit'); return; }
         if (e.key === 'p' || e.key === 'P') { setMode('play'); return; }
@@ -3012,6 +3220,22 @@
             if (e.key === 'r' || e.key === 'R') { resetBall(); return; }
             if (e.key === 'Enter') { hit(); return; }
             return;
+        }
+        if (e.key === 'r' || e.key === 'R') {
+            if (S.sel && S.sel.key) {
+                var sObj = selShape();
+                if (sObj && sObj.yaw !== undefined) {
+                    e.preventDefault();
+                    pushHistory();
+                    var step = e.shiftKey ? Math.PI / 12 : Math.PI / 4;
+                    sObj.yaw = (sObj.yaw || 0) + step;
+                    if (sObj.yaw >= Math.PI * 2) sObj.yaw -= Math.PI * 2;
+                    sObj.yaw = Math.round(sObj.yaw * 1000) / 1000;
+                    changed();
+                    syncInspector();
+                    return;
+                }
+            }
         }
         if (e.key === 'Delete' || e.key === 'Backspace') {
             if (S.sel && S.sel.key !== 'tee' && S.sel.key !== 'cup') {
