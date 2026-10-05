@@ -43,12 +43,12 @@ header.top-bar {
 .brand-icon {
   width: 32px;
   height: 32px;
-  background: linear-gradient(135deg, #0284c7 0%, #38bdf8 100%);
+  background: linear-gradient(135deg, #ea580c 0%, #f97316 100%);
   border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 0 12px rgba(56, 189, 248, 0.35);
+  box-shadow: 0 0 12px rgba(249, 115, 22, 0.45);
 }
 
 .brand-icon svg {
