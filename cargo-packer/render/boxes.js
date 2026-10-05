@@ -48,22 +48,28 @@
       const Textures = window.CargoPacker;
       let mat;
 
+      const style = boxData.boxStyle || (boxData.category === 'crate' ? 'wood_slat' : 'standard');
+
       if (boxData.category === 'crate') {
-        const crateTex = Textures && Textures.createCrateTexture ? Textures.createCrateTexture() : null;
+        const crateTex = Textures && Textures.createCrateTexture ? Textures.createCrateTexture(style) : null;
         mat = new THREE.MeshStandardMaterial({
           map: crateTex,
           roughness: 0.85,
           metalness: 0.1
         });
       } else if (boxData.category === 'drum') {
+        const drumTex = Textures && Textures.createDrumTexture ? Textures.createDrumTexture(boxData.color) : null;
         mat = new THREE.MeshStandardMaterial({
           color: boxData.color || '#64748b',
+          map: drumTex,
           roughness: 0.35,
           metalness: 0.75
         });
       } else {
-        // Standard carton
-        const cartonTex = Textures && Textures.createCartonTexture ? Textures.createCartonTexture(boxData.color, boxData.name) : null;
+        // Standard carton, parcel, slab, or tube
+        const cartonTex = Textures && Textures.createCartonTexture
+          ? Textures.createCartonTexture(boxData.color, boxData.name, style, boxData.id)
+          : null;
         mat = new THREE.MeshStandardMaterial({
           color: boxData.color,
           map: cartonTex,
@@ -74,9 +80,19 @@
 
       let geo;
       if (boxData.category === 'drum') {
-        // Cylinder for chemical drums
+        // Vertical Cylinder for chemical drums
         const radius = Math.min(boxData.w, boxData.d) / 2;
         geo = new THREE.CylinderGeometry(radius, radius, boxData.h, 24);
+      } else if (boxData.category === 'tube') {
+        // Cylinder for postal tubes / pipes
+        const isUpright = boxData.h > boxData.w && boxData.h > boxData.d;
+        const radius = Math.min(boxData.w, isUpright ? boxData.d : boxData.h) / 2;
+        const len = isUpright ? boxData.h : Math.max(boxData.w, boxData.d);
+        geo = new THREE.CylinderGeometry(radius, radius, len, 20);
+        if (!isUpright) {
+          if (boxData.w >= boxData.d) geo.rotateZ(Math.PI / 2);
+          else geo.rotateX(Math.PI / 2);
+        }
       } else {
         // Box geometry
         geo = new THREE.BoxGeometry(boxData.w, boxData.h, boxData.d);

@@ -1,6 +1,6 @@
 /**
  * cargo-packer/ui/ui.js
- * Binds UI DOM elements, buttons, HUD metrics, and radar to PackerController.
+ * Binds UI DOM elements, buttons, HUD metrics, algorithm showdown scoreboard, and radar.
  */
 (function(exports) {
   'use strict';
@@ -59,6 +59,20 @@
       this.progressTextEl = document.getElementById('progress-text');
       this.progressFillEl = document.getElementById('progress-fill');
 
+      // Showdown Scoreboard
+      this.showdownCardEl = document.getElementById('showdown-card');
+      this.showdownWinnerBadgeEl = document.getElementById('showdown-winner-badge');
+      this.showdownListEl = document.getElementById('showdown-list');
+      this.showdownInsightEl = document.getElementById('showdown-insight');
+      // Drawer Controls (Mobile)
+      this.leftDrawerEl = document.getElementById('left-drawer');
+      this.rightHudEl = document.getElementById('right-hud');
+      this.btnToggleLeft = document.getElementById('btn-toggle-left');
+      this.btnToggleRight = document.getElementById('btn-toggle-right');
+      this.btnCloseLeft = document.getElementById('btn-close-left');
+      this.btnCloseRight = document.getElementById('btn-close-right');
+      this.drawerBackdropEl = document.getElementById('drawer-backdrop');
+
       // Explainer
       this.algoTitleEl = document.getElementById('algo-title');
       this.algoDescEl = document.getElementById('algo-desc');
@@ -93,7 +107,7 @@
 
       // 2. Speed Switcher
       document.querySelectorAll('[data-speed]').forEach(btn => {
-        btn.addEventListener('click', (e) => {
+        btn.addEventListener('click', () => {
           this.sound.playClick();
           document.querySelectorAll('[data-speed]').forEach(b => b.classList.remove('active'));
           btn.classList.add('active');
@@ -103,39 +117,42 @@
 
       // 3. Scenario Selector
       document.querySelectorAll('[data-scenario]').forEach(btn => {
-        btn.addEventListener('click', (e) => {
+        btn.addEventListener('click', () => {
           this.sound.playClick();
           document.querySelectorAll('[data-scenario]').forEach(b => b.classList.remove('active'));
           btn.classList.add('active');
           this.controller.loadScenario(btn.dataset.scenario);
           this.syncContainerButtons(this.controller.selectedContainer);
+          if (window.innerWidth <= 900) {
+            setTimeout(() => this.closeAllDrawers(), 220);
+          }
         });
       });
 
       // 4. Algorithm Selector
       document.querySelectorAll('[data-algo]').forEach(btn => {
-        btn.addEventListener('click', (e) => {
+        btn.addEventListener('click', () => {
           this.sound.playClick();
-          document.querySelectorAll('[data-algo]').forEach(b => b.classList.remove('active'));
-          btn.classList.add('active');
-          this.controller.setAlgorithm(btn.dataset.algo);
-          this.updateAlgoExplainer(btn.dataset.algo);
+          this.selectAlgorithm(btn.dataset.algo);
         });
       });
 
       // 5. Container Selector
       document.querySelectorAll('[data-container]').forEach(btn => {
-        btn.addEventListener('click', (e) => {
+        btn.addEventListener('click', () => {
           this.sound.playClick();
           document.querySelectorAll('[data-container]').forEach(b => b.classList.remove('active'));
           btn.classList.add('active');
           this.controller.setContainer(btn.dataset.container);
+          if (window.innerWidth <= 900) {
+            setTimeout(() => this.closeAllDrawers(), 220);
+          }
         });
       });
 
       // 6. Camera View Preset Switcher
       document.querySelectorAll('[data-cam]').forEach(btn => {
-        btn.addEventListener('click', (e) => {
+        btn.addEventListener('click', () => {
           this.sound.playClick();
           document.querySelectorAll('[data-cam]').forEach(b => b.classList.remove('active'));
           btn.classList.add('active');
@@ -146,7 +163,7 @@
 
       // 7. Cutaway / View Mode Switcher
       document.querySelectorAll('[data-viewmode]').forEach(btn => {
-        btn.addEventListener('click', (e) => {
+        btn.addEventListener('click', () => {
           this.sound.playClick();
           document.querySelectorAll('[data-viewmode]').forEach(b => b.classList.remove('active'));
           btn.classList.add('active');
@@ -154,7 +171,52 @@
         });
       });
 
-      // 8. Sound Mute Toggle
+      // 8. Random Seed Reroll Button
+      this.rerollSeedBtn = document.getElementById('btn-reroll-seed');
+      if (this.rerollSeedBtn) {
+        this.rerollSeedBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          this.sound.playClick();
+          this.controller.rerollRandom();
+        });
+      }
+
+      // 9. Mobile Drawer Toggles & Close Buttons
+      if (this.btnToggleLeft) {
+        this.btnToggleLeft.addEventListener('click', () => {
+          this.sound.playClick();
+          this.toggleLeftDrawer();
+        });
+      }
+
+      if (this.btnToggleRight) {
+        this.btnToggleRight.addEventListener('click', () => {
+          this.sound.playClick();
+          this.toggleRightHud();
+        });
+      }
+
+      if (this.btnCloseLeft) {
+        this.btnCloseLeft.addEventListener('click', () => {
+          this.sound.playClick();
+          this.toggleLeftDrawer(false);
+        });
+      }
+
+      if (this.btnCloseRight) {
+        this.btnCloseRight.addEventListener('click', () => {
+          this.sound.playClick();
+          this.toggleRightHud(false);
+        });
+      }
+
+      if (this.drawerBackdropEl) {
+        this.drawerBackdropEl.addEventListener('click', () => {
+          this.closeAllDrawers();
+        });
+      }
+
+      // 10. Sound Mute Toggle
       const muteBtn = document.getElementById('btn-mute');
       if (muteBtn) {
         muteBtn.addEventListener('click', () => {
@@ -173,6 +235,57 @@
       this.controller.onStateChange = (state) => this.renderState(state);
     }
 
+    toggleLeftDrawer(forceState) {
+      if (!this.leftDrawerEl) return;
+      const isOpen = forceState !== undefined ? forceState : !this.leftDrawerEl.classList.contains('open');
+      this.leftDrawerEl.classList.toggle('open', isOpen);
+      if (isOpen && this.rightHudEl) {
+        this.rightHudEl.classList.remove('open');
+        if (this.btnToggleRight) this.btnToggleRight.classList.remove('active');
+      }
+      if (this.btnToggleLeft) this.btnToggleLeft.classList.toggle('active', isOpen);
+      this.updateBackdrop();
+    }
+
+    toggleRightHud(forceState) {
+      if (!this.rightHudEl) return;
+      const isOpen = forceState !== undefined ? forceState : !this.rightHudEl.classList.contains('open');
+      this.rightHudEl.classList.toggle('open', isOpen);
+      if (isOpen && this.leftDrawerEl) {
+        this.leftDrawerEl.classList.remove('open');
+        if (this.btnToggleLeft) this.btnToggleLeft.classList.remove('active');
+      }
+      if (this.btnToggleRight) this.btnToggleRight.classList.toggle('active', isOpen);
+      this.updateBackdrop();
+    }
+
+    closeAllDrawers() {
+      if (this.leftDrawerEl) this.leftDrawerEl.classList.remove('open');
+      if (this.rightHudEl) this.rightHudEl.classList.remove('open');
+      if (this.btnToggleLeft) this.btnToggleLeft.classList.remove('active');
+      if (this.btnToggleRight) this.btnToggleRight.classList.remove('active');
+      this.updateBackdrop();
+    }
+
+    updateBackdrop() {
+      const anyOpen = (this.leftDrawerEl && this.leftDrawerEl.classList.contains('open')) ||
+                      (this.rightHudEl && this.rightHudEl.classList.contains('open'));
+      if (this.drawerBackdropEl) {
+        this.drawerBackdropEl.classList.toggle('active', anyOpen);
+      }
+    }
+
+    selectAlgorithm(algoId) {
+      document.querySelectorAll('[data-algo]').forEach(b => {
+        b.classList.toggle('active', b.dataset.algo === algoId);
+      });
+      this.controller.setAlgorithm(algoId);
+      this.updateAlgoExplainer(algoId);
+      if (window.innerWidth <= 900) {
+        setTimeout(() => this.closeAllDrawers(), 220);
+      }
+    }
+
     updateAlgoExplainer(algoId) {
       const info = ALGO_DESCRIPTIONS[algoId] || ALGO_DESCRIPTIONS.extremePoints;
       if (this.algoTitleEl) this.algoTitleEl.textContent = info.name;
@@ -186,13 +299,13 @@
     }
 
     renderState(state) {
-      // Play/Pause button icons
+      // 1. Play/Pause button icons
       if (this.playIcon && this.pauseIcon) {
         this.playIcon.style.display = state.isPlaying ? 'none' : 'block';
         this.pauseIcon.style.display = state.isPlaying ? 'block' : 'none';
       }
 
-      // Progress bar & step text
+      // 2. Progress bar & step text
       const current = Math.max(0, state.currentStep + 1);
       const total = state.totalSteps;
       const pct = total > 0 ? (current / total) * 100 : 0;
@@ -204,7 +317,68 @@
         this.progressFillEl.style.width = `${pct}%`;
       }
 
-      // Metrics
+      // 3. Random scenario seed button visibility
+      if (this.rerollSeedBtn) {
+        if (state.selectedScenario === 'random') {
+          this.rerollSeedBtn.style.display = 'inline-flex';
+          this.rerollSeedBtn.textContent = `🎲 Roll (#${state.randomSeed || 'RND'})`;
+        } else {
+          this.rerollSeedBtn.style.display = 'none';
+        }
+      }
+
+      // 4. Algorithm Showdown Scoreboard
+      if (state.comparison && this.showdownListEl) {
+        const comp = state.comparison;
+        const medals = ['🥇', '🥈', '🥉'];
+
+        if (this.showdownWinnerBadgeEl && comp.winner) {
+          const diff = comp.ranking.length > 1
+            ? (comp.ranking[0].volumeUtilization - comp.ranking[1].volumeUtilization).toFixed(1)
+            : '0.0';
+          this.showdownWinnerBadgeEl.textContent = `🏆 ${comp.winner.shortName} (+${diff}%)`;
+        }
+
+        // Render ranking rows
+        let html = '';
+        for (let i = 0; i < comp.ranking.length; i++) {
+          const r = comp.ranking[i];
+          const isCurrent = r.id === state.selectedAlgorithm;
+          const isWinner = i === 0;
+
+          html += `
+            <div class="showdown-row ${isCurrent ? 'active' : ''}" data-showdown-algo="${r.id}" title="Click to view ${r.name} packing in 3D">
+              <div class="showdown-row-header">
+                <span class="showdown-name">
+                  <span class="showdown-medal">${medals[i] || '•'}</span>
+                  <span>${r.shortName}</span>
+                </span>
+                <span class="showdown-val">${r.volumeUtilization}% <span style="font-size:0.68rem; font-weight:normal; color:var(--text-secondary);">(${r.placedCount} pkd)</span></span>
+              </div>
+              <div class="showdown-bar-bg">
+                <div class="showdown-bar-fill ${isWinner ? 'winner-bar' : ''}" style="width: ${r.volumeUtilization}%;"></div>
+              </div>
+            </div>
+          `;
+        }
+        this.showdownListEl.innerHTML = html;
+
+        // Bind click on rows to switch algorithm
+        this.showdownListEl.querySelectorAll('[data-showdown-algo]').forEach(row => {
+          row.addEventListener('click', () => {
+            const algoId = row.dataset.showdownAlgo;
+            this.sound.playClick();
+            this.selectAlgorithm(algoId);
+          });
+        });
+
+        // Showdown insight
+        if (this.showdownInsightEl) {
+          this.showdownInsightEl.textContent = comp.insight;
+        }
+      }
+
+      // 5. Metrics HUD
       const m = state.liveMetrics;
       if (m) {
         if (this.fillPercentEl) this.fillPercentEl.textContent = `${m.volumeUtilization}%`;
@@ -216,9 +390,7 @@
         if (this.weightDetailEl) this.weightDetailEl.textContent = `${m.weightUtilization}% of ${m.maxPayload.toLocaleString()} kg max`;
 
         // CoG Radar Position
-        // Radar represents container footprint: X across width (left to right), Z along length (nose to rear)
         if (this.cogBlipEl && m.cog) {
-          // Normalize to [0%, 100%]
           const cont = state.packResult.container;
           const leftPct = Math.max(5, Math.min(95, (m.cog.x / cont.width) * 100));
           const topPct = Math.max(5, Math.min(95, (m.cog.z / cont.length) * 100));

@@ -184,6 +184,14 @@ cargo-packer/
 - [x] **5.3 Mobile & Responsive Layout**: Responsive layout with collapsible drawers on smaller screens.
 - [x] **5.4 Homepage Flip Card**: Add `#card-cargo-packer` card to root `index.html` grid.
 
+### Phase 6: Showcase Scenarios, Random Cargo & Mobile Overhaul
+- [x] **6.1 Procedural Box Uniqueness & Texture Diversity**: Procedural canvas textures for cartons (standard kraft, e-commerce express, fragile with glass icon, heavy with twin strapping bands), reinforced industrial timber crates, steel drums with ribs and hazmat placards, and postal tubes.
+- [x] **6.2 Procedural Chaos & Seeded Random Generator**: Mulberry32 PRNG generator for reproducible random box sizes and weights with interactive `🎲 New Cargo` re-roll.
+- [x] **6.3 Extreme Aspect Ratios Manifest**: Slabs, tall towers, and long skids demonstrating 6-way orientation flexibility.
+- [x] **6.4 Algorithm Showdown Scoreboard**: Real-time head-to-head benchmarking card showing volume fill %, items packed, winner medals, and analytical insights on why an algorithm won.
+- [x] **6.5 Collapsible Mobile Drawers & Responsive Sizing**: Slide-in left/right drawers with top-bar toggles, close buttons, backdrop dismiss, and compact mobile dock scaling.
+- [x] **6.6 Extended Headless Test Suite**: 51/51 green assertions covering PRNG determinism, random manifest generation, irregular packing, and comparison metrics.
+
 ---
 
 ## 5. Architectural Invariants & Non-Negotiables

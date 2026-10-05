@@ -266,6 +266,77 @@
       }
       assert('Deterministic packing generates bit-for-bit identical coordinates', coordsMatch);
 
+      // ── Test 13: Mulberry32 PRNG Determinism ────────────────
+      const prngA = CP.mulberry32(42);
+      const prngB = CP.mulberry32(42);
+      const prngC = CP.mulberry32(99);
+      let prngIdentical = true;
+      for (let i = 0; i < 20; i++) {
+        if (Math.abs(prngA() - prngB()) > 1e-6) {
+          prngIdentical = false;
+          break;
+        }
+      }
+      assert('Mulberry32 PRNG is 100% deterministic for identical seeds', prngIdentical);
+      assert('Different PRNG seeds generate differing sequences', Math.abs(prngA() - prngC()) > 1e-4);
+
+      // ── Test 14: Procedural Random Manifest Generator ────────
+      const rndItems = CP.generateRandomManifest(555, 60);
+      assert('Random manifest generates requested item count (60)', rndItems.length === 60);
+      assert('All generated random items have valid positive dimensions',
+        rndItems.every(it => it.w > 0 && it.h > 0 && it.d > 0 && it.weight > 0));
+      assert('Random manifest includes multiple categories (carton, crate, drum, parcel)',
+        new Set(rndItems.map(it => it.category)).size >= 3);
+
+      const rndRepeat = CP.generateRandomManifest(555, 60);
+      assert('Random manifest generation is bit-for-bit deterministic with same seed',
+        rndItems[0].w === rndRepeat[0].w && rndItems[10].name === rndRepeat[10].name);
+
+      // ── Test 15: Packing on Procedural Random Manifest ───────
+      const rndResult = CP.packExtremePoints(rndItems, cont, { minSupportRatio: 0.60 });
+      assert('Extreme Points packs random manifest without crashing', rndResult.placed.length > 20);
+
+      let rndCollisions = 0;
+      for (let i = 0; i < rndResult.placed.length; i++) {
+        for (let j = i + 1; j < rndResult.placed.length; j++) {
+          if (CP.intersectAABB(rndResult.placed[i], rndResult.placed[j])) {
+            rndCollisions++;
+          }
+        }
+      }
+      assert('Random manifest packing results in ZERO collisions (0 overlaps)', rndCollisions === 0);
+      assert('Random manifest packing is strictly inside container envelope',
+        rndResult.placed.every(b => CP.insideContainer(b, cont)));
+
+      // ── Test 16: Extreme Aspect Ratios Manifest ──────────────
+      const irrItems = CP.getIrregularManifest();
+      const irrResult = CP.packExtremePoints(irrItems, cont, { minSupportRatio: 0.60 });
+      assert('Extreme aspect ratio manifest packs successfully', irrResult.placed.length > 20);
+
+      let irrCollisions = 0;
+      for (let i = 0; i < irrResult.placed.length; i++) {
+        for (let j = i + 1; j < irrResult.placed.length; j++) {
+          if (CP.intersectAABB(irrResult.placed[i], irrResult.placed[j])) {
+            irrCollisions++;
+          }
+        }
+      }
+      assert('Irregular aspect ratio packing has ZERO collisions', irrCollisions === 0);
+      assert('Irregular aspect ratio items are 100% inside container',
+        irrResult.placed.every(b => CP.insideContainer(b, cont)));
+
+      // ── Test 17: Algorithm Comparison Head-to-Head ───────────
+      const comparison = CP.compareAlgorithms(CP.getEcommerceManifest(), cont, { minSupportRatio: 0.60 });
+      assert('compareAlgorithms evaluates all 3 algorithms',
+        comparison.results.extremePoints && comparison.results.wallBuilding && comparison.results.firstFit);
+      assert('compareAlgorithms produces sorted ranking',
+        comparison.ranking.length === 3 &&
+        comparison.ranking[0].volumeUtilization >= comparison.ranking[1].volumeUtilization);
+      assert('compareAlgorithms identifies winning algorithm',
+        comparison.winner && comparison.winner.volumeUtilization > 0);
+      assert('compareAlgorithms generates analytical insight rationale',
+        typeof comparison.insight === 'string' && comparison.insight.length > 20);
+
       // ── Summary & Verdict ─────────────────────────────────────
       const summaryText = `${passed} passed, ${failed} failed`;
       summaryEl.textContent = summaryText;

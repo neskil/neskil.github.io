@@ -67,6 +67,13 @@
       this.solve();
     }
 
+    rerollRandom() {
+      const CP = window.CargoPacker;
+      const nextSeed = Math.floor(Math.random() * 89999 + 10000);
+      CP.setRandomSeed(nextSeed);
+      this.solve();
+    }
+
     solve() {
       const CP = window.CargoPacker;
       const preset = CP.PRESETS[this.selectedScenario];
@@ -76,7 +83,12 @@
       const startTime = performance.now();
       let result;
 
-      if (this.selectedAlgorithm === 'wallBuilding') {
+      // Run live comparison across all 3 algorithms for head-to-head benchmarking
+      this.comparison = CP.compareAlgorithms(items, containerSpec, { minSupportRatio: this.minSupportRatio });
+
+      if (this.comparison && this.comparison.results[this.selectedAlgorithm]) {
+        result = this.comparison.results[this.selectedAlgorithm].result;
+      } else if (this.selectedAlgorithm === 'wallBuilding') {
         result = CP.packWallBuilding(items, containerSpec, { minSupportRatio: this.minSupportRatio });
       } else if (this.selectedAlgorithm === 'firstFit') {
         result = CP.packFirstFit(items, containerSpec);
@@ -223,7 +235,11 @@
           currentStep: this.currentStep,
           totalSteps: this.packResult ? this.packResult.steps.length : 0,
           packResult: this.packResult,
-          liveMetrics: liveMetrics || (this.packResult ? this.packResult.metrics : null)
+          liveMetrics: liveMetrics || (this.packResult ? this.packResult.metrics : null),
+          comparison: this.comparison,
+          selectedScenario: this.selectedScenario,
+          selectedAlgorithm: this.selectedAlgorithm,
+          randomSeed: window.CargoPacker.getRandomSeed ? window.CargoPacker.getRandomSeed() : null
         });
       }
     }

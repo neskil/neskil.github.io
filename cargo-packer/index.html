@@ -43,10 +43,20 @@
   <div id="app-container">
     <!-- 3D Canvas Viewport -->
     <div id="canvas-container"></div>
+    <div id="drawer-backdrop" class="drawer-backdrop"></div>
 
     <!-- Top Navigation Header -->
     <header class="top-bar">
       <div class="brand">
+        <!-- Mobile Left Drawer Toggle -->
+        <button type="button" class="btn-icon drawer-toggle-btn" id="btn-toggle-left" title="Scenarios & Algorithms" aria-label="Toggle Scenarios & Algorithms">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+            <line x1="3" y1="12" x2="21" y2="12"></line>
+            <line x1="3" y1="6" x2="21" y2="6"></line>
+            <line x1="3" y1="18" x2="21" y2="18"></line>
+          </svg>
+        </button>
+
         <div class="brand-icon">
           <svg viewBox="0 0 24 24" width="20" height="20">
             <rect x="2.5" y="4" width="19" height="16" rx="2" fill="none" stroke="#fff" stroke-width="1.8"/>
@@ -66,11 +76,20 @@
       <div class="top-actions">
         <!-- Camera Presets -->
         <div class="cam-btn-group" title="Camera view angles">
-          <button type="button" class="btn-pill active" data-cam="isometric">Isometric</button>
-          <button type="button" class="btn-pill" data-cam="cutaway">Cutaway</button>
-          <button type="button" class="btn-pill" data-cam="top">Top-Down</button>
-          <button type="button" class="btn-pill" data-cam="rear">Doors</button>
+          <button type="button" class="btn-pill active" data-cam="isometric" title="Isometric view"><span class="cam-label-full">Isometric</span><span class="cam-label-short">Iso</span></button>
+          <button type="button" class="btn-pill" data-cam="cutaway" title="Cutaway side view"><span class="cam-label-full">Cutaway</span><span class="cam-label-short">Cut</span></button>
+          <button type="button" class="btn-pill" data-cam="top" title="Top-down view"><span class="cam-label-full">Top-Down</span><span class="cam-label-short">Top</span></button>
+          <button type="button" class="btn-pill" data-cam="rear" title="Rear doors view"><span class="cam-label-full">Doors</span><span class="cam-label-short">Door</span></button>
         </div>
+
+        <!-- Mobile Right HUD Toggle -->
+        <button type="button" class="btn-icon drawer-toggle-btn" id="btn-toggle-right" title="Metrics & Showdown" aria-label="Toggle Metrics & Showdown">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+            <line x1="18" y1="20" x2="18" y2="10"></line>
+            <line x1="12" y1="20" x2="12" y2="4"></line>
+            <line x1="6" y1="20" x2="6" y2="14"></line>
+          </svg>
+        </button>
 
         <!-- Audio Mute Button -->
         <button type="button" class="btn-icon" id="btn-mute" title="Toggle audio sound effects" aria-label="Toggle Sound">
@@ -86,26 +105,47 @@
     </header>
 
     <!-- Left Controls Sidebar -->
-    <aside class="left-drawer">
+    <aside class="left-drawer" id="left-drawer">
+      <!-- Mobile Drawer Close Header -->
+      <div class="drawer-header-mobile">
+        <span class="drawer-header-title">Scenarios &amp; Algorithms</span>
+        <button type="button" class="btn-icon btn-close-drawer" id="btn-close-left" aria-label="Close menu">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        </button>
+      </div>
+
       <!-- Scenario Selector -->
       <div>
-        <div class="section-label">Manifest Scenario</div>
+        <div class="section-label">
+          <span>Manifest Scenario</span>
+          <button type="button" class="btn-reroll" id="btn-reroll-seed" title="Generate new randomized cargo" style="display: none;">
+            🎲 New Cargo
+          </button>
+        </div>
         <div class="chip-grid single-col">
           <button type="button" class="chip-btn active" data-scenario="fmcg">
             <strong>FMCG Retail Cartons</strong>
-            <span class="chip-desc">62 modular interlocking distribution cartons</span>
+            <span class="chip-desc">64 modular interlocking distribution cartons</span>
           </button>
           <button type="button" class="chip-btn" data-scenario="ecommerce">
             <strong>E-Commerce Express</strong>
-            <span class="chip-desc">60 heterogeneous parcels with diverse dimensions</span>
+            <span class="chip-desc">82 heterogeneous parcels across 7 size categories</span>
           </button>
           <button type="button" class="chip-btn" data-scenario="industrial">
             <strong>Industrial Machinery &amp; Drums</strong>
             <span class="chip-desc">Heavy crates &amp; chemical drums testing balance</span>
           </button>
+          <button type="button" class="chip-btn" data-scenario="irregular">
+            <strong>Extreme Aspect Ratios</strong>
+            <span class="chip-desc">Flat panels, tall towers &amp; long skids (6-way rotation)</span>
+          </button>
+          <button type="button" class="chip-btn" data-scenario="random">
+            <strong>Procedural Chaos (Random Sizes)</strong>
+            <span class="chip-desc">70 randomized cartons, crates &amp; drums</span>
+          </button>
           <button type="button" class="chip-btn" data-scenario="pallet">
             <strong>EUR-Pallet Stacking</strong>
-            <span class="chip-desc">28 cartons on standard 1.2m &times; 0.8m wooden base</span>
+            <span class="chip-desc">32 cartons on standard 1.2m &times; 0.8m wooden base</span>
           </button>
         </div>
       </div>
@@ -172,7 +212,29 @@
     </aside>
 
     <!-- Right Live Diagnostics HUD -->
-    <aside class="right-hud">
+    <aside class="right-hud" id="right-hud">
+      <!-- Mobile Drawer Close Header -->
+      <div class="drawer-header-mobile">
+        <span class="drawer-header-title">Metrics &amp; Showdown</span>
+        <button type="button" class="btn-icon btn-close-drawer" id="btn-close-right" aria-label="Close menu">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        </button>
+      </div>
+
+      <!-- Algorithm Head-to-Head Comparison Showdown -->
+      <div class="metric-card showdown-card" id="showdown-card">
+        <div class="metric-header">
+          <span class="metric-title">Algorithm Showdown</span>
+          <span class="status-badge status-winner" id="showdown-winner-badge">EP Leads</span>
+        </div>
+        <div class="showdown-list" id="showdown-list">
+          <!-- Populated dynamically: Extreme Points, Wall-Building, First-Fit -->
+        </div>
+        <div class="showdown-insight" id="showdown-insight">
+          Simulating algorithm fill potentials...
+        </div>
+      </div>
+
       <!-- Volume Fill Metric -->
       <div class="metric-card">
         <div class="metric-header">
@@ -219,12 +281,6 @@
             <span id="cog-long-offset">Long.: 0%</span>
           </div>
         </div>
-      </div>
-
-      <!-- Diagnostic Tips -->
-      <div style="font-size: 0.72rem; line-height: 1.4; color: var(--text-muted);">
-        <strong style="color: var(--accent-cyan); display: block; margin-bottom: 2px;">Anchor Dots</strong>
-        Cyan points indicate active Extreme Points. The amber blip highlights the chosen anchor.
       </div>
     </aside>
 
