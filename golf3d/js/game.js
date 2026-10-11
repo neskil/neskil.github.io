@@ -1986,21 +1986,15 @@
         }, 5200);
     }
 
-    var menuAfterHowTo = false;
-
+    /* Only ever opened by asking — the ? chip, H, or the link under the
+       course. It used to open by itself on a first visit, between Start and
+       the course list, and that was a wall of text standing in the doorway
+       of a game whose controls are on screen and say what they do. */
     function openHowTo() { $('howto').className = 'modal show'; }
 
     function closeHowTo() {
         $('howto').className = 'modal';
-        try { localStorage.setItem(C.SEEN_KEY, '1'); } catch (e) { /* ignore */ }
-        // On a first visit the rules come before the course list, so the list
-        // is what you get when you have read them.
-        if (menuAfterHowTo) { menuAfterHowTo = false; openMenu(); return; }
         maybeFly();
-    }
-
-    function seenHowTo() {
-        try { return localStorage.getItem(C.SEEN_KEY) === '1'; } catch (e) { return true; }
     }
 
     function toggleMute() {
@@ -2686,6 +2680,26 @@
     /* `menuKind` goes with it: outside the picker "same kind" is the kind of
        the course you are standing on, and a tab you were looking at five
        rounds ago is not that. */
+    /* The course list on its way in at the start of a game, rather than cut
+       in over it — see `.arriving` in style.css for why it may not be pressed
+       until it has finished. The timer is the net for an animation that never
+       ends: a background tab may never run it. Reduced motion skips the
+       entrance altogether, and with it the wait. Either way the class goes, and the list is live. */
+    function openMenuArriving() {
+        openMenu();
+        if (reducedMotion()) return;
+        var el = $('menu');
+        el.classList.add('arriving');
+        var done = function () {
+            el.removeEventListener('animationend', onEnd);
+            clearTimeout(timer);
+            el.classList.remove('arriving');
+        };
+        var onEnd = function (e) { if (e.target.classList.contains('modal-inner')) done(); };
+        var timer = setTimeout(done, 900);
+        el.addEventListener('animationend', onEnd);
+    }
+
     function closeMenu() { menuKind = null; $('menu').className = 'modal'; maybeFly(); }
 
     function openCard(res) {
@@ -3204,8 +3218,7 @@
     /* Out of the demo and into a game. The round on screen is the caddie's —
        a hole picked out of the middle of a course, with strokes on it nobody
        played — so it is dealt again from the first tee before anyone is
-       handed the club, and then the game opens exactly where it always did:
-       the rules for a first-time player, the course list for everybody else. */
+       handed the club, and then the game opens on the course list. */
     function leaveDemo() {
         if (!demo) return;
         var id = state.course.id;
@@ -3217,9 +3230,7 @@
            is where it belongs and where boot() leaves it. */
         skipFly();
         state.flyPending = true;
-        if (seenHowTo()) { openMenu(); return; }
-        menuAfterHowTo = true;
-        openHowTo();
+        openMenuArriving();
     }
 
     // One frame of the demo: the walk, with `demoNext` for "along".
@@ -3594,15 +3605,9 @@
             startDemo();
         } else {
             // Something has to be on screen behind the menu, and the first hole
-            // of the first course is as good an advert as any. A first-time
-            // player gets the rules before the course list.
+            // of the first course is as good an advert as any.
             newRound(G3.COURSES[0].id);
-            if (seenHowTo()) {
-                openMenu();
-            } else {
-                menuAfterHowTo = true;
-                openHowTo();
-            }
+            openMenuArriving();
         }
 
         // The course inspector (debug.js), which installs its own key and

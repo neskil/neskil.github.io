@@ -2487,9 +2487,10 @@ permanently on screen. A phone is 400 points wide and the course is the point.
   pills that do the second one. That leaves nothing on the stage as a sibling of
   the overlay, so what it dims is told from `<body>` — `hud-open` and
   `picker-open` — rather than from `.stage`.
-- **How to play** opens by itself on a first visit — before the course picker,
-  which appears when the rules are closed — and after that lives behind the `?`
-  button and `H`. The flag is one key in `localStorage`.
+- **How to play** never opens by itself: it lives behind the `?` button, `H`,
+  and the link under the course. Start goes straight to the course picker,
+  which eases in rather than cutting in (`.arriving` in `style.css`) and takes
+  no presses until it has landed.
 - **Fullscreen** (`F`, or the ⛶ button) goes fullscreen on the *viewport*, not
   the document, so the canvas and every overlay inside it come along and the
   page chrome does not. The scoreboard above the canvas is gone in that mode,

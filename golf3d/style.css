@@ -1875,6 +1875,31 @@ kbd {
 
 .modal.show .modal-inner { transform: none; transition: none; }
 
+/* The one entrance a modal does get: the course list straight after Start.
+   That is the moment a game begins, and a panel that is simply *there* the
+   frame after the press reads as a cut rather than a door opening. It is
+   safe from the tap-through above because it is not live until it has
+   arrived — `pointer-events` stays off for the length of the fade, and
+   game.js takes the class away when it ends, so a press in that window lands
+   on the course it can still see. */
+.modal.show.arriving { pointer-events: none; animation: modal-arrive 0.32s ease-out both; }
+.modal.show.arriving .modal-inner { animation: modal-inner-arrive 0.4s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+
+@keyframes modal-arrive {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+}
+
+@keyframes modal-inner-arrive {
+    from { opacity: 0; transform: translateY(18px) scale(0.97); }
+    to   { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .modal.show.arriving,
+    .modal.show.arriving .modal-inner { animation: none; }
+}
+
 .modal h2 { margin: 0; font-size: 1.35rem; letter-spacing: -0.02em; }
 .modal .sub { margin: 0.25rem 0 1rem; font-size: 0.82rem; color: var(--ink-dim); font-weight: 300; }
 
