@@ -28,6 +28,7 @@
     <script src="js/audit.js"></script>
     <script src="js/scoring.js"></script>
     <script src="js/swing.js"></script>
+    <script src="js/school.js"></script>
     <script src="js/minimap.js"></script>
     <script src="js/flyover.js"></script>
     <script src="js/bot.js"></script>
@@ -2740,6 +2741,84 @@
         })();
 
         /* ── scoring ───────────────────────────────────────────────────── */
+
+        section('The range and its swing school');
+        (function () {
+            var SC = G3.school, SW = G3.swing;
+            var range = G3.courseById('range').holes[0];
+
+            // Every board says the distance from the tee to the middle of its
+            // green, to within half a unit: a green moved without its number
+            // is a board that lies.
+            assert('the range has five targets', (range.targets || []).length === 5);
+            (range.targets || []).forEach(function (t) {
+                var d = Math.hypot((t.x0 + t.x1) / 2 - range.tee.x, (t.z0 + t.z1) / 2 - range.tee.z);
+                assert('the ' + t.dist + ' m board is ' + t.dist + ' m from the tee', Math.abs(d - t.dist) <= 0.5,
+                       'measured ' + d.toFixed(2));
+                // Off-centre: the 30 m green has the cup in the middle of it.
+                var s = P.surfaceUnder(range, t.x0 + 1, t.z0 + 1, 5);
+                assert('the ' + t.dist + ' m target is green underfoot', !!(s && s.pad.kind === 'green'));
+            });
+            assert('the range hands out the driver', range.bag && range.bag.indexOf('driver') === 0);
+
+            // One lesson per gate, in the order the courses rotate them, after
+            // the one about the line.
+            var gates = SC.LESSONS.filter(function (l) { return l.gate; }).map(function (l) { return l.gate; });
+            assert('the school teaches every gate, in rotation order', gates.join() === SW.VARIANTS.join(), gates.join());
+            assert('the first lesson is inside the line', SC.LESSONS[0].gate === null);
+
+            // "Load it for me" has to open the gate it is teaching, or the
+            // button loads a shot that skips the lesson.
+            SC.LESSONS.forEach(function (l) {
+                var over = P.overdraw(l.load * 10, 10);
+                assert(l.title + ': its preset ' + (l.gate ? 'arms' : 'stays out of') + ' the gate',
+                       l.gate ? SW.arms(over) : !SW.arms(over), 'overdraw ' + over.toFixed(2));
+            });
+
+            // Progress: storage junk normalises, counts stop at the goal, and
+            // completing reports once.
+            var p = SC.normalise({ line: 99, tempo: -3, bogus: 4, fade: 'x' });
+            assert('progress is clamped and cleaned', p.line === 2 && p.tempo === 0 && p.fade === 0 && !('bogus' in p),
+                   JSON.stringify(p));
+            assert('a finished lesson is not credited again', SC.credit(p, 'line') === false && p.line === 2);
+            assert('the next lesson is the first open one', SC.firstOpen(p) === 'tempo');
+            var done = [SC.credit(p, 'tempo'), SC.credit(p, 'tempo'), SC.credit(p, 'tempo')];
+            assert('a lesson completes on its last credit, once', done.join() === 'false,false,true');
+
+            // Clean is a strike inside the window or near it; running out never is.
+            function played(variant, at) {
+                var g = SW.start(variant, 0.5, 1);
+                if (variant === 'return' || variant === 'double') {
+                    if (variant === 'double') { while (g.pos < g.top - 0.01) SW.tick(g, 0.001); SW.press(g); }
+                    while (!g.turned && !g.done) SW.tick(g, 0.001);
+                    while (g.pos > at && !g.done) SW.tick(g, 0.001);
+                } else {
+                    while (g.pos < at && !g.done) SW.tick(g, 0.001);
+                }
+                SW.press(g);
+                return g;
+            }
+            SW.VARIANTS.forEach(function (v) {
+                var g = played(v, SW.markAt());
+                assert(v + ': striking on the line is clean', SC.clean(g), 'off ' + g.off);
+            });
+            var early = played('tempo', 0.2);
+            assert('a strike far from the line is not clean', !SC.clean(early), 'off ' + early.off);
+            var ran = SW.start('tempo', 0.5, 1);
+            while (!ran.done) SW.tick(ran, 0.01);
+            assert('running out of swing is not clean', !SC.clean(ran));
+
+            // The live step changes at the moments that matter.
+            var r = SW.start('return', 0.5, 1);
+            var up = SC.stepFor(r);
+            while (!r.turned) SW.tick(r, 0.01);
+            assert('return: the step changes at the turn', up !== SC.stepFor(r) && /strike/i.test(SC.stepFor(r)));
+            var d = SW.start('double', 0.5, 1);
+            var top = SC.stepFor(d);
+            SW.press(d);
+            assert('double: the step changes after the top press', top !== SC.stepFor(d));
+            assert('the why names the real bonus', /\d+% further/.test(SC.WHY), SC.WHY);
+        })();
 
         section('Scoring and the save file');
         (function () {

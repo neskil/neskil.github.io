@@ -32,7 +32,7 @@
 
         gtag('config', 'G-9GP823TGLB');
     </script>
-    <link rel="stylesheet" href="style.css?v=1.53.0">
+    <link rel="stylesheet" href="style.css?v=1.54.0">
 <script type="application/ld+json">
     {
         "@context": "https://schema.org",
@@ -150,7 +150,7 @@
 
         <div class="scoreboard">
             <div class="stat">
-                <div class="stat-label"><span id="course-name">—</span> · Hole <span id="hole-num">1 / 6</span></div>
+                <div class="stat-label"><span id="course-name">—</span> · <span id="hole-word">Hole</span> <span id="hole-num">1 / 6</span></div>
                 <!-- The hole's name is a button: what the hole *is* was said once
                      on the card when it loaded, and this asks for it again. -->
                 <button type="button" class="hole-name" id="hole-name" title="What this hole is">—</button>
@@ -273,6 +273,27 @@
                 <canvas class="hc-map" id="hc-map" width="240" height="150"
                         aria-label="Plan of the hole"></canvas>
             </div>
+
+            <!-- The range's swing school: the white line and the four timing
+                 gates, one at a time, each with a small goal. Range only, in
+                 the corner the hole card has everywhere else; folded on a
+                 phone. Lessons are js/school.js, the panel is game.js. -->
+            <section class="school" id="school" hidden aria-label="Swing school">
+                <button type="button" class="sc-head" id="sc-toggle" aria-expanded="true" aria-controls="sc-body">
+                    <span class="sc-icon" aria-hidden="true">🎓</span>
+                    <span class="sc-title">Swing school</span>
+                    <span class="sc-now" id="sc-now"></span>
+                    <span class="sc-caret" aria-hidden="true">▾</span>
+                </button>
+                <div class="sc-body" id="sc-body">
+                    <p class="sc-why" id="sc-why"></p>
+                    <div class="sc-tabs" id="sc-tabs" role="tablist" aria-label="Lessons"></div>
+                    <p class="sc-text" id="sc-text"></p>
+                    <p class="sc-step" id="sc-step" aria-live="polite"></p>
+                    <div class="sc-goal"><span class="sc-pips" id="sc-pips"></span><span id="sc-goal"></span></div>
+                    <button type="button" class="sc-load" id="sc-load">Load it for me</button>
+                </div>
+            </section>
 
             <!-- Said once, quietly, while the intro is running, and gone the
                  instant anything is pressed. An intro nobody has been told how
@@ -496,9 +517,13 @@
                     keeps bending that way in the air, which is why a bad one finishes so much
                     further off than it left. The further past 100% you wound it, the smaller the
                     zone and the faster the marker: at the very top it is a sixteenth of a second.
-                    There are four gates and they rotate, so you meet all of them: strike on the
+                    There are four gates and they rotate <b>hole by hole</b> — tempo, return,
+                    double, fade, then round again — so a round meets all of them: strike on the
                     line; catch it coming back off the top; press at the top and then strike; and one
                     where the marker goes dark for the run in and you have to strike on rhythm.
+                    The label under the meter names the one in play. To practise them one at a
+                    time, go to the driving range (🎯, or <kbd>T</kbd>): its swing school takes
+                    you through each.
                     Nothing forces you into any of it — stay inside a full swing and there is no gate
                     at all.
                 </li>
@@ -664,27 +689,28 @@
 
     <!-- Load order is dependency order: config, then the pure logic, then the
          things that touch the screen. game.js boots itself on DOMContentLoaded. -->
-    <script src="js/config.js?v=1.53.0"></script>
-    <script src="js/themes.js?v=1.53.0"></script>
-    <script src="js/physics.js?v=1.53.0"></script>
-    <script src="js/courses.js?v=1.53.0"></script>
-    <script src="js/audit.js?v=1.53.0"></script>
-    <script src="js/custom.js?v=1.53.0"></script>
-    <script src="js/scoring.js?v=1.53.0"></script>
-    <script src="js/swing.js?v=1.53.0"></script>
-    <script src="js/audio.js?v=1.53.0"></script>
-    <script src="js/music.js?v=1.53.0"></script>
-    <script src="js/bag.js?v=1.53.0"></script>
-    <script src="js/textures.js?v=1.53.0"></script>
-    <script src="js/shaders.js?v=1.53.0"></script>
-    <script src="js/postfx.js?v=1.53.0"></script>
-    <script src="js/weather.js?v=1.53.0"></script>
-    <script src="js/flyover.js?v=1.53.0"></script>
-    <script src="js/bot.js?v=1.53.0"></script>
-    <script src="js/models.js?v=1.53.0"></script>
-    <script src="js/render.js?v=1.53.0"></script>
-    <script src="js/minimap.js?v=1.53.0"></script>
-    <script src="js/debug.js?v=1.53.0"></script>
-    <script src="js/game.js?v=1.53.0"></script>
+    <script src="js/config.js?v=1.54.0"></script>
+    <script src="js/themes.js?v=1.54.0"></script>
+    <script src="js/physics.js?v=1.54.0"></script>
+    <script src="js/courses.js?v=1.54.0"></script>
+    <script src="js/audit.js?v=1.54.0"></script>
+    <script src="js/custom.js?v=1.54.0"></script>
+    <script src="js/scoring.js?v=1.54.0"></script>
+    <script src="js/swing.js?v=1.54.0"></script>
+    <script src="js/school.js?v=1.54.0"></script>
+    <script src="js/audio.js?v=1.54.0"></script>
+    <script src="js/music.js?v=1.54.0"></script>
+    <script src="js/bag.js?v=1.54.0"></script>
+    <script src="js/textures.js?v=1.54.0"></script>
+    <script src="js/shaders.js?v=1.54.0"></script>
+    <script src="js/postfx.js?v=1.54.0"></script>
+    <script src="js/weather.js?v=1.54.0"></script>
+    <script src="js/flyover.js?v=1.54.0"></script>
+    <script src="js/bot.js?v=1.54.0"></script>
+    <script src="js/models.js?v=1.54.0"></script>
+    <script src="js/render.js?v=1.54.0"></script>
+    <script src="js/minimap.js?v=1.54.0"></script>
+    <script src="js/debug.js?v=1.54.0"></script>
+    <script src="js/game.js?v=1.54.0"></script>
 </body>
 </html>

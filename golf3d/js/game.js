@@ -71,7 +71,7 @@
     function newRound(courseId, startAt) {
         var course = G3.courseById(courseId);
         var at = Math.max(0, Math.min(course.holes.length - 1, startAt || 0));
-        var defaultClubId = course.isRange ? 'dr' : (state && state.club ? state.club.id : C.DEFAULT_CLUB);
+        var defaultClubId = course.isRange ? 'driver' : (state && state.club ? state.club.id : C.DEFAULT_CLUB);
         state = {
             course: course,
             holeIndex: at,
@@ -153,6 +153,7 @@
         R.state.lastBall.set(state.world.ball.x, state.world.ball.y, state.world.ball.z);
         hideBanner();
         syncHud();
+        syncSchool();
         state.flyPending = !again;
         showHoleCard();
         maybeFly();
@@ -308,6 +309,10 @@
         var asked = { yaw: state.aim.yaw, power: P.deliver(state.aim.power, state.club.power) };
         var shot = g ? SW.apply(asked, g) : { yaw: asked.yaw, power: asked.power, spin: 0 };
         if (!P.launch(state.world, shot.yaw, shot.power, state.club.loft, state.club.bite)) return;
+        // The range asks of every shot whether it went past the line (see
+        // judgeRangeShot), and the gate is gone by the time it lands.
+        state.shotOver = state.aim.power > state.club.power + 1e-9;
+        if (g && state.course.isRange) markGateLesson(g);
         // launch() clears the spin, so the bend goes on after it.
         state.world.spin = shot.spin || 0;
         if (g) sayStrike(g);
@@ -332,6 +337,155 @@
         syncHud();
     }
 
+    /* ── the range and its swing school ───────────────────────────────────
+
+       The range answers two questions the courses cannot stop to: how far
+       does this club go, and what is the meter doing past the white line.
+       The first is the boards and the readout after every ball; the second is
+       the school (school.js owns the lessons, this owns the panel). */
+    var school = { lesson: 'line', progress: null, open: true, said: '' };
+
+    function loadSchool() {
+        var raw = null;
+        try { raw = JSON.parse(localStorage.getItem(C.SCHOOL_KEY) || 'null'); } catch (e) { /* ignore */ }
+        school.progress = G3.school.normalise(raw);
+        school.lesson = G3.school.firstOpen(school.progress);
+        // Folded on a phone, where the corner is a third of the course.
+        school.open = !document.body.classList.contains('compact-ui');
+    }
+
+    function saveSchool() {
+        try { localStorage.setItem(C.SCHOOL_KEY, JSON.stringify(school.progress)); } catch (e) { /* ignore */ }
+    }
+
+    function targetUnder(hole, x, z) {
+        var ts = hole.targets || [], i;
+        for (i = 0; i < ts.length; i++) {
+            if (x >= ts[i].x0 && x <= ts[i].x1 && z >= ts[i].z0 && z <= ts[i].z1) return ts[i];
+        }
+        return null;
+    }
+
+    /* Every ball on the range says how far it went, how much of that was in
+       the air, and where it stopped in terms of the boards — "38 m" means
+       little until it is "just past the 30". */
+    function judgeRangeShot(w) {
+        var d = Math.hypot(w.ball.x - w.hole.tee.x, w.ball.z - w.hole.tee.z);
+        var t = targetUnder(w.hole, w.ball.x, w.ball.z);
+        var where = t ? 'on the ' + t.dist + ' m green' : null;
+        if (!where) {
+            var near = null, ts = w.hole.targets || [], i;
+            for (i = 0; i < ts.length; i++) if (ts[i].dist <= d) near = ts[i];
+            where = near ? 'past the ' + near.dist + ' m board' : 'short of the first board';
+        }
+        toast(state.club.name + ' · ' + d.toFixed(1) + ' m' +
+              (w.carry ? ' (carry ' + w.carry.toFixed(1) + ')' : '') + ' — ' + where,
+              t ? 'good' : undefined);
+        if (school.lesson === 'line' && !state.shotOver) {
+            if (t) creditLesson('line', 'On the ' + t.dist + ' m green, dead on the cone.');
+            else sayInSchool('Inside the line, but off the greens — aim with the cone and try again.');
+        } else if (school.lesson === 'line' && state.shotOver) {
+            sayInSchool('That one went past the white line — keep it inside for this lesson.');
+        }
+    }
+
+    function markGateLesson(g) {
+        var l = G3.school.byId(school.lesson);
+        if (!l.gate) return;
+        if (G3.school.clean(g)) creditLesson(l.id, g.perfect ? 'Flushed it.' : 'Clean enough.');
+        else sayInSchool(!g.struck ? 'It ran out — press before the marker leaves the bar.'
+            : g.off < 0 ? 'Early — that pulls it left and draws it.' : 'Late — that pushes it right and fades it.');
+    }
+
+    function creditLesson(id, said) {
+        var finished = G3.school.credit(school.progress, id);
+        saveSchool();
+        var l = G3.school.byId(id);
+        if (finished) {
+            A.ace();
+            if (G3.school.allPassed(school.progress)) {
+                toast('Swing school done — all four rhythms, and the line', 'good');
+                sayInSchool(said + ' That is the lot: out on the courses, each hole uses one of these.');
+            } else {
+                var next = G3.school.firstOpen(school.progress);
+                toast(l.title + ' passed — next: ' + G3.school.byId(next).title, 'good');
+                school.lesson = next;
+                sayInSchool(said + ' ' + l.title + ' passed.');
+            }
+        } else {
+            sayInSchool(said + ' ' + school.progress[id] + ' of ' + l.need + '.');
+        }
+        drawSchool();
+    }
+
+    function sayInSchool(text) {
+        school.said = text;
+        syncSchoolStep();
+    }
+
+    function pickLesson(id) {
+        if (gate) return;
+        school.lesson = id;
+        school.said = '';
+        drawSchool();
+    }
+
+    // Shown on the range only, and drawn whenever a lesson or its count changes.
+    function syncSchool() {
+        var on = !!(state && state.course && state.course.isRange);
+        if (!school.progress) loadSchool();
+        $('school').hidden = !on;
+        if (on) drawSchool();
+        else $('stage').classList.remove('school-open');
+    }
+
+    function drawSchool() {
+        var l = G3.school.byId(school.lesson);
+        var p = school.progress;
+        $('school').classList.toggle('open', school.open);
+        // The phone's fullscreen banner and the open panel want the same strip.
+        $('stage').classList.toggle('school-open', school.open);
+        $('sc-toggle').setAttribute('aria-expanded', school.open ? 'true' : 'false');
+        $('sc-now').textContent = l.title + ' ' + p[l.id] + '/' + l.need;
+        $('sc-why').textContent = G3.school.WHY;
+        var tabs = $('sc-tabs');
+        tabs.innerHTML = '';
+        G3.school.LESSONS.forEach(function (x, i) {
+            var b = document.createElement('button');
+            b.type = 'button';
+            b.className = 'sc-tab' + (x.id === l.id ? ' on' : '') + (G3.school.passed(p, x.id) ? ' done' : '');
+            b.setAttribute('role', 'tab');
+            b.setAttribute('aria-selected', x.id === l.id ? 'true' : 'false');
+            b.textContent = (i + 1) + ' ' + x.title;
+            b.addEventListener('click', function () { b.blur(); pickLesson(x.id); });
+            tabs.appendChild(b);
+        });
+        $('sc-text').textContent = l.text;
+        var pips = '', k;
+        for (k = 0; k < l.need; k++) pips += '<i class="' + (k < p[l.id] ? 'on' : '') + '"></i>';
+        $('sc-pips').innerHTML = pips;
+        $('sc-goal').textContent = G3.school.passed(p, l.id)
+            ? 'Passed — go again any time'
+            : p[l.id] + ' of ' + l.need + ' ' + l.goal;
+        $('sc-load').textContent = l.gate ? 'Load past the line for me' : 'Load a full swing for me';
+        syncSchoolStep();
+    }
+
+    /* The line under the lesson: while the marker is moving it says what to
+       do *now*; otherwise it says how the last ball went. */
+    function syncSchoolStep() {
+        if ($('school').hidden) return;
+        var el = $('sc-step');
+        var now = gate ? G3.school.stepFor(gate) : school.said;
+        if (el.textContent !== now) el.textContent = now;
+        el.classList.toggle('live', !!gate);
+    }
+
+    function loadForLesson() {
+        if (!state || state.phase !== 'aim' || gate) return;
+        setPower(state.club.power * G3.school.byId(school.lesson).load);
+    }
+
     /* ── the swing gate ─────────────────────────────────────────────────────
 
        Everything the gate needs from the game is here: opening it, ticking it
@@ -346,7 +500,10 @@
        met at once and none of them learned. A hole is long enough to get the
        feel of one and short enough that a round still meets all four. */
     function openGate(over) {
-        gate = SW.start(SW.pick(state.holeIndex), over, state.aim.power / maxPower());
+        // On the range the lesson picks it, so a rhythm can be practised on
+        // its own; everywhere else it is the hole's.
+        var variant = state.course.isRange ? G3.school.variantFor(school.lesson) : SW.pick(state.holeIndex);
+        gate = SW.start(variant, over, state.aim.power / maxPower());
         A.tick(0.5);
         $('power-track').classList.add('gate');
         $('gate').hidden = false;
@@ -361,6 +518,7 @@
         gate = null;
         $('power-track').classList.remove('gate');
         $('gate').hidden = true;
+        syncSchoolStep();
     }
 
     function pressGate() {
@@ -391,6 +549,7 @@
         // has to move with it, or it is pointing at the wrong half of the bar.
         var t = SW.targetOf(gate);
         $('gate-zone').style.left = ((t - gate.win) * 100).toFixed(2) + '%';
+        syncSchoolStep();
     }
 
     var GATE_SAYS = {
@@ -480,9 +639,7 @@
         }
         state.phase = 'aim';
         if (state.course.isRange) {
-            var rDist = Math.hypot(w.ball.x - w.hole.tee.x, w.ball.z - w.hole.tee.z);
-            var carryText = w.carry ? ' · carry ' + w.carry.toFixed(1) + 'm' : '';
-            toast('🎯 ' + state.club.name + ' · ' + rDist.toFixed(1) + 'm' + carryText);
+            judgeRangeShot(w);
             setTimeout(function () {
                 if (state && state.course.isRange) resetRangeBall();
             }, 2000);
@@ -526,9 +683,15 @@
     function holeComplete() {
         var hole = state.course.holes[state.holeIndex];
         if (state.course.isRange) {
+            /* Out of 'rolling' at once: a holed ball stays done, and left in
+               that phase the frame loop asks again every frame until the reset
+               — which used to play the ace, and say so, a hundred times. */
+            state.phase = 'holed';
             A.ace();
             var d = Math.hypot(hole.cup.x - hole.tee.x, hole.cup.z - hole.tee.z);
-            toast('🎯 TARGET HIT! Cup holed from ' + d.toFixed(1) + 'm!');
+            toast('In the cup from ' + d.toFixed(1) + ' m!', 'good');
+            // Holed is on a green by any reading — it counts for the line lesson.
+            if (school.lesson === 'line' && !state.shotOver) creditLesson('line', 'Holed it, inside the line.');
             setTimeout(function () {
                 if (state && state.course.isRange) resetRangeBall();
             }, 1800);
@@ -616,6 +779,8 @@
         $('hole-name').textContent = hole.name;
         $('hole-strokes').textContent = state.strokes;
 
+        // "Driving Range · Practice", not "· Hole Practice".
+        $('hole-word').hidden = !!state.course.isRange;
         if (state.course.isRange) {
             $('hole-num').textContent = 'Practice';
             $('hole-par').textContent = '\u2014';
@@ -676,6 +841,8 @@
            name — a tap on the hole in the scoreboard — it still comes up
            anywhere. */
         if (!asked && document.body.classList.contains('compact-ui')) return;
+        // The range's corner belongs to the swing school, which says more.
+        if (!asked && state.course.isRange) return;
         var hole = state.course.holes[state.holeIndex];
         var b = state.world.ball;
         $('hc-name').textContent = hole.name;
@@ -2773,8 +2940,9 @@
             $('card-sub').textContent = 'Free practice mode · ' + state.strokes + (state.strokes === 1 ? ' shot hit' : ' shots hit');
             $('card-body').innerHTML =
                 '<div style="padding: 18px 8px; text-align: center; color: #cbd5e1; font-size: 0.95rem; line-height: 1.6;">' +
-                '<p>Take unlimited full swings and target shots across the practice range.</p>' +
-                '<p style="margin-top: 10px; color: #94a3b8; font-size: 0.85rem;">Distance markers at 50m, 100m, 150m, 200m, 250m, and 300m.</p>' +
+                '<p>Unlimited balls, any club, nothing kept on the card.</p>' +
+                '<p style="margin-top: 10px; color: #94a3b8; font-size: 0.85rem;">Target greens at 10, 20, 30, 40 and 50 m, each with its board. ' +
+                'The swing school in the corner teaches the white line and the four timing gates.</p>' +
                 '</div>';
             $('card-next').hidden = true;
             $('scorecard').className = 'modal show';
@@ -3631,6 +3799,13 @@
             closeMenu();
         });
         $('menu-fs').addEventListener('click', toggleFsAuto);
+        loadSchool();
+        $('sc-toggle').addEventListener('click', function () {
+            this.blur();
+            school.open = !school.open;
+            drawSchool();
+        });
+        $('sc-load').addEventListener('click', function () { this.blur(); loadForLesson(); });
         syncFsSwitch();
 
         // Before the first buildHole, so the sea is compiled once, the way the
