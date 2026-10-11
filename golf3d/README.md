@@ -1823,6 +1823,23 @@ fault everywhere else.
   there is no step down either side of the hole and nothing for `enclose` to
   build a rail on even if it were asked. See
   [No fence on the long game](#no-fence-on-the-long-game).
+- **mow** — what `commons` and `moor` do to a hole's fairway after laying its
+  rows, and what stops it being a stack of rectangles. Every run of rows with
+  one fairway in each becomes a *ribbon*: the rows' own centre and width, eased
+  across each seam so a fairway that jogs between rows bends instead of
+  stepping; a few long sines on each side so the two edges wander
+  independently, never by more than a third of the rough beside them or an
+  eighth of the fairway; and a quarter-ellipse at each end where there is rough
+  beyond it, so a fairway finishes in a curve. A side next to a lake or a
+  canyon keeps its straight edge — that edge is the hazard's, not the mower's.
+  The fairway and the rough beside it each hold the *same* edge object
+  (`pad.west` / `pad.east`), which `physics.mowEdge` evaluates and
+  `physics.padContains` and the renderer's terrain both ask, so where the ball
+  plays fairway and where the grass is drawn as fairway is one answer. A pad's
+  own `x` and `w` stay the cell it was written as, which is why the editor, the
+  audit and the minimap's framing never noticed. `tests.html` holds it to
+  covering exactly the ground the straight rows covered, point for point. Pass
+  `mow: false` to `commons` for a hole that wants its ruled edges back.
 
 ### Relief on a drawn hole
 
