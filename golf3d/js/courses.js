@@ -921,24 +921,88 @@
        green two units along re-cuts its edge rather than sliding a stencil. */
     function shapeDisc(p) {
         var cx = p.x + p.w / 2, cz = p.z + p.d / 2;
+        /* The footprint is the shape's bounding box, so it is also where the
+           semi-axes come from: equal for anything a compass drew, which is
+           every disc the editor makes (it squares one up before it gets here)
+           and different for an oval. `r` is the circle the shape is
+           guaranteed to stay inside and `rIn` the one it is guaranteed to
+           fill, and on an oval they come off different axes. */
+        p.rx = p.w / 2;
+        p.rz = p.d / 2;
+        p.r = Math.max(p.rx, p.rz);
         var rnd = seeded(Math.round(cx * 733 + cz * 9173 + p.r * 51419));
         var terms = [], i;
         for (i = 0; i < WAVE_LOBES.length; i++) {
             terms.push([WAVE_LOBES[i], WAVE * WAVE_SHARE[i], rnd() * Math.PI * 2]);
         }
         p.wave = { bite: WAVE, terms: terms };
-        p.rIn = p.r * (1 - 2 * WAVE);
+        p.rIn = Math.min(p.rx, p.rz) * (1 - 2 * WAVE);
         return p;
     }
 
-    // A round green, laid into whatever it is standing on. Round-ish: see
-    // WAVE above for the shape of its edge, and physics.padRadius for the
-    // one function that answers where that edge is.
-    function circle(cx, cz, r, kind, y) {
-        var p = pad(cx - r, cz - r, 2 * r, 2 * r, y || 0, kind || 'green');
-        p.r = r;
+    /* A round green, laid into whatever it is standing on. Round-ish: see
+       WAVE above for the shape of its edge, and physics.padRadius for the one
+       function that answers where that edge is.
+
+       `rz` makes it an oval instead, which is what most bunkers want: sand is
+       scraped out of a slope, so it runs along the hill rather than round it,
+       and four circles in a row is a string of beads. `r` is then the
+       half-width across the hole and `rz` the half-length down it. */
+    function circle(cx, cz, r, kind, y, rz) {
+        var b = rz || r;
+        var p = pad(cx - r, cz - b, 2 * r, 2 * b, y || 0, kind || 'green');
+        p.r = Math.max(r, b);
         p.inlay = true;
         return shapeDisc(p);
+    }
+
+    /* The same disc, laid into ground that is already there rather than at a
+       height somebody worked out by hand.
+
+       `circle` builds a disc that stands on its own — level, and at whatever
+       `y` the call names. That is fine on a hole whose green sits on a flat
+       shelf and a trap on one written in `bands`, because a row may tilt and
+       the level of the fifth row is the sum of the four above it. An inlay is
+       only an inlay while it is *flush*: a level disc laid on a row falling at
+       a fifth is a table with daylight under one edge and its rim buried at
+       the other, and a copied `y` goes stale the first time a row above it is
+       retilted — the same second copy of the height field that `build` seats
+       trees off the ground to avoid.
+
+       So this reads the ground instead. The pad under the disc's middle hands
+       over its cross-fall, and the disc's own level is set to what that plane
+       is worth at the disc's origin, which makes `padHeight` give the two the
+       same answer everywhere they overlap.
+
+       A bunker takes the ground's humps as well, so it lies on the hillside it
+       was cut into rather than across it — the field is the same function on
+       both, so they agree to the float. A *green* does not, and cannot: a disc
+       with humps in it is drawn as terrain, which is the one path that cannot
+       punch a cup out of itself. So a green goes where the field is flat —
+       which is where the tests already insist a green goes — and `tests.html`
+       measures every inlay against the ground under it rather than trusting
+       this note. */
+    function inlay(pads, cx, cz, r, kind, rz) {
+        var host = null, hy = -Infinity, i, p, h;
+        for (i = 0; i < pads.length; i++) {
+            p = pads[i];
+            if (p.inlay || !G3.physics.padContains(p, cx, cz)) continue;
+            h = G3.physics.padHeight(p, cx, cz);
+            if (h > hy) { hy = h; host = p; }
+        }
+        var d = circle(cx, cz, r, kind, 0, rz);
+        if (!host) return d;
+        d.sx = host.sx || 0;
+        d.sz = host.sz || 0;
+        if (d.kind !== 'green' && host.bumps && host.bumps.length) {
+            d.bumps = host.bumps.slice();
+        }
+        // Level it last: whatever the plane and the humps add at the middle
+        // with the disc standing at zero is exactly what it has to be lowered
+        // by to meet the ground there.
+        d.y = 0;
+        d.y = hy - G3.physics.padHeight(d, cx, cz);
+        return d;
     }
 
     function keep(x, z, r) { return { x: x, z: z, r: r }; }
@@ -1114,8 +1178,9 @@
         for (i = 0; i < pads.length; i++) {
             p = pads[i];
             if (p.kind !== 'sand' || p.sx || p.sz) continue;
-            /* An inlaid bunker keeps its flat floor, and this is the one place
-               in the file where the renderer gets a vote.
+            /* An inlaid bunker is never dished — it lies on whatever ground it
+               was laid into (see `inlay`) and adds no hollow of its own — and
+               this is the one place in the file where the renderer gets a vote.
 
                A bunker cut out of `bands` is a real gap in the ground: the
                fairway beside it stops at its edge and there is nothing under
@@ -2276,15 +2341,19 @@
                 [{ d: 6, sz: -0.15 },   [3.5, rgh], [8, fwy], [9.5, rgh]],
                 [10,                    [3.5, rgh], [8, fwy], [9.5, rgh]],
                 [5,                     [4.5, rgh], [9, fwy], [7.5, rgh]],
-                [3,                     [7, rgh], [2, fwy], [3.5, snd, DIP], [3.5, fwy], [5, rgh]],
+                [3,                     [7, rgh], [9, fwy], [5, rgh]],
                 [{ d: 5, sz: 0.24 },    [6, rgh], [10, fwy], [5, rgh]],
-                [9,                     [6, rgh], [10, grn], [5, rgh]],
+                [9,                     [6, rgh], [10, fwy], [5, rgh]],
                 [4,                     [21, rgh]]
             ]);
+            var ground = shape(scoop(park.pads, { seed: 21 }), field);
             return build({
                 name: 'Opening Drive', par: 4, long: true, shaped: true, open: true,
                 blurb: 'Three units down off the bluff, over the crest, and back up to a green on a shelf.',
-                pads: shape(scoop(park.pads, { seed: 21 }), field),
+                pads: ground.concat([
+                    inlay(ground, 10.75, 30.5, 2.1, snd, 1.5),
+                    inlay(ground, 11, 41.5, 4.8, grn, 4.2)
+                ]),
                 fence: park.fence,
                 extra: [].concat(
                     treeline(1.7, 14, 1.7, 27, 5),
@@ -2320,18 +2389,28 @@
                 [{ d: 5, y: 3.2 },      [4, rgh], [9, fwy], [9, rgh]],
                 [{ d: 4, sz: -0.65 },   [22, rgh]],
                 [13,                    [4, rgh], [9, fwy], [9, rgh]],
-                [4,                     [4, rgh], [7, fwy], [3, snd, DIP], [8, rgh]],
+                [4,                     [4, rgh], [10, fwy], [8, rgh]],
                 [5,                     [5, rgh], [10, fwy], [7, rgh]],
-                [4,                     [4, rgh], [14, snd, DIP], [4, rgh]],
+                [4,                     [4, rgh], [14, fwy], [4, rgh]],
                 [{ d: 8, sz: 0.2 },     [6, rgh], [11, fwy], [5, rgh]],
                 [5,                     [6, rgh], [11, fwy], [5, rgh]],
-                [9,                     [5, rgh], [12, grn], [5, rgh]],
+                [9,                     [5, rgh], [12, fwy], [5, rgh]],
                 [3,                     [22, rgh]]
             ], { e: 18 });
+            var ground = shape(scoop(park.pads, { seed: 25 }), field);
             return build({
                 name: 'Long Meadow', par: 5, long: true, shaped: true, open: true,
                 blurb: 'A belt of sand across the fairway that no club carries. Lay up, then pitch it.',
-                pads: shape(scoop(park.pads, { seed: 25 }), field),
+                /* Hell's Half Acre is one oval eighteen units wide rather than
+                   a rectangle, and wider than the fairway on purpose: an
+                   ellipse gives back its ends, so a belt that only just spanned
+                   the mown grass would leave a way through at each edge and the
+                   hole's whole argument with it. */
+                pads: ground.concat([
+                    inlay(ground, 12.5, 24, 1.8, snd, 2.0),
+                    inlay(ground, 11, 33, 9, snd, 2.0),
+                    inlay(ground, 11, 52.5, 5.6, grn, 4.3)
+                ]),
                 fence: park.fence,
                 extra: [].concat(
                     treeline(2, 9, 2, 30, 6),
@@ -2359,16 +2438,21 @@
                 [{ d: 5, y: 3.4 },      [12, rgh], [8, fwy], [2, rgh]],
                 [{ d: 4, sz: -0.65 },   [22, rgh]],
                 [9.5,                   [12, rgh], [8, fwy], [2, rgh]],
-                [5,                     [4, rgh], [4, snd, DIP], [12, fwy], [2, rgh]],
+                [5,                     [4, rgh], [16, fwy], [2, rgh]],
                 [{ d: 6, sz: 0.22 },    [2, rgh], [12, fwy], [8, rgh]],
-                [3,                     [2, rgh], [3, snd, DIP], [9, fwy], [8, rgh]],
-                [7,                     [2, rgh], [11, grn], [9, rgh]],
+                [3,                     [5, rgh], [9, fwy], [8, rgh]],
+                [7,                     [2, rgh], [11, fwy], [9, rgh]],
                 [3,                     [22, rgh]]
             ], { e: 20 });
+            var ground = shape(scoop(park.pads, { seed: 27 }), field);
             return build({
                 name: 'The Elbow', par: 4, long: true, shaped: true, open: true,
                 blurb: 'Off a bluff, left around an oak older than the course, then two units up to a shelf.',
-                pads: shape(scoop(park.pads, { seed: 27 }), field),
+                pads: ground.concat([
+                    inlay(ground, 6, 21, 2.0, snd, 2.4),
+                    inlay(ground, 3.5, 31, 1.8, snd, 1.5),
+                    inlay(ground, 7.5, 36, 5.2, grn, 3.4)
+                ]),
                 fence: park.fence,
                 extra: [].concat(
                     [tree(11.9, 16, { t: 0.9, h: 3 })],
@@ -2398,15 +2482,19 @@
                 [{ d: 2, sz: -1.35 },   [18, rgh]],
                 [4,                     [2.5, rgh], [7.5, null], [2.5, fwy], [5.5, rgh]],
                 [{ d: 2, sz: 0.24 },    [2.5, rgh], [13, fwy], [2.5, rgh]],
-                [3,                     [1.5, rgh], [2.6, snd, DIP], [11.4, fwy], [2.5, rgh]],
-                [5.5,                   [2.5, rgh], [10, fwy], [3, snd, DIP], [2.5, rgh]],
+                [3,                     [4.1, rgh], [11.4, fwy], [2.5, rgh]],
+                [5.5,                   [2.5, rgh], [10, fwy], [5.5, rgh]],
                 [4,                     [18, rgh]]
             ], { w: 22 });
+            var ground = shape(scoop(park.pads, { seed: 23 }), field);
             return build({
                 name: 'Over the Water', par: 3, long: true, shaped: true, open: true,
                 blurb: 'Off a high bluff, over the pond in the bottom, on to a round green on a shelf.',
-                pads: shape(scoop(park.pads, { seed: 23 }), field)
-                    .concat([circle(7.5, 16, 3.6, grn, 1.98)]),
+                pads: ground.concat([
+                    inlay(ground, 2.8, 13, 1.5, snd, 1.4),
+                    inlay(ground, 14, 17.3, 1.6, snd, 2.5),
+                    circle(7.5, 16, 3.6, grn, 1.98)
+                ]),
                 fence: park.fence,
                 water: [rect(2.5, 5.5, 7.5, 4, 1.0)],
                 extra: [].concat(
@@ -2485,14 +2573,19 @@
                 [{ d: 4, sz: -0.09 },   [4, rgh], [7, fwy], [2, rgh], [9, null]],
                 [{ d: 4, sz: -0.09 },   [4, rgh], [6, fwy], [2, rgh], [10, null]],
                 [{ d: 4, sz: -0.09 },   [4, rgh], [7, fwy], [2, rgh], [9, null]],
-                [4,  [5, rgh], [3, fwy], [3, snd, DIP], [4, fwy], [7, rgh]],
-                [8,  [5, rgh], [11, grn], [6, rgh]],
+                [4,  [5, rgh], [10, fwy], [7, rgh]],
+                [8,  [5, rgh], [11, fwy], [6, rgh]],
                 [5,  [22, rgh]]
             ], { e: 5, w: 24 });
             return build({
                 name: 'Homeward', par: 4, long: true, shaped: true, open: true,
                 blurb: 'The lake cuts across the hole and the ground falls into it. Bite off what you dare.',
-                pads: shape(tilt(scoop(park.pads, { seed: 29 }), -0.055, 0, 22, 0), field),
+                pads: (function (g) {
+                    return g.concat([
+                        inlay(g, 9.5, 27, 1.7, snd, 2.0),
+                        inlay(g, 10.5, 33, 5.2, grn, 3.8)
+                    ]);
+                }(shape(tilt(scoop(park.pads, { seed: 29 }), -0.055, 0, 22, 0), field))),
                 fence: park.fence,
                 water: [
                     rect(16, 5, 6, 4, -0.55),
@@ -2547,9 +2640,17 @@
         for (i = 0; i < pads.length; i++) pads[i].bumps = bumps;
         /* No scoop out here: every hazard on this course is an inlay, and an
            inlay is laid into ground that is drawn underneath it (see the note
-           in `scoop`). Whinstone's bunkers are flat sand on rolling country,
-           which is at least what a links bunker often is. */
-        return pads.concat(spec.inlays || []);
+           in `scoop`). But a bunker does take the dunes, the same rule
+           `inlay` keeps: sand lying on the country it was cut into, rather
+           than a flat plate laid across the top of it with one edge buried
+           wherever a dune's tail runs under. Both are at the course's own
+           level, so the same field puts them at the same height to the float.
+           A green does not — it carries the cup, and is kept flat instead. */
+        var lay = spec.inlays || [];
+        for (i = 0; i < lay.length; i++) {
+            if (lay[i].kind !== 'green') lay[i].bumps = bumps.slice();
+        }
+        return pads.concat(lay);
     }
 
     var whinstone = [
@@ -4176,16 +4277,20 @@
                 [6,                     [7, rgh], [8, fwy], [7, rgh]],
                 [{ d: 6, sz: 0.19 },    [7, rgh], [8, fwy], [7, rgh]],
                 [14,                    [7, rgh], [8, fwy], [7, rgh]],
-                [{ d: 5, sz: -0.23 },   [6, rgh], [4, snd, DIP], [6, fwy], [6, rgh]],
+                [{ d: 5, sz: -0.23 },   [6, rgh], [10, fwy], [6, rgh]],
                 [{ d: 5, sz: 0.2 },     [6, rgh], [10, fwy], [6, rgh]],
                 [3,                     [6, rgh], [10, fwy], [6, rgh]],
-                [6,                     [6, rgh], [10, grn], [6, rgh]],
+                [6,                     [6, rgh], [10, fwy], [6, rgh]],
                 [3,                     [22, rgh]]
             ]);
+            var ground = shape(scoop(heath.pads, { seed: 3 }), field);
             return build({
                 name: 'Bell Heather', par: 4, long: true, shaped: true, open: true,
                 blurb: 'A ridge across the driving line, then a climb to a shelf with a hollow beside it.',
-                pads: shape(scoop(heath.pads, { seed: 3 }), field),
+                pads: ground.concat([
+                    inlay(ground, 8, 28.5, 2.0, snd, 2.4),
+                    inlay(ground, 11, 42, 4.8, grn, 2.9)
+                ]),
                 fence: heath.fence,
                 extra: [].concat(
                     treeline(2, 7, 2, 22, 4),
@@ -4211,15 +4316,19 @@
                 [6,                    [4, rgh], [8, fwy], [10, rgh]],
                 [{ d: 8, sz: 0.12 },   [4, rgh], [8, fwy], [10, rgh]],
                 [{ d: 7, sz: -0.19 },  [4, rgh], [8, fwy], [10, rgh]],
-                [{ d: 6, sz: -0.14 },  [5, rgh], [4, snd, DIP], [9, fwy], [4, rgh]],
+                [{ d: 6, sz: -0.14 },  [5, rgh], [13, fwy], [4, rgh]],
                 [7,                    [8, rgh], [11, fwy], [3, rgh]],
-                [6,                    [9, rgh], [10, grn], [3, rgh]],
+                [6,                    [9, rgh], [10, fwy], [3, rgh]],
                 [3,                    [22, rgh]]
             ], { e: 18 });
+            var ground = shape(tilt(scoop(heath.pads, { seed: 7 }), 0.032, 0, 0, 0), field);
             return build({
                 name: 'Gorse Corner', par: 4, long: true, shaped: true, open: true,
                 blurb: 'It bends right around the gorse, and the whole hillside falls away to the left.',
-                pads: shape(tilt(scoop(heath.pads, { seed: 7 }), 0.032, 0, 0, 0), field),
+                pads: ground.concat([
+                    inlay(ground, 7, 24, 2.0, snd, 2.9),
+                    inlay(ground, 14, 38.4, 4.8, grn, 2.5)
+                ]),
                 fence: heath.fence,
                 extra: [].concat(
                     treeline(10.5, 16, 10.7, 23, 3),
@@ -4255,14 +4364,19 @@
                 [{ d: 9,  sz: 0.14 },   [6, rgh], [8, fwy], [8, rgh]],
                 [{ d: 11, sz: 0.21 },   [6, rgh], [8, fwy], [8, rgh]],
                 [{ d: 6,  sz: 0.15 },   [6, rgh], [9, fwy], [7, rgh]],
-                [{ d: 5, sz: -0.07 },   [5, rgh], [4, fwy], [4, snd, DIP], [4, fwy], [5, rgh]],
-                [8,                     [6, rgh], [11, grn], [5, rgh]],
+                [{ d: 5, sz: -0.07 },   [5, rgh], [12, fwy], [5, rgh]],
+                [8,                     [6, rgh], [11, fwy], [5, rgh]],
                 [3,                     [22, rgh]]
             ]);
             return build({
                 name: 'The Beacon', par: 4, long: true, shaped: true, open: true,
                 blurb: 'Four units of climb over twenty-six, and the green is over the top of it.',
-                pads: shape(scoop(heath.pads, { seed: 17 }), field),
+                pads: (function (g) {
+                    return g.concat([
+                        inlay(g, 11, 34.5, 2.0, snd, 2.4),
+                        inlay(g, 11.5, 41, 5.2, grn, 3.8)
+                    ]);
+                }(shape(scoop(heath.pads, { seed: 17 }), field))),
                 fence: heath.fence,
                 extra: [].concat(
                     treeline(1.8, 8, 1.8, 24, 4),
@@ -4297,14 +4411,17 @@
             var heath = commons(0, [
                 [{ d: 5, y: 3.1 },      [6, rgh], [8, fwy], [6, rgh]],
                 [{ d: 3, sz: -0.8 },    [20, rgh]],
-                [{ d: 4, sz: -0.1 },    [4, rgh], [12, snd, DIP], [4, rgh]],
+                [{ d: 4, sz: -0.1 },    [20, rgh]],
                 [20,                    [20, rgh]]
             ], { w: 16, e: 16 });
+            var ground = shape(scoop(heath.pads, { seed: 5 }), field);
             return build({
                 name: 'The Waste', par: 3, long: true, shaped: true, open: true,
                 blurb: 'Off a shelf, over the waste, to a round green at the bottom of a bowl between two hills.',
-                pads: shape(scoop(heath.pads, { seed: 5 }), field)
-                    .concat([circle(10, 21, 3.0, grn, 0.3)]),
+                pads: ground.concat([
+                    inlay(ground, 10, 10, 8, snd, 2.0),
+                    circle(10, 21, 3.0, grn, 0.3)
+                ]),
                 fence: heath.fence,
                 extra: [].concat(
                     crags(-4, 17, 3.5, 6, 8353, { s: 1.4, h: 1.1 }),
@@ -4334,17 +4451,21 @@
                 [{ d: 6, sz: 0.19 },    [6, rgh], [8, fwy], [8, rgh]],
                 [11,                    [6, rgh], [8, fwy], [8, rgh]],
                 [{ d: 5, sz: -0.22 },   [6, rgh], [8, fwy], [8, rgh]],
-                [4,                     [6, rgh], [4, snd, DIP], [6, fwy], [6, rgh]],
+                [4,                     [6, rgh], [10, fwy], [6, rgh]],
                 [{ d: 5, sz: -0.16 },   [7, rgh], [9, fwy], [6, rgh]],
                 [20,                    [7, rgh], [9, fwy], [6, rgh]],
                 [{ d: 4, sz: 0.16 },    [7, rgh], [10, fwy], [5, rgh]],
-                [7,                     [6, rgh], [11, grn], [5, rgh]],
+                [7,                     [6, rgh], [11, fwy], [5, rgh]],
                 [3,                     [22, rgh]]
             ], { w: 16 });
+            var ground = shape(scoop(heath.pads, { seed: 11 }), field);
             return build({
                 name: 'Long Ling', par: 5, long: true, shaped: true, open: true,
                 blurb: 'Fifty-five units of heather over a shoulder and down the other side, with a swale across the last of it.',
-                pads: shape(scoop(heath.pads, { seed: 11 }), field),
+                pads: ground.concat([
+                    inlay(ground, 8, 30, 2.0, snd),
+                    inlay(ground, 11.5, 64.5, 5.2, grn, 3.4)
+                ]),
                 fence: heath.fence,
                 extra: [].concat(
                     treeline(2, 9, 2, 32, 6),
@@ -4376,13 +4497,15 @@
                 [13.4,                  [20, null]],
                 [{ d: 5, sz: 0.22 },    [4, rgh], [10, fwy], [6, rgh]],
                 [{ d: 4, sz: 0.13 },    [4, rgh], [10, fwy], [6, rgh]],
-                [7,                     [5, rgh], [10, grn], [5, rgh]],
+                [7,                     [5, rgh], [10, fwy], [5, rgh]],
                 [3,                     [20, rgh]]
             ], { e: 16 });
             return build({
                 name: 'The Ravine', par: 4, long: true, shaped: true, open: true,
                 blurb: 'A gorge two units deep across the whole hole, and the far bank climbs out of it.',
-                pads: shape(scoop(heath.pads.concat(cut.pads), { seed: 13 }), field),
+                pads: (function (g) {
+                    return g.concat([inlay(g, 10, 42.9, 4.8, grn, 3.4)]);
+                }(shape(scoop(heath.pads.concat(cut.pads), { seed: 13 }), field))),
                 fence: heath.fence,
                 extra: [].concat(
                     treeline(1.7, 8, 1.7, 15, 3),
@@ -4458,13 +4581,17 @@
                 [9.5,                  [22, null]],
                 [{ d: 4, sz: 0.18 },   [5, rgh], [11, fwy], [6, rgh]],
                 [4,                    [5, rgh], [11, fwy], [6, rgh]],
-                [7,                    [6, rgh], [11, grn], [5, rgh]],
+                [7,                    [6, rgh], [11, fwy], [5, rgh]],
                 [3,                    [22, rgh]]
             ], { e: 14 });
             return build({
                 name: 'First Cut', par: 4, long: true, shaped: true, open: true,
                 blurb: 'A canyon at the end of the fairway. The drive decides how long the carry is going to be.',
-                pads: shape(land.pads.concat(cut.pads), field),
+                pads: (function (g) {
+                    return g.concat([
+                        inlay(g, 11.5, 39, 5.2, grn, 3.4)
+                    ]);
+                }(shape(land.pads.concat(cut.pads), field))),
                 fence: land.fence,
                 extra: [].concat(
                     crags(2.6, 11, 3, 5, 9101, { s: 1.3, h: 1.0 }),
@@ -4515,13 +4642,17 @@
                 [10,                    [6.5, null], [11, fwy], [5, rgh]],
                 [6,                     [6.5, null], [12, fwy], [4, rgh]],
                 [4,                     [6.5, null], [12, fwy], [4, rgh]],
-                [8,                     [6.5, null], [10, grn], [5.5, rgh]],
+                [8,                     [6.5, null], [10, fwy], [5.5, rgh]],
                 [3,                     [22, rgh]]
             ], { w: 15 });
             return build({
                 name: 'The Rim', par: 4, long: true, shaped: true, open: true,
                 blurb: 'The canyon runs the length of the hole down the left, and the fairway leans at it.',
-                pads: shape(tilt(land.pads.concat(cut.pads), -0.032, 0, 22, 0), field),
+                pads: (function (g) {
+                    return g.concat([
+                        inlay(g, 11.5, 40, 4.8, grn, 3.8)
+                    ]);
+                }(shape(tilt(land.pads.concat(cut.pads), -0.032, 0, 22, 0), field))),
                 fence: land.fence,
                 extra: [].concat(
                     crags(20, 12, 3, 5, 9211, { s: 1.3, h: 1.0 }),
@@ -4546,13 +4677,17 @@
                 [8,                    [6, rgh], [8, fwy], [6, rgh]],
                 [11,                   [20, null]],
                 [{ d: 4, sz: 0.2 },    [5, rgh], [10, fwy], [5, rgh]],
-                [7,                    [5, rgh], [10, grn], [5, rgh]],
+                [7,                    [5, rgh], [10, fwy], [5, rgh]],
                 [6,                    [20, rgh]]
             ], { w: 14, e: 14 });
             return build({
                 name: 'Stone Bridge', par: 3, long: true, shaped: true, open: true,
                 blurb: 'Eleven units of canyon and a green on the far lip. Short is the bottom; long is the wall.',
-                pads: shape(land.pads.concat(cut.pads), field),
+                pads: (function (g) {
+                    return g.concat([
+                        inlay(g, 10, 25.9, 4.3, grn, 2.6)
+                    ]);
+                }(shape(land.pads.concat(cut.pads), field))),
                 fence: land.fence,
                 extra: [].concat(
                     crags(2.4, 13, 3, 5, 9301, { s: 1.35, h: 1.05 }),
@@ -4590,13 +4725,17 @@
                 [10,                   [4, rgh], [7, fwy], [11, null]],
                 [6,                    [4, rgh], [12, fwy], [6, rgh]],
                 [{ d: 5, sz: 0.18 },   [4, rgh], [12, fwy], [6, rgh]],
-                [8,                    [9, rgh], [10, grn], [3, rgh]],
+                [8,                    [9, rgh], [10, fwy], [3, rgh]],
                 [3,                    [22, rgh]]
             ], { m: 14 });
             return build({
                 name: 'Long Way Round', par: 4, long: true, shaped: true, open: true,
                 blurb: 'The canyon eats the east half of the fairway. Go round it, or go at the flag.',
-                pads: shape(land.pads.concat(cut.pads), field),
+                pads: (function (g) {
+                    return g.concat([
+                        inlay(g, 14, 47, 4.8, grn, 3.8)
+                    ]);
+                }(shape(land.pads.concat(cut.pads), field))),
                 fence: land.fence,
                 extra: [].concat(
                     crags(2.6, 26, 3, 5, 9401, { s: 1.3, h: 1.0 }),
@@ -4628,13 +4767,17 @@
                 [12,                   [5, rgh], [12, fwy], [5, rgh]],
                 [8.5,                  [22, null]],
                 [{ d: 4, sz: 0.18 },   [5, rgh], [12, fwy], [5, rgh]],
-                [8,                    [6, rgh], [11, grn], [5, rgh]],
+                [8,                    [6, rgh], [11, fwy], [5, rgh]],
                 [3,                    [22, rgh]]
             ], { w: 14, e: 14 });
             return build({
                 name: 'Switchback', par: 5, long: true, shaped: true, open: true,
                 blurb: 'It crosses twice, and the fairway between the crossings is twelve units of island.',
-                pads: shape(land.pads.concat(one.pads).concat(two.pads), field),
+                pads: (function (g) {
+                    return g.concat([
+                        inlay(g, 11.5, 50.5, 5.2, grn, 3.8)
+                    ]);
+                }(shape(land.pads.concat(one.pads).concat(two.pads), field))),
                 fence: land.fence,
                 extra: [].concat(
                     crags(2.6, 20, 3, 5, 9501, { s: 1.3, h: 1.0 }),
@@ -4666,13 +4809,17 @@
                 [{ d: 6, sz: 0.2 },     [5, rgh], [11, fwy], [6, rgh]],
                 [{ d: 8, sz: 0.16 },    [5, rgh], [11, fwy], [6, rgh]],
                 [{ d: 6, sz: 0.14 },    [6, rgh], [10, fwy], [6, rgh]],
-                [8,                     [6, rgh], [11, grn], [5, rgh]],
+                [8,                     [6, rgh], [11, fwy], [5, rgh]],
                 [3,                     [22, rgh]]
             ], { e: 15 });
             return build({
                 name: 'Redstone', par: 5, long: true, shaped: true, open: true,
                 blurb: 'Over the canyon, then four units of climb onto the mesa the green is cut into.',
-                pads: shape(land.pads.concat(cut.pads), field),
+                pads: (function (g) {
+                    return g.concat([
+                        inlay(g, 11.5, 51.8, 5.2, grn, 3.0)
+                    ]);
+                }(shape(land.pads.concat(cut.pads), field))),
                 fence: land.fence,
                 extra: [].concat(
                     crags(2.6, 9, 3, 5, 9601, { s: 1.35, h: 1.05 }),
@@ -5176,7 +5323,8 @@
         tree: tree, treeline: treeline, crag: crag, crags: crags,
         decor: decor, buoy: buoy, piling: piling, bench: bench, boat: boat, bin: bin,
         hill: hill, ring: ring, ridge: ridge, whorl: whorl, ravine: ravine,
-        shape: shape, dunes: dunes, ground: ground, circle: circle, keep: keep,
+        shape: shape, dunes: dunes, ground: ground, circle: circle, inlay: inlay,
+        keep: keep,
         shapeDisc: shapeDisc,
         rect: rect, enclose: enclose, shore: shore, brink: brink, build: build,
         contour: contour, scoop: scoop, relief: relief,

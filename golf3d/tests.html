@@ -1328,7 +1328,12 @@
                         }
                     }
                     if (!p.bumps || !p.bumps.length) return;
-                    scooped++;
+                    /* An inlaid bunker carries the ground's own field rather
+                       than a dish (courses.inlay), so the hollows it lies in
+                       are the hillside's and not a floor — the flush check
+                       below is what holds it to that. It is still sand on a
+                       slope, though, and still has to hold a ball. */
+                    if (!p.inlay) scooped++;
                     // Walk the pad. The rim is the pad's own plane — the humps
                     // are zero there by construction — so the floor is however
                     // far below that the field goes.
@@ -1337,7 +1342,7 @@
                         for (z = p.z + 0.1; z < p.z + p.d; z += step) {
                             if (!P.padContains(p, x, z)) continue;
                             rim = p.y + (p.sx || 0) * (x - p.x) + (p.sz || 0) * (z - p.z);
-                            dip = rim - P.padHeight(p, x, z);
+                            dip = p.inlay ? 0 : rim - P.padHeight(p, x, z);
                             if (dip > worstFloor) {
                                 worstFloor = dip;
                                 worstFloorName = entry.course.id + '/' + entry.hole.name;
@@ -1351,19 +1356,63 @@
                     }
                 });
             });
-            /* Fifteen of them: every bunker on the six drawn courses. The ten
-               on Whinstone are inlays and keep a flat floor on purpose —
-               courses.scoop says why. */
-            assert('there are scooped bunkers to check', scooped >= 15, scooped + ' found');
-            assert('and no inlay was scooped', (function () {
-                var bad = 0;
-                ALL.forEach(function (e) {
-                    e.hole.pads.forEach(function (p) {
-                        if (p.kind === 'sand' && p.inlay && p.bumps && p.bumps.length) bad++;
-                    });
+            /* Every bunker cut out of a drawn hole. The long game's are all
+               inlays now — ovals laid into the fairway rather than rectangles
+               cut out of a row — and an inlay is never scooped: courses.scoop
+               says why. */
+            assert('there are scooped bunkers to check', scooped >= 12, scooped + ' found');
+
+            /* An inlay lies *flush* with the ground it is laid into, everywhere
+               inside its own outline — which is the rule "no inlay is scooped"
+               used to stand in for, measured directly.
+
+               Both directions are faults and they are different faults. An
+               inlay standing proud is a table: a lip the ball climbs on to and
+               a band of daylight the eye finds under its rim. An inlay sunk
+               below the ground is worse, because `surfaceUnder` takes the
+               highest surface and an inlay only wins a *tie* — so where the
+               ground rises above a green the ball is on fairway, and the
+               renderer, which only cuts away ground lying wholly under an
+               inlay, shows that fairway standing through the sand.
+
+               A bunker on a hillside passes because it carries the same field
+               as the hill; a green passes because it is put where the field is
+               flat. The tolerance is a sixth of the renderer's INLAY_LIFT. */
+            var worstInlay = 0, inlayAt = '', inlays = 0;
+            ALL.forEach(function (e) {
+                e.hole.pads.forEach(function (d) {
+                    if (!d.inlay) return;
+                    inlays++;
+                    var cx = d.x + d.w / 2, cz = d.z + d.d / 2, k, t, ang, rr, x, z, hy, q, gap;
+                    for (k = 0; k < 48; k++) {
+                        ang = k / 48 * Math.PI * 2;
+                        rr = d.r ? P.padRadius(d, ang) : 0;
+                        for (t = 0; t <= 8; t++) {
+                            x = d.r ? cx + Math.cos(ang) * rr * t / 8
+                                    : d.x + d.w * (k % 8) / 7;
+                            z = d.r ? cz + Math.sin(ang) * rr * t / 8
+                                    : d.z + d.d * t / 8;
+                            hy = -Infinity;
+                            for (q = 0; q < e.hole.pads.length; q++) {
+                                var o = e.hole.pads[q];
+                                if (o.inlay || !P.padContains(o, x, z)) continue;
+                                hy = Math.max(hy, P.padHeight(o, x, z));
+                            }
+                            if (hy === -Infinity) continue;   // laid over a gap: not ours to judge
+                            gap = Math.abs(P.padHeight(d, x, z) - hy);
+                            if (gap > worstInlay) {
+                                worstInlay = gap;
+                                inlayAt = e.course.id + '/' + e.hole.name + ', a ' + d.kind +
+                                    ' at (' + x.toFixed(1) + ', ' + z.toFixed(1) + ')';
+                            }
+                        }
+                    }
                 });
-                return bad === 0;
-            })());
+            });
+            assert('there are inlays to check', inlays >= 40, inlays + ' found');
+            assert('every inlay lies flush with the ground it is laid into',
+                worstInlay <= 0.002,
+                inlayAt + ' is off it by ' + worstInlay.toFixed(4));
             assert('a bunker floor dishes no deeper than the scoop says',
                 worstFloor <= A.SCOOP + 1e-9,
                 worstFloorName + ' falls ' + worstFloor.toFixed(3) +
@@ -1732,22 +1781,28 @@
                 assert(tag + ': and a boundary to be outside of', !!h.fence);
                 assert(tag + ': the tee is in bounds',
                     !P.outOfBounds(h, h.tee.x, h.tee.z));
-                /* A disc green is measured off its own radius; a green cut out
-                   of `bands` is a cell of a row and has no radius to measure,
-                   so it is held to the clearing every cup is promised. Either
-                   way the statement is the same one: the surface you have to
-                   putt on may not be partly out of bounds. */
+                /* A disc green is walked round its own outline — the one
+                   physics.padRadius gives, wave and oval and all, from the
+                   disc's own middle rather than from the pin, which on an oval
+                   with the flag cut towards one end are two very different
+                   circles. A green cut out of `bands` is a cell of a row and
+                   has no outline to walk, so it is held to the clearing every
+                   cup is promised. Either way the statement is the same one:
+                   the surface you have to putt on may not be partly out of
+                   bounds. */
                 var own = null, q;
                 for (q = 0; q < h.pads.length; q++) {
                     if (h.pads[q].inlay && P.padContains(h.pads[q], h.cup.x, h.cup.z)) own = h.pads[q];
                 }
-                var gr = own ? own.r : A.CUP_FLAT;
                 assert(tag + ': the whole green is in bounds', (function () {
-                    var k, a2, ok2 = true;
-                    for (k = 0; k < 16; k++) {
-                        a2 = k / 16 * Math.PI * 2;
-                        if (P.outOfBounds(h, h.cup.x + Math.cos(a2) * gr,
-                                             h.cup.z + Math.sin(a2) * gr)) ok2 = false;
+                    var k, a2, rr, ok2 = true;
+                    var ox = own ? own.x + own.w / 2 : h.cup.x;
+                    var oz = own ? own.z + own.d / 2 : h.cup.z;
+                    for (k = 0; k < 32; k++) {
+                        a2 = k / 32 * Math.PI * 2;
+                        rr = own ? P.padRadius(own, a2) : A.CUP_FLAT;
+                        if (P.outOfBounds(h, ox + Math.cos(a2) * rr,
+                                             oz + Math.sin(a2) * rr)) ok2 = false;
                     }
                     return ok2;
                 })());
