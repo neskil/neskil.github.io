@@ -47,6 +47,19 @@ card shapes are already there to hang a third off (`CARDS` in `bag.js`).
 
 Kept short, and only where it explains a constraint above.
 
+- **The long game stopped being square** (v1.52.0). Two findings worth keeping.
+  **The grass on a tilted terrain pad was tilted twice**: `addShells` sheared
+  every shell by the pad's `sx`/`sz`, including the ones cloned from the
+  terrain surface, which `padHeight` had already tilted. On every row written
+  with a fall, half the mat sank under its own ground and the bare pad texture
+  showed as a pale, hard-edged band across the hole — the "overlapping
+  textures". Only the flat outlines get the shear now. And **an inlay has to be
+  flush or it is a different surface**: every long-game green and bunker is an
+  oval `inlay` now (README → "Round greens and oval bunkers"), and the reason
+  three greens moved a unit or so is that their old rectangles had a rise in
+  them, which a flat disc would have been buried under. Still square: the
+  canyon cuts on Redstone, which are `ravine` rectangles.
+
 - **Gathering greens, club telemetry, keyboard roving tabindex, ace banner, tee minimaps, and driving range** (v1.50.0).
   - Added `dish(cx, cz, outer, flat, depth, y)` constructor in `courses.js`
     to author nine-pad gathering greens with outer rims flush to the fairway and

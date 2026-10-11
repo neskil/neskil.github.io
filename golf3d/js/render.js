@@ -888,7 +888,19 @@
             // scale the blades tile at — which is what carries the mow bands
             // unbroken from one pad to the next.
             worldUv(geo, TX.SHELL_SCALE[pad.kind], cx, cz);
-            if (sx || sz) {
+            /* Tilt, and only on the flat outlines above.
+
+               A `shape` is the ground's own surface, sampled from
+               `padHeight`, which has *already* applied the pad's cross-fall.
+               Shearing that a second time tips the mat twice as far as the
+               ground under it, which on a row written with `sz` buries half
+               of its grass under its own soil and floats the other half: a
+               pale, hard-edged band of bare pad across a hole, ending exactly
+               at the row seam. It read as two different surfaces because it
+               was one surface with its grass taken off. Every long-game hole
+               is written in tilted rows, so every one of them had a stripe of
+               it somewhere. */
+            if (!shape && (sx || sz)) {
                 var m = new THREE.Matrix4();
                 m.set(1, 0, 0, 0,
                       sx, 1, sz, 0,
