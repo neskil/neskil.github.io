@@ -1094,6 +1094,29 @@
             }
             return pts;
         }
+        /* A mown pad is walked the same way round as a rectangle — along its
+           near end, up its east side, back along its far end, down its west —
+           with the two sides sampled finely enough that the earth wall under
+           them follows the curve rather than cutting its corners. */
+        if (pad.west || pad.east) {
+            n = Math.max(2, Math.ceil(pad.d / Math.min(step, 0.5)));
+            var wv = [], ev = [], z, ed, q;
+            for (i = 0; i <= n; i++) {
+                z = pad.z + pad.d * i / n;
+                ed = edgesAt(pad, z);
+                wv.push([ed[0], z]);
+                ev.push([ed[1], z]);
+            }
+            var across = function (p0, p1) {
+                var m = Math.max(1, Math.round(Math.abs(p1[0] - p0[0]) / step));
+                for (q = 0; q < m; q++) pts.push([p0[0] + (p1[0] - p0[0]) * q / m, p0[1]]);
+            };
+            across(wv[0], ev[0]);
+            for (i = 0; i < n; i++) pts.push(ev[i]);
+            across(ev[n], wv[n]);
+            for (i = n; i > 0; i--) pts.push(wv[i]);
+            return pts;
+        }
         var sides = [
             [pad.x, pad.z, pad.x + pad.w, pad.z],
             [pad.x + pad.w, pad.z, pad.x + pad.w, pad.z + pad.d],
@@ -1252,6 +1275,49 @@
         return v;
     }
 
+    /* Where a pad's sides are at a given z: its own cell, unless one side is
+       a mown line (courses.mow), in which case physics says where — the one
+       function the ball asks as well, so the grass stops where the fairway
+       does. */
+    function edgesAt(pad, z) {
+        return [pad.west ? P.mowEdge(pad.west, z) : pad.x,
+                pad.east ? P.mowEdge(pad.east, z) : pad.x + pad.w];
+    }
+
+    /* The grid of a mown pad, row by row, stretched between its two edges.
+
+       The columns are still the cell's own — what is moved is each row of
+       vertices, squeezed or spread so its first and last land exactly on the
+       edges at that z. That keeps the grid a grid (no triangle collapses to a
+       line, so the normals are the ground's) and makes the edge exact at
+       every row, which is also the row the pad on the other side samples, so
+       the two meet vertex for vertex.
+
+       The cup's square is the one thing that may not move: the grid has a
+       hole cut for it at fixed columns and a patch stitched into that hole.
+       So the squeeze is done either side of it and the columns through it are
+       left where they are. A mown line never comes within a patch of a pin —
+       there is a green over every cup on a mown hole — and if one did, the
+       edge gives way rather than the hole, a few centimetres under a green
+       where nothing is drawn on top of the ground but grass. */
+    function mownFit(pad, xs, zs, cx, cz, cut) {
+        if (!pad.west && !pad.east) return null;
+        var nx = xs.length, x0 = xs[0], x1 = xs[nx - 1], lo = [], hi = [], j, e;
+        var ca = cut ? cut.x - cut.h : 0, cb = cut ? cut.x + cut.h : 0;
+        for (j = 0; j < zs.length; j++) {
+            e = edgesAt(pad, cz + zs[j]);
+            lo.push(cut ? Math.min(e[0] - cx, ca - 0.05) : e[0] - cx);
+            hi.push(cut ? Math.max(e[1] - cx, cb + 0.05) : e[1] - cx);
+        }
+        return function (i, j) {
+            var x = xs[i];
+            if (!cut) return lo[j] + (x - x0) / (x1 - x0) * (hi[j] - lo[j]);
+            if (x <= ca) return ca - x0 < 1e-6 ? lo[j] : lo[j] + (x - x0) / (ca - x0) * (ca - lo[j]);
+            if (x >= cb) return x1 - cb < 1e-6 ? hi[j] : cb + (x - cb) / (x1 - cb) * (hi[j] - cb);
+            return x;
+        };
+    }
+
     /* A rectangle of ground, subdivided and pushed into shape by the same
        function the ball stands on — with a square missing from it where the
        cup goes, if this is the pad the cup is cut into.
@@ -1266,13 +1332,14 @@
         var nx = xs.length, nz = zs.length;
         var pos = new Float32Array(nx * nz * 3);
         var uv = new Float32Array(nx * nz * 2);
-        var idx = [], i, j, k;
+        var idx = [], i, j, k, x, fit = mownFit(pad, xs, zs, cx, cz, cut);
 
         for (i = 0; i < nx; i++) {
             for (j = 0; j < nz; j++) {
                 k = i * nz + j;
-                pos[k * 3] = xs[i];
-                pos[k * 3 + 1] = P.padHeight(pad, cx + xs[i], cz + zs[j]) - cy;
+                x = fit ? fit(i, j) : xs[i];
+                pos[k * 3] = x;
+                pos[k * 3 + 1] = P.padHeight(pad, cx + x, cz + zs[j]) - cy;
                 pos[k * 3 + 2] = zs[j];
             }
         }
