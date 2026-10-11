@@ -205,13 +205,27 @@
        circle cannot break any of them. A pad with no wave is the circle it
        always was. */
     function padRadius(pad, ang) {
-        var w = pad.wave, i, s;
-        if (!w) return pad.r;
+        var w = pad.wave, i, s, r = pad.r, c, n;
+        /* A round pad may be an oval, and a bunker usually is: a circle is
+           what a compass draws, and a hollow scraped out of a hillside is
+           longer one way than the other. `rx` and `rz` are the semi-axes and
+           `pad.r` the longer of the two — which is what everything measuring a
+           disc from the outside keeps using, since an ellipse inside its own
+           bounding circle can no more break a clearance than a wave can.
+
+           The branch is skipped for a true circle, which is most of them, and
+           this is asked on every substep. */
+        if (pad.rx && pad.rx !== pad.rz) {
+            c = Math.cos(ang) * pad.rz;
+            n = Math.sin(ang) * pad.rx;
+            r = pad.rx * pad.rz / Math.sqrt(c * c + n * n);
+        }
+        if (!w) return r;
         s = -w.bite;
         for (i = 0; i < w.terms.length; i++) {
             s += w.terms[i][1] * Math.sin(w.terms[i][0] * ang + w.terms[i][2]);
         }
-        return pad.r * (1 + s);
+        return r * (1 + s);
     }
 
     function padContains(pad, x, z) {

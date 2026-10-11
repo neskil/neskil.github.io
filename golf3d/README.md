@@ -1760,7 +1760,16 @@ fault everywhere else.
   the hole's own name, so a hole's ground is the same ground on every load and
   no two holes share a shape. See [Relief on a drawn hole](#relief-on-a-drawn-hole).
 - **circle** — a disc pad, and an inlay: laid into whatever it is standing on
-  rather than cut out of it. Round greens and round bunkers.
+  rather than cut out of it. Round greens and round bunkers; give it an `rz`
+  and it is an oval, which is what most bunkers want.
+- **inlay** — the same disc, laid into ground that already exists instead of at
+  a height written by hand. It reads the pad under its middle and takes that
+  pad's cross-fall and level, so a disc on a tilted row is flush with the row;
+  a bunker takes the ground's humps as well and lies on the hillside it was cut
+  into. A green does not — a disc with humps is drawn as terrain, which cannot
+  punch a cup — so a green goes where the field is flat. Every long-game green
+  and bunker is written this way now; see
+  [Round greens and oval bunkers](#round-greens-and-oval-bunkers).
 - **sprung / belt / pipe** — the ground doing something rather than sitting
   still: a launch pad laid into the floor as a disc, a pad with an acceleration
   on it, and a mouth with somewhere it puts you. See
@@ -2027,6 +2036,40 @@ the ground under the sand still does: until the terrain mesh itself can be
 punched to the curve, an inlay is flush or it is wrong. Whinstone's ten bunkers
 get the rest of the pass instead — the raked sheet and the height field under
 it — which is most of what was missing from them anyway.
+
+#### Round greens and oval bunkers
+
+The long game used to cut its greens and bunkers out of `bands` rows, which
+made every one of them a rectangle: a beige slab with four right-angled
+corners pasted on a hillside, and a green that was a mown square. From the tee
+they were the first thing the eye found, and they were the reason the long
+courses read as tiled rather than grown.
+
+They are all inlays now — `inlay(pads, cx, cz, r, kind, rz)` — and the row cell
+they used to occupy is fairway or rough. Three things make that work:
+
+- **An oval is a disc with two radii.** `physics.padRadius` is still the one
+  function that answers where a round pad's edge is; it now answers for an
+  ellipse with the wave on top. `pad.r` is the longer semi-axis and `rIn` the
+  shorter one shrunk by the wave, so every fast path that bounds a disc from
+  outside or inside keeps working unchanged. Hell's Half Acre on Long Meadow is
+  one oval eighteen units across, deliberately wider than the fairway: an
+  ellipse gives back its ends, and a belt that only just spanned the mown grass
+  would leave a way round it at each edge.
+- **An inlay reads the ground rather than being told a height.** A level disc
+  on a row that falls at a fifth is a table with daylight under one edge. So
+  `inlay` takes the cross-fall of the pad under its middle and sets its own
+  level from it, and a bunker takes the ground's humps too. Whinstone's moor
+  bunkers follow the same rule.
+- **`tests.html` measures it.** *Every inlay lies flush with the ground it is
+  laid into* walks the inside of every inlay on every hole against the highest
+  ground under it, to two millimetres. Standing proud is a lip and a gap under
+  the rim; sitting low is worse, because an inlay only wins a *tie* in
+  `surfaceUnder` — the ball would be on fairway in the middle of a bunker.
+
+What this costs is the long game's bunker *dish*: an inlay is never scooped,
+for the reason in the paragraph above. They are a shape you can see rather than
+a step, which is the trade Whinstone made from the start.
 
 **Rails are generated, not authored.** `enclose()` walks the boundary of the pad
 union and puts a rail on every edge that has no neighbouring pad at roughly the
