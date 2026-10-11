@@ -61,6 +61,7 @@ them.
 | `js/postfx.js` | What happens to the picture after the course is drawn: bloom, light shafts, tone mapping, grade. |
 | `js/flyover.js` | The intro sweep's path: four keys, a curve through them, and the rule that keeps it out of the hillside. Pure — no three.js, no DOM. |
 | `js/bot.js` | The greedy player: fan out candidate shots, keep the one that finishes nearest the cup, refine twice. Pure — no three.js, no DOM. What proves every hole is solvable in `tests.html`, and what plays for you in [autoplay](#the-caddie-autoplay). |
+| `js/life.js` | What is on a long hole that is not the hole: the [dressing](#the-life-on-the-long-game) `courses.dress` lays out, built as one mesh, and the flock, the ducks and the butterflies, stepped every frame. Loaded before `render.js` on every page that loads it. |
 | `js/render.js` | The course, in three.js: geometry, lights, camera and the frame. |
 | `js/minimap.js` | The hole from above, drawn per pixel out of `physics.surfaceUnder` — the course picker's plans and the one on the hole card. |
 | `js/bag.js` | The club picker: a modelled bag that rides in front of the camera, holding whichever clubs this hole hands out. |
@@ -3192,6 +3193,53 @@ green's own sheets and the green's own colour map, tiled about twice as big so
 the mow bands come out wider, half again as tall, and darkened by its material.
 Three grasses, one set of blades, and what tells them apart is height and
 stripe width — which is what tells them apart on a real course too.
+
+### The life on the long game
+
+A long hole is played over a lot of ground, and for a long time all of it was
+grass and the hole: correct, and as still as a photograph of a model. Three
+things change that, and each is held to the same rule the rest of the game is
+— nothing the ball cannot feel may stand where the ball visibly passes
+through it.
+
+**Hummocks** (`courses.hummocks`) roll the rough. Every shaped open hole gets
+thirty-odd raised cosines from a seed made of its name, in the rough only:
+every sample over each one's disc has to land on rough lying at under a
+quarter of a gradient, clear of the fairway, the greens, the sand, the water
+and the tee and cup clearings. They are gentle — a third of what rough holds a
+ball on — and placed only where the ground already there leaves room for one
+under `HOLD.rough`, because a hummock on the flank of a massif adds to the
+massif. Trees and rocks are seated after them, so they stand on them.
+
+**The dressing** (`courses.dress`) is the small stuff a course is full of:
+markers either side of the tee in one of three colours, a ball washer and a bin
+behind it, a cart parked further back, a rake on the grass by every bunker,
+patches of flowers in the rough in the course's own colours (heather and gorse
+on the heath, sea pinks on the links, desert flowers in the canyon), and scrub
+out in the country past the stakes. It is `h.dressing` rather than `decor`,
+because decor is authored and this is regenerated from the hole every build.
+Where each kind may stand is the whole design: anything with height behind the
+tee or out of bounds, scrub out of bounds only, flowers in the rough, markers
+beside the tee and not in front of it. `life.js` builds all of it into **one
+mesh per hole** with the colour carried per vertex, because a phone pays for
+draw calls long before it pays for triangles.
+
+**The life** moves: a flock circles the hole, banked into the turn and gliding
+a beat every so often (gulls on the links, slower and paler); a pair of ducks
+paddles a figure of eight on any pond that is not the sea; butterflies wander
+over the flower patches; and every tree leans with the wind and rocks with the
+gusts, its crown pivoting at the top of its trunk rather than wobbling about
+its own middle. All of it runs off the same clock and wind as the grass and
+the flag, and none of it is on a mini golf lane — a flock circling a model on
+a table is a mobile.
+
+There is a third tree, too: a round one, three soft clumps in a warmer green,
+so a treeline reads as several kinds of tree rather than two shapes repeated.
+
+`tests.html` holds the hummocks and the dressing to their rules;
+`shader-tests.html` builds a pond hole and checks the flock, the ducks, the
+butterflies and the swaying crowns are there and move with the clock, and that
+a mini golf lane has none of them.
 
 ### The country beyond the hole
 

@@ -47,6 +47,19 @@ card shapes are already there to hang a third off (`CARDS` in `bag.js`).
 
 Kept short, and only where it explains a constraint above.
 
+- **The long game came alive** (v1.56.0): hummocks in the rough, a dressing of
+  props on every open hole, birds, ducks, butterflies and trees that sway —
+  README → "The life on the long game". Two constraints worth keeping. **A
+  hummock adds to whatever slope is already there**, and the first pass only
+  asked about the row's tilt: one landed on a massif's flank and made rough a
+  ball rolls off. Placement now asks the ground's own slope. **Generated props
+  are not decor**: decor is authored and the editor shows it, so the dressing
+  is a list of its own that the editor never sees and every build regenerates.
+  Distance plates were tried and left out: they lie on the line of play,
+  which is exactly where a non-solid thing is a lie. Still open: §1 above,
+  the same life for the drawn holes, which wants a different answer (a model
+  on a table does not have birds circling it).
+
 - **Fairways are mown, not ruled** (v1.54.0). The seam between a fairway and
   its rough is a curve now (README → "mow"), on all four long courses. The
   constraint worth keeping: **a pad's x and w are still the cell it was
