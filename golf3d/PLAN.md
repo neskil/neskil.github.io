@@ -47,7 +47,7 @@ card shapes are already there to hang a third off (`CARDS` in `bag.js`).
 
 Kept short, and only where it explains a constraint above.
 
-- **Fairways are mown, not ruled** (v1.53.0). The seam between a fairway and
+- **Fairways are mown, not ruled** (v1.54.0). The seam between a fairway and
   its rough is a curve now (README → "mow"), on all four long courses. The
   constraint worth keeping: **a pad's x and w are still the cell it was
   written as**, and the curve lives only in the shared `west`/`east` edge.
