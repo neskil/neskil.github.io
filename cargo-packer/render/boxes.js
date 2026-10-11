@@ -6,9 +6,9 @@
   'use strict';
 
   class BoxRenderer {
-    constructor(sceneManager) {
+    constructor(sceneManager, group) {
       this.sceneManager = sceneManager;
-      this.group = sceneManager.cargoGroup;
+      this.group = group || sceneManager.cargoGroup;
       this.meshMap = new Map(); // id -> mesh
       this.highlightMesh = null;
 
@@ -86,11 +86,15 @@
       } else if (boxData.category === 'tube') {
         // Cylinder for postal tubes / pipes
         const isUpright = boxData.h > boxData.w && boxData.h > boxData.d;
-        const radius = Math.min(boxData.w, isUpright ? boxData.d : boxData.h) / 2;
+        const alongX = !isUpright && boxData.w >= boxData.d;
+        // Radius from the two sides across the tube, so it stays inside its box
+        const radius = (isUpright ? Math.min(boxData.w, boxData.d)
+          : alongX ? Math.min(boxData.h, boxData.d)
+          : Math.min(boxData.w, boxData.h)) / 2;
         const len = isUpright ? boxData.h : Math.max(boxData.w, boxData.d);
         geo = new THREE.CylinderGeometry(radius, radius, len, 20);
         if (!isUpright) {
-          if (boxData.w >= boxData.d) geo.rotateZ(Math.PI / 2);
+          if (alongX) geo.rotateZ(Math.PI / 2);
           else geo.rotateX(Math.PI / 2);
         }
       } else {

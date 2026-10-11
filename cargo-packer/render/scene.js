@@ -54,10 +54,18 @@
       this.containerGroup = new THREE.Group();
       this.cargoGroup = new THREE.Group();
       this.visualizerGroup = new THREE.Group();
+      // Second load for side-by-side compare; only drawn in split view
+      this.cargoGroupB = new THREE.Group();
+      this.cargoGroupB.visible = false;
 
       this.scene.add(this.containerGroup);
       this.scene.add(this.cargoGroup);
+      this.scene.add(this.cargoGroupB);
       this.scene.add(this.visualizerGroup);
+
+      // Split view: null, or two {x, y, w, h} panes in CSS px from the top-left
+      // of the canvas. Both panes share one camera, so orbiting one turns both.
+      this.panes = null;
 
       // Resize listener
       window.addEventListener('resize', () => this.onResize());
@@ -127,7 +135,11 @@
       }
 
       if (preset === 'isometric') {
-        this.camera.position.set(-wid * 2.2, hgt * 3.2, -len * 0.4);
+        // From the open corner (glass side wall + loading doors), looking into
+        // the far one where the back bulkhead, the solid side wall and the
+        // floor meet; loading starts there, so the stack grows towards you.
+        const reach = Math.max(len, wid * 2.5);
+        this.camera.position.set(-reach * 0.68, hgt * 2.4, len / 2 + reach * 0.84);
       } else if (preset === 'cutaway') {
         // Direct side view into the cutaway transparent wall
         this.camera.position.set(-wid * 3.0, hgt * 1.0, len * 0.5);
@@ -138,13 +150,40 @@
         this.camera.position.set(wid / 2, hgt * 0.9, len * 2.2);
       }
 
+      // Presets are framed for a landscape viewport; on a narrow one the
+      // horizontal field of view shrinks, so back the camera off to match.
+      const aspect = this.viewAspect();
+      if (aspect < 1.15) {
+        const pullBack = Math.min(2.0, 1.15 / aspect);
+        this.camera.position.sub(target).multiplyScalar(pullBack).add(target);
+      }
+
       if (this.controls) this.controls.update();
+    }
+
+    /** Aspect ratio of what one view shows: a pane in split view, else the canvas. */
+    viewAspect() {
+      const p = this.panes && this.panes[0];
+      return p ? p.w / p.h : this.width / this.height;
+    }
+
+    /**
+     * Switches between one view and two side-by-side panes.
+     * @param {Array<{x:number,y:number,w:number,h:number}>|null} panes
+     */
+    setPanes(panes) {
+      this.panes = panes && panes.length === 2 ? panes : null;
+      this.cargoGroupB.visible = false;
+      this.cargoGroup.visible = true;
+      this.visualizerGroup.visible = true;
+      this.camera.aspect = this.viewAspect();
+      this.camera.updateProjectionMatrix();
     }
 
     onResize() {
       this.width = this.container.clientWidth || window.innerWidth;
       this.height = this.container.clientHeight || window.innerHeight;
-      this.camera.aspect = this.width / this.height;
+      this.camera.aspect = this.viewAspect();
       this.camera.updateProjectionMatrix();
       this.renderer.setSize(this.width, this.height);
     }
@@ -152,7 +191,29 @@
     animate() {
       requestAnimationFrame(this.animate);
       this.controls.update();
-      this.renderer.render(this.scene, this.camera);
+
+      if (!this.panes) {
+        this.renderer.render(this.scene, this.camera);
+        return;
+      }
+
+      // Same scene, same camera, drawn twice: once per load.
+      const r = this.renderer;
+      r.setScissorTest(false);
+      r.clear();
+      r.setScissorTest(true);
+      this.visualizerGroup.visible = false;
+      for (let i = 0; i < 2; i++) {
+        const p = this.panes[i];
+        const y = this.height - p.y - p.h; // WebGL counts from the bottom
+        this.cargoGroup.visible = i === 0;
+        this.cargoGroupB.visible = i === 1;
+        r.setViewport(p.x, y, p.w, p.h);
+        r.setScissor(p.x, y, p.w, p.h);
+        r.render(this.scene, this.camera);
+      }
+      r.setScissorTest(false);
+      r.setViewport(0, 0, this.width, this.height);
     }
   }
 

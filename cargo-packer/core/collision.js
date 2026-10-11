@@ -100,6 +100,30 @@
   }
 
   /**
+   * Height a box with this X-Z footprint comes to rest at when lowered from
+   * above: the highest top face of anything already placed beneath it, or the
+   * floor. Layered heuristics (shelves, wall tiers) open each new layer at the
+   * height of the previous layer's tallest box; placing at that line leaves a
+   * box hanging over the shorter ones, so they settle it with this instead.
+   * @param {number} x
+   * @param {number} z
+   * @param {number} w
+   * @param {number} d
+   * @param {Array<Object>} placedList
+   * @returns {number}
+   */
+  function restingHeight(x, z, w, d, placedList, eps = EPS) {
+    let y = 0;
+    for (let i = 0; i < placedList.length; i++) {
+      const p = placedList[i];
+      if (x + w - eps <= p.x || x >= p.x + p.w - eps) continue;
+      if (z + d - eps <= p.z || z >= p.z + p.d - eps) continue;
+      if (p.y + p.h > y) y = p.y + p.h;
+    }
+    return y;
+  }
+
+  /**
    * Calculates total contact area between candidate and all adjacent surfaces
    * (container walls, floor, and adjacent box faces). Useful for packing compactness.
    * @param {Object} candidate
@@ -148,6 +172,7 @@
   exports.insideContainer = insideContainer;
   exports.hasCollision = hasCollision;
   exports.computeSupport = computeSupport;
+  exports.restingHeight = restingHeight;
   exports.computeContactArea = computeContactArea;
 
 })(typeof module !== 'undefined' && module.exports ? module.exports : (window.CargoPacker = window.CargoPacker || {}));

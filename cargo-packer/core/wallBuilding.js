@@ -33,13 +33,16 @@
     let currentZ = 0;
 
     while (unassigned.length > 0 && currentZ < container.length - 0.2) {
-      // 1. Determine target wall depth based on the largest remaining prominent item
+      // 1. Determine target wall depth: the shortest side of the largest
+      //    remaining item that still fits along the length. Its longest side
+      //    (the old choice) made walls as deep as a beam is long, and the
+      //    container ran out of length with a third of the cargo still waiting.
       let wallDepth = 0;
       for (let i = 0; i < unassigned.length; i++) {
         const it = unassigned[i];
         const oris = Types.getOrientations(it.w, it.h, it.d, it.allowedOrientations || 'any');
         for (let o = 0; o < oris.length; o++) {
-          if (oris[o].d > wallDepth && currentZ + oris[o].d <= container.length + EPS) {
+          if (currentZ + oris[o].d <= container.length + EPS && (wallDepth === 0 || oris[o].d < wallDepth)) {
             wallDepth = oris[o].d;
           }
         }
@@ -71,13 +74,18 @@
             // Item depth should fit reasonably within wall depth (e.g. within 30% or exact)
             if (ori.d > wallDepth * 1.35 || currentZ + ori.d > container.length + EPS) continue;
             if (cursorX + ori.w > container.width + EPS) continue;
-            if (tierY + ori.h > container.height + EPS) continue;
+
+            // Settle onto the tier below instead of hanging at the tier line,
+            // which sits at the tallest box beneath and floats over the rest.
+            const y = Collision.restingHeight(cursorX, currentZ, ori.w, ori.d, placed);
+            if (y > tierY + EPS) continue;
+            if (y + ori.h > container.height + EPS) continue;
 
             const cand = {
               id: item.id || `box_${placed.length}`,
               name: item.name || `Box ${placed.length + 1}`,
               x: cursorX,
-              y: tierY,
+              y: y,
               z: currentZ,
               w: ori.w,
               h: ori.h,
@@ -85,6 +93,7 @@
               weight: item.weight || 15,
               color: item.color || '#38bdf8',
               category: item.category || 'carton',
+              boxStyle: item.boxStyle,
               fragile: item.fragile || false,
               rotIndex: ori.rotIndex
             };
@@ -107,7 +116,7 @@
             wallPlacedCount++;
             tierPlacedCount++;
             cursorX += bestFit.w;
-            if (bestFit.h > tierHeight) tierHeight = bestFit.h;
+            if (bestFit.y + bestFit.h - tierY > tierHeight) tierHeight = bestFit.y + bestFit.h - tierY;
             if (bestFit.z + bestFit.d > wallMaxZ) wallMaxZ = bestFit.z + bestFit.d;
 
             steps.push({

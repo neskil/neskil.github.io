@@ -192,6 +192,14 @@ cargo-packer/
 - [x] **6.5 Collapsible Mobile Drawers & Responsive Sizing**: Slide-in left/right drawers with top-bar toggles, close buttons, backdrop dismiss, and compact mobile dock scaling.
 - [x] **6.6 Extended Headless Test Suite**: 51/51 green assertions covering PRNG determinism, random manifest generation, irregular packing, and comparison metrics.
 
+### Phase 7: Physical Stacking, Fair Showdown & Side-by-Side
+- [x] **7.1 No floating boxes**: First-Fit and Wall-Building settle each box onto what is beneath it instead of the layer line; First-Fit enforces the 60% support rule like the others. Headless test packs every preset + 12 random seeds and fails on any unsupported box.
+- [x] **7.2 Wall depth**: walls take the largest item's shortest side, not its longest (Extreme Aspect Ratios: 54/54 loaded, was 37/54).
+- [x] **7.3 Showdown tie-break**: rank by fill, then boxes loaded, then load density; insight explains what decided it.
+- [x] **7.4 Side-by-side compare**: split view with per-pane algorithm picker and live stats; shared orbit camera.
+- [x] **7.5 Opening camera**: looks into the loading corner (bulkhead + solid wall + floor) from the open side; presets reframe for portrait viewports and panes.
+- [x] **7.6 Headless suite**: 55/55 green.
+
 ---
 
 ## 5. Architectural Invariants & Non-Negotiables

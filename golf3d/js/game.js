@@ -1921,8 +1921,72 @@
         }
     }
 
+    /* ── starting fullscreen ──────────────────────────────────────────
+
+       A browser goes fullscreen only off a press, so the game cannot open in
+       it — but the first thing anybody does is press Start, or pick a course,
+       and on a desktop that press takes the page fullscreen with it. The
+       picker's switch is where that is said and where it is turned off, and
+       the answer is remembered. Phones are left out: there the browser's own
+       bars come and go with the scroll anyway, and a fullscreen nobody asked
+       for is a page they cannot find the way out of. */
+    function fsAutoAvailable() {
+        var el = $('viewport');
+        if (!(el.requestFullscreen || el.webkitRequestFullscreen)) return false;
+        return !!(window.matchMedia && window.matchMedia('(pointer: fine)').matches);
+    }
+
+    function fsAutoWanted() {
+        if (!fsAutoAvailable()) return false;
+        try { return localStorage.getItem(C.FS_AUTO_KEY) !== '0'; } catch (e) { return true; }
+    }
+
+    // Quietly: a press that was not allowed to (a wheel, an Escape) is
+    // refused by the browser, and that refusal is nobody's error.
+    function enterFullscreen() {
+        if (fullscreenElement()) return;
+        var el = $('viewport');
+        var go = el.requestFullscreen || el.webkitRequestFullscreen;
+        if (!go) return;
+        try {
+            var p = go.call(el);
+            if (p && p.catch) p.catch(function () { /* refused */ });
+        } catch (e) { /* refused */ }
+    }
+
+    // Called from inside the press that starts a round, never from a timer.
+    function maybeAutoFullscreen() {
+        if (fsAutoWanted()) enterFullscreen();
+    }
+
+    function syncFsSwitch() {
+        var el = $('menu-fs');
+        if (!el) return;
+        el.hidden = !fsAutoAvailable();
+        if (el.hidden) return;
+        var on = fsAutoWanted();
+        var full = !!fullscreenElement();
+        el.setAttribute('aria-checked', on ? 'true' : 'false');
+        el.classList.toggle('beckoning', on && !full);
+        $('menu-fs-sub').textContent = !on
+            ? 'Off — the course stays inside the page'
+            : full ? 'You are fullscreen · Esc steps back out'
+                   : 'Pick a course and it fills your screen';
+    }
+
+    /* Switching it on is itself a press, so it goes fullscreen there and then
+       rather than promising to later; switching it off leaves. */
+    function toggleFsAuto() {
+        var on = !fsAutoWanted();
+        try { localStorage.setItem(C.FS_AUTO_KEY, on ? '1' : '0'); } catch (e) { /* ignore */ }
+        if (on) enterFullscreen();
+        else if (fullscreenElement()) toggleFullscreen();
+        syncFsSwitch();
+    }
+
     function onFullscreenChange() {
         var on = !!fullscreenElement();
+        syncFsSwitch();
         $('btn-full').classList.toggle('on', on);
         document.body.classList.toggle('is-full', on);
         syncCompact();
@@ -2418,6 +2482,7 @@
     function takeCourse(id, hole) {
         if (menuTaking) return;
         menuTaking = true;
+        maybeAutoFullscreen();
         newRound(id, hole);
     }
 
@@ -3221,6 +3286,7 @@
        handed the club, and then the game opens on the course list. */
     function leaveDemo() {
         if (!demo) return;
+        maybeAutoFullscreen();
         var id = state.course.id;
         stopDemo();
         newRound(id);
@@ -3449,7 +3515,7 @@
         // handler would otherwise hand it an Event.
         $('btn-courses').addEventListener('click', function () { openMenu(); });
         if ($('btn-range')) $('btn-range').addEventListener('click', function () { newRound('range'); });
-        if ($('menu-btn-range')) $('menu-btn-range').addEventListener('click', function () { closeMenu(); newRound('range'); });
+        if ($('menu-btn-range')) $('menu-btn-range').addEventListener('click', function () { maybeAutoFullscreen(); closeMenu(); newRound('range'); });
         $('btn-card').addEventListener('click', function () { openCard(null); });
         $('btn-map').addEventListener('click', function () { toggleMiniMap(); });
         $('btn-view').addEventListener('click', cycleSeat);
@@ -3560,8 +3626,12 @@
             drawShuffle();
         });
         $('menu-close').addEventListener('click', function () {
-            if (state && state.world) closeMenu();
+            if (!(state && state.world)) return;
+            maybeAutoFullscreen();
+            closeMenu();
         });
+        $('menu-fs').addEventListener('click', toggleFsAuto);
+        syncFsSwitch();
 
         // Before the first buildHole, so the sea is compiled once, the way the
         // player left it.

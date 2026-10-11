@@ -135,6 +135,120 @@ header.top-bar {
   border-color: var(--glass-border-focus);
 }
 
+/* ── Side-by-side Compare ────────────────────────────────────────── */
+.btn-compare {
+  width: auto;
+  gap: 6px;
+  padding: 0 10px;
+  font-family: var(--font-body);
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.btn-compare.active {
+  background: var(--accent-orange-dark);
+  border-color: var(--accent-orange);
+  color: #ffffff;
+  box-shadow: 0 0 10px rgba(249, 115, 22, 0.45);
+}
+
+.compare-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+}
+
+.compare-overlay[hidden] {
+  display: none;
+}
+
+.compare-divider {
+  position: absolute;
+  background: linear-gradient(180deg, rgba(249, 115, 22, 0), rgba(249, 115, 22, 0.55), rgba(249, 115, 22, 0));
+  border-radius: 1px;
+}
+
+.compare-pane {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding-top: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 12px;
+}
+
+.compare-tag {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  pointer-events: auto;
+  background: var(--bg-card);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid var(--glass-border);
+  border-radius: 999px;
+  padding: 3px 6px 3px 10px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+}
+
+.compare-trophy[hidden] {
+  display: none;
+}
+
+.compare-select {
+  appearance: none;
+  -webkit-appearance: none;
+  background: transparent url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%2394a3b8' stroke-width='1.6' fill='none'/%3E%3C/svg%3E") no-repeat right 6px center;
+  border: none;
+  color: var(--text-primary);
+  font-family: var(--font-heading);
+  font-size: 0.9rem;
+  font-weight: 700;
+  padding: 2px 22px 2px 2px;
+  cursor: pointer;
+}
+
+.compare-select:focus-visible {
+  outline: 2px solid var(--accent-cyan);
+  border-radius: 6px;
+}
+
+.compare-select option {
+  background: #0f172a;
+  color: var(--text-primary);
+}
+
+.compare-stats {
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+  color: #cbd5e1;
+  background: var(--bg-card);
+  border-radius: 6px;
+  padding: 2px 8px;
+  white-space: nowrap;
+}
+
+.btn-showdown-compare {
+  background: rgba(249, 115, 22, 0.14);
+  border: 1px solid rgba(249, 115, 22, 0.45);
+  color: #fdba74;
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-family: var(--font-body);
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-showdown-compare:hover {
+  background: rgba(249, 115, 22, 0.28);
+  color: #ffffff;
+}
+
 /* ── Left Control Sidebar ────────────────────────────────────────── */
 aside.left-drawer {
   position: absolute;
@@ -377,6 +491,7 @@ aside.right-hud {
   padding: 2px 8px;
   border-radius: 999px;
   text-transform: uppercase;
+  white-space: nowrap;
 }
 
 .status-optimal {
@@ -463,6 +578,13 @@ aside.right-hud {
   font-weight: 700;
   font-size: 0.85rem;
   color: var(--text-primary);
+}
+
+.showdown-sub {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.66rem;
+  color: var(--text-secondary);
 }
 
 .showdown-bar-bg {
@@ -761,6 +883,23 @@ nav.playback-bar {
     height: 30px;
   }
 
+  .btn-compare {
+    width: 30px;
+    padding: 0;
+  }
+
+  .btn-compare-label {
+    display: none;
+  }
+
+  .compare-select {
+    font-size: 0.8rem;
+  }
+
+  .compare-stats {
+    font-size: 0.66rem;
+  }
+
   nav.playback-bar {
     bottom: 0.5rem;
     padding: 0.35rem 0.65rem;
@@ -822,5 +961,44 @@ nav.playback-bar {
   .cog-radar {
     width: 140px;
     height: 70px;
+  }
+}
+
+/* The compare toggle joins the header on phones; the logo alone identifies
+   the app there, so its name makes room. */
+@media (max-width: 480px) {
+  .brand-title {
+    display: none;
+  }
+}
+
+/* The smallest phones (320px): drop the logo too and tighten the dock so
+   the home button and the speed toggle stay on screen. */
+@media (max-width: 360px) {
+  .brand-icon {
+    display: none;
+  }
+
+  nav.playback-bar {
+    gap: 0.35rem;
+    padding: 0.3rem 0.45rem;
+  }
+
+  .playback-buttons {
+    gap: 0.15rem;
+  }
+
+  .ctrl-btn {
+    width: 28px;
+    height: 28px;
+  }
+
+  .ctrl-btn.play-btn {
+    width: 34px;
+    height: 34px;
+  }
+
+  .progress-wrap {
+    min-width: 48px;
   }
 }
