@@ -186,6 +186,7 @@
             weight: item.weight || 15,
             color: item.color || '#38bdf8',
             category: item.category || 'carton',
+            boxStyle: item.boxStyle,
             fragile: item.fragile || false,
             rotIndex: ori.rotIndex
           };

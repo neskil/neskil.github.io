@@ -239,6 +239,7 @@
           comparison: this.comparison,
           selectedScenario: this.selectedScenario,
           selectedAlgorithm: this.selectedAlgorithm,
+          selectedContainer: this.selectedContainer,
           randomSeed: window.CargoPacker.getRandomSeed ? window.CargoPacker.getRandomSeed() : null
         });
       }

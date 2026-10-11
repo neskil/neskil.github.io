@@ -129,7 +129,7 @@
           </button>
           <button type="button" class="chip-btn" data-scenario="ecommerce">
             <strong>E-Commerce Express</strong>
-            <span class="chip-desc">82 heterogeneous parcels across 7 size categories</span>
+            <span class="chip-desc">84 heterogeneous parcels across 7 size categories</span>
           </button>
           <button type="button" class="chip-btn" data-scenario="industrial">
             <strong>Industrial Machinery &amp; Drums</strong>
@@ -388,6 +388,7 @@
       if (q.has('cam')) {
         const spec = CP.CONTAINERS[controller.selectedContainer];
         sceneManager.setCameraPreset(q.get('cam'), spec);
+        ui.syncCamButtons(q.get('cam'));
       }
       if (q.has('step')) {
         const s = parseInt(q.get('step'), 10);

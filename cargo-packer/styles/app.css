@@ -377,6 +377,7 @@ aside.right-hud {
   padding: 2px 8px;
   border-radius: 999px;
   text-transform: uppercase;
+  white-space: nowrap;
 }
 
 .status-optimal {
@@ -463,6 +464,13 @@ aside.right-hud {
   font-weight: 700;
   font-size: 0.85rem;
   color: var(--text-primary);
+}
+
+.showdown-sub {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.66rem;
+  color: var(--text-secondary);
 }
 
 .showdown-bar-bg {

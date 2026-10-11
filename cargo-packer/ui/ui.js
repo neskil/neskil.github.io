@@ -298,7 +298,24 @@
       });
     }
 
+    syncCamButtons(cam) {
+      document.querySelectorAll('[data-cam]').forEach(b => {
+        b.classList.toggle('active', b.dataset.cam === cam);
+      });
+    }
+
     renderState(state) {
+      // 0. Selection chips follow the controller, so deep links (?scenario=,
+      //    ?algo=) and showdown-row clicks highlight what is actually loaded.
+      document.querySelectorAll('[data-scenario]').forEach(b => {
+        b.classList.toggle('active', b.dataset.scenario === state.selectedScenario);
+      });
+      document.querySelectorAll('[data-algo]').forEach(b => {
+        b.classList.toggle('active', b.dataset.algo === state.selectedAlgorithm);
+      });
+      this.syncContainerButtons(state.selectedContainer);
+      this.updateAlgoExplainer(state.selectedAlgorithm);
+
       // 1. Play/Pause button icons
       if (this.playIcon && this.pauseIcon) {
         this.playIcon.style.display = state.isPlaying ? 'none' : 'block';
@@ -333,10 +350,8 @@
         const medals = ['🥇', '🥈', '🥉'];
 
         if (this.showdownWinnerBadgeEl && comp.winner) {
-          const diff = comp.ranking.length > 1
-            ? (comp.ranking[0].volumeUtilization - comp.ranking[1].volumeUtilization).toFixed(1)
-            : '0.0';
-          this.showdownWinnerBadgeEl.textContent = `🏆 ${comp.winner.shortName} (+${diff}%)`;
+          this.showdownWinnerBadgeEl.textContent = `🏆 ${comp.winner.shortName}`;
+          this.showdownWinnerBadgeEl.title = comp.lead;
         }
 
         // Render ranking rows
@@ -353,7 +368,11 @@
                   <span class="showdown-medal">${medals[i] || '•'}</span>
                   <span>${r.shortName}</span>
                 </span>
-                <span class="showdown-val">${r.volumeUtilization}% <span style="font-size:0.68rem; font-weight:normal; color:var(--text-secondary);">(${r.placedCount} pkd)</span></span>
+                <span class="showdown-val">${r.volumeUtilization}%</span>
+              </div>
+              <div class="showdown-sub">
+                <span>${r.placedCount}/${r.totalCount} loaded</span>
+                <span>${r.density}% dense</span>
               </div>
               <div class="showdown-bar-bg">
                 <div class="showdown-bar-fill ${isWinner ? 'winner-bar' : ''}" style="width: ${r.volumeUtilization}%;"></div>
