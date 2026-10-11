@@ -8,7 +8,7 @@
    — the renderer scales to the viewport, the simulation never sees a pixel. */
 window.G3 = window.G3 || {};
 
-G3.VERSION = '1.54.0';
+G3.VERSION = '1.55.0';
 
 G3.CONFIG = {
     BALL_R: 0.16,
@@ -489,6 +489,8 @@ G3.CONFIG = {
     /* '0' once somebody switches off starting rounds fullscreen in the
        picker; anything else, including nothing, means on. */
     FS_AUTO_KEY: 'loftLinks.fsAuto',
+    // Swing school progress on the range: a count per lesson (school.js).
+    SCHOOL_KEY: 'loftLinks.school',
     /* Set the first time a round is played fullscreen, and never unset: it is
        what stops the ⛶ chip reminding someone who already knows. */
     FS_SEEN_KEY: 'loftLinks.fsSeen',

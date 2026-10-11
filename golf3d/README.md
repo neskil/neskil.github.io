@@ -51,6 +51,7 @@ them.
 | `js/audit.js` | The [geometry audit](#the-pictures-which-neither-suite-can-see): the faults that are invisible to the ball and obvious in a screenshot. Pure — read by `tests.html`, by the inspector and by the turntable. |
 | `js/scoring.js` | Scorecard arithmetic and the save file. |
 | `js/swing.js` | The swing gate: what a shot past a full swing costs. No DOM, no three.js. |
+| `js/school.js` | The range's swing school: the lessons, what passes one, and what to say while the marker moves. No DOM, no three.js. |
 | `js/audio.js` | Synthesised sound effects, the weather's sound bed, the mute and the tab-out — no audio files to ship. |
 | `js/music.js` | The house band: a smooth jazz quartet, synthesised a bar at a time. |
 | `js/themes.js` | What each course looks like: a palette per theme, and nothing else. |
@@ -314,6 +315,28 @@ through over a shot that can barely go wrong is a hoop for its own sake.
 `js/swing.js` knows nothing about the DOM or three.js: it is arithmetic over a
 plain object, which is what lets `tests.html` cover all four gates, both edges
 of every miss and the bound on the envelope without a browser.
+
+### The range and its swing school
+
+The four gates rotating by hole is the right design for a round and the wrong
+one for a first meeting: met cold, it reads as the same button doing four
+different things for no reason. The driving range is where that is taught.
+`js/school.js` holds five lessons — **the white line** (land two balls on a
+target green without going past it), then **tempo, return, double and fade**,
+in the order the courses rotate them, three clean strikes each — and the
+panel in the range's top-left corner (game.js → `drawSchool`) shows the one
+in hand, a line of why at the top, and a step under it that says what to do
+*now* while the marker is moving (`stepFor`): "Backswing… wait for the turn",
+then "Coming down — strike on the line!". On the range the gate is the
+lesson's (`variantFor`), not the hole's. "Load it for me" puts the meter
+where the lesson needs it, which for the gates is far enough past the line to
+arm one — `tests.html` checks every preset does. Progress is one key
+(`SCHOOL_KEY`), a count per lesson; it is folded on a phone.
+
+The range itself names its targets: `hole.targets` (courses.js) is the one
+list the greens, the distance boards (render.js → `addBoards`, alternating
+sides so they do not queue behind each other) and the readout after every
+ball ("7 Iron · 15.5 m (carry 6.5) — past the 10 m board") are all made from.
 
 ### The picker
 

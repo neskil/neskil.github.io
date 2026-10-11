@@ -5437,11 +5437,25 @@
 
     /* ── driving range: free practice sandbox ────────────────────────── */
 
+    /* The targets are data rather than five anonymous greens: the renderer
+       stands a distance board behind each one and game.js reports which of
+       them a ball stopped on, both off this one list. `dist` is the distance
+       from the tee to the middle of the green, and is what the board says —
+       tests.html measures it, so a green moved without its number fails. */
+    var RANGE_TEE = { x: 10, z: 5 };
+    var RANGE_TARGETS = [
+        { dist: 10, x: 7, z: 13, w: 6,  d: 4 },
+        { dist: 20, x: 6, z: 22, w: 8,  d: 5 },
+        { dist: 30, x: 5, z: 32, w: 10, d: 6 },
+        { dist: 40, x: 5, z: 42, w: 10, d: 6 },
+        { dist: 50, x: 4, z: 52, w: 12, d: 6 }
+    ];
+
     var rangeHole = build({
         name: 'Driving Range',
         par: 0,
         open: true,
-        blurb: 'Free practice tee to test shots with any club. Target greens, distance markers and unlimited balls.',
+        blurb: 'Targets at 10 to 50 m, unlimited balls, and the swing school.',
         bag: ['driver', 'iron', 'chipper', 'wedge', 'putter', 'mallet', 'checker'],
         pads: [
             pad(7, 2, 6, 6, 0.1, 'wood'),                         // elevated tee deck
@@ -5449,27 +5463,27 @@
             pad(-15, 0, 50, 80, 0, 'fairway'),                    // wide main fairway
             pad(-25, -5, 10, 90, 0, 'rough'),                     // west rough
             pad(35, -5, 10, 90, 0, 'rough'),                      // east rough
-            pad(-15, 80, 50, 15, 0, 'rough'),                     // back rough
-            // Target greens at 10m, 20m, 30m, 40m, 50m
-            pad(7, 13, 6, 4, 0.05, 'green'),                      // 10m target green
-            pad(6, 22, 8, 5, 0.05, 'green'),                      // 20m target green
-            pad(5, 32, 10, 6, 0.05, 'green'),                     // 30m target green
-            pad(5, 42, 10, 6, 0.05, 'green'),                     // 40m target green
-            pad(4, 52, 12, 6, 0.05, 'green'),                     // 50m target green
+            pad(-15, 80, 50, 15, 0, 'rough')                      // back rough
+        ].concat(RANGE_TARGETS.map(function (t) {
+            return pad(t.x, t.z, t.w, t.d, 0.05, 'green');
+        })).concat([
             // Practice bunkers
             pad(18, 22, 6, 7, -0.15, 'sand'),
             pad(-6, 32, 6, 7, -0.15, 'sand'),
             pad(19, 44, 6, 7, -0.15, 'sand')
-        ],
-        tee: { x: 10, z: 5 },
+        ]),
+        tee: RANGE_TEE,
         cup: { x: 10, z: 35 }
+    });
+    rangeHole.targets = RANGE_TARGETS.map(function (t) {
+        return { dist: t.dist, x0: t.x, z0: t.z, x1: t.x + t.w, z1: t.z + t.d };
     });
 
     var rangeCourse = {
         id: 'range',
         group: 'practice',
         name: 'Driving Range',
-        blurb: 'Free practice tee to test shots with any club. Target greens, distance markers and unlimited balls.',
+        blurb: 'Targets at 10 to 50 m, unlimited balls, and the swing school.',
         theme: 'parkland',
         isRange: true,
         holes: [rangeHole]

@@ -3122,6 +3122,62 @@
        rebuilds the hole rather than tweening: half of it is uniforms and would
        tween beautifully, and the other half is material state that would not,
        and a hole that is half sunny is worse than a cut. */
+    /* The range's distance boards: a post at the left-hand edge of each
+       target green with its distance on a board that always faces the camera.
+       A sprite rather than a plane because the whole job is being read from
+       the tee, fifty units off, at whatever angle the seat happens to be;
+       unfogged for the same reason. The faces are drawn once and kept — there
+       are five of them and the range is rebuilt every time it is entered, so
+       making new ones each time would be five textures leaked a visit
+       (disposeGroup frees materials, not the maps under them). */
+    var boardFaces = {};
+
+    function boardFace(text) {
+        if (boardFaces[text]) return boardFaces[text];
+        var cv = document.createElement('canvas');
+        cv.width = 256;
+        cv.height = 128;
+        var c = cv.getContext('2d');
+        c.fillStyle = '#0f2a3a';
+        c.beginPath();
+        if (c.roundRect) c.roundRect(4, 4, 248, 120, 22); else c.rect(4, 4, 248, 120);
+        c.fill();
+        c.lineWidth = 6;
+        c.strokeStyle = '#f8fafc';
+        c.stroke();
+        c.fillStyle = '#f8fafc';
+        c.font = '800 72px Outfit, Inter, system-ui, sans-serif';
+        c.textAlign = 'center';
+        c.textBaseline = 'middle';
+        c.fillText(text, 128, 68);
+        var t = new THREE.CanvasTexture(cv);
+        t.anisotropy = 4;
+        boardFaces[text] = t;
+        return t;
+    }
+
+    function addBoards(g, hole) {
+        var postMat = new THREE.MeshLambertMaterial({ color: 0xe8e2d0 });
+        var postGeo = new THREE.CylinderGeometry(0.06, 0.06, 1.3, 6);
+        /* Alternate sides, so from the tee the boards fan out either side of
+           the line rather than queueing behind the nearest one; and a farther
+           board is a bigger one, so all five read at about the same size. */
+        hole.targets.forEach(function (t, i) {
+            var x = i % 2 ? t.x1 + 0.7 : t.x0 - 0.7, z = (t.z0 + t.z1) / 2;
+            var k = 0.55 + t.dist * 0.02;
+            var post = new THREE.Mesh(postGeo, postMat);
+            post.scale.y = k;
+            post.position.set(x, 0.65 * k, z);
+            g.add(post);
+            var board = new THREE.Sprite(new THREE.SpriteMaterial({
+                map: boardFace(t.dist + ' m'), fog: false, transparent: true
+            }));
+            board.scale.set(2 * k, 1 * k, 1);
+            board.position.set(x, 1.3 * k + 0.5 * k, z);
+            g.add(board);
+        });
+    }
+
     function buildHole(hole, themeName, weatherKind) {
         var theme = G3.themeFor(themeName);
         var W = G3.weather;
@@ -3171,6 +3227,7 @@
         addTeeMark(g, hole);
         addStakes(g, hole, theme);
         for (i = 0; i < (hole.decor || []).length; i++) addDecor(g, hole.decor[i], theme, hole);
+        if (hole.targets) addBoards(g, hole);
 
         // The rain, the mist banks and whatever is drifting in the air are
         // parented to the hole, so the next hole disposes them with it.
