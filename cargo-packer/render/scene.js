@@ -127,7 +127,11 @@
       }
 
       if (preset === 'isometric') {
-        this.camera.position.set(-wid * 2.2, hgt * 3.2, -len * 0.4);
+        // From the open corner (glass side wall + loading doors), looking into
+        // the far one where the back bulkhead, the solid side wall and the
+        // floor meet; loading starts there, so the stack grows towards you.
+        const reach = Math.max(len, wid * 2.5);
+        this.camera.position.set(-reach * 0.68, hgt * 2.4, len / 2 + reach * 0.84);
       } else if (preset === 'cutaway') {
         // Direct side view into the cutaway transparent wall
         this.camera.position.set(-wid * 3.0, hgt * 1.0, len * 0.5);
@@ -136,6 +140,14 @@
       } else if (preset === 'rear') {
         // Looking straight into the loading doors
         this.camera.position.set(wid / 2, hgt * 0.9, len * 2.2);
+      }
+
+      // Presets are framed for a landscape viewport; on a narrow one the
+      // horizontal field of view shrinks, so back the camera off to match.
+      const aspect = this.width / this.height;
+      if (aspect < 1.3) {
+        const pullBack = Math.min(2.0, 1.3 / aspect);
+        this.camera.position.sub(target).multiplyScalar(pullBack).add(target);
       }
 
       if (this.controls) this.controls.update();
