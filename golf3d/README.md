@@ -2491,6 +2491,14 @@ permanently on screen. A phone is 400 points wide and the course is the point.
   and the link under the course. Start goes straight to the course picker,
   which eases in rather than cutting in (`.arriving` in `style.css`) and takes
   no presses until it has landed.
+- **On a desktop the round starts fullscreen.** A page cannot go fullscreen
+  by itself, only off a press — so the presses that start a round (Start on
+  the demo, a pick in the course list, the range, Keep playing) take it
+  fullscreen on the way. The **Play fullscreen** switch at the top of the
+  picker is where that is said and turned off (`FS_AUTO_KEY`); while it is on
+  and the page is still windowed its corner icon breathes outward. Turning it
+  on is itself a press, so it goes fullscreen there and then. Phones
+  (`pointer: coarse`) never see it and are never taken fullscreen unasked.
 - **Fullscreen** (`F`, or the ⛶ button) goes fullscreen on the *viewport*, not
   the document, so the canvas and every overlay inside it come along and the
   page chrome does not. The scoreboard above the canvas is gone in that mode,

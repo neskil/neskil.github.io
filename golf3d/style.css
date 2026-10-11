@@ -2282,6 +2282,79 @@ kbd {
     color: var(--ink-dim);
 }
 
+/* The picker's fullscreen switch. It sits at the top of the list on purpose:
+   the list is the last thing between a press and a round, and a press is the
+   one thing a browser will go fullscreen for. While it is on and the page is
+   still in a window the four corners breathe outward — the icon for "bigger",
+   doing the thing it means — and they stop the moment there is nothing left
+   to grow into. */
+.fs-switch {
+    width: 100%;
+    margin: -0.35rem 0 0.9rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    font: inherit;
+    text-align: left;
+    color: var(--ink-dim);
+    padding: 0.55rem 0.75rem;
+    border-radius: 12px;
+    border: 1px solid var(--panel-border);
+    background: rgba(255, 255, 255, 0.04);
+    cursor: pointer;
+    transition: background 0.18s, border-color 0.18s, color 0.18s;
+}
+
+.fs-switch[hidden] { display: none; }
+.fs-switch:hover { color: var(--ink); background: rgba(255, 255, 255, 0.07); }
+.fs-switch:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.fs-switch-text { flex: 1; display: flex; flex-direction: column; gap: 0.1rem; min-width: 0; }
+.fs-switch-text b { font-size: 0.86rem; font-weight: 600; color: var(--ink); }
+.fs-switch-sub { font-size: 0.72rem; font-weight: 300; line-height: 1.3; }
+
+.fs-switch[aria-checked="true"] {
+    color: var(--ink);
+    border-color: color-mix(in srgb, var(--accent) 55%, transparent);
+    background: color-mix(in srgb, var(--accent) 9%, transparent);
+}
+
+.fs-switch[aria-checked="true"] .sh-mark { background: color-mix(in srgb, var(--accent) 45%, transparent); }
+.fs-switch[aria-checked="true"] .sh-mark::after { transform: translateX(11px); background: var(--accent); }
+
+.fs-corners {
+    flex: 0 0 auto;
+    position: relative;
+    width: 22px;
+    height: 22px;
+}
+
+.fs-corners i {
+    position: absolute;
+    width: 7px;
+    height: 7px;
+    border: 2px solid currentColor;
+    --dx: 0px;
+    --dy: 0px;
+}
+
+.fs-switch[aria-checked="true"] .fs-corners { color: var(--accent); }
+.fs-corners i:nth-child(1) { top: 3px;    left: 3px;  border-right: 0; border-bottom: 0; --dx: -3px; --dy: -3px; }
+.fs-corners i:nth-child(2) { top: 3px;    right: 3px; border-left: 0;  border-bottom: 0; --dx: 3px;  --dy: -3px; }
+.fs-corners i:nth-child(3) { bottom: 3px; left: 3px;  border-right: 0; border-top: 0;    --dx: -3px; --dy: 3px; }
+.fs-corners i:nth-child(4) { bottom: 3px; right: 3px; border-left: 0;  border-top: 0;    --dx: 3px;  --dy: 3px; }
+
+.fs-switch.beckoning .fs-corners i { animation: fs-breathe 1.8s ease-in-out infinite; }
+
+@keyframes fs-breathe {
+    0%, 100% { transform: none; }
+    50%      { transform: translate(var(--dx), var(--dy)); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .fs-switch.beckoning .fs-corners i { animation: none; transform: translate(var(--dx), var(--dy)); }
+}
+
 /* A switch, not a second way to draw: it says what happens at the *end* of
    the next round. */
 .sh-keep {

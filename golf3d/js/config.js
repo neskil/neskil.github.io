@@ -8,7 +8,7 @@
    — the renderer scales to the viewport, the simulation never sees a pixel. */
 window.G3 = window.G3 || {};
 
-G3.VERSION = '1.52.1';
+G3.VERSION = '1.53.0';
 
 G3.CONFIG = {
     BALL_R: 0.16,
@@ -486,6 +486,9 @@ G3.CONFIG = {
     MUTE_KEY: 'loftLinks.muted',
     MUSIC_KEY: 'loftLinks.music',
     FS_PROMPT_KEY: 'loftLinks.fsPromptDismissed',
+    /* '0' once somebody switches off starting rounds fullscreen in the
+       picker; anything else, including nothing, means on. */
+    FS_AUTO_KEY: 'loftLinks.fsAuto',
     /* Set the first time a round is played fullscreen, and never unset: it is
        what stops the ⛶ chip reminding someone who already knows. */
     FS_SEEN_KEY: 'loftLinks.fsSeen',
