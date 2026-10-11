@@ -1706,6 +1706,259 @@
         return out;
     }
 
+    /* ── hummocks ──────────────────────────────────────────────────────
+
+       The landforms a long hole is written with are the shape of the hole —
+       the crest you carry, the shelf the green sits on — and between them the
+       rough was a set of tilted planes: the ground you miss the fairway on,
+       and the flattest-looking part of the picture. Real rough is the bit
+       nobody mows *because* it is lumpy: old spoil, rabbit scrapes, the
+       country the course was cut out of.
+
+       So every shaped open hole gets a scatter of hummocks and hollows in its
+       rough, from a seed made of its name. They follow three rules, and each
+       is there because breaking it would change the hole rather than dress it:
+
+       - **Rough only, and only gentle rough.** Every sample over a hummock's
+         disc, out past its rim, has to land on rough lying at no more than a
+         quarter of a gradient — never on fairway, a green, sand, water or the
+         bluff a tee stands on, and never off the edge of the ground. The
+         fairway's ribbon is the line of play and it stays the shape it was
+         written.
+       - **Clear of the tee and the cup** by their own flat clearings and a
+         unit more.
+       - **Gentle.** `HUMMOCK.grad` is the steepest any one gets, a third of
+         what rough holds a ball on, and one only goes where the ground under
+         it — the row's tilt and the hole's own landforms together — leaves
+         room for it below `HOLD.rough`. A ball in the rough is in a lie rather
+         than rolling round the bottom of a bowl.
+
+       They are added to the ground pads they can reach and nowhere else —
+       every one of them, fairway included, so wherever two pads meet they
+       agree on the height. Trees and rocks are seated afterwards, so they
+       stand on the hummocks and not through them. */
+    var HUMMOCK = { r: 2.4, rMax: 5.4, grad: 0.13, density: 0.014, grow: 8, clear: 0.6, tilt: 0.25 };
+
+    function hummocks(h) {
+        var P = G3.physics, f = h.fence;
+        if (!f) return;
+        var rnd = seeded(nameSeed(h.name) ^ 0x2c1b3c6d);
+        var ground = h.pads.filter(function (p) { return !p.inlay; });
+        var inlays = h.pads.filter(function (p) { return p.inlay; });
+        var ax = f.x - HUMMOCK.grow, az = f.z - HUMMOCK.grow;
+        var aw = f.w + HUMMOCK.grow * 2, ad = f.d + HUMMOCK.grow * 2;
+        var want = Math.round(aw * ad * HUMMOCK.density), tries = want * 14, made = [];
+        var r, cx, cz, a, i, ok, q;
+
+        function rough(x, z) {
+            var any = false, k, p;
+            for (k = 0; k < inlays.length; k++) if (P.padContains(inlays[k], x, z)) return false;
+            if (P.waterAt(h, x, z)) return false;
+            for (k = 0; k < ground.length; k++) {
+                p = ground[k];
+                if (!P.padContains(p, x, z)) continue;
+                if (p.kind !== 'rough') return false;
+                if (Math.abs(p.sx || 0) + Math.abs(p.sz || 0) > HUMMOCK.tilt) return false;
+                // The row's tilt is not the only slope already there: a hole's
+                // own landforms run through its rough, and a hummock on the
+                // flank of a massif adds to the massif.
+                if (P.slopeAt(p, x, z) + HUMMOCK.grad > G3.CONFIG.HOLD.rough * 0.95) return false;
+                any = true;
+            }
+            return any;
+        }
+        function roughDisc(x, z, R) {
+            if (!rough(x, z)) return false;
+            for (var k = 0; k < 16; k++) {
+                var t = k / 16 * Math.PI * 2;
+                if (!rough(x + Math.cos(t) * R, z + Math.sin(t) * R)) return false;
+                if (!rough(x + Math.cos(t) * R * 0.55, z + Math.sin(t) * R * 0.55)) return false;
+            }
+            return true;
+        }
+
+        while (made.length < want && tries-- > 0) {
+            r = HUMMOCK.r + (HUMMOCK.rMax - HUMMOCK.r) * rnd();
+            cx = ax + aw * rnd();
+            cz = az + ad * rnd();
+            if (Math.hypot(cx - h.tee.x, cz - h.tee.z) < r + TEE_FLAT + 1) continue;
+            if (Math.hypot(cx - h.cup.x, cz - h.cup.z) < r + CUP_FLAT + 1) continue;
+            for (i = 0, ok = true; i < made.length && ok; i++) {
+                if (Math.hypot(cx - made[i].cx, cz - made[i].cz) < (r + made[i].r) * 0.7) ok = false;
+            }
+            if (!ok || !roughDisc(cx, cz, r + HUMMOCK.clear)) continue;
+            a = HUMMOCK.grad * 2 * r / Math.PI * (0.55 + 0.45 * rnd());
+            var m = hill(cx, cz, r, rnd() < 0.35 ? -a : a);
+            m.hummock = true;           // for the tests, which measure these alone
+            made.push(m);
+        }
+
+        // Onto every piece of ground a hummock can reach — and that reach
+        // includes how far a mown edge can carry a pad past its own cell.
+        for (q = 0; q < ground.length; q++) {
+            var p = ground[q], x0 = p.west ? p.west.lo : p.x, x1 = p.east ? p.east.hi : p.x + p.w;
+            var mine = made.filter(function (m) {
+                var dx = Math.max(x0 - m.cx, 0, m.cx - x1), dz = Math.max(p.z - m.cz, 0, m.cz - p.z - p.d);
+                return dx * dx + dz * dz < m.r * m.r;
+            });
+            if (mine.length) p.bumps = (p.bumps || []).concat(mine);
+        }
+        h.hummocks = made.length;
+    }
+
+    /* ── the dressing ───────────────────────────────────────────────────
+
+       A golf course is full of small things that are not the hole: the
+       markers either side of the tee, the rake somebody left by the bunker, a
+       ball washer and a bin by the tee and a cart parked behind it, flowers in
+       the rough and scrub out in the country past the stakes. None of it
+       matters to the ball and all of it says somebody looks after this
+       place.
+
+       Every open hole is dressed here from a seed made of its name, after it
+       is built — so the tee markers stand either side of where the tee ended
+       up and the flowers grow on the ground the hummocks made. It is a list of
+       its own (`h.dressing`) rather than more `decor`, because decor is
+       authored and this is not: the editor shows what somebody placed, and
+       this is regenerated from the hole every time it is built.
+
+       Nothing in it is solid, so nothing in it may stand where a ball is
+       played *through* something you can see. Flowers stand in the rough a
+       ball is already in trouble in, tee markers beside the tee rather than in
+       front of it, and a rake lies on the grass outside the sand. Anything
+       with real height to it stands either behind the tee — nobody plays a
+       stroke backwards — or out of bounds, where the ball has already cost
+       you a stroke by being there. Distance plates let into the fairway were
+       tried and left out for the same reason: they lie on the line of play,
+       which is exactly where the ball would roll through them. `tests.html`
+       holds every item to these rules. */
+    var DRESS = { flowers: 0.0045, shrubs: 0.009 };
+
+    function dress(h) {
+        var P = G3.physics, out = [], rnd = seeded(nameSeed(h.name) ^ 0x6a09e667);
+        var tee = h.tee, cup = h.cup, f = h.fence, i, k, x, z, r, ok, t;
+        var dx = cup.x - tee.x, dz = cup.z - tee.z, L = Math.hypot(dx, dz) || 1;
+        var ux = dx / L, uz = dz / L, px = uz, pz = -ux;
+
+        // What the ground is made of here, or null off it or in the water.
+        function kindAt(qx, qz) {
+            if (P.waterAt(h, qx, qz)) return null;
+            var g = P.surfaceTop(h, qx, qz);
+            return g ? g.pad.kind : null;
+        }
+        function nearWall(qx, qz, m) {
+            for (var w = 0; w < h.walls.length; w++) {
+                var wl = h.walls[w];
+                if (qx > wl.x - m && qx < wl.x + wl.w + m && qz > wl.z - m && qz < wl.z + wl.d + m) return true;
+            }
+            return false;
+        }
+        function clearOfDecor(qx, qz, m) {
+            for (var q = 0; q < h.decor.length; q++) {
+                if (Math.hypot(h.decor[q].x - qx, h.decor[q].z - qz) < m) return false;
+            }
+            return true;
+        }
+        function item(kind, qx, qz, o) {
+            var it = { kind: kind, x: qx, z: qz, yaw: 0, variant: 0 }, key;
+            for (key in o || {}) it[key] = o[key];
+            out.push(it);
+            return it;
+        }
+        // Every sample round a disc lands on one of the kinds allowed.
+        function discOf(qx, qz, rr, kinds) {
+            if (kinds.indexOf(kindAt(qx, qz)) < 0) return false;
+            for (var a = 0; a < 10; a++) {
+                var b = a / 10 * Math.PI * 2;
+                if (kinds.indexOf(kindAt(qx + Math.cos(b) * rr, qz + Math.sin(b) * rr)) < 0) return false;
+            }
+            return true;
+        }
+
+        /* The tee: a marker either side of it, a little forward, in one of
+           the three colours a set of tees comes in. */
+        var box = Math.floor(rnd() * 3);
+        for (k = -1; k <= 1; k += 2) {
+            x = tee.x + px * 1.5 * k + ux * 0.35;
+            z = tee.z + pz * 1.5 * k + uz * 0.35;
+            if (kindAt(x, z)) item('teemarker', x, z, { variant: box });
+        }
+        // …and a ball washer and a bin behind it, off to one side.
+        var side = rnd() < 0.5 ? -1 : 1;
+        x = tee.x - ux * 1.9 + px * 2.7 * side;
+        z = tee.z - uz * 1.9 + pz * 2.7 * side;
+        if (kindAt(x, z) && clearOfDecor(x, z, 1.8) && !nearWall(x, z, 0.4)) {
+            item('washer', x, z, { yaw: Math.atan2(ux, uz) });
+            x += px * 0.75 * side - ux * 0.3;
+            z += pz * 0.75 * side - uz * 0.3;
+            if (kindAt(x, z)) item('bin', x, z);
+        }
+
+        // …and a cart parked further back on the other side, facing up the
+        // hole, wherever there is level ground and nothing growing there.
+        x = tee.x - ux * 4.6 - px * 3.2 * side;
+        z = tee.z - uz * 4.6 - pz * 3.2 * side;
+        if (kindAt(x, z) && clearOfDecor(x, z, 2.6) && !nearWall(x, z, 1.4)) {
+            var cg = P.surfaceTop(h, x, z);
+            if (cg && P.slopeAt(cg.pad, x, z) < 0.12) {
+                item('cart', x, z, { yaw: Math.atan2(ux, uz) + (rnd() - 0.5) * 0.6, variant: Math.floor(rnd() * 2) });
+            }
+        }
+
+        /* A rake by every bunker, on the grass beyond its rim on the far side
+           from the tee, lying roughly along the edge — which is where they
+           end up. */
+        for (i = 0; i < h.pads.length; i++) {
+            var b = h.pads[i];
+            if (b.kind !== 'sand' || !b.r) continue;
+            var bx = b.x + b.w / 2, bz = b.z + b.d / 2;
+            var th = Math.atan2(bz - tee.z, bx - tee.x) + (rnd() - 0.5) * 1.6;
+            var rr = P.padRadius(b, th) + 0.55;
+            x = bx + Math.cos(th) * rr;
+            z = bz + Math.sin(th) * rr;
+            k = kindAt(x, z);
+            if (k === 'rough' || k === 'fairway') {
+                item('rake', x, z, { yaw: -th + (rnd() - 0.5) * 0.5, variant: rnd() < 0.5 ? 0 : 1 });
+            }
+        }
+
+        if (!f) return out;
+        var area = f.w * f.d;
+
+        /* Flowers in the rough: patches, each a seeded clump, kept off the
+           fairway's edge, out of the trees, and away from where you stand to
+           play. */
+        var want = Math.max(6, Math.min(16, Math.round(area * DRESS.flowers)));
+        for (t = 0, k = 0; k < want && t < want * 30; t++) {
+            r = 0.7 + rnd() * 0.9;
+            x = f.x - 3 + (f.w + 6) * rnd();
+            z = f.z - 3 + (f.d + 6) * rnd();
+            if (Math.hypot(x - tee.x, z - tee.z) < 3.5 || Math.hypot(x - cup.x, z - cup.z) < 5) continue;
+            if (!discOf(x, z, r + 0.6, ['rough']) || nearWall(x, z, r + 0.3)) continue;
+            item('flowers', x, z, { r: r, variant: Math.floor(rnd() * 3), seed: Math.floor(rnd() * 1e6) });
+            k++;
+        }
+
+        /* Scrub, out in the country past the stakes: the one thing in here
+           with any height to it, so the one thing kept entirely out of
+           bounds. */
+        want = Math.max(8, Math.min(22, Math.round(area * DRESS.shrubs)));
+        for (t = 0, k = 0; k < want && t < want * 40; t++) {
+            r = 0.45 + rnd() * 0.55;
+            x = f.x - 8 + (f.w + 16) * rnd();
+            z = f.z - 8 + (f.d + 16) * rnd();
+            for (i = 0, ok = true; i < 9 && ok; i++) {
+                var sa = i / 8 * Math.PI * 2, sr = i ? r + 0.4 : 0;
+                if (!P.outOfBounds(h, x + Math.cos(sa) * sr, z + Math.sin(sa) * sr)) ok = false;
+                if (!kindAt(x + Math.cos(sa) * sr, z + Math.sin(sa) * sr)) ok = false;
+            }
+            if (!ok || nearWall(x, z, r)) continue;
+            item('shrub', x, z, { r: r, variant: Math.floor(rnd() * 3), seed: Math.floor(rnd() * 1e6) });
+            k++;
+        }
+        return out;
+    }
+
     function build(h) {
         var P = G3.physics, i;
         h.water = h.water || [];
@@ -1756,6 +2009,8 @@
                 grad: h.long ? 0.07 : 0.075
             });
         }
+
+        if (h.open && h.shaped && !h.calm) hummocks(h);
 
         /* An open hole is not enclosed — that is what open means. There is no
            edge for `enclose` to find a rail for anyway: the ground runs past
@@ -1822,6 +2077,10 @@
         var c = P.surfaceTop(h, h.cup.x, h.cup.z);
         h.tee.y = t ? t.y : 0;
         h.cup.y = c ? c.y : 0;
+
+        // The long game gets dressed once it is finished being built: what is
+        // laid out depends on where the ground, the trees and the cup ended up.
+        if (h.open) h.dressing = dress(h);
 
         /* Bounds are what the camera frames and what the sun's shadow camera
            covers. On a fenced hole they are the ground, because the ground is
@@ -5507,7 +5766,7 @@
         tree: tree, treeline: treeline, crag: crag, crags: crags,
         decor: decor, buoy: buoy, piling: piling, bench: bench, boat: boat, bin: bin,
         hill: hill, ring: ring, ridge: ridge, whorl: whorl, ravine: ravine,
-        shape: shape, dunes: dunes, ground: ground, circle: circle, inlay: inlay,
+        shape: shape, dunes: dunes, ground: ground, circle: circle, inlay: inlay, dress: dress,
         keep: keep,
         shapeDisc: shapeDisc,
         rect: rect, enclose: enclose, shore: shore, brink: brink, build: build,

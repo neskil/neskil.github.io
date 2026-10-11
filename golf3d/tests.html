@@ -1455,6 +1455,102 @@
                 swing >= 0.5, 'at most ' + swing.toFixed(2));
             assert('a mown line leaves no ground uncovered and none claimed twice',
                 !seamFault, seamFault);
+
+            /* Hummocks dress the rough and must not turn it into something a
+               ball will not stop on: whatever a hummock adds to the row it is
+               standing in, the rough under it still holds a ball. And they are
+               rough's alone — the line of play is the shape it was written. */
+            var humped = 0, worstHump = 0, humpAt = '', humpOff = '';
+            ALL.forEach(function (e) {
+                if (!e.hole.hummocks) return;
+                humped += e.hole.hummocks;
+                e.hole.pads.forEach(function (p) {
+                    if (p.inlay || !p.bumps) return;
+                    p.bumps.forEach(function (m) {
+                        if (!m.hummock) return;
+                        var k, t, x, z, g;
+                        for (k = 0; k < 24; k++) {
+                            for (t = 0.2; t < 1; t += 0.2) {
+                                x = m.cx + Math.cos(k / 24 * Math.PI * 2) * m.r * t;
+                                z = m.cz + Math.sin(k / 24 * Math.PI * 2) * m.r * t;
+                                if (!P.padContains(p, x, z)) continue;
+                                if (p.kind !== 'rough' && !humpOff) {
+                                    humpOff = e.course.id + '/' + e.hole.name + ': a hummock on ' + p.kind;
+                                }
+                                g = P.slopeAt(p, x, z);
+                                if (g > worstHump) { worstHump = g; humpAt = e.course.id + '/' + e.hole.name; }
+                            }
+                        }
+                    });
+                });
+            });
+            assert('the long game\'s rough is rolled into hummocks', humped >= 300, humped + ' hummocks');
+            assert('and every one of them is in the rough', !humpOff, humpOff);
+            assert('and the rough under them still holds a ball',
+                worstHump <= C.HOLD.rough,
+                humpAt + ' reaches ' + worstHump.toFixed(3) + ' against ' + C.HOLD.rough);
+
+            /* The dressing (courses.dress). Nothing in it is solid, so each
+               kind is held to the one place it may stand without being a thing
+               the ball visibly plays through:
+
+               - tall things — the cart, the ball washer, the bin — behind the
+                 tee, where nobody plays a stroke, or out of bounds;
+               - scrub out of bounds and nowhere else;
+               - flowers in the rough, never on the fairway, a green or sand;
+               - tee markers beside the tee and not in front of it;
+               - a rake on grass, outside the sand it belongs to;
+               - and none of it in the water or off the edge of the world.
+
+               It is regenerated from the hole every build, so it is also
+               held to coming out the same twice. */
+            var KINDS = ['teemarker', 'washer', 'bin', 'cart', 'rake', 'flowers', 'shrub'];
+            var dressed = 0, items = 0, dressFault = '', perKind = {};
+            ALL.forEach(function (e) {
+                var h = e.hole, tag = e.course.id + '/' + h.name;
+                if (!h.open) {
+                    if (h.dressing && h.dressing.length && !dressFault) dressFault = tag + ': a drawn hole was dressed';
+                    return;
+                }
+                dressed++;
+                var dx = h.cup.x - h.tee.x, dz = h.cup.z - h.tee.z, L = Math.hypot(dx, dz);
+                var ux = dx / L, uz = dz / L;
+                function kindAt(x, z) {
+                    if (P.waterAt(h, x, z)) return 'water';
+                    var g = P.surfaceTop(h, x, z);
+                    return g ? g.pad.kind : null;
+                }
+                (h.dressing || []).forEach(function (d) {
+                    items++;
+                    perKind[d.kind] = (perKind[d.kind] || 0) + 1;
+                    if (dressFault) return;
+                    var where = tag + ', a ' + d.kind + ' at (' + d.x.toFixed(1) + ', ' + d.z.toFixed(1) + ')';
+                    var along = (d.x - h.tee.x) * ux + (d.z - h.tee.z) * uz;
+                    var across = Math.abs((d.x - h.tee.x) * uz - (d.z - h.tee.z) * ux);
+                    var k = kindAt(d.x, d.z), oob = P.outOfBounds(h, d.x, d.z);
+                    if (KINDS.indexOf(d.kind) < 0) dressFault = where + ' is not a kind anything draws';
+                    else if (!isFinite(d.x) || !isFinite(d.z)) dressFault = where + ' is nowhere';
+                    else if (!k || k === 'water') dressFault = where + ' is ' + (k ? 'in the water' : 'off the ground');
+                    else if (k === 'green' || k === 'sand') dressFault = where + ' stands on the ' + k;
+                    else if ((d.kind === 'cart' || d.kind === 'washer' || d.kind === 'bin') &&
+                             along > -1.2 && !oob) dressFault = where + ' is in play: neither behind the tee nor out of bounds';
+                    else if (d.kind === 'shrub' && !oob) dressFault = where + ' is in bounds';
+                    else if (d.kind === 'flowers' && k !== 'rough') dressFault = where + ' grows on ' + k;
+                    else if (d.kind === 'teemarker' && (Math.abs(along) > 1 || across < 1 || across > 2.2))
+                        dressFault = where + ' is not beside the tee';
+                    else if (d.kind === 'rake' && k !== 'rough' && k !== 'fairway') dressFault = where + ' lies on ' + k;
+                });
+            });
+            assert('every long hole is dressed, and no drawn hole is', dressed >= 24 && !/drawn/.test(dressFault),
+                dressed + ' dressed; ' + dressFault);
+            assert('there is a good deal of dressing to check',
+                items >= 400 && KINDS.every(function (k) { return perKind[k] > 0; }),
+                items + ' items: ' + JSON.stringify(perKind));
+            assert('and every piece of it stands where nothing is played through it', !dressFault, dressFault);
+            assert('the dressing comes out the same every time the hole is built', (function () {
+                var h = G3.COURSES.filter(function (c) { return c.id === 'parkland'; })[0].holes[1];
+                return JSON.stringify(A.dress(h)) === JSON.stringify(h.dressing);
+            })());
             assert('a bunker floor dishes no deeper than the scoop says',
                 worstFloor <= A.SCOOP + 1e-9,
                 worstFloorName + ' falls ' + worstFloor.toFixed(3) +

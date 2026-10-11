@@ -693,6 +693,11 @@
                     ).multiplyScalar((1 - wet * 0.22) * 0.86)
                 })
             },
+            // The round trees' own green: a little warmer than either of the two
+            // below, which is most of what tells a round tree from a blob.
+            leafWarm: new THREE.MeshLambertMaterial({
+                color: new THREE.Color(0x6aa43f).multiplyScalar(1 - wet * 0.22)
+            }),
             // Two leaf greens, so a treeline is not one colour repeated.
             leaf: [
                 new THREE.MeshLambertMaterial({
@@ -1867,14 +1872,43 @@
 
         var top = B.base + h;
         var i, mesh, geo;
+        /* The crown hangs off a pivot at the top of the trunk rather than
+           being placed in the world, so the wind can lean it (swayTrees) and
+           it bends where a tree bends — not about its own middle, which is a
+           ball of leaves wobbling on a stick. Positions below are relative to
+           that pivot. */
+        var crownAt = new THREE.Group();
+        crownAt.position.set(B.cx, top - crown * 0.4, B.cz);
+        group.add(crownAt);
+        var lift = crown * 0.4;
         if (a < 0.5) {
             // A conifer: two skirts, the upper one narrower and higher.
             for (i = 0; i < 2; i++) {
                 geo = new THREE.ConeGeometry(crown * (1 - i * 0.34), crown * (2.1 - i * 0.5), 8);
                 mesh = new THREE.Mesh(geo, leaf);
-                mesh.position.set(B.cx, top - crown * 0.35 + i * crown * 0.95, B.cz);
+                mesh.position.set(0, lift - crown * 0.35 + i * crown * 0.95, 0);
                 mesh.castShadow = true;
-                group.add(mesh);
+                crownAt.add(mesh);
+            }
+        } else if (b > 0.62) {
+            /* A round tree: three soft clumps stacked into one rounded crown,
+               the chunky toy-box tree every cosy golf game is planted with.
+               Rounder than the faceted broadleaf beside it (one level of
+               subdivision rather than none), and a shade warmer, so a stand
+               of mixed trees reads as several kinds rather than one shape
+               repeated. */
+            var warm = R.surf.leafWarm || leaf;
+            for (i = 0; i < 3; i++) {
+                geo = new THREE.IcosahedronGeometry(crown * (i ? 0.62 : 0.9), 1);
+                geo.scale(1, 0.9, 1);
+                mesh = new THREE.Mesh(geo, i === 2 ? leaf : warm);
+                mesh.position.set(
+                    i ? crown * 0.45 * (i === 1 ? 1 : -0.8) * (a - 0.3) : 0,
+                    lift + crown * (i ? 0.55 + i * 0.12 : 0.25),
+                    i ? crown * 0.42 * (i === 1 ? -0.6 : 1) * (b - 0.2) : 0
+                );
+                mesh.castShadow = true;
+                crownAt.add(mesh);
             }
         } else {
             // A broadleaf: two blobs, the second shouldered off the first.
@@ -1883,14 +1917,31 @@
                 geo.scale(1, 0.82, 1);
                 mesh = new THREE.Mesh(geo, leaf);
                 mesh.position.set(
-                    B.cx + (i ? crown * (b - 0.5) * 0.7 : 0),
-                    top + crown * (i ? 0.62 : 0.1),
-                    B.cz + (i ? crown * (a - 0.5) * 0.7 : 0)
+                    i ? crown * (b - 0.5) * 0.7 : 0,
+                    lift + crown * (i ? 0.62 : 0.1),
+                    i ? crown * (a - 0.5) * 0.7 : 0
                 );
                 mesh.rotation.y = a * 6.283;
                 mesh.castShadow = true;
-                group.add(mesh);
+                crownAt.add(mesh);
             }
+        }
+        // Conifers are stiffer than broadleaves, and every tree has a beat of
+        // its own, off where it stands.
+        (R.canopies || (R.canopies = [])).push({ g: crownAt, k: a < 0.5 ? 0.035 : 0.055, ph: (a + b) * 9.7 });
+    }
+
+    /* The wind in the trees: each crown leans downwind by however hard it is
+       blowing, and rocks on top of that at a rate the gusts set — the same
+       wind vector the grass and the flag read, so the three agree about which
+       way it is going. A still day is a breath of movement and no more. */
+    function swayTrees(wind) {
+        var i, c, rock, t = R.clock;
+        for (i = 0; i < R.canopies.length; i++) {
+            c = R.canopies[i];
+            rock = 0.65 + 0.35 * Math.sin(t * (1.1 + wind.speed * 1.4) + c.ph);
+            c.g.rotation.x = wind.z * c.k * rock + Math.sin(t * 0.8 + c.ph) * 0.006;
+            c.g.rotation.z = -wind.x * c.k * rock + Math.cos(t * 0.7 + c.ph) * 0.006;
         }
     }
 
@@ -3188,6 +3239,7 @@
         R.movers = [];
         R.waterMats = [];
         R.shells = [];
+        R.canopies = [];
 
         /* One set of surfaces per hole: the textures behind them are the
            theme's and are only redrawn when the theme changes (textures.js),
@@ -3227,6 +3279,8 @@
         addTeeMark(g, hole);
         addStakes(g, hole, theme);
         for (i = 0; i < (hole.decor || []).length; i++) addDecor(g, hole.decor[i], theme, hole);
+        // The long game's dressing, and what lives on it (life.js).
+        if (G3.life) G3.life.build(g, hole, themeName, theme.surround === 'water');
         if (hole.targets) addBoards(g, hole);
 
         // The rain, the mist banks and whatever is drifting in the air are
@@ -4087,6 +4141,8 @@
         }
 
         swayShells(wind);
+        swayTrees(wind);
+        if (G3.life) G3.life.update(dt, R.clock);
 
         var i;
         for (i = 0; i < R.waterMats.length; i++) {
