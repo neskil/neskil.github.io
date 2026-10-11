@@ -6,9 +6,9 @@
   'use strict';
 
   class BoxRenderer {
-    constructor(sceneManager) {
+    constructor(sceneManager, group) {
       this.sceneManager = sceneManager;
-      this.group = sceneManager.cargoGroup;
+      this.group = group || sceneManager.cargoGroup;
       this.meshMap = new Map(); // id -> mesh
       this.highlightMesh = null;
 

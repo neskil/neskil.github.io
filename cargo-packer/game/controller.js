@@ -26,6 +26,51 @@
       this.currentStep = -1;
       this.packResult = null;
       this.onStateChange = null; // Callback for UI updates
+
+      // Side-by-side compare: a second algorithm packed into its own group,
+      // stepped in lockstep with the main one.
+      this.compareMode = false;
+      this.compareAlgorithm = 'wallBuilding';
+      this.compareResult = null;
+      this.boxRendererB = null;
+    }
+
+    /** Steps in the longer of the two loads, so playback runs until both finish. */
+    totalSteps() {
+      if (!this.packResult) return 0;
+      const a = this.packResult.steps.length;
+      return this.compareMode && this.compareResult ? Math.max(a, this.compareResult.steps.length) : a;
+    }
+
+    setCompareMode(on) {
+      this.compareMode = !!on && !!this.boxRendererB;
+      this.pickCompareResult();
+      this.redraw();
+    }
+
+    setCompareAlgorithm(algoId) {
+      this.compareAlgorithm = algoId;
+      this.pickCompareResult();
+      this.redraw();
+    }
+
+    pickCompareResult() {
+      const entry = this.comparison && this.comparison.results[this.compareAlgorithm];
+      this.compareResult = entry ? entry.result : null;
+    }
+
+    /** Rebuilds both loads at the current step, without animation or sound. */
+    redraw() {
+      this.pause();
+      const target = Math.min(this.currentStep, this.totalSteps() - 1);
+      this.boxRenderer.clear();
+      if (this.boxRendererB) this.boxRendererB.clear();
+      this.visualizers.clear();
+      this.currentStep = -1;
+      while (this.currentStep < target) this.stepForward(false, true);
+      const shown = this.currentStep >= 0 ? this.packResult.steps[Math.min(this.currentStep, this.packResult.steps.length - 1)] : null;
+      if (shown && shown.candidateEPs) this.visualizers.renderExtremePoints(shown.candidateEPs, shown.chosenEP);
+      this.notifyUI(this.liveMetrics());
     }
 
     init() {
@@ -98,6 +143,7 @@
 
       result.computeTimeMs = Math.round(performance.now() - startTime);
       this.packResult = result;
+      this.pickCompareResult();
 
       this.reset();
       this.notifyUI();
@@ -106,6 +152,7 @@
     reset() {
       this.pause();
       this.boxRenderer.clear();
+      if (this.boxRendererB) this.boxRendererB.clear();
       this.visualizers.clear();
       this.currentStep = -1;
       this.notifyUI();
@@ -113,9 +160,9 @@
 
     play() {
       if (this.isPlaying) return;
-      if (!this.packResult || this.packResult.steps.length === 0) return;
+      if (!this.packResult || this.totalSteps() === 0) return;
 
-      if (this.currentStep >= this.packResult.steps.length - 1) {
+      if (this.currentStep >= this.totalSteps() - 1) {
         // If at the end, restart from beginning
         this.reset();
       }
@@ -143,12 +190,12 @@
       if (!this.isPlaying) return;
 
       const nextStep = this.currentStep + 1;
-      if (nextStep < this.packResult.steps.length) {
+      if (nextStep < this.totalSteps()) {
         this.stepForward(true);
 
         if (this.speedMs === 0) {
           // Instant mode
-          while (this.currentStep < this.packResult.steps.length - 1) {
+          while (this.currentStep < this.totalSteps() - 1) {
             this.stepForward(false);
           }
           this.pause();
@@ -162,27 +209,44 @@
       }
     }
 
-    stepForward(animate = true) {
-      if (!this.packResult || this.currentStep >= this.packResult.steps.length - 1) return;
+    /**
+     * Live metrics for the main load up to the current step. In compare mode
+     * the shorter load runs out first, so its index is clamped.
+     */
+    liveMetrics(result = this.packResult) {
+      if (!result) return null;
+      if (this.currentStep < 0) return window.CargoPacker.computeMetrics([], result.container);
+      const upTo = Math.min(this.currentStep, result.steps.length - 1);
+      const placed = result.steps.slice(0, upTo + 1).map(s => s.box);
+      return window.CargoPacker.computeMetrics(placed, result.container);
+    }
+
+    stepForward(animate = true, silent = false) {
+      if (!this.packResult || this.currentStep >= this.totalSteps() - 1) return;
 
       this.currentStep++;
       const step = this.packResult.steps[this.currentStep];
+      const stepB = this.compareMode && this.compareResult ? this.compareResult.steps[this.currentStep] : null;
 
-      // Add box to scene
-      this.boxRenderer.addBox(step.box, animate);
-      this.sound.playThud(step.box.weight);
-
-      // Render updated visualizers
-      if (step.candidateEPs) {
-        this.visualizers.renderExtremePoints(step.candidateEPs, step.chosenEP);
+      if (step) {
+        this.boxRenderer.addBox(step.box, animate);
+        // Bulk (silent) steps skip this: only the step that ends up on screen
+        // needs its anchor points, and rebuilding them per box is wasted work.
+        if (step.candidateEPs && !silent) {
+          this.visualizers.renderExtremePoints(step.candidateEPs, step.chosenEP);
+        }
+      }
+      if (stepB) this.boxRendererB.addBox(stepB.box, animate);
+      if (!silent) {
+        const thud = step || stepB;
+        if (thud) this.sound.playThud(thud.box.weight);
       }
 
       // Live Center of Gravity calculation up to current step
-      const currentPlaced = this.packResult.steps.slice(0, this.currentStep + 1).map(s => s.box);
-      const metrics = window.CargoPacker.computeMetrics(currentPlaced, this.packResult.container);
+      const metrics = this.liveMetrics();
       this.visualizers.updateCog(metrics.cog, this.packResult.container);
 
-      this.notifyUI(metrics);
+      if (!silent) this.notifyUI(metrics);
     }
 
     stepBackward() {
@@ -190,17 +254,18 @@
       this.pause();
 
       const step = this.packResult.steps[this.currentStep];
-      this.boxRenderer.removeBox(step.box.id);
+      if (step) this.boxRenderer.removeBox(step.box.id);
+      const stepB = this.compareMode && this.compareResult ? this.compareResult.steps[this.currentStep] : null;
+      if (stepB) this.boxRendererB.removeBox(stepB.box.id);
       this.sound.playClick();
 
       this.currentStep--;
 
       if (this.currentStep >= 0) {
-        const prevStep = this.packResult.steps[this.currentStep];
-        this.visualizers.renderExtremePoints(prevStep.candidateEPs, prevStep.chosenEP);
+        const prevStep = this.packResult.steps[Math.min(this.currentStep, this.packResult.steps.length - 1)];
+        if (prevStep) this.visualizers.renderExtremePoints(prevStep.candidateEPs, prevStep.chosenEP);
 
-        const currentPlaced = this.packResult.steps.slice(0, this.currentStep + 1).map(s => s.box);
-        const metrics = window.CargoPacker.computeMetrics(currentPlaced, this.packResult.container);
+        const metrics = this.liveMetrics();
         this.visualizers.updateCog(metrics.cog, this.packResult.container);
         this.notifyUI(metrics);
       } else {
@@ -211,11 +276,10 @@
 
     jumpToEnd() {
       this.pause();
-      while (this.currentStep < this.packResult.steps.length - 1) {
-        this.currentStep++;
-        const step = this.packResult.steps[this.currentStep];
-        this.boxRenderer.addBox(step.box, false);
+      while (this.currentStep < this.totalSteps() - 1) {
+        this.stepForward(false, true);
       }
+      this.visualizers.renderExtremePoints(null);
       this.visualizers.updateCog(this.packResult.metrics.cog, this.packResult.container);
       this.notifyUI();
       this.sound.playChime();
@@ -233,13 +297,17 @@
         this.onStateChange({
           isPlaying: this.isPlaying,
           currentStep: this.currentStep,
-          totalSteps: this.packResult ? this.packResult.steps.length : 0,
+          totalSteps: this.totalSteps(),
           packResult: this.packResult,
-          liveMetrics: liveMetrics || (this.packResult ? this.packResult.metrics : null),
+          liveMetrics: liveMetrics || this.liveMetrics(),
           comparison: this.comparison,
           selectedScenario: this.selectedScenario,
           selectedAlgorithm: this.selectedAlgorithm,
           selectedContainer: this.selectedContainer,
+          compareMode: this.compareMode,
+          compareAlgorithm: this.compareAlgorithm,
+          compareResult: this.compareResult,
+          compareLiveMetrics: this.compareMode ? this.liveMetrics(this.compareResult) : null,
           randomSeed: window.CargoPacker.getRandomSeed ? window.CargoPacker.getRandomSeed() : null
         });
       }
