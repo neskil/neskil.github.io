@@ -47,6 +47,17 @@ card shapes are already there to hang a third off (`CARDS` in `bag.js`).
 
 Kept short, and only where it explains a constraint above.
 
+- **Fairways are mown, not ruled** (v1.54.0). The seam between a fairway and
+  its rough is a curve now (README → "mow"), on all four long courses. The
+  constraint worth keeping: **a pad's x and w are still the cell it was
+  written as**, and the curve lives only in the shared `west`/`east` edge.
+  Widening the box instead looked simpler and would have broken three things
+  at once — the plane `padHeight` hangs off `pad.x`, the editor's snapshot of a
+  loaded hole (it copies rectangles), and every bounding-box overlap check in
+  the audit and the suite. What is still square: the canyon cuts on Redstone,
+  and the fairway edges that run along a cut or a lake, which keep their
+  straight line on purpose.
+
 - **The long game stopped being square** (v1.52.0). Two findings worth keeping.
   **The grass on a tilted terrain pad was tilted twice**: `addShells` sheared
   every shell by the pad's `sx`/`sz`, including the ones cloned from the

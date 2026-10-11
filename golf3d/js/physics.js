@@ -241,7 +241,71 @@
             var rr = padRadius(pad, Math.atan2(dz, dx));
             return q <= rr * rr;
         }
-        return x >= pad.x && x <= pad.x + pad.w && z >= pad.z && z <= pad.z + pad.d;
+        if (z < pad.z || z > pad.z + pad.d) return false;
+        if (!pad.west && !pad.east) return x >= pad.x && x <= pad.x + pad.w;
+        /* A mown edge (courses.mow) — and the clamp bounds first, which are
+           every place the curve can reach, so a point well clear of the line
+           never pays for the trigonometry. */
+        if (x < (pad.west ? pad.west.lo : pad.x)) return false;
+        if (x > (pad.east ? pad.east.hi : pad.x + pad.w)) return false;
+        return x >= (pad.west ? mowEdge(pad.west, z) : pad.x) &&
+               x <= (pad.east ? mowEdge(pad.east, z) : pad.x + pad.w);
+    }
+
+    /* ── the mown line ──
+
+       A fairway is not a strip: the mower follows the ground and the eye, and
+       the edge it leaves wanders across the hole and rounds off at either end.
+       `courses.mow` writes one as a *ribbon* — a centre line and a half-width
+       down the hole, each a list of knots eased into one another so a fairway
+       that jogs between rows bends instead of stepping, a few long sines on
+       each side so the two edges do not wander together, and a quarter-ellipse
+       at each end so the fairway finishes in a curve rather than a line across
+       the hole.
+
+       A pad carries it as `west` and/or `east`: {r: ribbon, s: -1 or 1, lo,
+       hi}. The pad either side of a seam holds the *same* edge object, so the
+       fairway and the rough beside it agree to the bit about where one stops
+       and the other starts — there is no gap to fall through and no overlap
+       for the surface lookup to argue over. `lo` and `hi` clamp the curve
+       inside the row cells it was cut between, which is what keeps every pad
+       a real pad whatever the sines do.
+
+       Plain data, evaluated here, because this is where the ball asks. The
+       pad's own x and w stay the cell it was written as, so everything that
+       reads a pad as a rectangle — the editor, the audit's seams — still sees
+       the straight row the hole was authored in, and only the two things that
+       have to agree about the curve (this, and the terrain the renderer
+       draws) ever see it. */
+    function knot(list, z) {
+        var i, a, b, t;
+        if (z <= list[0][0]) return list[0][1];
+        for (i = 1; i < list.length; i++) {
+            b = list[i];
+            if (z > b[0]) continue;
+            a = list[i - 1];
+            t = b[0] - a[0];
+            if (t <= 1e-9) return b[1];
+            t = (z - a[0]) / t;
+            return a[1] + (b[1] - a[1]) * t * t * (3 - 2 * t);
+        }
+        return list[list.length - 1][1];
+    }
+
+    // How much of its width a ribbon has `d` in from an end rounded over `t`:
+    // a quarter-ellipse, so the edge arrives at the tip square to the hole.
+    function cap(d, t) {
+        if (!t || d >= t) return 1;
+        if (d <= 0) return 0;
+        d = 1 - d / t;
+        return Math.sqrt(1 - d * d);
+    }
+
+    function mowEdge(e, z) {
+        var r = e.r, w = e.s < 0 ? r.w : r.e, n = 0, i, x;
+        for (i = 0; i < w.length; i++) n += w[i][1] * Math.sin(w[i][0] * z + w[i][2]);
+        x = knot(r.c, z) + e.s * cap(z - r.z0, r.t0) * cap(r.z1 - z, r.t1) * (knot(r.h, z) + n);
+        return x < e.lo ? e.lo : x > e.hi ? e.hi : x;
     }
 
     /* The floor of the cup, as a pad the rest of the code can treat like any
@@ -1235,6 +1299,7 @@
     G3.physics = {
         padHeight: padHeight,
         padContains: padContains,
+        mowEdge: mowEdge,
         padRadius: padRadius,
         surfaceUnder: surfaceUnder,
         surfaceTop: surfaceTop,

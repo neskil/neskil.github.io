@@ -460,23 +460,181 @@
        neighbour and fence itself in. */
     var DIP = -0.12;
 
-    function bands(z0, rows, x0) {
-        var pads = [], z = z0, y = 0, i, j, row, spec, sz, c, x;
+    function bands(z0, rows, x0, opts) {
+        var pads = [], z = z0, y = 0, i, j, row, spec, sz, c, x, p, cells, plan = [];
         for (i = 0; i < rows.length; i++) {
             row = rows[i];
             spec = typeof row[0] === 'number' ? { d: row[0] } : row[0];
             if (spec.y !== undefined) y = spec.y;
             sz = spec.sz || 0;
             x = x0 || 0;
+            cells = [];
             for (j = 1; j < row.length; j++) {
                 c = row[j];
-                if (c[1]) pads.push(pad(x, z, c[0], spec.d, y + (c[2] || 0), c[1], 0, sz));
+                p = c[1] ? pad(x, z, c[0], spec.d, y + (c[2] || 0), c[1], 0, sz) : null;
+                if (p) pads.push(p);
+                cells.push({ x0: x, x1: x + c[0], kind: c[1] || null, dy: c[2] || 0, pad: p });
                 x += c[0];
             }
+            plan.push({ z: z, d: spec.d, cells: cells });
             z += spec.d;
             y += sz * spec.d;
         }
+        if (opts && opts.mow) mow(plan, opts.mow);
         return merge(pads);
+    }
+
+    /* ── the mown line ────────────────────────────────────────────────────
+
+       A row is how a hole is written, and a fairway written in rows is a
+       stack of rectangles: dead straight down both sides, stepping sideways
+       wherever one row is wider than the next, and stopping in a straight
+       line across the hole at either end. Nothing mown looks like that. A
+       greenkeeper follows the ground and the eye, and what he leaves is a
+       ribbon — swelling and narrowing, bending where the hole bends, and
+       rounded off at each end.
+
+       So once the rows are laid, every run of rows with one fairway in each is
+       given one (physics.mowEdge says what one is), and the cells on either
+       side of it are cut to its edges. What decides the shape:
+
+       - **The rows still say where the fairway is.** The ribbon's centre and
+         width are each row's own, held through the middle of the row and eased
+         into the next across the seam, so a dogleg written as three rows each
+         a unit further left comes out as one bend.
+       - **The edges wander, each its own way.** Three long sines a side, nine
+         to twenty-three units, at most `MOW_AMP` — and never more than a third
+         of the rough beside the fairway or an eighth of the fairway itself,
+         because a fairway that wanders off its own row is a different hole.
+       - **The ends are round**, over `MOW_END` or less: a quarter-ellipse,
+         which meets the hole square at its tip. Only where there is rough on
+         both sides and rough beyond the end, though. A fairway that runs up
+         to the lip of a canyon or the bank of a lake stops where it was
+         written, because there the straight edge is the hazard's and not the
+         mower's.
+       - **Only rough gives way.** A side is curved only where every row of
+         the run has rough beside the fairway at the same level. A null cell
+         is a hole in the world and its edge is not the mower's to move.
+
+       None of it changes a height. Fairway and rough in one row are the same
+       plane and the same field (that is what `bands` and `shape` are for), so
+       moving the line between them moves what the ground is made of and
+       nowhere where it is. */
+    var MOW_AMP = 0.9;
+    var MOW_WAVES = [[9, 0.25], [14.5, 0.4], [23, 0.35]];  // wavelength, share of amp
+    var MOW_BLEND = 2.5;    // half-length of the ease across a seam between rows
+    var MOW_END = 2.5;      // how far a rounded end reaches back into the run
+    var MOW_KEEP = 0.5;     // the least rough a curve may leave beside it
+    var MOW_LEAST = 1;      // …and the least fairway, measured from its far edge
+
+    function mow(plan, seed) {
+        var rnd = seeded(typeof seed === 'number' ? seed : 1), i = 0, j, k, run, a, b;
+        function fairwayOf(row) {
+            var hit = -1, q;
+            for (q = 0; q < row.cells.length; q++) {
+                if (row.cells[q].kind !== 'fairway') continue;
+                if (hit >= 0) return -1;            // two fairways in one row: leave it
+                hit = q;
+            }
+            return hit;
+        }
+        while (i < plan.length) {
+            k = fairwayOf(plan[i]);
+            if (k < 0) { i++; continue; }
+            run = [{ row: plan[i], k: k }];
+            for (j = i + 1; j < plan.length; j++) {
+                k = fairwayOf(plan[j]);
+                if (k < 0) break;
+                a = run[run.length - 1].row.cells[run[run.length - 1].k];
+                b = plan[j].cells[k];
+                if (b.x1 <= a.x0 + 1 || b.x0 >= a.x1 - 1) break;   // not the same fairway
+                run.push({ row: plan[j], k: k });
+            }
+            ribbon(run, plan[i - 1], plan[j], rnd);
+            i = j;
+        }
+    }
+
+    // Rough the whole way across a cell's width, at its level: the only thing
+    // a fairway may round its end off into.
+    function roughAcross(row, cell) {
+        if (!row) return false;
+        var q, c, any = false;
+        for (q = 0; q < row.cells.length; q++) {
+            c = row.cells[q];
+            if (c.x1 <= cell.x0 - MOW_KEEP || c.x0 >= cell.x1 + MOW_KEEP) continue;
+            if (c.kind !== 'rough' || c.dy !== cell.dy) return false;
+            any = true;
+        }
+        return any;
+    }
+
+    function ribbon(run, before, after, rnd) {
+        var n = run.length, k, e, cell, west, east, W = true, E = true;
+        var widest = 0, narrow = Infinity, ampW = MOW_AMP, ampE = MOW_AMP;
+        for (k = 0; k < n; k++) {
+            e = run[k];
+            cell = e.row.cells[e.k];
+            west = e.row.cells[e.k - 1];
+            east = e.row.cells[e.k + 1];
+            if (!west || west.kind !== 'rough' || west.dy !== cell.dy) W = false;
+            else ampW = Math.min(ampW, (west.x1 - west.x0) / 3);
+            if (!east || east.kind !== 'rough' || east.dy !== cell.dy) E = false;
+            else ampE = Math.min(ampE, (east.x1 - east.x0) / 3);
+            narrow = Math.min(narrow, cell.x1 - cell.x0);
+            widest = Math.max(widest, cell.x1 - cell.x0);
+        }
+        if (!W && !E) return;
+        ampW = Math.min(ampW, narrow / 8);
+        ampE = Math.min(ampE, narrow / 8);
+
+        var first = run[0].row.cells[run[0].k], last = run[n - 1].row.cells[run[n - 1].k];
+        var r = {
+            z0: run[0].row.z,
+            z1: run[n - 1].row.z + run[n - 1].row.d,
+            c: [], h: [], w: [], e: [],
+            t0: 0, t1: 0
+        };
+        if (W && E && roughAcross(before, first)) {
+            r.t0 = Math.min(MOW_END, (first.x1 - first.x0) * 0.4, run[0].row.d);
+        }
+        if (W && E && roughAcross(after, last)) {
+            r.t1 = Math.min(MOW_END, (last.x1 - last.x0) * 0.4, run[n - 1].row.d);
+        }
+        for (k = 0; k < n; k++) {
+            var row = run[k].row, c = row.cells[run[k].k];
+            var lin = k ? Math.min(MOW_BLEND, row.d / 2, run[k - 1].row.d / 2) : 0;
+            var lout = k < n - 1 ? Math.min(MOW_BLEND, row.d / 2, run[k + 1].row.d / 2) : 0;
+            r.c.push([row.z + lin, (c.x0 + c.x1) / 2], [row.z + row.d - lout, (c.x0 + c.x1) / 2]);
+            r.h.push([row.z + lin, (c.x1 - c.x0) / 2], [row.z + row.d - lout, (c.x1 - c.x0) / 2]);
+        }
+        for (k = 0; k < MOW_WAVES.length; k++) {
+            r.w.push([Math.PI * 2 / MOW_WAVES[k][0], (W ? ampW : 0) * MOW_WAVES[k][1], rnd() * Math.PI * 2]);
+            r.e.push([Math.PI * 2 / MOW_WAVES[k][0], (E ? ampE : 0) * MOW_WAVES[k][1], rnd() * Math.PI * 2]);
+        }
+
+        // One edge object per seam per row, held by the pads on both sides.
+        for (k = 0; k < n; k++) {
+            e = run[k];
+            cell = e.row.cells[e.k];
+            west = e.row.cells[e.k - 1];
+            east = e.row.cells[e.k + 1];
+            // A side that is not mown keeps the cell's own straight edge.
+            if (W) {
+                cell.pad.west = west.pad.east =
+                    { r: r, s: -1, lo: west.x0 + MOW_KEEP, hi: cell.x1 - MOW_LEAST };
+            }
+            if (E) {
+                cell.pad.east = east.pad.west =
+                    { r: r, s: 1, lo: cell.x0 + MOW_LEAST, hi: east.x1 - MOW_KEEP };
+            }
+        }
+    }
+
+    // Two edges are the same edge if a pad on either side would be cut alike.
+    function sameEdge(a, b) {
+        if (!a || !b) return !a && !b;
+        return a.r === b.r && a.s === b.s && a.lo === b.lo && a.hi === b.hi;
     }
 
     /* ── the country a hole stands in ─────────────────────────────────────
@@ -536,10 +694,21 @@
         }
         out.push([f, [w + span + e, kind]]);
 
+        /* The fairway is mown rather than ruled (see `mow`), unless a hole
+           says otherwise. Its wander is seeded off the rows themselves, so a
+           hole is the same hole on every load and two holes written alike
+           still do not share an edge. */
         return {
-            pads: bands(z0 - s, out, -w),
+            pads: bands(z0 - s, out, -w,
+                { mow: o.mow === false ? 0 : (o.mow || rowSeed(rows)) }),
             fence: { x: 0, z: z0, w: span, d: depth }
         };
+    }
+
+    function rowSeed(rows) {
+        var t = JSON.stringify(rows), h = 2166136261, i;
+        for (i = 0; i < t.length; i++) h = Math.imul(h ^ t.charCodeAt(i), 16777619);
+        return (h >>> 0) % 100000 + 1;
     }
 
     /* And the other axis, which is not a row at all: a cross-fall laid over a
@@ -591,6 +760,7 @@
                     a = pads[i]; b = pads[j];
                     if (a.kind !== b.kind || a.x !== b.x || a.w !== b.w || a.y !== b.y) continue;
                     if (a.sx || a.sz || b.sx || b.sz) continue;
+                    if (!sameEdge(a.west, b.west) || !sameEdge(a.east, b.east)) continue;
                     if (Math.abs(a.z + a.d - b.z) > 1e-9 && Math.abs(b.z + b.d - a.z) > 1e-9) continue;
                     a.d += b.d;
                     a.z = Math.min(a.z, b.z);
@@ -2631,7 +2801,7 @@
         var flat = [keep(spec.tee.x, spec.tee.z, 4.5)].concat(spec.flat || []);
         var bumps = (spec.bumps || []).concat(dunes(spec.area, spec.n, spec.seed,
             { clear: flat, r: spec.r, rMax: spec.rMax, a: spec.a }));
-        var pads = bands(0, spec.strips), i;
+        var pads = bands(0, spec.strips, 0, { mow: spec.seed || 1 }), i;
         // One field of humps, shared by every strip on the hole. The height of
         // the ground is a function of where you are and not of which strip you
         // happen to be standing on, so the seams between them are invisible to

@@ -1413,6 +1413,47 @@
             assert('every inlay lies flush with the ground it is laid into',
                 worstInlay <= 0.002,
                 inlayAt + ' is off it by ' + worstInlay.toFixed(4));
+
+            /* A mown line moves the seam between a fairway and its rough and
+               must move nothing else: every point of ground the rows wrote is
+               still claimed by exactly as many pads as it was — no gap the ball
+               falls through along the edge of a fairway, and no strip two pads
+               both say they own, which would put surfaceUnder back to deciding
+               by array order. Measured against the straight cells the hole was
+               written in, since those are what x and w still say. */
+            var mown = 0, swing = 0, seamFault = '';
+            ALL.forEach(function (e) {
+                var ground = e.hole.pads.filter(function (p) { return !p.inlay && !p.r; });
+                ground.forEach(function (p) {
+                    if (!p.west && !p.east) return;
+                    mown++;
+                    var row = ground.filter(function (q) { return q.z < p.z + p.d && q.z + q.d > p.z; });
+                    var k, z, x, nOld, nNew, q;
+                    for (k = 0; k < 7 && !seamFault; k++) {
+                        z = p.z + p.d * (k + 0.5) / 7;
+                        if (p.west) swing = Math.max(swing, Math.abs(P.mowEdge(p.west, z) - p.x));
+                        if (p.east) swing = Math.max(swing, Math.abs(P.mowEdge(p.east, z) - p.x - p.w));
+                        for (x = p.x - 1.5; x <= p.x + p.w + 1.5; x += 0.043) {
+                            nOld = 0; nNew = 0;
+                            for (q = 0; q < row.length; q++) {
+                                var o = row[q];
+                                if (x >= o.x && x <= o.x + o.w && z >= o.z && z <= o.z + o.d) nOld++;
+                                if (P.padContains(o, x, z)) nNew++;
+                            }
+                            if (nOld !== nNew) {
+                                seamFault = e.course.id + '/' + e.hole.name + ' at (' + x.toFixed(2) +
+                                    ', ' + z.toFixed(2) + '): ' + nNew + ' pads where the rows wrote ' + nOld;
+                                break;
+                            }
+                        }
+                    }
+                });
+            });
+            assert('the long game\'s fairways are mown, not ruled', mown >= 200, mown + ' mown pads');
+            assert('and the mown line actually wanders off the row it was written in',
+                swing >= 0.5, 'at most ' + swing.toFixed(2));
+            assert('a mown line leaves no ground uncovered and none claimed twice',
+                !seamFault, seamFault);
             assert('a bunker floor dishes no deeper than the scoop says',
                 worstFloor <= A.SCOOP + 1e-9,
                 worstFloorName + ' falls ' + worstFloor.toFixed(3) +
