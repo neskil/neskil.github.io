@@ -76,6 +76,19 @@
       // Explainer
       this.algoTitleEl = document.getElementById('algo-title');
       this.algoDescEl = document.getElementById('algo-desc');
+
+      // Side-by-side compare
+      this.topBarEl = document.querySelector('header.top-bar');
+      this.playbackBarEl = document.querySelector('nav.playback-bar');
+      this.compareBtn = document.getElementById('btn-compare');
+      this.showdownCompareBtn = document.getElementById('btn-showdown-compare');
+      this.compareOverlayEl = document.getElementById('compare-overlay');
+      this.compareDividerEl = document.getElementById('compare-divider');
+      this.comparePaneEls = [...document.querySelectorAll('.compare-pane')];
+      this.compareSelectEls = [...document.querySelectorAll('[data-pane-algo]')];
+      this.compareStatsEls = [...document.querySelectorAll('[data-pane-stats]')];
+      this.compareTrophyEls = [...document.querySelectorAll('[data-pane-trophy]')];
+      this.activeCam = 'isometric';
     }
 
     bindEvents() {
@@ -123,6 +136,7 @@
           btn.classList.add('active');
           this.controller.loadScenario(btn.dataset.scenario);
           this.syncContainerButtons(this.controller.selectedContainer);
+          this.syncCamButtons('isometric');
           if (window.innerWidth <= 900) {
             setTimeout(() => this.closeAllDrawers(), 220);
           }
@@ -144,6 +158,7 @@
           document.querySelectorAll('[data-container]').forEach(b => b.classList.remove('active'));
           btn.classList.add('active');
           this.controller.setContainer(btn.dataset.container);
+          this.syncCamButtons('isometric');
           if (window.innerWidth <= 900) {
             setTimeout(() => this.closeAllDrawers(), 220);
           }
@@ -154,8 +169,7 @@
       document.querySelectorAll('[data-cam]').forEach(btn => {
         btn.addEventListener('click', () => {
           this.sound.playClick();
-          document.querySelectorAll('[data-cam]').forEach(b => b.classList.remove('active'));
-          btn.classList.add('active');
+          this.syncCamButtons(btn.dataset.cam);
           const spec = window.CargoPacker.CONTAINERS[this.controller.selectedContainer];
           this.sceneManager.setCameraPreset(btn.dataset.cam, spec);
         });
@@ -231,6 +245,38 @@
         });
       }
 
+      // 11. Side-by-side compare
+      if (this.compareBtn) {
+        this.compareBtn.addEventListener('click', () => {
+          this.sound.playClick();
+          this.setCompare(!this.controller.compareMode);
+        });
+      }
+
+      if (this.showdownCompareBtn) {
+        this.showdownCompareBtn.addEventListener('click', () => {
+          this.sound.playClick();
+          const ranking = this.controller.comparison ? this.controller.comparison.ranking : [];
+          if (ranking.length < 2) return;
+          if (this.controller.selectedAlgorithm !== ranking[0].id) this.selectAlgorithm(ranking[0].id);
+          this.setCompare(true, ranking[1].id);
+          this.closeAllDrawers();
+          this.controller.play();
+        });
+      }
+
+      this.compareSelectEls.forEach((sel, i) => {
+        sel.addEventListener('change', () => {
+          this.sound.playClick();
+          if (i === 0) this.selectAlgorithm(sel.value);
+          else this.controller.setCompareAlgorithm(sel.value);
+        });
+      });
+
+      window.addEventListener('resize', () => {
+        if (this.controller.compareMode) this.layoutPanes();
+      });
+
       // Controller state change callback
       this.controller.onStateChange = (state) => this.renderState(state);
     }
@@ -298,7 +344,126 @@
       });
     }
 
+    /**
+     * Turns side-by-side compare on or off.
+     * @param {boolean} on
+     * @param {string|null} algoId What the second view shows; defaults to the
+     *   best-ranked algorithm that is not already in the first view.
+     */
+    setCompare(on, algoId = null) {
+      const c = this.controller;
+      if (on) {
+        const valid = id => ['extremePoints', 'wallBuilding', 'firstFit'].includes(id);
+        let pick = valid(algoId) ? algoId : null;
+        if (!pick) {
+          const ranking = c.comparison ? c.comparison.ranking.map(r => r.id) : ['extremePoints', 'wallBuilding', 'firstFit'];
+          pick = ranking.find(id => id !== c.selectedAlgorithm);
+        }
+        c.compareAlgorithm = pick;
+        c.setCompareMode(true);
+        this.compareOverlayEl.hidden = false;
+        this.layoutPanes();
+      } else {
+        c.setCompareMode(false);
+        this.compareOverlayEl.hidden = true;
+        this.sceneManager.setPanes(null);
+      }
+      // The view's shape changed, so reframe the current camera preset for it
+      this.sceneManager.setCameraPreset(this.activeCam, window.CargoPacker.CONTAINERS[c.selectedContainer]);
+    }
+
+    /**
+     * Fits the two panes into the space the panels leave free: side by side
+     * when it is wide, one above the other when it is tall.
+     */
+    layoutPanes() {
+      const W = window.innerWidth;
+      const H = window.innerHeight;
+      let left = 0;
+      let right = W;
+      // Above the drawer breakpoint the side panels are always open, so the
+      // panes go between them rather than underneath.
+      if (W > 900) {
+        left = this.leftDrawerEl.getBoundingClientRect().right;
+        right = this.rightHudEl.getBoundingClientRect().left;
+      }
+      const top = this.topBarEl ? this.topBarEl.getBoundingClientRect().bottom : 56;
+      const bottom = this.playbackBarEl ? this.playbackBarEl.getBoundingClientRect().top : H - 84;
+
+      const pad = 8;
+      const gap = 6;
+      const stage = { x: left + pad, y: top + pad, w: right - left - pad * 2, h: bottom - top - pad * 2 };
+      const sideBySide = stage.w >= stage.h * 0.9;
+      const panes = sideBySide
+        ? [0, 1].map(i => ({ x: stage.x + i * (stage.w + gap) / 2, y: stage.y, w: (stage.w - gap) / 2, h: stage.h }))
+        : [0, 1].map(i => ({ x: stage.x, y: stage.y + i * (stage.h + gap) / 2, w: stage.w, h: (stage.h - gap) / 2 }));
+      panes.forEach(p => {
+        p.x = Math.round(p.x); p.y = Math.round(p.y);
+        p.w = Math.max(1, Math.round(p.w)); p.h = Math.max(1, Math.round(p.h));
+      });
+
+      this.sceneManager.setPanes(panes);
+
+      this.comparePaneEls.forEach((el, i) => {
+        const p = panes[i];
+        Object.assign(el.style, { left: `${p.x}px`, top: `${p.y}px`, width: `${p.w}px`, height: `${p.h}px` });
+      });
+      const d = this.compareDividerEl.style;
+      if (sideBySide) {
+        Object.assign(d, { left: `${panes[1].x - gap / 2 - 1}px`, top: `${stage.y}px`, width: '2px', height: `${stage.h}px` });
+      } else {
+        Object.assign(d, { left: `${stage.x}px`, top: `${panes[1].y - gap / 2 - 1}px`, width: `${stage.w}px`, height: '2px' });
+      }
+    }
+
+    renderComparePanes(state) {
+      const compareOn = !!state.compareMode;
+      if (this.compareBtn) {
+        this.compareBtn.classList.toggle('active', compareOn);
+        this.compareBtn.setAttribute('aria-pressed', String(compareOn));
+      }
+      if (!compareOn || !state.comparison) return;
+
+      const winnerId = state.comparison.winner ? state.comparison.winner.id : null;
+      const sides = [
+        { id: state.selectedAlgorithm, result: state.packResult, metrics: state.liveMetrics },
+        { id: state.compareAlgorithm, result: state.compareResult, metrics: state.compareLiveMetrics }
+      ];
+      sides.forEach((side, i) => {
+        const summary = state.comparison.results[side.id];
+        if (!summary || !side.result) return;
+        if (this.compareSelectEls[i].value !== side.id) this.compareSelectEls[i].value = side.id;
+        this.compareTrophyEls[i].hidden = side.id !== winnerId;
+
+        const steps = side.result.steps.length;
+        const loaded = Math.min(state.currentStep + 1, steps);
+        const fill = side.metrics ? side.metrics.volumeUtilization : 0;
+        let text = `${fill}% fill · ${loaded}/${summary.totalCount} boxes`;
+        if (loaded >= steps) text += ` · ${summary.density}% dense`;
+        this.compareStatsEls[i].textContent = text;
+      });
+    }
+
+    syncCamButtons(cam) {
+      this.activeCam = cam;
+      document.querySelectorAll('[data-cam]').forEach(b => {
+        b.classList.toggle('active', b.dataset.cam === cam);
+      });
+    }
+
     renderState(state) {
+      // 0. Selection chips follow the controller, so deep links (?scenario=,
+      //    ?algo=) and showdown-row clicks highlight what is actually loaded.
+      document.querySelectorAll('[data-scenario]').forEach(b => {
+        b.classList.toggle('active', b.dataset.scenario === state.selectedScenario);
+      });
+      document.querySelectorAll('[data-algo]').forEach(b => {
+        b.classList.toggle('active', b.dataset.algo === state.selectedAlgorithm);
+      });
+      this.syncContainerButtons(state.selectedContainer);
+      this.updateAlgoExplainer(state.selectedAlgorithm);
+      this.renderComparePanes(state);
+
       // 1. Play/Pause button icons
       if (this.playIcon && this.pauseIcon) {
         this.playIcon.style.display = state.isPlaying ? 'none' : 'block';
@@ -333,10 +498,8 @@
         const medals = ['🥇', '🥈', '🥉'];
 
         if (this.showdownWinnerBadgeEl && comp.winner) {
-          const diff = comp.ranking.length > 1
-            ? (comp.ranking[0].volumeUtilization - comp.ranking[1].volumeUtilization).toFixed(1)
-            : '0.0';
-          this.showdownWinnerBadgeEl.textContent = `🏆 ${comp.winner.shortName} (+${diff}%)`;
+          this.showdownWinnerBadgeEl.textContent = `🏆 ${comp.winner.shortName}`;
+          this.showdownWinnerBadgeEl.title = comp.lead;
         }
 
         // Render ranking rows
@@ -353,7 +516,11 @@
                   <span class="showdown-medal">${medals[i] || '•'}</span>
                   <span>${r.shortName}</span>
                 </span>
-                <span class="showdown-val">${r.volumeUtilization}% <span style="font-size:0.68rem; font-weight:normal; color:var(--text-secondary);">(${r.placedCount} pkd)</span></span>
+                <span class="showdown-val">${r.volumeUtilization}%</span>
+              </div>
+              <div class="showdown-sub">
+                <span>${r.placedCount}/${r.totalCount} loaded</span>
+                <span>${r.density}% dense</span>
               </div>
               <div class="showdown-bar-bg">
                 <div class="showdown-bar-fill ${isWinner ? 'winner-bar' : ''}" style="width: ${r.volumeUtilization}%;"></div>

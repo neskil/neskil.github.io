@@ -78,6 +78,27 @@ cargo-packer/
    * Greedy 2D/3D generalization sorting boxes by height and creating horizontal tiers.
    * Highlights the classic trade-off of trapped headspace void above uneven boxes.
 
+### Physical stacking rule
+
+Every algorithm places a box only where it rests on the floor or on boxes
+already placed, with at least 60% of its base supported. First-Fit and
+Wall-Building build in layers (shelves, wall tiers) that open at the height of
+the previous layer's tallest box; a box is lowered from that line onto what is
+actually beneath it (`Collision.restingHeight`) rather than left hanging over
+the shorter boxes. `tests.html` packs every preset plus a dozen random seeds
+with each algorithm and fails if any box breaks this.
+
+### Showdown & side-by-side compare
+
+All three algorithms run on every load. The **Algorithm Showdown** ranks them
+by volume loaded, then boxes loaded, then *density* — cargo volume over the
+volume of the block it occupies — since most presets fit entirely and tie on
+fill. **Compare** (top bar, or "Watch top two side by side") splits the view in
+two: one camera drawn twice with scissor viewports, a separate cargo group per
+side, both stepped in lockstep. The panes sit between the side panels on
+desktop and stack top/bottom on portrait screens. `?compare=<algoId>` opens it
+directly.
+
 ---
 
 ## 3. Industrial Metrics

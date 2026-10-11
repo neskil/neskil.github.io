@@ -109,6 +109,7 @@
       weight: weight,
       color: opts.color || '#38bdf8',
       category: opts.category || 'carton', // carton, crate, drum, parcel
+      boxStyle: opts.boxStyle,             // texture: standard, ecommerce, heavy, fragile, wood_slat, reinforced
       allowedOrientations: opts.allowedOrientations || 'any',
       fragile: !!opts.fragile,
       maxTopWeight: opts.maxTopWeight ?? Infinity

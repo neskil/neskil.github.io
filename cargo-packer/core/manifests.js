@@ -23,7 +23,7 @@
 
   /**
    * Scenario 1: E-Commerce Express (Heterogeneous High-Variety Load)
-   * 82 parcels with 7 distinct aspect ratios testing 3D void-filling and spatial packing.
+   * 84 parcels with 7 distinct aspect ratios testing 3D void-filling and spatial packing.
    */
   function getEcommerceManifest() {
     const items = [];
@@ -420,69 +420,89 @@
     const wbResult = WB.packWallBuilding(items, container, opt);
     const ffResult = FF.packFirstFit(items, container, opt);
 
-    const results = {
-      extremePoints: {
-        id: 'extremePoints',
-        name: 'Extreme Points (EP)',
-        shortName: 'Extreme Points',
-        volumeUtilization: epResult.metrics.volumeUtilization,
-        placedCount: epResult.placed.length,
-        unplacedCount: epResult.unplaced.length,
-        cargoVolume: epResult.metrics.cargoVolume,
-        cargoWeight: epResult.metrics.cargoWeight,
-        cogStatus: epResult.metrics.cog.status,
-        result: epResult
-      },
-      wallBuilding: {
-        id: 'wallBuilding',
-        name: 'Wall-Building (Back-to-Front)',
-        shortName: 'Wall-Building',
-        volumeUtilization: wbResult.metrics.volumeUtilization,
-        placedCount: wbResult.placed.length,
-        unplacedCount: wbResult.unplaced.length,
-        cargoVolume: wbResult.metrics.cargoVolume,
-        cargoWeight: wbResult.metrics.cargoWeight,
-        cogStatus: wbResult.metrics.cog.status,
-        result: wbResult
-      },
-      firstFit: {
-        id: 'firstFit',
-        name: 'First-Fit Decreasing (Shelf)',
-        shortName: 'First-Fit',
-        volumeUtilization: ffResult.metrics.volumeUtilization,
-        placedCount: ffResult.placed.length,
-        unplacedCount: ffResult.unplaced.length,
-        cargoVolume: ffResult.metrics.cargoVolume,
-        cargoWeight: ffResult.metrics.cargoWeight,
-        cogStatus: ffResult.metrics.cog.status,
-        result: ffResult
-      }
+    const total = items.length;
+    const summarize = (id, name, shortName, result) => {
+      // The block of container the cargo actually occupies. When every
+      // algorithm loads the whole manifest, fill % ties and this is what
+      // separates them: a tighter block leaves the rest of the box free.
+      let envW = 0, envH = 0, envL = 0;
+      result.placed.forEach(p => {
+        envW = Math.max(envW, p.x + p.w);
+        envH = Math.max(envH, p.y + p.h);
+        envL = Math.max(envL, p.z + p.d);
+      });
+      const envVolume = envW * envH * envL;
+      return {
+        id: id,
+        name: name,
+        shortName: shortName,
+        volumeUtilization: result.metrics.volumeUtilization,
+        placedCount: result.placed.length,
+        unplacedCount: result.unplaced.length,
+        totalCount: total,
+        cargoVolume: result.metrics.cargoVolume,
+        cargoWeight: result.metrics.cargoWeight,
+        cogStatus: result.metrics.cog.status,
+        envelope: { width: +envW.toFixed(2), height: +envH.toFixed(2), length: +envL.toFixed(2) },
+        density: envVolume > 0 ? +((result.metrics.cargoVolume / envVolume) * 100).toFixed(1) : 0,
+        result: result
+      };
     };
 
+    const results = {
+      extremePoints: summarize('extremePoints', 'Extreme Points (EP)', 'Extreme Points', epResult),
+      wallBuilding: summarize('wallBuilding', 'Wall-Building (Back-to-Front)', 'Wall-Building', wbResult),
+      firstFit: summarize('firstFit', 'First-Fit Decreasing (Shelf)', 'First-Fit', ffResult)
+    };
+
+    // More cargo loaded wins; when that ties, the denser block wins.
     const ranking = ['extremePoints', 'wallBuilding', 'firstFit'];
     ranking.sort((a, b) => {
       if (Math.abs(results[b].volumeUtilization - results[a].volumeUtilization) > 0.1) {
         return results[b].volumeUtilization - results[a].volumeUtilization;
       }
-      return results[b].placedCount - results[a].placedCount;
+      if (results[b].placedCount !== results[a].placedCount) {
+        return results[b].placedCount - results[a].placedCount;
+      }
+      return results[b].density - results[a].density;
     });
 
     const winner = results[ranking[0]];
     const runnerUp = results[ranking[1]];
-    const diff = (winner.volumeUtilization - runnerUp.volumeUtilization).toFixed(1);
+    const volumeGap = winner.volumeUtilization - runnerUp.volumeUtilization;
+    const tiedOnVolume = volumeGap <= 0.1 && winner.placedCount === runnerUp.placedCount;
 
-    let insight = '';
-    if (winner.id === 'extremePoints') {
-      insight = `Extreme Points wins (+${diff}% volume). Its 3D corner projection seamlessly packs irregular recesses that break transverse wall slices.`;
-    } else if (winner.id === 'wallBuilding') {
-      insight = `Wall-Building wins (+${diff}% volume). Uniform modular depths align into solid vertical bulkheads with superior longitudinal stability.`;
+    // A pallet grows upwards; a container fills from the back bulkhead to the doors.
+    const isPallet = container.length < 2;
+    const extentOf = r => isPallet ? `stands ${r.envelope.height.toFixed(2)} m tall` : `uses ${r.envelope.length.toFixed(2)} m of floor`;
+    const possessive = name => name.endsWith('s') ? `${name}'` : `${name}'s`;
+
+    let insight;
+    let lead;
+    if (tiedOnVolume) {
+      const allLoaded = ranking.every(id => results[id].unplacedCount === 0);
+      lead = `${(winner.density - runnerUp.density).toFixed(0)} pts denser`;
+      insight = `${allLoaded ? 'Every algorithm loads the full manifest' : 'Fill is tied'}, so compactness decides: ` +
+        `${possessive(winner.shortName)} load is ${winner.density}% solid cargo and ${extentOf(winner)}; ` +
+        `${possessive(runnerUp.shortName)} is ${runnerUp.density}% and ${extentOf(runnerUp)}.`;
     } else {
-      insight = `First-Fit wins (+${diff}% volume) by efficiently tiering uniform height groups into dense horizontal layers.`;
+      lead = `+${volumeGap.toFixed(1)}% fill`;
+      const left = runnerUp.totalCount - runnerUp.placedCount;
+      insight = `${winner.shortName} loads ${winner.placedCount}/${total} items (+${volumeGap.toFixed(1)}% volume); ` +
+        `${runnerUp.shortName} leaves ${left} item${left === 1 ? '' : 's'} on the dock.`;
+    }
+    if (winner.id === 'extremePoints') {
+      insight += ' Its corner points let small boxes fill the recesses that layered methods leave open.';
+    } else if (winner.id === 'wallBuilding') {
+      insight += ' Building wall after wall from the back keeps each slice tight and stable.';
+    } else {
+      insight += ' Uniform heights stack into level shelves with little headspace lost.';
     }
 
     return {
       results: results,
       winner: winner,
+      lead: lead,
       ranking: ranking.map(id => results[id]),
       insight: insight
     };
@@ -492,7 +512,7 @@
     ecommerce: {
       id: 'ecommerce',
       name: 'E-Commerce Mixed Parcels',
-      description: '82 heterogeneous parcels across 7 size categories testing 3D void-filling.',
+      description: '84 heterogeneous parcels across 7 size categories testing 3D void-filling.',
       containerId: 'iso20',
       getItems: getEcommerceManifest
     },

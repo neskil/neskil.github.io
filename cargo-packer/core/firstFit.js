@@ -20,6 +20,8 @@
     const Types = (typeof module !== 'undefined' && module.exports) ? require('./types') : window.CargoPacker;
     const Metrics = (typeof module !== 'undefined' && module.exports) ? require('./metrics') : window.CargoPacker;
 
+    const minSupportRatio = options.minSupportRatio !== undefined ? options.minSupportRatio : 0.60;
+
     // Sort items by height descending (characteristic of shelf packing)
     const items = rawItems.slice().sort((a, b) => b.h - a.h || (b.w * b.d) - (a.w * a.d));
 
@@ -51,15 +53,20 @@
           for (let oIdx = 0; oIdx < orientations.length; oIdx++) {
             const ori = orientations[oIdx];
 
-            if (currentY + ori.h > container.height + EPS) continue;
             if (cursorX + ori.w > container.width + EPS) continue;
             if (currentZ + ori.d > container.length + EPS) continue;
+
+            // Settle onto whatever is below rather than hang at the shelf line,
+            // but never above it (that space belongs to the next shelf).
+            const y = Collision.restingHeight(cursorX, currentZ, ori.w, ori.d, placed);
+            if (y > currentY + EPS) continue;
+            if (y + ori.h > container.height + EPS) continue;
 
             const cand = {
               id: item.id || `box_${placed.length}`,
               name: item.name || `Box ${placed.length + 1}`,
               x: cursorX,
-              y: currentY,
+              y: y,
               z: currentZ,
               w: ori.w,
               h: ori.h,
@@ -67,18 +74,22 @@
               weight: item.weight || 15,
               color: item.color || '#38bdf8',
               category: item.category || 'carton',
+              boxStyle: item.boxStyle,
               fragile: item.fragile || false,
               rotIndex: ori.rotIndex
             };
 
             if (Collision.hasCollision(cand, placed)) continue;
 
+            const support = Collision.computeSupport(cand, placed);
+            if (support.ratio < minSupportRatio) continue;
+
+            cand.supportRatio = support.ratio;
             bestFit = cand;
             break;
           }
 
           if (bestFit) {
-            bestFit.supportRatio = currentY <= EPS ? 1.0 : Collision.computeSupport(bestFit, placed).ratio;
             placed.push(bestFit);
             unassigned.splice(i, 1);
             i--;
@@ -86,7 +97,9 @@
             shelfPlacedCount++;
             rowPlacedCount++;
             cursorX += bestFit.w;
-            if (bestFit.h > shelfHeight) shelfHeight = bestFit.h;
+            // A settled box can sit below the shelf line, so the shelf's
+            // ceiling is the highest top on it, measured from that line.
+            if (bestFit.y + bestFit.h - currentY > shelfHeight) shelfHeight = bestFit.y + bestFit.h - currentY;
             if (bestFit.d > rowDepth) rowDepth = bestFit.d;
 
             steps.push({

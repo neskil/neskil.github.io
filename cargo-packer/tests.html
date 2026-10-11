@@ -337,6 +337,35 @@
       assert('compareAlgorithms generates analytical insight rationale',
         typeof comparison.insight === 'string' && comparison.insight.length > 20);
 
+      // ── Test 18: Nothing floats ───────────────────────────────
+      // Every placed box must rest on the floor or on boxes placed BEFORE it,
+      // with at least the minimum support ratio. Shelf and wall tiers used to
+      // open at their tallest box's height, which left boxes hanging over the
+      // shorter ones beneath.
+      assert('restingHeight settles onto the highest box beneath the footprint',
+        CP.restingHeight(0, 0, 1, 1, [
+          { x: 0, y: 0, z: 0, w: 0.5, h: 0.4, d: 1 },
+          { x: 0.5, y: 0, z: 0, w: 0.5, h: 0.6, d: 1 },
+          { x: 2, y: 0, z: 0, w: 1, h: 2, d: 1 }
+        ]) === 0.6);
+
+      const floatScenarios = ['ecommerce', 'fmcg', 'industrial', 'irregular', 'pallet'];
+      const floatPackers = { 'Extreme Points': CP.packExtremePoints, 'Wall-Building': CP.packWallBuilding, 'First-Fit': CP.packFirstFit };
+      const floatSets = floatScenarios.map(id => [id, CP.PRESETS[id].getItems(), CP.CONTAINERS[CP.PRESETS[id].containerId]]);
+      for (let s = 1; s <= 12; s++) floatSets.push([`random #${s}`, CP.generateRandomManifest(s, 70), CP.CONTAINERS.iso20]);
+      for (const name of Object.keys(floatPackers)) {
+        const bad = [];
+        for (const [label, items, container] of floatSets) {
+          const r = floatPackers[name](items, container, { minSupportRatio: 0.60 });
+          r.placed.forEach((b, i) => {
+            const ratio = CP.computeSupport(b, r.placed.slice(0, i)).ratio;
+            if (ratio < 0.60 - 1e-9) bad.push(`${label}: ${b.name} at y=${b.y.toFixed(2)} (${Math.round(ratio * 100)}%)`);
+          });
+        }
+        assert(`${name}: no box floats — every box ≥60% supported by the floor or earlier boxes`,
+          bad.length === 0, bad.slice(0, 3).join('; '));
+      }
+
       // ── Summary & Verdict ─────────────────────────────────────
       const summaryText = `${passed} passed, ${failed} failed`;
       summaryEl.textContent = summaryText;

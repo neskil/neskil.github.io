@@ -45,6 +45,33 @@
     <div id="canvas-container"></div>
     <div id="drawer-backdrop" class="drawer-backdrop"></div>
 
+    <!-- Side-by-side compare labels, positioned over the two canvas panes by ui.js -->
+    <div id="compare-overlay" class="compare-overlay" hidden>
+      <div class="compare-divider" id="compare-divider"></div>
+      <div class="compare-pane" data-pane="0">
+        <div class="compare-tag">
+          <span class="compare-trophy" data-pane-trophy="0" title="Showdown winner" hidden>🏆</span>
+          <select class="compare-select" data-pane-algo="0" aria-label="Algorithm in the first view">
+            <option value="extremePoints">Extreme Points</option>
+            <option value="wallBuilding">Wall-Building</option>
+            <option value="firstFit">First-Fit</option>
+          </select>
+        </div>
+        <div class="compare-stats" data-pane-stats="0"></div>
+      </div>
+      <div class="compare-pane" data-pane="1">
+        <div class="compare-tag">
+          <span class="compare-trophy" data-pane-trophy="1" title="Showdown winner" hidden>🏆</span>
+          <select class="compare-select" data-pane-algo="1" aria-label="Algorithm in the second view">
+            <option value="extremePoints">Extreme Points</option>
+            <option value="wallBuilding">Wall-Building</option>
+            <option value="firstFit">First-Fit</option>
+          </select>
+        </div>
+        <div class="compare-stats" data-pane-stats="1"></div>
+      </div>
+    </div>
+
     <!-- Top Navigation Header -->
     <header class="top-bar">
       <div class="brand">
@@ -74,6 +101,12 @@
       </div>
 
       <div class="top-actions">
+        <!-- Side-by-side Compare Toggle -->
+        <button type="button" class="btn-icon btn-compare" id="btn-compare" aria-pressed="false" title="Compare two algorithms side by side" aria-label="Compare two algorithms side by side">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"></rect><line x1="12" y1="4" x2="12" y2="20"></line></svg>
+          <span class="btn-compare-label">Compare</span>
+        </button>
+
         <!-- Camera Presets -->
         <div class="cam-btn-group" title="Camera view angles">
           <button type="button" class="btn-pill active" data-cam="isometric" title="Isometric view"><span class="cam-label-full">Isometric</span><span class="cam-label-short">Iso</span></button>
@@ -129,7 +162,7 @@
           </button>
           <button type="button" class="chip-btn" data-scenario="ecommerce">
             <strong>E-Commerce Express</strong>
-            <span class="chip-desc">82 heterogeneous parcels across 7 size categories</span>
+            <span class="chip-desc">84 heterogeneous parcels across 7 size categories</span>
           </button>
           <button type="button" class="chip-btn" data-scenario="industrial">
             <strong>Industrial Machinery &amp; Drums</strong>
@@ -233,6 +266,7 @@
         <div class="showdown-insight" id="showdown-insight">
           Simulating algorithm fill potentials...
         </div>
+        <button type="button" class="btn-showdown-compare" id="btn-showdown-compare">Watch top two side by side</button>
       </div>
 
       <!-- Volume Fill Metric -->
@@ -354,6 +388,7 @@
       const sceneManager = new CP.SceneManager(canvasContainer);
       const containerRenderer = new CP.ContainerRenderer(sceneManager);
       const boxRenderer = new CP.BoxRenderer(sceneManager);
+      const boxRendererB = new CP.BoxRenderer(sceneManager, sceneManager.cargoGroupB);
       const visualizers = new CP.Visualizers(sceneManager);
       const sound = new CP.SoundEffects();
 
@@ -365,6 +400,7 @@
         visualizers,
         sound
       );
+      controller.boxRendererB = boxRendererB;
 
       // 3. Initialize UI
       const ui = new CP.UIController(
@@ -385,9 +421,13 @@
       if (q.has('algo')) {
         controller.setAlgorithm(q.get('algo'));
       }
+      if (q.has('compare')) {
+        ui.setCompare(true, q.get('compare') || null);
+      }
       if (q.has('cam')) {
         const spec = CP.CONTAINERS[controller.selectedContainer];
         sceneManager.setCameraPreset(q.get('cam'), spec);
+        ui.syncCamButtons(q.get('cam'));
       }
       if (q.has('step')) {
         const s = parseInt(q.get('step'), 10);

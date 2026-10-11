@@ -107,7 +107,7 @@ while scrolling, and turning it over shows a screenshot of the thing running
 plus the button that starts it. Those screenshots live in `assets/preview/` as
 800x420 WebP, one per card, and are held in `data-src` until the card is
 flipped (or, on a machine with a pointer, until the cursor reaches the card).
-Nothing in that folder is fetched on load; together they are under 200 KB.
+Nothing in that folder is fetched on load; together they are under 400 KB.
 
 Two things make them worth the trouble, and both are easy to lose when
 regenerating one:
