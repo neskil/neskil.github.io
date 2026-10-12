@@ -52,4 +52,8 @@
     <loc>https://neskil.github.io/sand/</loc>
     <priority>0.7</priority>
   </url>
+  <url>
+    <loc>https://neskil.github.io/terrarium/</loc>
+    <priority>0.7</priority>
+  </url>
 </urlset>

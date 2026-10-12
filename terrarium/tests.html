@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pocket Weather Terrarium — Tests</title>
+    <meta name="robots" content="noindex">
+    <style>
+        body { background: #0f172a; color: #f8fafc; font-family: system-ui, monospace; padding: 1.5rem; line-height: 1.5; }
+        h1 { font-size: 1.4rem; margin-bottom: 1rem; color: #7dd3c0; }
+        .pass { color: #34d399; }
+        .fail { color: #f87171; font-weight: bold; }
+        #summary { font-size: 1.2rem; margin-bottom: 1rem; padding: 0.5rem; background: #1e293b; border-radius: 6px; }
+        .test-row { margin-bottom: 0.25rem; font-family: monospace; }
+    </style>
+</head>
+<body>
+    <h1>🫙 Pocket Weather Terrarium — Test Suite</h1>
+    <div id="summary">Running tests…</div>
+    <div id="results"></div>
+
+    <script type="module">
+        import * as W from './js/weather.js';
+
+        const results = document.getElementById('results');
+        let passed = 0, failed = 0;
+        function ok(cond, name, detail = '') {
+            const row = document.createElement('div');
+            row.className = 'test-row ' + (cond ? 'pass' : 'fail');
+            row.textContent = (cond ? '✓ ' : '✗ ') + name + (detail ? ' — ' + detail : '');
+            results.appendChild(row);
+            cond ? passed++ : failed++;
+        }
+        const near = (a, b, tol) => Math.abs(a - b) <= tol;
+
+        // ── Weather codes ──
+        ok(W.describe(0).cloud === 0 && W.describe(0).rain === 0, 'code 0 is a clear, dry sky');
+        ok(W.describe(95).storm === true && W.describe(95).rain > 0, 'code 95 is a thunderstorm with rain');
+        ok(W.describe(73).snow > 0 && W.describe(73).rain === 0, 'code 73 is snow, not rain');
+        ok(W.describe(45).fog > 0.5, 'code 45 is fog');
+        ok(W.describe(65).rain > W.describe(61).rain, 'heavy rain is wetter than light rain');
+        ok(W.describe(12345).label === 'Unsettled', 'an unknown code still makes a sky');
+        ok(W.PRESETS.every(p => W.describe(p.code).label !== 'Unsettled'), 'every hand-picked weather is a real code');
+
+        // ── The sun ──
+        {
+            // Stockholm, midsummer, local solar noon is about 10:48 UTC.
+            const noon = W.sunElevation(new Date(Date.UTC(2026, 5, 21, 10, 48)), 59.33, 18.07);
+            ok(near(noon, 90 - 59.33 + 23.44, 1), 'Stockholm midsummer noon sun is at ~54°', noon.toFixed(1) + '°');
+            const midnight = W.sunElevation(new Date(Date.UTC(2026, 5, 21, 22, 48)), 59.33, 18.07);
+            ok(midnight < 0 && midnight > -9, 'and only just below the horizon at midnight', midnight.toFixed(1) + '°');
+            const winter = W.sunElevation(new Date(Date.UTC(2026, 11, 21, 10, 48)), 59.33, 18.07);
+            ok(near(winter, 90 - 59.33 - 23.44, 1), 'Stockholm midwinter noon sun is at ~7°', winter.toFixed(1) + '°');
+            const eq = W.sunElevation(new Date(Date.UTC(2026, 2, 20, 12, 7)), 0, 0);
+            ok(eq > 88, 'equator at the equinox: overhead at noon', eq.toFixed(1) + '°');
+            const detroitNight = W.sunElevation(new Date(Date.UTC(2026, 9, 12, 6, 0)), 42.33, -83.05);
+            ok(detroitNight < -18, 'Detroit at 2am is properly dark', detroitNight.toFixed(1) + '°');
+        }
+        ok(near(W.sunAzimuthish(new Date(Date.UTC(2026, 0, 1, 12)), 0, 0), 0, 0.01), 'noon puts the sun in the middle of the jar');
+        ok(W.sunAzimuthish(new Date(Date.UTC(2026, 0, 1, 7)), 0, 0) < -0.5, 'morning puts it in the east');
+        ok(W.sunAzimuthish(new Date(Date.UTC(2026, 0, 1, 12)), 0, 7200) > 0.3, 'the UTC offset moves it with the local clock');
+
+        // ── The moon ──
+        {
+            // The total lunar eclipse of 3 March 2026 was at full moon, and the
+            // annular solar eclipse of 17 February 2026 at new moon.
+            const full = W.moonPhase(new Date(Date.UTC(2026, 2, 3, 11, 33)));
+            ok(near(full, 0.5, 0.03), 'full at the March 2026 lunar eclipse', full.toFixed(3));
+            const nw = W.moonPhase(new Date(Date.UTC(2026, 1, 17, 12, 12)));
+            ok(Math.min(nw, 1 - nw) < 0.03, 'new at the February 2026 solar eclipse', nw.toFixed(3));
+        }
+
+        // ── Sky colours ──
+        {
+            const clear = W.describe(0), storm = W.describe(95);
+            const lum = (c) => c[0] + c[1] + c[2];
+            const day = W.skyColours(40, clear), night = W.skyColours(-30, clear);
+            ok(lum(day.top) > lum(night.top) * 3, 'the day sky is far brighter than the night');
+            ok(day.daylight === 1 && night.daylight === 0, 'daylight runs 0 at night to 1 by day');
+            const dusk = W.skyColours(1, clear);
+            ok(dusk.horizon[0] > dusk.horizon[2], 'the horizon goes warm at sunset');
+            const grey = W.skyColours(40, storm);
+            ok(lum(grey.top) < lum(day.top), 'a storm darkens the sky');
+            ok(Math.abs(grey.top[0] - grey.top[2]) < Math.abs(day.top[0] - day.top[2]), 'and washes its colour out');
+        }
+
+        // ── Where the jar is ──
+        ok(W.guessPlace('America/Detroit').name === 'Detroit', 'Detroit time means Detroit');
+        ok(W.guessPlace('Europe/Stockholm').lat > 59, 'Stockholm time means Stockholm');
+        ok(W.guessPlace('Mars/Olympus_Mons').name === 'Stockholm', 'an unknown zone falls back to Stockholm');
+        ok(Object.values(W.ZONES).every(([, lat, lon]) => Math.abs(lat) <= 90 && Math.abs(lon) <= 180), 'every zone city has sane coordinates');
+
+        // ── Open-Meteo ──
+        {
+            const url = new URL(W.forecastUrl(59.3293, 18.0686));
+            ok(url.host === 'api.open-meteo.com' && url.searchParams.get('latitude') === '59.329', 'the forecast URL names the place');
+            ok(url.searchParams.get('current').includes('weather_code'), 'and asks for the current weather code');
+            ok(url.searchParams.get('timezone') === 'auto', 'and the local time zone');
+            ok(new URL(W.geocodeUrl('São Paulo')).searchParams.get('name') === 'São Paulo', 'city search keeps the name intact');
+
+            // The documented shape of a /v1/forecast response with `current`.
+            const fixture = {
+                latitude: 59.33, longitude: 18.07, utc_offset_seconds: 7200, timezone: 'Europe/Stockholm',
+                current: { time: '2026-10-12T14:00', interval: 900, temperature_2m: 9.4, weather_code: 61, wind_speed_10m: 4.2, cloud_cover: 88, is_day: 1 },
+            };
+            const w = W.fromForecast(fixture);
+            ok(w.label === 'Light rain' && w.rain > 0, 'a forecast with code 61 rains in the jar');
+            ok(w.temp === 9.4 && w.wind === 4.2, 'and carries temperature and wind');
+            ok(w.utcOffset === 7200 && w.timeZone === 'Europe/Stockholm', 'and the local clock');
+            ok(w.cloud >= 0.88, 'reported cloud cover wins when it is cloudier than the code');
+            const clearButCloudy = W.fromForecast({ current: { weather_code: 0, cloud_cover: 40 } });
+            ok(near(clearButCloudy.cloud, 0.4, 0.001), 'and when it is less sure than the code');
+
+            let threw = false, half;
+            try { half = W.fromForecast({}); W.fromForecast(null); } catch (e) { threw = true; }
+            ok(!threw && half.temp === null && half.label, 'a half-empty response still makes a calm sky');
+        }
+
+        // ── Clock and snow ──
+        ok(W.localTime(new Date(Date.UTC(2026, 9, 12, 12, 5)), 7200) === '14:05', 'local time from a UTC offset');
+        ok(W.localTime(new Date(Date.UTC(2026, 9, 12, 2, 0)), -4 * 3600) === '22:00', 'and across midnight backwards');
+        {
+            const snow = { ...W.describe(73), temp: -3 };
+            let c = 0;
+            for (let k = 0; k < 100; k++) c = W.nextSnowCover(c, snow, 1);
+            ok(c > 0.5, 'snow builds up while it snows', c.toFixed(2));
+            const frosty = { ...W.describe(0), temp: -5 };
+            ok(W.nextSnowCover(0.7, frosty, 10) === 0.7, 'and lies on a frosty clear day');
+            const thaw = { ...W.describe(63), temp: 6 };
+            ok(W.nextSnowCover(0.7, thaw, 10) < 0.7, 'and melts in warm rain');
+            ok(W.nextSnowCover(0.01, thaw, 100) === 0, 'down to nothing, not below');
+        }
+        {
+            const g = W.offlineGuess(new Date(Date.UTC(2026, 0, 15)), 59.3);
+            ok(g.snow > 0, 'offline in a Swedish January, guess snow');
+            const s = W.offlineGuess(new Date(Date.UTC(2026, 6, 15)), 59.3);
+            ok(s.snow === 0 && s.rain === 0, 'offline in July, a mild day');
+            const au = W.offlineGuess(new Date(Date.UTC(2026, 0, 15)), -33.9);
+            ok(au.snow === 0, 'and January in Sydney is summer');
+        }
+
+        const summary = document.getElementById('summary');
+        summary.textContent = passed + ' passed, ' + failed + ' failed';
+        summary.className = failed ? 'fail' : 'pass';
+    </script>
+</body>
+</html>
