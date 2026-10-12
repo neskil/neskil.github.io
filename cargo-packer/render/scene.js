@@ -117,10 +117,7 @@
       shadowPlane.receiveShadow = true;
       this.scene.add(shadowPlane);
 
-      // Architectural grid helper
-      const grid = new THREE.GridHelper(40, 40, '#0284c7', 'rgba(255,255,255,0.07)');
-      grid.position.y = -0.005;
-      this.scene.add(grid);
+      // The ground itself (concrete, bay markings, props) is the yard's: render/yard.js
     }
 
     setCameraPreset(preset, containerSpecs) {

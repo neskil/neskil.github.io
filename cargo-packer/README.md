@@ -43,6 +43,7 @@ cargo-packer/
 │   ├── scene.js          # Camera rigs, lighting, floor grid, OrbitControls
 │   ├── container.js      # 3D models for ISO container & EUR-pallet (cutaway glass / wireframe)
 │   ├── boxes.js          # Procedural box meshes with drop-in easing animation
+│   ├── yard.js           # Scenery: concrete apron, bay markings, forklift, pallets, cones, container stacks
 │   └── visualizers.js    # Glowing Extreme Point anchors, 3D CoG target & plumbline
 │
 ├── game/                 # State management & audio
@@ -98,6 +99,21 @@ two: one camera drawn twice with scissor viewports, a separate cargo group per
 side, both stepped in lockstep. The panes sit between the side panels on
 desktop and stack top/bottom on portrait screens. `?compare=<algoId>` opens it
 directly.
+
+### Scenery & fullscreen
+
+The container stands in a loading yard (`render/yard.js`): concrete with a
+painted bay and hatched door apron, open doors carrying the owner code, ISO
+type and weights panel, line livery on the solid walls, and props around it.
+Props are kept out of the sightlines the camera presets look through (the glass
+side, the open doors) — the forklift crosses *behind* the bulkhead for that
+reason. Everything is procedural (canvas textures, Three.js primitives); there
+are no image assets. The yard is rebuilt only when the footprint changes, not
+when the wall mode does.
+
+The fullscreen button uses the Fullscreen API and hides the side panels; it is
+hidden where the API is missing (iPhone Safari). The app is sized in `dvh` with
+safe-area insets so the playback dock stays above mobile browser toolbars.
 
 ---
 

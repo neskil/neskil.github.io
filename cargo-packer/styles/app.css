@@ -3,7 +3,11 @@
 #app-container {
   position: relative;
   width: 100vw;
+  /* 100vh on a phone is the height with the browser's toolbar hidden, so
+     while the toolbar shows, the bottom of the app (the playback dock) sits
+     under it. dvh tracks what is actually visible. */
   height: 100vh;
+  height: 100dvh;
   overflow: hidden;
 }
 
@@ -247,6 +251,22 @@ header.top-bar {
 .btn-showdown-compare:hover {
   background: rgba(249, 115, 22, 0.28);
   color: #ffffff;
+}
+
+/* ── Fullscreen ──────────────────────────────────────────────────── */
+.btn-icon[hidden] {
+  display: none;
+}
+
+#btn-fullscreen.active {
+  color: #ffffff;
+  border-color: var(--accent-cyan);
+  background: rgba(2, 132, 199, 0.35);
+}
+
+body.immersive aside.left-drawer,
+body.immersive aside.right-hud {
+  display: none;
 }
 
 /* ── Left Control Sidebar ────────────────────────────────────────── */
@@ -640,7 +660,7 @@ aside.right-hud {
 /* ── Bottom Playback Control Dock ────────────────────────────────── */
 nav.playback-bar {
   position: absolute;
-  bottom: 1rem;
+  bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
   left: 50%;
   transform: translateX(-50%);
   background: var(--bg-card);
@@ -805,6 +825,7 @@ nav.playback-bar {
     left: 0.75rem;
     width: min(320px, calc(100vw - 1.5rem));
     max-height: calc(100vh - 144px);
+    max-height: calc(100dvh - 144px);
     z-index: 30;
     transform: translateX(calc(-100% - 2rem));
     transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1);
@@ -822,6 +843,7 @@ nav.playback-bar {
     right: 0.75rem;
     width: min(320px, calc(100vw - 1.5rem));
     max-height: calc(100vh - 144px);
+    max-height: calc(100dvh - 144px);
     z-index: 30;
     transform: translateX(calc(100% + 2rem));
     transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1);
@@ -901,7 +923,7 @@ nav.playback-bar {
   }
 
   nav.playback-bar {
-    bottom: 0.5rem;
+    bottom: calc(0.5rem + env(safe-area-inset-bottom, 0px));
     padding: 0.35rem 0.65rem;
     gap: 0.5rem;
     max-width: calc(100vw - 1rem);
@@ -945,6 +967,7 @@ nav.playback-bar {
     right: 0.5rem;
     width: calc(100vw - 1rem);
     max-height: calc(100vh - 120px);
+    max-height: calc(100dvh - 120px);
     padding: 0.75rem;
     gap: 0.75rem;
   }
@@ -973,9 +996,11 @@ nav.playback-bar {
 }
 
 /* The smallest phones (320px): drop the logo too and tighten the dock so
-   the home button and the speed toggle stay on screen. */
+   the home button and the speed toggle stay on screen. The mute button goes
+   as well; the phone's own silent switch covers it. */
 @media (max-width: 360px) {
-  .brand-icon {
+  .brand-icon,
+  #btn-mute {
     display: none;
   }
 

@@ -200,6 +200,12 @@ cargo-packer/
 - [x] **7.5 Opening camera**: looks into the loading corner (bulkhead + solid wall + floor) from the open side; presets reframe for portrait viewports and panes.
 - [x] **7.6 Headless suite**: 55/55 green.
 
+### Phase 8: Yard Scenery, Fullscreen & Mobile Dock
+- [x] **8.1 Mobile dock**: `dvh` sizing + safe-area insets, so Play is not hidden under the browser toolbar.
+- [x] **8.2 Fullscreen**: Fullscreen API toggle that tucks the side panels away; compare panes refit.
+- [x] **8.3 Container dressing**: doors swung open with owner code / ISO type / weights / CSC plate; line livery on the solid walls.
+- [x] **8.4 Yard**: concrete apron, painted bay + hatched door zone, forklift with a wrapped pallet, empty pallet stack, cones, bollards, floodlight, background container rows.
+
 ---
 
 ## 5. Architectural Invariants & Non-Negotiables

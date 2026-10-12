@@ -89,6 +89,7 @@
       this.compareStatsEls = [...document.querySelectorAll('[data-pane-stats]')];
       this.compareTrophyEls = [...document.querySelectorAll('[data-pane-trophy]')];
       this.activeCam = 'isometric';
+      this.fullscreenBtn = document.getElementById('btn-fullscreen');
     }
 
     bindEvents() {
@@ -277,6 +278,21 @@
         if (this.controller.compareMode) this.layoutPanes();
       });
 
+      // 12. Fullscreen: the browser's fullscreen plus the side panels tucked
+      //     away, so the container gets the whole screen.
+      const root = document.documentElement;
+      const canFullscreen = !!(root.requestFullscreen || root.webkitRequestFullscreen);
+      if (this.fullscreenBtn && canFullscreen) {
+        this.fullscreenBtn.hidden = false;
+        this.fullscreenBtn.addEventListener('click', () => {
+          this.sound.playClick();
+          this.toggleFullscreen();
+        });
+        const sync = () => this.setImmersive(!!(document.fullscreenElement || document.webkitFullscreenElement));
+        document.addEventListener('fullscreenchange', sync);
+        document.addEventListener('webkitfullscreenchange', sync);
+      }
+
       // Controller state change callback
       this.controller.onStateChange = (state) => this.renderState(state);
     }
@@ -344,6 +360,35 @@
       });
     }
 
+    toggleFullscreen() {
+      const doc = document;
+      if (doc.fullscreenElement || doc.webkitFullscreenElement) {
+        (doc.exitFullscreen || doc.webkitExitFullscreen).call(doc);
+      } else {
+        const root = doc.documentElement;
+        const req = root.requestFullscreen || root.webkitRequestFullscreen;
+        const p = req.call(root, { navigationUI: 'hide' });
+        // Refused (no user gesture, iframe without permission): stay as we are
+        if (p && p.catch) p.catch(() => this.setImmersive(false));
+      }
+    }
+
+    setImmersive(on) {
+      document.body.classList.toggle('immersive', on);
+      this.closeAllDrawers();
+      if (this.fullscreenBtn) {
+        this.fullscreenBtn.classList.toggle('active', on);
+        this.fullscreenBtn.setAttribute('aria-pressed', String(on));
+        this.fullscreenBtn.title = on ? 'Exit fullscreen' : 'Fullscreen';
+        document.getElementById('icon-fs-enter').style.display = on ? 'none' : 'block';
+        document.getElementById('icon-fs-exit').style.display = on ? 'block' : 'none';
+      }
+      // Panels just appeared or vanished: refit the compare panes next frame
+      requestAnimationFrame(() => {
+        if (this.controller.compareMode) this.layoutPanes();
+      });
+    }
+
     /**
      * Turns side-by-side compare on or off.
      * @param {boolean} on
@@ -384,8 +429,10 @@
       // Above the drawer breakpoint the side panels are always open, so the
       // panes go between them rather than underneath.
       if (W > 900) {
-        left = this.leftDrawerEl.getBoundingClientRect().right;
-        right = this.rightHudEl.getBoundingClientRect().left;
+        const l = this.leftDrawerEl.getBoundingClientRect();
+        const r = this.rightHudEl.getBoundingClientRect();
+        if (l.width > 0) left = l.right;   // a hidden panel (fullscreen) measures 0
+        if (r.width > 0) right = r.left;
       }
       const top = this.topBarEl ? this.topBarEl.getBoundingClientRect().bottom : 56;
       const bottom = this.playbackBarEl ? this.playbackBarEl.getBoundingClientRect().top : H - 84;
