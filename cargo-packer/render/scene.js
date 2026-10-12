@@ -68,6 +68,7 @@
       // Split view: null, or two {x, y, w, h} panes in CSS px from the top-left
       // of the canvas. Both panes share one camera, so orbiting one turns both.
       this.panes = null;
+      this.frame = null;
 
       // Resize listener
       window.addEventListener('resize', () => this.onResize());
@@ -201,8 +202,35 @@
 
     /** Aspect ratio of what one view shows: a pane in split view, else the canvas. */
     viewAspect() {
+      if (this.frame) return this.frame.w / this.frame.h;
       const p = this.panes && this.panes[0];
       return p ? p.w / p.h : this.width / this.height;
+    }
+
+    /**
+     * Frames the camera's shot inside part of the canvas: what the camera
+     * looks at lands in the centre of `rect` (CSS px from the canvas top-left)
+     * instead of the centre of the screen, and the rest of the canvas shows
+     * the scene around it. The guided tour uses this so the box it talks about
+     * is not under its own text panel. Pass null for the whole canvas.
+     * @param {{x:number,y:number,w:number,h:number}|null} rect
+     */
+    setFrame(rect) {
+      this.frame = rect && rect.w > 0 && rect.h > 0 ? rect : null;
+      this.applyProjection();
+    }
+
+    applyProjection() {
+      const f = this.frame;
+      if (f) {
+        // The camera's full view becomes an f.w × f.h image placed at (f.x,
+        // f.y); the canvas renders a window of it that spills past its edges.
+        this.camera.setViewOffset(f.w, f.h, -f.x, -f.y, this.width, this.height);
+      } else {
+        this.camera.clearViewOffset();
+      }
+      this.camera.aspect = this.viewAspect();
+      this.camera.updateProjectionMatrix();
     }
 
     /**
@@ -211,18 +239,17 @@
      */
     setPanes(panes) {
       this.panes = panes && panes.length === 2 ? panes : null;
+      if (this.panes) this.frame = null; // split view frames its own panes
       this.cargoGroupB.visible = false;
       this.cargoGroup.visible = true;
       this.visualizerGroup.visible = true;
-      this.camera.aspect = this.viewAspect();
-      this.camera.updateProjectionMatrix();
+      this.applyProjection();
     }
 
     onResize() {
       this.width = this.container.clientWidth || window.innerWidth;
       this.height = this.container.clientHeight || window.innerHeight;
-      this.camera.aspect = this.viewAspect();
-      this.camera.updateProjectionMatrix();
+      this.applyProjection();
       this.renderer.setSize(this.width, this.height);
     }
 
