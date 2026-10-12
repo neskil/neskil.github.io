@@ -5678,6 +5678,68 @@
         return G3.SHUFFLE_MODES[0];
     };
 
+    /* ── the showcase: the game in eight holes ───────────────────────────
+
+       A hundred and two holes is a lot to ask anybody to walk before they
+       know what is in them, and the order they are written in shows you six
+       holes of one kind of golf before it shows you a second. The showcase is
+       the other way in, and it is what a new game plays: two holes from every
+       kind, mini golf first and the long game last, each out of a different
+       course and each in its own course's world and sky. Eight holes, four
+       kinds, eight courses, and a new deal every round.
+
+       It is a course in every way the rest of the game asks about — an id
+       `courseById` answers to, a list of holes, a par — with three more
+       things on it. `from` says where each hole came from, which is what the
+       sky and the plans are keyed by (a hole has the same weather and the same
+       drawn plan whether you meet it here or at home). `themes` is the world
+       each one is drawn in. And `isShowcase`, for the card and the records,
+       which judge it against par: two deals do not have the same par, so the
+       fewest strokes is not a record of anything.
+
+       It is deliberately not in G3.COURSES. Nothing lists it, nothing draws
+       it, and `nextCourseId` cannot hand it out; it is reached by name. The
+       playtest course is never dealt either — it is somebody's draft, and it
+       is filed under mini golf only so the picker has a shelf for it. */
+    G3.SHOWCASE_PER_KIND = 2;
+
+    G3.dealShowcase = function (rng) {
+        var rnd = rng || Math.random;
+        // Clamped rather than trusted, for the reason randomCourseId gives.
+        function pick(n) {
+            var v = rnd();
+            var i = Math.floor((typeof v === 'number' && v >= 0 && v < 1 ? v : 0) * n);
+            return Math.max(0, Math.min(n - 1, i));
+        }
+        var holes = [], from = [], themes = [];
+        G3.COURSE_GROUPS.forEach(function (group) {
+            var pool = G3.coursesInGroup(group.id).filter(function (c) { return !c.playtest; });
+            for (var k = 0; k < G3.SHOWCASE_PER_KIND && pool.length; k++) {
+                var course = pool.splice(pick(pool.length), 1)[0];
+                var i = pick(course.holes.length);
+                holes.push(course.holes[i]);
+                from.push({ id: course.id, index: i });
+                themes.push(course.theme);
+            }
+        });
+        return {
+            id: 'showcase',
+            group: 'showcase',
+            name: 'Showcase',
+            blurb: 'Two holes from every kind of golf, each out of a different course. A new deal every round.',
+            theme: themes[0],
+            themes: themes,
+            from: from,
+            holes: holes,
+            isShowcase: true
+        };
+    };
+
+    /* The deal on the table. `courseById('showcase')` deals one the first time
+       it is asked and then keeps answering with it — Play again is the same
+       eight holes — until something deals a fresh one in its place. */
+    G3.SHOWCASE = null;
+
     /* The bag a hole is played out of.
 
        Most holes are played out of the whole bag and say nothing. A hole that
@@ -5761,6 +5823,7 @@
 
     G3.courseById = function (id) {
         if (id === 'range') return G3.RANGE_COURSE;
+        if (id === 'showcase') return G3.SHOWCASE || (G3.SHOWCASE = G3.dealShowcase());
         for (var i = 0; i < G3.COURSES.length; i++) {
             if (G3.COURSES[i].id === id) return G3.COURSES[i];
         }

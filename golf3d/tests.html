@@ -1008,6 +1008,61 @@
                     Object.keys(seen).length + ' of ' + n);
             })();
 
+            /* The showcase: what a new game plays. Two holes from every kind,
+               in the picker's order, out of eight different courses — and
+               each one still the hole it is at home, which is what its sky,
+               its plan and its world are all keyed by. */
+            (function () {
+                function lcg(seed) {
+                    var s = seed >>> 0;
+                    return function () { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
+                }
+                var per = G3.SHOWCASE_PER_KIND, kinds = G3.COURSE_GROUPS.map(function (g) { return g.id; });
+                var bad = '', deals = {}, k, d;
+                for (k = 0; k < 60; k++) {
+                    d = G3.dealShowcase(lcg(k * 7919 + 1));
+                    deals[d.from.map(function (f) { return f.id + f.index; }).join()] = 1;
+                    var ids = {}, home;
+                    if (d.holes.length !== kinds.length * per) bad = bad || 'deal ' + k + ' has ' + d.holes.length + ' holes';
+                    d.from.forEach(function (f, i) {
+                        home = G3.courseById(f.id);
+                        if (ids[f.id]) bad = bad || 'deal ' + k + ' takes two holes from ' + f.id;
+                        ids[f.id] = 1;
+                        if (home.group !== kinds[Math.floor(i / per)]) bad = bad || 'deal ' + k + ' hole ' + (i + 1) + ' is ' + home.group;
+                        if (home.holes[f.index] !== d.holes[i]) bad = bad || 'deal ' + k + ' hole ' + (i + 1) + ' is not ' + f.id + '/' + f.index;
+                        if (d.themes[i] !== home.theme) bad = bad || 'deal ' + k + ' hole ' + (i + 1) + ' is drawn in the wrong world';
+                        if (home.playtest) bad = bad || 'deal ' + k + ' dealt the playtest';
+                    });
+                }
+                assert('a showcase is two holes of every kind, in order, from eight different courses',
+                    !bad, bad);
+                assert('and the deal changes from round to round',
+                    Object.keys(deals).length >= 55, Object.keys(deals).length + ' different deals in 60');
+                var a = G3.dealShowcase(lcg(42)), b = G3.dealShowcase(lcg(42));
+                assert('the same dice deal the same showcase',
+                    JSON.stringify(a.from) === JSON.stringify(b.from));
+                assert('every course can be dealt into one',
+                    G3.COURSES.every(function (c) {
+                        for (var j = 0; j < 400; j++) {
+                            if (G3.dealShowcase(lcg(j * 31 + 5)).from.some(function (f) { return f.id === c.id; })) return true;
+                        }
+                        return false;
+                    }));
+                var was = G3.SHOWCASE;
+                try {
+                    G3.SHOWCASE = null;
+                    var dealt = G3.courseById('showcase');
+                    assert('courseById deals a showcase when asked for one, and keeps it',
+                        dealt.isShowcase && dealt.holes.length === kinds.length * per &&
+                        G3.courseById('showcase') === dealt);
+                } finally {
+                    G3.SHOWCASE = was;
+                }
+                assert('the showcase is reached by name and listed nowhere',
+                    G3.COURSES.every(function (c) { return c.id !== 'showcase'; }) &&
+                    G3.nextCourseId('seaside') !== 'showcase');
+            })();
+
             /* A hole may name its own bag, and there are three ways to get
                that wrong that nothing else would catch: naming a club that
                does not exist (`bagFor` drops it, and a hole meant to be
@@ -3027,6 +3082,19 @@
             assert('and does not disturb the first', other.save.courses.seaside.best === third.save.courses.seaside.best);
             assert('courseRecord returns an empty record for an unplayed course',
                 S.courseRecord(S.emptySave(), 'works').best === null);
+
+            /* A showcase is judged against par: two deals add up to different
+               pars, and the fewest strokes would only ever be the easiest
+               deal. More strokes and further under par is the better round. */
+            var easy = [{ par: 2 }, { par: 2 }], hard = [{ par: 5 }, { par: 5 }];
+            var sc1 = S.recordRound(S.emptySave(), 'showcase', [3, 3], easy, { byPar: true });
+            var sc2 = S.recordRound(sc1.save, 'showcase', [4, 5], hard, { byPar: true });
+            assert('a showcase record goes to the round furthest under par, not the fewest strokes',
+                sc2.isBest && sc2.save.courses.showcase.bestVsPar === -1 &&
+                sc2.save.courses.showcase.best === 9 && sc2.save.courses.showcase.rounds === 2);
+            var sc3 = S.recordRound(sc2.save, 'showcase', [2, 2], easy, { byPar: true });
+            assert('…and level par on an easy deal does not beat it',
+                !sc3.isBest && sc3.save.courses.showcase.bestVsPar === -1);
 
             // Round-trip through localStorage under a scratch key, so running
             // the tests never costs anyone their records.
