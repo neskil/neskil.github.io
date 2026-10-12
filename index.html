@@ -194,6 +194,12 @@
             --hue: 38;
         }
 
+        html[data-theme="card-paper-plane"] {
+            --bg-color-1: #14140c;
+            --bg-color-2: #212011;
+            --hue: 52;
+        }
+
         /* ── Background variants ──────────────────────────────────────────────
            The 135° ramp above stays as the floor; each variant is one fixed layer
            that cross-fades in over it, so switching costs an opacity change and
@@ -1929,6 +1935,18 @@
             color: rgb(252, 211, 77);
         }
 
+        #card-paper-plane {
+            --accent-rgb: 250, 204, 21;
+            --card-bg-gradient: linear-gradient(135deg, rgba(36, 34, 20, 0.66) 0%, rgba(15, 22, 35, 0.60) 100%);
+            --card-hover-gradient: linear-gradient(135deg, rgba(56, 52, 24, 0.82) 0%, rgba(20, 28, 48, 0.75) 100%);
+            --card-border: rgba(250, 204, 21, 0.22);
+            --card-hover-border: rgba(253, 224, 71, 0.50);
+        }
+
+        #card-paper-plane .card-link {
+            color: rgb(253, 224, 71);
+        }
+
         /* ── Materials: layered onto the same tilt-tracking glare (.card::before). Uses
            overlay blend so bright texture only lifts already-light pixels instead of
            flatly washing out the (already fairly low-contrast) body text underneath. ── */
@@ -3144,7 +3162,7 @@
                 <button type="button" class="shelf-head" aria-expanded="true" aria-controls="shelf-games-body">
                     <span class="shelf-icon" aria-hidden="true">🎮</span>
                     <span class="shelf-text"><span class="shelf-title">Games</span><span class="shelf-blurb">Things to play. Mostly logistics, occasionally golf.</span></span>
-                    <span class="shelf-count">5</span>
+                    <span class="shelf-count">6</span>
                     <svg class="shelf-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6" /></svg>
                 </button>
             </h2>
@@ -3456,6 +3474,63 @@
                                     <div class="peek-stat"><span class="stat-icon">★</span> 3 strategies &bull; zones &bull; 18 stars</div>
                                 </div>
                                 <a class="peek-launch" href="elevator/index.html">Open the lobby <svg viewBox="0 0 24 24">
+                                        <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" stroke-linejoin="round" fill="none" />
+                                    </svg></a>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card card-paper flip-card" id="card-paper-plane">
+                        <div class="card-flip-inner">
+                            <button type="button" class="card-face card-face-front flip-open" aria-expanded="false"
+                                aria-controls="card-paper-plane-panel">
+                                <div>
+                                    <div class="card-icon">
+                                        <svg viewBox="0 0 24 24">
+                                            <path d="M21 3.5L2.8 10.6l7.1 2.7z" fill="currentColor" fill-opacity="0.18"/>
+                                            <path d="M21 3.5L2.8 10.6l7.1 2.7L21 3.5l-7.4 16.9-3.7-7.1"/>
+                                            <path d="M9.9 13.3v5.4l2.6-2.7" fill="currentColor" fill-opacity="0.35"/>
+                                            <path d="M3 20.5c2-.9 3.1-.9 4.6 0" opacity="0.45" stroke-dasharray="1.4 1.6"/>
+                                        </svg>
+                                    </div>
+                                    <h3 class="card-title">Paper Plane Glider</h3>
+                                    <p class="card-desc">Fold it with three sliders, throw it down the office, and see how far it glides. A new wastepaper bin to hit every day.</p>
+                                    <div class="card-stat-chip" id="stat-paper-plane">
+                                        <span class="stat-icon">✈️</span> Daily bin
+                                    </div>
+                                </div>
+                                <span class="card-link">Take a look <svg viewBox="0 0 24 24">
+                                        <path d="M3.6 12a8.4 8.4 0 0 1 14.4-5.9" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" stroke-linejoin="round" fill="none" />
+                                        <path d="M18.4 2.8v3.7h-3.7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                            stroke-linejoin="round" fill="none" />
+                                        <path d="M20.4 12a8.4 8.4 0 0 1-14.4 5.9" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" stroke-linejoin="round" fill="none" />
+                                        <path d="M5.6 21.2v-3.7h3.7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                            stroke-linejoin="round" fill="none" />
+                                    </svg></span>
+                            </button>
+                            <div class="card-face card-face-back peek-back" id="card-paper-plane-panel" role="dialog" aria-modal="true"
+                                aria-label="Paper Plane Glider">
+                                <button type="button" class="card-close" data-flip-close aria-label="Close">
+                                    <svg viewBox="0 0 24 24">
+                                        <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" />
+                                    </svg>
+                                </button>
+                                <div class="peek-shot">
+                                <img data-src="assets/preview/paper-plane.webp" alt="A broad-winged paper plane gliding past the ten-metre mark down a long office at dusk, its dashed path trailing back to the thrower." width="800" height="420"
+                                    decoding="async">
+                                <img data-src="assets/preview/paper-plane-2.webp" alt="Today's bin: the plane on its approach to a wastepaper bin eighteen metres down the room." width="800" height="420"
+                                    decoding="async">
+                                </div>
+                                <div class="peek-body">
+                                    <div class="peek-title">Paper Plane Glider</div>
+                                    <p class="peek-text">Wing shape, nose weight and tail flaps change the plane the way they do on paper. A bare sheet noses up and stalls, a clip on the nose steadies it, and the flaps set how nose-up it flies. Drag back to throw. Real lift, drag and stall, a ghost of your best flight, and one bin a day, the same for everyone.</p>
+                                    <div class="peek-stat"><span class="stat-icon">🗑️</span> 3 folds &bull; longest throw &bull; daily bin</div>
+                                </div>
+                                <a class="peek-launch" href="paper-plane/index.html">Fold and throw <svg viewBox="0 0 24 24">
                                         <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2"
                                             stroke-linecap="round" stroke-linejoin="round" fill="none" />
                                     </svg></a>
@@ -4220,6 +4295,7 @@
             document.documentElement.setAttribute('data-theme', cardId);
 
             const themeHues = {
+                'card-paper-plane': 52,
                 'card-elevator': 38,
                 'card-terrarium': 170,
                 'card-supply-chain': 45,
@@ -4248,6 +4324,7 @@
            — the Lease/Rent/Buy floater — and differ only in what they carry, so
            they are a table rather than a branch each. */
         const CARD_FLOATERS = {
+            'card-paper-plane': { hue: 52, items: ['✈️', '📄', '📎', '🗑️'] },
             'card-elevator': { hue: 38, items: ['🛗', '⬆️', '⬇️', '🔔', '🚶'] },
             'card-terrarium': { hue: 170, items: ['🌦️', '❄️', '☀️', '🌙', '⛈️'] },
             'card-sand': { hue: 40, items: ['⏳', '⌛', '🌋', '🌱'] },
@@ -4749,6 +4826,15 @@
                 const elevStars = Object.values(elevBest).reduce((n, b) => n + ((b && b.stars) || 0), 0);
                 if (elevBadge && elevStars > 0) {
                     elevBadge.innerHTML = `<span class="stat-icon">★</span> Stars: <span class="stat-val">${elevStars} / 18</span>`;
+                }
+            } catch (e) {}
+
+            // Paper Plane Glider: the longest throw.
+            try {
+                const planeBadge = document.getElementById('stat-paper-plane');
+                const planeBest = JSON.parse(localStorage.getItem('paperplane.best') || 'null');
+                if (planeBadge && planeBest && planeBest.distance > 0) {
+                    planeBadge.innerHTML = `<span class="stat-icon">✈️</span> Best: <span class="stat-val">${planeBest.distance.toFixed(1)} m</span>`;
                 }
             } catch (e) {}
 

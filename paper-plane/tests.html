@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Paper Plane Glider — Flight Tests</title>
+    <meta name="robots" content="noindex">
+    <style>
+        body { background: #0f172a; color: #f8fafc; font-family: system-ui, monospace; padding: 1.5rem; line-height: 1.5; }
+        h1 { font-size: 1.4rem; margin-bottom: 1rem; color: #facc15; }
+        .pass { color: #34d399; }
+        .fail { color: #f87171; font-weight: bold; }
+        #summary { font-size: 1.2rem; margin-bottom: 1rem; padding: 0.5rem; background: #1e293b; border-radius: 6px; }
+        .test-row { margin-bottom: 0.25rem; font-family: monospace; }
+    </style>
+</head>
+<body>
+    <h1>✈️ Paper Plane Glider — Test Suite</h1>
+    <div id="summary">Running tests…</div>
+    <div id="results"></div>
+
+    <script type="module">
+        import * as P from './js/flight.js';
+
+        const results = document.getElementById('results');
+        let passed = 0, failed = 0;
+        function ok(cond, name, detail = '') {
+            const row = document.createElement('div');
+            row.className = 'test-row ' + (cond ? 'pass' : 'fail');
+            row.textContent = (cond ? '✓ ' : '✗ ') + name + (detail ? ' — ' + detail : '');
+            results.appendChild(row);
+            cond ? passed++ : failed++;
+        }
+        const m = (r) => r.distance.toFixed(1) + ' m';
+
+        // ── The fold ──
+        {
+            const glider = P.makePlane({ shape: 0, nose: 0, flaps: 0 });
+            const dart = P.makePlane({ shape: 1, nose: 0, flaps: 0 });
+            ok(glider.area > dart.area && glider.aspect > dart.aspect, 'a glider has more wing, and longer wings, than a dart');
+            ok(P.makePlane({ shape: 0.5, nose: 2, flaps: 0 }).mass > P.makePlane({ shape: 0.5, nose: 0, flaps: 0 }).mass, 'clips add weight');
+            ok(P.makePlane({ shape: 0.5, nose: 0, flaps: 0 }).margin < 0 && P.makePlane({ shape: 0.5, nose: 1, flaps: 0 }).margin > 0,
+                'a bare sheet is a touch unstable; one clip makes it stable');
+            ok(P.makePlane({ shape: 0.5, nose: 0, flaps: 1 }).cm0 > P.makePlane({ shape: 0.5, nose: 0, flaps: -1 }).cm0, 'flaps up pitch the nose up');
+            const odd = P.makePlane({ shape: 7, nose: -3, flaps: NaN });
+            ok(odd.fold.shape === 1 && odd.fold.nose === 0 && odd.fold.flaps === -1, 'out-of-range sliders are clamped');
+        }
+        {
+            const p = P.makePlane(P.DEFAULT_FOLD);
+            const pre = P.coefficients(p, p.stall * 0.9), post = P.coefficients(p, p.stall * 2);
+            ok(post.cl < pre.cl, 'past the stall, lift falls away');
+            ok(post.cd > pre.cd * 2, 'and drag jumps');
+            const ld = [0.02, 0.05, 0.08, 0.12, 0.2].map(a => { const c = P.coefficients(p, a); return c.cl / c.cd; });
+            const peak = ld.indexOf(Math.max(...ld));
+            ok(peak > 0 && peak < ld.length - 1, 'the best glide is at a small angle, not zero and not near the stall', ld.map(x => x.toFixed(1)).join(' '));
+        }
+
+        // ── Flights ──
+        {
+            const a = P.fly(P.DEFAULT_FOLD, 5, 7), b = P.fly(P.DEFAULT_FOLD, 5, 7);
+            ok(a.distance === b.distance && a.path.length === b.path.length, 'the same fold and throw fly the same flight');
+            ok(a.stalls > 0, 'the starting fold stalls', a.stalls + ' stalls, ' + m(a));
+            const tuned = P.fly({ shape: 0.5, nose: 1, flaps: 0 }, 5, 7);
+            ok(tuned.distance > a.distance * 2, 'a clip on the nose more than doubles it', m(a) + ' → ' + m(tuned));
+            const loop = P.fly({ shape: 0.5, nose: 0, flaps: 1 }, 5, 7);
+            ok(loop.distance < tuned.distance / 2 && loop.stalls >= 1, 'flaps up on a bare sheet stalls it short', m(loop));
+            const dive = P.fly({ shape: 0.5, nose: 3, flaps: -1 }, 5, 7);
+            ok(dive.distance < tuned.distance / 2, 'a heavy nose with flaps down dives', m(dive));
+            const heavyFixed = P.fly({ shape: 0.5, nose: 3, flaps: 1 }, 5, 7);
+            ok(heavyFixed.distance > dive.distance * 1.5, 'and flaps up rescue a heavy nose', m(heavyFixed));
+        }
+        {
+            // Soft throws favour a broad wing; the dart pays for its small wing.
+            const soft = (shape) => {
+                let best = 0;
+                for (let nose = 0; nose <= 3; nose += 0.25) for (let flaps = -1; flaps <= 1; flaps += 0.25) {
+                    best = Math.max(best, P.fly({ shape, nose, flaps }, 0, 5).distance);
+                }
+                return best;
+            };
+            const g = soft(0), d = soft(1);
+            ok(g > d, 'a soft throw goes furthest with a broad glider wing', g.toFixed(1) + ' m vs ' + d.toFixed(1) + ' m');
+            ok(g > 12 && g < 40, 'and goes a believable distance indoors', g.toFixed(1) + ' m');
+        }
+        {
+            // Stepping by hand: in still air the plane can only lose energy.
+            const p = P.makePlane({ shape: 0.3, nose: 0.75, flaps: 0 });
+            const s = P.launch(p, 10, 9);
+            const E = () => 0.5 * (s.vx * s.vx + s.vy * s.vy) + 9.81 * s.y;
+            let e = E(), rises = 0, maxY = 0;
+            while (!s.sliding && s.t < 20) {
+                P.step(s, p, P.DT, null);
+                const now = E();
+                if (now > e + 1e-6 && !s.bonks) rises++;
+                e = now;
+                maxY = Math.max(maxY, s.y);
+            }
+            ok(rises === 0, 'no energy appears from nowhere in still air');
+            ok(maxY <= P.ROOM.ceiling, 'and it never goes through the ceiling');
+        }
+        {
+            const r = P.fly({ shape: 0.5, nose: 0, flaps: -1 }, 60, 12);
+            ok(r.bonks > 0, 'a steep hard throw bonks the ceiling', r.bonks + ' bonks');
+            ok(Number.isFinite(r.distance) && r.time < 30, 'and still lands');
+        }
+        {
+            const fold = { shape: 0.2, nose: 0.75, flaps: 0 };
+            const still = P.fly(fold, 5, 7);
+            const fan = P.fly(fold, 5, 7, { fans: [{ x: 4, width: 1.2, height: 2.6, up: 2 }] });
+            ok(fan.distance > still.distance, 'flying through a fan’s updraft carries it further', m(still) + ' → ' + m(fan));
+        }
+
+        // ── The daily bin ──
+        {
+            const d1 = P.dailyChallenge(new Date(Date.UTC(2026, 9, 12, 3)));
+            const d1b = P.dailyChallenge(new Date(Date.UTC(2026, 9, 12, 22)));
+            const d2 = P.dailyChallenge(new Date(Date.UTC(2026, 9, 13, 3)));
+            ok(JSON.stringify(d1) === JSON.stringify(d1b), 'the bin stays put all day');
+            ok(d1.bin !== d2.bin || JSON.stringify(d1.fans) !== JSON.stringify(d2.fans), 'and moves the next day');
+            let sane = true, fans = 0;
+            for (let k = 0; k < 120; k++) {
+                const c = P.dailyChallenge(new Date(Date.UTC(2026, 0, 1 + k)));
+                if (c.bin < 7 || c.bin > 23) sane = false;
+                for (const f of c.fans) { fans++; if (f.x <= 0 || f.x >= c.bin) sane = false; }
+            }
+            ok(sane, 'bins are always 7–23 m away, with any fan between you and it');
+            ok(fans > 20 && fans < 100, 'and fans turn up on some days, not all', fans + ' of 120 days');
+            ok(P.inBin(d1.bin + 0.15, d1) && !P.inBin(d1.bin + 0.3, d1), 'landing within the bin’s mouth counts');
+        }
+        {
+            // Every bin over two weeks can be hit by some fold and throw.
+            const folds = [{ shape: 0, nose: 0.75, flaps: 0 }, { shape: 0.5, nose: 0.75, flaps: 0 }, { shape: 1, nose: 0.5, flaps: -0.125 }];
+            const missed = [];
+            for (let k = 0; k < 14; k++) {
+                const c = P.dailyChallenge(new Date(Date.UTC(2026, 9, 12 + k)));
+                const world = { fans: c.fans };
+                let hit = false;
+                search: for (const fold of folds) for (const angle of [0, 5, 10]) for (let v = 3; v <= 12; v += 0.1) {
+                    if (P.inBin(P.fly(fold, angle, v, world).distance, c)) { hit = true; break search; }
+                }
+                if (!hit) missed.push(c.key + ' (' + c.bin + ' m)');
+            }
+            ok(missed.length === 0, 'every daily bin for two weeks can be hit', missed.join(', '));
+        }
+
+        const summary = document.getElementById('summary');
+        summary.textContent = passed + ' passed, ' + failed + ' failed';
+        summary.className = failed ? 'fail' : 'pass';
+    </script>
+</body>
+</html>
