@@ -2240,9 +2240,12 @@ kbd {
 }
 
 /* The same button doing the picker's other big job: the showcase, over the
-   tabs. Its own tint, because it belongs to none of the kinds below it. */
+   tabs. Its own tint, because it belongs to none of the kinds below it — and
+   a pale one, because every colour in the row under it is already a kind's.
+   (It shipped in crazy golf's pink for one release and read as a fifth
+   crazy golf course.) */
 .showcase-go {
-    --cg-tint: #f0abfc;
+    --cg-tint: #e2e8f0;
     margin: 0 0 0.85rem;
 }
 
