@@ -41,7 +41,7 @@
             blurb: doc.blurb || 'Straight out of the editor.',
             par: doc.par || 3,
             needsLoft: !!doc.needsLoft,
-            flat: !!doc.flat,
+            rolling: !!doc.rolling,
             pads: doc.pads,
             extra: doc.extra || [],
             water: doc.water || [],
