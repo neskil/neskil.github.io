@@ -176,6 +176,12 @@
             --hue: 25;
         }
 
+        html[data-theme="card-sand"] {
+            --bg-color-1: #17130b;
+            --bg-color-2: #241c0e;
+            --hue: 40;
+        }
+
         /* ── Background variants ──────────────────────────────────────────────
            The 135° ramp above stays as the floor; each variant is one fixed layer
            that cross-fades in over it, so switching costs an opacity change and
@@ -1875,6 +1881,18 @@
             color: rgb(251, 146, 60);
         }
 
+        #card-sand {
+            --accent-rgb: 226, 192, 122;
+            --card-bg-gradient: linear-gradient(135deg, rgba(40, 32, 18, 0.66) 0%, rgba(15, 22, 35, 0.60) 100%);
+            --card-hover-gradient: linear-gradient(135deg, rgba(62, 48, 24, 0.82) 0%, rgba(20, 28, 48, 0.75) 100%);
+            --card-border: rgba(226, 192, 122, 0.22);
+            --card-hover-border: rgba(240, 210, 150, 0.50);
+        }
+
+        #card-sand .card-link {
+            color: rgb(240, 210, 150);
+        }
+
         /* ── Materials: layered onto the same tilt-tracking glare (.card::before). Uses
            overlay blend so bright texture only lifts already-light pixels instead of
            flatly washing out the (already fairly low-contrast) body text underneath. ── */
@@ -3358,7 +3376,7 @@
                 <button type="button" class="shelf-head" aria-expanded="true" aria-controls="shelf-lab-body">
                     <span class="shelf-icon" aria-hidden="true">🧪</span>
                     <span class="shelf-text"><span class="shelf-title">Toys &amp; experiments</span><span class="shelf-blurb">Things to poke at, with no score to keep.</span></span>
-                    <span class="shelf-count">2</span>
+                    <span class="shelf-count">3</span>
                     <svg class="shelf-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6" /></svg>
                 </button>
             </h2>
@@ -3487,6 +3505,67 @@
                                     <div class="peek-stat"><span class="stat-icon">⚡</span> Extreme Points &bull; Wall Building &bull; First-Fit</div>
                                 </div>
                                 <a class="peek-launch" href="cargo-packer/index.html">Launch 3D Packer <svg viewBox="0 0 24 24">
+                                        <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" stroke-linejoin="round" fill="none" />
+                                    </svg></a>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card flip-card" id="card-sand">
+                        <div class="card-flip-inner">
+                            <button type="button" class="card-face card-face-front flip-open" aria-expanded="false"
+                                aria-controls="card-sand-panel">
+                                <div>
+                                    <div class="card-icon">
+                                        <svg viewBox="0 0 24 24">
+                                            <path d="M6 3h12M6 21h12"/>
+                                            <path d="M7.5 3c0 4.2 4.5 5.6 4.5 9s-4.5 4.8-4.5 9"/>
+                                            <path d="M16.5 3c0 4.2-4.5 5.6-4.5 9s4.5 4.8 4.5 9"/>
+                                            <path d="M9.2 7.4h5.6L12 11z" fill="currentColor" fill-opacity="0.55" stroke="none"/>
+                                            <path d="M12 13.2v3.1" opacity="0.6"/>
+                                            <path d="M8.7 20.2c.6-1.8 2-2.9 3.3-2.9s2.7 1.1 3.3 2.9z" fill="currentColor" fill-opacity="0.55" stroke="none"/>
+                                        </svg>
+                                    </div>
+                                    <h3 class="card-title">Sand Clock</h3>
+                                    <p class="card-desc">A falling-sand sandbox that opens as a one-minute hourglass. Pour sand, water, lava, oil, fire and seeds, and watch them react.</p>
+                                    <div class="card-stat-chip">
+                                        <span class="stat-icon">⏳</span> 1:00 exactly
+                                    </div>
+                                </div>
+                                <span class="card-link">Take a look <svg viewBox="0 0 24 24">
+                                        <path d="M3.6 12a8.4 8.4 0 0 1 14.4-5.9" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" stroke-linejoin="round" fill="none" />
+                                        <path d="M18.4 2.8v3.7h-3.7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                            stroke-linejoin="round" fill="none" />
+                                        <path d="M20.4 12a8.4 8.4 0 0 1-14.4 5.9" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" stroke-linejoin="round" fill="none" />
+                                        <path d="M5.6 21.2v-3.7h3.7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                            stroke-linejoin="round" fill="none" />
+                                    </svg></span>
+                            </button>
+                            <div class="card-face card-face-back peek-back" id="card-sand-panel" role="dialog" aria-modal="true"
+                                aria-label="Sand Clock">
+                                <button type="button" class="card-close" data-flip-close aria-label="Close">
+                                    <svg viewBox="0 0 24 24">
+                                        <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" />
+                                    </svg>
+                                </button>
+                                <div class="peek-shot">
+                                <img data-src="assets/preview/sand.webp" alt="Sand Clock: an hourglass twenty seconds in, a thread of sand running through the neck onto a heap below." width="800" height="420"
+                                    decoding="async">
+                                <img data-src="assets/preview/sand-2.webp" alt="The volcano scene: lava running down a stone cone towards a lake, sparks in the air." width="800" height="420"
+                                    decoding="async">
+                                <img data-src="assets/preview/sand-3.webp" alt="The garden scene: rain falling on a sandy bed of green stems either side of a pond." width="800" height="420"
+                                    decoding="async">
+                                </div>
+                                <div class="peek-body">
+                                    <div class="peek-title">Sand Clock</div>
+                                    <p class="peek-text">Every grain is simulated. The hourglass passes one grain a step through its neck and holds exactly 3,600, so it really does run for a minute. Turn it over, or clear it and pour your own: lava sets to stone in water, fire climbs wood, plants drink the rain and flower.</p>
+                                    <div class="peek-stat"><span class="stat-icon">🧪</span> 13 materials &bull; 3 scenes</div>
+                                </div>
+                                <a class="peek-launch" href="sand/index.html">Start pouring <svg viewBox="0 0 24 24">
                                         <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2"
                                             stroke-linecap="round" stroke-linejoin="round" fill="none" />
                                     </svg></a>
@@ -3995,7 +4074,8 @@
                 'card-math-game': 25,
                 'card-cargo-packer': 28,
                 'card-golf-hub': 140,
-                'card-about': 345
+                'card-about': 345,
+                'card-sand': 40
             };
 
             if (themeHues[cardId] !== undefined) {
@@ -4006,6 +4086,13 @@
         // symbol+size+hue -> pre-rendered glowing glyph. Module-level rather than a
         // static class field, which needs a newer Safari than the rest of this file.
         const themeSprites = new Map();
+
+        /* The cards added after the hand-tuned ones above all drift the same way
+           — the Lease/Rent/Buy floater — and differ only in what they carry, so
+           they are a table rather than a branch each. */
+        const CARD_FLOATERS = {
+            'card-sand': { hue: 40, items: ['⏳', '⌛', '🌋', '🌱'] },
+        };
 
         class ThemeEntity {
             constructor(cardId) {
@@ -4072,6 +4159,18 @@
                     this.hue = lofted ? 198 : 140;
                     var swings = lofted ? ['⛳', '🏌️', 'LOFT'] : ['⛳', '🏌️', 'FORE!'];
                     this.symbol = swings[Math.floor(Math.random() * swings.length)];
+                } else if (CARD_FLOATERS[cardId]) {
+                    const f = CARD_FLOATERS[cardId];
+                    this.type = 'floater';
+                    this.x = fromLeft ? -40 : width + 40;
+                    this.y = Math.random() * height;
+                    this.vx = fromLeft ? (Math.random() * 1.2 + 1.2) : -(Math.random() * 1.2 + 1.2);
+                    this.vy = (Math.random() - 0.5) * 0.5;
+                    this.size = Math.random() * 8 + 14;
+                    this.maxLife = Math.ceil((width + 80) / Math.abs(this.vx));
+                    this.maxAlpha = 0.35;
+                    this.hue = f.hue;
+                    this.symbol = f.items[Math.floor(Math.random() * f.items.length)];
                 } else {
                     this.dead = true;
                     return;

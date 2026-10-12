@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sand Clock — Simulation Tests</title>
+    <meta name="robots" content="noindex">
+    <style>
+        body { background: #0f172a; color: #f8fafc; font-family: system-ui, monospace; padding: 1.5rem; line-height: 1.5; }
+        h1 { font-size: 1.4rem; margin-bottom: 1rem; color: #e2c07a; }
+        .pass { color: #34d399; }
+        .fail { color: #f87171; font-weight: bold; }
+        #summary { font-size: 1.2rem; margin-bottom: 1rem; padding: 0.5rem; background: #1e293b; border-radius: 6px; }
+        .test-row { margin-bottom: 0.25rem; font-family: monospace; }
+    </style>
+</head>
+<body>
+    <h1>⏳ Sand Clock — Test Suite</h1>
+    <div id="summary">Running tests…</div>
+    <div id="results"></div>
+
+    <script type="module">
+        import * as S from './js/sim.js';
+        const { M } = S;
+
+        const results = document.getElementById('results');
+        let passed = 0, failed = 0;
+        function ok(cond, name, detail = '') {
+            const row = document.createElement('div');
+            row.className = 'test-row ' + (cond ? 'pass' : 'fail');
+            row.textContent = (cond ? '✓ ' : '✗ ') + name + (detail ? ' — ' + detail : '');
+            results.appendChild(row);
+            cond ? passed++ : failed++;
+        }
+        const run = (w, n) => { for (let k = 0; k < n; k++) S.step(w); };
+        const world = (w, h, seed = 1) => S.createWorld(w, h, S.mulberry32(seed));
+
+        // ── Powders ──
+        {
+            const w = world(20, 30);
+            S.set(w, 10, 0, M.SAND);
+            run(w, 40);
+            ok(S.get(w, 10, 29) === M.SAND, 'a grain falls to the floor');
+            ok(S.count(w, M.SAND) === 1, 'and is still one grain');
+        }
+        {
+            const w = world(40, 30);
+            for (let y = 0; y < 10; y++) S.set(w, 20, y, M.SAND);
+            run(w, 200);
+            let rowsUsed = 0;
+            for (let y = 0; y < 30; y++) { for (let x = 0; x < 40; x++) if (S.get(w, x, y) === M.SAND) { rowsUsed++; break; } }
+            ok(rowsUsed < 10, 'a column of sand slumps into a heap', rowsUsed + ' rows tall');
+        }
+        {
+            const w = world(10, 20);
+            for (let x = 0; x < 10; x++) for (let y = 14; y < 20; y++) S.set(w, x, y, M.WATER);
+            S.set(w, 5, 0, M.SAND);
+            run(w, 60);
+            ok(S.get(w, 5, 19) === M.SAND || [...Array(10).keys()].some(x => S.get(w, x, 19) === M.SAND),
+                'sand sinks through water to the bottom');
+            ok(S.count(w, M.WATER) === 60, 'water displaced, not destroyed');
+        }
+
+        // ── Liquids ──
+        {
+            const w = world(40, 20);
+            for (let y = 0; y < 15; y++) for (let x = 0; x < 4; x++) S.set(w, x, y, M.WATER);
+            run(w, 600);
+            let lo = Infinity, hi = -Infinity;
+            for (let x = 0; x < 40; x++) {
+                let top = 20;
+                for (let y = 0; y < 20; y++) if (S.get(w, x, y) === M.WATER) { top = y; break; }
+                lo = Math.min(lo, top); hi = Math.max(hi, top);
+            }
+            ok(hi - lo <= 1, 'water levels out across the floor', `surface spans ${hi - lo} rows`);
+            ok(S.count(w, M.WATER) === 60, 'water is conserved while it flows');
+        }
+        {
+            const w = world(10, 20);
+            for (let x = 0; x < 10; x++) { S.set(w, x, 19, M.WATER); S.set(w, x, 18, M.WATER); }
+            for (let x = 0; x < 10; x++) S.set(w, x, 10, M.OIL);
+            run(w, 200);
+            let oilAbove = true;
+            for (let x = 0; x < 10; x++) for (let y = 0; y < 20; y++) {
+                if (S.get(w, x, y) === M.WATER) {
+                    for (let yy = y + 1; yy < 20; yy++) if (S.get(w, x, yy) === M.OIL) oilAbove = false;
+                }
+            }
+            ok(oilAbove, 'oil floats on water');
+        }
+
+        // ── Reactions ──
+        {
+            // One cell wide, so neither can flow out of the other's way first.
+            const w = world(1, 10);
+            S.set(w, 0, 8, M.LAVA);
+            S.set(w, 0, 9, M.WATER);
+            S.step(w);
+            ok(S.get(w, 0, 8) === M.STONE, 'lava touching water sets to stone');
+            ok(S.count(w, M.STEAM) === 1 && S.count(w, M.WATER) === 0, 'and the water boils off as steam');
+        }
+        {
+            const w = world(20, 20);
+            for (let y = 5; y < 20; y++) S.set(w, 10, y, M.WOOD);
+            S.set(w, 10, 4, M.FIRE);
+            run(w, 3000);
+            ok(S.count(w, M.WOOD) < 15, 'fire burns down a wooden post', S.count(w, M.WOOD) + ' of 15 left');
+        }
+        {
+            const w = world(1, 10);
+            S.set(w, 0, 8, M.FIRE);
+            S.set(w, 0, 9, M.WATER);
+            S.step(w);
+            ok(S.count(w, M.FIRE) === 0, 'water puts fire out');
+        }
+        {
+            const w = world(10, 10);
+            S.set(w, 5, 5, M.ICE);
+            S.set(w, 6, 5, M.LAVA);
+            S.step(w);
+            ok(S.get(w, 5, 5) !== M.ICE, 'lava melts ice');
+        }
+        {
+            const w = world(10, 10);
+            S.set(w, 5, 9, M.STEAM);
+            run(w, 600);
+            ok(S.count(w, M.STEAM) === 0, 'steam does not last forever');
+        }
+
+        // ── Plants ──
+        {
+            const w = world(30, 30);
+            for (let x = 0; x < 30; x++) for (let y = 25; y < 30; y++) S.set(w, x, y, M.WATER);
+            S.set(w, 15, 24, M.PLANT);
+            const water0 = S.count(w, M.WATER);
+            run(w, 1500);
+            const plants = S.count(w, M.PLANT) + S.count(w, M.FLOWER);
+            ok(plants > 5, 'a plant beside water grows', plants + ' cells');
+            ok(S.count(w, M.WATER) < water0, 'and drinks the water to do it');
+            let filled = 0;
+            for (let y = 0; y < 24; y++) for (let x = 0; x < 30; x++) {
+                const t = S.get(w, x, y);
+                if (t === M.PLANT || t === M.FLOWER) filled++;
+            }
+            ok(filled < 24 * 30 * 0.5, 'as stems, not a solid block', filled + ' of ' + 24 * 30 + ' cells above water');
+        }
+        {
+            const w = world(30, 30);
+            S.set(w, 15, 29, M.PLANT);
+            run(w, 500);
+            ok(S.count(w, M.PLANT) === 1, 'a dry plant does not grow');
+        }
+
+        // ── The hourglass ──
+        for (const [W, H] of [[300, 170], [130, 200]]) {
+            const w = world(W, H, 7);
+            const { neckY } = S.hourglass(w);
+            const grains = S.count(w, M.SAND);
+            ok(grains === S.HOURGLASS_GRAINS, `${W}×${H}: the glass holds a full minute of sand`, grains + ' grains');
+            let steps = 0;
+            while (S.sandAbove(w, neckY) > 0 && steps < 10000) { S.step(w); steps++; }
+            ok(Math.abs(steps / 60 - 60) < 0.5, `${W}×${H}: and runs out in a minute at 60 steps a second`, (steps / 60).toFixed(2) + 's');
+            ok(S.count(w, M.SAND) === grains, `${W}×${H}: without losing a grain`);
+            // Every grain is inside the glass: nothing has fallen outside the walls.
+            let outside = 0;
+            for (let y = 0; y < H; y++) {
+                let inGlass = false, sawWall = false;
+                for (let x = 0; x < W; x++) {
+                    const t = S.get(w, x, y);
+                    if (t === M.GLASS) sawWall = true;
+                    if (t === M.SAND && !sawWall) outside++;
+                }
+            }
+            ok(outside === 0, `${W}×${H}: no sand leaks out round the walls`);
+
+            S.flip(w);
+            // +1: the last grain can still be sitting in the neck itself.
+            const flippedNeck = H - 1 - neckY;
+            ok(S.sandAbove(w, flippedNeck + 1) === grains, `${W}×${H}: turning it over puts every grain back on top`);
+        }
+        {
+            const w = world(60, 40, 3);
+            S.hourglass(w, 20000);
+            ok(S.count(w, M.SAND) < 20000, 'a small screen makes a shorter glass rather than overfilling');
+        }
+
+        // ── Scenes and determinism ──
+        {
+            const w = world(120, 80);
+            S.volcano(w);
+            ok(w.emitters.length === 1, 'the volcano has a vent that keeps erupting');
+            const lava0 = S.count(w, M.LAVA);
+            run(w, 300);
+            ok(S.count(w, M.LAVA) + S.count(w, M.STONE) > lava0, 'and it does');
+            S.clear(w);
+            ok(w.emitters.length === 0 && S.count(w, M.STONE) === 0, 'clearing stops the vent too');
+        }
+        {
+            const a = world(80, 60, 42), b = world(80, 60, 42);
+            S.garden(a); S.garden(b);
+            run(a, 400); run(b, 400);
+            ok(a.type.every((t, i) => t === b.type[i]), 'the same seed plays out the same world');
+        }
+
+        const summary = document.getElementById('summary');
+        summary.textContent = passed + ' passed, ' + failed + ' failed';
+        summary.className = failed ? 'fail' : 'pass';
+    </script>
+</body>
+</html>
