@@ -20,13 +20,22 @@ Put a fact in exactly one place; point at it rather than restating it.
 Folder-based routing — each major page or app is fully isolated with its own
 `index.html`.
 
-- **`/index.html`**: root landing page, card grid linking to completed projects.
+- **`/index.html`**: root landing page, cards linking to completed projects,
+  grouped into shelves (`<section class="shelf">`: games, toys & experiments,
+  useful tools, about). A new card goes inside the shelf it belongs to; the
+  shelf's count fills itself in.
 - **Content pages**: `/cv/` (résumé), `/games/` (game library), `/math/` and
   `/converter/` (unit reference/conversion utilities).
 - **Isolated applications**: `/cargo-lander/`, `/supply-chain/`,
   `/3d-engine-poc/` (Yard Master 3D), `/golf/` and `/golf3d/` (Pocket Links and
-  Loft Links), `/viz-poc/` (Data Room), and `/car/` each own their HTML, logic,
-  assets, and styling — see the doc map above before working in any of them.
+  Loft Links), `/viz-poc/` (Data Room), `/car/`, `/elevator/` (Tiny Elevator
+  Tycoon), `/paper-plane/` (Paper Plane Glider), `/sand/` (Sand Clock),
+  `/terrarium/` (Pocket Weather Terrarium), `/fika/` (Fika Generator) and
+  `/name-song/` (Sound of Your Name) each own their HTML, logic, assets, and
+  styling — see the doc map above before working in any of them. The last six
+  keep their rules in one DOM-free module (`js/sim.js`, `js/flight.js`,
+  `js/weather.js`, `js/deck.js`, `js/compose.js`) that their `tests.html`
+  imports directly; README.md's layout table says which is which.
 - **Release flow**: build new projects in their own isolated directory. Do
   NOT add a card for one to the root `index.html` until it's completed,
   tested, and approved. While a project is under active development, an

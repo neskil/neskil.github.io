@@ -5521,7 +5521,8 @@
             document.dispatchEvent(new CustomEvent('flip:change'));
         }
 
-        /* Ten screenshots is ~190KB that nobody has asked for yet, so they are
+        /* Every card's screenshots together are most of a megabyte that nobody
+           has asked for yet, so they are
            held in data-src and fetched the first time a card is turned over —
            or, on a machine with a pointer, the moment the cursor reaches the
            card, which is far enough ahead of the click that the image is
@@ -6261,6 +6262,9 @@
             const saved = load();
             const phone = window.matchMedia('(max-width: 640px)').matches;
             shelves.forEach((shelf, i) => {
+                // The count is in the markup for a page without scripts; this
+                // keeps it honest when a card is added and the number is not.
+                shelf.querySelector('.shelf-count').textContent = shelf.querySelectorAll('.grid > .card').length;
                 const collapsed = saved ? saved.has(shelf.dataset.shelf) : (phone && i > 0);
                 if (collapsed) setCollapsed(shelf, true, false);
                 shelf.querySelector('.shelf-head').addEventListener('click', () => {

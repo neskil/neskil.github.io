@@ -6,7 +6,7 @@ Niklas Billgren's personal site, hosted on GitHub Pages. Static HTML/CSS/JS, no 
 
 | Path | What it is |
 | --- | --- |
-| `index.html` | Landing page / portfolio hub linking out to the sections below. |
+| `index.html` | Landing page / portfolio hub linking out to the sections below. The cards are grouped into foldable shelves (games, toys & experiments, useful tools, about) with a jump bar above them; a fold is remembered per browser, and a phone opens only the first shelf until told otherwise. |
 | `cv/` | Curriculum vitae site. |
 | `cargo-lander/` | CargoLander — a browser-based 2D lander/logistics game with a custom physics engine. See [cargo-lander/README.md](cargo-lander/README.md) for internals. |
 | `games/` | Interactive game library — a browsable/filterable catalog of games (`data.js` holds the entries). |
@@ -113,7 +113,7 @@ while scrolling, and turning it over shows a screenshot of the thing running
 plus the button that starts it. Those screenshots live in `assets/preview/` as
 800x420 WebP, one per card, and are held in `data-src` until the card is
 flipped (or, on a machine with a pointer, until the cursor reaches the card).
-Nothing in that folder is fetched on load; together they are under 400 KB.
+Nothing in that folder is fetched on load; together they are under 800 KB.
 
 Two things make them worth the trouble, and both are easy to lose when
 regenerating one:
@@ -202,7 +202,7 @@ modules, so `file://` gives CORS errors) and loads each suite in headless
 Chrome — the same `--virtual-time-budget` trick as the screenshot recipe above,
 so eighteen seconds of page timers return in about one. It reads the verdict
 out of each harness's `<div id="summary">` and exits non-zero if any suite is
-red. Currently ten suites (over 5,300 assertions), about 20 seconds.
+red. Currently seventeen suites (over 5,600 assertions), about a minute.
 
 Two things about it are deliberate:
 
