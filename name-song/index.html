@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sound of Your Name | Niklas Billgren</title>
+    <meta name="description" content="Type a name and hear it as a short tune, drawn as a rosette. Every letter is always the same note; the name as a whole picks the key, mode, tempo, chords and instrument. Share it by link or save the picture.">
+    <meta name="theme-color" content="#0b0f1a">
+    <meta name="color-scheme" content="dark">
+    <meta name="author" content="Niklas Billgren">
+    <link rel="canonical" href="https://neskil.github.io/name-song/">
+    <meta property="og:site_name" content="Niklas Billgren">
+    <meta property="og:title" content="Sound of Your Name">
+    <meta property="og:description" content="Type a name, hear it as a tune, see it as a rosette.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://neskil.github.io/name-song/">
+    <meta property="og:image" content="https://neskil.github.io/assets/og/name-song.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:alt" content="A glowing rosette of coloured petals with the letters of a name round its edge, beside the name typed in a box and its key, mode and tempo.">
+    <meta name="twitter:card" content="summary_large_image">
+    <link rel="icon" href="../favicon.ico">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&family=Inter:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #0b0f1a;
+            --panel: rgba(255, 255, 255, 0.045);
+            --panel-border: rgba(255, 255, 255, 0.09);
+            --text: #f1f5f9;
+            --muted: #94a3b8;
+            --accent: #c084fc;
+            --accent-rgb: 192, 132, 252;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            background: radial-gradient(ellipse at 50% 20%, #1c1630 0%, var(--bg) 65%);
+            color: var(--text);
+            font-family: 'Inter', system-ui, sans-serif;
+            min-height: 100dvh;
+            display: flex;
+            flex-direction: column;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        button, input { font: inherit; color: inherit; }
+
+        :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+        .bar {
+            display: flex;
+            align-items: center;
+            gap: 0.7rem;
+            padding: 0.7rem 1rem;
+        }
+
+        .back {
+            color: var(--muted);
+            text-decoration: none;
+            font-size: 0.85rem;
+            padding: 0.35rem 0.7rem;
+            border-radius: 999px;
+            border: 1px solid var(--panel-border);
+            background: var(--panel);
+        }
+
+        .back:hover { color: var(--text); }
+
+        h1 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.25rem;
+            font-weight: 800;
+            letter-spacing: -0.02em;
+        }
+
+        h1 span { color: var(--accent); }
+
+        .layout {
+            flex: 1;
+            display: grid;
+            grid-template-columns: minmax(0, 1.1fr) minmax(280px, 0.9fr);
+            gap: 1.5rem;
+            align-items: center;
+            max-width: 1100px;
+            width: 100%;
+            margin: 0 auto;
+            padding: 0 1rem 1.5rem;
+        }
+
+        .stage {
+            height: min(76dvh, 640px);
+            display: grid;
+            place-items: center;
+        }
+
+        .panel {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        #name {
+            width: 100%;
+            font-family: 'Outfit', sans-serif;
+            font-size: clamp(1.8rem, 4vw, 2.6rem);
+            font-weight: 800;
+            letter-spacing: -0.02em;
+            background: rgba(0, 0, 0, 0.25);
+            border: 1px solid var(--panel-border);
+            border-radius: 18px;
+            padding: 0.6rem 1rem;
+        }
+
+        #name:focus { border-color: rgba(var(--accent-rgb), 0.6); outline: none; }
+
+        #facts { color: var(--muted); font-size: 0.9rem; }
+
+        #facts b { color: var(--text); font-weight: 600; }
+
+        .row { display: flex; flex-wrap: wrap; gap: 0.45rem; align-items: center; }
+
+        .btn {
+            border: 1px solid var(--panel-border);
+            background: var(--panel);
+            border-radius: 999px;
+            padding: 0.5rem 1rem;
+            cursor: pointer;
+            font-size: 0.88rem;
+        }
+
+        .btn:hover { background: rgba(255, 255, 255, 0.09); }
+        .btn:disabled { opacity: 0.45; cursor: default; }
+
+        .btn-play {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: #1e0b33;
+            font-family: 'Outfit', sans-serif;
+            font-weight: 700;
+            font-size: 1rem;
+            padding: 0.55rem 1.3rem;
+        }
+
+        .btn-play:hover { background: #d0a1fd; }
+
+        .btn[aria-pressed="true"]:not(.btn-play) {
+            border-color: rgba(var(--accent-rgb), 0.6);
+            color: #e9d5ff;
+        }
+
+        .label {
+            font-size: 0.72rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--muted);
+        }
+
+        .chip {
+            border: 1px solid var(--panel-border);
+            background: transparent;
+            border-radius: 999px;
+            padding: 0.3rem 0.75rem;
+            cursor: pointer;
+            font-size: 0.82rem;
+            color: var(--muted);
+        }
+
+        .chip:hover { color: var(--text); border-color: rgba(255, 255, 255, 0.25); }
+
+        .how {
+            border-top: 1px solid var(--panel-border);
+            padding-top: 0.9rem;
+            font-size: 0.84rem;
+            color: var(--muted);
+            line-height: 1.6;
+        }
+
+        .how b { color: var(--text); font-weight: 500; }
+
+        @media (max-width: 820px) {
+            .layout { grid-template-columns: 1fr; gap: 0.6rem; }
+            .stage { height: min(92vw, 52dvh); }
+        }
+    </style>
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-9GP823TGLB"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+
+      gtag('config', 'G-9GP823TGLB');
+    </script>
+<script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@graph": [
+            {
+                "@type": "WebApplication",
+                "url": "https://neskil.github.io/name-song/",
+                "description": "Type a name and hear it as a short tune, drawn as a rosette. Every letter is always the same note; the name as a whole picks the key, mode, tempo, chords and instrument. Share it by link or save the picture.",
+                "image": "https://neskil.github.io/assets/og/name-song.png",
+                "name": "Sound of Your Name",
+                "author": {
+                    "@id": "https://neskil.github.io/#niklas"
+                },
+                "isPartOf": {
+                    "@id": "https://neskil.github.io/#website"
+                },
+                "applicationCategory": "MultimediaApplication",
+                "operatingSystem": "Any",
+                "browserRequirements": "Requires JavaScript, Canvas and Web Audio support",
+                "offers": {
+                    "@type": "Offer",
+                    "price": "0",
+                    "priceCurrency": "USD"
+                }
+            },
+            {
+                "@type": "Person",
+                "@id": "https://neskil.github.io/#niklas",
+                "name": "Niklas Billgren",
+                "url": "https://neskil.github.io/",
+                "jobTitle": "Supply chain consultant",
+                "image": "https://neskil.github.io/assets/portrait.webp",
+                "sameAs": [
+                    "https://www.linkedin.com/in/niklas-eskilsson/"
+                ]
+            }
+        ]
+    }
+    </script>
+</head>
+<body>
+    <header class="bar">
+        <a class="back" href="../index.html">← Back</a>
+        <h1>Sound of <span>Your Name</span></h1>
+    </header>
+
+    <main class="layout">
+        <div class="stage">
+            <canvas id="rose" role="img" aria-label="A rosette drawn from the name's tune: each petal is a note, placed round the circle by when it plays and outward by how high it is."></canvas>
+        </div>
+
+        <section class="panel" aria-label="Your name">
+            <input id="name" type="text" maxlength="50" autocomplete="off" spellcheck="false" aria-label="A name" placeholder="Type a name…">
+            <div id="facts" aria-live="polite"></div>
+            <div class="row">
+                <button type="button" class="btn btn-play" id="play" aria-pressed="false">▶ Play</button>
+                <button type="button" class="btn" id="loop" aria-pressed="true" title="Play it round and round">🔁 Loop</button>
+                <button type="button" class="btn" id="share">🔗 Share</button>
+                <button type="button" class="btn" id="save">🖼️ Save picture</button>
+            </div>
+            <div>
+                <div class="label" style="margin-bottom:0.4rem">Try</div>
+                <div class="row">
+                    <button type="button" class="chip" data-try="Fika">Fika</button>
+                    <button type="button" class="chip" data-try="Stockholm">Stockholm</button>
+                    <button type="button" class="chip" data-try="Ada Lovelace">Ada Lovelace</button>
+                    <button type="button" class="chip" data-try="Smörgåsbord">Smörgåsbord</button>
+                    <button type="button" class="chip" data-try="Detroit">Detroit</button>
+                </div>
+            </div>
+            <p class="how"><b>How it works.</b> Each letter is always the same step of the scale, so names that share letters share phrases. Vowels are held, consonants move on, a doubled letter is one long note, and an accent like the ring on å adds a grace note. The name as a whole picks the key, the mode, the tempo, the chords under the tune and the instrument it is played on, so no two names sound alike.</p>
+        </section>
+    </main>
+
+    <script type="module" src="js/app.js"></script>
+</body>
+</html>

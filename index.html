@@ -206,6 +206,12 @@
             --hue: 30;
         }
 
+        html[data-theme="card-name-song"] {
+            --bg-color-1: #120c1e;
+            --bg-color-2: #1d1230;
+            --hue: 275;
+        }
+
         /* ── Background variants ──────────────────────────────────────────────
            The 135° ramp above stays as the floor; each variant is one fixed layer
            that cross-fades in over it, so switching costs an opacity change and
@@ -1965,6 +1971,18 @@
             color: rgb(236, 181, 113);
         }
 
+        #card-name-song {
+            --accent-rgb: 192, 132, 252;
+            --card-bg-gradient: linear-gradient(135deg, rgba(34, 22, 52, 0.66) 0%, rgba(15, 22, 35, 0.60) 100%);
+            --card-hover-gradient: linear-gradient(135deg, rgba(52, 32, 80, 0.82) 0%, rgba(20, 28, 48, 0.75) 100%);
+            --card-border: rgba(192, 132, 252, 0.22);
+            --card-hover-border: rgba(216, 180, 254, 0.50);
+        }
+
+        #card-name-song .card-link {
+            color: rgb(216, 180, 254);
+        }
+
         /* ── Materials: layered onto the same tilt-tracking glare (.card::before). Uses
            overlay blend so bright texture only lifts already-light pixels instead of
            flatly washing out the (already fairly low-contrast) body text underneath. ── */
@@ -3565,7 +3583,7 @@
                 <button type="button" class="shelf-head" aria-expanded="true" aria-controls="shelf-lab-body">
                     <span class="shelf-icon" aria-hidden="true">🧪</span>
                     <span class="shelf-text"><span class="shelf-title">Toys &amp; experiments</span><span class="shelf-blurb">Things to poke at, with no score to keep.</span></span>
-                    <span class="shelf-count">5</span>
+                    <span class="shelf-count">6</span>
                     <svg class="shelf-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6" /></svg>
                 </button>
             </h2>
@@ -3874,6 +3892,64 @@
                                     <div class="peek-stat"><span class="stat-icon">🇸🇪</span> 20 pastries &bull; 12 drinks &bull; 36 topics</div>
                                 </div>
                                 <a class="peek-launch" href="fika/index.html">Deal a fika <svg viewBox="0 0 24 24">
+                                        <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" stroke-linejoin="round" fill="none" />
+                                    </svg></a>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card flip-card" id="card-name-song">
+                        <div class="card-flip-inner">
+                            <button type="button" class="card-face card-face-front flip-open" aria-expanded="false"
+                                aria-controls="card-name-song-panel">
+                                <div>
+                                    <div class="card-icon">
+                                        <svg viewBox="0 0 24 24">
+                                            <circle cx="12" cy="12" r="8.6" opacity="0.35"/>
+                                            <path d="M12 3.4c1.6 3.2 1.6 6 0 8.6-1.6-2.6-1.6-5.4 0-8.6zM20.6 12c-3.2 1.6-6 1.6-8.6 0 2.6-1.6 5.4-1.6 8.6 0zM12 20.6c-1.6-3.2-1.6-6 0-8.6 1.6 2.6 1.6 5.4 0 8.6zM3.4 12c3.2-1.6 6-1.6 8.6 0-2.6 1.6-5.4 1.6-8.6 0z" fill="currentColor" fill-opacity="0.3"/>
+                                            <circle cx="12" cy="12" r="1.6" fill="currentColor"/>
+                                        </svg>
+                                    </div>
+                                    <h3 class="card-title">Sound of Your Name</h3>
+                                    <p class="card-desc">Type a name and hear it as a short tune, drawn as a glowing rosette you can save or share.</p>
+                                    <div class="card-stat-chip">
+                                        <span class="stat-icon">🎵</span> Any name
+                                    </div>
+                                </div>
+                                <span class="card-link">Take a look <svg viewBox="0 0 24 24">
+                                        <path d="M3.6 12a8.4 8.4 0 0 1 14.4-5.9" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" stroke-linejoin="round" fill="none" />
+                                        <path d="M18.4 2.8v3.7h-3.7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                            stroke-linejoin="round" fill="none" />
+                                        <path d="M20.4 12a8.4 8.4 0 0 1-14.4 5.9" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" stroke-linejoin="round" fill="none" />
+                                        <path d="M5.6 21.2v-3.7h3.7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                            stroke-linejoin="round" fill="none" />
+                                    </svg></span>
+                            </button>
+                            <div class="card-face card-face-back peek-back" id="card-name-song-panel" role="dialog" aria-modal="true"
+                                aria-label="Sound of Your Name">
+                                <button type="button" class="card-close" data-flip-close aria-label="Close">
+                                    <svg viewBox="0 0 24 24">
+                                        <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" />
+                                    </svg>
+                                </button>
+                                <div class="peek-shot">
+                                <img data-src="assets/preview/name-song.webp" alt="“Neskil” as a rosette in B-flat dorian: six petals for six letters, the second glowing as it plays." width="800" height="420"
+                                    decoding="async">
+                                <img data-src="assets/preview/name-song-2.webp" alt="“Smörgåsbord” in A pentatonic, with grace notes for the ö and the å." width="800" height="420"
+                                    decoding="async">
+                                <img data-src="assets/preview/name-song-3.webp" alt="“Ada Lovelace” drawn as a rosette, the tune traced as a line through its petals." width="800" height="420"
+                                    decoding="async">
+                                </div>
+                                <div class="peek-body">
+                                    <div class="peek-title">Sound of Your Name</div>
+                                    <p class="peek-text">Every letter is always the same note, so names that share letters share phrases. Vowels are held, consonants move on, and an å gets a grace note. The name as a whole picks the key, mode, tempo, chords and instrument. Played live with Web Audio and drawn as a rosette that follows the music.</p>
+                                    <div class="peek-stat"><span class="stat-icon">🎹</span> 6 modes &bull; 4 instruments &bull; share or save</div>
+                                </div>
+                                <a class="peek-launch" href="name-song/index.html">Hear your name <svg viewBox="0 0 24 24">
                                         <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2"
                                             stroke-linecap="round" stroke-linejoin="round" fill="none" />
                                     </svg></a>
@@ -4373,6 +4449,7 @@
             document.documentElement.setAttribute('data-theme', cardId);
 
             const themeHues = {
+                'card-name-song': 275,
                 'card-fika': 30,
                 'card-paper-plane': 52,
                 'card-elevator': 38,
@@ -4403,6 +4480,7 @@
            — the Lease/Rent/Buy floater — and differ only in what they carry, so
            they are a table rather than a branch each. */
         const CARD_FLOATERS = {
+            'card-name-song': { hue: 275, items: ['🎵', '🎶', '🎹', '🔔'] },
             'card-fika': { hue: 30, items: ['☕', '🥐', '🍰', '🫖'] },
             'card-paper-plane': { hue: 52, items: ['✈️', '📄', '📎', '🗑️'] },
             'card-elevator': { hue: 38, items: ['🛗', '⬆️', '⬇️', '🔔', '🚶'] },

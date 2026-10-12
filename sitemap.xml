@@ -68,4 +68,8 @@
     <loc>https://neskil.github.io/fika/</loc>
     <priority>0.6</priority>
   </url>
+  <url>
+    <loc>https://neskil.github.io/name-song/</loc>
+    <priority>0.6</priority>
+  </url>
 </urlset>
