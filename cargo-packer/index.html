@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Cargo Packer 3D — Container Loading & 3D Bin Packing Algorithms | Niklas Billgren</title>
-  <meta name="description" content="Interactive 3D simulation of operations research cargo packing algorithms: Extreme Points (EP), Wall-Building, and First-Fit Decreasing with real-world Center of Gravity & axle load diagnostics.">
+  <meta name="description" content="Watch eight 3D container-loading algorithms pack the same cargo, from Extreme Points and Wall-Building to deliberately bad ones, side by side in WebGL. Set any load, see the centre of gravity, and follow a guided tour of how each one works.">
   <meta name="author" content="Niklas Billgren">
   <meta name="theme-color" content="#0b1120">
   <meta name="color-scheme" content="dark">
@@ -13,11 +13,54 @@
   <!-- Open Graph / Social Tags -->
   <meta property="og:site_name" content="Niklas Billgren">
   <meta property="og:title" content="Cargo Packer 3D: Container Packing Algorithms">
-  <meta property="og:description" content="Watch operations research 3D bin packing heuristics at work: Extreme Points, Wall-Building, and shelf packing with real Center of Gravity and support diagnostics.">
+  <meta property="og:description" content="Eight packing algorithms, good and bad, loading the same container side by side. Set any cargo, watch the centre of gravity, take a guided tour of each. WebGL, no install.">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://neskil.github.io/cargo-packer/">
-  <meta property="og:image" content="https://neskil.github.io/assets/og/home.png">
+  <meta property="og:image" content="https://neskil.github.io/assets/og/cargo-packer.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="Cargo Packer 3D comparing two algorithms side by side: Balanced Load keeps an industrial load mid-container, Extreme Points packs it against the back wall.">
   <meta name="twitter:card" content="summary_large_image">
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "WebApplication",
+        "url": "https://neskil.github.io/cargo-packer/",
+        "description": "Watch eight 3D container-loading algorithms pack the same cargo, from Extreme Points and Wall-Building to deliberately bad ones, side by side in WebGL. Set any load, see the centre of gravity, and follow a guided tour of how each one works.",
+        "image": "https://neskil.github.io/assets/og/cargo-packer.png",
+        "name": "Cargo Packer 3D: Container Loading Algorithms",
+        "author": {
+          "@id": "https://neskil.github.io/#niklas"
+        },
+        "isPartOf": {
+          "@id": "https://neskil.github.io/#website"
+        },
+        "applicationCategory": "EducationalApplication",
+        "operatingSystem": "Any",
+        "browserRequirements": "Requires JavaScript and WebGL",
+        "offers": {
+          "@type": "Offer",
+          "price": "0",
+          "priceCurrency": "USD"
+        }
+      },
+      {
+        "@type": "Person",
+        "@id": "https://neskil.github.io/#niklas",
+        "name": "Niklas Billgren",
+        "url": "https://neskil.github.io/",
+        "jobTitle": "Supply chain consultant",
+        "image": "https://neskil.github.io/assets/portrait.webp",
+        "sameAs": [
+          "https://www.linkedin.com/in/niklas-eskilsson/"
+        ]
+      }
+    ]
+  }
+  </script>
 
   <!-- Google Tag (gtag.js) -->
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-9GP823TGLB"></script>
@@ -440,10 +483,16 @@
       // Guided tours
       const tour = new CP.GuidedTour({ controller, ui, sceneManager, visualizers, boxRenderer });
 
-      // 4. Start the default scenario, or the one a link asks for
+      // 4. Start the default scenario, or the one a link asks for. A tour link
+      //    packs its own scenario straight away, its algorithm first, rather
+      //    than the default load only to throw it away.
       const q = new URLSearchParams(window.location.search);
-      if (q.has('scenario') && CP.PRESETS[q.get('scenario')]) {
-        controller.loadScenario(q.get('scenario'));
+      const linkedTour = q.has('tour') ? CP.TOURS[q.get('tour')] : null;
+      if (linkedTour) controller.selectedAlgorithm = q.get('tour');
+      const startScenario = q.has('scenario') && CP.PRESETS[q.get('scenario')] ? q.get('scenario')
+        : linkedTour ? linkedTour.scenario : null;
+      if (startScenario) {
+        controller.loadScenario(startScenario);
       } else {
         controller.init();
       }
