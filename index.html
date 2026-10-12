@@ -176,6 +176,24 @@
             --hue: 25;
         }
 
+        html[data-theme="card-sand"] {
+            --bg-color-1: #17130b;
+            --bg-color-2: #241c0e;
+            --hue: 40;
+        }
+
+        html[data-theme="card-terrarium"] {
+            --bg-color-1: #0a1718;
+            --bg-color-2: #0f2526;
+            --hue: 170;
+        }
+
+        html[data-theme="card-elevator"] {
+            --bg-color-1: #15120a;
+            --bg-color-2: #221b0d;
+            --hue: 38;
+        }
+
         /* ── Background variants ──────────────────────────────────────────────
            The 135° ramp above stays as the floor; each variant is one fixed layer
            that cross-fades in over it, so switching costs an opacity change and
@@ -476,14 +494,192 @@
             margin-inline: auto;
         }
 
+        /* auto-fill rather than auto-fit: each shelf is its own grid now, and
+           auto-fit would stretch a two-card shelf to half-page cards beside a
+           shelf of thirds. auto-fill keeps one column width down the page. */
         .grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
             grid-auto-rows: 1fr;
             gap: 2rem;
             width: 100%;
-            max-width: 1000px;
             animation: fadeInUp 1s ease-out 0.2s both;
+        }
+
+        /* ── Shelves ──────────────────────────────────────────────────────────
+           The cards are grouped into shelves — games, toys, tools, about — each
+           a heading that folds its grid away. The fold is a 1fr -> 0fr grid row,
+           so it animates to the content's real height without anyone measuring
+           it. The clip only goes on while folding or folded: an always-on
+           overflow:hidden would shear off the cards' tilt lift and shadows. */
+        .shelves {
+            width: 100%;
+            max-width: 1000px;
+            display: flex;
+            flex-direction: column;
+            gap: 2.4rem;
+        }
+
+        .shelf-nav {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 0.5rem;
+            margin: -1.4rem 0 2.4rem;
+            animation: fadeInDown 1s ease-out;
+            position: relative;
+            z-index: 1;
+        }
+
+        .shelf-chip {
+            font-family: 'Outfit', sans-serif;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            text-decoration: none;
+            padding: 0.4rem 0.85rem;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.09);
+            transition: color 0.2s ease, background 0.2s ease, border-color 0.2s ease;
+        }
+
+        .shelf-chip:hover,
+        .shelf-chip:focus-visible {
+            color: var(--text-primary);
+            background: rgba(255, 255, 255, 0.09);
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+
+        .shelf {
+            position: relative;
+            z-index: 1;
+            scroll-margin-top: 1.2rem;
+        }
+
+        .shelf-heading {
+            margin: 0 0 1.1rem;
+            font-size: inherit;
+            font-weight: inherit;
+        }
+
+        .shelf-head {
+            all: unset;
+            box-sizing: border-box;
+            width: 100%;
+            display: flex;
+            align-items: center;
+            gap: 0.85rem;
+            padding: 0.35rem 0.25rem 0.75rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            cursor: pointer;
+            color: var(--text-primary);
+            transition: border-color 0.25s ease;
+        }
+
+        .shelf-head:hover {
+            border-bottom-color: rgba(255, 255, 255, 0.2);
+        }
+
+        .shelf-head:focus-visible {
+            outline: 2px solid rgba(255, 255, 255, 0.5);
+            outline-offset: 4px;
+            border-radius: 8px;
+        }
+
+        .shelf-icon {
+            font-size: 1.35rem;
+            line-height: 1;
+            width: 2.3rem;
+            height: 2.3rem;
+            display: grid;
+            place-items: center;
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            flex: none;
+        }
+
+        .shelf-text {
+            display: flex;
+            flex-direction: column;
+            gap: 0.1rem;
+            min-width: 0;
+            flex: 1;
+        }
+
+        .shelf-title {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.35rem;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+        }
+
+        .shelf-blurb {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            opacity: 0.8;
+        }
+
+        .shelf-count {
+            font-family: 'Outfit', sans-serif;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            min-width: 1.8rem;
+            padding: 0.15rem 0.5rem;
+            text-align: center;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.06);
+            flex: none;
+        }
+
+        .shelf-chevron {
+            width: 1.3rem;
+            height: 1.3rem;
+            flex: none;
+            fill: none;
+            stroke: var(--text-secondary);
+            stroke-width: 2;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+            transition: transform 0.35s ease;
+        }
+
+        .shelf.is-collapsed .shelf-chevron {
+            transform: rotate(-90deg);
+        }
+
+        .shelf-body {
+            display: grid;
+            grid-template-rows: 1fr;
+            transition: grid-template-rows 0.45s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.35s ease;
+        }
+
+        .shelf.is-collapsed .shelf-body {
+            grid-template-rows: 0fr;
+            opacity: 0;
+        }
+
+        .shelf-clip {
+            min-height: 0;
+        }
+
+        .shelf.is-collapsed .shelf-clip,
+        .shelf.is-folding .shelf-clip {
+            overflow: hidden;
+        }
+
+        /* Folded means gone: no tab stops into it, and once the fold has
+           finished nothing in it paints. */
+        .shelf.is-collapsed:not(.is-folding) .shelf-clip {
+            visibility: hidden;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .shelf-body,
+            .shelf-chevron {
+                transition: none;
+            }
         }
 
         /* ── The six tilt variables, declared up front ────────────────────────
@@ -1697,6 +1893,42 @@
             color: rgb(251, 146, 60);
         }
 
+        #card-sand {
+            --accent-rgb: 226, 192, 122;
+            --card-bg-gradient: linear-gradient(135deg, rgba(40, 32, 18, 0.66) 0%, rgba(15, 22, 35, 0.60) 100%);
+            --card-hover-gradient: linear-gradient(135deg, rgba(62, 48, 24, 0.82) 0%, rgba(20, 28, 48, 0.75) 100%);
+            --card-border: rgba(226, 192, 122, 0.22);
+            --card-hover-border: rgba(240, 210, 150, 0.50);
+        }
+
+        #card-sand .card-link {
+            color: rgb(240, 210, 150);
+        }
+
+        #card-terrarium {
+            --accent-rgb: 125, 211, 192;
+            --card-bg-gradient: linear-gradient(135deg, rgba(14, 36, 38, 0.66) 0%, rgba(15, 22, 35, 0.60) 100%);
+            --card-hover-gradient: linear-gradient(135deg, rgba(20, 56, 58, 0.82) 0%, rgba(20, 28, 48, 0.75) 100%);
+            --card-border: rgba(125, 211, 192, 0.22);
+            --card-hover-border: rgba(153, 230, 212, 0.50);
+        }
+
+        #card-terrarium .card-link {
+            color: rgb(153, 230, 212);
+        }
+
+        #card-elevator {
+            --accent-rgb: 245, 158, 11;
+            --card-bg-gradient: linear-gradient(135deg, rgba(38, 30, 14, 0.66) 0%, rgba(15, 22, 35, 0.60) 100%);
+            --card-hover-gradient: linear-gradient(135deg, rgba(60, 44, 18, 0.82) 0%, rgba(20, 28, 48, 0.75) 100%);
+            --card-border: rgba(245, 158, 11, 0.22);
+            --card-hover-border: rgba(252, 211, 77, 0.50);
+        }
+
+        #card-elevator .card-link {
+            color: rgb(252, 211, 77);
+        }
+
         /* ── Materials: layered onto the same tilt-tracking glare (.card::before). Uses
            overlay blend so bright texture only lifts already-light pixels instead of
            flatly washing out the (already fairly low-contrast) body text underneath. ── */
@@ -1912,6 +2144,38 @@
                 grid-template-columns: 1fr;
                 grid-auto-rows: auto;
                 gap: 0.75rem;
+            }
+
+            .shelves {
+                gap: 1.4rem;
+            }
+
+            .shelf-nav {
+                margin: -0.6rem 0 1.4rem;
+                gap: 0.4rem;
+            }
+
+            .shelf-chip {
+                font-size: 0.78rem;
+                padding: 0.35rem 0.7rem;
+            }
+
+            .shelf-heading {
+                margin-bottom: 0.7rem;
+            }
+
+            .shelf-title {
+                font-size: 1.15rem;
+            }
+
+            .shelf-blurb {
+                font-size: 0.78rem;
+            }
+
+            .shelf-icon {
+                width: 2rem;
+                height: 2rem;
+                font-size: 1.1rem;
             }
 
             /* ── Resting size ──
@@ -2867,710 +3131,960 @@
         <span class="secret-hint" id="secret-hint"></span>
     </header>
 
-    <main class="grid">
-        <!-- ── Mini Golf: one tee, two geometries ──────────────────────────
-             Pocket Links and Loft Links stay two games in two folders, sharing
-             no code and no save data. What they no longer need is a card each:
-             two neighbouring tiles whose only real difference was how many axes
-             they use made the grid read like a list with a duplicate in it. So
-             the grid gets one card, and the choice of dimension moves to its
-             flip side — the same mechanism the About card uses — with each
-             game's own record on its own option, so the pick is informed before
-             you make it. ── -->
-        <div class="card flip-card" id="card-golf-hub">
-            <div class="card-flip-inner">
-                <button type="button" class="card-face card-face-front flip-open" aria-expanded="false"
-                    aria-controls="golf-panel">
-                    <div>
-                        <div class="card-icon">
-                            <svg viewBox="0 0 24 24">
-                                <path d="M12 14.2L3.2 17.6l8.8 3.4 8.8-3.4-8.8-3.4z" fill="currentColor" fill-opacity="0.13"/>
-                                <path d="M12 14.2L3.2 17.6l8.8 3.4 8.8-3.4-8.8-3.4z"/>
-                                <path d="M7.6 16.3l4.4 1.7 4.4-1.7" opacity="0.45"/>
-                                <path d="M13.2 17.3V3.6"/>
-                                <path d="M13.6 3.8l6.2 2.1-6.2 2.3z" fill="currentColor" fill-opacity="0.45"/>
-                                <circle cx="8.3" cy="16.1" r="1.55"/>
-                            </svg>
-                        </div>
-                        <h2 class="card-title">Fore Dimensions</h2>
-                        <p class="card-desc">Mini golf in two different geometries: forty-two flat holes across four courses plus a generator that deals nine more, with an editor that checks its own work, or seventeen courses of ramps, carries, bumpers, ice, fairways, dunes and canyons to play over. Pick your dimensions.</p>
-                        <div class="card-stat-chip" id="stat-golf-hub">
-                            <span class="stat-icon">⛳</span> <span class="stat-val">2D · 3D</span>
-                        </div>
-                    </div>
-                    <span class="card-link">Pick a tee <svg viewBox="0 0 24 24">
-                            <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                                stroke-linejoin="round" />
-                        </svg></span>
+    <nav class="shelf-nav" aria-label="Categories">
+        <a class="shelf-chip" href="#shelf-games" data-shelf-jump="games"><span aria-hidden="true">🎮</span> Games</a>
+        <a class="shelf-chip" href="#shelf-lab" data-shelf-jump="lab"><span aria-hidden="true">🧪</span> Toys &amp; experiments</a>
+        <a class="shelf-chip" href="#shelf-tools" data-shelf-jump="tools"><span aria-hidden="true">🧰</span> Useful tools</a>
+        <a class="shelf-chip" href="#shelf-about" data-shelf-jump="about"><span aria-hidden="true">👋</span> About me</a>
+    </nav>
+
+    <main class="shelves">
+        <section class="shelf" id="shelf-games" data-shelf="games">
+            <h2 class="shelf-heading">
+                <button type="button" class="shelf-head" aria-expanded="true" aria-controls="shelf-games-body">
+                    <span class="shelf-icon" aria-hidden="true">🎮</span>
+                    <span class="shelf-text"><span class="shelf-title">Games</span><span class="shelf-blurb">Things to play. Mostly logistics, occasionally golf.</span></span>
+                    <span class="shelf-count">5</span>
+                    <svg class="shelf-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6" /></svg>
                 </button>
-                <div class="card-face card-face-back" id="golf-panel" role="dialog" aria-modal="true"
-                    aria-label="Choose a mini golf game">
-                    <button type="button" class="card-close" data-flip-close aria-label="Close">
-                        <svg viewBox="0 0 24 24">
-                            <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2"
-                                stroke-linecap="round" />
-                        </svg>
-                    </button>
-                    <div class="dim-head">
-                        <div class="dim-title">Fore Dimensions</div>
-                        <div class="dim-sub">How many dimensions?</div>
+            </h2>
+            <div class="shelf-body" id="shelf-games-body">
+                <div class="shelf-clip">
+                    <div class="grid">
+                    <!-- ── Mini Golf: one tee, two geometries ──────────────────────────
+                         Pocket Links and Loft Links stay two games in two folders, sharing
+                         no code and no save data. What they no longer need is a card each:
+                         two neighbouring tiles whose only real difference was how many axes
+                         they use made the grid read like a list with a duplicate in it. So
+                         the grid gets one card, and the choice of dimension moves to its
+                         flip side — the same mechanism the About card uses — with each
+                         game's own record on its own option, so the pick is informed before
+                         you make it. ── -->
+                    <div class="card flip-card" id="card-golf-hub">
+                        <div class="card-flip-inner">
+                            <button type="button" class="card-face card-face-front flip-open" aria-expanded="false"
+                                aria-controls="golf-panel">
+                                <div>
+                                    <div class="card-icon">
+                                        <svg viewBox="0 0 24 24">
+                                            <path d="M12 14.2L3.2 17.6l8.8 3.4 8.8-3.4-8.8-3.4z" fill="currentColor" fill-opacity="0.13"/>
+                                            <path d="M12 14.2L3.2 17.6l8.8 3.4 8.8-3.4-8.8-3.4z"/>
+                                            <path d="M7.6 16.3l4.4 1.7 4.4-1.7" opacity="0.45"/>
+                                            <path d="M13.2 17.3V3.6"/>
+                                            <path d="M13.6 3.8l6.2 2.1-6.2 2.3z" fill="currentColor" fill-opacity="0.45"/>
+                                            <circle cx="8.3" cy="16.1" r="1.55"/>
+                                        </svg>
+                                    </div>
+                                    <h3 class="card-title">Fore Dimensions</h3>
+                                    <p class="card-desc">Mini golf in two different geometries: forty-two flat holes across four courses plus a generator that deals nine more, with an editor that checks its own work, or seventeen courses of ramps, carries, bumpers, ice, fairways, dunes and canyons to play over. Pick your dimensions.</p>
+                                    <div class="card-stat-chip" id="stat-golf-hub">
+                                        <span class="stat-icon">⛳</span> <span class="stat-val">2D · 3D</span>
+                                    </div>
+                                </div>
+                                <span class="card-link">Pick a tee <svg viewBox="0 0 24 24">
+                                        <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                            stroke-linejoin="round" />
+                                    </svg></span>
+                            </button>
+                            <div class="card-face card-face-back" id="golf-panel" role="dialog" aria-modal="true"
+                                aria-label="Choose a mini golf game">
+                                <button type="button" class="card-close" data-flip-close aria-label="Close">
+                                    <svg viewBox="0 0 24 24">
+                                        <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" />
+                                    </svg>
+                                </button>
+                                <div class="dim-head">
+                                    <div class="dim-title">Fore Dimensions</div>
+                                    <div class="dim-sub">How many dimensions?</div>
+                                </div>
+                                <a class="dim-option dim-3d" href="golf3d/index.html?v=1.9.0">
+                                    <span class="dim-shot">
+                                        <img data-src="assets/preview/golf3d.webp" alt="Loft Links: a raised mini golf hole over open water at golden hour, seen from behind the ball with the club bag in the corner and the live scoring HUD overhead." width="800"
+                                            height="420" decoding="async">
+                                        <span class="dim-badge">3D</span>
+                                    </span>
+                                    <span class="dim-body">
+                                        <span class="dim-name">Loft Links 3D</span>
+                                        <span class="dim-desc">Seventeen courses in four kinds: mini golf over ramps, ledges and water carries; crazy golf past windmill blades, pinball bumpers, clockwork, a waterwheel over the millrace and a belfry of geared machines; adventure golf on ice, travelators, pipes, the steam vents of a volcano and a moon yard at six gravities; and the long game over parkland, heath, an open links of rolling dunes and a red canyon country with nothing but white stakes to keep you honest. Each hole under weather of its own, and five clubs to get past them.</span>
+                                        <span class="dim-stat" id="stat-golf3d"><span class="stat-icon">🏌️</span> Best Round: <span class="stat-val">—</span></span>
+                                    </span>
+                                </a>
+                                <a class="dim-option dim-2d" href="golf/index.html?v=1.3.0">
+                                    <span class="dim-shot">
+                                        <img data-src="assets/preview/golf.webp" alt="Pocket Links: a ball on the fairway lined up at the pin, water either side of the approach." width="800"
+                                            height="420" decoding="async">
+                                        <span class="dim-badge">2D</span>
+                                    </span>
+                                    <span class="dim-body">
+                                        <span class="dim-name">Pocket Links</span>
+                                        <span class="dim-desc">Four courses seen from above — an eighteen, a quick six and two nines — plus a fifth generated from a seed. Bunkers, water, ice, bumpers and gates that will not wait for you, and a hole editor that checks its own work.</span>
+                                        <span class="dim-stat" id="stat-golf"><span class="stat-icon">⛳</span> Best Round: <span class="stat-val">—</span></span>
+                                    </span>
+                                </a>
+                            </div>
+                        </div>
                     </div>
-                    <a class="dim-option dim-3d" href="golf3d/index.html?v=1.9.0">
-                        <span class="dim-shot">
-                            <img data-src="assets/preview/golf3d.webp" alt="Loft Links: a raised mini golf hole over open water at golden hour, seen from behind the ball with the club bag in the corner and the live scoring HUD overhead." width="800"
-                                height="420" decoding="async">
-                            <span class="dim-badge">3D</span>
-                        </span>
-                        <span class="dim-body">
-                            <span class="dim-name">Loft Links 3D</span>
-                            <span class="dim-desc">Seventeen courses in four kinds: mini golf over ramps, ledges and water carries; crazy golf past windmill blades, pinball bumpers, clockwork, a waterwheel over the millrace and a belfry of geared machines; adventure golf on ice, travelators, pipes, the steam vents of a volcano and a moon yard at six gravities; and the long game over parkland, heath, an open links of rolling dunes and a red canyon country with nothing but white stakes to keep you honest. Each hole under weather of its own, and five clubs to get past them.</span>
-                            <span class="dim-stat" id="stat-golf3d"><span class="stat-icon">🏌️</span> Best Round: <span class="stat-val">—</span></span>
-                        </span>
-                    </a>
-                    <a class="dim-option dim-2d" href="golf/index.html?v=1.3.0">
-                        <span class="dim-shot">
-                            <img data-src="assets/preview/golf.webp" alt="Pocket Links: a ball on the fairway lined up at the pin, water either side of the approach." width="800"
-                                height="420" decoding="async">
-                            <span class="dim-badge">2D</span>
-                        </span>
-                        <span class="dim-body">
-                            <span class="dim-name">Pocket Links</span>
-                            <span class="dim-desc">Four courses seen from above — an eighteen, a quick six and two nines — plus a fifth generated from a seed. Bunkers, water, ice, bumpers and gates that will not wait for you, and a hole editor that checks its own work.</span>
-                            <span class="dim-stat" id="stat-golf"><span class="stat-icon">⛳</span> Best Round: <span class="stat-val">—</span></span>
-                        </span>
-                    </a>
+
+                    <div class="card flip-card" id="card-cargo-lander">
+                        <div class="card-flip-inner">
+                            <button type="button" class="card-face card-face-front flip-open" aria-expanded="false"
+                                aria-controls="card-cargo-lander-panel">
+                                <div>
+                                    <div class="card-icon">
+                                        <svg viewBox="0 0 24 24">
+                                            <path d="M12 2C8.5 2 6 7 6 12h12c0-5-2.5-10-6-10z" fill="currentColor" fill-opacity="0.12"/>
+                                            <path d="M12 2C8.5 2 6 7 6 12h12c0-5-2.5-10-6-10z"/>
+                                            <circle cx="12" cy="7" r="2" fill="currentColor" opacity="0.8"/>
+                                            <path d="M9 12h6l-1.5 3.5h-3z"/>
+                                            <path d="M7 12l-4 8m3-2h-3"/>
+                                            <path d="M17 12l4 8m-3-2h3"/>
+                                            <path d="M10.5 15.5l1.5 4.5 1.5-4.5" opacity="0.5"/>
+                                        </svg>
+                                    </div>
+                                    <h3 class="card-title">Cargo Lander</h3>
+                                    <p class="card-desc">Fly your space truck and deliver space cargo in space! Includes a level editor with undo functionality.</p>
+                                    <div class="card-stat-chip" id="stat-cargo-lander">
+                                        <span class="stat-icon">🚀</span> High Score: <span class="stat-val">—</span>
+                                    </div>
+                                </div>
+                                <span class="card-link">Take a look <svg viewBox="0 0 24 24">
+                                        <path d="M3.6 12a8.4 8.4 0 0 1 14.4-5.9" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" stroke-linejoin="round" fill="none" />
+                                        <path d="M18.4 2.8v3.7h-3.7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                            stroke-linejoin="round" fill="none" />
+                                        <path d="M20.4 12a8.4 8.4 0 0 1-14.4 5.9" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" stroke-linejoin="round" fill="none" />
+                                        <path d="M5.6 21.2v-3.7h3.7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                            stroke-linejoin="round" fill="none" />
+                                    </svg></span>
+                            </button>
+                            <div class="card-face card-face-back peek-back" id="card-cargo-lander-panel" role="dialog" aria-modal="true"
+                                aria-label="Cargo Lander">
+                                <button type="button" class="card-close" data-flip-close aria-label="Close">
+                                    <svg viewBox="0 0 24 24">
+                                        <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" />
+                                    </svg>
+                                </button>
+                                <div class="peek-shot">
+                                    <img data-src="assets/preview/cargo-lander.webp" alt="Cargo Lander in flight: the lander under thrust over a green basin, fuel and hull gauges across the top." width="800" height="420"
+                                        decoding="async">
+                                    <img data-src="assets/preview/cargo-lander-2.webp" alt="The lander further into the run, drifting downrange over the basin with the delivery hub ahead." width="800" height="420"
+                                        decoding="async">
+                                    <img data-src="assets/preview/cargo-lander-3.webp" alt="An endless procedural run: different terrain, the same lander under thrust." width="800" height="420"
+                                        decoding="async">
+                                </div>
+                                <div class="peek-body">
+                                    <div class="peek-title">Cargo Lander</div>
+                                    <p class="peek-text">Fly your space truck and deliver space cargo in space! Includes a level editor with undo functionality.</p>
+                                    <div class="peek-stat" data-mirror-stat="stat-cargo-lander"></div>
+                                </div>
+                                <a class="peek-launch" href="cargo-lander/index.html?v=0.23.0">Play Game <svg viewBox="0 0 24 24">
+                                        <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" stroke-linejoin="round" fill="none" />
+                                    </svg></a>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card card-metal flip-card" id="card-supply-chain">
+                        <div class="card-flip-inner">
+                            <button type="button" class="card-face card-face-front flip-open" aria-expanded="false"
+                                aria-controls="card-supply-chain-panel">
+                                <div>
+                                    <div class="card-icon">
+                                        <svg viewBox="0 0 24 24">
+                                            <path d="M5.1 6.6c0-1.4 1.6-1.4 1.6-2.8" opacity="0.45"/>
+                                            <path d="M7.9 5.4c0-1.1 1.3-1.1 1.3-2.2" opacity="0.3"/>
+                                            <path d="M3.6 20.5V7h3v13.5" fill="currentColor" fill-opacity="0.12"/>
+                                            <path d="M8 20.5V12l4.1 2.9V12l4.1 2.9V12l4.3 2.9v5.6" fill="currentColor" fill-opacity="0.12"/>
+                                            <path d="M2.5 20.5h19"/>
+                                            <circle cx="10.5" cy="18" r="1.1" fill="currentColor" opacity="0.75" stroke="none"/>
+                                            <circle cx="14.3" cy="18" r="1.1" fill="currentColor" opacity="0.75" stroke="none"/>
+                                            <circle cx="18.1" cy="18" r="1.1" fill="currentColor" opacity="0.75" stroke="none"/>
+                                        </svg>
+                                    </div>
+                                    <h3 class="card-title">Supply Chain Tycoon</h3>
+                                    <p class="card-desc">A logistics mini-game: build roads, run trucks, manufacture goods, and fill city orders.</p>
+                                    <div class="card-stat-chip" id="stat-supply-chain">
+                                        <span class="stat-icon">🏆</span> <span class="stat-val">—</span>
+                                    </div>
+                                </div>
+                                <span class="card-link">Take a look <svg viewBox="0 0 24 24">
+                                        <path d="M3.6 12a8.4 8.4 0 0 1 14.4-5.9" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" stroke-linejoin="round" fill="none" />
+                                        <path d="M18.4 2.8v3.7h-3.7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                            stroke-linejoin="round" fill="none" />
+                                        <path d="M20.4 12a8.4 8.4 0 0 1-14.4 5.9" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" stroke-linejoin="round" fill="none" />
+                                        <path d="M5.6 21.2v-3.7h3.7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                            stroke-linejoin="round" fill="none" />
+                                    </svg></span>
+                            </button>
+                            <div class="card-face card-face-back peek-back" id="card-supply-chain-panel" role="dialog" aria-modal="true"
+                                aria-label="Supply Chain Tycoon">
+                                <button type="button" class="card-close" data-flip-close aria-label="Close">
+                                    <svg viewBox="0 0 24 24">
+                                        <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" />
+                                    </svg>
+                                </button>
+                                <div class="peek-shot">
+                                    <img data-src="assets/preview/supply-chain.webp" alt="Supply Chain Tycoon: an isometric map with a road under construction, a truck on its way, and the order board open." width="800" height="420"
+                                        decoding="async">
+                                </div>
+                                <div class="peek-body">
+                                    <div class="peek-title">Supply Chain Tycoon</div>
+                                    <p class="peek-text">A logistics mini-game: build roads, run trucks, manufacture goods, and fill city orders.</p>
+                                    <div class="peek-stat" data-mirror-stat="stat-supply-chain"></div>
+                                </div>
+                                <a class="peek-launch" href="supply-chain/index.html?v=1.63.4">Play <svg viewBox="0 0 24 24">
+                                        <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" stroke-linejoin="round" fill="none" />
+                                    </svg></a>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card card-metal flip-card" id="card-3d-poc">
+                        <div class="card-flip-inner">
+                            <button type="button" class="card-face card-face-front flip-open" aria-expanded="false"
+                                aria-controls="card-3d-poc-panel">
+                                <div>
+                                    <div class="card-icon">
+                                        <svg viewBox="0 0 24 24">
+                                            <path d="M12 2L3 7v10l9 5 9-5V7l-9-5z" fill="currentColor" fill-opacity="0.12"/>
+                                            <path d="M12 2L3 7l9 5 9-5-9-5z"/>
+                                            <path d="M3 7v10l9 5V12L3 7z" opacity="0.6"/>
+                                            <path d="M21 7v10l-9 5V12l9-5z" opacity="0.8"/>
+                                            <path d="M12 12v10" opacity="0.5"/>
+                                        </svg>
+                                    </div>
+                                    <h3 class="card-title">Yard Master 3D</h3>
+                                    <p class="card-desc">3D container-packing puzzle & logistics sim. Stack cargo, follow terminal rules, and optimize your yard envelope.</p>
+                                    <div class="card-stat-chip" id="stat-3d-poc">
+                                        <span class="stat-icon">📦</span> <span class="stat-val">—</span>
+                                    </div>
+                                </div>
+                                <span class="card-link">Take a look <svg viewBox="0 0 24 24">
+                                        <path d="M3.6 12a8.4 8.4 0 0 1 14.4-5.9" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" stroke-linejoin="round" fill="none" />
+                                        <path d="M18.4 2.8v3.7h-3.7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                            stroke-linejoin="round" fill="none" />
+                                        <path d="M20.4 12a8.4 8.4 0 0 1-14.4 5.9" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" stroke-linejoin="round" fill="none" />
+                                        <path d="M5.6 21.2v-3.7h3.7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                            stroke-linejoin="round" fill="none" />
+                                    </svg></span>
+                            </button>
+                            <div class="card-face card-face-back peek-back" id="card-3d-poc-panel" role="dialog" aria-modal="true"
+                                aria-label="Yard Master 3D">
+                                <button type="button" class="card-close" data-flip-close aria-label="Close">
+                                    <svg viewBox="0 0 24 24">
+                                        <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" />
+                                    </svg>
+                                </button>
+                                <div class="peek-shot">
+                                    <img data-src="assets/preview/3d-engine-poc.webp" alt="Yard Master: containers stacked in a 3D yard, with the cargo palette and yard statistics alongside." width="800" height="420"
+                                        decoding="async">
+                                </div>
+                                <div class="peek-body">
+                                    <div class="peek-title">Yard Master 3D</div>
+                                    <p class="peek-text">3D container-packing puzzle & logistics sim. Stack cargo, follow terminal rules, and optimize your yard envelope.</p>
+                                    <div class="peek-stat" data-mirror-stat="stat-3d-poc"></div>
+                                </div>
+                                <a class="peek-launch" href="3d-engine-poc/index.html">Play Yard Master <svg viewBox="0 0 24 24">
+                                        <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" stroke-linejoin="round" fill="none" />
+                                    </svg></a>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card card-metal flip-card" id="card-elevator">
+                        <div class="card-flip-inner">
+                            <button type="button" class="card-face card-face-front flip-open" aria-expanded="false"
+                                aria-controls="card-elevator-panel">
+                                <div>
+                                    <div class="card-icon">
+                                        <svg viewBox="0 0 24 24">
+                                            <rect x="4" y="2.8" width="16" height="18.4" rx="2" fill="currentColor" fill-opacity="0.08"/>
+                                            <path d="M12 2.8v18.4" opacity="0.5"/>
+                                            <rect x="6" y="11" width="4.2" height="5.4" rx="0.8" fill="currentColor" fill-opacity="0.45"/>
+                                            <rect x="13.8" y="5.2" width="4.2" height="5.4" rx="0.8" fill="currentColor" fill-opacity="0.25"/>
+                                            <path d="M15.9 13.2l1.4-1.6 1.4 1.6M15.9 16.4l1.4 1.6 1.4-1.6"/>
+                                        </svg>
+                                    </div>
+                                    <h3 class="card-title">Tiny Elevator Tycoon</h3>
+                                    <p class="card-desc">Program a building's lifts, then run the day and see who took the stairs. Six levels, from a quiet Tuesday to five o'clock.</p>
+                                    <div class="card-stat-chip" id="stat-elevator">
+                                        <span class="stat-icon">🛗</span> 6 levels
+                                    </div>
+                                </div>
+                                <span class="card-link">Take a look <svg viewBox="0 0 24 24">
+                                        <path d="M3.6 12a8.4 8.4 0 0 1 14.4-5.9" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" stroke-linejoin="round" fill="none" />
+                                        <path d="M18.4 2.8v3.7h-3.7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                            stroke-linejoin="round" fill="none" />
+                                        <path d="M20.4 12a8.4 8.4 0 0 1-14.4 5.9" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" stroke-linejoin="round" fill="none" />
+                                        <path d="M5.6 21.2v-3.7h3.7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                            stroke-linejoin="round" fill="none" />
+                                    </svg></span>
+                            </button>
+                            <div class="card-face card-face-back peek-back" id="card-elevator-panel" role="dialog" aria-modal="true"
+                                aria-label="Tiny Elevator Tycoon">
+                                <button type="button" class="card-close" data-flip-close aria-label="Close">
+                                    <svg viewBox="0 0 24 24">
+                                        <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" />
+                                    </svg>
+                                </button>
+                                <div class="peek-shot">
+                                <img data-src="assets/preview/elevator.webp" alt="Morning Rush under way: a queue at the lobby and two cars on their first trips up a ten-floor building." width="800" height="420"
+                                    decoding="async">
+                                <img data-src="assets/preview/elevator-2.webp" alt="Five O'Clock with three cars programmed: a low-floor sweep, a high-floor express and a lobby runner." width="800" height="420"
+                                    decoding="async">
+                                <img data-src="assets/preview/elevator-3.webp" alt="The report card at the end of a day: one star, the average and longest waits, and how many took the stairs." width="800" height="420"
+                                    decoding="async">
+                                </div>
+                                <div class="peek-body">
+                                    <div class="peek-title">Tiny Elevator Tycoon</div>
+                                    <p class="peek-text">Give each car its rules: how it picks its next stop, which floors it serves, where it waits when idle, and whether the cars share calls. Then run the day. The same people arrive every time, so a better score is always a better program.</p>
+                                    <div class="peek-stat"><span class="stat-icon">★</span> 3 strategies &bull; zones &bull; 18 stars</div>
+                                </div>
+                                <a class="peek-launch" href="elevator/index.html">Open the lobby <svg viewBox="0 0 24 24">
+                                        <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" stroke-linejoin="round" fill="none" />
+                                    </svg></a>
+                            </div>
+                        </div>
+                    </div>
+                    </div>
                 </div>
             </div>
-        </div>
+        </section>
 
-        <div class="card flip-card" id="card-cargo-lander">
-            <div class="card-flip-inner">
-                <button type="button" class="card-face card-face-front flip-open" aria-expanded="false"
-                    aria-controls="card-cargo-lander-panel">
-                    <div>
-                        <div class="card-icon">
-                            <svg viewBox="0 0 24 24">
-                                <path d="M12 2C8.5 2 6 7 6 12h12c0-5-2.5-10-6-10z" fill="currentColor" fill-opacity="0.12"/>
-                                <path d="M12 2C8.5 2 6 7 6 12h12c0-5-2.5-10-6-10z"/>
-                                <circle cx="12" cy="7" r="2" fill="currentColor" opacity="0.8"/>
-                                <path d="M9 12h6l-1.5 3.5h-3z"/>
-                                <path d="M7 12l-4 8m3-2h-3"/>
-                                <path d="M17 12l4 8m-3-2h3"/>
-                                <path d="M10.5 15.5l1.5 4.5 1.5-4.5" opacity="0.5"/>
-                            </svg>
-                        </div>
-                        <h2 class="card-title">Cargo Lander</h2>
-                        <p class="card-desc">Fly your space truck and deliver space cargo in space! Includes a level editor with undo functionality.</p>
-                        <div class="card-stat-chip" id="stat-cargo-lander">
-                            <span class="stat-icon">🚀</span> High Score: <span class="stat-val">—</span>
-                        </div>
-                    </div>
-                    <span class="card-link">Take a look <svg viewBox="0 0 24 24">
-                            <path d="M3.6 12a8.4 8.4 0 0 1 14.4-5.9" stroke="currentColor" stroke-width="2"
-                                stroke-linecap="round" stroke-linejoin="round" fill="none" />
-                            <path d="M18.4 2.8v3.7h-3.7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                                stroke-linejoin="round" fill="none" />
-                            <path d="M20.4 12a8.4 8.4 0 0 1-14.4 5.9" stroke="currentColor" stroke-width="2"
-                                stroke-linecap="round" stroke-linejoin="round" fill="none" />
-                            <path d="M5.6 21.2v-3.7h3.7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                                stroke-linejoin="round" fill="none" />
-                        </svg></span>
+        <section class="shelf" id="shelf-lab" data-shelf="lab">
+            <h2 class="shelf-heading">
+                <button type="button" class="shelf-head" aria-expanded="true" aria-controls="shelf-lab-body">
+                    <span class="shelf-icon" aria-hidden="true">🧪</span>
+                    <span class="shelf-text"><span class="shelf-title">Toys &amp; experiments</span><span class="shelf-blurb">Things to poke at, with no score to keep.</span></span>
+                    <span class="shelf-count">4</span>
+                    <svg class="shelf-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6" /></svg>
                 </button>
-                <div class="card-face card-face-back peek-back" id="card-cargo-lander-panel" role="dialog" aria-modal="true"
-                    aria-label="Cargo Lander">
-                    <button type="button" class="card-close" data-flip-close aria-label="Close">
-                        <svg viewBox="0 0 24 24">
-                            <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2"
-                                stroke-linecap="round" />
-                        </svg>
-                    </button>
-                    <div class="peek-shot">
-                        <img data-src="assets/preview/cargo-lander.webp" alt="Cargo Lander in flight: the lander under thrust over a green basin, fuel and hull gauges across the top." width="800" height="420"
-                            decoding="async">
-                        <img data-src="assets/preview/cargo-lander-2.webp" alt="The lander further into the run, drifting downrange over the basin with the delivery hub ahead." width="800" height="420"
-                            decoding="async">
-                        <img data-src="assets/preview/cargo-lander-3.webp" alt="An endless procedural run: different terrain, the same lander under thrust." width="800" height="420"
-                            decoding="async">
+            </h2>
+            <div class="shelf-body" id="shelf-lab-body">
+                <div class="shelf-clip">
+                    <div class="grid">
+                    <div class="card flip-card" id="card-viz">
+                        <div class="card-flip-inner">
+                            <button type="button" class="card-face card-face-front flip-open" aria-expanded="false"
+                                aria-controls="card-viz-panel">
+                                <div>
+                                    <div class="card-icon">
+                                        <svg viewBox="0 0 24 24">
+                                            <circle cx="12" cy="12" r="7.4" fill="currentColor" fill-opacity="0.10"/>
+                                            <circle cx="12" cy="12" r="7.4"/>
+                                            <path d="M4.6 12h14.8"/>
+                                            <path d="M12 4.6c2.1 2.1 3.2 4.7 3.2 7.4S14.1 17.3 12 19.4c-2.1-2.1-3.2-4.7-3.2-7.4S9.9 6.7 12 4.6z"/>
+                                            <path d="M6.6 7.2c3.2 2.6 7.6 2.6 10.8 0" opacity="0.55"/>
+                                            <circle cx="17.4" cy="8.6" r="1.5" fill="currentColor" stroke="none" opacity="0.9"/>
+                                            <circle cx="8.1" cy="15.1" r="1.2" fill="currentColor" stroke="none" opacity="0.7"/>
+                                        </svg>
+                                    </div>
+                                    <h3 class="card-title">Data Room</h3>
+                                    <p class="card-desc">Eight interactive 3D visualizations: world trade on a globe, this
+                                        site drawn as a city, three flocks nobody steers, a fractal with no mesh, and real
+                                        water. Every one has controls.</p>
+                                    <div class="card-stat-chip">
+                                        <span class="stat-icon">🛰️</span> Eight scenes, one switcher
+                                    </div>
+                                </div>
+                                <span class="card-link">Take a look <svg viewBox="0 0 24 24">
+                                        <path d="M3.6 12a8.4 8.4 0 0 1 14.4-5.9" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" stroke-linejoin="round" fill="none" />
+                                        <path d="M18.4 2.8v3.7h-3.7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                            stroke-linejoin="round" fill="none" />
+                                        <path d="M20.4 12a8.4 8.4 0 0 1-14.4 5.9" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" stroke-linejoin="round" fill="none" />
+                                        <path d="M5.6 21.2v-3.7h3.7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                            stroke-linejoin="round" fill="none" />
+                                    </svg></span>
+                            </button>
+                            <div class="card-face card-face-back peek-back" id="card-viz-panel" role="dialog" aria-modal="true"
+                                aria-label="Data Room">
+                                <button type="button" class="card-close" data-flip-close aria-label="Close">
+                                    <svg viewBox="0 0 24 24">
+                                        <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" />
+                                    </svg>
+                                </button>
+                                <div class="peek-shot">
+                                    <img data-src="assets/preview/viz-poc.webp" alt="A dark globe drawn as a field of glowing dots, with coloured shipping-lane arcs curving between ports across Europe, Africa and Asia." width="800" height="420"
+                                        decoding="async">
+                                    <img data-src="assets/preview/viz-poc-2.webp" alt="A sheet of water seen from above at an angle, expanding ripple rings crossing and interfering over a glowing blue lattice." width="800" height="420"
+                                        decoding="async">
+                                    <img data-src="assets/preview/viz-poc-3.webp" alt="A Mandelbulb fractal filling the frame: knobbled magenta and rose lobes with blue light in the crevices." width="800" height="420"
+                                        decoding="async">
+                                    <img data-src="assets/preview/viz-poc-4.webp" alt="Three flocks of small cones — blue, orange and green — each group flying in formation and keeping clear of the others." width="800" height="420"
+                                        decoding="async">
+                                </div>
+                                <div class="peek-body">
+                                    <div class="peek-title">Data Room</div>
+                                    <p class="peek-text">Eight interactive 3D visualizations: world trade on a globe, this
+                                        site drawn as a city, three flocks nobody steers, a fractal with no mesh, and real
+                                        water. Every one has controls.</p>
+                                </div>
+                                <a class="peek-launch" href="viz-poc/index.html?v=1.0.0">Open <svg viewBox="0 0 24 24">
+                                        <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" stroke-linejoin="round" fill="none" />
+                                    </svg></a>
+                            </div>
+                        </div>
                     </div>
-                    <div class="peek-body">
-                        <div class="peek-title">Cargo Lander</div>
-                        <p class="peek-text">Fly your space truck and deliver space cargo in space! Includes a level editor with undo functionality.</p>
-                        <div class="peek-stat" data-mirror-stat="stat-cargo-lander"></div>
+
+                    <div class="card card-metal flip-card" id="card-cargo-packer">
+                        <div class="card-flip-inner">
+                            <button type="button" class="card-face card-face-front flip-open" aria-expanded="false"
+                                aria-controls="card-cargo-packer-panel">
+                                <div>
+                                    <div class="card-icon">
+                                        <svg viewBox="0 0 24 24">
+                                            <rect x="2.5" y="4" width="19" height="16" rx="2" fill="currentColor" fill-opacity="0.10"/>
+                                            <rect x="2.5" y="4" width="19" height="16" rx="2" stroke="currentColor" stroke-width="1.8"/>
+                                            <rect x="3.8" y="5.2" width="2.2" height="1.8" rx="0.4" fill="currentColor" opacity="0.8"/>
+                                            <rect x="18" y="5.2" width="2.2" height="1.8" rx="0.4" fill="currentColor" opacity="0.8"/>
+                                            <rect x="4.5" y="11.5" width="6.5" height="7" rx="0.8" fill="currentColor" fill-opacity="0.35" stroke="currentColor" stroke-width="1.3"/>
+                                            <rect x="12" y="13.5" width="8" height="5" rx="0.8" fill="currentColor" fill-opacity="0.45" stroke="currentColor" stroke-width="1.3"/>
+                                            <rect x="4.5" y="7" width="5.5" height="3.8" rx="0.8" fill="currentColor" fill-opacity="0.55" stroke="currentColor" stroke-width="1.3"/>
+                                            <circle cx="16" cy="9.5" r="2.2" stroke="currentColor" stroke-width="1.2" fill="none" stroke-dasharray="1.5 1"/>
+                                            <circle cx="16" cy="9.5" r="0.8" fill="currentColor"/>
+                                        </svg>
+                                    </div>
+                                    <h3 class="card-title">Cargo Packer 3D</h3>
+                                    <p class="card-desc">Interactive 3D container packing algorithms. Race Extreme Points, Wall-Building and First-Fit side by side with live Center of Gravity tracking.</p>
+                                    <div class="card-stat-chip">
+                                        <span class="stat-icon">📐</span> 3D Bin Packing
+                                    </div>
+                                </div>
+                                <span class="card-link">Take a look <svg viewBox="0 0 24 24">
+                                        <path d="M3.6 12a8.4 8.4 0 0 1 14.4-5.9" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" stroke-linejoin="round" fill="none" />
+                                        <path d="M18.4 2.8v3.7h-3.7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                            stroke-linejoin="round" fill="none" />
+                                        <path d="M20.4 12a8.4 8.4 0 0 1-14.4 5.9" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" stroke-linejoin="round" fill="none" />
+                                        <path d="M5.6 21.2v-3.7h3.7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                            stroke-linejoin="round" fill="none" />
+                                    </svg></span>
+                            </button>
+                            <div class="card-face card-face-back peek-back" id="card-cargo-packer-panel" role="dialog" aria-modal="true"
+                                aria-label="Cargo Packer 3D">
+                                <button type="button" class="card-close" data-flip-close aria-label="Close">
+                                    <svg viewBox="0 0 24 24">
+                                        <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" />
+                                    </svg>
+                                </button>
+                                <div class="peek-shot">
+                                    <img data-src="assets/preview/cargo-packer.webp?v=3" alt="Cargo Packer 3D side by side: Extreme Points and Wall-Building packing the same industrial load, with fill, boxes loaded and density above each." width="800" height="420"
+                                        decoding="async">
+                                    <img data-src="assets/preview/cargo-packer-2.webp" alt="Looking into the loading corner of a 20ft container packed with flat panels, towers and cubes." width="800" height="420"
+                                        decoding="async">
+                                </div>
+                                <div class="peek-body">
+                                    <div class="peek-title">Cargo Packer 3D</div>
+                                    <p class="peek-text">Run two 3D container loading algorithms side by side on the same cargo and see which packs it tighter, with live Center of Gravity tracking.</p>
+                                    <div class="peek-stat"><span class="stat-icon">⚡</span> Extreme Points &bull; Wall Building &bull; First-Fit</div>
+                                </div>
+                                <a class="peek-launch" href="cargo-packer/index.html">Launch 3D Packer <svg viewBox="0 0 24 24">
+                                        <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" stroke-linejoin="round" fill="none" />
+                                    </svg></a>
+                            </div>
+                        </div>
                     </div>
-                    <a class="peek-launch" href="cargo-lander/index.html?v=0.23.0">Play Game <svg viewBox="0 0 24 24">
-                            <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2"
-                                stroke-linecap="round" stroke-linejoin="round" fill="none" />
-                        </svg></a>
+
+                    <div class="card flip-card" id="card-sand">
+                        <div class="card-flip-inner">
+                            <button type="button" class="card-face card-face-front flip-open" aria-expanded="false"
+                                aria-controls="card-sand-panel">
+                                <div>
+                                    <div class="card-icon">
+                                        <svg viewBox="0 0 24 24">
+                                            <path d="M6 3h12M6 21h12"/>
+                                            <path d="M7.5 3c0 4.2 4.5 5.6 4.5 9s-4.5 4.8-4.5 9"/>
+                                            <path d="M16.5 3c0 4.2-4.5 5.6-4.5 9s4.5 4.8 4.5 9"/>
+                                            <path d="M9.2 7.4h5.6L12 11z" fill="currentColor" fill-opacity="0.55" stroke="none"/>
+                                            <path d="M12 13.2v3.1" opacity="0.6"/>
+                                            <path d="M8.7 20.2c.6-1.8 2-2.9 3.3-2.9s2.7 1.1 3.3 2.9z" fill="currentColor" fill-opacity="0.55" stroke="none"/>
+                                        </svg>
+                                    </div>
+                                    <h3 class="card-title">Sand Clock</h3>
+                                    <p class="card-desc">A falling-sand sandbox that opens as a one-minute hourglass. Pour sand, water, lava, oil, fire and seeds, and watch them react.</p>
+                                    <div class="card-stat-chip">
+                                        <span class="stat-icon">⏳</span> 1:00 exactly
+                                    </div>
+                                </div>
+                                <span class="card-link">Take a look <svg viewBox="0 0 24 24">
+                                        <path d="M3.6 12a8.4 8.4 0 0 1 14.4-5.9" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" stroke-linejoin="round" fill="none" />
+                                        <path d="M18.4 2.8v3.7h-3.7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                            stroke-linejoin="round" fill="none" />
+                                        <path d="M20.4 12a8.4 8.4 0 0 1-14.4 5.9" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" stroke-linejoin="round" fill="none" />
+                                        <path d="M5.6 21.2v-3.7h3.7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                            stroke-linejoin="round" fill="none" />
+                                    </svg></span>
+                            </button>
+                            <div class="card-face card-face-back peek-back" id="card-sand-panel" role="dialog" aria-modal="true"
+                                aria-label="Sand Clock">
+                                <button type="button" class="card-close" data-flip-close aria-label="Close">
+                                    <svg viewBox="0 0 24 24">
+                                        <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" />
+                                    </svg>
+                                </button>
+                                <div class="peek-shot">
+                                <img data-src="assets/preview/sand.webp" alt="Sand Clock: an hourglass twenty seconds in, a thread of sand running through the neck onto a heap below." width="800" height="420"
+                                    decoding="async">
+                                <img data-src="assets/preview/sand-2.webp" alt="The volcano scene: lava running down a stone cone towards a lake, sparks in the air." width="800" height="420"
+                                    decoding="async">
+                                <img data-src="assets/preview/sand-3.webp" alt="The garden scene: rain falling on a sandy bed of green stems either side of a pond." width="800" height="420"
+                                    decoding="async">
+                                </div>
+                                <div class="peek-body">
+                                    <div class="peek-title">Sand Clock</div>
+                                    <p class="peek-text">Every grain is simulated. The hourglass passes one grain a step through its neck and holds exactly 3,600, so it really does run for a minute. Turn it over, or clear it and pour your own: lava sets to stone in water, fire climbs wood, plants drink the rain and flower.</p>
+                                    <div class="peek-stat"><span class="stat-icon">🧪</span> 13 materials &bull; 3 scenes</div>
+                                </div>
+                                <a class="peek-launch" href="sand/index.html">Start pouring <svg viewBox="0 0 24 24">
+                                        <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" stroke-linejoin="round" fill="none" />
+                                    </svg></a>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card flip-card" id="card-terrarium">
+                        <div class="card-flip-inner">
+                            <button type="button" class="card-face card-face-front flip-open" aria-expanded="false"
+                                aria-controls="card-terrarium-panel">
+                                <div>
+                                    <div class="card-icon">
+                                        <svg viewBox="0 0 24 24">
+                                            <path d="M8.5 3.5h7v2.2h-7z" fill="currentColor" fill-opacity="0.45"/>
+                                            <path d="M8.8 5.7c0 1.2-3.3 1.6-3.3 4.4v8.4a2.5 2.5 0 0 0 2.5 2.5h8a2.5 2.5 0 0 0 2.5-2.5v-8.4c0-2.8-3.3-3.2-3.3-4.4"/>
+                                            <path d="M5.5 15.6c2.2-1.6 4.4-1.6 6.5-.4 2.1 1.2 4.3 1.2 6.5-.4v3.7a2.5 2.5 0 0 1-2.5 2.5H8a2.5 2.5 0 0 1-2.5-2.5z" fill="currentColor" fill-opacity="0.3" stroke="none"/>
+                                            <path d="M9.6 11.2a1.9 1.9 0 0 1 3.6-.8 1.5 1.5 0 0 1 1.3 2.6H9.9a1.2 1.2 0 0 1-.3-1.8z" fill="currentColor" fill-opacity="0.5"/>
+                                        </svg>
+                                    </div>
+                                    <h3 class="card-title">Weather Terrarium</h3>
+                                    <p class="card-desc">A little world in a corked jar whose sky follows the real weather and time of day, wherever you point it.</p>
+                                    <div class="card-stat-chip">
+                                        <span class="stat-icon">🫙</span> Live weather
+                                    </div>
+                                </div>
+                                <span class="card-link">Take a look <svg viewBox="0 0 24 24">
+                                        <path d="M3.6 12a8.4 8.4 0 0 1 14.4-5.9" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" stroke-linejoin="round" fill="none" />
+                                        <path d="M18.4 2.8v3.7h-3.7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                            stroke-linejoin="round" fill="none" />
+                                        <path d="M20.4 12a8.4 8.4 0 0 1-14.4 5.9" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" stroke-linejoin="round" fill="none" />
+                                        <path d="M5.6 21.2v-3.7h3.7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                            stroke-linejoin="round" fill="none" />
+                                    </svg></span>
+                            </button>
+                            <div class="card-face card-face-back peek-back" id="card-terrarium-panel" role="dialog" aria-modal="true"
+                                aria-label="Weather Terrarium">
+                                <button type="button" class="card-close" data-flip-close aria-label="Close">
+                                    <svg viewBox="0 0 24 24">
+                                        <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" />
+                                    </svg>
+                                </button>
+                                <div class="peek-shot">
+                                <img data-src="assets/preview/terrarium.webp" alt="The terrarium at a rainy Stockholm dusk: rain falling on a meadow, a pond and a lamplit cabin inside a corked jar." width="800" height="420"
+                                    decoding="async">
+                                <img data-src="assets/preview/terrarium-2.webp" alt="The same jar on a clear night: stars, a crescent moon and fireflies over the meadow." width="800" height="420"
+                                    decoding="async">
+                                <img data-src="assets/preview/terrarium-3.webp" alt="A snowy December noon in the jar, with snow on the cabin roof and the tree gone autumn-red." width="800" height="420"
+                                    decoding="async">
+                                </div>
+                                <div class="peek-body">
+                                    <div class="peek-title">Weather Terrarium</div>
+                                    <p class="peek-text">The jar starts on your time zone's nearest big city and asks for nothing; search for any other, or let it find you. Rain, snow, fog and thunder come live from Open-Meteo, the sun sits at its true height there, tonight's moon shows its real phase, and the cabin lamp goes on when it gets dark. Tap the glass for a gust.</p>
+                                    <div class="peek-stat"><span class="stat-icon">🌦️</span> Live from Open-Meteo &bull; any city</div>
+                                </div>
+                                <a class="peek-launch" href="terrarium/index.html">Look in the jar <svg viewBox="0 0 24 24">
+                                        <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" stroke-linejoin="round" fill="none" />
+                                    </svg></a>
+                            </div>
+                        </div>
+                    </div>
+                    </div>
                 </div>
             </div>
-        </div>
+        </section>
 
-        <div class="card card-metal flip-card" id="card-supply-chain">
-            <div class="card-flip-inner">
-                <button type="button" class="card-face card-face-front flip-open" aria-expanded="false"
-                    aria-controls="card-supply-chain-panel">
-                    <div>
-                        <div class="card-icon">
-                            <svg viewBox="0 0 24 24">
-                                <path d="M5.1 6.6c0-1.4 1.6-1.4 1.6-2.8" opacity="0.45"/>
-                                <path d="M7.9 5.4c0-1.1 1.3-1.1 1.3-2.2" opacity="0.3"/>
-                                <path d="M3.6 20.5V7h3v13.5" fill="currentColor" fill-opacity="0.12"/>
-                                <path d="M8 20.5V12l4.1 2.9V12l4.1 2.9V12l4.3 2.9v5.6" fill="currentColor" fill-opacity="0.12"/>
-                                <path d="M2.5 20.5h19"/>
-                                <circle cx="10.5" cy="18" r="1.1" fill="currentColor" opacity="0.75" stroke="none"/>
-                                <circle cx="14.3" cy="18" r="1.1" fill="currentColor" opacity="0.75" stroke="none"/>
-                                <circle cx="18.1" cy="18" r="1.1" fill="currentColor" opacity="0.75" stroke="none"/>
-                            </svg>
-                        </div>
-                        <h2 class="card-title">Supply Chain Tycoon</h2>
-                        <p class="card-desc">A logistics mini-game: build roads, run trucks, manufacture goods, and fill city orders.</p>
-                        <div class="card-stat-chip" id="stat-supply-chain">
-                            <span class="stat-icon">🏆</span> <span class="stat-val">—</span>
-                        </div>
-                    </div>
-                    <span class="card-link">Take a look <svg viewBox="0 0 24 24">
-                            <path d="M3.6 12a8.4 8.4 0 0 1 14.4-5.9" stroke="currentColor" stroke-width="2"
-                                stroke-linecap="round" stroke-linejoin="round" fill="none" />
-                            <path d="M18.4 2.8v3.7h-3.7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                                stroke-linejoin="round" fill="none" />
-                            <path d="M20.4 12a8.4 8.4 0 0 1-14.4 5.9" stroke="currentColor" stroke-width="2"
-                                stroke-linecap="round" stroke-linejoin="round" fill="none" />
-                            <path d="M5.6 21.2v-3.7h3.7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                                stroke-linejoin="round" fill="none" />
-                        </svg></span>
+        <section class="shelf" id="shelf-tools" data-shelf="tools">
+            <h2 class="shelf-heading">
+                <button type="button" class="shelf-head" aria-expanded="true" aria-controls="shelf-tools-body">
+                    <span class="shelf-icon" aria-hidden="true">🧰</span>
+                    <span class="shelf-text"><span class="shelf-title">Useful tools</span><span class="shelf-blurb">For an EU brain living with US units and US car dealers.</span></span>
+                    <span class="shelf-count">4</span>
+                    <svg class="shelf-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6" /></svg>
                 </button>
-                <div class="card-face card-face-back peek-back" id="card-supply-chain-panel" role="dialog" aria-modal="true"
-                    aria-label="Supply Chain Tycoon">
-                    <button type="button" class="card-close" data-flip-close aria-label="Close">
-                        <svg viewBox="0 0 24 24">
-                            <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2"
-                                stroke-linecap="round" />
-                        </svg>
-                    </button>
-                    <div class="peek-shot">
-                        <img data-src="assets/preview/supply-chain.webp" alt="Supply Chain Tycoon: an isometric map with a road under construction, a truck on its way, and the order board open." width="800" height="420"
-                            decoding="async">
+            </h2>
+            <div class="shelf-body" id="shelf-tools-body">
+                <div class="shelf-clip">
+                    <div class="grid">
+                    <div class="card card-metal flip-card" id="card-car">
+                        <div class="card-flip-inner">
+                            <button type="button" class="card-face card-face-front flip-open" aria-expanded="false"
+                                aria-controls="card-car-panel">
+                                <span class="new-badge">NEW</span>
+                                <div>
+                                    <div class="card-icon">
+                                        <svg viewBox="0 0 24 24">
+                                            <path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2" fill="currentColor" fill-opacity="0.12"/>
+                                            <path d="M4.4 10.6h11" opacity="0.5"/>
+                                            <path d="M9.2 7.1v3.5" opacity="0.5"/>
+                                            <path d="M20.2 13.5h1.3" opacity="0.6"/>
+                                            <circle cx="7" cy="17" r="2"/>
+                                            <circle cx="17" cy="17" r="2"/>
+                                            <circle cx="7" cy="17" r="0.8" fill="currentColor" opacity="0.6" stroke="none"/>
+                                            <circle cx="17" cy="17" r="0.8" fill="currentColor" opacity="0.6" stroke="none"/>
+                                        </svg>
+                                    </div>
+                                    <h3 class="card-title">Lease, Rent or Buy?</h3>
+                                    <p class="card-desc">Compare leasing, financing, cash, and subscription costs with real depreciation data.</p>
+                                </div>
+                                <span class="card-link">Take a look <svg viewBox="0 0 24 24">
+                                        <path d="M3.6 12a8.4 8.4 0 0 1 14.4-5.9" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" stroke-linejoin="round" fill="none" />
+                                        <path d="M18.4 2.8v3.7h-3.7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                            stroke-linejoin="round" fill="none" />
+                                        <path d="M20.4 12a8.4 8.4 0 0 1-14.4 5.9" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" stroke-linejoin="round" fill="none" />
+                                        <path d="M5.6 21.2v-3.7h3.7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                            stroke-linejoin="round" fill="none" />
+                                    </svg></span>
+                            </button>
+                            <div class="card-face card-face-back peek-back" id="card-car-panel" role="dialog" aria-modal="true"
+                                aria-label="Lease, Rent or Buy?">
+                                <button type="button" class="card-close" data-flip-close aria-label="Close">
+                                    <svg viewBox="0 0 24 24">
+                                        <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" />
+                                    </svg>
+                                </button>
+                                <div class="peek-shot">
+                                    <img data-src="assets/preview/car.webp" alt="Lease, Rent or Buy: four columns comparing cash, loan, lease and monthly rental for the same car." width="800" height="420"
+                                        decoding="async">
+                                </div>
+                                <div class="peek-body">
+                                    <div class="peek-title">Lease, Rent or Buy?</div>
+                                    <p class="peek-text">Compare leasing, financing, cash, and subscription costs with real depreciation data.</p>
+                                </div>
+                                <a class="peek-launch" href="car/index.html">Run the numbers <svg viewBox="0 0 24 24">
+                                        <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" stroke-linejoin="round" fill="none" />
+                                    </svg></a>
+                            </div>
+                        </div>
                     </div>
-                    <div class="peek-body">
-                        <div class="peek-title">Supply Chain Tycoon</div>
-                        <p class="peek-text">A logistics mini-game: build roads, run trucks, manufacture goods, and fill city orders.</p>
-                        <div class="peek-stat" data-mirror-stat="stat-supply-chain"></div>
+
+                    <div class="card card-metal flip-card" id="card-converter">
+                        <div class="card-flip-inner">
+                            <button type="button" class="card-face card-face-front flip-open" aria-expanded="false"
+                                aria-controls="card-converter-panel">
+                                <div>
+                                    <div class="card-icon">
+                                        <svg viewBox="0 0 24 24">
+                                            <path d="M3.5 8.8h14.2"/>
+                                            <path d="M15.3 6.6l2.4 2.2-2.4 2.2"/>
+                                            <path d="M20.5 15.2H6.3"/>
+                                            <path d="M8.7 13l-2.4 2.2 2.4 2.2"/>
+                                        </svg>
+                                    </div>
+                                    <h3 class="card-title">Quick Converter</h3>
+                                    <p class="card-desc">Feeling confused about freedom units, here is your solution!</p>
+                                </div>
+                                <span class="card-link">Take a look <svg viewBox="0 0 24 24">
+                                        <path d="M3.6 12a8.4 8.4 0 0 1 14.4-5.9" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" stroke-linejoin="round" fill="none" />
+                                        <path d="M18.4 2.8v3.7h-3.7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                            stroke-linejoin="round" fill="none" />
+                                        <path d="M20.4 12a8.4 8.4 0 0 1-14.4 5.9" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" stroke-linejoin="round" fill="none" />
+                                        <path d="M5.6 21.2v-3.7h3.7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                            stroke-linejoin="round" fill="none" />
+                                    </svg></span>
+                            </button>
+                            <div class="card-face card-face-back peek-back" id="card-converter-panel" role="dialog" aria-modal="true"
+                                aria-label="Quick Converter">
+                                <button type="button" class="card-close" data-flip-close aria-label="Close">
+                                    <svg viewBox="0 0 24 24">
+                                        <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" />
+                                    </svg>
+                                </button>
+                                <div class="peek-shot">
+                                    <img data-src="assets/preview/converter.webp" alt="Quick Converter with Distance picked, showing the four directions it will convert between." width="800" height="420"
+                                        decoding="async">
+                                </div>
+                                <div class="peek-body">
+                                    <div class="peek-title">Quick Converter</div>
+                                    <p class="peek-text">Feeling confused about freedom units, here is your solution!</p>
+                                </div>
+                                <a class="peek-launch" href="converter/index.html">Open Converter <svg viewBox="0 0 24 24">
+                                        <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" stroke-linejoin="round" fill="none" />
+                                    </svg></a>
+                            </div>
+                        </div>
                     </div>
-                    <a class="peek-launch" href="supply-chain/index.html?v=1.63.4">Play <svg viewBox="0 0 24 24">
-                            <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2"
-                                stroke-linecap="round" stroke-linejoin="round" fill="none" />
-                        </svg></a>
+
+                    <div class="card card-metal flip-card" id="card-math">
+                        <div class="card-flip-inner">
+                            <button type="button" class="card-face card-face-front flip-open" aria-expanded="false"
+                                aria-controls="card-math-panel">
+                                <div>
+                                    <div class="card-icon">
+                                        <svg viewBox="0 0 24 24">
+                                            <rect x="2.5" y="7" width="19" height="10" rx="2.2" fill="currentColor" fill-opacity="0.1"/>
+                                            <path d="M6.3 7v3.2M9.9 7v2M13.5 7v3.2M17.1 7v2"/>
+                                            <path d="M7.6 17v-2.6M12 17v-2.6M16.4 17v-2.6" opacity="0.55"/>
+                                        </svg>
+                                    </div>
+                                    <h3 class="card-title">EU/US Unit Cheat Sheet</h3>
+                                    <p class="card-desc">Quick reference cheatsheet for practical mental conversions between EU and US units.</p>
+                                </div>
+                                <span class="card-link">Take a look <svg viewBox="0 0 24 24">
+                                        <path d="M3.6 12a8.4 8.4 0 0 1 14.4-5.9" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" stroke-linejoin="round" fill="none" />
+                                        <path d="M18.4 2.8v3.7h-3.7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                            stroke-linejoin="round" fill="none" />
+                                        <path d="M20.4 12a8.4 8.4 0 0 1-14.4 5.9" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" stroke-linejoin="round" fill="none" />
+                                        <path d="M5.6 21.2v-3.7h3.7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                            stroke-linejoin="round" fill="none" />
+                                    </svg></span>
+                            </button>
+                            <div class="card-face card-face-back peek-back" id="card-math-panel" role="dialog" aria-modal="true"
+                                aria-label="EU/US Unit Cheat Sheet">
+                                <button type="button" class="card-close" data-flip-close aria-label="Close">
+                                    <svg viewBox="0 0 24 24">
+                                        <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" />
+                                    </svg>
+                                </button>
+                                <div class="peek-shot">
+                                    <img data-src="assets/preview/math.webp" alt="The cheat sheet’s temperature card: "double + 30" for Celsius to Fahrenheit, worked through twice." width="800" height="420"
+                                        decoding="async">
+                                </div>
+                                <div class="peek-body">
+                                    <div class="peek-title">EU/US Unit Cheat Sheet</div>
+                                    <p class="peek-text">Quick reference cheatsheet for practical mental conversions between EU and US units.</p>
+                                </div>
+                                <a class="peek-launch" href="math/index.html">View cheatsheet <svg viewBox="0 0 24 24">
+                                        <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" stroke-linejoin="round" fill="none" />
+                                    </svg></a>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card card-metal flip-card" id="card-math-game">
+                        <div class="card-flip-inner">
+                            <button type="button" class="card-face card-face-front flip-open" aria-expanded="false"
+                                aria-controls="card-math-game-panel">
+                                <div>
+                                    <div class="card-icon">
+                                        <svg viewBox="0 0 24 24">
+                                            <circle cx="12" cy="13.5" r="8" fill="currentColor" fill-opacity="0.1"/>
+                                            <path d="M12 5.5V3.4"/>
+                                            <path d="M9.9 3.4h4.2"/>
+                                            <path d="M17.7 7.8l1.8-1.8" opacity="0.6"/>
+                                            <path d="M9.6 11.8h4.8M12 9.4v4.8"/>
+                                            <path d="M9.6 17.5h4.8" opacity="0.75"/>
+                                        </svg>
+                                    </div>
+                                    <h3 class="card-title">Mental Math Game</h3>
+                                    <p class="card-desc">Test your unit conversion skills in a fast-paced 60-second time attack practice mode.</p>
+                                    <div class="card-stat-chip" id="stat-math-game">
+                                        <span class="stat-icon">⚡</span> High Score: <span class="stat-val">—</span>
+                                    </div>
+                                </div>
+                                <span class="card-link">Take a look <svg viewBox="0 0 24 24">
+                                        <path d="M3.6 12a8.4 8.4 0 0 1 14.4-5.9" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" stroke-linejoin="round" fill="none" />
+                                        <path d="M18.4 2.8v3.7h-3.7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                            stroke-linejoin="round" fill="none" />
+                                        <path d="M20.4 12a8.4 8.4 0 0 1-14.4 5.9" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" stroke-linejoin="round" fill="none" />
+                                        <path d="M5.6 21.2v-3.7h3.7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                            stroke-linejoin="round" fill="none" />
+                                    </svg></span>
+                            </button>
+                            <div class="card-face card-face-back peek-back" id="card-math-game-panel" role="dialog" aria-modal="true"
+                                aria-label="Mental Math Game">
+                                <button type="button" class="card-close" data-flip-close aria-label="Close">
+                                    <svg viewBox="0 0 24 24">
+                                        <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" />
+                                    </svg>
+                                </button>
+                                <div class="peek-shot">
+                                    <img data-src="assets/preview/math-game.webp" alt="The practice game mid-question: "34 km to mi" over four answers, with the score and a running clock." width="800" height="420"
+                                        decoding="async">
+                                </div>
+                                <div class="peek-body">
+                                    <div class="peek-title">Mental Math Game</div>
+                                    <p class="peek-text">Test your unit conversion skills in a fast-paced 60-second time attack practice mode.</p>
+                                    <div class="peek-stat" data-mirror-stat="stat-math-game"></div>
+                                </div>
+                                <a class="peek-launch" href="math/index.html#game">Start practice <svg viewBox="0 0 24 24">
+                                        <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" stroke-linejoin="round" fill="none" />
+                                    </svg></a>
+                            </div>
+                        </div>
+                    </div>
+                    </div>
                 </div>
             </div>
-        </div>
+        </section>
 
-        <div class="card card-metal flip-card" id="card-3d-poc">
-            <div class="card-flip-inner">
-                <button type="button" class="card-face card-face-front flip-open" aria-expanded="false"
-                    aria-controls="card-3d-poc-panel">
-                    <div>
-                        <div class="card-icon">
-                            <svg viewBox="0 0 24 24">
-                                <path d="M12 2L3 7v10l9 5 9-5V7l-9-5z" fill="currentColor" fill-opacity="0.12"/>
-                                <path d="M12 2L3 7l9 5 9-5-9-5z"/>
-                                <path d="M3 7v10l9 5V12L3 7z" opacity="0.6"/>
-                                <path d="M21 7v10l-9 5V12l9-5z" opacity="0.8"/>
-                                <path d="M12 12v10" opacity="0.5"/>
-                            </svg>
-                        </div>
-                        <h2 class="card-title">Yard Master 3D</h2>
-                        <p class="card-desc">3D container-packing puzzle & logistics sim. Stack cargo, follow terminal rules, and optimize your yard envelope.</p>
-                        <div class="card-stat-chip" id="stat-3d-poc">
-                            <span class="stat-icon">📦</span> <span class="stat-val">—</span>
-                        </div>
-                    </div>
-                    <span class="card-link">Take a look <svg viewBox="0 0 24 24">
-                            <path d="M3.6 12a8.4 8.4 0 0 1 14.4-5.9" stroke="currentColor" stroke-width="2"
-                                stroke-linecap="round" stroke-linejoin="round" fill="none" />
-                            <path d="M18.4 2.8v3.7h-3.7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                                stroke-linejoin="round" fill="none" />
-                            <path d="M20.4 12a8.4 8.4 0 0 1-14.4 5.9" stroke="currentColor" stroke-width="2"
-                                stroke-linecap="round" stroke-linejoin="round" fill="none" />
-                            <path d="M5.6 21.2v-3.7h3.7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                                stroke-linejoin="round" fill="none" />
-                        </svg></span>
+        <section class="shelf" id="shelf-about" data-shelf="about">
+            <h2 class="shelf-heading">
+                <button type="button" class="shelf-head" aria-expanded="true" aria-controls="shelf-about-body">
+                    <span class="shelf-icon" aria-hidden="true">👋</span>
+                    <span class="shelf-text"><span class="shelf-title">About me</span><span class="shelf-blurb">Who made all this, and the day job behind it.</span></span>
+                    <span class="shelf-count">2</span>
+                    <svg class="shelf-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6" /></svg>
                 </button>
-                <div class="card-face card-face-back peek-back" id="card-3d-poc-panel" role="dialog" aria-modal="true"
-                    aria-label="Yard Master 3D">
-                    <button type="button" class="card-close" data-flip-close aria-label="Close">
-                        <svg viewBox="0 0 24 24">
-                            <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2"
-                                stroke-linecap="round" />
-                        </svg>
-                    </button>
-                    <div class="peek-shot">
-                        <img data-src="assets/preview/3d-engine-poc.webp" alt="Yard Master: containers stacked in a 3D yard, with the cargo palette and yard statistics alongside." width="800" height="420"
-                            decoding="async">
+            </h2>
+            <div class="shelf-body" id="shelf-about-body">
+                <div class="shelf-clip">
+                    <div class="grid">
+                    <div class="card flip-card" id="card-about">
+                        <div class="card-flip-inner">
+                            <button type="button" class="card-face card-face-front flip-open" aria-expanded="false"
+                                aria-controls="about-panel">
+                                <div>
+                                    <div class="card-icon">
+                                        <svg viewBox="0 0 24 24">
+                                            <circle cx="11.4" cy="8.4" r="3.6" fill="currentColor" fill-opacity="0.12"/>
+                                            <path d="M4.6 20.2a6.8 6.8 0 0 1 13.6 0" fill="currentColor" fill-opacity="0.12"/>
+                                            <path d="M19.3 2.6l.6 1.6 1.6.6-1.6.6-.6 1.6-.6-1.6-1.6-.6 1.6-.6z" fill="currentColor" opacity="0.7" stroke="none"/>
+                                        </svg>
+                                    </div>
+                                    <h3 class="card-title">About</h3>
+                                    <p class="card-desc">Every site needs an "about", press to see the flip side!</p>
+                                </div>
+                                <span class="card-link">Read more <svg viewBox="0 0 24 24">
+                                        <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                            stroke-linejoin="round" />
+                                    </svg></span>
+                            </button>
+                            <div class="card-face card-face-back" id="about-panel" role="dialog" aria-modal="true"
+                                aria-label="About Niklas Billgren">
+                                <button type="button" class="about-close" data-flip-close aria-label="Close">
+                                    <svg viewBox="0 0 24 24">
+                                        <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" />
+                                    </svg>
+                                </button>
+                                <div class="about-identity">
+                                    <img src="assets/portrait.webp" alt="Niklas Billgren" class="about-portrait" width="48"
+                                        height="48" loading="lazy" decoding="async">
+                                    <div>
+                                        <div class="about-name">Niklas Billgren</div>
+                                        <div class="about-role">Supply chain consultant</div>
+                                    </div>
+                                </div>
+                                <div class="about-body">
+                                    <p class="about-text">I implement supply chain planning solutions. Have a look at my
+                                        <a href="cv/index.html">CV</a> or
+                                        <a href="https://www.linkedin.com/in/niklas-eskilsson/" target="_blank"
+                                            rel="noopener">LinkedIn</a> if you're curious.</p>
+                                    <p class="about-text">AI changed how much one person can build on their own, so I started
+                                        testing that in my spare time. A lander game with its own physics engine, a logistics
+                                        sim, a couple of calculators I actually use. Mostly from my phone, with Claude and
+                                        AntiGravity.</p>
+                                </div>
+                                <button type="button" class="card-link" data-flip-close>Close <svg viewBox="0 0 24 24">
+                                        <path d="M19 12H5m7-7l-7 7 7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                            stroke-linejoin="round" />
+                                    </svg></button>
+                            </div>
+                        </div>
                     </div>
-                    <div class="peek-body">
-                        <div class="peek-title">Yard Master 3D</div>
-                        <p class="peek-text">3D container-packing puzzle & logistics sim. Stack cargo, follow terminal rules, and optimize your yard envelope.</p>
-                        <div class="peek-stat" data-mirror-stat="stat-3d-poc"></div>
+
+                    <div class="card card-paper flip-card" id="card-cv">
+                        <div class="card-flip-inner">
+                            <button type="button" class="card-face card-face-front flip-open" aria-expanded="false"
+                                aria-controls="card-cv-panel">
+                                <div>
+                                    <div class="card-icon">
+                                        <svg viewBox="0 0 24 24">
+                                            <path d="M14.2 2.8H6.4a2 2 0 0 0-2 2v14.6a2 2 0 0 0 2 2h11.2a2 2 0 0 0 2-2V8.2z" fill="currentColor" fill-opacity="0.08"/>
+                                            <path d="M14.2 2.8v5.4h5.4" fill="currentColor" fill-opacity="0.18"/>
+                                            <circle cx="9.2" cy="12" r="2.1" fill="currentColor" opacity="0.8" stroke="none"/>
+                                            <path d="M13 11h3.8" opacity="0.7"/>
+                                            <path d="M13 13.4h3" opacity="0.7"/>
+                                            <path d="M7.1 16.9h9.7"/>
+                                            <path d="M7.1 19.1h6.4" opacity="0.6"/>
+                                        </svg>
+                                    </div>
+                                    <h3 class="card-title">Curriculum Vitae</h3>
+                                    <p class="card-desc">Overview of my background, education, and skills in logistics and software development.</p>
+                                </div>
+                                <span class="card-link">Take a look <svg viewBox="0 0 24 24">
+                                        <path d="M3.6 12a8.4 8.4 0 0 1 14.4-5.9" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" stroke-linejoin="round" fill="none" />
+                                        <path d="M18.4 2.8v3.7h-3.7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                            stroke-linejoin="round" fill="none" />
+                                        <path d="M20.4 12a8.4 8.4 0 0 1-14.4 5.9" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" stroke-linejoin="round" fill="none" />
+                                        <path d="M5.6 21.2v-3.7h3.7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                            stroke-linejoin="round" fill="none" />
+                                    </svg></span>
+                            </button>
+                            <div class="card-face card-face-back peek-back" id="card-cv-panel" role="dialog" aria-modal="true"
+                                aria-label="Curriculum Vitae">
+                                <button type="button" class="card-close" data-flip-close aria-label="Close">
+                                    <svg viewBox="0 0 24 24">
+                                        <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" />
+                                    </svg>
+                                </button>
+                                <div class="peek-shot">
+                                    <img data-src="assets/preview/cv.webp" alt="The CV page: a profile summary above the start of the experience timeline." width="800" height="420"
+                                        decoding="async">
+                                </div>
+                                <div class="peek-body">
+                                    <div class="peek-title">Curriculum Vitae</div>
+                                    <p class="peek-text">Overview of my background, education, and skills in logistics and software development.</p>
+                                </div>
+                                <a class="peek-launch" href="cv/index.html">View CV <svg viewBox="0 0 24 24">
+                                        <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" stroke-linejoin="round" fill="none" />
+                                    </svg></a>
+                            </div>
+                        </div>
                     </div>
-                    <a class="peek-launch" href="3d-engine-poc/index.html">Play Yard Master <svg viewBox="0 0 24 24">
-                            <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2"
-                                stroke-linecap="round" stroke-linejoin="round" fill="none" />
-                        </svg></a>
+                    </div>
                 </div>
             </div>
-        </div>
-
-        <div class="card card-metal flip-card" id="card-cargo-packer">
-            <div class="card-flip-inner">
-                <button type="button" class="card-face card-face-front flip-open" aria-expanded="false"
-                    aria-controls="card-cargo-packer-panel">
-                    <div>
-                        <div class="card-icon">
-                            <svg viewBox="0 0 24 24">
-                                <rect x="2.5" y="4" width="19" height="16" rx="2" fill="currentColor" fill-opacity="0.10"/>
-                                <rect x="2.5" y="4" width="19" height="16" rx="2" stroke="currentColor" stroke-width="1.8"/>
-                                <rect x="3.8" y="5.2" width="2.2" height="1.8" rx="0.4" fill="currentColor" opacity="0.8"/>
-                                <rect x="18" y="5.2" width="2.2" height="1.8" rx="0.4" fill="currentColor" opacity="0.8"/>
-                                <rect x="4.5" y="11.5" width="6.5" height="7" rx="0.8" fill="currentColor" fill-opacity="0.35" stroke="currentColor" stroke-width="1.3"/>
-                                <rect x="12" y="13.5" width="8" height="5" rx="0.8" fill="currentColor" fill-opacity="0.45" stroke="currentColor" stroke-width="1.3"/>
-                                <rect x="4.5" y="7" width="5.5" height="3.8" rx="0.8" fill="currentColor" fill-opacity="0.55" stroke="currentColor" stroke-width="1.3"/>
-                                <circle cx="16" cy="9.5" r="2.2" stroke="currentColor" stroke-width="1.2" fill="none" stroke-dasharray="1.5 1"/>
-                                <circle cx="16" cy="9.5" r="0.8" fill="currentColor"/>
-                            </svg>
-                        </div>
-                        <h2 class="card-title">Cargo Packer 3D</h2>
-                        <p class="card-desc">Interactive 3D container packing algorithms. Race Extreme Points, Wall-Building and First-Fit side by side with live Center of Gravity tracking.</p>
-                        <div class="card-stat-chip">
-                            <span class="stat-icon">📐</span> 3D Bin Packing
-                        </div>
-                    </div>
-                    <span class="card-link">Take a look <svg viewBox="0 0 24 24">
-                            <path d="M3.6 12a8.4 8.4 0 0 1 14.4-5.9" stroke="currentColor" stroke-width="2"
-                                stroke-linecap="round" stroke-linejoin="round" fill="none" />
-                            <path d="M18.4 2.8v3.7h-3.7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                                stroke-linejoin="round" fill="none" />
-                            <path d="M20.4 12a8.4 8.4 0 0 1-14.4 5.9" stroke="currentColor" stroke-width="2"
-                                stroke-linecap="round" stroke-linejoin="round" fill="none" />
-                            <path d="M5.6 21.2v-3.7h3.7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                                stroke-linejoin="round" fill="none" />
-                        </svg></span>
-                </button>
-                <div class="card-face card-face-back peek-back" id="card-cargo-packer-panel" role="dialog" aria-modal="true"
-                    aria-label="Cargo Packer 3D">
-                    <button type="button" class="card-close" data-flip-close aria-label="Close">
-                        <svg viewBox="0 0 24 24">
-                            <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2"
-                                stroke-linecap="round" />
-                        </svg>
-                    </button>
-                    <div class="peek-shot">
-                        <img data-src="assets/preview/cargo-packer.webp?v=3" alt="Cargo Packer 3D side by side: Extreme Points and Wall-Building packing the same industrial load, with fill, boxes loaded and density above each." width="800" height="420"
-                            decoding="async">
-                        <img data-src="assets/preview/cargo-packer-2.webp" alt="Looking into the loading corner of a 20ft container packed with flat panels, towers and cubes." width="800" height="420"
-                            decoding="async">
-                    </div>
-                    <div class="peek-body">
-                        <div class="peek-title">Cargo Packer 3D</div>
-                        <p class="peek-text">Run two 3D container loading algorithms side by side on the same cargo and see which packs it tighter, with live Center of Gravity tracking.</p>
-                        <div class="peek-stat"><span class="stat-icon">⚡</span> Extreme Points &bull; Wall Building &bull; First-Fit</div>
-                    </div>
-                    <a class="peek-launch" href="cargo-packer/index.html">Launch 3D Packer <svg viewBox="0 0 24 24">
-                            <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2"
-                                stroke-linecap="round" stroke-linejoin="round" fill="none" />
-                        </svg></a>
-                </div>
-            </div>
-        </div>
-
-        <div class="card card-metal flip-card" id="card-math-game">
-            <div class="card-flip-inner">
-                <button type="button" class="card-face card-face-front flip-open" aria-expanded="false"
-                    aria-controls="card-math-game-panel">
-                    <div>
-                        <div class="card-icon">
-                            <svg viewBox="0 0 24 24">
-                                <circle cx="12" cy="13.5" r="8" fill="currentColor" fill-opacity="0.1"/>
-                                <path d="M12 5.5V3.4"/>
-                                <path d="M9.9 3.4h4.2"/>
-                                <path d="M17.7 7.8l1.8-1.8" opacity="0.6"/>
-                                <path d="M9.6 11.8h4.8M12 9.4v4.8"/>
-                                <path d="M9.6 17.5h4.8" opacity="0.75"/>
-                            </svg>
-                        </div>
-                        <h2 class="card-title">Mental Math Game</h2>
-                        <p class="card-desc">Test your unit conversion skills in a fast-paced 60-second time attack practice mode.</p>
-                        <div class="card-stat-chip" id="stat-math-game">
-                            <span class="stat-icon">⚡</span> High Score: <span class="stat-val">—</span>
-                        </div>
-                    </div>
-                    <span class="card-link">Take a look <svg viewBox="0 0 24 24">
-                            <path d="M3.6 12a8.4 8.4 0 0 1 14.4-5.9" stroke="currentColor" stroke-width="2"
-                                stroke-linecap="round" stroke-linejoin="round" fill="none" />
-                            <path d="M18.4 2.8v3.7h-3.7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                                stroke-linejoin="round" fill="none" />
-                            <path d="M20.4 12a8.4 8.4 0 0 1-14.4 5.9" stroke="currentColor" stroke-width="2"
-                                stroke-linecap="round" stroke-linejoin="round" fill="none" />
-                            <path d="M5.6 21.2v-3.7h3.7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                                stroke-linejoin="round" fill="none" />
-                        </svg></span>
-                </button>
-                <div class="card-face card-face-back peek-back" id="card-math-game-panel" role="dialog" aria-modal="true"
-                    aria-label="Mental Math Game">
-                    <button type="button" class="card-close" data-flip-close aria-label="Close">
-                        <svg viewBox="0 0 24 24">
-                            <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2"
-                                stroke-linecap="round" />
-                        </svg>
-                    </button>
-                    <div class="peek-shot">
-                        <img data-src="assets/preview/math-game.webp" alt="The practice game mid-question: "34 km to mi" over four answers, with the score and a running clock." width="800" height="420"
-                            decoding="async">
-                    </div>
-                    <div class="peek-body">
-                        <div class="peek-title">Mental Math Game</div>
-                        <p class="peek-text">Test your unit conversion skills in a fast-paced 60-second time attack practice mode.</p>
-                        <div class="peek-stat" data-mirror-stat="stat-math-game"></div>
-                    </div>
-                    <a class="peek-launch" href="math/index.html#game">Start practice <svg viewBox="0 0 24 24">
-                            <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2"
-                                stroke-linecap="round" stroke-linejoin="round" fill="none" />
-                        </svg></a>
-                </div>
-            </div>
-        </div>
-
-        <div class="card card-metal flip-card" id="card-car">
-            <div class="card-flip-inner">
-                <button type="button" class="card-face card-face-front flip-open" aria-expanded="false"
-                    aria-controls="card-car-panel">
-                    <span class="new-badge">NEW</span>
-                    <div>
-                        <div class="card-icon">
-                            <svg viewBox="0 0 24 24">
-                                <path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2" fill="currentColor" fill-opacity="0.12"/>
-                                <path d="M4.4 10.6h11" opacity="0.5"/>
-                                <path d="M9.2 7.1v3.5" opacity="0.5"/>
-                                <path d="M20.2 13.5h1.3" opacity="0.6"/>
-                                <circle cx="7" cy="17" r="2"/>
-                                <circle cx="17" cy="17" r="2"/>
-                                <circle cx="7" cy="17" r="0.8" fill="currentColor" opacity="0.6" stroke="none"/>
-                                <circle cx="17" cy="17" r="0.8" fill="currentColor" opacity="0.6" stroke="none"/>
-                            </svg>
-                        </div>
-                        <h2 class="card-title">Lease, Rent or Buy?</h2>
-                        <p class="card-desc">Compare leasing, financing, cash, and subscription costs with real depreciation data.</p>
-                    </div>
-                    <span class="card-link">Take a look <svg viewBox="0 0 24 24">
-                            <path d="M3.6 12a8.4 8.4 0 0 1 14.4-5.9" stroke="currentColor" stroke-width="2"
-                                stroke-linecap="round" stroke-linejoin="round" fill="none" />
-                            <path d="M18.4 2.8v3.7h-3.7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                                stroke-linejoin="round" fill="none" />
-                            <path d="M20.4 12a8.4 8.4 0 0 1-14.4 5.9" stroke="currentColor" stroke-width="2"
-                                stroke-linecap="round" stroke-linejoin="round" fill="none" />
-                            <path d="M5.6 21.2v-3.7h3.7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                                stroke-linejoin="round" fill="none" />
-                        </svg></span>
-                </button>
-                <div class="card-face card-face-back peek-back" id="card-car-panel" role="dialog" aria-modal="true"
-                    aria-label="Lease, Rent or Buy?">
-                    <button type="button" class="card-close" data-flip-close aria-label="Close">
-                        <svg viewBox="0 0 24 24">
-                            <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2"
-                                stroke-linecap="round" />
-                        </svg>
-                    </button>
-                    <div class="peek-shot">
-                        <img data-src="assets/preview/car.webp" alt="Lease, Rent or Buy: four columns comparing cash, loan, lease and monthly rental for the same car." width="800" height="420"
-                            decoding="async">
-                    </div>
-                    <div class="peek-body">
-                        <div class="peek-title">Lease, Rent or Buy?</div>
-                        <p class="peek-text">Compare leasing, financing, cash, and subscription costs with real depreciation data.</p>
-                    </div>
-                    <a class="peek-launch" href="car/index.html">Run the numbers <svg viewBox="0 0 24 24">
-                            <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2"
-                                stroke-linecap="round" stroke-linejoin="round" fill="none" />
-                        </svg></a>
-                </div>
-            </div>
-        </div>
-
-        <div class="card card-metal flip-card" id="card-converter">
-            <div class="card-flip-inner">
-                <button type="button" class="card-face card-face-front flip-open" aria-expanded="false"
-                    aria-controls="card-converter-panel">
-                    <div>
-                        <div class="card-icon">
-                            <svg viewBox="0 0 24 24">
-                                <path d="M3.5 8.8h14.2"/>
-                                <path d="M15.3 6.6l2.4 2.2-2.4 2.2"/>
-                                <path d="M20.5 15.2H6.3"/>
-                                <path d="M8.7 13l-2.4 2.2 2.4 2.2"/>
-                            </svg>
-                        </div>
-                        <h2 class="card-title">Quick Converter</h2>
-                        <p class="card-desc">Feeling confused about freedom units, here is your solution!</p>
-                    </div>
-                    <span class="card-link">Take a look <svg viewBox="0 0 24 24">
-                            <path d="M3.6 12a8.4 8.4 0 0 1 14.4-5.9" stroke="currentColor" stroke-width="2"
-                                stroke-linecap="round" stroke-linejoin="round" fill="none" />
-                            <path d="M18.4 2.8v3.7h-3.7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                                stroke-linejoin="round" fill="none" />
-                            <path d="M20.4 12a8.4 8.4 0 0 1-14.4 5.9" stroke="currentColor" stroke-width="2"
-                                stroke-linecap="round" stroke-linejoin="round" fill="none" />
-                            <path d="M5.6 21.2v-3.7h3.7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                                stroke-linejoin="round" fill="none" />
-                        </svg></span>
-                </button>
-                <div class="card-face card-face-back peek-back" id="card-converter-panel" role="dialog" aria-modal="true"
-                    aria-label="Quick Converter">
-                    <button type="button" class="card-close" data-flip-close aria-label="Close">
-                        <svg viewBox="0 0 24 24">
-                            <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2"
-                                stroke-linecap="round" />
-                        </svg>
-                    </button>
-                    <div class="peek-shot">
-                        <img data-src="assets/preview/converter.webp" alt="Quick Converter with Distance picked, showing the four directions it will convert between." width="800" height="420"
-                            decoding="async">
-                    </div>
-                    <div class="peek-body">
-                        <div class="peek-title">Quick Converter</div>
-                        <p class="peek-text">Feeling confused about freedom units, here is your solution!</p>
-                    </div>
-                    <a class="peek-launch" href="converter/index.html">Open Converter <svg viewBox="0 0 24 24">
-                            <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2"
-                                stroke-linecap="round" stroke-linejoin="round" fill="none" />
-                        </svg></a>
-                </div>
-            </div>
-        </div>
-
-        <div class="card card-metal flip-card" id="card-math">
-            <div class="card-flip-inner">
-                <button type="button" class="card-face card-face-front flip-open" aria-expanded="false"
-                    aria-controls="card-math-panel">
-                    <div>
-                        <div class="card-icon">
-                            <svg viewBox="0 0 24 24">
-                                <rect x="2.5" y="7" width="19" height="10" rx="2.2" fill="currentColor" fill-opacity="0.1"/>
-                                <path d="M6.3 7v3.2M9.9 7v2M13.5 7v3.2M17.1 7v2"/>
-                                <path d="M7.6 17v-2.6M12 17v-2.6M16.4 17v-2.6" opacity="0.55"/>
-                            </svg>
-                        </div>
-                        <h2 class="card-title">EU/US Unit Cheat Sheet</h2>
-                        <p class="card-desc">Quick reference cheatsheet for practical mental conversions between EU and US units.</p>
-                    </div>
-                    <span class="card-link">Take a look <svg viewBox="0 0 24 24">
-                            <path d="M3.6 12a8.4 8.4 0 0 1 14.4-5.9" stroke="currentColor" stroke-width="2"
-                                stroke-linecap="round" stroke-linejoin="round" fill="none" />
-                            <path d="M18.4 2.8v3.7h-3.7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                                stroke-linejoin="round" fill="none" />
-                            <path d="M20.4 12a8.4 8.4 0 0 1-14.4 5.9" stroke="currentColor" stroke-width="2"
-                                stroke-linecap="round" stroke-linejoin="round" fill="none" />
-                            <path d="M5.6 21.2v-3.7h3.7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                                stroke-linejoin="round" fill="none" />
-                        </svg></span>
-                </button>
-                <div class="card-face card-face-back peek-back" id="card-math-panel" role="dialog" aria-modal="true"
-                    aria-label="EU/US Unit Cheat Sheet">
-                    <button type="button" class="card-close" data-flip-close aria-label="Close">
-                        <svg viewBox="0 0 24 24">
-                            <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2"
-                                stroke-linecap="round" />
-                        </svg>
-                    </button>
-                    <div class="peek-shot">
-                        <img data-src="assets/preview/math.webp" alt="The cheat sheet’s temperature card: "double + 30" for Celsius to Fahrenheit, worked through twice." width="800" height="420"
-                            decoding="async">
-                    </div>
-                    <div class="peek-body">
-                        <div class="peek-title">EU/US Unit Cheat Sheet</div>
-                        <p class="peek-text">Quick reference cheatsheet for practical mental conversions between EU and US units.</p>
-                    </div>
-                    <a class="peek-launch" href="math/index.html">View cheatsheet <svg viewBox="0 0 24 24">
-                            <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2"
-                                stroke-linecap="round" stroke-linejoin="round" fill="none" />
-                        </svg></a>
-                </div>
-            </div>
-        </div>
-
-        <div class="card flip-card" id="card-about">
-            <div class="card-flip-inner">
-                <button type="button" class="card-face card-face-front flip-open" aria-expanded="false"
-                    aria-controls="about-panel">
-                    <div>
-                        <div class="card-icon">
-                            <svg viewBox="0 0 24 24">
-                                <circle cx="11.4" cy="8.4" r="3.6" fill="currentColor" fill-opacity="0.12"/>
-                                <path d="M4.6 20.2a6.8 6.8 0 0 1 13.6 0" fill="currentColor" fill-opacity="0.12"/>
-                                <path d="M19.3 2.6l.6 1.6 1.6.6-1.6.6-.6 1.6-.6-1.6-1.6-.6 1.6-.6z" fill="currentColor" opacity="0.7" stroke="none"/>
-                            </svg>
-                        </div>
-                        <h2 class="card-title">About</h2>
-                        <p class="card-desc">Every site needs an "about", press to see the flip side!</p>
-                    </div>
-                    <span class="card-link">Read more <svg viewBox="0 0 24 24">
-                            <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                                stroke-linejoin="round" />
-                        </svg></span>
-                </button>
-                <div class="card-face card-face-back" id="about-panel" role="dialog" aria-modal="true"
-                    aria-label="About Niklas Billgren">
-                    <button type="button" class="about-close" data-flip-close aria-label="Close">
-                        <svg viewBox="0 0 24 24">
-                            <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2"
-                                stroke-linecap="round" />
-                        </svg>
-                    </button>
-                    <div class="about-identity">
-                        <img src="assets/portrait.webp" alt="Niklas Billgren" class="about-portrait" width="48"
-                            height="48" loading="lazy" decoding="async">
-                        <div>
-                            <div class="about-name">Niklas Billgren</div>
-                            <div class="about-role">Supply chain consultant</div>
-                        </div>
-                    </div>
-                    <div class="about-body">
-                        <p class="about-text">I implement supply chain planning solutions. Have a look at my
-                            <a href="cv/index.html">CV</a> or
-                            <a href="https://www.linkedin.com/in/niklas-eskilsson/" target="_blank"
-                                rel="noopener">LinkedIn</a> if you're curious.</p>
-                        <p class="about-text">AI changed how much one person can build on their own, so I started
-                            testing that in my spare time. A lander game with its own physics engine, a logistics
-                            sim, a couple of calculators I actually use. Mostly from my phone, with Claude and
-                            AntiGravity.</p>
-                    </div>
-                    <button type="button" class="card-link" data-flip-close>Close <svg viewBox="0 0 24 24">
-                            <path d="M19 12H5m7-7l-7 7 7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                                stroke-linejoin="round" />
-                        </svg></button>
-                </div>
-            </div>
-        </div>
-
-        <div class="card flip-card" id="card-viz">
-            <div class="card-flip-inner">
-                <button type="button" class="card-face card-face-front flip-open" aria-expanded="false"
-                    aria-controls="card-viz-panel">
-                    <div>
-                        <div class="card-icon">
-                            <svg viewBox="0 0 24 24">
-                                <circle cx="12" cy="12" r="7.4" fill="currentColor" fill-opacity="0.10"/>
-                                <circle cx="12" cy="12" r="7.4"/>
-                                <path d="M4.6 12h14.8"/>
-                                <path d="M12 4.6c2.1 2.1 3.2 4.7 3.2 7.4S14.1 17.3 12 19.4c-2.1-2.1-3.2-4.7-3.2-7.4S9.9 6.7 12 4.6z"/>
-                                <path d="M6.6 7.2c3.2 2.6 7.6 2.6 10.8 0" opacity="0.55"/>
-                                <circle cx="17.4" cy="8.6" r="1.5" fill="currentColor" stroke="none" opacity="0.9"/>
-                                <circle cx="8.1" cy="15.1" r="1.2" fill="currentColor" stroke="none" opacity="0.7"/>
-                            </svg>
-                        </div>
-                        <h2 class="card-title">Data Room</h2>
-                        <p class="card-desc">Eight interactive 3D visualizations: world trade on a globe, this
-                            site drawn as a city, three flocks nobody steers, a fractal with no mesh, and real
-                            water. Every one has controls.</p>
-                        <div class="card-stat-chip">
-                            <span class="stat-icon">🛰️</span> Eight scenes, one switcher
-                        </div>
-                    </div>
-                    <span class="card-link">Take a look <svg viewBox="0 0 24 24">
-                            <path d="M3.6 12a8.4 8.4 0 0 1 14.4-5.9" stroke="currentColor" stroke-width="2"
-                                stroke-linecap="round" stroke-linejoin="round" fill="none" />
-                            <path d="M18.4 2.8v3.7h-3.7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                                stroke-linejoin="round" fill="none" />
-                            <path d="M20.4 12a8.4 8.4 0 0 1-14.4 5.9" stroke="currentColor" stroke-width="2"
-                                stroke-linecap="round" stroke-linejoin="round" fill="none" />
-                            <path d="M5.6 21.2v-3.7h3.7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                                stroke-linejoin="round" fill="none" />
-                        </svg></span>
-                </button>
-                <div class="card-face card-face-back peek-back" id="card-viz-panel" role="dialog" aria-modal="true"
-                    aria-label="Data Room">
-                    <button type="button" class="card-close" data-flip-close aria-label="Close">
-                        <svg viewBox="0 0 24 24">
-                            <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2"
-                                stroke-linecap="round" />
-                        </svg>
-                    </button>
-                    <div class="peek-shot">
-                        <img data-src="assets/preview/viz-poc.webp" alt="A dark globe drawn as a field of glowing dots, with coloured shipping-lane arcs curving between ports across Europe, Africa and Asia." width="800" height="420"
-                            decoding="async">
-                        <img data-src="assets/preview/viz-poc-2.webp" alt="A sheet of water seen from above at an angle, expanding ripple rings crossing and interfering over a glowing blue lattice." width="800" height="420"
-                            decoding="async">
-                        <img data-src="assets/preview/viz-poc-3.webp" alt="A Mandelbulb fractal filling the frame: knobbled magenta and rose lobes with blue light in the crevices." width="800" height="420"
-                            decoding="async">
-                        <img data-src="assets/preview/viz-poc-4.webp" alt="Three flocks of small cones — blue, orange and green — each group flying in formation and keeping clear of the others." width="800" height="420"
-                            decoding="async">
-                    </div>
-                    <div class="peek-body">
-                        <div class="peek-title">Data Room</div>
-                        <p class="peek-text">Eight interactive 3D visualizations: world trade on a globe, this
-                            site drawn as a city, three flocks nobody steers, a fractal with no mesh, and real
-                            water. Every one has controls.</p>
-                    </div>
-                    <a class="peek-launch" href="viz-poc/index.html?v=1.0.0">Open <svg viewBox="0 0 24 24">
-                            <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2"
-                                stroke-linecap="round" stroke-linejoin="round" fill="none" />
-                        </svg></a>
-                </div>
-            </div>
-        </div>
-
-        <div class="card card-paper flip-card" id="card-cv">
-            <div class="card-flip-inner">
-                <button type="button" class="card-face card-face-front flip-open" aria-expanded="false"
-                    aria-controls="card-cv-panel">
-                    <div>
-                        <div class="card-icon">
-                            <svg viewBox="0 0 24 24">
-                                <path d="M14.2 2.8H6.4a2 2 0 0 0-2 2v14.6a2 2 0 0 0 2 2h11.2a2 2 0 0 0 2-2V8.2z" fill="currentColor" fill-opacity="0.08"/>
-                                <path d="M14.2 2.8v5.4h5.4" fill="currentColor" fill-opacity="0.18"/>
-                                <circle cx="9.2" cy="12" r="2.1" fill="currentColor" opacity="0.8" stroke="none"/>
-                                <path d="M13 11h3.8" opacity="0.7"/>
-                                <path d="M13 13.4h3" opacity="0.7"/>
-                                <path d="M7.1 16.9h9.7"/>
-                                <path d="M7.1 19.1h6.4" opacity="0.6"/>
-                            </svg>
-                        </div>
-                        <h2 class="card-title">Curriculum Vitae</h2>
-                        <p class="card-desc">Overview of my background, education, and skills in logistics and software development.</p>
-                    </div>
-                    <span class="card-link">Take a look <svg viewBox="0 0 24 24">
-                            <path d="M3.6 12a8.4 8.4 0 0 1 14.4-5.9" stroke="currentColor" stroke-width="2"
-                                stroke-linecap="round" stroke-linejoin="round" fill="none" />
-                            <path d="M18.4 2.8v3.7h-3.7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                                stroke-linejoin="round" fill="none" />
-                            <path d="M20.4 12a8.4 8.4 0 0 1-14.4 5.9" stroke="currentColor" stroke-width="2"
-                                stroke-linecap="round" stroke-linejoin="round" fill="none" />
-                            <path d="M5.6 21.2v-3.7h3.7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                                stroke-linejoin="round" fill="none" />
-                        </svg></span>
-                </button>
-                <div class="card-face card-face-back peek-back" id="card-cv-panel" role="dialog" aria-modal="true"
-                    aria-label="Curriculum Vitae">
-                    <button type="button" class="card-close" data-flip-close aria-label="Close">
-                        <svg viewBox="0 0 24 24">
-                            <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2"
-                                stroke-linecap="round" />
-                        </svg>
-                    </button>
-                    <div class="peek-shot">
-                        <img data-src="assets/preview/cv.webp" alt="The CV page: a profile summary above the start of the experience timeline." width="800" height="420"
-                            decoding="async">
-                    </div>
-                    <div class="peek-body">
-                        <div class="peek-title">Curriculum Vitae</div>
-                        <p class="peek-text">Overview of my background, education, and skills in logistics and software development.</p>
-                    </div>
-                    <a class="peek-launch" href="cv/index.html">View CV <svg viewBox="0 0 24 24">
-                            <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2"
-                                stroke-linecap="round" stroke-linejoin="round" fill="none" />
-                        </svg></a>
-                </div>
-            </div>
-        </div>
-
+        </section>
     </main>
 
     <footer>
@@ -3706,6 +4220,8 @@
             document.documentElement.setAttribute('data-theme', cardId);
 
             const themeHues = {
+                'card-elevator': 38,
+                'card-terrarium': 170,
                 'card-supply-chain': 45,
                 'card-cargo-lander': 245,
                 'card-converter': 190,
@@ -3715,7 +4231,8 @@
                 'card-math-game': 25,
                 'card-cargo-packer': 28,
                 'card-golf-hub': 140,
-                'card-about': 345
+                'card-about': 345,
+                'card-sand': 40
             };
 
             if (themeHues[cardId] !== undefined) {
@@ -3726,6 +4243,15 @@
         // symbol+size+hue -> pre-rendered glowing glyph. Module-level rather than a
         // static class field, which needs a newer Safari than the rest of this file.
         const themeSprites = new Map();
+
+        /* The cards added after the hand-tuned ones above all drift the same way
+           — the Lease/Rent/Buy floater — and differ only in what they carry, so
+           they are a table rather than a branch each. */
+        const CARD_FLOATERS = {
+            'card-elevator': { hue: 38, items: ['🛗', '⬆️', '⬇️', '🔔', '🚶'] },
+            'card-terrarium': { hue: 170, items: ['🌦️', '❄️', '☀️', '🌙', '⛈️'] },
+            'card-sand': { hue: 40, items: ['⏳', '⌛', '🌋', '🌱'] },
+        };
 
         class ThemeEntity {
             constructor(cardId) {
@@ -3792,6 +4318,18 @@
                     this.hue = lofted ? 198 : 140;
                     var swings = lofted ? ['⛳', '🏌️', 'LOFT'] : ['⛳', '🏌️', 'FORE!'];
                     this.symbol = swings[Math.floor(Math.random() * swings.length)];
+                } else if (CARD_FLOATERS[cardId]) {
+                    const f = CARD_FLOATERS[cardId];
+                    this.type = 'floater';
+                    this.x = fromLeft ? -40 : width + 40;
+                    this.y = Math.random() * height;
+                    this.vx = fromLeft ? (Math.random() * 1.2 + 1.2) : -(Math.random() * 1.2 + 1.2);
+                    this.vy = (Math.random() - 0.5) * 0.5;
+                    this.size = Math.random() * 8 + 14;
+                    this.maxLife = Math.ceil((width + 80) / Math.abs(this.vx));
+                    this.maxAlpha = 0.35;
+                    this.hue = f.hue;
+                    this.symbol = f.items[Math.floor(Math.random() * f.items.length)];
                 } else {
                     this.dead = true;
                     return;
@@ -4204,6 +4742,16 @@
                which is the moment it is worth knowing. Rather than have every
                block above write two elements, mirror the front chip once they
                are all filled in — one place to change when a chip changes. */
+            // Tiny Elevator Tycoon: stars earned across its six levels.
+            try {
+                const elevBadge = document.getElementById('stat-elevator');
+                const elevBest = JSON.parse(localStorage.getItem('elevator.best') || '{}');
+                const elevStars = Object.values(elevBest).reduce((n, b) => n + ((b && b.stars) || 0), 0);
+                if (elevBadge && elevStars > 0) {
+                    elevBadge.innerHTML = `<span class="stat-icon">★</span> Stars: <span class="stat-val">${elevStars} / 18</span>`;
+                }
+            } catch (e) {}
+
             document.querySelectorAll('[data-mirror-stat]').forEach(el => {
                 const src = document.getElementById(el.dataset.mirrorStat);
                 if (src) el.innerHTML = src.innerHTML;
@@ -5079,6 +5627,8 @@
             window.addEventListener('load', invalidateGeometry);
             // A flip opening or closing pulls a card out of the grid and puts it back.
             document.addEventListener('flip:change', invalidateGeometry);
+            // So does a shelf folding or unfolding above it.
+            document.addEventListener('shelf:change', invalidateGeometry);
             if (document.fonts && document.fonts.ready) {
                 document.fonts.ready.then(invalidateGeometry).catch(() => {});
             }
@@ -5333,6 +5883,7 @@
 
                 for (const card of cards) {
                     if (card.classList.contains('is-open')) continue;
+                    if (card.closest('.shelf.is-collapsed')) continue;
                     const r = card.getBoundingClientRect();
                     if (r.bottom < 0 || r.top > viewportH) continue;
                     const dist = Math.abs(r.top + r.height / 2 - mid);
@@ -5413,7 +5964,81 @@
             window.addEventListener('orientationchange', () => { if (focusActive) refocus(); });
             // A card leaving or rejoining the grid moves every card below it.
             document.addEventListener('flip:change', () => { if (focusActive) refocus(); });
+            document.addEventListener('shelf:change', () => { if (focusActive) refocus(); });
             syncFocusMode();
+        })();
+    </script>
+    <script>
+        /* ── Shelves ─────────────────────────────────────────────────────────
+           Each shelf heading folds its grid. What is folded is remembered per
+           browser, so someone who only ever comes for the tools can put the
+           games away once. With nothing remembered, a desktop opens every shelf
+           and a phone opens only the first: a phone shows one card at a time,
+           and a page of twenty spines is a long way to thumb past to reach the
+           tools at the bottom. The chips above the shelves jump to one and
+           unfold it on the way. */
+        (function () {
+            const KEY = 'neskil.shelves.collapsed';
+            const FOLD_MS = 500;
+            const shelves = Array.from(document.querySelectorAll('.shelf'));
+
+            function load() {
+                try {
+                    const v = JSON.parse(localStorage.getItem(KEY));
+                    return Array.isArray(v) ? new Set(v) : null;
+                } catch (e) { return null; }
+            }
+
+            function save() {
+                try {
+                    const collapsed = shelves.filter(s => s.classList.contains('is-collapsed')).map(s => s.dataset.shelf);
+                    localStorage.setItem(KEY, JSON.stringify(collapsed));
+                } catch (e) { /* private mode: the fold just isn't remembered */ }
+            }
+
+            function setCollapsed(shelf, collapsed, animate) {
+                const head = shelf.querySelector('.shelf-head');
+                head.setAttribute('aria-expanded', String(!collapsed));
+                const clip = shelf.querySelector('.shelf-clip');
+                if (collapsed) clip.setAttribute('inert', ''); else clip.removeAttribute('inert');
+
+                if (animate) {
+                    shelf.classList.add('is-folding');
+                    clearTimeout(shelf._foldTimer);
+                    shelf._foldTimer = setTimeout(() => {
+                        shelf.classList.remove('is-folding');
+                        document.dispatchEvent(new CustomEvent('shelf:change'));
+                    }, FOLD_MS);
+                }
+                shelf.classList.toggle('is-collapsed', collapsed);
+                document.dispatchEvent(new CustomEvent('shelf:change'));
+            }
+
+            const saved = load();
+            const phone = window.matchMedia('(max-width: 640px)').matches;
+            shelves.forEach((shelf, i) => {
+                const collapsed = saved ? saved.has(shelf.dataset.shelf) : (phone && i > 0);
+                if (collapsed) setCollapsed(shelf, true, false);
+                shelf.querySelector('.shelf-head').addEventListener('click', () => {
+                    setCollapsed(shelf, !shelf.classList.contains('is-collapsed'), true);
+                    save();
+                });
+            });
+
+            document.querySelectorAll('[data-shelf-jump]').forEach(chip => {
+                chip.addEventListener('click', (e) => {
+                    const shelf = document.getElementById('shelf-' + chip.dataset.shelfJump);
+                    if (!shelf) return;
+                    e.preventDefault();
+                    if (shelf.classList.contains('is-collapsed')) {
+                        setCollapsed(shelf, false, true);
+                        save();
+                    }
+                    const smooth = !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+                    shelf.scrollIntoView({ behavior: smooth ? 'smooth' : 'auto', block: 'start' });
+                    shelf.querySelector('.shelf-head').focus({ preventScroll: true });
+                });
+            });
         })();
     </script>
 </body>
