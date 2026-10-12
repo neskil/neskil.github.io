@@ -61,7 +61,7 @@ them.
 | `js/postfx.js` | What happens to the picture after the course is drawn: bloom, light shafts, tone mapping, grade. |
 | `js/flyover.js` | The intro sweep's path: four keys, a curve through them, and the rule that keeps it out of the hillside. Pure — no three.js, no DOM. |
 | `js/bot.js` | The greedy player: fan out candidate shots, keep the one that finishes nearest the cup, refine twice. Pure — no three.js, no DOM. What proves every hole is solvable in `tests.html`, and what plays for you in [autoplay](#the-caddie-autoplay). |
-| `js/life.js` | What is on a long hole that is not the hole: the [dressing](#the-life-on-the-long-game) `courses.dress` lays out, built as one mesh, and the flock, the ducks and the butterflies, stepped every frame. Loaded before `render.js` on every page that loads it. |
+| `js/life.js` | What is on a hole that is not the hole: the long game's [dressing](#the-life-on-the-long-game) and its flock, ducks and butterflies, and the [world round each drawn hole](#the-worlds-round-the-drawn-holes) — a recipe per theme. Static props are built as one mesh per hole; what moves is stepped every frame. Loaded before `render.js` on every page that loads it. |
 | `js/render.js` | The course, in three.js: geometry, lights, camera and the frame. |
 | `js/minimap.js` | The hole from above, drawn per pixel out of `physics.surfaceUnder` — the course picker's plans and the one on the hole card. |
 | `js/bag.js` | The club picker: a modelled bag that rides in front of the camera, holding whichever clubs this hole hands out. |
@@ -3240,6 +3240,46 @@ so a treeline reads as several kinds of tree rather than two shapes repeated.
 `shader-tests.html` builds a pond hole and checks the flock, the ducks, the
 butterflies and the swaying crowns are there and move with the clock, and that
 a mini golf lane has none of them.
+
+### The worlds round the drawn holes
+
+A mini golf hole is a slab standing on something — the sea, a quarry floor,
+an arcade carpet, the moon — and for a long time the something was all there
+was. Each of the thirteen drawn themes now has a recipe in `life.js` that
+builds a little world round the slab:
+
+| Theme | What is round it |
+| --- | --- |
+| seaside | a lighthouse on a rock with its lamp and beam turning, rocky islets, fish leaping, gulls |
+| lagoon | sand islands with palms, more fish, terns |
+| quarry | rubble, cut blocks, a timber derrick swinging its load, crows |
+| highland | pines and boulders, sheep wandering, a pair of eagles |
+| works | chimneys trailing smoke, crates and drums |
+| arcade | neon-ringed pillars, shapes spinning in the air, giant pinballs |
+| clockwork | gears the size of houses turning in trains, cogs on the floor, a clock face telling the time |
+| mill | a windmill with its sails going round, hay bales, trees |
+| belfry | gravestones, dead trees, lamps, a flock of pigeons |
+| icehouse | ice crystals, snowmen, snowy pines, penguins waddling |
+| fairground | a Ferris wheel with its cabins hanging level, striped tents, balloons let go, lights |
+| volcano | a smoking volcano with a glowing crater and embers, lava pools, obsidian |
+| lunar | craters, a rocket and its flag, a ringed planet on the horizon, a satellite, shooting stars |
+
+Two rules decide where anything goes. **Nothing stands on the hole**: every
+prop is outside the hole's bounds by a clear margin *including its own size*,
+so the ball never passes through anything. **Nothing stands in the shot**:
+the corridor behind the tee the camera watches from is kept empty, again
+counting each prop's size. And the landmarks — the lighthouse, the Ferris
+wheel, the volcano, the windmill, the planet — go *ahead*, beyond the flag and
+a little to one side, because a portrait phone sees a narrow wedge of the
+world and a landmark on a random bearing is a landmark behind you.
+
+The kit is shared: static props go into one lit mesh and one unlit one (for
+what glows — lava, neon, lamps), and what moves is a handful of small groups,
+each one of six motions — turn, bob, smoke, rise, wander, leap. Authored decor
+that floats (buoys and boats) now rides the water as well, rougher when the
+wind is up. `shader-tests.html` builds every drawn theme and checks the world
+is there, is not the long game's dressing, and that no vertex of any prop
+stands on the hole or in the shot.
 
 ### The country beyond the hole
 

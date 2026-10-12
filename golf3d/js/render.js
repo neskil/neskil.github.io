@@ -2150,6 +2150,27 @@
         }
 
         group.add(dg);
+        /* Anything floating rides the water rather than standing on it: it
+           rises and falls and rolls a little, each at a rate of its own. A
+           piling is driven into the bottom and stays put. */
+        if (kind === 'buoy' || kind === 'boat' || kind === 'rowboat' || kind === 'sailboat') {
+            (R.bobbers || (R.bobbers = [])).push({
+                g: dg, y: dg.position.y, rx: dg.rotation.x, rz: dg.rotation.z,
+                ph: (x * 1.7 + z * 2.3) % 6.283, k: kind === 'buoy' ? 1.6 : 1
+            });
+        }
+    }
+
+    // The floating decor, on the same clock as the waves and a little rougher
+    // when the wind is up.
+    function bobDecor(wind) {
+        var i, b, t = R.clock, sea = 1 + Math.min(1.5, wind.speed);
+        for (i = 0; i < (R.bobbers || []).length; i++) {
+            b = R.bobbers[i];
+            b.g.position.y = b.y + Math.sin(t * 1.3 + b.ph) * 0.05 * sea;
+            b.g.rotation.x = b.rx + Math.sin(t * 1.1 + b.ph * 1.3) * 0.05 * b.k * sea;
+            b.g.rotation.z = b.rz + Math.cos(t * 0.9 + b.ph) * 0.06 * b.k * sea;
+        }
     }
 
     function addWall(group, wall) {
@@ -2719,6 +2740,11 @@
         var cx = (hole.bounds.minX + hole.bounds.maxX) / 2;
         var cz = (hole.bounds.minZ + hole.bounds.maxZ) / 2;
 
+        /* Where the ground out here is, for anything standing on it that the
+           renderer did not lay itself (life.js). The same arithmetic the mesh
+           below is built from, rather than a second copy of it. */
+        R.groundAt = function () { return theme.surroundY; };
+
         if (theme.surround === 'water') {
             // The sea makes its own shape out of its own waves, and it is flat
             // by definition; it keeps the plane it always had.
@@ -2739,7 +2765,11 @@
         // move the same vertices, and ground that rolls under a hillside puts a
         // hump through it.
         if (plan) flatR = Math.max(flatR, plan.outer);
-        var mesh = new THREE.Mesh(surroundGeometry(theme.relief || 0, flatR, cx, cz), mat);
+        var amp = theme.relief || 0;
+        R.groundAt = function (x, z) {
+            return theme.surroundY + (amp ? surRelief(x, z, Math.hypot(x - cx, z - cz), amp, flatR) : 0);
+        };
+        var mesh = new THREE.Mesh(surroundGeometry(amp, flatR, cx, cz), mat);
         mesh.position.set(cx, theme.surroundY, cz);
         mesh.receiveShadow = true;
         group.add(mesh);
@@ -3240,6 +3270,7 @@
         R.waterMats = [];
         R.shells = [];
         R.canopies = [];
+        R.bobbers = [];
 
         /* One set of surfaces per hole: the textures behind them are the
            theme's and are only redrawn when the theme changes (textures.js),
@@ -3280,7 +3311,7 @@
         addStakes(g, hole, theme);
         for (i = 0; i < (hole.decor || []).length; i++) addDecor(g, hole.decor[i], theme, hole);
         // The long game's dressing, and what lives on it (life.js).
-        if (G3.life) G3.life.build(g, hole, themeName, theme.surround === 'water');
+        if (G3.life) G3.life.build(g, hole, themeName, theme.surround === 'water', R.groundAt);
         if (hole.targets) addBoards(g, hole);
 
         // The rain, the mist banks and whatever is drifting in the air are
@@ -4142,6 +4173,7 @@
 
         swayShells(wind);
         swayTrees(wind);
+        bobDecor(wind);
         if (G3.life) G3.life.update(dt, R.clock);
 
         var i;
