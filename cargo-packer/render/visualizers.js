@@ -21,6 +21,7 @@
     }
 
     clear() {
+      this.showSupport(null);
       if (this.epPointsMesh) {
         this.group.remove(this.epPointsMesh);
         this.epPointsMesh.geometry.dispose();
@@ -161,6 +162,49 @@
 
     hideCog() {
       if (this.cogMarker) this.cogMarker.visible = false;
+    }
+
+    /**
+     * Green patches on the top faces a box rests on: the overlap with each
+     * box beneath it (or its whole footprint on the floor). Pass null to clear.
+     * @param {Object|null} box Placed box {x, y, z, w, h, d}
+     * @param {Array<Object>} below Boxes placed before it
+     */
+    showSupport(box, below = []) {
+      if (this.supportGroup) {
+        this.supportGroup.traverse(m => { if (m.geometry) m.geometry.dispose(); });
+        this.group.remove(this.supportGroup);
+        this.supportGroup = null;
+      }
+      if (!box) return;
+
+      const g = new THREE.Group();
+      // Lime with a white rim: reads against any carton colour underneath
+      const mat = this.supportMat || (this.supportMat = new THREE.MeshBasicMaterial({
+        color: '#a3e635', transparent: true, opacity: 0.9, side: THREE.DoubleSide, depthWrite: false
+      }));
+      const rim = this.supportRim || (this.supportRim = new THREE.LineBasicMaterial({ color: '#ffffff' }));
+      const patch = (x0, x1, z0, z1, y) => {
+        const geo = new THREE.PlaneGeometry(x1 - x0, z1 - z0);
+        const m = new THREE.Mesh(geo, mat);
+        m.rotation.x = -Math.PI / 2;
+        m.position.set((x0 + x1) / 2, y + 0.006, (z0 + z1) / 2);
+        m.add(new THREE.LineSegments(new THREE.EdgesGeometry(geo), rim));
+        g.add(m);
+      };
+
+      if (box.y <= 1e-4) {
+        patch(box.x, box.x + box.w, box.z, box.z + box.d, 0);
+      } else {
+        below.forEach(p => {
+          if (Math.abs(p.y + p.h - box.y) > 1e-4) return;
+          const x0 = Math.max(box.x, p.x), x1 = Math.min(box.x + box.w, p.x + p.w);
+          const z0 = Math.max(box.z, p.z), z1 = Math.min(box.z + box.d, p.z + p.d);
+          if (x1 - x0 > 1e-4 && z1 - z0 > 1e-4) patch(x0, x1, z0, z1, box.y);
+        });
+      }
+      this.supportGroup = g;
+      this.group.add(g);
     }
 
     setupGhostBox() {

@@ -63,6 +63,18 @@
       this.compareResult = entry ? entry.result : null;
     }
 
+    /**
+     * Shows the load as it stands after step `index` (-1 = empty). With
+     * `dropLast`, the boxes before it appear at once and the last one drops
+     * in with its sound, so a tour chapter lands with a little motion.
+     */
+    goToStep(index, dropLast = false) {
+      const last = Math.min(index, this.totalSteps() - 1);
+      this.currentStep = dropLast ? last - 1 : last;
+      this.redraw();
+      if (dropLast && last >= 0) this.stepForward(true);
+    }
+
     /** Rebuilds both loads at the current step, without animation or sound. */
     redraw() {
       this.pause();

@@ -212,7 +212,8 @@ cargo-packer/
 - [x] **9.3 Showdown tie-break**: least floor used / lowest stack, then density.
 - [x] **9.4 Cargo editor**: per-type counts, ×½ / ×2 / Reset, random item count; limits 120/type, 250/load.
 - [x] **9.5 Extreme Points speed-up**: exact (identical placements), ~3× faster on big loads.
-- [ ] **9.6 Guided tours**: stepped, article-style walkthrough per algorithm driving the camera.
+- [x] **9.6 Guided tours**: one article per algorithm (`ui/tourContent.js`); chapters stage the step, fly the camera and highlight anchor points / support patches (`ui/tour.js`). `?tour=<algoId>` opens one.
+- [ ] **9.7 Weight-balanced loader**: keep the centre of gravity mid-container (every current loader packs hard against the bulkhead).
 
 ---
 
