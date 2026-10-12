@@ -82,6 +82,34 @@
     // Merge existing EPs and new candidates
     const combined = currentEPs.concat(candidates);
     const valid = [];
+    // Dedup index: rounded 1e-4 grid cell -> kept points. A point within EPS
+    // of a kept one lies in the same or a neighbouring cell, so checking the
+    // 27 cells around it is the same test as scanning the whole list.
+    // Numeric keys (cells are offset to stay non-negative) spare the garbage
+    // collector thousands of strings per placement.
+    const cells = new Map();
+    const cellKey = (x, y, z) => ((x + 4) * 40000 + (y + 4)) * 200000 + (z + 4);
+    const toCell = v => Math.round(v * 1e4);
+
+    // Floor-plan bucket grid of the placed boxes, so a point is only tested
+    // against boxes whose footprint covers its cell. A box containing the
+    // point always covers the point's cell, so the answer is unchanged.
+    const GRID = 0.5;
+    const nx = Math.ceil(container.width / GRID) + 1;
+    const buckets = new Map();
+    placedList.forEach(p => {
+      for (let gx = Math.floor(p.x / GRID); gx <= Math.floor((p.x + p.w) / GRID); gx++) {
+        for (let gz = Math.floor(p.z / GRID); gz <= Math.floor((p.z + p.d) / GRID); gz++) {
+          const k = gz * nx + gx;
+          if (!buckets.has(k)) buckets.set(k, []);
+          buckets.get(k).push(p);
+        }
+      }
+    });
+    const insidePlaced = pt => {
+      const near = buckets.get(Math.floor(pt.z / GRID) * nx + Math.floor(pt.x / GRID));
+      return near ? isPointInsideAnyBox(pt, near) : false;
+    };
 
     for (let i = 0; i < combined.length; i++) {
       const pt = combined[i];
@@ -95,24 +123,49 @@
         continue;
       }
 
-      // Must not be inside any placed box
-      if (isPointInsideAnyBox(pt, placedList)) {
+      // Must not be inside any placed box. A point that already passed this
+      // against every box (in its stored, rounded form) only needs testing
+      // against the box placed since.
+      const known = i < currentEPs.length && pt.checked;
+      if (known ? isPointInsideAnyBox(pt, [b]) : insidePlaced(pt)) {
         continue;
       }
 
-      // Deduplicate
-      const alreadyPresent = valid.some(v =>
-        Math.abs(v.x - pt.x) < EPS &&
-        Math.abs(v.y - pt.y) < EPS &&
-        Math.abs(v.z - pt.z) < EPS
-      );
+      // Deduplicate. Points kept last time were already deduplicated against
+      // each other and come first here, so only new candidates can collide
+      // with something already kept.
+      const cx = toCell(pt.x), cy = toCell(pt.y), cz = toCell(pt.z);
+      let alreadyPresent = false;
+      for (let dx = -1; dx <= 1 && !alreadyPresent && i >= currentEPs.length; dx++) {
+        for (let dy = -1; dy <= 1 && !alreadyPresent; dy++) {
+          for (let dz = -1; dz <= 1 && !alreadyPresent; dz++) {
+            const bucket = cells.get(cellKey(cx + dx, cy + dy, cz + dz));
+            if (bucket && bucket.some(v =>
+              Math.abs(v.x - pt.x) < EPS &&
+              Math.abs(v.y - pt.y) < EPS &&
+              Math.abs(v.z - pt.z) < EPS)) {
+              alreadyPresent = true;
+            }
+          }
+        }
+      }
 
       if (!alreadyPresent) {
-        valid.push({
+        const kept = {
           x: +pt.x.toFixed(4),
           y: +pt.y.toFixed(4),
           z: +pt.z.toFixed(4)
-        });
+        };
+        // A kept existing point was just tested, as stored, against every
+        // box; a new one was tested before rounding, so it gets one full
+        // re-test next time, exactly as before.
+        if (i < currentEPs.length) {
+          Object.defineProperty(kept, 'checked', { value: true, enumerable: false });
+        }
+        valid.push(kept);
+        const key = cellKey(toCell(kept.x), toCell(kept.y), toCell(kept.z));
+        if (!cells.has(key)) cells.set(key, []);
+        cells.get(key).push(kept);
       }
     }
 
@@ -174,6 +227,14 @@
         // Evaluate all orientations for this item at this EP
         for (let oIdx = 0; oIdx < orientations.length; oIdx++) {
           const ori = orientations[oIdx];
+
+          // Contact can never exceed the box's own surface, so this is the
+          // best score the spot could reach; if it cannot beat the best so
+          // far, skip the collision/support/contact work. Same result, far
+          // fewer checks on big loads.
+          const surface = 2 * (ori.w * ori.h + ori.w * ori.d + ori.h * ori.d);
+          if ((ep.z * 1000) + (ep.y * 500) + (ep.x * 100) - (surface * 40) - 1e-6 >= bestScore) continue;
+
           const cand = {
             id: item.id || `box_${i}`,
             name: item.name || `Box ${i + 1}`,

@@ -200,6 +200,20 @@ cargo-packer/
 - [x] **7.5 Opening camera**: looks into the loading corner (bulkhead + solid wall + floor) from the open side; presets reframe for portrait viewports and panes.
 - [x] **7.6 Headless suite**: 55/55 green.
 
+### Phase 8: Yard Scenery, Fullscreen & Mobile Dock
+- [x] **8.1 Mobile dock**: `dvh` sizing + safe-area insets, so Play is not hidden under the browser toolbar.
+- [x] **8.2 Fullscreen**: Fullscreen API toggle that tucks the side panels away; compare panes refit.
+- [x] **8.3 Container dressing**: doors swung open with owner code / ISO type / weights / CSC plate; line livery on the solid walls.
+- [x] **8.4 Yard**: concrete apron, painted bay + hatched door zone, forklift with a wrapped pallet, empty pallet stack, cones, bollards, floodlight, background container rows.
+
+### Phase 9: More Algorithms & Cargo Editor
+- [x] **9.1 Algorithm registry** (`core/algorithms.js`): one list for UI, showdown and tests.
+- [x] **9.2 Deepest-Bottom-Left** (good), **Next-Fit** (baseline), **Floor Only** and **Random Drop** (bad), all physical and deterministic.
+- [x] **9.3 Showdown tie-break**: least floor used / lowest stack, then density.
+- [x] **9.4 Cargo editor**: per-type counts, ×½ / ×2 / Reset, random item count; limits 120/type, 250/load.
+- [x] **9.5 Extreme Points speed-up**: exact (identical placements), ~3× faster on big loads.
+- [ ] **9.6 Guided tours**: stepped, article-style walkthrough per algorithm driving the camera.
+
 ---
 
 ## 5. Architectural Invariants & Non-Negotiables

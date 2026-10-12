@@ -22,242 +22,111 @@
   }
 
   /**
-   * Scenario 1: E-Commerce Express (Heterogeneous High-Variety Load)
-   * 84 parcels with 7 distinct aspect ratios testing 3D void-filling and spatial packing.
+   * The fixed scenarios as type tables: one row per kind of box, with how
+   * many of it the scenario ships by default. The cargo editor changes those
+   * counts; buildManifest turns a table plus counts into the item list.
+   * Item ids run `${prefix}_1…n` in table order, so the defaults reproduce the
+   * exact manifests the algorithms were tuned and tested on.
    */
-  function getEcommerceManifest() {
-    const items = [];
-    let id = 1;
+  const MANIFEST_TYPES = {
+    // Scenario 1: E-Commerce Express — 7 aspect ratios testing 3D void-filling
+    ecommerce: { prefix: 'ec', types: [
+      { key: 'micro', name: 'Micro Parcel', w: 0.24, h: 0.16, d: 0.12, weight: 1.2, count: 16,
+        opts: { color: '#38bdf8', category: 'parcel', boxStyle: 'ecommerce' } },
+      { key: 'shoebox', name: 'Shoebox Parcel', w: 0.35, h: 0.22, d: 0.15, weight: 2.5, count: 18,
+        opts: { color: '#a855f7', category: 'parcel', boxStyle: 'standard' } },
+      { key: 'book', name: 'Flat Book Pack', w: 0.38, h: 0.08, d: 0.28, weight: 2.0, count: 14,
+        opts: { color: '#10b981', category: 'parcel', boxStyle: 'ecommerce' } },
+      { key: 'medium', name: 'Medium Carton', w: 0.45, h: 0.35, d: 0.30, weight: 8, count: 14,
+        opts: { color: '#c29b62', category: 'carton', boxStyle: 'standard' } },
+      { key: 'tower', name: 'Tower Carton', w: 0.35, h: 0.35, d: 0.75, weight: 12, count: 8,
+        opts: { color: '#06b6d4', category: 'carton', boxStyle: 'standard' } },
+      { key: 'appliance', name: 'Appliance Carton', w: 0.60, h: 0.50, d: 0.45, weight: 22, count: 8,
+        opts: { color: '#f59e0b', category: 'carton', boxStyle: 'heavy' } },
+      { key: 'tube', name: 'Postal Cylinder', w: 0.22, h: 0.22, d: 1.20, weight: 6, count: 6,
+        opts: { color: '#ec4899', category: 'tube', boxStyle: 'standard' } }
+    ] },
 
-    // A: Micro / Cosmetics Parcels (0.24 x 0.16 x 0.12 m, 1.2kg) - 16 units
-    for (let i = 0; i < 16; i++) {
-      items.push(Types.createItem(`ec_${id++}`, 'Micro Parcel', 0.24, 0.16, 0.12, 1.2, {
-        color: '#38bdf8', // Cyan
-        category: 'parcel',
-        boxStyle: 'ecommerce'
-      }));
-    }
+    // Scenario 2: FMCG Retail — EUR-pallet modular footprints (60x40, 40x30, 40x20)
+    fmcg: { prefix: 'fmcg', types: [
+      { key: 'caseA', name: 'Master Case A (60x40)', w: 0.60, h: 0.40, d: 0.40, weight: 18, count: 20,
+        opts: { color: '#0284c7', category: 'carton', boxStyle: 'standard' } },
+      { key: 'caseB', name: 'Master Case B (40x30)', w: 0.40, h: 0.30, d: 0.30, weight: 10, count: 24,
+        opts: { color: '#6366f1', category: 'carton', boxStyle: 'standard' } },
+      { key: 'packC', name: 'Retail Pack C (40x20)', w: 0.40, h: 0.20, d: 0.25, weight: 5, count: 20,
+        opts: { color: '#14b8a6', category: 'carton', boxStyle: 'standard' } }
+    ] },
 
-    // B: Shoebox style parcels (0.35 x 0.22 x 0.15 m, 2.5kg) - 18 units
-    for (let i = 0; i < 18; i++) {
-      items.push(Types.createItem(`ec_${id++}`, 'Shoebox Parcel', 0.35, 0.22, 0.15, 2.5, {
-        color: '#a855f7', // Purple
-        category: 'parcel',
-        boxStyle: 'standard'
-      }));
-    }
+    // Scenario 3: Industrial — heavy crates, steel drums, fragile electronics
+    industrial: { prefix: 'ind', types: [
+      { key: 'generator', name: 'Generator Crate', w: 1.30, h: 1.00, d: 1.10, weight: 900, count: 4,
+        opts: { color: '#b45309', category: 'crate', boxStyle: 'wood_slat', allowedOrientations: 'this_side_up' } },
+      { key: 'skid', name: 'Machine Skid', w: 0.90, h: 0.70, d: 0.80, weight: 450, count: 6,
+        opts: { color: '#92400e', category: 'crate', boxStyle: 'reinforced', allowedOrientations: 'this_side_up' } },
+      { key: 'drum', name: 'Steel Drum 200L', w: 0.60, h: 0.90, d: 0.60, weight: 210, count: 12,
+        // Steel grey and industrial blue, alternating
+        opts: { colors: ['#475569', '#0284c7'], category: 'drum', boxStyle: 'drum', allowedOrientations: 'this_side_up' } },
+      { key: 'spares', name: 'Spares Box', w: 0.75, h: 0.45, d: 0.50, weight: 140, count: 10,
+        opts: { color: '#0f766e', category: 'crate', boxStyle: 'wood_slat' } },
+      { key: 'electronics', name: 'Fragile Electronics', w: 0.45, h: 0.30, d: 0.35, weight: 12, count: 12,
+        opts: { color: '#dc2626', category: 'carton', boxStyle: 'fragile', fragile: true, maxTopWeight: 20 } },
+      { key: 'pump', name: 'Pump Housing', w: 0.50, h: 0.40, d: 0.40, weight: 65, count: 8,
+        opts: { color: '#ea580c', category: 'carton', boxStyle: 'heavy' } }
+    ] },
 
-    // C: Flat Mailers / Book packs (0.38 x 0.08 x 0.28 m, 2.0kg) - 14 units
-    for (let i = 0; i < 14; i++) {
-      items.push(Types.createItem(`ec_${id++}`, 'Flat Book Pack', 0.38, 0.08, 0.28, 2.0, {
-        color: '#10b981', // Emerald
-        category: 'parcel',
-        boxStyle: 'ecommerce'
-      }));
-    }
+    // Scenario 4: Extreme Aspect Ratios — slabs, towers and pipes for 6-way rotation
+    irregular: { prefix: 'irr', types: [
+      { key: 'panel', name: 'Flat Display Panel', w: 0.95, h: 0.12, d: 0.70, weight: 18, count: 14,
+        opts: { color: '#8b5cf6', category: 'carton', boxStyle: 'fragile' } },
+      { key: 'beam', name: 'Long Timber Skid', w: 0.25, h: 0.25, d: 1.60, weight: 42, count: 8,
+        opts: { color: '#d97706', category: 'crate', boxStyle: 'wood_slat' } },
+      { key: 'server', name: 'Server Tower 24U', w: 0.45, h: 0.45, d: 1.10, weight: 55, count: 8,
+        opts: { color: '#0284c7', category: 'carton', boxStyle: 'heavy' } },
+      { key: 'cube', name: 'Hardware Cube', w: 0.35, h: 0.35, d: 0.35, weight: 35, count: 16,
+        opts: { color: '#10b981', category: 'carton', boxStyle: 'standard' } },
+      { key: 'flatCrate', name: 'Flat Equipment Crate', w: 0.80, h: 0.22, d: 0.80, weight: 28, count: 8,
+        opts: { color: '#b45309', category: 'crate', boxStyle: 'wood_slat' } }
+    ] },
 
-    // D: Medium Shipping Boxes (0.45 x 0.35 x 0.30 m, 8kg) - 14 units
-    for (let i = 0; i < 14; i++) {
-      items.push(Types.createItem(`ec_${id++}`, 'Medium Carton', 0.45, 0.35, 0.30, 8, {
-        color: '#c29b62', // Kraft cardboard tan
-        category: 'carton',
-        boxStyle: 'standard'
-      }));
-    }
+    // Scenario 6: EUR-Pallet — sized for a 1.2 x 0.8 x 1.8 m pallet
+    pallet: { prefix: 'pal', types: [
+      { key: 'export', name: 'Export Carton', w: 0.40, h: 0.30, d: 0.25, weight: 12, count: 18,
+        opts: { color: '#0284c7', category: 'carton', boxStyle: 'standard' } },
+      { key: 'half', name: 'Half Carton', w: 0.40, h: 0.20, d: 0.25, weight: 6, count: 14,
+        opts: { color: '#f59e0b', category: 'carton', boxStyle: 'standard' } }
+    ] }
+  };
 
-    // E: Tall Tower Cartons (0.35 x 0.35 x 0.75 m, 12kg) - 8 units
-    for (let i = 0; i < 8; i++) {
-      items.push(Types.createItem(`ec_${id++}`, 'Tower Carton', 0.35, 0.35, 0.75, 12, {
-        color: '#06b6d4', // Cyan-teal
-        category: 'carton',
-        boxStyle: 'standard'
-      }));
-    }
-
-    // F: Large Appliance Cartons (0.60 x 0.50 x 0.45 m, 22kg) - 8 units
-    for (let i = 0; i < 8; i++) {
-      items.push(Types.createItem(`ec_${id++}`, 'Appliance Carton', 0.60, 0.50, 0.45, 22, {
-        color: '#f59e0b', // Amber
-        category: 'carton',
-        boxStyle: 'heavy'
-      }));
-    }
-
-    // G: Long Postal Tubes / Rug Rolls (0.22 x 0.22 x 1.20 m, 6kg) - 6 units
-    for (let i = 0; i < 6; i++) {
-      items.push(Types.createItem(`ec_${id++}`, 'Postal Cylinder', 0.22, 0.22, 1.20, 6, {
-        color: '#ec4899', // Pink
-        category: 'tube',
-        boxStyle: 'standard'
-      }));
-    }
-
-    return items;
-  }
+  /** Most of any one type the editor allows; keeps a solve interactive. */
+  const MAX_PER_TYPE = 120;
 
   /**
-   * Scenario 2: FMCG Retail Distribution (Modular Interlocking Cartons)
-   * Standard EUR-pallet modular footprint units (60x40, 40x30, 40x20 cm).
+   * @param {string} scenarioId Key of MANIFEST_TYPES
+   * @param {Object<string, number>} [counts] Per-type counts; missing keys use the default
    */
-  function getFmcgManifest() {
+  function buildManifest(scenarioId, counts = {}) {
+    const def = MANIFEST_TYPES[scenarioId];
     const items = [];
     let id = 1;
-
-    // Master Case A: 0.60 x 0.40 x 0.40 m, 18kg (EUR-pallet modular footprint) - 20 units
-    for (let i = 0; i < 20; i++) {
-      items.push(Types.createItem(`fmcg_${id++}`, 'Master Case A (60x40)', 0.60, 0.40, 0.40, 18, {
-        color: '#0284c7', // Sky Blue
-        category: 'carton',
-        boxStyle: 'standard'
-      }));
-    }
-
-    // Master Case B: 0.40 x 0.30 x 0.30 m, 10kg - 24 units
-    for (let i = 0; i < 24; i++) {
-      items.push(Types.createItem(`fmcg_${id++}`, 'Master Case B (40x30)', 0.40, 0.30, 0.30, 10, {
-        color: '#6366f1', // Indigo
-        category: 'carton',
-        boxStyle: 'standard'
-      }));
-    }
-
-    // Retail Pack C: 0.40 x 0.20 x 0.25 m, 5kg - 20 units
-    for (let i = 0; i < 20; i++) {
-      items.push(Types.createItem(`fmcg_${id++}`, 'Retail Pack C (40x20)', 0.40, 0.20, 0.25, 5, {
-        color: '#14b8a6', // Teal
-        category: 'carton',
-        boxStyle: 'standard'
-      }));
-    }
-
+    def.types.forEach(t => {
+      const n = Math.max(0, Math.min(MAX_PER_TYPE, Math.round(counts[t.key] !== undefined ? counts[t.key] : t.count)));
+      for (let i = 0; i < n; i++) {
+        const opts = Object.assign({}, t.opts);
+        if (opts.colors) {
+          opts.color = opts.colors[i % opts.colors.length];
+          delete opts.colors;
+        }
+        items.push(Types.createItem(`${def.prefix}_${id++}`, t.name, t.w, t.h, t.d, t.weight, opts));
+      }
+    });
     return items;
   }
 
-  /**
-   * Scenario 3: Industrial Machinery & Hazardous Freight
-   * Heavy wooden crates, steel chemical drums, and fragile electronic equipment.
-   */
-  function getIndustrialManifest() {
-    const items = [];
-    let id = 1;
-
-    // Heavy Generator Crates: 1.30 x 1.00 x 1.10 m, 900kg - 4 units
-    for (let i = 0; i < 4; i++) {
-      items.push(Types.createItem(`ind_${id++}`, 'Generator Crate', 1.30, 1.00, 1.10, 900, {
-        color: '#b45309', // Wood Amber
-        category: 'crate',
-        boxStyle: 'wood_slat',
-        allowedOrientations: 'this_side_up'
-      }));
-    }
-
-    // Medium Machine Skids: 0.90 x 0.70 x 0.80 m, 450kg - 6 units
-    for (let i = 0; i < 6; i++) {
-      items.push(Types.createItem(`ind_${id++}`, 'Machine Skid', 0.90, 0.70, 0.80, 450, {
-        color: '#92400e', // Dark wood
-        category: 'crate',
-        boxStyle: 'reinforced',
-        allowedOrientations: 'this_side_up'
-      }));
-    }
-
-    // Steel Chemical Drums: 0.60 x 0.90 x 0.60 m, 210kg - 12 units
-    for (let i = 0; i < 12; i++) {
-      items.push(Types.createItem(`ind_${id++}`, 'Steel Drum 200L', 0.60, 0.90, 0.60, 210, {
-        color: i % 2 === 0 ? '#475569' : '#0284c7', // Steel Grey / Industrial Blue
-        category: 'drum',
-        boxStyle: 'drum',
-        allowedOrientations: 'this_side_up'
-      }));
-    }
-
-    // Tooling & Spares Crates: 0.75 x 0.45 x 0.50 m, 140kg - 10 units
-    for (let i = 0; i < 10; i++) {
-      items.push(Types.createItem(`ind_${id++}`, 'Spares Box', 0.75, 0.45, 0.50, 140, {
-        color: '#0f766e', // Dark cyan
-        category: 'crate',
-        boxStyle: 'wood_slat'
-      }));
-    }
-
-    // Fragile Electronic Instrument Packs: 0.45 x 0.30 x 0.35 m, 12kg - 12 units
-    for (let i = 0; i < 12; i++) {
-      items.push(Types.createItem(`ind_${id++}`, 'Fragile Electronics', 0.45, 0.30, 0.35, 12, {
-        color: '#dc2626', // Safety Red
-        category: 'carton',
-        boxStyle: 'fragile',
-        fragile: true,
-        maxTopWeight: 20
-      }));
-    }
-
-    // Valve & Pump Units: 0.50 x 0.40 x 0.40 m, 65kg - 8 units
-    for (let i = 0; i < 8; i++) {
-      items.push(Types.createItem(`ind_${id++}`, 'Pump Housing', 0.50, 0.40, 0.40, 65, {
-        color: '#ea580c', // Tangerine
-        category: 'carton',
-        boxStyle: 'heavy'
-      }));
-    }
-
-    return items;
-  }
-
-  /**
-   * Scenario 4: Extreme Aspect Ratios (Slabs, Towers & Pipes)
-   * Tests 6-way 3D rotational flexibility against flat, long, and tall items.
-   */
-  function getIrregularManifest() {
-    const items = [];
-    let id = 1;
-
-    // A: Flat Screen / Solar Panel Slabs (0.95 x 0.12 x 0.70 m, 18kg) - 14 units
-    for (let i = 0; i < 14; i++) {
-      items.push(Types.createItem(`irr_${id++}`, 'Flat Display Panel', 0.95, 0.12, 0.70, 18, {
-        color: '#8b5cf6', // Violet
-        category: 'carton',
-        boxStyle: 'fragile'
-      }));
-    }
-
-    // B: Long Structural Beams / Skids (0.25 x 0.25 x 1.60 m, 42kg) - 8 units
-    for (let i = 0; i < 8; i++) {
-      items.push(Types.createItem(`irr_${id++}`, 'Long Timber Skid', 0.25, 0.25, 1.60, 42, {
-        color: '#d97706', // Ochre
-        category: 'crate',
-        boxStyle: 'wood_slat'
-      }));
-    }
-
-    // C: Server Rack / Telemetry Towers (0.45 x 0.45 x 1.10 m, 55kg) - 8 units
-    for (let i = 0; i < 8; i++) {
-      items.push(Types.createItem(`irr_${id++}`, 'Server Tower 24U', 0.45, 0.45, 1.10, 55, {
-        color: '#0284c7', // Sky blue
-        category: 'carton',
-        boxStyle: 'heavy'
-      }));
-    }
-
-    // D: Dense Heavy Cubes (0.35 x 0.35 x 0.35 m, 35kg) - 16 units
-    for (let i = 0; i < 16; i++) {
-      items.push(Types.createItem(`irr_${id++}`, 'Hardware Cube', 0.35, 0.35, 0.35, 35, {
-        color: '#10b981', // Emerald
-        category: 'carton',
-        boxStyle: 'standard'
-      }));
-    }
-
-    // E: Wide Flat Crates (0.80 x 0.22 x 0.80 m, 28kg) - 8 units
-    for (let i = 0; i < 8; i++) {
-      items.push(Types.createItem(`irr_${id++}`, 'Flat Equipment Crate', 0.80, 0.22, 0.80, 28, {
-        color: '#b45309', // Wood
-        category: 'crate',
-        boxStyle: 'wood_slat'
-      }));
-    }
-
-    return items;
-  }
+  const getEcommerceManifest = counts => buildManifest('ecommerce', counts);
+  const getFmcgManifest = counts => buildManifest('fmcg', counts);
+  const getIndustrialManifest = counts => buildManifest('industrial', counts);
+  const getIrregularManifest = counts => buildManifest('irregular', counts);
+  const getPalletManifest = counts => buildManifest('pallet', counts);
 
   /**
    * Scenario 5: Procedural Chaos / Randomized Seeded Manifest
@@ -377,50 +246,17 @@
   let currentRandomSeed = 1337;
 
   /**
-   * Scenario 6: Pallet Stacking Benchmark
-   * Sized specifically for standard EUR-Pallet (1.2m x 0.8m x 1.8m).
-   */
-  function getPalletManifest() {
-    const items = [];
-    let id = 1;
-
-    // Standard Carton 0.40 x 0.30 x 0.25 m - 18 units
-    for (let i = 0; i < 18; i++) {
-      items.push(Types.createItem(`pal_${id++}`, 'Export Carton', 0.40, 0.30, 0.25, 12, {
-        color: '#0284c7',
-        category: 'carton',
-        boxStyle: 'standard'
-      }));
-    }
-
-    // Half Carton 0.40 x 0.20 x 0.25 m - 14 units
-    for (let i = 0; i < 14; i++) {
-      items.push(Types.createItem(`pal_${id++}`, 'Half Carton', 0.40, 0.20, 0.25, 6, {
-        color: '#f59e0b',
-        category: 'carton',
-        boxStyle: 'standard'
-      }));
-    }
-
-    return items;
-  }
-
-  /**
-   * Evaluates all 3 algorithms head-to-head on the given items and container.
+   * Evaluates every registered algorithm head-to-head on the given items and container.
    * Generates side-by-side volume metrics, winner ranking, and analytical insights.
    */
   function compareAlgorithms(items, container, options = {}) {
-    const CP = (typeof module !== 'undefined' && module.exports) ? require('./extremePoints') : window.CargoPacker;
-    const WB = (typeof module !== 'undefined' && module.exports) ? require('./wallBuilding') : window.CargoPacker;
-    const FF = (typeof module !== 'undefined' && module.exports) ? require('./firstFit') : window.CargoPacker;
-
+    const Registry = (typeof module !== 'undefined' && module.exports) ? require('./algorithms') : window.CargoPacker;
     const opt = Object.assign({ minSupportRatio: 0.60 }, options);
 
-    const epResult = CP.packExtremePoints(items, container, opt);
-    const wbResult = WB.packWallBuilding(items, container, opt);
-    const ffResult = FF.packFirstFit(items, container, opt);
-
     const total = items.length;
+    // A pallet grows upwards; a container fills from the back bulkhead to the
+    // doors. Either way, what is left over for more cargo is what matters.
+    const isPallet = container.length < 2;
     const summarize = (id, name, shortName, result) => {
       // The block of container the cargo actually occupies. When every
       // algorithm loads the whole manifest, fill % ties and this is what
@@ -432,6 +268,7 @@
         envL = Math.max(envL, p.z + p.d);
       });
       const envVolume = envW * envH * envL;
+      const extent = isPallet ? envH : envL;
       return {
         id: id,
         name: name,
@@ -445,24 +282,33 @@
         cogStatus: result.metrics.cog.status,
         envelope: { width: +envW.toFixed(2), height: +envH.toFixed(2), length: +envL.toFixed(2) },
         density: envVolume > 0 ? +((result.metrics.cargoVolume / envVolume) * 100).toFixed(1) : 0,
+        // Length of floor used (container) or stack height (pallet)
+        extent: +extent.toFixed(2),
+        extentLabel: isPallet ? `${extent.toFixed(2)} m tall` : `${extent.toFixed(2)} m used`,
         result: result
       };
     };
 
-    const results = {
-      extremePoints: summarize('extremePoints', 'Extreme Points (EP)', 'Extreme Points', epResult),
-      wallBuilding: summarize('wallBuilding', 'Wall-Building (Back-to-Front)', 'Wall-Building', wbResult),
-      firstFit: summarize('firstFit', 'First-Fit Decreasing (Shelf)', 'First-Fit', ffResult)
-    };
+    const results = {};
+    Registry.ALGORITHMS.forEach(algo => {
+      results[algo.id] = Object.assign(
+        summarize(algo.id, algo.name, algo.shortName, algo.run(items, container, opt)),
+        { quality: algo.quality }
+      );
+    });
 
-    // More cargo loaded wins; when that ties, the denser block wins.
-    const ranking = ['extremePoints', 'wallBuilding', 'firstFit'];
+    // More cargo loaded wins; when that ties, the load that leaves the most
+    // room (least floor used, or the lowest stack) wins, then the denser one.
+    const ranking = Registry.ALGORITHMS.map(a => a.id);
     ranking.sort((a, b) => {
       if (Math.abs(results[b].volumeUtilization - results[a].volumeUtilization) > 0.1) {
         return results[b].volumeUtilization - results[a].volumeUtilization;
       }
       if (results[b].placedCount !== results[a].placedCount) {
         return results[b].placedCount - results[a].placedCount;
+      }
+      if (Math.abs(results[a].extent - results[b].extent) > 0.005) {
+        return results[a].extent - results[b].extent;
       }
       return results[b].density - results[a].density;
     });
@@ -472,8 +318,6 @@
     const volumeGap = winner.volumeUtilization - runnerUp.volumeUtilization;
     const tiedOnVolume = volumeGap <= 0.1 && winner.placedCount === runnerUp.placedCount;
 
-    // A pallet grows upwards; a container fills from the back bulkhead to the doors.
-    const isPallet = container.length < 2;
     const extentOf = r => isPallet ? `stands ${r.envelope.height.toFixed(2)} m tall` : `uses ${r.envelope.length.toFixed(2)} m of floor`;
     const possessive = name => name.endsWith('s') ? `${name}'` : `${name}'s`;
 
@@ -481,22 +325,21 @@
     let lead;
     if (tiedOnVolume) {
       const allLoaded = ranking.every(id => results[id].unplacedCount === 0);
-      lead = `${(winner.density - runnerUp.density).toFixed(0)} pts denser`;
-      insight = `${allLoaded ? 'Every algorithm loads the full manifest' : 'Fill is tied'}, so compactness decides: ` +
-        `${possessive(winner.shortName)} load is ${winner.density}% solid cargo and ${extentOf(winner)}; ` +
-        `${possessive(runnerUp.shortName)} is ${runnerUp.density}% and ${extentOf(runnerUp)}.`;
+      lead = isPallet ? 'lowest stack' : 'least floor used';
+      const room = isPallet ? 'the lowest stack' : 'the most room for more';
+      insight = `${allLoaded ? 'Every algorithm loads the full manifest' : 'Fill is tied'}, so ${room} wins: ` +
+        `${possessive(winner.shortName)} load ${extentOf(winner)} (${winner.density}% solid cargo); ` +
+        `${possessive(runnerUp.shortName)} ${extentOf(runnerUp)} (${runnerUp.density}%).`;
     } else {
       lead = `+${volumeGap.toFixed(1)}% fill`;
       const left = runnerUp.totalCount - runnerUp.placedCount;
       insight = `${winner.shortName} loads ${winner.placedCount}/${total} items (+${volumeGap.toFixed(1)}% volume); ` +
         `${runnerUp.shortName} leaves ${left} item${left === 1 ? '' : 's'} on the dock.`;
     }
-    if (winner.id === 'extremePoints') {
-      insight += ' Its corner points let small boxes fill the recesses that layered methods leave open.';
-    } else if (winner.id === 'wallBuilding') {
-      insight += ' Building wall after wall from the back keeps each slice tight and stable.';
-    } else {
-      insight += ' Uniform heights stack into level shelves with little headspace lost.';
+    insight += ' ' + Registry.getAlgorithm(winner.id).winNote;
+    const worst = results[ranking[ranking.length - 1]];
+    if (worst.unplacedCount > 0) {
+      insight += ` Bottom of the table: ${worst.shortName}, with ${worst.unplacedCount} left on the dock.`;
     }
 
     return {
@@ -508,50 +351,45 @@
     };
   }
 
+  /** Most items the random scenario will generate. */
+  const MAX_RANDOM = 200;
+
+  /*
+   * Each preset's getItems takes an optional cargo override from the editor:
+   * { counts: { typeKey: n } } for the fixed scenarios, { count: n } for the
+   * random one. blurb(n) describes the load for n items.
+   */
+  const fixed = (id, name, containerId, blurb) => ({
+    id: id,
+    name: name,
+    containerId: containerId,
+    types: MANIFEST_TYPES[id].types,
+    blurb: blurb,
+    getItems: cargo => buildManifest(id, cargo && cargo.counts)
+  });
+
   const PRESETS = {
-    ecommerce: {
-      id: 'ecommerce',
-      name: 'E-Commerce Mixed Parcels',
-      description: '84 heterogeneous parcels across 7 size categories testing 3D void-filling.',
-      containerId: 'iso20',
-      getItems: getEcommerceManifest
-    },
-    fmcg: {
-      id: 'fmcg',
-      name: 'FMCG Retail Cartons',
-      description: '64 modular interlocking grocery cartons with high volume fill potential.',
-      containerId: 'iso20',
-      getItems: getFmcgManifest
-    },
-    industrial: {
-      id: 'industrial',
-      name: 'Industrial Machinery & Drums',
-      description: 'Heavy crates & chemical drums testing Center of Gravity & weight limits.',
-      containerId: 'iso20',
-      getItems: getIndustrialManifest
-    },
-    irregular: {
-      id: 'irregular',
-      name: 'Extreme Aspect Ratios',
-      description: 'Flat panels, tall towers, and long skids testing 6-way 3D rotational flexibility.',
-      containerId: 'iso20',
-      getItems: getIrregularManifest
-    },
+    ecommerce: fixed('ecommerce', 'E-Commerce Mixed Parcels', 'iso20',
+      n => `${n} heterogeneous parcels across 7 size categories`),
+    fmcg: fixed('fmcg', 'FMCG Retail Cartons', 'iso20',
+      n => `${n} modular interlocking distribution cartons`),
+    industrial: fixed('industrial', 'Industrial Machinery & Drums', 'iso20',
+      n => `${n} heavy crates & chemical drums testing balance`),
+    irregular: fixed('irregular', 'Extreme Aspect Ratios', 'iso20',
+      n => `${n} flat panels, tall towers & long skids (6-way rotation)`),
     random: {
       id: 'random',
       name: 'Procedural Chaos (Random Sizes)',
-      description: '70 randomized cartons, crates, and drums with random dimensions & weights.',
       containerId: 'iso20',
       isRandom: true,
-      getItems: () => generateRandomManifest(currentRandomSeed, 70)
+      defaultCount: 70,
+      maxCount: MAX_RANDOM,
+      blurb: n => `${n} randomized cartons, crates & drums`,
+      getItems: cargo => generateRandomManifest(currentRandomSeed,
+        Math.max(1, Math.min(MAX_RANDOM, Math.round(cargo && cargo.count !== undefined ? cargo.count : 70))))
     },
-    pallet: {
-      id: 'pallet',
-      name: 'EUR-Pallet Stacking',
-      description: '32 cartons on standard 1.2m × 0.8m wooden base with zero overhang.',
-      containerId: 'pallet',
-      getItems: getPalletManifest
-    }
+    pallet: fixed('pallet', 'EUR-Pallet Stacking', 'pallet',
+      n => `${n} cartons on standard 1.2m × 0.8m wooden base`)
   };
 
   exports.PRESETS = PRESETS;
@@ -563,6 +401,8 @@
   exports.getIrregularManifest = getIrregularManifest;
   exports.getPalletManifest = getPalletManifest;
   exports.compareAlgorithms = compareAlgorithms;
+  exports.buildManifest = buildManifest;
+  exports.MAX_PER_TYPE = MAX_PER_TYPE;
   exports.getRandomSeed = () => currentRandomSeed;
   exports.setRandomSeed = (seed) => { currentRandomSeed = seed; };
 

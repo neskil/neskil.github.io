@@ -70,6 +70,8 @@
   <script src="core/extremePoints.js"></script>
   <script src="core/wallBuilding.js"></script>
   <script src="core/firstFit.js"></script>
+  <script src="core/moreHeuristics.js"></script>
+  <script src="core/algorithms.js"></script>
   <script src="core/manifests.js"></script>
 
   <script>
@@ -327,11 +329,11 @@
 
       // ── Test 17: Algorithm Comparison Head-to-Head ───────────
       const comparison = CP.compareAlgorithms(CP.getEcommerceManifest(), cont, { minSupportRatio: 0.60 });
-      assert('compareAlgorithms evaluates all 3 algorithms',
-        comparison.results.extremePoints && comparison.results.wallBuilding && comparison.results.firstFit);
+      assert('compareAlgorithms evaluates every registered algorithm',
+        CP.ALGORITHMS.length >= 7 && CP.ALGORITHMS.every(a => comparison.results[a.id]));
       assert('compareAlgorithms produces sorted ranking',
-        comparison.ranking.length === 3 &&
-        comparison.ranking[0].volumeUtilization >= comparison.ranking[1].volumeUtilization);
+        comparison.ranking.length === CP.ALGORITHMS.length &&
+        comparison.ranking.every((r, i) => i === 0 || comparison.ranking[i - 1].volumeUtilization >= r.volumeUtilization - 0.1));
       assert('compareAlgorithms identifies winning algorithm',
         comparison.winner && comparison.winner.volumeUtilization > 0);
       assert('compareAlgorithms generates analytical insight rationale',
@@ -350,7 +352,8 @@
         ]) === 0.6);
 
       const floatScenarios = ['ecommerce', 'fmcg', 'industrial', 'irregular', 'pallet'];
-      const floatPackers = { 'Extreme Points': CP.packExtremePoints, 'Wall-Building': CP.packWallBuilding, 'First-Fit': CP.packFirstFit };
+      const floatPackers = {};
+      CP.ALGORITHMS.forEach(a => { floatPackers[a.shortName] = a.run; });
       const floatSets = floatScenarios.map(id => [id, CP.PRESETS[id].getItems(), CP.CONTAINERS[CP.PRESETS[id].containerId]]);
       for (let s = 1; s <= 12; s++) floatSets.push([`random #${s}`, CP.generateRandomManifest(s, 70), CP.CONTAINERS.iso20]);
       for (const name of Object.keys(floatPackers)) {
@@ -365,6 +368,39 @@
         assert(`${name}: no box floats — every box ≥60% supported by the floor or earlier boxes`,
           bad.length === 0, bad.slice(0, 3).join('; '));
       }
+
+      // ── Test 19: Every registered algorithm plays by the rules ─
+      const ind = CP.getIndustrialManifest();
+      const indRuns = {};
+      CP.ALGORITHMS.forEach(a => {
+        const r = a.run(ind, cont, { minSupportRatio: 0.60 });
+        const again = a.run(ind, cont, { minSupportRatio: 0.60 });
+        indRuns[a.id] = r;
+        const sig = res => res.placed.map(p => `${p.id}@${p.x},${p.y},${p.z}/${p.w}x${p.h}x${p.d}`).join('|');
+        let overlaps = 0;
+        r.placed.forEach((p, i) => { for (let j = i + 1; j < r.placed.length; j++) if (CP.intersectAABB(p, r.placed[j])) overlaps++; });
+        assert(`${a.shortName}: no overlaps, all inside, every item accounted for, same result twice`,
+          overlaps === 0 &&
+          r.placed.every(b => CP.insideContainer(b, cont)) &&
+          r.placed.length + r.unplaced.length === ind.length &&
+          r.steps.length === r.placed.length &&
+          sig(r) === sig(again),
+          `${overlaps} overlaps, ${r.placed.length}+${r.unplaced.length}/${ind.length}`);
+      });
+
+      assert('Floor Only never stacks and never turns a box',
+        indRuns.floorOnly.placed.every(b => b.y === 0 && b.rotIndex === 0));
+      const order = ind.map(i => i.id);
+      const nfIds = indRuns.nextFit.placed.map(b => b.id);
+      assert('Next-Fit loads in arrival order (no sorting)',
+        nfIds.every((id, k) => k === 0 || order.indexOf(nfIds[k - 1]) < order.indexOf(id)));
+      assert('Random Drop is seeded: a different seed gives a different load',
+        JSON.stringify(CP.packRandomDrop(ind, cont, { seed: 1 }).placed.map(b => b.x)) !==
+        JSON.stringify(CP.packRandomDrop(ind, cont, { seed: 2 }).placed.map(b => b.x)));
+      const fillOf = id => indRuns[id].metrics.volumeUtilization;
+      assert('The bad algorithms really are worse: Floor Only and Random Drop load less than Extreme Points',
+        fillOf('floorOnly') < fillOf('extremePoints') && fillOf('randomDrop') < fillOf('extremePoints'),
+        `EP ${fillOf('extremePoints')}%, floor ${fillOf('floorOnly')}%, random ${fillOf('randomDrop')}%`);
 
       // ── Summary & Verdict ─────────────────────────────────────
       const summaryText = `${passed} passed, ${failed} failed`;

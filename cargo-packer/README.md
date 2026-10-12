@@ -36,13 +36,16 @@ cargo-packer/
 │   ├── extremePoints.js  # Extreme Point (EP) packing heuristic with projection
 │   ├── wallBuilding.js   # Wall-building (layer by layer, back-to-front) heuristic
 │   ├── firstFit.js       # First-Fit Decreasing (FFD) shelf/slab baseline
-│   └── manifests.js      # Benchmark scenarios (E-Commerce, FMCG, Industrial, Pallet)
+│   ├── moreHeuristics.js # Deepest-Bottom-Left, Next-Fit, Floor Only, Random Drop
+│   ├── algorithms.js     # The one registry of algorithms the UI, showdown and tests read
+│   └── manifests.js      # Scenario type tables, buildManifest, compareAlgorithms
 │
 ├── render/               # Three.js 3D WebGL rendering
 │   ├── textures.js       # Procedural canvas textures (carton tape, wood crates, corrugated steel)
 │   ├── scene.js          # Camera rigs, lighting, floor grid, OrbitControls
 │   ├── container.js      # 3D models for ISO container & EUR-pallet (cutaway glass / wireframe)
 │   ├── boxes.js          # Procedural box meshes with drop-in easing animation
+│   ├── yard.js           # Scenery: concrete apron, bay markings, forklift, pallets, cones, container stacks
 │   └── visualizers.js    # Glowing Extreme Point anchors, 3D CoG target & plumbline
 │
 ├── game/                 # State management & audio
@@ -78,6 +81,40 @@ cargo-packer/
    * Greedy 2D/3D generalization sorting boxes by height and creating horizontal tiers.
    * Highlights the classic trade-off of trapped headspace void above uneven boxes.
 
+4. **Deepest-Bottom-Left** (Karabulut & İnceoğlu, 2004): each box goes to the
+   deepest, then lowest, then left-most admissible corner. No scoring, no
+   projection; often the densest of the lot.
+
+And three that are there to lose:
+
+5. **Next-Fit (Unsorted)**: arrival order, never revisits a row or layer.
+   Shows what sorting buys.
+6. **Floor Only**: one layer, no stacking, no turning boxes.
+7. **Random Drop**: shuffled, random spots, lowered until it lands. Seeded,
+   so a run is repeatable.
+
+All seven obey the same physical rules (inside, no overlap, ≥60% supported)
+and are registered in `core/algorithms.js`; adding one is an entry there plus
+its file, and the sidebar, compare pickers, showdown and tests pick it up.
+
+### Showdown ranking
+
+Most volume loaded wins, then most boxes; when everything fits, the load that
+leaves the most room wins — least floor length used in a container, lowest
+stack on a pallet — then the denser block.
+
+### Cargo editor
+
+Each fixed scenario is a type table in `core/manifests.js` (name, size,
+weight, default count); `buildManifest` turns a table plus counts into items,
+and the defaults reproduce the original manifests exactly. The editor in the
+left panel sets counts per type (or the item count for the random scenario),
+with ×½, ×2 and Reset. Limits — 120 per type, 250 items per load, 200 random —
+keep a full seven-algorithm solve around a second, Extreme Points being the
+slowest. Its anchor-point bookkeeping uses a floor-plan bucket grid and skips
+spots whose best possible score cannot win; both are exact (same placements
+as before, checked on 207 loads) and about 3× faster.
+
 ### Physical stacking rule
 
 Every algorithm places a box only where it rests on the floor or on boxes
@@ -98,6 +135,21 @@ two: one camera drawn twice with scissor viewports, a separate cargo group per
 side, both stepped in lockstep. The panes sit between the side panels on
 desktop and stack top/bottom on portrait screens. `?compare=<algoId>` opens it
 directly.
+
+### Scenery & fullscreen
+
+The container stands in a loading yard (`render/yard.js`): concrete with a
+painted bay and hatched door apron, open doors carrying the owner code, ISO
+type and weights panel, line livery on the solid walls, and props around it.
+Props are kept out of the sightlines the camera presets look through (the glass
+side, the open doors) — the forklift crosses *behind* the bulkhead for that
+reason. Everything is procedural (canvas textures, Three.js primitives); there
+are no image assets. The yard is rebuilt only when the footprint changes, not
+when the wall mode does.
+
+The fullscreen button uses the Fullscreen API and hides the side panels; it is
+hidden where the API is missing (iPhone Safari). The app is sized in `dvh` with
+safe-area insets so the playback dock stays above mobile browser toolbars.
 
 ---
 

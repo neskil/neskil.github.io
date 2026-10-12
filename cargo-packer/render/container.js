@@ -29,17 +29,23 @@
       } else {
         this.buildIsoContainer(containerSpec);
       }
+
+      // The yard around it only changes with the footprint, not the wall mode
+      if (this.yard && this.yard.specId !== containerSpec.id) this.yard.build(containerSpec);
     }
 
     clear() {
       while (this.group.children.length > 0) {
-        const obj = this.group.children[0];
-        if (obj.geometry) obj.geometry.dispose();
-        if (obj.material) {
-          if (Array.isArray(obj.material)) obj.material.forEach(m => m.dispose());
-          else obj.material.dispose();
-        }
-        this.group.remove(obj);
+        const root = this.group.children[0];
+        // Walk the whole subtree: the doors are groups of meshes
+        root.traverse(obj => {
+          if (obj.geometry) obj.geometry.dispose();
+          if (obj.material) {
+            if (Array.isArray(obj.material)) obj.material.forEach(m => m.dispose());
+            else obj.material.dispose();
+          }
+        });
+        this.group.remove(root);
       }
     }
 
@@ -222,6 +228,94 @@
         this.group.add(roofSolid);
       }
       // 'wireframe' leaves left and top open with only the steel beams visible
+
+      this.addDoors(W, H, L);
+      this.addLivery(W, H, L);
+    }
+
+    /**
+     * The two cargo doors, swung open past square so the opening stays clear.
+     * The left leaf faces the default camera with the container's paperwork
+     * (owner code, ISO type, weights, CSC plate); both carry locking bars.
+     */
+    addDoors(W, H, L) {
+      const Textures = window.CargoPacker;
+      const paint = '#1e3a8a';
+      const leafW = W / 2 - 0.01;
+      const leafGeo = new THREE.BoxGeometry(leafW, H - 0.06, 0.04);
+      const innerMat = new THREE.MeshStandardMaterial({ color: '#1e2f5e', roughness: 0.7, metalness: 0.3 });
+      const edgeMat = new THREE.MeshStandardMaterial({ color: '#0f172a', roughness: 0.5, metalness: 0.6 });
+      const barMat = new THREE.MeshStandardMaterial({ color: '#94a3b8', roughness: 0.35, metalness: 0.85 });
+      const barGeo = new THREE.CylinderGeometry(0.018, 0.018, H - 0.12, 8);
+      const handleGeo = new THREE.BoxGeometry(0.03, 0.22, 0.03);
+      const swing = THREE.MathUtils.degToRad(100);
+
+      [
+        { hingeX: 0, dir: 1, rot: -swing, markings: true },
+        { hingeX: W, dir: -1, rot: swing, markings: false }
+      ].forEach(d => {
+        const outerMat = new THREE.MeshStandardMaterial({
+          map: Textures.createContainerDoorTexture ? Textures.createContainerDoorTexture(paint, d.markings) : null,
+          color: '#ffffff',
+          roughness: 0.6,
+          metalness: 0.3
+        });
+        // Box face order: +x, -x, +y, -y, +z (outside when shut), -z (inside)
+        const leaf = new THREE.Mesh(leafGeo, [edgeMat, edgeMat, edgeMat, edgeMat, outerMat, innerMat]);
+        leaf.position.set(d.dir * leafW / 2, H / 2, 0.02);
+        leaf.castShadow = true;
+
+        const pivot = new THREE.Group();
+        pivot.position.set(d.hingeX, 0, L);
+        pivot.add(leaf);
+
+        [0.28, 0.72].forEach(f => {
+          const bar = new THREE.Mesh(barGeo, barMat);
+          bar.position.set(d.dir * leafW * f, H / 2, 0.065);
+          const handle = new THREE.Mesh(handleGeo, barMat);
+          handle.position.set(d.dir * (leafW * f + 0.06), H * 0.42, 0.075);
+          handle.rotation.z = d.dir * 0.5;
+          pivot.add(bar, handle);
+        });
+
+        pivot.rotation.y = d.rot;
+        this.group.add(pivot);
+      });
+    }
+
+    /** Shipping-line name on the outside of the solid walls. */
+    addLivery(W, H, L) {
+      const Textures = window.CargoPacker;
+      if (!Textures.createLiveryTexture) return;
+      const mat = new THREE.MeshStandardMaterial({
+        map: Textures.createLiveryTexture(),
+        transparent: true,
+        depthWrite: false,
+        roughness: 0.6,
+        metalness: 0.2
+      });
+
+      // Long side (X = W), facing out
+      const sideW = Math.min(L * 0.62, 7);
+      const side = new THREE.Mesh(new THREE.PlaneGeometry(sideW, sideW / 4), mat);
+      side.rotation.y = Math.PI / 2;
+      side.position.set(W + 0.006, H * 0.56, L * 0.5);
+      this.group.add(side);
+
+      // Back bulkhead, facing out
+      const endW = W * 0.86;
+      const end = new THREE.Mesh(new THREE.PlaneGeometry(endW, endW / 4), mat);
+      end.rotation.y = Math.PI;
+      end.position.set(W / 2, H * 0.62, -0.006);
+      this.group.add(end);
+
+      // Solid mode closes the near side too, so it gets the name as well
+      if (this.viewMode === 'solid') {
+        const near = new THREE.Mesh(new THREE.PlaneGeometry(sideW, sideW / 4), mat);
+        near.rotation.y = -Math.PI / 2;
+        near.position.set(-0.006, H * 0.56, L * 0.5);
+        this.group.add(near);
+      }
     }
 
     buildPallet(spec) {

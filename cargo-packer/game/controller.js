@@ -27,6 +27,10 @@
       this.packResult = null;
       this.onStateChange = null; // Callback for UI updates
 
+      // Cargo edits, per scenario: { counts: { typeKey: n } } for the fixed
+      // manifests, { count: n } for the random one. Absent = the defaults.
+      this.cargo = {};
+
       // Side-by-side compare: a second algorithm packed into its own group,
       // stepped in lockstep with the main one.
       this.compareMode = false;
@@ -119,10 +123,55 @@
       this.solve();
     }
 
+    // ── Cargo editor ────────────────────────────────────────────────────
+
+    /** Current count per type (fixed scenarios) or the item count (random). */
+    cargoCounts() {
+      const preset = window.CargoPacker.PRESETS[this.selectedScenario];
+      const edit = this.cargo[this.selectedScenario];
+      if (preset.isRandom) return { count: edit && edit.count !== undefined ? edit.count : preset.defaultCount };
+      const counts = {};
+      preset.types.forEach(t => {
+        counts[t.key] = edit && edit.counts && edit.counts[t.key] !== undefined ? edit.counts[t.key] : t.count;
+      });
+      return { counts: counts };
+    }
+
+    /**
+     * Replaces the cargo for the current scenario and repacks. Counts are
+     * clamped per type and scaled down to fit the overall item limit.
+     */
+    setCargo(cargo) {
+      const CP = window.CargoPacker;
+      const preset = CP.PRESETS[this.selectedScenario];
+      if (preset.isRandom) {
+        this.cargo[this.selectedScenario] = {
+          count: Math.max(1, Math.min(preset.maxCount, Math.round(cargo.count)))
+        };
+      } else {
+        const counts = {};
+        preset.types.forEach(t => {
+          counts[t.key] = Math.max(0, Math.min(CP.MAX_PER_TYPE, Math.round(cargo.counts[t.key] || 0)));
+        });
+        const total = Object.values(counts).reduce((a, b) => a + b, 0);
+        if (total > PackerController.MAX_ITEMS) {
+          const f = PackerController.MAX_ITEMS / total;
+          Object.keys(counts).forEach(k => { counts[k] = Math.floor(counts[k] * f); });
+        }
+        this.cargo[this.selectedScenario] = { counts: counts };
+      }
+      this.solve();
+    }
+
+    resetCargo() {
+      delete this.cargo[this.selectedScenario];
+      this.solve();
+    }
+
     solve() {
       const CP = window.CargoPacker;
       const preset = CP.PRESETS[this.selectedScenario];
-      const items = preset.getItems();
+      const items = preset.getItems(this.cargo[this.selectedScenario]);
       const containerSpec = CP.CONTAINERS[this.selectedContainer];
 
       const startTime = performance.now();
@@ -133,12 +182,9 @@
 
       if (this.comparison && this.comparison.results[this.selectedAlgorithm]) {
         result = this.comparison.results[this.selectedAlgorithm].result;
-      } else if (this.selectedAlgorithm === 'wallBuilding') {
-        result = CP.packWallBuilding(items, containerSpec, { minSupportRatio: this.minSupportRatio });
-      } else if (this.selectedAlgorithm === 'firstFit') {
-        result = CP.packFirstFit(items, containerSpec);
       } else {
-        result = CP.packExtremePoints(items, containerSpec, { minSupportRatio: this.minSupportRatio });
+        const algo = CP.getAlgorithm(this.selectedAlgorithm) || CP.ALGORITHMS[0];
+        result = algo.run(items, containerSpec, { minSupportRatio: this.minSupportRatio });
       }
 
       result.computeTimeMs = Math.round(performance.now() - startTime);
@@ -304,6 +350,8 @@
           selectedScenario: this.selectedScenario,
           selectedAlgorithm: this.selectedAlgorithm,
           selectedContainer: this.selectedContainer,
+          cargo: this.cargoCounts(),
+          itemCount: this.packResult ? this.packResult.placed.length + this.packResult.unplaced.length : 0,
           compareMode: this.compareMode,
           compareAlgorithm: this.compareAlgorithm,
           compareResult: this.compareResult,
@@ -313,6 +361,9 @@
       }
     }
   }
+
+  /** Most items one load may hold: keeps a full seven-algorithm solve near a second. */
+  PackerController.MAX_ITEMS = 250;
 
   exports.PackerController = PackerController;
 

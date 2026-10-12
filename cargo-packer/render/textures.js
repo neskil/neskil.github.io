@@ -334,6 +334,265 @@
     return tex;
   }
 
+  /** Fine speckle so flat paint and concrete do not read as plastic. */
+  function speckle(ctx, w, h, count, alpha) {
+    for (let i = 0; i < count; i++) {
+      const v = Math.random() < 0.5 ? 0 : 255;
+      ctx.fillStyle = `rgba(${v}, ${v}, ${v}, ${Math.random() * alpha})`;
+      ctx.fillRect(Math.random() * w, Math.random() * h, 1 + Math.random() * 2, 1 + Math.random() * 2);
+    }
+  }
+
+  /**
+   * Yard concrete: a 4 m slab per tile with expansion joints along two edges,
+   * so a repeating plane reads as poured bays rather than a pattern.
+   */
+  function createConcreteTexture() {
+    const key = 'concrete';
+    if (textureCache.has(key)) return textureCache.get(key);
+
+    const size = 512;
+    const canvas = document.createElement('canvas');
+    canvas.width = size;
+    canvas.height = size;
+    const ctx = canvas.getContext('2d');
+
+    ctx.fillStyle = '#2b313b';
+    ctx.fillRect(0, 0, size, size);
+
+    // Broad blotches of wear, then grit
+    for (let i = 0; i < 40; i++) {
+      const x = Math.random() * size, y = Math.random() * size, r = 30 + Math.random() * 90;
+      const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+      const tone = Math.random() < 0.5 ? '255, 255, 255' : '0, 0, 0';
+      g.addColorStop(0, `rgba(${tone}, ${0.025 + Math.random() * 0.03})`);
+      g.addColorStop(1, `rgba(${tone}, 0)`);
+      ctx.fillStyle = g;
+      ctx.fillRect(x - r, y - r, r * 2, r * 2);
+    }
+    speckle(ctx, size, size, 9000, 0.12);
+
+    // Expansion joints
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.45)';
+    ctx.fillRect(0, 0, size, 3);
+    ctx.fillRect(0, 0, 3, size);
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
+    ctx.fillRect(0, 3, size, 1);
+    ctx.fillRect(3, 0, 1, size);
+
+    // A few oil stains
+    for (let i = 0; i < 3; i++) {
+      const x = Math.random() * size, y = Math.random() * size, r = 18 + Math.random() * 30;
+      const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+      g.addColorStop(0, 'rgba(8, 10, 14, 0.35)');
+      g.addColorStop(1, 'rgba(8, 10, 14, 0)');
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.ellipse(x, y, r, r * 0.7, Math.random() * Math.PI, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.wrapS = THREE.RepeatWrapping;
+    tex.wrapT = THREE.RepeatWrapping;
+    tex.anisotropy = 4;
+    textureCache.set(key, tex);
+    return tex;
+  }
+
+  /**
+   * Painted bay markings for a footprint of w × l metres: a yellow box around
+   * the container, a hatched no-park zone where the doors swing, and the bay
+   * number stencilled in front. Transparent everywhere else.
+   * @param {number} w Container width (X)
+   * @param {number} l Container length (Z)
+   * @param {number} margin Metres of painted apron around the footprint
+   * @param {number} apron Metres of hatched zone in front of the doors
+   * @returns {{texture: THREE.Texture, width: number, length: number}}
+   */
+  function createBayMarkingsTexture(w, l, margin, apron) {
+    const key = `bay_${w}_${l}`;
+    const fullW = w + margin * 2;
+    const fullL = l + margin * 2 + apron;
+    if (textureCache.has(key)) return { texture: textureCache.get(key), width: fullW, length: fullL };
+
+    const ppm = 64; // pixels per metre
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.round(fullW * ppm);
+    canvas.height = Math.round(fullL * ppm);
+    const ctx = canvas.getContext('2d');
+    const m = v => v * ppm;
+    const yellow = 'rgba(250, 204, 21, 0.85)';
+
+    // Canvas y runs with world +Z (back bulkhead at the top, doors below)
+    ctx.strokeStyle = yellow;
+    ctx.lineWidth = m(0.1);
+    ctx.strokeRect(m(margin * 0.5), m(margin * 0.5), m(w + margin), m(l + margin));
+
+    // Hatched apron in front of the doors
+    const ax = m(margin * 0.5), ay = m(l + margin * 1.5), aw = m(w + margin), ah = m(apron - margin * 0.5);
+    ctx.strokeRect(ax, ay, aw, ah);
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(ax, ay, aw, ah);
+    ctx.clip();
+    ctx.lineWidth = m(0.08);
+    for (let x = -ah; x < aw + ah; x += m(0.45)) {
+      ctx.beginPath();
+      ctx.moveTo(ax + x, ay);
+      ctx.lineTo(ax + x + ah, ay + ah);
+      ctx.stroke();
+    }
+    ctx.restore();
+
+    // Stencilled bay number, reading from the doors
+    ctx.fillStyle = 'rgba(248, 250, 252, 0.7)';
+    ctx.font = `800 ${m(0.42)}px Outfit, Inter, sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('BAY 07', m(fullW / 2), m(l + margin * 1.5 + apron * 0.62));
+
+    // Scuff the paint
+    ctx.globalCompositeOperation = 'destination-out';
+    speckle(ctx, canvas.width, canvas.height, Math.round(canvas.width * canvas.height / 60), 0.6);
+    ctx.globalCompositeOperation = 'source-over';
+
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.anisotropy = 4;
+    textureCache.set(key, tex);
+    return { texture: tex, width: fullW, length: fullL };
+  }
+
+  /**
+   * Outer face of a container door: corrugation, owner code and check digit,
+   * ISO size/type code, the weights panel and a CSC safety plate.
+   * @param {string} colorHex Paint colour
+   * @param {boolean} withMarkings The left door carries the paperwork; the right one only the code.
+   */
+  function createContainerDoorTexture(colorHex, withMarkings) {
+    const key = `door_${colorHex}_${withMarkings}`;
+    if (textureCache.has(key)) return textureCache.get(key);
+
+    const w = 256, h = 512;
+    const canvas = document.createElement('canvas');
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext('2d');
+
+    ctx.fillStyle = colorHex;
+    ctx.fillRect(0, 0, w, h);
+    // Horizontal pressings on a door panel
+    for (let y = 40; y < h - 30; y += 52) {
+      const g = ctx.createLinearGradient(0, y, 0, y + 26);
+      g.addColorStop(0, 'rgba(255, 255, 255, 0.10)');
+      g.addColorStop(1, 'rgba(0, 0, 0, 0.22)');
+      ctx.fillStyle = g;
+      ctx.fillRect(10, y, w - 20, 26);
+    }
+    speckle(ctx, w, h, 2500, 0.08);
+
+    ctx.fillStyle = '#f8fafc';
+    ctx.textBaseline = 'top';
+    ctx.font = '700 22px "JetBrains Mono", monospace';
+    ctx.fillText('NSKU 207413', 18, 22);
+    ctx.strokeStyle = '#f8fafc';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(198, 19, 24, 27);
+    ctx.fillText('5', 203, 22);
+    ctx.font = '700 18px "JetBrains Mono", monospace';
+    ctx.fillText('22G1', 18, 52);
+
+    if (withMarkings) {
+      ctx.font = '600 11px "JetBrains Mono", monospace';
+      const rows = [
+        ['MAX.GROSS', '30,480 KG'], ['', '67,200 LB'],
+        ['TARE', ' 2,200 KG'], ['', ' 4,850 LB'],
+        ['NET', '28,280 KG'], ['', '62,350 LB'],
+        ['CU.CAP.', '33.2 CU.M'], ['', '1,172 CU.FT']
+      ];
+      rows.forEach(([k, v], i) => {
+        ctx.fillText(k, 18, 300 + i * 15);
+        ctx.fillText(v, 110, 300 + i * 15);
+      });
+
+      // CSC safety approval plate
+      ctx.fillStyle = '#cbd5e1';
+      ctx.fillRect(150, 430, 86, 52);
+      ctx.strokeStyle = '#64748b';
+      ctx.strokeRect(150, 430, 86, 52);
+      ctx.fillStyle = '#334155';
+      ctx.font = '700 9px Inter, sans-serif';
+      ctx.fillText('CSC SAFETY', 158, 436);
+      ctx.fillText('APPROVAL', 158, 447);
+      ctx.fillRect(158, 461, 70, 2);
+      ctx.fillRect(158, 468, 52, 2);
+    }
+
+    // Rust weeping from the top seam
+    ctx.fillStyle = 'rgba(146, 64, 14, 0.18)';
+    for (let i = 0; i < 10; i++) {
+      ctx.fillRect(Math.random() * w, 0, 1 + Math.random() * 3, 20 + Math.random() * 90);
+    }
+
+    const tex = new THREE.CanvasTexture(canvas);
+    textureCache.set(key, tex);
+    return tex;
+  }
+
+  /**
+   * Shipping-line livery for a container side: the line's name in large
+   * letters with a wave mark, on transparent so the corrugation shows through.
+   */
+  function createLiveryTexture() {
+    const key = 'livery';
+    if (textureCache.has(key)) return textureCache.get(key);
+
+    const w = 1024, h = 256;
+    const canvas = document.createElement('canvas');
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext('2d');
+
+    // Wave mark
+    ctx.save();
+    ctx.translate(120, 128);
+    ctx.fillStyle = '#f97316';
+    ctx.beginPath();
+    ctx.arc(0, 0, 86, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#f8fafc';
+    ctx.lineWidth = 14;
+    ctx.lineCap = 'round';
+    [-26, 4, 34].forEach(y => {
+      ctx.beginPath();
+      ctx.moveTo(-58, y);
+      ctx.bezierCurveTo(-30, y - 26, -4, y + 26, 22, y);
+      ctx.bezierCurveTo(36, y - 13, 48, y - 13, 58, y - 4);
+      ctx.stroke();
+    });
+    ctx.restore();
+
+    ctx.fillStyle = '#f8fafc';
+    ctx.textBaseline = 'middle';
+    ctx.font = '800 118px Outfit, Inter, sans-serif';
+    ctx.fillText('NESKIL', 240, 112);
+    ctx.font = '600 44px Outfit, Inter, sans-serif';
+    ctx.fillText('L I N E S', 246, 196);
+
+    // Weather the paint
+    ctx.globalCompositeOperation = 'destination-out';
+    speckle(ctx, w, h, 6000, 0.5);
+    ctx.globalCompositeOperation = 'source-over';
+
+    const tex = new THREE.CanvasTexture(canvas);
+    textureCache.set(key, tex);
+    return tex;
+  }
+
+  exports.createConcreteTexture = createConcreteTexture;
+  exports.createBayMarkingsTexture = createBayMarkingsTexture;
+  exports.createContainerDoorTexture = createContainerDoorTexture;
+  exports.createLiveryTexture = createLiveryTexture;
   exports.createCartonTexture = createCartonTexture;
   exports.createCrateTexture = createCrateTexture;
   exports.createDrumTexture = createDrumTexture;

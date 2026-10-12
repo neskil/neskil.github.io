@@ -5,20 +5,7 @@
 (function(exports) {
   'use strict';
 
-  const ALGO_DESCRIPTIONS = {
-    extremePoints: {
-      name: 'Extreme Points (EP) Heuristic',
-      desc: 'Generates candidate 3D corner coordinates after every placement, projects them against existing surfaces, and picks the tightest fit minimizing wasted space.'
-    },
-    wallBuilding: {
-      name: 'Wall-Building (Back-to-Front)',
-      desc: 'Builds vertical transverse slices (walls) across the container width before advancing along the length. Ideal for maritime cargo securing and physical stability.'
-    },
-    firstFit: {
-      name: 'First-Fit Decreasing (Shelf/Slab)',
-      desc: 'Sorts cargo by height and constructs horizontal floor shelves. Fast and intuitive baseline, but demonstrates the classic headspace air-void problem.'
-    }
-  };
+  const QUALITY_TAGS = { good: 'Good', baseline: 'Baseline', bad: 'Bad' };
 
   class UIController {
     constructor(controller, sceneManager, containerRenderer, sound) {
@@ -28,6 +15,7 @@
       this.sound = sound;
 
       this.initDomReferences();
+      this.buildAlgorithmControls();
       this.bindEvents();
     }
 
@@ -89,6 +77,29 @@
       this.compareStatsEls = [...document.querySelectorAll('[data-pane-stats]')];
       this.compareTrophyEls = [...document.querySelectorAll('[data-pane-trophy]')];
       this.activeCam = 'isometric';
+      this.fullscreenBtn = document.getElementById('btn-fullscreen');
+
+      // Cargo editor
+      this.cargoRowsEl = document.getElementById('cargo-rows');
+      this.cargoSummaryEl = document.getElementById('cargo-summary');
+      this.cargoSig = null;
+      this.cargoTimer = null;
+    }
+
+    /** Algorithm chips and compare-pane options, from the one registry. */
+    buildAlgorithmControls() {
+      const algos = window.CargoPacker.ALGORITHMS;
+      const chips = document.getElementById('algo-chips');
+      if (chips) {
+        chips.innerHTML = algos.map(a => `
+          <button type="button" class="chip-btn" data-algo="${a.id}">
+            <strong>${a.name}<span class="quality-tag quality-${a.quality}">${QUALITY_TAGS[a.quality]}</span></strong>
+            <span class="chip-desc">${a.blurb}</span>
+          </button>`).join('');
+      }
+      this.compareSelectEls.forEach(sel => {
+        sel.innerHTML = algos.map(a => `<option value="${a.id}">${a.shortName}</option>`).join('');
+      });
     }
 
     bindEvents() {
@@ -277,6 +288,57 @@
         if (this.controller.compareMode) this.layoutPanes();
       });
 
+      // 12. Fullscreen: the browser's fullscreen plus the side panels tucked
+      //     away, so the container gets the whole screen.
+      const root = document.documentElement;
+      const canFullscreen = !!(root.requestFullscreen || root.webkitRequestFullscreen);
+      if (this.fullscreenBtn && canFullscreen) {
+        this.fullscreenBtn.hidden = false;
+        this.fullscreenBtn.addEventListener('click', () => {
+          this.sound.playClick();
+          this.toggleFullscreen();
+        });
+        const sync = () => this.setImmersive(!!(document.fullscreenElement || document.webkitFullscreenElement));
+        document.addEventListener('fullscreenchange', sync);
+        document.addEventListener('webkitfullscreenchange', sync);
+      }
+
+      // 13. Cargo editor. Edits update the numbers at once and repack after a
+      //     short pause, so a run of + clicks costs one solve, not ten.
+      if (this.cargoRowsEl) {
+        this.cargoRowsEl.addEventListener('click', e => {
+          const btn = e.target.closest('[data-cargo-step]');
+          if (!btn) return;
+          const input = this.cargoRowsEl.querySelector(`[data-cargo-input="${btn.dataset.key}"]`);
+          input.value = Math.max(+input.min, Math.min(+input.max, (+input.value || 0) + (+btn.dataset.cargoStep)));
+          this.sound.playClick();
+          this.queueCargoCommit();
+        });
+        this.cargoRowsEl.addEventListener('change', e => {
+          if (e.target.matches('[data-cargo-input]')) this.queueCargoCommit(0);
+        });
+      }
+      document.querySelectorAll('[data-cargo-scale]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          this.sound.playClick();
+          const f = +btn.dataset.cargoScale;
+          this.cargoRowsEl.querySelectorAll('[data-cargo-input]').forEach(input => {
+            const old = +input.value || 0;
+            const v = Math.round(old * f);
+            // Halving never empties a type; doubling never brings one back
+            input.value = old === 0 ? 0 : Math.max(1, Math.min(+input.max, v));
+          });
+          this.queueCargoCommit(0);
+        });
+      });
+      const resetBtn = document.getElementById('btn-cargo-reset');
+      if (resetBtn) {
+        resetBtn.addEventListener('click', () => {
+          this.sound.playClick();
+          this.runSolve(() => this.controller.resetCargo());
+        });
+      }
+
       // Controller state change callback
       this.controller.onStateChange = (state) => this.renderState(state);
     }
@@ -333,14 +395,131 @@
     }
 
     updateAlgoExplainer(algoId) {
-      const info = ALGO_DESCRIPTIONS[algoId] || ALGO_DESCRIPTIONS.extremePoints;
+      const CP = window.CargoPacker;
+      const info = CP.getAlgorithm(algoId) || CP.ALGORITHMS[0];
       if (this.algoTitleEl) this.algoTitleEl.textContent = info.name;
-      if (this.algoDescEl) this.algoDescEl.textContent = info.desc;
+      if (this.algoDescEl) this.algoDescEl.textContent = info.explainer;
     }
 
     syncContainerButtons(activeContainerId) {
       document.querySelectorAll('[data-container]').forEach(b => {
         b.classList.toggle('active', b.dataset.container === activeContainerId);
+      });
+    }
+
+    /** Repack after the user pauses editing; `delay` 0 for one-shot edits. */
+    queueCargoCommit(delay = 350) {
+      clearTimeout(this.cargoTimer);
+      if (this.cargoSummaryEl) this.cargoSummaryEl.textContent = 'Repacking…';
+      this.cargoTimer = setTimeout(() => {
+        const cargo = this.controller.cargoCounts();
+        this.cargoRowsEl.querySelectorAll('[data-cargo-input]').forEach(input => {
+          const v = +input.value || 0;
+          if (cargo.counts) cargo.counts[input.dataset.cargoInput] = v;
+          else cargo.count = v;
+        });
+        this.runSolve(() => this.controller.setCargo(cargo));
+      }, delay);
+    }
+
+    /** A solve blocks for up to a second on big loads: let "Repacking…" paint first. */
+    runSolve(fn) {
+      if (this.cargoSummaryEl) this.cargoSummaryEl.textContent = 'Repacking…';
+      requestAnimationFrame(() => setTimeout(fn, 0));
+    }
+
+    /**
+     * Rows for the current scenario's cargo: one per box type with a
+     * stepper, or a single count for the random scenario. Rebuilt only when
+     * the scenario or the counts change, not on every playback step.
+     */
+    renderCargoEditor(state) {
+      const CP = window.CargoPacker;
+      const preset = CP.PRESETS[state.selectedScenario];
+      if (!preset || !this.cargoRowsEl) return;
+
+      const sig = JSON.stringify([state.selectedScenario, state.cargo, state.randomSeed, state.itemCount]);
+      if (sig === this.cargoSig) return;
+      this.cargoSig = sig;
+
+      const fmt = v => (+v.toFixed(2)).toString();
+      const stepper = (key, value, max, label, step = 1) => `
+        <div class="stepper">
+          <button type="button" class="stepper-btn" data-cargo-step="-${step}" data-key="${key}" aria-label="Fewer ${label}">&minus;</button>
+          <input type="number" inputmode="numeric" min="0" max="${max}" value="${value}" data-cargo-input="${key}" aria-label="${label}">
+          <button type="button" class="stepper-btn" data-cargo-step="${step}" data-key="${key}" aria-label="More ${label}">+</button>
+        </div>`;
+
+      if (preset.isRandom) {
+        this.cargoRowsEl.innerHTML = `
+          <div class="cargo-row">
+            <span class="cargo-swatch cargo-swatch-mixed"></span>
+            <div class="cargo-info"><strong>Random items</strong><span>New sizes on every 🎲 roll</span></div>
+            ${stepper('count', state.cargo.count, preset.maxCount, 'random items', 5)}
+          </div>`;
+      } else {
+        this.cargoRowsEl.innerHTML = preset.types.map(t => {
+          const color = t.opts.color || (t.opts.colors && t.opts.colors[0]) || '#94a3b8';
+          return `
+            <div class="cargo-row">
+              <span class="cargo-swatch" style="background:${color}"></span>
+              <div class="cargo-info">
+                <strong>${t.name}</strong>
+                <span>${fmt(t.w)}×${fmt(t.h)}×${fmt(t.d)} m · ${t.weight} kg</span>
+              </div>
+              ${stepper(t.key, state.cargo.counts[t.key], CP.MAX_PER_TYPE, t.name)}
+            </div>`;
+        }).join('');
+      }
+
+      // Summary of what is on the manifest (not what fits)
+      const items = state.packResult ? state.packResult.placed.concat(state.packResult.unplaced) : [];
+      const kg = items.reduce((a, b) => a + (b.weight || 0), 0);
+      const m3 = items.reduce((a, b) => a + b.w * b.h * b.d, 0);
+      const limit = preset.isRandom ? '' : ` · max ${CP.PackerController.MAX_ITEMS}`;
+      if (this.cargoSummaryEl) {
+        this.cargoSummaryEl.textContent = `${items.length} items · ${Math.round(kg).toLocaleString()} kg · ${m3.toFixed(1)} m³${limit}`;
+      }
+
+      // The scenario chip says how many items the load now has
+      document.querySelectorAll('[data-scenario]').forEach(btn => {
+        const p = CP.PRESETS[btn.dataset.scenario];
+        const desc = btn.querySelector('.chip-desc');
+        if (!p || !desc) return;
+        const edit = this.controller.cargo[p.id];
+        const n = btn.dataset.scenario === state.selectedScenario ? items.length
+          : p.isRandom ? (edit && edit.count !== undefined ? edit.count : p.defaultCount)
+          : p.types.reduce((a, t) => a + (edit && edit.counts && edit.counts[t.key] !== undefined ? edit.counts[t.key] : t.count), 0);
+        desc.textContent = p.blurb(n);
+      });
+    }
+
+    toggleFullscreen() {
+      const doc = document;
+      if (doc.fullscreenElement || doc.webkitFullscreenElement) {
+        (doc.exitFullscreen || doc.webkitExitFullscreen).call(doc);
+      } else {
+        const root = doc.documentElement;
+        const req = root.requestFullscreen || root.webkitRequestFullscreen;
+        const p = req.call(root, { navigationUI: 'hide' });
+        // Refused (no user gesture, iframe without permission): stay as we are
+        if (p && p.catch) p.catch(() => this.setImmersive(false));
+      }
+    }
+
+    setImmersive(on) {
+      document.body.classList.toggle('immersive', on);
+      this.closeAllDrawers();
+      if (this.fullscreenBtn) {
+        this.fullscreenBtn.classList.toggle('active', on);
+        this.fullscreenBtn.setAttribute('aria-pressed', String(on));
+        this.fullscreenBtn.title = on ? 'Exit fullscreen' : 'Fullscreen';
+        document.getElementById('icon-fs-enter').style.display = on ? 'none' : 'block';
+        document.getElementById('icon-fs-exit').style.display = on ? 'block' : 'none';
+      }
+      // Panels just appeared or vanished: refit the compare panes next frame
+      requestAnimationFrame(() => {
+        if (this.controller.compareMode) this.layoutPanes();
       });
     }
 
@@ -353,10 +532,10 @@
     setCompare(on, algoId = null) {
       const c = this.controller;
       if (on) {
-        const valid = id => ['extremePoints', 'wallBuilding', 'firstFit'].includes(id);
-        let pick = valid(algoId) ? algoId : null;
+        const CP = window.CargoPacker;
+        let pick = CP.getAlgorithm(algoId) ? algoId : null;
         if (!pick) {
-          const ranking = c.comparison ? c.comparison.ranking.map(r => r.id) : ['extremePoints', 'wallBuilding', 'firstFit'];
+          const ranking = c.comparison ? c.comparison.ranking.map(r => r.id) : CP.ALGORITHMS.map(a => a.id);
           pick = ranking.find(id => id !== c.selectedAlgorithm);
         }
         c.compareAlgorithm = pick;
@@ -384,8 +563,10 @@
       // Above the drawer breakpoint the side panels are always open, so the
       // panes go between them rather than underneath.
       if (W > 900) {
-        left = this.leftDrawerEl.getBoundingClientRect().right;
-        right = this.rightHudEl.getBoundingClientRect().left;
+        const l = this.leftDrawerEl.getBoundingClientRect();
+        const r = this.rightHudEl.getBoundingClientRect();
+        if (l.width > 0) left = l.right;   // a hidden panel (fullscreen) measures 0
+        if (r.width > 0) right = r.left;
       }
       const top = this.topBarEl ? this.topBarEl.getBoundingClientRect().bottom : 56;
       const bottom = this.playbackBarEl ? this.playbackBarEl.getBoundingClientRect().top : H - 84;
@@ -439,7 +620,7 @@
         const loaded = Math.min(state.currentStep + 1, steps);
         const fill = side.metrics ? side.metrics.volumeUtilization : 0;
         let text = `${fill}% fill · ${loaded}/${summary.totalCount} boxes`;
-        if (loaded >= steps) text += ` · ${summary.density}% dense`;
+        if (loaded >= steps) text += ` · ${summary.extentLabel}`;
         this.compareStatsEls[i].textContent = text;
       });
     }
@@ -463,6 +644,7 @@
       this.syncContainerButtons(state.selectedContainer);
       this.updateAlgoExplainer(state.selectedAlgorithm);
       this.renderComparePanes(state);
+      this.renderCargoEditor(state);
 
       // 1. Play/Pause button icons
       if (this.playIcon && this.pauseIcon) {
@@ -496,10 +678,11 @@
       if (state.comparison && this.showdownListEl) {
         const comp = state.comparison;
         const medals = ['🥇', '🥈', '🥉'];
+        const rankMark = i => medals[i] || `<span class="showdown-rank">${i + 1}</span>`;
 
         if (this.showdownWinnerBadgeEl && comp.winner) {
           this.showdownWinnerBadgeEl.textContent = `🏆 ${comp.winner.shortName}`;
-          this.showdownWinnerBadgeEl.title = comp.lead;
+          this.showdownWinnerBadgeEl.title = `${comp.winner.name}: ${comp.lead}`;
         }
 
         // Render ranking rows
@@ -513,14 +696,14 @@
             <div class="showdown-row ${isCurrent ? 'active' : ''}" data-showdown-algo="${r.id}" title="Click to view ${r.name} packing in 3D">
               <div class="showdown-row-header">
                 <span class="showdown-name">
-                  <span class="showdown-medal">${medals[i] || '•'}</span>
+                  <span class="showdown-medal">${rankMark(i)}</span>
                   <span>${r.shortName}</span>
                 </span>
                 <span class="showdown-val">${r.volumeUtilization}%</span>
               </div>
               <div class="showdown-sub">
                 <span>${r.placedCount}/${r.totalCount} loaded</span>
-                <span>${r.density}% dense</span>
+                <span>${r.extentLabel}</span>
               </div>
               <div class="showdown-bar-bg">
                 <div class="showdown-bar-fill ${isWinner ? 'winner-bar' : ''}" style="width: ${r.volumeUtilization}%;"></div>

@@ -3,7 +3,11 @@
 #app-container {
   position: relative;
   width: 100vw;
+  /* 100vh on a phone is the height with the browser's toolbar hidden, so
+     while the toolbar shows, the bottom of the app (the playback dock) sits
+     under it. dvh tracks what is actually visible. */
   height: 100vh;
+  height: 100dvh;
   overflow: hidden;
 }
 
@@ -249,6 +253,22 @@ header.top-bar {
   color: #ffffff;
 }
 
+/* ── Fullscreen ──────────────────────────────────────────────────── */
+.btn-icon[hidden] {
+  display: none;
+}
+
+#btn-fullscreen.active {
+  color: #ffffff;
+  border-color: var(--accent-cyan);
+  background: rgba(2, 132, 199, 0.35);
+}
+
+body.immersive aside.left-drawer,
+body.immersive aside.right-hud {
+  display: none;
+}
+
 /* ── Left Control Sidebar ────────────────────────────────────────── */
 aside.left-drawer {
   position: absolute;
@@ -351,11 +371,140 @@ aside.left-drawer {
   margin-bottom: 0.25rem;
 }
 
+/* ── Cargo Editor ────────────────────────────────────────────────── */
+.cargo-actions {
+  display: inline-flex;
+  gap: 4px;
+}
+
+.btn-mini {
+  background: rgba(30, 41, 59, 0.7);
+  border: 1px solid var(--glass-border);
+  color: var(--text-secondary);
+  border-radius: 6px;
+  padding: 1px 7px;
+  font-family: var(--font-body);
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+  cursor: pointer;
+}
+
+.btn-mini:hover {
+  color: var(--text-primary);
+  border-color: var(--glass-border-focus);
+}
+
+.cargo-summary {
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+  margin: -2px 0 6px;
+  font-variant-numeric: tabular-nums;
+}
+
+.cargo-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.cargo-row {
+  display: grid;
+  grid-template-columns: 10px 1fr auto;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 6px 5px 8px;
+  background: rgba(30, 41, 59, 0.45);
+  border: 1px solid var(--glass-border);
+  border-radius: 8px;
+}
+
+.cargo-swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+}
+
+.cargo-swatch-mixed {
+  background: conic-gradient(#f59e0b, #0284c7, #10b981, #8b5cf6, #ec4899, #f59e0b);
+}
+
+.cargo-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.cargo-info strong {
+  font-size: 0.76rem;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cargo-info span {
+  font-size: 0.66rem;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.stepper {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--glass-border);
+  border-radius: 7px;
+  overflow: hidden;
+}
+
+.stepper-btn {
+  width: 26px;
+  height: 26px;
+  background: rgba(15, 23, 42, 0.6);
+  border: none;
+  color: var(--text-primary);
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+
+.stepper-btn:hover {
+  background: rgba(2, 132, 199, 0.35);
+}
+
+.stepper input {
+  width: 38px;
+  height: 26px;
+  border: none;
+  background: transparent;
+  color: var(--text-primary);
+  text-align: center;
+  font-family: var(--font-body);
+  font-size: 0.78rem;
+  font-variant-numeric: tabular-nums;
+  -moz-appearance: textfield;
+}
+
+.stepper input::-webkit-outer-spin-button,
+.stepper input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.stepper input:focus-visible {
+  outline: 2px solid var(--accent-cyan);
+  outline-offset: -2px;
+}
+
 /* ── Right Diagnostics HUD ───────────────────────────────────────── */
 aside.right-hud {
   position: absolute;
   top: 68px;
   right: 1rem;
+  /* Seven algorithms make the showdown tall; scroll rather than run off-screen */
+  max-height: calc(100vh - 84px);
+  max-height: calc(100dvh - 84px);
+  overflow-y: auto;
   width: 290px;
   background: var(--bg-card);
   backdrop-filter: blur(16px);
@@ -512,6 +661,12 @@ aside.right-hud {
   border: 1px solid rgba(239, 68, 68, 0.4);
 }
 
+.showdown-card .status-badge {
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .status-winner {
   background: rgba(249, 115, 22, 0.2);
   color: #fb923c;
@@ -580,6 +735,45 @@ aside.right-hud {
   color: var(--text-primary);
 }
 
+.showdown-rank {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background: rgba(148, 163, 184, 0.18);
+  color: var(--text-secondary);
+  font-size: 0.6rem;
+  font-weight: 700;
+}
+
+.quality-tag {
+  margin-left: 6px;
+  padding: 0 6px;
+  border-radius: 999px;
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  vertical-align: 1px;
+}
+
+.quality-good {
+  background: rgba(16, 185, 129, 0.16);
+  color: #6ee7b7;
+}
+
+.quality-baseline {
+  background: rgba(148, 163, 184, 0.16);
+  color: #cbd5e1;
+}
+
+.quality-bad {
+  background: rgba(244, 63, 94, 0.16);
+  color: #fda4af;
+}
+
 .showdown-sub {
   display: flex;
   justify-content: space-between;
@@ -640,7 +834,7 @@ aside.right-hud {
 /* ── Bottom Playback Control Dock ────────────────────────────────── */
 nav.playback-bar {
   position: absolute;
-  bottom: 1rem;
+  bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
   left: 50%;
   transform: translateX(-50%);
   background: var(--bg-card);
@@ -805,6 +999,7 @@ nav.playback-bar {
     left: 0.75rem;
     width: min(320px, calc(100vw - 1.5rem));
     max-height: calc(100vh - 144px);
+    max-height: calc(100dvh - 144px);
     z-index: 30;
     transform: translateX(calc(-100% - 2rem));
     transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1);
@@ -822,6 +1017,7 @@ nav.playback-bar {
     right: 0.75rem;
     width: min(320px, calc(100vw - 1.5rem));
     max-height: calc(100vh - 144px);
+    max-height: calc(100dvh - 144px);
     z-index: 30;
     transform: translateX(calc(100% + 2rem));
     transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1);
@@ -901,7 +1097,7 @@ nav.playback-bar {
   }
 
   nav.playback-bar {
-    bottom: 0.5rem;
+    bottom: calc(0.5rem + env(safe-area-inset-bottom, 0px));
     padding: 0.35rem 0.65rem;
     gap: 0.5rem;
     max-width: calc(100vw - 1rem);
@@ -945,6 +1141,7 @@ nav.playback-bar {
     right: 0.5rem;
     width: calc(100vw - 1rem);
     max-height: calc(100vh - 120px);
+    max-height: calc(100dvh - 120px);
     padding: 0.75rem;
     gap: 0.75rem;
   }
@@ -973,9 +1170,11 @@ nav.playback-bar {
 }
 
 /* The smallest phones (320px): drop the logo too and tighten the dock so
-   the home button and the speed toggle stay on screen. */
+   the home button and the speed toggle stay on screen. The mute button goes
+   as well; the phone's own silent switch covers it. */
 @media (max-width: 360px) {
-  .brand-icon {
+  .brand-icon,
+  #btn-mute {
     display: none;
   }
 
