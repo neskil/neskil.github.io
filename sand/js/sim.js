@@ -13,6 +13,7 @@
 export const M = Object.freeze({
     EMPTY: 0, STONE: 1, SAND: 2, WATER: 3, LAVA: 4, PLANT: 5, FIRE: 6,
     OIL: 7, STEAM: 8, SMOKE: 9, ICE: 10, GLASS: 11, WOOD: 12, FLOWER: 13,
+    ACID: 14, GUNPOWDER: 15, SALT: 16, SNOW: 17,
 });
 
 // kind: how it moves. density: what sinks through what (a powder or liquid
@@ -33,11 +34,19 @@ export const MATERIALS = [
     { id: M.GLASS, name: 'Glass', kind: 'solid', density: 99, color: [190, 225, 235] },
     { id: M.WOOD, name: 'Wood', kind: 'solid', density: 99, color: [128, 84, 48] },
     { id: M.FLOWER, name: 'Flower', kind: 'solid', density: 99, color: [244, 114, 182] },
+    { id: M.ACID, name: 'Acid', kind: 'liquid', density: 3.5, color: [150, 240, 60], flow: 3 },
+    { id: M.GUNPOWDER, name: 'Gunpowder', kind: 'powder', density: 4.5, color: [70, 66, 72] },
+    { id: M.SALT, name: 'Salt', kind: 'powder', density: 5.5, color: [236, 236, 242] },
+    // Lighter than water, so it settles on a pond as a crust instead of sinking.
+    { id: M.SNOW, name: 'Snow', kind: 'powder', density: 1.5, color: [244, 248, 255], drift: 0.5 },
 ];
 
 const KIND = MATERIALS.map(m => m.kind);
 const DENSITY = MATERIALS.map(m => m.density);
-const FLAMMABLE = new Set([M.PLANT, M.OIL, M.WOOD, M.FLOWER]);
+const FLAMMABLE = new Set([M.PLANT, M.OIL, M.WOOD, M.FLOWER, M.GUNPOWDER]);
+// What acid cannot eat: the glass it is kept in, and itself.
+const ACIDPROOF = new Set([M.EMPTY, M.ACID, M.GLASS, M.STEAM, M.SMOKE, M.FIRE]);
+const HOT = new Set([M.FIRE, M.LAVA, M.STEAM]);
 
 const LIFE = {
     [M.FIRE]: [24, 70],
@@ -158,7 +167,21 @@ function become(world, i, t) {
     world.stamp[i] = world.tick;
 }
 
-function stepPowder(world, i, x, y, t) {
+function stepPowder(world, i, x, y, t, mat) {
+    if (t === M.SALT || t === M.SNOW) {
+        // One random neighbour a tick is enough to read as a slow reaction.
+        const nx = x + ((world.rng() * 3) | 0) - 1, ny = y + ((world.rng() * 3) | 0) - 1;
+        const o = get(world, nx, ny), j = ny * world.w + nx;
+        if (t === M.SALT) {
+            if (o === M.ICE || o === M.SNOW) { if (world.rng() < 0.08) become(world, j, M.WATER); }
+            else if (o === M.WATER && world.rng() < 0.004) { become(world, i, M.EMPTY); return; }
+        } else if (HOT.has(o) && world.rng() < 0.3) { become(world, i, M.WATER); return; }
+    }
+    // A flake drifts: it falls only some ticks and wanders when it does.
+    if (mat.drift && world.rng() < mat.drift) {
+        if (world.rng() < 0.3) tryMove(world, i, x + (world.rng() < 0.5 ? -1 : 1), y, t);
+        return;
+    }
     if (tryMove(world, i, x, y + 1, t)) return;
     const d = world.rng() < 0.5 ? -1 : 1;
     if (tryMove(world, i, x + d, y + 1, t)) return;
@@ -220,11 +243,14 @@ function stepFire(world, i, x, y) {
         if (o === M.WATER) {
             doused = true;
             if (world.rng() < 0.5) become(world, j, M.STEAM);
+        } else if (o === M.GUNPOWDER) {
+            fuel = true;
+            if (world.rng() < 0.1) explode(world, j % world.w, (j / world.w) | 0, 4);
         } else if (FLAMMABLE.has(o)) {
             fuel = true;
             const p = o === M.OIL ? 0.5 : o === M.WOOD ? 0.06 : 0.1;
             if (world.rng() < p) become(world, j, M.FIRE);
-        } else if (o === M.ICE && world.rng() < 0.08) {
+        } else if ((o === M.ICE || o === M.SNOW) && world.rng() < 0.08) {
             become(world, j, M.WATER);
         }
     });
@@ -253,6 +279,10 @@ function stepLava(world, i, x, y, t, mat) {
             become(world, j, M.STEAM);
         } else if (o === M.ICE) {
             become(world, j, M.WATER);
+        } else if (o === M.SNOW) {
+            become(world, j, M.WATER);
+        } else if (o === M.GUNPOWDER) {
+            explode(world, j % world.w, (j / world.w) | 0, 4);
         } else if (FLAMMABLE.has(o)) {
             if (world.rng() < 0.2) become(world, j, M.FIRE);
         } else if (o === M.SAND && world.rng() < 0.004) {
@@ -262,6 +292,40 @@ function stepLava(world, i, x, y, t, mat) {
         }
     });
     if (quenched) { become(world, i, M.STONE); return; }
+    stepLiquid(world, i, x, y, t, mat);
+}
+
+/** A blast of radius r: everything inside but stone and glass is thrown out
+    as fire and empty air, and gunpowder caught in it goes up too — as fire,
+    which sets off the next grain over, so a trail burns along like a fuse. */
+export function explode(world, cx, cy, r) {
+    for (let dy = -r; dy <= r; dy++) {
+        for (let dx = -r; dx <= r; dx++) {
+            if (dx * dx + dy * dy > r * r) continue;
+            const x = cx + dx, y = cy + dy;
+            if (x < 0 || y < 0 || x >= world.w || y >= world.h) continue;
+            const j = y * world.w + x;
+            const o = world.type[j];
+            if (o === M.GLASS || (o === M.STONE && world.rng() < 0.85)) continue;
+            if (o === M.WATER) { if (world.rng() < 0.5) become(world, j, M.STEAM); continue; }
+            become(world, j, o === M.GUNPOWDER || world.rng() < 0.35 ? M.FIRE : world.rng() < 0.3 ? M.SMOKE : M.EMPTY);
+        }
+    }
+}
+
+/** Acid eats one random neighbour now and then and is spent doing it, so a
+    puddle of acid eats a hole its own size. Glass holds it; water dilutes it. */
+function stepAcid(world, i, x, y, t, mat) {
+    const nx = x + ((world.rng() * 3) | 0) - 1, ny = y + ((world.rng() * 3) | 0) - 1;
+    if (nx >= 0 && ny >= 0 && nx < world.w && ny < world.h && world.rng() < 0.15) {
+        const j = ny * world.w + nx, o = world.type[j];
+        if (o === M.WATER) {
+            if (world.rng() < 0.1) { become(world, i, M.WATER); return; }
+        } else if (!ACIDPROOF.has(o)) {
+            become(world, j, world.rng() < 0.2 ? M.SMOKE : M.EMPTY);
+            if (world.rng() < 0.5) { become(world, i, M.EMPTY); return; }
+        }
+    }
     stepLiquid(world, i, x, y, t, mat);
 }
 
@@ -352,7 +416,11 @@ export function step(world) {
     for (const e of world.emitters) {
         if (world.rng() > e.rate) continue;
         const x = e.x + (e.spread ? Math.round((world.rng() * 2 - 1) * e.spread) : 0);
-        if (get(world, x, e.y) === M.EMPTY) set(world, x, e.y, e.t);
+        const o = get(world, x, e.y);
+        // An eraser tap is a drain: it swallows whatever reaches it, but
+        // leaves the walls alone (get() reads off-grid as stone).
+        if (e.t === M.EMPTY) { if (o !== M.EMPTY && KIND[o] !== 'solid') set(world, x, e.y, M.EMPTY); }
+        else if (o === M.EMPTY) set(world, x, e.y, e.t);
     }
     for (let y = h - 1; y >= 0; y--) {
         const ltr = ((y + world.tick) & 1) === 0;
@@ -363,9 +431,10 @@ export function step(world) {
             if (t === M.EMPTY || stamp[i] === world.tick) continue;
             const mat = MATERIALS[t];
             switch (mat.kind) {
-                case 'powder': stepPowder(world, i, x, y, t); break;
+                case 'powder': stepPowder(world, i, x, y, t, mat); break;
                 case 'liquid':
                     if (t === M.LAVA) stepLava(world, i, x, y, t, mat);
+                    else if (t === M.ACID) stepAcid(world, i, x, y, t, mat);
                     else stepLiquid(world, i, x, y, t, mat);
                     break;
                 case 'gas': stepGas(world, i, x, y, t); break;
@@ -511,4 +580,36 @@ export function garden(world) {
     set(world, bx + bw, by - 1, M.PLANT);
     // A light rain to keep it all watered.
     world.emitters.push({ x: Math.floor(w / 2), y: 0, t: M.WATER, rate: 0.5, spread: Math.floor(w / 2) });
+}
+
+/** The newer materials side by side: a glass beaker of acid with a stone
+    block lowered into it, a gunpowder fuse running to a stack of crates, and
+    a snowdrift on a ledge over a lamp of lava. */
+export function lab(world) {
+    clear(world);
+    const { w, h } = world;
+    const floor = h - 3;
+    for (let y = floor; y < h; y++) for (let x = 0; x < w; x++) set(world, x, y, M.STONE);
+    // Beaker, left: glass walls and floor, two-thirds acid, a stone block in it.
+    const bx0 = Math.floor(w * 0.06), bx1 = Math.floor(w * 0.3), btop = Math.floor(h * 0.45);
+    for (let y = btop; y < floor; y++) { set(world, bx0, y, M.GLASS); set(world, bx1, y, M.GLASS); }
+    for (let x = bx0; x <= bx1; x++) set(world, x, floor - 1, M.GLASS);
+    const acidTop = btop + Math.floor((floor - btop) * 0.35);
+    for (let y = acidTop; y < floor - 1; y++) for (let x = bx0 + 1; x < bx1; x++) set(world, x, y, M.ACID);
+    const mid = (bx0 + bx1) >> 1, bs = Math.max(3, Math.floor((bx1 - bx0) * 0.18));
+    for (let y = acidTop - bs; y < acidTop + bs; y++) for (let x = mid - bs; x <= mid + bs; x++) set(world, x, y, M.STONE);
+    // Fuse, middle: a gunpowder trail on a stone shelf to wooden crates, lit at one end.
+    const sy = Math.floor(h * 0.62), sx0 = bx1 + 6, sx1 = Math.floor(w * 0.72);
+    for (let x = sx0; x <= sx1; x++) set(world, x, sy, M.STONE);
+    for (let x = sx0 + 2; x < sx1 - 6; x++) set(world, x, sy - 1, M.GUNPOWDER);
+    for (let y = sy - 9; y < sy; y++) for (let x = sx1 - 6; x <= sx1; x++) {
+        set(world, x, y, (x - sx1 + 6) % 3 === 0 || y === sy - 9 ? M.WOOD : M.GUNPOWDER);
+    }
+    for (let x = sx0; x < sx0 + 2; x++) set(world, x, sy - 1, M.FIRE);
+    // Right: a ledge of snow above a small lava lamp, melting into a pool.
+    const lx0 = Math.floor(w * 0.78), lx1 = w - 3, ly = Math.floor(h * 0.4);
+    for (let x = lx0; x <= lx1; x++) set(world, x, ly, M.STONE);
+    for (let y = ly - 6; y < ly; y++) for (let x = lx0 + 1; x < lx1; x++) set(world, x, y, M.SNOW);
+    for (let x = lx0 + 2; x < lx1 - 1; x++) set(world, x, floor - 1, M.LAVA);
+    world.emitters.push({ x: (lx0 + lx1) >> 1, y: 0, t: M.SNOW, rate: 0.3, spread: (lx1 - lx0) >> 1 });
 }

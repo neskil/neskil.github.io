@@ -127,6 +127,71 @@
             ok(S.count(w, M.STEAM) === 0, 'steam does not last forever');
         }
 
+        // ── Newer materials ──
+        {
+            const w = world(20, 20);
+            for (let x = 5; x < 15; x++) for (let y = 15; y < 20; y++) S.set(w, x, y, M.STONE);
+            for (let x = 5; x < 15; x++) for (let y = 12; y < 15; y++) S.set(w, x, y, M.ACID);
+            run(w, 800);
+            ok(S.count(w, M.STONE) < 50, 'acid eats into stone', S.count(w, M.STONE) + ' of 50 left');
+            ok(S.count(w, M.ACID) < 30, 'and is used up doing it');
+        }
+        {
+            const w = world(12, 12);
+            for (let y = 0; y < 12; y++) { S.set(w, 0, y, M.GLASS); S.set(w, 11, y, M.GLASS); }
+            for (let x = 0; x < 12; x++) S.set(w, x, 11, M.GLASS);
+            for (let x = 1; x < 11; x++) for (let y = 8; y < 11; y++) S.set(w, x, y, M.ACID);
+            run(w, 600);
+            ok(S.count(w, M.GLASS) === 34 && S.count(w, M.ACID) === 30, 'glass holds acid untouched');
+        }
+        {
+            const w = world(40, 10);
+            for (let x = 2; x < 38; x++) { S.set(w, x, 9, M.STONE); S.set(w, x, 8, M.GUNPOWDER); }
+            S.set(w, 1, 8, M.FIRE);
+            run(w, 300);
+            ok(S.count(w, M.GUNPOWDER) === 0, 'a gunpowder trail burns along like a fuse', S.count(w, M.GUNPOWDER) + ' grains left');
+        }
+        {
+            const w = world(30, 30);
+            for (let x = 0; x < 30; x++) for (let y = 0; y < 30; y++) S.set(w, x, y, M.SAND);
+            S.set(w, 2, 2, M.GLASS);
+            S.explode(w, 15, 15, 5);
+            ok(S.get(w, 15, 15) !== M.SAND && S.get(w, 2, 2) === M.GLASS, 'a blast clears its radius and spares glass');
+        }
+        {
+            const w = world(10, 10);
+            for (let x = 0; x < 10; x++) S.set(w, x, 9, M.ICE);
+            for (let x = 0; x < 10; x++) S.set(w, x, 8, M.SALT);
+            run(w, 400);
+            ok(S.count(w, M.ICE) < 10, 'salt melts ice', S.count(w, M.ICE) + ' of 10 left');
+        }
+        {
+            const w = world(10, 20);
+            for (let x = 0; x < 10; x++) for (let y = 15; y < 20; y++) S.set(w, x, y, M.WATER);
+            S.set(w, 5, 0, M.SNOW);
+            run(w, 200);
+            let y = 0; for (; y < 20; y++) if (S.get(w, 5, y) === M.SNOW || [...Array(10).keys()].some(x => S.get(w, x, y) === M.SNOW)) break;
+            ok(y === 14, 'snow settles on water rather than sinking', 'row ' + y);
+            S.set(w, 5, 13, M.LAVA);
+            run(w, 60);
+            ok(S.count(w, M.SNOW) === 0, 'and melts beside lava');
+        }
+        {
+            const w = world(20, 20);
+            for (let x = 0; x < 20; x++) for (let y = 0; y < 10; y++) S.set(w, x, y, M.WATER);
+            w.emitters.push({ x: 10, y: 19, t: M.EMPTY, rate: 1, spread: 9 });
+            run(w, 2000);
+            ok(S.count(w, M.WATER) < 20, 'an eraser tap drains a pool', S.count(w, M.WATER) + ' cells left');
+        }
+        {
+            const w = world(160, 100);
+            S.lab(w);
+            ok(S.count(w, M.ACID) > 0 && S.count(w, M.GUNPOWDER) > 0 && S.count(w, M.SNOW) > 0, 'the lab scene sets out the new materials');
+            const powder0 = S.count(w, M.GUNPOWDER);
+            run(w, 600);
+            ok(S.count(w, M.GUNPOWDER) < powder0 / 2, 'and its fuse goes off on its own', S.count(w, M.GUNPOWDER) + ' of ' + powder0);
+        }
+
         // ── Plants ──
         {
             const w = world(30, 30);

@@ -4,14 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sand Clock — Falling-Sand Sandbox | Niklas Billgren</title>
-    <meta name="description" content="A falling-sand sandbox in the browser: pour sand, water, lava, oil, fire, ice and plants and watch them react. Starts as an hourglass you can turn over and time.">
+    <meta name="description" content="A falling-sand sandbox in the browser: pour sand, water, lava, acid, gunpowder, snow and plants and watch them react. Starts as an hourglass you can turn over and time.">
     <meta name="theme-color" content="#0a0d18">
     <meta name="color-scheme" content="dark">
     <meta name="author" content="Niklas Billgren">
     <link rel="canonical" href="https://neskil.github.io/sand/">
     <meta property="og:site_name" content="Niklas Billgren">
     <meta property="og:title" content="Sand Clock — Falling-Sand Sandbox">
-    <meta property="og:description" content="Pour sand, water, lava, fire and plants and watch them react. Starts as an hourglass you can turn over.">
+    <meta property="og:description" content="Pour sand, water, lava, acid, gunpowder and plants and watch them react. Starts as an hourglass you can turn over.">
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://neskil.github.io/sand/">
     <meta property="og:image" content="https://neskil.github.io/assets/og/sand.png">
@@ -162,25 +162,45 @@
             padding: 0.6rem 0.9rem 0.9rem;
         }
 
+        /* A wrapping grid, not a scrolling strip: every material is on screen
+           at once and each button is a full finger wide. */
         #palette {
-            display: flex;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(7.6rem, 1fr));
             gap: 0.35rem;
-            overflow-x: auto;
-            scrollbar-width: none;
-            padding-bottom: 2px;
         }
 
-        #palette::-webkit-scrollbar { display: none; }
+        #palette .tool {
+            border-radius: 10px;
+            min-height: 2.5rem;
+            padding: 0.3rem 0.55rem;
+            justify-content: flex-start;
+            font-size: 0.84rem;
+            position: relative;
+        }
+
+        #palette .tool[aria-pressed="true"] {
+            box-shadow: 0 0 0 1px rgba(var(--accent-rgb), 0.7), 0 4px 14px rgba(var(--accent-rgb), 0.18);
+        }
 
         .swatch {
-            width: 0.8rem;
-            height: 0.8rem;
-            border-radius: 4px;
+            width: 1.15rem;
+            height: 1.15rem;
+            flex: none;
+            border-radius: 5px;
             box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.25);
         }
 
         .swatch-erase {
             background: repeating-linear-gradient(45deg, #475569 0 2px, transparent 2px 4px);
+        }
+
+        .key {
+            margin-left: auto;
+            font-size: 0.66rem;
+            color: var(--muted);
+            font-variant-numeric: tabular-nums;
+            opacity: 0.8;
         }
 
         .dock-row {
@@ -197,7 +217,19 @@
         }
 
         @media (max-width: 640px) {
-            .hint { display: none; }
+            .hint, .key { display: none; }
+            /* Five across, swatch over name: fifteen materials in three rows. */
+            #palette { grid-template-columns: repeat(5, 1fr); gap: 0.3rem; }
+            #palette .tool {
+                flex-direction: column;
+                justify-content: center;
+                gap: 0.2rem;
+                min-height: 2.9rem;
+                font-size: 0.7rem;
+                padding: 0.3rem 0.1rem;
+            }
+            .dock-row { gap: 0.5rem; }
+            .group { flex-wrap: wrap; }
             h1 { font-size: 1.05rem; }
             .bar { gap: 0.4rem; padding: 0.5rem 0.6rem; }
             .dock { padding: 0.5rem 0.6rem 0.7rem; }
@@ -223,7 +255,7 @@
             {
                 "@type": "WebApplication",
                 "url": "https://neskil.github.io/sand/",
-                "description": "A falling-sand sandbox in the browser: pour sand, water, lava, oil, fire, ice and plants and watch them react. Starts as an hourglass you can turn over and time.",
+                "description": "A falling-sand sandbox in the browser: pour sand, water, lava, acid, gunpowder, snow and plants and watch them react. Starts as an hourglass you can turn over and time.",
                 "image": "https://neskil.github.io/assets/og/sand.png",
                 "name": "Sand Clock — Falling-Sand Sandbox",
                 "author": {
@@ -278,14 +310,22 @@
                 <button type="button" class="chip" data-brush="1">S</button>
                 <button type="button" class="chip" data-brush="3">M</button>
                 <button type="button" class="chip" data-brush="6">L</button>
+                <button type="button" class="chip" data-brush="11">XL</button>
+            </div>
+            <div class="group" role="group" aria-label="Pour mode">
+                <span class="group-label">Mode</span>
+                <button type="button" class="chip" data-mode="pour" title="Drag to pour">✋ Pour</button>
+                <button type="button" class="chip" data-mode="tap" title="Click to fit a tap that keeps pouring; click it again to remove. An eraser tap is a drain. (T)">🚰 Tap</button>
+                <button type="button" class="chip" data-mode="blast" title="Click to set off an explosion (B)">💥 Blast</button>
             </div>
             <div class="group" role="group" aria-label="Scenes">
                 <span class="group-label">Scene</span>
                 <button type="button" class="chip" data-scene="hourglass">⏳ Hourglass</button>
                 <button type="button" class="chip" data-scene="volcano">🌋 Volcano</button>
                 <button type="button" class="chip" data-scene="garden">🌱 Garden</button>
+                <button type="button" class="chip" data-scene="lab">🧪 Lab</button>
             </div>
-            <span class="hint">Drag to pour · right-drag erases · 1–0 pick · Space pauses · F turns the glass</span>
+            <span class="hint">Right-drag erases · Alt-click picks up a material · wheel or [ ] sizes the brush · 1–0, ⇧1–4 pick · Space pauses · F turns the glass</span>
         </div>
     </div>
 

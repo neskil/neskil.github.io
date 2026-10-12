@@ -1,7 +1,7 @@
 // Sand Clock — the page: drawing the world, painting into it, the hourglass timer.
 import {
-    M, MATERIALS, createWorld, step, paint, flip, clear,
-    hourglass, volcano, garden, sandAbove, count,
+    M, MATERIALS, createWorld, step, paint, flip, clear, explode, get,
+    hourglass, volcano, garden, lab, sandAbove, count,
 } from './sim.js';
 
 const canvas = document.getElementById('world');
@@ -51,6 +51,8 @@ for (let s = 0; s < 256; s++) {
     const c = FLOWER_COLOURS[s % 3];
     shades[M.FLOWER][s] = pack(c[0], c[1], c[2]);
 }
+const TAP = pack(255, 255, 255);
+const DRAIN = pack(244, 63, 94);
 const firePal = new Uint32Array(64);
 for (let i = 0; i < 64; i++) {
     const t = i / 63;  // 0 = dying, 1 = fresh
@@ -74,6 +76,27 @@ function render() {
         }
         pixels[i] = shades[t][shade[i]];
     }
+    // Taps: a bright notch where each one sits, so you can find it to remove.
+    for (const e of world.emitters) {
+        if (!e.user) continue;
+        for (let dx = -1; dx <= 1; dx++) {
+            const x = e.x + dx;
+            if (x >= 0 && x < W && e.y < H) pixels[e.y * W + x] = e.t === M.EMPTY ? DRAIN : TAP;
+        }
+    }
+    // The brush outline under a hovering mouse, so you see what a click covers.
+    if (hover && !pointer) {
+        const r = mode === 'blast' ? BLAST_R : brush;
+        for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
+            const d = dx * dx + dy * dy;
+            if (d > r * r + r || d <= (r - 1) * (r - 1) + (r - 1)) continue;
+            const x = hover.x + dx, y = hover.y + dy;
+            if (x < 0 || y < 0 || x >= W || y >= H) continue;
+            // Half whatever is under it plus a grey: a ring that shows on sand and sky alike.
+            const k = y * W + x;
+            pixels[k] = (((pixels[k] >>> 1) & 0x7f7f7f) + 0xff505050) >>> 0;
+        }
+    }
     ctx.putImageData(image, 0, 0);
 }
 
@@ -89,9 +112,29 @@ new ResizeObserver(fit).observe(stage);
 fit();
 
 /* ── Tools ── */
+// Keys 1–0 for the first ten, Shift+1–4 for the next four, E for the eraser.
 const TOOLS = [
-    M.SAND, M.WATER, M.STONE, M.LAVA, M.PLANT, M.FIRE, M.OIL, M.ICE, M.WOOD, M.STEAM, M.EMPTY,
+    M.SAND, M.WATER, M.STONE, M.LAVA, M.PLANT, M.FIRE, M.OIL, M.ICE, M.WOOD, M.STEAM,
+    M.ACID, M.GUNPOWDER, M.SALT, M.SNOW, M.EMPTY,
 ];
+const ABOUT = {
+    [M.SAND]: 'Piles up; lava fires it into glass',
+    [M.WATER]: 'Flows and levels; puts out fire, feeds plants',
+    [M.STONE]: 'Solid; lava cooled by water turns to it',
+    [M.LAVA]: 'Slow and hot; boils water, lights what burns',
+    [M.PLANT]: 'Drinks water and grows, sometimes flowers',
+    [M.FIRE]: 'Burns plants, oil and wood; sets off gunpowder',
+    [M.OIL]: 'Floats on water and burns fast',
+    [M.ICE]: 'Freezes water it touches; melts in heat',
+    [M.WOOD]: 'Solid fuel that burns slowly',
+    [M.STEAM]: 'Rises, cools and rains back down',
+    [M.ACID]: 'Eats anything but glass; water dilutes it',
+    [M.GUNPOWDER]: 'Explodes at a spark — lay a trail as a fuse',
+    [M.SALT]: 'Melts ice and snow; dissolves in water',
+    [M.SNOW]: 'Drifts down and settles; melts near heat',
+    [M.EMPTY]: 'Removes anything',
+};
+const keyFor = (n) => n < 9 ? String(n + 1) : n === 9 ? '0' : n < 14 ? '⇧' + (n - 9) : 'E';
 const palette = document.getElementById('palette');
 let tool = M.SAND;
 let brush = 3;
@@ -102,16 +145,20 @@ TOOLS.forEach((t, n) => {
     b.type = 'button';
     b.className = 'tool';
     b.dataset.tool = t;
-    b.title = m.name + (n < 9 ? ` (${n + 1})` : n === 9 ? ' (0)' : ' (E)');
+    b.title = `${m.name} — ${ABOUT[t]} (${keyFor(n)})`;
     const sw = document.createElement('span');
     sw.className = 'swatch' + (t === M.EMPTY ? ' swatch-erase' : '');
     if (t !== M.EMPTY) sw.style.background = `rgb(${m.color.join(',')})`;
-    b.append(sw, document.createTextNode(m.name));
+    const key = document.createElement('span');
+    key.className = 'key';
+    key.textContent = keyFor(n);
+    b.append(sw, document.createTextNode(m.name), key);
     b.addEventListener('click', () => pick(t));
     palette.appendChild(b);
 });
 
 function pick(t) {
+    if (!TOOLS.includes(t)) t = t === M.FLOWER ? M.PLANT : t === M.GLASS ? M.STONE : M.SAND;
     tool = t;
     palette.querySelectorAll('.tool').forEach(b => b.setAttribute('aria-pressed', String(+b.dataset.tool === t)));
 }
@@ -125,6 +172,32 @@ function setBrush(r) {
     document.querySelectorAll('[data-brush]').forEach(b => b.setAttribute('aria-pressed', String(+b.dataset.brush === r)));
 }
 setBrush(3);
+const BRUSHES = [1, 3, 6, 11];
+function nudgeBrush(d) {
+    const k = Math.max(0, Math.min(BRUSHES.length - 1, BRUSHES.indexOf(brush) + d));
+    setBrush(BRUSHES[k]);
+}
+
+/* ── Mode ──
+   Pour paints while you drag; Tap fits a tap that keeps pouring the material
+   on its own (an eraser tap is a drain); Blast sets off an explosion. */
+let mode = 'pour';
+const BLAST_R = 9;
+const MAX_TAPS = 12;
+function setMode(m) {
+    mode = m;
+    document.querySelectorAll('[data-mode]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.mode === m)));
+}
+document.querySelectorAll('[data-mode]').forEach(b => b.addEventListener('click', () => setMode(b.dataset.mode)));
+setMode('pour');
+
+function toggleTap(c) {
+    const near = world.emitters.findIndex(e => e.user && Math.abs(e.x - c.x) <= 3 && Math.abs(e.y - c.y) <= 3);
+    if (near >= 0) { world.emitters.splice(near, 1); return; }
+    const taps = world.emitters.filter(e => e.user);
+    if (taps.length >= MAX_TAPS) world.emitters.splice(world.emitters.indexOf(taps[0]), 1);
+    world.emitters.push({ x: c.x, y: c.y, t: tool, rate: tool === M.EMPTY ? 1 : 0.6, spread: Math.min(brush, 3), user: true });
+}
 
 /* ── Painting ──
    Holding still keeps pouring — that is what a tap of sand should do — and a
@@ -150,13 +223,24 @@ function strokeTo(c) {
     pointer.last = c;
 }
 
+let hover = null;
 canvas.addEventListener('pointerdown', (e) => {
-    canvas.setPointerCapture(e.pointerId);
-    pointer = { id: e.pointerId, erase: e.button === 2, last: null, at: cellAt(e) };
-    strokeTo(pointer.at);
+    const c = cellAt(e);
     e.preventDefault();
+    // Eyedropper: Alt-click or middle-click picks up whatever is under the cursor.
+    if (e.altKey || e.button === 1) {
+        const t = get(world, c.x, c.y);
+        if (t !== M.EMPTY) pick(t);
+        return;
+    }
+    if (e.button === 0 && mode === 'tap') { toggleTap(c); return; }
+    if (e.button === 0 && mode === 'blast') { explode(world, c.x, c.y, BLAST_R); return; }
+    canvas.setPointerCapture(e.pointerId);
+    pointer = { id: e.pointerId, erase: e.button === 2, last: null, at: c };
+    strokeTo(pointer.at);
 });
 canvas.addEventListener('pointermove', (e) => {
+    hover = e.pointerType === 'mouse' ? cellAt(e) : null;
     if (!pointer || e.pointerId !== pointer.id) return;
     pointer.at = cellAt(e);
     strokeTo(pointer.at);
@@ -164,7 +248,12 @@ canvas.addEventListener('pointermove', (e) => {
 const endStroke = (e) => { if (pointer && e.pointerId === pointer.id) pointer = null; };
 canvas.addEventListener('pointerup', endStroke);
 canvas.addEventListener('pointercancel', endStroke);
+canvas.addEventListener('pointerleave', () => { hover = null; });
 canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+canvas.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    nudgeBrush(e.deltaY < 0 ? 1 : -1);
+}, { passive: false });
 
 /* ── The hourglass ──
    The clock counts simulation steps, not wall time: the neck passes one grain
@@ -179,6 +268,7 @@ function setScene(name) {
         glass = { neckY, steps: 0, done: false };
     } else if (name === 'volcano') volcano(world);
     else if (name === 'garden') garden(world);
+    else if (name === 'lab') lab(world);
     else clear(world);
     flipBtn.hidden = !glass;
     document.querySelectorAll('[data-scene]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.scene === name)));
@@ -234,9 +324,15 @@ window.addEventListener('keydown', (e) => {
     if (e.key === ' ') { setPaused(!paused); e.preventDefault(); }
     else if (e.key === 'f' || e.key === 'F') { if (glass) turnOver(); }
     else if (e.key === 'e' || e.key === 'E') pick(M.EMPTY);
-    else if (/^[0-9]$/.test(e.key)) {
-        const n = e.key === '0' ? 9 : +e.key - 1;
-        if (TOOLS[n] !== undefined) pick(TOOLS[n]);
+    else if (e.key === 't' || e.key === 'T') setMode(mode === 'tap' ? 'pour' : 'tap');
+    else if (e.key === 'b' || e.key === 'B') setMode(mode === 'blast' ? 'pour' : 'blast');
+    else if (e.key === '[') nudgeBrush(-1);
+    else if (e.key === ']') nudgeBrush(1);
+    else if (/^Digit[0-9]$/.test(e.code)) {
+        // By code, not key: Shift+1 is "!" on one layout and "+" on another.
+        const d = +e.code[5];
+        const n = e.shiftKey ? 9 + d : d === 0 ? 9 : d - 1;
+        if (TOOLS[n] !== undefined && (!e.shiftKey || n < 14)) pick(TOOLS[n]);
     }
 });
 
@@ -273,5 +369,5 @@ function frame(now) {
 }
 
 const initial = new URLSearchParams(location.search).get('scene') || 'hourglass';
-setScene(['hourglass', 'volcano', 'garden', 'empty'].includes(initial) ? initial : 'hourglass');
+setScene(['hourglass', 'volcano', 'garden', 'lab', 'empty'].includes(initial) ? initial : 'hourglass');
 requestAnimationFrame(frame);
