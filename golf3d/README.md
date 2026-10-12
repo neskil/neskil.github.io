@@ -2794,14 +2794,57 @@ against the suite's 16), because there a shot costs whatever it costs and here a
 player is holding still while it thinks. `BOT_PAUSE` is the beat between shots
 and `BOT_MAX_STROKES` is where it gives up and hands the club back.
 
+## The showcase: the game in eight holes
+
+A hundred and two holes is a lot to walk before you know what is in them, and
+the order they are written in shows you six holes of one kind of golf before it
+shows you a second. The showcase is the other way in, and it is what a new game
+plays: **two holes from every kind, eight in all, each out of a different
+course**, mini golf first and the long game last. Every hole is drawn in its
+own course's world and under its own course's sky — the parlour's neon, then
+the ice house, then a heath — and a new deal comes every round.
+
+`courses.js → dealShowcase(rng)` makes the deal and hands back an ordinary
+course: an id `courseById` answers to (`'showcase'`), a list of holes, a par.
+Three fields on it are what the rest of the game asks about:
+
+- **`from`** — the home course and number of each hole. The sky
+  (`weather.pick`) and the drawn plan (`minimap`, cached by course and index)
+  are keyed by those, so a hole is the same hole wherever you meet it. Handing
+  either the showcase's own id would have cached hole 3 of one deal as hole 3
+  of the next.
+- **`themes`** — the world each hole is drawn in; `game.js → themeAt` reads it
+  where it used to read `course.theme`.
+- **`isShowcase`** — for the scorecard (each hole's home course under its name,
+  and "Deal another showcase" where a course offers the next one) and for the
+  record, which is **against par** (`recordRound(…, { byPar: true })`): two
+  deals add up to different pars, so the fewest strokes would only ever be a
+  record of the easiest deal.
+
+It is not in `G3.COURSES`: nothing lists it, the draw cannot hand it out and
+`nextCourseId` never reaches it. It is reached by name — the button over the
+picker's tabs, leaving the demo, a page opened without a course, and
+`?course=showcase` (with `&hole=` as anywhere else). `courseById('showcase')`
+deals the first time it is asked and then keeps that deal, so **Play again**
+is the same eight holes; a fresh deal is `game.js → newShowcase`. The button
+does not deal another when the round behind the list is a showcase nobody has
+started — that one is the one on offer.
+
+`tests.html` deals sixty and holds every one to the shape (two of each kind, in
+order, eight different courses, each hole the hole it is at home and drawn in
+its home world, never the playtest), checks that the dice change the deal and
+that every course can come up, and that a showcase record goes to the round
+furthest under par rather than the shortest.
+
 ## Demo mode: the game playing itself
 
 Open the page without naming a course and nobody is dropped into the course
 list any more. The caddie is already playing — a course drawn at random, a hole
 out of the middle of it, the flyover, then shot after shot — under a title and
 a **Start game** button. Press anything at all and the demo stands down: a
-fresh round of the course you were watching, and then the rules if you have
-never read them, the course list if you have. It is an arcade cabinet's attract
+fresh [showcase](#the-showcase-the-game-in-eight-holes) is dealt, and then the
+rules if you have never read them, the course list if you have — with the
+showcase at the top of it and loaded behind it. It is an arcade cabinet's attract
 mode, and the shape is borrowed wholesale, down to going back to it when the
 room empties: leave the course list alone for `DEMO_IDLE` seconds and the demo
 comes back.

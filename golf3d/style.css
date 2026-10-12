@@ -2239,6 +2239,13 @@ kbd {
     transition: background 0.18s, border-color 0.18s;
 }
 
+/* The same button doing the picker's other big job: the showcase, over the
+   tabs. Its own tint, because it belongs to none of the kinds below it. */
+.showcase-go {
+    --cg-tint: #f0abfc;
+    margin: 0 0 0.85rem;
+}
+
 .sh-go:hover { background: color-mix(in srgb, var(--cg-tint) 22%, transparent); }
 .sh-go:active { transform: translateY(1px); }
 .sh-go:focus-visible { outline: 2px solid var(--cg-tint); outline-offset: 2px; }
@@ -2623,6 +2630,14 @@ kbd {
 .card-table td { padding: 0.32rem 0; border-top: 1px solid rgba(255, 255, 255, 0.06); }
 .card-table td.n { color: var(--ink-dim); width: 1.8rem; }
 .card-table td.nm { font-weight: 500; }
+/* A showcase card says where each hole lives, under its name: it is the
+   course you would go to for the other five. */
+.card-from {
+    display: block;
+    font-size: 0.72rem;
+    font-weight: 300;
+    color: var(--ink-dim);
+}
 .card-table th:last-child, .card-table td:last-child,
 .card-table th:nth-child(3), .card-table td:nth-child(3) { text-align: right; width: 3rem; }
 

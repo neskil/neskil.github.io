@@ -47,6 +47,12 @@ card shapes are already there to hang a third off (`CARDS` in `bag.js`).
 
 Kept short, and only where it explains a constraint above.
 
+- **The showcase is what a new game plays** (v1.59.0) — README → "The
+  showcase". One constraint worth keeping: **anything cached by course id and
+  hole number has to be handed the hole's *home* course**, not `'showcase'`.
+  The plans are cached that way, so hole 3 of one deal would have been drawn
+  as hole 3 of the last; `game.js → holeRef` is the one place that answers it.
+
 - **Mini golf is flat again** (v1.58.0) — README → "Relief on a drawn hole".
   `contour` is opt-in (`rolling: true`) and one hole asks for it. The humps
   were safe — the tests proved every rail and step stayed put — but safe is

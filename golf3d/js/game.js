@@ -92,6 +92,29 @@
         maybeShowFsPrompt();
     }
 
+    /* Where a hole of this round comes from, and which world it is drawn in.
+       On every course but one the answer is the course itself. The showcase is
+       eight holes out of eight courses, and each is drawn, skied and planned
+       exactly as it is at home — the sky and the plan are keyed by the home
+       course and its number, so a hole is the same hole wherever you meet it.
+       See courses.js → dealShowcase. */
+    function holeRef(i) {
+        var c = state.course;
+        return c.from ? c.from[i] : { id: c.id, index: i };
+    }
+
+    function themeAt(i) {
+        var c = state.course;
+        return c.themes ? c.themes[i] : c.theme;
+    }
+
+    // A fresh deal, from its first tee. Play again is newRound('showcase'),
+    // which is the same eight holes.
+    function newShowcase() {
+        G3.SHOWCASE = G3.dealShowcase();
+        newRound('showcase');
+    }
+
     /* `again` is a hole being restarted rather than arrived at, which is the
        one difference that matters here: the intro flyover is a first look at a
        hole, and you have already had it. */
@@ -136,10 +159,11 @@
 
         // The sky is part of the hole: chosen from the course and the hole
         // number, so it is the same sky every time you come back to this one.
+        var ref = holeRef(i);
         state.weather = G3.weather
-            ? G3.weather.pick(state.course.id, i, state.course.theme)
+            ? G3.weather.pick(ref.id, ref.index, themeAt(i))
             : null;
-        R.buildHole(hole, state.course.theme, state.weather);
+        R.buildHole(hole, themeAt(i), state.weather);
         A.ambience(state.weather);
         /* A new hole is a new look at it: back to the seat behind the ball,
            and the dial straightened, whatever angle the last one was left at.
@@ -754,7 +778,8 @@
                 totals: S.totals(state.scores, state.course.holes)
             };
         } else {
-            res = S.recordRound(state.save, state.course.id, state.scores, state.course.holes);
+            res = S.recordRound(state.save, state.course.id, state.scores, state.course.holes,
+                                { byPar: !!state.course.isShowcase });
             state.save = S.save(res.save);
         }
         state.phase = 'finished';
@@ -775,7 +800,7 @@
     function syncHud() {
         var hole = state.course.holes[state.holeIndex];
         var t = S.totals(state.scores, state.course.holes);
-        $('course-name').textContent = state.course.name;
+        $('course-name').textContent = courseLabel();
         $('hole-name').textContent = hole.name;
         $('hole-strokes').textContent = state.strokes;
 
@@ -804,8 +829,11 @@
             vs.className = 'stat-value ' + (t.vsPar < 0 ? 'under' : t.vsPar > 0 ? 'over' : 'level');
 
             var rec = S.courseRecord(state.save, state.course.id);
+            /* A showcase's best is a score against par and nothing else: the
+               strokes it took were strokes on a different eight holes. */
             $('best-round').textContent = rec.best === null
                 ? '\u2014'
+                : state.course.isShowcase ? S.formatVsPar(rec.bestVsPar)
                 : rec.best + ' (' + S.formatVsPar(rec.bestVsPar) + ')';
 
             $('shud-hole').textContent = (state.holeIndex + 1) + '/' + state.course.holes.length;
@@ -819,6 +847,15 @@
         syncClubs();
         syncPower();
         syncWeather();
+    }
+
+    /* The course in the scoreboard. On a showcase it is where this hole is
+       from as well, because the hole is not the showcase's — it is that
+       course's, and that course is where you would go to play the rest. */
+    function courseLabel() {
+        var c = state.course;
+        if (!c.isShowcase) return c.name;
+        return c.name + ' \u00B7 ' + G3.courseById(holeRef(state.holeIndex).id).name;
     }
 
     /* ── the hole card ──────────────────────────────────────────────────── */
@@ -847,7 +884,8 @@
         var b = state.world.ball;
         $('hc-name').textContent = hole.name;
         $('hc-blurb').textContent = hole.blurb;
-        if (G3.minimap) G3.minimap.into($('hc-map'), state.course.id, state.holeIndex, true);
+        var ref = holeRef(state.holeIndex);
+        if (G3.minimap) G3.minimap.into($('hc-map'), ref.id, ref.index, true);
         /* A restricted bag is the first thing to know about a hole and the one
            thing the picture of it cannot show: walking to the tee of a putting
            hole with the wedge in your hand and finding out at the top of the
@@ -906,7 +944,8 @@
         $('mini-map').setAttribute('aria-hidden', miniMapOn ? 'false' : 'true');
         if (miniMapOn) {
             var canvas = $('mm-canvas');
-            G3.minimap.into(canvas, state.course.id, state.holeIndex, true);
+            var ref = holeRef(state.holeIndex);
+            G3.minimap.into(canvas, ref.id, ref.index, true);
             miniMapTf = G3.minimap.transform(state.course.holes[state.holeIndex],
                 canvas.width, canvas.height);
             syncMiniMapBall();
@@ -1014,9 +1053,10 @@
     function cycleWeather() {
         var W = G3.weather;
         if (!W || !state || !state.world) return;
-        W.cycle(state.course.theme);
-        state.weather = W.pick(state.course.id, state.holeIndex, state.course.theme);
-        R.buildHole(state.course.holes[state.holeIndex], state.course.theme, state.weather);
+        var ref = holeRef(state.holeIndex), theme = themeAt(state.holeIndex);
+        W.cycle(theme);
+        state.weather = W.pick(ref.id, ref.index, theme);
+        R.buildHole(state.course.holes[state.holeIndex], theme, state.weather);
         A.ambience(state.weather);
         syncWeather();
         if ($('hole-card').classList.contains('show')) showHoleCard(true);
@@ -2417,8 +2457,14 @@
        you did not choose. One pick per opening of the list. */
     var menuTaking = false;
 
+    /* The kind of golf a course is filed under. A showcase is not filed
+       anywhere, so on one this answers for the hole you are standing on:
+       the picker opens on its kind, and "same kind" in the draw means it. */
     function groupOf(id) {
         var c = G3.courseById(id);
+        if (c && c.isShowcase && state && state.course === c && c.from[state.holeIndex]) {
+            c = G3.courseById(c.from[state.holeIndex].id);
+        }
         return c ? c.group : G3.COURSE_GROUPS[0].id;
     }
 
@@ -2431,9 +2477,13 @@
            opens on the tab that picks for you has answered the question
            instead of asking it. */
         menuKind = menuGroup;
+        drawShowcase();
         drawShuffle();
         drawTabs();
         var focus = drawCourses();
+        /* With nothing on offer and a showcase nobody has started behind the
+           list, the showcase is what is on offer. */
+        if (!suggestId && showcaseWaiting()) focus = $('menu-showcase');
         $('menu').className = 'modal show';
         // Keyboard and screen reader land on the course being offered, or on
         // the first one in the open tab if nothing is.
@@ -2896,6 +2946,32 @@
         return 'Drawing from ' + said + ' only.';
     }
 
+    /* The showcase button's second line: what it is, and once you have one
+       on the card, how your best went. */
+    function drawShowcase() {
+        var rec = S.courseRecord(state && state.save ? state.save : S.load(), 'showcase');
+        $('menu-showcase-sub').textContent =
+            'Two holes from every kind of golf, eight in all. A new deal every round.' +
+            (rec.best === null ? '' : ' Your best: ' + S.formatVsPar(rec.bestVsPar) + ' against par.');
+    }
+
+    // The round behind the list is a showcase nobody has started yet.
+    function showcaseWaiting() {
+        return !!(state && state.course && state.course.isShowcase && state.world &&
+                  state.strokes === 0 && !S.totals(state.scores, state.course.holes).played);
+    }
+
+    /* That one is the one on offer, and taking it is closing the list — a new
+       deal would rebuild a hole nobody had seen to show them a different one.
+       Anything else deals fresh. */
+    function takeShowcase() {
+        if (menuTaking) return;
+        maybeAutoFullscreen();
+        if (showcaseWaiting()) { closeMenu(); return; }
+        menuTaking = true;
+        newShowcase();
+    }
+
     /* Draw one and go. Deliberately not a confirmation step: a surprise you
        have to approve in a list is not a surprise, so the course loads and the
        toast is the reveal — the scoreboard has the name in it a moment later
@@ -2954,7 +3030,10 @@
             sc = state.scores[i];
             t = typeof sc === 'number' ? S.term(sc, holes[i].par) : null;
             rows += '<tr><td class="n">' + (i + 1) + '</td>' +
-                '<td class="nm">' + holes[i].name + '</td>' +
+                '<td class="nm">' + holes[i].name +
+                (state.course.isShowcase
+                    ? '<span class="card-from">' + G3.courseById(holeRef(i).id).name + '</span>'
+                    : '') + '</td>' +
                 '<td>' + holes[i].par + '</td>' +
                 '<td class="' + (t ? (sc === 1 ? 'ace' : t.kind === 'over' ? 'over' : t.kind === 'par' ? 'level' : 'under') : '') + '">' +
                 (typeof sc === 'number' ? sc : '—') + '</td></tr>';
@@ -2967,6 +3046,7 @@
            that has quietly lost somebody a record they thought they set. */
         $('card-sub').textContent = state.course.name +
             (res && res.unrecorded ? ' — not recorded: the caddie has had the club this session.'
+             : res && res.isBest && state.course.isShowcase ? ' — your best showcase yet, against par.'
              : res && res.isBest ? ' — a new personal best.' : '');
         $('card-body').innerHTML =
             '<table class="card-table"><thead><tr><th></th><th>Hole</th><th>Par</th><th>Score</th></tr></thead>' +
@@ -2985,7 +3065,11 @@
             /* Shuffle is the mode where this button stops naming where you are
                going. Naming it would be the whole of the draw given away on
                the card before the press. */
-            next.textContent = shuffleOn
+            /* And a showcase offers another one. It is a draw already, so it
+               outranks the shuffle switch: the deal is the surprise. */
+            next.textContent = state.course.isShowcase
+                ? '\u2726 Deal another showcase'
+                : shuffleOn
                 ? '\uD83C\uDFB2 Surprise me'
                 : 'Next: ' + G3.courseById(G3.nextCourseId(state.course.id)).name;
         } else {
@@ -3303,6 +3387,11 @@
             loadHole(state.holeIndex + 1);
             return;
         }
+        if (state.course.isShowcase) {
+            newShowcase();
+            toast('Autoplay — a new showcase');
+            return;
+        }
         var id = shuffleOn ? G3.randomCourseId(shuffleOpts())
                            : G3.nextCourseId(state.course.id);
         newRound(id);
@@ -3450,14 +3539,16 @@
 
     /* Out of the demo and into a game. The round on screen is the caddie's —
        a hole picked out of the middle of a course, with strokes on it nobody
-       played — so it is dealt again from the first tee before anyone is
-       handed the club, and then the game opens on the course list. */
+       played — so it is put away before anyone is handed the club, and what
+       is dealt in its place is a showcase: eight holes, two of every kind,
+       which is the game in one round. The course list opens over it, with the
+       showcase at the top of it, so "Keep playing" is the showcase and
+       anything else is one press away. */
     function leaveDemo() {
         if (!demo) return;
         maybeAutoFullscreen();
-        var id = state.course.id;
         stopDemo();
-        newRound(id);
+        newShowcase();
         /* That round was built with nothing in front of it, so its sweep has
            already started and the picker is about to stand over it. Cut it and
            put it back to pending: it then plays when the picker closes, which
@@ -3775,6 +3866,10 @@
         $('card-again').addEventListener('click', function () { newRound(state.course.id); });
         $('card-next').addEventListener('click', function () {
             closeCard();
+            if (state.course.isShowcase) {
+                newShowcase();
+                return;
+            }
             /* With shuffle on this button is the draw itself and does not go
                near the picker — the latch is released here because a press on
                it is the start of a new pick, exactly as opening the list is. */
@@ -3786,6 +3881,7 @@
             openMenu(G3.nextCourseId(state.course.id));
         });
         $('shuffle-go').addEventListener('click', function () { takeRandom(); });
+        $('menu-showcase').addEventListener('click', takeShowcase);
         /* No toast on this one: it is pressed with the picker open, and the
            toast band is behind the modal. The switch is its own answer. */
         $('shuffle-keep').addEventListener('click', function () {
@@ -3849,9 +3945,10 @@
                hand. */
             startDemo();
         } else {
-            // Something has to be on screen behind the menu, and the first hole
-            // of the first course is as good an advert as any.
-            newRound(G3.COURSES[0].id);
+            /* Something has to be on screen behind the menu, and it may as
+               well be the round the menu is offering first: a showcase, the
+               same one leaving the demo deals. */
+            newShowcase();
             openMenuArriving();
         }
 

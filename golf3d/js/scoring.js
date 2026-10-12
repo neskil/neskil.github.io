@@ -96,8 +96,14 @@
 
     /* Fold a finished round into the save. Returns the new save plus whether
        this round beat the record for that course, because the end-of-round
-       screen wants to make a fuss about it. */
-    function recordRound(prev, courseId, scores, holes) {
+       screen wants to make a fuss about it.
+
+       `byPar` judges the round against par instead of by strokes, for a
+       course whose holes are not the same holes every time — the showcase.
+       Two deals add up to different pars, so the fewest strokes would be a
+       record of the easiest deal rather than of the best round. */
+    function recordRound(prev, courseId, scores, holes, opts) {
+        var byPar = !!(opts && opts.byPar);
         var t = totals(scores, holes);
         var was = courseRecord(prev, courseId);
         var aces = 0, i;
@@ -107,7 +113,9 @@
         for (var id in prev.courses) {
             if (Object.prototype.hasOwnProperty.call(prev.courses, id)) next.courses[id] = prev.courses[id];
         }
-        var isBest = was.best === null || t.strokes < was.best;
+        var isBest = byPar
+            ? was.bestVsPar === null || t.vsPar < was.bestVsPar
+            : was.best === null || t.strokes < was.best;
         next.courses[courseId] = {
             best: isBest ? t.strokes : was.best,
             bestVsPar: isBest ? t.vsPar : was.bestVsPar,

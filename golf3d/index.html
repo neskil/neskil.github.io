@@ -32,7 +32,7 @@
 
         gtag('config', 'G-9GP823TGLB');
     </script>
-    <link rel="stylesheet" href="style.css?v=1.58.0">
+    <link rel="stylesheet" href="style.css?v=1.59.0">
 <script type="application/ld+json">
     {
         "@context": "https://schema.org",
@@ -584,6 +584,18 @@
                 </span>
                 <span class="sh-mark" aria-hidden="true"></span>
             </button>
+            <!-- The showcase: two holes from every kind of golf, eight in all,
+                 and what a new game plays — it is the round loaded behind
+                 this list when it first opens, so "Keep playing" is this too.
+                 Above the tabs rather than in one, because it is every kind
+                 at once. courses.js → dealShowcase. -->
+            <button type="button" class="sh-go showcase-go" id="menu-showcase">
+                <span class="sh-die" aria-hidden="true">&#x2726;</span>
+                <span class="sh-go-text">
+                    <b>Showcase</b>
+                    <span class="sh-sub" id="menu-showcase-sub">Two holes from every kind of golf, eight in all. A new deal every round.</span>
+                </span>
+            </button>
             <!-- One tab per kind of golf. Seventeen courses shown flat is a list
                  nobody reads; shown a kind at a time it is three or four. -->
             <div class="menu-tabs" id="menu-tabs" role="tablist"
@@ -689,29 +701,29 @@
 
     <!-- Load order is dependency order: config, then the pure logic, then the
          things that touch the screen. game.js boots itself on DOMContentLoaded. -->
-    <script src="js/config.js?v=1.58.0"></script>
-    <script src="js/themes.js?v=1.58.0"></script>
-    <script src="js/physics.js?v=1.58.0"></script>
-    <script src="js/courses.js?v=1.58.0"></script>
-    <script src="js/audit.js?v=1.58.0"></script>
-    <script src="js/custom.js?v=1.58.0"></script>
-    <script src="js/scoring.js?v=1.58.0"></script>
-    <script src="js/swing.js?v=1.58.0"></script>
-    <script src="js/school.js?v=1.58.0"></script>
-    <script src="js/audio.js?v=1.58.0"></script>
-    <script src="js/music.js?v=1.58.0"></script>
-    <script src="js/bag.js?v=1.58.0"></script>
-    <script src="js/textures.js?v=1.58.0"></script>
-    <script src="js/shaders.js?v=1.58.0"></script>
-    <script src="js/postfx.js?v=1.58.0"></script>
-    <script src="js/weather.js?v=1.58.0"></script>
-    <script src="js/flyover.js?v=1.58.0"></script>
-    <script src="js/bot.js?v=1.58.0"></script>
-    <script src="js/models.js?v=1.58.0"></script>
-    <script src="js/life.js?v=1.58.0"></script>
-    <script src="js/render.js?v=1.58.0"></script>
-    <script src="js/minimap.js?v=1.58.0"></script>
-    <script src="js/debug.js?v=1.58.0"></script>
-    <script src="js/game.js?v=1.58.0"></script>
+    <script src="js/config.js?v=1.59.0"></script>
+    <script src="js/themes.js?v=1.59.0"></script>
+    <script src="js/physics.js?v=1.59.0"></script>
+    <script src="js/courses.js?v=1.59.0"></script>
+    <script src="js/audit.js?v=1.59.0"></script>
+    <script src="js/custom.js?v=1.59.0"></script>
+    <script src="js/scoring.js?v=1.59.0"></script>
+    <script src="js/swing.js?v=1.59.0"></script>
+    <script src="js/school.js?v=1.59.0"></script>
+    <script src="js/audio.js?v=1.59.0"></script>
+    <script src="js/music.js?v=1.59.0"></script>
+    <script src="js/bag.js?v=1.59.0"></script>
+    <script src="js/textures.js?v=1.59.0"></script>
+    <script src="js/shaders.js?v=1.59.0"></script>
+    <script src="js/postfx.js?v=1.59.0"></script>
+    <script src="js/weather.js?v=1.59.0"></script>
+    <script src="js/flyover.js?v=1.59.0"></script>
+    <script src="js/bot.js?v=1.59.0"></script>
+    <script src="js/models.js?v=1.59.0"></script>
+    <script src="js/life.js?v=1.59.0"></script>
+    <script src="js/render.js?v=1.59.0"></script>
+    <script src="js/minimap.js?v=1.59.0"></script>
+    <script src="js/debug.js?v=1.59.0"></script>
+    <script src="js/game.js?v=1.59.0"></script>
 </body>
 </html>
