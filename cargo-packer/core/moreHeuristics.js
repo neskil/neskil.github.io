@@ -25,7 +25,7 @@
     if (typeof module !== 'undefined' && module.exports) {
       return Object.assign({}, require('./types'), require('./collision'), require('./metrics'));
     }
-    return window.CargoPacker;
+    return self.CargoPacker;
   }
 
   /** A placed box: the item's identity plus where and how it went in. */
@@ -65,12 +65,13 @@
     };
   }
 
-  function step(steps, box, candidates, remaining) {
+  function step(steps, box, candidates, remaining, candidateCount) {
     steps.push({
       stepIndex: steps.length,
       box: Object.assign({}, box),
       chosenEP: { x: box.x, y: box.y, z: box.z },
       candidateEPs: candidates,
+      candidateCount: candidateCount !== undefined ? candidateCount : candidates.length,
       remainingCount: remaining
     });
   }
@@ -117,7 +118,8 @@
         return;
       }
 
-      const snapshot = corners.map(c => ({ x: c.x, y: c.y, z: c.z }));
+      const snapshot = CP.snapshotPoints(corners, best);
+      const candidateCount = corners.length;
       placed.push(best);
       corners = corners.concat([
         { x: best.x + best.w, y: best.y, z: best.z },
@@ -139,7 +141,7 @@
         return true;
       }).sort((a, b) => (a.z - b.z) || (a.y - b.y) || (a.x - b.x));
 
-      step(steps, best, snapshot, items.length - placed.length);
+      step(steps, best, snapshot, items.length - placed.length, candidateCount);
     });
 
     return finish(CP, 'Deepest-Bottom-Left', placed, unplaced, steps, container);
@@ -238,7 +240,7 @@
         unplaced.push(item);
         return;
       }
-      const snapshot = spots.map(s => ({ x: s.x, y: 0, z: s.z }));
+      const snapshot = CP.snapshotPoints(spots, best);
       placed.push(best);
       spots = spots.concat([
         { x: best.x + best.w, y: 0, z: best.z },
@@ -474,4 +476,4 @@
   exports.packFloorOnly = packFloorOnly;
   exports.packRandomDrop = packRandomDrop;
 
-})(typeof module !== 'undefined' && module.exports ? module.exports : (window.CargoPacker = window.CargoPacker || {}));
+})(typeof module !== 'undefined' && module.exports ? module.exports : (self.CargoPacker = self.CargoPacker || {}));

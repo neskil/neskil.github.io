@@ -116,8 +116,26 @@
     };
   }
 
+  /**
+   * The candidate spots a step records for the visualizer: all of them up to
+   * `limit`, else the first `limit` (lists are kept in loading order) plus
+   * the chosen one. On a load of thousands an algorithm can hold tens of
+   * thousands of spots, and a copy per step would run to millions of objects
+   * for dots nobody could tell apart. Placement never depends on this.
+   */
+  function snapshotPoints(points, chosen, limit = 600) {
+    const copy = p => ({ x: p.x, y: p.y, z: p.z });
+    if (points.length <= limit) return points.map(copy);
+    const out = points.slice(0, limit).map(copy);
+    if (chosen && !out.some(p => Math.abs(p.x - chosen.x) < 1e-4 && Math.abs(p.y - chosen.y) < 1e-4 && Math.abs(p.z - chosen.z) < 1e-4)) {
+      out.push(copy(chosen));
+    }
+    return out;
+  }
+
+  exports.snapshotPoints = snapshotPoints;
   exports.CONTAINERS = CONTAINERS;
   exports.getOrientations = getOrientations;
   exports.createItem = createItem;
 
-})(typeof module !== 'undefined' && module.exports ? module.exports : (window.CargoPacker = window.CargoPacker || {}));
+})(typeof module !== 'undefined' && module.exports ? module.exports : (self.CargoPacker = self.CargoPacker || {}));

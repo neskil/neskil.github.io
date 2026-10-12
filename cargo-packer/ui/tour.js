@@ -41,6 +41,11 @@
         else if (e.key === 'Escape') this.close();
       });
 
+      // Keep the shot in the part of the screen the tour leaves free
+      window.addEventListener('resize', () => {
+        if (this.algoId) requestAnimationFrame(() => this.reframe());
+      });
+
       const startBtn = document.getElementById('btn-tour');
       if (startBtn) {
         startBtn.addEventListener('click', () => this.start(this.controller.selectedAlgorithm));
@@ -70,13 +75,24 @@
       document.body.classList.add('touring');
       this.panel.hidden = false;
       this.kickerEl.textContent = `How it works · ${CP.getAlgorithm(algoId).name}`;
-      this.go(0);
+
+      // The text quotes ranks and counts, so wait for every algorithm
+      if (this.controller.solving) {
+        this.titleEl.textContent = 'Packing the load…';
+        this.bodyEl.textContent = 'The algorithms run in the background; the tour starts as soon as they finish.';
+        this.dotsEl.innerHTML = '';
+      }
+      this.reframe();
+      this.controller.whenSolved().then(() => {
+        if (this.algoId === algoId) this.go(0);
+      });
     }
 
     close() {
       this.algoId = null;
       document.body.classList.remove('touring');
       this.panel.hidden = true;
+      this.sceneManager.setFrame(null);
       this.visualizers.showSupport(null);
       this.visualizers.setGhost(null);
       this.boxRenderer.selectBox(null);
@@ -112,7 +128,7 @@
 
     go(index) {
       const chapters = this.chapters();
-      if (!chapters.length) return;
+      if (!chapters.length || !this.controller.packResult) return;
       this.index = Math.max(0, Math.min(chapters.length - 1, index));
       const ch = chapters[this.index];
       const show = new Set(ch.show || []);
@@ -139,10 +155,7 @@
         this.visualizers.setGhost(null);
       }
 
-      // 3. Camera
-      this.sceneManager.flyTo(this.pose(ch.camera, box));
-
-      // 4. Text
+      // 3. Text
       this.titleEl.textContent = ch.title;
       this.bodyEl.innerHTML = this.fill(ch.body, step, box) +
         (ch.note ? `<p class="tour-note">${this.fill(ch.note, step, box)}</p>` : '');
@@ -152,6 +165,41 @@
       this.prevBtn.disabled = this.index === 0;
       this.nextBtn.textContent = this.index === chapters.length - 1 ? 'Finish' : 'Next →';
       this.bodyEl.scrollTop = 0;
+
+      // 4. Camera, framed in the space the panel leaves free (the panel's
+      //    height changes with the chapter's text, so measure it each time)
+      this.reframe();
+      this.sceneManager.flyTo(this.pose(ch.camera, box));
+    }
+
+    /**
+     * The part of the screen nothing covers: below the top bar, above the dock
+     * and, on a phone, above the tour sheet; beside the tour panel and the
+     * metrics panel on a desktop. The camera's shot is centred there.
+     */
+    freeRect() {
+      const W = window.innerWidth, H = window.innerHeight, pad = 8;
+      const top = document.querySelector('header.top-bar');
+      const dock = document.querySelector('nav.playback-bar');
+      let x0 = pad, x1 = W - pad;
+      let y0 = (top ? top.getBoundingClientRect().bottom : 56) + pad;
+      let y1 = (dock ? dock.getBoundingClientRect().top : H - 84) - pad;
+
+      const pr = this.panel.getBoundingClientRect();
+      if (pr.width > W * 0.6) y1 = Math.min(y1, pr.top - pad); // bottom sheet
+      else x0 = Math.max(x0, pr.right + pad);                    // side panel
+
+      const hud = document.getElementById('right-hud');
+      if (hud && W > 900) {
+        const hr = hud.getBoundingClientRect();
+        if (hr.width > 0) x1 = Math.min(x1, hr.left - pad);
+      }
+      if (x1 - x0 < 120 || y1 - y0 < 120) return null; // too cramped: use the whole screen
+      return { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
+    }
+
+    reframe() {
+      this.sceneManager.setFrame(this.freeRect());
     }
 
     /** Camera pose for a chapter, relative to the container and the focus box. */
@@ -197,7 +245,7 @@
         fill: r.metrics.volumeUtilization,
         extent: mine ? mine.extentLabel.replace(' used', ' of floor') : '',
         box: box ? box.name : 'box',
-        epCount: step && step.candidateEPs ? step.candidateEPs.length : 0,
+        epCount: step ? (step.candidateCount !== undefined ? step.candidateCount : (step.candidateEPs || []).length) : 0,
         support: box ? Math.round((box.supportRatio !== undefined ? box.supportRatio : 1) * 100) : 0,
         depth: box ? box.d.toFixed(2) : '',
         rank: comp ? comp.ranking.findIndex(x => x.id === this.algoId) + 1 : '?',

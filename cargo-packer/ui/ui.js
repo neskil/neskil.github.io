@@ -310,7 +310,7 @@
           const btn = e.target.closest('[data-cargo-step]');
           if (!btn) return;
           const input = this.cargoRowsEl.querySelector(`[data-cargo-input="${btn.dataset.key}"]`);
-          input.value = Math.max(+input.min, Math.min(+input.max, (+input.value || 0) + (+btn.dataset.cargoStep)));
+          input.value = Math.max(+input.min || 0, (+input.value || 0) + (+btn.dataset.cargoStep));
           this.sound.playClick();
           this.queueCargoCommit();
         });
@@ -326,7 +326,7 @@
             const old = +input.value || 0;
             const v = Math.round(old * f);
             // Halving never empties a type; doubling never brings one back
-            input.value = old === 0 ? 0 : Math.max(1, Math.min(+input.max, v));
+            input.value = old === 0 ? 0 : Math.max(1, v);
           });
           this.queueCargoCommit(0);
         });
@@ -412,6 +412,7 @@
       clearTimeout(this.cargoTimer);
       if (this.cargoSummaryEl) this.cargoSummaryEl.textContent = 'Repacking…';
       this.cargoTimer = setTimeout(() => {
+        this.cargoTimer = null;
         const cargo = this.controller.cargoCounts();
         this.cargoRowsEl.querySelectorAll('[data-cargo-input]').forEach(input => {
           const v = +input.value || 0;
@@ -424,8 +425,9 @@
 
     /** A solve blocks for up to a second on big loads: let "Repacking…" paint first. */
     runSolve(fn) {
-      if (this.cargoSummaryEl) this.cargoSummaryEl.textContent = 'Repacking…';
-      requestAnimationFrame(() => setTimeout(fn, 0));
+      // Packing runs in a worker, so this no longer blocks; the summary shows
+      // its progress from the next update on.
+      fn();
     }
 
     /**
@@ -438,15 +440,37 @@
       const preset = CP.PRESETS[state.selectedScenario];
       if (!preset || !this.cargoRowsEl) return;
 
-      const sig = JSON.stringify([state.selectedScenario, state.cargo, state.randomSeed, state.itemCount]);
-      if (sig === this.cargoSig) return;
+      // Summary of what is on the manifest (not what fits). Refreshed on every
+      // update: it also carries the background packing's progress.
+      const items = state.items;
+      const kg = items.reduce((a, b) => a + (b.weight || 0), 0);
+      const m3 = items.reduce((a, b) => a + b.w * b.h * b.d, 0);
+      if (this.cargoSummaryEl && !this.cargoTimer) {
+        const sv = state.solving;
+        this.cargoSummaryEl.textContent = `${items.length.toLocaleString()} items · ${Math.round(kg).toLocaleString()} kg · ${m3.toFixed(1)} m³` +
+          (sv ? ` · packing ${sv.done}/${sv.total}…` : items.length > 400 ? ' · big load' : '');
+      }
+
+      // Same scenario: update the numbers in place rather than rebuilding the
+      // rows, so a field being typed in keeps its focus and its text.
+      const sig = state.selectedScenario;
+      if (sig === this.cargoSig) {
+        this.cargoRowsEl.querySelectorAll('[data-cargo-input]').forEach(input => {
+          if (input === document.activeElement) return;
+          const key = input.dataset.cargoInput;
+          const v = preset.isRandom ? state.cargo.count : state.cargo.counts[key];
+          if (String(v) !== input.value) input.value = v;
+        });
+        this.updateScenarioBlurbs(state, items.length);
+        return;
+      }
       this.cargoSig = sig;
 
       const fmt = v => (+v.toFixed(2)).toString();
-      const stepper = (key, value, max, label, step = 1) => `
+      const stepper = (key, value, label, step = 1) => `
         <div class="stepper">
           <button type="button" class="stepper-btn" data-cargo-step="-${step}" data-key="${key}" aria-label="Fewer ${label}">&minus;</button>
-          <input type="number" inputmode="numeric" min="0" max="${max}" value="${value}" data-cargo-input="${key}" aria-label="${label}">
+          <input type="number" inputmode="numeric" min="0" step="1" value="${value}" data-cargo-input="${key}" aria-label="${label}">
           <button type="button" class="stepper-btn" data-cargo-step="${step}" data-key="${key}" aria-label="More ${label}">+</button>
         </div>`;
 
@@ -455,7 +479,7 @@
           <div class="cargo-row">
             <span class="cargo-swatch cargo-swatch-mixed"></span>
             <div class="cargo-info"><strong>Random items</strong><span>New sizes on every 🎲 roll</span></div>
-            ${stepper('count', state.cargo.count, preset.maxCount, 'random items', 5)}
+            ${stepper('count', state.cargo.count, 'random items', 5)}
           </div>`;
       } else {
         this.cargoRowsEl.innerHTML = preset.types.map(t => {
@@ -467,27 +491,24 @@
                 <strong>${t.name}</strong>
                 <span>${fmt(t.w)}×${fmt(t.h)}×${fmt(t.d)} m · ${t.weight} kg</span>
               </div>
-              ${stepper(t.key, state.cargo.counts[t.key], CP.MAX_PER_TYPE, t.name)}
+              ${stepper(t.key, state.cargo.counts[t.key], t.name)}
             </div>`;
         }).join('');
       }
 
-      // Summary of what is on the manifest (not what fits)
-      const items = state.packResult ? state.packResult.placed.concat(state.packResult.unplaced) : [];
-      const kg = items.reduce((a, b) => a + (b.weight || 0), 0);
-      const m3 = items.reduce((a, b) => a + b.w * b.h * b.d, 0);
-      const limit = preset.isRandom ? '' : ` · max ${CP.PackerController.MAX_ITEMS}`;
-      if (this.cargoSummaryEl) {
-        this.cargoSummaryEl.textContent = `${items.length} items · ${Math.round(kg).toLocaleString()} kg · ${m3.toFixed(1)} m³${limit}`;
-      }
 
-      // The scenario chip says how many items the load now has
+      this.updateScenarioBlurbs(state, items.length);
+    }
+
+    /** The scenario chips say how many items each load now has. */
+    updateScenarioBlurbs(state, activeCount) {
+      const CP = window.CargoPacker;
       document.querySelectorAll('[data-scenario]').forEach(btn => {
         const p = CP.PRESETS[btn.dataset.scenario];
         const desc = btn.querySelector('.chip-desc');
         if (!p || !desc) return;
         const edit = this.controller.cargo[p.id];
-        const n = btn.dataset.scenario === state.selectedScenario ? items.length
+        const n = btn.dataset.scenario === state.selectedScenario ? activeCount
           : p.isRandom ? (edit && edit.count !== undefined ? edit.count : p.defaultCount)
           : p.types.reduce((a, t) => a + (edit && edit.counts && edit.counts[t.key] !== undefined ? edit.counts[t.key] : t.count), 0);
         desc.textContent = p.blurb(n);
@@ -658,7 +679,10 @@
       const pct = total > 0 ? (current / total) * 100 : 0;
 
       if (this.progressTextEl) {
-        this.progressTextEl.textContent = `Box ${current} of ${total}`;
+        // While the shown algorithm is still packing there are no boxes yet
+        this.progressTextEl.textContent = !state.packResult && state.solving
+          ? `Packing ${state.itemCount} items…`
+          : `Box ${current} of ${total}`;
       }
       if (this.progressFillEl) {
         this.progressFillEl.style.width = `${pct}%`;
@@ -680,9 +704,15 @@
         const medals = ['🥇', '🥈', '🥉'];
         const rankMark = i => medals[i] || `<span class="showdown-rank">${i + 1}</span>`;
 
-        if (this.showdownWinnerBadgeEl && comp.winner) {
-          this.showdownWinnerBadgeEl.textContent = `🏆 ${comp.winner.shortName}`;
-          this.showdownWinnerBadgeEl.title = `${comp.winner.name}: ${comp.lead}`;
+        if (this.showdownWinnerBadgeEl) {
+          if (comp.complete && comp.winner) {
+            this.showdownWinnerBadgeEl.textContent = `🏆 ${comp.winner.shortName}`;
+            this.showdownWinnerBadgeEl.title = `${comp.winner.name}: ${comp.lead}`;
+          } else {
+            const s = state.solving;
+            this.showdownWinnerBadgeEl.textContent = s ? `Packing ${s.done}/${s.total}` : 'Packing…';
+            this.showdownWinnerBadgeEl.title = 'The algorithms run in the background; results appear as each finishes';
+          }
         }
 
         // Render ranking rows
@@ -711,6 +741,19 @@
             </div>
           `;
         }
+        // Algorithms still packing, in the order they will finish
+        const CP = window.CargoPacker;
+        CP.ALGORITHMS.filter(a => !comp.results[a.id]).forEach(a => {
+          const isCurrent = a.id === state.selectedAlgorithm;
+          const working = state.solving && state.solving.current === a.id;
+          html += `
+            <div class="showdown-row pending ${isCurrent ? 'active' : ''}" data-showdown-algo="${a.id}" title="${a.name}: still packing">
+              <div class="showdown-row-header">
+                <span class="showdown-name"><span class="showdown-medal"><span class="showdown-rank">·</span></span><span>${a.shortName}</span></span>
+                <span class="showdown-val showdown-wait">${working ? 'packing…' : 'queued'}</span>
+              </div>
+            </div>`;
+        });
         this.showdownListEl.innerHTML = html;
 
         // Bind click on rows to switch algorithm

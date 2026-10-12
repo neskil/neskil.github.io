@@ -120,11 +120,29 @@ Each fixed scenario is a type table in `core/manifests.js` (name, size,
 weight, default count); `buildManifest` turns a table plus counts into items,
 and the defaults reproduce the original manifests exactly. The editor in the
 left panel sets counts per type (or the item count for the random scenario),
-with ×½, ×2 and Reset. Limits — 120 per type, 250 items per load, 200 random —
-keep a full all-algorithm solve around a second, Extreme Points being the
-slowest. Its anchor-point bookkeeping uses a floor-plan bucket grid and skips
-spots whose best possible score cannot win; both are exact (same placements
-as before, checked on 207 loads) and about 3× faster.
+with ×½, ×2 and Reset. There is no ceiling: any whole number goes.
+
+### Background packing
+
+Every solve packs with every algorithm, in a Web Worker
+(`core/solveWorker.js`, which `importScripts` the same `core/` files; they
+attach to `self.CargoPacker`, which is the window on a page). Results stream
+back one algorithm at a time: the one on screen first, then the compare
+pane's, then the quick ones, the slow ones (`slow: true` in the registry)
+last. The Showdown ranks whatever has finished (`rankAlgorithms`) and marks the
+rest as packing; switching to a finished algorithm is instant. A new edit
+terminates a worker still on an older load. Where workers cannot start (a page
+opened from `file://`), the same sequence runs on the page, yielding between
+algorithms. A 1,200-item load packs in about 5 s with the page never stalling
+more than ~0.1 s.
+
+Big loads stay renderable because carton textures are shared (six label
+variants per kind of box, rather than a 512² canvas per box), and each step
+records at most 600 candidate spots for the visualizer (`snapshotPoints`;
+placement never depends on it). Extreme Points' anchor-point bookkeeping
+uses a floor-plan bucket grid and skips spots whose best possible score cannot
+win: exact (same placements as before, checked on 207 loads) and about 3×
+faster.
 
 ### Physical stacking rule
 
