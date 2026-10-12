@@ -958,6 +958,20 @@ aside.right-hud {
   color: #fda4af;
 }
 
+/* Balance at a glance: the CoG status each algorithm's load ends with */
+.cog-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  margin-right: 5px;
+  vertical-align: 1px;
+}
+
+.cog-optimal { background: #10b981; }
+.cog-acceptable { background: #f59e0b; }
+.cog-hazard { background: #ef4444; }
+
 .showdown-sub {
   display: flex;
   justify-content: space-between;

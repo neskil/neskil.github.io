@@ -388,6 +388,11 @@
           `${overlaps} overlaps, ${r.placed.length}+${r.unplaced.length}/${ind.length}`);
       });
 
+      const balanced = indRuns.balanced.metrics.cog;
+      assert('Balanced Load keeps the centre of gravity mid-container (where Extreme Points does not)',
+        balanced.status === 'optimal' && Math.abs(balanced.longOffsetPercent) < 5 && Math.abs(balanced.latOffsetPercent) < 5 &&
+        indRuns.extremePoints.metrics.cog.status !== 'optimal',
+        `balanced ${balanced.longOffsetPercent}% / ${balanced.latOffsetPercent}%, EP ${indRuns.extremePoints.metrics.cog.status}`);
       assert('Floor Only never stacks and never turns a box',
         indRuns.floorOnly.placed.every(b => b.y === 0 && b.rotIndex === 0));
       const order = ind.map(i => i.id);

@@ -702,7 +702,7 @@
                 <span class="showdown-val">${r.volumeUtilization}%</span>
               </div>
               <div class="showdown-sub">
-                <span>${r.placedCount}/${r.totalCount} loaded</span>
+                <span><span class="cog-dot cog-${r.cogStatus}" title="Centre of gravity: ${r.cogStatus}"></span>${r.placedCount}/${r.totalCount} loaded</span>
                 <span>${r.extentLabel}</span>
               </div>
               <div class="showdown-bar-bg">

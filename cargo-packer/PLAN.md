@@ -213,7 +213,7 @@ cargo-packer/
 - [x] **9.4 Cargo editor**: per-type counts, ×½ / ×2 / Reset, random item count; limits 120/type, 250/load.
 - [x] **9.5 Extreme Points speed-up**: exact (identical placements), ~3× faster on big loads.
 - [x] **9.6 Guided tours**: one article per algorithm (`ui/tourContent.js`); chapters stage the step, fly the camera and highlight anchor points / support patches (`ui/tour.js`). `?tour=<algoId>` opens one.
-- [ ] **9.7 Weight-balanced loader**: keep the centre of gravity mid-container (every current loader packs hard against the bulkhead).
+- [x] **9.7 Weight-balanced loader** (Balanced Load): heaviest first, CoG-scored spots; ends centred where the others end in imbalance hazard. Showdown rows carry a CoG status dot; it has its own guided tour.
 
 ---
 

@@ -50,6 +50,16 @@
       run: (items, c, o) => lib().packDeepestBottomLeft(items, c, o)
     },
     {
+      id: 'balanced',
+      name: 'Balanced Load (CoG-centred)',
+      shortName: 'Balanced Load',
+      quality: 'good',
+      blurb: 'Spreads the weight: centre of gravity mid-container',
+      explainer: 'Loads for weight balance rather than density. Heaviest first, each box goes where it keeps the centre of gravity closest to the middle of the container, so the axles share the load and nothing pulls the trailer sideways. What real load planners spread evenly is weight, not gaps.',
+      winNote: 'Building out from the middle kept the load compact and the weight centred.',
+      run: (items, c, o) => lib().packBalanced(items, c, o)
+    },
+    {
       id: 'firstFit',
       name: 'First-Fit Decreasing (Shelf)',
       shortName: 'First-Fit',
