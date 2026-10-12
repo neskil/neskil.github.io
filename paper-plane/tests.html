@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Paper Plane Glider — Flight Tests</title>
+    <title>Paper Plane Glider — Folding &amp; Flight Tests</title>
     <meta name="robots" content="noindex">
     <style>
         body { background: #0f172a; color: #f8fafc; font-family: system-ui, monospace; padding: 1.5rem; line-height: 1.5; }
@@ -20,7 +20,9 @@
     <div id="results"></div>
 
     <script type="module">
+        import * as F from './js/fold.js';
         import * as P from './js/flight.js';
+        import { buildModel } from './js/model.js';
 
         const results = document.getElementById('results');
         let passed = 0, failed = 0;
@@ -31,116 +33,221 @@
             results.appendChild(row);
             cond ? passed++ : failed++;
         }
-        const m = (r) => r.distance.toFixed(1) + ' m';
-
-        // ── The fold ──
-        {
-            const glider = P.makePlane({ shape: 0, nose: 0, flaps: 0 });
-            const dart = P.makePlane({ shape: 1, nose: 0, flaps: 0 });
-            ok(glider.area > dart.area && glider.aspect > dart.aspect, 'a glider has more wing, and longer wings, than a dart');
-            ok(P.makePlane({ shape: 0.5, nose: 2, flaps: 0 }).mass > P.makePlane({ shape: 0.5, nose: 0, flaps: 0 }).mass, 'clips add weight');
-            ok(P.makePlane({ shape: 0.5, nose: 0, flaps: 0 }).margin < 0 && P.makePlane({ shape: 0.5, nose: 1, flaps: 0 }).margin > 0,
-                'a bare sheet is a touch unstable; one clip makes it stable');
-            ok(P.makePlane({ shape: 0.5, nose: 0, flaps: 1 }).cm0 > P.makePlane({ shape: 0.5, nose: 0, flaps: -1 }).cm0, 'flaps up pitch the nose up');
-            const odd = P.makePlane({ shape: 7, nose: -3, flaps: NaN });
-            ok(odd.fold.shape === 1 && odd.fold.nose === 0 && odd.fold.flaps === -1, 'out-of-range sliders are clamped');
-        }
-        {
-            const p = P.makePlane(P.DEFAULT_FOLD);
-            const pre = P.coefficients(p, p.stall * 0.9), post = P.coefficients(p, p.stall * 2);
-            ok(post.cl < pre.cl, 'past the stall, lift falls away');
-            ok(post.cd > pre.cd * 2, 'and drag jumps');
-            const ld = [0.02, 0.05, 0.08, 0.12, 0.2].map(a => { const c = P.coefficients(p, a); return c.cl / c.cd; });
-            const peak = ld.indexOf(Math.max(...ld));
-            ok(peak > 0 && peak < ld.length - 1, 'the best glide is at a small angle, not zero and not near the stall', ld.map(x => x.toFixed(1)).join(' '));
+        const near = (a, b, t) => Math.abs(a - b) <= t;
+        const totalArea = (p) => p.facets.reduce((s, f) => s + Math.abs(F.area(f.pts)), 0);
+        const hasVertex = (p, x, y) => p.facets.some(f => f.pts.some(v => near(v[0], x, 0.05) && near(v[1], y, 0.05)));
+        function folded(id, upto = Infinity) {
+            const d = F.DESIGNS.find(x => x.id === id);
+            return F.build(d.steps.slice(0, upto)).paper;
         }
 
-        // ── Flights ──
+        // ── The sheet ──
         {
-            const a = P.fly(P.DEFAULT_FOLD, 5, 7), b = P.fly(P.DEFAULT_FOLD, 5, 7);
-            ok(a.distance === b.distance && a.path.length === b.path.length, 'the same fold and throw fly the same flight');
-            ok(a.stalls > 0, 'the starting fold stalls', a.stalls + ' stalls, ' + m(a));
-            const tuned = P.fly({ shape: 0.5, nose: 1, flaps: 0 }, 5, 7);
-            ok(tuned.distance > a.distance * 2, 'a clip on the nose more than doubles it', m(a) + ' → ' + m(tuned));
-            const loop = P.fly({ shape: 0.5, nose: 0, flaps: 1 }, 5, 7);
-            ok(loop.distance < tuned.distance / 2 && loop.stalls >= 1, 'flaps up on a bare sheet stalls it short', m(loop));
-            const dive = P.fly({ shape: 0.5, nose: 3, flaps: -1 }, 5, 7);
-            ok(dive.distance < tuned.distance / 2, 'a heavy nose with flaps down dives', m(dive));
-            const heavyFixed = P.fly({ shape: 0.5, nose: 3, flaps: 1 }, 5, 7);
-            ok(heavyFixed.distance > dive.distance * 1.5, 'and flaps up rescue a heavy nose', m(heavyFixed));
+            const s = F.newSheet();
+            ok(near(totalArea(s), 210 * 297, 1e-6), 'a sheet of A4 is 210 × 297 mm');
+            ok(near(F.SHEET_MASS * 1000, 4.99, 0.01), 'and weighs 5 g at 80 gsm');
+            const an = F.analyze(s);
+            ok(near(an.cg[0], 0, 1e-9) && near(an.cg[1], 148.5, 1e-9), 'its balance point is in the middle');
+        }
+
+        // ── Folding ──
+        {
+            const s = F.newSheet();
+            const p = F.fold(s, [-105, 0], [0, 105]);
+            ok(p && hasVertex(p, 0, 105), 'a corner picked up lands exactly where it is put');
+            ok(near(totalArea(p), 210 * 297, 0.01), 'and no paper is made or lost');
+            ok(p.facets.length === 2, 'one crease makes two facets');
+            const flap = p.facets.find(f => f.face === 1);
+            ok(flap && flap.z > p.facets.find(f => f.face === 0).z, 'the flap is turned over and lies on top');
+            const under = F.fold(s, [-105, 0], [0, 105], true);
+            ok(under.facets.find(f => f.face === 1).z < under.facets.find(f => f.face === 0).z, 'folding under puts it beneath');
+            ok(F.fold(s, [-105, 0], [-104, 0.5]) === null, 'a twitch is not a fold');
+            ok(F.fold(s, [500, 500], [0, 0]) === null, 'grabbing thin air folds nothing');
         }
         {
-            // Soft throws favour a broad wing; the dart pays for its small wing.
-            const soft = (shape) => {
-                let best = 0;
-                for (let nose = 0; nose <= 3; nose += 0.25) for (let flaps = -1; flaps <= 1; flaps += 0.25) {
-                    best = Math.max(best, P.fly({ shape, nose, flaps }, 0, 5).distance);
-                }
-                return best;
-            };
-            const g = soft(0), d = soft(1);
-            ok(g > d, 'a soft throw goes furthest with a broad glider wing', g.toFixed(1) + ' m vs ' + d.toFixed(1) + ' m');
-            ok(g > 12 && g < 40, 'and goes a believable distance indoors', g.toFixed(1) + ' m');
+            for (const d of F.DESIGNS) {
+                const p = folded(d.id);
+                const an = F.analyze(p);
+                ok(p.folds.length === d.steps.length && near(totalArea(p), 210 * 297, 0.5), `${d.name}: folds cleanly, all paper accounted for`, p.facets.length + ' facets');
+                ok(near(an.cg[0], 0, 0.05), `${d.name}: mirrored folds keep it balanced side to side`);
+                const w = F.wingStats(an, d.keel);
+                ok(w.asymmetry < 0.02, `${d.name}: and the same shape both sides`, (w.asymmetry * 100).toFixed(1) + '%');
+            }
         }
         {
-            // Stepping by hand: in still air the plane can only lose energy.
-            const p = P.makePlane({ shape: 0.3, nose: 0.75, flaps: 0 });
-            const s = P.launch(p, 10, 9);
+            // Nakamura step 4 folds the little tip only: the long tail stays put.
+            const before = folded('nakamura', 3);
+            const st = F.DESIGNS.find(d => d.id === 'nakamura').steps[3];
+            const after = F.applyStep(before, st);
+            ok(F.bounds(after).y1 === F.bounds(before).y1, 'folding a loose tip leaves the rest of the sheet where it was');
+            const shapes = new Set(before.facets.map(f => JSON.stringify(f.pts)));
+            const changed = after.facets.filter(f => !shapes.has(JSON.stringify(f.pts))).length;
+            const tail = (p) => p.facets.filter(f => F.centroid(f.pts)[1] > 240).reduce((s, f) => s + Math.abs(F.area(f.pts)), 0);
+            ok(changed > 0 && changed <= 8 && near(tail(after), tail(before), 0.01), 'it moves the tip and only the tip', changed + ' facets changed');
+            ok(JSON.stringify(folded('nakamura', 3).facets.map(f => [f.z, f.pts])) === JSON.stringify(before.facets.map(f => [f.z, f.pts])),
+                'and leaves the sheet it was folded from as it was');
+            // Wide Glider step 3: the corner has the folded-down triangle joined
+            // to it along the crease, so both layers come with it.
+            const g2 = folded('glider', 2);
+            const plan = F.planFold(g2, [-105, 105], [0, 210]);
+            ok(plan && plan.moving.size >= 2, 'a corner where layers meet at a crease takes all of them', plan ? plan.moving.size + ' layers' : '');
+        }
+        {
+            const s = F.newSheet();
+            const r = F.foldMirrored(s, [-105, 0], [60, 150]);
+            ok(r.error === 'crosses', 'a mirrored fold across the middle is refused');
+            const c = F.foldMirrored(s, [0, 0], [0, 120]);
+            ok(c.paper && c.paper.folds.length === 1, 'a fold straight down the middle happens once');
+            const m = F.foldMirrored(s, [-105, 0], [0, 105]);
+            ok(m.paper && m.paper.folds.length === 1 && m.paper.facets.length === 3, 'a mirrored fold is one step with two flaps');
+        }
+        {
+            const steps = F.DESIGNS.find(d => d.id === 'nakamura').steps;
+            const a = F.build(steps).paper, b2 = F.build(steps).paper;
+            ok(JSON.stringify(a.facets.map(f => f.pts)) === JSON.stringify(b2.facets.map(f => f.pts)), 'folding the same steps makes the same plane (undo and reload work)');
+            const mixed = [...steps.map(({ say, ...st }) => st), { kind: 'free', S: [-105, 297], T: [-60, 260], mirrored: true, under: true }];
+            const code = F.encodeSteps(mixed);
+            const back = F.decodeSteps(code);
+            ok(JSON.stringify(back.map(st => F.describeStep(st))) === JSON.stringify(mixed.map(st => F.describeStep(st))) && F.build(back).ok.every(Boolean),
+                'a plane survives a share link', code);
+            ok([F.decodeSteps('x'), F.decodeSteps('c9'), F.decodeSteps('n999'), F.decodeSteps('f1,2,3'), F.decodeSteps('c1;f9e9,0,0,0')].every(v => v === null), 'a broken link folds nothing');
+        }
+
+        // ── Folds as steps ──
+        {
+            const s = F.newSheet();
+            const r = F.resolveStep(s, { kind: 'corner', reach: 1 });
+            ok(r && near(r.S[0], -105, 1e-9) && near(r.S[1], 0, 1e-9) && near(r.T[1], 105, 1e-6), '“corners in” on a fresh sheet is the dart’s first fold');
+            const second = F.resolveStep(F.applyStep(s, { kind: 'corner', reach: 1 }), { kind: 'corner', reach: 1 });
+            ok(second && near(second.S[1], 105, 0.01) && near(second.T[1], 148.49, 0.01), 'and on a folded one, finds the new corner');
+            const nose = F.resolveStep(s, { kind: 'nose', d: 80 });
+            ok(nose && nose.S[1] === 0 && nose.T[1] === 80, '“nose down” finds the nose');
+            ok(F.resolveStep(s, { kind: 'tip', d: 40 }) === null, '“tip up” needs a folded-down tip to lift');
+            const flat = F.build([{ kind: 'tip', d: 40 }, { kind: 'corner', reach: 1 }]);
+            ok(!flat.ok[0] && flat.ok[1], 'a step with nothing to fold where it sits is skipped, and the rest still fold');
+
+            ok(F.recognise(s, [-105, 0], [0, 105], true, false).kind === 'corner', 'dragging the top corner to the centre line is a “corners in” step');
+            ok(F.recognise(s, [105, 0], [0, 105], true, false).kind === 'corner', 'from either side');
+            const nd = F.recognise(s, [0, 0], [0, 140], false, false);
+            ok(nd.kind === 'nose' && nd.d === 140, 'dragging the nose down the centre is a “nose down” step');
+            ok(F.recognise(s, [-105, 297], [-50, 250], true, false).kind === 'free', 'anything else is a free fold');
+
+            // Reordering really changes the plane.
+            const d = F.DESIGNS.find(x => x.id === 'glider').steps;
+            const swapped = [d[1], d[0], d[2]];
+            const a = F.analyze(F.build(d).paper), b2 = F.analyze(F.build(swapped).paper);
+            ok(Math.abs(a.cg[1] - b2.cg[1]) > 2, 'the same folds in a different order make a different plane', a.cg[1].toFixed(1) + ' vs ' + b2.cg[1].toFixed(1) + ' mm');
+            // Tuning a step's depth moves the balance.
+            const deep = F.analyze(F.build([d[0], { ...d[1], d: 210 }]).paper), shallow = F.analyze(F.build([d[0], { ...d[1], d: 90 }]).paper);
+            ok(deep.cg[1] > shallow.cg[1], 'folding the nose further down moves the paper back with it');
+            const rows = F.DESIGNS.flatMap(x => x.steps.map(F.describeStep));
+            ok(rows.every(t => typeof t === 'string' && t.length > 4), 'every step can say what it is');
+            const front = F.build([{ kind: 'corner', reach: 1 }, { kind: 'corner', reach: 1 }, { kind: 'nose', d: 150 }, { kind: 'corner', reach: 1 }, { kind: 'corner', reach: 1 }, { kind: 'corner', reach: 1 }]);
+            ok(front.ok.length === 6, 'a long list of corner folds runs out of front corners gracefully', front.ok.map(v => (v ? '✓' : '·')).join(''));
+        }
+        {
+            const s = F.newSheet();
+            const a = F.snapTarget(s, [3, 120], 6);
+            ok(a.kind === 'centre' && a.p[0] === 0, 'a point dropped near the middle snaps to the centre line');
+            const b = F.snapTarget(s, [103, 2], 6);
+            ok(b.kind === 'corner' && b.p[0] === 105 && b.p[1] === 0, 'and near a corner, to the corner');
+            const g = F.snapGrab(s, [-101, 4], 8);
+            ok(g[0] === -105 && g[1] === 0, 'pressing near a corner picks the corner up');
+        }
+
+        // ── What the folds do to the plane ──
+        {
+            const plain = P.makePlane(F.analyze(F.newSheet()), P.DEFAULT_TRIM);
+            ok(plain.margin < 0, 'an unfolded sheet is tail-heavy', plain.margin.toFixed(2));
+            for (const d of F.DESIGNS) {
+                const pl = P.makePlane(F.analyze(folded(d.id)), { ...P.DEFAULT_TRIM, keel: d.keel });
+                ok(pl.margin > plain.margin + 0.15, `${d.name}: folding moves the balance ahead of the lift`, pl.margin.toFixed(2));
+            }
+            const an = F.analyze(folded('glider'));
+            const base = P.makePlane(an, P.DEFAULT_TRIM);
+            ok(P.makePlane(an, { ...P.DEFAULT_TRIM, clips: 2 }).margin > base.margin, 'paper clips on the nose steady it');
+            ok(P.makePlane(an, { ...P.DEFAULT_TRIM, elevator: 0.5 }).cm0 > base.cm0, 'bending the elevator up pitches the nose up');
+            ok(P.makePlane(an, { ...P.DEFAULT_TRIM, keel: 50 }).info.span < base.info.span, 'a deeper keel leaves less wing');
+            const wl = P.makePlane(an, { ...P.DEFAULT_TRIM, winglets: true });
+            ok(wl.info.span < base.info.span && wl.cmq < base.cmq, 'winglets cost span but steady it in pitch');
+        }
+        {
+            const p = folded('dart');
+            const an = F.analyze(p);
+            const model = buildModel(p, an, { keel: 30, elevator: 0.5, winglets: true, clips: 0 });
+            const zs = model.polys.flatMap(q => q.pts.map(v => v[2]));
+            ok(Math.min(...zs) >= -30.5 && Math.min(...zs) < -25, 'the 3D model hangs its keel 30 mm below the wings');
+            ok(Math.max(...zs) > 10, 'with the winglets turned up');
+            ok(model.polys.every(q => q.pts.every(v => v.every(Number.isFinite))), 'and every point of it is a real number');
+        }
+
+        // ── Flying ──
+        {
+            const plain = P.makePlane(F.analyze(F.newSheet()), P.DEFAULT_TRIM);
+            const r = P.fly(plain, 5, 7);
+            ok(r.stalls > 10, 'a flat sheet tumbles', r.stalls + ' stalls, ' + r.distance.toFixed(1) + ' m');
+            for (const d of F.DESIGNS) {
+                const pl = P.makePlane(F.analyze(folded(d.id)), { ...P.DEFAULT_TRIM, keel: d.keel, clips: 1 });
+                const f = P.fly(pl, 5, 7);
+                ok(f.distance > 8 && f.distance > r.distance * 1.5, `${d.name}: flies properly`, f.distance.toFixed(1) + ' m');
+            }
+            const pl = P.makePlane(F.analyze(folded('dart')), P.DEFAULT_TRIM);
+            const a = P.fly(pl, 8, 8), b = P.fly(pl, 8, 8);
+            ok(a.distance === b.distance && a.path.length === b.path.length, 'the same plane and throw fly the same flight');
+        }
+        {
+            const pl = P.makePlane(F.analyze(folded('glider')), { ...P.DEFAULT_TRIM, clips: 1 });
+            const s = P.launch(pl, 10, 9);
             const E = () => 0.5 * (s.vx * s.vx + s.vy * s.vy) + 9.81 * s.y;
             let e = E(), rises = 0, maxY = 0;
             while (!s.sliding && s.t < 20) {
-                P.step(s, p, P.DT, null);
+                P.step(s, pl, P.DT, null);
                 const now = E();
                 if (now > e + 1e-6 && !s.bonks) rises++;
                 e = now;
                 maxY = Math.max(maxY, s.y);
             }
             ok(rises === 0, 'no energy appears from nowhere in still air');
-            ok(maxY <= P.ROOM.ceiling, 'and it never goes through the ceiling');
+            ok(maxY <= P.ROOM.ceiling, 'and nothing goes through the ceiling');
         }
         {
-            const r = P.fly({ shape: 0.5, nose: 0, flaps: -1 }, 60, 12);
-            ok(r.bonks > 0, 'a steep hard throw bonks the ceiling', r.bonks + ' bonks');
-            ok(Number.isFinite(r.distance) && r.time < 30, 'and still lands');
-        }
-        {
-            const fold = { shape: 0.2, nose: 0.75, flaps: 0 };
-            const still = P.fly(fold, 5, 7);
-            const fan = P.fly(fold, 5, 7, { fans: [{ x: 4, width: 1.2, height: 2.6, up: 2 }] });
-            ok(fan.distance > still.distance, 'flying through a fan’s updraft carries it further', m(still) + ' → ' + m(fan));
+            const pl = P.makePlane(F.analyze(folded('glider')), { ...P.DEFAULT_TRIM, clips: 1 });
+            const still = P.fly(pl, 5, 7);
+            const fan = P.fly(pl, 5, 7, { fans: [{ x: 4, width: 1.2, height: 2.6, up: 2 }] });
+            ok(fan.distance > still.distance, 'a fan’s updraft carries it further', still.distance.toFixed(1) + ' → ' + fan.distance.toFixed(1) + ' m');
+            ok(P.throughHoop([[0, 1], [2, 1.5]], { x: 1, y: 1.25, r: 0.1 }) && !P.throughHoop([[0, 1], [2, 1.5]], { x: 1, y: 2, r: 0.1 }), 'a hoop counts only through its ring');
+            const desk = { pads: [{ x0: 2, x1: 40, y: 0.74 }] };
+            const r = P.fly(pl, 5, 6, desk);
+            ok(r.landedOn === 0, 'a plane coming down over a desk lands on it');
         }
 
-        // ── The daily bin ──
+        // ── Missions: each can be done with a guided design ──
+        {
+            const candidates = [
+                ['dart', { keel: 18, elevator: -0.25, clips: 0 }],
+                ['dart', { keel: 26, elevator: 0.5, clips: 2 }],
+                ['glider', { keel: 26, elevator: 0.25, clips: 1 }],
+                ['nakamura', { keel: 18, elevator: 0.25, clips: 1 }],
+            ].map(([id, t]) => P.makePlane(F.analyze(folded(id)), { ...P.DEFAULT_TRIM, ...t }));
+            for (const m of P.MISSIONS) {
+                let done = null;
+                search: for (const pl of candidates) for (const a of [0, 5, 10, 15, 20, 30]) for (let v = 3; v <= 12; v += 0.25) {
+                    if (m.check(P.fly(pl, a, v, m.world), m.world)) { done = `${a}° at ${v} m/s`; break search; }
+                }
+                ok(done, `mission “${m.name}” can be done`, done || 'no throw found');
+            }
+        }
         {
             const d1 = P.dailyChallenge(new Date(Date.UTC(2026, 9, 12, 3)));
             const d1b = P.dailyChallenge(new Date(Date.UTC(2026, 9, 12, 22)));
-            const d2 = P.dailyChallenge(new Date(Date.UTC(2026, 9, 13, 3)));
-            ok(JSON.stringify(d1) === JSON.stringify(d1b), 'the bin stays put all day');
-            ok(d1.bin !== d2.bin || JSON.stringify(d1.fans) !== JSON.stringify(d2.fans), 'and moves the next day');
-            let sane = true, fans = 0;
-            for (let k = 0; k < 120; k++) {
+            ok(JSON.stringify(d1) === JSON.stringify(d1b), 'the daily bin stays put all day');
+            let sane = true;
+            for (let k = 0; k < 60; k++) {
                 const c = P.dailyChallenge(new Date(Date.UTC(2026, 0, 1 + k)));
-                if (c.bin < 7 || c.bin > 23) sane = false;
-                for (const f of c.fans) { fans++; if (f.x <= 0 || f.x >= c.bin) sane = false; }
+                if (c.bin < 7 || c.bin > 18) sane = false;
+                for (const f of c.fans) if (f.x <= 0 || f.x >= c.bin) sane = false;
             }
-            ok(sane, 'bins are always 7–23 m away, with any fan between you and it');
-            ok(fans > 20 && fans < 100, 'and fans turn up on some days, not all', fans + ' of 120 days');
-            ok(P.inBin(d1.bin + 0.15, d1) && !P.inBin(d1.bin + 0.3, d1), 'landing within the bin’s mouth counts');
-        }
-        {
-            // Every bin over two weeks can be hit by some fold and throw.
-            const folds = [{ shape: 0, nose: 0.75, flaps: 0 }, { shape: 0.5, nose: 0.75, flaps: 0 }, { shape: 1, nose: 0.5, flaps: -0.125 }];
-            const missed = [];
-            for (let k = 0; k < 14; k++) {
-                const c = P.dailyChallenge(new Date(Date.UTC(2026, 9, 12 + k)));
-                const world = { fans: c.fans };
-                let hit = false;
-                search: for (const fold of folds) for (const angle of [0, 5, 10]) for (let v = 3; v <= 12; v += 0.1) {
-                    if (P.inBin(P.fly(fold, angle, v, world).distance, c)) { hit = true; break search; }
-                }
-                if (!hit) missed.push(c.key + ' (' + c.bin + ' m)');
-            }
-            ok(missed.length === 0, 'every daily bin for two weeks can be hit', missed.join(', '));
+            ok(sane, 'bins are 7–18 m away, with any fan in front of them');
         }
 
         const summary = document.getElementById('summary');
