@@ -43,6 +43,8 @@
       this.controls.minDistance = 2.0;
       this.controls.maxDistance = 35.0;
       this.controls.target.set(1.17, 1.2, 3.0); // Center of 20ft container
+      this.flight = null;
+      this.controls.addEventListener('start', () => { this.flight = null; });
 
       // 5. Lighting
       this.setupLights();
@@ -120,42 +122,81 @@
       // The ground itself (concrete, bay markings, props) is the yard's: render/yard.js
     }
 
-    setCameraPreset(preset, containerSpecs) {
+    /**
+     * Where a camera preset puts the camera, without moving it.
+     * @returns {{position: THREE.Vector3, target: THREE.Vector3}}
+     */
+    presetPose(preset, containerSpecs) {
       const len = containerSpecs ? containerSpecs.length : 5.9;
       const wid = containerSpecs ? containerSpecs.width : 2.35;
       const hgt = containerSpecs ? containerSpecs.height : 2.39;
 
       const target = new THREE.Vector3(wid / 2, hgt / 2, len / 2);
+      const position = new THREE.Vector3();
 
-      if (this.controls) {
-        this.controls.target.copy(target);
-      }
-
-      if (preset === 'isometric') {
-        // From the open corner (glass side wall + loading doors), looking into
-        // the far one where the back bulkhead, the solid side wall and the
-        // floor meet; loading starts there, so the stack grows towards you.
-        const reach = Math.max(len, wid * 2.5);
-        this.camera.position.set(-reach * 0.68, hgt * 2.4, len / 2 + reach * 0.84);
-      } else if (preset === 'cutaway') {
+      if (preset === 'cutaway') {
         // Direct side view into the cutaway transparent wall
-        this.camera.position.set(-wid * 3.0, hgt * 1.0, len * 0.5);
+        position.set(-wid * 3.0, hgt * 1.0, len * 0.5);
       } else if (preset === 'top') {
-        this.camera.position.set(wid / 2, hgt * 4.5, len / 2 + 0.01);
+        position.set(wid / 2, hgt * 4.5, len / 2 + 0.01);
       } else if (preset === 'rear') {
         // Looking straight into the loading doors
-        this.camera.position.set(wid / 2, hgt * 0.9, len * 2.2);
+        position.set(wid / 2, hgt * 0.9, len * 2.2);
+      } else {
+        // 'isometric': from the open corner (glass side wall + loading doors),
+        // looking into the far one where the back bulkhead, the solid side
+        // wall and the floor meet; loading starts there, so the stack grows
+        // towards you.
+        const reach = Math.max(len, wid * 2.5);
+        position.set(-reach * 0.68, hgt * 2.4, len / 2 + reach * 0.84);
       }
 
-      // Presets are framed for a landscape viewport; on a narrow one the
-      // horizontal field of view shrinks, so back the camera off to match.
+      position.sub(target).multiplyScalar(this.pullBack()).add(target);
+      return { position: position, target: target };
+    }
+
+    /**
+     * Presets are framed for a landscape viewport; on a narrow one the
+     * horizontal field of view shrinks, so the camera backs off to match.
+     */
+    pullBack() {
       const aspect = this.viewAspect();
-      if (aspect < 1.15) {
-        const pullBack = Math.min(2.0, 1.15 / aspect);
-        this.camera.position.sub(target).multiplyScalar(pullBack).add(target);
-      }
+      return aspect < 1.15 ? Math.min(2.0, 1.15 / aspect) : 1;
+    }
 
-      if (this.controls) this.controls.update();
+    setCameraPreset(preset, containerSpecs) {
+      const pose = this.presetPose(preset, containerSpecs);
+      this.flight = null;
+      this.camera.position.copy(pose.position);
+      if (this.controls) {
+        this.controls.target.copy(pose.target);
+        this.controls.update();
+      }
+    }
+
+    /**
+     * Glides the camera to a pose (the guided tours use this). Grabbing the
+     * view mid-flight cancels it, so the user is never fought for control.
+     */
+    flyTo(pose, durationMs = 1200) {
+      this.flight = {
+        fromPos: this.camera.position.clone(),
+        fromTarget: this.controls.target.clone(),
+        toPos: pose.position.clone(),
+        toTarget: pose.target.clone(),
+        start: performance.now(),
+        duration: durationMs
+      };
+    }
+
+    stepFlight(now) {
+      const f = this.flight;
+      if (!f) return;
+      const t = Math.min(1, (now - f.start) / f.duration);
+      const e = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2; // ease in-out cubic
+      this.camera.position.lerpVectors(f.fromPos, f.toPos, e);
+      this.controls.target.lerpVectors(f.fromTarget, f.toTarget, e);
+      if (t >= 1) this.flight = null;
     }
 
     /** Aspect ratio of what one view shows: a pane in split view, else the canvas. */
@@ -185,8 +226,9 @@
       this.renderer.setSize(this.width, this.height);
     }
 
-    animate() {
+    animate(now) {
       requestAnimationFrame(this.animate);
+      if (this.flight) this.stepFlight(now || performance.now());
       this.controls.update();
 
       if (!this.panes) {

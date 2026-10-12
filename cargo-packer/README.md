@@ -53,7 +53,9 @@ cargo-packer/
 │   └── audio.js          # Procedural Web Audio API sound synthesis (thuds, clicks, chimes)
 │
 ├── ui/                   # DOM interface
-│   └── ui.js             # Binds HUD diagnostics, playback dock, scenario/algo selectors
+│   ├── ui.js             # Binds HUD diagnostics, playback dock, scenario/algo selectors, cargo editor
+│   ├── tourContent.js    # Guided-tour articles, one per algorithm
+│   └── tour.js           # Stages tour chapters: step, camera flight, highlights
 │
 ├── styles/               # CSS styles
 │   ├── tokens.css        # Palette, typography, dark slate glassmorphism tokens
@@ -135,6 +137,18 @@ two: one camera drawn twice with scissor viewports, a separate cargo group per
 side, both stepped in lockstep. The panes sit between the side panels on
 desktop and stack top/bottom on portrait screens. `?compare=<algoId>` opens it
 directly.
+
+### Guided tours
+
+"Guided tour: how it works" in the algorithm card opens a short article for
+that algorithm. Each chapter is data in `ui/tourContent.js` (step, camera
+pose, highlights, text with live `{placeholders}`), and `ui/tour.js` stages it:
+jumps the packing to the step and drops the last box in, flies the camera
+(`SceneManager.flyTo`, cancelled the moment the user grabs the view), and
+shows anchor points, an outline, or the patches a box rests on
+(`Visualizers.showSupport`). Steps are positions (`'35%'`, `'end'`,
+`'firstStacked'`, `'partlySupported'`…) rather than numbers, so the tours read
+correctly on edited cargo. Arrow keys and Esc work; `?tour=<algoId>` opens one.
 
 ### Scenery & fullscreen
 

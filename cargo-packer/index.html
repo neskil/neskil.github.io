@@ -206,6 +206,10 @@
       <div class="algo-explainer">
         <strong id="algo-title">Extreme Points (EP) Heuristic</strong>
         <p id="algo-desc">Generates candidate 3D corner coordinates after every placement, projects them against existing surfaces, and picks the tightest fit minimizing wasted space.</p>
+        <button type="button" class="btn-tour" id="btn-tour">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M4 19.5V5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"></path><path d="M8 7h7M8 11h5"></path></svg>
+          Guided tour: how it works
+        </button>
       </div>
 
       <!-- Container Selection -->
@@ -318,6 +322,23 @@
       </div>
     </aside>
 
+    <!-- Guided tour: an article whose chapters stage the 3D view (ui/tour.js) -->
+    <aside class="tour-panel" id="tour-panel" aria-label="Guided tour" hidden>
+      <div class="tour-head">
+        <span class="tour-kicker" id="tour-kicker"></span>
+        <button type="button" class="btn-icon" id="tour-close" aria-label="Close the tour">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        </button>
+      </div>
+      <h2 class="tour-title" id="tour-title"></h2>
+      <div class="tour-body" id="tour-body" aria-live="polite"></div>
+      <div class="tour-foot">
+        <button type="button" class="tour-btn" id="tour-prev">← Back</button>
+        <div class="tour-dots" id="tour-dots"></div>
+        <button type="button" class="tour-btn tour-btn-primary" id="tour-next">Next →</button>
+      </div>
+    </aside>
+
     <!-- Bottom Playback Dock -->
     <nav class="playback-bar">
       <div class="playback-buttons">
@@ -380,6 +401,8 @@
   <script src="game/audio.js"></script>
   <script src="game/controller.js"></script>
   <script src="ui/ui.js"></script>
+  <script src="ui/tourContent.js"></script>
+  <script src="ui/tour.js"></script>
 
   <!-- Application Bootstrap -->
   <script>
@@ -414,6 +437,9 @@
         sound
       );
 
+      // Guided tours
+      const tour = new CP.GuidedTour({ controller, ui, sceneManager, visualizers, boxRenderer });
+
       // 4. Start Default Scenario
       controller.init();
 
@@ -433,7 +459,9 @@
         sceneManager.setCameraPreset(q.get('cam'), spec);
         ui.syncCamButtons(q.get('cam'));
       }
-      if (q.has('step')) {
+      if (q.has('tour')) {
+        tour.start(q.get('tour'));
+      } else if (q.has('step')) {
         const s = parseInt(q.get('step'), 10);
         for (let i = 0; i < s; i++) controller.stepForward(false);
       } else if (q.get('full') === '1') {
