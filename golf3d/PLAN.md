@@ -47,6 +47,16 @@ card shapes are already there to hang a third off (`CARDS` in `bag.js`).
 
 Kept short, and only where it explains a constraint above.
 
+- **Every drawn hole has a world round it** (v1.57.0) — README → "The worlds
+  round the drawn holes". Two placement findings worth keeping. **A prop's
+  size counts at the camera corridor as much as at the hole**: the first pass
+  kept every crater's *centre* out of the shot and a three-unit crater reached
+  in anyway. And **landmarks go ahead, not round**: on a random bearing the
+  lighthouse was behind the player on most holes, because a portrait phone
+  sees a narrow wedge; and ahead but close, it filled the top of the frame —
+  a mini hole is fifteen units long, so "a little beyond the flag" is still on
+  top of you. Thirty to sixty units out is where they read as a skyline.
+
 - **The long game came alive** (v1.56.0): hummocks in the rough, a dressing of
   props on every open hole, birds, ducks, butterflies and trees that sway —
   README → "The life on the long game". Two constraints worth keeping. **A

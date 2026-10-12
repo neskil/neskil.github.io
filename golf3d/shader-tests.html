@@ -626,13 +626,55 @@
                     !!bird && bird.position.distanceTo(b0) > 0.2 &&
                     Math.abs(crown.rotation.x + crown.rotation.z - tilt0) > 1e-4);
             }
-            var lane = G3.COURSES.filter(function (c) { return c.group !== 'long' && c.id !== 'range'; })[0];
-            attempt('a mini golf lane builds', function () { R.buildHole(lane.holes[0], lane.theme, null); });
-            if (G3.life) {
-                var none = G3.life.census();
-                assert('and none of it on a mini golf lane',
-                    none.birds + none.ducks + none.butterflies === 0, JSON.stringify(none));
-            }
+            /* And the drawn holes, which get a world of their theme's own
+               round the slab instead (life.js → the worlds round the drawn
+               holes). Every one of them, because each theme is its own recipe
+               and a recipe nobody built is a recipe nobody knows throws.
+
+               Three things are asked of each. It is there: props, and at
+               least one thing that moves. It is not the long game's: no ducks,
+               no butterflies — those belong to dressing a fairway. And it is
+               out of the way: no vertex of any prop stands within a unit of the
+               hole's own footprint, where the ball could pass through it, or in
+               the corridor behind the tee the camera watches the shot from. */
+            var drawnThemes = 0, worldFault = '';
+            G3.COURSES.forEach(function (course) {
+                if (course.group === 'long' || !course.holes[0] || course.holes[0].open) return;
+                var h = course.holes[0];
+                var ok = attempt(course.id + ': its world builds', function () {
+                    R.buildHole(h, course.theme, null);
+                    for (var k = 0; k < 4; k++) R.frame(0.25, P.createWorld(h, { x: h.tee.x, z: h.tee.z }, 0), { yaw: 0, power: 0 });
+                });
+                if (!ok.ok || !G3.life) return;
+                drawnThemes++;
+                var c = G3.life.census();
+                if (!worldFault && !(c.props > 50 && c.rigs + c.birds > 0)) {
+                    worldFault = course.id + ' has no world: ' + JSON.stringify(c);
+                }
+                if (!worldFault && c.ducks + c.butterflies > 0) {
+                    worldFault = course.id + ' was dressed like a fairway: ' + JSON.stringify(c);
+                }
+                var b = h.bounds, dx = h.cup.x - h.tee.x, dz = h.cup.z - h.tee.z, L = Math.hypot(dx, dz);
+                var ux = dx / L, uz = dz / L, v = new THREE.Vector3();
+                G3.life.peek().world.forEach(function (m) {
+                    var pa = m.geometry.attributes.position;
+                    for (var i = 0; i < pa.count && !worldFault; i++) {
+                        v.fromBufferAttribute(pa, i);
+                        if (v.x > b.minX - 1 && v.x < b.maxX + 1 && v.z > b.minZ - 1 && v.z < b.maxZ + 1) {
+                            worldFault = course.id + ': a prop stands on the hole at (' +
+                                v.x.toFixed(1) + ', ' + v.z.toFixed(1) + ')';
+                        }
+                        var ax = v.x - h.tee.x, az = v.z - h.tee.z;
+                        var along = ax * ux + az * uz, across = Math.abs(ax * uz - az * ux);
+                        if (!worldFault && along < 1 && along > -14 && across < 5.5) {
+                            worldFault = course.id + ': a prop stands behind the tee, in the shot';
+                        }
+                    }
+                });
+            });
+            assert('every drawn theme has a world round its holes', drawnThemes >= 13 && !/no world|fairway/.test(worldFault),
+                drawnThemes + ' themes; ' + worldFault);
+            assert('and nothing in it stands on a hole or between the camera and the shot', !worldFault, worldFault);
         }
 
         } catch (e) {
