@@ -51,22 +51,14 @@
       <div class="compare-pane" data-pane="0">
         <div class="compare-tag">
           <span class="compare-trophy" data-pane-trophy="0" title="Showdown winner" hidden>🏆</span>
-          <select class="compare-select" data-pane-algo="0" aria-label="Algorithm in the first view">
-            <option value="extremePoints">Extreme Points</option>
-            <option value="wallBuilding">Wall-Building</option>
-            <option value="firstFit">First-Fit</option>
-          </select>
+          <select class="compare-select" data-pane-algo="0" aria-label="Algorithm in the first view"></select>
         </div>
         <div class="compare-stats" data-pane-stats="0"></div>
       </div>
       <div class="compare-pane" data-pane="1">
         <div class="compare-tag">
           <span class="compare-trophy" data-pane-trophy="1" title="Showdown winner" hidden>🏆</span>
-          <select class="compare-select" data-pane-algo="1" aria-label="Algorithm in the second view">
-            <option value="extremePoints">Extreme Points</option>
-            <option value="wallBuilding">Wall-Building</option>
-            <option value="firstFit">First-Fit</option>
-          </select>
+          <select class="compare-select" data-pane-algo="1" aria-label="Algorithm in the second view"></select>
         </div>
         <div class="compare-stats" data-pane-stats="1"></div>
       </div>
@@ -189,23 +181,25 @@
         </div>
       </div>
 
+      <!-- Cargo editor: how many of each kind of box (rows built by ui.js) -->
+      <div class="cargo-editor">
+        <div class="section-label">
+          <span>Cargo Load</span>
+          <span class="cargo-actions">
+            <button type="button" class="btn-mini" data-cargo-scale="0.5" title="Halve every count">&times;&frac12;</button>
+            <button type="button" class="btn-mini" data-cargo-scale="2" title="Double every count">&times;2</button>
+            <button type="button" class="btn-mini" id="btn-cargo-reset" title="Back to this scenario's own load">Reset</button>
+          </span>
+        </div>
+        <div class="cargo-summary" id="cargo-summary" aria-live="polite"></div>
+        <div class="cargo-rows" id="cargo-rows"></div>
+      </div>
+
       <!-- Packing Algorithm Selector -->
       <div>
         <div class="section-label">Packing Algorithm</div>
-        <div class="chip-grid single-col">
-          <button type="button" class="chip-btn active" data-algo="extremePoints">
-            <strong>Extreme Points (EP)</strong>
-            <span class="chip-desc">3D spatial anchor points &amp; surface projection</span>
-          </button>
-          <button type="button" class="chip-btn" data-algo="wallBuilding">
-            <strong>Wall-Building</strong>
-            <span class="chip-desc">Back-to-front vertical transverse slices</span>
-          </button>
-          <button type="button" class="chip-btn" data-algo="firstFit">
-            <strong>First-Fit Decreasing (Shelf)</strong>
-            <span class="chip-desc">Greedy horizontal layer baseline</span>
-          </button>
-        </div>
+        <!-- Filled from CargoPacker.ALGORITHMS by ui.js -->
+        <div class="chip-grid single-col" id="algo-chips"></div>
       </div>
 
       <!-- Dynamic Algorithm Explainer Card -->
@@ -372,6 +366,8 @@
   <script src="core/extremePoints.js"></script>
   <script src="core/wallBuilding.js"></script>
   <script src="core/firstFit.js"></script>
+  <script src="core/moreHeuristics.js"></script>
+  <script src="core/algorithms.js"></script>
   <script src="core/manifests.js"></script>
 
   <!-- Load 3D Render & Game Modules -->
