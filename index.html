@@ -200,6 +200,12 @@
             --hue: 52;
         }
 
+        html[data-theme="card-fika"] {
+            --bg-color-1: #171009;
+            --bg-color-2: #24180e;
+            --hue: 30;
+        }
+
         /* ── Background variants ──────────────────────────────────────────────
            The 135° ramp above stays as the floor; each variant is one fixed layer
            that cross-fades in over it, so switching costs an opacity change and
@@ -1947,6 +1953,18 @@
             color: rgb(253, 224, 71);
         }
 
+        #card-fika {
+            --accent-rgb: 224, 164, 88;
+            --card-bg-gradient: linear-gradient(135deg, rgba(40, 26, 18, 0.66) 0%, rgba(15, 22, 35, 0.60) 100%);
+            --card-hover-gradient: linear-gradient(135deg, rgba(62, 40, 24, 0.82) 0%, rgba(20, 28, 48, 0.75) 100%);
+            --card-border: rgba(224, 164, 88, 0.22);
+            --card-hover-border: rgba(236, 181, 113, 0.50);
+        }
+
+        #card-fika .card-link {
+            color: rgb(236, 181, 113);
+        }
+
         /* ── Materials: layered onto the same tilt-tracking glare (.card::before). Uses
            overlay blend so bright texture only lifts already-light pixels instead of
            flatly washing out the (already fairly low-contrast) body text underneath. ── */
@@ -3547,7 +3565,7 @@
                 <button type="button" class="shelf-head" aria-expanded="true" aria-controls="shelf-lab-body">
                     <span class="shelf-icon" aria-hidden="true">🧪</span>
                     <span class="shelf-text"><span class="shelf-title">Toys &amp; experiments</span><span class="shelf-blurb">Things to poke at, with no score to keep.</span></span>
-                    <span class="shelf-count">4</span>
+                    <span class="shelf-count">5</span>
                     <svg class="shelf-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6" /></svg>
                 </button>
             </h2>
@@ -3796,6 +3814,66 @@
                                     <div class="peek-stat"><span class="stat-icon">🌦️</span> Live from Open-Meteo &bull; any city</div>
                                 </div>
                                 <a class="peek-launch" href="terrarium/index.html">Look in the jar <svg viewBox="0 0 24 24">
+                                        <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" stroke-linejoin="round" fill="none" />
+                                    </svg></a>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card card-paper flip-card" id="card-fika">
+                        <div class="card-flip-inner">
+                            <button type="button" class="card-face card-face-front flip-open" aria-expanded="false"
+                                aria-controls="card-fika-panel">
+                                <div>
+                                    <div class="card-icon">
+                                        <svg viewBox="0 0 24 24">
+                                            <path d="M4.5 9.5h12v5.2a4.6 4.6 0 0 1-4.6 4.6H9.1a4.6 4.6 0 0 1-4.6-4.6z" fill="currentColor" fill-opacity="0.14"/>
+                                            <path d="M16.5 10.5h1.4a2.4 2.4 0 0 1 0 4.8h-1.6"/>
+                                            <path d="M3 21h15.5" opacity="0.5"/>
+                                            <path d="M8.2 3.2c-.8 1 .8 1.6 0 2.8M11.4 3.2c-.8 1 .8 1.6 0 2.8" opacity="0.6"/>
+                                            <circle cx="20" cy="6" r="2.2" fill="currentColor" fill-opacity="0.35"/>
+                                        </svg>
+                                    </div>
+                                    <h3 class="card-title">Fika Generator</h3>
+                                    <p class="card-desc">Turn over three cards: a Swedish pastry, something to drink and something to talk about. Knows Kanelbullens dag.</p>
+                                    <div class="card-stat-chip">
+                                        <span class="stat-icon">☕</span> Today's fika
+                                    </div>
+                                </div>
+                                <span class="card-link">Take a look <svg viewBox="0 0 24 24">
+                                        <path d="M3.6 12a8.4 8.4 0 0 1 14.4-5.9" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" stroke-linejoin="round" fill="none" />
+                                        <path d="M18.4 2.8v3.7h-3.7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                            stroke-linejoin="round" fill="none" />
+                                        <path d="M20.4 12a8.4 8.4 0 0 1-14.4 5.9" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" stroke-linejoin="round" fill="none" />
+                                        <path d="M5.6 21.2v-3.7h3.7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                            stroke-linejoin="round" fill="none" />
+                                    </svg></span>
+                            </button>
+                            <div class="card-face card-face-back peek-back" id="card-fika-panel" role="dialog" aria-modal="true"
+                                aria-label="Fika Generator">
+                                <button type="button" class="card-close" data-flip-close aria-label="Close">
+                                    <svg viewBox="0 0 24 24">
+                                        <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" />
+                                    </svg>
+                                </button>
+                                <div class="peek-shot">
+                                <img data-src="assets/preview/fika.webp" alt="Three fika cards turned over on red gingham: a kanelbulle, a mug of filter coffee and a question about where you would pitch a tent tonight." width="800" height="420"
+                                    decoding="async">
+                                <img data-src="assets/preview/fika-2.webp" alt="A princess cake under green marzipan, a glass of lingonberry cordial and something to talk about." width="800" height="420"
+                                    decoding="async">
+                                <img data-src="assets/preview/fika-3.webp" alt="A semla, a cappuccino and a question about lagom." width="800" height="420"
+                                    decoding="async">
+                                </div>
+                                <div class="peek-body">
+                                    <div class="peek-title">Fika Generator</div>
+                                    <p class="peek-text">Twenty Swedish pastries, a dozen drinks and three dozen things to talk about, each with how to say it. Keep a card you like and deal the others again, share your fika by link, or start the fifteen-minute timer. On Kanelbullens dag, Fettisdagen, Lucia and the other pastry days, the deck already knows what you are having.</p>
+                                    <div class="peek-stat"><span class="stat-icon">🇸🇪</span> 20 pastries &bull; 12 drinks &bull; 36 topics</div>
+                                </div>
+                                <a class="peek-launch" href="fika/index.html">Deal a fika <svg viewBox="0 0 24 24">
                                         <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2"
                                             stroke-linecap="round" stroke-linejoin="round" fill="none" />
                                     </svg></a>
@@ -4295,6 +4373,7 @@
             document.documentElement.setAttribute('data-theme', cardId);
 
             const themeHues = {
+                'card-fika': 30,
                 'card-paper-plane': 52,
                 'card-elevator': 38,
                 'card-terrarium': 170,
@@ -4324,6 +4403,7 @@
            — the Lease/Rent/Buy floater — and differ only in what they carry, so
            they are a table rather than a branch each. */
         const CARD_FLOATERS = {
+            'card-fika': { hue: 30, items: ['☕', '🥐', '🍰', '🫖'] },
             'card-paper-plane': { hue: 52, items: ['✈️', '📄', '📎', '🗑️'] },
             'card-elevator': { hue: 38, items: ['🛗', '⬆️', '⬇️', '🔔', '🚶'] },
             'card-terrarium': { hue: 170, items: ['🌦️', '❄️', '☀️', '🌙', '⛈️'] },

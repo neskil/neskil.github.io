@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fika Generator | Niklas Billgren</title>
+    <meta name="description" content="Turn over three cards for a Swedish fika: a pastry, something to drink and something to talk about, with how to say it and a line about each. Knows the pastry days, keeps the cards you like, and shares by link.">
+    <meta name="theme-color" content="#1b1410">
+    <meta name="color-scheme" content="dark">
+    <meta name="author" content="Niklas Billgren">
+    <link rel="canonical" href="https://neskil.github.io/fika/">
+    <meta property="og:site_name" content="Niklas Billgren">
+    <meta property="og:title" content="Fika Generator">
+    <meta property="og:description" content="Three cards for a Swedish fika: something to eat, something to drink, something to talk about.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://neskil.github.io/fika/">
+    <meta property="og:image" content="https://neskil.github.io/assets/og/fika.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:alt" content="Three cards turned over on a gingham tablecloth: a cinnamon bun, a cup of filter coffee and a conversation question.">
+    <meta name="twitter:card" content="summary_large_image">
+    <link rel="icon" href="../favicon.ico">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&family=Inter:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #1b1410;
+            --paper: #fbf5ea;
+            --ink: #2b1d14;
+            --ink-soft: #6b5544;
+            --accent: #e0a458;
+            --accent-rgb: 224, 164, 88;
+            --red: #b42e3a;
+            --panel-border: rgba(255, 255, 255, 0.1);
+            --text: #f6eee2;
+            --muted: #b8a795;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        [hidden] { display: none !important; }
+
+        body {
+            color: var(--text);
+            font-family: 'Inter', system-ui, sans-serif;
+            min-height: 100dvh;
+            display: flex;
+            flex-direction: column;
+            background-color: var(--bg);
+            background-image:
+                radial-gradient(ellipse 70% 60% at 50% 30%, rgba(224, 164, 88, 0.14), transparent 70%);
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        button { font: inherit; color: inherit; }
+
+        :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+
+        .bar {
+            display: flex;
+            align-items: center;
+            gap: 0.7rem;
+            padding: 0.7rem 1rem;
+        }
+
+        .back {
+            color: var(--muted);
+            text-decoration: none;
+            font-size: 0.85rem;
+            padding: 0.35rem 0.7rem;
+            border-radius: 999px;
+            border: 1px solid var(--panel-border);
+            background: rgba(255, 255, 255, 0.04);
+        }
+
+        .back:hover { color: var(--text); }
+
+        h1 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.25rem;
+            font-weight: 800;
+            letter-spacing: -0.02em;
+        }
+
+        h1 span { color: var(--accent); }
+
+        main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1.1rem;
+            padding: 0.5rem 1rem 2rem;
+        }
+
+        .intro {
+            text-align: center;
+            max-width: 38rem;
+            color: var(--muted);
+            font-size: 0.95rem;
+            line-height: 1.55;
+        }
+
+        .intro b { color: var(--text); font-weight: 500; }
+
+        #special {
+            background: rgba(var(--accent-rgb), 0.15);
+            border: 1px solid rgba(var(--accent-rgb), 0.5);
+            border-radius: 999px;
+            padding: 0.45rem 1rem;
+            font-size: 0.88rem;
+            text-align: center;
+        }
+
+        /* The tablecloth: red gingham from two crossed stripes. */
+        #table {
+            width: min(1080px, 100%);
+            padding: clamp(1rem, 3vw, 2.2rem);
+            border-radius: 22px;
+            background-color: #f3e9dc;
+            background-image:
+                linear-gradient(90deg, rgba(180, 46, 58, 0.45) 50%, transparent 50%),
+                linear-gradient(rgba(180, 46, 58, 0.45) 50%, transparent 50%);
+            background-size: 36px 36px;
+            box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.15), 0 30px 80px rgba(0, 0, 0, 0.45);
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: clamp(0.8rem, 2vw, 1.6rem);
+        }
+
+        #table.shuffle .fcard { animation: wiggle 0.35s ease; }
+        #table.shuffle .fcard:nth-child(2) { animation-delay: 0.05s; }
+        #table.shuffle .fcard:nth-child(3) { animation-delay: 0.1s; }
+
+        @keyframes wiggle {
+            30% { transform: translateY(-8px) rotate(-2deg); }
+            65% { transform: translateY(2px) rotate(1.5deg); }
+        }
+
+        .fcard {
+            perspective: 1200px;
+            aspect-ratio: 5 / 7.4;
+            cursor: pointer;
+            position: relative;
+        }
+
+        .fcard-inner {
+            position: absolute;
+            inset: 0;
+            transform-style: preserve-3d;
+            transition: transform 0.7s cubic-bezier(0.3, 1.3, 0.5, 1);
+        }
+
+        .fcard.up .fcard-inner { transform: rotateY(180deg); }
+
+        .face {
+            position: absolute;
+            inset: 0;
+            border-radius: 16px;
+            backface-visibility: hidden;
+            -webkit-backface-visibility: hidden;
+            box-shadow: 0 10px 24px rgba(60, 20, 10, 0.35);
+            overflow: hidden;
+        }
+
+        /* The back: a folk-art border round a monogram. */
+        .face-back {
+            background: #8f2430;
+            border: 6px solid var(--paper);
+            display: grid;
+            place-items: center;
+            background-image:
+                radial-gradient(circle at 50% 50%, rgba(255, 245, 230, 0.16) 0 18%, transparent 19%),
+                repeating-conic-gradient(from 0deg at 50% 50%, rgba(255, 245, 230, 0.08) 0 10deg, transparent 10deg 20deg);
+        }
+
+        .face-back svg { width: 60%; height: auto; }
+
+        .face-front {
+            transform: rotateY(180deg);
+            background: var(--paper);
+            color: var(--ink);
+            border: 6px solid #fffdf8;
+            outline: 1px solid rgba(43, 29, 20, 0.12);
+            outline-offset: -12px;
+        }
+
+        .content {
+            position: absolute;
+            inset: 0;
+            padding: 1rem 1rem 3rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            gap: 0.3rem;
+        }
+
+        .suit {
+            font-family: 'Outfit', sans-serif;
+            font-size: 0.72rem;
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+            color: var(--red);
+            font-weight: 700;
+        }
+
+        .suit span { color: var(--ink-soft); font-weight: 500; text-transform: none; letter-spacing: 0; }
+
+        .art { width: 100%; flex: 0 1 46%; min-height: 0; display: grid; place-items: center; }
+
+        .art svg { width: 100%; height: 100%; max-height: 180px; }
+
+        .steam { animation: rise 2.4s ease-in-out infinite; }
+
+        @keyframes rise {
+            0% { transform: translateY(4px); opacity: 0; }
+            40% { opacity: 0.6; }
+            100% { transform: translateY(-6px); opacity: 0; }
+        }
+
+        .name {
+            font-family: 'Outfit', sans-serif;
+            font-size: clamp(1.15rem, 2.2vw, 1.6rem);
+            font-weight: 800;
+            letter-spacing: -0.02em;
+            line-height: 1.1;
+        }
+
+        .say { font-style: italic; color: var(--ink-soft); font-size: 0.82rem; }
+
+        .line { font-size: 0.86rem; line-height: 1.45; color: var(--ink); margin-top: 0.2rem; }
+
+        .topic {
+            font-family: 'Outfit', sans-serif;
+            font-size: clamp(1.05rem, 2vw, 1.35rem);
+            font-weight: 600;
+            line-height: 1.3;
+            margin-top: 0.4rem;
+        }
+
+        .keep {
+            position: absolute;
+            left: 50%;
+            bottom: 0.7rem;
+            transform: translateX(-50%);
+            border: 1px solid rgba(43, 29, 20, 0.2);
+            background: #fffdf8;
+            color: var(--ink);
+            border-radius: 999px;
+            padding: 0.28rem 0.75rem;
+            font-size: 0.78rem;
+            cursor: pointer;
+        }
+
+        .keep[aria-pressed="true"] { background: #2b1d14; color: #fde68a; border-color: #2b1d14; }
+
+        .actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .btn {
+            border: 1px solid var(--panel-border);
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 999px;
+            padding: 0.55rem 1.1rem;
+            cursor: pointer;
+            font-size: 0.9rem;
+        }
+
+        .btn:hover { background: rgba(255, 255, 255, 0.1); }
+        .btn:disabled { opacity: 0.45; cursor: default; }
+
+        .btn-primary {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: #2b1d14;
+            font-weight: 700;
+            font-family: 'Outfit', sans-serif;
+            font-size: 1rem;
+        }
+
+        .btn-primary:hover { background: #ecb571; }
+
+        #timer { display: inline-flex; align-items: center; gap: 0.5rem; }
+
+        #timer svg { width: 22px; height: 22px; transform: rotate(-90deg); }
+
+        #ring { transition: stroke-dashoffset 1s linear; }
+
+        #timer[aria-pressed="true"] { border-color: rgba(var(--accent-rgb), 0.6); color: #fde68a; }
+
+        #toast {
+            position: fixed;
+            bottom: 1.2rem;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #2b1d14;
+            border: 1px solid rgba(var(--accent-rgb), 0.5);
+            padding: 0.5rem 1rem;
+            border-radius: 999px;
+            font-size: 0.88rem;
+        }
+
+        .foot { color: var(--muted); font-size: 0.78rem; text-align: center; max-width: 36rem; line-height: 1.5; }
+
+        @media (max-width: 720px) {
+            #table { grid-template-columns: 1fr; padding: 0.8rem; }
+            .fcard { aspect-ratio: auto; height: 250px; }
+            .content {
+                display: grid;
+                grid-template-columns: 38% 1fr;
+                grid-template-rows: auto auto auto 1fr;
+                text-align: left;
+                align-items: start;
+                padding: 0.8rem 0.9rem 2.6rem;
+                column-gap: 0.8rem;
+            }
+            .suit { grid-column: 1 / -1; }
+            .art { grid-row: 2 / span 3; height: 100%; }
+            .face-back svg { width: 32%; }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .fcard-inner { transition-duration: 0.01s; }
+            .steam { animation: none; opacity: 0.4; }
+        }
+    </style>
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-9GP823TGLB"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+
+      gtag('config', 'G-9GP823TGLB');
+    </script>
+<script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@graph": [
+            {
+                "@type": "WebApplication",
+                "url": "https://neskil.github.io/fika/",
+                "description": "Turn over three cards for a Swedish fika: a pastry, something to drink and something to talk about, with how to say it and a line about each. Knows the pastry days, keeps the cards you like, and shares by link.",
+                "image": "https://neskil.github.io/assets/og/fika.png",
+                "name": "Fika Generator",
+                "author": {
+                    "@id": "https://neskil.github.io/#niklas"
+                },
+                "isPartOf": {
+                    "@id": "https://neskil.github.io/#website"
+                },
+                "applicationCategory": "LifestyleApplication",
+                "operatingSystem": "Any",
+                "browserRequirements": "Requires JavaScript",
+                "offers": {
+                    "@type": "Offer",
+                    "price": "0",
+                    "priceCurrency": "USD"
+                }
+            },
+            {
+                "@type": "Person",
+                "@id": "https://neskil.github.io/#niklas",
+                "name": "Niklas Billgren",
+                "url": "https://neskil.github.io/",
+                "jobTitle": "Supply chain consultant",
+                "image": "https://neskil.github.io/assets/portrait.webp",
+                "sameAs": [
+                    "https://www.linkedin.com/in/niklas-eskilsson/"
+                ]
+            }
+        ]
+    }
+    </script>
+</head>
+<body>
+    <header class="bar">
+        <a class="back" href="../index.html">← Back</a>
+        <h1>Fika <span>Generator</span></h1>
+    </header>
+
+    <main>
+        <p class="intro"><b>Fika</b> is the Swedish habit of stopping for coffee and something sweet, and taking your time over it. Turn over three cards for yours.</p>
+        <div id="special" hidden></div>
+
+        <div id="table">
+            <div class="fcard" data-suit="pastry" role="button" tabindex="0" aria-label="Pastry card">
+                <div class="fcard-inner">
+                    <div class="face face-back"><svg viewBox="0 0 100 100" aria-hidden="true"><use href="#monogram"/></svg></div>
+                    <div class="face face-front"><div class="content"></div></div>
+                </div>
+                <button type="button" class="keep" data-keep="pastry" aria-pressed="false">🔓 Keep</button>
+            </div>
+            <div class="fcard" data-suit="drink" role="button" tabindex="0" aria-label="Drink card">
+                <div class="fcard-inner">
+                    <div class="face face-back"><svg viewBox="0 0 100 100" aria-hidden="true"><use href="#monogram"/></svg></div>
+                    <div class="face face-front"><div class="content"></div></div>
+                </div>
+                <button type="button" class="keep" data-keep="drink" aria-pressed="false">🔓 Keep</button>
+            </div>
+            <div class="fcard" data-suit="topic" role="button" tabindex="0" aria-label="Conversation card">
+                <div class="fcard-inner">
+                    <div class="face face-back"><svg viewBox="0 0 100 100" aria-hidden="true"><use href="#monogram"/></svg></div>
+                    <div class="face face-front"><div class="content"></div></div>
+                </div>
+                <button type="button" class="keep" data-keep="topic" aria-pressed="false">🔓 Keep</button>
+            </div>
+        </div>
+
+        <div class="actions">
+            <button type="button" class="btn btn-primary" id="deal">✨ Deal a fika</button>
+            <button type="button" class="btn" id="daily" title="The same three cards for everyone today">📅 Today’s fika</button>
+            <button type="button" class="btn" id="share" disabled>🔗 Share</button>
+            <button type="button" class="btn" id="timer" aria-pressed="false" title="Start a fifteen-minute fika">
+                <svg viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="18" fill="none" stroke="rgba(255,255,255,0.15)" stroke-width="4"/><circle id="ring" cx="20" cy="20" r="18" fill="none" stroke="#e0a458" stroke-width="4" stroke-dasharray="113" stroke-dashoffset="0" stroke-linecap="round"/></svg>
+                <span id="timer-text">15:00</span>
+            </button>
+        </div>
+        <p class="foot">Keep a card you like and deal again for the other two, or tap a single card to turn just that one. On Kanelbullens dag, Fettisdagen, Våffeldagen and the other pastry days, the deck already knows what you are having.</p>
+    </main>
+
+    <div id="toast" hidden role="status"></div>
+
+    <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+        <defs>
+            <g id="monogram">
+                <circle cx="50" cy="50" r="40" fill="none" stroke="#fbf5ea" stroke-width="2" stroke-dasharray="2 4"/>
+                <path d="M50 22 c-6 8 -18 8 -18 18 c0 8 10 10 18 4 c8 6 18 4 18 -4 c0 -10 -12 -10 -18 -18z" fill="#fbf5ea" opacity="0.85"/>
+                <path d="M30 62 q20 -10 40 0 M34 70 q16 -7 32 0" stroke="#fbf5ea" stroke-width="2.5" fill="none" stroke-linecap="round" opacity="0.7"/>
+                <text x="50" y="86" text-anchor="middle" font-family="Outfit, sans-serif" font-weight="800" font-size="13" letter-spacing="3" fill="#fbf5ea">FIKA</text>
+            </g>
+        </defs>
+    </svg>
+
+    <script type="module" src="js/app.js"></script>
+</body>
+</html>

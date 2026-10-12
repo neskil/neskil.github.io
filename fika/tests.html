@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fika Generator — Deck Tests</title>
+    <meta name="robots" content="noindex">
+    <style>
+        body { background: #0f172a; color: #f8fafc; font-family: system-ui, monospace; padding: 1.5rem; line-height: 1.5; }
+        h1 { font-size: 1.4rem; margin-bottom: 1rem; color: #e0a458; }
+        .pass { color: #34d399; }
+        .fail { color: #f87171; font-weight: bold; }
+        #summary { font-size: 1.2rem; margin-bottom: 1rem; padding: 0.5rem; background: #1e293b; border-radius: 6px; }
+        .test-row { margin-bottom: 0.25rem; font-family: monospace; }
+    </style>
+</head>
+<body>
+    <h1>☕ Fika Generator — Test Suite</h1>
+    <div id="summary">Running tests…</div>
+    <div id="results"></div>
+
+    <script type="module">
+        import * as F from './js/deck.js';
+        import { ART, drawing } from './js/art.js';
+
+        const results = document.getElementById('results');
+        let passed = 0, failed = 0;
+        function ok(cond, name, detail = '') {
+            const row = document.createElement('div');
+            row.className = 'test-row ' + (cond ? 'pass' : 'fail');
+            row.textContent = (cond ? '✓ ' : '✗ ') + name + (detail ? ' — ' + detail : '');
+            results.appendChild(row);
+            cond ? passed++ : failed++;
+        }
+        const D = (y, m, d) => new Date(Date.UTC(y, m - 1, d));
+        const iso = (d) => d.toISOString().slice(0, 10);
+
+        // ── The deck ──
+        for (const [name, suit] of [['pastries', F.PASTRIES], ['drinks', F.DRINKS]]) {
+            const ids = suit.map(c => c.id);
+            ok(new Set(ids).size === ids.length, `${name}: every card has its own id`);
+            ok(ids.every(id => /^[a-z]+$/.test(id)), `${name}: ids are plain letters, safe in a link`);
+            ok(suit.every(c => c.name && c.say && c.en && c.line && c.line.length < 160), `${name}: every card has a name, a pronunciation and a short line`);
+            ok(suit.every(c => ART[c.art] && Array.isArray(c.colours)), `${name}: every card has a drawing`);
+            ok(suit.every(c => drawing(c).startsWith('<svg') && !drawing(c).includes('undefined')), `${name}: and every drawing renders`);
+        }
+        ok(new Set(F.TOPICS).size === F.TOPICS.length && F.TOPICS.length >= 30, 'thirty-odd different things to talk about', F.TOPICS.length + '');
+        ok(F.TOPICS.every(t => t.endsWith('?') || t.endsWith('.') || t.endsWith(')')), 'every topic is a whole sentence');
+
+        // ── The calendar ──
+        const easters = { 2024: '2024-03-31', 2025: '2025-04-20', 2026: '2026-04-05', 2027: '2027-03-28', 2038: '2038-04-25' };
+        ok(Object.entries(easters).every(([y, d]) => iso(F.easter(+y)) === d), 'Easter lands on the right Sunday', Object.keys(easters).join(', '));
+        ok(iso(F.fettisdagen(2025)) === '2025-03-04' && iso(F.fettisdagen(2026)) === '2026-02-17' && iso(F.fettisdagen(2027)) === '2027-02-09',
+            'Fettisdagen is the Tuesday seven weeks before Easter');
+        ok(F.fettisdagen(2026).getUTCDay() === 2, 'and is a Tuesday');
+        ok(F.specialDay(D(2026, 2, 17)).pastry === 'semla', 'Fettisdagen means semla');
+        ok(F.specialDay(D(2026, 10, 4)).pastry === 'kanelbulle', '4 October is Kanelbullens dag');
+        ok(F.specialDay(D(2026, 12, 13)).pastry === 'lussekatt', '13 December is Lucia');
+        ok(F.specialDay(D(2026, 3, 25)).pastry === 'vaffla', '25 March is Våffeldagen');
+        ok(F.specialDay(D(2026, 11, 7)).pastry === 'kladdkaka' && F.specialDay(D(2026, 5, 11)).pastry === 'chokladboll', 'and kladdkaka and chokladboll get theirs');
+        ok(F.specialDay(D(2026, 6, 2)) === null, 'an ordinary day is ordinary');
+        ok(Object.values({ a: F.specialDay(D(2026, 10, 4)) }).every(s => F.PASTRIES.some(p => p.id === s.pastry)), 'special days name real pastries');
+
+        // ── Dealing ──
+        {
+            const rng = F.mulberry32(5);
+            const h = F.deal(rng, D(2026, 6, 2));
+            ok(F.PASTRIES[h.pastry] && F.DRINKS[h.drink] && F.TOPICS[h.topic], 'a deal is one of each');
+            let repeats = 0, kept = true;
+            let prev = h;
+            for (let k = 0; k < 300; k++) {
+                const n = F.deal(rng, D(2026, 6, 2), { drink: prev.drink }, prev);
+                if (n.pastry === prev.pastry || n.topic === prev.topic) repeats++;
+                if (n.drink !== prev.drink) kept = false;
+                prev = n;
+            }
+            ok(repeats === 0, 'dealing again never hands back the card it replaced');
+            ok(kept, 'and a kept card stays');
+        }
+        {
+            const rng = F.mulberry32(9);
+            const first = F.deal(rng, D(2026, 10, 4));
+            ok(F.PASTRIES[first.pastry].id === 'kanelbulle', 'on Kanelbullens dag the first deal is a kanelbulle');
+            const second = F.deal(rng, D(2026, 10, 4), {}, first);
+            ok(F.PASTRIES[second.pastry].id !== 'kanelbulle', 'but you can deal past it if you insist');
+        }
+        {
+            const rng = F.mulberry32(3);
+            const july = new Set(), dec = new Set();
+            for (let k = 0; k < 600; k++) {
+                const a = F.deal(rng, D(2026, 7, 10)); july.add(F.DRINKS[a.drink].id); july.add(F.PASTRIES[a.pastry].id);
+                const b = F.deal(rng, D(2026, 12, 18)); dec.add(F.DRINKS[b.drink].id); dec.add(F.PASTRIES[b.pastry].id);
+            }
+            ok(!july.has('glogg') && !july.has('julmust') && !july.has('lussekatt') && !july.has('semla'), 'no glögg, julmust, lussekatt or semla in July');
+            ok(dec.has('glogg') && dec.has('julmust') && dec.has('pepparkaka'), 'all three in December');
+            ok(july.has('rabarberpaj') && !dec.has('rabarberpaj'), 'rhubarb pie in early summer only');
+        }
+        {
+            const a = F.deal(F.mulberry32(F.daySeed(D(2026, 10, 12))), D(2026, 10, 12));
+            const b = F.deal(F.mulberry32(F.daySeed(D(2026, 10, 12))), D(2026, 10, 12));
+            ok(JSON.stringify(a) === JSON.stringify(b), 'today’s fika is the same for everyone');
+            let differ = 0;
+            for (let k = 1; k <= 20; k++) {
+                const c = F.deal(F.mulberry32(F.daySeed(D(2026, 1, k))), D(2026, 1, k));
+                const d = F.deal(F.mulberry32(F.daySeed(D(2026, 1, k + 1))), D(2026, 1, k + 1));
+                if (JSON.stringify(c) !== JSON.stringify(d)) differ++;
+            }
+            ok(differ >= 19, 'and different from yesterday’s', differ + ' of 20');
+        }
+
+        // ── Links ──
+        {
+            let all = true;
+            F.PASTRIES.forEach((p, i) => F.DRINKS.forEach((d, j) => {
+                const h = { pastry: i, drink: j, topic: (i + j) % F.TOPICS.length };
+                if (JSON.stringify(F.decode(F.encode(h))) !== JSON.stringify(h)) all = false;
+            }));
+            ok(all, 'every hand survives a share link');
+            ok(F.encode({ pastry: 0, drink: 0, topic: 12 }) === 'kanelbulle.bryggkaffe.12', 'links name the cards, not their position');
+            ok([null, '', 'x.y.z', 'kanelbulle.bryggkaffe', 'kanelbulle.bryggkaffe.999', 'kanelbulle.bryggkaffe.-1', 'kanelbulle.bryggkaffe.1.5', 'semla.saft.<b>']
+                .every(c => F.decode(c) === null), 'a broken link deals nothing rather than nonsense');
+        }
+
+        const summary = document.getElementById('summary');
+        summary.textContent = passed + ' passed, ' + failed + ' failed';
+        summary.className = failed ? 'fail' : 'pass';
+    </script>
+</body>
+</html>
