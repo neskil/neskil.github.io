@@ -6,7 +6,7 @@ Niklas Billgren's personal site, hosted on GitHub Pages. Static HTML/CSS/JS, no 
 
 | Path | What it is |
 | --- | --- |
-| `index.html` | Landing page / portfolio hub linking out to the sections below. |
+| `index.html` | Landing page / portfolio hub linking out to the sections below. The cards are grouped into foldable shelves (games, toys & experiments, useful tools, about) with a jump bar above them; a fold is remembered per browser, and a phone opens only the first shelf until told otherwise. |
 | `cv/` | Curriculum vitae site. |
 | `cargo-lander/` | CargoLander — a browser-based 2D lander/logistics game with a custom physics engine. See [cargo-lander/README.md](cargo-lander/README.md) for internals. |
 | `games/` | Interactive game library — a browsable/filterable catalog of games (`data.js` holds the entries). |
@@ -24,6 +24,8 @@ Niklas Billgren's personal site, hosted on GitHub Pages. Static HTML/CSS/JS, no 
 | `terrarium/` | Pocket Weather Terrarium — a canvas world in a corked jar whose sky follows the live weather (Open-Meteo, no key) and the sun's true elevation at a chosen place, with the moon's real phase. Starts from the browser's time zone without asking; city search and "use my location" refine it, and it falls back to a seasonal guess offline. Logic in `js/weather.js`; asserted by `tests.html`. |
 | `elevator/` | Tiny Elevator Tycoon — program a building's lifts (next-stop strategy, zone, idle parking, shared calls) and run a day of seeded arrivals; six levels scored on average wait and people lost to the stairs. Star thresholds are calibrated against every program in `allRules()`, and `tests.html` checks each level is still winnable at three stars. Logic in `js/sim.js`. |
 | `paper-plane/` | Paper Plane Glider — fold with three sliders (wing shape, nose weight, tail flaps) and throw down a long office; a side-on glider model with lift, drag, stall and a pitching moment, so the folds trade off as they do on paper. Longest-throw mode keeps a ghost of the best flight; the daily bin (seeded by UTC date, sometimes with a fan) is the same for everyone. Logic in `js/flight.js`; `tests.html` checks two weeks of bins are all hittable. |
+| `fika/` | Fika Generator — three tarot-style cards for a Swedish fika (pastry, drink, conversation topic), drawn as small SVGs in `js/art.js`. Knows the pastry days (Fettisdagen from Easter, Kanelbullens dag, Lucia…) and seasonal cards, keeps cards across deals, deals a shared "today's fika" and encodes a hand in the URL by card id. Deck and calendar in `js/deck.js`; asserted by `tests.html`. |
+| `name-song/` | Sound of Your Name — any text becomes a short tune (each letter a fixed scale step; key, mode, tempo, chords and instrument from the whole name), played on a small Web Audio synth with a generated reverb and drawn as a rosette that follows the playhead. Share by `?n=` link or save a 1080px picture. Composer in `js/compose.js`, no audio or DOM; asserted by `tests.html`. |
 | `surprise/` | Misc. personal page ("Bacons lilla hörna") — an HTML5 UP "Dimension" one-pager with two Phaser toys, plus `cv_legacy/`. Pruned to what it actually serves; see "Pruning surprise/" below before adding to it. |
 | `404.html` | Custom not-found page (GitHub Pages serves it automatically). |
 | `robots.txt` / `sitemap.xml` | Crawler hints. `surprise/` is excluded, being vendored third-party demo code, as are the test harnesses — see "What crawlers see" below. |
@@ -111,7 +113,7 @@ while scrolling, and turning it over shows a screenshot of the thing running
 plus the button that starts it. Those screenshots live in `assets/preview/` as
 800x420 WebP, one per card, and are held in `data-src` until the card is
 flipped (or, on a machine with a pointer, until the cursor reaches the card).
-Nothing in that folder is fetched on load; together they are under 400 KB.
+Nothing in that folder is fetched on load; together they are under 800 KB.
 
 Two things make them worth the trouble, and both are easy to lose when
 regenerating one:
@@ -200,7 +202,7 @@ modules, so `file://` gives CORS errors) and loads each suite in headless
 Chrome — the same `--virtual-time-budget` trick as the screenshot recipe above,
 so eighteen seconds of page timers return in about one. It reads the verdict
 out of each harness's `<div id="summary">` and exits non-zero if any suite is
-red. Currently ten suites (over 5,300 assertions), about 20 seconds.
+red. Currently seventeen suites (over 5,600 assertions), about a minute.
 
 Two things about it are deliberate:
 

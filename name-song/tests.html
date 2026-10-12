@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sound of Your Name — Composer Tests</title>
+    <meta name="robots" content="noindex">
+    <style>
+        body { background: #0f172a; color: #f8fafc; font-family: system-ui, monospace; padding: 1.5rem; line-height: 1.5; }
+        h1 { font-size: 1.4rem; margin-bottom: 1rem; color: #c084fc; }
+        .pass { color: #34d399; }
+        .fail { color: #f87171; font-weight: bold; }
+        #summary { font-size: 1.2rem; margin-bottom: 1rem; padding: 0.5rem; background: #1e293b; border-radius: 6px; }
+        .test-row { margin-bottom: 0.25rem; font-family: monospace; }
+    </style>
+</head>
+<body>
+    <h1>🎵 Sound of Your Name — Test Suite</h1>
+    <div id="summary">Running tests…</div>
+    <div id="results"></div>
+
+    <script type="module">
+        import * as C from './js/compose.js';
+
+        const results = document.getElementById('results');
+        let passed = 0, failed = 0;
+        function ok(cond, name, detail = '') {
+            const row = document.createElement('div');
+            row.className = 'test-row ' + (cond ? 'pass' : 'fail');
+            row.textContent = (cond ? '✓ ' : '✗ ') + name + (detail ? ' — ' + detail : '');
+            results.appendChild(row);
+            cond ? passed++ : failed++;
+        }
+        const main = (s) => s.notes.filter(n => !n.grace);
+
+        // ── Reading a name ──
+        ok(C.letters('Smörgåsbord').map(l => l.ch).join('') === 'smorgasbord', 'accents come off the letter');
+        ok(C.letters('Åsa')[0].accent && !C.letters('Asa')[0].accent, 'but are remembered');
+        ok(C.letters('  Ada,  Lovelace!! 🎉 ').map(l => l.ch).join('') === 'ada lovelace', 'punctuation and emoji are dropped, gaps kept once');
+        ok(C.letters('a'.repeat(100)).length === C.MAX_LETTERS, 'long input is cut at ' + C.MAX_LETTERS + ' letters');
+        ok(C.compose('') === null && C.compose('   ') === null && C.compose('!?🎉') === null, 'nothing to play means no song');
+
+        // ── Same name, same song ──
+        {
+            const a = C.compose('Neskil'), b = C.compose('Neskil');
+            ok(JSON.stringify(a) === JSON.stringify(b), 'the same name plays the same every time');
+            ok(JSON.stringify(C.compose('NESKIL')) === JSON.stringify(a) && JSON.stringify(C.compose('  neskil ')) === JSON.stringify(a), 'whatever the case or spacing');
+        }
+        {
+            const ann = C.compose('Ann'), anna = C.compose('Anna');
+            ok(main(ann).map(n => n.step).join() === main(anna).slice(0, 2).map(n => n.step).join(), 'Ann and Anna open on the same scale steps');
+            ok(ann.hash !== anna.hash, 'but are still different songs');
+        }
+
+        // ── The shape of a tune ──
+        const names = ['Neskil', 'Niklas', 'Anna', 'Åsa', 'Björn Borg', 'Fika', 'Ada Lovelace', 'Smörgåsbord', 'Detroit', 'Stockholm',
+            'Zoë', 'Li', 'Q', 'R2D2', 'Mary-Jane', 'Oscar', 'Ingrid', 'Ulla', 'Xavier', 'Yusuf', 'Ebba', 'Otto'];
+        let bad = [];
+        for (const name of names) {
+            const s = C.compose(name);
+            const scale = C.MODES[s.mode];
+            const sorted = s.notes.every((n, i) => i === 0 || n.t >= s.notes[i - 1].t - 1e-9);
+            const noOverlap = s.notes.every((n, i) => i === 0 || n.t >= s.notes[i - 1].t + s.notes[i - 1].dur - 1e-9);
+            const inScale = s.notes.every(n => scale.includes(((n.midi - s.root) % 12 + 12) % 12));
+            const inRange = s.notes.every(n => n.midi >= 48 && n.midi <= 90) && s.chords.every(c => c.bass >= 24 && c.notes.every(m => m < 72));
+            const end = Math.max(...s.notes.map(n => n.t + n.dur));
+            const bars = s.length / (4 * s.beat);
+            const chordsCover = Math.abs(s.chords.reduce((t, c) => t + c.dur, 0) - s.length) < 1e-9;
+            if (!sorted) bad.push(name + ': out of order');
+            if (!noOverlap) bad.push(name + ': notes overlap');
+            if (!inScale) bad.push(name + ': note outside the scale');
+            if (!inRange) bad.push(name + ': out of range');
+            if (!(s.length >= end - 1e-9 && Math.abs(bars - Math.round(bars)) < 1e-9)) bad.push(name + ': not whole bars');
+            if (!chordsCover) bad.push(name + ': chords do not cover the song');
+            if (!(s.notes.every(n => n.dur > 0))) bad.push(name + ': zero-length note');
+            if (main(s)[main(s).length - 1].dur < 2 * s.beat - 1e-9) bad.push(name + ': last note does not ring');
+        }
+        ok(bad.length === 0, `${names.length} names: notes in order, in the scale, in range, in whole bars, the last one ringing`, bad.join('; '));
+
+        {
+            const s = C.compose('Otis');
+            const [o, t] = main(s);
+            ok(o.dur > t.dur, 'vowels are held longer than consonants');
+            ok(main(C.compose('Anna')).length === 3, 'a doubled letter is one longer note');
+            ok(C.compose('Åsa').notes.some(n => n.grace) && !C.compose('Asa').notes.some(n => n.grace), 'an accent adds a grace note');
+            const gap = C.compose('Ada Lovelace'), joined = C.compose('AdaLovelace');
+            ok(main(gap).length === main(joined).length, 'a space is a rest, not a note');
+        }
+
+        // ── Variety ──
+        {
+            const modes = new Set(), keys = new Set(), tempos = new Set(), inst = new Set(), sigs = new Set();
+            const sample = ['Alice', 'Bob', 'Carol', 'Dave', 'Erik', 'Frida', 'Gustav', 'Hanna', 'Isak', 'Johanna', 'Karl', 'Lena', 'Magnus', 'Nora',
+                'Olof', 'Petra', 'Rasmus', 'Sara', 'Tove', 'Ulf', 'Vera', 'Wilma', 'Axel', 'Elsa', 'Liam', 'Maja', 'Noah', 'Alva', 'Hugo', 'Ella',
+                'Oliver', 'Astrid', 'Lucas', 'Saga', 'William', 'Freja', 'Elias', 'Alma', 'Leo', 'Signe'];
+            for (const n of sample) {
+                const s = C.compose(n);
+                modes.add(s.mode); keys.add(s.key); tempos.add(s.tempo); inst.add(s.instrument);
+                sigs.add(s.mode + s.key + s.tempo + s.instrument);
+            }
+            ok(modes.size === Object.keys(C.MODES).length, 'forty names use every mode', [...modes].join(', '));
+            ok(keys.size >= 10, 'and most keys', keys.size + ' of 12');
+            ok(inst.size === C.INSTRUMENTS.length, 'and every instrument');
+            ok(sigs.size === sample.length, 'and no two of them share key, mode, tempo and instrument');
+            ok(Math.min(...tempos) >= 84 && Math.max(...tempos) <= 132, 'tempos stay between 84 and 132');
+        }
+
+        // ── Notes ──
+        ok(C.midiToFreq(69) === 440 && Math.abs(C.midiToFreq(60) - 261.6256) < 1e-3, 'A4 is 440 Hz, middle C is 261.6');
+        ok(C.noteName(60) === 'C4' && C.noteName(70) === 'B♭4', 'notes are named');
+        ok(C.stepToMidi(7, 60, 'major') === 72 && C.stepToMidi(5, 60, 'pentatonic') === 72, 'a step past the scale goes up an octave');
+
+        const summary = document.getElementById('summary');
+        summary.textContent = passed + ' passed, ' + failed + ' failed';
+        summary.className = failed ? 'fail' : 'pass';
+    </script>
+</body>
+</html>
