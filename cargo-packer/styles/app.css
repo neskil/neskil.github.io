@@ -972,6 +972,17 @@ aside.right-hud {
 .cog-acceptable { background: #f59e0b; }
 .cog-hazard { background: #ef4444; }
 
+.showdown-row.pending {
+  opacity: 0.6;
+}
+
+.showdown-wait {
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
 .showdown-sub {
   display: flex;
   justify-content: space-between;

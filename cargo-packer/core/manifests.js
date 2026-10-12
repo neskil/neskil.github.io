@@ -6,7 +6,7 @@
 (function(exports) {
   'use strict';
 
-  const Types = (typeof module !== 'undefined' && module.exports) ? require('./types') : window.CargoPacker;
+  const Types = (typeof module !== 'undefined' && module.exports) ? require('./types') : self.CargoPacker;
 
   /**
    * Mulberry32 Seeded Pseudo-Random Number Generator.
@@ -97,9 +97,6 @@
     ] }
   };
 
-  /** Most of any one type the editor allows; keeps a solve interactive. */
-  const MAX_PER_TYPE = 120;
-
   /**
    * @param {string} scenarioId Key of MANIFEST_TYPES
    * @param {Object<string, number>} [counts] Per-type counts; missing keys use the default
@@ -109,7 +106,7 @@
     const items = [];
     let id = 1;
     def.types.forEach(t => {
-      const n = Math.max(0, Math.min(MAX_PER_TYPE, Math.round(counts[t.key] !== undefined ? counts[t.key] : t.count)));
+      const n = Math.max(0, Math.round(counts[t.key] !== undefined ? counts[t.key] : t.count) || 0);
       for (let i = 0; i < n; i++) {
         const opts = Object.assign({}, t.opts);
         if (opts.colors) {
@@ -250,10 +247,24 @@
    * Generates side-by-side volume metrics, winner ranking, and analytical insights.
    */
   function compareAlgorithms(items, container, options = {}) {
-    const Registry = (typeof module !== 'undefined' && module.exports) ? require('./algorithms') : window.CargoPacker;
+    const Registry = (typeof module !== 'undefined' && module.exports) ? require('./algorithms') : self.CargoPacker;
     const opt = Object.assign({ minSupportRatio: 0.60 }, options);
+    const runs = {};
+    Registry.ALGORITHMS.forEach(algo => { runs[algo.id] = algo.run(items, container, opt); });
+    return rankAlgorithms(runs, items.length, container);
+  }
 
-    const total = items.length;
+  /**
+   * Ranks whichever algorithms have finished: `runs` maps algorithm id to its
+   * packing result. The page packs in a background worker and calls this as
+   * each result arrives, so a partial table can show while slow ones run.
+   * @param {Object<string, Object>} runs
+   * @param {number} total Items on the manifest
+   * @param {Object} container
+   */
+  function rankAlgorithms(runs, total, container) {
+    const Registry = (typeof module !== 'undefined' && module.exports) ? require('./algorithms') : self.CargoPacker;
+
     // A pallet grows upwards; a container fills from the back bulkhead to the
     // doors. Either way, what is left over for more cargo is what matters.
     const isPallet = container.length < 2;
@@ -291,15 +302,17 @@
 
     const results = {};
     Registry.ALGORITHMS.forEach(algo => {
+      if (!runs[algo.id]) return;
       results[algo.id] = Object.assign(
-        summarize(algo.id, algo.name, algo.shortName, algo.run(items, container, opt)),
+        summarize(algo.id, algo.name, algo.shortName, runs[algo.id]),
         { quality: algo.quality }
       );
     });
+    const complete = Object.keys(results).length === Registry.ALGORITHMS.length;
 
     // More cargo loaded wins; when that ties, the load that leaves the most
     // room (least floor used, or the lowest stack) wins, then the denser one.
-    const ranking = Registry.ALGORITHMS.map(a => a.id);
+    const ranking = Object.keys(results);
     ranking.sort((a, b) => {
       if (Math.abs(results[b].volumeUtilization - results[a].volumeUtilization) > 0.1) {
         return results[b].volumeUtilization - results[a].volumeUtilization;
@@ -312,6 +325,18 @@
       }
       return results[b].density - results[a].density;
     });
+
+    if (ranking.length < 2) {
+      const only = results[ranking[0]] || null;
+      return {
+        results: results,
+        winner: only,
+        lead: '',
+        ranking: ranking.map(id => results[id]),
+        insight: only ? `${only.shortName} is packed; the others are still packing…` : 'Packing…',
+        complete: complete
+      };
+    }
 
     const winner = results[ranking[0]];
     const runnerUp = results[ranking[1]];
@@ -347,12 +372,10 @@
       winner: winner,
       lead: lead,
       ranking: ranking.map(id => results[id]),
-      insight: insight
+      insight: complete ? insight : `${insight} (Still packing: ${Registry.ALGORITHMS.length - ranking.length} more.)`,
+      complete: complete
     };
   }
-
-  /** Most items the random scenario will generate. */
-  const MAX_RANDOM = 200;
 
   /*
    * Each preset's getItems takes an optional cargo override from the editor:
@@ -383,10 +406,9 @@
       containerId: 'iso20',
       isRandom: true,
       defaultCount: 70,
-      maxCount: MAX_RANDOM,
       blurb: n => `${n} randomized cartons, crates & drums`,
       getItems: cargo => generateRandomManifest(currentRandomSeed,
-        Math.max(1, Math.min(MAX_RANDOM, Math.round(cargo && cargo.count !== undefined ? cargo.count : 70))))
+        Math.max(1, Math.round(cargo && cargo.count !== undefined ? cargo.count : 70) || 1))
     },
     pallet: fixed('pallet', 'EUR-Pallet Stacking', 'pallet',
       n => `${n} cartons on standard 1.2m × 0.8m wooden base`)
@@ -401,9 +423,9 @@
   exports.getIrregularManifest = getIrregularManifest;
   exports.getPalletManifest = getPalletManifest;
   exports.compareAlgorithms = compareAlgorithms;
+  exports.rankAlgorithms = rankAlgorithms;
   exports.buildManifest = buildManifest;
-  exports.MAX_PER_TYPE = MAX_PER_TYPE;
   exports.getRandomSeed = () => currentRandomSeed;
   exports.setRandomSeed = (seed) => { currentRandomSeed = seed; };
 
-})(typeof module !== 'undefined' && module.exports ? module.exports : (window.CargoPacker = window.CargoPacker || {}));
+})(typeof module !== 'undefined' && module.exports ? module.exports : (self.CargoPacker = self.CargoPacker || {}));

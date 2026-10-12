@@ -59,8 +59,7 @@
     }
 
     pickCompareResult() {
-      const entry = this.comparison && this.comparison.results[this.compareAlgorithm];
-      this.compareResult = entry ? entry.result : null;
+      this.compareResult = (this.runs && this.runs[this.compareAlgorithm]) || null;
     }
 
     /**
@@ -122,10 +121,19 @@
       this.solve();
     }
 
+    /**
+     * Every solve packs with every algorithm, so switching is instant once
+     * that one has finished; until then the scene waits for its result.
+     */
     setAlgorithm(algoId) {
       this.pause();
       this.selectedAlgorithm = algoId;
-      this.solve();
+      if (!this.runs || (!this.runs[algoId] && !this.solving)) {
+        this.solve();
+        return;
+      }
+      this.packResult = this.runs[algoId] || null;
+      this.reset();
     }
 
     rerollRandom() {
@@ -150,28 +158,26 @@
     }
 
     /**
-     * Replaces the cargo for the current scenario and repacks. Counts are
-     * clamped per type and scaled down to fit the overall item limit.
+     * Replaces the cargo for the current scenario and repacks. Any whole
+     * number goes: packing runs in a background worker, so a big load takes
+     * longer but never freezes the page.
      */
     setCargo(cargo) {
       const CP = window.CargoPacker;
       const preset = CP.PRESETS[this.selectedScenario];
+      const whole = v => Math.max(0, Math.round(+v || 0));
+      let next;
       if (preset.isRandom) {
-        this.cargo[this.selectedScenario] = {
-          count: Math.max(1, Math.min(preset.maxCount, Math.round(cargo.count)))
-        };
+        next = { count: Math.max(1, whole(cargo.count)) };
       } else {
         const counts = {};
-        preset.types.forEach(t => {
-          counts[t.key] = Math.max(0, Math.min(CP.MAX_PER_TYPE, Math.round(cargo.counts[t.key] || 0)));
-        });
-        const total = Object.values(counts).reduce((a, b) => a + b, 0);
-        if (total > PackerController.MAX_ITEMS) {
-          const f = PackerController.MAX_ITEMS / total;
-          Object.keys(counts).forEach(k => { counts[k] = Math.floor(counts[k] * f); });
-        }
-        this.cargo[this.selectedScenario] = { counts: counts };
+        preset.types.forEach(t => { counts[t.key] = whole(cargo.counts[t.key]); });
+        next = { counts: counts };
       }
+      // A field losing focus fires "change" again with the same numbers:
+      // repacking then would reset whatever is playing.
+      if (JSON.stringify(next) === JSON.stringify(this.cargoCounts())) return;
+      this.cargo[this.selectedScenario] = next;
       this.solve();
     }
 
@@ -180,30 +186,129 @@
       this.solve();
     }
 
+    // ── Solving ─────────────────────────────────────────────────────────
+
+    /**
+     * Packs the current cargo with every algorithm. The work runs in a
+     * background worker (core/solveWorker.js) and results arrive one by one:
+     * the algorithm on screen first, then the compare pane's, then the quick
+     * ones, the slow ones last. A newer solve cancels an older one. Where
+     * workers are unavailable (a page opened from file://) the same sequence
+     * runs on the page, yielding between algorithms.
+     */
     solve() {
       const CP = window.CargoPacker;
       const preset = CP.PRESETS[this.selectedScenario];
+      const container = CP.CONTAINERS[this.selectedContainer];
       const items = preset.getItems(this.cargo[this.selectedScenario]);
-      const containerSpec = CP.CONTAINERS[this.selectedContainer];
 
-      const startTime = performance.now();
-      let result;
+      this.items = items;
+      this.runs = {};
+      this.packResult = null;
+      this.compareResult = null;
+      this.comparison = CP.rankAlgorithms({}, items.length, container);
+      this.reset();
 
-      // Run live comparison across all 3 algorithms for head-to-head benchmarking
-      this.comparison = CP.compareAlgorithms(items, containerSpec, { minSupportRatio: this.minSupportRatio });
+      const first = [this.selectedAlgorithm].concat(this.compareMode ? [this.compareAlgorithm] : []);
+      const rest = CP.ALGORITHMS.filter(a => !first.includes(a.id));
+      const order = first.concat(rest.filter(a => !a.slow).map(a => a.id), rest.filter(a => a.slow).map(a => a.id));
 
-      if (this.comparison && this.comparison.results[this.selectedAlgorithm]) {
-        result = this.comparison.results[this.selectedAlgorithm].result;
+      const job = {
+        id: (this.solveId = (this.solveId || 0) + 1),
+        items: items,
+        container: container,
+        options: { minSupportRatio: this.minSupportRatio },
+        order: order
+      };
+      this.solving = { id: job.id, done: 0, total: order.length, current: order[0] };
+      this.solved = new Promise(resolve => { this.resolveSolved = resolve; });
+      this.dispatch(job);
+      this.notifyUI();
+      return this.solved;
+    }
+
+    /** Resolves once the current solve has every algorithm's result. */
+    whenSolved() {
+      return this.solving ? this.solved : Promise.resolve();
+    }
+
+    dispatch(job) {
+      this.job = job;
+      if (this.worker === undefined) this.worker = this.makeWorker();
+      if (this.worker && this.workerBusy) {
+        // Still packing an older load: drop it rather than wait for it
+        this.worker.terminate();
+        this.worker = this.makeWorker();
+      }
+      if (this.worker) {
+        this.workerBusy = true;
+        this.worker.postMessage(job);
       } else {
-        const algo = CP.getAlgorithm(this.selectedAlgorithm) || CP.ALGORITHMS[0];
-        result = algo.run(items, containerSpec, { minSupportRatio: this.minSupportRatio });
+        this.solveOnPage(job);
+      }
+    }
+
+    makeWorker() {
+      if (typeof Worker === 'undefined') return null;
+      try {
+        const w = new Worker('core/solveWorker.js');
+        w.onmessage = e => this.onSolveMessage(e.data);
+        w.onerror = e => {
+          // Could not load or crashed: pack on the page from now on
+          if (e && e.preventDefault) e.preventDefault();
+          w.terminate();
+          this.worker = null;
+          this.workerBusy = false;
+          if (this.job && this.solving && this.solving.id === this.job.id) this.solveOnPage(this.job);
+        };
+        return w;
+      } catch (err) {
+        return null; // e.g. file:// pages may not start workers
+      }
+    }
+
+    solveOnPage(job) {
+      const CP = window.CargoPacker;
+      const next = k => {
+        if (job.id !== this.solveId) return; // superseded
+        if (k >= job.order.length) {
+          this.onSolveMessage({ id: job.id, type: 'done' });
+          return;
+        }
+        const t0 = performance.now();
+        const result = CP.getAlgorithm(job.order[k]).run(job.items, job.container, job.options);
+        this.onSolveMessage({ id: job.id, type: 'result', algoId: job.order[k], result: result, ms: Math.round(performance.now() - t0) });
+        setTimeout(() => next(k + 1), 0); // let the page paint between algorithms
+      };
+      setTimeout(() => next(0), 0);
+    }
+
+    onSolveMessage(msg) {
+      if (!this.solving || msg.id !== this.solveId) return; // an older solve
+      const CP = window.CargoPacker;
+
+      if (msg.type === 'done') {
+        this.workerBusy = false;
+        this.solving = null;
+        this.notifyUI();
+        this.resolveSolved();
+        return;
       }
 
-      result.computeTimeMs = Math.round(performance.now() - startTime);
-      this.packResult = result;
-      this.pickCompareResult();
+      msg.result.computeTimeMs = msg.ms;
+      this.runs[msg.algoId] = msg.result;
+      this.solving.done++;
+      this.solving.current = this.job.order[this.solving.done] || null;
+      this.comparison = CP.rankAlgorithms(this.runs, this.items.length, this.job.container);
 
-      this.reset();
+      if (msg.algoId === this.selectedAlgorithm) {
+        this.packResult = msg.result;
+        this.pickCompareResult();
+        this.reset();
+      } else if (msg.algoId === this.compareAlgorithm) {
+        this.pickCompareResult();
+        if (this.compareMode && this.packResult) this.redraw();
+      }
       this.notifyUI();
     }
 
@@ -333,6 +438,7 @@
     }
 
     jumpToEnd() {
+      if (!this.packResult) return; // still packing
       this.pause();
       while (this.currentStep < this.totalSteps() - 1) {
         this.stepForward(false, true);
@@ -363,7 +469,9 @@
           selectedAlgorithm: this.selectedAlgorithm,
           selectedContainer: this.selectedContainer,
           cargo: this.cargoCounts(),
-          itemCount: this.packResult ? this.packResult.placed.length + this.packResult.unplaced.length : 0,
+          items: this.items || [],
+          itemCount: this.items ? this.items.length : 0,
+          solving: this.solving,
           compareMode: this.compareMode,
           compareAlgorithm: this.compareAlgorithm,
           compareResult: this.compareResult,
@@ -373,9 +481,6 @@
       }
     }
   }
-
-  /** Most items one load may hold: keeps a full seven-algorithm solve near a second. */
-  PackerController.MAX_ITEMS = 250;
 
   exports.PackerController = PackerController;
 

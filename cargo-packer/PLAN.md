@@ -210,10 +210,12 @@ cargo-packer/
 - [x] **9.1 Algorithm registry** (`core/algorithms.js`): one list for UI, showdown and tests.
 - [x] **9.2 Deepest-Bottom-Left** (good), **Next-Fit** (baseline), **Floor Only** and **Random Drop** (bad), all physical and deterministic.
 - [x] **9.3 Showdown tie-break**: least floor used / lowest stack, then density.
-- [x] **9.4 Cargo editor**: per-type counts, ×½ / ×2 / Reset, random item count; limits 120/type, 250/load.
+- [x] **9.4 Cargo editor**: per-type counts, ×½ / ×2 / Reset, random item count; no upper limit.
 - [x] **9.5 Extreme Points speed-up**: exact (identical placements), ~3× faster on big loads.
 - [x] **9.6 Guided tours**: one article per algorithm (`ui/tourContent.js`); chapters stage the step, fly the camera and highlight anchor points / support patches (`ui/tour.js`). `?tour=<algoId>` opens one.
 - [x] **9.7 Weight-balanced loader** (Balanced Load): heaviest first, CoG-scored spots; ends centred where the others end in imbalance hazard. Showdown rows carry a CoG status dot; it has its own guided tour.
+- [x] **9.8 Background packing**: a Web Worker packs with every algorithm and streams results (shown algorithm first); stale solves are cancelled; on-page fallback for `file://`. Shared carton textures and capped step snapshots keep loads of thousands renderable.
+- [x] **9.9 Tour framing**: the camera's shot is centred in the area the tour panel leaves free (projection view offset), so on a phone the subject is not under the text.
 
 ---
 

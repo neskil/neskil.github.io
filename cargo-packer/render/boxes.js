@@ -67,8 +67,15 @@
         });
       } else {
         // Standard carton, parcel, slab, or tube
+        // Shared, not per box: one 512² canvas each is ~1 MB of GPU memory,
+        // which a load of thousands cannot afford. Six label variants per
+        // kind of box keep neighbours from looking stamped out.
+        const kind = String(boxData.name || 'CARGO').replace(/\s*#\d+$/, '');
+        let hash = 0;
+        for (const ch of String(boxData.id)) hash = (hash * 31 + ch.charCodeAt(0)) | 0;
+        const variant = Math.abs(hash) % 6;
         const cartonTex = Textures && Textures.createCartonTexture
-          ? Textures.createCartonTexture(boxData.color, boxData.name, style, boxData.id)
+          ? Textures.createCartonTexture(boxData.color, kind, style, String(40213 + variant * 7919))
           : null;
         mat = new THREE.MeshStandardMaterial({
           color: boxData.color,
