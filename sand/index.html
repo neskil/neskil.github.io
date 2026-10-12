@@ -116,6 +116,8 @@
 
         .chip-icon { padding: 0.38rem 0.6rem; }
 
+        .narrow { display: none; }
+
         #timer {
             font-family: 'Outfit', sans-serif;
             font-variant-numeric: tabular-nums;
@@ -356,6 +358,7 @@
 
         @media (max-width: 760px) {
             .key, .mode-name, .wide, .dock .group-label { display: none; }
+            .narrow { display: inline; }
             h1 { font-size: 1.05rem; }
             #timer { min-width: 0; font-size: 0.8rem; }
             .bar { gap: 0.35rem; padding: 0.5rem 0.6rem; }
@@ -449,7 +452,7 @@
         <button type="button" class="chip chip-accent" id="flip" title="Turn over (F)" hidden>⟲<span class="wide"> Turn over</span></button>
         <button type="button" class="chip chip-icon" id="undo" title="Undo (Ctrl+Z)" aria-label="Undo">↶</button>
         <button type="button" class="chip" id="pause" aria-pressed="false" title="Pause (Space)">⏸<span class="wide"> Pause</span></button>
-        <button type="button" class="chip" id="clear">Clear</button>
+        <button type="button" class="chip" id="clear" title="Clear everything" aria-label="Clear"><span class="narrow" aria-hidden="true">🧹</span><span class="wide">Clear</span></button>
         <button type="button" class="chip chip-icon" id="settings-btn" title="Detail, speed, gravity, sharing" aria-label="Settings" aria-haspopup="dialog" aria-expanded="false">⚙︎</button>
 
         <div id="settings" class="panel" role="dialog" aria-label="Settings" hidden>
