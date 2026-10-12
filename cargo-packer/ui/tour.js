@@ -74,9 +74,18 @@
 
       document.body.classList.add('touring');
       this.panel.hidden = false;
-      this.reframe();
       this.kickerEl.textContent = `How it works · ${CP.getAlgorithm(algoId).name}`;
-      this.go(0);
+
+      // The text quotes ranks and counts, so wait for every algorithm
+      if (this.controller.solving) {
+        this.titleEl.textContent = 'Packing the load…';
+        this.bodyEl.textContent = 'The algorithms run in the background; the tour starts as soon as they finish.';
+        this.dotsEl.innerHTML = '';
+      }
+      this.reframe();
+      this.controller.whenSolved().then(() => {
+        if (this.algoId === algoId) this.go(0);
+      });
     }
 
     close() {
@@ -119,7 +128,7 @@
 
     go(index) {
       const chapters = this.chapters();
-      if (!chapters.length) return;
+      if (!chapters.length || !this.controller.packResult) return;
       this.index = Math.max(0, Math.min(chapters.length - 1, index));
       const ch = chapters[this.index];
       const show = new Set(ch.show || []);
@@ -236,7 +245,7 @@
         fill: r.metrics.volumeUtilization,
         extent: mine ? mine.extentLabel.replace(' used', ' of floor') : '',
         box: box ? box.name : 'box',
-        epCount: step && step.candidateEPs ? step.candidateEPs.length : 0,
+        epCount: step ? (step.candidateCount !== undefined ? step.candidateCount : (step.candidateEPs || []).length) : 0,
         support: box ? Math.round((box.supportRatio !== undefined ? box.supportRatio : 1) * 100) : 0,
         depth: box ? box.d.toFixed(2) : '',
         rank: comp ? comp.ranking.findIndex(x => x.id === this.algoId) + 1 : '?',

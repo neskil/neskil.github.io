@@ -5,6 +5,8 @@
  * here plus its file.
  *
  * quality: 'good' | 'baseline' | 'bad' — shown as a tag in the UI.
+ * slow:    true for the ones whose time grows fastest with the load; the
+ *          background packer runs them last so the quick results show first.
  * Strictly NO Three.js and NO DOM dependencies.
  */
 (function(exports) {
@@ -15,7 +17,7 @@
       return Object.assign({},
         require('./extremePoints'), require('./wallBuilding'), require('./firstFit'), require('./moreHeuristics'));
     }
-    return window.CargoPacker;
+    return self.CargoPacker;
   }
 
   const ALGORITHMS = [
@@ -27,6 +29,7 @@
       blurb: '3D anchor points & surface projection',
       explainer: 'Generates candidate 3D corner coordinates after every placement, projects them against existing surfaces, and picks the tightest fit minimizing wasted space.',
       winNote: 'Its corner points let small boxes fill the recesses that layered methods leave open.',
+      slow: true,
       run: (items, c, o) => lib().packExtremePoints(items, c, o)
     },
     {
@@ -57,6 +60,7 @@
       blurb: 'Spreads the weight: centre of gravity mid-container',
       explainer: 'Loads for weight balance rather than density. Heaviest first, each box goes where it keeps the centre of gravity closest to the middle of the container, so the axles share the load and nothing pulls the trailer sideways. What real load planners spread evenly is weight, not gaps.',
       winNote: 'Building out from the middle kept the load compact and the weight centred.',
+      slow: true,
       run: (items, c, o) => lib().packBalanced(items, c, o)
     },
     {
@@ -107,4 +111,4 @@
   exports.ALGORITHMS = ALGORITHMS;
   exports.getAlgorithm = id => byId[id] || null;
 
-})(typeof module !== 'undefined' && module.exports ? module.exports : (window.CargoPacker = window.CargoPacker || {}));
+})(typeof module !== 'undefined' && module.exports ? module.exports : (self.CargoPacker = self.CargoPacker || {}));

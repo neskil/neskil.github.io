@@ -440,14 +440,15 @@
       // Guided tours
       const tour = new CP.GuidedTour({ controller, ui, sceneManager, visualizers, boxRenderer });
 
-      // 4. Start Default Scenario
-      controller.init();
+      // 4. Start the default scenario, or the one a link asks for
+      const q = new URLSearchParams(window.location.search);
+      if (q.has('scenario') && CP.PRESETS[q.get('scenario')]) {
+        controller.loadScenario(q.get('scenario'));
+      } else {
+        controller.init();
+      }
 
       // Query param overrides (for screenshots, deep links, and demos)
-      const q = new URLSearchParams(window.location.search);
-      if (q.has('scenario')) {
-        controller.loadScenario(q.get('scenario'));
-      }
       if (q.has('algo')) {
         controller.setAlgorithm(q.get('algo'));
       }
@@ -461,11 +462,12 @@
       }
       if (q.has('tour')) {
         tour.start(q.get('tour'));
-      } else if (q.has('step')) {
-        const s = parseInt(q.get('step'), 10);
-        for (let i = 0; i < s; i++) controller.stepForward(false);
-      } else if (q.get('full') === '1') {
-        controller.jumpToEnd();
+      } else if (q.has('step') || q.get('full') === '1') {
+        // Packing runs in the background; show the step once it is done
+        controller.whenSolved().then(() => {
+          if (q.has('step')) controller.goToStep(parseInt(q.get('step'), 10) - 1);
+          else controller.jumpToEnd();
+        });
       }
     });
   </script>
