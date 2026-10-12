@@ -1311,6 +1311,9 @@
                 r: lo, rMax: hi, n: n, clear: o.clear,
                 grad: o.grad === undefined ? 0.075 : o.grad, hollow: 0.58
             });
+            // For the tests, which hold every one of these to a hole that
+            // asked to roll — see `rolling` in build.
+            b.forEach(function (m) { m.contour = true; });
             if (b.length) p.bumps = (p.bumps || []).concat(b);
         }
         return pads;
@@ -1964,26 +1967,29 @@
         h.water = h.water || [];
         h.decor = (h.decor || []).slice();
 
-        /* Relief, before anything is derived from the ground.
+        /* Bunkers, and — on a hole that asks for it — relief, before anything
+           is derived from the ground.
 
-           Every drawn hole gets it — the five mini golf courses and the
-           parkland one alike — off a seed made from the hole's own name, with
-           the tee and the cup kept flat. An open hole does not: Whinstone
-           shapes its own country through `moor`, and running this over it as
-           well would be two authors arguing about the same field.
+           A drawn hole is laid flat. It used to be the other way round: every
+           mini golf lane got `contour`'s gentle humps off a seed made from its
+           name, and what that bought was light and shade across the grass at
+           the price of a putt that wanders for no reason the hole can give. A
+           mini golf lane is a carpet; the obstacles are the point, and a
+           green that breaks is one more thing to read that nobody built. So
+           undulation is something a hole says it wants, with `rolling: true`,
+           and the reason is written beside the word — see the few that do.
 
-           A hole may opt out with `flat: true` if its whole point is a
-           surface you can read. Nothing does yet, and the option exists so
-           that the day one does, the answer is a word rather than a special
-           case in here.
+           The long game is unaffected: every one of its holes is `open` and
+           `shaped`, and gets its country from `shape`, `moor` and the
+           hummocks below rather than from here. `shaped: true` on a drawn hole
+           opts out for the same reason — it has a field of its own, and
+           running this over the top of it would be two authors arguing about
+           the same ground.
 
-           `shaped: true` opts out for the opposite reason: the hole has been
-           given a field of its own through `shape`, and running this over the
-           top of it would be two authors arguing about the same ground — the
-           same argument `open` avoids on the links. Its bunkers still get
-           their dish, because `scoop` works inside one pad and has no opinion
-           about the country around it; a shaped hole calls it itself. */
-        if (!h.open && !h.flat && !h.shaped) {
+           Bunkers keep their dish whatever the hole says: `scoop` works inside
+           one pad, has no opinion about the country round it, and a bunker
+           without a floor reads as a patch of the wrong colour (see SCOOP). */
+        if (!h.open && !h.shaped) {
             var seed = nameSeed(h.name);
             var keeps = [keep(h.tee.x, h.tee.z, TEE_FLAT), keep(h.cup.x, h.cup.z, CUP_FLAT)];
             /* And flat under the machinery, for a reason the tee and the cup
@@ -1997,7 +2003,7 @@
                a hump is not a floor anybody bolts a belt to. */
             machineKeeps(h, keeps);
             scoop(h.pads, { seed: seed ^ 0x5bf03635 });
-            contour(h.pads, {
+            if (h.rolling) contour(h.pads, {
                 seed: seed,
                 clear: keeps,
                 // The long game is played over a lot more ground, so its humps
@@ -2305,7 +2311,11 @@
             ]
         }),
         build({
-            name: 'The Drop', par: 3,
+            /* Rolling, and it is the one mini golf hole that is. The drop
+               decides whether you get across; the green below decides how
+               close you finish, and a flat one would make that a matter of
+               pace alone. Eight units square is room for a putt to break. */
+            name: 'The Drop', par: 3, rolling: true,
             blurb: 'Over the edge and down. Too gentle and you are swimming.',
             pads: [pad(0, 0, 5, 4, 3), pad(0, 6, 8, 8)],
             water: [rect(-2, 4, 12, 2, -0.9)],

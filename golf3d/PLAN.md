@@ -47,6 +47,13 @@ card shapes are already there to hang a third off (`CARDS` in `bag.js`).
 
 Kept short, and only where it explains a constraint above.
 
+- **Mini golf is flat again** (v1.58.0) — README → "Relief on a drawn hole".
+  `contour` is opt-in (`rolling: true`) and one hole asks for it. The humps
+  were safe — the tests proved every rail and step stayed put — but safe is
+  not a reason: a lane whose putt breaks for nothing the hole built is a lane
+  with one more thing to read and nothing to read it off. A hole that wants
+  ground to play has to say what the ground is *for*.
+
 - **Every drawn hole has a world round it** (v1.57.0) — README → "The worlds
   round the drawn holes". Two placement findings worth keeping. **A prop's
   size counts at the camera corridor as much as at the hole**: the first pass

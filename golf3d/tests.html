@@ -1638,7 +1638,29 @@
                     }
                 });
             });
-            assert('there is contoured ground to check', rolled >= 25, rolled + ' pads');
+            assert('there is contoured ground to check', rolled >= 1, rolled + ' pads');
+
+            /* And that ground is somewhere a hole asked for it. A drawn hole is
+               laid flat unless it says `rolling: true` (see `build`): the humps
+               were on every mini golf lane once, and what they bought was a
+               putt that wandered for no reason the hole could give. Checked
+               both ways round, so a flag that stops working fails as loudly as
+               a lane that starts rolling without one. */
+            var strayRoll = '', askedRoll = 0;
+            ALL.forEach(function (entry) {
+                var h = entry.hole;
+                h.pads.forEach(function (p) {
+                    (p.bumps || []).forEach(function (b) {
+                        if (!b.contour) return;
+                        if (h.rolling) askedRoll++;
+                        else if (!strayRoll) strayRoll = entry.course.id + '/' + h.name;
+                    });
+                });
+            });
+            assert('a drawn hole rolls only when it says rolling: true',
+                !strayRoll, strayRoll + ' has contour humps and did not ask for them');
+            assert('and a hole that does say it gets them', askedRoll > 0,
+                askedRoll + ' contour humps on the rolling holes');
             assert('no contour is steeper than the surface it is cut into',
                 worstRoll <= 1, rollName + ' is at ' + (worstRoll * 100).toFixed(0) +
                 '% of what its surface can hold');

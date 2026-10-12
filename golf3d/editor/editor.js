@@ -161,7 +161,7 @@
             theme: 'seaside',
             weather: 'fair',
             needsLoft: false,
-            flat: false,
+            rolling: false,
             pads: [{ x: 0, z: 0, w: 6, d: 14, y: 0, kind: 'green', sx: 0, sz: 0 }],
             extra: [],
             water: [],
@@ -186,7 +186,7 @@
             theme: G3.THEMES[h.theme] ? h.theme : 'seaside',
             weather: (G3.weather && G3.weather.KINDS[h.weather]) ? h.weather : 'fair',
             needsLoft: !!h.needsLoft,
-            flat: !!h.flat,
+            rolling: !!h.rolling,
             open: !!h.open,
             fence: h.fence || null,
             tee: { x: num(h.tee && h.tee.x, 3), z: num(h.tee && h.tee.z, 1.5) },
@@ -298,7 +298,7 @@
         var src = JSON.parse(JSON.stringify(S.hole));
         var h = {
             name: src.name, blurb: src.blurb, par: src.par,
-            needsLoft: src.needsLoft, flat: src.flat,
+            needsLoft: src.needsLoft, rolling: src.rolling,
             open: src.open, fence: src.fence,
             warps: src.warps || [],
             decor: src.decor || [],
@@ -1826,7 +1826,7 @@
         $('f-theme').value = S.hole.theme;
         $('f-weather').value = S.hole.weather;
         $('f-needsloft').checked = S.hole.needsLoft;
-        $('f-flat').checked = S.hole.flat;
+        $('f-rolling').checked = S.hole.rolling;
         $('f-padkind').value = S.padKind;
         if ($('f-decorkind')) $('f-decorkind').value = S.decorKind || 'buoy';
     }
@@ -3031,7 +3031,7 @@
         }
         L.push('build({');
         L.push("    name: '" + h.name.replace(/'/g, "\\'") + "', par: " + h.par +
-            (h.needsLoft ? ', needsLoft: true' : '') + (h.flat ? ', flat: true' : '') + ',');
+            (h.needsLoft ? ', needsLoft: true' : '') + (h.rolling ? ', rolling: true' : '') + ',');
         if (h.blurb) L.push("    blurb: '" + h.blurb.replace(/'/g, "\\'") + "',");
         L.push('    pads: [');
         h.pads.forEach(function (p, i) {
@@ -3113,7 +3113,7 @@
             name: h.name, blurb: h.blurb, par: h.par, theme: course.theme,
             open: h.open, fence: h.fence,
             weather: S.hole ? S.hole.weather : 'fair',
-            needsLoft: h.needsLoft, flat: h.flat,
+            needsLoft: h.needsLoft, rolling: h.rolling,
             pads: h.pads.map(function (p) {
                 return { x: p.x, z: p.z, w: p.w, d: p.d, y: p.y, kind: p.kind,
                     sx: p.sx, sz: p.sz, r: p.r, inlay: p.inlay,
@@ -3359,7 +3359,7 @@
         $('play-hit').addEventListener('click', hit);
         $('play-reset').addEventListener('click', resetBall);
 
-        ['f-name', 'f-blurb', 'f-par', 'f-theme', 'f-weather', 'f-needsloft', 'f-flat'].forEach(function (id) {
+        ['f-name', 'f-blurb', 'f-par', 'f-theme', 'f-weather', 'f-needsloft', 'f-rolling'].forEach(function (id) {
             var el = $(id);
             el.addEventListener('focus', pushHistory);
             el.addEventListener('change', readCard);
@@ -3502,7 +3502,7 @@
         S.hole.theme = $('f-theme').value;
         S.hole.weather = $('f-weather').value;
         S.hole.needsLoft = $('f-needsloft').checked;
-        S.hole.flat = $('f-flat').checked;
+        S.hole.rolling = $('f-rolling').checked;
         needsRebuild = true;
         rebuild();
         savePlan();
