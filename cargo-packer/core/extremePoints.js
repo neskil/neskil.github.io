@@ -197,9 +197,9 @@
    * @returns {Object} Full packing result and step-by-step history
    */
   function packExtremePoints(rawItems, container, options = {}) {
-    const Collision = (typeof module !== 'undefined' && module.exports) ? require('./collision') : window.CargoPacker;
-    const Types = (typeof module !== 'undefined' && module.exports) ? require('./types') : window.CargoPacker;
-    const Metrics = (typeof module !== 'undefined' && module.exports) ? require('./metrics') : window.CargoPacker;
+    const Collision = (typeof module !== 'undefined' && module.exports) ? require('./collision') : self.CargoPacker;
+    const Types = (typeof module !== 'undefined' && module.exports) ? require('./types') : self.CargoPacker;
+    const Metrics = (typeof module !== 'undefined' && module.exports) ? require('./metrics') : self.CargoPacker;
 
     const minSupportRatio = options.minSupportRatio !== undefined ? options.minSupportRatio : 0.60;
     const sortBy = options.sortBy || 'volume_desc';
@@ -283,7 +283,8 @@
         placed.push(bestPlacement);
 
         // Snapshot state for visualizer
-        const epSnapshot = extremePoints.map(p => ({ x: p.x, y: p.y, z: p.z }));
+        const epSnapshot = Types.snapshotPoints(extremePoints, bestPlacement);
+        const epTotal = extremePoints.length;
 
         // Update EPs with new placement
         extremePoints = updateExtremePoints(bestPlacement, extremePoints, placed, container);
@@ -293,6 +294,7 @@
           box: Object.assign({}, bestPlacement),
           chosenEP: { x: bestPlacement.x, y: bestPlacement.y, z: bestPlacement.z },
           candidateEPs: epSnapshot,
+          candidateCount: epTotal,
           remainingCount: items.length - placed.length
         });
       } else {
@@ -316,4 +318,4 @@
   exports.updateExtremePoints = updateExtremePoints;
   exports.sortExtremePoints = sortExtremePoints;
 
-})(typeof module !== 'undefined' && module.exports ? module.exports : (window.CargoPacker = window.CargoPacker || {}));
+})(typeof module !== 'undefined' && module.exports ? module.exports : (self.CargoPacker = self.CargoPacker || {}));

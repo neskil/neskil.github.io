@@ -407,6 +407,16 @@
         fillOf('floorOnly') < fillOf('extremePoints') && fillOf('randomDrop') < fillOf('extremePoints'),
         `EP ${fillOf('extremePoints')}%, floor ${fillOf('floorOnly')}%, random ${fillOf('randomDrop')}%`);
 
+      // ── Test 20: No ceiling on the cargo, and partial rankings ─
+      assert('Cargo counts have no upper limit (500 of one type builds 500 items)',
+        CP.buildManifest('fmcg', { caseA: 500, caseB: 0, packC: 0 }).length === 500 &&
+        CP.PRESETS.random.getItems({ count: 450 }).length === 450);
+      const partialRuns = { firstFit: CP.packFirstFit(ind, cont), wallBuilding: CP.packWallBuilding(ind, cont) };
+      const partial = CP.rankAlgorithms(partialRuns, ind.length, cont);
+      assert('rankAlgorithms ranks whatever has finished and says it is incomplete',
+        partial.ranking.length === 2 && partial.complete === false && /Still packing/.test(partial.insight) &&
+        CP.rankAlgorithms({}, ind.length, cont).winner === null);
+
       // ── Summary & Verdict ─────────────────────────────────────
       const summaryText = `${passed} passed, ${failed} failed`;
       summaryEl.textContent = summaryText;

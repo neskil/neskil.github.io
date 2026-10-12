@@ -16,9 +16,9 @@
    * @param {Object} options
    */
   function packFirstFit(rawItems, container, options = {}) {
-    const Collision = (typeof module !== 'undefined' && module.exports) ? require('./collision') : window.CargoPacker;
-    const Types = (typeof module !== 'undefined' && module.exports) ? require('./types') : window.CargoPacker;
-    const Metrics = (typeof module !== 'undefined' && module.exports) ? require('./metrics') : window.CargoPacker;
+    const Collision = (typeof module !== 'undefined' && module.exports) ? require('./collision') : self.CargoPacker;
+    const Types = (typeof module !== 'undefined' && module.exports) ? require('./types') : self.CargoPacker;
+    const Metrics = (typeof module !== 'undefined' && module.exports) ? require('./metrics') : self.CargoPacker;
 
     const minSupportRatio = options.minSupportRatio !== undefined ? options.minSupportRatio : 0.60;
 
@@ -148,4 +148,4 @@
 
   exports.packFirstFit = packFirstFit;
 
-})(typeof module !== 'undefined' && module.exports ? module.exports : (window.CargoPacker = window.CargoPacker || {}));
+})(typeof module !== 'undefined' && module.exports ? module.exports : (self.CargoPacker = self.CargoPacker || {}));
