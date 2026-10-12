@@ -1779,10 +1779,11 @@ fault everywhere else.
 - **bumps** — humps on a pad, so the ground curves. `hill()` is one,
   `ring()` a circle of them (a punchbowl, or a dell), `dunes()` a seeded field.
   See [Whinstone Links](#whinstone-links).
-- **contour / scoop** — the same humps, applied to a *drawn* hole. Every hole
-  that is not `open` gets both automatically in `build()`, off a seed made from
-  the hole's own name, so a hole's ground is the same ground on every load and
-  no two holes share a shape. See [Relief on a drawn hole](#relief-on-a-drawn-hole).
+- **contour / scoop** — the same humps, applied to a *drawn* hole, off a seed
+  made from the hole's own name so a hole's ground is the same on every load.
+  Every bunker on a drawn hole gets `scoop`'s dish automatically in `build()`;
+  only a hole that says `rolling: true` gets `contour`'s humps on its grass.
+  See [Relief on a drawn hole](#relief-on-a-drawn-hole).
 - **circle** — a disc pad, and an inlay: laid into whatever it is standing on
   rather than cut out of it. Round greens and round bunkers; give it an `rz`
   and it is an oval, which is what most bunkers want.
@@ -1844,6 +1845,18 @@ fault everywhere else.
 
 ### Relief on a drawn hole
 
+**A drawn hole is flat unless it says `rolling: true`.** Every mini, crazy and
+adventure lane used to get this pass, and what it bought was light and shade
+across the grass at the price of a putt that wandered for no reason the hole
+could give: a mini golf lane is a carpet, and the obstacles are the point. So
+it is opt-in now, with the reason written beside the flag. One hole asks —
+Quarry Ridge's *The Drop*, whose eight-unit landing green is where the hole is
+decided once you are over the edge — and `tests.html` holds it both ways
+round: *a drawn hole rolls only when it says rolling: true*, and *a hole that
+does say it gets them*. The long game is untouched by any of this; its country
+comes from `shape`, `moor` and the hummocks. Everything below is how the pass
+behaves on a hole that asks for it.
+
 `dunes` shapes open country, where nothing has an edge that matters: the ground
 runs to the fog in every direction and a hump may land wherever it likes. A
 drawn hole is the opposite. Every edge on one *means* something — a rail is
@@ -1861,7 +1874,8 @@ inside a pad's footprint cannot change the height of that pad's edge by
 anything at all. Every rail, every step, every shoreline, every ramp junction
 and every bridge comes out exactly as authored, and only the middle of the
 ground rolls. That is what made it safe to switch on across thirty-six holes
-that were drawn flat, and `tests.html` walks the boundary of every contoured
+that were drawn flat (it has since been switched back off on all but the ones
+that ask — see above), and `tests.html` walks the boundary of every contoured
 pad to prove it: *no contour reaches the edge of its own pad*, to within a
 float.
 
@@ -1909,9 +1923,9 @@ Give **every pad on the hole the same field** and the height of the ground
 becomes a function of where you are standing rather than of which strip you
 happen to be standing on. The seams stop existing — for the solver, for
 `enclose` and for the eye — and a crest can run clean across a hole. A hole
-that has been given a field says `shaped: true`, which is how it opts out of
-the automatic `contour` pass; two authors shaping the same ground is the one
-thing that would undo all of this.
+that has been given a field says `shaped: true`, which keeps it out of the
+`contour` pass even if it also said `rolling`; two authors shaping the same
+ground is the one thing that would undo all of this.
 
 | Helper | What it makes |
 | --- | --- |
