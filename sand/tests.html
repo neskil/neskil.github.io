@@ -127,6 +127,248 @@
             ok(S.count(w, M.STEAM) === 0, 'steam does not last forever');
         }
 
+        // ── Newer materials ──
+        {
+            const w = world(20, 20);
+            for (let x = 5; x < 15; x++) for (let y = 15; y < 20; y++) S.set(w, x, y, M.STONE);
+            for (let x = 5; x < 15; x++) for (let y = 12; y < 15; y++) S.set(w, x, y, M.ACID);
+            run(w, 800);
+            ok(S.count(w, M.STONE) < 50, 'acid eats into stone', S.count(w, M.STONE) + ' of 50 left');
+            ok(S.count(w, M.ACID) < 30, 'and is used up doing it');
+        }
+        {
+            const w = world(12, 12);
+            for (let y = 0; y < 12; y++) { S.set(w, 0, y, M.GLASS); S.set(w, 11, y, M.GLASS); }
+            for (let x = 0; x < 12; x++) S.set(w, x, 11, M.GLASS);
+            for (let x = 1; x < 11; x++) for (let y = 8; y < 11; y++) S.set(w, x, y, M.ACID);
+            run(w, 600);
+            ok(S.count(w, M.GLASS) === 34 && S.count(w, M.ACID) === 30, 'glass holds acid untouched');
+        }
+        {
+            const w = world(40, 10);
+            for (let x = 2; x < 38; x++) { S.set(w, x, 9, M.STONE); S.set(w, x, 8, M.GUNPOWDER); }
+            S.set(w, 1, 8, M.FIRE);
+            run(w, 300);
+            ok(S.count(w, M.GUNPOWDER) === 0, 'a gunpowder trail burns along like a fuse', S.count(w, M.GUNPOWDER) + ' grains left');
+        }
+        {
+            const w = world(30, 30);
+            for (let x = 0; x < 30; x++) for (let y = 0; y < 30; y++) S.set(w, x, y, M.SAND);
+            S.set(w, 2, 2, M.GLASS);
+            S.explode(w, 15, 15, 5);
+            ok(S.get(w, 15, 15) !== M.SAND && S.get(w, 2, 2) === M.GLASS, 'a blast clears its radius and spares glass');
+        }
+        {
+            const w = world(10, 10);
+            for (let x = 0; x < 10; x++) S.set(w, x, 9, M.ICE);
+            for (let x = 0; x < 10; x++) S.set(w, x, 8, M.SALT);
+            run(w, 400);
+            ok(S.count(w, M.ICE) < 10, 'salt melts ice', S.count(w, M.ICE) + ' of 10 left');
+        }
+        {
+            const w = world(10, 20);
+            for (let x = 0; x < 10; x++) for (let y = 15; y < 20; y++) S.set(w, x, y, M.WATER);
+            S.set(w, 5, 0, M.SNOW);
+            run(w, 200);
+            let y = 0; for (; y < 20; y++) if (S.get(w, 5, y) === M.SNOW || [...Array(10).keys()].some(x => S.get(w, x, y) === M.SNOW)) break;
+            ok(y === 14, 'snow settles on water rather than sinking', 'row ' + y);
+            S.set(w, 5, 13, M.LAVA);
+            run(w, 60);
+            ok(S.count(w, M.SNOW) === 0, 'and melts beside lava');
+        }
+        {
+            const w = world(20, 20);
+            for (let x = 0; x < 20; x++) for (let y = 0; y < 10; y++) S.set(w, x, y, M.WATER);
+            w.emitters.push({ x: 10, y: 19, t: M.EMPTY, rate: 1, spread: 9 });
+            run(w, 2000);
+            ok(S.count(w, M.WATER) < 20, 'an eraser tap drains a pool', S.count(w, M.WATER) + ' cells left');
+        }
+        {
+            const w = world(160, 100);
+            S.lab(w);
+            ok(S.count(w, M.ACID) > 0 && S.count(w, M.GUNPOWDER) > 0 && S.count(w, M.SNOW) > 0, 'the lab scene sets out the new materials');
+            const powder0 = S.count(w, M.GUNPOWDER);
+            run(w, 600);
+            ok(S.count(w, M.GUNPOWDER) < powder0 / 2, 'and its fuse goes off on its own', S.count(w, M.GUNPOWDER) + ' of ' + powder0);
+        }
+
+        // ── Sleeping chunks ──
+        {
+            const w = world(128, 96);
+            for (let x = 40; x < 90; x++) for (let y = 0; y < 30; y++) S.set(w, x, y, M.SAND);
+            run(w, 600);
+            ok(S.awakeChunks(w) === 0, 'a settled heap puts every chunk to sleep', S.awakeChunks(w) + ' awake');
+            S.set(w, 64, 2, M.SAND);
+            ok(S.awakeChunks(w) > 0, 'and dropping a grain wakes its chunk');
+            run(w, 200);
+            const top = [...Array(96).keys()].find(y => S.get(w, 64, y) !== M.EMPTY);
+            ok(top > 2, 'so the grain still falls', 'landed on row ' + top);
+        }
+        {
+            // A grain on a chunk edge must still slide into the chunk beside it.
+            const w = world(96, 64);
+            for (let x = 0; x < 96; x++) S.set(w, x, 63, M.STONE);
+            run(w, 50);
+            S.set(w, 31, 62, M.SAND); S.set(w, 31, 61, M.SAND);
+            run(w, 50);
+            ok(S.get(w, 32, 62) === M.SAND || S.get(w, 30, 62) === M.SAND, 'grains slide across a chunk edge');
+        }
+
+        // ── Gravity ──
+        {
+            const w = world(40, 20);
+            S.set(w, 30, 10, M.SAND);
+            S.setGravity(w, -1, 0);
+            run(w, 60);
+            ok(S.get(w, 0, 10) === M.SAND, 'with gravity to the left, sand falls left');
+            for (let y = 0; y < 20; y++) S.set(w, 20, y, M.WATER);
+            S.setGravity(w, 0, -1);
+            run(w, 400);
+            let low = 0; for (let x = 0; x < 40; x++) for (let y = 10; y < 20; y++) if (S.get(w, x, y) === M.WATER) low++;
+            ok(low === 0, 'and with gravity up, water pools on the ceiling', low + ' cells left below');
+        }
+
+        // ── Electricity ──
+        {
+            const w = world(60, 10);
+            // A wire on a stone floor, running into a two-row bed of gunpowder.
+            for (let x = 0; x < 50; x++) S.set(w, x, 9, M.STONE);
+            for (let x = 2; x < 50; x++) S.set(w, x, 8, M.METAL);
+            S.set(w, 1, 8, M.BATTERY);
+            for (let y = 8; y < 10; y++) for (let x = 50; x < 60; x++) S.set(w, x, y, M.GUNPOWDER);
+            let charged = 0;
+            for (let k = 0; k < 160; k++) { S.step(w); charged = Math.max(charged, [...Array(60).keys()].filter(x => S.get(w, x, 8) === M.METAL && w.life[8 * 60 + x] === S.CHARGE).length); }
+            ok(charged <= 3, 'a battery sends a pulse down a wire, not a flood', 'at most ' + charged + ' head cells at once');
+            ok(S.count(w, M.GUNPOWDER) < 20, 'and the pulse sets off the charge at the far end', S.count(w, M.GUNPOWDER) + ' of 20 grains left');
+            ok(S.count(w, M.METAL) >= 40, 'without melting the wire');
+        }
+        {
+            // A spark at one end of a bare wire: the far end lights up a moment later.
+            const w = world(40, 6);
+            for (let x = 2; x < 38; x++) S.set(w, x, 3, M.METAL);
+            S.set(w, 1, 3, M.SPARK);
+            let reached = -1;
+            for (let k = 0; k < 80 && reached < 0; k++) { S.step(w); if (w.life[3 * 40 + 37]) reached = k; }
+            ok(reached >= 30, 'a spark sends a charge along a wire one cell a tick', 'far end lit on tick ' + reached);
+        }
+
+        // ── Machines and life ──
+        {
+            const w = world(20, 20);
+            // A puddle on the floor around a cloner, so the water stays touching it.
+            for (let x = 0; x < 20; x++) S.set(w, x, 19, M.WATER);
+            S.set(w, 10, 19, M.CLONER);
+            run(w, 300);
+            ok(S.count(w, M.WATER) > 25, 'a cloner touched by water makes more water', S.count(w, M.WATER) + ' cells');
+            ok(S.get(w, 10, 19) === M.CLONER, 'and stays put');
+        }
+        {
+            const w = world(20, 20);
+            for (let x = 0; x < 20; x++) for (let y = 10; y < 20; y++) S.set(w, x, y, M.SAND);
+            S.set(w, 10, 15, M.VOID);
+            run(w, 600);
+            ok(S.count(w, M.SAND) < 200 - 20, 'the void swallows the sand that falls into it', S.count(w, M.SAND) + ' of 200 left');
+        }
+        {
+            const w = world(40, 60);
+            for (let x = 0; x < 40; x++) for (let y = 55; y < 60; y++) S.set(w, x, y, M.SAND);
+            S.set(w, 20, 54, M.SEED);
+            S.set(w, 21, 54, M.WATER);
+            run(w, 4000);
+            ok(S.count(w, M.WOOD) >= 6, 'a watered seed grows a trunk', S.count(w, M.WOOD) + ' wood');
+            ok(S.count(w, M.PLANT) + S.count(w, M.FLOWER) > 10, 'and a crown of leaves');
+        }
+        {
+            const w = world(60, 10);
+            for (let x = 0; x < 60; x++) S.set(w, x, 9, M.STONE);
+            S.set(w, 30, 8, M.ANT);
+            run(w, 400);
+            let ax = -1, ay = -1;
+            for (let i = 0; i < w.type.length; i++) if (w.type[i] === M.ANT) { ax = i % 60; ay = (i / 60) | 0; }
+            ok(ax >= 0 && ay === 8, 'an ant walks along the ground', 'at ' + ax + ',' + ay);
+            ok(ax !== 30, 'and gets somewhere');
+            S.set(w, ax + 1, 8, M.LAVA);
+            run(w, 3);
+            ok(S.count(w, M.ANT) === 0, 'lava kills it');
+        }
+        {
+            const w = world(40, 40);
+            for (let x = 10; x < 30; x++) S.set(w, x, 5, M.CLOUD);
+            run(w, 600);
+            ok(S.count(w, M.WATER) > 5, 'a cloud rains', S.count(w, M.WATER) + ' drops');
+            run(w, 2000);
+            ok(S.count(w, M.CLOUD) === 0, 'and rains itself out');
+        }
+        {
+            const flowAfter = (t) => {
+                const w = world(80, 20);
+                for (let y = 0; y < 20; y++) for (let x = 38; x < 42; x++) S.set(w, x, y, t);
+                run(w, 120);
+                let lo = 80, hi = 0;
+                for (let x = 0; x < 80; x++) if (S.get(w, x, 19) === t) { lo = Math.min(lo, x); hi = Math.max(hi, x); }
+                return hi - lo;
+            };
+            const water = flowAfter(M.WATER), honey = flowAfter(M.HONEY);
+            ok(honey < water / 2, 'honey spreads far slower than water', `${honey} vs ${water} cells wide`);
+        }
+
+        // ── Tools ──
+        {
+            const w = world(20, 20);
+            for (let x = 5; x < 15; x++) for (let y = 5; y < 15; y++) S.set(w, x, y, M.WATER);
+            for (let k = 0; k < 30; k++) S.temper(w, 10, 10, 6, true);
+            ok(S.count(w, M.STEAM) > 50, 'the heat tool boils water', S.count(w, M.STEAM) + ' steam');
+            const v = world(20, 20);
+            for (let x = 5; x < 15; x++) for (let y = 15; y < 20; y++) S.set(v, x, y, M.LAVA);
+            for (let k = 0; k < 30; k++) S.temper(v, 10, 17, 6, false);
+            ok(S.count(v, M.STONE) > 30, 'and the cold tool sets lava to stone', S.count(v, M.STONE) + ' stone');
+        }
+        {
+            const w = world(40, 40);
+            for (let x = 0; x < 40; x++) for (let y = 30; y < 40; y++) S.set(w, x, y, M.SAND);
+            S.lightning(w, 20, 35);
+            ok(S.count(w, M.GLASS) > 0, 'lightning fuses sand into glass', S.count(w, M.GLASS) + ' glass');
+            ok(S.count(w, M.SPARK) > 5, 'and leaves a trail of sparks');
+        }
+        {
+            const w = world(40, 20);
+            for (let x = 10; x < 14; x++) for (let y = 10; y < 14; y++) S.set(w, x, y, M.SAND);
+            for (let k = 0; k < 5; k++) S.push(w, 12 + k * 2, 12, 4, 1, 0);
+            let mean = 0, n = 0;
+            for (let i = 0; i < w.type.length; i++) if (w.type[i] === M.SAND) { mean += i % 40; n++; }
+            ok(n === 16 && mean / n > 16, 'wind blows sand along without losing any', 'mean x ' + (mean / n).toFixed(1));
+        }
+        {
+            const w = world(40, 40);
+            w.emitters.push({ x: 20, y: 0, t: M.SAND, rate: 1, spread: 5, cap: 0.1 });
+            run(w, 3000);
+            const n = S.count(w, M.SAND);
+            ok(n > 100 && n <= 160 + 40, 'a capped tap stops at its share of the world', n + ' grains, cap 160');
+        }
+        {
+            const w = world(80, 60);
+            S.garden(w);
+            const r = S.resized(w, 160, 120);
+            const ratio = S.count(r, M.WATER) / S.count(w, M.WATER);
+            ok(r.w === 160 && Math.abs(ratio - 4) < 0.5, 'changing detail keeps the world, scaled', 'water ×' + ratio.toFixed(2));
+            ok(r.emitters.length === 1 && r.emitters[0].spread === w.emitters[0].spread * 2, 'and its taps');
+        }
+        {
+            const w = world(500, 340, 5);
+            const { neckY } = S.hourglass(w);
+            let steps = 0;
+            while (S.sandAbove(w, neckY) > 0 && steps < 10000) { S.step(w); steps++; }
+            ok(Math.abs(steps / 60 - 60) < 0.5, 'on a fine grid the glass is still a one-minute glass', (steps / 60).toFixed(2) + 's');
+        }
+        {
+            const w = world(240, 160);
+            S.circuit(w);
+            const powder = S.count(w, M.GUNPOWDER);
+            run(w, 900);
+            ok(S.count(w, M.GUNPOWDER) < powder, 'the machines scene: the pulse reaches the charge', S.count(w, M.GUNPOWDER) + ' of ' + powder);
+            ok(S.count(w, M.ANT) > 0, 'and the cloner is making ants');
+        }
+
         // ── Plants ──
         {
             const w = world(30, 30);
