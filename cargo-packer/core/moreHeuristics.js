@@ -1,6 +1,6 @@
 /**
  * cargo-packer/core/moreHeuristics.js
- * Four more loaders, from a published classic down to the deliberately bad:
+ * More loaders, from a published classic down to the deliberately bad:
  *
  *   - Deepest-Bottom-Left (Karabulut & İnceoğlu, 2004): every box goes to the
  *     deepest, then lowest, then left-most spot it fits. Good.
@@ -9,6 +9,8 @@
  *   - Floor Only: one layer, no stacking, no turning boxes. Bad.
  *   - Random Drop: random order, random spot, lowered until it lands. Terrible,
  *     but still physical: boxes rest on something and never overlap.
+ *   - Balanced Load: aims for weight balance rather than density, keeping the
+ *     centre of gravity mid-container.
  *
  * All four obey the same rules as the others (inside the container, no
  * overlap, ≥ minSupportRatio of the base supported) and are deterministic.
@@ -308,6 +310,165 @@
     return finish(CP, 'Random Drop', placed, unplaced, steps, container);
   }
 
+  // ── Balanced Load ──────────────────────────────────────────────────
+
+  /**
+   * Loads for weight balance instead of density: the centre of gravity should
+   * end up mid-container, so the truck's axles share the load and nothing
+   * pulls the container sideways. This is what real load planning spreads
+   * evenly (weight, not gaps: gaps let cargo shift and get filled with dunnage).
+   *
+   * Heaviest first. Candidate spots are floor-plan positions beside, behind,
+   * in front of and on top of placed boxes (plus the centre of the floor and
+   * the side walls); each box is lowered onto what is beneath it there. A spot
+   * costs
+   *
+   *   3·|CoG_z − L/2|/L + 3·|CoG_x − W/2|/W     (where the load's CoG would move)
+   *   + 1·|box_z − L/2|/L                       (keep the block around the middle)
+   *   + 0.8·y/H                                 (prefer low: spread before stacking)
+   *
+   * and the cheapest admissible spot wins. Everything but the height term is
+   * known before the (expensive) drop and collision checks, so spots are tried
+   * in order of that lower bound and the search stops once none can win.
+   */
+  function packBalanced(rawItems, container, options = {}) {
+    const CP = lib();
+    const minSupport = options.minSupportRatio !== undefined ? options.minSupportRatio : 0.60;
+    const W = container.width, H = container.height, L = container.length;
+    const items = rawItems.slice().sort((a, b) =>
+      ((b.weight || 0) - (a.weight || 0)) || ((b.w * b.h * b.d) - (a.w * a.h * a.d)));
+
+    const placed = [];
+    const unplaced = [];
+    const steps = [];
+    let mass = 0, momX = 0, momZ = 0; // running weight and moments for the CoG
+
+    // Floor-plan grid of placed boxes. Anything a spot could rest on, hit or
+    // be supported by overlaps its footprint, so checking only the boxes in
+    // the footprint's cells gives the same answers as checking them all.
+    const CELL = 0.5;
+    const grid = new Map();          // cell -> indices into placed
+    const seenAt = new Int32Array(items.length);
+    let stamp = 0;
+    const near = (x, z, w, d) => {
+      // Allocation-light: a visit stamp instead of a Set per lookup
+      stamp++;
+      const out = [];
+      const gx1 = Math.floor((x + w) / CELL), gz1 = Math.floor((z + d) / CELL);
+      for (let gx = Math.floor(x / CELL); gx <= gx1; gx++) {
+        for (let gz = Math.floor(z / CELL); gz <= gz1; gz++) {
+          const bucket = grid.get(gx * 4096 + gz);
+          if (!bucket) continue;
+          for (let k = 0; k < bucket.length; k++) {
+            const idx = bucket[k];
+            if (seenAt[idx] !== stamp) { seenAt[idx] = stamp; out.push(placed[idx]); }
+          }
+        }
+      }
+      return out;
+    };
+    const addToGrid = (box, idx) => {
+      const gx1 = Math.floor((box.x + box.w) / CELL), gz1 = Math.floor((box.z + box.d) / CELL);
+      for (let gx = Math.floor(box.x / CELL); gx <= gx1; gx++) {
+        for (let gz = Math.floor(box.z / CELL); gz <= gz1; gz++) {
+          const k = gx * 4096 + gz;
+          if (!grid.has(k)) grid.set(k, []);
+          grid.get(k).push(idx);
+        }
+      }
+    };
+
+    items.forEach((item, i) => {
+      const oris = CP.getOrientations(item.w, item.h, item.d, item.allowedOrientations || 'any');
+      const wt = item.weight || 15;
+      const options = [];
+
+      const round = v => Math.round(v * 1e4) / 1e4;
+      oris.forEach(ori => {
+        // Floor-plan anchors (min corner) for this footprint: beside, behind,
+        // in front of and on top of each placed box, plus the middle of the
+        // floor and both side walls at every depth those boxes define.
+        const spots = [];
+        const zs = new Set([round((L - ori.d) / 2)]);
+        placed.forEach(p => {
+          spots.push(p.x + p.w, p.z, p.x - ori.w, p.z, p.x, p.z + p.d, p.x, p.z - ori.d, p.x, p.z);
+          zs.add(round(p.z)); zs.add(round(p.z + p.d)); zs.add(round(p.z - ori.d));
+        });
+        zs.forEach(z => { spots.push((W - ori.w) / 2, z, 0, z, W - ori.w, z); });
+
+        const seen = new Set();
+        for (let k = 0; k < spots.length; k += 2) {
+          const x = round(spots[k]), z = round(spots[k + 1]);
+          if (x < -EPS || z < -EPS || x + ori.w > W + EPS || z + ori.d > L + EPS) continue;
+          const key = Math.round(x * 1e4) * 1e6 + Math.round(z * 1e4);
+          if (seen.has(key)) continue;
+          seen.add(key);
+          const cx = x + ori.w / 2, cz = z + ori.d / 2;
+          const cogX = (momX + wt * cx) / (mass + wt);
+          const cogZ = (momZ + wt * cz) / (mass + wt);
+          const bound = 3 * Math.abs(cogZ - L / 2) / L + 3 * Math.abs(cogX - W / 2) / W + Math.abs(cz - L / 2) / L;
+          options.push({ x: x, z: z, ori: ori, bound: bound });
+        }
+      });
+
+      // Cheapest bound first. A heap rather than a full sort: the search
+      // below usually stops after a few dozen of many thousand spots.
+      const before = (a, b) => (a.bound - b.bound) || (a.z - b.z) || (a.x - b.x) || (a.ori.rotIndex - b.ori.rotIndex);
+      const heap = options;
+      const down = (i, n) => {
+        for (;;) {
+          const l = 2 * i + 1, r = l + 1;
+          let m = i;
+          if (l < n && before(heap[l], heap[m]) < 0) m = l;
+          if (r < n && before(heap[r], heap[m]) < 0) m = r;
+          if (m === i) return;
+          [heap[i], heap[m]] = [heap[m], heap[i]];
+          i = m;
+        }
+      };
+      for (let k = (heap.length >> 1) - 1; k >= 0; k--) down(k, heap.length);
+      let heapSize = heap.length;
+      const pop = () => {
+        if (!heapSize) return null;
+        const top = heap[0];
+        heap[0] = heap[--heapSize];
+        down(0, heapSize);
+        return top;
+      };
+
+      let best = null;
+      let bestCost = Infinity;
+      const tried = [];
+      for (let o = pop(); o; o = pop()) {
+        if (o.bound >= bestCost - 1e-9) break; // nothing further down can win
+        const local = near(o.x, o.z, o.ori.w, o.ori.d);
+        const y = CP.restingHeight(o.x, o.z, o.ori.w, o.ori.d, local);
+        if (y + o.ori.h > H + EPS) continue;
+        const cost = o.bound + 0.8 * y / H;
+        if (cost >= bestCost - 1e-9) continue;
+        const cand = place(item, o.ori, o.x, y, o.z, i);
+        if (tried.length < 24) tried.push({ x: o.x, y: y, z: o.z });
+        if (!admissible(CP, cand, local, container, minSupport)) continue;
+        best = cand;
+        bestCost = cost;
+      }
+
+      if (!best) {
+        unplaced.push(item);
+        return;
+      }
+      placed.push(best);
+      addToGrid(best, placed.length - 1);
+      mass += wt;
+      momX += wt * (best.x + best.w / 2);
+      momZ += wt * (best.z + best.d / 2);
+      step(steps, best, tried, items.length - placed.length - unplaced.length);
+    });
+
+    return finish(CP, 'Balanced Load (CoG-centred)', placed, unplaced, steps, container);
+  }
+
+  exports.packBalanced = packBalanced;
   exports.packDeepestBottomLeft = packDeepestBottomLeft;
   exports.packNextFit = packNextFit;
   exports.packFloorOnly = packFloorOnly;

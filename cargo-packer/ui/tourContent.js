@@ -131,6 +131,32 @@
       ]
     },
 
+    balanced: {
+      scenario: 'industrial',
+      chapters: [
+        {
+          title: 'Even weight, not even gaps',
+          step: -1, camera: 'overview', show: [],
+          body: '<p>Spacing cargo out evenly sounds tidy, but loose cargo shifts in transit, so real loads are packed tight and gaps are filled with dunnage. What a load planner spreads evenly is the <b>weight</b>: the centre of gravity should sit mid-container, so the truck\'s axles share the load and nothing pulls the trailer sideways.</p><p><b>Balanced Load</b> packs for that, here on <b>{total}</b> heavy crates and drums.</p>'
+        },
+        {
+          title: 'Heaviest first, in the middle',
+          step: 0, camera: 'top', show: ['select', 'cog'],
+          body: '<p>The heaviest item (<b>{box}</b>) goes first, and it goes to the middle of the floor rather than the back corner. The green marker is the centre of gravity; on the radar in the right panel it sits dead centre.</p>'
+        },
+        {
+          title: 'Each box keeps the balance',
+          step: '30%', camera: 'top', show: ['select', 'eps', 'cog'],
+          body: '<p>Candidate spots are beside, in front of, behind and on top of the boxes already placed (the dots show some it tried). Each is scored by where the centre of gravity would move, plus a pull towards the middle and a preference for low spots:</p><p class="tour-formula">3·|ΔCoG length| + 3·|ΔCoG width| + 1·|box − middle| + 0.8·height</p><p>So a heavy box on one side is answered by the next one on the other.</p>'
+        },
+        {
+          title: 'Grown from the middle',
+          step: 'end', camera: 'overview', show: ['cog'],
+          body: '<p><b>{placed} of {total}</b> items, with the centre of gravity at the middle of the container. The other loaders all pack against the back wall and leave it far towards the bulkhead: switch to Extreme Points and watch the radar turn red. It ranks <b>#{rank} of {algoCount}</b> on floor use, which is the price of leaving room at both ends.</p>'
+        }
+      ]
+    },
+
     firstFit: {
       scenario: 'industrial',
       chapters: [

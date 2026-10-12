@@ -87,15 +87,24 @@ cargo-packer/
    deepest, then lowest, then left-most admissible corner. No scoring, no
    projection; often the densest of the lot.
 
+5. **Balanced Load**: packs for weight balance instead of density. Heaviest
+   first, each box goes where the load's centre of gravity stays closest to
+   mid-container (plus a pull to the middle and a preference for low spots).
+   Real loads are spread evenly by *weight*, not by gaps: gaps let cargo shift.
+   Every other loader packs against the bulkhead and ends in "imbalance
+   hazard"; this one ends centred. Spots are tried cheapest-bound-first from a
+   heap, against a floor-plan grid of placed boxes, so it stays near a second
+   on the largest loads.
+
 And three that are there to lose:
 
-5. **Next-Fit (Unsorted)**: arrival order, never revisits a row or layer.
+6. **Next-Fit (Unsorted)**: arrival order, never revisits a row or layer.
    Shows what sorting buys.
-6. **Floor Only**: one layer, no stacking, no turning boxes.
-7. **Random Drop**: shuffled, random spots, lowered until it lands. Seeded,
+7. **Floor Only**: one layer, no stacking, no turning boxes.
+8. **Random Drop**: shuffled, random spots, lowered until it lands. Seeded,
    so a run is repeatable.
 
-All seven obey the same physical rules (inside, no overlap, ≥60% supported)
+All eight obey the same physical rules (inside, no overlap, ≥60% supported)
 and are registered in `core/algorithms.js`; adding one is an entry there plus
 its file, and the sidebar, compare pickers, showdown and tests pick it up.
 
@@ -112,7 +121,7 @@ weight, default count); `buildManifest` turns a table plus counts into items,
 and the defaults reproduce the original manifests exactly. The editor in the
 left panel sets counts per type (or the item count for the random scenario),
 with ×½, ×2 and Reset. Limits — 120 per type, 250 items per load, 200 random —
-keep a full seven-algorithm solve around a second, Extreme Points being the
+keep a full all-algorithm solve around a second, Extreme Points being the
 slowest. Its anchor-point bookkeeping uses a floor-plan bucket grid and skips
 spots whose best possible score cannot win; both are exact (same placements
 as before, checked on 207 loads) and about 3× faster.
