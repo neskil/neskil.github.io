@@ -188,6 +188,12 @@
             --hue: 170;
         }
 
+        html[data-theme="card-elevator"] {
+            --bg-color-1: #15120a;
+            --bg-color-2: #221b0d;
+            --hue: 38;
+        }
+
         /* ── Background variants ──────────────────────────────────────────────
            The 135° ramp above stays as the floor; each variant is one fixed layer
            that cross-fades in over it, so switching costs an opacity change and
@@ -1911,6 +1917,18 @@
             color: rgb(153, 230, 212);
         }
 
+        #card-elevator {
+            --accent-rgb: 245, 158, 11;
+            --card-bg-gradient: linear-gradient(135deg, rgba(38, 30, 14, 0.66) 0%, rgba(15, 22, 35, 0.60) 100%);
+            --card-hover-gradient: linear-gradient(135deg, rgba(60, 44, 18, 0.82) 0%, rgba(20, 28, 48, 0.75) 100%);
+            --card-border: rgba(245, 158, 11, 0.22);
+            --card-hover-border: rgba(252, 211, 77, 0.50);
+        }
+
+        #card-elevator .card-link {
+            color: rgb(252, 211, 77);
+        }
+
         /* ── Materials: layered onto the same tilt-tracking glare (.card::before). Uses
            overlay blend so bright texture only lifts already-light pixels instead of
            flatly washing out the (already fairly low-contrast) body text underneath. ── */
@@ -3126,7 +3144,7 @@
                 <button type="button" class="shelf-head" aria-expanded="true" aria-controls="shelf-games-body">
                     <span class="shelf-icon" aria-hidden="true">🎮</span>
                     <span class="shelf-text"><span class="shelf-title">Games</span><span class="shelf-blurb">Things to play. Mostly logistics, occasionally golf.</span></span>
-                    <span class="shelf-count">4</span>
+                    <span class="shelf-count">5</span>
                     <svg class="shelf-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6" /></svg>
                 </button>
             </h2>
@@ -3378,6 +3396,66 @@
                                     <div class="peek-stat" data-mirror-stat="stat-3d-poc"></div>
                                 </div>
                                 <a class="peek-launch" href="3d-engine-poc/index.html">Play Yard Master <svg viewBox="0 0 24 24">
+                                        <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" stroke-linejoin="round" fill="none" />
+                                    </svg></a>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card card-metal flip-card" id="card-elevator">
+                        <div class="card-flip-inner">
+                            <button type="button" class="card-face card-face-front flip-open" aria-expanded="false"
+                                aria-controls="card-elevator-panel">
+                                <div>
+                                    <div class="card-icon">
+                                        <svg viewBox="0 0 24 24">
+                                            <rect x="4" y="2.8" width="16" height="18.4" rx="2" fill="currentColor" fill-opacity="0.08"/>
+                                            <path d="M12 2.8v18.4" opacity="0.5"/>
+                                            <rect x="6" y="11" width="4.2" height="5.4" rx="0.8" fill="currentColor" fill-opacity="0.45"/>
+                                            <rect x="13.8" y="5.2" width="4.2" height="5.4" rx="0.8" fill="currentColor" fill-opacity="0.25"/>
+                                            <path d="M15.9 13.2l1.4-1.6 1.4 1.6M15.9 16.4l1.4 1.6 1.4-1.6"/>
+                                        </svg>
+                                    </div>
+                                    <h3 class="card-title">Tiny Elevator Tycoon</h3>
+                                    <p class="card-desc">Program a building's lifts, then run the day and see who took the stairs. Six levels, from a quiet Tuesday to five o'clock.</p>
+                                    <div class="card-stat-chip" id="stat-elevator">
+                                        <span class="stat-icon">🛗</span> 6 levels
+                                    </div>
+                                </div>
+                                <span class="card-link">Take a look <svg viewBox="0 0 24 24">
+                                        <path d="M3.6 12a8.4 8.4 0 0 1 14.4-5.9" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" stroke-linejoin="round" fill="none" />
+                                        <path d="M18.4 2.8v3.7h-3.7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                            stroke-linejoin="round" fill="none" />
+                                        <path d="M20.4 12a8.4 8.4 0 0 1-14.4 5.9" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" stroke-linejoin="round" fill="none" />
+                                        <path d="M5.6 21.2v-3.7h3.7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                            stroke-linejoin="round" fill="none" />
+                                    </svg></span>
+                            </button>
+                            <div class="card-face card-face-back peek-back" id="card-elevator-panel" role="dialog" aria-modal="true"
+                                aria-label="Tiny Elevator Tycoon">
+                                <button type="button" class="card-close" data-flip-close aria-label="Close">
+                                    <svg viewBox="0 0 24 24">
+                                        <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" />
+                                    </svg>
+                                </button>
+                                <div class="peek-shot">
+                                <img data-src="assets/preview/elevator.webp" alt="Morning Rush under way: a queue at the lobby and two cars on their first trips up a ten-floor building." width="800" height="420"
+                                    decoding="async">
+                                <img data-src="assets/preview/elevator-2.webp" alt="Five O'Clock with three cars programmed: a low-floor sweep, a high-floor express and a lobby runner." width="800" height="420"
+                                    decoding="async">
+                                <img data-src="assets/preview/elevator-3.webp" alt="The report card at the end of a day: one star, the average and longest waits, and how many took the stairs." width="800" height="420"
+                                    decoding="async">
+                                </div>
+                                <div class="peek-body">
+                                    <div class="peek-title">Tiny Elevator Tycoon</div>
+                                    <p class="peek-text">Give each car its rules: how it picks its next stop, which floors it serves, where it waits when idle, and whether the cars share calls. Then run the day. The same people arrive every time, so a better score is always a better program.</p>
+                                    <div class="peek-stat"><span class="stat-icon">★</span> 3 strategies &bull; zones &bull; 18 stars</div>
+                                </div>
+                                <a class="peek-launch" href="elevator/index.html">Open the lobby <svg viewBox="0 0 24 24">
                                         <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2"
                                             stroke-linecap="round" stroke-linejoin="round" fill="none" />
                                     </svg></a>
@@ -4142,6 +4220,7 @@
             document.documentElement.setAttribute('data-theme', cardId);
 
             const themeHues = {
+                'card-elevator': 38,
                 'card-terrarium': 170,
                 'card-supply-chain': 45,
                 'card-cargo-lander': 245,
@@ -4169,6 +4248,7 @@
            — the Lease/Rent/Buy floater — and differ only in what they carry, so
            they are a table rather than a branch each. */
         const CARD_FLOATERS = {
+            'card-elevator': { hue: 38, items: ['🛗', '⬆️', '⬇️', '🔔', '🚶'] },
             'card-terrarium': { hue: 170, items: ['🌦️', '❄️', '☀️', '🌙', '⛈️'] },
             'card-sand': { hue: 40, items: ['⏳', '⌛', '🌋', '🌱'] },
         };
@@ -4662,6 +4742,16 @@
                which is the moment it is worth knowing. Rather than have every
                block above write two elements, mirror the front chip once they
                are all filled in — one place to change when a chip changes. */
+            // Tiny Elevator Tycoon: stars earned across its six levels.
+            try {
+                const elevBadge = document.getElementById('stat-elevator');
+                const elevBest = JSON.parse(localStorage.getItem('elevator.best') || '{}');
+                const elevStars = Object.values(elevBest).reduce((n, b) => n + ((b && b.stars) || 0), 0);
+                if (elevBadge && elevStars > 0) {
+                    elevBadge.innerHTML = `<span class="stat-icon">★</span> Stars: <span class="stat-val">${elevStars} / 18</span>`;
+                }
+            } catch (e) {}
+
             document.querySelectorAll('[data-mirror-stat]').forEach(el => {
                 const src = document.getElementById(el.dataset.mirrorStat);
                 if (src) el.innerHTML = src.innerHTML;
