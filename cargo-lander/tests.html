@@ -296,24 +296,24 @@ window.confirm = () => true;
   'game' singleton is created but init() is NOT called here — tests call it explicitly.
 -->
 <script src="vendor/matter.min.js"></script>
-<script src="levels/levelSchema.js?v=0.23.0"></script>
-<script src="game/upgrades.js?v=0.23.0"></script>
-<script src="levels/levels.js?v=0.23.0"></script>
-<script src="levels/levelGenerator.js?v=0.23.0"></script>
-<script src="levels/level1.js?v=0.23.0"></script>
-<script src="levels/level2.js?v=0.23.0"></script>
-<script src="levels/level3.js?v=0.23.0"></script>
-<script src="levels/level4.js?v=0.23.0"></script>
-<script src="levels/level5.js?v=0.23.0"></script>
-<script src="levels/level6.js?v=0.23.0"></script>
-<script src="levels/level7.js?v=0.23.0"></script>
-<script src="levels/level8.js?v=0.23.0"></script>
-<script src="levels/level9.js?v=0.23.0"></script>
-<script src="levels/level10.js?v=0.23.0"></script>
-<script src="levels/levelTest.js?v=0.23.0"></script>
-<script src="levels/collectibleTypes.js?v=0.23.0"></script>
-<script src="audio.js?v=0.23.0"></script>
-<script src="render/shaders.js?v=0.23.0"></script>
+<script src="levels/levelSchema.js?v=0.24.0"></script>
+<script src="game/upgrades.js?v=0.24.0"></script>
+<script src="levels/levels.js?v=0.24.0"></script>
+<script src="levels/levelGenerator.js?v=0.24.0"></script>
+<script src="levels/level1.js?v=0.24.0"></script>
+<script src="levels/level2.js?v=0.24.0"></script>
+<script src="levels/level3.js?v=0.24.0"></script>
+<script src="levels/level4.js?v=0.24.0"></script>
+<script src="levels/level5.js?v=0.24.0"></script>
+<script src="levels/level6.js?v=0.24.0"></script>
+<script src="levels/level7.js?v=0.24.0"></script>
+<script src="levels/level8.js?v=0.24.0"></script>
+<script src="levels/level9.js?v=0.24.0"></script>
+<script src="levels/level10.js?v=0.24.0"></script>
+<script src="levels/levelTest.js?v=0.24.0"></script>
+<script src="levels/collectibleTypes.js?v=0.24.0"></script>
+<script src="audio.js?v=0.24.0"></script>
+<script src="render/shaders.js?v=0.24.0"></script>
 <script>
 // Patch ShaderOverlay so it gracefully handles null WebGL context.
 // top-level `class` in shaders.js creates a non-reassignable lexical binding,
@@ -350,28 +350,29 @@ window.confirm = () => true;
   };
 })();
 </script>
-<script src="physics/physics.js?v=0.23.0"></script>
-<script src="physics/collision.js?v=0.23.0"></script>
-<script src="physics/mechanics.js?v=0.23.0"></script>
-<script src="physics/entities.js?v=0.23.0"></script>
-<script src="physics/atmosphere.js?v=0.23.0"></script>
-<script src="game/game.js?v=0.23.0"></script>
-<script src="game/input.js?v=0.23.0"></script>
-<script src="game/menu.js?v=0.23.0"></script>
-<script src="game/hud.js?v=0.23.0"></script>
-<script src="game/cargo.js?v=0.23.0"></script>
-<script src="game/bot.js?v=0.23.0"></script>
-<script src="render/render.js?v=0.23.0"></script>
-<script src="render/background.js?v=0.23.0"></script>
-<script src="render/terrain.js?v=0.23.0"></script>
-<script src="render/entities.js?v=0.23.0"></script>
-<script src="render/pads.js?v=0.23.0"></script>
-<script src="render/lander.js?v=0.23.0"></script>
-<script src="render/creatures.js?v=0.23.0"></script>
-<script src="render/effects.js?v=0.23.0"></script>
-<script src="render/night.js?v=0.23.0"></script>
-<script src="render/fog.js?v=0.23.0"></script>
-<script src="render/ui.js?v=0.23.0"></script>
+<script src="physics/physics.js?v=0.24.0"></script>
+<script src="physics/collision.js?v=0.24.0"></script>
+<script src="physics/mechanics.js?v=0.24.0"></script>
+<script src="physics/entities.js?v=0.24.0"></script>
+<script src="physics/atmosphere.js?v=0.24.0"></script>
+<script src="game/game.js?v=0.24.0"></script>
+<script src="game/input.js?v=0.24.0"></script>
+<script src="game/perf.js?v=0.24.0"></script>
+<script src="game/menu.js?v=0.24.0"></script>
+<script src="game/hud.js?v=0.24.0"></script>
+<script src="game/cargo.js?v=0.24.0"></script>
+<script src="game/bot.js?v=0.24.0"></script>
+<script src="render/render.js?v=0.24.0"></script>
+<script src="render/background.js?v=0.24.0"></script>
+<script src="render/terrain.js?v=0.24.0"></script>
+<script src="render/entities.js?v=0.24.0"></script>
+<script src="render/pads.js?v=0.24.0"></script>
+<script src="render/lander.js?v=0.24.0"></script>
+<script src="render/creatures.js?v=0.24.0"></script>
+<script src="render/effects.js?v=0.24.0"></script>
+<script src="render/night.js?v=0.24.0"></script>
+<script src="render/fog.js?v=0.24.0"></script>
+<script src="render/ui.js?v=0.24.0"></script>
 
 <script>
 // ─── 3. HELPER: build a minimal input-state object for physics.update() ──────
@@ -1433,6 +1434,173 @@ category('Platform Capability');
     }
   });
 })();
+
+// ─── 4c3. ADAPTIVE GRAPHICS QUALITY (game/perf.js) ───────────────────────────
+category('Adaptive Graphics Quality');
+
+// Feeds a governor `ms`-long frames (with `work` ms of CPU each) for `dur` ms
+// of simulated time starting at state.now. Returns every tier change made.
+function feedFrames(gov, state, ms, work, dur) {
+  const changes = [];
+  const end = state.now + dur;
+  while (state.now < end) {
+    state.now += ms;
+    const t = gov.sample(ms, work, state.now);
+    if (t >= 0) changes.push({ to: t, at: state.now, why: gov.lastChange.why });
+  }
+  return changes;
+}
+function freshGov(tier) {
+  const gov = new QualityGovernor({ minTier: 0, tier: tier ?? 1 });
+  gov.refreshMs = 1000 / 60; // as if the menu had already measured a 60Hz screen
+  const state = { now: 0 };
+  gov.reset(0);
+  return { gov, state };
+}
+
+test('Sustained low fps steps quality down — one tier at a time', () => {
+  const { gov, state } = freshGov(1);
+  const changes = feedFrames(gov, state, 1000 / 40, 22, 6000); // 40fps, CPU-heavy
+  assert(changes.length >= 1, 'should step down at least once');
+  assertEquals(changes[0].to, 2, 'first step is High -> Medium');
+  assert(changes[0].at >= gov.SETTLE_MS + 2 * gov.WINDOW_MS - 1000 / 40, 'needs settle + 2 slow windows, not a single one');
+});
+
+test('A single slow window (a hitch) does not change quality', () => {
+  const { gov, state } = freshGov(1);
+  let changes = feedFrames(gov, state, 1000 / 60, 5, 2500);     // settle
+  changes = changes.concat(feedFrames(gov, state, 1000 / 45, 20, 1500)); // one slow window
+  changes = changes.concat(feedFrames(gov, state, 1000 / 60, 5, 1500));  // recovers
+  changes = changes.concat(feedFrames(gov, state, 1000 / 45, 20, 1500)); // slow again, not consecutive
+  assertEquals(changes.length, 0, 'alternating slow/fine windows must not flap');
+});
+
+test('Severe drop (<60% of target) steps down after one window', () => {
+  const { gov, state } = freshGov(1);
+  const changes = feedFrames(gov, state, 1000 / 25, 35, gov.SETTLE_MS + gov.WINDOW_MS + 200);
+  assertEquals(changes.length, 1);
+  assertEquals(changes[0].to, 2);
+});
+
+test('Dead band: fps between the down and up thresholds holds the tier', () => {
+  const { gov, state } = freshGov(2);
+  const changes = feedFrames(gov, state, 1000 / 54, 4, 30000); // 90% of target
+  assertEquals(changes.length, 0, 'neither up nor down inside the hysteresis band');
+});
+
+test('Recovers upward only after sustained headroom', () => {
+  const { gov, state } = freshGov(3);
+  // At target but CPU-busy: no headroom, no upgrade.
+  let changes = feedFrames(gov, state, 1000 / 60, 12, 15000);
+  assertEquals(changes.length, 0, 'busy CPU blocks upgrades');
+  changes = feedFrames(gov, state, 1000 / 60, 3, 15000);
+  assert(changes.length >= 1 && changes[0].to === 2, 'idle CPU at 60fps climbs one tier');
+  assert(changes[0].at - (state.now - 15000) >= gov.UP_WINDOWS * gov.WINDOW_MS, 'needs UP_WINDOWS good windows first');
+});
+
+test('Flip-flop: a tier that cannot be held is banned with backoff, then for good', () => {
+  const gov = new QualityGovernor({ minTier: 1, tier: 2 }); // can only climb into tier 1
+  gov.refreshMs = 1000 / 60;
+  const state = { now: 0 };
+  gov.reset(0);
+  const until = (pred, ms, work, limit) => {
+    const start = state.now;
+    while (!pred() && state.now - start < limit) feedFrames(gov, state, ms, work, 100);
+    return pred();
+  };
+  const bans = [];
+  for (let round = 0; round < 3; round++) {
+    assert(until(() => gov.tier === 1, 1000 / 60, 3, 300000), `round ${round}: climbs once the ban has expired`);
+    assert(until(() => gov.tier === 2, 1000 / 40, 12, 10000), `round ${round}: drops back out of the tier it could not hold`);
+    bans.push(gov.bannedUntil[1] - state.now);
+    feedFrames(gov, state, 1000 / 60, 12, 5000); // the drop helped: no revert
+    assertEquals(gov.tier, 2, `round ${round}: the drop sticks`);
+  }
+  assertClose(bans[0], gov.BAN_BASE_MS, 150, 'first ban');
+  assertClose(bans[1], gov.BAN_BASE_MS * 2, 150, 'second ban doubles');
+  assertEquals(bans[2], Infinity, 'banned for the session after MAX_STRIKES');
+  assert(!until(() => gov.tier === 1, 1000 / 60, 3, 120000), 'never retries a permanently banned tier');
+});
+
+test('A display capped at 30Hz is not mistaken for a slow game', () => {
+  const gov = new QualityGovernor({ minTier: 0, tier: 1 });
+  for (let i = 0; i < 60; i++) gov.noteIdleFrame(1000 / 30); // menu frames at 30Hz
+  const state = { now: 0 };
+  gov.reset(0);
+  const changes = feedFrames(gov, state, 1000 / 30, 4, 20000);
+  assert(!changes.some(c => c.why === 'down'), 'uniform 30fps with an idle CPU is the screen, not us');
+});
+
+test('A step down that buys nothing is undone and becomes the floor', () => {
+  const { gov, state } = freshGov(1);
+  // CPU-bound at 40fps — resolution changes can't help.
+  const changes = feedFrames(gov, state, 1000 / 40, 24, 20000);
+  assertEquals(changes[0].to, 2, 'tries one step down');
+  assertEquals(changes[1] && changes[1].why, 'revert', 'then reverts it');
+  assertEquals(gov.tier, 1, 'back at the original tier');
+  assertEquals(changes.length, 2, 'and stops there instead of grinding to Lowest');
+  gov.reset(state.now); // next mission: free to try again
+  assertEquals(gov.floorTier, GFX_TIERS.length - 1);
+});
+
+test('Hidden tab / long pause resets measurement instead of counting as slow', () => {
+  const { gov, state } = freshGov(1);
+  feedFrames(gov, state, 1000 / 60, 4, 3000);
+  state.now += 5000;
+  assertEquals(gov.sample(5000, 1, state.now), -1);
+  assert(gov.settleUntil > state.now, 'a huge interval restarts the settle period');
+});
+
+test('Graphics tier sets backing-store scale without changing logical view size', () => {
+  mockLocalStorage.clear();
+  const g = new CargoGame();
+  g.init('cargoCanvas');
+  const vw = g.viewW, vh = g.viewH;
+  assertEquals(g.gfxMode, 'auto', 'defaults to Auto');
+  assertEquals(g.gfx.id, 'high', 'Auto starts at High (the pre-tier look)');
+  assertEquals(g.canvas.width, vw);
+  g.setGraphicsMode('low');
+  assertEquals(g.viewW, vw, 'logical width unchanged');
+  assertEquals(g.viewH, vh, 'logical height unchanged');
+  assertEquals(g.canvas.width, Math.round(vw * 0.7), 'backing store scaled');
+  assertEquals(g.gfx.postFX, false);
+  assertEquals(localStorage.getItem('cargoLanderGfx'), 'low', 'choice persisted');
+  g.perfSample(100, 90, 1000); g.perfSample(100, 90, 1100);
+  assertEquals(g.gfx.id, 'low', 'a fixed choice is never overridden by the governor');
+  g.setGraphicsMode('auto');
+  assertEquals(g.gfxMode, 'auto');
+  g.setGraphicsMode('bogus');
+  assertEquals(g.gfxMode, 'auto', 'unknown ids fall back to Auto');
+});
+
+test('In Auto, slow gameplay frames lower the live tier and remember it', () => {
+  mockLocalStorage.clear();
+  const g = new CargoGame();
+  g.init('cargoCanvas');
+  g.startLevel(0);
+  const w0 = g.canvas.width;
+  let now = 1000;
+  g.perfSample(16, 4, now); // first playing frame re-arms the settle period
+  for (let i = 0; i < 400 && g.gfx.id === 'high'; i++) { now += 30; g.perfSample(30, 25, now); }
+  assertEquals(g.gfx.id, 'medium', 'stepped down one tier');
+  assert(g.canvas.width < w0, 'backing store shrank');
+  assertEquals(localStorage.getItem('cargoLanderGfxAuto'), '2', 'settled tier saved for next session');
+  g.gameState = 'menu';
+  for (let i = 0; i < 400; i++) { now += 30; g.perfSample(30, 25, now); }
+  assertEquals(g.gfx.id, 'medium', 'menus are never judged');
+  mockLocalStorage.clear();
+});
+
+test('Auto resumes at the tier it settled on last session, never above High', () => {
+  mockLocalStorage.clear();
+  localStorage.setItem('cargoLanderGfxAuto', '3');
+  let g = new CargoGame(); g.init('cargoCanvas');
+  assertEquals(g.gfx.id, 'low');
+  localStorage.setItem('cargoLanderGfxAuto', '0');
+  g = new CargoGame(); g.init('cargoCanvas');
+  assertEquals(g.gfx.id, 'high', 'Crisp has to be re-earned each session');
+  mockLocalStorage.clear();
+});
 
 // ─── 4d. DEPLOY HYGIENE ──────────────────────────────────────────────────────
 category('Deploy Hygiene');

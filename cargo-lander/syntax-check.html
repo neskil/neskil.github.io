@@ -41,6 +41,7 @@
 <script src="physics/atmosphere.js"></script>
 <script src="game/game.js"></script>
 <script src="game/input.js"></script>
+<script src="game/perf.js"></script>
 <script src="game/menu.js"></script>
 <script src="game/hud.js"></script>
 <script src="game/cargo.js"></script>
@@ -72,6 +73,7 @@
     'render/lander.js mixin':     () => typeof CargoGame.prototype.drawLander === 'function',
     'render/creatures.js mixin':  () => typeof CargoGame.prototype.drawSandWorm === 'function' && typeof CargoGame.prototype.drawMonster === 'function' && typeof CargoGame.prototype.drawWormLair === 'function',
     'render/terrain.js mixin':    () => typeof CargoGame.prototype.drawTerrain === 'function',
+    'game/perf.js mixin':         () => typeof QualityGovernor === 'function' && typeof CargoGame.prototype.setGraphicsMode === 'function',
     'render/fog.js mixin':        () => typeof CargoGame.prototype.drawAltitudeFog === 'function',
     'physics fog mixin':          () => typeof CargoPhysics.prototype.fogDensityAt === 'function' && typeof CargoPhysics.prototype.updateAltitudeFog === 'function',
     'physics mixins':             () => typeof CargoPhysics.prototype.initLevel === 'function',

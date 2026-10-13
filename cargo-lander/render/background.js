@@ -8,8 +8,8 @@ updateWeather(dt) {
         if (!this.weatherParticles) this.weatherParticles = [];
         if (!this.windStreaks) this.windStreaks = [];
 
-        const vw = this.canvas.width / this.camera.zoom;
-        const vh = this.canvas.height / this.camera.zoom;
+        const vw = this.viewW / this.camera.zoom;
+        const vh = this.viewH / this.camera.zoom;
         const camX = this.camera.x;
         const camY = this.camera.y;
 
@@ -127,7 +127,7 @@ drawWeather() {
 
         const ctx = this.ctx;
         ctx.save();
-        ctx.translate(this.canvas.width / 2 + (this.screenShake?.x || 0), this.canvas.height / 2 + (this.screenShake?.y || 0));
+        ctx.translate(this.viewW / 2 + (this.screenShake?.x || 0), this.viewH / 2 + (this.screenShake?.y || 0));
         ctx.scale(this.camera.zoom, this.camera.zoom);
         ctx.translate(-this.camera.x, -this.camera.y);
 
@@ -206,9 +206,9 @@ drawWeather() {
 drawMenuBackgroundEntity() {
         if (!this.menuEntities) {
             this.menuEntities = [
-                { x: -100, y: this.canvas.height / 3, vx: 3, type: 'lander', scale: 1.0, offset: 0 },
-                { x: this.canvas.width + 200, y: this.canvas.height / 5, vx: -1.5, type: 'drone', scale: 0.6, offset: 1000 },
-                { x: -400, y: this.canvas.height / 1.5, vx: 4, type: 'lander', scale: 1.2, offset: 2000 }
+                { x: -100, y: this.viewH / 3, vx: 3, type: 'lander', scale: 1.0, offset: 0 },
+                { x: this.viewW + 200, y: this.viewH / 5, vx: -1.5, type: 'drone', scale: 0.6, offset: 1000 },
+                { x: -400, y: this.viewH / 1.5, vx: 4, type: 'lander', scale: 1.2, offset: 2000 }
             ];
         }
 
@@ -216,17 +216,17 @@ drawMenuBackgroundEntity() {
 
         // Draw some glowing nebulas for the menu
         const time = Date.now() * 0.0005;
-        const grad1 = ctx.createRadialGradient(this.canvas.width * 0.2, this.canvas.height * 0.3, 0, this.canvas.width * 0.2, this.canvas.height * 0.3, 400);
+        const grad1 = ctx.createRadialGradient(this.viewW * 0.2, this.viewH * 0.3, 0, this.viewW * 0.2, this.viewH * 0.3, 400);
         grad1.addColorStop(0, 'rgba(99, 102, 241, 0.15)');
         grad1.addColorStop(1, 'rgba(99, 102, 241, 0)');
         ctx.fillStyle = grad1;
-        ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+        ctx.fillRect(0, 0, this.viewW, this.viewH);
 
-        const grad2 = ctx.createRadialGradient(this.canvas.width * 0.8, this.canvas.height * 0.7, 0, this.canvas.width * 0.8, this.canvas.height * 0.7, 500);
+        const grad2 = ctx.createRadialGradient(this.viewW * 0.8, this.viewH * 0.7, 0, this.viewW * 0.8, this.viewH * 0.7, 500);
         grad2.addColorStop(0, 'rgba(236, 72, 153, 0.1)');
         grad2.addColorStop(1, 'rgba(236, 72, 153, 0)');
         ctx.fillStyle = grad2;
-        ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+        ctx.fillRect(0, 0, this.viewW, this.viewH);
 
         // Rare menu monster drive-by (only after 20s on menu, then every 45-90s)
         if (!this.menuOpenTime) this.menuOpenTime = Date.now();
@@ -237,8 +237,8 @@ drawMenuBackgroundEntity() {
         if (!this.menuMonster && now2 > this.nextMenuMonsterTime) {
             const fromLeft = Math.random() > 0.5;
             this.menuMonster = {
-                x: fromLeft ? -120 : this.canvas.width + 120,
-                y: this.canvas.height * (0.3 + Math.random() * 0.5),
+                x: fromLeft ? -120 : this.viewW + 120,
+                y: this.viewH * (0.3 + Math.random() * 0.5),
                 vx: fromLeft ? 1.8 : -1.8,
                 size: 60 + Math.random() * 40,
                 t: 0,
@@ -257,7 +257,7 @@ drawMenuBackgroundEntity() {
             // Draw simplified monster silhouette
             const t3 = Date.now() / 1000;
             ctx.save();
-            ctx.globalAlpha = Math.min(1, Math.min(mm.t * 2, (1 - (Math.abs(mm.x - this.canvas.width / 2) / (this.canvas.width / 2 + 100))) * 3 + 0.1));
+            ctx.globalAlpha = Math.min(1, Math.min(mm.t * 2, (1 - (Math.abs(mm.x - this.viewW / 2) / (this.viewW / 2 + 100))) * 3 + 0.1));
 
             // Body glow
             const mg = ctx.createRadialGradient(mm.x, mm.y, 0, mm.x, mm.y, mm.size);
@@ -299,7 +299,7 @@ drawMenuBackgroundEntity() {
             ctx.restore();
 
             // Remove when off screen
-            if ((mm.vx > 0 && mm.x > this.canvas.width + 150) || (mm.vx < 0 && mm.x < -150)) {
+            if ((mm.vx > 0 && mm.x > this.viewW + 150) || (mm.vx < 0 && mm.x < -150)) {
                 this.menuMonster = null;
                 this.nextMenuMonsterTime = Date.now() + 45000 + Math.random() * 45000;
             }
@@ -309,15 +309,15 @@ drawMenuBackgroundEntity() {
             e.x += e.vx * fdt;
             e.y += Math.sin((Date.now() + e.offset) / 500) * (1.5 * e.scale) * fdt;
 
-            if (e.vx > 0 && e.x > this.canvas.width + 200) {
+            if (e.vx > 0 && e.x > this.viewW + 200) {
                 e.x = -200;
-                e.y = this.canvas.height * 0.1 + Math.random() * (this.canvas.height * 0.8);
+                e.y = this.viewH * 0.1 + Math.random() * (this.viewH * 0.8);
                 e.type = ['lander', 'drone'][Math.floor(Math.random() * 2)];
                 e.vx = 2 + Math.random() * 3;
                 e.scale = 0.6 + Math.random() * 0.8;
             } else if (e.vx < 0 && e.x < -200) {
-                e.x = this.canvas.width + 200;
-                e.y = this.canvas.height * 0.1 + Math.random() * (this.canvas.height * 0.8);
+                e.x = this.viewW + 200;
+                e.y = this.viewH * 0.1 + Math.random() * (this.viewH * 0.8);
                 e.type = ['lander', 'drone'][Math.floor(Math.random() * 2)];
                 e.vx = -(2 + Math.random() * 3);
                 e.scale = 0.6 + Math.random() * 0.8;
@@ -351,7 +351,7 @@ drawMenuBackgroundEntity() {
         // Draw menu particles (like shop purchase fireworks)
         if (this.physics && this.physics.particles && this.physics.particles.length > 0) {
             ctx.save();
-            ctx.translate(this.canvas.width / 2, this.canvas.height / 2);
+            ctx.translate(this.viewW / 2, this.viewH / 2);
             ctx.scale(this.camera.zoom, this.camera.zoom);
             ctx.translate(-this.camera.x, -this.camera.y);
             this.drawParticles();
@@ -362,8 +362,8 @@ drawMenuBackgroundEntity() {
 ,
 drawParallax() {
         const ctx = this.ctx;
-        const w = this.canvas.width;
-        const h = this.canvas.height;
+        const w = this.viewW;
+        const h = this.viewH;
         const lvPal = (levels[this.currentLevelIndex] || {}).palette;
         const skyBot = lvPal ? lvPal.skyBot : '#0f172a';
 
@@ -439,8 +439,8 @@ drawParallax() {
 ,
 drawCaveBackground() {
         const ctx = this.ctx;
-        const w = this.canvas.width;
-        const h = this.canvas.height;
+        const w = this.viewW;
+        const h = this.viewH;
         const lvPal = (levels[this.currentLevelIndex] || {}).palette;
         const skyBot = lvPal ? lvPal.skyBot : '#0f172a';
 
@@ -539,8 +539,8 @@ drawCaveBackground() {
 ,
 drawCityBackground() {
         const ctx = this.ctx;
-        const w = this.canvas.width;
-        const h = this.canvas.height;
+        const w = this.viewW;
+        const h = this.viewH;
         const lvPal = (levels[this.currentLevelIndex] || {}).palette;
         const skyBot = lvPal ? lvPal.skyBot : '#0f172a';
 
@@ -667,7 +667,7 @@ drawTrafficLanes() {
     const ctx = this.ctx;
     const camX = this.camera ? this.camera.x : 0;
     const zoom = this.camera?.zoom || 1;
-    const halfW = (this.canvas.width / 2) / zoom + 200;
+    const halfW = (this.viewW / 2) / zoom + 200;
 
     const i0 = Math.max(0, Math.floor((camX - halfW - L.originX) / L.bucket));
     const i1 = Math.min(L.east.length - 1, Math.ceil((camX + halfW - L.originX) / L.bucket));
@@ -728,7 +728,7 @@ drawAmbientTraffic() {
             const laneH = confMaxY - confMinY;
             const camX = this.camera ? this.camera.x : 0;
             // Draw wide enough to cover any ultrawide screen
-            const drawW = (this.canvas.width / (this.camera?.zoom || 1)) * 2;
+            const drawW = (this.viewW / (this.camera?.zoom || 1)) * 2;
             
             // Faint lane background
             ctx.fillStyle = 'rgba(56, 189, 248, 0.015)'; 

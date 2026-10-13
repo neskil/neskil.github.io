@@ -12,7 +12,7 @@
 // game.js → game/* → render.js + render/* (render.js instantiates window.game).
 
 class CargoGame {
-    static VERSION = '0.23.0';
+    static VERSION = '0.24.0';
 
     constructor() {
         this.canvas = null;
@@ -151,6 +151,8 @@ class CargoGame {
             tutorialContainer: document.getElementById('tutorial-container')
         };
 
+        // Graphics tier (game/perf.js) sets renderScale, which resizeCanvas() reads.
+        if (this.initGraphics) this.initGraphics();
         this.resizeCanvas();
         this.generateStars();
         this.setupEventListeners();
@@ -164,7 +166,7 @@ class CargoGame {
         // Initialize WebGL Shaders overlay
         if (typeof ShaderOverlay !== 'undefined') {
             this.shaders = new ShaderOverlay('webglCanvas');
-            this.shaders.resize(this.canvas.width, this.canvas.height);
+            this.shaders.resize(this.viewW, this.viewH);
         }
 
         // Sync mute button/checkbox to initial state. Was setting
@@ -208,11 +210,23 @@ class CargoGame {
     }
 
 
+    // viewW/viewH are the logical (CSS-pixel) viewport every draw and camera
+    // calculation works in. The canvas backing store is that times
+    // renderScale (set by the graphics tier — game/perf.js), and draw() puts
+    // the matching scale on the context, so render code never sees the
+    // difference. Read viewW/viewH, never canvas.width/height.
     resizeCanvas() {
         const targetW = window.innerWidth;
         const targetH = window.innerHeight;
-        this.canvas.width = targetW;
-        this.canvas.height = targetH;
+        this.viewW = targetW;
+        this.viewH = targetH;
+        const scale = this.renderScale || 1;
+        const bw = Math.max(1, Math.round(targetW * scale));
+        const bh = Math.max(1, Math.round(targetH * scale));
+        if (this.canvas.width !== bw) this.canvas.width = bw;
+        if (this.canvas.height !== bh) this.canvas.height = bh;
+        // The WebGL overlay stays at logical size: its shaders do their
+        // world-to-screen math in CSS pixels, and drawImage stretches it.
         if (this.shaders) {
             this.shaders.resize(targetW, targetH);
         }
@@ -526,7 +540,7 @@ class CargoGame {
         this.overtimeTimer = 0;
         this.missionRepairSpend = 0;
 
-        this.physics.initLevel(level, this.canvas.width, this.canvas.height, this.upgrades, this.career.portrait);
+        this.physics.initLevel(level, this.viewW, this.viewH, this.upgrades, this.career.portrait);
         this.deliveredCount = 0;
         this.deliveredTypes = {};
         this.questState = {};
@@ -565,6 +579,10 @@ class CargoGame {
         this.gameState = 'playing';
         this.addMessage("Level Started: " + (level?.name || "Unknown"), "#6366f1");
         this._rotateTipDismissed = false;
+        // New level, new load: don't let its first-frame hitch count against
+        // the graphics tier, and give a level that's lighter than the last a
+        // fresh chance to climb back up.
+        if (this.perfGovernor) this.perfGovernor.reset(performance.now());
         this.checkOrientationPrompt();
         
         if (this.currentLevelIndex === 0) {
@@ -583,8 +601,8 @@ class CargoGame {
         }
 
         // Setup initial camera position
-        const cw = this.canvas.width;
-        const ch = this.canvas.height;
+        const cw = this.viewW;
+        const ch = this.viewH;
         const levelFitZoom = Math.min(cw / this.physics.levelWidth, ch / this.physics.levelHeight) * 0.95;
         const minZoom = Math.max(0.45, levelFitZoom);
         let desiredZoom = 1.1;
@@ -738,6 +756,8 @@ class CargoGame {
     loop(timestamp) {
         if (!this.lastTime) this.lastTime = timestamp;
         let deltaTime = timestamp - this.lastTime;
+        const rawDelta = deltaTime; // before the cap — the perf governor wants the truth
+        const workStart = performance.now();
         // Cap deltaTime to avoid spiral of death on tab sleep
         if (deltaTime > 250) deltaTime = 250;
         this.lastTime = timestamp;
@@ -776,6 +796,10 @@ class CargoGame {
         } finally {
             this._restoreInterpState();
         }
+
+        // Adaptive graphics quality (game/perf.js). workMs is CPU time for
+        // this frame's physics steps + draw — headroom evidence for upgrades.
+        if (this.perfSample) this.perfSample(rawDelta, performance.now() - workStart, timestamp);
 
         requestAnimationFrame((t) => this.loop(t));
     }
@@ -970,8 +994,8 @@ class CargoGame {
         // Let physics know the actual on-screen half-extents so it can spawn the
         // monster genuinely off-screen instead of at a fixed world-space offset that
         // may still land inside the viewport at low zoom.
-        this.physics.viewHalfW = (this.canvas.width / 2) / this.camera.zoom;
-        this.physics.viewHalfH = (this.canvas.height / 2) / this.camera.zoom;
+        this.physics.viewHalfW = (this.viewW / 2) / this.camera.zoom;
+        this.physics.viewHalfH = (this.viewH / 2) / this.camera.zoom;
 
         this.physics.update(dt, levels[this.currentLevelIndex], inputState);
 
@@ -1334,8 +1358,8 @@ class CargoGame {
 
     updateCamera(lander, dt) {
         // --- Cinematic Camera Update ---
-        const cw = this.canvas.width;
-        const ch = this.canvas.height;
+        const cw = this.viewW;
+        const ch = this.viewH;
         const levelFitZoom = Math.min(cw / this.physics.levelWidth, ch / this.physics.levelHeight) * 0.95;
         const minZoom = Math.max(0.45, levelFitZoom); // Cap how far it can zoom out
         let desiredZoom = 1.1;
@@ -1370,7 +1394,7 @@ class CargoGame {
                 const lead = lander.landed ? 0 : 15;
                 let targetX = lander.x + (Math.max(-200, Math.min(200, lander.vx || 0)) * lead);
                 let targetY = lander.y - this.cameraVOffset + (Math.max(-200, Math.min(200, lander.vy || 0)) * lead); // Shift camera up to show more air
-                const viewH = this.canvas.height / this.camera.targetZoom;
+                const viewH = this.viewH / this.camera.targetZoom;
                 const maxCamY = this.physics.levelHeight - (viewH / 2) + this.cameraVOffset;
                 targetY = Math.min(targetY, maxCamY);
                 this.camera.x += (targetX - this.camera.x) * 0.08 * dt;

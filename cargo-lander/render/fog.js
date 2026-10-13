@@ -37,8 +37,8 @@ drawAltitudeFog() {
         if (topY == null || botY == null || botY <= topY) return;
 
         const ctx = this.ctx;
-        const w = this.canvas.width;
-        const h = this.canvas.height;
+        const w = this.viewW;
+        const h = this.viewH;
         const zoom = this.camera.zoom;
         const camX = this.camera.x, camY = this.camera.y;
         const shakeX = this.screenShake?.x || 0, shakeY = this.screenShake?.y || 0;
@@ -54,12 +54,7 @@ drawAltitudeFog() {
 
         // Offscreen layer: paint the fog, then punch the readable holes out of
         // it, so alpha only has to be authored once (same trick as night.js).
-        if (!this._fogCanvas || this._fogCanvas.width !== w || this._fogCanvas.height !== h) {
-            this._fogCanvas = document.createElement('canvas');
-            this._fogCanvas.width = w;
-            this._fogCanvas.height = h;
-        }
-        const fctx = this._fogCanvas.getContext('2d');
+        const fctx = this._overlayLayer('_fogCanvas', w, h);
         fctx.clearRect(0, 0, w, h);
         fctx.globalCompositeOperation = 'source-over';
 
@@ -116,9 +111,9 @@ drawAltitudeFog() {
         fctx.globalCompositeOperation = 'source-over';
 
         ctx.save();
-        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        this._screenTransform(ctx);
         ctx.globalCompositeOperation = 'source-over';
-        ctx.drawImage(this._fogCanvas, 0, 0);
+        ctx.drawImage(this._fogCanvas, 0, 0, w, h);
         ctx.restore();
 
         this._drawFogWarning(cfg, rgb, w);
@@ -187,7 +182,7 @@ _drawFogWarning(cfg, rgb, w) {
         const pulse = 0.65 + 0.35 * Math.sin(Date.now() * 0.006);
         const alpha = Math.min(1, (d - 0.3) / 0.35) * pulse;
         ctx.save();
-        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        this._screenTransform(ctx);
         ctx.font = 'bold 15px Outfit, sans-serif';
         ctx.textAlign = 'center';
         ctx.globalAlpha = alpha;

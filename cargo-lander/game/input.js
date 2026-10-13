@@ -15,8 +15,8 @@ Object.assign(CargoGame.prototype, {
         this.canvas.addEventListener('mousemove', (e) => {
             if (!this.camera) return;
             const rect = this.canvas.getBoundingClientRect();
-            const screenX = e.clientX - rect.left - this.canvas.width / 2;
-            const screenY = e.clientY - rect.top - this.canvas.height / 2;
+            const screenX = e.clientX - rect.left - this.viewW / 2;
+            const screenY = e.clientY - rect.top - this.viewH / 2;
             this.mouseX = (screenX / this.camera.zoom) + this.camera.x;
             this.mouseY = (screenY / this.camera.zoom) + this.camera.y;
         });

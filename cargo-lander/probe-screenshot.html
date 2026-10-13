@@ -67,6 +67,9 @@
 
             setTimeout(() => {
                 const g = iw.game;
+                // &gfx=crisp|high|medium|low|lowest pins a graphics tier
+                // (game/perf.js) so each one's render scale can be eyeballed.
+                if (q.get('gfx')) g.setGraphicsMode(q.get('gfx'));
                 g.startLevel(levelIdx);
                 setTimeout(() => {
                     const profileDiv = iw.document.getElementById('init-profiling-game');

@@ -338,6 +338,9 @@ Object.assign(CargoGame.prototype, {
         const postFXCb = document.getElementById('setting-postfx');
         if (postFXCb) postFXCb.checked = this.postFXEnabled;
 
+        const gfxSel = document.getElementById('setting-gfx');
+        if (gfxSel) gfxSel.value = this.gfxMode || 'auto';
+
         const joystickCb = document.getElementById('setting-joystick');
         if (joystickCb) joystickCb.checked = this.touchJoystickEnabled;
 
@@ -644,8 +647,8 @@ Object.assign(CargoGame.prototype, {
 
             // Firework animation! Launch from bottom of the screen to the center
             if (this.canvas && this.camera && this.shootPlayerFirework) {
-                const cw = this.canvas.width;
-                const ch = this.canvas.height;
+                const cw = this.viewW;
+                const ch = this.viewH;
                 // Determine camera bounds in world coordinates
                 const viewW = cw / this.camera.zoom;
                 const viewH = ch / this.camera.zoom;
