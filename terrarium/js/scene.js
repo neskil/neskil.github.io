@@ -190,6 +190,10 @@ void main() {
 }`;
 
 export function createJar(canvas, { onTap, reduceMotion }) {
+    // Phones and small machines get the same jar with less work per frame:
+    // a coarser shadow map, fewer grass blades, a pond reflection refreshed
+    // less often, and a lower pixel ratio.
+    const lite = window.matchMedia('(pointer: coarse)').matches || (navigator.hardwareConcurrency || 8) <= 4;
     const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
     renderer.setClearColor(0x000000, 0);
     renderer.outputEncoding = THREE.sRGBEncoding;
@@ -332,7 +336,7 @@ export function createJar(canvas, { onTap, reduceMotion }) {
     const flashLight = new THREE.AmbientLight(0xdde6ff, 0);
     const sunLight = new THREE.DirectionalLight(0xffffff, 1);
     sunLight.castShadow = true;
-    sunLight.shadow.mapSize.set(2048, 2048);
+    sunLight.shadow.mapSize.setScalar(lite ? 1024 : 2048);
     Object.assign(sunLight.shadow.camera, { left: -1.3, right: 1.3, top: 1.3, bottom: -1.3, near: 0.1, far: 7 });
     sunLight.shadow.bias = -0.0006;
     sunLight.shadow.normalBias = 0.015;
@@ -534,6 +538,7 @@ export function createJar(canvas, { onTap, reduceMotion }) {
             inst.setMatrixAt(k, m);
             inst.setColorAt(k, lin([62 + R2() * 50, 122 + R2() * 56, 46 + R2() * 30]));
         }
+        inst.count = lite ? 1100 : n;
         inst.castShadow = true;
         inst.receiveShadow = true;
         world.add(inst);
@@ -1029,7 +1034,7 @@ export function createJar(canvas, { onTap, reduceMotion }) {
     let fitDist = 10;
     function resize() {
         const w = Math.max(1, canvas.clientWidth), h = Math.max(1, canvas.clientHeight);
-        const dpr = Math.min(2, window.devicePixelRatio || 1);
+        const dpr = Math.min(lite ? 1.5 : 2, window.devicePixelRatio || 1);
         renderer.setPixelRatio(dpr);
         renderer.setSize(w, h, false);
         camera.aspect = w / h;
@@ -1341,7 +1346,7 @@ export function createJar(canvas, { onTap, reduceMotion }) {
 
         // The pond's reflection, refreshed every few frames.
         if (water.visible && pondTick-- <= 0) {
-            pondTick = 5;
+            pondTick = lite ? 14 : 5;
             water.getWorldPosition(pondCam.position);
             pondCam.position.y += 0.03;
             water.visible = false;
