@@ -147,8 +147,9 @@ void main() {
     float t = smoothstep(0.85, 2.85, vPos.y);
     vec3 c = mix(uHorizon, uTop, pow(t, 0.8));
     vec3 d = normalize(vPos - vec3(0.0, 1.0, 0.0));
-    float g = pow(max(dot(d, uSunDir), 0.0), 6.0);
-    c += uGlow * g * uSunGlow;
+    // Sky brightening round the sun: a broad wash plus a tight bright aureole.
+    float cosA = max(dot(d, uSunDir), 0.0);
+    c += uGlow * (pow(cosA, 5.0) * 0.7 + pow(cosA, 60.0) * 1.1) * uSunGlow;
     // The Milky Way on clear nights: a tilted band of mottled light with a
     // dark dust lane down the middle of it.
     if (uNight > 0.01) {
@@ -305,17 +306,36 @@ export function createJar(canvas, { onTap, reduceMotion }) {
     }
 
     /* ── Sun and moon ── */
-    const sunHalo = new THREE.Sprite(new THREE.SpriteMaterial({ map: soft, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false }));
-    sunHalo.scale.set(0.9, 0.9, 1);
-    const sunCore = new THREE.Sprite(new THREE.SpriteMaterial({
-        map: canvasTex(64, 64, (g) => {
-            const r = g.createRadialGradient(32, 32, 0, 32, 32, 32);
-            r.addColorStop(0, '#fff'); r.addColorStop(0.62, '#fff'); r.addColorStop(0.8, 'rgba(255,255,255,0.5)'); r.addColorStop(1, 'rgba(255,255,255,0)');
-            g.fillStyle = r; g.fillRect(0, 0, 64, 64);
-        }), transparent: true, depthWrite: false, toneMapped: false,
-    }));
-    sunCore.scale.set(0.2, 0.2, 1);
-    world.add(sunHalo, sunCore);
+    // The sun in layers, all additive and drawn past tone mapping so it can
+    // actually be bright: a white-hot disc with a warm limb, a tight corona,
+    // a wide glow that fills the sky round it, and faint rays that turn
+    // slowly. Each is depth-tested, so the tree and hills still cover it.
+    const add = (map, size) => {
+        const s = new THREE.Sprite(new THREE.SpriteMaterial({ map, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false }));
+        s.scale.set(size, size, 1);
+        world.add(s);
+        return s;
+    };
+    const radial = (stops) => canvasTex(128, 128, (g, w) => {
+        const r = g.createRadialGradient(w / 2, w / 2, 0, w / 2, w / 2, w / 2);
+        for (const [at, c] of stops) r.addColorStop(at, c);
+        g.fillStyle = r; g.fillRect(0, 0, w, w);
+    });
+    const sunGlow = add(radial([[0, 'rgba(255,255,255,0.5)'], [0.25, 'rgba(255,255,255,0.18)'], [0.6, 'rgba(255,255,255,0.05)'], [1, 'rgba(255,255,255,0)']]), 1.5);
+    const sunRays = add(canvasTex(256, 256, (g, w) => {
+        const Rr = rng(97);
+        g.translate(w / 2, w / 2);
+        for (let k = 0; k < 28; k++) {
+            const a = k / 28 * 6.283 + (Rr() - 0.5) * 0.2, len = w * (0.14 + Rr() * 0.3), wid = 0.6 + Rr() * 1.4;
+            const gr = g.createLinearGradient(0, 0, Math.cos(a) * len, Math.sin(a) * len);
+            gr.addColorStop(0, 'rgba(255,255,255,0.45)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
+            g.strokeStyle = gr; g.lineWidth = wid; g.lineCap = 'round';
+            g.beginPath(); g.moveTo(0, 0); g.lineTo(Math.cos(a) * len, Math.sin(a) * len); g.stroke();
+        }
+    }), 0.95);
+    const sunHalo = add(radial([[0, 'rgba(255,255,255,1)'], [0.2, 'rgba(255,255,255,0.75)'], [0.45, 'rgba(255,255,255,0.22)'], [1, 'rgba(255,255,255,0)']]), 0.46);
+    const sunCore = add(radial([[0, 'rgba(255,255,255,1)'], [0.42, 'rgba(255,255,255,1)'], [0.5, 'rgba(255,255,255,0.85)'], [0.56, 'rgba(255,255,255,0.25)'], [0.7, 'rgba(255,255,255,0)'], [1, 'rgba(255,255,255,0)']]), 0.2);
+    const sunLimb = new THREE.Color();
 
     const moonCanvas = document.createElement('canvas');
     moonCanvas.width = moonCanvas.height = 128;
@@ -797,7 +817,7 @@ export function createJar(canvas, { onTap, reduceMotion }) {
         for (let k = 0; k < 14; k++) {
             const a = Rc() * 6.283, d = Rc() * 26, x = 64 + Math.cos(a) * d, y = 64 + Math.sin(a) * d * 0.8, r = 22 + Rc() * 20;
             const gr = g.createRadialGradient(x, y, 0, x, y, r);
-            gr.addColorStop(0, 'rgba(255,255,255,0.55)'); gr.addColorStop(0.6, 'rgba(255,255,255,0.25)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
+            gr.addColorStop(0, 'rgba(255,255,255,0.45)'); gr.addColorStop(0.6, 'rgba(255,255,255,0.25)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
             g.fillStyle = gr; g.fillRect(0, 0, w, w);
         }
         // Break up the edge so it reads as vapour, not a disc.
@@ -1136,15 +1156,26 @@ export function createJar(canvas, { onTap, reduceMotion }) {
         const sy = Math.min(2.65, BASE + 0.16 + Math.max(-12, sun.el) / 60 * 1.6);
         const sr = Math.min(0.84, jarRadius(sy) * 0.85);
         const sunPos = tmp.set(Math.sin(phi) * sr, sy, -Math.cos(phi) * sr);
-        sunCore.position.copy(sunPos);
-        sunHalo.position.copy(sunPos);
+        for (const s of [sunCore, sunHalo, sunGlow, sunRays]) s.position.copy(sunPos);
         const warm = clamp01(1 - sun.el / 14);
         const core = [255, Math.round(240 - 70 * warm), Math.round(200 - 140 * warm)];
-        setLin(sunCore.material.color, core);
-        setLin(sunHalo.material.color, core);
         const sunVis = sun.el > -4 ? clamp01((sun.el + 4) / 4) : 0;
-        sunCore.material.opacity = sunVis * (0.95 * cloudHide + 0.05);
-        sunHalo.material.opacity = sunVis * 0.6 * cloudHide;
+        // The disc stays near white, warming only towards the horizon; the
+        // glow round it carries the colour of the hour.
+        setLin(sunLimb, core);
+        sunCore.material.color.setRGB(1, 1, 1).lerp(sunLimb, 0.25 + 0.6 * warm).multiplyScalar(1.4);
+        sunHalo.material.color.copy(sunLimb).multiplyScalar(1.1);
+        sunGlow.material.color.copy(sunLimb);
+        sunRays.material.color.copy(sunLimb);
+        // A low sun looks bigger and softer; behind cloud only a smudge of it shows.
+        const big = 1 + 0.25 * warm;
+        sunCore.scale.set(0.2 * big, 0.2 * big, 1);
+        sunCore.material.opacity = sunVis * (0.92 * cloudHide + 0.08);
+        sunHalo.material.opacity = sunVis * (0.75 * cloudHide + 0.1);
+        sunGlow.material.opacity = sunVis * (0.55 * cloudHide + 0.15 * w.cloud) * (1 - 0.5 * w.fog);
+        sunRays.material.opacity = sunVis * 0.22 * cloudHide * cloudHide * (1 - w.fog);
+        sunRays.material.rotation = t * 0.015;
+        sunRays.scale.setScalar(0.95 + 0.04 * Math.sin(t * 0.7));
         skyUniforms.uSunDir.value.copy(sunPos).sub(SKY_CENTRE).normalize();
         const low = sun.el > 0 && sun.el < 22 ? Math.min(1, sun.el / 3) * Math.min(1, (22 - sun.el) / 10) : 0;
         const beam = low * sunVis * cloudHide * (1 - w.fog) * (1 - w.rain) * (0.45 + 0.55 * Math.min(1, w.cloud * 2.5));
@@ -1166,7 +1197,7 @@ export function createJar(canvas, { onTap, reduceMotion }) {
             s.material.opacity = beam * 0.3 * k;
         }
         raw(skyUniforms.uGlow.value, core);
-        skyUniforms.uSunGlow.value = sunVis * cloudHide * (0.12 + 0.25 * warm);
+        skyUniforms.uSunGlow.value = sunVis * (0.12 + 0.88 * cloudHide) * (0.2 + 0.3 * warm);
 
         const mphi = -Math.max(-1.25, Math.min(1.25, sun.az)) * 1.05;
         const my = 2.3 - Math.abs(sun.az) * 0.35;
