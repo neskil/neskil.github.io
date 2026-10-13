@@ -186,7 +186,7 @@
         {
             const plain = P.makePlane(F.analyze(F.newSheet()), P.DEFAULT_TRIM);
             const r = P.fly(plain, 5, 7);
-            ok(r.stalls > 10, 'a flat sheet tumbles', r.stalls + ' stalls, ' + r.distance.toFixed(1) + ' m');
+            ok(r.stalls >= 1 && r.distance < 5, 'a flat sheet stalls and drops short', r.stalls + ' stalls, ' + r.distance.toFixed(1) + ' m');
             for (const d of F.DESIGNS) {
                 const pl = P.makePlane(F.analyze(folded(d.id)), { ...P.DEFAULT_TRIM, keel: d.keel, clips: 1 });
                 const f = P.fly(pl, 5, 7);
@@ -256,13 +256,108 @@
             const pl = P.makePlane(F.analyze(folded('dart')), P.DEFAULT_TRIM);
             const r = P3.fly3d(pl, { angle: 8, speed: 7, yaw: 0, bank: 0 });
             ok(r.path.every(p => p.length === 7 && p.every(Number.isFinite)), 'fly3d path is [x, y, z, qw, qx, qy, qz]');
-            ok(r.path.every(p => Math.abs(Math.hypot(p[3], p[4], p[5], p[6]) - 1) < 1e-6), 'fly3d orientations are unit quaternions');
             ok(['distance', 'offset', 'time', 'maxHeight', 'stalls', 'bonks', 'walls', 'landedOn', 'hoops'].every(k => k in r), 'fly3d returns every field the view reads');
             const a = P3.samplePath(r.path, 0), end = P3.samplePath(r.path, 1e6);
             ok(Math.abs(a.y - P3.ROOM3D.release) < 1e-9 && a.x === 0 && !a.done, 'samplePath starts at the hand');
             ok(end.done && Math.abs(end.x - r.path[r.path.length - 1][0]) < 1e-9, 'samplePath ends where the flight does');
             const mid = P3.samplePath(r.path, P3.SAMPLE3D * 2.5);
             ok(mid.x > r.path[2][0] && mid.x < r.path[3][0] && Math.abs(Math.hypot(...mid.q) - 1) < 1e-9, 'samplePath interpolates between samples');
+        }
+
+        // ── 3D flight: the same as 2D when nothing is lopsided ──
+        {
+            let worst = 0, side = 0, n = 0;
+            for (const d of F.DESIGNS) for (const t of [{}, { clips: 1, elevator: 0.25 }, { winglets: true }]) {
+                const pl = P.makePlane(F.analyze(folded(d.id)), { ...P.DEFAULT_TRIM, keel: d.keel, ...t });
+                for (const a of [0, 10, 25]) for (const v of [4, 7, 11]) {
+                    const r2 = P.fly(pl, a, v), r3 = P3.fly3d(pl, { angle: a, speed: v, yaw: 0, bank: 0 });
+                    worst = Math.max(worst, Math.abs(r3.distance - r2.distance) / Math.max(1, r2.distance));
+                    side = Math.max(side, ...r3.path.map(p => Math.abs(p[2])));
+                    n++;
+                }
+            }
+            ok(worst < 0.03, `a straight throw flies the 2D distance (${n} throws)`, (worst * 100).toFixed(2) + '% at worst');
+            ok(side < 0.01, 'and stays on the centre line', side.toFixed(4) + ' m at most');
+            const flat = P.makePlane(F.analyze(F.newSheet()), P.DEFAULT_TRIM);
+            const r = P3.fly3d(flat, { angle: 5, speed: 7, yaw: 0, bank: 0 });
+            ok(r.stalls >= 1 && r.distance < 5 && Math.abs(r.offset) < 0.01, 'a flat sheet still stalls and drops short', r.distance + ' m');
+        }
+
+        // ── 3D flight: roll and yaw ──
+        {
+            const dart = F.DESIGNS.find(d => d.id === 'dart');
+            // The dart with one tail corner folded over: that wing is smaller.
+            const lopsided = (side, trim = {}) => P.makePlane(F.analyze(F.build([...dart.steps,
+                { kind: 'free', S: [105 * side, 297], T: [75 * side, 267], mirrored: false }]).paper), { ...P.DEFAULT_TRIM, keel: 30, ...trim });
+            const aim = { angle: 8, speed: 7, yaw: 0, bank: 0 };
+            const right = P3.fly3d(lopsided(1), aim, null), left = P3.fly3d(lopsided(-1), aim, null);
+            ok(right.offset > 0.25, 'a smaller right wing veers right', right.offset + ' m');
+            ok(left.offset < -0.25 && Math.abs(left.offset + right.offset) < 0.02, 'and the mirror image veers left as far', left.offset + ' m');
+            const wl = P3.fly3d(lopsided(1, { winglets: true }), aim, null);
+            ok(Math.abs(wl.offset) < Math.abs(right.offset), 'winglets take most of the veer out', wl.offset + ' m');
+
+            const pl = P.makePlane(F.analyze(folded('nakamura')), { ...P.DEFAULT_TRIM, keel: 24 });
+            const bR = P3.fly3d(pl, { ...aim, bank: 15 }), bL = P3.fly3d(pl, { ...aim, bank: -15 });
+            ok(bR.offset > 0.5 && !bR.walls, 'a throw banked right curves right', bR.offset + ' m');
+            ok(Math.abs(bR.offset + bL.offset) < 0.01 && Math.abs(bR.distance - bL.distance) < 0.01, 'and banked left, the mirror image');
+            const more = P3.fly3d(pl, { ...aim, bank: 25 });
+            ok(more.offset > bR.offset, 'more bank, more curve', more.offset + ' m');
+            const yawed = P3.fly3d(pl, { ...aim, yaw: 8 });
+            ok(Math.abs(yawed.offset - yawed.distance * Math.tan(8 * Math.PI / 180)) < 0.4, 'a throw aimed 8° right goes where it was aimed', yawed.offset + ' m');
+
+            // Energy: lift does no work, drag and the keel only take it away.
+            const s = P3.launch3d(pl, { angle: 20, speed: 9, yaw: 5, bank: 20 });
+            const energy = () => 0.5 * pl.mass * (s.vx ** 2 + s.vy ** 2 + s.vz ** 2) + pl.mass * 9.81 * s.y;
+            const e0 = energy();
+            let gained = 0;
+            while (!s.landed && s.t < 20) { P3.step3d(s, pl, P.DT, null); gained = Math.max(gained, energy() - e0); }
+            ok(gained < e0 * 1e-3, 'no energy from nowhere in a banked climbing turn', (gained / e0 * 100).toFixed(4) + '%');
+
+            const wall = P3.fly3d(pl, { angle: 8, speed: 9, yaw: 20, bank: 0 });
+            ok(wall.walls >= 1 && wall.path.every(p => Math.abs(p[2]) <= P3.ROOM3D.width / 2), 'the side walls keep it in the room', wall.walls + ' hit(s)');
+            ok(wall.path.every(p => Math.abs(Math.hypot(p[3], p[4], p[5], p[6]) - 1) < 1e-9), 'and its orientation stays a unit quaternion');
+            const pillar = P3.fly3d(pl, aim, { pillars: [{ x: 4, z: 0, r: 0.3 }] });
+            ok(pillar.walls >= 1 && pillar.distance < 4, 'a pillar in the way stops it', pillar.distance + ' m');
+            const desk = P3.fly3d(pl, { angle: 0, speed: 6, yaw: 0, bank: 0 }, { pads: [{ x0: 3, x1: 4.5, y: 2 }] });
+            ok(desk.walls >= 1 && desk.distance < 3, 'and so does the side of a tall cupboard', desk.distance + ' m');
+            const off = P3.fly3d(pl, aim, { pads: [{ x0: 3, x1: 4.5, z0: 1, z1: 2, y: 2 }] });
+            ok(!off.walls && Math.abs(off.distance - P3.fly3d(pl, aim).distance) < 1e-9, 'a desk off to the side is not in the way');
+        }
+
+        // ── 3D missions and the daily bin ──
+        {
+            const candidates = [
+                ['dart', { keel: 26, elevator: 0.5, clips: 2 }],
+                ['glider', { keel: 26, elevator: 0.25, clips: 1 }],
+                ['nakamura', { keel: 18, elevator: 0.25, clips: 1 }],
+            ].map(([id, t]) => P.makePlane(F.analyze(folded(id)), { ...P.DEFAULT_TRIM, ...t }));
+            for (const m of P.MISSIONS) {
+                let done = null;
+                search: for (const pl of candidates) for (const a of [0, 5, 10, 15, 20, 30]) for (let v = 3; v <= 12; v += 0.25) {
+                    if (m.check(P3.fly3d(pl, { angle: a, speed: v, yaw: 0, bank: 0 }, m.world), m.world)) { done = `${a}° at ${v} m/s`; break search; }
+                }
+                ok(done, `mission “${m.name}” can be done in 3D too`, done || 'no throw found');
+            }
+            for (const m of P3.MISSIONS3D) {
+                let done = null;
+                search: for (const pl of candidates) for (const bank of [0, -10, 10, -20, 20]) for (const yaw of [0, -5, 5, -10, 10, -15, 15]) for (const a of [0, 5, 10]) for (let v = 5; v <= 12; v += 0.5) {
+                    if (m.check(P3.fly3d(pl, { angle: a, speed: v, yaw, bank }, m.world), m.world)) { done = `${a}° at ${v} m/s, aimed ${yaw}°, banked ${bank}°`; break search; }
+                }
+                ok(done, `3D mission “${m.name}” can be done`, done || 'no throw found');
+            }
+            const days = [3, 41, 77, 120, 199, 260].map(k => P.dailyChallenge(new Date(Date.UTC(2026, 0, k))));
+            ok(days.every(c => Math.abs(c.binZ) <= 1.5 && c.fans.every(f => Math.abs(f.z) <= Math.abs(c.binZ))), 'daily bins sit up to 1.5 m off the centre line');
+            let beaten = 0;
+            for (const c of days) {
+                const bearing = Math.atan2(c.binZ, c.bin) * 180 / Math.PI;
+                search: for (const pl of candidates) for (const dy of [0, -1, 1, -2, 2]) for (const a of [0, 5, 10, 15]) for (let v = 3; v <= 12; v += 0.25) {
+                    const r = P3.fly3d(pl, { angle: a, speed: v, yaw: bearing + dy, bank: 0 }, { fans: c.fans });
+                    if (P.inBin(r.distance, c, r.offset)) { beaten++; break search; }
+                }
+            }
+            ok(beaten === days.length, 'every sampled daily bin can be hit in 3D', `${beaten}/${days.length}`);
+            ok(P.inBin(c0().bin, c0()) && !P.inBin(c0().bin, c0(), c0().binZ + 1), 'inBin: by distance alone for 2D, by the rest point for 3D');
+            function c0() { return days[0]; }
         }
 
         const summary = document.getElementById('summary');

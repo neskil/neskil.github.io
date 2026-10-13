@@ -320,7 +320,11 @@ export const CELL = 2;
 
 export function analyze(paper) {
     const b = bounds(paper);
-    const x0 = Math.floor(b.x0 / CELL) * CELL, y0 = Math.floor(b.y0 / CELL) * CELL;
+    // Cell centres on even millimetres, symmetric about the centre line: the
+    // sheet's edges (±105) fall between them, never on one, where the
+    // inside test would count the left edge and not the right and every
+    // plane would lean left.
+    const x0 = Math.floor((b.x0 + 1) / CELL) * CELL - 1, y0 = Math.floor(b.y0 / CELL) * CELL;
     const nx = Math.ceil((b.x1 - x0) / CELL), ny = Math.ceil((b.y1 - y0) / CELL);
     const layers = new Uint8Array(nx * ny);
     let A = 0, cx = 0, cy = 0;
