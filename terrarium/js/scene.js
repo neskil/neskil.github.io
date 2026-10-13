@@ -134,14 +134,30 @@ varying vec3 vPos;
 void main() { vPos = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`;
 const SKY_FS = `
 uniform vec3 uTop; uniform vec3 uHorizon; uniform vec3 uSunDir; uniform vec3 uGlow;
-uniform float uSunGlow; uniform float uFlash;
+uniform float uSunGlow; uniform float uFlash; uniform float uNight;
 varying vec3 vPos;
+float hash(vec3 p) { return fract(sin(dot(p, vec3(12.9898, 78.233, 37.719))) * 43758.5453); }
+float noise(vec3 p) {
+    vec3 i = floor(p), f = fract(p);
+    f = f * f * (3.0 - 2.0 * f);
+    return mix(mix(mix(hash(i), hash(i + vec3(1, 0, 0)), f.x), mix(hash(i + vec3(0, 1, 0)), hash(i + vec3(1, 1, 0)), f.x), f.y),
+               mix(mix(hash(i + vec3(0, 0, 1)), hash(i + vec3(1, 0, 1)), f.x), mix(hash(i + vec3(0, 1, 1)), hash(i + vec3(1, 1, 1)), f.x), f.y), f.z);
+}
 void main() {
     float t = smoothstep(0.85, 2.85, vPos.y);
     vec3 c = mix(uHorizon, uTop, pow(t, 0.8));
     vec3 d = normalize(vPos - vec3(0.0, 1.0, 0.0));
     float g = pow(max(dot(d, uSunDir), 0.0), 6.0);
     c += uGlow * g * uSunGlow;
+    // The Milky Way on clear nights: a tilted band of mottled light with a
+    // dark dust lane down the middle of it.
+    if (uNight > 0.01) {
+        float off = dot(d, normalize(vec3(0.55, 0.3, 0.78)));
+        float band = exp(-off * off / 0.035);
+        float n = noise(d * 9.0) * 0.55 + noise(d * 23.0) * 0.3 + noise(d * 61.0) * 0.15;
+        float lane = exp(-pow(off + 0.04 * (noise(d * 7.0) - 0.5), 2.0) / 0.003);
+        c += vec3(0.62, 0.66, 0.85) * band * smoothstep(0.35, 0.85, n) * (1.0 - 0.7 * lane) * 0.3 * uNight * t;
+    }
     c = mix(c, vec3(0.86, 0.9, 1.0), uFlash * 0.45);
     gl_FragColor = vec4(c, 1.0);
 }`;
@@ -267,7 +283,7 @@ export function createJar(canvas, { onTap, reduceMotion }) {
     const skyUniforms = {
         uTop: { value: new THREE.Vector3() }, uHorizon: { value: new THREE.Vector3() },
         uSunDir: { value: new THREE.Vector3(0, 0.3, -1).normalize() }, uGlow: { value: new THREE.Vector3(1, 0.8, 0.5) },
-        uSunGlow: { value: 0 }, uFlash: { value: 0 },
+        uSunGlow: { value: 0 }, uFlash: { value: 0 }, uNight: { value: 0 },
     };
     const domePts = PROFILE.filter(([, y]) => y >= 0.75 && y <= 2.97).map(([x, y]) => new THREE.Vector2(x * 0.975, y));
     domePts.unshift(new THREE.Vector2(0.975, 0.75));
@@ -329,6 +345,25 @@ export function createJar(canvas, { onTap, reduceMotion }) {
     const moonGlow = new THREE.Sprite(new THREE.SpriteMaterial({ map: soft, color: 0xc8d4ff, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false }));
     moonGlow.scale.set(0.6, 0.6, 1);
     world.add(moonGlow, moon);
+
+    /* ── Sunbeams, low in the sky: screen-aligned, so turned by hand to point
+       from the sun down at the meadow ── */
+    const shaftTex = canvasTex(64, 256, (g, w, h) => {
+        const gr = g.createLinearGradient(0, 0, 0, h);
+        gr.addColorStop(0, 'rgba(255,255,255,0)'); gr.addColorStop(0.15, 'rgba(255,255,255,0.9)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
+        g.fillStyle = gr; g.fillRect(0, 0, w, h);
+        g.globalCompositeOperation = 'destination-in';
+        const side = g.createLinearGradient(0, 0, w, 0);
+        side.addColorStop(0, 'rgba(0,0,0,0)'); side.addColorStop(0.5, 'rgba(0,0,0,1)'); side.addColorStop(1, 'rgba(0,0,0,0)');
+        g.fillStyle = side; g.fillRect(0, 0, w, h);
+    });
+    const shafts = [[-0.1, 0.14, 1], [0.06, 0.09, 0.8], [0.17, 0.12, 0.6]].map(([off, width, k]) => {
+        const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: shaftTex, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: 0 }));
+        s.userData = { off, width, k };
+        world.add(s);
+        return s;
+    });
+    const shaftA = new THREE.Vector3(), shaftB = new THREE.Vector3(), shaftDir = new THREE.Vector3();
 
     /* ── Light inside the jar ── */
     const hemi = new THREE.HemisphereLight(0xffffff, 0x2a3a1c, 0.6);
@@ -804,6 +839,8 @@ export function createJar(canvas, { onTap, reduceMotion }) {
         d.x = x; d.z = z; d.v = 0.8 + R() * 0.5;
         d.y = anywhere ? BASE + R() * 1.6 : 2.45 + R() * 0.2;
         d.floor = groundH(x, z);
+        d.pond = Math.hypot(x - POND.x, z - POND.z) < POND.r * 0.88;
+        if (d.pond) d.floor = WATER_Y;
         return d;
     }
     const rainGeo = new THREE.BufferGeometry();
@@ -813,6 +850,16 @@ export function createJar(canvas, { onTap, reduceMotion }) {
     rain.frustumCulled = false;
     world.add(rain);
 
+    const ringGeo = new THREE.RingGeometry(0.8, 1, 28);
+    ringGeo.rotateX(-Math.PI / 2);
+    const rings = Array.from({ length: 16 }, () => {
+        const m = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ color: 0x4a5a6a, transparent: true, opacity: 0, depthWrite: false }));
+        m.visible = false;
+        m.userData.life = 0;
+        world.add(m);
+        return m;
+    });
+    let ringNext = 0;
     const NSPLASH = 70;
     const splashes = points(NSPLASH, { color: [0.85, 0.9, 1], size: 0.03, hard: 0.1 });
     const splashLife = new Float32Array(NSPLASH);
@@ -995,8 +1042,14 @@ export function createJar(canvas, { onTap, reduceMotion }) {
 
     /* ── Turning the jar ── */
     const view = { turn: 0, spin: 0, tilt: 13, idle: 0 };
+    // The jar swings round into place as the page opens, while the camera
+    // settles from a little higher; then the slow idle turn carries on.
+    const INTRO = { from: -1.25, tilt: 24, len: 3.4 };
+    let intro = reduceMotion() || /[?&]intro=0\b/.test(location.search) ? null : 0;
+    if (intro !== null) { view.turn = INTRO.from; view.tilt = INTRO.tilt; }
     const press = { id: null, x: 0, y: 0, moved: 0, mouse: false };
     canvas.addEventListener('pointerdown', (e) => {
+        intro = null;
         press.id = e.pointerId; press.x = e.clientX; press.y = e.clientY; press.moved = 0; press.mouse = e.pointerType === 'mouse';
         view.spin = 0;
         view.idle = 0;
@@ -1055,7 +1108,13 @@ export function createJar(canvas, { onTap, reduceMotion }) {
         const still = reduceMotion();
 
         // Camera and turn.
-        if (press.id === null) {
+        if (intro !== null) {
+            intro = Math.min(INTRO.len, intro + dt);
+            const e = 1 - Math.pow(1 - intro / INTRO.len, 3);
+            view.turn = INTRO.from * (1 - e);
+            view.tilt = INTRO.tilt + (13 - INTRO.tilt) * e;
+            if (intro >= INTRO.len) { intro = null; view.idle = 6; }
+        } else if (press.id === null) {
             view.turn += view.spin * dt;
             view.spin *= Math.pow(0.04, dt);
             view.idle += dt;
@@ -1087,6 +1146,25 @@ export function createJar(canvas, { onTap, reduceMotion }) {
         sunCore.material.opacity = sunVis * (0.95 * cloudHide + 0.05);
         sunHalo.material.opacity = sunVis * 0.6 * cloudHide;
         skyUniforms.uSunDir.value.copy(sunPos).sub(SKY_CENTRE).normalize();
+        const low = sun.el > 0 && sun.el < 22 ? Math.min(1, sun.el / 3) * Math.min(1, (22 - sun.el) / 10) : 0;
+        const beam = low * sunVis * cloudHide * (1 - w.fog) * (1 - w.rain) * (0.45 + 0.55 * Math.min(1, w.cloud * 2.5));
+        shaftDir.set(0, BASE + 0.1, 0).sub(sunPos);
+        const reach = Math.min(0.95, shaftDir.length());
+        shaftDir.normalize();
+        for (const s of shafts) {
+            const { off, width, k } = s.userData;
+            s.visible = beam > 0.02;
+            if (!s.visible) continue;
+            s.position.copy(sunPos).addScaledVector(shaftDir, reach * 0.5);
+            s.position.x += off * 0.3;
+            // Point the sprite along the beam as it appears on screen.
+            shaftA.copy(sunPos); world.localToWorld(shaftA); shaftA.project(camera);
+            shaftB.copy(sunPos).addScaledVector(shaftDir, reach); world.localToWorld(shaftB); shaftB.project(camera);
+            s.material.rotation = Math.atan2((shaftB.y - shaftA.y), (shaftB.x - shaftA.x) * camera.aspect) + Math.PI / 2 + off * 0.5;
+            s.scale.set(width, reach, 1);
+            setLin(s.material.color, core);
+            s.material.opacity = beam * 0.3 * k;
+        }
         raw(skyUniforms.uGlow.value, core);
         skyUniforms.uSunGlow.value = sunVis * cloudHide * (0.12 + 0.25 * warm);
 
@@ -1104,6 +1182,7 @@ export function createJar(canvas, { onTap, reduceMotion }) {
         const starA = night * (1 - Math.min(1, w.cloud * 1.1)) * (1 - w.fog);
         stars.material.uniforms.uOpacity.value = starA;
         stars.visible = starA > 0.02;
+        skyUniforms.uNight.value = starA;
 
         // Light inside: the sun by day, the moon by night, the sky all round.
         const lit = 1 - Math.min(0.8, w.cloud * 0.7 + w.fog * 0.3);
@@ -1229,6 +1308,11 @@ export function createJar(canvas, { onTap, reduceMotion }) {
                         spos.setXYZ(s, d.x, d.floor + 0.012, d.z);
                         splashLife[s] = 1;
                     }
+                    if (d.pond && !frozen && Math.hypot(d.x - POND.x, d.z - POND.z) < POND.r * 0.92) {
+                        const ring = rings[ringNext++ % rings.length];
+                        ring.position.set(d.x, WATER_Y + 0.002, d.z);
+                        ring.userData.life = 1;
+                    }
                     spawnDrop(d, false);
                 }
                 const len = 0.075 * d.v;
@@ -1251,6 +1335,14 @@ export function createJar(canvas, { onTap, reduceMotion }) {
             splashes.visible = any;
             splashes.geometry.attributes.aAlpha.needsUpdate = true;
             splashes.geometry.attributes.aSize.needsUpdate = true;
+        }
+
+        for (const r of rings) {
+            const l = r.userData.life = Math.max(0, r.userData.life - dt * 1.4);
+            r.visible = l > 0;
+            if (!r.visible) continue;
+            r.scale.setScalar(0.004 + (1 - l) * 0.05);
+            r.material.opacity = l * 0.55;
         }
 
         // Snow.
@@ -1342,7 +1434,7 @@ export function createJar(canvas, { onTap, reduceMotion }) {
         }
 
         if (summonAt >= 0 && t >= summonAt) { summonAt = -1; visitors.summon(); }
-        visitors.update(dt, t, { snow: snowCover, still });
+        visitors.update(dt, t, { snow: snowCover, still, day, w });
 
         // The pond's reflection, refreshed every few frames.
         if (water.visible && pondTick-- <= 0) {
@@ -1367,6 +1459,7 @@ export function createJar(canvas, { onTap, reduceMotion }) {
         renderer.clear();
         renderer.render(inner, camera);
         renderer.render(room, camera);
+        if (!canvas.classList.contains('ready')) canvas.classList.add('ready');
     }
 
     resize();

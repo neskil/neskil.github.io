@@ -1,7 +1,8 @@
 // Pocket Weather Terrarium — who else lives in the jar. A sheep grazes the
-// meadow, an earthworm works its way round the soil against the glass, and
-// every few minutes (or after five quick taps on the glass) something comes
-// down out of the jar's sky for the sheep. It brings her back.
+// meadow, butterflies come out on warm dry days, an earthworm works its way
+// round the soil against the glass, and every few minutes (or after five
+// quick taps on the glass) something comes down out of the jar's sky for the
+// sheep. It brings her back.
 //
 // Built against the same three.js global and jar coordinates as scene.js,
 // which hands over the pieces of the world this needs.
@@ -305,10 +306,72 @@ export function createVisitors({ world, shell, groundH, onMeadow, envMap, rand }
         }
     }
 
+    /* ── Butterflies, on warm dry days ──
+       Each is two painted wings hinged on a body, flapping fast, wandering
+       between flowers on a loose figure-of-eight and resting now and then. */
+    function wingTex(base, edge, spot) {
+        const c = document.createElement('canvas');
+        c.width = c.height = 64;
+        const g = c.getContext('2d');
+        g.fillStyle = base;
+        g.beginPath(); g.moveTo(2, 34); g.bezierCurveTo(10, 2, 46, -4, 62, 14); g.bezierCurveTo(60, 30, 44, 36, 34, 36);
+        g.bezierCurveTo(50, 44, 52, 60, 36, 62); g.bezierCurveTo(22, 62, 8, 50, 2, 34); g.fill();
+        g.globalCompositeOperation = 'source-atop';
+        g.strokeStyle = edge; g.lineWidth = 7; g.stroke();
+        g.fillStyle = spot; g.beginPath(); g.arc(40, 16, 5, 0, 6.283); g.fill();
+        const tex = new THREE.CanvasTexture(c);
+        tex.encoding = THREE.sRGBEncoding;
+        return tex;
+    }
+    const wingGeo = new THREE.PlaneGeometry(0.065, 0.065);
+    wingGeo.translate(0.0325, 0, 0);
+    wingGeo.rotateX(-Math.PI / 2);
+    const bodyGeo = new THREE.CylinderGeometry(0.0035, 0.0022, 0.045, 5);
+    bodyGeo.rotateX(Math.PI / 2);
+    const flies = [['#f0922e', '#2a1a12', '#fff4d8'], ['#f7f2e4', '#3a3a3a', '#2a2a2a'], ['#5aa0ff', '#1a2a50', '#e0f0ff'], ['#ffd84a', '#3a2a10', '#ff9a3a']].map(([base, edge, spot], i) => {
+        const mat = new THREE.MeshStandardMaterial({ map: wingTex(base, edge, spot), transparent: true, alphaTest: 0.3, side: THREE.DoubleSide, roughness: 0.6 });
+        const g = new THREE.Group();
+        const left = new THREE.Mesh(wingGeo, mat), right = new THREE.Mesh(wingGeo, mat);
+        right.scale.x = -1;
+        const b = new THREE.Mesh(bodyGeo, face);
+        g.add(left, right, b);
+        g.scale.setScalar(0);
+        world.add(g);
+        return { g, left, right, home: [(rand() - 0.5) * 0.9, (rand() - 0.5) * 0.9], p: rand() * 6.28, rest: 0, size: -1, speed: 0.5 + rand() * 0.4, i };
+    });
+    const bfPrev = new THREE.Vector3();
+    function updateButterflies(dt, t, day, w) {
+        const out = day > 0.55 && !(w.rain > 0) && !(w.snow > 0) && (w.temp ?? 15) >= 11 && (w.wind ?? 0) < 8 && !w.storm;
+        for (const f of flies) {
+            // Already out if the page opens on a fine day; otherwise they drift in.
+            if (f.size < 0) f.size = out ? 1 : 0;
+            f.size += ((out ? 1 : 0) - f.size) * Math.min(1, dt * 0.8);
+            f.g.visible = f.size > 0.02;
+            if (!f.g.visible) continue;
+            f.g.scale.setScalar(f.size);
+            f.p += dt * f.speed * (f.rest > 0 ? 0 : 1);
+            if (f.rest > 0) f.rest -= dt;
+            else if (rand() < dt * 0.04) f.rest = 1.5 + rand() * 3;
+            const x = f.home[0] + Math.sin(f.p * 1.3) * 0.28, z = f.home[1] + Math.sin(f.p * 0.9 + f.i) * 0.24 * Math.cos(f.p * 0.6);
+            const r = Math.hypot(x, z), k = r > 0.8 ? 0.8 / r : 1;
+            const gx = x * k, gz = z * k, floor = groundH(gx, gz);
+            const y = f.rest > 0 ? floor + 0.05 : floor + 0.14 + 0.1 * Math.sin(f.p * 2.1) + 0.02 * Math.sin(t * 9 + f.i);
+            bfPrev.copy(f.g.position);
+            f.g.position.set(gx, f.g.position.y ? f.g.position.y + (y - f.g.position.y) * Math.min(1, dt * 4) : y, gz);
+            const dx = f.g.position.x - bfPrev.x, dz = f.g.position.z - bfPrev.z;
+            if (Math.abs(dx) + Math.abs(dz) > 1e-5) f.g.rotation.y = Math.atan2(dx, dz);
+            // Wings: fast beats in flight, slow open-and-close at rest.
+            const flap = f.rest > 0 ? 0.5 + 0.5 * Math.sin(t * 2 + f.i) : Math.sin(t * 26 + f.i * 2);
+            f.left.rotation.z = 0.15 + flap * 1.1;
+            f.right.rotation.z = -(0.15 + flap * 1.1);
+        }
+    }
+
     return {
-        summon, _dbg: () => ({ phase: visit.phase, t: visit.t, mode: flock.mode, vis: ufo.visible, pos: ufo.position.toArray(), sc: ufo.scale.x }),
-        update(dt, t, { snow, still }) {
+        summon, _dbg: () => ({ flies: flies.map(f => [f.size, f.g.visible, f.g.position.toArray().map(v => +v.toFixed(3))]), phase: visit.phase, t: visit.t, mode: flock.mode, vis: ufo.visible, pos: ufo.position.toArray(), sc: ufo.scale.x }),
+        update(dt, t, { snow, still, day, w }) {
             updateSheep(dt, t, snow);
+            updateButterflies(dt, t, day, w);
             updateWorm(dt, t);
             updateUfo(dt, t, still);
         },
