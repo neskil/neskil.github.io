@@ -116,6 +116,10 @@
 
         #jar.turning { cursor: grabbing; }
 
+        /* The jar fades up with its opening turn rather than popping in. */
+        #jar { opacity: 0; transition: opacity 0.9s ease; }
+        #jar.ready { opacity: 1; }
+
         .no-gl { max-width: 22rem; text-align: center; }
 
         .panel {
