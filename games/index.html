@@ -488,23 +488,23 @@
         let filteredGames = [];
 
         const genreBackgrounds = {
-            "Action Adventure": "images/genres/action_adventure.png",
-            "Co-op Party Multiplayer": "images/genres/coop_party.png",
-            "Fighting Beat Em Up": "images/genres/fighting.png",
-            "Horror Survival": "images/genres/horror_survival.png",
-            "Indie Puzzle Experimental": "images/genres/indie_puzzle.png",
-            "Narrative Walking Sim": "images/genres/narrative_walking.png",
-            "Open World Sandbox": "images/genres/open_world.png",
-            "Platformer Precision": "images/genres/platformer_precision.png",
-            "Racing Sports Driving": "images/genres/racing_sports.png",
-            "Retro Classic": "images/genres/retro_classic.png",
-            "Roguelike Roguelite": "images/genres/roguelike_roguelite.png",
-            "RPG Story Rich": "images/genres/rpg_story_rich.png",
-            "RTS Grand Strategy": "images/genres/rts_grand_strategy.png",
-            "Shooter FPS Tactical": "images/genres/shooter_fps.png",
-            "Simulation Builder Tycoon": "images/genres/simulation_builder.png",
-            "Soulslike Hardcore Combat": "images/genres/soulslike.png",
-            "Turn-Based Strategy Tactics": "images/genres/turn_based_tactics.png"
+            "Action Adventure": "images/genres/action_adventure.webp",
+            "Co-op Party Multiplayer": "images/genres/coop_party.webp",
+            "Fighting Beat Em Up": "images/genres/fighting.webp",
+            "Horror Survival": "images/genres/horror_survival.webp",
+            "Indie Puzzle Experimental": "images/genres/indie_puzzle.webp",
+            "Narrative Walking Sim": "images/genres/narrative_walking.webp",
+            "Open World Sandbox": "images/genres/open_world.webp",
+            "Platformer Precision": "images/genres/platformer_precision.webp",
+            "Racing Sports Driving": "images/genres/racing_sports.webp",
+            "Retro Classic": "images/genres/retro_classic.webp",
+            "Roguelike Roguelite": "images/genres/roguelike_roguelite.webp",
+            "RPG Story Rich": "images/genres/rpg_story_rich.webp",
+            "RTS Grand Strategy": "images/genres/rts_grand_strategy.webp",
+            "Shooter FPS Tactical": "images/genres/shooter_fps.webp",
+            "Simulation Builder Tycoon": "images/genres/simulation_builder.webp",
+            "Soulslike Hardcore Combat": "images/genres/soulslike.webp",
+            "Turn-Based Strategy Tactics": "images/genres/turn_based_tactics.webp"
         };
 
 
@@ -590,7 +590,7 @@
         function handleImageError(img, category, title) {
             img.onerror = null; // Prevent infinite loop
             
-            const fallbackBg = genreBackgrounds[category] || "images/genres/action_adventure.png";
+            const fallbackBg = genreBackgrounds[category] || "images/genres/action_adventure.webp";
             
             img.src = fallbackBg;
 
@@ -624,7 +624,7 @@
             scoreEl.className = 'card-score ' + getScoreClass(game.score);
 
             const encodedTitle = encodeURIComponent(game.title);
-            const imageUrl = game.imgUrl || (genreBackgrounds[game.category] || "images/genres/action_adventure.png");
+            const imageUrl = game.imgUrl || (genreBackgrounds[game.category] || "images/genres/action_adventure.webp");
             
             let fallbackClass = !game.imgUrl ? 'has-fallback' : '';
             let fallbackTitleHTML = !game.imgUrl ? `<div class="fallback-title">${game.title}</div>` : '';
@@ -757,7 +757,7 @@
                 card.onclick = () => openModal(game);
                 
                 const encodedTitle = encodeURIComponent(game.title);
-                const imageUrl = game.imgUrl || (genreBackgrounds[game.category] || "images/genres/action_adventure.png");
+                const imageUrl = game.imgUrl || (genreBackgrounds[game.category] || "images/genres/action_adventure.webp");
                 
                 let fallbackClass = !game.imgUrl ? 'has-fallback' : '';
                 let fallbackTitleHTML = !game.imgUrl ? `<div class="fallback-title">${game.title}</div>` : '';
