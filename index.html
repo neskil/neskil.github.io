@@ -399,7 +399,9 @@
             background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)' opacity='0.55'/%3E%3C/svg%3E");
         }
 
-        @media (max-width: 600px) {
+        /* Touch as well as narrow: an iPad is too wide for the phone rules but has
+           a phone's GPU, and its blobs are 60vw of a much wider screen. */
+        @media (max-width: 600px), (hover: none), (pointer: coarse) {
             /* Big blurs are the expensive part on a phone — shrink the radius */
             .bg-blob {
                 filter: blur(60px);
@@ -2163,6 +2165,30 @@
             opacity: 0.7;
         }
 
+        /* Phone savings that are about the GPU, not the layout, so they key off
+           touch as well as width: an iPad is wider than 640px, missed both of
+           these, and with three columns of cards on screen it pays for them more
+           than a phone does. */
+        @media (max-width: 640px), (hover: none), (pointer: coarse) {
+            /* A 4px blur behind a chip that is already sitting on a blurred card —
+               visually almost nothing, and worth ~2.6ms a frame. */
+            .card-stat-chip {
+                backdrop-filter: none;
+                -webkit-backdrop-filter: none;
+            }
+
+            /* The grain texture stays, since it is what keeps the dark gradients from
+               banding. Only its blend mode goes: soft-light makes the compositor read
+               back everything underneath, and this layer sits inside the backdrop that
+               the cards then blur, so it was being read back constantly — ~5.5ms a
+               frame, the largest single cost left after the script fixes. Plain
+               low-opacity noise over a background this dark reads almost identically. */
+            #bg-grain {
+                mix-blend-mode: normal;
+                opacity: 0.28;
+            }
+        }
+
         @media (max-width: 640px) {
             html {
                 background-attachment: scroll;
@@ -2258,23 +2284,8 @@
                outright saved ~7ms a frame. So dropping the radius would have cost the
                glass look and bought nothing. Two cheaper things go instead: */
 
-            /* A 4px blur behind a chip that is already sitting on a blurred card —
-               visually almost nothing, and worth ~2.6ms a frame. */
-            .card-stat-chip {
-                backdrop-filter: none;
-                -webkit-backdrop-filter: none;
-            }
-
-            /* The grain texture stays, since it is what keeps the dark gradients from
-               banding. Only its blend mode goes: soft-light makes the compositor read
-               back everything underneath, and this layer sits inside the backdrop that
-               nine cards then blur, so it was being read back constantly — ~5.5ms a
-               frame, the largest single cost left after the script fixes. Plain
-               low-opacity noise over a background this dark reads almost identically. */
-            #bg-grain {
-                mix-blend-mode: normal;
-                opacity: 0.28;
-            }
+            /* Two cheaper things go instead — in the touch block below, so a
+               tablet gets them too. */
 
             /* A flip card is only a transparent stage — its visible surface is the
                faces, which carry their own padding. The .card rule above matches it
@@ -4377,6 +4388,7 @@
            `reduced` lands near 0.6 of `full` with the web still looking like a
            web, which is a better trade than a cheaper frame nobody recognises. */
         const LINK_DISTANCE_BY_TIER = [150, 150, 0];
+        const TOUCH_MAX_AMBIENT = 45;
         let lastCanvasFrame = 0;
 
         let width, height;
@@ -5045,6 +5057,11 @@
             themeEntities = [];
             // Responsive amount of particles based on screen size
             ambientCount = Math.round(Math.min((width * height) / 12000, 150));
+            /* A tablet is a phone's GPU behind a desktop's screen. Area alone gave
+               an iPad 80-115 dots against a phone's ~30, so ~7-14x the O(n²) link
+               work, all of it re-blurred by three columns of cards — the lag on
+               iPad that a phone never showed. Touch screens stop at ~1.5 phones. */
+            if (prefersCheapCanvas) ambientCount = Math.min(ambientCount, TOUCH_MAX_AMBIENT);
             applyFieldBudget();
             loadHighScores();
         }
