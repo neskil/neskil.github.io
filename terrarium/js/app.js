@@ -174,7 +174,7 @@ try {
     note.className = 'note no-gl';
     note.textContent = 'The jar needs WebGL, which this browser has turned off. The weather card still works.';
     canvas.replaceWith(note);
-    jar = { render() {}, resize() {}, setTag() {} };
+    jar = { render() {}, resize() {}, setTag() {}, ufo() {} };
 }
 new ResizeObserver(() => jar.resize()).observe(canvas.parentElement);
 
@@ -196,6 +196,8 @@ function loop(now) {
     // ?at=2026-10-12T15:45Z pins the jar to a moment, for screenshots.
     if (params.get('at') && !isNaN(Date.parse(params.get('at')))) state.warpHours = (Date.parse(params.get('at')) - Date.now()) / 3600000;
     if (params.get('snow')) state.snowCover = Math.min(1, +params.get('snow') || 0);
+    // ?ufo=3 calls the visitor three seconds in (five quick taps on the glass do too).
+    if (params.has('ufo')) jar.ufo(+params.get('ufo') || 0);
     let saved = null;
     try { saved = JSON.parse(localStorage.getItem('terrarium.place')); } catch (e) { /* none */ }
     const lat = parseFloat(params.get('lat')), lon = parseFloat(params.get('lon'));

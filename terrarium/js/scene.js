@@ -12,6 +12,7 @@
 // as the page first shows it, and the sun travels east (-x) to west (+x).
 
 const THREE = window.THREE;
+import { createVisitors } from './visitors.js';
 
 /* ── Seeded scenery: the jar looks the same every visit ── */
 function rng(seed) {
@@ -149,33 +150,43 @@ void main() {
    shoulder. Worked out in view space, so the reflections stay put while the
    jar turns under them, as a real one's would. ── */
 const GLASS_VS = `
-varying vec3 vN; varying vec3 vV; varying float vY;
+varying vec3 vN; varying vec3 vV; varying float vY; varying vec2 vUv;
 void main() {
     vec4 mv = modelViewMatrix * vec4(position, 1.0);
     vN = normalize(normalMatrix * normal);
     vV = normalize(-mv.xyz);
     vY = position.y;
+    vUv = uv;
     gl_Position = projectionMatrix * mv;
 }`;
 const GLASS_FS = `
-uniform float uFront; uniform float uDamp;
-varying vec3 vN; varying vec3 vV; varying float vY;
+uniform float uFront; uniform float uDamp; uniform sampler2D uSmudge;
+varying vec3 vN; varying vec3 vV; varying float vY; varying vec2 vUv;
 void main() {
     vec3 n = normalize(vN);
     vec3 v = normalize(vV);
     float facing = abs(dot(n, v));
     float fres = pow(1.0 - facing, 2.6);
+    vec3 r = reflect(-v, n);
     float body = smoothstep(0.2, 0.5, vY) * (1.0 - smoothstep(2.25, 2.55, vY));
-    float s1 = smoothstep(0.1, 0.0, abs(n.x + 0.6)) * body;
-    float s2 = smoothstep(0.05, 0.0, abs(n.x - 0.74)) * body;
+    // The room, reflected: a big softbox up to the left, a narrow window to
+    // the right, a ceiling brighter than the floor.
+    float box = smoothstep(0.17, 0.07, abs(r.x + 0.42)) * smoothstep(-0.15, 0.2, r.y) * smoothstep(0.98, 0.75, r.y);
+    float win = smoothstep(0.07, 0.025, abs(r.x - 0.6)) * smoothstep(-0.05, 0.3, r.y);
+    float room = 0.05 * smoothstep(-0.4, 0.7, r.y);
     vec3 l = normalize(vec3(-0.45, 0.75, 0.55));
-    float spec = pow(max(dot(reflect(-l, n), v), 0.0), 60.0);
+    float spec = pow(max(dot(reflect(-l, n), v), 0.0), 80.0);
     float base = 1.0 - smoothstep(0.0, 0.1, vY);
-    float hl = uFront * (s1 * 0.2 + s2 * 0.13 + spec * 0.9);
-    vec3 tint = vec3(0.72, 0.9, 0.86);
-    vec3 col = mix(tint, vec3(1.0), clamp(hl * 3.0 + fres * 0.3, 0.0, 1.0));
-    float a = 0.025 + fres * (0.45 + 0.15 * uFront) + hl + base * 0.14 + uDamp * 0.05 * uFront;
-    gl_FragColor = vec4(col, clamp(a, 0.0, 0.9));
+    // Fingerprints and dust, only where the light catches them.
+    float smudge = texture2D(uSmudge, vUv * vec2(4.0, 1.6)).r;
+    float hl = uFront * ((box * 0.26 + win * 0.16) * body * (0.75 + 0.6 * smudge) + spec * 0.95);
+    // Thick glass goes greener at the edges, with a hint of blue in the rim.
+    vec3 tint = mix(vec3(0.72, 0.9, 0.86), vec3(0.55, 0.82, 0.78), fres);
+    vec3 col = mix(tint, vec3(1.0), clamp(hl * 3.0 + fres * 0.25, 0.0, 1.0));
+    col += vec3(-0.04, 0.0, 0.06) * smoothstep(0.55, 0.95, 1.0 - facing);
+    float a = 0.022 + fres * (0.45 + 0.15 * uFront) + hl + room * uFront + base * 0.16
+            + uDamp * 0.05 * uFront + smudge * 0.03 * uFront * (0.3 + box + fres);
+    gl_FragColor = vec4(col, clamp(a, 0.0, 0.92));
 }`;
 
 export function createJar(canvas, { onTap, reduceMotion }) {
@@ -198,6 +209,7 @@ export function createJar(canvas, { onTap, reduceMotion }) {
     room.add(shell);
 
     const R = rng(20261011);
+    const R2 = rng(5150);
     const soft = softTex();
     const pointMats = [];
     function points(n, { color, size, hard = 0.3, twinkle = 0, additive = false }) {
@@ -217,6 +229,35 @@ export function createJar(canvas, { onTap, reduceMotion }) {
         world.add(p);
         return p;
     }
+
+    /* ── The room, as a reflection map for anything shiny ── */
+    const envTex = (() => {
+        const env = new THREE.Scene();
+        env.add(new THREE.Mesh(new THREE.SphereGeometry(10, 32, 16), new THREE.ShaderMaterial({
+            side: THREE.BackSide,
+            vertexShader: 'varying vec3 vP; void main() { vP = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+            fragmentShader: 'varying vec3 vP; void main() { float y = normalize(vP).y; vec3 c = mix(vec3(0.05, 0.04, 0.035), vec3(0.32, 0.34, 0.38), smoothstep(-0.3, 0.6, y)); gl_FragColor = vec4(c, 1.0); }',
+        })));
+        const panel = (w, h, x, y, z, k) => {
+            const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ color: new THREE.Color(k, k * 0.97, k * 0.92), side: THREE.DoubleSide }));
+            m.position.set(x, y, z);
+            m.lookAt(0, 0, 0);
+            env.add(m);
+        };
+        panel(5, 4, -5, 5, 4, 6);     // the softbox
+        panel(1.2, 5, 7, 2, -2, 2.5); // a window
+        // A plain mipmapped cube rather than PMREM, whose float targets come
+        // out black on some GPUs; rough surfaces just read a blurrier mip.
+        const rt = new THREE.WebGLCubeRenderTarget(256, { generateMipmaps: true, minFilter: THREE.LinearMipmapLinearFilter });
+        rt.texture.encoding = THREE.sRGBEncoding;
+        const cam = new THREE.CubeCamera(0.1, 50, rt);
+        env.add(cam);
+        renderer.autoClear = true;
+        cam.update(renderer, env);
+        renderer.autoClear = false;
+        return rt.texture;
+    })();
+    room.environment = envTex;
 
     /* ── Sky dome ── */
     const skyUniforms = {
@@ -291,7 +332,7 @@ export function createJar(canvas, { onTap, reduceMotion }) {
     const flashLight = new THREE.AmbientLight(0xdde6ff, 0);
     const sunLight = new THREE.DirectionalLight(0xffffff, 1);
     sunLight.castShadow = true;
-    sunLight.shadow.mapSize.set(1024, 1024);
+    sunLight.shadow.mapSize.set(2048, 2048);
     Object.assign(sunLight.shadow.camera, { left: -1.3, right: 1.3, top: 1.3, bottom: -1.3, near: 0.1, far: 7 });
     sunLight.shadow.bias = -0.0006;
     sunLight.shadow.normalBias = 0.015;
@@ -334,6 +375,7 @@ export function createJar(canvas, { onTap, reduceMotion }) {
         const top = new THREE.BufferGeometry();
         top.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
         top.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+        top.setAttribute('uv', new THREE.Float32BufferAttribute(pos.flatMap((v, i) => i % 3 === 1 ? [] : [v * 2.4]), 2));
         top.setIndex(idx);
         top.computeVertexNormals();
 
@@ -352,7 +394,23 @@ export function createJar(canvas, { onTap, reduceMotion }) {
         return { top, skirt };
     }
     const groundGeo = buildGround();
-    const ground = new THREE.Mesh(groundGeo.top, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1 }));
+    // Turf seen up close: short blades and bare patches, multiplied over the
+    // vertex colours and doubling as a bump map.
+    const turf = canvasTex(256, 256, (g, w) => {
+        const Rt = rng(31);
+        g.fillStyle = '#c8c8c8'; g.fillRect(0, 0, w, w);
+        for (let k = 0; k < 2600; k++) {
+            const x = Rt() * w, y = Rt() * w, l = 3 + Rt() * 7, a = -1.57 + (Rt() - 0.5) * 0.9;
+            const v = Math.round(150 + Rt() * 105);
+            g.strokeStyle = `rgb(${v},${v},${v})`;
+            g.lineWidth = 0.6 + Rt();
+            g.beginPath(); g.moveTo(x, y); g.lineTo(x + Math.cos(a) * l, y + Math.sin(a) * l); g.stroke();
+        }
+        for (let k = 0; k < 90; k++) { g.fillStyle = `rgba(70,60,50,${0.1 + Rt() * 0.2})`; g.beginPath(); g.arc(Rt() * w, Rt() * w, 1 + Rt() * 4, 0, 6.283); g.fill(); }
+    });
+    turf.wrapS = turf.wrapT = THREE.RepeatWrapping;
+    turf.anisotropy = 4;
+    const ground = new THREE.Mesh(groundGeo.top, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, map: turf, bumpMap: turf, bumpScale: 0.004 }));
     ground.receiveShadow = true;
     const snowMat = new THREE.MeshStandardMaterial({ color: 0xf4f7ff, roughness: 0.85, transparent: true, opacity: 0, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
     const snowGround = new THREE.Mesh(groundGeo.top, snowMat);
@@ -394,7 +452,27 @@ export function createJar(canvas, { onTap, reduceMotion }) {
     }
 
     /* ── Pond ── */
-    const waterMat = new THREE.MeshStandardMaterial({ color: 0x6688aa, roughness: 0.12, metalness: 0.1, transparent: true, opacity: 0.92 });
+    const ripples = (() => {
+        const N = 128, c = document.createElement('canvas');
+        c.width = c.height = N;
+        const g = c.getContext('2d'), img = g.createImageData(N, N);
+        const h = (x, y) => Math.sin(x * 0.29 + Math.sin(y * 0.11) * 2) * 0.5 + Math.sin(y * 0.23 + x * 0.07) * 0.4 + Math.sin((x + y) * 0.41) * 0.2 + Math.sin((x - y) * 0.17 + 1) * 0.3;
+        for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+            const dx = h(x + 1, y) - h(x - 1, y), dy = h(x, y + 1) - h(x, y - 1);
+            const l = Math.hypot(dx, dy, 1), k = (y * N + x) * 4;
+            img.data[k] = (-dx / l * 0.5 + 0.5) * 255; img.data[k + 1] = (-dy / l * 0.5 + 0.5) * 255; img.data[k + 2] = (1 / l * 0.5 + 0.5) * 255; img.data[k + 3] = 255;
+        }
+        g.putImageData(img, 0, 0);
+        const tex = new THREE.CanvasTexture(c);
+        tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+        tex.repeat.set(2, 2);
+        return tex;
+    })();
+    const pondRT = new THREE.WebGLCubeRenderTarget(128, { generateMipmaps: true, minFilter: THREE.LinearMipmapLinearFilter });
+    pondRT.texture.encoding = THREE.sRGBEncoding;
+    const pondCam = new THREE.CubeCamera(0.01, 8, pondRT);
+    inner.add(pondCam);
+    const waterMat = new THREE.MeshStandardMaterial({ color: 0x223038, roughness: 0.03, metalness: 0.25, envMap: pondRT.texture, envMapIntensity: 1.6, normalMap: ripples, normalScale: new THREE.Vector2(0.1, 0.1) });
     const water = new THREE.Mesh(new THREE.CircleGeometry(POND.r, 40), waterMat);
     water.rotation.x = -Math.PI / 2;
     water.position.set(POND.x, WATER_Y, POND.z);
@@ -420,16 +498,47 @@ export function createJar(canvas, { onTap, reduceMotion }) {
         world.add(inst);
         return inst;
     }
-    const tuftGeo = new THREE.ConeGeometry(0.011, 0.06, 4);
-    tuftGeo.translate(0, 0.03, 0);
-    const tuftMat = new THREE.MeshStandardMaterial({ roughness: 1 });
-    const tufts = scatter(tuftGeo, tuftMat, 520, (p, e, s, x, z) => {
-        p.set(x, groundH(x, z) - 0.004, z);
-        e.set((R() - 0.5) * 0.6, R() * 3, (R() - 0.5) * 0.6);
-        const h = 0.6 + R() * 0.9;
-        s.set(1, h, 1);
-        return lin([60 + R() * 50, 120 + R() * 50, 50 + R() * 30]);
-    });
+    const BLADE = 0.07;
+    const tuftGeo = new THREE.ConeGeometry(0.0065, BLADE, 3);
+    tuftGeo.translate(0, BLADE / 2, 0);
+    const grassUniforms = { uTime: { value: 0 }, uWind: { value: 0.01 } };
+    const tuftMat = new THREE.MeshStandardMaterial({ roughness: 0.85 });
+    // Blades bend from the root, each on its own phase, and darken towards the soil.
+    tuftMat.onBeforeCompile = (sh) => {
+        sh.uniforms.uTime = grassUniforms.uTime;
+        sh.uniforms.uWind = grassUniforms.uWind;
+        sh.vertexShader = 'uniform float uTime; uniform float uWind; varying float vBlade;\n' + sh.vertexShader.replace('#include <begin_vertex>', `#include <begin_vertex>
+            vBlade = position.y / ${BLADE};
+            float ph = instanceMatrix[3].x * 23.0 + instanceMatrix[3].z * 17.0;
+            float bend = vBlade * vBlade;
+            transformed.x += (sin(uTime * 2.1 + ph) + 0.6) * uWind * bend;
+            transformed.z += cos(uTime * 1.6 + ph * 1.3) * uWind * 0.5 * bend;`);
+        sh.fragmentShader = 'varying float vBlade;\n' + sh.fragmentShader.replace('#include <color_fragment>', `#include <color_fragment>
+            diffuseColor.rgb *= mix(0.4, 1.2, vBlade);`);
+    };
+    const tufts = (() => {
+        const n = 1800;
+        const inst = new THREE.InstancedMesh(tuftGeo, tuftMat, n);
+        const m = new THREE.Matrix4(), q = new THREE.Quaternion(), sc = new THREE.Vector3(), p = new THREE.Vector3(), e = new THREE.Euler();
+        let cx = 0, cz = 0;
+        for (let k = 0; k < n; k++) {
+            if (k % 9 === 0) { do { cx = R2() * 1.9 - 0.95; cz = R2() * 1.9 - 0.95; } while (!onMeadow(cx, cz)); }
+            let x, z, tries = 0;
+            do { x = cx + (R2() - 0.5) * 0.06; z = cz + (R2() - 0.5) * 0.06; } while (!onMeadow(x, z) && ++tries < 8);
+            p.set(x, groundH(x, z) - 0.003, z);
+            e.set((R2() - 0.5) * 0.7, R2() * 6.28, (R2() - 0.5) * 0.7);
+            q.setFromEuler(e);
+            const h = 0.45 + R2() * 0.9;
+            sc.set(1, h, 1);
+            m.compose(p, q, sc);
+            inst.setMatrixAt(k, m);
+            inst.setColorAt(k, lin([62 + R2() * 50, 122 + R2() * 56, 46 + R2() * 30]));
+        }
+        inst.castShadow = true;
+        inst.receiveShadow = true;
+        world.add(inst);
+        return inst;
+    })();
     const flowers = scatter(new THREE.IcosahedronGeometry(0.012, 0), new THREE.MeshStandardMaterial({ roughness: 0.7 }), 60, (p, e, s, x, z) => {
         p.set(x, groundH(x, z) + 0.03, z);
         e.set(0, 0, 0);
@@ -447,10 +556,65 @@ export function createJar(canvas, { onTap, reduceMotion }) {
     }
 
     /* ── The tree ── */
-    const bark = new THREE.MeshStandardMaterial({ color: lin([96, 66, 46]), roughness: 1 });
-    const leafMat = new THREE.MeshStandardMaterial({ color: 0x4a9a50, roughness: 0.9, flatShading: true });
+    const barkTex = canvasTex(64, 256, (g, w, h) => {
+        const Rb = rng(41);
+        g.fillStyle = '#a8a098'; g.fillRect(0, 0, w, h);
+        for (let k = 0; k < 70; k++) {
+            const x = Rb() * w, v = Math.round(90 + Rb() * 140);
+            g.strokeStyle = `rgb(${v},${v},${v})`; g.lineWidth = 1 + Rb() * 2.5;
+            g.beginPath(); g.moveTo(x, 0); g.bezierCurveTo(x + (Rb() - 0.5) * 10, h / 3, x + (Rb() - 0.5) * 10, h * 2 / 3, x + (Rb() - 0.5) * 6, h); g.stroke();
+        }
+    });
+    barkTex.wrapS = barkTex.wrapT = THREE.RepeatWrapping;
+    const bark = new THREE.MeshStandardMaterial({ color: lin([110, 78, 56]), roughness: 0.95, map: barkTex, bumpMap: barkTex, bumpScale: 0.003 });
+    const leafMats = [0.82, 1, 1.15].map(() => new THREE.MeshStandardMaterial({ color: 0x4a9a50, roughness: 0.75, flatShading: true }));
+    const leafMat = leafMats[1];
     const leafSnowMat = new THREE.MeshStandardMaterial({ color: 0xf6f8ff, roughness: 0.8, transparent: true, opacity: 0, flatShading: true });
     const leafGeo = new THREE.IcosahedronGeometry(1, 1);
+    // Foliage as cards: a few dozen small quads per twig, each carrying a
+    // drawing of a handful of leaves, cut out with alphaTest. The blob under
+    // them stays, smaller, to give the crown a body and to hold the snow.
+    const leafTex = canvasTex(256, 256, (g, w) => {
+        const Rl = rng(53);
+        for (let k = 0; k < 16; k++) {
+            const x = 30 + Rl() * 196, y = 30 + Rl() * 196, a = Rl() * 6.283, L = 34 + Rl() * 26, W = L * 0.42;
+            const v = Math.round(170 + Rl() * 85);
+            g.save(); g.translate(x, y); g.rotate(a);
+            g.fillStyle = `rgb(${v},${v},${v})`;
+            g.beginPath(); g.moveTo(-L / 2, 0); g.quadraticCurveTo(0, -W, L / 2, 0); g.quadraticCurveTo(0, W, -L / 2, 0); g.fill();
+            g.strokeStyle = `rgba(90,90,90,0.5)`; g.lineWidth = 1.5;
+            g.beginPath(); g.moveTo(-L / 2, 0); g.lineTo(L / 2, 0); g.stroke();
+            g.restore();
+        }
+    });
+    const cardMats = [0.82, 1, 1.15].map(() => new THREE.MeshStandardMaterial({ map: leafTex, alphaTest: 0.5, side: THREE.DoubleSide, roughness: 0.7, color: 0x4a9a50 }));
+    const cardDepth = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking, map: leafTex, alphaTest: 0.5 });
+    function leafCards(n, spread) {
+        const pos = [], uv = [], nor = [], idx = [];
+        const q = new THREE.Quaternion(), e = new THREE.Euler(), c = new THREE.Vector3(), v = new THREE.Vector3(), nn = new THREE.Vector3();
+        for (let k = 0; k < n; k++) {
+            c.set((R2() - 0.5), (R2() - 0.35), (R2() - 0.5)).normalize().multiplyScalar(spread * Math.cbrt(R2()));
+            e.set(R2() * 6.28, R2() * 6.28, R2() * 6.28);
+            q.setFromEuler(e);
+            const s = 0.055 + R2() * 0.04, b = pos.length / 3;
+            for (const [x, y, u, w] of [[-1, -1, 0, 0], [1, -1, 1, 0], [1, 1, 1, 1], [-1, 1, 0, 1]]) {
+                v.set(x * s, y * s, 0).applyQuaternion(q).add(c);
+                pos.push(v.x, v.y, v.z);
+                uv.push(u, w);
+                // Normals point out of the crown, so it shades as a mass.
+                nn.copy(c).normalize().lerp(new THREE.Vector3(0, 0, 1).applyQuaternion(q), 0.3).normalize();
+                nor.push(nn.x, nn.y, nn.z);
+            }
+            idx.push(b, b + 1, b + 2, b, b + 2, b + 3);
+        }
+        const geo = new THREE.BufferGeometry();
+        geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+        geo.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3));
+        geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+        geo.setIndex(idx);
+        return geo;
+    }
+    const cards = [];
     const branches = [], leaves = [];
     const treeRoot = new THREE.Group();
     treeRoot.position.set(TREE.x, groundH(TREE.x, TREE.z) - 0.01, TREE.z);
@@ -468,7 +632,7 @@ export function createJar(canvas, { onTap, reduceMotion }) {
         g.add(tip);
         if (depth <= 1) {
             for (let k = 0; k < 3; k++) {
-                const lf = new THREE.Mesh(leafGeo, leafMat);
+                const lf = new THREE.Mesh(leafGeo, leafMats[leaves.length % 3]);
                 const s = 0.07 + R() * 0.04;
                 lf.scale.set(s, s * 0.85, s);
                 lf.position.set((R() - 0.5) * 0.09, 0.02 + R() * 0.05, (R() - 0.5) * 0.09);
@@ -480,7 +644,15 @@ export function createJar(canvas, { onTap, reduceMotion }) {
                 lf.add(cap);
                 tip.add(lf);
                 leaves.push(lf);
+                lf.scale.multiplyScalar(0.6);
             }
+            const crown = new THREE.Mesh(leafCards(40, 0.1), cardMats[cards.length % 3]);
+            crown.position.y = 0.04;
+            crown.castShadow = true;
+            crown.receiveShadow = true;
+            crown.customDepthMaterial = cardDepth;
+            tip.add(crown);
+            cards.push(crown);
             return g;
         }
         const n = depth === 4 ? 3 : 2;
@@ -574,22 +746,48 @@ export function createJar(canvas, { onTap, reduceMotion }) {
         world.add(g);
     }
 
-    /* ── Clouds: low-poly puffs that circle the jar on the wind ── */
+    /* ── Clouds that circle the jar on the wind ──
+       What you see is a cluster of soft billboards, shaded darker underneath;
+       what casts the shadow on the meadow is a set of spheres that never draw
+       to the screen. */
     const puffGeo = new THREE.IcosahedronGeometry(1, 2);
+    const cloudRim = { value: new THREE.Color(0, 0, 0) };
+    const cloudTex = canvasTex(128, 128, (g, w) => {
+        const Rc = rng(61);
+        for (let k = 0; k < 14; k++) {
+            const a = Rc() * 6.283, d = Rc() * 26, x = 64 + Math.cos(a) * d, y = 64 + Math.sin(a) * d * 0.8, r = 22 + Rc() * 20;
+            const gr = g.createRadialGradient(x, y, 0, x, y, r);
+            gr.addColorStop(0, 'rgba(255,255,255,0.55)'); gr.addColorStop(0.6, 'rgba(255,255,255,0.25)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
+            g.fillStyle = gr; g.fillRect(0, 0, w, w);
+        }
+        // Break up the edge so it reads as vapour, not a disc.
+        const img = g.getImageData(0, 0, w, w);
+        for (let k = 3; k < img.data.length; k += 4) img.data[k] *= 0.75 + Rc() * 0.25;
+        g.putImageData(img, 0, 0);
+    });
+    const shadowOnly = new THREE.MeshBasicMaterial({ colorWrite: false, depthWrite: false });
     const clouds = Array.from({ length: 8 }, (_, i) => {
-        const mat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1, flatShading: false });
+        const mats = [0.72, 0.88, 1].map(() => new THREE.SpriteMaterial({ map: cloudTex, transparent: true, depthWrite: false, opacity: 0.96 }));
         const g = new THREE.Group();
         const n = 5 + Math.floor(R() * 3);
         for (let k = 0; k < n; k++) {
-            const p = new THREE.Mesh(puffGeo, mat);
+            const p = new THREE.Mesh(puffGeo, shadowOnly);
             const r = 0.1 + R() * 0.09;
             p.scale.set(r, r * 0.8, r);
             p.position.set((R() - 0.5) * 0.46, (R() - 0.3) * 0.08 + (r - 0.1) * 0.6, (R() - 0.5) * 0.2);
             p.castShadow = true;
             g.add(p);
+            for (let j = 0; j < 3; j++) {
+                const lift = j - 1;
+                const sp = new THREE.Sprite(mats[j]);
+                sp.position.set(p.position.x + (R2() - 0.5) * r * 0.6, p.position.y + lift * r * 0.32, p.position.z + (R2() - 0.5) * r * 0.4);
+                const sz = r * (2.5 - Math.abs(lift) * 0.5) * (0.9 + R2() * 0.3);
+                sp.scale.set(sz, sz * 0.8, 1);
+                g.add(sp);
+            }
         }
         world.add(g);
-        return { g, mat, a: R() * 6.283, r: 0.2 + R() * 0.42, y: 2.08 + R() * 0.4, speed: 0.5 + R() * 0.8, size: 0.7 + R() * 0.45, scale: 0, rank: i };
+        return { g, mats, a: R() * 6.283, r: 0.2 + R() * 0.42, y: 2.08 + R() * 0.4, speed: 0.5 + R() * 0.8, size: 0.7 + R() * 0.45, scale: 0, rank: i };
     });
 
     /* ── Rain, splashes, snow, fireflies, fog, condensation ── */
@@ -641,6 +839,7 @@ export function createJar(canvas, { onTap, reduceMotion }) {
             size.setX(k, 0.012 + R() * 0.03);
         }
     }
+    const dewRun = Float32Array.from({ length: NDEW }, () => R2() < 0.45 ? 0.03 + R2() * 0.12 : 0);
 
     /* ── Lightning ── */
     const boltGeo = new THREE.BufferGeometry();
@@ -663,15 +862,39 @@ export function createJar(canvas, { onTap, reduceMotion }) {
         pos.needsUpdate = true;
     }
 
+    /* ── The sheep, the worm, and the occasional saucer ── */
+    const visitors = createVisitors({ world, shell, groundH, onMeadow: (x, z) => onMeadow(x, z) && Math.hypot(x - TREE.x, z - TREE.z) > 0.09, envMap: envTex, rand: R2 });
+    if (/[?&]debug\b/.test(location.search)) window.__terrarium = visitors;
+    let pondTick = 0;
+    let summonAt = -1;
+
     /* ── The room: glass, cork, tag, stand ── */
-    room.add(new THREE.HemisphereLight(0xd6e2f0, 0x20160e, 0.75));
+    room.add(new THREE.HemisphereLight(0xd6e2f0, 0x20160e, 0.55));
     const roomSun = new THREE.DirectionalLight(0xfff0dc, 0.85);
     roomSun.position.set(-3, 5, 4);
     room.add(roomSun);
 
     const glassPts = PROFILE.map(([x, y]) => new THREE.Vector2(x, y));
     const glassGeo = new THREE.LatheGeometry(glassPts, 96);
-    const glassUniforms = (front) => ({ uFront: { value: front }, uDamp: { value: 0 } });
+    const smudgeTex = canvasTex(256, 256, (g, w) => {
+        const Rs = rng(77);
+        g.fillStyle = '#000'; g.fillRect(0, 0, w, w);
+        for (let k = 0; k < 26; k++) {
+            const x = Rs() * w, y = Rs() * w, r = 8 + Rs() * 30;
+            const gr = g.createRadialGradient(x, y, 0, x, y, r);
+            gr.addColorStop(0, `rgba(255,255,255,${0.15 + Rs() * 0.25})`); gr.addColorStop(1, 'rgba(255,255,255,0)');
+            g.fillStyle = gr; g.fillRect(x - r, y - r, r * 2, r * 2);
+        }
+        // A thumbprint or two.
+        for (let p = 0; p < 2; p++) {
+            const x = 40 + Rs() * 170, y = 40 + Rs() * 170;
+            g.strokeStyle = 'rgba(255,255,255,0.22)'; g.lineWidth = 1.2;
+            for (let r = 3; r < 16; r += 2.2) { g.beginPath(); g.ellipse(x, y, r, r * 1.35, 0.4, 0.3, 5.6); g.stroke(); }
+        }
+    });
+    smudgeTex.encoding = THREE.LinearEncoding;
+    smudgeTex.wrapS = smudgeTex.wrapT = THREE.RepeatWrapping;
+    const glassUniforms = (front) => ({ uFront: { value: front }, uDamp: { value: 0 }, uSmudge: { value: smudgeTex } });
     const glassBack = new THREE.Mesh(glassGeo, new THREE.ShaderMaterial({ vertexShader: GLASS_VS, fragmentShader: GLASS_FS, uniforms: glassUniforms(0), transparent: true, depthWrite: false, side: THREE.BackSide }));
     const glassFront = new THREE.Mesh(glassGeo, new THREE.ShaderMaterial({ vertexShader: GLASS_VS, fragmentShader: GLASS_FS, uniforms: glassUniforms(1), transparent: true, depthWrite: false, side: THREE.FrontSide }));
     glassBack.renderOrder = 1;
@@ -742,8 +965,8 @@ export function createJar(canvas, { onTap, reduceMotion }) {
             g.beginPath(); g.ellipse(w / 2 + (Rg() - 0.5) * 6, w / 2, r * 1.04, r, 0, 0, 6.283); g.stroke();
         }
     });
-    const woodSide = new THREE.MeshStandardMaterial({ map: grainSide, roughness: 0.6 });
-    const woodTop = new THREE.MeshStandardMaterial({ map: grainTop, roughness: 0.55 });
+    const woodSide = new THREE.MeshStandardMaterial({ map: grainSide, roughness: 0.42, envMapIntensity: 0.8 });
+    const woodTop = new THREE.MeshStandardMaterial({ map: grainTop, roughness: 0.35, envMapIntensity: 0.9 });
     const stand = new THREE.Mesh(new THREE.CylinderGeometry(1.24, 1.3, 0.2, 72), [woodSide, woodTop, woodSide]);
     stand.position.y = -0.1;
     shell.add(stand);
@@ -785,11 +1008,19 @@ export function createJar(canvas, { onTap, reduceMotion }) {
         view.spin = dx * k * 60;
         if (press.mouse) view.tilt = Math.max(2, Math.min(34, view.tilt + dy * 0.15));
     });
+    const taps = [];
     const release = (e) => {
         if (press.id !== e.pointerId) return;
         press.id = null;
         canvas.classList.remove('turning');
-        if (press.moved < 6) { view.spin = 0; onTap(); }
+        if (press.moved < 6) {
+            view.spin = 0;
+            onTap();
+            const now = performance.now();
+            taps.push(now);
+            while (taps.length && now - taps[0] > 2500) taps.shift();
+            if (taps.length >= 5) { taps.length = 0; visitors.summon(); }
+        }
     };
     canvas.addEventListener('pointerup', release);
     canvas.addEventListener('pointercancel', release);
@@ -910,10 +1141,10 @@ export function createJar(canvas, { onTap, reduceMotion }) {
             waterMat.roughness = 0.5;
         } else {
             const h = sun.colours.horizon, tp = sun.colours.top;
-            setLin(waterMat.color, [0, 1, 2].map(i => h[i] * 0.6 + tp[i] * 0.4));
-            waterMat.roughness = 0.08 + w.rain * 0.3;
+            setLin(waterMat.color, [0, 1, 2].map(i => 30 + (h[i] * 0.5 + tp[i] * 0.5) * 0.25));
+            waterMat.roughness = 0.03 + w.rain * 0.12;
         }
-        waterMat.emissive.copy(waterMat.color).multiplyScalar(frozen ? 0.1 : 0.8);
+        waterMat.emissive.copy(waterMat.color).multiplyScalar(frozen ? 0.1 : 0.15);
         flowers.visible = snowCover < 0.3 && (w.temp ?? 12) > 4;
         // Grass pales under the snow and is buried once it lies deep.
         tuftMat.emissive.setScalar(Math.min(0.5, snowCover * 0.6));
@@ -922,9 +1153,15 @@ export function createJar(canvas, { onTap, reduceMotion }) {
         // The tree: autumnal below ten degrees, thinner in the snow, bending in the wind.
         const temp = w.temp ?? 12;
         const cold = temp < 10 ? Math.min(1, (10 - temp) / 12) : 0;
-        setLin(leafMat.color, [70 + 150 * cold, 150 - 40 * cold, 80 - 40 * cold]);
+        [0.82, 1, 1.15].forEach((k, i) => {
+            setLin(leafMats[i].color, [70 + 150 * cold, 150 - 40 * cold, 80 - 40 * cold], k * 0.75);
+            setLin(cardMats[i].color, [70 + 150 * cold, 150 - 40 * cold, 80 - 40 * cold], k);
+            // Leaves let light through: a little glow of their own when the sun is up.
+            cardMats[i].emissive.copy(cardMats[i].color).multiplyScalar(0.12 + 0.2 * day);
+        });
         const keep = 1 - Math.min(0.8, snowCover);
         leaves.forEach((lf, i) => { lf.visible = (i * 37 % 100) / 100 <= keep; });
+        cards.forEach((c, i) => { c.visible = (i * 37 % 100) / 100 <= keep; });
         const sway = (Math.sin(t * (1.2 + w.wind * 0.12)) * 0.5 + 0.5) * (0.01 + w.wind * 0.012) + gust * 0.12;
         for (const b of branches) b.g.rotation.z = b.z + sway * (6 - b.depth) * 0.22;
         treeRoot.rotation.z = -sway * 0.35;
@@ -943,8 +1180,11 @@ export function createJar(canvas, { onTap, reduceMotion }) {
             c.g.position.set(Math.cos(c.a) * r, y, Math.sin(c.a) * r);
             c.g.rotation.y = -c.a + Math.PI / 2;
             c.g.scale.setScalar(c.scale);
-            setLin(c.mat.color, cbase.map(v => Math.min(255, v + 10)));
-            c.mat.emissive.copy(c.mat.color).multiplyScalar(0.4 + night * 0.2);
+            // Shaded underneath, lit along the top, warm when the sun is low.
+            [0.72, 0.88, 1].forEach((k, j) => {
+                setLin(c.mats[j].color, cbase.map(v => Math.min(255, v + 10)), k);
+                if (j === 2) c.mats[j].color.add(cloudRim.value);
+            });
         }
 
         // Cabin lamp and chimney smoke.
@@ -1074,6 +1314,51 @@ export function createJar(canvas, { onTap, reduceMotion }) {
         // Tag swings a little.
         tagPivot.rotation.z = Math.sin(t * 0.9) * 0.04 + gust * 0.12 * Math.sin(t * 6);
 
+        // Grass in the wind, ripples on the pond, rain stirring it.
+        grassUniforms.uTime.value = t;
+        grassUniforms.uWind.value = (0.004 + w.wind * 0.0025 + gust * 0.03) * (1 - Math.min(0.8, snowCover));
+        ripples.offset.set(t * 0.012 * (1 + w.wind * 0.2), t * 0.008);
+        waterMat.normalScale.setScalar(frozen ? 0.02 : 0.06 + w.rain * 0.35 + w.wind * 0.012);
+
+        // Silver linings when the sun is behind a cloud.
+        cloudRim.value.setRGB(core[0] / 255, core[1] / 255, core[2] / 255).convertSRGBToLinear().multiplyScalar(sunVis * cloudHide * 0.25 * warm);
+
+        // Raindrops on the glass run down it, then start again near the top.
+        if (w.rain > 0 && dew.visible) {
+            const pos = dew.geometry.attributes.position;
+            for (let k = 0; k < NDEW; k++) {
+                if (!dewRun[k]) continue;
+                let y = pos.getY(k) - dewRun[k] * dt * (0.4 + w.rain) * (Math.sin(t * 3 + k) > 0.6 ? 2.5 : 0.6);
+                if (y < BASE - 0.05) y = BASE + 1.4 + R2() * 0.25;
+                const x = pos.getX(k), z = pos.getZ(k), r = jarRadius(y) * 0.985 / Math.hypot(x, z);
+                pos.setXYZ(k, x * r, y, z * r);
+            }
+            pos.needsUpdate = true;
+        }
+
+        if (summonAt >= 0 && t >= summonAt) { summonAt = -1; visitors.summon(); }
+        visitors.update(dt, t, { snow: snowCover, still });
+
+        // The pond's reflection, refreshed every few frames.
+        if (water.visible && pondTick-- <= 0) {
+            pondTick = 5;
+            water.getWorldPosition(pondCam.position);
+            pondCam.position.y += 0.03;
+            water.visible = false;
+            // The cube camera relies on autoClear, which the two-scene draw turns off.
+            renderer.shadowMap.autoUpdate = false;
+            renderer.autoClear = true;
+            // Point sizes are tuned for the main camera; the cube's faces are
+            // 128px at 90°, so shrink them for this pass or every star is a blob.
+            const mainScale = pointMats[0].uniforms.uScale.value;
+            for (const m of pointMats) m.uniforms.uScale.value = 64;
+            pondCam.update(renderer, inner);
+            for (const m of pointMats) m.uniforms.uScale.value = mainScale;
+            renderer.autoClear = false;
+            renderer.shadowMap.autoUpdate = true;
+            water.visible = true;
+        }
+
         renderer.clear();
         renderer.render(inner, camera);
         renderer.render(room, camera);
@@ -1084,5 +1369,7 @@ export function createJar(canvas, { onTap, reduceMotion }) {
         render,
         resize,
         setTag(name) { if (name !== tagName) { tagName = name; drawTag(); } },
+        /** Calls the visitor, after a delay in seconds (for ?ufo and screenshots). */
+        ufo(delay = 0) { summonAt = delay; },
     };
 }
