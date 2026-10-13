@@ -13,17 +13,12 @@ drawNightOverlay() {
         if (!lander) return;
 
         const ctx = this.ctx;
-        const w = this.canvas.width;
-        const h = this.canvas.height;
+        const w = this.viewW;
+        const h = this.viewH;
 
         // Offscreen layer: fill dark, then punch holes with destination-out
         // so the darkness color/alpha only has to be authored once.
-        if (!this._nightCanvas || this._nightCanvas.width !== w || this._nightCanvas.height !== h) {
-            this._nightCanvas = document.createElement('canvas');
-            this._nightCanvas.width = w;
-            this._nightCanvas.height = h;
-        }
-        const nctx = this._nightCanvas.getContext('2d');
+        const nctx = this._overlayLayer('_nightCanvas', w, h);
         nctx.clearRect(0, 0, w, h);
 
         const baseAlpha = (typeof level.nightDarkness === 'number') ? Math.max(0, Math.min(1, level.nightDarkness)) : 0.90;
@@ -132,9 +127,9 @@ drawNightOverlay() {
         nctx.globalCompositeOperation = 'source-over';
 
         ctx.save();
-        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        this._screenTransform(ctx);
         ctx.globalCompositeOperation = 'source-over';
-        ctx.drawImage(this._nightCanvas, 0, 0);
+        ctx.drawImage(this._nightCanvas, 0, 0, w, h);
         ctx.restore();
 
         // ── Visible sonar wave — expanding stroked rings on top of the punched

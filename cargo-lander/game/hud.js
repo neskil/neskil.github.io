@@ -89,6 +89,14 @@ Object.assign(CargoGame.prototype, {
         localStorage.setItem('cargo_lander_ui_scale', this.uiScale);
     },
 
+    // updateHUD() runs every physics step; assigning textContent replaces the
+    // text node and dirties layout even when the string is identical, so the
+    // per-step writes go through this and only touch the DOM on a change.
+    _text(el, value) {
+        const v = String(value);
+        if (el.textContent !== v) el.textContent = v;
+    },
+
     setText(id, value) {
         const el = document.getElementById(id);
         if (el) el.textContent = value;
@@ -224,22 +232,22 @@ Object.assign(CargoGame.prototype, {
         // Update Cargo & Budget stats
         const cargoEl = this.uiElements?.hudCargo || document.getElementById('hud-cargo');
         if (cargoEl) {
-            cargoEl.textContent = `Cargo: ${this.deliveredCount}/${level.targetCargo}`;
+            this._text(cargoEl, `Cargo: ${this.deliveredCount}/${level.targetCargo}`);
         }
         const budgetEl = this.uiElements?.hudBudget || document.getElementById('hud-budget');
         if (budgetEl) {
-            budgetEl.textContent = `Deposit: $${this.missionBudget}`;
+            this._text(budgetEl, `Deposit: $${this.missionBudget}`);
         }
         const timeEl = this.uiElements?.hudTime || document.getElementById('hud-time');
         if (timeEl) {
             if (this.overtimeActive) {
                 const ot = Math.ceil(this.overtimeTimer);
-                timeEl.textContent = `⚠ ${ot}s`;
+                this._text(timeEl, `⚠ ${ot}s`);
                 timeEl.style.color = (Math.floor(Date.now() / 300) % 2 === 0) ? '#ef4444' : '#fbbf24';
             } else {
                 const mins = Math.floor(this.missionTimer / 60);
                 const secs = Math.floor(this.missionTimer % 60);
-                timeEl.textContent = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+                this._text(timeEl, `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`);
                 timeEl.style.color = this.missionTimer < 20 ? '#ef4444' : '#f59e0b';
             }
         }
@@ -267,20 +275,20 @@ Object.assign(CargoGame.prototype, {
                         if (allDelivered) {
                             centerOverlay.style.borderColor = '#10b981';
                             if (centerTitle) {
-                                centerTitle.textContent = 'Mission Complete';
+                                this._text(centerTitle, 'Mission Complete');
                                 centerTitle.style.color = '#10b981';
                             }
-                            if (centerDesc) centerDesc.textContent = 'All cargo delivered safely.';
+                            if (centerDesc) this._text(centerDesc, 'All cargo delivered safely.');
                             if (centerBtn) {
                                 centerBtn.style.display = 'block';
-                                centerBtn.textContent = '[SPACE] TO EXTRACT';
+                                this._text(centerBtn, '[SPACE] TO EXTRACT');
                                 centerBtn.style.background = '#10b981';
                                 centerBtn.style.borderColor = '#059669';
                                 centerBtn.style.boxShadow = '0 0 20px rgba(16,185,129,0.7)';
                             }
                             
                             btnExtract.classList.remove('hidden');
-                            btnExtract.textContent = '✓ EXTRACT NOW';
+                            this._text(btnExtract, '✓ EXTRACT NOW');
                             btnExtract.style.background = '#10b981';
                             btnExtract.style.opacity = '1';
                             btnExtract.style.cursor = 'pointer';
@@ -288,14 +296,14 @@ Object.assign(CargoGame.prototype, {
                             const justStarted = !this.overtimeActive && (this.missionTimeLimit - this.missionTimer) < 10;
                             centerOverlay.style.borderColor = '#38bdf8';
                             if (centerTitle) {
-                                centerTitle.textContent = 'HQ Services';
+                                this._text(centerTitle, 'HQ Services');
                                 centerTitle.style.color = '#38bdf8';
                             }
-                            if (centerDesc) centerDesc.textContent = 'Landed at HQ.';
+                            if (centerDesc) this._text(centerDesc, 'Landed at HQ.');
                             if (centerBtn) {
                                 centerBtn.style.display = justStarted ? 'none' : 'block';
                                 if (!justStarted) {
-                                    centerBtn.textContent = 'ABORT & EXTRACT';
+                                    this._text(centerBtn, 'ABORT & EXTRACT');
                                     centerBtn.style.background = '#ef4444';
                                     centerBtn.style.borderColor = '#b91c1c';
                                     centerBtn.style.boxShadow = 'none';
@@ -306,7 +314,7 @@ Object.assign(CargoGame.prototype, {
                                 btnExtract.classList.add('hidden');
                             } else {
                                 btnExtract.classList.remove('hidden');
-                                btnExtract.textContent = 'ABORT & EXTRACT';
+                                this._text(btnExtract, 'ABORT & EXTRACT');
                                 btnExtract.style.background = '#ef4444';
                                 btnExtract.style.opacity = '1';
                                 btnExtract.style.cursor = 'pointer';
@@ -316,10 +324,10 @@ Object.assign(CargoGame.prototype, {
                         // At Service Pad
                         centerOverlay.style.borderColor = '#10b981';
                         if (centerTitle) {
-                            centerTitle.textContent = 'Service Pad';
+                            this._text(centerTitle, 'Service Pad');
                             centerTitle.style.color = '#10b981';
                         }
-                        if (centerDesc) centerDesc.textContent = 'Landed at Service Pad.';
+                        if (centerDesc) this._text(centerDesc, 'Landed at Service Pad.');
                         if (centerBtn) {
                             centerBtn.style.display = 'none';
                         }
@@ -343,12 +351,12 @@ Object.assign(CargoGame.prototype, {
                         btnRepair.disabled = !needsRepair || !canAfford;
                         btnRepair.style.opacity = btnRepair.disabled ? '0.5' : '1';
                         btnRepair.style.cursor = btnRepair.disabled ? 'not-allowed' : 'pointer';
-                        btnRepair.textContent = needsRepair ? `🔧 Repair ($${repairCost})` : '🔧 Repair';
+                        this._text(btnRepair, needsRepair ? `🔧 Repair ($${repairCost})` : '🔧 Repair');
                     }
                 }
             } else if (allDelivered) {
                 btnExtract.classList.remove('hidden');
-                btnExtract.textContent = 'Return to HQ';
+                this._text(btnExtract, 'Return to HQ');
                 btnExtract.style.background = '#334155';
                 btnExtract.style.opacity = '0.7';
                 btnExtract.style.cursor = 'default';
@@ -358,10 +366,10 @@ Object.assign(CargoGame.prototype, {
                     if (svcContainer) svcContainer.style.display = 'none';
                     centerOverlay.style.borderColor = '#38bdf8';
                     if (centerTitle) {
-                        centerTitle.textContent = 'All Cargo Delivered!';
+                        this._text(centerTitle, 'All Cargo Delivered!');
                         centerTitle.style.color = '#38bdf8';
                     }
-                    if (centerDesc) centerDesc.textContent = 'Return to HQ to extract and finish the mission.';
+                    if (centerDesc) this._text(centerDesc, 'Return to HQ to extract and finish the mission.');
                     if (centerBtn) centerBtn.style.display = 'none';
                 } else if (centerOverlay) {
                     centerOverlay.style.display = 'none';
@@ -495,9 +503,18 @@ Object.assign(CargoGame.prototype, {
         }
 
         // ── Full panel HTML ───────────────────────────────────────────────
-        // Use dataset fingerprint to avoid full rebuilds on every frame
-        const fp = `${timeStr}|${budgetStr}|${delivered}|${target}|${timeColor}`;
-        if (panel.dataset.fp === fp) return; // nothing changed visually
+        // Fingerprint everything except the clock: the clock ticks every
+        // second (every 300ms while the overtime warning blinks) and is
+        // patched in place below, instead of re-parsing the whole panel.
+        const fp = `F|${level.name}|${budgetStr}|${delivered}|${target}|${bonusFp}`;
+        if (panel.dataset.fp === fp) {
+            const t = panel.querySelector('#mission-stat-time');
+            if (t) {
+                this._text(t, timeStr);
+                if (t.dataset.color !== timeColor) { t.style.color = timeColor; t.dataset.color = timeColor; }
+            }
+            return;
+        }
         panel.dataset.fp = fp;
         panel.style.minWidth = this.isSmallViewport() ? '200px' : '240px';
         panel.style.cursor = 'pointer';
@@ -513,7 +530,7 @@ Object.assign(CargoGame.prototype, {
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-bottom:6px;">
                 <div style="background:rgba(0,0,0,0.25);border-radius:6px;padding:4px 7px;">
                     <div style="font-size:9px;color:rgba(148,163,184,0.7);letter-spacing:.08em;text-transform:uppercase;">Time</div>
-                    <div id="mission-stat-time" style="font-size:17px;font-weight:700;font-variant-numeric:tabular-nums;color:${timeColor};line-height:1.1;">${timeStr}</div>
+                    <div id="mission-stat-time" data-color="${timeColor}" style="font-size:17px;font-weight:700;font-variant-numeric:tabular-nums;color:${timeColor};line-height:1.1;">${timeStr}</div>
                 </div>
                 <div style="background:rgba(0,0,0,0.25);border-radius:6px;padding:4px 7px;">
                     <div style="font-size:9px;color:rgba(148,163,184,0.7);letter-spacing:.08em;text-transform:uppercase;">Deposit</div>

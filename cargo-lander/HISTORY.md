@@ -8,6 +8,33 @@ backlog" section.
 
 ---
 
+## 2026-10-13 — Adaptive graphics quality + HUD write trimming (v0.24.0)
+
+**Graphics tiers.** New `game/perf.js`: five tiers (Crisp = devicePixelRatio up
+to 2, High = the old 1× look, Medium 0.85×, Low 0.7×, Lowest 0.55×; post-FX
+off below High, half the background stars on Low/Lowest), selectable under
+Settings → Graphics Quality, default **Auto**. Auto is a hysteresis governor
+fed one sample per rendered frame during gameplay — thresholds, flip-flop bans
+and the "undo a useless step" rule are in README → Rendering Notes. The canvas
+was already 1× CSS px (blurry on phones/retina), so Crisp is the first time the
+game can render at native sharpness; Auto only climbs there after sustained
+headroom.
+
+Enabling a backing store that differs from the logical viewport meant
+replacing every `this.canvas.width/height` in `game/` and `render/` with
+`viewW/viewH`, and the five `setTransform(1,0,0,1,0,0)` composites with
+`_screenTransform()` + explicit-size `drawImage`.
+
+**HUD.** `updateHUD()` runs every physics step and assigned ~18 `textContent`
+strings each time, changed or not — each one replaces the text node and dirties
+layout. Now guarded by `_text()`. The mission panel re-parsed its entire
+`innerHTML` every second for the clock (every 300ms during the overtime blink);
+the clock is now patched in place, and the fingerprint gained bonus-quest
+state, which it was missing (a bonus result waited for the next clock tick to
+show).
+
+---
+
 ## 2026-08-02 — Terrain decoration: skyscraper facades on the geometry (v0.22.0)
 
 L5 read as flat black slabs with a cyan outline — the terrain *was* the city, but

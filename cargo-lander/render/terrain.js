@@ -75,7 +75,7 @@ drawFluidBounds() {
 
         const ctx = this.ctx;
         const now = Date.now();
-        const viewW = this.canvas.width / this.camera.zoom;
+        const viewW = this.viewW / this.camera.zoom;
         const startX = this.camera.x - viewW / 2 - 100;
         const endX = this.camera.x + viewW / 2 + 100;
         const depth = Math.max(oob.surfaceY + 2000, this.physics.levelHeight + 1000); // go very deep
@@ -168,8 +168,8 @@ drawMistEdges() {
         if (!oob || !oob.mistColor) return;
 
         const ctx = this.ctx;
-        const w = this.canvas.width;
-        const h = this.canvas.height;
+        const w = this.viewW;
+        const h = this.viewH;
         const zoom = this.camera.zoom;
         const camX = this.camera.x;
 
@@ -595,8 +595,8 @@ drawTerrainFacades() {
     if (!(F.cellW > 0) || !(F.cellH > 0)) return;
 
     const zoom = (this.camera.zoom > 0 && isFinite(this.camera.zoom)) ? this.camera.zoom : 1;
-    const halfW = (this.canvas.width / 2) / zoom;
-    const halfH = (this.canvas.height / 2) / zoom;
+    const halfW = (this.viewW / 2) / zoom;
+    const halfH = (this.viewH / 2) / zoom;
     const viewL = this.camera.x - halfW - F.cellW;
     const viewR = this.camera.x + halfW + F.cellW;
     const viewT = this.camera.y - halfH - F.cellH;
@@ -730,7 +730,7 @@ drawTerrain() {
 
         // Determine visible X range based on camera
         const zoom = (this.camera.zoom > 0 && isFinite(this.camera.zoom)) ? this.camera.zoom : 1;
-        const w = this.canvas.width;
+        const w = this.viewW;
         let startX = Math.floor((this.camera.x - (w / 2 / zoom) - 100) / 20) * 20;
         let endX = this.camera.x + (w / 2 / zoom) + 100;
         if (!isFinite(startX) || !isFinite(endX) || endX - startX > 20000) return;
@@ -948,7 +948,7 @@ drawUnderground() {
         const ctx = this.ctx;
         const lv = levels[this.currentLevelIndex] || {};
         const zoom = (this.camera.zoom > 0 && isFinite(this.camera.zoom)) ? this.camera.zoom : 1;
-        const w = this.canvas.width;
+        const w = this.viewW;
         const startX = Math.floor((this.camera.x - (w / 2 / zoom) - 200) / 20) * 20;
         const endX = this.camera.x + (w / 2 / zoom) + 200;
         if (!isFinite(startX) || !isFinite(endX) || endX - startX > 20000) return;

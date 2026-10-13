@@ -107,8 +107,8 @@ drawMinimap() {
         }
 
         // ── Camera viewport rect ───────────────────────────────────────────
-        const viewW = this.canvas.width / this.camera.zoom;
-        const viewH = this.canvas.height / this.camera.zoom;
+        const viewW = this.viewW / this.camera.zoom;
+        const viewH = this.viewH / this.camera.zoom;
         const viewX = this.camera.x - viewW / 2;
         const viewY = this.camera.y - viewH / 2;
         ctx.strokeStyle = 'rgba(255,255,255,0.15)';
@@ -273,8 +273,8 @@ drawNextObjectiveArrow() {
             const dy = targetY - ly;
             const dist = Math.hypot(dx, dy);
             
-            const radius = (this.canvas.height * 0.20) / this.camera.zoom;
-            const fadeStartDist = (this.canvas.width / 3.5) / this.camera.zoom;
+            const radius = (this.viewH * 0.20) / this.camera.zoom;
+            const fadeStartDist = (this.viewW / 3.5) / this.camera.zoom;
             let alpha = Math.min(1.0, (dist - fadeStartDist) / 300);
             
             if (alpha > 0.05) {

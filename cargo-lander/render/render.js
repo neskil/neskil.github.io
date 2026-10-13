@@ -17,10 +17,39 @@ _grad(key, build) {
     return g;
 },
 
+// Resets ctx to plain screen space — logical CSS px, scaled to the backing
+// store. Use this wherever code used to setTransform(1, 0, 0, 1, 0, 0).
+_screenTransform(ctx) {
+    const s = this.renderScale || 1;
+    ctx.setTransform(s, 0, 0, s, 0, 0);
+},
+
+// Full-screen offscreen layer (night darkness, dust fog) for this[prop],
+// drawn in logical px like the main canvas. Soft gradients only, so it is
+// stored at min(1, renderScale): lower graphics tiers fill fewer pixels and
+// Crisp doesn't pay double for something that has no edges to sharpen.
+_overlayLayer(prop, w, h) {
+    const k = Math.min(1, this.renderScale || 1);
+    const bw = Math.max(1, Math.round(w * k));
+    const bh = Math.max(1, Math.round(h * k));
+    let c = this[prop];
+    if (!c || c.width !== bw || c.height !== bh) {
+        c = this[prop] = document.createElement('canvas');
+        c.width = bw;
+        c.height = bh;
+    }
+    const cx = c.getContext('2d');
+    cx.setTransform(k, 0, 0, k, 0, 0);
+    return cx;
+},
+
 draw() {
         const ctx = this.ctx;
-        const w = this.canvas.width;
-        const h = this.canvas.height;
+        const w = this.viewW;
+        const h = this.viewH;
+        // Base transform: logical CSS px -> backing pixels (renderScale, see
+        // resizeCanvas()). Every save/restore below returns to this.
+        this._screenTransform(ctx);
 
         // 1. Draw Space Background Gradient (level-themed) — cached, only rebuilt
         // when canvas size or palette changes (createLinearGradient is a per-call
@@ -70,8 +99,11 @@ draw() {
             // color string (star.css, set at generation) instead of building a
             // fresh `rgba(...)` string per star per frame; halo stars draw a
             // shared pre-baked halo sprite instead of a radial gradient each.
+            const starStride = (this.gfx && this.gfx.starStride) || 1;
             for (const layer of this.bgLayers) {
-                for (const star of layer.objects) {
+                const stars = layer.objects;
+                for (let si = 0; si < stars.length; si += starStride) {
+                    const star = stars[si];
                     star.phase += star.speed;
                     const pulse = 0.4 + Math.abs(Math.sin(star.phase)) * 0.6;
                     const sx = star.x - camX * layer.parallax;
@@ -206,7 +238,9 @@ draw() {
         // re-draws a warped version of it on top, replacing pixels only inside
         // active effect regions. Toggleable in Settings for low-end hardware
         // (skips the texture upload entirely when off — see renderPostFX()).
-        if (this.shaders && this.postFXEnabled) {
+        // Also off on the cheaper graphics tiers (game/perf.js) — the texture
+        // upload of the whole frame is the single most expensive step here.
+        if (this.shaders && this.postFXEnabled && (!this.gfx || this.gfx.postFX)) {
             const waterRects = [];
             if (this.physics.waterBodies) {
                 const toScreen = (x, y) => ({
@@ -253,9 +287,9 @@ draw() {
             // drew something (it early-outs when no effect region is active).
             if (this.shaders.renderPostFX(this.physics, this.camera, this.canvas, levels[this.currentLevelIndex], waterRects, this.weather, heatSources)) {
                 ctx.save();
-                ctx.setTransform(1, 0, 0, 1, 0, 0);
+                this._screenTransform(ctx);
                 ctx.globalCompositeOperation = 'source-over';
-                ctx.drawImage(this.shaders.canvas, 0, 0);
+                ctx.drawImage(this.shaders.canvas, 0, 0, w, h);
                 ctx.restore();
             }
         }
@@ -302,9 +336,9 @@ draw() {
         // there are no particles or gravity wells to show.
         if (this.shaders && this.shaders.render(this.physics, this.camera)) {
             ctx.save();
-            ctx.setTransform(1, 0, 0, 1, 0, 0);
+            this._screenTransform(ctx);
             ctx.globalCompositeOperation = 'source-over';
-            ctx.drawImage(this.shaders.canvas, 0, 0);
+            ctx.drawImage(this.shaders.canvas, 0, 0, w, h);
             ctx.restore();
         }
 
@@ -467,6 +501,10 @@ draw() {
         if (this.displayFps !== undefined) {
             ctx.fillStyle = this.displayFps >= 50 ? 'rgba(74, 222, 128, 0.6)' : 'rgba(251, 191, 36, 0.75)';
             ctx.fillText(`${this.displayFps} FPS`, 14 + 48, versionY);
+            if (this.graphicsLabel) {
+                ctx.fillStyle = 'rgba(148, 163, 184, 0.5)';
+                ctx.fillText(this.graphicsLabel(), 14 + 48 + 58, versionY);
+            }
         }
         ctx.restore();
     },
