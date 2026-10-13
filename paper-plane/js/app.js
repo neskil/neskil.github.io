@@ -10,12 +10,17 @@ import {
     DESIGNS, STEP_KINDS, encodeSteps, decodeSteps,
 } from './fold.js';
 import { makePlane, DEFAULT_TRIM, balanceWord, MISSIONS, dailyChallenge, inBin, fly as simulate } from './flight.js';
-import { buildModel, sideSprite } from './model.js';
+import { MISSIONS3D, furnish } from './flight3d.js';
+import { buildModel } from './model.js';
 import { FoldView } from './foldview.js';
 import { ShapeView } from './shapeview.js';
 import { FlyView } from './flyview.js';
 
 const $ = (id) => document.getElementById(id);
+const params = new URLSearchParams(location.search);
+/** The 2D missions still apply in the 3D office; these are the ones only a
+    3D throw can do. */
+const ALL_MISSIONS = [...MISSIONS, ...MISSIONS3D];
 
 /* ── Saved state ── */
 const KEY = 'paperplane.v3';
@@ -31,6 +36,8 @@ function persist() {
         localStorage.setItem('paperplane.daily', JSON.stringify(state.daily));
     } catch (e) { /* private mode: nothing is remembered */ }
 }
+let persistTimer = null;
+function persistSoon() { clearTimeout(persistTimer); persistTimer = setTimeout(persist, 400); }
 
 const state = {
     step: 'fold',
@@ -46,7 +53,7 @@ const state = {
     under: false,
     pending: null,      // a step chosen from the library or the guide, being animated
     mode: saved.mode || 'free',
-    mission: saved.mission || MISSIONS[0].id,
+    mission: ALL_MISSIONS.some(m => m.id === saved.mission) ? saved.mission : MISSIONS[0].id,
     missions: saved.missions || {},
     best: loadJSON('paperplane.best', null),
     daily: loadJSON('paperplane.daily', null),
@@ -54,6 +61,11 @@ const state = {
     hangar: Array.isArray(saved.hangar) ? saved.hangar.filter(h => Array.isArray(h.steps)) : [],
 };
 if (state.best && !Array.isArray(state.best.path)) state.best = null;
+// A best from before the 3D flight: [x, y, pitch] becomes a level path on the
+// centre line, so the ghost still shows.
+if (state.best && state.best.path.length && state.best.path[0].length === 3) {
+    state.best.path = state.best.path.map(([x, y, p]) => [x, y, 0, Math.cos(p / 2), 0, 0, Math.sin(p / 2)]);
+}
 if (!state.daily || state.daily.key !== state.challenge.key) state.daily = { key: state.challenge.key, error: null, binned: false };
 
 /* ── Views ── */
@@ -65,12 +77,18 @@ const foldView = new FoldView($('fold-canvas'), {
 });
 const liveView = new ShapeView($('live-canvas'), { labels: false });
 const shapeView = new ShapeView($('shape-canvas'));
-const fly = new FlyView($('fly-canvas'), {
-    onAim: (aim) => { $('aim').textContent = `${aim.angle}° · ${aim.speed.toFixed(1)} m/s`; },
+const CAM_LABEL = { chase: '🎥 Behind', side: '🎥 Side', top: '🎥 Above' };
+const flyHooks = {
+    onAim: (aim) => showAim(aim),
     onLanded: (r) => landed(r),
     onThrow: () => { $('banner').hidden = true; },
     ghost: () => (state.mode === 'free' ? state.best : null),
-});
+    onCamera: (name) => { $('cam').textContent = CAM_LABEL[name]; },
+};
+// Side-on to begin with, and for good if there is no WebGL; the 3D office
+// takes over once three.js has loaded (want3D, below).
+const flat = new FlyView($('fly-canvas'), flyHooks);
+let fly = flat;
 fly.setAim(saved.aim || {});
 
 /* ── Folding ── */
@@ -168,7 +186,7 @@ function renderTimeline() {
     const list = $('timeline');
     list.textContent = '';
     if (!state.steps.length) {
-        list.innerHTML = '<li class="tl-empty">No folds yet. A flat sheet tumbles: fold some paper towards the nose.</li>';
+        list.innerHTML = '<li class="tl-empty">No folds yet. A flat sheet rears up and stalls: fold some paper towards the nose.</li>';
         return;
     }
     state.steps.forEach((st, i) => {
@@ -324,7 +342,7 @@ function refreshPlane() {
     const markers = { cg: state.plane.info.cgY, ac: state.plane.info.acY };
     liveView.setModel(state.model, markers);
     shapeView.setModel(state.model, markers);
-    fly.setPlane(state.plane, sideSprite(state.model));
+    fly.setPlane(state.plane, state.model);
     const i = state.plane.info;
     const b = balanceWord(i.margin);
     // A firm, flat-ish throw, flown for real: the number to beat while folding.
@@ -361,16 +379,81 @@ function syncTrimInputs() {
 }
 
 /* ── Flying ── */
+
+/** Where the throw happens: the mission's things, in the office. */
 function world() {
-    if (state.mode === 'daily') return { fans: state.challenge.fans, bin: { x: state.challenge.bin, width: state.challenge.binWidth } };
-    if (state.mode === 'missions') return MISSIONS.find(m => m.id === state.mission).world;
-    return {};
+    const c = state.challenge;
+    if (state.mode === 'daily') return furnish({ fans: c.fans, bin: { x: c.bin, z: c.binZ, width: c.binWidth } });
+    if (state.mode === 'missions') return furnish(mission().world);
+    return furnish({});
 }
+function mission() { return ALL_MISSIONS.find(m => m.id === state.mission) || MISSIONS[0]; }
+
+/* ── The 3D office ──
+   three.js is 600 kB, so it is fetched on the way to the Fly step (opening
+   Shape or Fly), not with the page. Until it is ready, and for good where
+   there is no WebGL, the side-on room flies the same 3D flight. */
+let three = null;
+function want3D() {
+    if (three || params.get('view') === '2d') return;
+    three = new Promise((resolve) => {
+        if (window.THREE) { resolve(true); return; }
+        const tag = document.createElement('script');
+        tag.src = 'vendor/three.min.js';
+        tag.onload = () => resolve(true);
+        tag.onerror = () => resolve(false);
+        document.head.appendChild(tag);
+    }).then(async (ok) => {
+        if (!ok) return;
+        const { FlyView3D } = await import('./flyview3d.js');
+        let view;
+        try { view = new FlyView3D($('fly3d-canvas'), flyHooks); }
+        catch (e) { return; }      // no WebGL: stay side-on
+        swapTo(view);
+    });
+}
+function swapTo(view) {
+    // Not in the middle of a throw.
+    if (fly.flight) { setTimeout(() => swapTo(view), 300); return; }
+    view.setAim(fly.aim);
+    view.setPlane(state.plane, state.model);
+    view.setWorld(world());
+    flat.visible = false;
+    $('fly-canvas').hidden = true;
+    $('fly3d-canvas').hidden = false;
+    $('cam').hidden = false;
+    $('room-hint').textContent = 'Drag back and let go · arrows aim, W/S power, Q/E tilt, Space throws, C camera';
+    fly = view;
+    fly.visible = state.step === 'fly';
+    fly.fit();
+}
+
+/** The aim, in words and on the sliders. */
+function showAim(a) {
+    const dir = a.yaw ? `${Math.abs(a.yaw)}° ${a.yaw > 0 ? 'right' : 'left'}` : 'straight';
+    const tilt = a.bank ? ` · tilted ${Math.abs(a.bank)}° ${a.bank > 0 ? 'right' : 'left'}` : '';
+    $('aim').textContent = `${a.angle}° · ${a.speed.toFixed(1)} m/s · ${dir}${tilt}`;
+    $('aim-angle').value = a.angle;
+    $('aim-speed').value = a.speed;
+    $('aim-yaw').value = a.yaw;
+    $('aim-bank').value = a.bank;
+    $('aim-angle-val').textContent = `${a.angle}°`;
+    $('aim-speed-val').textContent = `${a.speed.toFixed(1)} m/s`;
+    $('aim-yaw-val').textContent = a.yaw ? `${Math.abs(a.yaw)}° ${a.yaw > 0 ? 'right' : 'left'}` : 'Straight';
+    $('aim-bank-val').textContent = a.bank ? `${Math.abs(a.bank)}° ${a.bank > 0 ? 'right' : 'left'}` : 'Level';
+    persistSoon();
+}
+for (const k of ['angle', 'speed', 'yaw', 'bank']) {
+    $('aim-' + k).addEventListener('input', () => fly.setAim({ [k]: +$('aim-' + k).value }));
+}
+$('cam').addEventListener('click', () => fly.nextCamera && fly.nextCamera());
+$('replay').addEventListener('click', () => fly.replay && fly.replay());
 
 function setMode(m) {
     state.mode = m;
     document.querySelectorAll('[data-mode]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.mode === m)));
     fly.setWorld(world());
+    $('replay').hidden = true;
     $('missions').hidden = m !== 'missions';
     renderMissions();
     updateBoard();
@@ -381,19 +464,19 @@ document.querySelectorAll('[data-mode]').forEach(b => b.addEventListener('click'
 function renderMissions() {
     const box = $('mission-list');
     box.textContent = '';
-    for (const m of MISSIONS) {
+    for (const m of ALL_MISSIONS) {
         const b = document.createElement('button');
         b.type = 'button';
         b.className = 'mission';
         b.setAttribute('aria-pressed', String(m.id === state.mission));
         b.innerHTML = `<span class="tick">${state.missions[m.id] ? '★' : '☆'}</span><span>${m.name}</span>`;
         b.title = m.goal;
-        b.addEventListener('click', () => { state.mission = m.id; fly.setWorld(world()); renderMissions(); updateBoard(); persist(); });
+        b.addEventListener('click', () => { state.mission = m.id; fly.setWorld(world()); $('replay').hidden = true; renderMissions(); updateBoard(); persist(); });
         box.appendChild(b);
     }
-    const done = MISSIONS.filter(m => state.missions[m.id]).length;
-    $('mission-count').textContent = `${done}/${MISSIONS.length}`;
-    $('mission-goal').textContent = MISSIONS.find(m => m.id === state.mission).goal;
+    const done = ALL_MISSIONS.filter(m => state.missions[m.id]).length;
+    $('mission-count').textContent = `${done}/${ALL_MISSIONS.length}`;
+    $('mission-goal').textContent = mission().goal;
 }
 
 function updateBoard() {
@@ -404,11 +487,12 @@ function updateBoard() {
         $('goal-label').textContent = 'Longest throw';
         $('goal').textContent = state.best ? `${state.best.distance.toFixed(1)} m` : '—';
     } else if (state.mode === 'daily') {
-        $('goal-label').textContent = `Today’s bin · ${state.challenge.bin.toFixed(1)} m`;
+        const z = state.challenge.binZ;
+        $('goal-label').textContent = `Today’s bin · ${state.challenge.bin.toFixed(1)} m${Math.abs(z) >= 0.05 ? `, ${Math.abs(z).toFixed(1)} m ${z > 0 ? 'right' : 'left'}` : ''}`;
         $('goal').textContent = state.daily.binned ? '🎯 In!' : state.daily.error != null ? `${state.daily.error.toFixed(2)} m off` : '—';
     } else {
         $('goal-label').textContent = 'Missions';
-        $('goal').textContent = `${MISSIONS.filter(m => state.missions[m.id]).length} / ${MISSIONS.length} ★`;
+        $('goal').textContent = `${ALL_MISSIONS.filter(m => state.missions[m.id]).length} / ${ALL_MISSIONS.length} ★`;
     }
 }
 
@@ -423,27 +507,35 @@ function banner(text, kind = '') {
 }
 
 function landed(r) {
-    let msg = `${r.distance.toFixed(1)} m in ${r.time.toFixed(1)} s`;
+    const off = Math.abs(r.offset) >= 0.05 ? `, ${Math.abs(r.offset).toFixed(1)} m ${r.offset > 0 ? 'right' : 'left'}` : '';
+    let msg = `${r.distance.toFixed(1)} m${off} in ${r.time.toFixed(1)} s`;
     let kind = '';
+    $('replay').hidden = !fly.replay;
     if (state.mode === 'free') {
         if (!state.best || r.distance > state.best.distance) {
-            state.best = { distance: r.distance, path: r.path.filter((_, i) => i % 2 === 0) };
+            const round = (v) => Math.round(v * 1000) / 1000;
+            state.best = { distance: r.distance, path: r.path.filter((_, i) => i % 2 === 0).map(p => p.map(round)) };
             msg = `New best · ${msg}`;
             kind = 'best';
         }
     } else if (state.mode === 'daily') {
-        const err = Math.abs(r.distance - state.challenge.bin);
-        if (inBin(r.distance, state.challenge)) {
+        const c = state.challenge;
+        const err = Math.hypot(r.distance - c.bin, r.offset - c.binZ);
+        if (inBin(r.distance, c, r.offset)) {
             state.daily.binned = true;
             state.daily.error = 0;
             msg = '🎯 In the bin!';
             kind = 'best';
         } else {
             if (!state.daily.binned && (state.daily.error == null || err < state.daily.error)) state.daily.error = err;
-            msg = r.distance < state.challenge.bin ? `${err.toFixed(2)} m short` : `${err.toFixed(2)} m long`;
+            const along = r.distance - c.bin, across = r.offset - c.binZ;
+            const parts = [];
+            if (Math.abs(along) >= 0.05) parts.push(`${Math.abs(along).toFixed(2)} m ${along < 0 ? 'short' : 'long'}`);
+            if (Math.abs(across) >= 0.05) parts.push(`${Math.abs(across).toFixed(2)} m ${across < 0 ? 'left' : 'right'}`);
+            msg = parts.join(', ') || 'Just off the rim';
         }
     } else {
-        const m = MISSIONS.find(x => x.id === state.mission);
+        const m = mission();
         if (m.check(r, m.world)) {
             const first = !state.missions[m.id];
             state.missions[m.id] = true;
@@ -457,6 +549,7 @@ function landed(r) {
     if (kind !== 'best') {
         if (r.stalls > 3) msg += ' · it stalled — move weight forward or bend the elevator down';
         else if (r.bonks) msg += ' · bonked the ceiling';
+        else if (r.walls) msg += ' · hit the wall';
     }
     banner(msg, kind);
     updateBoard();
@@ -465,13 +558,24 @@ function landed(r) {
 
 $('throw').addEventListener('click', () => fly.throwIt());
 window.addEventListener('keydown', (e) => {
-    if (state.step !== 'fly' || e.target.closest('input')) return;
+    if (state.step !== 'fly' || e.target.closest('input') || e.metaKey || e.ctrlKey || e.altKey) return;
     const a = fly.aim;
-    if (e.key === ' ' || e.key === 'Enter') { fly.throwIt(); e.preventDefault(); }
-    else if (e.key === 'ArrowUp') { fly.setAim({ angle: Math.min(60, a.angle + 1) }); e.preventDefault(); }
-    else if (e.key === 'ArrowDown') { fly.setAim({ angle: Math.max(-15, a.angle - 1) }); e.preventDefault(); }
-    else if (e.key === 'ArrowRight') { fly.setAim({ speed: Math.min(12, Math.round((a.speed + 0.2) * 10) / 10) }); e.preventDefault(); }
-    else if (e.key === 'ArrowLeft') { fly.setAim({ speed: Math.max(2, Math.round((a.speed - 0.2) * 10) / 10) }); e.preventDefault(); }
+    const k = e.key.length === 1 ? e.key.toLowerCase() : e.key;
+    const keys = {
+        ' ': () => fly.throwIt(),
+        Enter: () => fly.throwIt(),
+        ArrowUp: () => fly.setAim({ angle: a.angle + 1 }),
+        ArrowDown: () => fly.setAim({ angle: a.angle - 1 }),
+        ArrowRight: () => fly.setAim({ yaw: a.yaw + 1 }),
+        ArrowLeft: () => fly.setAim({ yaw: a.yaw - 1 }),
+        w: () => fly.setAim({ speed: a.speed + 0.2 }),
+        s: () => fly.setAim({ speed: a.speed - 0.2 }),
+        e: () => fly.setAim({ bank: a.bank + 2 }),
+        q: () => fly.setAim({ bank: a.bank - 2 }),
+        c: () => fly.nextCamera && fly.nextCamera(),
+        r: () => fly.replay && fly.replay(),
+    };
+    if (keys[k]) { keys[k](); e.preventDefault(); }
 });
 
 /* ── The hangar: planes you have kept ── */
@@ -546,6 +650,7 @@ function go(step) {
     shapeView.visible = step === 'shape';
     fly.visible = step === 'fly';
     refreshPlane();
+    if (step === 'shape' || step === 'fly') want3D();
     if (step === 'shape') { shapeView.fit(); shapeView.spin = true; }
     if (step === 'fly') { fly.fit(); fly.setWorld(world()); updateBoard(); }
     if (step === 'fold') { foldView.fit(); liveView.fit(); $('to-shape').classList.remove('pulse'); }
@@ -568,7 +673,7 @@ function say(text, kind = '') {
 }
 
 /* ── Start ── */
-const q = new URLSearchParams(location.search);
+const q = params;
 if (q.has('plane')) {
     const steps = decodeSteps(q.get('plane'));
     if (steps) { state.steps = steps; state.design = 'free'; }
@@ -590,9 +695,13 @@ syncTrimInputs();
 renderHangar();
 rebuild();
 setMode(['free', 'missions', 'daily'].includes(q.get('mode')) ? q.get('mode') : state.mode);
-if (q.has('mission') && MISSIONS.some(m => m.id === q.get('mission'))) { state.mission = q.get('mission'); fly.setWorld(world()); renderMissions(); }
+if (q.has('mission') && ALL_MISSIONS.some(m => m.id === q.get('mission'))) { state.mission = q.get('mission'); fly.setWorld(world()); renderMissions(); }
 go(['fold', 'shape', 'fly'].includes(q.get('step')) ? q.get('step') : 'fold');
 if (q.has('throw') && state.step === 'fly') {
-    const [a, sp] = q.get('throw').split(',').map(Number);
-    if (Number.isFinite(a) && Number.isFinite(sp)) { fly.setAim({ angle: a, speed: sp }); setTimeout(() => fly.throwIt(), 300); }
+    // ?throw=angle,speed[,direction,tilt]: thrown once the office is ready.
+    const [a, sp, yaw = 0, bank = 0] = q.get('throw').split(',').map(Number);
+    if ([a, sp, yaw, bank].every(Number.isFinite)) {
+        fly.setAim({ angle: a, speed: sp, yaw, bank });
+        Promise.resolve(three).then(() => setTimeout(() => fly.throwIt(), 300));
+    }
 }
