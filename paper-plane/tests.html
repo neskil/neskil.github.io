@@ -101,6 +101,37 @@
             ok(c.paper && c.paper.folds.length === 1, 'a fold straight down the middle happens once');
             const m = F.foldMirrored(s, [-105, 0], [0, 105]);
             ok(m.paper && m.paper.folds.length === 1 && m.paper.facets.length === 3, 'a mirrored fold is one step with two flaps');
+
+            // Layers over a grid sampled symmetrically about the centre line.
+            const lopsided = (p) => {
+                let d = 0;
+                for (let y = 0.37; y < 300; y += 2.5) for (let x = 0.75; x < 110; x += 2.5) {
+                    const at = (px) => p.facets.filter(f => F.contains(f.pts, px, y)).length;
+                    d += Math.abs(at(x) - at(-x));
+                }
+                return d;
+            };
+            const across = F.foldMirrored(s, [-105, 297], [-105, 200]);
+            ok(across.paper && across.paper.facets.length === 2 && near(totalArea(across.paper), 210 * 297, 1e-6) && F.bounds(across.paper).y1 < 250,
+                'mirrored, a fold straight across folds the whole width, once', across.error || '');
+            const over = F.foldMirrored(s, [-105, 297], [46.4, 297]);
+            ok(over.paper && lopsided(over.paper) === 0 && near(totalArea(over.paper), 210 * 297, 1e-6),
+                'mirrored flaps that reach over the middle onto each other stay symmetric', over.paper ? lopsided(over.paper) + ' cells off' : over.error);
+            ok(F.foldMirrored(s, [-10, 150], [60, 150]).error === 'crosses', 'a mirrored fold that would lift the centre line is refused');
+            ok(F.fold(s, [0, 297], [0, 330]) === null && F.planFold(s, [-105, 297], [-105, 320]) === null, 'turning the whole sheet over is not a fold');
+            const g = F.build(F.DESIGNS.find(d => d.id === 'glider').steps).paper;
+            const tips = F.foldMirrored(g, [-105, 297], [-85, 297]);
+            ok(tips.paper && lopsided(tips.paper) === 0, 'and wing tips folded up on a glider come out the same both sides');
+
+            // What the table folds is what the list re-folds, exactly.
+            let p = F.foldMirrored(s, [-105, 0], [0, 105]).paper;
+            const S1 = [-105, 105], T1 = F.snapTarget(p, [-40.3, 211.7], 6).p;
+            const direct = F.fold(p, S1, T1);
+            const step = F.recognise(p, S1, T1, false, false);
+            const again = F.build([F.recognise(s, [-105, 0], [0, 105], true, false), step]).paper;
+            ok(JSON.stringify(direct.facets.map(f => f.pts)) === JSON.stringify(again.facets.map(f => f.pts)), 'a dragged fold, folded again from the list, is the same sheet');
+            const back1 = F.decodeSteps(F.encodeSteps([step]))[0];
+            ok(Math.abs(back1.T[0] - T1[0]) <= 0.005 && Math.abs(back1.T[1] - T1[1]) <= 0.005, 'and a share link keeps it to a hundredth of a millimetre');
         }
         {
             const steps = F.DESIGNS.find(d => d.id === 'nakamura').steps;

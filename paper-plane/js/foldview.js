@@ -1,7 +1,7 @@
 // Paper Plane Glider — the folding table. Draws the sheet, takes the drag
 // that is a fold, previews where the flap will land, and animates the flap
 // swinging over before handing the fold to the app to apply.
-import { SHEET, planFold, facetAt, snapGrab, snapTarget, mirrorPoint, bounds } from './fold.js';
+import { SHEET, planFold, mirroredPlans, facetAt, snapGrab, snapTarget, mirrorPoint, bounds } from './fold.js';
 
 const FOLD_MS = 560;
 
@@ -43,10 +43,24 @@ export class FoldView {
         const bar = this.canvas.parentElement.querySelector('.stage-bar');
         const reserve = bar && bar.offsetParent ? bar.offsetHeight + 10 : 0;
         const pad = 26;
-        this.scale = Math.min((this.W - pad * 2) / SHEET.w, (this.H - reserve - pad * 2) / SHEET.h);
+        // The flat sheet's footprint, grown if a flap sticks out past it,
+        // and kept centred on the centre line.
+        const e = this.extent = this.paperExtent();
+        const half = Math.max(-e.x0, e.x1);
+        this.scale = Math.min((this.W - pad * 2) / (2 * half), (this.H - reserve - pad * 2) / (e.y1 - e.y0));
         this.ox = this.W / 2;
-        this.oy = (this.H - reserve - SHEET.h * this.scale) / 2;
+        this.oy = (this.H - reserve - (e.y1 - e.y0) * this.scale) / 2 - e.y0 * this.scale;
         this.draw();
+    }
+
+    paperExtent() {
+        const e = { x0: -SHEET.w / 2, x1: SHEET.w / 2, y0: 0, y1: SHEET.h };
+        if (this.paper) {
+            const b = bounds(this.paper);
+            e.x0 = Math.min(e.x0, b.x0); e.x1 = Math.max(e.x1, b.x1);
+            e.y0 = Math.min(e.y0, b.y0); e.y1 = Math.max(e.y1, b.y1);
+        }
+        return e;
     }
 
     toPaper(e) {
@@ -54,7 +68,13 @@ export class FoldView {
         return [(e.clientX - r.left - this.ox) / this.scale, (e.clientY - r.top - this.oy) / this.scale];
     }
 
-    setPaper(paper, cg) { this.paper = paper; this.cg = cg; this.draw(); }
+    setPaper(paper, cg) {
+        this.paper = paper;
+        this.cg = cg;
+        const e = this.paperExtent(), was = this.extent;
+        if (!was || e.x0 !== was.x0 || e.x1 !== was.x1 || e.y0 !== was.y0 || e.y1 !== was.y1) this.fit();
+        else this.draw();
+    }
     setGuide(g) { this.guide = g; this.draw(); }
 
     /* ── Input ── */
@@ -92,9 +112,25 @@ export class FoldView {
                 snap = { p: gT, kind: 'guide' };
             }
         }
+        // Mirrored, a drag that is nearly straight down or up the sheet is
+        // meant to be: a crease straight across, which is its own mirror.
+        if (this.hooks.mirror() && snap.kind !== 'guide' && Math.abs(d.S[0]) >= 0.75) {
+            const dy = snap.p[1] - d.S[1];
+            if (Math.abs(dy) > 6 * mm && Math.abs(snap.p[0] - d.S[0]) < Math.max(4 * mm, Math.abs(dy) * 0.08)) {
+                snap = { p: [d.S[0], snap.p[1]], kind: 'across' };
+            }
+        }
         d.T = snap.p;
         d.snap = snap.kind;
         this.draw();
+    }
+
+    /** What a fold from S to T would do on the sheet as it is: the plans to
+        draw and animate (both halves of a mirrored one), or an error. */
+    plansFor(S, T, mirrored) {
+        if (mirrored) return mirroredPlans(this.paper, S, T);
+        const p = planFold(this.paper, S, T);
+        return p ? { plans: [p] } : { error: 'nothing' };
     }
 
     up(e) {
@@ -109,13 +145,15 @@ export class FoldView {
     play(S, T, opts = {}) {
         const centre = Math.abs(S[0]) < 0.75 && Math.abs(T[0]) < 0.75;
         const mirrored = (opts.mirrored ?? this.hooks.mirror()) && !centre;
-        const plans = [planFold(this.paper, S, T)];
-        if (mirrored) plans.push(planFold(this.paper, mirrorPoint(S), mirrorPoint(T)));
-        if (plans.some(p => !p)) {
-            this.hooks.onMessage('That would not fold anything. Grab the paper nearer a corner or an edge.');
+        const r = this.plansFor(S, T, mirrored);
+        if (r.error) {
+            this.hooks.onMessage(r.error === 'crosses'
+                ? 'That crease would cross the middle. Turn mirroring off, or fold straight across.'
+                : 'That would not fold anything. Grab the paper nearer a corner or an edge.');
             this.draw();
             return;
         }
+        const plans = r.plans;
         const finish = () => { this.anim = null; this.hooks.onFold(S, T, mirrored); };
         if (this.reduceMotion.matches) { finish(); return; }
         this.anim = { plans, t0: performance.now(), finish };
@@ -264,24 +302,24 @@ export class FoldView {
 
     preview() {
         const d = this.drag;
+        if (Math.hypot(d.T[0] - d.S[0], d.T[1] - d.S[1]) < 2) return;
         const mirrored = this.hooks.mirror() && !(Math.abs(d.S[0]) < 0.75 && Math.abs(d.T[0]) < 0.75);
-        const pairs = [[d.S, d.T]];
-        if (mirrored) pairs.push([mirrorPoint(d.S), mirrorPoint(d.T)]);
-        const crosses = mirrored && crossesCentre(this.paper, d.S, d.T);
-        for (const [S, T] of pairs) {
-            const plan = planFold(this.paper, S, T);
-            if (plan && !crosses) {
-                // Where the flap lands: a ghost of it, already turned over.
-                for (const m of plan.moving) {
-                    const M = flapMatrix(plan, Math.PI);
-                    this.facet(m.neg, 1 - m.f.face, m.f.m, M, 'rgba(250, 204, 21, 0.22)');
-                    this.ghostOutline(m.neg, M);
-                }
-                this.crease(plan);
+        const r = this.plansFor(d.S, d.T, mirrored);
+        const crosses = r.error === 'crosses';
+        // Where the flaps land: ghosts of them, already turned over. These are
+        // the plans the fold itself will use, so the paper ends up here.
+        for (const plan of r.plans || []) {
+            const M = flapMatrix(plan, Math.PI);
+            for (const m of plan.moving) {
+                this.facet(m.neg, 1 - m.f.face, m.f.m, M, 'rgba(250, 204, 21, 0.22)');
+                this.ghostOutline(m.neg, M);
             }
-            this.arrow(S, T, crosses ? '#f87171' : '#facc15', false, 1);
+            this.crease(plan);
         }
-        if (d.snap && d.snap !== 'corner') this.label(d.T, d.snap === 'centre' ? 'centre line' : d.snap === 'guide' ? '✓' : 'edge');
+        const pairs = mirrored ? [[d.S, d.T], [mirrorPoint(d.S), mirrorPoint(d.T)]] : [[d.S, d.T]];
+        for (const [S, T] of pairs) this.arrow(S, T, crosses ? '#f87171' : '#facc15', false, 1);
+        const names = { centre: 'centre line', guide: '✓', edge: 'edge', across: 'straight across' };
+        if (d.snap && names[d.snap]) this.label(d.T, names[d.snap]);
         if (crosses) this.label(d.T, 'crosses the middle', '#fca5a5');
     }
 
@@ -392,16 +430,4 @@ function compose(A, B) {
         A[0] * B[2] + A[2] * B[3], A[1] * B[2] + A[3] * B[3],
         A[0] * B[4] + A[2] * B[5] + A[4], A[1] * B[4] + A[3] * B[5] + A[5],
     ];
-}
-
-function crossesCentre(paper, S, T) {
-    const dx = T[0] - S[0], dy = T[1] - S[1];
-    const L = Math.hypot(dx, dy) || 1;
-    const n = [dx / L, dy / L], P = [(S[0] + T[0]) / 2, (S[1] + T[1]) / 2];
-    const b = bounds(paper);
-    if (Math.abs(n[1]) > 1e-9) {
-        const y0 = (P[0] * n[0] + P[1] * n[1]) / n[1];
-        return y0 > b.y0 + 0.75 && y0 < b.y1 - 0.75;
-    }
-    return Math.abs(P[0]) < 0.75;
 }

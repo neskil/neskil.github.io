@@ -176,9 +176,6 @@ export function planFold(paper, S, T) {
     const P = [(S[0] + T[0]) / 2, (S[1] + T[1]) / 2];
     const s = (p) => (p[0] - P[0]) * n[0] + (p[1] - P[1]) * n[1];
 
-    const picked = facetAt(paper, S[0], S[1]);
-    if (!picked) return null;
-
     const pieces = [];
     for (const f of paper.facets) {
         const neg = clip(f.pts, s, -1);
@@ -189,9 +186,17 @@ export function planFold(paper, S, T) {
             pos: pos.length >= 3 && Math.abs(area(pos)) > 0.3 ? pos : null,
         });
     }
+    // A fold needs paper on both sides of its crease: with all of it on the
+    // moving side the "fold" would just turn the whole sheet over.
+    if (!pieces.some(p => p.pos)) return null;
     const onCrease = (p) => Math.abs(s(p)) < 0.05;
-    const seed = pieces.find(p => p.f === picked);
-    if (!seed || !seed.neg) return null;
+    // What the fingers pick up: the top layer at S that has paper on the
+    // moving side. (S is often a corner several layers share, and the top one
+    // there can lie wholly on the side that stays.)
+    const seed = pieces
+        .filter(p => p.neg && distToPolygon(p.f.pts, S[0], S[1]) <= 2)
+        .sort((a, b) => b.f.z - a.f.z)[0];
+    if (!seed) return null;
 
     // Everything on the moving side joined to what was picked.
     const moving = new Set([seed]);
@@ -212,25 +217,48 @@ export function planFold(paper, S, T) {
 export function fold(paper, S, T, under = false) {
     const plan = planFold(paper, S, T);
     if (!plan) return null;
-    const { P, n, pieces, moving } = plan;
-    let zMax = -Infinity, zMin = Infinity, mMax = -Infinity, mMin = Infinity;
+    return { ...applyPlans(paper, [plan], under), folds: [...paper.folds, { S, T, under }] };
+}
+
+/** Makes planned folds, all at once, on the sheet as it is now: one plan
+    for a plain fold, two for the halves of a mirrored one. Their moving
+    sides never overlap (mirroredPlans sees to that), so a facet two creases
+    cut keeps the part beyond neither, and each flap turns over its own. */
+function applyPlans(paper, plans, under) {
+    let zMax = -Infinity, zMin = Infinity;
     for (const f of paper.facets) { zMax = Math.max(zMax, f.z); zMin = Math.min(zMin, f.z); }
-    for (const p of moving) { mMax = Math.max(mMax, p.f.z); mMin = Math.min(mMin, p.f.z); }
+    // Each plan's flaps get their own band of layers, the later above (or,
+    // folding under, below) the earlier, which only matters where they meet.
+    let level = under ? zMin - 1 : zMax + 1;
+    const movers = plans.map(plan => {
+        const byFacet = new Map();
+        let mMax = -Infinity, mMin = Infinity;
+        for (const p of plan.moving) { byFacet.set(p.f, p); mMax = Math.max(mMax, p.f.z); mMin = Math.min(mMin, p.f.z); }
+        const mv = { plan, byFacet, mMax, mMin, level };
+        level += (under ? -1 : 1) * (mMax - mMin + 1);
+        return mv;
+    });
 
     let nextId = paper.nextId;
     const facets = [];
-    for (const piece of pieces) {
-        const f = piece.f;
-        if (!moving.has(piece)) { facets.push(f); continue; }
-        if (piece.pos) facets.push({ ...f, id: nextId++, pts: piece.pos });
-        const reflected = piece.neg.map(([x, y]) => {
-            const d = (x - P[0]) * n[0] + (y - P[1]) * n[1];
-            return [x - 2 * d * n[0], y - 2 * d * n[1]];
-        }).reverse();
-        // Turned over, the flap's layers land in reverse order: the one that
-        // was on top of the pile is now at the bottom of the flap.
-        const z = under ? zMin - 1 - (f.z - mMin) : zMax + 1 + (mMax - f.z);
-        facets.push({ id: nextId++, pts: reflected, z, face: 1 - f.face, m: reflectMatrix(f.m, P, n) });
+    for (const f of paper.facets) {
+        const moved = movers.filter(mv => mv.byFacet.has(f));
+        if (!moved.length) { facets.push(f); continue; }
+        // What stays: the part on the near side of every crease it moved across.
+        let rest = f.pts;
+        for (const mv of moved) if (rest.length >= 3) rest = clip(rest, mv.plan.s, 1);
+        if (rest.length >= 3 && Math.abs(area(rest)) > 0.3) facets.push({ ...f, id: nextId++, pts: rest });
+        for (const mv of moved) {
+            const { P, n } = mv.plan;
+            const reflected = mv.byFacet.get(f).neg.map(([x, y]) => {
+                const d = (x - P[0]) * n[0] + (y - P[1]) * n[1];
+                return [x - 2 * d * n[0], y - 2 * d * n[1]];
+            }).reverse();
+            // Turned over, the flap's layers land in reverse order: the one that
+            // was on top of the pile is now at the bottom of the flap.
+            const z = under ? mv.level - (f.z - mv.mMin) : mv.level + (mv.mMax - f.z);
+            facets.push({ id: nextId++, pts: reflected, z, face: 1 - f.face, m: reflectMatrix(f.m, P, n) });
+        }
     }
     // Renumber layers to small integers, keeping order — on copies, never on
     // facets the previous sheet still holds.
@@ -239,37 +267,65 @@ export function fold(paper, S, T, under = false) {
         const z = zs.indexOf(f.z);
         return z === f.z ? f : { ...f, z };
     });
-    return { facets: renumbered, nextId, folds: [...paper.folds, { S, T, under }] };
+    return { facets: renumbered, nextId };
 }
 
 export const mirrorPoint = ([x, y]) => [-x, y];
 
-/** A fold and its mirror image across the centre line, the way a paper
-    plane is folded. A fold straight across the centre is done once. Returns
-    { paper } or { error }. */
-export function foldMirrored(paper, S, T, under = false) {
-    const onCentre = Math.abs(S[0]) < 0.75 && Math.abs(T[0]) < 0.75;
-    if (onCentre) {
-        const p = fold(paper, [0, S[1]], [0, T[1]], under);
-        return p ? { paper: p } : { error: 'nothing' };
+/** A drag straight down or up the sheet (S above T, or below it) makes a
+    crease straight across, which is its own mirror image. */
+export function isAcross(S, T) {
+    return Math.abs(T[0] - S[0]) < 1e-6 && Math.abs(T[1] - S[1]) > 1e-6;
+}
+
+/** How a mirrored fold is made: { plans } to animate and apply, or
+    { error: 'crosses' | 'nothing' }. Both halves are planned on the sheet
+    as it is, and made together, so a symmetric sheet stays symmetric even
+    when the two flaps reach over the middle onto each other.
+      - Along the centre line (S and T both on it): one plain fold.
+      - Straight across (isAcross): one crease, which both halves share;
+        whatever either side picks up turns over it.
+      - Anything else: two creases, which must not meet inside the paper,
+        and the centre line staying put, or the halves would fold into each
+        other. */
+export function mirroredPlans(paper, S, T) {
+    if (Math.abs(S[0]) < 0.75 && Math.abs(T[0]) < 0.75) {
+        const p = planFold(paper, [0, S[1]], [0, T[1]]);
+        return p ? { plans: [p] } : { error: 'nothing' };
     }
-    // The crease must not cross the centre line inside the paper, or the two
-    // halves would fold into each other.
+    if (isAcross(S, T)) {
+        const a = planFold(paper, S, T), b = planFold(paper, mirrorPoint(S), mirrorPoint(T));
+        if (!a && !b) return { error: 'nothing' };
+        const plan = a || b;
+        const lifted = new Set([...(a ? a.moving : []), ...(b ? b.moving : [])].map(p => p.f));
+        plan.moving = new Set(plan.pieces.filter(p => p.neg && lifted.has(p.f)));
+        return { plans: [plan] };
+    }
     const dx = T[0] - S[0], dy = T[1] - S[1];
     const L = Math.hypot(dx, dy);
+    if (L < 2) return { error: 'nothing' };
     const n = [dx / L, dy / L], P = [(S[0] + T[0]) / 2, (S[1] + T[1]) / 2];
     const b = bounds(paper);
     if (Math.abs(n[1]) > 1e-9) {
         const y0 = (P[0] * n[0] + P[1] * n[1]) / n[1];
         if (y0 > b.y0 + 0.75 && y0 < b.y1 - 0.75) return { error: 'crosses' };
     } else if (Math.abs(P[0]) < 0.75) return { error: 'crosses' };
-    const once = fold(paper, S, T, under);
-    if (!once) return { error: 'nothing' };
-    const twice = fold(once, mirrorPoint(S), mirrorPoint(T), under);
-    if (!twice) return { error: 'nothing' };
-    // One user action, one entry in the history.
-    twice.folds = [...paper.folds, { S, T, under, mirrored: true }];
-    return { paper: twice };
+    // And the centre line must stay where it is: if it is on the side that
+    // turns over, both halves would be lifting the same paper.
+    const C = [0, (b.y0 + b.y1) / 2];
+    if ((C[0] - P[0]) * n[0] + (C[1] - P[1]) * n[1] < 0.75) return { error: 'crosses' };
+    const a = planFold(paper, S, T), m = planFold(paper, mirrorPoint(S), mirrorPoint(T));
+    if (!a || !m) return { error: 'nothing' };
+    return { plans: [a, m] };
+}
+
+/** A fold and its mirror image across the centre line, the way a paper
+    plane is folded: one user action, one entry in the history. Returns
+    { paper } or { error }. */
+export function foldMirrored(paper, S, T, under = false) {
+    const r = mirroredPlans(paper, S, T);
+    if (r.error) return r;
+    return { paper: { ...applyPlans(paper, r.plans, under), folds: [...paper.folds, { S, T, under, mirrored: true }] } };
 }
 
 /* ── Snapping ──
@@ -529,20 +585,25 @@ export function recognise(paper, S, T, mirrored, under) {
     const Sl = S[0] > 0.5 ? mirrorPoint(S) : S;
     if (mirrored && onCentre && close(Sl, C)) {
         const reach = (T[1] - A[1]) / Math.hypot(C[0] - A[0], C[1] - A[1]);
-        if (reach >= 0.3 && reach <= 1.2) return { kind: 'corner', reach: Math.round(reach * 100) / 100, under };
+        if (reach >= 0.3 && reach <= 1.2) return { kind: 'corner', reach, under };
     }
-    if (onCentre && Math.abs(S[0]) < 0.75 && close(S, A) && T[1] > S[1]) return { kind: 'nose', d: Math.round(T[1] - S[1]), under };
-    if (onCentre && Math.abs(S[0]) < 0.75 && close(S, L) && T[1] < S[1]) return { kind: 'tip', d: Math.round(S[1] - T[1]), under };
-    return { kind: 'free', S: [round2(S[0]), round2(S[1])], T: [round2(T[0]), round2(T[1])], mirrored, under };
+    if (onCentre && Math.abs(S[0]) < 0.75 && close(S, A) && T[1] > S[1]) return { kind: 'nose', d: T[1] - S[1], under };
+    if (onCentre && Math.abs(S[0]) < 0.75 && close(S, L) && T[1] < S[1]) return { kind: 'tip', d: S[1] - T[1], under };
+    // Exactly where the fold went, unrounded: folded again from the list, a
+    // flap lined up on an edge or a corner lands there again. (Rounded to half
+    // a millimetre, as it was, the sheet came out different after the fold
+    // animation about half the time, and later folds no longer saw the flap
+    // as lined up.) Share links round to a hundredth of a millimetre.
+    return { kind: 'free', S: [S[0], S[1]], T: [T[0], T[1]], mirrored, under };
 }
 
-const round2 = (v) => Math.round(v * 2) / 2;
+const exact = (v) => Math.round(v * 100) / 100;
 
 export function describeStep(step) {
     const u = step.under ? ', behind' : '';
     if (step.kind === 'corner') return (step.reach ?? 1) >= 0.99 ? `Corners to the centre${u}` : `Corners to the centre, meeting ${Math.round((1 - step.reach) * 100)}% short${u}`;
-    if (step.kind === 'nose') return `Nose ${step.under ? 'under' : 'down'} ${step.d} mm`;
-    if (step.kind === 'tip') return `Tip back up ${step.d} mm`;
+    if (step.kind === 'nose') return `Nose ${step.under ? 'under' : 'down'} ${Math.round(step.d)} mm`;
+    if (step.kind === 'tip') return `Tip back up ${Math.round(step.d)} mm`;
     return `Free fold${step.mirrored === false ? ', one side' : ''}${u}`;
 }
 
@@ -594,10 +655,10 @@ export const DESIGNS = [
 export function encodeSteps(steps) {
     return steps.map(st => {
         let out;
-        if (st.kind === 'corner') out = 'c' + (st.reach ?? 1);
-        else if (st.kind === 'nose') out = 'n' + st.d;
-        else if (st.kind === 'tip') out = 't' + st.d;
-        else out = 'f' + [st.S[0], st.S[1], st.T[0], st.T[1]].map(round2).join(',') + (st.mirrored === false ? 's' : '');
+        if (st.kind === 'corner') out = 'c' + Math.round((st.reach ?? 1) * 1e4) / 1e4;
+        else if (st.kind === 'nose') out = 'n' + exact(st.d);
+        else if (st.kind === 'tip') out = 't' + exact(st.d);
+        else out = 'f' + [st.S[0], st.S[1], st.T[0], st.T[1]].map(exact).join(',') + (st.mirrored === false ? 's' : '');
         return out + (st.under ? 'u' : '');
     }).join(';');
 }
@@ -608,8 +669,8 @@ export function decodeSteps(code) {
     for (const part of code.split(';').slice(0, 30)) {
         let m;
         if ((m = /^c([\d.]+)(u?)$/.exec(part))) out.push({ kind: 'corner', reach: Number(m[1]), under: !!m[2] });
-        else if ((m = /^n(\d+)(u?)$/.exec(part))) out.push({ kind: 'nose', d: Number(m[1]), under: !!m[2] });
-        else if ((m = /^t(\d+)(u?)$/.exec(part))) out.push({ kind: 'tip', d: Number(m[1]), under: !!m[2] });
+        else if ((m = /^n(\d+(?:\.\d+)?)(u?)$/.exec(part))) out.push({ kind: 'nose', d: Number(m[1]), under: !!m[2] });
+        else if ((m = /^t(\d+(?:\.\d+)?)(u?)$/.exec(part))) out.push({ kind: 'tip', d: Number(m[1]), under: !!m[2] });
         else if ((m = /^f(-?[\d.]+),(-?[\d.]+),(-?[\d.]+),(-?[\d.]+)(s?)(u?)$/.exec(part))) {
             const v = m.slice(1, 5).map(Number);
             if (!v.every(x => Number.isFinite(x) && Math.abs(x) < 1000)) return null;
