@@ -22,6 +22,7 @@
     <script type="module">
         import * as F from './js/fold.js';
         import * as P from './js/flight.js';
+        import * as P3 from './js/flight3d.js';
         import { buildModel } from './js/model.js';
 
         const results = document.getElementById('results');
@@ -248,6 +249,20 @@
                 for (const f of c.fans) if (f.x <= 0 || f.x >= c.bin) sane = false;
             }
             ok(sane, 'bins are 7–18 m away, with any fan in front of them');
+        }
+
+        // ── 3D flight: the contract the view codes against (PLAN.md) ──
+        {
+            const pl = P.makePlane(F.analyze(folded('dart')), P.DEFAULT_TRIM);
+            const r = P3.fly3d(pl, { angle: 8, speed: 7, yaw: 0, bank: 0 });
+            ok(r.path.every(p => p.length === 7 && p.every(Number.isFinite)), 'fly3d path is [x, y, z, qw, qx, qy, qz]');
+            ok(r.path.every(p => Math.abs(Math.hypot(p[3], p[4], p[5], p[6]) - 1) < 1e-6), 'fly3d orientations are unit quaternions');
+            ok(['distance', 'offset', 'time', 'maxHeight', 'stalls', 'bonks', 'walls', 'landedOn', 'hoops'].every(k => k in r), 'fly3d returns every field the view reads');
+            const a = P3.samplePath(r.path, 0), end = P3.samplePath(r.path, 1e6);
+            ok(Math.abs(a.y - P3.ROOM3D.release) < 1e-9 && a.x === 0 && !a.done, 'samplePath starts at the hand');
+            ok(end.done && Math.abs(end.x - r.path[r.path.length - 1][0]) < 1e-9, 'samplePath ends where the flight does');
+            const mid = P3.samplePath(r.path, P3.SAMPLE3D * 2.5);
+            ok(mid.x > r.path[2][0] && mid.x < r.path[3][0] && Math.abs(Math.hypot(...mid.q) - 1) < 1e-9, 'samplePath interpolates between samples');
         }
 
         const summary = document.getElementById('summary');
