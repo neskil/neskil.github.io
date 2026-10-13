@@ -49,6 +49,22 @@ missions at about 1 throw in 500 or easier.
 - **SwiftShader (headless) renders this at about 10 fps.** Real devices
   manage 60. If a slow phone struggles, cap the pixel ratio at 1.5.
 
+## Findings about the folding
+
+- **A mirrored fold's halves are made together**, planned on the sheet as
+  it was, which is also what the table animates (`mirroredPlans`). Made one
+  after the other, the second half could pick up the first half's flap
+  wherever the two reached over the middle, and the plane came out lopsided.
+- **Steps keep the exact points they were folded at.** Rounded to half a
+  millimetre, the sheet re-folded from the list differed from the one just
+  animated about half the time. Only share links round, to 0.01 mm.
+- **"Joined" is still worked out from geometry**: two layers whose edges
+  line up count as one piece of paper. That is right for creases and wrong
+  for two loose flaps that happen to meet edge to edge. Mirrored folds can
+  no longer be fooled by it; a one-sided fold across such a seam still
+  could. Tracking which facets a crease really joins is the fix if it shows
+  up.
+
 ## Findings from building the 3D flight
 
 - **The pitch damping was explicit and unstable.** At throwing speed, `cmq`
