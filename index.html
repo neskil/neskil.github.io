@@ -4692,9 +4692,20 @@
             return Math.min(smoothScrollY * 0.15, FIELD_PARALLAX_MAX);
         }
 
+        /* Assigning canvas.width wipes the bitmap even when the value is the same,
+           and a phone or tablet fires resize mid-scroll whenever the address bar
+           slides in or out. With the field holding still during a scroll (see
+           animate), that wipe used to stay on screen until the finger let go: the
+           dots vanished for the whole scroll instead of freezing. So an unchanged
+           size is left alone, and a real change asks for one frame straight away. */
+        let canvasNeedsRedraw = false;
+
         function resize() {
-            width = canvas.width = window.innerWidth;
-            height = canvas.height = window.innerHeight;
+            if (canvas.width !== window.innerWidth || canvas.height !== window.innerHeight) {
+                width = canvas.width = window.innerWidth;
+                height = canvas.height = window.innerHeight;
+                canvasNeedsRedraw = true;
+            }
             updateFieldExtent();
         }
 
@@ -5116,13 +5127,15 @@
                nobody has ever noticed, which is exactly the point. Reduced motion
                gets the same treatment for the same reason, on any device: the
                field stays on screen exactly as it was, it just stops redrawing
-               itself while the page is moving underneath it. */
-            if ((prefersCheapCanvas || perfTier > 0 || canvasReduceMotion.matches) && !scrollReactiveField && scrollIsActive()) {
+               itself while the page is moving underneath it. A resize has just
+               wiped the canvas, though, so that one frame goes through. */
+            if (!canvasNeedsRedraw && (prefersCheapCanvas || perfTier > 0 || canvasReduceMotion.matches) && !scrollReactiveField && scrollIsActive()) {
                 requestAnimationFrame(animate);
                 return;
             }
 
             lastCanvasFrame = now;
+            canvasNeedsRedraw = false;
 
             ctx.clearRect(0, 0, width, height);
 
