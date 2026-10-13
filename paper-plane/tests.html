@@ -322,6 +322,14 @@
             ok(desk.walls >= 1 && desk.distance < 3, 'and so does the side of a tall cupboard', desk.distance + ' m');
             const off = P3.fly3d(pl, aim, { pads: [{ x0: 3, x1: 4.5, z0: 1, z1: 2, y: 2 }] });
             ok(!off.walls && Math.abs(off.distance - P3.fly3d(pl, aim).distance) < 1e-9, 'a desk off to the side is not in the way');
+            const dartPl = P.makePlane(F.analyze(folded('dart')), { ...P.DEFAULT_TRIM, keel: 30 });
+            const side = P3.sidePath(P3.fly3d(dartPl, aim).path), flat2 = P.fly(dartPl, aim.angle, aim.speed).path;
+            ok(side.length === flat2.length && side.every((p, i) => Math.abs(p[0] - flat2[i][0]) < 1e-9 && Math.abs(Math.atan2(Math.sin(p[2] - flat2[i][2]), Math.cos(p[2] - flat2[i][2]))) < 1e-6),
+                'sidePath turns a straight 3D flight back into the 2D one, pitch and all');
+            const office = P3.furnish({ pads: [{ x0: 8.5, x1: 10, y: 0.74 }] });
+            ok(office.pads[0].x0 === 8.5 && office.pads.slice(1).every(p => p.scenery && Math.min(Math.abs(p.z0), Math.abs(p.z1)) >= 2.3), 'the office desks stand by the walls, after the mission’s own');
+            const intoDesk = P3.fly3d(pl, { angle: 0, speed: 8, yaw: 16, bank: 0 }, office);
+            ok(intoDesk.walls >= 1 || intoDesk.landedOn > 0, 'and a throw at the wall meets them', `walls ${intoDesk.walls}, landed on ${intoDesk.landedOn}`);
         }
 
         // ── 3D missions and the daily bin ──
@@ -334,14 +342,14 @@
             for (const m of P.MISSIONS) {
                 let done = null;
                 search: for (const pl of candidates) for (const a of [0, 5, 10, 15, 20, 30]) for (let v = 3; v <= 12; v += 0.25) {
-                    if (m.check(P3.fly3d(pl, { angle: a, speed: v, yaw: 0, bank: 0 }, m.world), m.world)) { done = `${a}° at ${v} m/s`; break search; }
+                    if (m.check(P3.fly3d(pl, { angle: a, speed: v, yaw: 0, bank: 0 }, P3.furnish(m.world)), m.world)) { done = `${a}° at ${v} m/s`; break search; }
                 }
                 ok(done, `mission “${m.name}” can be done in 3D too`, done || 'no throw found');
             }
             for (const m of P3.MISSIONS3D) {
                 let done = null;
                 search: for (const pl of candidates) for (const bank of [0, -10, 10, -20, 20]) for (const yaw of [0, -5, 5, -10, 10, -15, 15]) for (const a of [0, 5, 10]) for (let v = 5; v <= 12; v += 0.5) {
-                    if (m.check(P3.fly3d(pl, { angle: a, speed: v, yaw, bank }, m.world), m.world)) { done = `${a}° at ${v} m/s, aimed ${yaw}°, banked ${bank}°`; break search; }
+                    if (m.check(P3.fly3d(pl, { angle: a, speed: v, yaw, bank }, P3.furnish(m.world)), m.world)) { done = `${a}° at ${v} m/s, aimed ${yaw}°, banked ${bank}°`; break search; }
                 }
                 ok(done, `3D mission “${m.name}” can be done`, done || 'no throw found');
             }
@@ -351,7 +359,7 @@
             for (const c of days) {
                 const bearing = Math.atan2(c.binZ, c.bin) * 180 / Math.PI;
                 search: for (const pl of candidates) for (const dy of [0, -1, 1, -2, 2]) for (const a of [0, 5, 10, 15]) for (let v = 3; v <= 12; v += 0.25) {
-                    const r = P3.fly3d(pl, { angle: a, speed: v, yaw: bearing + dy, bank: 0 }, { fans: c.fans });
+                    const r = P3.fly3d(pl, { angle: a, speed: v, yaw: bearing + dy, bank: 0 }, P3.furnish({ fans: c.fans }));
                     if (P.inBin(r.distance, c, r.offset)) { beaten++; break search; }
                 }
             }

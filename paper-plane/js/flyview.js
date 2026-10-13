@@ -1,6 +1,9 @@
-// Paper Plane Glider — the flying room. A long office seen side-on; drag back
-// and let go to throw, and the camera follows the plane down the room.
-import { ROOM, DT, fly } from './flight.js';
+// Paper Plane Glider — the flying room seen side-on, for browsers without
+// WebGL (flyview3d.js is the real one). Drag back and let go to throw; the
+// flight is the 3D one (flight3d.js), drawn from the side.
+import { ROOM, DT } from './flight.js';
+import { fly3d, sidePath, AIM_LIMITS } from './flight3d.js';
+import { sideSprite } from './model.js';
 
 const MAX_SPEED = 12;
 const SAMPLE = DT * 6;
@@ -14,7 +17,7 @@ export class FlyView {
         this.plane = null;
         this.sprite = null;
         this.world = {};
-        this.aim = { angle: 8, speed: 7 };
+        this.aim = { angle: 8, speed: 7, yaw: 0, bank: 0 };
         this.flight = null;
         this.last = null;
         this.camX = HOME;
@@ -69,13 +72,24 @@ export class FlyView {
         this.canvas.style.height = this.H + 'px';
     }
 
-    setPlane(plane, sprite) { this.plane = plane; this.sprite = sprite; }
+    setPlane(plane, model) { this.plane = plane; this.sprite = sideSprite(model); }
     setWorld(world) { this.world = world || {}; this.last = null; this.camX = HOME; }
-    setAim(aim) { this.aim = { ...this.aim, ...aim }; this.hooks.onAim(this.aim); }
+    setAim(aim) {
+        const L = AIM_LIMITS, a = { ...this.aim, ...aim };
+        const clamp = (v, [lo, hi], fallback) => Math.max(lo, Math.min(hi, Number.isFinite(+v) ? +v : fallback));
+        this.aim = {
+            angle: Math.round(clamp(a.angle, L.angle, 8)),
+            speed: Math.round(clamp(a.speed, L.speed, 7) * 10) / 10,
+            yaw: Math.round(clamp(a.yaw, L.yaw, 0)),
+            bank: Math.round(clamp(a.bank, L.bank, 0)),
+        };
+        this.hooks.onAim(this.aim);
+    }
 
     throwIt() {
         if (this.flight || !this.plane) return;
-        this.flight = fly(this.plane, this.aim.angle, this.aim.speed, this.world);
+        this.flight = fly3d(this.plane, this.aim, this.world);
+        this.flight.side = sidePath(this.flight.path);
         this.playT = 0;
         this.hooks.onThrow && this.hooks.onThrow();
     }
@@ -93,7 +107,7 @@ export class FlyView {
             const i = Math.min(f.path.length - 1, Math.floor(idx));
             const j = Math.min(f.path.length - 1, i + 1);
             const t = idx - Math.floor(idx);
-            const [x0, y0, p0] = f.path[i], [x1, y1, p1] = f.path[j];
+            const [x0, y0, p0] = f.side[i], [x1, y1, p1] = f.side[j];
             px = x0 + (x1 - x0) * t;
             py = y0 + (y1 - y0) * t;
             // Pitch can wrap through ±π when it tumbles; interpolate the short way.
@@ -109,7 +123,7 @@ export class FlyView {
                 this.hooks.onLanded(f);
             }
         } else if (this.last) {
-            const end = this.last.path[this.last.path.length - 1];
+            const end = this.last.side[this.last.side.length - 1];
             px = end[0]; py = end[1]; pitch = end[2];
         }
 
@@ -123,6 +137,7 @@ export class FlyView {
         this.fans(v, now);
         this.pads(v);
         this.hoops(v, 'back');
+        this.pillars(v);
         this.bin(v);
         const ghost = this.hooks.ghost();
         if (ghost) {
@@ -262,6 +277,7 @@ export class FlyView {
 
     pads(v) {
         for (const p of this.world.pads || []) {
+            if (p.scenery) continue;
             this.desk(v.X, v.Y, v.s, p.x0, p.x1 - p.x0, '#5b8a6a', true);
             this.tag(v.X((p.x0 + p.x1) / 2), v.Y(0.74) - 22, 'land here', '#6ee7b7');
         }
@@ -315,6 +331,14 @@ export class FlyView {
                 ctx.stroke();
             }
         });
+    }
+
+    pillars(v) {
+        const { ctx } = this;
+        for (const p of this.world.pillars || []) {
+            ctx.fillStyle = 'rgba(107, 114, 128, 0.85)';
+            ctx.fillRect(v.X(p.x - p.r), v.Y(ROOM.ceiling), p.r * 2 * v.s, ROOM.ceiling * v.s);
+        }
     }
 
     bin(v) {

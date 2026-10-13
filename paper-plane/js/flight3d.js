@@ -7,11 +7,19 @@
 // lateral): a lopsided fold moves the centre of lift off the middle and the
 // plane rolls; the dihedral levels it again once it slips sideways; the keel
 // behind the balance point turns the nose into the airflow, which is what
-// turns a banked plane. See PLAN.md → "The contract" for the axes.
+// turns a banked plane.
 //
-// Body axes: x forward, y up, z the right wing. Positive rates: roll about x
-// puts the right wing down, yaw about y swings the nose left, pitch about z
-// lifts the nose. World axes: x down the room, y up, z to the thrower's right.
+// World axes, metres: x down the room, y up, z to the thrower's right
+// (three.js's own, so positions go straight into a scene). Body axes: x
+// forward, y up, z the right wing; a level plane heading down the room is the
+// identity. Positive rates: roll about x puts the right wing down, yaw about
+// y swings the nose left, pitch about z lifts the nose.
+//
+// A flight's path is [[x, y, z, qw, qx, qy, qz], ...], one sample every
+// SAMPLE3D seconds, the quaternion taking body axes to world axes. World
+// objects, all optional (a missing z is the centre line): hoops { x, y, z, r }
+// facing down the room; pads { x0, x1, z0, z1, y }, solid desks; bin
+// { x, z, width }; fans { x, z, width, height, up }; pillars { x, z, r }.
 
 import { DT, ROOM, coefficients } from './flight.js';
 
@@ -323,6 +331,18 @@ export function samplePath(path, t) {
     };
 }
 
+/** The office around a mission: a desk against each wall every 5 m. They
+    are real (a throw that curves into one lands on it or bumps its side) and
+    go after the mission's own desks, so a mission's `landedOn` indices hold. */
+export function furnish(world = {}) {
+    const pads = [...(world.pads || [])];
+    for (let x = 5.6; x < ROOM3D.length - 2; x += 5) {
+        pads.push({ x0: x, x1: x + 1.4, z0: 2.3, z1: ROOM3D.width / 2, y: 0.74, scenery: true });
+        pads.push({ x0: x, x1: x + 1.4, z0: -ROOM3D.width / 2, z1: -2.3, y: 0.74, scenery: true });
+    }
+    return { ...world, pads };
+}
+
 /** Where a fly3d result came to rest, against a bin { x, z, width }. */
 export function inBin3d(result, bin) {
     return Math.hypot(result.distance - bin.x, result.offset - (bin.z || 0)) <= bin.width / 2;
@@ -336,3 +356,13 @@ export const MISSIONS3D = [
     { id: 'side', name: 'Off to the side', goal: 'Through the hoop off to the right at 5 m.', world: { hoops: [{ x: 5, y: 1.4, z: 1.2, r: 0.4 }] }, check: (r) => r.hoops[0] },
     { id: 'pillar', name: 'Round the pillar', goal: 'Curve it round the pillar into the bin at 11 m.', world: { pillars: [{ x: 6, z: 0.2, r: 0.3 }], bin: { x: 11, z: 0.4, width: 0.7 } }, check: (r, w) => inBin3d(r, w.bin) && !r.walls },
 ];
+
+/** A 3D path seen from the side, for the 2D view: [x, y, pitch], where
+    pitch is the nose's angle in the x–y plane (all the way round when it
+    tumbles). */
+export function sidePath(path) {
+    return path.map(p => {
+        const n = rotate([p[3], p[4], p[5], p[6]], [1, 0, 0]);
+        return [p[0], p[1], Math.atan2(n[1], n[0])];
+    });
+}

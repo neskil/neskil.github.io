@@ -4,20 +4,20 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Paper Plane Glider | Niklas Billgren</title>
-    <meta name="description" content="Fold a paper plane yourself, crease by crease, from a sheet of A4 — follow the Classic Dart, Wide Glider or Nakamura Lock, or invent your own. Shape the wings in 3D, then throw it down a long office: flight worked out from the paper you folded, missions, and a new bin to hit every day.">
+    <meta name="description" content="Fold a paper plane yourself, crease by crease, from a sheet of A4 — follow the Classic Dart, Wide Glider or Nakamura Lock, or invent your own. Shape the wings, then throw it down an office in 3D: aim it, tilt your wrist to curve it, and watch a lopsided fold veer. Flight worked out from the paper you folded, ten missions, and a new bin to hit every day.">
     <meta name="theme-color" content="#121826">
     <meta name="color-scheme" content="dark">
     <meta name="author" content="Niklas Billgren">
     <link rel="canonical" href="https://neskil.github.io/paper-plane/">
     <meta property="og:site_name" content="Niklas Billgren">
     <meta property="og:title" content="Paper Plane Glider">
-    <meta property="og:description" content="Fold it yourself, crease by crease. Shape it in 3D. Throw it down the office.">
+    <meta property="og:description" content="Fold it yourself, crease by crease. Shape it. Throw it down the office in 3D, and curve it round the pillar.">
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://neskil.github.io/paper-plane/">
     <meta property="og:image" content="https://neskil.github.io/assets/og/paper-plane.png">
     <meta property="og:image:width" content="1200">
     <meta property="og:image:height" content="630">
-    <meta property="og:image:alt" content="A sheet of A4 three folds into a Nakamura Lock on a dark table, a guide arrow showing the next fold, beside the design list and fold counter.">
+    <meta property="og:image:alt" content="A folded paper glider flying past a concrete pillar down a long office at dusk, seen from just behind it, desks along both walls.">
     <meta name="twitter:card" content="summary_large_image">
     <link rel="icon" href="../favicon.ico">
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -131,6 +131,8 @@
 
         .stage canvas { position: absolute; inset: 0; display: block; }
 
+        .stage canvas[hidden] { display: none; }
+
         .table {
             height: calc(100dvh - 90px);
             min-height: 520px;
@@ -151,7 +153,19 @@
 
         .room { height: min(58dvh, 560px); min-height: 320px; }
 
-        #fly-canvas { touch-action: none; cursor: crosshair; }
+        #fly-canvas, #fly3d-canvas { touch-action: none; cursor: crosshair; }
+
+        .room-tools {
+            position: absolute;
+            left: 0.6rem;
+            bottom: 0.6rem;
+            display: flex;
+            gap: 0.35rem;
+        }
+
+        .room-tools .chip { background: rgba(15, 20, 32, 0.8); }
+
+        .aim-sliders { display: flex; flex-direction: column; gap: 0.55rem; margin: 0.6rem 0 0.2rem; }
 
         .panel {
             background: var(--panel);
@@ -532,6 +546,7 @@
             .steps button { padding: 0.35rem 0.6rem; font-size: 0.78rem; }
             .room { height: 46dvh; }
             .room-hint { display: none; }
+            #banner { top: auto; bottom: 3.3rem; }
             .fly-room { padding: 0 0.6rem; }
             .layout { padding: 0 0.6rem 0.8rem; }
             .fly-layout { padding: 0.7rem 0.6rem; }
@@ -552,7 +567,7 @@
             {
                 "@type": "VideoGame",
                 "url": "https://neskil.github.io/paper-plane/",
-                "description": "Fold a paper plane yourself, crease by crease, from a sheet of A4 — follow the Classic Dart, Wide Glider or Nakamura Lock, or invent your own. Shape the wings in 3D, then throw it down a long office: flight worked out from the paper you folded, missions, and a new bin to hit every day.",
+                "description": "Fold a paper plane yourself, crease by crease, from a sheet of A4 — follow the Classic Dart, Wide Glider or Nakamura Lock, or invent your own. Shape the wings, then throw it down an office in 3D: aim it, tilt your wrist to curve it, and watch a lopsided fold veer. Flight worked out from the paper you folded, ten missions, and a new bin to hit every day.",
                 "image": "https://neskil.github.io/assets/og/paper-plane.png",
                 "name": "Paper Plane Glider",
                 "author": {
@@ -711,7 +726,12 @@
         <div class="fly-room">
             <div class="stage room">
                 <canvas id="fly-canvas" aria-label="Side view of a long office. Drag back from anywhere and let go to throw the plane; the arrow shows the angle and how hard."></canvas>
-                <div class="room-hint">Drag back and let go to throw · or arrow keys and Space</div>
+                <canvas id="fly3d-canvas" hidden aria-label="A long office in 3D, seen from behind the thrower. Drag back from anywhere and let go to throw: pull down for power, sideways to aim. The dashed line shows the start of the throw."></canvas>
+                <div class="room-hint" id="room-hint">Drag back and let go to throw · or arrow keys and Space</div>
+                <div class="room-tools">
+                    <button type="button" class="chip" id="cam" hidden title="Change the camera (C)">🎥 Behind</button>
+                    <button type="button" class="chip" id="replay" hidden title="The last throw again, slowly (R)">↺ Slow replay</button>
+                </div>
                 <div id="banner" hidden></div>
                 <div class="board" aria-live="polite">
                     <span>Last throw</span><b id="last">—</b>
@@ -735,6 +755,26 @@
             <section class="panel" aria-label="Throw">
                 <div class="label" style="margin:0">Aim</div>
                 <div id="aim"></div>
+                <div class="aim-sliders">
+                    <div class="slider">
+                        <label for="aim-angle">Angle <b id="aim-angle-val"></b></label>
+                        <input id="aim-angle" type="range" min="-15" max="60" step="1">
+                    </div>
+                    <div class="slider">
+                        <label for="aim-speed">Power <b id="aim-speed-val"></b></label>
+                        <input id="aim-speed" type="range" min="2" max="12" step="0.1">
+                    </div>
+                    <div class="slider">
+                        <label for="aim-yaw">Direction <b id="aim-yaw-val"></b></label>
+                        <input id="aim-yaw" type="range" min="-20" max="20" step="1">
+                        <small><span>Left</span><span>Right</span></small>
+                    </div>
+                    <div class="slider">
+                        <label for="aim-bank">Wrist tilt <b id="aim-bank-val"></b></label>
+                        <input id="aim-bank" type="range" min="-40" max="40" step="1">
+                        <small><span>Left wing down</span><span>Right wing down</span></small>
+                    </div>
+                </div>
                 <button type="button" class="btn-big" id="throw">Throw ✈</button>
                 <div class="row"><button type="button" class="chip" id="back-shape">← Adjust the plane</button></div>
             </section>
