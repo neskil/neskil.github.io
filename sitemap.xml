@@ -49,6 +49,10 @@
     <priority>0.6</priority>
   </url>
   <url>
+    <loc>https://neskil.github.io/bil/</loc>
+    <priority>0.6</priority>
+  </url>
+  <url>
     <loc>https://neskil.github.io/games/</loc>
     <priority>0.5</priority>
   </url>
