@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Leasa · Hyra · Köpa — Model Tests</title>
+    <meta name="robots" content="noindex">
+    <style>
+        body { background: #0b1424; color: #eef3fa; font-family: system-ui, monospace; padding: 1.5rem; line-height: 1.5; }
+        h1 { font-size: 1.4rem; margin-bottom: 1rem; color: #fecc02; }
+        h2 { font-size: 1rem; margin: 1rem 0 0.3rem; color: #4aa8e8; }
+        .pass { color: #34d399; }
+        .fail { color: #f87171; font-weight: bold; }
+        #summary { font-size: 1.2rem; margin-bottom: 1rem; padding: 0.5rem; background: #13213a; border-radius: 6px; }
+        .test-row { margin-bottom: 0.2rem; font-family: monospace; }
+    </style>
+</head>
+<body>
+    <h1>🇸🇪 Leasa · Hyra · Köpa — Test Suite</h1>
+    <div id="summary">Running tests…</div>
+    <div id="results"></div>
+
+    <script type="module">
+        import * as M from './js/model.js';
+        import * as D from './js/data.js';
+
+        const results = document.getElementById('results');
+        let passed = 0, failed = 0;
+        function section(name) {
+            const h = document.createElement('h2');
+            h.textContent = name;
+            results.appendChild(h);
+        }
+        function ok(cond, name, detail = '') {
+            const row = document.createElement('div');
+            row.className = 'test-row ' + (cond ? 'pass' : 'fail');
+            row.textContent = (cond ? '✓ ' : '✗ ') + name + (detail !== '' ? ' — ' + detail : '');
+            results.appendChild(row);
+            cond ? passed++ : failed++;
+        }
+        const near = (a, b, tol = 0.5) => Math.abs(a - b) <= tol;
+        const route = (res, key) => res.routes.find(r => r.key === key);
+
+        try {
+            // ── Fordonsskatt ──
+            section('Fordonsskatt');
+            ok(M.vehicleTax('el', 0, 0) === 360 + 74, 'an electric car pays 360 kr plus the register fee', M.vehicleTax('el', 0, 0));
+            ok(M.vehicleTax('bensin', 140, 0) === 360 + 50 * 107 + 15 * 132 + 74, 'petrol at 140 g in the malus years: 360 + 50×107 + 15×132', M.vehicleTax('bensin', 140, 0));
+            ok(M.vehicleTax('bensin', 140, 3) === 360 + 29 * 22 + 74, 'and from year four only 22 kr a gram above 111', M.vehicleTax('bensin', 140, 3));
+            ok(M.vehicleTax('bensin', 70, 0) === 360 + 74, 'under 75 g there is no malus', M.vehicleTax('bensin', 70, 0));
+            ok(M.vehicleTax('bensin', 100, 0) === 360 + 25 * 107 + 74, 'between 75 and 125 g the low rate only');
+            ok(M.vehicleTax('bensin', 2.999, 2.999) > M.vehicleTax('bensin', 2.999, 3) - 1 && M.vehicleTax('bensin', 160, 2.99) > M.vehicleTax('bensin', 160, 3), 'malus ends at the third birthday, not before');
+            ok(near(M.vehicleTax('diesel', 135, 4), 360 + 24 * 22 + 135 * 13.52 + 250 + 74, 0.01), 'diesel adds 13.52 kr per gram and 250 kr every year', M.vehicleTax('diesel', 135, 4));
+            ok(M.vehicleTax('laddhybrid', 30, 0) === 360 + 74, 'a plug-in at 30 g pays the base only');
+            ok(near(M.vehicleTax('diesel', 160, 0) - 74, 12743.2, 0.01) && near(M.vehicleTax('diesel', 160, 3) - 74, 3851.2, 0.01),
+                'a 160 g diesel (Tiguan TDI): 12 743 kr in the malus years, 3 851 kr after', `${Math.round(M.vehicleTax('diesel', 160, 0) - 74)} / ${Math.round(M.vehicleTax('diesel', 160, 3) - 74)}`);
+
+            // ── Förmånsvärde ──
+            section('Förmånsvärde');
+            ok(near(M.benefitValue(322000, 'bensin', 4050), 72045, 1.5), 'Skatteverket\'s own example: 322 000 kr with 4 050 kr tax is 72 045 kr', Math.round(M.benefitValue(322000, 'bensin', 4050)));
+            ok(near(M.benefitValue(700000, 'el', 434), M.benefitValue(350000, 'bensin', 434), 0.01), 'an electric car is valued 350 000 kr cheaper');
+            ok(near(M.benefitValue(400000, 'el', 434), M.benefitValue(200000, 'bensin', 434), 0.01), 'but never cut by more than half');
+            ok(near(M.benefitValue(500000, 'laddhybrid', 434), M.benefitValue(360000, 'bensin', 434), 0.01), 'a plug-in hybrid by 140 000 kr');
+
+            // ── Resale curve ──
+            section('Resale');
+            for (const [k, g] of Object.entries(D.RESIDUAL_GROUPS)) {
+                ok(near(M.retained(1, k), g.r1, 1e-9) && near(M.retained(3, k), g.r3, 1e-9) && near(M.retained(5, k), g.r5, 1e-9), `${g.label}: the curve passes through its published points`);
+            }
+            let falls = true;
+            for (let y = 0; y < 15; y += 0.25) if (M.retained(y + 0.25, 'volvo') > M.retained(y, 'volvo')) falls = false;
+            ok(falls, 'value never rises with age');
+            ok(1 - M.retained(6, 'volvo') / M.retained(5, 'volvo') < 1 - M.retained(5, 'volvo') / M.retained(4, 'volvo'), 'and falls more slowly after year five');
+            ok(M.retained(3, 'toyota') > M.retained(3, 'volvo') && M.retained(3, 'volvo') > M.retained(3, 'korean'), 'Toyota holds value best, Kia/Hyundai least');
+            const base = { price: 400000, age: 0, group: 'volvo', powertrain: 'bensin', mil: 1250, scenario: 'expected' };
+            ok(M.valueAt({ ...base, mil: 2500 }, 36) < M.valueAt(base, 36), 'driving more takes value off');
+            ok(M.valueAt({ ...base, powertrain: 'el' }, 36) < M.valueAt(base, 36), 'an EV from a combustion brand loses more');
+            ok(M.valueAt({ ...base, powertrain: 'el', group: 'evbrand' }, 36) === M.valueAt({ ...base, group: 'evbrand' }, 36), 'but a Tesla\'s curve is already an EV curve');
+            ok(M.valueAt({ ...base, scenario: 'bad' }, 36) < M.valueAt(base, 36) && M.valueAt({ ...base, scenario: 'good' }, 36) > M.valueAt(base, 36), 'outlook moves resale both ways');
+            ok(near(M.newPriceOf({ ...base, price: 200000, age: 5 }), 200000 / D.RESIDUAL_GROUPS.volvo.r5, 0.01), 'a used car\'s new price is backed out of its curve');
+
+            // ── Loans ──
+            section('Loans');
+            ok(near(M.loanPayment(100000, 0.06 / 12, 60), 1933.28, 0.01), '100 000 kr over 60 months at 6 % is 1 933.28 kr', M.loanPayment(100000, 0.06 / 12, 60).toFixed(2));
+            ok(near(M.loanPayment(120000, 0, 60), 2000, 1e-9), 'at 0 % it is the principal over the term');
+            ok(near(M.monthlyRate(12.682503013196976), 0.01, 1e-9), 'monthly rate compounds to the annual one');
+            {
+                const inp = { ...D.DEFAULTS, loanType: 'billan', down: 5 };
+                const r = route(M.priceAll(inp), 'loan');
+                ok(near(r.detail.value.kontantinsats, D.DEFAULTS.price * 0.05, 0.01) && r.gapShare > 0.149 && r.detail.interest['interest on the unsecured top-up'] > 0,
+                    'under 20 % down on a dealer loan, the gap is lent unsecured', `gap ${Math.round(r.gapShare * 100)} %`);
+                const full = route(M.priceAll({ ...D.DEFAULTS, loanType: 'billan', down: 20 }), 'loan');
+                ok(full.gapShare === 0 && !full.detail.interest['interest on the unsecured top-up'], 'at 20 % there is no top-up');
+                ok(r.total > full.total, 'and the top-up costs more than the same money secured');
+                const p = route(M.priceAll({ ...D.DEFAULTS, loanType: 'privatlan', down: 0, loanRate: 6.5 }), 'loan');
+                const b = route(M.priceAll({ ...D.DEFAULTS, loanType: 'billan', down: 20, loanRate: 6.5 }), 'loan');
+                ok(p.detail.interest.interest > 0 && !p.detail.interest['interest after ränteavdrag'], 'an unsecured loan earns no ränteavdrag in 2026');
+                const gross = b.interestPaid, net = b.detail.interest['interest after ränteavdrag'];
+                ok(near(net, gross * 0.7, 1), 'a secured loan\'s interest is cut by 30 %', `${Math.round(net)} of ${Math.round(gross)}`);
+                const bo = route(M.priceAll({ ...D.DEFAULTS, loanType: 'bolan', home: false }), 'loan');
+                ok(!bo.gate.open, 'a mortgage top-up needs a home', bo.gate.reason);
+                const short = route(M.priceAll({ ...D.DEFAULTS, horizon: 24, loanTerm: 60 }), 'loan');
+                ok(short.detail.value['loan paid off at sale'] > 0, 'selling before the loan ends clears the balance from the sale');
+            }
+
+            ok(near(M.interestDeduction(50000), 15000, 1e-9) && near(M.interestDeduction(150000), 30000 + 10500, 1e-9), 'ränteavdrag is 30 % up to 100 000 kr and 21 % above');
+
+            // ── Ledger ──
+            section('Ledger');
+            {
+                const L = M.makeLedger(12, 0.01);
+                L.add(1000, 0, 'value', 'x');
+                L.add(1000, 12, 'value', 'y');
+                L.add(-500, 12, 'value', 'z');
+                const t = L.totals();
+                ok(near(t.lostReturn, 1000 * (Math.pow(1.01, 12) - 1), 1e-6), 'money spent at month 0 loses a year\'s return; at month 12, none');
+                ok(near(t.total, 1500 + t.lostReturn, 1e-6), 'money coming back reduces the cost and earns nothing');
+                const z = M.makeLedger(12, 0);
+                z.add(100, 3, 'tax'); z.add(0, 4, 'tax');
+                ok(z.flows.length === 1, 'zero amounts are not booked');
+            }
+
+            // ── Routes ──
+            section('Routes');
+            {
+                const res = M.priceAll(D.DEFAULTS);
+                ok(res.routes.length === D.ROUTES.length, 'every route is priced');
+                ok(res.routes.every(r => Number.isFinite(r.total) && r.total > 0), 'and every total is a positive number');
+                ok(res.routes.every(r => near(Object.values(r.components).reduce((a, b) => a + b, 0), r.total, 0.01)), 'components add up to the total');
+                ok(res.cheapestCar && res.cheapestCar.key !== 'nocar' && res.cheapestCar.gate.open, 'the headline is the cheapest open way to have a car', res.cheapestCar && res.cheapestCar.key);
+                ok(!route(res, 'benefit').gate.open && res.cheapestCar.key !== 'benefit', 'a company car stays out unless offered');
+                const withB = M.priceAll({ ...D.DEFAULTS, benefit: true });
+                ok(route(withB, 'benefit').gate.open, 'and comes in when it is');
+
+                const remark = M.priceAll({ ...D.DEFAULTS, remark: true });
+                ok(!route(remark, 'loan').gate.open && !route(remark, 'lease').gate.open && !route(remark, 'sub').gate.open, 'a payment remark closes the loan, lease and subscription');
+                ok(route(remark, 'cash').gate.open && route(remark, 'rental').gate.open, 'but not cash or a rental on a card');
+                ok(!route(M.priceAll({ ...D.DEFAULTS, savings: 10000 }), 'cash').gate.open, 'cash needs the savings');
+                ok(!route(M.priceAll({ ...D.DEFAULTS, card: false }), 'rental').gate.open, 'a rental needs a credit card');
+
+                const short = M.priceAll({ ...D.DEFAULTS, horizon: 12 });
+                ok(route(short, 'lease').billed === 36 && near(route(short, 'lease').detail.value['leasing fee'], 36 * route(short, 'lease').monthly, 0.01), 'leaving a lease after a year still pays all 36 months');
+                ok(route(short, 'sub').billed === 12, 'a subscription past its minimum bills only what you use');
+                ok(route(M.priceAll({ ...D.DEFAULTS, horizon: 6 }), 'sub').billed === D.SUBSCRIPTION.minMonths, 'and before it, the minimum');
+
+                const over = M.priceAll({ ...D.DEFAULTS, mil: 2000, leaseMil: 1000 });
+                const ov = route(over, 'lease').detail.tax['övermil'];
+                ok(near(ov, 1000 * 3 * D.LEASE.overMil, 0.01), 'övermil: 1 000 mil a year over a 1 000 allowance for three years at 12 kr', Math.round(ov));
+                ok(M.leaseAllowance({ ...D.DEFAULTS, mil: 1250, leaseMil: null }) === 1500 && M.leaseAllowance({ ...D.DEFAULTS, mil: 900, leaseMil: null }) === 1000, 'the automatic allowance is the next 500-mil step, at least 1 000');
+                ok(M.leaseMonthly({ ...D.DEFAULTS, leaseQuote: 3690, leaseMil: 2000 }) === 3690 + 2 * 300, 'each 500 mil over 1 000 adds 300 kr');
+
+                const petrolLease = route(M.priceAll({ ...D.DEFAULTS, powertrain: 'bensin', co2: 140, horizon: 36 }), 'lease');
+                ok(near(petrolLease.detail.tax.fordonsskatt, M.vehicleTax('bensin', 140, 0) * 3, 1), 'a leased petrol car pays malus for its whole term');
+
+                const used = M.priceAll({ ...D.DEFAULTS, price: 200000, age: 5, powertrain: 'bensin', co2: 140 });
+                const uc = route(used, 'cash');
+                ok(!uc.detail.insurance['halvförsäkring (under vagnskadegaranti)'] && uc.detail.insurance['helförsäkring'] > 0, 'a five-year-old car needs helförsäkring from day one');
+                const nc = route(M.priceAll(D.DEFAULTS), 'cash');
+                ok(nc.detail.insurance['halvförsäkring (under vagnskadegaranti)'] > 0, 'a new car rides on the vagnskadegaranti for three years');
+                ok(uc.detail.tax.besiktning > 0 && !nc.detail.tax.besiktning, 'an old car is inspected; a new one kept three years is not');
+
+                const sold = (exit) => route(M.priceAll({ ...D.DEFAULTS, exit }), 'cash').total;
+                ok(sold('privat') < sold('auktion') && sold('auktion') < sold('uppkopare') && sold('uppkopare') < sold('inbyte'), 'selling privately keeps the most; a trade-in the least');
+                ok(route(M.priceAll({ ...D.DEFAULTS, exit: 'privat' }), 'cash').detail.tax['selling costs'] === 495, 'a private sale pays for its ad');
+
+                const city = M.priceAll({ ...D.DEFAULTS, congestion: 1000, parking: 500 });
+                ok(near(route(city, 'cash').components.city, 1500 * 36, 0.01) && route(city, 'nocar').components.city === 0, 'parking and congestion hit every car route but not going without');
+                ok(route(M.priceAll(D.DEFAULTS), 'nocar').mil < D.DEFAULTS.mil, 'going without covers fewer mil than you drive');
+
+                const bad = M.priceAll({ ...D.DEFAULTS, scenario: 'bad' }), good = M.priceAll({ ...D.DEFAULTS, scenario: 'good' });
+                ok(['cash', 'loan', 'lease'].every(k => route(bad, k).total > route(res, k).total && route(good, k).total < route(res, k).total), 'the outlook moves every owned and leased route the right way');
+            }
+
+            // ── Series ──
+            section('Charts');
+            {
+                const h = M.horizonSeries(D.DEFAULTS, [12, 36, 60]);
+                ok(h.length === 3 && h.every(p => D.ROUTES.every(r => Number.isFinite(p.values[r.key]))), 'the horizon series has every route at every point');
+                ok(h[0].values.cash > h[2].values.cash, 'owning gets cheaper per month the longer you keep it');
+                const m = M.mileageSeries(D.DEFAULTS, [500, 2000, 3500]);
+                ok(m[2].values.cash > m[0].values.cash && m[2].values.rental > m[0].values.rental, 'driving more costs more');
+                ok(near(m[0].values.nocar, m[2].values.nocar, 1e-9), 'and going without does not move with your mileage');
+            }
+
+            // ── Share links ──
+            section('Share links');
+            {
+                ok(M.encodeState(D.DEFAULTS) === '', 'the default scenario is an empty link');
+                const s = { ...D.DEFAULTS, price: 333000, powertrain: 'diesel', remark: true, leaseQuote: null, horizon: 48, loanType: 'bolan' };
+                const back = M.decodeState(M.encodeState(s));
+                ok(JSON.stringify(back) === JSON.stringify(s), 'a scenario survives a share link', M.encodeState(s));
+                const bad = M.decodeState('pt=rocket&pr=-5&h=abc&lt=<b>&zz=1');
+                ok(bad.powertrain === D.DEFAULTS.powertrain && bad.price === D.DEFAULTS.price && bad.horizon === D.DEFAULTS.horizon && bad.loanType === D.DEFAULTS.loanType, 'a broken link falls back to defaults rather than nonsense');
+            }
+
+            // ── Data ──
+            section('Data');
+            ok(D.PRESETS.every(p => D.POWERTRAINS[p.powertrain] && D.RESIDUAL_GROUPS[p.group] && p.price > 0), 'every preset names a real powertrain and brand group');
+            ok(D.COMPONENTS.length === 7 && D.ROUTES.length === 7, 'seven components, seven routes');
+            ok(Object.values(D.LOANS).every(l => l.rate > 0 && l.rate < 0.3), 'loan rates are plausible');
+            ok(M.fmtKr(1234567).replace(/\s/g, ' ') === '1 234 567 kr', 'kronor are written the Swedish way', M.fmtKr(1234567));
+        } catch (e) {
+            ok(false, 'the suite threw', e.message);
+            console.error(e);
+        }
+
+        const summary = document.getElementById('summary');
+        summary.textContent = passed + ' passed, ' + failed + ' failed';
+        summary.className = failed ? 'fail' : 'pass';
+    </script>
+</body>
+</html>

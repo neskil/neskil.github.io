@@ -13,6 +13,7 @@ Put a fact in exactly one place; point at it rather than restating it.
 | **AGENTS.md** (this file) | Workspace-wide rules: structure, stack, styling, git conventions — what applies to every page. |
 | **[README.md](../README.md)** | Site layout table, link-preview (OG image) recipe, local dev server, and the `tools/` checks (what they enforce and why). |
 | `cargo-lander/CLAUDE.md`, `supply-chain/CLAUDE.md`, `3d-engine-poc/CLAUDE.md`, `golf3d/CLAUDE.md`, `viz-poc/CLAUDE.md`, `cargo-packer/CLAUDE.md` | Per-project standing instructions, versioning/cache-busting, and headless verification recipes. Read the relevant one before touching that folder — do not re-derive its test commands here, they drift. |
+| `bil/README.md` | The Swedish car calculator: US→Sweden parameter map, the formulas, which figures are sourced and which are estimates, and what is left to do. |
 | `car/PLAN.md`, `golf3d/PLAN.md`, `cargo-packer/PLAN.md`, `paper-plane/PLAN.md` | Open TODOs for the car cost calculator, Loft Links, Cargo Packer 3D and Paper Plane Glider, ordered by impact. |
 
 ## Project & page structure
@@ -30,12 +31,13 @@ Folder-based routing — each major page or app is fully isolated with its own
   `/3d-engine-poc/` (Yard Master 3D), `/golf/` and `/golf3d/` (Pocket Links and
   Loft Links), `/viz-poc/` (Data Room), `/car/`, `/elevator/` (Tiny Elevator
   Tycoon), `/paper-plane/` (Paper Plane Glider), `/sand/` (Sand Clock),
-  `/terrarium/` (Pocket Weather Terrarium), `/fika/` (Fika Generator) and
-  `/name-song/` (Sound of Your Name) each own their HTML, logic, assets, and
-  styling — see the doc map above before working in any of them. The last six
-  keep their rules in one DOM-free module (`js/sim.js`, `js/flight.js`,
-  `js/weather.js`, `js/deck.js`, `js/compose.js`) that their `tests.html`
-  imports directly; README.md's layout table says which is which.
+  `/terrarium/` (Pocket Weather Terrarium), `/fika/` (Fika Generator),
+  `/name-song/` (Sound of Your Name) and `/bil/` (Leasa · Hyra · Köpa, the
+  Swedish car calculator) each own their HTML, logic, assets, and
+  styling — see the doc map above before working in any of them. The last
+  seven keep their rules in one DOM-free module (`js/sim.js`, `js/flight.js`,
+  `js/weather.js`, `js/deck.js`, `js/compose.js`, `js/model.js`) that their
+  `tests.html` imports directly; README.md's layout table says which is which.
 - **Release flow**: build new projects in their own isolated directory. Do
   NOT add a card for one to the root `index.html` until it's completed,
   tested, and approved. While a project is under active development, an
@@ -58,6 +60,11 @@ Folder-based routing — each major page or app is fully isolated with its own
     instruction, for flat surfaces, hairline borders and a clay accent. Do
     not "restore" glassmorphism there — see the palette comment at the top
     of `car/style.css` and `car/PLAN.md`.
+  - **`/bil/`** keeps the glass but is Swedish-themed on the owner's
+    request: night-blue ground, flag blue and yellow, Falu red for closed
+    routes, road-sign section headers (Barlow Semi Condensed) and number
+    plates for answers. Chart colours are the validated categorical order
+    noted in `bil/style.css`; keep them out of the theming.
 - **Analytics**: every page a visitor can land on must include the Google
   Analytics tag (`G-9GP823TGLB`) in its `<head>` — not just the ones in the
   sitemap. `tools/check-site.mjs` enforces this; the only exception is

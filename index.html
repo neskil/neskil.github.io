@@ -206,6 +206,12 @@
             --hue: 30;
         }
 
+        html[data-theme="card-bil"] {
+            --bg-color-1: #08162a;
+            --bg-color-2: #0c2440;
+            --hue: 205;
+        }
+
         html[data-theme="card-name-song"] {
             --bg-color-1: #120c1e;
             --bg-color-2: #1d1230;
@@ -1971,6 +1977,86 @@
 
         #card-fika .card-link {
             color: rgb(236, 181, 113);
+        }
+
+        /* The Swedish edition of Lease, Rent or Buy: flag blue, with the cross
+           drawn faintly in yellow across the face — off-centre towards the hoist,
+           as on the flag — and a Swedish number plate where other cards keep a
+           stat chip. The cross is one SVG shape with one fill in the face's own
+           background, so the yellow is even where the arms meet (two crossing
+           bands doubled it there), and it tilts and flips with the card. */
+        #card-bil {
+            --accent-rgb: 254, 204, 2;
+            --card-bg-gradient:
+                url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Cpath d='M26 0h8v40H100v12H34V100h-8V52H0V40H26z' fill='rgb(254,204,2)' fill-opacity='0.075'/%3E%3C/svg%3E") 0 0 / 100% 100% no-repeat,
+                linear-gradient(135deg, rgba(0, 74, 130, 0.62) 0%, rgba(12, 24, 44, 0.62) 100%);
+            --card-hover-gradient:
+                url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Cpath d='M26 0h8v40H100v12H34V100h-8V52H0V40H26z' fill='rgb(254,204,2)' fill-opacity='0.12'/%3E%3C/svg%3E") 0 0 / 100% 100% no-repeat,
+                linear-gradient(135deg, rgba(0, 92, 160, 0.80) 0%, rgba(14, 30, 56, 0.78) 100%);
+            --card-border: rgba(254, 204, 2, 0.24);
+            --card-hover-border: rgba(254, 204, 2, 0.55);
+        }
+
+        #card-bil .card-link {
+            color: rgb(254, 214, 64);
+        }
+
+        /* The icon is a road sign rather than a line drawing: it keeps its own
+           colours instead of taking the accent. */
+        #card-bil .card-icon {
+            background: rgba(0, 106, 167, 0.32);
+            border-color: rgba(254, 204, 2, 0.35);
+        }
+
+        #card-bil .card-icon svg {
+            width: 34px;
+            height: 34px;
+        }
+
+        /* A Swedish plate: white, the blue EU band with an S, black characters. */
+        .plate-chip {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            z-index: 10;
+            display: inline-flex;
+            align-items: stretch;
+            height: 22px;
+            border-radius: 4px;
+            overflow: hidden;
+            background: #f4f6f9;
+            border: 1.5px solid #1b2230;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+            font-family: 'Outfit', sans-serif;
+            line-height: 1;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .plate-chip .pc-eu {
+            width: 13px;
+            background: #0b47a8;
+            color: #fff;
+            font-size: 0.55rem;
+            font-weight: 700;
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+            padding-bottom: 2px;
+        }
+
+        .plate-chip .pc-chars {
+            color: #10141c;
+            font-weight: 700;
+            font-size: 0.78rem;
+            letter-spacing: 0.08em;
+            padding: 0 7px;
+            display: flex;
+            align-items: center;
+        }
+
+        .card:hover .plate-chip {
+            transform: rotate(-3deg) scale(1.06);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.45), 0 0 14px rgba(254, 204, 2, 0.25);
         }
 
         #card-name-song {
@@ -3990,8 +4076,8 @@
             <h2 class="shelf-heading">
                 <button type="button" class="shelf-head" aria-expanded="true" aria-controls="shelf-tools-body">
                     <span class="shelf-icon" aria-hidden="true">🧰</span>
-                    <span class="shelf-text"><span class="shelf-title">Useful tools</span><span class="shelf-blurb">For an EU brain living with US units and US car dealers.</span></span>
-                    <span class="shelf-count">4</span>
+                    <span class="shelf-text"><span class="shelf-title">Useful tools</span><span class="shelf-blurb">For an EU brain living with US units, and car dealers on both sides of the Atlantic.</span></span>
+                    <span class="shelf-count">5</span>
                     <svg class="shelf-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6" /></svg>
                 </button>
             </h2>
@@ -4047,6 +4133,66 @@
                                     <p class="peek-text">Compare leasing, financing, cash, and subscription costs with real depreciation data.</p>
                                 </div>
                                 <a class="peek-launch" href="car/index.html">Run the numbers <svg viewBox="0 0 24 24">
+                                        <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" stroke-linejoin="round" fill="none" />
+                                    </svg></a>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card flip-card" id="card-bil">
+                        <div class="card-flip-inner">
+                            <button type="button" class="card-face card-face-front flip-open" aria-expanded="false"
+                                aria-controls="card-bil-panel">
+                                <span class="plate-chip" aria-hidden="true"><span class="pc-eu">S</span><span class="pc-chars">HYR 036</span></span>
+                                <div>
+                                    <div class="card-icon">
+                                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                                            <g transform="translate(0 1.4) scale(0.24)">
+                                                <path d="M50 7 L94 84 H6 Z" fill="#fecc02" stroke="#d4202a" stroke-width="8" stroke-linejoin="round"/>
+                                                <g fill="#111" stroke="none">
+                                                    <path d="M26 61 L29 56.5 L34 52.5 L41 47.5 L46 45.5 L56 47 L66 47.5 L71 50 L73.5 55 L72.5 62 L73.5 72 L74.5 79 L71 79 L69.5 67 L67 63.5 L60 64 L50 64 L47.5 67 L47.5 79 L44 79 L44 67 L42 63.5 L40 63 L38.5 67.5 L36.5 62.5 L33 61.5 L29.5 63.5 L26.5 63 Z"/>
+                                                    <path d="M40.2 62 h2.6 v17 h-2.6 Z M66.4 63 h2.6 v15.5 h-2.6 Z"/>
+                                                    <path d="M35 51.5 L31 47.5 L27.5 47.8 L24 43.5 L27.4 44.4 L27.8 40.6 L30.2 44.6 L31.6 40.2 L33.4 44.4 L35.4 41 L36.6 47 Z"/>
+                                                    <path d="M37.5 50.2 L40.2 45.4 L39.4 41 L42 44.2 L43.6 40.4 L44.6 45.4 L41.8 49.4 Z"/>
+                                                </g>
+                                            </g>
+                                        </svg>
+                                    </div>
+                                    <h3 class="card-title">Leasa, hyra eller köpa?</h3>
+                                    <p class="card-desc">The Swedish edition: privatleasing, billån, bilabonnemang or no car at all, in kronor per mil, with malus and winter tyres priced in.</p>
+                                </div>
+                                <span class="card-link">Take a look <svg viewBox="0 0 24 24">
+                                        <path d="M3.6 12a8.4 8.4 0 0 1 14.4-5.9" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" stroke-linejoin="round" fill="none" />
+                                        <path d="M18.4 2.8v3.7h-3.7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                            stroke-linejoin="round" fill="none" />
+                                        <path d="M20.4 12a8.4 8.4 0 0 1-14.4 5.9" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" stroke-linejoin="round" fill="none" />
+                                        <path d="M5.6 21.2v-3.7h3.7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                            stroke-linejoin="round" fill="none" />
+                                    </svg></span>
+                            </button>
+                            <div class="card-face card-face-back peek-back" id="card-bil-panel" role="dialog" aria-modal="true"
+                                aria-label="Leasa, hyra eller köpa?">
+                                <button type="button" class="card-close" data-flip-close aria-label="Close">
+                                    <svg viewBox="0 0 24 24">
+                                        <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" />
+                                    </svg>
+                                </button>
+                                <div class="peek-shot">
+                                <img data-src="assets/preview/bil.webp" alt="The Swedish calculator's answer on a number plate: privatleasing at about 5 600 kr a month, above six routes from cash to no car." width="800" height="420"
+                                    decoding="async">
+                                <img data-src="assets/preview/bil-2.webp" alt="Where the money goes: stacked bars for each route, from value lost to fuel and parking, in kronor a month." width="800" height="420"
+                                    decoding="async">
+                                </div>
+                                <div class="peek-body">
+                                    <div class="peek-title">Leasa, hyra eller köpa?</div>
+                                    <p class="peek-text">Cash, billån, privatleasing, bilabonnemang, a monthly rental, no car, or a förmånsbil if work offers one, priced the same way in kronor a month and per mil. Malus, ränteavdrag on secured loans only, the three-year vagnskadegaranti, besiktning and two sets of tyres are already in, and a payment remark closes the doors it really closes.</p>
+                                    <div class="peek-stat"><span class="stat-icon">🇸🇪</span> 7 routes &bull; kr/mil &bull; 2026 rules</div>
+                                </div>
+                                <a class="peek-launch" href="bil/index.html">Räkna på det <svg viewBox="0 0 24 24">
                                         <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2"
                                             stroke-linecap="round" stroke-linejoin="round" fill="none" />
                                     </svg></a>
@@ -4475,6 +4621,7 @@
             document.documentElement.setAttribute('data-theme', cardId);
 
             const themeHues = {
+                'card-bil': 205,
                 'card-name-song': 275,
                 'card-fika': 30,
                 'card-paper-plane': 52,
@@ -4506,6 +4653,7 @@
            — the Lease/Rent/Buy floater — and differ only in what they carry, so
            they are a table rather than a branch each. */
         const CARD_FLOATERS = {
+            'card-bil': { hue: 48, items: ['🇸🇪', '🫎', '🚗', '🔑', 'kr/mil'] },
             'card-name-song': { hue: 275, items: ['🎵', '🎶', '🎹', '🔔'] },
             'card-fika': { hue: 30, items: ['☕', '🥐', '🍰', '🫖'] },
             'card-paper-plane': { hue: 52, items: ['✈️', '📄', '📎', '🗑️'] },
@@ -5246,7 +5394,7 @@
             }
 
             // Spawn background theme entities after a lingering hover over a card
-            const allowedThemeCards = ['card-cargo-lander', 'card-supply-chain', 'card-car', 'card-golf-hub'];
+            const allowedThemeCards = ['card-cargo-lander', 'card-supply-chain', 'card-car', 'card-bil', 'card-golf-hub'];
             if (perfTier === 0 && themeSpawnArmed && allowedThemeCards.includes(activeThemeCardId) && themeEntities.length < MAX_THEME_ENTITIES && Math.random() < 0.012) {
                 themeEntities.push(new ThemeEntity(activeThemeCardId));
             }
