@@ -63,17 +63,17 @@ so a method you can't find in the class file lives in one of its `game/` or
 | `audio.js` | `CargoAudioController` — procedural Web Audio synth: thrusters, collisions, explosions, warnings, arpeggios, ambient drone. Exposes global `CargoAudio`. |
 | `levels.js` | `registerLevel()` dispatcher + quest helper functions (`questPrimary`, `questNoCrash`, …). |
 | `upgrades.js` | Upgrade catalog. |
-| `level1.js` – `level10.js`, `levelTest.js` | Individual level configs (terrain polygons, hubs, OOB zone, palette, physics params, quests). `levelTest.js` is a sandbox reachable via `game.startTestLevel()`. **A new `levelN.js` needs its `<script>` tag added to `index.html`, `tests.html`, and the level-editor's dropdown manually** — everything else (mission-grid button, dev-panel jump) is auto-generated. |
+| `level1.js` – `level13.js`, `levelTest.js` | Individual level configs (terrain polygons, hubs, OOB zone, palette, physics params, quests). L1–L10 are the campaign; **L11–L13 are Test Flights** (`unlocked: true`) — see [Test flights](#test-flights). `levelTest.js` is a sandbox reachable via `game.startTestLevel()` and must stay registered last. **A new `levelN.js` needs its `<script>` tag added to `index.html`, `tests.html`, `syntax-check.html`, and the level-editor's dropdown manually** — everything else (mission-grid button, dev-panel jump) is auto-generated. |
 | `levelGenerator.js` | `generateProceduralLevel(craziness)` — procedural "Mission ??" maps, 3 craziness tiers. |
 | `levels/collectibleTypes.js` | `COLLECTIBLE_TYPES` registry for mid-air flythrough pickups (`cash`, `fuel`, …). Read generically by `physics/atmosphere.js` (award logic), `render/entities.js` (token visual), and the level editor's Entities panel — add a new pickup type here once instead of touching all three. |
 | `levelSchema.js` | Shared schema (name/type/default/widget) for the scalar/object level-config fields (mission params, `palette`, `outOfBounds`, `worldBounds`, `gravityWell`). Drives `level-editor.html`'s form panels, loader defaults, and export blocks, `tests.html`'s validation checks, *and* (since `facade`) the renderer's own defaults, so `index.html` loads it too — add a scalar field once, in the schema. Geometry (`terrainPolygons`/`waterBodies`/`hazards`) is deliberately out of scope. |
 | `level-editor.html` | Standalone visual level editor. See [Level Editor](#level-editor). |
-| `tests.html` | Browser test suite (183 tests): behavioral smoke tests + schema-driven "Level Config Validation" over every registered level. Auto-runs on load; results in `#summary`, failure stacks to `console.error`. |
+| `tests.html` | Browser test suite (224 tests): behavioral smoke tests + schema-driven "Level Config Validation" over every registered level. Auto-runs on load; results in `#summary`, failure stacks to `console.error`. |
 | `probe-screenshot.html` | Headless visual-verification harness — see [Verification](#verification). Not part of the shipped game. |
 
 ### Load order matters
 `index.html` loads `vendor/matter.min.js`, then `upgrades.js →
-levels.js → levelGenerator.js → level1…10.js → levelTest.js →
+levels.js → levelGenerator.js → level1…13.js → levelTest.js →
 levelSchema.js → collectibleTypes.js → audio.js →
 shaders.js → physics.js → physics/*.js → game.js → game/*.js → render.js →
 render/*.js`. Class files must precede their prototype-mixin files;
@@ -105,6 +105,9 @@ the bootstrap script then calls `game.init('cargoCanvas')`.
   **To add a new pickup type**, add one entry to `COLLECTIBLE_TYPES` — no
   other file needs a new branch unless the type wants a bespoke visual (set
   `draw(ctx, c)` on its registry entry to override the default token look).
+- **Test flights**: <a id="test-flights"></a>a level with `unlocked: true` is playable from a fresh save (`isLevelUnlocked()` in `game/menu.js`) and gets a cyan 🧪 *Test Flight* badge in the mission grid instead of a campaign number theme. L11 Island Hopper (wind + open water), L12 Switchback Canyon (pure-flying slalom) and L13 Foundry Shift (timed gates + chute) are the current set — new maps to playtest before deciding whether they join the campaign. Each was proven completable headlessly by flying a scripted route with `CargoBot._guide` (every pad, every refuel, gate timing read from the same phase math the physics uses). Remove the flag to fold one into the campaign.
+- **Quick-finish quests**: `questQuick(text, timeGoal)` — `timeGoal` is the time still **left** on the mission clock at extraction (`missionTimer` counts down), so "under 60s" on a 180s mission is `timeGoal: 120`. A test parses each level's text against this.
+- **Chutes** (`type: 'chute'` hubs): skimming within 60px of the opening pulls *every* crate off the deck — any type, no landing — and they fall in and count as delivered (`_chuteUnder()` in `physics/entities.js`).
 - **Terrain decoration**: `terrainDecor: 'rock' | 'grass' | 'facade' | 'none'`
   (default `'auto'`) selects the surface detailing drawn on the terrain
   polygons themselves. `'facade'` glazes the silhouette into lit skyscrapers

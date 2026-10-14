@@ -28,7 +28,7 @@ registerLevel({
   quests: [
     questPrimary("Deliver 2 cargo to The Hollow"),
     questNoCargoLost('No cargo lost', 400),
-    questQuick("Complete under 40s", 40, 250)
+    questQuick("Complete under 40s", 260, 250)  // timeGoal = seconds LEFT on the 300s clock
   ],
   palette: {
     skyTop: "#1e0b07",

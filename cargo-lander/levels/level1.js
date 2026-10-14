@@ -30,7 +30,7 @@ registerLevel({
   quests: [
     questPrimary("Deliver 2 cargo to Verdant Depot"),
     questNoCrash(),
-    questQuick("Complete under 60s", 60)
+    questQuick("Complete under 60s", 120)  // timeGoal = seconds LEFT on the 180s clock
   ],
 
   // ── Palette (Grasslands) ──────────────────────────────────────────────────

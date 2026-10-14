@@ -8,6 +8,48 @@ backlog" section.
 
 ---
 
+## 2026-10-14 — Map audit, three bug fixes, and three Test Flight maps (v0.25.0)
+
+**The audit.** Every level got (1) a geometry pass — pad flatness, buried pads,
+ceiling clearance; (2) a physical pass — drop the lander onto each pad's centre
+and both ends and see whether it lands; (3) the CargoBot autopilot. The geometry
+flags were mostly cosmetic (the game seats a lander on a pad even on a slope);
+the physical pass is what found the real problems, and it is now a test.
+
+**Bugs found and fixed:**
+- **Pickups froze the game.** `floatingTexts` was created lazily by whichever
+  path showed a popup first; collectible pickups push to it directly from
+  physics. Grab a coin before anything else popped up and `update()` threw,
+  `loop()` never re-armed requestAnimationFrame, and the game froze for good.
+  Affected every level with pickups (L5, L7–L10). Now created in the constructor.
+- **Chutes never delivered deck cargo.** Two layers: deck crates hit `if
+  (box.onDeck) continue` before the vacuum check, and the magnetic deck clamp
+  re-grabbed any crate a chute did claim. L7's Magma Chute and L8's Salvage
+  Chute were decorative. Fixed in `physics/entities.js` (`_chuteUnder()`).
+- **L8's reactor well made two pads unlandable.** Its loop passed straight over
+  the Fuel Cache and Salvage Chute; at strength 0.6 the pull is 5–12× full
+  thrust, so a lander parked on either was flung off and pinballed to death.
+  The loop now circles in the void beneath the decks at 0.45, and the chute
+  moved out from under the crusher, which stood inside its footprint.
+- **Four bonus timers lied.** `timeGoal` is time *left*; L1, L2, L4 and L10 had
+  used it as elapsed time ("under 45s" really meant under 195s; L10's "under 2
+  minutes" really meant under 60s). Numbers fixed to match the text.
+
+**Test Flights (L11–L13, `unlocked: true`).** Each is built around one idea and
+was flown end-to-end headlessly by a scripted-route pilot (scratch tooling, not
+committed) before shipping. What that pilot changed in the designs:
+- All three originally had `targetCargo: 3` — but the depot loads 3 per trip, so
+  each mission was a single run. Now 5 (two runs).
+- Island Hopper needed a 160 tank for its width. The canyon is hover-heavy (~0.18
+  fuel/frame while threading the ledges): gravity dropped to 0.09, tank to 260,
+  and a second refuel (Shelf Tank) went in under the rim. The foundry's gates
+  are waited out by hovering, so it got a refuel pad *between* the gates — land
+  there and watch the beat instead of burning fuel.
+- Foundry gate windows were 1.4–1.7s and the pilot got crushed starting from a
+  standstill; they are now 2.3s / 1.9s.
+
+---
+
 ## 2026-10-13 — Adaptive graphics quality + HUD write trimming (v0.24.0)
 
 **Graphics tiers.** New `game/perf.js`: five tiers (Crisp = devicePixelRatio up

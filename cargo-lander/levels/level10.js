@@ -151,6 +151,6 @@ registerLevel({
   quests: [
       questPrimary('Deliver both cargo types and return safely'),
       questNoCrash(400),
-      questQuick('Finish in under 2 minutes', 120, 500),
+      questQuick('Finish in under 2 minutes', 60, 500),  // timeGoal = seconds LEFT on the 180s clock
   ],
 });

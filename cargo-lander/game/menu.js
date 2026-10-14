@@ -34,7 +34,12 @@ Object.assign(CargoGame.prototype, {
         levels.forEach((lv, i) => {
             if (lv.name.includes('TEST')) return;
             
-            const theme = themes[i] || { color: '#10b981', prefix: '', suffix: '' };
+            // `unlocked: true` levels are open from a fresh save (test flights
+            // for new maps) and get their own badge so they read as extras,
+            // not as the next step of the campaign.
+            const theme = lv.unlocked
+                ? { color: '#22d3ee', prefix: '🧪 ', suffix: ' · Test Flight' }
+                : (themes[i] || { color: '#10b981', prefix: '', suffix: '' });
             const badgeColor = theme.badgeColor || theme.color;
             
             const parts = lv.name.split(':');
@@ -192,6 +197,7 @@ Object.assign(CargoGame.prototype, {
         if (this.devUnlockAll) return true;
         if (typeof idx !== 'number') return true;
         if (idx <= 0) return true;
+        if (levels[idx] && levels[idx].unlocked) return true;
         return !!this.highscores[idx - 1];
     },
 

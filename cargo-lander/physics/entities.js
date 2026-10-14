@@ -789,6 +789,18 @@ const CargoPhysicsEntitiesMixin = {
                 continue;
             }
 
+            // Skimming a chute pulls crates straight off the deck. This has to
+            // run before the onDeck skip below: deck crates never reached the
+            // vacuum logic further down, so a chute could only ever take loose
+            // crates and was useless to a lander carrying cargo.
+            if (box.onDeck && !box.vacuumed && this._chuteUnder(box)) {
+                box.vacuumed = true;
+                box.onDeck = false;
+                body.isSensor = true;
+                Matter.Body.setPosition(body, { x: box.x, y: box.y });
+                Matter.Body.setVelocity(body, { x: lander.vx, y: lander.vy });
+            }
+
             if (box.onDeck) continue; // Kinematic — positioned by deck resolver below
 
             // Gravity + wind as Matter forces (scale matches vel-per-frame game units)
@@ -829,7 +841,7 @@ const CargoPhysicsEntitiesMixin = {
             for (const hub of this.deliveryHubs) {
                 if (hub.type === 'chute') {
                     // If box is above the chute opening
-                    if (box.x >= hub.x && box.x <= hub.x + hub.width && box.y > hub.y - 60 && box.y < hub.y + 60) {
+                    if (this._chuteUnder(box) === hub) {
                         if (!box.vacuumed) {
                             box.vacuumed = true;
                             box.onDeck = false;
@@ -885,6 +897,16 @@ const CargoPhysicsEntitiesMixin = {
         }
     },
 
+    // The chute hub whose vacuum zone this box is in (over the opening, within
+    // 60px of it vertically), or null.
+    _chuteUnder(box) {
+        for (const hub of this.deliveryHubs) {
+            if (hub.type === 'chute' && box.x >= hub.x && box.x <= hub.x + hub.width &&
+                box.y > hub.y - 60 && box.y < hub.y + 60) return hub;
+        }
+        return null;
+    },
+
     updateOnDeckStates() {
         const lander = this.lander;
         if (!lander || lander.crashed) {
@@ -928,6 +950,10 @@ const CargoPhysicsEntitiesMixin = {
 
         for (const box of this.boxes) {
             const boxHalfS = (box.size || this.BOX_SIZE) / 2;
+            // A chute has claimed it (vacuum logic above): it must fall through
+            // the deck, so never re-clamp it. Without this the clamp re-grabbed
+            // every vacuumed box the same frame and no chute ever delivered.
+            if (box.vacuumed) { box.onDeck = false; continue; }
             if (box.onDeck) {
                 box.deckT = Math.max(slotMin, Math.min(slotMax, box.deckT || 0));
                 box.deckN = boxHalfS;
@@ -1013,6 +1039,8 @@ const CargoPhysicsEntitiesMixin = {
             // rigidly by updateOnDeckStates() — skip them here entirely so
             // stale collision response can't fight that attachment.
             if (box.onDeck) continue;
+            // Vacuumed into a chute: falling through, not resting in the basket.
+            if (box.vacuumed) continue;
 
             // Rel position
             const rx = box.x - dcx;

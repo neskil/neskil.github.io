@@ -12,7 +12,7 @@
 // game.js → game/* → render.js + render/* (render.js instantiates window.game).
 
 class CargoGame {
-    static VERSION = '0.24.0';
+    static VERSION = '0.25.0';
 
     constructor() {
         this.canvas = null;
@@ -123,6 +123,11 @@ class CargoGame {
 
         this.damageFlash = 0;
         this.screenShake = { x: 0, y: 0, intensity: 0 };
+        // Reward/penalty popups. Created here, not lazily: physics pushes to it
+        // directly (collectible pickups in physics/atmosphere.js), and before
+        // v0.25.0 a coin grabbed before any other popup threw inside update()
+        // — loop() never re-armed requestAnimationFrame and the game froze.
+        this.floatingTexts = [];
     }
 
     init(canvasId) {

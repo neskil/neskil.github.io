@@ -30,7 +30,7 @@ registerLevel({
   quests: [
     questPrimary("Sort & deliver 2 cargo"),
     questNoCargoLost('No cargo lost', 300),
-    questQuick("Complete under 45s", 45, 200)
+    questQuick("Complete under 45s", 195, 200)  // timeGoal = seconds LEFT on the 240s clock
   ],
   palette: {
     skyTop: "#1c0f03",
