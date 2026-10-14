@@ -25,16 +25,30 @@
 //     next mission start, rather than ratcheting all the way to Lowest.
 
 // Ordered best → cheapest. `scale` is the canvas backing-store multiplier
-// ('dpr' = the screen's devicePixelRatio, capped at 2); `starStride` draws
-// every Nth background star.
+// ('dpr' = the screen's devicePixelRatio, capped at 2); `maxPixels` caps the
+// backing store's pixel count whatever the screen — on a big display the
+// frame is rendered smaller and the browser stretches the canvas back to
+// full size (the HUD is HTML, so it stays sharp). Frame cost scales with
+// pixels filled: before budgets a 4K screen at 1x cost ~4x a 1080p one at
+// every tier. `starStride` draws every Nth background star.
 const GFX_TIERS = [
-    { id: 'crisp',  label: 'Crisp',  scale: 'dpr', postFX: true,  starStride: 1 },
-    { id: 'high',   label: 'High',   scale: 1,     postFX: true,  starStride: 1 },
-    { id: 'medium', label: 'Medium', scale: 0.85,  postFX: false, starStride: 1 },
-    { id: 'low',    label: 'Low',    scale: 0.7,   postFX: false, starStride: 2 },
-    { id: 'lowest', label: 'Lowest', scale: 0.55,  postFX: false, starStride: 2 },
+    { id: 'crisp',  label: 'Crisp',  scale: 'dpr', maxPixels: 3840 * 2160, postFX: true,  starStride: 1 },  // native, up to 4K
+    { id: 'sharp',  label: 'Sharp',  scale: 'dpr', maxPixels: 2560 * 1440, postFX: true,  starStride: 1 },  // up to 1440p
+    { id: 'high',   label: 'High',   scale: 1,     maxPixels: 1920 * 1080, postFX: true,  starStride: 1 },  // up to 1080p
+    { id: 'medium', label: 'Medium', scale: 0.85,  maxPixels: 1600 * 900,  postFX: false, starStride: 1 },
+    { id: 'low',    label: 'Low',    scale: 0.7,   maxPixels: 1280 * 720,  postFX: false, starStride: 2 },
+    { id: 'lowest', label: 'Lowest', scale: 0.55,  maxPixels: 960 * 540,   postFX: false, starStride: 2 },
 ];
-const GFX_DEFAULT_TIER = 1; // 'high' — what the game rendered before tiers existed
+const GFX_DEFAULT_TIER = 2; // 'high' — 1080p-class; Auto starts here and earns the sharper tiers
+
+// Backing-store scale a tier gives on a (w x h) CSS-px viewport: its own
+// scale, capped so the frame stays within its pixel budget. Rounded to 1%
+// so tiny window drags don't reallocate the canvas.
+function gfxScaleFor(tier, w, h, dpr) {
+    const want = tier.scale === 'dpr' ? dpr : tier.scale;
+    const cap = Math.sqrt(tier.maxPixels / Math.max(1, w * h));
+    return Math.max(0.25, Math.round(Math.min(want, cap) * 100) / 100);
+}
 
 class QualityGovernor {
     constructor(opts = {}) {
@@ -193,21 +207,20 @@ const CargoPerfMixin = {
         const dpr = Math.min(2, window.devicePixelRatio || 1);
         this._gfxDpr = dpr;
         let mode = 'auto';
-        let savedAuto = NaN;
+        let savedAuto = null;
         try {
             mode = localStorage.getItem('cargoLanderGfx') || 'auto';
-            savedAuto = parseInt(localStorage.getItem('cargoLanderGfxAuto'), 10);
+            savedAuto = localStorage.getItem('cargoLanderGfxAuto');
         } catch (e) { /* storage blocked — defaults are fine */ }
         if (mode !== 'auto' && !GFX_TIERS.some(t => t.id === mode)) mode = 'auto';
         this.gfxMode = mode;
-        // Crisp is only different from High on a high-DPI screen.
-        const minTier = dpr > 1.05 ? 0 : 1;
         // Resume where Auto settled last session (saves re-learning a slow
-        // phone every visit), but never start above High — Crisp is earned.
-        const start = Number.isFinite(savedAuto)
-            ? Math.min(GFX_TIERS.length - 1, Math.max(GFX_DEFAULT_TIER, savedAuto))
-            : GFX_DEFAULT_TIER;
-        this.perfGovernor = new QualityGovernor({ minTier, tier: start });
+        // phone every visit), but never start above High — the sharper tiers
+        // are earned. Saved as a tier id; an old numeric save is ignored
+        // (the tier list grew in v0.27.0 and indices shifted).
+        const saved = GFX_TIERS.findIndex(t => t.id === savedAuto);
+        const start = saved >= 0 ? Math.max(GFX_DEFAULT_TIER, saved) : GFX_DEFAULT_TIER;
+        this.perfGovernor = new QualityGovernor({ minTier: this._bestDistinctTier(window.innerWidth, window.innerHeight), tier: start });
         this.applyGraphicsTier(mode === 'auto' ? start : this._tierIndex(mode));
     },
 
@@ -220,8 +233,34 @@ const CargoPerfMixin = {
         const tier = GFX_TIERS[idx] || GFX_TIERS[GFX_DEFAULT_TIER];
         this.gfxTier = GFX_TIERS.indexOf(tier);
         this.gfx = tier;
-        this.renderScale = tier.scale === 'dpr' ? (this._gfxDpr || 1) : tier.scale;
+        this.renderScale = this.graphicsScaleFor(window.innerWidth, window.innerHeight);
         if (this.canvas) this.resizeCanvas();
+    },
+
+    // The current tier's backing-store scale for a viewport — resizeCanvas()
+    // re-asks on every resize, since the pixel budget depends on the size.
+    graphicsScaleFor(w, h) {
+        return gfxScaleFor(this.gfx || GFX_TIERS[GFX_DEFAULT_TIER], w, h, this._gfxDpr || 1);
+    },
+
+    // The best tier that actually differs from the one below it on this
+    // viewport. On a 1080p screen at 1x, Crisp, Sharp and High are the same
+    // frame, so Auto shouldn't "climb" through them (each climb is a canvas
+    // reallocation and a risk of a flip-flop ban for nothing).
+    _bestDistinctTier(w, h) {
+        const dpr = this._gfxDpr || 1;
+        const same = (a, b) => gfxScaleFor(a, w, h, dpr) === gfxScaleFor(b, w, h, dpr) && a.postFX === b.postFX && a.starStride === b.starStride;
+        let t = 0;
+        while (t < GFX_DEFAULT_TIER && same(GFX_TIERS[t], GFX_TIERS[t + 1])) t++;
+        return t;
+    },
+
+    // From resizeCanvas(): a new viewport can change which tiers are distinct.
+    onViewportResize(w, h) {
+        const gov = this.perfGovernor;
+        if (!gov) return;
+        gov.minTier = this._bestDistinctTier(w, h);
+        if (this.gfxMode === 'auto' && gov.tier < gov.minTier) { gov.tier = gov.minTier; this.applyGraphicsTier(gov.tier); }
     },
 
     // Settings → Graphics: 'auto' or a tier id.
@@ -251,13 +290,15 @@ const CargoPerfMixin = {
         const next = gov.sample(frameMs, workMs, now);
         if (next < 0) return;
         this.applyGraphicsTier(next);
-        try { localStorage.setItem('cargoLanderGfxAuto', String(next)); } catch (e) { /* ignore */ }
+        try { localStorage.setItem('cargoLanderGfxAuto', GFX_TIERS[next].id); } catch (e) { /* ignore */ }
     },
 
-    // Short label for the FPS stamp, e.g. "AUTO·HIGH".
+    // Short label for the FPS stamp, e.g. "AUTO·HIGH 1920×1080" — the size
+    // the frame is actually rendered at, before the browser stretches it.
     graphicsLabel() {
         const t = (this.gfx || GFX_TIERS[GFX_DEFAULT_TIER]).label.toUpperCase();
-        return this.gfxMode === 'auto' ? `AUTO·${t}` : t;
+        const res = this.canvas ? ` ${this.canvas.width}×${this.canvas.height}` : '';
+        return (this.gfxMode === 'auto' ? `AUTO·${t}` : t) + res;
     },
 };
 

@@ -12,7 +12,7 @@
 // game.js → game/* → render.js + render/* (render.js instantiates window.game).
 
 class CargoGame {
-    static VERSION = '0.26.0';
+    static VERSION = '0.27.0';
 
     constructor() {
         this.canvas = null;
@@ -132,7 +132,10 @@ class CargoGame {
 
     init(canvasId) {
         this.canvas = document.getElementById(canvasId);
-        this.ctx = this.canvas.getContext('2d');
+        // alpha:false — draw() paints the sky over every pixel each frame, so
+        // the canvas is always opaque; telling the browser so lets it skip
+        // blending a full-screen transparent layer into the page.
+        this.ctx = this.canvas.getContext('2d', { alpha: false });
 
         this.uiElements = {
             mobileControls: document.getElementById('mobile-controls'),
@@ -171,7 +174,7 @@ class CargoGame {
         // Initialize WebGL Shaders overlay
         if (typeof ShaderOverlay !== 'undefined') {
             this.shaders = new ShaderOverlay('webglCanvas');
-            this.shaders.resize(this.viewW, this.viewH);
+            this.shaders.resize(this.viewW, this.viewH, Math.min(1, this.renderScale || 1));
         }
 
         // Sync mute button/checkbox to initial state. Was setting
@@ -225,15 +228,22 @@ class CargoGame {
         const targetH = window.innerHeight;
         this.viewW = targetW;
         this.viewH = targetH;
+        // The graphics tier's pixel budget depends on the viewport, so the
+        // scale is recomputed on every resize (game/perf.js).
+        if (this.graphicsScaleFor) {
+            if (this.onViewportResize) this.onViewportResize(targetW, targetH);
+            this.renderScale = this.graphicsScaleFor(targetW, targetH);
+        }
         const scale = this.renderScale || 1;
         const bw = Math.max(1, Math.round(targetW * scale));
         const bh = Math.max(1, Math.round(targetH * scale));
         if (this.canvas.width !== bw) this.canvas.width = bw;
         if (this.canvas.height !== bh) this.canvas.height = bh;
-        // The WebGL overlay stays at logical size: its shaders do their
-        // world-to-screen math in CSS pixels, and drawImage stretches it.
+        // The WebGL overlay (post-FX, gravity wells) follows the scale down
+        // but never above 1x — its effects are soft distortions with no edges
+        // to sharpen. drawImage stretches it back over the scene.
         if (this.shaders) {
-            this.shaders.resize(targetW, targetH);
+            this.shaders.resize(targetW, targetH, Math.min(1, scale));
         }
         this.checkOrientationPrompt();
     }

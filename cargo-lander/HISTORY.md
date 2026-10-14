@@ -8,6 +8,33 @@ backlog" section.
 
 ---
 
+## 2026-10-14 — 4K performance: pixel budgets and region post-FX (v0.27.0)
+
+Reported: rough on 4K screens. Measured headlessly at a true 3840×2160
+viewport (software rendering, so absolute ms are meaningless — ratios aren't):
+a 4K frame cost 3.7–3.9× a 1080p one, i.e. the game was fill-bound — every
+tier rendered every CSS pixel, and the WebGL layer stayed at full size.
+
+- **Pixel budgets per tier** — High renders at most 1920×1080 worth of pixels
+  and the browser stretches the canvas; new Sharp tier (≤1440p) between High
+  and Crisp (native, ≤4K) so Auto's climb on a 4K screen isn't one 4x jump.
+  4K Auto frame: 4.2x cheaper (now the same cost as 1080p).
+- **The empty composite** — `ShaderOverlay.render()` still counted particles
+  (moved to Canvas2D long ago), so every thrusting frame cleared the WebGL
+  canvas and blended it, fully transparent, over the whole screen.
+- **Region post-FX** — the pass copied, shaded and composited the full frame
+  even when the only effect was three haze circles behind the engine. It now
+  works on the region the effects can touch: L4 and L10 frames ~3x cheaper,
+  an L7 water+haze frame shades 1% of the screen. Verified by re-running the
+  pass both ways on identical inputs: the full-screen pass changes no pixel
+  outside the chosen region, and inside it the two are identical (≤2/255).
+  Rain-on-lens remains full-screen (its shader is the dominant cost under
+  software rendering; on a GPU it's cheap) but uploads at half resolution.
+- WebGL layer follows the render scale (≤1x) and drops MSAA; the 2D canvas is
+  `alpha:false`.
+
+---
+
 ## 2026-10-14 — Lossless level editor, Level Check, flat pads (v0.26.0)
 
 **The editor was lossy.** A round-trip harness (load every level, export,

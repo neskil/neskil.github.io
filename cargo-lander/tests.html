@@ -296,28 +296,28 @@ window.confirm = () => true;
   'game' singleton is created but init() is NOT called here — tests call it explicitly.
 -->
 <script src="vendor/matter.min.js"></script>
-<script src="levels/levelSchema.js?v=0.26.0"></script>
-<script src="levels/levelLint.js?v=0.26.0"></script>
-<script src="game/upgrades.js?v=0.26.0"></script>
-<script src="levels/levels.js?v=0.26.0"></script>
-<script src="levels/levelGenerator.js?v=0.26.0"></script>
-<script src="levels/level1.js?v=0.26.0"></script>
-<script src="levels/level2.js?v=0.26.0"></script>
-<script src="levels/level3.js?v=0.26.0"></script>
-<script src="levels/level4.js?v=0.26.0"></script>
-<script src="levels/level5.js?v=0.26.0"></script>
-<script src="levels/level6.js?v=0.26.0"></script>
-<script src="levels/level7.js?v=0.26.0"></script>
-<script src="levels/level8.js?v=0.26.0"></script>
-<script src="levels/level9.js?v=0.26.0"></script>
-<script src="levels/level10.js?v=0.26.0"></script>
-<script src="levels/level11.js?v=0.26.0"></script>
-<script src="levels/level12.js?v=0.26.0"></script>
-<script src="levels/level13.js?v=0.26.0"></script>
-<script src="levels/levelTest.js?v=0.26.0"></script>
-<script src="levels/collectibleTypes.js?v=0.26.0"></script>
-<script src="audio.js?v=0.26.0"></script>
-<script src="render/shaders.js?v=0.26.0"></script>
+<script src="levels/levelSchema.js?v=0.27.0"></script>
+<script src="levels/levelLint.js?v=0.27.0"></script>
+<script src="game/upgrades.js?v=0.27.0"></script>
+<script src="levels/levels.js?v=0.27.0"></script>
+<script src="levels/levelGenerator.js?v=0.27.0"></script>
+<script src="levels/level1.js?v=0.27.0"></script>
+<script src="levels/level2.js?v=0.27.0"></script>
+<script src="levels/level3.js?v=0.27.0"></script>
+<script src="levels/level4.js?v=0.27.0"></script>
+<script src="levels/level5.js?v=0.27.0"></script>
+<script src="levels/level6.js?v=0.27.0"></script>
+<script src="levels/level7.js?v=0.27.0"></script>
+<script src="levels/level8.js?v=0.27.0"></script>
+<script src="levels/level9.js?v=0.27.0"></script>
+<script src="levels/level10.js?v=0.27.0"></script>
+<script src="levels/level11.js?v=0.27.0"></script>
+<script src="levels/level12.js?v=0.27.0"></script>
+<script src="levels/level13.js?v=0.27.0"></script>
+<script src="levels/levelTest.js?v=0.27.0"></script>
+<script src="levels/collectibleTypes.js?v=0.27.0"></script>
+<script src="audio.js?v=0.27.0"></script>
+<script src="render/shaders.js?v=0.27.0"></script>
 <script>
 // Patch ShaderOverlay so it gracefully handles null WebGL context.
 // top-level `class` in shaders.js creates a non-reassignable lexical binding,
@@ -341,9 +341,9 @@ window.confirm = () => true;
 
   // Guard resize — called after init()
   const _resize = proto.resize;
-  proto.resize = function(w, h) {
+  proto.resize = function(w, h, ...rest) {
     if (!this.gl) return;
-    return _resize.call(this, w, h);
+    return _resize.call(this, w, h, ...rest);
   };
 
   // Guard render — called every frame
@@ -354,29 +354,29 @@ window.confirm = () => true;
   };
 })();
 </script>
-<script src="physics/physics.js?v=0.26.0"></script>
-<script src="physics/collision.js?v=0.26.0"></script>
-<script src="physics/mechanics.js?v=0.26.0"></script>
-<script src="physics/entities.js?v=0.26.0"></script>
-<script src="physics/atmosphere.js?v=0.26.0"></script>
-<script src="game/game.js?v=0.26.0"></script>
-<script src="game/input.js?v=0.26.0"></script>
-<script src="game/perf.js?v=0.26.0"></script>
-<script src="game/menu.js?v=0.26.0"></script>
-<script src="game/hud.js?v=0.26.0"></script>
-<script src="game/cargo.js?v=0.26.0"></script>
-<script src="game/bot.js?v=0.26.0"></script>
-<script src="render/render.js?v=0.26.0"></script>
-<script src="render/background.js?v=0.26.0"></script>
-<script src="render/terrain.js?v=0.26.0"></script>
-<script src="render/entities.js?v=0.26.0"></script>
-<script src="render/pads.js?v=0.26.0"></script>
-<script src="render/lander.js?v=0.26.0"></script>
-<script src="render/creatures.js?v=0.26.0"></script>
-<script src="render/effects.js?v=0.26.0"></script>
-<script src="render/night.js?v=0.26.0"></script>
-<script src="render/fog.js?v=0.26.0"></script>
-<script src="render/ui.js?v=0.26.0"></script>
+<script src="physics/physics.js?v=0.27.0"></script>
+<script src="physics/collision.js?v=0.27.0"></script>
+<script src="physics/mechanics.js?v=0.27.0"></script>
+<script src="physics/entities.js?v=0.27.0"></script>
+<script src="physics/atmosphere.js?v=0.27.0"></script>
+<script src="game/game.js?v=0.27.0"></script>
+<script src="game/input.js?v=0.27.0"></script>
+<script src="game/perf.js?v=0.27.0"></script>
+<script src="game/menu.js?v=0.27.0"></script>
+<script src="game/hud.js?v=0.27.0"></script>
+<script src="game/cargo.js?v=0.27.0"></script>
+<script src="game/bot.js?v=0.27.0"></script>
+<script src="render/render.js?v=0.27.0"></script>
+<script src="render/background.js?v=0.27.0"></script>
+<script src="render/terrain.js?v=0.27.0"></script>
+<script src="render/entities.js?v=0.27.0"></script>
+<script src="render/pads.js?v=0.27.0"></script>
+<script src="render/lander.js?v=0.27.0"></script>
+<script src="render/creatures.js?v=0.27.0"></script>
+<script src="render/effects.js?v=0.27.0"></script>
+<script src="render/night.js?v=0.27.0"></script>
+<script src="render/fog.js?v=0.27.0"></script>
+<script src="render/ui.js?v=0.27.0"></script>
 
 <script>
 // ─── 3. HELPER: build a minimal input-state object for physics.update() ──────
@@ -1739,21 +1739,62 @@ test('In Auto, slow gameplay frames lower the live tier and remember it', () => 
   for (let i = 0; i < 400 && g.gfx.id === 'high'; i++) { now += 30; g.perfSample(30, 25, now); }
   assertEquals(g.gfx.id, 'medium', 'stepped down one tier');
   assert(g.canvas.width < w0, 'backing store shrank');
-  assertEquals(localStorage.getItem('cargoLanderGfxAuto'), '2', 'settled tier saved for next session');
+  assertEquals(localStorage.getItem('cargoLanderGfxAuto'), 'medium', 'settled tier saved (by id) for next session');
   g.gameState = 'menu';
   for (let i = 0; i < 400; i++) { now += 30; g.perfSample(30, 25, now); }
   assertEquals(g.gfx.id, 'medium', 'menus are never judged');
   mockLocalStorage.clear();
 });
 
+// A big screen used to render every CSS pixel (8.3M at 4K/1x, ~4x a 1080p
+// frame) at every tier. Each tier now has a pixel budget; the canvas is drawn
+// smaller and the browser stretches it.
+test('Pixel budgets: big screens render at most the tier\'s budget and stretch', () => {
+  const T = id => GFX_TIERS.find(t => t.id === id);
+  assertEquals(gfxScaleFor(T('high'), 3840, 2160, 1), 0.5, '4K at 1x renders High at 1920x1080');
+  assertEquals(gfxScaleFor(T('high'), 2560, 1440, 1), 0.75, '1440p renders High at 1920x1080');
+  assertEquals(gfxScaleFor(T('high'), 1920, 1080, 1), 1, '1080p is untouched');
+  assertEquals(gfxScaleFor(T('high'), 1920, 1080, 2), 1, 'High never goes above 1x');
+  assertEquals(gfxScaleFor(T('sharp'), 3840, 2160, 1), 0.67, 'Sharp: 1440p-class');
+  assertEquals(gfxScaleFor(T('crisp'), 3840, 2160, 1), 1, 'Crisp: native 4K');
+  assertEquals(gfxScaleFor(T('crisp'), 1920, 1080, 2), 2, 'Crisp: native on a 2x 1080p-CSS screen (= 4K)');
+  assert(gfxScaleFor(T('lowest'), 3840, 2160, 1) < gfxScaleFor(T('low'), 3840, 2160, 1), 'tiers stay ordered on 4K');
+  for (const t of GFX_TIERS) {
+    const sc = gfxScaleFor(t, 3840, 2160, 1);
+    assert(3840 * 2160 * sc * sc <= t.maxPixels * 1.02, `${t.id} stays within its budget at 4K`);
+  }
+});
+
+test('Auto only climbs through tiers that differ on this screen', () => {
+  mockLocalStorage.clear();
+  const g = new CargoGame();
+  g.init('cargoCanvas');
+  g._gfxDpr = 1;
+  assertEquals(g._bestDistinctTier(1920, 1080), GFX_TIERS.findIndex(t => t.id === 'high'), '1080p at 1x: Crisp = Sharp = High');
+  assertEquals(g._bestDistinctTier(2560, 1440), GFX_TIERS.findIndex(t => t.id === 'sharp'), '1440p: Sharp is native, Crisp adds nothing');
+  assertEquals(g._bestDistinctTier(3840, 2160), 0, '4K: every step up is real');
+  // the canvas follows the budget on resize
+  const iw = window.innerWidth, ih = window.innerHeight;
+  window.innerWidth = 3840; window.innerHeight = 2160;
+  g.resizeCanvas();
+  assertEquals(g.viewW, 3840, 'logical view is the full screen');
+  assertEquals(g.canvas.width, 1920, 'backing store is the budget');
+  assertEquals(g.perfGovernor.minTier, 0, 'governor may climb to native on 4K');
+  window.innerWidth = iw; window.innerHeight = ih;
+  g.resizeCanvas();
+});
+
 test('Auto resumes at the tier it settled on last session, never above High', () => {
   mockLocalStorage.clear();
-  localStorage.setItem('cargoLanderGfxAuto', '3');
+  localStorage.setItem('cargoLanderGfxAuto', 'low');
   let g = new CargoGame(); g.init('cargoCanvas');
   assertEquals(g.gfx.id, 'low');
-  localStorage.setItem('cargoLanderGfxAuto', '0');
+  localStorage.setItem('cargoLanderGfxAuto', 'crisp');
   g = new CargoGame(); g.init('cargoCanvas');
-  assertEquals(g.gfx.id, 'high', 'Crisp has to be re-earned each session');
+  assertEquals(g.gfx.id, 'high', 'the sharper tiers have to be re-earned each session');
+  localStorage.setItem('cargoLanderGfxAuto', '3');   // pre-v0.27.0 numeric save
+  g = new CargoGame(); g.init('cargoCanvas');
+  assertEquals(g.gfx.id, 'high', 'an old index-based save is ignored, not misread');
   mockLocalStorage.clear();
 });
 
