@@ -156,11 +156,11 @@ export function energyPerMil(inp) {
 
 /* Helförsäkring a year for a car worth `value`. */
 export function helInsurance(inp, value) {
-    let y = inp.insurance != null ? inp.insurance : INSURANCE.helBase + INSURANCE.helPerKr * value;
-    if (inp.insurance == null) {
-        if (inp.young) y *= INSURANCE.youngMult;
-        if (inp.bigCity) y *= INSURANCE.cityMult;
-    }
+    if (inp.insurance != null) return inp.insurance;
+    let y = INSURANCE.helBase + INSURANCE.helPerKr * value;
+    y *= INSURANCE.groupMult[inp.group] || (inp.powertrain === 'el' ? INSURANCE.evMult : 1);
+    if (inp.young) y *= INSURANCE.youngMult;
+    if (inp.bigCity) y *= INSURANCE.cityMult;
     return y;
 }
 
@@ -244,14 +244,17 @@ function bookRims(L, inp, months) {
    its fee (an ad on Blocket). */
 function bookSale(L, inp, N) {
     const exit = EXITS[inp.exit] || EXITS.inbyte;
-    L.add(-valueAt(inp, N) * (1 - exit.haircut), N, 'value', 'sale (' + exit.sv.toLowerCase() + ')');
+    L.add(-valueAt(inp, N) * (1 - exit.haircut), N, 'value', 'sale');
     if (exit.fee) L.add(exit.fee, N, 'tax', 'selling costs');
 }
 
 /* ── The routes ──────────────────────────────────────────────────
    Each returns { total, components, detail, gate, notes, mil }. A gate
-   is { open: false, reason } when something in your situation shuts the
-   door — such routes are drawn but never called the cheapest. */
+   is { open: false, code, vars, reason } when something in your situation
+   shuts the door; `code` and `vars` let the page say it in either language,
+   `reason` is the English for tests and the console. Such routes are drawn
+   but never called the cheapest. */
+const closed = (code, vars, reason) => ({ open: false, code, vars: vars || {}, reason });
 
 function priceCash(inp, N, i) {
     const L = makeLedger(N, i);
@@ -262,7 +265,7 @@ function priceCash(inp, N, i) {
     bookSale(L, inp, N);
     const need = inp.price + (boughtNew ? UPKEEP.rimSet[sizeTier(newPriceOf(inp))] : 0);
     const gate = inp.savings >= need ? { open: true }
-        : { open: false, reason: `Needs ${fmtKr(need)} in savings` };
+        : closed('savings', { need }, `Needs ${fmtKr(need)} in savings`);
     return { ...L.totals(), gate };
 }
 
@@ -337,10 +340,10 @@ function priceLoan(inp, N, i) {
     bookSale(L, inp, N);
 
     let gate = { open: true };
-    if (inp.remark) gate = { open: false, reason: 'A payment remark closes almost every lender' };
-    else if (!inp.income) gate = { open: false, reason: 'Lenders want a steady income' };
-    else if (lt.needsHome && !inp.home) gate = { open: false, reason: 'A mortgage top-up needs a home with room in the loan' };
-    else if (inp.savings < down + lt.setup) gate = { open: false, reason: `The ${Math.round(downShare * 100)} % down payment needs ${fmtKr(down)}` };
+    if (inp.remark) gate = closed('loanRemark', null, 'A payment remark closes almost every lender');
+    else if (!inp.income) gate = closed('loanIncome', null, 'Lenders want a steady income');
+    else if (lt.needsHome && !inp.home) gate = closed('loanHome', null, 'A mortgage top-up needs a home with room in the loan');
+    else if (inp.savings < down + lt.setup) gate = closed('loanDown', { pct: Math.round(downShare * 100), need: down }, `The ${Math.round(downShare * 100)} % down payment needs ${fmtKr(down)}`);
     return {
         ...L.totals(), gate, payment: main.pay + gap.pay, interestPaid: main.interestPaid + gap.interestPaid,
         rate, gapShare
@@ -405,8 +408,8 @@ function priceLease(inp, N, i) {
         L.add(-rims * UPKEEP.rimResale, c * term + span, 'upkeep', 'winter rims sold');
     }
     let gate = { open: true };
-    if (inp.remark) gate = { open: false, reason: 'Leasing needs a clean credit report (UC)' };
-    else if (!inp.income) gate = { open: false, reason: 'Lessors want a steady income' };
+    if (inp.remark) gate = closed('leaseRemark', null, 'Leasing needs a clean credit report (UC)');
+    else if (!inp.income) gate = closed('leaseIncome', null, 'Lessors want a steady income');
     return { ...L.totals(), gate, monthly, allowance, billed };
 }
 
@@ -429,7 +432,7 @@ function priceSub(inp, N, i) {
             L.add(cityPerMonth(inp), k, 'city', 'parking & congestion');
         }
     }
-    const gate = inp.remark ? { open: false, reason: 'Subscriptions run a credit check' } : { open: true };
+    const gate = inp.remark ? closed('subRemark', null, 'Subscriptions run a credit check') : { open: true };
     return { ...L.totals(), gate, monthly: price, billed };
 }
 
@@ -449,7 +452,7 @@ function priceRental(inp, N, i) {
         L.add(energy, k, 'energy', 'fuel or charging');
         L.add(cityPerMonth(inp), k, 'city', 'parking & congestion');
     }
-    const gate = !inp.card ? { open: false, reason: 'Rental desks want a credit card' } : { open: true };
+    const gate = !inp.card ? closed('rentalCard', null, 'Rental desks want a credit card') : { open: true };
     return { ...L.totals(), gate, monthly: price };
 }
 
@@ -485,7 +488,7 @@ function priceBenefit(inp, N, i) {
         L.add(energy, k, 'energy', 'fuel or charging you pay');
         L.add(cityPerMonth(inp), k, 'city', 'parking & congestion');
     }
-    const gate = inp.benefit ? { open: true } : { open: false, reason: 'Only if your employer offers one' };
+    const gate = inp.benefit ? { open: true } : closed('benefitOff', null, 'Only if your employer offers one');
     return { ...L.totals(), gate, benefitValue: fv };
 }
 

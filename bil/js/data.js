@@ -117,14 +117,17 @@ export const ENERGY = {
    Consumption per Swedish mil (10 km), a year's average including winter.
    An EV's 1.9 kWh/mil includes charging losses and the cold-weather hit
    (≈ 17 kWh/100 km summer). Service is a year's scheduled service on a
-   car still under warranty (≈, see README). CO2 is a default for the
-   field, not a claim about any model. */
+   car still under warranty, at about 1 250 mil: an EV is not reliably
+   cheaper (Vi Bilägare paid 4 759 kr for a Kia EV3 service at 3 000 mil;
+   comparison calculators give 2 500–3 000 kr for an EV against 5 000–7 000
+   for petrol). CO2 is a default for the field, not a claim about any
+   model. */
 export const POWERTRAINS = {
-    el:         { label: 'Electric',        sv: 'Elbil',       kwhPerMil: 1.9, litrePerMil: 0,    fuel: null,     electricShare: 1,   service: 2000, co2: 0 },
-    laddhybrid: { label: 'Plug-in hybrid',  sv: 'Laddhybrid',  kwhPerMil: 2.0, litrePerMil: 0.60, fuel: 'petrol', electricShare: 0.5, service: 4000, co2: 30 },
-    hybrid:     { label: 'Hybrid',          sv: 'Elhybrid',    kwhPerMil: 0,   litrePerMil: 0.45, fuel: 'petrol', electricShare: 0,   service: 3500, co2: 105 },
-    bensin:     { label: 'Petrol',          sv: 'Bensin',      kwhPerMil: 0,   litrePerMil: 0.65, fuel: 'petrol', electricShare: 0,   service: 3800, co2: 140 },
-    diesel:     { label: 'Diesel',          sv: 'Diesel',      kwhPerMil: 0,   litrePerMil: 0.55, fuel: 'diesel', electricShare: 0,   service: 4200, co2: 135 }
+    el:         { label: 'Electric',        sv: 'Elbil',       kwhPerMil: 1.9, litrePerMil: 0,    fuel: null,     electricShare: 1,   service: 3000, co2: 0 },
+    laddhybrid: { label: 'Plug-in hybrid',  sv: 'Laddhybrid',  kwhPerMil: 2.0, litrePerMil: 0.60, fuel: 'petrol', electricShare: 0.5, service: 4800, co2: 30 },
+    hybrid:     { label: 'Hybrid',          sv: 'Elhybrid',    kwhPerMil: 0,   litrePerMil: 0.45, fuel: 'petrol', electricShare: 0,   service: 4000, co2: 105 },
+    bensin:     { label: 'Petrol',          sv: 'Bensin',      kwhPerMil: 0,   litrePerMil: 0.65, fuel: 'petrol', electricShare: 0,   service: 4800, co2: 140 },
+    diesel:     { label: 'Diesel',          sv: 'Diesel',      kwhPerMil: 0,   litrePerMil: 0.55, fuel: 'diesel', electricShare: 0,   service: 5200, co2: 135 }
 };
 
 /* ── Resale (värdeminskning) ─────────────────────────────────────
@@ -142,12 +145,12 @@ export const POWERTRAINS = {
    and Polestar 2 lost about 40 % in three model years against about 31 %
    for an XC60 hybrid). */
 export const RESIDUAL_GROUPS = {
-    toyota:  { label: 'Toyota, Lexus',              r1: 0.85, r3: 0.60, r5: 0.48 },
-    volvo:   { label: 'Volvo, VW, Škoda, Cupra',    r1: 0.83, r3: 0.55, r5: 0.43 },
-    premium: { label: 'BMW, Mercedes, Audi',        r1: 0.81, r3: 0.51, r5: 0.39 },
-    korean:  { label: 'Kia, Hyundai',               r1: 0.82, r3: 0.53, r5: 0.41 },
-    evbrand: { label: 'Tesla, Polestar',            r1: 0.79, r3: 0.52, r5: 0.39 },
-    other:   { label: 'Other brands',               r1: 0.81, r3: 0.52, r5: 0.40 }
+    toyota:  { label: 'Toyota, Lexus',              sv: 'Toyota, Lexus',              r1: 0.85, r3: 0.60, r5: 0.48 },
+    volvo:   { label: 'Volvo, VW, Škoda, Cupra',    sv: 'Volvo, VW, Škoda, Cupra',    r1: 0.83, r3: 0.55, r5: 0.43 },
+    premium: { label: 'BMW, Mercedes, Audi',        sv: 'BMW, Mercedes, Audi',        r1: 0.81, r3: 0.51, r5: 0.39 },
+    korean:  { label: 'Kia, Hyundai',               sv: 'Kia, Hyundai',               r1: 0.82, r3: 0.53, r5: 0.41 },
+    evbrand: { label: 'Tesla, Polestar',            sv: 'Tesla, Polestar',            r1: 0.79, r3: 0.52, r5: 0.39 },
+    other:   { label: 'Other brands',               sv: 'Övriga märken',               r1: 0.81, r3: 0.52, r5: 0.40 }
 };
 export const LATE_PHASE = 0.7;
 export const EV_LOSS_MULT = 1.12;
@@ -158,12 +161,15 @@ export const VALUE_PER_1000_MIL = 0.02;     // ≈ share of value lost per 1 000
    plus a fixed fee. ≈: from a 2026 deep-research summary (private 1.00
    with a 495 kr ad, KVD 0.92, direct buyers such as Riddermark or Carla
    0.87, dealer trade-in 0.84); no seller publishes these. There is no
-   US-style sales-tax credit on a trade-in, so it is simply a sale. */
+   US-style sales-tax credit on a trade-in, so it is simply a sale.
+   KVD charges a fee that depends on the price (an older schedule: 10 %
+   with a 5 875 kr floor and a 9 875 kr cap); forum reports put direct
+   buyers 10–25 % under Blocket. */
 export const EXITS = {
-    privat:    { label: 'Private sale (Blocket, Wayke)', sv: 'Privat',            haircut: 0.00, fee: 495 },
-    auktion:   { label: 'Auction (KVD)',                 sv: 'Auktion',           haircut: 0.08, fee: 0 },
-    uppkopare: { label: 'Direct buyer (Riddermark, Carla)', sv: 'Direktuppköpare', haircut: 0.13, fee: 0 },
-    inbyte:    { label: 'Dealer trade-in',               sv: 'Inbyte',            haircut: 0.16, fee: 0 }
+    privat:    { label: 'Private sale (Blocket, Wayke)', sv: 'Privat (Blocket, Wayke)', haircut: 0.00, fee: 495 },
+    auktion:   { label: 'Auction (KVD)',                 sv: 'Auktion (KVD)',     haircut: 0.04, fee: 7500 },
+    uppkopare: { label: 'Direct buyer (Riddermark, Carla)', sv: 'Direktuppköpare (Riddermark, Carla)', haircut: 0.13, fee: 0 },
+    inbyte:    { label: 'Dealer trade-in',               sv: 'Inbyte hos handlare', haircut: 0.16, fee: 0 }
 };
 
 /* ── Insurance ───────────────────────────────────────────────────
@@ -175,34 +181,44 @@ export const EXITS = {
    The per-value slope is ≈, fitted so an average used car lands near
    7 000 kr and a new mid-size one near 8 000. A second 2026 summary puts
    full cover at about twice half cover, a driver under 25 at ×1.45 and a
-   city address at ×1.20. */
+   city address at ×1.20. Brand matters more than value at the top: a
+   Tesla Model Y Long Range was quoted about 28 000 kr a year at
+   Trygg-Hansa and 2 600–4 100 kr a month at Zmarta (30-year-old,
+   Stockholm), against Hedvig's brand averages of 569 kr a month for Volvo
+   and 508 for Kia; electric cars in general cost more to insure once the
+   garanti ends. */
 export const INSURANCE = {
     helBase: 3000,
     helPerKr: 0.012,
     halvShare: 0.5,
     garantiMonths: 36,
     youngMult: 1.45,
-    cityMult: 1.20
+    cityMult: 1.20,
+    groupMult: { evbrand: 2.5, premium: 1.3 },   // ≈
+    evMult: 1.2                                  // ≈ other brands' EVs
 };
 
 /* ── Service, tyres, inspection ──────────────────────────────────
    Service grows with age once the warranty runs out (≈ multipliers).
    Tyres: one summer and one winter set, each lasting about 6 000 mil;
-   a swap twice a year at about 450 kr (150–250 kr per tyre mounted plus
-   balancing), däckhotell 800–1 500 kr per season if you use one.
+   four friction tyres cost 4 500–8 000 kr (from 1 166–1 308 kr a tyre).
+   A new car needs complete winter wheels: 13 900 kr for a 17" set, 15 900
+   for 18" (Lassa via Bilia Outlet), 26 800–27 800 for Volvo's own 18"
+   (Bilia). A swap is 395–550 kr; a däckhotell with the swap 600–1 600 kr
+   a season.
    Winter tyres are compulsory 1 December – 31 March in winter conditions
    (2 000 kr fine since February 2025); studs allowed 1 October – 15 April.
    Besiktning: first within 36 months, then 24, then every 14 months;
    395–525 kr at the four big chains in 2026. */
 export const UPKEEP = {
     ageMult: [ [3, 1.0], [6, 1.6], [10, 2.3], [Infinity, 3.0] ],
-    tyreSet: { small: 7000, mid: 9000, large: 12000 },
-    rimSet:  { small: 7000, mid: 10000, large: 15000 },   // ≈ rims alone; a complete set with tyres runs 15 500–34 000
+    tyreSet: { small: 5000, mid: 6500, large: 10000 },
+    rimSet:  { small: 8900, mid: 9400, large: 16800 },    // complete winter wheels less the tyres on them
     rimResale: 0.4,
     tyreLifeMil: 6000,
     evTyreWear: 1.15,
     swap: 450,
-    hotelYear: 1200,
+    hotelYear: 1500,
     inspection: 450,
     inspectAt: [36, 24, 14]
 };
@@ -226,26 +242,31 @@ export const SIZE_MULT = { small: 0.85, mid: 1.0, large: 1.25 };
    loan and the gap is financed as an unsecured loan with no deduction.
    A private loan has no down-payment rule and, from 2026, no deduction.
    A mortgage top-up is the cheapest money there is if you own a home with
-   room in the mortgage; Riksbanken's policy rate is 1.75 % (Sept 2026). */
+   room in the mortgage: three-month mortgage rates averaged 2.58–2.75 % in
+   September 2026 (Skandia, Danske Bank, Nordea), with Riksbanken at
+   1.75 %. */
 export const LOANS = {
     billan:    { label: 'Car loan via the dealer', sv: 'Billån (bilen som säkerhet)', rate: 0.065, minDown: 0.20, deductible: true,  setup: 595, monthlyFee: 29, needsHome: false },
     privatlan: { label: 'Unsecured private loan',  sv: 'Privatlån utan säkerhet',     rate: 0.095, minDown: 0,    deductible: false, setup: 0,   monthlyFee: 29, needsHome: false },
-    bolan:     { label: 'Mortgage top-up',         sv: 'Utökat bolån',                rate: 0.030, minDown: 0,    deductible: true,  setup: 0,   monthlyFee: 0,  needsHome: true }
+    bolan:     { label: 'Mortgage top-up',         sv: 'Utökat bolån',                rate: 0.027, minDown: 0,    deductible: true,  setup: 0,   monthlyFee: 0,  needsHome: true }
 };
 
 /* ── Privatleasing ───────────────────────────────────────────────
    36 months, no down payment, service usually included; insurance,
    vehicle tax and winter wheels on top. A Volvo EX30 leased for
    3 495–3 790 kr/mo on 36 months and 1 000 mil a year in autumn 2026
-   (about 0.85 % of its 429 000 kr list price a month); an XC40 B3 4 995,
-   an EX40 5 195. Each extra 500 mil a year adds about 300 kr/mo.
+   (about 0.85 % of its 429 000 kr list price a month), and Volvo's own
+   price list starts it at 3 895; an EX40 4 895–4 995; a Kia EV3 4 495
+   (Kia, 1 000 mil, service included, September 2026); a Tesla Model Y from
+   4 595. Each extra 500 mil a year adds 300–349 kr/mo (Stendahls,
+   Bilbolaget). The fee floats with Stibor 90 at Volvo's dealers.
    Excess mileage 10–20 kr/mil (Volvo 12). Abnormal wear is charged at
    return. Many contracts float with the lessor's funding rate. */
 export const LEASE = {
     shareOfPrice: 0.0088,
     baseMil: 1000,
     stepMil: 500,
-    stepPrice: 300,
+    stepPrice: 349,
     overMil: 12,
     setup: 595,
     returnDamage: 4500,   // ≈ expected per return; bills of 5 000–25 000 kr are common
@@ -254,26 +275,28 @@ export const LEASE = {
 
 /* ── Bilabonnemang ───────────────────────────────────────────────
    One price including insurance, vehicle tax, service and tyres, and a
-   short notice period. Kinto Flex from 5 999 kr/mo with vehicle tax,
-   inspection, service and 300 mil a month, month to month; Care by Volvo
-   advertised from 5 590–5 990 kr/mo, cancellable after six months on
-   three months' notice. ≈ 1.4 % of list price a month. */
+   short notice period. In 2026: Schysst from 3 990 kr/mo with
+   helförsäkring and no lock-in; Novus Mobility 2 995–7 495 kr/mo on 3–24
+   months; Care by Volvo from 5 590–5 990 kr/mo on three months' notice;
+   imove from 10 990. ≈ 1.4 % of list price a month. */
 export const SUBSCRIPTION = {
     shareOfPrice: 0.014,
-    floor: 4990,
+    floor: 3990,
     milPerMonth: 150,
     excess: 25,           // ≈ kr/mil
-    minMonths: 9
+    minMonths: 3
 };
 
 /* ── Långtidshyra (monthly rental) ───────────────────────────────
-   Avis Minilease from 7 495 kr/mo for a Peugeot 2008 or similar, basic
-   insurance with a 9 500 kr excess. Monthly hires usually include
-   1 500–4 000 km a month, excess 1–6.50 kr/km. */
+   Kinto Flex from 5 999–6 399 kr/mo with 300 mil a month and 2 kr/km
+   over; Avis Minilease from 7 495 kr/mo for a Peugeot 2008 or similar,
+   150 mil a month and 5 kr/km over, basic insurance with a 9 500 kr
+   excess; Volvo Car Retail from 9 990 kr/mo with 300 mil, service, extra
+   driver, tax and basic insurance, 25 kr per mil over. */
 export const RENTAL = {
-    monthly: { small: 7495, mid: 8995, large: 11995 },   // small sourced, mid/large ≈
-    milPerMonth: 250,
-    excess: 30,
+    monthly: { small: 6399, mid: 9990, large: 12990 },   // large ≈
+    milPerMonth: 300,
+    excess: 25,
     deductible: 9500
 };
 
@@ -310,13 +333,13 @@ export const SCENARIOS = {
    their WLTP CO2 and consumption), and a generic used car. Leasing quotes
    are filled in only where one was found. */
 export const PRESETS = [
-    { key: 'ex30',  label: 'Volvo EX30',            price: 429000, age: 0, powertrain: 'el',         co2: 0,   group: 'volvo',   leaseQuote: 3690 },
-    { key: 'ev3',   label: 'Kia EV3',               price: 429900, age: 0, powertrain: 'el',         co2: 0,   group: 'korean' },
-    { key: 'my',    label: 'Tesla Model Y',         price: 499990, age: 0, powertrain: 'el',         co2: 0,   group: 'evbrand' },
-    { key: 'xc60',  label: 'Volvo XC60 plug-in',    price: 569900, age: 0, powertrain: 'laddhybrid', co2: 23,  group: 'volvo' },
+    { key: 'ex30',  label: 'Volvo EX30',            price: 429000, age: 0, powertrain: 'el',         co2: 0,   group: 'volvo',   leaseQuote: 3895 },
+    { key: 'ev3',   label: 'Kia EV3',               price: 429900, age: 0, powertrain: 'el',         co2: 0,   group: 'korean',  leaseQuote: 4495 },
+    { key: 'my',    label: 'Tesla Model Y',         price: 499990, age: 0, powertrain: 'el',         co2: 0,   group: 'evbrand', leaseQuote: 4595 },
+    { key: 'xc60',  label: 'Volvo XC60 plug-in',    sv: 'Volvo XC60 laddhybrid',    price: 569900, age: 0, powertrain: 'laddhybrid', co2: 23,  group: 'volvo' },
     { key: 'golf',  label: 'VW Golf eTSI',          price: 349900, age: 0, powertrain: 'bensin',     co2: 124, group: 'volvo',   consumption: 0.54 },
     { key: 'tiguan', label: 'VW Tiguan TDI',        price: 465000, age: 0, powertrain: 'diesel',     co2: 164, group: 'volvo',   consumption: 0.63 },
-    { key: 'used',  label: 'Used petrol, 5 years',  price: 200000, age: 5, powertrain: 'bensin',     co2: 140, group: 'volvo' }
+    { key: 'used',  label: 'Used petrol, 5 years',  sv: 'Begagnad bensin, 5 år', price: 200000, age: 5, powertrain: 'bensin', co2: 140, group: 'volvo' }
 ];
 
 /* ── The page's starting point ───────────────────────────────────── */
@@ -346,7 +369,7 @@ export const DEFAULTS = {
     bigCity: false,
 
     savings: 500000,
-    altReturn: 2.0,
+    altReturn: 2.5,
     loanType: 'billan',
     loanRate: null,         // null = the loan type's default
     down: 20,
@@ -357,7 +380,7 @@ export const DEFAULTS = {
     card: true,
     home: false,
 
-    leaseQuote: 3690,
+    leaseQuote: 3895,
     leaseMil: null,         // null = the next step up from your driving
     leaseTerm: 36,
     overMil: LEASE.overMil,

@@ -1983,15 +1983,17 @@
            drawn faintly in yellow across the face — off-centre towards the hoist,
            as on the flag — and a Swedish number plate where other cards keep a
            stat chip. The cross is one SVG shape with one fill in the face's own
-           background, so the yellow is even where the arms meet (two crossing
-           bands doubled it there), and it tilts and flips with the card. */
+           background, so the yellow is even where the arms meet, drawn at a
+           fixed size in the flag's proportions (hoist 5u, arms 2u, top 4u,
+           u = 20px) so both arms keep the same thickness whatever the card's
+           shape. It tilts and flips with the card. */
         #card-bil {
             --accent-rgb: 254, 204, 2;
             --card-bg-gradient:
-                url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Cpath d='M26 0h8v40H100v12H34V100h-8V52H0V40H26z' fill='rgb(254,204,2)' fill-opacity='0.075'/%3E%3C/svg%3E") 0 0 / 100% 100% no-repeat,
+                url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='2000' height='2000'%3E%3Cpath d='M100 0H140V80H2000V120H140V2000H100V120H0V80H100Z' fill='rgb(254,204,2)' fill-opacity='0.075'/%3E%3C/svg%3E") 0 0 no-repeat,
                 linear-gradient(135deg, rgba(0, 74, 130, 0.62) 0%, rgba(12, 24, 44, 0.62) 100%);
             --card-hover-gradient:
-                url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Cpath d='M26 0h8v40H100v12H34V100h-8V52H0V40H26z' fill='rgb(254,204,2)' fill-opacity='0.12'/%3E%3C/svg%3E") 0 0 / 100% 100% no-repeat,
+                url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='2000' height='2000'%3E%3Cpath d='M100 0H140V80H2000V120H140V2000H100V120H0V80H100Z' fill='rgb(254,204,2)' fill-opacity='0.12'/%3E%3C/svg%3E") 0 0 no-repeat,
                 linear-gradient(135deg, rgba(0, 92, 160, 0.80) 0%, rgba(14, 30, 56, 0.78) 100%);
             --card-border: rgba(254, 204, 2, 0.24);
             --card-hover-border: rgba(254, 204, 2, 0.55);
@@ -4160,7 +4162,7 @@
                                         </svg>
                                     </div>
                                     <h3 class="card-title">Leasa, hyra eller köpa?</h3>
-                                    <p class="card-desc">The Swedish edition: privatleasing, billån, bilabonnemang or no car at all, in kronor per mil, with malus and winter tyres priced in.</p>
+                                    <p class="card-desc">The Swedish edition, på svenska or in English: privatleasing, billån, bilabonnemang or no car at all, in kronor per mil, with malus and winter tyres priced in.</p>
                                 </div>
                                 <span class="card-link">Take a look <svg viewBox="0 0 24 24">
                                         <path d="M3.6 12a8.4 8.4 0 0 1 14.4-5.9" stroke="currentColor" stroke-width="2"
@@ -4182,15 +4184,17 @@
                                     </svg>
                                 </button>
                                 <div class="peek-shot">
-                                <img data-src="assets/preview/bil.webp" alt="The Swedish calculator's answer on a number plate: privatleasing at about 5 600 kr a month, above six routes from cash to no car." width="800" height="420"
+                                <img data-src="assets/preview/bil.webp" alt="The Swedish calculator's answer on a number plate: privatleasing at about 5 900 kr a month, above six routes from cash to no car." width="800" height="420"
                                     decoding="async">
                                 <img data-src="assets/preview/bil-2.webp" alt="Where the money goes: stacked bars for each route, from value lost to fuel and parking, in kronor a month." width="800" height="420"
+                                    decoding="async">
+                                <img data-src="assets/preview/bil-3.webp" alt="The walkthrough asking where you live, with Stockholm, Göteborg, Malmö, central Sweden and Norrland to choose from." width="800" height="420"
                                     decoding="async">
                                 </div>
                                 <div class="peek-body">
                                     <div class="peek-title">Leasa, hyra eller köpa?</div>
-                                    <p class="peek-text">Cash, billån, privatleasing, bilabonnemang, a monthly rental, no car, or a förmånsbil if work offers one, priced the same way in kronor a month and per mil. Malus, ränteavdrag on secured loans only, the three-year vagnskadegaranti, besiktning and two sets of tyres are already in, and a payment remark closes the doors it really closes.</p>
-                                    <div class="peek-stat"><span class="stat-icon">🇸🇪</span> 7 routes &bull; kr/mil &bull; 2026 rules</div>
+                                    <p class="peek-text">Cash, billån, privatleasing, bilabonnemang, a monthly rental, no car, or a förmånsbil if work offers one, priced the same way in kronor a month and per mil. Malus, ränteavdrag on secured loans only, the three-year vagnskadegaranti, besiktning and two sets of tyres are already in, and a payment remark closes the doors it really closes. A nine-question walkthrough fills it in for you, på svenska or in English.</p>
+                                    <div class="peek-stat"><span class="stat-icon">🇸🇪</span> 7 routes &bull; kr/mil &bull; svenska / English</div>
                                 </div>
                                 <a class="peek-launch" href="bil/index.html">Räkna på det <svg viewBox="0 0 24 24">
                                         <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2"
@@ -4652,6 +4656,14 @@
         /* The cards added after the hand-tuned ones above all drift the same way
            — the Lease/Rent/Buy floater — and differ only in what they carry, so
            they are a table rather than a branch each. */
+        /* Which cards drift something across the background: the hand-tuned
+           four with a branch of their own in ThemeEntity, plus every card in
+           CARD_FLOATERS below. The spawn check used to be a hand-kept list of
+           the four, so each card added to the table armed a spawn that never
+           came — Fika, Sand, the terrarium and the rest hovered in silence. */
+        const HAND_TUNED_THEME_CARDS = ['card-cargo-lander', 'card-supply-chain', 'card-car', 'card-golf-hub'];
+        const hasThemeEntity = (cardId) => HAND_TUNED_THEME_CARDS.includes(cardId) || Object.prototype.hasOwnProperty.call(CARD_FLOATERS, cardId);
+
         const CARD_FLOATERS = {
             'card-bil': { hue: 48, items: ['🇸🇪', '🫎', '🚗', '🔑', 'kr/mil'] },
             'card-name-song': { hue: 275, items: ['🎵', '🎶', '🎹', '🔔'] },
@@ -5394,8 +5406,7 @@
             }
 
             // Spawn background theme entities after a lingering hover over a card
-            const allowedThemeCards = ['card-cargo-lander', 'card-supply-chain', 'card-car', 'card-bil', 'card-golf-hub'];
-            if (perfTier === 0 && themeSpawnArmed && allowedThemeCards.includes(activeThemeCardId) && themeEntities.length < MAX_THEME_ENTITIES && Math.random() < 0.012) {
+            if (perfTier === 0 && themeSpawnArmed && hasThemeEntity(activeThemeCardId) && themeEntities.length < MAX_THEME_ENTITIES && Math.random() < 0.012) {
                 themeEntities.push(new ThemeEntity(activeThemeCardId));
             }
 
