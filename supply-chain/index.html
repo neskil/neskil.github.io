@@ -24,7 +24,7 @@
          module, so a bump no longer rewrites ~40 query-string lines (which,
          under parallel agent sessions, conflict on every master merge).
          config.js copies it to SC.VERSION. See supply-chain/CLAUDE.md. -->
-    <script>window.SC_VERSION = '1.63.4';</script>
+    <script>window.SC_VERSION = '1.64.0';</script>
     <script>document.write('<link rel="stylesheet" href="style.css?v=' + SC_VERSION + '">');</script>
     <!-- Google tag (gtag.js) -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-9GP823TGLB"></script>
@@ -83,6 +83,8 @@
         <div id="hud">
             <div class="hud-item money" id="hud-money-item"><span class="hud-label" id="hud-money-label">Money</span><span id="hud-money">$0</span></div>
             <div class="hud-item"><span class="hud-label hud-label-full">Trucks idle</span><span class="hud-label hud-label-short">🚚</span><span id="hud-trucks">0/0</span></div>
+            <!-- Timed runs only (SC.run.isTimed): sim time left until the bell. -->
+            <div class="hud-item clock hidden" id="hud-clock-item"><span class="hud-label hud-label-full">Time left</span><span class="hud-label hud-label-short">⏱</span><span id="hud-clock">15:00</span></div>
         </div>
     </div>
 
@@ -337,8 +339,14 @@
                 <div class="shop-section-title">High Scores</div>
                 <div id="stats-highscores"></div>
 
+                <div class="shop-section-title">Best timed runs</div>
+                <div id="stats-bests"></div>
+
                 <div class="shop-section-title">Deliveries by product</div>
                 <div id="stats-deliveries"></div>
+
+                <div class="shop-section-title">Why orders were missed</div>
+                <div id="stats-misses"></div>
 
                 <div class="shop-section-title">Money over time</div>
                 <svg id="stats-sparkline" viewBox="0 0 200 50" preserveAspectRatio="none"></svg>
@@ -368,12 +376,15 @@
 
     <div id="gameover-overlay" class="hidden">
         <div class="menu-card">
+            <!-- Shared by both ways a run ends: foreclosure (as written here)
+                 and a timed run's bell, which rewrites title/text/button. -->
             <div class="menu-title">
-                <h1>🏦 Loan defaulted!</h1>
+                <h1 id="gameover-title">🏦 Loan defaulted!</h1>
             </div>
-            <p class="gameover-text">The debt spiralled past your credit limit and the
+            <p class="gameover-text" id="gameover-text">The debt spiralled past your credit limit and the
                grace period ran out — the bank has foreclosed on the company.</p>
             <div class="menu-stats" id="gameover-stats"></div>
+            <button class="menu-btn hidden" id="gameover-share">📋 Copy result</button>
             <button class="menu-btn primary" id="gameover-restart">↻ Start a new company</button>
         </div>
     </div>
@@ -404,6 +415,12 @@
                         <button class="menu-btn" id="menu-pills">🏷 Factory labels</button>
                         <button class="menu-btn" id="menu-fullscreen">⛶ Full screen</button>
                     </div>
+                    <!-- One level per channel; the toggles above still mute outright. -->
+                    <div class="menu-sliders">
+                        <label class="menu-slider"><span>🔔 Effects</span><input type="range" min="0" max="100" step="5" id="menu-vol-sfx"><b id="menu-vol-sfx-val"></b></label>
+                        <label class="menu-slider"><span>🌧 Ambience</span><input type="range" min="0" max="100" step="5" id="menu-vol-amb"><b id="menu-vol-amb-val"></b></label>
+                        <label class="menu-slider"><span>🎵 Music</span><input type="range" min="0" max="100" step="5" id="menu-vol-music"><b id="menu-vol-music-val"></b></label>
+                    </div>
 
                     <div class="menu-section-title">🛠 Tools &amp; Info</div>
                     <div class="menu-grid">
@@ -426,7 +443,9 @@
         <div class="help-card">
             <h1>Supply Chain Tycoon</h1>
             <div id="difficulty-section">
-                <div class="shop-section-title" style="margin-top:0">Difficulty</div>
+                <div class="shop-section-title" style="margin-top:0">Run</div>
+                <div id="runmode-picker"></div>
+                <div class="shop-section-title">Difficulty</div>
                 <div id="difficulty-picker"></div>
             </div>
             <button id="help-start">Start hauling</button>
@@ -463,7 +482,7 @@
                 <li><b>Fill orders:</b> connect each ingredient's supplier to the factory, and the factory to the ordering HQ/DC. Dispatch is automatic.</li>
                 <li><b>Earn &amp; grow:</b> payouts fund more roads, trucks, factories and upgrades. Completing deliveries expands the map into new regions linked by paved highways.</li>
                 <li><b>Credit line:</b> you can spend into the red down to −$1,500, but debt bleeds interest every minute (rate set by difficulty — 15%/min on Normal). If interest drags you <i>below</i> the limit, a default countdown starts — recover in time or the bank forecloses and the run ends. Sandbox never forecloses.</li>
-                <li><b>Research &amp; Promotions:</b> in the Shop panel, invest upfront to unlock upgrades like manual site placement and Marketing Blitz (run targeted promotions on specific goods for massive demand bursts).</li>
+                <li><b>Research &amp; Promotions:</b> in the Shop panel, invest upfront to unlock upgrades like manual site placement and Marketing Blitz (run targeted promotions on specific goods for massive demand bursts). Changed your mind? Cancel a running project for a refund of the time it hasn't used yet.</li>
                 <li><b>Truck yards:</b> HQ is your first yard. Build more (Shop panel) to station trucks closer to distant routes — idle trucks head home to their yard, so they stay ready near their own region.</li>
                 <li><b>Junctions:</b> place one (Shop panel) anywhere on land to fork, merge or reroute roads through a point that isn't a supplier, factory or city — no supply or demand of its own, just a waypoint for shaping the network.</li>
                 <li><b>Supplier stock:</b> suppliers hold a finite stock that refills over time — trucks wait at a dry supplier. Upgrade mode (⬆️, bottom right): tap a supplier twice to raise its stock cap and refill rate.</li>
@@ -471,9 +490,11 @@
                 <li><b>Congestion &amp; Difficulty Ramp:</b> a difficulty trait (on for Normal/Hard) — busy roads slow down past a few trucks. As your delivery count grows, order deadlines tighten and spawn rates speed up for a scaling challenge.</li>
                 <li><b>Fast-forward:</b> the 1×/2×/4× toggle under the HUD speeds up the whole sim — orders, crafting, trucks, interest, everything.</li>
                 <li><b>Contracts:</b> occasionally a bulk-order card offers a locked-in premium rate — Accept or Decline before the timer runs out. An accepted contract is a big order with its own deadline; miss it and you pay a penalty on top of the failure, not just a missed order.</li>
-                <li><b>Move around:</b> drag to pan, scroll or pinch to zoom. Tap a road twice to demolish it.</li>
+                <li><b>Move around:</b> drag to pan, scroll or pinch to zoom. Tap a road twice to demolish it — or on a phone, hold it. Holding a for-sale factory buys it.</li>
+                <li><b>Timed &amp; daily runs:</b> pick a run on the new-game screen. A timed challenge gives you 15 minutes and scores your <b>profit at the bell</b>; the daily challenge is the same, on one map for everyone that day. Your best score on each is kept.</li>
+                <li><b>Missed orders say why:</b> the toast names the cause — no route, a supplier that ran dry, no free truck, a factory backlog, or just too slow — and Stats keeps a tally with the fix for each.</li>
                 <li><b>Inspect mode (🔍, bottom right):</b> hover (or tap on mobile) a node to see its connections, needed ingredients, or city orders. Tap <b>[Toggle]</b> on a factory to specialize it for a <b>1.5× crafting speed boost</b>!</li>
-                <li><b>Sound &amp; Music (☰ menu):</b> toggle synthesized sound effects, weather/traffic ambience, and procedural music independently.</li>
+                <li><b>Sound &amp; Music (☰ menu):</b> toggle synthesized sound effects, weather/traffic ambience, and procedural music independently, with a volume slider for each.</li>
                 <li><b>Stats &amp; Achievements (☰ menu):</b> deliveries by product, a money-over-time chart, your busiest road, and milestone badges for things like your first bridge or a 10-truck fleet.</li>
             </ul>
         </div>
@@ -488,7 +509,7 @@
     <script>
     (function () {
         var mods = ['config', 'state', 'save', 'audio', 'sfx', 'rng', 'map', 'camera',
-                    'roads', 'factories', 'economy', 'vehicles', 'stats',
+                    'roads', 'factories', 'economy', 'vehicles', 'stats', 'run',
                     'inspect', 'research', 'placement', 'tutorial',
                     'render-core', 'render-env', 'render-network', 'render-actors',
                     'input', 'ui', 'ui-bind', 'main'];

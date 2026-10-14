@@ -9,10 +9,21 @@ SC.emit = function(ev, data) { (SC.listeners[ev] || []).forEach(fn => fn(data));
 
 // `difficulty` is fixed for the run: it sets starting money here and
 // interest/deadline/grace modifiers via SC.diff() everywhere else.
-SC.newState = function(difficulty) {
+// `runMode` (SC.RUN_MODES key) is fixed for the run too: endless, or one
+// of the timed modes that end at runLimit and score the result (run.js).
+SC.newState = function(difficulty, runMode) {
+    if (!SC.RUN_MODES[runMode]) runMode = 'endless';
+    // The daily challenge is the same game for everyone that day, so it
+    // brings its own difficulty.
+    if (SC.RUN_MODES[runMode].difficulty) difficulty = SC.RUN_MODES[runMode].difficulty;
     if (!SC.DIFFICULTIES[difficulty]) difficulty = 'normal';
+    const minutes = SC.RUN_MODES[runMode].minutes;
     SC.state = {
         difficulty,
+        runMode,
+        runLimit: minutes ? minutes * 60 : null, // sim seconds until the bell (null = endless)
+        runOver: false,     // the bell rang — sim frozen, summary shown
+        dailyDate: null,    // 'YYYY-MM-DD' a daily run belongs to (run.js)
         seed: null,         // world seed, set by map.generateWorld(); shareable via ?seed=
         // Live playing-field size — seeded from the CONFIG base, then grown
         // by bought field expansions (see SC.map.buyLand / WORLD_EXPAND).
@@ -26,6 +37,7 @@ SC.newState = function(difficulty) {
         interestPaid: 0,
         delivered: 0,
         missed: 0,
+        missedReasons: {},  // { SC.MISS_REASONS key: count } — economy.expireOrder
         trucksBought: 0,
         paused: false,      // menu open — sim frozen, not persisted
 
@@ -244,11 +256,18 @@ SC.supplierCap = function(n) {
 // two farms in the same greenland still aren't interchangeable. Both parts
 // are derived from position/id + seed rather than stored, so old saves get
 // their yields the moment they load and nothing can drift out of sync.
+// The biome half of that on its own: what this ground pays for `mat`,
+// before the per-site roll. It's all a placement preview can promise —
+// the roll keys off the node id, which a site only gets once it's built.
+SC.groundYield = function(mat, x, y) {
+    const row = SC.CONFIG.BIOME_YIELD[mat];
+    const band = SC.biomeAt(x, y);
+    return (row && row[band.key] !== undefined) ? row[band.key] : 1;
+};
+
 SC.supplierYield = function(n) {
     if (!n || n.kind !== 'supplier') return 1;
-    const row = SC.CONFIG.BIOME_YIELD[n.mat];
-    const band = SC.biomeAt(n.x, n.y);
-    const biomeF = (row && row[band.key] !== undefined) ? row[band.key] : 1;
+    const biomeF = SC.groundYield(n.mat, n.x, n.y);
     const v = SC.CONFIG.SITE_YIELD_VARIANCE || 0;
     // Deterministic ±v roll, decorrelated from the biome noise so a site
     // isn't doubly rewarded for sitting in good ground.

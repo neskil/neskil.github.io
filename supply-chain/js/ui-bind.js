@@ -129,6 +129,12 @@
             SC.sfx.play('click'); // silent when the toggle just muted
             updateMenuInfo();
         });
+        // Per-channel levels. `input` fires while dragging, so the label and
+        // the mix follow the thumb; the setters persist each change.
+        on('menu-vol-sfx', 'input', e => { SC.sfx.setVolume(+e.target.value / 100); U.updateVolumeSliders(); });
+        on('menu-vol-sfx', 'change', () => SC.sfx.play('click')); // a sample at the new level
+        on('menu-vol-amb', 'input', e => { SC.audio.setAmbientVolume(+e.target.value / 100); U.updateVolumeSliders(); });
+        on('menu-vol-music', 'input', e => { SC.audio.setMusicVolume(+e.target.value / 100); U.updateVolumeSliders(); });
         on('menu-music', 'click', () => {
             SC.audio.toggleMusic();
             SC.sfx.play('click');
@@ -526,6 +532,20 @@
 
         $('research-tree-nodes').addEventListener('click', e => {
             if (isDragging) return;
+            const abortBtn = e.target.closest('[data-abort-research]');
+            if (abortBtn) {
+                const id = abortBtn.dataset.abortResearch;
+                SC.sfx.play('click');
+                if (!U.isAbortArmed(id)) {
+                    U.armAbortResearch(id);
+                } else {
+                    U.disarmAbortResearch();
+                    const res = SC.research.cancelActive(id);
+                    if (res.ok) toast(`Cancelled ${SC.RESEARCH[id].name} — ${fmt(res.refund)} refunded`, 'info');
+                }
+                updateShop();
+                return;
+            }
             const cancelBtn = e.target.closest('[data-cancel-research]');
             if (cancelBtn) {
                 const id = cancelBtn.dataset.cancelResearch;
@@ -645,18 +665,21 @@
             SC.sfx.play('cash');
             toast(o.contract ? `📜 Contract fulfilled! +${fmt(o.payout)}` : `Order filled: +${fmt(o.payout)}`, 'good');
         });
+        // Every miss says why (SC.economy.missReason), so the toast points
+        // at the fix instead of just reporting the loss.
+        const missWhy = d => {
+            const r = d && SC.MISS_REASONS[d.reason];
+            return r ? ` ${r.emoji} ${r.label}` : '';
+        };
         SC.on('orderExpired', d => {
             SC.sfx.play('expire');
             const penalty = (typeof d === 'object' && d && d.penalty) ? d.penalty : 0;
-            if (penalty > 0) {
-                toast(`An order expired — fine ${fmt(penalty)}`, 'error');
-            } else {
-                toast('An order expired — customer walked away', 'error');
-            }
+            const what = d && d.order ? `${SC.emojiOf(d.order.product)} order expired` : 'An order expired';
+            toast(`${what} —${missWhy(d)}${penalty > 0 ? ` · fine ${fmt(penalty)}` : ''}`, 'error');
         });
         SC.on('contractOffered', () => { SC.sfx.play('unlock'); toast('📜 New contract offer available!', 'info'); });
         SC.on('crossingChoice', openCrossingChoice);
-        SC.on('contractFailed', d => { SC.sfx.play('expire'); toast(`📜 Contract failed — penalty ${fmt(d.penalty)}`, 'error'); });
+        SC.on('contractFailed', d => { SC.sfx.play('expire'); toast(`📜 Contract failed —${missWhy(d)} · penalty ${fmt(d.penalty)}`, 'error'); });
         SC.on('crafted', () => SC.sfx.play('craft'));
         // Dispatch can assign a whole batch in one tick; sfx.js throttles this
         // one so a busy map gets a single puff, not a machine-gun of them.
@@ -688,18 +711,58 @@
             toast(`🏦 Debt past your credit limit — recover within ${Math.round(d.grace)}s or the bank forecloses!`, 'error');
         });
         SC.on('debtRecovered', () => toast('Debt back within the credit limit — default averted', 'good'));
+        // The rows both end screens share: what the run did, and the one
+        // thing that cost it the most orders.
+        function runSummaryRows() {
+            const st = SC.state;
+            const top = (keys, counts) => keys.filter(k => counts[k] > 0)
+                .sort((a, b) => counts[b] - counts[a])[0];
+            const product = top(Object.keys(st.deliveredByProduct), st.deliveredByProduct);
+            const miss = top(SC.MISS_REASON_ORDER, st.missedReasons);
+            return `
+                <div><span>Total earned</span><b>${fmt(st.earnedTotal)}</b></div>
+                <div><span>Upkeep paid</span><b>${fmt(Math.round(st.upkeepPaid || 0))}</b></div>
+                <div><span>Interest paid</span><b>${fmt(st.interestPaid)}</b></div>
+                <div><span>Orders filled / missed</span><b>${st.delivered} / ${st.missed}</b></div>
+                ${product ? `<div><span>Best seller</span><b>${SC.emojiOf(product)} ${SC.nameOf(product)} × ${st.deliveredByProduct[product]}</b></div>` : ''}
+                ${miss ? `<div><span>Most misses</span><b>${SC.MISS_REASONS[miss].emoji} ${SC.MISS_REASONS[miss].label} × ${st.missedReasons[miss]}</b></div>` : ''}`;
+        }
+
         SC.on('gameOver', d => {
             SC.sfx.play('expire');
             SC.save.clear(); // a defaulted company doesn't get resurrected on reload
             const st = SC.state;
             $('gameover-stats').innerHTML = `
                 <div><span>Final debt</span><b class="neg">−${fmt(Math.abs(d.debt))}</b></div>
-                <div><span>Total earned</span><b>${fmt(st.earnedTotal)}</b></div>
-                <div><span>Upkeep paid</span><b>${fmt(Math.round(st.upkeepPaid || 0))}</b></div>
-                <div><span>Interest paid</span><b>${fmt(st.interestPaid)}</b></div>
-                <div><span>Orders filled / missed</span><b>${st.delivered} / ${st.missed}</b></div>
+                ${runSummaryRows()}
                 <div><span>Time survived</span><b>${fmtDuration(st.time)}</b></div>`;
             $('gameover-overlay').classList.remove('hidden');
+        });
+
+        // A timed run's bell: same overlay as foreclosure, but a result to
+        // read rather than a loss — the score, how it stands against the
+        // best on this board, and a line to copy for comparing.
+        SC.on('runComplete', d => {
+            SC.sfx.play(d.isBest ? 'unlock' : 'cash');
+            SC.save.clear(); // finished runs don't resume; the score is filed
+            const daily = SC.state.runMode === 'daily';
+            $('gameover-overlay').classList.add('finished');
+            $('gameover-title').textContent = daily ? '📅 Daily challenge complete!' : "⏱️ Time's up!";
+            $('gameover-text').textContent = d.isBest
+                ? (d.prevBest === null ? 'First score on this board — now beat it.' : `New best — up from ${U.fmtSigned(d.prevBest)}!`)
+                : `Best on this board: ${U.fmtSigned(d.best)}.`;
+            $('gameover-stats').innerHTML = `
+                <div><span>Profit at the bell</span><b class="${d.score < 0 ? 'neg' : 'pos'}">${U.fmtSigned(d.score)}</b></div>
+                ${runSummaryRows()}`;
+            $('gameover-share').classList.remove('hidden');
+            $('gameover-restart').textContent = daily ? '↻ Try today again' : '↻ Play again';
+            $('gameover-overlay').classList.remove('hidden');
+        });
+        on('gameover-share', 'click', () => {
+            const text = SC.run.shareText();
+            (navigator.clipboard?.writeText(text) || Promise.reject())
+                .then(() => toast('Result copied', 'good'))
+                .catch(() => toast(text, 'info'));
         });
 
         document.addEventListener('click', e => {

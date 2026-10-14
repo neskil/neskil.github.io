@@ -131,6 +131,8 @@ html, body {
 .hud-item span:last-child { font-weight: 700; font-size: 0.95rem; }
 .hud-item.money span:last-child { color: var(--good); }
 .hud-item.money.debt span:last-child { color: var(--bad); }
+.hud-item.hidden { display: none; }
+.hud-item.clock.urgent span:last-child { color: var(--bad); }
 
 /* ── Dev-only tools panel: reuses the .panel/.shop-btn language from
    Orders/Shop, stacked under the top-left HUD bar. Only shown for
@@ -616,6 +618,19 @@ html, body {
 .diff-desc { color: var(--text-secondary); font-size: 0.7rem; line-height: 1.3; }
 .diff-grace { color: var(--text-secondary); font-size: 0.66rem; opacity: 0.8; }
 .diff-grace b { color: var(--text-primary); font-weight: 600; }
+.diff-btn.disabled { opacity: 0.4; cursor: default; }
+.diff-btn.disabled:hover { border-color: var(--card-border); }
+.diff-best { color: var(--good); font-size: 0.66rem; font-weight: 600; }
+
+/* Run mode picker: same cards as the difficulty picker, one row of three. */
+#runmode-picker {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.45rem;
+    margin-bottom: 0.6rem;
+}
+.stats-row b.miss-count { color: var(--bad); }
+.miss-hint { display: block; color: var(--text-secondary); font-size: 0.68rem; line-height: 1.3; }
 
 /* ── Game-over (foreclosure) overlay ────────────── */
 #gameover-overlay {
@@ -632,6 +647,9 @@ html, body {
 }
 #gameover-overlay.hidden { display: none; }
 #gameover-overlay .menu-card { border-color: rgba(248, 113, 113, 0.45); }
+#gameover-overlay.finished .menu-card { border-color: rgba(52, 211, 153, 0.45); }
+#gameover-share { margin-bottom: 0.5rem; }
+#gameover-share.hidden { display: none; }
 .gameover-text {
     color: var(--text-secondary);
     font-size: 0.85rem;
@@ -1138,6 +1156,22 @@ html, body {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     gap: 0.45rem;
 }
+
+#menu-overlay .menu-sliders {
+    display: grid;
+    gap: 0.3rem;
+    margin-top: 0.55rem;
+}
+.menu-slider {
+    display: grid;
+    grid-template-columns: 6.5rem minmax(0, 1fr) 2.8rem;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+}
+.menu-slider input { width: 100%; accent-color: var(--accent-color); }
+.menu-slider b { text-align: right; color: var(--text-primary); font-weight: 600; }
 
 #menu-overlay .menu-grid .menu-btn {
     margin-bottom: 0;

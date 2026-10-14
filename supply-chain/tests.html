@@ -18,11 +18,11 @@
     <!-- Pure logic only: no render/input/ui/main, no canvas needed. Same
          single-token loader as index.html (see supply-chain/CLAUDE.md); the
          version here only feeds SC.VERSION and is irrelevant to the tests. -->
-    <script>window.SC_VERSION = '1.63.4';</script>
+    <script>window.SC_VERSION = '1.64.0';</script>
     <script>
     (function () {
         var mods = ['config', 'state', 'save', 'audio', 'sfx', 'rng', 'map', 'camera',
-                    'roads', 'factories', 'economy', 'vehicles', 'stats',
+                    'roads', 'factories', 'economy', 'vehicles', 'stats', 'run',
                     'inspect', 'research', 'placement', 'tutorial'];
         for (var i = 0; i < mods.length; i++)
             document.write('<script src="js/' + mods[i] + '.js?v=' + SC_VERSION + '"><\/script>');
@@ -3237,6 +3237,254 @@
         // Heatmap mode state
         SC.state.mode = 'heatmap';
         assert('heatmap mode state is supported', SC.state.mode === 'heatmap');
+    })();
+
+    // ── Path cache under congestion: keyed on the jams, not on every truck ──
+    (function() {
+        SC.newState();
+        SC.map._resetSeq();
+        SC.state.river = { spine: [{ x: 1100, y: 0 }, { x: 1100, y: SC.CONFIG.WORLD_H }], halfWidths: [40, 40] };
+        SC.state.money = 100000;
+        SC.state.congestionEnabled = true;
+        // A─B direct (400u) and a slightly longer detour A─J─B (~431u).
+        const A = SC.map.makeNode('city', 100, 100, { active: true, isHQ: true });
+        const B = SC.map.makeNode('city', 500, 100, { active: true });
+        const J = SC.map.makeNode('junction', 300, 180, { active: true });
+        const D = SC.map.makeNode('city', 100, 400, { active: true });
+        SC.roads.build(A, B); SC.roads.build(A, J); SC.roads.build(J, B); SC.roads.build(A, D);
+        const route = () => SC.roads.findPath(A, B).path.length;
+
+        assert('no jams: the occupancy signature is empty', SC.roads.edgeOccupancy().sig === '');
+        assert('unjammed: the direct road wins', route() === 2);
+
+        const park = (a, b, n) => {
+            const out = [];
+            for (let i = 0; i < n; i++) {
+                const t = SC.vehicles.addTruck(a, a);
+                t.path = [a, b]; t.pathIdx = 0; t.progress = 0.5; t.phase = 'returning';
+                out.push(t);
+            }
+            return out;
+        };
+        // Traffic that jams nothing (at or under the threshold) must not
+        // change the cache key — that was the old key's whole problem.
+        park(A, D, SC.CONFIG.CONGESTION_THRESHOLD);
+        assert('traffic below the threshold leaves the signature empty', SC.roads.edgeOccupancy().sig === '');
+
+        // Jam the direct road hard enough that the detour is quicker.
+        const jam = park(A, B, SC.CONFIG.CONGESTION_THRESHOLD + 2);
+        assert('a jammed road shows up in the signature', SC.roads.edgeOccupancy().sig !== '');
+        assert('a cached route is not reused once its road jams', route() === 3);
+
+        // Two different jam patterns must key differently (the old
+        // index-weighted sum could collide).
+        const sigOne = SC.roads.edgeOccupancy().sig;
+        park(A, J, SC.CONFIG.CONGESTION_THRESHOLD + 1);
+        assert('a second jam changes the signature', SC.roads.edgeOccupancy().sig !== sigOne);
+
+        // Clear the jam and the direct road comes back.
+        SC.state.trucks = SC.state.trucks.filter(t => !jam.includes(t));
+        assert('the direct road returns once the jam clears', route() === 2);
+    })();
+
+    // ── Dispatch still matches the nearest truck after the reachability hoist ──
+    (function() {
+        const { S1, S2, F, C } = fixture();
+        SC.state.money = 100000;
+        SC.roads.build(S1, F); SC.roads.build(S2, F); SC.roads.build(F, C);
+        const far = SC.vehicles.addTruck(C, C);
+        const near = SC.vehicles.addTruck(S1, S1);
+        SC.vehicles.addJob({ type: 'raw', item: 'wheat', pickup: S1, drop: F, order: null, task: null });
+        SC.vehicles.dispatch();
+        assert('dispatch gives the job to the truck nearest its pickup', near.jobs.length === 1 && far.jobs.length === 0);
+        // An unroutable job is skipped, not handed to a truck.
+        const lonely = SC.map.makeNode('supplier', 900, 900, { active: true, mat: 'wheat' });
+        SC.vehicles.addJob({ type: 'raw', item: 'wheat', pickup: lonely, drop: F, order: null, task: null });
+        SC.vehicles.dispatch();
+        assert('an unroutable job stays pending', far.jobs.length === 0 && SC.state.jobs.some(j => j.pickup === lonely));
+    })();
+
+    // ── Missed orders say why ──────────────────────────────────
+    (function() {
+        const order = (C, product) => {
+            const o = { id: ++SC.state.orderSeq, city: C, product, qty: 1, deliveredUnits: 0,
+                        payout: 200, deadline: 5, deadlineTotal: 5, planned: false, noRoute: false, done: false };
+            SC.state.orders.push(o);
+            return o;
+        };
+        const roaded = () => {
+            const f = fixture();
+            SC.state.money = 100000;
+            SC.roads.build(f.S1, f.F); SC.roads.build(f.S2, f.F); SC.roads.build(f.F, f.C);
+            return f;
+        };
+
+        let f = fixture();
+        assert('no factory for the product → noProduction',
+            SC.economy.missReason(order(f.C, 'car')) === 'noProduction');
+
+        f = fixture(); // sites exist, no roads
+        const o2 = order(f.C, 'bread');
+        SC.economy.planOrder(o2);
+        assert('sites exist but no roads → noRoute', !o2.planned && SC.economy.missReason(o2) === 'noRoute');
+
+        f = roaded(); // planned, but no trucks at all
+        const o3 = order(f.C, 'bread');
+        SC.economy.planOrder(o3);
+        assert('planned with nobody to haul it → noTruck', SC.economy.missReason(o3) === 'noTruck');
+        // ...unless the road a waiting job needs has since been demolished
+        SC.roads.demolish(SC.roads.findEdge(f.S1, f.F));
+        assert('a waiting job whose road was demolished → noRoute', SC.economy.missReason(o3) === 'noRoute');
+
+        f = roaded(); // a truck waits at an empty supplier
+        const o4 = order(f.C, 'bread');
+        SC.economy.planOrder(o4);
+        f.S1.stock = 0; f.S2.stock = 0;
+        SC.vehicles.addTruck(f.F, f.F); SC.vehicles.addTruck(f.F, f.F);
+        for (let i = 0; i < 400 && !SC.state.trucks.some(t => t.phase === 'loading'); i++) SC.vehicles.tick(0.05);
+        assert('a truck waiting on supplier stock → dryStock', SC.economy.missReason(o4) === 'dryStock');
+
+        f = roaded(); // inputs delivered, sitting in the factory queue
+        const o5 = order(f.C, 'bread');
+        SC.economy.planOrder(o5);
+        SC.state.jobs = [];
+        for (const t of f.F.queue) for (const m of Object.keys(t.needs)) t.have[m] = t.needs[m];
+        assert('inputs in, waiting to be crafted → factoryBusy', SC.economy.missReason(o5) === 'factoryBusy');
+
+        f = roaded(); // the product is on a truck heading for the customer
+        const o6 = order(f.C, 'bread');
+        SC.economy.planOrder(o6);
+        SC.state.jobs = [];
+        f.F.queue.length = 0;
+        const t = SC.vehicles.addTruck(f.F, f.F);
+        t.jobs = [{ type: 'product', item: 'bread', pickup: f.F, drop: f.C, order: o6 }];
+        t.phase = 'toDrop';
+        assert('still on the road when time ran out → tooSlow', SC.economy.missReason(o6) === 'tooSlow');
+
+        // expireOrder tallies the reason and hands it to the toast
+        f = roaded();
+        const o7 = order(f.C, 'bread');
+        SC.economy.planOrder(o7);
+        let seen = null;
+        SC.on('orderExpired', d => { seen = d.reason; });
+        SC.economy.expireOrder(o7);
+        assert('expireOrder tallies the reason', SC.state.missedReasons.noTruck === 1 && SC.state.missed === 1);
+        assert('expireOrder emits the reason', seen === 'noTruck');
+        assert('every reason has a label and hint',
+            SC.MISS_REASON_ORDER.every(k => SC.MISS_REASONS[k] && SC.MISS_REASONS[k].label && SC.MISS_REASONS[k].hint));
+
+        SC.save.store();
+        SC.newState();
+        SC.save.load();
+        assert('missedReasons survive a save round-trip', SC.state.missedReasons.noTruck === 1);
+        SC.save.clear();
+    })();
+
+    // ── Run modes: the clock, the score, the best-score boards ───────
+    (function() {
+        localStorage.removeItem(SC.run.BEST_KEY);
+        SC.newState('hard');
+        assert('a run is endless by default', SC.state.runMode === 'endless' && SC.state.runLimit === null && !SC.run.isTimed());
+        SC.newState('hard', 'challenge');
+        assert('a timed challenge keeps its difficulty and gets a clock',
+            SC.state.difficulty === 'hard' && SC.state.runLimit === SC.RUN_MODES.challenge.minutes * 60);
+        SC.newState('easy', 'daily');
+        assert('the daily brings its own difficulty', SC.state.difficulty === SC.RUN_MODES.daily.difficulty);
+        SC.newState('normal', 'nonsense');
+        assert('an unknown run mode falls back to endless', SC.state.runMode === 'endless');
+
+        assert('todayKey is a YYYY-MM-DD date', /^\d{4}-\d{2}-\d{2}$/.test(SC.run.todayKey(new Date(2026, 0, 5))) &&
+            SC.run.todayKey(new Date(2026, 0, 5)) === '2026-01-05');
+        const layout = () => SC.state.nodes.map(n => `${n.kind}@${Math.round(n.x)},${Math.round(n.y)}`).join('|');
+        SC.newState('normal', 'daily'); SC.map._resetSeq(); SC.map.generateWorld(SC.run.dailySeed('2026-10-14'));
+        const first = layout();
+        SC.newState('normal', 'daily'); SC.map._resetSeq(); SC.map.generateWorld(SC.run.dailySeed('2026-10-14'));
+        assert('the same day gives everyone the same map', layout() === first);
+        SC.newState('normal', 'daily'); SC.map._resetSeq(); SC.map.generateWorld(SC.run.dailySeed('2026-10-15'));
+        assert('the next day is a different map', layout() !== first);
+
+        // Score = profit at the bell; the bell is sim time reaching runLimit.
+        SC.newState('normal', 'challenge');
+        SC.state.money = SC.DIFFICULTIES.normal.startMoney + 2500;
+        let done = null;
+        SC.on('runComplete', d => { done = d; });
+        SC.state.time = SC.state.runLimit - 1;
+        SC.run.tick();
+        assert('the run keeps going before the bell', !SC.state.runOver && done === null);
+        assert('timeLeft counts down to the bell', approx(SC.run.timeLeft(), 1));
+        SC.state.time = SC.state.runLimit;
+        SC.run.tick();
+        assert('the bell ends the run', SC.state.runOver && done && done.score === 2500);
+        assert('a first score is a best', done.isBest && done.prevBest === null && SC.run.best('challenge:normal') === 2500);
+        SC.run.tick();
+        assert('the bell only rings once', done.score === 2500);
+
+        SC.newState('normal', 'challenge');
+        SC.state.money = SC.DIFFICULTIES.normal.startMoney - 300;
+        SC.state.time = SC.state.runLimit;
+        SC.run.tick();
+        assert('a lower score is not a best and keeps the old one',
+            done.score === -300 && !done.isBest && done.best === 2500 && SC.run.best('challenge:normal') === 2500);
+        assert('boards are per difficulty', SC.run.best('challenge:hard') === null);
+
+        SC.newState('normal', 'challenge');
+        SC.state.gameOver = true;
+        SC.state.time = SC.state.runLimit + 10;
+        SC.run.tick();
+        assert('a foreclosed run is not scored', !SC.state.runOver);
+
+        SC.newState('normal');
+        SC.state.time = 99999;
+        SC.run.tick();
+        assert('an endless run never rings', !SC.state.runOver);
+
+        // Run mode rides along in the save
+        SC.newState('normal', 'daily'); SC.map._resetSeq(); SC.map.generateWorld(SC.run.dailySeed('2026-10-14'));
+        SC.state.dailyDate = '2026-10-14';
+        SC.state.time = 120;
+        SC.save.store();
+        SC.newState();
+        SC.save.load();
+        assert('a daily run survives a save round-trip',
+            SC.state.runMode === 'daily' && SC.state.dailyDate === '2026-10-14' &&
+            SC.state.runLimit === SC.RUN_MODES.daily.minutes * 60 && approx(SC.run.timeLeft(), SC.state.runLimit - 120));
+        assert('the daily board is per date', SC.run.boardKey() === 'daily:2026-10-14');
+        assert('shareText names the day and the profit', /Daily 2026-10-14/.test(SC.run.shareText()) && /profit/.test(SC.run.shareText()));
+        SC.save.clear();
+        localStorage.removeItem(SC.run.BEST_KEY);
+    })();
+
+    // ── Research: a running project can be cancelled for a partial refund ──
+    (function() {
+        fixture();
+        SC.state.money = 100000;
+        const cost = SC.RESEARCH.creditLine2.cost;
+        SC.research.start('creditLine2');
+        SC.research.tick(SC.RESEARCH.creditLine2.time * 0.25);
+        // creditLine3 depends on creditLine2: queue it behind it
+        SC.research.enqueue('creditLine3');
+        const before = SC.state.money;
+        assert('cancelRefund is the unspent share of the cost',
+            SC.research.cancelRefund('creditLine2') === Math.round(cost * 0.75));
+        const res = SC.research.cancelActive('creditLine2');
+        assert('cancelling stops the project', res.ok && !SC.research.isActive('creditLine2') && !SC.research.isDone('creditLine2'));
+        assert('cancelling refunds the unspent share, and the queued dependant in full',
+            SC.state.money === before + Math.round(cost * 0.75) + SC.RESEARCH.creditLine3.cost);
+        assert('a queued tech that depended on it is dropped', !SC.research.isQueued('creditLine3'));
+        assert('cancelling something not running fails cleanly', !SC.research.cancelActive('creditLine2').ok);
+    })();
+
+    // ── Ground yield: what a placement preview can promise ─────
+    (function() {
+        SC.newState();
+        SC.map.generateWorld('yield-preview');
+        const s = SC.map.makeNode('supplier', 700, 500, { active: true, mat: 'wheat' });
+        const ratio = SC.supplierYield(s) / SC.groundYield('wheat', s.x, s.y);
+        const v = SC.CONFIG.SITE_YIELD_VARIANCE;
+        assert('supplierYield is the ground yield times the per-site roll', ratio >= 1 - v - 1e-9 && ratio <= 1 + v + 1e-9);
+        assert('ground yield follows the biome table',
+            SC.groundYield('wheat', s.x, s.y) === SC.CONFIG.BIOME_YIELD.wheat[SC.biomeAt(s.x, s.y).key]);
+        assert('a material with no biome row yields 1×', SC.groundYield('chips', s.x, s.y) === 1);
     })();
 
     document.getElementById('summary').textContent = `${passed} passed / ${failed} failed` + (window.FAILS.length ? ' :: ' + window.FAILS.join(' | ') : '');

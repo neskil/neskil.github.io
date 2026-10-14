@@ -59,7 +59,8 @@ because the two mechanisms fail differently — `robots.txt` cannot suppress a
 URL that other sites link to, and a `noindex` tag is never read if the fetch
 is blocked. That set is the headless test harnesses (`*/tests.html`,
 `3d-engine-poc/physics-tests.html`, `golf/ui-tests.html`,
-`golf3d/shader-tests.html`, `golf3d/ui-tests.html`) and the
+`golf3d/shader-tests.html`, `golf3d/ui-tests.html`,
+`supply-chain/interaction-tests.html`) and the
 screenshot/audio probes (`cargo-lander/syntax-check.html`,
 `cargo-lander/probe-screenshot.html`, `supply-chain/audio-check.html`,
 `supply-chain/research-zoom-check.html`, `golf3d/turntable.html`).

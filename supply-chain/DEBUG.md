@@ -54,6 +54,8 @@ Adding a flag? Add the row here too — this table is the whole contract.
 | `&debt=900` | Force a negative balance post-probe (red debt HUD / credit-limit UI). |
 | `&doom=42` | Force a balance beyond the credit limit with 42s on the countdown (⚠ HUD state). |
 | `&gameover=1` | Trigger the foreclosure overlay. |
+| `&timed=N` | Turn the run into a timed challenge with N sim seconds left (default 60), for the HUD clock (red in its last minute) and the menu's run/score rows. |
+| `&runend=1` | Ring a timed run's bell now — giving the run a clock first if it has none — for the end-of-run score screen. Files a real score on the challenge board in localStorage. |
 | `&contract=1` | Force-roll a contract offer (skips the random `CONTRACT_INTERVAL` wait), for the Accept/Decline card. |
 | `&contract=accept` | Same, and auto-accepts it into a real gold-outlined 📜 order in the Orders panel. |
 | `&promo=1` | Complete Marketing Blitz and start a promotion (shop button shows the running timer). |
@@ -82,7 +84,7 @@ Adding a flag? Add the row here too — this table is the whole contract.
 | `&jam=1` | Force-enable congestion and park 4 trucks mid-span on the factory→HQ edge (bypassing real dispatch timing) so the red congestion glow is deterministic. |
 | `&routeglow=1` | Pin the first planned order's route-glow overlay (each leg tinted by the cargo hauled on it) with a far-off expiry so it survives the screenshot delay. |
 | `&xfer=1` | Spawn a persistent loading + unloading crate near HQ, so the pickup/delivery crate animation can be caught without hitting a real 0.55s transfer. |
-| `&stats=1` | Force sample deliveries / money history / road trips and a few unlocked achievements, then open the Stats & Achievements overlay directly. |
+| `&stats=1` | Force sample deliveries / missed-order reasons / money history / road trips and a few unlocked achievements, then open the Stats & Achievements overlay directly. |
 | `&speed=N` | Set the fast-forward multiplier (1/2/4) before the probe loop runs — mostly for eyeballing that higher speeds don't desync anything over a longer probe. |
 
 ## Dev tools panel

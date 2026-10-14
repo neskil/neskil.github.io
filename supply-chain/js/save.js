@@ -39,6 +39,7 @@ SC.save = (function() {
         return {
             v: FORMAT,
             difficulty: st.difficulty,
+            runMode: st.runMode, runLimit: st.runLimit, dailyDate: st.dailyDate,
             seed: st.seed,
             worldW: st.worldW, worldH: st.worldH, expansions: st.expansions,
             congestionEnabled: st.congestionEnabled,
@@ -48,6 +49,7 @@ SC.save = (function() {
             interestPaid: st.interestPaid, upkeepPaid: st.upkeepPaid || 0,
             landBought: st.landBought || 0,
             delivered: st.delivered, missed: st.missed,
+            missedReasons: Object.assign({}, st.missedReasons),
             trucksBought: st.trucksBought,
             yardsBought: st.yardsBought,
             activeYardId: st.activeYard ? st.activeYard.id : null,
@@ -104,7 +106,7 @@ SC.save = (function() {
     }
 
     function restore(data) {
-        SC.newState(data.difficulty || 'normal');
+        SC.newState(data.difficulty || 'normal', data.runMode || 'endless');
         SC.map._resetSeq();
         const st = SC.state;
         st.money = data.money;
@@ -112,6 +114,10 @@ SC.save = (function() {
         st.interestPaid = data.interestPaid || 0;
         st.delivered = data.delivered;
         st.missed = data.missed;
+        st.missedReasons = data.missedReasons ? Object.assign({}, data.missedReasons) : {};
+        // Saves from before run modes are endless runs (newState's default).
+        if (data.runLimit !== undefined) st.runLimit = data.runLimit;
+        st.dailyDate = data.dailyDate || null;
         st.trucksBought = data.trucksBought;
         st.yardsBought = data.yardsBought || 0;
         st.time = data.time;

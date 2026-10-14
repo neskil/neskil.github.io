@@ -19,5 +19,6 @@ Disallow: /cargo-lander/syntax-check.html
 Disallow: /cargo-lander/probe-screenshot.html
 Disallow: /supply-chain/audio-check.html
 Disallow: /supply-chain/research-zoom-check.html
+Disallow: /supply-chain/interaction-tests.html
 
 Sitemap: https://neskil.github.io/sitemap.xml

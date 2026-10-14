@@ -1718,6 +1718,14 @@
             R.ctx.globalAlpha = 1;
         }
         labelAt(`$${cost}${valid ? '' : ' — blocked'}`, tc.x, tc.y - 20, valid ? '#34d399' : '#f87171', 11);
+        // A supplier's output depends on the ground under it (SC.groundYield),
+        // so say what this spot pays while there's still time to move it.
+        if (pm.kind === 'supplier' && pm.good) {
+            const band = SC.biomeAt(x, y);
+            const f = SC.groundYield(pm.good, x, y);
+            const col = f >= 1.05 ? '#34d399' : f <= 0.95 ? '#f87171' : '#e2e8f0';
+            labelAt(`${band.emoji} ${band.label} · ${Math.round(f * 100)}% yield`, tc.x, tc.y - 36, col, 10);
+        }
     }
 
     function nodeIndicatorColor(n) {

@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Supply Chain Tycoon — interaction tests</title>
+<meta name="robots" content="noindex">
+<style>
+  body { background:#0f172a; color:#e5e7eb; font:14px/1.6 ui-monospace,Menlo,monospace; padding:1rem; }
+  .pass { color:#34d399; } .fail { color:#f87171; font-weight:bold; }
+  #summary { font-size:1.2rem; margin-bottom:1rem; }
+  /* Off screen rather than hidden: a display:none frame lays nothing out,
+     and the taps below are hit-tested against the real canvas layout. */
+  #stage { position:absolute; left:-9999px; top:0; width:1100px; height:800px; border:0; }
+</style>
+</head>
+<body>
+<div id="summary">running…</div>
+<div id="results"></div>
+<iframe id="stage" title="index.html under test"></iframe>
+<script>
+/* tests.html loads the logic modules only, so everything a player does with
+   a finger — select, build, demolish, buy, upgrade, place, the long-press
+   shortcuts, the research tree's Cancel, the ☰ menu's sliders, the end-of-run
+   screen — was only ever hand-tested. This drives the real page in a frame:
+   taps go through SC.input._handleTap at the screen position of the thing
+   being tapped, exactly as a pointerup would deliver them, and the result is
+   read back off the game state and the DOM.
+
+   The frame shares this page's origin and so its localStorage (the save,
+   the preferences, the best scores). Every scTycoon* key is put back at the
+   end: opening this file should never cost a player their company. */
+(function () {
+    'use strict';
+    let passed = 0, failed = 0;
+    window.FAILS = [];
+    function assert(name, cond, detail) {
+        const div = document.createElement('div');
+        if (cond) { passed++; div.className = 'pass'; div.textContent = '✓ ' + name; }
+        else { failed++; window.FAILS.push(name); div.className = 'fail'; div.textContent = 'FAIL: ' + name + (detail ? ' — ' + detail : ''); }
+        document.getElementById('results').appendChild(div);
+    }
+    function done() {
+        restoreStore();
+        const el = document.getElementById('summary');
+        el.textContent = `${passed} passed / ${failed} failed` + (window.FAILS.length ? ' :: ' + window.FAILS.join(' | ') : '');
+        el.className = failed ? 'fail' : 'pass';
+    }
+
+    const STORE = {};
+    function saveStore() {
+        try {
+            for (let i = 0; i < localStorage.length; i++) {
+                const k = localStorage.key(i);
+                if (/^scTycoon/.test(k)) STORE[k] = localStorage.getItem(k);
+            }
+        } catch (e) { /* storage off: nothing to protect */ }
+    }
+    function restoreStore() {
+        try {
+            for (let i = localStorage.length - 1; i >= 0; i--) {
+                const k = localStorage.key(i);
+                if (/^scTycoon/.test(k)) localStorage.removeItem(k);
+            }
+            for (const k of Object.keys(STORE)) localStorage.setItem(k, STORE[k]);
+        } catch (e) { /* ignore */ }
+    }
+
+    saveStore();
+    const frame = document.getElementById('stage');
+    // probe=1: a fresh world with the starter roads, never autosaved.
+    frame.src = 'index.html?probe=1&nohelp=1';
+    frame.addEventListener('load', () => {
+        let tries = 0;
+        (function wait() {
+            const w = frame.contentWindow;
+            if (w.SC && w.SC.state && w.SC.state.gameStarted && w.SC._ui) {
+                try { run(w); } catch (e) { assert('suite ran to the end', false, e && e.stack); }
+                done();
+                return;
+            }
+            if (++tries > 400) { assert('the game booted in the frame', false); done(); return; }
+            setTimeout(wait, 10);
+        })();
+    }, { once: true });
+
+    function run(w) {
+        const SC = w.SC, st = SC.state, d = w.document;
+        const $ = id => d.getElementById(id);
+        st.money = 100000;
+        st.paused = true; // hold the sim still: only the taps should change anything
+
+        // Screen point of a node (its ground anchor sits inside the hit capsule)
+        // and of a road's midpoint.
+        const at = n => SC.camera.toScreen(n.x, n.y);
+        const mid = e => SC.camera.toScreen((e.a.x + e.b.x) / 2, (e.a.y + e.b.y) / 2);
+        const tap = p => SC.input._handleTap(p.x, p.y, false);
+        const toastText = () => $('toast').textContent;
+
+        // A pair of active, unconnected sites a plain road may join: no
+        // river (that opens the bridge/ferry choice) and nothing in the way.
+        function freePair(exclude) {
+            const ns = st.nodes.filter(n => n.active && !n.underConstruction && !n.forSale && !(exclude || []).includes(n));
+            for (const a of ns) for (const b of ns) {
+                if (a === b || SC.roads.findEdge(a, b)) continue;
+                const q = SC.roads.quote(a, b);
+                if (!q || q.blocked || q.len > 700) continue;
+                if (SC.map.segmentCrossesRiver(a.x, a.y, b.x, b.y)) continue;
+                if (q.crossings && q.crossings.length) continue;
+                return [a, b];
+            }
+            return null;
+        }
+
+        // ── Build a road: tap one site, then another ──
+        const pair = freePair();
+        assert('the probe world has two sites a road can join', !!pair);
+        if (!pair) return;
+        const [A, B] = pair;
+        tap(at(A));
+        assert('tapping a site selects it as the road start', st.selectedNode === A);
+        tap(at(A));
+        assert('tapping it again deselects it', st.selectedNode === null);
+        tap(at(A));
+        const m0 = st.money;
+        tap(at(B));
+        const road = SC.roads.findEdge(A, B);
+        assert('tapping a second site builds the road and charges for it', !!road && st.money < m0);
+        assert('the selection clears after building', st.selectedNode === null);
+
+        // ── Demolish: tap a road once to arm, again to confirm ──
+        tap(mid(road));
+        assert('a first tap on a road only arms the demolish',
+            SC.roads.findEdge(A, B) === road && SC.input.getPendingDemolish() === road);
+        assert('...and says what a second tap will refund', /demolish/i.test(toastText()));
+        const m1 = st.money;
+        tap(mid(road));
+        assert('a second tap demolishes it with a refund', !SC.roads.findEdge(A, B) && st.money > m1);
+
+        // ── Long-press: the same demolish in one gesture ──
+        SC.roads.build(A, B);
+        const road2 = SC.roads.findEdge(A, B);
+        const acted = SC.input._handleLongPress(mid(road2).x, mid(road2).y);
+        assert('a long-press on a road demolishes it at once', acted && !SC.roads.findEdge(A, B));
+        tap(at(A));
+        assert('a long-press does nothing with a site selected',
+            !SC.input._handleLongPress(at(B).x, at(B).y) && st.selectedNode === A);
+        tap(at(A)); // deselect
+        assert('a long-press on empty ground does nothing', !SC.input._handleLongPress(5, 5));
+
+        // ── Buy a for-sale factory: tap to quote, tap again to buy ──
+        const forSale = () => st.nodes.find(n => n.kind === 'factory' && n.forSale && n.active);
+        if (!forSale()) SC.map.unlockNext(n => n.kind === 'factory');
+        const site = forSale();
+        assert('there is a factory site for sale', !!site);
+        if (site) {
+            tap(at(site));
+            assert('a first tap on a for-sale site only quotes it', site.forSale && /tap again to buy/i.test(toastText()));
+            st.selectedNode = null; // the quote also selects it as a road start
+            tap(at(site));
+            assert('a second tap buys it', !site.forSale);
+        }
+        if (!forSale()) SC.map.unlockNext(n => n.kind === 'factory');
+        const site2 = forSale();
+        if (site2) {
+            st.selectedNode = null;
+            assert('a long-press buys a for-sale site in one gesture',
+                SC.input._handleLongPress(at(site2).x, at(site2).y) && !site2.forSale);
+        }
+
+        // ── Upgrade mode: tap a supplier twice ──
+        SC._ui.setMode('upgrade');
+        const sup = st.nodes.find(n => n.kind === 'supplier' && n.active && !n.underConstruction);
+        const lv = sup.level || 0;
+        tap(at(sup));
+        assert('upgrade mode: a first tap quotes the supplier', (sup.level || 0) === lv && /upgrade/i.test(toastText()));
+        tap(at(sup));
+        assert('upgrade mode: a second tap levels it up', sup.level === lv + 1);
+        SC._ui.setMode('build');
+
+        // ── Placement: arm a yard, tap a free spot ──
+        const hq = st.nodes.find(n => n.isHQ);
+        let spot = null;
+        for (let r = 200; r <= 600 && !spot; r += 100) {
+            for (let a = 0; a < 16 && !spot; a++) {
+                const x = hq.x + Math.cos(a / 16 * Math.PI * 2) * r, y = hq.y + Math.sin(a / 16 * Math.PI * 2) * r;
+                if (SC.placement.canPlaceAt(x, y)) spot = { x, y };
+            }
+        }
+        assert('there is a free spot to place a yard', !!spot);
+        if (spot) {
+            const yards = st.nodes.filter(n => n.kind === 'yard').length;
+            st.placeMode = { kind: 'yard' };
+            tap(SC.camera.toScreen(spot.x, spot.y));
+            assert('tapping a free spot places the yard and leaves placement mode',
+                st.nodes.filter(n => n.kind === 'yard').length === yards + 1 && st.placeMode === null);
+            assert('a new yard becomes where trucks are bought', st.activeYard && st.activeYard.kind === 'yard');
+        }
+
+        // ── Research tree: Cancel takes two taps and refunds the unspent share ──
+        SC.research.start('fertilizer');
+        SC.research.tick(SC.RESEARCH.fertilizer.time / 2);
+        SC._ui.openResearchTree();
+        SC._ui.updateShop();
+        const abortBtn = () => d.querySelector('[data-abort-research="fertilizer"]');
+        assert('a running tech shows a Cancel button with its refund', !!abortBtn() && /refund/.test(abortBtn().textContent));
+        const m2 = st.money;
+        abortBtn().click();
+        assert('the first tap only arms Cancel', SC.research.isActive('fertilizer') && /tap again/i.test(abortBtn().textContent));
+        abortBtn().click();
+        assert('the second tap cancels it and refunds about half',
+            !SC.research.isActive('fertilizer') && Math.abs(st.money - m2 - SC.RESEARCH.fertilizer.cost / 2) <= 1);
+        SC._ui.closeResearchTree();
+        st.paused = true;
+
+        // ── ☰ menu: per-channel volume sliders ──
+        SC._ui.openMenu();
+        const slide = (id, v) => { $(id).value = v; $(id).dispatchEvent(new w.Event('input', { bubbles: true })); };
+        slide('menu-vol-sfx', 40);
+        slide('menu-vol-amb', 25);
+        slide('menu-vol-music', 60);
+        assert('the Effects slider sets the effects level', Math.abs(SC.sfx.getVolume() - 0.4) < 1e-9);
+        assert('the Ambience slider sets the ambience level', Math.abs(SC.audio.getAmbientVolume() - 0.25) < 1e-9);
+        assert('the Music slider sets the music level', Math.abs(SC.audio.getMusicVolume() - 0.6) < 1e-9);
+        assert('each slider shows its level', $('menu-vol-amb-val').textContent === '25%');
+        SC._ui.closeMenu();
+        st.paused = true;
+
+        // ── A missed order says why ──
+        const city = st.nodes.find(n => n.isHQ);
+        const o = { id: ++st.orderSeq, city, product: 'robot', qty: 1, deliveredUnits: 0, payout: 900,
+                    deadline: 1, deadlineTotal: 1, planned: false, noRoute: false, done: false };
+        st.orders.push(o);
+        SC.economy.expireOrder(o);
+        assert('the expiry toast names the reason', toastText().includes(SC.MISS_REASONS.noProduction.label), toastText());
+
+        // ── The bell: a timed run ends on the summary screen ──
+        st.runMode = 'challenge';
+        st.runLimit = st.time;
+        SC.run.finish();
+        assert('the end-of-run screen opens', !$('gameover-overlay').classList.contains('hidden'));
+        assert('...as a result, not a foreclosure', $('gameover-overlay').classList.contains('finished') &&
+            /time's up/i.test($('gameover-title').textContent));
+        assert('...with the score and a way to copy it',
+            /Profit at the bell/.test($('gameover-stats').textContent) && !$('gameover-share').classList.contains('hidden'));
+    }
+})();
+</script>
+</body>
+</html>

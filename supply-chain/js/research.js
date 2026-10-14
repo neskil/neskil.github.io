@@ -111,7 +111,16 @@ SC.research = (function() {
         if (SC.RESEARCH[id]) {
             SC.state.money += SC.RESEARCH[id].cost;
         }
+        pruneOrphanedQueue();
+        SC.emit('researchQueueCancelled', id);
+        return { ok: true };
+    }
 
+    // Queued techs whose prerequisite is no longer done, running, or queued
+    // ahead of them can never start: drop them and refund them in full
+    // (they never started, so nothing was spent on them yet).
+    function pruneOrphanedQueue() {
+        const q = queueList();
         let removed;
         do {
             removed = false;
@@ -127,9 +136,28 @@ SC.research = (function() {
                 }
             }
         } while (removed);
+    }
 
-        SC.emit('researchQueueCancelled', id);
-        return { ok: true };
+    // What aborting a running project gives back: the share of its cost
+    // the remaining time represents. Cancelling at 25% refunds 75%.
+    function cancelRefund(id) {
+        const t = SC.RESEARCH[id];
+        if (!t || !isActive(id)) return 0;
+        return Math.round(t.cost * (1 - progress(id)));
+    }
+
+    // Abort a running project. Queued techs that were waiting on it go
+    // too, refunded in full (see pruneOrphanedQueue).
+    function cancelActive(id) {
+        if (!isActive(id)) return { ok: false };
+        const refund = cancelRefund(id);
+        const active = activeList();
+        active.splice(active.findIndex(a => a.id === id), 1);
+        SC.state.research.active = active;
+        SC.state.money += refund;
+        pruneOrphanedQueue();
+        SC.emit('researchCancelled', { id, refund });
+        return { ok: true, refund };
     }
 
     function start(id) {
@@ -239,6 +267,7 @@ SC.research = (function() {
 
     return { hasBuilding, needsLab, labSatisfied, maxSlots, activeList, activeCount, activeIds, activeId, isActive,
              queueList, queueCount, isQueued, isQueueable, canQueue, enqueue, cancelQueue,
+             cancelActive, cancelRefund,
              isDone, isAvailable, canStart, start, progress, tick,
              creditBonus, payoutBonus, deadlineBonus, supplierRegenBonus,
              graceBonus, orderCapBonus,
