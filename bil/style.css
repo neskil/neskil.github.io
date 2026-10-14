@@ -122,18 +122,16 @@ a { color: var(--blue-bright); }
 }
 .hero h1 .dot { color: var(--yellow); }
 .hero .lede { color: var(--text-2); max-width: 62ch; font-size: 0.98rem; }
-/* The flag laid flat under the title: blue, with the yellow cross where
-   the flag has it, five-sixteenths of the way along. */
-.flag-ribbon {
-    grid-column: 1 / -1;
-    height: 6px;
-    border-radius: 3px;
-    margin-top: 0.5rem;
-    background:
-        linear-gradient(90deg, transparent 31.25%, var(--yellow) 31.25%, var(--yellow) 37.5%, transparent 37.5%),
-        linear-gradient(180deg, var(--blue) 0 33%, var(--yellow) 33% 67%, var(--blue) 67%);
-    opacity: 0.85;
-    max-width: 420px;
+/* A Swedish flag beside the title, 16:10 with the cross at 5–7 and 4–6,
+   catching a little light as if it were flying. */
+.hero h1 .flag {
+    display: inline-block;
+    height: 0.6em;
+    width: 0.96em;
+    margin-left: 0.28em;
+    vertical-align: 0.08em;
+    border-radius: 2px;
+    box-shadow: 0 1px 0 rgba(0, 0, 0, 0.45);
 }
 .hero .lede em { color: var(--text); font-style: normal; }
 @media (max-width: 560px) {
@@ -305,10 +303,13 @@ a { color: var(--blue-bright); }
 /* ── Verdict ── */
 .verdict {
     border-color: rgba(254, 204, 2, 0.4);
-    /* The flag's cross as one shape with one fill, so the yellow is the
-       same strength where the arms meet; two overlapping bands doubled it. */
+    /* The flag's cross in the flag's own proportions, at a fixed size: hoist
+       five units, arms two, top field four, with u = 24px. Drawn in
+       percentages it stretched with the box, and on a tall phone panel the
+       horizontal arm came out several times thicker than the vertical one.
+       One path with one fill, so the yellow is even where the arms meet. */
     background:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Cpath d='M18 0h5v42H100v14H23V100h-5V56H0V42H18z' fill='rgb(254,204,2)' fill-opacity='0.08'/%3E%3C/svg%3E") 0 0 / 100% 100% no-repeat,
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='2000' height='2000'%3E%3Cpath d='M120 0H168V96H2000V144H168V2000H120V144H0V96H120Z' fill='rgb(254,204,2)' fill-opacity='0.085'/%3E%3C/svg%3E") 0 0 no-repeat,
         linear-gradient(135deg, rgba(0, 106, 167, 0.42), rgba(0, 60, 110, 0.22));
 }
 .verdict-kicker { color: var(--yellow); font-size: 0.78rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; }
@@ -634,4 +635,121 @@ details.mini > summary { cursor: pointer; color: var(--blue-bright); font-size: 
 
 @media (prefers-reduced-motion: reduce) {
     * { transition: none !important; }
+}
+
+/* ── Language ──────────────────────────────────────────────────────
+   Longer prose is written in both languages; the page shows the one in
+   <html lang>. Fixed strings are swapped by app.js instead. */
+html[lang="sv"] .i18n-en,
+html:not([lang="sv"]) .i18n-sv { display: none !important; }
+
+.top-right { display: inline-flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; justify-content: flex-end; }
+.lang-toggle {
+    display: inline-flex;
+    padding: 3px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: var(--panel);
+}
+.lang-toggle button {
+    border: 0;
+    background: transparent;
+    color: var(--text-2);
+    font-size: 0.8rem;
+    padding: 0.28rem 0.7rem;
+    border-radius: 999px;
+    cursor: pointer;
+}
+.lang-toggle button[aria-pressed="true"] { background: var(--blue); color: #fff; box-shadow: inset 0 0 0 1px var(--yellow); }
+
+/* ── Walkthrough ──────────────────────────────────────────────── */
+.btn-guide { background: var(--blue); border-color: var(--yellow); color: #fff; }
+.btn-guide:hover { background: #0a7bbf; }
+.btn-guide.is-pulsing { animation: guide-pulse 2.2s ease-in-out 4; }
+@keyframes guide-pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(254, 204, 2, 0); }
+    50% { box-shadow: 0 0 0 6px rgba(254, 204, 2, 0.28); }
+}
+
+dialog.guide {
+    margin: auto;
+    width: min(560px, calc(100vw - 24px));
+    max-height: calc(100dvh - 24px);
+    overflow-y: auto;
+    padding: 1rem 1.2rem 1.1rem;
+    border-radius: 20px;
+    border: 1px solid rgba(254, 204, 2, 0.45);
+    background: linear-gradient(160deg, #0d2340, #0b1424 70%);
+    color: var(--text);
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55);
+}
+dialog.guide::backdrop { background: rgba(4, 9, 18, 0.62); backdrop-filter: blur(3px); }
+.g-head { display: flex; align-items: center; gap: 0.6rem; }
+.g-step { color: var(--muted); font-size: 0.8rem; }
+.g-close {
+    margin-left: auto;
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    border: 1px solid var(--border);
+    background: var(--panel);
+    color: var(--text-2);
+    cursor: pointer;
+}
+.g-progress { height: 6px; border-radius: 3px; background: rgba(0, 106, 167, 0.45); margin: 0.8rem 0 1rem; overflow: hidden; }
+.g-progress span { display: block; height: 100%; background: var(--yellow); border-radius: 3px; transition: width 0.3s ease; }
+.g-q { font-family: 'Outfit', sans-serif; font-size: 1.35rem; line-height: 1.2; margin-bottom: 0.35rem; }
+.g-why { color: var(--text-2); font-size: 0.9rem; margin-bottom: 0.9rem; }
+.g-why strong { color: var(--text); }
+.g-body { display: grid; gap: 0.7rem; }
+.g-choices { display: flex; flex-wrap: wrap; gap: 0.45rem; }
+.g-choice {
+    border: 1px solid var(--border-strong);
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--text);
+    border-radius: 12px;
+    padding: 0.6rem 0.85rem;
+    font-size: 0.92rem;
+    cursor: pointer;
+    min-height: 44px;
+    transition: background 0.15s, border-color 0.15s;
+}
+.g-choice:hover { border-color: var(--blue-bright); }
+.g-choice[aria-pressed="true"] { background: var(--blue); border-color: var(--yellow); color: #fff; }
+.g-more { display: grid; gap: 0.55rem; padding-top: 0.2rem; }
+.g-label { color: var(--text-2); font-size: 0.84rem; }
+.g-field { display: grid; gap: 0.3rem; font-size: 0.84rem; color: var(--text-2); }
+.g-input { display: flex; align-items: center; gap: 0.5rem; }
+.g-input input {
+    flex: 1;
+    min-width: 0;
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid var(--border-strong);
+    border-radius: 10px;
+    padding: 0.6rem 0.75rem;
+    font-size: 1rem;
+    color: var(--text);
+    font-variant-numeric: tabular-nums;
+}
+.g-input input:focus { border-color: var(--yellow); outline: none; }
+.g-input span { color: var(--muted); font-size: 0.85rem; }
+.g-toggle { display: flex; gap: 0.6rem; align-items: center; font-size: 0.92rem; color: var(--text); cursor: pointer; min-height: 36px; }
+.g-toggle input { width: 18px; height: 18px; accent-color: var(--yellow); flex: none; }
+.g-note { color: var(--muted); font-size: 0.8rem; }
+.g-foot { display: flex; justify-content: space-between; gap: 0.6rem; margin-top: 1.1rem; }
+.g-back, .g-next {
+    border-radius: 999px;
+    padding: 0.55rem 1.1rem;
+    font-weight: 600;
+    font-size: 0.9rem;
+    cursor: pointer;
+    min-height: 42px;
+}
+.g-back { border: 1px solid var(--border); background: transparent; color: var(--text-2); }
+.g-back:disabled { opacity: 0.35; cursor: default; }
+.g-next { border: 2px solid #1a1400; background: var(--yellow); color: #1a1400; font-family: var(--sign-font); letter-spacing: 0.03em; font-size: 0.98rem; }
+@media (max-width: 560px) {
+    dialog.guide { width: 100vw; max-width: 100vw; max-height: 100dvh; height: 100dvh; margin: 0; border-radius: 0; border: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .btn-guide.is-pulsing { animation: none; }
 }

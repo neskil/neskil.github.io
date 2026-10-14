@@ -7,9 +7,15 @@ three-year malus, no credit score but a UC check and a 20 % rule, a 30 %
 interest deduction that now depends on whether the loan has security, a damage
 warranty that halves insurance for three years, and two sets of tyres.
 
-**Status: first draft** (October 2026). The numbers will be revised as better
+**Status: second draft** (October 2026). The numbers will be revised as better
 ones arrive; every one of them lives in `js/data.js` so that is a one-file
 change.
+
+**Language.** Swedish or English, from a toggle in the top bar. The default is
+a `?lang=` in the link, then this browser's last choice, then the browser's own
+language. Product names (privatleasing, billån…) stay Swedish in both; English
+puts an explanation under them. `tests.html` fails if the model grows a ledger
+label or a closed-route reason that has no translation.
 
 ## Files
 
@@ -19,7 +25,9 @@ change.
 | `style.css` | Swedish theme on the house glass: night blue, flag blue and yellow, Falu red, road-sign headers, number plates. The chart colours (`--s1…--s7`, `--r-*`) are the dataviz reference palette's dark steps in their validated order; theme around them, do not recolour them. |
 | `js/data.js` | **Every number**, each with its source or marked ≈ as an estimate. No logic. |
 | `js/model.js` | The cost model: one cash-flow ledger, seven routes, the tax rules. No DOM. |
-| `js/app.js` | The page: inputs generated from one schema, verdict, route tiles, stacked bars, two line charts, share links. |
+| `js/app.js` | The page: inputs generated from one schema (every label an `{ en, sv }` pair), verdict, route tiles, stacked bars, two line charts, share links, the language toggle. |
+| `js/i18n.js` | Every sentence the page builds, in English and Swedish, plus the translations of the model's ledger labels and closed-route reasons. No DOM. The long reading panels are written twice in `index.html` instead (`.i18n-en` / `.i18n-sv`, the stylesheet shows the one in `<html lang>`). |
+| `js/guide.js` | The walkthrough: nine questions, one at a time, each answer written straight into the page's state. "Where do you live?" sets three things at once: city insurance, the elområde charging price and whether to ask about trängselskatt. |
 | `tests.html` | Asserts the model; found by `tools/run-tests.mjs`. |
 
 Verify with `node tools/run-tests.mjs bil` and `node tools/check-site.mjs`.

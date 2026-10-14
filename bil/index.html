@@ -78,9 +78,15 @@
         <nav class="top" aria-label="Site">
             <a class="pill-link" href="../index.html">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5M12 19l-7-7 7-7" /></svg>
-                Home
+                <span data-i18n="home">Home</span>
             </a>
-            <a class="pill-link" href="../car/index.html" title="The same question, for the US market">🇺🇸 US edition</a>
+            <span class="top-right">
+                <span class="lang-toggle" id="langToggle" role="group" aria-label="Språk / Language">
+                    <button type="button" data-lang="sv" aria-pressed="false" lang="sv">Svenska</button>
+                    <button type="button" data-lang="en" aria-pressed="true" lang="en">English</button>
+                </span>
+                <a class="pill-link" href="../car/index.html" data-i18n="usEdition" data-i18n-title="usEditionTitle" title="The same question, for the US market">🇺🇸 US edition</a>
+            </span>
         </nav>
 
         <header class="hero">
@@ -93,16 +99,23 @@
                     <path d="M37.5 50.2 L40.2 45.4 L39.4 41 L42 44.2 L43.6 40.4 L44.6 45.4 L41.8 49.4 Z" />
                 </g>
             </svg>
-            <h1>Leasa<span class="dot"> · </span>Hyra<span class="dot"> · </span>Köpa</h1>
-            <p class="lede">Lease, rent or buy a car <em>in Sweden</em>: cash, billån, privatleasing, bilabonnemang, a monthly rental or no car at all, priced the same way, in kronor a month and kronor per mil. Malus, ränteavdrag, the vagnskadegaranti and two sets of tyres are already in.</p>
-            <div class="flag-ribbon" aria-hidden="true"></div>
+            <h1>Leasa<span class="dot"> · </span>Hyra<span class="dot"> · </span>Köpa<svg class="flag" viewBox="0 0 16 10" aria-hidden="true">
+                <defs><linearGradient id="flagSheen" x1="0" x2="1" y1="0" y2="0.35">
+                    <stop offset="0" stop-color="#fff" stop-opacity="0.16"/><stop offset="0.35" stop-color="#fff" stop-opacity="0"/>
+                    <stop offset="0.6" stop-color="#000" stop-opacity="0.14"/><stop offset="0.85" stop-color="#fff" stop-opacity="0.08"/>
+                    <stop offset="1" stop-color="#000" stop-opacity="0.12"/></linearGradient></defs>
+                <rect width="16" height="10" fill="#006aa7"/><rect x="5" width="2" height="10" fill="#fecc02"/><rect y="4" width="16" height="2" fill="#fecc02"/>
+                <rect width="16" height="10" fill="url(#flagSheen)"/></svg></h1>
+            <p class="lede i18n-en">Lease, rent or buy a car <em>in Sweden</em>: cash, billån, privatleasing, bilabonnemang, a monthly rental or no car at all, priced the same way, in kronor a month and kronor per mil. Malus, ränteavdrag, the vagnskadegaranti and two sets of tyres are already in.</p>
+            <p class="lede i18n-sv">Leasa, hyra eller köpa bil <em>i Sverige</em>: kontant, billån, privatleasing, bilabonnemang, långtidshyra eller ingen bil alls, räknat på samma sätt i kronor per månad och kronor per mil. Malus, ränteavdrag, vagnskadegarantin och två hjulsatser är redan med.</p>
         </header>
 
         <div class="toolbar">
-            <span class="toolbar-label">Outlook</span>
-            <div class="chips" id="scenarioChips" role="group" aria-label="Outlook"></div>
+            <button type="button" class="btn btn-guide" id="guideBtn" data-i18n="guide">🧭 Walk me through it</button>
+            <span class="toolbar-label" data-i18n="scenario">Outlook</span>
+            <div class="chips" id="scenarioChips" role="group" aria-label="Outlook / Scenario"></div>
             <span class="sep"></span>
-            <button type="button" class="btn" id="shareBtn">🔗 Share this scenario</button>
+            <button type="button" class="btn" id="shareBtn" data-i18n="share">🔗 Share this scenario</button>
         </div>
 
         <div class="layout">
@@ -111,25 +124,25 @@
             <aside class="inputs-area" id="inputs" aria-label="Your car, your driving, your money"></aside>
             <div class="charts-area">
                 <section class="panel" id="breakdown">
-                    <div class="panel-title"><span class="sign">Vart går pengarna?</span><span class="sign-en">Where the money goes</span></div>
+                    <div class="panel-title"><span class="sign">Vart går pengarna?</span><span class="sign-en i18n-en">Where the money goes</span></div>
                     <div class="panel-sub" id="breakdownSub">Kronor a month, averaged over how long you keep it.</div>
                     <div class="legend" id="componentLegend"></div>
                     <div class="bars" id="bars"></div>
                     <p class="chart-caption" id="breakdownCaption"></p>
                     <details class="mini">
-                        <summary>Show as a table</summary>
+                        <summary><span class="i18n-en">Show as a table</span><span class="i18n-sv">Visa som tabell</span></summary>
                         <div class="table-wrap" id="breakdownTable"></div>
                     </details>
                 </section>
                 <section class="panel" id="horizonPanel">
-                    <div class="panel-title"><span class="sign">Hur länge?</span><span class="sign-en">How long you keep it</span></div>
-                    <div class="panel-sub">Kronor a month for every horizon from six months to eight years. Leasing and subscriptions bill their minimum term however soon you leave.</div>
+                    <div class="panel-title"><span class="sign">Hur länge?</span><span class="sign-en i18n-en">How long you keep it</span></div>
+                    <div class="panel-sub"><span class="i18n-en">Kronor a month for every horizon from six months to eight years. Leasing and subscriptions bill their minimum term however soon you leave.</span><span class="i18n-sv">Kronor per månad för varje tidshorisont från sex månader till åtta år. Leasing och abonnemang tar betalt för minsta avtalstiden hur tidigt du än lämnar.</span></div>
                     <div class="legend" id="routeLegend1"></div>
                     <div class="line-chart" id="horizonChart"></div>
                 </section>
                 <section class="panel" id="milPanel">
-                    <div class="panel-title"><span class="sign">Hur långt?</span><span class="sign-en">How far you drive</span></div>
-                    <div class="panel-sub">Kronor a month against mil a year (1 mil = 10 km). The average Swedish car drove 1 243 mil in 2025.</div>
+                    <div class="panel-title"><span class="sign">Hur långt?</span><span class="sign-en i18n-en">How far you drive</span></div>
+                    <div class="panel-sub"><span class="i18n-en">Kronor a month against mil a year (1 mil = 10 km). The average Swedish car drove 1 243 mil in 2025.</span><span class="i18n-sv">Kronor per månad mot mil per år. En genomsnittlig svensk bil körde 1 243 mil 2025.</span></div>
                     <div class="legend" id="routeLegend2"></div>
                     <div class="line-chart" id="milChart"></div>
                 </section>
@@ -137,12 +150,12 @@
         </div>
 
         <section class="notes" aria-label="Reading the answer">
-            <h2><span class="sign">Bra att veta</span><span class="sign-en">Reading the answer</span></h2>
+            <h2><span class="sign">Bra att veta</span><span class="sign-en i18n-en">Reading the answer</span></h2>
 
             <details class="note" id="decide">
                 <summary>
-                    <span class="n-title">How to decide<span class="n-sv">Så väljer du</span></span>
-                    <span class="n-gist">Four gates come before the money. Your own path is lit.</span>
+                    <span class="n-title"><span class="i18n-en">How to decide<span class="n-sv">Så väljer du</span></span><span class="i18n-sv">Så väljer du</span></span>
+                    <span class="n-gist"><span class="i18n-en">Four gates come before the money. Your own path is lit.</span><span class="i18n-sv">Fyra grindar kommer före pengarna. Din egen väg är tänd.</span></span>
                     <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6" /></svg>
                 </summary>
                 <div class="note-body">
@@ -152,11 +165,11 @@
 
             <details class="note">
                 <summary>
-                    <span class="n-title">Pros &amp; cons, side by side<span class="n-sv">För- och nackdelar</span></span>
-                    <span class="n-gist">Cash gives up a return, a loan costs interest, a lease owns nothing and bills its whole term, and a subscription charges for being able to leave.</span>
+                    <span class="n-title"><span class="i18n-en">Pros &amp; cons, side by side<span class="n-sv">För- och nackdelar</span></span><span class="i18n-sv">För- och nackdelar sida vid sida</span></span>
+                    <span class="n-gist"><span class="i18n-en">Cash gives up a return, a loan costs interest, a lease owns nothing and bills its whole term, and a subscription charges for being able to leave.</span><span class="i18n-sv">Kontant går miste om avkastning, ett lån kostar ränta, leasing äger ingenting och debiterar hela avtalstiden, och ett abonnemang tar betalt för att du kan lämna.</span></span>
                     <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6" /></svg>
                 </summary>
-                <div class="note-body">
+                <div class="note-body i18n-en">
                     <div class="table-wrap">
                         <table>
                             <thead><tr><th>Route</th><th>Good for</th><th>Watch out for</th></tr></thead>
@@ -172,15 +185,31 @@
                         </table>
                     </div>
                 </div>
+                <div class="note-body i18n-sv">
+                    <div class="table-wrap">
+                        <table>
+                            <thead><tr><th>Väg</th><th>Bra för</th><th>Se upp med</th></tr></thead>
+                            <tbody>
+                                <tr><td><strong>Kontantköp</strong></td><td>Ingen ränta, ingen kreditprövning, sälj när du vill. En begagnad bil köpt kontant är oftast den billigaste bilen som finns.</td><td>Pengarna slutar ge avkastning. Du bär hela restvärdesrisken, och från år fyra helförsäkring och reparationer.</td></tr>
+                                <tr><td><strong>Billån</strong></td><td>Sparpengarna får fortsätta växa. Räntan på ett lån med bilen som säkerhet ger fortfarande 30 % ränteavdrag.</td><td>20 % kontantinsats enligt lag när handlaren ordnar lånet. Ett "billån" som egentligen är ett blancolån har inget ränteavdrag från 2026.</td></tr>
+                                <tr><td><strong>Privatleasing</strong></td><td>Ingen kontantinsats, ingen restvärdesrisk, ofta subventionerat av tillverkaren på elbilar. Service ingår oftast.</td><td>Du betalar hela avtalstiden även om du lämnar tidigare, plus övermil och slitage vid återlämning. Många avgifter följer räntan. En ny bil betalar alltid malus.</td></tr>
+                                <tr><td><strong>Bilabonnemang</strong></td><td>En faktura för bil, försäkring, skatt, service och däck. Säg upp med några månaders varsel.</td><td>Uppsägningsrätten är en premie du betalar varje månad. Miltaket är snålt.</td></tr>
+                                <tr><td><strong>Långtidshyra</strong></td><td>Ingen kreditprövning utöver ett kort, inget åtagande, en bil nästa vecka.</td><td>Det dyraste sättet att ha bil ett helt år, och självrisken är hög (9 500 kr hos Avis).</td></tr>
+                                <tr><td><strong>Utan bil</strong></td><td>Månadskort, en bilpoolsbil när du behöver en, en hyrbil på sommaren.</td><td>Täcker mycket färre mil. Fungerar bara där kollektivtrafik och bilpool gör det.</td></tr>
+                                <tr><td><strong>Förmånsbil</strong></td><td>Ofta billigast av allt på papperet, särskilt elbil (förmånsvärdet sänks med 350 000 kr).</td><td>Bara om arbetsgivaren erbjuder det. Ett bruttolöneavdrag kan sänka pension och sjukpenning.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
             </details>
 
             <details class="note">
                 <summary>
-                    <span class="n-title">Vehicle tax, malus and the bonus that went<span class="n-sv">Fordonsskatt</span></span>
-                    <span class="n-gist">360 kr a year for every car; on a new petrol or diesel car up to several thousand more for the first three years. The klimatbonus ended in November 2022.</span>
+                    <span class="n-title"><span class="i18n-en">Vehicle tax, malus and the bonus that went<span class="n-sv">Fordonsskatt</span></span><span class="i18n-sv">Fordonsskatt, malus och bonusen som försvann</span></span>
+                    <span class="n-gist"><span class="i18n-en">360 kr a year for every car; on a new petrol or diesel car up to several thousand more for the first three years. The klimatbonus ended in November 2022.</span><span class="i18n-sv">360 kr per år för alla bilar; för en ny bensin- eller dieselbil upp till flera tusen till de tre första åren. Klimatbonusen försvann i november 2022.</span></span>
                     <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6" /></svg>
                 </summary>
-                <div class="note-body">
+                <div class="note-body i18n-en">
                     <p>For a car first registered from 1 June 2022 (Transportstyrelsen):</p>
                     <div class="formula">Years 1–3 (malus)
   360 + 107 × (min(CO₂, 125) − 75)⁺ + 132 × (CO₂ − 125)⁺
@@ -195,72 +224,112 @@ Every vehicle
                     <p>So a new petrol car at 140 g/km pays <strong>7 764 kr</strong> a year for three years and 1 072 kr after. <strong>Leasing and subscriptions always hand you a new car, so they always sit in the malus years</strong>, which is one reason a leased petrol car costs more than its quote suggests. Plug-in hybrids usually measure under 75 g and pay 360 kr, though new ones from 2026 are measured on a stricter cycle.</p>
                     <p>The <strong>klimatbonus</strong> on new low-emission cars ended on 8 November 2022. In its place, since 18 March 2026, Naturvårdsverket's <strong>elbilspremie</strong> pays rural households earning under 80 % of the national average 1 300 kr a month for up to 36 months towards an electric car, new or used, bought or leased (a lease must cost 1 800–4 600 kr a month). The calculator does not apply it automatically; if you qualify, subtract it from the route you would use it on.</p>
                 </div>
+                <div class="note-body i18n-sv">
+                    <p>För en bil som togs i trafik från och med 1 juni 2022 (Transportstyrelsen):</p>
+                    <div class="formula">År 1–3 (malus)
+  360 + 107 × (min(CO₂, 125) − 75)⁺ + 132 × (CO₂ − 125)⁺
+Från år 4
+  360 + 22 × (CO₂ − 111)⁺
+Diesel, varje år, därutöver
+  + 13,52 × CO₂ + 250
+Elbil
+  360
+Alla fordon
+  + 74 kr vägtrafikregisteravgift (2026)</div>
+                    <p>En ny bensinbil på 140 g/km betalar alltså <strong>7 764 kr</strong> per år i tre år och 1 072 kr därefter. <strong>Leasing och abonnemang ger dig alltid en ny bil och ligger därför alltid i malusåren</strong>, vilket är ett skäl till att en leasad bensinbil kostar mer än priset antyder. Laddhybrider mäter oftast under 75 g och betalar 360 kr, men nya från 2026 mäts med en strängare metod.</p>
+                    <p><strong>Klimatbonusen</strong> för nya miljöbilar upphörde 8 november 2022. Sedan 18 mars 2026 finns i stället Naturvårdsverkets <strong>elbilspremie</strong>: hushåll på landsbygden med under 80 % av medelinkomsten får 1 300 kr i månaden i upp till 36 månader för en elbil, ny eller begagnad, köpt eller leasad (leasingen ska kosta 1 800–4 600 kr i månaden). Kalkylen räknar inte in den automatiskt; om du kvalificerar dig, dra av den från den väg du skulle använda den på.</p>
+                </div>
             </details>
 
             <details class="note">
                 <summary>
-                    <span class="n-title">Loans, the 20 % rule and the interest deduction<span class="n-sv">Lån &amp; ränteavdrag</span></span>
-                    <span class="n-gist">Only loans with security still earn the 30 % interest deduction. Dealer-arranged credit needs 20 % down by law; a bank loan does not.</span>
+                    <span class="n-title"><span class="i18n-en">Loans, the 20 % rule and the interest deduction<span class="n-sv">Lån &amp; ränteavdrag</span></span><span class="i18n-sv">Lån, 20-procentsregeln och ränteavdraget</span></span>
+                    <span class="n-gist"><span class="i18n-en">Only loans with security still earn the 30 % interest deduction. Dealer-arranged credit needs 20 % down by law; a bank loan does not.</span><span class="i18n-sv">Bara lån med säkerhet ger fortfarande 30 % ränteavdrag. Kredit via handlaren kräver 20 % kontantinsats enligt lag; ett banklån gör det inte.</span></span>
                     <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6" /></svg>
                 </summary>
-                <div class="note-body">
+                <div class="note-body i18n-en">
                     <ul>
                         <li><strong>Ränteavdrag:</strong> 30 % of interest up to 100 000 kr a year per person (21 % above), shared with your mortgage. From 1 January 2026 unsecured loans (privatlån, blancolån, card credit) earn nothing; the deduction was halved for 2025 and removed for 2026. A billån with the car as security still counts. Banks sell unsecured loans as "billån" too, so read the terms.</li>
-                        <li><strong>Kontantinsats:</strong> konsumentkreditlagen 26 § requires at least 20 % cash down on a <em>kreditköp</em>, credit the seller arranges. That covers most dealer finance. An ordinary loan from your own bank has no such rule, though most lenders still want 20 % for their best rate.</li>
-                        <li><strong>Fees:</strong> uppläggningsavgift ≈ 500–700 kr and aviavgift ≈ 40–60 kr a month at most lenders; Volvofinans charges neither and lends up to 80 % of the price for at most 96 months.</li>
-                        <li><strong>Utökat bolån:</strong> a mortgage top-up is usually the cheapest money there is, and deductible, if you own a home with room in the loan. It is also the easiest way to still be paying for a car after it has gone.</li>
+                        <li><strong>Kontantinsats:</strong> konsumentkreditlagen 26 § requires at least 20 % cash down on a <em>kreditköp</em>, credit the seller arranges. That covers most dealer finance. An ordinary loan from your own bank has no such rule, though most lenders still want 20 % for their best rate. Put less down on a dealer loan and this page lends the gap to you unsecured, at a private-loan rate and with no deduction.</li>
+                        <li><strong>Fees:</strong> uppläggningsavgift 495–695 kr and aviavgift about 20 kr a month by e-invoice, 45–60 on paper; Volvofinans charges neither and lends up to 80 % of the price for at most 96 months.</li>
+                        <li><strong>Utökat bolån:</strong> a mortgage top-up is usually the cheapest money there is (three-month rates averaged 2.6–2.8 % in September 2026), and deductible, if you own a home with room in the loan. It is also the easiest way to still be paying for a car after it has gone.</li>
                         <li><strong>Restvärdeslån</strong> (balloon loans) leave a large final payment due when you sell. They lower the monthly figure, not the cost; this page prices any loan by what you pay in and what is left to clear at the sale.</li>
                     </ul>
                 </div>
-            </details>
-
-            <details class="note">
-                <summary>
-                    <span class="n-title">Insurance and the three-year damage warranty<span class="n-sv">Försäkring</span></span>
-                    <span class="n-gist">A new car from an authorised dealer carries three years of own-damage warranty, so halvförsäkring is enough until year four.</span>
-                    <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6" /></svg>
-                </summary>
-                <div class="note-body">
-                    <p>The <strong>vagnskadegaranti</strong> runs three years from first registration and covers damage to the car itself. During it, halvförsäkring (trafik plus fire, theft, glass, breakdown) gives the same cover as a helförsäkring; when it ends you need helförsäkring to stay covered for damage. The garanti's excess is higher, from about 5 000 kr plus VAT, against 3 000–10 000 kr on a vagnskadeförsäkring.</p>
-                    <p>Averages for 2026: helförsäkring ≈ 7 000 kr a year (Hedvig, 14 518 customers: 584 kr a month), halvförsäkring ≈ 3 500 kr. Drivers under 25 and the big three cities pay noticeably more. A lessor usually decides the insurer (often the brand's own).</p>
-                    <p><strong>Maskinskadeskydd</strong> in a helförsäkring typically ends when the car is 8 years old or has done about 12 000 mil, whichever comes first, which is when repair bills stop being someone else's problem.</p>
-                </div>
-            </details>
-
-            <details class="note">
-                <summary>
-                    <span class="n-title">Winter tyres, inspection and congestion charges<span class="n-sv">Vinterdäck &amp; besiktning</span></span>
-                    <span class="n-gist">Two sets of tyres, two swaps a year, an inspection from year three, and a congestion charge in Stockholm and Göteborg.</span>
-                    <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6" /></svg>
-                </summary>
-                <div class="note-body">
+                <div class="note-body i18n-sv">
                     <ul>
-                        <li><strong>Vinterdäck</strong> are compulsory 1 December – 31 March when there is winter road condition; the fine has been 2 000 kr since February 2025. Studded tyres are allowed 1 October – 15 April. A new car needs a second set of rims and tyres (kompletta vinterhjul); lessors sell them as an add-on, around +700 kr a month in one Volvo offer. A swap is 300–500 kr, a däckhotell 800–1 500 kr a season.</li>
-                        <li><strong>Besiktning:</strong> first within 36 months of first registration, then 24 months, then every 14 months. 395–525 kr at the four big chains in 2026. A new car you lease for three years never sees one.</li>
-                        <li><strong>Trängselskatt:</strong> Stockholm at most 135 kr a day in high season (105 in low season, none in July); Göteborg at most 60 kr a day. A daily commute through either adds up to a four-figure sum a month; put yours under "Your driving".</li>
+                        <li><strong>Ränteavdrag:</strong> 30 % av räntan upp till 100 000 kr per år och person (21 % därutöver), gemensamt med bolånet. Från 1 januari 2026 ger lån utan säkerhet (privatlån, blancolån, kortkredit) inget avdrag; avdraget halverades 2025 och togs bort 2026. Ett billån med bilen som säkerhet räknas fortfarande. Banker säljer blancolån som "billån" också, så läs villkoren.</li>
+                        <li><strong>Kontantinsats:</strong> konsumentkreditlagen 26 § kräver minst 20 % kontant vid <em>kreditköp</em>, kredit som säljaren ordnar. Det gäller det mesta av handlarfinansieringen. Ett vanligt lån från din egen bank har ingen sådan regel, men de flesta långivare vill ändå ha 20 % för bästa ränta. Lägger du in mindre på handlarens lån räknar sidan mellanskillnaden som ett blancolån, till privatlåneränta och utan avdrag.</li>
+                        <li><strong>Avgifter:</strong> uppläggningsavgift 495–695 kr och aviavgift runt 20 kr i månaden med e-faktura, 45–60 kr på papper; Volvofinans tar ingen av dem och lånar ut upp till 80 % av priset i högst 96 månader.</li>
+                        <li><strong>Utökat bolån:</strong> oftast de billigaste pengarna som finns (snitträntan för tre månader låg på 2,6–2,8 % i september 2026), och avdragsgilla, om du äger en bostad med utrymme i lånet. Också det enklaste sättet att fortfarande betala för en bil när den är borta.</li>
+                        <li><strong>Restvärdeslån</strong> lämnar en stor slutbetalning att lösa när du säljer. De sänker månadsbeloppet, inte kostnaden; sidan räknar varje lån på vad du betalar in och vad som återstår att lösa vid försäljningen.</li>
                     </ul>
                 </div>
             </details>
 
             <details class="note">
                 <summary>
-                    <span class="n-title">Buying used, and how you sell<span class="n-sv">Begagnat</span></span>
-                    <span class="n-gist">From a dealer you have three years to complain and two years in which a fault is presumed to have been there all along. Privately, it is sold as it stands.</span>
+                    <span class="n-title"><span class="i18n-en">Insurance and the three-year damage warranty<span class="n-sv">Försäkring</span></span><span class="i18n-sv">Försäkring och vagnskadegarantin</span></span>
+                    <span class="n-gist"><span class="i18n-en">A new car from an authorised dealer carries three years of own-damage warranty, so halvförsäkring is enough until year four.</span><span class="i18n-sv">En ny bil från en auktoriserad handlare har tre års vagnskadegaranti, så halvförsäkring räcker fram till år fyra.</span></span>
                     <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6" /></svg>
                 </summary>
-                <div class="note-body">
-                    <p><strong>Konsumentköplagen</strong> covers a car bought from a dealer: three years to complain, and a fault that shows within two years is presumed to have been there at delivery. A <strong>private</strong> sale falls under köplagen, usually "i befintligt skick", with much less protection. An ownership change (ägarbyte) costs nothing; there is no sales tax on a used car and, unlike the US, <strong>no tax credit for trading one in</strong>. Dealers sell most used cars under vinstmarginalbeskattning, VAT on their margin only, which is invisible to a private buyer.</p>
-                    <p>How you sell moves the number a lot. The calculator discounts market value by an estimated 2 % for a private sale on Blocket or Wayke, 6 % at a KVD auction, 10 % as a trade-in and 12 % to a direct buyer (Riddermark, Kamux, Vi köper din bil). The first is the most money and the most work.</p>
+                <div class="note-body i18n-en">
+                    <p>The <strong>vagnskadegaranti</strong> runs three years from first registration and covers damage to the car itself. During it, halvförsäkring (trafik plus fire, theft, glass, breakdown) gives the same cover as a helförsäkring; when it ends you need helförsäkring to stay covered for damage. The garanti's excess is higher, from about 5 000 kr plus VAT, against 3 000–10 000 kr on a vagnskadeförsäkring.</p>
+                    <p>Averages for 2026: helförsäkring ≈ 7 000 kr a year (Hedvig, 14 518 customers: 584 kr a month; Volvo 569, Kia 508), halvförsäkring ≈ 3 500 kr. Drivers under 25 and the big three cities pay noticeably more, and brand matters: a Tesla Model Y has been quoted around 28 000 kr a year. A lessor usually decides the insurer (often the brand's own).</p>
+                    <p><strong>Maskinskadeskydd</strong> in a helförsäkring typically ends when the car is 8 years old or has done about 12 000 mil, whichever comes first, which is when repair bills stop being someone else's problem.</p>
+                </div>
+                <div class="note-body i18n-sv">
+                    <p><strong>Vagnskadegarantin</strong> gäller i tre år från första registrering och täcker skador på själva bilen. Under tiden ger halvförsäkring (trafik plus brand, stöld, glas, räddning) samma skydd som helförsäkring; när garantin tar slut behövs helförsäkring för att vara skyddad mot vagnskador. Garantins självrisk är högre, från ungefär 5 000 kr plus moms, mot 3 000–10 000 kr på en vagnskadeförsäkring.</p>
+                    <p>Snitt 2026: helförsäkring ≈ 7 000 kr per år (Hedvig, 14 518 kunder: 584 kr i månaden; Volvo 569, Kia 508), halvförsäkring ≈ 3 500 kr. Förare under 25 och de tre storstäderna betalar märkbart mer, och märket spelar roll: en Tesla Model Y har offererats runt 28 000 kr per år. Leasingbolaget bestämmer oftast försäkringsbolaget (ofta märkets eget).</p>
+                    <p><strong>Maskinskadeskyddet</strong> i en helförsäkring slutar oftast när bilen är 8 år eller har gått ungefär 12 000 mil, det som kommer först, och då blir reparationerna ditt problem.</p>
                 </div>
             </details>
 
             <details class="note">
                 <summary>
-                    <span class="n-title">Company cars and salary sacrifice<span class="n-sv">Förmånsbil</span></span>
-                    <span class="n-gist">You pay tax on a benefit value set by Skatteverket's formula; with a personalbil you also give up some gross salary.</span>
+                    <span class="n-title"><span class="i18n-en">Winter tyres, inspection and congestion charges<span class="n-sv">Vinterdäck &amp; besiktning</span></span><span class="i18n-sv">Vinterdäck, besiktning och trängselskatt</span></span>
+                    <span class="n-gist"><span class="i18n-en">Two sets of tyres, two swaps a year, an inspection from year three, and a congestion charge in Stockholm and Göteborg.</span><span class="i18n-sv">Två hjulsatser, två hjulskiften per år, besiktning från år tre och trängselskatt i Stockholm och Göteborg.</span></span>
                     <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6" /></svg>
                 </summary>
-                <div class="note-body">
+                <div class="note-body i18n-en">
+                    <ul>
+                        <li><strong>Vinterdäck</strong> are compulsory 1 December – 31 March when there is winter road condition; the fine has been 2 000 kr since February 2025. Studded tyres are allowed 1 October – 15 April. A new car needs a second set of rims and tyres (kompletta vinterhjul): 13 900–15 900 kr for 17–18" aftermarket sets, 26 800–27 800 kr for Volvo's own 18". Lessors sell them as an add-on, around +700 kr a month in one Volvo offer. A swap is 395–550 kr, a däckhotell with the swap 600–1 600 kr a season.</li>
+                        <li><strong>Besiktning:</strong> first within 36 months of first registration, then 24 months, then every 14 months. 395–525 kr at the four big chains in 2026. A new car you lease for three years never sees one.</li>
+                        <li><strong>Trängselskatt:</strong> Stockholm at most 135 kr a day in high season (105 in low season, none in July), 45 kr a passage at the peak; Göteborg at most 60 kr a day. A daily commute through either adds up to a four-figure sum a month; put yours under "Your driving". From 2026 commuters can deduct travel costs, congestion charge included, only above 15 000 kr a year.</li>
+                    </ul>
+                </div>
+                <div class="note-body i18n-sv">
+                    <ul>
+                        <li><strong>Vinterdäck</strong> är obligatoriskt 1 december – 31 mars vid vinterväglag; boten är 2 000 kr sedan februari 2025. Dubbdäck är tillåtna 1 oktober – 15 april. En ny bil behöver en andra hjulsats (kompletta vinterhjul): 13 900–15 900 kr för 17–18" eftermarknadsset, 26 800–27 800 kr för Volvos egna 18". Leasingbolag säljer dem som tillval, runt +700 kr i månaden i ett Volvoerbjudande. Ett hjulskifte kostar 395–550 kr, däckhotell med skifte 600–1 600 kr per säsong.</li>
+                        <li><strong>Besiktning:</strong> första gången senast 36 månader efter första registrering, sedan inom 24 månader och därefter var 14:e månad. 395–525 kr hos de fyra stora kedjorna 2026. En ny bil som du leasar i tre år hinner aldrig dit.</li>
+                        <li><strong>Trängselskatt:</strong> Stockholm högst 135 kr per dag under högsäsong (105 under lågsäsong, ingen i juli), 45 kr per passage i rusningstid; Göteborg högst 60 kr per dag. Daglig pendling genom någon av dem blir ett fyrsiffrigt belopp i månaden; fyll i ditt under "Körning". Från 2026 får pendlare dra av resekostnader, trängselskatt inräknad, bara över 15 000 kr per år.</li>
+                    </ul>
+                </div>
+            </details>
+
+            <details class="note">
+                <summary>
+                    <span class="n-title"><span class="i18n-en">Buying used, and how you sell<span class="n-sv">Begagnat</span></span><span class="i18n-sv">Köpa begagnat, och hur du säljer</span></span>
+                    <span class="n-gist"><span class="i18n-en">From a dealer you have three years to complain and two years in which a fault is presumed to have been there all along. Privately, it is sold as it stands.</span><span class="i18n-sv">Från en handlare har du tre år på dig att reklamera, och fel som visar sig inom två år antas ha funnits från början. Privat säljs bilen i befintligt skick.</span></span>
+                    <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6" /></svg>
+                </summary>
+                <div class="note-body i18n-en">
+                    <p><strong>Konsumentköplagen</strong> covers a car bought from a dealer: three years to complain, and a fault that shows within two years is presumed to have been there at delivery. A <strong>private</strong> sale falls under köplagen, usually "i befintligt skick", with much less protection. An ownership change (ägarbyte) costs nothing; there is no sales tax on a used car and, unlike the US, <strong>no tax credit for trading one in</strong>. Dealers sell most used cars under vinstmarginalbeskattning, VAT on their margin only, which is invisible to a private buyer.</p>
+                    <p>How you sell moves the number a lot. The calculator takes the full private price on Blocket or Wayke (less a 495 kr ad), 4 % less and a fee of about 7 500 kr at a KVD auction, 13 % less from a direct buyer (Riddermark, Carla) and 16 % less as a trade-in. Forum reports put direct buyers anywhere from 10 to 25 % under Blocket. The first is the most money and the most work.</p>
+                </div>
+                <div class="note-body i18n-sv">
+                    <p><strong>Konsumentköplagen</strong> gäller när du köper av en handlare: tre år att reklamera, och fel som visar sig inom två år antas ha funnits vid leveransen. Ett <strong>privatköp</strong> faller under köplagen, oftast "i befintligt skick", med betydligt sämre skydd. Ägarbytet kostar ingenting; det finns ingen försäljningsskatt på en begagnad bil och, till skillnad från USA, <strong>inget skatteavdrag för inbyte</strong>. Handlare säljer de flesta begagnade bilar med vinstmarginalbeskattning, moms bara på marginalen, vilket inte syns för en privat köpare.</p>
+                    <p>Hur du säljer påverkar siffran mycket. Kalkylen räknar med fullt privatpris på Blocket eller Wayke (minus en annons på 495 kr), 4 % lägre och en avgift på runt 7 500 kr på en KVD-auktion, 13 % lägre hos en direktuppköpare (Riddermark, Carla) och 16 % lägre vid inbyte. Forumrapporter lägger direktuppköpare 10–25 % under Blocket. Det första ger mest pengar och mest jobb.</p>
+                </div>
+            </details>
+
+            <details class="note">
+                <summary>
+                    <span class="n-title"><span class="i18n-en">Company cars and salary sacrifice<span class="n-sv">Förmånsbil</span></span><span class="i18n-sv">Förmånsbil och personalbil</span></span>
+                    <span class="n-gist"><span class="i18n-en">You pay tax on a benefit value set by Skatteverket's formula; with a personalbil you also give up some gross salary.</span><span class="i18n-sv">Du betalar skatt på ett förmånsvärde enligt Skatteverkets formel; med personalbil avstår du dessutom en del av bruttolönen.</span></span>
+                    <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6" /></svg>
+                </summary>
+                <div class="note-body i18n-en">
                     <div class="formula">förmånsvärde / year =
     0.29 × prisbasbelopp (59 200 kr)
   + nybilspris × (0.70 × statslåneränta 2.55 % + 1 %)
@@ -273,28 +342,43 @@ your cost / month = förmånsvärde × marginal tax ÷ 12
                   + bruttolöneavdrag × (1 − marginal tax)</div>
                     <p>About 32 % if you pay only municipal tax, about 52 % above the brytpunkt. A <strong>personalbil via bruttolöneavdrag</strong> is the same benefit with part of your gross salary given up to pay for it, sized so the employer comes out even; it can lower pension contributions and sick pay, which this page does not price. Skatteverket's own check: a 322 000 kr car with 4 050 kr vehicle tax has a benefit value of 72 045 kr.</p>
                 </div>
+                <div class="note-body i18n-sv">
+                    <div class="formula">förmånsvärde per år =
+    0,29 × prisbasbelopp (59 200 kr)
+  + nybilspris × (0,70 × statslåneränta 2,55 % + 1 %)
+  + nybilspris × 13 %
+  + bilens fordonsskatt
+nybilspriset sätts ned med 350 000 kr (elbil) eller 140 000 kr
+(laddhybrid), dock högst till hälften.
+
+din kostnad per månad = förmånsvärde × marginalskatt ÷ 12
+                      + bruttolöneavdrag × (1 − marginalskatt)</div>
+                    <p>Runt 32 % om du bara betalar kommunalskatt, runt 52 % över brytpunkten. En <strong>personalbil via bruttolöneavdrag</strong> är samma förmån där du avstår en del av bruttolönen för att betala den, så att arbetsgivaren går jämnt ut; det kan sänka pensionsavsättningar och sjukpenning, vilket sidan inte räknar med. Skatteverkets eget exempel: en bil för 322 000 kr med 4 050 kr i fordonsskatt har förmånsvärdet 72 045 kr.</p>
+                </div>
             </details>
 
             <details class="note">
                 <summary>
-                    <span class="n-title">Where these numbers come from<span class="n-sv">Källor</span></span>
-                    <span class="n-gist">Transportstyrelsen and Skatteverket for the rules, Trafikanalys for mileage, published 2026 quotes for leases and subscriptions, and comparison data for resale and insurance.</span>
+                    <span class="n-title"><span class="i18n-en">Where these numbers come from<span class="n-sv">Källor</span></span><span class="i18n-sv">Var siffrorna kommer ifrån</span></span>
+                    <span class="n-gist"><span class="i18n-en">Transportstyrelsen and Skatteverket for the rules, Trafikanalys for mileage, published 2026 quotes for leases and subscriptions, and comparison data for resale and insurance.</span><span class="i18n-sv">Transportstyrelsen och Skatteverket för reglerna, Trafikanalys för körsträckor, publicerade priser 2026 för leasing och abonnemang, och jämförelsedata för andrahandsvärden och försäkring.</span></span>
                     <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6" /></svg>
                 </summary>
                 <div class="note-body">
-                    <p>Everything is as of October 2026. Figures marked ≈ in the code are estimates, not published numbers; the full list, with the parameter-by-parameter translation from the US page, is in the project README.</p>
+                    <p class="i18n-en">Everything is as of October 2026. Figures marked ≈ in the code are estimates, not published numbers; the full list, with the parameter-by-parameter translation from the US page, is in the project README.</p>
+                    <p class="i18n-sv">Allt gäller oktober 2026. Siffror markerade med ≈ i koden är uppskattningar, inte publicerade tal; hela listan, med översättningen parameter för parameter från USA-sidan, finns i projektets README.</p>
                     <ul>
-                        <li>Vehicle tax and malus: Transportstyrelsen; register fee 74 kr from 2026 (Borskollen, citing Carup).</li>
-                        <li>Ränteavdrag 2026 and förmånsvärde 2026: Skatteverket (belopp och procent 2026), Riksdagen.</li>
-                        <li>Elbilspremie: Naturvårdsverket, March 2026.</li>
-                        <li>Fuel: list prices 13 October 2026 and the 1 December tax change (Carup, Oskarshamns-Nytt); home charging and Ionity prices (minbilkoll.se, Vi Bilägare, February 2026).</li>
-                        <li>Mileage: Trafikanalys, Körsträckor 2025 (April 2026): 1 243 mil per car.</li>
-                        <li>Residual values: bilmarknadsdata.se, minbilkoll.se, minbilkostnad.se, KVD; ranges, not a single figure.</li>
-                        <li>Insurance: Hedvig (2026 customer average), Borskollen, Konsumenten.se, Trygg-Hansa and Zmarta on vagnskadegaranti, Hedvig on maskinskadeskydd.</li>
-                        <li>Leasing: Bilbolaget, Brandt, Stendahls and Volvo Car Retail offers (autumn 2026); övermil from Volvo, M Sverige and Lånupplysningen.</li>
-                        <li>Loans: Finera, finansvalp.se, Volvo Car Finance; konsumentkreditlagen 26 § via Finanspulsen; Riksbanken policy rate 1.75 % (30 September 2026).</li>
-                        <li>Subscriptions and rental: Kinto, Care by Volvo, Avis Minilease; car sharing: Kinto Share, M, Stockholms bilpool.</li>
-                        <li>Besiktning and tyres: Transportstyrelsen, minbilkoll.se price comparison (May 2026); trängselskatt: Transportstyrelsen.</li>
+                        <li>Fordonsskatt &amp; malus: Transportstyrelsen; vägtrafikregisteravgift 74 kr 2026 (Borskollen/Carup).</li>
+                        <li>Ränteavdrag &amp; förmånsvärde 2026: Skatteverket, Riksdagen.</li>
+                        <li>Elbilspremie: Naturvårdsverket, mars 2026.</li>
+                        <li>Drivmedel: listpriser 13 oktober 2026 och skatteändringen 1 december (Carup, Oskarshamns-Nytt); hemmaladdning och Ionity (minbilkoll.se, Vi Bilägare).</li>
+                        <li>Körsträcka: Trafikanalys, Körsträckor 2025: 1 243 mil per bil.</li>
+                        <li>Andrahandsvärden: bilmarknadsdata.se, minbilkoll.se, minbilkostnad.se, KVD.</li>
+                        <li>Försäkring: Hedvig, Borskollen, Konsumenten.se, Zmarta, Carup, Trygg-Hansa; maskinskadeskydd Hedvig.</li>
+                        <li>Service: Vi Bilägare (Kia EV3), Elbilen/ADAC, Car-spot, minbilkoll.se.</li>
+                        <li>Privatleasing: Volvo, Kia, Bilbolaget, Brandt, Stendahls, Bilia, leasabil.com (hösten 2026); övermil Volvo, M Sverige, Lånupplysningen.</li>
+                        <li>Lån &amp; sparande: Finera, finansvalp.se, Volvo Car Finance, Finanspulsen (konsumentkreditlagen 26 §), Sparacash, Nordea, Danske Bank, Riksbanken (1,75 %).</li>
+                        <li>Abonnemang &amp; hyra: Schysst, Novus Mobility, Care by Volvo, Kinto Flex, Avis Minilease, Volvo Car Retail; bilpool: Kinto Share, M, Stockholms bilpool.</li>
+                        <li>Däck &amp; besiktning: Bilia, Bilia Outlet, Truve, Skanstulls Däck, E55, minbilkoll.se; trängselskatt: Transportstyrelsen, Faronline.</li>
                     </ul>
                 </div>
             </details>
@@ -432,7 +516,7 @@ your cost / month = förmånsvärde × marginal tax ÷ 12
             <rect x="1098.4" y="88.16" width="10.24" height="19.84" fill="#5a1a12" stroke="#f2efe8" stroke-width="2"/>
             <rect x="1102.24" y="62.8" width="5" height="7.920000000000001" fill="#232a36"/>
         </svg>
-        <p class="foot">A first draft. Numbers as of October 2026; nothing here is financial advice. <a href="../index.html">neskil.github.io</a></p>
+        <p class="foot"><span class="i18n-en">Numbers as of October 2026; nothing here is financial advice.</span><span class="i18n-sv">Siffror från oktober 2026; inget här är finansiell rådgivning.</span> <a href="../index.html">neskil.github.io</a></p>
     </div>
 
     <div class="tip" id="tip" hidden></div>

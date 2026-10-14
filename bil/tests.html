@@ -23,6 +23,7 @@
     <script type="module">
         import * as M from './js/model.js';
         import * as D from './js/data.js';
+        import * as I from './js/i18n.js';
 
         const results = document.getElementById('results');
         let passed = 0, failed = 0;
@@ -141,13 +142,13 @@
                 const short = M.priceAll({ ...D.DEFAULTS, horizon: 12 });
                 ok(route(short, 'lease').billed === 36 && near(route(short, 'lease').detail.value['leasing fee'], 36 * route(short, 'lease').monthly, 0.01), 'leaving a lease after a year still pays all 36 months');
                 ok(route(short, 'sub').billed === 12, 'a subscription past its minimum bills only what you use');
-                ok(route(M.priceAll({ ...D.DEFAULTS, horizon: 6 }), 'sub').billed === D.SUBSCRIPTION.minMonths, 'and before it, the minimum');
+                ok(route(M.priceAll({ ...D.DEFAULTS, horizon: 1, subMin: 3 }), 'sub').billed === 3, 'and before it, the minimum');
 
                 const over = M.priceAll({ ...D.DEFAULTS, mil: 2000, leaseMil: 1000 });
                 const ov = route(over, 'lease').detail.tax['övermil'];
                 ok(near(ov, 1000 * 3 * D.LEASE.overMil, 0.01), 'övermil: 1 000 mil a year over a 1 000 allowance for three years at 12 kr', Math.round(ov));
                 ok(M.leaseAllowance({ ...D.DEFAULTS, mil: 1250, leaseMil: null }) === 1500 && M.leaseAllowance({ ...D.DEFAULTS, mil: 900, leaseMil: null }) === 1000, 'the automatic allowance is the next 500-mil step, at least 1 000');
-                ok(M.leaseMonthly({ ...D.DEFAULTS, leaseQuote: 3690, leaseMil: 2000 }) === 3690 + 2 * 300, 'each 500 mil over 1 000 adds 300 kr');
+                ok(M.leaseMonthly({ ...D.DEFAULTS, leaseQuote: 3690, leaseMil: 2000 }) === 3690 + 2 * D.LEASE.stepPrice, `each 500 mil over 1 000 adds ${D.LEASE.stepPrice} kr`);
 
                 const petrolLease = route(M.priceAll({ ...D.DEFAULTS, powertrain: 'bensin', co2: 140, horizon: 36 }), 'lease');
                 ok(near(petrolLease.detail.tax.fordonsskatt, M.vehicleTax('bensin', 140, 0) * 3, 1), 'a leased petrol car pays malus for its whole term');
@@ -165,6 +166,9 @@
 
                 const city = M.priceAll({ ...D.DEFAULTS, congestion: 1000, parking: 500 });
                 ok(near(route(city, 'cash').components.city, 1500 * 36, 0.01) && route(city, 'nocar').components.city === 0, 'parking and congestion hit every car route but not going without');
+                const ins = (g, pt) => M.helInsurance({ ...D.DEFAULTS, group: g, powertrain: pt, insurance: null }, 500000);
+                ok(ins('evbrand', 'el') > ins('volvo', 'el') && ins('volvo', 'el') > ins('volvo', 'bensin'), 'a Tesla costs most to insure, and any EV more than its petrol twin');
+                ok(M.helInsurance({ ...D.DEFAULTS, insurance: 9000, young: true }, 500000) === 9000, 'a typed premium is used as it is');
                 ok(route(M.priceAll(D.DEFAULTS), 'nocar').mil < D.DEFAULTS.mil, 'going without covers fewer mil than you drive');
 
                 const bad = M.priceAll({ ...D.DEFAULTS, scenario: 'bad' }), good = M.priceAll({ ...D.DEFAULTS, scenario: 'good' });
@@ -191,6 +195,38 @@
                 ok(JSON.stringify(back) === JSON.stringify(s), 'a scenario survives a share link', M.encodeState(s));
                 const bad = M.decodeState('pt=rocket&pr=-5&h=abc&lt=<b>&zz=1');
                 ok(bad.powertrain === D.DEFAULTS.powertrain && bad.price === D.DEFAULTS.price && bad.horizon === D.DEFAULTS.horizon && bad.loanType === D.DEFAULTS.loanType, 'a broken link falls back to defaults rather than nonsense');
+            }
+
+            // ── Languages ──
+            section('Swedish and English');
+            {
+                /* Every label and reason the model can produce, across enough
+                   situations to reach all of them. */
+                const variants = [
+                    {}, { remark: true }, { income: false }, { card: false }, { savings: 0 }, { loanType: 'bolan' },
+                    { loanType: 'privatlan' }, { down: 5 }, { benefit: true, grossDeduction: 500 }, { horizon: 12 },
+                    { mil: 2500, leaseMil: 1000 }, { price: 200000, age: 6, powertrain: 'diesel', co2: 150 }, { exit: 'privat' },
+                    { congestion: 500 }, { leaseService: false }, { powertrain: 'bensin', co2: 130 }
+                ];
+                const labels = new Set(), codes = new Set();
+                for (const v of variants) {
+                    for (const r of M.priceAll({ ...D.DEFAULTS, ...v }).routes) {
+                        Object.values(r.detail).forEach(d => Object.keys(d).forEach(k => labels.add(k)));
+                        if (!r.gate.open) codes.add(r.gate.code);
+                    }
+                }
+                const missing = (lang) => [...labels].filter(k => !(k in I.LEDGER[lang]));
+                ok(missing('en').length === 0 && missing('sv').length === 0, `every ledger label reads in both languages (${labels.size})`, [...missing('en'), ...missing('sv')].join(', '));
+                ok([...codes].every(c => I.TEXT.en.gate[c] && I.TEXT.sv.gate[c]), `every closed-route reason reads in both languages (${codes.size})`, [...codes].filter(c => !I.TEXT.sv.gate[c]).join(', '));
+                const keys = (o) => Object.keys(o).sort().join();
+                ok(keys(I.TEXT.en) === keys(I.TEXT.sv) && keys(I.TEXT.en.gate) === keys(I.TEXT.sv.gate), 'the two dictionaries have the same keys');
+                ok(keys(I.ROUTE_SUB.en) === keys(I.ROUTE_SUB.sv) && D.ROUTES.every(r => I.ROUTE_SUB.sv[r.key]), 'every route has a description in both');
+                const sv = I.translator('sv'), en = I.translator('en');
+                ok(sv('kicker', 36, 1250).includes('månader') && en('kicker', 36, 1250).includes('months'), 'sentences come out in the language asked for');
+                ok(sv.gate({ code: 'savings', vars: { need: 5000 } }).startsWith('Kräver') && en.gate({ code: 'x', reason: 'fallback' }) === 'fallback', 'an unknown reason falls back to the model\'s English');
+                ok([D.POWERTRAINS, D.EXITS, D.LOANS, D.SCENARIOS, D.RESIDUAL_GROUPS].every(t => Object.values(t).every(v => v.label && v.sv)) && D.COMPONENTS.every(c => c.sv), 'every option has an English and a Swedish name');
+                ok(I.initialLang('?lang=sv', 'en', 'en-US') === 'sv' && I.initialLang('', 'en', 'sv-SE') === 'en' && I.initialLang('', null, 'sv-SE') === 'sv' && I.initialLang('?lang=xx', null, 'de') === 'en',
+                    'language: a link wins, then the last choice, then the browser');
             }
 
             // ── Data ──
