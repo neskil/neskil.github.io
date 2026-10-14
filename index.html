@@ -2447,6 +2447,16 @@
             padding: 1.5rem 1.75rem 2.5rem;
             z-index: 201;
             transition: transform 0.45s cubic-bezier(0.34, 1.15, 0.64, 1);
+            /* Four links and three switches outgrow a phone screen. Anchored to
+               the bottom with no cap, the top — the close button included —
+               slid off the screen, and with the page locked behind it nothing
+               could bring it back. Cap it under the viewport and let it scroll
+               itself; contain keeps the fling from chaining to the page. */
+            max-height: calc(100vh - 2rem);
+            max-height: calc(100dvh - 2rem);
+            overflow-y: auto;
+            overscroll-behavior: contain;
+            -webkit-overflow-scrolling: touch;
         }
 
         #vault-panel.open {
