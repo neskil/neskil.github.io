@@ -599,12 +599,153 @@ export function createJar(canvas, { onTap, reduceMotion }) {
         world.add(inst);
         return inst;
     })();
-    const flowers = scatter(new THREE.IcosahedronGeometry(0.012, 0), new THREE.MeshStandardMaterial({ roughness: 0.7 }), 60, (p, e, s, x, z) => {
-        p.set(x, groundH(x, z) + 0.03, z);
-        e.set(0, 0, 0);
-        s.set(1, 1, 1);
-        return lin([[250, 250, 240], [250, 214, 80], [240, 150, 190], [180, 160, 250]][Math.floor(R() * 4)]);
+    // The old flowers drew from the shared seeded stream; draw the same
+    // numbers here so the tree and everything after it keep their shape.
+    for (let k = 0; k < 60; k++) { let x, z; do { x = R() * 1.9 - 0.95; z = R() * 1.9 - 0.95; } while (!onMeadow(x, z)); R(); }
+
+    /* ── Plants that sway: flowers in small clumps, reeds by the pond ──
+       Each is one merged geometry whose vertices carry the part they belong
+       to (0 stem, 1 head, 2 accent), so one instanced draw colours a stem
+       green, a head by its instance colour and a centre yellow, and bends the
+       lot from the root in the same wind as the grass. */
+    function mergeParts(parts) {
+        const pos = [], nor = [], part = [];
+        for (const [g, k] of parts) {
+            const n = g.index ? g.toNonIndexed() : g;
+            n.computeVertexNormals();
+            pos.push(...n.attributes.position.array);
+            nor.push(...n.attributes.normal.array);
+            for (let i = 0; i < n.attributes.position.count; i++) part.push(k);
+        }
+        const geo = new THREE.BufferGeometry();
+        geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+        geo.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3));
+        geo.setAttribute('aPart', new THREE.Float32BufferAttribute(part, 1));
+        return geo;
+    }
+    function plantMat(height, stem, accent) {
+        const m = new THREE.MeshStandardMaterial({ roughness: 0.8, side: THREE.DoubleSide });
+        const sc = lin(stem), ac = lin(accent), v3 = (c) => `vec3(${c.r.toFixed(4)}, ${c.g.toFixed(4)}, ${c.b.toFixed(4)})`;
+        m.onBeforeCompile = (sh) => {
+            sh.uniforms.uTime = grassUniforms.uTime;
+            sh.uniforms.uWind = grassUniforms.uWind;
+            sh.vertexShader = 'uniform float uTime; uniform float uWind; attribute float aPart; varying float vPart; varying float vUp;\n' + sh.vertexShader.replace('#include <begin_vertex>', `#include <begin_vertex>
+                vPart = aPart;
+                vUp = clamp(position.y / ${height.toFixed(4)}, 0.0, 1.2);
+                float ph = instanceMatrix[3].x * 23.0 + instanceMatrix[3].z * 17.0;
+                float bend = vUp * vUp * ${(height / BLADE).toFixed(3)};
+                transformed.x += (sin(uTime * 1.7 + ph) + 0.6) * uWind * bend;
+                transformed.z += cos(uTime * 1.3 + ph * 1.3) * uWind * 0.5 * bend;`);
+            sh.fragmentShader = 'varying float vPart; varying float vUp;\n' + sh.fragmentShader.replace('#include <color_fragment>', `#include <color_fragment>
+                if (vPart < 0.5) diffuseColor.rgb = ${v3(sc)} * mix(0.5, 1.1, clamp(vUp, 0.0, 1.0));
+                else if (vPart > 1.5) diffuseColor.rgb = ${v3(ac)};`);
+        };
+        m.customProgramCacheKey = () => `plant${height}${stem}${accent}`;
+        return m;
+    }
+    function plant(geo, mat, spots) {
+        const inst = new THREE.InstancedMesh(geo, mat, spots.length);
+        const m = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), p = new THREE.Vector3(), s = new THREE.Vector3();
+        spots.forEach(({ x, z, size, lean, colour }, k) => {
+            p.set(x, groundH(x, z) - 0.004, z);
+            e.set(lean[0], lean[1], lean[2]);
+            q.setFromEuler(e);
+            s.setScalar(size);
+            m.compose(p, q, s);
+            inst.setMatrixAt(k, m);
+            inst.setColorAt(k, lin(colour));
+        });
+        inst.castShadow = true;
+        inst.receiveShadow = true;
+        world.add(inst);
+        return inst;
+    }
+    const RP = rng(808);
+    const FLOWER_H = 0.065;
+    const flowerGeo = (() => {
+        // Five rounded petals, cupped a little, on a thread of a stem.
+        const pos = [], petals = 5, seg = 40, rad = 0.016;
+        const at = (i) => {
+            const a = i / seg * 6.2832, r = rad * (0.3 + 0.7 * Math.pow(Math.abs(Math.cos(a * petals / 2)), 0.7));
+            return [Math.cos(a) * r, (r / rad) * 0.0018, Math.sin(a) * r];
+        };
+        for (let i = 0; i < seg; i++) pos.push(0, 0, 0, ...at(i + 1), ...at(i));
+        const head = new THREE.BufferGeometry();
+        head.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+        head.rotateX(0.35);
+        head.translate(0, FLOWER_H, 0);
+        const eye = new THREE.SphereGeometry(0.0048, 6, 4);
+        eye.scale(1, 0.6, 1);
+        eye.rotateX(0.35);
+        eye.translate(0, FLOWER_H + 0.0012, 0);
+        const stem = new THREE.CylinderGeometry(0.0013, 0.0018, FLOWER_H, 4);
+        stem.translate(0, FLOWER_H / 2, 0);
+        const leaf = new THREE.PlaneGeometry(0.004, 0.012);
+        leaf.translate(0.0025, 0.006, 0);
+        leaf.rotateZ(-0.6);
+        leaf.translate(0, FLOWER_H * 0.3, 0);
+        return mergeParts([[stem, 0], [leaf, 0], [head, 1], [eye, 2]]);
+    })();
+    const flowerSpots = [];
+    {
+        // Mostly daisies, some buttercups, the odd harebell-lilac, in clumps.
+        const PALETTE = [[[246, 243, 234], 0.6], [[240, 204, 96], 0.25], [[196, 182, 228], 0.15]];
+        const pick = () => { let r = RP(); for (const [c, w] of PALETTE) if ((r -= w) <= 0) return c; return PALETTE[0][0]; };
+        for (let c = 0; c < 11; c++) {
+            let cx, cz;
+            do { cx = RP() * 1.7 - 0.85; cz = RP() * 1.7 - 0.85; } while (!onMeadow(cx, cz));
+            const colour = pick();
+            const n = 2 + Math.floor(RP() * 4);
+            for (let k = 0; k < n; k++) {
+                const x = cx + (RP() - 0.5) * 0.08, z = cz + (RP() - 0.5) * 0.08;
+                if (!onMeadow(x, z)) continue;
+                flowerSpots.push({ x, z, size: 0.75 + RP() * 0.5, lean: [(RP() - 0.5) * 0.3, RP() * 6.28, (RP() - 0.5) * 0.3], colour: RP() < 0.85 ? colour : pick() });
+            }
+        }
+    }
+    const flowers = plant(flowerGeo, plantMat(FLOWER_H, [74, 124, 56], [236, 186, 52]), flowerSpots);
+
+    // Reeds and a few bulrushes on the far side of the pond, a pad or two on the water.
+    const REED_H = 0.15;
+    const reedGeo = (() => {
+        const blade = new THREE.ConeGeometry(0.0045, REED_H, 3);
+        blade.translate(0, REED_H / 2, 0);
+        return mergeParts([[blade, 0]]);
+    })();
+    const rushGeo = (() => {
+        const stalk = new THREE.CylinderGeometry(0.0018, 0.0026, REED_H, 4);
+        stalk.translate(0, REED_H / 2, 0);
+        const head = new THREE.CylinderGeometry(0.0065, 0.0065, 0.03, 8);
+        head.translate(0, REED_H * 0.8, 0);
+        return mergeParts([[stalk, 0], [head, 1]]);
+    })();
+    const reedSpots = [], rushSpots = [];
+    for (let k = 0; k < 40; k++) {
+        const a = Math.PI * (0.3 + RP() * 0.8), d = POND.r + RP() * 0.05;
+        const x = POND.x + Math.cos(a) * d, z = POND.z - Math.sin(a) * d;
+        const spot = { x, z, size: 0.55 + RP() * 0.6, lean: [(RP() - 0.5) * 0.35, RP() * 6.28, (RP() - 0.5) * 0.35], colour: [104, 72, 44] };
+        (k % 5 === 0 ? rushSpots : reedSpots).push(spot);
+    }
+    const reedMat = plantMat(REED_H, [96, 128, 62], [0, 0, 0]);
+    const reeds = plant(reedGeo, reedMat, reedSpots);
+    const rushes = plant(rushGeo, reedMat, rushSpots);
+    const padMat = new THREE.MeshStandardMaterial({ color: lin([70, 116, 58]), roughness: 0.55, side: THREE.DoubleSide });
+    const pads = [[0.07, -0.05, 0.034, 0.4], [0.11, 0.05, 0.026, 2.2], [-0.02, 0.1, 0.03, 4.1]].map(([dx, dz, r, rot]) => {
+        const pad = new THREE.Mesh(new THREE.CircleGeometry(r, 18, 0.25, 6.2832 - 0.5), padMat);
+        pad.rotation.set(-Math.PI / 2, 0, rot);
+        pad.position.set(POND.x + dx, WATER_Y + 0.0025, POND.z + dz);
+        pad.receiveShadow = true;
+        world.add(pad);
+        return pad;
     });
+    {
+        const bloom = new THREE.Mesh(flowerGeo, new THREE.MeshStandardMaterial({ color: lin([248, 214, 226]), roughness: 0.6, side: THREE.DoubleSide }));
+        bloom.position.set(0, 0, -FLOWER_H * 1.6 + 0.004);
+        bloom.scale.setScalar(1.6);
+        bloom.rotation.x = Math.PI / 2;
+        pads[0].add(bloom);
+    }
+
     const stoneMat = new THREE.MeshStandardMaterial({ color: lin([128, 124, 116]), roughness: 0.95, flatShading: true });
     for (const [x, z, s] of [[-0.62, 0.12, 0.05], [-0.14, 0.42, 0.035], [-0.58, 0.46, 0.03], [0.7, 0.2, 0.06], [0.3, 0.06, 0.028], [0.36, -0.08, 0.026], [0.27, 0.2, 0.03]]) {
         const st = new THREE.Mesh(new THREE.DodecahedronGeometry(s, 0), stoneMat);
@@ -933,6 +1074,78 @@ export function createJar(canvas, { onTap, reduceMotion }) {
         }
         pos.needsUpdate = true;
     }
+
+    /* ── Leaves that come down: steadily in autumn, a few on a tap any time ── */
+    const crownSpots = [];
+    world.updateMatrixWorld(true);
+    for (const c of cards) { const v = new THREE.Vector3(); c.getWorldPosition(v); world.worldToLocal(v); crownSpots.push(v); }
+    const NFALL = 18;
+    const oneLeaf = canvasTex(64, 64, (g, w) => {
+        g.translate(w / 2, w / 2); g.rotate(0.7);
+        g.fillStyle = '#ffffff';
+        g.beginPath(); g.moveTo(-30, 0); g.quadraticCurveTo(0, -17, 30, 0); g.quadraticCurveTo(0, 17, -30, 0); g.fill();
+        g.strokeStyle = 'rgba(110,110,110,0.6)'; g.lineWidth = 2;
+        g.beginPath(); g.moveTo(-30, 0); g.lineTo(30, 0); g.stroke();
+    });
+    const fallMat = new THREE.MeshStandardMaterial({ map: oneLeaf, alphaTest: 0.5, side: THREE.DoubleSide, roughness: 0.7 });
+    const fallGeo = new THREE.PlaneGeometry(0.034, 0.034);
+    const falling = new THREE.InstancedMesh(fallGeo, fallMat, NFALL);
+    falling.frustumCulled = false;
+    falling.castShadow = true;
+    const fallers = Array.from({ length: NFALL }, (_, k) => {
+        falling.setColorAt(k, new THREE.Color().setScalar(0.75 + R2() * 0.5));
+        return { on: false, x: 0, y: 0, z: 0, floor: 0, rest: 0, p: R2() * 6.28, spin: 1 + R2() * 2 };
+    });
+    let fallDue = 0;
+    world.add(falling);
+    const fallM = new THREE.Matrix4(), fallQ = new THREE.Quaternion(), fallE = new THREE.Euler(), fallP = new THREE.Vector3(), fallS = new THREE.Vector3();
+    function dropLeaf() {
+        const f = fallers.find(l => !l.on);
+        if (!f) return;
+        const c = crownSpots[Math.floor(R2() * crownSpots.length)];
+        f.on = true; f.rest = 0;
+        f.x = c.x + (R2() - 0.5) * 0.12; f.y = c.y - 0.04; f.z = c.z + (R2() - 0.5) * 0.12;
+        f.floor = groundH(f.x, f.z) + 0.004;
+    }
+
+    /* ── Birds, wheeling high on fine days ── */
+    const birdMat = new THREE.MeshBasicMaterial({ color: 0x25272e, side: THREE.DoubleSide, transparent: true });
+    const wingGeo = new THREE.BufferGeometry();
+    wingGeo.setAttribute('position', new THREE.Float32BufferAttribute([0, 0, 0.009, 0, 0, -0.009, 0.042, 0.003, -0.006], 3));
+    const birds = Array.from({ length: 3 }, (_, k) => {
+        const g = new THREE.Group();
+        const body = new THREE.Mesh(new THREE.SphereGeometry(0.0045, 6, 4), birdMat);
+        body.scale.set(1.2, 1, 3);
+        const left = new THREE.Mesh(wingGeo, birdMat), right = new THREE.Mesh(wingGeo, birdMat);
+        right.scale.x = -1;
+        g.add(body, left, right);
+        g.visible = false;
+        world.add(g);
+        return { g, left, right, a: k * 0.5 + R2() * 0.3, r: 0.42 + k * 0.08, y: 1.8 + R2() * 0.14, p: R2() * 6.28 };
+    });
+    let birdsShown = 0;
+
+    /* ── A rainbow, when it rains with the sun out ──
+       Always on the far side of the jar from whoever is looking, as a real
+       one stands opposite the sun from you; the hills hide its feet. */
+    const RB_IN = 0.64, RB_OUT = 0.76;
+    const rainbow = new THREE.Mesh(new THREE.RingGeometry(RB_IN, RB_OUT, 64, 1, 0, Math.PI), new THREE.ShaderMaterial({
+        transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide,
+        uniforms: { uOpacity: { value: 0 } },
+        vertexShader: 'varying vec2 vP; void main() { vP = position.xy; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+        fragmentShader: `uniform float uOpacity; varying vec2 vP;
+            void main() {
+                float t = (length(vP) - ${RB_IN.toFixed(3)}) / ${(RB_OUT - RB_IN).toFixed(3)};
+                vec3 c = clamp(vec3(abs(t * 6.0 - 3.0) - 1.0, 2.0 - abs(t * 6.0 - 2.0), 2.0 - abs(t * 6.0 - 4.0)), 0.0, 1.0);
+                float edge = smoothstep(0.0, 0.25, t) * smoothstep(1.0, 0.75, t);
+                float feet = smoothstep(0.0, 0.35, vP.y / ${RB_OUT.toFixed(3)});
+                gl_FragColor = vec4(c * edge * feet * uOpacity, 1.0);
+            }`,
+    }));
+    rainbow.visible = false;
+    world.add(rainbow);
+    let rainbowA = 0;
+    const eye = new THREE.Vector3();
 
     /* ── The sheep, the worm, and the occasional saucer ── */
     const visitors = createVisitors({ world, shell, groundH, onMeadow: (x, z) => onMeadow(x, z) && Math.hypot(x - TREE.x, z - TREE.z) > 0.09, envMap: envTex, rand: R2 });
@@ -1512,6 +1725,76 @@ export function createJar(canvas, { onTap, reduceMotion }) {
             }
             pos.needsUpdate = true;
         }
+
+        // Leaves coming down: a steady fall in autumn, a flurry when the jar is tapped.
+        if (!still && snowCover < 0.5) {
+            fallDue += dt * (cold > 0.25 ? 0.6 + cold * 1.6 + w.wind * 0.1 : 0) + (gust > 0.9 ? dt * 25 : 0);
+            while (fallDue >= 1) { fallDue -= 1; dropLeaf(); }
+        }
+        {
+            let any = false;
+            fallers.forEach((f, k) => {
+                if (!f.on) { fallM.makeScale(0, 0, 0); falling.setMatrixAt(k, fallM); return; }
+                any = true;
+                let flat = 0, fade = 1;
+                if (f.y > f.floor) {
+                    // A sideways flutter as it falls, carried with the wind.
+                    f.y -= (0.1 + 0.04 * Math.sin(t * 3 + f.p)) * dt;
+                    f.x += (Math.sin(t * 2.1 + f.p) * 0.06 + w.wind * 0.004 + gust * 0.15) * dt;
+                    f.z += Math.cos(t * 1.7 + f.p) * 0.04 * dt;
+                    if (Math.hypot(f.x, f.z) > 0.9) { const s = 0.9 / Math.hypot(f.x, f.z); f.x *= s; f.z *= s; }
+                    f.floor = groundH(f.x, f.z) + 0.004;
+                    if (f.y <= f.floor) f.y = f.floor;
+                } else {
+                    flat = 1;
+                    f.rest += dt;
+                    fade = clamp01(1 - (f.rest - 4) / 2);
+                    if (fade <= 0) f.on = false;
+                }
+                fallE.set(flat ? -Math.PI / 2 : Math.sin(t * f.spin + f.p) * 1.1, f.p, flat ? 0 : Math.cos(t * f.spin * 0.8 + f.p) * 0.9);
+                fallQ.setFromEuler(fallE);
+                fallP.set(f.x, f.y, f.z);
+                fallS.setScalar(fade);
+                fallM.compose(fallP, fallQ, fallS);
+                falling.setMatrixAt(k, fallM);
+            });
+            falling.visible = any;
+            falling.instanceMatrix.needsUpdate = true;
+            setLin(fallMat.color, [70 + 150 * cold, 150 - 40 * cold, 80 - 40 * cold]);
+        }
+
+        // Birds on fine days.
+        const birdWant = day > 0.6 && w.rain <= 0 && w.snow <= 0 && !w.storm && w.fog < 0.3 ? 1 : 0;
+        birdsShown += (birdWant - birdsShown) * Math.min(1, dt * 0.5);
+        birdMat.opacity = birdsShown;
+        for (const b of birds) {
+            b.g.visible = birdsShown > 0.02;
+            if (!b.g.visible) continue;
+            b.a += dt * (still ? 0.03 : 0.22) * (0.5 / b.r);
+            const yy = b.y + Math.sin(t * 0.5 + b.p) * 0.03;
+            b.g.position.set(Math.cos(b.a) * b.r, yy, Math.sin(b.a) * b.r);
+            b.g.rotation.set(0, -b.a, 0.25);
+            // Flap for a while, then glide.
+            const flap = still || Math.sin(t * 0.7 + b.p) > 0.3 ? 0.15 : Math.sin(t * 14 + b.p) * 0.7;
+            b.left.rotation.z = flap; b.right.rotation.z = -flap;
+        }
+
+        // The rainbow.
+        const bowWant = w.rain > 0 && !w.storm && sun.el > 3 ? clamp01((sun.el - 3) / 6) * (1 - clamp01((w.cloud - 0.6) / 0.4) * 0.55) * (1 - w.fog) : 0;
+        rainbowA += (bowWant - rainbowA) * Math.min(1, dt * 0.4);
+        rainbow.visible = rainbowA > 0.01;
+        if (rainbow.visible) {
+            eye.copy(camera.position);
+            world.worldToLocal(eye);
+            const ang = Math.atan2(eye.x, eye.z);
+            rainbow.position.set(-Math.sin(ang) * 0.5, BASE - 0.06, -Math.cos(ang) * 0.5);
+            rainbow.rotation.set(0, ang, 0);
+            rainbow.material.uniforms.uOpacity.value = rainbowA * 0.45;
+        }
+
+        // The pond's plants: pads hide under ice, reeds pale in the snow.
+        for (const pad of pads) { pad.visible = !frozen; pad.position.y = WATER_Y + 0.0025 + Math.sin(t * 0.8 + pad.rotation.z) * 0.0008; }
+        reedMat.emissive.setScalar(Math.min(0.35, snowCover * 0.4));
 
         if (summonAt >= 0 && t >= summonAt) { summonAt = -1; visitors.summon(); }
         visitors.update(dt, t, { snow: snowCover, still, day, w });
