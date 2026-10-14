@@ -1061,15 +1061,36 @@ export function createJar(canvas, { onTap, reduceMotion }) {
     room.add(floorShadow);
 
     /* ── Turning the jar ── */
-    const view = { turn: 0, spin: 0, tilt: 13, idle: 0 };
+    const view = { turn: 0, spin: 0, tilt: 13, idle: 0, zoom: 1 };
     // The jar swings round into place as the page opens, while the camera
     // settles from a little higher; then the slow idle turn carries on.
     const INTRO = { from: -1.25, tilt: 24, len: 3.4 };
     let intro = reduceMotion() || /[?&]intro=0\b/.test(location.search) ? null : 0;
     if (intro !== null) { view.turn = INTRO.from; view.tilt = INTRO.tilt; }
     const press = { id: null, x: 0, y: 0, moved: 0, mouse: false };
+    // Two fingers pinch the camera in and out; so does a trackpad pinch,
+    // which browsers report as a wheel event with ctrlKey set.
+    const ZOOM = { min: 0.42, max: 1.5 };
+    const touches = new Map();
+    const pinch = { on: false, dist: 1, from: 1 };
+    const spread = () => {
+        const [a, b] = [...touches.values()];
+        return Math.max(1, Math.hypot(a.x - b.x, a.y - b.y));
+    };
+    const zoomTo = (z) => { view.zoom = Math.max(ZOOM.min, Math.min(ZOOM.max, z)); };
     canvas.addEventListener('pointerdown', (e) => {
         intro = null;
+        if (e.pointerType === 'touch') {
+            touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
+            if (touches.size === 2) {
+                // A second finger turns the turn into a pinch, and the press stops being a tap.
+                pinch.on = true; pinch.dist = spread(); pinch.from = view.zoom;
+                press.moved = Infinity;
+                view.spin = 0;
+                return;
+            }
+            if (touches.size > 2) return;
+        }
         press.id = e.pointerId; press.x = e.clientX; press.y = e.clientY; press.moved = 0; press.mouse = e.pointerType === 'mouse';
         view.spin = 0;
         view.idle = 0;
@@ -1077,6 +1098,13 @@ export function createJar(canvas, { onTap, reduceMotion }) {
         canvas.classList.add('turning');
     });
     canvas.addEventListener('pointermove', (e) => {
+        const finger = touches.get(e.pointerId);
+        if (finger) { finger.x = e.clientX; finger.y = e.clientY; }
+        if (pinch.on) {
+            if (touches.size >= 2) zoomTo(pinch.from * pinch.dist / spread());
+            view.idle = 0;
+            return;
+        }
         if (press.id !== e.pointerId) return;
         const dx = e.clientX - press.x, dy = e.clientY - press.y;
         press.x = e.clientX; press.y = e.clientY;
@@ -1088,6 +1116,15 @@ export function createJar(canvas, { onTap, reduceMotion }) {
     });
     const taps = [];
     const release = (e) => {
+        touches.delete(e.pointerId);
+        if (pinch.on && touches.size < 2) {
+            // Lifting one finger of a pinch ends it; the other one doesn't start turning.
+            pinch.on = false;
+            if (press.id !== null && press.id !== e.pointerId) {
+                const rest = touches.get(press.id);
+                if (rest) { press.x = rest.x; press.y = rest.y; }
+            }
+        }
         if (press.id !== e.pointerId) return;
         press.id = null;
         canvas.classList.remove('turning');
@@ -1102,6 +1139,17 @@ export function createJar(canvas, { onTap, reduceMotion }) {
     };
     canvas.addEventListener('pointerup', release);
     canvas.addEventListener('pointercancel', release);
+    // The canvas lets vertical drags scroll the page; with two fingers down
+    // the gesture is ours, so keep the browser from scrolling or zooming it.
+    canvas.addEventListener('touchmove', (e) => { if (e.touches.length > 1) e.preventDefault(); }, { passive: false });
+    canvas.addEventListener('gesturestart', (e) => e.preventDefault());
+    canvas.addEventListener('wheel', (e) => {
+        if (!e.ctrlKey) return; // a plain wheel still scrolls the page
+        e.preventDefault();
+        intro = null;
+        view.idle = 0;
+        zoomTo(view.zoom * Math.exp(e.deltaY * 0.01));
+    }, { passive: false });
 
     /* ── Sizing ── */
     let fitDist = 10;
@@ -1142,7 +1190,8 @@ export function createJar(canvas, { onTap, reduceMotion }) {
         }
         world.rotation.y = shell.rotation.y = view.turn;
         const tilt = view.tilt * Math.PI / 180;
-        camera.position.set(0, 1.42 + Math.sin(tilt) * fitDist, Math.cos(tilt) * fitDist);
+        const dist = fitDist * view.zoom;
+        camera.position.set(0, 1.42 + Math.sin(tilt) * dist, Math.cos(tilt) * dist);
         camera.lookAt(0, 1.42, 0);
 
         // Sky.
@@ -1423,7 +1472,7 @@ export function createJar(canvas, { onTap, reduceMotion }) {
             if (!inner.fog) inner.fog = new THREE.Fog(0xffffff, 1, 2);
             const hz = sun.colours.horizon;
             setLin(inner.fog.color, [0, 1, 2].map(i => hz[i] * 0.5 + 105), 0.4 + 0.6 * day);
-            inner.fog.near = fitDist - 1.1;
+            inner.fog.near = dist - 1.1;
             inner.fog.far = inner.fog.near + 2.2 / Math.max(0.05, w.fog);
         } else inner.fog = null;
 
