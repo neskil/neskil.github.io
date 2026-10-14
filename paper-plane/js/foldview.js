@@ -1,6 +1,9 @@
 // Paper Plane Glider — the folding table. Draws the sheet, takes the drag
 // that is a fold, previews where the flap will land, and animates the flap
 // swinging over before handing the fold to the app to apply.
+// With a mouse, letting go makes the crease. On a touch screen letting go only
+// places the fold: it stays on the sheet as a preview, the tip can be dragged
+// again to adjust it, and the app's Fold button (fold()) makes it.
 import { SHEET, planFold, mirroredPlans, facetAt, snapGrab, snapTarget, mirrorPoint, bounds } from './fold.js';
 
 const FOLD_MS = 560;
@@ -9,11 +12,12 @@ export class FoldView {
     constructor(canvas, hooks) {
         this.canvas = canvas;
         this.ctx = canvas.getContext('2d');
-        this.hooks = hooks;           // { canFold(), mirror(), onFold(S, T), onMessage(text) }
+        this.hooks = hooks;           // { canFold(), mirror(), onFold(S, T), onMessage(text), onPlaced(bool) }
         this.paper = null;
         this.cg = null;
         this.guide = null;            // { S, T, mirrored }
         this.drag = null;
+        this.placed = null;           // a touch fold waiting for the Fold button: { S, T, snap }
         this.anim = null;
         this.reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
         this.dpr = 1;
@@ -69,6 +73,8 @@ export class FoldView {
     }
 
     setPaper(paper, cg) {
+        // A placed fold was planned on the old sheet; it means nothing now.
+        if (paper !== this.paper) this.setPlaced(null);
         this.paper = paper;
         this.cg = cg;
         const e = this.paperExtent(), was = this.extent;
@@ -77,11 +83,47 @@ export class FoldView {
     }
     setGuide(g) { this.guide = g; this.draw(); }
 
+    setPlaced(p) {
+        const had = !!this.placed;
+        this.placed = p;
+        if (had !== !!p && this.hooks.onPlaced) this.hooks.onPlaced(!!p);
+    }
+
+    /** Makes the placed fold (the Fold button). */
+    fold() {
+        const p = this.placed;
+        if (!p || this.anim) return;
+        this.setPlaced(null);
+        this.play(p.S, p.T);
+    }
+
+    /** Lifts the placed fold off the sheet without making it. */
+    cancel() {
+        this.setPlaced(null);
+        this.draw();
+    }
+
     /* ── Input ── */
     down(e) {
         if (!this.paper || this.anim || !this.hooks.canFold()) return;
         const p = this.toPaper(e);
         const mm = 1 / this.scale;
+        // Pressing on a placed fold's arrowhead picks it up again to adjust
+        // where it lands (either arrow, if it is mirrored).
+        const pl = this.placed;
+        if (pl) {
+            const tips = [[pl.S, pl.T]];
+            if (this.hooks.mirror()) tips.push([mirrorPoint(pl.S), mirrorPoint(pl.T)]);
+            for (const [S, T] of tips) {
+                if (Math.hypot(T[0] - p[0], T[1] - p[1]) < 30 * mm) {
+                    this.canvas.setPointerCapture(e.pointerId);
+                    this.drag = { id: e.pointerId, S, T, snap: pl.snap, touch: true };
+                    e.preventDefault();
+                    this.draw();
+                    return;
+                }
+            }
+        }
         if (!facetAt(this.paper, p[0], p[1], 14 * mm)) return;
         let S = snapGrab(this.paper, p, 18 * mm);
         // Close to the guide's start point: take it exactly.
@@ -89,7 +131,7 @@ export class FoldView {
             for (const g of this.guideStarts()) if (Math.hypot(g[0] - S[0], g[1] - S[1]) < 22 * mm) S = g;
         }
         this.canvas.setPointerCapture(e.pointerId);
-        this.drag = { id: e.pointerId, S, T: S, snap: null };
+        this.drag = { id: e.pointerId, S, T: S, snap: null, touch: e.pointerType !== 'mouse' };
         e.preventDefault();
     }
 
@@ -136,13 +178,20 @@ export class FoldView {
     up(e) {
         const d = this.drag;
         this.drag = null;
+        // Too short to be a fold: a tap, which leaves any placed fold as it was.
         if (!d || Math.hypot(d.T[0] - d.S[0], d.T[1] - d.S[1]) < 3) { this.draw(); return; }
+        if (d.touch) {
+            this.setPlaced({ S: d.S, T: d.T, snap: d.snap });
+            this.draw();
+            return;
+        }
         this.play(d.S, d.T);
     }
 
     /** Animates a fold, then hands it to the app. Also used by "Show me" and
         the fold library, which say for themselves whether it is mirrored. */
     play(S, T, opts = {}) {
+        this.setPlaced(null);
         const centre = Math.abs(S[0]) < 0.75 && Math.abs(T[0]) < 0.75;
         const mirrored = (opts.mirrored ?? this.hooks.mirror()) && !centre;
         const r = this.plansFor(S, T, mirrored);
@@ -165,7 +214,7 @@ export class FoldView {
             this.anim.theta = Math.PI * (k < 0.5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2);
             this.draw();
             if (k >= 1) this.anim.finish();
-        } else if (this.guide && !this.drag) {
+        } else if (this.guide && !this.drag && !this.placed) {
             this.draw(now);   // the guide arrow breathes
         }
         requestAnimationFrame(this.loop);
@@ -216,8 +265,8 @@ export class FoldView {
 
         this.centreLine();
         if (this.cg && !this.anim) this.balanceMarker();
-        if (this.guide && !this.drag && !this.anim) this.guideArrow(now);
-        if (this.drag) this.preview();
+        if (this.guide && !this.drag && !this.placed && !this.anim) this.guideArrow(now);
+        if ((this.drag || this.placed) && !this.anim) this.preview();
     }
 
     /** One facet: polygon `pts` (current paper coords) with the printed sheet
@@ -301,7 +350,7 @@ export class FoldView {
     }
 
     preview() {
-        const d = this.drag;
+        const d = this.drag || this.placed;
         if (Math.hypot(d.T[0] - d.S[0], d.T[1] - d.S[1]) < 2) return;
         const mirrored = this.hooks.mirror() && !(Math.abs(d.S[0]) < 0.75 && Math.abs(d.T[0]) < 0.75);
         const r = this.plansFor(d.S, d.T, mirrored);
