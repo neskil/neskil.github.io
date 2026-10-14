@@ -780,13 +780,9 @@ export function createJar(canvas, { onTap, reduceMotion }) {
     });
     barkTex.wrapS = barkTex.wrapT = THREE.RepeatWrapping;
     const bark = new THREE.MeshStandardMaterial({ color: lin([110, 78, 56]), roughness: 0.95, map: barkTex, bumpMap: barkTex, bumpScale: 0.003 });
-    const leafMats = [0.82, 1, 1.15].map(() => new THREE.MeshStandardMaterial({ color: 0x4a9a50, roughness: 0.75, flatShading: true }));
-    const leafMat = leafMats[1];
-    const leafSnowMat = new THREE.MeshStandardMaterial({ color: 0xf6f8ff, roughness: 0.8, transparent: true, opacity: 0, flatShading: true });
-    const leafGeo = new THREE.IcosahedronGeometry(1, 1);
     // Foliage as cards: a few dozen small quads per twig, each carrying a
-    // drawing of a handful of leaves, cut out with alphaTest. The blob under
-    // them stays, smaller, to give the crown a body and to hold the snow.
+    // drawing of a handful of leaves, cut out with alphaTest. Snow settles on
+    // the cards that face the sky.
     const leafTex = canvasTex(256, 256, (g, w) => {
         const Rl = rng(53);
         for (let k = 0; k < 16; k++) {
@@ -800,7 +796,18 @@ export function createJar(canvas, { onTap, reduceMotion }) {
             g.restore();
         }
     });
-    const cardMats = [0.82, 1, 1.15].map(() => new THREE.MeshStandardMaterial({ map: leafTex, alphaTest: 0.5, side: THREE.DoubleSide, roughness: 0.7, color: 0x4a9a50 }));
+    const leafSnow = { value: 0 };
+    const cardMats = [0.82, 1, 1.15].map(() => {
+        const m = new THREE.MeshStandardMaterial({ map: leafTex, alphaTest: 0.5, side: THREE.DoubleSide, roughness: 0.7, color: 0x4a9a50 });
+        m.onBeforeCompile = (sh) => {
+            sh.uniforms.uSnow = leafSnow;
+            sh.vertexShader = 'varying float vSky;\n' + sh.vertexShader.replace('#include <beginnormal_vertex>', `#include <beginnormal_vertex>
+                vSky = normalize((modelMatrix * vec4(objectNormal, 0.0)).xyz).y;`);
+            sh.fragmentShader = 'uniform float uSnow; varying float vSky;\n' + sh.fragmentShader.replace('#include <color_fragment>', `#include <color_fragment>
+                diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.93, 0.95, 1.0), uSnow * smoothstep(0.1, 0.6, vSky));`);
+        };
+        return m;
+    });
     const cardDepth = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking, map: leafTex, alphaTest: 0.5 });
     function leafCards(n, spread) {
         const pos = [], uv = [], nor = [], idx = [];
@@ -828,7 +835,7 @@ export function createJar(canvas, { onTap, reduceMotion }) {
         return geo;
     }
     const cards = [];
-    const branches = [], leaves = [];
+    const branches = [];
     const treeRoot = new THREE.Group();
     treeRoot.position.set(TREE.x, groundH(TREE.x, TREE.z) - 0.01, TREE.z);
     world.add(treeRoot);
@@ -844,21 +851,10 @@ export function createJar(canvas, { onTap, reduceMotion }) {
         tip.position.y = len;
         g.add(tip);
         if (depth <= 1) {
-            for (let k = 0; k < 3; k++) {
-                const lf = new THREE.Mesh(leafGeo, leafMats[leaves.length % 3]);
-                const s = 0.07 + R() * 0.04;
-                lf.scale.set(s, s * 0.85, s);
-                lf.position.set((R() - 0.5) * 0.09, 0.02 + R() * 0.05, (R() - 0.5) * 0.09);
-                lf.rotation.set(R() * 3, R() * 3, R() * 3);
-                lf.castShadow = true;
-                const cap = new THREE.Mesh(leafGeo, leafSnowMat);
-                cap.scale.set(0.82, 0.38, 0.82);
-                cap.position.y = 0.55;
-                lf.add(cap);
-                tip.add(lf);
-                leaves.push(lf);
-                lf.scale.multiplyScalar(0.6);
-            }
+            // Three solid blobs used to sit under the cards here and showed
+            // through as balls; they are gone, but they drew from the seeded
+            // stream, so draw the same numbers to keep every branch where it was.
+            for (let k = 0; k < 21; k++) R();
             const crown = new THREE.Mesh(leafCards(40, 0.1), cardMats[cards.length % 3]);
             crown.position.y = 0.04;
             crown.castShadow = true;
@@ -1577,7 +1573,7 @@ export function createJar(canvas, { onTap, reduceMotion }) {
         snowGround.visible = snowCover > 0.01;
         roofSnowMat.opacity = Math.min(1, snowCover * 1.4);
         roofSnow.visible = snowCover > 0.02;
-        leafSnowMat.opacity = Math.min(0.9, snowCover * 1.1);
+        leafSnow.value = Math.min(0.9, snowCover * 1.1);
         const frozen = snowCover > 0.6 && (w.temp ?? 5) < 0;
         if (frozen) {
             waterMat.color.setRGB(0.72, 0.8, 0.88);
@@ -1603,13 +1599,11 @@ export function createJar(canvas, { onTap, reduceMotion }) {
         const foliage = [70 + 150 * cold, 150 - 40 * cold, 80 - 40 * cold];
         const pink = (amount) => foliage.map((v, j) => v + ([255, 168, 198][j] - v) * bl * amount);
         [0.82, 1, 1.15].forEach((k, i) => {
-            setLin(leafMats[i].color, pink(0.25), k * 0.75);
             setLin(cardMats[i].color, pink([0.9, 0.2, 0.9][i]), k);
             // Leaves let light through: a little glow of their own when the sun is up.
             cardMats[i].emissive.copy(cardMats[i].color).multiplyScalar(0.12 + 0.2 * day);
         });
         const keep = 1 - Math.min(0.8, snowCover);
-        leaves.forEach((lf, i) => { lf.visible = (i * 37 % 100) / 100 <= keep; });
         cards.forEach((c, i) => { c.visible = (i * 37 % 100) / 100 <= keep; });
         const sway = (Math.sin(t * (1.2 + w.wind * 0.12)) * 0.5 + 0.5) * (0.01 + w.wind * 0.012) + gust * 0.12;
         for (const b of branches) b.g.rotation.z = b.z + sway * (6 - b.depth) * 0.22;
