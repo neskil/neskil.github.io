@@ -94,6 +94,21 @@ export function moonPhase(date) {
     return ((days % synodic) + synodic) % synodic / synodic;
 }
 
+/** The time of year at the jar, as two dials for the scene: blossom on the
+    tree, 0..1 and at its height in late April, and how much of the meadow
+    is in flower, from a quarter in deep winter to all of it in early summer.
+    Six months on in the southern hemisphere. */
+export function seasonOf(date, lat) {
+    let doy = (date.getTime() - Date.UTC(date.getUTCFullYear(), 0, 1)) / 86400000;
+    if (lat < 0) doy = (doy + 182.6) % 365.25;
+    const near = (peak, width) => {
+        let d = Math.abs(doy - peak);
+        d = Math.min(d, 365.25 - d);
+        return Math.max(0, 1 - (d / width) * (d / width));
+    };
+    return { blossom: near(115, 24), bloom: 0.25 + 0.75 * near(175, 110) };
+}
+
 /* ── Sky colour ──────────────────────────────────────────────────────────
    Keyed on sun elevation, so dusk in Stockholm in June lasts as long as it
    does there. Each stop is [elevation°, top colour, horizon colour]. Cloud

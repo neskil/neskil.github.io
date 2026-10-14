@@ -70,6 +70,16 @@
             ok(Math.min(nw, 1 - nw) < 0.03, 'new at the February 2026 solar eclipse', nw.toFixed(3));
         }
 
+        // ── The time of year ──
+        {
+            const at = (m, d, lat = 59.3) => W.seasonOf(new Date(Date.UTC(2026, m, d)), lat);
+            ok(at(3, 25).blossom > 0.95, 'the tree is in blossom in late April', at(3, 25).blossom.toFixed(2));
+            ok(at(5, 20).blossom === 0 && at(9, 12).blossom === 0, 'and not in midsummer or October');
+            ok(at(5, 24).bloom > 0.95 && at(11, 20).bloom === 0.25, 'the meadow is in full flower at midsummer, a quarter of it in December');
+            ok(at(3, 25, -33.9).blossom === 0 && at(9, 25, -33.9).blossom > 0.9, 'the southern spring blossoms in October');
+            ok(at(11, 20, -33.9).bloom > at(5, 20, -33.9).bloom, 'and flowers at Christmas');
+        }
+
         // ── Sky colours ──
         {
             const clear = W.describe(0), storm = W.describe(95);

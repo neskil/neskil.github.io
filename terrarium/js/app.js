@@ -3,7 +3,7 @@
 import {
     PRESETS, describe, sunElevation, sunAzimuthish, moonPhase, skyColours,
     guessPlace, forecastUrl, geocodeUrl, fromForecast, offlineGuess,
-    localTime, nextSnowCover,
+    localTime, nextSnowCover, seasonOf,
 } from './weather.js';
 import { createJar } from './scene.js';
 
@@ -48,7 +48,7 @@ function frame(dt) {
     state.gust = Math.max(0, state.gust - dt * 0.8);
 
     jar.setTag(state.place ? state.place.name : '…');
-    jar.render({ w, sun, snowCover: state.snowCover, gust: state.gust, t, dt });
+    jar.render({ w, sun, season: seasonOf(date, lat), snowCover: state.snowCover, gust: state.gust, t, dt });
 
     updateCard(w, date, offset, elev);
 }

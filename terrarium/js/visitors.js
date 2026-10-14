@@ -1,6 +1,7 @@
 // Pocket Weather Terrarium — who else lives in the jar. A sheep grazes the
-// meadow, butterflies come out on warm dry days, an earthworm works its way
-// round the soil against the glass, and every few minutes (or after five
+// meadow, butterflies come out on warm dry days, a duck and her duckling
+// paddle round the pond until it freezes, an earthworm works its way round
+// the soil against the glass, and every few minutes (or after five
 // quick taps on the glass) something comes down out of the jar's sky for the
 // sheep. It brings her back.
 //
@@ -20,7 +21,7 @@ const SHEEP_SIZE = 1.7;
 const UFO_SIZE = 1.5;
 const HOVER = 0.62;       // how high the saucer stops over her
 
-export function createVisitors({ world, shell, groundH, onMeadow, envMap, rand }) {
+export function createVisitors({ world, shell, groundH, onMeadow, envMap, rand, pond }) {
     /* ── The sheep ── */
     const sheep = new THREE.Group();
     const body = new THREE.Group();
@@ -145,6 +146,111 @@ export function createVisitors({ world, shell, groundH, onMeadow, envMap, rand }
         if (flock.drop > 0) {
             flock.drop = Math.max(0, flock.drop - dt * 1.6);
             sheep.position.y += ease(flock.drop) * 0.35;
+        }
+    }
+
+    /* ── A duck and her duckling on the pond ──
+       She picks a spot on open water, turns towards it and paddles over,
+       steering clear of the lily pads; the duckling keeps a little way
+       behind her. A V of wake spreads behind each while they move. Gone
+       while the pond is frozen; still, heads down, at night. */
+    const wakeTex = (() => {
+        const c = document.createElement('canvas');
+        c.width = c.height = 64;
+        const g = c.getContext('2d');
+        for (const s of [-1, 1]) {
+            const gr = g.createLinearGradient(32, 0, 32 + s * 26, 64);
+            gr.addColorStop(0, 'rgba(255,255,255,0.9)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
+            g.strokeStyle = gr; g.lineWidth = 3; g.lineCap = 'round';
+            g.beginPath(); g.moveTo(32, 2); g.lineTo(32 + s * 26, 62); g.stroke();
+        }
+        const tex = new THREE.CanvasTexture(c);
+        return tex;
+    })();
+    function duck(plumage, crown, bill, size) {
+        const g = new THREE.Group();
+        const feathers = new THREE.MeshStandardMaterial({ color: lin(plumage), roughness: 0.85 });
+        const dark = new THREE.MeshStandardMaterial({ color: lin(crown), roughness: 0.8 });
+        const body = new THREE.Mesh(new THREE.SphereGeometry(1, 14, 10), feathers);
+        body.scale.set(0.015, 0.011, 0.024);
+        body.position.y = 0.004;
+        const tail = new THREE.Mesh(new THREE.ConeGeometry(0.008, 0.016, 6), feathers);
+        tail.rotation.x = -2.1;
+        tail.position.set(0, 0.01, -0.024);
+        const head = new THREE.Group();
+        head.position.set(0, 0.018, 0.016);
+        const skull = new THREE.Mesh(new THREE.SphereGeometry(0.0095, 12, 8), dark);
+        const beak = new THREE.Mesh(new THREE.BoxGeometry(0.008, 0.003, 0.011), new THREE.MeshStandardMaterial({ color: lin(bill), roughness: 0.5 }));
+        beak.position.set(0, -0.002, 0.011);
+        head.add(skull, beak);
+        for (const sx of [-1, 1]) {
+            const eye = new THREE.Mesh(new THREE.SphereGeometry(0.0016, 6, 4), new THREE.MeshBasicMaterial({ color: 0x111111 }));
+            eye.position.set(sx * 0.0078, 0.002, 0.004);
+            head.add(eye);
+        }
+        const wake = new THREE.Mesh(new THREE.PlaneGeometry(0.07, 0.09), new THREE.MeshBasicMaterial({ map: wakeTex, transparent: true, depthWrite: false, opacity: 0 }));
+        wake.rotation.x = -Math.PI / 2;
+        wake.position.set(0, -0.0035, -0.035);
+        g.add(body, tail, head, wake);
+        for (const m of [body, tail, skull]) m.castShadow = true;
+        g.scale.setScalar(size);
+        return { g, head, wake, size, x: pond.x, z: pond.z, heading: rand() * 6.28, speed: 0 };
+    }
+    const ducks = new THREE.Group();
+    world.add(ducks);
+    const hen = duck([132, 100, 70], [96, 72, 50], [214, 140, 52], 1);
+    const chick = duck([236, 206, 92], [214, 180, 70], [150, 110, 60], 0.55);
+    ducks.add(hen.g, chick.g);
+    hen.x = pond.x - pond.r * 0.3; hen.z = pond.z;
+    chick.x = hen.x - 0.04; chick.z = hen.z;
+    const paddle = { tx: hen.x, tz: hen.z, wait: 2, shown: -1 };
+    const openWater = (x, z) => Math.hypot(x - pond.x, z - pond.z) < pond.r * 0.68
+        && pond.avoid.every(([px, pz, pr]) => Math.hypot(x - px, z - pz) > pr + 0.022);
+    function pickWater() {
+        for (let tries = 0; tries < 30; tries++) {
+            const a = rand() * 6.283, r = Math.sqrt(rand()) * pond.r * 0.68;
+            const x = pond.x + Math.cos(a) * r, z = pond.z + Math.sin(a) * r;
+            let clear = true;
+            for (let k = 1; k <= 8 && clear; k++) clear = openWater(hen.x + (x - hen.x) * k / 8, hen.z + (z - hen.z) * k / 8);
+            if (clear) { paddle.tx = x; paddle.tz = z; return; }
+        }
+    }
+    function swim(d, tx, tz, top, dt) {
+        const dx = tx - d.x, dz = tz - d.z, dist = Math.hypot(dx, dz);
+        let want = 0;
+        if (dist > 0.006) {
+            let turn = Math.atan2(dx, dz) - d.heading;
+            turn = Math.atan2(Math.sin(turn), Math.cos(turn));
+            d.heading += Math.sign(turn) * Math.min(Math.abs(turn), dt * 2);
+            if (Math.abs(turn) < 0.8) want = Math.min(top, dist * 1.5);
+        }
+        d.speed += (want - d.speed) * Math.min(1, dt * 2);
+        d.x += Math.sin(d.heading) * d.speed * dt;
+        d.z += Math.cos(d.heading) * d.speed * dt;
+    }
+    function updateDucks(dt, t, day, frozen, still) {
+        const want = frozen ? 0 : 1;
+        if (paddle.shown < 0) paddle.shown = want;
+        paddle.shown += (want - paddle.shown) * Math.min(1, dt * 0.6);
+        ducks.visible = paddle.shown > 0.02;
+        if (!ducks.visible) return;
+        const asleep = day < 0.2;
+        if (!asleep && !still) {
+            paddle.wait -= dt;
+            if (paddle.wait <= 0 && Math.hypot(paddle.tx - hen.x, paddle.tz - hen.z) < 0.01) { pickWater(); paddle.wait = 3 + rand() * 6; }
+            swim(hen, paddle.tx, paddle.tz, 0.03, dt);
+            // The duckling aims a little behind her and hurries when it falls back.
+            swim(chick, hen.x - Math.sin(hen.heading) * 0.038, hen.z - Math.cos(hen.heading) * 0.038, 0.045, dt);
+        } else { hen.speed = chick.speed = 0; }
+        for (const [k, d] of [hen, chick].entries()) {
+            d.g.position.set(d.x, pond.y + 0.0035 * d.size + Math.sin(t * 1.6 + k * 2) * 0.0008, d.z);
+            d.g.rotation.set(Math.sin(t * 1.3 + k) * 0.04, d.heading, Math.sin(t * 1.1 + k) * 0.05);
+            d.g.scale.setScalar(d.size * paddle.shown);
+            // Head tucked in at night, a dip for weed now and then by day.
+            const dip = !asleep && Math.sin(t * 0.37 + k * 3) > 0.96 ? 0.7 : 0;
+            d.head.rotation.x = asleep ? 0.9 : dip;
+            d.head.position.z = asleep ? 0.008 : 0.016;
+            d.wake.material.opacity = Math.min(0.45, d.speed * 18);
         }
     }
 
@@ -368,9 +474,10 @@ export function createVisitors({ world, shell, groundH, onMeadow, envMap, rand }
     }
 
     return {
-        summon, _dbg: () => ({ flies: flies.map(f => [f.size, f.g.visible, f.g.position.toArray().map(v => +v.toFixed(3))]), phase: visit.phase, t: visit.t, mode: flock.mode, vis: ufo.visible, pos: ufo.position.toArray(), sc: ufo.scale.x }),
-        update(dt, t, { snow, still, day, w }) {
+        summon, ducks, _dbg: () => ({ flies: flies.map(f => [f.size, f.g.visible, f.g.position.toArray().map(v => +v.toFixed(3))]), phase: visit.phase, t: visit.t, mode: flock.mode, vis: ufo.visible, pos: ufo.position.toArray(), sc: ufo.scale.x }),
+        update(dt, t, { snow, still, day, w, frozen }) {
             updateSheep(dt, t, snow);
+            updateDucks(dt, t, day, frozen, still);
             updateButterflies(dt, t, day, w);
             updateWorm(dt, t);
             updateUfo(dt, t, still);
