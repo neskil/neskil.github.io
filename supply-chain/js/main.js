@@ -11,12 +11,20 @@ SC.init = function() {
     if (!restored) {
         // Difficulty is chosen on the new-game screen (written to
         // localStorage by the picker so it survives the reload).
-        SC.newState(localStorage.getItem('scTycoonDifficulty') || 'normal');
+        // Run mode (endless / timed / daily) is picked beside it the same way.
+        SC.newState(localStorage.getItem('scTycoonDifficulty') || 'normal',
+                    localStorage.getItem('scTycoonRunMode') || 'endless');
         SC.map._resetSeq();
         // ?seed=xyz reproduces a shared map exactly (river shape, node
         // layout); omit for a fresh random one. Menu shows the seed in
-        // play so it can be copied/shared after the fact too.
-        SC.map.generateWorld(params.get('seed'));
+        // play so it can be copied/shared after the fact too. The daily
+        // challenge ignores it: its map is the date's.
+        let seed = params.get('seed');
+        if (SC.state.runMode === 'daily') {
+            SC.state.dailyDate = SC.run.todayKey();
+            seed = SC.run.dailySeed(SC.state.dailyDate);
+        }
+        SC.map.generateWorld(seed);
         const start = SC.state.nodes.find(n => n.isHQ);
         SC.state.activeYard = start;
         for (let i = 0; i < SC.CONFIG.START_TRUCKS; i++) SC.vehicles.addTruck(start, start);
@@ -67,7 +75,7 @@ SC.init = function() {
         let dt = Math.min(0.05, (now - last) / 1000);
         last = now;
 
-        if (SC.state.gameStarted && !SC.state.paused && !SC.state.gameOver) {
+        if (SC.state.gameStarted && !SC.state.paused && !SC.state.gameOver && !SC.state.runOver) {
             // Fast-forward: run `speed` fixed-size sub-steps of the same dt
             // rather than scaling dt itself, so trucks/crafting/interest
             // etc. see the same step size as at 1x (no physics drift) —
@@ -80,7 +88,8 @@ SC.init = function() {
                 SC.vehicles.tick(dt);
                 SC.research.tick(dt);
                 SC.stats.tick(dt);
-                if (SC.state.gameOver) break; // a sub-step can end the run
+                SC.run.tick(dt);
+                if (SC.state.gameOver || SC.state.runOver) break; // a sub-step can end the run
             }
             saveTimer += dt;
             if (saveTimer >= SC.CONFIG.AUTOSAVE_INTERVAL && !wantFresh) {
@@ -101,7 +110,9 @@ SC.init = function() {
     // (visibilitychange), bfcache eviction / close (pagehide), and desktop
     // close (beforeunload). localStorage writes are synchronous, so these
     // are safe places to flush.
-    const flush = () => { if (SC.state.gameStarted && !wantFresh && !SC.state.gameOver) SC.save.store(); };
+    const flush = () => {
+        if (SC.state.gameStarted && !wantFresh && !SC.state.gameOver && !SC.state.runOver) SC.save.store();
+    };
     document.addEventListener('visibilitychange', () => { if (document.hidden) flush(); });
     window.addEventListener('pagehide', flush);
     window.addEventListener('beforeunload', flush);
@@ -180,6 +191,18 @@ SC.runProbe = function(seconds) {
     if (p.has('doom')) {
         SC.state.money = -(SC.creditLimit() + 800);
         SC.state.defaultIn = parseFloat(p.get('doom')) || SC.defaultGrace();
+    }
+    // Put the HUD's run clock up (&timed=N: a timed challenge with N sim
+    // seconds left) without playing a new run from the start screen.
+    if (p.has('timed')) {
+        SC.state.runMode = 'challenge';
+        SC.state.runLimit = SC.state.time + (parseFloat(p.get('timed')) || 60);
+    }
+    // Timed-run summary (&runend=1): put a clock on the run if it has none
+    // and ring the bell now, so the score screen can be screenshotted.
+    if (p.has('runend')) {
+        if (!SC.state.runLimit) { SC.state.runMode = 'challenge'; SC.state.runLimit = SC.state.time; }
+        SC.run.finish();
     }
     if (p.has('gameover')) {
         SC.state.money = -(SC.creditLimit() + 800);
@@ -428,6 +451,8 @@ SC.runProbe = function(seconds) {
     if (p.has('stats')) {
         SC.state.deliveredByProduct = { bread: 42, shoes: 17, car: 3 };
         SC.state.delivered = 62;
+        SC.state.missedReasons = { noTruck: 4, dryStock: 2, tooSlow: 1 };
+        SC.state.missed = 7;
         SC.state.achievements.firstBridge = true;
         SC.state.achievements.firstJunction = true;
         SC.state.achievements.tenTruckFleet = true;

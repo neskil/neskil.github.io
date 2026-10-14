@@ -116,6 +116,7 @@ SC.sfx = (function() {
         setVolume(v) {
             volume = Math.max(0, Math.min(1, v));
             localStorage.setItem('scTycoonSoundVol', String(volume));
+            SC.audio.applySfxVolume();
             return volume;
         }
     };

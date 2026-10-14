@@ -120,6 +120,13 @@ Any headless Chromium works (on sandboxed Linux add `--no-sandbox`); below,
   --virtual-time-budget=15000 --dump-dom
   http://localhost:8199/supply-chain/tests.html`, grep for `id="summary"`
   — must say "N passed / **0 failed**". 0 failed is the bar; N only grows.
+- **Interaction tests**: `interaction-tests.html` drives the real game in a
+  frame — taps at the screen position of the thing tapped, through
+  `SC.input._handleTap` / `_handleLongPress`, plus the research tree's
+  Cancel, the ☰ sliders and the end-of-run screen. Same recipe and bar as
+  the logic tests (`--dump-dom`, grep `id="summary"`, 0 failed);
+  `tools/run-tests.mjs` finds it on its own. Add a case to it when you add
+  a tap flow. It restores every `scTycoon*` localStorage key when it ends.
 - **Audio check**: the WebAudio layer can't live in `tests.html` — it needs a
   real user gesture to open an AudioContext, which headless only permits with
   `--autoplay-policy=no-user-gesture-required`. `audio-check.html` fakes the

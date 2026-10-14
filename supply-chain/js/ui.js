@@ -48,6 +48,13 @@ SC.ui = (function() {
         $('hud-money-item').classList.toggle('debt', inDebt);
         const idle = st.trucks.filter(t => !t.jobs.length && !t.path).length;
         $('hud-trucks').textContent = `${idle}/${st.trucks.length}`;
+        const timed = SC.run.isTimed();
+        $('hud-clock-item').classList.toggle('hidden', !timed);
+        if (timed) {
+            const left = Math.ceil(SC.run.timeLeft());
+            $('hud-clock').textContent = `${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}`;
+            $('hud-clock-item').classList.toggle('urgent', left <= 60);
+        }
         for (const btn of $('speed-toggle').children) {
             btn.classList.toggle('active', +btn.dataset.speed === st.speed);
         }
@@ -279,6 +286,18 @@ SC.ui = (function() {
         }
     }
 
+    // Aborting a running project throws away the time already spent on it,
+    // so it takes two taps: the first arms that node's Cancel button for a
+    // few seconds (the tree re-renders on a timer, hence state out here
+    // rather than on the button), the second does it.
+    const ABORT_ARM_MS = 4000;
+    let abortArmed = null, abortArmedAt = 0;
+    function armAbortResearch(id) { abortArmed = id; abortArmedAt = performance.now(); }
+    function isAbortArmed(id) {
+        return abortArmed === id && performance.now() - abortArmedAt < ABORT_ARM_MS;
+    }
+    function disarmAbortResearch() { abortArmed = null; }
+
     function researchNodeHTML(id, pos) {
         const t = SC.RESEARCH[id];
         const done = SC.research.isDone(id);
@@ -298,8 +317,11 @@ SC.ui = (function() {
         } else if (active) {
             const pct = Math.round(SC.research.progress(id) * 100);
             const left = Math.max(0, Math.round(t.time * (1 - SC.research.progress(id))));
+            const refund = SC.research.cancelRefund(id);
+            const abortLabel = isAbortArmed(id) ? `Tap again — refund ${fmt(refund)}` : `Cancel · refund ${fmt(refund)}`;
             btn = `<div class="research-bar"><div style="width:${pct}%"></div></div>
-                   <div class="research-desc" style="margin:0.3rem 0 0;text-align:center">${left}s left (${pct}%)</div>`;
+                   <div class="research-desc" style="margin:0.3rem 0 0;text-align:center">${left}s left (${pct}%)</div>
+                   <button class="research-btn cancel-btn" data-abort-research="${id}">${abortLabel}</button>`;
         } else if (queued) {
             const qIdx = SC.research.queueList().indexOf(id) + 1;
             btn = `<button class="research-btn cancel-btn" data-cancel-research="${id}">Queued (#${qIdx}) — Cancel</button>`;
@@ -763,6 +785,25 @@ SC.ui = (function() {
             ? entries.map(k => `<div class="stats-row"><span>${SC.emojiOf(k)} ${SC.nameOf(k)}</span><b>${st.deliveredByProduct[k]}</b></div>`).join('')
             : '<div class="stats-empty">No deliveries yet</div>';
 
+        const misses = SC.MISS_REASON_ORDER.filter(k => st.missedReasons[k] > 0)
+            .sort((a, b) => st.missedReasons[b] - st.missedReasons[a]);
+        $('stats-misses').innerHTML = misses.length
+            ? misses.map(k => {
+                const r = SC.MISS_REASONS[k];
+                return `<div class="stats-row"><span>${r.emoji} ${r.label}<span class="miss-hint">${r.hint}</span></span><b class="miss-count">${st.missedReasons[k]}</b></div>`;
+            }).join('')
+            : '<div class="stats-empty">No missed orders this run</div>';
+
+        const bestRows = [];
+        const today = SC.run.best('daily:' + SC.run.todayKey());
+        if (today !== null) bestRows.push(`<div class="stats-row"><span>📅 Daily, today</span><b>${fmtSigned(today)}</b></div>`);
+        for (const k of SC.DIFFICULTY_ORDER) {
+            const b = SC.run.best('challenge:' + k);
+            if (b !== null) bestRows.push(`<div class="stats-row"><span>⏱️ Challenge, ${SC.DIFFICULTIES[k].label}</span><b>${fmtSigned(b)}</b></div>`);
+        }
+        $('stats-bests').innerHTML = bestRows.length ? bestRows.join('')
+            : '<div class="stats-empty">No timed runs finished yet — pick one on the new-game screen</div>';
+
         const hist = st.moneyHistory;
         const svg = $('stats-sparkline');
         if (hist.length < 2) {
@@ -1108,7 +1149,19 @@ SC.ui = (function() {
         return m > 0 ? `${m}m ${Math.floor(s % 60)}s` : `${Math.floor(s)}s`;
     }
 
+    function updateVolumeSliders() {
+        const set = (id, v) => {
+            const pct = Math.round(v * 100);
+            if ($(id)) $(id).value = pct;
+            if ($(id + '-val')) $(id + '-val').textContent = pct + '%';
+        };
+        set('menu-vol-sfx', SC.sfx.getVolume());
+        set('menu-vol-amb', SC.audio.getAmbientVolume());
+        set('menu-vol-music', SC.audio.getMusicVolume());
+    }
+
     function updateMenuInfo() {
+        updateVolumeSliders();
         const st = SC.state;
         // research.active is a LIST since concurrent research shipped — an
         // empty array is still truthy, so testing it directly read every idle
@@ -1124,6 +1177,8 @@ SC.ui = (function() {
             <div class="stats-group">
                 <div class="stats-group-label">OVERVIEW</div>
                 <div><span>Difficulty</span><b>${SC.diff().emoji} ${SC.diff().label}</b></div>
+                <div><span>Run</span><b>${SC.run.mode().emoji} ${SC.run.mode().label}${SC.run.isTimed() ? ` · ${fmtDuration(SC.run.timeLeft())} left` : ''}</b></div>
+                ${SC.run.isTimed() ? `<div><span>Score so far</span><b class="${SC.run.score() < 0 ? 'neg' : 'pos'}">${fmtSigned(SC.run.score())}</b></div>` : ''}
                 <div><span>Map seed</span><b class="menu-seed" id="menu-seed-value" title="Tap to copy">${st.seed || '—'} 📋</b></div>
                 <div><span>Time played</span><b>${fmtDuration(st.time)}</b></div>
             </div>
@@ -1193,16 +1248,65 @@ SC.ui = (function() {
     }
 
 
+    // Signed money for scores, which can be negative: +$1,200 / −$300.
+    function fmtSigned(n) { return (n < 0 ? '−' : '+') + fmt(Math.abs(n)); }
+
+    // ── Run mode picker (new-game screen only) ─────
+    function updateRunModePicker() {
+        const cur = SC.state.runMode;
+        $('runmode-picker').innerHTML = SC.RUN_MODE_ORDER.map(k => {
+            const m = SC.RUN_MODES[k];
+            const board = k === 'daily' ? 'daily:' + SC.run.todayKey()
+                        : k === 'challenge' ? 'challenge:' + SC.state.difficulty : null;
+            const best = board ? SC.run.best(board) : null;
+            const bestLine = best !== null
+                ? `<span class="diff-best">🏆 Best ${k === 'daily' ? 'today' : `on ${SC.DIFFICULTIES[SC.state.difficulty].label}`}: ${fmtSigned(best)}</span>`
+                : '';
+            return `<button class="diff-btn ${k === cur ? 'active' : ''}" data-runmode="${k}">
+                <span class="diff-name">${m.emoji} ${m.label}</span>
+                <span class="diff-desc">${m.desc}</span>
+                ${bestLine}
+            </button>`;
+        }).join('');
+    }
+
+    function bindRunModePicker() {
+        $('runmode-picker').addEventListener('click', e => {
+            const btn = e.target.closest('[data-runmode]');
+            if (!btn || SC.state.gameStarted) return;
+            const k = btn.dataset.runmode;
+            if (k === SC.state.runMode) return;
+            localStorage.setItem('scTycoonRunMode', k); // future new games default here
+            SC.sfx.play('click');
+            // The daily brings its own map, so moving into or out of it
+            // needs a new world — and the boot path already knows how to
+            // build each kind. Between endless and timed only the clock
+            // differs, so that applies in place like the difficulty does.
+            if (k === 'daily' || SC.state.runMode === 'daily') {
+                location.replace(location.pathname + '?new=1');
+                return;
+            }
+            SC.state.runMode = k;
+            SC.state.runLimit = SC.RUN_MODES[k].minutes ? SC.RUN_MODES[k].minutes * 60 : null;
+            updateRunModePicker();
+            updateDifficultyPicker();
+            updateHUD();
+        });
+    }
+
     // ── Difficulty picker (new-game screen only) ─────
     function updateDifficultyPicker() {
         const d = SC.state.difficulty;
+        // A mode that brings its own difficulty (the daily) locks the rest.
+        const fixed = SC.run.mode().difficulty;
         $('difficulty-picker').innerHTML = SC.DIFFICULTY_ORDER.map(k => {
             const p = SC.DIFFICULTIES[k];
             const g = p.riverGraceMin || 0;
             const grace = g > 0
                 ? `🌊 Riverside grace: <b>${g} min</b> — new sites stay your side of the river`
                 : `🌊 <b>No riverside grace</b> — sites can land across the river from the start`;
-            return `<button class="diff-btn ${k === d ? 'active' : ''}" data-diff="${k}">
+            const locked = fixed && k !== fixed;
+            return `<button class="diff-btn ${k === d ? 'active' : ''} ${locked ? 'disabled' : ''}" data-diff="${k}">
                 <span class="diff-name">${p.emoji} ${p.label}</span>
                 <span class="diff-desc">${p.desc}</span>
                 <span class="diff-grace">${grace}</span>
@@ -1213,7 +1317,7 @@ SC.ui = (function() {
     function bindDifficultyPicker() {
         $('difficulty-picker').addEventListener('click', e => {
             const btn = e.target.closest('[data-diff]');
-            if (!btn || SC.state.gameStarted) return;
+            if (!btn || SC.state.gameStarted || SC.run.mode().difficulty) return;
             const k = btn.dataset.diff;
             localStorage.setItem('scTycoonDifficulty', k); // future new games default here
             // The world is still untouched pre-start, so the preset can
@@ -1222,6 +1326,7 @@ SC.ui = (function() {
             SC.state.money = SC.DIFFICULTIES[k].startMoney;
             SC.sfx.play('click');
             updateDifficultyPicker();
+            updateRunModePicker(); // the challenge's best score is per difficulty
             updateHUD();
         });
     }
@@ -1334,6 +1439,7 @@ SC.ui = (function() {
         bindToastClick();
         SC._ui.bind();
         bindDifficultyPicker();
+        bindRunModePicker();
         drawRecipeGraph();
         $('menu-version').textContent = 'v' + SC.VERSION;
         updateOrders();
@@ -1358,6 +1464,7 @@ SC.ui = (function() {
         // opening Help mid-game (via the menu) hides it.
         $('difficulty-section').classList.toggle('hidden', SC.state.gameStarted);
         updateDifficultyPicker();
+        updateRunModePicker();
         if (window.innerWidth <= 768) {
             $('orders-panel').classList.add('collapsed');
             $('dev-panel').classList.add('collapsed');
@@ -1407,7 +1514,8 @@ SC.ui = (function() {
     SC._ui = {
         $, getDevMode: () => devMode, getHidePills: () => hidePills, getUiScale, setUiScale,
         openOptionsModal, closeOptionsModal, updateOptionsModal, openToastHistoryModal, closeToastHistoryModal, clearToastHistory, renderToastHistory, getToastHistory: () => toastHistory,
-        fmt, fmtDuration, toast, setMode, setSpeed, setDevMode, setHidePills, openMenu, closeMenu, menuOpen, openResearchTree, closeResearchTree, setResearchTreeHold, zoomResearchTreeBy, setResearchTreeZoom, fitResearchTreeToScreen, researchTreeScale, openStatsOverlay, closeStatsOverlay, openAchievementDetail, closeAchievementDetail, chooseCrossing, closeCrossingChoice, openCrossingChoice, updateContractOffer, updateDevPanel, updateMenuInfo, updateOrders, updateShop, updateStatsOverlay, toggleFullscreen, resetNewGameArm, armNewGame, isNewGameArmed, focusOrder, yardLabel, openYardOverlay, closeYardOverlay, updateTutorial, inspectTooltipHTML
+        fmt, fmtDuration, toast, setMode, setSpeed, setDevMode, setHidePills, openMenu, closeMenu, menuOpen, openResearchTree, closeResearchTree, setResearchTreeHold, zoomResearchTreeBy, setResearchTreeZoom, fitResearchTreeToScreen, researchTreeScale, openStatsOverlay, closeStatsOverlay, openAchievementDetail, closeAchievementDetail, chooseCrossing, closeCrossingChoice, openCrossingChoice, updateContractOffer, updateDevPanel, updateMenuInfo, updateOrders, updateShop, updateStatsOverlay, toggleFullscreen, resetNewGameArm, armNewGame, isNewGameArmed, focusOrder, yardLabel, openYardOverlay, closeYardOverlay, updateTutorial, inspectTooltipHTML,
+        armAbortResearch, isAbortArmed, disarmAbortResearch, fmtSigned, updateVolumeSliders
     };
 
     return { init, update, toast, openStatsOverlay, openOptionsModal, openToastHistoryModal };

@@ -33,6 +33,13 @@ SC.audio = (function () {
     let musicVolume = localStorage.getItem('scTycoonMusicVol') !== null
         ? Math.max(0, Math.min(1, parseFloat(localStorage.getItem('scTycoonMusicVol'))))
         : 1;
+    // Ambience level, same shape: a 0..1 scalar on the world-sound bus,
+    // under the Sound toggle (which still mutes it outright).
+    let ambVolume = localStorage.getItem('scTycoonAmbVol') !== null
+        ? Math.max(0, Math.min(1, parseFloat(localStorage.getItem('scTycoonAmbVol'))))
+        : 1;
+    const sfxVolume = () => (SC.sfx ? SC.sfx.getVolume() : 1);
+    const ambGain = () => ((SC.sfx && SC.sfx.isMuted()) ? 0 : ambVolume);
 
     // --- generative score -------------------------------------------------
     // A slow four-chord loop with a pad, a bass root and a sparse pentatonic
@@ -101,11 +108,11 @@ SC.audio = (function () {
         master.connect(ctx.destination);
 
         musicBus = ctx.createGain();
-        musicBus.gain.value = musicOn ? 0.32 : 0;
+        musicBus.gain.value = musicOn ? 0.32 * musicVolume : 0;
         musicBus.connect(master);
 
         sfxBus = ctx.createGain();
-        sfxBus.gain.value = 1;
+        sfxBus.gain.value = sfxVolume(); // the Effects slider (sfx.setVolume)
         sfxBus.connect(master);
 
         // Ambience is world sound, not score — it follows the Sound (sfx)
@@ -114,7 +121,7 @@ SC.audio = (function () {
         // The context is built on the first gesture, long after sfx.js has
         // restored the saved Sound preference — honour it rather than fading
         // the world in for a player who muted last session.
-        ambBus.gain.value = (SC.sfx && SC.sfx.isMuted()) ? 0 : 1;
+        ambBus.gain.value = ambGain();
         ambBus.connect(master);
 
         noiseBuf = makeNoise();
@@ -257,7 +264,19 @@ SC.audio = (function () {
         sfxBus: () => sfxBus,
         // Ambience follows the Sound toggle (see build()).
         setAmbientMuted(m) {
-            if (ambBus) ambBus.gain.setTargetAtTime(m ? 0 : 1, ctx.currentTime, 0.2);
+            if (ambBus) ambBus.gain.setTargetAtTime(m ? 0 : ambVolume, ctx.currentTime, 0.2);
+        },
+        getAmbientVolume: () => ambVolume,
+        setAmbientVolume(v) {
+            ambVolume = Math.max(0, Math.min(1, v));
+            localStorage.setItem('scTycoonAmbVol', String(ambVolume));
+            if (ambBus) ambBus.gain.setTargetAtTime(ambGain(), ctx.currentTime, 0.2);
+            return ambVolume;
+        },
+        // sfx.js owns the Effects level (it also gates playback on it);
+        // this just moves the bus to match.
+        applySfxVolume() {
+            if (sfxBus) sfxBus.gain.setTargetAtTime(sfxVolume(), ctx.currentTime, 0.05);
         },
         update,
         musicEnabled: () => musicOn,

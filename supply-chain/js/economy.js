@@ -250,9 +250,35 @@ SC.economy = (function() {
         }
     }
 
+    // Why is this order not going to make it? Read off where its work is
+    // right now, most specific cause first: an order that was never
+    // planned had no means or no route; a planned one is stuck at a dry
+    // supplier, waiting for a truck, queued at a factory, or just still
+    // on the road. Called by expireOrder at the moment of expiry, so it
+    // has to run before the order's tasks and jobs are cancelled.
+    function missReason(order) {
+        if (!order.planned) return canSource(order.product) ? 'noRoute' : 'noProduction';
+        const mine = j => j.order === order;
+        const trucks = SC.state.trucks.filter(t => t.jobs.some(mine));
+        if (trucks.some(t => t.phase === 'loading')) return 'dryStock';
+        // Waiting jobs: either no truck got to them, or a road they needed
+        // has since been demolished out from under the plan.
+        const waiting = SC.state.jobs.filter(mine);
+        if (waiting.length) {
+            return waiting.some(j => !SC.roads.findPath(j.pickup, j.drop)) ? 'noRoute' : 'noTruck';
+        }
+        const queued = SC.factories.all().some(f =>
+            (f.crafting && f.crafting.task.order === order) ||
+            f.queue.some(t => t.order === order && SC.factories.inputsComplete(t)));
+        if (queued) return 'factoryBusy';
+        return 'tooSlow';
+    }
+
     function expireOrder(order) {
+        const reason = missReason(order);
         SC.state.orders.splice(SC.state.orders.indexOf(order), 1);
         SC.state.missed++;
+        SC.state.missedReasons[reason] = (SC.state.missedReasons[reason] || 0) + 1;
         SC.factories.cancelTasksForOrder(order);
         SC.vehicles.cancelJobsForOrder(order);
         const missingUnits = order.qty - order.deliveredUnits;
@@ -262,14 +288,14 @@ SC.economy = (function() {
             // a near-complete contract stings less than an untouched one.
             const penalty = Math.round(missingUnits * unitValue * C().CONTRACT_PENALTY_MULT);
             SC.state.money -= penalty;
-            SC.emit('contractFailed', { order, penalty });
+            SC.emit('contractFailed', { order, penalty, reason });
         } else {
             const mult = SC.diff().orderPenaltyMult !== undefined ? SC.diff().orderPenaltyMult : C().ORDER_PENALTY_MULT;
             const penalty = Math.round(missingUnits * unitValue * mult);
             if (penalty > 0) {
                 SC.state.money -= penalty;
             }
-            SC.emit('orderExpired', { order, penalty });
+            SC.emit('orderExpired', { order, penalty, reason });
         }
     }
 
@@ -518,7 +544,7 @@ SC.economy = (function() {
         return { ok: true, level: SC.state.upgrades[key] };
     }
 
-    return { spawnOrder, planOrder, deliverProduct, expireOrder,
+    return { spawnOrder, planOrder, deliverProduct, expireOrder, missReason,
              onNetworkChanged, tick, tickSuppliers, buyUpgrade, upgradeSupplier,
              craftableProducts, bestSourceFor, maxActiveOrders, supplyGaps,
              isPromoActive, promoTimeLeft, startPromotion,

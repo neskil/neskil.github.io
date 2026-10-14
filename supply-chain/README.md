@@ -40,7 +40,10 @@ that ambient animation as its background — it now lives independently at
   the order shows "no route!" until you build one.
 - **Roads**: tap node → tap node. Cost scales with length; crossing the
   river costs 3× (bridge). Tap a road twice to demolish for a 50% refund
-  (refused while a truck is on it). Roads can't be laid over the top of
+  (refused while a truck is on it). On touch, **holding** a road
+  (`LONG_PRESS_MS` in `input.js`) demolishes it in one gesture, and holding
+  a for-sale factory buys it — the same actions a confirming second tap
+  would take, only offered in plain Build mode with nothing selected. Roads can't be laid over the top of
   each other — see **Overlap rules** below, the thing that makes the
   network a plan rather than a cat's cradle.
 - **Modes** (bottom-right toggle): **Build** (🔨, default) is the road
@@ -283,6 +286,14 @@ that ambient animation as its background — it now lives independently at
   gets an actual lifted deck on piers with a shadow on the water below
   and guard rails, also confined to the water (`render.drawBridgeCrossing`/
   `drawFerryCrossing`).
+- **Missed orders say why**: when an order runs out of time,
+  `economy.missReason` reads what its work was doing at that moment, most
+  specific first — never planned (nothing could make it / no road route),
+  a truck waiting at a dry supplier, jobs no truck took (or whose road has
+  since gone), goods queued at a busy factory, or simply still on the road.
+  The expiry toast names it, `SC.state.missedReasons` tallies it per run
+  (persisted), and the Stats screen lists the tally with the fix for each.
+  The reasons and their hints are `SC.MISS_REASONS` in `config.js`.
 - **Contracts**: `rollContractOffer` occasionally proposes a bulk order
   at a locked-in `CONTRACT_RATE_BONUS` premium rate. A non-blocking card
   lets you Accept or Decline within `CONTRACT_OFFER_EXPIRE` before it's
@@ -337,13 +348,18 @@ that ambient animation as its background — it now lives independently at
   supplier/factory anywhere on land — at a premium over the free
   milestone/customer-DC unlocks (`PLACEMENT_SUPPLIER_PRICE`,
   `PLACEMENT_FACTORY_MULT`). A dashed ghost preview shows the spot and
-  cost, red where blocked (in the river or too close to another site).
+  cost, red where blocked (in the river or too close to another site). For
+  a supplier it also names the ground under the cursor and what it pays
+  for that material (`SC.groundYield` — the biome half of a site's yield;
+  the small per-site roll is only fixed once the site exists).
   Truck yards use the same tap-to-place flow and ghost preview but are
   **not** research-gated (`SC.placement.place('yard', ...)`) — a base
   mechanic, not a premium bailout.
 - **Sound & music**: two independent ☰-menu toggles, both persisted.
   **🔊 Sound** covers one-shot blips (build/cash/error/…) *and* the world
-  ambience; **🎵 Music** covers the score. Everything is synthesised at
+  ambience; **🎵 Music** covers the score. Under them, three sliders set
+  each channel's level — Effects, Ambience, Music — persisted the same
+  way; the toggles still mute outright. Everything is synthesised at
   runtime in `js/audio.js` — there are no audio files in the repo, which
   keeps the folder self-contained and lets the sound react to game state:
   - *Ambience* is three looping filtered-noise beds whose gains are ramped
@@ -389,7 +405,25 @@ that ambient animation as its background — it now lives independently at
   Gameplay randomness (order contents/timing, customer-DC spawn jitter)
   intentionally still uses `Math.random`, so a shared seed reproduces
   the map, not a full deterministic playthrough.
-- Endless play; "Filled" vs "Missed" on the HUD is the score.
+- **Run modes**: picked on the new-game screen beside difficulty
+  (`SC.RUN_MODES`). **Endless** has no clock — only foreclosure ends it.
+  The **timed challenge** ends when sim time reaches `SC.state.runLimit`
+  (fast-forward only shortens the wait) and scores **profit at the bell**:
+  cash minus the difficulty's starting money, so spending only scores once
+  it has paid for itself. The **daily challenge** is the same, but with the
+  difficulty fixed to Normal and the map seeded from the local date
+  (`SC.run.dailySeed`), so everyone playing that day starts from one world;
+  orders still roll on `Math.random`, so it's the same map, not a replay.
+  Best scores live in localStorage (`SC.run.BEST_KEY`), one board per
+  difficulty for the challenge and one per date for the daily. A HUD clock
+  counts down; at the bell the sim freezes and the end-of-run screen shows
+  the score against the board's best, the run's best seller and its most
+  common miss reason, with a line to copy. Foreclosure shows the same
+  summary rows.
+- **Research cancel**: a running project has a Cancel button in the tree
+  (two taps — the first arms it) that refunds the unspent share of its cost
+  (`research.cancelRefund`); queued techs that depended on it are dropped
+  and refunded in full.
 
 ## Architecture
 
@@ -404,29 +438,32 @@ they signal the UI through the tiny `SC.on`/`SC.emit` pub/sub in state.js.
 | `js/save.js` | Autosave/restore to localStorage (serialize/restore round-trip) |
 | `js/rng.js` | Seeded PRNG (xmur3 hash + mulberry32 stream) used only by map.js's world gen, so `?seed=` reproduces a map |
 | `js/map.js` | World gen: river, node sites, starter cluster (seeded via `js/rng.js`, `generateWorld(seed)`); `unlockNext(filterFn)` for milestone (supplier/factory) and customer-DC (city) unlock tracks |
-| `js/roads.js` | Road build/demolish/quote (incl. ferry-vs-bridge), the overlap rules + interchange building (`checkSegment`/`blockMessage`/`splitEdge`), highway upgrades, congestion (`speedMult`/`congestionMult`), Dijkstra pathfinding weighted by travel time |
+| `js/roads.js` | Road build/demolish/quote (incl. ferry-vs-bridge), the overlap rules + interchange building (`checkSegment`/`blockMessage`/`splitEdge`), highway upgrades, congestion (`speedMult`/`congestionMult`), Dijkstra pathfinding weighted by travel time and cached per network version + set of jammed roads (`edgeOccupancy`) |
 | `js/factories.js` | Craft tasks (incl. intermediates), raw intake, production ticks, site purchase |
-| `js/economy.js` | Orders (spawn/plan/deliver/expire) with recursive multi-tier sourcing, money, interest + default countdown, upgrades, supplier stock regen/upgrades, promotions, customer-DC spawn timer, contract offers (roll/accept/decline) and miss penalties |
+| `js/economy.js` | Orders (spawn/plan/deliver/expire, and why a miss happened — `missReason`) with recursive multi-tier sourcing, money, interest + default countdown, upgrades, supplier stock regen/upgrades, promotions, customer-DC spawn timer, contract offers (roll/accept/decline) and miss penalties |
 | `js/vehicles.js` | Trucks (each with a home yard), haul jobs, dispatcher (globally nearest idle truck per job, bundles same-route jobs up to capacity, sends idle trucks home), supplier-stock loading waits, reassignment, movement, `truckCountOnEdge` (feeds congestion) |
+| `js/run.js` | Run modes: the timed-run clock (`tick` rings the bell at `runLimit`), the score (profit at the bell), the daily seed, and the best-score boards in localStorage. Pure logic |
 | `js/stats.js` | Stats & achievements bookkeeping: deliveries per product, a periodic money-history sample for the sparkline, per-edge trip counts (`recordRoadUse`/`busiestRoad`), and milestone unlocks — all purely observational, listens to events other modules already emit (`roadBuilt`, `orderComplete`, etc.) rather than being called directly |
 | `js/tutorial.js` | Guided first-order tutorial: the step list, which nodes each step points at, and when a step is satisfied. Pure logic — ui.js renders the banner and render-network.js draws the focus dim/rings, both by reading `current()`/`focus()` |
 | `js/inspect.js` | Inspect-mode data: node → its connections/routes, for the hover/hold tooltip and highlight. Collected route paths carry a `.good` property per leg so the glow overlay tints each leg by its cargo (chain-step colors) |
-| `js/research.js` | Tech tree engine: one active project (two with a Research Lab), `needsLab` gate on late-tier techs, cost/time, generic effect accessors (`bonusSum`, `customerSpawnMult`, `upgradeMaxBonus`) |
+| `js/research.js` | Tech tree engine: one active project (two with a Research Lab), `needsLab` gate on late-tier techs, cost/time, queueing and cancelling (with refunds), generic effect accessors (`bonusSum`, `customerSpawnMult`, `upgradeMaxBonus`) |
 | `js/placement.js` | Manual site placement: cost, validity (land/river/min-distance); supplier/factory locked behind research, truck yards and junctions are not |
 | `js/camera.js` | World↔screen transform (isometric 2:1 projection), pan/zoom/clamp (math only). `project`/`unproject` map the flat world ground plane onto the iso view; all input hit-testing rides on `toScreen`/`toWorld`, so logic stays in flat coords |
 | `js/render-core.js` | Rendering entry point. Owns the internal context object `R` (`SC._render`) that the other three render files destructure — shared canvas ctx, camera helpers (`S`/`zoom`), colour utilities, the seeded scenery PRNG (`makeRng`), and the per-frame orchestrator (`frame`/`drawWorld`). Also owns the **background cache**: static scenery (terrain/land/grid/patches/trees) renders into an offscreen layer re-blitted while panning (`renderBg`/`drawBg`) so mobile panning stays smooth; dpr capped at 2. The layer is only ever blitted at its exact render zoom — a scaled blit is a ≤120ms stopgap mid-pinch, then it re-renders (a lingering scaled blit was the mobile "giant/torn scenery" glitch) — and the ctx swap in `renderBg` is try/finally-guarded. `bgKey` includes `terrainKey()` so the cache re-bakes when the field expands |
 | `js/render-env.js` | Environment layer: sky, **day/night cycle**, weather, terrain, land, river, ambient scenery. The **low-poly heightfield terrain backdrop** (`drawTerrain`/`ensureTerrain`) continues the ground plane past every edge of the field — beyond the two far (low world x+y) edges it rises into faceted, faintly-wireframed mountains via ridged value-noise (`terrainHeight`/`ridged`), and beyond the two near edges it *descends* into rolling lowland foothills (negative heights, `TERRAIN.dip`), so the field reads as a plateau in one continuous landscape rather than an island floating over the sky. Flat inside the field so it never occludes play, flat-shaded per facet with the slope, blended toward the live sky for aerial haze so it tracks day/night + weather, sized from `SC.worldW()`/`worldH()` + a skirt and rebuilt only when the field grows (`terrainKey`). The day/night clock (`DAY_LENGTH`, cosmetic/non-persisted) sweeps the sky palette across night↔day↔dusk keyframes, arcs a crossfading sun/moon, applies a full-screen `'screen'` colour grade to lift the baked-night ground toward daylight without rebuilding the bg cache, and drives the `nightLevel` that other layers fade their lights by. **Rotating weather** (`WEATHER_ROTATION`): clear→clouds→rain→snow spells fade in/out, a slowly-turning wind vector drifts sky clouds + soft ground cloud-shadows and angles pooled/capped rain & snow particles; rain adds a road sheen (`drawWetRoads`) and snow lays a slowly-melting blanket (`drawSnowBlanket`). **Night atmosphere** (per-frame, kept out of the cached bg): moon glow + a faint aurora band, a moonlight shimmer streak on the river, drifting world-anchored fireflies, and a cached screen-edge vignette drawn last for framing. Distance fog fades the far edge of the land into the sky; a screen-space star field sits behind the world |
 | `js/render-network.js` | Network layer: road ribbons, bridge/ferry crossings drawn over just the water (`drawBridgeCrossing`/`drawFerryCrossing`), animated route-flow dashes pulsing in the cargo colour along roads carrying trucks (`drawRouteFlow`), extruded diamond-prism buildings (`prism` — story lines, doors, factory smokestacks, plus a seeded window grid whose warm lit windows and additive `bloom()` come up at night), sprite-based soft shadows that swing opposite the sun/moon and lengthen near the horizon (`drawShadow`), themed supplier sites per raw material (farm/lake+pump/mine/pasture/rubber grove/fab — `drawSupplierSite`), junction roundabouts (`drawJunction`), truck yards as a flat asphalt parking lot with painted stall lines and the idle trucks homed there parked nose-in across its bays (`drawYardSite`/`drawYardParking`) instead of a 🅿️ icon + count — HQ/DC get the same apron. The plot pad under each building is a feathered radial fade rather than a flat fill, so it doesn't add a hard edge. Also order bubbles, inspect/tutorial highlights, ghost road + placement previews, and offscreen edge arrows |
 | `js/render-actors.js` | Actor layer: cab+trailer trucks (`drawTruckAt`, night-only headlight glows), the "+$"/"−$" floaters, `orderComplete` coin/spark bursts, and the loading/unloading crate that hops into a truck on pickup and down into a node on delivery (`drawTransfer`, driven render-side by cargo-length change, depth-sorted so a nearer site clips it). Entities depth-sort back-to-front; idle trucks (no route/jobs) are skipped here and drawn by their home node instead. A small `TRUCK_DEPTH_BIAS` nudges trucks forward in the sort so one arriving beside a node isn't hard-clipped by that node's body — a single-point painter's sort has no notion of footprint size, so a truck's final approach used to lose that near-tie |
-| `js/input.js` | Pointer events: pan, pinch, wheel, tap-to-build, Upgrade-mode taps, Inspect hover/hold. Node picking hit-tests the whole extruded building (ground→roof capsule, `nodeAtScreen`); `getHoverNode` feeds the ghost-road snap + hover ring so previews match what a click hits |
-| `js/ui.js` | HUD, orders/shop panels, research-tree overlay, difficulty picker, game-over overlay, toasts, help overlay, dev-tools panel. Publishes its internals on `SC._ui` for `ui-bind.js` |
+| `js/input.js` | Pointer events: pan, pinch, wheel, tap-to-build, touch long-press shortcuts, Upgrade-mode taps, Inspect hover/hold. Node picking hit-tests the whole extruded building (ground→roof capsule, `nodeAtScreen`); `getHoverNode` feeds the ghost-road snap + hover ring so previews match what a click hits |
+| `js/ui.js` | HUD (incl. the timed-run clock), orders/shop panels, research-tree overlay, run-mode and difficulty pickers, end-of-run overlay, toasts, help overlay, dev-tools panel. Publishes its internals on `SC._ui` for `ui-bind.js` |
 | `js/ui-bind.js` | Event wiring extracted from `ui.js` purely to keep that file editable — loads after it and is invoked by `ui.js`'s `init()` via `SC._ui.bind()`. Handler bodies are unchanged from when they lived inside the `ui.js` closure |
 | `js/audio.js` | Shared AudioContext + music/sfx/ambience buses; the weather- and traffic-reactive ambient bed and the generative score (all synthesised, no audio assets). `update()` is called once per frame from main.js, outside the fast-forward sub-step loop |
 | `js/sfx.js` | WebAudio one-shot blips, routed into `audio.js`'s sfx bus. Owns the **Sound** toggle (one-shots + ambience); music toggles separately |
 | `js/main.js` | Bootstrap, game loop (fast-forward runs N sub-steps/frame), `?probe=N`/`?seed=`/`?speed=` headless verification hooks |
 
 `tests.html` runs the logic modules against hand-built deterministic maps
-(straight river, fixed nodes) — see CLAUDE.md for the headless recipes.
+(straight river, fixed nodes); `interaction-tests.html` drives the real page
+in a frame — taps, long-presses, the research tree's Cancel, the ☰ sliders,
+the end-of-run screen. See CLAUDE.md for the headless recipes.
 
 ## What's next
 

@@ -1,7 +1,7 @@
 # Supply Chain Tycoon — development plan (v1 → v2)
 
 Status: **agreed 2026-07-15** (decisions below); last synced with shipped
-reality **2026-07-25 (v1.57.0)**. Baseline is v1.0.0 (playable core loop:
+reality **2026-10-14 (v1.64.0)**. Baseline is v1.0.0 (playable core loop:
 roads, trucks, orders, upgrades, milestone map growth, pan/pinch camera).
 
 This file owns the roadmap: the Shipped log, the phased items (all of
@@ -39,6 +39,32 @@ in Phase 4 — not in README.md, which now just points here. See
 
 ## Shipped
 
+- v1.64.0: **runs with a finish line, and misses that say why** — the
+  game had no goal: endless play, ended only by foreclosure. Two timed run
+  modes now sit beside difficulty on the new-game screen (`SC.RUN_MODES`,
+  `js/run.js`): a 15-minute **timed challenge** scored as profit at the
+  bell, and a **daily challenge** on a map seeded from the date at Normal
+  difficulty, each with a best-score board, a HUD clock and an end-of-run
+  screen (score vs best, best seller, most common miss, a line to copy).
+  Every **missed order now names its cause** (`economy.missReason`: no
+  production, no route, dry supplier, no free truck, factory backlog, too
+  slow) in the expiry toast and as a tally with fixes on the Stats screen.
+  Smaller items off the backlog: **cancel a running research** for the
+  unspent share of its cost; **touch long-press** to demolish a road or buy
+  a for-sale site in one gesture; **per-channel volume sliders** in the ☰
+  menu (the effects level now really scales the mix — it used to act only
+  as a mute, and music ignored its saved level until first changed); the
+  supplier **placement preview names the ground and its yield**.
+  Under the hood, the congestion-aware **path cache key** was rebuilt: it
+  summed (road index × trucks) over every road on every lookup — O(roads ×
+  trucks) even on a hit, a new key whenever any truck moved anywhere, and
+  collisions between different jams. It now keys on the set of actually
+  jammed roads (`roads.edgeOccupancy`), one pass over the fleet, and
+  Dijkstra reuses that pass for its weights; dispatch checks each job's
+  routability once instead of once per idle truck. New
+  `interaction-tests.html` drives the real page's taps (build, select,
+  demolish, buy, upgrade, place, long-press, research Cancel, sliders, the
+  bell) — the item that sat in Tech housekeeping.
 - v1.63.3: **only the tree moves when you zoom it** — the scroll viewport's
   own height tracked the scaled tree, so a pinch resized the card and its
   centred position in the overlay: the window moved under the fingers trying
@@ -112,13 +138,18 @@ in Phase 4 — not in README.md, which now just points here. See
   truck throughput with dynamic color gradients (Green → Yellow → Red glow),
   midpoint bottleneck warning badges (`⚠️`), and interactive edge traffic stats;
   implemented Dijkstra path memoization in `roads.js` keyed by `networkVersion` and
-  traffic distribution.
+  traffic distribution. (That traffic key was re-done in v1.64.0 — see there.)
 - v1.57.1: **the overlap rules explain themselves on the map** — the build
   ghost marks the site it would run over (clearance ring + ✕) or lights the
   road it can't cross red, and draws the legal alternative in green beside
   it (the two hops through that site, or the ends of the road in the way);
   a legal crossing rings and prices each interchange it would build. Help
   overlay gained a "Roads can't overlap" entry. Per v1.56.0 below.
+- v1.57.0: **Remaining Gameplay & Strategic Depth**:
+  - Within-Run Difficulty Ramp (Item 7): Order deadlines and spawn intervals tighten progressively as total delivered orders increase.
+  - Targeted Promotions (Item 10b): Marketing Blitz allows selecting a specific product target (or all products) for focused demand bursts.
+  - Factory Specialization (Item 11): Players can specialize a factory into a single recipe for a 1.5× crafting speed bonus, while generalists stay flexible.
+  - Bigger Maps & Regions (Item 15): Delivery milestones unlock adjacent regions connected by paved highways with expanded camera bounds and unified economy.
 - v1.56.0: **road overlap rules** — a road may no longer be laid over the
   top of the network: it can't brush past a site it doesn't connect to
   (`NODE_ROAD_CLEARANCE`), and it can't cross another road until the
@@ -130,12 +161,8 @@ in Phase 4 — not in README.md, which now just points here. See
   See README "Overlap rules". A region's free connector highway (Item 15
   below) obeys the same rules — it routes clear of other sites and gets
   free interchanges where it crosses a road.
-- v1.57.0: **Remaining Gameplay & Strategic Depth**:
-  - Within-Run Difficulty Ramp (Item 7): Order deadlines and spawn intervals tighten progressively as total delivered orders increase.
-  - Targeted Promotions (Item 10b): Marketing Blitz allows selecting a specific product target (or all products) for focused demand bursts.
-  - Factory Specialization (Item 11): Players can specialize a factory into a single recipe for a 1.5× crafting speed bonus, while generalists stay flexible.
-  - Bigger Maps & Regions (Item 15): Delivery milestones unlock adjacent regions connected by paved highways with expanded camera bounds and unified economy.
-- v1.56.0: **Late-delivery penalty** — regular orders expiring undelivered now charge a monetary fine scaling with difficulty (`orderPenaltyMult`: Sandbox 0x, Easy 0.1x, Normal 0.3x, Hard 0.5x) and proportional to missing units / payout value.
+- v1.56.0 (a second release under the same number — parallel branches, not
+  renumbered on merge): **Late-delivery penalty** — regular orders expiring undelivered now charge a monetary fine scaling with difficulty (`orderPenaltyMult`: Sandbox 0x, Easy 0.1x, Normal 0.3x, Hard 0.5x) and proportional to missing units / payout value.
 - v1.37.0: **Stats & Achievements screen** (☰ menu) — deliveries per
   product, a money-over-time sparkline, busiest road by trip count, and
   nine milestone badges. Per item 14 below — details there.
@@ -456,26 +483,22 @@ into claiming shipped features were unbuilt.)
 **Gameplay**
 
 - Curved / waypoint roads instead of straight node-to-node polylines.
-- Touch: long-press as an alternative to double-tap for demolish/buy —
-  the Inspect-mode hold gesture already uses the same long-press
-  primitive.
-- Research cancel/refund — a started project currently can't be aborted.
 - Faster-milestone research (unlock a site every 2 deliveries instead of
   3). Considered for v1.12 and deferred: milestone pace is the main
   faucet controlling map growth, and cheapening it risks flooding the
   midgame with sites. Now that the within-run ramp (item 7) has shipped,
   it's worth revisiting against it.
-- Biome-specific supplier bonuses — e.g. greenland tiles boosting wool
-  and wheat suppliers. Consider pivoting from auto-spawning suppliers to
-  the player placing them on advantageous biomes.
+- Biome yield is live (v1.61.2) and Site Requisition already lets the
+  player place a supplier, with the preview naming the ground's yield
+  (v1.64.0). Open question: should milestone suppliers stop auto-spawning
+  and become a choice of spot instead?
 - Weather that affects play (rain slowing trucks, etc.) rather than
   being purely cosmetic.
-- Daily challenge: share today's date as the map seed (left open by item
-  13, along with generated-world test determinism).
-
-**Audio**
-
-- Per-channel volume sliders instead of the current on/off toggles.
+- Daily challenge follow-ups (the mode itself shipped in v1.64.0): seed
+  the order stream too, so two players' dailies differ only by their
+  choices; generated-world test determinism (left open by item 13).
+- Objectives inside an endless run (e.g. "deliver 5 🚗 by minute 12"), now
+  that timed runs give the game a scored ending.
 
 **Graphics** — the iso 2.5D view has had many depth passes (scenery,
 themed supplier sites, night atmosphere, day↔night, rotating weather,
@@ -496,19 +519,15 @@ terrain). Next ideas, unbuilt:
 - ~~Generic research effects~~ — done in v1.12 (`bonusSum` /
   `customerSpawnMult` / `upgradeMaxBonus`): a new tech is one config
   entry, no new accessor code.
-- **Pathfinding cache** — Dijkstra runs per dispatch/planning tick; fine
-  now (~30 nodes), cache distances keyed on a `networkVersion` counter
-  before congestion (8) multiplies calls — inspect mode (6) adds more
-  per-hover `bestSourceFor`/`pathDist` calls too, worth watching.
-  `vehicles.dispatch()` (v1.9.2) went from O(idle+jobs) to a repeated
-  global-nearest-match (worst case O(min(idle,jobs) × idle × jobs) per
-  tick) to make yards' home-region preference actually work — still fine
-  at current fleet sizes, but the first thing to optimize (or cache) if
-  trucks/jobs both grow a lot.
-- **Interaction tests** — drive `SC.input._handleTap` in tests.html
-  (build/select/demolish/buy flows are currently only hand-tested).
-- **Sound pass** — truck-departure blip, ambient loop, separate music/sfx
-  toggles (pattern already in cargo-lander's audio.js).
+- ~~**Pathfinding cache**~~ — shipped in v1.61.0, re-keyed in v1.64.0
+  (see Shipped). Still open from the old note: `vehicles.dispatch()` is a
+  repeated global-nearest-match, worst case O(min(idle,jobs) × idle × jobs)
+  path lookups per tick. Cached lookups and the per-job routability check
+  keep it cheap at current fleet sizes; it's the first thing to revisit if
+  trucks and jobs both grow a lot.
+- ~~**Interaction tests**~~ — `interaction-tests.html`, v1.64.0.
+- ~~**Sound pass**~~ — truck-departure blip, ambient bed, separate
+  music/sound toggles and per-channel levels have all shipped.
 
 ## Open questions
 

@@ -7,6 +7,7 @@ SC.input = (function() {
     const TOUCH_TAP_SLOP = 20; // fingers wobble more than a mouse click; too tight
                                 // and a background tap-to-cancel misreads as a pan,
                                 // leaving road building armed for the next real tap
+    const LONG_PRESS_MS = 550; // touch: hold this long to skip a two-tap confirm
 
     let canvas = null;
     const pointers = new Map(); // pointerId -> {x, y, startX, startY, moved, pointerType}
@@ -17,6 +18,7 @@ SC.input = (function() {
     let pendingBuy = null;      // for-sale factory tapped once
     let pendingUpgrade = null;  // Upgrade mode: node/edge tapped once, awaiting confirm
     let inspectNode = null;     // Inspect mode: node currently hovered (mouse) or tapped (touch)
+    let longPressTimer = null;  // touch hold in progress, see handleLongPress
 
     function nodeAtScreen(sx, sy) {
         let best = null, bestD = 32; // px hit radius around the building body
@@ -240,6 +242,29 @@ SC.input = (function() {
         pendingDemolish = null;
     }
 
+    // Touch long-press: holding still on something that would otherwise
+    // need a confirming second tap does it in one gesture — demolish the
+    // road, or buy the for-sale factory, under the finger. Only in plain
+    // Build mode with nothing selected, the same situations a first tap
+    // would have armed. Returns true if it acted, so the release that
+    // follows isn't also read as a tap.
+    function handleLongPress(sx, sy) {
+        const st = SC.state;
+        if (st.mode !== 'build' || st.placeMode || st.selectedNode) return false;
+        const node = nodeAtScreen(sx, sy);
+        if (node) {
+            if (node.kind !== 'factory' || !node.forSale) return false;
+            pendingBuy = node; // a tap on an armed site is the confirming tap
+            handleTap(sx, sy, false);
+            return true;
+        }
+        const edge = edgeAtScreen(sx, sy);
+        if (!edge) return false;
+        pendingDemolish = edge;
+        handleTap(sx, sy, false);
+        return true;
+    }
+
     function pinchState() {
         const pts = [...pointers.values()];
         return {
@@ -270,6 +295,18 @@ SC.input = (function() {
                 pointerType: e.pointerType
             });
             if (pointers.size === 2) pinch = pinchState();
+            clearTimeout(longPressTimer);
+            if (e.pointerType === 'touch' && pointers.size === 1) {
+                const id = e.pointerId;
+                longPressTimer = setTimeout(() => {
+                    const p = pointers.get(id);
+                    if (!p || p.moved || pointers.size !== 1) return;
+                    if (handleLongPress(p.x, p.y)) {
+                        p.longPressed = true;
+                        if (navigator.vibrate) navigator.vibrate(15);
+                    }
+                }, LONG_PRESS_MS);
+            }
         });
 
         canvas.addEventListener('pointermove', e => {
@@ -307,7 +344,8 @@ SC.input = (function() {
             const p = pointers.get(e.pointerId);
             pointers.delete(e.pointerId);
             if (pointers.size < 2) pinch = null;
-            if (p && !p.moved && e.type === 'pointerup' && pointers.size === 0) {
+            clearTimeout(longPressTimer);
+            if (p && !p.moved && !p.longPressed && e.type === 'pointerup' && pointers.size === 0) {
                 handleTap(e.clientX, e.clientY, e.shiftKey);
             }
         };
@@ -343,6 +381,7 @@ SC.input = (function() {
         getPendingDemolish: () => pendingDemolish,
         getPendingUpgrade: () => pendingUpgrade,
         _handleTap: handleTap,
+        _handleLongPress: handleLongPress,
         // Headless verification hooks: force a hover point / an inspected
         // node without a real pointer event, so the ghost previews and the
         // inspect tooltip can be screenshotted.

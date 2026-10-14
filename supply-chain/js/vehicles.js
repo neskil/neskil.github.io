@@ -125,11 +125,20 @@ SC.vehicles = (function() {
         const capacity = SC.truckCapacity();
         let idle = SC.state.trucks.filter(t => !t.jobs.length && !t.path);
 
+        // Whether a job's own haul is routable doesn't depend on which
+        // truck takes it, so ask once per job rather than once per
+        // (truck, job) pair on every round of the matching loop.
+        const haulable = new Map();
+        const canHaul = job => {
+            if (!haulable.has(job)) haulable.set(job, !!SC.roads.findPath(job.pickup, job.drop));
+            return haulable.get(job);
+        };
+
         while (idle.length && jobs.length) {
             let bestTruck = null, bestJob = null, bestDist = Infinity, bestRoute = null;
             for (const truck of idle) {
                 for (const job of jobs) {
-                    if (!SC.roads.findPath(job.pickup, job.drop)) continue;
+                    if (!canHaul(job)) continue;
                     const r = SC.roads.findPath(truck.node, job.pickup);
                     if (r && r.dist < bestDist) { bestDist = r.dist; bestTruck = truck; bestJob = job; bestRoute = r; }
                 }
@@ -150,9 +159,12 @@ SC.vehicles = (function() {
             SC.emit('truckDispatched', bestTruck);
             idle = idle.filter(t => t !== bestTruck);
         }
+        sendIdleHome(idle);
+    }
 
-        // Trucks left with no work head back to their home yard, if not
-        // there already.
+    // Trucks left with no work head back to their home yard, if not
+    // there already.
+    function sendIdleHome(idle) {
         for (const truck of idle) {
             if (truck.node === truck.homeYard) continue;
             const home = SC.roads.findPath(truck.node, truck.homeYard);

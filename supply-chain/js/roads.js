@@ -250,9 +250,13 @@ SC.roads = (function() {
     // arrive/leave the edge — including inside Dijkstra's own weighting
     // below, which is what makes routing actually prefer a quieter
     // parallel road over a jammed one.
-    function congestionMult(edge) {
+    // `occ` (optional) is a precomputed occupancy map from edgeOccupancy(),
+    // so Dijkstra can weigh every edge off one pass over the fleet instead
+    // of re-counting trucks per relaxation.
+    function congestionMult(edge, occ) {
         if (!SC.state.congestionEnabled || !SC.vehicles) return 1;
-        const excess = SC.vehicles.truckCountOnEdge(edge) - SC.CONFIG.CONGESTION_THRESHOLD;
+        const count = occ ? (occ.get(edgeKey(edge.a, edge.b)) || 0) : SC.vehicles.truckCountOnEdge(edge);
+        const excess = count - SC.CONFIG.CONGESTION_THRESHOLD;
         return excess > 0
             ? Math.max(SC.CONFIG.CONGESTION_FLOOR, 1 - SC.CONFIG.CONGESTION_STEP * excess)
             : 1;
@@ -263,10 +267,34 @@ SC.roads = (function() {
     // moves them FERRY_SPEED_MULT slower instead (mutually exclusive —
     // see upgradeQuote). Congestion (when enabled) then applies on top
     // of whichever base multiplier applies.
-    function speedMult(edge) {
+    function speedMult(edge, occ) {
         if (!edge) return 1;
         const base = edge.level ? SC.CONFIG.HIGHWAY_SPEED_MULT : (edge.ferry ? SC.CONFIG.FERRY_SPEED_MULT : 1);
-        return base * congestionMult(edge);
+        return base * congestionMult(edge, occ);
+    }
+
+    // Order-independent key for the road between two nodes.
+    function edgeKey(a, b) {
+        return a.id < b.id ? a.id + '-' + b.id : b.id + '-' + a.id;
+    }
+
+    // One pass over the fleet: how many trucks are on each road segment
+    // right now (edgeKey -> count), plus a signature naming only the
+    // segments that are actually jammed (past CONGESTION_THRESHOLD). Only
+    // jammed roads change a route's weight, so that signature is exactly
+    // the part of the traffic picture the path cache has to key on: while
+    // nothing is jammed every lookup shares one key, however much the
+    // fleet moves around.
+    function edgeOccupancy() {
+        const occ = new Map();
+        for (const t of SC.state.trucks) {
+            if (!t.path || t.pathIdx >= t.path.length - 1) continue;
+            const k = edgeKey(t.path[t.pathIdx], t.path[t.pathIdx + 1]);
+            occ.set(k, (occ.get(k) || 0) + 1);
+        }
+        const jammed = [];
+        for (const [k, n] of occ) if (n > SC.CONFIG.CONGESTION_THRESHOLD) jammed.push(k + 'x' + n);
+        return { occ, sig: jammed.length ? jammed.sort().join(',') : '' };
     }
 
     // Quote for upgrading a road to a highway; null when not possible.
@@ -313,15 +341,17 @@ SC.roads = (function() {
         if (from === to) return { path: [from], dist: 0 };
 
         const ver = SC.state ? (SC.state.networkVersion || 0) : 0;
-        let cong = 's';
-        if (SC.state && SC.state.congestionEnabled) {
-            let totalJammed = 0;
-            const edges = SC.state.edges;
-            for (let i = 0; i < edges.length; i++) {
-                const cnt = SC.vehicles ? SC.vehicles.truckCountOnEdge(edges[i]) : 0;
-                if (cnt > 0) totalJammed += (i + 1) * cnt;
-            }
-            cong = 'c' + totalJammed;
+        // Congestion re-weights jammed roads, so a cached route is only
+        // good for the same set of jams (see edgeOccupancy). The old key
+        // summed (edge index × trucks) over every road on every call: an
+        // O(roads × trucks) cost even on a cache hit, a key that changed
+        // whenever any truck moved anywhere, and one that collided (two
+        // trucks on road 0 summed the same as one on road 1).
+        let cong = 's', occ = null;
+        if (SC.state && SC.state.congestionEnabled && SC.vehicles) {
+            const o = edgeOccupancy();
+            occ = o.occ;
+            cong = 'c' + o.sig;
         }
         const fromId = from.id !== undefined ? from.id : from;
         const toId = to.id !== undefined ? to.id : to;
@@ -347,7 +377,7 @@ SC.roads = (function() {
             for (const nb of cur.edges) {
                 const e = findEdge(cur, nb);
                 if (!e) continue;
-                const d = dist.get(cur) + e.len / speedMult(e);
+                const d = dist.get(cur) + e.len / speedMult(e, occ);
                 if (!dist.has(nb) || d < dist.get(nb)) {
                     dist.set(nb, d);
                     prev.set(nb, cur);
@@ -487,7 +517,7 @@ SC.roads = (function() {
     }
 
     return { findEdge, quote, build, demolish, findPath, pathDist,
-             speedMult, congestionMult, upgradeQuote, upgrade, getLineIntersection, findClosestCrossing,
+             speedMult, congestionMult, edgeOccupancy, upgradeQuote, upgrade, getLineIntersection, findClosestCrossing,
              checkSegment, blockMessage, splitEdge, hasCrossings,
              bumpNetworkVersion, clearCache,
              pointSegDist, pointRoadDist, _addRawEdge };

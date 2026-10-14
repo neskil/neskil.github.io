@@ -330,6 +330,51 @@ SC.DIFFICULTIES = {
 };
 SC.DIFFICULTY_ORDER = ['easy', 'normal', 'hard', 'sandbox'];
 
+// Run modes, picked on the new-game screen next to difficulty. Endless is
+// the open-ended game the rest of this file tunes; the two timed modes put
+// a clock on the run and score it as profit at the bell (cash minus the
+// difficulty's starting money — see SC.run.score), so there's something to
+// aim at and a number to beat. The daily challenge also fixes the map (a
+// seed derived from the date) and the difficulty, so everyone playing it
+// that day starts from the same world. Orders and customer timing still
+// roll on Math.random — same map, not a replay.
+SC.RUN_MODES = {
+    endless: {
+        label: 'Endless', emoji: '♾️', minutes: null,
+        desc: 'No clock. Build until the bank says otherwise.'
+    },
+    challenge: {
+        label: 'Timed challenge', emoji: '⏱️', minutes: 15,
+        desc: '15 minutes on the clock. Score = profit at the bell.'
+    },
+    daily: {
+        label: 'Daily challenge', emoji: '📅', minutes: 15, difficulty: 'normal',
+        desc: "Today's map, Normal difficulty, 15 minutes. One best score per day."
+    }
+};
+SC.RUN_MODE_ORDER = ['endless', 'challenge', 'daily'];
+
+// Why an order ran out of time (SC.economy.missReason). Diagnosed at the
+// moment it expires from what its work was doing then, tallied per run in
+// SC.state.missedReasons, and named in the expiry toast and on the Stats
+// screen — a missed order should say what to fix. Order here is display
+// order.
+SC.MISS_REASONS = {
+    noProduction: { emoji: '🏭', label: 'Nothing could make it',
+        hint: 'No working factory (or supplier) for this product yet — buy or build the missing site.' },
+    noRoute:      { emoji: '🛣️', label: 'No road route',
+        hint: 'A site in its chain is not connected by road — build the missing road.' },
+    dryStock:     { emoji: '⛏️', label: 'Supplier ran dry',
+        hint: 'A truck sat waiting for stock — upgrade that supplier or add another.' },
+    noTruck:      { emoji: '🚚', label: 'No free truck',
+        hint: 'Work waited for a truck — buy trucks, or a yard nearer the work.' },
+    factoryBusy:  { emoji: '⚙️', label: 'Factory backlog',
+        hint: 'It was queued at a busy factory — Factory Speed, or a second factory.' },
+    tooSlow:      { emoji: '⏱️', label: 'Too slow on the road',
+        hint: 'It was on its way — shorter roads, highways or Truck Speed.' }
+};
+SC.MISS_REASON_ORDER = ['noProduction', 'noRoute', 'dryStock', 'noTruck', 'factoryBusy', 'tooSlow'];
+
 // Research tree: one active project at a time, paid upfront, takes `time`
 // seconds, then unlocks its effect. `requires` lists prerequisite ids.
 // RESEARCH_ORDER fixes menu display order (object key order isn't a
