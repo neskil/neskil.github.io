@@ -517,27 +517,38 @@
 
         /* On a phone the panel is below the fold, so the next step and the
            buttons that matter ride on the table itself. */
-        .stage-bar { display: none; }
+        .stage-bar {
+            display: none;
+            position: absolute;
+            left: 0.5rem;
+            right: 0.5rem;
+            bottom: 0.5rem;
+            z-index: 2;
+            gap: 0.3rem;
+            align-items: center;
+            background: rgba(15, 20, 32, 0.86);
+            border: 1px solid var(--panel-border);
+            border-radius: 14px;
+            padding: 0.4rem 0.45rem 0.4rem 0.7rem;
+        }
+        #guide-mini, #place-mini { flex: 1; font-size: 0.78rem; line-height: 1.3; color: #fef08a; }
+        .stage-bar .chip { padding: 0.35rem 0.6rem; }
+        /* A fold placed by touch waits on the table for its Fold button, on a
+           tablet too, so the bar shows whatever the width. */
+        .table.placing .stage-bar { display: flex; }
+        .table:not(.placing) .placing-only, .table.placing .idle-only { display: none; }
+        .stage-bar .chip-fold {
+            padding: 0.45rem 1rem;
+            font-weight: 700;
+            background: #facc15;
+            border-color: #facc15;
+            color: #1a1712;
+        }
 
         @media (max-width: 900px) {
             .layout { grid-template-columns: 1fr; }
             .table { height: auto; min-height: 0; aspect-ratio: 210 / 345; max-height: 80dvh; position: relative; top: auto; }
-            .stage-bar {
-                display: flex;
-                position: absolute;
-                left: 0.5rem;
-                right: 0.5rem;
-                bottom: 0.5rem;
-                z-index: 2;
-                gap: 0.3rem;
-                align-items: center;
-                background: rgba(15, 20, 32, 0.86);
-                border: 1px solid var(--panel-border);
-                border-radius: 14px;
-                padding: 0.4rem 0.45rem 0.4rem 0.7rem;
-            }
-            #guide-mini { flex: 1; font-size: 0.78rem; line-height: 1.3; color: #fef08a; }
-            .stage-bar .chip { padding: 0.35rem 0.6rem; }
+            .stage-bar { display: flex; }
             .turntable { height: 52dvh; min-height: 0; }
             .fly-layout { grid-template-columns: 1fr; }
         }
@@ -615,12 +626,15 @@
     <main id="step-fold" class="layout">
         <div class="stage table">
             <div class="stage-bar">
-                <span id="guide-mini"></span>
-                <button type="button" class="chip" data-act="show" aria-label="Show me the next fold">▶</button>
-                <button type="button" class="chip" data-act="undo" aria-label="Undo">↶</button>
-                <button type="button" class="chip" data-act="next">Shape →</button>
+                <span id="guide-mini" class="idle-only"></span>
+                <button type="button" class="chip idle-only" data-act="show" aria-label="Show me the next fold">▶</button>
+                <button type="button" class="chip idle-only" data-act="undo" aria-label="Undo">↶</button>
+                <button type="button" class="chip idle-only" data-act="next">Shape →</button>
+                <span id="place-mini" class="placing-only">Drag the arrow's tip to adjust it, then fold.</span>
+                <button type="button" class="chip placing-only" data-act="cancel" aria-label="Cancel this fold">✕</button>
+                <button type="button" class="chip chip-fold placing-only" data-act="fold">Fold</button>
             </div>
-            <canvas id="fold-canvas" aria-label="A sheet of A4 on a table. Press on the paper near a corner or an edge and drag it to where it should land to fold it; let go to make the crease."></canvas>
+            <canvas id="fold-canvas" aria-label="A sheet of A4 on a table. Press on the paper near a corner or an edge and drag it to where it should land to place a fold; let go to make the crease, or on a touch screen press Fold."></canvas>
         </div>
         <section class="panel" aria-label="Folding">
             <div>

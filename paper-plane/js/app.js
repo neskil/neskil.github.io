@@ -74,6 +74,7 @@ const foldView = new FoldView($('fold-canvas'), {
     mirror: () => state.mirror,
     onFold: (S, T, mirrored) => commitFold(S, T, mirrored),
     onMessage: (t) => say(t, 'warn'),
+    onPlaced: (on) => $('fold-canvas').parentElement.classList.toggle('placing', on),
 });
 const liveView = new ShapeView($('live-canvas'), { labels: false });
 const shapeView = new ShapeView($('shape-canvas'));
@@ -307,8 +308,10 @@ document.querySelector('[data-act="show"]').addEventListener('click', () => $('s
 $('undo').addEventListener('click', () => { if (!state.steps.length) return; state.steps = state.steps.slice(0, -1); rebuild(); persist(); });
 document.querySelector('[data-act="undo"]').addEventListener('click', () => $('undo').click());
 document.querySelector('[data-act="next"]').addEventListener('click', () => go('shape'));
+document.querySelector('[data-act="fold"]').addEventListener('click', () => foldView.fold());
+document.querySelector('[data-act="cancel"]').addEventListener('click', () => foldView.cancel());
 $('restart').addEventListener('click', () => { state.steps = []; rebuild(); persist(); say('A fresh sheet.'); });
-$('mirror').addEventListener('click', () => { state.mirror = !state.mirror; syncToggles(); });
+$('mirror').addEventListener('click', () => { state.mirror = !state.mirror; syncToggles(); foldView.draw(); });
 $('under').addEventListener('click', () => { state.under = !state.under; syncToggles(); });
 function syncToggles() {
     $('mirror').setAttribute('aria-pressed', String(state.mirror));
@@ -644,6 +647,7 @@ $('share').addEventListener('click', async () => {
 /* ── The page's three steps ── */
 function go(step) {
     state.step = step;
+    if (step !== 'fold') foldView.cancel();
     document.querySelectorAll('[data-step]').forEach(b => b.setAttribute('aria-current', String(b.dataset.step === step)));
     for (const s of ['fold', 'shape', 'fly']) $(`step-${s}`).hidden = s !== step;
     liveView.visible = step === 'fold';
