@@ -60,6 +60,7 @@ function jarRadius(y) {
 const POND = { x: -0.36, z: 0.3, r: 0.23 };
 const CABIN = { x: 0.44, z: -0.3 };
 const TREE = { x: 0.0, z: -0.06 };
+const LANTERN = { x: 0.17, z: 0.15 };
 const BASE = 0.86;            // the meadow's resting height
 const WATER_Y = BASE - 0.025;
 
@@ -304,6 +305,14 @@ export function createJar(canvas, { onTap, reduceMotion }) {
             size.setX(k, 0.012 + R() * 0.024);
         }
     }
+
+    // Now and then on a clear night, a shooting star: a bright head and a
+    // fading trail of soft points, gone in under a second.
+    const TRAIL = 14;
+    const meteor = points(TRAIL, { color: [1, 0.96, 0.88], size: 0.03, hard: 0.1, additive: true });
+    meteor.visible = false;
+    meteor.geometry.attributes.aSize.array.forEach((_, k, a) => { a[k] = 0.034 * (1 - k / TRAIL * 0.75); });
+    const shooting = { f: -1, next: 5 + R2() * 8, from: new THREE.Vector3(), dir: new THREE.Vector3() };
 
     /* ── Sun and moon ── */
     // The sun in layers, all additive and drawn past tone mapping so it can
@@ -703,6 +712,9 @@ export function createJar(canvas, { onTap, reduceMotion }) {
             }
         }
     }
+    // Shuffled, so that drawing fewer of them out of season thins every clump
+    // a little rather than emptying some.
+    for (let k = flowerSpots.length - 1; k > 0; k--) { const j = Math.floor(RP() * (k + 1)); [flowerSpots[k], flowerSpots[j]] = [flowerSpots[j], flowerSpots[k]]; }
     const flowers = plant(flowerGeo, plantMat(FLOWER_H, [74, 124, 56], [236, 186, 52]), flowerSpots);
 
     // Reeds and a few bulrushes on the far side of the pond, a pad or two on the water.
@@ -917,6 +929,43 @@ export function createJar(canvas, { onTap, reduceMotion }) {
         st.receiveShadow = true;
         world.add(st);
     }
+    // Firewood stacked against the gable wall, ends out.
+    {
+        const bark = new THREE.MeshStandardMaterial({ color: lin([92, 64, 44]), roughness: 1 });
+        const end = new THREE.MeshStandardMaterial({ color: lin([214, 176, 128]), roughness: 0.9 });
+        const logGeo = new THREE.CylinderGeometry(0.0095, 0.0095, 0.13, 7);
+        logGeo.rotateX(Math.PI / 2);
+        const rows = [4, 3, 2], logs = [];
+        rows.forEach((n, row) => { for (let k = 0; k < n; k++) logs.push([0.152 + (k + row * 0.5) * 0.019, 0.0095 + row * 0.0165]); });
+        const pile = new THREE.InstancedMesh(logGeo, [bark, end, end], logs.length);
+        const m = new THREE.Matrix4();
+        logs.forEach(([x, y], k) => { m.makeRotationZ(k * 1.7); m.setPosition(x, y, -0.01 + (k % 3 - 1) * 0.004); pile.setMatrixAt(k, m); });
+        pile.castShadow = pile.receiveShadow = true;
+        cabin.add(pile);
+    }
+    // A lantern on a post where the path meets the meadow, lit at dusk.
+    const lantern = new THREE.Group();
+    lantern.position.set(LANTERN.x, groundH(LANTERN.x, LANTERN.z) - 0.005, LANTERN.z);
+    world.add(lantern);
+    const postMat = new THREE.MeshStandardMaterial({ color: lin([62, 44, 34]), roughness: 1 });
+    const post = new THREE.Mesh(new THREE.BoxGeometry(0.008, 0.14, 0.008), postMat);
+    post.position.y = 0.07;
+    const arm = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.005, 0.005), postMat);
+    arm.position.set(0.012, 0.137, 0);
+    const lanternGlass = new THREE.MeshStandardMaterial({ color: 0x3a3428, emissive: 0xffb44f, emissiveIntensity: 0, roughness: 0.3 });
+    const lanternBox = new THREE.Mesh(new THREE.BoxGeometry(0.014, 0.02, 0.014), lanternGlass);
+    lanternBox.position.set(0.022, 0.12, 0);
+    const lanternCap = new THREE.Mesh(new THREE.ConeGeometry(0.012, 0.009, 4), postMat);
+    lanternCap.position.set(0.022, 0.1345, 0);
+    lanternCap.rotation.y = Math.PI / 4;
+    for (const m of [post, arm, lanternCap]) { m.castShadow = true; m.receiveShadow = true; }
+    const lanternLight = new THREE.PointLight(0xffb45a, 0, 0.45, 2);
+    lanternLight.position.set(0.022, 0.11, 0);
+    const lanternGlow = new THREE.Sprite(new THREE.SpriteMaterial({ map: soft, color: 0xffbe6a, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false, opacity: 0 }));
+    lanternGlow.scale.set(0.12, 0.12, 1);
+    lanternGlow.position.set(0.022, 0.12, 0);
+    lantern.add(post, arm, lanternBox, lanternCap, lanternLight, lanternGlow);
+
     const smoke = Array.from({ length: 6 }, () => {
         const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: soft, color: 0xc8ccd6, transparent: true, depthWrite: false, opacity: 0 }));
         world.add(s);
@@ -967,28 +1016,31 @@ export function createJar(canvas, { onTap, reduceMotion }) {
         g.putImageData(img, 0, 0);
     });
     const shadowOnly = new THREE.MeshBasicMaterial({ colorWrite: false, depthWrite: false });
-    const clouds = Array.from({ length: 8 }, (_, i) => {
+    // Many small, flat-bottomed clouds spaced round the jar, rather than a
+    // few big ones that pile up into a single ball in front of the tree.
+    const NCLOUDS = 11;
+    const clouds = Array.from({ length: NCLOUDS }, (_, i) => {
         const mats = [0.72, 0.88, 1].map(() => new THREE.SpriteMaterial({ map: cloudTex, transparent: true, depthWrite: false, opacity: 0.96 }));
         const g = new THREE.Group();
-        const n = 5 + Math.floor(R() * 3);
+        const n = 4 + Math.floor(R() * 3);
         for (let k = 0; k < n; k++) {
             const p = new THREE.Mesh(puffGeo, shadowOnly);
-            const r = 0.1 + R() * 0.09;
-            p.scale.set(r, r * 0.8, r);
-            p.position.set((R() - 0.5) * 0.46, (R() - 0.3) * 0.08 + (r - 0.1) * 0.6, (R() - 0.5) * 0.2);
+            const r = 0.07 + R() * 0.06;
+            p.scale.set(r, r * 0.65, r);
+            p.position.set((R() - 0.5) * 0.36, (R() - 0.3) * 0.04 + (r - 0.07) * 0.5, (R() - 0.5) * 0.16);
             p.castShadow = true;
             g.add(p);
             for (let j = 0; j < 3; j++) {
                 const lift = j - 1;
                 const sp = new THREE.Sprite(mats[j]);
                 sp.position.set(p.position.x + (R2() - 0.5) * r * 0.6, p.position.y + lift * r * 0.32, p.position.z + (R2() - 0.5) * r * 0.4);
-                const sz = r * (2.5 - Math.abs(lift) * 0.5) * (0.9 + R2() * 0.3);
-                sp.scale.set(sz, sz * 0.8, 1);
+                const sz = r * (2.4 - Math.abs(lift) * 0.5) * (0.9 + R2() * 0.3);
+                sp.scale.set(sz, sz * 0.62, 1);
                 g.add(sp);
             }
         }
         world.add(g);
-        return { g, mats, a: R() * 6.283, r: 0.2 + R() * 0.42, y: 2.08 + R() * 0.4, speed: 0.5 + R() * 0.8, size: 0.7 + R() * 0.45, scale: 0, rank: i };
+        return { g, mats, a: i / NCLOUDS * 6.283 + R() * 0.4, r: 0.3 + R() * 0.45, y: 1.98 + R() * 0.42, speed: 0.6 + R() * 0.3, size: 0.6 + R() * 0.45, scale: 0, rank: (i * 7) % NCLOUDS };
     });
 
     /* ── Rain, splashes, snow, fireflies, fog, condensation ── */
@@ -1147,8 +1199,21 @@ export function createJar(canvas, { onTap, reduceMotion }) {
     let rainbowA = 0;
     const eye = new THREE.Vector3();
 
+    /* ── Mist over the pond on cool, still mornings ── */
+    const mist = new THREE.Group();
+    world.add(mist);
+    const wisps = Array.from({ length: 7 }, (_, k) => {
+        const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: soft, transparent: true, depthWrite: false, opacity: 0 }));
+        mist.add(s);
+        return { s, a: k / 7 * 6.283, r: POND.r * (0.2 + (k % 3) * 0.3), y: WATER_Y + 0.02 + (k % 3) * 0.014, sp: 0.04 + R2() * 0.05, w: 0.3 + R2() * 0.14 };
+    });
+
     /* ── The sheep, the worm, and the occasional saucer ── */
-    const visitors = createVisitors({ world, shell, groundH, onMeadow: (x, z) => onMeadow(x, z) && Math.hypot(x - TREE.x, z - TREE.z) > 0.09, envMap: envTex, rand: R2 });
+    const visitors = createVisitors({
+        world, shell, groundH, envMap: envTex, rand: R2,
+        onMeadow: (x, z) => onMeadow(x, z) && Math.hypot(x - TREE.x, z - TREE.z) > 0.09 && Math.hypot(x - LANTERN.x, z - LANTERN.z) > 0.05,
+        pond: { x: POND.x, z: POND.z, r: POND.r, y: WATER_Y, avoid: pads.map(p => [p.position.x, p.position.z, p.geometry.parameters.radius]) },
+    });
     if (/[?&]debug\b/.test(location.search)) window.__terrarium = visitors;
     let pondTick = 0;
     let summonAt = -1;
@@ -1385,6 +1450,7 @@ export function createJar(canvas, { onTap, reduceMotion }) {
     const glowCol = new THREE.Color();
     function render(f) {
         const { w, sun, snowCover, gust, t, dt } = f;
+        const season = f.season || { blossom: 0, bloom: 1 };
         const day = sun.colours.daylight, night = 1 - day;
         const still = reduceMotion();
 
@@ -1523,6 +1589,7 @@ export function createJar(canvas, { onTap, reduceMotion }) {
         }
         waterMat.emissive.copy(waterMat.color).multiplyScalar(frozen ? 0.1 : 0.15);
         flowers.visible = snowCover < 0.3 && (w.temp ?? 12) > 4;
+        flowers.count = Math.max(1, Math.round(flowerSpots.length * season.bloom));
         // Grass pales under the snow and is buried once it lies deep.
         tuftMat.emissive.setScalar(Math.min(0.5, snowCover * 0.6));
         tufts.visible = snowCover < 0.75;
@@ -1530,9 +1597,14 @@ export function createJar(canvas, { onTap, reduceMotion }) {
         // The tree: autumnal below ten degrees, thinner in the snow, bending in the wind.
         const temp = w.temp ?? 12;
         const cold = temp < 10 ? Math.min(1, (10 - temp) / 12) : 0;
+        // In spring two of every three sprays of leaves go over to blossom,
+        // pink among the green.
+        const bl = season.blossom * (1 - cold);
+        const foliage = [70 + 150 * cold, 150 - 40 * cold, 80 - 40 * cold];
+        const pink = (amount) => foliage.map((v, j) => v + ([255, 168, 198][j] - v) * bl * amount);
         [0.82, 1, 1.15].forEach((k, i) => {
-            setLin(leafMats[i].color, [70 + 150 * cold, 150 - 40 * cold, 80 - 40 * cold], k * 0.75);
-            setLin(cardMats[i].color, [70 + 150 * cold, 150 - 40 * cold, 80 - 40 * cold], k);
+            setLin(leafMats[i].color, pink(0.25), k * 0.75);
+            setLin(cardMats[i].color, pink([0.9, 0.2, 0.9][i]), k);
             // Leaves let light through: a little glow of their own when the sun is up.
             cardMats[i].emissive.copy(cardMats[i].color).multiplyScalar(0.12 + 0.2 * day);
         });
@@ -1545,7 +1617,10 @@ export function createJar(canvas, { onTap, reduceMotion }) {
 
         // Clouds.
         const shown = Math.ceil(clouds.length * Math.min(1, w.cloud + 0.15));
-        const cbase = w.storm ? [40 + 40 * day, 42 + 42 * day, 52 + 44 * day] : [44 + 200 * day, 48 + 196 * day, 66 + 186 * day];
+        // Rain clouds go grey and heavy-bottomed; fair-weather ones stay white.
+        const wet = Math.min(1, w.rain * 1.3 + w.snow * 0.4);
+        const cbase = w.storm ? [40 + 40 * day, 42 + 42 * day, 52 + 44 * day] : [44 + (200 - 85 * wet) * day, 48 + (196 - 82 * wet) * day, 66 + (186 - 66 * wet) * day];
+        const shade = [0.72 - 0.24 * wet, 0.88 - 0.12 * wet, 1];
         for (const c of clouds) {
             const want = w.cloud >= 0.05 && c.rank < shown ? c.size * (0.6 + w.cloud * 0.75) : 0;
             c.scale += (want - c.scale) * Math.min(1, dt * 1.5);
@@ -1553,12 +1628,12 @@ export function createJar(canvas, { onTap, reduceMotion }) {
             if (!c.g.visible) continue;
             c.a += (0.6 + w.wind * 0.9 + gust * 4) * c.speed * dt * 0.06 * (still ? 0.2 : 1);
             const y = c.y - (w.cloud > 0.8 ? 0.12 : 0);
-            const r = Math.max(0, Math.min(c.r, jarRadius(y) - 0.36 * c.scale - 0.14));
+            const r = Math.max(0, Math.min(c.r, jarRadius(y) - 0.3 * c.scale - 0.12));
             c.g.position.set(Math.cos(c.a) * r, y, Math.sin(c.a) * r);
             c.g.rotation.y = -c.a + Math.PI / 2;
             c.g.scale.setScalar(c.scale);
             // Shaded underneath, lit along the top, warm when the sun is low.
-            [0.72, 0.88, 1].forEach((k, j) => {
+            shade.forEach((k, j) => {
                 setLin(c.mats[j].color, cbase.map(v => Math.min(255, v + 10)), k);
                 if (j === 2) c.mats[j].color.add(cloudRim.value);
             });
@@ -1569,6 +1644,10 @@ export function createJar(canvas, { onTap, reduceMotion }) {
         windowMat.emissiveIntensity = lampOn > 0.05 ? 0.4 + lampOn * 1.6 : 0;
         lamp.intensity = lampOn * 0.9;
         lampGlow.material.opacity = lampOn * 0.55;
+        const flicker = 0.92 + 0.08 * Math.sin(t * 9.3) * Math.sin(t * 5.1);
+        lanternGlass.emissiveIntensity = lampOn > 0.05 ? (0.5 + lampOn * 2) * flicker : 0;
+        lanternLight.intensity = lampOn * 0.7 * flicker;
+        lanternGlow.material.opacity = lampOn * 0.6 * flicker;
         chimneyTop.set(0.07, 0.32, -0.05);
         cabin.localToWorld(chimneyTop);
         world.worldToLocal(chimneyTop);
@@ -1726,9 +1805,51 @@ export function createJar(canvas, { onTap, reduceMotion }) {
             pos.needsUpdate = true;
         }
 
+        // A shooting star now and then while the stars are out.
+        if (shooting.f < 0 && starA > 0.5 && !still) {
+            shooting.next -= dt;
+            if (shooting.next <= 0) {
+                shooting.f = 0;
+                shooting.next = 7 + R2() * 14;
+                const a = R2() * 6.283, y = 2.25 + R2() * 0.35, r = jarRadius(y) * 0.65;
+                shooting.from.set(Math.cos(a) * r, y, Math.sin(a) * r);
+                // Across the sky and a little down, along the dome rather than out through it.
+                const side = R2() < 0.5 ? 1 : -1;
+                shooting.dir.set(-Math.sin(a) * side - Math.cos(a) * 0.4, -0.35, Math.cos(a) * side - Math.sin(a) * 0.4).normalize();
+            }
+        }
+        meteor.visible = shooting.f >= 0;
+        if (meteor.visible) {
+            shooting.f += dt / 0.8;
+            const pos = meteor.geometry.attributes.position, al = meteor.geometry.attributes.aAlpha;
+            const head = Math.min(1, shooting.f) * 0.6, fade = Math.sin(Math.PI * Math.min(1, shooting.f));
+            for (let k = 0; k < TRAIL; k++) {
+                const d = Math.max(0, head - k * 0.018);
+                pos.setXYZ(k, shooting.from.x + shooting.dir.x * d, shooting.from.y + shooting.dir.y * d, shooting.from.z + shooting.dir.z * d);
+                al.setX(k, fade * (1 - k / TRAIL) * (head - k * 0.018 > 0 ? 1 : 0));
+            }
+            pos.needsUpdate = true;
+            al.needsUpdate = true;
+            meteor.material.uniforms.uOpacity.value = starA;
+            if (shooting.f >= 1) shooting.f = -1;
+        }
+
+        // Mist lifting off the pond after a cool, still night, gone as the sun climbs.
+        const mistA = sun.az < 0.15 ? clamp01((sun.el + 5) / 4) * clamp01((13 - sun.el) / 7) * clamp01((20 - temp) / 6) * clamp01(1 - w.wind / 12) * (1 - Math.min(1, w.rain * 3)) * (frozen ? 0 : 1) : 0;
+        mist.visible = mistA > 0.01;
+        if (mist.visible) {
+            for (const m of wisps) {
+                m.a += dt * m.sp * (still ? 0.2 : 1);
+                m.s.position.set(POND.x + Math.cos(m.a) * m.r, m.y + 0.006 * Math.sin(t * 0.4 + m.a), POND.z + Math.sin(m.a) * m.r * 0.8);
+                m.s.scale.set(m.w, m.w * 0.32, 1);
+                m.s.material.opacity = mistA * 0.8;
+                setLin(m.s.material.color, [0, 1, 2].map(i => 205 + sun.colours.horizon[i] * 0.2), 0.8 + 0.2 * day);
+            }
+        }
+
         // Leaves coming down: a steady fall in autumn, a flurry when the jar is tapped.
         if (!still && snowCover < 0.5) {
-            fallDue += dt * (cold > 0.25 ? 0.6 + cold * 1.6 + w.wind * 0.1 : 0) + (gust > 0.9 ? dt * 25 : 0);
+            fallDue += dt * (cold > 0.25 ? 0.6 + cold * 1.6 + w.wind * 0.1 : 0) + dt * bl * (0.8 + w.wind * 0.15) + (gust > 0.9 ? dt * 25 : 0);
             while (fallDue >= 1) { fallDue -= 1; dropLeaf(); }
         }
         {
@@ -1760,7 +1881,7 @@ export function createJar(canvas, { onTap, reduceMotion }) {
             });
             falling.visible = any;
             falling.instanceMatrix.needsUpdate = true;
-            setLin(fallMat.color, [70 + 150 * cold, 150 - 40 * cold, 80 - 40 * cold]);
+            setLin(fallMat.color, bl > 0.2 ? [250, 214, 226] : [70 + 150 * cold, 150 - 40 * cold, 80 - 40 * cold]);
         }
 
         // Birds on fine days.
@@ -1797,7 +1918,7 @@ export function createJar(canvas, { onTap, reduceMotion }) {
         reedMat.emissive.setScalar(Math.min(0.35, snowCover * 0.4));
 
         if (summonAt >= 0 && t >= summonAt) { summonAt = -1; visitors.summon(); }
-        visitors.update(dt, t, { snow: snowCover, still, day, w });
+        visitors.update(dt, t, { snow: snowCover, still, day, w, frozen });
 
         // The pond's reflection, refreshed every few frames.
         if (water.visible && pondTick-- <= 0) {
@@ -1805,6 +1926,10 @@ export function createJar(canvas, { onTap, reduceMotion }) {
             water.getWorldPosition(pondCam.position);
             pondCam.position.y += 0.03;
             water.visible = false;
+            // Anything bobbing on the water sits right against the cube camera
+            // and would fill half its view; leave it out of the reflection.
+            const ducksShown = visitors.ducks.visible, mistShown = mist.visible;
+            visitors.ducks.visible = mist.visible = false;
             // The cube camera relies on autoClear, which the two-scene draw turns off.
             renderer.shadowMap.autoUpdate = false;
             renderer.autoClear = true;
@@ -1817,6 +1942,8 @@ export function createJar(canvas, { onTap, reduceMotion }) {
             renderer.autoClear = false;
             renderer.shadowMap.autoUpdate = true;
             water.visible = true;
+            visitors.ducks.visible = ducksShown;
+            mist.visible = mistShown;
         }
 
         renderer.clear();
