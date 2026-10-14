@@ -6,7 +6,7 @@ Niklas Billgren's personal site, hosted on GitHub Pages. Static HTML/CSS/JS, no 
 
 | Path | What it is |
 | --- | --- |
-| `index.html` | Landing page / portfolio hub linking out to the sections below. The cards are grouped into foldable shelves (games, toys & experiments, useful tools, about) with a jump bar above them; a fold is remembered per browser, and a phone opens only the first shelf until told otherwise. |
+| `index.html` | Landing page / portfolio hub linking out to the sections below. The cards are grouped into foldable shelves (games, labs, useful tools, about) with a jump bar above them; a fold is remembered per browser, and a phone opens only the first shelf until told otherwise. |
 | `cv/` | Curriculum vitae site. |
 | `cargo-lander/` | CargoLander — a browser-based 2D lander/logistics game with a custom physics engine. See [cargo-lander/README.md](cargo-lander/README.md) for internals. |
 | `games/` | Interactive game library — a browsable/filterable catalog of games (`data.js` holds the entries). A game with no `imgUrl` of its own (most of them) shows its genre's picture from `images/genres/`: 768×768 WebP, cover-cropped by the card and the modal, about 1.5 MB for all seventeen. They were 1024×1024 JPEGs named `.png`, 16 MB in all; a new one should go through the same encode (`ffmpeg -i in -vf scale=768:768:flags=lanczos -c:v libwebp -quality 75 -compression_level 6 out.webp` — ImageMagick's `convert` ignores `-quality` for WebP). |

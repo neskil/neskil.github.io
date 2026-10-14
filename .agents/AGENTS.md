@@ -21,7 +21,7 @@ Folder-based routing — each major page or app is fully isolated with its own
 `index.html`.
 
 - **`/index.html`**: root landing page, cards linking to completed projects,
-  grouped into shelves (`<section class="shelf">`: games, toys & experiments,
+  grouped into shelves (`<section class="shelf">`: games, labs,
   useful tools, about). A new card goes inside the shelf it belongs to; the
   shelf's count fills itself in.
 - **Content pages**: `/cv/` (résumé), `/games/` (game library), `/math/` and
