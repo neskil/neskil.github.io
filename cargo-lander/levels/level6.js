@@ -93,8 +93,7 @@ registerLevel({
             // Upper-left plateau — HQ spawns at x:80; wide enough to turn around safely
             {x: -200, y: 430}, {x:  60,  y: 430},
             // Drop down to the left valley shelf — cargo collection depot is at x:200
-            {x: 160,  y: 430}, {x: 180,  y: 590},
-            {x: 350,  y: 640}, {x: 420,  y: 660},
+            {x: 160,  y: 430}, {x: 180,  y: 590}, {x: 192, y: 608}, {x: 308, y: 608}, {x: 350,  y: 640}, {x: 420,  y: 660},
             // Valley floor — OOB lake fills this depression; the terrain dips below surfaceY:780
             {x: 500,  y: 700}, {x: 560,  y: 780},
             {x: 700,  y: 800},

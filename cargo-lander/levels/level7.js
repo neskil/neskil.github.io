@@ -52,12 +52,10 @@ registerLevel({
         // S-curve squeeze corridor around x:2600-2900 replaces the old single narrows
         [
             {x: -400, y: 550}, {x: 450, y: 550},
-            {x: 600, y: 480}, {x: 750, y: 400}, {x: 950, y: 430}, {x: 1120, y: 380},
-            {x: 1200, y: 390}, {x: 1280, y: 410}, {x: 1400, y: 520}, {x: 1550, y: 600},
-            {x: 1600, y: 610}, {x: 1700, y: 560}, {x: 1850, y: 400}, {x: 1950, y: 330},
-            {x: 2050, y: 350}, {x: 2100, y: 360}, {x: 2200, y: 400}, {x: 2280, y: 480},
+            {x: 600, y: 480}, {x: 750, y: 400}, {x: 950, y: 430}, {x: 1120, y: 380}, {x: 1192, y: 400}, {x: 1288, y: 400}, {x: 1400, y: 520}, {x: 1550, y: 600}, {x: 1592, y: 606}, {x: 1668, y: 606}, {x: 1700, y: 560}, {x: 1850, y: 400}, {x: 1950, y: 330},
+            {x: 2050, y: 350}, {x: 2092, y: 376}, {x: 2188, y: 376}, {x: 2200, y: 400}, {x: 2280, y: 480},
             {x: 2450, y: 480}, {x: 2600, y: 420}, {x: 2680, y: 320}, {x: 2760, y: 420},
-            {x: 2840, y: 320}, {x: 2900, y: 400}, {x: 3000, y: 450}, {x: 3100, y: 550},
+            {x: 2840, y: 320}, {x: 2892, y: 412}, {x: 2968, y: 412}, {x: 3000, y: 450}, {x: 3100, y: 550},
             {x: 3200, y: 650}, {x: 3800, y: 650},
             // Enclosure
             {x: 3800, y: 1500}, {x: -400, y: 1500}
@@ -128,7 +126,7 @@ registerLevel({
         { type: 'cash', x: 1400, y: 350, value: 500 }, // High vault before Fuel Pump
         { type: 'fuel', x: 1800, y: 430, amount: 40 }, // Alcove after Fuel Pump
         { type: 'cash', x: 2350, y: 330, value: 500 }, // Above the bioluminescent lake
-        { type: 'fuel', x: 2700, y: 360, amount: 40 }, // Squeeze corridor midpoint reserve
+        { type: 'fuel', x: 2700, y: 290, amount: 40 }, // Squeeze corridor midpoint reserve (was y:360 — inside the floor spike)
         { type: 'fuel', x: 3100, y: 400, amount: 40 }  // Approach to Magma Chute
     ],
 

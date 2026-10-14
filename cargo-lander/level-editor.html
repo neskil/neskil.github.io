@@ -24,7 +24,7 @@
     gtag('config', 'G-9GP823TGLB');
 </script>
 <link rel="icon" href="../favicon.ico">
-<link rel="stylesheet" href="editor/editor.css?v=0.16.12">
+<link rel="stylesheet" href="editor/editor.css?v=0.26.0">
 </head>
 <body>
 
@@ -81,6 +81,12 @@
   </div>
 
   <div id="sidebar-scrollable">
+    <!-- Level Check — levels/levelLint.js run live on the current export.
+         Click a finding to centre the view on it. -->
+    <details class="sec" id="lint-sec" open>
+      <summary class="sec-title"><span class="sec-title-text">Level Check</span><span id="lint-badge" class="lint-badge"></span></summary>
+      <div class="sec-content"><div id="lint-list" class="lint-list"></div></div>
+    </details>
     <details class="sec" open>
       <summary class="sec-title"><span class="sec-title-text">Import / Export</span></summary>
       <div class="sec-content">
@@ -293,6 +299,9 @@
               <div class="row"><label>retractMs <span class="tooltip-icon" title="Time to retract (ms)">?</span></label>
                 <div class="slider-combo"><input type="number" id="crush-retract" class="cinput" placeholder="1500" onchange="setHazardField('retractMs', this.value); document.getElementById('crush-retract-r').value=this.value"><input type="range" class="field-slider" id="crush-retract-r" min="0" max="5000" step="50" oninput="document.getElementById('crush-retract').value=this.value; setHazardField('retractMs', this.value)"></div>
               </div>
+              <div class="row"><label>phaseOffset <span class="tooltip-icon" title="Shifts this crusher's cycle (ms) so neighbouring presses don't slam in unison">?</span></label>
+                <div class="slider-combo"><input type="number" id="crush-phase" class="cinput" placeholder="0" onchange="setHazardField('phaseOffset', this.value); document.getElementById('crush-phase-r').value=this.value"><input type="range" class="field-slider" id="crush-phase-r" min="0" max="5000" step="50" oninput="document.getElementById('crush-phase').value=this.value; setHazardField('phaseOffset', this.value)"></div>
+              </div>
               <div class="row"><label>thickness <span class="tooltip-icon" title="Width of the crusher blocks">?</span></label>
                 <div class="slider-combo"><input type="number" id="crush-thick" class="cinput" placeholder="40" onchange="setHazardField('thickness', this.value); document.getElementById('crush-thick-r').value=this.value"><input type="range" class="field-slider" id="crush-thick-r" min="5" max="100" step="5" oninput="document.getElementById('crush-thick').value=this.value; setHazardField('thickness', this.value)"></div>
               </div>
@@ -390,11 +399,8 @@
       
       <div class="props-panel" style="margin-top: 12px; padding-top: 12px; border-top: 1px dashed #30363d;">
         <div class="sec-title" style="margin-bottom:8px; font-size:11px;">Quests &amp; Bonus Objectives</div>
-        <div class="row"><label style="width: 120px; font-size: 13px; color: #c9d1d9;">Primary</label><input type="text" id="quest-primary" onchange="setQuest('primary', this.value)"></div>
-        <div class="row"><label style="width: 120px; font-size: 13px; color: #c9d1d9;">No Crash</label><input type="checkbox" id="quest-nocrash" onchange="setQuest('nocrash', this.checked)"></div>
-        <div class="row"><label style="width: 120px; font-size: 13px; color: #c9d1d9;">No Cargo Lost</label><input type="checkbox" id="quest-nocargo" onchange="setQuest('nocargo', this.checked)"></div>
-        <div class="row"><label style="width: 120px; font-size: 13px; color: #c9d1d9;">Quick (s)</label><input type="number" id="quest-quick" placeholder="Seconds" onchange="setQuest('quick', this.value?+this.value:null)"></div>
-        <div class="row"><label style="width: 120px; font-size: 13px; color: #c9d1d9;">Survive Worm</label><input type="checkbox" id="quest-worm" onchange="setQuest('worm', this.checked)"></div>
+        <!-- Built by renderQuestUI() in editor/editor.js from the level's own quest list -->
+        <div id="quest-rows"></div>
       </div>
     </details>
     <details>
@@ -503,9 +509,10 @@ function hideExitConfirm() {
 }
 </script>
 
-<script src="levels/levelSchema.js"></script>
-<script src="levels/collectibleTypes.js?v=0.16.12"></script>
-<script src="editor/editor.js?v=0.16.12"></script>
+<script src="levels/levelSchema.js?v=0.26.0"></script>
+<script src="levels/levelLint.js?v=0.26.0"></script>
+<script src="levels/collectibleTypes.js?v=0.26.0"></script>
+<script src="editor/editor.js?v=0.26.0"></script>
 </body>
 </html>
 

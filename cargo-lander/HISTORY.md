@@ -8,6 +8,42 @@ backlog" section.
 
 ---
 
+## 2026-10-14 — Lossless level editor, Level Check, flat pads (v0.26.0)
+
+**The editor was lossy.** A round-trip harness (load every level, export,
+re-evaluate, deep-diff against the file) found 338 differences across the 14
+level files. The exporter rebuilt hazards / water / segments from a fixed field
+list and ignored top-level keys it had no panel for, so a load→export silently
+deleted every crusher timing (L8, L10, L13), rewrote L4/L5's incinerator
+timings to the editor's defaults, dropped sandworm tuning (L6, L9), L8's
+`onReturn` gauntlet speeds, L7's moving-zone `travelX/Y`, L9's `setupPhysics`
+(which builds its depot), all `buildings`, water colours and acid, and segment
+types — and regenerated every bonus quest's text (re-introducing the
+"under {timeGoal}s" mix-up). The "Copy for AI" prompt calls that export the
+source of truth. Now everything not edited by a panel passes through verbatim;
+the editor's `?runTests=1` self-tests round-trip every level, and `run-tests.sh`
+runs them. Mutation-checked: removing either passthrough fails the test with
+the dropped fields named.
+
+Two related traps: the sidebar's displayed fallbacks didn't match the engine
+(lasers showed 1500/1000/800ms vs the engine's 1400/1600/500) — now one
+`HAZARD_DEFAULTS` table; and `fee` was elided at its schema default 50 while
+the engine's fallback is 50 + 50 x level index — `fee` is now required.
+
+**Level Check** (`levels/levelLint.js`): static design rules distilled from the
+audit, live in the editor with click-to-focus markers and enforced in
+`tests.html` (no errors on any shipped level). Run against the pre-fix L8 and
+L1 it reports the reactor well (18–21× thrust at two pads), the crusher in the
+chute and the quick-text mismatch. On the current levels it found two pickups
+buried inside rock — L7's squeeze-corridor fuel (inside a floor spike) and L9's
+"below the hub" fuel (inside the hub's rock spike), both unreachable — now moved
+into open air and verified collectable — and eight pads straddling slopes, V's
+or a peak (L4 The Hollow, L6 depot, L7 Deep Node / Valley Base / Fuel Pump /
+Reserve Tank, L9 HQ, L10 Upper Node). Each got a flat shelf carved into the
+terrain at the pad's own height; no pad moved.
+
+---
+
 ## 2026-10-14 — Map audit, three bug fixes, and three Test Flight maps (v0.25.0)
 
 **The audit.** Every level got (1) a geometry pass — pad flatness, buried pads,
