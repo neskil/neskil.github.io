@@ -249,6 +249,14 @@ body {
     flex: 0 0 auto;
 }
 
+/* The Swedish edition and Home, side by side at the right of the bar. */
+.header-links {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+}
+
 .back-nav:hover {
     color: var(--text-primary);
     background: var(--card-hover-bg);

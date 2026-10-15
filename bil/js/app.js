@@ -12,7 +12,7 @@ import {
 import {
     priceAll, horizonSeries, mileageSeries, encodeState, decodeState, fmtKr, fmtNum,
     leaseAllowance, leaseQuoteOf, subPriceOf, rentPriceOf, helInsurance, serviceYear,
-    loanTypeOf
+    loanTypeOf, carB, curveOf
 } from './model.js';
 import { translator, initialLang, ROUTE_SUB } from './i18n.js';
 import { openGuide } from './guide.js';
@@ -46,13 +46,26 @@ const MONTHS = T('months', 'månader');
 
 const GROUPS = [
     {
-        id: 'car', sign: 'Bilen', en: 'Your car', open: true, fields: [
-            { type: 'presets' },
+        id: 'car', sign: s => s.compare ? 'Bil A' : 'Bilen', en: 'Your car', open: true, fields: [
+            { key: 'compare', type: 'toggle', label: T('Compare with another car', 'Jämför med en annan bil'), note: T('Prices a second car through the same routes', 'Räknar en andra bil genom samma vägar') },
+            { type: 'presets', target: 'a' },
             { key: 'price', label: T('Price you pay', 'Pris du betalar'), unit: 'kr', step: 1000, car: true },
             { key: 'age', label: T('Age when you buy it', 'Ålder när du köper den'), unit: T('years', 'år'), step: 1, max: 20, car: true, help: T('0 means new. Leasing and subscriptions always give you a new one.', '0 betyder ny. Leasing och abonnemang ger dig alltid en ny bil.') },
             { key: 'powertrain', label: T('Powertrain', 'Drivlina'), type: 'select', options: opt(POWERTRAINS, powertrainLabel), car: true },
             { key: 'co2', label: T('CO₂ (WLTP)', 'CO₂ (WLTP)'), unit: 'g/km', step: 1, car: true, showIf: s => s.powertrain !== 'el', help: T('From the registration certificate or the price list. Sets the malus.', 'Står i registreringsbeviset eller prislistan. Avgör malusen.') },
-            { key: 'group', label: T('Brand (sets resale)', 'Märke (styr andrahandsvärdet)'), type: 'select', options: opt(RESIDUAL_GROUPS, v => nameOf(v)), car: true }
+            { key: 'group', label: T('Brand (sets resale)', 'Märke (styr andrahandsvärdet)'), type: 'select', options: opt(RESIDUAL_GROUPS, v => nameOf(v)), car: true, helpFn: s => resaleHelp(s) }
+        ]
+    },
+    {
+        id: 'carb', sign: 'Bil B', en: 'Second car', open: true, showIf: s => s.compare, fields: [
+            { type: 'presets', target: 'b' },
+            { key: 'bPrice', label: T('Price you pay', 'Pris du betalar'), unit: 'kr', step: 1000, carB: true },
+            { key: 'bAge', label: T('Age when you buy it', 'Ålder när du köper den'), unit: T('years', 'år'), step: 1, max: 20, carB: true },
+            { key: 'bPowertrain', label: T('Powertrain', 'Drivlina'), type: 'select', options: opt(POWERTRAINS, powertrainLabel), carB: true },
+            { key: 'bCo2', label: T('CO₂ (WLTP)', 'CO₂ (WLTP)'), unit: 'g/km', step: 1, carB: true, showIf: s => s.bPowertrain !== 'el' },
+            { key: 'bGroup', label: T('Brand (sets resale)', 'Märke (styr andrahandsvärdet)'), type: 'select', options: opt(RESIDUAL_GROUPS, v => nameOf(v)), carB: true, helpFn: s => resaleHelp(carB(s)) },
+            { key: 'bLeaseQuote', label: T('Lease quote at 1 000 mil a year', 'Leasingpris vid 1 000 mil per år'), unit: KRMO, step: 10, auto: s => leaseQuoteOf({ ...carB(s), leaseQuote: null }) },
+            { key: 'bConsumption', label: T('Consumption', 'Förbrukning'), step: 0.01, unitFn: s => s.bPowertrain === 'el' ? 'kWh/mil' : 'l/mil', auto: s => { const p = POWERTRAINS[s.bPowertrain]; return s.bPowertrain === 'el' ? p.kwhPerMil : p.litrePerMil; } }
         ]
     },
     {
@@ -165,15 +178,16 @@ const chevron = '<svg class="chev" viewBox="0 0 24 24" fill="none" stroke="curre
 function fieldHtml(f) {
     const id = 'f-' + f.key;
     if (f.type === 'presets') {
-        return `<div class="field"><span class="label">${esc(t('startFrom'))}</span><div class="chips" id="presetChips">${
-            PRESETS.map(p => `<button type="button" class="chip" data-preset="${p.key}">${esc(nameOf(p))}</button>`).join('')
+        const b = f.target === 'b';
+        return `<div class="field"><span class="label">${esc(t('startFrom'))}</span><div class="chips" id="${b ? 'presetChipsB' : 'presetChips'}">${
+            PRESETS.map(p => `<button type="button" class="chip" ${b ? 'data-preset-b' : 'data-preset'}="${p.key}">${esc(nameOf(p))}</button>`).join('')
         }</div></div>`;
     }
     if (f.type === 'toggle') {
         const note = t.pick(f.note);
         return `<label class="toggle" data-field="${f.key}"><input type="checkbox" id="${id}" data-key="${f.key}"><span>${esc(t.pick(f.label))}${note ? `<span class="sv">${esc(note)}</span>` : ''}</span></label>`;
     }
-    const help = f.help ? `<span class="help">${esc(t.pick(f.help))}</span>` : '';
+    const help = f.helpFn ? `<span class="help" id="${id}-help"></span>` : f.help ? `<span class="help">${esc(t.pick(f.help))}</span>` : '';
     const presets = f.presets ? `<div class="chips">${f.presets.map(([l, v]) => `<button type="button" class="chip" data-set="${f.key}" data-value="${v}">${esc(t.pick(l))}</button>`).join('')}</div>` : '';
     if (f.type === 'range') {
         return `<div class="field" data-field="${f.key}"><label for="${id}"><span>${esc(t.pick(f.label))}</span><span class="range-val" id="${id}-val"></span></label>
@@ -196,7 +210,7 @@ function buildInputs() {
         const isOpen = first ? g.open : open.has('g-' + g.id);
         return `
         <details class="group" id="g-${g.id}"${isOpen ? ' open' : ''}>
-            <summary><span class="sign">${esc(g.sign)}</span><span class="g-en i18n-en">${esc(g.en)}</span>${chevron}</summary>
+            <summary><span class="sign" id="g-${g.id}-sign">${esc(typeof g.sign === 'function' ? g.sign(state) : g.sign)}</span><span class="g-en i18n-en">${esc(g.en)}</span>${chevron}</summary>
             <div class="group-body">${g.fields.map(fieldHtml).join('')}</div>
         </details>`;
     }).join('');
@@ -208,6 +222,8 @@ function wireInputs() {
     $('#inputs').addEventListener('click', (e) => {
         const p = e.target.closest('[data-preset]');
         if (p) return applyPreset(p.dataset.preset);
+        const pb = e.target.closest('[data-preset-b]');
+        if (pb) return applyPresetB(pb.dataset.presetB);
         const s = e.target.closest('[data-set]');
         if (s) { state[s.dataset.set] = Number(s.dataset.value); update(); }
     });
@@ -231,6 +247,14 @@ function onInput(e) {
         }
     }
     if (f.car) state.preset = 'custom';
+    if (f.carB) state.bPreset = 'custom';
+    /* Another powertrain is another car: drop the model's own resale curve. */
+    if (key === 'powertrain' && e.type === 'change') state.model = null;
+    if (key === 'bPowertrain' && e.type === 'change') {
+        state.bModel = null;
+        state.bCo2 = POWERTRAINS[state.bPowertrain].co2;
+        state.bConsumption = null;
+    }
     /* A new loan type brings its own rate unless you typed one. */
     if (key === 'loanType' && e.type === 'change') state.loanRate = null;
     if (key === 'powertrain' && e.type === 'change') {
@@ -244,19 +268,40 @@ function applyPreset(key) {
     const p = PRESETS.find(x => x.key === key);
     if (!p) return;
     Object.assign(state, {
-        preset: p.key, price: p.price, age: p.age, powertrain: p.powertrain, co2: p.co2, group: p.group,
+        preset: p.key, model: p.resale ? p.key : null, price: p.price, age: p.age, powertrain: p.powertrain, co2: p.co2, group: p.group,
         leaseQuote: p.leaseQuote != null ? p.leaseQuote : null, consumption: p.consumption != null ? p.consumption : null
     });
     update();
+}
+
+function applyPresetB(key) {
+    const p = PRESETS.find(x => x.key === key);
+    if (!p) return;
+    Object.assign(state, {
+        bPreset: p.key, bModel: p.resale ? p.key : null, bPrice: p.price, bAge: p.age, bPowertrain: p.powertrain, bCo2: p.co2, bGroup: p.group,
+        bLeaseQuote: p.leaseQuote != null ? p.leaseQuote : null, bConsumption: p.consumption != null ? p.consumption : null
+    });
+    update();
+}
+
+/* Which resale curve a car is on, said under its brand. */
+function resaleHelp(car) {
+    const c = curveOf(car);
+    const p = c.model && PRESETS.find(x => x.key === c.model);
+    return p ? t('resaleOwn', nameOf(p)) : t('resaleGroup');
 }
 
 /* Write state back into the fields — all of them, except the one being
    typed in, so a half-typed number is not reformatted under the cursor. */
 function syncInputs(active) {
     for (const g of GROUPS) {
+        const box = document.getElementById('g-' + g.id);
+        if (box && g.showIf) box.hidden = !g.showIf(state);
+        if (typeof g.sign === 'function') $('#g-' + g.id + '-sign').textContent = g.sign(state);
         for (const f of g.fields) {
             if (f.type === 'presets') {
-                document.querySelectorAll('#presetChips .chip').forEach(c => c.setAttribute('aria-pressed', String(c.dataset.preset === state.preset)));
+                if (f.target === 'b') document.querySelectorAll('#presetChipsB .chip').forEach(c => c.setAttribute('aria-pressed', String(c.dataset.presetB === state.bPreset)));
+                else document.querySelectorAll('#presetChips .chip').forEach(c => c.setAttribute('aria-pressed', String(c.dataset.preset === state.preset)));
                 continue;
             }
             const el = document.getElementById('f-' + f.key);
@@ -278,6 +323,7 @@ function syncInputs(active) {
                 if (tag) tag.hidden = state[f.key] != null;
             }
             if (f.unitFn) $('#f-' + f.key + '-unit').textContent = f.unitFn(state);
+            if (f.helpFn) $('#f-' + f.key + '-help').textContent = f.helpFn(state);
             if (f.presets && wrap) wrap.querySelectorAll('[data-set]').forEach(c => c.setAttribute('aria-pressed', String(Number(c.dataset.value) === state[f.key])));
         }
     }
@@ -514,6 +560,62 @@ function renderGates(res) {
         `<div class="gate is-lit is-final"><span class="info-sign" aria-hidden="true">i</span><div>${t('gateFinal', best && esc(best.sv), best && best.perMonth)}</div></div>`;
 }
 
+/* ── Two cars ─────────────────────────────────────────────────────
+   Car B goes through every route with the same driving and money; the
+   panel puts each car's cheapest open route side by side and the routes
+   in a table. The charts below stay on car A. */
+function carName(preset, model, fallback) {
+    const p = PRESETS.find(x => x.key === preset) || null;
+    if (p) return nameOf(p);
+    const m = model && PRESETS.find(x => x.key === model);
+    return m ? `${nameOf(m)} · ${t('edited')}` : fallback;
+}
+
+function renderCompare(resA) {
+    const el = $('#compare');
+    if (!state.compare) { el.hidden = true; return; }
+    el.hidden = false;
+    const resB = priceAll(carB(state));
+    const N = resA.horizon;
+    const A = { name: carName(state.preset, state.model, t('carA')), res: resA, tag: 'A' };
+    const B = { name: carName(state.bPreset, state.bModel, t('carB')), res: resB, tag: 'B' };
+    const card = (c, other) => {
+        const best = c.res.cheapestCar;
+        const wins = best && (!other.res.cheapestCar || best.total < other.res.cheapestCar.total);
+        return `<div class="cmp-car${wins ? ' is-cheaper' : ''}">
+            <div class="cmp-tag"><span class="cmp-letter cmp-${c.tag.toLowerCase()}">${c.tag}</span>${esc(c.name)}</div>
+            ${best ? `<div class="cmp-route">${esc(t('cheapestRoute'))}: <strong>${esc(best.sv)}</strong></div>
+            <div class="cmp-cost">${fmtNum(best.perMonth)} <span>${esc(t('krmo'))}</span></div>
+            <div class="cmp-mil">${fmtNum(best.perMil)} kr/mil · ${fmtKr(best.total)} / ${N} ${esc(t('monthsShort'))}</div>` : `<div class="cmp-route">${esc(t('verdictNoneHead'))}</div>`}
+            ${wins ? `<span class="badge">${esc(t('badgeBest'))}</span>` : ''}
+        </div>`;
+    };
+    const a = resA.cheapestCar, b = resB.cheapestCar;
+    let line = '';
+    if (a && b) {
+        const diff = Math.abs(a.perMonth - b.perMonth);
+        line = diff < 50 ? t('compareSame') : a.perMonth < b.perMonth ? t('compareLine', esc(A.name), esc(B.name), diff, diff * N) : t('compareLine', esc(B.name), esc(A.name), diff, diff * N);
+    }
+    const keys = resA.routes.filter(r => r.key !== 'benefit' || state.benefit).map(r => r.key);
+    const cell = (r) => r.gate.open ? fmtNum(r.perMonth) : `<span class="cmp-closed" title="${esc(t.gate(r.gate))}">${esc(t('closedShort'))}</span>`;
+    const rows = keys.map(k => {
+        const ra = resA.routes.find(r => r.key === k), rb = resB.routes.find(r => r.key === k);
+        const d = rb.perMonth - ra.perMonth;
+        const diffCell = k === 'nocar' ? '–' : `${d > 0 ? '+' : d < 0 ? '−' : ''}${fmtNum(Math.abs(d))}`;
+        return `<tr><td><i class="cmp-swatch" style="--c:${routeColor(k)}"></i>${esc(ra.sv)}</td><td>${cell(ra)}</td><td>${cell(rb)}</td><td class="${d < 0 ? 'cmp-b-less' : d > 0 ? 'cmp-a-less' : ''}">${diffCell}</td></tr>`;
+    }).join('');
+    el.innerHTML = `
+        <div class="panel-title"><span class="sign">${esc('Bil A mot bil B')}</span><span class="sign-en i18n-en">${esc('Two cars, the same routes')}</span></div>
+        <div class="panel-sub">${esc(t('compareSub', N, state.mil))}</div>
+        <div class="cmp-cars">${card(A, B)}${card(B, A)}</div>
+        ${line ? `<p class="cmp-line">${line}</p>` : ''}
+        <div class="table-wrap"><table class="data cmp-table">
+            <thead><tr><th>${esc(t('thRoute'))}</th><th>A</th><th>B</th><th>${esc(t('thDiff'))}</th></tr></thead>
+            <tbody>${rows}</tbody>
+        </table></div>
+        <p class="chart-caption">${esc(t('compareCaption'))}</p>`;
+}
+
 /* ── Tooltip ──────────────────────────────────────────────────── */
 const tip = $('#tip');
 function showTip(html, ev) {
@@ -624,6 +726,7 @@ function update(active) {
     renderBars(res);
     renderLines(res);
     renderGates(res);
+    renderCompare(res);
     syncUrl();
 }
 

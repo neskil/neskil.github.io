@@ -154,7 +154,21 @@ export const TEXT = {
             (short) => `<b>Savings short of the price?</b> Then it is a loan, a lease or a subscription.${short ? ` You are ${fmtKr(short)} short of buying outright.` : ''}`,
             '<b>Driving more than 2 000 mil a year?</b> Owning usually wins: a lease prices every extra mil and a subscription caps them, while an owner only loses a little resale.'
         ],
-        gateFinal: (name, cost) => `<b>Then the money decides.</b> ${name ? `For you that is <b>${name}</b> at ${fmtKr(cost)} a month.` : 'Nothing is open; see the routes above.'}`
+        gateFinal: (name, cost) => `<b>Then the money decides.</b> ${name ? `For you that is <b>${name}</b> at ${fmtKr(cost)} a month.` : 'Nothing is open; see the routes above.'}`,
+
+        resaleOwn: (name) => `Resale: the ${name}'s own curve, from October 2026 listings.`,
+        resaleGroup: 'Resale: the brand group\'s curve.',
+        edited: 'edited',
+        carA: 'Car A',
+        carB: 'Car B',
+        cheapestRoute: 'Cheapest route',
+        monthsShort: 'mo',
+        compareSub: (n, mil) => `Both cars through every route, ${n} months at ${fmtNum(mil)} mil a year, with the same money and credit. Kronor a month.`,
+        compareLine: (cheaper, other, diff, total) => `<strong>${cheaper}</strong> is ${fmtKr(diff)} a month cheaper than ${other} at each one's cheapest route: ${fmtKr(total)} over the whole period.`,
+        compareSame: 'At each one\'s cheapest route the two cars cost the same within 50 kr a month.',
+        closedShort: 'closed',
+        thDiff: 'B − A',
+        compareCaption: 'A minus sign means car B is cheaper on that route. Car B uses its own estimates for insurance, service, subscription and rental; the charts below show car A.'
     },
 
     sv: {
@@ -219,7 +233,21 @@ export const TEXT = {
             (short) => `<b>Räcker inte sparpengarna?</b> Då blir det billån, leasing eller abonnemang.${short ? ` Du saknar ${fmtKr(short)} för att köpa kontant.` : ''}`,
             '<b>Kör du mer än 2 000 mil per år?</b> Då brukar det löna sig att äga: leasing tar betalt för varje extra mil och abonnemang har ett tak, medan en ägare bara förlorar lite i andrahandsvärde.'
         ],
-        gateFinal: (name, cost) => `<b>Sen avgör pengarna.</b> ${name ? `För dig blir det <b>${name}</b> för ${fmtKr(cost)} i månaden.` : 'Ingen väg är öppen; se ovan.'}`
+        gateFinal: (name, cost) => `<b>Sen avgör pengarna.</b> ${name ? `För dig blir det <b>${name}</b> för ${fmtKr(cost)} i månaden.` : 'Ingen väg är öppen; se ovan.'}`,
+
+        resaleOwn: (name) => `Andrahandsvärde: ${name}s egen kurva, från annonser i oktober 2026.`,
+        resaleGroup: 'Andrahandsvärde: märkesgruppens kurva.',
+        edited: 'ändrad',
+        carA: 'Bil A',
+        carB: 'Bil B',
+        cheapestRoute: 'Billigaste väg',
+        monthsShort: 'mån',
+        compareSub: (n, mil) => `Båda bilarna genom alla vägar, ${n} månader och ${fmtNum(mil)} mil per år, med samma pengar och kredit. Kronor per månad.`,
+        compareLine: (cheaper, other, diff, total) => `<strong>${cheaper}</strong> är ${fmtKr(diff)} billigare i månaden än ${other}, räknat på respektive billigaste väg: ${fmtKr(total)} under hela perioden.`,
+        compareSame: 'På respektive billigaste väg kostar bilarna lika mycket, inom 50 kr i månaden.',
+        closedShort: 'stängd',
+        thDiff: 'B − A',
+        compareCaption: 'Ett minustecken betyder att bil B är billigare på den vägen. Bil B räknar med egna uppskattningar för försäkring, service, abonnemang och hyra; diagrammen nedan visar bil A.'
     }
 };
 

@@ -753,3 +753,48 @@ dialog.guide::backdrop { background: rgba(4, 9, 18, 0.62); backdrop-filter: blur
 @media (prefers-reduced-motion: reduce) {
     .btn-guide.is-pulsing { animation: none; }
 }
+
+/* ── Two cars ─────────────────────────────────────────────────────
+   Car identity is A blue, B yellow: the flag's two colours, kept off the
+   route palette so a letter never reads as a route. Each always comes with
+   its letter, so colour is never the only cue. */
+.compare { border-color: rgba(74, 168, 232, 0.35); }
+.cmp-cars { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 0.6rem; margin-bottom: 0.7rem; }
+.cmp-car {
+    position: relative;
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 0.75rem 0.85rem;
+    background: rgba(0, 0, 0, 0.15);
+}
+.cmp-car.is-cheaper { border-color: rgba(254, 204, 2, 0.6); background: linear-gradient(160deg, rgba(254, 204, 2, 0.09), rgba(0, 0, 0, 0.15)); }
+.cmp-car .badge {
+    position: absolute; top: 0.6rem; right: 0.6rem;
+    font-size: 0.66rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+    padding: 0.12rem 0.45rem; border-radius: 999px;
+    background: var(--yellow); color: #1a1400; font-family: var(--sign-font);
+}
+.cmp-tag { display: flex; align-items: center; gap: 0.5rem; font-family: 'Outfit', sans-serif; font-weight: 600; font-size: 1rem; padding-right: 4.5rem; }
+.cmp-letter {
+    width: 24px; height: 24px; border-radius: 6px; flex: none;
+    display: grid; place-items: center;
+    font-family: var(--sign-font); font-weight: 700; font-size: 0.9rem;
+}
+.cmp-a { background: var(--blue); color: #fff; box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, 0.85); }
+.cmp-b { background: var(--yellow); color: #1a1400; box-shadow: inset 0 0 0 1.5px rgba(0, 0, 0, 0.55); }
+.cmp-route { color: var(--text-2); font-size: 0.84rem; margin-top: 0.4rem; }
+.cmp-route strong { color: var(--text); }
+.cmp-cost { font-family: 'Outfit', sans-serif; font-weight: 700; font-size: 1.45rem; font-variant-numeric: tabular-nums; }
+.cmp-cost span { font-size: 0.72rem; font-weight: 400; color: var(--muted); }
+.cmp-mil { color: var(--muted); font-size: 0.78rem; font-variant-numeric: tabular-nums; }
+.cmp-line { color: var(--text-2); font-size: 0.9rem; margin: 0.2rem 0 0.6rem; }
+.cmp-line strong { color: var(--text); }
+.cmp-table td:first-child { display: flex; align-items: center; gap: 0.45rem; }
+.cmp-swatch { width: 4px; height: 14px; border-radius: 2px; background: var(--c); display: inline-block; flex: none; }
+.cmp-closed { color: #e8988e; font-size: 0.74rem; }
+.cmp-b-less { color: var(--yellow); }
+.cmp-a-less { color: var(--blue-bright); }
+@media (max-width: 560px) {
+    .cmp-table th, .cmp-table td { padding: 0.32rem 0.3rem; font-size: 0.76rem; }
+    .cmp-table td:first-child { gap: 0.3rem; }
+}

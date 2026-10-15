@@ -7,7 +7,7 @@ three-year malus, no credit score but a UC check and a 20 % rule, a 30 %
 interest deduction that now depends on whether the loan has security, a damage
 warranty that halves insurance for three years, and two sets of tyres.
 
-**Status: second draft** (October 2026). The numbers will be revised as better
+**Status: third draft** (October 2026). The numbers will be revised as better
 ones arrive; every one of them lives in `js/data.js` so that is a one-file
 change.
 
@@ -59,6 +59,14 @@ parking & congestion.
 | Utan bil | Transit pass, car-sharing trips (hours × rate + km × rate), holiday hire. Covers its own, smaller, mileage. |
 | Förmånsbil | Tax on the benefit value at your marginal rate, any bruttolöneavdrag after tax, your own energy. Off unless offered. |
 
+**Two cars.** Tick "Compare with another car" and car B gets its own price,
+age, powertrain, brand, lease quote and consumption; everything else (driving,
+money, credit, route terms) is shared. `carB()` in the model builds car B's
+input from car A's, dropping figures typed in for car A that belong to that car
+(insurance, service, subscription and rental prices). The comparison panel puts
+each car's cheapest open route side by side and every route in a table; the
+charts stay on car A.
+
 The headline is the cheapest *open* route that gives you a car. Going without is
 shown beside it, not as the answer, because it is a different life rather than
 a different way to pay.
@@ -92,10 +100,17 @@ monthly cost = FV × marginal tax / 12 + bruttolöneavdrag × (1 − marginal ta
 
 Skatteverket's own check (322 000 kr, 4 050 kr tax → 72 045 kr) is a test.
 
-**Resale.** Share of new price left at 1, 3 and 5 years per brand group,
-interpolated geometrically, slowing to 70 % of the year-3-to-5 pace after year
-five. An EV from a combustion brand loses 12 % more; scenario scales the loss;
-each 1 000 mil above 1 250 a year takes 2 % off.
+**Resale.** Share of today's new price a private buyer pays at 1, 3 and 5
+years, interpolated geometrically, slowing to 70 % of the year-3-to-5 pace after
+year five. The preset cars each have their own curve, measured from October 2026
+listings (asking price ÷ today's new price × 0.93, the dealer mark-up taken
+off); other cars use their brand group's, and an EV from a combustion brand on a
+group curve loses 12 % more. The `model` field keeps a preset's curve through
+price and age edits and drops it when the brand or powertrain changes. Scenario
+scales the loss; each 1 000 mil above 1 250 a year takes 2 % off.
+
+**Selling.** Private 1.00 less a 495 kr ad; KVD auction 0.97 less 10 % of the
+price between 5 875 and 9 875 kr; trade-in 0.85; direct buyer 0.82.
 
 ## US → Sweden: the parameter map
 
@@ -143,9 +158,18 @@ Riksbanken's 1.75 %; leasing offers for the EX30, XC40 and EX40; Volvo's 12 kr
 interval and price range; winter-tyre dates; insurance averages; the 20 % rule's
 scope; maskinskadeskydd limits.
 
-Estimated (marked ≈ in `data.js`): the resale curves (midpoints of conflicting
-ranges), the EV loss multiplier, the mileage effect on value, selling-channel
-factors, the insurance slope and multipliers, service by age, tyre and rim
+Sourced since the third round: resale curves for the six preset cars (October
+2026 listings at Carla, Riddermark, KVD, Bilweb, Carpicker and Volvo dealers);
+selling-channel ranges (bilmarknadsdata.se, Moveabout, Blipp, Carup) and KVD's
+fee structure (an older published schedule; the 2026 table is not public); the
+EV insurance premium of 15–30 % (Premiva, minbilkoll.se) and the under-25
+premium of 30–50 %.
+
+Estimated (marked ≈ in `data.js`): the premium and "other" brand-group curves,
+the EV loss multiplier on group curves, the Kia EV3's three- and five-year
+points, the mileage effect on value, where in each selling range the factor
+sits, the insurance slope, the Tesla multiplier (quotes disagree by more than
+2×) and the city multiplier (no published figure), service by age, tyre and rim
 prices, expected wear at lease return, the subscription's share of price and
 its mileage terms, mid/large rental prices, congestion presets, home charging
 by elområde.
@@ -160,6 +184,6 @@ months after the second, not yearly).
 - Replace the estimates above with better numbers as they come in.
 - Price a lease on *your* car (residual + rate) beside the quote you were given.
 - Elbilspremie as an option on the routes it applies to.
-- A per-model depreciation table rather than brand groups.
+- More models with their own resale curves (only the presets have one).
 - Restvärdeslån (balloon) as its own loan shape.
 - Shared mortgage-interest cap for the 100 000 kr ränteavdrag limit.

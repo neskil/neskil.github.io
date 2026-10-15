@@ -123,6 +123,7 @@
             <section class="routes routes-area" id="routes" aria-label="The routes, priced"></section>
             <aside class="inputs-area" id="inputs" aria-label="Your car, your driving, your money"></aside>
             <div class="charts-area">
+                <section class="panel compare" id="compare" aria-live="polite" hidden></section>
                 <section class="panel" id="breakdown">
                     <div class="panel-title"><span class="sign">Vart går pengarna?</span><span class="sign-en i18n-en">Where the money goes</span></div>
                     <div class="panel-sub" id="breakdownSub">Kronor a month, averaged over how long you keep it.</div>
@@ -275,12 +276,12 @@ Alla fordon
                 </summary>
                 <div class="note-body i18n-en">
                     <p>The <strong>vagnskadegaranti</strong> runs three years from first registration and covers damage to the car itself. During it, halvförsäkring (trafik plus fire, theft, glass, breakdown) gives the same cover as a helförsäkring; when it ends you need helförsäkring to stay covered for damage. The garanti's excess is higher, from about 5 000 kr plus VAT, against 3 000–10 000 kr on a vagnskadeförsäkring.</p>
-                    <p>Averages for 2026: helförsäkring ≈ 7 000 kr a year (Hedvig, 14 518 customers: 584 kr a month; Volvo 569, Kia 508), halvförsäkring ≈ 3 500 kr. Drivers under 25 and the big three cities pay noticeably more, and brand matters: a Tesla Model Y has been quoted around 28 000 kr a year. A lessor usually decides the insurer (often the brand's own).</p>
+                    <p>Averages for 2026: helförsäkring ≈ 7 000 kr a year (Hedvig, 14 518 customers: 584 kr a month; Volvo 569, Kia 508), halvförsäkring ≈ 3 500 kr. An electric car costs 15–30 % more to insure than a comparable petrol one; a Tesla more again (quotes range from 10–20 % above a Volvo V60 to about 28 000 kr a year). Drivers under 25 pay 30–50 % more, often with an extra excess. A lessor usually decides the insurer (often the brand's own).</p>
                     <p><strong>Maskinskadeskydd</strong> in a helförsäkring typically ends when the car is 8 years old or has done about 12 000 mil, whichever comes first, which is when repair bills stop being someone else's problem.</p>
                 </div>
                 <div class="note-body i18n-sv">
                     <p><strong>Vagnskadegarantin</strong> gäller i tre år från första registrering och täcker skador på själva bilen. Under tiden ger halvförsäkring (trafik plus brand, stöld, glas, räddning) samma skydd som helförsäkring; när garantin tar slut behövs helförsäkring för att vara skyddad mot vagnskador. Garantins självrisk är högre, från ungefär 5 000 kr plus moms, mot 3 000–10 000 kr på en vagnskadeförsäkring.</p>
-                    <p>Snitt 2026: helförsäkring ≈ 7 000 kr per år (Hedvig, 14 518 kunder: 584 kr i månaden; Volvo 569, Kia 508), halvförsäkring ≈ 3 500 kr. Förare under 25 och de tre storstäderna betalar märkbart mer, och märket spelar roll: en Tesla Model Y har offererats runt 28 000 kr per år. Leasingbolaget bestämmer oftast försäkringsbolaget (ofta märkets eget).</p>
+                    <p>Snitt 2026: helförsäkring ≈ 7 000 kr per år (Hedvig, 14 518 kunder: 584 kr i månaden; Volvo 569, Kia 508), halvförsäkring ≈ 3 500 kr. En elbil kostar 15–30 % mer att försäkra än en jämförbar bensinbil, en Tesla ännu mer (offerterna spänner från 10–20 % över en Volvo V60 till runt 28 000 kr per år). Förare under 25 betalar 30–50 % mer, ofta med en extra självrisk. Leasingbolaget bestämmer oftast försäkringsbolaget (ofta märkets eget).</p>
                     <p><strong>Maskinskadeskyddet</strong> i en helförsäkring slutar oftast när bilen är 8 år eller har gått ungefär 12 000 mil, det som kommer först, och då blir reparationerna ditt problem.</p>
                 </div>
             </details>
@@ -315,11 +316,13 @@ Alla fordon
                 </summary>
                 <div class="note-body i18n-en">
                     <p><strong>Konsumentköplagen</strong> covers a car bought from a dealer: three years to complain, and a fault that shows within two years is presumed to have been there at delivery. A <strong>private</strong> sale falls under köplagen, usually "i befintligt skick", with much less protection. An ownership change (ägarbyte) costs nothing; there is no sales tax on a used car and, unlike the US, <strong>no tax credit for trading one in</strong>. Dealers sell most used cars under vinstmarginalbeskattning, VAT on their margin only, which is invisible to a private buyer.</p>
-                    <p>How you sell moves the number a lot. The calculator takes the full private price on Blocket or Wayke (less a 495 kr ad), 4 % less and a fee of about 7 500 kr at a KVD auction, 13 % less from a direct buyer (Riddermark, Carla) and 16 % less as a trade-in. Forum reports put direct buyers anywhere from 10 to 25 % under Blocket. The first is the most money and the most work.</p>
+                    <p>How you sell moves the number a lot. The calculator takes the full private price on Blocket or Wayke (less a 495 kr ad); 3 % less at a KVD auction, plus KVD's fee of about 10 % of the price between 5 875 and 9 875 kr; 15 % less as a trade-in (bilmarknadsdata.se puts the gap at 15–25 %; private prices run 16–22 % above trade-in for a Golf or a Tiguan); and 18 % less from a direct buyer such as Riddermark or Carla (15–25 % under market). The first is the most money and the most work.</p>
+                    <p>Resale itself comes from October 2026 listings: for the preset cars each follows its own curve (an XC60 plug-in keeps about 61 % of today's new price at three years, a Golf 61 %, a Tiguan diesel 64 %, a Model Y 59 %), otherwise its brand group's.</p>
                 </div>
                 <div class="note-body i18n-sv">
                     <p><strong>Konsumentköplagen</strong> gäller när du köper av en handlare: tre år att reklamera, och fel som visar sig inom två år antas ha funnits vid leveransen. Ett <strong>privatköp</strong> faller under köplagen, oftast "i befintligt skick", med betydligt sämre skydd. Ägarbytet kostar ingenting; det finns ingen försäljningsskatt på en begagnad bil och, till skillnad från USA, <strong>inget skatteavdrag för inbyte</strong>. Handlare säljer de flesta begagnade bilar med vinstmarginalbeskattning, moms bara på marginalen, vilket inte syns för en privat köpare.</p>
-                    <p>Hur du säljer påverkar siffran mycket. Kalkylen räknar med fullt privatpris på Blocket eller Wayke (minus en annons på 495 kr), 4 % lägre och en avgift på runt 7 500 kr på en KVD-auktion, 13 % lägre hos en direktuppköpare (Riddermark, Carla) och 16 % lägre vid inbyte. Forumrapporter lägger direktuppköpare 10–25 % under Blocket. Det första ger mest pengar och mest jobb.</p>
+                    <p>Hur du säljer påverkar siffran mycket. Kalkylen räknar med fullt privatpris på Blocket eller Wayke (minus en annons på 495 kr); 3 % lägre på en KVD-auktion, plus KVD:s avgift på ungefär 10 % av priset mellan 5 875 och 9 875 kr; 15 % lägre vid inbyte (bilmarknadsdata.se anger 15–25 %; privatpriset ligger 16–22 % över inbytespriset för Golf och Tiguan); och 18 % lägre hos en direktuppköpare som Riddermark eller Carla (15–25 % under marknadsvärdet). Det första ger mest pengar och mest jobb.</p>
+                    <p>Själva andrahandsvärdet kommer från annonser i oktober 2026: förvalsbilarna följer var sin egen kurva (en XC60 laddhybrid behåller ungefär 61 % av dagens nypris efter tre år, en Golf 61 %, en Tiguan diesel 64 %, en Model Y 59 %), andra bilar sin märkesgrupps.</p>
                 </div>
             </details>
 
@@ -372,8 +375,9 @@ din kostnad per månad = förmånsvärde × marginalskatt ÷ 12
                         <li>Elbilspremie: Naturvårdsverket, mars 2026.</li>
                         <li>Drivmedel: listpriser 13 oktober 2026 och skatteändringen 1 december (Carup, Oskarshamns-Nytt); hemmaladdning och Ionity (minbilkoll.se, Vi Bilägare).</li>
                         <li>Körsträcka: Trafikanalys, Körsträckor 2025: 1 243 mil per bil.</li>
-                        <li>Andrahandsvärden: bilmarknadsdata.se, minbilkoll.se, minbilkostnad.se, KVD.</li>
-                        <li>Försäkring: Hedvig, Borskollen, Konsumenten.se, Zmarta, Carup, Trygg-Hansa; maskinskadeskydd Hedvig.</li>
+                        <li>Andrahandsvärden: annonser oktober 2026 (Carla, Riddermark, KVD, Bilweb, Carpicker, Volvo Car Retail), bilmarknadsdata.se, minbilkoll.se, minbilkostnad.se.</li>
+                        <li>Försäljning: bilmarknadsdata.se, Moveabout, Blipp, Carup, KVD.</li>
+                        <li>Försäkring: Hedvig, Borskollen, Konsumenten.se, Zmarta, Carup, Trygg-Hansa, Premiva, Allaforsakringar, minbilkoll.se, E55, KVD; maskinskadeskydd Hedvig.</li>
                         <li>Service: Vi Bilägare (Kia EV3), Elbilen/ADAC, Car-spot, minbilkoll.se.</li>
                         <li>Privatleasing: Volvo, Kia, Bilbolaget, Brandt, Stendahls, Bilia, leasabil.com (hösten 2026); övermil Volvo, M Sverige, Lånupplysningen.</li>
                         <li>Lån &amp; sparande: Finera, finansvalp.se, Volvo Car Finance, Finanspulsen (konsumentkreditlagen 26 §), Sparacash, Nordea, Danske Bank, Riksbanken (1,75 %).</li>
