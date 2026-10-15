@@ -6,7 +6,7 @@
    afterwards, so no step is a commitment. */
 
 import { PRESETS, POWERTRAINS, RESIDUAL_GROUPS, ENERGY } from './data.js';
-import { priceAll, retained, fmtKr, fmtNum, leaseQuoteOf } from './model.js';
+import { priceAll, retained, curveOf, fmtKr, fmtNum, leaseQuoteOf } from './model.js';
 
 const T = (en, sv) => ({ en, sv });
 const esc = (s) => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -88,8 +88,9 @@ export function openGuide({ state, lang, apply, applyPreset, done }) {
                 if (age === state.age) return true;
                 /* Move the price along the same car's curve, so "a 4-year-old
                    EX30" is priced like one rather than like a new one. */
-                const newPrice = state.price / retained(state.age, state.group);
-                const price = Math.round(newPrice * retained(age, state.group) / 1000) * 1000;
+                const { curve } = curveOf(state);
+                const newPrice = state.price / retained(state.age, curve);
+                const price = Math.round(newPrice * retained(age, curve) / 1000) * 1000;
                 apply({ age, price, preset: 'custom' });
                 if (age > 0) {
                     const n = root.querySelector('.g-note');

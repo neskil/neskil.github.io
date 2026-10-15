@@ -79,6 +79,15 @@
             ok(M.valueAt({ ...base, powertrain: 'el', group: 'evbrand' }, 36) === M.valueAt({ ...base, group: 'evbrand' }, 36), 'but a Tesla\'s curve is already an EV curve');
             ok(M.valueAt({ ...base, scenario: 'bad' }, 36) < M.valueAt(base, 36) && M.valueAt({ ...base, scenario: 'good' }, 36) > M.valueAt(base, 36), 'outlook moves resale both ways');
             ok(near(M.newPriceOf({ ...base, price: 200000, age: 5 }), 200000 / D.RESIDUAL_GROUPS.volvo.r5, 0.01), 'a used car\'s new price is backed out of its curve');
+            {
+                const ex30 = D.PRESETS.find(p => p.key === 'ex30');
+                const own = M.curveOf({ ...base, model: 'ex30', powertrain: 'el' });
+                ok(own.curve === ex30.resale && own.ev === 1, 'a preset car follows its own measured curve, with no extra EV penalty');
+                ok(M.curveOf({ ...base, model: 'ex30', group: 'premium' }).curve === 'premium', 'change the brand and it falls back to the brand group');
+                ok(D.PRESETS.filter(p => p.resale).every(p => p.resale.r1 > p.resale.r3 && p.resale.r3 > p.resale.r5 && p.resale.r1 < 1), 'every model curve falls year on year');
+                const yrs = [1, 3, 5];
+                ok(yrs.every(y => near(M.retained(y, ex30.resale), ex30.resale['r' + y], 1e-9)), 'and passes through its own points');
+            }
 
             // ── Loans ──
             section('Loans');
@@ -161,7 +170,9 @@
                 ok(uc.detail.tax.besiktning > 0 && !nc.detail.tax.besiktning, 'an old car is inspected; a new one kept three years is not');
 
                 const sold = (exit) => route(M.priceAll({ ...D.DEFAULTS, exit }), 'cash').total;
-                ok(sold('privat') < sold('auktion') && sold('auktion') < sold('uppkopare') && sold('uppkopare') < sold('inbyte'), 'selling privately keeps the most; a trade-in the least');
+                ok(sold('privat') < sold('auktion') && sold('auktion') < sold('inbyte') && sold('inbyte') < sold('uppkopare'), 'selling privately keeps the most; a direct buyer the least');
+                const kvd = D.EXITS.auktion;
+                ok(M.sellingCost(kvd, 30000) === 5875 && M.sellingCost(kvd, 80000) === 8000 && M.sellingCost(kvd, 400000) === 9875, 'KVD takes 10 % between its floor and its cap');
                 ok(route(M.priceAll({ ...D.DEFAULTS, exit: 'privat' }), 'cash').detail.tax['selling costs'] === 495, 'a private sale pays for its ad');
 
                 const city = M.priceAll({ ...D.DEFAULTS, congestion: 1000, parking: 500 });
@@ -184,6 +195,24 @@
                 const m = M.mileageSeries(D.DEFAULTS, [500, 2000, 3500]);
                 ok(m[2].values.cash > m[0].values.cash && m[2].values.rental > m[0].values.rental, 'driving more costs more');
                 ok(near(m[0].values.nocar, m[2].values.nocar, 1e-9), 'and going without does not move with your mileage');
+            }
+
+            // ── Two cars ──
+            section('Two cars');
+            {
+                const s = { ...D.DEFAULTS, compare: true, insurance: 12000, subPrice: 9999, mil: 1800, horizon: 48 };
+                const b = M.carB(s);
+                ok(b.price === s.bPrice && b.powertrain === s.bPowertrain && b.model === s.bModel && b.group === s.bGroup, 'car B is priced as car B');
+                ok(b.mil === 1800 && b.horizon === 48 && b.savings === s.savings, 'with the same driving and money as car A');
+                ok(b.insurance === null && b.subPrice === null && b.service === null && b.rentPrice === null, 'but not car A\'s typed-in insurance or subscription price');
+                const ra = M.priceAll(s), rb = M.priceAll(b);
+                ok(ra.routes.length === rb.routes.length && rb.routes.every(r => Number.isFinite(r.total)), 'both cars go through every route');
+                ok(route(rb, 'lease').detail.tax.fordonsskatt > route(ra, 'lease').detail.tax.fordonsskatt, 'a leased petrol Golf pays malus that a leased EX30 does not');
+                const same = M.priceAll(M.carB({ ...D.DEFAULTS, bPreset: 'ex30', bModel: 'ex30', bPrice: 429000, bAge: 0, bPowertrain: 'el', bCo2: 0, bGroup: 'volvo', bLeaseQuote: 3895, bConsumption: null }));
+                ok(near(same.cheapestCar.total, M.priceAll(D.DEFAULTS).cheapestCar.total, 0.01), 'the same car as B costs exactly what it costs as A');
+                const link = M.decodeState(M.encodeState({ ...D.DEFAULTS, compare: true, bPreset: 'tiguan', bModel: 'tiguan', bPrice: 465000, bPowertrain: 'diesel', bCo2: 164 }));
+                ok(link.compare === true && link.bPreset === 'tiguan' && link.bPowertrain === 'diesel' && link.bCo2 === 164, 'a comparison survives a share link');
+                ok(M.decodeState('bpt=rocket&bmo=nope').bPowertrain === D.DEFAULTS.bPowertrain && M.decodeState('bmo=nope').bModel === D.DEFAULTS.bModel, 'and a broken one falls back');
             }
 
             // ── Share links ──

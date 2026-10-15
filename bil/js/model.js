@@ -80,10 +80,11 @@ export function benefitValue(newPrice, powertrain, yearlyVehicleTax) {
 
 /* ── Resale curve ────────────────────────────────────────────────
    Share of the new price left at `years`, interpolated geometrically
-   between the published one-, three- and five-year points, and slowing
-   to LATE_PHASE of the year-3-to-5 pace after that. */
-export function retained(years, groupKey) {
-    const g = RESIDUAL_GROUPS[groupKey] || RESIDUAL_GROUPS.other;
+   between the one-, three- and five-year points, and slowing to
+   LATE_PHASE of the year-3-to-5 pace after that. `curve` is a model's
+   own { r1, r3, r5 } or a brand group's key. */
+export function retained(years, curve) {
+    const g = (curve && typeof curve === 'object') ? curve : (RESIDUAL_GROUPS[curve] || RESIDUAL_GROUPS.other);
     const t = Math.max(0, years);
     const knots = [[0, 1], [1, g.r1], [3, g.r3], [5, g.r5]];
     for (let i = 1; i < knots.length; i++) {
@@ -95,14 +96,26 @@ export function retained(years, groupKey) {
     return g.r5 * Math.pow(slower, t - 5);
 }
 
-/* Market value of the car `k` months into the horizon. The loss since
-   purchase is scaled by the scenario and, for an electric car from a
-   brand that mostly sells combustion cars, by EV_LOSS_MULT; mileage
-   above the national average takes a further share off. */
+/* The curve this car follows: its model's own when it is one of the
+   presets (measured from listings, EV or not), otherwise its brand
+   group's, with the EV penalty for a combustion brand's electric car.
+   A model's curve stays only while the brand does: change the brand and
+   it is a different car. */
+export function curveOf(inp) {
+    const p = inp.model && PRESETS.find(x => x.key === inp.model);
+    if (p && p.resale && p.group === inp.group) return { curve: p.resale, ev: 1, model: p.key };
+    const ev = inp.powertrain === 'el' && inp.group !== 'evbrand' ? EV_LOSS_MULT : 1;
+    return { curve: inp.group, ev, model: null };
+}
+
+/* Market value of the car `k` months into the horizon: what a private
+   buyer would pay. The loss since purchase is scaled by the scenario and
+   the EV penalty; mileage above the national average takes a further
+   share off. */
 export function valueAt(inp, k) {
     const price = inp.price;
-    const ratio = retained(inp.age + k / 12, inp.group) / retained(inp.age, inp.group);
-    const ev = inp.powertrain === 'el' && inp.group !== 'evbrand' ? EV_LOSS_MULT : 1;
+    const { curve, ev } = curveOf(inp);
+    const ratio = retained(inp.age + k / 12, curve) / retained(inp.age, curve);
     const scen = SCENARIOS[inp.scenario] || SCENARIOS.expected;
     const loss = Math.min(0.95, (1 - ratio) * scen.loss * ev);
     const extraMil = (inp.mil - AVERAGE_MIL) * (k / 12);
@@ -114,7 +127,7 @@ export function valueAt(inp, k) {
    you a new one, and for the company-car benefit. */
 export function newPriceOf(inp) {
     if (!(inp.age > 0)) return inp.price;
-    return inp.price / retained(inp.age, inp.group);
+    return inp.price / retained(inp.age, curveOf(inp).curve);
 }
 
 /* ── Loans ───────────────────────────────────────────────────────── */
@@ -241,11 +254,17 @@ function bookRims(L, inp, months) {
 }
 
 /* The sale at the end: market value less the channel's discount, and
-   its fee (an ad on Blocket). */
+   its fee (an ad on Blocket, KVD's share of the price). */
+export function sellingCost(exit, price) {
+    if (exit.feeShare) return Math.min(exit.feeMax, Math.max(exit.feeMin, exit.feeShare * price));
+    return exit.fee || 0;
+}
+
 function bookSale(L, inp, N) {
     const exit = EXITS[inp.exit] || EXITS.inbyte;
-    L.add(-valueAt(inp, N) * (1 - exit.haircut), N, 'value', 'sale');
-    if (exit.fee) L.add(exit.fee, N, 'tax', 'selling costs');
+    const got = valueAt(inp, N) * (1 - exit.haircut);
+    L.add(-got, N, 'value', 'sale');
+    L.add(sellingCost(exit, got), N, 'tax', 'selling costs');
 }
 
 /* ── The routes ──────────────────────────────────────────────────
@@ -503,6 +522,20 @@ export function withDefaults(inp) {
     return { ...DEFAULTS, ...(inp || {}) };
 }
 
+/* The second car: the same person, driving and money, a different car.
+   Figures typed in for car A that belong to that car (insurance, service,
+   subscription and rental prices) fall back to estimates for car B. */
+export function carB(input) {
+    const inp = withDefaults(input);
+    return {
+        ...inp,
+        preset: inp.bPreset, model: inp.bModel, price: inp.bPrice, age: inp.bAge,
+        powertrain: inp.bPowertrain, co2: inp.bCo2, group: inp.bGroup,
+        leaseQuote: inp.bLeaseQuote, consumption: inp.bConsumption,
+        insurance: null, service: null, subPrice: null, rentPrice: null
+    };
+}
+
 /* Price every route at horizon N (months). */
 export function priceAll(input, horizon) {
     const inp = withDefaults(input);
@@ -562,7 +595,9 @@ const SHORT = {
     leaseMil: 'lm', leaseTerm: 'lx', overMil: 'om', leaseService: 'ls', returnDamage: 'rd', subPrice: 'sp',
     subMil: 'sm', subExcess: 'se', subMin: 'sn', rentPrice: 'rp', rentMil: 'rl', rentExcess: 're',
     transit: 'tr', transitPrice: 'tp', poolTrips: 'pt2', poolHours: 'ph', poolKm: 'pkm', poolHourly: 'phr',
-    poolPerKm: 'ppk', holidayWeeks: 'hw', weekPrice: 'wp', benefit: 'b', marginalTax: 'mt', grossDeduction: 'gd'
+    poolPerKm: 'ppk', holidayWeeks: 'hw', weekPrice: 'wp', benefit: 'b', marginalTax: 'mt', grossDeduction: 'gd',
+    model: 'mo', compare: 'cmp', bPreset: 'bp', bModel: 'bmo', bPrice: 'bpr', bAge: 'ba', bPowertrain: 'bpt',
+    bCo2: 'bco', bGroup: 'bg', bLeaseQuote: 'blq', bConsumption: 'bcn'
 };
 const LONG = Object.fromEntries(Object.entries(SHORT).map(([k, v]) => [v, k]));
 
@@ -588,9 +623,11 @@ export function decodeState(query) {
         if (raw === '~') { state[k] = null; continue; }
         if (typeof d === 'boolean') state[k] = raw === '1';
         else if (typeof d === 'string') {
+            const presets = PRESETS.map(p => p.key);
             const allowed = {
-                preset: PRESETS.map(p => p.key).concat('custom'), powertrain: Object.keys(POWERTRAINS),
-                group: Object.keys(RESIDUAL_GROUPS), scenario: Object.keys(SCENARIOS),
+                preset: presets.concat('custom'), bPreset: presets.concat('custom'), model: presets, bModel: presets,
+                powertrain: Object.keys(POWERTRAINS), bPowertrain: Object.keys(POWERTRAINS),
+                group: Object.keys(RESIDUAL_GROUPS), bGroup: Object.keys(RESIDUAL_GROUPS), scenario: Object.keys(SCENARIOS),
                 loanType: Object.keys(LOANS), exit: Object.keys(EXITS)
             }[k];
             if (allowed && allowed.includes(raw)) state[k] = raw;

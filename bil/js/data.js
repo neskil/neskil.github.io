@@ -131,26 +131,42 @@ export const POWERTRAINS = {
 };
 
 /* ── Resale (värdeminskning) ─────────────────────────────────────
-   Share of the new price left after one, three and five years. Swedish
-   sources disagree by more than the brands differ, so these are the
-   midpoints of the published ranges: Toyota 58–68 % at three years,
-   Volvo 50–62 %, BMW/Mercedes 46–60 %, Kia/Hyundai 47–54 %, Tesla 52–62 %
-   (bilmarknadsdata.se, minbilkoll.se, 2026); a second 2026 summary gives
-   Toyota/Kia 55–62 %, Volvo/VW 52–57 %, German premium 48–54 % and BEVs
-   42–51 %, so where the two disagree the figure sits between them. One
-   model year older is
-   9–14 % cheaper on the used market (minbilkostnad.se). After year five
-   the yearly loss slows to 70 % of the year-3-to-5 pace. An electric car
-   from a brand that mostly sells combustion cars loses 12 % more (VW ID.4
-   and Polestar 2 lost about 40 % in three model years against about 31 %
-   for an XC60 hybrid). */
+   Share of today's new price a private buyer pays for the same model at
+   one, three and five years. Brand groups first, then a curve of its own
+   for each preset car.
+
+   October 2026 asking prices, as a share of today's new price, times 0.93
+   because dealer asking prices sit above what a private sale fetches
+   (bilmarknadsdata.se puts the trade-in gap at 15–25 %, Carup a dealer's
+   mark-up at 15–19 %):
+     Volvo XC60 T6 plug-in: 2023 about 450 000 kr, 2021 about 380 000
+       (Carla, Riddermark, Bilweb), new about 670 000 → 0.61 and 0.52.
+     VW Golf: 2023 eTSI 220 000–242 000, 2021 median 225 000 (Carpicker,
+       Bilweb), new 349 900 → 0.61 and 0.53.
+     VW Tiguan TDI: 2022 about 330 000, 2021 260 000–360 000 (KVD,
+       Riddermark), new 465 000 → 0.64 and 0.56.
+     Tesla Model Y: medians 379 800 (2023), 359 900 (2022), 329 800 (2021)
+       (Carpicker), Long Range new about 600 000 → 0.59 and 0.51.
+     Volvo EX30: 2024 Extended Range 340 000–380 000 at Volvo dealers,
+       314 900 at a KVD fixed price, new 479 900 → about 0.70 at two years.
+     Kia EV3: a 2025 Long Range at 419 900 against 470 000–508 000 new →
+       about 0.79 at one year; three and five are estimates.
+   Real listings hold value better than the brand ranges published as
+   rules of thumb (Toyota 55–68 % at three years, Volvo 50–62 %,
+   BMW/Mercedes 46–60 %, Kia/Hyundai 47–62 %, Tesla 52–62 %), so the brand
+   groups now sit at the top of those ranges where listings back that, and
+   at their midpoints where nothing does (premium, other).
+   After year five the yearly loss slows to 70 % of the year-3-to-5 pace.
+   An electric car on a brand-group curve, from a brand that mostly sells
+   combustion cars, loses 12 % more (VW ID.4 and Polestar 2 lost about
+   40 % in three model years against about 31 % for an XC60 hybrid). */
 export const RESIDUAL_GROUPS = {
-    toyota:  { label: 'Toyota, Lexus',              sv: 'Toyota, Lexus',              r1: 0.85, r3: 0.60, r5: 0.48 },
-    volvo:   { label: 'Volvo, VW, Škoda, Cupra',    sv: 'Volvo, VW, Škoda, Cupra',    r1: 0.83, r3: 0.55, r5: 0.43 },
-    premium: { label: 'BMW, Mercedes, Audi',        sv: 'BMW, Mercedes, Audi',        r1: 0.81, r3: 0.51, r5: 0.39 },
-    korean:  { label: 'Kia, Hyundai',               sv: 'Kia, Hyundai',               r1: 0.82, r3: 0.53, r5: 0.41 },
-    evbrand: { label: 'Tesla, Polestar',            sv: 'Tesla, Polestar',            r1: 0.79, r3: 0.52, r5: 0.39 },
-    other:   { label: 'Other brands',               sv: 'Övriga märken',               r1: 0.81, r3: 0.52, r5: 0.40 }
+    toyota:  { label: 'Toyota, Lexus',              sv: 'Toyota, Lexus',              r1: 0.87, r3: 0.65, r5: 0.56 },
+    volvo:   { label: 'Volvo, VW, Škoda, Cupra',    sv: 'Volvo, VW, Škoda, Cupra',    r1: 0.85, r3: 0.61, r5: 0.52 },
+    premium: { label: 'BMW, Mercedes, Audi',        sv: 'BMW, Mercedes, Audi',        r1: 0.82, r3: 0.53, r5: 0.42 },
+    korean:  { label: 'Kia, Hyundai',               sv: 'Kia, Hyundai',               r1: 0.82, r3: 0.56, r5: 0.45 },
+    evbrand: { label: 'Tesla, Polestar',            sv: 'Tesla, Polestar',            r1: 0.80, r3: 0.58, r5: 0.49 },
+    other:   { label: 'Other brands',               sv: 'Övriga märken',               r1: 0.82, r3: 0.55, r5: 0.44 }
 };
 export const LATE_PHASE = 0.7;
 export const EV_LOSS_MULT = 1.12;
@@ -158,18 +174,23 @@ export const AVERAGE_MIL = 1250;            // Trafikanalys: 1 243 mil per car i
 export const VALUE_PER_1000_MIL = 0.02;     // ≈ share of value lost per 1 000 mil above average
 
 /* How you sell at the end, as a share of what a private buyer would pay,
-   plus a fixed fee. ≈: from a 2026 deep-research summary (private 1.00
-   with a 495 kr ad, KVD 0.92, direct buyers such as Riddermark or Carla
-   0.87, dealer trade-in 0.84); no seller publishes these. There is no
-   US-style sales-tax credit on a trade-in, so it is simply a sale.
-   KVD charges a fee that depends on the price (an older schedule: 10 %
-   with a 5 875 kr floor and a 9 875 kr cap); forum reports put direct
-   buyers 10–25 % under Blocket. */
+   plus the seller's costs.
+     Private (Blocket, Wayke): the full price, less a 495 kr ad.
+     KVD auction: close to a private price, less a fee that scales with
+       the price: on KVD's older schedule 10 % with a 5 875 kr floor and a
+       9 875 kr cap (the 2026 table is not published; withdrawing a car
+       costs 4 375 kr). Selling straight to KVD has no fee and a lower price.
+     Dealer trade-in: 15–25 % under the private price (bilmarknadsdata.se,
+       2026); 5–15 % under market (Moveabout); private prices 15.8 % over
+       trade-in for a Golf and 22.1 % for a Tiguan (Blipp) → −15 %.
+     Direct buyer (Riddermark, Carla): 15–25 % under market (Moveabout),
+       10–25 % under Blocket in forum reports → −18 %.
+   There is no US-style sales-tax credit on a trade-in: it is simply a sale. */
 export const EXITS = {
     privat:    { label: 'Private sale (Blocket, Wayke)', sv: 'Privat (Blocket, Wayke)', haircut: 0.00, fee: 495 },
-    auktion:   { label: 'Auction (KVD)',                 sv: 'Auktion (KVD)',     haircut: 0.04, fee: 7500 },
-    uppkopare: { label: 'Direct buyer (Riddermark, Carla)', sv: 'Direktuppköpare (Riddermark, Carla)', haircut: 0.13, fee: 0 },
-    inbyte:    { label: 'Dealer trade-in',               sv: 'Inbyte hos handlare', haircut: 0.16, fee: 0 }
+    auktion:   { label: 'Auction (KVD)',                 sv: 'Auktion (KVD)',     haircut: 0.03, feeShare: 0.10, feeMin: 5875, feeMax: 9875 },
+    inbyte:    { label: 'Dealer trade-in',               sv: 'Inbyte hos handlare', haircut: 0.15, fee: 0 },
+    uppkopare: { label: 'Direct buyer (Riddermark, Carla)', sv: 'Direktuppköpare (Riddermark, Carla)', haircut: 0.18, fee: 0 }
 };
 
 /* ── Insurance ───────────────────────────────────────────────────
@@ -185,8 +206,13 @@ export const EXITS = {
    Tesla Model Y Long Range was quoted about 28 000 kr a year at
    Trygg-Hansa and 2 600–4 100 kr a month at Zmarta (30-year-old,
    Stockholm), against Hedvig's brand averages of 569 kr a month for Volvo
-   and 508 for Kia; electric cars in general cost more to insure once the
-   garanti ends. */
+   and 508 for Kia. Those Tesla quotes are the extreme: Allaforsakringar
+   puts a Model 3 10–20 % above a Volvo V60 at the same price, and
+   electric cars in general 15–30 % above a comparable petrol car
+   (Premiva, minbilkoll.se; E55's 40 % compares whole fleets, not twins).
+   Drivers under 25 pay 30–50 % more (an 18-year-old in a 2018 V40 in
+   Stockholm 580–780 kr/mo against 380–450 at 25), often with an extra
+   excess too. No source publishes a city-against-countryside figure. */
 export const INSURANCE = {
     helBase: 3000,
     helPerKr: 0.012,
@@ -194,8 +220,8 @@ export const INSURANCE = {
     garantiMonths: 36,
     youngMult: 1.45,
     cityMult: 1.20,
-    groupMult: { evbrand: 2.5, premium: 1.3 },   // ≈
-    evMult: 1.2                                  // ≈ other brands' EVs
+    groupMult: { evbrand: 1.6, premium: 1.3 },   // ≈
+    evMult: 1.2                                  // EVs: 15–30 % above petrol twins
 };
 
 /* ── Service, tyres, inspection ──────────────────────────────────
@@ -333,18 +359,19 @@ export const SCENARIOS = {
    their WLTP CO2 and consumption), and a generic used car. Leasing quotes
    are filled in only where one was found. */
 export const PRESETS = [
-    { key: 'ex30',  label: 'Volvo EX30',            price: 429000, age: 0, powertrain: 'el',         co2: 0,   group: 'volvo',   leaseQuote: 3895 },
-    { key: 'ev3',   label: 'Kia EV3',               price: 429900, age: 0, powertrain: 'el',         co2: 0,   group: 'korean',  leaseQuote: 4495 },
-    { key: 'my',    label: 'Tesla Model Y',         price: 499990, age: 0, powertrain: 'el',         co2: 0,   group: 'evbrand', leaseQuote: 4595 },
-    { key: 'xc60',  label: 'Volvo XC60 plug-in',    sv: 'Volvo XC60 laddhybrid',    price: 569900, age: 0, powertrain: 'laddhybrid', co2: 23,  group: 'volvo' },
-    { key: 'golf',  label: 'VW Golf eTSI',          price: 349900, age: 0, powertrain: 'bensin',     co2: 124, group: 'volvo',   consumption: 0.54 },
-    { key: 'tiguan', label: 'VW Tiguan TDI',        price: 465000, age: 0, powertrain: 'diesel',     co2: 164, group: 'volvo',   consumption: 0.63 },
+    { key: 'ex30',  label: 'Volvo EX30',            price: 429000, age: 0, powertrain: 'el',         co2: 0,   group: 'volvo',   leaseQuote: 3895, resale: { r1: 0.82, r3: 0.64, r5: 0.53 } },
+    { key: 'ev3',   label: 'Kia EV3',               price: 429900, age: 0, powertrain: 'el',         co2: 0,   group: 'korean',  leaseQuote: 4495, resale: { r1: 0.79, r3: 0.58, r5: 0.47 } },
+    { key: 'my',    label: 'Tesla Model Y',         price: 499990, age: 0, powertrain: 'el',         co2: 0,   group: 'evbrand', leaseQuote: 4595, resale: { r1: 0.80, r3: 0.59, r5: 0.51 } },
+    { key: 'xc60',  label: 'Volvo XC60 plug-in',    sv: 'Volvo XC60 laddhybrid',    price: 569900, age: 0, powertrain: 'laddhybrid', co2: 23,  group: 'volvo', resale: { r1: 0.86, r3: 0.61, r5: 0.52 } },
+    { key: 'golf',  label: 'VW Golf eTSI',          price: 349900, age: 0, powertrain: 'bensin',     co2: 124, group: 'volvo',   consumption: 0.54, resale: { r1: 0.85, r3: 0.61, r5: 0.53 } },
+    { key: 'tiguan', label: 'VW Tiguan TDI',        price: 465000, age: 0, powertrain: 'diesel',     co2: 164, group: 'volvo',   consumption: 0.63, resale: { r1: 0.87, r3: 0.64, r5: 0.56 } },
     { key: 'used',  label: 'Used petrol, 5 years',  sv: 'Begagnad bensin, 5 år', price: 200000, age: 5, powertrain: 'bensin', co2: 140, group: 'volvo' }
 ];
 
 /* ── The page's starting point ───────────────────────────────────── */
 export const DEFAULTS = {
     preset: 'ex30',
+    model: 'ex30',          // whose resale curve to use; null = the brand group's
     price: 429000,
     age: 0,
     powertrain: 'el',
@@ -408,5 +435,18 @@ export const DEFAULTS = {
 
     benefit: false,
     marginalTax: 32,
-    grossDeduction: 0
+    grossDeduction: 0,
+
+    /* A second car to compare against, priced through the same routes with
+       the same driving and money. Only the car itself differs. */
+    compare: false,
+    bPreset: 'golf',
+    bModel: 'golf',
+    bPrice: 349900,
+    bAge: 0,
+    bPowertrain: 'bensin',
+    bCo2: 124,
+    bGroup: 'volvo',
+    bLeaseQuote: null,
+    bConsumption: 0.54
 };
