@@ -12,7 +12,7 @@
 // game.js → game/* → render.js + render/* (render.js instantiates window.game).
 
 class CargoGame {
-    static VERSION = '0.27.0';
+    static VERSION = '0.28.0';
 
     constructor() {
         this.canvas = null;
@@ -1350,9 +1350,13 @@ class CargoGame {
         // --- Refueling Station Logic ---
         if (lander.landed && lander.currentPad === 'refuel' && this.gameState === 'playing') {
             if (lander.fuel < lander.maxFuel && this.missionBudget > 0) {
-                // Costs $50 per second for 15 units of fuel per second
+                // 15 units of fuel per second, billed at the pad's own price
+                // (hub.pricePerUnit, default $50 per 15 units). The pad the
+                // lander is on is the refuel hub under its x.
+                const pad = (this.physics.deliveryHubs || []).find(h => h.type === 'refuel' && lander.x >= h.x - 30 && lander.x <= h.x + h.width + 30);
+                const price = pad && pad.pricePerUnit != null ? pad.pricePerUnit : 50 / 15;
                 const refuelAmount = (15.0 / 60.0) * dt;
-                const refuelCost = (50.0 / 60.0) * dt;
+                const refuelCost = refuelAmount * price;
 
                 if (this.missionBudget >= refuelCost) {
                     lander.fuel = Math.min(lander.maxFuel, lander.fuel + refuelAmount);
@@ -1663,7 +1667,9 @@ class CargoGame {
         if (!lander || this.missionBudget < 100 || lander.fuel >= lander.maxFuel) return;
         this.missionBudget -= 100;
         lander.fuel = lander.maxFuel;
-        if (window.CargoAudio) window.CargoAudio.playClick();
+        // (was playClick(), which CargoAudio never had — it threw and swallowed
+        // the confirmation message below)
+        if (window.CargoAudio && !this.isMuted) window.CargoAudio.playLoad();
         this.addMessage("Vehicle refueled. -$100 Deposit", "#10b981");
         if (!this.floatingTexts) this.floatingTexts = [];
         this.floatingTexts.push({ text: "-$100", x: lander.x, y: lander.y - 30, life: 1.5, color: '#ef4444' });
@@ -1703,7 +1709,9 @@ class CargoGame {
         this.missionRepairSpend = (this.missionRepairSpend || 0) + cost;
         lander.integrity = cap;
         if (lander.maxAutoRepairCharge > 0) lander.autoRepairCharge = lander.maxAutoRepairCharge;
-        if (window.CargoAudio) window.CargoAudio.playClick();
+        // (was playClick(), which CargoAudio never had — it threw and swallowed
+        // the confirmation message below)
+        if (window.CargoAudio && !this.isMuted) window.CargoAudio.playLoad();
         this.addMessage(`Integrity restored. -$${cost} Deposit`, "#10b981");
         if (!this.floatingTexts) this.floatingTexts = [];
         this.floatingTexts.push({ text: `-$${cost}`, x: lander.x, y: lander.y - 30, life: 1.5, color: '#ef4444' });
@@ -1756,6 +1764,11 @@ class CargoGame {
                     }
                     if (q.id === 'no_cargo_lost' && !this.questState['no_cargo_lost']?.failed) {
                         this.questState['no_cargo_lost'] = { completed: true };
+                    }
+                    // survive_worm used to have no completion path at all, so the
+                    // bonus could never be earned. It now means "never bitten".
+                    if (q.id === 'survive_worm') {
+                        this.questState['survive_worm'] = (this.physics.wormHits || 0) > 0 ? { failed: true } : { completed: true };
                     }
                 }
             }

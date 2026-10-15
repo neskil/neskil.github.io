@@ -167,7 +167,11 @@ const CargoPhysicsEntitiesMixin = {
             lander.angle = 0;
             lander.landed = true;
             lander.currentPad = padType;
-            if (padType === 'refuel' || padType === 'hq' || padType === 'service') {
+            // Free trickle-fill at HQ and service pads only. Refuel pads used to
+            // be on this list too, which topped the tank up at 18/s for free
+            // while updateRefuelPad() billed 15/s on top — so every "paid"
+            // station was effectively free. They are paid-only now.
+            if (padType === 'hq' || padType === 'service') {
                 lander.fuel = Math.min(lander.maxFuel, lander.fuel + 0.3);
             }
             // Leg spring decay while parked

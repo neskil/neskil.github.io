@@ -23,7 +23,8 @@ registerLevel({
   ambientTrafficSpeed: 0.1,
   ambientTrafficMinY: -1700,
   ambientTrafficMaxY: -1700,
-  startX: -280,
+  startX: -315,     // HQ on the surface, on the flat at y:98 (was down in the flooded cave at -280)
+  startY: 98,
   collectionX: 728,
   quests: [
     questPrimary("Deliver 2 cargo to The Hollow"),

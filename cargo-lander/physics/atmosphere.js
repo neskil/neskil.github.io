@@ -299,6 +299,190 @@ const CargoPhysicsAtmosphereMixin = {
         }
     },
 
+    // ── Viper worm (sandworm hazard with behavior:'viper', L6) ───────────────
+    // A predator you read, not a dice roll. It stays buried while you keep
+    // moving; dawdle inside its territory and a threat meter fills, then it
+    // REARS up out of the sand under your path, sways and watches. Come too
+    // close, or loiter while it watches, and it WINDS UP (head draws back,
+    // a short visible tell) and POUNCES in a straight line. The aim is locked
+    // when the wind-up starts and can only read a slow lander's course, so
+    // hovering or a slow steady drift gets bitten, while full speed or a
+    // change of direction during the wind-up makes it miss. After a strike it hangs,
+    // retracts and cools down. Every number is a hazard field (defaults here).
+    _updateViperWorm(h, lander, dt) {
+        const T = {
+            slowSpeed:     h.slowSpeed     ?? 1.6,   // below this (px/frame) you are "dawdling"
+            fastSpeed:     h.fastSpeed     ?? 3.2,   // above this the meter drains
+            emergeThreat:  h.emergeThreat  ?? 50,    // meter level that makes it rear up
+            patience:      h.patience      ?? 150,   // frames it will watch you loiter before striking
+            strikeRange:   h.strikeRange   ?? 170,   // head-to-lander distance that triggers a strike
+            surfaceOffset: h.surfaceOffset ?? 240,   // how far beside/ahead of you it surfaces
+            rearHeight:    h.rearHeight    ?? 150,   // how high the head rises above the sand...
+            maxRear:       h.maxRear       ?? 260,   // ...stretching up to this to look you in the eye
+            windupFrames:  h.windupFrames  ?? 28,    // the tell before a pounce
+            snapFrames:    h.snapFrames    ?? 14,    // shorter tell when you fly right into its face
+            pounceSpeed:   h.pounceSpeed   ?? 22,
+            leadFactor:    h.leadFactor    ?? 1,     // share of your motion it predicts...
+            leadMaxSpeed:  h.leadMaxSpeed  ?? 2.2,   // ...up to this speed: it can't read a fast lander
+            pounceDamage:  h.pounceDamage  ?? 34,
+            hitRadius:     h.hitRadius     ?? 46,
+            cooldownFrames: h.cooldownFrames ?? 150,
+        };
+        let cx = 0, cy = 0, minX = Infinity, maxX = -Infinity;
+        for (const p of h.pts) { cx += p.x; cy += p.y; minX = Math.min(minX, p.x); maxX = Math.max(maxX, p.x); }
+        cx /= h.pts.length; cy /= h.pts.length;
+        const R = h.reach || 300;
+        const dZone = Math.hypot(lander.x - cx, lander.y - cy);
+        const parked = lander.landed && lander.currentPad;   // pads are safe ground
+        const inZone = dZone < R && !lander.crashed && !parked;
+        const speed = Math.hypot(lander.vx, lander.vy);
+
+        // Threat meter: fills while you dawdle in its territory (faster the
+        // closer you are), drains when you move fast or leave.
+        const prox = Math.max(0, 1 - dZone / R);
+        let dThreat = -1.5;
+        if (inZone) dThreat = speed < T.slowSpeed ? 1.4 * (1 + prox) : speed < T.fastSpeed ? 0.35 * (1 + prox) : -0.8;
+        this.wormThreat = Math.max(0, Math.min(T.emergeThreat * 2, (this.wormThreat || 0) + dThreat * dt));
+        if (this.wormCooldown > 0) this.wormCooldown -= dt;
+
+        // Sonar ping speeds up as the meter fills — the audible tell that it's waking.
+        this.wormRadarTimer = (this.wormRadarTimer || 0) + dt;
+        const ping = inZone ? Math.max(18, 70 - this.wormThreat) : 220;
+        if (this.wormRadarTimer >= ping) {
+            this.wormRadarTimer = 0;
+            if (window.CargoAudio && CargoAudio.playRadarPing) CargoAudio.playRadarPing();
+        }
+
+        let w = this.sandWorm;
+        if (!w) {
+            if (inZone && this.wormCooldown <= 0 && this.wormThreat >= T.emergeThreat) {
+                // Rear up beside you — ahead if you're drifting, toward the
+                // middle of its ground if you're hovering — never straight
+                // under you: the emergence is the warning, not the bite.
+                const clampX = (x) => Math.max(minX + 30, Math.min(maxX - 30, x));
+                const side = Math.abs(lander.vx) > 0.5 ? Math.sign(lander.vx) : (lander.x < cx ? 1 : -1);
+                let bx = clampX(lander.x + side * T.surfaceOffset);
+                if (Math.abs(bx - lander.x) < T.surfaceOffset * 0.6) {
+                    const alt = clampX(lander.x - side * T.surfaceOffset);
+                    if (Math.abs(alt - lander.x) > Math.abs(bx - lander.x)) bx = alt;
+                }
+                const surf = this.getPolygonSurfaceY(bx, lander.y);
+                const by = (surf !== null ? surf : cy) + 8;
+                w = this.sandWorm = {
+                    viper: true, state: 'rising', t: 0, bx, by, x: bx, y: by, vx: 0, vy: -1,
+                    spawnX: bx, spawnY: by, trail: [], length: h.wormLength ?? 42,
+                    hitRadius: T.hitRadius, swayPhase: Math.random() * 6.28, leaveT: 0, watchT: 0,
+                };
+                if (window.game && window.game.addMessage) window.game.addMessage('⚠ The worm is watching — keep moving', '#f97316');
+                if (window.CargoAudio && CargoAudio.playWindWarning) CargoAudio.playWindWarning();
+            }
+            return;
+        }
+
+        w.t += dt;
+        const px = w.x, py = w.y;
+        const toLx = lander.x - w.x, toLy = lander.y - w.y;
+        const headDist = Math.hypot(toLx, toLy);
+        const approach = (tx, ty, rate) => { w.x += (tx - w.x) * Math.min(1, rate * dt); w.y += (ty - w.y) * Math.min(1, rate * dt); };
+        const startWindup = (frames) => {
+            // Aim locked NOW: where your current velocity takes you by the time
+            // the strike arrives, but reading at most leadMaxSpeed of it. Hold a
+            // slow course and it meets you; change course during the tell or go
+            // fast enough to outrun its read, and it bites where you aren't.
+            const flight = headDist / T.pounceSpeed;
+            const lead = (frames + flight) * T.leadFactor;
+            const sp = Math.hypot(lander.vx, lander.vy), cap = sp > T.leadMaxSpeed ? T.leadMaxSpeed / sp : 1;
+            w.aimX = lander.x + lander.vx * cap * lead;
+            w.aimY = lander.y + lander.vy * cap * lead;
+            w.state = 'windup'; w.t = 0; w.windup = frames;
+            w.windFromX = w.x; w.windFromY = w.y;
+            if (window.CargoAudio && CargoAudio.playRadarPing) CargoAudio.playRadarPing();
+        };
+
+        if (w.state === 'rising' || w.state === 'coiled') {
+            // Head hovers above the burrow, leaning toward you, swaying like a cobra.
+            const lean = Math.max(-40, Math.min(40, (lander.x - w.bx) * 0.2));
+            const sway = Math.sin(w.t * 0.09 + w.swayPhase) * 16;
+            const tx = w.bx + lean + sway;
+            const eye = Math.max(w.by - T.maxRear, Math.min(w.by - T.rearHeight, lander.y + 90));
+            const ty = eye + Math.sin(w.t * 0.05) * 8;
+            approach(tx, ty, w.state === 'rising' ? 0.12 : 0.2);
+            if (w.state === 'rising' && Math.hypot(tx - w.x, ty - w.y) < 12) { w.state = 'coiled'; w.t = 0; }
+            // Patience only runs down while you're slow: a fast pass can make it
+            // rear, but it only strikes a fast lander that flies into its face.
+            if (inZone && speed < T.fastSpeed) w.watchT += dt;
+            if (w.state === 'coiled' && !lander.crashed && !parked) {
+                if (headDist < T.hitRadius * 2) startWindup(T.snapFrames);                  // in its face: snap
+                else if (headDist < T.strikeRange && w.t > 20) startWindup(T.windupFrames);  // too close
+                else if (inZone && w.watchT > T.patience) startWindup(T.windupFrames);       // stayed too long
+            }
+            if (dZone > R * 1.15 || parked || lander.crashed || this.wormThreat <= 0) {
+                w.leaveT += dt;
+                if (w.leaveT > 80) { w.state = 'sinking'; w.t = 0; }
+            } else w.leaveT = 0;
+        } else if (w.state === 'windup') {
+            // Draw back away from the aim point — the readable tell.
+            const ax = w.aimX - w.windFromX, ay = w.aimY - w.windFromY, al = Math.max(1, Math.hypot(ax, ay));
+            const k = Math.min(1, w.t / w.windup);
+            w.x = w.windFromX - (ax / al) * 30 * k;
+            w.y = w.windFromY - (ay / al) * 30 * k;
+            if (w.t >= w.windup) {
+                const dx = w.aimX - w.x, dy = w.aimY - w.y, dl = Math.max(1, Math.hypot(dx, dy));
+                w.pvx = (dx / dl) * T.pounceSpeed; w.pvy = (dy / dl) * T.pounceSpeed;
+                w.travel = 0; w.maxTravel = Math.max(200, dl + 50);
+                w.state = 'pounce'; w.t = 0;
+                if (window.CargoAudio) CargoAudio.playCrash();
+            }
+        } else if (w.state === 'pounce') {
+            w.x += w.pvx * dt; w.y += w.pvy * dt;
+            w.travel += T.pounceSpeed * dt;
+            if (Math.hypot(lander.x - w.x, lander.y - w.y) < T.hitRadius && !lander.crashed) {
+                this.wormHits = (this.wormHits || 0) + 1;
+                this.applyDamage(lander, T.pounceDamage);
+                const dl = Math.max(1, Math.hypot(w.pvx, w.pvy));
+                lander.vx += (w.pvx / dl) * 5; lander.vy += (w.pvy / dl) * 5 - 1.5;
+                for (let i = 0; i < 10; i++) {
+                    this.particles.push({ x: lander.x + (Math.random() - 0.5) * 30, y: lander.y + (Math.random() - 0.5) * 30,
+                        vx: (Math.random() - 0.5) * 7, vy: (Math.random() - 0.5) * 7 - 2, life: 1, decay: 0.03 + Math.random() * 0.04,
+                        color: Math.random() > 0.4 ? '#f97316' : '#854d0e', size: 2 + Math.random() * 3 });
+                }
+                if (lander.integrity <= 0) this.triggerExplosion();
+                w.state = 'recover'; w.t = 0; w.hit = true;
+            } else if (w.travel >= w.maxTravel) {
+                w.state = 'recover'; w.t = 0; w.hit = false;
+                if (window.game && window.game.addMessage) window.game.addMessage('The worm missed!', '#fbbf24');
+            }
+        } else if (w.state === 'recover') {
+            w.pvx *= Math.pow(0.8, dt); w.pvy *= Math.pow(0.8, dt);
+            w.x += w.pvx * dt; w.y += w.pvy * dt;
+            if (w.t > 34) { w.state = 'retracting'; w.t = 0; }
+        } else {   // 'retracting' / 'sinking': back into the burrow
+            const dx = w.bx - w.x, dy = w.by + 10 - w.y, dl = Math.hypot(dx, dy);
+            const step = (w.state === 'sinking' ? 5 : 10) * dt;
+            if (dl <= step + 2) {
+                this.sandWorm = null;
+                this.wormCooldown = T.cooldownFrames;
+                this.wormThreat = 0;
+                return;
+            }
+            w.x += dx / dl * step; w.y += dy / dl * step;
+        }
+
+        // Renderer bookkeeping: velocity, and a body traced from the head down
+        // to the burrow (drawSandWorm samples segments along w.trail, head first).
+        w.vx = (w.x - px) / Math.max(dt, 0.001); w.vy = (w.y - py) / Math.max(dt, 0.001);
+        const fx = toLx / Math.max(1, headDist), fy = toLy / Math.max(1, headDist);
+        const P0 = { x: w.x, y: w.y }, P3 = { x: w.bx, y: w.by + 6 };
+        const P1 = { x: w.x - fx * 55, y: w.y - fy * 55 + 25 };
+        const P2 = { x: w.bx + Math.sin(w.t * 0.07 + w.swayPhase) * 35, y: w.by - Math.min(T.maxRear, Math.abs(w.by - w.y)) * 0.35 };
+        const trail = [];
+        for (let i = 0; i <= 48; i++) {
+            const u = i / 48, a = (1 - u) ** 3, b = 3 * (1 - u) ** 2 * u, c = 3 * (1 - u) * u * u, d = u ** 3;
+            trail.push({ x: a * P0.x + b * P1.x + c * P2.x + d * P3.x, y: a * P0.y + b * P1.y + c * P2.y + d * P3.y });
+        }
+        w.trail = trail;
+    },
+
     // Per-strike sandworm tuning, stashed on the worm at spawn so the update
     // loop never has to re-find the hazard it came from (the roof worm has no
     // hazard at all). Every default reproduces the original hardcoded strike,
@@ -600,7 +784,14 @@ const CargoPhysicsAtmosphereMixin = {
         }
 
         // --- Sand Worm Logic (worm-lair terrain only) ---
-        if (this.currentLevelConfig?.terrainType === 'worm-lair') {
+        // A sandworm hazard with behavior:'viper' runs the stalking predator in
+        // _updateViperWorm(); everything else keeps the original random-surfacing
+        // worm below (L2, L9), untouched.
+        const viperZone = this.currentLevelConfig?.terrainType === 'worm-lair'
+            ? (this.hazards || []).find(h => h.type === 'sandworm' && h.behavior === 'viper') : null;
+        if (viperZone) {
+            this._updateViperWorm(viperZone, lander, dt);
+        } else if (this.currentLevelConfig?.terrainType === 'worm-lair') {
             //  Spawn check 
             if (!this.sandWorm && !lander.crashed && this.hazards) {
                 let inWormZone = false;
@@ -798,6 +989,7 @@ const CargoPhysicsAtmosphereMixin = {
                     const dy = lander.y - w.y;
                     const dist = Math.hypot(dx, dy);
                     if (dist < w.hitRadius && !lander.crashed) {
+                        this.wormHits = (this.wormHits || 0) + 1;
                         this.applyDamage(lander, w.damage * dt);
                         if (window.CargoAudio) CargoAudio.playCrash();
                         for (let i = 0; i < 6; i++) {
@@ -1233,7 +1425,7 @@ const CargoPhysicsAtmosphereMixin = {
                           + Math.sin(now * 0.0007 * spd + seed * 0.003) * 0.05 * ampScale;
             }
             const dynamicWind = this.wind * windMult * variance;
-            lander.vx += dynamicWind * 0.02 * dt;
+            lander.vx += dynamicWind * 0.02 * (this.windForce ?? 1) * dt;
             this.currentWind = dynamicWind;
         } else {
             this.currentWind = 0;

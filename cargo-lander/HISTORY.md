@@ -8,6 +8,31 @@ backlog" section.
 
 ---
 
+## 2026-10-15 — Level pass: real wind, paid fuel, the viper worm (v0.28.0)
+
+Playtest notes: wind is cosmetic; leave L1–L4 alone apart from L4's HQ (it
+spawned in the cave); L5 is too easy (you're only fuel-limited) and needs a
+paid filling station; L6's sarlacc-pit worm "doesn't really work".
+
+- **Wind** — `windForce` level multiplier (default 1, so L1–L4 are
+  untouched). Storm levels now drift you ~135–220px per gust cycle hands-off.
+- **L4** — HQ moved from the cave floor to the surface (startX −315, y 98).
+- **Paid fuel** — refuel hubs used to get the HQ's free 18 units/s top-up as
+  well, so `pricePerUnit` never mattered. They now only sell fuel. L5:
+  5 cargo, 330s, Fuel Rig at $5/unit (pilot runs: 86–138s, $400–1000 spent).
+- **HQ Refuel/Repair buttons** threw on a missing `CargoAudio.playClick`.
+- **Viper worm (L6)** — `behavior:'viper'`: buried while you move, a threat
+  meter fills while you dawdle, it rears up beside you and watches, then
+  strikes when you come close or linger, after a red-ring + aim-line wind-up.
+  The aim reads only a slow course, so hovering or pottering gets bitten and
+  climbing, diving, reversing or full speed makes it miss. Proven headlessly
+  across hover / pass-speed / dodge matrices (tests.html "Viper worm …").
+  The old engine stays for L2/L9; its tests now run on a pre-rework L6 fixture.
+- **`survive_worm` never paid out** — nothing ever marked it complete. It now
+  completes at mission end when `physics.wormHits` is 0.
+
+---
+
 ## 2026-10-14 — 4K performance: pixel budgets and region post-FX (v0.27.0)
 
 Reported: rough on 4K screens. Measured headlessly at a true 3840×2160

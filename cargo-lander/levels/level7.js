@@ -38,6 +38,7 @@ registerLevel({
     // ── Physics ───────────────────────────────────────────────────────────────
     gravity: 0.13,
     wind: 0.03,       // Cave draft — mild most of the time, see windGust below
+    windForce: 5,     // ~200px hands-off drift per draft surge
     windGust: { calm: 9, warn: 2.5, gust: 5, gustMult: 3.2 }, // periodic draft surge through the tunnel
     heavyCargo: true, // Cargo weight affects lander handling
     fogBandBottomY: 200,

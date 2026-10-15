@@ -21,6 +21,7 @@ registerLevel({
     // ── Physics ───────────────────────────────────────────────────────────────
     gravity: 0.14,           // Slightly heavier gravity
     wind: -0.06,              // Crosswind blowing left; scales up hard during gusts (see windGust)
+    windForce: 4,             // storm surges peak at ~1.4px/frame of drift — fight them
     windGust: { calm: 4, warn: 1.5, gust: 8, gustMult: 4.5 }, // storm surges — short lulls, long violent gusts
     weather: 'ash',          // Volcanic embers/ash cloud
     weatherParticles: 200,   // Heavy weather

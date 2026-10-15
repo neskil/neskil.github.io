@@ -33,6 +33,7 @@ registerLevel({
   gravity: 0.11,
   maxFuel: 160,     // the widest map in the game — a bigger tank keeps it breezy
   wind: 0.02,
+  windForce: 10,    // the trade wind is the level: ~135px hands-off drift per gust cycle
   windGust: { calm: 6, warn: 2, gust: 3, gustMult: 3 },
 
   // ── Mission parameters ────────────────────────────────────────────────────

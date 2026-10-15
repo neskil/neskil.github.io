@@ -725,7 +725,10 @@ drawDeliveryHubs() {
             ctx.fillStyle = hub.color;
             ctx.font = '500 9px Outfit, sans-serif';
             ctx.textAlign = 'center';
-            ctx.fillText(hub.type ? hub.type.toUpperCase() : '', hub.x + hub.width / 2, hub.y + hub.height + 11);
+            const typeLabel = hub.type === 'refuel'
+                ? `REFUEL · $${Math.round((hub.pricePerUnit != null ? hub.pricePerUnit : 50 / 15) * 10) / 10}/UNIT`
+                : (hub.type ? hub.type.toUpperCase() : '');
+            ctx.fillText(typeLabel, hub.x + hub.width / 2, hub.y + hub.height + 11);
         }
     }
 
