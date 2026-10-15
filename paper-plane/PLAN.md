@@ -44,10 +44,16 @@ missions at about 1 throw in 500 or easier.
   "1.1 m left". A small top-down strip under the side view would show it.
 - **The best-throw ghost is free mode only.** Missions could keep their own
   best per mission.
-- **A tumbling sheet just rotates.** Paper flutters; a little roll noise in
-  the view when it is stalled would read better than a rigid spin.
 - **SwiftShader (headless) renders this at about 10 fps.** Real devices
-  manage 60. If a slow phone struggles, cap the pixel ratio at 1.5.
+  manage 60; touch screens are capped at a pixel ratio of 1.5. The action
+  camera's timing is in flight seconds, so it still cuts at the right
+  moments when frames are slow.
+- **The fold preview flies one throw** (`TEST_THROW` in `js/preview.js`).
+  Showing the player's own aim from the Fly step as well would tie the two
+  steps together.
+- **The paper does not bend.** The flutter in the 3D view is a roll and
+  pitch shake on a rigid model; wings that flex up under load (the `FLEX`
+  of the lateral model) would be the next thing to draw.
 
 ## Findings about the folding
 
@@ -65,24 +71,50 @@ missions at about 1 throw in 500 or easier.
   could. Tracking which facets a crease really joins is the fix if it shows
   up.
 
+## Findings about the pitch
+
+- **Stalled planes used to glide backwards.** Two things together: the
+  pitching moment was clamped at 1.6 × the stall angle, so past it there was
+  hardly anything turning the nose back into the airflow; and `cmq` was
+  −8 to −20, several times what the wing can give. At 2 m/s the nose
+  turned at about 0.2 rad/s, so after a stall or a ceiling bonk the plane
+  kept its nose up while it fell, and flew tail first back towards the
+  thrower. Now `pitchCoefficient` holds all the way round (past the stall a
+  flat plate whose push moves aft as it turns broadside, to the
+  three-quarter chord flying backwards) and `cmq` comes from where the wing
+  is (strip theory, doubled for the air the sheet carries round: −1 to
+  −3). A stalled plane drops its nose, dives and swoops out of it.
+- **With honest pitch damping, trim matters.** The old damping held the
+  throw's attitude, which is what made every design glide whatever its
+  elevator. Now each flies at the lift its balance and elevator trim it
+  to: the dart, nose-heavy, wants its trailing edge up; the Nakamura flies
+  flat and stalls with any up elevator. `DESIGNS[].elevator` is what each
+  is set to when chosen. `cd0` went back down to 0.026; best throws are
+  16–22 m (dart to Nakamura).
+- **The pitch damping is stepped implicitly** in both models. At throwing
+  speed it is stiff next to a sheet's tiny inertia; stepped explicitly the
+  pitch rate flipped sign every step.
+- **Landings.** Steeper than about 50°, a plane digs in (keeps 15 % of its
+  speed, `touchSpeed`); flatter, it skids on at half. It then settles flat
+  over a few hundredths of a second (`settle`), in 2D and 3D alike, so the
+  side view of a straight 3D flight still matches the 2D one sample for
+  sample. A wing in ground effect makes less induced drag (`groundEffect`).
+
 ## Findings from building the 3D flight
 
-- **The pitch damping was explicit and unstable.** At throwing speed, `cmq`
-  is stiff next to a sheet's tiny inertia. The pitch rate flipped sign every
-  step (±60 rad/s, at the cap), which silently ate energy. It is now stepped
-  implicitly in both models. To keep the old calibration, `cd0` went from
-  0.024 to 0.034: best throws are 17–21 m again.
-- **A flat sheet no longer "tumbles".** That tumble was the same flicker. It
-  rears up, stalls and drops short, which is what the test now asserts.
+- **A flat sheet no longer "tumbles".** It rears up, stalls and drops short,
+  which is what the test asserts.
 - **The raster leaned left.** Cell centres sat exactly on the sheet's edges
   (±105 mm), and the inside test counts one edge but not the other.
   `analyze()` now samples on even millimetres, so symmetric designs are
   exactly symmetric. A dead-band of 0.3 mm on `rollArm` absorbs what is left
   (the glider's nose fold).
 - **Lateral tuning lives in two places:** `FLEX` (18°, the levelling) in
-  `flight.js` and `CLR` (0.25) in `flight3d.js`. With them, a 10° bank curves a
-  dart about 0.35 m and a glider about 1.7 m; 20° puts a glider into the wall.
-  Darts fly straight, gliders curve.
+  `flight.js` and `CLR` (0.25) in `flight3d.js`. A plane turns as hard as it
+  is lifting, so the curve follows the trim: on the default throw a 10° bank
+  curves a dart (elevator 0.5) about 0.85 m and a Wide Glider (flat) about
+  0.9 m; a Nakamura, flying long and slow, goes about 2.4 m, and 15° puts it
+  into the wall.
 - **A deeper keel adds to a lopsided plane's veer.** More side area below the
   CG works against the dihedral. Winglets take most of the veer out.
 - **The office desks are real** (`furnish()`): a throw that curves into the

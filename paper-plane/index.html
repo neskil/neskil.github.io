@@ -180,6 +180,17 @@
 
         .room { height: min(58dvh, 560px); min-height: 320px; }
 
+        /* A soft vignette over the office, under the overlays. */
+        .room::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            background: radial-gradient(ellipse 75% 70% at 50% 45%, transparent 55%, rgba(5, 8, 16, 0.45));
+        }
+
+        .room > :not(canvas) { z-index: 1; }
+
         #fly-canvas, #fly3d-canvas { touch-action: none; cursor: crosshair; }
 
         .room-tools {
@@ -779,7 +790,7 @@
                 <canvas id="fly3d-canvas" hidden aria-label="A long office in 3D, seen from behind the thrower. Drag back from anywhere and let go to throw: pull down for power, sideways to aim. The dashed line shows the start of the throw."></canvas>
                 <div class="room-hint" id="room-hint">Drag back and let go to throw · or arrow keys and Space</div>
                 <div class="room-tools">
-                    <button type="button" class="chip" id="cam" hidden title="Change the camera (C)">🎥 Behind</button>
+                    <button type="button" class="chip" id="cam" hidden title="Change the camera (C)">🎬 Action</button>
                     <button type="button" class="chip" id="replay" hidden title="The last throw again, slowly (R)">↺ Slow replay</button>
                 </div>
                 <div id="banner" hidden></div>
