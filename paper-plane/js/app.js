@@ -6,13 +6,14 @@
 // live model beside it and the plane in the office are all just what that
 // list folds into right now.
 import {
-    analyze, build, foldMirrored, resolveStep, recognise, describeStep, sameStep,
+    analyze, build, fold, foldMirrored, resolveStep, recognise, describeStep, sameStep,
     DESIGNS, STEP_KINDS, encodeSteps, decodeSteps,
 } from './fold.js';
-import { makePlane, DEFAULT_TRIM, balanceWord, MISSIONS, dailyChallenge, inBin, fly as simulate } from './flight.js';
-import { MISSIONS3D, furnish } from './flight3d.js';
+import { makePlane, DEFAULT_TRIM, balanceWord, MISSIONS, dailyChallenge, inBin } from './flight.js';
+import { MISSIONS3D, furnish, fly3d } from './flight3d.js';
 import { buildModel } from './model.js';
 import { FoldView } from './foldview.js';
+import { FlightPreview, TEST_THROW } from './preview.js';
 import { ShapeView } from './shapeview.js';
 import { FlyView } from './flyview.js';
 
@@ -75,7 +76,9 @@ const foldView = new FoldView($('fold-canvas'), {
     onFold: (S, T, mirrored) => commitFold(S, T, mirrored),
     onMessage: (t) => say(t, 'warn'),
     onPlaced: (on) => $('fold-canvas').parentElement.classList.toggle('placing', on),
+    onPending: (f) => previewFold(f),
 });
+const flightPreview = new FlightPreview($('fs-canvas'), { dist: $('fs-dist'), delta: $('fs-delta'), note: $('fs-note') });
 const liveView = new ShapeView($('live-canvas'), { labels: false });
 const shapeView = new ShapeView($('shape-canvas'));
 const CAM_LABEL = { chase: '🎥 Behind', side: '🎥 Side', top: '🎥 Above' };
@@ -97,6 +100,7 @@ fly.setAim(saved.aim || {});
 /** Folds the whole design again from a fresh sheet and redraws everything
     that depends on it. */
 function rebuild() {
+    flightPreview.snapshot();
     const r = build(state.steps);
     state.paper = r.paper;
     state.ok = r.ok;
@@ -106,6 +110,22 @@ function rebuild() {
     updateGuide();
     updateFoldStats();
     refreshPlane();
+}
+
+/** The fold being dragged or placed on the table, flown before it is made:
+    worked out at most once a frame, however fast the pointer moves. */
+let pendingFold = null, pendingFrame = 0;
+function previewFold(f) {
+    pendingFold = f;
+    if (pendingFrame) return;
+    pendingFrame = requestAnimationFrame(() => {
+        pendingFrame = 0;
+        const f = pendingFold;
+        if (!f) { flightPreview.setPending(null); return; }
+        const r = f.mirrored ? foldMirrored(state.paper, f.S, f.T, state.under) : { paper: fold(state.paper, f.S, f.T, state.under) };
+        if (!r.paper) { flightPreview.setPending(null); return; }
+        flightPreview.setPending(fly3d(makePlane(analyze(r.paper), state.trim), TEST_THROW));
+    });
 }
 
 /** A fold has been made on the table (dragged, or chosen and animated). */
@@ -349,12 +369,13 @@ function refreshPlane() {
     const i = state.plane.info;
     const b = balanceWord(i.margin);
     // A firm, flat-ish throw, flown for real: the number to beat while folding.
-    const test = simulate(state.plane, 5, 8);
+    const test = fly3d(state.plane, TEST_THROW);
+    flightPreview.set(test);
     $('live-balance').textContent = b.word;
     $('live-balance').dataset.word = b.word;
     $('live-glide').textContent = '1 : ' + i.glide.toFixed(1);
     $('live-dist').textContent = test.distance.toFixed(1) + ' m';
-    $('live-dist').title = `On a 5°, 8 m/s throw with the current shaping${test.stalls > 3 ? ' — it stalls' : ''}`;
+    $('live-dist').title = `On a ${TEST_THROW.angle}°, ${TEST_THROW.speed} m/s throw with the current shaping${test.stalls > 1 ? ' — it stalls' : ''}`;
 
     $('sh-span').textContent = (i.span / 10).toFixed(1) + ' cm';
     $('sh-area').textContent = Math.round(i.area / 100) + ' cm²';
@@ -651,6 +672,7 @@ function go(step) {
     document.querySelectorAll('[data-step]').forEach(b => b.setAttribute('aria-current', String(b.dataset.step === step)));
     for (const s of ['fold', 'shape', 'fly']) $(`step-${s}`).hidden = s !== step;
     liveView.visible = step === 'fold';
+    flightPreview.visible = step === 'fold';
     shapeView.visible = step === 'shape';
     fly.visible = step === 'fly';
     refreshPlane();

@@ -12,7 +12,7 @@ export class FoldView {
     constructor(canvas, hooks) {
         this.canvas = canvas;
         this.ctx = canvas.getContext('2d');
-        this.hooks = hooks;           // { canFold(), mirror(), onFold(S, T), onMessage(text), onPlaced(bool) }
+        this.hooks = hooks;           // { canFold(), mirror(), onFold(S, T), onMessage(text), onPlaced(bool), onPending(fold | null) }
         this.paper = null;
         this.cg = null;
         this.guide = null;            // { S, T, mirrored }
@@ -46,14 +46,17 @@ export class FoldView {
         // keep the sheet clear of it.
         const bar = this.canvas.parentElement.querySelector('.stage-bar');
         const reserve = bar && bar.offsetParent ? bar.offsetHeight + 10 : 0;
+        // And the flight preview rides along the top.
+        const strip = this.canvas.parentElement.querySelector('.flight-strip');
+        const top = strip && strip.offsetParent ? strip.offsetTop + strip.offsetHeight : 0;
         const pad = 26;
         // The flat sheet's footprint, grown if a flap sticks out past it,
         // and kept centred on the centre line.
         const e = this.extent = this.paperExtent();
         const half = Math.max(-e.x0, e.x1);
-        this.scale = Math.min((this.W - pad * 2) / (2 * half), (this.H - reserve - pad * 2) / (e.y1 - e.y0));
+        this.scale = Math.min((this.W - pad * 2) / (2 * half), (this.H - reserve - top - pad * 2) / (e.y1 - e.y0));
         this.ox = this.W / 2;
-        this.oy = (this.H - reserve - (e.y1 - e.y0) * this.scale) / 2 - e.y0 * this.scale;
+        this.oy = top + (this.H - reserve - top - (e.y1 - e.y0) * this.scale) / 2 - e.y0 * this.scale;
         this.draw();
     }
 
@@ -267,6 +270,20 @@ export class FoldView {
         if (this.cg && !this.anim) this.balanceMarker();
         if (this.guide && !this.drag && !this.placed && !this.anim) this.guideArrow(now);
         if ((this.drag || this.placed) && !this.anim) this.preview();
+        this.pendingChanged();
+    }
+
+    /** Tells the app which fold is being dragged or placed (or that none
+        is), whenever that changes, so it can fly the plane it would make. */
+    pendingChanged() {
+        if (!this.hooks.onPending) return;
+        const d = this.anim ? null : (this.drag || this.placed);
+        const real = !!d && Math.hypot(d.T[0] - d.S[0], d.T[1] - d.S[1]) >= 3;
+        const mirrored = real && this.hooks.mirror() && !(Math.abs(d.S[0]) < 0.75 && Math.abs(d.T[0]) < 0.75);
+        const key = real ? [d.S[0], d.S[1], d.T[0], d.T[1], mirrored].join() : '';
+        if (key === this.pendingKey) return;
+        this.pendingKey = key;
+        this.hooks.onPending(real ? { S: d.S, T: d.T, mirrored } : null);
     }
 
     /** One facet: polygon `pts` (current paper coords) with the printed sheet

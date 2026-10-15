@@ -143,6 +143,33 @@
 
         #fold-canvas { touch-action: none; cursor: grab; }
 
+        /* The test throw, flown again after every fold, along the top of
+           the table; the fold view keeps the sheet clear of it. */
+        .flight-strip {
+            position: absolute;
+            top: 0.5rem;
+            left: 50%;
+            transform: translateX(-50%);
+            width: min(480px, calc(100% - 1rem));
+            z-index: 1;
+            background: rgba(15, 20, 32, 0.78);
+            border: 1px solid var(--panel-border);
+            border-radius: 12px;
+            padding: 0.35rem 0.55rem 0.2rem;
+            backdrop-filter: blur(6px);
+            -webkit-backdrop-filter: blur(6px);
+            pointer-events: none;
+        }
+
+        .fs-head { display: flex; align-items: baseline; gap: 0.45rem; font-size: 0.72rem; color: var(--muted); }
+        .fs-label { text-transform: uppercase; letter-spacing: 0.08em; }
+        #fs-note { flex: 1; color: #fde68a; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+        #fs-dist { font-family: 'Outfit', sans-serif; font-size: 1rem; font-weight: 700; color: var(--text); }
+        #fs-delta { font-family: 'Outfit', sans-serif; font-weight: 600; min-width: 3.2em; text-align: right; }
+        #fs-delta[data-sign="up"] { color: #34d399; }
+        #fs-delta[data-sign="down"] { color: #f87171; }
+        .flight-strip canvas { position: static; display: block; width: 100%; height: 88px; }
+
         .turntable {
             height: calc(100dvh - 90px);
             min-height: 480px;
@@ -547,7 +574,7 @@
 
         @media (max-width: 900px) {
             .layout { grid-template-columns: 1fr; }
-            .table { height: auto; min-height: 0; aspect-ratio: 210 / 345; max-height: 80dvh; position: relative; top: auto; }
+            .table { height: auto; min-height: 0; aspect-ratio: 210 / 410; max-height: 80dvh; position: relative; top: auto; }
             .stage-bar { display: flex; }
             .turntable { height: 52dvh; min-height: 0; }
             .fly-layout { grid-template-columns: 1fr; }
@@ -625,6 +652,15 @@
     <!-- 1. Fold -->
     <main id="step-fold" class="layout">
         <div class="stage table">
+            <div class="flight-strip">
+                <div class="fs-head" aria-live="polite">
+                    <span class="fs-label">Test throw</span>
+                    <span id="fs-note"></span>
+                    <b id="fs-dist">—</b>
+                    <span id="fs-delta"></span>
+                </div>
+                <canvas id="fs-canvas" aria-label="The test throw down the office: side on above, from overhead below. While you drag or place a fold, the yellow line is how the plane would fly with it; after a fold, the faint line is how it flew before."></canvas>
+            </div>
             <div class="stage-bar">
                 <span id="guide-mini" class="idle-only"></span>
                 <button type="button" class="chip idle-only" data-act="show" aria-label="Show me the next fold">▶</button>
