@@ -21,7 +21,7 @@
 // facing down the room; pads { x0, x1, z0, z1, y }, solid desks; bin
 // { x, z, width }; fans { x, z, width, height, up }; pillars { x, z, r }.
 
-import { DT, ROOM, coefficients } from './flight.js';
+import { DT, ROOM, coefficients, pitchCoefficient, groundEffect, touchSpeed, settle } from './flight.js';
 
 const RHO = 1.2;
 const G = 9.81;
@@ -94,6 +94,18 @@ function updraft(world, x, y, z) {
 
 function deskSpan(pad) { return [pad.z0 ?? -DESK_HALF, pad.z1 ?? DESK_HALF]; }
 
+/** Height above whatever is underneath: the floor, or a desk top. */
+function floorBelow(world, x, y, z) {
+    let h = y;
+    if (world && world.pads) {
+        for (const pad of world.pads) {
+            const [z0, z1] = deskSpan(pad);
+            if (x >= pad.x0 && x <= pad.x1 && z >= z0 && z <= z1 && y >= pad.y) h = Math.min(h, y - pad.y);
+        }
+    }
+    return h;
+}
+
 export function step3d(s, p, dt, world) {
     if (s.landed) return s;
     if (s.sliding) return slide(s, p, dt, world);
@@ -104,7 +116,7 @@ export function step3d(s, p, dt, world) {
     const ub = unrotate(s.q, u);
     const alpha = Math.atan2(-ub[1], ub[0]);
     const beta = Math.asin(Math.max(-1, Math.min(1, ub[2] / V)));
-    const { cl, cd } = coefficients(p, alpha);
+    const { cl, cd } = coefficients(p, alpha, groundEffect(floorBelow(world, s.x, s.y, s.z), p.span));
     const qbar = 0.5 * RHO * V * V;
     const L = qbar * p.area * cl;
     const D = qbar * p.area * cd;
@@ -124,7 +136,7 @@ export function step3d(s, p, dt, world) {
     // which is stepped implicitly as in flight.js.
     const b = p.span, c = p.chord, k = 1 / (2 * V);
     const rh = s.wy * b * k;
-    const cm = p.cm0 - p.margin * p.clAlpha * Math.max(-p.stall * 1.6, Math.min(p.stall * 1.6, alpha));
+    const cm = pitchCoefficient(p, alpha);
     const Mz = qbar * p.area * c * cm;
     const Mx = qbar * p.area * b * (-(p.clBeta + p.sweepRoll * cl) * beta - CLR * cl * rh) - L * p.rollArm;
     const My = qbar * p.area * b * -p.cnBeta * beta;
@@ -233,15 +245,21 @@ function walls(s, world, prevX, prevZ) {
 }
 
 function touchDown(s) {
-    // Level, still facing where the nose was (or where it was going).
-    const nose = rotate(s.q, [1, 0, 0]);
-    const heading = Math.hypot(nose[0], nose[2]) > 0.2 ? Math.atan2(nose[2], nose[0]) : Math.atan2(s.vz, s.vx);
-    s.q = headingQuat(heading);
+    // Facing where the nose was (or where it was going), and from the tilt
+    // it came down at it settles level as it slides (settle(), flight.js).
+    const nose = rotate(s.q, [1, 0, 0]), up = rotate(s.q, [0, 1, 0]), wing = rotate(s.q, [0, 0, 1]);
+    const flat = Math.hypot(nose[0], nose[2]);
+    s.rest = {
+        heading: flat > 0.2 ? Math.atan2(nose[2], nose[0]) : Math.atan2(s.vz, s.vx),
+        pitch: Math.atan2(nose[1], flat),
+        roll: Math.atan2(-wing[1], up[1]),
+    };
+    const k = touchSpeed(Math.hypot(s.vx, s.vz), s.vy);
     s.vy = 0;
     s.wx = s.wy = s.wz = 0;
     s.sliding = true;
-    s.vx *= 0.5;
-    s.vz *= 0.5;
+    s.vx *= k;
+    s.vz *= k;
     if (s.touch == null) s.touch = s.t;
 }
 
@@ -254,6 +272,10 @@ function slide(s, p, dt, world) {
     s.x += s.vx * dt;
     s.z += s.vz * dt;
     s.t += dt;
+    const r = s.rest;
+    r.pitch = settle(r.pitch, dt);
+    r.roll = settle(r.roll, dt);
+    s.q = qmul(qmul(headingQuat(r.heading), axis(0, 0, 1, r.pitch)), axis(1, 0, 0, r.roll));
     if (s.pad != null) {
         // Sliding off the edge of a desk: back into the air, nose down.
         const pad = world.pads[s.pad];
@@ -269,7 +291,7 @@ function slide(s, p, dt, world) {
     } else {
         walls(s, world, prevX, prevZ);
     }
-    if (s.vx === 0 && s.vz === 0) s.landed = true;
+    if (s.vx === 0 && s.vz === 0 && r.pitch === 0 && r.roll === 0) s.landed = true;
     return s;
 }
 

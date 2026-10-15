@@ -325,7 +325,7 @@ document.querySelectorAll('[data-design]').forEach(b => b.addEventListener('clic
     if (id === state.design && !state.steps.length) return;
     state.design = id;
     const d = DESIGNS.find(x => x.id === id);
-    if (d) state.trim.keel = d.keel;
+    if (d) { state.trim.keel = d.keel; state.trim.elevator = d.elevator; }
     state.steps = [];
     syncTrimInputs();
     rebuild();
@@ -550,7 +550,7 @@ function landed(r) {
         }
     }
     if (kind !== 'best') {
-        if (r.stalls > 3) msg += ' · it stalled — move weight forward or bend the elevator down';
+        if (r.stalls > 1) msg += ' · it stalled — move weight forward or bend the elevator down';
         else if (r.bonks) msg += ' · bonked the ceiling';
         else if (r.walls) msg += ' · hit the wall';
     }
@@ -689,6 +689,7 @@ if (q.has('design')) {
     if (d) {
         state.design = d.id;
         state.trim.keel = d.keel;
+        state.trim.elevator = d.elevator;
         const upto = Math.min(d.steps.length, Number(q.get('steps') ?? d.steps.length));
         state.steps = d.steps.slice(0, upto).map(({ say: _s, ...st }) => st);
     }

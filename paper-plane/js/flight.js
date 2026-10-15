@@ -14,6 +14,8 @@ import { analyze, wingStats, SHEET_MASS, CELL } from './fold.js';
 const RHO = 1.2;      // air, kg/m³
 const G = 9.81;
 const CLIP_MASS = 0.0009;
+/** Profile drag of the flat paper, before the keel and any lopsidedness. */
+const CD0 = 0.026;
 
 export const ROOM = { ceiling: 3.2, release: 1.6, floorFriction: 0.6 };
 
@@ -56,14 +58,21 @@ export function makePlane(paper, trim = DEFAULT_TRIM) {
     const cgY = (SHEET_MASS * an.cg[1] + clips * CLIP_MASS * clipY) / mass;
     const margin = (w.yAc - cgY) / mac;
 
-    // Pitch inertia from where the layers actually are.
+    // Pitch inertia from where the layers actually are; and how much wing
+    // there is how far ahead of and behind the balance point, which is what
+    // damps a pitching plane (each strip of wing swings through the air).
     const cellMass = SHEET_MASS / Math.max(1, an.layers.reduce((a, b) => a + b, 0));
-    let inertia = 0;
+    let inertia = 0, swing = 0;
     for (let j = 0; j < an.ny; j++) {
         const y = an.y0 + (j + 0.5) * CELL;
-        let row = 0;
-        for (let i = 0; i < an.nx; i++) row += an.layers[j * an.nx + i];
+        let row = 0, wing = 0;
+        for (let i = 0; i < an.nx; i++) {
+            const n = an.layers[j * an.nx + i];
+            row += n;
+            if (n && Math.abs(an.x0 + (i + 0.5) * CELL) > keel) wing++;
+        }
         inertia += row * cellMass * Math.pow((y - cgY) / 1000, 2);
+        swing += wing * CELL * CELL * (y - cgY) * (y - cgY);
     }
     inertia += clips * CLIP_MASS * Math.pow((clipY - cgY) / 1000, 2);
     inertia = Math.max(inertia, 2e-6);
@@ -71,7 +80,6 @@ export function makePlane(paper, trim = DEFAULT_TRIM) {
     const clAlpha = 2 * Math.PI * aspect / (aspect + 2);
     const e = trim.winglets ? 1.15 : 1.0;
     const stall = clamp(0.36 - 0.035 * aspect, 0.2, 0.34);
-    const length = (w.tail - w.nose);
     const lat = lateral(an, keel, w, !!trim.winglets, cgY, clips, clipY, clAlpha, area, span);
     return {
         // flight model
@@ -80,11 +88,15 @@ export function makePlane(paper, trim = DEFAULT_TRIM) {
         chord: mac / 1000,
         mass,
         clAlpha,
-        cd0: 0.034 + 0.02 * (w.keelArea / area) + 0.6 * w.asymmetry,
+        cd0: CD0 + 0.02 * (w.keelArea / area) + 0.6 * w.asymmetry,
         k: 1 / (Math.PI * e * aspect),
         margin,
         cm0: 0.004 + 0.045 * elevator,
-        cmq: -clamp(6 + 5 * (length / mac), 8, 20) - (trim.winglets ? 2 : 0),
+        // Strip theory: every strip of wing at a distance r from the balance
+        // point meets the air at an extra q·r/V as the plane pitches. Doubled
+        // for the air the sheet drags round with it, which on something this
+        // light is as much again.
+        cmq: -clamp(4 * clAlpha * swing / (area * mac * mac), 0.8, 8) - (trim.winglets ? 0.3 : 0),
         inertia,
         stall,
         clMax: clAlpha * stall * 0.92,
@@ -95,7 +107,7 @@ export function makePlane(paper, trim = DEFAULT_TRIM) {
         info: {
             span, area, aspect, mac, margin, cgY, acY: w.yAc, nose: w.nose, tail: w.tail, keel,
             asymmetry: w.asymmetry, mass, clips, folds: an.folds,
-            glide: bestGlide(clAlpha, 0.034 + 0.02 * (w.keelArea / area), 1 / (Math.PI * e * aspect)),
+            glide: bestGlide(clAlpha, CD0 + 0.02 * (w.keelArea / area), 1 / (Math.PI * e * aspect)),
         },
     };
 }
@@ -214,7 +226,7 @@ export function balanceWord(margin) {
 
 /** Lift and drag coefficients at angle of attack a (radians), including what
     happens past the stall: lift falls away and the wing becomes a flat plate. */
-export function coefficients(p, a) {
+export function coefficients(p, a, ground = 1) {
     const s = p.stall;
     let cl;
     if (Math.abs(a) <= s) cl = p.clAlpha * a;
@@ -223,8 +235,30 @@ export function coefficients(p, a) {
         const attached = Math.sign(a) * Math.min(p.clMax, p.clAlpha * s);
         cl = lerp(attached * 0.8, Math.sin(2 * a), over);
     }
-    const cd = p.cd0 + p.k * cl * cl + (Math.abs(a) > s ? 1.1 * Math.pow(Math.sin(a), 2) : 0);
+    const cd = p.cd0 + p.k * ground * cl * cl + (Math.abs(a) > s ? 1.1 * Math.pow(Math.sin(a), 2) : 0);
     return { cl, cd };
+}
+
+/** Pitching moment coefficient about the balance point, at any angle of
+    attack. Below the stall the lift acts at the aerodynamic centre, `margin`
+    chords behind the balance point. Past it the wing is a flat plate, pushed
+    square-on, and that push moves back towards the middle of the chord as it
+    turns broadside (and to the three-quarter point flying backwards). So a
+    stalled plane drops its nose and dives out of it, one flying backwards
+    swings round, and a tail-heavy sheet settles into a steep, flat mush. */
+export function pitchCoefficient(p, a) {
+    const s = p.stall;
+    if (Math.abs(a) <= s) return p.cm0 - p.margin * p.clAlpha * a;
+    const atStall = p.cm0 - p.margin * p.clAlpha * s * Math.sign(a);
+    const plate = p.cm0 * Math.max(0, Math.cos(a)) - 1.2 * Math.sin(a) * (p.margin + 0.25 * (1 - Math.cos(a)));
+    return lerp(atStall, plate, Math.min(1, (Math.abs(a) - s) / 0.25));
+}
+
+/** Near the floor the wing's downwash has nowhere to go: less induced drag,
+    so a paper plane floats the last few centimetres. `h` in metres. */
+export function groundEffect(h, span) {
+    const r = 16 * Math.max(0, h) / Math.max(0.05, span);
+    return r * r / (1 + r * r);
 }
 
 /* ── Flying ── */
@@ -252,6 +286,13 @@ function airAt(world, x, y) {
     return { wx: 0, wy };
 }
 
+/** Height above whatever is underneath: the floor, or a desk top. */
+function floorBelow(world, x, y) {
+    let h = y;
+    if (world && world.pads) for (const pad of world.pads) if (x >= pad.x0 && x <= pad.x1 && y >= pad.y) h = Math.min(h, y - pad.y);
+    return h;
+}
+
 export function step(s, p, dt, world) {
     if (s.landed) return s;
     if (s.sliding) {
@@ -260,12 +301,13 @@ export function step(s, p, dt, world) {
         s.vx = v <= dv ? 0 : s.vx - Math.sign(s.vx) * dv;
         s.x += s.vx * dt;
         s.t += dt;
+        s.pitch = settle(s.pitch, dt);
         // Sliding off the end of a desk: back into the air, nose down.
         if (s.pad != null) {
             const pad = world.pads[s.pad];
             if (s.x > pad.x1 || s.x < pad.x0) { s.sliding = false; s.pad = null; s.vy = 0; s.pitch = -0.3; return s; }
         }
-        if (s.vx === 0) s.landed = true;
+        if (s.vx === 0 && s.pitch === 0) s.landed = true;
         return s;
     }
     const air = airAt(world, s.x, s.y);
@@ -273,7 +315,7 @@ export function step(s, p, dt, world) {
     const V = Math.hypot(ux, uy) || 1e-6;
     const gamma = Math.atan2(uy, ux);
     const alpha = wrap(s.pitch - gamma);
-    const { cl, cd } = coefficients(p, alpha);
+    const { cl, cd } = coefficients(p, alpha, groundEffect(floorBelow(world, s.x, s.y), p.span));
     const qbar = 0.5 * RHO * V * V;
     const L = qbar * p.area * cl;
     const D = qbar * p.area * cd;
@@ -282,7 +324,7 @@ export function step(s, p, dt, world) {
     // The pitch damping (cmq) is stiff next to a paper plane's tiny inertia:
     // stepped explicitly it flips the pitch rate's sign every step. So it is
     // stepped implicitly, below, from the rest of the moment and its rate.
-    const cm = p.cm0 - p.margin * p.clAlpha * Math.max(-p.stall * 1.6, Math.min(p.stall * 1.6, alpha));
+    const cm = pitchCoefficient(p, alpha);
     const M = qbar * p.area * p.chord * cm;
     const damp = qbar * p.area * p.chord * p.cmq * p.chord / (2 * V);
 
@@ -328,12 +370,24 @@ export function step(s, p, dt, world) {
     return s;
 }
 
+/** Coming down: a steep, nose-first arrival digs in and stops nearly dead;
+    a flatter one skids on at half its speed. The plane then settles flat
+    (settle(), below) rather than snapping level. */
+export function touchSpeed(vx, vy) {
+    return vy < -1.2 * Math.abs(vx) ? 0.15 : 0.5;
+}
+
+/** A landed plane's tilt dying away, a step at a time. */
+export function settle(angle, dt) {
+    const a = angle * Math.exp(-18 * dt);
+    return Math.abs(a) < 1e-3 ? 0 : a;
+}
+
 function touchDown(s) {
+    s.vx *= touchSpeed(s.vx, s.vy);
     s.vy = 0;
-    s.pitch = 0;
     s.q = 0;
     s.sliding = true;
-    s.vx *= 0.5;
 }
 
 export const DT = 1 / 240;

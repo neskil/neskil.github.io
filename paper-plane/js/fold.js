@@ -618,10 +618,12 @@ export function sameStep(a, b) {
 /* ── Designs ──
    Each step is a fold as (S, T): pick up S, put it on T, mirrored unless the
    fold runs straight across. They are written against an A4 sheet and are
-   what the guide shows and "Show me" does. */
+   what the guide shows and "Show me" does. `keel` and `elevator` are the
+   shaping each one is known to fly well with (flight.js): a dart is
+   nose-heavy and wants its trailing edge bent up; a Nakamura flies flat. */
 export const DESIGNS = [
     {
-        id: 'dart', name: 'Classic Dart', keel: 30,
+        id: 'dart', name: 'Classic Dart', keel: 30, elevator: 0.4,
         blurb: 'The one everyone knows: sharp, quick and straight. Corners in twice.',
         steps: [
             { kind: 'corner', reach: 1, say: 'Fold the top corners down to the centre line.' },
@@ -629,7 +631,7 @@ export const DESIGNS = [
         ],
     },
     {
-        id: 'glider', name: 'Wide Glider', keel: 22,
+        id: 'glider', name: 'Wide Glider', keel: 22, elevator: 0.1,
         blurb: 'A blunt nose and broad wings. Slow, floaty, forgiving.',
         steps: [
             { kind: 'corner', reach: 1, say: 'Fold the top corners down to the centre line.' },
@@ -638,7 +640,7 @@ export const DESIGNS = [
         ],
     },
     {
-        id: 'nakamura', name: 'Nakamura Lock', keel: 24,
+        id: 'nakamura', name: 'Nakamura Lock', keel: 24, elevator: 0,
         blurb: 'A classic distance plane: a heavy, locked nose and a long glide.',
         steps: [
             { kind: 'corner', reach: 1, say: 'Fold the top corners down to the centre line.' },
