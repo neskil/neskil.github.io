@@ -17,7 +17,7 @@
 //   Platform D — Cryo Bay (blue hub, x:840), sits lower — forces a descent under Laser 2
 //   Platform E — Fuel Cache (refuel, x:1060) — the unstable reactor well orbits below it
 //   Platform F — Salvage Chute (chute hub, wide catch zone, x:1195)
-//   [Gauntlet Laser 3 — x:1440-1490, the return gauntlet]
+//   [Crusher x:1350 on F's deck, then Gauntlet Laser 3 in the F-G gap at x:1510]
 //   Platform G — Terminus Dock (normal hub, x:1660) — deliver, then thread all three
 //               lasers again on the way back to HQ for extraction.
 // A drifting reactor gravity well in the void under E and F adds pull to the
@@ -34,10 +34,26 @@
 //     (1300-1397 at padScale 0.65). The chute moved west to x:1195 so the
 //     crusher guards the deck between it and Laser 3 instead.
 
+//
+// 2026-10 pass — the grid had no top or bottom:
+//   - Every beam ended in open void (y 360-760), so the "gauntlet" was optional:
+//     climb to y:300 and fly over all three lasers and the crusher, or dive
+//     under them. A derelict HULL TRUSS now spans the level overhead (y 100-215)
+//     with bulkheads closing both ends and an emitter housing over each beam,
+//     and the beams run from the truss down into the void (y 1250), so the only
+//     way east is through them.
+//   - The crusher stood in mid-air with both jaws floating (Level Check warned).
+//     It now hangs from the truss and slams onto the Salvage Chute deck.
+//   - Return windows were 650-800ms of dark beam on top of a lethal crusher. Each
+//     beam now gives >= 900ms dark on the way home, and the crusher stays open
+//     1.6s of its 3.25s cycle.
+//   - The Salvage Chute took any cargo, so every crate could be dumped there
+//     and the Terminus run skipped. It is tethered-only now.
+
 registerLevel({
     name: "L8: Orbital Gauntlet",
     missionTitle: "Derelict Station — Defense Grid Breach",
-    description: "A scuttled orbital station still runs on backup power — its automated defense grid is very much online. Seven platform sections drift in the void, connected by nothing but vacuum. Four clients have cargo waiting across the wreck. The turret lasers fire on a fixed cycle: watch the flash, time the gap, and don't linger between platforms — there's nothing below you but the dark.",
+    description: "A scuttled orbital station still runs on backup power — its automated defense grid is very much online. Seven platform sections drift in the void, connected by nothing but vacuum. Four clients have cargo waiting across the wreck. The station's hull truss runs overhead and the turret beams reach from it down into the void, so the only way through is between shots: watch the flash, time the gap, and don't linger between platforms — there's nothing below you but the dark.",
 
     // ── Physics ───────────────────────────────────────────────────────────────
     gravity: 0.08,           // Low — station void, but the reactor well fights this
@@ -52,6 +68,23 @@ registerLevel({
     // edge — a genuine stacked overlap that forces a dip-then-climb approach
     // instead of a flat crossing ─────────────────────────────────────────────
     terrainPolygons: [
+        // Hull truss — the station's spine, overhead the whole run, with bulkhead
+        // walls at both ends running down past the void (an inverted U). Its
+        // underside carries an emitter housing for each beam and the crusher's
+        // upper jaw, so nobody flies over or around the defense grid.
+        // The outer top edge is invisibleEdge on purpose: nothing can reach it,
+        // and as a floor it would be the ONLY floor over the open gaps, which
+        // getPolygonSurfaceY() would then report as the ground there — every
+        // crate below y:200 would count as fallen through the map.
+        [
+            { x: -460, y: 100, invisibleEdge: true }, { x: 1960, y: 100 }, { x: 1960, y: 1560 }, { x: 1880, y: 1560 },
+            { x: 1880, y: 215 },
+            { x: 1535, y: 215 }, { x: 1525, y: 240 }, { x: 1495, y: 240 }, { x: 1485, y: 215 },   // Laser 3
+            { x: 1378, y: 215 }, { x: 1372, y: 248 }, { x: 1328, y: 248 }, { x: 1322, y: 215 },   // crusher
+            { x: 710,  y: 215 }, { x: 700,  y: 240 }, { x: 670,  y: 240 }, { x: 660,  y: 215 },   // Laser 2
+            { x: 385,  y: 215 }, { x: 375,  y: 240 }, { x: 345,  y: 240 }, { x: 335,  y: 215 },   // Laser 1
+            { x: -380, y: 215 }, { x: -380, y: 1560 }, { x: -460, y: 1560 }
+        ],
         // Platform A — HQ. startX:-160
         [
             { x: -320, y: 560 }, { x: -50, y: 560 },
@@ -96,21 +129,26 @@ registerLevel({
     // ── Hazards — three laser gauntlet lines + one drifting debris-cloud zone ──
     hazards: [
         { type: 'gravwell', pts: [{x: 1180, y: 790}, {x: 1290, y: 880}, {x: 1180, y: 970}, {x: 1070, y: 880}], startForce: 0.45, endForce: 0.45, radius: 170, speed: 140 },
-        // Gauntlet Laser 1 — between Collection Depot and Command Deck
-        { type: 'laser', pts: [{ x: 360, y: 380 }, { x: 360, y: 700 }], onMs: 1300, offMs: 1700, warnMs: 450, damagePerSec: 35, thickness: 14, onReturn: { onMs: 1100, offMs: 1200, warnMs: 400 } },
+        // Beams run from their truss housing (y:236) down into the void (y:1250):
+        // no way over, no way under. Dark window = offMs - warnMs.
+        // Gauntlet Laser 1 — between Collection Depot and Command Deck (dark 1250ms / 1000ms home)
+        { type: 'laser', pts: [{ x: 360, y: 236 }, { x: 360, y: 1250 }], onMs: 1300, offMs: 1700, warnMs: 450, damagePerSec: 35, thickness: 14, onReturn: { onMs: 1000, offMs: 1400, warnMs: 400 } },
         // Gauntlet Laser 2 — between Command Deck and Cryo Bay, offset phase so it's
         // never in sync with Laser 1 (forces reading each beam independently)
-        { type: 'laser', pts: [{ x: 685, y: 360 }, { x: 685, y: 760 }], onMs: 1300, offMs: 1700, warnMs: 450, damagePerSec: 35, thickness: 14, phaseOffset: 900, onReturn: { onMs: 1000, offMs: 1100, warnMs: 400 } },
-        // Gauntlet Laser 3 — the return gauntlet near Terminus Dock, fastest cycle
-        { type: 'laser', pts: [{ x: 1465, y: 400 }, { x: 1465, y: 720 }], onMs: 1100, offMs: 1400, warnMs: 400, damagePerSec: 40, thickness: 14, phaseOffset: 400, onReturn: { onMs: 900, offMs: 1000, warnMs: 350 } },
-        // Massive industrial crusher before the Terminus gauntlet
+        { type: 'laser', pts: [{ x: 685, y: 236 }, { x: 685, y: 1250 }], onMs: 1300, offMs: 1700, warnMs: 450, damagePerSec: 35, thickness: 14, phaseOffset: 900, onReturn: { onMs: 1000, offMs: 1400, warnMs: 400 } },
+        // Gauntlet Laser 3 — the return gauntlet near Terminus Dock, fastest cycle (dark 1000ms / 900ms home)
+        { type: 'laser', pts: [{ x: 1510, y: 236 }, { x: 1510, y: 1250 }], onMs: 1100, offMs: 1400, warnMs: 400, damagePerSec: 40, thickness: 14, phaseOffset: 400, onReturn: { onMs: 900, offMs: 1300, warnMs: 400 } },
+        // Industrial crusher: hangs from the truss and slams onto the Salvage
+        // Chute deck (y≈606 at x:1350), between the chute and Laser 3. Laser 3
+        // sits in the F-G gap at x:1510, leaving a ~130px pocket between the two
+        // to wait in with crates on deck (it was ~60px: nowhere to stand).
         {
             type: 'crusher',
-            pts: [{ x: 1370, y: 300 }, { x: 1370, y: 750 }],
-            waitUnloadedMs: 1200,
-            crushMs: 200,
-            waitLoadedMs: 600,
-            retractMs: 1000,
+            pts: [{ x: 1350, y: 240 }, { x: 1350, y: 625 }],
+            waitUnloadedMs: 1600,
+            crushMs: 250,
+            waitLoadedMs: 500,
+            retractMs: 900,
             thickness: 50,
             color: '#f59e0b'
         },
@@ -157,9 +195,9 @@ registerLevel({
     deliveryHubs: [
         { x: 520,  width: 90,  color: "#ef4444", type: "red",    name: "Command Deck"  },
         { x: 840,  width: 90,  color: "#3b82f6", type: "blue",   name: "Cryo Bay"      },
-        { x: 1195, width: 150, color: "#f59e0b", type: "chute",  name: "Salvage Chute" },
+        { x: 1195, width: 150, color: "#f59e0b", type: "chute",  name: "Salvage Chute", accepts: ["tethered"] },
         { x: 1660, width: 90,  color: "#38bdf8", type: "normal", name: "Terminus Dock" },
-        { x: 1060, width: 60,  color: "#f59e0b", type: "refuel", name: "Fuel Cache"    }
+        { x: 1060, width: 60,  color: "#f59e0b", type: "refuel", name: "Fuel Cache", pricePerUnit: 4 }
     ],
 
     // ── Palette (Derelict Station / Void-Violet) ──────────────────────────────
@@ -174,7 +212,7 @@ registerLevel({
     },
 
     // ── UI ────────────────────────────────────────────────────────────────────
-    hint: "Watch each laser turret: a fast flash means it's about to fire, a solid magenta beam means it's live — wait it out, then cross while it's dark. The reactor well near the Fuel Cache pulls off-course, so fight the drift early. There's no ground between platforms, only the abyss — don't stall over a gap. Deliver all 4 cargos, then run the gauntlet again back to HQ.",
+    hint: "Watch each laser turret: a fast flash means it's about to fire, a solid magenta beam means it's live — wait it out, then cross while it's dark. The reactor well near the Fuel Cache pulls off-course, so fight the drift early. There's no ground between platforms, only the abyss — don't stall over a gap. The beams run from the hull truss into the void — there is no going over or under. The crusher on the Salvage Chute deck stays open longer than it stays shut: wait for it to lift. Tethered loads go down the Salvage Chute; everything else has a dock. Deliver all 4 cargos, then run the gauntlet again back to HQ — it fires faster on the way home.",
 
     quests: [
         questPrimary('Deliver 4 cargo across the derelict station, then breach the gauntlet home'),

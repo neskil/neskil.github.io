@@ -3369,8 +3369,10 @@ function buildOut() {
   if (S.hubs.length) {
     lines.push('  deliveryHubs: [');
     S.hubs.forEach((h,i) => {
+      // jsLiteral, not String(v): a hub can carry arrays (a chute's
+      // `accepts: ["tethered"]`), which String() would emit as a bare word.
       const fields = Object.entries(h)
-        .map(([k,v]) => `${k}: ${typeof v==='string'?JSON.stringify(v):v}`)
+        .map(([k,v]) => `${k}: ${jsLiteral(v)}`)
         .join(', ');
       lines.push(`    { ${fields} }${i<S.hubs.length-1?',':''}`);
     });
@@ -3381,7 +3383,7 @@ function buildOut() {
     lines.push('  collectibles: [');
     S.collectibles.forEach((c,i) => {
       const fields = Object.entries(c)
-        .map(([k,v]) => `${k}: ${typeof v==='string'?JSON.stringify(v):v}`)
+        .map(([k,v]) => `${k}: ${jsLiteral(v)}`)
         .join(', ');
       lines.push(`    { ${fields} }${i<S.collectibles.length-1?',':''}`);
     });

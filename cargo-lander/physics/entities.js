@@ -902,10 +902,12 @@ const CargoPhysicsEntitiesMixin = {
     },
 
     // The chute hub whose vacuum zone this box is in (over the opening, within
-    // 60px of it vertically), or null.
+    // 60px of it vertically), or null. A chute with `accepts` only pulls those
+    // cargo types — the rest ride over it like any other deck.
     _chuteUnder(box) {
         for (const hub of this.deliveryHubs) {
-            if (hub.type === 'chute' && box.x >= hub.x && box.x <= hub.x + hub.width &&
+            if (hub.type === 'chute' && (!hub.accepts || hub.accepts.includes(box.type)) &&
+                box.x >= hub.x && box.x <= hub.x + hub.width &&
                 box.y > hub.y - 60 && box.y < hub.y + 60) return hub;
         }
         return null;

@@ -29,10 +29,26 @@
 // palette), and does what a "gas pocket" should: push you off your line, not kill you for
 // touching it.
 
+//
+// ── 2026-10 pass: it ran dry before the first pump ──────────────────────────
+// With a stock 120-unit tank and three heavy crates, the depot → Fuel Pump leg
+// (1300px of undulating cave) burned the whole tank: a careful pilot ran out at
+// x≈1500, and the gas pocket guarding the pump then shoved it DOWN into the
+// floor slope. And once refuel pads started charging (v0.28.0) the two pumps
+// became an economy without anyone having priced them. Now:
+//   • maxFuel 170 — long-range tanks, enough for any single leg with margin.
+//   • Fuel Pump $3/unit (the cheap, busy one), Reserve Tank $6/unit (deep in
+//     the squeeze, so you pay for the convenience). Fill up early or pay later.
+//   • The two approach gas pockets are VENTS now: they puff on a cycle
+//     (repulsor gustMs/calmMs — the zone flashes before it blows) instead of
+//     blowing constantly, and neither pushes you into rock. The two in the
+//     S-curve squeeze were cut: in a 150px bend any puff pins you to the rock. Reading the puff is
+//     the skill; a constant shove only ever punished whoever was slowest.
+
 registerLevel({
     name: "L7: The Deep Haul",
     missionTitle: "Bioluminescent Depths — Long Haul",
-    description: "The Bioluminescent Depths stretch nearly 4 km underground. Multiple delivery nodes are buried deep in the cave network — each accepting a different cargo type, plus a vacuum chute near the far end that will take any cargo you're still holding. Fuel is tight; there are two refuel pumps along the route, one just past the halfway point and one deep in the squeeze corridor beyond it. Navigate the undulating cave without touching the glowing rock walls, and hold your line through the gas pockets guarding the two mid-route hubs — they'll shove you off course, not through you.",
+    description: "The Bioluminescent Depths stretch nearly 4 km underground. Multiple delivery nodes are buried deep in the cave network — each accepting a different cargo type, plus a vacuum chute near the far end for tethered loads you can't land with. You've got long-range tanks, but no tank lasts the round trip: the Fuel Pump past the first hub sells at $3 a unit, the Reserve Tank deep in the squeeze corridor at $6. Gas vents puff across the two mid-route approaches — they flash before they blow and will knock you back down the tunnel, so read them and go between puffs.",
     weather: 'bubbles',
 
     // ── Physics ───────────────────────────────────────────────────────────────
@@ -41,6 +57,7 @@ registerLevel({
     windForce: 5,     // ~200px hands-off drift per draft surge
     windGust: { calm: 9, warn: 2.5, gust: 5, gustMult: 3.2 }, // periodic draft surge through the tunnel
     heavyCargo: true, // Cargo weight affects lander handling
+    maxFuel: 170,     // long-range tanks: any one leg fits in a tank, the round trip doesn't
     fogBandBottomY: 200,
     fogBandTopY: -50,
     fogBandColor: '56,189,248',
@@ -77,49 +94,34 @@ registerLevel({
         ]
     ],
 
-    // ── Hazards — two gas pockets guarding the Fuel Pump and Valley Base
-    // approaches (relocated from open mid-air stretches to do the lasers' old job) ──
+    // ── Hazards — gas vents. Each puffs for gustMs after calmMs of quiet, with
+    // a warnMs flash first (repulsor duty cycle, physics/atmosphere.js). Pushes
+    // are mostly BACKWARD (west) so a puff costs you ground, not your hull. ──
     hazards: [
-        // Guards the Fuel Pump (x:1600) approach — floats in the open corridor before the pad.
-        // Shoves the lander down/back away from the pad's approach line.
+        // Fuel Pump (x:1600) approach — puffs you back up the slope you came down.
         {
             type: 'repulsor',
             color: 'rgba(14, 165, 233, 0.18)',
-            travelX: -0.15, travelY: 0.25,
+            travelX: -0.2, travelY: -0.06,
+            gustMs: 1100, calmMs: 2000, warnMs: 500,
             pts: [
-                {x: 1500, y: 440}, {x: 1580, y: 440},
-                {x: 1580, y: 560}, {x: 1500, y: 560}
+                {x: 1480, y: 450}, {x: 1575, y: 450},
+                {x: 1575, y: 560}, {x: 1480, y: 560}
             ]
         },
-        // Guards the Valley Base (x:2100) approach — pushes up/back away from the pad.
+        // Valley Base (x:2100) approach — same idea, out of phase with the first.
         {
             type: 'repulsor',
             color: 'rgba(14, 165, 233, 0.18)',
-            travelX: -0.15, travelY: -0.25,
+            travelX: -0.2, travelY: 0.05,
+            gustMs: 1100, calmMs: 2000, warnMs: 500, phaseOffset: 1500,
             pts: [
-                {x: 2000, y: 230}, {x: 2080, y: 230},
-                {x: 2080, y: 360}, {x: 2000, y: 360}
-            ]
-        },
-        // Draft currents inside the S-curve squeeze corridor (x:2600-2900)
-        {
-            type: 'repulsor',
-            color: 'rgba(56, 189, 248, 0.14)',
-            travelX: -0.10, travelY: -0.22,
-            pts: [
-                {x: 2600, y: 280}, {x: 2680, y: 280},
-                {x: 2680, y: 400}, {x: 2600, y: 400}
-            ]
-        },
-        {
-            type: 'repulsor',
-            color: 'rgba(56, 189, 248, 0.14)',
-            travelX: -0.10, travelY: 0.22,
-            pts: [
-                {x: 2760, y: 280}, {x: 2840, y: 280},
-                {x: 2840, y: 400}, {x: 2760, y: 400}
+                {x: 1990, y: 230}, {x: 2075, y: 230},
+                {x: 2075, y: 330}, {x: 1990, y: 330}
             ]
         }
+        // (The S-curve squeeze used to carry two more vents. In a 150px bend any
+        // puff pins you to the rock, so the squeeze is left to the draft surges.)
     ],
 
     // ── Collectibles (High-value exploration rewards) ─────────────────────────
@@ -159,10 +161,13 @@ registerLevel({
     deliveryHubs: [
         { x: 1200, width: 80, color: "#3b82f6", type: "blue", name: "Deep Node" },
         { x: 2100, width: 80, color: "#10b981", type: "green", name: "Valley Base" },
-        { x: 3300, width: 140, color: "#f59e0b", type: "chute", name: "Magma Chute" },
+        // Tethered only: it used to take anything, so the whole mission was
+        // "fly every crate to the far end and dump it" and the typed hubs never mattered.
+        { x: 3300, width: 140, color: "#f59e0b", type: "chute", name: "Magma Chute", accepts: ["tethered"] },
         { x: 3500, width: 80, color: "#38bdf8", type: "normal", name: "Far East Depot" },
-        { x: 1600, width: 60, color: "#f59e0b", type: "refuel", name: "Fuel Pump" },
-        { x: 2900, width: 60, color: "#f59e0b", type: "refuel", name: "Reserve Tank" }
+        // Priced so the stop is a decision: cheap and early, or dear and deep.
+        { x: 1600, width: 60, color: "#f59e0b", type: "refuel", name: "Fuel Pump", pricePerUnit: 3 },
+        { x: 2900, width: 60, color: "#f59e0b", type: "refuel", name: "Reserve Tank", pricePerUnit: 6 }
     ],
 
     // ── Water Bodies ──────────────────────────────────────────────────────────
@@ -192,7 +197,7 @@ registerLevel({
     },
 
     // ── UI ────────────────────────────────────────────────────────────────────
-    hint: "Stop at the Fuel Pump (x:1600) before pushing east, and don't skip the Reserve Tank (x:2900) either — the return trip needs it as much as the outbound leg. A gas pocket guards each of the Fuel Pump and Valley Base approaches — it'll push you off your line, so counter-thrust through it rather than fighting straight against it. Thread the double-bend squeeze without grazing the glowing rock. If you end up holding a tethered box, grapple it in (it can't be hand-carried) and drop it at the Magma Chute (x:3300) — it takes any cargo type. Return to HQ to extract.",
+    hint: "Fill up at the Fuel Pump ($3/unit) on the way out — the Reserve Tank deep in the squeeze charges double. Gas vents flash before they puff: hang back while one blows, then cross in the calm. Draft surges blow through the whole tunnel too — the wind meter warns you. Tethered boxes can't be landed with — grapple one in and skim it over the Magma Chute (x:3300), which only takes tethered loads. Return to HQ to extract.",
 
     quests: [
         questPrimary('Deliver 3 cargos across the cave'),

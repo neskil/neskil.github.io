@@ -22,6 +22,7 @@ Object.assign(CargoGame.prototype, {
                 
                 // Vacuum chute logic
                 if (hub.type === 'chute') {
+                    if (hub.accepts && !hub.accepts.includes(box.type)) continue;
                     if (box.x >= hub.x && box.x <= hub.x + hub.width && box.y > hub.y + 20) {
                         totalReward += this.processSuccessfulDelivery(box, i, hub);
                         lastDeliveryX = hub.x + hub.width / 2;

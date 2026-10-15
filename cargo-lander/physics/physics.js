@@ -250,7 +250,8 @@ class CargoPhysics {
         this.deliveryHubs = (config.deliveryHubs || []).map(hub => ({
             x: hub.x, y: hub.y !== undefined ? hub.y : undefined, width: Math.round((hub.width || 80) * ps), height: 15,
             color: hub.color, type: hub.type, name: hub.name || 'Terminal', style: hub.style,
-            pricePerUnit: hub.pricePerUnit   // refuel pads: $ per unit of fuel (game.js updateRefuelPad)
+            pricePerUnit: hub.pricePerUnit,  // refuel pads: $ per unit of fuel (game.js updateRefuelPad)
+            accepts: hub.accepts             // chutes: cargo types it takes (unset = any)
         }));
 
         if (this.startDepot.y === undefined) {

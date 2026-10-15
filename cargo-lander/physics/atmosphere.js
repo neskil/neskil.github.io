@@ -366,8 +366,11 @@ const CargoPhysicsAtmosphereMixin = {
                     const alt = clampX(lander.x - side * T.surfaceOffset);
                     if (Math.abs(alt - lander.x) > Math.abs(bx - lander.x)) bx = alt;
                 }
-                const surf = this.getPolygonSurfaceY(bx, lander.y);
-                const by = (surf !== null ? surf : cy) + 8;
+                // burrowY pins the burrow depth for a pit with no floor to
+                // surface from (L9) — the surface probe there would find the
+                // hub rock above and the worm would climb out of the pad.
+                const surf = h.burrowY != null ? null : this.getPolygonSurfaceY(bx, lander.y);
+                const by = h.burrowY != null ? h.burrowY : (surf !== null ? surf : cy) + 8;
                 w = this.sandWorm = {
                     viper: true, state: 'rising', t: 0, bx, by, x: bx, y: by, vx: 0, vy: -1,
                     spawnX: bx, spawnY: by, trail: [], length: h.wormLength ?? 42,
