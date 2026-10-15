@@ -551,11 +551,14 @@
             .stage-bar { display: flex; }
             .turntable { height: 52dvh; min-height: 0; }
             .fly-layout { grid-template-columns: 1fr; }
+            /* Keep the room in view while the controls scroll under it, Throw panel first. */
+            .fly-room { position: sticky; top: 0; z-index: 5; background: var(--bg, #0f172a); padding-bottom: 0.4rem; }
+            .fly-layout > [aria-label="Throw"] { order: -1; }
         }
 
         @media (max-width: 560px) {
             .steps button { padding: 0.35rem 0.6rem; font-size: 0.78rem; }
-            .room { height: 46dvh; }
+            .room { height: 40dvh; min-height: 240px; }
             .room-hint { display: none; }
             #banner { top: auto; bottom: 3.3rem; }
             .fly-room { padding: 0 0.6rem; }
