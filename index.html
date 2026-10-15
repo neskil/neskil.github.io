@@ -2750,6 +2750,119 @@
             transform: translateX(-50%) translateY(0);
         }
 
+        /* ── Idle delivery (see the script of the same name) ──
+           Everything here moves by transform and opacity only, so the whole
+           show runs on the compositor and costs the canvas nothing. The layer is
+           as tall as the document, so what is in it scrolls with the card it is
+           standing on, and it clips, so a lander parked off the edge cannot add
+           a horizontal scrollbar. */
+        #idle-egg {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            overflow: hidden;
+            pointer-events: none;
+            z-index: 60;
+            contain: layout paint;
+            transition: opacity 0.3s ease;
+        }
+
+        #idle-egg.is-leaving {
+            opacity: 0;
+        }
+
+        #idle-egg > * {
+            position: absolute;
+            top: 0;
+            left: 0;
+            will-change: transform;
+        }
+
+        .egg-parcel {
+            width: 26px;
+            height: 22px;
+            pointer-events: auto;
+            cursor: pointer;
+            filter: drop-shadow(0 3px 3px rgba(0, 0, 0, 0.35));
+        }
+
+        .egg-parcel svg,
+        .egg-lander svg {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        .egg-puff {
+            width: 44px;
+            height: 10px;
+            border-radius: 50%;
+            background: radial-gradient(closest-side, rgba(226, 232, 240, 0.45), rgba(226, 232, 240, 0));
+            opacity: 0;
+        }
+
+        .egg-lander {
+            width: 64px;
+            height: 60px;
+        }
+
+        .egg-lander .egg-ship {
+            position: absolute;
+            inset: 0;
+            animation: egg-bob 1.6s ease-in-out infinite alternate;
+        }
+
+        .egg-lander .egg-flame {
+            transform-origin: 32px 36px;
+            animation: egg-flicker 0.09s steps(2) infinite alternate;
+        }
+
+        .egg-lander .egg-nav {
+            animation: egg-blink 1.4s steps(1) infinite;
+        }
+
+        /* The chain hangs from the magnet plate and is unrolled by scaleY, so
+           its length never touches layout. */
+        .egg-chain {
+            position: absolute;
+            left: 30.5px;
+            top: 37px;
+            width: 3px;
+            height: 0;
+            transform: scaleY(0);
+            transform-origin: top;
+            background: repeating-linear-gradient(to bottom, #f97316 0 4px, #c2410c 4px 6px, transparent 6px 8px);
+        }
+
+        .egg-lander .egg-parcel {
+            position: absolute;
+            left: 19px;
+            top: 38px;
+            pointer-events: none;
+        }
+
+        .egg-note {
+            font: 600 0.8rem 'Inter', sans-serif;
+            color: #fde68a;
+            white-space: nowrap;
+            text-shadow: 0 1px 4px rgba(0, 0, 0, 0.6);
+        }
+
+        @keyframes egg-bob {
+            from { transform: translateY(-1.5px); }
+            to { transform: translateY(1.5px); }
+        }
+
+        @keyframes egg-flicker {
+            from { transform: scaleY(0.85); opacity: 0.85; }
+            to { transform: scaleY(1.1); opacity: 1; }
+        }
+
+        @keyframes egg-blink {
+            50% { opacity: 0.25; }
+        }
+
         /* spark particles */
         .spark {
             position: fixed;
@@ -3032,7 +3145,7 @@
            rate and steps down when it can't keep up. Three tiers:
 
              full     — everything.
-             reduced  — fewer dots, shorter links, no theme entities, canvas
+             reduced  — fewer dots, shorter links, canvas
                         frame rate capped harder, chip blurs off.
              minimal  — links off entirely (they are the O(n²) part), a third of
                         the dots, slowest canvas cadence, and the card and grain
@@ -4553,7 +4666,6 @@
 
         let width, height;
         let particles = [];
-        let themeEntities = [];
         const mouse = {
             x: null, y: null,
             targetX: null, targetY: null,
@@ -4566,23 +4678,6 @@
 
         let currentGlobalHue = 220, targetGlobalHue = 220;
         let activeThemeCardId = null;
-
-        // Theme entities only start drifting in after a deliberate hover, and never
-        // more than a couple at a time — it's a hint, not a parade.
-        const THEME_DWELL_MS = 900;
-        const MAX_THEME_ENTITIES = 2;
-        let themeSpawnArmed = false;
-        let themeDwellTimer = null;
-
-        /* On a phone the "hover" that arms this is a touchstart, and a touchstart is
-           also how a scroll begins — so scrolling past a card used to arm it, and the
-           emojis would start flying in mid-scroll. Scrolling means the finger was
-           never dwelling on anything, so it cancels the arming. */
-        function disarmThemeSpawn() {
-            clearTimeout(themeDwellTimer);
-            themeDwellTimer = null;
-            themeSpawnArmed = false;
-        }
 
         /* ── Letting go of a card's theme ──
            A hovered card pulls the whole page towards its accent, and until now
@@ -4605,7 +4700,6 @@
                 themeReleaseTimer = null;
                 activeThemeCardId = null;
                 document.documentElement.removeAttribute('data-theme');
-                disarmThemeSpawn();
             }, THEME_RELEASE_MS);
         }
 
@@ -4617,10 +4711,6 @@
             themeReleaseTimer = null;
             if (activeThemeCardId === cardId) return;
             activeThemeCardId = cardId;
-
-            clearTimeout(themeDwellTimer);
-            themeSpawnArmed = false;
-            themeDwellTimer = setTimeout(() => { themeSpawnArmed = true; }, THEME_DWELL_MS);
 
             document.documentElement.setAttribute('data-theme', cardId);
 
@@ -4646,201 +4736,6 @@
 
             if (themeHues[cardId] !== undefined) {
                 targetGlobalHue = themeHues[cardId];
-            }
-        }
-
-        // symbol+size+hue -> pre-rendered glowing glyph. Module-level rather than a
-        // static class field, which needs a newer Safari than the rest of this file.
-        const themeSprites = new Map();
-
-        /* The cards added after the hand-tuned ones above all drift the same way
-           — the Lease/Rent/Buy floater — and differ only in what they carry, so
-           they are a table rather than a branch each. */
-        /* Which cards drift something across the background: the hand-tuned
-           four with a branch of their own in ThemeEntity, plus every card in
-           CARD_FLOATERS below. The spawn check used to be a hand-kept list of
-           the four, so each card added to the table armed a spawn that never
-           came — Fika, Sand, the terrarium and the rest hovered in silence. */
-        const HAND_TUNED_THEME_CARDS = ['card-cargo-lander', 'card-supply-chain', 'card-car', 'card-golf-hub'];
-        const hasThemeEntity = (cardId) => HAND_TUNED_THEME_CARDS.includes(cardId) || Object.prototype.hasOwnProperty.call(CARD_FLOATERS, cardId);
-
-        const CARD_FLOATERS = {
-            'card-bil': { hue: 48, items: ['🇸🇪', '🫎', '🚗', '🔑', 'kr/mil'] },
-            'card-name-song': { hue: 275, items: ['🎵', '🎶', '🎹', '🔔'] },
-            'card-fika': { hue: 30, items: ['☕', '🥐', '🍰', '🫖'] },
-            'card-paper-plane': { hue: 52, items: ['✈️', '📄', '📎', '🗑️'] },
-            'card-elevator': { hue: 38, items: ['🛗', '⬆️', '⬇️', '🔔', '🚶'] },
-            'card-terrarium': { hue: 170, items: ['🌦️', '❄️', '☀️', '🌙', '⛈️'] },
-            'card-sand': { hue: 40, items: ['⏳', '⌛', '🌋', '🌱'] },
-        };
-
-        class ThemeEntity {
-            constructor(cardId) {
-                this.cardId = cardId;
-                this.dead = false;
-                this.life = 0;
-
-                const fromLeft = Math.random() < 0.5;
-
-                if (cardId === 'card-cargo-lander') {
-                    // Lander ship flying in horizontally from the side
-                    this.type = 'lander';
-                    this.x = fromLeft ? -50 : width + 50;
-                    this.y = Math.random() * (height * 0.65) + 50;
-                    this.vx = fromLeft ? (Math.random() * 1.5 + 2.5) : -(Math.random() * 1.5 + 2.5);
-                    this.vy = (Math.random() - 0.5) * 0.4;
-                    this.size = Math.random() * 10 + 22;
-                    this.hue = 245;
-                    this.symbol = fromLeft ? '🚀' : '🛸';
-                    this.maxLife = Math.ceil((width + 100) / Math.abs(this.vx));
-                    this.maxAlpha = 0.4;
-                } else if (cardId === 'card-supply-chain') {
-                    // Supply truck driving across the screen
-                    this.type = 'truck';
-                    this.x = fromLeft ? -50 : width + 50;
-                    this.y = Math.random() * (height * 0.8) + 60;
-                    this.vx = fromLeft ? (Math.random() * 1.2 + 2.0) : -(Math.random() * 1.2 + 2.0);
-                    this.vy = 0;
-                    this.size = Math.random() * 8 + 20;
-                    this.hue = 45;
-                    this.symbol = fromLeft ? '🚚' : '🚛';
-                    this.maxLife = Math.ceil((width + 100) / Math.abs(this.vx));
-                    this.maxAlpha = 0.4;
-                } else if (cardId === 'card-car') {
-                    // Lease, Rent or Buy floater
-                    this.type = 'floater';
-                    this.x = fromLeft ? -40 : width + 40;
-                    this.y = Math.random() * height;
-                    this.vx = fromLeft ? (Math.random() * 1.2 + 1.2) : -(Math.random() * 1.2 + 1.2);
-                    this.vy = (Math.random() - 0.5) * 0.5;
-                    this.size = Math.random() * 8 + 14;
-                    this.maxLife = Math.ceil((width + 80) / Math.abs(this.vx));
-                    this.maxAlpha = 0.35;
-                    this.hue = 160;
-                    const items = ['🚗', '🔑', '$/mo', '📉', 'APR'];
-                    this.symbol = items[Math.floor(Math.random() * items.length)];
-                } else if (cardId === 'card-golf-hub') {
-                    // Struck ball arcing across the screen. Unlike the other
-                    // types this one is under gravity (see update), so it rises,
-                    // hangs and drops rather than tracking a straight line.
-                    // The card now stands for both games, so the flights come
-                    // in both flavours: the flat one's green, and the lofted
-                    // one's sky blue thrown a little higher.
-                    const lofted = Math.random() < 0.5;
-                    this.type = 'golf';
-                    this.x = fromLeft ? -40 : width + 40;
-                    this.y = height * ((lofted ? 0.6 : 0.55) + Math.random() * (lofted ? 0.3 : 0.35));
-                    this.vx = fromLeft ? (Math.random() * 1.4 + 2.5) : -(Math.random() * 1.4 + 2.5);
-                    this.vy = -(Math.random() * 1.5 + (lofted ? 3.4 : 3.0));
-                    this.gravity = 0.05;
-                    this.size = Math.random() * 8 + 16;
-                    this.maxLife = Math.ceil((width + 80) / Math.abs(this.vx));
-                    this.maxAlpha = 0.38;
-                    this.hue = lofted ? 198 : 140;
-                    var swings = lofted ? ['⛳', '🏌️', 'LOFT'] : ['⛳', '🏌️', 'FORE!'];
-                    this.symbol = swings[Math.floor(Math.random() * swings.length)];
-                } else if (CARD_FLOATERS[cardId]) {
-                    const f = CARD_FLOATERS[cardId];
-                    this.type = 'floater';
-                    this.x = fromLeft ? -40 : width + 40;
-                    this.y = Math.random() * height;
-                    this.vx = fromLeft ? (Math.random() * 1.2 + 1.2) : -(Math.random() * 1.2 + 1.2);
-                    this.vy = (Math.random() - 0.5) * 0.5;
-                    this.size = Math.random() * 8 + 14;
-                    this.maxLife = Math.ceil((width + 80) / Math.abs(this.vx));
-                    this.maxAlpha = 0.35;
-                    this.hue = f.hue;
-                    this.symbol = f.items[Math.floor(Math.random() * f.items.length)];
-                } else {
-                    this.dead = true;
-                    return;
-                }
-
-                this.alpha = 0;
-                this.sprite = ThemeEntity.sprite(this.symbol, this.size, this.hue);
-            }
-
-            /* The glow used to be a canvas shadowBlur applied on every fillText, every
-               frame — the single most expensive draw on the page, because a blurred
-               shadow under a colour-emoji glyph is a full software blur pass. The glyph
-               never changes though, so it only ever needed drawing once: each
-               symbol+size+hue combination is rendered into a small offscreen canvas the
-               first time it appears and blitted from then on. Same halo, one blur per
-               symbol for the life of the page instead of one per entity per frame. */
-            static sprite(symbol, size, hue) {
-                const px = Math.round(size);
-                const key = symbol + '|' + px + '|' + hue;
-                let s = themeSprites.get(key);
-                if (s) return s;
-
-                const blur = 10;
-                const pad = blur + 4;
-                const c = document.createElement('canvas');
-                // Emoji are drawn centred, and a glyph can overshoot its em box, so
-                // give the tile generous room on all sides.
-                c.width = c.height = px * 2 + pad * 2;
-                const g = c.getContext('2d');
-                g.translate(c.width / 2, c.height / 2);
-                g.fillStyle = `hsl(${hue}, 85%, 75%)`;
-                g.shadowColor = `hsla(${hue}, 90%, 65%, 0.8)`;
-                g.shadowBlur = blur;
-                g.font = `${px}px sans-serif`;
-                g.textAlign = 'center';
-                g.textBaseline = 'middle';
-                // Once — the live version cleared the canvas and drew a single shadowed
-                // glyph per frame, so one pass is what the halo used to look like.
-                g.fillText(symbol, 0, 0);
-
-                s = { canvas: c, cx: c.width / 2, cy: c.height / 2 };
-                themeSprites.set(key, s);
-                return s;
-            }
-
-            update() {
-                this.life++;
-                this.x += this.vx;
-                this.y += this.vy;
-
-                // Subtle vertical wave for landers
-                if (this.type === 'lander') {
-                    this.y += Math.sin(this.life * 0.08) * 0.6;
-                }
-
-                // Golf balls are the one type that falls.
-                if (this.type === 'golf') {
-                    this.vy += this.gravity;
-                }
-
-                const progress = this.life / this.maxLife;
-                if (progress < 0.15) {
-                    this.alpha = (progress / 0.15) * this.maxAlpha;
-                } else if (progress > 0.85) {
-                    this.alpha = ((1 - progress) / 0.15) * this.maxAlpha;
-                } else {
-                    this.alpha = this.maxAlpha;
-                }
-
-                if (this.life >= this.maxLife || (this.vx > 0 && this.x > width + 80) || (this.vx < 0 && this.x < -80)) {
-                    this.dead = true;
-                }
-            }
-
-            draw(ctx) {
-                if (!this.sprite) return; // unrecognised card id — nothing to draw
-                ctx.save();
-                ctx.translate(this.x, this.y);
-                // 🚚/🚛 have the cab on the left, so they face left as drawn — flip them
-                // when driving right. 🚀 points up-right, so it's the opposite.
-                if (this.type === 'truck' ? this.vx > 0 : (this.type === 'lander' && this.vx < 0)) {
-                    ctx.scale(-1, 1);
-                }
-                // The fade has to ride globalAlpha: these are mostly colour emoji,
-                // which draw with their own palette and ignore fillStyle entirely, so
-                // the old alpha-in-fillStyle left them popping in and out at full
-                // strength instead of fading. Blitting the sprite fixes that for free.
-                ctx.globalAlpha = this.alpha;
-                ctx.drawImage(this.sprite.canvas, -this.sprite.cx, -this.sprite.cy);
-                ctx.restore();
             }
         }
 
@@ -5230,12 +5125,10 @@
             } else {
                 for (let i = particles.length; i < budget; i++) particles.push(new Particle());
             }
-            if (perfTier > 0) themeEntities = [];
         }
 
         function init() {
             particles = [];
-            themeEntities = [];
             // Responsive amount of particles based on screen size
             ambientCount = Math.round(Math.min((width * height) / 12000, 150));
             /* A tablet is a phone's GPU behind a desktop's screen. Area alone gave
@@ -5268,7 +5161,6 @@
 
         window.addEventListener('scroll', () => {
             scrollY = window.scrollY;
-            if (themeDwellTimer || themeSpawnArmed) disarmThemeSpawn();
 
             const delta = scrollY - bumpLastY;
             bumpLastY = scrollY;
@@ -5402,21 +5294,6 @@
                     ctx.moveTo(particles[i].x, particles[i].y + particles[i].bumpOff);
                     ctx.lineTo(particles[j].x, particles[j].y + particles[j].bumpOff);
                     ctx.stroke();
-                }
-            }
-
-            // Spawn background theme entities after a lingering hover over a card
-            if (perfTier === 0 && themeSpawnArmed && hasThemeEntity(activeThemeCardId) && themeEntities.length < MAX_THEME_ENTITIES && Math.random() < 0.012) {
-                themeEntities.push(new ThemeEntity(activeThemeCardId));
-            }
-
-            // Update and render background theme animation entities
-            for (let i = themeEntities.length - 1; i >= 0; i--) {
-                let e = themeEntities[i];
-                e.update();
-                e.draw(ctx);
-                if (e.dead) {
-                    themeEntities.splice(i, 1);
                 }
             }
 
@@ -6414,6 +6291,225 @@
             document.addEventListener('flip:change', () => { if (focusActive) refocus(); });
             document.addEventListener('shelf:change', () => { if (focusActive) refocus(); });
             syncFocusMode();
+        })();
+    </script>
+    <script>
+        /* ── Idle delivery ───────────────────────────────────────────────────
+           Leave the page alone for a while and a parcel drops onto one of the
+           cards in view; a Cargo Lander comes down, lowers its chain, winches the
+           parcel up and flies off with it. Click the parcel before the lander
+           gets there and you sign for it yourself.
+
+           This replaced the emoji that drifted across the background on hover.
+           Those were drawn into the canvas, so they rode its frame budget and
+           every card's backdrop blur with it, and they arrived on every visit
+           whether anyone was looking or not. This only happens to someone who
+           has stopped doing anything, runs on transforms alone, and leaves
+           nothing behind when it is done.
+
+           ?idle=N starts the first one N seconds in, for screenshots and tests. */
+        (function () {
+            if (!('animate' in Element.prototype)) return;
+            const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+            const forced = parseFloat(new URLSearchParams(location.search).get('idle'));
+            const FIRST_IDLE_MS = forced >= 0 ? forced * 1000 : 40000;
+            const LATER_IDLE_MS = 120000;   // a second one has to be earned
+            const MAX_PER_VISIT = 3;
+
+            const PARCEL_SVG = '<svg viewBox="0 0 26 22" aria-hidden="true">'
+                + '<path d="M2 7h22v13H2z" fill="#c08a4f" stroke="#5b3a1a" stroke-width="1.2" stroke-linejoin="round"/>'
+                + '<path d="M1 3h24v4H1z" fill="#a8743d" stroke="#5b3a1a" stroke-width="1.2" stroke-linejoin="round"/>'
+                + '<path d="M11 3h4v17h-4z" fill="#e8d5a8" opacity="0.85"/>'
+                + '<path d="M4.5 11h4.5v3H4.5z" fill="#f8fafc" opacity="0.8"/></svg>';
+
+            // The space truck from Cargo Lander, cut down: hull, dome, gold legs,
+            // twin nozzles and the magnet plate the chain hangs from.
+            const LANDER_SVG = '<svg viewBox="0 0 64 60" aria-hidden="true"><defs>'
+                + '<linearGradient id="egg-hull" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#64748b"/><stop offset="1" stop-color="#1e293b"/></linearGradient>'
+                + '<linearGradient id="egg-glass" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7dd3fc"/><stop offset="1" stop-color="#0369a1"/></linearGradient>'
+                + '<linearGradient id="egg-fire" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fbbf24"/><stop offset="0.4" stop-color="#ef6414" stop-opacity="0.75"/><stop offset="1" stop-color="#ef4444" stop-opacity="0"/></linearGradient>'
+                + '</defs>'
+                + '<g class="egg-flame"><path d="M19 35h6l-3 15z" fill="url(#egg-fire)"/><path d="M39 35h6l-3 15z" fill="url(#egg-fire)"/></g>'
+                + '<g stroke-linecap="round"><path d="M17 29L8 45M47 29l9 16" stroke="#0f172a" stroke-width="4"/><path d="M17 29L8 45M47 29l9 16" stroke="#eab308" stroke-width="2"/></g>'
+                + '<ellipse cx="8" cy="46" rx="5" ry="2" fill="#475569" stroke="#0f172a"/><ellipse cx="56" cy="46" rx="5" ry="2" fill="#475569" stroke="#0f172a"/>'
+                + '<circle class="egg-nav" cx="8" cy="46" r="1.4" fill="#ef4444"/><circle class="egg-nav" cx="56" cy="46" r="1.4" fill="#10b981"/>'
+                + '<path d="M19 33h6l-1 3h-4zM39 33h6l-1 3h-4z" fill="#0f172a"/>'
+                + '<rect x="12" y="15" width="40" height="19" rx="6" fill="url(#egg-hull)" stroke="#0f172a" stroke-width="1.5"/>'
+                + '<rect x="12.8" y="23" width="38.4" height="3" fill="#f97316"/>'
+                + '<path d="M21 15.5a11 9 0 0 1 22 0z" fill="url(#egg-glass)" stroke="#0f172a" stroke-width="1.5"/>'
+                + '<path d="M25 12a7 5 0 0 1 6-3.5" stroke="#fff" stroke-opacity="0.5" stroke-width="1.5" fill="none" stroke-linecap="round"/>'
+                + '<rect x="26" y="34" width="12" height="3" rx="1" fill="#0f172a"/></svg>';
+
+            let shows = 0, running = false, idleTimer = null, abortShow = null;
+
+            function arm() {
+                clearTimeout(idleTimer);
+                if (running || shows >= MAX_PER_VISIT) return;
+                idleTimer = setTimeout(start, shows ? LATER_IDLE_MS : FIRST_IDLE_MS);
+            }
+
+            ['pointermove', 'pointerdown', 'keydown', 'wheel', 'touchstart', 'scroll'].forEach(type =>
+                window.addEventListener(type, arm, { passive: true }));
+            // A fold or a resize moves the card out from under the parcel.
+            ['resize', 'shelf:change'].forEach(type =>
+                (type === 'resize' ? window : document).addEventListener(type, () => abortShow && abortShow()));
+
+            /* A card the whole of which is on screen, not folded away and not
+               turned over — the parcel has to land somewhere you can see. */
+            function pickCard() {
+                if (document.querySelector('.flip-card.is-flipped, .flip-card.is-open')) return null;
+                const top = 70, bottom = window.innerHeight - 20;
+                const cards = Array.from(document.querySelectorAll('.shelf:not(.is-collapsed) .grid > .card')).filter(card => {
+                    const r = card.getBoundingClientRect();
+                    return r.width > 120 && r.top >= top && r.bottom <= bottom;
+                });
+                return cards.length ? cards[Math.floor(Math.random() * cards.length)] : null;
+            }
+
+            function el(cls, html) {
+                const e = document.createElement('div');
+                e.className = cls;
+                if (html) e.innerHTML = html;
+                return e;
+            }
+
+            const at = (x, y, extra) => `translate(${x}px, ${y}px)${extra ? ' ' + extra : ''}`;
+            const wait = ms => new Promise(r => setTimeout(r, ms));
+
+            async function start() {
+                if (running || document.hidden || reduceMotion.matches) return arm();
+                const card = pickCard();
+                if (!card) return arm();
+                running = true;
+                shows++;
+
+                const r = card.getBoundingClientRect();
+                const sx = window.scrollX, sy = window.scrollY;
+                const layer = el('');
+                layer.id = 'idle-egg';
+                layer.style.height = document.documentElement.scrollHeight + 'px';
+
+                // Where the parcel comes to rest: on the card's top edge, somewhere
+                // in its middle half.
+                const px = r.left + sx + r.width * (0.25 + Math.random() * 0.5) - 13;
+                const py = r.top + sy - 22;
+                const parcel = el('egg-parcel', PARCEL_SVG);
+                parcel.title = 'Sign for it';
+                const puff = el('egg-puff');
+                layer.append(puff, parcel);
+                document.body.appendChild(layer);
+
+                let signed = false, aborted = false;
+                const live = new Set();
+                const run = (node, frames, opts) => {
+                    const a = node.animate(frames, Object.assign({ fill: 'forwards' }, opts));
+                    live.add(a);
+                    return a.finished.catch(() => {}).finally(() => live.delete(a));
+                };
+                const stopped = () => signed || aborted;
+
+                abortShow = () => {
+                    aborted = true;
+                    layer.style.display = 'none';
+                    live.forEach(a => a.cancel());
+                };
+
+                parcel.addEventListener('click', () => {
+                    if (signed || aborted) return;
+                    signed = true;
+                    // Only the parcel's own motion stops; a lander already on its
+                    // way finishes the approach and leaves empty-handed.
+                    parcel.getAnimations().forEach(a => a.cancel());
+                    const note = el('egg-note');
+                    note.textContent = 'Signed for ✓';
+                    layer.appendChild(note);
+                    run(note, [
+                        { transform: at(px - 22, py - 6), opacity: 0 },
+                        { transform: at(px - 22, py - 22), opacity: 1, offset: 0.25 },
+                        { transform: at(px - 22, py - 40), opacity: 0 }
+                    ], { duration: 1800, easing: 'ease-out' });
+                    run(parcel, [
+                        { transform: at(px, py), opacity: 1 },
+                        { transform: at(px, py - 6, 'scale(1.2)'), opacity: 0 }
+                    ], { duration: 350, easing: 'ease-out' });
+                }, { once: true });
+
+                // 1. The drop, from just above the top of the window.
+                await run(parcel, [
+                    { transform: at(px, sy - 40, 'rotate(-25deg)') },
+                    { transform: at(px, py, 'rotate(4deg)'), easing: 'ease-out', offset: 0.72 },
+                    { transform: at(px, py - 7, 'rotate(-2deg)'), easing: 'ease-in', offset: 0.86 },
+                    { transform: at(px, py) }
+                ], { duration: 950, easing: 'ease-in' });
+                if (!stopped()) {
+                    run(puff, [
+                        { transform: at(px - 9, py + 16, 'scale(0.4)'), opacity: 0.9 },
+                        { transform: at(px - 9, py + 14, 'scale(1.6)'), opacity: 0 }
+                    ], { duration: 600, easing: 'ease-out' });
+                    await wait(1800);
+                }
+
+                // 2. The lander comes in from a side and parks above the parcel.
+                let lander = null, chain = null;
+                const fromLeft = px + 13 > (sx + window.innerWidth / 2);
+                const CHAIN = 104;
+                const lx = px + 13 - 32, ly = py - CHAIN - 37;
+                const off = fromLeft ? -120 : window.innerWidth + 60;
+                const tilt = fromLeft ? 1 : -1;
+                if (!stopped()) {
+                    lander = el('egg-lander');
+                    const ship = el('egg-ship', LANDER_SVG);
+                    chain = el('egg-chain');
+                    chain.style.height = CHAIN + 'px';
+                    lander.append(chain, ship);
+                    layer.appendChild(lander);
+                    await run(lander, [
+                        { transform: at(sx + off, ly - 160, `rotate(${12 * tilt}deg)`) },
+                        { transform: at(lx, ly, `rotate(${-4 * tilt}deg)`), offset: 0.85 },
+                        { transform: at(lx, ly) }
+                    ], { duration: 2600, easing: 'cubic-bezier(0.2, 0.7, 0.3, 1)' });
+                }
+
+                // 3. Chain down, then winch the parcel up into the clamps.
+                if (!stopped()) await run(chain, [{ transform: 'scaleY(0)' }, { transform: 'scaleY(1)' }], { duration: 650, easing: 'ease-out' });
+                if (!stopped()) await wait(250);
+                if (!stopped()) {
+                    parcel.style.pointerEvents = 'none';
+                    await Promise.all([
+                        run(chain, [{ transform: 'scaleY(1)' }, { transform: 'scaleY(0)' }], { duration: 1100, easing: 'ease-in-out' }),
+                        run(parcel, [{ transform: at(px, py) }, { transform: at(lx + 19, ly + 38) }], { duration: 1100, easing: 'ease-in-out' })
+                    ]);
+                }
+                if (!stopped()) {
+                    // Into the hold: from here on it travels with the ship.
+                    parcel.getAnimations().forEach(a => a.cancel());
+                    parcel.style.transform = '';
+                    lander.appendChild(parcel);
+                }
+
+                // 4. Away, up and out the far side — with or without the parcel.
+                if (lander && !aborted) {
+                    // Reels in whatever chain is still out; a no-op after a pickup.
+                    run(chain, [{ transform: 'scaleY(0)' }], { duration: 500, easing: 'ease-in' });
+                    const away = fromLeft ? window.innerWidth + 80 : -140;
+                    await run(lander, [
+                        { transform: at(lx, ly) },
+                        { transform: at(lx, ly - 18, `rotate(${-6 * tilt}deg)`), offset: 0.25 },
+                        { transform: at(sx + away, ly - 260, `rotate(${-14 * tilt}deg)`) }
+                    ], { duration: 2400, easing: 'ease-in' });
+                } else if (signed) {
+                    await wait(1800);
+                }
+
+                layer.classList.add('is-leaving');
+                await wait(320);
+                layer.remove();
+                abortShow = null;
+                running = false;
+                arm();
+            }
+
+            arm();
         })();
     </script>
     <script>
