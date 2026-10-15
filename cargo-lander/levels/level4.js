@@ -28,7 +28,7 @@ registerLevel({
   quests: [
     questPrimary("Deliver 2 cargo to The Hollow"),
     questNoCargoLost('No cargo lost', 400),
-    questQuick("Complete under 40s", 40, 250)
+    questQuick("Complete under 40s", 260, 250)  // timeGoal = seconds LEFT on the 300s clock
   ],
   palette: {
     skyTop: "#1e0b07",
@@ -128,10 +128,7 @@ registerLevel({
         {x: -325, y: 224},
         {x: -384, y: 210},
         {x: -416, y: 287},
-        {x: -371, y: 378},
-        {x: -286, y: 378},
-        {x: -228, y: 357},
-        {x: -182, y: 350},
+        {x: -371, y: 378}, {x: -210, y: 378}, {x: -182, y: 350},
         {x: -150, y: 371},
         {x: -137, y: 406},
         {x: -117, y: 434},

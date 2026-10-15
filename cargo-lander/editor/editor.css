@@ -316,3 +316,27 @@ canvas{display:block}
   border-radius: 2px;
   border: 1px solid rgba(255,255,255,0.2);
 }
+
+/* Quests panel (renderQuestUI in editor.js) */
+#quest-rows .q-label { width: 110px; font-size: 13px; color: #c9d1d9; flex-shrink: 0; }
+#quest-rows .q-block { margin-bottom: 6px; }
+#quest-rows .q-within { width: 64px; flex: 0 0 64px; }
+#quest-rows .q-hint { font-size: 11px; color: #8b949e; margin-left: 6px; white-space: nowrap; }
+#quest-rows .q-reward { margin-left: auto; font-size: 12px; color: #3fb950; display: flex; align-items: center; gap: 2px; }
+#quest-rows .q-reward input { width: 64px; flex: 0 0 64px; }
+#quest-rows .q-text { width: 100%; font-size: 12px; }
+
+/* Level Check (renderLint in editor.js) */
+.lint-badge { margin-left: auto; font-size: 11px; font-weight: 600; padding: 1px 7px; border-radius: 9px; background: #238636; color: #fff; }
+.lint-badge.warn { background: #9e6a03; }
+.lint-badge.error { background: #da3633; }
+.lint-list { display: flex; flex-direction: column; gap: 4px; font-size: 12px; line-height: 1.35; }
+.lint-item { display: flex; gap: 6px; padding: 4px 6px; border-radius: 4px; background: #161b22; color: #c9d1d9; cursor: default; }
+.lint-item[data-focus] { cursor: pointer; }
+.lint-item[data-focus]:hover { background: #1f2937; }
+.lint-item .lint-dot { flex: 0 0 8px; height: 8px; margin-top: 4px; border-radius: 50%; }
+.lint-item.error .lint-dot { background: #f85149; }
+.lint-item.warn .lint-dot { background: #d29922; }
+.lint-item.info .lint-dot { background: #58a6ff; }
+.lint-item.info { color: #8b949e; }
+.lint-ok { color: #3fb950; font-size: 12px; }

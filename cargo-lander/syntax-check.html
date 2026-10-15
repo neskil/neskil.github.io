@@ -29,6 +29,9 @@
 <script src="levels/level8.js"></script>
 <script src="levels/level9.js"></script>
 <script src="levels/level10.js"></script>
+<script src="levels/level11.js"></script>
+<script src="levels/level12.js"></script>
+<script src="levels/level13.js"></script>
 <script src="levels/levelTest.js"></script>
 <script src="levels/levelSchema.js"></script>
 <script src="levels/collectibleTypes.js"></script>
@@ -65,7 +68,7 @@
     'CargoGame class':            () => typeof CargoGame === 'function',
     'CargoPhysics class':         () => typeof CargoPhysics === 'function',
     'CargoBot class':             () => typeof CargoBot === 'function',
-    'levels registered (>= 11)':  () => Array.isArray(levels) && levels.length >= 11,
+    'levels registered (>= 14)':  () => Array.isArray(levels) && levels.length >= 14,
     'LEVEL_SCHEMA':               () => typeof LEVEL_SCHEMA === 'object',
     'game/input.js mixin':        () => typeof CargoGame.prototype.setupEventListeners === 'function' && typeof CargoGame.prototype.pollGamepad === 'function',
     'render/entities.js mixin':   () => typeof CargoGame.prototype.drawHazards === 'function',

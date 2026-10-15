@@ -58,7 +58,10 @@ const LEVEL_SCHEMA = {
     { key:'windVarianceSpeed',   type:'number',  default:1.0,  widget:'number', label:'Variance Speed', step:0.1, desc:'How rapidly the wind wanders between highs and lows. 1 = normal, 2 = twice as fast, 0.5 = half as fast.', recommended:'0.5 - 2.0', sliderMin:0.2, sliderMax:3, sliderStep:0.1 },
     { key:'weather',         type:'string',    default:'',  widget:'select',   label:'Weather Effect', options:VALID_WEATHER_TYPES, desc:'Visual weather particle effects.', recommended:'Match with wind for best effect' },
     { key:'deposit',         type:'number',    default:1000,widget:'number',   label:'Deposit ($)', desc:'Mission deposit taken from bank and carried into level.', recommended:'200 - 800', sliderMin:100, sliderMax:1500, sliderStep:50 },
-    { key:'fee',             type:'number',    default:50,  widget:'number',   label:'Docking Fee ($)', desc:'Non-refundable docking fee deducted from the bank at mission start.', recommended:'50 - 500', sliderMin:0, sliderMax:1000, sliderStep:50 },
+    // fee is required (always exported): the engine's fallback for a missing
+    // fee is 50 + 50 x level index, not this default, so eliding an explicit
+    // `fee: 50` would silently change what a level charges.
+    { key:'fee',             type:'number',    default:50,  widget:'number',   label:'Docking Fee ($)', required:true, desc:'Non-refundable docking fee deducted from the bank at mission start.', recommended:'50 - 500', sliderMin:0, sliderMax:1000, sliderStep:50 },
     { key:'timeLimit',       type:'number',    default:300, widget:'number',   label:'Time Limit (s)', required:true, positive:true, desc:'Maximum time in seconds before the mission fails.', recommended:'120 - 300', sliderMin:30, sliderMax:600, sliderStep:10 },
     { key:'maxFuel',          type:'number',    default:null, nullable:true, widget:'number', label:'Max Fuel Capacity', desc:'Override base lander fuel capacity for this level.', recommended:'120 - 300', sliderMin:50, sliderMax:500, sliderStep:10 },
     { key:'padScale',        type:'number',    default:1,   widget:'number',   label:'Pad Width Mult', step:0.1, positive:true, desc:'Multiplier for the physical width of landing pads.', recommended:'1.0 (0.8 for hard, 1.5 for easy)', sliderMin:0.5, sliderMax:2, sliderStep:0.1 },
@@ -72,6 +75,7 @@ const LEVEL_SCHEMA = {
     { key:'heatHaze',        type:'boolean',   default:false, widget:'checkbox', label:'Heat Haze Effect', desc:'Applies a wavy distortion shader to the bottom of the screen.', recommended:'Use with ash weather or lava levels' },
     { key:'night',           type:'boolean',   default:false, widget:'checkbox', label:'Night Ops (Dark)', desc:'Darkens the level and enables ship headlights + sonar ping.', recommended:'False' },
     { key:'nightDarkness',   type:'number',    default:0.90, nullable:true, widget:'number', label:'Night Darkness Alpha', step:0.05, desc:'Base opacity (0.00 - 1.00) of the night overlay. Lower values (e.g. 0.35) keep early levels bright while retaining radar sonar pings.', recommended:'0.35 - 0.45 for early levels, 0.90 for total darkness', sliderMin:0, sliderMax:1, sliderStep:0.05 },
+    { key:'unlocked',        type:'boolean',   default:false, widget:'checkbox', label:'Unlocked From Start', desc:'Playable from a fresh save without beating the previous mission. For test flights of new maps; shown with a Test Flight badge in the mission grid.', recommended:'False for campaign levels' },
     { key:'returnGauntlet',  type:'boolean',   default:false, widget:'checkbox', label:'Return Gauntlet Escalation', desc:'Accelerates defense laser firing cycles and triggers defense grid alerts upon completing all deliveries.', recommended:'False except for gauntlet levels' },
     // Altitude fog band (render/fog.js + physics/atmosphere.js fogDensityAt).
     // A soft ceiling made of weather: visibility collapses as the lander climbs

@@ -15,12 +15,24 @@
 //   Platform C — Command Deck (red hub, x:520)
 //   [Gauntlet Laser 2 — x:660-710]
 //   Platform D — Cryo Bay (blue hub, x:840), sits lower — forces a descent under Laser 2
-//   Platform E — Fuel Cache (refuel, x:1060) — orbited by the unstable reactor gravity well
-//   Platform F — Salvage Chute (chute hub, wide catch zone, x:1300)
+//   Platform E — Fuel Cache (refuel, x:1060) — the unstable reactor well orbits below it
+//   Platform F — Salvage Chute (chute hub, wide catch zone, x:1195)
 //   [Gauntlet Laser 3 — x:1440-1490, the return gauntlet]
 //   Platform G — Terminus Dock (normal hub, x:1660) — deliver, then thread all three
 //               lasers again on the way back to HQ for extraction.
-// A drifting reactor gravity well between E and F adds pull to the fuel-stop approach.
+// A drifting reactor gravity well in the void under E and F adds pull to the
+// fuel-stop approach and punishes stalling over the gap.
+//
+// 2026-10-14 fixes (v0.25.0), found by dropping the lander onto every pad:
+//   - The well's loop used to pass straight over the Fuel Cache and Salvage Chute
+//     decks. At strength 0.6 (force = strength x 3.5 x falloff^2 vs 0.08 thrust)
+//     it pulled 5-12x harder than full thrust, so a lander sitting still on either
+//     pad was flung off and pinballed to death within a second. The loop now
+//     circles in the void beneath the decks at 0.45 — still a real tug on the
+//     approach, no longer an unbeatable one.
+//   - The crusher (x 1345-1395) stood inside the Salvage Chute pad's footprint
+//     (1300-1397 at padScale 0.65). The chute moved west to x:1195 so the
+//     crusher guards the deck between it and Laser 3 instead.
 
 registerLevel({
     name: "L8: Orbital Gauntlet",
@@ -83,7 +95,7 @@ registerLevel({
 
     // ── Hazards — three laser gauntlet lines + one drifting debris-cloud zone ──
     hazards: [
-        { type: 'gravwell', pts: [{x: 1180, y: 480}, {x: 1320, y: 620}, {x: 1180, y: 760}, {x: 1040, y: 620}], startForce: 0.6, endForce: 0.6, radius: 170, speed: 140 },
+        { type: 'gravwell', pts: [{x: 1180, y: 790}, {x: 1290, y: 880}, {x: 1180, y: 970}, {x: 1070, y: 880}], startForce: 0.45, endForce: 0.45, radius: 170, speed: 140 },
         // Gauntlet Laser 1 — between Collection Depot and Command Deck
         { type: 'laser', pts: [{ x: 360, y: 380 }, { x: 360, y: 700 }], onMs: 1300, offMs: 1700, warnMs: 450, damagePerSec: 35, thickness: 14, onReturn: { onMs: 1100, offMs: 1200, warnMs: 400 } },
         // Gauntlet Laser 2 — between Command Deck and Cryo Bay, offset phase so it's
@@ -111,7 +123,7 @@ registerLevel({
     collectibles: [
         { type: 'cash', x: 360, y: 520, value: 600 }, // Inside Laser 1 beam line
         { type: 'cash', x: 780, y: 580, value: 600 }, // Above Cryo Bay void gap
-        { type: 'fuel', x: 1180, y: 540, amount: 40 }, // Inside reactor gravity well
+        { type: 'fuel', x: 1180, y: 730, amount: 40 }, // On the reactor well's upper rim — dive for it
         { type: 'fuel', x: 1380, y: 500, amount: 40 }  // Adjacent to industrial crusher
     ],
 
@@ -145,7 +157,7 @@ registerLevel({
     deliveryHubs: [
         { x: 520,  width: 90,  color: "#ef4444", type: "red",    name: "Command Deck"  },
         { x: 840,  width: 90,  color: "#3b82f6", type: "blue",   name: "Cryo Bay"      },
-        { x: 1300, width: 150, color: "#f59e0b", type: "chute",  name: "Salvage Chute" },
+        { x: 1195, width: 150, color: "#f59e0b", type: "chute",  name: "Salvage Chute" },
         { x: 1660, width: 90,  color: "#38bdf8", type: "normal", name: "Terminus Dock" },
         { x: 1060, width: 60,  color: "#f59e0b", type: "refuel", name: "Fuel Cache"    }
     ],

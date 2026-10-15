@@ -1,16 +1,29 @@
 class ShaderOverlay {
     constructor(canvasId) {
         this.canvas = document.getElementById(canvasId);
-        this.gl = this.canvas.getContext('webgl', { alpha: true });
+        // antialias:false — this layer only draws full-screen quads, which have
+        // no edges to smooth; the default multisampled buffer was pure memory
+        // and bandwidth cost (4x the pixels at 4K).
+        this.gl = this.canvas.getContext('webgl', { alpha: true, antialias: false });
         this.initShaders();
         this.initBuffers();
     }
 
-    resize(w, h) {
-        this.canvas.width = w;
-        this.canvas.height = h;
-        if (this.gl) this.gl.viewport(0, 0, w, h);
+    // (w, h) is the logical viewport in CSS px; pxScale shrinks the GL backing
+    // store with the graphics tier (game/perf.js) — the full-screen post-FX and
+    // gravity-well fragment shaders cost per pixel, and at 4K that was 8.3M
+    // pixels a frame no matter the tier. The shaders work in this canvas's own
+    // pixels, so every camera zoom handed to them is multiplied by pxScale
+    // (see _zoom()); draw() stretches the result back over the scene.
+    resize(w, h, pxScale = 1) {
+        this.pxScale = pxScale;
+        const bw = Math.max(1, Math.round(w * pxScale)), bh = Math.max(1, Math.round(h * pxScale));
+        if (this.canvas.width !== bw) this.canvas.width = bw;
+        if (this.canvas.height !== bh) this.canvas.height = bh;
+        if (this.gl) this.gl.viewport(0, 0, bw, bh);
     }
+
+    _zoom(camera) { return camera.zoom * (this.pxScale || 1); }
 
     initShaders() {
         if (!this.gl) return;
@@ -243,6 +256,11 @@ class ShaderOverlay {
             uniform vec3 u_heatSources[8];
 
             uniform float u_rainAmount;
+
+            // The part of this canvas the scene texture covers (x, y, w, h in
+            // canvas px) — renderPostFX() uploads only the region the active
+            // effects can touch. Whole canvas = (0, 0, u_resolution).
+            uniform vec4 u_texRect;
 
             float hash21(vec2 p) {
                 return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
@@ -499,13 +517,13 @@ class ShaderOverlay {
                 // down sky (reported as a "flat blue rectangle" over the L1
                 // lake) and mirrored text labels on heat-haze levels.
                 vec2 distortedScreenPos = screenPos + offset;
-                vec2 srcUV = distortedScreenPos / u_resolution;
+                vec2 srcUV = (distortedScreenPos - u_texRect.xy) / u_texRect.zw;
                 srcUV = clamp(srcUV, vec2(0.001), vec2(0.999));
 
                 vec4 baseColor = texture2D(u_sceneTex, srcUV);
                 
                 if (waterBlend > 0.0) {
-                    vec2 refUV = (screenPos + reflectOffset) / u_resolution;
+                    vec2 refUV = (screenPos + reflectOffset - u_texRect.xy) / u_texRect.zw;
                     refUV = clamp(refUV, vec2(0.001), vec2(0.999));
                     vec4 reflectColor = texture2D(u_sceneTex, refUV);
                     baseColor = mix(baseColor, reflectColor, waterBlend);
@@ -646,14 +664,42 @@ class ShaderOverlay {
         const hasLocalHeat = heatSources && heatSources.length > 0;
         if (!heatHaze && !hasBlackhole && !hasWater && !rain && !hasLocalHeat) return false;
 
+        const W = this.canvas.width, H = this.canvas.height;
+        const zoom = this._zoom(camera), k = this.pxScale || 1;
+        const region = this._postFXRegion(physics, camera, waterRects, heatSources, heatHaze, rain, W, H);
+        if (!region) return false;
+        const out = region.out, src = region.src;
+
+        gl.useProgram(this.postFXProgram);
+        // Only the output region is shaded; nothing outside it is composited
+        // (see render.js), so it doesn't need clearing either.
+        gl.enable(gl.SCISSOR_TEST);
+        gl.scissor(out.x, H - out.y - out.h, out.w, out.h);
         gl.clearColor(0, 0, 0, 0);
         gl.clear(gl.COLOR_BUFFER_BIT);
-        gl.useProgram(this.postFXProgram);
 
+        // Copying the frame into a texture is the most expensive step of the
+        // pass. Upload only the source region the effects sample from, and
+        // for rain-only frames at half resolution (the scene is only seen
+        // through refracting droplets there). Whole canvas at full res still
+        // goes straight from the source canvas, as before.
         gl.activeTexture(gl.TEXTURE0);
         gl.bindTexture(gl.TEXTURE_2D, this.sceneTexture);
-        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, sourceCanvas);
+        const whole = src.x === 0 && src.y === 0 && src.w === W && src.h === H && region.texScale === 1;
+        if (whole) {
+            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, sourceCanvas);
+        } else {
+            const sk = sourceCanvas.width / W;   // source px per canvas px (the 2D canvas can be sharper)
+            const tw = Math.max(1, Math.round(src.w * region.texScale)), th = Math.max(1, Math.round(src.h * region.texScale));
+            const scratch = this._scratch || (this._scratch = document.createElement('canvas'));
+            if (scratch.width !== tw || scratch.height !== th) { scratch.width = tw; scratch.height = th; }
+            const sctx = this._scratchCtx || (this._scratchCtx = scratch.getContext('2d'));
+            sctx.clearRect(0, 0, tw, th);
+            sctx.drawImage(sourceCanvas, src.x * sk, src.y * sk, src.w * sk, src.h * sk, 0, 0, tw, th);
+            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, scratch);
+        }
         gl.uniform1i(this._loc(this.postFXProgram, "u_sceneTex"), 0);
+        gl.uniform4f(this._loc(this.postFXProgram, "u_texRect"), src.x, src.y, src.w, src.h);
 
         gl.bindBuffer(gl.ARRAY_BUFFER, this.quadBuffer);
         const aPos = this._loc(this.postFXProgram, "a_position");
@@ -663,7 +709,7 @@ class ShaderOverlay {
         gl.uniform2f(this._loc(this.postFXProgram, "u_resolution"), this.canvas.width, this.canvas.height);
         gl.uniform1f(this._loc(this.postFXProgram, "u_time"), (Date.now() % 10000000) / 1000.0);
         gl.uniform2f(this._loc(this.postFXProgram, "u_cameraPos"), camera.x, camera.y);
-        gl.uniform1f(this._loc(this.postFXProgram, "u_zoom"), camera.zoom);
+        gl.uniform1f(this._loc(this.postFXProgram, "u_zoom"), zoom);
         gl.uniform1f(this._loc(this.postFXProgram, "u_heatHazeEnabled"), heatHaze ? 1.0 : 0.0);
         gl.uniform1f(this._loc(this.postFXProgram, "u_rainAmount"), rain);
 
@@ -672,8 +718,9 @@ class ShaderOverlay {
         const minArr = this._waterMinArr || (this._waterMinArr = new Float32Array(8));
         const maxArr = this._waterMaxArr || (this._waterMaxArr = new Float32Array(8));
         for (let i = 0; i < count; i++) {
-            minArr[i * 2] = waterRects[i].minX; minArr[i * 2 + 1] = waterRects[i].minY;
-            maxArr[i * 2] = waterRects[i].maxX; maxArr[i * 2 + 1] = waterRects[i].maxY;
+            // waterRects arrive in CSS px; this canvas is pxScale of that
+            minArr[i * 2] = waterRects[i].minX * k; minArr[i * 2 + 1] = waterRects[i].minY * k;
+            maxArr[i * 2] = waterRects[i].maxX * k; maxArr[i * 2 + 1] = waterRects[i].maxY * k;
         }
         gl.uniform1i(this._loc(this.postFXProgram, "u_waterCount"), count);
         gl.uniform2fv(this._loc(this.postFXProgram, "u_waterMin"), minArr);
@@ -685,11 +732,11 @@ class ShaderOverlay {
             const radArr = this._bhRadArr || (this._bhRadArr = new Float32Array(4));
             for (let i = 0; i < count; i++) {
                 const gw = physics.gravityWells[i];
-                const screenX = (gw.x - camera.x) * camera.zoom + this.canvas.width / 2;
-                const screenY = (gw.y - camera.y) * camera.zoom + this.canvas.height / 2;
+                const screenX = (gw.x - camera.x) * zoom + this.canvas.width / 2;
+                const screenY = (gw.y - camera.y) * zoom + this.canvas.height / 2;
                 posArr[i * 2] = screenX;
                 posArr[i * 2 + 1] = screenY;
-                radArr[i] = gw.radius * camera.zoom;
+                radArr[i] = gw.radius * zoom;
             }
             gl.uniform1i(this._loc(this.postFXProgram, "u_numBlackholes"), count);
             gl.uniform2fv(this._loc(this.postFXProgram, "u_blackholePos"), posArr);
@@ -703,11 +750,11 @@ class ShaderOverlay {
             const heatArr = this._heatArr || (this._heatArr = new Float32Array(24));
             for (let i = 0; i < count; i++) {
                 const hs = heatSources[i];
-                const screenX = (hs.x - camera.x) * camera.zoom + this.canvas.width / 2;
-                const screenY = (hs.y - camera.y) * camera.zoom + this.canvas.height / 2;
+                const screenX = (hs.x - camera.x) * zoom + this.canvas.width / 2;
+                const screenY = (hs.y - camera.y) * zoom + this.canvas.height / 2;
                 heatArr[i * 3] = screenX;
                 heatArr[i * 3 + 1] = screenY;
-                heatArr[i * 3 + 2] = hs.radius * camera.zoom;
+                heatArr[i * 3 + 2] = hs.radius * zoom;
             }
             gl.uniform1i(this._loc(this.postFXProgram, "u_numHeatSources"), count);
             gl.uniform3fv(this._loc(this.postFXProgram, "u_heatSources"), heatArr);
@@ -718,8 +765,59 @@ class ShaderOverlay {
         gl.enable(gl.BLEND);
         gl.blendFuncSeparate(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
         gl.drawArrays(gl.TRIANGLES, 0, 6);
+        gl.disable(gl.SCISSOR_TEST);
         this._glCanvasDirty = true; // render() must clear before its own skip check
-        return true;
+        // Where to composite from, in this canvas's px and in CSS px.
+        return { gx: out.x, gy: out.y, gw: out.w, gh: out.h, x: out.x / k, y: out.y / k, w: out.w / k, h: out.h / k };
+    }
+
+    // Screen regions (canvas px) for the post-FX pass: `out`, the pixels any
+    // active effect can change, and `src`, the scene area those pixels can
+    // sample from. Level-wide heat haze touches every pixel; rain-on-lens can
+    // land anywhere — both mean the whole canvas.
+    _postFXRegion(physics, camera, waterRects, heatSources, heatHaze, rain, W, H) {
+        const full = { x: 0, y: 0, w: W, h: H };
+        if (heatHaze) return { out: full, src: full, texScale: 1 };
+        const zoom = this._zoom(camera), k = this.pxScale || 1;
+        const toScreen = (x, y) => [(x - camera.x) * zoom + W / 2, (y - camera.y) * zoom + H / 2];
+        const outBoxes = [], srcBoxes = [];
+        for (const hs of heatSources || []) {
+            const [x, y] = toScreen(hs.x, hs.y), r = hs.radius * zoom;
+            outBoxes.push([x - r, y - r, x + r, y + r]);
+            srcBoxes.push([x - r - 4, y - r - 4, x + r + 4, y + r + 4]);   // wobble is ~1px
+        }
+        for (const wr of waterRects || []) {
+            const b = [wr.minX * k, wr.minY * k, wr.maxX * k, wr.maxY * k];
+            outBoxes.push(b);
+            // reflections sample up to 2 x (15 + 70)px above the surface; waves ±4
+            srcBoxes.push([b[0] - 6, b[1] - 180, b[2] + 6, b[3] + 6]);
+        }
+        for (const gw of physics.gravityWells || []) {
+            const [x, y] = toScreen(gw.x, gw.y), r = gw.radius * zoom;
+            outBoxes.push([x - r, y - r, x + r, y + r]);
+            srcBoxes.push([x - 2 * r, y - 2 * r, x + 2 * r, y + 2 * r]);   // the core pull samples outward
+        }
+        const union = boxes => boxes.reduce((u, b) => [Math.min(u[0], b[0]), Math.min(u[1], b[1]), Math.max(u[2], b[2]), Math.max(u[3], b[3])], [Infinity, Infinity, -Infinity, -Infinity]);
+        const clip = b => {
+            const x0 = Math.max(0, Math.floor(b[0])), y0 = Math.max(0, Math.floor(b[1]));
+            const x1 = Math.min(W, Math.ceil(b[2])), y1 = Math.min(H, Math.ceil(b[3]));
+            return { x: x0, y: y0, w: Math.max(1, x1 - x0), h: Math.max(1, y1 - y0) };
+        };
+        if (rain) {
+            // Droplets anywhere: whole canvas out. The scene is only seen
+            // refracted (droplets, engine haze, a rippling lake reflection),
+            // so a half-res source is invisible — and it quarters the copy.
+            return { out: full, src: full, texScale: 0.5 };
+        }
+        // Drop effect boxes that are entirely off-screen (a lake behind the
+        // camera shouldn't stretch the region across the frame).
+        const onScreen = outBoxes.map(b => b[2] > 0 && b[0] < W && b[3] > 0 && b[1] < H);
+        const outs = outBoxes.filter((b, i) => onScreen[i]), srcs = srcBoxes.filter((b, i) => onScreen[i]);
+        if (!outs.length) return null;   // nothing visible to distort this frame
+        const out = clip(union(outs)), src = clip(union(srcs));
+        // Mostly-whole-screen anyway: skip the extra copy through the scratch canvas.
+        if (src.w * src.h > 0.7 * W * H) return { out: full, src: full, texScale: 1 };
+        return { out, src, texScale: 1 };
     }
 
     // Returns true if anything was drawn (gravity wells or particles) so the
@@ -728,10 +826,13 @@ class ShaderOverlay {
         if (!this.gl) return false;
         const gl = this.gl;
         const hasWells = physics.gravityWells && physics.gravityWells.length > 0;
-        const hasParticles = physics.particles && physics.particles.length > 0;
+        // Only gravity wells draw here now — particles moved to Canvas2D (see
+        // the end of this method). Counting them used to make every thrusting
+        // frame clear this canvas and composite it, fully transparent, over
+        // the whole screen: a full-screen blend for nothing.
         // Nothing to draw this frame. Only skip the clear if the canvas is
-        // already blank — otherwise last frame's particles would linger.
-        if (!hasWells && !hasParticles) {
+        // already blank — otherwise a well that just left would linger.
+        if (!hasWells) {
             if (!this._glCanvasDirty) return false;
             gl.clearColor(0, 0, 0, 0);
             gl.clear(gl.COLOR_BUFFER_BIT);
@@ -760,7 +861,7 @@ class ShaderOverlay {
             gl.uniform2f(gl.getUniformLocation(this.monsterProgram, "u_monsterPos"), physics.monster.x, physics.monster.y);
             gl.uniform1f(gl.getUniformLocation(this.monsterProgram, "u_monsterSize"), physics.monster.size);
             gl.uniform2f(gl.getUniformLocation(this.monsterProgram, "u_cameraPos"), camera.x, camera.y);
-            gl.uniform1f(gl.getUniformLocation(this.monsterProgram, "u_zoom"), camera.zoom);
+            gl.uniform1f(gl.getUniformLocation(this.monsterProgram, "u_zoom"), this._zoom(camera));
             gl.uniform1f(gl.getUniformLocation(this.monsterProgram, "u_time"), (Date.now() % 10000000) / 1000.0);
             
             gl.drawArrays(gl.TRIANGLES, 0, 6);
@@ -777,7 +878,7 @@ class ShaderOverlay {
             
             gl.uniform2f(this._loc(this.gravityWellProgram, "u_resolution"), this.canvas.width, this.canvas.height);
             gl.uniform2f(this._loc(this.gravityWellProgram, "u_cameraPos"), camera.x, camera.y);
-            gl.uniform1f(this._loc(this.gravityWellProgram, "u_zoom"), camera.zoom);
+            gl.uniform1f(this._loc(this.gravityWellProgram, "u_zoom"), this._zoom(camera));
             gl.uniform1f(this._loc(this.gravityWellProgram, "u_time"), (Date.now() % 10000000) / 1000.0);
             
             const count = Math.min(4, physics.gravityWells.length);

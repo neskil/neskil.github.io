@@ -22,6 +22,9 @@ function questNoCrash(reward = 300) {
 function questNoCargoLost(text = 'No cargo lost', reward = 250) {
     return { id: 'no_cargo_lost', text, type: 'bonus', reward };
 }
+// timeGoal is the time still LEFT on the mission clock when you extract
+// (missionTimer counts down) — not the elapsed time. "Under 60s" on a 180s
+// mission is timeGoal 120. tests.html checks every level's text against this.
 function questQuick(text, timeGoal, reward = 200) {
     return { id: 'quick', text, type: 'bonus', reward, timeGoal };
 }

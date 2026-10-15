@@ -63,7 +63,7 @@ registerLevel({
         // the depot/cargo spawn and the refinery building, then breaks up right at
         // the worm zone's western edge (sandworm hazard centered 800,900 r:300 -> zone starts x:500)
         [
-            { x: -200, y: 650 }, { x: -100, y: 600 }, { x: 0, y: 630 }, { x: 100, y: 600 },
+            { x: -200, y: 650 }, { x: -100, y: 600 }, {x: -8, y: 620}, {x: 88, y: 620}, { x: 100, y: 600 },
             { x: 250, y: 610 }, { x: 350, y: 600 }, { x: 450, y: 615 },
             { x: 500, y: 640 },
             { x: 540, y: 720 }, { x: 480, y: 820 },
@@ -170,7 +170,7 @@ registerLevel({
         { type: 'cash', x: 1550, y: 550, value: 800 }, // Suspended over the acid lake inside the gravity well
         { type: 'fuel', x: 525, y: 650, amount: 40 },
         { type: 'fuel', x: 1040, y: 600, amount: 40 },
-        { type: 'fuel', x: 800, y: 650, amount: 35 } // Dead center of the worm zone — highest risk, dead below the hub
+        { type: 'fuel', x: 800, y: 800, amount: 35 } // Dead center of the worm zone — highest risk, just under the hub spike's tip (was y:650 — buried inside the spike)
     ],
 
     // ── Setup & Spawns ────────────────────────────────────────────────────────

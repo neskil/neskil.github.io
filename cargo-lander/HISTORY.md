@@ -8,6 +8,111 @@ backlog" section.
 
 ---
 
+## 2026-10-14 — 4K performance: pixel budgets and region post-FX (v0.27.0)
+
+Reported: rough on 4K screens. Measured headlessly at a true 3840×2160
+viewport (software rendering, so absolute ms are meaningless — ratios aren't):
+a 4K frame cost 3.7–3.9× a 1080p one, i.e. the game was fill-bound — every
+tier rendered every CSS pixel, and the WebGL layer stayed at full size.
+
+- **Pixel budgets per tier** — High renders at most 1920×1080 worth of pixels
+  and the browser stretches the canvas; new Sharp tier (≤1440p) between High
+  and Crisp (native, ≤4K) so Auto's climb on a 4K screen isn't one 4x jump.
+  4K Auto frame: 4.2x cheaper (now the same cost as 1080p).
+- **The empty composite** — `ShaderOverlay.render()` still counted particles
+  (moved to Canvas2D long ago), so every thrusting frame cleared the WebGL
+  canvas and blended it, fully transparent, over the whole screen.
+- **Region post-FX** — the pass copied, shaded and composited the full frame
+  even when the only effect was three haze circles behind the engine. It now
+  works on the region the effects can touch: L4 and L10 frames ~3x cheaper,
+  an L7 water+haze frame shades 1% of the screen. Verified by re-running the
+  pass both ways on identical inputs: the full-screen pass changes no pixel
+  outside the chosen region, and inside it the two are identical (≤2/255).
+  Rain-on-lens remains full-screen (its shader is the dominant cost under
+  software rendering; on a GPU it's cheap) but uploads at half resolution.
+- WebGL layer follows the render scale (≤1x) and drops MSAA; the 2D canvas is
+  `alpha:false`.
+
+---
+
+## 2026-10-14 — Lossless level editor, Level Check, flat pads (v0.26.0)
+
+**The editor was lossy.** A round-trip harness (load every level, export,
+re-evaluate, deep-diff against the file) found 338 differences across the 14
+level files. The exporter rebuilt hazards / water / segments from a fixed field
+list and ignored top-level keys it had no panel for, so a load→export silently
+deleted every crusher timing (L8, L10, L13), rewrote L4/L5's incinerator
+timings to the editor's defaults, dropped sandworm tuning (L6, L9), L8's
+`onReturn` gauntlet speeds, L7's moving-zone `travelX/Y`, L9's `setupPhysics`
+(which builds its depot), all `buildings`, water colours and acid, and segment
+types — and regenerated every bonus quest's text (re-introducing the
+"under {timeGoal}s" mix-up). The "Copy for AI" prompt calls that export the
+source of truth. Now everything not edited by a panel passes through verbatim;
+the editor's `?runTests=1` self-tests round-trip every level, and `run-tests.sh`
+runs them. Mutation-checked: removing either passthrough fails the test with
+the dropped fields named.
+
+Two related traps: the sidebar's displayed fallbacks didn't match the engine
+(lasers showed 1500/1000/800ms vs the engine's 1400/1600/500) — now one
+`HAZARD_DEFAULTS` table; and `fee` was elided at its schema default 50 while
+the engine's fallback is 50 + 50 x level index — `fee` is now required.
+
+**Level Check** (`levels/levelLint.js`): static design rules distilled from the
+audit, live in the editor with click-to-focus markers and enforced in
+`tests.html` (no errors on any shipped level). Run against the pre-fix L8 and
+L1 it reports the reactor well (18–21× thrust at two pads), the crusher in the
+chute and the quick-text mismatch. On the current levels it found two pickups
+buried inside rock — L7's squeeze-corridor fuel (inside a floor spike) and L9's
+"below the hub" fuel (inside the hub's rock spike), both unreachable — now moved
+into open air and verified collectable — and eight pads straddling slopes, V's
+or a peak (L4 The Hollow, L6 depot, L7 Deep Node / Valley Base / Fuel Pump /
+Reserve Tank, L9 HQ, L10 Upper Node). Each got a flat shelf carved into the
+terrain at the pad's own height; no pad moved.
+
+---
+
+## 2026-10-14 — Map audit, three bug fixes, and three Test Flight maps (v0.25.0)
+
+**The audit.** Every level got (1) a geometry pass — pad flatness, buried pads,
+ceiling clearance; (2) a physical pass — drop the lander onto each pad's centre
+and both ends and see whether it lands; (3) the CargoBot autopilot. The geometry
+flags were mostly cosmetic (the game seats a lander on a pad even on a slope);
+the physical pass is what found the real problems, and it is now a test.
+
+**Bugs found and fixed:**
+- **Pickups froze the game.** `floatingTexts` was created lazily by whichever
+  path showed a popup first; collectible pickups push to it directly from
+  physics. Grab a coin before anything else popped up and `update()` threw,
+  `loop()` never re-armed requestAnimationFrame, and the game froze for good.
+  Affected every level with pickups (L5, L7–L10). Now created in the constructor.
+- **Chutes never delivered deck cargo.** Two layers: deck crates hit `if
+  (box.onDeck) continue` before the vacuum check, and the magnetic deck clamp
+  re-grabbed any crate a chute did claim. L7's Magma Chute and L8's Salvage
+  Chute were decorative. Fixed in `physics/entities.js` (`_chuteUnder()`).
+- **L8's reactor well made two pads unlandable.** Its loop passed straight over
+  the Fuel Cache and Salvage Chute; at strength 0.6 the pull is 5–12× full
+  thrust, so a lander parked on either was flung off and pinballed to death.
+  The loop now circles in the void beneath the decks at 0.45, and the chute
+  moved out from under the crusher, which stood inside its footprint.
+- **Four bonus timers lied.** `timeGoal` is time *left*; L1, L2, L4 and L10 had
+  used it as elapsed time ("under 45s" really meant under 195s; L10's "under 2
+  minutes" really meant under 60s). Numbers fixed to match the text.
+
+**Test Flights (L11–L13, `unlocked: true`).** Each is built around one idea and
+was flown end-to-end headlessly by a scripted-route pilot (scratch tooling, not
+committed) before shipping. What that pilot changed in the designs:
+- All three originally had `targetCargo: 3` — but the depot loads 3 per trip, so
+  each mission was a single run. Now 5 (two runs).
+- Island Hopper needed a 160 tank for its width. The canyon is hover-heavy (~0.18
+  fuel/frame while threading the ledges): gravity dropped to 0.09, tank to 260,
+  and a second refuel (Shelf Tank) went in under the rim. The foundry's gates
+  are waited out by hovering, so it got a refuel pad *between* the gates — land
+  there and watch the beat instead of burning fuel.
+- Foundry gate windows were 1.4–1.7s and the pilot got crushed starting from a
+  standstill; they are now 2.3s / 1.9s.
+
+---
+
 ## 2026-10-13 — Adaptive graphics quality + HUD write trimming (v0.24.0)
 
 **Graphics tiers.** New `game/perf.js`: five tiers (Crisp = devicePixelRatio up

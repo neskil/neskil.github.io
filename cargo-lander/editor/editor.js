@@ -265,6 +265,10 @@ function setFogAlpha(a) {
 // LEVEL_SCHEMA.fields alongside the rest of the mission params — skipped
 // wherever the Metadata panel is built/read/exported from the schema.
 const META_EXCLUDE_KEYS = ['startX', 'startY', 'startDepotWidth', 'collectionX', 'collectionY', 'collectionWidth'];
+// Top-level config keys some panel owns; everything else is passed through.
+const EDITOR_HANDLED_TOP_KEYS = new Set([...META_EXCLUDE_KEYS, 'name', 'padScale', 'terrainPolygons',
+  'waterBodies', 'hazards', 'segments', 'deliveryHubs', 'collectibles', 'radarPingZone', 'windGust',
+  'facade', 'outOfBounds', 'worldBounds', 'palette', 'quests']);
 
 function defaultCfgFromSchema() {
   const o = {};
@@ -484,7 +488,8 @@ let S = {
   padScale: 1,
 
   cfg: defaultCfgFromSchema(),
-  quests: { primary: '', nocrash: false, nocargo: false, quick: null, worm: false },
+  questList: [],      // the level's quests, in order, edited in place by the Quests panel
+  extraTop: {},       // top-level config keys no panel edits — passed through on export
   hqWidth: null,
   cargoWidth: null,
 
@@ -708,7 +713,87 @@ function toggleWorldBounds() {
 function setWorldBounds(k, v) { snapshot(); if (S.worldBounds) { S.worldBounds[k] = v; } draw(); updateOut(); }
 
 // --- Terrain Manipulation ---
-function setQuest(k, v) { snapshot(); S.quests[k] = v; updateOut(); }
+// ── Quests ──────────────────────────────────────────────────────────────────
+// S.questList holds the level's quest objects exactly as loaded (order,
+// custom texts, rewards); the panel edits entries in place and buildOut()
+// writes them back with the matching levels.js helper.
+const QUEST_KINDS = [
+  { key: 'nocrash', id: 'no_crash',      label: 'No Crash',      text: 'Zero crashes',     reward: 300 },
+  { key: 'nocargo', id: 'no_cargo_lost', label: 'No Cargo Lost', text: 'No cargo lost',    reward: 250 },
+  { key: 'quick',   id: 'quick',         label: 'Quick Finish',  text: null,               reward: 200 },
+  { key: 'worm',    id: 'survive_worm',  label: 'Survive Worm',  text: 'Survive the worm', reward: 500 },
+];
+const questById = id => S.questList.find(q => q.id === id);
+const timeLimitNow = () => +(S.cfg.timeLimit || 300);
+// questQuick's timeGoal is the time LEFT on the clock (missionTimer counts
+// down); the panel speaks in "finish within N seconds" and converts. The old
+// panel wrote the number straight into timeGoal and generated "Complete under
+// {timeGoal}s" text — the same mix-up four shipped levels had.
+function quickText(within) {
+  return within % 60 === 0 && within >= 120 ? `Complete under ${within / 60} minutes` : `Complete under ${within}s`;
+}
+
+function setQuest(kind, field, v) {
+  snapshot();
+  if (kind === 'primary') {
+    let q = questById('primary');
+    if (!q) { q = { id: 'primary', type: 'primary', text: '' }; S.questList.unshift(q); }
+    q.text = v;
+    if (!v) S.questList = S.questList.filter(x => x !== q);
+  } else {
+    const K = QUEST_KINDS.find(k => k.key === kind);
+    let q = questById(K.id);
+    if (field === 'enabled' || (kind === 'quick' && field === 'within')) {
+      const on = kind === 'quick' ? v != null && v > 0 : !!v;
+      if (!on) S.questList = S.questList.filter(x => x !== q);
+      else {
+        if (!q) { q = { id: K.id, text: K.text, type: 'bonus', reward: K.reward }; S.questList.push(q); }
+        if (kind === 'quick') {
+          q.timeGoal = Math.max(0, timeLimitNow() - v);
+          q.text = quickText(v);
+        }
+      }
+    } else if (q && field === 'text') {
+      q.text = v || K.text || (kind === 'quick' ? quickText(timeLimitNow() - q.timeGoal) : '');
+    } else if (q && field === 'reward') {
+      q.reward = v === '' || v == null ? K.reward : +v;
+    }
+  }
+  renderQuestUI();
+  updateOut();
+}
+
+function renderQuestUI() {
+  const box = document.getElementById('quest-rows');
+  if (!box) return;
+  const esc = t => String(t ?? '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+  const primary = questById('primary');
+  let html = `<div class="row"><label class="q-label">Primary</label><input type="text" id="quest-primary" value="${esc(primary?.text)}" placeholder="Deliver N cargo to…" onchange="setQuest('primary', 'text', this.value)"></div>`;
+  for (const K of QUEST_KINDS) {
+    const q = questById(K.id);
+    const ctl = K.key === 'quick'
+      ? `<input type="number" id="quest-quick" class="cinput q-within" min="1" value="${q ? timeLimitNow() - q.timeGoal : ''}" placeholder="s" title="Finish within this many seconds of the ${timeLimitNow()}s clock" onchange="setQuest('quick', 'within', this.value ? +this.value : null)">`
+      : `<input type="checkbox" id="quest-${K.key}" ${q ? 'checked' : ''} onchange="setQuest('${K.key}', 'enabled', this.checked)">`;
+    const hint = K.key === 'quick' && q ? `<span class="q-hint">within ${timeLimitNow() - q.timeGoal}s → ${q.timeGoal}s left</span>` : '';
+    html += `<div class="q-block"><div class="row"><label class="q-label">${K.label}</label>${ctl}${hint}` +
+      (q ? `<span class="q-reward">$<input type="number" class="cinput" value="${q.reward ?? K.reward}" step="50" onchange="setQuest('${K.key}', 'reward', this.value)" title="Reward"></span>` : '') + `</div>` +
+      (q ? `<div class="row"><input type="text" class="q-text" value="${esc(q.text)}" onchange="setQuest('${K.key}', 'text', this.value)" title="Text shown in the mission panel"></div>` : '') +
+      `</div>`;
+  }
+  box.innerHTML = html;
+}
+
+function questExportLine(q) {
+  const r = q.reward;
+  switch (q.id) {
+    case 'primary':       return `questPrimary(${JSON.stringify(q.text)})`;
+    case 'no_crash':      if (q.text === 'Zero crashes') return `questNoCrash(${r ?? 300})`; break;
+    case 'no_cargo_lost': return `questNoCargoLost(${JSON.stringify(q.text)}, ${r ?? 250})`;
+    case 'quick':         return `questQuick(${JSON.stringify(q.text)}, ${q.timeGoal}, ${r ?? 200})`;
+    case 'survive_worm':  if (q.text === 'Survive the worm') return `questSurviveWorm(${r ?? 500})`; break;
+  }
+  return jsLiteral(q, '    ');   // custom text on a fixed-text helper, or a quest kind the editor doesn't know
+}
 
 function updateHubUI() {
   const c = document.getElementById('hub-list');
@@ -1004,11 +1089,16 @@ function applyConfig(cfg) {
   // migration below (it ray-casts against S.polygons), so build these after.
   S.waterPolys  = (cfg.waterBodies || []).map(waterToShape);
   S.hazardPolys = (cfg.hazards     || []).map(hazardToShape);
-  S.segments  = (cfg.segments || []).map((seg, i) => ({
-    pts: [{x: seg.x1, y: seg.y1}, {x: seg.x2, y: seg.y2}],
-    comment: 'Segment ' + (i+1),
-    hidden: false
-  }));
+  S.segments  = (cfg.segments || []).map((seg, i) => {
+    const { x1, y1, x2, y2, comment, ...rest } = seg;   // rest: sticky, bouncy, conveyorSpeed…
+    return { ...rest, pts: [{x: x1, y: y1}, {x: x2, y: y2}], comment: comment || 'Segment ' + (i+1), hidden: false };
+  });
+  // Top-level keys no panel edits (buildings, setupPhysics, weatherParticles,
+  // anything a future level adds) — exported verbatim.
+  S.extraTop = {};
+  for (const k of Object.keys(cfg)) {
+    if (!EDITOR_HANDLED_TOP_KEYS.has(k) && !LEVEL_SCHEMA.fields.some(f => f.key === k)) S.extraTop[k] = cfg[k];
+  }
   S.hubs      = cfg.deliveryHubs || [];
   S.collectibles = (cfg.collectibles || []).map(c => ({...c}));
   S.radarZone = cfg.radarPingZone || null;
@@ -1050,16 +1140,9 @@ function applyConfig(cfg) {
     if (META_EXCLUDE_KEYS.includes(f.key)) return;
     S.cfg[f.key] = levelSchemaGet(cfg, f);
   });
-  S.quests = { primary: '', nocrash: false, nocrashReward: null, nocargo: false, nocargoReward: null, quick: null, quickReward: null, worm: false, wormReward: null };
-  if (cfg.quests) {
-    cfg.quests.forEach(q => {
-      if (q.id === 'primary') S.quests.primary = q.text;
-      else if (q.id === 'no_crash') { S.quests.nocrash = true; S.quests.nocrashReward = q.reward ?? null; }
-      else if (q.id === 'no_cargo_lost') { S.quests.nocargo = true; S.quests.nocargoReward = q.reward ?? null; }
-      else if (q.id === 'quick') { S.quests.quick = q.timeGoal; S.quests.quickReward = q.reward ?? null; }
-      else if (q.id === 'survive_worm') { S.quests.worm = true; S.quests.wormReward = q.reward ?? null; }
-    });
-  }
+  // The quest list is kept whole — order, custom texts, rewards — and the
+  // Quests panel edits entries in place (see setQuest()).
+  S.questList = (cfg.quests || []).map(q => ({ ...q }));
   S.hqWidth = cfg.startDepotWidth || null;
   S.cargoWidth = cfg.collectionWidth || null;
 
@@ -1094,11 +1177,7 @@ function applyConfig(cfg) {
     }
   });
 
-  document.getElementById('quest-primary').value = S.quests.primary;
-  document.getElementById('quest-nocrash').checked = S.quests.nocrash;
-  document.getElementById('quest-nocargo').checked = S.quests.nocargo;
-  document.getElementById('quest-quick').value = S.quests.quick || '';
-  document.getElementById('quest-worm').checked = S.quests.worm;
+  renderQuestUI();
 
   if (S.oob) {
     document.getElementById('oob-enable').checked = true;
@@ -1179,44 +1258,135 @@ function syncAllSliders() {
 
 // Accepts either the new {pts:[...], hasBoat} polygon format or the old
 // {x, width, hasBoat} rect, always returning a polygon shape for the editor.
+// ── Lossless round trip ──────────────────────────────────────────────────────
+// The editor used to rebuild every hazard / water body / segment from a fixed
+// list of fields and drop the rest, and it ignored top-level keys it had no
+// panel for — so loading a level and exporting it silently deleted crusher
+// timings, sandworm tuning, L8's return-gauntlet speeds, L7's moving zones,
+// L9's setupPhysics, every `buildings` list, water colours and acid… while the
+// "Copy for AI" prompt calls the export the source of truth. Now everything
+// the editor doesn't explicitly edit is carried through untouched, and the
+// ?runTests=1 self-tests round-trip every level in the dropdown to keep it so.
+
+// What the ENGINE falls back to when a hazard omits a field (physics/
+// atmosphere.js, physics/mechanics.js). The sidebar shows these for unset
+// fields and new hazards are seeded with them — loading never writes them in,
+// or an export would change a level that relied on the engine default (the
+// sidebar's old hard-coded fallbacks didn't even match: lasers showed
+// 1500/1000/800ms against the engine's 1400/1600/500).
+const HAZARD_DEFAULTS = {
+  laser:       { onMs: 1400, offMs: 1600, warnMs: 500, phaseOffset: 0, damagePerSec: 40, thickness: 14 },
+  incinerator: { onMs: 1600, offMs: 1800, warnMs: 600, phaseOffset: 0, damagePerSec: 30, thickness: 14 },
+  crusher:     { waitUnloadedMs: 1000, crushMs: 200, waitLoadedMs: 500, retractMs: 1500, thickness: 40, phaseOffset: 0 },
+  spike:       { radius: 25, damagePerSec: 60 },
+  repulsor:    { travelX: 0, travelY: 0, gustMs: 0, calmMs: 0, warnMs: 400 },
+  gravwell:    { speed: 1, radius: 200, startForce: 1.5 },   // endForce defaults to startForce
+  sandworm:    { spawnRate: 1, reach: 300, proximityScale: 0 },
+};
+function hazardValue(poly, key) {
+  if (poly[key] !== undefined) return poly[key];
+  if (poly.type === 'gravwell' && key === 'endForce') return hazardValue(poly, 'startForce');
+  return (HAZARD_DEFAULTS[poly.type] || {})[key];
+}
+
+// Editor-only bookkeeping on a shape — never exported.
+const SHAPE_INTERNAL_KEYS = new Set(['pts', 'comment', 'hidden', 'locked']);
+
+// Serialises a config value back to level-file JS: plain data, nested
+// objects/arrays, and functions (by source — L9's setupPhysics).
+function jsLiteral(v, indent = '') {
+  if (typeof v === 'function') return v.toString();
+  if (v === undefined) return 'undefined';
+  if (v === null || typeof v !== 'object') return JSON.stringify(v);
+  const key = k => /^[A-Za-z_$][\w$]*$/.test(k) ? k : JSON.stringify(k);
+  const inner = indent + '  ';
+  if (Array.isArray(v)) {
+    if (!v.length) return '[]';
+    const parts = v.map(x => jsLiteral(x, inner));
+    const flat = '[' + parts.join(', ') + ']';
+    if (flat.length <= 72 && !flat.includes('\n')) return flat;
+    return '[\n' + parts.map(x => inner + x).join(',\n') + '\n' + indent + ']';
+  }
+  const entries = Object.entries(v).filter(([, x]) => x !== undefined);
+  if (!entries.length) return '{}';
+  const parts = entries.map(([k, x]) => typeof x === 'function' && isMethodSource(x)
+    ? x.toString() : `${key(k)}: ${jsLiteral(x, inner)}`);
+  const flat = '{ ' + parts.join(', ') + ' }';
+  if (flat.length <= 72 && !flat.includes('\n')) return flat;
+  return '{\n' + parts.map(x => inner + x).join(',\n') + '\n' + indent + '}';
+}
+// `setupPhysics(p) {...}` (method shorthand) stringifies without a `key:`
+// prefix and must be emitted as-is; `function (p) {...}` and arrows need one.
+function isMethodSource(fn) {
+  const src = fn.toString().trimStart();
+  return !/^(async\s+)?function\b/.test(src) && !/^(async\s*)?(\([^)]*\)|[\w$]+)\s*=>/.test(src);
+}
+// One `key: value` line per field of `obj` that isn't editor bookkeeping.
+function extraFieldLines(obj, indent, skip = new Set()) {
+  const out = [];
+  for (const [k, v] of Object.entries(obj)) {
+    if (SHAPE_INTERNAL_KEYS.has(k) || skip.has(k) || v === undefined) continue;
+    if (typeof v === 'function' && isMethodSource(v)) out.push(`${indent}${v.toString()},`);
+    else out.push(`${indent}${/^[A-Za-z_$][\w$]*$/.test(k) ? k : JSON.stringify(k)}: ${jsLiteral(v, indent)},`);
+  }
+  return out;
+}
+
+// Semantic difference between two level configs, as a list of readable
+// strings (empty = equivalent). Used by the round-trip self-test. Tolerates
+// exactly what the exporter is allowed to change: terrain re-wound to the
+// canonical direction, top-level fields omitted at a value the engine falls
+// back to anyway, an empty list where the file had none (the engine reads a
+// missing list as []), an explicit `type: 'zone'` on hazards, and comments
+// moving from a data field to a // line.
+const ENGINE_TOP_DEFAULTS = { startX: 80, collectionX: 280 };
+function levelConfigDiff(a, b) {
+  const d = [];
+  const canon = cfg => cfg && cfg.terrainPolygons ? { ...cfg, terrainPolygons: cfg.terrainPolygons.map(p =>
+    Array.isArray(p) ? normalizePolygonWinding(p) : { ...p, pts: normalizePolygonWinding(p.pts) }) } : cfg;
+  const schemaDefault = k => LEVEL_SCHEMA.fields.find(f => f.key === k)?.default;
+  const norm = v => typeof v === 'function' ? 'fn:' + v.toString().replace(/\s+/g, '') : v;
+  const show = v => String(JSON.stringify(norm(v))).slice(0, 50);
+  const walk = (x, y, path) => {
+    x = norm(x); y = norm(y);
+    if (typeof x === 'number' && typeof y === 'number') { if (Math.abs(x - y) > 1e-6) d.push(`${path}: ${x} → ${y}`); return; }
+    if (x === null || y === null || typeof x !== 'object' || typeof y !== 'object') { if (x !== y) d.push(`${path}: ${show(x)} → ${show(y)}`); return; }
+    for (const k of new Set([...Object.keys(x), ...Object.keys(y)])) {
+      const top = path === '';
+      if (!(k in y)) {
+        if (x[k] === undefined || k === 'comment' || (top && x[k] === schemaDefault(k) && !LEVEL_SCHEMA.fields.find(f => f.key === k)?.required)) continue;
+        d.push(`${path}.${k} dropped (${show(x[k])})`);
+      } else if (!(k in x)) {
+        if (y[k] === undefined || (k === 'type' && y[k] === 'zone') || (Array.isArray(y[k]) && !y[k].length) || (top && (y[k] === ENGINE_TOP_DEFAULTS[k] || y[k] === schemaDefault(k)))) continue;
+        d.push(`${path}.${k} added (${show(y[k])})`);
+      } else walk(x[k], y[k], `${path}.${k}`);
+    }
+  };
+  walk(canon(a), canon(b), '');
+  return d;
+}
+
 function waterToShape(wb, i) {
-  if (Array.isArray(wb.pts)) {
-    return { pts: wb.pts.map(p=>({x:p.x,y:p.y})), comment: wb.comment || '', hidden:false, hasBoat: !!wb.hasBoat, hasFish: !!wb.hasFish };
+  // Everything but the geometry is carried through as-is (colour,
+  // surfaceColor, isAcid, drag, density, hasBoat…) — see jsLiteral() above.
+  const { pts, comment, x: _x, y: _y, width: _w, ...rest } = wb;
+  if (Array.isArray(pts)) {
+    return { ...rest, pts: pts.map(p=>({x:p.x,y:p.y})), comment: comment || '', hidden:false };
   }
   const x = wb.x ?? 0, w = wb.width ?? 200;
   const yTop = groundYAt(x) ?? groundYAt(x+w) ?? 600;
   const yBot = yTop + 48;
-  return { pts: [ {x,y:yTop}, {x:x+w,y:yTop}, {x:x+w,y:yBot}, {x,y:yBot} ], comment:'', hidden:false, hasBoat: !!wb.hasBoat, hasFish: !!wb.hasFish };
+  return { ...rest, pts: [ {x,y:yTop}, {x:x+w,y:yTop}, {x:x+w,y:yBot}, {x,y:yBot} ], comment: comment || '', hidden:false };
 }
 
 // Accepts either the new {pts:[...], type} polygon format or the old
 // {x, y, radius, type} circle, always returning a polygon shape for the editor.
 function hazardToShape(h, i) {
   if (Array.isArray(h.pts)) {
-    const shape = { pts: h.pts.map(p=>({x:p.x,y:p.y})), comment: h.comment || '', hidden:false, type: h.type || 'zone' };
-    if (shape.type === 'laser') {
-      shape.onMs = h.onMs ?? 1500;
-      shape.offMs = h.offMs ?? 1000;
-      shape.phaseOffset = h.phaseOffset ?? 0;
-      shape.warnMs = h.warnMs ?? 400;
-      shape.damagePerSec = h.damagePerSec ?? 40;
-      shape.thickness = h.thickness ?? 14;
-    } else if (shape.type === 'gravwell') {
-      shape.speed = h.speed ?? 100;
-      shape.radius = h.radius ?? 200;
-      shape.startForce = h.startForce ?? 1.5;
-      shape.endForce = h.endForce ?? 0;
-    } else if (shape.type === 'sandworm') {
-      shape.spawnRate = h.spawnRate ?? 1.0;
-      shape.reach = h.reach ?? 300;
-      shape.proximityScale = h.proximityScale ?? 0;
-    } else if (shape.type === 'spike') {
-      shape.radius = h.radius ?? 25;
-      shape.damagePerSec = h.damagePerSec ?? 60;
-    }
-    if (h.color) shape.color = h.color;
-    if (h.behindTerrain) shape.behindTerrain = true;
-    return shape;
+    // Every field rides along untouched (timings, tuning, onReturn, travelX…);
+    // unset fields stay unset — the sidebar shows HAZARD_DEFAULTS for them.
+    const { pts, comment, ...rest } = h;
+    return { ...rest, pts: pts.map(p=>({x:p.x,y:p.y})), comment: comment || '', hidden:false, type: h.type || 'zone' };
   }
   const cx = h.x ?? 0, cy = h.y ?? 0, r = h.radius ?? 40;
   const pts = [];
@@ -1810,6 +1980,7 @@ function draw() {
   drawCollectibleMarkers();
   if (!S.previewMode) drawEdgePreview();
   if (S.previewMode) drawPreviewTraffic();
+  if (!S.previewMode) drawLintMarkers();
   sendLiveCam(); // keep the live engine preview's free camera in sync
 }
 
@@ -2083,10 +2254,10 @@ function drawHazards() {
       ctx.moveTo(a.sx, a.sy);
       ctx.lineTo(b.sx, b.sy);
       ctx.strokeStyle = h.color || '#ef4444';
-      ctx.lineWidth = (h.thickness || 15) * S.view.scale;
+      ctx.lineWidth = hazardValue(h, 'thickness') * S.view.scale;
       ctx.globalAlpha = 0.5 + Math.sin(time/200)*0.2;
       ctx.stroke();
-      ctx.lineWidth = ((h.thickness || 15) * 0.4) * S.view.scale;
+      ctx.lineWidth = (hazardValue(h, 'thickness') * 0.4) * S.view.scale;
       ctx.strokeStyle = '#fff';
       ctx.globalAlpha = 0.9;
       ctx.stroke();
@@ -2121,7 +2292,7 @@ function drawHazards() {
       const cy = h.pts.reduce((s,p)=>s+p.y,0)/h.pts.length;
       const cp = w2s(cx, cy);
       ctx.beginPath();
-      ctx.arc(cp.sx, cp.sy, (h.reach || 300) * S.view.scale, 0, Math.PI*2);
+      ctx.arc(cp.sx, cp.sy, hazardValue(h, 'reach') * S.view.scale, 0, Math.PI*2);
       ctx.strokeStyle = '#b45309';
       ctx.lineWidth = 1;
       ctx.globalAlpha = 0.5;
@@ -2152,7 +2323,7 @@ function drawHazards() {
       ctx.fill();
     } else if (h.type === 'spike' && h.pts.length >= 1) {
       const p = w2s(h.pts[0].x, h.pts[0].y);
-      const r = (h.radius || 25) * S.view.scale;
+      const r = hazardValue(h, 'radius') * S.view.scale;
       const col = h.color || '#ef4444';
       ctx.beginPath();
       ctx.arc(p.sx, p.sy, r, 0, Math.PI*2);
@@ -2189,8 +2360,8 @@ function drawHazards() {
       const cx = h.pts.reduce((s,p)=>s+p.x,0)/h.pts.length;
       const cy = h.pts.reduce((s,p)=>s+p.y,0)/h.pts.length;
       const cp = w2s(cx, cy);
-      const fx = h.travelX || 0;
-      const fy = h.travelY || -15;
+      const fx = hazardValue(h, 'travelX');
+      const fy = hazardValue(h, 'travelY');
       ctx.beginPath();
       ctx.moveTo(cp.sx, cp.sy);
       ctx.lineTo(cp.sx + (fx * 5 * S.view.scale), cp.sy + (fy * 5 * S.view.scale));
@@ -2243,7 +2414,7 @@ function drawHazards() {
       // Draw start position and radius
       const p = w2s(h.pts[0].x, h.pts[0].y);
       ctx.beginPath();
-      ctx.arc(p.sx, p.sy, (h.radius || 200) * S.view.scale, 0, Math.PI*2);
+      ctx.arc(p.sx, p.sy, hazardValue(h, 'radius') * S.view.scale, 0, Math.PI*2);
       ctx.fillStyle = '#a855f7';
       ctx.globalAlpha = 0.2;
       ctx.fill();
@@ -2255,7 +2426,7 @@ function drawHazards() {
       ctx.globalAlpha = 1;
       ctx.fillStyle = '#d8b4fe';
       ctx.font = '10px sans-serif';
-      ctx.fillText('startForce: ' + (h.startForce || 1.5), p.sx - 30, p.sy - 15);
+      ctx.fillText('startForce: ' + hazardValue(h, 'startForce'), p.sx - 30, p.sy - 15);
     }
     ctx.restore();
   });
@@ -2691,37 +2862,38 @@ function renderPtUI() {
       spikeRow.style.display = poly.type === 'spike' ? '' : 'none';
 
       if (poly.type === 'laser' || poly.type === 'incinerator') {
-        setNumAndSlider('laser-onms', poly.onMs ?? 1500);
-        setNumAndSlider('laser-offms', poly.offMs ?? 1000);
-        setNumAndSlider('laser-phase', poly.phaseOffset ?? 0);
-        setNumAndSlider('laser-warn', poly.warnMs ?? 800);
-        setNumAndSlider('laser-dmg', poly.damagePerSec ?? 40);
-        setNumAndSlider('laser-thick', poly.thickness ?? 15);
+        setNumAndSlider('laser-onms', hazardValue(poly, 'onMs'));
+        setNumAndSlider('laser-offms', hazardValue(poly, 'offMs'));
+        setNumAndSlider('laser-phase', hazardValue(poly, 'phaseOffset'));
+        setNumAndSlider('laser-warn', hazardValue(poly, 'warnMs'));
+        setNumAndSlider('laser-dmg', hazardValue(poly, 'damagePerSec'));
+        setNumAndSlider('laser-thick', hazardValue(poly, 'thickness'));
       } else if (poly.type === 'sandworm') {
-        setNumAndSlider('sw-spawnrate', poly.spawnRate ?? 1.0);
-        setNumAndSlider('sw-reach', poly.reach ?? 300);
-        setNumAndSlider('sw-prox', poly.proximityScale ?? 0);
+        setNumAndSlider('sw-spawnrate', hazardValue(poly, 'spawnRate'));
+        setNumAndSlider('sw-reach', hazardValue(poly, 'reach'));
+        setNumAndSlider('sw-prox', hazardValue(poly, 'proximityScale'));
       } else if (poly.type === 'repulsor') {
-        setNumAndSlider('rep-fx', poly.travelX ?? 0);
-        setNumAndSlider('rep-fy', poly.travelY ?? -15);
-        setNumAndSlider('rep-gustms', poly.gustMs ?? 0);
-        setNumAndSlider('rep-calmms', poly.calmMs ?? 0);
-        setNumAndSlider('rep-warnms', poly.warnMs ?? 400);
+        setNumAndSlider('rep-fx', hazardValue(poly, 'travelX'));
+        setNumAndSlider('rep-fy', hazardValue(poly, 'travelY'));
+        setNumAndSlider('rep-gustms', hazardValue(poly, 'gustMs'));
+        setNumAndSlider('rep-calmms', hazardValue(poly, 'calmMs'));
+        setNumAndSlider('rep-warnms', hazardValue(poly, 'warnMs'));
       } else if (poly.type === 'gravwell') {
-        setNumAndSlider('gw-speed', poly.speed ?? 100);
-        setNumAndSlider('gw-radius', poly.radius ?? 200);
-        setNumAndSlider('gw-startf', poly.startForce ?? 1.5);
-        setNumAndSlider('gw-endf', poly.endForce ?? 0);
+        setNumAndSlider('gw-speed', hazardValue(poly, 'speed'));
+        setNumAndSlider('gw-radius', hazardValue(poly, 'radius'));
+        setNumAndSlider('gw-startf', hazardValue(poly, 'startForce'));
+        setNumAndSlider('gw-endf', hazardValue(poly, 'endForce'));
         document.getElementById('gw-pathmode').value = poly.pathMode || '';
       } else if (poly.type === 'crusher') {
-        setNumAndSlider('crush-waitu', poly.waitUnloadedMs ?? 1000);
-        setNumAndSlider('crush-crush', poly.crushMs ?? 200);
-        setNumAndSlider('crush-waitl', poly.waitLoadedMs ?? 500);
-        setNumAndSlider('crush-retract', poly.retractMs ?? 1500);
-        setNumAndSlider('crush-thick', poly.thickness ?? 40);
+        setNumAndSlider('crush-waitu', hazardValue(poly, 'waitUnloadedMs'));
+        setNumAndSlider('crush-crush', hazardValue(poly, 'crushMs'));
+        setNumAndSlider('crush-waitl', hazardValue(poly, 'waitLoadedMs'));
+        setNumAndSlider('crush-retract', hazardValue(poly, 'retractMs'));
+        setNumAndSlider('crush-thick', hazardValue(poly, 'thickness'));
+        setNumAndSlider('crush-phase', hazardValue(poly, 'phaseOffset'));
       } else if (poly.type === 'spike') {
-        setNumAndSlider('spike-radius', poly.radius ?? 25);
-        setNumAndSlider('spike-dmg', poly.damagePerSec ?? 60);
+        setNumAndSlider('spike-radius', hazardValue(poly, 'radius'));
+        setNumAndSlider('spike-dmg', hazardValue(poly, 'damagePerSec'));
       }
     } else {
         hazardRow.style.display = 'none';
@@ -2815,16 +2987,15 @@ function setHazardType(val) {
       const p0 = poly.pts[0] || {x:500,y:400};
       poly.pts = [p0, {x:p0.x+120,y:p0.y}];
     }
-    if (val === 'laser') {
-        if (poly.onMs === undefined) poly.onMs = 1500;
-        if (poly.offMs === undefined) poly.offMs = 1000;
-    }
+    // New hazards start with the engine's defaults written out explicitly,
+    // so what the sidebar shows is what the exported level says.
+    for (const [k, v] of Object.entries(HAZARD_DEFAULTS[val] || {})) if (poly[k] === undefined) poly[k] = v;
   } else if (val === 'gravwell') {
     if (poly.pts.length < 2) {
       const p0 = poly.pts[0] || {x:500,y:400};
       poly.pts = [p0, {x:p0.x+120,y:p0.y}];
     }
-    if (poly.speed === undefined) poly.speed = 100;
+    if (poly.speed === undefined) poly.speed = 100;   // a visibly moving well; the engine default (1) barely drifts
     if (poly.radius === undefined) poly.radius = 200;
     if (poly.startForce === undefined) poly.startForce = 1.5;
     if (poly.endForce === undefined) poly.endForce = 0;
@@ -2834,8 +3005,7 @@ function setHazardType(val) {
   } else if (val === 'spike') {
     if (poly.pts.length > 1) poly.pts = [poly.pts[0]];
     else if (poly.pts.length < 1) poly.pts = [{x:500,y:400}];
-    if (poly.radius === undefined) poly.radius = 25;
-    if (poly.damagePerSec === undefined) poly.damagePerSec = 60;
+    for (const [k, v] of Object.entries(HAZARD_DEFAULTS.spike)) if (poly[k] === undefined) poly[k] = v;
   } else if (val === 'sandworm') {
     let cx = 500, cy = 400;
     if (poly.pts.length > 0) {
@@ -2848,9 +3018,7 @@ function setHazardType(val) {
       {x: cx - r*0.866, y: cy + r*0.5},
       {x: cx + r*0.866, y: cy + r*0.5}
     ];
-    if (poly.spawnRate === undefined) poly.spawnRate = 1.0;
-    if (poly.reach === undefined) poly.reach = 300;
-    if (poly.proximityScale === undefined) poly.proximityScale = 0;
+    for (const [k, v] of Object.entries(HAZARD_DEFAULTS.sandworm)) if (poly[k] === undefined) poly[k] = v;
   } else if (poly.pts.length < 3) {
     const p0 = poly.pts[0] || {x:500,y:400};
     const p1 = poly.pts[1] || {x:p0.x+80,y:p0.y};
@@ -3129,12 +3297,7 @@ function buildOut() {
   }
 
   // Quests
-  const qLines = [];
-  if (S.quests.primary) qLines.push(`questPrimary(${JSON.stringify(S.quests.primary)})`);
-  if (S.quests.nocrash) qLines.push(S.quests.nocrashReward != null ? `questNoCrash(${S.quests.nocrashReward})` : `questNoCrash()`);
-  if (S.quests.nocargo) qLines.push(S.quests.nocargoReward != null ? `questNoCargoLost('No cargo lost', ${S.quests.nocargoReward})` : `questNoCargoLost()`);
-  if (S.quests.quick) qLines.push(S.quests.quickReward != null ? `questQuick("Complete under ${S.quests.quick}s", ${S.quests.quick}, ${S.quests.quickReward})` : `questQuick("Complete under ${S.quests.quick}s", ${S.quests.quick})`);
-  if (S.quests.worm) qLines.push(S.quests.wormReward != null ? `questSurviveWorm(${S.quests.wormReward})` : `questSurviveWorm()`);
+  const qLines = S.questList.map(questExportLine);
   if (qLines.length > 0) {
     lines.push(`  quests: [`);
     lines.push(`    ${qLines.join(',\n    ')}`);
@@ -3230,8 +3393,7 @@ function buildOut() {
     S.waterPolys.forEach((wb, i) => {
       if (wb.comment) lines.push(`    // ${wb.comment}`);
       lines.push('    {');
-      lines.push(`      hasBoat: ${!!wb.hasBoat},`);
-      lines.push(`      hasFish: ${!!wb.hasFish},`);
+      lines.push(...extraFieldLines(wb, '      '));
       lines.push('      pts: [');
       wb.pts.forEach((pt,pi) => lines.push(`        {x: ${Math.round(pt.x)}, y: ${Math.round(pt.y)}}${pi<wb.pts.length-1?',':''}`));
       lines.push('      ]');
@@ -3246,43 +3408,7 @@ function buildOut() {
       if (h.comment) lines.push(`    // ${h.comment}`);
       lines.push('    {');
       lines.push(`      type: ${JSON.stringify(h.type||'zone')},`);
-      if (h.type === 'laser' || h.type === 'incinerator') {
-        if (h.onMs !== undefined) lines.push(`      onMs: ${h.onMs},`);
-        else lines.push(`      onMs: 1500,`);
-        if (h.offMs !== undefined) lines.push(`      offMs: ${h.offMs},`);
-        else lines.push(`      offMs: 1000,`);
-        if (h.phaseOffset) lines.push(`      phaseOffset: ${h.phaseOffset},`);
-        if (h.warnMs) lines.push(`      warnMs: ${h.warnMs},`);
-        if (h.damagePerSec) lines.push(`      damagePerSec: ${h.damagePerSec},`);
-        if (h.type === 'laser' && h.thickness) lines.push(`      thickness: ${h.thickness},`);
-      } else if (h.type === 'sandworm') {
-        if (h.spawnRate !== undefined) lines.push(`      spawnRate: ${h.spawnRate},`);
-        if (h.reach !== undefined) lines.push(`      reach: ${h.reach},`);
-        if (h.proximityScale !== undefined) lines.push(`      proximityScale: ${h.proximityScale},`);
-      } else if (h.type === 'repulsor') {
-        if (h.travelX !== undefined) lines.push(`      travelX: ${h.travelX},`);
-        if (h.travelY !== undefined) lines.push(`      travelY: ${h.travelY},`);
-        if (h.gustMs) lines.push(`      gustMs: ${h.gustMs},`);
-        if (h.calmMs) lines.push(`      calmMs: ${h.calmMs},`);
-        if (h.warnMs) lines.push(`      warnMs: ${h.warnMs},`);
-      } else if (h.type === 'gravwell') {
-        if (h.speed !== undefined) lines.push(`      speed: ${h.speed},`);
-        if (h.radius !== undefined) lines.push(`      radius: ${h.radius},`);
-        if (h.startForce !== undefined) lines.push(`      startForce: ${h.startForce},`);
-        if (h.endForce !== undefined) lines.push(`      endForce: ${h.endForce},`);
-        if (h.pathMode) lines.push(`      pathMode: ${JSON.stringify(h.pathMode)},`);
-      } else if (h.type === 'crusher') {
-        if (h.waitUnloadedMs !== undefined) lines.push(`      waitUnloadedMs: ${h.waitUnloadedMs},`);
-        if (h.crushMs !== undefined) lines.push(`      crushMs: ${h.crushMs},`);
-        if (h.waitLoadedMs !== undefined) lines.push(`      waitLoadedMs: ${h.waitLoadedMs},`);
-        if (h.retractMs !== undefined) lines.push(`      retractMs: ${h.retractMs},`);
-        if (h.thickness !== undefined) lines.push(`      thickness: ${h.thickness},`);
-      } else if (h.type === 'spike') {
-        if (h.radius !== undefined) lines.push(`      radius: ${h.radius},`);
-        if (h.damagePerSec !== undefined) lines.push(`      damagePerSec: ${h.damagePerSec},`);
-      }
-      if (h.behindTerrain) lines.push(`      behindTerrain: true,`);
-      if (h.color) lines.push(`      color: ${JSON.stringify(h.color)},`);
+      lines.push(...extraFieldLines(h, '      ', new Set(['type'])));
       lines.push('      pts: [');
       h.pts.forEach((pt,pi) => lines.push(`        {x: ${Math.round(pt.x)}, y: ${Math.round(pt.y)}}${pi<h.pts.length-1?',':''}`));
       lines.push('      ]');
@@ -3295,9 +3421,17 @@ function buildOut() {
     lines.push('  segments: [');
     S.segments.forEach((seg, i) => {
       if (!seg.pts || seg.pts.length < 2) return;
-      lines.push(`    { x1: ${Math.round(seg.pts[0].x)}, y1: ${Math.round(seg.pts[0].y)}, x2: ${Math.round(seg.pts[1].x)}, y2: ${Math.round(seg.pts[1].y)} }${i<S.segments.length-1?',':''}`);
+      const flags = extraFieldLines(seg, '').map(l => l.replace(/,$/, ''));
+      lines.push(`    { x1: ${Math.round(seg.pts[0].x)}, y1: ${Math.round(seg.pts[0].y)}, x2: ${Math.round(seg.pts[1].x)}, y2: ${Math.round(seg.pts[1].y)}${flags.length ? ', ' + flags.join(', ') : ''} }${i<S.segments.length-1?',':''}`);
     });
     lines.push('  ],');
+  }
+
+  // Pass-through: top-level keys no panel edits (buildings, setupPhysics…).
+  for (const [k, v] of Object.entries(S.extraTop || {})) {
+    if (v === undefined) continue;
+    if (typeof v === 'function' && isMethodSource(v)) lines.push(`  ${v.toString()},`);
+    else lines.push(`  ${/^[A-Za-z_$][\w$]*$/.test(k) ? k : JSON.stringify(k)}: ${jsLiteral(v, '  ')},`);
   }
 
   lines.push('  terrainPolygons: [');
@@ -3339,6 +3473,64 @@ function buildOut() {
 function updateOut() {
   document.getElementById('out').value = buildOut();
   scheduleLiveLevelSync(); // hot-reload the live engine preview, debounced
+  scheduleLint();
+}
+
+// ── Level Check ─────────────────────────────────────────────────────────────
+// levels/levelLint.js run over the current export (so it checks exactly what
+// would ship), debounced so dragging a vertex doesn't re-lint every frame.
+let _lintTimer = null;
+S.lint = [];
+function scheduleLint() {
+  clearTimeout(_lintTimer);
+  _lintTimer = setTimeout(runLint, 200);
+}
+function runLint() {
+  if (!window.LevelLint) return;
+  let cfg = null;
+  try { cfg = evalLevel(document.getElementById('out').value); } catch (e) { /* reported by evalLevel */ }
+  S.lint = cfg ? LevelLint.lintLevel(cfg) : [{ severity: 'error', rule: 'export', msg: 'The export does not evaluate — see the error log' }];
+  renderLint();
+  draw();
+}
+function renderLint() {
+  const list = document.getElementById('lint-list'), badge = document.getElementById('lint-badge');
+  if (!list) return;
+  const errors = S.lint.filter(f => f.severity === 'error').length;
+  const warns = S.lint.filter(f => f.severity === 'warn').length;
+  badge.className = 'lint-badge' + (errors ? ' error' : warns ? ' warn' : '');
+  badge.textContent = errors ? `${errors} error${errors > 1 ? 's' : ''}` : warns ? `${warns} warning${warns > 1 ? 's' : ''}` : 'OK';
+  const esc = t => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;');
+  list.innerHTML = S.lint.length
+    ? S.lint.map((f, i) => `<div class="lint-item ${f.severity}" ${f.x != null ? `data-focus="${i}" onclick="focusLint(${i})" title="Show on the map"` : ''}><span class="lint-dot"></span><span>${esc(f.msg)}</span></div>`).join('')
+    : '<div class="lint-ok">No problems found.</div>';
+}
+function focusLint(i) {
+  const f = S.lint[i];
+  if (!f || f.x == null) return;
+  S.view.scale = Math.max(S.view.scale, 0.8);
+  S.view.x = canvas.width / 2 - f.x * S.view.scale;
+  S.view.y = canvas.height / 2 - (f.y ?? 0) * S.view.scale;
+  S.lintFlash = { i, until: performance.now() + 1200 };
+  draw();
+  setTimeout(draw, 1250);
+}
+function drawLintMarkers() {
+  if (!S.lint || !S.lint.length) return;
+  const flash = S.lintFlash && performance.now() < S.lintFlash.until ? S.lintFlash.i : -1;
+  S.lint.forEach((f, i) => {
+    if (f.x == null || f.severity === 'info') return;
+    const { sx, sy } = w2s(f.x, f.y ?? 0);
+    const col = f.severity === 'error' ? '#f85149' : '#d29922';
+    ctx.save();
+    ctx.strokeStyle = col; ctx.fillStyle = col;
+    ctx.lineWidth = i === flash ? 4 : 2;
+    ctx.globalAlpha = 0.9;
+    ctx.beginPath(); ctx.arc(sx, sy, i === flash ? 22 : 13, 0, Math.PI * 2); ctx.stroke();
+    ctx.font = 'bold 13px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('!', sx, sy + 1);
+    ctx.restore();
+  });
 }
 
 function copyOut() {
@@ -4014,6 +4206,7 @@ if (new URLSearchParams(window.location.search).get('runTests') === '1') {
     console.log("Starting automated tests...");
     let passed = 0;
     let failed = 0;
+    const failures = [];   // round-trip detail, surfaced in #test-results
     
     function assertEq(act, exp, msg) {
       if (act !== exp) {
@@ -4091,6 +4284,26 @@ if (new URLSearchParams(window.location.search).get('runTests') === '1') {
       }
       assertEq(windSum < 0, true, "normalised polygon has canonical winding");
 
+      // 9. Lossless round trip. Every level in the dropdown is loaded and
+      //    exported, and the export must evaluate to the same config as the
+      //    file — modulo canonical winding (test 8) and fields left at an
+      //    engine default the exporter is allowed to omit. Sync XHR keeps the
+      //    runner synchronous.
+      const files = [...document.querySelectorAll('#lsel option')].map(o => o.value).filter(v => /\.js$/.test(v));
+      assertEq(files.length >= 14, true, "level dropdown lists every level file");
+      for (const file of files) {
+        const xhr = new XMLHttpRequest();
+        xhr.open('GET', 'levels/' + file, false);
+        xhr.send(null);
+        const loaded = evalLevel(xhr.responseText);
+        const pristine = evalLevel(xhr.responseText);
+        applyConfig(loaded);
+        const exported = evalLevel(buildOut());
+        const diffs = exported ? levelConfigDiff(pristine, exported) : ['export does not evaluate'];
+        assertEq(diffs.length, 0, `${file} round-trips losslessly` + (diffs.length ? ': ' + diffs.slice(0, 4).join('; ') : ''));
+        if (diffs.length) failures.push(`${file}: ${diffs.slice(0, 4).join('; ')}`);
+      }
+
 
       if (failed === 0) {
         console.log(`ALL TESTS PASSED (${passed}/${passed})`);
@@ -4102,7 +4315,7 @@ if (new URLSearchParams(window.location.search).get('runTests') === '1') {
         console.error(`${failed} TESTS FAILED`);
         const res = document.createElement('div');
         res.id = 'test-results';
-        res.textContent = 'FAILED';
+        res.textContent = 'FAILED' + (failures.length ? ' — ' + failures.join(' | ') : '');
         document.body.appendChild(res);
       }
     } catch(e) {

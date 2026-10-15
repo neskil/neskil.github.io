@@ -296,24 +296,28 @@ window.confirm = () => true;
   'game' singleton is created but init() is NOT called here — tests call it explicitly.
 -->
 <script src="vendor/matter.min.js"></script>
-<script src="levels/levelSchema.js?v=0.24.0"></script>
-<script src="game/upgrades.js?v=0.24.0"></script>
-<script src="levels/levels.js?v=0.24.0"></script>
-<script src="levels/levelGenerator.js?v=0.24.0"></script>
-<script src="levels/level1.js?v=0.24.0"></script>
-<script src="levels/level2.js?v=0.24.0"></script>
-<script src="levels/level3.js?v=0.24.0"></script>
-<script src="levels/level4.js?v=0.24.0"></script>
-<script src="levels/level5.js?v=0.24.0"></script>
-<script src="levels/level6.js?v=0.24.0"></script>
-<script src="levels/level7.js?v=0.24.0"></script>
-<script src="levels/level8.js?v=0.24.0"></script>
-<script src="levels/level9.js?v=0.24.0"></script>
-<script src="levels/level10.js?v=0.24.0"></script>
-<script src="levels/levelTest.js?v=0.24.0"></script>
-<script src="levels/collectibleTypes.js?v=0.24.0"></script>
-<script src="audio.js?v=0.24.0"></script>
-<script src="render/shaders.js?v=0.24.0"></script>
+<script src="levels/levelSchema.js?v=0.27.0"></script>
+<script src="levels/levelLint.js?v=0.27.0"></script>
+<script src="game/upgrades.js?v=0.27.0"></script>
+<script src="levels/levels.js?v=0.27.0"></script>
+<script src="levels/levelGenerator.js?v=0.27.0"></script>
+<script src="levels/level1.js?v=0.27.0"></script>
+<script src="levels/level2.js?v=0.27.0"></script>
+<script src="levels/level3.js?v=0.27.0"></script>
+<script src="levels/level4.js?v=0.27.0"></script>
+<script src="levels/level5.js?v=0.27.0"></script>
+<script src="levels/level6.js?v=0.27.0"></script>
+<script src="levels/level7.js?v=0.27.0"></script>
+<script src="levels/level8.js?v=0.27.0"></script>
+<script src="levels/level9.js?v=0.27.0"></script>
+<script src="levels/level10.js?v=0.27.0"></script>
+<script src="levels/level11.js?v=0.27.0"></script>
+<script src="levels/level12.js?v=0.27.0"></script>
+<script src="levels/level13.js?v=0.27.0"></script>
+<script src="levels/levelTest.js?v=0.27.0"></script>
+<script src="levels/collectibleTypes.js?v=0.27.0"></script>
+<script src="audio.js?v=0.27.0"></script>
+<script src="render/shaders.js?v=0.27.0"></script>
 <script>
 // Patch ShaderOverlay so it gracefully handles null WebGL context.
 // top-level `class` in shaders.js creates a non-reassignable lexical binding,
@@ -337,9 +341,9 @@ window.confirm = () => true;
 
   // Guard resize — called after init()
   const _resize = proto.resize;
-  proto.resize = function(w, h) {
+  proto.resize = function(w, h, ...rest) {
     if (!this.gl) return;
-    return _resize.call(this, w, h);
+    return _resize.call(this, w, h, ...rest);
   };
 
   // Guard render — called every frame
@@ -350,29 +354,29 @@ window.confirm = () => true;
   };
 })();
 </script>
-<script src="physics/physics.js?v=0.24.0"></script>
-<script src="physics/collision.js?v=0.24.0"></script>
-<script src="physics/mechanics.js?v=0.24.0"></script>
-<script src="physics/entities.js?v=0.24.0"></script>
-<script src="physics/atmosphere.js?v=0.24.0"></script>
-<script src="game/game.js?v=0.24.0"></script>
-<script src="game/input.js?v=0.24.0"></script>
-<script src="game/perf.js?v=0.24.0"></script>
-<script src="game/menu.js?v=0.24.0"></script>
-<script src="game/hud.js?v=0.24.0"></script>
-<script src="game/cargo.js?v=0.24.0"></script>
-<script src="game/bot.js?v=0.24.0"></script>
-<script src="render/render.js?v=0.24.0"></script>
-<script src="render/background.js?v=0.24.0"></script>
-<script src="render/terrain.js?v=0.24.0"></script>
-<script src="render/entities.js?v=0.24.0"></script>
-<script src="render/pads.js?v=0.24.0"></script>
-<script src="render/lander.js?v=0.24.0"></script>
-<script src="render/creatures.js?v=0.24.0"></script>
-<script src="render/effects.js?v=0.24.0"></script>
-<script src="render/night.js?v=0.24.0"></script>
-<script src="render/fog.js?v=0.24.0"></script>
-<script src="render/ui.js?v=0.24.0"></script>
+<script src="physics/physics.js?v=0.27.0"></script>
+<script src="physics/collision.js?v=0.27.0"></script>
+<script src="physics/mechanics.js?v=0.27.0"></script>
+<script src="physics/entities.js?v=0.27.0"></script>
+<script src="physics/atmosphere.js?v=0.27.0"></script>
+<script src="game/game.js?v=0.27.0"></script>
+<script src="game/input.js?v=0.27.0"></script>
+<script src="game/perf.js?v=0.27.0"></script>
+<script src="game/menu.js?v=0.27.0"></script>
+<script src="game/hud.js?v=0.27.0"></script>
+<script src="game/cargo.js?v=0.27.0"></script>
+<script src="game/bot.js?v=0.27.0"></script>
+<script src="render/render.js?v=0.27.0"></script>
+<script src="render/background.js?v=0.27.0"></script>
+<script src="render/terrain.js?v=0.27.0"></script>
+<script src="render/entities.js?v=0.27.0"></script>
+<script src="render/pads.js?v=0.27.0"></script>
+<script src="render/lander.js?v=0.27.0"></script>
+<script src="render/creatures.js?v=0.27.0"></script>
+<script src="render/effects.js?v=0.27.0"></script>
+<script src="render/night.js?v=0.27.0"></script>
+<script src="render/fog.js?v=0.27.0"></script>
+<script src="render/ui.js?v=0.27.0"></script>
 
 <script>
 // ─── 3. HELPER: build a minimal input-state object for physics.update() ──────
@@ -1435,6 +1439,157 @@ category('Platform Capability');
   });
 })();
 
+// ─── 4c2b. LEVEL PLAYABILITY GUARDS ──────────────────────────────────────────
+category('Level Playability Guards');
+
+// A fresh game parked on a level with traffic cleared — the sandbox for the
+// checks below.
+function freshLevel(idx) {
+  mockLocalStorage.clear();
+  const g = new CargoGame();
+  g.init('cargoCanvas');
+  g.startLevel(idx);
+  g.physics.ambientTraffic = [];
+  g.physics.trafficSpawnTimer = -1e9;
+  return g;
+}
+function placeLander(g, x, y) {
+  const l = g.physics.lander;
+  l.x = x; l.y = y; l.vx = 0; l.vy = 0; l.angle = 0; l.landed = false;
+  Matter.Body.setPosition(g.physics.landerBody, { x, y });
+  Matter.Body.setVelocity(g.physics.landerBody, { x: 0, y: 0 });
+}
+
+// Every pad must be landable: drop the lander from just above its centre with
+// no input and it has to come to rest ON that pad, undamaged. This is what
+// caught L8's reactor well flinging landers off two pads (v0.25.0); it also
+// guards against a pad snapping to the wrong surface or sitting in a V.
+test('Every pad in every level can be landed on from a gentle drop', () => {
+  const bad = [];
+  for (let i = 0; i < levels.length; i++) {
+    const g0 = freshLevel(i);
+    const names = ['start', 'collection', ...g0.physics.deliveryHubs.map(h => h.name)];
+    for (const name of names) {
+      const g = freshLevel(i);
+      const ph = g.physics;
+      const pad = name === 'start' ? ph.startDepot : name === 'collection' ? ph.collectionPoint : ph.deliveryHubs.find(h => h.name === name);
+      const kind = name === 'start' || name === 'collection' ? name : pad.type;
+      placeLander(g, pad.x + pad.width / 2, pad.y - 45);
+      const hp0 = ph.lander.integrity;
+      for (let f = 0; f < 240; f++) {
+        g.keys = {};
+        ph.ambientTraffic.length = 0;
+        g.update(1.0);
+        if (ph.lander.crashed) break;
+      }
+      const l = ph.lander;
+      if (!l.landed || l.crashed || l.currentPad !== kind || hp0 - l.integrity > 5) {
+        bad.push(`${levels[i].name} / ${name}: landed=${l.landed} pad=${l.currentPad} crashed=${l.crashed} dmg=${Math.round(hp0 - l.integrity)}`);
+      }
+    }
+  }
+  assert(bad.length === 0, 'Unlandable pads:\n' + bad.join('\n'));
+});
+
+// missionTimer counts DOWN, so questQuick's timeGoal is the time still left at
+// extraction. Four levels had read it as elapsed time, so their bonus text
+// ("under 45s") and the real requirement ("under 195s") disagreed. Parse the
+// text and check it against timeLimit - timeGoal.
+test('Quick-finish bonus text matches its real time requirement', () => {
+  const bad = [];
+  for (const lv of levels) {
+    const q = (lv.quests || []).find(q => q.id === 'quick');
+    if (!q || q.timeGoal === undefined) continue;
+    const text = q.text.replace('½', '.5');
+    let m, claimed = null;
+    if ((m = text.match(/under ([\d.]+)\s*s\b/i))) claimed = { elapsed: +m[1] };
+    else if ((m = text.match(/under ([\d.]+)\s*min/i))) claimed = { elapsed: +m[1] * 60 };
+    else if ((m = text.match(/([\d.]+)\+?\s*min(?:ute)?s? remaining/i))) claimed = { left: +m[1] * 60 };
+    if (!claimed) { bad.push(`${lv.name}: can't parse "${q.text}"`); continue; }
+    const realElapsed = lv.timeLimit - q.timeGoal;
+    if (claimed.elapsed !== undefined && claimed.elapsed !== realElapsed)
+      bad.push(`${lv.name}: "${q.text}" but timeGoal ${q.timeGoal} of ${lv.timeLimit}s means under ${realElapsed}s`);
+    if (claimed.left !== undefined && claimed.left !== q.timeGoal)
+      bad.push(`${lv.name}: "${q.text}" but timeGoal is ${q.timeGoal}s left`);
+  }
+  assert(bad.length === 0, bad.join('\n'));
+});
+
+// Chutes take crates straight off the deck as you skim them. Two bugs had made
+// that impossible: deck crates skipped the vacuum check entirely, and the deck
+// clamp re-grabbed any crate a chute did claim. Every chute in the campaign
+// (L7, L8) was decorative as a result.
+test('A chute pulls crates off the deck and delivers them', () => {
+  const idx = levels.findIndex(lv => (lv.deliveryHubs || []).some(h => h.type === 'chute'));
+  assert(idx >= 0, 'some level has a chute');
+  const g = freshLevel(idx);
+  const ph = g.physics;
+  const hub = ph.deliveryHubs.find(h => h.type === 'chute');
+  const x = hub.x + hub.width / 2;
+  placeLander(g, x, hub.y - 45);
+  for (let f = 0; f < 90 && !ph.lander.landed; f++) { g.keys = {}; g.update(1.0); }
+  // Load the deck: spawn two crates onto it and let the clamp grab them
+  // before the lander is over the opening's vacuum band.
+  placeLander(g, x, hub.y - 140);
+  ph.spawnCargo('normal', x - 10, '📦');
+  ph.spawnCargo('normal', x + 10, '📦');
+  for (let f = 0; f < 30; f++) { ph.lander.vy = 0; g.keys = {}; g.update(1.0); }
+  const before = g.deliveredCount;
+  for (let f = 0; f < 240; f++) { g.keys = {}; g.update(1.0); }
+  assertEquals(g.deliveredCount - before, 2, 'both crates delivered through the chute');
+});
+
+// Floating "+$" texts used to be created lazily by whichever code path showed
+// one first. Physics pushes a pickup's text directly, so a coin grabbed before
+// any other popup threw inside update() — and loop() never re-armed RAF, so
+// the game froze for good.
+test('Grabbing a pickup first thing in a mission does not throw', () => {
+  const idx = levels.findIndex(lv => (lv.collectibles || []).length > 0);
+  const g = freshLevel(idx);
+  const c = g.physics.collectibles[0];
+  placeLander(g, c.x, c.y);
+  const left = g.physics.collectibles.length;
+  g.keys = {};
+  g.update(1.0);
+  assertEquals(g.physics.collectibles.length, left - 1, 'pickup collected');
+});
+
+// levels/levelLint.js is the level editor's Level Check. Shipped levels must
+// pass it with no errors (warnings are design notes, e.g. a pad on a slope).
+// It would have flagged L8's well and crusher and the four quick-bonus texts.
+test('Every shipped level passes the Level Check with no errors', () => {
+  const bad = [];
+  for (const lv of levels) {
+    for (const f of LevelLint.lintLevel(lv)) if (f.severity === 'error') bad.push(`${lv.name}: ${f.msg}`);
+  }
+  assert(bad.length === 0, bad.join('\n'));
+});
+
+test('The Level Check catches the bugs it was written for', () => {
+  const base = levels.find(lv => lv.name.startsWith('L8:'));
+  const clone = JSON.parse(JSON.stringify(base));
+  // L8's pre-v0.25.0 reactor well loop, straight over the Fuel Cache deck
+  clone.hazards = [{ type: 'gravwell', pts: [{x: 1180, y: 480}, {x: 1320, y: 620}, {x: 1180, y: 760}, {x: 1040, y: 620}], startForce: 0.6, endForce: 0.6, radius: 170 }];
+  const rules = LevelLint.lintLevel(clone).map(f => f.rule);
+  assert(rules.includes('well-on-pad'), 'well over a pad is an error');
+  clone.hazards = [{ type: 'crusher', pts: [{x: 1240, y: 300}, {x: 1240, y: 750}], thickness: 50 }];
+  clone.deliveryHubs = [{ x: 1195, width: 150, type: 'chute', name: 'Salvage Chute' }];
+  assert(LevelLint.lintLevel(clone).some(f => f.rule === 'hazard-on-pad'), 'crusher through a pad is an error');
+  const quick = JSON.parse(JSON.stringify(levels[0]));
+  quick.quests = [{ id: 'quick', text: 'Complete under 60s', type: 'bonus', timeGoal: 60 }];
+  assert(LevelLint.lintLevel(quick).some(f => f.rule === 'quick-mismatch'), 'quick text vs timeGoal');
+});
+
+test('Test-flight levels are open on a fresh save; the campaign still gates', () => {
+  mockLocalStorage.clear();
+  const g = new CargoGame();
+  g.init('cargoCanvas');
+  const flights = levels.map((lv, i) => lv.unlocked ? i : -1).filter(i => i >= 0);
+  assert(flights.length >= 3, 'the new test flights are registered');
+  for (const i of flights) assert(g.isLevelUnlocked(i), `${levels[i].name} should be unlocked`);
+  assert(!g.isLevelUnlocked(1), 'L2 still needs L1 beaten');
+});
+
 // ─── 4c3. ADAPTIVE GRAPHICS QUALITY (game/perf.js) ───────────────────────────
 category('Adaptive Graphics Quality');
 
@@ -1584,21 +1739,62 @@ test('In Auto, slow gameplay frames lower the live tier and remember it', () => 
   for (let i = 0; i < 400 && g.gfx.id === 'high'; i++) { now += 30; g.perfSample(30, 25, now); }
   assertEquals(g.gfx.id, 'medium', 'stepped down one tier');
   assert(g.canvas.width < w0, 'backing store shrank');
-  assertEquals(localStorage.getItem('cargoLanderGfxAuto'), '2', 'settled tier saved for next session');
+  assertEquals(localStorage.getItem('cargoLanderGfxAuto'), 'medium', 'settled tier saved (by id) for next session');
   g.gameState = 'menu';
   for (let i = 0; i < 400; i++) { now += 30; g.perfSample(30, 25, now); }
   assertEquals(g.gfx.id, 'medium', 'menus are never judged');
   mockLocalStorage.clear();
 });
 
+// A big screen used to render every CSS pixel (8.3M at 4K/1x, ~4x a 1080p
+// frame) at every tier. Each tier now has a pixel budget; the canvas is drawn
+// smaller and the browser stretches it.
+test('Pixel budgets: big screens render at most the tier\'s budget and stretch', () => {
+  const T = id => GFX_TIERS.find(t => t.id === id);
+  assertEquals(gfxScaleFor(T('high'), 3840, 2160, 1), 0.5, '4K at 1x renders High at 1920x1080');
+  assertEquals(gfxScaleFor(T('high'), 2560, 1440, 1), 0.75, '1440p renders High at 1920x1080');
+  assertEquals(gfxScaleFor(T('high'), 1920, 1080, 1), 1, '1080p is untouched');
+  assertEquals(gfxScaleFor(T('high'), 1920, 1080, 2), 1, 'High never goes above 1x');
+  assertEquals(gfxScaleFor(T('sharp'), 3840, 2160, 1), 0.67, 'Sharp: 1440p-class');
+  assertEquals(gfxScaleFor(T('crisp'), 3840, 2160, 1), 1, 'Crisp: native 4K');
+  assertEquals(gfxScaleFor(T('crisp'), 1920, 1080, 2), 2, 'Crisp: native on a 2x 1080p-CSS screen (= 4K)');
+  assert(gfxScaleFor(T('lowest'), 3840, 2160, 1) < gfxScaleFor(T('low'), 3840, 2160, 1), 'tiers stay ordered on 4K');
+  for (const t of GFX_TIERS) {
+    const sc = gfxScaleFor(t, 3840, 2160, 1);
+    assert(3840 * 2160 * sc * sc <= t.maxPixels * 1.02, `${t.id} stays within its budget at 4K`);
+  }
+});
+
+test('Auto only climbs through tiers that differ on this screen', () => {
+  mockLocalStorage.clear();
+  const g = new CargoGame();
+  g.init('cargoCanvas');
+  g._gfxDpr = 1;
+  assertEquals(g._bestDistinctTier(1920, 1080), GFX_TIERS.findIndex(t => t.id === 'high'), '1080p at 1x: Crisp = Sharp = High');
+  assertEquals(g._bestDistinctTier(2560, 1440), GFX_TIERS.findIndex(t => t.id === 'sharp'), '1440p: Sharp is native, Crisp adds nothing');
+  assertEquals(g._bestDistinctTier(3840, 2160), 0, '4K: every step up is real');
+  // the canvas follows the budget on resize
+  const iw = window.innerWidth, ih = window.innerHeight;
+  window.innerWidth = 3840; window.innerHeight = 2160;
+  g.resizeCanvas();
+  assertEquals(g.viewW, 3840, 'logical view is the full screen');
+  assertEquals(g.canvas.width, 1920, 'backing store is the budget');
+  assertEquals(g.perfGovernor.minTier, 0, 'governor may climb to native on 4K');
+  window.innerWidth = iw; window.innerHeight = ih;
+  g.resizeCanvas();
+});
+
 test('Auto resumes at the tier it settled on last session, never above High', () => {
   mockLocalStorage.clear();
-  localStorage.setItem('cargoLanderGfxAuto', '3');
+  localStorage.setItem('cargoLanderGfxAuto', 'low');
   let g = new CargoGame(); g.init('cargoCanvas');
   assertEquals(g.gfx.id, 'low');
-  localStorage.setItem('cargoLanderGfxAuto', '0');
+  localStorage.setItem('cargoLanderGfxAuto', 'crisp');
   g = new CargoGame(); g.init('cargoCanvas');
-  assertEquals(g.gfx.id, 'high', 'Crisp has to be re-earned each session');
+  assertEquals(g.gfx.id, 'high', 'the sharper tiers have to be re-earned each session');
+  localStorage.setItem('cargoLanderGfxAuto', '3');   // pre-v0.27.0 numeric save
+  g = new CargoGame(); g.init('cargoCanvas');
+  assertEquals(g.gfx.id, 'high', 'an old index-based save is ignored, not misread');
   mockLocalStorage.clear();
 });
 
@@ -1623,7 +1819,9 @@ test('Cache-busting ?v= matches CargoGame.VERSION everywhere', () => {
   // source in this very file and reports a phantom mismatch.
   const parse = (html) => new DOMParser().parseFromString(html, 'text/html');
 
-  for (const page of ['index.html', 'tests.html']) {
+  // level-editor.html too: a cached editor.js after a deploy means editing
+  // with yesterday's exporter (before v0.26.0 that one silently dropped data).
+  for (const page of ['index.html', 'tests.html', 'level-editor.html']) {
     const doc = parse(readLocal(page));
     const srcs = Array.from(doc.querySelectorAll('script[src]'))
       .map(el => el.getAttribute('src'))

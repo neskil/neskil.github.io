@@ -285,11 +285,14 @@ draw() {
 
             // Only pay for the full-screen composite when the pass actually
             // drew something (it early-outs when no effect region is active).
-            if (this.shaders.renderPostFX(this.physics, this.camera, this.canvas, levels[this.currentLevelIndex], waterRects, this.weather, heatSources)) {
+            const fx = this.shaders.renderPostFX(this.physics, this.camera, this.canvas, levels[this.currentLevelIndex], waterRects, this.weather, heatSources);
+            if (fx) {
+                // Composite only the region the pass shaded (the engine-haze
+                // circles while thrusting, a lake, a well) — not the screen.
                 ctx.save();
                 this._screenTransform(ctx);
                 ctx.globalCompositeOperation = 'source-over';
-                ctx.drawImage(this.shaders.canvas, 0, 0, w, h);
+                ctx.drawImage(this.shaders.canvas, fx.gx, fx.gy, fx.gw, fx.gh, fx.x, fx.y, fx.w, fx.h);
                 ctx.restore();
             }
         }
@@ -496,15 +499,18 @@ draw() {
         ctx.font = '600 11px "Courier New", monospace';
         ctx.textAlign = 'left';
         const versionY = this.isTouchDevice ? h - 14 - this.mobileControlsRowHeight() : h - 14;
-        ctx.fillStyle = 'rgba(148, 163, 184, 0.5)';
-        ctx.fillText(`v${CargoGame.VERSION}`, 14, versionY);
+        // Laid out by measured width — fixed offsets collided once the
+        // version string and the graphics label grew.
+        let stampX = 14;
+        const stamp = (text, color) => {
+            ctx.fillStyle = color;
+            ctx.fillText(text, stampX, versionY);
+            stampX += ctx.measureText(text).width + 10;
+        };
+        stamp(`v${CargoGame.VERSION}`, 'rgba(148, 163, 184, 0.5)');
         if (this.displayFps !== undefined) {
-            ctx.fillStyle = this.displayFps >= 50 ? 'rgba(74, 222, 128, 0.6)' : 'rgba(251, 191, 36, 0.75)';
-            ctx.fillText(`${this.displayFps} FPS`, 14 + 48, versionY);
-            if (this.graphicsLabel) {
-                ctx.fillStyle = 'rgba(148, 163, 184, 0.5)';
-                ctx.fillText(this.graphicsLabel(), 14 + 48 + 58, versionY);
-            }
+            stamp(`${this.displayFps} FPS`, this.displayFps >= 50 ? 'rgba(74, 222, 128, 0.6)' : 'rgba(251, 191, 36, 0.75)');
+            if (this.graphicsLabel) stamp(this.graphicsLabel(), 'rgba(148, 163, 184, 0.5)');
         }
         ctx.restore();
     },

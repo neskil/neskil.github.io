@@ -21,7 +21,7 @@ registerLevel({
     [
         {x: -400, y: 500}, {x: 200, y: 500},
         {x: 400, y: 600}, {x: 600, y: 600},
-        {x: 700, y: 500}, {x: 800, y: 400}, {x: 900, y: 450}, {x: 1000, y: 550},
+        {x: 700, y: 500}, {x: 792, y: 420}, {x: 888, y: 420}, {x: 900, y: 450}, {x: 1000, y: 550},
         {x: 1200, y: 550}, {x: 1400, y: 450}, {x: 1600, y: 550}, {x: 1800, y: 550},
         {x: 2000, y: 500}, {x: 2400, y: 500},
         // Enclosure
@@ -151,6 +151,6 @@ registerLevel({
   quests: [
       questPrimary('Deliver both cargo types and return safely'),
       questNoCrash(400),
-      questQuick('Finish in under 2 minutes', 120, 500),
+      questQuick('Finish in under 2 minutes', 60, 500),  // timeGoal = seconds LEFT on the 180s clock
   ],
 });
