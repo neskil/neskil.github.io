@@ -1494,9 +1494,11 @@ const CargoPhysicsAtmosphereMixin = {
         const warnLeftMargin = lateralAction !== 'pushback' ? Math.min(VIGNETTE_MARGIN, leftMargin) : VIGNETTE_MARGIN;
         const warnRightMargin = lateralAction !== 'pushback' ? Math.min(VIGNETTE_MARGIN, rightMargin) : VIGNETTE_MARGIN;
         const warnCeilingY = ceilingAction !== 'pushback' ? Math.max(-500, ceilingY) : -500;
-        const surfaceY = this.getPolygonSurfaceY ? this.getPolygonSurfaceY(lander.x) : 99999;
+        // Under the map by 80px (see isUnderTerrain — flying beneath an overhang
+        // with open space below no longer counts).
+        const underTerrain = this.isUnderTerrain ? this.isUnderTerrain(lander.x, lander.y, 80) : false;
 
-        if (lander.x < -warnLeftMargin || lander.x > this.levelWidth + warnRightMargin || lander.y < warnCeilingY || lander.y > surfaceY + 80) {
+        if (lander.x < -warnLeftMargin || lander.x > this.levelWidth + warnRightMargin || lander.y < warnCeilingY || underTerrain) {
             this.outOfBoundsTimer = (this.outOfBoundsTimer || 0) + dt;
         } else {
             this.outOfBoundsTimer = Math.max(0, (this.outOfBoundsTimer || 0) - dt * 2);
@@ -1560,9 +1562,13 @@ const CargoPhysicsAtmosphereMixin = {
                 if (dx * dx + dy * dy < r * r) {
                     const amount = c[def.amountField] != null ? c[def.amountField] : def.defaultAmount;
                     if (def.resource === 'fuel') {
-                        this.lander.fuel = Math.min(100, this.lander.fuel + amount);
+                        // Cap at the lander's own tank, not 100: on a big-tank
+                        // level (maxFuel 150-200) a pickup used to cut you down.
+                        this.lander.fuel = Math.min(this.lander.maxFuel || 100, this.lander.fuel + amount);
                     } else if (def.resource === 'cash') {
                         this.cash = (this.cash || 0) + amount;
+                    } else if (def.resource === 'time') {
+                        if (window.game && window.game.missionTimer > 0) window.game.missionTimer += amount;
                     }
                     const msg = def.message ? def.message(amount) : `+${amount}`;
                     if (window.game) window.game.addMessage(msg, def.messageColor);

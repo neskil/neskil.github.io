@@ -86,7 +86,9 @@ drawNightOverlay() {
         for (const hz of (this.physics.hazards || [])) {
             if (hz.type !== 'spike' || !hz.pts || !hz.pts.length) continue;
             const p = toScreen(hz.pts[0].x, hz.pts[0].y);
-            this._nightPunchGlow(nctx, p.x, p.y, ((hz.radius || 25) + 40) * zoom, 0.55);
+            // Kept small and faint (was r+40 at 0.55): a pinprick you can steer
+            // by, not a lamp — the playtest said the darkness had gone soft.
+            this._nightPunchGlow(nctx, p.x, p.y, ((hz.radius || 25) + 14) * zoom, 0.3);
         }
 
         // ── Hazards light up as the ping wavefront passes them ──────────────

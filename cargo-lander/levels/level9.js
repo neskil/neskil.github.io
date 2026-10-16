@@ -90,6 +90,17 @@ registerLevel({
             { x: 700, y: 500 }, { x: 900, y: 500 },
             { x: 880, y: 560 }, { x: 820, y: 650 }, { x: 800, y: 750 }, { x: 780, y: 650 }, { x: 720, y: 560 }
         ],
+        // Pit islets (2026-10-16) — two broken-off slabs hanging in the pit.
+        // Somewhere to set down between the shelf and the hub — but they are
+        // not pads, so the worm still counts you as dawdling on them.
+        [
+            { x: 570, y: 750 }, { x: 580, y: 700 }, { x: 620, y: 692 }, { x: 660, y: 690 },
+            { x: 690, y: 720 }, { x: 650, y: 780 }, { x: 600, y: 792 }
+        ],
+        [
+            { x: 975, y: 700 }, { x: 980, y: 650 }, { x: 1030, y: 642 }, { x: 1080, y: 640 },
+            { x: 1110, y: 670 }, { x: 1070, y: 730 }, { x: 1010, y: 742 }
+        ],
         // The Acid Pool rim (Right side) — slightly jagged top edge
         [
             { x: 1200, y: 700 }, { x: 1450, y: 680 }, { x: 1650, y: 720 }, { x: 1800, y: 700 },
@@ -186,6 +197,23 @@ registerLevel({
         { x: 450, y: 640, type: 'refinery', destructible: true, health: 60 },
         // Destructible silo near the acid
         { x: 1300, y: 700, type: 'silo', destructible: true, health: 80 }
+    ],
+
+    // ── Decals (render/decals.js) ─────────────────────────────────────────────
+    // The hub rock hangs from the cavern roof on two cables; the shelf is a
+    // scavenger camp; the pit lip is where the worm leaves what it doesn't eat.
+    decals: [
+        { type: 'cable', x: 430, y: 200, x2: 706, y2: 500, sag: 10, color: '#57534e' },
+        { type: 'cable', x: 1151, y: 180, x2: 894, y2: 500, sag: 10, color: '#57534e' },
+        { type: 'chain', x: 800, y: 760, len: 60, hook: true },
+        { type: 'stalactite', x: 300, y: 319, len: 70 }, { type: 'stalactite', x: 100, y: 311, len: 50 },
+        { type: 'stalactite', x: 1500, y: 353, len: 80 }, { type: 'stalactite', x: 1300, y: 362, len: 55 },
+        { type: 'lamp', x: 130, y: 602, color: '#f97316' }, { type: 'lamp', x: 420, y: 611, color: '#f97316' },
+        { type: 'barrels', x: -130, y: 615, n: 3, color: '#7f1d1d' },
+        { type: 'sign', x: 485, y: 628 }, { type: 'bones', x: 330, y: 603, s: 0.8 },
+        { type: 'skull', x: 640, y: 690 }, { type: 'bones', x: 1050, y: 641, s: 0.7 },
+        { type: 'crystal', x: 1222, y: 698, color: '#34d399', s: 0.8 }, { type: 'crystal', x: 1775, y: 702, color: '#34d399', s: 0.7 },
+        { type: 'skull', x: 1210, y: 700, s: 0.9 }, { type: 'sign', x: 1240, y: 698, s: 0.8 }
     ],
 
     // ── Collectibles (Fuel / Cash) ────────────────────────────────────────────

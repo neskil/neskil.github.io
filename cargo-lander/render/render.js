@@ -190,7 +190,9 @@ draw() {
 
         this.drawRadarPingZone(); // Draw radar ping behind the solid terrain
         this.drawHazards(true); // Draw background hazards (behind terrain)
+        if (this.drawDecals) this.drawDecals(true); // half-buried props / wall fittings (render/decals.js)
         this.drawTerrain();
+        if (this.drawDecals) this.drawDecals(false); // props standing on / hanging from the terrain
         this.drawSegments();
         if (this.drawWormLair) this.drawWormLair(); // burrows/bones on the surface of a sandworm zone
         this.drawHazards(false); // Draw foreground hazards (in front of terrain)
