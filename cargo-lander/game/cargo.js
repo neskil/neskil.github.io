@@ -85,10 +85,13 @@ Object.assign(CargoGame.prototype, {
                 continue;
             }
 
-            const terrainY = this.physics.getPolygonSurfaceY(box.x);
+            const terrainY = this.physics.getPolygonSurfaceY(box.x, box.y);
 
-            // If box fell below the terrain height by a buffer, or off screen bottom
-            if (box.y > terrainY + 50 || box.y > this.physics.levelHeight) {
+            // If the box fell through the ground (or into an abyss), or off the bottom.
+            // isUnderTerrain() rather than `box.y > surfaceY + 50`: the latter
+            // measured against the deepest floor at x and deleted crates flying
+            // under any overhang with open space below (L8's hanging modules).
+            if (this.physics.isUnderTerrain(box.x, box.y, 50) || box.y > this.physics.levelHeight) {
                 // Spawn smoke particles
                 this.spawnDeliveryParticles(box.x, terrainY, "#475569");
                 this.removeCargoBox(box, i);

@@ -162,6 +162,12 @@ drawHazards(bgMode = false) {
                 const p = haz.pts[0];
                 const r = haz.radius || 25;
                 const col = haz.color || '#ef4444';
+                // look:'crystal' — a burst of glassy shards instead of the spiked
+                // disc (L10's crystal clusters). Same hit radius either way.
+                if (haz.look === 'crystal' && this._drawCrystalBurst) {
+                    this._drawCrystalBurst(ctx, p.x, p.y, r, col, now / 1000, p.x);
+                    continue;
+                }
 
                 ctx.beginPath();
                 ctx.arc(p.x, p.y, r, 0, Math.PI * 2);

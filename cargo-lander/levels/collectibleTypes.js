@@ -50,6 +50,37 @@ window.COLLECTIBLE_TYPES = {
         message: () => '+FUEL',
         messageColor: '#60a5fa',
     },
+    // Time ring (L12's canyon race): fly through the hoop for extra seconds
+    // on the mission clock. Drawn as an upright hoop, not a token.
+    ring: {
+        label: 'Time Ring',
+        resource: 'time',
+        amountField: 'seconds',
+        defaultAmount: 5,
+        radius: 34,
+        pickupRadius: 40,
+        color: '#22d3ee',
+        edgeColor: '#0e7490',
+        icon: '⏱',
+        message: amount => `+${amount}s`,
+        messageColor: '#22d3ee',
+        draw(ctx, c) {
+            const t = Date.now() / 1000, r = c.radius || 34;
+            const pulse = 0.6 + 0.4 * Math.sin(t * 4 + c.x);
+            ctx.save();
+            ctx.translate(c.x, c.y);
+            const g = ctx.createRadialGradient(0, 0, r * 0.6, 0, 0, r * 1.5);
+            g.addColorStop(0, 'rgba(34,211,238,0)'); g.addColorStop(0.6, `rgba(34,211,238,${0.18 * pulse})`); g.addColorStop(1, 'rgba(34,211,238,0)');
+            ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, r * 1.5, 0, Math.PI * 2); ctx.fill();
+            ctx.lineWidth = 6; ctx.strokeStyle = '#0e7490';
+            ctx.beginPath(); ctx.ellipse(0, 0, r * 0.45, r, 0, 0, Math.PI * 2); ctx.stroke();
+            ctx.lineWidth = 3; ctx.strokeStyle = `rgba(165,243,252,${0.6 + 0.4 * pulse})`;
+            ctx.beginPath(); ctx.ellipse(0, 0, r * 0.45, r, 0, 0, Math.PI * 2); ctx.stroke();
+            ctx.fillStyle = '#cffafe'; ctx.font = 'bold 12px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+            ctx.fillText(`+${c.seconds ?? 5}s`, 0, -r - 10);
+            ctx.restore();
+        },
+    },
 };
 
 window.COLLECTIBLE_TYPE_LIST = Object.keys(window.COLLECTIBLE_TYPES);

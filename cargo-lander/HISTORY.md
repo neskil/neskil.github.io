@@ -8,6 +8,40 @@ backlog" section.
 
 ---
 
+## 2026-10-16 — L7–L13 reimagined, decals (v0.30.0)
+
+Playtest: "Level 7 to 13 … are no fun", "the darkness was a bit too nerfed",
+"don't have too many similar ones", "more advanced geometry or fun decals" —
+full reimaginings welcome. Each level now owns one idea nobody else has:
+
+- **L7 The Drowned Grotto** — water. Two flooded siphons where the roof dives
+  under the waterline; a Cathedral chamber with a hanging shelf, a waterfall
+  and mushroom groves; a lake with an island hub and a geyser. Sealed ends.
+- **L8 Orbital Gauntlet** — laser geometry in low gravity. Two tiers of modules
+  hung on cables, a pylon sealing the east concourse so Terminus is reached by
+  climbing through a horizontal laser floor, a diagonal beam. Crusher removed.
+- **L9 The Cauldron** — the hub hangs from the roof on cables; two islets in
+  the worm pit; bones and camp props. (Viper worm from v0.29.)
+- **L10 The Crystal Caves** — vertical and properly dark (0.96): a crystal
+  slalom down Shaft One, a fragile floor pane you can smash for a shortcut,
+  a draft in Shaft Two, bouncy crystal shards in the Deep Hall. Crushers gone;
+  crystal glow cut back to a pinprick.
+- **L11 Island Hopper** — Hook Rock (overhanging cap), a sea cave with a stash,
+  a waterspout, lighthouse/pier/palms/huts/wreck.
+- **L12 Red Rock Run** — a canyon race fed by time rings (+5s each), a butte
+  camp with a rope bridge, a sandstone arch, a chimney slot.
+- **L13 Foundry Shift** — the machinery level: ladle pours (incinerators), a
+  conveyor floor toward Press One, a steam lift into a hanging office, the
+  laser curtain, a feed belt into the normal-only smelter chute.
+
+Engine: `render/decals.js` (~35 procedural prop types), `ring` collectible
+(time), `spike` `look:'crystal'`, chute `accepts` reused. Bugs found by flying
+the new maps: crates under any overhang counted as fallen through the map
+(`isUnderTerrain`), and fuel pickups capped the tank at 100 even when it was
+bigger. Every level passes Level Check; the planning pilot completes each.
+
+---
+
 ## 2026-10-16 — Dust ceiling only shows when you climb (v0.29.1)
 
 Playtest: L6's fog "is too much and shouldn't appear when you go downwards".

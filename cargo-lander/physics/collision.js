@@ -38,6 +38,35 @@ const CargoPhysicsCollisionMixin = {
         return maxSurfaceY || this.levelHeight * 0.7;
     },
 
+    // True when (x, y) has gone "under the map" by more than `depth`: either
+    // buried that deep inside rock, or below the lowest point anything could
+    // land on with no floor at all beneath it (an abyss). This replaces the
+    // old `y > getPolygonSurfaceY(x) + depth`, which measured against the
+    // DEEPEST floor at x — so anything flying under an overhang with open
+    // space below (L7's shelf over the water, L8's modules hanging on cables)
+    // counted as having fallen through the ground. On plain heightfield
+    // terrain the two agree exactly: below the surface by `depth` is the same
+    // as `depth` deep inside the rock.
+    isUnderTerrain(x, y, depth) {
+        const inRock = (py) => this.terrainPolygons.some(p => this.pointInPolygon(x, py, p));
+        if (inRock(y) && inRock(y - depth)) return true;
+        // Is there any floor at or below us? Then we are in open air over it.
+        for (const poly of this.terrainPolygons) {
+            const flip = this.polygonIsReversed(poly);
+            for (let i = 0; i < poly.length; i++) {
+                const a = poly[i], b = poly[(i + 1) % poly.length];
+                if (a.invisibleEdge) continue;
+                const p1 = flip ? b : a, p2 = flip ? a : b;
+                if (p1.x < p2.x && p1.x <= x && p2.x >= x) {
+                    const fy = p1.y + (x - p1.x) / (p2.x - p1.x) * (p2.y - p1.y);
+                    if (fy >= y - depth) return false;
+                }
+            }
+        }
+        // Nothing beneath: the same abyss line getPolygonSurfaceY() falls back to.
+        return y > this.levelHeight * 0.7 + depth;
+    },
+
     // ── Terrain polygon winding ────────────────────────────────────────────────
     // Four separate places used to decide "is this edge a floor?" by testing the
     // vertex order directly (p1.x < p2.x), each assuming levels are authored with

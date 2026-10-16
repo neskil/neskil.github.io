@@ -12,7 +12,7 @@
 // game.js → game/* → render.js + render/* (render.js instantiates window.game).
 
 class CargoGame {
-    static VERSION = '0.29.1';
+    static VERSION = '0.30.0';
 
     constructor() {
         this.canvas = null;
@@ -590,6 +590,9 @@ class CargoGame {
                 if (b.phase === undefined) b.phase = Math.random() * Math.PI * 2;
             }
         }
+
+        // Cosmetic props (render/decals.js): snap anchors to the terrain once.
+        if (this.prepareDecals) this.prepareDecals(level);
 
         this.gameState = 'playing';
         this.addMessage("Level Started: " + (level?.name || "Unknown"), "#6366f1");
