@@ -8,6 +8,78 @@ backlog" section.
 
 ---
 
+## 2026-10-16 — Dust ceiling only shows when you climb (v0.29.1)
+
+Playtest: L6's fog "is too much and shouldn't appear when you go downwards".
+The band is world-anchored and the camera frames ~120px above the lander, so
+at plateau height or lower the top third of the screen was still a 94% dust
+wall. `drawAltitudeFog()` now fades the overlay by the lander's own altitude
+(invisible 220px below the band, full at its clear edge), and L6's opacity
+dropped to 0.75. Hull abrasion is unchanged — it was already altitude-based.
+
+---
+
+## 2026-10-15 — L7–L10 rework (v0.29.0)
+
+Playtest note: the levels after L6 "aren't very good". Flying each with the
+planning pilot found every one broken or hollow:
+
+- **L7 Deep Haul** ran dry before the first pump (stock tank vs 1,300px of
+  cave with three heavy crates), the pump's gas pocket then shoved you into
+  the floor, and the Magma Chute took any cargo, so the mission was "dump all
+  three at the far end". Now: 170-unit tanks, Fuel Pump $3/unit vs Reserve
+  Tank $6/unit, pulsing gas vents (repulsor gustMs/calmMs) that knock you
+  back rather than into rock, squeeze vents cut (any puff in a 150px bend
+  pins you), chute tethered-only. Pilot: 3/4 runs complete in 68–103s/360.
+- **L8 Orbital Gauntlet** — every beam ended in open void, so you could fly
+  over or under the whole defense grid. A hull truss with bulkheads now
+  encloses the station and the beams run from it into the void. The crusher
+  floated in mid-air with ~60px between it and Laser 3 (nowhere to wait with
+  crates); it now hangs from the truss onto the chute deck and Laser 3 moved
+  into the F–G gap (~130px pocket). Return windows ≥900ms dark, crusher open
+  1.6s of 3.25s, chute tethered-only, Fuel Cache $4/unit. A standing-start
+  strafe clears the crusher if you go in its first ~0.6s.
+- **L9 Cauldron** — the old worm's zone topped out 100px below the hub, so
+  the headline hazard never met a player: the pilot finished untouched in
+  68s. It is a viper now (`burrowY` 900, reach 480) that owns the whole hub
+  approach; hovering to land a heavy crate is what wakes it.
+- **L10 Crystal Caves** could not be finished: no fuel and a stock tank
+  (single digits ~35s in), 180s for a three-crusher round trip, and a
+  "gentle" resonance well pulling ~3x full thrust that orbited through the
+  only corridor. Now: 150-unit tanks, Crystal Pump $4/unit on the far shelf,
+  240s, crushers open 1.8–2.0s, a static weak well under the roof, and
+  glowing crystal clusters (spike hazards, lit through the night overlay) at
+  the bends. Pilot completes in 31s; every crusher clears from rest.
+- Engine: chute `accepts`, viper `burrowY`, spike glow in night mode, editor
+  hub/collectible export uses `jsLiteral` (it wrote `accepts: tethered`).
+
+---
+
+## 2026-10-15 — Level pass: real wind, paid fuel, the viper worm (v0.28.0)
+
+Playtest notes: wind is cosmetic; leave L1–L4 alone apart from L4's HQ (it
+spawned in the cave); L5 is too easy (you're only fuel-limited) and needs a
+paid filling station; L6's sarlacc-pit worm "doesn't really work".
+
+- **Wind** — `windForce` level multiplier (default 1, so L1–L4 are
+  untouched). Storm levels now drift you ~135–220px per gust cycle hands-off.
+- **L4** — HQ moved from the cave floor to the surface (startX −315, y 98).
+- **Paid fuel** — refuel hubs used to get the HQ's free 18 units/s top-up as
+  well, so `pricePerUnit` never mattered. They now only sell fuel. L5:
+  5 cargo, 330s, Fuel Rig at $5/unit (pilot runs: 86–138s, $400–1000 spent).
+- **HQ Refuel/Repair buttons** threw on a missing `CargoAudio.playClick`.
+- **Viper worm (L6)** — `behavior:'viper'`: buried while you move, a threat
+  meter fills while you dawdle, it rears up beside you and watches, then
+  strikes when you come close or linger, after a red-ring + aim-line wind-up.
+  The aim reads only a slow course, so hovering or pottering gets bitten and
+  climbing, diving, reversing or full speed makes it miss. Proven headlessly
+  across hover / pass-speed / dodge matrices (tests.html "Viper worm …").
+  The old engine stays for L2/L9; its tests now run on a pre-rework L6 fixture.
+- **`survive_worm` never paid out** — nothing ever marked it complete. It now
+  completes at mission end when `physics.wormHits` is 0.
+
+---
+
 ## 2026-10-14 — 4K performance: pixel budgets and region post-FX (v0.27.0)
 
 Reported: rough on 4K screens. Measured headlessly at a true 3840×2160

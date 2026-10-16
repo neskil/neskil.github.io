@@ -2,6 +2,22 @@
 // Biome: Underground / Cyan.
 // Features tight corridors and crushers embedded in the rock walls using the
 // new `behindTerrain` property.
+//
+// 2026-10 pass — it could not be finished as built:
+//   - No fuel stop and a stock 120-unit tank against 3,200px of out-and-back
+//     cave with heavy cargo: a careful pilot hit single digits ~35s in, before
+//     the first delivery. Now: maxFuel 150 and a paid Crystal Pump on the far
+//     shelf past Deep Mining Post ($4/unit) — fill up for the return.
+//   - 180s for that round trip through three crushers left no room to wait a
+//     cycle. 240s now (the quick bonus still asks for 3 minutes).
+//   - Crushers open longer (1.8-2.0s of each cycle) — it is dark, and you
+//     can't time what you can't see coming.
+//   - The resonance gravity well pulled ~3x full thrust at its core (see the
+//     hazard) — now a tug.
+//   - It was the least varied map: one corridor, three identical crushers.
+//     Glowing crystal clusters (spike hazards) now grow at the bends — they
+//     tighten the line through each turn, and in the dark they double as the
+//     only landmarks you can see.
 
 registerLevel({
   name: "L10: The Crystal Caves",
@@ -14,6 +30,7 @@ registerLevel({
   wind: 0.012,      // Light cave draft — subtle, the darkness/crusher timing is the real challenge
   heavyCargo: true,
   night: true,
+  maxFuel: 150,
 
   // ── Terrain ───────────────────────────────────────────────────────────────
   terrainPolygons: [
@@ -47,10 +64,10 @@ registerLevel({
         { x: 500, y: 200 }, // Buried in ceiling
         { x: 500, y: 800 }  // Buried in floor
       ],
-      waitUnloadedMs: 1500,
-      crushMs: 150,
+      waitUnloadedMs: 2000,
+      crushMs: 200,
       waitLoadedMs: 400,
-      retractMs: 1200,
+      retractMs: 1000,
       thickness: 60,
       color: "#06b6d4",
       behindTerrain: true
@@ -62,7 +79,7 @@ registerLevel({
         { x: 1300, y: 100 }, // Buried in ceiling
         { x: 1300, y: 750 }  // Buried in floor
       ],
-      waitUnloadedMs: 1200,
+      waitUnloadedMs: 1800,
       crushMs: 200,
       waitLoadedMs: 500,
       retractMs: 1000,
@@ -78,27 +95,41 @@ registerLevel({
         { x: 1520, y: 150 },
         { x: 1520, y: 750 }
       ],
-      waitUnloadedMs: 1300,
+      waitUnloadedMs: 1900,
       crushMs: 180,
       waitLoadedMs: 450,
-      retractMs: 1100,
+      retractMs: 1000,
       thickness: 55,
       color: "#06b6d4",
       behindTerrain: true,
       phaseOffset: 500
     },
-    // Crystal Resonance Anomaly — gentle pulsing gravity well
+    // Crystal clusters at the bends (spike hazards: hull damage on contact,
+    // cargo shattered). Each sits on the inside of a turn, so the racing line
+    // has to swing wide of it.
+    { type: "spike", pts: [{ x: 650, y: 368 }], radius: 22, damagePerSec: 60, color: "#67e8f9" },   // ceiling, first climb
+    { type: "spike", pts: [{ x: 1250, y: 520 }], radius: 22, damagePerSec: 60, color: "#67e8f9" },  // floor, the ramp out of the resonance chamber
+    { type: "spike", pts: [{ x: 1160, y: 548 }], radius: 22, damagePerSec: 60, color: "#67e8f9" },  // resonance chamber floor, under the well
+    { type: "spike", pts: [{ x: 1950, y: 316 }], radius: 20, damagePerSec: 60, color: "#67e8f9" },  // ceiling, on the way to the pump
+    // Crystal Resonance Anomaly — a gravity well hanging under the chamber
+    // roof. It used to orbit the middle of the corridor at 0.35 / r150: a pull
+    // of up to 1.2px/frame² (vs 0.45 full thrust and 0.09 strafe) that swept
+    // over anything passing, dragged it along and ground it down at the core.
+    // Now it sits still up at y:385 and is weaker than gravity everywhere in
+    // the corridor: near the roof you go almost weightless (core pull 0.175 vs
+    // 0.345 for a dive, so it can always be escaped) — a floaty pocket that
+    // throws your hover off. The fuel cell under it pays for skimming close.
     {
       type: "gravwell",
-      pts: [{x: 1050, y: 400}, {x: 1150, y: 400}, {x: 1150, y: 500}, {x: 1050, y: 500}],
-      startForce: 0.35, endForce: 0.35, radius: 150, speed: 100
+      pts: [{x: 1100, y: 385}],
+      startForce: 0.05, radius: 120
     }
   ],
 
   // ── Collectibles (Glow-in-the-dark navigation cues) ───────────────────────
   collectibles: [
     { type: 'cash', x: 650, y: 480, value: 600 },  // After first crusher descend
-    { type: 'fuel', x: 1080, y: 450, amount: 40 }, // Inside the Crystal Resonance Well
+    { type: 'fuel', x: 1100, y: 440, amount: 40 }, // Just under the Crystal Resonance Well
     { type: 'cash', x: 1410, y: 450, value: 600 }, // Midway safe zone between crushers 2 & 3
     { type: 'fuel', x: 1620, y: 480, amount: 40 }  // Final approach to Deep Mining Post
   ],
@@ -107,7 +138,7 @@ registerLevel({
   targetCargo: 2,
   deposit: 1000,
   fee: 500,
-  timeLimit: 180,
+  timeLimit: 240,
   allowedTypes: ["normal", "blue"],
   collectionX: 100,
   startX: -100,
@@ -131,7 +162,9 @@ registerLevel({
   // ── Hubs ──────────────────────────────────────────────────────────────────
   deliveryHubs: [
       { x: 800, width: 80, color: "#3b82f6", type: "blue", name: "Upper Node" },
-      { x: 1700, width: 90, color: "#38bdf8", type: "normal", name: "Deep Mining Post" }
+      { x: 1700, width: 90, color: "#38bdf8", type: "normal", name: "Deep Mining Post" },
+      // The only fuel in the caves, on the far shelf: top up for the run home.
+      { x: 2100, width: 60, color: "#f59e0b", type: "refuel", name: "Crystal Pump", pricePerUnit: 4 }
   ],
 
   // ── Palette (Cyan Caves) ─────────────────────────────────────────
@@ -146,11 +179,11 @@ registerLevel({
   },
 
   // ── UI ────────────────────────────────────────────────────────────────────
-  hint: "Watch the ancient mining crushers. They are embedded deep within the rock walls. Time your passage carefully, and remember the return trip!",
+  hint: "The crushers are buried in the rock — watch for the jaws, wait at a safe distance, and go the moment they lift. Glowing crystals mark the bends; swing wide of them. The only fuel is the Crystal Pump on the far shelf past Deep Mining Post ($4/unit), so top up there before the run home.",
 
   quests: [
       questPrimary('Deliver both cargo types and return safely'),
       questNoCrash(400),
-      questQuick('Finish in under 2 minutes', 60, 500),  // timeGoal = seconds LEFT on the 180s clock
+      questQuick('Finish in under 3 minutes', 60, 500),  // timeGoal = seconds LEFT on the 240s clock
   ],
 });

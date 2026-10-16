@@ -81,6 +81,14 @@ drawNightOverlay() {
             this._nightPunchGlow(nctx, p.x, p.y, 45 * zoom, 0.35);
         }
 
+        // ── Spike hazards (L10's crystal clusters) glow on their own: they
+        // are the landmarks that make a dark cave readable at all ───────────
+        for (const hz of (this.physics.hazards || [])) {
+            if (hz.type !== 'spike' || !hz.pts || !hz.pts.length) continue;
+            const p = toScreen(hz.pts[0].x, hz.pts[0].y);
+            this._nightPunchGlow(nctx, p.x, p.y, ((hz.radius || 25) + 40) * zoom, 0.55);
+        }
+
         // ── Hazards light up as the ping wavefront passes them ──────────────
         for (const hz of (this.physics.hazards || [])) {
             if (!hz.pts || hz.pts.length < 2) continue;

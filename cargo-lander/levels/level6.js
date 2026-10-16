@@ -7,7 +7,6 @@
 //   Lake — central depression; OOB water zone fills the valley floor
 //   Worm Pit — raised central mound; a `sandworm`-type hazard polygon
 //   (see hazards[] below) marks the AI spawn zone
-// The worm only spawns after all cargo is delivered if the player lingers — or if OOB timeout fires.
 // The sandworm hazard's centroid drives an animated sonar ring (drawRadarPingZone() in render/ui.js).
 //
 // ── 2026-08-02 difficulty pass: the level had no vertical pressure ──────────
@@ -29,22 +28,24 @@
 //             the plateaus — about 140px above the roofs, i.e. exactly the line
 //             you'd take for a fast crossing. In clear air, so this is a
 //             dodging problem, not a blindness one.
-//   y > 387   WORM ZONE. A 300px circle centred on (900, 687), so it covers the
-//             mound peak and both valley floors but tops out below the lane.
-//             Crossing in the corridor never summons it; dipping toward the
-//             sand does. Once out, its arc can carry above the zone — that is
-//             deliberate, it just cannot be triggered from up there.
+//   y > 287   WORM ZONE. 400px around (900, 687): the mound, both valley
+//             floors and the low edge of the corridor over the mound.
 //
-// So the crossing is a real choice again: ride the corridor and thread traffic,
-// or drop under it and share the valley with the worm. Over half the worm's
-// surfacings are bluffs (bluffChance) — it rears, sways, and sinks without
-// tracking — so the zone reads as something living under the dune rather than a
-// damage metronome. Surface dressing in drawWormLair() (render/creatures.js).
+// ── 2026-10 viper rework ────────────────────────────────────────────────────
+// Playtest verdict on the random-surfacing worm: "the sarlacc-pit style is not
+// really working". It struck by dice roll from under wherever you hovered, so
+// the only lesson was "don't be there". It is now a viper (behavior:'viper',
+// see the hazards block): buried while you keep moving, rears and watches if
+// you dawdle, pounces if you come close or linger, and misses if you are at
+// full speed or change direction during its visible wind-up. Speed is the
+// counterplay, which suits a level whose other hazards (traffic, gusts) are
+// about not having to slow down. Surface dressing is drawWormLair() in
+// render/creatures.js, driven off this same hazard.
 
 registerLevel({
     name: "L6: The Sand Worm's Lair",
     missionTitle: "Amber Dusk — Sand Worm Extraction",
-    description: "A colossal sand worm has colonised the central dune mound. Its burrows pit the whole slope and the bones of whatever it caught last are still up there. Collect cargo from the left-side shelf and get it east — the freight corridor runs low across the valley and the lanes are busy, so you can thread the traffic above the dunes or drop under it and cross the worm's ground instead. A dust ceiling caps the sky if you try to go over the top of both.",
+    description: "A colossal sand worm has colonised the central dune mound, and it hunts like a viper: it ignores anything moving fast, rears up at anything that dawdles, and strikes at whatever comes too close or stays too long. Collect cargo from the left-side shelf and get it east across its ground — through the busy freight corridor or low over the dunes. A dust ceiling caps the sky if you try to go over the top of both.",
     weather: 'heatwave',
 
     // ── Identity flag ─────────────────────────────────────────────────────────
@@ -53,6 +54,7 @@ registerLevel({
     // ── Physics ───────────────────────────────────────────────────────────────
     gravity: 0.14,
     wind: 0.03,       // Storm-driven; the gust cycle below does the real work
+    windForce: 6,     // ~215px hands-off drift per gust cycle
     heatHaze: true,
     // Gusts sell the storm and add a telegraphed, dodgeable pressure on the
     // crossing — the wind meter flashes amber through `warn` before each surge.
@@ -60,6 +62,8 @@ registerLevel({
 
     // ── Dust storm ceiling ────────────────────────────────────────────────────
     // Strictly an altitude cap, sitting well above everything the mission needs.
+    // It only shows on screen as you climb toward it (render/fog.js fades it by
+    // the lander's altitude) — flying low, the sky stays clear.
     // Clear at y:150, whiteout by y:-180 (render/fog.js). It starts ~280px above
     // the plateaus and ~370 above the mound peak, so flying the valley or the
     // pit never puts dust on screen — you only meet it by deliberately climbing
@@ -67,7 +71,7 @@ registerLevel({
     fogBandBottomY: 150,
     fogBandTopY: -180,
     fogBandColor: '210,150,80',
-    fogBandOpacity: 0.94,
+    fogBandOpacity: 0.75,   // was 0.94: a full whiteout read as too much; it is still murk
     fogBandDamage: 3,
 
     // ── Freight traffic ───────────────────────────────────────────────────────
@@ -145,60 +149,64 @@ registerLevel({
     ],
 
     // ── Hazards ───────────────────────────────────────────────────────────────
-    // Worm danger zone — a triangle around the central mound (cx:900, cy:580).
-    // drawRadarPingZone() (render/ui.js) sonar-pings the triangle's centroid and
-    // sizes the warning ring off `reach`, so the visible zone always matches the
-    // spawn check. spawnRate is the base risk multiplier while the lander is
-    // inside the zone; proximityScale scales it up toward the centre (see the
-    // terrainType:'worm-lair' handling in physics/atmosphere.js).
+    // behavior:'viper' — the worm is a predator you read, not a dice roll
+    // (_updateViperWorm() in physics/atmosphere.js). It stays buried while you
+    // keep moving through its ground. Dawdle and a threat meter fills (the
+    // dunes stir, the sonar quickens) until it REARS out of the sand under your
+    // path and sways there, watching. Come within strikeRange, or keep
+    // loitering past `patience`, and it WINDS UP — head draws back, red ring,
+    // a dashed line to the spot it locked onto — then POUNCES in a straight
+    // line. It aims where your course takes you but can only read up to
+    // leadMaxSpeed (2.2 px/frame) of it: hover or hold a slow course and it
+    // meets you; go fast or change direction during the wind-up and it misses.
     //
-    // Tuned down from the first difficulty pass, which made it too fast and too
-    // relentless to read. It is now a presence you work around rather than a
-    // reflex check:
-    //   • The strike carries ~370px instead of ~600 (it homes for 6 frames at up
-    //     to 30, then decay:0.86 bleeds it off), so it is slow enough to see
-    //     coming and steer away from, and still lethal if you hover over sand.
-    //   • Separating worm from traffic is done with the ZONE, not the arc: the
-    //     mound sits close enough to the corridor that any leap worth watching
-    //     would overshoot it. Instead the zone ceiling (y:387) sits below the
-    //     lane, so flying the corridor never triggers a surfacing at all.
-    //   • cooldownFrames:150 gives ~2.5s of quiet after it fully withdraws, so
-    //     it submerges between appearances instead of running as a stream.
-    //   • bluffChance:0.55 — over half of all surfacings are threat displays:
-    //     it rears out of the sand, sways at the top of a short arc, and sinks
-    //     back without ever tracking. The real lunges land because most of what
-    //     you see is a bluff.
-    // The surface dressing for this zone (burrow mouths, ribs, scoured sand) is
-    // drawWormLair() in render/creatures.js, driven off this same hazard.
+    // Zone: 400px around the centroid (900, 687) — the mound, both valley
+    // floors and the bottom of the freight corridor over the mound (ceiling
+    // y:287). Both pads sit outside it, and so does anything parked on a pad.
+    // The corridor overlap is deliberate: slowing down to let a truck by over
+    // the dunes is now the risky move rather than a free one.
+    //
+    // Tuning, in frames (dt = 1 per 60fps frame):
+    //   slowSpeed 1.6 / fastSpeed 3.4 px/frame — under 1.6 fills the meter
+    //     fast, 1.6-3.4 slowly, over 3.4 drains it. Crossing the 800px zone at
+    //     ~4 px/frame (an easy cruise) never wakes it; a 2 px/frame potter does.
+    //   emergeThreat 50 — about half a second of hovering near the peak.
+    //   patience 150 — 2.5s of watching before it strikes a loiterer.
+    //   surfaceOffset 240 — it rears up beside you (ahead, if you're moving),
+    //     never under you: the emergence is the warning, not the bite.
+    //   strikeRange 170 / patience 150 — fly within 170px of the head and it
+    //     strikes after a beat; stay slow in its ground for 2.5s and it
+    //     strikes anyway. Patience only counts while you're under fastSpeed.
+    //   windupFrames 28 / snapFrames 14 — ~0.47s tell (0.23s if you fly right
+    //     into its face). A climb or dive covers ~120px in 28 frames, far
+    //     more than the 46px hitRadius, so a reaction on the tell is enough.
+    //   pounceDamage 34 — a third of a stock hull. Two bites and you're limping.
     hazards: [
         {
             type: 'sandworm',
-            spawnRate: 1.0,
-            proximityScale: 1.3,   // 2.3x risk directly over the peak vs the zone edge
-            reach: 300,
+            behavior: 'viper',
+            reach: 400,
             color: '200, 100, 20',
-            period: 5400,
-            trackFrames: 6,
-            steer: 2.4,
-            lungeSpeed: 24,
-            maxSpeed: 30,
-            decay: 0.86,
-            retractSpeed: 13,
-            hitRadius: 78,
-            damage: 4.5,
+            slowSpeed: 1.6,
+            fastSpeed: 3.4,
+            emergeThreat: 50,
+            patience: 150,
+            strikeRange: 170,
+            surfaceOffset: 240,
+            rearHeight: 150,
+            maxRear: 260,
+            windupFrames: 28,
+            snapFrames: 14,
+            pounceSpeed: 22,
+            leadFactor: 1,
+            leadMaxSpeed: 2.2,
+            pounceDamage: 34,
+            hitRadius: 46,
             wormLength: 42,
             cooldownFrames: 150,
-            bluffChance: 0.55,
-            bluffSpeedScale: 0.62,  // rears ~105px clear of the sand — tall enough to read
-            bluffHoldFrames: 34,
-            comment: 'Worm danger zone (mound + the valley either side of it)',
-            // Centroid (900, 687) — dropped from the old (900, 580) so the
-            // 300px zone hugs the ground it should own (mound peak y:520, both
-            // valley floors ~y:800) while its ceiling lands at y:387. That
-            // ceiling is what keeps the corridor honest: crossing over the
-            // mound at the lane's ~300 leaves you 387px from the centroid, i.e.
-            // outside, so a corridor run never summons the worm. Dip toward the
-            // sand and you are in its house.
+            comment: 'Worm territory (mound, both valleys, low corridor over the mound)',
+            // Centroid (900, 687); the burrow it surfaces from is clamped to
+            // this triangle's x-span (650..1150 after a 30px margin).
             pts: [
                 {x: 900, y: 420}, {x: 620, y: 820}, {x: 1180, y: 820}
             ]
@@ -217,7 +225,7 @@ registerLevel({
     },
 
     // ── UI ────────────────────────────────────────────────────────────────────
-    hint: "Two ways east. CORRIDOR: cross about 140px above the plateaus and you are in the freight lane — clear air, but the trucks are constant and they slow rather than stop, so watch for brake-lights and the honk. VALLEY: drop under the lane and run the low ground instead. That is the worm's territory; the sonar ring is the zone it can strike into, and hovering over the peak is what summons it. Most of what it does is bluff — it rears out of the sand, sways, and sinks back. The strike that follows a straight, silent surfacing is the one that hurts. Do not climb above the corridor to skip both: the dust ceiling blinds you and grinds the hull.",
+    hint: "Keep moving over the dunes. The worm hunts what dawdles: hover or potter across its ground and the sand starts to stir, then it rears up and watches you. Get close or hang around and it draws back (red ring, dashed line) and pounces at the spot it locked onto — so change course on the tell (a hard climb or dive is surest) and it bites empty air. Parked on a pad you are safe. The freight corridor crosses low over the mound, so slowing for a truck up there is a risk too; climbing above the corridor puts you in the dust ceiling, which blinds you and grinds the hull.",
 
     quests: [
         questPrimary('Deliver 2 cargo to Eastern Base'),

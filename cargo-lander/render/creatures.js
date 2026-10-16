@@ -20,7 +20,10 @@ drawWormLair() {
         const ctx = this.ctx;
         const now = Date.now() / 1000;
         // Stirred-up sand while the worm is out, settling once it withdraws.
-        const agitation = p.sandWorm ? (p.sandWorm.state === 'retracting' ? 0.5 : 1) : 0;
+        // The viper worm's threat meter (physics wormThreat, 0..~100) stirs the
+        // dunes before it rears, so dawdling has a visible cost before a bite.
+        const agitation = p.sandWorm ? (p.sandWorm.state === 'retracting' ? 0.5 : 1)
+            : Math.min(0.8, (p.wormThreat || 0) / 60);
 
         // Cheap deterministic hash -> [0,1)
         const hash = (n) => {
@@ -208,6 +211,30 @@ drawSandWorm() {
         ctx.arc(head.x, head.y, head.r * 5.5, 0, Math.PI * 2);
         ctx.fill();
         ctx.restore();
+
+        // ══ VIPER WIND-UP TELL (L6) ═════════════════════════════════════════
+        // While it draws back to pounce: a tightening red ring on the head and
+        // a faint line to the point it has locked onto. The aim does not move
+        // once the wind-up starts, so the line is an honest promise — get off
+        // it (speed up or turn) and the strike lands on empty air.
+        if (m.viper && m.state === 'windup' && m.aimX !== undefined) {
+            const k = Math.min(1, m.t / Math.max(1, m.windup));
+            ctx.save();
+            ctx.strokeStyle = `rgba(239, 68, 68, ${0.25 + 0.5 * k})`;
+            ctx.lineWidth = 2;
+            ctx.setLineDash([10, 12]);
+            ctx.beginPath();
+            ctx.moveTo(head.x, head.y);
+            ctx.lineTo(m.aimX, m.aimY);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            ctx.lineWidth = 3 + 3 * k;
+            ctx.strokeStyle = `rgba(248, 113, 113, ${0.4 + 0.5 * k})`;
+            ctx.beginPath();
+            ctx.arc(head.x, head.y, head.r * (1.9 - 0.7 * k), 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.restore();
+        }
 
         // ══ PASS 1: BODY LATERAL APPENDAGES ═════════════════════════════════════
         ctx.save();

@@ -49,6 +49,16 @@ drawAltitudeFog() {
         const sBot = toScreenY(botY);   // screen Y of the clear edge
         if (sTop >= h) return;          // entire band sits below the viewport
 
+        // The band is world-anchored, but the camera frames well above the
+        // lander, so flying at plateau height (or diving into a valley) used
+        // to leave the top third of the screen a solid dust wall you were
+        // nowhere near. Show it only as the LANDER approaches: invisible
+        // FOG_APPROACH px below the band's clear edge, full strength at it.
+        const FOG_APPROACH = 220;   // world px
+        const a = Math.max(0, Math.min(1, (botY + FOG_APPROACH - lander.y) / FOG_APPROACH));
+        const presence = a * a * (3 - 2 * a);
+        if (presence <= 0.01) return;
+
         const rgb = cfg.fogBandColor || '198,150,86';
         const maxAlpha = cfg.fogBandOpacity ?? 0.94;
 
@@ -113,6 +123,7 @@ drawAltitudeFog() {
         ctx.save();
         this._screenTransform(ctx);
         ctx.globalCompositeOperation = 'source-over';
+        ctx.globalAlpha = presence;
         ctx.drawImage(this._fogCanvas, 0, 0, w, h);
         ctx.restore();
 

@@ -48,11 +48,12 @@ registerLevel({
     name: "L5: Rush Hour",
     missionTitle: "Neon Downtown — Rush Hour Run",
     description: "Downtown is gridlocked and the sky lanes are worse. Freight traffic streams across the rooftops all night, and the grid runs barely a hundred metres above every pad you need to touch. Standard freight goes up to Skyport 9 on the eastern tower — straight through the lanes. Blue-tagged freight goes down to Undercity Dock on the old canal quay, below the traffic but behind a security beam. Climbing over the grid to skip it will put a patrol cruiser on your tail.",
-    hint: "The lanes sit just above the roofs, so you're in traffic the moment you lift off. Watch for the brake-lights and the honk — trucks slow when you're right in front of them, but they will not stop. Take the high road east to Skyport 9 and time the rooftop flare vent on its western lip. Take blue cargo down into the Gap instead: the long beam over the quay is on a duty cycle, so wait for it to go dark and drop straight in — or slip down the narrow window against the depot tower's east wall and thread the vertical beam sideways. Top up at the Fuel Rig on the depot roof between runs. Don't climb above the grid to cheat the crossing — patrol will scramble.",
+    hint: "The lanes sit just above the roofs, so you're in traffic the moment you lift off. Watch for the brake-lights and the honk — trucks slow when you're right in front of them, but they will not stop. Take the high road east to Skyport 9 and time the rooftop flare vent on its western lip. Take blue cargo down into the Gap instead: the long beam over the quay is on a duty cycle, so wait for it to go dark and drop straight in — or slip down the narrow window against the depot tower's east wall and thread the vertical beam sideways. Top up at the Fuel Rig on the depot roof between runs. Don't climb above the grid to cheat the crossing — patrol will scramble. Fuel isn't free downtown: the Fuel Rig on the depot roof bills $5 a unit, so buy what the next run needs, not a full tank.",
 
     // ── Physics ───────────────────────────────────────────────────────────────
     gravity: 0.13,
     wind: 0.03,               // Street-canyon draft
+    windForce: 6,             // gusts are a real shove now (~210px hands-off drift per cycle)
     windGust: { calm: 7, warn: 2, gust: 5, gustMult: 3 },  // downdrafts funnelling between towers
     weather: 'rain',
     backgroundType: 'city',
@@ -203,10 +204,10 @@ registerLevel({
 
     // ── Mission parameters ────────────────────────────────────────────────────
     padScale: 1.1,
-    targetCargo: 3,
+    targetCargo: 5,           // the depot loads 3 per visit: two runs through the traffic (was 3 — a single trip)
     deposit: 1000,
     fee: 300,
-    timeLimit: 280,
+    timeLimit: 330,
     allowedTypes: ["normal", "blue"],
 
     startX: -260,
@@ -237,7 +238,9 @@ registerLevel({
     deliveryHubs: [
         { x: 1780, width: 110, color: "#38bdf8", type: "normal", name: "Skyport 9",     y: 560  },
         { x: 1230, width: 110, color: "#3b82f6", type: "blue",   name: "Undercity Dock", y: 1200 },
-        { x: 650,  width: 60,  color: "#f59e0b", type: "refuel", name: "Fuel Rig",       y: 700  }
+        // Paid by the unit — a full tank from empty is ~$600 of a $1000 deposit,
+        // so how much you buy (and when) is a real decision on the two-run route.
+        { x: 650,  width: 60,  color: "#f59e0b", type: "refuel", name: "Fuel Rig",       y: 700, pricePerUnit: 5 }
     ],
 
     // ── Palette (Neon Downtown — magenta haze, cyan-lit concrete) ─────────────
@@ -252,8 +255,8 @@ registerLevel({
     },
 
     quests: [
-        questPrimary('Deliver 3 cargo across the downtown grid'),
+        questPrimary('Deliver 5 cargo across the downtown grid'),
         questNoCrash(500),
-        questQuick('Clear the grid in under 3 minutes', 100, 400),
+        questQuick('Clear the grid in under 4 minutes', 90, 400),
     ],
 });

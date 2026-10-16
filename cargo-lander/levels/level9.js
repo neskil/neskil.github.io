@@ -16,11 +16,12 @@
 registerLevel({
     name: "L9: The Cauldron",
     missionTitle: "The Cauldron — Absolute Chaos",
-    description: "Welcome to The Cauldron. A massive sandworm has carved out a massive pit below the main thoroughfare. Acid lakes line the cavern, a gravity well is causing chaos, and ambient traffic is completely out of control. Your mission: recover 3 heavy cargo crates and drop them at the suspended delivery hub above the pit. Good luck.",
+    description: "Welcome to The Cauldron. A massive sandworm has carved out a massive pit below the main thoroughfare. The hub you deliver to hangs right over its pit, and it strikes at anything that hovers there — keep moving, land decisively, and if it rears up and winds back, climb or dive. Acid lakes line the cavern, a gravity well is causing chaos, and ambient traffic is completely out of control. Your mission: recover 3 heavy cargo crates and drop them at the suspended delivery hub above the pit. Good luck.",
 
     // ── Physics ───────────────────────────────────────────────────────────────
     gravity: 0.14,           // Slightly heavier gravity
     wind: -0.06,              // Crosswind blowing left; scales up hard during gusts (see windGust)
+    windForce: 4,             // storm surges peak at ~1.4px/frame of drift — fight them
     windGust: { calm: 4, warn: 1.5, gust: 8, gustMult: 4.5 }, // storm surges — short lulls, long violent gusts
     weather: 'ash',          // Volcanic embers/ash cloud
     weatherParticles: 200,   // Heavy weather
@@ -28,7 +29,7 @@ registerLevel({
     heavyCargo: true,
     ambientTrafficRate: 4,   // Maximum traffic frequency
     terrainType: 'worm-lair',// Enables the giant Sandworm hazard (zone defined by the
-                              // `sandworm`-type hazard polygon below, centered on 800,900 r:300)
+                              // `sandworm`-type hazard polygon below, centred on 800,900, reach 480)
     outOfBounds: true,       // Thick lateral fog on the sides
 
     // ── Mission parameters ────────────────────────────────────────────────────
@@ -48,12 +49,15 @@ registerLevel({
         fog:         'rgba(239,68,68,0.06)',
     },
 
+    hint: "The worm owns the whole hub approach. Come in with speed, brake hard over the pad and land — on the pad you're safe. Hovering to line up is what wakes it: when it rears up and draws back (red ring, dashed line), climb or dive and it bites air. Lift off and leave in one motion.",
+
     // ── Quest Definition ─────────────────────────────────────────────────────
     targetCargo: 3,
     quests: [
         questPrimary("Deliver 3 cargo crates to the Cauldron Hub"),
         questNoCrash(400),
-        questNoCargoLost("Don't drop cargo in the acid", 500)
+        questNoCargoLost("Don't drop cargo in the acid", 500),
+        questSurviveWorm(600),
     ],
 
     // ── Terrain Polygons ──────────────────────────────────────────────────────
@@ -128,21 +132,41 @@ registerLevel({
             startForce: 1.0,
             endForce: 0.2
         },
-        // Worm danger zone — 12-point circle (cx:800, cy:900, r:300) around the
-        // central pit, replacing the old wormPitCX/CY/wormZoneR legacy fields.
+        // The pit worm — a viper (see _updateViperWorm, physics/atmosphere.js).
+        // 2026-10: the old random-surfacing worm's zone (r:300 round 800,900)
+        // topped out at y:600, a hundred px under the hub, so crossing at hub
+        // height and landing never met it: the "chaos" level's headline hazard
+        // was scenery. Now its ground reaches y:420 — the whole hub approach —
+        // and it hunts what hovers: lining up a heavy crate on the hub is
+        // exactly the slow, careful flying it punishes. Parked on the pad you
+        // are safe; it is the hover before and the lift-off after that count.
+        // It lives at the bottom of a floorless pit, so burrowY pins where it
+        // surfaces from and maxRear lets it stretch up to hub height.
+        // Meaner than L6's: wakes faster, waits less, bites a little softer.
         {
             type: 'sandworm',
-            spawnRate: 1.0,
-            trackFrames: 16,
-            steer: 3.5,
-            lungeSpeed: 36,
-            maxSpeed: 52,
-            decay: 0.95,
-            retractSpeed: 16,
-            hitRadius: 95,
-            damage: 8,
-            proximityScale: 2.5,
-            comment: 'Worm danger zone (central pit)',
+            behavior: 'viper',
+            reach: 480,
+            burrowY: 900,
+            color: '200, 100, 20',
+            slowSpeed: 1.6,
+            fastSpeed: 3.4,
+            emergeThreat: 40,
+            patience: 120,
+            strikeRange: 190,
+            surfaceOffset: 230,
+            rearHeight: 200,
+            maxRear: 380,
+            windupFrames: 26,
+            snapFrames: 14,
+            pounceSpeed: 24,
+            leadFactor: 1,
+            leadMaxSpeed: 2.2,
+            pounceDamage: 30,
+            hitRadius: 46,
+            wormLength: 42,
+            cooldownFrames: 130,
+            comment: 'Worm territory (the pit and the whole hub approach)',
             pts: [
                 {x: 1100, y: 900}, {x: 1060, y: 1050}, {x: 950,  y: 1160}, {x: 800, y: 1200},
                 {x: 650,  y: 1160}, {x: 540,  y: 1050}, {x: 500,  y: 900}, {x: 540, y: 750},

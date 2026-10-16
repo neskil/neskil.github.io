@@ -239,7 +239,8 @@
                         // until the creature is out of the sand, then freezes so
                         // the screenshot catches it mid-surface alongside the lair
                         // dressing. &wormBluff=1 forces a threat display instead of
-                        // a committed strike; &wormFrames caps the search.
+                        // a committed strike; &wormFrames caps the search. For the
+                        // viper worm, &wormState=coiled|windup|pounce picks the pose.
                         const l = g.physics.lander;
                         const lv = g.physics.currentLevelConfig;
                         const wx = parseFloat(q.get('wormx') || '900');
@@ -265,12 +266,21 @@
                                 g.physics.updateMonster(lv, 1);
                                 l.x = wx; l.y = wy; l.vx = 0; l.vy = 0;
                                 const w = g.physics.sandWorm;
-                                if (w) {
+                                if (w && w.viper) {
+                                    // Viper worm (L6): stop in the state named by
+                                    // &wormState (coiled | windup | pounce).
+                                    const want = q.get('wormState') || 'coiled';
+                                    if (w.state === want && w.t >= (want === 'windup' ? w.windup * 0.7 : want === 'pounce' ? 3 : 20)) break;
+                                } else if (w) {
                                     peak = Math.min(peak, w.y);
                                     if (w.state === 'holding' || (!w.isBluff && w.lungeTimer > 10)) break;
                                 }
                             }
                             const w = g.physics.sandWorm;
+                            // The viper is a state machine, so the live game loop
+                            // would carry it on past the pose before the capture:
+                            // pin it there.
+                            if (w && w.viper) g.physics.updateMonster = () => {};
                             log.push(`wormWatch @(${wx},${wy}) bluff=${wantBluff} frames=${f}`);
                             log.push(w ? `  state=${w.state} isBluff=${!!w.isBluff} y=${w.y.toFixed(0)} peak=${peak.toFixed(0)}`
                                        : '  NO WORM SURFACED');

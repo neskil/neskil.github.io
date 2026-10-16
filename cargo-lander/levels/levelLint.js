@@ -228,10 +228,12 @@
 
     // ── Mission ─────────────────────────────────────────────────────────────
     const hubTypes = new Set((cfg.deliveryHubs || []).map(h => h.type));
+    // A chute takes every type unless it lists `accepts`.
+    const chuteTakes = t => (cfg.deliveryHubs || []).some(h => h.type === 'chute' && (!h.accepts || h.accepts.includes(t)));
     // setupPhysics() can add hubs in code (L9 does), which a static check
     // can't see — skip the hub-coverage rule for those levels.
     for (const t of typeof cfg.setupPhysics === 'function' ? [] : cfg.allowedTypes || []) {
-      if (!hubTypes.has(t) && !hubTypes.has('chute')) {
+      if (!hubTypes.has(t) && !chuteTakes(t)) {
         const depot = pads[1];
         add('error', 'cargo-no-hub', `"${t}" cargo spawns but no hub (or chute) accepts it`, depot.x + depot.width / 2, depot.y ?? 0);
       }

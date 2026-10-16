@@ -509,6 +509,13 @@ drawDeliveryHubs() {
                     ctx.fillStyle = `rgba(16, 185, 129, ${0.8 * phase})`;
                     ctx.beginPath(); ctx.arc(px, py, 2 + phase * 2, 0, Math.PI * 2); ctx.fill();
                 }
+                // A restricted chute says what it takes, under the funnel.
+                if (hub.accepts && hub.accepts.length) {
+                    ctx.fillStyle = hub.color || '#f59e0b';
+                    ctx.font = '500 9px Outfit, sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(`${hub.accepts.join(' / ').toUpperCase()} ONLY`, hcx, hub.y + hh + 12);
+                }
                 continue;
             }
 
@@ -725,7 +732,10 @@ drawDeliveryHubs() {
             ctx.fillStyle = hub.color;
             ctx.font = '500 9px Outfit, sans-serif';
             ctx.textAlign = 'center';
-            ctx.fillText(hub.type ? hub.type.toUpperCase() : '', hub.x + hub.width / 2, hub.y + hub.height + 11);
+            const typeLabel = hub.type === 'refuel'
+                ? `REFUEL · $${Math.round((hub.pricePerUnit != null ? hub.pricePerUnit : 50 / 15) * 10) / 10}/UNIT`
+                : (hub.type ? hub.type.toUpperCase() : '');
+            ctx.fillText(typeLabel, hub.x + hub.width / 2, hub.y + hub.height + 11);
         }
     }
 

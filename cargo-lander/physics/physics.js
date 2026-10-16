@@ -54,6 +54,11 @@ class CargoPhysics {
         this.gravity = levelConfig.gravity !== undefined ? levelConfig.gravity : 0.028;
         this.wind = levelConfig.wind !== undefined ? levelConfig.wind : 0;
         this.currentWind = this.wind;
+        // How hard the wind pushes the lander. 1 = the original coupling
+        // (wind x 0.02 per frame against 0.995 air drag: a 0.08 "gale" drifted
+        // a hovering ship 21px in 5s — decoration). Windy levels opt into a
+        // real shove; levels that leave it out play exactly as before.
+        this.windForce = levelConfig.windForce !== undefined ? levelConfig.windForce : 1;
         // Gust cycle: alternates calm → warning (meter flash, no extra force yet) →
         // gust (wind scaled up by gustMult) → repeat. Omit `windGust` for a level
         // with constant/no wind (falls back to the old gentle sinusoidal variance).
@@ -97,6 +102,8 @@ class CargoPhysics {
         this.trafficSpawnTimer = 0;
         this.fogDensity = 0;
         this.wormCooldown = 0;
+        this.wormThreat = 0;
+        this.wormHits = 0;   // worm strikes that connected — the survive_worm quest needs 0
         this.segments = levelConfig.segments ? levelConfig.segments.map(s => ({ ...s })) : [];
         this.trafficLanes = null;   // rebuilt lazily off the new terrain (atmosphere.js)
         this._buildMatterWorld();
@@ -242,7 +249,9 @@ class CargoPhysics {
         this.collectionPoint = { x: config.collectionX !== undefined ? config.collectionX : 280, y: config.collectionY !== undefined ? config.collectionY : undefined, width: Math.round(100 * ps), height: 15 };
         this.deliveryHubs = (config.deliveryHubs || []).map(hub => ({
             x: hub.x, y: hub.y !== undefined ? hub.y : undefined, width: Math.round((hub.width || 80) * ps), height: 15,
-            color: hub.color, type: hub.type, name: hub.name || 'Terminal', style: hub.style
+            color: hub.color, type: hub.type, name: hub.name || 'Terminal', style: hub.style,
+            pricePerUnit: hub.pricePerUnit,  // refuel pads: $ per unit of fuel (game.js updateRefuelPad)
+            accepts: hub.accepts             // chutes: cargo types it takes (unset = any)
         }));
 
         if (this.startDepot.y === undefined) {

@@ -167,7 +167,11 @@ const CargoPhysicsEntitiesMixin = {
             lander.angle = 0;
             lander.landed = true;
             lander.currentPad = padType;
-            if (padType === 'refuel' || padType === 'hq' || padType === 'service') {
+            // Free trickle-fill at HQ and service pads only. Refuel pads used to
+            // be on this list too, which topped the tank up at 18/s for free
+            // while updateRefuelPad() billed 15/s on top — so every "paid"
+            // station was effectively free. They are paid-only now.
+            if (padType === 'hq' || padType === 'service') {
                 lander.fuel = Math.min(lander.maxFuel, lander.fuel + 0.3);
             }
             // Leg spring decay while parked
@@ -898,10 +902,12 @@ const CargoPhysicsEntitiesMixin = {
     },
 
     // The chute hub whose vacuum zone this box is in (over the opening, within
-    // 60px of it vertically), or null.
+    // 60px of it vertically), or null. A chute with `accepts` only pulls those
+    // cargo types — the rest ride over it like any other deck.
     _chuteUnder(box) {
         for (const hub of this.deliveryHubs) {
-            if (hub.type === 'chute' && box.x >= hub.x && box.x <= hub.x + hub.width &&
+            if (hub.type === 'chute' && (!hub.accepts || hub.accepts.includes(box.type)) &&
+                box.x >= hub.x && box.x <= hub.x + hub.width &&
                 box.y > hub.y - 60 && box.y < hub.y + 60) return hub;
         }
         return null;
