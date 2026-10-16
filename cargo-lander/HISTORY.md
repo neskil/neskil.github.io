@@ -8,6 +8,17 @@ backlog" section.
 
 ---
 
+## 2026-10-16 — Dust ceiling only shows when you climb (v0.29.1)
+
+Playtest: L6's fog "is too much and shouldn't appear when you go downwards".
+The band is world-anchored and the camera frames ~120px above the lander, so
+at plateau height or lower the top third of the screen was still a 94% dust
+wall. `drawAltitudeFog()` now fades the overlay by the lander's own altitude
+(invisible 220px below the band, full at its clear edge), and L6's opacity
+dropped to 0.75. Hull abrasion is unchanged — it was already altitude-based.
+
+---
+
 ## 2026-10-15 — L7–L10 rework (v0.29.0)
 
 Playtest note: the levels after L6 "aren't very good". Flying each with the

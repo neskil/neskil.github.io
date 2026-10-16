@@ -62,6 +62,8 @@ registerLevel({
 
     // ── Dust storm ceiling ────────────────────────────────────────────────────
     // Strictly an altitude cap, sitting well above everything the mission needs.
+    // It only shows on screen as you climb toward it (render/fog.js fades it by
+    // the lander's altitude) — flying low, the sky stays clear.
     // Clear at y:150, whiteout by y:-180 (render/fog.js). It starts ~280px above
     // the plateaus and ~370 above the mound peak, so flying the valley or the
     // pit never puts dust on screen — you only meet it by deliberately climbing
@@ -69,7 +71,7 @@ registerLevel({
     fogBandBottomY: 150,
     fogBandTopY: -180,
     fogBandColor: '210,150,80',
-    fogBandOpacity: 0.94,
+    fogBandOpacity: 0.75,   // was 0.94: a full whiteout read as too much; it is still murk
     fogBandDamage: 3,
 
     // ── Freight traffic ───────────────────────────────────────────────────────
