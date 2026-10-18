@@ -12,7 +12,7 @@
 // game.js → game/* → render.js + render/* (render.js instantiates window.game).
 
 class CargoGame {
-    static VERSION = '0.30.0';
+    static VERSION = '0.30.1';
 
     constructor() {
         this.canvas = null;
@@ -1536,7 +1536,7 @@ class CargoGame {
                         const _types = _lc ? (_lc.allowedTypes || ['normal']) : ['normal'];
                         _seq.targetType = _types[Math.floor(Math.random() * _types.length)];
                         _seq.targetEmoji = this.physics.getRandomCargoEmoji(_seq.targetType);
-                        _seq.countdownMax = 160;
+                        _seq.countdownMax = 120;
                         _seq.countdown = _seq.countdownMax;
                         _seq.boxDropped = false;
                         
