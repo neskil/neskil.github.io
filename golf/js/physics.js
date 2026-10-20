@@ -108,8 +108,34 @@
             time: time || 0,
             moving: false,
             sunk: false,
-            splash: false
+            splash: false,
+            /* The tunnel mouth the ball is standing in, if any — the one it
+               just came out of, or the one it was struck from. That mouth
+               cannot take it until it has left it; without the latch a ball
+               coming out of one end would be inside that end's catch and go
+               straight back down it. */
+            tunnelLock: null
         };
+    }
+
+    /* ── tunnels ────────────────────────────────────────────────────────
+
+       A tunnel is two mouths, `{ x, y }` and `{ tx, ty }`, and it runs both
+       ways. The ball's centre over a mouth takes it in; it comes out of the
+       other one at the same speed, on the same heading. Nothing about the
+       shot changes but where it is, which is what keeps the rule that
+       nothing may hand the ball energy: a tunnel is a door, not a cannon. */
+    function mouthAt(tunnels, x, y) {
+        if (!tunnels) return null;
+        var r2 = C.TUNNEL_R * C.TUNNEL_R;
+        for (var i = 0; i < tunnels.length; i++) {
+            var t = tunnels[i];
+            var ax = x - t.x, ay = y - t.y;
+            if (ax * ax + ay * ay <= r2) return { x: t.x, y: t.y, ox: t.tx, oy: t.ty };
+            var bx = x - t.tx, by = y - t.ty;
+            if (bx * bx + by * by <= r2) return { x: t.tx, y: t.ty, ox: t.x, oy: t.y };
+        }
+        return null;
     }
 
     /* ── the overswing ──────────────────────────────────────────────────
@@ -145,6 +171,9 @@
         if (p < C.MIN_POWER) return false;
         world.origin.x = world.ball.x;
         world.origin.y = world.ball.y;
+        // A ball struck from inside a mouth is leaving it, not entering it.
+        var m = mouthAt(world.course.tunnels, world.ball.x, world.ball.y);
+        world.tunnelLock = m ? { x: m.x, y: m.y } : null;
         world.ball.vx = Math.cos(angle) * p;
         world.ball.vy = Math.sin(angle) * p;
         world.moving = true;
@@ -238,6 +267,24 @@
         if (b.y < C.BALL_R) { b.y = C.BALL_R; b.vy = Math.abs(b.vy) * C.RESTITUTION; events.bounce = true; }
         if (b.y > C.WORLD_H - C.BALL_R) { b.y = C.WORLD_H - C.BALL_R; b.vy = -Math.abs(b.vy) * C.RESTITUTION; events.bounce = true; }
 
+        // Tunnels. Only a ball that is going somewhere can fall into one: a
+        // ball put back at the spot it was played from after a splash may be
+        // sitting in a mouth, and the next launch latches that mouth.
+        var tunnels = course.tunnels || EMPTY;
+        if (tunnels.length && (b.vx || b.vy)) {
+            var lock = world.tunnelLock;
+            if (lock && Math.hypot(b.x - lock.x, b.y - lock.y) > C.TUNNEL_R) {
+                world.tunnelLock = lock = null;
+            }
+            var m = mouthAt(tunnels, b.x, b.y);
+            if (m && !(lock && lock.x === m.x && lock.y === m.y)) {
+                b.x = m.ox;
+                b.y = m.oy;
+                world.tunnelLock = { x: m.ox, y: m.oy };
+                events.tunnel = { x: m.x, y: m.y, tx: m.ox, ty: m.oy };
+            }
+        }
+
         // The cup. Inside the rim the ball is pulled toward the center, which
         // is what makes a slow ball on a bad line still drop and a fast one
         // curl around the lip and come out the far side.
@@ -329,6 +376,7 @@
         wallVelocity: wallVelocity,
         pointInRect: pointInRect,
         zoneAt: zoneAt,
+        mouthAt: mouthAt,
         circleRect: circleRect,
         circleCircle: circleCircle,
         spread: spread,

@@ -31,13 +31,15 @@
         { key: 'ice',     label: 'Ice',    round: false, color: '#bfe4f2' },
         { key: 'sand',    label: 'Sand',   round: false, color: '#e3ca92' },
         { key: 'water',   label: 'Water',  round: false, color: '#1b6d9e' },
+        // Two mouths rather than one shape: each end is grabbed on its own.
+        { key: 'tunnels', label: 'Tunnel', round: false, pair: true, color: '#a78bfa' },
         { key: 'walls',   label: 'Wall',   round: false, color: '#6d4a2e' },
         { key: 'bumpers', label: 'Post',   round: true,  color: '#f59e0b' }
     ];
     var KIND_KEYS = KINDS.map(function (k) { return k.key; });
     // The order courses.js lists them in, which is not the order they are
     // painted in. The export follows the file; the sidebar follows the paint.
-    var EXPORT_ORDER = ['walls', 'water', 'sand', 'rough', 'ice', 'bumpers', 'slopes'];
+    var EXPORT_ORDER = ['walls', 'water', 'sand', 'rough', 'ice', 'bumpers', 'slopes', 'tunnels'];
     function kindOf(key) {
         for (var i = 0; i < KINDS.length; i++) if (KINDS[i].key === key) return KINDS[i];
         return null;
@@ -94,7 +96,7 @@
             par: 3,
             tee: { x: 140, y: 320 },
             hole: { x: 820, y: 320 },
-            walls: [], water: [], sand: [], rough: [], ice: [], bumpers: [], slopes: []
+            walls: [], water: [], sand: [], rough: [], ice: [], bumpers: [], slopes: [], tunnels: []
         };
     }
 
@@ -118,6 +120,7 @@
 
     function cloneShape(kind, s) {
         if (kind === 'bumpers') return { x: num(s.x, 0), y: num(s.y, 0), r: num(s.r, C.BUMPER_MIN_R) };
+        if (kind === 'tunnels') return { x: num(s.x, 0), y: num(s.y, 0), tx: num(s.tx, 0), ty: num(s.ty, 0) };
         var o = { x: num(s.x, 0), y: num(s.y, 0), w: num(s.w, MIN_SIDE), h: num(s.h, MIN_SIDE) };
         if (kind === 'slopes') { o.ax = num(s.ax, 0); o.ay = num(s.ay, 120); }
         if (kind === 'walls' && s.move) {
@@ -353,6 +356,18 @@
             ctx.arc(s.x, s.y, s.r + 3, 0, Math.PI * 2);
             ctx.stroke();
             grip(s.x + s.r, s.y);
+        } else if (S.sel.kind === 'tunnels') {
+            // Both mouths ringed; the one in hand ringed twice.
+            [['a', s.x, s.y], ['b', s.tx, s.ty]].forEach(function (m) {
+                ctx.beginPath();
+                ctx.arc(m[1], m[2], C.TUNNEL_R + 8, 0, Math.PI * 2);
+                ctx.stroke();
+                if (S.sel.end === m[0]) {
+                    ctx.beginPath();
+                    ctx.arc(m[1], m[2], C.TUNNEL_R + 13, 0, Math.PI * 2);
+                    ctx.stroke();
+                }
+            });
         } else {
             ctx.strokeRect(s.x, s.y, s.w, s.h);
             rectHandles(s).forEach(function (h) { grip(h.x, h.y); });
@@ -382,6 +397,16 @@
             ctx.beginPath();
             ctx.arc(drag.preview.x, drag.preview.y, drag.preview.r, 0, Math.PI * 2);
             ctx.fill(); ctx.stroke();
+        } else if (k.pair) {
+            ctx.beginPath();
+            ctx.moveTo(drag.preview.x, drag.preview.y);
+            ctx.lineTo(drag.preview.tx, drag.preview.ty);
+            ctx.stroke();
+            [[drag.preview.x, drag.preview.y], [drag.preview.tx, drag.preview.ty]].forEach(function (m) {
+                ctx.beginPath();
+                ctx.arc(m[0], m[1], C.TUNNEL_R, 0, Math.PI * 2);
+                ctx.fill(); ctx.stroke();
+            });
         } else {
             ctx.fillRect(drag.preview.x, drag.preview.y, drag.preview.w, drag.preview.h);
             ctx.strokeRect(drag.preview.x, drag.preview.y, drag.preview.w, drag.preview.h);
@@ -396,6 +421,7 @@
         var s = selShape();
         if (!s) return null;
         var tol = (HANDLE + 3) / view.scale;
+        if (S.sel.kind === 'tunnels') return null;   // a mouth is moved, not resized
         if (S.sel.kind === 'bumpers') {
             if (Math.abs(wx - (s.x + s.r)) <= tol && Math.abs(wy - s.y) <= tol) return { id: 'r' };
             return null;
@@ -421,7 +447,11 @@
             var kind = KINDS[i], l = list(kind.key);
             for (var j = l.length - 1; j >= 0; j--) {
                 var s = l[j];
-                if (kind.round) {
+                if (kind.pair) {
+                    var reach = C.TUNNEL_R + 5;
+                    if (Math.hypot(wx - s.x, wy - s.y) <= reach) return { kind: kind.key, idx: j, end: 'a' };
+                    if (Math.hypot(wx - s.tx, wy - s.ty) <= reach) return { kind: kind.key, idx: j, end: 'b' };
+                } else if (kind.round) {
                     if (Math.hypot(wx - s.x, wy - s.y) <= s.r) return { kind: kind.key, idx: j };
                 } else if (rectHit(s, wx, wy)) {
                     return { kind: kind.key, idx: j };
@@ -494,7 +524,8 @@
         if (hit) {
             S.sel = hit;
             var sh = list(hit.kind)[hit.idx];
-            drag = { type: 'move', dx: sh.x - p.wx, dy: sh.y - p.wy };
+            var bx = hit.end === 'b' ? sh.tx : sh.x, by = hit.end === 'b' ? sh.ty : sh.y;
+            drag = { type: 'move', dx: bx - p.wx, dy: by - p.wy };
             refreshSidebar();
         } else {
             S.sel = null;
@@ -522,6 +553,9 @@
             if (k.round) {
                 var rad = Math.max(C.BUMPER_MIN_R, Math.round(Math.hypot(p.wx - drag.x0, p.wy - drag.y0)));
                 drag.preview = { x: drag.x0, y: drag.y0, r: drag.moved ? rad : C.BUMPER_MIN_R + 10 };
+            } else if (k.pair) {
+                // From the mouth you pressed to the one you let go on.
+                drag.preview = { x: drag.x0, y: drag.y0, tx: clampX(snapVal(p.wx, e)), ty: clampY(snapVal(p.wy, e)) };
             } else {
                 drag.preview = fixRect({
                     x: drag.x0, y: drag.y0,
@@ -546,7 +580,10 @@
         var s = selShape();
         if (!s) return;
 
-        if (drag.type === 'move') {
+        if (drag.type === 'move' && S.sel.kind === 'tunnels') {
+            var mx = clampX(snapVal(p.wx + drag.dx, e)), my = clampY(snapVal(p.wy + drag.dy, e));
+            if (S.sel.end === 'b') { s.tx = mx; s.ty = my; } else { s.x = mx; s.y = my; }
+        } else if (drag.type === 'move') {
             s.x = snapVal(p.wx + drag.dx, e);
             s.y = snapVal(p.wy + drag.dy, e);
         } else if (drag.type === 'radius') {
@@ -580,6 +617,11 @@
         var shape;
         if (k.round) {
             shape = { x: d.x0, y: d.y0, r: d.preview ? d.preview.r : C.BUMPER_MIN_R + 10 };
+        } else if (k.pair) {
+            // A click with no drag puts the far mouth a sensible walk away.
+            shape = d.moved && d.preview
+                ? { x: d.x0, y: d.y0, tx: d.preview.tx, ty: d.preview.ty }
+                : { x: d.x0, y: d.y0, tx: clampX(d.x0 + (d.x0 < C.WORLD_W / 2 ? 300 : -300)), ty: d.y0 };
         } else if (d.moved && d.preview) {
             shape = { x: d.preview.x, y: d.preview.y, w: Math.max(MIN_SIDE, d.preview.w), h: Math.max(MIN_SIDE, d.preview.h) };
         } else {
@@ -732,6 +774,9 @@
 
     function shapeSummary(kind, s) {
         if (kind === 'bumpers') return 'r ' + Math.round(s.r) + ' @ ' + Math.round(s.x) + ',' + Math.round(s.y);
+        if (kind === 'tunnels') {
+            return Math.round(s.x) + ',' + Math.round(s.y) + ' ⇄ ' + Math.round(s.tx) + ',' + Math.round(s.ty);
+        }
         var base = Math.round(s.w) + '×' + Math.round(s.h) + ' @ ' + Math.round(s.x) + ',' + Math.round(s.y);
         if (kind === 'slopes') base += '  ↘ ' + Math.round(s.ax) + ',' + Math.round(s.ay);
         if (kind === 'walls' && s.move) base += '  ↔ ' + s.move.axis + ' ' + Math.round(s.move.amp);
@@ -758,7 +803,7 @@
             l.forEach(function (s, i) {
                 var on = S.sel && S.sel.kind === k.key && S.sel.idx === i;
                 html += '<div class="sitem' + (on ? ' active' : '') + '" data-kind="' + k.key + '" data-idx="' + i + '">' +
-                    '<i class="swatch' + (k.round ? ' round' : '') + '" style="background:' + k.color + '"></i>' +
+                    '<i class="swatch' + (k.round || k.pair ? ' round' : '') + '" style="background:' + k.color + '"></i>' +
                     '<span class="sname">' + k.label + ' ' + (i + 1) +
                     (k.key === 'walls' && s.move ? ' <span class="smeta">(moves)</span>' : '') + '</span>' +
                     '<span class="smeta">' + esc(shapeSummary(k.key, s)) + '</span>' +
@@ -825,6 +870,12 @@
         if (S.sel.kind === 'bumpers') {
             html += numRow('x', 'x', s.x) + numRow('y', 'y', s.y) +
                 numRow('radius', 'r', s.r, 1, 'Below ' + C.BUMPER_MIN_R + 'px the substep cap cannot stop a ball tunnelling through');
+        } else if (S.sel.kind === 'tunnels') {
+            html += numRow('mouth x', 'x', s.x) + numRow('mouth y', 'y', s.y) +
+                numRow('far x', 'tx', s.tx) + numRow('far y', 'ty', s.ty) +
+                '<div class="hint" style="margin-top:6px">It runs both ways and keeps the shot: whatever speed and ' +
+                'heading the ball goes down one mouth with, it comes up the other with. Keep each mouth clear of ' +
+                'walls, posts, water, slopes, the tee and the cup.</div>';
         } else {
             html += numRow('x', 'x', s.x) + numRow('y', 'y', s.y) +
                 numRow('width', 'w', s.w, 1, 'Nothing thinner than ' + MIN_SIDE + 'px') +
@@ -931,6 +982,7 @@
         snapshot();
         var copy = JSON.parse(JSON.stringify(s));
         copy.x += 30; copy.y += 30;
+        if (S.sel.kind === 'tunnels') { copy.tx += 30; copy.ty += 30; }
         list(S.sel.kind).push(copy);
         S.sel = { kind: S.sel.kind, idx: list(S.sel.kind).length - 1 };
         refreshAll();
@@ -1037,6 +1089,50 @@
         });
         ok(sealed.length === 0, 'moving gates always leave a way past',
             sealed.length + ' seal the field shut at some phase');
+
+        /* Tunnels — generator.js → validateHole, ported. A mouth needs a
+           ball's width and a half of clear grass round it over the whole of
+           any gate's travel, must not sit on a slope (a ball the hill held
+           over it would go down without being played), and must keep off the
+           tee, well off the cup, and off every other mouth. */
+        if (h.tunnels.length) {
+            var TR = C.TUNNEL_R, edge = C.BALL_R + 1, mouths = [];
+            h.tunnels.forEach(function (t) { mouths.push({ x: t.x, y: t.y }, { x: t.tx, y: t.ty }); });
+            var short = h.tunnels.filter(function (t) { return Math.hypot(t.tx - t.x, t.ty - t.y) < TR * 6; });
+            ok(short.length === 0, 'every tunnel goes somewhere', short.length + ' with its two mouths too close together');
+            ok(mouths.every(function (m) {
+                return m.x - TR > edge && m.x + TR < C.WORLD_W - edge && m.y - TR > edge && m.y + TR < C.WORLD_H - edge;
+            }), 'every tunnel mouth is on the field', 'a mouth runs over the cushion');
+            var crowded = mouths.filter(function (m) {
+                return h.walls.some(function (w) {
+                    var a = w.move ? Math.abs(w.move.amp) : 0;
+                    var env = !w.move ? w : w.move.axis === 'y'
+                        ? { x: w.x, y: w.y - a, w: w.w, h: w.h + a * 2 }
+                        : { x: w.x - a, y: w.y, w: w.w + a * 2, h: w.h };
+                    return P.circleRect(m.x, m.y, TR + C.BALL_R, env) !== null;
+                }) || h.bumpers.some(function (b) {
+                    return P.circleCircle(m.x, m.y, TR + C.BALL_R, b) !== null;
+                }) || h.water.some(function (r) {
+                    return P.circleRect(m.x, m.y, TR + C.BALL_R, r) !== null;
+                });
+            });
+            ok(crowded.length === 0, 'tunnel mouths are clear of walls, posts and water',
+                crowded.length + ' mouth(s) crowded — a gate\'s whole travel counts');
+            ok(!mouths.some(function (m) {
+                return h.slopes.some(function (r) { return P.circleRect(m.x, m.y, TR, r) !== null; });
+            }), 'no tunnel mouth sits on a slope', 'a ball the slope holds over a mouth goes down it unplayed');
+            ok(!mouths.some(function (m) {
+                return Math.hypot(m.x - h.tee.x, m.y - h.tee.y) < TR + C.BALL_R + 12 ||
+                       Math.hypot(m.x - h.hole.x, m.y - h.hole.y) < TR + C.HOLE_R + 40;
+            }), 'tunnel mouths keep off the tee and the cup', 'move the mouth further away');
+            var touching = 0;
+            mouths.forEach(function (m, mi) {
+                mouths.forEach(function (o, oi) {
+                    if (oi > mi && Math.hypot(m.x - o.x, m.y - o.y) < TR * 2 + C.BALL_R * 2) touching++;
+                });
+            });
+            ok(touching === 0, 'no two tunnel mouths overlap', touching + ' pair(s) too close');
+        }
 
         /* A ball at rest on a slope is not at rest — the stop check skips
            slope zones, so a ball pinned at the foot of one against a wall or
@@ -1202,6 +1298,7 @@
 
     function shapeSource(kind, s) {
         if (kind === 'bumpers') return 'post(' + n(s.x) + ', ' + n(s.y) + ', ' + n(s.r) + ')';
+        if (kind === 'tunnels') return 'tunnel(' + n(s.x) + ', ' + n(s.y) + ', ' + n(s.tx) + ', ' + n(s.ty) + ')';
         if (kind === 'slopes') {
             return '{ x: ' + n(s.x) + ', y: ' + n(s.y) + ', w: ' + n(s.w) + ', h: ' + n(s.h) +
                 ', ax: ' + n(s.ax) + ', ay: ' + n(s.ay) + ' }';
@@ -1275,8 +1372,9 @@
         if (text.charAt(0) !== '{') text = '{' + text + '}';
         var r = function (x, y, w, h) { return { x: x, y: y, w: w, h: h }; };
         var post = function (x, y, rad) { return { x: x, y: y, r: rad }; };
-        var fn = new Function('r', 'post', 'return (' + text + ');');
-        var obj = fn(r, post);
+        var tunnel = function (x, y, tx, ty) { return { x: x, y: y, tx: tx, ty: ty }; };
+        var fn = new Function('r', 'post', 'tunnel', 'return (' + text + ');');
+        var obj = fn(r, post, tunnel);
         if (!obj || typeof obj !== 'object') throw new Error('that is not a hole');
         return normalize(obj);
     }
@@ -1530,7 +1628,7 @@
 
     var TOOL_KEYS = {
         '1': 'walls', '2': 'water', '3': 'sand', '4': 'rough',
-        '5': 'ice', '6': 'bumpers', '7': 'slopes', '8': 'tee', '9': 'hole'
+        '5': 'ice', '6': 'bumpers', '7': 'slopes', '8': 'tee', '9': 'hole', '0': 'tunnels'
     };
 
     window.addEventListener('keydown', function (e) {
@@ -1702,6 +1800,12 @@
         bad3.walls.push({ x: 400, y: 0, w: 26, h: C.WORLD_H, move: { axis: 'y', amp: 10, speed: 1, phase: 0 } });
         check('a gate that seals the field is caught', runChecks(bad3).some(function (c) {
             return c.level === 'fail' && /way past/.test(c.label);
+        }));
+
+        var bad4 = normalize(GOLF.COURSE[0]);
+        bad4.tunnels.push({ x: bad4.hole.x + 20, y: bad4.hole.y, tx: 300, ty: 120 });
+        check('a tunnel mouth on the cup is caught', runChecks(bad4).some(function (c) {
+            return c.level === 'fail' && /tee and the cup/.test(c.label);
         }));
 
         // Undo has to restore the shape that was there, not merely a shape.

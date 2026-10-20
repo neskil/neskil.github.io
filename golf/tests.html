@@ -27,6 +27,7 @@
     <script src="js/physics.js"></script>
     <script src="js/generator.js"></script>
     <script src="js/scoring.js"></script>
+    <script src="js/progress.js"></script>
 
     <script>
     (function () {
@@ -503,6 +504,86 @@
             assert('no shot tunnels through a 20px wall', through === 0, through + ' of 120 got through');
         })();
 
+        /* ── tunnels ────────────────────────────────────────────────────── */
+        section('Tunnels');
+
+        /* A tunnel keeps the shot and changes the place. Everything below is
+           a consequence of that sentence or a guard on it: same speed, same
+           heading, both ways, no energy, no second trip down the mouth you
+           came out of, and no trip at all for a ball that was not played. */
+        (function () {
+            var field = {
+                tee: { x: 100, y: 320 }, hole: { x: 880, y: 560 },
+                walls: [r(460, 0, 40, 640)], water: [], sand: [], rough: [], ice: [], bumpers: [], slopes: [],
+                tunnels: [{ x: 300, y: 320, tx: 660, ty: 200 }]
+            };
+            function r(x, y, w, h) { return { x: x, y: y, w: w, h: h }; }
+
+            var w = P.createWorld(field, { x: 160, y: 320 }, 0);
+            P.launch(w, 0, 500);
+            var seen = null, speedIn = 0, speedOut = 0;
+            for (var i = 0; i < 400 && w.moving; i++) {
+                var before = P.speedOf(w.ball);
+                var ev = P.advance(w, 1 / 120);
+                if (ev.tunnel && !seen) {
+                    seen = ev.tunnel;
+                    speedIn = before;
+                    speedOut = P.speedOf(w.ball);
+                    assert('it comes out of the other mouth', approx(w.ball.x, 660, 8) && approx(w.ball.y, 200, 8),
+                        w.ball.x.toFixed(1) + ',' + w.ball.y.toFixed(1));
+                    assert('on the heading it went in on', approx(Math.atan2(w.ball.vy, w.ball.vx), 0, 1e-9));
+                }
+            }
+            assert('a ball rolled into a mouth goes down it', !!seen);
+            assert('and keeps its speed — no more, give or take a substep of grass',
+                speedOut <= speedIn && speedOut > speedIn * 0.97, speedIn.toFixed(1) + ' → ' + speedOut.toFixed(1));
+            assert('it does not go straight back down the mouth it came out of', w.ball.x > 660 || !w.moving);
+
+            // Both ways.
+            var back = P.createWorld(field, { x: 760, y: 200 }, 0);
+            P.launch(back, Math.PI, 400);
+            var went = false;
+            for (var j = 0; j < 400 && back.moving; j++) { if (P.advance(back, 1 / 120).tunnel) went = true; }
+            assert('a tunnel runs both ways', went && back.ball.x < 460);
+
+            // Struck from inside a mouth: leaving it, not entering it.
+            var sat = P.createWorld(field, { x: 300, y: 320 }, 0);
+            P.launch(sat, Math.PI / 2, 300);
+            var tripped = false;
+            for (var k = 0; k < 60; k++) { if (P.advance(sat, 1 / 120).tunnel) tripped = true; }
+            assert('a ball struck from inside a mouth leaves it', !tripped && sat.ball.y > 340);
+
+            // At rest in a mouth (a splash puts it back there) it stays put.
+            var still = P.createWorld(field, { x: 300, y: 320 }, 0);
+            for (var q = 0; q < 60; q++) P.advance(still, 1 / 120);
+            assert('a ball at rest in a mouth is not taken down it unplayed',
+                still.ball.x === 300 && still.ball.y === 320);
+
+            // Frame rate does not change the outcome, tunnel or no tunnel.
+            function settleAt(dt) {
+                var s = P.createWorld(field, { x: 160, y: 320 }, 0);
+                P.launch(s, 0, 500);
+                for (var n = 0; n < 20 / dt && s.moving; n++) P.advance(s, dt);
+                return s.ball;
+            }
+            var a30 = settleAt(1 / 30), a120 = settleAt(1 / 120);
+            assert('30Hz and 120Hz agree about where a tunnelled shot stops',
+                Math.hypot(a30.x - a120.x, a30.y - a120.y) < 1.5,
+                Math.hypot(a30.x - a120.x, a30.y - a120.y).toFixed(2) + 'px apart');
+
+            // The rule book knows them.
+            function bad(t) {
+                var h = JSON.parse(JSON.stringify(field));
+                h.par = 3; h.tunnels = [t];
+                return GOLF.validateHole(h);
+            }
+            assert('a well-placed tunnel passes the rule book', bad(field.tunnels[0]).length === 0, bad(field.tunnels[0]).join('; '));
+            assert('a mouth on the cup is caught', bad({ x: 300, y: 320, tx: 870, ty: 560 }).some(function (b) { return /cup/.test(b); }));
+            assert('a mouth against a wall is caught', bad({ x: 300, y: 320, tx: 515, ty: 200 }).some(function (b) { return /crowded/.test(b); }));
+            assert('a tunnel that goes nowhere is caught', bad({ x: 300, y: 320, tx: 330, ty: 330 }).some(function (b) { return /short/.test(b); }));
+            assert('a mouth over the cushion is caught', bad({ x: 300, y: 320, tx: 950, ty: 200 }).some(function (b) { return /off the field/.test(b); }));
+        })();
+
         /* ── course data ────────────────────────────────────────────────── */
         section('Course data');
 
@@ -537,7 +618,7 @@
                deliberate one made here as well as in courses.js. Pinned by
                id rather than by rack position, because the order of the rack
                is a matter of taste and the length of a card is not. */
-            var counts = { links: 18, short: 6, wild: 9, tide: 9 };
+            var counts = { links: 18, short: 6, wild: 9, tide: 9, warren: 9 };
             Object.keys(counts).forEach(function (id) {
                 var c = byId(id);
                 assert(id + ' is on the rack', !!c);
@@ -567,7 +648,7 @@
             // The normaliser exists so nothing downstream has to guard; if it
             // ever stops running, everything else fails in confusing ways.
             var lists = course.holes.every(function (h) {
-                return ['walls', 'water', 'sand', 'rough', 'ice', 'bumpers', 'slopes'].every(function (k) {
+                return ['walls', 'water', 'sand', 'rough', 'ice', 'bumpers', 'slopes', 'tunnels'].every(function (k) {
                     return Array.isArray(h[k]);
                 });
             });
@@ -589,6 +670,25 @@
                 assert(course.id + ': the course uses ' + k + ' somewhere',
                     course.holes.some(function (h) { return h[k].length > 0; }));
             });
+        });
+
+        /* The Warren is the card with a word nobody else has, so the word has
+           to be on every hole of it — a tunnel course with a hole that has no
+           tunnel is a hole from some other card. */
+        (function () {
+            var warren = byId('warren');
+            assert('warren: every hole has a tunnel', warren && warren.holes.every(function (h) { return h.tunnels.length > 0; }));
+            assert('warren: is the last thing the stars open',
+                warren && GOLF.COURSES.every(function (c) { return (c.unlock || 0) <= warren.unlock; }));
+        })();
+
+        GOLF.COURSES.forEach(function (course) {
+            var tunnels = course.holes.reduce(function (n, h) { return n + h.tunnels.length; }, 0);
+            if (!tunnels) return;
+            // Each pair wears its own colour on the board; past the palette
+            // two would match and the matching is the whole of the reading.
+            assert(course.id + ': no hole has more tunnels than there are tunnel colours',
+                course.holes.every(function (h) { return h.tunnels.length <= C.TUNNEL_COLORS.length; }));
         });
 
         everyHole(function (h, i, course) {
@@ -680,7 +780,10 @@
             assert('level is par', S.term(3, 3).label === 'Par');
             assert('one over is a bogey', S.term(4, 3).label === 'Bogey');
             assert('three over is a triple bogey', S.term(6, 3).label === 'Triple Bogey');
-            assert('past triple bogey it just prints the number', S.term(8, 3).label === '+5');
+            // Past the allowance a ball never dropped: the card can only
+            // be holding a pick-up, so that is what it is called.
+            assert('one past the allowance is a pick-up', S.term(S.pickupScore(3), 3).label === 'Picked up');
+            assert('the last stroke of the allowance still counts as holed', S.term(S.strokeLimit(3), 3).label === 'Triple Bogey');
             assert('three under is an albatross', S.term(2, 5).label === 'Albatross');
 
             assert('level par formats as E', S.formatVsPar(0) === 'E');
@@ -740,6 +843,54 @@
             var bad = S.load.call(null);
             assert('load always returns a usable save object',
                 bad && typeof bad === 'object' && 'best' in bad);
+        })();
+
+        /* The pick-up and the stars. A hole allows par + STROKE_ALLOWANCE;
+           missing with the last of them scores one more, which is the only
+           way a card can hold a number above the limit — so the stars can
+           tell a pick-up from a hole-out without being told. */
+        (function () {
+            assert('a hole allows par plus the allowance', S.strokeLimit(3) === 3 + C.STROKE_ALLOWANCE);
+            assert('a pick-up scores one more than the limit', S.pickupScore(2) === S.strokeLimit(2) + 1);
+            assert('under par is three stars', S.stars(2, 3) === 3 && S.stars(1, 2) === 3);
+            assert('par is two', S.stars(3, 3) === 2);
+            assert('anything holed over par is one', S.stars(4, 3) === 1 && S.stars(S.strokeLimit(3), 3) === 1);
+            assert('a pick-up is none', S.stars(S.pickupScore(3), 3) === 0);
+            assert('a hole not played is none', S.stars(null, 3) === 0 && S.stars(undefined, 3) === 0);
+
+            var save = S.emptySave();
+            var a = S.recordHole(save, 2, 4);
+            assert('a first score on a hole is a best', a.improved && a.before === null && a.save.holes[2] === 4);
+            assert('recording a hole hands back a new save', save.holes.length === 0);
+            assert('the holes before it are filled with nothing, not with gaps',
+                a.save.holes[0] === null && a.save.holes[1] === null);
+            var b = S.recordHole(a.save, 2, 5);
+            assert('a worse score does not take a hole\'s best', !b.improved && b.save.holes[2] === 4 && b.before === 4);
+            var c = S.recordHole(b.save, 2, 3);
+            assert('a better one does', c.improved && c.save.holes[2] === 3);
+            assert('a hole best leaves the round record alone', c.save.best === null && c.save.rounds === 0);
+
+            var course = GOLF.COURSE;
+            var card = course.map(function (h) { return h.par; });
+            var st = S.courseStars({ holes: card }, course);
+            assert('par everywhere is two stars a hole', st.got === course.length * 2 && st.max === course.length * 3);
+            assert('an empty save has no stars', S.courseStars(S.emptySave(), course).got === 0);
+            var rec = S.recordRound(c.save, card, course);
+            assert('folding in a round keeps the per-hole bests', rec.save.holes[2] === 3);
+
+            /* A save from before there were per-hole bests: its best card is
+               the one round it knows hole by hole, and the stars start there
+               rather than at nothing. */
+            var raw = localStorage.getItem(C.SAVE_KEY);
+            localStorage.setItem(C.SAVE_KEY, JSON.stringify({ best: 40, bestVsPar: -3, rounds: 2, aces: 0, bestCard: card }));
+            var old = S.load();
+            assert('an old save\'s best card becomes its per-hole bests',
+                old.holes.length === course.length && old.holes[0] === card[0]);
+            localStorage.setItem(C.SAVE_KEY, JSON.stringify({ best: 40, holes: [2, 'x', -1] }));
+            var dirty = S.load();
+            assert('stored per-hole bests are cleaned, not trusted',
+                dirty.holes[0] === 2 && dirty.holes[1] === null && dirty.holes[2] === null);
+            if (raw === null) localStorage.removeItem(C.SAVE_KEY); else localStorage.setItem(C.SAVE_KEY, raw);
         })();
 
         /* One card per course. Nine holes and eighteen are not comparable
@@ -809,6 +960,111 @@
 
             S.clearRound();
             assert('clearing a round removes it', S.loadRound(course) === null);
+        })();
+
+        /* ── progression ────────────────────────────────────────────────── */
+        section('Progression');
+
+        /* Stars open courses, nothing a player had is taken away, and a link
+           is a key. Every assertion here rewrites storage, so all of it is
+           put back afterwards — opening the suite must not cost anybody
+           their stars. */
+        (function () {
+            var PR = GOLF.progress;
+            var kept = {};
+            for (var i = localStorage.length - 1; i >= 0; i--) {
+                var k = localStorage.key(i);
+                if (/^miniGolf\./.test(k)) { kept[k] = localStorage.getItem(k); localStorage.removeItem(k); }
+            }
+            function byIdP(id) { return GOLF.COURSES.filter(function (c) { return c.id === id; })[0]; }
+            function starsOnShort(n) {
+                // n stars' worth of par-or-better on the Short Six, two at a time.
+                var short = byIdP('short');
+                var card = short.holes.map(function (h, j) { return j < Math.ceil(n / 2) ? h.par : null; });
+                localStorage.setItem(S.key(C.SAVE_KEY, 'short'), JSON.stringify({ best: null, holes: card }));
+            }
+
+            try {
+                PR.reload();
+                assert('a first visit is not a veteran', !PR.get().veteran && !PR.get().all);
+                assert('a first visit is pointed at the starter course', PR.starter().id === 'short');
+                assert('the head of the rack and the starter are open from the start',
+                    PR.isOpen(GOLF.COURSES[0]) && PR.isOpen(byIdP('short')));
+                assert('the rest wait for stars', ['tide', 'wild', 'warren'].every(function (id) {
+                    return !PR.isOpen(byIdP(id));
+                }));
+                assert('the first visit is written down, so the second is not mistaken for it',
+                    localStorage.getItem(C.PROGRESS_KEY) !== null);
+
+                // Thresholds read in rack order, so the picker reads as a ladder.
+                var needs = GOLF.COURSES.map(function (c) { return PR.need(c); });
+                assert('unlock thresholds never fall going down the rack',
+                    needs.every(function (n, j) { return j === 0 || n >= needs[j - 1]; }), needs.join(', '));
+                var all = PR.totalStars();
+                assert('every threshold can actually be reached',
+                    needs.every(function (n) { return n <= all.max; }), 'max ' + all.max);
+                assert('the stars on offer are three a hole on every recorded card',
+                    all.max === GOLF.COURSES.reduce(function (t, c) { return t + (c.record === false ? 0 : c.holes.length * 3); }, 0));
+
+                var next = PR.nextUnlock();
+                assert('the next unlock is the cheapest locked card', next && next.course.id === 'tide' && next.short === PR.need(next.course));
+
+                var before = PR.openIds();
+                starsOnShort(PR.need(byIdP('tide')));
+                assert('stars read straight off the per-hole bests', PR.totalStars().got >= PR.need(byIdP('tide')));
+                var fresh = PR.opened(before);
+                assert('reaching a threshold opens that course, and says so',
+                    fresh.length === 1 && fresh[0].id === 'tide' && PR.isOpen(byIdP('tide')));
+                assert('a course the stars opened is granted for good', PR.get().granted.tide === true);
+                localStorage.removeItem(S.key(C.SAVE_KEY, 'short'));
+                PR.reload();
+                assert('…and stays open when the stars are gone', PR.isOpen(byIdP('tide')));
+                assert('the next door along is still shut', !PR.isOpen(byIdP('wild')));
+
+                PR.grant('warren');
+                PR.reload();
+                assert('a grant (a link, a started course) survives a reload', PR.isOpen(byIdP('warren')));
+
+                PR.unlockAll();
+                assert('opening everything opens everything', PR.everythingOpen() && PR.nextUnlock() === null);
+
+                /* A veteran: somebody with a save from before stars existed.
+                   Locking the Wild Nine on a player with a record on it would
+                   be the game forgetting them. */
+                for (var j = localStorage.length - 1; j >= 0; j--) {
+                    if (/^miniGolf\./.test(localStorage.key(j))) localStorage.removeItem(localStorage.key(j));
+                }
+                localStorage.setItem(C.SAVE_KEY, JSON.stringify({ best: 60, bestVsPar: 6, rounds: 1, aces: 0 }));
+                PR.reload();
+                assert('a save from before progression makes a veteran', PR.get().veteran);
+                assert('a veteran finds every course open', PR.everythingOpen());
+                assert('a veteran is not shown the first stroke again', PR.coached());
+                assert('a veteran has met every old hazard, and not the new one',
+                    PR.get().seen.water && PR.get().seen.gates && !PR.get().seen.tunnels);
+
+                /* Lessons: one per hazard, once. */
+                localStorage.removeItem(C.SAVE_KEY);
+                localStorage.removeItem(C.PROGRESS_KEY);
+                PR.reload();
+                var traffic = GOLF.COURSES[0].holes.filter(function (h) { return h.name === 'Traffic'; })[0];
+                assert('a moving wall is taught as a gate', PR.kindsOn(traffic).indexOf('gates') >= 0);
+                var opener = GOLF.COURSES[0].holes[0];
+                assert('a still wall is not a lesson', PR.kindsOn(opener).indexOf('gates') < 0);
+                var lessonsBefore = PR.unseen(opener).length;
+                PR.unseen(opener).forEach(function (k) { PR.markSeen(k); });
+                PR.reload();
+                assert('a lesson once shown is not shown again', lessonsBefore > 0 && PR.unseen(opener).length === 0);
+                assert('the first stroke is shown until it is taken', !PR.coached());
+                PR.markCoached();
+                PR.reload();
+                assert('…and then never again', PR.coached());
+            } finally {
+                for (var m = localStorage.length - 1; m >= 0; m--) {
+                    if (/^miniGolf\./.test(localStorage.key(m))) localStorage.removeItem(localStorage.key(m));
+                }
+                Object.keys(kept).forEach(function (k) { localStorage.setItem(k, kept[k]); });
+                PR.reload();
+            }
         })();
 
         /* ── the bot ────────────────────────────────────────────────────── */

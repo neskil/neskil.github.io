@@ -405,7 +405,12 @@
         g.restore();
     }
 
-    function drawHole(g, hole, t, ball) {
+    /* `up` turns the flag. The board is drawn a quarter-turn round on a
+       portrait screen (game.js → resize), and everything on it is flat on
+       the grass except the flagstick, which stands up — so it is the one
+       thing that has to be told which way up the screen is, or it lies on
+       its side along the green. */
+    function drawHole(g, hole, t, ball, up) {
         // Cup.
         g.save();
         g.beginPath();
@@ -440,6 +445,11 @@
         // Pole and pennant. The wave is a travelling sine along the flag's
         // length, anchored at the pole so it does not detach.
         g.save();
+        if (up) {
+            g.translate(hole.x, hole.y);
+            g.rotate(up);
+            g.translate(-hole.x, -hole.y);
+        }
         g.strokeStyle = 'rgba(0,0,0,0.25)';
         g.lineWidth = 3;
         g.beginPath();
@@ -473,7 +483,7 @@
     /* The trail tapers rather than running at one width and one alpha: drawn
        as segments so the oldest end can fade to nothing, which reads as speed
        instead of as a piece of string tied to the ball. */
-    function drawTrail(g, trail) {
+    function drawTrail(g, trail, color) {
         if (!trail || trail.length < 2) return;
         g.save();
         g.lineCap = 'round';
@@ -481,7 +491,7 @@
             var f = i / (trail.length - 1);
             g.globalAlpha = 0.05 + f * 0.4;
             g.lineWidth = 1 + f * 3;
-            g.strokeStyle = '#ffffff';
+            g.strokeStyle = color || '#ffffff';
             g.beginPath();
             g.moveTo(trail[i - 1].x, trail[i - 1].y);
             g.lineTo(trail[i].x, trail[i].y);
@@ -494,21 +504,31 @@
        radius, i.e. the angle a real ball would have turned through. It is the
        cheapest possible cue that the ball is rolling and not sliding, and at
        rest it leaves the ball sitting at whatever angle it stopped at. */
-    function drawBall(g, ball, spin) {
+    /* A party plays in colour. The white ball is the one the game has
+       always had; a coloured one keeps the same highlight and dimples and
+       takes its body from the player's colour, with a dark rim so that an
+       orange ball on sand or a blue one on ice is still a ball. */
+    function drawBall(g, ball, spin, color) {
         g.save();
         g.fillStyle = 'rgba(0,0,0,0.35)';
         g.beginPath();
         g.ellipse(ball.x + 2.5, ball.y + 3.5, C.BALL_R * 1.05, C.BALL_R * 0.9, 0, 0, Math.PI * 2);
         g.fill();
 
+        var tinted = color && color !== C.PLAYER_COLORS[0];
         var grad = g.createRadialGradient(ball.x - 2.5, ball.y - 3, 1, ball.x, ball.y, C.BALL_R);
         grad.addColorStop(0, '#ffffff');
-        grad.addColorStop(0.6, '#eef2f5');
-        grad.addColorStop(1, '#b9c4cc');
+        grad.addColorStop(tinted ? 0.35 : 0.6, tinted ? color : '#eef2f5');
+        grad.addColorStop(1, tinted ? shade(color) : '#b9c4cc');
         g.fillStyle = grad;
         g.beginPath();
         g.arc(ball.x, ball.y, C.BALL_R, 0, Math.PI * 2);
         g.fill();
+        if (tinted) {
+            g.strokeStyle = 'rgba(10, 20, 14, 0.55)';
+            g.lineWidth = 1.2;
+            g.stroke();
+        }
 
         g.beginPath();
         g.arc(ball.x, ball.y, C.BALL_R, 0, Math.PI * 2);
@@ -531,6 +551,151 @@
         g.fill();
         g.restore();
     }
+
+    // A darker version of a #rrggbb colour, for the underside of a ball.
+    function shade(hex) {
+        var n = parseInt(hex.slice(1), 16);
+        var r = (n >> 16) & 255, gg = (n >> 8) & 255, b = n & 255;
+        return 'rgb(' + Math.round(r * 0.55) + ',' + Math.round(gg * 0.55) + ',' + Math.round(b * 0.55) + ')';
+    }
+
+    /* ── tunnels ────────────────────────────────────────────────────────── */
+
+    /* Each pair of mouths wears one colour, and no two pairs on a hole share
+       one, because the only question a tunnel asks before you putt into it
+       is *where does this come out*. A faint dotted line runs between the
+       two — the pipe under the turf — so the answer is on the screen rather
+       than in the player's memory of the last time they tried it. */
+    function tunnelInk(i) { return C.TUNNEL_COLORS[i % C.TUNNEL_COLORS.length]; }
+
+    function drawTunnels(g, list, t) {
+        if (!list || !list.length) return;
+        var R = C.TUNNEL_R;
+        var i;
+        g.save();
+        g.lineWidth = 2;
+        g.setLineDash([2, 10]);
+        g.lineCap = 'round';
+        for (i = 0; i < list.length; i++) {
+            g.strokeStyle = tunnelInk(i);
+            g.globalAlpha = 0.28;
+            g.beginPath();
+            g.moveTo(list[i].x, list[i].y);
+            g.lineTo(list[i].tx, list[i].ty);
+            g.stroke();
+        }
+        g.restore();
+
+        for (i = 0; i < list.length; i++) {
+            mouth(g, list[i].x, list[i].y, tunnelInk(i), t, i);
+            mouth(g, list[i].tx, list[i].ty, tunnelInk(i), t, i + 0.5);
+        }
+
+        function mouth(gg, x, y, ink, time, k) {
+            gg.save();
+            // A raised collar, lit from the same top-left as everything else.
+            gg.fillStyle = 'rgba(0,0,0,0.35)';
+            gg.beginPath();
+            gg.arc(x + 2, y + 3, R + 5, 0, Math.PI * 2);
+            gg.fill();
+            gg.fillStyle = ink;
+            gg.beginPath();
+            gg.arc(x, y, R + 5, 0, Math.PI * 2);
+            gg.fill();
+            var grad = gg.createRadialGradient(x, y, R * 0.2, x, y, R);
+            grad.addColorStop(0, '#000000');
+            grad.addColorStop(0.7, '#0a0f1a');
+            grad.addColorStop(1, '#1e1b3a');
+            gg.fillStyle = grad;
+            gg.beginPath();
+            gg.arc(x, y, R, 0, Math.PI * 2);
+            gg.fill();
+            // Two arcs turning slowly inside: a mouth, not a cup.
+            gg.strokeStyle = ink;
+            gg.globalAlpha = 0.55;
+            gg.lineWidth = 2;
+            var a = time * 1.6 + k * 2;
+            gg.beginPath();
+            gg.arc(x, y, R * 0.55, a, a + 1.3);
+            gg.stroke();
+            gg.beginPath();
+            gg.arc(x, y, R * 0.55, a + Math.PI, a + Math.PI + 1.3);
+            gg.stroke();
+            gg.globalAlpha = 1;
+            gg.strokeStyle = 'rgba(255,255,255,0.35)';
+            gg.lineWidth = 1;
+            gg.beginPath();
+            gg.arc(x, y, R + 4.5, Math.PI * 1.05, Math.PI * 1.7);
+            gg.stroke();
+            gg.restore();
+        }
+    }
+
+    /* ── the first shot ─────────────────────────────────────────────────
+
+       A brand-new player is shown the stroke rather than told it: a ghost
+       fingertip lands on the ball, pulls back away from the flag, and lets
+       go, and a ghost arrow runs out the other way. It loops until the
+       first real shot, and then never appears again. Drawn here rather
+       than as a DOM overlay so it sits on the ball it is about, on any
+       screen and at any scale. */
+    function drawCoach(g, ball, angle, t) {
+        var p = (t % 2.4) / 2.4;
+        var back = angle + Math.PI;
+        var ux = Math.cos(back), uy = Math.sin(back);
+        var pull = p < 0.62 ? easeOut(p / 0.62) : 1;
+        var gone = p < 0.62 ? 0 : (p - 0.62) / 0.38;
+        var reach = 18 + pull * 86;
+
+        g.save();
+        // The ball, ringed, so the eye knows where to start.
+        g.strokeStyle = 'rgba(255,255,255,' + (0.5 + Math.sin(t * 5) * 0.25).toFixed(3) + ')';
+        g.lineWidth = 2.5;
+        g.beginPath();
+        g.arc(ball.x, ball.y, C.BALL_R + 9 + Math.sin(t * 5) * 2, 0, Math.PI * 2);
+        g.stroke();
+
+        if (gone === 0) {
+            g.setLineDash([5, 6]);
+            g.strokeStyle = 'rgba(255,255,255,0.55)';
+            g.lineWidth = 2;
+            g.beginPath();
+            g.moveTo(ball.x, ball.y);
+            g.lineTo(ball.x + ux * reach, ball.y + uy * reach);
+            g.stroke();
+            g.setLineDash([]);
+            // The fingertip.
+            g.fillStyle = 'rgba(255,255,255,0.85)';
+            g.beginPath();
+            g.arc(ball.x + ux * reach, ball.y + uy * reach, 11, 0, Math.PI * 2);
+            g.fill();
+            g.strokeStyle = 'rgba(4,20,12,0.5)';
+            g.lineWidth = 2;
+            g.stroke();
+        }
+
+        // The answer: the way the ball will go, growing with the pull.
+        var len = 30 + pull * 80;
+        var fx = -ux, fy = -uy;
+        g.globalAlpha = gone === 0 ? 0.35 + pull * 0.4 : Math.max(0, 0.75 - gone);
+        g.strokeStyle = '#fde68a';
+        g.lineWidth = 3;
+        g.beginPath();
+        g.moveTo(ball.x + fx * 16, ball.y + fy * 16);
+        g.lineTo(ball.x + fx * (16 + len), ball.y + fy * (16 + len));
+        g.stroke();
+        g.fillStyle = '#fde68a';
+        g.beginPath();
+        var hx = ball.x + fx * (16 + len + 12), hy = ball.y + fy * (16 + len + 12);
+        g.moveTo(hx, hy);
+        g.lineTo(hx - fx * 14 - fy * 8, hy - fy * 14 + fx * 8);
+        g.lineTo(hx - fx * 14 + fy * 8, hy - fy * 14 - fx * 8);
+        g.closePath();
+        g.fill();
+        g.restore();
+    }
+
+    function easeOut(x) { return 1 - (1 - x) * (1 - x); }
 
     /* ── aiming ─────────────────────────────────────────────────────────── */
 
@@ -817,14 +982,30 @@
         spark: function (x, y) {
             burst(x, y, { count: 10, color: ['#fde68a', '#fb923c', '#ffffff'], speed: 150, life: 0.3, size: 2, gravity: 0 });
         },
+        // Down one mouth and up the other: a puff where it went in, a ring
+        // where it came out, in the tunnel's own colour.
+        tunnel: function (x, y, tx, ty, ink) {
+            burst(x, y, { count: 10, color: [ink || '#a78bfa', '#ffffff'], speed: 80, life: 0.35, size: 2, gravity: 0 });
+            burst(tx, ty, { count: 14, color: [ink || '#a78bfa', '#ffffff'], speed: 140, life: 0.45, size: 2.2, gravity: 0 });
+            rings.push({ x: tx, y: ty, r: C.TUNNEL_R, life: 0, max: 0.4 });
+        },
+        // A best on a hole: gold, and upward.
+        stars: function (x, y) {
+            if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+            burst(x, y, { count: 30, color: ['#fbbf24', '#fde68a', '#ffffff'], speed: 190, life: 1.0, size: 3, lift: 120, gravity: 160 });
+        },
         clear: function () { particles.length = 0; rings.length = 0; }
     };
 
     /* ── frame ──────────────────────────────────────────────────────────── */
 
     var spin = 0;
+    // The coach's own clock: world time stands still between shots on a hole
+    // with nothing moving, and the ghost finger has to keep going.
+    var clock = 0;
 
     function frame(g, state, dt) {
+        clock += dt || 0;
         var course = state.world.course;
         var t = state.world.time;
 
@@ -845,6 +1026,7 @@
         for (i = 0; i < course.ice.length; i++) drawIce(g, course.ice[i]);
         for (i = 0; i < course.sand.length; i++) drawSand(g, course.sand[i]);
         drawWaterAll(g, course.water, t);
+        drawTunnels(g, course.tunnels, t);
 
         // Tee marker.
         g.save();
@@ -856,7 +1038,7 @@
         g.stroke();
         g.restore();
 
-        drawHole(g, course.hole, t, state.world.ball);
+        drawHole(g, course.hole, t, state.world.ball, state.turned ? Math.PI / 2 : 0);
         for (i = 0; i < course.walls.length; i++) drawWall(g, course.walls[i], t);
         for (i = 0; i < course.bumpers.length; i++) drawBumper(g, course.bumpers[i], t);
 
@@ -866,11 +1048,13 @@
 
         spin += P.speedOf(state.world.ball) * dt / C.BALL_R;
         if (!state.world.sunk) {
-            drawTrail(g, state.trail);
-            drawBall(g, state.world.ball, spin);
+            drawTrail(g, state.trail, state.ballColor);
+            drawBall(g, state.world.ball, spin, state.ballColor);
         }
         if (state.aim && state.aim.active && !state.world.moving && !state.world.sunk) {
             drawAim(g, state.world, state.aim, t, state.lastFrac);
+        } else if (state.coach && !state.world.moving && !state.world.sunk) {
+            drawCoach(g, state.world.ball, state.aim.angle, clock);
         }
 
         // Field frame, drawn last so nothing spills over the cushions.
@@ -884,6 +1068,6 @@
         g.restore();
     }
 
-    GOLF.render = { frame: frame, effects: effects, roundRect: roundRect };
+    GOLF.render = { frame: frame, effects: effects, roundRect: roundRect, tunnelInk: tunnelInk };
 
 })(window.GOLF);
