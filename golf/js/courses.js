@@ -40,6 +40,8 @@
 
     function r(x, y, w, h) { return { x: x, y: y, w: w, h: h }; }
     function post(x, y, rad) { return { x: x, y: y, r: rad }; }
+    // Two mouths, and it runs both ways. See physics.js → tunnels.
+    function tunnel(x, y, tx, ty) { return { x: x, y: y, tx: tx, ty: ty }; }
 
     /* ── The Old Eighteen ───────────────────────────────────────────── */
 
@@ -756,6 +758,187 @@
         }
     ];
 
+    /* ── The Warren ─────────────────────────────────────────────────────
+
+       The one card with a piece of vocabulary nobody else has, which is why
+       it is the last thing the stars open. A tunnel keeps the shot and
+       changes the place: whatever speed and heading the ball goes down one
+       mouth with, it comes up the other with. That one sentence is the
+       whole course, and each hole reads a different consequence off it —
+       that weight survives the trip (The Ferry), that heading survives it
+       too and is the thing to aim (Crossed Wires), that a mouth runs both
+       ways (Snow Globe sends a ball that bounces back into its own exit
+       straight home), and that a door can be a trap as easily as a
+       shortcut (Snakes and Ladders).
+
+       Every mouth keeps a ball's width and a half of clear grass around it,
+       and none sits on a slope: a ball the hill held over a mouth would go
+       down it without being played, which is a shot nobody took. */
+
+    var WARREN = [
+        {
+            name: 'Rabbit Hole',
+            blurb: 'One wall, one way through it. In one end, out the other — same speed, same line.',
+            par: 2,
+            /* The terms, stated once and plainly: the wall runs cushion to
+               cushion, the two mouths sit on the line from the tee to the
+               cup, and a putt of the right weight goes in, comes out and
+               drops as if the wall were not there. */
+            tee: { x: 130, y: 320 },
+            hole: { x: 830, y: 320 },
+            walls: [r(460, 0, 40, 640)],
+            rough: [r(0, 0, 960, 90), r(0, 550, 960, 90)],
+            tunnels: [tunnel(320, 320, 640, 320)]
+        },
+        {
+            name: 'The Ferry',
+            blurb: 'No causeway this time. The ferry leaves from the mainland — mind it does not drop you in on the far side.',
+            par: 3,
+            /* Island Green with the bridge taken away. The only way onto the
+               island is under the moat, and the tunnel keeps the ball's
+               speed, so this is a weight hole wearing a tunnel: the putt is
+               the 180px to the mouth and the 90px from the far mouth to the
+               cup, judged as one. Anything still running at the cup lips
+               and goes swimming. */
+            tee: { x: 120, y: 320 },
+            hole: { x: 780, y: 320 },
+            water: [
+                r(600, 160, 300, 60), r(600, 420, 300, 60),
+                r(600, 220, 60, 200), r(840, 220, 60, 200)
+            ],
+            rough: [r(0, 0, 560, 80), r(0, 560, 560, 80)],
+            tunnels: [tunnel(300, 320, 700, 320)]
+        },
+        {
+            name: 'Crossed Wires',
+            blurb: 'Two tunnels under one wall, and each comes up where the other went in. Heading survives the trip.',
+            par: 3,
+            /* The lesson the first two holes hid: a tunnel keeps the heading
+               as well as the speed. The cup sits square in front of one
+               exit, and the straight line from the tee into either mouth
+               comes out on a diagonal that runs both of them into the same
+               bunker. The cure is to go in level — which means a first
+               putt to somewhere that can see the mouth square on. */
+            tee: { x: 120, y: 320 },
+            hole: { x: 840, y: 170 },
+            walls: [r(460, 0, 40, 640)],
+            sand: [r(760, 250, 170, 140)],
+            tunnels: [tunnel(300, 170, 660, 470), tunnel(300, 470, 660, 170)]
+        },
+        {
+            name: 'The Lift',
+            blurb: 'The middle falls away south. Climb it the hard way, or take the lift from the bottom corner.',
+            par: 3,
+            /* The Break, with a way round it. Straight up the hill is a full
+               shot into a slope that hands most of it back; the two mouths
+               on the bottom strip come out level with the cup, facing it,
+               for anyone who goes in sideways. The slope keeps both rules:
+               it sheds into a collar of rough wide enough to stop what it
+               sheds, and nothing solid or tunnelled sits inside it. */
+            tee: { x: 480, y: 595 },
+            hole: { x: 480, y: 80 },
+            rough: [r(0, 420, 960, 140)],
+            slopes: [{ x: 0, y: 140, w: 960, h: 280, ax: 0, ay: 200 }],
+            tunnels: [tunnel(250, 595, 700, 80), tunnel(710, 595, 260, 80)]
+        },
+        {
+            name: 'Snow Globe',
+            blurb: 'The cup is shut in a box of ice. The only door is a tunnel, and it opens both ways.',
+            par: 3,
+            /* A room with no door, an ice floor and a cup in it. Whatever
+               the ball carries into the tunnel it carries onto the rink,
+               and the rink triples it — so the putt is a whisper. Too firm
+               and it rattles round the walls, which is not always a
+               disaster: a ball that comes back off the far wall and finds
+               its own exit goes home to the tee. */
+            tee: { x: 110, y: 320 },
+            hole: { x: 790, y: 320 },
+            walls: [
+                r(560, 140, 330, 30), r(560, 470, 330, 30),
+                r(560, 170, 30, 300), r(860, 170, 30, 300)
+            ],
+            ice: [r(590, 170, 270, 300)],
+            rough: [r(0, 0, 520, 110), r(0, 530, 520, 110)],
+            tunnels: [tunnel(330, 320, 640, 320)]
+        },
+        {
+            name: 'Snakes and Ladders',
+            blurb: 'Two tunnels in the open. One carries you to the flag; the other is waiting on the straight line.',
+            par: 3,
+            /* Nothing to stop the plain approach except what sits on it: the
+               snake's mouth is on the line from the tee to the cup, and it
+               comes up in the rough in the far corner. The ladder is off the
+               line and carries you two thirds of the way — its far mouth
+               looks past the flag on the heading the tee sees it at, so it
+               is a birdie for a putt you trust and not an ace for nothing. */
+            tee: { x: 110, y: 540 },
+            hole: { x: 850, y: 110 },
+            rough: [r(0, 0, 300, 220), r(860, 400, 100, 240)],
+            sand: [r(380, 520, 200, 120)],
+            tunnels: [tunnel(280, 357, 660, 250), tunnel(500, 313, 140, 100)]
+        },
+        {
+            name: 'Burrow Mouth',
+            blurb: 'A wall with a way round the bottom, and a burrow that cuts the corner — if you can get past the guards.',
+            par: 3,
+            /* A pocket of posts round a mouth, open towards the tee. The
+               long way is under the end of the wall and back up; the short
+               one is through the gap in the posts, and posts are livelier
+               than wood, so a putt that clips the pocket is sent somewhere
+               of their choosing. The far mouth faces the cup on the line
+               the gap is cut on. */
+            tee: { x: 120, y: 500 },
+            hole: { x: 840, y: 140 },
+            walls: [r(440, 0, 30, 470)],
+            rough: [r(470, 560, 490, 80)],
+            // Five posts on a 52px ring round the mouth, each touching the
+            // next, with the sixth left out on the side that faces the tee.
+            bumpers: [
+                post(290, 243, 27), post(312, 195, 27), post(282, 153, 27),
+                post(230, 157, 27), post(208, 205, 27)
+            ],
+            tunnels: [tunnel(260, 200, 755, 321)]
+        },
+        {
+            name: 'Revolving Doors',
+            blurb: 'A gate in front of the tunnel and another behind it. One shot has to time them both.',
+            par: 3,
+            /* Traffic, under a wall. The tunnel is the only way through, so
+               the first gate decides whether you get in, and because a
+               tunnel keeps the shot, the moment you get in decides where
+               the second gate is when you come out. Both always leave room
+               — the rule a gate has to keep — but not at the same moment. */
+            tee: { x: 110, y: 320 },
+            hole: { x: 860, y: 320 },
+            walls: [
+                r(540, 0, 30, 640),
+                { x: 250, y: 220, w: 26, h: 200, move: { axis: 'y', amp: 180, speed: 1.5, phase: 0 } },
+                { x: 770, y: 220, w: 26, h: 200, move: { axis: 'y', amp: 180, speed: 1.1, phase: Math.PI / 2 } }
+            ],
+            tunnels: [tunnel(400, 320, 680, 320)]
+        },
+        {
+            name: 'Warren End',
+            blurb: 'Three rooms, two tunnels between them, and one that goes back the way you came.',
+            par: 4,
+            /* One of everything the card has taught, and three rooms to put
+               it in. The first tunnel comes up pointing at a bunker if you
+               go in on the obvious line; the second room has two mouths in
+               it and only one of them goes on; the last room has a pond on
+               the far side of the flag for whatever arrives too quickly. */
+            tee: { x: 100, y: 520 },
+            hole: { x: 860, y: 160 },
+            walls: [r(300, 0, 30, 640), r(630, 0, 30, 640)],
+            sand: [r(370, 250, 200, 110)],
+            water: [r(880, 330, 80, 220)],
+            tunnels: [
+                tunnel(200, 160, 400, 520),
+                tunnel(560, 140, 760, 500),
+                tunnel(560, 520, 110, 150)
+            ]
+        }
+    ];
+
     /* The rack. `GOLF.COURSE` is whichever card is being played — the classic
        eighteen unless something says otherwise — and every consumer
        downstream keeps reading exactly that, so a course is chosen in one
@@ -779,19 +962,32 @@
             id: 'short',
             name: 'The Short Six',
             blurb: 'Six holes, nothing hidden, and a round inside twenty minutes.',
+            // Where a first visit is pointed. Par two or three all the way
+            // round and every hole visible from the tee: the tutorial that
+            // does not say it is one.
+            starter: true,
             holes: SHORT
-        },
-        {
-            id: 'wild',
-            name: 'The Wild Nine',
-            blurb: 'Nine holes that assume you have played the eighteen.',
-            holes: WILD
         },
         {
             id: 'tide',
             name: 'The Tidewater Nine',
             blurb: 'Water in play on all nine. The only hazard that asks for the shot back.',
+            unlock: 10,
             holes: TIDE
+        },
+        {
+            id: 'wild',
+            name: 'The Wild Nine',
+            blurb: 'Nine holes that assume you have played the eighteen.',
+            unlock: 22,
+            holes: WILD
+        },
+        {
+            id: 'warren',
+            name: 'The Warren',
+            blurb: 'Nine holes riddled with tunnels. Go in one, come out another.',
+            unlock: 34,
+            holes: WARREN
         }
     ];
 
@@ -800,7 +996,7 @@
        gets to loop without a guard. */
     GOLF.COURSES.forEach(function (c) {
         c.holes.forEach(function (h) {
-            ['walls', 'water', 'sand', 'rough', 'ice', 'bumpers', 'slopes'].forEach(function (key) {
+            ['walls', 'water', 'sand', 'rough', 'ice', 'bumpers', 'slopes', 'tunnels'].forEach(function (key) {
                 if (!h[key]) h[key] = [];
             });
         });

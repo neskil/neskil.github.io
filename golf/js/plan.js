@@ -104,6 +104,26 @@
             g.fill();
         }
 
+        /* A tunnel is two rings in one colour and the line between them.
+           The line is drawn solid here where the board dots it: in a plan
+           the pairing *is* the information, and a dotted hairline at this
+           size is not a line at all. */
+        var tunnels = hole.tunnels || [];
+        for (i = 0; i < tunnels.length; i++) {
+            var tn = tunnels[i];
+            var ink = C.TUNNEL_COLORS[i % C.TUNNEL_COLORS.length];
+            g.strokeStyle = ink;
+            g.globalAlpha = 0.5;
+            g.lineWidth = 6;
+            g.beginPath();
+            g.moveTo(tn.x, tn.y);
+            g.lineTo(tn.tx, tn.ty);
+            g.stroke();
+            g.globalAlpha = 1;
+            ring(g, tn.x, tn.y, ink);
+            ring(g, tn.tx, tn.ty, ink);
+        }
+
         /* The tee and the pin, both drawn far larger than life. A ball is
            three quarters of a pixel in a thumbnail and a cup is a pixel and a
            half, and where the shot starts and where it has to end is the
@@ -134,6 +154,18 @@
         g.strokeStyle = 'rgba(4, 18, 10, 0.45)';
         g.lineWidth = 5;
         g.stroke();
+    }
+
+    // A tunnel mouth, drawn at the size of the question like the tee is.
+    function ring(g, x, y, ink) {
+        g.fillStyle = ink;
+        g.beginPath();
+        g.arc(x, y, C.TUNNEL_R + 12, 0, Math.PI * 2);
+        g.fill();
+        g.fillStyle = '#0a0f1a';
+        g.beginPath();
+        g.arc(x, y, C.TUNNEL_R + 2, 0, Math.PI * 2);
+        g.fill();
     }
 
     // Downhill, in the middle of the zone it belongs to. Sized to the zone so

@@ -92,6 +92,44 @@
                 setTimeout(function () { tone(f, 0.35, 'triangle', 0.15); }, i * 90);
             });
         },
+        // Round the rim and out: two quick knocks against the cup's edge.
+        lip: function () {
+            noise(0.04, 1800, 4, 0.08);
+            setTimeout(function () { tone(620, 0.05, 'triangle', 0.07, 380); }, 55);
+            setTimeout(function () { noise(0.03, 1500, 4, 0.05); }, 110);
+        },
+        // Down one mouth, up the other: a low swoop that comes back up.
+        tunnel: function () {
+            tone(520, 0.16, 'sine', 0.09, 140);
+            setTimeout(function () { tone(160, 0.18, 'sine', 0.08, 640); }, 120);
+            noise(0.3, 500, 0.8, 0.05, 'lowpass');
+        },
+        // Out of strokes. Two notes down, kindly: it is a rule, not a scolding.
+        pickup: function () {
+            tone(392, 0.18, 'triangle', 0.1);
+            setTimeout(function () { tone(311.1, 0.3, 'triangle', 0.09); }, 160);
+        },
+        // A new best on a hole, one bright note per star.
+        stars: function (n) {
+            for (var i = 0; i < Math.max(1, n); i++) {
+                (function (k) {
+                    setTimeout(function () { tone(1046.5 * Math.pow(1.26, k), 0.16, 'sine', 0.09); }, 260 + k * 110);
+                })(i);
+            }
+        },
+        // A course opens.
+        unlock: function () {
+            [392, 523.25, 659.25, 783.99, 1046.5].forEach(function (f, i) {
+                setTimeout(function () { tone(f, 0.28, 'square', 0.05); tone(f * 2, 0.2, 'sine', 0.04); }, 500 + i * 70);
+            });
+        },
+        /* A buzz in the hand, on the phones that can. It goes quiet with the
+           sound, because the mute button is the one switch a player has for
+           "stop making things happen to me". */
+        buzz: function (pattern) {
+            if (muted || !navigator.vibrate) return;
+            try { navigator.vibrate(pattern); } catch (e) { /* not allowed yet */ }
+        },
         toggleMute: function () {
             muted = !muted;
             try { localStorage.setItem('miniGolf.muted', muted ? '1' : '0'); } catch (e) { /* ignore */ }

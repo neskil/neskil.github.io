@@ -1,8 +1,10 @@
 # Pocket Links
 
-A 2D mini golf game with four courses on one field — an eighteen, a six and
-two nines — plus a fifth that is generated from a seed and is different every
-time you ask for one.
+A 2D mini golf game with five courses on one field — an eighteen, a six and
+three nines — plus a sixth that is generated from a seed and is different every
+time you ask for one. A first visit is handed the six and a reason to finish
+it; every hole gives up to three stars, and stars open the rest. Up to four can
+play on one screen.
 Canvas, plain ES5-flavoured JavaScript, no build step and no dependencies —
 same as everything else here, open `index.html` and it runs.
 
@@ -16,18 +18,19 @@ same as everything else here, open `index.html` and it runs.
 | `js/courses.js` | Every hand-built course, as data. |
 | `js/generator.js` | Courses dealt from a seed. See [The draw](#the-draw). |
 | `js/physics.js` | The simulation. No DOM, no canvas, pure. |
-| `js/scoring.js` | Scorecard arithmetic and the save file. |
+| `js/scoring.js` | Scorecard arithmetic, the pick-up, stars and the save file. |
+| `js/progress.js` | Which courses are open, and the lessons a first round teaches. See [Starting up](#starting-up-and-the-stars). |
 | `js/audio.js` | Synthesised sound effects — no audio files to ship. |
 | `js/plan.js` | Flat hole thumbnails for the course picker. Nothing on the board reads it. |
 | `js/render.js` | All drawing, plus the (visual-only) particle system. |
-| `js/game.js` | Loop, input, and what a shot means. |
+| `js/game.js` | Loop, input, what a shot means, the title screen and the party. |
 | `level-editor.html` | Visual hole editor. See [The editor](#the-editor). |
 | `editor/editor.js` | All of it. Runs on the game's own modules, owns no copy of any of them. |
 | `editor/editor.css` | Sidebar chrome. The green in there is the game's renderer. |
 | `tests.html` | Headless test harness for the logic. Open it; green is green. |
-| `ui-tests.html` | The same, for the page chrome — the bar, the ☰ panel, the picker. |
+| `ui-tests.html` | The same, for the page — the bar, the ☰ panel, the picker, the title, a party, the turned and side layouts. |
 
-## The four courses
+## The five courses
 
 `GOLF.COURSES` is a rack of cards, each `{ id, name, blurb, holes }`, and
 `GOLF.COURSE` is whichever one is being played. Everything downstream — the
@@ -39,8 +42,11 @@ the whole handling a stale stored preference needs.
 Only the *first* position on the rack is load-bearing. The card at the head
 of it keeps the bare save keys (see [Saving](#saving)), so moving something
 else to the front would quietly take over a record a player already has.
-Everything else about the order is taste: the eighteen, then the short card,
-then the two that assume you have played one of the others.
+Everything else about the order is the ladder: the eighteen and the short card
+open from the start, then Tidewater, the Wild Nine and the Warren in the order
+the stars open them — `unlock` on each card, 10, 22 and 34 — and the draw,
+which the generator puts last, at 46. The suite pins that the thresholds never
+fall going down the rack, so the picker reads top to bottom as a climb.
 
 - **The Old Eighteen** is the course this game has always been: one idea per
   hole on the front nine, the same vocabulary played straight at you on the
@@ -69,6 +75,17 @@ then the two that assume you have played one of the others.
   own velocity along the contact normal, so a gate cannot swallow a resting
   ball), and Wiper Blades is the first hole to make that the point rather
   than a safety valve.
+- **The Warren** is the one card with a word nobody else has, which is why
+  it is the last thing the stars open: a **tunnel**, two mouths that run both
+  ways and keep the shot. Whatever speed and heading the ball goes down one
+  mouth with, it comes up the other with, and each hole reads a different
+  consequence off that sentence — that weight survives the trip (The Ferry,
+  an island with no causeway), that heading survives it too and is the thing
+  to aim (Crossed Wires, where the obvious line into either mouth comes out
+  on a diagonal into the same bunker), that a mouth runs both ways (Snow
+  Globe sends a ball that bounces back into its own exit home to the tee),
+  and that a door can be a trap as easily as a shortcut (Snakes and Ladders).
+  Every hole on it has one, and the suite says so.
 
 Three of those nine started out with a free way round the obstacle they were
 built on — over the top of the funnel, up the side lane of the lattice, along
@@ -92,6 +109,116 @@ makes. Six holes, nine and eighteen are not comparable totals, which is the
 other half of why the save file is split: a six-hole round would take the
 eighteen-hole record the first time anyone played one.
 
+## Starting up, and the stars
+
+A first visit used to open on the first tee of the Old Eighteen with a page of
+reference text under it, which is a fine way to meet a game you already know
+and a poor way to meet one you do not. It now does what a game has done since
+there were arcades: a title, how far you have got, and the obvious next thing
+under one press.
+
+**The title screen** (`#title`) is a dialog over the board rather than a page
+of its own. The hole it is offering is already drawn behind it, so its play
+button is not a promise but a picture: *Start here — The Short Six* for a
+first visit, *Continue* when there is a round under way, *Tee off* otherwise,
+and *Continue party* when one is. Under it sit the stars you have, the course
+they open next and how many more it costs. Esc brings it back with nothing
+else open — the pause key every game has — and so does the ★ chip. A link
+that names a course, a seed or a playtest has already answered its question
+and goes straight to the tee.
+
+**Stars are read, not stored.** Every hole gives three for beating par, two
+for matching it, one for getting the ball down at all and none for a pick-up
+(see [The pick-up](#the-pick-up)). They come off a per-hole best kept in each
+course's own save file and written the moment a hole is holed — so a hole
+played from a plan in the picker counts as much as one played on the way
+round — and `progress.js` sums them. There is one record of how well you
+played a hole and one way to read it; nothing can disagree with the
+scorecard. The draw holds no record and so gives no stars, and nor does a
+party. Under par rather than an ace for the third star, because on a par two
+those are the same thing and on a par four they are not, and a star you can
+only get by luck is not a goal. The picker shows each hole's stars on its plan,
+which is the level select every game with stars has and the reason to go back
+to the hole you bogeyed rather than on to the next card.
+
+**Courses open on stars.** `unlock` on a card is the stars it asks for; the
+eighteen and the six ask for none. The hole that crosses a threshold says so on
+its banner, and the course is then *granted* — written down by id — so a door
+the stars opened stays open whatever happens to the thresholds later. Starting
+a course grants it too, for the same reason. A locked card in the picker still
+shows everything it holds, plans included, because what is coming is the
+reason to keep going; it says what it costs and how far off that is, and its
+plans cannot be pressed.
+
+Three things keep the ladder a nudge rather than a wall:
+
+- **Nothing a player had is taken away.** A browser with any of the old keys
+  and no progress record is a *veteran* — every course open, the first stroke
+  not shown again, every old hazard already met — because locking the Wild
+  Nine on somebody with a record on it would be the game forgetting them. The
+  check runs before anything on the page writes a key of its own; the draw's
+  seed is remembered on every load, and a first visit would otherwise look
+  like a second.
+- **A link is a key.** `?course=wild` opens the Wild Nine for whoever it was
+  sent to, and `?seed=` opens the draw. Somebody wanted you on that card.
+- **The picker carries a way past.** *Open every course* under the list, for
+  the visitor who came to look rather than to climb. Two presses, because it
+  cannot be taken back and one stray tap on a phone should not spend
+  somebody's progression for them.
+
+**The first round teaches itself.** On the very first tee a ghost fingertip
+lands on the ball, pulls back away from the flag and lets go while a gold
+arrow runs out the other way — drawn on the canvas by `render.drawCoach`, so it
+sits on the ball it is about at any scale — with a line in the corner that says
+the same thing for whichever hand is holding the device. It loops until the
+first real shot and never comes back. Each hazard is then said once, on the
+first tee where it is in play, in a card that never takes a press and goes
+with the shot: two at most, because a tee that explains five things has
+explained none of them. The card sits wherever on the *screen* is furthest
+from both the tee and the cup — a corner if one is clear, otherwise the middle
+of an edge — and moves if the board turns under it.
+
+## The pick-up
+
+A hole allows par + `STROKE_ALLOWANCE` (three) strokes. Miss with the last of
+them and you pick up and write down one more. Friction ends every shot, but
+nothing used to end a *hole*, and the twelfth putt on a par two is not a harder
+version of the game — it is the game refusing to let you play the next one.
+It is also what stops one player holding up a party. The last stroke still
+matters: holed, it is a triple bogey; missed, it is the pick-up.
+
+Because a pick-up is always exactly one past the limit, a score above the limit
+can only mean a ball that never dropped, which is how the stars tell the two
+apart without the save file having to say which it was. The allowance is on the
+scoreboard beside the count (`2/5`), because a rule you find out about by
+running into it reads as the game cheating, and the last stroke is announced
+before you take it.
+
+## A party
+
+Pass-and-play for two to four, from the title screen. The rule is the one most
+mini golf is played by: everybody plays the hole out in turn, from the tee, and
+the best score on a hole has the honour on the next — ties keep the order they
+had. Each player has a ball of their own colour (`PLAYER_COLORS`, picked to
+stand off the turf, the sand and each other, and rimmed so the blue one still
+reads on ice), the running order sits in a strip under the scoreboard with the
+player who is up lit, and the banner hands the hole on by name. The last putt
+of a hole shows the whole group's scores on it.
+
+Only one ball is ever on the field, so nothing about the simulation knows there
+is more than one player. A party is a running order and one card per name, and
+`state.scores` is pointed at whichever card is up — which is why the scoreboard,
+the totals and the hole-out code needed no party version of their own. In a
+party the restart chip puts the ball back on the tee and keeps the strokes: a
+restart that wiped the count would be a mulligan only the player holding the
+phone could take.
+
+A party is nobody's record and gives no stars. It is saved after every turn
+under its own key, so a refresh, a locked phone or a quick solo hole in between
+costs nobody their round; leaving it for a solo course keeps it, and the title
+offers it back. The roster is remembered between parties, because the people
+round a phone on a Friday are usually the people round it the Friday after.
+
 ## The bar, and the picker behind it
 
 The bar used to be eight controls laid flat: a `<select>` of courses, a die,
@@ -100,9 +227,9 @@ end of the row, and on a laptop it was a wall of chrome standing between the
 player and the board. Three of the eight were about *which course*, which is
 a question big enough to have a page of its own.
 
-So it is five chips and a ⛶ now, and on a compact screen — a phone, a coarse
-pointer, a short window, or fullscreen on anything — four of the five fold
-behind ☰. Fullscreen stays out there, because it is the one control worth
+So it is six chips and a ⛶ now — the ★ menu is the newest — and on a compact
+screen — a phone, a coarse pointer, a short window, or fullscreen on anything —
+all six fold behind ☰. Fullscreen stays out there, because it is the one control worth
 reaching for with a shot half aimed. `compact-ui` on `<body>` is the switch;
 off it, `.topbar-menu` is `display: contents` and the chips are simply the row
 they always were, so nothing has to be undone.
@@ -269,7 +396,8 @@ A hole is axis-aligned rectangles, round posts and two points:
     rough:   [ { x, y, w, h } ],         // half the roll of grass
     ice:     [ { x, y, w, h } ],         // almost none — ~3x the roll of grass
     bumpers: [ { x, y, r } ],            // round, and bouncier than a wall
-    slopes:  [ { x, y, w, h, ax, ay } ]  // constant acceleration, i.e. a breaking green
+    slopes:  [ { x, y, w, h, ax, ay } ], // constant acceleration, i.e. a breaking green
+    tunnels: [ { x, y, tx, ty } ]        // two mouths, both ways: same speed, same heading out
 }
 ```
 
@@ -312,6 +440,12 @@ course is exempt from is a rule the second course will break — all asserted in
   the only thing that ends a shot. Ice triples a roll and bumpers keep it alive,
   so the two together are where a hole could quietly stop being playable; the
   suite reports the slowest shot on the course.
+- **A tunnel mouth needs room to be a mouth.** A ball's width and a half of
+  clear grass round it over the whole of any gate's travel, nowhere on a slope
+  (a ball the hill held over a mouth would go down it without being played),
+  off the tee, well off the cup, off every other mouth, and the two ends of a
+  tunnel far enough apart to be going somewhere. `validateHole` holds the
+  rules and the editor carries a port of them.
 
 ## The physics, and the one thing worth protecting
 
@@ -358,6 +492,15 @@ that returned more than it received would let a ball wedged between a post and a
 wall rattle for ever, and the hole would never return to the aim phase. There is
 a test that watches every substep of a shot into a bumper and fails if the speed
 ever ticks upward.
+
+Tunnels keep that invariant by changing nothing about the shot but where it
+is: the ball's centre over a mouth moves it to the other one with its velocity
+untouched. Two guards make that safe. A ball that has just come out of a mouth,
+or was struck from inside one, has that mouth *latched* until it has left it —
+without the latch the far end's catch would send it straight back. And only a
+ball that is going somewhere can fall in: a splash puts the ball back where the
+shot was played from, which may be inside a mouth, and a ball sitting at rest
+there must not go down it unplayed.
 
 ## Aiming
 
@@ -409,6 +552,25 @@ weight, and this is what gives them it. The mark is as often under the bright
 fill as beyond it, which is why it is gold with a dark halo rather than gold:
 one colour has to read against everything the bar can put behind it.
 
+## What a shot says back
+
+The ball is small and a phone is smaller, so the things that happen to it are
+said out loud as well as drawn:
+
+- **A lip-out is called.** Over the rim, too fast to be taken, and out the
+  other side — on a small screen that looks exactly like a ball that missed
+  the cup, and the near thing is half the fun. A ball that stops within a
+  whisker of the rim gets *So close*.
+- **A drop says what it was made of.** The banner names the notable part of
+  the shot that went in — a bank shot, two cushions, off the post, through the
+  tunnel, from downtown — two at most, because a story beats a receipt.
+- **A hard knock jolts the frame**, a few pixels for a fraction of a second,
+  and a splash does too. Not under `prefers-reduced-motion`.
+- **A phone buzzes** on a drop, a splash, a bumper and a door opening, on the
+  phones that can (`navigator.vibrate`). The mute chip silences it with the
+  sound: it is the one switch a player has for "stop making things happen to
+  me".
+
 ## The overswing
 
 The dial runs past what you can control. Everything up to `SAFE_POWER` goes
@@ -456,6 +618,35 @@ stand down and give it their pixels — on a 1440×700 laptop that is the
 difference between a 595px board and a 780px one. The measurement of those
 elements is cached from when they were last visible, because the decision to
 hide them has to be answerable while they are `display: none` or it oscillates.
+
+**Upright, the board turns.** A phone held upright has a screen the wrong
+shape for a 3:2 field: fitted flat, the board was a strip 260px tall across the
+top of a tall glass. Turned a quarter round it is half as big again, so it
+turns — the tee end, the left of nearly every hole, goes to the bottom of the
+screen and the shot is played up it, the way a phone golf game is held. Nothing
+in the world changes: `resize()` rotates the context and `toWorld()` undoes it
+for the pointer, and the only thing on the field told which way up the screen
+is, is the flagstick, which stands up. It turns only when that buys more than
+a tenth in scale, so a roughly square window does not flip as it is dragged.
+The phone's scoreboard and meter tighten for the same reason — every pixel of
+chrome above the board is one the board cannot have.
+
+**On its side, the chrome stands beside the board.** A phone in landscape is
+about 340px tall, and stacked, the bar and the scoreboard took half of it and
+left the board at its minimum size with the page scrolling under the thumb —
+the posture the old hint told players to turn to was the one that played
+worst. Any window that short and wide (`is-side`) lays the bar, the scoreboard
+and the meter out in a column on the right and gives the board the full height:
+on a 750×342 phone that is 485×324 instead of 288×192. Its height budget is
+the screen less the padding, never the board's own top edge — the stage is
+centred against the column, so a small board sits lower, which would leave less
+room and keep it small: an answer that agrees with itself and is wrong.
+
+**Reduced motion switches transitions off, not merely down.** The usual rule
+— a duration of 0.01ms on `*` — turns every property into a transition,
+because `transition-property` defaults to `all`, and that included the canvas's
+width and height: a board resized between two frames was left at its old size
+for exactly the players who had asked for less motion.
 
 **Fullscreen** (the ⛶ button, or `F`) puts the wrap into the Fullscreen API —
 the scoreboard is part of the game, so it goes too; the reference text does
@@ -515,6 +706,9 @@ each slope and watches whether it ever stops. A slope with `ax` and `ay` both
 zero fails it too, and should: nothing moves the ball and nothing lets it
 rest.
 
+A tunnel is the one shape that is two things: drag from one mouth to the other
+to lay it, grab either mouth to move that end alone (`0` picks the tool).
+
 Everything else is what you would expect. Drag a shape tool across the green
 to draw one, drag it or its grips to reshape, snap at 1/5/10/20 with shift for
 ×5 and alt for off, undo the lot with Ctrl+Z. Moving walls show dashed ghosts
@@ -544,13 +738,22 @@ indexable; the self-test overlay only appears with the query string.
 
 Two harnesses, and the runner finds both.
 
-Open `tests.html`. 648 assertions covering geometry, the integrator, the four
-surfaces, the overswing, the course data on every course, the generator, the
-scorecard, the per-course save keys and the resumable round, in a few seconds
-— most of them the bot's, which now searches for a way round every hole on
-the rack and every hole of twelve draws.
+Open `tests.html`. 813 assertions covering geometry, the integrator, the four
+surfaces, the overswing, tunnels, the course data on every course, the
+generator, the scorecard, the pick-up and the stars, progression, the
+per-course save keys and the resumable round, in a few seconds — most of them
+the bot's, which now searches for a way round every hole on the rack and every
+hole of twelve draws. The bot needed nothing new for tunnels: it plans over
+simulated shots, and a shot down a tunnel is a simulated shot.
 
-Open `ui-tests.html` for the other half: 57 assertions about the *page*. It
+Open `ui-tests.html` for the other half: 123 assertions about the *page* — the
+bar, the picker, the title screen on a first visit, locks and the way past
+them, stars on the banner and the plans, a door opening, a three-player party
+from roster to honour to resume, and the board turned for an upright phone and
+laid out beside its column for one on its side. The last two narrow the frame
+and ask the board to fit again; the turned one sends world points through the
+canvas's own transform and back through `toWorld`, which is the check that the
+pointer lands where the drawing puts things. It
 loads `index.html` in a frame with the cross-origin tags stripped out — no
 font stylesheet, no analytics, so nothing waits on a network — and then
 presses things. Unlike `golf3d/ui-tests.html` it keeps the page's own scripts:
@@ -665,5 +868,13 @@ before it — and never writes a record at all. (The editor keeps its work in pr
 locked out of both the record and the round in progress — a one-hole round of
 three strokes would otherwise beat any real eighteen-hole score, and starting
 one would throw away the round you had going.)
-Mute state lives separately under `miniGolf.muted`. Both writes are wrapped —
+The save file also carries `holes`, the best score made on each hole, which the
+stars are read off; a save from before it existed starts from its best round's
+card, so a returning player is handed the stars they already earned.
+Progression — the courses granted or opened wholesale, the lessons seen,
+whether the first stroke has been shown, whether this browser is a veteran's —
+lives under `miniGolf.progress.v1`, a party in progress under
+`miniGolf.party.v1` (course, seed, roster, cards and whose turn it is; a party
+written for one draw is not offered to the next), and the last roster under
+`miniGolf.players.v1`. Mute state lives separately under `miniGolf.muted`. Both writes are wrapped —
 a browser with storage disabled should cost you your records, not your round.

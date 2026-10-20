@@ -7,7 +7,7 @@
    and on a desktop and none of the tuning below is resolution dependent. */
 window.GOLF = window.GOLF || {};
 
-GOLF.VERSION = '1.7.0';
+GOLF.VERSION = '1.8.0';
 
 GOLF.CONFIG = {
     WORLD_W: 960,
@@ -102,6 +102,31 @@ GOLF.CONFIG = {
 
     WATER_PENALTY: 1,
 
+    /* The pick-up. A hole gives you par plus this many strokes; if the ball
+       is not down after the last of them you pick it up and write down one
+       more. Friction ends every shot, but nothing used to end a *hole*, and
+       the twelfth putt on a par two is not a harder version of the game — it
+       is the game refusing to let you play the next one. It is also what
+       stops one player holding up a party. The last stroke still matters:
+       holed, it scores par + 3; missed, par + 4. */
+    STROKE_ALLOWANCE: 3,
+
+    /* A tunnel mouth: the ball's centre over the dark disc drops it in, and
+       it comes out of the other mouth at the same speed and heading. The
+       radius is the drawn mouth, so what you see is what catches the ball —
+       a touch wider than the cup, because a tunnel is a door, not a target. */
+    TUNNEL_R: 17,
+
+    /* One colour per player in a party, ball and trail and name chip alike.
+       Picked to stand off fairway green, bunker sand and each other; every
+       ball also wears a dark rim, which is what carries it over the ice. */
+    PLAYER_COLORS: ['#f8fafc', '#fb923c', '#f472b6', '#38bdf8'],
+    MAX_PLAYERS: 4,
+    /* One colour per tunnel on a hole, board and plan alike — the only
+       question a tunnel asks before you putt into it is where it comes out,
+       and the matching colour is the answer. */
+    TUNNEL_COLORS: ['#a78bfa', '#2dd4bf', '#facc15'],
+
     SAVE_KEY: 'miniGolf.save.v1',
     ROUND_KEY: 'miniGolf.round.v1',
     /* Which of the two cards you were last playing. Only the choice is kept
@@ -111,5 +136,12 @@ GOLF.CONFIG = {
     /* The seed the procedural card was last dealt from. Kept so a refresh
        gives you back the course you were playing rather than a new one —
        the holes themselves are never stored, because the seed *is* them. */
-    DRAW_KEY: 'miniGolf.draw.v1'
+    DRAW_KEY: 'miniGolf.draw.v1',
+    /* Stars, unlocks and the first-run lessons — see progress.js. Stars
+       themselves are not stored here: they are read off each course's own
+       per-hole bests, so there is one record and one way to read it. */
+    PROGRESS_KEY: 'miniGolf.progress.v1',
+    /* A party round in progress, and the last roster typed in. */
+    PARTY_KEY: 'miniGolf.party.v1',
+    PLAYERS_KEY: 'miniGolf.players.v1'
 };

@@ -18,6 +18,10 @@
 
 * { box-sizing: border-box; }
 
+/* No double-tap zoom on a control: the second tap of an impatient player
+   should press the button again, not blow the page up around it. */
+button, a, input { touch-action: manipulation; }
+
 html, body {
     margin: 0;
     padding: 0;
@@ -189,6 +193,29 @@ button.chip.on, a.chip.on {
 .stat-value.over { color: var(--over); }
 .stat-value.level { color: var(--accent); }
 
+/* The allowance beside the count: there, but quieter than the count. */
+.stat-of {
+    font-size: 0.72rem;
+    font-weight: 400;
+    color: var(--ink-dim);
+    margin-left: 0.15rem;
+}
+
+/* Your best on this hole, in stars, beside the par it was measured against —
+   on the same line, because a second line in the scoreboard is board taken
+   away on every screen there is. */
+.stat-stars {
+    display: inline-block;
+    font-size: 0.7rem;
+    font-weight: 400;
+    letter-spacing: 0.04em;
+    color: var(--gold);
+    margin-left: 0.3rem;
+    vertical-align: 0.15em;
+}
+
+.stat-stars.none { color: rgba(251, 191, 36, 0.35); }
+
 .hole-name {
     font-size: 1.05rem;
     font-weight: 700;
@@ -205,6 +232,54 @@ button.chip.on, a.chip.on {
     overflow: hidden;
     text-overflow: ellipsis;
 }
+
+/* ── the party's running order ─────────────────────────────────────────── */
+
+.party-strip {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin: -0.35rem 0 0.7rem;
+}
+
+.party-strip[hidden] { display: none; }
+
+.ps {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.82rem;
+    padding: 0.3rem 0.65rem 0.3rem 0.45rem;
+    border-radius: 999px;
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    color: var(--ink-dim);
+    min-width: 0;
+}
+
+.ps i, .hb i, .party-table th.pc i {
+    flex: none;
+    width: 0.8rem;
+    height: 0.8rem;
+    border-radius: 50%;
+    box-shadow: inset 0 -2px 3px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(0, 0, 0, 0.4);
+    display: inline-block;
+}
+
+.ps-name { max-width: 9rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ps b { font-variant-numeric: tabular-nums; color: var(--ink); }
+.ps.done { opacity: 0.6; }
+
+/* Whose shot it is. The one thing on the strip that has to be read from
+   across a sofa. */
+.ps.up {
+    color: #052e16;
+    background: var(--accent);
+    border-color: transparent;
+    font-weight: 600;
+}
+
+.ps.up b { color: #052e16; }
 
 /* ── stage ──────────────────────────────────────────────────────────────── */
 
@@ -415,7 +490,55 @@ body.is-full .stage { box-shadow: none; }
     font-size: 0.95rem;
     color: var(--ink-dim);
     margin-bottom: 0.5rem;
+    max-width: 90%;
 }
+
+.banner-stars:empty, .banner-note:empty { display: none; }
+
+.banner-stars {
+    display: grid;
+    justify-items: center;
+    gap: 0.1rem;
+    margin: -0.2rem 0 0.4rem;
+}
+
+.bs-stars {
+    font-size: clamp(1.4rem, 4.5vw, 2rem);
+    letter-spacing: 0.12em;
+    color: var(--gold);
+    text-shadow: 0 4px 18px rgba(251, 191, 36, 0.35);
+    animation: pop 0.55s cubic-bezier(0.2, 1.4, 0.4, 1) 0.1s both;
+}
+
+.bs-best { font-size: 0.8rem; color: var(--gold); font-weight: 600; }
+.bs-was { font-size: 0.78rem; color: var(--ink-dim); }
+
+/* An unlock, or the whole group's score on the hole just finished. */
+.banner-note {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.35rem 0.9rem;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--ink);
+    margin: 0 1rem 0.6rem;
+    padding: 0.4rem 0.8rem;
+    border-radius: 12px;
+    background: rgba(6, 24, 15, 0.7);
+    border: 1px solid var(--panel-border);
+}
+
+.banner-note.unlock {
+    color: var(--gold);
+    border-color: rgba(251, 191, 36, 0.6);
+    background: rgba(40, 28, 4, 0.75);
+    box-shadow: 0 0 30px rgba(251, 191, 36, 0.25);
+    animation: pop 0.55s cubic-bezier(0.2, 1.4, 0.4, 1) 0.35s both;
+}
+
+.hb { display: inline-flex; align-items: center; gap: 0.35rem; font-weight: 400; }
+.hb b { font-weight: 700; }
 
 .banner button {
     font: inherit;
@@ -453,6 +576,50 @@ body.is-full .stage { box-shadow: none; }
 
 .toast.show { opacity: 1; transform: translate(-50%, 0); }
 .toast.bad { border-color: rgba(248, 113, 113, 0.5); color: var(--over); }
+
+/* ── first-run lessons ──────────────────────────────────────────────────── */
+
+/* In the corner, small, and never in the way of a press: the card is
+   reading matter for the moment before the first putt, and it goes when the
+   putt does. */
+.tip {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    display: grid;
+    gap: 0.4rem;
+    max-width: min(330px, calc(100% - 20px));
+    padding: 0.55rem 0.7rem;
+    border-radius: 12px;
+    background: rgba(6, 24, 15, 0.86);
+    border: 1px solid var(--panel-border);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+    font-size: 0.8rem;
+    line-height: 1.3;
+    color: var(--ink-dim);
+    pointer-events: none;
+    opacity: 0;
+    transform: translateY(-6px);
+    transition: opacity 0.25s, transform 0.25s;
+}
+
+/* Where it sits is chosen per hole (game.js → placeLessons). The centring
+   uses `translate`, which leaves `transform` free for the entrance. */
+.tip.at-tr, .tip.at-mr, .tip.at-br { left: auto; right: 10px; }
+.tip.at-bl, .tip.at-bc, .tip.at-br { top: auto; bottom: 10px; }
+.tip.at-tc, .tip.at-bc { left: 50%; translate: -50% 0; }
+.tip.at-ml, .tip.at-mr { top: 50%; translate: 0 -50%; }
+.tip.show { opacity: 1; transform: none; }
+.tip-item { display: flex; gap: 0.5rem; align-items: flex-start; }
+.tip-item b { color: var(--ink); font-weight: 600; }
+
+.tip i {
+    flex: none;
+    width: 14px;
+    height: 14px;
+    border-radius: 4px;
+    margin-top: 1px;
+}
 
 /* ── how to play ────────────────────────────────────────────────────────── */
 
@@ -517,6 +684,9 @@ kbd {
 /* Round, like the thing it stands for. */
 .sw-bump { background: radial-gradient(circle at 35% 32%, #fde68a 0 22%, #f59e0b 60%, #b45309 100%); border-radius: 50%; }
 .sw-slope { background: linear-gradient(#ffffff40, #00000060); border: 1px solid #ffffff30; }
+/* A mouth: dark, in a coloured collar. */
+.sw-tunnel { background: radial-gradient(circle, #0a0f1a 0 45%, #a78bfa 48% 100%); border-radius: 50%; }
+.sw-ball { background: radial-gradient(circle at 35% 32%, #ffffff 0 30%, #cbd5e1 75%, #94a3b8 100%); border-radius: 50%; }
 
 /* ── scorecard modal ────────────────────────────────────────────────────── */
 
@@ -582,6 +752,24 @@ kbd {
 .card-table td.level { color: var(--accent); }
 .card-table td.ace { color: var(--gold); font-weight: 800; }
 
+/* One column a player. The hole names give way first on a narrow card —
+   the number says which hole it was, and four names need the room. */
+.party-table th.pc, .party-table td.pc {
+    text-align: right;
+    width: auto;
+    padding-left: 0.5rem;
+    white-space: nowrap;
+}
+
+.party-table th.pc { max-width: 5.5rem; overflow: hidden; text-overflow: ellipsis; }
+.party-table th.pc i { width: 0.6rem; height: 0.6rem; margin-right: 0.3rem; vertical-align: -1px; }
+#scorecard.party .modal-inner { width: min(560px, 100%); }
+
+@media (max-width: 560px) {
+    .party-table .nm { display: none; }
+    .party-table tfoot td:first-child { text-align: left; }
+}
+
 .card-table tfoot td {
     border-top: 2px solid rgba(255, 255, 255, 0.16);
     font-weight: 700;
@@ -615,9 +803,250 @@ kbd {
 
 .modal-actions button:hover { transform: translateY(-1px); }
 
+/* ── title screen ───────────────────────────────────────────────────────── */
+
+/* Over the board rather than instead of it: the scrim is lighter than the
+   other dialogs', because the hole waiting behind it is half of what the
+   screen is saying. */
+.title-screen { background: rgba(3, 12, 8, 0.5); backdrop-filter: blur(4px); z-index: 60; }
+
+.title-inner {
+    width: min(420px, 100%);
+    text-align: center;
+    padding: 1.6rem 1.4rem 1.3rem;
+}
+
+/* A ball on a tee, in CSS: the game's one prop, as its logo. */
+.title-ball {
+    width: 54px;
+    height: 54px;
+    margin: 0 auto 0.6rem;
+    border-radius: 50%;
+    background:
+        radial-gradient(circle at 34% 30%, #ffffff 0 18%, transparent 19%),
+        radial-gradient(circle at 60% 58%, rgba(120, 140, 155, 0.35) 0 6%, transparent 7%),
+        radial-gradient(circle at 42% 66%, rgba(120, 140, 155, 0.35) 0 6%, transparent 7%),
+        radial-gradient(circle at 70% 38%, rgba(120, 140, 155, 0.35) 0 6%, transparent 7%),
+        radial-gradient(circle at 40% 35%, #ffffff 0 40%, #dfe6ea 70%, #9fb0bb 100%);
+    box-shadow: 0 10px 0 -4px rgba(0, 0, 0, 0.25), 0 18px 28px rgba(0, 0, 0, 0.35);
+    animation: bob 2.6s ease-in-out infinite;
+}
+
+@keyframes bob {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-5px); }
+}
+
+.modal h2.title-name {
+    font-size: 2.1rem;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    line-height: 1.05;
+}
+
+.title-name span { color: var(--accent); }
+
+.title-sub {
+    margin: 0.35rem 0 1rem;
+    font-size: 0.88rem;
+    color: var(--ink-dim);
+    font-weight: 300;
+}
+
+.title-progress {
+    display: grid;
+    gap: 0.35rem;
+    padding: 0.7rem 0.9rem;
+    margin-bottom: 1rem;
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid var(--panel-border);
+}
+
+.tp-count { font-size: 0.95rem; color: var(--ink-dim); }
+.tp-count b { font-size: 1.25rem; color: var(--ink); font-variant-numeric: tabular-nums; }
+.tp-star { color: var(--gold); margin-right: 0.25rem; }
+
+.tp-bar {
+    height: 8px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.08);
+    overflow: hidden;
+}
+
+.tp-fill {
+    height: 100%;
+    width: 0;
+    border-radius: inherit;
+    background: linear-gradient(90deg, #f59e0b, #fbbf24 60%, #fde68a);
+    transition: width 0.6s ease;
+}
+
+.tp-next { font-size: 0.78rem; color: var(--ink-dim); }
+
+.title-actions { display: grid; gap: 0.55rem; }
+
+.title-actions button {
+    font: inherit;
+    color: var(--ink);
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid var(--panel-border);
+    border-radius: 14px;
+    padding: 0.7rem 0.9rem;
+    min-height: 46px;
+    cursor: pointer;
+    transition: background 0.18s, transform 0.18s, border-color 0.18s;
+}
+
+.title-actions button:hover { background: var(--accent-soft); border-color: rgba(134, 239, 172, 0.4); }
+.title-actions button:active { transform: translateY(1px); }
+.title-actions button[hidden] { display: none; }
+
+/* The one obvious next thing, twice the weight of everything else. */
+.title-actions button.title-play {
+    display: grid;
+    gap: 0.1rem;
+    padding: 0.85rem 1rem;
+    color: #052e16;
+    background: var(--accent);
+    border-color: transparent;
+    box-shadow: 0 10px 30px rgba(74, 222, 128, 0.3);
+}
+
+.title-actions button.title-play:hover { background: #6ee7a0; }
+.tpl-main { font-size: 1.15rem; font-weight: 800; letter-spacing: -0.01em; }
+.tpl-sub { font-size: 0.8rem; font-weight: 400; opacity: 0.8; }
+
+.title-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.55rem; }
+
+.title-actions button:focus-visible { outline: 2px solid #ffffff; outline-offset: 2px; }
+
+/* Two balls in two players' colours: what a party is. */
+.party-dots { display: inline-flex; gap: 2px; margin-right: 0.35rem; vertical-align: -1px; }
+.party-dots i { width: 0.75rem; height: 0.75rem; border-radius: 50%; box-shadow: inset -2px -2px 3px rgba(0, 0, 0, 0.3); }
+.party-dots i:first-child { background: #fb923c; }
+.party-dots i:last-child { background: #38bdf8; }
+
+.title-wide { font-size: 0.85rem; }
+
+.title-hint {
+    margin: 1rem 0 0;
+    font-size: 0.75rem;
+    line-height: 1.45;
+    color: var(--ink-dim);
+    font-weight: 300;
+}
+
+/* A phone on its side has about 360px of height. The ball and the strapline
+   go, and the rest tightens, so the play button is never below the fold. */
+@media (max-height: 520px) {
+    .title-inner { padding: 1rem 1.1rem; }
+    .title-ball, .title-sub, .title-hint { display: none; }
+    .modal h2.title-name { font-size: 1.5rem; margin-bottom: 0.6rem; }
+    .title-progress { margin-bottom: 0.6rem; padding: 0.5rem 0.8rem; }
+    .title-hint { margin-top: 0.6rem; }
+}
+
+/* ── party dialog ───────────────────────────────────────────────────────── */
+
+/* minmax(0, …) or the column is as wide as an input's intrinsic width,
+   and on a phone that pushes the remove buttons off the dialog's edge. */
+.party-players { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0.45rem; }
+
+.party-row {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    min-width: 0;
+}
+
+.party-ball {
+    flex: none;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    box-shadow: inset -3px -4px 6px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(0, 0, 0, 0.4);
+}
+
+/* 16px or larger: iOS zooms the whole page into any input with smaller
+   type, and a dialog that zooms when you tap it is a dialog that breaks. */
+.party-row input {
+    flex: 1;
+    min-width: 0;
+    font: inherit;
+    font-size: 16px;
+    color: var(--ink);
+    background: rgba(0, 0, 0, 0.25);
+    border: 1px solid var(--panel-border);
+    border-radius: 10px;
+    padding: 0.55rem 0.7rem;
+    min-height: 44px;
+}
+
+.party-row input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+.party-del {
+    flex: none;
+    width: 44px;
+    height: 44px;
+    font: inherit;
+    font-size: 1.2rem;
+    color: var(--ink-dim);
+    background: none;
+    border: 1px solid transparent;
+    border-radius: 10px;
+    cursor: pointer;
+}
+
+.party-del:hover { color: var(--over); border-color: rgba(248, 113, 113, 0.4); }
+
+.party-add {
+    margin-top: 0.5rem;
+    font: inherit;
+    font-size: 0.85rem;
+    color: var(--accent);
+    background: none;
+    border: 1px dashed rgba(74, 222, 128, 0.4);
+    border-radius: 10px;
+    padding: 0.55rem;
+    min-height: 44px;
+    width: 100%;
+    cursor: pointer;
+}
+
+.party-add[hidden] { display: none; }
+
+.party-label {
+    margin: 1rem 0 0.4rem;
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.09em;
+    color: var(--ink-dim);
+}
+
+.party-courses { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 0.4rem; }
+
+.party-course {
+    display: grid;
+    gap: 0.1rem;
+    text-align: left;
+    font: inherit;
+    font-size: 0.85rem;
+    color: var(--ink);
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--panel-border);
+    border-radius: 10px;
+    padding: 0.5rem 0.65rem;
+    min-height: 44px;
+    cursor: pointer;
+}
+
+.party-course small { font-size: 0.7rem; color: var(--ink-dim); }
+.party-course.on { background: rgba(74, 222, 128, 0.16); border-color: var(--accent); }
+
 /* ── course picker ──────────────────────────────────────────────────────── */
 
-/* Wider than the scorecard: this one is carrying forty-two hole plans and a
+/* Wider than the scorecard: this one is carrying fifty-one hole plans and a
    460px column would show them at the size of a full stop. */
 #menu .modal-inner { width: min(680px, 100%); }
 
@@ -729,6 +1158,44 @@ kbd {
 }
 
 .cc-redraw:hover { background: var(--accent-soft); border-color: rgba(134, 239, 172, 0.4); }
+.cc-redraw:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* A locked card shows everything it will hold — the plans are the reason to
+   go on — and says so by being quieter, not by being hidden. */
+.course-card.locked { background: rgba(255, 255, 255, 0.025); }
+.course-card.locked .cc-name, .course-card.locked .cc-blurb { opacity: 0.6; }
+.course-card.locked .cc-meta { color: var(--gold); }
+.course-card.locked .cc-hole { cursor: not-allowed; filter: saturate(0.35) brightness(0.7); }
+.course-card.locked .cc-hole:hover { transform: none; border-color: transparent; }
+
+.cc-lock {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 0.62rem;
+    color: var(--gold);
+    border: 1px solid rgba(251, 191, 36, 0.5);
+    border-radius: 999px;
+    padding: 0.08rem 0.42rem;
+    margin-left: 0.5rem;
+    vertical-align: 0.1em;
+    white-space: nowrap;
+}
+
+.menu-unlock {
+    display: block;
+    margin: 0.8rem auto 0;
+    font: inherit;
+    font-size: 0.78rem;
+    color: var(--ink-dim);
+    background: none;
+    border: 0;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    cursor: pointer;
+    padding: 0.5rem;
+}
+
+.menu-unlock[hidden] { display: none; }
+.menu-unlock.armed { color: var(--gold); font-weight: 600; }
 
 /* Six across, whatever the dialog's width. The field is a fixed 3:2, so every
    plan is 3:2 and the strip cannot come out ragged. */
@@ -774,6 +1241,22 @@ kbd {
 
 .cc-num { left: 0; border-top-right-radius: 5px; }
 .cc-par { right: 0; border-top-left-radius: 5px; color: var(--accent); }
+
+/* The level select's stars, along the top of each plan. */
+.cc-stars {
+    position: absolute;
+    top: 0;
+    left: 0;
+    font-size: 0.6rem;
+    line-height: 1;
+    letter-spacing: 0.04em;
+    padding: 2px 3px 2px 2px;
+    color: var(--gold);
+    background: rgba(4, 18, 10, 0.7);
+    border-bottom-right-radius: 5px;
+}
+
+.cc-stars.none { color: rgba(251, 191, 36, 0.4); }
 
 @media (max-width: 560px) {
     .cc-holes { grid-template-columns: repeat(3, 1fr); }
@@ -821,6 +1304,74 @@ body.compact-ui .course-card.expanded .cc-holes {
     .tagline { display: none; }
     .hole-blurb { white-space: normal; }
 }
+
+/* A phone held upright. Every pixel of chrome above the board is a pixel
+   the board cannot have, and upright is when the board turns to run up the
+   screen (game.js → resize) — so the bar, the scoreboard and the meter all
+   tighten, and the page's bottom padding, which is there so a desktop does
+   not scroll by an inch, gives way to the board. */
+@media (max-width: 560px) {
+    body { padding: 0.5rem 0.5rem 0.6rem; }
+    .topbar { margin-bottom: 0.5rem; }
+    .scoreboard { padding: 0.5rem 0.75rem; gap: 0.25rem 0.5rem; margin-bottom: 0.5rem; border-radius: 14px; }
+    .stat-label { font-size: 0.58rem; margin-bottom: 0.05rem; }
+    .stat-value { font-size: 1rem; }
+    .hole-name { font-size: 0.98rem; }
+    .hole-blurb { font-size: 0.72rem; line-height: 1.25; }
+    .power { margin-top: 0.45rem; padding: 0.4rem 0.8rem; }
+    .power-track { height: 18px; }
+    .tip { font-size: 0.72rem; max-width: min(230px, calc(100% - 16px)); padding: 0.4rem 0.55rem; }
+}
+
+/* ── the side layout ────────────────────────────────────────────────────
+
+   A phone on its side, or any window too short for a board under a
+   scoreboard. Stacked, the chrome above the board took half of a 340px
+   screen and left the board at its minimum size with the page scrolling
+   under the thumb — the posture the old hint told players to turn to was
+   the one that played worst. Side by side, the board takes the full height
+   and the bar, the scoreboard and the meter stand in a column beside it.
+   Set from game.js, which needs to know which way the room runs before it
+   can size the board. */
+body.is-side { padding: 0.45rem 0.55rem; }
+
+body.is-side .wrap,
+body.is-side .wrap:fullscreen {
+    max-width: none;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 200px;
+    grid-template-rows: auto auto auto auto 1fr;
+    column-gap: 0.55rem;
+    align-items: start;
+    align-content: center;
+}
+
+body.is-side .topbar { grid-column: 2; grid-row: 1; margin-bottom: 0.4rem; gap: 0.5rem; }
+body.is-side .brand { display: none; }
+body.is-side .stage { grid-column: 1; grid-row: 1 / 6; align-self: center; }
+
+body.is-side .scoreboard {
+    grid-column: 2;
+    grid-row: 2;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.3rem 0.5rem;
+    padding: 0.5rem 0.65rem;
+    margin-bottom: 0.4rem;
+    border-radius: 14px;
+}
+
+body.is-side .scoreboard .stat:first-child { grid-column: 1 / -1; }
+body.is-side .stat-label { font-size: 0.56rem; }
+body.is-side .stat-value { font-size: 0.98rem; }
+body.is-side .hole-name { font-size: 0.9rem; }
+body.is-side .hole-blurb { font-size: 0.68rem; white-space: normal; line-height: 1.25; }
+body.is-side .party-strip { grid-column: 2; grid-row: 3; margin: 0 0 0.4rem; }
+body.is-side .ps { font-size: 0.72rem; padding: 0.2rem 0.5rem 0.2rem 0.35rem; }
+body.is-side .power { grid-column: 2; grid-row: 4; margin-top: 0; padding: 0.4rem 0.6rem; gap: 0.5rem; }
+body.is-side .power-label { display: none; }
+body.is-side .power-track { height: 16px; }
+body.is-side .help, body.is-side .legend { display: none; }
+body.is-side .tip { font-size: 0.72rem; max-width: min(240px, calc(100% - 16px)); padding: 0.4rem 0.55rem; }
 
 /* ── the compact bar ────────────────────────────────────────────────────
 
@@ -889,6 +1440,10 @@ body.compact-ui button.chip.on, body.compact-ui a.chip.on {
     border-color: transparent;
 }
 
+/* Off, not merely fast. A 0.01ms duration on `*` turns every property into
+   a transition — `transition-property` defaults to `all` — including the
+   canvas's width and height, and a board resized between two frames was
+   left at its old size for exactly the players who asked for less motion. */
 @media (prefers-reduced-motion: reduce) {
-    * { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+    *, *::before, *::after { animation: none !important; transition: none !important; }
 }

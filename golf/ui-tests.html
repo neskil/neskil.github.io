@@ -230,12 +230,47 @@
 
         function run() {
             var G = frame().GOLF;
+
+            /* First, before anything is pressed: the store was emptied
+               above, so this is a first visit, and a first visit opens on
+               the clubhouse door pointing at the course that says it is the
+               place to start. */
+            section('the title screen');
+
+            assert('a first visit opens on the title screen', $('title').classList.contains('show'));
+            assert('…pointed at the starter course', G.COURSE_ID === G.progress.starter().id && G.COURSE_ID === 'short');
+            assert('…which it calls the place to start',
+                /Start here/.test($('title-play').textContent) && $('title-play').textContent.indexOf('The Short Six') >= 0,
+                $('title-play').textContent);
+            assert('it counts the stars, from nothing', $('tp-stars').textContent === '0' && +$('tp-max').textContent > 0);
+            assert('it names the next door and the price of it', /opens at \d+ ★ — \d+ to go/.test($('tp-next').textContent),
+                $('tp-next').textContent);
+            assert('no party to resume on a first visit', $('title-resume-party').hidden);
+            assert('the first tee is coached', G.game.getState().coach === true);
+            $('title-play').click();
+            assert('the play button goes to the tee it was showing', !$('title').classList.contains('show') && G.COURSE_ID === 'short');
+            var W0 = frame();
+            W0.dispatchEvent(new W0.KeyboardEvent('keydown', { key: 'Escape' }));
+            assert('Esc with nothing open brings the menu up', $('title').classList.contains('show'));
+            W0.dispatchEvent(new W0.KeyboardEvent('keydown', { key: 'Escape' }));
+            assert('…and Esc on the menu goes back to the game', !$('title').classList.contains('show'));
+            $('btn-title').click();
+            assert('the ★ chip opens it too', $('title').classList.contains('show'));
+            /* The keys that play a shot belong to a dialog while one is
+               open: Space on a focused button presses the button, and must
+               not also wind up a putt behind it. */
+            W0.dispatchEvent(new W0.KeyboardEvent('keydown', { key: 'ArrowUp' }));
+            assert('the arrow keys do not aim behind an open dialog', !G.game.getState().aim.active);
+            $('title-courses').click();
+            assert('Courses on the title opens the picker in its place',
+                $('menu').classList.contains('show') && !$('title').classList.contains('show'));
+            $('menu-close').click();
             var startedOn = G.COURSE_ID;
 
             section('the topbar, wide');
 
             compact(false);
-            var CHIPS = ['btn-full', 'btn-courses', 'btn-restart', 'btn-card', 'chip-editor', 'btn-mute'];
+            var CHIPS = ['btn-full', 'btn-title', 'btn-courses', 'btn-restart', 'btn-card', 'chip-editor', 'btn-mute'];
             CHIPS.forEach(function (id) {
                 assert('#' + id + ' is in the bar', shown($(id)));
             });
@@ -432,9 +467,207 @@
                         'width ' + shut.querySelector('.cc-map').width);
                     $('menu-close').click();
                     compact(false);
-                    done();
-                });
+                    return more(G);
+                }).then(done);
             });
+        }
+
+        /* ── what came with the stars ───────────────────────────────────── */
+
+        function more(G) {
+            var W = frame();
+
+            section('locks');
+
+            $('btn-courses').click();
+            var cards = doc().querySelectorAll('#menu-list .course-card');
+            var locked = doc().querySelectorAll('#menu-list .course-card.locked');
+            assert('on a first visit the later cards are locked', locked.length >= 3, locked.length + ' locked');
+            assert('…and the two at the top are not', !cards[0].classList.contains('locked') && !cards[1].classList.contains('locked'));
+            var lk = locked[0];
+            var lockedId = lk.querySelector('.cc-hole').getAttribute('data-course');
+            assert('a locked card says what it costs', /opens at \d+ ★, \d+ to go/.test(lk.querySelector('.cc-meta').textContent),
+                lk.querySelector('.cc-meta').textContent);
+            assert('a locked card still shows its holes', lk.querySelectorAll('.cc-hole').length > 0);
+            assert('…but none of them can be pressed', Array.prototype.every.call(lk.querySelectorAll('.cc-hole'), function (c) { return c.disabled; }));
+            var was = G.COURSE_ID;
+            lk.querySelector('.cc-head').click();
+            assert('pressing a locked head does not take you there', G.COURSE_ID === was && $('menu').classList.contains('show'));
+            assert('…it says why instead', /opens at/.test($('toast').textContent), $('toast').textContent);
+            var dealt = {};
+            for (var i = 0; i < 60; i++) dealt[G.game.randomCourseId()] = true;
+            assert('the die only deals what is open', Object.keys(dealt).every(function (id) {
+                return G.progress.isOpen(G.COURSES.filter(function (c) { return c.id === id; })[0]);
+            }), Object.keys(dealt).join(', '));
+            assert('the way past the ladder is offered', !$('menu-unlock').hidden);
+            $('menu-unlock').click();
+            assert('one press only arms it', doc().querySelectorAll('#menu-list .course-card.locked').length === locked.length &&
+                $('menu-unlock').classList.contains('armed'));
+            $('menu-unlock').click();
+            assert('the second opens every course', doc().querySelectorAll('#menu-list .course-card.locked').length === 0);
+            assert('…and the offer goes away', $('menu-unlock').hidden);
+            $('menu-close').click();
+            assert('a course that was locked can now be played', G.game.playCourse(lockedId, null) && G.COURSE_ID === lockedId);
+
+            section('stars');
+
+            G.game.playCourse('short', null, 0);
+            var st = G.game.getState();
+            st.strokes = G.COURSE[0].par - 1;
+            G.game.holeComplete(false);
+            assert('a birdie is three stars on the banner', $('banner-stars').textContent.indexOf('★★★') === 0,
+                $('banner-stars').textContent);
+            assert('…and three on the scoreboard', $('hole-stars').textContent === '★★★');
+            assert('the hole best is written down at once', G.scoring.load('short').holes[0] === G.COURSE[0].par - 1);
+            G.game.advanceHole();
+            $('btn-courses').click();
+            var shortCard = doc().querySelectorAll('#menu-list .course-card')[1];
+            assert('the plan carries the stars it gave', shortCard.querySelector('.cc-stars').textContent === '★★★',
+                shortCard.querySelector('.cc-stars').textContent);
+            assert('the card head counts them', /★ 3\/18/.test(shortCard.querySelector('.cc-meta').textContent),
+                shortCard.querySelector('.cc-meta').textContent);
+            $('menu-close').click();
+            st = G.game.getState();
+            st.strokes = G.scoring.strokeLimit(G.COURSE[1].par);
+            G.game.holeComplete(true);
+            assert('running out of strokes is a pick-up', $('banner-term').textContent === 'Picked up');
+            assert('…written down as one past the limit', st.scores[1] === G.scoring.pickupScore(G.COURSE[1].par));
+            assert('…and worth no stars', $('banner-stars').textContent.indexOf('☆☆☆') === 0, $('banner-stars').textContent);
+
+            section('a door opening');
+
+            /* Stars up to one short of a threshold, then the hole that
+               crosses it: the banner has to say so, and the card has to be
+               open afterwards. Everything was unlocked above, so progress is
+               written back as a player who has opened nothing — written, not
+               removed: with save files in the store and no progress record,
+               the game would rightly take this browser for a veteran's. */
+            localStorage.setItem(G.CONFIG.PROGRESS_KEY, JSON.stringify({
+                v: 1, all: false, granted: {}, seen: {}, coached: true, veteran: false
+            }));
+            G.progress.reload();
+            var tide = G.COURSES.filter(function (c) { return c.id === 'tide'; })[0];
+            var need = G.progress.need(tide);
+            var shortHoles = G.COURSES[1].holes;
+            var seed = shortHoles.map(function () { return null; });
+            var have = 0;
+            for (var h = 1; h < shortHoles.length && have + 3 < need; h++) { seed[h] = shortHoles[h].par - 1; have += 3; }
+            localStorage.setItem(G.scoring.key(G.CONFIG.SAVE_KEY, 'short'), JSON.stringify({ best: null, holes: seed }));
+            G.progress.reload();
+            assert('one hole short of the Tidewater Nine, it is still shut', !G.progress.isOpen(tide),
+                G.progress.totalStars().got + ' of ' + need);
+            G.game.playCourse('short', null, 0);
+            st = G.game.getState();
+            st.strokes = 1;
+            G.game.holeComplete(false);
+            assert('the hole that crosses the line says the door is open',
+                /The Tidewater Nine is now open/.test($('banner-note').textContent), $('banner-note').textContent);
+            assert('…and it is', G.progress.isOpen(tide) && G.progress.get().granted.tide);
+            G.game.advanceHole();
+            G.progress.unlockAll();
+
+            section('a party');
+
+            $('btn-title').click();
+            $('title-party').click();
+            assert('Party opens its dialog', $('party').classList.contains('show') && !$('title').classList.contains('show'));
+            assert('a party starts with two players', $('party-players').querySelectorAll('input').length === 2);
+            $('party-add').click();
+            assert('a third can be added', $('party-players').querySelectorAll('input').length === 3);
+            var inputs = $('party-players').querySelectorAll('input');
+            inputs[0].value = 'Ana'; inputs[1].value = 'Ben'; inputs[2].value = 'Cy';
+            assert('the inputs are big enough not to zoom a phone', parseFloat(css(inputs[0], 'fontSize')) >= 16);
+            assert('only open courses are offered', doc().querySelectorAll('#party-courses .party-course').length === G.COURSES.length);
+            $('party-go').click();
+            st = G.game.getState();
+            assert('Tee off starts the party', !!st.party && st.party.players.length === 3 && !$('party').classList.contains('show'));
+            assert('the running order is on the page', !$('party-strip').hidden &&
+                doc().querySelectorAll('#party-strip .ps').length === 3);
+            assert('the first name is up', doc().querySelector('#party-strip .ps.up').textContent.indexOf('Ana') >= 0);
+            assert('each player has a ball of their own', st.ballColor === G.CONFIG.PLAYER_COLORS[0]);
+            assert('a party is nobody\'s record', $('hole-stars').textContent === '');
+            st.strokes = 3;
+            G.game.holeComplete(false);
+            assert('the banner hands the hole on by name', /Ben’s turn/.test($('banner-next').textContent), $('banner-next').textContent);
+            G.game.advanceHole();
+            st = G.game.getState();
+            assert('the next player tees off the same hole', st.holeIndex === 0 && st.party.players[st.party.order[st.party.pos]].name === 'Ben');
+            assert('…with their own ball', st.ballColor === G.CONFIG.PLAYER_COLORS[1]);
+            st.strokes = 1;
+            $('btn-restart').click();
+            assert('in a party the tee is free but the strokes stand', G.game.getState().strokes === 1);
+            st.strokes = 2;
+            G.game.holeComplete(false);
+            G.game.advanceHole();
+            st = G.game.getState();
+            st.strokes = 4;
+            G.game.holeComplete(false);
+            assert('the last putt of a hole shows everybody\'s score', doc().querySelectorAll('#banner-note .hb').length === 3);
+            G.game.advanceHole();
+            st = G.game.getState();
+            assert('the best score has the honour on the next tee',
+                st.holeIndex === 1 && st.party.players[st.party.order[0]].name === 'Ben', st.party.order.join(','));
+            assert('the party is saved after every turn', !!localStorage.getItem(G.CONFIG.PARTY_KEY));
+
+            // Away to a solo course, and back.
+            G.game.playCourse('links', null);
+            assert('a solo course leaves the party behind', !G.game.getState().party && $('party-strip').hidden);
+            $('btn-title').click();
+            assert('…and the menu offers it back', !$('title-resume-party').hidden &&
+                /Ana, Ben, Cy/.test($('title-resume-party').textContent));
+            $('title-resume-party').click();
+            st = G.game.getState();
+            assert('resuming puts the party back where it was',
+                !!st.party && st.holeIndex === 1 && st.party.players[st.party.order[st.party.pos]].name === 'Ben');
+            G.game.playCourse('links', null);
+            localStorage.removeItem(G.CONFIG.PARTY_KEY);
+
+            section('the turned board');
+
+            /* A phone held upright. The frame is narrowed to a phone's width
+               and the board is asked to fit again; it should turn, and the
+               pointer has to land where the drawing says it does — checked
+               by sending world points through the canvas's own transform and
+               back through toWorld. */
+            var f = document.getElementById('stage');
+            f.style.width = '390px';
+            f.style.height = '800px';
+            G.game.resize();
+            var cv = $('board');
+            var box = cv.getBoundingClientRect();
+            assert('an upright phone turns the board', doc().body.classList.contains('is-turned') && box.height > box.width,
+                Math.round(box.width) + 'x' + Math.round(box.height));
+            var tr = cv.getContext('2d').getTransform();
+            var ok = [[140, 320], [830, 120], [480, 600]].every(function (p) {
+                var dx = tr.a * p[0] + tr.c * p[1] + tr.e, dy = tr.b * p[0] + tr.d * p[1] + tr.f;
+                var back = G.game.toWorld({
+                    clientX: box.left + dx / cv.width * box.width,
+                    clientY: box.top + dy / cv.height * box.height
+                });
+                return Math.abs(back.x - p[0]) < 1 && Math.abs(back.y - p[1]) < 1;
+            });
+            assert('the pointer lands where the turned drawing puts things', ok);
+            var teeY = tr.b * 140 + tr.d * 320 + tr.f;
+            assert('the tee end is at the bottom of the screen', teeY > cv.height / 2);
+
+            section('the side layout');
+
+            f.style.width = '760px';
+            f.style.height = '360px';
+            G.game.resize();
+            box = $('board').getBoundingClientRect();
+            assert('a phone on its side puts the scoreboard beside the board', doc().body.classList.contains('is-side'));
+            assert('the board takes nearly the full height', box.height > 360 * 0.85, Math.round(box.height) + 'px of 360');
+            assert('the board sits left of the column', box.right <= $('power').getBoundingClientRect().left + 1);
+            assert('nothing scrolls', doc().documentElement.scrollHeight <= doc().documentElement.clientHeight + 1,
+                doc().documentElement.scrollHeight + ' > ' + doc().documentElement.clientHeight);
+
+            f.style.width = '';
+            f.style.height = '';
+            G.game.resize();
+            assert('and a wide window puts it all back', !doc().body.classList.contains('is-side') &&
+                !doc().body.classList.contains('is-turned'));
+            return Promise.resolve();
         }
 
         saveStore();

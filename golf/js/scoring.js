@@ -29,10 +29,32 @@
         return (!id || id === first) ? base : base + '.' + id;
     }
 
+    /* ── the pick-up ────────────────────────────────────────────────────
+
+       A hole allows par + STROKE_ALLOWANCE strokes. Miss with the last of
+       them and you pick up, scoring one more than the allowance — so a score
+       above the limit can only mean a ball that never dropped, which is what
+       lets the stars below tell a pick-up from a hole-out without storing
+       which it was. */
+    function strokeLimit(par) { return par + C.STROKE_ALLOWANCE; }
+    function pickupScore(par) { return strokeLimit(par) + 1; }
+
+    /* Three for beating par, two for matching it, one for getting it down at
+       all, none for a pick-up. Under par rather than "an ace" for the third,
+       because on a par two those are the same thing and on a par four they
+       are not — and a star you can only get by luck is not a goal. */
+    function stars(score, par) {
+        if (typeof score !== 'number' || score < 1 || score > strokeLimit(par)) return 0;
+        if (score < par) return 3;
+        if (score === par) return 2;
+        return 1;
+    }
+
     /* Golf names the first few scores and gives up after that, which is about
        right: nobody has a word for eight over. */
     function term(strokes, par) {
         if (strokes === 1) return { label: 'Hole in One!', kind: 'ace' };
+        if (strokes > strokeLimit(par)) return { label: 'Picked up', kind: 'over' };
         var d = strokes - par;
         if (d <= -3) return { label: 'Albatross', kind: 'great' };
         if (d === -2) return { label: 'Eagle', kind: 'great' };
@@ -63,8 +85,19 @@
         return { strokes: strokes, par: par, vsPar: strokes - par, played: played };
     }
 
+    /* `holes` is the best score ever made on each hole of the course, round
+       or no round — a hole played from a plan in the picker counts as much as
+       one played on the way round. It is what the stars are read off. */
     function emptySave() {
-        return { best: null, bestVsPar: null, rounds: 0, aces: 0, bestCard: null };
+        return { best: null, bestVsPar: null, rounds: 0, aces: 0, bestCard: null, holes: [] };
+    }
+
+    function cleanHoles(list) {
+        var out = [];
+        for (var i = 0; i < list.length; i++) {
+            out[i] = typeof list[i] === 'number' && list[i] > 0 ? list[i] : null;
+        }
+        return out;
     }
 
     function load(courseId) {
@@ -78,6 +111,12 @@
             if (typeof d.rounds === 'number') s.rounds = d.rounds;
             if (typeof d.aces === 'number') s.aces = d.aces;
             if (Array.isArray(d.bestCard)) s.bestCard = d.bestCard;
+            /* A save from before there were per-hole bests still knows one
+               round, hole by hole: the best one. Starting from that card
+               rather than from nothing is what hands a returning player the
+               stars they already earned instead of asking for them again. */
+            if (Array.isArray(d.holes)) s.holes = cleanHoles(d.holes);
+            else if (s.bestCard) s.holes = cleanHoles(s.bestCard);
             return s;
         } catch (e) {
             return emptySave();
@@ -157,6 +196,30 @@
         try { localStorage.removeItem(key(C.ROUND_KEY)); } catch (e) { /* ignore */ }
     }
 
+    /* Fold one finished hole into the save. Pure, like recordRound: it hands
+       back a new save and what changed, and the caller decides whether to
+       write it. `before` is the old best, so the banner can say what was
+       beaten. */
+    function recordHole(prev, index, strokes) {
+        var holes = (prev.holes || []).slice();
+        var before = typeof holes[index] === 'number' ? holes[index] : null;
+        var improved = before === null || strokes < before;
+        if (improved) holes[index] = strokes;
+        for (var i = 0; i < holes.length; i++) if (holes[i] === undefined) holes[i] = null;
+        var next = {};
+        for (var k in prev) if (Object.prototype.hasOwnProperty.call(prev, k)) next[k] = prev[k];
+        next.holes = holes;
+        return { save: next, improved: improved, before: before };
+    }
+
+    // Stars earned on one card, out of the three each hole can give.
+    function courseStars(save, course) {
+        var got = 0;
+        var best = (save && save.holes) || [];
+        for (var i = 0; i < course.length; i++) got += stars(best[i], course[i].par);
+        return { got: got, max: course.length * 3 };
+    }
+
     /* Fold a finished round into the save. Returns the new save plus whether
        this round beat the record, because the end-of-round screen wants to
        make a fuss about it. */
@@ -167,7 +230,8 @@
             bestVsPar: prev.bestVsPar,
             rounds: (prev.rounds || 0) + 1,
             aces: (prev.aces || 0) + scores.filter(function (s) { return s === 1; }).length,
-            bestCard: prev.bestCard
+            bestCard: prev.bestCard,
+            holes: (prev.holes || []).slice()
         };
         var isBest = next.best === null || t.strokes < next.best;
         if (isBest) {
@@ -180,6 +244,11 @@
 
     GOLF.scoring = {
         key: key,
+        strokeLimit: strokeLimit,
+        pickupScore: pickupScore,
+        stars: stars,
+        courseStars: courseStars,
+        recordHole: recordHole,
         term: term,
         formatVsPar: formatVsPar,
         totals: totals,

@@ -3,15 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pocket Links — 42-Hole Mini Golf | Niklas Billgren</title>
-    <meta name="description" content="Forty-two holes of mini golf in the browser, across four courses — plus a fifth dealt from a seed, different every time you ask. Drag to aim, mind the water, the bunkers, the rough, the ice, the bumpers and the gates that will not wait. The arrow gives you the line and nothing else — the weight of the shot is yours. Plays fullscreen, remembers your round, no install and no account.">
+    <title>Pocket Links — 51-Hole Mini Golf | Niklas Billgren</title>
+    <meta name="description" content="Fifty-one holes of mini golf in the browser, across five courses — plus a sixth dealt from a seed, different every time you ask. Earn stars to open new courses, or pass one phone round a party of four. Drag to aim, mind the water, the bunkers, the rough, the ice, the bumpers, the tunnels and the gates that will not wait. The arrow gives you the line and nothing else — the weight of the shot is yours. Plays on a phone, a tablet or a keyboard, remembers your round, no install and no account.">
     <meta name="theme-color" content="#0c2418">
     <meta name="color-scheme" content="dark">
     <meta name="author" content="Niklas Billgren">
     <link rel="canonical" href="https://neskil.github.io/golf/">
     <meta property="og:site_name" content="Niklas Billgren">
-    <meta property="og:title" content="Pocket Links — 42-Hole Mini Golf">
-    <meta property="og:description" content="Four courses, forty-two holes of browser mini golf — and a course generator that deals nine more nobody has played. Bunkers, water, ice, bumpers, breaking greens and moving gates. Drag, release, try to beat par.">
+    <meta property="og:title" content="Pocket Links — 51-Hole Mini Golf">
+    <meta property="og:description" content="Five courses, fifty-one holes of browser mini golf — stars to earn, a party mode for four, and a course generator that deals nine more nobody has played. Bunkers, water, ice, bumpers, tunnels, breaking greens and moving gates. Drag, release, try to beat par.">
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://neskil.github.io/golf/">
     <meta property="og:image" content="https://neskil.github.io/assets/og/golf.png">
@@ -32,7 +32,7 @@
 
         gtag('config', 'G-9GP823TGLB');
     </script>
-    <link rel="stylesheet" href="style.css?v=1.7.0">
+    <link rel="stylesheet" href="style.css?v=1.8.0">
 <script type="application/ld+json">
     {
         "@context": "https://schema.org",
@@ -40,9 +40,9 @@
             {
                 "@type": "VideoGame",
                 "url": "https://neskil.github.io/golf/",
-                "description": "Forty-two holes of mini golf in the browser, across four courses — plus a fifth dealt from a seed, different every time you ask. Drag to aim, mind the water, the bunkers, the rough, the ice, the bumpers and the gates that will not wait. The arrow gives you the line and nothing else — the weight of the shot is yours. Plays fullscreen, remembers your round, no install and no account.",
+                "description": "Fifty-one holes of mini golf in the browser, across five courses — plus a sixth dealt from a seed, different every time you ask. Earn stars to open new courses, or pass one phone round a party of four. Drag to aim, mind the water, the bunkers, the rough, the ice, the bumpers, the tunnels and the gates that will not wait. The arrow gives you the line and nothing else — the weight of the shot is yours. Plays on a phone, a tablet or a keyboard, remembers your round, no install and no account.",
                 "image": "https://neskil.github.io/assets/og/golf.png",
-                "name": "Pocket Links — 42-Hole Mini Golf",
+                "name": "Pocket Links — 51-Hole Mini Golf",
                 "author": {
                     "@id": "https://neskil.github.io/#niklas"
                 },
@@ -87,7 +87,7 @@
             <a class="home-link" href="../index.html" title="Back to home" aria-label="Back to home">&#8592;</a>
             <div class="brand">
                 <h1 class="title">Pocket <span>Links</span></h1>
-                <p class="tagline">Four courses, or one dealt on the spot. No caddie.</p>
+                <p class="tagline">Five courses, or one dealt on the spot. No caddie.</p>
             </div>
             <div class="topbar-actions">
                 <button class="chip" id="btn-full" title="Fullscreen (F)" aria-label="Fullscreen"><span id="full-icon">⛶</span><span class="chip-text">Full</span></button>
@@ -95,6 +95,9 @@
                     <!-- Five cards on one field, and the picker is where the
                          choice is made: the courses, the die and the draw all
                          live behind this one chip now. -->
+                    <!-- The clubhouse: continue, courses, a party, and how many
+                         stars you have. Esc opens it from the keyboard. -->
+                    <button class="chip" id="btn-title" title="Menu (Esc)">&#9733;<span class="chip-text">Menu</span></button>
                     <button class="chip" id="btn-courses" title="Pick a course (C)">&#9971;<span class="chip-text">Courses</span></button>
                     <button class="chip" id="btn-restart" title="Restart this hole (R)">↻<span class="chip-text">Hole</span></button>
                     <button class="chip" id="btn-card" title="Scorecard">&#9636;<span class="chip-text">Card</span></button>
@@ -114,11 +117,13 @@
             </div>
             <div class="stat">
                 <div class="stat-label">Par</div>
-                <div class="stat-value" id="hole-par">—</div>
+                <!-- Beside the par: your best on this hole, in stars. Empty on
+                     a card that keeps no record. -->
+                <div class="stat-value"><span id="hole-par">—</span><span class="stat-stars" id="hole-stars"></span></div>
             </div>
             <div class="stat">
                 <div class="stat-label">Strokes</div>
-                <div class="stat-value" id="hole-strokes">0</div>
+                <div class="stat-value"><span id="hole-strokes">0</span><span class="stat-of" id="hole-limit"></span></div>
             </div>
             <div class="stat">
                 <div class="stat-label">Total</div>
@@ -130,14 +135,27 @@
             </div>
         </div>
 
+        <!-- A party's running order: one chip a player, the one whose turn
+             it is lit. Only on the page while a party is being played. -->
+        <div class="party-strip" id="party-strip" hidden></div>
+
         <div class="stage" id="stage">
             <canvas id="board" width="960" height="640" aria-label="Mini golf course"></canvas>
 
             <div class="banner" id="banner">
                 <div class="banner-term" id="banner-term">Par</div>
                 <div class="banner-detail" id="banner-detail"></div>
+                <!-- What the hole was worth: stars on a recorded card, the
+                     whole party's scores on the last turn of a hole. -->
+                <div class="banner-stars" id="banner-stars"></div>
+                <div class="banner-note" id="banner-note"></div>
                 <button id="banner-next" type="button">Next hole →</button>
             </div>
+
+            <!-- First-run lessons: the stroke on the very first tee, and each
+                 hazard the first time a hole has one. It never takes a
+                 press — it goes when the shot does. -->
+            <div class="tip" id="tip" aria-live="polite"></div>
 
             <div class="toast" id="toast"></div>
         </div>
@@ -165,19 +183,21 @@
         </div>
 
         <div class="help" id="help">
-            <span><b>Drag back</b> from the ball and release — like a slingshot.</span>
-            <span>The arrow gives you the <b>line</b> — the ray runs on to show where it points —
-                and the dial gives you the <b>weight</b>. The gold mark is your last shot on this
-                hole. How far any of that is, you judge.</span>
-            <span>The last stretch of the dial is <b>overswing</b>: more roll than the safe
-                zone can give you, paid for in accuracy. Pull into the hatching and the arrow
-                opens into the cone the ball may actually leave in.</span>
+            <span><b>Drag back</b> from the ball and release — like a slingshot. Slide back to
+                where you started to call it off.</span>
+            <span>The arrow gives you the <b>line</b>, the dial the <b>weight</b>, and the gold
+                mark your last shot here. How far any of that is, you judge.</span>
+            <span>The hatched end of the dial is <b>overswing</b>: more roll, paid for in
+                accuracy — the arrow opens into the cone the ball may leave in.</span>
+            <span>A hole allows <b>par + 3</b>, then you pick up. Each gives up to three
+                <b>stars</b>, and stars open courses.</span>
             <span class="kb-help"><kbd>←</kbd><kbd>→</kbd> aim · <kbd>↑</kbd><kbd>↓</kbd> power · <kbd>space</kbd> hit
                 (<kbd>shift</kbd> for fine control)</span>
-            <span class="kb-help"><kbd>C</kbd> pick a course · <kbd>R</kbd> restart hole ·
+            <span class="kb-help"><kbd>Esc</kbd> menu · <kbd>C</kbd> pick a course · <kbd>R</kbd> restart hole ·
                 <kbd>D</kbd> deal a random course · <kbd>G</kbd> generate a new one ·
                 <kbd>F</kbd> fullscreen · <kbd>M</kbd> sound</span>
-            <span class="touch-help">Turn your phone sideways for a bigger course.</span>
+            <span class="touch-help">Drag from anywhere on the course — your finger never has to cover the ball.
+                Upright, the course turns to fill the screen.</span>
         </div>
 
         <div class="legend" id="legend">
@@ -189,6 +209,7 @@
             <span><i class="sw-move"></i>Moving gate</span>
             <span><i class="sw-bump"></i>Bumper — livelier than a wall</span>
             <span><i class="sw-slope"></i>Slope — the arrows point downhill</span>
+            <span><i class="sw-tunnel"></i>Tunnel — out of the matching mouth, same speed, same line</span>
             <span>Best round: <b id="best-round">—</b></span>
         </div>
     </div>
@@ -201,14 +222,63 @@
     <div class="modal" id="menu">
         <div class="modal-inner" role="dialog" aria-modal="true" aria-labelledby="menu-title">
             <h2 id="menu-title">Pick a course</h2>
-            <p class="sub">Records and rounds are kept per course — tap a plan to start on that hole.</p>
+            <p class="sub">Records and rounds are kept per course — tap a plan to start on that hole.
+                Every hole gives up to three stars, and stars open the courses further down.</p>
             <div id="menu-list" class="course-list"></div>
+            <button type="button" class="menu-unlock" id="menu-unlock" hidden>Open every course</button>
             <div class="modal-actions">
                 <!-- The die is the other way through the rack: press it and a
                      card you did not choose comes up. It never deals the one
                      already under you. -->
                 <button type="button" id="menu-shuffle" title="Deal a random course (D)">&#127922; Surprise me</button>
                 <button type="button" id="menu-close">Keep playing</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- The clubhouse door, and the first thing a visit sees. It is a
+         dialog over the board rather than a page of its own: the hole you
+         would be playing is already drawn behind it, so "Continue" is not a
+         promise but a picture. Built fresh each time it opens, like the
+         picker, because the stars and the round it offers change as you play. -->
+    <div class="modal title-screen" id="title">
+        <div class="modal-inner title-inner" role="dialog" aria-modal="true" aria-labelledby="title-name">
+            <div class="title-ball" aria-hidden="true"></div>
+            <h2 class="title-name" id="title-name">Pocket <span>Links</span></h2>
+            <p class="title-sub" id="title-sub">Mini golf, five courses deep.</p>
+            <div class="title-progress" id="title-progress">
+                <div class="tp-count"><span class="tp-star" aria-hidden="true">&#9733;</span>
+                    <b id="tp-stars">0</b><span class="tp-of"> / <span id="tp-max">0</span> stars</span></div>
+                <div class="tp-bar" aria-hidden="true"><div class="tp-fill" id="tp-fill"></div></div>
+                <div class="tp-next" id="tp-next"></div>
+            </div>
+            <div class="title-actions">
+                <button type="button" class="title-play" id="title-play">Play</button>
+                <button type="button" class="title-wide" id="title-resume-party" hidden>Resume party</button>
+                <div class="title-row">
+                    <button type="button" id="title-courses">&#9971; Courses</button>
+                    <button type="button" id="title-party"><span class="party-dots" aria-hidden="true"><i></i><i></i></span>Party</button>
+                </div>
+            </div>
+            <p class="title-hint" id="title-hint"></p>
+        </div>
+    </div>
+
+    <!-- Pass-and-play. Each player plays the hole out in turn on the one
+         screen, with a ball of their own colour; the best score on a hole
+         has the honour on the next tee. A party is nobody's record. -->
+    <div class="modal" id="party">
+        <div class="modal-inner" role="dialog" aria-modal="true" aria-labelledby="party-title">
+            <h2 id="party-title">Party</h2>
+            <p class="sub">Two to four players, one screen. Each of you plays the hole out and passes it
+                on; the best score on a hole tees off first on the next. Lowest total wins.</p>
+            <div class="party-players" id="party-players"></div>
+            <button type="button" class="party-add" id="party-add">+ Add a player</button>
+            <div class="party-label" id="party-course-label">Course</div>
+            <div class="party-courses" id="party-courses" role="radiogroup" aria-labelledby="party-course-label"></div>
+            <div class="modal-actions">
+                <button type="button" id="party-back">Back</button>
+                <button type="button" class="primary" id="party-go">Tee off</button>
             </div>
         </div>
     </div>
@@ -227,8 +297,8 @@
 
     <!-- Load order is dependency order: config, then the pure logic, then the
          things that touch the screen. game.js boots itself on DOMContentLoaded. -->
-    <script src="js/config.js?v=1.7.0"></script>
-    <script src="js/courses.js?v=1.7.0"></script>
+    <script src="js/config.js?v=1.8.0"></script>
+    <script src="js/courses.js?v=1.8.0"></script>
     <script>
         /* Playtest hand-off from the hole editor. It writes one hole into
            session storage and sends the player here with ?playtest=1; swapping
@@ -244,7 +314,7 @@
                 var raw = sessionStorage.getItem('miniGolf.playtest.v1');
                 if (!raw) return;
                 var hole = JSON.parse(raw);
-                ['walls', 'water', 'sand', 'rough', 'ice', 'bumpers', 'slopes'].forEach(function (k) {
+                ['walls', 'water', 'sand', 'rough', 'ice', 'bumpers', 'slopes', 'tunnels'].forEach(function (k) {
                     if (!Array.isArray(hole[k])) hole[k] = [];
                 });
                 GOLF.COURSE = [hole];
@@ -262,14 +332,16 @@
             } catch (e) { /* storage disabled: fall through to the real course */ }
         })();
     </script>
-    <script src="js/physics.js?v=1.7.0"></script>
+    <script src="js/physics.js?v=1.8.0"></script>
     <!-- Adds nothing to the rack by itself; game.js deals the draw on boot. -->
-    <script src="js/generator.js?v=1.7.0"></script>
-    <script src="js/scoring.js?v=1.7.0"></script>
-    <script src="js/audio.js?v=1.7.0"></script>
+    <script src="js/generator.js?v=1.8.0"></script>
+    <script src="js/scoring.js?v=1.8.0"></script>
+    <!-- Stars, unlocks and first-run lessons. Reads the save files; draws nothing. -->
+    <script src="js/progress.js?v=1.8.0"></script>
+    <script src="js/audio.js?v=1.8.0"></script>
     <!-- Thumbnails for the course picker. Nothing on the board reads it. -->
-    <script src="js/plan.js?v=1.7.0"></script>
-    <script src="js/render.js?v=1.7.0"></script>
-    <script src="js/game.js?v=1.7.0"></script>
+    <script src="js/plan.js?v=1.8.0"></script>
+    <script src="js/render.js?v=1.8.0"></script>
+    <script src="js/game.js?v=1.8.0"></script>
 </body>
 </html>

@@ -526,6 +526,41 @@
             }
         });
 
+        /* Tunnels. Each mouth needs room to be a mouth: on the field, clear
+           of anything solid or wet over the whole of a gate's travel, off
+           the tee, well off the cup, off every slope (a ball the hill holds
+           over a mouth would go down it at rest), and clear of every other
+           mouth. Two mouths that touch are one tunnel with nowhere to go. */
+        var mouths = [];
+        (h.tunnels || []).forEach(function (t) {
+            mouths.push({ x: t.x, y: t.y }, { x: t.tx, y: t.ty });
+            if (Math.hypot(t.tx - t.x, t.ty - t.y) < C.TUNNEL_R * 6) bad.push('a tunnel too short to go anywhere');
+        });
+        var TR = C.TUNNEL_R;
+        mouths.forEach(function (m, mi) {
+            if (!(m.x - TR > margin && m.x + TR < C.WORLD_W - margin &&
+                  m.y - TR > margin && m.y + TR < C.WORLD_H - margin)) {
+                bad.push('a tunnel mouth off the field');
+            }
+            var solid = (h.walls || []).some(function (w) {
+                return P.circleRect(m.x, m.y, TR + C.BALL_R, travelEnvelope(w)) !== null;
+            }) || posts.some(function (b) {
+                return P.circleCircle(m.x, m.y, TR + C.BALL_R, b) !== null;
+            }) || (h.water || []).some(function (r) {
+                return P.circleRect(m.x, m.y, TR + C.BALL_R, r) !== null;
+            });
+            if (solid) bad.push('a tunnel mouth crowded by a wall, a post or water');
+            if ((h.slopes || []).some(function (r) { return P.circleRect(m.x, m.y, TR, r) !== null; })) {
+                bad.push('a tunnel mouth on a slope');
+            }
+            if (Math.hypot(m.x - h.tee.x, m.y - h.tee.y) < TR + C.BALL_R + 12) bad.push('a tunnel mouth on the tee');
+            if (Math.hypot(m.x - h.hole.x, m.y - h.hole.y) < TR + C.HOLE_R + 40) bad.push('a tunnel mouth on the cup');
+            mouths.forEach(function (o, oi) {
+                if (oi <= mi) return;
+                if (Math.hypot(m.x - o.x, m.y - o.y) < TR * 2 + C.BALL_R * 2) bad.push('two tunnel mouths on top of each other');
+            });
+        });
+
         if (strict) {
             (h.slopes || []).forEach(function (s) {
                 if (!s.ax && !s.ay) { bad.push('a slope with nowhere to fall'); return; }
@@ -669,7 +704,10 @@
         var hole = {
             tee: f.point(f.teeU, teeV),
             hole: f.point(f.cupU, cupV),
-            walls: [], water: [], sand: [], rough: [], ice: [], bumpers: [], slopes: []
+            walls: [], water: [], sand: [], rough: [], ice: [], bumpers: [], slopes: [],
+            // Not dealt: a tunnel is a hand-built course's idea (see The
+            // Warren), and the deck is nine features for nine holes.
+            tunnels: []
         };
         parts.forEach(function (p) {
             FAMILIES.forEach(function (k) {
@@ -999,6 +1037,10 @@
                to a refresh — and scoring.js discards it when the seed under
                it changes. */
             record: false,
+            /* The endless card, and so the last rung of the ladder: nine
+               holes nobody has played are the reward for having played the
+               ones somebody built. See progress.js. */
+            unlock: 46,
             holes: holes
         };
     }
