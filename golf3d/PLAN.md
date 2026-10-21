@@ -163,10 +163,14 @@ tee shows (Sea Legs' was).
 Built: curved ground (`trough` and `channel`: a hump's profile along a line or
 round an arc, one code path in `padHeight`/`padGrad`, derivative-checked in
 the suite) and curved rails (`arc`, chords of `bank`). **Halfpipe** on Quarry
-is a real half-pipe now. Still to do: put them on holes — a banked turn on
-The Bend or The Horseshoe, curved corners where a square one reads as a
-diagram, The Crater on Apogee as one smooth bowl instead of ten tilted pads
-(the owner's phone shows its facets).
+is a real half-pipe now; v1.68.0 put a banked turn on Quarry's
+**Switchback** (one `channel` shared by the ramp and the shelf, so the seam is
+one surface) and made Apogee's **The Crater** one smooth bowl instead of a
+nine-pad `bowl` — which also fixed its rails, stepped at three heights in the
+owner's phone screenshot. A suite rule holds curved pads to meeting their
+neighbours at every interior seam. Still to do: curved corners where a square
+one reads as a diagram (an `arc` rail in the corners of The Bend, The
+Horseshoe and the crazy courses).
 
 The owner's ask after the rehaul. Every wall is a straight box and nearly all
 ground is flat or a gentle hump, which is most of why a mini course reads as

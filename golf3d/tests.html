@@ -1821,6 +1821,40 @@
             });
             assert('there is contoured ground to check', rolled >= 1, rolled + ' pads');
 
+            /* Curved ground is exempt from the steepness rule above (it is
+               built to be steep, as a ramp is) and not from this one: where a
+               pad shaped by a spine meets another pad, the two have to meet.
+               A half-pipe's lip a ball has to stub its toe on at the seam is
+               the bug a curve makes easiest to write. The outer boundary may
+               move — the rail is built off the ground there (edgeRails), so it
+               rises with the rim. */
+            var curvedPads = 0, worstSeam = 0, seamAt = '';
+            ALL.forEach(function (entry) {
+                entry.hole.pads.forEach(function (p) {
+                    if (!p.bumps || !p.bumps.length || hasRelief(p)) return;
+                    curvedPads++;
+                    function seam(px, pz, dx, dz) {
+                        if (outerEdge(entry.hole, p, px, pz, dx, dz)) return;
+                        var nb = P.surfaceUnder(entry.hole, px + dx * 0.12, pz + dz * 0.12, Infinity);
+                        if (!nb || nb.pad === p) return;
+                        var d = Math.abs(P.padHeight(p, px, pz) - nb.y);
+                        if (d > worstSeam) { worstSeam = d; seamAt = entry.course.id + '/' + entry.hole.name; }
+                    }
+                    var x, z;
+                    for (x = p.x; x <= p.x + p.w + 1e-9; x += 0.2) {
+                        seam(Math.min(x, p.x + p.w), p.z, 0, -1);
+                        seam(Math.min(x, p.x + p.w), p.z + p.d, 0, 1);
+                    }
+                    for (z = p.z; z <= p.z + p.d + 1e-9; z += 0.2) {
+                        seam(p.x, Math.min(z, p.z + p.d), -1, 0);
+                        seam(p.x + p.w, Math.min(z, p.z + p.d), 1, 0);
+                    }
+                });
+            });
+            assert('there is curved ground to check', curvedPads >= 2, curvedPads + ' pads');
+            assert('curved ground meets the ground beside it', worstSeam < 0.05,
+                seamAt + ' steps by ' + worstSeam.toFixed(3) + ' at a seam');
+
             /* And that ground is somewhere a hole asked for it. A drawn hole is
                laid flat unless it says `rolling: true` (see `build`): the humps
                were on every mini golf lane once, and what they bought was a
