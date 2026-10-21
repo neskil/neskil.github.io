@@ -32,7 +32,7 @@
 
         gtag('config', 'G-9GP823TGLB');
     </script>
-    <link rel="stylesheet" href="style.css?v=1.67.0">
+    <link rel="stylesheet" href="style.css?v=1.68.0">
 <script type="application/ld+json">
     {
         "@context": "https://schema.org",
@@ -306,6 +306,7 @@
             <div class="fly-fade" id="fly-fade" aria-hidden="true"></div>
 
             <div class="fly-hint" id="fly-hint" hidden>Flyover — press anything to skip</div>
+            <div class="replay-tag" id="replay-tag" hidden><span class="replay-dot" aria-hidden="true"></span>Replay — press anything to skip</div>
 
             <!-- Demo mode, drawn over the course rather than instead of
                  it: what is behind this is the caddie playing a real hole,
@@ -402,6 +403,7 @@
                 <div class="banner-term" id="banner-term">Par</div>
                 <div class="banner-detail" id="banner-detail"></div>
                 <button id="banner-next" type="button">Next hole →</button>
+                <button id="banner-replay" class="banner-replay" type="button" hidden>↺ Watch the replay</button>
             </div>
 
             <div class="toast" id="toast"></div>
@@ -701,29 +703,30 @@
 
     <!-- Load order is dependency order: config, then the pure logic, then the
          things that touch the screen. game.js boots itself on DOMContentLoaded. -->
-    <script src="js/config.js?v=1.67.0"></script>
-    <script src="js/themes.js?v=1.67.0"></script>
-    <script src="js/physics.js?v=1.67.0"></script>
-    <script src="js/courses.js?v=1.67.0"></script>
-    <script src="js/audit.js?v=1.67.0"></script>
-    <script src="js/custom.js?v=1.67.0"></script>
-    <script src="js/scoring.js?v=1.67.0"></script>
-    <script src="js/swing.js?v=1.67.0"></script>
-    <script src="js/school.js?v=1.67.0"></script>
-    <script src="js/audio.js?v=1.67.0"></script>
-    <script src="js/music.js?v=1.67.0"></script>
-    <script src="js/bag.js?v=1.67.0"></script>
-    <script src="js/textures.js?v=1.67.0"></script>
-    <script src="js/shaders.js?v=1.67.0"></script>
-    <script src="js/postfx.js?v=1.67.0"></script>
-    <script src="js/weather.js?v=1.67.0"></script>
-    <script src="js/flyover.js?v=1.67.0"></script>
-    <script src="js/bot.js?v=1.67.0"></script>
-    <script src="js/models.js?v=1.67.0"></script>
-    <script src="js/life.js?v=1.67.0"></script>
-    <script src="js/render.js?v=1.67.0"></script>
-    <script src="js/minimap.js?v=1.67.0"></script>
-    <script src="js/debug.js?v=1.67.0"></script>
-    <script src="js/game.js?v=1.67.0"></script>
+    <script src="js/config.js?v=1.68.0"></script>
+    <script src="js/themes.js?v=1.68.0"></script>
+    <script src="js/physics.js?v=1.68.0"></script>
+    <script src="js/courses.js?v=1.68.0"></script>
+    <script src="js/audit.js?v=1.68.0"></script>
+    <script src="js/custom.js?v=1.68.0"></script>
+    <script src="js/scoring.js?v=1.68.0"></script>
+    <script src="js/swing.js?v=1.68.0"></script>
+    <script src="js/school.js?v=1.68.0"></script>
+    <script src="js/audio.js?v=1.68.0"></script>
+    <script src="js/music.js?v=1.68.0"></script>
+    <script src="js/bag.js?v=1.68.0"></script>
+    <script src="js/textures.js?v=1.68.0"></script>
+    <script src="js/shaders.js?v=1.68.0"></script>
+    <script src="js/postfx.js?v=1.68.0"></script>
+    <script src="js/weather.js?v=1.68.0"></script>
+    <script src="js/flyover.js?v=1.68.0"></script>
+    <script src="js/replay.js?v=1.68.0"></script>
+    <script src="js/bot.js?v=1.68.0"></script>
+    <script src="js/models.js?v=1.68.0"></script>
+    <script src="js/life.js?v=1.68.0"></script>
+    <script src="js/render.js?v=1.68.0"></script>
+    <script src="js/minimap.js?v=1.68.0"></script>
+    <script src="js/debug.js?v=1.68.0"></script>
+    <script src="js/game.js?v=1.68.0"></script>
 </body>
 </html>

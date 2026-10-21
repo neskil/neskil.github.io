@@ -1401,6 +1401,84 @@ button,
 
 .banner button:hover { transform: translateY(-2px); }
 
+/* "Watch the replay": the second way out of an ace, so it is drawn as the
+   quieter of the two — outlined in the gold the banner is already framed in. */
+.banner button.banner-replay {
+    color: var(--gold);
+    background: transparent;
+    border: 1px solid var(--gold);
+    box-shadow: none;
+    padding: 0.45rem 1.1rem;
+    font-size: 0.9rem;
+}
+
+.banner button.banner-replay[hidden] { display: none; }
+
+/* ── the ace replay ─────────────────────────────────────────────────────── */
+
+/* A broadcast's replay is letterboxed and says so in the corner; this is both.
+   The bars come in over the picture rather than squeezing it, so the camera
+   is framed exactly as it would be without them. */
+.stage::before,
+.stage::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 9%;
+    background: #000;
+    z-index: 5;
+    pointer-events: none;
+    transform: scaleY(0);
+    transition: transform 0.4s ease;
+}
+
+.stage::before { top: 0; transform-origin: top; }
+.stage::after { bottom: 0; transform-origin: bottom; }
+.stage.replaying::before,
+.stage.replaying::after { transform: scaleY(1); }
+
+.replay-tag {
+    position: absolute;
+    left: 16px;
+    top: calc(9% + 10px);
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    background: rgba(5, 18, 28, 0.72);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    color: var(--ink);
+    font-size: 0.78rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    line-height: 1.2;
+    padding: 0.35rem 0.8rem;
+    border-radius: 999px;
+    pointer-events: none;
+    z-index: 6;
+}
+
+.replay-tag[hidden] { display: none; }
+
+.replay-dot {
+    width: 0.55rem;
+    height: 0.55rem;
+    border-radius: 50%;
+    background: var(--gold);
+    animation: replay-blink 1.1s ease-in-out infinite;
+}
+
+@keyframes replay-blink {
+    50% { opacity: 0.25; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .replay-dot { animation: none; }
+    .stage::before, .stage::after { transition: none; }
+}
+
+body.demo .stage .replay-tag { display: none; }
+
 /* ── toast and fallback ─────────────────────────────────────────────────── */
 
 /* Toasts land *under* the row of pills at the top of the stage rather than on
@@ -1510,7 +1588,17 @@ body.compact-ui .stage.view-collapsed .toast { top: 134px; }
 body.flying .stage-hud,
 .stage.flying .picker,
 .stage.flying .school,
-.stage.flying .fs-prompt {
+.stage.flying .fs-prompt,
+/* …and for an ace's replay, which is the same picture with no shot in it,
+   plus the hole card and the map, which are about a hole already finished. */
+.stage.replaying .controls,
+.stage.replaying .viewctl,
+body.replaying .stage-hud,
+.stage.replaying .picker,
+.stage.replaying .school,
+.stage.replaying .fs-prompt,
+.stage.replaying .hole-card,
+.stage.replaying .mini-map {
     opacity: 0;
     pointer-events: none;
     transition: opacity 0.35s ease;

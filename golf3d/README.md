@@ -61,6 +61,7 @@ them.
 | `js/weather.js` | The sky each hole gets, the wind everything answers to, and the rain, mist and motes. |
 | `js/postfx.js` | What happens to the picture after the course is drawn: bloom, light shafts, tone mapping, grade. |
 | `js/flyover.js` | The intro sweep's path: four keys, a curve through them, and the rule that keeps it out of the hillside. Pure — no three.js, no DOM. |
+| `js/replay.js` | The ace replay's tape: every shot recorded a physics step at a time, read back for a hole in one with the cut to the cup and the slow motion timed off it. Pure — `render.js` places the camera, `game.js` plays the tape. |
 | `js/bot.js` | The greedy player: fan out candidate shots, keep the one that finishes nearest the cup, refine twice. Pure — no three.js, no DOM. What proves every hole is solvable in `tests.html`, and what plays for you in [autoplay](#the-caddie-autoplay). |
 | `js/life.js` | What is on a hole that is not the hole: the long game's [dressing](#the-life-on-the-long-game) and its flock, ducks and butterflies, and the [world round each drawn hole](#the-worlds-round-the-drawn-holes) — a recipe per theme. Static props are built as one mesh per hole; what moves is stepped every frame. Loaded before `render.js` on every page that loads it. |
 | `js/render.js` | The course, in three.js: geometry, lights, camera and the frame. |
