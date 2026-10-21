@@ -74,6 +74,7 @@ them.
 | `shader-tests.html` | The other half: compiles every shader for real against a live context. Green is green there too. |
 | `ui-tests.html` | Headless CSS/UI test harness: checks custom property definitions and active control states. |
 | `turntable.html` + `tools/turntable.mjs` | [The turntable](#the-pictures-which-neither-suite-can-see): every hole drawn from eight fixed angles, as one contact sheet per course, with the audit's findings printed under each row. |
+| `tools/par-check.mjs` | The bot plays a course and prints its card against par — a reading of each hole's shape (a par 4 it drives in one has no second shot). Plain Node, no install. PLAN.md §0 sets the line it is measured against. |
 
 The three files above `weather.js` in that list are three of the four different
 jobs the renderer used to do in one file. Picking colours, drawing a texture,
@@ -1179,52 +1180,45 @@ The numbers it is built against, measured off a flat lie at full power:
 | | Putter | Driver | 7 Iron | Pitch | Wedge |
 | --- | --- | --- | --- | --- | --- |
 | Green | 8.0 | 42.5 | 21.4 | 14.1 | 12.7 |
-| Fairway | 5.7 | 38.4 | 19.0 | 12.9 | 11.7 |
-| Rough | 3.0 | 33.0 | 16.2 | 11.7 | 10.8 |
+| Fairway | 5.7 | 31.5 | 15.5 | 10.6 | 9.4 |
+| Rough | 3.0 | 23.8 | 11.6 | 8.7 | 8.2 |
 | Sand | 1.9 | 30.3 | 14.9 | 11.3 | 10.6 |
 
-(Re-measured when the driver went from 6° to 10° and the grass got its rolling
-resistance, `CONFIG.ROLL`. The holes were laid out against the older figures —
-a driver of 34.5 / 30.6 / 23.5 / 19.4 and a putter of 8.5 on a green.)
+Carry is the same everywhere — 19.4 for the driver, 9.5 for the iron, 7.6 and
+7.3 for the two wedges — and what the surface decides is what happens after it.
+Fairway and rough have landings of their own (`CONFIG.LANDING`): turf takes far
+more off a first bounce than a felt green does, so a drive on to grass hops once,
+runs, and stops, where with one figure for every surface a drive off a bluff
+carried thirty units and then hopped another twelve over whatever lay where it
+came down. With that, no hazard at the end of a drive could ever be in play.
 
-So a par 3 is about thirteen units and one full club; a par 4 is around thirty
-— a drive and a pitch; the par 5 is forty-eight, which is three shots, or two
-and an argument with a cross bunker. Missing the fairway does not lose the
-ball. It loses the club you wanted to hit next, which is a better punishment
-because you have to keep playing with it.
+Off a bluff all of it goes further, and the course is built on bluffs: four
+units of fall turns a driver's 19 units of carry into about 30. So a par 3 here
+is about twenty units and one full club, a par 4 is fifty to sixty — a drive and
+an approach — and the par 5 is seventy-five, which is three shots for anybody
+and a lay-up for everybody. Missing the fairway does not lose the ball. It loses
+the club you wanted to hit next, which is a better punishment because you have
+to keep playing with it.
 
-The other thing worth knowing is the carry, and it is not the same question as
-the flight. The driver flies furthest before its first bounce — about 19 units
-— at an apex of about a unit. It used to be a 6° skim at half a unit that went
-under every rail on the property; at 10° it carries a pond, but anything
-standing up near the tee still stops it. Of the clubs that get properly *over*
-something, the iron carries furthest, about 9.5 units flat out, and nothing gets higher than about
-1.6 (the wedge). Both numbers are load-bearing:
-**Over the Water** puts a pond four units deep on the line to the pin, which
-only a full swing of the iron clears — carry falls off with the square of the
-speed while roll only falls off with the speed, so taking anything off it is how
-you get wet — and the dry route is a tee shot aimed well right of the flag. The
-same number is what makes **Long Meadow**'s cross bunker work from the other
-direction: a belt four units deep cannot be carried at all from behind it, so
-nobody reaches that green in two. And the oak on the inside of **The Elbow**
-cannot be flown by any club that exists, which is what makes a dogleg a dogleg
-rather than a suggestion.
+The hazards are where the shots come down rather than where a 6° skim used to
+stop, which is the whole of the 2026 rebuild (PLAN.md §0) and the reason the bot
+no longer drives any green on the course: `tools/par-check.mjs` measures it.
 
 | # | Hole | Par | What it asks | Borrowed from |
 | --- | --- | --- | --- | --- |
-| 1 | Opening Drive | 4 | Three units down off a bluff, over a crest at driving distance, then two back up on to the shelf the green sits on. The bunker is still exactly on the line. | |
-| 2 | Long Meadow | 5 | A belt of sand four units deep lying across the fairway, and two units of climb to the green behind it. Nothing in the bag carries the belt from behind it, so the hole is three shots for everybody. | Hell's Half Acre, Pine Valley 7 |
-| 3 | The Elbow | 4 | Off a high tee, left around an oak, under a shoulder of high rough that will not let a cut drive run out, then a two-unit climb to a shelf. | |
-| 4 | Over the Water | 3 | Four units above the pond, and a full club over it to a round green on a shelf. Or a safe one out to the right and a longer putt. | |
+| 1 | Opening Drive | 4 | Four units down off a bluff and over a crest, with a seven-unit burn lying across the hole exactly where a full drive comes down. Throttle the drive to stop short of it, then carry the water to a green two units up on a shelf. | |
+| 2 | Long Meadow | 5 | A belt of sand twelve units deep where the drive lands, so the tee shot is a lay-up and the second is the one that carries it. A long third to a green with a pond off its left shoulder. | Hell's Half Acre, Pine Valley 7 |
+| 3 | The Elbow | 4 | A real dogleg: north off the east bluff, then hard left along the top to a green on a shelf. The inside of the corner is a pond behind a line of oaks — go round, or take on as much of it as you dare. | |
+| 4 | Over the Water | 3 | Four units above eight units of pond, and a full iron over it to a round green on a shelf. Or the dry tongue down the right and a longer putt. | |
 | 5 | The Dell | 3 | Blind, off a bluff into a dell between two hills, with a ring of mounds round the green and the top of the flag all you get. | The Dell, Lahinch 5 |
-| 6 | Homeward | 4 | The lake cuts diagonally across the hole, the fairway runs downhill to it and the whole park tilts into it as well. Bite off as much as you dare. | Cape |
+| 6 | Homeward | 4 | The lake cuts diagonally across the tee shot, the whole park tilts into it, and the approach climbs to a green tucked right above the head of it. Bite off as much as you dare. | Cape |
 
 The card climbs (see [The order the holes are in](#the-order-the-holes-are-in)):
-an opener with no forced carry on it, then a par 5 that is a grind rather than a
-terror, then the dogleg, and only then the two short holes that will actually
-take a ball off you — the pond, and the one you cannot see the bottom of the
-flag on. Homeward is last because it is the only hole here where every shot is
-played off a slope running towards water.
+an opener whose only carry is the second shot, then a par 5 that is a grind
+rather than a terror, then the dogleg, and only then the two short holes that
+will actually take a ball off you — the pond, and the one you cannot see the
+bottom of the flag on. Homeward is last because it is the only hole here where
+every shot is played off a slope running towards water.
 
 ### No fence on the long game
 

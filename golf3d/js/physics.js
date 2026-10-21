@@ -43,6 +43,10 @@
     function lnFrictionOf(kind) {
         return LN[kind] !== undefined ? LN[kind] : Math.log(C.FRICTION_DEFAULT);
     }
+    // What a landing keeps, per surface. See CONFIG.LANDING.
+    function landingOf(kind) {
+        return C.LANDING[kind] || C.LANDING_DEFAULT;
+    }
     // The constant part of the ground's drag, per surface. See CONFIG.ROLL.
     function rollOf(kind) {
         return C.ROLL[kind] !== undefined ? C.ROLL[kind] : C.ROLL_DEFAULT;
@@ -1138,9 +1142,10 @@
                     world.sprung++;
                     b.vy = kick;
                 } else {
-                    b.vx *= C.LAND_GRIP;
-                    b.vz *= C.LAND_GRIP;
-                    b.vy = impact * C.BOUNCE;
+                    var lands = landingOf(land.pad.kind);
+                    b.vx *= lands.grip;
+                    b.vz *= lands.grip;
+                    b.vy = impact * lands.bounce;
                 }
                 /* Backspin, spent on the first thing the ball touches. It is
                    taken off the ground speed rather than off the bounce,
@@ -1345,6 +1350,7 @@
         groundSpeed: groundSpeed,
         frictionOf: frictionOf,
         rollOf: rollOf,
+        landingOf: landingOf,
         holdOf: holdOf,
         gravityOf: gravityOf,
         padGrad: padGrad,

@@ -3191,6 +3191,26 @@
         return Math.max(half, shot);
     }
 
+    /* The near edge, held off the hole on a clear day.
+
+       `fogScale` keeps the *far* edge beyond the hole, which is what stops a
+       mist from swallowing the flag. It says nothing about where the air
+       starts thickening, and on a clear sky that was forty-two units out —
+       so on a sixty-unit par four the back half of the hole, the green with
+       it, was already going pale from the tee, and from above every hole was
+       the same green haze with a strip of course in the middle of it. The
+       ground on the long game has shape now, and the fog was hiding it.
+
+       So the near edge is at least the hole's own reach, scaled by how clear
+       the sky is: the clearest one puts the whole hole in clean air, and a
+       mist (fog 0.42) gets a quarter of that, which is less than it already
+       had — so a mist is still exactly the mist it was. */
+    function fogClear(hole, weather) {
+        if (!hole || !hole.bounds) return 0;
+        var clear = Math.max(0, Math.min(1, weather.fog / 1.75));
+        return fogReach(hole) * clear * clear;
+    }
+
     function fogScale(hole, far) {
         if (!hole || !hole.bounds || !far) return 1;
         var k = Math.max(1, fogReach(hole) * 3 / far);
@@ -3288,6 +3308,9 @@
         var fogK = fogScale(hole, R.fogFar);
         R.fogNear *= fogK;
         R.fogFar *= fogK;
+        // ...and on a clear day the hole itself stands in clear air. See fogClear().
+        R.fogNear = Math.max(R.fogNear, fogClear(hole, weather));
+        R.fogFar = Math.max(R.fogFar, R.fogNear * 2.4);
         R.scene.fog = new THREE.Fog(skyTint(theme.fog, weather, false), R.fogNear, R.fogFar);
         g.add(skyDome(theme, weather));
         lights(g, hole, theme, weather);

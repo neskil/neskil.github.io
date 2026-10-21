@@ -2702,10 +2702,11 @@
     /* ── the long game, the first of three: Ashdown Park ──────────────────
 
        Not mini golf. Six holes of the long game at the same scale as the rest
-       of the bag: a driver runs about twenty-one units off a fairway and about
-       fifteen out of rough, so a par 4 here is a drive and an approach and a
-       par 5 is three shots, which is the only definition of par that means
-       anything.
+       of the bag: a driver runs about thirty units off a fairway, twenty-four
+       out of rough and more off every bluff, so a par 4 here is fifty to sixty
+       units — a drive and an approach — and a par 5 is three shots, which is
+       the only definition of par that means anything. The figures and why
+       they are what they are: README → "Ashdown Park".
 
        The vocabulary is the whole point of the course. Fairway is quick, rough
        is not, sand is where the shot goes to die, and the trees are solid. Miss
@@ -2764,43 +2765,50 @@
 
     var parkland = [
         (function () {
-            /* Downhill off a bluff, along the floor of the park, and back up
-               on to a shelf the green sits on. The crest halfway down is what
-               makes the drive a decision: run the ball over it and the hole
-               shortens by four units, come up on the near side of it and the
-               approach is played blind over the top. */
+            /* Downhill off a bluff, along the floor of the park, over a burn
+               and back up on to a shelf the green sits on. The crest is still
+               what the first shot reads off — run the ball over it and it
+               gathers speed down the far side — but the burn is what the drive
+               is *about*: it lies across the hole exactly where a full one off
+               the bluff runs out, so the honest drive is the one throttled to
+               stop short of it, and the approach is a carry over moving water
+               to a green two units up. */
             var field = [].concat(
                 ridge(5, 19, 14, 21, 4.5, 0.30, 4),
                 massif(-6, 18, 12, 2.2, 5),
-                [hill(3, 33, 3, -0.6), hill(18.5, 41, 2.5, 0.5)]
+                [hill(19, 61, 2.2, 0.4)]
             );
             var park = commons(0, [
                 [{ d: 5, y: 4.0 },      [3.5, rgh], [8, fwy], [9.5, rgh]],
                 [{ d: 3, sz: -0.7 },    [21, rgh]],
                 [{ d: 6, sz: -0.15 },   [3.5, rgh], [8, fwy], [9.5, rgh]],
-                [10,                    [3.5, rgh], [8, fwy], [9.5, rgh]],
-                [5,                     [4.5, rgh], [9, fwy], [7.5, rgh]],
-                [3,                     [7, rgh], [9, fwy], [5, rgh]],
-                [{ d: 5, sz: 0.24 },    [6, rgh], [10, fwy], [5, rgh]],
-                [9,                     [6, rgh], [10, fwy], [5, rgh]],
+                [13,                    [3.5, rgh], [8, fwy], [9.5, rgh]],
+                [6,                     [4.5, rgh], [9, fwy], [7.5, rgh]],
+                [1,                     [21, rgh]],
+                [7,                     [21, null]],
+                [1,                     [21, rgh]],
+                [6,                     [5, rgh], [10, fwy], [6, rgh]],
+                [{ d: 6, sz: 0.3 },     [6, rgh], [10, fwy], [5, rgh]],
+                [12,                    [6, rgh], [10, fwy], [5, rgh]],
                 [4,                     [21, rgh]]
             ]);
             var ground = shape(scoop(park.pads, { seed: 21 }), field);
             return build({
                 name: 'Opening Drive', par: 4, long: true, shaped: true, open: true,
-                blurb: 'Three units down off the bluff, over the crest, and back up to a green on a shelf.',
+                blurb: 'Off the bluff and over the crest — but stop it short of the burn. Then carry it up to the shelf.',
                 pads: ground.concat([
-                    inlay(ground, 10.75, 30.5, 2.1, snd, 1.5),
-                    inlay(ground, 11, 41.5, 4.8, grn, 4.2)
+                    inlay(ground, 7, 55.5, 1.8, snd, 1.4),
+                    inlay(ground, 11, 61, 4.6, grn, 4.0)
                 ]),
                 fence: park.fence,
+                water: [rect(0, 34, 21, 7, 0.45)],
                 extra: [].concat(
-                    treeline(1.7, 14, 1.7, 27, 5),
-                    treeline(19.5, 16, 19.5, 29, 4),
+                    treeline(1.7, 14, 1.7, 30, 6),
+                    treeline(19.5, 16, 19.5, 31, 5),
                     crags(-2, 10, 3.5, 6, 7101, { s: 1.4, h: 1.1 }),
-                    [tree(1.6, 3), tree(2.4, 47.5), tree(19, 47.5)]
+                    [tree(1.6, 3), tree(2.4, 67), tree(19, 67)]
                 ),
-                tee: { x: 7.5, z: 2.5 }, cup: { x: 11.5, z: 41.5 },
+                tee: { x: 7.5, z: 2.5 }, cup: { x: 11.5, z: 61 },
                 decor: [
                     sign(5.5, 2.5, { yaw: 0.2 }),
                     bench(5.2, 4.2, { yaw: 0.3 }),
@@ -2812,95 +2820,106 @@
         (function () {
             /* Hell's Half Acre, which is Pine Valley's seventh and the best
                argument in golf against the second shot being a formality: a
-               belt of sand four units deep lying across the fairway at the end
-               of a good drive. Nothing in the bag carries it from behind it —
-               the longest carry here is about nine and a half units and that is
-               the iron flat out — so the hole is three shots for everybody, and
-               the only question is whether you lay up short of the belt with
-               something you can control or run out of fairway trying to get
-               closer to it. The hollow at twenty-six gathers the timid one. */
+               belt of sand twelve units deep lying across the fairway exactly
+               where a good drive comes down. Off the bluff a full driver lands
+               in it and stays, so the tee shot is a lay-up — three quarters of
+               a swing, short of the near lip — and the second is the one that
+               carries it. Then a long third to a green with a pond off its
+               left shoulder, which is where an approach pulled away from the
+               sand on the right finishes. The hollow short of the belt
+               gathers the timid drive. */
             var field = [].concat(
                 ridge(5, 16, 14, 16, 4.5, 0.28, 4),
                 massif(28, 26, 13, 2.4, 5),
-                [hill(9, 28.5, 2.5, -0.36), hill(20, 41, 3, 0.45)]
+                [hill(9, 21, 2.5, -0.36), hill(19.5, 60, 3, 0.45)]
             );
             var park = commons(0, [
                 [{ d: 5, y: 3.2 },      [4, rgh], [9, fwy], [9, rgh]],
                 [{ d: 4, sz: -0.65 },   [22, rgh]],
-                [13,                    [4, rgh], [9, fwy], [9, rgh]],
+                [14,                    [4, rgh], [9, fwy], [9, rgh]],
                 [4,                     [4, rgh], [10, fwy], [8, rgh]],
-                [5,                     [5, rgh], [10, fwy], [7, rgh]],
-                [4,                     [4, rgh], [14, fwy], [4, rgh]],
+                [14,                    [3, rgh], [16, fwy], [3, rgh]],
+                [6,                     [5, rgh], [11, fwy], [6, rgh]],
                 [{ d: 8, sz: 0.2 },     [6, rgh], [11, fwy], [5, rgh]],
-                [5,                     [6, rgh], [11, fwy], [5, rgh]],
-                [9,                     [5, rgh], [12, fwy], [5, rgh]],
+                [12,                    [6, rgh], [11, fwy], [5, rgh]],
+                [5,                     [5, rgh], [12, fwy], [5, rgh]],
+                [10,                    [1, rgh], [3.5, null], [1.5, rgh], [11, fwy], [5, rgh]],
                 [3,                     [22, rgh]]
             ], { e: 18 });
             var ground = shape(scoop(park.pads, { seed: 25 }), field);
             return build({
                 name: 'Long Meadow', par: 5, long: true, shaped: true, open: true,
-                blurb: 'A belt of sand across the fairway that no club carries. Lay up, then pitch it.',
-                /* Hell's Half Acre is one oval eighteen units wide rather than
-                   a rectangle, and wider than the fairway on purpose: an
-                   ellipse gives back its ends, so a belt that only just spanned
-                   the mown grass would leave a way through at each edge and the
+                blurb: 'A belt of sand where the drive comes down. Lay up short of it, carry it with the second, and keep left of the pond.',
+                /* The belt is one oval twenty units wide rather than a
+                   rectangle, and wider than the fairway on purpose: an ellipse
+                   gives back its ends, so a belt that only just spanned the
+                   mown grass would leave a way through at each edge and the
                    hole's whole argument with it. */
                 pads: ground.concat([
-                    inlay(ground, 12.5, 24, 1.8, snd, 2.0),
-                    inlay(ground, 11, 33, 9, snd, 2.0),
-                    inlay(ground, 11, 52.5, 5.6, grn, 4.3)
+                    inlay(ground, 11, 34, 10, snd, 6),
+                    inlay(ground, 15.5, 60, 1.8, snd, 2.2),
+                    inlay(ground, 11.5, 77, 5.0, grn, 4.0)
                 ]),
                 fence: park.fence,
+                water: [rect(1, 72, 3.5, 10, 1.65)],
                 extra: [].concat(
-                    treeline(2, 9, 2, 30, 6),
+                    treeline(2, 9, 2, 26, 5),
                     treeline(20.3, 12, 20.3, 26, 4),
+                    treeline(20.3, 43, 20.3, 52, 3),
                     crags(1.5, 5, 2.4, 4, 7107, { s: 1.2, h: 0.9 }),
-                    [tree(3, 53), tree(19.5, 54)]
+                    treeline(1.5, 46, 1.5, 66, 4),
+                    [tree(3, 84), tree(19.5, 84)]
                 ),
-                tee: { x: 8.5, z: 2.5 }, cup: { x: 11, z: 52.5 }
+                tee: { x: 8.5, z: 2.5 }, cup: { x: 11.5, z: 77 }
             });
         })(),
         (function () {
-            /* It still turns left around the oak, and the oak still cannot be
-               flown by anything in the bag, which is what makes a dogleg a
-               dogleg rather than a suggestion. What is new is the ground: the
-               tee stands on a bluff, the corner sits under a shoulder of high
-               rough that will not let a cut drive run out, and the green is on
-               a shelf four fifths of a unit above the fairway with sand eating
-               into its front left. */
+            /* A dogleg that is one. The tee is on a bluff at the east end of
+               the property, the fairway runs north and then turns hard left
+               along the top of the hole to a green on a shelf, and the inside
+               of the corner is a pond behind a line of oaks.
+
+               Three ways to play it. Round the corner: a drive to the turn,
+               short of the bunker that waits for the ones that run through it,
+               and a long iron across. At the flag: a carry over the oaks and
+               the water that leaves a pitch, if it gets there. Or the half-way
+               house that is the actual wager — how much of the corner you are
+               prepared to take on. */
             var field = [].concat(
-                ridge(12, 13, 18, 15, 3.5, 0.26, 3),
-                massif(30, 20, 13, 2.3, 5),
-                [hill(18, 19, 3.5, 0.45), hill(17, 35, 3, -0.5)]
+                massif(46, 22, 13, 2.3, 5),
+                massif(-11, 30, 12, 2.2, 5),
+                [hill(5.5, 58.5, 2.4, 0.4)]
             );
             var park = commons(0, [
-                [{ d: 5, y: 3.4 },      [12, rgh], [8, fwy], [2, rgh]],
-                [{ d: 4, sz: -0.65 },   [22, rgh]],
-                [9.5,                   [12, rgh], [8, fwy], [2, rgh]],
-                [5,                     [4, rgh], [16, fwy], [2, rgh]],
-                [{ d: 6, sz: 0.22 },    [2, rgh], [12, fwy], [8, rgh]],
-                [3,                     [5, rgh], [9, fwy], [8, rgh]],
-                [7,                     [2, rgh], [11, fwy], [9, rgh]],
-                [3,                     [22, rgh]]
-            ], { e: 20 });
+                [{ d: 5, y: 3.4 },      [20, rgh], [9, fwy], [5, rgh]],
+                [{ d: 4, sz: -0.65 },   [34, rgh]],
+                [9.5,                   [19, rgh], [11, fwy], [4, rgh]],
+                [14.5,                  [3, rgh], [12, null], [4, rgh], [11, fwy], [4, rgh]],
+                [4,                     [19, rgh], [11, fwy], [4, rgh]],
+                [7,                     [3, rgh], [27, fwy], [4, rgh]],
+                [{ d: 3, sz: 0.25 },    [3, rgh], [12, fwy], [19, rgh]],
+                [9,                     [2, rgh], [14, fwy], [18, rgh]],
+                [4,                     [34, rgh]]
+            ]);
             var ground = shape(scoop(park.pads, { seed: 27 }), field);
             return build({
                 name: 'The Elbow', par: 4, long: true, shaped: true, open: true,
-                blurb: 'Off a bluff, left around an oak older than the course, then two units up to a shelf.',
+                blurb: 'Off the bluff and hard left at the top. Go round the corner, or over the oaks and the pond inside it.',
                 pads: ground.concat([
-                    inlay(ground, 6, 21, 2.0, snd, 2.4),
-                    inlay(ground, 3.5, 31, 1.8, snd, 1.5),
-                    inlay(ground, 7.5, 36, 5.2, grn, 3.4)
+                    inlay(ground, 27, 40.5, 1.8, snd, 1.6),
+                    inlay(ground, 15, 51.5, 1.4, snd, 1.6),
+                    inlay(ground, 9, 51.5, 4.4, grn, 3.6)
                 ]),
                 fence: park.fence,
+                water: [rect(3, 18.5, 12, 14.5, 0.25)],
                 extra: [].concat(
-                    [tree(11.9, 16, { t: 0.9, h: 3 })],
-                    treeline(9.6, 10, 10.4, 15, 3),
-                    treeline(1.5, 12, 1.5, 23, 4),
-                    treeline(20.5, 30, 20.5, 37, 3),
-                    crags(19.5, 20, 3, 5, 7113, { s: 1.3, h: 1.0 })
+                    [tree(17.5, 34.5, { t: 0.9, h: 3 })],
+                    treeline(17, 15, 17.4, 32.5, 8),
+                    treeline(1.5, 36, 1.5, 56, 5),
+                    treeline(32.6, 10, 32.6, 44, 7),
+                    crags(30, 50, 3, 5, 7113, { s: 1.3, h: 1.0 })
                 ),
-                tee: { x: 16, z: 2.5 }, cup: { x: 7, z: 36 }
+                tee: { x: 24.5, z: 2.5 }, cup: { x: 9, z: 51.5 }
             });
         })(),
         (function () {
@@ -2912,36 +2931,36 @@
                off it is how you get wet — and the dry way in is still out to
                the right, off the tongue of fairway the pond does not reach. */
             var field = [].concat(
-                ridge(4.5, 22, 13.5, 22, 2.0, 0.45, 5),
-                massif(-9, 16, 11, 2.1, 5),
-                [hill(1.6, 18, 1.6, -0.23)]
+                ridge(4.5, 27, 13.5, 27, 2.0, 0.45, 5),
+                massif(-9, 20, 11, 2.1, 5),
+                [hill(1.6, 22.5, 1.6, -0.23)]
             );
             var park = commons(0, [
                 [{ d: 3.5, y: 4.2 },    [3, rgh], [9, fwy], [6, rgh]],
                 [{ d: 2, sz: -1.35 },   [18, rgh]],
-                [4,                     [2.5, rgh], [7.5, null], [2.5, fwy], [5.5, rgh]],
+                [8,                     [2.5, rgh], [7.5, null], [2.5, fwy], [5.5, rgh]],
                 [{ d: 2, sz: 0.24 },    [2.5, rgh], [13, fwy], [2.5, rgh]],
                 [3,                     [4.1, rgh], [11.4, fwy], [2.5, rgh]],
-                [5.5,                   [2.5, rgh], [10, fwy], [5.5, rgh]],
+                [6.5,                   [2.5, rgh], [10, fwy], [5.5, rgh]],
                 [4,                     [18, rgh]]
             ], { w: 22 });
             var ground = shape(scoop(park.pads, { seed: 23 }), field);
             return build({
                 name: 'Over the Water', par: 3, long: true, shaped: true, open: true,
-                blurb: 'Off a high bluff, over the pond in the bottom, on to a round green on a shelf.',
+                blurb: 'Off a high bluff and over eight units of pond to a round green on a shelf. The dry way is down the right.',
                 pads: ground.concat([
-                    inlay(ground, 2.8, 13, 1.5, snd, 1.4),
-                    inlay(ground, 14, 17.3, 1.6, snd, 2.5),
-                    circle(7.5, 16, 3.6, grn, 1.98)
+                    inlay(ground, 2.8, 17.5, 1.5, snd, 1.4),
+                    inlay(ground, 14, 21.8, 1.6, snd, 2.5),
+                    circle(7.5, 20.5, 3.6, grn, 1.98)
                 ]),
                 fence: park.fence,
-                water: [rect(2.5, 5.5, 7.5, 4, 1.0)],
+                water: [rect(2.5, 5.5, 7.5, 8, 1.0)],
                 extra: [].concat(
-                    treeline(16.6, 4, 16.6, 12, 3),
-                    crags(-5, 14, 3.5, 5, 7119, { s: 1.4, h: 1.1 }),
+                    treeline(16.6, 4, 16.6, 16, 4),
+                    crags(-5, 18, 3.5, 5, 7119, { s: 1.4, h: 1.1 }),
                     [tree(1.2, 3)]
                 ),
-                tee: { x: 10.5, z: 1.75 }, cup: { x: 7.5, z: 16.5 }
+                tee: { x: 10.5, z: 1.75 }, cup: { x: 7.5, z: 21 }
             });
         })(),
         (function () {
@@ -3003,7 +3022,7 @@
             var field = [].concat(
                 ridge(3, 12, 8, 15, 3.0, 0.25, 3),
                 massif(-10, 20, 13, 2.6, 5),
-                [hill(6, 27, 1.9, -0.22), hill(8, 39.5, 2.2, 0.4)]
+                [hill(6, 27, 1.9, -0.22), hill(6.5, 34, 2.2, 0.35)]
             );
             var park = commons(0, [
                 [{ d: 5, y: 1.6 },      [4, rgh], [9, fwy], [9, rgh]],
@@ -3013,7 +3032,9 @@
                 [{ d: 4, sz: -0.09 },   [4, rgh], [6, fwy], [2, rgh], [10, null]],
                 [{ d: 4, sz: -0.09 },   [4, rgh], [7, fwy], [2, rgh], [9, null]],
                 [4,  [5, rgh], [10, fwy], [7, rgh]],
-                [8,  [5, rgh], [11, fwy], [6, rgh]],
+                [10, [5, rgh], [11, fwy], [6, rgh]],
+                [{ d: 4, sz: 0.15 }, [6, rgh], [11, fwy], [5, rgh]],
+                [9,  [5, rgh], [12, fwy], [5, rgh]],
                 [5,  [22, rgh]]
             ], { e: 5, w: 24 });
             return build({
@@ -3021,8 +3042,9 @@
                 blurb: 'The lake cuts across the hole and the ground falls into it. Bite off what you dare.',
                 pads: (function (g) {
                     return g.concat([
-                        inlay(g, 9.5, 27, 1.7, snd, 2.0),
-                        inlay(g, 10.5, 33, 5.2, grn, 3.8)
+                        inlay(g, 6.4, 45.6, 1.3, snd, 1.4),
+                        inlay(g, 18.9, 50.5, 1.2, snd, 1.5),
+                        inlay(g, 12.5, 48, 4.8, grn, 3.6)
                     ]);
                 }(shape(tilt(scoop(park.pads, { seed: 29 }), -0.055, 0, 22, 0), field))),
                 fence: park.fence,
@@ -3034,11 +3056,11 @@
                     rect(13, 21, 9, 4, -1.1)
                 ],
                 extra: [].concat(
-                    treeline(2, 8, 2, 26, 6),
-                    crags(1.4, 30, 3, 5, 7137, { s: 1.3, h: 1.0 }),
-                    [tree(19.5, 33), tree(19.5, 36)]
+                    treeline(2, 8, 2, 40, 9),
+                    crags(1.4, 46, 3, 5, 7137, { s: 1.3, h: 1.0 }),
+                    [tree(21.4, 45.5), tree(21.4, 53.5)]
                 ),
-                tee: { x: 8.5, z: 2.5 }, cup: { x: 10.5, z: 33 }
+                tee: { x: 8.5, z: 2.5 }, cup: { x: 12.5, z: 48 }
             });
         })()
     ];
