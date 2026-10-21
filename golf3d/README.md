@@ -1395,14 +1395,24 @@ field is told to keep away from a green by radius, a cup is asserted to have
 room inside one, the tests walk a green's rim looking for the boundary — and a
 shape that stays inside that circle cannot invalidate any of them.
 
+**Rebuilt for the bag in 2026** (PLAN.md §0), on the same recipe as Ashdown
+Park and the same distances (see its table). Most of Whinstone is played off
+flat tees, so a full drive is the fairway's 31.5 with the dunes adding or taking
+a few, and the par 4s are 52 to 59 units — a drive and an approach — with the
+par 5 85 round its corner. The one tee up in the dunes is Burnside's, three
+units on a hump, which puts about six units on a full drive and is the reason its
+pool can be taken on at all. Water went from one hole to four, and no two
+greens are the same shape of problem: a shelf, a bowl, a long thin strip, a
+green behind a pool, an island and a point between sand and water.
+
 | # | Hole | Par | What it asks |
 | --- | --- | --- | --- |
-| 1 | The Whins | 4 | Rolling the whole way, and a bunker sitting on the line at driving distance. |
-| 2 | The Punchbowl | 4 | A ring of humps round the green: anything on the banks comes back down to it. |
-| 3 | The Sandhill | 4 | A whinstone dune four units high down the right, and the boundary along the foot of it. Everything you gain by playing away from one you give back to the other. |
-| 4 | Home Ground | 4 | A dogleg right, and ground that throws a straight drive off the line. Not a bug. |
+| 1 | The Whins | 4 | Three pots in the middle of the landing ground, where a full drive comes down. Wide and safe to the left of them, or tight between them and the stakes on the right for the open line in. The green is on a shelf a unit up, and short runs back down the bank. |
+| 2 | The Punchbowl | 4 | A seven-unit burn across the hole where a full drive runs out: throttle the drive short of it, or thread the six-unit neck of dry ground between its end and the stakes on the left. The green is in a ring of humps that feeds the second back to the pin. |
+| 3 | The Sandhill | 4 | A whinstone dune four units high down the right with the boundary along its foot, two pots on the left where the drive lands, and the longest, thinnest green on the course between two bunkers. A question of line more than length. |
+| 4 | Burnside | 4 | Off a tee up in the dunes and hard right round a pool in the corner, with the stakes behind it. Go up the left and round, or carry as much of the water as you dare and land in the rough a club nearer. |
 | 5 | The Ait | 3 | An island green in a ring of water. Seven units of carry and no way to lay up. |
-| 6 | Elbow Point | 5 | A dogleg left. Cutting the corner means carrying ground that is not the golf course. |
+| 6 | Elbow Point | 5 | Two pots in the landing ground and the stakes close on the right, then hard left round a pool lying in country that is not the golf course. The second is the wager: round the corner, or across the end of the pool. The green is out on the point, a long bunker across its front and water close behind. |
 
 The punchbowl comes second because it is the one hole out here that *helps* —
 the banks feed a poor shot back to the pin — and the island comes fifth because
@@ -1427,15 +1437,26 @@ is a thing you go round. What it does instead is throw anything that lands on
 its flank straight back down — into the fairway if you were lucky and over the
 line if you were not.
 
-**A dogleg with nothing to bend it.** There are no trees on a links and no room
-for a hazard big enough to turn a hole, so what bends these two is the boundary
-itself: `fence` may be a *list* of rectangles, in-bounds is inside any of them,
-and two overlapping rectangles make an L whose inside corner is simply not the
-golf course. The stakes know it — a stake is skipped where its edge falls
-inside another rectangle, because the line through the middle of an elbow is
-not a boundary and a row of posts across it would be describing a wall that is
-not there. You may still fly the corner. That is the trade, and it is the same
-one a real dogleg offers.
+**What bends a links dogleg.** There are no trees on a links, so the two
+doglegs are bent by water and by the boundary together: a pool in the inside
+of the corner, and stakes round the back of it. `fence` may be a *list* of
+rectangles, in-bounds is inside any of them, and two overlapping rectangles make
+an L whose inside corner is simply not the golf course. The stakes know it — a
+stake is skipped where its edge falls inside another rectangle, because the line
+through the middle of an elbow is not a boundary and a row of posts across it
+would be describing a wall that is not there. You may still fly the corner, and
+the pool is what decides how much of it: carry falls off with the square of the
+speed, so the further across the water a line goes, the less of a margin it
+has. Burnside's pool is in reach only because its tee is up in the dunes.
+
+**A tee up in the dunes is a hump, not a row.** A `bands` row runs the width of
+the property, so a tee lifted on one is a tabletop across the whole hole with a
+bank down three sides of it. Burnside's tee stands on an authored `hill` under
+it instead, which `moor` passes through like any other landform, and the
+fairway runs down its face. Greens and bunkers on this course are written as
+`[cx, cz, r, kind, rz]` and laid with `inlay`, which reads their level off the
+ground — The Whins' green is on a row that has climbed a unit, and a disc told
+its height by hand would be a second copy of the height field.
 
 **An island needed a club.** Until the 7 iron nothing in the bag carried more
 than about seven and a half units, which put a ceiling on every water hazard in
@@ -2096,7 +2117,7 @@ lies wholly inside — it must not leave a gap — so a grid cell of fairway
 survives right round the rim, which is where a dish is shallowest and would
 show it. The grass over it is conformed to the outline and has no such rim, but
 the ground under the sand still does: until the terrain mesh itself can be
-punched to the curve, an inlay is flush or it is wrong. Whinstone's ten bunkers
+punched to the curve, an inlay is flush or it is wrong. Whinstone's bunkers
 get the rest of the pass instead — the raked sheet and the height field under
 it — which is most of what was missing from them anyway.
 
