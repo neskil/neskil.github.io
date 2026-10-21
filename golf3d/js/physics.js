@@ -144,14 +144,58 @@
                  puts the ball down at (tx, tz) travelling along `yaw` at the
                  speed it arrived with. One way, so a two-way pipe is written
                  as two of them and a chute is written as one. */
+    /* A bump is a raised cosine of radius r and height a, measured from its
+       *spine* — and the spine need not be a point. A hump (cx, cz) is the
+       one every dune and hummock is; `line: [x0, z0, x1, z1]` lays the same
+       profile along a segment, which is a smooth ridge or, with a below
+       zero, a trough with curved sides (a half-pipe); `ring: { cx, cz, R,
+       a0, a1 }` lays it round a circle or an arc of one, which is a curved
+       channel or a banked turn. Height only ever asks how far the point is
+       from the spine, and the slope asks which way, so the three are one
+       code path past `spine` and nothing downstream knows the difference.
+
+       `spine` writes the offset from the nearest point of the spine into
+       _sp and returns its squared length. */
+    var _sp = { x: 0, z: 0 };
+    function spine(m, x, z) {
+        var dx, dz, t;
+        if (m.line) {
+            var L = m.line, ex = L[2] - L[0], ez = L[3] - L[1];
+            var ll = ex * ex + ez * ez;
+            t = ll > 0 ? ((x - L[0]) * ex + (z - L[1]) * ez) / ll : 0;
+            t = t < 0 ? 0 : (t > 1 ? 1 : t);
+            dx = x - (L[0] + ex * t); dz = z - (L[1] + ez * t);
+        } else if (m.ring) {
+            var g = m.ring, ox = x - g.cx, oz = z - g.cz;
+            var ang = Math.atan2(oz, ox);
+            if (g.a0 !== undefined) {
+                // An arc: an angle outside it is measured from the nearer
+                // end, so the channel stops in a rounded end, not a cliff.
+                var span = g.a1 - g.a0, rel = ang - g.a0;
+                rel -= Math.floor(rel / (Math.PI * 2)) * Math.PI * 2;
+                if (rel > span) ang = (rel - span < Math.PI * 2 - rel) ? g.a1 : g.a0;
+            }
+            dx = x - (g.cx + Math.cos(ang) * g.R);
+            dz = z - (g.cz + Math.sin(ang) * g.R);
+        } else {
+            dx = x - m.cx; dz = z - m.cz;
+        }
+        _sp.x = dx; _sp.z = dz;
+        return dx * dx + dz * dz;
+    }
+
     function padHeight(pad, x, z) {
         var h = pad.y + (pad.sx || 0) * (x - pad.x) + (pad.sz || 0) * (z - pad.z);
         var b = pad.bumps, i, m, dx, dz, q;
         if (b) {
             for (i = 0; i < b.length; i++) {
                 m = b[i];
-                dx = x - m.cx; dz = z - m.cz;
-                q = dx * dx + dz * dz;
+                if (m.line || m.ring) {
+                    q = spine(m, x, z);
+                } else {
+                    dx = x - m.cx; dz = z - m.cz;
+                    q = dx * dx + dz * dz;
+                }
                 // The cheap reject first: on a course-sized dune field most
                 // humps are nowhere near the point and never cost a sqrt.
                 if (q >= m.r * m.r) continue;
@@ -175,8 +219,13 @@
         if (b) {
             for (i = 0; i < b.length; i++) {
                 m = b[i];
-                dx = x - m.cx; dz = z - m.cz;
-                q = dx * dx + dz * dz;
+                if (m.line || m.ring) {
+                    q = spine(m, x, z);
+                    dx = _sp.x; dz = _sp.z;
+                } else {
+                    dx = x - m.cx; dz = z - m.cz;
+                    q = dx * dx + dz * dz;
+                }
                 if (q >= m.r * m.r) continue;
                 d = Math.sqrt(q);
                 if (d < 1e-6) continue;          // the summit is flat
