@@ -69,6 +69,7 @@
         marks: null,           // the overview's ball ring and the two at the cup
         lift: 0,               // 0 on the course, 1 overhead; see atmosphere()
         fly: null,             // the intro sweep while one is running; see flyCamera()
+        replay: null,          // the ace replay's camera while one plays; see replayCamera()
         overDist: 0, overRadius: 0,
         lastBall: new THREE.Vector3(),
         clock: 0
@@ -4029,6 +4030,105 @@
 
     function flying() { return !!R.fly; }
 
+    /* ── the ace replay's camera ──────────────────────────────────────────
+
+       Two shots and one cut, the way a broadcast shows an ace. First the
+       chase: behind the ball and above it, turning with it, on a lag long
+       enough that the strike reads as the ball leaving the camera behind. Then,
+       once replay.js says the ball is close, a hard cut to a seat beside the
+       cup, looking back up the line the ball is coming in on, and holding
+       there while it drops.
+
+       game.js drives the tape and says when to cut; this only places the
+       camera, the way flyCamera only places it for the intro. A cut is the one
+       place anything here is chosen: replay.js offers seats best first and the
+       first one that can see both the cup and the ball is taken. */
+    var _ray = new THREE.Raycaster();
+    var _rayFrom = new THREE.Vector3(), _rayDir = new THREE.Vector3();
+
+    function startReplay(hole, ball) {
+        if (!R.ready) return false;
+        R.replay = { seat: null, head: Math.atan2(hole.cup.x - ball.x, hole.cup.z - ball.z), fresh: true };
+        return true;
+    }
+
+    // Clear from `p` to the point (x, y, z)? Anything in the hole closer than
+    // the last half unit is ignored: that is the pin, the cup and the ball
+    // itself, all of which stand where the camera is looking.
+    function clearTo(p, x, y, z) {
+        _rayFrom.set(p.x, p.y, p.z);
+        _rayDir.set(x - p.x, y - p.y, z - p.z);
+        var len = _rayDir.length();
+        if (len < 1e-3) return true;
+        _rayDir.multiplyScalar(1 / len);
+        _ray.set(_rayFrom, _rayDir);
+        _ray.far = len;
+        var hits = _ray.intersectObject(R.holeGroup, true), i;
+        for (i = 0; i < hits.length; i++) {
+            if (hits[i].distance < len - 0.5 && hits[i].object.visible) return false;
+        }
+        return true;
+    }
+
+    function cutReplay(hole, ball) {
+        if (!R.replay || !G3.replay) return;
+        var seats = G3.replay.seats(hole, ball), i, s;
+        R.replay.seat = seats[0];
+        for (i = 0; i < seats.length; i++) {
+            s = seats[i];
+            if (clearTo(s, hole.cup.x, hole.cup.y + 0.15, hole.cup.z) &&
+                clearTo(s, ball.x, ball.y, ball.z)) { R.replay.seat = s; break; }
+        }
+        R.replay.fresh = true;
+    }
+
+    function stopReplay() { R.replay = null; }
+
+    function replaying() { return !!R.replay; }
+
+    function replayCamera(hole, ball, dt) {
+        var r = R.replay, RP = C.REPLAY;
+        var px, py, pz;
+        if (r.seat) {
+            px = r.seat.x; py = r.seat.y; pz = r.seat.z;
+        } else {
+            // Turn with the ball while it is going somewhere; a ball crawling
+            // up to the lip has no heading worth following.
+            var v = Math.hypot(ball.vx, ball.vz);
+            if (v > 0.6) {
+                var want = Math.atan2(ball.vx, ball.vz);
+                var d = want - r.head;
+                d = Math.atan2(Math.sin(d), Math.cos(d));
+                r.head += d * (1 - Math.pow(0.08, dt));
+            }
+            px = ball.x - Math.sin(r.head) * RP.BACK;
+            pz = ball.z - Math.cos(r.head) * RP.BACK;
+            py = ball.y + RP.UP;
+            var top = P.surfaceTop(hole, px, pz);
+            if (top && py < top.y + 1) py = top.y + 1;
+        }
+        // At the cup the ball is the subject but the cup is the story, so the
+        // camera looks between them, and settles on the cup as the ball arrives.
+        var tx = ball.x, ty = ball.y + 0.1, tz = ball.z;
+        if (r.seat) {
+            tx = (ball.x + hole.cup.x) / 2;
+            ty = (ball.y + hole.cup.y) / 2 + 0.1;
+            tz = (ball.z + hole.cup.z) / 2;
+        }
+        if (r.fresh) {
+            R.smooth.pos.set(px, py, pz);
+            R.smooth.target.set(tx, ty, tz);
+            r.fresh = false;
+        } else {
+            R.smooth.pos.lerp(_camPos.set(px, py, pz), 1 - Math.pow(0.004, dt));
+            R.smooth.target.lerp(_camTarget.set(tx, ty, tz), 1 - Math.pow(0.00005, dt));
+        }
+        R.smooth.started = true;
+        R.camera.position.copy(R.smooth.pos);
+        R.camera.lookAt(R.smooth.target);
+        return true;
+    }
+
     function updateCamera(hole, ball, dt) {
         // The demo's orbit is on its own clock rather than the world's: the
         // world stops for a moment every time the bot thinks, and a camera
@@ -4036,6 +4136,7 @@
         if (R.cam.mode === 'demo') R.cam.demoT += dt;
         seatFor(hole, ball, _seat);
         if (R.fly && flyCamera(hole, ball, dt)) return;
+        if (R.replay && replayCamera(hole, ball, dt)) return;
 
         var px = _seat.px, py = _seat.py, pz = _seat.pz;
         var tx = _seat.tx, ty = _seat.ty, tz = _seat.tz;
@@ -4237,7 +4338,7 @@
            orbit is the same picture and the same tell, with the extra reason
            that there is nobody there to pick a club out of it. */
         if (G3.bag) {
-            G3.bag.setVisible(!R.fly && R.cam.mode !== 'demo');
+            G3.bag.setVisible(!R.fly && !R.replay && R.cam.mode !== 'demo');
             G3.bag.update(dt, R.camera, R.camera.aspect);
         }
 
@@ -4346,6 +4447,10 @@
         startFlyover: startFlyover,
         skipFlyover: skipFlyover,
         flying: flying,
+        startReplay: startReplay,
+        cutReplay: cutReplay,
+        stopReplay: stopReplay,
+        replaying: replaying,
         cycleView: cycleView,
         viewLabel: viewLabel,
         setLock: setLock,

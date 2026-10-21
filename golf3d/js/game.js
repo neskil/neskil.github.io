@@ -120,6 +120,8 @@
        hole, and you have already had it. */
     function loadHole(i, again) {
         closeGate();
+        endReplay(true);
+        tape = null;
         saidLocked = false;
         /* A new hole is a new hole for the caddie too. Whatever it was doing
            on the last one is over, and a walker has to be told: it reads "the
@@ -356,6 +358,9 @@
         var feel = Math.min(1, frac);
         R.divot(b.x, b.y - C.BALL_R, b.z, shot.yaw, feel, lie && lie.pad.kind);
         R.punch(feel);
+        // Every shot is taped, because nobody knows which one is the ace
+        // until it has gone in.
+        tape = G3.replay ? G3.replay.begin(state.world, { yaw: shot.yaw, feel: feel, kind: lie && lie.pad.kind }) : null;
         A.putt(feel);
         state.aim.power = 0;
         syncHud();
@@ -742,7 +747,121 @@
             $('banner').className = 'banner show';
         }
         $('banner-next').textContent = last ? 'See the card →' : 'Next hole →';
+        /* An ace gets shown again. Once by itself, after a moment of the
+           banner — Autoplay included, since the replay holds the frame and
+           the walk waits on it, but not the demo, which has nobody watching
+           it — and then as often as anybody asks. */
+        var taped = t.kind === 'ace' && G3.replay && G3.replay.playable(G3.replay.finish(tape), hole);
+        $('banner-replay').hidden = !taped;
+        if (taped && !demo) {
+            var at = state.holeIndex, course = state.course;
+            replayTimer = setTimeout(function () {
+                replayTimer = 0;
+                if (state && state.course === course && state.holeIndex === at &&
+                    state.phase === 'holed' && !modalUp()) playReplay();
+            }, C.REPLAY.DELAY * 1000);
+        }
         syncHud();
+    }
+
+    /* ── the ace replay ─────────────────────────────────────────────────
+
+       The tape is replay.js's; this plays it. While it runs it owns the frame
+       — the world on screen is the tape's, not the game's, and the game's own
+       ball is sitting in the cup waiting for it to finish — and every key and
+       press ends it, the way they end the flyover. */
+    var tape = null;            // the shot in flight, or the last one played
+    var replay = null;          // { tape, t, i, cut, struck, banner, ball, world }
+    var replayTimer = 0;
+    var replayIntent = { show: false, yaw: 0, power: 0, loft: 0, bite: 0, over: 0 };
+
+    function playReplay() {
+        var hole = state.course.holes[state.holeIndex];
+        if (!G3.replay || !G3.replay.playable(tape, hole) || replay) return;
+        clearTimeout(replayTimer);
+        replayTimer = 0;
+        var ball = G3.replay.sample(tape, 0, {});
+        if (!R.startReplay(hole, ball)) return;
+        replay = {
+            tape: tape,
+            t: -C.REPLAY.PRE,
+            i: 0,
+            cut: false,
+            struck: false,
+            banner: $('banner').className,
+            ball: ball,
+            world: { hole: hole, ball: ball, time: ball.time, moving: false, sunk: false }
+        };
+        R.state.lastBall.set(ball.x, ball.y, ball.z);
+        $('banner').className = 'banner';
+        syncReplayChrome(true);
+    }
+
+    // `keep` leaves the banner down — for a replay ended by the hole going away.
+    function endReplay(keep) {
+        clearTimeout(replayTimer);
+        replayTimer = 0;
+        if (!replay) return;
+        var banner = replay.banner;
+        replay = null;
+        R.stopReplay();
+        if (state && state.world) {
+            var b = state.world.ball;
+            R.state.lastBall.set(b.x, b.y, b.z);
+        }
+        if (!keep) $('banner').className = banner;
+        syncReplayChrome(false);
+    }
+
+    function syncReplayChrome(on) {
+        $('replay-tag').hidden = !on;
+        $('stage').classList.toggle('replaying', on);
+        document.body.classList.toggle('replaying', on);
+    }
+
+    // Any key, any press: the replay is over. Captured, so the press that ends
+    // it does nothing else — Enter would otherwise also walk to the next hole.
+    function skipReplay(e) {
+        if (!replay) return;
+        endReplay(false);
+        e.stopPropagation();
+        if (e.type === 'keydown') e.preventDefault();
+    }
+
+    function tickReplay(dt) {
+        var r = replay, RP = C.REPLAY, RE = G3.replay;
+        var end = RE.length(r.tape);
+        var rate = r.t < 0 ? 1 : RE.rate(r.tape, r.t, r.ball);
+        r.t += dt * rate;
+        if (r.t >= end + RP.HOLD) { endReplay(false); return; }
+
+        var s = RE.sample(r.tape, Math.max(0, r.t), r.ball);
+        if (r.t < 0) { s.vx = s.vy = s.vz = 0; }
+        if (r.t >= 0 && !r.struck) {
+            r.struck = true;
+            R.divot(s.x, s.y - C.BALL_R, s.z, r.tape.yaw, r.tape.feel, r.tape.kind);
+            A.putt(r.tape.feel);
+        }
+        // What the ball ran into on the way, once each, as it passes.
+        var f = r.tape.frames, k, ev, spd;
+        for (k = r.i + 1; k <= s.i; k++) {
+            ev = f[k].ev;
+            if (!ev) continue;
+            spd = Math.sqrt(f[k].vx * f[k].vx + f[k].vy * f[k].vy + f[k].vz * f[k].vz);
+            if (ev & RE.BOUNCE) A.bounce(Math.sqrt(f[k].vx * f[k].vx + f[k].vz * f[k].vz));
+            if (ev & RE.LAND) A.land(spd);
+            if (ev & RE.RIM) A.rim(spd);
+            if (ev & RE.SUNK) { R.sinkAt(f[k].x, f[k].y + C.CUP_DEPTH, f[k].z); A.ace(); }
+        }
+        if (s.i > r.i) r.i = s.i;
+        if (!r.cut && r.t >= r.tape.cutT) {
+            r.cut = true;
+            R.cutReplay(r.world.hole, s);
+        }
+        r.world.time = s.time;
+        r.world.moving = r.t >= 0 && r.t < end;
+        r.world.sunk = r.t >= end;
+        R.frame(dt * rate, r.world, replayIntent);
     }
 
     function nextHole() {
@@ -2074,7 +2193,11 @@
             }
             return;
         }
-        if (state.phase === 'holed' && (k === 'Enter' || k === ' ')) { e.preventDefault(); nextHole(); return; }
+        if (state.phase === 'holed' && (k === 'Enter' || k === ' ')) {
+            // Enter on "Watch again" is a press of that button, not of Next.
+            if (e.target === $('banner-replay')) return;
+            e.preventDefault(); nextHole(); return;
+        }
         if (state.phase !== 'aim') return;
 
         if (k === 'ArrowLeft') { nudgeAim(fine ? 0.008 : 0.035); e.preventDefault(); }
@@ -3602,6 +3725,8 @@
            machine drew, which is the kind around a stall. */
         tickFps(raw);
         if (!state || !state.world) return;
+        // The replay draws a world of its own and nothing else moves under it.
+        if (replay) { tickReplay(dt); return; }
 
         /* The bot's beat between shots, and the demo's beat between holes,
            are both measured on the wall clock rather than the clamped frame
@@ -3633,12 +3758,14 @@
                 while (simAcc >= SIM_STEP && state.phase === 'rolling') {
                     simAcc -= SIM_STEP;
                     ev = P.advance(state.world, SIM_STEP, {});
+                    if (tape) G3.replay.record(tape, state.world, ev);
                     handleEvents(ev);
                     if (P.done(state.world)) { endShot(); break; }
                 }
                 syncDistance();
             } else {
                 ev = P.advance(state.world, dt, {});
+                if (tape) G3.replay.record(tape, state.world, ev);
                 handleEvents(ev);
                 syncDistance();
                 if (P.done(state.world)) endShot();
@@ -3769,6 +3896,9 @@
         });
 
         $('banner-next').addEventListener('click', nextHole);
+        $('banner-replay').addEventListener('click', playReplay);
+        window.addEventListener('pointerdown', skipReplay, true);
+        window.addEventListener('keydown', skipReplay, true);
         $('btn-restart').addEventListener('click', restartHole);
         // Wrapped: openMenu takes the course to nudge towards, and a click
         // handler would otherwise hand it an Event.

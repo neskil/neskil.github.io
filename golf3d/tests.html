@@ -31,6 +31,7 @@
     <script src="js/school.js"></script>
     <script src="js/minimap.js"></script>
     <script src="js/flyover.js"></script>
+    <script src="js/replay.js"></script>
     <script src="js/bot.js"></script>
 
     <script>
@@ -3762,6 +3763,117 @@
             // sixty allocations a second for the length of the intro.
             assert('sampling allocates nothing',
                 G3.flyover.at(plan, 0) === G3.flyover.at(plan, 1));
+        })();
+
+        /* ── the ace replay ────────────────────────────────────────────── */
+
+        /* replay.js is a tape: what the live roll did, written down a step at
+           a time, and read back. The one promise worth holding it to is that
+           what comes back is the shot that went in — every frame where it was,
+           the events once each, and the moving walls on the shot's own clock.
+           How it looks is the screenshot pass's business. */
+        (function () {
+            section('The ace replay');
+            var RE = G3.replay, RP = C.REPLAY;
+            assert('the module is loaded', !!RE);
+
+            // A straight putt that drops, found by walking the weight up.
+            var hole = lab({ pads: [A.pad(0, 0, 10, 20)], tee: { x: 5, z: 2 }, cup: { x: 5, z: 15 } });
+            var yaw = Math.atan2(hole.cup.x - hole.tee.x, hole.cup.z - hole.tee.z);
+            function tapeOf(power, dt) {
+                var w = P.createWorld(hole, { x: hole.tee.x, z: hole.tee.z }, 3.25), i, ev;
+                P.launch(w, yaw, power, 0);
+                var tape = RE.begin(w, { yaw: yaw, feel: 0.5, kind: 'green' });
+                for (i = 0; i < Math.ceil(C.MAX_SHOT_SECONDS / dt); i++) {
+                    ev = P.advance(w, dt, {});
+                    RE.record(tape, w, ev);
+                    if (P.done(w)) break;
+                }
+                return { tape: RE.finish(tape), world: w };
+            }
+            var ace = null, pw;
+            for (pw = 2; pw <= C.MAX_POWER && !ace; pw += 0.05) {
+                var r = tapeOf(pw, C.SIM_DT);
+                if (r.world.sunk) ace = r;
+            }
+            assert('a straight putt on the lab green drops', !!ace);
+            if (!ace) return;
+            var tape = ace.tape, f = tape.frames, w = ace.world;
+
+            assert('a holed tape is playable on its own hole', RE.playable(tape, hole));
+            assert('…and not on another one', !RE.playable(tape, lab({})));
+            assert('a tape that stayed out is not playable',
+                !RE.playable(tapeOf(1, C.SIM_DT).tape, hole));
+
+            assert('the tape starts on the tee, at rest in time',
+                f[0].t === 0 && approx(f[0].x, hole.tee.x, 1e-9) && approx(f[0].z, hole.tee.z, 1e-9));
+            var last = f[f.length - 1];
+            assert('…and ends where the live ball ended',
+                last.x === w.ball.x && last.y === w.ball.y && last.z === w.ball.z);
+            assert('its length is the shot\'s, on the world clock',
+                approx(RE.length(tape), w.time - 3.25, 1e-9));
+
+            var sunk = 0, k;
+            for (k = 0; k < f.length; k++) if (f[k].ev & RE.SUNK) sunk++;
+            assert('the drop is on the tape exactly once', sunk === 1, sunk + ' times');
+
+            // Read back: exact on the frames, between them in between.
+            var out = {}, exact = true, mono = true, prevI = 0;
+            for (k = 0; k < f.length; k++) {
+                RE.sample(tape, f[k].t, out);
+                if (out.x !== f[k].x || out.z !== f[k].z || out.y !== f[k].y) exact = false;
+                if (out.i < prevI) mono = false;
+                prevI = out.i;
+            }
+            assert('every frame reads back exactly', exact);
+            assert('the frame index only goes forward', mono);
+            var mid = (f[5].t + f[6].t) / 2;
+            RE.sample(tape, mid, out);
+            assert('halfway between two frames is halfway between them',
+                approx(out.x, (f[5].x + f[6].x) / 2, 1e-9) && approx(out.z, (f[5].z + f[6].z) / 2, 1e-9));
+            assert('…and still reports the earlier frame', out.i === 5, 'i = ' + out.i);
+            assert('the walls are driven off the shot\'s own clock', approx(out.time, 3.25 + mid, 1e-9));
+            RE.sample(tape, -1, out);
+            assert('before the strike the ball is on the tee', out.x === f[0].x && out.z === f[0].z && out.i === 0);
+            RE.sample(tape, RE.length(tape) + 5, out);
+            assert('after the end it stays where it stopped',
+                out.x === last.x && out.z === last.z && out.i === f.length - 1);
+
+            // The cut, and the slow motion that follows it.
+            var len = RE.length(tape);
+            assert('the cut is inside the tape, with time left to watch',
+                tape.cutT >= 0 && tape.cutT <= len - RP.CUT_LEAD + 1e-9,
+                tape.cutT.toFixed(2) + ' of ' + len.toFixed(2));
+            RE.sample(tape, tape.cutT, out);
+            var span = Math.hypot(hole.cup.x - hole.tee.x, hole.cup.z - hole.tee.z);
+            var radius = Math.max(RP.CUT_MIN, Math.min(RP.CUT_MAX, span * RP.CUT_SHARE));
+            assert('the cut comes as the ball closes on the cup',
+                Math.hypot(out.x - hole.cup.x, out.z - hole.cup.z) <= radius + 1e-9);
+            RE.sample(tape, tape.cutT * 0.5, out);
+            assert('before the cut the tape runs at full speed', RE.rate(tape, tape.cutT * 0.5, out) === 1);
+            assert('at the lip it is in slow motion',
+                approx(RE.rate(tape, len, { x: hole.cup.x, z: hole.cup.z }), RP.SLOW, 1e-9));
+
+            // The seats the cup camera may take.
+            var seats = RE.seats(hole, { x: hole.cup.x, z: hole.cup.z - 3 }), allAt = true, allUp = true;
+            seats.forEach(function (s) {
+                if (!approx(Math.hypot(s.x - hole.cup.x, s.z - hole.cup.z), RP.SEAT_DIST, 1e-9)) allAt = false;
+                if (s.y < hole.cup.y + RP.SEAT_UP - 1e-9) allUp = false;
+            });
+            assert('every cup seat is the same distance from the cup', allAt);
+            assert('…and above it', allUp);
+            assert('the first seat is beyond the cup, off the line in',
+                seats[0].z > hole.cup.z && Math.abs(seats[0].x - hole.cup.x) > 0.5);
+            var down = RE.seats(hole, { x: hole.cup.x, z: hole.cup.z });
+            assert('a ball dropped straight in still gets seats', down.length === seats.length &&
+                down.every(function (s) { return isFinite(s.x) && isFinite(s.z); }));
+
+            // A tape that runs past its cap is not shown — half a shot is not the shot.
+            var held = RP.MAX_FRAMES;
+            RP.MAX_FRAMES = 10;
+            var capped = tapeOf(pw - 0.05, C.SIM_DT).tape;
+            RP.MAX_FRAMES = held;
+            assert('a tape past its cap is not playable', capped.full && !RE.playable(capped, hole));
         })();
 
         /* ── done ──────────────────────────────────────────────────────── */

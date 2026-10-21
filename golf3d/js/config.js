@@ -8,7 +8,7 @@
    — the renderer scales to the viewport, the simulation never sees a pixel. */
 window.G3 = window.G3 || {};
 
-G3.VERSION = '1.68.0';
+G3.VERSION = '1.69.0';
 
 G3.CONFIG = {
     BALL_R: 0.16,
@@ -513,6 +513,29 @@ G3.CONFIG = {
         AIR_FROM: 6,
         AIR_SPAN: 18,
         AIR_MAX: 0.85
+    },
+
+    /* The ace replay (replay.js). The shot is played back off the tape the
+       live roll left, so these are all about the telling of it, never the
+       ball: how long before it is struck, when the picture cuts from chasing
+       the ball to waiting for it at the cup, how far into slow motion the last
+       of it drops, and how long the drop is held. */
+    REPLAY: {
+        DELAY: 1.4,         // seconds of banner before the replay starts itself
+        PRE: 0.7,           // the ball at rest on the tee before it is struck
+        HOLD: 1.8,          // after the drop, before the banner comes back
+        CUT_SHARE: 0.32,    // the cup camera takes over this far from the cup…
+        CUT_MIN: 3,         // …as a share of the hole, clamped to these units
+        CUT_MAX: 8,
+        CUT_LEAD: 1.1,      // and never with less than this much tape left
+        SLOW: 0.38,         // playback speed for the last of it
+        SLOW_FROM: 3.2,     // slowing from this far from the cup…
+        SLOW_AT: 1.0,       // …to SLOW by this far
+        BACK: 5.5,          // the chase camera: behind the ball…
+        UP: 2.4,            // …and above it
+        SEAT_DIST: 3.0,     // the cup camera: this far from the cup…
+        SEAT_UP: 1.15,      // …and this far above it
+        MAX_FRAMES: 6000    // a tape longer than this stops recording
     },
 
     /* The demo's own camera. Nobody is aiming, so the seat behind the ball is
