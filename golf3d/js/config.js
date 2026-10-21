@@ -323,6 +323,26 @@ G3.CONFIG = {
     ],
     DEFAULT_CLUB: 'driver',
 
+    /* Mini golf's bag. Mini, crazy and adventure golf are one game and the
+       long game is another, and for most of this game's life they shared the
+       long game's bag — so the club the bot reached for first on two dozen
+       twelve-unit lanes was a 10° driver with thirty-two units of pace in it,
+       and a hole built round a bank shot or a gate was played as a skim at
+       the flag. A mini hole gets the putter and the two wedges unless it names
+       its own `bag`; a hole that is about distance or a club says so there,
+       the way the mallet holes always have.
+
+       The putter and the mallet, and no loft, because mini golf is played
+       along the floor: given a pitch and a wedge, the bot used them to fly
+       over the baffle, the beach and the water on hole after hole, which is
+       every hole's design skipped rather than played. A hole that is *about*
+       loft says `needsLoft` and gets MINI_LOFT_BAG. The groups the rule covers are
+       MINI_GROUPS; anything else — the long game, the range, a hole from the
+       editor — keeps CLUBS. */
+    MINI_BAG: ['putter', 'mallet'],
+    MINI_LOFT_BAG: ['putter', 'mallet', 'chipper', 'wedge'],
+    MINI_GROUPS: ['mini', 'crazy', 'adventure'],
+
     RESTITUTION: 0.62,    // horizontal speed kept after a rail bounce
     BOUNCE: 0.34,         // vertical speed kept after landing
     LAND_GRIP: 0.86,      // horizontal speed kept on each landing

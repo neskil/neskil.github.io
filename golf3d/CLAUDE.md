@@ -155,8 +155,10 @@ none, because it reads as coverage.
   editor's ported copy of that assertion, its ghost boxes, its plan-repaint
   trigger and its `cloneShape`, all of which asked about two. That is five
   places over three files that have each independently written
-  `w.move || w.spin`; if you add a fourth kind of motion, grep for both names
-  together before you do anything else.
+  `w.move || w.spin` — six, counting the bot's "does this hole need a wait
+  before striking", which also missed flippers until v1.66.0; if you add a
+  fourth kind of motion, grep for both names together before you do anything
+  else.
 - **A pad may now *do* something as well as be somewhere**: `push` is a
   travelator, `spring` a launch pad, and a hole's `warps` are pipes. All three
   are read by `physics.js` alone and drawn from that same data by `render.js`,

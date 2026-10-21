@@ -2560,6 +2560,7 @@
         }),
         build({
             name: 'Under the Boardwalk', par: 4,
+            bag: ['putter', 'mallet', 'chipper', 'wedge'],   // a lofted route is part of the hole
             blurb: 'Too tall to fly, and it stands high enough that a putt runs under. Land it short.',
             pads: [
                 pad(0, 0, 6, 5),
@@ -2648,6 +2649,7 @@
         }),
         build({
             name: 'The Gorge', par: 3,
+            needsLoft: true,   // a carry: there is no road along the floor
             blurb: 'Three metres of nothing, and a green that leans away east.',
             pads: [
                 pad(0, 0, 6, 6.4),
@@ -2659,6 +2661,7 @@
         }),
         build({
             name: 'Two Roads', par: 4,
+            bag: ['putter', 'mallet', 'chipper', 'wedge'],   // a lofted route is part of the hole
             blurb: 'The low road goes under the bar. The high road wants a chip first.',
             pads: [
                 pad(0, 0, 6, 5),
@@ -3443,6 +3446,10 @@
                of the ball's speed — miss both and the next shot is played from
                a standing start in a hole. */
             name: 'Two Ramps', par: 3,
+            /* The steep ramp wants more pace than a putter has in it, and the
+               mini bag (CONFIG.MINI_BAG) has nothing else that rolls; the
+               mallet is the club that makes the steep way a choice. */
+            bag: ['putter', 'mallet', 'chipper', 'wedge'],
             blurb: 'Two ways up to the deck, one steep and one long, and a drain down the middle of them.',
             pads: [
                 pad(0, 0, 9, 7),
@@ -3526,6 +3533,7 @@
                past the wall on the right — so the luckiest shot on the hole is
                a bad one, which is also true of pinball. */
             name: 'Jackpot', par: 4,
+            bag: ['putter', 'mallet', 'chipper', 'wedge'],   // a lofted route is part of the hole
             blurb: 'A door on the floor, a window in the air, and a hole in the table for the lucky. Three ways past one wall.',
             pads: [pad(0, 0, 9.4, 21)],
             warps: [pipe(1.4, 6.6, 7.7, 13.4, 0, 0.85)],
@@ -4631,6 +4639,7 @@
                shot the player has already played somewhere else, so that what
                they notice is the only thing that has changed. */
             name: 'Hang Time', par: 3, gravity: 0.5,
+            needsLoft: true,   // a carry: there is no road along the floor
             blurb: 'Half a g. The gap is wider than anything in the bag carries at home — hit it anyway.',
             pads: [
                 pad(0, 0, 8, 9),
@@ -4671,6 +4680,7 @@
                the ground cannot. It is an island, and there is nothing behind
                it, which is the whole reason the rim is worth having. */
             name: 'The Crater', par: 3, gravity: 0.45,
+            needsLoft: true,   // a carry: there is no road along the floor
             blurb: 'Nothing stops out here. The rim of the crater is the only thing that will.',
             pads: [pad(0, 0, 8, 8)].concat(bowl(5, 24, 7.2, 3, 0.55)),
             gaps: [{ x: -1, z: 7.6, w: 10, d: 1 }],
@@ -4692,6 +4702,13 @@
                pads, at the Helter Skelter ratings, and the whole difference is
                what is standing on them. */
             name: 'Deadlift', par: 3, gravity: 2.4,
+            /* The long game's bag, which is what this hole has always been
+               played and tested with — and, against the comment above, what
+               the bot actually holes it with is the driver over both steps.
+               With the mallet alone the pads do lift a rolled ball a step at a
+               time, but a greedy player runs its first shot past the second
+               pad and jams against the riser behind it. PLAN.md §0 has it. */
+            bag: ['putter', 'driver', 'iron', 'chipper', 'wedge'],
             blurb: 'Two steps up, no ramps, and the pads have twice the weight to lift.',
             pads: [
                 pad(0, 0, 7, 10),
@@ -5706,6 +5723,16 @@
         }
     ];
 
+    /* Which game a hole belongs to, on the hole itself — the showcase deals
+       holes out of their courses into a round of its own, so the course is
+       not there to be asked once a hole is being played. Mini golf, crazy
+       golf and adventure golf are one game played with one bag
+       (CONFIG.MINI_BAG); the long game is another. See G3.bagFor. */
+    G3.COURSES.forEach(function (c) {
+        if (C.MINI_GROUPS.indexOf(c.group) < 0) return;
+        c.holes.forEach(function (h) { h.mini = true; });
+    });
+
     /* The courses of one group, in the order they are written above. */
     G3.coursesInGroup = function (groupId) {
         return G3.COURSES.filter(function (c) { return c.group === groupId; });
@@ -5995,9 +6022,12 @@
        silently swapped for another club: a hole asking for something that does
        not exist should come up short, not come up wrong. */
     G3.bagFor = function (hole) {
-        if (!hole || !hole.bag) return C.CLUBS;
+        if (!hole) return C.CLUBS;
+        var ids = hole.bag ||
+            (hole.mini ? (hole.needsLoft ? C.MINI_LOFT_BAG : C.MINI_BAG) : null);
+        if (!ids) return C.CLUBS;
         var out = [];
-        hole.bag.forEach(function (id) {
+        ids.forEach(function (id) {
             for (var i = 0; i < C.ALL_CLUBS.length; i++) {
                 if (C.ALL_CLUBS[i].id === id) { out.push(C.ALL_CLUBS[i]); return; }
             }
