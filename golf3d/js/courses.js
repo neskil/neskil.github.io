@@ -1279,7 +1279,7 @@
 
     /* Gentle undulation across the grass of a drawn hole. The numbers are
        small on purpose: 0.075 of gradient is a little over four degrees, and
-       CONFIG.HOLD.green is 0.18, so the steepest ground a putt ever crosses is
+       CONFIG.HOLD.green is 0.22, so the steepest ground a putt ever crosses is
        still comfortably inside what a green will hold a stopped ball on. What
        it changes is not where the ball ends up so much as how the hole reads —
        light and shade across a surface that used to be one flat tone. */
