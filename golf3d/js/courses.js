@@ -2449,13 +2449,19 @@
             tee: { x: 2.5, z: 1.5 }, cup: { x: 4.5, z: 11 }
         }),
         build({
+            /* Up the ramp and round a banked turn. The outside of the corner
+               rises (a `channel` on the arc round its inside corner), so a
+               ball with pace is carried round to the right instead of dying
+               into the far rail and rolling back down — and a ball with too
+               much climbs the bank and comes off it at an angle nobody
+               chose. The bank is laid on the ramp and the shelf alike, so
+               the seam between them stays one surface. */
             name: 'Switchback', par: 4,
-            blurb: 'Up the ramp, hard left, and try not to come back down.',
-            pads: [
-                pad(0, 0, 4, 10),
+            blurb: 'Up the ramp and round the banked turn. Too slow and it rolls back down.',
+            pads: [pad(0, 0, 4, 10)].concat(shape([
                 pad(0, 10, 4, 4, 0, 'green', 0, 0.3),
                 pad(0, 14, 10, 4, 1.2)
-            ],
+            ], [channel(4, 14, 4.2, 1.6, 0.5, Math.PI / 2, Math.PI)])),
             tee: { x: 2, z: 1.5 }, cup: { x: 8.4, z: 16 }
         }),
         build({
@@ -4810,13 +4816,22 @@
                A ball that arrives on a flat green at half a g arrives with the
                same speed it would have had at home and then keeps every bit of
                it for twice as long a bounce, so the green here is a crater: a
-               floor, four ramps and four corners, with the rim doing the job
-               the ground cannot. It is an island, and there is nothing behind
-               it, which is the whole reason the rim is worth having. */
+               floor and a rim, with the rim doing the job the ground cannot.
+               It is an island, and there is nothing behind it, which is the
+               whole reason the rim is worth having.
+
+               One pad, and round: a `channel` laid on the rim curves down to a
+               flat floor wide enough for the cup's clearing. It was nine flat
+               pads — a `bowl`, floor, ramps and corners — and from the demo
+               camera on a phone the facets read as a crumpled sheet. */
             name: 'The Crater', par: 3, gravity: 0.45,
             needsLoft: true,   // a carry: there is no road along the floor
             blurb: 'Nothing stops out here. The rim of the crater is the only thing that will.',
-            pads: [pad(0, 0, 8, 8)].concat(bowl(5, 24, 7.2, 3, 0.55)),
+            pads: [pad(0, 0, 8, 8), (function () {
+                var p = pad(1.4, 20.4, 7.2, 7.2, 0);
+                p.bumps = [channel(5, 24, 3.6, 2.2, 0.55)];
+                return p;
+            })()],
             gaps: [{ x: -1, z: 7.6, w: 10, d: 1 }],
             tee: { x: 4, z: 2 }, cup: { x: 5, z: 24 }
         }),
