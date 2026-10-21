@@ -1,16 +1,18 @@
-/* Four courses, forty-two holes.
+/* Five courses, fifty-one holes.
 
    `GOLF.COURSES` is the rack — each entry `{ id, name, blurb, holes }` — and
    `GOLF.COURSE` is whichever card is being played, which is what every
    consumer downstream reads. Only `GOLF.selectCourse` moves it, so nothing
    else in the codebase has to know there is more than one course.
 
-   A hole is pure data: axis-aligned rectangles, a handful of circles and two
-   points. That is a deliberate limit. Circle-vs-AABB and circle-vs-circle are
-   the two collision tests cheap enough to run at 24 substeps and simple enough
-   to be provably correct, so the whole course vocabulary is built from boxes
-   and posts and the interesting shapes (doglegs, corridors, islands, mazes)
-   come from how they are arranged rather than from fancier geometry.
+   A hole is pure data: rectangles, a handful of circles, two points — and,
+   since a hole may now be drawn on the slant, capsules and polygons. That is
+   still a deliberate limit. Circle-vs-box, circle-vs-circle and circle-vs-
+   capsule are the collision tests cheap enough to run at 24 substeps and
+   simple enough to be obviously correct (the closest point on a segment is a
+   clamp and a dot product), and a polygon is only ever asked whether a point
+   is inside it. The interesting shapes still come from how those are
+   arranged rather than from fancier geometry.
 
      walls    solid, bounces. Give one a `move` and it oscillates on a sine,
               along `y` (a gate that rises and falls) or `x` (a sliding door).
@@ -25,9 +27,17 @@
               thirty-degree difference in departure.
      slopes   constant acceleration while the ball's center is inside, which is
               how a breaking green is faked in a top-down game.
+     tunnels  two mouths, {x, y, tx, ty}: in one, out the other, same shot.
+     rails    a wall at any angle, rail(x, y, tx, ty, w): its spine and its
+              thickness, collided as a capsule — round at both ends.
 
-   Every rectangle is at least 20px thick and every bumper at least
-   BUMPER_MIN_R across the radius. The substepping in physics.js caps ball
+   Water, sand, rough and ice may be polygons, poly(x0, y0, x1, y1, …), for a
+   bank or a bunker that runs on the slant. Walls and slopes stay rectangles:
+   a wall at an angle is a rail, and a slope's rules are written for edges
+   that run with the axes.
+
+   Every rectangle, rail and polygon is at least 20px thick and every bumper
+   at least BUMPER_MIN_R across the radius. The substepping in physics.js caps ball
    travel at half a radius (~3.75px) per step, so nothing can tunnel through
    an obstacle built to those minimums. Thinner ones would be a bug, and
    tests.html asserts the rules rather than trusting anyone to remember them.
@@ -42,6 +52,10 @@
     function post(x, y, rad) { return { x: x, y: y, r: rad }; }
     // Two mouths, and it runs both ways. See physics.js → tunnels.
     function tunnel(x, y, tx, ty) { return { x: x, y: y, tx: tx, ty: ty }; }
+    // A wall at any angle: its spine from (x, y) to (tx, ty), w thick.
+    function rail(x, y, tx, ty, w) { return { x: x, y: y, tx: tx, ty: ty, w: w || 24 }; }
+    // A zone with corners that are not right angles: x, y pairs, in order.
+    function poly() { return { pts: Array.prototype.slice.call(arguments) }; }
 
     /* ── The Old Eighteen ───────────────────────────────────────────── */
 
@@ -83,18 +97,30 @@
         },
         {
             name: 'The Narrows',
-            blurb: 'Three landings, each a hundred and twenty pixels wide, each one step up.',
+            blurb: 'A causeway between two lakes, climbing in three landings. The banks run on the slant.',
             par: 4,
             /* A straight channel is one shot, aimed once. A staircase is the
                same width of dry land and a different problem: the line that
-               clears the first step is in the water at the second, so the
-               distance has to be judged as well as the angle. */
+               clears the first landing is in the water at the second, so the
+               distance has to be judged as well as the angle.
+
+               It was six rectangles once, and looked it — a diagram of a
+               staircase rather than a causeway. The lakes are two polygons
+               now: the landings are level and a hundred and twenty pixels
+               wide, and the banks between them climb on a steep slant. Steep
+               on purpose: at forty-five degrees the three landings line up
+               into one diagonal band a straight putt can thread, which is a
+               different and easier hole. Pitched at two in one, the riser
+               pinches to fifty-odd pixels square across — the forty-pixel
+               step the rectangles left, given back its shape — and the
+               straight line from the tee is in the north lake before it. */
             tee: { x: 140, y: 360 },
             hole: { x: 850, y: 200 },
             water: [
-                r(280, 0, 220, 300), r(500, 0, 220, 220), r(720, 0, 240, 140),
-                r(280, 420, 220, 220), r(500, 340, 220, 300), r(720, 260, 240, 380)
-            ]
+                poly(280, 0, 960, 0, 960, 140, 740, 140, 700, 220, 520, 220, 480, 300, 280, 300),
+                poly(280, 640, 280, 420, 480, 420, 520, 340, 700, 340, 740, 260, 960, 260, 960, 640)
+            ],
+            rough: [r(0, 0, 230, 80), r(0, 560, 230, 80)]
         },
         {
             name: 'Bank Shot',
@@ -417,32 +443,27 @@
         },
         {
             name: 'The Chute',
-            blurb: 'A staircase down either side, narrowing to seventy pixels. Arrive too fast and it spits you back.',
+            blurb: 'Two arms closing to a throat seventy pixels wide. Arrive too fast and it spits you back.',
             par: 3,
-            /* Diagonals the vocabulary does not have, built as overlapping
-               steps: each step laps 20px over the next, so there is no seam
-               for the ball to slip through and the pockets between them
-               cannot be reached from either side. The funnel is a wide target
-               that does the aiming for you, which is the point — it hands the
-               hole back to weight. Too hard and the ball comes off the far
-               cushion and straight back out of the throat it came in by. */
+            /* Two straight arms closing to a seventy-pixel throat. They were
+               built as ten overlapping steps once, when the vocabulary had no
+               diagonals — each step lapping the next so there was no seam to
+               slip through — and the steps threw the ball off their corners
+               in directions the funnel never meant. As rails they are what
+               they always stood for. The funnel is a wide target that does
+               the aiming for you, which is the point: it hands the hole back
+               to weight. Too hard and the ball comes off the far cushion and
+               straight back out of the throat it came in by. */
             tee: { x: 100, y: 320 },
             hole: { x: 870, y: 320 },
-            walls: [
-                r(380, 60, 100, 24), r(460, 110, 100, 24), r(540, 160, 100, 24),
-                r(620, 210, 100, 24), r(700, 260, 100, 24),
-                r(380, 556, 100, 24), r(460, 506, 100, 24), r(540, 456, 100, 24),
-                r(620, 406, 100, 24), r(700, 356, 100, 24)
-            ],
-            /* The shoulders outside the arms, stepped to match them. Going
+            rails: [rail(385, 73, 805, 273, 24), rail(385, 567, 805, 367, 24)],
+            /* The shoulders outside the arms, cut on the same slant. Going
                over the top is still allowed and is the whole choice the hole
                offers: the throat is the fast line and it has to be earned,
                the high road is free and costs a stroke's worth of roll. */
             rough: [
-                r(0, 0, 380, 60), r(380, 0, 80, 60), r(460, 0, 80, 110),
-                r(540, 0, 80, 160), r(620, 0, 80, 210), r(700, 0, 260, 260),
-                r(0, 580, 380, 60), r(380, 580, 80, 60), r(460, 530, 80, 110),
-                r(540, 480, 80, 160), r(620, 430, 80, 210), r(700, 380, 260, 260)
+                poly(0, 0, 960, 0, 960, 260, 800, 260, 380, 60, 0, 60),
+                poly(0, 640, 0, 580, 380, 580, 800, 380, 960, 380, 960, 640)
             ]
         },
         {
@@ -503,15 +524,18 @@
     var SHORT = [
         {
             name: 'Front Door',
-            blurb: 'Wide open, one gate, and the gate is wider than it looks.',
+            blurb: 'Wide open, one gate, and the walls lean in to find it for you.',
             par: 2,
             /* Opening Drive with the door taken off its hinges: a 180px mouth
                rather than a 160px one, and the same rough down both cushions
                saying the same thing — the middle of the field is where the
-               ball wants to be. */
+               ball wants to be. The two halves of the gate lean in towards
+               the mouth, so a first putt that wanders comes off the rail
+               still heading for the door: the first hole anybody plays should
+               forgive the first thing they get wrong. */
             tee: { x: 140, y: 320 },
             hole: { x: 830, y: 320 },
-            walls: [r(520, 0, 24, 230), r(520, 410, 24, 230)],
+            rails: [rail(470, 0, 540, 218, 24), rail(470, 640, 540, 422, 24)],
             rough: [r(0, 0, 960, 80), r(0, 560, 960, 80)]
         },
         {
@@ -939,6 +963,11 @@
         }
     ];
 
+    /* Each card is drawn in a biome of its own (scenery.js): the eighteen in
+       parkland, the six in a walled garden, Tidewater by the sea, the Wild
+       Nine in a wood and the Warren in a meadow. The draw takes one from its
+       seed. Nothing about play depends on it. */
+
     /* The rack. `GOLF.COURSE` is whichever card is being played — the classic
        eighteen unless something says otherwise — and every consumer
        downstream keeps reading exactly that, so a course is chosen in one
@@ -954,12 +983,14 @@
     GOLF.COURSES = [
         {
             id: 'links',
+            theme: 'parkland',
             name: 'The Old Eighteen',
             blurb: 'One idea per hole, and then all of them at once.',
             holes: LINKS
         },
         {
             id: 'short',
+            theme: 'garden',
             name: 'The Short Six',
             blurb: 'Six holes, nothing hidden, and a round inside twenty minutes.',
             // Where a first visit is pointed. Par two or three all the way
@@ -970,6 +1001,7 @@
         },
         {
             id: 'tide',
+            theme: 'seaside',
             name: 'The Tidewater Nine',
             blurb: 'Water in play on all nine. The only hazard that asks for the shot back.',
             unlock: 10,
@@ -977,6 +1009,7 @@
         },
         {
             id: 'wild',
+            theme: 'woodland',
             name: 'The Wild Nine',
             blurb: 'Nine holes that assume you have played the eighteen.',
             unlock: 22,
@@ -984,6 +1017,7 @@
         },
         {
             id: 'warren',
+            theme: 'meadow',
             name: 'The Warren',
             blurb: 'Nine holes riddled with tunnels. Go in one, come out another.',
             unlock: 34,
@@ -996,7 +1030,7 @@
        gets to loop without a guard. */
     GOLF.COURSES.forEach(function (c) {
         c.holes.forEach(function (h) {
-            ['walls', 'water', 'sand', 'rough', 'ice', 'bumpers', 'slopes', 'tunnels'].forEach(function (key) {
+            ['walls', 'water', 'sand', 'rough', 'ice', 'bumpers', 'slopes', 'tunnels', 'rails'].forEach(function (key) {
                 if (!h[key]) h[key] = [];
             });
         });

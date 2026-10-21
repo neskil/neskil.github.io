@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Hole Editor — Pocket Links</title>
-<meta name="description" content="A visual editor for Pocket Links holes: drag out walls, water, bunkers, ice, bumpers, slopes and tunnels, putt the ball without leaving the page, and export the hole as courses.js data.">
+<meta name="description" content="A visual editor for Pocket Links holes: drag out walls at any angle, water and bunkers with banks on the slant, ice, bumpers, slopes and tunnels, putt the ball without leaving the page, and export the hole as courses.js data.">
 <meta name="theme-color" content="#0d1117">
 <meta name="color-scheme" content="dark">
 <meta name="author" content="Niklas Billgren">
@@ -24,7 +24,7 @@
     gtag('config', 'G-9GP823TGLB');
 </script>
 <link rel="icon" href="../favicon.ico">
-<link rel="stylesheet" href="editor/editor.css?v=1.8.0">
+<link rel="stylesheet" href="editor/editor.css?v=1.9.0">
 </head>
 <body>
 
@@ -54,6 +54,7 @@
     <div id="tools">
       <button class="btn on" data-tool="select" title="Select and drag (V)">▣ Select</button>
       <button class="btn" data-tool="walls" title="Drag out a wall (1)"><i class="swatch" style="background:#6d4a2e"></i>Wall</button>
+      <button class="btn" data-tool="rails" title="Drag a wall at any angle, from one end to the other (L)"><i class="swatch" style="background:#8a5a34;transform:rotate(-30deg)"></i>Rail</button>
       <button class="btn" data-tool="water" title="Drag out water (2)"><i class="swatch" style="background:#1b6d9e"></i>Water</button>
       <button class="btn" data-tool="sand" title="Drag out a bunker (3)"><i class="swatch" style="background:#e3ca92"></i>Sand</button>
       <button class="btn" data-tool="rough" title="Drag out rough (4)"><i class="swatch" style="background:#1c6b39"></i>Rough</button>
@@ -187,10 +188,12 @@
      integrator, the same renderer. A hole that looks and plays right in here
      is the hole that ships, because there is no second implementation of any
      of it. -->
-<script src="js/config.js?v=1.8.0"></script>
-<script src="js/courses.js?v=1.8.0"></script>
-<script src="js/physics.js?v=1.8.0"></script>
-<script src="js/render.js?v=1.8.0"></script>
-<script src="editor/editor.js?v=1.8.0"></script>
+<script src="js/config.js?v=1.9.0"></script>
+<script src="js/courses.js?v=1.9.0"></script>
+<script src="js/physics.js?v=1.9.0"></script>
+<script src="js/scenery.js?v=1.9.0"></script>
+<script src="js/landscape.js?v=1.9.0"></script>
+<script src="js/render.js?v=1.9.0"></script>
+<script src="editor/editor.js?v=1.9.0"></script>
 </body>
 </html>

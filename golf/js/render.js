@@ -1,421 +1,33 @@
-/* Everything that draws. Reads state, never writes it — the only mutable
-   thing in here is the particle list, which is visual-only and deliberately
-   kept out of the simulation so a dropped frame can never change a score.
-
-   The turf is generated into an offscreen canvas and blitted, rather than
-   redrawn per frame; see makeTurf for why it is rebuilt once per hole. */
+/* The frame: the ball, the cup, tunnels, the aim, the effects, and the
+   order everything is laid down in. Reads state, never writes it — the only
+   mutable thing in here is the particle list, which is visual-only and
+   deliberately kept out of the simulation so a dropped frame can never change
+   a score. The place itself — turf, hazards, walls, posts, trees, weather —
+   is landscape.js's, in the biome scenery.js picks. */
 (function (GOLF) {
     'use strict';
 
     var C = GOLF.CONFIG;
     var P = GOLF.physics;
 
-    /* The turf is one static 960x640 image, generated offscreen and blitted.
-       Regenerating the stripes, the speckle and the vignette every frame was
-       the single most expensive thing on the page, for a picture that never
-       changes *within* a hole.
-
-       It does change *between* holes: the mow angle, the stripe width and the
-       green's depth are derived from the hole index, so eighteen holes do not
-       all look like the same lawn photographed eighteen times. One canvas is
-       kept, rebuilt on hole change — caching all eighteen would be 44MB of
-       bitmap to avoid a 4ms redraw nobody sees. */
-    var turf = null;
-    var turfKey = -1;
-
-    // Deterministic noise, so a hole's blades of grass sit in the same place
-    // every time it is loaded and the course does not shimmer on replay.
-    function hash(n) {
-        var x = Math.sin(n * 127.1 + 311.7) * 43758.5453;
-        return x - Math.floor(x);
-    }
-
-    function makeTurf(seed) {
-        var c = document.createElement('canvas');
-        c.width = C.WORLD_W;
-        c.height = C.WORLD_H;
-        var g = c.getContext('2d');
-
-        // Base colour drifts a few degrees per hole: high summer at one end of
-        // the course, a shaded valley at the other.
-        var hue = 132 + Math.round((hash(seed) - 0.5) * 14);
-        var lum = 33 + Math.round(hash(seed + 9) * 5);
-        g.fillStyle = 'hsl(' + hue + ', 46%, ' + lum + '%)';
-        g.fillRect(0, 0, C.WORLD_W, C.WORLD_H);
-
-        // Mower stripes. The angle and width come from the seed, so a hole is
-        // recognisable from its lawn before you have read its name.
-        var angle = -0.55 + hash(seed + 3) * 1.1;
-        var band = 44 + Math.round(hash(seed + 5) * 34);
-        g.save();
-        g.translate(C.WORLD_W / 2, C.WORLD_H / 2);
-        g.rotate(angle);
-        g.translate(-C.WORLD_W, -C.WORLD_H);
-        for (var i = 0; i < Math.ceil(C.WORLD_W * 3 / band); i++) {
-            g.fillStyle = i % 2 ? 'rgba(255,255,255,0.040)' : 'rgba(0,0,0,0.040)';
-            g.fillRect(i * band, 0, band, C.WORLD_H * 3);
-        }
-        // A hairline at each stripe boundary — the cut edge the mower leaves.
-        g.strokeStyle = 'rgba(0,0,0,0.05)';
-        g.lineWidth = 1;
-        for (i = 0; i < Math.ceil(C.WORLD_W * 3 / band); i++) {
-            g.beginPath();
-            g.moveTo(i * band, 0);
-            g.lineTo(i * band, C.WORLD_H * 3);
-            g.stroke();
-        }
-        g.restore();
-
-        // Speckle: a few thousand one-pixel blades so flat colour does not
-        // read as plastic when the ball rolls over it.
-        for (var n = 0; n < 3000; n++) {
-            var x = hash(seed * 31 + n) * C.WORLD_W, y = hash(seed * 17 + n * 3.7) * C.WORLD_H;
-            g.fillStyle = hash(n * 5.3) < 0.5 ? 'rgba(255,255,255,0.055)' : 'rgba(0,0,0,0.065)';
-            g.fillRect(x, y, 1.6, 1.6);
-        }
-
-        var v = g.createRadialGradient(C.WORLD_W / 2, C.WORLD_H / 2, C.WORLD_H * 0.35,
-                                       C.WORLD_W / 2, C.WORLD_H / 2, C.WORLD_H * 0.95);
-        v.addColorStop(0, 'rgba(0,0,0,0)');
-        v.addColorStop(1, 'rgba(0,0,0,0.40)');
-        g.fillStyle = v;
-        g.fillRect(0, 0, C.WORLD_W, C.WORLD_H);
-
-        return c;
-    }
-
-    /* The putting green: a disc of shorter grass around the cup, mown in
-       rings. It is decoration in the strict sense — the physics has never
-       heard of it — but it is the one piece of the picture that tells you
-       where the hole *is* from across the field, before you have found the
-       flag among the hazards. */
-    function drawGreen(g, hole) {
-        var R = 96;
-        g.save();
-        g.beginPath();
-        g.arc(hole.x, hole.y, R, 0, Math.PI * 2);
-        g.clip();
-
-        // Faded at the rim rather than cut off at it: a hard circle of paler
-        // grass reads as a target painted on the field, and the eye goes to
-        // the edge instead of to the cup.
-        var grad = g.createRadialGradient(hole.x, hole.y, 6, hole.x, hole.y, R);
-        grad.addColorStop(0, 'rgba(214, 255, 214, 0.15)');
-        grad.addColorStop(0.62, 'rgba(200, 250, 200, 0.10)');
-        grad.addColorStop(1, 'rgba(190, 245, 190, 0)');
-        g.fillStyle = grad;
-        g.fillRect(hole.x - R, hole.y - R, R * 2, R * 2);
-
-        // Mown in rings, the way a green actually is, and fading with them.
-        g.lineWidth = 6;
-        for (var r = 14; r < R - 8; r += 16) {
-            g.strokeStyle = 'rgba(255,255,255,' + (0.05 * (1 - r / R)).toFixed(3) + ')';
-            g.beginPath();
-            g.arc(hole.x, hole.y, r, 0, Math.PI * 2);
-            g.stroke();
-        }
-        g.restore();
-    }
-
-    /* Rough. Darker, denser, and drawn with tufts rather than a flat fill so
-       that "this will cost you" is legible at a glance — the same information
-       the bunker's rake lines carry. */
-    function drawRough(g, s) {
-        g.save();
-        roundRect(g, s.x, s.y, s.w, s.h, 14);
-        g.clip();
-
-        g.fillStyle = 'rgba(9, 46, 22, 0.55)';
-        g.fillRect(s.x, s.y, s.w, s.h);
-
-        var seed = s.x * 7 + s.y * 13 + s.w;
-        var tufts = Math.min(420, Math.round(s.w * s.h / 620));
-        g.strokeStyle = 'rgba(126, 200, 130, 0.30)';
-        g.lineWidth = 1.6;
-        g.lineCap = 'round';
-        g.beginPath();
-        for (var i = 0; i < tufts; i++) {
-            var x = s.x + hash(seed + i) * s.w;
-            var y = s.y + hash(seed + i * 2.7 + 1) * s.h;
-            var lean = (hash(seed + i * 3.1) - 0.5) * 5;
-            g.moveTo(x, y);
-            g.lineTo(x + lean, y - 5 - hash(seed + i * 1.3) * 4);
-        }
-        g.stroke();
-        g.restore();
-
-        g.save();
-        roundRect(g, s.x, s.y, s.w, s.h, 14);
-        g.strokeStyle = 'rgba(8, 40, 20, 0.5)';
-        g.lineWidth = 2;
-        g.stroke();
-        g.restore();
-    }
-
-    function roundRect(g, x, y, w, h, r) {
-        var rr = Math.min(r, w / 2, h / 2);
-        g.beginPath();
-        g.moveTo(x + rr, y);
-        g.arcTo(x + w, y, x + w, y + h, rr);
-        g.arcTo(x + w, y + h, x, y + h, rr);
-        g.arcTo(x, y + h, x, y, rr);
-        g.arcTo(x, y, x + w, y, rr);
-        g.closePath();
-    }
-
-    /* ── course furniture ───────────────────────────────────────────────── */
-
-    function drawSand(g, s) {
-        g.save();
-        roundRect(g, s.x, s.y, s.w, s.h, 34);
-        g.fillStyle = '#e3ca92';
-        g.fill();
-        g.clip();
-        var grad = g.createLinearGradient(s.x, s.y, s.x, s.y + s.h);
-        grad.addColorStop(0, 'rgba(255,255,255,0.30)');
-        grad.addColorStop(0.45, 'rgba(255,255,255,0)');
-        grad.addColorStop(1, 'rgba(120,90,40,0.28)');
-        g.fillStyle = grad;
-        g.fillRect(s.x, s.y, s.w, s.h);
-        // Rake lines. Seeded off the rectangle so they do not crawl between frames.
-        g.strokeStyle = 'rgba(160,125,60,0.18)';
-        g.lineWidth = 2;
-        for (var i = 10; i < s.h; i += 15) {
-            g.beginPath();
-            g.moveTo(s.x, s.y + i);
-            g.bezierCurveTo(s.x + s.w * 0.33, s.y + i - 6, s.x + s.w * 0.66, s.y + i + 6, s.x + s.w, s.y + i);
-            g.stroke();
-        }
-        g.restore();
-    }
-
-    /* Ice reads as ice through three cues rather than colour alone: a pale
-       fill, a rim of hard frost, and hairline fractures. The fractures are
-       derived from the rectangle's own coordinates rather than from
-       Math.random, so the sheet does not crawl about between frames. */
-    function drawIce(g, s) {
-        g.save();
-        roundRect(g, s.x, s.y, s.w, s.h, 18);
-        g.fillStyle = '#bfe4f2';
-        g.fill();
-        g.clip();
-
-        var grad = g.createLinearGradient(s.x, s.y, s.x + s.w, s.y + s.h);
-        grad.addColorStop(0, 'rgba(255,255,255,0.55)');
-        grad.addColorStop(0.5, 'rgba(255,255,255,0.10)');
-        grad.addColorStop(1, 'rgba(96,165,250,0.35)');
-        g.fillStyle = grad;
-        g.fillRect(s.x, s.y, s.w, s.h);
-
-        g.strokeStyle = 'rgba(255,255,255,0.55)';
-        g.lineWidth = 1.4;
-        for (var i = 0; i < 7; i++) {
-            var sx = s.x + ((i * 97 + 31) % 100) / 100 * s.w;
-            var sy = s.y + ((i * 61 + 17) % 100) / 100 * s.h;
-            var a = (i * 1.7) % (Math.PI * 2);
-            var len = 26 + (i % 3) * 22;
-            g.beginPath();
-            g.moveTo(sx, sy);
-            g.lineTo(sx + Math.cos(a) * len, sy + Math.sin(a) * len);
-            g.lineTo(sx + Math.cos(a) * len + Math.cos(a + 1.1) * len * 0.6,
-                     sy + Math.sin(a) * len + Math.sin(a + 1.1) * len * 0.6);
-            g.stroke();
-        }
-        g.restore();
-
-        g.save();
-        roundRect(g, s.x, s.y, s.w, s.h, 18);
-        g.strokeStyle = 'rgba(240,253,255,0.75)';
-        g.lineWidth = 3;
-        g.stroke();
-        g.restore();
-    }
-
-    /* A bumper. The cap is drawn a couple of pixels up and left of the collision
-       circle so it reads as a post standing on the green rather than a disc
-       painted on it — but the ring, which is what the ball actually meets, is
-       drawn true to the radius the simulation uses. */
-    function drawBumper(g, b, t) {
-        var pulse = 0.5 + Math.sin(t * 2.2 + b.x * 0.03) * 0.5;
-
-        g.save();
-        g.fillStyle = 'rgba(0,0,0,0.35)';
-        g.beginPath();
-        g.ellipse(b.x + 3, b.y + 4, b.r * 1.02, b.r * 0.92, 0, 0, Math.PI * 2);
-        g.fill();
-
-        g.beginPath();
-        g.arc(b.x, b.y, b.r, 0, Math.PI * 2);
-        g.strokeStyle = 'rgba(249,115,22,' + (0.55 + pulse * 0.35) + ')';
-        g.lineWidth = 3;
-        g.stroke();
-
-        var grad = g.createRadialGradient(b.x - b.r * 0.35, b.y - b.r * 0.4, b.r * 0.15, b.x, b.y, b.r);
-        grad.addColorStop(0, '#fde68a');
-        grad.addColorStop(0.55, '#f59e0b');
-        grad.addColorStop(1, '#b45309');
-        g.fillStyle = grad;
-        g.beginPath();
-        g.arc(b.x - 1, b.y - 1.5, b.r - 3.5, 0, Math.PI * 2);
-        g.fill();
-
-        g.fillStyle = 'rgba(255,255,255,' + (0.25 + pulse * 0.45) + ')';
-        g.beginPath();
-        g.arc(b.x - 1, b.y - 1.5, b.r * 0.32, 0, Math.PI * 2);
-        g.fill();
-        g.restore();
-    }
-
-    /* All of a hole's water in one pass rather than rect by rect. A moat is
-       built from several overlapping rectangles, and drawing each one as its
-       own rounded, outlined shape left notches and doubled shorelines wherever
-       two of them met. Filling the union in a single path merges them, and
-       growing that union by a few pixels underneath produces a shoreline that
-       follows the outside edge only. */
-    function drawWaterAll(g, list, t) {
-        if (!list.length) return;
-        var i, minY = Infinity, maxY = -Infinity, minX = Infinity, maxX = -Infinity;
-        for (i = 0; i < list.length; i++) {
-            minX = Math.min(minX, list[i].x); maxX = Math.max(maxX, list[i].x + list[i].w);
-            minY = Math.min(minY, list[i].y); maxY = Math.max(maxY, list[i].y + list[i].h);
-        }
-
-        g.save();
-        g.fillStyle = 'rgba(226,202,146,0.8)';
-        g.beginPath();
-        for (i = 0; i < list.length; i++) g.rect(list[i].x - 3, list[i].y - 3, list[i].w + 6, list[i].h + 6);
-        g.fill();
-
-        g.beginPath();
-        for (i = 0; i < list.length; i++) g.rect(list[i].x, list[i].y, list[i].w, list[i].h);
-        var grad = g.createLinearGradient(0, minY, 0, maxY);
-        grad.addColorStop(0, '#1b6d9e');
-        grad.addColorStop(1, '#0e4468');
-        g.fillStyle = grad;
-        g.fill();
-        g.clip();
-
-        g.strokeStyle = 'rgba(190,235,255,0.22)';
-        g.lineWidth = 2;
-        for (var row = minY + 11; row < maxY; row += 22) {
-            g.beginPath();
-            for (var x = minX; x <= maxX; x += 8) {
-                g.lineTo(x, row + Math.sin(x * 0.05 + t * 1.6 + row * 0.4) * 3);
-            }
-            g.stroke();
-        }
-        g.restore();
-    }
-
-    function drawSlope(g, s) {
-        var mag = Math.hypot(s.ax, s.ay);
-        if (mag < 1) return;
-        var ux = s.ax / mag, uy = s.ay / mag;
-
-        g.save();
-        roundRect(g, s.x, s.y, s.w, s.h, 8);
-        g.clip();
-        // Light at the high end, shadow at the low end: the same cue a real
-        // green gives you.
-        var grad = g.createLinearGradient(s.x + s.w / 2 - ux * s.w / 2, s.y + s.h / 2 - uy * s.h / 2,
-                                          s.x + s.w / 2 + ux * s.w / 2, s.y + s.h / 2 + uy * s.h / 2);
-        grad.addColorStop(0, 'rgba(255,255,255,0.11)');
-        grad.addColorStop(1, 'rgba(0,0,0,0.20)');
-        g.fillStyle = grad;
-        g.fillRect(s.x, s.y, s.w, s.h);
-
-        // Chevrons pointing downhill.
-        g.strokeStyle = 'rgba(255,255,255,0.16)';
-        g.lineWidth = 2.5;
-        g.lineCap = 'round';
-        var step = 58;
-        for (var y = s.y + step / 2; y < s.y + s.h; y += step) {
-            for (var x = s.x + step / 2; x < s.x + s.w; x += step) {
-                g.save();
-                g.translate(x, y);
-                g.rotate(Math.atan2(uy, ux));
-                g.beginPath();
-                g.moveTo(-8, -7); g.lineTo(2, 0); g.lineTo(-8, 7);
-                g.stroke();
-                g.restore();
-            }
-        }
-        g.restore();
-    }
-
-    /* A wall is a timber sleeper standing on the grass. Everything about the
-       drawing says "above the surface": a shadow cast down-right, a lit top
-       and left edge, a dark underside. The light direction is the same one the
-       ball, the posts and the cup use — the picture only reads as 3D if
-       nothing in it disagrees about where the sun is. */
-    function drawWall(g, wall, t) {
-        var R = P.wallRect(wall, t);
-
-        g.save();
-        g.shadowColor = 'rgba(0,0,0,0.5)';
-        g.shadowBlur = 14;
-        g.shadowOffsetX = 4;
-        g.shadowOffsetY = 6;
-        roundRect(g, R.x, R.y, R.w, R.h, 6);
-        g.fillStyle = wall.move ? '#8a5a34' : '#6d4a2e';
-        g.fill();
-        g.restore();
-
-        g.save();
-        roundRect(g, R.x, R.y, R.w, R.h, 6);
-        g.clip();
-        var grad = g.createLinearGradient(R.x, R.y, R.x + R.w, R.y + R.h);
-        grad.addColorStop(0, 'rgba(255,255,255,0.30)');
-        grad.addColorStop(0.22, 'rgba(255,255,255,0.06)');
-        grad.addColorStop(1, 'rgba(0,0,0,0.34)');
-        g.fillStyle = grad;
-        g.fillRect(R.x, R.y, R.w, R.h);
-
-        // Grain, along the long axis of the timber.
-        var along = R.w > R.h;
-        g.strokeStyle = 'rgba(60,36,16,0.22)';
-        g.lineWidth = 1;
-        g.beginPath();
-        for (var k = 7; k < (along ? R.h : R.w); k += 7) {
-            if (along) { g.moveTo(R.x, R.y + k); g.lineTo(R.x + R.w, R.y + k); }
-            else { g.moveTo(R.x + k, R.y); g.lineTo(R.x + k, R.y + R.h); }
-        }
-        g.stroke();
-        // Hazard stripes mark the walls that move, so a player who gets hit by
-        // one at least knew it was coming.
-        if (wall.move) {
-            g.strokeStyle = 'rgba(251,191,36,0.5)';
-            g.lineWidth = 5;
-            for (var d = -R.h; d < R.w + R.h; d += 18) {
-                g.beginPath();
-                g.moveTo(R.x + d, R.y);
-                g.lineTo(R.x + d + R.h, R.y + R.h);
-                g.stroke();
-            }
-        }
-        g.restore();
-
-        // Lit top edge, dark base. Two hairlines do more for the sense of
-        // height than any amount of gradient.
-        g.save();
-        roundRect(g, R.x + 0.5, R.y + 0.5, R.w - 1, R.h - 1, 6);
-        g.strokeStyle = 'rgba(255,236,200,0.22)';
-        g.lineWidth = 1;
-        g.stroke();
-        g.restore();
-    }
+    var L = GOLF.landscape;
+    var SC = GOLF.scenery;
+    var roundRect = L.roundRect;
+    var motionQuery = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : null;
 
     /* `up` turns the flag. The board is drawn a quarter-turn round on a
        portrait screen (game.js → resize), and everything on it is flat on
        the grass except the flagstick, which stands up — so it is the one
        thing that has to be told which way up the screen is, or it lies on
        its side along the green. */
-    function drawHole(g, hole, t, ball, up) {
+    function drawHole(g, hole, t, ball, v) {
+        var up = v.turned ? Math.PI / 2 : 0;
+        var lip = L.sv(v, 0, -3);
         // Cup.
         g.save();
         g.beginPath();
         g.arc(hole.x, hole.y, C.HOLE_R, 0, Math.PI * 2);
-        var grad = g.createRadialGradient(hole.x, hole.y - 3, 2, hole.x, hole.y, C.HOLE_R);
+        var grad = g.createRadialGradient(hole.x + lip.x, hole.y + lip.y, 2, hole.x, hole.y, C.HOLE_R);
         grad.addColorStop(0, '#000');
         grad.addColorStop(0.75, '#0b1a0d');
         grad.addColorStop(1, '#16341a');
@@ -508,15 +120,16 @@
        always had; a coloured one keeps the same highlight and dimples and
        takes its body from the player's colour, with a dark rim so that an
        orange ball on sand or a blue one on ice is still a ball. */
-    function drawBall(g, ball, spin, color) {
+    function drawBall(g, ball, spin, color, v) {
+        var sh = L.sv(v, 2.5, 3.5), hl = L.sv(v, -2.5, -3), dot = L.sv(v, 0, -1), glint = L.sv(v, -2.4, -2.8);
         g.save();
         g.fillStyle = 'rgba(0,0,0,0.35)';
         g.beginPath();
-        g.ellipse(ball.x + 2.5, ball.y + 3.5, C.BALL_R * 1.05, C.BALL_R * 0.9, 0, 0, Math.PI * 2);
+        g.ellipse(ball.x + sh.x, ball.y + sh.y, C.BALL_R * 1.05, C.BALL_R * 0.9, 0, 0, Math.PI * 2);
         g.fill();
 
         var tinted = color && color !== C.PLAYER_COLORS[0];
-        var grad = g.createRadialGradient(ball.x - 2.5, ball.y - 3, 1, ball.x, ball.y, C.BALL_R);
+        var grad = g.createRadialGradient(ball.x + hl.x, ball.y + hl.y, 1, ball.x, ball.y, C.BALL_R);
         grad.addColorStop(0, '#ffffff');
         grad.addColorStop(tinted ? 0.35 : 0.6, tinted ? color : '#eef2f5');
         grad.addColorStop(1, tinted ? shade(color) : '#b9c4cc');
@@ -536,8 +149,8 @@
         g.fillStyle = 'rgba(120,140,155,0.35)';
         for (var i = 0; i < 5; i++) {
             var a = spin + i * (Math.PI * 2 / 5);
-            var dx = Math.cos(a) * C.BALL_R * 0.52;
-            var dy = Math.sin(a) * C.BALL_R * 0.52 - 1;
+            var dx = Math.cos(a) * C.BALL_R * 0.52 + dot.x;
+            var dy = Math.sin(a) * C.BALL_R * 0.52 + dot.y;
             g.beginPath();
             g.arc(ball.x + dx, ball.y + dy, 1.25, 0, Math.PI * 2);
             g.fill();
@@ -547,7 +160,7 @@
         g.save();
         g.fillStyle = 'rgba(255,255,255,0.9)';
         g.beginPath();
-        g.arc(ball.x - 2.4, ball.y - 2.8, 1.7, 0, Math.PI * 2);
+        g.arc(ball.x + glint.x, ball.y + glint.y, 1.7, 0, Math.PI * 2);
         g.fill();
         g.restore();
     }
@@ -568,8 +181,9 @@
        than in the player's memory of the last time they tried it. */
     function tunnelInk(i) { return C.TUNNEL_COLORS[i % C.TUNNEL_COLORS.length]; }
 
-    function drawTunnels(g, list, t) {
+    function drawTunnels(g, list, t, v) {
         if (!list || !list.length) return;
+        var sh = L.sv(v, 2, 3), turn = v.turned ? Math.PI / 2 : 0;
         var R = C.TUNNEL_R;
         var i;
         g.save();
@@ -596,7 +210,7 @@
             // A raised collar, lit from the same top-left as everything else.
             gg.fillStyle = 'rgba(0,0,0,0.35)';
             gg.beginPath();
-            gg.arc(x + 2, y + 3, R + 5, 0, Math.PI * 2);
+            gg.arc(x + sh.x, y + sh.y, R + 5, 0, Math.PI * 2);
             gg.fill();
             gg.fillStyle = ink;
             gg.beginPath();
@@ -625,7 +239,7 @@
             gg.strokeStyle = 'rgba(255,255,255,0.35)';
             gg.lineWidth = 1;
             gg.beginPath();
-            gg.arc(x, y, R + 4.5, Math.PI * 1.05, Math.PI * 1.7);
+            gg.arc(x, y, R + 4.5, Math.PI * 1.05 + turn, Math.PI * 1.7 + turn);
             gg.stroke();
             gg.restore();
         }
@@ -1008,39 +622,35 @@
         clock += dt || 0;
         var course = state.world.course;
         var t = state.world.time;
-
+        var v = L.viewOf(!!state.turned);
+        var theme = SC.themeNamed(state.theme);
         // The editor hands frame() a state of its own making, with no hole
         // number in it. Defaulting keeps the seed a number: NaN here would
         // reach hsl() and paint the whole field transparent.
         var key = typeof state.holeIndex === 'number' ? state.holeIndex : 0;
-        if (!turf || turfKey !== key) {
-            turfKey = key;
-            turf = makeTurf(key + 1);
-        }
-        g.drawImage(turf, 0, 0);
-
+        var scene = L.scene(course, theme, v, { key: state.sceneKey, res: state.res || 1, seed: key + 1 });
         var i;
-        drawGreen(g, course.hole);
-        for (i = 0; i < course.rough.length; i++) drawRough(g, course.rough[i]);
-        for (i = 0; i < course.slopes.length; i++) drawSlope(g, course.slopes[i]);
-        for (i = 0; i < course.ice.length; i++) drawIce(g, course.ice[i]);
-        for (i = 0; i < course.sand.length; i++) drawSand(g, course.sand[i]);
-        drawWaterAll(g, course.water, t);
-        drawTunnels(g, course.tunnels, t);
 
-        // Tee marker.
+        // Nothing is drawn off the field. The game's canvas is the field, so
+        // this costs it nothing; the editor pans and zooms round a margin,
+        // and the bled shorelines and the crowns of the trees beside the
+        // course would otherwise hang out into it.
         g.save();
-        g.strokeStyle = 'rgba(255,255,255,0.35)';
-        g.lineWidth = 2;
-        g.setLineDash([3, 4]);
         g.beginPath();
-        g.arc(course.tee.x, course.tee.y, 13, 0, Math.PI * 2);
-        g.stroke();
-        g.restore();
+        g.rect(0, 0, C.WORLD_W, C.WORLD_H);
+        g.clip();
 
-        drawHole(g, course.hole, t, state.world.ball, state.turned ? Math.PI / 2 : 0);
-        for (i = 0; i < course.walls.length; i++) drawWall(g, course.walls[i], t);
-        for (i = 0; i < course.bumpers.length; i++) drawBumper(g, course.bumpers[i], t);
+        // Under the ball: the ground, the water, tunnels, the cup, every
+        // wall that holds still — then the ones that move, and the posts.
+        scene.ground(g);
+        L.drawWater(g, course.water, theme, v, t, clock, scene.decor);
+        drawTunnels(g, course.tunnels, t, v);
+        drawHole(g, course.hole, t, state.world.ball, v);
+        scene.solids(g);
+        for (i = 0; i < course.walls.length; i++) {
+            if (course.walls[i].move) L.drawWall(g, course.walls[i], t, theme, v);
+        }
+        for (i = 0; i < course.bumpers.length; i++) L.drawBumper(g, course.bumpers[i], t, theme, v);
 
         updateParticles(dt);
         updateRings(g, dt);
@@ -1049,7 +659,7 @@
         spin += P.speedOf(state.world.ball) * dt / C.BALL_R;
         if (!state.world.sunk) {
             drawTrail(g, state.trail, state.ballColor);
-            drawBall(g, state.world.ball, spin, state.ballColor);
+            drawBall(g, state.world.ball, spin, state.ballColor, v);
         }
         if (state.aim && state.aim.active && !state.world.moving && !state.world.sunk) {
             drawAim(g, state.world, state.aim, t, state.lastFrac);
@@ -1057,14 +667,11 @@
             drawCoach(g, state.world.ball, state.aim.angle, clock);
         }
 
-        // Field frame, drawn last so nothing spills over the cushions.
-        g.save();
-        g.strokeStyle = 'rgba(20,40,20,0.85)';
-        g.lineWidth = 8;
-        g.strokeRect(4, 4, C.WORLD_W - 8, C.WORLD_H - 8);
-        g.strokeStyle = 'rgba(255,255,255,0.10)';
-        g.lineWidth = 2;
-        g.strokeRect(8, 8, C.WORLD_W - 16, C.WORLD_H - 16);
+        // Over the ball: the course's edge, the trees reaching over it, and
+        // the weather over everything. A crown the ball is under goes thin.
+        L.drawRim(g, theme, v);
+        L.drawCanopies(g, scene.decor.canopies, theme, v, clock, state.world.sunk ? null : state.world.ball);
+        L.drawClouds(g, motionQuery && motionQuery.matches ? 0 : clock, v, key + 1);
         g.restore();
     }
 

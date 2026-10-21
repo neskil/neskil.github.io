@@ -215,6 +215,40 @@
         write();
     }
 
+    /* ── starting over ──────────────────────────────────────────────────
+
+       Two ways back to the beginning, because they are two different wishes.
+       *Replay the intro* is "show me again": the ghost stroke and every
+       hazard lesson come back, and nothing you have earned goes anywhere.
+       *Reset progress* is "let me climb it again": every star, record and
+       round in progress is cleared and the browser is a first visit — not
+       a veteran, so the ladder is locked again. What it leaves alone is what
+       is not progress: the sound setting, and a hole half-built in the
+       editor, which is the player's work rather than the game's. */
+    function replayIntro() {
+        var st = get();
+        st.coached = false;
+        st.seen = {};
+        write();
+    }
+
+    var KEEP = /^miniGolf\.(muted|editor\.v1|playtest\.v1)$/;
+
+    function resetAll() {
+        try {
+            for (var i = localStorage.length - 1; i >= 0; i--) {
+                var k = localStorage.key(i);
+                if (/^miniGolf\./.test(k) && !KEEP.test(k)) localStorage.removeItem(k);
+            }
+        } catch (e) { /* storage off: there was nothing kept to clear */ }
+        // Written straight away: with no record at all, the next boot would
+        // look for old keys to decide whether this is a veteran, and the
+        // answer has to be no.
+        state = blank();
+        write();
+        return state;
+    }
+
     /* The course a newcomer is pointed at: the one card that says it is the
        place to start, or the head of the rack if none does. */
     function starter() {
@@ -244,6 +278,8 @@
         markSeen: markSeen,
         coached: coached,
         markCoached: markCoached,
+        replayIntro: replayIntro,
+        resetAll: resetAll,
         starter: starter
     };
 

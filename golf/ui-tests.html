@@ -667,6 +667,59 @@
             G.game.resize();
             assert('and a wide window puts it all back', !doc().body.classList.contains('is-side') &&
                 !doc().body.classList.contains('is-turned'));
+
+            section('starting over');
+
+            $('btn-title').click();
+            $('title-intro').click();
+            st = G.game.getState();
+            assert('Replay the intro goes to the first tee of the starter course',
+                G.COURSE_ID === G.progress.starter().id && st.holeIndex === 0 && !$('title').classList.contains('show'));
+            assert('…with the first stroke shown again', st.coach === true);
+            var had = G.progress.totalStars().got;
+            assert('…and no star lost to it', had > 0, had + ' stars');
+            $('btn-title').click();
+            $('title-reset').click();
+            assert('one press of Reset only arms it', $('title-reset').classList.contains('armed') &&
+                G.progress.totalStars().got === had);
+            $('title-reset').click();
+            assert('the second wipes every star', G.progress.totalStars().got === 0);
+            assert('…locks the ladder again', !G.progress.isOpen(G.COURSES.filter(function (c) { return c.id === 'tide'; })[0]));
+            assert('…and leaves the title saying Start here', $('title').classList.contains('show') &&
+                /Start here/.test($('title-play').textContent), $('title-play').textContent);
+
+            section('every hole draws');
+
+            /* Every hole of every card, the draw included, in both
+               orientations, through the real renderer into a canvas of its
+               own. A biome that cannot draw some hole, or a shape a theme
+               does not know, would otherwise be found by whoever reached it. */
+            var cv = doc().createElement('canvas');
+            cv.width = 240; cv.height = 160;
+            var g = cv.getContext('2d');
+            var broken = [], blank = 0, drawn = 0;
+            G.COURSES.forEach(function (c) {
+                c.holes.forEach(function (h, i) {
+                    [false, true].forEach(function (turned) {
+                        g.setTransform(0.25, 0, 0, 0.25, 0, 0);
+                        g.clearRect(0, 0, 960, 640);
+                        try {
+                            G.render.frame(g, {
+                                world: G.physics.createWorld(h, h.tee, 0), holeIndex: i, trail: [],
+                                aim: { active: false, angle: 0, power: 0 }, theme: G.scenery.themeOf(c).id,
+                                sceneKey: 'ui-tests/' + c.id + '/' + i, res: 0.25, turned: turned, ballColor: '#ffffff'
+                            }, 1 / 60);
+                            drawn++;
+                            if (!painted(cv)) blank++;
+                        } catch (e) {
+                            broken.push(c.id + ' ' + h.name + (turned ? ' (turned)' : '') + ': ' + e.message);
+                        }
+                    });
+                });
+            });
+            note(drawn + ' frames drawn across ' + G.COURSES.length + ' courses');
+            assert('every hole of every course draws, flat and turned', broken.length === 0, broken.slice(0, 2).join(' · '));
+            assert('…and none of them comes out blank', blank === 0, blank + ' blank');
             return Promise.resolve();
         }
 

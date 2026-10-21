@@ -32,7 +32,7 @@
 
         gtag('config', 'G-9GP823TGLB');
     </script>
-    <link rel="stylesheet" href="style.css?v=1.8.0">
+    <link rel="stylesheet" href="style.css?v=1.9.0">
 <script type="application/ld+json">
     {
         "@context": "https://schema.org",
@@ -261,6 +261,12 @@
                 </div>
             </div>
             <p class="title-hint" id="title-hint"></p>
+            <!-- The way back to the beginning: the intro again with
+                 nothing lost, or the whole climb again from nothing. -->
+            <div class="title-foot">
+                <button type="button" id="title-intro">&#8634; Replay the intro</button>
+                <button type="button" id="title-reset">Reset progress</button>
+            </div>
         </div>
     </div>
 
@@ -297,8 +303,8 @@
 
     <!-- Load order is dependency order: config, then the pure logic, then the
          things that touch the screen. game.js boots itself on DOMContentLoaded. -->
-    <script src="js/config.js?v=1.8.0"></script>
-    <script src="js/courses.js?v=1.8.0"></script>
+    <script src="js/config.js?v=1.9.0"></script>
+    <script src="js/courses.js?v=1.9.0"></script>
     <script>
         /* Playtest hand-off from the hole editor. It writes one hole into
            session storage and sends the player here with ?playtest=1; swapping
@@ -314,7 +320,7 @@
                 var raw = sessionStorage.getItem('miniGolf.playtest.v1');
                 if (!raw) return;
                 var hole = JSON.parse(raw);
-                ['walls', 'water', 'sand', 'rough', 'ice', 'bumpers', 'slopes', 'tunnels'].forEach(function (k) {
+                ['walls', 'water', 'sand', 'rough', 'ice', 'bumpers', 'slopes', 'tunnels', 'rails'].forEach(function (k) {
                     if (!Array.isArray(hole[k])) hole[k] = [];
                 });
                 GOLF.COURSE = [hole];
@@ -332,16 +338,19 @@
             } catch (e) { /* storage disabled: fall through to the real course */ }
         })();
     </script>
-    <script src="js/physics.js?v=1.8.0"></script>
+    <script src="js/physics.js?v=1.9.0"></script>
     <!-- Adds nothing to the rack by itself; game.js deals the draw on boot. -->
-    <script src="js/generator.js?v=1.8.0"></script>
-    <script src="js/scoring.js?v=1.8.0"></script>
+    <script src="js/generator.js?v=1.9.0"></script>
+    <script src="js/scoring.js?v=1.9.0"></script>
     <!-- Stars, unlocks and first-run lessons. Reads the save files; draws nothing. -->
-    <script src="js/progress.js?v=1.8.0"></script>
-    <script src="js/audio.js?v=1.8.0"></script>
+    <script src="js/progress.js?v=1.9.0"></script>
+    <!-- The biomes, and where the decoration goes. Draws nothing itself. -->
+    <script src="js/scenery.js?v=1.9.0"></script>
+    <script src="js/audio.js?v=1.9.0"></script>
     <!-- Thumbnails for the course picker. Nothing on the board reads it. -->
-    <script src="js/plan.js?v=1.8.0"></script>
-    <script src="js/render.js?v=1.8.0"></script>
-    <script src="js/game.js?v=1.8.0"></script>
+    <script src="js/plan.js?v=1.9.0"></script>
+    <script src="js/landscape.js?v=1.9.0"></script>
+    <script src="js/render.js?v=1.9.0"></script>
+    <script src="js/game.js?v=1.9.0"></script>
 </body>
 </html>
