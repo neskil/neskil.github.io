@@ -95,7 +95,7 @@ speed — and it is now a loft, a ceiling and one number about what happens
 | Club | Loft | Full swing | Carry | Apex | Total on green | What it is for |
 | --- | --- | --- | --- | --- | --- | --- |
 | Putter | 0° | 10.5 | — | — | 9.2 | Rolls flat and true. Full power is still a tap, which is what makes it the club you can aim. |
-| Driver | 6° | 32 | 15.3 | 0.47 | 34.5 | The reach club. The longest flight in the bag and much the lowest — it cannot clear a rail, it just takes a while to come down. |
+| Driver | 6° | 35 | 18.3 | 0.53 | 39.4 | The reach club. The longest flight in the bag and much the lowest — it cannot clear a rail, it just takes a while to come down. |
 | 7 Iron | 16° | 18 | 9.8 | 0.83 | 21.0 | The long approach: three quarters of a driver, and it *carries* three quarters of that. |
 | Pitch | 45° | 11.7 | 7.6 | 2.03 | 13.7 | Up steep and down steeper. Stops near where it lands. |
 | Wedge | 58° | 12.1 | 7.3 | 3.05 | 12.4 | The lob: straight up, over anything, and it does not run when it lands. |
@@ -1357,10 +1357,11 @@ until it finds somewhere that is. This is what makes a hump a hazard rather
 than decoration, and it is the difference between terrain you look at and
 terrain you play.
 
-The green's figure is 0.18, which is steep for a green and is not a free
+The green's figure is 0.22, which is steep for a green and is not a free
 choice: the cup on Tidewater's **Short Side** sits on a lie of 0.16, and a
 green that will not hold a ball beside its own hole is a green nobody can putt
-on. There is an assertion to that effect over every cup in the game. Two older
+on. It was 0.18 — with the fairway at 0.26 and the rough at 0.40 — until a slow
+ball on a bank kept creeping off it once too often. There is an assertion to that effect over every cup in the game. Two older
 holes were quietly fixed by the change — **Step Up**'s blurb has always
 promised that half measures roll back to you, and until now they stopped on the
 ramp instead.
@@ -1885,7 +1886,7 @@ Three more rules come from the tests rather than the geometry.
   where you are standing, and a cup has to sit on ground that will hold a ball
   beside it. `CUP_FLAT` is also a promise to the renderer — see below.
 - **The gradient stays inside the surface's own angle of repose.** 0.075 is a
-  little over four degrees against `CONFIG.HOLD.green` of 0.18, so the steepest
+  little over four degrees against `CONFIG.HOLD.green` of 0.22, so the steepest
   ground a putt ever crosses is comfortably inside what a green will hold a
   stopped ball on. What it changes is less where the ball ends up than how the
   hole *reads*: light and shade across a surface that used to be one flat tone.

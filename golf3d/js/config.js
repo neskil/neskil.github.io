@@ -8,7 +8,7 @@
    — the renderer scales to the viewport, the simulation never sees a pixel. */
 window.G3 = window.G3 || {};
 
-G3.VERSION = '1.59.1';
+G3.VERSION = '1.60.0';
 
 G3.CONFIG = {
     BALL_R: 0.16,
@@ -58,10 +58,13 @@ G3.CONFIG = {
        simply froze anything slow for long enough, and a ball would sit halfway
        up a ramp looking like a bug because it was one.
 
-       These are the tangents of an angle of repose, so 0.18 is about ten
+       These are the tangents of an angle of repose, so 0.22 is about twelve
        degrees. That is steep for a green and it is not a free choice: the
        cup on Tidewater's 'Short Side' sits on a lie of 0.16, and a green that
        will not hold a ball beside its own hole is a green nobody can putt on.
+       It was 0.18 (and the fairway 0.26, the rough 0.40) until a ball that
+       had all but stopped on a hillside kept creeping off it once too often;
+       a fifth more grip is what makes a slow ball on a bank stay put.
        Everything coarser holds more, sand holds nearly anything, and a plank
        holds almost nothing — which is what makes a ramp a ramp.
 
@@ -72,20 +75,20 @@ G3.CONFIG = {
        that half measures roll back to you, and until now they stopped on the
        ramp instead. */
     HOLD: {
-        green: 0.18,
-        fairway: 0.26,
+        green: 0.22,
+        fairway: 0.32,
         wood: 0.05,    // slick: a ball left on a ramp goes back down it
         /* Lower than a plank by a factor of four, which is what makes an iced
            slope a one-way street: 0.012 is a gradient of about two thirds of a
            degree, so the only ice a ball stays on is ice somebody drew flat. */
         ice: 0.012,
         sand: 0.55,    // whatever lands in a bunker stays where it lands
-        rough: 0.40,
+        rough: 0.46,
         cup: 4         // and the bottom of the hole holds anything at all
     },
-    HOLD_DEFAULT: 0.18,
+    HOLD_DEFAULT: 0.22,
 
-    /* At full power the ball coasts v0 / -ln(k) ≈ 27 units on grass. That is
+    /* At full power the ball coasts v0 / -ln(k) ≈ 29 units on grass. That is
        longer than any mini golf hole here and shorter than most of a links
        one, which is the split the number has to serve now: everything on the
        first five courses is reachable with one swing and most of it with half
@@ -93,7 +96,7 @@ G3.CONFIG = {
        will not take a ball arriving much above 7. On the long courses the same
        number is a tee shot, and the skill is in what the ground does with it
        afterwards. */
-    MAX_POWER: 32,
+    MAX_POWER: 35,
     MIN_POWER: 0.9,
 
     /* Past a full swing the meter keeps going. OVERDRAW is how much further,
@@ -102,7 +105,7 @@ G3.CONFIG = {
 
          base power   grows with the meter into the overdraw, exactly as it
                       does below it — a driver wound to 130% leaves at 130% of
-                      28, and that is real distance you cannot get any other
+                      35, and that is real distance you cannot get any other
                       way.
          control      goes, and it goes fast. Anything at or inside a full
                       swing sprays by nothing at all: the ball leaves on the
@@ -218,7 +221,7 @@ G3.CONFIG = {
         },
         {
             id: 'driver', name: 'Driver', short: 'DR', key: '2',
-            loft: 6 * Math.PI / 180, power: 32, carry: 15.3, total: 34.5,
+            loft: 6 * Math.PI / 180, power: 35, carry: 18.3, total: 39.4,
             blurb: 'The reach club. Barely off the ground, and it runs.'
         },
         /* The one club that is neither reach nor loft but a real amount of
