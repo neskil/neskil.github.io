@@ -170,7 +170,7 @@
         for (i = 0; i < sides.length; i++) {
             var sd = sides[i];
             var len = Math.hypot(sd[2] - sd[0], sd[3] - sd[1]);
-            n = pad.bumps ? Math.max(1, Math.round(len / OUTLINE_STEP)) : 1;
+            n = pad.bumps || pad.field ? Math.max(1, Math.round(len / OUTLINE_STEP)) : 1;
             for (var k = 0; k < n; k++) {
                 x = sd[0] + (sd[2] - sd[0]) * (k / n);
                 z = sd[1] + (sd[3] - sd[1]) * (k / n);

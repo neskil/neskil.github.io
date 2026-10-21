@@ -385,6 +385,40 @@
            lowest on the card for the same reason. The machinery goes cold
            cyan, as it does on the ice, because the ground here is a warm grey
            and amber would sink into it. And no birds. */
+        /* Challenge mode, and the one theme that is not a place: a grid
+           world at the end of a long evening. Vaporwave and Tron in the same
+           breath — a violet sky going magenta at the horizon, a black floor
+           ruled in cyan out to the fog, the course itself drawn as dark
+           indigo turf with hot pink lines across it, and rails that glow.
+
+           The grid is the point rather than the dressing (render.addGrid): a
+           sine sea or a saddle is unreadable as a smooth dark sheet, and the
+           lines bending over it are how the shape gets from the ground to the
+           eye. No birds, no clouds to speak of, stars up. */
+        neon: {
+            sky: [0x0a0220, 0x7a1f8f],
+            fog: 0x3a0f5c,
+            sun: 0xffb3f0, sunPos: [-7, 11, 9], ambient: 0x7b5cff, ambientI: 0.85,
+            grass: ['#1b1446', '#16103a'],
+            rail: 0x27f0ff,
+            glow: true,
+            grid: { colour: '#ff3df2', floor: '#27c8ff', every: 1, floorEvery: 3 },
+            /* Its own grade, over the weather's (render.js has why): a tight
+               bloom with a low threshold, so the lines glow and the floor
+               between them stays dark; no rays; a touch more contrast,
+               saturation, vignette and fringing for the screen it is meant to
+               look like it is on. */
+            grade: { bloom: 0.22, threshold: 0.62, rays: 0, exposure: 0.74, contrast: 1.12,
+                saturation: 1.2, vignette: 0.42, grain: 0.02, aberration: 1.2,
+                lift: [0, 0, 0], tint: [1, 1, 1] },
+            machine: 0xff3df2,
+            stars: 1,
+            cloudLum: 0.25,
+            birds: false,
+            surroundY: -2.4, surround: 'floor', floor: '#07031a',
+            water: 0x00e5ff,
+            side: '#1d1145'
+        },
         lunar: {
             sky: [0x05060c, 0x2b2f3c],
             fog: 0x2b2f3c,

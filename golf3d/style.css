@@ -2337,6 +2337,14 @@ kbd {
     margin: 0 0 0.85rem;
 }
 
+.challenge-go {
+    /* The neon theme's own pink, and its sunset under it: the one button in
+       the picker that is a different game. */
+    --cg-tint: #ff3df2;
+    margin: -0.4rem 0 0.85rem;
+    background: linear-gradient(100deg, color-mix(in srgb, #ff3df2 18%, transparent), color-mix(in srgb, #27f0ff 14%, transparent));
+}
+
 .sh-go:hover { background: color-mix(in srgb, var(--cg-tint) 22%, transparent); }
 .sh-go:active { transform: translateY(1px); }
 .sh-go:focus-visible { outline: 2px solid var(--cg-tint); outline-offset: 2px; }

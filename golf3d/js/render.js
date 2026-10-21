@@ -286,7 +286,9 @@
             age = (R.trailAt - i + n) % n;          // 0 = newest
             f = Math.max(0, 1 - age / n);
             f = f * f * 0.75;
-            col[i * 3] = f; col[i * 3 + 1] = f * 1.05; col[i * 3 + 2] = f * 0.9;
+            // White on a course, neon magenta in the grid world.
+            if (R.glow) { col[i * 3] = f * 1.2; col[i * 3 + 1] = f * 0.25; col[i * 3 + 2] = f * 1.1; }
+            else { col[i * 3] = f; col[i * 3 + 1] = f * 1.05; col[i * 3 + 2] = f * 0.9; }
         }
         R.trail.geometry.attributes.position.needsUpdate = true;
         R.trail.geometry.attributes.color.needsUpdate = true;
@@ -522,6 +524,13 @@
                the wet term only takes it a little further the way it already
                was. */
             ice: tops(tex.ice, 90 + wet * 40, 0xdff0ff, 0xffffff),
+            /* Glass, for the grid world: dark, glossy and faintly lit from
+               inside, with no texture and no blades. The grid drawn over it
+               (addGrid) is what reads the shape; this is what it is drawn on,
+               and the hard pink highlight is the sun sliding over a wave. */
+            glass: new THREE.MeshPhongMaterial({
+                color: 0x05030f, emissive: 0x10032e, shininess: 260, specular: 0x1c0c38
+            }),
             rough: tops(tex.rough, 3 + wet * 40, 0x000000, 0x7d8a92),
             // The greens get the most of everything: a bump map of the same
             // blades that are in the colour map, so the light rakes across the
@@ -565,6 +574,12 @@
            rain; it is also the brightest thing on most holes, which is what
            gives the bloom something to find. Four kinds, four materials, and
            twenty rails between them. */
+        // A neon rail: the same paint, lit from inside as well, so the bloom
+        // picks it up the way it picks up the grid.
+        function glow(mat, color) {
+            mat.emissive = new THREE.Color(color).multiplyScalar(0.7);
+            return mat;
+        }
         function paint(color) {
             return new THREE.MeshPhongMaterial({
                 color: new THREE.Color(color).multiplyScalar(1 - wet * 0.16),
@@ -672,7 +687,7 @@
                 rough: shells('rough', TX.shellFor('rough'), '#3c6b34', SHELL_LAYERS)
             },
             walls: {
-                rail: paint(theme.rail),
+                rail: theme.glow ? glow(paint(theme.rail), theme.rail) : paint(theme.rail),
                 blade: paint(0xd8523f),
                 gate: paint(0xe0a13a),
                 // A bumper is meant to be aimed at, so it is the one thing on a
@@ -916,7 +931,7 @@
                 geo.computeVertexNormals();
             }
             var mesh = new THREE.Mesh(geo, set[i]);
-            mesh.position.set(cx, cy + (pad.bumps ? 0 : height * f) +
+            mesh.position.set(cx, cy + (pad.bumps || pad.field ? 0 : height * f) +
                 (pad.r ? INLAY_LIFT : 0), cz);
             // Lit by the sun and darkened by anything standing on the pad, but
             // casting nothing itself: a cut-out shadow needs a depth material
@@ -1508,6 +1523,9 @@
     var TERRAIN_MIN = 0.45;
 
     function terrainRes(pad) {
+        // A function surface has no smallest hump to read a scale off, and its
+        // waves are a few units long: a fixed fine grid, at the floor.
+        if (pad.field) return TERRAIN_MIN;
         var b = pad.bumps, i, least = Infinity;
         for (i = 0; i < (b || []).length; i++) least = Math.min(least, b[i].r);
         if (!isFinite(least)) return TERRAIN_RES;
@@ -1589,8 +1607,50 @@
         }
     }
 
+    /* The grid, for a theme that asks for one (Challenge mode's `neon`).
+       Lines across every pad at `every` units, each one walked over the
+       ground at a quarter of a unit and lifted clear of the grass, so a wave
+       or a saddle is drawn by the lines bending over it — which is the whole
+       look, and the one way to read a surface like that from the tee. And a
+       wider, dimmer grid on the floor round the hole, out to the fog. Unlit
+       and fogged, so the bloom in postfx is what makes them glow. */
+    var GRID_STEP = 0.25, GRID_LIFT = 0.07;
+    function addGrid(group, hole, theme) {
+        var G = theme.grid, every = G.every || 1, pts = [], i, p, a, t, x, z, x0, z0, y0, inside;
+        function line(ax, az, bx, bz, pad) {
+            var len = Math.hypot(bx - ax, bz - az), n = Math.max(1, Math.ceil(len / GRID_STEP)), k, was = false;
+            for (k = 0; k <= n; k++) {
+                x = ax + (bx - ax) * k / n; z = az + (bz - az) * k / n;
+                inside = P.padContains(pad, x, z);
+                if (inside && was) pts.push(x0, y0, z0, x, P.padHeight(pad, x, z) + GRID_LIFT, z);
+                if (inside) { x0 = x; z0 = z; y0 = P.padHeight(pad, x, z) + GRID_LIFT; }
+                was = inside;
+            }
+        }
+        for (i = 0; i < hole.pads.length; i++) {
+            p = hole.pads[i];
+            if (p.inlay && p.kind === 'sand') continue;
+            for (a = Math.ceil(p.x / every) * every; a <= p.x + p.w + 1e-9; a += every) line(a, p.z, a, p.z + p.d, p);
+            for (t = Math.ceil(p.z / every) * every; t <= p.z + p.d + 1e-9; t += every) line(p.x, t, p.x + p.w, t, p);
+        }
+        var geo = new THREE.BufferGeometry();
+        geo.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3));
+        group.add(new THREE.LineSegments(geo, new THREE.LineBasicMaterial({ color: G.colour, fog: true })));
+
+        // The floor: a square of lines round the middle of the hole.
+        var b = hole.bounds, cx = (b.minX + b.maxX) / 2, cz = (b.minZ + b.maxZ) / 2;
+        var R = 140, s = G.floorEvery || 3, fl = [], y = theme.surroundY + 0.02, v;
+        for (v = -R; v <= R; v += s) {
+            fl.push(cx + v, y, cz - R, cx + v, y, cz + R);
+            fl.push(cx - R, y, cz + v, cx + R, y, cz + v);
+        }
+        var fgeo = new THREE.BufferGeometry();
+        fgeo.setAttribute('position', new THREE.Float32BufferAttribute(fl, 3));
+        group.add(new THREE.LineSegments(fgeo, new THREE.LineBasicMaterial({ color: G.floor || G.colour, fog: true })));
+    }
+
     function addPad(group, pad, theme, cup, pads) {
-        if (pad.bumps) { addTerrain(group, pad, theme, cup, pads); return; }
+        if (pad.bumps || pad.field) { addTerrain(group, pad, theme, cup, pads); return; }
         var cx = pad.x + pad.w / 2, cz = pad.z + pad.d / 2;
         var sx = pad.sx || 0, sz = pad.sz || 0;
         var cy = P.padHeight(pad, cx, cz);
@@ -1626,6 +1686,9 @@
         // A disc green is laid into the ground it sits in rather than standing
         // on it, so it needs no more depth than the cup does.
         if (pad.r) thick = holed ? C.CUP_DEPTH + 0.25 : 0.3;
+        // And a hovering platform is a slab with daylight under it, which is
+        // the whole of what it is (Challenge mode's raised tee).
+        if (pad.hover) thick = Math.max(least, 0.4);
         var geo = pad.r
             ? discGeometry(pad, thick, cup, holed)
             : holed
@@ -3334,6 +3397,11 @@
 
         var i;
         for (i = 0; i < hole.pads.length; i++) addPad(g, hole.pads[i], theme, hole.cup, hole.pads);
+        if (theme.grid) addGrid(g, hole, theme);
+        // The grid world's effects switch on with the theme (see hitAt), and
+        // its tail is drawn larger, because it is a light and not a smudge.
+        R.glow = !!theme.glow;
+        R.trail.material.size = R.glow ? 0.24 : 0.13;
         // The marks on the machinery, after the ground they are drawn on.
         for (i = 0; i < hole.pads.length; i++) {
             if (hole.pads[i].push) addBelt(g, hole.pads[i], theme);
@@ -3353,7 +3421,11 @@
         // The rain, the mist banks and whatever is drifting in the air are
         // parented to the hole, so the next hole disposes them with it.
         if (W) g.add(W.build(hole, theme, weather));
-        if (R.fx) G3.postfx.setGrade(weather.grade);
+        /* A theme may carry a grade of its own over the weather's. Only the
+           grid world does: the clear sky's bloom, made for sunlight on grass,
+           took the bright lines and rails and spread them over the whole
+           floor as a violet wash, with the rays on top of that. */
+        if (R.fx) G3.postfx.setGrade(theme.grade ? Object.assign({}, weather.grade, theme.grade) : weather.grade);
 
         // Every water shader on the hole is told the same sky it is going to
         // be reflecting, once, here.
@@ -4284,6 +4356,16 @@
         if (world.moving && speed > 1.2) {
             R.trailOn = true;
             pushTrail(world.ball.x, world.ball.y, world.ball.z);
+            /* On glass the ball sheds light as it goes: a few pink sparks off
+               the contact patch, more of them the faster it is rolling. */
+            if (R.glow && world.grounded) {
+                R.sparkClock = (R.sparkClock || 0) - dt;
+                if (R.sparkClock <= 0) {
+                    R.sparkClock = 0.09 / Math.min(3, speed * 0.4);
+                    burst(world.ball.x, world.ball.y - C.BALL_R + 0.03, world.ball.z, 0xff3df2,
+                        2, 0.5 + Math.min(1.2, speed * 0.12));
+                }
+            }
         } else if (R.trailOn) {
             R.trailOn = false;
             clearTrail();
@@ -4291,6 +4373,7 @@
 
         updateAim(world, aim);
         stepParticles(dt);
+        stepPulses(dt);
         updateCamera(world.hole, world.ball, dt);
 
         // The camera has moved; what the air is doing about it, and the two
@@ -4408,6 +4491,57 @@
     /* ── effects the game asks for ──────────────────────────────────────── */
 
     function splashAt(x, y, z) { burst(x, y, z, 0x9fd8ff, 26, 2.6); }
+
+    /* The grid world's effects (Challenge mode). A landing or a rail hit on
+       glass throws cyan sparks and sends a ring of light out across the floor
+       from where it happened; a ball scooting along glass sheds a stream of
+       pink ones and drags a neon tail (pushTrail's tint). Nothing here
+       touches the simulation — it is what the ground does *back*. */
+    var PULSES = 6;
+    function buildPulses() {
+        R.pulses = [];
+        for (var i = 0; i < PULSES; i++) {
+            var m = new THREE.Mesh(new THREE.RingGeometry(0.82, 1, 40),
+                // Drawn over the floor rather than into it: a flat ring on a
+                // wave is half buried, and it is a light, not a thing.
+                new THREE.MeshBasicMaterial({ color: 0x27f0ff, transparent: true, opacity: 0,
+                    blending: THREE.AdditiveBlending, depthWrite: false, depthTest: false,
+                    side: THREE.DoubleSide }));
+            m.rotation.x = -Math.PI / 2;
+            m.renderOrder = 5;
+            m.visible = false;
+            m.userData.life = 0;
+            R.scene.add(m);
+            R.pulses.push(m);
+        }
+        R.pulseAt = 0;
+    }
+    function pulse(x, y, z, strength) {
+        if (!R.pulses) buildPulses();
+        var m = R.pulses[R.pulseAt = (R.pulseAt + 1) % PULSES];
+        m.position.set(x, y + 0.05, z);
+        m.userData.life = 1;
+        m.userData.grow = 1.2 + Math.min(2.2, strength * 0.35);
+        m.visible = true;
+    }
+    function stepPulses(dt) {
+        if (!R.pulses) return;
+        for (var i = 0; i < R.pulses.length; i++) {
+            var m = R.pulses[i], u = m.userData;
+            if (u.life <= 0) continue;
+            u.life -= dt * 1.6;
+            var t = 1 - Math.max(0, u.life);
+            var s = 0.15 + t * u.grow;
+            m.scale.set(s, s, s);
+            m.material.opacity = Math.max(0, u.life) * 0.85;
+            if (u.life <= 0) m.visible = false;
+        }
+    }
+    function hitAt(x, y, z, speed) {
+        if (!R.glow) return;
+        burst(x, y + 0.05, z, 0x27f0ff, Math.min(22, 6 + Math.round(speed * 2)), 1.4 + Math.min(2, speed * 0.2));
+        pulse(x, y, z, speed);
+    }
     function sandAt(x, y, z) { burst(x, y, z, 0xe8d8a8, 14, 1.5); }
     /* The ball goes past the pin on its way in — nothing stops it, since the
        simulation has never heard of the pin — so the pin at least acknowledges
@@ -4438,6 +4572,7 @@
         resize: resize,
         buildHole: buildHole,
         frame: frame,
+        hitAt: hitAt,
         splashAt: splashAt,
         sandAt: sandAt,
         sinkAt: sinkAt,
