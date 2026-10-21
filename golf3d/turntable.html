@@ -60,19 +60,19 @@
     <canvas id="gl"></canvas>
 
     <script src="vendor/three.min.js"></script>
-    <script src="js/config.js?v=1.61.0"></script>
-    <script src="js/themes.js?v=1.61.0"></script>
-    <script src="js/physics.js?v=1.61.0"></script>
-    <script src="js/courses.js?v=1.61.0"></script>
-    <script src="js/audit.js?v=1.61.0"></script>
-    <script src="js/textures.js?v=1.61.0"></script>
-    <script src="js/shaders.js?v=1.61.0"></script>
-    <script src="js/postfx.js?v=1.61.0"></script>
-    <script src="js/weather.js?v=1.61.0"></script>
-    <script src="js/flyover.js?v=1.61.0"></script>
-    <script src="js/models.js?v=1.61.0"></script>
-    <script src="js/life.js?v=1.61.0"></script>
-    <script src="js/render.js?v=1.61.0"></script>
+    <script src="js/config.js?v=1.62.0"></script>
+    <script src="js/themes.js?v=1.62.0"></script>
+    <script src="js/physics.js?v=1.62.0"></script>
+    <script src="js/courses.js?v=1.62.0"></script>
+    <script src="js/audit.js?v=1.62.0"></script>
+    <script src="js/textures.js?v=1.62.0"></script>
+    <script src="js/shaders.js?v=1.62.0"></script>
+    <script src="js/postfx.js?v=1.62.0"></script>
+    <script src="js/weather.js?v=1.62.0"></script>
+    <script src="js/flyover.js?v=1.62.0"></script>
+    <script src="js/models.js?v=1.62.0"></script>
+    <script src="js/life.js?v=1.62.0"></script>
+    <script src="js/render.js?v=1.62.0"></script>
 
     <script>
     (function () {
@@ -152,6 +152,7 @@
                              cz - Math.cos(yaw) * Math.cos(el) * dist);
             cam.lookAt(cx, cy, cz);
             cam.updateMatrixWorld();
+            return { dist: dist, radius: radius };
         }
 
         function drawTile(job, key) {
@@ -172,9 +173,18 @@
                 });
                 R.frame(1 / 60, world, null);
             } else {
-                place(hole, view);
+                /* Air the way the game's own map has it (render.js →
+                   atmosphere): a camera this far off the ground looks through
+                   far more weather than anybody on the hole does, and a sheet
+                   of white rectangles is not a picture of the hole. */
+                var at = place(hole, view), fog = R.state.scene.fog;
+                if (fog) {
+                    fog.near = Math.max(R.state.fogNear, at.dist * 0.85);
+                    fog.far = Math.max(R.state.fogFar, at.dist * 1.5 + at.radius * 2.2);
+                }
                 if (R.state.fx) G3.postfx.render(R.state.scene, R.state.camera, null, 1 / 60);
                 else R.state.renderer.render(R.state.scene, R.state.camera);
+                if (fog) { fog.near = R.state.fogNear; fog.far = R.state.fogFar; }
             }
             sctx.drawImage(canvas, 0, 0, TILE_W, TILE_H);
             return still.toDataURL('image/png');

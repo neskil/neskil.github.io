@@ -38,10 +38,34 @@ fairway and more off the bluff tees, and the par 4s are 31 to 40 long. And
 **Long Meadow's premise is broken** — "a belt of sand no club carries" — since
 the 10° driver carries 19.
 
-**The line for the long game:** the bot does not reach a par 4 or a par 5 green
-in one stroke, and no long course comes in more than about six under (a
-birdie a hole for a perfect player, not an eagle). Once a course meets it, an
-assertion in `tests.html` should hold it there.
+**The line for the long game:** the bot's tee shot on a par 4 leaves at least
+eight units (an approach's worth) and on a par 5 at least twenty, and never
+finishes on the green. `tests.html` holds every course in its `REBUILT` list to
+that ("the drive leaves a real second shot"); a course joins the list on the
+commit that rebuilds it. The card is *not* the line: a perfect player holes
+approaches, and on a par 3 with an open front it rolls an ace in with exact
+weight, so a rebuilt course still comes in around ten under.
+
+**What Ashdown taught (v1.62.0), for the rest of the long game:**
+
+- **Grass lands soft now** (`CONFIG.LANDING`, fairway and rough only). Before
+  it, a drive's first hop was a third of its carry and cleared any hazard laid
+  across a landing zone. Every distance on the long courses changed with it:
+  a full drive is 31.5 on fairway and 24 out of rough (README → "Ashdown Park"
+  has the table).
+- **A bluff is worth ten units of carry.** Four units of fall turns 19 into
+  about 30. Put the trouble where a drive *off that tee* comes down, and make a
+  hazard across the line at least seven deep so the first hop does not clear
+  it.
+- **A row seam through an inlay, or a tree inside one, fails the suite** —
+  "every inlay lies flush" and "nothing grows out of a bunker". Keep bunkers
+  and greens inside one flat row, and treelines clear of every disc.
+- **The fog now keeps the whole hole in clear air on a clear day**
+  (`render.js → fogClear`), and the turntable's overhead views lift it the way
+  the game's map does — so a plan view shows the hole. That was item 6.
+- **The loop**: `tools/par-check.mjs <course>` for the shape, `tests.html` for
+  the geometry, `tools/turntable.mjs <course> --views tee,plan,hero` for the
+  picture. A hole takes a few rounds of all three.
 
 ### The long game
 
@@ -63,10 +87,11 @@ assertion in `tests.html` should hold it there.
 6. **Less fog on a clear day.** From above, the haze makes every hole look like
    every other; the ground has shape now and the fog hides it.
 
-Order of work: Ashdown Park first, by hand, to settle the recipe; then
-Whinstone, Dunmore and Redstone in parallel (one agent per course — each is
-its own block in `courses.js`), each measured with `par-check.mjs` and photographed with
-`tools/turntable.mjs`.
+Order of work: ~~Ashdown Park first, by hand, to settle the recipe~~ (done,
+v1.62.0 — all six holes rebuilt: a burn across the landing zone on the
+opener, Long Meadow's belt a lay-up again, The Elbow a real dogleg round a
+pond, more water on four holes); then Whinstone, Dunmore and Redstone in
+parallel (one agent per course — each is its own block in `courses.js`).
 
 ### Mini golf
 

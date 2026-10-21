@@ -3278,6 +3278,9 @@
                 return r;
             }
 
+            // The long courses rebuilt to the line in PLAN.md §0. One joins
+            // this list when it meets it, and is held there from then on.
+            var REBUILT = ['parkland'];
             var b0 = performance.now();
             ALL.forEach(function (entry) {
                 var h = entry.hole;
@@ -3290,6 +3293,24 @@
                 if (r.sunk) {
                     assert(entry.course.id + '/' + h.name + ': and does it in a plausible number of strokes',
                         r.strokes <= h.par + 2, 'took ' + r.strokes);
+                }
+                /* A par 4 or 5 the bot can drive is a hole with no second shot
+                   in it — PLAN.md §0, and the reason the long game was
+                   rebuilt. Held on the courses that have been, a course at a
+                   time; a perfect player still holes approaches, so it is
+                   the tee shot that is asked about and not the card. A drive
+                   that stops a step short of the green has reached it in all
+                   but name, so the line is distance: an approach's worth left
+                   on a par 4, two shots' worth on a par 5. */
+                if (REBUILT.indexOf(entry.course.id) >= 0 && h.par >= 4 && r.shots.length) {
+                    var first = r.shots[0].world, lie = first.sunk ? null :
+                        P.surfaceUnder(h, first.ball.x, first.ball.z, first.ball.y);
+                    var left = first.sunk ? 0 : Math.hypot(first.ball.x - h.cup.x, first.ball.z - h.cup.z);
+                    var owed = h.par >= 5 ? 20 : 8;
+                    assert(entry.course.id + '/' + h.name + ': the drive leaves a real second shot',
+                        !(lie && lie.pad.kind === 'green') && left >= owed,
+                        first.sunk ? 'holed it' : left.toFixed(1) + ' left against ' + owed +
+                            (lie ? ', on ' + lie.pad.kind : ''));
                 }
             });
             note(sims + ' simulated shots in ' + Math.round(performance.now() - b0) + 'ms');

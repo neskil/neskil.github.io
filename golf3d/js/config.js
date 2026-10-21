@@ -8,7 +8,7 @@
    — the renderer scales to the viewport, the simulation never sees a pixel. */
 window.G3 = window.G3 || {};
 
-G3.VERSION = '1.61.0';
+G3.VERSION = '1.62.0';
 
 G3.CONFIG = {
     BALL_R: 0.16,
@@ -327,6 +327,23 @@ G3.CONFIG = {
     BOUNCE: 0.34,         // vertical speed kept after landing
     LAND_GRIP: 0.86,      // horizontal speed kept on each landing
     LAND_REST: 0.55,      // slower than this after a bounce and it settles
+
+    /* What a landing keeps, per surface: `grip` of the ground speed and
+       `bounce` of the fall. Everything not named here lands on LAND_GRIP and
+       BOUNCE above, which is every surface mini golf is built from — so this
+       is a long-game table, and it is the long game's first number of its own.
+
+       Turf takes far more off a drive's first bounce than a felt green does
+       off a putt-length hop. With one figure for both, a full driver off a
+       four-unit bluff carried thirty units and then hopped another twelve —
+       clean over a seven-unit burn laid across the landing zone — so no hazard
+       at the end of a drive could ever be in play. Fairway is the firm one
+       and still gives a hop and a run; rough is soft and the ball sits down. */
+    LANDING: {
+        fairway: { grip: 0.70, bounce: 0.24 },
+        rough:   { grip: 0.55, bounce: 0.16 }
+    },
+    LANDING_DEFAULT: null,   // filled in below, from LAND_GRIP and BOUNCE
     STOP_SPEED: 0.24,     // below this on a lie that will hold it, the ball is at rest
 
     /* ── ground that does something ─────────────────────────────────────
@@ -594,3 +611,4 @@ G3.CONFIG = {
 /* Every club the game knows about, default bag first. A hole's `bag` names
    ids out of this list; nothing else may. */
 G3.CONFIG.ALL_CLUBS = G3.CONFIG.CLUBS.concat(G3.CONFIG.EXTRA_CLUBS);
+G3.CONFIG.LANDING_DEFAULT = { grip: G3.CONFIG.LAND_GRIP, bounce: G3.CONFIG.BOUNCE };
