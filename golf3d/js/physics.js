@@ -43,6 +43,10 @@
     function lnFrictionOf(kind) {
         return LN[kind] !== undefined ? LN[kind] : Math.log(C.FRICTION_DEFAULT);
     }
+    // The constant part of the ground's drag, per surface. See CONFIG.ROLL.
+    function rollOf(kind) {
+        return C.ROLL[kind] !== undefined ? C.ROLL[kind] : C.ROLL_DEFAULT;
+    }
     // The steepest lie this surface will hold a stopped ball on. See CONFIG.HOLD.
     function holdOf(kind) {
         return C.HOLD[kind] !== undefined ? C.HOLD[kind] : C.HOLD_DEFAULT;
@@ -992,6 +996,23 @@
                 var fr = frictionOf(pad.kind);
                 var decay = Math.pow(fr, dt);
                 var travel = (decay - 1) / lnFrictionOf(pad.kind);   // ∫₀^dt k^s ds
+
+                /* Rolling resistance, the constant half of the drag (CONFIG.ROLL).
+                   With it the speed obeys v' = -a·v - c, which still has an
+                   exact solution, so the step stays as frame-rate independent
+                   as the pure decay above: v(t) = (v0 + c/a)·e^(-at) - c/a,
+                   and it reaches zero at ts = ln(1 + a·v0/c) / a. decay and
+                   travel are rewritten as the factors of v0 that this step
+                   keeps and covers, so nothing below has to know. */
+                var rr = rollOf(pad.kind);
+                var s0 = Math.sqrt(b.vx * b.vx + b.vz * b.vz);
+                if (rr > 0 && s0 > 1e-9) {
+                    var ra = -lnFrictionOf(pad.kind), q = rr / ra;
+                    var t = Math.min(dt, Math.log(1 + s0 / q) / ra);
+                    var e = Math.exp(-ra * t);
+                    travel = ((s0 + q) * (1 - e) / ra - q * t) / s0;
+                    decay = t < dt ? 0 : Math.max(0, ((s0 + q) * e - q) / s0);
+                }
                 var climb = b.vx * sx + b.vz * sz;                   // rise rate along the lie
 
                 var nx = b.x + b.vx * travel;
@@ -1323,6 +1344,7 @@
         speedOf: speedOf,
         groundSpeed: groundSpeed,
         frictionOf: frictionOf,
+        rollOf: rollOf,
         holdOf: holdOf,
         gravityOf: gravityOf,
         padGrad: padGrad,
