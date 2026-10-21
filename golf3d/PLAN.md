@@ -73,6 +73,15 @@ weight, so a rebuilt course still comes in around ten under.
   rather than a mown ribbon. And *the bot scores sand like fairway*, so a
   bunker stops a drive without shaping the bot's line — only water and a gorge
   do; a hole whose decision is a bunker is not measured by `par-check`.
+- **From Whinstone (v1.64.0):** *a pond in a dogleg's corner can only be
+  carried from a raised tee* — the line across a corner meets the water at a
+  slant, so it crosses far more of it than the pond's own depth; a three-unit
+  dune under the tee is worth about six units of drive. *Raise a links tee with
+  a `hill` under it, not a raised row* — a row's `y` runs the full width and
+  made a tabletop of the whole property. `moor` had been ignoring every hole's
+  `grad` (fixed), and takes inlaid greens now. Still open, cosmetic: water is
+  a hard-edged rectangle, which reads as a box on a links; a fairway row
+  ending square against rough draws a dark ragged line from above.
 - **The loop**: `tools/par-check.mjs <course>` for the shape, `tests.html` for
   the geometry, `tools/turntable.mjs <course> --views tee,plan,hero` for the
   picture. A hole takes a few rounds of all three.
@@ -100,7 +109,10 @@ weight, so a rebuilt course still comes in around ten under.
 Order of work: ~~Ashdown Park first, by hand, to settle the recipe~~ (done,
 v1.62.0 — all six holes rebuilt: a burn across the landing zone on the
 opener, Long Meadow's belt a lay-up again, The Elbow a real dogleg round a
-pond, more water on four holes); then Whinstone, ~~Dunmore~~ (done, v1.63.0 —
+pond, more water on four holes); then ~~Whinstone~~ (done, v1.64.0 — pots splitting
+the landing zones, a burn across The Punchbowl, a long thin green on The
+Sandhill, Burnside a dogleg round a pool, Elbow Point's green out on the
+point), ~~Dunmore~~ (done, v1.63.0 —
 the bells on Bell Heather, a dogleg over a burn on Gorse Corner, a long thin
 green on The Beacon, an 87-unit Long Ling with a burn to lay up short of) and
 Redstone in parallel (one agent per course — each is its own block in
