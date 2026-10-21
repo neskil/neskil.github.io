@@ -285,7 +285,9 @@
             age = (R.trailAt - i + n) % n;          // 0 = newest
             f = Math.max(0, 1 - age / n);
             f = f * f * 0.75;
-            col[i * 3] = f; col[i * 3 + 1] = f * 1.05; col[i * 3 + 2] = f * 0.9;
+            // White on a course, neon magenta in the grid world.
+            if (R.glow) { col[i * 3] = f * 1.2; col[i * 3 + 1] = f * 0.25; col[i * 3 + 2] = f * 1.1; }
+            else { col[i * 3] = f; col[i * 3 + 1] = f * 1.05; col[i * 3 + 2] = f * 0.9; }
         }
         R.trail.geometry.attributes.position.needsUpdate = true;
         R.trail.geometry.attributes.color.needsUpdate = true;
@@ -521,6 +523,13 @@
                the wet term only takes it a little further the way it already
                was. */
             ice: tops(tex.ice, 90 + wet * 40, 0xdff0ff, 0xffffff),
+            /* Glass, for the grid world: dark, glossy and faintly lit from
+               inside, with no texture and no blades. The grid drawn over it
+               (addGrid) is what reads the shape; this is what it is drawn on,
+               and the hard pink highlight is the sun sliding over a wave. */
+            glass: new THREE.MeshPhongMaterial({
+                color: 0x05030f, emissive: 0x10032e, shininess: 260, specular: 0x1c0c38
+            }),
             rough: tops(tex.rough, 3 + wet * 40, 0x000000, 0x7d8a92),
             // The greens get the most of everything: a bump map of the same
             // blades that are in the colour map, so the light rakes across the
@@ -3388,6 +3397,10 @@
         var i;
         for (i = 0; i < hole.pads.length; i++) addPad(g, hole.pads[i], theme, hole.cup, hole.pads);
         if (theme.grid) addGrid(g, hole, theme);
+        // The grid world's effects switch on with the theme (see hitAt), and
+        // its tail is drawn larger, because it is a light and not a smudge.
+        R.glow = !!theme.glow;
+        R.trail.material.size = R.glow ? 0.24 : 0.13;
         // The marks on the machinery, after the ground they are drawn on.
         for (i = 0; i < hole.pads.length; i++) {
             if (hole.pads[i].push) addBelt(g, hole.pads[i], theme);
@@ -3407,7 +3420,11 @@
         // The rain, the mist banks and whatever is drifting in the air are
         // parented to the hole, so the next hole disposes them with it.
         if (W) g.add(W.build(hole, theme, weather));
-        if (R.fx) G3.postfx.setGrade(weather.grade);
+        /* A theme may carry a grade of its own over the weather's. Only the
+           grid world does: the clear sky's bloom, made for sunlight on grass,
+           took the bright lines and rails and spread them over the whole
+           floor as a violet wash, with the rays on top of that. */
+        if (R.fx) G3.postfx.setGrade(theme.grade ? Object.assign({}, weather.grade, theme.grade) : weather.grade);
 
         // Every water shader on the hole is told the same sky it is going to
         // be reflecting, once, here.
@@ -4238,6 +4255,16 @@
         if (world.moving && speed > 1.2) {
             R.trailOn = true;
             pushTrail(world.ball.x, world.ball.y, world.ball.z);
+            /* On glass the ball sheds light as it goes: a few pink sparks off
+               the contact patch, more of them the faster it is rolling. */
+            if (R.glow && world.grounded) {
+                R.sparkClock = (R.sparkClock || 0) - dt;
+                if (R.sparkClock <= 0) {
+                    R.sparkClock = 0.09 / Math.min(3, speed * 0.4);
+                    burst(world.ball.x, world.ball.y - C.BALL_R + 0.03, world.ball.z, 0xff3df2,
+                        2, 0.5 + Math.min(1.2, speed * 0.12));
+                }
+            }
         } else if (R.trailOn) {
             R.trailOn = false;
             clearTrail();
@@ -4245,6 +4272,7 @@
 
         updateAim(world, aim);
         stepParticles(dt);
+        stepPulses(dt);
         updateCamera(world.hole, world.ball, dt);
 
         // The camera has moved; what the air is doing about it, and the two
@@ -4362,6 +4390,57 @@
     /* ── effects the game asks for ──────────────────────────────────────── */
 
     function splashAt(x, y, z) { burst(x, y, z, 0x9fd8ff, 26, 2.6); }
+
+    /* The grid world's effects (Challenge mode). A landing or a rail hit on
+       glass throws cyan sparks and sends a ring of light out across the floor
+       from where it happened; a ball scooting along glass sheds a stream of
+       pink ones and drags a neon tail (pushTrail's tint). Nothing here
+       touches the simulation — it is what the ground does *back*. */
+    var PULSES = 6;
+    function buildPulses() {
+        R.pulses = [];
+        for (var i = 0; i < PULSES; i++) {
+            var m = new THREE.Mesh(new THREE.RingGeometry(0.82, 1, 40),
+                // Drawn over the floor rather than into it: a flat ring on a
+                // wave is half buried, and it is a light, not a thing.
+                new THREE.MeshBasicMaterial({ color: 0x27f0ff, transparent: true, opacity: 0,
+                    blending: THREE.AdditiveBlending, depthWrite: false, depthTest: false,
+                    side: THREE.DoubleSide }));
+            m.rotation.x = -Math.PI / 2;
+            m.renderOrder = 5;
+            m.visible = false;
+            m.userData.life = 0;
+            R.scene.add(m);
+            R.pulses.push(m);
+        }
+        R.pulseAt = 0;
+    }
+    function pulse(x, y, z, strength) {
+        if (!R.pulses) buildPulses();
+        var m = R.pulses[R.pulseAt = (R.pulseAt + 1) % PULSES];
+        m.position.set(x, y + 0.05, z);
+        m.userData.life = 1;
+        m.userData.grow = 1.2 + Math.min(2.2, strength * 0.35);
+        m.visible = true;
+    }
+    function stepPulses(dt) {
+        if (!R.pulses) return;
+        for (var i = 0; i < R.pulses.length; i++) {
+            var m = R.pulses[i], u = m.userData;
+            if (u.life <= 0) continue;
+            u.life -= dt * 1.6;
+            var t = 1 - Math.max(0, u.life);
+            var s = 0.15 + t * u.grow;
+            m.scale.set(s, s, s);
+            m.material.opacity = Math.max(0, u.life) * 0.85;
+            if (u.life <= 0) m.visible = false;
+        }
+    }
+    function hitAt(x, y, z, speed) {
+        if (!R.glow) return;
+        burst(x, y + 0.05, z, 0x27f0ff, Math.min(22, 6 + Math.round(speed * 2)), 1.4 + Math.min(2, speed * 0.2));
+        pulse(x, y, z, speed);
+    }
     function sandAt(x, y, z) { burst(x, y, z, 0xe8d8a8, 14, 1.5); }
     /* The ball goes past the pin on its way in — nothing stops it, since the
        simulation has never heard of the pin — so the pin at least acknowledges
@@ -4392,6 +4471,7 @@
         resize: resize,
         buildHole: buildHole,
         frame: frame,
+        hitAt: hitAt,
         splashAt: splashAt,
         sandAt: sandAt,
         sinkAt: sinkAt,

@@ -43,7 +43,7 @@
        the more it looked like it. So there are two canvases now, and the
        renderer darkens the fairway and grows it longer on top of that
        (buildSurfaces, SHELL_HEIGHT). */
-    var SCALE = { green: 3.5, fairway: 6, sand: 2, wood: 2, rough: 2, ice: 5 };
+    var SCALE = { green: 3.5, fairway: 6, sand: 2, wood: 2, rough: 2, ice: 5, glass: 4 };
     var GRASS_BUMP_SCALE = 0.8;      // the blades are finer than the mow bands
 
     /* The width of one pass of the mower, in world units, and the one number

@@ -628,10 +628,12 @@
         if (ev.bounce && now - lastBounceAt > 60) {
             lastBounceAt = now;
             A.bounce(P.groundSpeed(b));
+            if (R.hitAt) R.hitAt(b.x, b.y - C.BALL_R, b.z, P.groundSpeed(b));
         }
         if (ev.land && now - lastLandAt > 70) {
             lastLandAt = now;
             A.land(P.speedOf(b));
+            if (R.hitAt) R.hitAt(b.x, b.y - C.BALL_R, b.z, P.speedOf(b));
             var s = P.surfaceUnder(state.world.hole, b.x, b.z, b.y + C.STEP_UP);
             if (s && s.pad.kind === 'sand') R.sandAt(b.x, b.y - C.BALL_R, b.z);
         }

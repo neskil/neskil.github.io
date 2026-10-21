@@ -403,6 +403,14 @@
             rail: 0x27f0ff,
             glow: true,
             grid: { colour: '#ff3df2', floor: '#27c8ff', every: 1, floorEvery: 3 },
+            /* Its own grade, over the weather's (render.js has why): a tight
+               bloom with a low threshold, so the lines glow and the floor
+               between them stays dark; no rays; a touch more contrast,
+               saturation, vignette and fringing for the screen it is meant to
+               look like it is on. */
+            grade: { bloom: 0.22, threshold: 0.62, rays: 0, exposure: 0.74, contrast: 1.12,
+                saturation: 1.2, vignette: 0.42, grain: 0.02, aberration: 1.2,
+                lift: [0, 0, 0], tint: [1, 1, 1] },
             machine: 0xff3df2,
             stars: 1,
             cloudLum: 0.25,

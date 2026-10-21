@@ -6262,12 +6262,12 @@
     function challengeHole(recipe, rnd) {
         var r = recipe(rnd), f = r.f;
         var cup = drawCup(rnd, f, r.tee, r.par >= 4 ? 15 : 11);
-        var field = pad(f.x, f.z, f.w, f.d, 0);
+        var field = pad(f.x, f.z, f.w, f.d, 0, 'glass');
         field.field = r.field;
         field.calm = calmAround(r.hover ? [cup] : [cup, r.tee]);
         var pads = [field], gaps = [];
         if (r.hover) {
-            var hv = pad(r.hover.x, r.hover.z, r.hover.w, r.hover.d, r.hover.y);
+            var hv = pad(r.hover.x, r.hover.z, r.hover.w, r.hover.d, r.hover.y, 'glass');
             hv.hover = true;
             pads.push(hv);
             // Open on every side: it is a platform to be shot off, not a box.

@@ -8,7 +8,7 @@
    — the renderer scales to the viewport, the simulation never sees a pixel. */
 window.G3 = window.G3 || {};
 
-G3.VERSION = '1.68.0';
+G3.VERSION = '1.69.0';
 
 G3.CONFIG = {
     BALL_R: 0.16,
@@ -43,6 +43,10 @@ G3.CONFIG = {
            past it, and a surface where a third of a swing is already too much
            is what makes a tap a decision. */
         ice: 0.72,
+        /* Glass, Challenge mode's floor: quicker than a green and well short of
+           ice, so a putt runs a little further than the eye expects and the
+           shape of the ground does more of the work. */
+        glass: 0.40,
         sand: 0.004,   // a bunker eats a shot
         rough: 0.06,
         cup: 0.004     // the bottom of the hole: whatever lands here stays
@@ -65,6 +69,7 @@ G3.CONFIG = {
        applied to a rolling ball only. */
     ROLL: {
         green: 0.25,
+        glass: 0.15,
         fairway: 1.0,
         rough: 2.0
     },
@@ -103,6 +108,7 @@ G3.CONFIG = {
            slope a one-way street: 0.012 is a gradient of about two thirds of a
            degree, so the only ice a ball stays on is ice somebody drew flat. */
         ice: 0.012,
+        glass: 0.14,   // slicker than turf: a slope that holds on a green sheds here
         sand: 0.55,    // whatever lands in a bunker stays where it lands
         rough: 0.46,
         cup: 4         // and the bottom of the hole holds anything at all

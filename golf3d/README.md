@@ -2945,6 +2945,37 @@ its home world, never the playtest), checks that the dice change the deal and
 that every course can come up, and that a showcase record goes to the round
 furthest under par rather than the shortest.
 
+## Challenge mode: maths in a grid world
+
+The button under the showcase. Six holes whose ground is a mathematical
+function rather than a place — **Sine Sea**, **Egg Crate**, **Stone in a
+Pond** (a ripple), **The Pass** (a saddle), **Twin Wells** (two gaussian
+wells) and **Hover** (a platform tee hanging over a field of interference) —
+dealt fresh from a seed every round, so the phases, positions and above all
+**the cups** are new each time (`courses.js → dealChallenge`).
+
+- **The ground** is `pad.field`: closed-form terms (`wave`, `ripple`, `saddle`,
+  `gauss`) with closed-form gradients, faded out by `pad.calm` round the cup
+  and the tee so a cup is always cut into flat ground wherever it lands
+  (`physics.js → fieldAt / calmAt`). The suite checks the gradient against a
+  finite difference, that a seed deals the same cups twice and another seed
+  does not, that every cup of five deals is on flat ground, and that the bot
+  holes all thirty holes.
+- **The floor is glass** (`kind: 'glass'`): quicker than a green, holds less
+  of a slope, no grass. Dark, glossy, faintly lit from inside.
+- **The look is the `neon` theme**: a violet-to-magenta sky, a black floor
+  ruled in cyan out to the fog, pink lines drawn over every pad following its
+  height (`render.addGrid` — the lines bending over a wave are how you read
+  it), glowing rails, and a grade of its own over the weather's, because a
+  clear sky's bloom spread the lines across the whole floor as a violet wash.
+- **The effects** (`render.hitAt`): a landing or a rail hit on glass throws
+  cyan sparks and sends a ring of light across the floor; a ball scooting
+  along sheds pink sparks and drags a neon tail.
+- Played out of the lofted mini bag. Records are kept against par, like the
+  showcase's. "New ground, new cups" deals again; Play again replays the deal.
+  Each deal's plans and skies are keyed `challenge-<seed>`, because hole 3 of
+  this deal is not hole 3 of the last.
+
 ## Demo mode: the game playing itself
 
 Open the page without naming a course and nobody is dropped into the course

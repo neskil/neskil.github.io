@@ -181,7 +181,16 @@ floor rises toward the outside so pace carries a ball round it), and
 solves rotated boxes and humped ground; an arc rail is the cheap first step,
 and a banked floor is `padHeight` learning a curved profile.
 
-### Then: Challenge mode (the owner's idea)
+### Then: Challenge mode (the owner's idea) — built (v1.69.0)
+
+Six function surfaces dealt with random cups, a hover-platform tee, glass
+floors, the neon theme with its grid and its own grade, and the effects
+(sparks, light rings, a neon tail). README → "Challenge mode". Open: more
+recipes (a spiral, a Möbius-ish twist, moving waves — `ph` driven by time is
+one line in `fieldAt` and one in the bot's waits), a daily seed everybody
+shares, and the deal's seed shown on the card so a good one can be replayed.
+
+The original ask, kept for reference:
 
 Weird mathematical surfaces — sine waves, ripples, saddles, wave
 interference — with the cup placed at random on each play, and the shot taken
