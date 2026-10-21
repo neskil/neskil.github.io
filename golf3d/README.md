@@ -765,7 +765,7 @@ approach.
 | Ashdown Park | long | `parkland` | The long game, on a hillside: bluffs, a crest, a cross-fall into a lake, and two round greens. No fence — the park carries on past the stakes. |
 | Whinstone Links | long | `links` | No flat lies and no straight edges. The ground is the hazard, and on one hole it is a sandhill. |
 | Dunmore Heath | long | `heath` | The long game again, shaped rather than furnished: crests, hollows, a punchbowl, a whorl, one dry ravine and a hillside you climb — and moorland water, a burn, a tarn and a pond. |
-| Redstone Canyon | long | `canyon` | Ground that is missing, six ways. A canyon across the fairway, down the side of it, biting a piece out of it, twice, and once with the green on the far lip. |
+| Redstone Canyon | long | `canyon` | Ground that is missing, six ways. A canyon across the drive, down the side of the hole, flooded under a par three, biting a piece out of the fairway, twice, and at the end of a dogleg round a mesa. |
 
 **Sea Legs**, the first hole anybody plays, is a bounce hole: one lane, one
 baffle reaching in from the east rail, and a rail across the far corner set at
@@ -1491,14 +1491,18 @@ play out of and will wish you had not had to. Here that happens six times, and
 the course is the argument that *where* a canyon runs changes the question
 entirely.
 
-| # | Hole | Par | Where the canyon is |
+The 2026 rebuild (PLAN.md §0) held it to the line Ashdown set: every crossing
+sits where a drive off *that* tee comes down, the par fours are fifty-odd and the
+fives about eighty, and the bot's drive no longer reaches any green on the card.
+
+| # | Hole | Par | What it asks |
 | --- | --- | --- | --- |
-| 1 | First Cut | 4 | Across, at the end of the fairway. Nothing carries it off the tee and a full drive runs into it, so the tee shot decides how long the second one's carry is going to be. |
-| 2 | The Rim | 4 | Along the whole west side, with the fairway leaning at it a thirtieth of a unit for every one across. |
-| 3 | Stone Bridge | 3 | Across, with the green on the far lip and the hillside behind it. Short is the bottom of it; long is the wall. |
-| 4 | Long Way Round | 4 | A bite out of the east half, so for the first time there is a way round as well as a way over — and the green is set east, which is what the carry buys. |
-| 5 | Switchback | 5 | Twice. The fairway between the two crossings is twelve units of island with a wall at each end of it. |
-| 6 | Redstone | 5 | Across at the drive, and then four units of climb on to the mesa the green is cut into. |
+| 1 | First Cut | 4 | Nine units of canyon across the fairway exactly where a full drive comes down — a struck one lands on the top of the far bank, anything under nine tenths of a swing is in the bottom. Carry it, or lay up short and carry it with the second. Sand short-right of a green up a short rise. |
+| 2 | The Rim | 4 | The canyon runs the length of the hole down the left and the fairway leans at it. The landing zone is pinched between the lip and a bunker on the right, and the green is a strip five wide and thirteen long laid along the lip, with sand the other side of it. |
+| 3 | Stone Bridge | 3 | Off a two-unit mesa, over a canyon flooded west of a bridge of rock and dry east of it, to a wide, shallow green on the far lip. Only a full iron carries the pool at the pin; the bridge is the run-in to the right end of the green. |
+| 4 | Long Way Round | 4 | Off a mesa with the canyon eating the east half of the fairway. Carry the bite at the flag — just in reach of a struck drive — or go round down the west lane and come in over the spring that guards the green's left. Hugging the lip on the way past is the third line. |
+| 5 | Switchback | 5 | Off a mesa and over the first crossing to a sixteen-unit island set east of the line (or lay up and take two more canyons to get home), over the second back west, and in to a green behind a bunker. |
+| 6 | Redstone | 5 | A dogleg left round a mesa that stands higher than any club lifts a ball: up the right of it, round its corner as tight as you dare, then over the canyon to a green in a hollow on the far shelf. |
 
 Two rules came out of building it, and both are about `ravine` rather than
 about any hole:
@@ -1507,17 +1511,32 @@ about any hole:
   about a unit of depth that is not a style: nothing in the bag gets a ball out
   of a lie hard against a two-unit cliff, so the wall the ball has to come back
   up must be a ramp — and a *near* wall wide enough to play out of is a ramp a
-  drive skips clean across the canyon off. The one hole meant to be played
-  along the bottom is the one banked on both sides.
+  drive skips clean across the canyon off.
 - **A canyon that runs *along* the hole cannot cross a row that climbs.** A
   ravine is authored at absolute heights — lip at nought, floor at `-depth` —
   while a tilted row carries its level into the next one, so thirty units of
   climbing ground beside a lengthwise cut leaves the lip two and a half units
   below the fairway next to it. What that builds is not a canyon but a trench
-  with an inside cliff nothing can escape. The Rim and Long Way Round therefore
-  take their height from the field and from the depth of the cut, and the only
-  tilt laid over either is a cross-fall, which lifts every pad on the hole
-  including the canyon's own.
+  with an inside cliff nothing can escape. The Rim therefore takes its height
+  from the field and from the depth of the cut, and the only tilt laid over it
+  is a cross-fall, which lifts every pad on the hole including the canyon's
+  own. A crossing lives inside one flat row and is free of this, which is why
+  the tees on the other holes can stand on mesas.
+
+Two more came out of the rebuild:
+
+- **A mesa is a row cell with a height of its own** (`[w, rgh, MESA]`), not a
+  landform. A landform is a slope; a cell lifted 3.2 above its row is a kerb
+  taller than `STEP_UP` on every side, drawn in the canyon's rock colour, and
+  higher than any club lifts a ball — so it is gone round rather than carried,
+  which is what makes Redstone's dogleg a real one.
+- **Water goes in a hole in the ground, never on a canyon floor.** The theme's
+  surround is drawn at `surroundY` (-1.1) as one unbroken plane, and every
+  ravine floor is about two units down, so anything on a floor — a pool, or a
+  ball — is under it and out of sight; a pool cut into a floor would also stand
+  above the gravel beside it, which the audit calls an error. Stone Bridge's
+  pool is a null cell lip to lip at -0.7 instead, and the spring on Long Way
+  Round is one in the green's row.
 
 The rough is scrub and the furniture is stone: `crags` and nothing else, which
 is what a canyon rim has on it. Placing them is the one thing that needs care —

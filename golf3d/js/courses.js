@@ -5138,14 +5138,25 @@
        happens six times, and the point of the course is that a canyon is a
        different question every time depending on where it runs:
 
-       - **across** the hole, and it is a carry with a lay-up beside it;
+       - **across** the hole where a full drive comes down, and it is a
+         carry or a lay-up;
        - **along** it, and it is an edge every shot on the hole is played away
-         from;
-       - **down the middle** of it, and it is two routes — a high road round it
-         and a low road through it that is shorter and costs a climb;
-       - **twice**, and the fairway is a chain of islands;
-       - and once with the green on the far lip, where the canyon is not
-         something to get past but the thing you have to stop beside.
+         from — with the green a strip on the lip;
+       - **flooded**, west of a bridge of rock, so a par three is a full iron
+         over water or a run across the bridge;
+       - **a bite** out of half the fairway, and it is two routes — carry it
+         at the flag, or go round and come in over the spring;
+       - **twice**, and the fairway is an island between the crossings;
+       - and once at the end of a dogleg round a mesa nothing in the bag flies,
+         guarding a green in a hollow on the far shelf.
+
+       The 2026 rebuild (PLAN.md §0) put every crossing where the drive off
+       that tee actually comes down, lengthened the par fours to fifty-odd and
+       the fives to eighty, and gave the course its only water. The water is
+       always in a hole in the ground with no pad under it — the canyon's own
+       floor is below `theme.surroundY`, and the surround is drawn over it, so
+       a pool cut into a ravine floor would be both an audit error (water
+       standing above the gravel beside it) and invisible.
 
        `ravine` writes all of them. It is one helper, `opts.along` turns it a
        quarter turn, and `opts.bank` is how much of its depth each long side
@@ -5162,48 +5173,53 @@
        are no trees on the course at all: `crags` is the whole of its furniture,
        which is what a canyon rim has on it. */
 
+    var MESA = 3.2;       // how far a mesa stands above the ground round it
+
     var redstone = [
         (function () {
             /* The introduction, and it says the one thing the player has to
                understand before any of the other five make sense: the canyon
-               is not reachable from the tee and it is not avoidable either.
+               lies exactly where a drive comes down.
 
-               Nothing in the bag carries twelve units, so the drive cannot fly
-               it — but a full drive *runs* into it, because the fairway in
-               front of it is only fourteen units long and the driver's total
-               is thirty. So the tee shot is the decision: how close to the lip
-               do you want to leave yourself, knowing the second shot has to
-               carry from wherever you stop to the far bank. Stop at the lip
-               and the carry is nine units, which is an iron. Bail out to the
-               front of the fairway and it is fourteen, which is nothing. */
-            var cut = ravine(0, 18, 22, 9.5, 1.8, { bank: [0, 2.6] });
-            var field = ridge(4, 10, 18, 10, 5, 0.36, 3)
-                .concat(massif(27, 15, 11, 2.1, 5))
-                .concat([hill(2.2, 38, 2.8, -0.6), hill(20, 33, 3, 0.45)]);
+               Nine units of it, starting eleven and a half off the tee, and a
+               full driver carries about twenty and a half on flat ground — so
+               a struck one lands on the top of the far bank and anything under
+               nine tenths of a swing is in the bottom. The tee shot is the
+               decision. Carry it and the second is a long club in from the
+               middle twenties. Lay up short of the lip (a little over half a
+               swing) and the second has to carry the canyon *and* still
+               leaves a third, because forty units is more than any club runs.
+               The green is up a short rise with sand short-right. */
+            var cut = ravine(0, 14, 22, 9, 1.9, { bank: [0, 2.6] });
+            var field = ridge(4, 9.5, 18, 9.5, 4, 0.3, 3)
+                .concat(massif(28, 20, 11, 2.1, 5))
+                .concat([hill(2.4, 32, 2.8, -0.55), hill(19.5, 40, 3, 0.45)]);
             var land = commons(0, [
                 [6,                    [5, rgh], [11, fwy], [6, rgh]],
-                [12,                   [5, rgh], [11, fwy], [6, rgh]],
-                [9.5,                  [22, null]],
-                [{ d: 4, sz: 0.18 },   [5, rgh], [11, fwy], [6, rgh]],
-                [4,                    [5, rgh], [11, fwy], [6, rgh]],
-                [7,                    [6, rgh], [11, fwy], [5, rgh]],
+                [8,                    [5, rgh], [11, fwy], [6, rgh]],
+                [9,                    [22, null]],
+                [14,                   [5, rgh], [12, fwy], [5, rgh]],
+                [6,                    [6, rgh], [11, fwy], [5, rgh]],
+                [{ d: 4, sz: 0.15 },   [6, rgh], [11, fwy], [5, rgh]],
+                [13,                   [5, rgh], [12, fwy], [5, rgh]],
                 [3,                    [22, rgh]]
             ], { e: 14 });
             return build({
                 name: 'First Cut', par: 4, long: true, shaped: true, open: true,
-                blurb: 'A canyon at the end of the fairway. The drive decides how long the carry is going to be.',
+                blurb: 'A canyon right where the drive comes down. Carry all of it, or lay up and carry it with the second.',
                 pads: (function (g) {
                     return g.concat([
-                        inlay(g, 11.5, 39, 5.2, grn, 3.4)
+                        inlay(g, 16.4, 49.2, 1.6, snd, 1.2),
+                        inlay(g, 11.5, 54, 4.8, grn, 4.4)
                     ]);
                 }(shape(land.pads.concat(cut.pads), field))),
                 fence: land.fence,
                 extra: [].concat(
-                    crags(2.6, 11, 3, 5, 9101, { s: 1.3, h: 1.0 }),
-                    crags(19.4, 34, 2.8, 4, 9107, { s: 1.2, h: 0.9 }),
-                    crags(19.6, 9, 2.6, 3, 9109, { s: 1.1, h: 0.8 })
+                    crags(2.6, 10, 3, 5, 9101, { s: 1.3, h: 1.0 }),
+                    crags(19.4, 30, 2.8, 4, 9107, { s: 1.2, h: 0.9 }),
+                    crags(19.6, 8, 2.6, 3, 9109, { s: 1.1, h: 0.8 })
                 ),
-                tee: { x: 10, z: 3 }, cup: { x: 11, z: 40 }
+                tee: { x: 10, z: 2.5 }, cup: { x: 12, z: 55 }
             });
         })(),
         (function () {
@@ -5218,6 +5234,14 @@
                banked, so a ball down there is not lost — it is two shots from
                where it should have been.
 
+               Where the drive comes down, the fairway is pinched to eight and
+               a half units between the lip and a bunker on the right, which
+               is the side everybody bails to. And the green is the canyon's:
+               a strip five units wide and thirteen long laid along the lip,
+               so the approach is played down the edge of the cut with sand on
+               the other side of it — long and thin, forgiving of the club and
+               not of the line.
+
                **The rows do not climb on this hole and they do not on The
                Narrows either, and that is a rule rather than a preference.** A
                ravine is authored at absolute heights — its lip is zero and its
@@ -5231,7 +5255,7 @@
                of it therefore comes from the field and from the depth of the
                cut, and the cross-fall — which lifts every pad, the canyon's
                included — is the one tilt that is safe to lay over it. */
-            var cut = ravine(0, 6, 6.5, 38, 2, { along: true, bank: [0, 2.6] });
+            var cut = ravine(0, 6, 6.5, 56, 2.2, { along: true, bank: [0, 2.8] });
             /* No hollow anywhere near the fairway on this one. The massif
                east of the property is already spending a fifth of what the
                fairway will hold by the time its skirt reaches the short grass,
@@ -5239,67 +5263,80 @@
                file that is nobody's number until it is measured — the gradients
                add where their signs agree. The shape of this hole is the cut
                down the west side of it; it does not need a second idea. */
-            var field = massif(28, 24, 12, 2.2, 5)
-                .concat(ridge(8, 14, 20, 14, 5, 0.3, 3));
+            var field = massif(31, 30, 12, 2.2, 5)
+                .concat(ridge(8, 15, 20, 15, 5, 0.3, 3));
             var land = commons(0, [
-                [6,                     [6.5, null], [11, fwy], [5, rgh]],
-                [10,                    [6.5, null], [11, fwy], [5, rgh]],
-                [10,                    [6.5, null], [11, fwy], [5, rgh]],
-                [6,                     [6.5, null], [12, fwy], [4, rgh]],
-                [4,                     [6.5, null], [12, fwy], [4, rgh]],
-                [8,                     [6.5, null], [10, fwy], [5.5, rgh]],
+                [6,                     [6.5, rgh], [11, fwy], [4.5, rgh]],
+                [12,                    [6.5, null], [11, fwy], [4.5, rgh]],
+                [10,                    [6.5, null], [11.5, fwy], [4, rgh]],
+                [10,                    [6.5, null], [8.5, fwy], [7, rgh]],
+                [10,                    [6.5, null], [10, fwy], [5.5, rgh]],
+                [16,                    [6.5, null], [9, fwy], [6.5, rgh]],
                 [3,                     [22, rgh]]
             ], { w: 15 });
             return build({
                 name: 'The Rim', par: 4, long: true, shaped: true, open: true,
-                blurb: 'The canyon runs the length of the hole down the left, and the fairway leans at it.',
+                blurb: 'The canyon runs the length of the hole down the left, the fairway leans at it, and the green is a strip along the lip.',
                 pads: (function (g) {
                     return g.concat([
-                        inlay(g, 11.5, 40, 4.8, grn, 3.8)
+                        inlay(g, 16.3, 31.5, 1.5, snd, 2.4),
+                        inlay(g, 13.7, 52.5, 1.3, snd, 2.0),
+                        inlay(g, 9.4, 55, 2.6, grn, 6.5)
                     ]);
                 }(shape(tilt(land.pads.concat(cut.pads), -0.032, 0, 22, 0), field))),
                 fence: land.fence,
                 extra: [].concat(
-                    crags(20, 12, 3, 5, 9211, { s: 1.3, h: 1.0 }),
-                    crags(19.5, 30, 2.8, 4, 9217, { s: 1.2, h: 0.9 }),
-                    crags(2.5, 44, 3, 4, 9219, { s: 1.25, h: 0.95 })
+                    crags(20, 13, 3, 5, 9211, { s: 1.3, h: 1.0 }),
+                    crags(20, 42, 2.8, 4, 9217, { s: 1.2, h: 0.9 }),
+                    crags(-3, 34, 3, 4, 9219, { s: 1.25, h: 0.95 })
                 ),
-                tee: { x: 13, z: 3 }, cup: { x: 12, z: 41 }
+                tee: { x: 13, z: 3 }, cup: { x: 9.5, z: 58 }
             });
         })(),
         (function () {
-            /* A par three over the canyon, and the green is on the far lip
-               rather than a comfortable distance beyond it. There is no bail
-               out long — the ground behind the green climbs into the massif
-               and feeds anything hot back at the pin — so the shot is a carry
-               of about eleven units that has to stop inside twenty. That is
-               the iron, and it is very nearly the only club that does it. */
-            var cut = ravine(0, 8, 20, 11, 2.1, { bank: [0, 3] });
-            var field = massif(-5, 18, 12, 2.4, 5)
-                .concat(massif(25, 26, 11, 2.2, 5))
-                .concat([hill(10, 32.5, 4, 0.4)]);
+            /* A par three off a mesa two units high, over a canyon that is
+               flooded west of a bridge of rock and dry east of it, to a green
+               strung wide and shallow along the far lip.
+
+               Straight at the pin is the water, and only a full iron carries
+               it: anything under about ninety-five per cent of one comes down
+               in the pool. The bridge is the other way across — two and a half
+               units of fairway at lip level, dead in line with the tee, that a
+               ball can be run over to the right end of the green and a long
+               putt back. Miss it either side and it is the pool or the bottom
+               of the dry cut. Long is still the wall: the ground behind the
+               green climbs and feeds anything hot back.
+
+               The pool is a hole in the ground rather than water laid over the
+               canyon floor — see the note at the top of the course. */
+            var east = ravine(14.5, 9, 7.5, 8.5, 2.1, { bank: [0, 2.6] });
+            var field = massif(-9, 16, 12, 2.4, 5)
+                .concat(massif(26, 32, 11, 2.2, 5))
+                .concat([hill(9.5, 35, 3, 0.35)]);
             var land = commons(0, [
-                [8,                    [6, rgh], [8, fwy], [6, rgh]],
-                [11,                   [20, null]],
-                [{ d: 4, sz: 0.2 },    [5, rgh], [10, fwy], [5, rgh]],
-                [7,                    [5, rgh], [10, fwy], [5, rgh]],
-                [6,                    [20, rgh]]
+                [{ d: 6, y: 2.1 },     [5, rgh], [12, fwy], [5, rgh]],
+                [{ d: 3, sz: -0.7 },   [22, rgh]],
+                [8.5,                  [12, null], [2.5, fwy], [7.5, null]],
+                [9,                    [4, rgh], [13, fwy], [5, rgh]],
+                [{ d: 4, sz: 0.3 },    [22, rgh]],
+                [6,                    [22, rgh]]
             ], { w: 14, e: 14 });
             return build({
                 name: 'Stone Bridge', par: 3, long: true, shaped: true, open: true,
-                blurb: 'Eleven units of canyon and a green on the far lip. Short is the bottom; long is the wall.',
+                blurb: 'Off the mesa, over a canyon with a pool in it, to a green strung along the far lip. Or run it over the bridge.',
                 pads: (function (g) {
                     return g.concat([
-                        inlay(g, 10, 25.9, 4.3, grn, 2.6)
+                        inlay(g, 9.5, 21.2, 5.2, grn, 2.6)
                     ]);
-                }(shape(land.pads.concat(cut.pads), field))),
+                }(shape(land.pads.concat(east.pads), field))),
                 fence: land.fence,
+                water: [rect(0, 9, 12, 8.5, -0.7)],
                 extra: [].concat(
-                    crags(2.4, 13, 3, 5, 9301, { s: 1.35, h: 1.05 }),
-                    crags(17.6, 13, 2.8, 4, 9307, { s: 1.2, h: 0.9 }),
-                    crags(18, 32, 2.6, 3, 9311, { s: 1.15, h: 0.85 })
+                    crags(2.4, 3.5, 2.4, 4, 9301, { s: 1.25, h: 1.0 }),
+                    crags(19, 3.5, 2.4, 3, 9307, { s: 1.2, h: 0.9 }),
+                    crags(19, 34, 2.6, 3, 9311, { s: 1.15, h: 0.85 })
                 ),
-                tee: { x: 10, z: 3.5 }, cup: { x: 10, z: 26 }
+                tee: { x: 13, z: 4.5 }, cup: { x: 8.5, z: 21.6 }
             });
         })(),
         (function () {
@@ -5308,130 +5345,166 @@
                way round as well as a way over — and the two are not the same
                hole.
 
-               Round it is seven units of fairway down the west side, no carry
-               at all, and it leaves the approach coming in across the corner
-               to a green set off to the east. Over it is a carry of eight
-               units from the fairway to the far bank, and what it buys is the
-               pin dead ahead. That is the trade the whole hole is: a shot you
-               do not have to play, or a shot at the flag.
+               The tee is up on a mesa, which is what makes the carry a
+               question at all: two units of fall put a full drive's carry at
+               about thirty, and the line at the flag crosses ten units of
+               bite that end about thirty out — so a struck drive is just over
+               and a mis-hit is in the bottom. What it buys is the pin dead
+               ahead and nothing between.
+
+               Round it is the west lane, seven and a half units wide, with
+               rough waiting where a full drive down it runs out and a spring
+               — the one oasis on the course — lying across the corner between
+               there and a green set off to the east. So the safe drive is the
+               one with the approach over water, and the brave one has
+               none. Hugging the lip of the bite on the way past is the third
+               answer, and the shortest, and the one with no margin either
+               side.
 
                The far bank climbs and the near one does not, which is the rule
                every crossing on this course is built to — a near wall wide
                enough to play out of is a ramp a drive skips clean across the
                canyon off, and a far wall that does not climb is a two-unit
                cliff between a ball and the rest of the hole. */
-            var cut = ravine(11, 22, 11, 10, 1.8, { bank: [0, 2.6] });
-            var field = massif(-6, 24, 12, 2.3, 5)
-                .concat(ridge(4, 14, 4, 34, 4, 0.3, 3))
-                .concat([hill(5, 44, 3.5, -0.5), hill(19, 12, 3.2, 0.5)]);
+            var cut = ravine(10.5, 21, 15.5, 10, 1.9, { bank: [0, 2.6] });
+            var field = massif(-7, 28, 12, 2.3, 5)
+                .concat(massif(36, 42, 12, 2.2, 5))
+                .concat([hill(2.2, 15, 2.6, 0.4), hill(22.5, 15, 3, 0.45)]);
             var land = commons(0, [
-                [10,                   [4, rgh], [12, fwy], [6, rgh]],
-                [12,                   [4, rgh], [12, fwy], [6, rgh]],
-                [10,                   [4, rgh], [7, fwy], [11, null]],
-                [6,                    [4, rgh], [12, fwy], [6, rgh]],
-                [{ d: 5, sz: 0.18 },   [4, rgh], [12, fwy], [6, rgh]],
-                [8,                    [9, rgh], [10, fwy], [3, rgh]],
-                [3,                    [22, rgh]]
+                [{ d: 5, y: 2.0 },     [3, rgh], [9, fwy], [14, rgh]],
+                [{ d: 4, sz: -0.5 },   [26, rgh]],
+                [12,                   [3, rgh], [15, fwy], [8, rgh]],
+                [10,                   [3, rgh], [7.5, fwy], [15.5, null]],
+                [6,                    [3, rgh], [17, fwy], [6, rgh]],
+                [2,                    [9, rgh], [12, fwy], [5, rgh]],
+                [{ d: 4, sz: 0.12 },   [9, rgh], [12, fwy], [5, rgh]],
+                [8,                    [10, rgh], [6, null], [8, fwy], [2, rgh]],
+                [8,                    [3, rgh], [21, fwy], [2, rgh]],
+                [3,                    [26, rgh]]
             ], { m: 14 });
             return build({
                 name: 'Long Way Round', par: 4, long: true, shaped: true, open: true,
-                blurb: 'The canyon eats the east half of the fairway. Go round it, or go at the flag.',
+                blurb: 'Off the mesa with the canyon eating the right half of the fairway. Carry it at the flag, or go round and come in over the spring.',
                 pads: (function (g) {
                     return g.concat([
-                        inlay(g, 14, 47, 4.8, grn, 3.8)
+                        inlay(g, 20.5, 52, 4.2, grn, 4.2)
                     ]);
                 }(shape(land.pads.concat(cut.pads), field))),
                 fence: land.fence,
+                water: [rect(10, 43, 6, 8, 0.05)],
                 extra: [].concat(
-                    crags(2.6, 26, 3, 5, 9401, { s: 1.3, h: 1.0 }),
-                    crags(19.4, 38, 3, 5, 9407, { s: 1.25, h: 0.95 }),
-                    crags(2.8, 46, 2.8, 4, 9411, { s: 1.2, h: 0.9 })
+                    crags(4.5, 42, 2.6, 5, 9401, { s: 1.3, h: 1.0 }),
+                    crags(23.5, 40, 2.6, 4, 9407, { s: 1.25, h: 0.95 }),
+                    crags(1.4, 52, 2.4, 4, 9411, { s: 1.2, h: 0.9 })
                 ),
-                tee: { x: 9, z: 4 }, cup: { x: 15, z: 48 }
+                tee: { x: 7.5, z: 2.5 }, cup: { x: 20.5, z: 53 }
             });
         })(),
         (function () {
-            /* The canyon meanders, so it crosses twice and the fairway between
-               the two crossings is an island twelve units long with a wall at
-               each end of it. Landing on it is the hole: short is the first
-               canyon, long is the second, and there is no run-out either way
-               because both far banks climb.
+            /* The canyon meanders, so it crosses twice and the fairway
+               between the crossings is an island sixteen units long, set off
+               to the east of the line, with a wall at each end of it.
 
-               The island is also the only flat ground on the hole, which is
-               what makes the third shot the easy one and the second the shot
-               nobody wants to play twice. */
-            var one = ravine(0, 14, 22, 8, 1.7, { bank: [0, 2.4] });
-            var two = ravine(0, 34, 22, 8.5, 1.9, { bank: [0, 2.6] });
-            var field = massif(28, 20, 12, 2.2, 5)
-                .concat(massif(-6, 34, 11, 2.0, 5))
-                .concat([hill(20, 45, 3, 0.45), hill(2.5, 26, 2.6, -0.45)]);
+               The first crossing is the drive's. The tee is on a mesa and the
+               canyon begins twenty-two units out, so a full one off the top
+               just reaches the island and anything less is in the bottom —
+               or it is laid up short on the plain, and the hole becomes a six
+               with a canyon in front of each of the next two shots. The
+               second crossing is the second shot's, played from the island
+               back west to the last leg, and the green is round behind a
+               bunker short-right. Switchback because the fairway does: west,
+               east, west. */
+            var one = ravine(0, 25, 30, 9, 1.9, { bank: [0, 2.6] });
+            var two = ravine(0, 50, 30, 9, 2, { bank: [0, 2.6] });
+            var field = massif(38, 16, 12, 2.2, 5)
+                .concat(massif(-9, 44, 11, 2.0, 5))
+                .concat(massif(38, 74, 12, 2.3, 5))
+                .concat([hill(16, 43, 3.2, -0.4), hill(26, 13, 3, 0.45), hill(24, 64, 3, 0.4)]);
             var land = commons(0, [
-                [6,                    [5, rgh], [12, fwy], [5, rgh]],
-                [8,                    [5, rgh], [12, fwy], [5, rgh]],
-                [8,                    [22, null]],
-                [12,                   [5, rgh], [12, fwy], [5, rgh]],
-                [8.5,                  [22, null]],
-                [{ d: 4, sz: 0.18 },   [5, rgh], [12, fwy], [5, rgh]],
-                [8,                    [6, rgh], [11, fwy], [5, rgh]],
-                [3,                    [22, rgh]]
+                [{ d: 5, y: 2.0 },     [3, rgh], [10, fwy], [17, rgh]],
+                [{ d: 4, sz: -0.5 },   [30, rgh]],
+                [16,                   [3, rgh], [13, fwy], [14, rgh]],
+                [9,                    [30, null]],
+                [16,                   [9, rgh], [14, fwy], [7, rgh]],
+                [9,                    [30, null]],
+                [11,                   [5, rgh], [14, fwy], [11, rgh]],
+                [{ d: 4, sz: 0.15 },   [4, rgh], [13, fwy], [13, rgh]],
+                [14,                   [4, rgh], [13, fwy], [13, rgh]],
+                [3,                    [30, rgh]]
             ], { w: 14, e: 14 });
             return build({
                 name: 'Switchback', par: 5, long: true, shaped: true, open: true,
-                blurb: 'It crosses twice, and the fairway between the crossings is twelve units of island.',
+                blurb: 'Off the mesa and over the canyon to an island of fairway, over it again, and back the other way to the green.',
                 pads: (function (g) {
                     return g.concat([
-                        inlay(g, 11.5, 50.5, 5.2, grn, 3.8)
+                        inlay(g, 14.5, 77.5, 1.4, snd, 1.8),
+                        inlay(g, 9.5, 81, 4.6, grn, 4.4)
                     ]);
                 }(shape(land.pads.concat(one.pads).concat(two.pads), field))),
                 fence: land.fence,
                 extra: [].concat(
-                    crags(2.6, 20, 3, 5, 9501, { s: 1.3, h: 1.0 }),
-                    crags(19.4, 40, 3, 5, 9507, { s: 1.25, h: 0.95 }),
-                    crags(3, 46, 2.6, 3, 9511, { s: 1.15, h: 0.85 })
+                    crags(1.8, 40, 2.6, 5, 9501, { s: 1.3, h: 1.0 }),
+                    crags(27, 44, 2.6, 5, 9507, { s: 1.25, h: 0.95 }),
+                    crags(25, 82, 2.6, 4, 9511, { s: 1.15, h: 0.85 })
                 ),
-                tee: { x: 11, z: 3 }, cup: { x: 11, z: 50 }
+                tee: { x: 8, z: 2.5 }, cup: { x: 9.5, z: 82 }
             });
         })(),
         (function () {
-            /* The finish, and the only hole where the canyon is behind you
-               once it is crossed. Everything after it climbs: four units of it
-               over the last twenty, onto the mesa the green sits on, with the
-               surface out of sight from anywhere below the last rise.
+            /* The finish, and the course's real dogleg. The inside of the
+               corner is a mesa: a table of scrub seventeen units by thirty-four
+               standing MESA units above the fairway on sheer walls, which is
+               higher than anything in the bag lifts a ball, so it is not
+               carried, it is gone round. The tee is in the south-east corner,
+               the fairway runs up the right of the mesa, and the hole turns
+               hard left round its north-east corner — so the second shot is
+               the wager: as tight to that corner as you dare, where a ball
+               short and left meets rock and comes back, or wide and safe and
+               a longer third.
 
-               A par five that is really a par four with a canyon in front of
-               it. The carry is the same eleven units it has been all day and
-               the difference is that this time there are two more shots to
-               play afterwards, uphill, off ground that is tilted the whole
-               way. */
-            var cut = ravine(0, 16, 22, 10, 2, { bank: [0, 2.8] });
-            var field = massif(-6, 40, 13, 2.6, 5)
-                .concat(ridge(5, 44, 17, 44, 5, 0.34, 3))
-                .concat([hill(20.5, 10, 3.2, -0.5)]);
+               Then the canyon, across the whole hole at the end of the second
+               leg, and a short climb on to the shelf the green is cut into: a
+               ring of low rises round it, so the green is the floor of a
+               hollow and a ball that reaches the rim is fed in.
+
+               A mesa is a `bands` cell with a height of its own rather than a
+               landform, because a landform is a slope and the one thing this
+               needs is a wall: a cell lifted clear of STEP_UP is a kerb the
+               ball cannot climb, and the cut face is drawn in the canyon's
+               rock colour. */
+            var cut = ravine(0, 58, 38, 8, 2, { bank: [0, 2.6] });
+            var field = massif(48, 24, 12, 2.2, 5)
+                .concat(massif(-10, 70, 11, 2.1, 5))
+                .concat(ring(9, 81, 7.4, 3.2, 0.42, 8))
+                .concat([hill(12, 29, 5, 0.5), hill(30, 52, 3, -0.35)]);
             var land = commons(0, [
-                [6,                     [5, rgh], [12, fwy], [5, rgh]],
-                [10,                    [5, rgh], [12, fwy], [5, rgh]],
-                [10,                    [22, null]],
-                [{ d: 6, sz: 0.2 },     [5, rgh], [11, fwy], [6, rgh]],
-                [{ d: 8, sz: 0.16 },    [5, rgh], [11, fwy], [6, rgh]],
-                [{ d: 6, sz: 0.14 },    [6, rgh], [10, fwy], [6, rgh]],
-                [8,                     [6, rgh], [11, fwy], [5, rgh]],
-                [3,                     [22, rgh]]
-            ], { e: 15 });
+                [6,                    [22, rgh], [12, fwy], [4, rgh]],
+                [6,                    [22, rgh], [12, fwy], [4, rgh]],
+                [18,                   [4, rgh], [17, rgh, MESA], [1, rgh], [12, fwy], [4, rgh]],
+                [16,                   [4, rgh], [17, rgh, MESA], [1, rgh], [14, fwy], [2, rgh]],
+                [10,                   [3, rgh], [31, fwy], [4, rgh]],
+                [2,                    [38, rgh]],
+                [8,                    [38, null]],
+                [{ d: 4, sz: 0.3 },    [3, rgh], [14, fwy], [21, rgh]],
+                [22,                   [3, rgh], [14, fwy], [21, rgh]],
+                [3,                    [38, rgh]]
+            ], { m: 12 });
             return build({
                 name: 'Redstone', par: 5, long: true, shaped: true, open: true,
-                blurb: 'Over the canyon, then four units of climb onto the mesa the green is cut into.',
+                blurb: 'Up the right of a mesa nothing flies, round its corner as tight as you dare, then over the canyon to a green in a hollow on the far shelf.',
                 pads: (function (g) {
                     return g.concat([
-                        inlay(g, 11.5, 51.8, 5.2, grn, 3.0)
+                        inlay(g, 9, 81, 4.0, grn, 4.0)
                     ]);
                 }(shape(land.pads.concat(cut.pads), field))),
                 fence: land.fence,
                 extra: [].concat(
-                    crags(2.6, 9, 3, 5, 9601, { s: 1.35, h: 1.05 }),
-                    crags(19.4, 33, 3, 4, 9607, { s: 1.25, h: 0.95 }),
-                    crags(2.8, 44, 2.8, 4, 9611, { s: 1.2, h: 0.9 })
+                    crags(10, 18, 2.6, 5, 9601, { s: 1.35, h: 1.05 }),
+                    crags(15, 40, 2.6, 4, 9607, { s: 1.25, h: 0.95 }),
+                    crags(18.4, 28, 1.8, 4, 9613, { s: 1.3, h: 1.1 }),
+                    crags(33, 72, 2.8, 4, 9611, { s: 1.2, h: 0.9 })
                 ),
-                tee: { x: 11, z: 3 }, cup: { x: 11, z: 52 }
+                tee: { x: 28, z: 3 }, cup: { x: 9.5, z: 82 }
             });
         })()
     ];
