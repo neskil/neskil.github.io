@@ -43,9 +43,11 @@
            the air. It is not a config value — the simulation only ever sees a
            launch angle — it is the line these tests draw so that "a lofted
            club" means one thing in all three places that ask. It sits between
-           the driver and the 7 iron on purpose: the driver climbs enough to
-           run out, the iron is the first club in the bag that carries. */
-        var LOFTED = 13 * Math.PI / 180;
+           the putters and the driver: the driver used to be a 6° club that
+           barely left the ground and sat below this line with them, and at
+           10° it gets a metre of air and carries water, so a hole it flies is
+           a hole that has been flown. "Along the floor" means along the floor. */
+        var LOFTED = 9 * Math.PI / 180;
         var passed = 0, failed = 0;
         window.FAILS = [];
         var out = document.getElementById('results');
@@ -366,12 +368,14 @@
             assert('a grounded ball sits one radius above the surface',
                 approx(w.ball.y, C.BALL_R, 1e-6), 'y = ' + w.ball.y);
 
-            // Coast distance under exponential drag is v0 / -ln(k), give or
+            // Coast distance under drag a·v plus rolling resistance c is
+            // v0/a - (c/a²)·ln(1 + a·v0/c) — v0/a when c is zero — give or
             // take the last few centimetres below the stop threshold.
             var far = shootFrom(lab({ pads: [A.pad(0, 0, 10, 40)], cup: { x: 9, z: 39 } }), { x: 5, z: 1 }, 0, C.MAX_POWER);
             var travelled = far.ball.z - 1;
-            var predicted = C.MAX_POWER / -Math.log(C.FRICTION.green);
-            assert('full power coasts about v0 / -ln(k)', approx(travelled, predicted, 0.6),
+            var ka = -Math.log(C.FRICTION.green), kc = P.rollOf('green');
+            var predicted = C.MAX_POWER / ka - (kc ? kc / (ka * ka) * Math.log(1 + ka * C.MAX_POWER / kc) : 0);
+            assert('full power coasts what drag and rolling resistance predict', approx(travelled, predicted, 0.6),
                 travelled.toFixed(2) + ' vs ' + predicted.toFixed(2));
 
             assert('a shot under MIN_POWER is refused', (function () {
@@ -2290,14 +2294,20 @@
                 warps: [A.pipe(5, 10, 5, 26, 0, 1.0)],
                 cup: { x: 5, z: 36 }
             });
-            var down = shotEvents(piped, { x: 5, z: 2 }, 0, 10.5, 0);
+            var down = shotEvents(piped, { x: 5, z: 2 }, 0, 13, 0);
             assert('a putt into a mouth comes out of the far end',
                 down.events.warp === 1 && down.world.ball.z > 24,
                 'warps ' + (down.events.warp || 0) + ', z=' + down.world.ball.z.toFixed(1));
             assert('…and only once, whatever the far end is sitting in',
                 down.events.warp === 1);
+            /* Measured against the same putt on unbroken ground, moved on by
+               the sixteen units the pipe skips: a pipe that handed back less
+               than it was given would come up short of that. */
+            var unpiped = shootFrom(lab({ pads: [A.pad(0, 0, 10, 40)], cup: { x: 5, z: 36 } }),
+                { x: 5, z: 2 }, 0, 13, 0);
             assert('the pipe hands back the speed it was given',
-                down.world.ball.z > 27, 'only reached ' + down.world.ball.z.toFixed(1));
+                down.world.ball.z > unpiped.ball.z + 16 - 0.3,
+                'reached ' + down.world.ball.z.toFixed(2) + ' against ' + (unpiped.ball.z + 16).toFixed(2));
             /* A mouth is a hole in the floor, so it swallows a ball on the
                floor and nothing else. Without this a pipe would be a magnet
                and "keep it down" would stop being a thing a hole can ask. */
@@ -3296,7 +3306,7 @@
                Holes without the flag are free to have a flat answer, and
                several deliberately do — Under the Boardwalk wants one. */
             var b1 = performance.now(), flatBag = [], marked = 0;
-            C.CLUBS.forEach(function (club) {
+            C.ALL_CLUBS.forEach(function (club) {
                 if (club.loft < LOFTED) flatBag.push(club);
             });
             assert('there are flat clubs to try', flatBag.length >= 2);

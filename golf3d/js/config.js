@@ -8,7 +8,7 @@
    — the renderer scales to the viewport, the simulation never sees a pixel. */
 window.G3 = window.G3 || {};
 
-G3.VERSION = '1.60.0';
+G3.VERSION = '1.61.0';
 
 G3.CONFIG = {
     BALL_R: 0.16,
@@ -49,6 +49,27 @@ G3.CONFIG = {
     },
     FRICTION_DEFAULT: 0.30,
 
+    /* Rolling resistance: a constant deceleration, in units per second per
+       second, on top of FRICTION's drag. Drag alone is proportional to speed,
+       so it is strong off the club and almost nothing at the end, and every
+       roll ended in a long, slow crawl — on a hillside that crawl was the ball
+       wandering off down the slope. A constant term is what a real lie adds:
+       it barely touches a ball arriving fast and finishes off one that is
+       nearly done, so a shot lands, bounces, runs out and *stops*.
+
+       Only the grass has any, and each cut differently: a green a touch, so
+       putting still reads as the pace you gave it; a fairway noticeably; the
+       rough a lot. Wood and ice have none on purpose — they are the slick
+       surfaces and a plank that stopped a ball would not be a ramp. Sand's
+       drag already stops anything. Landing bounces never see it: it is
+       applied to a rolling ball only. */
+    ROLL: {
+        green: 0.25,
+        fairway: 1.0,
+        rough: 2.0
+    },
+    ROLL_DEFAULT: 0,
+
     /* Static friction, as the steepest gradient each surface will hold a
        stopped ball on. Friction above is drag — proportional to speed, and
        therefore zero at zero speed — which is right for a rolling ball and
@@ -88,7 +109,7 @@ G3.CONFIG = {
     },
     HOLD_DEFAULT: 0.22,
 
-    /* At full power the ball coasts v0 / -ln(k) ≈ 29 units on grass. That is
+    /* At full power the ball coasts v0 / -ln(k) ≈ 27 units on grass. That is
        longer than any mini golf hole here and shorter than most of a links
        one, which is the split the number has to serve now: everything on the
        first five courses is reachable with one swing and most of it with half
@@ -96,7 +117,7 @@ G3.CONFIG = {
        will not take a ball arriving much above 7. On the long courses the same
        number is a tee shot, and the skill is in what the ground does with it
        afterwards. */
-    MAX_POWER: 35,
+    MAX_POWER: 32,
     MIN_POWER: 0.9,
 
     /* Past a full swing the meter keeps going. OVERDRAW is how much further,
@@ -105,7 +126,7 @@ G3.CONFIG = {
 
          base power   grows with the meter into the overdraw, exactly as it
                       does below it — a driver wound to 130% leaves at 130% of
-                      35, and that is real distance you cannot get any other
+                      32, and that is real distance you cannot get any other
                       way.
          control      goes, and it goes fast. Anything at or inside a full
                       swing sprays by nothing at all: the ball leaves on the
@@ -216,13 +237,13 @@ G3.CONFIG = {
     CLUBS: [
         {
             id: 'putter', name: 'Putter', short: 'PT', key: '1',
-            loft: 0, power: 10.5, carry: 0, total: 9.2,
+            loft: 0, power: 10.5, carry: 0, total: 8.0,
             blurb: 'Rolls flat and true. Nothing else stops where you tell it.'
         },
         {
             id: 'driver', name: 'Driver', short: 'DR', key: '2',
-            loft: 6 * Math.PI / 180, power: 35, carry: 18.3, total: 39.4,
-            blurb: 'The reach club. Barely off the ground, and it runs.'
+            loft: 10 * Math.PI / 180, power: 32, carry: 19.4, total: 42.5,
+            blurb: 'The reach club. Up and away, and it still runs.'
         },
         /* The one club that is neither reach nor loft but a real amount of
            both, and the reason it exists is carry. A driver is in the air for
@@ -233,7 +254,7 @@ G3.CONFIG = {
            two thirds of a driver, and it stops. */
         {
             id: 'iron', name: '7 Iron', short: '7i', key: '3',
-            loft: 16 * Math.PI / 180, power: 18, carry: 9.8, total: 21.0,
+            loft: 16 * Math.PI / 180, power: 18, carry: 9.8, total: 21.4,
             blurb: 'The long approach. Carries what the driver runs into.'
         },
         /* The top of the bag is set at the lofts these clubs really carry:
@@ -249,12 +270,12 @@ G3.CONFIG = {
            stopping, which is the whole reason to reach for either. */
         {
             id: 'chipper', name: 'Pitch', short: 'PW', key: '4',
-            loft: 45 * Math.PI / 180, power: 11.7, carry: 7.6, total: 13.7,
+            loft: 45 * Math.PI / 180, power: 11.7, carry: 7.6, total: 14.1,
             blurb: 'Up steep and down steeper. Stops near where it lands.'
         },
         {
             id: 'wedge', name: 'Wedge', short: 'LW', key: '5',
-            loft: 58 * Math.PI / 180, power: 12.1, carry: 7.3, total: 12.4,
+            loft: 58 * Math.PI / 180, power: 12.1, carry: 7.3, total: 12.7,
             blurb: 'The lob. Straight up over water, sand and trees.'
         }
     ],
@@ -274,7 +295,7 @@ G3.CONFIG = {
     EXTRA_CLUBS: [
         {
             id: 'mallet', name: 'Mallet', short: 'ML', key: '6',
-            loft: 0, power: 17, carry: 0, total: 13.4,
+            loft: 0, power: 17, carry: 0, total: 13.3,
             blurb: 'A putter with a hammer behind it. Rolls flat, and rolls a long way.'
         },
         /* The first club in the bag that is not a loft and a ceiling.
@@ -296,7 +317,7 @@ G3.CONFIG = {
            different problems. */
         {
             id: 'checker', name: 'Checker', short: 'CK', key: '7',
-            loft: 38 * Math.PI / 180, power: 13.5, bite: 0.78, carry: 9.9, total: 11.2,
+            loft: 38 * Math.PI / 180, power: 13.5, bite: 0.78, carry: 9.9, total: 11.4,
             blurb: 'Lands and stops. The one club that gives up its run on purpose.'
         }
     ],

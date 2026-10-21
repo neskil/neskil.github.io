@@ -94,13 +94,13 @@ speed — and it is now a loft, a ceiling and one number about what happens
 
 | Club | Loft | Full swing | Carry | Apex | Total on green | What it is for |
 | --- | --- | --- | --- | --- | --- | --- |
-| Putter | 0° | 10.5 | — | — | 9.2 | Rolls flat and true. Full power is still a tap, which is what makes it the club you can aim. |
-| Driver | 6° | 35 | 18.3 | 0.53 | 39.4 | The reach club. The longest flight in the bag and much the lowest — it cannot clear a rail, it just takes a while to come down. |
-| 7 Iron | 16° | 18 | 9.8 | 0.83 | 21.0 | The long approach: three quarters of a driver, and it *carries* three quarters of that. |
-| Pitch | 45° | 11.7 | 7.6 | 2.03 | 13.7 | Up steep and down steeper. Stops near where it lands. |
-| Wedge | 58° | 12.1 | 7.3 | 3.05 | 12.4 | The lob: straight up, over anything, and it does not run when it lands. |
-| Mallet | 0° | 17 | — | — | 13.4 | Not in the default bag. A putter with a hammer behind it, handed out on holes that are played along the floor. |
-| Checker | 38° | 13.5 | 9.9 | 2.06 | 11.2 | Not in the default bag. An iron's carry with a unit and a bit of run on the end of it: `bite: 0.78`. |
+| Putter | 0° | 10.5 | — | — | 8.0 | Rolls flat and true. Full power is still a tap, which is what makes it the club you can aim. |
+| Driver | 10° | 32 | 19.4 | 1.01 | 42.5 | The reach club. The longest flight in the bag and the lowest that really flies — a metre of air, enough to carry water, and it still runs when it lands. |
+| 7 Iron | 16° | 18 | 9.8 | 0.83 | 21.4 | The long approach: three quarters of a driver, and it *carries* three quarters of that. |
+| Pitch | 45° | 11.7 | 7.6 | 2.03 | 14.1 | Up steep and down steeper. Stops near where it lands. |
+| Wedge | 58° | 12.1 | 7.3 | 3.05 | 12.7 | The lob: straight up, over anything, and it does not run when it lands. |
+| Mallet | 0° | 17 | — | — | 13.3 | Not in the default bag. A putter with a hammer behind it, handed out on holes that are played along the floor. |
+| Checker | 38° | 13.5 | 9.9 | 2.06 | 11.4 | Not in the default bag. An iron's carry with a unit and a bit of run on the end of it: `bite: 0.78`. |
 
 ### Backspin
 
@@ -1178,10 +1178,14 @@ The numbers it is built against, measured off a flat lie at full power:
 
 | | Putter | Driver | 7 Iron | Pitch | Wedge |
 | --- | --- | --- | --- | --- | --- |
-| Green | 8.5 | 34.5 | 21.9 | 14.6 | 13.1 |
-| Fairway | 6.8 | 30.6 | 20.1 | 13.7 | 12.4 |
-| Rough | 3.6 | 23.5 | 16.8 | 12.2 | 11.3 |
-| Sand | 1.9 | 19.4 | 14.9 | 11.3 | 10.6 |
+| Green | 8.0 | 42.5 | 21.4 | 14.1 | 12.7 |
+| Fairway | 5.7 | 38.4 | 19.0 | 12.9 | 11.7 |
+| Rough | 3.0 | 33.0 | 16.2 | 11.7 | 10.8 |
+| Sand | 1.9 | 30.3 | 14.9 | 11.3 | 10.6 |
+
+(Re-measured when the driver went from 6° to 10° and the grass got its rolling
+resistance, `CONFIG.ROLL`. The holes were laid out against the older figures —
+a driver of 34.5 / 30.6 / 23.5 / 19.4 and a putter of 8.5 on a green.)
 
 So a par 3 is about thirteen units and one full club; a par 4 is around thirty
 — a drive and a pitch; the par 5 is forty-eight, which is three shots, or two
@@ -1190,11 +1194,11 @@ ball. It loses the club you wanted to hit next, which is a better punishment
 because you have to keep playing with it.
 
 The other thing worth knowing is the carry, and it is not the same question as
-the flight. The driver flies furthest before its first bounce — about 15 units
-— and it does it at an apex of half a unit, which is under every rail on the
-property: it is a long skim, not a carry, and anything standing up in front of
-it stops it dead. Of the clubs that actually get *over* something, the iron
-carries furthest, about 9.5 units flat out, and nothing gets higher than about
+the flight. The driver flies furthest before its first bounce — about 19 units
+— at an apex of about a unit. It used to be a 6° skim at half a unit that went
+under every rail on the property; at 10° it carries a pond, but anything
+standing up near the tee still stops it. Of the clubs that get properly *over*
+something, the iron carries furthest, about 9.5 units flat out, and nothing gets higher than about
 1.6 (the wedge). Both numbers are load-bearing:
 **Over the Water** puts a pond four units deep on the line to the pin, which
 only a full swing of the iron clears — carry falls off with the square of the
