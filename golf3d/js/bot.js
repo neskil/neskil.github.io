@@ -83,7 +83,10 @@
         var sims = 0;
         var cup = hole.cup;
         var base = Math.atan2(cup.x - from.x, cup.z - from.z);
-        var moves = hole.walls.some(function (wl) { return wl.move || wl.spin; });
+        // All three kinds of motion — a flipper (`swing`) is a timing hole too,
+        // and this asked about two of them (golf3d/CLAUDE.md, "a wall may move
+        // three ways").
+        var moves = hole.walls.some(function (wl) { return wl.move || wl.spin || wl.swing; });
         var waits = moves ? [0, 0.45, 0.95, 1.5] : [0];
         var here = d2(from, cup);
         var best = null;
@@ -121,7 +124,11 @@
         if (!b0) return null;
         [-2, -1, 0, 1, 2].forEach(function (k) {
             bag.forEach(function (club) {
-                [0.25, 0.5, 0.75, 1].forEach(function (f) {
+                /* 0.9 because a window can sit between the last two: Deadlift's
+                   second step takes the mallet at 90–99% and nothing either
+                   side of it, and a bot that only tried 75 and 100 reported a
+                   hole nobody could finish. */
+                [0.25, 0.5, 0.75, 0.9, 1].forEach(function (f) {
                     waits.forEach(function (wait) {
                         consider(b0.yaw + k * 0.11, club, club.power * f, wait);
                     });

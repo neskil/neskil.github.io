@@ -1081,8 +1081,17 @@
                 assert(tag + ': every club it asks for exists',
                     G3.bagFor(h).length === h.bag.length,
                     h.bag.join(', ') + ' → ' + G3.bagFor(h).map(function (c) { return c.id; }).join(', '));
-                assert(tag + ': and it is a smaller bag than the default one',
-                    G3.bagFor(h).length < C.CLUBS.length);
+                /* "It changes something", which used to be "it is smaller
+                   than the default" while there was one default. There are
+                   two now — mini golf's (CONFIG.MINI_BAG) and the long game's —
+                   and a mini hole may hand out *more* than its own, so the
+                   question is whether the bag differs from what the hole would
+                   get without one. A bag that does not is a line of data that
+                   only looks like a decision. */
+                var without = G3.bagFor({ mini: h.mini, needsLoft: h.needsLoft });
+                assert(tag + ': and it is a different bag from the one it would get anyway',
+                    G3.bagFor(h).map(function (c) { return c.id; }).join() !==
+                        without.map(function (c) { return c.id; }).join());
                 // A hole cannot both require loft and refuse to hand any out.
                 if (h.needsLoft) {
                     assert(tag + ': a hole that needs loft is given some',
@@ -1097,6 +1106,26 @@
                 }) && C.ALL_CLUBS.length === C.CLUBS.length + C.EXTRA_CLUBS.length);
             assert('a hole that names nothing gets the default bag',
                 G3.bagFor({}) === C.CLUBS && G3.bagFor(null) === C.CLUBS);
+
+            /* Mini golf is played along the floor (CONFIG.MINI_BAG): the
+               putter and the mallet, and loft only on a hole that is about
+               it. Every hole of every mini, crazy and adventure course is
+               marked as mini golf, and nothing in the long game is. */
+            var ids = function (bag) { return bag.map(function (c) { return c.id; }).join(); };
+            assert('the mini bag has no loft in it',
+                G3.bagFor({ mini: true }).every(function (c) { return c.loft < LOFTED; }) &&
+                ids(G3.bagFor({ mini: true })) === C.MINI_BAG.join());
+            assert('…and a mini hole that needs loft is handed some',
+                G3.bagFor({ mini: true, needsLoft: true }).some(function (c) { return c.loft >= LOFTED; }));
+            assert('every mini, crazy and adventure hole is marked as mini golf, and no long hole is',
+                ALL.every(function (e) {
+                    return !!e.hole.mini === (C.MINI_GROUPS.indexOf(e.course.group) >= 0);
+                }));
+            assert('no mini hole is handed the driver unless it names it',
+                ALL.every(function (e) {
+                    return !e.hole.mini || (e.hole.bag && e.hole.bag.indexOf('driver') >= 0) ||
+                        G3.bagFor(e.hole).every(function (c) { return c.id !== 'driver'; });
+                }));
             assert('and one that names only nonsense gets it too',
                 G3.bagFor({ bag: ['spoon'] }) === C.CLUBS);
 

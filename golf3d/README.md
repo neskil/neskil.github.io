@@ -88,7 +88,14 @@ places where the answer is GLSL rather than a property. What is left in
 
 ## The bag
 
-Five clubs by default, in `config.js`, and two more a hole may ask for. A club
+Five clubs by default, in `config.js`, and two more a hole may ask for — and
+**mini golf has a bag of its own**: every hole on a mini, crazy or adventure
+course is played with the putter and the mallet (`CONFIG.MINI_BAG`), a hole
+marked `needsLoft` adds the pitch and the wedge, and a hole may still name its
+own `bag`. With the long game's bag the bot's first club on two dozen mini
+lanes was the driver, and the wedges flew over the baffles, beaches and water
+the holes were built round. The flag lives on the hole (`hole.mini`) rather
+than the course, because the showcase deals holes into a round of its own. A club
 was a loft and a ceiling on power and nothing else for a long time — the
 simulation never hears the word "club", it is handed a launch angle and a
 speed — and it is now a loft, a ceiling and one number about what happens
@@ -180,7 +187,9 @@ The driver takes the lion's share of every power increase, deliberately: the
 lofted clubs are what fly over the *design* of a hole, so their carries are held
 down while the driver's reach goes up. On the first three courses that made the
 bridges and the ramps into choices rather than requirements — at seven and a
-half units of carry a wedge flies most of the water at Seaside. Tidewater Reach
+half units of carry a pitch flies most of the water at Seaside's Low Tide.
+(Seaside itself now hands out a putter and a mallet, and the pitch only where
+flying is the point — see [The courses](#the-courses).) Tidewater Reach
 and Highland Steps were built the other way round, from the carries outward:
 they take the ground away and let the numbers in this table decide what is
 reachable, which is why so many of their holes have no route along the floor at
@@ -749,7 +758,7 @@ approach.
 
 | Course | Group | Theme | What it is about |
 | --- | --- | --- | --- |
-| Seaside Green | mini | `seaside` | Flat-ish holes by the water. A bounce off an angled rail to open with, pace, a first bridge to fly, a horseshoe you play round rather than at, and a jetty with a bend in it. |
+| Seaside Green | mini | `seaside` | The opener, played with a putter and a mallet. A bounce off an angled rail, a slipway round a corner, one slow gate, a first bridge to fly, a horseshoe that leans at the sea wall, and a jetty with a bend in it. Two safe putts and one ace line on every hole. |
 | Quarry Ridge | mini | `quarry` | Ramps, a road with a corner in it and a long way down off every edge. Height as a hazard. |
 | Tidewater Reach | mini | `lagoon` | The loft course. Almost nothing here can be reached along the floor. |
 | Highland Steps | mini | `highland` | The same lesson from the other side: things in the way rather than things missing, and the ground handed back as a tool. |
@@ -783,12 +792,54 @@ this is the other thing one is good for. There a bank is a slingshot that throws
 the ball somewhere neither of you chose; here it is a mirror, aimed on purpose,
 which is the friendliest use an angle has.
 
+**Every Seaside hole has two ways to play it**: two putts that cannot go wrong,
+and one line that can drop for an ace if you are brave with it. That is what the
+course's bag is for. It is a **putter and a mallet**, with the pitch added on
+Low Tide and the Horseshoe, where flying is the point. The default bag made
+these holes into something other than mini golf: a driver at a third of a
+swing is a putt with twenty units of reach, and it was the club the bot holed
+the old Bend and Zigzag with. The putter alone could not be the answer either.
+It runs eight units at full, so nothing on a thirteen-unit lane can be holed
+in one with it. A putter-and-pitch bag was tried and was worse: the pitch
+became the ace club on four holes out of six, flying over the baffle, the
+beach and the water, which is exactly the design it was meant to play. So the
+putter is the safe club and the mallet the risky one, and the holes are sized
+to it. Every ace line here is inside what a mallet reaches after the rail it
+uses, which is about ten units off a bank rather than the thirteen it runs on
+open green. That is why Sea Legs is eleven and a half long rather than
+thirteen, and why The Bend lost two units off each leg.
+
+| Hole | What to read | The safe way | The ace |
+| --- | --- | --- | --- |
+| Sea Legs | the 45° bank | up the open side, then across | the mallet up the open side and off the angle |
+| The Bend | the slipway: the top leg falls about a twentieth towards the cup | into the corner, then down the slope | shave the inside corner onto the slipway (the putter will do it), or the mallet off the outside rail |
+| Harbour Gate | one bar of beach with the gap at the tee's end, and a slow gate | through the gap, then past the gate when it has moved | at the flag: the inside edge of the gap, timed past the gate |
+| Low Tide | the bridge and the water | over the bridge, then putt | the mallet across the bridge all the way to the cup, or a pitch at the pin |
+| The Horseshoe | the return leg leans at the sea wall, and the cup is against it | round the long way, four putts, par | a pitch across the bay onto the cup's line, and the lean rolls it in |
+| The Jetty | the kink, and no rails | a putt along each plank, par | the mallet dead straight down the one line where all three planks overlap |
+
+**Harbour Gate** is the first thing in the game that moves, and the slowest. It
+is a two-unit gate drifting across a six-unit lane about once every nine
+seconds, so it never shuts the hole and waiting for it costs nothing. It is a
+preview of the crazy courses rather than a test of timing. It replaced **The
+Zigzag**, two bars of beach with the gap at opposite ends, because no rolled ball
+could thread both bars in one. Bouncing a ball off two rails takes too much out
+of it to reach the cup. Its first bar is kept.
+
+**The Bend**'s slipway is the first ground on the course that is *for*
+something. It carries a ball that gets round the corner at any pace down to the
+pin, so the job is to get onto the slope rather than to judge the weight all the
+way to the flag. It runs along x, and the corner square stays flat, for the same
+seam reason as the Horseshoe's lean below. It is a twentieth and not more for a
+reason: on a green anything over about 0.03 keeps a moving ball creeping
+downhill (`ROLL` against gravity), and a ball creeping eight units at half a
+unit a second is a wait, not a putt.
+
 Seaside and Quarry are where the plan does the work rather than the furniture.
-**The Zigzag** is two bars of beach with the gap in a different place in each,
-so the lane through them is two turns and a ball hit at the flag is in the
-second one. **The Horseshoe** goes up one leg, across the top and back down the
+**The Horseshoe** goes up one leg, across the top and back down the
 other round a block of ground that is simply not there, with the return leg
-leaning at the sea wall — and the lean has to run *along* x rather than across
+leaning at the sea wall and the cup at the foot of the lean, so everything on
+that leg gathers where the pin is. The lean has to run *along* x rather than across
 it, because the return leg shares its whole western edge with the top of the
 horseshoe and two pads only meet without a step where the tilt runs along the
 seam. **The Jetty** is a plank over the shallows with a kink in the middle, and
@@ -939,13 +990,12 @@ Two rules, and both are about the list rather than about any hole on it.
 middle of the card develops it and the sixth asks for all of it at once, so a
 course is a climb rather than six variations on a theme. Seaside Green is the
 plainest statement of it: a lane with a rail across the far corner of it, then a
-corner you have to judge yourself, then two bars of beach with the gap in a
-different place in each, then water, then a horseshoe you play round rather than
-at, and finally a plank over the sea with a bend in the middle of it. Each of
-those is a different *kind* of trouble as well as more of it — an angle that
-does the turning for you, one that does not, a surface that costs you control, a
-hazard that costs you a stroke, a hole that is not aimed at the flag, and a hole
-with nothing to bounce off at all.
+corner with a slipway beyond it, then a bar of beach and a slow gate, then
+water, then a horseshoe you play round rather than at, and finally a plank over
+the sea with a bend in the middle of it. Each of those is a different *kind* of
+trouble as well as more of it: an angle that does the turning for you, ground
+that does it, a thing that moves, a hazard that costs you a stroke, a hole that
+is not aimed at the flag, and a hole with nothing to bounce off at all.
 
 The same climb runs across a group. The four mini courses are in order of how
 much they ask for and so are the crazy, the adventure and the long ones, which
