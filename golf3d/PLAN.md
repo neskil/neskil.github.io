@@ -63,6 +63,16 @@ weight, so a rebuilt course still comes in around ten under.
 - **The fog now keeps the whole hole in clear air on a clear day**
   (`render.js → fogClear`), and the turntable's overhead views lift it the way
   the game's map does — so a plan view shows the hole. That was item 6.
+- **From Dunmore (v1.63.0):** *an uphill fairway kills the driver* — on a
+  climb of about 0.2 a drive lands almost at once and goes about 13 units, not
+  30, so a climbing par 4 is three shots even for the bot; that wants a club
+  or physics answer, not a layout one. *`ravine()` builds at absolute y = 0*,
+  ignoring the row level, so the rows before one must finish at exactly 0.
+  *Water goes in a `null` cell in a flat row*, its rect 0.4–0.5 under the
+  lowest bank (tilt included). *A row with two fairways in it gets ruled edges*
+  rather than a mown ribbon. And *the bot scores sand like fairway*, so a
+  bunker stops a drive without shaping the bot's line — only water and a gorge
+  do; a hole whose decision is a bunker is not measured by `par-check`.
 - **The loop**: `tools/par-check.mjs <course>` for the shape, `tests.html` for
   the geometry, `tools/turntable.mjs <course> --views tee,plan,hero` for the
   picture. A hole takes a few rounds of all three.
@@ -90,8 +100,11 @@ weight, so a rebuilt course still comes in around ten under.
 Order of work: ~~Ashdown Park first, by hand, to settle the recipe~~ (done,
 v1.62.0 — all six holes rebuilt: a burn across the landing zone on the
 opener, Long Meadow's belt a lay-up again, The Elbow a real dogleg round a
-pond, more water on four holes); then Whinstone, Dunmore and Redstone in
-parallel (one agent per course — each is its own block in `courses.js`).
+pond, more water on four holes); then Whinstone, ~~Dunmore~~ (done, v1.63.0 —
+the bells on Bell Heather, a dogleg over a burn on Gorse Corner, a long thin
+green on The Beacon, an 87-unit Long Ling with a burn to lay up short of) and
+Redstone in parallel (one agent per course — each is its own block in
+`courses.js`).
 
 ### Mini golf
 
