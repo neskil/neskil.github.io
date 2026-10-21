@@ -88,7 +88,14 @@ places where the answer is GLSL rather than a property. What is left in
 
 ## The bag
 
-Five clubs by default, in `config.js`, and two more a hole may ask for. A club
+Five clubs by default, in `config.js`, and two more a hole may ask for — and
+**mini golf has a bag of its own**: every hole on a mini, crazy or adventure
+course is played with the putter and the mallet (`CONFIG.MINI_BAG`), a hole
+marked `needsLoft` adds the pitch and the wedge, and a hole may still name its
+own `bag`. With the long game's bag the bot's first club on two dozen mini
+lanes was the driver, and the wedges flew over the baffles, beaches and water
+the holes were built round. The flag lives on the hole (`hole.mini`) rather
+than the course, because the showcase deals holes into a round of its own. A club
 was a loft and a ceiling on power and nothing else for a long time — the
 simulation never hears the word "club", it is handed a launch angle and a
 speed — and it is now a loft, a ceiling and one number about what happens

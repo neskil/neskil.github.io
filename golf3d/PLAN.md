@@ -132,7 +132,23 @@ courses are rebuilt and held to the drive line.**
 
 ### Mini golf
 
-7. **Seaside Green is the plainest course and it is the first one.** Six flat
+**Done first, and it was the biggest single fix (v1.66.0): mini golf has its
+own bag.** Putter and mallet, plus the pitch and wedge on `needsLoft` holes
+(`CONFIG.MINI_BAG` / `MINI_LOFT_BAG`). With the long game's bag the bot played
+two dozen mini holes with the *driver* and flew the wedges over the designs.
+Six holes were re-tagged to say what they are about. **Still open: Deadlift**
+keeps the long bag and is flown with the driver against its own comment — with
+the mallet the pads do lift a rolled ball a step at a time, but a greedy bot
+runs past the second pad and jams on the riser; the hole wants redesigning so
+the pad sits against the riser. Seaside's findings: the mallet's reach after a
+bank (~10 units) is what sizes an ace line; a green slope over about 0.03 makes
+a ball creep rather than stop; blurbs' left/right can be mirrored from what the
+tee shows (Sea Legs' was).
+
+7. ~~**Seaside Green**~~ (done, v1.66.0 — Harbour Gate replaces The Zigzag with
+   one slow gate, The Bend's top leg is a slipway, every hole has an ace line;
+   it still *looks* like flat rectangles, which §0's curved surfaces would fix).
+   **Seaside Green is the plainest course and it is the first one.** Six flat
    rectangles with rails, no slope and nothing that moves. A gentle tilt on one
    green and one slow gate would give it life without making it hard.
 8. **Single-trick holes** — The Letterbox, Bumper City, The Sweeper and others —
@@ -141,6 +157,17 @@ courses are rebuilt and held to the drive line.**
 9. **An ace line on every mini hole.** On most of them the right play is two
    safe putts; one risky line per hole that can drop makes every tee worth a
    go. §2's "the bot could prove a hole is ace-able" is the check for it.
+
+### Next: curved surfaces
+
+The owner's ask after the rehaul. Every wall is a straight box and nearly all
+ground is flat or a gentle hump, which is most of why a mini course reads as
+rectangles from above. Wanted: **curved rails** (an arc a ball runs round, built
+from short boxes or solved as a true arc), **banked turns** (a corner whose
+floor rises toward the outside so pace carries a ball round it), and
+**half-pipes / loops** where the ground itself curves. The physics already
+solves rotated boxes and humped ground; an arc rail is the cheap first step,
+and a banked floor is `padHeight` learning a curved profile.
 
 ### After the rehaul
 

@@ -2137,9 +2137,10 @@
        time, which is why the bot's card here is nearly all ones; a person
        takes it when they fancy it, and the safe two is always there.
 
-       **The bag is a putter and a mallet**, with the pitch added on the two
-       holes where flying is the point. This is mini golf, and the default bag
-       made it something else: the driver at a third of a swing is a putt with
+       **The bag is a putter and a mallet** — mini golf's own bag now, for
+       every mini course (CONFIG.MINI_BAG), and this course is where it was
+       worked out — with the pitch added on the two holes where flying is the
+       point. This is mini golf, and the long game's bag made it something else: the driver at a third of a swing is a putt with
        twenty units of reach, and it was the club the bot holed The Bend and
        The Zigzag with. The putter alone cannot be the answer either — it runs
        eight units at full, and nothing on a thirteen-unit lane can be holed
@@ -2147,7 +2148,6 @@
        safe one, and the holes are sized to that: every ace line here is
        inside what a mallet reaches after the rail it uses. */
 
-    var MINI = ['putter', 'mallet'];
     var MINI_LOFT = ['putter', 'mallet', 'chipper'];
 
     var seaside = [
@@ -2192,7 +2192,7 @@
                slingshot that throws the ball somewhere neither of you chose;
                here it is a mirror, aimed on purpose, which is the friendliest
                use an angle has. */
-            name: 'Sea Legs', par: 3, bag: MINI,
+            name: 'Sea Legs', par: 3,
             blurb: 'Up the open side and off the angle — the corner turns it for you.',
             pads: [pad(0, 0, 6, 11.5)],
             extra: [
@@ -2234,7 +2234,7 @@
                corner of the bend, onto the slipway and down it — the putter
                will do it, and so will the mallet off the outside rail. Clip
                the corner and you are back where you started. */
-            name: 'The Bend', par: 3, bag: MINI,
+            name: 'The Bend', par: 3,
             blurb: 'Turn at the top and the slipway does the rest. Shave the corner if you dare.',
             pads: [
                 pad(0, 0, 4.5, 7),
@@ -2268,7 +2268,7 @@
                the gate's path, so it is a line *and* a moment; or bank it off
                the east rail through the middle of the gap, which is the same
                moment from further away. */
-            name: 'Harbour Gate', par: 3, bag: MINI,
+            name: 'Harbour Gate', par: 3,
             blurb: 'Through the gap in the beach, then past the gate. It drifts; it never shuts.',
             pads: [
                 pad(0, 0, 6, 4),
@@ -2349,7 +2349,7 @@
                planks overlap by a whisker on one line down the middle, and a
                mallet hit dead straight down that line runs the length of the
                jetty onto the far green. Off it by a degree is the sea. */
-            name: 'The Jetty', par: 4, bag: MINI,
+            name: 'The Jetty', par: 4,
             blurb: 'A plank over the shallows with a turn in it, and nothing to bounce off but nerve.',
             pads: [
                 pad(0, 0, 6, 5.5),
@@ -2438,7 +2438,7 @@
             tee: { x: 2.5, z: 1.5 }, cup: { x: 8.6, z: 13.9 }
         }),
         build({
-            name: 'Halfpipe', par: 3, bag: ['putter', 'mallet'],
+            name: 'Halfpipe', par: 3,
             blurb: 'The gutter is blocked halfway. Ride a bank round it — flat clubs only.',
             pads: [
                 pad(0, 0, 2.5, 15, 1.25, 'green', -0.5, 0),
@@ -2491,7 +2491,7 @@
             ]
         }),
         build({
-            name: 'The Mill', par: 3, bag: ['putter', 'mallet'],
+            name: 'The Mill', par: 3,
             blurb: 'Sixty centimetres of daylight either side of the blade — and no way over it.',
             pads: [pad(0, 0, 5, 15)],
             extra: [spinner(2.5, 8, 3.6, 0.4, { spin: 1.7 })],
@@ -3505,7 +3505,7 @@
             tee: { x: 1.2, z: 1.2 }, cup: { x: 3.5, z: 16.6 }
         }),
         build({
-            name: 'Bumper City', par: 3, bag: ['putter', 'mallet'],
+            name: 'Bumper City', par: 3,
             blurb: 'Eight posts, no line through them, and the ball stays on the table.',
             pads: [pad(0, 0, 7, 16)],
             extra: [
@@ -3687,7 +3687,7 @@
                door and the blade is on it for most of the cycle, so the hole
                is aim and timing at once rather than either on its own. No loft
                in the bag, because a wall you can chip is not a wall. */
-            name: 'The Gearbox', par: 3, bag: ['putter', 'mallet'],
+            name: 'The Gearbox', par: 3,
             blurb: 'One door, one slow blade turning across the front of it, and nothing in the bag that goes over.',
             pads: [pad(0, 0, 7, 17)],
             extra: [].concat(
@@ -4331,7 +4331,7 @@
                round it, a pad in front of the wall, and a bag with no loft in
                it at all. The ball goes over because the floor throws it over,
                and the first time it happens is worth the whole course. */
-            name: 'The Springboard', par: 3, bag: ['putter', 'mallet'],
+            name: 'The Springboard', par: 3,
             blurb: 'A wall too tall to fly and a bag with nothing that flies. Stand on the pad instead.',
             pads: [
                 pad(0, 0, 6, 20),
@@ -4447,7 +4447,6 @@
                on the island *and* be able to get from where you landed to the
                second pad. */
             name: 'The Gravitron', par: 4, gravity: 0.4,
-            bag: ['putter', 'mallet'],
             blurb: 'Two fifths of a g. The pads throw you three times as far and nothing in the bag flies at all.',
             pads: [
                 pad(0, 0, 9, 7),
@@ -4854,7 +4853,6 @@
                off to the east of it, so the flight is a line as well as a
                weight. */
             name: 'Apogee', par: 3, gravity: 0.3,
-            bag: ['putter', 'mallet'],
             blurb: 'The pad throws it nine units up and the flight lasts four seconds. Everything is decided before it leaves.',
             pads: [
                 pad(0, 0, 8, 8),
