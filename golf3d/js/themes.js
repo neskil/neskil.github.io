@@ -362,7 +362,11 @@
             sun: 0xffd9a2, sunPos: [-14, 9, 8], ambient: 0xc9a582, ambientI: 0.55,
             grass: ['#7c9c4a', '#6f9042'],
             rail: 0xb08a63,
-            surroundY: -1.1, surround: 'rock', ground: '#8d4f34',
+            /* Below the canyon floors (about -2), not above them. At -1.1 the
+               desert plane cut straight through every canyon on the course:
+               each read as a tan box a unit deep, and a ball lying on a floor,
+               or a pool laid on one, could not be seen at all. */
+            surroundY: -2.7, surround: 'rock', ground: '#8d4f34',
             relief: 3.9,
             ridge: { colour: '#7d3f2b', cap: '#d9955c', peak: 12, rough: 0.52 },
             water: 0x2f7f9a,

@@ -82,6 +82,16 @@ weight, so a rebuilt course still comes in around ten under.
   `grad` (fixed), and takes inlaid greens now. Still open, cosmetic: water is
   a hard-edged rectangle, which reads as a box on a links; a fairway row
   ending square against rough draws a dark ragged line from above.
+- **From Redstone (v1.65.0):** *the canyon theme's desert plane sat at −1.1,
+  above the canyon floors at about −2*, so every canyon read as a box a unit
+  deep and a ball on a floor was invisible; `surroundY` is −2.7 now, in line
+  with the other rock courses. *Water there has to fill a gap lip to lip*
+  rather than sit on a floor (the audit calls that `water-over-land`). *A
+  raised row cell is a true cliff* — `[17, rgh, MESA]` at 3.2 cannot be flown,
+  which is what makes Redstone's dogleg real. *Bluffs are stronger than the
+  rule of thumb above*: two units of fall already gives about 34 of carry,
+  3.2 gives about 39. And *a drive that only just clears a canyon lands on the
+  far bank's upslope and stops dead*.
 - **The loop**: `tools/par-check.mjs <course>` for the shape, `tests.html` for
   the geometry, `tools/turntable.mjs <course> --views tee,plan,hero` for the
   picture. A hole takes a few rounds of all three.
@@ -115,8 +125,10 @@ Sandhill, Burnside a dogleg round a pool, Elbow Point's green out on the
 point), ~~Dunmore~~ (done, v1.63.0 —
 the bells on Bell Heather, a dogleg over a burn on Gorse Corner, a long thin
 green on The Beacon, an 87-unit Long Ling with a burn to lay up short of) and
-Redstone in parallel (one agent per course — each is its own block in
-`courses.js`).
+~~Redstone~~ (done, v1.65.0 — a canyon where the drive comes down on First
+Cut, a green strung along the lip on The Rim, a flooded canyon under Stone
+Bridge, and Redstone a dogleg round a mesa no club clears). **All four long
+courses are rebuilt and held to the drive line.**
 
 ### Mini golf
 
