@@ -184,8 +184,84 @@
         return dx * dx + dz * dz;
     }
 
+    /* ── surfaces that are a function ───────────────────────────────
+
+       Challenge mode's ground, and the one kind of pad whose height is not
+       a sum of humps: `pad.field` is a list of terms, each a closed-form
+       function with a closed-form gradient, and `pad.calm` a list of places
+       ({ x, z, r0, r1 }) where the whole field is faded out — flat inside r0,
+       full strength past r1, a smoothstep between — because a cup and a tee
+       need flat ground wherever the dice put them.
+
+         wave    [kx, kz], a, ph   a·sin(kx·x + kz·z + ph): a sea of ridges
+         ripple  [cx, cz], k, a, fall   a·cos(k·r)·e^(-fall·r): a stone in a pond
+         saddle  [cx, cz], a, s    a·(dx² - dz²)/s²: a pass between two hills
+         gauss   [cx, cz], a, s    a·e^(-r²/2s²): one smooth hill, or a well
+
+       height = plane + bumps + M·F, where F is the sum of the terms and M the
+       product of the calm masks; the gradient is M∇F + F∇M, which is the one
+       line here that is easy to get wrong, and the suite checks it against a
+       finite difference. */
+    var _fg = { x: 0, z: 0 }, _mg = { x: 0, z: 0 };
+    function fieldAt(terms, x, z, g) {
+        var f = 0, i, t, dx, dz, r, v, e, d;
+        g.x = 0; g.z = 0;
+        for (i = 0; i < terms.length; i++) {
+            t = terms[i];
+            if (t.wave) {
+                v = t.wave[0] * x + t.wave[1] * z + (t.ph || 0);
+                f += t.a * Math.sin(v);
+                d = t.a * Math.cos(v);
+                g.x += d * t.wave[0]; g.z += d * t.wave[1];
+            } else if (t.ripple) {
+                dx = x - t.ripple[0]; dz = z - t.ripple[1];
+                r = Math.sqrt(dx * dx + dz * dz);
+                e = Math.exp(-(t.fall || 0) * r);
+                f += t.a * Math.cos(t.k * r) * e;
+                if (r > 1e-6) {
+                    d = t.a * e * (-t.k * Math.sin(t.k * r) - (t.fall || 0) * Math.cos(t.k * r)) / r;
+                    g.x += d * dx; g.z += d * dz;
+                }
+            } else if (t.saddle) {
+                dx = x - t.saddle[0]; dz = z - t.saddle[1];
+                v = t.a / (t.s * t.s);
+                f += v * (dx * dx - dz * dz);
+                g.x += 2 * v * dx; g.z -= 2 * v * dz;
+            } else if (t.gauss) {
+                dx = x - t.gauss[0]; dz = z - t.gauss[1];
+                v = t.a * Math.exp(-(dx * dx + dz * dz) / (2 * t.s * t.s));
+                f += v;
+                g.x -= v * dx / (t.s * t.s); g.z -= v * dz / (t.s * t.s);
+            }
+        }
+        return f;
+    }
+    function calmAt(calm, x, z, g) {
+        var m = 1, i, c, dx, dz, d, u, s, ds, k;
+        g.x = 0; g.z = 0;
+        if (!calm) return 1;
+        for (i = 0; i < calm.length; i++) {
+            c = calm[i];
+            dx = x - c.x; dz = z - c.z;
+            d = Math.sqrt(dx * dx + dz * dz);
+            if (d >= c.r1) continue;
+            if (d <= c.r0) { g.x = 0; g.z = 0; return 0; }
+            u = (d - c.r0) / (c.r1 - c.r0);
+            s = u * u * (3 - 2 * u);
+            ds = 6 * u * (1 - u) / (c.r1 - c.r0);
+            // Product rule over the masks: the running gradient scales by
+            // this one, and this one's own slope scales by the running value.
+            k = ds * m / d;
+            g.x = g.x * s + k * dx;
+            g.z = g.z * s + k * dz;
+            m *= s;
+        }
+        return m;
+    }
+
     function padHeight(pad, x, z) {
         var h = pad.y + (pad.sx || 0) * (x - pad.x) + (pad.sz || 0) * (z - pad.z);
+        if (pad.field) h += calmAt(pad.calm, x, z, _mg) * fieldAt(pad.field, x, z, _fg);
         var b = pad.bumps, i, m, dx, dz, q;
         if (b) {
             for (i = 0; i < b.length; i++) {
@@ -215,6 +291,11 @@
         out = out || _grad;
         out.x = pad.sx || 0;
         out.z = pad.sz || 0;
+        if (pad.field) {
+            var fm = calmAt(pad.calm, x, z, _mg), ff = fieldAt(pad.field, x, z, _fg);
+            out.x += fm * _fg.x + ff * _mg.x;
+            out.z += fm * _fg.z + ff * _mg.z;
+        }
         var b = pad.bumps, i, m, dx, dz, q, d, k;
         if (b) {
             for (i = 0; i < b.length; i++) {

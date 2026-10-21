@@ -115,6 +115,14 @@
         newRound('showcase');
     }
 
+    /* And a fresh Challenge: new ground, new cups (courses.js →
+       dealChallenge). Play again is newRound('challenge'), the same deal;
+       anything that moves on deals again, because a new cup is the point. */
+    function newChallenge() {
+        G3.CHALLENGE = G3.dealChallenge();
+        newRound('challenge');
+    }
+
     /* `again` is a hole being restarted rather than arrived at, which is the
        one difference that matters here: the intro flyover is a first look at a
        hole, and you have already had it. */
@@ -779,7 +787,7 @@
             };
         } else {
             res = S.recordRound(state.save, state.course.id, state.scores, state.course.holes,
-                                { byPar: !!state.course.isShowcase });
+                                { byPar: !!(state.course.isShowcase || state.course.isChallenge) });
             state.save = S.save(res.save);
         }
         state.phase = 'finished';
@@ -833,7 +841,7 @@
                strokes it took were strokes on a different eight holes. */
             $('best-round').textContent = rec.best === null
                 ? '\u2014'
-                : state.course.isShowcase ? S.formatVsPar(rec.bestVsPar)
+                : state.course.isShowcase || state.course.isChallenge ? S.formatVsPar(rec.bestVsPar)
                 : rec.best + ' (' + S.formatVsPar(rec.bestVsPar) + ')';
 
             $('shud-hole').textContent = (state.holeIndex + 1) + '/' + state.course.holes.length;
@@ -2465,6 +2473,9 @@
         if (c && c.isShowcase && state && state.course === c && c.from[state.holeIndex]) {
             c = G3.courseById(c.from[state.holeIndex].id);
         }
+        // Challenge mode is no kind of golf in the list, so the picker opens
+        // where it would with nothing in hand.
+        if (c && c.isChallenge) return G3.COURSE_GROUPS[0].id;
         return c ? c.group : G3.COURSE_GROUPS[0].id;
     }
 
@@ -2478,6 +2489,7 @@
            instead of asking it. */
         menuKind = menuGroup;
         drawShowcase();
+        drawChallenge();
         drawShuffle();
         drawTabs();
         var focus = drawCourses();
@@ -2964,6 +2976,21 @@
     /* That one is the one on offer, and taking it is closing the list — a new
        deal would rebuild a hole nobody had seen to show them a different one.
        Anything else deals fresh. */
+    function takeChallenge() {
+        if (menuTaking) return;
+        maybeAutoFullscreen();
+        menuTaking = true;
+        newChallenge();
+    }
+
+    // The challenge's line in the picker, with your best against par on it.
+    function drawChallenge() {
+        var rec = S.courseRecord(state && state.save ? state.save : S.load(), 'challenge');
+        $('menu-challenge-sub').textContent =
+            'Six mathematical surfaces in a grid world, and a new cup on every one each round.' +
+            (rec.best === null ? '' : ' Your best: ' + S.formatVsPar(rec.bestVsPar) + ' against par.');
+    }
+
     function takeShowcase() {
         if (menuTaking) return;
         maybeAutoFullscreen();
@@ -3069,6 +3096,8 @@
                outranks the shuffle switch: the deal is the surprise. */
             next.textContent = state.course.isShowcase
                 ? '\u2726 Deal another showcase'
+                : state.course.isChallenge
+                ? '\u223F New ground, new cups'
                 : shuffleOn
                 ? '\uD83C\uDFB2 Surprise me'
                 : 'Next: ' + G3.courseById(G3.nextCourseId(state.course.id)).name;
@@ -3390,6 +3419,11 @@
         if (state.course.isShowcase) {
             newShowcase();
             toast('Autoplay — a new showcase');
+            return;
+        }
+        if (state.course.isChallenge) {
+            newChallenge();
+            toast('Autoplay — new ground, new cups');
             return;
         }
         var id = shuffleOn ? G3.randomCourseId(shuffleOpts())
@@ -3870,6 +3904,10 @@
                 newShowcase();
                 return;
             }
+            if (state.course.isChallenge) {
+                newChallenge();
+                return;
+            }
             /* With shuffle on this button is the draw itself and does not go
                near the picker — the latch is released here because a press on
                it is the start of a new pick, exactly as opening the list is. */
@@ -3882,6 +3920,7 @@
         });
         $('shuffle-go').addEventListener('click', function () { takeRandom(); });
         $('menu-showcase').addEventListener('click', takeShowcase);
+        $('menu-challenge').addEventListener('click', takeChallenge);
         /* No toast on this one: it is pressed with the picker open, and the
            toast band is behind the modal. The switch is its own answer. */
         $('shuffle-keep').addEventListener('click', function () {

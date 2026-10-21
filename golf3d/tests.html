@@ -278,6 +278,71 @@
                     onFlat.ball.x > 8 || onFlat.ball.y < 0.5,
                     'finished at x ' + onFlat.ball.x.toFixed(2));
             })();
+            /* ── Challenge mode: surfaces that are a function ──
+
+               A field is closed-form terms faded out by `calm` round the cup
+               and the tee; the gradient is M∇F + F∇M and is checked here
+               against a finite difference, masks overlapping and all. */
+            (function () {
+                var fp = { x: 0, z: 0, w: 20, d: 20, y: 1, field: [
+                    { wave: [0.7, 0.3], a: 0.5, ph: 0.4 },
+                    { ripple: [10, 10], k: 1.1, a: 0.6, fall: 0.08 },
+                    { saddle: [8, 12], a: 0.3, s: 6 },
+                    { gauss: [14, 5], a: -0.9, s: 2.5 }
+                ], calm: [{ x: 4, z: 4, r0: 1.4, r1: 3 }, { x: 5.5, z: 6, r0: 1, r1: 3.2 }] };
+                var worst = 0, e = 1e-5, x, z, g, dx, dz;
+                for (x = 0.13; x < 20; x += 0.37) {
+                    for (z = 0.11; z < 20; z += 0.41) {
+                        g = P.padGrad(fp, x, z, {});
+                        dx = (P.padHeight(fp, x + e, z) - P.padHeight(fp, x - e, z)) / (2 * e);
+                        dz = (P.padHeight(fp, x, z + e) - P.padHeight(fp, x, z - e)) / (2 * e);
+                        worst = Math.max(worst, Math.abs(g.x - dx), Math.abs(g.z - dz));
+                    }
+                }
+                assert('the gradient of a function surface is the derivative of its height',
+                    worst < 1e-6, 'off by ' + worst.toExponential(2));
+                assert('…and a calm is flat ground, at the pad\'s own height',
+                    approx(P.padHeight(fp, 4, 4), 1, 1e-12) && P.slopeAt(fp, 4.6, 4.3) === 0);
+            })();
+
+            /* A deal is a seed: the same one deals the same ground and the same
+               cups, a different one does not. And whatever the dice do, every
+               cup is on flat ground clear of the rails, and the bot holes
+               every hole — over a run of deals, because one lucky seed proves
+               nothing about the next. */
+            (function () {
+                var a1 = G3.dealChallenge(424242), a2 = G3.dealChallenge(424242), b1 = G3.dealChallenge(99);
+                var cups = function (c) { return c.holes.map(function (h) { return h.cup.x.toFixed(3) + ',' + h.cup.z.toFixed(3); }).join(' '); };
+                assert('a challenge deal is its seed', cups(a1) === cups(a2));
+                assert('…and another seed is another set of cups', cups(a1) !== cups(b1));
+                assert('a challenge is six holes in the neon theme, keyed by its deal',
+                    a1.holes.length === 6 && a1.theme === 'neon' && a1.isChallenge &&
+                    a1.from.every(function (r, i) { return r.id === 'challenge-424242' && r.index === i; }));
+                var dealt = 0, flatWorst = 0, flatAt = '', failed = [], over = [], s, c, i, h;
+                for (s = 1; s <= 5; s++) {
+                    c = G3.dealChallenge(s * 7919);
+                    for (i = 0; i < c.holes.length; i++) {
+                        h = c.holes[i];
+                        dealt++;
+                        var lie = P.surfaceUnder(h, h.cup.x, h.cup.z, Infinity), k, t, q;
+                        for (k = 0; k < 16; k++) {
+                            for (t = 0.2; t <= 1.25; t += 0.35) {
+                                q = P.slopeAt(lie.pad, h.cup.x + Math.cos(k / 16 * 6.283) * t, h.cup.z + Math.sin(k / 16 * 6.283) * t);
+                                if (q > flatWorst) { flatWorst = q; flatAt = h.name + ' on seed ' + s * 7919; }
+                            }
+                        }
+                        var r = G3.bot.play(h, 10, G3.bagFor(h));
+                        if (!r.sunk) failed.push(h.name + ' on seed ' + s * 7919);
+                        else if (r.strokes > h.par + 2) over.push(h.name + ' took ' + r.strokes);
+                    }
+                }
+                assert('every challenge cup is cut into flat ground', flatWorst < 1e-9,
+                    flatAt + ' slopes ' + flatWorst.toExponential(2));
+                assert('the bot holes every hole of five challenge deals', !failed.length,
+                    failed.join('; ') + ' (' + dealt + ' holes)');
+                assert('…and in a plausible number of strokes', !over.length, over.join('; '));
+            })();
+
             /* A curved rail is chords (courses.arc), each turned to the
                tangent of the circle at its middle. Rolled straight out from
                the centre, a ball meets a chord face on and comes straight

@@ -165,6 +165,9 @@
            own the theme would have fallen back to the seaside's list and
            rained on the moon. */
         lunar: ['clear', 'fair'],
+        /* The grid world has no weather at all — rain on a hologram reads as
+           a rendering fault — so it is clear, every time. */
+        neon: ['clear'],
         /* Desert, and nearly the quarry's list — the same country a long way
            further along. It leaves out the dust, which is the one kind that
            does not survive being stretched over a fifty-unit hole: a haze

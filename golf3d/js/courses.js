@@ -6154,6 +6154,158 @@
        eight holes — until something deals a fresh one in its place. */
     G3.SHOWCASE = null;
 
+    /* ── Challenge mode ──────────────────────────────────────────────────
+
+       Six holes on ground that is a mathematical function rather than a
+       place (physics.js, "surfaces that are a function"): a sea of sine
+       ridges, an egg crate, a ripple from a stone dropped in, a saddle you
+       play over the pass of, two wells, and a field you tee off a platform
+       hovering above. Each deal draws its own ground — phases, positions,
+       which way the ridges run — and **puts the cup somewhere new**, so the
+       same six recipes are a different six holes every round.
+
+       Wherever the cup lands, the ground there is made flat: the field is
+       faded out by a `calm` round the cup and round the tee, flat inside
+       CUP_FLAT and full strength a couple of units further out, so the cup
+       is cut into level ground the way every other cup is. The draw keeps
+       the cup off the rails and a decent way up the hole; tests.html deals
+       a run of seeds and has the bot hole every one.
+
+       Played out of the lofted mini bag, because a surface like this is
+       half read and half flown, and drawn in the `neon` theme. */
+    var CHALLENGE_BAG = ['putter', 'mallet', 'chipper', 'wedge'];
+    var CHALLENGE_CALM = { r0: CUP_FLAT + 0.2, r1: CUP_FLAT + 2.2 };
+
+    function calmAround(pts) {
+        return pts.map(function (q) {
+            return { x: q.x, z: q.z, r0: CHALLENGE_CALM.r0, r1: CHALLENGE_CALM.r1 };
+        });
+    }
+
+    // A cup somewhere on the field: off the rails, up the hole, clear of the tee.
+    function drawCup(rnd, f, tee, least) {
+        var i, x, z;
+        for (i = 0; i < 200; i++) {
+            x = f.x + 2.2 + rnd() * (f.w - 4.4);
+            z = f.z + f.d * 0.45 + rnd() * (f.d * 0.55 - 2.2);
+            if (Math.hypot(x - tee.x, z - tee.z) >= least) break;
+        }
+        return { x: x, z: z };
+    }
+
+    var CHALLENGE_HOLES = [
+        function (rnd) {
+            var f = { x: 0, z: 0, w: 12, d: 22 }, tee = { x: 6, z: 2 };
+            var k = Math.PI * 2 / (5 + rnd() * 1.5);
+            return {
+                name: 'Sine Sea', par: 3,
+                blurb: 'Ridge after ridge across the line. Pace it to crest the last one and no more.',
+                f: f, tee: tee,
+                field: [{ wave: [0, k], a: 0.34, ph: rnd() * 6.28 },
+                        { wave: [k * 0.45, 0], a: 0.12, ph: rnd() * 6.28 }]
+            };
+        },
+        function (rnd) {
+            var f = { x: 0, z: 0, w: 13, d: 22 }, tee = { x: 6.5, z: 2 };
+            var k = Math.PI * 2 / (5.5 + rnd());
+            return {
+                name: 'Egg Crate', par: 3,
+                blurb: 'Two seas crossed. Every hollow is a trap and every crest a ramp.',
+                f: f, tee: tee,
+                field: [{ wave: [k, 0], a: 0.28, ph: rnd() * 6.28 },
+                        { wave: [0, k], a: 0.28, ph: rnd() * 6.28 }]
+            };
+        },
+        function (rnd) {
+            var f = { x: 0, z: 0, w: 14, d: 22 }, tee = { x: 7, z: 2 };
+            return {
+                name: 'Stone in a Pond', par: 3,
+                blurb: 'Rings running out from where the stone went in. Ride one round, or cut across them.',
+                f: f, tee: tee,
+                field: [{ ripple: [3 + rnd() * 8, 9 + rnd() * 6], k: Math.PI * 2 / 4.2, a: 0.42, fall: 0.07 }]
+            };
+        },
+        function (rnd) {
+            var f = { x: 0, z: 0, w: 14, d: 26 }, tee = { x: 7, z: 2 };
+            return {
+                name: 'The Pass', par: 4,
+                blurb: 'A saddle: walls up either side, the ground falling away both ends. Over the pass, and stop.',
+                f: f, tee: tee,
+                field: [{ saddle: [7, 12 + rnd() * 3], a: 1.1, s: 9 },
+                        { wave: [Math.PI * 2 / 7, Math.PI * 2 / 11], a: 0.1, ph: rnd() * 6.28 }]
+            };
+        },
+        function (rnd) {
+            var f = { x: 0, z: 0, w: 14, d: 24 }, tee = { x: 7, z: 2 };
+            return {
+                name: 'Twin Wells', par: 4,
+                blurb: 'Two wells in a rolling floor, and they take anything that comes near.',
+                f: f, tee: tee,
+                field: [{ gauss: [3.5 + rnd() * 2.5, 8 + rnd() * 4], a: -1.1, s: 1.9 },
+                        { gauss: [8 + rnd() * 2.5, 13 + rnd() * 5], a: -1.1, s: 1.9 },
+                        { wave: [Math.PI * 2 / 8, Math.PI * 2 / 6], a: 0.14, ph: rnd() * 6.28 }]
+            };
+        },
+        function (rnd) {
+            var f = { x: 0, z: 5, w: 14, d: 19 }, tee = { x: 7, z: 2 };
+            var k = Math.PI * 2 / (6 + rnd() * 2);
+            return {
+                name: 'Hover', par: 3,
+                blurb: 'Off a platform hanging in the air, down on to a field of interference.',
+                f: f, tee: tee, hover: { x: 5.5, z: 0.5, w: 3, d: 3, y: 2.6 },
+                field: [{ wave: [k, k * 0.6], a: 0.3, ph: rnd() * 6.28 },
+                        { wave: [-k * 0.7, k], a: 0.25, ph: rnd() * 6.28 }]
+            };
+        }
+    ];
+
+    function challengeHole(recipe, rnd) {
+        var r = recipe(rnd), f = r.f;
+        var cup = drawCup(rnd, f, r.tee, r.par >= 4 ? 15 : 11);
+        var field = pad(f.x, f.z, f.w, f.d, 0);
+        field.field = r.field;
+        field.calm = calmAround(r.hover ? [cup] : [cup, r.tee]);
+        var pads = [field], gaps = [];
+        if (r.hover) {
+            var hv = pad(r.hover.x, r.hover.z, r.hover.w, r.hover.d, r.hover.y);
+            hv.hover = true;
+            pads.push(hv);
+            // Open on every side: it is a platform to be shot off, not a box.
+            gaps.push(brink({ x: hv.x, z: hv.z, w: hv.w, d: hv.d }));
+            // And so is the near edge of the field: a rail there was a wall
+            // standing in front of the platform, and a shot landing short
+            // should drop off the world, not bounce back at you.
+            gaps.push(brink({ x: f.x, z: f.z, w: f.w, d: 0 }));
+        }
+        var h = build({
+            name: r.name, par: r.par, blurb: r.blurb,
+            shaped: true, mini: true, bag: CHALLENGE_BAG.slice(),
+            pads: pads, gaps: gaps,
+            tee: { x: r.tee.x, z: r.tee.z }, cup: cup
+        });
+        return h;
+    }
+
+    G3.dealChallenge = function (seed) {
+        if (seed === undefined) seed = Math.floor(Math.random() * 1e9);
+        var rnd = seeded(seed), holes = [], from = [], i;
+        for (i = 0; i < CHALLENGE_HOLES.length; i++) {
+            holes.push(challengeHole(CHALLENGE_HOLES[i], rnd));
+            /* Keyed by the deal, not by 'challenge': the plans and the skies
+               are cached by course id and hole number, and hole 3 of this
+               deal is not hole 3 of the last one. */
+            from.push({ id: 'challenge-' + seed, index: i });
+        }
+        return {
+            id: 'challenge', group: 'challenge', name: 'Challenge',
+            blurb: 'Six mathematical surfaces in a grid world, and a new cup on every one each round.',
+            theme: 'neon', from: from, holes: holes, seed: seed, isChallenge: true
+        };
+    };
+
+    // The deal in play, the same way G3.SHOWCASE is.
+    G3.CHALLENGE = null;
+
     /* The bag a hole is played out of.
 
        Most holes are played out of the whole bag and say nothing. A hole that
@@ -6241,6 +6393,9 @@
     G3.courseById = function (id) {
         if (id === 'range') return G3.RANGE_COURSE;
         if (id === 'showcase') return G3.SHOWCASE || (G3.SHOWCASE = G3.dealShowcase());
+        if (id === 'challenge' || String(id).indexOf('challenge-') === 0) {
+            return G3.CHALLENGE || (G3.CHALLENGE = G3.dealChallenge());
+        }
         for (var i = 0; i < G3.COURSES.length; i++) {
             if (G3.COURSES[i].id === id) return G3.COURSES[i];
         }
