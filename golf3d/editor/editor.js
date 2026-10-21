@@ -2381,6 +2381,12 @@
         if (!gizmoCtx) return;
         var g = gizmoCtx;
         var cx = 24, cy = 24, radius = 17;
+
+        // The backing store follows the display, the drawing stays in the 48px
+        // frame the click test measures in.
+        var want = Math.max(1, Math.round(48 * dpr));
+        if (gizmoCanvas.width !== want) { gizmoCanvas.width = want; gizmoCanvas.height = want; }
+        g.setTransform(want / 48, 0, 0, want / 48, 0, 0);
         g.clearRect(0, 0, 48, 48);
 
         var yaw = cam.yaw, pitch = cam.pitch;
