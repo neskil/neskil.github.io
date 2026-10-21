@@ -302,6 +302,50 @@
             { base: o.base === undefined ? -0.1 : o.base, yaw: yaw, kind: o.kind || 'rail' });
     }
 
+    /* A curved rail: an arc of short banks round (cx, cz) at radius R, from
+       angle a0 to a1 (radians, measured as atan2(z, x)). The solver has no
+       curve in it and does not need one — a ball meeting an arc of sixteen
+       chords is turned round it a chord at a time, and at five or six degrees
+       a chord the turn reads as a curve to the eye and to the ball alike.
+       Each bank is a rail's thickness longer than its chord so neighbours
+       overlap: a gap between two would be a hole in the rail exactly where the
+       ball is pressing hardest. `n` defaults to one chord per ten degrees. */
+    function arc(cx, cz, R, a0, a1, opts) {
+        var o = opts || {}, out = [], i, t0, t1, tm, chord;
+        var n = o.n || Math.max(3, Math.ceil(Math.abs(a1 - a0) / (Math.PI / 18)));
+        var t = o.t === undefined ? 0.34 : o.t;
+        for (i = 0; i < n; i++) {
+            t0 = a0 + (a1 - a0) * i / n;
+            t1 = a0 + (a1 - a0) * (i + 1) / n;
+            tm = (t0 + t1) / 2;
+            chord = 2 * R * Math.sin(Math.abs(t1 - t0) / 2);
+            // A bank's length runs along local x, and THREE's yaw turns local x
+            // to (cos yaw, -sin yaw) — so the tangent at tm is yaw -tm - π/2.
+            out.push(bank(cx + Math.cos(tm) * R, cz + Math.sin(tm) * R, chord + t,
+                -tm - Math.PI / 2, { t: t, h: o.h, base: o.base, kind: o.kind }));
+        }
+        return out;
+    }
+
+    /* Curved ground, for the drawn holes: the same raised cosine a hump is,
+       laid along a spine (physics.padHeight has the rule). `trough` runs it
+       along a segment — with `a` below zero on a pad lifted by -a it is a
+       half-pipe, a floor that curves up into both walls — and `channel` runs
+       it round a circle or an arc of one, which is a banked turn when the
+       outside of the ring is the high side. Both carry a cx/cz as well — the
+       middle of the segment, the centre of the ring — for anything that only
+       wants to know roughly where a bump is; `r` is still the profile's
+       radius, the distance from the spine at which it meets the pad. */
+    function trough(x0, z0, x1, z1, r, a) {
+        return { line: [x0, z0, x1, z1], r: r, a: a,
+            cx: (x0 + x1) / 2, cz: (z0 + z1) / 2 };
+    }
+    function channel(cx, cz, R, r, a, a0, a1) {
+        var g = { cx: cx, cz: cz, R: R };
+        if (a0 !== undefined) { g.a0 = a0; g.a1 = a1; }
+        return { ring: g, r: r, a: a, cx: cx, cz: cz };
+    }
+
     /* A funnel green: a flat floor, four ramps up to a rim, and four corners
        that are the two ramps beside them added together. That last part is the
        whole trick — a corner built as the sum of its neighbours meets both of
@@ -2438,15 +2482,24 @@
             tee: { x: 2.5, z: 1.5 }, cup: { x: 8.6, z: 13.9 }
         }),
         build({
+            /* A real half-pipe now: one pad whose floor curves up into both
+               walls (a `trough` down the middle of it), where it used to be
+               two flat planks leaning in at a flat gutter. The gutter is still
+               blocked halfway, and the way past is still to ride a wall — but
+               a curved wall hands the ball back along a curve, so how high up
+               it you send the putt is how far down the lane it comes off. */
             name: 'Halfpipe', par: 3,
-            blurb: 'The gutter is blocked halfway. Ride a bank round it — flat clubs only.',
-            pads: [
-                pad(0, 0, 2.5, 15, 1.25, 'green', -0.5, 0),
-                pad(2.5, 0, 2, 15),
-                pad(4.5, 0, 2.5, 15, 0, 'green', 0.5, 0)
-            ],
-            extra: [wall(2.5, 7.6, 2, 0.4, 0.55, { base: -0.1 })],
-            tee: { x: 3.5, z: 1.5 }, cup: { x: 3.5, z: 13 }
+            blurb: 'A half-pipe, blocked halfway. Ride the wall round it, then climb out of the end — flat clubs only.',
+            pads: [(function () {
+                // The pipe rounds off behind the tee and in front of the
+                // landing, so every edge of the pad is at the rim and the cup
+                // sits on flat ground a full CUP_FLAT clear of the curve.
+                var p = pad(0, 0, 7, 17, 1.25);
+                p.bumps = [trough(3.5, 3.5, 3.5, 9.5, 3.5, -1.25)];
+                return p;
+            })()],
+            extra: [wall(2.3, 6.6, 2.4, 0.4, 1.0, { base: -0.1 })],
+            tee: { x: 3.5, z: 3.5 }, cup: { x: 3.5, z: 15.2 }
         }),
         build({
             /* The finisher, and it is the only hole on the course that asks
@@ -6181,7 +6234,8 @@
 
     G3.authoring = {
         pad: pad, wall: wall, spinner: spinner, slider: slider,
-        beam: beam, pen: pen, bumper: bumper, bank: bank, bowl: bowl, dish: dish, bands: bands, tilt: tilt,
+        beam: beam, pen: pen, bumper: bumper, bank: bank, arc: arc,
+        trough: trough, channel: channel, bowl: bowl, dish: dish, bands: bands, tilt: tilt,
         commons: commons,
         sprung: sprung, belt: belt, pipe: pipe, pipes: pipes,
         aperture: aperture, flipper: flipper,

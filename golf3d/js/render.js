@@ -3137,11 +3137,23 @@
         sun.shadow.camera.right = span;
         sun.shadow.camera.top = span;
         sun.shadow.camera.bottom = -span;
-        sun.shadow.camera.near = 1;
-        sun.shadow.camera.far = 120;
+        /* Near and far fitted to the hole rather than 1 to 120. Every unit of
+           depth range the shadow camera does not need is precision taken off
+           the units it does, and a phone's shadow map has far less of it than
+           a desktop's: the owner's screenshots of Apogee and Clockwork Court
+           showed acne as sawtooth along every face the sun grazes — the cut
+           sides of a raised pad, the length of a divider — that SwiftShader
+           and a desktop GPU never draw. The sun sits `dist` from the middle
+           of the hole and the hole is `span` either side of it, so that is
+           all the range there is, plus room for the tallest decor. The normal
+           bias goes up for the same faces; 0.035 still keeps a ball's shadow
+           attached to the ball. */
+        var dist = Math.hypot(pos[0] * reach, Math.max(2.5, pos[1] * lift), pos[2] * reach);
+        sun.shadow.camera.near = Math.max(0.5, dist - span * 1.5 - 8);
+        sun.shadow.camera.far = dist + span * 1.5 + 8;
         sun.shadow.mapSize.set(2048, 2048);
         sun.shadow.bias = -0.0009;
-        sun.shadow.normalBias = 0.02;
+        sun.shadow.normalBias = 0.035;
         sun.shadow.radius = 1.5 + weather.cloud * 4.5;
         group.add(sun);
         group.add(sun.target);

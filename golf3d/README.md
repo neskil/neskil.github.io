@@ -1869,6 +1869,17 @@ fault everywhere else.
 - **bumps** — humps on a pad, so the ground curves. `hill()` is one,
   `ring()` a circle of them (a punchbowl, or a dell), `dunes()` a seeded field.
   See [Whinstone Links](#whinstone-links).
+- **trough / channel** — curved ground for the drawn holes: the same raised
+  cosine a hump is, measured from a *spine* rather than a point
+  (`physics.padHeight`). `trough(x0, z0, x1, z1, r, a)` lays it along a segment
+  — with `a` below zero on a pad lifted by `-a` it is a half-pipe, a floor that
+  curves up into both walls (**Halfpipe** on Quarry Ridge); `channel(cx, cz, R,
+  r, a, a0, a1)` lays it round a circle or an arc, a banked turn or a curved
+  gutter. A pad whose only bumps have a spine is *shaped* ground, like a ramp,
+  and is exempt from the suite's "holds a ball everywhere" rule; relief is not.
+- **arc** — a curved rail: `arc(cx, cz, R, a0, a1)` is chords of `bank`, one per
+  ten degrees, each a rail's thickness longer than its chord so neighbours
+  overlap. Angles are `atan2(z, x)`; a chord's yaw is −θ − π/2.
 - **contour / scoop** — the same humps, applied to a *drawn* hole, off a seed
   made from the hole's own name so a hole's ground is the same on every load.
   Every bunker on a drawn hole gets `scoop`'s dish automatically in `build()`;

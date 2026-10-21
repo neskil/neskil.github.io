@@ -158,7 +158,15 @@ tee shows (Sea Legs' was).
    safe putts; one risky line per hole that can drop makes every tee worth a
    go. §2's "the bot could prove a hole is ace-able" is the check for it.
 
-### Next: curved surfaces
+### Next: curved surfaces — started (v1.67.0)
+
+Built: curved ground (`trough` and `channel`: a hump's profile along a line or
+round an arc, one code path in `padHeight`/`padGrad`, derivative-checked in
+the suite) and curved rails (`arc`, chords of `bank`). **Halfpipe** on Quarry
+is a real half-pipe now. Still to do: put them on holes — a banked turn on
+The Bend or The Horseshoe, curved corners where a square one reads as a
+diagram, The Crater on Apogee as one smooth bowl instead of ten tilted pads
+(the owner's phone shows its facets).
 
 The owner's ask after the rehaul. Every wall is a straight box and nearly all
 ground is flat or a gentle hump, which is most of why a mini course reads as
@@ -168,6 +176,19 @@ floor rises toward the outside so pace carries a ball round it), and
 **half-pipes / loops** where the ground itself curves. The physics already
 solves rotated boxes and humped ground; an arc rail is the cheap first step,
 and a banked floor is `padHeight` learning a curved profile.
+
+### Then: Challenge mode (the owner's idea)
+
+Weird mathematical surfaces — sine waves, ripples, saddles, wave
+interference — with the cup placed at random on each play, and the shot taken
+either from the surface or from a hovering platform above it. Tron or
+vaporwave to look at: a dark ground drawn as a glowing grid, neon edges, a
+sunset gradient sky. The pieces: a surface term that is a *function* rather
+than a sum of humps (`padHeight` + `padGrad` learning `wave`/`ripple`/`saddle`
+terms, the same way they learned spines), a seeded random cup that the bot
+proves is reachable and that sits on ground that holds a ball, a platform tee
+(a small raised pad with nothing under it), a theme of its own, and a mode in
+the picker.
 
 ### After the rehaul
 
