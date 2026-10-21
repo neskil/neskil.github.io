@@ -17,8 +17,9 @@ Park, a parkland falling three units off a bluff and climbing back to a shelf,
 with a blind green in a dell between two hills and a lake the whole hole tilts
 into; Whinstone Links, open rolling country with a whinstone sandhill the size
 of a hill down the right of one of them; Dunmore Heath, where the interest
-is nothing else at all — crests, hollows, a punchbowl, a spiral, four units of
-hillside to climb and a gorge two units deep across the last of it; and
+is the moor itself — crests, hollows, a punchbowl, a spiral, a burn round a
+dogleg, a tarn on top of four units of hillside and a gorge two units deep
+across the last of it; and
 Redstone Canyon, which is the only one made of ground that is *missing*. three.js (vendored, r128), plain ES5-flavoured JavaScript, no
 build step and no other dependencies — same as everything else here, open
 `index.html` and it runs.
@@ -763,7 +764,7 @@ approach.
 | Apogee Yard | adventure | `lunar` | The floor sits still and the ball does not: six holes at six gravities. Light takes distance away as a defence; heavy takes the air. |
 | Ashdown Park | long | `parkland` | The long game, on a hillside: bluffs, a crest, a cross-fall into a lake, and two round greens. No fence — the park carries on past the stakes. |
 | Whinstone Links | long | `links` | No flat lies and no straight edges. The ground is the hazard, and on one hole it is a sandhill. |
-| Dunmore Heath | long | `heath` | The long game again, shaped rather than furnished: crests, hollows, a punchbowl, a whorl, one dry ravine and a hillside you climb. |
+| Dunmore Heath | long | `heath` | The long game again, shaped rather than furnished: crests, hollows, a punchbowl, a whorl, one dry ravine and a hillside you climb — and moorland water, a burn, a tarn and a pond. |
 | Redstone Canyon | long | `canyon` | Ground that is missing, six ways. A canyon across the fairway, down the side of it, biting a piece out of it, twice, and once with the green on the far lip. |
 
 **Sea Legs**, the first hole anybody plays, is a bounce hole: one lane, one
@@ -1944,16 +1945,24 @@ height:
 | `[{ d, y, sz }, …cells]` | A `bands` row written as an options object instead of a bare depth. `sz` tilts the row along the line of play and the level carries over into the next row on its own; `y` sets it outright. A cell's third number stays what it always was — an offset from whatever the row is standing at — so `DIP` is still `DIP` on a fairway a metre above the tee. |
 | `tilt(pads, sx, sz, ox, oz)` | A cross-fall laid over a whole hole at once: every pad lifted by the plane's own height at its corner, so the surfaces meet exactly where they used to and the hole is now on the side of a hill. Bunkers are dished before it runs (`scoop` skips a pad that is already tilted) and landforms are added after, so the gradient the tests measure is the sum — a cross-fall spends part of the surface's angle of repose and the field lives inside the rest. Which is exactly the trade a sidehill lie is. |
 
-Dunmore's own card climbs like every other one here: **Bell Heather** (a crest
-across the driving line, on its own flat row so its skirt is not spending a
-gradient the fairway has already spent), **Gorse Corner** (a bend with the
-hillside falling away from it in two directions at once), **The Beacon** (four
-units of climb over twenty-six, with the green over the top of it), **The
-Waste** (sand where the fairway should be, and a punchbowl in a bowl of
-country), **Long Ling** (a par 5 over a shoulder and down the other side, with
-the whorl in the middle of the third shot) and **The Ravine**, which is last
-because it is the only one where laying up is a whole stroke and taking it on
-is a whole hole.
+Dunmore was rebuilt to the same line as Ashdown (PLAN.md §0, held by
+`tests.html`'s `REBUILT` list): par 4s of fifty to fifty-seven units, a par 5 of
+eighty-seven, and the trouble where a drive off that tee comes down. Its card
+climbs like every other one here:
+
+| # | Hole | Par | What it asks |
+| --- | --- | --- | --- |
+| 1 | Bell Heather | 4 | Over a crest to the bells — two pot bunkers seven deep where a full drive runs out, with a neck of fairway under two units wide between them. Thread it, go round, or stop short; then a climb to a green on a shelf with a hollow off its right. |
+| 2 | Gorse Corner | 4 | A real dogleg right off a knoll. Round the corner (three quarters of a drive — a full one runs into the bunker at the top) and an approach down the length of a wide, shallow green; or a full drive over the burn and the gorse on to the strip of fairway inside the corner, which only a full one carries, and an approach across the green's shallow side. The hillside falls away to the left. |
+| 3 | The Beacon | 4 | Four units of climb, a pot bunker on the face of it where the drive stops, and over the top a long thin green on the summit with a tarn off its left. A three-shotter for anybody: a driver off a slope of a fifth barely leaves the ground. |
+| 4 | The Waste | 3 | Off a shelf, over the waste, to a round green at the bottom of a punchbowl between two hills. |
+| 5 | Long Ling | 5 | Over a shoulder and down the far side, then a lay-up: a burn seven units wide lies across the hole where a full second runs out, and nothing carries it from the valley floor. A full third over the whorl and a swale to a green with a pond off its left side. |
+| 6 | The Ravine | 4 | Off a bluff three and a half units up, and a full drive just carries a gorge two units deep — anything less finishes on its floor. Lay up and the second is a full drive over it. The green is on a shelf behind a cross bunker, with the ground falling away behind. |
+
+Bell Heather's crest and every bunker and green on the course sit inside one
+flat row, so a landform's skirt is not spending a gradient the fairway has
+already spent and no inlay crosses a seam. The Ravine is last because it is the
+only one where laying up is a whole stroke and taking it on is a whole hole.
 
 ### The gorge
 

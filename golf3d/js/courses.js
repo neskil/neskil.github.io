@@ -4698,9 +4698,8 @@
        All of it is one field per hole, shared by every strip (`shape`), which
        is what lets a crest run clean from boundary to boundary without the
        rail generator finding a cliff down the middle of the fairway. The holes
-       are half again the size of Ashdown’s for the same reason: a landform
-       needs room to be a landform, and a ridge with six units either side of
-       it is a speed bump.
+       are wide for the same reason: a landform needs room to be a landform,
+       and a ridge with six units either side of it is a speed bump.
 
        The two things it borrows from the courses either side of it are the
        ones that turned out to be about ground rather than about furniture. A
@@ -4711,6 +4710,12 @@
        fairway rising at a ninth, and a green you cannot see from the tee
        because it is over the shoulder of the climb rather than behind a hump
        somebody drew.
+
+       It has water now, too, and moorland water rather than parkland water:
+       a burn down the inside of Gorse Corner, a tarn on the summit beside the
+       Beacon's green, and on Long Ling a burn across the lay-up and a pond off
+       the green. And a hole is built for the bag it is played with (PLAN.md
+       §0): the trouble is where a drive off that tee comes down.
 
        And the rough is heather. It is `rough` like anywhere else — the engine
        has one word for it — but the fairways here are narrow and it runs right
@@ -4725,79 +4730,98 @@
 
     var dunmore = [
         (function () {
-            /* One crest at driving distance, a hollow in the heather to the
-               right of it, and a climb on to the shelf the green sits on. The
-               crest is four overlapping humps rather than one wide one because
+            /* A crest across the driving line, and the bells beyond it: two
+               pot bunkers seven units deep lying exactly where a full drive
+               off a flat tee runs out, with a neck of fairway under two units
+               wide between them on the line to the flag. Thread it, go round
+               either side, or stop short of the pair — and then a climb on to
+               the shelf the green sits on, with a hollow off its right side.
+
+               The crest is overlapping humps rather than one wide one because
                a single raised cosine wide enough to cross a hole is also tall
-               enough in the middle to be a pimple; four at a third of the
-               height each add along their line into a ridge with a flat top. */
-            var field = ridge(5, 19, 17, 19, 6.5, 0.7, 3)
+               enough in the middle to be a pimple; three at a third of the
+               height each add along their line into a ridge with a flat top.
+               It sits in a flat row, and so do the bells (an inlay across a
+               row seam is not flush). */
+            var field = ridge(5, 17, 17, 17, 6, 0.6, 3)
                 .concat(massif(-3.5, 15, 11, 2.5, 5))
-                .concat([hill(3, 40, 3.4, -0.8), hill(19, 22, 3, -0.55)]);
+                .concat([hill(20.5, 55, 3, -0.6), hill(19, 22, 3, -0.5)]);
             var heath = commons(0, [
                 [6,                     [7, rgh], [8, fwy], [7, rgh]],
-                [{ d: 6, sz: 0.19 },    [7, rgh], [8, fwy], [7, rgh]],
-                [14,                    [7, rgh], [8, fwy], [7, rgh]],
-                [{ d: 5, sz: -0.23 },   [6, rgh], [10, fwy], [6, rgh]],
-                [{ d: 5, sz: 0.2 },     [6, rgh], [10, fwy], [6, rgh]],
+                [18,                    [7, rgh], [8, fwy], [7, rgh]],
+                [16,                    [5, rgh], [12, fwy], [5, rgh]],
                 [3,                     [6, rgh], [10, fwy], [6, rgh]],
-                [6,                     [6, rgh], [10, fwy], [6, rgh]],
+                [{ d: 5, sz: 0.24 },    [6, rgh], [10, fwy], [6, rgh]],
+                [14,                    [6, rgh], [10, fwy], [6, rgh]],
                 [3,                     [22, rgh]]
             ]);
             var ground = shape(scoop(heath.pads, { seed: 3 }), field);
             return build({
                 name: 'Bell Heather', par: 4, long: true, shaped: true, open: true,
-                blurb: 'A ridge across the driving line, then a climb to a shelf with a hollow beside it.',
+                blurb: 'Over the ridge and between the bells — or short of them. Then a climb to a shelf with a hollow beside it.',
                 pads: ground.concat([
-                    inlay(ground, 8, 28.5, 2.0, snd, 2.4),
-                    inlay(ground, 11, 42, 4.8, grn, 2.9)
+                    inlay(ground, 8.3, 32.5, 1.9, snd, 3.6),
+                    inlay(ground, 13.9, 33.5, 1.9, snd, 3.6),
+                    inlay(ground, 11.5, 55.5, 4.6, grn, 3.4)
                 ]),
                 fence: heath.fence,
                 extra: [].concat(
                     treeline(2, 7, 2, 22, 4),
                     crags(1.5, 19, 3.4, 5, 8101, { s: 1.3, h: 1.0 }),
                     crags(20.5, 16, 3, 4, 8117, { s: 1.15, h: 0.9 }),
-                    [tree(2.2, 41), tree(19.8, 41.5)]
+                    [tree(2.2, 55), tree(4, 58)]
                 ),
-                tee: { x: 11, z: 3 }, cup: { x: 11, z: 41 }
+                tee: { x: 11, z: 3 }, cup: { x: 11.5, z: 55.5 }
             });
         })(),
         (function () {
-            /* The hole bends right around a stand of gorse, and the whole
-               hillside falls away to the left of it (`tilt`) — a thirtieth
-               of a unit down for every one across, which is not much to look
-               at and is the difference between a drive that holds the corner
-               and one that finishes in the heather at the bottom. Every shot
-               on the hole is played off a sidehill lie, and the hollow at the
-               end of it keeps whatever the slope hands over. */
-            var field = [hill(4.5, 33, 4.5, -0.95)]
-                .concat(massif(28, 20, 12, 2.0, 5))
-                .concat(ridge(5, 31.5, 17, 31.5, 4.5, 0.29, 4));
+            /* A real dogleg. North off a knoll, then hard right along the top
+               to a green that is wide across the second leg and shallow from
+               the south. The inside of the corner is a moorland burn with gorse
+               on its far bank, and beyond the gorse a strip of fairway that
+               runs up to the turn.
+
+               Two ways round. The long way is the fairway up the left to the
+               corner — a full drive runs through it into the bunker at the
+               top, so it is three quarters of a swing — and an approach along
+               the length of the green. The short way is a full drive over the
+               burn on to the strip: only a full one carries it (anything less
+               is wet), and it leaves the approach across the green's shallow
+               side rather than down its length.
+
+               The whole hillside falls away to the left (`tilt`), a thirtieth
+               of a unit for every one across, so the safe side is also the side
+               the ground is taking you to. */
+            var field = [hill(-2, 41, 4, -0.7)]
+                .concat(massif(35, 18, 11, 2.0, 5));
             var heath = commons(0, [
-                [6,                    [4, rgh], [8, fwy], [10, rgh]],
-                [{ d: 8, sz: 0.12 },   [4, rgh], [8, fwy], [10, rgh]],
-                [{ d: 7, sz: -0.19 },  [4, rgh], [8, fwy], [10, rgh]],
-                [{ d: 6, sz: -0.14 },  [5, rgh], [13, fwy], [4, rgh]],
-                [7,                    [8, rgh], [11, fwy], [3, rgh]],
-                [6,                    [9, rgh], [10, fwy], [3, rgh]],
-                [3,                    [22, rgh]]
-            ], { e: 18 });
+                [{ d: 5, y: 1.6 },     [2, rgh], [8, fwy], [26, rgh]],
+                [{ d: 3, sz: -0.45 },  [36, rgh]],
+                [14,                   [2, rgh], [9, fwy], [2, rgh], [3, null], [20, rgh]],
+                [14,                   [2, rgh], [9, fwy], [2, rgh], [3, null], [1, rgh], [6, fwy], [13, rgh]],
+                [8,                    [2, rgh], [28, fwy], [6, rgh]],
+                [{ d: 3, sz: 0.25 },   [18, rgh], [14, fwy], [4, rgh]],
+                [10,                   [20, rgh], [14, fwy], [2, rgh]],
+                [3,                    [36, rgh]]
+            ], { e: 14 });
             var ground = shape(tilt(scoop(heath.pads, { seed: 7 }), 0.032, 0, 0, 0), field);
             return build({
                 name: 'Gorse Corner', par: 4, long: true, shaped: true, open: true,
-                blurb: 'It bends right around the gorse, and the whole hillside falls away to the left.',
+                blurb: 'A dogleg right round a burn and a bank of gorse. Go round, or carry the burn to the strip of fairway beyond it.',
                 pads: ground.concat([
-                    inlay(ground, 7, 24, 2.0, snd, 2.9),
-                    inlay(ground, 14, 38.4, 4.8, grn, 2.5)
+                    inlay(ground, 6, 40, 1.6, snd, 2.0),
+                    inlay(ground, 28, 51, 4.4, grn, 2.2)
                 ]),
                 fence: heath.fence,
+                water: [rect(13, 8, 3, 28, 0.3)],
                 extra: [].concat(
-                    treeline(10.5, 16, 10.7, 23, 3),
-                    treeline(1.8, 9, 1.8, 26, 4),
-                    crags(19.5, 17, 3, 5, 8311, { s: 1.3, h: 1.0 }),
-                    [tree(20, 31), tree(20, 35)]
+                    treeline(16.8, 10, 16.8, 20, 4),
+                    treeline(25, 16, 25, 34, 6),
+                    treeline(1, 9, 1, 34, 5),
+                    crags(30, 26, 3, 5, 8311, { s: 1.3, h: 1.0 }),
+                    [tree(35, 48), tree(35, 54)]
                 ),
-                tee: { x: 7, z: 3 }, cup: { x: 14, z: 38 }
+                tee: { x: 6, z: 2.5 }, cup: { x: 28, z: 51 }
             });
         })(),
         (function () {
@@ -4812,13 +4836,19 @@
 
                The green is over the shoulder rather than behind anything, so
                the approach is blind for the honest reason: the ground between
-               you and it is higher than both of you. A mound at each side of
-               the green and a hollow short-left make the two ways of missing
-               it different misses. */
+               you and it is higher than both of you. It is long and thin —
+               ten units down the line and under five across — and it lies on
+               the summit beside a tarn, so a pulled approach is wet and a
+               pushed one is on the mound off its right side. A pot bunker on
+               the face of the climb waits where the drive stops.
+
+               The climb is what makes this a three-shot par four for anybody:
+               a driver launched off a slope of a fifth lands almost at once,
+               so the second goes a dozen units up the hill rather than thirty.
+               That is the hole, and it is why it is shorter than the others. */
             var field = [].concat(
                 massif(-4, 21, 10, 1.7, 5),
-                [hill(3, 39.5, 3, 0.7), hill(19.5, 39, 2.5, 0.6),
-                 hill(6.5, 35, 3.6, 0.4)]
+                [hill(20.5, 51, 2.5, 0.45), hill(6.5, 35, 3.6, 0.4)]
             );
             var heath = commons(0, [
                 [6,                     [5, rgh], [9, fwy], [8, rgh]],
@@ -4826,26 +4856,29 @@
                 [{ d: 11, sz: 0.21 },   [6, rgh], [8, fwy], [8, rgh]],
                 [{ d: 6,  sz: 0.15 },   [6, rgh], [9, fwy], [7, rgh]],
                 [{ d: 5, sz: -0.07 },   [5, rgh], [12, fwy], [5, rgh]],
-                [8,                     [6, rgh], [11, fwy], [5, rgh]],
+                [5,                     [6, rgh], [11, fwy], [5, rgh]],
+                [16,                    [3, rgh], [6, null], [1, rgh], [10, fwy], [2, rgh]],
                 [3,                     [22, rgh]]
             ]);
             return build({
                 name: 'The Beacon', par: 4, long: true, shaped: true, open: true,
-                blurb: 'Four units of climb over twenty-six, and the green is over the top of it.',
+                blurb: 'Four units of climb, and over the top a long thin green with a tarn beside it.',
                 pads: (function (g) {
                     return g.concat([
-                        inlay(g, 11, 34.5, 2.0, snd, 2.4),
-                        inlay(g, 11.5, 41, 5.2, grn, 3.8)
+                        inlay(g, 14.5, 21, 1.5, snd, 2.2),
+                        inlay(g, 13.5, 51, 2.3, grn, 5.0)
                     ]);
                 }(shape(scoop(heath.pads, { seed: 17 }), field))),
                 fence: heath.fence,
+                water: [rect(3, 42, 6, 16, 3.7)],
                 extra: [].concat(
                     treeline(1.8, 8, 1.8, 24, 4),
-                    treeline(20.2, 30, 20.2, 40, 4),
+                    treeline(20.2, 28, 20.2, 38, 4),
                     crags(2.6, 28, 3.6, 6, 8231, { s: 1.4, h: 1.1 }),
-                    crags(19.4, 24, 3, 4, 8237, { s: 1.2, h: 0.95 })
+                    crags(19.4, 24, 3, 4, 8237, { s: 1.2, h: 0.95 }),
+                    crags(-1.5, 50, 2.5, 4, 8239, { s: 1.2, h: 0.9 })
                 ),
-                tee: { x: 10, z: 3 }, cup: { x: 11.5, z: 41 }
+                tee: { x: 10, z: 3 }, cup: { x: 13.5, z: 53 }
             });
         })(),
         (function () {
@@ -4892,20 +4925,26 @@
             });
         })(),
         (function () {
-            /* The whorl, and the reason this hole is a par 5 rather than a
-               long par 4: the spiral sits in the middle of the second shot,
-               so the lie you get for the third is decided by which arm of it
-               you finished on. From the tee it looks like one slope.
+            /* Three shots and each its own question. The drive goes over a
+               shoulder and down the far side; the second is a lay-up, because
+               a moorland burn seven units wide lies across the hole where a
+               full one off the valley floor would run out and nothing in the
+               bag carries it from there; and the third is a full club over the
+               whorl to a green with a pond off its left side.
 
-               And then a swale across the front of the green, which is the
-               Biarritz idea done in grass rather than in a putting surface:
-               three overlapping hollows lying across the line, so a running
-               approach is thrown up in the air a unit short of the shelf and
-               the only shot that gets close is the one that carries all of it. */
+               The whorl sits in the middle of the third shot, so the lie you
+               get for the approach is decided by which arm of it you finished
+               on. From the tee it looks like one slope. And a swale across the
+               front of the green, which is the Biarritz idea done in grass
+               rather than in a putting surface: three overlapping hollows lying
+               across the line, so a running approach is thrown up in the air
+               short of the green and the only shot that gets close is the one
+               that carries all of it. Both sit in flat rows; the burn's banks
+               are a unit of rough either side, the way Ashdown's is. */
             var field = ridge(5, 17.5, 17, 17.5, 5.5, 0.55, 3)
                 .concat(massif(-5, 40, 12, 2.1, 5))
-                .concat(whorl(11, 47, 1.8, 3.5, 4, 0.3, 9, 1.5))
-                .concat(ridge(8, 54.4, 16, 54.4, 2.5, -0.38, 3))
+                .concat(whorl(11, 69.5, 1.5, 3, 3.2, 0.3, 9, 1.5))
+                .concat(ridge(10, 84, 16, 84, 2.5, -0.38, 3))
                 .concat([hill(19.5, 17, 2.5, -0.55)]);
             var heath = commons(0, [
                 [6,                     [5, rgh], [9, fwy], [8, rgh]],
@@ -4914,67 +4953,86 @@
                 [{ d: 5, sz: -0.22 },   [6, rgh], [8, fwy], [8, rgh]],
                 [4,                     [6, rgh], [10, fwy], [6, rgh]],
                 [{ d: 5, sz: -0.16 },   [7, rgh], [9, fwy], [6, rgh]],
-                [20,                    [7, rgh], [9, fwy], [6, rgh]],
+                [17,                    [7, rgh], [9, fwy], [6, rgh]],
+                [1,                     [22, rgh]],
+                [7,                     [22, null]],
+                [1,                     [22, rgh]],
+                [13,                    [7, rgh], [9, fwy], [6, rgh]],
                 [{ d: 4, sz: 0.16 },    [7, rgh], [10, fwy], [5, rgh]],
-                [7,                     [6, rgh], [11, fwy], [5, rgh]],
+                [16,                    [3, rgh], [4.5, null], [1.5, rgh], [10, fwy], [3, rgh]],
                 [3,                     [22, rgh]]
             ], { w: 16 });
             var ground = shape(scoop(heath.pads, { seed: 11 }), field);
             return build({
                 name: 'Long Ling', par: 5, long: true, shaped: true, open: true,
-                blurb: 'Fifty-five units of heather over a shoulder and down the other side, with a swale across the last of it.',
+                blurb: 'Over a shoulder, then lay up short of the burn. A long third over the whorl and the swale, with a pond off the left of the green.',
                 pads: ground.concat([
                     inlay(ground, 8, 30, 2.0, snd),
-                    inlay(ground, 11.5, 64.5, 5.2, grn, 3.4)
+                    inlay(ground, 16, 49, 1.5, snd, 2.0),
+                    inlay(ground, 12.5, 90, 3.6, grn, 3.2)
                 ]),
                 fence: heath.fence,
+                water: [rect(0, 55, 22, 7, -1.25), rect(3, 80, 4.5, 16, -0.6)],
                 extra: [].concat(
                     treeline(2, 9, 2, 32, 6),
                     crags(19.6, 15, 3.2, 5, 8377, { s: 1.3, h: 1.0 }),
-                    [tree(20, 60), tree(20, 64)]
+                    [tree(20, 87), tree(20, 92)]
                 ),
-                tee: { x: 9.5, z: 3 }, cup: { x: 11.5, z: 64.5 }
+                tee: { x: 9.5, z: 3 }, cup: { x: 12.5, z: 90 }
             });
         })(),
         (function () {
             /* The ravine. It is not a water hazard and it is not a bunker: it
-               is ground, a metre below the ground either side of it, that you
-               are perfectly entitled to play out of and will wish you had not
-               had to. Lay up short of it and the hole is a comfortable par
-               five in four shots; take it on and it is a par four.
+               is ground, two units below the ground either side of it, that
+               you are perfectly entitled to play out of and will wish you had
+               not had to.
 
-               The far bank climbs, which is what turns the second half of it
-               into a second decision: the green sits two thirds of a unit
-               above the crossing with a mound at its left shoulder, so the
-               approach is uphill and blind to the surface whichever side of
-               the ravine you play it from. */
-            var cut = ravine(0, 17, 20, 13.4, 2.2, { bank: [0, 3.2] });
-            var field = ridge(4, 9, 16, 9, 4, 0.34, 3)
-                .concat(massif(24, 14, 11, 1.8, 5))
-                .concat([hill(17.5, 33, 2.5, -0.6), hill(2.0, 42, 2.4, 0.5)]);
+               The tee is on a bluff three and a half units up, and that is what
+               makes it a wager rather than a lay-up: off that height a full
+               drive carries the whole gorge and only just — a seventh off the
+               swing lands on the far bank and rolls back to the floor. So take
+               it on and the hole is a drive and a pitch; lay up short of the
+               near lip and the second is a full drive over it, and the green is
+               a third.
+
+               The far bank climbs to a shelf, with a cross bunker short of it
+               and the ground falling away behind, so the approach is uphill
+               and has to stop between the two. The gorge is laid at the level
+               the drop off the bluff comes down to (`ravine` builds at y = 0),
+               which is why the rows before it are tuned to finish there. */
+            var cut = ravine(0, 22, 20, 12, 2.2, { bank: [0, 3.2] });
+            var field = massif(24, 12, 11, 1.8, 5)
+                .concat([hill(17.5, 38, 2.5, -0.6), hill(2.5, 59, 2.4, 0.5)]);
             var heath = commons(0, [
-                [6,                     [4, rgh], [9, fwy], [7, rgh]],
-                [11,                    [4, rgh], [9, fwy], [7, rgh]],
-                [13.4,                  [20, null]],
+                [{ d: 5, y: 3.6 },      [4, rgh], [9, fwy], [7, rgh]],
+                [{ d: 4, sz: -0.6 },    [20, rgh]],
+                [{ d: 6, sz: -0.2 },    [4, rgh], [9, fwy], [7, rgh]],
+                [7,                     [4, rgh], [9, fwy], [7, rgh]],
+                [12,                    [20, null]],
                 [{ d: 5, sz: 0.22 },    [4, rgh], [10, fwy], [6, rgh]],
                 [{ d: 4, sz: 0.13 },    [4, rgh], [10, fwy], [6, rgh]],
-                [7,                     [5, rgh], [10, fwy], [5, rgh]],
-                [3,                     [20, rgh]]
+                [8,                     [4, rgh], [11, fwy], [5, rgh]],
+                [{ d: 3, sz: 0.25 },    [5, rgh], [10, fwy], [5, rgh]],
+                [10,                    [5, rgh], [10, fwy], [5, rgh]],
+                [{ d: 3, sz: -0.3 },    [20, rgh]]
             ], { e: 16 });
             return build({
                 name: 'The Ravine', par: 4, long: true, shaped: true, open: true,
-                blurb: 'A gorge two units deep across the whole hole, and the far bank climbs out of it.',
+                blurb: 'Off the tee and over a gorge two units deep, or lay up short of it. The green sits on a shelf behind a bunker.',
                 pads: (function (g) {
-                    return g.concat([inlay(g, 10, 42.9, 4.8, grn, 3.4)]);
+                    return g.concat([
+                        inlay(g, 10, 48.5, 3.0, snd, 1.6),
+                        inlay(g, 10, 59.5, 4.4, grn, 3.4)
+                    ]);
                 }(shape(scoop(heath.pads.concat(cut.pads), { seed: 13 }), field))),
                 fence: heath.fence,
                 extra: [].concat(
-                    treeline(1.7, 8, 1.7, 15, 3),
-                    crags(2.4, 23, 3, 5, 8291, { s: 1.2, h: 0.8 }),
-                    crags(17.6, 24, 2.6, 4, 8297, { s: 1.1, h: 0.75 }),
-                    [tree(18.3, 42), tree(18.3, 45)]
+                    treeline(1.7, 10, 1.7, 20, 3),
+                    crags(2.4, 38, 3, 5, 8291, { s: 1.2, h: 0.8 }),
+                    crags(17.6, 40, 2.6, 4, 8297, { s: 1.1, h: 0.75 }),
+                    [tree(18.3, 58), tree(18.3, 61)]
                 ),
-                tee: { x: 9.5, z: 3 }, cup: { x: 10, z: 43 }
+                tee: { x: 9.5, z: 2.5 }, cup: { x: 10, z: 59.5 }
             });
         })()
     ];
