@@ -12,6 +12,84 @@ to be worked out again.
 
 ---
 
+## 0. The course rehaul — approved, in progress
+
+The props are good now and the holes under them are not: the owner's verdict
+was "the long game is a bit boring, and some of the mini maps as well", and
+every item below was agreed as the plan for it. Work them in order, one at a
+time, each one merged before the next starts.
+
+**How it is measured.** `node golf3d/tools/par-check.mjs` has the bot play a
+course and prints its card. The bot is a perfect player (it never overdraws
+and it picks its weight out of thousands of simulated shots), so its card is a
+reading of a hole's *shape*, not of how hard it is for a person. What it showed
+at the start (v1.61.0), and it was nearly the same with the old 6° driver:
+
+| Course | Bot | Par | |
+| --- | --- | --- | --- |
+| Ashdown Park | 11 | 23 | −12 |
+| Whinstone Links | 10 | 24 | −14 |
+| Dunmore Heath | 13 | 24 | −11 |
+| Redstone Canyon | 9 | 25 | −16 |
+| Seaside Green | 7 | 20 | −13 |
+
+Nearly every long hole is drive-and-putt: a full drive runs about 38 on a
+fairway and more off the bluff tees, and the par 4s are 31 to 40 long. And
+**Long Meadow's premise is broken** — "a belt of sand no club carries" — since
+the 10° driver carries 19.
+
+**The line for the long game:** the bot does not reach a par 4 or a par 5 green
+in one stroke, and no long course comes in more than about six under (a
+birdie a hole for a perfect player, not an eagle). Once a course meets it, an
+assertion in `tests.html` should hold it there.
+
+### The long game
+
+1. **Holes that fit the bag.** Lengthen the par 4s and 5s to what the driver
+   now does (a par 4 around 50–60, a par 5 around 75–90), and put the trouble
+   where a full drive lands rather than where a 6° skim used to stop. Fix Long
+   Meadow's belt so it is a lay-up again.
+2. **Real doglegs.** Nearly every hole points straight at the flag. A few
+   genuine bends with something in the corner — trees, a canyon, water — so
+   cutting it is a wager and going round it costs a shot.
+3. **Two routes per hole.** A safe wide side and a short side past trouble.
+   Redstone's *Long Way Round* and Ashdown's *Homeward* already do this, and
+   they are the best long holes.
+4. **More water.** Four of twenty-four long holes have any. A creek across the
+   fairway at driving distance, a pond guarding one side of a green.
+5. **Greens that differ.** Long thin ones, two-tier ones, raised ones, ones in a
+   bowl (`dish`, the Punchbowl), ones behind a bunker, so each approach is its
+   own shot.
+6. **Less fog on a clear day.** From above, the haze makes every hole look like
+   every other; the ground has shape now and the fog hides it.
+
+Order of work: Ashdown Park first, by hand, to settle the recipe; then
+Whinstone, Dunmore and Redstone in parallel (one agent per course — each is
+its own block in `courses.js`), each measured with `par-check.mjs` and photographed with
+`tools/turntable.mjs`.
+
+### Mini golf
+
+7. **Seaside Green is the plainest course and it is the first one.** Six flat
+   rectangles with rails, no slope and nothing that moves. A gentle tilt on one
+   green and one slow gate would give it life without making it hard.
+8. **Single-trick holes** — The Letterbox, Bumper City, The Sweeper and others —
+   get a second thing to read: a slope near the cup, a bank shot that saves a
+   stroke.
+9. **An ace line on every mini hole.** On most of them the right play is two
+   safe putts; one risky line per hole that can drop makes every tee worth a
+   go. §2's "the bot could prove a hole is ace-able" is the check for it.
+
+### After the rehaul
+
+- **A more fun swing.** The meter and the gate work; they are not yet a thing
+  people enjoy doing for its own sake.
+- **Mini golf and the long game as two games.** They share one bag and one set
+  of physics and they want different ones — the bot drives The Bend and The
+  Zigzag with the *driver*. Separate bags (a mini bag of putter, pitch and
+  wedge) and, where it helps, separate tuning (`ROLL`, `HOLD`, bounce) per
+  group.
+
 ## 1. The picker is sized by its cards, not its clubs
 
 `fitOpen` measures the block from the card's own `half` and `tail` — so the

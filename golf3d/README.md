@@ -74,6 +74,7 @@ them.
 | `shader-tests.html` | The other half: compiles every shader for real against a live context. Green is green there too. |
 | `ui-tests.html` | Headless CSS/UI test harness: checks custom property definitions and active control states. |
 | `turntable.html` + `tools/turntable.mjs` | [The turntable](#the-pictures-which-neither-suite-can-see): every hole drawn from eight fixed angles, as one contact sheet per course, with the audit's findings printed under each row. |
+| `tools/par-check.mjs` | The bot plays a course and prints its card against par — a reading of each hole's shape (a par 4 it drives in one has no second shot). Plain Node, no install. PLAN.md §0 sets the line it is measured against. |
 
 The three files above `weather.js` in that list are three of the four different
 jobs the renderer used to do in one file. Picking colours, drawing a texture,
