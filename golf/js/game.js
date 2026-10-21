@@ -13,6 +13,7 @@
     var A = GOLF.audio;
     var R = GOLF.render;
     var PR = GOLF.progress;
+    var SC = GOLF.scenery;
 
     var canvas, ctx, scale = 1;
     var state = null;
@@ -22,6 +23,8 @@
     // it is wide. See resize().
     var turned = false;
     var shake = 0;
+    // Backing-store pixels per world pixel, for the renderer's cached layers.
+    var pixels = 1;
 
     /* ── helpers ────────────────────────────────────────────────────────── */
 
@@ -161,6 +164,8 @@
         var course = currentCourse();
         var tagline = document.querySelector('.tagline');
         if (tagline && course) tagline.textContent = course.name + ' — ' + course.blurb;
+        // The letterbox round the board is the biome's too.
+        $('stage').style.background = SC.themeOf(course).backdrop;
     }
 
     /* Switching is not destructive and does not ask. The card for the course
@@ -590,7 +595,8 @@
             coach: false,          // the first-shot ghost, see render.drawCoach
             shot: null,            // what the shot in flight has done, for the call-outs
             lipping: false,
-            turned: turned
+            turned: turned,
+            res: pixels
         };
     }
 
@@ -631,6 +637,11 @@
             var who = state.party.players[state.party.order[state.party.pos]];
             state.ballColor = who.color;
         }
+        // Which biome to dress it in, and the key its painted layers are
+        // cached under: a different hole, card or draw is a different picture.
+        state.theme = SC.themeOf(currentCourse()).id;
+        state.sceneKey = (GOLF.PLAYTEST ? 'playtest' : GOLF.COURSE_ID) + '/' +
+            (typeof GOLF.COURSE_SEED === 'number' ? GOLF.COURSE_SEED : '-') + '/' + i;
         R.effects.clear();
         $('banner').classList.remove('show');
         storeRound(i);
@@ -1288,6 +1299,9 @@
     function closeTitle() { shut('title'); }
 
     function drawTitle() {
+        var reset = $('title-reset');
+        reset.classList.remove('armed');
+        reset.textContent = 'Reset progress';
         var total = PR.totalStars();
         $('tp-stars').textContent = total.got;
         $('tp-max').textContent = total.max;
@@ -1344,6 +1358,38 @@
         $('title-courses').addEventListener('click', openMenu);
         $('title-party').addEventListener('click', openParty);
         $('title-resume-party').addEventListener('click', resumeParty);
+        $('title-intro').addEventListener('click', replayIntro);
+        $('title-reset').addEventListener('click', resetProgress);
+    }
+
+    /* "Show me again": the ghost stroke and the lessons come back, and the
+       first tee of the starter course is where they are shown. Nothing
+       earned is touched — it is a fresh round, not a fresh save. */
+    function replayIntro() {
+        PR.replayIntro();
+        playCourse(PR.starter().id, 'The intro', 0);
+    }
+
+    /* "Let me climb it again". Two presses, like opening every course, and
+       for the same reason: it cannot be taken back. The second press wipes
+       the stars, the records and every round in progress, and then boots
+       the page again in place — a new draw, the starter course, and the
+       title saying Start here — rather than reloading, so a reset that
+       fails on a locked-down browser fails without a blank page. */
+    function resetProgress() {
+        var b = $('title-reset');
+        if (!b.classList.contains('armed')) {
+            b.classList.add('armed');
+            b.textContent = 'Press again \u2014 every star and record goes';
+            return;
+        }
+        PR.resetAll();
+        if (GOLF.installDraw) rememberSeed(GOLF.installDraw(GOLF.generator.randomSeed()).seed);
+        GOLF.selectCourse(PR.starter().id);
+        newRound(false);
+        syncCourse();
+        drawTitle();
+        toast('Progress reset \u2014 a first visit again');
     }
 
     /* ── scorecard ──────────────────────────────────────────────────────── */
@@ -1683,6 +1729,7 @@
         canvas.style.width = Math.round(wide * scale) + 'px';
         canvas.style.height = Math.round(tall * scale) + 'px';
         var k = scale * dpr;
+        pixels = k >= 1.75 ? 2 : 1;
         // Turned: world x runs up the screen, world y runs across it.
         if (turned) ctx.setTransform(0, -k, k, 0, 0, C.WORLD_W * k);
         else ctx.setTransform(k, 0, 0, k, 0, 0);
@@ -1859,6 +1906,7 @@
         syncPower();
         ctx.clearRect(0, 0, C.WORLD_W, C.WORLD_H);
         state.turned = turned;
+        state.res = pixels;
         if (shake > 0 && !reducedMotion()) {
             ctx.save();
             ctx.translate((Math.random() - 0.5) * shake * 6, (Math.random() - 0.5) * shake * 6);

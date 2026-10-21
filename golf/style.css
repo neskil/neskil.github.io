@@ -929,6 +929,33 @@ kbd {
 
 .title-wide { font-size: 0.85rem; }
 
+/* Quiet on purpose: the way back to the start should be findable by
+   somebody looking for it and ignorable by everybody else. */
+.title-foot {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 0.2rem 1rem;
+    margin-top: 0.7rem;
+}
+
+.title-foot button {
+    font: inherit;
+    font-size: 0.75rem;
+    color: var(--ink-dim);
+    background: none;
+    border: 0;
+    padding: 0.45rem 0.3rem;
+    min-height: 36px;
+    cursor: pointer;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    text-decoration-color: rgba(167, 196, 181, 0.4);
+}
+
+.title-foot button:hover { color: var(--ink); }
+.title-foot button.armed { color: var(--over); font-weight: 600; }
+
 .title-hint {
     margin: 1rem 0 0;
     font-size: 0.75rem;

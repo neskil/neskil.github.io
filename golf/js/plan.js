@@ -47,10 +47,16 @@
 
     var cache = {};
 
+    // A zone list in one colour, rectangles and polygons alike.
     function rects(g, list, fill) {
         g.fillStyle = fill;
         for (var i = 0; i < list.length; i++) {
-            g.fillRect(list[i].x, list[i].y, list[i].w, list[i].h);
+            var z = list[i];
+            if (!z.pts) { g.fillRect(z.x, z.y, z.w, z.h); continue; }
+            g.beginPath();
+            for (var k = 0; k < z.pts.length; k += 2) g.lineTo(z.pts[k], z.pts[k + 1]);
+            g.closePath();
+            g.fill();
         }
     }
 
@@ -58,8 +64,8 @@
        scaled the context to the canvas, so everything below is in the same
        960x640 the hole itself is written in and nothing here has to know how
        big the thumbnail is. */
-    function paint(g, hole) {
-        g.fillStyle = INK.grass;
+    function paint(g, hole, grass) {
+        g.fillStyle = grass || INK.grass;
         g.fillRect(0, 0, C.WORLD_W, C.WORLD_H);
 
         // The putting green. Decoration on the board and decoration here, but
@@ -95,6 +101,19 @@
             g.fillRect(w.x, w.y, w.w, w.h);
             if (w.move) stripe(g, w);
         }
+
+        // Rails: walls at an angle, round-ended like the capsule they are.
+        var rails = hole.rails || [];
+        g.strokeStyle = INK.wall;
+        g.lineCap = 'round';
+        for (i = 0; i < rails.length; i++) {
+            g.lineWidth = rails[i].w;
+            g.beginPath();
+            g.moveTo(rails[i].x, rails[i].y);
+            g.lineTo(rails[i].tx, rails[i].ty);
+            g.stroke();
+        }
+        g.lineCap = 'butt';
 
         for (i = 0; i < hole.bumpers.length; i++) {
             var b = hole.bumpers[i];
@@ -226,7 +245,9 @@
         c.height = h;
         var g = c.getContext('2d');
         g.setTransform(w / C.WORLD_W, 0, 0, h / C.WORLD_H, 0, 0);
-        paint(g, hole);
+        // The biome's grass, a shade apart from the others, so a card's
+        // plans say which course they are before its name does.
+        paint(g, hole, GOLF.scenery ? GOLF.scenery.themeOf(course).plan : null);
         cache[key] = c;
         return c;
     }

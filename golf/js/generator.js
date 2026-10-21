@@ -473,12 +473,47 @@
         var strict = !!(opts && opts.strict);
         var bad = [];
         var margin = C.BALL_R + 1;
-        var rects = [].concat(h.walls || [], h.water || [], h.sand || [],
+        var zones = [].concat(h.walls || [], h.water || [], h.sand || [],
                               h.rough || [], h.ice || [], h.slopes || []);
+        var rects = zones.filter(function (z) { return !z.pts; });
+        var polys = zones.filter(function (z) { return !!z.pts; });
         var posts = h.bumpers || [];
+        var rails = h.rails || [];
 
         rects.forEach(function (r) {
             if (Math.min(r.w, r.h) < 20) bad.push('a rectangle thinner than 20px');
+        });
+
+        /* A polygon zone has to be a shape the substep cap can see: three
+           corners at least, and no sliver of it narrower than the 20px a
+           rectangle is held to — measured as twice the area over the
+           perimeter, which is the width of a strip and the diameter of a
+           disc. Walls and slopes stay rectangles: a wall at an angle is a
+           rail, and a slope's rules are written for edges that run with
+           the axes. */
+        polys.forEach(function (z) {
+            var p = z.pts;
+            if (!Array.isArray(p) || p.length < 6 || p.length % 2) { bad.push('a polygon with fewer than three corners'); return; }
+            if (!((h.water || []).indexOf(z) >= 0 || (h.sand || []).indexOf(z) >= 0 ||
+                  (h.rough || []).indexOf(z) >= 0 || (h.ice || []).indexOf(z) >= 0)) {
+                bad.push('a polygon wall or slope — only water, sand, rough and ice may have corners');
+            }
+            var area = 0, perim = 0;
+            for (var i = 0, j = p.length - 2; i < p.length; j = i, i += 2) {
+                area += p[j] * p[i + 1] - p[i] * p[j + 1];
+                perim += Math.hypot(p[i] - p[j], p[i + 1] - p[j + 1]);
+                if (p[i] < -1 || p[i] > C.WORLD_W + 1 || p[i + 1] < -1 || p[i + 1] > C.WORLD_H + 1) {
+                    bad.push('a polygon corner off the field');
+                }
+            }
+            if (perim > 0 && Math.abs(area) / perim < 10) bad.push('a polygon thinner than 20px');
+        });
+
+        rails.forEach(function (r) {
+            if (!(r.w >= 20)) bad.push('a rail thinner than 20px');
+            [[r.x, r.y], [r.tx, r.ty]].forEach(function (e) {
+                if (e[0] < -1 || e[0] > C.WORLD_W + 1 || e[1] < -1 || e[1] > C.WORLD_H + 1) bad.push('a rail end off the field');
+            });
         });
         posts.forEach(function (b) {
             if (b.r < C.BUMPER_MIN_R) bad.push('a post under BUMPER_MIN_R');
@@ -546,11 +581,13 @@
                 return P.circleRect(m.x, m.y, TR + C.BALL_R, travelEnvelope(w)) !== null;
             }) || posts.some(function (b) {
                 return P.circleCircle(m.x, m.y, TR + C.BALL_R, b) !== null;
+            }) || rails.some(function (r) {
+                return P.circleRail(m.x, m.y, TR + C.BALL_R, r) !== null;
             }) || (h.water || []).some(function (r) {
-                return P.circleRect(m.x, m.y, TR + C.BALL_R, r) !== null;
+                return circleTouches(m.x, m.y, TR + C.BALL_R, r);
             });
             if (solid) bad.push('a tunnel mouth crowded by a wall, a post or water');
-            if ((h.slopes || []).some(function (r) { return P.circleRect(m.x, m.y, TR, r) !== null; })) {
+            if ((h.slopes || []).some(function (r) { return circleTouches(m.x, m.y, TR, r); })) {
                 bad.push('a tunnel mouth on a slope');
             }
             if (Math.hypot(m.x - h.tee.x, m.y - h.tee.y) < TR + C.BALL_R + 12) bad.push('a tunnel mouth on the tee');
@@ -563,6 +600,7 @@
 
         if (strict) {
             (h.slopes || []).forEach(function (s) {
+                if (s.pts) return;   // reported above
                 if (!s.ax && !s.ay) { bad.push('a slope with nowhere to fall'); return; }
 
                 // Nothing solid inside a slope zone. A ball inside one is
@@ -572,6 +610,8 @@
                     return P.circleRect(b.x, b.y, b.r + C.BALL_R, s) !== null;
                 }) || (h.walls || []).some(function (w) {
                     return overlaps(travelEnvelope(w), grow(s, 60));
+                }) || rails.some(function (r) {
+                    return overlaps(railBox(r), grow(s, 60));
                 });
                 if (pinned) bad.push('a slope with something solid inside it');
 
@@ -592,7 +632,30 @@
             return P.circleRect(x, y, rad, P.wallRect(w, 0)) !== null;
         }) || (h.bumpers || []).some(function (b) {
             return P.circleCircle(x, y, rad, b) !== null;
+        }) || (h.rails || []).some(function (r) {
+            return P.circleRail(x, y, rad, r) !== null;
         }) || P.zoneAt(h.water, x, y) !== null;
+    }
+
+    // Does a circle reach into a zone, rectangle or polygon? Inside it, or
+    // within `rad` of one of its edges.
+    function circleTouches(x, y, rad, z) {
+        if (!z.pts) return P.circleRect(x, y, rad, z) !== null;
+        if (P.pointInPoly(x, y, z.pts)) return true;
+        var p = z.pts;
+        for (var i = 0, j = p.length - 2; i < p.length; j = i, i += 2) {
+            if (P.circleRail(x, y, rad, { x: p[j], y: p[j + 1], tx: p[i], ty: p[i + 1], w: 0 })) return true;
+        }
+        return false;
+    }
+
+    // Everything a rail covers, as a box: its spine grown by half its width.
+    function railBox(r) {
+        var h = r.w / 2;
+        return {
+            x: Math.min(r.x, r.tx) - h, y: Math.min(r.y, r.ty) - h,
+            w: Math.abs(r.tx - r.x) + r.w, h: Math.abs(r.ty - r.y) + r.w
+        };
     }
 
     function grow(r, by) {
@@ -707,7 +770,8 @@
             walls: [], water: [], sand: [], rough: [], ice: [], bumpers: [], slopes: [],
             // Not dealt: a tunnel is a hand-built course's idea (see The
             // Warren), and the deck is nine features for nine holes.
-            tunnels: []
+            tunnels: [],
+            rails: []
         };
         parts.forEach(function (p) {
             FAMILIES.forEach(function (k) {
@@ -1075,5 +1139,6 @@
     GOLF.generateCourse = generateCourse;
     GOLF.installDraw = installDraw;
     GOLF.validateHole = validateHole;
+    GOLF.circleTouches = circleTouches;
 
 })(window.GOLF);

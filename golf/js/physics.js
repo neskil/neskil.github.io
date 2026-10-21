@@ -49,10 +49,27 @@
         return x >= R.x && x <= R.x + R.w && y >= R.y && y <= R.y + R.h;
     }
 
+    /* A zone is a rectangle, or — for the shorelines and bunkers that should
+       not have to be drawn in steps — a polygon, `{ pts: [x0, y0, x1, y1, …] }`.
+       Crossing-number test: a ray to the right of the point crosses an odd
+       number of edges from inside. Cheap enough to run at every substep. */
+    function pointInPoly(x, y, pts) {
+        var inside = false;
+        for (var i = 0, j = pts.length - 2; i < pts.length; j = i, i += 2) {
+            var xi = pts[i], yi = pts[i + 1], xj = pts[j], yj = pts[j + 1];
+            if ((yi > y) !== (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) inside = !inside;
+        }
+        return inside;
+    }
+
+    function inZone(z, x, y) {
+        return z.pts ? pointInPoly(x, y, z.pts) : pointInRect(x, y, z);
+    }
+
     function zoneAt(list, x, y) {
         if (!list) return null;
         for (var i = 0; i < list.length; i++) {
-            if (pointInRect(x, y, list[i])) return list[i];
+            if (inZone(list[i], x, y)) return list[i];
         }
         return null;
     }
@@ -96,6 +113,30 @@
         if (d2 < 1e-9) return { nx: 1, ny: 0, depth: sum };
         var d = Math.sqrt(d2);
         return { nx: dx / d, ny: dy / d, depth: sum - d };
+    }
+
+    /* Circle vs a rail: a wall laid at any angle, `{ x, y, tx, ty, w }` — the
+       two ends of its spine and its thickness. Collided as a capsule, which
+       is the box-and-post vocabulary's one extension that keeps both of its
+       promises: the closest point on a segment is a clamp and a dot product,
+       so it is as cheap as the box test, and as obviously correct. Same
+       contract as the others: outward normal and depth, or null. A centre
+       that has landed exactly on the spine leaves by the spine's normal. */
+    function circleRail(cx, cy, rad, s) {
+        var ex = s.tx - s.x, ey = s.ty - s.y;
+        var L2 = ex * ex + ey * ey;
+        var t = L2 > 0 ? ((cx - s.x) * ex + (cy - s.y) * ey) / L2 : 0;
+        if (t < 0) t = 0; else if (t > 1) t = 1;
+        var dx = cx - (s.x + ex * t), dy = cy - (s.y + ey * t);
+        var d2 = dx * dx + dy * dy;
+        var reach = rad + s.w / 2;
+        if (d2 > reach * reach) return null;
+        if (d2 > 1e-9) {
+            var d = Math.sqrt(d2);
+            return { nx: dx / d, ny: dy / d, depth: reach - d };
+        }
+        var L = Math.sqrt(L2) || 1;
+        return { nx: -ey / L, ny: ex / L, depth: reach };
     }
 
     /* ── world ──────────────────────────────────────────────────────────── */
@@ -242,6 +283,22 @@
             }
         }
 
+        // Rails: walls at an angle. They hold still, so the response is the
+        // static half of the wall's — resolve, then reflect.
+        var rails = course.rails || EMPTY;
+        for (var ri = 0; ri < rails.length; ri++) {
+            var rh = circleRail(b.x, b.y, C.BALL_R, rails[ri]);
+            if (!rh) continue;
+            b.x += rh.nx * rh.depth;
+            b.y += rh.ny * rh.depth;
+            var rn = b.vx * rh.nx + b.vy * rh.ny;
+            if (rn < 0) {
+                b.vx -= (1 + C.RESTITUTION) * rn * rh.nx;
+                b.vy -= (1 + C.RESTITUTION) * rn * rh.ny;
+                events.bounce = true;
+            }
+        }
+
         // Bumpers. A post the ball comes off faster than it comes off wood,
         // which is what makes them worth avoiding: they do not merely block a
         // line, they choose a new one for you.
@@ -375,7 +432,10 @@
         wallRect: wallRect,
         wallVelocity: wallVelocity,
         pointInRect: pointInRect,
+        pointInPoly: pointInPoly,
+        inZone: inZone,
         zoneAt: zoneAt,
+        circleRail: circleRail,
         mouthAt: mouthAt,
         circleRect: circleRect,
         circleCircle: circleCircle,

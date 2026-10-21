@@ -4,7 +4,8 @@ A 2D mini golf game with five courses on one field — an eighteen, a six and
 three nines — plus a sixth that is generated from a seed and is different every
 time you ask for one. A first visit is handed the six and a reason to finish
 it; every hole gives up to three stars, and stars open the rest. Up to four can
-play on one screen.
+play on one screen. Each course is drawn in a biome of its own — parkland,
+garden, seaside, woodland, meadow — and a hole may run on the slant.
 Canvas, plain ES5-flavoured JavaScript, no build step and no dependencies —
 same as everything else here, open `index.html` and it runs.
 
@@ -21,8 +22,10 @@ same as everything else here, open `index.html` and it runs.
 | `js/scoring.js` | Scorecard arithmetic, the pick-up, stars and the save file. |
 | `js/progress.js` | Which courses are open, and the lessons a first round teaches. See [Starting up](#starting-up-and-the-stars). |
 | `js/audio.js` | Synthesised sound effects — no audio files to ship. |
+| `js/scenery.js` | The biomes, hazard outlines and where decoration goes. Draws nothing. See [Biomes](#biomes-and-what-a-hole-is-drawn-as). |
 | `js/plan.js` | Flat hole thumbnails for the course picker. Nothing on the board reads it. |
-| `js/render.js` | All drawing, plus the (visual-only) particle system. |
+| `js/landscape.js` | The place: turf, hazards, walls, posts, trees, weather, the rim — and the cached layers. |
+| `js/render.js` | The frame: ball, cup, tunnels, aim, effects, and the order everything is laid down in. |
 | `js/game.js` | Loop, input, what a shot means, the title screen and the party. |
 | `level-editor.html` | Visual hole editor. See [The editor](#the-editor). |
 | `editor/editor.js` | All of it. Runs on the game's own modules, owns no copy of any of them. |
@@ -42,7 +45,9 @@ the whole handling a stale stored preference needs.
 Only the *first* position on the rack is load-bearing. The card at the head
 of it keeps the bare save keys (see [Saving](#saving)), so moving something
 else to the front would quietly take over a record a player already has.
-Everything else about the order is the ladder: the eighteen and the short card
+Each card also names the biome it is drawn in — see
+[Biomes](#biomes-and-what-a-hole-is-drawn-as). Everything else about the order
+is the ladder: the eighteen and the short card
 open from the start, then Tidewater, the Wild Nine and the Warren in the order
 the stars open them — `unlock` on each card, 10, 22 and 34 — and the draw,
 which the generator puts last, at 46. The suite pins that the thresholds never
@@ -165,6 +170,17 @@ Three things keep the ladder a nudge rather than a wall:
   the visitor who came to look rather than to climb. Two presses, because it
   cannot be taken back and one stray tap on a phone should not spend
   somebody's progression for them.
+
+**Starting over** is on the title screen, as two quiet links under the hint,
+because they are two different wishes. *Replay the intro* is "show me again":
+the ghost stroke and every hazard lesson come back, on the first tee of the
+starter course, and nothing earned goes anywhere. *Reset progress* is "let me
+climb it again": two presses, like opening every course, and then every star,
+record and round in progress is cleared and the page boots again in place as a
+first visit — not a veteran, so the ladder is locked again. It leaves the sound
+setting and a hole half-built in the editor alone; neither is progress. Before
+it existed the only way to see the intro twice was to clear the site's data,
+which also cleared everything else.
 
 **The first round teaches itself.** On the very first tee a ghost fingertip
 lands on the ball, pulls back away from the flag and lets go while a gold
@@ -397,13 +413,15 @@ A hole is axis-aligned rectangles, round posts and two points:
     ice:     [ { x, y, w, h } ],         // almost none — ~3x the roll of grass
     bumpers: [ { x, y, r } ],            // round, and bouncier than a wall
     slopes:  [ { x, y, w, h, ax, ay } ], // constant acceleration, i.e. a breaking green
-    tunnels: [ { x, y, tx, ty } ]        // two mouths, both ways: same speed, same heading out
+    tunnels: [ { x, y, tx, ty } ],       // two mouths, both ways: same speed, same heading out
+    rails:   [ { x, y, tx, ty, w } ]     // a wall at any angle: its spine and its thickness
 }
 ```
 
 A hole lists only the hazards it uses; a normaliser at the foot of
 `courses.js` fills in the rest as empty arrays, so nothing downstream has to
-ask whether a list exists.
+ask whether a list exists. Water, sand, rough and ice may also be polygons —
+`poly(x0, y0, x1, y1, …)` — for a bank or a bunker that runs on the slant.
 
 `move` takes `{ axis, amp, speed, phase }`. On `y` it is a gate that rises and
 falls; on `x` it is a door that slides. A door is worth one note: hang it so
@@ -416,6 +434,27 @@ the two collision tests cheap enough to run at 24 substeps and simple enough to
 be obviously correct, so the interesting shapes come from arranging boxes and
 posts — a dogleg is one big blocker, an island green is a moat with a gap in it,
 a pocket is six posts with one mouth — rather than from richer geometry.
+
+It has grown by exactly two shapes, chosen to keep both promises. **A rail** is
+a wall at any angle, collided as a capsule: the closest point on a segment is a
+clamp and a dot product, so it costs what a box costs and is as easy to see is
+right, and it is round at both ends because a capsule is — a square end drawn
+over a round one would bounce the ball off a corner nobody can see. **A
+polygon zone** is only ever asked whether a point is inside it, which is a
+crossing count. Walls do not get polygons (a wall at an angle is a rail) and
+slopes do not either, because a slope's rules about where it sheds are written
+for edges that run with the axes.
+
+Before them a diagonal had to be faked. The Chute's two arms were ten
+overlapping steps, each lapping the next so there was no seam to slip through,
+and they threw the ball off their corners in directions the funnel never
+meant; they are two rails now. The Narrows was six rectangles and looked it —
+a diagram of a staircase rather than a causeway — and its lakes are two
+polygons. Its risers are steep on purpose: at forty-five degrees the three
+landings line up into one band a straight putt can thread, which is a
+different and easier hole. Front Door, the first hole anybody plays, has its
+gate leaning in towards the mouth, so the first putt that wanders comes off a
+rail still heading for the door.
 
 The field is a fixed 960×640 world that the canvas scales to fit, so every
 constant means the same thing on a phone and on a desktop.
@@ -440,12 +479,72 @@ course is exempt from is a rule the second course will break — all asserted in
   the only thing that ends a shot. Ice triples a roll and bumpers keep it alive,
   so the two together are where a hole could quietly stop being playable; the
   suite reports the slowest shot on the course.
+- **A rail is at least 20px thick, and a polygon at least 20px across** —
+  measured as twice its area over its perimeter, which is a strip's width and
+  a disc's diameter. Both are counted wherever a wall or a lake is: a tee or a
+  cup on a rail, a mouth beside one, a rail inside a slope.
 - **A tunnel mouth needs room to be a mouth.** A ball's width and a half of
   clear grass round it over the whole of any gate's travel, nowhere on a slope
   (a ball the hill held over a mouth would go down it without being played),
   off the tee, well off the cup, off every other mouth, and the two ends of a
   tunnel far enough apart to be going somewhere. `validateHole` holds the
   rules and the editor carries a port of them.
+
+## Biomes, and what a hole is drawn as
+
+A field of flat blue rectangles is a diagram of a hole rather than a place,
+and five courses in one palette are one course wearing five names. So each
+card is drawn in a biome — the eighteen in **parkland**, the six in a walled
+**garden**, Tidewater by the **seaside**, the Wild Nine in **woodland**, the
+Warren in a **meadow** — and the draw takes one from its seed. Nothing about
+play depends on it. A biome is a turf colour, a water (a pond with reeds and
+lily pads and, on a big one, a duck; a stream; the sea, with surf), a sand, a
+rough, a wall material (timber, brick, driftwood, logs, a clipped hedge), a
+bumper cap (brass, a flowerpot, a buoy, a toadstool, a hay bale), the rim of
+the course, the trees beside it and the flowers, leaves or shells in its
+grass. `scenery.js` holds all of it as data; `landscape.js` draws it.
+
+**A hazard is drawn as one shape.** A lake built of six overlapping boxes used
+to be drawn as six boxes, with a seam wherever two met. `scenery.outline`
+merges a zone list into the loops that bound its union — rectangles on the
+grid of their own edges, every polygon a loop of its own, islands as holes —
+and the renderer draws that as one path with its corners rounded off. The
+rounding is a few pixels of picture at a corner and nothing else; the physics
+tests the rectangles and polygons themselves, which is the bargain the
+bunkers' 34px corners have always made. The suite checks, on every shipped
+list and a handful of draws, that the outline covers exactly the union's
+area. A zone that runs to the cushion is pushed past it for the picture only,
+so a lake that meets the edge has no shore along it.
+
+**Decoration may never hide anything.** Flat things — flowers in patches,
+fallen leaves, shells, lily pads, reeds at the water's edge — go only where
+they are out of the way: never in a hazard they are not part of, never near
+the tee, the cup or a tunnel mouth. The only thing drawn *over* the ball is
+the crown of a tree standing just off the course and reaching in over its
+edge, and those are held further still from everything a hole is about, and
+go thin when the ball rolls under one. All of it is placed from a seed made of
+the hole itself, so a hole wears the same flowers every time and the board
+does not shimmer on a replay, and the suite holds every hole to those rules.
+
+**Light comes from the top left of the screen, and height faces the viewer.**
+Walls, rails and posts are blocks: a shadow down and right, a lit top, and a
+near face showing below the top on screen. The top stays exactly on the
+footprint, so nothing about where the ball can go moves — and because the
+near face hangs towards the viewer and the ball is drawn after every wall, a
+ball is never hidden behind one. On a turned phone every one of those offsets
+is turned with the board (`landscape.sv`), so the light still comes from the
+top left of the glass. Two soft cloud shadows drift over everything, still
+under `prefers-reduced-motion`.
+
+**What does not move is painted once.** The ground — turf, the green, rough,
+bunkers, ice, slopes, decals and the bed of the water — and every wall that
+holds still are cached per hole, biome, orientation and resolution; only the
+water's surface, gates, posts, the ball, trees and clouds are drawn live. The
+still-wall layer is cropped to where the walls are, because a field-sized
+image of transparent pixels blitted every frame was the most expensive thing
+on the page. On a software rasteriser this makes the heaviest hole about half
+again the old frame on a laptop and level with it on most, and the editor,
+whose hole changes under the mouse, is handed no cache key and draws live.
 
 ## The physics, and the one thing worth protecting
 
@@ -707,7 +806,12 @@ zero fails it too, and should: nothing moves the ball and nothing lets it
 rest.
 
 A tunnel is the one shape that is two things: drag from one mouth to the other
-to lay it, grab either mouth to move that end alone (`0` picks the tool).
+to lay it, grab either mouth to move that end alone (`0` picks the tool). A
+**rail** is laid the same way (`L`), from one end to the other, and can be
+grabbed by either end or by its middle. Any water, sand, rough or ice can be
+turned into a **polygon** from the inspector — *Make it a polygon* gives it
+four corners to drag anywhere, *+ corner* splits its longest edge, *Square it*
+puts it back.
 
 Everything else is what you would expect. Drag a shape tool across the green
 to draw one, drag it or its grips to reshape, snap at 1/5/10/20 with shift for
@@ -738,19 +842,22 @@ indexable; the self-test overlay only appears with the query string.
 
 Two harnesses, and the runner finds both.
 
-Open `tests.html`. 813 assertions covering geometry, the integrator, the four
-surfaces, the overswing, tunnels, the course data on every course, the
-generator, the scorecard, the pick-up and the stars, progression, the
-per-course save keys and the resumable round, in a few seconds — most of them
+Open `tests.html`. 856 assertions covering geometry, the integrator, the four
+surfaces, the overswing, tunnels, rails and polygons, scenery, the course data
+on every course, the generator, the scorecard, the pick-up and the stars,
+progression and starting over, the per-course save keys and the resumable
+round, in a few seconds — most of them
 the bot's, which now searches for a way round every hole on the rack and every
 hole of twelve draws. The bot needed nothing new for tunnels: it plans over
 simulated shots, and a shot down a tunnel is a simulated shot.
 
-Open `ui-tests.html` for the other half: 123 assertions about the *page* — the
+Open `ui-tests.html` for the other half: 132 assertions about the *page* — the
 bar, the picker, the title screen on a first visit, locks and the way past
 them, stars on the banner and the plans, a door opening, a three-player party
-from roster to honour to resume, and the board turned for an upright phone and
-laid out beside its column for one on its side. The last two narrow the frame
+from roster to honour to resume, the board turned for an upright phone and
+laid out beside its column for one on its side, replaying the intro and
+resetting progress, and every hole of every course drawn through the real
+renderer, flat and turned. The last two narrow the frame
 and ask the board to fit again; the turned one sends world points through the
 canvas's own transform and back through `toWorld`, which is the check that the
 pointer lands where the drawing puts things. It

@@ -28,6 +28,7 @@
     <script src="js/generator.js"></script>
     <script src="js/scoring.js"></script>
     <script src="js/progress.js"></script>
+    <script src="js/scenery.js"></script>
 
     <script>
     (function () {
@@ -584,6 +585,190 @@
             assert('a mouth over the cushion is caught', bad({ x: 300, y: 320, tx: 950, ty: 200 }).some(function (b) { return /off the field/.test(b); }));
         })();
 
+        /* ── rails and polygons ─────────────────────────────────────────── */
+        section('Rails and polygons');
+
+        /* The two shapes that let a hole be drawn on the slant: a wall at any
+           angle, collided as a capsule, and a zone with corners that are not
+           right angles. Held to everything a box is held to — they bounce
+           like wood, nothing tunnels through them, a frame rate cannot change
+           what they do — and the rule book knows them. */
+        (function () {
+            function r(x, y, w, h) { return { x: x, y: y, w: w, h: h }; }
+            var flat = { tee: { x: 100, y: 320 }, hole: { x: 880, y: 320 },
+                walls: [], water: [], sand: [], rough: [], ice: [], bumpers: [], slopes: [], tunnels: [],
+                rails: [{ x: 480, y: 100, tx: 480, ty: 540, w: 24 }] };
+
+            // Head-on into an upright rail: it comes back at RESTITUTION.
+            var w = P.createWorld(flat, { x: 300, y: 320 }, 0);
+            P.launch(w, 0, 600);
+            var before = null, after = null;
+            for (var i = 0; i < 240 && w.moving; i++) {
+                var vx = w.ball.vx;
+                P.advance(w, 1 / 120);
+                if (before === null && w.ball.vx < 0) { before = vx; after = w.ball.vx; }
+            }
+            assert('a rail sends the ball back', before !== null);
+            assert('…at a wall\'s restitution', before !== null && approx(-after / before, C.RESTITUTION, 0.02),
+                before && (-after / before).toFixed(3));
+
+            // Glancing off a 45° rail turns a horizontal roll vertical.
+            var slant = JSON.parse(JSON.stringify(flat));
+            slant.rails = [{ x: 380, y: 520, tx: 620, ty: 280, w: 24 }];
+            var g = P.createWorld(slant, { x: 200, y: 450 }, 0);
+            P.launch(g, 0, 500);
+            for (i = 0; i < 120 && g.moving && g.ball.vy > -1; i++) P.advance(g, 1 / 120);
+            assert('a rail on the slant turns the roll the way a slant should', g.ball.vy < -50,
+                'vy ' + g.ball.vy.toFixed(1));
+
+            /* Watched every step, not judged by where it stops: a full-power
+               shot comes back off the far cushion, and one that had gone
+               through would finish on the near side looking innocent. */
+            var through = 0;
+            for (var k = 0; k < 120; k++) {
+                var sw = P.createWorld(flat, { x: 200, y: 140 + k * 3 }, 0);
+                P.launch(sw, (k % 7 - 3) * 0.05, C.MAX_POWER);
+                for (var st = 0; st < 2400 && sw.moving; st++) {
+                    P.advance(sw, 1 / 120);
+                    if (sw.ball.x > 480) { through++; break; }
+                }
+            }
+            assert('no full-power shot tunnels through a 24px rail', through === 0, through + ' of 120 got through');
+
+            function settleAt(dt) {
+                var s = P.createWorld(slant, { x: 200, y: 450 }, 0);
+                P.launch(s, 0, 500);
+                for (var n = 0; n < 20 / dt && s.moving; n++) P.advance(s, dt);
+                return s.ball;
+            }
+            var a = settleAt(1 / 30), b = settleAt(1 / 120);
+            assert('30Hz and 120Hz agree about where a shot off a rail stops',
+                Math.hypot(a.x - b.x, a.y - b.y) < 1.5, Math.hypot(a.x - b.x, a.y - b.y).toFixed(2) + 'px apart');
+
+            // Polygons: inside, outside, and the notch of a concave one.
+            var vee = [100, 100, 300, 100, 200, 200, 300, 300, 100, 300];
+            assert('a point inside a polygon is inside', P.pointInPoly(150, 200, vee));
+            assert('a point outside it is outside', !P.pointInPoly(350, 200, vee));
+            assert('the notch of a concave polygon is outside', !P.pointInPoly(270, 200, vee));
+            assert('a zone may be a polygon wherever a zone is asked about',
+                P.zoneAt([{ pts: vee }], 150, 200) !== null && P.zoneAt([r(0, 0, 50, 50), { pts: vee }], 25, 25) !== null);
+
+            var pond = JSON.parse(JSON.stringify(flat));
+            pond.rails = [];
+            pond.water = [{ pts: [400, 200, 560, 260, 520, 440, 380, 400] }];
+            var sp = P.simulateShot(pond, { x: 200, y: 320 }, 0, 700);
+            assert('a polygon of water takes the ball', sp.splash);
+            var bunker = JSON.parse(JSON.stringify(pond));
+            bunker.sand = bunker.water; bunker.water = [];
+            var sb = P.simulateShot(bunker, { x: 200, y: 320 }, 0, 700);
+            var free = JSON.parse(JSON.stringify(pond)); free.water = [];
+            var sf = P.simulateShot(free, { x: 200, y: 320 }, 0, 700);
+            assert('a polygon of sand slows it like a rectangle of sand does', sb.ball.x < sf.ball.x - 100,
+                sb.ball.x.toFixed(0) + ' against ' + sf.ball.x.toFixed(0));
+
+            // The rule book.
+            function bad(h) { return GOLF.validateHole(h); }
+            var ok = JSON.parse(JSON.stringify(slant)); ok.par = 3;
+            assert('a well-placed rail passes the rule book', bad(ok).length === 0, bad(ok).join('; '));
+            var thin = JSON.parse(JSON.stringify(ok)); thin.rails[0].w = 12;
+            assert('a rail thinner than 20px is caught', bad(thin).some(function (m) { return /rail thinner/.test(m); }));
+            var onTee = JSON.parse(JSON.stringify(ok)); onTee.rails.push({ x: 60, y: 320, tx: 140, ty: 320, w: 24 });
+            assert('a rail across the tee is caught', bad(onTee).some(function (m) { return /tee is inside/.test(m); }));
+            var sliver = JSON.parse(JSON.stringify(ok)); sliver.water = [{ pts: [400, 100, 600, 100, 600, 106] }];
+            assert('a sliver of a polygon is caught', bad(sliver).some(function (m) { return /polygon thinner/.test(m); }));
+            var wallPoly = JSON.parse(JSON.stringify(ok)); wallPoly.walls = [{ pts: [300, 100, 340, 100, 340, 200] }];
+            assert('a polygon wall is caught — a wall at an angle is a rail',
+                bad(wallPoly).some(function (m) { return /polygon wall/.test(m); }));
+            var lake = JSON.parse(JSON.stringify(ok)); lake.water = [{ pts: [40, 280, 160, 280, 160, 360, 40, 360] }];
+            assert('a tee in a polygon lake is caught', bad(lake).some(function (m) { return /tee is inside/.test(m); }));
+        })();
+
+        /* ── scenery ───────────────────────────────────────────────────── */
+        section('Scenery');
+
+        /* What a hole looks like is not allowed to change what it is. The
+           outline a hazard is drawn as has to cover exactly what the physics
+           tests, and decoration has to stay out of the way of the ball, the
+           cup, the tee and every tunnel mouth. Checked on every shipped hole
+           and a handful of draws. */
+        (function () {
+            var SCN = GOLF.scenery;
+            var holes = [];
+            everyHole(function (h, i, course) { holes.push({ h: h, course: course, tag: course.id + ' ' + h.name }); });
+            [1, 42, 31337].forEach(function (seed) {
+                var d = GOLF.generateCourse(seed);
+                d.holes.forEach(function (h) { holes.push({ h: h, course: d, tag: 'draw ' + seed + ' ' + h.name }); });
+            });
+
+            function exact(list) {
+                var xs = [], ys = [];
+                list.forEach(function (z) { xs.push(z.x, z.x + z.w); ys.push(z.y, z.y + z.h); });
+                xs = xs.sort(function (a, b) { return a - b; }); ys = ys.sort(function (a, b) { return a - b; });
+                var a = 0;
+                for (var i = 0; i < xs.length - 1; i++) {
+                    for (var j = 0; j < ys.length - 1; j++) {
+                        if (xs[i + 1] === xs[i] || ys[j + 1] === ys[j]) continue;
+                        if (P.zoneAt(list, (xs[i] + xs[i + 1]) / 2, (ys[j] + ys[j + 1]) / 2)) a += (xs[i + 1] - xs[i]) * (ys[j + 1] - ys[j]);
+                    }
+                }
+                return a;
+            }
+            var wrong = [];
+            holes.forEach(function (e) {
+                ['water', 'sand', 'rough', 'ice'].forEach(function (k) {
+                    var rects = e.h[k].filter(function (z) { return !z.pts; });
+                    if (!rects.length) return;
+                    var drawn = SCN.outline(rects).reduce(function (t, l) { return t + SCN.signedArea(l); }, 0);
+                    if (Math.abs(drawn - exact(rects)) > 1e-6) wrong.push(e.tag + ' ' + k);
+                });
+            });
+            assert('a hazard is drawn as exactly the union of its rectangles', wrong.length === 0, wrong.slice(0, 3).join(' · '));
+            var ring = SCN.outline([{ x: 100, y: 100, w: 300, h: 40 }, { x: 100, y: 260, w: 300, h: 40 },
+                                    { x: 100, y: 140, w: 40, h: 120 }, { x: 360, y: 140, w: 40, h: 120 }]);
+            assert('a ring of rectangles is one shore round the outside and one round the island',
+                ring.length === 2 && ring.some(function (l) { return SCN.signedArea(l) < 0; }));
+            var cw = SCN.outline([{ pts: [100, 100, 100, 300, 300, 300] }])[0];
+            assert('a polygon drawn the other way round is turned clockwise, so overlaps add up', SCN.signedArea(cw) > 0);
+
+            var problems = [];
+            holes.forEach(function (e) {
+                var theme = SCN.themeOf(e.course);
+                var d = SCN.decor(e.h, theme);
+                var again = SCN.decor(e.h, theme);
+                if (JSON.stringify(d) !== JSON.stringify(again)) problems.push(e.tag + ': decoration moved between two loads');
+                var keep = SCN.keepouts(e.h);
+                d.decals.forEach(function (p) {
+                    if (keep.some(function (k) { return Math.hypot(p.x - k.x, p.y - k.y) < k.r; })) problems.push(e.tag + ': a decal on the tee, the cup or a mouth');
+                    if (P.zoneAt(e.h.water, p.x, p.y) || P.zoneAt(e.h.sand, p.x, p.y) || P.zoneAt(e.h.ice, p.x, p.y)) problems.push(e.tag + ': a decal in a hazard');
+                });
+                d.shore.concat(d.pads, d.ducks).forEach(function (p) {
+                    if (!P.zoneAt(e.h.water, p.x, p.y)) problems.push(e.tag + ': water dressing out of the water');
+                });
+                d.ducks.forEach(function (k) {
+                    var loops = SCN.outline(e.h.water, true);
+                    if (SCN.shoreDistance(loops, k.x, k.y) < k.r + 14) problems.push(e.tag + ': a duck that would paddle ashore');
+                });
+                d.canopies.forEach(function (c) {
+                    keep.forEach(function (k) {
+                        if (Math.hypot(c.x - k.x, c.y - k.y) < c.r + k.r + 60) problems.push(e.tag + ': a tree crown over the tee, the cup or a mouth');
+                    });
+                    // Standing off the field, reaching in over its edge.
+                    if (c.x > 0 && c.x < C.WORLD_W && c.y > 0 && c.y < C.WORLD_H) problems.push(e.tag + ': a tree standing on the course');
+                });
+            });
+            assert('decoration keeps every rule on every hole', problems.length === 0, problems.slice(0, 3).join(' · '));
+
+            assert('every course is drawn in a biome that exists', GOLF.COURSES.every(function (c) {
+                return !c.theme || !!SCN.THEMES[c.theme];
+            }));
+            assert('no two hand-built courses share a biome', (function () {
+                var t = GOLF.COURSES.map(function (c) { return c.theme; });
+                return t.every(function (x, i) { return t.indexOf(x) === i; });
+            })());
+            var d1 = GOLF.generateCourse(7), d2 = GOLF.generateCourse(7);
+            assert('a draw takes its biome from its seed', SCN.themeOf(d1) === SCN.themeOf(d2) && !!SCN.themeOf(d1).id);
+        })();
+
         /* ── course data ────────────────────────────────────────────────── */
         section('Course data');
 
@@ -648,15 +833,30 @@
             // The normaliser exists so nothing downstream has to guard; if it
             // ever stops running, everything else fails in confusing ways.
             var lists = course.holes.every(function (h) {
-                return ['walls', 'water', 'sand', 'rough', 'ice', 'bumpers', 'slopes', 'tunnels'].every(function (k) {
+                return ['walls', 'water', 'sand', 'rough', 'ice', 'bumpers', 'slopes', 'tunnels', 'rails'].every(function (k) {
                     return Array.isArray(h[k]);
                 });
             });
             assert(course.id + ': every hole has every hazard list, declared or not', lists);
 
-            var thin = all.filter(function (r) { return Math.min(r.w, r.h) < 20; });
+            // Polygons have no width and height to compare; a sliver of one
+            // would have passed this silently, so they are counted apart
+            // and held to the rule book's measure of their width instead.
+            var thin = all.filter(function (r) { return !r.pts && Math.min(r.w, r.h) < 20; });
             assert(course.id + ': every rectangle is at least 20px thick', thin.length === 0,
                 thin.length + ' too thin — the substep cap cannot protect them');
+            var slim = all.filter(function (r) {
+                if (!r.pts) return false;
+                var p = r.pts, area = 0, perim = 0;
+                for (var i = 0, j = p.length - 2; i < p.length; j = i, i += 2) {
+                    area += p[j] * p[i + 1] - p[i] * p[j + 1];
+                    perim += Math.hypot(p[i] - p[j], p[i + 1] - p[j + 1]);
+                }
+                return p.length < 6 || Math.abs(area) / perim < 10;
+            });
+            assert(course.id + ': every polygon is at least 20px across', slim.length === 0, slim.length + ' slivers');
+            var rails = course.holes.reduce(function (a, h) { return a.concat(h.rails); }, []);
+            assert(course.id + ': every rail is at least 20px thick', rails.every(function (r) { return r.w >= 20; }));
 
             var small = posts.filter(function (b) { return b.r < C.BUMPER_MIN_R; });
             assert(course.id + ': every bumper is at least BUMPER_MIN_R across the radius', small.length === 0,
@@ -707,6 +907,8 @@
 
             var teeBlocked = h.walls.some(function (w) {
                     return P.circleRect(h.tee.x, h.tee.y, C.BALL_R, P.wallRect(w, 0)) !== null;
+                }) || h.rails.some(function (r) {
+                    return P.circleRail(h.tee.x, h.tee.y, C.BALL_R, r) !== null;
                 }) || h.bumpers.some(function (b) {
                     return P.circleCircle(h.tee.x, h.tee.y, C.BALL_R, b) !== null;
                 }) || P.zoneAt(h.water, h.tee.x, h.tee.y) !== null;
@@ -717,6 +919,8 @@
             // out the very shots that deserve to drop.
             var cupBlocked = h.walls.some(function (w) {
                     return P.circleRect(h.hole.x, h.hole.y, C.HOLE_R, P.wallRect(w, 0)) !== null;
+                }) || h.rails.some(function (r) {
+                    return P.circleRail(h.hole.x, h.hole.y, C.HOLE_R, r) !== null;
                 }) || h.bumpers.some(function (b) {
                     return P.circleCircle(h.hole.x, h.hole.y, C.HOLE_R, b) !== null;
                 }) || P.zoneAt(h.water, h.hole.x, h.hole.y) !== null;
@@ -1058,6 +1262,25 @@
                 PR.markCoached();
                 PR.reload();
                 assert('…and then never again', PR.coached());
+
+                /* Starting over, both ways. */
+                starsOnShort(6);
+                localStorage.setItem('miniGolf.muted', '1');
+                localStorage.setItem('miniGolf.editor.v1', '{"name":"draft"}');
+                PR.replayIntro();
+                PR.reload();
+                assert('replaying the intro shows the first stroke again', !PR.coached());
+                assert('…and every lesson', PR.unseen(opener).length === lessonsBefore);
+                assert('…and costs no stars', PR.totalStars().got >= 6);
+                PR.grant('wild');
+                PR.resetAll();
+                PR.reload();
+                assert('a reset takes every star', PR.totalStars().got === 0);
+                assert('…and every record', localStorage.getItem(S.key(C.SAVE_KEY, 'short')) === null);
+                assert('…and is a first visit, not a veteran', !PR.get().veteran && !PR.everythingOpen() && !PR.isOpen(byIdP('wild')));
+                assert('…which shows the first stroke', !PR.coached());
+                assert('it leaves the sound setting alone', localStorage.getItem('miniGolf.muted') === '1');
+                assert('…and a hole half-built in the editor', localStorage.getItem('miniGolf.editor.v1') !== null);
             } finally {
                 for (var m = localStorage.length - 1; m >= 0; m--) {
                     if (/^miniGolf\./.test(localStorage.key(m))) localStorage.removeItem(localStorage.key(m));
@@ -1210,7 +1433,7 @@
             var stuck = 0, samples = 0;
             everyHole(function (h) {
                 var statics = h.walls.filter(function (w) { return !w.move; });
-                if (!statics.length && !h.bumpers.length) return;
+                if (!statics.length && !h.bumpers.length && !h.rails.length) return;
                 for (var i = 0; i < 60; i++) {
                     var w = P.simulateShot(h, h.tee, rand() * Math.PI * 2, C.MIN_POWER + rand() * C.MAX_POWER);
                     samples++;
@@ -1218,6 +1441,8 @@
                         return P.circleRect(w.ball.x, w.ball.y, C.BALL_R - 0.5, s) !== null;
                     }) || h.bumpers.some(function (b) {
                         return P.circleCircle(w.ball.x, w.ball.y, C.BALL_R - 0.5, b) !== null;
+                    }) || h.rails.some(function (r) {
+                        return P.circleRail(w.ball.x, w.ball.y, C.BALL_R - 0.5, r) !== null;
                     });
                     if (bad) stuck++;
                 }
