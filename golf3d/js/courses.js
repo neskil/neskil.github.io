@@ -2126,17 +2126,36 @@
 
        Difficulty is not one number. On this course it is added a piece at a
        time and each piece is a different kind of trouble: an angle that does
-       the work, a corner that does not, sand that costs you a stroke of
-       control, water
-       that costs you a stroke outright, a lane that runs away from you, and
-       finally a plank over the sea with a turn in the middle of it. */
+       the turning, ground that does it, a gate that moves, water that costs
+       you a stroke outright, a lane that runs away from you, and finally a
+       plank over the sea with a turn in the middle of it.
+
+       **Every hole has two ways to play it.** Two putts that cannot go wrong,
+       and one line that can drop for an ace if you are brave with it: off the
+       angle, shaving the corner, past the gate, over the bridge, across the
+       bay, down the whole jetty in one. A perfect player takes the ace every
+       time, which is why the bot's card here is nearly all ones; a person
+       takes it when they fancy it, and the safe two is always there.
+
+       **The bag is a putter and a mallet**, with the pitch added on the two
+       holes where flying is the point. This is mini golf, and the default bag
+       made it something else: the driver at a third of a swing is a putt with
+       twenty units of reach, and it was the club the bot holed The Bend and
+       The Zigzag with. The putter alone cannot be the answer either — it runs
+       eight units at full, and nothing on a thirteen-unit lane can be holed
+       in one with it — so the mallet is the risky club and the putter the
+       safe one, and the holes are sized to that: every ace line here is
+       inside what a mallet reaches after the rail it uses. */
+
+    var MINI = ['putter', 'mallet'];
+    var MINI_LOFT = ['putter', 'mallet', 'chipper'];
 
     var seaside = [
         build({
-            /* The first hole anybody plays, and it is now a bounce hole: one
-               lane, one baffle, and a rail across the far corner set at
-               forty-five degrees, which turns a ball running north into one
-               running east and puts it on the pin.
+            /* The first hole anybody plays, and it is a bounce hole: one lane,
+               one baffle, and a rail across the far corner set at forty-five
+               degrees, which turns a ball running north into one running east
+               and puts it on the pin.
 
                It was a flat six-by-fifteen slab with two bars across it, and
                everything wrong with that was in the first impression rather
@@ -2162,70 +2181,118 @@
                  there is one obvious road up the hole and one obvious thing
                  to do at the top of it.
 
+               Eleven and a half long rather than thirteen, and that is the
+               bag: the ace is the mallet up the open side and off the angle,
+               and at thirteen the bank took enough out of the ball that it
+               died short of the pin. The safe way is the putter twice — up the
+               open side, and then across.
+
                An angled wall standing still was Pinball Parlour's invention
                and this is the other thing it is good for. There a bank is a
                slingshot that throws the ball somewhere neither of you chose;
                here it is a mirror, aimed on purpose, which is the friendliest
                use an angle has. */
-            name: 'Sea Legs', par: 3,
-            blurb: 'Up the left and off the angle — the corner turns it for you.',
-            pads: [pad(0, 0, 6, 13)],
+            name: 'Sea Legs', par: 3, bag: MINI,
+            blurb: 'Up the open side and off the angle — the corner turns it for you.',
+            pads: [pad(0, 0, 6, 11.5)],
             extra: [
                 // The baffle: in from the east rail, the west side left open.
-                wall(2.3, 6.4, 3.7, 0.3, 0.55, { base: -0.1 }),
+                wall(2.3, 5.65, 3.7, 0.3, 0.55, { base: -0.1 }),
                 /* The kicker, across the far corner. Long enough that both
                    ends bury themselves in the rails it meets, or the triangle
                    behind it would be a pocket a ball could find its way into
                    and a corner nobody could play out of. */
-                bank(1, 11.9, 3.6, -Math.PI / 4, { t: 0.3, h: 0.55 })
+                bank(1, 10.4, 3.6, -Math.PI / 4, { t: 0.3, h: 0.55 })
             ],
-            tee: { x: 1.5, z: 1.5 }, cup: { x: 4.4, z: 12 },
+            tee: { x: 1.5, z: 1.5 }, cup: { x: 4.4, z: 10.5 },
             decor: [
                 sign(0.4, 0.6, { yaw: 0.6 }),
-                buoy(-3.5, 7.5),
+                buoy(-3.5, 6.8),
                 boat(-3.8, 3.2, { yaw: 0.8 }),
                 piling(7.8, 4.0),
-                boat(8.4, 10.0, { yaw: -0.4 })
+                boat(8.4, 9.0, { yaw: -0.4 })
             ]
         }),
         build({
-            name: 'The Bend', par: 3,
-            blurb: 'Left turn at the top. The corner rail is your friend.',
-            pads: [pad(0, 0, 4.5, 9), pad(0, 9, 13, 4.5)],
-            tee: { x: 2.25, z: 1.5 }, cup: { x: 11.5, z: 11.25 },
-            decor: [
-                buoy(6.5, 4.5, { variant: 1 }),
-                piling(-1.6, 6.0),
-                boat(-3.2, 3.5, { yaw: 0.6 }),
-                sailboat(14.5, 6.0, { yaw: -1.2 })
-            ]
-        }),
-        build({
-            /* Two bars of beach with the gap in a different place in each, so
-               the lane through them is not a lane at all — it is two turns,
-               and a ball played straight at the flag finishes in the second
-               one. Cheap to build and it is the first hole here that cannot be
-               solved by hitting it hard down the middle. */
-            name: 'The Zigzag', par: 3,
-            blurb: 'Two bars of beach, and the gap moves. Straight at the flag is sand.',
+            /* A corner, and the first ground on the course that is *for*
+               something. The top leg is a slipway: it falls away from the
+               corner towards the cup, about a twentieth, so a ball that gets
+               round the bend at any pace at all is carried on down to the pin.
+               That is the whole of the help, and it is enough to change how
+               the hole is played — the job is no longer to judge the weight
+               all the way to the flag, it is to get the ball onto the slope.
+
+               The slipway runs *along* x and the corner square stays flat,
+               because the two share a seam down the corner's east edge and
+               they only meet without a step where the fall runs across that
+               seam rather than along it (the same rule as the Horseshoe's
+               lean). The bottom leg meets the flat corner on a level edge, so
+               it stays flat too.
+
+               The safe two is a putt into the corner and a putt down the
+               slope. The ace is the narrow side: a line that shaves the inside
+               corner of the bend, onto the slipway and down it — the putter
+               will do it, and so will the mallet off the outside rail. Clip
+               the corner and you are back where you started. */
+            name: 'The Bend', par: 3, bag: MINI,
+            blurb: 'Turn at the top and the slipway does the rest. Shave the corner if you dare.',
             pads: [
-                pad(0, 0, 6, 4.5),
-                pad(0, 4.5, 4, 2.5, 0, 'sand'), pad(4, 4.5, 2, 2.5),
-                pad(0, 7, 6, 2),
-                pad(0, 9, 2, 2.5), pad(2, 9, 4, 2.5, 0, 'sand'),
-                pad(0, 11.5, 6, 5)
+                pad(0, 0, 4.5, 7),
+                pad(0, 7, 4.5, 4.5),
+                pad(4.5, 7, 6.5, 4.5, 0, 'green', -0.06, 0)
             ],
-            tee: { x: 3, z: 1.8 }, cup: { x: 3, z: 14.5 },
+            tee: { x: 2.25, z: 1.5 }, cup: { x: 10.2, z: 9.25 },
             decor: [
-                piling(-1.8, 7.0),
-                piling(7.8, 9.0),
-                buoy(7.5, 4.0),
-                buoy(-3.2, 13.0),
-                boat(-4.5, 3.5, { yaw: 0.8 })
+                buoy(6.5, 3.8, { variant: 1 }),
+                piling(-1.6, 5.5),
+                boat(-3.2, 3.0, { yaw: 0.6 }),
+                // A dinghy drawn up at the foot of the slipway.
+                boat(12.7, 9.0, { yaw: 1.5 }),
+                sailboat(13.5, 4.5, { yaw: -1.2 })
             ]
         }),
         build({
-            name: 'Low Tide', par: 3,
+            /* The first thing on the game that moves, and the slowest: a gate
+               that drifts across the top of the lane about once every nine
+               seconds and never shuts it. Two units long in a lane six wide,
+               so there is always room past it on one side or the other — it is
+               a preview of the crazy courses, not a test of timing, and
+               waiting for it costs nothing but a moment.
+
+               It replaced The Zigzag, two bars of beach with the gap at
+               opposite ends, and keeps one of them: a bar of sand across the
+               lane with the gap at the east end. The tee is at that end too,
+               so the safe two is plain — a putt through the gap, and a putt
+               past the gate when it is out of the way. The ace is the line at
+               the flag, which shaves the inside edge of the gap and crosses
+               the gate's path, so it is a line *and* a moment; or bank it off
+               the east rail through the middle of the gap, which is the same
+               moment from further away. */
+            name: 'Harbour Gate', par: 3, bag: MINI,
+            blurb: 'Through the gap in the beach, then past the gate. It drifts; it never shuts.',
+            pads: [
+                pad(0, 0, 6, 4),
+                pad(0, 4, 4, 2, 0, 'sand'), pad(4, 4, 2, 2),
+                pad(0, 6, 6, 6.5)
+            ],
+            extra: [slider(1.6, 8.6, 2.0, 0.4, { amp: 1.5, speed: 0.7 })],
+            tee: { x: 5, z: 1.5 }, cup: { x: 3, z: 11 },
+            decor: [
+                piling(-1.8, 5.0),
+                piling(7.8, 7.0),
+                buoy(7.5, 3.0),
+                buoy(-3.2, 10.0),
+                boat(-4.5, 3.0, { yaw: 0.8 })
+            ]
+        }),
+        build({
+            /* Water, and the first time the bag has anything that flies in
+               it. The bridge is the safe way and two putts; the pitch over the
+               shallows at the pin is the short way. And the ace is neither of
+               those — it is the mallet across the bridge, firm enough to run
+               all the way to the cup, along a plank with nothing between it
+               and the water on the inside. */
+            name: 'Low Tide', par: 3, bag: MINI_LOFT,
             blurb: 'The bridge is the safe way. Loft is the short way.',
             pads: [pad(0, 0, 5, 5), pad(3.5, 5, 1.5, 4, 0, 'wood'), pad(0, 9, 5, 6)],
             water: [rect(0, 5, 3.5, 4, -0.55)],
@@ -2246,20 +2313,28 @@
                the whole of the return leg falls away to the sea wall, so the
                shot down it is aimed at the inside rail and allowed to drift.
 
+               The cup is by the sea wall too, at the foot of the lean, which
+               is what makes the lean worth having: everything on that leg
+               ends up against the wall, and so does the pin. Two routes to it.
+               Round, which is long and cannot go wrong; or a pitch across the
+               bay that lands on the cup's line, anywhere across the leg, and
+               lets the slope roll it the rest of the way — that one is the
+               ace, and the price of a short one is the sea.
+
                The lean has to be along x rather than along z, and that is not
                a preference: the return leg shares its whole western edge with
                the top of the horseshoe, and two pads only meet without a step
                where the tilt runs *along* the seam rather than across it.
                Anything else and `enclose` finds a cliff there and fences the
                corner off. */
-            name: 'The Horseshoe', par: 4,
-            blurb: 'Up one leg, across the top, back down the other — and it leans at the wall.',
+            name: 'The Horseshoe', par: 4, bag: MINI_LOFT,
+            blurb: 'Round the long way, or over the bay. It all leans to the sea wall, and so does the cup.',
             pads: [
                 pad(0, 0, 4.5, 12),
                 pad(4.5, 8, 4, 4),
                 pad(8.5, 0, 4.5, 12, 0, 'green', -0.09, 0)
             ],
-            tee: { x: 2.25, z: 1.5 }, cup: { x: 10.8, z: 2.4 },
+            tee: { x: 2.25, z: 1.5 }, cup: { x: 12.2, z: 2.4 },
             decor: [
                 sailboat(6.5, 3.5, { yaw: 0.5 }),
                 piling(6.5, 6.5),
@@ -2267,7 +2342,14 @@
             ]
         }),
         build({
-            name: 'The Jetty', par: 4,
+            /* A plank over the shallows with a kink in it, and no rail on any
+               of it. Nothing flies here — the bag is the putter and the mallet
+               again — so the jetty is the only road, and the hole is nerve:
+               the safe way is a putt along each plank in turn. The three
+               planks overlap by a whisker on one line down the middle, and a
+               mallet hit dead straight down that line runs the length of the
+               jetty onto the far green. Off it by a degree is the sea. */
+            name: 'The Jetty', par: 4, bag: MINI,
             blurb: 'A plank over the shallows with a turn in it, and nothing to bounce off but nerve.',
             pads: [
                 pad(0, 0, 6, 5.5),
