@@ -3091,8 +3091,8 @@
     function moor(spec) {
         var flat = [keep(spec.tee.x, spec.tee.z, 4.5)].concat(spec.flat || []);
         var bumps = (spec.bumps || []).concat(dunes(spec.area, spec.n, spec.seed,
-            { clear: flat, r: spec.r, rMax: spec.rMax, a: spec.a }));
-        var pads = bands(0, spec.strips, 0, { mow: spec.seed || 1 }), i;
+            { clear: flat, r: spec.r, rMax: spec.rMax, grad: spec.grad }));
+        var pads = bands(0, spec.strips, 0, { mow: spec.seed || 1 }), i, d;
         // One field of humps, shared by every strip on the hole. The height of
         // the ground is a function of where you are and not of which strip you
         // happen to be standing on, so the seams between them are invisible to
@@ -3104,134 +3104,208 @@
            in `scoop`). But a bunker does take the dunes, the same rule
            `inlay` keeps: sand lying on the country it was cut into, rather
            than a flat plate laid across the top of it with one edge buried
-           wherever a dune's tail runs under. Both are at the course's own
-           level, so the same field puts them at the same height to the float.
-           A green does not — it carries the cup, and is kept flat instead. */
-        var lay = spec.inlays || [];
+           wherever a dune's tail runs under. A green does not — it carries
+           the cup, and is kept flat instead.
+
+           An inlay is written `[cx, cz, r, kind, rz]` and laid with `inlay`,
+           which reads the level off the ground under it: the course is no
+           longer all at one height (two of its tees are up in the dunes and
+           one green is on a shelf), and a disc told its height by hand is a
+           second copy of the height field. */
+        var lay = spec.inlays || [], out = [];
         for (i = 0; i < lay.length; i++) {
-            if (lay[i].kind !== 'green') lay[i].bumps = bumps.slice();
+            d = lay[i];
+            if (d.length !== undefined) {
+                out.push(inlay(pads, d[0], d[1], d[2], d[3], d[4]));
+                continue;
+            }
+            if (d.kind !== 'green') d.bumps = bumps.slice();
+            out.push(d);
         }
-        return pads.concat(lay);
+        return pads.concat(out);
+    }
+
+    /* A row of clearings along a line, for the dune field to stay out of. A
+       burn's banks have to stand above its water: a hollow running down to
+       the edge of one would sit below the surface and read as a hole in the
+       world, so the dunes are kept off the whole length of it. */
+    function banks(x0, x1, z, r) {
+        var out = [], n = Math.max(1, Math.ceil((x1 - x0) / r)), i;
+        for (i = 0; i <= n; i++) out.push(keep(x0 + (x1 - x0) * i / n, z, r));
+        return out;
     }
 
     var whinstone = [
         build({
+            /* The opener, and the one hole out here with no water on it — the
+               ground and the sand are the whole of it. Three pots sit in the
+               middle of the landing ground exactly where a full drive comes
+               down, and they split it into two routes: wide to the left of
+               them, which leaves the longer approach over the bunker short of
+               the green, or narrow down the right between the pots and the
+               stakes, which leaves the open line in. The green stands on a
+               shelf a unit up at the end, so the approach is an uphill shot
+               to a flat table and anything short runs back down the bank. */
             name: 'The Whins', par: 4, open: true,
-            blurb: 'Rolling all the way. There is no flat lie out there but the one you pick.',
+            blurb: 'Three pots split the landing ground: wide to the left of them, or tight down the stakes for the open line. The green is up on a shelf.',
             pads: moor({
-                tee: { x: 31, z: 16 }, seed: 4101, n: 62,
-                area: { x: 3, z: 3, w: 56, d: 78 },
+                tee: { x: 31, z: 12 }, seed: 4101, n: 60,
+                area: { x: 3, z: 3, w: 56, d: 80 },
                 r: 5, rMax: 11, grad: 0.21,
-                strips: [[84, [20, rgh], [22, fwy], [20, rgh]]],
-                flat: [keep(31, 50, 7.5), keep(31, 38, 4.2), keep(38.5, 45, 3.8)],
+                strips: [
+                    [28, [21, rgh], [20, fwy], [21, rgh]],
+                    [24, [16, rgh], [28, fwy], [18, rgh]],
+                    [{ d: 6, sz: 0.16 }, [20, rgh], [20, fwy], [22, rgh]],
+                    [18, [21, rgh], [20, fwy], [21, rgh]],
+                    [10, [62, rgh]]
+                ],
+                flat: [keep(34, 66, 7.5), keep(30.5, 41, 3.4), keep(35.5, 45.5, 3.2),
+                       keep(25.5, 46, 3), keep(28.5, 61, 3.2)],
                 inlays: [
-                    circle(31, 50, 5.2, grn),
-                    circle(31, 38, 2.7, snd),
-                    circle(38.5, 45, 2.3, snd)
+                    [34, 66, 5, grn],
+                    [30.5, 41, 1.9, snd],
+                    [35.5, 45.5, 1.7, snd],
+                    [25.5, 46, 1.5, snd],
+                    [28.5, 61, 1.9, snd, 1.2]
                 ]
             }),
-            fence: { x: 11, z: 7, w: 40, d: 58 },
-            tee: { x: 31, z: 16 }, cup: { x: 31, z: 50 }
+            fence: { x: 12, z: 4, w: 34, d: 76 },
+            tee: { x: 31, z: 12 }, cup: { x: 35, z: 67.5 }
         }),
         build({
+            /* The bowl is the same bowl, and the hole in front of it is new: a
+               burn seven units across lying over the line where a full drive
+               runs out. Throttle the drive to stop short of it and the second
+               carries the water and is fed down to the pin by the banks. Or
+               take the neck of dry ground down the left between the end of
+               the burn and the stakes, which is a full drive's worth of
+               fairway six units wide and leaves a short pitch in from the
+               side. */
             name: 'The Punchbowl', par: 4, open: true,
-            blurb: 'The green sits in a bowl. Anything on the banks comes back to it.',
+            blurb: 'A burn across the hole where the drive runs out, and the green in a bowl beyond it. Lay up and carry it, or thread the dry neck down the left.',
             pads: moor({
-                tee: { x: 30, z: 14 }, seed: 3313, n: 55,
-                area: { x: 3, z: 3, w: 54, d: 74 },
+                tee: { x: 30, z: 10 }, seed: 3313, n: 52,
+                area: { x: 3, z: 3, w: 54, d: 80 },
                 r: 5, rMax: 10, grad: 0.20,
                 strips: [
-                    [34, [18, rgh], [24, fwy], [18, rgh]],
-                    [46, [22, rgh], [20, fwy], [18, rgh]]
+                    [34, [16, rgh], [24, fwy], [20, rgh]],
+                    [7, [14, rgh], [6, fwy], [32, null], [8, rgh]],
+                    [43, [20, rgh], [20, fwy], [20, rgh]]
                 ],
-                flat: [keep(28, 47, 13), keep(38, 30, 4)],
+                flat: [keep(28, 62, 13), keep(38, 26, 3.6)]
+                    .concat(banks(14, 56, 37.5, 6)),
                 /* The bowl is authored rather than scattered: a ring of humps
                    standing round the green, close enough to run together into
                    one rim and far enough out that none of their tails reaches
                    the green itself. The dune field is kept away from all of
                    it, so this is the only thing shaping the ground there. */
-                bumps: ring(28, 47, 12.5, 6.5, 1.3, 8),
-                inlays: [circle(28, 47, 5.4, grn), circle(38, 30, 2.6, snd)]
+                bumps: ring(28, 62, 12.5, 6.5, 1.3, 8),
+                inlays: [[28, 62, 5.4, grn], [38, 26, 2.2, snd, 1.6]]
             }),
-            fence: { x: 10, z: 6, w: 40, d: 54 },
-            tee: { x: 30, z: 14 }, cup: { x: 28, z: 47 }
+            water: [rect(20, 34, 32, 7, -0.55)],
+            fence: { x: 12, z: 4, w: 36, d: 76 },
+            tee: { x: 30, z: 10 }, cup: { x: 28.5, z: 62.5 }
         }),
         build({
             /* The hole that used to be here was called Stake and Ditch and it
-               was a corridor. One strip of fairway, a green at the end of it,
-               a bunker either side and a boundary drawn tight down the right —
-               and the boundary was the whole hole, which is to say the whole
-               hole was a rule rather than a piece of ground. Measured against
-               its neighbours it was also the flattest thing on the property by
-               a factor of three: a unit and a quarter of relief where the rest
-               of the course has three and a half, on a course whose entire
-               argument is that the ground is the hazard.
-
-               So the stakes stayed and the ground arrived. `massif` puts a
-               whinstone dune the size of a hill down the right of it — the
-               rock the course is named for, and the reason there are outcrops
-               on the crest of it — and the boundary runs along the foot,
-               which makes the two halves of the hole one question instead of
-               two. Everything you gain by playing away from the dune you give
-               back to the stakes.
+               was a corridor: one strip of fairway, a bunker either side and
+               a boundary drawn tight down the right, which made the whole hole
+               a rule rather than a piece of ground. So the stakes stayed and
+               the ground arrived. `massif` puts a whinstone dune the size of a
+               hill down the right of it — the rock the course is named for,
+               and the reason there are outcrops on the crest of it — and the
+               boundary runs along the foot, which makes the two halves of the
+               hole one question instead of two.
 
                A dune this size cannot be flown and is not meant to be: nothing
                in the bag gets above about three units, so four and a half of
                sandhill is a thing you go round. What it does instead is throw
                anything that lands on its flank straight back down — into the
-               fairway if you were lucky and over the line if you were not. */
+               fairway if you were lucky and over the line if you were not.
+               Away from it, two pots wait on the left exactly where the drive
+               comes down. And the green is the longest and thinnest on the
+               course, threaded between a bunker either side: the approach
+               is a question of line rather than of length. */
             name: 'The Sandhill', par: 4, open: true,
-            blurb: 'A whinstone dune the size of a hill down the right, and the stakes along the foot of it.',
+            blurb: 'A whinstone dune down the right with the stakes along its foot, two pots on the left where the drive comes down, and a long thin green between two bunkers.',
             pads: moor({
-                tee: { x: 15, z: 10 }, seed: 7717, n: 44,
-                area: { x: 3, z: 3, w: 52, d: 54 },
+                tee: { x: 15, z: 8 }, seed: 7717, n: 46,
+                area: { x: 3, z: 3, w: 52, d: 78 },
                 r: 5, rMax: 10, grad: 0.21,
-                bumps: massif(33, 30, 15, 3.8, 6),
+                bumps: massif(34, 36, 15, 3.8, 6),
                 strips: [
-                    [30, [7, rgh], [19, fwy], [32, rgh]],
-                    [16, [5, rgh], [19, fwy], [34, rgh]],
-                    [14, [58, rgh]]
+                    [36, [7, rgh], [19, fwy], [32, rgh]],
+                    [20, [5, rgh], [19, fwy], [34, rgh]],
+                    [18, [7, rgh], [15, fwy], [36, rgh]],
+                    [10, [58, rgh]]
                 ],
-                flat: [keep(33, 30, 16), keep(14, 50, 7.5),
-                       keep(13.5, 26, 3.6), keep(9, 41, 3.2)],
+                flat: [keep(34, 36, 16), keep(15, 64, 8), keep(9.5, 39, 3.4),
+                       keep(14, 44.5, 3), keep(20, 59, 3), keep(9.8, 63.5, 3)],
                 inlays: [
-                    circle(14, 50, 5.0, grn),
-                    circle(13.5, 26, 2.4, snd),
-                    circle(9, 41, 2.2, snd)
+                    [15, 64, 2.8, grn, 6.2],
+                    [9.5, 39, 2.2, snd],
+                    [14, 44.5, 1.7, snd],
+                    [20, 59, 1.6, snd, 1.3],
+                    [9.8, 63.5, 1.4, snd, 1.9]
                 ]
             }),
             extra: [].concat(
-                crags(33, 30, 5, 7, 7717, { s: 1.6, h: 1.2 }),
-                crags(27, 20, 4, 4, 7727, { s: 1.2, h: 0.9 })
+                crags(34, 36, 5, 7, 7717, { s: 1.6, h: 1.2 }),
+                crags(30, 22, 4, 4, 7727, { s: 1.2, h: 0.9 })
             ),
-            fence: { x: 4, z: 5, w: 24, d: 52 },
-            tee: { x: 15, z: 10 }, cup: { x: 14, z: 50 }
+            fence: { x: 4, z: 4, w: 24, d: 74 },
+            tee: { x: 15, z: 8 }, cup: { x: 15, z: 66.5 }
         }),
         build({
-            name: 'Home Ground', par: 4, open: true,
-            blurb: 'The last of it turns right at the burnside, and the ground pushes you left.',
+            /* A dogleg right round the pool where the burn widens, off a tee
+               on top of a dune three units high. The fairway runs north off
+               the dune and turns hard right along the top to the green, and
+               the inside of the corner is the pool: go up the left and round,
+               or carry as much of the water as you dare and come down in the
+               rough beyond it, a club nearer the flag. The stakes run round
+               the back of the pool, so there is no way round it on the right —
+               the corner is water or it is the long way.
+
+               The height is a hump under the tee rather than a raised row. A
+               row is the width of the property, and a links tee lifted on one
+               is a tabletop across the whole hole with a bank down three sides
+               of it; a dune is a dune. The fall off its face is what buys the
+               carry, and the carry is what puts the pool in reach at all. */
+            name: 'Burnside', par: 4, open: true,
+            blurb: 'Off a tee up in the dunes and hard right round the burn pool. Go the long way round, or carry as much of the water as you dare.',
             pads: moor({
-                tee: { x: 16, z: 12 }, seed: 2237, n: 54,
-                area: { x: 3, z: 3, w: 54, d: 58 },
+                tee: { x: 13, z: 10 }, seed: 2237, n: 50,
+                area: { x: 3, z: 3, w: 58, d: 73 },
                 r: 5, rMax: 10, grad: 0.21,
+                bumps: [hill(13, 10, 9.5, 3)],
                 strips: [
-                    [30, [8, rgh], [22, fwy], [30, rgh]],
-                    [10, [8, rgh], [36, fwy], [16, rgh]],
-                    [14, [22, rgh], [30, fwy], [8, rgh]],
-                    [10, [60, rgh]]
+                    [6, [64, rgh]],
+                    [15, [6, rgh], [14, fwy], [44, rgh]],
+                    [12, [6, rgh], [14, fwy], [2, rgh], [18, null], [24, rgh]],
+                    [10, [6, rgh], [14, fwy], [44, rgh]],
+                    [16, [6, rgh], [44, fwy], [14, rgh]],
+                    [4, [10, rgh], [30, fwy], [24, rgh]],
+                    [16, [64, rgh]]
                 ],
-                flat: [keep(40, 44, 8), keep(26, 38, 4), keep(44, 36, 3.6)],
+                flat: [keep(13, 10, 10), keep(31, 27, 11), keep(41, 54, 7),
+                       keep(31, 38, 3.2), keep(10, 52, 3.4), keep(35.5, 49.5, 3)],
                 inlays: [
-                    circle(40, 44, 5, grn),
-                    circle(26, 38, 2.6, snd),
-                    circle(44, 36, 2.2, snd)
+                    [41, 54, 4.6, grn],
+                    [31, 38, 1.8, snd],
+                    [10, 52, 2.0, snd],
+                    [35.5, 49.5, 1.5, snd]
                 ]
             }),
+            water: [rect(22, 21, 18, 12, -0.55)],
+            extra: [].concat(
+                crags(46, 25, 4, 6, 2237, { s: 1.4, h: 1.0 }),
+                crags(44, 37, 2.5, 3, 2239, { s: 1.1, h: 0.8 })
+            ),
             fence: [
-                { x: 8, z: 6, w: 22, d: 38 },
-                { x: 24, z: 34, w: 30, d: 24 }
+                { x: 3, z: 3, w: 21, d: 62 },
+                { x: 3, z: 31, w: 51, d: 34 }
             ],
-            tee: { x: 16, z: 12 }, cup: { x: 40, z: 44 }
+            tee: { x: 13, z: 10 }, cup: { x: 41.5, z: 54.5 }
         }),
         build({
             name: 'The Ait', par: 3, open: true,
@@ -3272,37 +3346,49 @@
             tee: { x: 26, z: 22 }, cup: { x: 26, z: 39 }
         }),
         build({
+            /* A three-shotter that turns left at the point. Two pots wait in
+               the landing ground with the stakes close on the right, and the
+               inside of the elbow is a pool lying in country that is not the
+               golf course. From the drive the second is the wager: up the
+               fairway and round the corner, which leaves a long third, or
+               across the end of the pool to the far fairway, which leaves a
+               pitch if it gets over. The green is out on the point itself,
+               with a long bunker across its front and the water close behind
+               it, so the third has to be flown and stopped. */
             name: 'Elbow Point', par: 5, open: true,
-            blurb: 'It turns left at the point. Cut the corner and you are off the course.',
-            /* A dogleg with nothing to bend it. There are no trees on a links
-               and no room for a hazard big enough to matter, so what turns
-               this hole is the boundary itself: `fence` is two rectangles that
-               overlap in an L, and the inside of the elbow is simply not the
-               golf course. Which is how a real links does it too — the line of
-               white stakes is the architecture. */
+            blurb: 'Hard left at the point, round a pool in the elbow. Go round, or carry the end of it with the second — then a green between the sand and the water.',
             pads: moor({
-                tee: { x: 52, z: 14 }, seed: 5519, n: 76,
-                area: { x: 3, z: 3, w: 70, d: 82 },
+                tee: { x: 60, z: 8 }, seed: 5519, n: 70,
+                area: { x: 3, z: 6, w: 74, d: 85 },
                 r: 5, rMax: 11, grad: 0.20,
                 strips: [
-                    [52, [38, rgh], [24, fwy], [14, rgh]],
-                    [14, [12, rgh], [50, fwy], [14, rgh]],
-                    [10, [12, rgh], [30, fwy], [34, rgh]],
-                    [12, [76, rgh]]
+                    [4, [80, rgh]],
+                    [26, [50, rgh], [18, fwy], [12, rgh]],
+                    [24, [34, rgh], [16, null], [2, rgh], [16, fwy], [12, rgh]],
+                    [4, [50, rgh], [18, fwy], [12, rgh]],
+                    [14, [12, rgh], [8, null], [2, rgh], [46, fwy], [12, rgh]],
+                    [4, [12, rgh], [8, null], [10, rgh], [30, fwy], [20, rgh]],
+                    [18, [80, rgh]]
                 ],
-                flat: [keep(24, 68, 8), keep(44, 40, 4), keep(34, 62, 4), keep(19, 61, 3.8)],
+                flat: [keep(42, 42, 15), keep(16, 67, 10.5), keep(27, 67, 7),
+                       keep(35, 67, 5), keep(56, 38, 3.2), keep(64, 42, 3)],
                 inlays: [
-                    circle(24, 68, 5.4, grn),
-                    circle(44, 40, 2.6, snd),
-                    circle(34, 62, 2.5, snd),
-                    circle(19, 61, 2.2, snd)
+                    [27, 67, 4.8, grn],
+                    [35, 67, 1.5, snd, 4.2],
+                    [56, 38, 1.8, snd],
+                    [64, 42, 1.6, snd]
                 ]
             }),
+            water: [rect(34, 30, 16, 24, -0.55), rect(12, 58, 8, 18, -0.55)],
+            extra: [].concat(
+                crags(22, 32, 6, 7, 5519, { s: 1.5, h: 1.1 }),
+                crags(28, 84, 3, 4, 5521, { s: 1.2, h: 0.9 })
+            ),
             fence: [
-                { x: 38, z: 8, w: 28, d: 54 },
-                { x: 10, z: 52, w: 40, d: 26 }
+                { x: 46, z: 2, w: 28, d: 79 },
+                { x: 8, z: 54, w: 66, d: 27 }
             ],
-            tee: { x: 52, z: 14 }, cup: { x: 24, z: 68 }
+            tee: { x: 60, z: 8 }, cup: { x: 26, z: 67.5 }
         })
     ];
 
