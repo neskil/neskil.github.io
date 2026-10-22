@@ -525,12 +525,11 @@
                was. */
             ice: tops(tex.ice, 90 + wet * 40, 0xdff0ff, 0xffffff),
             /* Glass, for the grid world: dark, glossy and faintly lit from
-               inside, with no texture and no blades. The grid drawn over it
-               (addGrid) is what reads the shape; this is what it is drawn on,
-               and the hard pink highlight is the sun sliding over a wave. */
-            glass: new THREE.MeshPhongMaterial({
+               inside, with no texture and no blades — and the grid is part of
+               it (gridGlass), so the lines lie exactly on the surface. */
+            glass: gridGlass(new THREE.MeshPhongMaterial({
                 color: 0x05030f, emissive: 0x10032e, shininess: 260, specular: 0x1c0c38
-            }),
+            }), theme),
             rough: tops(tex.rough, 3 + wet * 40, 0x000000, 0x7d8a92),
             // The greens get the most of everything: a bump map of the same
             // blades that are in the colour map, so the light rakes across the
@@ -1541,6 +1540,12 @@
         for (q = 0; q < (pads || []).length; q++) {
             if (pads[q].inlay) cover.push(pads[q]);
         }
+        /* And the holes in it (pad.voids): each is cut the way an inlay is,
+           and its rim conformed onto the circle, so a hole in the glass is a
+           clean round mouth with the grid floor showing far below. */
+        var holes = (pad.voids || []).map(function (v) {
+            return { x: v.x - v.r, z: v.z - v.r, w: 2 * v.r, d: 2 * v.r, r: v.r, inlay: true };
+        });
         /* An inlay is laid *into* the ground rather than standing on it, so
            its earth wall is a hand's breadth of cut sand and not a column down
            to the surround — and it is lifted the same hair a flat inlay is, or
@@ -1568,8 +1573,10 @@
         var res = terrainRes(pad);
         var geo = pad.r
             ? discTerrainGeometry(pad, res, cx, cy, cz)
-            : terrainGeometry(pad, res, cx, cy, cz, cut, cover);
+            : terrainGeometry(pad, res, cx, cy, cz, cut, cover.concat(holes), holes.length > 0);
         worldUv(geo, TX.SCALE[pad.kind] || TX.SCALE.green, cx, cz);
+        if (holes.length) addVoidRims(group, pad);
+        if (pad.hue) { tintRainbow(geo, pad, cx, cy, cz, RAINBOW_GLASS); mat = rainbowGlass(); }
         var mesh = new THREE.Mesh(geo, mat);
         mesh.position.set(cx, cy + lift, cz);
         mesh.receiveShadow = true;
@@ -1598,6 +1605,8 @@
             var py = P.padHeight(pad, cup.x, cup.z) - cy;
             var patch = cupPatch(cut, py, C.HOLE_R);
             worldUv(patch, TX.SCALE[pad.kind] || TX.SCALE.green, cx, cz);
+            // A rainbow pad's patch is coloured with it, or it is a black tile.
+            if (pad.hue) tintRainbow(patch, pad, cx, cy, cz, RAINBOW_GLASS);
             var pm = new THREE.Mesh(patch, mat);
             pm.position.set(cx, cy + lift, cz);
             pm.receiveShadow = true;
@@ -1607,48 +1616,215 @@
         }
     }
 
-    /* The grid, for a theme that asks for one (Challenge mode's `neon`).
-       Lines across every pad at `every` units, each one walked over the
-       ground at a quarter of a unit and lifted clear of the grass, so a wave
-       or a saddle is drawn by the lines bending over it — which is the whole
-       look, and the one way to read a surface like that from the tee. And a
-       wider, dimmer grid on the floor round the hole, out to the fog. Unlit
-       and fogged, so the bloom in postfx is what makes them glow. */
-    var GRID_STEP = 0.25, GRID_LIFT = 0.07;
+    /* The grid off the course, for a theme that asks for one (Challenge
+       mode's `neon`): a square of lines on the floor round the hole, out to
+       the fog, unlit, so the bloom in postfx is what makes them glow. On the
+       course the grid is in the glass itself (gridGlass). */
+    var _hsl = new THREE.Color();
+    // How bright the glass is in its own colour: dark, so the lines stay the
+    // brightest thing on it — 0.13 read as painted plastic.
+    var RAINBOW_GLASS = 0.055;
     function addGrid(group, hole, theme) {
-        var G = theme.grid, every = G.every || 1, pts = [], i, p, a, t, x, z, x0, z0, y0, inside;
-        function line(ax, az, bx, bz, pad) {
-            var len = Math.hypot(bx - ax, bz - az), n = Math.max(1, Math.ceil(len / GRID_STEP)), k, was = false;
-            for (k = 0; k <= n; k++) {
-                x = ax + (bx - ax) * k / n; z = az + (bz - az) * k / n;
-                inside = P.padContains(pad, x, z);
-                if (inside && was) pts.push(x0, y0, z0, x, P.padHeight(pad, x, z) + GRID_LIFT, z);
-                if (inside) { x0 = x; z0 = z; y0 = P.padHeight(pad, x, z) + GRID_LIFT; }
-                was = inside;
-            }
-        }
-        for (i = 0; i < hole.pads.length; i++) {
-            p = hole.pads[i];
-            if (p.inlay && p.kind === 'sand') continue;
-            for (a = Math.ceil(p.x / every) * every; a <= p.x + p.w + 1e-9; a += every) line(a, p.z, a, p.z + p.d, p);
-            for (t = Math.ceil(p.z / every) * every; t <= p.z + p.d + 1e-9; t += every) line(p.x, t, p.x + p.w, t, p);
-        }
-        var geo = new THREE.BufferGeometry();
-        geo.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3));
-        group.add(new THREE.LineSegments(geo, new THREE.LineBasicMaterial({ color: G.colour, fog: true })));
-
-        // The floor: a square of lines round the middle of the hole.
-        var b = hole.bounds, cx = (b.minX + b.maxX) / 2, cz = (b.minZ + b.maxZ) / 2;
-        var R = 140, s = G.floorEvery || 3, fl = [], y = theme.surroundY + 0.02, v;
-        for (v = -R; v <= R; v += s) {
-            fl.push(cx + v, y, cz - R, cx + v, y, cz + R);
-            fl.push(cx - R, y, cz + v, cx + R, y, cz + v);
+        var G = theme.grid, b = hole.bounds, cx = (b.minX + b.maxX) / 2, cz = (b.minZ + b.maxZ) / 2;
+        var R0 = 140, s = G.floorEvery || 3, fl = [], y = theme.surroundY + 0.02, v;
+        for (v = -R0; v <= R0; v += s) {
+            fl.push(cx + v, y, cz - R0, cx + v, y, cz + R0);
+            fl.push(cx - R0, y, cz + v, cx + R0, y, cz + v);
         }
         var fgeo = new THREE.BufferGeometry();
         fgeo.setAttribute('position', new THREE.Float32BufferAttribute(fl, 3));
         group.add(new THREE.LineSegments(fgeo, new THREE.LineBasicMaterial({ color: G.floor || G.colour, fog: true })));
     }
 
+    /* The grid, drawn by the glass itself. It used to be LineSegments laid
+       over the ground, sampled off the true height field and lifted clear of
+       it — and the ground is drawn as flat triangles a half unit across, so on
+       every curve the lines and the floor parted company and the grid hovered
+       (the owner's screenshot). Computing the lines in the fragment shader
+       from the world position puts them exactly on the surface at any
+       curvature: one line a unit, a pixel or so wide whatever the distance
+       (fwidth), in the theme's colour or — on a rainbow pad — in the pad's
+       own colour, brightened. */
+    function gridGlass(mat, theme) {
+        if (!theme.grid) return mat;
+        var col = new THREE.Color(theme.grid.colour), every = theme.grid.every || 1;
+        mat.extensions = { derivatives: true };
+        mat.onBeforeCompile = function (sh) {
+            sh.uniforms.gridCol = { value: col };
+            sh.uniforms.gridEvery = { value: every };
+            sh.vertexShader = 'varying vec3 vGridPos;\n' + sh.vertexShader.replace(
+                '#include <project_vertex>',
+                '#include <project_vertex>\n vGridPos = (modelMatrix * vec4(transformed, 1.0)).xyz;');
+            sh.fragmentShader = 'varying vec3 vGridPos;\nuniform vec3 gridCol;\nuniform float gridEvery;\n' +
+                sh.fragmentShader.replace('#include <fog_fragment>', [
+                    'vec2 gq = vGridPos.xz / gridEvery;',
+                    'vec2 gf = max(fwidth(gq), vec2(1e-4));',
+                    'vec2 gw = abs(fract(gq - 0.5) - 0.5) / gf;',
+                    'float gl = 1.0 - min(min(gw.x, gw.y), 1.0);',
+                    // Where a unit of grid is down to a few pixels — far
+                    // off, or a slope seen edge on — the lines would merge
+                    // into a solid bright band and the bloom would spread it,
+                    // so they fade out instead of crowding.
+                    'gl *= 1.0 - smoothstep(0.22, 0.5, max(gf.x, gf.y));',
+                    '#ifdef USE_COLOR',
+                    'vec3 gc = min(vColor * 11.0, vec3(1.0));',
+                    '#else',
+                    'vec3 gc = gridCol;',
+                    '#endif',
+                    'gl_FragColor.rgb += gc * gl;',
+                    '#include <fog_fragment>'
+                ].join('\n'));
+        };
+        mat.customProgramCacheKey = function () { return 'gridglass'; };
+        return mat;
+    }
+
+    // A lit lip round each hole in the glass, on the ground's own height, so
+    // a void reads from the tee as a mouth rather than a missing patch.
+    function addVoidRims(group, pad) {
+        var pts = [], i, k, v, a0, a1, n = 40;
+        for (i = 0; i < pad.voids.length; i++) {
+            v = pad.voids[i];
+            for (k = 0; k < n; k++) {
+                a0 = k / n * Math.PI * 2; a1 = (k + 1) / n * Math.PI * 2;
+                pts.push(v.x + Math.cos(a0) * v.r, P.padHeight(pad, v.x + Math.cos(a0) * v.r, v.z + Math.sin(a0) * v.r) + 0.03, v.z + Math.sin(a0) * v.r,
+                         v.x + Math.cos(a1) * v.r, P.padHeight(pad, v.x + Math.cos(a1) * v.r, v.z + Math.sin(a1) * v.r) + 0.03, v.z + Math.sin(a1) * v.r);
+            }
+        }
+        var geo = new THREE.BufferGeometry();
+        geo.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3));
+        group.add(new THREE.LineSegments(geo, new THREE.LineBasicMaterial({ color: 0x27f0ff })));
+    }
+
+    /* A gravity well, drawn: a black ball the size of its core sitting on
+       the ground, and an accretion disc round it — two rings, hot inside and
+       violet out, additive and turning (frame) — so it reads from the tee as
+       the thing that will bend the shot and the thing that will eat it. */
+    function addWells(group, hole) {
+        R.wells = [];
+        hole.wells.forEach(function (w) {
+            var top = P.surfaceTop(hole, w.x, w.z), y = top ? top.y : 0;
+            var core = new THREE.Mesh(new THREE.SphereGeometry(w.core * 0.85, 24, 16),
+                new THREE.MeshBasicMaterial({ color: 0x000000 }));
+            core.position.set(w.x, y + w.core * 0.5, w.z);
+            group.add(core);
+            var disc = new THREE.Group();
+            [[1.15, 1.9, 0xffb347, 0.9], [1.9, 3.2, 0xb040ff, 0.55]].forEach(function (r) {
+                var m = new THREE.Mesh(new THREE.RingGeometry(w.core * r[0], w.core * r[1], 48, 1),
+                    new THREE.MeshBasicMaterial({ color: r[2], transparent: true, opacity: r[3],
+                        blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
+                m.rotation.x = -Math.PI / 2;
+                disc.add(m);
+            });
+            disc.position.copy(core.position);
+            disc.rotation.z = 0.35;          // tipped, the way they always are
+            group.add(disc);
+            R.wells.push(disc);
+        });
+    }
+
+    /* The grid world's horizon: a striped sunset sun standing behind the
+       flag, and a ring of wireframe mountains round the whole world — the
+       two things every picture of the genre has, and the reason the sky is
+       violet rather than black. Both are unfogged (they are two hundred units
+       out, where the fog has long since closed) and unlit. */
+    var NEON_SUN_VS = [
+        'varying vec2 vUv;',
+        'void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }'
+    ].join('\n');
+    var NEON_SUN_FS = [
+        'varying vec2 vUv;',
+        'void main() {',
+        '  vec2 p = vUv * 2.0 - 1.0;',
+        '  float r = length(p);',
+        '  if (r > 1.0) discard;',
+        '  vec3 top = vec3(1.0, 0.86, 0.32), bot = vec3(1.0, 0.16, 0.56);',
+        '  vec3 c = mix(bot, top, smoothstep(-0.9, 0.85, p.y));',
+        // Bands cut across the lower half, widening towards the bottom.
+        '  if (p.y < 0.05) {',
+        '    float t = (0.05 - p.y) / 1.05;',
+        '    float band = fract((0.05 - p.y) * 7.0);',
+        '    if (band < 0.18 + t * 0.55) discard;',
+        '  }',
+        // edge0 < edge1, always: smoothstep with them reversed is undefined in
+        // GLSL, and this GPU's answer to it was zero — an invisible sun.
+        '  float rim = 1.0 - smoothstep(0.92, 1.0, r);',
+        '  gl_FragColor = vec4(c * 1.15, rim);',
+        '}'
+    ].join('\n');
+    function addNeonBackdrop(group, hole, theme) {
+        var b = hole.bounds, cx = (b.minX + b.maxX) / 2, cz = (b.minZ + b.maxZ) / 2;
+        var dir = Math.atan2(hole.cup.x - hole.tee.x, hole.cup.z - hole.tee.z), D = 230;
+        var sun = new THREE.Mesh(new THREE.PlaneGeometry(76, 76), new THREE.ShaderMaterial({
+            vertexShader: NEON_SUN_VS, fragmentShader: NEON_SUN_FS,
+            transparent: true, depthWrite: false, fog: false, side: THREE.DoubleSide
+        }));
+        /* Setting, not risen: the play camera looks down at the ball and
+           sees barely a degree above the horizon, so a sun up in the sky is a
+           sun nobody sees. Its middle sits on the horizon and the floor hides
+           the lower half, which is how the picture always goes. */
+        sun.position.set(cx + Math.sin(dir) * D, theme.surroundY + 6, cz + Math.cos(dir) * D);
+        sun.lookAt(cx, theme.surroundY + 6, cz);
+        sun.renderOrder = -1;
+        group.add(sun);
+
+        // The mountains: a ridge round a circle, every vertex tied down to
+        // the floor and to its neighbour's foot, which is what a wireframe
+        // range looks like. Cyan at the foot, magenta at the peaks.
+        var n = 180, R0 = 200, y0 = theme.surroundY, pts = [], cols = [], i, a, h, x, z, nx, nz, nh, an;
+        var foot = new THREE.Color(0x27f0ff), peak = new THREE.Color(0xff3df2);
+        function height(t) {
+            return Math.max(0, 9 * Math.sin(t * 3) + 6 * Math.sin(t * 7 + 1.3) + 4 * Math.sin(t * 13 + 0.4) + 5) *
+                (0.6 + 0.4 * Math.abs(Math.sin(t * 2.0 + 0.7)));
+        }
+        function push(ax, ay, az, ca, bx, by, bz, cb) {
+            pts.push(ax, ay, az, bx, by, bz);
+            cols.push(ca.r, ca.g, ca.b, cb.r, cb.g, cb.b);
+        }
+        for (i = 0; i < n; i++) {
+            a = i / n * Math.PI * 2; an = (i + 1) / n * Math.PI * 2;
+            h = height(a); nh = height(an);
+            x = cx + Math.cos(a) * R0; z = cz + Math.sin(a) * R0;
+            nx = cx + Math.cos(an) * R0; nz = cz + Math.sin(an) * R0;
+            push(x, y0 + h, z, peak, nx, y0 + nh, nz, peak);        // the ridge
+            if (h > 0.5) push(x, y0, z, foot, x, y0 + h, z, peak);  // a rib
+            push(x, y0 + h, z, peak, nx, y0, nz, foot);             // a facet
+        }
+        var geo = new THREE.BufferGeometry();
+        geo.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3));
+        geo.setAttribute('color', new THREE.Float32BufferAttribute(cols, 3));
+        group.add(new THREE.LineSegments(geo, new THREE.LineBasicMaterial({ vertexColors: true, fog: false })));
+    }
+
+    /* Rainbow road, in glass: a pad with a `hue` ([start, spread], turns of
+       the colour wheel) is coloured per vertex, drifting across the ground in
+       long diagonal bands and climbing a little with height, so the shape of
+       a surface shows in its colour as well as in the grid on it. Each
+       Challenge hole carries its own range. `light` is how bright (RAINBOW_GLASS). */
+    function rainbowAt(pad, x, y, z, light) {
+        var t = 0.5 + 0.5 * Math.sin(x * 0.19 + z * 0.13) * Math.cos(z * 0.07 - x * 0.05);
+        var h = pad.hue[0] + pad.hue[1] * t + y * 0.05;
+        return _hsl.setHSL(h - Math.floor(h), 0.9, light);
+    }
+    function tintRainbow(geo, pad, ox, oy, oz, light) {
+        var p = geo.attributes.position, n = p.count, col = new Float32Array(n * 3), i, c;
+        for (i = 0; i < n; i++) {
+            c = rainbowAt(pad, p.getX(i) + ox, p.getY(i) + oy, p.getZ(i) + oz, light);
+            col[i * 3] = c.r; col[i * 3 + 1] = c.g; col[i * 3 + 2] = c.b;
+        }
+        geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+    }
+    // The glass, taking its colour from the vertices rather than from itself.
+    function rainbowGlass() {
+        if (!R.surf.rainbow) {
+            var g = R.surf.pads.glass.slab[0];
+            R.surf.rainbow = gridGlass(new THREE.MeshPhongMaterial({
+                color: 0xffffff, vertexColors: true, emissive: g.emissive.clone().multiplyScalar(0.6),
+                shininess: g.shininess, specular: new THREE.Color(0x000000)
+            }), R.theme);
+        }
+        return R.surf.rainbow;
+    }
     function addPad(group, pad, theme, cup, pads) {
         if (pad.bumps || pad.field) { addTerrain(group, pad, theme, cup, pads); return; }
         var cx = pad.x + pad.w / 2, cz = pad.z + pad.d / 2;
@@ -2355,6 +2531,9 @@
         // Nothing to hold up: on a theme whose floor is near the waterline the
         // flanks are a few centimetres and the kerb would be a hairline.
         if (depth < 0.45) return;
+        // A pond in a hollow (courses.pond) is held in by its own ground, and
+        // a rim round its bounding box would draw the very square it is not.
+        if (w.dip) return;
         var mat = groundMaterial(theme);
         // Middle, middle, width, depth. The two long sides run the whole way
         // and overlap the short ones at the corners, which is how the rim
@@ -2450,6 +2629,9 @@
        white on the hole. Spaced by eye rather than by division, so a long side
        and a short side have stakes the same distance apart. */
     function addStakes(group, hole, theme) {
+        // A hole whose boundary is the edge of the world marks nothing
+        // (Challenge mode: the glass runs out, and that is the line).
+        if (hole.stakes === false) return;
         var rects = P.fenceRects(hole);
         if (!rects.length) return;
         var mat = new THREE.MeshPhongMaterial({
@@ -3398,6 +3580,8 @@
         var i;
         for (i = 0; i < hole.pads.length; i++) addPad(g, hole.pads[i], theme, hole.cup, hole.pads);
         if (theme.grid) addGrid(g, hole, theme);
+        if (theme.glow) addNeonBackdrop(g, hole, theme);
+        if (hole.wells) addWells(g, hole);
         // The grid world's effects switch on with the theme (see hitAt), and
         // its tail is drawn larger, because it is a light and not a smudge.
         R.glow = !!theme.glow;
@@ -4374,6 +4558,7 @@
         updateAim(world, aim);
         stepParticles(dt);
         stepPulses(dt);
+        if (R.wells) for (var wi = 0; wi < R.wells.length; wi++) R.wells[wi].rotation.y += dt * 0.9;
         updateCamera(world.hole, world.ball, dt);
 
         // The camera has moved; what the air is doing about it, and the two

@@ -672,7 +672,9 @@
 
         if (w.splash || w.out) {
             state.strokes += w.splash ? C.WATER_PENALTY : C.OOB_PENALTY;
-            toast(w.splash ? 'Water — one stroke penalty' : 'Out of play — one stroke penalty', 'bad');
+            toast(w.splash ? 'Water — one stroke penalty'
+                : w.swallowed ? 'Swallowed by the well — one stroke penalty'
+                : 'Out of play — one stroke penalty', 'bad');
             state.world = P.createWorld(w.hole, w.origin, w.time);
             R.state.lastBall.set(w.origin.x, w.origin.y, w.origin.z);
         }
