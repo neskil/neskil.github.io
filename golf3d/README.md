@@ -497,10 +497,9 @@ as a mid grey; four heads in three different greys all arrived the same shade
 of white, and the whole bag read as a beige bucket lit by a studio flash. Every
 colour in `bag.js` now goes through `ink()` — `convertSRGBToLinear` — at the
 point it is written, and the canvas textures declare `sRGBEncoding` so they are
-decoded the same way. What is written is now what shows. The specular colours
-went with them: white highlights on every metal were what turned four club
-heads into four white blobs, and chrome reflects the sky it is standing under,
-not a flash.
+decoded the same way. What is written is now what shows. (The metals' own
+highlights come from the room they reflect rather than from a picked specular
+colour — see "Modelling the heads".)
 
 **The mouth was a lid.** A `CylinderGeometry` is capped at both ends by default,
 and the bag's body and its cuff were two solid discs lying across the opening.
@@ -588,121 +587,114 @@ patch once, which costs five canvases, once.
 
 ### Modelling the heads
 
-The heads went through three versions and only the third is any good, which is
-worth writing down because the first two failed for reasons that look like
-opinions and are not.
+The heads went through four versions, and the first three failed for reasons
+that look like opinions and are not.
 
 **Stacked boxes** read as four grey blocks. **Extruded outlines with bevelled
 edges** gave them silhouettes but a club head is a curved volume, and the best
-an extrusion can do is a rounded brick — the driver came out a slab and the
-irons came out L-shapes. What they are now:
+an extrusion can do is a rounded brick. **A warped sphere and a pair of
+extrusions per iron** got the volumes right but stopped there: the driver was an
+egg with a disc stuck on the front, the 7 iron and the pitch were the same
+blade, the putter was a slab, and the mallet — which had no branch of its own —
+was handed an iron's head. The fourth is drawn from photographs of specific,
+recognisable clubs, because a row of heads is a shop window and "a driver" is
+not something anybody has seen:
 
-Before any of the shapes, though: **the heads are four finishes and five
-colours, not one grey.** Shape alone was never going to carry it at the size a
-phone shows a row of five, and a real bag does not ask it to — a driver crown is
-painted near black, a players' iron is brushed, a chrome wedge is a mirror.
-That is a shade, a shininess and a *finish* per club out of `CLUB_LOOK`, which
-was already carrying each club's colour for its ferrule and its card, so it is
-one table rather than a material per club. On top of it each head wears its own
-colour on the one part of a real one that is allowed to be any colour at all: a
-driver's sole plate and alignment mark, the badge behind an iron, a mallet's
-sight line. Colour on a ferrule two millimetres tall is a legend; colour on the
-head is what tells five clubs apart at a glance.
+- **Driver** — after the TaylorMade SIM2 Max. A carbon-weave crown inset in a
+  white frame that runs along the face and down the heel into a white neck, a
+  ring of the club's colour round the back of the skirt with a hairline of it
+  round the crown's edge, a big dark face shaped like a D with the Twist Face
+  scorelines on it, a black adjustable sleeve with a white index band, and on
+  the sole — which is the side facing the sky in the bag — a keel running back
+  to a chrome weight, a speed slot, and two stripes of the club's colour. The
+  driver's colour is now that blue (it was orange): on a SIM2 the blue *is* the
+  club, and the ferrule, card and chip follow the head.
+- **7 iron and pitch** — perimeter-weighted cavity backs after PXG: a thick
+  topline and a heavy toe round a cavity, a wide sole bar, and a two-tone
+  medallion in the cavity, dark with the club's colour standing on it. One
+  builder with a row of numbers per club (`IRONS`), so the pitch is a shorter,
+  taller head with a wider sole rather than the same blade.
+- **Wedge and checker** — muscle-back teardrops: a topline that climbs to a high,
+  round toe, a smooth muscle with a stripe of the club's colour, and a sole
+  sheared so its trailing edge hangs below the leading one by the club's bounce.
+  The checker's face is milled in a fine check.
+- **Putter** — an Anser: a face block, a low flange, a weight standing at heel
+  and toe, a sight line, and a plumber's neck (down, across, down).
+- **Mallet** — a two-ball: a half-moon with two white discs on its back lined up
+  behind the ball, the club's colour along the top of the face, a dark insert.
 
-**And the finish is a reflection, not a shininess.** This is the one thing three
-lamps and a high specular could not buy: a polished head is not a bright grey
-object, it is a mirror, and a mirror with nothing in front of it is a grey
-object. Lit and no more, every head in the row came back the same pale slate,
-and turning one in the picker showed you nothing but its outline changing. So
-`studioEnv()` draws a room for them to reflect — one equirectangular canvas,
-sky overhead, a warm band at the horizon, dark ground below, three soft lamps —
-hung on every metal as an `envMap` under `MixOperation`, which blends the room
-*into* the colour where the default multiply could only ever darken it. The
-lamps are the working half: they are what sweeps across a crown as a club turns
-under the pointer, and motion in a highlight is the whole difference between
-metal and paint.
+Outlines are written as corners and radii (`roundPoly`) rather than hand-placed
+curves, so a sharp leading edge, a round toe and a heel that blends into the
+neck are each one number. Two helpers place them: `backward` extrudes an
+outline drawn *on the face* back into the head, `upward` stands an outline
+drawn *from above* up off the sole. r128's `ExtrudeGeometry` computes its
+normals per face, which made every bevel a row of flat strips, so both run the
+result through `creased` — smooth across a curve, sharp across an edge, which is
+what a modelling package calls auto-smooth.
 
-Two things about that room are deliberate. It is **not the course's own sky** —
-a reflection has to read at four millimetres tall, and the real sky over a night
-hole is black, which off a chrome head is indistinguishable from a matte one; it
-is the same fair weather everywhere, which is what a product shot does and for
-the same reason. And it is **written dark**, because the picture goes through
-bloom on the way out: drawn as bright as a real sky, a chrome wedge came back as
-a white blob with a glow round it, which is worse than the flat grey it
-replaced. Dark room, bright lamps. The halo marking the club in hand was dimmed
-in the same pass, for the same reason — a halo bright enough to mark a slate
-blade blooms straight over a polished one.
+The driver is the one head an extrusion cannot do, because an extruded cap is a
+single flat fan with nothing inside it to dome. It is a sphere with every vertex
+moved onto the shape: its bearing picks a radius off the footprint, its height
+picks a point on a superellipse — round over the crown, square over the sole,
+and squarer toward the front so the slice for the face takes the head's full
+height — and the crown rises from the face to a crest a quarter of the way back.
+Its colours are painted **in its shader** (`driverSkin`) from the head's own
+coordinates and the sphere's original latitude, not chosen a triangle at a time:
+the first try did that, and every boundary came out as a saw blade, because a
+sphere pushed into a driver is all long slivers and an edge is only as clean as
+the triangles it is cut along. Measured in latitude, the ring runs along the
+shell's rows however tall the crown is above it, so it stays level.
 
-The finishes that are not mirrors get a **grain** instead: a `specularMap` of
-fine streaks (`brushTexture`), which combs the highlight into the line a
-machined face leaves rather than a dot. It is sown from a counter rather than
-`Math.random`, so a before-and-after screenshot pair differs only for the reason
-under test.
+**The heads are metal, not grey paint.** Every metal is a `MeshStandardMaterial`
+— metalness and roughness — with the finish in `CLUB_LOOK` (chrome, brushed,
+satin, PVD) choosing the two numbers and each club's `shine` nudging its
+roughness. At `metalness: 1` there is no painted colour left: the colour tints
+the reflection, which is what makes a metal dark where the room is dark rather
+than grey where it is not shiny. So `studioEnv()` draws a room for it to
+reflect — a lit cyclorama, a pale floor, overhead lamps for the highlight that
+sweeps across a crown as it turns, and softboxes standing across the horizon
+for the long stripe down a shaft or along a topline — and `studioRadiance()`
+runs it through a `PMREMGenerator`, which is what gives `roughness` something
+to blur: a mirror reads the sharp level and a satin head a smeared one, of the
+same room. Handed the raw strip instead, r128's physical shader has no mip chain
+to walk and the reflection drops out — a black club. The room used to be drawn
+dark, when it was blended *over* a Phong colour the scene's lamps were already
+lighting; under a standard material it is the only light a metal has, so a dark
+room was a row of silhouettes. It is not the course's own sky, on purpose: a
+reflection has to read at four millimetres tall, and a night hole's sky is
+black. The brushed finishes get a grain (`brushTexture`) as a **roughness** map,
+so the streaks comb the reflection itself; it is sown from a counter rather than
+`Math.random`, so a before-and-after screenshot pair differs only for the
+reason under test.
 
-`CLUB_LOOK` also gained the two entries it was missing. `look()` falls back to
-the pitch's green, so the mallet and the checker — both handed out a hole at a
-time — arrived wearing another club's colour on exactly the hole where they are
-the only unfamiliar thing in the bag.
-
-- **Driver** — a sphere pushed into shape: squashed to 60% height, swelling
-  wider toward the back so it pears, and sliced off flat at `x = 0.040` where
-  the face goes. One warp loop, and it is a curved volume rather than an
-  impression of one. The face plate is sized to the slice (28mm across, 20mm
-  tall) so it sits flush instead of standing proud as a rim.
-- **Irons** — a bevelled extrusion is right here, because a blade genuinely is
-  a flat outline: a topline running out to a rounded toe, a sole, a heel. Behind
-  it sits a **muscle** — a second extrusion hugging the sole from heel to toe,
-  which is where the weight in a real iron is and what stops a blade reading as
-  a butter knife. As a box bolted to the back it read as a step; following the
-  sole, it reads as an iron.
-- **Wedges** — their own outline, not a taller iron, which is what they were
-  drawn as for a long time. Held to the face the two are different shapes and
-  the difference is the whole of what the picker exists to show: a wedge's
-  topline climbs from the heel and rolls over a high, round toe, its face is a
-  good centimetre taller, and its sole is a broad bar the full width of the head
-  with the leading edge proud of it — the bounce, and the first thing a golfer
-  would look for. Three things were needed to make that read at the size it is
-  drawn. The **bevel** came down to a sixth of an iron's: `bevelSize` runs
-  outward from both ends of a 12mm extrusion, so the 3mm a blade carries happily
-  rounded a wedge's outline away entirely and left two chrome cylinders lying
-  against each other. The **sole** is set back only far enough that its own
-  front cap is buried inside the blade — further out, and it is not bounce, it
-  is a second club behind the first. And the **face** is cut to the head's own
-  outline (`facePlate`) rather than laid over it as a rectangle, whose corners
-  stood out past the curve as a flat card of grooves floating in front of a
-  rounded club. `ShapeGeometry` hands out the shape's own coordinates as texture
-  coordinates, which for a head measured in metres is the first 8% of the
-  picture stretched over the whole face, so the plate's UVs are rewritten over
-  its own box. Its grooves are their own texture too: twice as many as an iron's,
-  twice as fine, over a milled ground, and the same canvas goes in as `bumpMap`
-  as well as `map` so a groove is an incision that catches the light along one
-  edge rather than a stripe.
-- **Putter** — a mallet: a wide, low, rounded slab with wings swept back behind
-  the face, a dark insert across the face, a sight line on the crown, and a
-  plumber's neck rather than a shaft pushed into the middle.
+`CLUB_LOOK` also carries the two clubs that arrive a hole at a time: `look()`
+falls back to the pitch's green, so the mallet and the checker used to arrive
+wearing another club's colour on exactly the hole where they are the only
+unfamiliar thing in the bag.
 
 Sizes are the real ones. The USGA caps a driver head at **127mm heel to toe and
-71mm tall** and a 460cc head sits right on that limit; an iron blade is about
-**76mm heel to toe with a 50mm face**, a 58-degree wedge about **78mm by 58mm**;
-a mallet is about **105mm across and 55mm front to back**.
+71mm tall**; a 7 iron is **76–80mm of blade** with a 6–8mm topline, a 17–24mm
+sole and a toe no taller than about 0.62 of its length; a wedge is a taller
+teardrop; an Anser is about **100mm of face**. Shafts are real lengths too, and
+the mallet is now a putter's length rather than the default it fell through to.
 
 Everything is built in the head's own frame, and **that frame is the club as it
 stands in a bag** — grip down in the well, head up where it can be seen and
 clicked. The origin is where the shaft ends, `+Y` runs on past it to the sole,
 `+X` is the way the face looks, and `Z` is heel to toe with the head hung out to
-`+Z` from a hosel at `z = 0`. That last part is the bug the rebuild fixed: the
-heads had been floating a couple of centimetres beside their shafts, because
-nothing in the model sat where the shaft actually ended. A real head hangs off
-its heel, and the hosel is the thing that says so.
+`+Z` from a hosel at `z = 0`. A real head hangs off its heel, and the hosel is the
+thing that says so; an iron's hosel also stands a few millimetres ahead of the
+leading edge (offset), and the driver's body stands ahead of its neck (face
+progression).
 
 The clubs are also **splayed** in the closed bag — each turned a little on its
 own axis — for the same reason. Heads that hang to one side of their shafts
 hide behind each other if five of them stand dead straight in a bunch.
 
-References: [USGA head-size limits](https://www.usga.org/equipment-standards/equipment-rules-2019/equipment-rules/equipment-rules.html),
-and photographs of a driver from above (the pear), an iron from the face (the
-topline and toe) and a mallet from above (the wings) — the three views the
-three shapes are drawn from.
+References: [USGA head-size limits](https://www.usga.org/equipment-standards/equipment-rules-2019/equipment-rules/equipment-rules.html);
+spec sheets for blade length, topline and sole width; and product photographs of
+the TaylorMade SIM2 Max (crown, face, heel and sole), a PXG iron set, a
+cavity-back iron, an Anser putter and a two-ball mallet.
 
 *Not* a downloaded model, and that was a decision rather than an oversight: it
 would need a loader (`GLTFLoader` is not vendored, and vendoring one for four
