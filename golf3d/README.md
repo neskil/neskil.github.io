@@ -1211,7 +1211,7 @@ carry ratio and the fact the slope does not budge.
 | 2 | Dead Weight | 2 | 3 | The inversion. Eight units of gap that nothing can fly at any power, and a plank off to the east that is not the safe route but the only one. |
 | 3 | The Crater | 0.45 | 3 | Light again, and the target is the hole: a crater green on an island, because at this weight nothing stops on flat ground and the rim is the only thing that will. |
 | 4 | Deadlift | 2.4 | 3 | The heaviest hole on the card, and the only one with a motor in it. Two steps of one point two, no ramps, and pads at Helter Skelter's own ratings lifting something twice as heavy. |
-| 5 | The Mouth | 0.4 | 4 | A pipe swallows a ball on the floor and lets a lofted one sail over the top — and at two fifths of a g almost nothing wants to be on the floor. Twenty-four units to the mouth, twelve more for the chipper afterwards. |
+| 5 | Orbit | 0.5 | 3 | A gravity well in the middle of the yard (`wells`) and the cup round the back of it: swing past close enough that it bends the ball in, not so close that it keeps it. Replaced The Mouth, a pipe hole with one answer. |
 | 6 | Apogee | 0.3 | 3 | The pad throws the ball nine and a half units up and holds it there for the best part of four seconds. Two thirds of a putter is the shot; a full one is forty units and gone. |
 
 There is no water anywhere on the yard, and that is the honest choice rather

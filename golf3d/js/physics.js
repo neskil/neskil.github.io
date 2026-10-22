@@ -395,6 +395,14 @@
             return q <= rr * rr;
         }
         if (z < pad.z || z > pad.z + pad.d) return false;
+        /* Holes in the ground (Challenge mode's `voids`): circles where the
+           pad is simply not there, so a ball rolling over one drops through. */
+        if (pad.voids) {
+            for (var vi = 0; vi < pad.voids.length; vi++) {
+                var vd = pad.voids[vi], vx = x - vd.x, vz = z - vd.z;
+                if (vx * vx + vz * vz < vd.r * vd.r) return false;
+            }
+        }
         if (!pad.west && !pad.east) return x >= pad.x && x <= pad.x + pad.w;
         /* A mown edge (courses.mow) — and the clamp bounds first, which are
            every place the curve can reach, so a point well clear of the line
@@ -1075,6 +1083,48 @@
         return false;
     }
 
+    /* ── gravity wells ──
+
+       A hole's `wells` ([{ x, z, pull, core }]) pull the ball towards them
+       across the ground, in the air and on the floor alike — a black hole in
+       the grid world, a gravity anomaly on the moon. The pull is
+       pull / (d² + core²) towards the middle, softened by the core so it is
+       finite everywhere; a ball that gets inside the core is gone (`out`, so
+       the shot is replayed from where it was played, a stroke down). It is a
+       horizontal force only: what holds the ball on the ground is still the
+       ground, and gravity is still down. */
+    var _well = { x: 0, z: 0 };
+    function wellPull(hole, x, z) {
+        _well.x = 0; _well.z = 0;
+        var ws = hole.wells, i, w, dx, dz, q, k;
+        if (!ws) return _well;
+        for (i = 0; i < ws.length; i++) {
+            w = ws[i];
+            dx = w.x - x; dz = w.z - z;
+            q = dx * dx + dz * dz;
+            k = w.pull / ((q + w.core * w.core) * Math.sqrt(q + 1e-9));
+            _well.x += k * dx; _well.z += k * dz;
+        }
+        return _well;
+    }
+    function swallowed(world, events) {
+        var ws = world.hole.wells, b = world.ball, i, w;
+        if (!ws) return false;
+        for (i = 0; i < ws.length; i++) {
+            w = ws[i];
+            if ((b.x - w.x) * (b.x - w.x) + (b.z - w.z) * (b.z - w.z) < w.core * w.core) {
+                b.vx = b.vy = b.vz = 0;
+                world.out = true;
+                world.swallowed = true;
+                world.moving = false;
+                events.out = true;
+                events.swallowed = true;
+                return true;
+            }
+        }
+        return false;
+    }
+
     function drown(world, events) {
         var b = world.ball;
         var w = waterAt(world.hole, b.x, b.z);
@@ -1140,6 +1190,11 @@
                 if (pad.push) {
                     b.vx += pad.push.x * dt;
                     b.vz += pad.push.z * dt;
+                }
+                if (hole.wells) {
+                    var wp = wellPull(hole, b.x, b.z);
+                    b.vx += wp.x * dt;
+                    b.vz += wp.z * dt;
                 }
 
                 var fr = frictionOf(pad.kind);
@@ -1232,6 +1287,11 @@
                 }
             }
             b.vy -= grav * dt;
+            if (hole.wells) {
+                var wa = wellPull(hole, b.x, b.z);
+                b.vx += wa.x * dt;
+                b.vz += wa.z * dt;
+            }
             b.x += b.vx * dt;
             b.z += b.vz * dt;
             b.y += b.vy * dt;
@@ -1329,6 +1389,7 @@
 
         if (cupContact(world, events)) return;
         if (drown(world, events)) return;
+        if (swallowed(world, events)) return;
 
         if (b.y < C.OOB_Y) {
             b.vx = b.vy = b.vz = 0;
@@ -1371,8 +1432,15 @@
                    and the exact bug a player would report as "the belt is
                    broken". The STUCK backstop still catches a ball the belt is
                    holding against a wall, because that one really has stopped. */
+                /* A well is a slope too, as far as holding the ball goes: its
+                   pull over gravity is the gradient it is worth. */
+                var wellSlope = 0;
+                if (hole.wells) {
+                    var wr = wellPull(hole, b.x, b.z);
+                    wellSlope = Math.sqrt(wr.x * wr.x + wr.z * wr.z) / grav;
+                }
                 settled = (lie && !lie.pad.push &&
-                        slopeAt(lie.pad, b.x, b.z) <= holdOf(lie.pad.kind)) ||
+                        slopeAt(lie.pad, b.x, b.z) + wellSlope <= holdOf(lie.pad.kind)) ||
                     world.slowFor > C.STUCK;
             } else {
                 settled = world.slowFor > C.SLOPE_SETTLE;
@@ -1494,6 +1562,7 @@
         speedOf: speedOf,
         groundSpeed: groundSpeed,
         frictionOf: frictionOf,
+        wellPull: wellPull,
         rollOf: rollOf,
         landingOf: landingOf,
         holdOf: holdOf,

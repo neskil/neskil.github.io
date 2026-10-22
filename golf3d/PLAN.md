@@ -130,6 +130,39 @@ Cut, a green strung along the lip on The Rim, a flooded canyon under Stone
 Bridge, and Redstone a dogleg round a mesa no club clears). **All four long
 courses are rebuilt and held to the drive line.**
 
+### Round two: the long game looks natural (owner's ask, v1.72.0 →)
+
+The owner's overview of the four long courses in the picker: every hole a
+rectangle, every pond a blue box, every fairway a straight strip — "avoid
+square, more natural but still varied and fun; verticality is fun, slopes,
+natural and unnatural hindrances", and "doesn't need the aggressive out of
+bounds flags — sometimes more of a forest to punish a bad shot".
+
+The tools for it:
+- **`pond(ground, lobes)`** — water in a hollow rather than a box: lobes
+  `[x, z, r, depth]` laid into the ground, water level set under the lowest
+  rim, shoreline wherever the ground crosses it. Ashdown's *Over the Water* is
+  the first (v1.72.0). Rules learned: call it **before the inlays**; keep its
+  banks off fairway and green cells (a fairway must hold a ball everywhere);
+  a burn is a chain of lobes along a line.
+- **`forest(cx, cz, rx, rz, n, seed, { clear })`** — a seeded wood. Use it
+  where the stakes were: widen the `fence` well beyond the line of play and let
+  the trees be the punishment.
+- **Verticality and hindrances** — `massif`, `ridge`, bluffs (raised rows),
+  `ravine`, raised row cells as cliffs (`MESA` on Redstone), `crags` for rock;
+  unnatural ones are fair game too (a dry-stone wall is a row of low `wall`s, a
+  ruin is a few `pen`s).
+- **Cost** — a long hole draws ~150k triangles today; extra *detailed* ground
+  is the expensive part (1-unit terrain under 4–6 grass layers). Wider margins
+  are fine in moderation; keep total ground area within about +40%.
+
+**Where round two stands (v1.72.0).** Done: `pond`, `forest`, and Ashdown's
+*Over the Water* as the worked example. The four per-course agents were
+stopped part-way on the owner's word (they ate the usage limit): their
+uncommitted work is in `.claude/worktrees/agent-*` — Ashdown had Opening Drive
+and Long Meadow done (a 9×9 pond, a 15-stone wall, 52 trees). Next time, one
+course at a time, by hand or by a single agent.
+
 ### Mini golf
 
 **Done first, and it was the biggest single fix (v1.66.0): mini golf has its
@@ -188,8 +221,12 @@ floors, the neon theme with its grid and its own grade, and the effects
 (sparks, light rings, a neon tail). README → "Challenge mode". v1.71.0 made it
 a **curated library** on the owner's word ("it doesn't have to be all random")
 — eight families, eighteen hand-placed variants, spirals and volcanoes new —
-and dropped the daily seed. Open: moving waves (time in `fieldAt`, and the
-bot's waits), and more variants per family as they are found.
+and dropped the daily seed. v1.72.0: no rails or stakes (the glass runs on and
+its edge is the boundary), rainbow glass with the grid in its shader, a
+sunset sun and wire mountains, black holes (`hole.wells`) and holes in the
+surface (`pad.voids`) as two new families. Open: try every weather on the
+neon theme (the owner asked — only `clear` is in its list so far), moving
+waves, and more variants.
 
 The original ask, kept for reference:
 

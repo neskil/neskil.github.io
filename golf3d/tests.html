@@ -352,6 +352,33 @@
                 assert('…and in a plausible number of strokes', !over.length, over.join('; '));
             })();
 
+            /* ── wells and voids ──
+
+               A gravity well pulls towards its middle, harder the closer you
+               are, and keeps what gets inside its core: the shot is out and
+               replayed. A void is a hole in a pad — no ground there at all —
+               and a ball rolled over one drops through it. */
+            (function () {
+                var wl = lab({ pads: [A.pad(0, 0, 20, 30)], cup: { x: 10, z: 28 } });
+                wl.wells = [{ x: 14, z: 12, pull: 24, core: 0.8 }];
+                var near = P.wellPull(wl, 12, 12), nx = near.x, far = P.wellPull(wl, 4, 12).x;
+                assert('a well pulls towards its middle, and harder close in',
+                    nx > 0 && Math.abs(near.z) < 1e-9 && nx > far * 5, nx.toFixed(2) + ' against ' + far.toFixed(3));
+                var bent = shootFrom(wl, { x: 10, z: 2 }, 0, 7);
+                var straight = shootFrom(lab({ pads: [A.pad(0, 0, 20, 30)], cup: { x: 10, z: 28 } }), { x: 10, z: 2 }, 0, 7);
+                assert('…and a putt past one bends towards it',
+                    bent.ball.x > straight.ball.x + 0.3 || bent.out,
+                    'x ' + bent.ball.x.toFixed(2) + ' against ' + straight.ball.x.toFixed(2));
+                var eaten = shootFrom(wl, { x: 14, z: 4 }, 0, 6);
+                assert('…and a ball rolled into its core is swallowed', eaten.out && eaten.swallowed);
+                var holed = lab({ pads: [A.pad(0, 0, 10, 30)], cup: { x: 5, z: 28 } });
+                holed.pads[0].voids = [{ x: 5, z: 9, r: 1.2 }];
+                assert('a void is no ground at all',
+                    !P.padContains(holed.pads[0], 5, 9) && P.padContains(holed.pads[0], 5, 6));
+                var fell = shootFrom(holed, { x: 5, z: 2 }, 0, 10);
+                assert('…and a ball rolled over one drops through it', fell.out, 'finished at z ' + fell.ball.z.toFixed(2));
+            })();
+
             /* A curved rail is chords (courses.arc), each turned to the
                tangent of the circle at its middle. Rolled straight out from
                the centre, a ball meets a chord face on and comes straight
@@ -2307,6 +2334,13 @@
                 var stopAt = Math.max(0, (len - (C.HOLE_R + C.BALL_R)) / len);
 
                 var px = -dz / len, pz = dx / len;      // perpendicular to the line
+
+                // A gravity well near the line bends it (physics.wellPull),
+                // which is trouble on it as surely as a wall is.
+                (hole.wells || []).forEach(function (wl) {
+                    var u = Math.max(0, Math.min(1, ((wl.x - hole.tee.x) * dx + (wl.z - hole.tee.z) * dz) / (len * len)));
+                    if (Math.hypot(hole.tee.x + dx * u - wl.x, hole.tee.z + dz * u - wl.z) < wl.core * 4) found.well = true;
+                });
 
                 for (i = 1; i < steps; i++) {
                     t = i / steps;

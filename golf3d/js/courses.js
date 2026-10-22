@@ -850,6 +850,31 @@
 
     /* A stand of them along a line. A treeline is never one tree — and where
        the line runs up a slope, `y0`/`y1` walk the ground up with it. */
+    /* A wood: trees scattered through an oval round (cx, cz), seeded so it is
+       the same wood every load, no two trunks closer than `gap`, and none in
+       a `clear` circle (keep(x, z, r): a fairway's line, a green, a tee).
+       What a parkland uses at the edge of play instead of a line of stakes:
+       a ball that strays into one is not out, it is among trunks, and the
+       shot out is the penalty. Trunks are solid (see `tree`), canopies are
+       not, and `build` seats every one on the ground. */
+    function forest(cx, cz, rx, rz, n, seed, opts) {
+        var o = opts || {}, rnd = seeded(seed || 1), out = [], tries = 0, a, r, x, z, i, ok;
+        var gap = o.gap || 1.6, clear = o.clear || [];
+        while (out.length < n && tries++ < n * 40) {
+            a = rnd() * Math.PI * 2; r = Math.sqrt(rnd());
+            x = cx + Math.cos(a) * rx * r; z = cz + Math.sin(a) * rz * r;
+            ok = true;
+            for (i = 0; i < out.length && ok; i++) {
+                if (Math.hypot(out[i].x + out[i].w / 2 - x, out[i].z + out[i].d / 2 - z) < gap) ok = false;
+            }
+            for (i = 0; i < clear.length && ok; i++) {
+                if (Math.hypot(clear[i].x - x, clear[i].z - z) < clear[i].r) ok = false;
+            }
+            if (ok) out.push(tree(x, z, { t: 0.42 + rnd() * 0.3, h: 2.6 + rnd() * 1.4 }));
+        }
+        return out;
+    }
+
     function treeline(x0, z0, x1, z1, n, opts) {
         var out = [], i, f, o = opts || {}, y0 = o.y0, y1 = o.y1, c;
         for (i = 0; i < n; i++) {
@@ -1220,6 +1245,54 @@
     }
 
     function keep(x, z, r) { return { x: x, z: z, r: r }; }
+
+    /* A pond that is a hollow in the ground with water in it, rather than a
+       rectangle of water in a hole in the ground — which is what every pond
+       in the game was, and why from above they were all boxes.
+
+       `lobes` are hollows, [x, z, r, depth] each; overlapping two or three is
+       what makes a pond a blob instead of a circle. They are laid into every
+       ground pad (like `shape`), and the water's level is set just under the
+       *lowest* point of their rims as the ground stood before them — so on a
+       hillside the water stops where the downhill rim does rather than
+       spilling out of the hollow, and the shoreline is wherever the ground
+       crosses that level: curved, and different on every side. The water is
+       the hollows' bounding box marked `dip`, because its bed is ground
+       (physics.drown asks only "inside the box and below the surface?", and
+       the audit and the renderer know a dip from a channel). Call it before
+       the inlays: a green or a bunker laid afterwards takes the ground as
+       the hollows left it. Returns the water, for the hole's `water`. */
+    function pond(pads, lobes, opts) {
+        var o = opts || {}, P = G3.physics, i, k, L, x, z, a, lo = Infinity, h;
+        function ground(px, pz) {
+            var best = -Infinity, j, p;
+            for (j = 0; j < pads.length; j++) {
+                p = pads[j];
+                if (p.inlay || !P.padContains(p, px, pz)) continue;
+                best = Math.max(best, P.padHeight(p, px, pz));
+            }
+            return best;
+        }
+        for (i = 0; i < lobes.length; i++) {
+            L = lobes[i];
+            for (k = 0; k < 32; k++) {
+                a = k / 32 * Math.PI * 2;
+                x = L[0] + Math.cos(a) * L[2]; z = L[1] + Math.sin(a) * L[2];
+                h = ground(x, z);
+                if (h > -Infinity && h < lo) lo = h;
+            }
+        }
+        var minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
+        var bumps = lobes.map(function (L) {
+            minX = Math.min(minX, L[0] - L[2]); maxX = Math.max(maxX, L[0] + L[2]);
+            minZ = Math.min(minZ, L[1] - L[2]); maxZ = Math.max(maxZ, L[1] + L[2]);
+            return hill(L[0], L[1], L[2], -L[3]);
+        });
+        shape(pads.filter(function (p) { return !p.inlay; }), bumps);
+        var w = rect(minX, minZ, maxX - minX, maxZ - minZ, lo - (o.freeboard === undefined ? 0.08 : o.freeboard));
+        w.dip = true;
+        return w;
+    }
 
     function rect(x, z, w, d, y) { return { x: x, z: z, w: w, d: d, y: y === undefined ? -0.6 : y }; }
 
@@ -2130,7 +2203,9 @@
 
         // The long game gets dressed once it is finished being built: what is
         // laid out depends on where the ground, the trees and the cup ended up.
-        if (h.open) h.dressing = dress(h);
+        // Not on a hole that is not a place (Challenge mode's `bare`): a
+        // boulder and a heron have no business in a grid world.
+        if (h.open && !h.bare) h.dressing = dress(h);
 
         /* Bounds are what the camera frames and what the sun's shadow camera
            covers. On a fenced hole they are the ground, because the ground is
@@ -3082,13 +3157,17 @@
             var park = commons(0, [
                 [{ d: 3.5, y: 4.2 },    [3, rgh], [9, fwy], [6, rgh]],
                 [{ d: 2, sz: -1.35 },   [18, rgh]],
-                [8,                     [2.5, rgh], [7.5, null], [2.5, fwy], [5.5, rgh]],
+                [8,                     [2.5, rgh], [7.5, rgh], [2.5, fwy], [5.5, rgh]],
                 [{ d: 2, sz: 0.24 },    [2.5, rgh], [13, fwy], [2.5, rgh]],
                 [3,                     [4.1, rgh], [11.4, fwy], [2.5, rgh]],
                 [6.5,                   [2.5, rgh], [10, fwy], [5.5, rgh]],
                 [4,                     [18, rgh]]
             ], { w: 22 });
             var ground = shape(scoop(park.pads, { seed: 23 }), field);
+            /* The pond is three hollows in the floor of the dell rather than a
+               rectangle cut out of it — a blob with a bay on the near side and
+               a long tail towards the green. */
+            var lake = pond(ground, [[6.2, 9.4, 3.3, 1.15], [4.3, 11.0, 2.3, 0.95], [8.0, 7.4, 1.8, 0.8]]);
             return build({
                 name: 'Over the Water', par: 3, long: true, shaped: true, open: true,
                 blurb: 'Off a high bluff and over eight units of pond to a round green on a shelf. The dry way is down the right.',
@@ -3098,7 +3177,7 @@
                     circle(7.5, 20.5, 3.6, grn, 1.98)
                 ]),
                 fence: park.fence,
-                water: [rect(2.5, 5.5, 7.5, 8, 1.0)],
+                water: [lake],
                 extra: [].concat(
                     treeline(16.6, 4, 16.6, 16, 4),
                     crags(-5, 18, 3.5, 5, 7119, { s: 1.4, h: 1.1 }),
@@ -4869,34 +4948,21 @@
             tee: { x: 3.5, z: 2 }, cup: { x: 3.5, z: 20.5 }
         }),
         build({
-            /* The pipe, and the reason it is on this course rather than on
-               Helter Skelter's: a mouth swallows a ball that is on the floor
-               and lets a lofted one sail over the top (`WARP_MOUTH`), and at
-               two fifths of a g almost nothing wants to be on the floor. The
-               bag has one lofted club in it, and the temptation to use it is
-               the hole.
+            /* Orbit, which replaced The Mouth — a pipe hole the owner called
+               no fun, and he was right: twenty-four units of nothing and one
+               way across it is a puzzle with one answer, not a shot.
 
-               Twenty-four units of nothing, which is more than the chipper
-               carries even at this weight, so the mouth is the only way off
-               the tee. It comes out on the shelf in the middle facing the pin,
-               and what is left is the second crossing — twelve units, which is
-               exactly what the chipper is in the bag for. Two ways of keeping
-               the ball down, one after the other, and they are not the same
-               shot. */
-            name: 'The Mouth', par: 4, gravity: 0.4,
-            bag: ['putter', 'mallet', 'chipper'],
-            blurb: 'The mouth only takes a ball that is on the floor, and out here almost nothing is.',
-            pads: [
-                pad(0, 0, 9, 10),
-                pad(0, 34, 9, 8),
-                pad(0, 54, 10, 10)
-            ],
-            gaps: [
-                { x: -1, z: 9.6, w: 12, d: 24.8 },
-                { x: -1, z: 41.6, w: 13, d: 12.8 }
-            ],
-            warps: [pipe(6.4, 7.4, 4.5, 37, 0, 0.95)],
-            tee: { x: 2.6, z: 2 }, cup: { x: 5, z: 59 }
+               This is a shot. A gravity anomaly sits in the middle of the yard
+               (`wells`, physics.js) and the cup is round the far side of it, so
+               the straight line runs into the thing and the good line runs
+               past it: close enough that it bends the ball in towards the pin,
+               not so close that it keeps it. At half a g the pull is most of
+               what the ball feels, which is the reason it is on this course. */
+            name: 'Orbit', par: 3, gravity: 0.5,
+            blurb: 'A gravity well in the middle of the yard and the cup round the back of it. Swing past and let it hand you the pin.',
+            pads: [pad(0, 0, 16, 22)],
+            wells: [{ x: 8.5, z: 11, pull: 13, core: 0.85 }],
+            tee: { x: 4, z: 2 }, cup: { x: 10.5, z: 19.5 }
         }),
         build({
             /* The finish, and the lightest hole on the card. Three tenths of a
@@ -6264,6 +6330,30 @@
               blurb: 'Three arms, and you are teeing off at the edge of one. Across them, or along?',
               field: [{ spiral: [9, 11], k: TAU / 3.6, n: 3, a: 0.46 }] }
         ] },
+        { family: 'blackhole', variants: [
+            { name: 'Event Horizon', par: 3, f: [0, 0, 16, 22], tee: [8, 2], cup: [8, 19.5],
+              blurb: 'A black hole dead on the line. Go round it close enough that it bends you in, not so close it keeps you.',
+              field: [{ wave: [TAU / 7, TAU / 9], a: 0.1, ph: 0.4 }],
+              wells: [{ x: 8, z: 10.5, pull: 26, core: 0.85 }] },
+            { name: 'Slingshot', par: 3, f: [0, 0, 16, 22], tee: [3, 2], cup: [4.5, 19],
+              blurb: 'The cup is behind you as far as the straight line goes. The well off to the right is the road.',
+              field: [{ wave: [0, TAU / 8], a: 0.12, ph: 1.1 }],
+              wells: [{ x: 11, z: 10, pull: 30, core: 0.9 }] },
+            { name: 'Binary', par: 3, f: [0, 0, 16, 22], tee: [8, 2], cup: [8, 19.5],
+              blurb: 'Two of them, and the only straight line on the hole runs between.',
+              field: [],
+              wells: [{ x: 4.5, z: 10, pull: 20, core: 0.8 }, { x: 11.5, z: 12, pull: 20, core: 0.8 }] }
+        ] },
+        { family: 'holes', variants: [
+            { name: 'Swiss Cheese', par: 3, f: [0, 0, 15, 22], tee: [7.5, 2], cup: [8.5, 19],
+              blurb: 'Holes in the floor and nothing under them. Read the crate and keep clear of the dark.',
+              field: [{ wave: [TAU / 6, 0], a: 0.22, ph: 0.8 }, { wave: [0, TAU / 6], a: 0.22, ph: 2.0 }],
+              voids: [[4.5, 7.5, 1.3], [10.5, 9, 1.6], [6.5, 13, 1.2], [11, 15.5, 1.0], [3.5, 16.5, 1.1]] },
+            { name: 'Bridgework', par: 3, f: [0, 0, 16, 22], tee: [8, 2], cup: [8, 19],
+              blurb: 'A row of holes across the hole and a thread of glass between each. Roll a bridge, or fly the lot.',
+              field: [{ wave: [0, TAU / 7], a: 0.12, ph: 0.3 }],
+              voids: [[1.6, 11, 2.05], [5.9, 11, 2.05], [10.1, 11, 2.05], [14.4, 11, 2.05]] }
+        ] },
         { family: 'volcano', variants: [
             { name: 'Volcano', par: 3, f: [0, 0, 16, 18], tee: [8, 2], cup: [8, 11],
               blurb: 'Up the cone and into the crater. Not enough and it comes back down to you.',
@@ -6274,30 +6364,41 @@
         ] }
     ];
 
-    function challengeHole(v) {
-        var f = { x: v.f[0], z: v.f[1], w: v.f[2], d: v.f[3] };
+    /* How far the glass runs on past the play area. No rails and no stakes
+       (the owner: "it doesn't have to have rails and should continue
+       further", and "no need for out of bounds pins"): the surface simply
+       carries on, a ball that runs off the hole runs on over more of the same
+       function until it stops or comes back, and the only way out is off the
+       edge of the glass altogether — so the boundary is the glass, and there
+       is nothing to mark. */
+    var CHALLENGE_RUN = 14;
+
+    function challengeHole(v, hue) {
+        var f = { x: v.f[0], z: v.f[1], w: v.f[2], d: v.f[3] }, m = CHALLENGE_RUN;
         var tee = { x: v.tee[0], z: v.tee[1] }, cup = { x: v.cup[0], z: v.cup[1] };
-        var field = pad(f.x, f.z, f.w, f.d, 0, 'glass');
+        var field = pad(f.x - m, f.z - m, f.w + 2 * m, f.d + 2 * m, 0, 'glass');
         field.field = v.field;
         field.calm = calmAround(v.hover ? [cup] : [cup, tee]);
-        var pads = [field], gaps = [];
+        field.hue = hue;
+        if (v.voids) field.voids = v.voids.map(function (q) { return { x: q[0], z: q[1], r: q[2] }; });
+        var pads = [field];
         if (v.hover) {
             var hv = pad(v.hover[0], v.hover[1], v.hover[2], v.hover[3], v.hover[4], 'glass');
             hv.hover = true;
             pads.push(hv);
-            // Open on every side: it is a platform to be shot off, not a box.
-            gaps.push(brink({ x: hv.x, z: hv.z, w: hv.w, d: hv.d }));
-            // And so is the near edge of the field: a rail there was a wall
-            // standing in front of the platform, and a shot landing short
-            // should drop off the world, not bounce back at you.
-            gaps.push(brink({ x: f.x, z: f.z, w: f.w, d: 0 }));
         }
         return build({
             name: v.name, par: v.par, blurb: v.blurb,
-            shaped: true, mini: true, bag: CHALLENGE_BAG.slice(),
-            pads: pads, gaps: gaps, tee: tee, cup: cup
+            shaped: true, open: true, calm: true, bare: true, mini: true, bag: CHALLENGE_BAG.slice(),
+            fence: { x: field.x, z: field.z, w: field.w, d: field.d }, stakes: false,
+            wells: v.wells ? v.wells.map(function (w) { return { x: w.x, z: w.z, pull: w.pull, core: w.core }; }) : undefined,
+            pads: pads, tee: tee, cup: cup
         });
     }
+
+    // A colour range per family, so a round walks round the wheel.
+    var CHALLENGE_HUES = [[0.78, 0.25], [0.52, 0.22], [0.92, 0.2], [0.08, 0.18],
+                          [0.62, 0.3], [0.3, 0.2], [0.85, 0.35], [0.7, 0.1], [0.45, 0.25], [0.0, 0.12]];
 
     function challengeCourse(id, ref, holes, extra) {
         var c = {
@@ -6315,7 +6416,7 @@
     G3.challengeLibrary = function () {
         var holes = [];
         CHALLENGE_LIBRARY.forEach(function (fam) {
-            fam.variants.forEach(function (v) { holes.push(challengeHole(v)); });
+            fam.variants.forEach(function (v) { holes.push(challengeHole(v, CHALLENGE_HUES[CHALLENGE_LIBRARY.indexOf(fam)])); });
         });
         return challengeCourse('challenge-library', 'challenge-library', holes, {});
     };
@@ -6329,7 +6430,7 @@
         while (pool.length > 6) pool.splice(Math.floor(rnd() * pool.length), 1);
         var holes = pool.map(function (i) {
             var fam = CHALLENGE_LIBRARY[i];
-            return challengeHole(fam.variants[Math.floor(rnd() * fam.variants.length)]);
+            return challengeHole(fam.variants[Math.floor(rnd() * fam.variants.length)], CHALLENGE_HUES[i]);
         });
         /* Keyed by the deal, not by 'challenge': the plans and the skies are
            cached by course id and hole number, and hole 3 of this deal is not
@@ -6446,9 +6547,9 @@
         commons: commons,
         sprung: sprung, belt: belt, pipe: pipe, pipes: pipes,
         aperture: aperture, flipper: flipper,
-        tree: tree, treeline: treeline, crag: crag, crags: crags,
+        tree: tree, treeline: treeline, forest: forest, crag: crag, crags: crags,
         decor: decor, buoy: buoy, piling: piling, bench: bench, boat: boat, bin: bin,
-        hill: hill, ring: ring, ridge: ridge, whorl: whorl, ravine: ravine,
+        hill: hill, ring: ring, pond: pond, ridge: ridge, whorl: whorl, ravine: ravine,
         shape: shape, dunes: dunes, ground: ground, circle: circle, inlay: inlay, dress: dress,
         keep: keep,
         shapeDisc: shapeDisc,
