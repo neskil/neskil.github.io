@@ -773,18 +773,24 @@
             $('banner').className = 'banner show';
         }
         $('banner-next').textContent = last ? 'See the card →' : 'Next hole →';
-        /* An ace gets shown again. Once by itself, after a moment of the
-           banner — Autoplay included, since the replay holds the frame and
-           the walk waits on it, but not the demo, which has nobody watching
-           it — and then as often as anybody asks. */
+        /* An ace gets shown again, at once: an instant replay, the moment
+           the drop has landed, with the banner held back until it is over —
+           Autoplay included, since the replay holds the frame and the walk
+           waits on it, but not the demo, which has nobody watching it. After
+           that, as often as anybody asks. */
         var taped = t.kind === 'ace' && G3.replay && G3.replay.playable(G3.replay.finish(tape), hole);
         $('banner-replay').hidden = !taped;
         if (taped && !demo) {
             var at = state.holeIndex, course = state.course;
+            var shown = $('banner').className;
+            $('banner').className = 'banner';
             replayTimer = setTimeout(function () {
                 replayTimer = 0;
-                if (state && state.course === course && state.holeIndex === at &&
-                    state.phase === 'holed' && !modalUp()) playReplay();
+                if (!state || state.course !== course || state.holeIndex !== at ||
+                    state.phase !== 'holed') return;
+                // Anything that stops it playing still owes the banner.
+                if (!modalUp()) playReplay(shown);
+                if (!replay) $('banner').className = shown;
             }, C.REPLAY.DELAY * 1000);
         }
         syncHud();
@@ -801,7 +807,9 @@
     var replayTimer = 0;
     var replayIntent = { show: false, yaw: 0, power: 0, loft: 0, bite: 0, over: 0 };
 
-    function playReplay() {
+    // `banner` is the class to put back afterwards, for a banner that was
+    // never shown; from the button it is the click, and the banner is up.
+    function playReplay(banner) {
         var hole = state.course.holes[state.holeIndex];
         if (!G3.replay || !G3.replay.playable(tape, hole) || replay) return;
         clearTimeout(replayTimer);
@@ -814,7 +822,7 @@
             i: 0,
             cut: false,
             struck: false,
-            banner: $('banner').className,
+            banner: typeof banner === 'string' ? banner : $('banner').className,
             ball: ball,
             world: { hole: hole, ball: ball, time: ball.time, moving: false, sunk: false }
         };
