@@ -370,6 +370,28 @@ button,
     display: flex;
     align-items: flex-end;
     gap: 0.9rem;
+    /* The shot row stops growing somewhere around the width of the page's own
+       measure, and centres in whatever is left. A meter is a ruler you read
+       and a handle you aim with, and both get worse the longer it is: on an
+       ultrawide in fullscreen the bar was eighteen hundred pixels of track
+       with the ticks combed out to nothing, the number that says what is
+       loaded in one far corner and the button that plays it in the other —
+       two metres of eye travel for one shot.
+
+       Capped here rather than in a `min-width` media query, because the query
+       would be asking about the *window* and the stage is only as wide as
+       `.wrap` lets it be until fullscreen — a 2560-wide desktop is an
+       1100-wide course with a lot of desk around it, and a bar told to
+       narrow on that screen would narrow on the one stage that was already
+       the right width. A max on the element asks the box it is actually in.
+
+       `align-self` rather than auto margins: the row is a flex item in the
+       bar's column, so centring it is the cross-axis question, and the
+       bag's padding is still on `.controls` — what the row centres in is the
+       part of the bar the bag has not claimed, which is why it lands a touch
+       right of the ball rather than dead under it. */
+    width: min(100%, 980px);
+    align-self: center;
 }
 
 .controls .power { flex: 1 1 auto; min-width: 0; }
@@ -379,6 +401,12 @@ button,
    not a thing to read. */
 .fps {
     align-self: flex-end;
+    /* Kept against the end of the *row* rather than the end of the bar: the
+       row is capped and centred above, so on a wide stage the bar's own right
+       edge is out in the grass somewhere to the right of the Swing button.
+       Same arithmetic as the row's centring, which is why both numbers are
+       980 — change one and change the other. */
+    margin-right: max(0px, calc((100% - 980px) / 2));
     padding: 0.05rem 0.35rem;
     font-family: 'JetBrains Mono', ui-monospace, monospace;
     font-size: 0.6rem;
