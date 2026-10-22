@@ -165,7 +165,74 @@
         var tagline = document.querySelector('.tagline');
         if (tagline && course) tagline.textContent = course.name + ' — ' + course.blurb;
         // The letterbox round the board is the biome's too.
-        $('stage').style.background = SC.themeOf(course).backdrop;
+        $('stage').style.background = themeFor(course).backdrop;
+    }
+
+    /* ── scenery ────────────────────────────────────────────────────────
+
+       Every course has a biome of its own, and that is how it is drawn —
+       unless the player has picked one scenery for all of them, from the
+       picker's Scenery row or with S. Only the look changes: the holes,
+       the records and the stars are the course's whatever it is wearing. */
+    var scenery = '';
+    try { scenery = localStorage.getItem(C.SCENERY_KEY) || ''; } catch (e) { /* storage off */ }
+    if (!SC.THEMES[scenery]) scenery = '';
+
+    function themeFor(course) { return scenery ? SC.themeNamed(scenery) : SC.themeOf(course); }
+
+    function setScenery(id, quiet) {
+        scenery = SC.THEMES[id] ? id : '';
+        try {
+            if (scenery) localStorage.setItem(C.SCENERY_KEY, scenery);
+            else localStorage.removeItem(C.SCENERY_KEY);
+        } catch (e) { /* storage off */ }
+        if (state && state.world) {
+            state.theme = themeFor(currentCourse()).id;
+            A.ambience(SC.themeNamed(state.theme).sound);
+        }
+        syncCourse();
+        if ($('menu').classList.contains('show')) drawScenery();
+        if (!quiet) toast(scenery ? 'Scenery: ' + SC.themeNamed(scenery).name + ', on every course' : 'Scenery: each course its own');
+    }
+
+    // S steps through them: each course's own, then every biome in turn.
+    function nextScenery() {
+        var all = [''].concat(SC.ORDER);
+        setScenery(all[(all.indexOf(scenery) + 1) % all.length]);
+    }
+
+    // A thumbnail of a biome: its grass, its water and its walls.
+    function swatch(theme) {
+        var t = theme.turf, wall = GOLF.landscape.MATERIAL[theme.wall] || GOLF.landscape.MATERIAL.timber;
+        return 'linear-gradient(135deg, hsl(' + t.h + ', ' + t.s + '%, ' + t.l + '%) 0 52%, ' +
+            theme.water.top + ' 52% 76%, ' + wall.top + ' 76% 100%)';
+    }
+
+    function drawScenery() {
+        var host = $('scenery-list');
+        if (!host) return;
+        host.innerHTML = '';
+        var own = GOLF.COURSES.filter(function (c) { return c.theme; }).map(function (c) {
+            var t = SC.themeNamed(c.theme).turf;
+            return 'hsl(' + t.h + ', ' + t.s + '%, ' + t.l + '%)';
+        });
+        [''].concat(SC.ORDER).forEach(function (id) {
+            var b = document.createElement('button');
+            b.type = 'button';
+            b.className = 'sc-pick';
+            b.setAttribute('role', 'radio');
+            b.setAttribute('aria-checked', id === scenery ? 'true' : 'false');
+            b.dataset.theme = id;
+            var chip = document.createElement('span');
+            chip.className = 'sc-swatch';
+            chip.style.background = id ? swatch(SC.THEMES[id]) : 'conic-gradient(' + own.join(', ') + ')';
+            var name = document.createElement('span');
+            name.textContent = id ? SC.THEMES[id].name : 'Each course\u2019s own';
+            b.appendChild(chip);
+            b.appendChild(name);
+            b.addEventListener('click', function () { setScenery(id); });
+            host.appendChild(b);
+        });
     }
 
     /* Switching is not destructive and does not ask. The card for the course
@@ -261,6 +328,7 @@
         closeParty();
         cancelAim();
         drawCourses();
+        drawScenery();
         $('menu').classList.add('show');
         var first = $('menu-list').querySelector('.cc-head');
         if (first) { try { first.focus(); } catch (e) { /* ignore */ } }
@@ -639,7 +707,8 @@
         }
         // Which biome to dress it in, and the key its painted layers are
         // cached under: a different hole, card or draw is a different picture.
-        state.theme = SC.themeOf(currentCourse()).id;
+        state.theme = themeFor(currentCourse()).id;
+        A.ambience(SC.themeNamed(state.theme).sound);
         state.sceneKey = (GOLF.PLAYTEST ? 'playtest' : GOLF.COURSE_ID) + '/' +
             (typeof GOLF.COURSE_SEED === 'number' ? GOLF.COURSE_SEED : '-') + '/' + i;
         R.effects.clear();
@@ -1575,6 +1644,7 @@
             if (k === 'c' || k === 'C') { openMenu(); return; }
             if (k === 'd' || k === 'D') { dealRandomCourse(); return; }
             if (k === 'g' || k === 'G') { newDraw(); return; }
+            if (k === 's' || k === 'S') { nextScenery(); return; }
             /* One key shuts whatever is open, and the panel counts: a ☰ left
                hanging over the board is chrome with no way off it on a
                keyboard. With nothing open it is the pause key every game
@@ -1992,6 +2062,9 @@
         holeComplete: holeComplete,
         toWorld: toWorld,
         resize: resize,
+        setScenery: setScenery,
+        nextScenery: nextScenery,
+        scenery: function () { return scenery; },
         getState: function () { return state; }
     };
 

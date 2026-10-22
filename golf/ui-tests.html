@@ -688,6 +688,52 @@
             assert('…and leaves the title saying Start here', $('title').classList.contains('show') &&
                 /Start here/.test($('title-play').textContent), $('title-play').textContent);
 
+            section('scenery');
+
+            G.game.closeTitle();
+            G.game.setScenery('', true);
+            G.game.openMenu();
+            var picks = $('scenery-list').querySelectorAll('.sc-pick');
+            assert('the picker offers each course its own and every biome', picks.length === G.scenery.ORDER.length + 1, picks.length + ' chips');
+            assert('…with each course its own picked to begin with', picks[0].getAttribute('aria-checked') === 'true' &&
+                $('scenery-list').querySelectorAll('[aria-checked="true"]').length === 1);
+            $('scenery-list').querySelector('[data-theme="winter"]').click();
+            st = G.game.getState();
+            assert('picking one dresses the hole on the board in it', st.theme === 'winter', st.theme);
+            assert('…and the letterbox round it', css($('stage'), 'background-color') === 'rgb(8, 19, 32)', css($('stage'), 'background-color'));
+            assert('…and the chip says so', $('scenery-list').querySelector('[data-theme="winter"]').getAttribute('aria-checked') === 'true' &&
+                $('scenery-list').querySelectorAll('[aria-checked="true"]').length === 1);
+            assert('…and it is remembered', localStorage.getItem(G.CONFIG.SCENERY_KEY) === 'winter');
+            assert('…and the soundscape follows it', G.audio.soundscape().join() === G.scenery.THEMES.winter.sound.join(),
+                G.audio.soundscape().join());
+            $('menu-close').click();
+            G.game.playCourse(G.progress.starter().id, null, 2);
+            assert('it holds on another course', G.game.getState().theme === 'winter');
+            W.dispatchEvent(new W.KeyboardEvent('keydown', { key: 's' }));
+            var after = G.scenery.ORDER[G.scenery.ORDER.indexOf('winter') + 1];
+            assert('S steps on to the next', G.game.getState().theme === after, G.game.getState().theme);
+            G.game.setScenery('', true);
+            assert('each course its own puts the course back in its own biome',
+                G.game.getState().theme === G.scenery.themeOf(G.COURSES.filter(function (c) { return c.id === G.COURSE_ID; })[0]).id &&
+                localStorage.getItem(G.CONFIG.SCENERY_KEY) === null);
+            var scapes = [];
+            G.scenery.ORDER.forEach(function (k) {
+                G.audio.ambience(G.scenery.THEMES[k].sound);
+                if (G.audio.soundscape().join() !== G.scenery.THEMES[k].sound.join()) scapes.push(k);
+            });
+            assert('every biome\'s soundscape is one the audio knows', scapes.length === 0, scapes.join(', '));
+            var L = G.landscape, unknown = [];
+            G.scenery.ORDER.forEach(function (k) {
+                var t = G.scenery.THEMES[k];
+                if (!L.MATERIAL[t.wall]) unknown.push(k + ' wall ' + t.wall);
+                if (!L.RIM[t.rim]) unknown.push(k + ' rim ' + t.rim);
+                if (!L.CANOPY[t.canopy]) unknown.push(k + ' trees ' + t.canopy);
+            });
+            assert('every biome\'s walls, rim and trees are ones the renderer knows', unknown.length === 0, unknown.join(', '));
+            var hole0 = G.COURSES[0].holes[0], lit = G.ambience.lights(hole0, G.scenery.THEMES.night, G.scenery.decor(hole0, G.scenery.THEMES.night));
+            assert('after dark the cup and the tee are lit', lit.some(function (l) { return l.x === hole0.hole.x && l.y === hole0.hole.y; }) &&
+                lit.some(function (l) { return l.x === hole0.tee.x && l.y === hole0.tee.y; }));
+
             section('every hole draws');
 
             /* Every hole of every card, the draw included, in both
@@ -698,27 +744,35 @@
             cv.width = 240; cv.height = 160;
             var g = cv.getContext('2d');
             var broken = [], blank = 0, drawn = 0;
+            /* Each course in its own biome on every hole and both ways up;
+               then every biome on every hole as well, since the Scenery row
+               can put any course in any of them. The frames are a few
+               seconds apart, so the life that only comes by now and then —
+               a bird's shadow, a gull, a tumbleweed — is caught crossing. */
+            function draw(c, h, i, themeId, turned) {
+                g.setTransform(0.25, 0, 0, 0.25, 0, 0);
+                g.clearRect(0, 0, 960, 640);
+                try {
+                    G.render.frame(g, {
+                        world: G.physics.createWorld(h, h.tee, 0), holeIndex: i, trail: [],
+                        aim: { active: false, angle: 0, power: 0 }, theme: themeId,
+                        sceneKey: 'ui-tests/' + c.id + '/' + i, res: 0.25, turned: turned, ballColor: '#ffffff'
+                    }, 3.7);
+                    drawn++;
+                    if (!painted(cv)) blank++;
+                } catch (e) {
+                    broken.push(c.id + ' ' + h.name + ' in ' + themeId + (turned ? ' (turned)' : '') + ': ' + e.message);
+                }
+            }
             G.COURSES.forEach(function (c) {
                 c.holes.forEach(function (h, i) {
-                    [false, true].forEach(function (turned) {
-                        g.setTransform(0.25, 0, 0, 0.25, 0, 0);
-                        g.clearRect(0, 0, 960, 640);
-                        try {
-                            G.render.frame(g, {
-                                world: G.physics.createWorld(h, h.tee, 0), holeIndex: i, trail: [],
-                                aim: { active: false, angle: 0, power: 0 }, theme: G.scenery.themeOf(c).id,
-                                sceneKey: 'ui-tests/' + c.id + '/' + i, res: 0.25, turned: turned, ballColor: '#ffffff'
-                            }, 1 / 60);
-                            drawn++;
-                            if (!painted(cv)) blank++;
-                        } catch (e) {
-                            broken.push(c.id + ' ' + h.name + (turned ? ' (turned)' : '') + ': ' + e.message);
-                        }
-                    });
+                    draw(c, h, i, G.scenery.themeOf(c).id, false);
+                    draw(c, h, i, G.scenery.themeOf(c).id, true);
+                    G.scenery.ORDER.forEach(function (k, n) { draw(c, h, i, k, (i + n) % 2 === 1); });
                 });
             });
-            note(drawn + ' frames drawn across ' + G.COURSES.length + ' courses');
-            assert('every hole of every course draws, flat and turned', broken.length === 0, broken.slice(0, 2).join(' · '));
+            note(drawn + ' frames drawn across ' + G.COURSES.length + ' courses and ' + G.scenery.ORDER.length + ' biomes');
+            assert('every hole of every course draws, flat and turned, in every biome', broken.length === 0, broken.slice(0, 2).join(' · '));
             assert('…and none of them comes out blank', blank === 0, blank + ' blank');
             return Promise.resolve();
         }

@@ -11,6 +11,7 @@
     var P = GOLF.physics;
 
     var L = GOLF.landscape;
+    var AMB = GOLF.ambience;
     var SC = GOLF.scenery;
     var roundRect = L.roundRect;
     var motionQuery = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : null;
@@ -581,6 +582,9 @@
         },
         splash: function (x, y) {
             burst(x, y, { count: 20, color: ['#bae6fd', '#7dd3fc', '#e0f2fe'], speed: 130, life: 0.6, size: 3, lift: 70, gravity: 320 });
+            // Rings on the water where it went in, and the ball going down.
+            if (GOLF.water) GOLF.water.ripple(x, y, 1);
+            sinkAt = clock;
         },
         sand: function (x, y, angle) {
             burst(x, y, { count: 9, color: ['#e3ca92', '#cdb277'], speed: 70, life: 0.45, size: 2.5, angle: angle, spread: 1.6, gravity: 200 });
@@ -614,6 +618,7 @@
     /* ── frame ──────────────────────────────────────────────────────────── */
 
     var spin = 0;
+    var sinkAt = -1;
     // The coach's own clock: world time stands still between shots on a hole
     // with nothing moving, and the ghost finger has to keep going.
     var clock = 0;
@@ -629,6 +634,11 @@
         // reach hsl() and paint the whole field transparent.
         var key = typeof state.holeIndex === 'number' ? state.holeIndex : 0;
         var scene = L.scene(course, theme, v, { key: state.sceneKey, res: state.res || 1, seed: key + 1 });
+        var ball = state.world.sunk ? null : state.world.ball;
+        var still = !!(motionQuery && motionQuery.matches);
+        // The life over a course is the game's, not the editor's: a
+        // butterfly crossing a hole you are building is in the way.
+        var life = AMB && !!state.sceneKey;
         var i;
 
         // Nothing is drawn off the field. The game's canvas is the field, so
@@ -643,21 +653,35 @@
         // Under the ball: the ground, the water, tunnels, the cup, every
         // wall that holds still — then the ones that move, and the posts.
         scene.ground(g);
-        L.drawWater(g, course.water, theme, v, t, clock, scene.decor);
+        L.drawWater(g, course.water, theme, v, t, clock, scene.decor, { key: state.sceneKey, res: state.res || 1, still: still });
         drawTunnels(g, course.tunnels, t, v);
         drawHole(g, course.hole, t, state.world.ball, v);
+        if (life) AMB.under(g, theme, v, clock, still);
         scene.solids(g);
         for (i = 0; i < course.walls.length; i++) {
             if (course.walls[i].move) L.drawWall(g, course.walls[i], t, theme, v);
         }
         for (i = 0; i < course.bumpers.length; i++) L.drawBumper(g, course.bumpers[i], t, theme, v);
+        // After dark, the dark: over the course, under the ball.
+        if (AMB) AMB.light(g, course, theme, v, ball, scene.decor, { key: state.sceneKey, res: state.res || 1 });
 
         updateParticles(dt);
         updateRings(g, dt);
         drawParticles(g);
 
         spin += P.speedOf(state.world.ball) * dt / C.BALL_R;
-        if (!state.world.sunk) {
+        if (state.world.splash) {
+            // In the water: the ball sinks, smaller and bluer and fainter,
+            // until the penalty puts it back.
+            var age = sinkAt >= 0 ? clock - sinkAt : 0, b = state.world.ball;
+            g.save();
+            g.globalAlpha = Math.max(0, 0.85 - age * 1.4);
+            g.translate(b.x, b.y);
+            g.scale(Math.max(0.4, 1 - age * 0.9), Math.max(0.4, 1 - age * 0.9));
+            g.translate(-b.x, -b.y);
+            drawBall(g, b, spin, '#7dd3fc', v);
+            g.restore();
+        } else if (!state.world.sunk) {
             drawTrail(g, state.trail, state.ballColor);
             drawBall(g, state.world.ball, spin, state.ballColor, v);
         }
@@ -667,11 +691,13 @@
             drawCoach(g, state.world.ball, state.aim.angle, clock);
         }
 
-        // Over the ball: the course's edge, the trees reaching over it, and
-        // the weather over everything. A crown the ball is under goes thin.
+        // Over the ball: the course's edge, the trees reaching over it, what
+        // lives in the air, and the weather over everything. A crown the
+        // ball is under goes thin, and so does anything flying past it.
         L.drawRim(g, theme, v);
-        L.drawCanopies(g, scene.decor.canopies, theme, v, clock, state.world.sunk ? null : state.world.ball);
-        L.drawClouds(g, motionQuery && motionQuery.matches ? 0 : clock, v, key + 1);
+        L.drawCanopies(g, scene.decor.canopies, theme, v, clock, ball);
+        if (life) AMB.over(g, theme, v, clock, ball, still, scene.decor);
+        L.drawClouds(g, still ? 0 : clock, v, key + 1, theme.clouds);
         g.restore();
     }
 

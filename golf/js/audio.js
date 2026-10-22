@@ -18,28 +18,32 @@
             if (!AC) return null;
             ctx = new AC();
         }
-        if (ctx.state === 'suspended') ctx.resume();
+        if (ctx.state === 'suspended' && !document.hidden) ctx.resume();
+        // The course's soundscape waits for the first sound a player asked
+        // for: that is the gesture the browser wants before anything plays.
+        if (amb.want.length && !amb.on && !document.hidden) startAmbience();
         return ctx;
     }
 
-    function tone(freq, dur, type, gain, slideTo) {
+    function tone(freq, dur, type, gain, slideTo, out, at) {
         var c = ensure();
         if (!c) return;
+        var t0 = c.currentTime + (at || 0);
         var o = c.createOscillator(), g = c.createGain();
         o.type = type || 'sine';
-        o.frequency.setValueAtTime(freq, c.currentTime);
-        if (slideTo) o.frequency.exponentialRampToValueAtTime(slideTo, c.currentTime + dur);
-        g.gain.setValueAtTime(0.0001, c.currentTime);
-        g.gain.exponentialRampToValueAtTime(gain || 0.2, c.currentTime + 0.008);
-        g.gain.exponentialRampToValueAtTime(0.0001, c.currentTime + dur);
-        o.connect(g).connect(c.destination);
-        o.start();
-        o.stop(c.currentTime + dur + 0.02);
+        o.frequency.setValueAtTime(freq, t0);
+        if (slideTo) o.frequency.exponentialRampToValueAtTime(slideTo, t0 + dur);
+        g.gain.setValueAtTime(0.0001, t0);
+        g.gain.exponentialRampToValueAtTime(gain || 0.2, t0 + 0.008);
+        g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+        o.connect(g).connect(out || c.destination);
+        o.start(t0);
+        o.stop(t0 + dur + 0.02);
     }
 
     // Filtered white noise, which is most of what a golf course sounds like:
     // sand, splashes and the thump of a ball into a cup.
-    function noise(dur, freq, q, gain, type) {
+    function noise(dur, freq, q, gain, type, out, at) {
         var c = ensure();
         if (!c) return;
         var n = Math.floor(c.sampleRate * dur);
@@ -54,8 +58,139 @@
         f.Q.value = q || 1;
         var g = c.createGain();
         g.gain.value = gain || 0.2;
-        src.connect(f).connect(g).connect(c.destination);
+        src.connect(f).connect(g).connect(out || c.destination);
+        src.start(c.currentTime + (at || 0));
+    }
+
+    /* ── the course's own sound ─────────────────────────────────────────
+
+       Under the shots, very quietly, the place the course is in: birds over
+       the parkland, surf and gulls by the sea, wind through the wood and
+       over the snow, crickets and an owl after dark. Two kinds of thing: a
+       *bed* that runs the whole time (wind, surf), looped noise breathing
+       slowly in and out; and *calls* that come now and then (a phrase of
+       birdsong, a gull, a hoot), each scheduling the next at random.
+
+       It is all on one bus, so the mute button and a hidden tab can take it
+       down in one go: nobody wants a beach playing from a background tab. */
+    var amb = { want: [], on: false, bus: null, beds: [], timers: [] };
+    var AMB_LEVEL = 0.55;
+
+    function rnd(a, b) { return a + Math.random() * (b - a); }
+
+    function later(fn, lo, hi) {
+        amb.timers.push(setTimeout(function () { if (amb.on) fn(); }, rnd(lo, hi) * 1000));
+    }
+
+    // A pan per call, so a chorus comes from round the course, not a point.
+    function placed(pan) {
+        if (!ctx.createStereoPanner) return amb.bus;
+        var p = ctx.createStereoPanner();
+        p.pan.value = pan;
+        p.connect(amb.bus);
+        return p;
+    }
+
+    // Looped noise through a filter, its level breathing on a slow wave.
+    function bed(freq, q, type, level, depth, rate) {
+        var n = Math.floor(ctx.sampleRate * 4);
+        var buf = ctx.createBuffer(1, n, ctx.sampleRate);
+        var d = buf.getChannelData(0);
+        for (var i = 0; i < n; i++) d[i] = Math.random() * 2 - 1;
+        var src = ctx.createBufferSource();
+        src.buffer = buf;
+        src.loop = true;
+        var f = ctx.createBiquadFilter();
+        f.type = type;
+        f.frequency.value = freq;
+        f.Q.value = q;
+        var g = ctx.createGain();
+        g.gain.value = level;
+        var lfo = ctx.createOscillator(), lfoGain = ctx.createGain();
+        lfo.frequency.value = rate;
+        lfoGain.gain.value = depth;
+        lfo.connect(lfoGain).connect(g.gain);
+        src.connect(f).connect(g).connect(amb.bus);
         src.start();
+        lfo.start();
+        amb.beds.push(src, lfo);
+    }
+
+    var SCAPES = {
+        birds: function call() {
+            var out = placed(rnd(-0.7, 0.7)), base = rnd(2600, 4200), notes = 2 + (Math.random() * 4 | 0);
+            for (var i = 0; i < notes; i++) {
+                var f = base * rnd(0.85, 1.2);
+                tone(f, rnd(0.05, 0.11), 'sine', rnd(0.012, 0.022), f * rnd(0.75, 1.35), out, i * rnd(0.08, 0.15));
+            }
+            later(call, 2.5, 8);
+        },
+        sea: function () { bed(520, 0.6, 'lowpass', 0.05, 0.035, 0.11); },
+        gulls: function call() {
+            var out = placed(rnd(-0.8, 0.8));
+            for (var i = 0; i < 2 + (Math.random() * 2 | 0); i++) {
+                tone(rnd(1350, 1550), 0.2, 'triangle', 0.012, rnd(950, 1100), out, i * 0.24);
+            }
+            later(call, 9, 22);
+        },
+        wind: function () { bed(380, 0.5, 'bandpass', 0.035, 0.025, 0.07); },
+        crickets: function call() {
+            var out = placed(rnd(-0.6, 0.6)), f = rnd(4200, 4800);
+            for (var i = 0; i < 3; i++) tone(f, 0.028, 'sine', 0.006, null, out, i * 0.055);
+            later(call, 0.7, 1.6);
+        },
+        owl: function call() {
+            var out = placed(rnd(-0.5, 0.5));
+            tone(395, 0.32, 'sine', 0.03, 360, out, 0);
+            tone(380, 0.5, 'sine', 0.028, 340, out, 0.55);
+            later(call, 14, 30);
+        },
+        crows: function call() {
+            var out = placed(rnd(-0.8, 0.8));
+            for (var i = 0; i < 2; i++) tone(rnd(560, 640), 0.18, 'sawtooth', 0.006, 470, out, i * 0.3);
+            later(call, 12, 26);
+        },
+        woodpecker: function call() {
+            var out = placed(rnd(-0.8, 0.8));
+            for (var i = 0; i < 9; i++) noise(0.014, 1900, 6, 0.05, 'bandpass', out, i * 0.048);
+            later(call, 14, 30);
+        }
+    };
+
+    function startAmbience() {
+        stopAmbience();
+        if (!ctx || muted) return;
+        amb.on = true;
+        amb.bus = ctx.createGain();
+        amb.bus.gain.setValueAtTime(0.0001, ctx.currentTime);
+        amb.bus.connect(ctx.destination);
+        // Faded in, never switched on: a soundscape that starts with a bang
+        // is a sound effect.
+        amb.bus.gain.exponentialRampToValueAtTime(AMB_LEVEL, ctx.currentTime + 2.5);
+        amb.want.forEach(function (k) {
+            if (!SCAPES[k]) return;
+            // Calls start at a random moment; beds start now.
+            if (k === 'sea' || k === 'wind') SCAPES[k]();
+            else later(SCAPES[k], 0.5, 3);
+        });
+    }
+
+    function stopAmbience() {
+        amb.on = false;
+        amb.timers.forEach(clearTimeout);
+        amb.timers = [];
+        amb.beds.forEach(function (n) { try { n.stop(); } catch (e) { /* already stopped */ } });
+        amb.beds = [];
+        if (amb.bus) { try { amb.bus.disconnect(); } catch (e) { /* ignore */ } }
+        amb.bus = null;
+    }
+
+    if (typeof document !== 'undefined' && document.addEventListener) {
+        document.addEventListener('visibilitychange', function () {
+            if (!ctx) return;
+            if (document.hidden) { stopAmbience(); ctx.suspend(); }
+            else if (!muted) { ctx.resume(); if (amb.want.length) startAmbience(); }
+        });
     }
 
     var A = {
@@ -130,9 +265,23 @@
             if (muted || !navigator.vibrate) return;
             try { navigator.vibrate(pattern); } catch (e) { /* not allowed yet */ }
         },
+        /* The soundscape for the course on screen, as a list of SCAPES.
+           Asking for the one already playing changes nothing, so a new hole
+           on the same course does not restart the birds. */
+        ambience: function (list) {
+            var want = (list || []).filter(function (k) { return !!SCAPES[k]; });
+            if (want.join() === amb.want.join() && (amb.on || !ctx)) return;
+            amb.want = want;
+            if (ctx && !muted && !document.hidden) startAmbience();
+            else stopAmbience();
+        },
+        soundscape: function () { return amb.want.slice(); },
+        ambiencePlaying: function () { return amb.on; },
         toggleMute: function () {
             muted = !muted;
             try { localStorage.setItem('miniGolf.muted', muted ? '1' : '0'); } catch (e) { /* ignore */ }
+            if (muted) stopAmbience();
+            else if (ctx && amb.want.length) { ctx.resume(); startAmbience(); }
             return muted;
         },
         isMuted: function () { return muted; }

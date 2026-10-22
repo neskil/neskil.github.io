@@ -7,7 +7,7 @@
    and on a desktop and none of the tuning below is resolution dependent. */
 window.GOLF = window.GOLF || {};
 
-GOLF.VERSION = '1.9.0';
+GOLF.VERSION = '1.10.0';
 
 GOLF.CONFIG = {
     WORLD_W: 960,
@@ -65,8 +65,24 @@ GOLF.CONFIG = {
     BUMPER_MIN_R: 14,     // smaller than this and the substep cap cannot protect it
     STOP_SPEED: 14,       // below this the ball is considered at rest
 
-    CUP_PULL: 900,        // inward acceleration while the ball is over the cup
-    CAPTURE_SPEED: 250,   // faster than this and the rim spits it back out
+    /* The cup is a hole, not a target. Everywhere else the ball rolls on
+       the plane of the green; over the cup there is nothing under it, so it
+       falls, and the edge of the hole is a circle it can lean on, ride
+       round, hit and climb back out over — see physics.cup. These are the
+       numbers that fall is made of. Gravity is well under the real thing
+       for a ball this size (about 3400px/s²) on purpose: it is what sets
+       how firm a putt may be and still drop, and at 800 the cup takes as
+       many of the lines and paces a ball can arrive on as the old flat
+       capture rule did — more of them firm at the middle, fewer off the
+       edge, where it now rides the lip instead. */
+    CUP_GRAVITY: 800,
+    RIM_RESTITUTION: 0.42, // of the speed into the lip, what it gives back
+    RIM_KNOCK: 40,         // slower into the lip than this is leaning on it, not hitting it
+    RIM_KEEP: 0.7,         // of the ball's whole speed, what a knock on the lip leaves it
+    RIM_DRAG: 0.0016,      // speed scrubbed off along the lip, per px/s of knock
+    CUP_DOWN: 0.35,        // once the ball's centre is this many radii below the green, it is in
+    CUP_BEVEL: 6,          // how far out from the lip the green slopes down into the cup
+    CUP_FALL: 1.5,         // and how far down it slopes over that width
 
     /* The aim arrow. It was once the ball's simulated path, which answered the
        only two questions the game asks — how hard, and off which cushion — and
@@ -143,5 +159,8 @@ GOLF.CONFIG = {
     PROGRESS_KEY: 'miniGolf.progress.v1',
     /* A party round in progress, and the last roster typed in. */
     PARTY_KEY: 'miniGolf.party.v1',
-    PLAYERS_KEY: 'miniGolf.players.v1'
+    PLAYERS_KEY: 'miniGolf.players.v1',
+    /* The scenery picked for every course, or nothing for each course's
+       own. A preference, like the sound: starting over leaves it alone. */
+    SCENERY_KEY: 'miniGolf.scenery.v1'
 };
