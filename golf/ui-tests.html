@@ -774,6 +774,45 @@
             note(drawn + ' frames drawn across ' + G.COURSES.length + ' courses and ' + G.scenery.ORDER.length + ' biomes');
             assert('every hole of every course draws, flat and turned, in every biome', broken.length === 0, broken.slice(0, 2).join(' · '));
             assert('…and none of them comes out blank', blank === 0, blank + ' blank');
+
+            /* The aim is an arrow and a short run past it, not a ruler laid
+               across the hole: a frame with the aim up and one without
+               differ at the arrow, and agree a few hundred pixels on. */
+            var big = doc().createElement('canvas');
+            big.width = 960; big.height = 640;
+            var bg = big.getContext('2d');
+            var hole0 = G.COURSES[0].holes[0], tee = hole0.tee;
+            var corner = [[0, 0], [960, 0], [0, 640], [960, 640]].sort(function (p, q) {
+                return Math.hypot(q[0] - tee.x, q[1] - tee.y) - Math.hypot(p[0] - tee.x, p[1] - tee.y);
+            })[0];
+            var ang = Math.atan2(corner[1] - tee.y, corner[0] - tee.x);
+            function shotAt(active, z, power) {
+                var w = G.physics.createWorld(hole0, tee, 0);
+                if (z !== undefined) w.ball.z = z;
+                G.render.frame(bg, {
+                    world: w, holeIndex: 0, trail: [],
+                    aim: { active: active, angle: ang, power: power || G.CONFIG.MAX_POWER * 0.5 }, theme: 'parkland',
+                    sceneKey: 'ui-tests/aim', res: 1, turned: false, ballColor: '#ffffff'
+                }, 0);
+                return bg.getImageData(0, 0, 960, 640).data;
+            }
+            function near(a, b, d) {
+                var x = Math.round(tee.x + Math.cos(ang) * d), y = Math.round(tee.y + Math.sin(ang) * d), diff = 0;
+                for (var oy = -3; oy <= 3; oy++) for (var ox = -3; ox <= 3; ox++) {
+                    var o = ((y + oy) * 960 + x + ox) * 4;
+                    diff += Math.abs(a[o] - b[o]) + Math.abs(a[o + 1] - b[o + 1]) + Math.abs(a[o + 2] - b[o + 2]);
+                }
+                return diff;
+            }
+            var off = shotAt(false), on = shotAt(true);
+            assert('the aim arrow draws', near(off, on, 60) > 200);
+            assert('…and its guide runs out long before the far side of the hole', near(off, on, 330) === 0 && near(off, on, 480) === 0,
+                near(off, on, 330) + ' / ' + near(off, on, 480));
+            var full = shotAt(true, undefined, G.CONFIG.MAX_POWER);
+            assert('at the top of the dial the scatter cone reaches on past the short guide, then ends', near(off, full, 330) > 0 && near(off, full, 480) === 0,
+                near(off, full, 330) + ' / ' + near(off, full, 480));
+            var hop = shotAt(false, G.CONFIG.BALL_R + 12);
+            assert('a ball in the air is drawn up off the green, not where it stands', near(off, hop, 0) > 200);
             return Promise.resolve();
         }
 

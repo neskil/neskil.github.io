@@ -19,6 +19,7 @@
     var state = null;
     var lastBounceAt = 0;
     var lastSandAt = 0;
+    var lastKnockAt = 0;
     // The board is drawn a quarter-turn round when the screen is taller than
     // it is wide. See resize().
     var turned = false;
@@ -1920,6 +1921,12 @@
             // the other, which is exactly the journey the ball did not make.
             state.trail = [];
             if (shot) shot.tunnels++;
+        }
+
+        // A knock on the back of the cup, heard as it happens.
+        if (ev.knock && now - lastKnockAt > 60) {
+            lastKnockAt = now;
+            A.knock(ev.knock);
         }
 
         /* A lip-out: over the rim, too fast to be taken, and out the other

@@ -24,6 +24,19 @@
     function drawHole(g, hole, t, ball, v) {
         var up = v.turned ? Math.PI / 2 : 0;
         var lip = L.sv(v, 0, -3);
+        // The funnel: the turf falls away for a few pixels round the lip
+        // (physics.groundAt), shaded as a soft dip so the slope that tips a
+        // slow ball in is a thing you can see.
+        g.save();
+        var fun = g.createRadialGradient(hole.x, hole.y, C.HOLE_R, hole.x, hole.y, C.HOLE_R + C.CUP_BEVEL + 2);
+        fun.addColorStop(0, 'rgba(0,0,0,0.26)');
+        fun.addColorStop(0.55, 'rgba(0,0,0,0.08)');
+        fun.addColorStop(1, 'rgba(0,0,0,0)');
+        g.fillStyle = fun;
+        g.beginPath();
+        g.arc(hole.x, hole.y, C.HOLE_R + C.CUP_BEVEL + 2, 0, Math.PI * 2);
+        g.fill();
+        g.restore();
         // Cup.
         g.save();
         g.beginPath();
@@ -121,13 +134,57 @@
        always had; a coloured one keeps the same highlight and dimples and
        takes its body from the player's colour, with a dark rim so that an
        orange ball on sand or a blue one on ice is still a ball. */
-    function drawBall(g, ball, spin, color, v) {
-        var sh = L.sv(v, 2.5, 3.5), hl = L.sv(v, -2.5, -3), dot = L.sv(v, 0, -1), glint = L.sv(v, -2.4, -2.8);
+    /* And it has a height. Over the cup the ball is a sphere with a centre
+       `z` above the green (physics.cup), and the drawing follows it: hopping
+       out over the back it rises up the screen and leaves its shadow behind
+       on the turf; dropping in it sinks down the screen, darker and a touch
+       smaller, and the near side of the cup covers whatever of it is below
+       the green. Everywhere else z is the radius and none of this shows. */
+    function drawBall(g, ball, spin, color, v, hole) {
+        var r = C.BALL_R, h = ball.z === undefined ? 0 : ball.z - r;
+        var lift = Math.max(0, h), dip = Math.max(0, -h);
+        if (lift < 0.05 && dip < 0.05) return drawBallAt(g, ball, ball, spin, color, v, 0, 0);
+        var off = L.sv(v, 0, dip * 0.55 - lift);
+        var at = { x: ball.x + off.x, y: ball.y + off.y };
+        var deep = Math.min(1, dip / (2 * r));
         g.save();
-        g.fillStyle = 'rgba(0,0,0,0.35)';
-        g.beginPath();
-        g.ellipse(ball.x + sh.x, ball.y + sh.y, C.BALL_R * 1.05, C.BALL_R * 0.9, 0, 0, Math.PI * 2);
-        g.fill();
+        // Below the green: what the cup's near wall hides. The part still
+        // above the green is the cap the turf has not reached yet.
+        if (hole && dip > r) {
+            var z = r - dip, cap = Math.sqrt(Math.max(0, r * r - z * z));
+            g.beginPath();
+            g.arc(hole.x, hole.y, C.HOLE_R, 0, Math.PI * 2);
+            g.moveTo(ball.x + cap, ball.y);
+            g.arc(ball.x, ball.y, cap, 0, Math.PI * 2);
+            g.clip();
+        }
+        var k = 1 - 0.14 * deep;
+        g.translate(at.x, at.y);
+        g.scale(k, k);
+        g.translate(-at.x, -at.y);
+        drawBallAt(g, ball, at, spin, color, v, lift, dip);
+        if (deep > 0) {
+            g.fillStyle = 'rgba(0,0,0,' + (0.62 * deep).toFixed(3) + ')';
+            g.beginPath();
+            g.arc(at.x, at.y, r + 0.5, 0, Math.PI * 2);
+            g.fill();
+        }
+        g.restore();
+    }
+
+    // The ball itself, drawn at `at`, its shadow on the ground under
+    // `ground`: pushed further out and fainter the higher it flies, gone
+    // once the ball is down in the dark of the cup.
+    function drawBallAt(g, ground, ball, spin, color, v, lift, dip) {
+        var sh = L.sv(v, 2.5 + lift * 0.5, 3.5 + lift * 0.7), hl = L.sv(v, -2.5, -3), dot = L.sv(v, 0, -1), glint = L.sv(v, -2.4, -2.8);
+        var shade0 = 0.35 * Math.max(0.3, 1 - lift / 28) * Math.max(0, 1 - dip / C.BALL_R);
+        g.save();
+        if (shade0 > 0) {
+            g.fillStyle = 'rgba(0,0,0,' + shade0.toFixed(3) + ')';
+            g.beginPath();
+            g.ellipse(ground.x + sh.x, ground.y + sh.y, C.BALL_R * (1.05 + lift * 0.01), C.BALL_R * (0.9 + lift * 0.01), 0, 0, Math.PI * 2);
+            g.fill();
+        }
 
         var tinted = color && color !== C.PLAYER_COLORS[0];
         var grad = g.createRadialGradient(ball.x + hl.x, ball.y + hl.y, 1, ball.x, ball.y, C.BALL_R);
@@ -334,42 +391,58 @@
         // top where nobody is trying to tell 90% from 95% by eye.
         var tip = tail + C.AIM_ARROW + (C.AIM_ARROW_FULL - C.AIM_ARROW) * Math.sqrt(frac);
 
-        /* The guide ray, out to the edge of the field. Direction only: it does
-           not stop at a wall, because where the ball comes off a wall is the
-           question the hole is asking.
+        /* The guide ray: a short, fading run past the arrowhead. It used to
+           go on to the edge of the field, and a ruled line across the whole
+           hole is the putt read for you — the player only had to lay it on
+           the cup. Now it says which way the arrow is pointing for a hand's
+           width more and then leaves the line to your eye.
 
            Past SAFE_POWER it opens into the cone the shot can actually leave
            in. The scatter is not a surprise the game springs on you after the
            fact — it is drawn, to scale, in the moment you are deciding how far
            to pull, which is the only way a risk is a choice rather than a
-           trick. */
+           trick. Its edges and fill run further than the plain ray
+           (AIM_CONE_LEN) before fading, so the warning is plain at a glance;
+           the centre line stops with the ray all the same. */
         var cone = P.spread(aim.power);
+        var far = tip + C.AIM_GUIDE_LEN, wide = tip + C.AIM_CONE_LEN;
+        var colour = cone > 0 ? '251,113,133' : '255,255,255';
+        function fade(a, ea, to) {
+            var x0 = b.x + Math.cos(ea) * tip, y0 = b.y + Math.sin(ea) * tip;
+            var grad = g.createLinearGradient(x0, y0, b.x + Math.cos(ea) * to, b.y + Math.sin(ea) * to);
+            grad.addColorStop(0, 'rgba(' + colour + ',' + a + ')');
+            grad.addColorStop(1, 'rgba(' + colour + ',0)');
+            return grad;
+        }
         g.save();
         // The cone is a warning, not a hint: it earns twice the ink the plain
         // ray gets, or the one drawing on screen that says "this shot may not
         // go where you are pointing" is the faintest thing on the field.
-        g.globalAlpha = cone > 0 ? C.AIM_GUIDE_ALPHA * 2.2 : C.AIM_GUIDE_ALPHA;
-        g.strokeStyle = cone > 0 ? '#fb7185' : '#ffffff';
+        var ink = cone > 0 ? C.AIM_GUIDE_ALPHA * 2.2 : C.AIM_GUIDE_ALPHA;
         g.lineWidth = 1.5;
         g.setLineDash([2, 9]);
         g.lineDashOffset = -t * 18;
         for (var e = -1; e <= 1; e++) {
             if (e !== 0 && cone === 0) continue;
-            var ea = angle + e * cone;
+            var ea = angle + e * cone, to = e === 0 ? far : wide;
+            g.strokeStyle = fade(ink, ea, to);
             g.beginPath();
             g.moveTo(b.x + Math.cos(ea) * tip, b.y + Math.sin(ea) * tip);
-            g.lineTo(b.x + Math.cos(ea) * 1600, b.y + Math.sin(ea) * 1600);
+            g.lineTo(b.x + Math.cos(ea) * to, b.y + Math.sin(ea) * to);
             g.stroke();
         }
         g.restore();
 
         if (cone > 0) {
             g.save();
-            g.globalAlpha = 0.13;
-            g.fillStyle = '#fb7185';
+            var halo = g.createRadialGradient(b.x, b.y, tip, b.x, b.y, wide);
+            halo.addColorStop(0, 'rgba(251,113,133,0.16)');
+            halo.addColorStop(0.6, 'rgba(251,113,133,0.08)');
+            halo.addColorStop(1, 'rgba(251,113,133,0)');
+            g.fillStyle = halo;
             g.beginPath();
             g.moveTo(b.x + ux * tip, b.y + uy * tip);
-            g.arc(b.x, b.y, 1600, angle - cone, angle + cone);
+            g.arc(b.x, b.y, wide, angle - cone, angle + cone);
             g.closePath();
             g.fill();
             g.restore();
@@ -683,7 +756,7 @@
             g.restore();
         } else if (!state.world.sunk) {
             drawTrail(g, state.trail, state.ballColor);
-            drawBall(g, state.world.ball, spin, state.ballColor, v);
+            drawBall(g, state.world.ball, spin, state.ballColor, v, course.hole);
         }
         if (state.aim && state.aim.active && !state.world.moving && !state.world.sunk) {
             drawAim(g, state.world, state.aim, t, state.lastFrac);

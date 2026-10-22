@@ -500,7 +500,7 @@
             function arrive(off, v) {
                 var w = P.createWorld(cup, { x: 600 - C.HOLE_R - 40, y: 320 + off }, 0);
                 P.launch(w, 0, v + 40 * -Math.log(C.FRICTION_GRASS));
-                var out = { w: w, lip: false, high: 0, turn: 0, worst: 0, exit: null };
+                var out = { w: w, lip: false, knock: 0, high: 0, turn: 0, worst: 0, exit: null };
                 var energy = function (b) {
                     return 0.5 * (b.vx * b.vx + b.vy * b.vy + b.vz * b.vz) + C.CUP_GRAVITY * b.z;
                 };
@@ -511,6 +511,7 @@
                     // Friction takes and gravity trades; nothing may give.
                     out.worst = Math.max(out.worst, energy(w.ball) - e0);
                     if (ev.lip) out.lip = true;
+                    if (ev.knock) out.knock = Math.max(out.knock, ev.knock);
                     out.high = Math.max(out.high, w.ball.z - C.BALL_R);
                     if (w.ball.vx || w.ball.vy) out.turn = Math.max(out.turn, Math.abs(Math.atan2(w.ball.vy, w.ball.vx)));
                     if (!out.exit && out.lip && Math.hypot(w.ball.x - 600, w.ball.y - 320) > C.HOLE_R + C.BALL_R) out.exit = P.speedOf(w.ball);
@@ -524,11 +525,14 @@
             var hard = arrive(0, 380);
             assert('too firm, and it hops out over the back of the cup', !hard.w.sunk && hard.high > 2, 'rose ' + hard.high.toFixed(1) + 'px');
             assert('…slower than it went in', hard.exit !== null && hard.exit < 380 * 0.8, hard.exit && hard.exit.toFixed(0));
+            assert('hitting the back of the cup is a knock you hear', firm.knock > C.RIM_KNOCK && hard.knock > C.RIM_KNOCK,
+                firm.knock.toFixed(0) + ' / ' + hard.knock.toFixed(0));
             var ride = arrive(11, 180);
             assert('a ball that catches the edge rides round the lip and spins out', !ride.w.sunk && ride.lip && ride.turn > 0.5,
                 'turned ' + (ride.turn * 180 / Math.PI).toFixed(0) + '°');
             var hang = arrive(C.HOLE_R + 2, 80);
             assert('a ball dying on the edge of the funnel round the cup topples in', hang.w.sunk);
+            assert('…without a knock: toppling in is not hitting anything', arrive(14, 80).knock === 0);
             var past = arrive(C.HOLE_R + C.CUP_BEVEL + 1, 200);
             assert('a ball that never reaches the funnel rolls by untouched', !past.w.sunk && !past.lip && past.high === 0 && past.turn === 0);
             var worst = 0, rest = 0;

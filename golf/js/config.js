@@ -39,13 +39,14 @@ GOLF.CONFIG = {
     /* The dial runs past what you can control.
 
        Up to SAFE_POWER the ball goes exactly where the arrow points, and that
-       is still the whole of the old game: 1080 coasts v0 / -ln(k) ≈ 1180px,
+       is still the whole of the old game: 1134 coasts v0 / -ln(k) ≈ 1240px,
        more than the 960px field, so every hole stays reachable in one clean
-       shot. The last fifth of the dial is the overswing — 1400 reaches
-       ≈ 1530px, and buys that extra roll with the only currency the game has
-       left to charge in, which is accuracy. See physics.spread. */
-    MAX_POWER: 1400,
-    SAFE_POWER: 1080,
+       shot. The last fifth of the dial is the overswing — 1470 reaches
+       ≈ 1605px, and buys that extra roll with the only currency the game has
+       left to charge in, which is accuracy. See physics.spread. (Both were
+       raised 5% from 1080 and 1400: a full swing felt a touch short.) */
+    MAX_POWER: 1470,
+    SAFE_POWER: 1134,
     MIN_POWER: 35,
     DRAG_MAX: 210,        // world px of pull-back that equals MAX_POWER
 
@@ -98,12 +99,18 @@ GOLF.CONFIG = {
     AIM_ARROW: 54,
     AIM_ARROW_FULL: 108,
 
-    /* The guide ray runs on past the arrowhead to the edge of the field, thin
-       and faint. It is pure direction — no bounce, no distance, no stopping
-       where the ball would stop — and it is the whole of the leniency: lining
-       a putt up across a 960px field off a 100px arrow was asking players to
-       extend a line by eye that the screen could simply draw. */
+    /* The guide ray runs on past the arrowhead for AIM_GUIDE_LEN and fades
+       out. It used to reach the edge of the field, which turned every putt
+       into laying a ruler on the cup; a short stub keeps the direction
+       readable at the arrow and leaves the line to be judged. */
     AIM_GUIDE_ALPHA: 0.17,
+    AIM_GUIDE_LEN: 110,
+    /* Past SAFE_POWER the scatter cone reaches further than the plain guide:
+       it is the warning, and a warning a hand's width long is easy to miss
+       at the top of the dial where it matters most. Its centre line is not
+       drawn past the guide, so it still says "this may go anywhere in here",
+       not "the cup is there". */
+    AIM_CONE_LEN: 300,
 
     /* The power gauge used to be a 16px arc hugging the ball, which is a
        readable *shape* and an unreadable *value* — at a glance you could tell

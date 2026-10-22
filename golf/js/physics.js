@@ -449,7 +449,10 @@
                 var after = Math.hypot(vr, vt, b.vz);
                 if (after > before && after > 0) { vr *= before / after; vt *= before / after; b.vz *= before / after; }
                 // And a real knock — the back of the cup — takes pace off.
-                if (e > 0) { vr *= C.RIM_KEEP; vt *= C.RIM_KEEP; b.vz *= C.RIM_KEEP; }
+                if (e > 0) {
+                    vr *= C.RIM_KEEP; vt *= C.RIM_KEEP; b.vz *= C.RIM_KEEP;
+                    events.knock = Math.max(events.knock || 0, -vn);
+                }
                 b.vx = vr * ux - vt * uy;
                 b.vy = vr * uy + vt * ux;
                 events.lip = true;

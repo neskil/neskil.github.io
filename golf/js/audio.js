@@ -233,6 +233,13 @@
             setTimeout(function () { tone(620, 0.05, 'triangle', 0.07, 380); }, 55);
             setTimeout(function () { noise(0.03, 1500, 4, 0.05); }, 110);
         },
+        // The ball knocking the back of the cup: one short wooden tock,
+        // louder the harder it hit. A lip-out says it again as it leaves.
+        knock: function (speed) {
+            var p = Math.max(0.2, Math.min(1, speed / 300));
+            noise(0.025, 2200, 5, 0.04 + p * 0.07);
+            tone(760 + p * 180, 0.04, 'triangle', 0.03 + p * 0.06, 520);
+        },
         // Down one mouth, up the other: a low swoop that comes back up.
         tunnel: function () {
             tone(520, 0.16, 'sine', 0.09, 140);
