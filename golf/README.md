@@ -407,7 +407,7 @@ A hole is axis-aligned rectangles, round posts and two points:
     tee:  { x: 130, y: 320 },
     hole: { x: 780, y: 320 },
     walls:   [ { x, y, w, h, move? } ],  // solid; `move` makes it oscillate
-    water:   [ { x, y, w, h } ],         // splash, one penalty stroke, replay the shot
+    water:   [ { x, y, w, h } ],         // splash, one penalty stroke, replay the shot — or a skip, if fast
     sand:    [ { x, y, w, h } ],         // heavy friction
     rough:   [ { x, y, w, h } ],         // half the roll of grass
     ice:     [ { x, y, w, h } ],         // almost none — ~3x the roll of grass
@@ -592,6 +592,20 @@ wall rattle for ever, and the hole would never return to the aim phase. There is
 a test that watches every substep of a shot into a bumper and fails if the speed
 ever ticks upward.
 
+**Water skips a fast ball.** A ball that reaches water at `SKIP_SPEED` or more
+skips off the top like a flat stone: it keeps `SKIP_KEEP` of its speed and is in
+the air for a time that grows with the speed it arrived at, so a hop's length
+goes with the square of it. In the air (`world.air`) it is over everything on
+the ground — no slope pulls it, no surface holds it, and no tunnel, cup or water
+can take it — but walls still stop it. Where it comes down is asked the same
+question again, so a hard enough ball chains two skips; anything slower sinks
+where it came down, and the replay is still from where it was hit. The tuning
+keeps water as water: a firm shot from the tee clears a creek of 40 to 80px, and
+about 175px is the most anything will cross, from the very edge of a pond with
+the dial in the overswing. `SKIP_KEEP` under 1 is how a skip keeps the invariant
+above, and the suite watches every substep of a skip chain for the speed ticking
+up. The bot needed nothing new for it, for the same reason as tunnels below.
+
 Tunnels keep that invariant by changing nothing about the shot but where it
 is: the ball's centre over a mouth moves it to the other one with its velocity
 untouched. Two guards make that safe. A ball that has just come out of a mouth,
@@ -663,8 +677,22 @@ said out loud as well as drawn:
 - **A drop says what it was made of.** The banner names the notable part of
   the shot that went in — a bank shot, two cushions, off the post, through the
   tunnel, from downtown — two at most, because a story beats a receipt.
+- **A skip is called.** Each one ripples, throws a wake of spray and plips a
+  note higher than the last; the ball rises and its shadow falls away while
+  it is in the air. Coming down dry after one says *Skipped across!*, and a
+  drop that skipped on its way says so in the banner.
+- **A knock is felt where it happened.** The physics hands back the hardest
+  contact of each frame (`events.impact`: the point, the normal and the speed
+  the ball arrived at along it), so chips fly off the wall at the spot it was
+  hit, the ball flattens against it for a moment, and the click is measured by
+  how square the hit was rather than how fast the ball was going.
+- **The strike shows its weight.** A ring off the ball grows with the swing,
+  the divot with it, and the hard ones whoosh; past the safe line a hot second
+  ring and a small kick say *overswing* before the ball shows it.
+- **A splash goes under.** A crown of spray, three ripples going out one after
+  another, and the ball sinking out of sight before the replay.
 - **A hard knock jolts the frame**, a few pixels for a fraction of a second,
-  and a splash does too. Not under `prefers-reduced-motion`.
+  and a splash and an overswing do too. Not under `prefers-reduced-motion`.
 - **A phone buzzes** on a drop, a splash, a bumper and a door opening, on the
   phones that can (`navigator.vibrate`). The mute chip silences it with the
   sound: it is the one switch a player has for "stop making things happen to
@@ -749,7 +777,10 @@ for exactly the players who had asked for less motion.
 
 **Fullscreen** (the ⛶ button, or `F`) puts the wrap into the Fullscreen API —
 the scoreboard is part of the game, so it goes too; the reference text does
-not. The backing store is capped at three device pixels per world pixel, or a
+not. Only what is inside the fullscreen element is drawn, and the menu, title,
+party and scorecard modals live beside the wrap, on the body — so they are
+moved into the wrap as it goes fullscreen and back out after, or a round
+finished in fullscreen opens a scorecard nobody can see. The backing store is capped at three device pixels per world pixel, or a
 4K monitor at `devicePixelRatio` 2 would ask for a ten-megapixel canvas sixty
 times a second.
 
@@ -842,8 +873,8 @@ indexable; the self-test overlay only appears with the query string.
 
 Two harnesses, and the runner finds both.
 
-Open `tests.html`. 856 assertions covering geometry, the integrator, the four
-surfaces, the overswing, tunnels, rails and polygons, scenery, the course data
+Open `tests.html`. 867 assertions covering geometry, the integrator, the four
+surfaces, the overswing, skipping, tunnels, rails and polygons, scenery, the course data
 on every course, the generator, the scorecard, the pick-up and the stars,
 progression and starting over, the per-course save keys and the resumable
 round, in a few seconds — most of them
@@ -851,8 +882,8 @@ the bot's, which now searches for a way round every hole on the rack and every
 hole of twelve draws. The bot needed nothing new for tunnels: it plans over
 simulated shots, and a shot down a tunnel is a simulated shot.
 
-Open `ui-tests.html` for the other half: 132 assertions about the *page* — the
-bar, the picker, the title screen on a first visit, locks and the way past
+Open `ui-tests.html` for the other half: 135 assertions about the *page* — the
+bar, the modals in fullscreen, the picker, the title screen on a first visit, locks and the way past
 them, stars on the banner and the plans, a door opening, a three-player party
 from roster to honour to resume, the board turned for an upright phone and
 laid out beside its column for one on its side, replaying the intro and

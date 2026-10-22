@@ -22,6 +22,7 @@
     var LN_SAND = Math.log(C.FRICTION_SAND);
     var LN_ICE = Math.log(C.FRICTION_ICE);
     var LN_ROUGH = Math.log(C.FRICTION_ROUGH);
+    var LN_AIR = Math.log(C.FRICTION_AIR);
 
     var EMPTY = [];
 
@@ -150,6 +151,12 @@
             moving: false,
             sunk: false,
             splash: false,
+            /* Seconds left in the air off a skip, and how long that hop was
+               all told — the renderer reads the pair as how high the ball is.
+               `skips` counts this shot's, for the call-out and the pitch. */
+            air: 0,
+            airMax: 0,
+            skips: 0,
             /* The tunnel mouth the ball is standing in, if any — the one it
                just came out of, or the one it was struck from. That mouth
                cannot take it until it has left it; without the latch a ball
@@ -219,10 +226,26 @@
         world.ball.vy = Math.sin(angle) * p;
         world.moving = true;
         world.splash = false;
+        world.air = world.airMax = 0;
+        world.skips = 0;
         return true;
     }
 
     function speedOf(b) { return Math.hypot(b.vx, b.vy); }
+
+    /* The strongest knock of a substep, for the effects: where the ball met
+       the thing, which way it was pushed off, and how hard it arrived along
+       that normal. `events.bounce` stays a plain flag for everything that
+       only asks whether there was one. */
+    function knock(events, b, nx, ny, vn) {
+        if (events.impact && events.impact.vn >= vn) return;
+        events.impact = { x: b.x - nx * C.BALL_R, y: b.y - ny * C.BALL_R, nx: nx, ny: ny, vn: vn };
+    }
+
+    /* How long a hop off the water lasts at this speed. See SKIP_AIR. */
+    function hopTime(speed) {
+        return C.SKIP_AIR * speed / C.MAX_POWER;
+    }
 
     /* ── integration ────────────────────────────────────────────────────── */
 
@@ -230,7 +253,15 @@
         var b = world.ball, course = world.course;
         world.time += dt;
 
-        var slope = zoneAt(course.slopes, b.x, b.y);
+        // Off a skip the ball is over everything on the ground: no slope
+        // pulls it and no surface holds it, only the air.
+        var aloft = world.air > 0;
+        if (aloft) {
+            world.air -= dt;
+            if (world.air <= 0) world.air = 0;
+        }
+
+        var slope = aloft ? null : zoneAt(course.slopes, b.x, b.y);
         if (slope) {
             b.vx += slope.ax * dt;
             b.vy += slope.ay * dt;
@@ -240,7 +271,9 @@
         // news of the two, and rough is what is left when nothing else claims
         // the ball. One lookup wins outright — surfaces do not blend.
         var k = C.FRICTION_GRASS, lnK = LN_GRASS;
-        if (zoneAt(course.sand, b.x, b.y)) {
+        if (aloft) {
+            k = C.FRICTION_AIR; lnK = LN_AIR;
+        } else if (zoneAt(course.sand, b.x, b.y)) {
             k = C.FRICTION_SAND; lnK = LN_SAND;
         } else if (zoneAt(course.ice, b.x, b.y)) {
             k = C.FRICTION_ICE; lnK = LN_ICE;
@@ -273,6 +306,7 @@
                 b.vx -= (1 + C.RESTITUTION) * vn * hit.nx;
                 b.vy -= (1 + C.RESTITUTION) * vn * hit.ny;
                 events.bounce = true;
+                knock(events, b, hit.nx, hit.ny, -vn);
             }
             var wv = wallVelocity(course.walls[i], world.time);
             var wn = wv.x * hit.nx + wv.y * hit.ny;
@@ -280,6 +314,7 @@
                 b.vx += wv.x;
                 b.vy += wv.y;
                 events.bounce = true;
+                knock(events, b, hit.nx, hit.ny, wn);
             }
         }
 
@@ -296,6 +331,7 @@
                 b.vx -= (1 + C.RESTITUTION) * rn * rh.nx;
                 b.vy -= (1 + C.RESTITUTION) * rn * rh.ny;
                 events.bounce = true;
+                knock(events, b, rh.nx, rh.ny, -rn);
             }
         }
 
@@ -315,14 +351,20 @@
                 b.vx -= (1 + C.BUMPER_RESTITUTION) * bn * bump.nx;
                 b.vy -= (1 + C.BUMPER_RESTITUTION) * bn * bump.ny;
                 events.bumper = true;
+                knock(events, b, bump.nx, bump.ny, -bn);
             }
         }
 
         // Cushions. The field edge is solid on all four sides.
-        if (b.x < C.BALL_R) { b.x = C.BALL_R; b.vx = Math.abs(b.vx) * C.RESTITUTION; events.bounce = true; }
-        if (b.x > C.WORLD_W - C.BALL_R) { b.x = C.WORLD_W - C.BALL_R; b.vx = -Math.abs(b.vx) * C.RESTITUTION; events.bounce = true; }
-        if (b.y < C.BALL_R) { b.y = C.BALL_R; b.vy = Math.abs(b.vy) * C.RESTITUTION; events.bounce = true; }
-        if (b.y > C.WORLD_H - C.BALL_R) { b.y = C.WORLD_H - C.BALL_R; b.vy = -Math.abs(b.vy) * C.RESTITUTION; events.bounce = true; }
+        if (b.x < C.BALL_R) { b.x = C.BALL_R; knock(events, b, 1, 0, Math.abs(b.vx)); b.vx = Math.abs(b.vx) * C.RESTITUTION; events.bounce = true; }
+        if (b.x > C.WORLD_W - C.BALL_R) { b.x = C.WORLD_W - C.BALL_R; knock(events, b, -1, 0, Math.abs(b.vx)); b.vx = -Math.abs(b.vx) * C.RESTITUTION; events.bounce = true; }
+        if (b.y < C.BALL_R) { b.y = C.BALL_R; knock(events, b, 0, 1, Math.abs(b.vy)); b.vy = Math.abs(b.vy) * C.RESTITUTION; events.bounce = true; }
+        if (b.y > C.WORLD_H - C.BALL_R) { b.y = C.WORLD_H - C.BALL_R; knock(events, b, 0, -1, Math.abs(b.vy)); b.vy = -Math.abs(b.vy) * C.RESTITUTION; events.bounce = true; }
+
+        // Still in the air: nothing on the ground below can have it yet —
+        // not a tunnel, not the cup, not the water it is skipping over.
+        if (world.air > 0) return;
+        if (aloft) events.land = { x: b.x, y: b.y, wet: !!zoneAt(course.water, b.x, b.y) };
 
         // Tunnels. Only a ball that is going somewhere can fall into one: a
         // ball put back at the spot it was played from after a splash may be
@@ -367,7 +409,19 @@
         }
 
         if (zoneAt(course.water, b.x, b.y)) {
+            // Fast enough, and it skips: some of the speed goes into the
+            // water and the rest carries it up and on.
+            var sv = speedOf(b);
+            if (sv >= C.SKIP_SPEED) {
+                world.air = world.airMax = hopTime(sv);
+                b.vx *= C.SKIP_KEEP;
+                b.vy *= C.SKIP_KEEP;
+                world.skips++;
+                events.skip = { x: b.x, y: b.y, n: world.skips, speed: sv };
+                return;
+            }
             b.vx = b.vy = 0;
+            world.air = world.airMax = 0;
             world.splash = true;
             world.moving = false;
             events.splash = true;
@@ -446,7 +500,8 @@
         advance: advance,
         settle: settle,
         simulateShot: simulateShot,
-        speedOf: speedOf
+        speedOf: speedOf,
+        hopTime: hopTime
     };
 
 })(window.GOLF);

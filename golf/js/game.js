@@ -703,7 +703,7 @@
     var LESSONS = {
         rough:   ['sw-rough', 'Rough', 'halves the roll.'],
         sand:    ['sw-sand', 'Bunker', 'all but stops the ball. Hit out firmly.'],
-        water:   ['sw-water', 'Water', 'costs a stroke; you replay from where you hit.'],
+        water:   ['sw-water', 'Water', 'costs a stroke and a replay — unless you hit it hard enough to skip across.'],
         ice:     ['sw-ice', 'Ice', 'triples the roll. Go softer.'],
         gates:   ['sw-move', 'Gate', 'will not wait for you. Time the gap.'],
         bumpers: ['sw-bump', 'Bumper', 'livelier than a wall — it picks a new line.'],
@@ -793,7 +793,7 @@
         state.lastFrac = power / C.MAX_POWER;
         state.trail = [];
         // What this shot does on its way, for the call-out if it drops.
-        state.shot = { from: { x: state.world.ball.x, y: state.world.ball.y }, banks: 0, posts: 0, tunnels: 0, lipped: false };
+        state.shot = { from: { x: state.world.ball.x, y: state.world.ball.y }, banks: 0, posts: 0, tunnels: 0, skips: 0, lipped: false };
         state.lipping = false;
         a.active = false;
         a.power = 0;
@@ -803,10 +803,19 @@
             PR.markCoached();
         }
         hideLessons();
-        A.putt(power / C.MAX_POWER);
-        // Divot: whatever the ball is standing on sprays backwards.
-        var inSand = P.zoneAt(state.world.course.sand, state.world.ball.x, state.world.ball.y);
-        (inSand ? R.effects.sand : R.effects.turf)(state.world.ball.x, state.world.ball.y, fired + Math.PI);
+        var frac = power / C.MAX_POWER, hot = power > C.SAFE_POWER;
+        A.putt(frac);
+        // Divot: whatever the ball is standing on sprays backwards, more of
+        // it the harder the swing.
+        var bx = state.world.ball.x, by = state.world.ball.y;
+        var inSand = P.zoneAt(state.world.course.sand, bx, by);
+        (inSand ? R.effects.sand : R.effects.turf)(bx, by, fired + Math.PI, frac);
+        R.effects.strike(bx, by, fired, frac, hot);
+        // The overswing kicks a little in the hand.
+        if (hot) {
+            shake = Math.max(shake, 0.2 + 0.3 * (power - C.SAFE_POWER) / (C.MAX_POWER - C.SAFE_POWER));
+            A.buzz(12);
+        }
         syncHud();
     }
 
@@ -824,6 +833,7 @@
         w.ball.vx = w.ball.vy = 0;
         w.splash = false;
         w.moving = false;
+        w.air = w.airMax = 0;
         state.trail = [];
         state.phase = 'aim';
         syncHud();
@@ -845,6 +855,7 @@
         var s = state.shot;
         if (!s) return '';
         var bits = [];
+        if (s.skips) bits.push(s.skips > 1 ? s.skips + ' skips across the water' : 'skipped across');
         if (s.tunnels) bits.push(s.tunnels > 1 ? 'through ' + s.tunnels + ' tunnels' : 'through the tunnel');
         if (s.posts >= 3) bits.push('pinball wizard');
         else if (s.posts) bits.push('off the post');
@@ -1766,8 +1777,24 @@
         }
     }
 
+    /* Only the fullscreen element and what is inside it is drawn while it is
+       up, and the wrap is what goes up — but the menu, the title, the party
+       and the scorecard are the body's, beside it, so a round finished in
+       fullscreen opened a scorecard nobody could see. They move in with the
+       wrap and back out after
+       it. They are fixed to the viewport either way, which in fullscreen is
+       the wrap, so where they sit in the page changes nothing about how they
+       look. */
+    function hostModals(host) {
+        var modals = document.querySelectorAll('.modal');
+        for (var i = 0; i < modals.length; i++) {
+            if (modals[i].parentNode !== host) host.appendChild(modals[i]);
+        }
+    }
+
     function syncFullscreen() {
         var on = !!fullscreenEl();
+        hostModals(on ? fullscreenEl() : document.body);
         document.body.classList.toggle('is-full', on);
         $('full-icon').textContent = on ? '⤡' : '⛶';
         $('btn-full').setAttribute('aria-label', on ? 'Leave fullscreen' : 'Fullscreen');
@@ -1822,20 +1849,43 @@
         var ev = P.advance(w, dt, {});
         var shot = state.phase === 'rolling' ? state.shot : null;
 
+        /* A knock. `ev.impact` is the hardest contact of the frame — where,
+           which way the ball was pushed off, and how fast it arrived along
+           that line, which is what a knock should be measured by: a ball
+           glancing down a wall at speed barely touches it. */
+        var imp = ev.impact;
+        var knockS = imp ? Math.min(1, imp.vn / 700) : 0;
         if (ev.bumper && now - lastBounceAt > 45) {
             lastBounceAt = now;
             A.bumper(P.speedOf(w.ball));
             A.buzz(8);
             R.effects.spark(w.ball.x, w.ball.y);
             R.effects.ring(w.ball.x, w.ball.y, C.BALL_R + 6);
+            if (imp) R.effects.impact(imp.x, imp.y, imp.nx, imp.ny, Math.max(0.4, knockS), true);
             if (shot) shot.posts++;
         } else if (ev.bounce && now - lastBounceAt > 45) {
             lastBounceAt = now;
             var hit = P.speedOf(w.ball);
-            A.bounce(hit);
+            A.bounce(imp ? imp.vn * 1.3 : hit);
+            if (imp && imp.vn > 40) R.effects.impact(imp.x, imp.y, imp.nx, imp.ny, knockS, false);
             if (shot) shot.banks++;
             // A hard knock jolts the frame. A small one would be noise.
             if (hit > 620) shake = Math.max(shake, Math.min(1, (hit - 620) / 500));
+        }
+
+        /* Off the water. Each skip ripples, sprays and plips a note higher
+           than the last; coming down dry after one is called, because the
+           ball cleared a hazard and the player should hear that they did. */
+        if (ev.skip) {
+            A.skip(ev.skip.n);
+            A.buzz(10);
+            R.effects.skip(ev.skip.x, ev.skip.y, Math.atan2(w.ball.vy, w.ball.vx), ev.skip.n);
+            if (shot) shot.skips = ev.skip.n;
+        }
+        if (ev.land && !ev.land.wet) {
+            A.land();
+            R.effects.land(ev.land.x, ev.land.y, Math.atan2(w.ball.vy, w.ball.vx));
+            if (w.skips) toast(w.skips > 1 ? w.skips + ' skips — and across!' : 'Skipped across!');
         }
 
         if (ev.tunnel) {

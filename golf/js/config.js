@@ -7,7 +7,7 @@
    and on a desktop and none of the tuning below is resolution dependent. */
 window.GOLF = window.GOLF || {};
 
-GOLF.VERSION = '1.9.0';
+GOLF.VERSION = '1.10.0';
 
 GOLF.CONFIG = {
     WORLD_W: 960,
@@ -101,6 +101,30 @@ GOLF.CONFIG = {
     MAX_SHOT_SECONDS: 20,
 
     WATER_PENALTY: 1,
+
+    /* Skipping. Water used to take any ball that reached it; now a fast one
+       skips off the top like a flat stone. At SKIP_SPEED or more the ball
+       keeps SKIP_KEEP of its speed and is in the air for SKIP_AIR seconds if
+       it met the water at MAX_POWER, less in proportion below it — so the
+       hop's length goes with the square of the speed. In the air it is over
+       the water, the sand and the slopes alike; walls still stop it. Where it
+       comes down is asked the same question again.
+
+       Tuned so that water is still water. A full-dial shot struck from the
+       very edge of a pond skips about 130px, comes down at 860, skips
+       another 50 and sinks — about 175px is the most anything will cross,
+       and only with the dial in the overswing. A firm safe-zone shot from
+       the tee clears 40 to 80px: the near corner of a pond, a creek, not a
+       lake. A ball that has rolled 500px to the water arrives under
+       SKIP_SPEED and goes in as it always did. SKIP_KEEP under 1 is what
+       keeps the invariant: a skip never hands the ball energy, so a chain
+       of them always ends. tests.html pins both ends. */
+    SKIP_SPEED: 650,
+    SKIP_KEEP: 0.62,
+    SKIP_AIR: 0.15,
+    // Speed kept after one second in the air. A hop lasts a tenth of that,
+    // so this is felt as "barely slows" rather than as a number.
+    FRICTION_AIR: 0.8,
 
     /* The pick-up. A hole gives you par plus this many strokes; if the ball
        is not down after the last of them you pick it up and write down one

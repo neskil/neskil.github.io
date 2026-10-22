@@ -63,6 +63,8 @@
             var p = Math.max(0.15, Math.min(1, power));
             tone(150 + p * 190, 0.09, 'triangle', 0.16 + p * 0.1, 70);
             noise(0.05, 1400, 1.5, 0.05 + p * 0.06);
+            // A real swing has air in it: the hard ones get a whoosh.
+            if (p > 0.55) noise(0.16 + p * 0.08, 3200, 0.7, (p - 0.55) * 0.22, 'highpass');
         },
         bounce: function (speed) {
             var p = Math.max(0.1, Math.min(1, speed / 700));
@@ -80,6 +82,22 @@
         splash: function () {
             noise(0.4, 900, 0.6, 0.2);
             tone(420, 0.35, 'sine', 0.1, 90);
+            // ...and the spray coming back down a moment later.
+            [140, 210, 300].forEach(function (ms, i) {
+                setTimeout(function () { tone(1500 + i * 260, 0.05, 'sine', 0.04, 2400 + i * 200); }, ms);
+            });
+        },
+        // Off the top of the water: a flat slap and a plip that climbs with
+        // each skip in the chain, so a second one sounds like a better one.
+        skip: function (n) {
+            var up = Math.pow(1.19, Math.max(0, n - 1));
+            noise(0.05, 2200 * up, 2.5, 0.12);
+            tone(620 * up, 0.09, 'sine', 0.09, 1250 * up);
+        },
+        // Back down on the grass after a skip.
+        land: function () {
+            noise(0.06, 420, 1, 0.09, 'lowpass');
+            tone(190, 0.07, 'sine', 0.06, 110);
         },
         sink: function () {
             noise(0.09, 260, 3, 0.16);               // the ball hitting the cup
