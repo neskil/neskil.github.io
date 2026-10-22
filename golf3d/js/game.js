@@ -676,6 +676,15 @@
             state.world = P.createWorld(w.hole, w.origin, w.time);
             R.state.lastBall.set(w.origin.x, w.origin.y, w.origin.z);
         }
+        /* Five over par and still out: the hole is picked up. It scores
+           par + PICKUP whatever the penalties made of the count, and the
+           round moves on — a hole you cannot finish is a hole that has stopped
+           being a game, and the card should say what it cost rather than how
+           long it went on. */
+        if (!state.course.isRange && state.strokes >= state.course.holes[state.holeIndex].par + C.PICKUP) {
+            holeComplete(true);
+            return;
+        }
         state.phase = 'aim';
         if (state.course.isRange) {
             judgeRangeShot(w);
@@ -719,7 +728,7 @@
         toast('On the green — putter');
     }
 
-    function holeComplete() {
+    function holeComplete(pickedUp) {
         var hole = state.course.holes[state.holeIndex];
         if (state.course.isRange) {
             /* Out of 'rolling' at once: a holed ball stays done, and left in
@@ -736,15 +745,22 @@
             }, 1800);
             return;
         }
+        if (pickedUp) state.strokes = hole.par + C.PICKUP;
         state.scores[state.holeIndex] = state.strokes;
         state.phase = 'holed';
         syncSwing();
 
         var t = S.term(state.strokes, hole.par);
-        if (t.kind === 'ace') A.ace(); else A.sink();
+        if (pickedUp) A.out();
+        else if (t.kind === 'ace') A.ace(); else A.sink();
 
         var last = state.holeIndex === state.course.holes.length - 1;
-        if (t.kind === 'ace') {
+        if (pickedUp) {
+            $('banner-term').textContent = 'Picked up';
+            $('banner-term').className = 'banner-term over';
+            $('banner-detail').textContent = C.PICKUP + ' over par · scored ' + state.strokes;
+            $('banner').className = 'banner show';
+        } else if (t.kind === 'ace') {
             $('banner-term').textContent = 'ACE!';
             $('banner-term').className = 'banner-term ace';
             $('banner-detail').textContent = 'Hole in one · 1 stroke · par ' + hole.par;

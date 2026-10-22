@@ -8,7 +8,7 @@
    — the renderer scales to the viewport, the simulation never sees a pixel. */
 window.G3 = window.G3 || {};
 
-G3.VERSION = '1.70.0';
+G3.VERSION = '1.71.0';
 
 G3.CONFIG = {
     BALL_R: 0.16,
@@ -371,6 +371,10 @@ G3.CONFIG = {
     },
     LANDING_DEFAULT: null,   // filled in below, from LAND_GRIP and BOUNCE
     STOP_SPEED: 0.24,     // below this on a lie that will hold it, the ball is at rest
+
+    /* Strokes over par at which a hole is picked up: a shot that ends there
+       without the ball in the cup ends the hole, scored at par + PICKUP. */
+    PICKUP: 5,
 
     /* ── ground that does something ─────────────────────────────────────
 

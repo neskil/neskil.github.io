@@ -197,6 +197,7 @@
          ripple  [cx, cz], k, a, fall   a·cos(k·r)·e^(-fall·r): a stone in a pond
          saddle  [cx, cz], a, s    a·(dx² - dz²)/s²: a pass between two hills
          gauss   [cx, cz], a, s    a·e^(-r²/2s²): one smooth hill, or a well
+         spiral  [cx, cz], k, n, a  a·sin(k·r − n·θ): n grooves winding inwards
 
        height = plane + bumps + M·F, where F is the sum of the terms and M the
        product of the calm masks; the gradient is M∇F + F∇M, which is the one
@@ -227,6 +228,20 @@
                 v = t.a / (t.s * t.s);
                 f += v * (dx * dx - dz * dz);
                 g.x += 2 * v * dx; g.z -= 2 * v * dz;
+            } else if (t.spiral) {
+                // a·sin(k·r − n·θ): n arms winding in to the middle. The slope
+                // has a radial part and a part round the circle, and the
+                // second is 1/r of the angular derivative.
+                dx = x - t.spiral[0]; dz = z - t.spiral[1];
+                r = Math.sqrt(dx * dx + dz * dz);
+                v = t.k * r - t.n * Math.atan2(dz, dx);
+                f += t.a * Math.sin(v);
+                if (r > 1e-6) {
+                    d = t.a * Math.cos(v);
+                    var dr = d * t.k / r, dt = -d * t.n / (r * r);
+                    g.x += dr * dx - dt * dz;
+                    g.z += dr * dz + dt * dx;
+                }
             } else if (t.gauss) {
                 dx = x - t.gauss[0]; dz = z - t.gauss[1];
                 v = t.a * Math.exp(-(dx * dx + dz * dz) / (2 * t.s * t.s));

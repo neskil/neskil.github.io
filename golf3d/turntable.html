@@ -60,19 +60,19 @@
     <canvas id="gl"></canvas>
 
     <script src="vendor/three.min.js"></script>
-    <script src="js/config.js?v=1.70.0"></script>
-    <script src="js/themes.js?v=1.70.0"></script>
-    <script src="js/physics.js?v=1.70.0"></script>
-    <script src="js/courses.js?v=1.70.0"></script>
-    <script src="js/audit.js?v=1.70.0"></script>
-    <script src="js/textures.js?v=1.70.0"></script>
-    <script src="js/shaders.js?v=1.70.0"></script>
-    <script src="js/postfx.js?v=1.70.0"></script>
-    <script src="js/weather.js?v=1.70.0"></script>
-    <script src="js/flyover.js?v=1.70.0"></script>
-    <script src="js/models.js?v=1.70.0"></script>
-    <script src="js/life.js?v=1.70.0"></script>
-    <script src="js/render.js?v=1.70.0"></script>
+    <script src="js/config.js?v=1.71.0"></script>
+    <script src="js/themes.js?v=1.71.0"></script>
+    <script src="js/physics.js?v=1.71.0"></script>
+    <script src="js/courses.js?v=1.71.0"></script>
+    <script src="js/audit.js?v=1.71.0"></script>
+    <script src="js/textures.js?v=1.71.0"></script>
+    <script src="js/shaders.js?v=1.71.0"></script>
+    <script src="js/postfx.js?v=1.71.0"></script>
+    <script src="js/weather.js?v=1.71.0"></script>
+    <script src="js/flyover.js?v=1.71.0"></script>
+    <script src="js/models.js?v=1.71.0"></script>
+    <script src="js/life.js?v=1.71.0"></script>
+    <script src="js/render.js?v=1.71.0"></script>
 
     <script>
     (function () {
@@ -112,7 +112,11 @@
             G3.COURSES.map(function (c) { return c.id; }).join(',');
 
         var jobs = [];
-        G3.COURSES.forEach(function (course) {
+        /* ?course=challenge photographs Challenge mode's whole curated
+           library, which no deal ever shows at once (courses.js). */
+        var pool = wantCourse === 'challenge' ? [G3.courseById('challenge-library')] : G3.COURSES;
+        if (wantCourse === 'challenge') wantCourse = 'challenge-library';
+        pool.forEach(function (course) {
             if (wantCourse !== 'all' && course.id !== wantCourse) return;
             course.holes.forEach(function (hole, i) {
                 if (wantHole && i + 1 !== wantHole) return;
