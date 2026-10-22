@@ -185,10 +185,11 @@ and a banked floor is `padHeight` learning a curved profile.
 
 Six function surfaces dealt with random cups, a hover-platform tee, glass
 floors, the neon theme with its grid and its own grade, and the effects
-(sparks, light rings, a neon tail). README → "Challenge mode". Open: more
-recipes (a spiral, a Möbius-ish twist, moving waves — `ph` driven by time is
-one line in `fieldAt` and one in the bot's waits), a daily seed everybody
-shares, and the deal's seed shown on the card so a good one can be replayed.
+(sparks, light rings, a neon tail). README → "Challenge mode". v1.71.0 made it
+a **curated library** on the owner's word ("it doesn't have to be all random")
+— eight families, eighteen hand-placed variants, spirals and volcanoes new —
+and dropped the daily seed. Open: moving waves (time in `fieldAt`, and the
+bot's waits), and more variants per family as they are found.
 
 The original ask, kept for reference:
 

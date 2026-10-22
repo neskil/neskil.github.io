@@ -115,7 +115,7 @@ while scrolling, and turning it over shows a screenshot of the thing running
 plus the button that starts it. Those screenshots live in `assets/preview/` as
 800x420 WebP, one per card, and are held in `data-src` until the card is
 flipped (or, on a machine with a pointer, until the cursor reaches the card).
-Nothing in that folder is fetched on load; together they are under 800 KB.
+Nothing in that folder is fetched on load; together they are about 1.1 MB.
 
 Two things make them worth the trouble, and both are easy to lose when
 regenerating one:
@@ -123,9 +123,13 @@ regenerating one:
 - **Shoot the thing running, not its menu.** A screenshot of a title screen
   tells you nothing you did not already read on the front of the card. Drive
   the app in first — dismiss the tutorial, pick the mission, start the round,
-  answer a question — then shoot. `golf` and `golf3d` were already gameplay in
-  `assets/og/`, and `car` is a designed hero rather than a screenshot, so those
-  three are reused as-is.
+  answer a question — then shoot. Better still, shoot it moving: the golf
+  and Cargo Lander shots are taken mid-shot — a ball rolling with its trail
+  behind it, a drive in the air, the lander under thrust — by setting the
+  game's own aim/power state and pressing its swing key, or (Cargo Lander,
+  which crawls at a few frames a second headless) by placing the lander with
+  the `CLAUDE.md` teleport recipe and stepping `game.update(1.0)` a few times.
+  `car` is a designed hero rather than a screenshot, so it is reused as-is.
 - **Shoot at a width the content fills.** Several pages put their content in a
   narrow max-width column; at 1200px wide they come out as a stripe of UI in a
   field of background. 720-1000px wide is usually the frame the column fills.
@@ -141,10 +145,13 @@ before the capture, exactly the trap described under "Link previews" above.
 
 A card can carry more than one shot: put several `<img>` in the `.peek-shot`
 and the script stacks them, cross-fades between them every 2.6s and adds dots.
-Cargo Lander uses this for three — a mission in flight, a procedural run in
-another biome, and the level editor with a level loaded. The markup stays a
-plain list, so with the script off the card shows the first shot rather than
-three piled up.
+Cargo Lander uses this for five — four missions in flight (canyon, islands,
+grotto, derelict station) and the R&D Upgrades shop. The golf picker does the
+same in each of its two `.dim-shot` frames, four holes apiece; the two frames
+take turns on a half-beat so the panel never changes both pictures at once.
+The markup stays a plain list, so with the script off the card shows the first
+shot rather than a pile. A regenerated shot that keeps its filename gets a
+`?v=` bump on its `data-src`, or a returning visitor keeps the cached one.
 
 There is no image tooling in this repo — no PIL, no ImageMagick, no cwebp. The
 downscale and the WebP encode are done by loading the PNG into a canvas in

@@ -6160,16 +6160,16 @@
        place (physics.js, "surfaces that are a function"): a sea of sine
        ridges, an egg crate, a ripple from a stone dropped in, a saddle you
        play over the pass of, two wells, and a field you tee off a platform
-       hovering above. Each deal draws its own ground — phases, positions,
-       which way the ridges run — and **puts the cup somewhere new**, so the
-       same six recipes are a different six holes every round.
+       hovering above, a spiral and a volcano. Each deal picks its own
+       holes out of a curated library, so the
+       same eight families make a different six holes every round (see the
+       library below: the variants are curated, the deal is not).
 
-       Wherever the cup lands, the ground there is made flat: the field is
-       faded out by a `calm` round the cup and round the tee, flat inside
-       CUP_FLAT and full strength a couple of units further out, so the cup
-       is cut into level ground the way every other cup is. The draw keeps
-       the cup off the rails and a decent way up the hole; tests.html deals
-       a run of seeds and has the bot hole every one.
+       Wherever the cup is, the ground there is made flat: the field is faded
+       out by a `calm` round the cup and round the tee, flat inside CUP_FLAT
+       and full strength a couple of units further out, so the cup is cut into
+       level ground the way every other cup is. tests.html plays every variant
+       in the library with the bot.
 
        Played out of the lofted mini bag, because a surface like this is
        half read and half flown, and drawn in the `neon` theme. */
@@ -6182,92 +6182,107 @@
         });
     }
 
-    // A cup somewhere on the field: off the rails, up the hole, clear of the tee.
-    function drawCup(rnd, f, tee, least) {
-        var i, x, z;
-        for (i = 0; i < 200; i++) {
-            x = f.x + 2.2 + rnd() * (f.w - 4.4);
-            z = f.z + f.d * 0.45 + rnd() * (f.d * 0.55 - 2.2);
-            if (Math.hypot(x - tee.x, z - tee.z) >= least) break;
-        }
-        return { x: x, z: z };
-    }
+    /* The library: eight families, two or three curated variants each.
+       Every one is a hole somebody chose — the field's numbers, the tee and
+       the cup — rather than a roll of the dice, because a random cup on a
+       random sea is more often a dull hole than a strange one. What a deal
+       does is pick six of the eight families and one variant out of each
+       (dealChallenge), so a round is still a surprise and every hole in it is
+       one that has been looked at.
 
-    var CHALLENGE_HOLES = [
-        function (rnd) {
-            var f = { x: 0, z: 0, w: 12, d: 22 }, tee = { x: 6, z: 2 };
-            var k = Math.PI * 2 / (5 + rnd() * 1.5);
-            return {
-                name: 'Sine Sea', par: 3,
-                blurb: 'Ridge after ridge across the line. Pace it to crest the last one and no more.',
-                f: f, tee: tee,
-                field: [{ wave: [0, k], a: 0.34, ph: rnd() * 6.28 },
-                        { wave: [k * 0.45, 0], a: 0.12, ph: rnd() * 6.28 }]
-            };
-        },
-        function (rnd) {
-            var f = { x: 0, z: 0, w: 13, d: 22 }, tee = { x: 6.5, z: 2 };
-            var k = Math.PI * 2 / (5.5 + rnd());
-            return {
-                name: 'Egg Crate', par: 3,
-                blurb: 'Two seas crossed. Every hollow is a trap and every crest a ramp.',
-                f: f, tee: tee,
-                field: [{ wave: [k, 0], a: 0.28, ph: rnd() * 6.28 },
-                        { wave: [0, k], a: 0.28, ph: rnd() * 6.28 }]
-            };
-        },
-        function (rnd) {
-            var f = { x: 0, z: 0, w: 14, d: 22 }, tee = { x: 7, z: 2 };
-            return {
-                name: 'Stone in a Pond', par: 3,
-                blurb: 'Rings running out from where the stone went in. Ride one round, or cut across them.',
-                f: f, tee: tee,
-                field: [{ ripple: [3 + rnd() * 8, 9 + rnd() * 6], k: Math.PI * 2 / 4.2, a: 0.42, fall: 0.07 }]
-            };
-        },
-        function (rnd) {
-            var f = { x: 0, z: 0, w: 14, d: 26 }, tee = { x: 7, z: 2 };
-            return {
-                name: 'The Pass', par: 4,
-                blurb: 'A saddle: walls up either side, the ground falling away both ends. Over the pass, and stop.',
-                f: f, tee: tee,
-                field: [{ saddle: [7, 12 + rnd() * 3], a: 1.1, s: 9 },
-                        { wave: [Math.PI * 2 / 7, Math.PI * 2 / 11], a: 0.1, ph: rnd() * 6.28 }]
-            };
-        },
-        function (rnd) {
-            var f = { x: 0, z: 0, w: 14, d: 24 }, tee = { x: 7, z: 2 };
-            return {
-                name: 'Twin Wells', par: 4,
-                blurb: 'Two wells in a rolling floor, and they take anything that comes near.',
-                f: f, tee: tee,
-                field: [{ gauss: [3.5 + rnd() * 2.5, 8 + rnd() * 4], a: -1.1, s: 1.9 },
-                        { gauss: [8 + rnd() * 2.5, 13 + rnd() * 5], a: -1.1, s: 1.9 },
-                        { wave: [Math.PI * 2 / 8, Math.PI * 2 / 6], a: 0.14, ph: rnd() * 6.28 }]
-            };
-        },
-        function (rnd) {
-            var f = { x: 0, z: 5, w: 14, d: 19 }, tee = { x: 7, z: 2 };
-            var k = Math.PI * 2 / (6 + rnd() * 2);
-            return {
-                name: 'Hover', par: 3,
-                blurb: 'Off a platform hanging in the air, down on to a field of interference.',
-                f: f, tee: tee, hover: { x: 5.5, z: 0.5, w: 3, d: 3, y: 2.6 },
-                field: [{ wave: [k, k * 0.6], a: 0.3, ph: rnd() * 6.28 },
-                        { wave: [-k * 0.7, k], a: 0.25, ph: rnd() * 6.28 }]
-            };
-        }
+       Two things to know when adding one. The calm round the cup flattens
+       the field down to the pad's own height — the field's *middle*, not its
+       top — so a cup at the summit of a hill is cut into a crater, which is
+       exactly what the Volcano family is. And the bot has to hole it: the
+       suite plays every variant in the library. */
+    var TAU = Math.PI * 2;
+    function ph(k, x) { return 1.5 * Math.PI - k * x; }   // a wave's trough at x
+
+    var CHALLENGE_LIBRARY = [
+        { family: 'sine', variants: [
+            { name: 'Sine Sea', par: 3, f: [0, 0, 12, 22], tee: [6, 2], cup: [6, 18.5],
+              blurb: 'Ridge after ridge across the line. Pace it to crest the last one and no more.',
+              field: [{ wave: [0, TAU / 5.5], a: 0.42, ph: 0.6 }, { wave: [TAU / 12, 0], a: 0.1, ph: 1.3 }] },
+            { name: 'Crosscurrent', par: 3, f: [0, 0, 12, 22], tee: [6, 2], cup: [9.4, 17.5],
+              blurb: 'The ridges run slantwise, and every one of them turns the ball a little more.',
+              field: [{ wave: [TAU / 5 * 0.6, TAU / 5 * 0.8], a: 0.36, ph: 2.1 }] },
+            { name: 'Long Swell', par: 3, f: [0, 0, 12, 22], tee: [6, 2], cup: [9.6, 18.5],
+              blurb: 'Three gutters running the length of it. The cup is in the next one over.',
+              field: [{ wave: [TAU / 3.6, 0], a: 0.32, ph: ph(TAU / 3.6, 6) }] }
+        ] },
+        { family: 'crate', variants: [
+            { name: 'Egg Crate', par: 3, f: [0, 0, 13, 22], tee: [6.5, 2], cup: [8.2, 17.2],
+              blurb: 'Two seas crossed. Every hollow is a trap and every crest a ramp.',
+              field: [{ wave: [TAU / 6, 0], a: 0.36, ph: 0.4 }, { wave: [0, TAU / 6], a: 0.36, ph: 2.2 }] },
+            { name: 'Waffle', par: 3, f: [0, 0, 13, 22], tee: [6.5, 2], cup: [3.8, 19],
+              blurb: 'The same crossed seas, finer: forty little hollows between you and the flag.',
+              field: [{ wave: [TAU / 3.8, 0], a: 0.19, ph: 1.0 }, { wave: [0, TAU / 3.8], a: 0.19, ph: 0.2 }] }
+        ] },
+        { family: 'ripple', variants: [
+            { name: 'Stone in a Pond', par: 3, f: [0, 0, 14, 22], tee: [7, 2], cup: [7, 19.5],
+              blurb: 'Rings running out from where the stone went in. Ride one round, or cut across them.',
+              field: [{ ripple: [7, 10.5], k: TAU / 4.2, a: 0.52, fall: 0.07 }] },
+            { name: 'Bullseye', par: 3, f: [0, 0, 14, 22], tee: [7, 2], cup: [7, 15.5],
+              blurb: 'Rings round the cup itself. Each one you cross takes pace off; too few and it rolls back out.',
+              field: [{ ripple: [7, 15.5], k: TAU / 3.4, a: 0.4, fall: 0.03 }] },
+            { name: 'Two Stones', par: 3, f: [0, 0, 14, 22], tee: [7, 2], cup: [10.5, 19],
+              blurb: 'Two stones, two sets of rings, and where they cross the water stands up.',
+              field: [{ ripple: [4, 9], k: TAU / 4, a: 0.38, fall: 0.05 }, { ripple: [10, 12.5], k: TAU / 4, a: 0.38, fall: 0.05 }] }
+        ] },
+        { family: 'saddle', variants: [
+            { name: 'The Pass', par: 4, f: [0, 0, 14, 26], tee: [7, 2], cup: [7, 22.5],
+              blurb: 'A saddle: walls up either side, the ground falling away both ends. Over the pass, and stop.',
+              field: [{ saddle: [7, 13], a: 1.1, s: 9 }, { wave: [TAU / 7, TAU / 11], a: 0.1, ph: 0.8 }] },
+            { name: 'Shoulder', par: 3, f: [0, 0, 14, 26], tee: [7, 2], cup: [11.6, 13.5],
+              blurb: 'The cup is up on the saddle\'s shoulder. Too soft and it slides back into the pass.',
+              field: [{ saddle: [7, 13], a: 1.3, s: 8 }] }
+        ] },
+        { family: 'wells', variants: [
+            { name: 'Twin Wells', par: 4, f: [0, 0, 14, 24], tee: [7, 2], cup: [7, 21],
+              blurb: 'Two wells in a rolling floor, and they take anything that comes near.',
+              field: [{ gauss: [4.6, 9.5], a: -1.5, s: 1.9 }, { gauss: [9.6, 15], a: -1.5, s: 1.9 },
+                      { wave: [TAU / 8, TAU / 6], a: 0.14, ph: 1.7 }] },
+            { name: 'Gravity Assist', par: 4, f: [0, 0, 14, 24], tee: [7, 2], cup: [7, 21],
+              blurb: 'One deep well dead on the line. Go round it, or use its rim to bend the ball in.',
+              field: [{ gauss: [7, 12], a: -1.9, s: 2.6 }] }
+        ] },
+        { family: 'hover', variants: [
+            { name: 'Hover', par: 3, f: [0, 5, 14, 19], tee: [7, 2], cup: [7, 17.5],
+              hover: [5.5, 0.5, 3, 3, 2.6],
+              blurb: 'Off a platform hanging in the air, down on to a field of interference.',
+              field: [{ wave: [TAU / 7, TAU / 7 * 0.6], a: 0.3, ph: 0.5 }, { wave: [-TAU / 7 * 0.7, TAU / 7], a: 0.25, ph: 2.4 }] },
+            { name: 'High Wire', par: 3, f: [0, 6, 14, 19], tee: [7, 2], cup: [10.2, 21.5],
+              hover: [5.5, 0.5, 3, 3, 3.4],
+              blurb: 'Higher up, further out, and the field below is an egg crate. Land it on a crest.',
+              field: [{ wave: [TAU / 5, 0], a: 0.26, ph: 0.9 }, { wave: [0, TAU / 5], a: 0.26, ph: 2.6 }] }
+        ] },
+        { family: 'spiral', variants: [
+            { name: 'Whirlpool', par: 3, f: [0, 0, 16, 18], tee: [8, 1.8], cup: [8, 11],
+              blurb: 'Two grooves winding into the cup. Drop into one and let it carry you round.',
+              field: [{ spiral: [8, 11], k: TAU / 3.2, n: 2, a: 0.45 }] },
+            { name: 'Galaxy', par: 3, f: [0, 0, 16, 18], tee: [2.5, 2], cup: [9, 11],
+              blurb: 'Three arms, and you are teeing off at the edge of one. Across them, or along?',
+              field: [{ spiral: [9, 11], k: TAU / 3.6, n: 3, a: 0.46 }] }
+        ] },
+        { family: 'volcano', variants: [
+            { name: 'Volcano', par: 3, f: [0, 0, 16, 18], tee: [8, 2], cup: [8, 11],
+              blurb: 'Up the cone and into the crater. Not enough and it comes back down to you.',
+              field: [{ gauss: [8, 11], a: 2.1, s: 3 }] },
+            { name: 'Caldera', par: 3, f: [0, 0, 16, 18], tee: [8, 2], cup: [8, 11.5],
+              blurb: 'A broad cone with rings round its foot, and the crater at the top of it.',
+              field: [{ gauss: [8, 11.5], a: 1.7, s: 3.6 }, { ripple: [8, 11.5], k: TAU / 3, a: 0.26, fall: 0.02 }] }
+        ] }
     ];
 
-    function challengeHole(recipe, rnd) {
-        var r = recipe(rnd), f = r.f;
-        var cup = drawCup(rnd, f, r.tee, r.par >= 4 ? 15 : 11);
+    function challengeHole(v) {
+        var f = { x: v.f[0], z: v.f[1], w: v.f[2], d: v.f[3] };
+        var tee = { x: v.tee[0], z: v.tee[1] }, cup = { x: v.cup[0], z: v.cup[1] };
         var field = pad(f.x, f.z, f.w, f.d, 0, 'glass');
-        field.field = r.field;
-        field.calm = calmAround(r.hover ? [cup] : [cup, r.tee]);
+        field.field = v.field;
+        field.calm = calmAround(v.hover ? [cup] : [cup, tee]);
         var pads = [field], gaps = [];
-        if (r.hover) {
-            var hv = pad(r.hover.x, r.hover.z, r.hover.w, r.hover.d, r.hover.y, 'glass');
+        if (v.hover) {
+            var hv = pad(v.hover[0], v.hover[1], v.hover[2], v.hover[3], v.hover[4], 'glass');
             hv.hover = true;
             pads.push(hv);
             // Open on every side: it is a platform to be shot off, not a box.
@@ -6277,30 +6292,49 @@
             // should drop off the world, not bounce back at you.
             gaps.push(brink({ x: f.x, z: f.z, w: f.w, d: 0 }));
         }
-        var h = build({
-            name: r.name, par: r.par, blurb: r.blurb,
+        return build({
+            name: v.name, par: v.par, blurb: v.blurb,
             shaped: true, mini: true, bag: CHALLENGE_BAG.slice(),
-            pads: pads, gaps: gaps,
-            tee: { x: r.tee.x, z: r.tee.z }, cup: cup
+            pads: pads, gaps: gaps, tee: tee, cup: cup
         });
-        return h;
     }
 
+    function challengeCourse(id, ref, holes, extra) {
+        var c = {
+            id: id, group: 'challenge', name: 'Challenge',
+            blurb: 'Six mathematical surfaces in a grid world. A new six every round.',
+            theme: 'neon', holes: holes, isChallenge: true,
+            from: holes.map(function (h, i) { return { id: ref, index: i }; })
+        };
+        for (var k in extra) c[k] = extra[k];
+        return c;
+    }
+
+    /* Every variant in the library as one course, for the turntable and the
+       suite — the one place all of them are played and photographed. */
+    G3.challengeLibrary = function () {
+        var holes = [];
+        CHALLENGE_LIBRARY.forEach(function (fam) {
+            fam.variants.forEach(function (v) { holes.push(challengeHole(v)); });
+        });
+        return challengeCourse('challenge-library', 'challenge-library', holes, {});
+    };
+
+    /* A deal: six of the eight families, in the library's order (it climbs —
+       the plain seas first, the hover and the volcano late), and one curated
+       variant out of each. Seeded, so a seed is a deal. */
     G3.dealChallenge = function (seed) {
         if (seed === undefined) seed = Math.floor(Math.random() * 1e9);
-        var rnd = seeded(seed), holes = [], from = [], i;
-        for (i = 0; i < CHALLENGE_HOLES.length; i++) {
-            holes.push(challengeHole(CHALLENGE_HOLES[i], rnd));
-            /* Keyed by the deal, not by 'challenge': the plans and the skies
-               are cached by course id and hole number, and hole 3 of this
-               deal is not hole 3 of the last one. */
-            from.push({ id: 'challenge-' + seed, index: i });
-        }
-        return {
-            id: 'challenge', group: 'challenge', name: 'Challenge',
-            blurb: 'Six mathematical surfaces in a grid world, and a new cup on every one each round.',
-            theme: 'neon', from: from, holes: holes, seed: seed, isChallenge: true
-        };
+        var rnd = seeded(seed), pool = CHALLENGE_LIBRARY.map(function (f, i) { return i; });
+        while (pool.length > 6) pool.splice(Math.floor(rnd() * pool.length), 1);
+        var holes = pool.map(function (i) {
+            var fam = CHALLENGE_LIBRARY[i];
+            return challengeHole(fam.variants[Math.floor(rnd() * fam.variants.length)]);
+        });
+        /* Keyed by the deal, not by 'challenge': the plans and the skies are
+           cached by course id and hole number, and hole 3 of this deal is not
+           hole 3 of the last one. */
+        return challengeCourse('challenge', 'challenge-' + seed, holes, { seed: seed });
     };
 
     // The deal in play, the same way G3.SHOWCASE is.
@@ -6393,6 +6427,9 @@
     G3.courseById = function (id) {
         if (id === 'range') return G3.RANGE_COURSE;
         if (id === 'showcase') return G3.SHOWCASE || (G3.SHOWCASE = G3.dealShowcase());
+        if (id === 'challenge-library') {
+            return G3.CHALLENGE_LIBRARY || (G3.CHALLENGE_LIBRARY = G3.challengeLibrary());
+        }
         if (id === 'challenge' || String(id).indexOf('challenge-') === 0) {
             return G3.CHALLENGE || (G3.CHALLENGE = G3.dealChallenge());
         }
