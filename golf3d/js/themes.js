@@ -402,6 +402,7 @@
             grass: ['#1b1446', '#16103a'],
             rail: 0x27f0ff,
             glow: true,
+            motes: false,
             grid: { colour: '#ff3df2', floor: '#27c8ff', every: 1, floorEvery: 3 },
             /* Its own grade, over the weather's (render.js has why): a tight
                bloom with a low threshold, so the lines glow and the floor

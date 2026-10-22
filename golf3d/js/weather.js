@@ -565,7 +565,9 @@
 
         if (k.rain) buildRain(g, k.rain);
         if (k.haze) buildMist(g, hole, theme, k.haze);
-        if (k.motes && MOTES[k.motes]) buildMotes(g, MOTES[k.motes], softDot());
+        // A theme may refuse them: in the grid world a drifting pollen mote is
+        // a soft white smudge across the glass, nearest the camera of all.
+        if (k.motes && MOTES[k.motes] && theme.motes !== false) buildMotes(g, MOTES[k.motes], softDot());
         // Birds want a sky to be seen against and daylight to be seen in.
         if (k.cloud < 0.8 && !k.rain && theme.birds !== false) buildBirds(g, hole, 5);
 

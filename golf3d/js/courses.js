@@ -2203,7 +2203,9 @@
 
         // The long game gets dressed once it is finished being built: what is
         // laid out depends on where the ground, the trees and the cup ended up.
-        if (h.open) h.dressing = dress(h);
+        // Not on a hole that is not a place (Challenge mode's `bare`): a
+        // boulder and a heron have no business in a grid world.
+        if (h.open && !h.bare) h.dressing = dress(h);
 
         /* Bounds are what the camera frames and what the sun's shadow camera
            covers. On a fenced hole they are the ground, because the ground is
@@ -6351,30 +6353,39 @@
         ] }
     ];
 
-    function challengeHole(v) {
-        var f = { x: v.f[0], z: v.f[1], w: v.f[2], d: v.f[3] };
+    /* How far the glass runs on past the play area. No rails and no stakes
+       (the owner: "it doesn't have to have rails and should continue
+       further", and "no need for out of bounds pins"): the surface simply
+       carries on, a ball that runs off the hole runs on over more of the same
+       function until it stops or comes back, and the only way out is off the
+       edge of the glass altogether — so the boundary is the glass, and there
+       is nothing to mark. */
+    var CHALLENGE_RUN = 14;
+
+    function challengeHole(v, hue) {
+        var f = { x: v.f[0], z: v.f[1], w: v.f[2], d: v.f[3] }, m = CHALLENGE_RUN;
         var tee = { x: v.tee[0], z: v.tee[1] }, cup = { x: v.cup[0], z: v.cup[1] };
-        var field = pad(f.x, f.z, f.w, f.d, 0, 'glass');
+        var field = pad(f.x - m, f.z - m, f.w + 2 * m, f.d + 2 * m, 0, 'glass');
         field.field = v.field;
         field.calm = calmAround(v.hover ? [cup] : [cup, tee]);
-        var pads = [field], gaps = [];
+        field.hue = hue;
+        var pads = [field];
         if (v.hover) {
             var hv = pad(v.hover[0], v.hover[1], v.hover[2], v.hover[3], v.hover[4], 'glass');
             hv.hover = true;
             pads.push(hv);
-            // Open on every side: it is a platform to be shot off, not a box.
-            gaps.push(brink({ x: hv.x, z: hv.z, w: hv.w, d: hv.d }));
-            // And so is the near edge of the field: a rail there was a wall
-            // standing in front of the platform, and a shot landing short
-            // should drop off the world, not bounce back at you.
-            gaps.push(brink({ x: f.x, z: f.z, w: f.w, d: 0 }));
         }
         return build({
             name: v.name, par: v.par, blurb: v.blurb,
-            shaped: true, mini: true, bag: CHALLENGE_BAG.slice(),
-            pads: pads, gaps: gaps, tee: tee, cup: cup
+            shaped: true, open: true, calm: true, bare: true, mini: true, bag: CHALLENGE_BAG.slice(),
+            fence: { x: field.x, z: field.z, w: field.w, d: field.d }, stakes: false,
+            pads: pads, tee: tee, cup: cup
         });
     }
+
+    // A colour range per family, so a round walks round the wheel.
+    var CHALLENGE_HUES = [[0.78, 0.25], [0.52, 0.22], [0.92, 0.2], [0.08, 0.18],
+                          [0.62, 0.3], [0.3, 0.2], [0.85, 0.35], [0.0, 0.12]];
 
     function challengeCourse(id, ref, holes, extra) {
         var c = {
@@ -6392,7 +6403,7 @@
     G3.challengeLibrary = function () {
         var holes = [];
         CHALLENGE_LIBRARY.forEach(function (fam) {
-            fam.variants.forEach(function (v) { holes.push(challengeHole(v)); });
+            fam.variants.forEach(function (v) { holes.push(challengeHole(v, CHALLENGE_HUES[CHALLENGE_LIBRARY.indexOf(fam)])); });
         });
         return challengeCourse('challenge-library', 'challenge-library', holes, {});
     };
@@ -6406,7 +6417,7 @@
         while (pool.length > 6) pool.splice(Math.floor(rnd() * pool.length), 1);
         var holes = pool.map(function (i) {
             var fam = CHALLENGE_LIBRARY[i];
-            return challengeHole(fam.variants[Math.floor(rnd() * fam.variants.length)]);
+            return challengeHole(fam.variants[Math.floor(rnd() * fam.variants.length)], CHALLENGE_HUES[i]);
         });
         /* Keyed by the deal, not by 'challenge': the plans and the skies are
            cached by course id and hole number, and hole 3 of this deal is not
