@@ -1829,6 +1829,49 @@
         if (by > 0) A.tick(Math.max(0.1, state.aim.power / state.club.power));
     }
 
+    /* ── the power ladder ───────────────────────────────────────────────
+
+       Shift and a number loads that many tenths of a full swing — shift-5 a
+       half, shift-0 the lot — and Home and End are the two ends of the same
+       ladder. Before this the only way to put a definite number on the meter
+       was to find it with a thumb or walk the arrows up to it, which is
+       twenty-nine presses from empty to a driver's full swing and a drag you
+       have to look down at either way. A shot you have already decided on
+       wants one key.
+
+       Tenths of a *full swing*, never of the track: the track runs past 100%
+       and the overdraw past it is a thing to ask for on purpose (see End on
+       the meter, which wants a shift of its own for it). A ladder that handed
+       out a spray-able shot on a mistyped key would be the one shortcut in
+       the game that can cost a stroke.
+
+       Keyed off `e.code` rather than `e.key`, because a shifted digit is not
+       a digit on any layout worth naming: the top row shifts to !"#¤%&/() on
+       a Swedish keyboard and !@#$%^&*() on a US one, and neither of those
+       spells a number for `k >= '1' && k <= '9'` to read. Plain digits stay
+       the club keys they always were. */
+    var POWER_LADDER = {
+        Digit1: 0.1, Digit2: 0.2, Digit3: 0.3, Digit4: 0.4, Digit5: 0.5,
+        Digit6: 0.6, Digit7: 0.7, Digit8: 0.8, Digit9: 0.9, Digit0: 1
+    };
+
+    function setSwingFraction(f) {
+        if (!state || state.phase !== 'aim' || gate) return false;
+        setPower(state.club.power * f);
+        // The same tick the nudges make, pitched to what was loaded.
+        A.tick(Math.max(0.1, f));
+        return true;
+    }
+
+    /* Read by the window handler and by the meter's own, because the meter
+       stops its keydown from ever reaching the window — a shortcut that
+       worked everywhere except while the control it sets has focus would be a
+       bug with a very good excuse. */
+    function ladderKey(e) {
+        var f = e.shiftKey ? POWER_LADDER[e.code] : undefined;
+        return f === undefined ? false : setSwingFraction(f);
+    }
+
     function nudgeAim(by) {
         if (!state || state.phase !== 'aim' || gate) return;
         state.aim.yaw += by;
@@ -1890,6 +1933,7 @@
         var fine = e.shiftKey;
         // The window handler would otherwise nudge a second time.
         e.stopPropagation();
+        if (ladderKey(e)) { e.preventDefault(); return; }
         if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') { nudgePower(fine ? -0.15 : -0.55); e.preventDefault(); }
         else if (e.key === 'ArrowRight' || e.key === 'ArrowUp') { nudgePower(fine ? 0.15 : 0.55); e.preventDefault(); }
         else if (e.key === 'Home') { setPower(0); e.preventDefault(); }
@@ -2132,6 +2176,12 @@
         var fine = e.shiftKey;
         var k = e.key;
 
+        /* Before anything that reads a plain key, because what the shifted
+           digit row *says* it is varies by layout and some of what it says
+           is already spoken for down there — a Swedish shift-0 is '=' and a
+           shift-7 is '/', and one of those is a key this handler uses. */
+        if (ladderKey(e)) { e.preventDefault(); return; }
+
         if (k === 'l' || k === 'L') { toggleLock(); return; }
         if (k === ',' || k === '<') { nudgeView(-VIEW_STEP); return; }
         if (k === '.' || k === '>') { nudgeView(VIEW_STEP); return; }
@@ -2238,6 +2288,12 @@
         else if (k === 'ArrowRight') { nudgeAim(fine ? -0.008 : -0.035); e.preventDefault(); }
         else if (k === 'ArrowUp') { nudgePower(fine ? 0.15 : 0.55); e.preventDefault(); }
         else if (k === 'ArrowDown') { nudgePower(fine ? -0.15 : -0.55); e.preventDefault(); }
+        /* The two ends of the ladder, and the same pair the meter answers to
+           when it has focus: nothing loaded, and a full swing. Shift takes
+           End the rest of the way into the overdraw, which is the one place
+           in here that asks for the modifier rather than offering it. */
+        else if (k === 'Home') { setPower(0); e.preventDefault(); }
+        else if (k === 'End') { setPower(fine ? maxPower() : state.club.power); e.preventDefault(); }
         else if (k === ' ') { shoot(); e.preventDefault(); }
     }
 

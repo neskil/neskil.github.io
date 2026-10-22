@@ -4292,8 +4292,11 @@ with neither: some people want a hole with weather on it and nothing else.
 Drag back from the ball and let go; drag sideways to swing the aim, and the
 camera swings with it. Where the camera stands *relative to* that aim is the
 [view dial](#the-view-dial), not the drag. Keys: <kbd>←</kbd><kbd>→</kbd> aim,
-<kbd>↑</kbd><kbd>↓</kbd> power (<kbd>End</kbd> a full swing, <kbd>shift</kbd>
-+<kbd>End</kbd> the overdraw), <kbd>1</kbd>–<kbd>4</kbd> club (<kbd>C</kbd>
+<kbd>↑</kbd><kbd>↓</kbd> power, <kbd>shift</kbd>+<kbd>1</kbd>–<kbd>0</kbd> that
+many tenths of a full swing (<kbd>Home</kbd> empty, <kbd>End</kbd> a full
+swing, <kbd>shift</kbd>+<kbd>End</kbd> the overdraw — the ladder itself stops
+at a full swing, because the overdraw is a thing to ask for on purpose and a
+mistyped key should not be able to spray a shot), <kbd>1</kbd>–<kbd>4</kbd> club (<kbd>C</kbd>
 cycles), <kbd>space</kbd> hit, <kbd>shift</kbd> for fine control, <kbd>V</kbd>
 the seat — follow, side on, overview — <kbd>,</kbd><kbd>.</kbd> walk the view
 round the ball, <kbd>L</kbd> lock it where it is, <kbd>0</kbd> straighten it,
