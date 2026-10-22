@@ -1540,6 +1540,12 @@
         for (q = 0; q < (pads || []).length; q++) {
             if (pads[q].inlay) cover.push(pads[q]);
         }
+        /* And the holes in it (pad.voids): each is cut the way an inlay is,
+           and its rim conformed onto the circle, so a hole in the glass is a
+           clean round mouth with the grid floor showing far below. */
+        var holes = (pad.voids || []).map(function (v) {
+            return { x: v.x - v.r, z: v.z - v.r, w: 2 * v.r, d: 2 * v.r, r: v.r, inlay: true };
+        });
         /* An inlay is laid *into* the ground rather than standing on it, so
            its earth wall is a hand's breadth of cut sand and not a column down
            to the surround — and it is lifted the same hair a flat inlay is, or
@@ -1567,8 +1573,9 @@
         var res = terrainRes(pad);
         var geo = pad.r
             ? discTerrainGeometry(pad, res, cx, cy, cz)
-            : terrainGeometry(pad, res, cx, cy, cz, cut, cover);
+            : terrainGeometry(pad, res, cx, cy, cz, cut, cover.concat(holes), holes.length > 0);
         worldUv(geo, TX.SCALE[pad.kind] || TX.SCALE.green, cx, cz);
+        if (holes.length) addVoidRims(group, pad);
         if (pad.hue) { tintRainbow(geo, pad, cx, cy, cz, RAINBOW_GLASS); mat = rainbowGlass(); }
         var mesh = new THREE.Mesh(geo, mat);
         mesh.position.set(cx, cy + lift, cz);
@@ -1670,6 +1677,50 @@
         };
         mat.customProgramCacheKey = function () { return 'gridglass'; };
         return mat;
+    }
+
+    // A lit lip round each hole in the glass, on the ground's own height, so
+    // a void reads from the tee as a mouth rather than a missing patch.
+    function addVoidRims(group, pad) {
+        var pts = [], i, k, v, a0, a1, n = 40;
+        for (i = 0; i < pad.voids.length; i++) {
+            v = pad.voids[i];
+            for (k = 0; k < n; k++) {
+                a0 = k / n * Math.PI * 2; a1 = (k + 1) / n * Math.PI * 2;
+                pts.push(v.x + Math.cos(a0) * v.r, P.padHeight(pad, v.x + Math.cos(a0) * v.r, v.z + Math.sin(a0) * v.r) + 0.03, v.z + Math.sin(a0) * v.r,
+                         v.x + Math.cos(a1) * v.r, P.padHeight(pad, v.x + Math.cos(a1) * v.r, v.z + Math.sin(a1) * v.r) + 0.03, v.z + Math.sin(a1) * v.r);
+            }
+        }
+        var geo = new THREE.BufferGeometry();
+        geo.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3));
+        group.add(new THREE.LineSegments(geo, new THREE.LineBasicMaterial({ color: 0x27f0ff })));
+    }
+
+    /* A gravity well, drawn: a black ball the size of its core sitting on
+       the ground, and an accretion disc round it — two rings, hot inside and
+       violet out, additive and turning (frame) — so it reads from the tee as
+       the thing that will bend the shot and the thing that will eat it. */
+    function addWells(group, hole) {
+        R.wells = [];
+        hole.wells.forEach(function (w) {
+            var top = P.surfaceTop(hole, w.x, w.z), y = top ? top.y : 0;
+            var core = new THREE.Mesh(new THREE.SphereGeometry(w.core * 0.85, 24, 16),
+                new THREE.MeshBasicMaterial({ color: 0x000000 }));
+            core.position.set(w.x, y + w.core * 0.5, w.z);
+            group.add(core);
+            var disc = new THREE.Group();
+            [[1.15, 1.9, 0xffb347, 0.9], [1.9, 3.2, 0xb040ff, 0.55]].forEach(function (r) {
+                var m = new THREE.Mesh(new THREE.RingGeometry(w.core * r[0], w.core * r[1], 48, 1),
+                    new THREE.MeshBasicMaterial({ color: r[2], transparent: true, opacity: r[3],
+                        blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
+                m.rotation.x = -Math.PI / 2;
+                disc.add(m);
+            });
+            disc.position.copy(core.position);
+            disc.rotation.z = 0.35;          // tipped, the way they always are
+            group.add(disc);
+            R.wells.push(disc);
+        });
     }
 
     /* The grid world's horizon: a striped sunset sun standing behind the
@@ -3530,6 +3581,7 @@
         for (i = 0; i < hole.pads.length; i++) addPad(g, hole.pads[i], theme, hole.cup, hole.pads);
         if (theme.grid) addGrid(g, hole, theme);
         if (theme.glow) addNeonBackdrop(g, hole, theme);
+        if (hole.wells) addWells(g, hole);
         // The grid world's effects switch on with the theme (see hitAt), and
         // its tail is drawn larger, because it is a light and not a smudge.
         R.glow = !!theme.glow;
@@ -4506,6 +4558,7 @@
         updateAim(world, aim);
         stepParticles(dt);
         stepPulses(dt);
+        if (R.wells) for (var wi = 0; wi < R.wells.length; wi++) R.wells[wi].rotation.y += dt * 0.9;
         updateCamera(world.hole, world.ball, dt);
 
         // The camera has moved; what the air is doing about it, and the two

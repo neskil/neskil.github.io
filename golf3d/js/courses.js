@@ -4948,34 +4948,21 @@
             tee: { x: 3.5, z: 2 }, cup: { x: 3.5, z: 20.5 }
         }),
         build({
-            /* The pipe, and the reason it is on this course rather than on
-               Helter Skelter's: a mouth swallows a ball that is on the floor
-               and lets a lofted one sail over the top (`WARP_MOUTH`), and at
-               two fifths of a g almost nothing wants to be on the floor. The
-               bag has one lofted club in it, and the temptation to use it is
-               the hole.
+            /* Orbit, which replaced The Mouth — a pipe hole the owner called
+               no fun, and he was right: twenty-four units of nothing and one
+               way across it is a puzzle with one answer, not a shot.
 
-               Twenty-four units of nothing, which is more than the chipper
-               carries even at this weight, so the mouth is the only way off
-               the tee. It comes out on the shelf in the middle facing the pin,
-               and what is left is the second crossing — twelve units, which is
-               exactly what the chipper is in the bag for. Two ways of keeping
-               the ball down, one after the other, and they are not the same
-               shot. */
-            name: 'The Mouth', par: 4, gravity: 0.4,
-            bag: ['putter', 'mallet', 'chipper'],
-            blurb: 'The mouth only takes a ball that is on the floor, and out here almost nothing is.',
-            pads: [
-                pad(0, 0, 9, 10),
-                pad(0, 34, 9, 8),
-                pad(0, 54, 10, 10)
-            ],
-            gaps: [
-                { x: -1, z: 9.6, w: 12, d: 24.8 },
-                { x: -1, z: 41.6, w: 13, d: 12.8 }
-            ],
-            warps: [pipe(6.4, 7.4, 4.5, 37, 0, 0.95)],
-            tee: { x: 2.6, z: 2 }, cup: { x: 5, z: 59 }
+               This is a shot. A gravity anomaly sits in the middle of the yard
+               (`wells`, physics.js) and the cup is round the far side of it, so
+               the straight line runs into the thing and the good line runs
+               past it: close enough that it bends the ball in towards the pin,
+               not so close that it keeps it. At half a g the pull is most of
+               what the ball feels, which is the reason it is on this course. */
+            name: 'Orbit', par: 3, gravity: 0.5,
+            blurb: 'A gravity well in the middle of the yard and the cup round the back of it. Swing past and let it hand you the pin.',
+            pads: [pad(0, 0, 16, 22)],
+            wells: [{ x: 8.5, z: 11, pull: 13, core: 0.85 }],
+            tee: { x: 4, z: 2 }, cup: { x: 10.5, z: 19.5 }
         }),
         build({
             /* The finish, and the lightest hole on the card. Three tenths of a
@@ -6343,6 +6330,30 @@
               blurb: 'Three arms, and you are teeing off at the edge of one. Across them, or along?',
               field: [{ spiral: [9, 11], k: TAU / 3.6, n: 3, a: 0.46 }] }
         ] },
+        { family: 'blackhole', variants: [
+            { name: 'Event Horizon', par: 3, f: [0, 0, 16, 22], tee: [8, 2], cup: [8, 19.5],
+              blurb: 'A black hole dead on the line. Go round it close enough that it bends you in, not so close it keeps you.',
+              field: [{ wave: [TAU / 7, TAU / 9], a: 0.1, ph: 0.4 }],
+              wells: [{ x: 8, z: 10.5, pull: 26, core: 0.85 }] },
+            { name: 'Slingshot', par: 3, f: [0, 0, 16, 22], tee: [3, 2], cup: [4.5, 19],
+              blurb: 'The cup is behind you as far as the straight line goes. The well off to the right is the road.',
+              field: [{ wave: [0, TAU / 8], a: 0.12, ph: 1.1 }],
+              wells: [{ x: 11, z: 10, pull: 30, core: 0.9 }] },
+            { name: 'Binary', par: 3, f: [0, 0, 16, 22], tee: [8, 2], cup: [8, 19.5],
+              blurb: 'Two of them, and the only straight line on the hole runs between.',
+              field: [],
+              wells: [{ x: 4.5, z: 10, pull: 20, core: 0.8 }, { x: 11.5, z: 12, pull: 20, core: 0.8 }] }
+        ] },
+        { family: 'holes', variants: [
+            { name: 'Swiss Cheese', par: 3, f: [0, 0, 15, 22], tee: [7.5, 2], cup: [8.5, 19],
+              blurb: 'Holes in the floor and nothing under them. Read the crate and keep clear of the dark.',
+              field: [{ wave: [TAU / 6, 0], a: 0.22, ph: 0.8 }, { wave: [0, TAU / 6], a: 0.22, ph: 2.0 }],
+              voids: [[4.5, 7.5, 1.3], [10.5, 9, 1.6], [6.5, 13, 1.2], [11, 15.5, 1.0], [3.5, 16.5, 1.1]] },
+            { name: 'Bridgework', par: 3, f: [0, 0, 16, 22], tee: [8, 2], cup: [8, 19],
+              blurb: 'A row of holes across the hole and a thread of glass between each. Roll a bridge, or fly the lot.',
+              field: [{ wave: [0, TAU / 7], a: 0.12, ph: 0.3 }],
+              voids: [[1.6, 11, 2.05], [5.9, 11, 2.05], [10.1, 11, 2.05], [14.4, 11, 2.05]] }
+        ] },
         { family: 'volcano', variants: [
             { name: 'Volcano', par: 3, f: [0, 0, 16, 18], tee: [8, 2], cup: [8, 11],
               blurb: 'Up the cone and into the crater. Not enough and it comes back down to you.',
@@ -6369,6 +6380,7 @@
         field.field = v.field;
         field.calm = calmAround(v.hover ? [cup] : [cup, tee]);
         field.hue = hue;
+        if (v.voids) field.voids = v.voids.map(function (q) { return { x: q[0], z: q[1], r: q[2] }; });
         var pads = [field];
         if (v.hover) {
             var hv = pad(v.hover[0], v.hover[1], v.hover[2], v.hover[3], v.hover[4], 'glass');
@@ -6379,13 +6391,14 @@
             name: v.name, par: v.par, blurb: v.blurb,
             shaped: true, open: true, calm: true, bare: true, mini: true, bag: CHALLENGE_BAG.slice(),
             fence: { x: field.x, z: field.z, w: field.w, d: field.d }, stakes: false,
+            wells: v.wells ? v.wells.map(function (w) { return { x: w.x, z: w.z, pull: w.pull, core: w.core }; }) : undefined,
             pads: pads, tee: tee, cup: cup
         });
     }
 
     // A colour range per family, so a round walks round the wheel.
     var CHALLENGE_HUES = [[0.78, 0.25], [0.52, 0.22], [0.92, 0.2], [0.08, 0.18],
-                          [0.62, 0.3], [0.3, 0.2], [0.85, 0.35], [0.0, 0.12]];
+                          [0.62, 0.3], [0.3, 0.2], [0.85, 0.35], [0.7, 0.1], [0.45, 0.25], [0.0, 0.12]];
 
     function challengeCourse(id, ref, holes, extra) {
         var c = {

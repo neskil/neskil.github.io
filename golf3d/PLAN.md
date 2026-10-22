@@ -156,6 +156,13 @@ The tools for it:
   is the expensive part (1-unit terrain under 4–6 grass layers). Wider margins
   are fine in moderation; keep total ground area within about +40%.
 
+**Where round two stands (v1.72.0).** Done: `pond`, `forest`, and Ashdown's
+*Over the Water* as the worked example. The four per-course agents were
+stopped part-way on the owner's word (they ate the usage limit): their
+uncommitted work is in `.claude/worktrees/agent-*` — Ashdown had Opening Drive
+and Long Meadow done (a 9×9 pond, a 15-stone wall, 52 trees). Next time, one
+course at a time, by hand or by a single agent.
+
 ### Mini golf
 
 **Done first, and it was the biggest single fix (v1.66.0): mini golf has its
@@ -214,8 +221,12 @@ floors, the neon theme with its grid and its own grade, and the effects
 (sparks, light rings, a neon tail). README → "Challenge mode". v1.71.0 made it
 a **curated library** on the owner's word ("it doesn't have to be all random")
 — eight families, eighteen hand-placed variants, spirals and volcanoes new —
-and dropped the daily seed. Open: moving waves (time in `fieldAt`, and the
-bot's waits), and more variants per family as they are found.
+and dropped the daily seed. v1.72.0: no rails or stakes (the glass runs on and
+its edge is the boundary), rainbow glass with the grid in its shader, a
+sunset sun and wire mountains, black holes (`hole.wells`) and holes in the
+surface (`pad.voids`) as two new families. Open: try every weather on the
+neon theme (the owner asked — only `clear` is in its list so far), moving
+waves, and more variants.
 
 The original ask, kept for reference:
 
