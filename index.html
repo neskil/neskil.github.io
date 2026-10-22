@@ -3476,7 +3476,13 @@
                                 </div>
                                 <a class="dim-option dim-3d" href="golf3d/index.html?v=1.9.0">
                                     <span class="dim-shot">
-                                        <img data-src="assets/preview/golf3d.webp" alt="Loft Links: a raised mini golf hole over open water at golden hour, seen from behind the ball with the club bag in the corner and the live scoring HUD overhead." width="800"
+                                        <img data-src="assets/preview/golf3d.webp?v=2" alt="Loft Links: a putt rolling up Sea Legs, a mini golf green floating on open water, with a rowing boat and a lighthouse beyond." width="800"
+                                            height="420" decoding="async">
+                                        <img data-src="assets/preview/golf3d-2.webp" alt="A drive in the air down Redstone Canyon's fairway, between banks of red rock and white stakes." width="800"
+                                            height="420" decoding="async">
+                                        <img data-src="assets/preview/golf3d-3.webp" alt="Clockwork Court: a putt rolling towards swinging gate bars, giant gears and a clock face turning beside the green." width="800"
+                                            height="420" decoding="async">
+                                        <img data-src="assets/preview/golf3d-4.webp" alt="Cinder Cone: a putt rolling over a raised green on a volcano's flank, lava pools steaming either side." width="800"
                                             height="420" decoding="async">
                                         <span class="dim-badge">3D</span>
                                     </span>
@@ -3488,7 +3494,13 @@
                                 </a>
                                 <a class="dim-option dim-2d" href="golf/index.html?v=1.9.0">
                                     <span class="dim-shot">
-                                        <img data-src="assets/preview/golf.webp" alt="Pocket Links: a ball on the fairway lined up at the pin, water either side of the approach." width="800"
+                                        <img data-src="assets/preview/golf.webp?v=2" alt="Pocket Links: a ball popping out of a tunnel in The Warren, past the hedge it went under, rolling for the pin." width="800"
+                                            height="420" decoding="async">
+                                        <img data-src="assets/preview/golf-2.webp" alt="A putt on the Short Six heading for an ice rink in front of an island green ringed by a pond." width="800"
+                                            height="420" decoding="async">
+                                        <img data-src="assets/preview/golf-3.webp" alt="The Tidewater Nine: a ball running down a narrow strip of fairway between two lakes." width="800"
+                                            height="420" decoding="async">
+                                        <img data-src="assets/preview/golf-4.webp" alt="Wiper Blades on the Wild Nine: a shot threading towards two sweeping bars in an autumn wood." width="800"
                                             height="420" decoding="async">
                                         <span class="dim-badge">2D</span>
                                     </span>
@@ -3544,11 +3556,15 @@
                                     </svg>
                                 </button>
                                 <div class="peek-shot">
-                                    <img data-src="assets/preview/cargo-lander.webp" alt="Cargo Lander in flight: the lander under thrust over a green basin, fuel and hull gauges across the top." width="800" height="420"
+                                    <img data-src="assets/preview/cargo-lander.webp?v=2" alt="Cargo Lander in Red Rock Canyon: the lander on full thrust under a rope bridge, diving for a +5s time ring, with the mission clock and radar overhead." width="800" height="420"
                                         decoding="async">
-                                    <img data-src="assets/preview/cargo-lander-2.webp" alt="The lander further into the run, drifting downrange over the basin with the delivery hub ahead." width="800" height="420"
+                                    <img data-src="assets/preview/cargo-lander-2.webp?v=2" alt="Island Hopper at sunset: the lander coming down over the harbour's cargo depot between palms, a lighthouse and floating cash." width="800" height="420"
                                         decoding="async">
-                                    <img data-src="assets/preview/cargo-lander-3.webp" alt="An endless procedural run: different terrain, the same lander under thrust." width="800" height="420"
+                                    <img data-src="assets/preview/cargo-lander-3.webp?v=2" alt="The Drowned Grotto: the lander threading a glowing cave over flooded water towards the Valley Base crane." width="800" height="420"
+                                        decoding="async">
+                                    <img data-src="assets/preview/cargo-lander-4.webp" alt="Derelict Station: the lander dropping past a floating HQ platform towards the cargo depot in the dark." width="800" height="420"
+                                        decoding="async">
+                                    <img data-src="assets/preview/cargo-lander-5.webp" alt="The R&amp;D Upgrades shop: thruster efficiency, engine boost and aerodynamic coating, with the bank balance to spend." width="800" height="420"
                                         decoding="async">
                                 </div>
                                 <div class="peek-body">
@@ -5638,10 +5654,25 @@
 
         function startPeekShow(card) {
             stopPeekShow();
-            const shot = card.querySelector('.peek-shot');
-            if (!shot) return;
+            /* A card back usually has one frame; the golf picker has two, one
+               per game. Each runs its own deck, and they take turns on a
+               half-beat so the panel never changes both pictures at once. */
+            const decks = [...card.querySelectorAll('.peek-shot, .dim-shot')]
+                .map(dealPeekDeck).filter(Boolean);
+            if (!decks.length || reducedMotionQuery.matches) return;
+
+            let turn = 0;
+            peekShow = setInterval(() => {
+                decks[turn % decks.length]();
+                turn++;
+            }, SHOT_MS / decks.length);
+        }
+
+        // Sets one frame up as a slide show and returns its "next shot", or
+        // null for a frame with a single picture in it.
+        function dealPeekDeck(shot) {
             const imgs = [...shot.querySelectorAll('img')];
-            if (imgs.length < 2) return;
+            if (imgs.length < 2) return null;
 
             shot.classList.add('peek-shot-multi');
 
@@ -5664,16 +5695,14 @@
             });
             dotEls.forEach((d, i) => d.classList.toggle('is-current', i === 0));
 
-            if (reducedMotionQuery.matches) return;
-
             let i = 0;
-            peekShow = setInterval(() => {
+            return () => {
                 imgs[i].classList.remove('is-current');
                 dotEls[i].classList.remove('is-current');
                 i = (i + 1) % imgs.length;
                 imgs[i].classList.add('is-current');
                 dotEls[i].classList.add('is-current');
-            }, SHOT_MS);
+            };
         }
 
         function openFlip(card) {
