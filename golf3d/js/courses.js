@@ -850,6 +850,31 @@
 
     /* A stand of them along a line. A treeline is never one tree — and where
        the line runs up a slope, `y0`/`y1` walk the ground up with it. */
+    /* A wood: trees scattered through an oval round (cx, cz), seeded so it is
+       the same wood every load, no two trunks closer than `gap`, and none in
+       a `clear` circle (keep(x, z, r): a fairway's line, a green, a tee).
+       What a parkland uses at the edge of play instead of a line of stakes:
+       a ball that strays into one is not out, it is among trunks, and the
+       shot out is the penalty. Trunks are solid (see `tree`), canopies are
+       not, and `build` seats every one on the ground. */
+    function forest(cx, cz, rx, rz, n, seed, opts) {
+        var o = opts || {}, rnd = seeded(seed || 1), out = [], tries = 0, a, r, x, z, i, ok;
+        var gap = o.gap || 1.6, clear = o.clear || [];
+        while (out.length < n && tries++ < n * 40) {
+            a = rnd() * Math.PI * 2; r = Math.sqrt(rnd());
+            x = cx + Math.cos(a) * rx * r; z = cz + Math.sin(a) * rz * r;
+            ok = true;
+            for (i = 0; i < out.length && ok; i++) {
+                if (Math.hypot(out[i].x + out[i].w / 2 - x, out[i].z + out[i].d / 2 - z) < gap) ok = false;
+            }
+            for (i = 0; i < clear.length && ok; i++) {
+                if (Math.hypot(clear[i].x - x, clear[i].z - z) < clear[i].r) ok = false;
+            }
+            if (ok) out.push(tree(x, z, { t: 0.42 + rnd() * 0.3, h: 2.6 + rnd() * 1.4 }));
+        }
+        return out;
+    }
+
     function treeline(x0, z0, x1, z1, n, opts) {
         var out = [], i, f, o = opts || {}, y0 = o.y0, y1 = o.y1, c;
         for (i = 0; i < n; i++) {
@@ -1220,6 +1245,54 @@
     }
 
     function keep(x, z, r) { return { x: x, z: z, r: r }; }
+
+    /* A pond that is a hollow in the ground with water in it, rather than a
+       rectangle of water in a hole in the ground — which is what every pond
+       in the game was, and why from above they were all boxes.
+
+       `lobes` are hollows, [x, z, r, depth] each; overlapping two or three is
+       what makes a pond a blob instead of a circle. They are laid into every
+       ground pad (like `shape`), and the water's level is set just under the
+       *lowest* point of their rims as the ground stood before them — so on a
+       hillside the water stops where the downhill rim does rather than
+       spilling out of the hollow, and the shoreline is wherever the ground
+       crosses that level: curved, and different on every side. The water is
+       the hollows' bounding box marked `dip`, because its bed is ground
+       (physics.drown asks only "inside the box and below the surface?", and
+       the audit and the renderer know a dip from a channel). Call it before
+       the inlays: a green or a bunker laid afterwards takes the ground as
+       the hollows left it. Returns the water, for the hole's `water`. */
+    function pond(pads, lobes, opts) {
+        var o = opts || {}, P = G3.physics, i, k, L, x, z, a, lo = Infinity, h;
+        function ground(px, pz) {
+            var best = -Infinity, j, p;
+            for (j = 0; j < pads.length; j++) {
+                p = pads[j];
+                if (p.inlay || !P.padContains(p, px, pz)) continue;
+                best = Math.max(best, P.padHeight(p, px, pz));
+            }
+            return best;
+        }
+        for (i = 0; i < lobes.length; i++) {
+            L = lobes[i];
+            for (k = 0; k < 32; k++) {
+                a = k / 32 * Math.PI * 2;
+                x = L[0] + Math.cos(a) * L[2]; z = L[1] + Math.sin(a) * L[2];
+                h = ground(x, z);
+                if (h > -Infinity && h < lo) lo = h;
+            }
+        }
+        var minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
+        var bumps = lobes.map(function (L) {
+            minX = Math.min(minX, L[0] - L[2]); maxX = Math.max(maxX, L[0] + L[2]);
+            minZ = Math.min(minZ, L[1] - L[2]); maxZ = Math.max(maxZ, L[1] + L[2]);
+            return hill(L[0], L[1], L[2], -L[3]);
+        });
+        shape(pads.filter(function (p) { return !p.inlay; }), bumps);
+        var w = rect(minX, minZ, maxX - minX, maxZ - minZ, lo - (o.freeboard === undefined ? 0.08 : o.freeboard));
+        w.dip = true;
+        return w;
+    }
 
     function rect(x, z, w, d, y) { return { x: x, z: z, w: w, d: d, y: y === undefined ? -0.6 : y }; }
 
@@ -3082,13 +3155,17 @@
             var park = commons(0, [
                 [{ d: 3.5, y: 4.2 },    [3, rgh], [9, fwy], [6, rgh]],
                 [{ d: 2, sz: -1.35 },   [18, rgh]],
-                [8,                     [2.5, rgh], [7.5, null], [2.5, fwy], [5.5, rgh]],
+                [8,                     [2.5, rgh], [7.5, rgh], [2.5, fwy], [5.5, rgh]],
                 [{ d: 2, sz: 0.24 },    [2.5, rgh], [13, fwy], [2.5, rgh]],
                 [3,                     [4.1, rgh], [11.4, fwy], [2.5, rgh]],
                 [6.5,                   [2.5, rgh], [10, fwy], [5.5, rgh]],
                 [4,                     [18, rgh]]
             ], { w: 22 });
             var ground = shape(scoop(park.pads, { seed: 23 }), field);
+            /* The pond is three hollows in the floor of the dell rather than a
+               rectangle cut out of it — a blob with a bay on the near side and
+               a long tail towards the green. */
+            var lake = pond(ground, [[6.2, 9.4, 3.3, 1.15], [4.3, 11.0, 2.3, 0.95], [8.0, 7.4, 1.8, 0.8]]);
             return build({
                 name: 'Over the Water', par: 3, long: true, shaped: true, open: true,
                 blurb: 'Off a high bluff and over eight units of pond to a round green on a shelf. The dry way is down the right.',
@@ -3098,7 +3175,7 @@
                     circle(7.5, 20.5, 3.6, grn, 1.98)
                 ]),
                 fence: park.fence,
-                water: [rect(2.5, 5.5, 7.5, 8, 1.0)],
+                water: [lake],
                 extra: [].concat(
                     treeline(16.6, 4, 16.6, 16, 4),
                     crags(-5, 18, 3.5, 5, 7119, { s: 1.4, h: 1.1 }),
@@ -6446,9 +6523,9 @@
         commons: commons,
         sprung: sprung, belt: belt, pipe: pipe, pipes: pipes,
         aperture: aperture, flipper: flipper,
-        tree: tree, treeline: treeline, crag: crag, crags: crags,
+        tree: tree, treeline: treeline, forest: forest, crag: crag, crags: crags,
         decor: decor, buoy: buoy, piling: piling, bench: bench, boat: boat, bin: bin,
-        hill: hill, ring: ring, ridge: ridge, whorl: whorl, ravine: ravine,
+        hill: hill, ring: ring, pond: pond, ridge: ridge, whorl: whorl, ravine: ravine,
         shape: shape, dunes: dunes, ground: ground, circle: circle, inlay: inlay, dress: dress,
         keep: keep,
         shapeDisc: shapeDisc,

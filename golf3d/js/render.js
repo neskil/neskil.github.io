@@ -2355,6 +2355,9 @@
         // Nothing to hold up: on a theme whose floor is near the waterline the
         // flanks are a few centimetres and the kerb would be a hairline.
         if (depth < 0.45) return;
+        // A pond in a hollow (courses.pond) is held in by its own ground, and
+        // a rim round its bounding box would draw the very square it is not.
+        if (w.dip) return;
         var mat = groundMaterial(theme);
         // Middle, middle, width, depth. The two long sides run the whole way
         // and overlap the short ones at the corners, which is how the rim

@@ -130,6 +130,32 @@ Cut, a green strung along the lip on The Rim, a flooded canyon under Stone
 Bridge, and Redstone a dogleg round a mesa no club clears). **All four long
 courses are rebuilt and held to the drive line.**
 
+### Round two: the long game looks natural (owner's ask, v1.72.0 →)
+
+The owner's overview of the four long courses in the picker: every hole a
+rectangle, every pond a blue box, every fairway a straight strip — "avoid
+square, more natural but still varied and fun; verticality is fun, slopes,
+natural and unnatural hindrances", and "doesn't need the aggressive out of
+bounds flags — sometimes more of a forest to punish a bad shot".
+
+The tools for it:
+- **`pond(ground, lobes)`** — water in a hollow rather than a box: lobes
+  `[x, z, r, depth]` laid into the ground, water level set under the lowest
+  rim, shoreline wherever the ground crosses it. Ashdown's *Over the Water* is
+  the first (v1.72.0). Rules learned: call it **before the inlays**; keep its
+  banks off fairway and green cells (a fairway must hold a ball everywhere);
+  a burn is a chain of lobes along a line.
+- **`forest(cx, cz, rx, rz, n, seed, { clear })`** — a seeded wood. Use it
+  where the stakes were: widen the `fence` well beyond the line of play and let
+  the trees be the punishment.
+- **Verticality and hindrances** — `massif`, `ridge`, bluffs (raised rows),
+  `ravine`, raised row cells as cliffs (`MESA` on Redstone), `crags` for rock;
+  unnatural ones are fair game too (a dry-stone wall is a row of low `wall`s, a
+  ruin is a few `pen`s).
+- **Cost** — a long hole draws ~150k triangles today; extra *detailed* ground
+  is the expensive part (1-unit terrain under 4–6 grass layers). Wider margins
+  are fine in moderation; keep total ground area within about +40%.
+
 ### Mini golf
 
 **Done first, and it was the biggest single fix (v1.66.0): mini golf has its

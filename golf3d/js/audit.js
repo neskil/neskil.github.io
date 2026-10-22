@@ -236,6 +236,27 @@
     function ponds(hole, out) {
         (hole.water || []).forEach(function (wr, i) {
             var over = 0, covered = 0, n = 0, x, z, s;
+            /* A pond in a hollow (courses.pond) has ground for a bed, so water
+               over ground is the point of it. What it must not do is spill:
+               all the way round the edge of its box the ground has to stand
+               above the surface, or the water reads as a sheet laid over the
+               grass beside the hollow. */
+            if (wr.dip) {
+                var spill = 0, e = 0, t;
+                for (t = 0; t <= 1 + 1e-9; t += 0.05) {
+                    [[wr.x + wr.w * t, wr.z], [wr.x + wr.w * t, wr.z + wr.d],
+                     [wr.x, wr.z + wr.d * t], [wr.x + wr.w, wr.z + wr.d * t]].forEach(function (q) {
+                        e++;
+                        s = P.surfaceTop(hole, q[0], q[1]);
+                        if (s && s.y < wr.y) spill++;
+                    });
+                }
+                if (spill) out.push({
+                    code: 'water-spills', sev: 'error', x: wr.x + wr.w / 2, z: wr.z + wr.d / 2,
+                    msg: 'pond #' + i + ' spills over its edge at ' + spill + ' of ' + e + ' samples'
+                });
+                return;
+            }
             var sx = Math.max(0.4, wr.w / 6), sz = Math.max(0.4, wr.d / 6);
             for (x = wr.x; x <= wr.x + wr.w + 1e-9; x += sx) {
                 for (z = wr.z; z <= wr.z + wr.d + 1e-9; z += sz) {
