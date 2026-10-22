@@ -748,6 +748,12 @@ whole model, and it is small on purpose: circle-vs-box in the xz plane is the
 one collision test cheap enough to run at 32 substeps and simple enough to be
 obviously correct.
 
+**Picking up.** A shot that comes to rest at five over par without the ball in
+the cup ends the hole (`CONFIG.PICKUP`): it scores par + 5 whatever the
+penalties made of the count, the banner says *Picked up*, and the round moves
+on. A hole that cannot be finished has stopped being a game, and the card should
+say what it cost rather than how long it went on.
+
 ## The courses
 
 Seventeen, six holes each, filed under four groups — and the group is not a
@@ -2949,19 +2955,25 @@ furthest under par rather than the shortest.
 ## Challenge mode: maths in a grid world
 
 The button under the showcase. Six holes whose ground is a mathematical
-function rather than a place — **Sine Sea**, **Egg Crate**, **Stone in a
-Pond** (a ripple), **The Pass** (a saddle), **Twin Wells** (two gaussian
-wells) and **Hover** (a platform tee hanging over a field of interference) —
-dealt fresh from a seed every round, so the phases, positions and above all
-**the cups** are new each time (`courses.js → dealChallenge`).
+function rather than a place, out of a **curated library** of eight families
+and eighteen variants (`courses.js → CHALLENGE_LIBRARY`): sine seas
+(*Sine Sea*, *Crosscurrent*, *Long Swell*), crossed seas (*Egg Crate*,
+*Waffle*), ripples (*Stone in a Pond*, *Bullseye*, *Two Stones*), saddles
+(*The Pass*, *Shoulder*), wells (*Twin Wells*, *Gravity Assist*), a hovering
+tee (*Hover*, *High Wire*), spirals (*Whirlpool*, *Galaxy*) and cones with
+the cup in the crater (*Volcano*, *Caldera*). Every variant's numbers and cup
+were chosen by hand; a deal (`dealChallenge`) picks six of the eight families
+and one variant of each, so every round is different and every hole in it has
+been looked at. `turntable.html?course=challenge` photographs the whole
+library at once.
 
 - **The ground** is `pad.field`: closed-form terms (`wave`, `ripple`, `saddle`,
   `gauss`) with closed-form gradients, faded out by `pad.calm` round the cup
   and the tee so a cup is always cut into flat ground wherever it lands
   (`physics.js → fieldAt / calmAt`). The suite checks the gradient against a
-  finite difference, that a seed deals the same cups twice and another seed
-  does not, that every cup of five deals is on flat ground, and that the bot
-  holes all thirty holes.
+  finite difference, that a seed deals the same six twice and another seed
+  does not, that forty deals reach every variant, that every cup in the
+  library is on flat ground, and that the bot holes every variant.
 - **The floor is glass** (`kind: 'glass'`): quicker than a green, holds less
   of a slope, no grass. Dark, glossy, faintly lit from inside.
 - **The look is the `neon` theme**: a violet-to-magenta sky, a black floor

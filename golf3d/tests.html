@@ -289,7 +289,8 @@
                     { wave: [0.7, 0.3], a: 0.5, ph: 0.4 },
                     { ripple: [10, 10], k: 1.1, a: 0.6, fall: 0.08 },
                     { saddle: [8, 12], a: 0.3, s: 6 },
-                    { gauss: [14, 5], a: -0.9, s: 2.5 }
+                    { gauss: [14, 5], a: -0.9, s: 2.5 },
+                    { spiral: [12, 13], k: 1.7, n: 3, a: 0.4 }
                 ], calm: [{ x: 4, z: 4, r0: 1.4, r1: 3 }, { x: 5.5, z: 6, r0: 1, r1: 3.2 }] };
                 var worst = 0, e = 1e-5, x, z, g, dx, dz;
                 for (x = 0.13; x < 20; x += 0.37) {
@@ -306,41 +307,48 @@
                     approx(P.padHeight(fp, 4, 4), 1, 1e-12) && P.slopeAt(fp, 4.6, 4.3) === 0);
             })();
 
-            /* A deal is a seed: the same one deals the same ground and the same
-               cups, a different one does not. And whatever the dice do, every
-               cup is on flat ground clear of the rails, and the bot holes
-               every hole — over a run of deals, because one lucky seed proves
-               nothing about the next. */
+            /* The library is curated (courses.js → CHALLENGE_LIBRARY), so it is
+               the library that is proven: every variant in it on flat ground
+               at the cup and holed by the bot. A deal is six of the eight
+               families, one variant each, and a seed is a deal. */
             (function () {
                 var a1 = G3.dealChallenge(424242), a2 = G3.dealChallenge(424242), b1 = G3.dealChallenge(99);
-                var cups = function (c) { return c.holes.map(function (h) { return h.cup.x.toFixed(3) + ',' + h.cup.z.toFixed(3); }).join(' '); };
-                assert('a challenge deal is its seed', cups(a1) === cups(a2));
-                assert('…and another seed is another set of cups', cups(a1) !== cups(b1));
+                var names = function (c) { return c.holes.map(function (h) { return h.name; }).join(','); };
+                assert('a challenge deal is its seed', names(a1) === names(a2));
                 assert('a challenge is six holes in the neon theme, keyed by its deal',
                     a1.holes.length === 6 && a1.theme === 'neon' && a1.isChallenge &&
                     a1.from.every(function (r, i) { return r.id === 'challenge-424242' && r.index === i; }));
-                var dealt = 0, flatWorst = 0, flatAt = '', failed = [], over = [], s, c, i, h;
-                for (s = 1; s <= 5; s++) {
+                var lib = G3.challengeLibrary(), byName = {};
+                lib.holes.forEach(function (h) { byName[h.name] = h; });
+                var seen = {}, s, c;
+                for (s = 1; s <= 40; s++) {
                     c = G3.dealChallenge(s * 7919);
-                    for (i = 0; i < c.holes.length; i++) {
-                        h = c.holes[i];
-                        dealt++;
-                        var lie = P.surfaceUnder(h, h.cup.x, h.cup.z, Infinity), k, t, q;
-                        for (k = 0; k < 16; k++) {
-                            for (t = 0.2; t <= 1.25; t += 0.35) {
-                                q = P.slopeAt(lie.pad, h.cup.x + Math.cos(k / 16 * 6.283) * t, h.cup.z + Math.sin(k / 16 * 6.283) * t);
-                                if (q > flatWorst) { flatWorst = q; flatAt = h.name + ' on seed ' + s * 7919; }
-                            }
-                        }
-                        var r = G3.bot.play(h, 10, G3.bagFor(h));
-                        if (!r.sunk) failed.push(h.name + ' on seed ' + s * 7919);
-                        else if (r.strokes > h.par + 2) over.push(h.name + ' took ' + r.strokes);
-                    }
+                    c.holes.forEach(function (h) { seen[h.name] = true; });
                 }
+                assert('forty deals between them reach every variant in the library',
+                    lib.holes.every(function (h) { return seen[h.name]; }),
+                    lib.holes.filter(function (h) { return !seen[h.name]; }).map(function (h) { return h.name; }).join(', '));
+                assert('…and every hole a deal hands out is one out of the library',
+                    Object.keys(seen).every(function (n) { return !!byName[n]; }));
+                assert('…and a different seed is, as a rule, a different six',
+                    names(a1) !== names(b1), names(a1) + ' against ' + names(b1));
+                var flatWorst = 0, flatAt = '', failed = [], over = [];
+                lib.holes.forEach(function (h) {
+                    var lie = P.surfaceUnder(h, h.cup.x, h.cup.z, Infinity), k, t, q;
+                    for (k = 0; k < 16; k++) {
+                        for (t = 0.2; t <= 1.25; t += 0.35) {
+                            q = P.slopeAt(lie.pad, h.cup.x + Math.cos(k / 16 * 6.283) * t, h.cup.z + Math.sin(k / 16 * 6.283) * t);
+                            if (q > flatWorst) { flatWorst = q; flatAt = h.name; }
+                        }
+                    }
+                    var r = G3.bot.play(h, 10, G3.bagFor(h));
+                    if (!r.sunk) failed.push(h.name);
+                    else if (r.strokes > h.par + 2) over.push(h.name + ' took ' + r.strokes);
+                });
+                assert('there are at least sixteen curated challenge holes', lib.holes.length >= 16, lib.holes.length + '');
                 assert('every challenge cup is cut into flat ground', flatWorst < 1e-9,
                     flatAt + ' slopes ' + flatWorst.toExponential(2));
-                assert('the bot holes every hole of five challenge deals', !failed.length,
-                    failed.join('; ') + ' (' + dealt + ' holes)');
+                assert('the bot holes every hole in the challenge library', !failed.length, failed.join('; '));
                 assert('…and in a plausible number of strokes', !over.length, over.join('; '));
             })();
 

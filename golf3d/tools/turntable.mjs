@@ -92,7 +92,9 @@ async function main() {
         const index = [];
         for (const id of ids) {
             const started = Date.now();
-            const file = await shoot(chrome, origin, id, hole ? 1 : 6);
+            // Six holes a course — except Challenge mode's library, which is
+            // every curated variant at once (turntable.html, ?course=challenge).
+            const file = await shoot(chrome, origin, id, hole ? 1 : id === 'challenge' ? 24 : 6);
             index.push(id);
             console.log(`  ${id.padEnd(12)} → ${file}  (${((Date.now() - started) / 1000).toFixed(1)}s)`);
         }
