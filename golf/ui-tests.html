@@ -319,6 +319,33 @@
             assert('☰ shuts the panel again', !shown($('btn-courses')));
             compact(false);
 
+            /* Fullscreen. Only the fullscreen element is drawn while it is up,
+               and the modals are the body's — a round finished in fullscreen
+               opened a scorecard nobody could see. A frame cannot be granted
+               the real thing without a gesture, so the state is stood in for
+               and the event the browser would fire is fired. */
+            section('fullscreen');
+
+            var fsOn = true;
+            Object.defineProperty(doc(), 'fullscreenElement', {
+                configurable: true, get: function () { return fsOn ? $('wrap') : null; }
+            });
+            doc().dispatchEvent(new W0.Event('fullscreenchange'));
+            var MODALS = ['menu', 'title', 'party', 'scorecard'];
+            assert('every modal goes into the fullscreen wrap with it',
+                MODALS.every(function (id) { return $(id).parentNode === $('wrap'); }));
+            $('btn-card').click();
+            var sc = $('scorecard').getBoundingClientRect();
+            assert('a scorecard opened in fullscreen still covers the screen',
+                $('scorecard').classList.contains('show') && sc.width >= W0.innerWidth - 20 && sc.height >= W0.innerHeight - 1,
+                Math.round(sc.width) + 'x' + Math.round(sc.height));
+            $('card-close').click();
+            fsOn = false;
+            doc().dispatchEvent(new W0.Event('fullscreenchange'));
+            assert('…and they come back out to the body after it',
+                MODALS.every(function (id) { return $(id).parentNode === doc().body; }));
+            delete doc().fullscreenElement;
+
             section('the course picker');
 
             $('btn-courses').click();

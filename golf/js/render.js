@@ -120,22 +120,41 @@
        always had; a coloured one keeps the same highlight and dimples and
        takes its body from the player's colour, with a dark rim so that an
        orange ball on sand or a blue one on ice is still a ball. */
-    function drawBall(g, ball, spin, color, v) {
-        var sh = L.sv(v, 2.5, 3.5), hl = L.sv(v, -2.5, -3), dot = L.sv(v, 0, -1), glint = L.sv(v, -2.4, -2.8);
+    /* `pose` is what is happening to the ball rather than where it is:
+       `lift` 0..1 is how high a skip has it (it grows, and its shadow falls
+       further away and fainter), `squash` flattens it against whatever it
+       just hit, along `nx, ny`, and `drown` 0..1 is how far under the water
+       it has gone. All three are drawing only — the physics never sees them. */
+    function drawBall(g, ball, spin, color, v, pose) {
+        pose = pose || NO_POSE;
+        var lift = pose.lift || 0, drown = pose.drown || 0, sq = pose.squash || 0;
+        var R = C.BALL_R * (1 + lift * 0.4) * (1 - drown * 0.6);
+        var reach = 1 + lift * 3.2;
+        var sh = L.sv(v, 2.5 * reach, 3.5 * reach), hl = L.sv(v, -2.5, -3), dot = L.sv(v, 0, -1), glint = L.sv(v, -2.4, -2.8);
         g.save();
-        g.fillStyle = 'rgba(0,0,0,0.35)';
+        if (drown) g.globalAlpha = Math.max(0, 1 - drown);
+        if (sq) {
+            var turn = Math.atan2(pose.ny, pose.nx);
+            g.translate(ball.x, ball.y);
+            g.rotate(turn);
+            g.scale(1 - sq * 0.3, 1 + sq * 0.16);
+            g.rotate(-turn);
+            g.translate(-ball.x, -ball.y);
+        }
+        g.save();
+        g.fillStyle = 'rgba(0,0,0,' + (drown ? 0 : 0.35 - lift * 0.17).toFixed(3) + ')';
         g.beginPath();
-        g.ellipse(ball.x + sh.x, ball.y + sh.y, C.BALL_R * 1.05, C.BALL_R * 0.9, 0, 0, Math.PI * 2);
+        g.ellipse(ball.x + sh.x, ball.y + sh.y, R * 1.05, R * 0.9, 0, 0, Math.PI * 2);
         g.fill();
 
         var tinted = color && color !== C.PLAYER_COLORS[0];
-        var grad = g.createRadialGradient(ball.x + hl.x, ball.y + hl.y, 1, ball.x, ball.y, C.BALL_R);
+        var grad = g.createRadialGradient(ball.x + hl.x, ball.y + hl.y, 1, ball.x, ball.y, R);
         grad.addColorStop(0, '#ffffff');
         grad.addColorStop(tinted ? 0.35 : 0.6, tinted ? color : '#eef2f5');
         grad.addColorStop(1, tinted ? shade(color) : '#b9c4cc');
         g.fillStyle = grad;
         g.beginPath();
-        g.arc(ball.x, ball.y, C.BALL_R, 0, Math.PI * 2);
+        g.arc(ball.x, ball.y, R, 0, Math.PI * 2);
         g.fill();
         if (tinted) {
             g.strokeStyle = 'rgba(10, 20, 14, 0.55)';
@@ -144,26 +163,32 @@
         }
 
         g.beginPath();
-        g.arc(ball.x, ball.y, C.BALL_R, 0, Math.PI * 2);
+        g.arc(ball.x, ball.y, R, 0, Math.PI * 2);
         g.clip();
         g.fillStyle = 'rgba(120,140,155,0.35)';
         for (var i = 0; i < 5; i++) {
             var a = spin + i * (Math.PI * 2 / 5);
-            var dx = Math.cos(a) * C.BALL_R * 0.52 + dot.x;
-            var dy = Math.sin(a) * C.BALL_R * 0.52 + dot.y;
+            var dx = Math.cos(a) * R * 0.52 + dot.x;
+            var dy = Math.sin(a) * R * 0.52 + dot.y;
             g.beginPath();
             g.arc(ball.x + dx, ball.y + dy, 1.25, 0, Math.PI * 2);
             g.fill();
         }
+        // Going under: the water closes over it from the outside in.
+        if (drown) {
+            g.fillStyle = 'rgba(56, 120, 160,' + (drown * 0.8).toFixed(3) + ')';
+            g.fillRect(ball.x - R, ball.y - R, R * 2, R * 2);
+        }
         g.restore();
 
-        g.save();
         g.fillStyle = 'rgba(255,255,255,0.9)';
         g.beginPath();
         g.arc(ball.x + glint.x, ball.y + glint.y, 1.7, 0, Math.PI * 2);
         g.fill();
         g.restore();
     }
+
+    var NO_POSE = {};
 
     // A darker version of a #rrggbb colour, for the underside of a ball.
     function shade(hex) {
@@ -521,18 +546,31 @@
         }
     }
 
+    /* A ring is gold and grows 26px unless it says otherwise. One that
+       starts with a negative life waits that long before it shows, which is
+       how a splash sends its ripples out one after another. */
+    function addRing(x, y, r, opts) {
+        opts = opts || {};
+        rings.push({
+            x: x, y: y, r: r, life: -(opts.delay || 0), max: opts.life || 0.45,
+            color: opts.color || '#fde68a', grow: opts.grow === undefined ? 26 : opts.grow,
+            width: opts.width || 3, alpha: opts.alpha || 0.8
+        });
+    }
+
     function updateRings(g, dt) {
         for (var i = rings.length - 1; i >= 0; i--) {
             var r = rings[i];
             r.life += dt;
             if (r.life >= r.max) { rings.splice(i, 1); continue; }
+            if (r.life < 0) continue;
             var f = r.life / r.max;
             g.save();
-            g.globalAlpha = (1 - f) * 0.8;
-            g.strokeStyle = '#fde68a';
-            g.lineWidth = 3 * (1 - f) + 1;
+            g.globalAlpha = (1 - f) * r.alpha;
+            g.strokeStyle = r.color;
+            g.lineWidth = r.width * (1 - f) + 1;
             g.beginPath();
-            g.arc(r.x, r.y, r.r + f * 26, 0, Math.PI * 2);
+            g.arc(r.x, r.y, r.r + easeOut(f) * r.grow, 0, Math.PI * 2);
             g.stroke();
             g.restore();
         }
@@ -558,6 +596,14 @@
     }
 
     var CONFETTI = ['#fbbf24', '#34d399', '#60a5fa', '#f472b6', '#f87171', '#a78bfa'];
+    var SPRAY = ['#bae6fd', '#7dd3fc', '#e0f2fe', '#ffffff'];
+    var FOAM = '#e0f2fe';
+
+    /* The ball's own state between frames — a knock it is still flattened
+       from, and how long it has been going under. Both are spent in a few
+       tenths of a second; `clear` drops them with everything else. */
+    var squash = null;
+    var drown = null;
 
     var effects = {
         sink: function (x, y) {
@@ -579,19 +625,70 @@
                 });
             }
         },
+        /* In: a crown of spray thrown up and falling back, three ripples
+           going out one after another, and the ball sinking where it went in
+           for as long as the game holds the frame before the replay. */
         splash: function (x, y) {
-            burst(x, y, { count: 20, color: ['#bae6fd', '#7dd3fc', '#e0f2fe'], speed: 130, life: 0.6, size: 3, lift: 70, gravity: 320 });
+            burst(x, y, { count: 26, color: SPRAY, speed: 150, life: 0.7, size: 3, lift: 150, gravity: 420 });
+            burst(x, y, { count: 12, color: SPRAY, speed: 60, life: 0.5, size: 2, lift: 220, gravity: 520 });
+            for (var k = 0; k < 3; k++) {
+                addRing(x, y, C.BALL_R, { color: FOAM, grow: 34 + k * 14, life: 0.9, delay: k * 0.16, width: 2.5, alpha: 0.7 });
+            }
+            drown = { life: 0 };
         },
-        sand: function (x, y, angle) {
-            burst(x, y, { count: 9, color: ['#e3ca92', '#cdb277'], speed: 70, life: 0.45, size: 2.5, angle: angle, spread: 1.6, gravity: 200 });
+        /* Off the top: a ripple where it touched, and spray thrown out to
+           both sides like a wake. Each skip after the first is a little
+           smaller — `n` counts them. */
+        skip: function (x, y, angle, n) {
+            var k = Math.max(0.5, 1 - (n - 1) * 0.2);
+            addRing(x, y, C.BALL_R * 0.6, { color: FOAM, grow: 30 * k, life: 0.65, width: 3, alpha: 0.95 });
+            addRing(x, y, C.BALL_R * 0.4, { color: FOAM, grow: 48 * k, life: 0.9, delay: 0.1, width: 2, alpha: 0.6 });
+            burst(x, y, { count: Math.round(13 * k), color: SPRAY, speed: 150 * k, life: 0.5, size: 2.8, angle: angle + 1.1, spread: 0.6, lift: 50, gravity: 300 });
+            burst(x, y, { count: Math.round(13 * k), color: SPRAY, speed: 150 * k, life: 0.5, size: 2.8, angle: angle - 1.1, spread: 0.6, lift: 50, gravity: 300 });
+            burst(x, y, { count: Math.round(6 * k), color: SPRAY, speed: 40, life: 0.45, size: 2.2, lift: 140, gravity: 480 });
         },
-        turf: function (x, y, angle) {
-            burst(x, y, { count: 7, color: ['#4ade80', '#3f9d55', '#86efac'], speed: 60, life: 0.4, size: 2, angle: angle, spread: 1.4, gravity: 200 });
+        // Down on dry ground after a skip.
+        land: function (x, y, angle) {
+            burst(x, y, { count: 12, color: ['#4ade80', '#3f9d55', '#86efac', '#e2e8f0'], speed: 95, life: 0.45, size: 2.4, angle: angle + Math.PI, spread: 2.4, gravity: 200 });
+            addRing(x, y, C.BALL_R, { color: '#ffffff', grow: 16, life: 0.35, width: 2, alpha: 0.7 });
+        },
+        // `p` is the shot's share of the dial, so a tap barely scuffs the
+        // ground and a full swing tears some of it up.
+        sand: function (x, y, angle, p) {
+            p = p === undefined ? 0.5 : p;
+            burst(x, y, { count: Math.round(5 + p * 10), color: ['#e3ca92', '#cdb277'], speed: 50 + p * 50, life: 0.45, size: 2.5, angle: angle, spread: 1.6, gravity: 200 });
+        },
+        turf: function (x, y, angle, p) {
+            p = p === undefined ? 0.5 : p;
+            burst(x, y, { count: Math.round(4 + p * 10), color: ['#4ade80', '#3f9d55', '#86efac'], speed: 40 + p * 50, life: 0.4, size: 2, angle: angle, spread: 1.4, gravity: 200 });
+        },
+        /* The strike: a white ring off the ball that grows with the swing,
+           and past the safe line a second, hotter one — the overswing is
+           felt in the hand before the ball shows where it went. */
+        strike: function (x, y, angle, p, hot) {
+            addRing(x, y, C.BALL_R + 2, { color: '#ffffff', grow: 10 + p * 26, life: 0.28 + p * 0.12, width: 1.5 + p * 2.5, alpha: 0.9 });
+            if (hot) addRing(x, y, C.BALL_R + 4, { color: '#fb923c', grow: 34, life: 0.42, delay: 0.04, width: 3, alpha: 0.8 });
+            if (p > 0.45) {
+                burst(x, y, { count: Math.round(p * 6), color: '#ffffff', speed: 120 + p * 160, life: 0.22, size: 1.4, angle: angle, spread: 0.35, gravity: 0 });
+            }
+        },
+        /* A knock off a wall, a rail or a post: chips off the thing at the
+           point of contact, thrown back along the way the ball came off, and
+           the ball flattened against it for a moment. `s` is 0..1, how hard. */
+        impact: function (x, y, nx, ny, s, post) {
+            var a = Math.atan2(ny, nx);
+            burst(x, y, {
+                count: Math.round(4 + s * 12),
+                color: post ? ['#fde68a', '#fb923c', '#ffffff'] : ['#f1f5f9', '#cbd5e1', '#d6c3a1'],
+                speed: 60 + s * 180, life: 0.35, size: 2 + s * 1.4, angle: a, spread: 1.8, gravity: post ? 0 : 140
+            });
+            if (s > 0.4) addRing(x, y, 3, { color: post ? '#fde68a' : '#ffffff', grow: 12 + s * 14, life: 0.28, width: 2.5, alpha: 0.75 });
+            if (!squash || s >= squash.s * (1 - squash.life / 0.16)) squash = { nx: nx, ny: ny, s: s, life: 0 };
         },
         // A ring that expands and fades where the ball met a post. Particles
         // alone read as "something happened"; the ring says where.
         ring: function (x, y, r) {
-            rings.push({ x: x, y: y, r: r, life: 0, max: 0.45 });
+            addRing(x, y, r);
         },
         spark: function (x, y) {
             burst(x, y, { count: 10, color: ['#fde68a', '#fb923c', '#ffffff'], speed: 150, life: 0.3, size: 2, gravity: 0 });
@@ -601,15 +698,42 @@
         tunnel: function (x, y, tx, ty, ink) {
             burst(x, y, { count: 10, color: [ink || '#a78bfa', '#ffffff'], speed: 80, life: 0.35, size: 2, gravity: 0 });
             burst(tx, ty, { count: 14, color: [ink || '#a78bfa', '#ffffff'], speed: 140, life: 0.45, size: 2.2, gravity: 0 });
-            rings.push({ x: tx, y: ty, r: C.TUNNEL_R, life: 0, max: 0.4 });
+            addRing(tx, ty, C.TUNNEL_R, { life: 0.4 });
         },
         // A best on a hole: gold, and upward.
         stars: function (x, y) {
             if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
             burst(x, y, { count: 30, color: ['#fbbf24', '#fde68a', '#ffffff'], speed: 190, life: 1.0, size: 3, lift: 120, gravity: 160 });
         },
-        clear: function () { particles.length = 0; rings.length = 0; }
+        clear: function () { particles.length = 0; rings.length = 0; squash = drown = null; }
     };
+
+    /* What the ball looks like this frame, from the world and the knocks
+       above. Spends the squash as it goes. */
+    function poseOf(world, dt) {
+        var pose = { lift: 0, squash: 0, nx: 1, ny: 0, drown: 0 };
+        if (world.air > 0 && world.airMax > 0) {
+            pose.lift = Math.sin(Math.PI * (1 - world.air / world.airMax));
+        }
+        if (squash) {
+            squash.life += dt;
+            var left = 1 - squash.life / 0.16;
+            if (left <= 0) squash = null;
+            else {
+                // Flat at once, then back to round: the release is the slow part.
+                pose.squash = squash.s * left * left;
+                pose.nx = squash.nx;
+                pose.ny = squash.ny;
+            }
+        }
+        if (world.splash && drown) {
+            drown.life += dt;
+            pose.drown = Math.min(1, drown.life / 0.55);
+        } else if (!world.splash) {
+            drown = null;
+        }
+        return pose;
+    }
 
     /* ── frame ──────────────────────────────────────────────────────────── */
 
@@ -657,9 +781,10 @@
         drawParticles(g);
 
         spin += P.speedOf(state.world.ball) * dt / C.BALL_R;
+        var pose = poseOf(state.world, dt || 0);
         if (!state.world.sunk) {
             drawTrail(g, state.trail, state.ballColor);
-            drawBall(g, state.world.ball, spin, state.ballColor, v);
+            drawBall(g, state.world.ball, spin, state.ballColor, v, pose);
         }
         if (state.aim && state.aim.active && !state.world.moving && !state.world.sunk) {
             drawAim(g, state.world, state.aim, t, state.lastFrac);

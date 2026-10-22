@@ -450,6 +450,67 @@
                 approx(w.origin.x, 40) && approx(w.origin.y, 320));
         })();
 
+        /* Skipping: a fast ball skips off water, a slow one goes in, and
+           water is still water — see SKIP_SPEED in config.js. */
+        (function () {
+            function pond(x, w) {
+                return {
+                    name: 'pond', par: 3, tee: { x: 40, y: 320 }, hole: { x: -999, y: -999 },
+                    walls: [], sand: [], slopes: [], water: [rect(x, 0, w, 640)]
+                };
+            }
+            var creek = pond(300, 40);
+            var hard = P.simulateShot(creek, { x: 200, y: 320 }, 0, C.SAFE_POWER);
+            assert('a firm shot skips a 40px creek', !hard.splash && hard.ball.x > 340 && hard.skips === 1,
+                'skips ' + hard.skips + ', ended at x=' + hard.ball.x.toFixed(0) + (hard.splash ? ' in the water' : ''));
+            var soft = P.simulateShot(creek, { x: 200, y: 320 }, 0, 500);
+            assert('a soft one into the same creek goes in', soft.splash && soft.skips === 0);
+
+            // From right at the edge with the whole dial, the most there is.
+            var lake = P.simulateShot(pond(300, 200), { x: 290, y: 320 }, 0, C.MAX_POWER);
+            assert('no shot skips a 200px pond', lake.splash, 'ended at x=' + lake.ball.x.toFixed(0));
+            assert('a skip chain ends in a few skips', lake.skips >= 1 && lake.skips <= 3, lake.skips + ' skips');
+            assert('a ball that sinks after skipping sinks where it came down, past where it went in',
+                lake.ball.x > 360 && P.zoneAt(lake.course.water, lake.ball.x, lake.ball.y) !== null);
+            assert('the replay is still from where it was hit', approx(lake.origin.x, 290));
+
+            // Nothing may hand the ball energy — a skip included.
+            var w = P.createWorld(pond(300, 200), { x: 290, y: 320 }, 0);
+            P.launch(w, 0, C.MAX_POWER);
+            var last = P.speedOf(w.ball), rose = 0, flew = false;
+            for (var n = 0; n < 2400 && w.moving; n++) {
+                P.advance(w, 1 / 120, {});
+                if (w.air > 0) flew = true;
+                var s = P.speedOf(w.ball);
+                if (s > last + 1e-9) rose++;
+                last = s;
+            }
+            assert('the ball is in the air between skips', flew);
+            assert('a skip never speeds the ball up', rose === 0, rose + ' steps sped up');
+
+            // In the air it is over the sand as well as the water: a strip of
+            // bunker under the hop changes nothing about where it comes down.
+            var trap = pond(300, 40);
+            trap.sand = [rect(344, 0, 14, 640)];
+            var over = P.simulateShot(trap, { x: 200, y: 320 }, 0, C.SAFE_POWER);
+            assert('a skipping ball flies over sand under its hop', approx(over.ball.x, hard.ball.x, 1e-6),
+                over.ball.x.toFixed(2) + ' against ' + hard.ball.x.toFixed(2));
+
+            // A new shot starts on the ground with no skips to its name.
+            P.launch(hard, Math.PI, 300);
+            assert('launch clears the last shot\'s skips', hard.skips === 0 && hard.air === 0);
+
+            // A knock says where and how hard, for the effects.
+            var box = pond(300, 0); box.water = [];
+            var k = P.createWorld(box, { x: 900, y: 320 }, 0);
+            P.launch(k, 0, 600);
+            var got = null;
+            for (var m = 0; m < 240 && !got; m++) got = P.advance(k, 1 / 120, {}).impact || null;
+            assert('a cushion knock reports its normal and its speed in',
+                got && got.nx === -1 && got.ny === 0 && got.vn > 400 && approx(got.x, C.WORLD_W),
+                got ? JSON.stringify(got) : 'no knock');
+        })();
+
         (function () {
             var hilly = {
                 name: 'slope', par: 3, tee: { x: 480, y: 100 }, hole: { x: -999, y: -999 },
