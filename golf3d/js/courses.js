@@ -1300,21 +1300,75 @@
                 if (h > -Infinity && h < lo) lo = h;
             });
         }
-        /* Each pad is handed only the hollows that reach it. A hollow is
-           exactly zero past its own radius, so the ground is the same either
-           way; a pad merely stops summing forty lobes of a lake a hundred
-           units away every time the ball asks it how high it is. */
+        carve(pads, bumps);
+        var w = rect(minX, minZ, maxX - minX, maxZ - minZ, lo - (o.freeboard === undefined ? 0.08 : o.freeboard));
+        w.dip = true;
+        return w;
+    }
+
+    /* `shape`, for humps that reach only part of a hole: each ground pad is
+       handed only the ones that touch it. A hump is exactly zero past its own
+       radius, so the ground is the same either way; a pad merely stops
+       summing forty lobes of a lake a hundred units away every time the ball
+       asks it how high it is. Inlays are left alone, as `shape` leaves them
+       to `inlay` — lay those afterwards.
+
+       `opts.rock` marks every pad it touched as one whose steep ground is
+       bare rock (render.js → addTerrain), which is how a carved canyon gets
+       the red walls a cut one had for free from its skirts. */
+    function carve(pads, bumps, opts) {
+        var rock = !!(opts && opts.rock);
         pads.forEach(function (p) {
             if (p.inlay) return;
             var near = bumps.filter(function (b) {
                 return b.cx + b.r > p.x && b.cx - b.r < p.x + p.w &&
                        b.cz + b.r > p.z && b.cz - b.r < p.z + p.d;
             });
-            if (near.length) shape([p], near);
+            if (!near.length) return;
+            shape([p], near);
+            if (rock) p.rock = true;
         });
-        var w = rect(minX, minZ, maxX - minX, maxZ - minZ, lo - (o.freeboard === undefined ? 0.08 : o.freeboard));
-        w.dip = true;
-        return w;
+        return pads;
+    }
+
+    /* A canyon that bends, carved into the ground rather than cut out of it.
+
+       `ravine` is a box: a floor, a bank, and a sheer near wall that is the
+       edge of the row before it — which is what makes it a hazard (README →
+       "The gorge") and also why every canyon on Redstone was ruled. A wall
+       that curves cannot be the edge of a pad, so this one is ground: two
+       chains of hollows down the same bent line. The near chain is narrow
+       and deep, and its steep side is the lip; the far chain is wide and
+       shallow and sits further across, and its long gentle side is the bank
+       a ball is played back up. So the asymmetry survives the curve — sheer
+       enough on the near side that a drive pitching there goes down rather
+       than across, banked enough on the far one that a ball in the bottom is
+       two shots lost and not the round.
+
+       `pts` is the line of the near lip, [x, z] each, and the canyon opens on
+       the side the line turns left towards (+z for a line running +x). The
+       lobes wander a little off it from the seed. Returns the humps, for
+       `carve`. */
+    function gully(pts, seed, opts) {
+        var o = opts || {}, rnd = seeded(seed || 1), out = [], i, k, a, b, len, n, f, nx, nz, w;
+        var chains = [
+            { r: o.r1 || 2.0, a: o.a1 || 1.25, off: o.o1 === undefined ? 1.6 : o.o1 },
+            { r: o.r2 || 4.4, a: o.a2 || 0.8, off: o.o2 === undefined ? 3.4 : o.o2 }
+        ];
+        chains.forEach(function (c) {
+            for (i = 0; i + 1 < pts.length; i++) {
+                a = pts[i]; b = pts[i + 1];
+                len = Math.hypot(b[0] - a[0], b[1] - a[1]);
+                n = Math.max(1, Math.ceil(len / (c.r * 0.6)));
+                nx = -(b[1] - a[1]) / len; nz = (b[0] - a[0]) / len;
+                for (k = i ? 1 : 0; k <= n; k++) {
+                    f = k / n; w = c.off + (rnd() - 0.5) * 0.3 * c.r;
+                    out.push(hill(a[0] + (b[0] - a[0]) * f + nx * w, a[1] + (b[1] - a[1]) * f + nz * w,
+                                  c.r * (0.9 + rnd() * 0.2), -c.a * (0.9 + rnd() * 0.2)));
+                }
+            }
+        });
+        return out;
     }
 
     /* A burn: `pond`'s lobes strung along a line, which is what PLAN.md
@@ -5785,15 +5839,19 @@
                swing) and the second has to carry the canyon *and* still
                leaves a third, because forty units is more than any club runs.
                The green is up a short rise with sand short-right. */
-            var cut = ravine(0, 14, 22, 9, 1.9, { bank: [0, 2.6] });
+            /* The canyon is carved (`gully`) on a line that bends a unit
+               either way, inside a band of rough of its own, and it runs off
+               both edges of the ground — so there is no way round it, and the
+               stakes can stand back from the hole like the other courses'. */
+            var cut = gully([[-14, 14.3], [-3, 13.5], [6, 14.6], [14, 13.6], [23, 14.5], [37, 13.9]], 9103);
             var field = ridge(4, 9.5, 18, 9.5, 4, 0.3, 3)
                 .concat(massif(28, 20, 11, 2.1, 5))
                 .concat([hill(2.4, 32, 2.8, -0.55), hill(19.5, 40, 3, 0.45)]);
             var land = commons(0, [
                 [6,                    [5, rgh], [11, fwy], [6, rgh]],
-                [8,                    [5, rgh], [11, fwy], [6, rgh]],
-                [9,                    [22, null]],
-                [14,                   [5, rgh], [12, fwy], [5, rgh]],
+                [6,                    [5, rgh], [11, fwy], [6, rgh]],
+                [12.5,                 [22, rgh]],
+                [12.5,                 [5, rgh], [12, fwy], [5, rgh]],
                 [6,                    [6, rgh], [11, fwy], [5, rgh]],
                 [{ d: 4, sz: 0.15 },   [6, rgh], [11, fwy], [5, rgh]],
                 [13,                   [5, rgh], [12, fwy], [5, rgh]],
@@ -5807,8 +5865,8 @@
                         inlay(g, 16.4, 49.2, 1.6, snd, 1.2),
                         inlay(g, 11.5, 54, 4.8, grn, 4.4)
                     ]);
-                }(shape(land.pads.concat(cut.pads), field))),
-                fence: land.fence,
+                }(carve(shape(land.pads, field), cut, { rock: true }))),
+                fence: widen(land.fence, 5, 5),
                 extra: [].concat(
                     crags(2.6, 10, 3, 5, 9101, { s: 1.3, h: 1.0 }),
                     crags(19.4, 30, 2.8, 4, 9107, { s: 1.2, h: 0.9 }),
@@ -7101,7 +7159,7 @@
         aperture: aperture, flipper: flipper,
         tree: tree, treeline: treeline, forest: forest, crag: crag, crags: crags,
         decor: decor, buoy: buoy, piling: piling, bench: bench, boat: boat, bin: bin,
-        hill: hill, ring: ring, pond: pond, burn: burn, mere: mere, clearOf: clearOf, widen: widen, ridge: ridge, whorl: whorl, ravine: ravine,
+        hill: hill, ring: ring, pond: pond, burn: burn, mere: mere, carve: carve, gully: gully, clearOf: clearOf, widen: widen, ridge: ridge, whorl: whorl, ravine: ravine,
         shape: shape, dunes: dunes, ground: ground, circle: circle, inlay: inlay, dress: dress,
         keep: keep,
         shapeDisc: shapeDisc,
