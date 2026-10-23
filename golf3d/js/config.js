@@ -8,7 +8,7 @@
    — the renderer scales to the viewport, the simulation never sees a pixel. */
 window.G3 = window.G3 || {};
 
-G3.VERSION = '1.73.0';
+G3.VERSION = '1.75.0';
 
 G3.CONFIG = {
     BALL_R: 0.16,
@@ -223,6 +223,30 @@ G3.CONFIG = {
         SPIN: 5.5
     },
 
+    /* Shot shaping (swing.js `shape`). TURN is how far a draw or a fade turns
+       across its whole flight — the ball starts out half of it to one side of
+       the aim and lands back on the line — and SPIN_MAX caps the sidespin, so
+       a half-swing is never asked for a corkscrew. FADE_BITE is the backspin a
+       fade lands with on top of the club's own; BACKSPIN is what the backspin
+       shot adds. A topped shot launches at TOPPED_LOFT of the club's loft and
+       TOPPED_POWER of its power.
+
+       GATE is how hard the strike is for a shape asked for inside a full swing,
+       on the same 0..1 scale as the overdraw. The misses: MISS_TURN is how much
+       of the bend a full-late strike loses (and a full-early one adds),
+       MISS_POWER the weight a miss costs the spin shots. */
+    SHAPE: {
+        TURN: 20 * Math.PI / 180,
+        SPIN_MAX: 2.4,
+        FADE_BITE: 0.25,
+        BACKSPIN: 0.55,
+        TOPPED_LOFT: 0.35,
+        TOPPED_POWER: 0.88,
+        GATE: 0.45,
+        MISS_TURN: 1.1,
+        MISS_POWER: 0.15
+    },
+
     /* The ceiling on launch angle. It used to be 45°, which is the angle
        that carries furthest on flat ground and so reads like the right
        number — but it is a *clamp*, and the bag's highest club sat one
@@ -249,6 +273,7 @@ G3.CONFIG = {
         {
             id: 'driver', name: 'Driver', short: 'DR', key: '2',
             loft: 10 * Math.PI / 180, power: 32, carry: 19.4, total: 42.5,
+            shapes: ['draw', 'fade', 'topped'],
             blurb: 'The reach club. Up and away, and it still runs.'
         },
         /* The one club that is neither reach nor loft but a real amount of
@@ -261,6 +286,7 @@ G3.CONFIG = {
         {
             id: 'iron', name: '7 Iron', short: '7i', key: '3',
             loft: 16 * Math.PI / 180, power: 18, carry: 9.8, total: 21.4,
+            shapes: ['draw', 'fade', 'backspin', 'topped'],
             blurb: 'The long approach. Carries what the driver runs into.'
         },
         /* The top of the bag is set at the lofts these clubs really carry:
@@ -277,11 +303,13 @@ G3.CONFIG = {
         {
             id: 'chipper', name: 'Pitch', short: 'PW', key: '4',
             loft: 45 * Math.PI / 180, power: 11.7, carry: 7.6, total: 14.1,
+            shapes: ['backspin', 'topped'],
             blurb: 'Up steep and down steeper. Stops near where it lands.'
         },
         {
             id: 'wedge', name: 'Wedge', short: 'LW', key: '5',
             loft: 58 * Math.PI / 180, power: 12.1, carry: 7.3, total: 12.7,
+            shapes: ['backspin'],
             blurb: 'The lob. Straight up over water, sand and trees.'
         }
     ],
