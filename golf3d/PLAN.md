@@ -36,8 +36,9 @@ to be worked out again.
   four.
 - Still open from before: lighting setups on Challenge (neon only has
   `clear`), and the naturalising of the older long courses — Ashdown is done
-  (v1.78.0), Whinstone (v1.79.0) and Dunmore (v1.80.0, §0 → "Where round
-  two stands"); Redstone is not.
+  (v1.78.0), Whinstone (v1.79.0) and Dunmore (v1.80.0); Redstone only has
+  its spring (v1.81.0) — its canyons wait on a call, §0 → "Where round two
+  stands".
 
 ## 0. The course rehaul — approved, in progress
 
@@ -183,7 +184,7 @@ The tools for it:
   is the expensive part (1-unit terrain under 4–6 grass layers). Wider margins
   are fine in moderation; keep total ground area within about +40%.
 
-**Where round two stands (v1.80.0).** Done: `pond`, `forest`, **all of
+**Where round two stands (v1.81.0).** Done: `pond`, `forest`, **all of
 Ashdown Park**, **all of Dunmore Heath** (Gorse Corner's and Long Ling's burns,
 The Beacon's tarn and Long Ling's pond are hollows; its treelines are strips
 and its stakes stand five back behind scrub wood — The Ravine's gorge is
@@ -225,10 +226,20 @@ What Ashdown taught, for Whinstone, Dunmore and Redstone:
   `postfx.js`; if a far view ever shows something drawn through the ground,
   that is the first place to look.
 
-Next: Redstone. It is a canyon, so `forest` is the wrong tool there — what it
-gets is the water (`mere`, `burn`) and outlines that are not rectangles. Its
-canyons are `ravine` cuts with water rectangles held up by `addBank`, which is
-a different problem from a pond in a hollow: read README → "The gorge" first.
+**Redstone, partly (v1.81.0).** Long Way Round's spring is a pool in a hollow.
+Nothing else on it moved, and two things were left on purpose:
+- **Its stakes stayed where they were.** Every canyon there runs the full
+  width of its property with ground past both ends of it, so moving the
+  boundary out opens a dry way round every crossing. Widening Redstone means
+  carrying the canyons out to the new line first.
+- **Its canyons are still straight cuts, and that is the owner's call.** What
+  reads as square on Redstone is not its water but its `ravine`s and its mesa,
+  and the ravine's asymmetry is load-bearing (README → "The gorge": banking
+  the near wall let a drive skip the gorge and the bot hole a par four in
+  two). A curved canyon is a new primitive — a floor and banks that follow a
+  bent line, keeping a lip on the near side — and it changes how every
+  crossing plays, so it wants agreeing before it is built. Stone Bridge's
+  flooded canyon goes with it.
 
 ### Mini golf
 
