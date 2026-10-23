@@ -145,7 +145,9 @@
     function createWorld(course, from, time) {
         return {
             course: course,
-            ball: { x: from.x, y: from.y, vx: 0, vy: 0 },
+            // z is the height of the ball's centre above the green; it only
+            // ever changes at the cup.
+            ball: { x: from.x, y: from.y, vx: 0, vy: 0, z: C.BALL_R, vz: 0 },
             origin: { x: from.x, y: from.y },   // where this shot was played from
             time: time || 0,
             moving: false,
@@ -384,29 +386,7 @@
             }
         }
 
-        // The cup. Inside the rim the ball is pulled toward the center, which
-        // is what makes a slow ball on a bad line still drop and a fast one
-        // curl around the lip and come out the far side.
-        var dx = course.hole.x - b.x, dy = course.hole.y - b.y;
-        var d = Math.hypot(dx, dy);
-        if (d < C.HOLE_R) {
-            var sp = speedOf(b);
-            if (sp < C.CAPTURE_SPEED) {
-                b.x = course.hole.x;
-                b.y = course.hole.y;
-                b.vx = b.vy = 0;
-                world.sunk = true;
-                world.moving = false;
-                events.sunk = true;
-                return;
-            }
-            if (d > 1e-6) {
-                var pull = C.CUP_PULL * (1 - d / C.HOLE_R) * dt;
-                b.vx += (dx / d) * pull;
-                b.vy += (dy / d) * pull;
-                events.lip = true;
-            }
-        }
+        if (cup(world, b, course.hole, dt, events)) return;
 
         if (zoneAt(course.water, b.x, b.y)) {
             // Fast enough, and it skips: some of the speed goes into the
@@ -430,12 +410,150 @@
 
         // At rest — unless it is sitting on a slope, in which case gravity has
         // not finished with it and stopping here would let the ball hang on a
-        // hillside.
-        if (speedOf(b) < C.STOP_SPEED && !zoneAt(course.slopes, b.x, b.y)) {
+        // hillside, or it is off the green, in which case it is on its way
+        // into the cup or bouncing back out of it.
+        if (speedOf(b) < C.STOP_SPEED && !zoneAt(course.slopes, b.x, b.y) && grounded(b, course.hole)) {
             b.vx = b.vy = 0;
             if (world.moving) events.rest = true;
             world.moving = false;
         }
+    }
+
+    /* ── the cup ─────────────────────────────────────────────────────────
+
+       Everywhere else the ball rolls on the plane of the green and its
+       height never changes. Over the hole there is nothing under it, so it
+       falls; and the edge of the hole — the lip — is a circle at the
+       green's own level that the ball can lean on, ride round, hit and
+       climb back out over. That one circle is all a lip-out is:
+
+         - a slow ball creeping over the edge leans on the lip, which tips it
+           in towards the middle: it topples in.
+         - a ball running along the edge leans on the lip from inside, and
+           the lip pushes it inward — the push that bends its line round the
+           cup. Slow enough and it drops before it gets round; too quick and
+           its own momentum carries it back out over the far side: round the
+           world and out.
+         - a ball struck firmly at the middle crosses the hole before it has
+           fallen far, meets the back of the lip, and is knocked up and back:
+           it drops if the knock was soft, and hops out over the lip if not.
+
+       Round the hole the green is worn into a shallow funnel — CUP_BEVEL
+       wide, CUP_FALL deep — the way real turf goes round a real cup. It is a
+       banked track: a ball running round it at the right pace is held on it
+       by the bank, circles while the grass slows it, and either spirals in
+       over the lip or, if it came in too fast, runs back up and out. That is
+       the ball that goes round the world.
+
+       Nothing here is scripted; those are three ways for a sphere to meet
+       a circle. The rest of the hole never notices: a ball more than a
+       radius from the lip is on the green at the green's height. */
+    function cup(world, b, hole, dt, events) {
+        var R = C.HOLE_R, r = C.BALL_R, F = C.CUP_FALL;
+        if (b.z === undefined) { b.z = r; b.vz = 0; }
+        var dx = b.x - hole.x, dy = b.y - hole.y, d = Math.hypot(dx, dy);
+        if (d >= R + Math.max(r, C.CUP_BEVEL) && b.z <= r && b.vz <= 0) { b.z = r; b.vz = 0; return false; }
+        var ux = d > 1e-9 ? dx / d : 1, uy = d > 1e-9 ? dy / d : 0;
+
+        // The ground under the ball: the green, the funnel down to the lip,
+        // or — over the hole — nothing at all.
+        var floor = groundAt(hole, b.x, b.y);
+        if (floor !== null && floor < 0 && b.z <= r + floor + 0.01 && b.vz <= 1) {
+            // On the funnel: downhill towards the hole. What the pull gives
+            // the ball, the drop in its height pays for.
+            var pull = C.CUP_GRAVITY * F / C.CUP_BEVEL * dt;
+            b.vx -= ux * pull;
+            b.vy -= uy * pull;
+        }
+
+        b.vz -= C.CUP_GRAVITY * dt;
+        b.z += b.vz * dt;
+        // Back on the ground: a hop out of the cup lands, and dies quickly.
+        if (floor !== null && b.z < r + floor) {
+            b.z = r + floor;
+            b.vz = b.vz < -60 ? -b.vz * 0.3 : 0;
+        }
+
+        // The lip, in the plane through the cup's centre and the ball's: the
+        // edge is the point (R, -F) at the foot of the funnel, the ball's
+        // centre is (d, z).
+        var ex = d - R, ez = b.z + F, ed = Math.hypot(ex, ez);
+        if (ed < r && ed > 1e-9) {
+            var nr = ex / ed, nz = ez / ed, push = r - ed;
+            b.x += ux * nr * push;
+            b.y += uy * nr * push;
+            b.z += nz * push;
+            var vr = b.vx * ux + b.vy * uy, vt = b.vy * ux - b.vx * uy;
+            var vn = vr * nr + b.vz * nz;
+            if (vn < 0) {
+                // A knock bounces; leaning and sliding along the lip, step
+                // after step, does not — or every substep of a ball riding
+                // over the back of the cup would kick it higher.
+                var e = vn < -C.RIM_KNOCK ? C.RIM_RESTITUTION : 0;
+                var j = -(1 + e) * vn;
+                // The push out of the lip lifted it; that height is paid for
+                // out of its speed, or leaning on the lip would be a ladder.
+                var before = Math.sqrt(Math.max(0, b.vx * b.vx + b.vy * b.vy + b.vz * b.vz - 2 * C.CUP_GRAVITY * Math.max(0, nz * push)));
+                vr += j * nr;
+                b.vz += j * nz;
+                // Riding the lip scrubs speed off along it.
+                vt *= Math.max(0, 1 - C.RIM_DRAG * j);
+                // Never faster than before the knock: the lip turns the fall
+                // into a roll and the roll into a hop, and adds to neither.
+                var after = Math.hypot(vr, vt, b.vz);
+                if (after > before && after > 0) { vr *= before / after; vt *= before / after; b.vz *= before / after; }
+                // And a real knock — the back of the cup — takes pace off.
+                if (e > 0) {
+                    vr *= C.RIM_KEEP; vt *= C.RIM_KEEP; b.vz *= C.RIM_KEEP;
+                    events.rim = Math.max(events.rim || 0, -vn);
+                }
+                b.vx = vr * ux - vt * uy;
+                b.vy = vr * uy + vt * ux;
+                events.lip = true;
+            }
+        }
+
+        // Below the lip the cup's wall holds it; and once it is down, it
+        // is in.
+        if (b.z < -F) {
+            d = Math.hypot(b.x - hole.x, b.y - hole.y);
+            if (d > R - r && d > 1e-9) {
+                var k = (R - r) / d;
+                b.x = hole.x + (b.x - hole.x) * k;
+                b.y = hole.y + (b.y - hole.y) * k;
+            }
+        }
+        if (b.z < -F - r * C.CUP_DOWN) {
+            b.x = hole.x;
+            b.y = hole.y;
+            b.vx = b.vy = 0;
+            b.z = r;
+            b.vz = 0;
+            world.sunk = true;
+            world.moving = false;
+            events.sunk = true;
+            return true;
+        }
+        return false;
+    }
+
+    // On the green and resting on it, rather than over the cup or above it
+    // — and not on the funnel, which nothing can rest on.
+    function grounded(b, hole) {
+        var d = Math.hypot(b.x - hole.x, b.y - hole.y);
+        if (d < C.HOLE_R + C.CUP_BEVEL) return false;
+        if (b.z === undefined) return true;
+        return Math.abs(b.z - C.BALL_R) <= 0.01 && Math.abs(b.vz) <= 1;
+    }
+
+    // The height of the ground at a point, relative to the green: 0 on the
+    // green, sloping down the funnel to -CUP_FALL at the lip, and null over
+    // the hole, where there is none.
+    function groundAt(hole, x, y) {
+        var d = Math.hypot(x - hole.x, y - hole.y);
+        if (d >= C.HOLE_R + C.CUP_BEVEL) return 0;
+        if (d < C.HOLE_R) return null;
+        return -C.CUP_FALL * (C.HOLE_R + C.CUP_BEVEL - d) / C.CUP_BEVEL;
     }
 
     /* Subdivide dt so the ball never travels more than half its radius per
@@ -446,9 +564,10 @@
         events = events || {};
         if (world.sunk || world.splash) return events;
 
+        var b = world.ball, fall = b.vz ? Math.abs(b.vz) : 0;
         var steps = Math.min(
             C.MAX_SUBSTEPS,
-            Math.max(1, Math.ceil(speedOf(world.ball) * dt / (C.BALL_R * 0.5)))
+            Math.max(1, Math.ceil((speedOf(b) + fall) * dt / (C.BALL_R * 0.5)))
         );
         var h = dt / steps;
         for (var i = 0; i < steps; i++) {
@@ -501,7 +620,9 @@
         settle: settle,
         simulateShot: simulateShot,
         speedOf: speedOf,
-        hopTime: hopTime
+        hopTime: hopTime,
+        grounded: grounded,
+        groundAt: groundAt
     };
 
 })(window.GOLF);
