@@ -1300,7 +1300,7 @@
                 if (h > -Infinity && h < lo) lo = h;
             });
         }
-        carve(pads, bumps);
+        carve(pads, bumps, { rock: o.rock });
         var w = rect(minX, minZ, maxX - minX, maxZ - minZ, lo - (o.freeboard === undefined ? 0.08 : o.freeboard));
         w.dip = true;
         return w;
@@ -5968,28 +5968,37 @@
 
                The pool is a hole in the ground rather than water laid over the
                canyon floor — see the note at the top of the course. */
-            var east = ravine(14.5, 9, 7.5, 8.5, 2.1, { bank: [0, 2.6] });
+            /* Two carved segments of one canyon (`gully`), and the bridge is
+               the ground between them that neither reaches: the west one
+               flooded, stopping inside the ground (a pond's water is its box,
+               and a box past the edge of the world hangs over the desert),
+               the east one dry and running out of the side. Both keep the
+               narrower far bank so the green on the far lip stays dry. */
+            var narrow = { o2: 3.0, r2: 4.0 };
+            var west = gully([[-9, 10.0], [-2, 9.5], [4, 10.2], [7.6, 9.9]], 9303, narrow);
+            var east = gully([[19.5, 9.9], [27, 10.3], [38, 9.7]], 9305, narrow);
             var field = massif(-9, 16, 12, 2.4, 5)
                 .concat(massif(26, 32, 11, 2.2, 5))
                 .concat([hill(9.5, 35, 3, 0.35)]);
             var land = commons(0, [
                 [{ d: 6, y: 2.1 },     [5, rgh], [12, fwy], [5, rgh]],
                 [{ d: 3, sz: -0.7 },   [22, rgh]],
-                [8.5,                  [12, null], [2.5, fwy], [7.5, null]],
+                [8.5,                  [12, rgh], [2.5, fwy], [7.5, rgh]],
                 [9,                    [4, rgh], [13, fwy], [5, rgh]],
                 [{ d: 4, sz: 0.3 },    [22, rgh]],
                 [6,                    [22, rgh]]
             ], { w: 14, e: 14 });
+            var ground = carve(shape(land.pads, field), east, { rock: true });
+            var pool = pond(ground, west.map(function (b) { return [b.cx, b.cz, b.r, -b.a]; }),
+                            { freeboard: 0.7, rock: true });
             return build({
                 name: 'Stone Bridge', par: 3, long: true, shaped: true, open: true,
                 blurb: 'Off the mesa, over a canyon with a pool in it, to a green strung along the far lip. Or run it over the bridge.',
-                pads: (function (g) {
-                    return g.concat([
-                        inlay(g, 9.5, 21.2, 5.2, grn, 2.6)
-                    ]);
-                }(shape(land.pads.concat(east.pads), field))),
-                fence: land.fence,
-                water: [rect(0, 9, 12, 8.5, -0.7)],
+                pads: ground.concat([
+                    inlay(ground, 9.5, 21.2, 5.2, grn, 2.6)
+                ]),
+                fence: widen(land.fence, 0, 5),
+                water: [pool],
                 extra: [].concat(
                     crags(2.4, 3.5, 2.4, 4, 9301, { s: 1.25, h: 1.0 }),
                     crags(19, 3.5, 2.4, 3, 9307, { s: 1.2, h: 0.9 }),
