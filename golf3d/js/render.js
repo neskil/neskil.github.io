@@ -1645,6 +1645,65 @@
        curvature: one line a unit, a pixel or so wide whatever the distance
        (fwidth), in the theme's colour or — on a rainbow pad — in the pad's
        own colour, brightened. */
+    /* Ripples in the glass (the owner: "I'd rather have ripples as the ball
+       rolls on the surface"). They used to be flat rings of light laid over
+       the floor with the depth test off, which on a wave is a flat disc
+       hanging over the hills — a second floor that ignored the grid. Now the
+       glass draws them itself, off the same world position as the grid:
+       each source is a ring running outwards that pushes the lines aside as
+       it passes and lights them a little, so a ripple is exactly on the
+       surface at any curvature. The sources are a small ring buffer that
+       frame() ages and the ball feeds (stepRipples); the uniforms are one
+       shared object, so both glass materials see the same ripples. */
+    var RIPPLES = 8, RIPPLE_LIFE = 2.4;
+    var RIPPLE_U = {
+        pos: { value: [] },     // x, y, z, strength (0 = idle)
+        age: { value: [] }      // seconds since it was dropped
+    };
+    (function () {
+        for (var i = 0; i < RIPPLES; i++) {
+            RIPPLE_U.pos.value.push(new THREE.Vector4(0, 0, 0, 0));
+            RIPPLE_U.age.value.push(0);
+        }
+    })();
+    var RIPPLE_GLSL = [
+        'vec2 gwarp = vec2(0.0);',
+        'float glit = 0.0;',
+        'for (int i = 0; i < ' + RIPPLES + '; i++) {',
+        '  vec4 rp = ripPos[i];',
+        '  if (rp.w <= 0.0) continue;',
+        '  vec2 rd = vGridPos.xz - rp.xz;',
+        '  float rr = length(rd) + 1e-4;',
+        '  float ra = ripAge[i];',
+        // The front runs out at 1.6 units a second; behind it a short train
+        // of crests, fading with age, with distance, and on another level.
+        '  float rx = rr - ra * 1.6;',
+        '  float env = exp(-rx * rx * 3.0) * (1.0 - smoothstep(0.0, ' + RIPPLE_LIFE.toFixed(1) + ', ra));',
+        '  env *= rp.w / (1.0 + rr * 0.6) * (1.0 - smoothstep(0.6, 1.4, abs(vGridPos.y - rp.y)));',
+        '  float rw = sin(rx * 9.0) * env;',
+        '  gwarp += rd / rr * rw * 0.09;',
+        '  glit += max(rw, 0.0) * 0.35;',
+        '}'
+    ].join('\n');
+
+    function stepRipples(dt) {
+        var p = RIPPLE_U.pos.value, a = RIPPLE_U.age.value;
+        for (var i = 0; i < RIPPLES; i++) {
+            if (p[i].w <= 0) continue;
+            a[i] += dt;
+            if (a[i] > RIPPLE_LIFE) p[i].w = 0;
+        }
+    }
+    var _ripAt = 0;
+    function ripple(x, y, z, strength) {
+        _ripAt = (_ripAt + 1) % RIPPLES;
+        RIPPLE_U.pos.value[_ripAt].set(x, y, z, Math.min(1, strength));
+        RIPPLE_U.age.value[_ripAt] = 0;
+    }
+    function clearRipples() {
+        for (var i = 0; i < RIPPLES; i++) RIPPLE_U.pos.value[i].w = 0;
+    }
+
     function gridGlass(mat, theme) {
         if (!theme.grid) return mat;
         var col = new THREE.Color(theme.grid.colour), every = theme.grid.every || 1;
@@ -1652,12 +1711,16 @@
         mat.onBeforeCompile = function (sh) {
             sh.uniforms.gridCol = { value: col };
             sh.uniforms.gridEvery = { value: every };
+            sh.uniforms.ripPos = RIPPLE_U.pos;
+            sh.uniforms.ripAge = RIPPLE_U.age;
             sh.vertexShader = 'varying vec3 vGridPos;\n' + sh.vertexShader.replace(
                 '#include <project_vertex>',
                 '#include <project_vertex>\n vGridPos = (modelMatrix * vec4(transformed, 1.0)).xyz;');
             sh.fragmentShader = 'varying vec3 vGridPos;\nuniform vec3 gridCol;\nuniform float gridEvery;\n' +
+                'uniform vec4 ripPos[' + RIPPLES + '];\nuniform float ripAge[' + RIPPLES + '];\n' +
                 sh.fragmentShader.replace('#include <fog_fragment>', [
-                    'vec2 gq = vGridPos.xz / gridEvery;',
+                    RIPPLE_GLSL,
+                    'vec2 gq = (vGridPos.xz - gwarp) / gridEvery;',
                     'vec2 gf = max(fwidth(gq), vec2(1e-4));',
                     'vec2 gw = abs(fract(gq - 0.5) - 0.5) / gf;',
                     'float gl = 1.0 - min(min(gw.x, gw.y), 1.0);',
@@ -1671,7 +1734,7 @@
                     '#else',
                     'vec3 gc = gridCol;',
                     '#endif',
-                    'gl_FragColor.rgb += gc * gl;',
+                    'gl_FragColor.rgb += gc * gl * (1.0 + glit) + gc * glit * 0.08;',
                     '#include <fog_fragment>'
                 ].join('\n'));
         };
@@ -3641,6 +3704,7 @@
         // computed from can be assumed to mean the same thing.
         clearPathCache();
         R.clock = 0;
+        clearRipples();
         R.cam.kick = 0;
         R.cam.speedPull = 0;
         clearTrail();
@@ -4540,24 +4604,25 @@
         if (world.moving && speed > 1.2) {
             R.trailOn = true;
             pushTrail(world.ball.x, world.ball.y, world.ball.z);
-            /* On glass the ball sheds light as it goes: a few pink sparks off
-               the contact patch, more of them the faster it is rolling. */
-            if (R.glow && world.grounded) {
-                R.sparkClock = (R.sparkClock || 0) - dt;
-                if (R.sparkClock <= 0) {
-                    R.sparkClock = 0.09 / Math.min(3, speed * 0.4);
-                    burst(world.ball.x, world.ball.y - C.BALL_R + 0.03, world.ball.z, 0xff3df2,
-                        2, 0.5 + Math.min(1.2, speed * 0.12));
-                }
-            }
         } else if (R.trailOn) {
             R.trailOn = false;
             clearTrail();
         }
+        /* On glass the ball leaves a wake: a ripple dropped every so often
+           off the contact patch while it rolls, closer together and stronger
+           the faster it goes, so a slow putt trails a ring or two and a
+           quick one draws a train of them out across the grid. */
+        if (R.glow && world.moving && world.grounded && speed > 0.25) {
+            R.rippleClock = (R.rippleClock || 0) - dt;
+            if (R.rippleClock <= 0) {
+                R.rippleClock = Math.max(0.16, 0.5 - speed * 0.05);
+                ripple(world.ball.x, world.ball.y - C.BALL_R, world.ball.z, 0.25 + speed * 0.08);
+            }
+        }
 
         updateAim(world, aim);
         stepParticles(dt);
-        stepPulses(dt);
+        stepRipples(dt);
         if (R.wells) for (var wi = 0; wi < R.wells.length; wi++) R.wells[wi].rotation.y += dt * 0.9;
         updateCamera(world.hole, world.ball, dt);
 
@@ -4678,54 +4743,16 @@
     function splashAt(x, y, z) { burst(x, y, z, 0x9fd8ff, 26, 2.6); }
 
     /* The grid world's effects (Challenge mode). A landing or a rail hit on
-       glass throws cyan sparks and sends a ring of light out across the floor
-       from where it happened; a ball scooting along glass sheds a stream of
-       pink ones and drags a neon tail (pushTrail's tint). Nothing here
-       touches the simulation — it is what the ground does *back*. */
-    var PULSES = 6;
-    function buildPulses() {
-        R.pulses = [];
-        for (var i = 0; i < PULSES; i++) {
-            var m = new THREE.Mesh(new THREE.RingGeometry(0.82, 1, 40),
-                // Drawn over the floor rather than into it: a flat ring on a
-                // wave is half buried, and it is a light, not a thing.
-                new THREE.MeshBasicMaterial({ color: 0x27f0ff, transparent: true, opacity: 0,
-                    blending: THREE.AdditiveBlending, depthWrite: false, depthTest: false,
-                    side: THREE.DoubleSide }));
-            m.rotation.x = -Math.PI / 2;
-            m.renderOrder = 5;
-            m.visible = false;
-            m.userData.life = 0;
-            R.scene.add(m);
-            R.pulses.push(m);
-        }
-        R.pulseAt = 0;
-    }
-    function pulse(x, y, z, strength) {
-        if (!R.pulses) buildPulses();
-        var m = R.pulses[R.pulseAt = (R.pulseAt + 1) % PULSES];
-        m.position.set(x, y + 0.05, z);
-        m.userData.life = 1;
-        m.userData.grow = 1.2 + Math.min(2.2, strength * 0.35);
-        m.visible = true;
-    }
-    function stepPulses(dt) {
-        if (!R.pulses) return;
-        for (var i = 0; i < R.pulses.length; i++) {
-            var m = R.pulses[i], u = m.userData;
-            if (u.life <= 0) continue;
-            u.life -= dt * 1.6;
-            var t = 1 - Math.max(0, u.life);
-            var s = 0.15 + t * u.grow;
-            m.scale.set(s, s, s);
-            m.material.opacity = Math.max(0, u.life) * 0.85;
-            if (u.life <= 0) m.visible = false;
-        }
-    }
+       glass sends a ripple out through the floor from where it happened, with
+       a pinch of cyan sparks only when it is properly hard; a rolling ball
+       leaves a wake of smaller ripples (frame) and drags a neon tail
+       (pushTrail's tint). Nothing here touches the simulation — it is what
+       the ground does *back*. It used to be a fistful of sparks and a flat
+       ring of light on every bounce, which the owner found a bit much. */
     function hitAt(x, y, z, speed) {
         if (!R.glow) return;
-        burst(x, y + 0.05, z, 0x27f0ff, Math.min(22, 6 + Math.round(speed * 2)), 1.4 + Math.min(2, speed * 0.2));
-        pulse(x, y, z, speed);
+        ripple(x, y, z, 0.35 + speed * 0.1);
+        if (speed > 4) burst(x, y + 0.05, z, 0x27f0ff, Math.min(8, Math.round(speed)), 0.8 + Math.min(1, speed * 0.1));
     }
     function sandAt(x, y, z) { burst(x, y, z, 0xe8d8a8, 14, 1.5); }
     /* The ball goes past the pin on its way in — nothing stops it, since the

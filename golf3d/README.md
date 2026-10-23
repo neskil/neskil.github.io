@@ -2973,9 +2973,14 @@ library at once.
   height (`render.addGrid` — the lines bending over a wave are how you read
   it), glowing rails, and a grade of its own over the weather's, because a
   clear sky's bloom spread the lines across the whole floor as a violet wash.
-- **The effects** (`render.hitAt`): a landing or a rail hit on glass throws
-  cyan sparks and sends a ring of light across the floor; a ball scooting
-  along sheds pink sparks and drags a neon tail.
+- **The effects** (`render.hitAt`): a landing or a rail hit on glass sends a
+  ripple out through the floor (a pinch of cyan sparks only when it is hard),
+  and a rolling ball leaves a wake of smaller ripples and drags a neon tail.
+  The ripples are drawn by the glass shader itself (`gridGlass`), off the same
+  world position as the grid, so they bend the lines exactly on the surface at
+  any curvature. Until v1.74.0 they were flat rings laid over the floor with
+  the depth test off — on a wave, a flat disc hanging over the hills that
+  ignored the grid — plus a fistful of sparks on every bounce.
 - Played out of the lofted mini bag. Records are kept against par, like the
   showcase's. "New ground, new cups" deals again; Play again replays the deal.
   Each deal's plans and skies are keyed `challenge-<seed>`, because hole 3 of
