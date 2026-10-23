@@ -2215,6 +2215,18 @@ surround showing through it. Two units of ravine came out as a mauve gash
 round the rim. `R.surf.side` is double-sided now, which costs nothing anywhere
 else: the back of a skirt is only ever visible from inside a hole in the world.
 
+**A canyon that bends** (`gully`, v1.82.0) cannot be built this way, because a
+sheer wall is the straight edge of a pad. So it is carved into the ground
+instead: two chains of hollows down a bent line, a narrow deep one whose steep
+side is the near wall (about 64°) and a wide shallow one further across whose
+long side is the bank. The asymmetry survives — the bot drives First Cut
+exactly as it did the cut version, and from the floor it wedges out and is a
+shot down — and `carve(…, { rock: true })` has the renderer draw any face
+steeper than about 44° as bare rock in the skirt colour, with no grass on it,
+which is what makes a dip in the scrub read as a canyon. A carved canyon runs
+off both edges of the ground, so unlike a cut one it has no way round it and
+the stakes can stand back.
+
 **What the suite grew when the ground did.** Four assertions arrived with the
 height, and three of the four caught something the same afternoon they were
 written — which is the only reason to trust the fourth.

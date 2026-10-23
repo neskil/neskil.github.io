@@ -1567,6 +1567,39 @@
         return Math.max(TERRAIN_MIN, Math.min(TERRAIN_RES, least / 3));
     }
 
+    /* Bare rock where carved ground stands too steep to grow anything.
+
+       A cut canyon (`ravine`) has red walls because its walls are skirts —
+       the earth under a pad, drawn in the theme's `side` colour. A carved one
+       (courses.gully) has no skirts in it: its walls are the ground itself,
+       and drawn as ground they are turf on a sixty-degree slope, which reads
+       as a grassy dip rather than as a canyon. So on a pad marked `rock` the
+       terrain is split by how steep each triangle is: past ROCK_NY the
+       triangle leaves the turf mesh for a mesh of its own in the skirt's
+       colour, and leaves the grass shells too. A partition rather than an
+       overlay, so there is nothing coplanar to fight. Scenery only — the
+       ball still plays the pad's own surface on it. */
+    var ROCK_NY = 0.72;          // a face's normal.y below this is rock (~44°)
+
+    function splitSteep(geo) {
+        var idx = geo.index.array, pos = geo.attributes.position, keep = [], steep = [];
+        var a = new THREE.Vector3(), b = new THREE.Vector3(), c = new THREE.Vector3(), n = new THREE.Vector3();
+        for (var t = 0; t < idx.length; t += 3) {
+            a.fromBufferAttribute(pos, idx[t]);
+            b.fromBufferAttribute(pos, idx[t + 1]);
+            c.fromBufferAttribute(pos, idx[t + 2]);
+            n.subVectors(c, b).cross(a.clone().sub(b)).normalize();
+            (Math.abs(n.y) < ROCK_NY ? steep : keep).push(idx[t], idx[t + 1], idx[t + 2]);
+        }
+        if (!steep.length) return null;
+        geo.setIndex(keep);
+        var out = new THREE.BufferGeometry();
+        out.setAttribute('position', pos);
+        out.setAttribute('normal', geo.attributes.normal);
+        out.setIndex(steep);
+        return out;
+    }
+
     function addTerrain(group, pad, theme, cup, pads) {
         var cx = pad.x + pad.w / 2, cz = pad.z + pad.d / 2;
         var cy = P.padHeight(pad, cx, cz);
@@ -1613,11 +1646,19 @@
         worldUv(geo, TX.SCALE[pad.kind] || TX.SCALE.green, cx, cz);
         if (holes.length) addVoidRims(group, pad);
         if (pad.hue) { tintRainbow(geo, pad, cx, cy, cz, RAINBOW_GLASS); mat = rainbowGlass(); }
+        var rockGeo = pad.rock && !pad.r ? splitSteep(geo) : null;
         var mesh = new THREE.Mesh(geo, mat);
         mesh.position.set(cx, cy + lift, cz);
         mesh.receiveShadow = true;
         mesh.castShadow = true;
         group.add(mesh);
+        if (rockGeo) {
+            var rock = new THREE.Mesh(rockGeo, R.surf.side);
+            rock.position.copy(mesh.position);
+            rock.receiveShadow = true;
+            rock.castShadow = true;
+            group.add(rock);
+        }
 
         var skirt = new THREE.Mesh(skirtGeometry(pad, base, cx, cy, cz),
             R.surf.side);
@@ -1630,10 +1671,12 @@
            see cutUnder. Its UVs are rewritten at the blades' own scale inside
            addShells, so building it already tiled for the ground costs
            nothing. */
-        addShells(group, pad, cup, false, cx, cy, cz,
-            cover.length
-                ? terrainGeometry(pad, res, cx, cy, cz, cut, cover, true)
-                : geo);
+        var grassOn = geo;
+        if (cover.length) {
+            grassOn = terrainGeometry(pad, res, cx, cy, cz, cut, cover, true);
+            if (rockGeo) splitSteep(grassOn);
+        }
+        addShells(group, pad, cup, false, cx, cy, cz, grassOn);
 
         // …and the cup's patch, which is a second flat surface stitched into
         // the hole left in the grid, with its own mat of grass over it.

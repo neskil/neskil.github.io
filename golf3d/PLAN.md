@@ -226,6 +226,16 @@ What Ashdown taught, for Whinstone, Dunmore and Redstone:
   `postfx.js`; if a far view ever shows something drawn through the ground,
   that is the first place to look.
 
+**Curved canyons, started (v1.82.0).** The owner said go: First Cut's canyon
+is carved (`gully`) on a bent line, with bare rock on its steep near wall
+(`carve(…, { rock: true })`, render.js → `splitSteep`), it runs off both edges
+of the ground, and its stakes are five back. The bot's card and drive are the
+same, and from the floor it is a shot lost. Next: the other five, one at a
+time — The Rim (along), Stone Bridge (flooded west of a bridge: a `pond` in
+the carved floor, and the bridge as the one piece of ground the gully skips),
+Long Way Round (a bite, ending mid-hole — so the way round is the hole), The
+Narrows (twice), Redstone (round the mesa).
+
 **Redstone, partly (v1.81.0).** Long Way Round's spring is a pool in a hollow.
 Nothing else on it moved, and two things were left on purpose:
 - **Its stakes stayed where they were.** Every canyon there runs the full
