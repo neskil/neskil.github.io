@@ -374,8 +374,7 @@
     ["party", "Niklas", "Fan vad jag har saknat uttrycket bis"],
     ["party", "Adam", "Shammy är ju riktigt trevligt sen med windfury"],
     ["party", "Robin", "Jag har inte tålamodet"],
-    ["sys", "", "Victor has died."],
-    ["sys", "", "Victor has released spirit. Again."],
+    ["sys", "", "Halvdryg has died."],
     ["sys", "", "Robin is thinking about it."]
   ];
   let si = 0;
