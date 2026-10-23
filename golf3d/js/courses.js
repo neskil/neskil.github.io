@@ -5784,13 +5784,37 @@
        The water is one sheet under the lot, and the stakes are off: there is
        nowhere to go out of bounds that is not already wet. */
     var KEY_SEA = -0.6, KEY_SHORE = -0.28;
+    /* A coastline rather than a mown edge. `shapeDisc` gives every disc the
+       same gentle wobble, which on a green is right and on an island makes
+       every key the same pebble at a different size. This is the same wave
+       turned up and dealt per island: an egg, a kidney, a trefoil, a bay bitten
+       out of one side. `wild` is how much — the most the shore comes in, as a
+       fraction of the radius, is twice it — and the shape is seeded off where
+       the island is, so it is the same island on every load. The edge still
+       only ever bites inwards, so everything that measures the island from
+       outside by `pad.r` stays true. */
+    function coast(p, wild, seed) {
+        var rnd = seeded(seed), lobes = [1, 2, 3, 5], w = [], sum = 0, i;
+        for (i = 0; i < lobes.length; i++) { w.push(0.3 + rnd()); sum += w[i]; }
+        p.wave = { bite: wild, terms: lobes.map(function (n, k) {
+            return [n, wild * w[k] / sum, rnd() * Math.PI * 2];
+        }) };
+        p.rIn = Math.min(p.rx, p.rz) * (1 - 2 * wild);
+        return p;
+    }
     function isle(cx, cz, rx, rz, opts) {
         var o = opts || {};
-        var base = circle(cx, cz, rx, 'sand', KEY_SHORE + (o.y || 0), rz);
+        var wild = o.wild === undefined ? 0.16 : o.wild;
+        var seed = Math.round(cx * 977 + cz * 7919 + rx * 131) + (o.seed || 0);
+        var base = coast(circle(cx, cz, rx, 'sand', KEY_SHORE + (o.y || 0), rz), wild, seed);
         base.inlay = false;
         var pads = [base];
+        if (o.bare) { pads.props = []; return pads; }   // a sand islet, nothing on it
+        /* The grass is the beach's own outline drawn smaller — the same wave,
+           so it follows every bay and point of the shore and can never cross
+           it, and the strand round it is even all the way round. */
         var g = function (r) { return Math.max(1.2, Math.min(r - 1.3, r * 0.8)); };
-        pads.push(inlay([base], cx, cz, g(rx), o.kind || 'fairway', g(rz)));
+        pads.push(coast(inlay([base], cx, cz, g(rx), o.kind || 'fairway', g(rz)), wild, seed));
         /* Trees are named by bearing and by how far out, as a fraction of the
            island, so they stay on it whatever size it is drawn at. */
         var keepIn = pads[1].rIn - 0.7;      // the grass's own wobble, and the trunk
@@ -5805,8 +5829,9 @@
     /* A green island: flat, and the green laid straight into the beach, so
        what is round a green out here is a bunker in every direction and then
        the sea. */
-    function keyGreen(cx, cz, r, gr) {
-        var base = circle(cx, cz, r, 'sand', KEY_SHORE, r);
+    function keyGreen(cx, cz, rx, rz, gr, wild) {
+        var base = coast(circle(cx, cz, rx, 'sand', KEY_SHORE, rz), wild || 0.1,
+            Math.round(cx * 613 + cz * 3571));
         base.inlay = false;
         return [base, inlay([base], cx, cz, gr, 'green')];
     }
@@ -5831,73 +5856,79 @@
     }
 
     var coral = [
-        /* The first carry, and a short one: an iron over a channel to a round
-           green on its own key. Nothing to think about but the distance, which
-           is the thing the rest of the course will keep asking. */
-        keys('Landfall', 3, 'One channel, one island, one green. Carry the water, and the sand will catch you if you come up short.', [
-            isle(12, 4, 5, 4.5, { y: 2.8 }),
-            keyGreen(12, 23, 7.5, 4.4)
-        ], { x: 12, z: 3 }, { x: 12.5, z: 23.5 }),
+        /* The first carry, and a short one: an iron over a channel to a big
+           green key, with a couple of sand islets in the channel that will
+           hold a ball that comes up short — and leave a splash shot off a
+           beach the size of a table. */
+        keys('Landfall', 3, 'One channel, one island, one green. Carry the water; the islets in the channel are there if you do not.', [
+            isle(12, 4, 4.5, 4, { y: 2.8, wild: 0.08 }),
+            isle(8.5, 13, 1.8, 1.4, { bare: true, wild: 0.2 }),
+            isle(16.5, 15.5, 1.3, 1.1, { bare: true, wild: 0.22 }),
+            keyGreen(12.5, 24, 9, 7, 4.4, 0.14)
+        ], { x: 12, z: 3 }, { x: 12.5, z: 24 }),
 
-        /* A line of keys across the bay. The driver flies all the way to the
-           second of them and the iron hops one at a time; the long one is the
-           shorter way to the green, if it lands. */
-        keys('Stepping Stones', 4, 'A string of keys across the bay. Hop them one at a time, or fly the first and land on the second.', [
-            isle(10, 4, 5, 5, { y: 2.8 }),
-            isle(7, 19, 5, 4.5, { trees: [[3.0, 0.7]] }),
-            isle(15, 33, 6, 5.5, { trees: [[0.4, 0.72]] }),
-            keyGreen(11, 50, 8, 4.6)
+        /* A line of keys across the bay, and no two the same size: a pebble,
+           a big kidney-shaped key with trees on it, and a sliver of sand
+           before the green. The driver flies to the big one; the iron hops
+           them one at a time. */
+        keys('Stepping Stones', 4, 'A string of keys across the bay, from a pebble to a big one with trees on it. Hop them, or fly to the big one.', [
+            isle(10, 4, 5, 4.5, { y: 2.8, wild: 0.08 }),
+            isle(6, 17, 3.4, 3, { wild: 0.16 }),
+            isle(15, 31, 9, 7, { wild: 0.15, trees: [[0.4, 0.7], [3.6, 0.6]] }),
+            isle(5, 41, 2.4, 1.3, { bare: true, wild: 0.22 }),
+            keyGreen(11, 50, 8, 8, 4.6, 0.12)
         ], { x: 10, z: 3 }, { x: 11, z: 51 }),
 
         /* An atoll: a broken ring of reef round a lagoon, and the green on a
-           key in the middle of it. The near side of the ring is an iron off the
-           tee and a pitch in; the straight line is a drive over the reef and
-           the whole of the lagoon at a green that will not keep a ball that
-           arrives with a driver's run on it. */
-        keys('The Atoll', 4, 'A ring of reef round a lagoon, and the green in the middle. Land on the reef and pitch in, or fly the lot.', (function () {
-            var out = [isle(16, 3, 5, 4.5, { y: 2.8 })], k, a;
+           key in the middle of it. The reef is all sizes — a long arm on the
+           near side that an iron finds, and some pieces barely worth the
+           name. The straight line is a drive over the reef and the whole of
+           the lagoon at a green that will not keep a driver's run. */
+        keys('The Atoll', 4, 'A broken ring of reef round a lagoon, and the green in the middle. Land on the reef and pitch in, or fly the lot.', (function () {
+            var out = [isle(16, 3, 5, 4.5, { y: 2.8, wild: 0.08 })], k, a;
+            var size = [[7.5, 4.6], [5.4, 4.4], [2.6, 2.2], [4.6, 3.4], [1.8, 1.6], [5.8, 4.2]];
             for (k = 0; k < 6; k++) {
                 a = -Math.PI / 2 + k * Math.PI / 3;
-                out.push(isle(16 + Math.cos(a) * 15, 34 + Math.sin(a) * 15,
-                    k === 0 ? 6 : 4.6, k === 0 ? 5 : 4.6,
-                    { trees: k === 0 ? [] : [[a, 0.6]] }));
+                out.push(isle(16 + Math.cos(a) * 15, 34 + Math.sin(a) * 15, size[k][0], size[k][1],
+                    { wild: 0.22, bare: size[k][0] < 2, trees: k === 1 || k === 5 ? [[a, 0.5]] : [] }));
             }
-            out.push(keyGreen(16, 34, 7.5, 4.4));
+            out.push(keyGreen(16, 34, 7.5, 6.8, 4.4, 0.14));
             return out;
         })(), { x: 16, z: 2 }, { x: 16, z: 34.5 }),
 
-        /* The par five, and two ways home. Left is a chain of big keys a full
-           drive apart — three good shots, and the water never more than a
-           club's carry. Right is one long island down the middle of the bay
-           that turns the hole into a drive and a long iron, for anyone who can
-           find it off the tee. */
-        keys('Two Ways Home', 5, 'Two ways down the bay: three big keys on the left, or one long island on the right for the brave.', [
-            isle(10, 4, 5.5, 5, { y: 2.8 }),
-            isle(5, 30, 6.5, 8, { trees: [[3.3, 0.7]] }),
-            isle(5, 56, 6, 7, { trees: [[2.9, 0.68]] }),
-            isle(30, 40, 5, 11, { trees: [[0.2, 0.62], [-0.3, 0.6]] }),
-            keyGreen(20, 76, 8.5, 4.8)
-        ], { x: 10, z: 3 }, { x: 20.5, z: 76.5 }),
+        /* The par five, and two ways home. Left is a chain of keys a drive
+           apart, one big and blobby and one small enough to need finding.
+           Right is one long ragged island down the middle of the bay that
+           turns the hole into a drive and a long iron, for anyone who can
+           hit it off the tee. */
+        keys('Two Ways Home', 5, 'Two ways down the bay: a chain of keys on the left, or one long ragged island on the right for the brave.', [
+            isle(10, 4, 5.5, 5, { y: 2.8, wild: 0.08 }),
+            isle(5, 30, 8, 9, { wild: 0.16, trees: [[3.3, 0.6]] }),
+            isle(5, 54, 6, 6.5, { wild: 0.13, trees: [[2.9, 0.5]] }),
+            isle(30, 43, 5.5, 13, { wild: 0.14, trees: [[0.2, 0.5], [-0.3, 0.45]] }),
+            isle(14, 63, 1.6, 2.6, { bare: true, wild: 0.2 }),
+            keyGreen(20, 75, 9.5, 8.5, 5, 0.1)
+        ], { x: 10, z: 3 }, { x: 20.5, z: 75.5 }),
 
-        /* One long carry. The tee is the tallest stack on the course, and what it
-           looks out over is twenty units of water and then a long fairway
-           key; a small one off to the left is the lay-up, and costs the shot
-           it saves. */
-        keys('The Long Carry', 4, 'Twenty units of water off the tee. Carry it, or lay up on the little key and take the long way.', [
-            isle(14, 4, 6, 5.5, { y: 3.6 }),
-            isle(3, 20, 4, 4, { trees: [[3.4, 0.55]] }),
-            isle(14, 37, 7, 8.5, { trees: [[3.1, 0.66]] }),
-            keyGreen(20, 55, 8, 4.4)
-        ], { x: 14, z: 4 }, { x: 20.5, z: 55.5 }),
+        /* One long carry. The tee is the tallest stack on the course, and what
+           it looks out over is twenty units of water and then a big sprawling
+           key; a pebble off to the left is the lay-up, and costs the shot it
+           saves. */
+        keys('The Long Carry', 4, 'Twenty units of water off the tee. Carry it, or lay up on the pebble and take the long way.', [
+            isle(14, 4, 6, 5.5, { y: 3.6, wild: 0.08 }),
+            isle(3, 20, 3, 3.2, { wild: 0.16, trees: [[3.4, 0.4]] }),
+            isle(14, 38, 9, 9.5, { wild: 0.18, trees: [[3.1, 0.6]] }),
+            keyGreen(21, 56, 8, 7, 4.4, 0.12)
+        ], { x: 14, z: 4 }, { x: 21.5, z: 56 }),
 
-        /* Home round the point: a long key up the left and the green off to
-           the right behind a sandbar. The sandbar is the bail-out and the
-           only thing between the corner and the flag. */
+        /* Home round the point: a long, crooked key up the left and the green
+           off to the right behind a thin bar of sand. The sandbar is the
+           bail-out and the only thing between the corner and the flag. */
         keys('Round the Point', 4, 'Up the long key and hard right to the green. The sandbar in the corner will catch you, once.', [
-            isle(8, 4, 5, 5, { y: 2.8 }),
-            isle(8, 27, 5.5, 10, { trees: [[3.4, 0.5], [2.9, 0.48]] }),
-            isle(19.5, 41, 3, 3, { kind: 'sand' }),
-            keyGreen(30, 46, 9, 4.8)
+            isle(8, 4, 5, 5, { y: 2.8, wild: 0.08 }),
+            isle(8, 27, 5.5, 11, { wild: 0.2, trees: [[3.4, 0.5], [2.9, 0.48]] }),
+            isle(19.5, 41, 3.8, 1.6, { bare: true, wild: 0.14 }),
+            keyGreen(30, 46, 9, 8, 4.8, 0.14)
         ], { x: 8, z: 3 }, { x: 30.5, z: 46.5 })
     ];
 
