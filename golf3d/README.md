@@ -521,11 +521,15 @@ spends half of itself round the side.
 Two smaller things came out of the same pass. The clubs bunch tighter and lean
 less, because the old spread put the outer two grips within a centimetre of the
 wall and the lean then carried their shafts out across the bag's own silhouette
-— two clubs in a bag and two propped against it. And each club's **ferrule**,
-the collar between shaft and head, is now that club's own colour: it is the one
-part of a club that is allowed to be any colour at all, it sits above the cuff
-on a shut bag, and it means five clubs bunched in the mouth are five colours
-rather than four silhouettes. The same four colours name the club on its card.
+— two clubs in a bag and two propped against it. And each club wears its own
+colour as a **ring on its ferrule**, the joint between shaft and hosel: it is
+the one part of a club that is allowed to be any colour at all, it sits above
+the cuff on a shut bag, and it means five clubs bunched in the mouth are five
+colours rather than four silhouettes. The same colours name the club on its
+card. (It used to be the whole ferrule, a 30mm bead fatter than the hosel above
+it with a gap of bare shaft between them — which made every club look like a
+shaft with a head stuck on. The ferrule is black now and tapers from the
+shaft's width to the hosel's, as a real one does; see "Modelling the heads".)
 
 ### What a club's card says
 
@@ -587,7 +591,7 @@ patch once, which costs five canvases, once.
 
 ### Modelling the heads
 
-The heads went through four versions, and the first three failed for reasons
+The heads went through five versions, and the first four failed for reasons
 that look like opinions and are not.
 
 **Stacked boxes** read as four grey blocks. **Extruded outlines with bevelled
@@ -596,27 +600,34 @@ an extrusion can do is a rounded brick. **A warped sphere and a pair of
 extrusions per iron** got the volumes right but stopped there: the driver was an
 egg with a disc stuck on the front, the 7 iron and the pitch were the same
 blade, the putter was a slab, and the mallet — which had no branch of its own —
-was handed an iron's head. The fourth is drawn from photographs of specific,
-recognisable clubs, because a row of heads is a shop window and "a driver" is
-not something anybody has seen:
+was handed an iron's head. The fourth was drawn from photographs of specific,
+recognisable clubs, and got the details right on shapes that were still wrong:
+every head stood square on the end of its shaft like a T, every hosel was
+turned with its head by the club's loft (so the wedge sat on a shaft bent
+through 58 degrees), and the driver was a box — square shoulders, a flat
+letterbox face, coarse "wicker" carbon and a white frame thicker than the face.
+The fifth keeps the photographs and fixes the geometry under them:
 
-- **Driver** — after the TaylorMade SIM2 Max. A carbon-weave crown inset in a
-  white frame that runs along the face and down the heel into a white neck, a
-  ring of the club's colour round the back of the skirt with a hairline of it
-  round the crown's edge, a big dark face shaped like a D with the Twist Face
-  scorelines on it, a black adjustable sleeve with a white index band, and on
-  the sole — which is the side facing the sky in the bag — a keel running back
-  to a chrome weight, a speed slot, and two stripes of the club's colour. The
-  driver's colour is now that blue (it was orange): on a SIM2 the blue *is* the
-  club, and the ferrule, card and chip follow the head.
+- **Driver** — after the TaylorMade SIM2 Max. One smooth shell (see below): a
+  broad pear from above, a crown that domes up from a tall face and falls away
+  to a short skirt at the tail, and a face curved by bulge and roll. Glossy
+  carbon under a clear coat (`MeshPhysicalMaterial`), a white frame along the
+  top of the face that widens round the heel and runs back along it, a ring of
+  the club's colour for a skirt with a hairline of it on the crown, a charcoal
+  face with the Twist Face scorelines, and a black adjustable sleeve with a white
+  index band. The sole — the side facing the sky in the bag — has a titanium
+  plate with the speed pocket across it, a keel running back to a chrome weight,
+  stripes of the club's colour along the keel with yellow-green ticks, and the
+  game's name. The driver's colour is that blue: on a SIM2 the blue *is* the
+  club, and the ferrule ring, card and chip follow the head.
 - **7 iron and pitch** — perimeter-weighted cavity backs after PXG: a thick
   topline and a heavy toe round a cavity, a wide sole bar, and a two-tone
   medallion in the cavity, dark with the club's colour standing on it. One
   builder with a row of numbers per club (`IRONS`), so the pitch is a shorter,
   taller head with a wider sole rather than the same blade.
 - **Wedge and checker** — muscle-back teardrops: a topline that climbs to a high,
-  round toe, a smooth muscle with a stripe of the club's colour, and a sole
-  sheared so its trailing edge hangs below the leading one by the club's bounce.
+  round toe, a smooth muscle with a stripe of the club's colour, and a wide
+  flanged sole whose leading edge stands off the ground by the club's bounce.
   The checker's face is milled in a fine check.
 - **Putter** — an Anser: a face block, a low flange, a weight standing at heel
   and toe, a sight line, and a plumber's neck (down, across, down).
@@ -633,17 +644,41 @@ result through `creased` — smooth across a curve, sharp across an edge, which 
 what a modelling package calls auto-smooth.
 
 The driver is the one head an extrusion cannot do, because an extruded cap is a
-single flat fan with nothing inside it to dome. It is a sphere with every vertex
-moved onto the shape: its bearing picks a radius off the footprint, its height
-picks a point on a superellipse — round over the crown, square over the sole,
-and squarer toward the front so the slice for the face takes the head's full
-height — and the crown rises from the face to a crest a quarter of the way back.
-Its colours are painted **in its shader** (`driverSkin`) from the head's own
-coordinates and the sphere's original latitude, not chosen a triangle at a time:
-the first try did that, and every boundary came out as a saw blade, because a
-sphere pushed into a driver is all long slivers and an edge is only as clean as
-the triangles it is cut along. Measured in latitude, the ring runs along the
-shell's rows however tall the crown is above it, so it stays level.
+single flat fan with nothing inside it to dome. It is one closed surface swept
+round its plan a bearing at a time (`driverShell`): the plan is a closed curve
+through a dozen points, and each bearing is a profile from the middle of the
+sole out to the skirt and back in over the crown, each half a superellipse — flat
+sole with a rounded edge, standing skirt, and a crown that domes into a height
+read off `drvCrown`. Everything in front of the face surface is then pushed back
+onto it, so the face's outline is whatever the head's front makes of it.
+The last version was a sphere squashed toward a box and sliced flat, and its
+square shoulders and letterbox face were both choices of exponent.
+
+Its colours are painted **in its shader** (`driverSkin`), never chosen a
+triangle at a time — that came out as a saw blade on every boundary. The
+artwork is drawn flat, a pixel at a time where a shape is a distance from the
+head's real outline, and laid on from straight above (the crown) and straight
+below (the sole); the ring and the hairline are bands of the profile (`sk`, -1
+mid-sole to +1 mid-crown), which keeps the ring one width round a skirt 20mm
+tall at the toe and 10 at the tail; the white frame along the top line and the
+face itself are worked out from the face surface per pixel. The artwork goes
+through `sRGBToLinear` by hand, because three.js only decodes the texture slots
+it knows about.
+
+**Every head is built soled, then hung.** A builder draws its head in the
+*address* frame — on the ground, the way it sits behind a ball — and returns
+where its hosel ends and at what lie; `mount` turns that into the bag's frame.
+That is what puts the two angles in that make a club look like a club: the
+**lie** (58° for the driver, 62.5–64° for the irons, 70° for the putters), so a
+club held upright hangs its head off to one side; and **loft as the face leaning
+back from the hosel** — the irons' blades are lofted about the leading edge,
+with anything that swings below ground pushed up onto it (`settle`), and the
+sole is built under them in the address frame (`ironSole`): a bar on a 7 iron,
+a triangle on a 58° wedge, whose blade lies so far back that its back reaches
+the trailing edge only 16mm up. The iron hosel runs down into the heel and is
+cut off flush with the sole rather than ending in a dome. Between hosel and
+shaft is a black **ferrule** that tapers from the shaft's width to each hosel's
+own, with the club's colour as a ring at its foot.
 
 **The heads are metal, not grey paint.** Every metal is a `MeshStandardMaterial`
 — metalness and roughness — with the finish in `CLUB_LOOK` (chrome, brushed,
@@ -678,14 +713,14 @@ sole and a toe no taller than about 0.62 of its length; a wedge is a taller
 teardrop; an Anser is about **100mm of face**. Shafts are real lengths too, and
 the mallet is now a putter's length rather than the default it fell through to.
 
-Everything is built in the head's own frame, and **that frame is the club as it
-stands in a bag** — grip down in the well, head up where it can be seen and
-clicked. The origin is where the shaft ends, `+Y` runs on past it to the sole,
-`+X` is the way the face looks, and `Z` is heel to toe with the head hung out to
-`+Z` from a hosel at `z = 0`. A real head hangs off its heel, and the hosel is the
-thing that says so; an iron's hosel also stands a few millimetres ahead of the
-leading edge (offset), and the driver's body stands ahead of its neck (face
-progression).
+The bag's frame is **the club as it stands in a bag** — grip down in the well,
+head up where it can be seen and clicked. The origin is where the shaft ends,
+`+Y` runs on past it toward the head, `+X` is the way the face looks, and the
+toe is out toward `+Z`. Heads are drawn in the address frame instead (`y` up off
+the ground, face `+x`, toe `-z`) and `mount` turns them into this one. A real
+head hangs off its heel, and the hosel is the thing that says so; an iron's
+hosel also stands a few millimetres ahead of the leading edge (offset), and the
+driver's face stands 17mm ahead of its shaft line (face progression).
 
 The clubs are also **splayed** in the closed bag — each turned a little on its
 own axis — for the same reason. Heads that hang to one side of their shafts
