@@ -478,6 +478,44 @@
     }
   });
 
+  // Ready check punchline: when Robin's answer comes in, whip the camera round to Robin.
+  let reveal = 0, revealUntil = 0, ac = null;
+  const revealPos = new T.Vector3(), revealLook = new T.Vector3(), lookAt = new T.Vector3();
+  function sadTrombone() {
+    try {
+      ac = ac || new (window.AudioContext || window.webkitAudioContext)();
+      const t = ac.currentTime + 0.05;
+      [392, 370, 349, 330].forEach((f, i) => {
+        const st = t + i * 0.42, d = i === 3 ? 1.2 : 0.38, last = i === 3;
+        const o = ac.createOscillator(), g = ac.createGain(), lp = ac.createBiquadFilter();
+        o.type = "sawtooth"; o.frequency.setValueAtTime(f, st);
+        lp.type = "lowpass"; lp.frequency.value = 1100;
+        if (last) {
+          const lfo = ac.createOscillator(), depth = ac.createGain();
+          lfo.frequency.value = 6; depth.gain.value = 7; lfo.connect(depth).connect(o.frequency);
+          lfo.start(st); lfo.stop(st + d + 0.05);
+          o.frequency.linearRampToValueAtTime(f * 0.96, st + d);
+        }
+        g.gain.setValueAtTime(0, st);
+        g.gain.linearRampToValueAtTime(0.08, st + 0.03);
+        g.gain.setValueAtTime(0.08, st + d - 0.1);
+        g.gain.linearRampToValueAtTime(0, st + d);
+        o.connect(lp).connect(g).connect(ac.destination);
+        o.start(st); o.stop(st + d + 0.05);
+      });
+    } catch (e) {}
+  }
+  function revealRobin() {
+    if (robinIdx < 0) return;
+    const r = figs[robinIdx].position;
+    revealLook.set(r.x, 1.25, r.z);
+    revealPos.set(r.x - 1.2, 1.6, r.z + 2.7);
+    revealUntil = performance.now() + 4200;
+    setTarget(robinIdx);
+    sadTrombone();
+    setTimeout(() => say("party", "Robin", "va?"), 1100);
+  }
+
   document.addEventListener("wow:rc", e => {
     const { i, state } = e.detail;
     const el = plates[i] && plates[i].querySelector(".np-rc");
@@ -485,6 +523,7 @@
     el.className = "np-rc" + (state === "clear" ? "" : " on " + state);
     el.textContent = state === "yes" ? "✓" : state === "no" ? "✗" : state === "wait" ? "?" : "";
     if (state === "wait" && i === 0) say("sys", "", "Ready check initiated.");
+    if (state === "no" && i === robinIdx) revealRobin();
   });
   document.addEventListener("wow:rcdone", () => say("sys", "", "Everyone is ready. Robin is still thinking about it."));
 
@@ -566,7 +605,15 @@
       yaw += (goal - yaw) * 0.006;
     }
     camera.position.set(Math.sin(yaw) * dist * Math.cos(pitch), 0.9 + Math.sin(pitch) * dist, Math.cos(yaw) * dist * Math.cos(pitch));
-    camera.lookAt(0, 1.05, -0.6);
+    lookAt.set(0, 1.05, -0.6);
+    const want = now < revealUntil ? 1 : 0;
+    reveal = reduce ? want : reveal + (want - reveal) * (want ? 0.075 : 0.03);
+    if (reveal > 0.001) {
+      const k = reveal * reveal * (3 - 2 * reveal);
+      camera.position.lerp(revealPos, k);
+      lookAt.lerp(revealLook, k);
+    }
+    camera.lookAt(lookAt);
 
     const fl = reduce ? 1 : 0.85 + Math.sin(t * 13) * 0.08 + Math.sin(t * 7.3) * 0.07;
     flames.forEach((f, i) => { f.scale.set(1, fl + i * 0.05, 1); f.rotation.y = t * (1 + i); });
