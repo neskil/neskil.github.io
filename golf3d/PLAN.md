@@ -246,8 +246,9 @@ west lane (six units of fairway now, from seven and a half, to give the end
 cap room) and runs out of the east side. The same release swapped `gully`'s
 two chains for four: two left a V in the floor with a climb out of 1.4 to 2
 that trapped the bot outright — check any carved floor with the bot from
-its lowest point, not just from the tee. Next, one at a time — The Narrows
-(twice), then Redstone (round the mesa).
+its lowest point, not just from the tee. **Switchback** (v1.88.0): both
+crossings carved in eleven-unit bands (the island is fourteen long now, from
+sixteen), both running out of both sides. Next: Redstone, round the mesa.
 
 **Redstone, partly (v1.81.0).** Long Way Round's spring is a pool in a hollow.
 Nothing else on it moved, and two things were left on purpose:

@@ -6106,8 +6106,13 @@
                back west to the last leg, and the green is round behind a
                bunker short-right. Switchback because the fairway does: west,
                east, west. */
-            var one = ravine(0, 25, 30, 9, 1.9, { bank: [0, 2.6] });
-            var two = ravine(0, 50, 30, 9, 2, { bank: [0, 2.6] });
+            /* Both crossings are carved (`gully`), each in an eleven-unit
+               band of rough so it has room to bend — which took a unit off
+               the plain before the first, two off the island and one off the
+               last leg, and moved nothing else — and both run out of both
+               sides of the ground, so neither has a way round. */
+            var one = gully([[-16, 25.2], [-4, 24.6], [8, 25.8], [19, 24.7], [30, 25.6], [46, 25.0]], 9503, { scale: 0.85 });
+            var two = gully([[-16, 50.4], [-3, 51.2], [9, 50.1], [21, 51.0], [33, 50.2], [46, 50.8]], 9505, { scale: 0.85 });
             var field = massif(38, 16, 12, 2.2, 5)
                 .concat(massif(-9, 44, 11, 2.0, 5))
                 .concat(massif(38, 74, 12, 2.3, 5))
@@ -6115,11 +6120,11 @@
             var land = commons(0, [
                 [{ d: 5, y: 2.0 },     [3, rgh], [10, fwy], [17, rgh]],
                 [{ d: 4, sz: -0.5 },   [30, rgh]],
-                [16,                   [3, rgh], [13, fwy], [14, rgh]],
-                [9,                    [30, null]],
-                [16,                   [9, rgh], [14, fwy], [7, rgh]],
-                [9,                    [30, null]],
-                [11,                   [5, rgh], [14, fwy], [11, rgh]],
+                [15,                   [3, rgh], [13, fwy], [14, rgh]],
+                [11,                   [30, rgh]],
+                [14,                   [9, rgh], [14, fwy], [7, rgh]],
+                [11,                   [30, rgh]],
+                [10,                   [5, rgh], [14, fwy], [11, rgh]],
                 [{ d: 4, sz: 0.15 },   [4, rgh], [13, fwy], [13, rgh]],
                 [14,                   [4, rgh], [13, fwy], [13, rgh]],
                 [3,                    [30, rgh]]
@@ -6132,8 +6137,8 @@
                         inlay(g, 14.5, 77.5, 1.4, snd, 1.8),
                         inlay(g, 9.5, 81, 4.6, grn, 4.4)
                     ]);
-                }(shape(land.pads.concat(one.pads).concat(two.pads), field))),
-                fence: land.fence,
+                }(carve(shape(land.pads, field), one.concat(two), { rock: true }))),
+                fence: widen(land.fence, 5, 5),
                 extra: [].concat(
                     crags(1.8, 40, 2.6, 5, 9501, { s: 1.3, h: 1.0 }),
                     crags(27, 44, 2.6, 5, 9507, { s: 1.25, h: 0.95 }),
