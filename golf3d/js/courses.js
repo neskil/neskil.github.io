@@ -5790,10 +5790,11 @@
 
                The far bank climbs to a shelf, with a cross bunker short of it
                and the ground falling away behind, so the approach is uphill
-               and has to stop between the two. The gorge is laid at the level
-               the drop off the bluff comes down to (`ravine` builds at y = 0),
-               which is why the rows before it are tuned to finish there. */
-            var cut = ravine(0, 22, 20, 12, 2.2, { bank: [0, 3.2] });
+               and has to stop between the two. The gorge is carved (`gully`)
+               on a line that bends a unit either way, inside a band of rough
+               of its own, and it runs off both edges of the ground — so there
+               is no way round it, and the stakes stand back. */
+            var cut = gully([[-16, 23.4], [-5, 22.9], [4, 23.7], [12, 22.9], [21, 23.6], [36, 23.1]], 8305, { scale: 0.9 });
             var field = massif(24, 12, 11, 1.8, 5)
                 .concat([hill(17.5, 38, 2.5, -0.6), hill(2.5, 59, 2.4, 0.5)]);
             var heath = commons(0, [
@@ -5801,7 +5802,7 @@
                 [{ d: 4, sz: -0.6 },    [20, rgh]],
                 [{ d: 6, sz: -0.2 },    [4, rgh], [9, fwy], [7, rgh]],
                 [7,                     [4, rgh], [9, fwy], [7, rgh]],
-                [12,                    [20, null]],
+                [12,                    [20, rgh]],
                 [{ d: 5, sz: 0.22 },    [4, rgh], [10, fwy], [6, rgh]],
                 [{ d: 4, sz: 0.13 },    [4, rgh], [10, fwy], [6, rgh]],
                 [8,                     [4, rgh], [11, fwy], [5, rgh]],
@@ -5817,7 +5818,7 @@
                         inlay(g, 10, 48.5, 3.0, snd, 1.6),
                         inlay(g, 10, 59.5, 4.4, grn, 3.4)
                     ]);
-                }(shape(scoop(heath.pads.concat(cut.pads), { seed: 13 }), field))),
+                }(carve(shape(scoop(heath.pads, { seed: 13 }), field), cut, { rock: true }))),
                 fence: widen(heath.fence, 5, 5),
                 extra: [].concat(
                     forest(1.7, 15, 0.5, 5, 3, 8299, { gap: 2.2 }),
