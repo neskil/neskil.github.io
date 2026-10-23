@@ -551,6 +551,37 @@ body.launched .tagline { color: var(--gold-hi); font-style: normal; font-family:
     <div class="realms" id="realms"></div>
   </section>
 
+  <section class="panel camp" id="camp" aria-labelledby="camp-ttl">
+    <h2 class="panel-title" id="camp-ttl"><span class="glyph">✧</span>The camp</h2>
+    <p class="panel-sub">The party, waiting by the fire in front of the gates. Drag to look around, click someone to target them, and try the action bar.</p>
+    <div class="world" id="world" tabindex="0" aria-label="The party in 3D around a campfire in front of the gates. Drag to look around, click someone to target them, press 1 to 6 for the action bar.">
+      <canvas id="world-gl"></canvas>
+      <div class="plates" id="plates" aria-hidden="true"></div>
+      <div class="ui-party" id="ui-party" aria-label="Party"></div>
+      <div class="ui-target" id="ui-target" hidden>
+        <div class="t-port"></div>
+        <div class="t-body"><div class="t-top"><span class="t-name"></span><span class="t-lvl"></span></div><div class="t-hp"><i></i><span></span></div><div class="t-mp"><i></i></div></div>
+      </div>
+      <div class="ui-mini" aria-hidden="true">
+        <div class="mini-zone">Kapitalombudsmannen's Camp</div>
+        <canvas id="mini" width="120" height="120"></canvas>
+        <div class="mini-clock" id="mini-clock"></div>
+      </div>
+      <div class="ui-tip" id="ui-tip" hidden><div class="tt-name"></div><div class="tt-guild">&lt;Kapitalombudsmannen&gt;</div><div class="tt-line"></div><div class="tt-role"></div><div class="tt-note"></div></div>
+      <div class="ui-chat" id="ui-chat" aria-hidden="true"></div>
+      <div class="ui-cast" id="ui-cast" hidden><i></i><span>Hearthstone</span></div>
+      <div class="ui-bar" id="ui-bar" role="toolbar" aria-label="Action bar">
+        <button class="ab" type="button" data-act="ready" title="Ready check (1)"><svg viewBox="0 0 24 24" width="32" height="32"><circle cx="12" cy="12" r="9" fill="#123d12" stroke="#1eff00" stroke-width="1.6"/><path d="M7 12.5l3.2 3.2L17 8.6" fill="none" stroke="#1eff00" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg><b>1</b><span class="cd"></span></button>
+        <button class="ab" type="button" data-act="wave" title="Wave (2)"><svg viewBox="0 0 24 24" width="32" height="32"><g fill="#f2cdb0" stroke="#5a3a1e" stroke-width=".8"><rect x="6.5" y="10" width="11" height="10" rx="3.5"/><rect x="6.6" y="4" width="2.4" height="9" rx="1.2"/><rect x="9.4" y="2.6" width="2.4" height="9" rx="1.2"/><rect x="12.2" y="3.2" width="2.4" height="9" rx="1.2"/><rect x="15" y="5" width="2.4" height="8" rx="1.2"/><rect x="2.6" y="11" width="6" height="2.4" rx="1.2" transform="rotate(35 5.6 12.2)"/></g><path d="M19.5 3.5c1.4 1 2 2.6 1.8 4.2M3.5 4.2c-.9 1.1-1.2 2.4-.9 3.7" stroke="#ffd100" stroke-width="1.2" fill="none" stroke-linecap="round"/></svg><b>2</b><span class="cd"></span></button>
+        <button class="ab" type="button" data-act="cheer" title="Cheer (3)"><svg viewBox="0 0 24 24" width="32" height="32"><path d="M12 2.5l2.6 6 6.4.5-4.9 4.2 1.5 6.3L12 16.2l-5.6 3.3 1.5-6.3L3 9l6.4-.5z" fill="#ffd100" stroke="#7a5200" stroke-width=".9"/></svg><b>3</b><span class="cd"></span></button>
+        <button class="ab" type="button" data-act="dance" title="Dance (4)"><svg viewBox="0 0 24 24" width="32" height="32"><path d="M9 18.5V5.5l10-2.5v13" fill="none" stroke="#f48cba" stroke-width="2"/><ellipse cx="6.8" cy="18.5" rx="2.8" ry="2.1" fill="#f48cba"/><ellipse cx="16.8" cy="16" rx="2.8" ry="2.1" fill="#f48cba"/></svg><b>4</b><span class="cd"></span></button>
+        <button class="ab" type="button" data-act="hearth" title="Hearthstone to the Great Vault (5)"><svg viewBox="0 0 24 24" width="32" height="32"><ellipse cx="12" cy="13" rx="8" ry="7.5" fill="#5f6f86" stroke="#1d2533" stroke-width="1"/><path d="M12 7.5c3 0 4.6 2.2 4 4.4-.6 2.1-3.6 2.6-4.6 1-.8-1.3.6-2.6 1.7-1.8" fill="none" stroke="#9fe3ff" stroke-width="1.7" stroke-linecap="round"/></svg><b>5</b><span class="cd"></span></button>
+        <button class="ab" type="button" data-act="invite" title="Invite Robin (6)"><svg viewBox="0 0 24 24" width="32" height="32"><circle cx="9.5" cy="8" r="3.6" fill="#9fc4ff"/><path d="M3 20c.4-4.4 3-6.6 6.5-6.6S15.6 15.6 16 20z" fill="#9fc4ff"/><path d="M18.5 7v7M15 10.5h7" stroke="#1eff00" stroke-width="2.2" stroke-linecap="round"/></svg><b>6</b><span class="cd"></span></button>
+      </div>
+      <div class="ui-hint">Drag to look · Click to target · Keys 1–6</div>
+    </div>
+  </section>
+
   <section class="panel" aria-labelledby="quest-ttl">
     <h2 class="panel-title" id="quest-ttl"><span class="glyph">!</span>Quest log</h2>
     <ol class="quests" id="quests"></ol>
@@ -588,36 +619,6 @@ body.launched .tagline { color: var(--gold-hi); font-style: normal; font-family:
       </div>
     </div>
     <div class="vault-cta"><button class="btn big" id="open-vault" type="button">Open the Great Vault</button></div>
-  </section>
-  <section class="panel camp" id="camp" aria-labelledby="camp-ttl">
-    <h2 class="panel-title" id="camp-ttl"><span class="glyph">✧</span>The camp</h2>
-    <p class="panel-sub">The party, waiting by the fire in front of the gates. Drag to look around, click someone to target them, and try the action bar.</p>
-    <div class="world" id="world" tabindex="0" aria-label="The party in 3D around a campfire in front of the gates. Drag to look around, click someone to target them, press 1 to 6 for the action bar.">
-      <canvas id="world-gl"></canvas>
-      <div class="plates" id="plates" aria-hidden="true"></div>
-      <div class="ui-party" id="ui-party" aria-label="Party"></div>
-      <div class="ui-target" id="ui-target" hidden>
-        <div class="t-port"></div>
-        <div class="t-body"><div class="t-top"><span class="t-name"></span><span class="t-lvl"></span></div><div class="t-hp"><i></i><span></span></div><div class="t-mp"><i></i></div></div>
-      </div>
-      <div class="ui-mini" aria-hidden="true">
-        <div class="mini-zone">Kapitalombudsmannen's Camp</div>
-        <canvas id="mini" width="120" height="120"></canvas>
-        <div class="mini-clock" id="mini-clock"></div>
-      </div>
-      <div class="ui-tip" id="ui-tip" hidden><div class="tt-name"></div><div class="tt-guild">&lt;Kapitalombudsmannen&gt;</div><div class="tt-line"></div><div class="tt-role"></div><div class="tt-note"></div></div>
-      <div class="ui-chat" id="ui-chat" aria-hidden="true"></div>
-      <div class="ui-cast" id="ui-cast" hidden><i></i><span>Hearthstone</span></div>
-      <div class="ui-bar" id="ui-bar" role="toolbar" aria-label="Action bar">
-        <button class="ab" type="button" data-act="ready" title="Ready check (1)"><svg viewBox="0 0 24 24" width="32" height="32"><circle cx="12" cy="12" r="9" fill="#123d12" stroke="#1eff00" stroke-width="1.6"/><path d="M7 12.5l3.2 3.2L17 8.6" fill="none" stroke="#1eff00" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg><b>1</b><span class="cd"></span></button>
-        <button class="ab" type="button" data-act="wave" title="Wave (2)"><svg viewBox="0 0 24 24" width="32" height="32"><g fill="#f2cdb0" stroke="#5a3a1e" stroke-width=".8"><rect x="6.5" y="10" width="11" height="10" rx="3.5"/><rect x="6.6" y="4" width="2.4" height="9" rx="1.2"/><rect x="9.4" y="2.6" width="2.4" height="9" rx="1.2"/><rect x="12.2" y="3.2" width="2.4" height="9" rx="1.2"/><rect x="15" y="5" width="2.4" height="8" rx="1.2"/><rect x="2.6" y="11" width="6" height="2.4" rx="1.2" transform="rotate(35 5.6 12.2)"/></g><path d="M19.5 3.5c1.4 1 2 2.6 1.8 4.2M3.5 4.2c-.9 1.1-1.2 2.4-.9 3.7" stroke="#ffd100" stroke-width="1.2" fill="none" stroke-linecap="round"/></svg><b>2</b><span class="cd"></span></button>
-        <button class="ab" type="button" data-act="cheer" title="Cheer (3)"><svg viewBox="0 0 24 24" width="32" height="32"><path d="M12 2.5l2.6 6 6.4.5-4.9 4.2 1.5 6.3L12 16.2l-5.6 3.3 1.5-6.3L3 9l6.4-.5z" fill="#ffd100" stroke="#7a5200" stroke-width=".9"/></svg><b>3</b><span class="cd"></span></button>
-        <button class="ab" type="button" data-act="dance" title="Dance (4)"><svg viewBox="0 0 24 24" width="32" height="32"><path d="M9 18.5V5.5l10-2.5v13" fill="none" stroke="#f48cba" stroke-width="2"/><ellipse cx="6.8" cy="18.5" rx="2.8" ry="2.1" fill="#f48cba"/><ellipse cx="16.8" cy="16" rx="2.8" ry="2.1" fill="#f48cba"/></svg><b>4</b><span class="cd"></span></button>
-        <button class="ab" type="button" data-act="hearth" title="Hearthstone to the Great Vault (5)"><svg viewBox="0 0 24 24" width="32" height="32"><ellipse cx="12" cy="13" rx="8" ry="7.5" fill="#5f6f86" stroke="#1d2533" stroke-width="1"/><path d="M12 7.5c3 0 4.6 2.2 4 4.4-.6 2.1-3.6 2.6-4.6 1-.8-1.3.6-2.6 1.7-1.8" fill="none" stroke="#9fe3ff" stroke-width="1.7" stroke-linecap="round"/></svg><b>5</b><span class="cd"></span></button>
-        <button class="ab" type="button" data-act="invite" title="Invite Robin (6)"><svg viewBox="0 0 24 24" width="32" height="32"><circle cx="9.5" cy="8" r="3.6" fill="#9fc4ff"/><path d="M3 20c.4-4.4 3-6.6 6.5-6.6S15.6 15.6 16 20z" fill="#9fc4ff"/><path d="M18.5 7v7M15 10.5h7" stroke="#1eff00" stroke-width="2.2" stroke-linecap="round"/></svg><b>6</b><span class="cd"></span></button>
-      </div>
-      <div class="ui-hint">Drag to look · Click to target · Keys 1–6</div>
-    </div>
   </section>
 </main>
 
