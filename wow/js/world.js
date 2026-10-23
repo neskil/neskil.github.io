@@ -528,6 +528,7 @@
   resize();
 
   let visible = true, raf = 0, last = performance.now(), chatT = 0;
+  const t0 = performance.now();
   new IntersectionObserver(es => { visible = es[0].isIntersecting; if (visible && !raf) raf = requestAnimationFrame(loop); }, { rootMargin: "100px" }).observe(host);
   const v3 = new T.Vector3(), colA = new T.Color();
 
@@ -558,7 +559,12 @@
     if (!visible || document.hidden) return;
     const dt = Math.min(0.05, (now - last) / 1000); last = now;
     const t = now / 1000;
-    if (!dragging && now > idleAt && !reduce) yaw += (Math.sin(t * 0.12) * 0.45 - yaw) * 0.004;
+    if (!dragging && now > idleAt && !reduce) {
+      // Every half minute the camera drifts round to find Robin by the tree, then back to the fire.
+      const c = ((now - t0) / 1000) % 30;
+      const goal = c > 8 && c < 21 ? -1.25 : Math.sin(t * 0.12) * 0.3;
+      yaw += (goal - yaw) * 0.006;
+    }
     camera.position.set(Math.sin(yaw) * dist * Math.cos(pitch), 0.9 + Math.sin(pitch) * dist, Math.cos(yaw) * dist * Math.cos(pitch));
     camera.lookAt(0, 1.05, -0.6);
 
