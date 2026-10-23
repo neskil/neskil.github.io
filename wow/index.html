@@ -11,7 +11,7 @@
     <link rel="canonical" href="https://neskil.github.io/wow/">
     <meta property="og:site_name" content="Neskil's Pot-Pourri">
     <meta property="og:title" content="WoW Forever: the gates open 5 Nov, 00:00 Stockholm">
-    <meta property="og:description" content="Adam, Kocken, Victor, Niklas and Dredde, ready for launch. A countdown with the party roster and the road to raids.">
+    <meta property="og:description" content="Adam, Kocken, Victor, Niklas and Dredde. And maybe Robin.">
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://neskil.github.io/wow/">
     <meta property="og:image" content="https://neskil.github.io/assets/og/wow.png">
@@ -331,11 +331,10 @@ h1.forever .shine {
 .ab:hover { filter: brightness(1.3); box-shadow: inset 0 0 0 1px #ffd100, inset 0 0 8px rgba(0,0,0,.8); }
 .ab:active { transform: scale(.94); }
 .ab:focus-visible { outline: 2px solid var(--arcane); outline-offset: 1px; }
-.ui-hint { position: absolute; right: 12px; bottom: 16px; font: 700 .6rem/1.3 var(--font-caps); letter-spacing: .1em; color: rgba(233,220,192,.55); text-transform: uppercase; pointer-events: none; text-align: right; max-width: 150px; }
 
 @media (max-width: 760px) {
   .world { height: 520px; }
-  .ui-party, .ui-hint, .ui-tip { display: none; }
+  .ui-party, .ui-tip { display: none; }
   .ui-target { left: 10px; transform: none; }
   .t-body { width: 150px; }
   #mini { width: 76px; height: 76px; }
@@ -543,7 +542,7 @@ body.launched .tagline { color: var(--gold-hi); font-style: normal; font-family:
       <span class="pct" id="pct">0%</span>
     </div>
     <div class="bar" aria-hidden="true"><div class="fill" id="fill"></div><div class="spark" id="spark"></div></div>
-    <p class="tip" id="tip"><b>Tip</b>Measured from the day the beta opened, 17 September 2026.</p>
+    <p class="tip" id="tip"><b>Tip</b>Name reservation opens 27 October.</p>
   </section>
 
   <section class="panel" aria-labelledby="realm-ttl">
@@ -553,8 +552,7 @@ body.launched .tagline { color: var(--gold-hi); font-style: normal; font-family:
 
   <section class="panel camp" id="camp" aria-labelledby="camp-ttl">
     <h2 class="panel-title" id="camp-ttl"><span class="glyph">✧</span>The camp</h2>
-    <p class="panel-sub">The party, waiting by the fire in front of the gates. Drag to look around, click someone to target them, and try the action bar.</p>
-    <div class="world" id="world" tabindex="0" aria-label="The party in 3D around a campfire in front of the gates. Drag to look around, click someone to target them, press 1 to 6 for the action bar.">
+    <div class="world" id="world" tabindex="0" aria-label="The camp, in 3D">
       <canvas id="world-gl"></canvas>
       <div class="plates" id="plates" aria-hidden="true"></div>
       <div class="ui-party" id="ui-party" aria-label="Party"></div>
@@ -578,7 +576,6 @@ body.launched .tagline { color: var(--gold-hi); font-style: normal; font-family:
         <button class="ab" type="button" data-act="hearth" title="Hearthstone to the Great Vault (5)"><svg viewBox="0 0 24 24" width="32" height="32"><ellipse cx="12" cy="13" rx="8" ry="7.5" fill="#5f6f86" stroke="#1d2533" stroke-width="1"/><path d="M12 7.5c3 0 4.6 2.2 4 4.4-.6 2.1-3.6 2.6-4.6 1-.8-1.3.6-2.6 1.7-1.8" fill="none" stroke="#9fe3ff" stroke-width="1.7" stroke-linecap="round"/></svg><b>5</b><span class="cd"></span></button>
         <button class="ab" type="button" data-act="invite" title="Invite Robin (6)"><svg viewBox="0 0 24 24" width="32" height="32"><circle cx="9.5" cy="8" r="3.6" fill="#9fc4ff"/><path d="M3 20c.4-4.4 3-6.6 6.5-6.6S15.6 15.6 16 20z" fill="#9fc4ff"/><path d="M18.5 7v7M15 10.5h7" stroke="#1eff00" stroke-width="2.2" stroke-linecap="round"/></svg><b>6</b><span class="cd"></span></button>
       </div>
-      <div class="ui-hint">Drag to look · Click to target · Keys 1–6</div>
     </div>
   </section>
 
@@ -589,13 +586,11 @@ body.launched .tagline { color: var(--gold-hi); font-style: normal; font-family:
 
   <section class="panel vault" id="vault" aria-labelledby="vault-ttl">
     <h2 class="panel-title" id="vault-ttl"><span class="glyph">◈</span>The Great Vault</h2>
-    <p class="panel-sub">Three rewards wait inside. Claim the first one and drop it in the group chat.</p>
     <div class="slots">
       <div class="slot leg">
         <div class="lock" aria-hidden="true"><div class="seal">I</div><span>Sealed</span></div>
         <div class="tier">Legendary reward</div>
-        <h3>Hearthstone to this page</h3>
-        <p>The link to this countdown. Send it to the party, or to Robin as a nudge.</p>
+        <h3>Hearthstone</h3>
         <div class="act">
           <div class="url" id="share-url">https://neskil.github.io/wow/</div>
           <div class="cast" id="cast" hidden><i id="cast-fill"></i><span>Hearthstone</span></div>
@@ -606,15 +601,13 @@ body.launched .tagline { color: var(--gold-hi); font-style: normal; font-family:
       <div class="slot">
         <div class="lock" aria-hidden="true"><div class="seal">II</div><span>Sealed</span></div>
         <div class="tier">Epic reward</div>
-        <h3>The official announcement</h3>
-        <p>Blizzard's news post on World of Warcraft: Forever, mirrored on Wowhead's blue tracker.</p>
+        <h3>The announcement</h3>
         <div class="act"><a class="btn" href="https://www.wowhead.com/forever/blue-tracker/news/eu/24302093" target="_blank" rel="noopener">Read the post</a></div>
       </div>
       <div class="slot">
         <div class="lock" aria-hidden="true"><div class="seal">III</div><span>Sealed</span></div>
         <div class="tier">Epic reward</div>
-        <h3>Roadmap: beta to raids</h3>
-        <p>The full schedule from beta to the first raids, plus what 2027 brings.</p>
+        <h3>The roadmap</h3>
         <div class="act"><a class="btn" href="https://www.warcrafttavern.com/forever/news/world-of-warcraft-forever-roadmap-beta-launch-date-raids/" target="_blank" rel="noopener">Open the roadmap</a></div>
       </div>
     </div>
@@ -623,8 +616,7 @@ body.launched .tagline { color: var(--gold-hi); font-style: normal; font-family:
 </main>
 
 <footer>
-  <p>Fan-made countdown for a group of friends. Not affiliated with or endorsed by Blizzard Entertainment. World of Warcraft is a trademark of Blizzard Entertainment, Inc.</p>
-  <p>Dates come from Blizzard's announced roadmap as reported in news coverage. The countdown runs on your device's clock. <a href="../">Neskil's Pot-Pourri</a></p>
+  <p>Fan-made. Not affiliated with Blizzard Entertainment. <a href="../">Neskil's Pot-Pourri</a></p>
 </footer>
 
 <script>
@@ -776,20 +768,18 @@ body.launched .tagline { color: var(--gold-hi); font-style: normal; font-family:
 
   /* ---------- Loading-screen tips ---------- */
   const tips = [
-    "Measured from the day the beta opened, 17 September 2026.",
-    "Name reservation opens on 27 October for upgrade pack owners. Pick your name before someone else does.",
-    "Nothing carries over from the beta. Everyone starts at level 1 on 4 November.",
-    "The last trip to 60, in Classic, took 100 to 150 hours played. Adam would like to know what you were doing.",
-    "Windfury Totem makes a melee group hit noticeably harder. Kocken knows.",
-    "Holy Paladin felt like the weakest healer in the beta, says Adam. Priest, Druid and Shaman felt about the same.",
-    "The average trip to 60 is five to seven days played. Optimisers get it near a hundred hours.",
-    "Fars dag is Sunday 8 November, four days after launch. Plan accordingly.",
-    "Raids open on 9 December: Barrow Deeps for 10, Hyjal Summit for 20 and Onyxia's Lair for 40.",
-    "If the levels drift apart, an alt helps. Alts level faster, too.",
+    "Name reservation opens 27 October.",
+    "Nothing carries over from the beta.",
+    "Classic took 100 to 150 hours /played. Adam has questions.",
+    "Windfury Totem. Kocken knows.",
+    "Holy Paladin was the weakest healer in the beta, says Adam.",
+    "Fars dag is four days after launch.",
+    "Raids open 9 December.",
     "This group got properly sweaty, says Robin.",
-    "Victor died a lot last time. The spirit healer at the graveyard has been warned.",
-    "Undead rogues start in Tirisfal Glades, a long way from any Alliance friends. Just saying, Niklas."
+    "The spirit healer has been warned.",
+    "Undead rogues start in Tirisfal Glades. Just saying, Niklas."
   ];
+
   let ti = 0;
   setInterval(() => {
     const tip = $("tip");
@@ -829,16 +819,16 @@ body.launched .tagline { color: var(--gold-hi); font-style: normal; font-family:
   /* ---------- Quest log ---------- */
   const quests = [
     { name: "Trial of the Beta", obj: "Beta for upgrade pack owners, level cap 30.", when: "17 Sep – 22 Oct", end: Date.parse("2026-10-22T23:59:00Z") },
-    { name: "Assemble the Party", obj: "Tank, healer and three DPS signed up. One invite still pending.", when: "9 Oct", end: Date.parse("2026-10-09T06:00:00Z"), chip: ["party", "Party"] },
-    { name: "A Name Worth Keeping", obj: "Name reservation and character creation for upgrade pack owners.", when: "27 Oct", start: Date.parse("2026-10-27T00:00:00Z") },
-    { name: "The Early Gates", obj: "Epic Edition owners enter three days ahead of everyone else.", when: "3 days early", start: Date.parse("2026-11-01T23:00:00Z") },
-    { name: "Forever Begins", obj: "Global launch. Midnight in Stockholm, level cap 60.", when: "5 Nov · 00:00", start: LAUNCH },
-    { name: "The Weekend Shift", obj: "The first weekend: Victor joins, the rest catch up.", when: "7–8 Nov", start: Date.parse("2026-11-07T08:00:00Z"), chip: ["party", "Party"] },
-    { name: "A Father's Duty", obj: "Fars dag. Log out for coffee and cake, then log back in.", when: "8 Nov", start: Date.parse("2026-11-08T23:00:00Z") },
+    { name: "Assemble the Party", obj: "Five signed. One invite pending.", when: "9 Oct", end: Date.parse("2026-10-09T06:00:00Z"), chip: ["party", "Party"] },
+    { name: "A Name Worth Keeping", obj: "Name reservation opens.", when: "27 Oct", start: Date.parse("2026-10-27T00:00:00Z") },
+    { name: "The Early Gates", obj: "Epic Edition, three days early.", when: "1 Nov", start: Date.parse("2026-11-01T23:00:00Z") },
+    { name: "Forever Begins", obj: "Level cap 60.", when: "5 Nov · 00:00", start: LAUNCH },
+    { name: "The Weekend Shift", obj: "Victor joins.", when: "7–8 Nov", start: Date.parse("2026-11-07T08:00:00Z"), chip: ["party", "Party"] },
+    { name: "A Father's Duty", obj: "Coffee and cake. Then back in.", when: "8 Nov", start: Date.parse("2026-11-08T23:00:00Z") },
     { name: "Into the Depths", obj: "Barrow Deeps (10), Hyjal Summit (20) and Onyxia's Lair (40) open.", when: "9 Dec", start: Date.parse("2026-12-09T00:00:00Z"), chip: ["raid", "Raids"] },
     { name: "No Second Chances", obj: "Hardcore realms arrive.", when: "Winter 2026", start: Date.parse("2026-12-21T00:00:00Z"), chip: ["soon", "Hardcore"] },
-    { name: "Spring Awakening", obj: "Two raids, two dungeons, a new zone and quests, a legendary questline and a PvP season refresh.", when: "Spring 2027", start: Date.parse("2027-03-20T00:00:00Z") },
-    { name: "Legends Reforged", obj: "A revamped iconic raid, a new raid, more world content, two dungeons and profession updates.", when: "Summer 2027", start: Date.parse("2027-06-21T00:00:00Z") }
+    { name: "Spring Awakening", obj: "Two raids, two dungeons, a legendary questline.", when: "Spring 2027", start: Date.parse("2027-03-20T00:00:00Z") },
+    { name: "Legends Reforged", obj: "An old raid reforged, and a new one.", when: "Summer 2027", start: Date.parse("2027-06-21T00:00:00Z") }
   ];
   function renderQuests() {
     const now = Date.now();
