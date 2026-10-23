@@ -38,9 +38,8 @@ to be worked out again.
   Highland rebuilt hole by hole — §0 → "Mini golf", item 8.
 - Still open from before: lighting setups on Challenge (neon only has
   `clear`), and the naturalising of the older long courses — Ashdown is done
-  (v1.78.0), Whinstone (v1.79.0) and Dunmore (v1.80.0); Redstone only has
-  its spring (v1.81.0) — its canyons wait on a call, §0 → "Where round two
-  stands".
+  (v1.78.0), Whinstone (v1.79.0), Dunmore (v1.80.0) and Redstone (spring
+  v1.81.0, carved canyons and an oval mesa v1.83.0–v1.89.0).
 
 ## 0. The course rehaul — approved, in progress
 
@@ -248,22 +247,18 @@ two chains for four: two left a V in the floor with a climb out of 1.4 to 2
 that trapped the bot outright — check any carved floor with the bot from
 its lowest point, not just from the tee. **Switchback** (v1.88.0): both
 crossings carved in eleven-unit bands (the island is fourteen long now, from
-sixteen), both running out of both sides. Next: Redstone, round the mesa.
+sixteen), both running out of both sides. **Redstone** (v1.89.0): its canyon
+carved, and the mesa an oval disc that `stands` (README → "The gorge" for why
+the flag is load-bearing twice). **All six of Redstone's crossings are carved;
+round two is done on all four long courses.** The Ravine on Dunmore is the
+one `ravine` left in the long game, and it could go the same way.
 
-**Redstone, partly (v1.81.0).** Long Way Round's spring is a pool in a hollow.
-Nothing else on it moved, and two things were left on purpose:
-- **Its stakes stayed where they were.** Every canyon there runs the full
-  width of its property with ground past both ends of it, so moving the
-  boundary out opens a dry way round every crossing. Widening Redstone means
-  carrying the canyons out to the new line first.
-- **Its canyons are still straight cuts, and that is the owner's call.** What
-  reads as square on Redstone is not its water but its `ravine`s and its mesa,
-  and the ravine's asymmetry is load-bearing (README → "The gorge": banking
-  the near wall let a drive skip the gorge and the bot hole a par four in
-  two). A curved canyon is a new primitive — a floor and banks that follow a
-  bent line, keeping a lip on the near side — and it changes how every
-  crossing plays, so it wants agreeing before it is built. Stone Bridge's
-  flooded canyon goes with it.
+**Redstone, the spring (v1.81.0).** Long Way Round's spring is a pool in a
+hollow. That release left the stakes and the canyons alone — a cut canyon
+with ground past its ends has a dry way round it once the boundary moves, and
+a curved canyon was a gameplay call — and the owner made the call: the
+canyons are carved now and run out of both sides, which settles the stakes
+as well (above).
 
 ### Mini golf
 

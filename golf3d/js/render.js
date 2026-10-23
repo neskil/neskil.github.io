@@ -2110,8 +2110,12 @@
             ? Math.max(least, cy - floor + 0.06 + rise)
             : Math.max(0.6, cy - (theme.surroundY - 0.4) + rise);
         // A disc green is laid into the ground it sits in rather than standing
-        // on it, so it needs no more depth than the cup does.
-        if (pad.r) thick = holed ? C.CUP_DEPTH + 0.25 : 0.3;
+        // on it, so it needs no more depth than the cup does. A disc marked
+        // `stands` is the other thing — ground of its own with sides, a mesa
+        // or an island (courses.js) — and goes down like any other slab;
+        // drawn three tenths thick, Redstone's mesa was a plate of scrub
+        // floating three units over the fairway.
+        if (pad.r && !pad.stands) thick = holed ? C.CUP_DEPTH + 0.25 : 0.3;
         // And a hovering platform is a slab with daylight under it, which is
         // the whole of what it is (Challenge mode's raised tee).
         if (pad.hover) thick = Math.max(least, 0.4);
@@ -2140,7 +2144,7 @@
         // what lets every pad of a kind share one material (buildSurfaces).
         worldUv(geo, TX.SCALE[pad.kind] || TX.SCALE.green, cx, cz);
         var mesh = new THREE.Mesh(geo,
-            padMaterial(pad.kind, pad.inlay ? 'inlay' : (holed ? 'slab' : 'box')));
+            padMaterial(pad.kind, pad.inlay ? 'inlay' : (holed || pad.stands ? 'slab' : 'box')));
         mesh.position.set(cx, cy - thick / 2 + (pad.r ? INLAY_LIFT : 0), cz);
         mesh.receiveShadow = true;
         mesh.castShadow = true;
