@@ -5796,20 +5796,23 @@
                 [6,                    [3, rgh], [17, fwy], [6, rgh]],
                 [2,                    [9, rgh], [12, fwy], [5, rgh]],
                 [{ d: 4, sz: 0.12 },   [9, rgh], [12, fwy], [5, rgh]],
-                [8,                    [10, rgh], [6, null], [8, fwy], [2, rgh]],
+                [8,                    [16, rgh], [8, fwy], [2, rgh]],
                 [8,                    [3, rgh], [21, fwy], [2, rgh]],
                 [3,                    [26, rgh]]
             ], { m: 14 });
+            var ground = shape(land.pads.concat(cut.pads), field);
+            /* The spring is a pool in a hollow, held inside its own cell of
+               rough with fairway on three sides of it — which is why it is
+               smaller than the box it used to be. */
+            var spring = pond(ground, mere(12.1, 47, 2.4, 2.3, 1.9, 9413));
             return build({
                 name: 'Long Way Round', par: 4, long: true, shaped: true, open: true,
                 blurb: 'Off the mesa with the canyon eating the right half of the fairway. Carry it at the flag, or go round and come in over the spring.',
-                pads: (function (g) {
-                    return g.concat([
-                        inlay(g, 20.5, 52, 4.2, grn, 4.2)
-                    ]);
-                }(shape(land.pads.concat(cut.pads), field))),
+                pads: ground.concat([
+                    inlay(ground, 20.5, 52, 4.2, grn, 4.2)
+                ]),
                 fence: land.fence,
-                water: [rect(10, 43, 6, 8, 0.05)],
+                water: [spring],
                 extra: [].concat(
                     crags(4.5, 42, 2.6, 5, 9401, { s: 1.3, h: 1.0 }),
                     crags(23.5, 40, 2.6, 4, 9407, { s: 1.25, h: 0.95 }),
