@@ -579,7 +579,7 @@ were each their own cylinder in a slightly different mid grey, so nothing
 separated from anything; the seam rings were a fixed radius on a tapering body
 and hung a centimetre clear of it; and the pockets were boxes standing off the
 curve on their corners. Lambert lit it from the course's lamps alone, so it was
-a different bag on every hole. Since v1.82.0 it is one lathed outline
+a different bag on every hole. Since v1.84.0 it is one lathed outline
 (`BODY_LINE`) that everything else is fitted to through `radiusAt` — the band,
 the piping and the padded pockets (`puff`) all sit on the taper rather than
 near it — with a moulded top rolled over at the lip, and a tour bag's palette:
@@ -863,9 +863,9 @@ approach.
 | Course | Group | Theme | What it is about |
 | --- | --- | --- | --- |
 | Seaside Green | mini | `seaside` | The opener, played with a putter and a mallet. A bounce off an angled rail, a slipway round a corner, one slow gate, a first bridge to fly, a horseshoe that leans at the sea wall, and a jetty with a bend in it. Two safe putts and one ace line on every hole. |
-| Quarry Ridge | mini | `quarry` | Ramps, a road with a corner in it and a long way down off every edge. Height as a hazard. |
-| Tidewater Reach | mini | `lagoon` | The loft course. Almost nothing here can be reached along the floor. |
-| Highland Steps | mini | `highland` | The same lesson from the other side: things in the way rather than things missing, and the ground handed back as a tool. |
+| Quarry Ridge | mini | `quarry` | Ramps, a road with a corner in it and a long way down off every edge. Height as a hazard. Two ramps to one shelf, a pillar with a stair down its side, and a cannon with a plank beside it. |
+| Tidewater Reach | mini | `lagoon` | The loft course. Almost nothing here can be reached along the floor, and every carry has a safe target and a short one. |
+| Highland Steps | mini | `highland` | The same lesson from the other side: things in the way rather than things missing, and the ground handed back as a tool. A curved backboard, a slanted wall, a stair that climbs round a pool. |
 | Windmill Works | crazy | `works` | Gates and blades, after dark. Timing. |
 | Pinball Parlour | crazy | `arcade` | A table, not a course: bumpers, a plunger chute and two banks set across the throat. The posts *are* the route. |
 | Clockwork Court | crazy | `clockwork` | Six mechanisms at six rates. Two bats that stop, a pendulum, three staggered cogs, a ratchet, and a finish with two lanes to pick between. |
@@ -952,30 +952,57 @@ seam. **The Jetty** is a plank over the shallows with a kink in the middle, and
 it, every edge a brink except the outside of the bend, which keeps its wall
 because a corner with nothing on the outside of it is a corner nobody can hold.
 
+The rest of Quarry was three straight lanes with one thing in the middle, and
+v1.82.0 gave each a second way. **Step Up** has two ramps to one shelf — a long
+gentle one on the left, a short steep one on the right that only a firm hit
+gets over — and a pool between them at the foot of the face, which is where
+the line at the flag goes. **The Drop** keeps the drop off the front of the
+pillar over the pool, and adds a stair of planks down its east side that cannot
+put you in the water and leaves a long putt back. The stair is a stair rather
+than a sloped chute for a reason worth knowing: a rail is a level box as tall
+as the highest ground it guards, so the sides of a chute falling two units are
+one blank wall the height of the pillar. **The Cannon**'s green runs off to the
+right with the pin under a curved rail at its far end, so the ramp only gets
+you over, and a putter-wide plank across the gap is the other way.
+
 Tidewater and Highland are why the bag has more than two clubs. Every hole on
 Tidewater is built round the one thing a chip can do that a putt cannot —
-leave the ground — and each asks for it differently: **Stepping Stones** is
-two carries onto islands whose kerbs the driver cannot clear; **Short Side**
-puts sand across the front, a kerb on the green and two metres of room behind
-the pin; **The Letterbox** is four walls and no door; **Tabletop** puts the
-green a metre up with nothing to run up, which is a shot only the wedge owns;
-**The Reach** goes out to a rock off to the right and back across the water into
-a crater that gathers whatever lands in it. And then
+leave the ground — and each asks for it differently, with a safe target and a
+short one: **Stepping Stones** is two carries, by a big stone out east or a
+little one on the line; **Short Side** tucks the pin behind sand on the near
+right with the fat of the green open on the left; **The Letterbox** is four
+walls and no door at the end of a lane that turns, so you walk it round and
+chip in or post it from the tee over the bay; **Tabletop** puts the green a
+metre up, off to the right of an apron that runs under it, with every edge a
+brink; **The Reach** goes out to a rock off to the right and back across the
+water into a crater that gathers whatever lands in it. And then
 **Under the Boardwalk**, which is the joke at the course's expense: a bar too
-tall to fly, standing high enough off the ground that a putt runs under it. The
-club that has answered every other hole is suddenly the wrong one; land it
-short of the bar and let it run.
+tall to fly across the top of a dogleg, standing high enough off the ground
+that a putt runs under it. The club that has answered every other hole is
+suddenly the wrong one; pitch the corner, land it short of the bar and let it
+run.
 
 Highland turns the same screw with ground instead of water. **Stairway** is
-three steps with no ramp — a wall you cannot climb is a wall you have to hop.
-**Over the Top** is a wall nothing goes round and one club goes over.
-**Crown** runs a ramp up to a shoulder that stops short of the summit, and the
-last step up is yours to fly. The other three keep a flat answer on purpose,
-because a course where every shot is the same shot is not varied, it is
-uniform: **The Backboard** bricks up the front door and leaves a bank to throw
-the ball at, **Two Roads** offers a long low road under a beam or a short high
-one you have to chip onto first, and **The Gorge** will let you lay up at the
-lip and blast it across for the price of a stroke.
+four flights with no ramp that climb round a pool — east, north, west — with
+the pin on the top landing right over the tee: a chip per riser, a corner cut,
+or one lob up two steps at once. **Over the Top** is a wall nothing goes round
+and one club goes over, and it runs across the lane at a slant, so over the
+near end by the pin is short and over the far end is safe. **Crown** runs a
+ramp up to a shoulder that stops short of the summit, and the last step up is
+yours to fly. The other three keep a flat answer on purpose, because a course
+where every shot is the same shot is not varied, it is uniform: **The
+Backboard** bricks up the front door and puts a curved bank — a `channel` half
+round the back of the cup — that hands a ball sent past either end of the wall
+back towards the pin; **Two Roads** is a long low road up the west under a beam
+or a high shelf up the east you chip onto, with a burn between them; and **The
+Gorge** is narrow on the left and wide on the right, under the pin, so you can
+carry the narrow side and putt across or fly the whole width at the flag.
+
+Until v1.82.0 fourteen of those eighteen holes were a lane pointed straight at
+the flag with one thing across it, three of Tidewater's were seven units long
+and a single pitch, and the bot aced Under the Boardwalk, a par 4, off the tee
+— which is what [The order the holes are in](#the-order-the-holes-are-in) means
+by a lane with an X in the middle.
 
 Which holes are which is not a matter of taste in the tests: the ones that must
 be flown carry `needsLoft: true` and are replayed by the bot with the lofted
@@ -2228,6 +2255,18 @@ single-sided wall seen from behind is not a wall, it is a hole with the
 surround showing through it. Two units of ravine came out as a mauve gash
 round the rim. `R.surf.side` is double-sided now, which costs nothing anywhere
 else: the back of a skirt is only ever visible from inside a hole in the world.
+
+**A canyon that bends** (`gully`, v1.83.0) cannot be built this way, because a
+sheer wall is the straight edge of a pad. So it is carved into the ground
+instead: two chains of hollows down a bent line, a narrow deep one whose steep
+side is the near wall (about 64°) and a wide shallow one further across whose
+long side is the bank. The asymmetry survives — the bot drives First Cut
+exactly as it did the cut version, and from the floor it wedges out and is a
+shot down — and `carve(…, { rock: true })` has the renderer draw any face
+steeper than about 44° as bare rock in the skirt colour, with no grass on it,
+which is what makes a dip in the scrub read as a canyon. A carved canyon runs
+off both edges of the ground, so unlike a cut one it has no way round it and
+the stakes can stand back.
 
 **What the suite grew when the ground did.** Four assertions arrived with the
 height, and three of the four caught something the same afternoon they were
