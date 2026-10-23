@@ -157,7 +157,15 @@
             format: THREE.RGBAFormat,
             type: FX.type,
             depthBuffer: !!multisample,
-            stencilBuffer: false
+            /* Not for the stencil: for the depth. three.js r128 gives a
+               target with depth and no stencil DEPTH_COMPONENT16, and at a
+               near plane of 0.1 sixteen bits cannot tell two surfaces apart
+               under about half a unit at sixty units out — so from the
+               overview a pond in a hollow (courses.pond) came back as its
+               bounding box, the water winning against ground a quarter of a
+               unit above it. Asking for a stencil is what gets the 24-bit
+               depth the canvas itself already had (DEPTH24_STENCIL8). */
+            stencilBuffer: !!multisample
         };
         var rt = (multisample && FX.multisample)
             ? new THREE.WebGLMultisampleRenderTarget(w, h, opts)

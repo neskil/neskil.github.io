@@ -35,8 +35,8 @@ to be worked out again.
   concepts (this one) are the better spend than a fifth pass over the same
   four.
 - Still open from before: lighting setups on Challenge (neon only has
-  `clear`), and the naturalising of the older long courses (partial work in
-  `.claude/worktrees/agent-*`, uncommitted).
+  `clear`), and the naturalising of the older long courses — Ashdown is done
+  (v1.78.0, §0 → "Where round two stands"), the other three are not.
 
 ## 0. The course rehaul — approved, in progress
 
@@ -182,12 +182,45 @@ The tools for it:
   is the expensive part (1-unit terrain under 4–6 grass layers). Wider margins
   are fine in moderation; keep total ground area within about +40%.
 
-**Where round two stands (v1.72.0).** Done: `pond`, `forest`, and Ashdown's
-*Over the Water* as the worked example. The four per-course agents were
-stopped part-way on the owner's word (they ate the usage limit): their
-uncommitted work is in `.claude/worktrees/agent-*` — Ashdown had Opening Drive
-and Long Meadow done (a 9×9 pond, a 15-stone wall, 52 trees). Next time, one
-course at a time, by hand or by a single agent.
+**Where round two stands (v1.78.0).** Done: `pond`, `forest`, and **all of
+Ashdown Park**. Every box of water on it is a hollow now — Opening Drive's burn
+(`burn`), Long Meadow's and The Elbow's ponds (`mere`), Homeward's lake as
+three pools stepping down the fall — every straight treeline is a ragged strip
+(`forest` with a narrow oval), and the stakes stand six units back
+(`widen`) behind a wood on each side. The bot's card is unchanged (−13) and
+every par 4 and 5 still leaves a second shot. The four per-course agents of
+v1.72.0 were stopped part-way and their worktrees were never committed; that
+work is not coming back and this pass did not need it.
+
+What Ashdown taught, for Whinstone, Dunmore and Redstone:
+- **A pond wants many small lobes, not a few big ones.** Three to six hollows
+  of 2–4 units come out as that many circles with waists between them; `mere`
+  packs a dozen-plus at 0.75 of a radius apart and the shoreline is one curve.
+  Its `depth` is what the middle comes to.
+- **On a fall, depth is what buys water.** The level is the lowest ground
+  round the lobes *and* round the box (the box's downhill corner is lower than
+  any rim — that was the audit's `water-spills`), so a hollow on a slope only
+  fills its bottom. Homeward's pools needed 3.4–3.6 of depth to come out five
+  units wide on a 0.055 cross-fall plus the rows' own 0.09.
+- **One sheet of water cannot lie on ground that drops two units along it**:
+  that is why Homeward's lake was five boxes in a staircase, and it is a chain
+  of pools now for the same reason.
+- **Keep a hollow's whole radius off fairway cells**, not just its water —
+  the tails are what tip a fairway past `HOLD`. A `mere`'s hollows reach about
+  0.87·rx + 0.72·min(rx, rz) from its middle.
+- **Trees cost about four meshes each.** Ashdown went from 14–21 trees a hole
+  to 19–42, which is +10–15% meshes and +5–14% triangles (Homeward, the
+  heaviest, is 206k). Forty a hole is about the budget.
+- **The renderer's depth buffer was 16-bit** whenever post-processing was on
+  (three.js r128 gives a render target with no stencil DEPTH_COMPONENT16), so
+  from the overview a pond in a hollow came back as its bounding box. Fixed in
+  `postfx.js`; if a far view ever shows something drawn through the ground,
+  that is the first place to look.
+
+Next: one course at a time. Whinstone is a links and Redstone a canyon, so
+`forest` is the wrong tool on both — what they get is the water (`mere`,
+`burn`) and outlines that are not rectangles. Dunmore is a moor and can take
+a few strips of scrub wood.
 
 ### Mini golf
 

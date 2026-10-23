@@ -1288,10 +1288,96 @@
             minZ = Math.min(minZ, L[1] - L[2]); maxZ = Math.max(maxZ, L[1] + L[2]);
             return hill(L[0], L[1], L[2], -L[3]);
         });
-        shape(pads.filter(function (p) { return !p.inlay; }), bumps);
+        /* …and round the edge of the box, which is what is drawn. On ground
+           with a fall across it the box's downhill corner stands lower than
+           any point on any rim, and a level set off the rims alone is water
+           laid over the grass in that corner (audit → water-spills). */
+        for (k = 0; k <= 40; k++) {
+            a = k / 40;
+            [[minX + (maxX - minX) * a, minZ], [minX + (maxX - minX) * a, maxZ],
+             [minX, minZ + (maxZ - minZ) * a], [maxX, minZ + (maxZ - minZ) * a]].forEach(function (q) {
+                h = ground(q[0], q[1]);
+                if (h > -Infinity && h < lo) lo = h;
+            });
+        }
+        /* Each pad is handed only the hollows that reach it. A hollow is
+           exactly zero past its own radius, so the ground is the same either
+           way; a pad merely stops summing forty lobes of a lake a hundred
+           units away every time the ball asks it how high it is. */
+        pads.forEach(function (p) {
+            if (p.inlay) return;
+            var near = bumps.filter(function (b) {
+                return b.cx + b.r > p.x && b.cx - b.r < p.x + p.w &&
+                       b.cz + b.r > p.z && b.cz - b.r < p.z + p.d;
+            });
+            if (near.length) shape([p], near);
+        });
         var w = rect(minX, minZ, maxX - minX, maxZ - minZ, lo - (o.freeboard === undefined ? 0.08 : o.freeboard));
         w.dip = true;
         return w;
+    }
+
+    /* A burn: `pond`'s lobes strung along a line, which is what PLAN.md
+       always said a burn was and what every hole wrote out by hand. Each
+       lobe is nudged off the line and sized from the seed, so the water
+       wanders a little and its banks are never parallel — a straight burn
+       of equal circles is a string of beads, and that is the box again.
+       `pts` is the course of it, [x, z] each; the lobes go `r` at most
+       ~0.7 of a radius apart so the water never pinches shut between two. */
+    function burn(pts, r, depth, seed) {
+        var rnd = seeded(seed || 1), out = [], i, k, a, b, len, n, f, nx, nz, s;
+        for (i = 0; i + 1 < pts.length; i++) {
+            a = pts[i]; b = pts[i + 1];
+            len = Math.hypot(b[0] - a[0], b[1] - a[1]);
+            n = Math.max(1, Math.ceil(len / (r * 0.7)));
+            nx = -(b[1] - a[1]) / len; nz = (b[0] - a[0]) / len;
+            for (k = i ? 1 : 0; k <= n; k++) {
+                f = k / n; s = (rnd() - 0.5) * 0.5 * r;
+                out.push([a[0] + (b[0] - a[0]) * f + nx * s, a[1] + (b[1] - a[1]) * f + nz * s,
+                          r * (0.8 + rnd() * 0.35), depth * (0.85 + rnd() * 0.3)]);
+            }
+        }
+        return out;
+    }
+
+    /* A mere: one body of water's worth of lobes, for `pond`. A handful of
+       big hollows always comes out as a handful of circles — the shoreline
+       of each is its own, and where two meet there is a waist — so this
+       packs a lot of small ones, overlapping by most of their width, inside
+       an outline that wobbles round the ellipse (rx, rz) on two seeded
+       harmonics. They add, so `depth` is what the middle comes to rather
+       than what one lobe is worth, and the shore is the outline give or
+       take half a lobe, curved everywhere and different on every side. */
+    function mere(cx, cz, rx, rz, depth, seed) {
+        var rnd = seeded(seed || 1), out = [], x, z, u, v, t, edge;
+        var r = Math.min(rx, rz) * 0.6, step = r * 0.75;
+        var p2 = rnd() * 6.283, p3 = rnd() * 6.283, w2 = 0.12 + rnd() * 0.12, w3 = 0.06 + rnd() * 0.1;
+        for (z = -rz; z <= rz + 1e-9; z += step) {
+            for (x = -rx; x <= rx + 1e-9; x += step) {
+                u = x + (rnd() - 0.5) * step * 0.7;
+                v = z + (rnd() - 0.5) * step * 0.7;
+                t = Math.atan2(v / rz, u / rx);
+                edge = 1 + w2 * Math.sin(2 * t + p2) + w3 * Math.sin(3 * t + p3);
+                if (Math.hypot(u / rx, v / rz) > edge - 0.3) continue;
+                out.push([cx + u, cz + v, r * (0.8 + rnd() * 0.4), depth * 0.3 * (0.8 + rnd() * 0.4)]);
+            }
+        }
+        return out;
+    }
+
+    /* Room round a pond's lobes, as `forest` clearings: a wood planted
+       across a hollow puts trunks in the water. */
+    function clearOf(lobes, pad) {
+        return lobes.map(function (L) { return keep(L[0], L[1], L[2] + (pad || 0.8)); });
+    }
+
+    /* The stakes moved out to where the wood ends. Round two of the long game
+       (PLAN.md §0): the line of play stays where it was and the boundary
+       goes `w` further out on the west and `e` on the east, so what a sliced
+       drive meets first is trees rather than a white post — not out, just
+       among trunks, and the shot out is the penalty. */
+    function widen(fence, w, e) {
+        return { x: fence.x - w, z: fence.z, w: fence.w + w + e, d: fence.d };
     }
 
     function rect(x, z, w, d, y) { return { x: x, z: z, w: w, d: d, y: y === undefined ? -0.6 : y }; }
@@ -2950,6 +3036,13 @@
        both what a real boundary is and, incidentally, the thing that made
        these holes harder without a single hazard being moved.
 
+       And the stakes are six units further out than that (`widen`), behind a
+       wood on each side (`forest`): what a sliced drive meets first on a park
+       is trees, and the shot out from among them is the penalty. The old
+       ruler-straight treelines are ragged strips of the same trees, and every
+       piece of water is a hollow with a shoreline (`burn`, `mere`) where it
+       used to be a box.
+
        ── the park is on a hill ──
 
        The first pass at this course was flat, and flat is what a floor plan
@@ -3003,15 +3096,19 @@
                 [{ d: 6, sz: -0.15 },   [3.5, rgh], [8, fwy], [9.5, rgh]],
                 [13,                    [3.5, rgh], [8, fwy], [9.5, rgh]],
                 [6,                     [4.5, rgh], [9, fwy], [7.5, rgh]],
-                [1,                     [21, rgh]],
-                [7,                     [21, null]],
-                [1,                     [21, rgh]],
+                [9,                     [21, rgh]],
                 [6,                     [5, rgh], [10, fwy], [6, rgh]],
                 [{ d: 6, sz: 0.3 },     [6, rgh], [10, fwy], [5, rgh]],
                 [12,                    [6, rgh], [10, fwy], [5, rgh]],
                 [4,                     [21, rgh]]
             ]);
             var ground = shape(scoop(park.pads, { seed: 21 }), field);
+            /* The burn runs the width of the park in a hollow of its own,
+               wandering a unit either way, where it used to be a slot cut out
+               of the ground with a sheet of water at the bottom of it. */
+            var lobes = burn([[-8.5, 37.8], [2, 36.9], [9, 38.2], [16, 37.1], [29.5, 37.9]], 2.2, 1.1, 5101);
+            var lake = pond(ground, lobes);
+            var wet = clearOf(lobes);
             return build({
                 name: 'Opening Drive', par: 4, long: true, shaped: true, open: true,
                 blurb: 'Off the bluff and over the crest — but stop it short of the burn. Then carry it up to the shelf.',
@@ -3019,11 +3116,13 @@
                     inlay(ground, 7, 55.5, 1.8, snd, 1.4),
                     inlay(ground, 11, 61, 4.6, grn, 4.0)
                 ]),
-                fence: park.fence,
-                water: [rect(0, 34, 21, 7, 0.45)],
+                fence: widen(park.fence, 6, 6),
+                water: [lake],
                 extra: [].concat(
-                    treeline(1.7, 14, 1.7, 30, 6),
-                    treeline(19.5, 16, 19.5, 31, 5),
+                    forest(1.6, 22, 0.9, 8.5, 6, 5103, { gap: 2.2 }),
+                    forest(19.6, 23.5, 0.9, 7.5, 5, 5107, { gap: 2.2 }),
+                    forest(-3, 38, 2.4, 25, 12, 5109, { gap: 2.4, clear: wet.concat([keep(-2, 10, 5)]) }),
+                    forest(24, 40, 2.4, 25, 12, 5113, { gap: 2.4, clear: wet.concat([keep(21.5, 10, 2)]) }),
                     crags(-2, 10, 3.5, 6, 7101, { s: 1.4, h: 1.1 }),
                     [tree(1.6, 3), tree(2.4, 67), tree(19, 67)]
                 ),
@@ -3062,10 +3161,15 @@
                 [{ d: 8, sz: 0.2 },     [6, rgh], [11, fwy], [5, rgh]],
                 [12,                    [6, rgh], [11, fwy], [5, rgh]],
                 [5,                     [5, rgh], [12, fwy], [5, rgh]],
-                [10,                    [1, rgh], [3.5, null], [1.5, rgh], [11, fwy], [5, rgh]],
+                [10,                    [6, rgh], [11, fwy], [5, rgh]],
                 [3,                     [22, rgh]]
             ], { e: 18 });
             var ground = shape(scoop(park.pads, { seed: 25 }), field);
+            // The pond off the green's left shoulder, reaching out into the
+            // park rather than stopping at the property line in a straight edge.
+            var lobes = mere(-0.6, 76.6, 4.4, 3.6, 2.0, 5215);
+            var lake = pond(ground, lobes);
+            var wet = clearOf(lobes);
             return build({
                 name: 'Long Meadow', par: 5, long: true, shaped: true, open: true,
                 blurb: 'A belt of sand where the drive comes down. Lay up short of it, carry it with the second, and keep left of the pond.',
@@ -3079,14 +3183,16 @@
                     inlay(ground, 15.5, 60, 1.8, snd, 2.2),
                     inlay(ground, 11.5, 77, 5.0, grn, 4.0)
                 ]),
-                fence: park.fence,
-                water: [rect(1, 72, 3.5, 10, 1.65)],
+                fence: widen(park.fence, 6, 6),
+                water: [lake],
                 extra: [].concat(
-                    treeline(2, 9, 2, 26, 5),
-                    treeline(20.3, 12, 20.3, 26, 4),
-                    treeline(20.3, 43, 20.3, 52, 3),
+                    forest(2, 17.5, 0.9, 8.5, 5, 5201, { gap: 2.2 }),
+                    forest(20.3, 19, 0.8, 7, 4, 5203, { gap: 2.2 }),
+                    forest(20.3, 47.5, 0.8, 4.5, 3, 5207, { gap: 2.2 }),
                     crags(1.5, 5, 2.4, 4, 7107, { s: 1.2, h: 0.9 }),
-                    treeline(1.5, 46, 1.5, 66, 4),
+                    forest(1.6, 59, 0.9, 7, 4, 5209, { gap: 2.2, clear: wet }),
+                    forest(-3, 42, 2.4, 30, 12, 5211, { gap: 2.4, clear: wet.concat([keep(1.5, 5, 4)]) }),
+                    forest(25, 45, 2.4, 30, 12, 5213, { gap: 2.4 }),
                     [tree(3, 84), tree(19.5, 84)]
                 ),
                 tee: { x: 8.5, z: 2.5 }, cup: { x: 11.5, z: 77 }
@@ -3114,7 +3220,7 @@
                 [5,                     [20, rgh], [9, fwy], [5, rgh]],
                 [{ d: 4, sz: -0.65 },   [34, rgh]],
                 [9.5,                   [19, rgh], [11, fwy], [4, rgh]],
-                [14.5,                  [3, rgh], [12, null], [4, rgh], [11, fwy], [4, rgh]],
+                [14.5,                  [19, rgh], [11, fwy], [4, rgh]],
                 [4,                     [19, rgh], [11, fwy], [4, rgh]],
                 [7,                     [3, rgh], [27, fwy], [4, rgh]],
                 [{ d: 3, sz: 0.25 },    [3, rgh], [12, fwy], [19, rgh]],
@@ -3122,6 +3228,10 @@
                 [4,                     [34, rgh]]
             ]);
             var ground = shape(scoop(park.pads, { seed: 27 }), field);
+            // The pond inside the corner, its long side under the oaks.
+            var lobes = mere(8.6, 25.8, 4.8, 6.6, 2.0, 5321);
+            var lake = pond(ground, lobes);
+            var wet = clearOf(lobes);
             return build({
                 name: 'The Elbow', par: 4, long: true, shaped: true, open: true,
                 blurb: 'Off the bluff and hard left at the top. Go round the corner, or over the oaks and the pond inside it.',
@@ -3130,13 +3240,15 @@
                     inlay(ground, 15, 51.5, 1.4, snd, 1.6),
                     inlay(ground, 9, 51.5, 4.4, grn, 3.6)
                 ]),
-                fence: park.fence,
-                water: [rect(3, 18.5, 12, 14.5, 0.25)],
+                fence: widen(park.fence, 6, 6),
+                water: [lake],
                 extra: [].concat(
                     [tree(17.5, 34.5, { t: 0.9, h: 3 })],
-                    treeline(17, 15, 17.4, 32.5, 8),
-                    treeline(1.5, 36, 1.5, 56, 5),
-                    treeline(32.6, 10, 32.6, 44, 7),
+                    forest(17.2, 23.8, 0.7, 8.6, 8, 5301, { gap: 1.9, clear: wet }),
+                    forest(1.5, 46, 0.9, 9.5, 5, 5303, { gap: 2.2 }),
+                    forest(32.6, 27, 0.8, 16, 7, 5307, { gap: 2.2 }),
+                    forest(-3, 38, 2.4, 20, 10, 5309, { gap: 2.4, clear: wet }),
+                    forest(37, 26, 2.4, 26, 10, 5311, { gap: 2.4, clear: [keep(30, 50, 4)] }),
                     crags(30, 50, 3, 5, 7113, { s: 1.3, h: 1.0 })
                 ),
                 tee: { x: 24.5, z: -3.5 }, cup: { x: 9, z: 51.5 }
@@ -3177,10 +3289,12 @@
                     inlay(ground, 14, 21.8, 1.6, snd, 2.5),
                     circle(7.5, 20.5, 3.6, grn, 1.98)
                 ]),
-                fence: park.fence,
+                fence: widen(park.fence, 5, 5),
                 water: [lake],
                 extra: [].concat(
-                    treeline(16.6, 4, 16.6, 16, 4),
+                    forest(16.6, 10, 0.7, 6, 4, 5401, { gap: 2.2 }),
+                    forest(-3, 16, 2, 10, 7, 5403, { gap: 2.4, clear: [keep(-5, 18, 4.5)] }),
+                    forest(21.5, 15, 2, 11, 7, 5407, { gap: 2.4 }),
                     crags(-5, 18, 3.5, 5, 7119, { s: 1.4, h: 1.1 }),
                     [tree(1.2, 3)]
                 ),
@@ -3212,10 +3326,12 @@
                 name: 'The Dell', par: 3, long: true, shaped: true, open: true,
                 blurb: 'Blind, off a bluff into a dell between two hills. The top of the flag is all you get.',
                 pads: shape(park.pads, field).concat([circle(10, 21, 3.0, grn, 0.56)]),
-                fence: park.fence,
+                fence: widen(park.fence, 5, 5),
                 extra: [].concat(
-                    treeline(1.4, 9, 1.4, 26, 5),
-                    treeline(18.6, 9, 18.6, 26, 5),
+                    forest(1.4, 17.5, 0.7, 8.5, 5, 5501, { gap: 2.2, clear: [keep(1.2, 15, 3.6)] }),
+                    forest(18.6, 17.5, 0.7, 8.5, 5, 5503, { gap: 2.2, clear: [keep(18.8, 22, 3.6)] }),
+                    forest(-2.5, 18, 2, 10, 7, 5507, { gap: 2.4, clear: [keep(1.2, 15, 4.6)] }),
+                    forest(22.5, 18, 2, 10, 7, 5509, { gap: 2.4, clear: [keep(18.8, 22, 4.4)] }),
                     crags(1.2, 15, 3, 5, 7127, { s: 1.3, h: 1.0 }),
                     crags(18.8, 22, 3, 4, 7131, { s: 1.2, h: 0.95 })
                 ),
@@ -3251,39 +3367,44 @@
             var park = commons(-6, [
                 [{ d: 6, y: 1.6 },      [4, rgh], [9, fwy], [9, rgh]],
                 [5,                     [4, rgh], [9, fwy], [9, rgh]],
-                [{ d: 4, sz: -0.09 },   [4, rgh], [9, fwy], [3, rgh], [6, null]],
-                [{ d: 4, sz: -0.09 },   [4, rgh], [8, fwy], [2, rgh], [8, null]],
-                [{ d: 4, sz: -0.09 },   [4, rgh], [7, fwy], [2, rgh], [9, null]],
-                [{ d: 4, sz: -0.09 },   [4, rgh], [6, fwy], [2, rgh], [10, null]],
-                [{ d: 4, sz: -0.09 },   [4, rgh], [7, fwy], [2, rgh], [9, null]],
+                [{ d: 4, sz: -0.09 },   [4, rgh], [9, fwy], [9, rgh]],
+                [{ d: 4, sz: -0.09 },   [4, rgh], [8, fwy], [10, rgh]],
+                [{ d: 4, sz: -0.09 },   [4, rgh], [7, fwy], [11, rgh]],
+                [{ d: 4, sz: -0.09 },   [4, rgh], [6, fwy], [12, rgh]],
+                [{ d: 4, sz: -0.09 },   [4, rgh], [7, fwy], [11, rgh]],
                 [4,  [5, rgh], [10, fwy], [7, rgh]],
                 [10, [5, rgh], [11, fwy], [6, rgh]],
                 [{ d: 4, sz: 0.15 }, [6, rgh], [11, fwy], [5, rgh]],
                 [9,  [5, rgh], [12, fwy], [5, rgh]],
                 [5,  [22, rgh]]
             ], { e: 5, w: 24 });
+            /* The lake is three pools stepping down the fall, each in its own
+               hollow and at its own level — one sheet of water cannot lie on
+               ground that drops two units along it, which is why it used to
+               be five boxes in a staircase. Every pool stays a unit or more
+               off the mown line, so the shoreline is in the rough. */
+            var ground = shape(tilt(scoop(park.pads, { seed: 29 }), -0.055, 0, 22, 0), field);
+            var pools = [
+                mere(19.0, 8.0, 4.4, 2.4, 3.4, 5611),
+                mere(17.8, 15.6, 4.6, 2.4, 3.6, 5613),
+                mere(18.4, 22.9, 4.4, 2.4, 3.6, 5617)
+            ];
+            var lakes = pools.map(function (L) { return pond(ground, L); });
             return build({
                 name: 'Homeward', par: 4, long: true, shaped: true, open: true,
-                blurb: 'The lake cuts across the hole and the ground falls into it. Bite off what you dare.',
-                pads: (function (g) {
-                    return g.concat([
-                        inlay(g, 6.4, 45.6, 1.3, snd, 1.4),
-                        inlay(g, 18.9, 50.5, 1.2, snd, 1.5),
-                        inlay(g, 12.5, 48, 4.8, grn, 3.6)
-                    ]);
-                }(shape(tilt(scoop(park.pads, { seed: 29 }), -0.055, 0, 22, 0), field))),
-                fence: park.fence,
-                water: [
-                    rect(16, 5, 6, 4, -0.55),
-                    rect(14, 9, 8, 4, -0.7),
-                    rect(13, 13, 9, 4, -0.85),
-                    rect(12, 17, 10, 4, -1.0),
-                    rect(13, 21, 9, 4, -1.1)
-                ],
+                blurb: 'Three pools step down the right and the ground falls into them. Bite off what you dare.',
+                pads: ground.concat([
+                    inlay(ground, 6.4, 45.6, 1.3, snd, 1.4),
+                    inlay(ground, 18.9, 50.5, 1.2, snd, 1.5),
+                    inlay(ground, 12.5, 48, 4.8, grn, 3.6)
+                ]),
+                fence: widen(park.fence, 6, 3),
+                water: lakes,
                 extra: [].concat(
-                    treeline(2, 8, 2, 40, 9),
+                    forest(2, 24, 0.9, 16, 9, 5601, { gap: 2.2 }),
+                    forest(-3, 26, 2.4, 24, 11, 5603, { gap: 2.4, clear: [keep(1.4, 46, 4)] }),
                     crags(1.4, 46, 3, 5, 7137, { s: 1.3, h: 1.0 }),
-                    [tree(21.4, 45.5), tree(21.4, 53.5)]
+                    [tree(21.4, 45.5), tree(21.4, 53.5), tree(23.6, 30.5), tree(24.2, 36)]
                 ),
                 tee: { x: 8.5, z: -3.5 }, cup: { x: 12.5, z: 48 }
             });
@@ -6738,7 +6859,7 @@
         aperture: aperture, flipper: flipper,
         tree: tree, treeline: treeline, forest: forest, crag: crag, crags: crags,
         decor: decor, buoy: buoy, piling: piling, bench: bench, boat: boat, bin: bin,
-        hill: hill, ring: ring, pond: pond, ridge: ridge, whorl: whorl, ravine: ravine,
+        hill: hill, ring: ring, pond: pond, burn: burn, mere: mere, clearOf: clearOf, widen: widen, ridge: ridge, whorl: whorl, ravine: ravine,
         shape: shape, dunes: dunes, ground: ground, circle: circle, inlay: inlay, dress: dress,
         keep: keep,
         shapeDisc: shapeDisc,

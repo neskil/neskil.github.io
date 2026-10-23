@@ -1353,7 +1353,7 @@ no longer drives any green on the course: `tools/par-check.mjs` measures it.
 | 3 | The Elbow | 4 | A real dogleg: north off the east bluff, then hard left along the top to a green on a shelf. The inside of the corner is a pond behind a line of oaks — go round, or take on as much of it as you dare. | |
 | 4 | Over the Water | 3 | Four units above eight units of pond, and a full iron over it to a round green on a shelf. Or the dry tongue down the right and a longer putt. | |
 | 5 | The Dell | 3 | Blind, off a bluff into a dell between two hills, with a ring of mounds round the green and the top of the flag all you get. | The Dell, Lahinch 5 |
-| 6 | Homeward | 4 | The lake cuts diagonally across the tee shot, the whole park tilts into it, and the approach climbs to a green tucked right above the head of it. Bite off as much as you dare. | Cape |
+| 6 | Homeward | 4 | Three pools step down the right of the tee shot, the whole park tilts into them, and the approach climbs to a green tucked right above the head of them. Bite off as much as you dare. | Cape |
 
 The card climbs (see [The order the holes are in](#the-order-the-holes-are-in)):
 an opener whose only carry is the second shot, then a par 5 that is a grind
@@ -1898,6 +1898,18 @@ fault everywhere else.
 - **water** — a rectangle with a surface height. There is no pad above it, so
   the ball falls in: splash, one stroke, replay the shot from where it was
   played.
+- **pond / burn / mere** — water in a hollow rather than in a box, which is
+  how the long game stopped having rectangles of blue in it. `pond(ground,
+  lobes)` lays the lobes (`[x, z, r, depth]`) into the ground as hollows and
+  hands back the water, its level set under the lowest point of the ground
+  round both the lobes and the box it is drawn as — so on a fall the water
+  stops at the downhill rim instead of being laid over the grass beyond it.
+  Call it before the inlays, and keep a hollow's whole radius off fairway and
+  green: a fairway has to hold a ball everywhere. `burn(points, r, depth, seed)`
+  strings lobes along a line for a burn; `mere(cx, cz, rx, rz, depth, seed)`
+  packs a lake's worth inside a wobbling outline. A handful of big lobes always
+  comes out as a handful of circles, and many small overlapping ones is what
+  comes out as one shoreline.
 - **wall** — a box. `yaw` turns it, `move` slides it on a sine, `spin` rotates
   it. A `spinner` is a blade authored the way you think about it (middle,
   length, thickness); a `slider` is a gate.
@@ -2007,7 +2019,11 @@ fault everywhere else.
   hole on the card is built round.
 - **open / fence** — an open hole gets no generated rails at all, and a `fence`
   rectangle instead: the ball is out of bounds if it comes to *rest* outside
-  it. Marked on the ground with white stakes, which are scenery.
+  it. Marked on the ground with white stakes, which are scenery. On a
+  parkland the stakes stand back from the line of play (`widen(fence, w, e)`)
+  and a `forest` fills the room between: a seeded wood, trunks kept out of
+  `keep` clearings (`clearOf(lobes)` for a pond), so a sliced drive finishes
+  among trees rather than out of bounds.
 - **commons** — `bands` with the country round it, and how the two parkland
   courses stopped being bathtubs. It grows every row by a margin of rough on
   both ends and puts a flat apron before the first row and after the last, then
