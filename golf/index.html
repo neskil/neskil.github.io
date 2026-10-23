@@ -32,7 +32,7 @@
 
         gtag('config', 'G-9GP823TGLB');
     </script>
-    <link rel="stylesheet" href="style.css?v=1.11.0">
+    <link rel="stylesheet" href="style.css?v=1.12.0">
 <script type="application/ld+json">
     {
         "@context": "https://schema.org",
@@ -87,7 +87,7 @@
             <a class="home-link" href="../index.html" title="Back to home" aria-label="Back to home">&#8592;</a>
             <div class="brand">
                 <h1 class="title">Pocket <span>Links</span></h1>
-                <p class="tagline">Five courses, or one dealt on the spot. No caddie.</p>
+                <p class="tagline">Five courses, or one dealt on the spot. Caddie optional.</p>
             </div>
             <div class="topbar-actions">
                 <button class="chip" id="btn-full" title="Fullscreen (F)" aria-label="Fullscreen"><span id="full-icon">⛶</span><span class="chip-text">Full</span></button>
@@ -101,6 +101,11 @@
                     <button class="chip" id="btn-courses" title="Pick a course (C)">&#9971;<span class="chip-text">Courses</span></button>
                     <button class="chip" id="btn-restart" title="Restart this hole (R)">↻<span class="chip-text">Hole</span></button>
                     <button class="chip" id="btn-card" title="Scorecard">&#9636;<span class="chip-text">Card</span></button>
+                    <!-- The caddie: js/bot.js, the planner the suite proves
+                         every hole with, playing on — hole after hole, course
+                         after course. A press or A starts it; a press or Esc
+                         takes the club back. -->
+                    <button class="chip" id="btn-sim" title="Let the caddie play on — hole after hole, course after course" aria-pressed="false">🤖<span class="chip-text">Autoplay</span></button>
                     <a class="chip" id="chip-editor" href="level-editor.html" title="Build a hole of your own">&#9998;<span class="chip-text">Editor</span></a>
                     <button class="chip" id="btn-mute" title="Sound (M)" aria-label="Mute"><span id="mute-icon">🔊</span><span class="chip-text">Sound</span></button>
                 </div>
@@ -195,7 +200,7 @@
                 (<kbd>shift</kbd> for fine control)</span>
             <span class="kb-help"><kbd>Esc</kbd> menu · <kbd>C</kbd> pick a course · <kbd>R</kbd> restart hole ·
                 <kbd>D</kbd> deal a random course · <kbd>G</kbd> generate a new one · <kbd>S</kbd> scenery ·
-                <kbd>F</kbd> fullscreen · <kbd>M</kbd> sound</span>
+                <kbd>A</kbd> autoplay · <kbd>F</kbd> fullscreen · <kbd>M</kbd> sound</span>
             <span class="touch-help">Drag from anywhere on the course — your finger never has to cover the ball.
                 Upright, the course turns to fill the screen.</span>
         </div>
@@ -309,8 +314,8 @@
 
     <!-- Load order is dependency order: config, then the pure logic, then the
          things that touch the screen. game.js boots itself on DOMContentLoaded. -->
-    <script src="js/config.js?v=1.11.0"></script>
-    <script src="js/courses.js?v=1.11.0"></script>
+    <script src="js/config.js?v=1.12.0"></script>
+    <script src="js/courses.js?v=1.12.0"></script>
     <script>
         /* Playtest hand-off from the hole editor. It writes one hole into
            session storage and sends the player here with ?playtest=1; swapping
@@ -344,21 +349,23 @@
             } catch (e) { /* storage disabled: fall through to the real course */ }
         })();
     </script>
-    <script src="js/physics.js?v=1.11.0"></script>
+    <script src="js/physics.js?v=1.12.0"></script>
+    <!-- The caddie. Pure like physics.js; game.js plays its answers. -->
+    <script src="js/bot.js?v=1.12.0"></script>
     <!-- Adds nothing to the rack by itself; game.js deals the draw on boot. -->
-    <script src="js/generator.js?v=1.11.0"></script>
-    <script src="js/scoring.js?v=1.11.0"></script>
+    <script src="js/generator.js?v=1.12.0"></script>
+    <script src="js/scoring.js?v=1.12.0"></script>
     <!-- Stars, unlocks and first-run lessons. Reads the save files; draws nothing. -->
-    <script src="js/progress.js?v=1.11.0"></script>
+    <script src="js/progress.js?v=1.12.0"></script>
     <!-- The biomes, and where the decoration goes. Draws nothing itself. -->
-    <script src="js/scenery.js?v=1.11.0"></script>
-    <script src="js/audio.js?v=1.11.0"></script>
+    <script src="js/scenery.js?v=1.12.0"></script>
+    <script src="js/audio.js?v=1.12.0"></script>
     <!-- Thumbnails for the course picker. Nothing on the board reads it. -->
-    <script src="js/plan.js?v=1.11.0"></script>
-    <script src="js/landscape.js?v=1.11.0"></script>
-    <script src="js/ambience.js?v=1.11.0"></script>
-    <script src="js/water.js?v=1.11.0"></script>
-    <script src="js/render.js?v=1.11.0"></script>
-    <script src="js/game.js?v=1.11.0"></script>
+    <script src="js/plan.js?v=1.12.0"></script>
+    <script src="js/landscape.js?v=1.12.0"></script>
+    <script src="js/ambience.js?v=1.12.0"></script>
+    <script src="js/water.js?v=1.12.0"></script>
+    <script src="js/render.js?v=1.12.0"></script>
+    <script src="js/game.js?v=1.12.0"></script>
 </body>
 </html>

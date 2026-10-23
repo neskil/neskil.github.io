@@ -21,6 +21,7 @@ same as everything else here, open `index.html` and it runs.
 | `js/courses.js` | Every hand-built course, as data. |
 | `js/generator.js` | Courses dealt from a seed. See [The draw](#the-draw). |
 | `js/physics.js` | The simulation. No DOM, no canvas, pure. |
+| `js/bot.js` | The caddie: plans a line to the cup over simulated shots. Pure. See [The caddie](#the-caddie-autoplay). |
 | `js/scoring.js` | Scorecard arithmetic, the pick-up, stars and the save file. |
 | `js/progress.js` | Which courses are open, and the lessons a first round teaches. See [Starting up](#starting-up-and-the-stars). |
 | `js/audio.js` | Synthesised sound effects and each biome's soundscape — no audio files to ship. |
@@ -240,6 +241,64 @@ costs nobody their round; leaving it for a solo course keeps it, and the title
 offers it back. The roster is remembered between parties, because the people
 round a phone on a Friday are usually the people round it the Friday after.
 
+## The caddie: autoplay
+
+🤖 **Autoplay**, in the bar (or <kbd>A</kbd>), hands the club to `js/bot.js`
+and it plays — from wherever your ball is standing, and then **on**: the next
+hole when this one drops, and the next open course down the rack when the card
+runs out. Press it again, or <kbd>Esc</kbd>, to take the club back. It is
+Loft Links' caddie brought across, and it behaves the same way: it stands over
+the ball, the arrow swings round to the line it chose, the ring winds up to the
+weight, and only then does it putt — through the same `takeShot` a released
+finger goes through, so what you watch is a shot the game played.
+
+**It plans whole lines, not single shots.** The bot in `tests.html` already
+knew why: greed has local minima, and a mini golf course is made of them. So
+each read of the hole is a search, a stroke-depth at a time, for the fewest
+strokes to the cup — the suite's search, with two things added so it fits in a
+frame rather than in a test run:
+
+- **A walking map.** A flood out from the cup over a 10px grid, round the
+  walls, posts and water and through tunnels for nothing, once per hole. It is
+  the ruler lies are ranked by, because straight-line distance is exactly the
+  wrong one on the holes that need a search: a ball the far side of a long
+  wall is inches from the cup and a whole leg away from it.
+- **A beam.** Every lie one stroke on is kept (one per 48px cell, twice for the
+  gates), but only the `BEAM` nearest on foot are searched on from. Without it
+  the second stroke alone is a hundred lies and the budget is spent before the
+  third is tried — which is the whole of Stepping Stones.
+
+Between them a read is a few hundred simulated shots and tens of milliseconds;
+the worst on the rack is under half a second, and it is said under a toast.
+
+**It never overswings.** Past `SAFE_POWER` the line is the dice's, and a plan
+the dice then move is not a plan. The safe zone already coasts further than the
+field is long, so there is no hole it cannot reach — the suite plays the whole
+dial because it asks a different question, whether a hole *can* be finished,
+not whether it can be finished on purpose.
+
+**The roll is stepped at `SIM_DT` while it has the club**, and the strike is
+checked before every step rather than once a frame. `advance` subdivides by
+speed, not to a clock, so a frame of any other length is a slightly different
+roll; fixed steps make the game's roll the plan's roll to the last bit. That
+is what lets it keep the line it found — it plays it a shot at a time and only
+reads the hole again when the ball is not where the plan said, or when there
+is no time left to address the next shot before the instant it was timed for
+(a gate that shoved the ball, a dialog held open, a splash). And it is what
+lets it time a gate: later shots are planned on the beat the game really keeps
+between them, `BOT_PAUSE + BOT_TURN + BOT_WIND + BOT_SLACK`, and struck on that
+instant to the step.
+
+**It costs you the session's records.** Once the caddie has had the club,
+nothing reaches the save file until the page is reloaded — no best, no stars,
+no doors opened, no round in progress — and the card says so. The course it
+walks onto keeps the round you left there, and the lessons and the first-tee
+ghost are kept for you. It is the whole sitting rather than the round because
+by the time a card is written there is no telling whose holes those were.
+Autoplay is for a round on your own: a party plays its own shots, and starting
+one takes the club back. In the editor's playtest it plays the one hole and
+hands the club back.
+
 ## The bar, and the picker behind it
 
 The bar used to be eight controls laid flat: a `<select>` of courses, a die,
@@ -248,9 +307,9 @@ end of the row, and on a laptop it was a wall of chrome standing between the
 player and the board. Three of the eight were about *which course*, which is
 a question big enough to have a page of its own.
 
-So it is six chips and a ⛶ now — the ★ menu is the newest — and on a compact
+So it is seven chips and a ⛶ now — 🤖 Autoplay is the newest — and on a compact
 screen — a phone, a coarse pointer, a short window, or fullscreen on anything —
-all six fold behind ☰. Fullscreen stays out there, because it is the one control worth
+all seven fold behind ☰. Fullscreen stays out there, because it is the one control worth
 reaching for with a shot half aimed. `compact-ui` on `<body>` is the switch;
 off it, `.topbar-menu` is `display: contents` and the chips are simply the row
 they always were, so nothing has to be undone.
