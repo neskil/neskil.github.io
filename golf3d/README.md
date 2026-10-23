@@ -2242,7 +2242,7 @@ surround showing through it. Two units of ravine came out as a mauve gash
 round the rim. `R.surf.side` is double-sided now, which costs nothing anywhere
 else: the back of a skirt is only ever visible from inside a hole in the world.
 
-**A canyon that bends** (`gully`, v1.82.0) cannot be built this way, because a
+**A canyon that bends** (`gully`, v1.83.0) cannot be built this way, because a
 sheer wall is the straight edge of a pad. So it is carved into the ground
 instead: two chains of hollows down a bent line, a narrow deep one whose steep
 side is the near wall (about 64°) and a wide shallow one further across whose

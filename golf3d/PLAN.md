@@ -228,7 +228,7 @@ What Ashdown taught, for Whinstone, Dunmore and Redstone:
   `postfx.js`; if a far view ever shows something drawn through the ground,
   that is the first place to look.
 
-**Curved canyons, started (v1.82.0).** The owner said go: First Cut's canyon
+**Curved canyons, started (v1.83.0).** The owner said go: First Cut's canyon
 is carved (`gully`) on a bent line, with bare rock on its steep near wall
 (`carve(…, { rock: true })`, render.js → `splitSteep`), it runs off both edges
 of the ground, and its stakes are five back. The bot's card and drive are the
