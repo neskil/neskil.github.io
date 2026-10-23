@@ -223,6 +223,27 @@
             g.fill();
         }
 
+        /* The loops, drawn the way they look from straight above: the track
+           seen edge-on is a band from one side of the circle to the other,
+           stepping across by its corkscrew as it goes. Drawn as its own
+           footprint so the plan says why the lane narrows to a mouth there. */
+        var ls = hole.loops || [], lp, F, t, th, fw, la;
+        for (q = 0; q < ls.length; q++) {
+            lp = ls[q];
+            F = P.loopFrame(lp);
+            g.strokeStyle = 'rgb(244,122,178)';
+            g.lineWidth = Math.max(1.5, 0.5 * scale);
+            g.beginPath();
+            for (t = 0; t <= 48; t++) {
+                th = t / 48 * Math.PI * 2;
+                fw = lp.R * Math.sin(th);
+                la = F.k * th;
+                if (t === 0) g.moveTo(toX(lp.x + F.fx * fw + F.lx * la), toY(lp.z + F.fz * fw + F.lz * la));
+                else g.lineTo(toX(lp.x + F.fx * fw + F.lx * la), toY(lp.z + F.fz * fw + F.lz * la));
+            }
+            g.stroke();
+        }
+
         // The tee, and the hole itself. Both are drawn at a size you can see
         // rather than at a size that is true: a 0.4-unit cup on a hole eighty
         // units long is a third of a pixel.

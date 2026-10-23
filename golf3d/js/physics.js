@@ -143,7 +143,10 @@
          warps   [{ x, z, r, tx, tz, yaw }]: a mouth of radius r at (x, z) that
                  puts the ball down at (tx, tz) travelling along `yaw` at the
                  speed it arrived with. One way, so a two-way pipe is written
-                 as two of them and a chute is written as one. */
+                 as two of them and a chute is written as one.
+
+         loops   [{ x, z, yaw, R, shift }]: a loop-the-loop whose foot is at
+                 (x, z), entered rolling along `yaw`. See "the loop" below. */
     /* A bump is a raised cosine of radius r and height a, measured from its
        *spine* — and the spine need not be a point. A hump (cx, cz) is the
        one every dune and hummock is; `line: [x0, z0, x1, z1]` lays the same
@@ -657,6 +660,183 @@
         events.warp = true;
     }
 
+    /* ── the loop ───────────────────────────────────────────────────────
+
+       A loop-the-loop, and the one piece of track in the game the ball rides
+       *on the inside of*. Everything else here is a height field — ground is a
+       y for every (x, z) — and a height field cannot have a ceiling, so the
+       loop is not ground at all: it is a track the ball is carried along, one
+       number at a time, the way a pipe is a mouth and an exit.
+
+       What makes it a ride rather than a teleport is that the number is
+       honest. The ball's place on the track is an angle θ round the loop
+       (0 at the foot, π at the top, 2π back at the foot) and its speed along
+       the track obeys the same three things a rolling ball obeys anywhere
+       else: gravity along the slope it is on, the boards' drag, and their
+       rolling resistance. So the speed at the top is what the speed at the
+       foot pays for, which is v² − 4gR less the friction, and that is the
+       whole of the skill.
+
+       And the track only holds the ball while the ball is pressing on it. Out
+       at angle θ the track has to supply v²/R of push towards the middle of
+       the loop and gravity supplies −g·cos θ of it; when v²/R + g·cos θ goes
+       negative the track would have to *pull*, it cannot, and the ball comes
+       off and falls — which is what a ball that only just reaches the top of
+       a loop really does. Too slow to reach a quarter of the way round and it
+       never gets that far: it runs back down and out of the mouth the way it
+       went in.
+
+       The loop is a corkscrew by `shift`, as every real one is: the track
+       steps sideways as it goes round so that the way out runs beside the way
+       in rather than through it. The speed is along the whole of that spiral,
+       so the arc length per radian is √(R² + (shift/2π)²) rather than R.
+
+       `R` is the radius of the path of the ball's middle. The track's own
+       surface is a ball's radius further out, which is what render.js draws. */
+    function loopFrame(L) {
+        var fx = Math.sin(L.yaw), fz = Math.cos(L.yaw);
+        var k = (L.shift || 0) / (2 * Math.PI);
+        return { fx: fx, fz: fz, lx: fz, lz: -fx, k: k, re: Math.sqrt(L.R * L.R + k * k) };
+    }
+
+    // Where on the loop θ is: the ball's middle, and the unit direction it is
+    // travelling when it moves forwards along the track.
+    function loopPoint(L, F, base, th, out) {
+        var s = Math.sin(th), c = Math.cos(th);
+        out.x = L.x + F.fx * L.R * s + F.lx * F.k * th;
+        out.z = L.z + F.fz * L.R * s + F.lz * F.k * th;
+        out.y = base + L.R * (1 - c);
+        out.tx = (F.fx * L.R * c + F.lx * F.k) / F.re;
+        out.tz = (F.fz * L.R * c + F.lz * F.k) / F.re;
+        out.ty = L.R * s / F.re;
+        return out;
+    }
+    var _lp = { x: 0, y: 0, z: 0, tx: 0, ty: 0, tz: 0 };
+
+    // The height of the ball's middle at the foot of a loop: one ball radius
+    // over whatever floor it stands on.
+    function loopBase(hole, L) {
+        var s = surfaceTop(hole, L.x, L.z);
+        return (s ? s.y : 0) + C.BALL_R;
+    }
+
+    /* Has a rolling ball just arrived in the mouth? It has to be on the floor,
+       inside the lane, at most LOOP_MOUTH past the foot, and going the right
+       way — a ball crossing the foot sideways or backwards has not entered a
+       loop, it has walked under one. */
+    function loopUnder(hole, world) {
+        var ls = hole.loops, b = world.ball, i, L, F, rx, rz, fwd, lat, along;
+        if (!ls || !world.grounded) return null;
+        for (i = 0; i < ls.length; i++) {
+            L = ls[i];
+            F = loopFrame(L);
+            rx = b.x - L.x; rz = b.z - L.z;
+            fwd = rx * F.fx + rz * F.fz;
+            if (fwd < 0 || fwd > C.LOOP_MOUTH) continue;
+            lat = rx * F.lx + rz * F.lz;
+            if (lat > C.LOOP_LANE || lat < -C.LOOP_LANE) continue;
+            /* Heading up the lane, within forty-five degrees of it. Anything
+               more across than that meets the kerbs of the track rather than
+               the track, and "more than zero" let a ball rolling dead across
+               the foot in with a speed up the lane of 1e-16. */
+            along = b.vx * F.fx + b.vz * F.fz;
+            if (along <= 0 || along * along < 0.5 * (b.vx * b.vx + b.vz * b.vz)) continue;
+            return { loop: L, frame: F, th: fwd / F.re, v: along, base: loopBase(hole, L) };
+        }
+        return null;
+    }
+
+    function takeLoop(world, events) {
+        var r = loopUnder(world.hole, world);
+        if (!r) return false;
+        world.ride = r;
+        world.grounded = false;
+        events.loop = true;
+        placeOnLoop(world);
+        return true;
+    }
+
+    function placeOnLoop(world) {
+        var r = world.ride, b = world.ball;
+        loopPoint(r.loop, r.frame, r.base, r.th, _lp);
+        b.x = _lp.x; b.y = _lp.y; b.z = _lp.z;
+        b.vx = _lp.tx * r.v; b.vy = _lp.ty * r.v; b.vz = _lp.tz * r.v;
+    }
+
+    // Off the loop and back on the floor at θ (0 or 2π), rolling along the
+    // loop's own line at speed v — forwards out of the far end, or backwards
+    // out of the mouth.
+    function leaveLoop(world, th, v) {
+        var r = world.ride, b = world.ball, F = r.frame;
+        loopPoint(r.loop, F, r.base, th, _lp);
+        b.x = _lp.x; b.z = _lp.z; b.y = r.base;
+        b.vx = F.fx * v; b.vz = F.fz * v; b.vy = 0;
+        world.ride = null;
+        world.grounded = true;
+        world.loopFor = C.LOOP_LOCK;
+    }
+
+    function rideLoop(world, dt, events) {
+        var r = world.ride, F = r.frame, L = r.loop;
+        var grav = gravityOf(world.hole);
+        // Gravity along the track: the climb per unit of track is R·sin θ / re.
+        r.v -= grav * L.R * Math.sin(r.th) / F.re * dt;
+        r.v *= Math.pow(frictionOf('wood'), dt);
+        var rr = rollOf('wood') * dt;
+        if (r.v > rr) r.v -= rr;
+        else if (r.v < -rr) r.v += rr;
+        else r.v = 0;
+        r.th += r.v * dt / F.re;
+
+        if (r.th >= 2 * Math.PI) {
+            leaveLoop(world, 2 * Math.PI, r.v);
+            events.loopRound = true;
+            return;
+        }
+        if (r.th <= 0) {
+            leaveLoop(world, 0, r.v);
+            return;
+        }
+        /* Is the track still pushing? The push it has to supply towards the
+           middle is the speed round the circle squared over R, less what
+           gravity already supplies; the circle's share of the speed is R/re
+           of it, the rest being the corkscrew's sideways drift. */
+        var vc = r.v * L.R / F.re;
+        if (vc * vc / L.R + grav * Math.cos(r.th) < 0) {
+            placeOnLoop(world);           // the velocity it leaves with
+            world.fall = { loop: L, frame: F, base: r.base };
+            world.ride = null;
+            world.grounded = false;
+            world.loopFor = C.LOOP_LOCK;
+            events.loopFell = true;
+            return;
+        }
+        placeOnLoop(world);
+    }
+
+    /* A ball that has come off the top is falling *inside* the loop, and the
+       track is all round it. So it is caught again the moment its middle is
+       a radius from the loop's middle: put back on the track at that angle,
+       with the part of its velocity that runs along the track and none of the
+       part that hit it. That is where a failed loop really goes — down onto
+       the far side and out — and without it the ball fell straight through
+       the boards. */
+    function catchOnLoop(world, events) {
+        var f = world.fall, L = f.loop, F = f.frame, b = world.ball;
+        var fwd = (b.x - L.x) * F.fx + (b.z - L.z) * F.fz;
+        var up = b.y - (f.base + L.R);
+        if (fwd * fwd + up * up < L.R * L.R) return false;
+        var th = Math.atan2(fwd, -up);
+        if (th < 0) th += 2 * Math.PI;
+        loopPoint(L, F, f.base, th, _lp);
+        world.ride = { loop: L, frame: F, th: th, base: f.base,
+            v: b.vx * _lp.tx + b.vy * _lp.ty + b.vz * _lp.tz };
+        world.fall = null;
+        events.bounce = true;
+        placeOnLoop(world);
+        return true;
+    }
+
     function waterAt(hole, x, z) {
         var w = hole.water, i;
         if (!w) return null;
@@ -800,6 +980,9 @@
             out: false,
             sprung: 0,          // springs fired this shot; each is worth less
             warpFor: 0,         // seconds before a mouth will swallow again
+            ride: null,         // on a loop: { loop, frame, th, v, base }
+            fall: null,         // off the top of one, and inside it
+            loopFor: 0,         // seconds before a loop will take the ball again
             overCup: false      // has the ball been over the mouth? see cupContact
         };
     }
@@ -820,6 +1003,10 @@
             out: w.out,
             sprung: w.sprung || 0,
             warpFor: w.warpFor || 0,
+            ride: w.ride ? { loop: w.ride.loop, frame: w.ride.frame, th: w.ride.th,
+                v: w.ride.v, base: w.ride.base } : null,
+            loopFor: w.loopFor || 0,
+            fall: w.fall,
             overCup: w.overCup
         };
     }
@@ -860,6 +1047,9 @@
         world.overCup = false;
         world.sprung = 0;
         world.warpFor = 0;
+        world.ride = null;
+        world.fall = null;
+        world.loopFor = 0;
         world.firstLand = null;
         world.carry = 0;
         if (b.vy > 0.01) world.grounded = false;
@@ -1157,6 +1347,16 @@
         var grav = gravityOf(hole);
         world.time += dt;
 
+        /* On a loop, the loop is the whole of the step: no ground under the
+           ball, no walls (the track has kerbs of its own), no cup, and no
+           question of being at rest — a ball that has stopped on a loop is
+           about to run back down it. */
+        if (world.ride) {
+            rideLoop(world, dt, events);
+            return;
+        }
+        if (world.grounded) world.fall = null;
+
         if (world.grounded) {
             var here = surfaceUnder(hole, b.x, b.z, b.y + C.STEP_UP);
             if (!here) {                       // the pad vanished under us
@@ -1295,6 +1495,7 @@
             b.x += b.vx * dt;
             b.z += b.vz * dt;
             b.y += b.vy * dt;
+            if (world.fall && catchOnLoop(world, events)) return;
 
             var land = surfaceUnder(hole, b.x, b.z, b.y);
 
@@ -1386,6 +1587,10 @@
            off the rail, not the one that is still inside it. */
         if (world.warpFor > 0) world.warpFor -= dt;
         else takeWarp(world, events);
+
+        // …and the loops, on the same terms: after the walls.
+        if (world.loopFor > 0) world.loopFor -= dt;
+        else if (hole.loops && takeLoop(world, events)) return;
 
         if (cupContact(world, events)) return;
         if (drown(world, events)) return;
@@ -1524,8 +1729,10 @@
             // A pipe is where the prediction stops. Carrying on would draw a
             // dotted line straight across the hole from one mouth to the
             // other, which is a picture of the ball travelling through ground
-            // it never touches.
-            if (ev.warp) break;
+            // it never touches. A loop is the same, and for a better reason
+            // still: a line drawn round it would say whether the shot makes
+            // the top, which is the one thing the loop is asking you.
+            if (ev.warp || ev.loop) break;
             p = { x: w.ball.x, y: w.ball.y, z: w.ball.z };
             pts.push(p);
             if (ev.land || ev.splash || ev.sunk || ev.out || !w.moving) break;
@@ -1575,6 +1782,9 @@
         outOfBounds: outOfBounds,
         fenceRects: fenceRects,
         warpUnder: warpUnder,
+        loopFrame: loopFrame,
+        loopPoint: loopPoint,
+        loopBase: loopBase,
         springKick: springKick
     };
 

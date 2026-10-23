@@ -301,6 +301,7 @@
             needsLoft: src.needsLoft, rolling: src.rolling,
             open: src.open, fence: src.fence,
             warps: src.warps || [],
+            loops: src.loops || [],
             decor: src.decor || [],
             pads: src.pads, extra: src.extra, water: src.water, gaps: src.gaps,
             tee: { x: src.tee.x, z: src.tee.z },
@@ -3129,6 +3130,7 @@
             water: h.water,
             gaps: h.gaps || [],
             warps: h.warps || [],
+            loops: h.loops || [],
             decor: h.decor || [],
             tee: h.tee, cup: h.cup
         });

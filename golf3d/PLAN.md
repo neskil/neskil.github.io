@@ -319,6 +319,13 @@ floor rises toward the outside so pace carries a ball round it), and
 solves rotated boxes and humped ground; an arc rail is the cheap first step,
 and a banked floor is `padHeight` learning a curved profile.
 
+**The loop is built (v1.90.0)** — not as ground (a height field has no
+ceiling) but as a track the ball rides, with honest energy and a fall off the
+top: README → "The loop", on Helter Skelter's *Loop the Loop*. Open: a second
+loop somewhere that is not a fairground, and the camera — the tee seat sees a
+loop edge-on, so the ride reads best from the hero angle; a seat that swings
+to the side while the ball is on a loop would show it.
+
 ### Then: Challenge mode (the owner's idea) — built (v1.70.0)
 
 Six function surfaces dealt with random cups, a hover-platform tee, glass

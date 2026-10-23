@@ -451,6 +451,17 @@
         return { x: x, z: z, r: r === undefined ? 0.85 : r, tx: tx, tz: tz, yaw: yaw || 0 };
     }
 
+    /* A loop-the-loop, by its foot: the ball rolls in at (x, z) heading along
+       `yaw`, goes round a circle of radius R (the path of its middle) and
+       comes out `shift` to the right of where it went in, still heading along
+       `yaw`. physics.js has the rule ("the loop"), and its one number to
+       remember: the foot wants about √(5·g·R) of speed and the boards take
+       some off, so a 1.1 loop wants about 14 — a firm mallet, never a putter. */
+    function loop(x, z, yaw, R, shift) {
+        return { x: x, z: z, yaw: yaw || 0, R: R === undefined ? 1.1 : R,
+            shift: shift === undefined ? 1 : shift };
+    }
+
     // Both ends of a two-way one, each pointing away from the other.
     function pipes(ax, az, bx, bz, r) {
         var yaw = Math.atan2(bx - ax, bz - az);
@@ -1975,6 +1986,13 @@
         for (i = 0; i < (h.warps || []).length; i++) {
             out.push(keep(h.warps[i].x, h.warps[i].z, h.warps[i].r + 0.5));
             out.push(keep(h.warps[i].tx, h.warps[i].tz, h.warps[i].r + 0.5));
+        }
+        // A loop stands on its foot and its far foot, and both want the
+        // floor level under them or the track meets the ground at a step.
+        for (i = 0; i < (h.loops || []).length; i++) {
+            var lp = h.loops[i], lr = lp.R + 0.6;
+            out.push(keep(lp.x, lp.z, lr));
+            out.push(keep(lp.x + Math.cos(lp.yaw) * lp.shift, lp.z - Math.sin(lp.yaw) * lp.shift, lr));
         }
         return out;
     }
@@ -4958,23 +4976,47 @@
             tee: { x: 4, z: 1.6 }, cup: { x: 4, z: 25 }
         }),
         build({
-            /* Up on to the gallery, along it on the belt, and off the end of
-               it. The window on the first shot is the whole hole: too slow and
-               the pad drops you back where you started, too hard and you are
-               still climbing when you reach the front of the gallery and you
-               hit the face of it. */
-            name: 'Up and Over', par: 4,
-            blurb: 'A pad on to the gallery, a walkway along it, and a drop off the far end.',
+            /* A loop-the-loop, and the one ride on the course the ball goes
+               *round* rather than along or over. The boards run up to its foot
+               so a firm mallet arrives with its pace, and the pace is the whole
+               question: about fourteen at the foot carries the ball over the
+               top and out of the far side running at the pin; much less and it
+               comes off near the top, falls inside the loop and is back on the
+               boards on whichever side it lands — usually the near one, rolling
+               back to you. A putter cannot get it round at all.
+
+               And there is a way that does not need the nerve: the belt lane
+               up the east side, running back at you, which a firm putt or a
+               soft mallet climbs and comes out on the green a long putt from
+               the flag. Too much through the loop, or up the lane, and the
+               sand at the back has it.
+
+               The ride stands in a housing — a block either side of it, and
+               one across the mouth of the way out — so the only road north
+               between the blocks is through the mouth. Up and Over, a launch
+               pad on to a gallery, stood here before it; Bounce Alley and
+               The Springboard already ask the launch pad's question. */
+            name: 'Loop the Loop', par: 3,
+            blurb: 'Hit it hard enough and the loop takes it over the top and out at the pin. Not quite, and it comes back to you.',
             pads: [
-                pad(0, 0, 6, 9),
-                sprung(3, 7.4, 1.3, 10.2),
-                pad(0, 10.6, 6, 3, 1.8),
-                belt(0, 13.6, 6, 5, 0, 9, { y: 1.8 }),
-                pad(0, 18.6, 6, 3, 1.8),
-                pad(0, 21.6, 8, 7)
+                pad(0, 0, 7, 3.5, 1),                          // the deck
+                pad(0, 3.5, 7, 4, 1, 'wood', 0, -0.25),        // the drop
+                pad(0, 7.5, 5.5, 3.9, 0, 'wood'),              // under the ride
+                belt(5.5, 7.5, 1.5, 3.9, 0, -6),               // the long way, against the run
+                pad(0, 11.4, 7, 6.6),
+                pad(0, 18, 7, 1.6, 0, 'sand')
             ],
-            gaps: [brink({ x: 0, z: 10.6, w: 6, d: 11 }, 0.4)],
-            tee: { x: 3, z: 2 }, cup: { x: 4, z: 25 }
+            loops: [loop(2.5, 9.7, 0, 1.1, 1)],
+            /* The housing. Low, and kept out from under the track: the back
+               half of the loop comes down beside the mouth, so all that
+               stands between the two lanes there is a thin divider. */
+            extra: [
+                wall(0, 8, 1.95, 3.2, 0.6, { base: -0.1 }),         // west
+                wall(2.86, 8, 2.64, 0.5, 0.6, { base: -0.1 }),      // across the way out
+                wall(2.86, 8.5, 0.24, 0.95, 0.6, { base: -0.1 }),   // between the lanes
+                wall(4.08, 8.5, 1.42, 2.7, 0.6, { base: -0.1 })     // and east
+            ],
+            tee: { x: 3.3, z: 1.5 }, cup: { x: 3.5, z: 15 }
         }),
         build({
             /* Gravity is a number, and this is the hole that changes it.
@@ -7213,7 +7255,7 @@
         beam: beam, pen: pen, bumper: bumper, bank: bank, arc: arc,
         trough: trough, channel: channel, bowl: bowl, dish: dish, bands: bands, tilt: tilt,
         commons: commons,
-        sprung: sprung, belt: belt, pipe: pipe, pipes: pipes,
+        sprung: sprung, belt: belt, pipe: pipe, pipes: pipes, loop: loop,
         aperture: aperture, flipper: flipper,
         tree: tree, treeline: treeline, forest: forest, crag: crag, crags: crags,
         decor: decor, buoy: buoy, piling: piling, bench: bench, boat: boat, bin: bin,
