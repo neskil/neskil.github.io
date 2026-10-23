@@ -93,9 +93,9 @@
     var FIGS = '"JetBrains Mono", ui-monospace, "SFMono-Regular", monospace';
 
     /* One palette per club, and it is the same palette everywhere the club
-       appears: the collar under its head in the bag, the paint on the head
+       appears: the ring on its ferrule in the bag, the paint on the head
        itself, the halo behind it when it is in hand, its name on its label,
-       and the two figures under the name. Four coloured collars standing in
+       and the two figures under the name. Four coloured rings standing in
        the cuff is what makes the shut bag read as four *different* clubs at a
        glance — and it is already the picker's legend before the picker opens.
 
@@ -444,10 +444,12 @@
                and the same rod with the room in it is a shaft. */
             steel: metal(0x8d98a4, FINISH.chrome, { rough: 0.16 }),
             grip: new THREE.MeshLambertMaterial({ color: ink(0x1d2127) }),
+            // Gloss black plastic: the ferrule between shaft and hosel.
+            ferrule: new THREE.MeshStandardMaterial({
+                color: ink(0x121418), metalness: 0.0, roughness: 0.22,
+                envMap: studioRadiance(), envMapIntensity: 0.9
+            }),
             head: metal(steel, fin, { rough: polish(fin, shine) }),
-            /* A driver face is a bright insert whatever the crown is doing,
-               so it takes the mirror rather than the club's own finish. */
-            face: metal(0xa8b4c0, FINISH.chrome, { rough: 0.19 }),
             /* And the milled face, which is the one metal that is a picture
                rather than a colour. It keeps the club's own finish so a
                chrome wedge's grooves flash and a brushed iron's do not — but
@@ -461,14 +463,6 @@
                 envMap: studioRadiance(), envMapIntensity: ENV_LIGHT * 0.6,
                 side: THREE.DoubleSide
             }),
-            /* The driver's shell: carbon crown under a clear coat — a gloss
-               with very little metal in it, so the reflection sits *on* the
-               weave — framed in white, ringed in the club's colour as an
-               anodised metal (on a SIM2 the ring is a forged aluminium part
-               and catches the light like one), over a dark satin sole. One
-               material, painted in its shader; see `driverSkin`. Only the
-               driver uses it, so only the driver builds it. */
-            skin: club && club.id === 'driver' ? driverSkin(L) : null,
             // Painted white: a driver's face surround, a sleeve's index band,
             // a two-ball's discs.
             white: new THREE.MeshStandardMaterial({
@@ -512,15 +506,14 @@
        makes a groove an incision rather than a stripe — the lines catch the
        light along one edge and lose it along the other as the head turns. */
     var _faces = {};
-    /* Which face a club wears. Five, because there are five ways a real face
-       is finished: an iron's grooves, a wedge's grooves over milling, the
-       checker's spin face (milled in a fine check, which is the joke in its
-       name and also exactly what a spin-milled face looks like), a driver's
-       dark face with the dashed scorelines down its middle, and a putter's
-       plain milling with no grooves at all. */
+    /* Which face a club wears. Four, because there are four ways a real face
+       here is finished: an iron's grooves, a wedge's grooves over milling,
+       the checker's spin face (milled in a fine check, which is the joke in
+       its name and also exactly what a spin-milled face looks like), and a
+       putter's plain milling with no grooves at all. The driver's face is
+       painted into its shell; see `drvFaceArt`. */
     function faceKind(club) {
         var id = club ? club.id : '';
-        if (id === 'driver') return 'driver';
         if (id === 'putter' || id === 'mallet') return 'putter';
         if (id === 'wedge') return 'milled';
         if (id === 'checker') return 'checker';
@@ -534,36 +527,6 @@
         cv.width = cv.height = N;
         var g = cv.getContext('2d');
         var m, y;
-
-        if (key === 'driver') {
-            /* Brushed charcoal with the Twist Face scorelines: five rows,
-               each a line and a dot on the heel side, a dot and a line on
-               the toe side, and a plain line between them on the middle
-               three — with the rows drawn in toward the corners, where the
-               face itself is narrower. Twice as wide as it is tall, as the
-               face is, so the dots stay round. */
-            cv.width = 256;
-            g.fillStyle = '#25292e';
-            g.fillRect(0, 0, 256, N);
-            for (m = 0; m < N; m++) {
-                g.fillStyle = 'rgba(255, 255, 255, ' + (0.015 + 0.03 * ((m * 7919) % 5) / 5).toFixed(3) + ')';
-                g.fillRect(0, m, 256, 1);
-            }
-            g.strokeStyle = g.fillStyle = 'rgba(232, 238, 244, 0.92)';
-            g.lineWidth = 2;
-            [[30, 34], [46, 26], [62, 22], [78, 28], [94, 40]].forEach(function (row, i) {
-                var yy = row[0], inset = row[1];
-                g.beginPath(); g.moveTo(inset, yy); g.lineTo(92, yy); g.stroke();
-                g.fillRect(100, yy - 2, 6, 4);
-                g.fillRect(150, yy - 2, 6, 4);
-                g.beginPath(); g.moveTo(164, yy); g.lineTo(256 - inset, yy); g.stroke();
-                if (i > 0 && i < 4) {
-                    g.beginPath(); g.moveTo(114, yy); g.lineTo(142, yy); g.stroke();
-                }
-            });
-            _faces[key] = srgbCanvas(cv);
-            return _faces[key];
-        }
 
         if (key === 'putter') {
             g.fillStyle = '#bcc6d0';
@@ -619,9 +582,10 @@
     /* The driver's crown: a 2x2 twill of carbon fibre, each tow a dark
        bundle lit along its length, the way a weave catches the light
        differently on the cells that run across it. One 64px tile covers
-       12mm of crown (see the UVs in `driverShell`) — 3mm tows, a touch
-       coarser than a real weave so it still reads at picker size; at 4mm
-       it read as a wicker basket and at 2mm as flat black. */
+       8mm of crown (see the UVs in `driverShell`) — 2mm tows. At 3mm and
+       in mid greys it read as a wicker basket; dark, fine and under a
+       clear coat it reads as what a carbon crown is, black with a weave in
+       it when you look closely. */
     var _carbon = null;
     function carbonTexture() {
         if (_carbon) return _carbon;
@@ -636,9 +600,9 @@
                 var grad = across
                     ? g.createLinearGradient(x, y, x, y + C)
                     : g.createLinearGradient(x, y, x + C, y);
-                grad.addColorStop(0.0, '#0b0d10');
-                grad.addColorStop(0.5, '#3d444d');
-                grad.addColorStop(1.0, '#0b0d10');
+                grad.addColorStop(0.0, '#07080a');
+                grad.addColorStop(0.5, '#2a2f36');
+                grad.addColorStop(1.0, '#07080a');
                 g.fillStyle = grad;
                 g.fillRect(x, y, C, C);
             }
@@ -704,31 +668,44 @@
         cap.position.y = 0.007;
         g.add(cap);
 
-        /* The ferrule: the little collar where shaft meets head. Two
-           millimetres of trim that does more for "this is a golf club" than
-           anything else on the shaft — and, since it is the one part of a
-           club that is allowed to be any colour at all, this is where each
-           club wears its own. It sits above the cuff on a shut bag, so four
-           clubs bunched in the mouth are four colours rather than four
-           silhouettes. */
-        var ferrule = new THREE.Mesh(
-            new THREE.CylinderGeometry(0.0112, 0.0096, 0.030, 10),
+        var head = new THREE.Group();
+        head.position.y = len - 0.004;
+        /* The loft is in the head now, as the face leaning back from the
+           hosel: turning the whole head by it bent every hosel off its
+           shaft. See `mount`. */
+        var built = buildHead(club, M);
+        head.add(built);
+        g.add(head);
+
+        /* The ferrule: the joint between shaft and hosel, and the part that
+           does most for "this is a golf club". A real one is a short black
+           sleeve that runs from the shaft's own width out to the hosel's,
+           so the one flows into the other. It used to be a 30mm bead in the
+           club's colour, fatter than the hosel above it, with a black collar
+           under it and a gap of bare shaft between the two — a shaft with a
+           head stuck on, which was the thing everybody noticed.
+
+           It ends where `mount` seats the hosel, and its top is the width
+           that hosel is at the top, which is different for every head. The
+           club's colour is still here — it is the legend that tells a shut
+           bag's clubs apart — as a ring at the foot of the ferrule, the way
+           a fitter's trim ring sits on a real one. */
+        var neck = built.userData.neck || 0.0068;
+        var seat = len - 0.004 + HOSEL_SEAT, fl = 0.021;
+        var ferrule = new THREE.Mesh(new THREE.LatheGeometry([
+            [0.0059, 0], [0.0061, 0.005], [0.0061 + (neck - 0.0061) * 0.55, 0.013],
+            [neck, 0.019], [neck, fl]
+        ].map(function (q) { return new THREE.Vector2(q[0], q[1]); }), 24), M.ferrule);
+        ferrule.position.y = seat - fl + 0.0005;
+        g.add(ferrule);
+        var trim = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.0064, 0.0064, 0.005, 24, 1, true),
             new THREE.MeshStandardMaterial({
                 color: ink(look(club.id).metal), metalness: 0.15, roughness: 0.30,
                 envMap: studioRadiance(), envMapIntensity: 0.9
             }));
-        ferrule.position.y = len - 0.03;
-        g.add(ferrule);
-        var collar = new THREE.Mesh(new THREE.CylinderGeometry(0.0118, 0.0118, 0.007, 10), M.dark);
-        collar.position.y = len - 0.047;
-        g.add(collar);
-
-        var head = new THREE.Group();
-        head.position.y = len - 0.004;
-        head.add(buildHead(club, M));
-
-        head.rotation.z = -club.loft;
-        g.add(head);
+        trim.position.y = seat - fl + 0.0045;
+        g.add(trim);
 
         var hit = new THREE.Mesh(
             new THREE.BoxGeometry(0.20, 0.20, 0.24),
@@ -919,238 +896,523 @@
         return geo;
     }
 
-    /* ── the driver ─────────────────────────────────────────────────────── */
+    /* ── the address frame ──────────────────────────────────────────────── */
 
-    /* From above: a big rounded triangle, widest just behind the face and
-       running back to a broad, round tail — 128mm heel to toe, 118 face to
-       back. Drawn in the body's own frame, whose x = 0 is the face; the
-       body is then set forward of the shaft (see `buildDriver`). */
-    var DRIVER_FOOT = [
-        [0.012, 0.008], [0.015, 0.064], [0.011, 0.120], [-0.024, 0.128],
-        [-0.086, 0.110], [-0.106, 0.064], [-0.086, 0.016], [-0.026, 0.000]
-    ];
-    var DRIVER_R = [0.010, 0.060, 0.014, 0.030, 0.040, 0.040, 0.040, 0.020];
-    var D_SOLE = 0.080, D_SOLE_H = 0.026, D_FACE = 0.000;
-    var D_CX = -0.046, D_CZ = 0.064;
-    // How far ahead of the shaft the face stands — a driver's face progression.
-    var D_AHEAD = 0.008;
+    /* Every head below is built the way it sits behind a ball — soled on the
+       ground — and only then hung on the shaft by `mount`. In this frame y is
+       up off the ground, +x is the way the face looks, the toe is toward -z
+       and the hosel rises from the heel, toward +z.
 
-    /* The skin: one material for the whole shell, painted in the shader
-       from the head's own coordinates — carbon crown, the white frame along
-       the face and down the heel, the blue ring round the back of the skirt
-       and its hairline round the crown's edge, and the grey sole.
+       It used to be the other way about: heads were drawn straight in the
+       bag's frame, with the shaft running square into the top of every one,
+       and that frame could not say the two angles that make a club look like
+       a club. One is the lie — the 58 to 70 degrees between shaft and ground,
+       which is why a club held upright hangs its head off to one side instead
+       of standing on the shaft like a T. The other is loft as the face
+       leaning back *from the hosel*: turning a whole head by its loft also
+       turned its hosel, so a 58 degree wedge sat on a shaft bent through 58
+       degrees. Here a face is lofted and the hosel is not.
 
-       It was a material per triangle first, and every boundary came out as
-       a saw blade: the shell's triangles are long slivers by the time a
-       sphere has been pushed into a driver, and an edge can only be as
-       clean as the triangles it is cut along. Painted per pixel, an edge is
-       a curve. `lat` is the sphere's own latitude before it was moved, so a
-       band measured in it runs along the shell's rows however tall the
-       crown is at that point — which is what keeps the ring level.
+       A head builder adds its parts to an address-frame group and returns
+       where its hosel ends and at what lie; `mount` does the rest. */
 
-       The panel is the SIM2's: everything on the crown more than a thumb's
-       width back from the face and in from the heel is carbon, and the
-       frame round it is white, narrowing to nothing as it runs back along
-       the heel. Toe and tail are carbon to the edge, with the blue line. */
-    function driverSkin(L) {
-        var m = new THREE.MeshStandardMaterial({
-            map: carbonTexture(), metalness: 0.2, roughness: 0.2,
-            envMap: studioRadiance(), envMapIntensity: ENV_LIGHT * 0.95
+    // The shaft runs this way out of the hosel, in the address frame.
+    function shaftDir(lie) { return v3(0, Math.sin(lie), Math.cos(lie)); }
+
+    /* Hangs an address-frame head on the bag frame's shaft: the hosel's top
+       goes to the end of the shaft and the shaft's own direction to -y, which
+       is a turn about x alone because a square-soled shaft has no x in it.
+       The toe then comes up off the horizontal by 90 degrees less the lie,
+       which is exactly how a club held upright hangs. The top is let down
+       from the very end of the shaft to leave room for the ferrule, which
+       `buildClub` sizes to the hosel's width at the top — `at.r`. */
+    var HOSEL_SEAT = -0.011;
+    function mount(a, at) {
+        var turn = new THREE.Group();
+        a.position.set(-at.top.x, -at.top.y, -at.top.z);
+        turn.add(a);
+        turn.rotation.x = at.lie + Math.PI / 2;
+        var g = new THREE.Group();
+        g.position.y = HOSEL_SEAT;
+        g.add(turn);
+        g.userData.neck = at.r;
+        return g;
+    }
+
+    /* Bakes a group's meshes into `into` in the group's own frame, and pushes
+       anything below `floor` up onto it. That is what lets an iron's blade be
+       drawn flat, as it always was, and then lofted: leaning a blade back
+       about its leading edge swings the foot of its back below the ground,
+       and the sole that is built under it in this frame is where that metal
+       belongs. */
+    function settle(group, into, floor) {
+        group.updateMatrixWorld(true);
+        group.traverse(function (o) {
+            if (!o.isMesh) return;
+            var geo = o.geometry.clone();
+            geo.applyMatrix4(o.matrixWorld);
+            var pos = geo.attributes.position, moved = false;
+            for (var i = 0; i < pos.count; i++) {
+                if (pos.getY(i) < floor) { pos.setY(i, floor); moved = true; }
+            }
+            if (moved && !geo.index) creased(geo, 40);
+            into.add(new THREE.Mesh(geo, o.material));
         });
-        var uni = {
-            uWhite: { value: ink(0xeef1f4) },
-            uRing: { value: ink(L ? L.metal : 0x1f6fff) },
-            uSole: { value: ink(0x3a424c) }
-        };
-        function f(n) { return n.toFixed(4); }
-        m.onBeforeCompile = function (sh) {
-            Object.keys(uni).forEach(function (k) { sh.uniforms[k] = uni[k]; });
-            sh.vertexShader = 'attribute float lat;\nvarying float vLat;\nvarying vec3 vLocal;\n' +
-                sh.vertexShader.replace('#include <begin_vertex>',
-                    '#include <begin_vertex>\n\tvLat = lat;\n\tvLocal = position;');
-            sh.fragmentShader = 'uniform vec3 uWhite;\nuniform vec3 uRing;\nuniform vec3 uSole;\n' +
-                'varying float vLat;\nvarying vec3 vLocal;\n' +
-                sh.fragmentShader.replace('#include <metalnessmap_fragment>', [
-                    '#include <metalnessmap_fragment>',
-                    '\tfloat dAA = 0.0006;',
-                    '\tfloat dZ = (vLocal.z - ' + f(D_CZ) + ') / 0.064;',
-                    '\tfloat dFront = ' + f(D_FACE - 0.014) + ' - 0.004 * dZ * dZ;',
-                    '\tfloat dHeel = mix(0.028, -0.03, smoothstep(-0.035, -0.085, vLocal.x));',
-                    '\tfloat dPanel = smoothstep(-dAA, dAA, dFront - vLocal.x) * smoothstep(-dAA, dAA, vLocal.z - dHeel);',
-                    '\tfloat dCrown = 1.0 - smoothstep(-0.002, 0.002, vLat);',
-                    '\tfloat dFace = smoothstep(' + f(D_FACE - 0.0012) + ', ' + f(D_FACE - 0.0004) + ', vLocal.x);',
-                    '\tfloat dEdge = dCrown * smoothstep(-0.125, -0.112, vLat) * dPanel *',
-                    '\t\tsmoothstep(' + f(D_FACE - 0.020) + ', ' + f(D_FACE - 0.028) + ', vLocal.x);',
-                    '\tfloat dRing = (1.0 - dCrown) * (1.0 - smoothstep(0.085, 0.095, vLat)) *',
-                    '\t\tsmoothstep(-0.024, -0.034, vLocal.x);',
-                    '\tfloat dBlue = max(dEdge, dRing);',
-                    '\tfloat dWhite = max(dCrown * (1.0 - dPanel), dFace);',
-                    '\tvec3 dCol = mix(uSole, diffuseColor.rgb, dCrown);',
-                    '\tdCol = mix(dCol, uWhite, dWhite);',
-                    '\tdiffuseColor.rgb = mix(dCol, uRing, dBlue);',
-                    '\troughnessFactor = mix(mix(mix(0.40, roughnessFactor, dCrown), 0.32, dWhite), 0.26, dBlue);',
-                    '\tmetalnessFactor = mix(mix(mix(0.80, metalnessFactor, dCrown), 0.0, dWhite), 0.55, dBlue);'
-                ].join('\n'));
-        };
-        m.customProgramCacheKey = function () { return 'loft-driver-skin'; };
+    }
+
+    /* A turned part — a hosel, a neck, a sleeve — from a profile of
+       [radius, distance along] pairs, stood on `base` and pointing along
+       `dir`. A lathe rather than a cylinder because a hosel is not a tube:
+       it flares into the head it grows out of. */
+    function turned(mat, base, dir, profile, seg) {
+        var geo = new THREE.LatheGeometry(profile.map(function (p) {
+            return new THREE.Vector2(p[0], p[1]);
+        }), seg || 28);
+        var m = new THREE.Mesh(geo, mat);
+        m.quaternion.setFromUnitVectors(v3(0, 1, 0), dir.clone().normalize());
+        m.position.copy(base);
         return m;
     }
 
-    /* How tall the crown stands over the head's waist at (x, z): low at the
-       face, rising to its crest about a quarter of the way back, and easing
-       off toward the tail — the profile every modern driver shares and the
-       one an egg cannot do. */
-    function driverCrown(x, z) {
-        var nx = Math.max(0, Math.min(1, (D_FACE - x) / 0.112));
-        var nz = (z - D_CZ) / 0.066;
-        var g = nx < 0.28 ? smooth01(nx / 0.28) : 1 - 0.55 * smooth01((nx - 0.28) / 0.72);
-        return 0.030 + 0.008 * g * Math.max(0, 1 - 0.55 * nz * nz);
+    /* ── the driver ─────────────────────────────────────────────────────── */
+
+    /* After the TaylorMade SIM2 Max, from photographs: a 460cc pear, glossy
+       carbon crown, a white frame round the face and the heel, a blue forged
+       ring for a skirt, a dark face with the Twist Face scorelines, and a
+       sole with a keel running back to a weight.
+
+       From above it is a broad pear — a wide face, its widest point a third
+       of the way back, a big round toe and a heel that runs nearly straight
+       back from the hosel: 125mm heel to toe and 112 face to back. A closed
+       curve through points rather than corners and radii, because a 460cc
+       head has no corners anywhere. */
+    var DRV_PLAN = [
+        [0.006, -0.057], [0.003, -0.094], [-0.012, -0.113], [-0.038, -0.120],
+        [-0.070, -0.114], [-0.096, -0.092], [-0.110, -0.058], [-0.104, -0.026],
+        [-0.084, -0.004], [-0.054, 0.006], [-0.024, 0.006], [-0.004, -0.006],
+        [0.004, -0.028]
+    ];
+    var DRV_C = { x: -0.050, z: -0.057 };      // where the bearings are taken from
+    var DRV_LIE = 58 * Math.PI / 180;
+    /* The face: a bulge across it and a roll up it, both about 300mm in
+       radius — the curvature every wood has — leaning back by the club's loft
+       about a point 28mm off the ground. The head is cut by this surface, so
+       the face's outline is whatever the head's own front makes of it: round
+       at the toe, low at the heel, nearly straight along the sole. */
+    var DRV_FACE = { y: 0.028, z: -0.057, bulge: 0.30, roll: 0.28 };
+    function drvFaceX(y, z, tl) {
+        var dy = y - DRV_FACE.y, dz = z - DRV_FACE.z;
+        return -dy * tl - dz * dz / (2 * DRV_FACE.bulge) - dy * dy / (2 * DRV_FACE.roll);
+    }
+    /* The line round the head where the crown meets the skirt: highest at
+       the toe, lowest at the back — a modern driver's skirt is tall at the
+       front and nearly gone at the tail. */
+    function drvEdge(x, z) {
+        var back = Math.max(0, Math.min(1, -x / 0.11));
+        var toe = Math.max(0, Math.min(1, -(z + 0.057) / 0.063));
+        return 0.031 - 0.008 * back + 0.004 * toe * (1 - back);
+    }
+    /* How high the crown stands at (x, z): a dome peaking about a third of
+       the way back and a little toward the toe, falling off to the heel. */
+    function drvCrown(x, z) {
+        var u = (x + 0.036) / 0.062, w = (z + 0.062) / 0.074;
+        return 0.039 + 0.028 * Math.exp(-u * u - w * w);
+    }
+    // The sole, cambered heel to toe and lifting toward the back.
+    function drvBase(x, z) {
+        var dz = z + 0.060, dx = Math.max(0, -x - 0.030);
+        return dz * dz / 0.34 + dx * dx / 0.5;
+    }
+    // How square each half is: the crown rounder at the back than at the
+    // face, where it has to stand up to meet the top of a tall face.
+    function drvPow(top, cosBearing) {
+        return top ? 2.3 + 1.4 * smooth01((cosBearing - 0.2) / 0.8) : 4.2;
     }
     function smooth01(t) { t = Math.max(0, Math.min(1, t)); return t * t * (3 - 2 * t); }
 
-    /* The shell: a sphere whose every vertex is moved onto the shape above.
-       Its direction round the vertical picks a radius off the outline, and
-       its height up or down picks a point on a superellipse — rounder over
-       the crown, squarer over the sole — so the sides stand up like a club's
-       and do not taper like a pebble's. Then the front is sliced flat for
-       the face, which is how a face gets the outline a real one has: the
-       shape the head's own front happens to make, rounder at the toe than
-       the heel and flatter along the sole. An extruded outline cannot do the
-       crown at all: its cap is one flat fan of triangles with nothing inside
-       it to dome. */
-    function driverShell() {
-        var ring = roundPoly(DRIVER_FOOT, DRIVER_R).getSpacedPoints(360);
-        var table = ring.map(function (p) {
-            var dx = p.x - D_CX, dz = p.y - D_CZ;
-            return { a: Math.atan2(dz, dx), r: Math.sqrt(dx * dx + dz * dz) };
-        }).sort(function (u, w) { return u.a - w.a; });
-        function radiusAt(a) {
-            var n = table.length;
-            for (var i = 0; i < n; i++) {
-                var lo = table[(i + n - 1) % n], hi = table[i];
-                var la = i === 0 ? lo.a - 2 * Math.PI : lo.a;
-                if (a >= la && a <= hi.a) {
-                    var t = (a - la) / ((hi.a - la) || 1);
-                    return lo.r + (hi.r - lo.r) * t;
-                }
-            }
-            return table[0].r;
+    // The plan's radius from DRV_C at any bearing, off a table of the curve.
+    var _drvTable = null;
+    function drvRadius(a) {
+        if (!_drvTable) {
+            var curve = new THREE.CatmullRomCurve3(DRV_PLAN.map(function (p) {
+                return v3(p[0], 0, p[1]);
+            }), true, 'centripetal');
+            _drvTable = curve.getSpacedPoints(720).map(function (p) {
+                var dx = p.x - DRV_C.x, dz = p.z - DRV_C.z;
+                return { a: Math.atan2(dz, dx), r: Math.sqrt(dx * dx + dz * dz) };
+            }).sort(function (u, w) { return u.a - w.a; });
         }
-        /* Dense, because the materials are chosen a triangle at a time and
-           the edge of the carbon panel is only as clean as the mesh under it. */
-        var geo = new THREE.SphereGeometry(1, 128, 72).toNonIndexed();
-        var pos = geo.attributes.position;
-        var lat = new Float32Array(pos.count);
-        var waist = D_SOLE - D_SOLE_H;
-        for (var i = 0; i < pos.count; i++) {
-            var ux = pos.getX(i), uy = pos.getY(i), uz = pos.getZ(i);
-            lat[i] = uy;
-            var s = Math.sqrt(ux * ux + uz * uz);
-            var phi = Math.atan2(uz, ux);
-            var crown = uy < 0;                      // sphere +y is our sole
-            var R = radiusAt(phi);
-            /* Squarer toward the front, so that the slice for the face cuts
-               nearly the head's whole height: a face is about half as tall
-               as the head is wide, and a profile as round at the front as it
-               is at the tail gave a letterbox. */
-            var front = smooth01((D_CX + Math.cos(phi) * R - (D_FACE - 0.034)) / 0.034);
-            var pw = crown ? 2.4 + 3.2 * front : 5.0 + 2.0 * front;
-            var rr = Math.pow(s, 2 / pw);
-            var yy = Math.pow(Math.abs(uy), 2 / pw);
-            var x = D_CX + Math.cos(phi) * R * rr, z = D_CZ + Math.sin(phi) * R * rr;
-            var y = crown ? waist - yy * driverCrown(x, z) : waist + yy * D_SOLE_H;
-            pos.setXYZ(i, Math.min(x, D_FACE), y, z);
+        var t = _drvTable, n = t.length;
+        for (var i = 0; i < n; i++) {
+            var lo = t[(i + n - 1) % n], hi = t[i];
+            var la = i === 0 ? lo.a - 2 * Math.PI : lo.a;
+            if (a >= la && a <= hi.a) return lo.r + (hi.r - lo.r) * (a - la) / ((hi.a - la) || 1);
         }
-        creased(geo, 34);
+        return t[0].r;
+    }
+    // The sole's height under any point of the plan, for parts that sit on it.
+    function drvSoleY(x, z) {
+        var dx = x - DRV_C.x, dz = z - DRV_C.z;
+        var a = Math.atan2(dz, dx), R = drvRadius(a);
+        var s = Math.min(1, Math.sqrt(dx * dx + dz * dz) / R);
+        var e = drvEdge(DRV_C.x + Math.cos(a) * R, DRV_C.z + Math.sin(a) * R);
+        var n = drvPow(false, Math.cos(a));
+        return e - (e - drvBase(x, z)) * Math.pow(1 - Math.pow(s, n), 1 / n);
+    }
 
-        /* Top-down UVs, in units of one weave tile: the only thing that
-           reads them is the crown's carbon, and from above is how a crown is
-           seen. */
-        var uv = new Float32Array(pos.count * 2);
-        for (var j = 0; j < pos.count; j++) {
-            uv[j * 2] = pos.getZ(j) / 0.012;
-            uv[j * 2 + 1] = pos.getX(j) / 0.012;
+    /* The shell: one closed surface, swept round the plan a bearing at a
+       time. Each bearing is a profile from the middle of the sole out to the
+       edge and back in over the crown, and each half of it is a superellipse
+       — so the sole is flat with a rounded edge, the skirt stands up, and the
+       crown domes into a height read off `drvCrown` — and then everything in
+       front of the face surface is pushed back onto it.
+
+       The last build was a sphere squashed into a box and sliced flat at the
+       front: square shoulders, a letterbox face and a crown that never
+       rose. Every one of those was a choice of exponent, and none of them is
+       how a driver looks.
+
+       `sk` runs from -1 in the middle of the sole through 0 at the skirt line
+       to +1 in the middle of the crown, smoothly, so the shader can paint the
+       skirt as a band of the profile rather than of height — which is what
+       keeps the ring the same width all the way round a skirt that is 20mm
+       tall at the toe and 10 at the tail. */
+    function driverShell(tl) {
+        var NT = 240, NP = 40;
+        var rows = [], i, j;
+        for (i = NP - 1; i >= 0; i--) rows.push({ top: false, phi: i / NP * Math.PI / 2 });
+        for (i = 1; i < NP; i++) rows.push({ top: true, phi: i / NP * Math.PI / 2 });
+        var nr = rows.length, count = nr * NT + 2;
+        var P = new Float32Array(count * 3), SK = new Float32Array(count), UV = new Float32Array(count * 2);
+        var face = { z0: 1, z1: -1, y0: 1, y1: -1 };
+
+        function put(k, x, y, z, sk) {
+            var fx = drvFaceX(y, z, tl);
+            if (x > fx) {
+                x = fx;
+                face.z0 = Math.min(face.z0, z); face.z1 = Math.max(face.z1, z);
+                face.y0 = Math.min(face.y0, y); face.y1 = Math.max(face.y1, y);
+            }
+            P[k * 3] = x; P[k * 3 + 1] = y; P[k * 3 + 2] = z;
+            SK[k] = sk;
+            UV[k * 2] = z / 0.008; UV[k * 2 + 1] = x / 0.008;
         }
-        geo.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
-        geo.setAttribute('lat', new THREE.BufferAttribute(lat, 1));
+
+        put(0, DRV_C.x, drvBase(DRV_C.x, DRV_C.z), DRV_C.z, -1);
+        for (j = 0; j < NT; j++) {
+            var a = -Math.PI + j / NT * 2 * Math.PI;
+            var ca = Math.cos(a), sa = Math.sin(a), R = drvRadius(a);
+            var e = drvEdge(DRV_C.x + ca * R, DRV_C.z + sa * R);
+            for (i = 0; i < nr; i++) {
+                var row = rows[i], n = drvPow(row.top, ca);
+                var s = Math.pow(Math.cos(row.phi), 2 / n), h = Math.pow(Math.sin(row.phi), 2 / n);
+                var x = DRV_C.x + ca * R * s, z = DRV_C.z + sa * R * s;
+                var y = row.top ? e + (drvCrown(x, z) - e) * h : e - (e - drvBase(x, z)) * h;
+                put(1 + i * NT + j, x, y, z, (row.top ? 1 : -1) * row.phi / (Math.PI / 2));
+            }
+        }
+        put(count - 1, DRV_C.x, drvCrown(DRV_C.x, DRV_C.z), DRV_C.z, 1);
+
+        var idx = [];
+        function at(r, c) { return 1 + r * NT + (c % NT); }
+        for (j = 0; j < NT; j++) {
+            idx.push(0, at(0, j), at(0, j + 1));
+            for (i = 0; i < nr - 1; i++) {
+                idx.push(at(i, j), at(i + 1, j), at(i, j + 1));
+                idx.push(at(i + 1, j), at(i + 1, j + 1), at(i, j + 1));
+            }
+            idx.push(at(nr - 1, j), count - 1, at(nr - 1, j + 1));
+        }
+        var geo = new THREE.BufferGeometry();
+        geo.setAttribute('position', new THREE.BufferAttribute(P, 3));
+        geo.setAttribute('sk', new THREE.BufferAttribute(SK, 1));
+        geo.setAttribute('uv', new THREE.BufferAttribute(UV, 2));
+        geo.setIndex(idx);
+        geo.computeVertexNormals();
+        geo.userData.face = face;
         return geo;
     }
 
-    /* The face, as a D inside the slice. Measured off the shell rather than
-       written down — the slice is wherever the head's front happens to be —
-       and then drawn the way a SIM2's face sits in its frame: a long, nearly
-       straight top edge under a wide band of white, a big round toe that
-       runs almost to the edge, a sole edge that curves up toward the heel,
-       and the white widening again round the heel where it climbs into the
-       neck. Drawn as (-z, y), so turning it to face +x puts the toe at +z. */
-    function driverFaceShape(shell) {
-        var pos = shell.attributes.position;
-        var z0 = 1, z1 = -1, y0 = 1, y1 = -1;
-        for (var i = 0; i < pos.count; i++) {
-            if (pos.getX(i) < D_FACE - 1e-6) continue;
-            z0 = Math.min(z0, pos.getZ(i)); z1 = Math.max(z1, pos.getZ(i));
-            y0 = Math.min(y0, pos.getY(i)); y1 = Math.max(y1, pos.getY(i));
+    /* The artwork, drawn flat and laid on the shell from straight above (the
+       crown) and straight below (the sole) — one square of plan, 140mm a
+       side, for each. Drawn a pixel at a time where a shape is a distance
+       from an edge of the head, so the white frame follows the real outline
+       and not an approximation of it, and with the canvas for lettering.
+       Transparent wherever the carbon should show through. */
+    var DRV_ART = { x0: -0.116, z0: -0.128, span: 0.140, px: 512 };
+    function drvArt(paint, letter) {
+        var N = DRV_ART.px, cv = document.createElement('canvas');
+        cv.width = cv.height = N;
+        var g = cv.getContext('2d');
+        var img = g.createImageData(N, N), d = img.data;
+        var step = DRV_ART.span / N;
+        for (var jy = 0; jy < N; jy++) {
+            // Canvas rows run down the plan from the face: a texture's v is
+            // flipped on upload, so the top row is the far end of x.
+            var x = DRV_ART.x0 + (1 - (jy + 0.5) / N) * DRV_ART.span;
+            for (var ix = 0; ix < N; ix++) {
+                var z = DRV_ART.z0 + (ix + 0.5) / N * DRV_ART.span;
+                var dx = x - DRV_C.x, dz = z - DRV_C.z, ang = Math.atan2(dz, dx);
+                var R = drvRadius(ang), r = Math.sqrt(dx * dx + dz * dz);
+                var c = paint(x, z, (R - r), ang, step);
+                if (!c) continue;
+                var k = (jy * N + ix) * 4;
+                d[k] = c[0]; d[k + 1] = c[1]; d[k + 2] = c[2]; d[k + 3] = Math.round(255 * c[3]);
+            }
         }
-        var h = y1 - y0;
-        return roundPoly([
-            [-(z0 + 0.013), y0 + 0.21 * h],      // heel, under the frame
-            [-(z1 - 0.005), y0 + 0.13 * h],      // toe, top
-            [-(z1 - 0.002), y1 - 0.004],         // toe, bottom
-            [-(z0 + 0.020), y1 - 0.002],         // heel, bottom
-            [-(z0 + 0.009), y0 + 0.55 * h]       // heel, middle
-        ], [0.012, 0.030, 0.026, 0.024, 0.016]);
+        g.putImageData(img, 0, 0);
+        if (letter) {
+            letter(g, function (x, z) {
+                return [(z - DRV_ART.z0) / DRV_ART.span * N, (1 - (x - DRV_ART.x0) / DRV_ART.span) * N];
+            }, N / DRV_ART.span);
+        }
+        var t = srgbCanvas(cv);
+        t.anisotropy = 8;
+        return t;
+    }
+    // Coverage of "inside by `inside` metres", antialiased over a pixel.
+    function cover(inside, step) { return Math.max(0, Math.min(1, inside / step + 0.5)); }
+
+    function drvCrownArt(tl) {
+        return drvArt(function (x, z, edge, ang, step) {
+            /* The frame's run back along the heel, narrowing to nothing a
+               little over halfway down it. Its run along the top of the face
+               is painted in the shader, where the face itself is known. */
+            var along = smooth01((-x - 0.012) / 0.058);
+            var heelSide = smooth01((Math.sin(ang) - 0.25) / 0.35);
+            var frame = heelSide * cover(0.012 * (1 - along) - edge, step);
+            /* A small alignment mark in the middle, behind the frame — the
+               maker's mark sits there on the real thing. A short bar across
+               and a shorter one back from it. */
+            var mx = x + 0.0145, mz = z + 0.057;
+            var mark = Math.max(
+                cover(0.0007 - Math.abs(mx), step) * cover(0.0034 - Math.abs(mz), step),
+                cover(0.0006 - Math.abs(mz), step) * cover(0.0024 - Math.abs(mx + 0.0024), step));
+            var a = Math.max(frame, mark);
+            return a > 0 ? [238, 241, 244, a] : null;
+        });
     }
 
-    function buildDriver(g, M) {
-        /* The body stands ahead of the shaft, the way a driver's face sits in
-           front of the line of its hosel; the neck and sleeve stay on the
-           shaft's own axis. */
-        var body = new THREE.Group();
-        body.position.x = D_AHEAD;
-        g.add(body);
+    function drvSoleArt(tl, L) {
+        var ring = new THREE.Color(L.metal), blue = [ring.r * 255, ring.g * 255, ring.b * 255];
+        return drvArt(function (x, z, edge, ang, step) {
+            var lead = drvFaceX(0.004, z, tl) - x;          // back from the leading edge
+            var mid = z + 0.057;
+            /* The speed pocket: a slot across the sole a centimetre behind
+               the leading edge, its back lip catching the light. */
+            var span = cover(0.033 - Math.abs(mid), step);
+            var slot = span * cover(0.0019 - Math.abs(lead - 0.0102), step);
+            if (slot > 0) return [8, 10, 12, slot];
+            var lip = span * cover(0.0006 - Math.abs(lead - 0.0128), step);
+            if (lip > 0) return [150, 162, 174, lip];
+            // A plate of brushed titanium across the front of the sole.
+            var plate = cover(0.020 - lead, step) * cover(edge - 0.0015, step);
+            if (plate > 0) return [74, 82, 92, plate];
+            /* Stripes of the club's colour along each side of the keel, and
+               a yellow-green tick outside each — the SIM2's accent colour. */
+            var kx = -x - 0.044;
+            if (kx > 0 && kx < 0.046) {
+                var half = 0.0105 + 0.004 * kx / 0.046;
+                var off = Math.abs(mid) - half;
+                var st = cover(0.0009 - Math.abs(off - 0.0018), step);
+                if (st > 0) return [blue[0], blue[1], blue[2], st];
+                var tick = cover(0.0007 - Math.abs(off - 0.0046), step) * cover(0.006 - Math.abs(kx - 0.012), step);
+                if (tick > 0) return [196, 228, 58, tick];
+            }
+            return null;
+        }, function (g, px, k) {
+            /* The name, in white, across the sole between the plate and the
+               keel. Set to read from underneath with the face nearest you —
+               which, on a canvas laid on from above, is the right way up
+               mirrored top to bottom. */
+            var at = px(-0.0315, -0.057);
+            g.save();
+            g.translate(at[0], at[1]);
+            g.scale(1, -1);
+            g.fillStyle = '#eef1f4';
+            g.font = 'italic 800 ' + (0.0105 * k).toFixed(1) + 'px ' + FACE;
+            g.textAlign = 'center';
+            g.textBaseline = 'middle';
+            g.fillText('LOFT', 0, 0);
+            g.restore();
+        });
+    }
 
-        var shell = driverShell();
-        body.add(new THREE.Mesh(shell, M.skin));
+    /* The face: charcoal, finely milled across, with the Twist Face lines —
+       five rows, each a line and a dot on either side of the middle and a
+       short line between them on the middle three, drawn in toward the
+       corners where the face is narrower. Twice as wide as it is tall, as
+       the face is, so the dots stay round. */
+    function drvFaceArt() {
+        var W = 512, H = 256, cv = document.createElement('canvas');
+        cv.width = W; cv.height = H;
+        var g = cv.getContext('2d');
+        g.fillStyle = '#1c1f23';
+        g.fillRect(0, 0, W, H);
+        for (var m = 0; m < H; m += 2) {
+            g.fillStyle = 'rgba(255, 255, 255, ' + (0.02 + 0.03 * ((m * 7919) % 5) / 5).toFixed(3) + ')';
+            g.fillRect(0, m, W, 1);
+        }
+        g.strokeStyle = g.fillStyle = 'rgba(236, 240, 244, 0.9)';
+        g.lineWidth = 3;
+        g.lineCap = 'round';
+        [[0.31, 0.27], [0.40, 0.21], [0.49, 0.19], [0.58, 0.21], [0.67, 0.27]].forEach(function (row, i) {
+            var y = row[0] * H, l = row[1] * W, c = W / 2;
+            g.beginPath(); g.moveTo(l, y); g.lineTo(c - 0.085 * W, y); g.stroke();
+            g.beginPath(); g.moveTo(c + 0.085 * W, y); g.lineTo(W - l, y); g.stroke();
+            g.beginPath(); g.arc(c - 0.062 * W, y, 3, 0, 2 * Math.PI); g.fill();
+            g.beginPath(); g.arc(c + 0.062 * W, y, 3, 0, 2 * Math.PI); g.fill();
+            if (i > 0 && i < 4) {
+                g.beginPath(); g.moveTo(c - 0.030 * W, y); g.lineTo(c + 0.030 * W, y); g.stroke();
+            }
+        });
+        var t = srgbCanvas(cv);
+        t.anisotropy = 8;
+        return t;
+    }
 
-        var face = facePlate(driverFaceShape(shell), 1);
-        face.rotateY(Math.PI / 2);
-        face.translate(D_FACE + 0.0003, 0, 0);
-        body.add(new THREE.Mesh(face, M.grooves));
+    /* The shell's one material, painted in its shader: carbon under a clear
+       coat where no artwork covers it, the artwork from above or below
+       depending on which half of the profile a pixel is on, the ring and the
+       hairline over it as bands of the profile, and the face wherever the
+       pixel lies on the face surface. Painted per pixel because every
+       boundary drawn on triangles came out as a saw blade.
 
-        /* The sole, which in the bag is the side that faces the sky — so it
-           is where most of the detail goes. A keel running back to a weight
-           at the tail (SIM2's "inertia generator"), a speed slot across the
-           front, and two stripes of the club's colour either side of the
-           keel. */
-        body.add(new THREE.Mesh(upward(roundPoly([
-            [-0.032, 0.052], [-0.032, 0.076], [-0.096, 0.070], [-0.096, 0.058]
-        ], [0.004, 0.004, 0.006, 0.006]), 0.0075, 0.0013, D_SOLE + 0.0045), M.head));
-        body.add(rod(M.chrome, v3(-0.092, D_SOLE + 0.0005, 0.064), v3(-0.092, D_SOLE + 0.0068, 0.064),
-            0.0088, 0.0088, 24));
-        body.add(rod(M.insert, v3(-0.092, D_SOLE + 0.004, 0.064), v3(-0.092, D_SOLE + 0.0072, 0.064),
-            0.0038, 0.0038, 6));
-        var slot = new THREE.Mesh(new THREE.BoxGeometry(0.004, 0.003, 0.070), M.insert);
-        slot.position.set(D_FACE - 0.007, D_SOLE - 0.0006, 0.064);
-        body.add(slot);
-        [0.044, 0.084].forEach(function (z) {
-            var stripe = new THREE.Mesh(new THREE.BoxGeometry(0.044, 0.0016, 0.0035), M.paint);
-            stripe.position.set(-0.056, D_SOLE + 0.0002, z);
-            stripe.rotation.y = z < 0.064 ? 0.16 : -0.16;
-            body.add(stripe);
+       The artwork goes through `sRGBToLinear` by hand: three.js decodes a
+       texture for the slots it knows (`map`), and a sampler of our own is
+       handed the canvas's bytes as they are — which read as linear made a
+       charcoal face a pale grey. */
+    function driverSkin(L, tl, face) {
+        var m = new THREE.MeshPhysicalMaterial({
+            map: carbonTexture(), metalness: 0.25, roughness: 0.42,
+            clearcoat: 1.0, clearcoatRoughness: 0.05,
+            envMap: studioRadiance(), envMapIntensity: ENV_LIGHT
+        });
+        var uni = {
+            uCrownArt: { value: drvCrownArt(tl) },
+            uSoleArt: { value: drvSoleArt(tl, L) },
+            uFaceArt: { value: drvFaceArt() },
+            uRing: { value: ink(L.metal) },
+            uFaceBox: { value: new THREE.Vector4(face.z1 - 0.002, face.y0 - 0.001,
+                face.z1 - face.z0 - 0.004, face.y1 - face.y0 + 0.002) }
+        };
+        function f(n) { return n.toFixed(5); }
+        m.onBeforeCompile = function (sh) {
+            Object.keys(uni).forEach(function (k) { sh.uniforms[k] = uni[k]; });
+            sh.vertexShader = 'attribute float sk;\nvarying float vSk;\nvarying vec3 vLocal;\n' +
+                sh.vertexShader.replace('#include <begin_vertex>',
+                    '#include <begin_vertex>\n\tvSk = sk;\n\tvLocal = position;');
+            sh.fragmentShader = [
+                'uniform sampler2D uCrownArt;', 'uniform sampler2D uSoleArt;', 'uniform sampler2D uFaceArt;',
+                'uniform vec3 uRing;', 'uniform vec4 uFaceBox;',
+                'varying float vSk;', 'varying vec3 vLocal;', ''
+            ].join('\n') + sh.fragmentShader.replace('#include <metalnessmap_fragment>', [
+                '#include <metalnessmap_fragment>',
+                '\tvec2 dPlan = vec2((vLocal.z - ' + f(DRV_ART.z0) + ') / ' + f(DRV_ART.span) + ',',
+                '\t\t(vLocal.x - ' + f(DRV_ART.x0) + ') / ' + f(DRV_ART.span) + ');',
+                '\tvec4 dTop = sRGBToLinear(texture2D(uCrownArt, dPlan));',
+                '\tvec4 dBot = sRGBToLinear(texture2D(uSoleArt, dPlan));',
+                '\tfloat dUp = smoothstep(-0.01, 0.01, vSk);',
+                '\tvec3 dCarbon = diffuseColor.rgb;',
+                '\tvec3 dCol = mix(mix(dCarbon * 0.85, dBot.rgb, dBot.a), mix(dCarbon, dTop.rgb, dTop.a), dUp);',
+                '\tfloat dPaint = mix(dBot.a, dTop.a, dUp);',
+                '\tfloat dRough = mix(mix(0.52, roughnessFactor, dUp), 0.34, dPaint);',
+                '\tfloat dMetal = mix(metalnessFactor, 0.0, dPaint);',
+                '\tfloat dCoat = mix(0.6, 1.0, dUp);',
+                /* The ring: round the back and both sides, the whole skirt
+                   from the sole's edge up to the crown's, with a hairline of
+                   the same blue a little way up the crown. */
+                '\tvec2 dRel = vLocal.xz - vec2(' + f(DRV_C.x) + ', ' + f(DRV_C.z) + ');',
+                '\tfloat dFwd = dRel.x / max(length(dRel), 1e-5);',
+                '\tfloat dRear = 1.0 - smoothstep(0.30, 0.55, dFwd);',
+                '\tfloat dRing = dRear * smoothstep(-0.30, -0.27, vSk) * (1.0 - smoothstep(0.018, 0.026, vSk));',
+                '\tfloat dHair = dRear * smoothstep(0.075, 0.085, vSk) * (1.0 - smoothstep(0.100, 0.110, vSk));',
+                '\tdCol = mix(dCol, uRing, max(dRing, dHair));',
+                '\tdRough = mix(dRough, 0.30, dRing);',
+                '\tdMetal = mix(dMetal, 0.6, dRing);',
+                '\tdCoat = mix(dCoat, 0.4, dRing);',
+                // The face, wherever the pixel is on the face surface.
+                '\tfloat dY = vLocal.y - ' + f(DRV_FACE.y) + ', dZ = vLocal.z - ' + f(DRV_FACE.z) + ';',
+                '\tfloat dFx = -dY * ' + f(tl) + ' - dZ * dZ / ' + f(2 * DRV_FACE.bulge) +
+                    ' - dY * dY / ' + f(2 * DRV_FACE.roll) + ';',
+                /* The white frame along the top of the face: a band of the
+                   crown a few millimetres deep behind the face edge, widening
+                   toward the heel, and only on the crown — the skirt round
+                   the toe and the sole's leading edge stay dark. */
+                '\tfloat dBehind = dFx - vLocal.x;',
+                '\tfloat dWide = 0.0040 + 0.0065 * smoothstep(-0.034, 0.0, vLocal.z);',
+                '\tfloat dFrame = (1.0 - smoothstep(dWide - 0.0003, dWide + 0.0003, dBehind)) *',
+                '\t\tsmoothstep(0.28, 0.34, vSk);',
+                '\tdCol = mix(dCol, vec3(0.85, 0.88, 0.90), dFrame);',
+                '\tdRough = mix(dRough, 0.34, dFrame);',
+                '\tdMetal = mix(dMetal, 0.0, dFrame);',
+                '\tfloat dOn = smoothstep(-0.0007, -0.0002, vLocal.x - dFx);',
+                '\tvec2 dFuv = vec2((uFaceBox.x - vLocal.z) / uFaceBox.z, (vLocal.y - uFaceBox.y) / uFaceBox.w);',
+                '\tdCol = mix(dCol, sRGBToLinear(texture2D(uFaceArt, dFuv)).rgb, dOn);',
+                '\tdRough = mix(dRough, 0.40, dOn);',
+                '\tdMetal = mix(dMetal, 0.45, dOn);',
+                '\tdCoat = mix(dCoat, 0.0, dOn);',
+                '\tdiffuseColor.rgb = dCol;',
+                '\troughnessFactor = dRough;',
+                '\tmetalnessFactor = dMetal;'
+            ].join('\n')).replace('#include <lights_physical_fragment>',
+                '#include <lights_physical_fragment>\n#ifdef CLEARCOAT\n\tmaterial.clearcoat *= dCoat;\n#endif');
+        };
+        m.customProgramCacheKey = function () { return 'loft-driver-skin-2'; };
+        return m;
+    }
+
+    function buildDriver(a, M, club) {
+        var L = look(club.id);
+        var tl = Math.tan(club.loft || 0);
+        var shell = driverShell(tl);
+        a.add(new THREE.Mesh(shell, driverSkin(L, tl, shell.userData.face)));
+
+        // Gloss black: the keel and the neck.
+        var gloss = new THREE.MeshPhysicalMaterial({
+            color: ink(0x15181c), metalness: 0.3, roughness: 0.32,
+            clearcoat: 1.0, clearcoatRoughness: 0.06,
+            envMap: studioRadiance(), envMapIntensity: ENV_LIGHT
         });
 
-        // The maker's mark on the crown, sat on the dome rather than
-        // floating at a guessed height: a small white disc on the carbon.
-        var ax = -0.034, az = 0.066;
-        body.add(rod(M.white, v3(ax, D_SOLE - D_SOLE_H - driverCrown(ax, az) + 0.0006, az),
-            v3(ax, D_SOLE - D_SOLE_H - driverCrown(ax, az) - 0.0004, az), 0.0026, 0.0026, 16));
+        /* The keel, which on a SIM2 is the "inertia generator": a raised
+           spine down the back of the sole, narrow at the front and widening
+           to a weight at the tail. Its top is buried in the shell and its
+           foot follows the sole down, standing proudest at the back. */
+        var keel = upward(roundPoly([
+            [-0.044, -0.0635], [-0.044, -0.0505], [-0.103, -0.0455], [-0.103, -0.0685]
+        ], [0.004, 0.004, 0.008, 0.008]), 0.010, 0.0016, 0);
+        var kp = keel.attributes.position;
+        for (var i = 0; i < kp.count; i++) {
+            var kx = kp.getX(i), kz = kp.getZ(i);
+            var proud = 0.0006 + 0.0038 * smooth01((-kx - 0.046) / 0.030);
+            var up = Math.max(0, Math.min(1, -kp.getY(i) / 0.010));
+            kp.setY(i, drvSoleY(kx, kz) - proud + up * (proud + 0.004));
+        }
+        creased(keel, 40);
+        a.add(new THREE.Mesh(keel, gloss));
+        // The weight in the tail of it, with a hex socket.
+        var wy = drvSoleY(-0.098, -0.057) - 0.0045;
+        a.add(rod(M.chrome, v3(-0.098, wy, -0.057), v3(-0.098, wy + 0.004, -0.057), 0.0075, 0.0075, 32));
+        a.add(rod(M.insert, v3(-0.098, wy - 0.0003, -0.057), v3(-0.098, wy + 0.001, -0.057), 0.0028, 0.0028, 6));
 
-        /* The neck is white and runs up out of the white frame on the heel;
-           over it, the black adjustable sleeve with the white index band
-           every adjustable driver has. */
-        g.add(rod(M.white, v3(0.000, 0.012, 0.0095), v3(0.003, 0.050, 0.016), 0.0080, 0.0105));
-        g.add(rod(M.insert, v3(0, -0.003, 0.0092), v3(0.0005, 0.0135, 0.0098), 0.0084, 0.0086));
-        g.add(rod(M.white, v3(0, 0.0045, 0.0094), v3(0, 0.0060, 0.0095), 0.0088, 0.0088));
+        /* The hosel: a neck flaring out of the heel, then the adjustable
+           sleeve — black, with the white index band every one has — which
+           the club's ferrule runs into. The shaft's line is 17mm behind the leading edge,
+           which is the face progression of a modern driver: the face stands
+           that far ahead of the shaft. */
+        var d = shaftDir(DRV_LIE);
+        var base = v3(-0.017, 0, -0.024);
+        a.add(turned(gloss, base.clone().addScaledVector(d, 0.016), d, [
+            [0, 0], [0.0135, 0.002], [0.0128, 0.022], [0.0098, 0.031], [0.0086, 0.038], [0.0086, 0.040], [0, 0.040]
+        ]));
+        a.add(turned(M.insert, base.clone().addScaledVector(d, 0.056), d, [
+            [0, 0], [0.0083, 0], [0.0081, 0.026], [0, 0.026]
+        ]));
+        a.add(turned(M.white, base.clone().addScaledVector(d, 0.0745), d, [
+            [0.00815, 0], [0.00815, 0.0016]
+        ]));
+        return { top: base.clone().addScaledVector(d, 0.082), lie: DRV_LIE, r: 0.0081 };
     }
 
     /* ── irons and wedges ───────────────────────────────────────────────── */
@@ -1160,12 +1422,13 @@
        above the blade, `sole` the sole's width front to back, `cavity` a
        perimeter-weighted back (else a muscle), `drop` a teardrop topline that
        climbs to a high toe, and `bounce` how far the trailing edge of the
-       sole hangs below the leading one, per metre of sole. */
+       sole hangs below the leading one, per metre of sole. `lie` is the
+       angle between shaft and ground, which climbs as the shaft shortens. */
     var IRONS = {
-        iron:    { len: 0.078, heel: 0.033, toe: 0.050, neck: 0.036, sole: 0.019, cavity: true },
-        chipper: { len: 0.075, heel: 0.036, toe: 0.054, neck: 0.040, sole: 0.022, cavity: true },
-        wedge:   { len: 0.080, heel: 0.035, toe: 0.059, neck: 0.044, sole: 0.026, drop: true, bounce: 0.14 },
-        checker: { len: 0.078, heel: 0.035, toe: 0.056, neck: 0.042, sole: 0.024, drop: true, bounce: 0.08 }
+        iron:    { len: 0.078, heel: 0.033, toe: 0.050, neck: 0.036, sole: 0.019, cavity: true, lie: 62.5 },
+        chipper: { len: 0.075, heel: 0.036, toe: 0.054, neck: 0.040, sole: 0.022, cavity: true, lie: 63.5 },
+        wedge:   { len: 0.080, heel: 0.035, toe: 0.059, neck: 0.044, sole: 0.026, drop: true, bounce: 0.14, lie: 64 },
+        checker: { len: 0.078, heel: 0.035, toe: 0.056, neck: 0.042, sole: 0.024, drop: true, bounce: 0.08, lie: 64 }
     };
 
     function bladeOutline(p, S) {
@@ -1183,10 +1446,17 @@
         ], [0.004, 0.016, 0.014, 0.010, 0.007, 0.004]);
     }
 
-    function buildIron(g, M, club) {
+    /* The blade is drawn as it always was — on the face, standing on its
+       sole at y = S in the bag's old frame — into a group of its own, and
+       then turned over into the address frame and leaned back by its loft
+       about the leading edge. Only the sole and the hosel are drawn in the
+       address frame itself, because those are the two parts that must *not*
+       lean with the face. */
+    function buildIron(a, M, club) {
         var p = IRONS[club.id] || IRONS.iron;
         var S = p.neck + p.heel;            // where the sole is
         var FACE = 0.0032, B = 0.0009;
+        var g = new THREE.Group();
 
         var outline = bladeOutline(p, S);
         g.add(new THREE.Mesh(backward(outline, FACE - 2 * B, B, 0), M.head));
@@ -1233,43 +1503,104 @@
             g.add(new THREE.Mesh(backward(stripe, 0.0006, 0.0004, -FACE - 0.0067), M.paint));
         }
 
-        /* The sole: a bar along the bottom as wide as the club's sole, its
-           trailing edge hung lower than its leading one by the club's bounce
-           — the camber a wedge glides on, and the one feature of a wedge a
-           golfer looks for first. */
-        var sole = backward(roundPoly([
-            [0.004, S - 0.011], [p.len - 0.021, S - 0.0145], [p.len - 0.007, S - 0.0095],
-            [p.len - 0.012, S], [0.006, S]
-        ], [0.003, 0.006, 0.006, 0.008, 0.006]), p.sole - FACE - 0.003, 0.0015, -FACE + 0.0004);
-        if (p.bounce) {
-            var sp = sole.attributes.position;
-            for (var i = 0; i < sp.count; i++) {
-                if (sp.getY(i) > S - 0.004) sp.setY(i, sp.getY(i) + p.bounce * Math.max(0, -sp.getX(i) - FACE));
-            }
-            creased(sole, 40);
-        }
-        g.add(new THREE.Mesh(sole, M.head));
-
         // The grooves, on a plate cut to the face's own outline.
         var plateGeo = facePlate(bladeOutline(p, S), p.drop ? 0.88 : 0.84);
         plateGeo.rotateY(-Math.PI / 2);
         plateGeo.translate(0.0004, 0, 0);
         g.add(new THREE.Mesh(plateGeo, M.grooves));
 
-        /* The hosel: long, tapering into the heel, and set a few millimetres
-           ahead of the leading edge — offset, which every iron has and which
-           is half of what makes one look like an iron rather than a hatchet. */
-        g.add(rod(M.head, v3(-0.0022, -0.002, 0.0005), v3(-0.0030, S - p.heel + 0.010, 0.0025),
-            0.0068, 0.0090));
+        // Turned over into the address frame and lofted about the leading edge.
+        var flip = new THREE.Group();
+        flip.rotation.x = Math.PI;
+        flip.position.y = S;
+        flip.add(g);
+        var lofted = new THREE.Group();
+        lofted.rotation.z = club.loft || 0;
+        lofted.add(flip);
+        settle(lofted, a, 0.0004);
+
+        a.add(new THREE.Mesh(ironSole(p, club.loft || 0), M.head));
+
+        /* The hosel: long, flaring into the heel, its front standing a few
+           millimetres ahead of the leading edge — offset, which every iron
+           has and which is half of what makes one look like an iron rather
+           than a hatchet. It rises at the club's lie and does not lean with
+           the face, so a wedge's hosel is as straight as a 7 iron's. It runs
+           on down into the heel and is cut off flush with the sole, so the
+           blade grows out of it rather than hanging off a rounded end. */
+        var lie = p.lie * Math.PI / 180, d = shaftDir(lie);
+        var top = v3(-0.004, 0.0085, -0.003).addScaledVector(d, 0.056);
+        var run = (top.y + 0.004) / d.y;
+        var hosel = new THREE.Group();
+        hosel.add(turned(M.head, top.clone().addScaledVector(d, -run), d, [
+            [0, 0], [0.0092, 0], [0.0090, run - 0.048], [0.0074, run - 0.022],
+            [0.0068, run], [0, run]
+        ]));
+        settle(hosel, a, 0.0004);
+        return { top: top, lie: lie, r: 0.0068 };
+    }
+
+    /* The sole, seen end on: from the leading edge back along the ground
+       to the trailing edge, up the back, and forward again to meet the back
+       of the lofted blade. On a 7 iron that is a bar a centimetre and a bit
+       tall behind a blade that barely leans; on a 58 degree wedge the blade
+       lies so far back that the back of it reaches the trailing edge only
+       16mm up, and the section is a triangle — which is the wide, flanged
+       sole a wedge is recognised by from the toe. Its leading edge stands
+       off the ground by the club's bounce, so the club rests on the back of
+       its sole the way a wedge does.
+
+       Swept heel to toe along the blade, and drawn up and in over the last
+       couple of centimetres to follow the toe's own curve rather than end in
+       a flat cut. */
+    function ironSole(p, L) {
+        var w = p.sole, lead = (p.bounce || 0.03) * w;
+        var Tb = 0.0094;                       // blade, face to back, at its foot
+        var c = Math.cos(L), sn = Math.sin(L);
+        // The back of the lofted blade: through (-Tb c, -Tb s), along (-s, c).
+        function backAt(y) { var t = (y + Tb * sn) / c; return -Tb * c - t * sn; }
+        var meet = sn > 1e-3 ? -Tb * sn + (w - Tb * c) / sn * c : 1;
+        var pts, radii;
+        if (meet <= 0.013) {
+            pts = [[0.0006, lead + 0.0012], [-w, 0], [-w, meet]];
+            radii = [0.0008, Math.min(0.006, w * 0.28), 0.002];
+        } else {
+            pts = [[0.0006, lead + 0.0012], [-w, 0], [-w, 0.013], [backAt(0.013), 0.013]];
+            radii = [0.0008, Math.min(0.006, w * 0.28), 0.002, 0.001];
+        }
+        var bev = 0.0010, run = p.len - 0.006;
+        var geo = new THREE.ExtrudeGeometry(roundPoly(pts, radii), {
+            depth: run - 2 * bev, curveSegments: 10, bevelEnabled: true,
+            bevelSegments: 2, bevelSize: bev, bevelThickness: bev
+        });
+        geo.translate(0, 0, -(run - bev));
+        var pos = geo.attributes.position;
+        for (var i = 0; i < pos.count; i++) {
+            var t = smooth01((-pos.getZ(i) - (p.len - 0.030)) / 0.024);
+            pos.setX(i, pos.getX(i) * (1 - 0.45 * t));
+            pos.setY(i, pos.getY(i) * (1 - 0.3 * t) + 0.006 * t * t);
+        }
+        return creased(geo, 40);
     }
 
     /* ── putters ────────────────────────────────────────────────────────── */
 
     /* The Anser: a face block, a low flange behind it, a weight standing at
        heel and toe, a sight line on the flange, and a plumber's neck — down
-       off the shaft, across, and down again into the heel. */
-    function buildBlade(g, M) {
+       off the shaft, across, and down again into the heel. The head is drawn
+       standing on its sole at y = S, the way the irons are, and turned over
+       into the address frame; the neck is drawn there. */
+    var PUTTER_LIE = 70 * Math.PI / 180;
+    function soled(g, S) {
+        var flip = new THREE.Group();
+        flip.rotation.x = Math.PI;
+        flip.position.y = S;
+        flip.add(g);
+        return flip;
+    }
+    function buildBlade(a, M) {
         var S = 0.056, H = 0.023, top = S - H;
+        var g = new THREE.Group();
         g.add(new THREE.Mesh(upward(roundPoly([
             [-0.0055, -0.0045], [-0.0055, 0.0945], [-0.0115, 0.0945], [-0.0115, -0.0045]
         ], [0.002, 0.002, 0.003, 0.003]), H, 0.0015, S), M.head));
@@ -1295,23 +1626,33 @@
         face.translate(-0.0038, 0, 0);
         g.add(new THREE.Mesh(face, M.grooves));
 
-        var knee = top - 0.012;
-        g.add(rod(M.head, v3(0, -0.003, 0), v3(0, knee, 0), 0.0058, 0.0060));
-        g.add(rod(M.head, v3(0, knee, 0), v3(-0.0055, knee, 0.015), 0.0056, 0.0056));
-        g.add(rod(M.head, v3(-0.0055, knee, 0.015), v3(-0.0080, top + 0.001, 0.016), 0.0052, 0.0060));
-        [v3(0, knee, 0), v3(-0.0055, knee, 0.015)].forEach(function (at) {
+        a.add(soled(g, S));
+
+        /* The neck: up out of the heel, across toward the heel and a little
+           forward of the face, and from there the shaft's own line at the
+           putter's lie — so the bend is in the neck, where a plumber's neck
+           has it, and the shaft runs straight out of it. */
+        var d = shaftDir(PUTTER_LIE);
+        var n0 = v3(-0.008, H - 0.002, -0.016), n1 = v3(-0.008, H + 0.013, -0.016);
+        var n2 = v3(-0.0005, H + 0.013, -0.004), top2 = n2.clone().addScaledVector(d, 0.030);
+        a.add(rod(M.head, n0, n1, 0.0060, 0.0058));
+        a.add(rod(M.head, n1, n2, 0.0056, 0.0056));
+        a.add(rod(M.head, n2, top2, 0.0058, 0.0062));
+        [n1, n2].forEach(function (at) {
             var elbow = new THREE.Mesh(new THREE.SphereGeometry(0.0058, 14, 10), M.head);
             elbow.position.copy(at);
-            g.add(elbow);
+            a.add(elbow);
         });
+        return { top: top2, lie: PUTTER_LIE, r: 0.0062 };
     }
 
     /* The two-ball: a half-moon mallet with two white discs on its back,
        lined up behind the ball — the alignment aid the design is named for,
        and why it reads as itself at any size. The club's colour runs along
        the top of the face, and the face is a dark insert. */
-    function buildMallet(g, M) {
+    function buildMallet(a, M) {
         var S = 0.056, H = 0.024, top = S - H;
+        var g = new THREE.Group();
         g.add(new THREE.Mesh(upward(roundPoly([
             [-0.004, -0.004], [-0.004, 0.100], [-0.030, 0.102], [-0.070, 0.084],
             [-0.076, 0.048], [-0.070, 0.012], [-0.030, -0.006]
@@ -1326,17 +1667,21 @@
         var insert = new THREE.Mesh(new THREE.BoxGeometry(0.0018, H - 0.009, 0.086), M.insert);
         insert.position.set(-0.004 + 0.0030 + 0.0006, S - H / 2, 0.048);
         g.add(insert);
+        a.add(soled(g, S));
         // A slant neck: one straight bend from the shaft into the heel.
-        g.add(rod(M.head, v3(0, -0.003, 0), v3(-0.006, top + 0.002, 0.013), 0.0058, 0.0064));
+        var base = v3(-0.006, H - 0.002, -0.013);
+        var top2 = base.clone().add(v3(0.004, 0, 0)).addScaledVector(shaftDir(PUTTER_LIE), 0.050);
+        a.add(rod(M.head, base, top2, 0.0064, 0.0060));
+        return { top: top2, lie: PUTTER_LIE, r: 0.0060 };
     }
 
     function buildHead(club, M) {
-        var g = new THREE.Group();
-        if (club.id === 'driver') buildDriver(g, M);
-        else if (club.id === 'putter') buildBlade(g, M);
-        else if (club.id === 'mallet') buildMallet(g, M);
-        else buildIron(g, M, club);
-        return g;
+        var a = new THREE.Group(), at;
+        if (club.id === 'driver') at = buildDriver(a, M, club);
+        else if (club.id === 'putter') at = buildBlade(a, M);
+        else if (club.id === 'mallet') at = buildMallet(a, M);
+        else at = buildIron(a, M, club);
+        return mount(a, at);
     }
 
     /* ── the bag itself ────────────────────────────────────────────────── */
