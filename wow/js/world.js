@@ -248,12 +248,20 @@
     fig.userData.body.add(roll);
   }
 
+  // Gear follows whatever class the page rolled for this visit.
+  function gearFor(p) {
+    const c = p.classes[0];
+    if (c === "warrior" || c === "paladin") return [sword, shield];
+    if (c === "rogue") return [daggers];
+    if (c === "hunter") return [sword];
+    return [f => staff(f, [parseInt(W.CLASS[c][1].slice(1), 16)])];
+  }
   const LOOKS = {
     Adam:   { o: { cloth: 0x8f949e, clothOpts: { metalness: 0.55, roughness: 0.4 }, trim: 0xc9a040, plate: true, legs: 0x6b6f78, skin: 0xf2cdb0, scale: 0.64, bigHead: 1.45, pigtails: 0xff6fb0 }, gear: [sword, shield] },
-    Kocken: { o: { cloth: 0xd9d4ca, trim: 0x2a6fd0, robe: true, chef: true }, gear: [f => staff(f, [0x0070dd, 0xffffff])] },
-    Victor: { o: { cloth: 0x3b2a5c, trim: 0x8788ee, robe: true, hood: true, skin: 0xd8a888 }, gear: [f => staff(f, [0x0070dd, 0x8788ee, 0xffffff])] },
+    Kocken: { o: { cloth: 0xd9d4ca, trim: 0x2a6fd0, robe: true, chef: true }, gear: gearFor },
+    Victor: { o: { cloth: 0x3b2a5c, trim: 0x8788ee, robe: true, hood: true, skin: 0xd8a888 }, gear: gearFor },
     Niklas: { o: { cloth: 0x2b2330, hood: true, legs: 0x1f1a24, skin: 0x8f9c7e, glowEyes: 0xffe14a }, gear: [daggers] },
-    Dredde: { o: { cloth: 0x6a2626, hood: true, legs: 0x2e2a26, skin: 0xe8bc98 }, gear: [backpack] },
+    Dredde: { o: { cloth: 0x6a2626, hood: true, legs: 0x2e2a26, skin: 0xe8bc98 }, gear: p => [backpack, ...gearFor(p)] },
     Robin:  { o: { cloth: 0x9fc4ff, ghost: true }, gear: [] }
   };
 
@@ -266,7 +274,7 @@
   W.party.forEach((p, i) => {
     const look = LOOKS[p.name] || { o: { cloth: 0x555555, hood: true }, gear: [] };
     const f = figure(look.o);
-    look.gear.forEach(g => g(f));
+    (typeof look.gear === "function" ? look.gear(p) : look.gear).forEach(g => g(f));
     if (p.pending) { f.position.set(4.8, 0, -1.2); f.lookAt(0, 0, 0); }
     else if (p.dead) { f.position.set(-1.45, 0.2, 0.55); f.rotation.set(0, 0.35, 0); f.rotateZ(Math.PI / 2); }
     else {
