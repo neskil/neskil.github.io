@@ -1348,13 +1348,26 @@
        `pts` is the line of the near lip, [x, z] each, and the canyon opens on
        the side the line turns left towards (+z for a line running +x). The
        lobes wander a little off it from the seed. Returns the humps, for
-       `carve`. */
+       `carve`. The whole carve reaches about 0.6 short of the line and
+       10·scale beyond it. */
     function gully(pts, seed, opts) {
         var o = opts || {}, rnd = seeded(seed || 1), out = [], i, k, a, b, len, n, f, nx, nz, w;
-        var chains = [
-            { r: o.r1 || 2.0, a: o.a1 || 1.25, off: o.o1 === undefined ? 1.6 : o.o1 },
-            { r: o.r2 || 4.4, a: o.a2 || 0.8, off: o.o2 === undefined ? 3.4 : o.o2 }
-        ];
+        var wob = o.wobble === undefined ? 0.12 : o.wobble, sc = o.scale || 1;
+        /* Four chains, each further across, wider and shallower than the one
+           before: the first is the near wall and the rest are the floor
+           ramping up into the bank. Two were tried first — a narrow deep
+           chain and a wide shallow one — and they leave a V in the bottom:
+           a narrow hollow is as steep on its far side as its near, so the
+           climb out of the floor was two in places and a ball rolled back
+           into it off every club in the bag. These keep the climb under
+           0.85 over forty seeds (the cut gorge's bank was 0.73) with the
+           near wall at about 2.2, 2.9 to 3.2 units deep and ten across.
+           `scale` narrows the whole section and makes it shallower by the
+           same factor, which leaves every slope where it was. */
+        var chains = (o.chains || [
+            { r: 2.0, a: 0.9, off: 1.4 }, { r: 2.6, a: 0.7, off: 2.6 },
+            { r: 3.4, a: 0.55, off: 3.9 }, { r: 4.2, a: 0.4, off: 5.2 }
+        ]).map(function (c) { return { r: c.r * sc, a: c.a * sc, off: c.off * sc }; });
         chains.forEach(function (c) {
             for (i = 0; i + 1 < pts.length; i++) {
                 a = pts[i]; b = pts[i + 1];
@@ -1362,7 +1375,7 @@
                 n = Math.max(1, Math.ceil(len / (c.r * 0.6)));
                 nx = -(b[1] - a[1]) / len; nz = (b[0] - a[0]) / len;
                 for (k = i ? 1 : 0; k <= n; k++) {
-                    f = k / n; w = c.off + (rnd() - 0.5) * 0.3 * c.r;
+                    f = k / n; w = c.off + (rnd() - 0.5) * wob * c.r;
                     out.push(hill(a[0] + (b[0] - a[0]) * f + nx * w, a[1] + (b[1] - a[1]) * f + nz * w,
                                   c.r * (0.9 + rnd() * 0.2), -c.a * (0.9 + rnd() * 0.2)));
                 }
@@ -5843,7 +5856,7 @@
                either way, inside a band of rough of its own, and it runs off
                both edges of the ground — so there is no way round it, and the
                stakes can stand back from the hole like the other courses'. */
-            var cut = gully([[-14, 14.3], [-3, 13.5], [6, 14.6], [14, 13.6], [23, 14.5], [37, 13.9]], 9103);
+            var cut = gully([[-14, 14.3], [-3, 13.5], [6, 14.6], [14, 13.6], [23, 14.5], [37, 13.9]], 9103, { scale: 0.9 });
             var field = ridge(4, 9.5, 18, 9.5, 4, 0.3, 3)
                 .concat(massif(28, 20, 11, 2.1, 5))
                 .concat([hill(2.4, 32, 2.8, -0.55), hill(19.5, 40, 3, 0.45)]);
@@ -5914,7 +5927,7 @@
                little narrower than the default so it stops short of the
                green strung along its lip. */
             var cut = gully([[-2.3, 76], [-1.9, 62], [-3.6, 50], [-2.0, 38], [-4.4, 26], [-2.1, 12], [-3.8, 0], [-2.4, -14]],
-                            9221, { o2: 3.0, r2: 4.0 });
+                            9221, { scale: 0.8 });
             /* No hollow anywhere near the fairway on this one. The massif
                east of the property is already spending a fifth of what the
                fairway will hold by the time its skirt reaches the short grass,
@@ -5974,7 +5987,7 @@
                and a box past the edge of the world hangs over the desert),
                the east one dry and running out of the side. Both keep the
                narrower far bank so the green on the far lip stays dry. */
-            var narrow = { o2: 3.0, r2: 4.0 };
+            var narrow = { scale: 0.8 };
             var west = gully([[-9, 10.0], [-2, 9.5], [4, 10.2], [7.6, 9.9]], 9303, narrow);
             var east = gully([[19.5, 9.9], [27, 10.3], [38, 9.7]], 9305, narrow);
             var field = massif(-9, 16, 12, 2.4, 5)
@@ -6034,7 +6047,14 @@
                enough to play out of is a ramp a drive skips clean across the
                canyon off, and a far wall that does not climb is a two-unit
                cliff between a ball and the rest of the hole. */
-            var cut = ravine(10.5, 21, 15.5, 10, 1.9, { bank: [0, 2.6] });
+            /* The bite is carved (`gully`): it starts in a rounded end just
+               east of the west lane — six units of fairway now, where it was
+               seven and a half, which is what buys the end cap room to be a
+               slope rather than a cliff — and runs out of the east side of
+               the ground. Its line hardly wanders: it is held between two
+               rows of fairway, so a unit either way would put a hollow on one
+               of them. */
+            var cut = gully([[13.6, 22.3], [20, 21.9], [28, 22.5], [42, 22.0]], 9403, { scale: 0.8 });
             var field = massif(-7, 28, 12, 2.3, 5)
                 .concat(massif(36, 42, 12, 2.2, 5))
                 .concat([hill(2.2, 15, 2.6, 0.4), hill(22.5, 15, 3, 0.45)]);
@@ -6043,7 +6063,7 @@
                 [5,                    [3, rgh], [9, fwy], [14, rgh]],
                 [{ d: 4, sz: -0.5 },   [26, rgh]],
                 [12,                   [3, rgh], [15, fwy], [8, rgh]],
-                [10,                   [3, rgh], [7.5, fwy], [15.5, null]],
+                [10,                   [3, rgh], [6, fwy], [17, rgh]],
                 [6,                    [3, rgh], [17, fwy], [6, rgh]],
                 [2,                    [9, rgh], [12, fwy], [5, rgh]],
                 [{ d: 4, sz: 0.12 },   [9, rgh], [12, fwy], [5, rgh]],
@@ -6051,7 +6071,7 @@
                 [8,                    [3, rgh], [21, fwy], [2, rgh]],
                 [3,                    [26, rgh]]
             ], { m: 14 });
-            var ground = shape(land.pads.concat(cut.pads), field);
+            var ground = carve(shape(land.pads, field), cut, { rock: true });
             /* The spring is a pool in a hollow, held inside its own cell of
                rough with fairway on three sides of it — which is why it is
                smaller than the box it used to be. */
@@ -6062,7 +6082,7 @@
                 pads: ground.concat([
                     inlay(ground, 20.5, 52, 4.2, grn, 4.2)
                 ]),
-                fence: land.fence,
+                fence: widen(land.fence, 5, 5),
                 water: [spring],
                 extra: [].concat(
                     crags(4.5, 42, 2.6, 5, 9401, { s: 1.3, h: 1.0 }),

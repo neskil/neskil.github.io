@@ -2258,11 +2258,15 @@ else: the back of a skirt is only ever visible from inside a hole in the world.
 
 **A canyon that bends** (`gully`, v1.83.0) cannot be built this way, because a
 sheer wall is the straight edge of a pad. So it is carved into the ground
-instead: two chains of hollows down a bent line, a narrow deep one whose steep
-side is the near wall (about 64°) and a wide shallow one further across whose
-long side is the bank. The asymmetry survives — the bot drives First Cut
-exactly as it did the cut version, and from the floor it wedges out and is a
-shot down — and `carve(…, { rock: true })` has the renderer draw any face
+instead: four chains of hollows down a bent line, each further across, wider
+and shallower than the last — the first is the near wall (a gradient of about
+2.2) and the rest ramp the floor up into the bank (never steeper than 0.85
+over forty seeds; the cut gorge's was 0.73). Two chains were tried first and
+left a V in the bottom, because a narrow hollow is as steep on its far side as
+its near one: on Long Way Round the climb out was 1.4 and the bot rolled back
+into it off every club, eight strokes running. The asymmetry survives — the
+bot plays every carved hole off the tee exactly as it did the cut version,
+and from the floor it gets out and is a shot or two down — and `carve(…, { rock: true })` has the renderer draw any face
 steeper than about 44° as bare rock in the skirt colour, with no grass on it,
 which is what makes a dip in the scrub read as a canyon. A carved canyon runs
 off both edges of the ground, so unlike a cut one it has no way round it and
