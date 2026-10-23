@@ -270,7 +270,7 @@
             section('the topbar, wide');
 
             compact(false);
-            var CHIPS = ['btn-full', 'btn-title', 'btn-courses', 'btn-restart', 'btn-card', 'chip-editor', 'btn-mute'];
+            var CHIPS = ['btn-full', 'btn-title', 'btn-courses', 'btn-restart', 'btn-card', 'btn-sim', 'chip-editor', 'btn-mute'];
             CHIPS.forEach(function (id) {
                 assert('#' + id + ' is in the bar', shown($(id)));
             });
@@ -856,6 +856,46 @@
             assert('…and a long wandering roll leaves it a sphere, not an egg', ortho);
             var hop = shotAt(false, G.CONFIG.BALL_R + 12);
             assert('a ball in the air is drawn up off the green, not where it stands', near(off, hop, 0) > 200);
+
+            /* Last, because it is the one thing here that cannot be undone
+               short of a reload: once the caddie has had the club, nothing
+               this sitting is recorded, and every section above it needs a
+               game that keeps score. */
+            section('autoplay');
+
+            G.game.playCourse('short', null, 0);
+            var Wa = frame();
+            var before = JSON.stringify(G.scoring.load('short').holes);
+            $('btn-sim').click();
+            assert('the 🤖 chip hands the club to the caddie', G.game.autoplay());
+            assert('…and says so, lit and pressed', $('btn-sim').classList.contains('on') &&
+                $('btn-sim').getAttribute('aria-pressed') === 'true');
+            var simBg = parseColor(css($('btn-sim'), 'backgroundColor'));
+            assert('a lit 🤖 is painted on the accent', simBg && simBg.g > 150 && simBg.r < 140,
+                'background ' + css($('btn-sim'), 'backgroundColor'));
+            assert('…in ink dark enough to read on it', parseColor(css($('btn-sim'), 'color')).g < 120,
+                'colour ' + css($('btn-sim'), 'color'));
+            $('board').dispatchEvent(new Wa.PointerEvent('pointerdown', { bubbles: true, clientX: 200, clientY: 200, pointerId: 1 }));
+            assert('a press on the board does not aim a shot the caddie is playing', !G.game.getState().aim.origin);
+            st = G.game.getState();
+            st.strokes = 1;
+            G.game.holeComplete(false);
+            assert('a hole the caddie holes gives no stars', $('banner-stars').textContent === '',
+                $('banner-stars').textContent);
+            assert('…and writes no best', JSON.stringify(G.scoring.load('short').holes) === before,
+                JSON.stringify(G.scoring.load('short').holes));
+            Wa.dispatchEvent(new Wa.KeyboardEvent('keydown', { key: 'Escape' }));
+            assert('Esc takes the club back', !G.game.autoplay() && !$('btn-sim').classList.contains('on'));
+            assert('…without opening the menu over the board', !$('title').classList.contains('show'));
+            Wa.dispatchEvent(new Wa.KeyboardEvent('keydown', { key: 'a' }));
+            assert('A hands it over again', G.game.autoplay());
+            G.game.toggleAuto();
+            assert('…and the chip takes it back', !G.game.autoplay());
+            st = G.game.getState();
+            st.strokes = 1;
+            G.game.holeComplete(false);
+            assert('the rest of the sitting keeps no record either, even by hand',
+                JSON.stringify(G.scoring.load('short').holes) === before);
             return Promise.resolve();
         }
 

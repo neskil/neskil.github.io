@@ -25,6 +25,7 @@
     <script src="js/config.js"></script>
     <script src="js/courses.js"></script>
     <script src="js/physics.js"></script>
+    <script src="js/bot.js"></script>
     <script src="js/generator.js"></script>
     <script src="js/scoring.js"></script>
     <script src="js/progress.js"></script>
@@ -1880,6 +1881,102 @@
             GOLF.COURSE_ID = wasId;
             GOLF.COURSE_SEED = wasSeed;
             assert('clearing it leaves the hand-built courses alone', S.loadRound(GOLF.COURSES[0].holes) === null);
+        })();
+
+        /* ── the caddie ──────────────────────────────────────────────────── */
+        section('The caddie (autoplay)');
+
+        /* js/bot.js is what plays when the 🤖 chip is pressed. The search
+           above proves a hole can be finished; this proves the caddie
+           *does* finish it, playing the way game.js plays it: a line read,
+           then played out a shot at a time on the beat between shots the
+           game really keeps, read again only when the ball is not where the
+           line said. Every shipped hole and every hole of one draw, inside
+           the stroke allowance. */
+        (function () {
+            var B = GOLF.bot;
+            var GAP = C.BOT_PAUSE + C.BOT_TURN + C.BOT_WIND + C.BOT_SLACK;
+            var LEAD = C.BOT_TURN + C.BOT_WIND;
+            var over = 0, drift = 0, picked = [], reads = 0, holes = 0, strokes = 0, par = 0;
+
+            function caddie(h, i) {
+                var limit = S.strokeLimit(h.par);
+                var ball = { x: h.tee.x, y: h.tee.y }, time = 0, n = 0, plan = [];
+                while (n < limit) {
+                    var shot = plan.shift();
+                    if (!shot || Math.hypot(shot.from.x - ball.x, shot.from.y - ball.y) > 0.01 ||
+                        shot.at < time + LEAD) {
+                        var found = B.bestShot(h, ball, time + LEAD,
+                            { strokes: limit - n, gap: GAP, budget: C.BOT_BUDGET, seed: 1 + i * 7919 + n * 104729 });
+                        reads++;
+                        if (!found) return null;
+                        plan = found.shots;
+                        shot = plan.shift();
+                    }
+                    if (shot.power > C.SAFE_POWER) over++;
+                    var w = P.createWorld(h, ball, shot.at);
+                    P.launch(w, shot.aim, shot.power);
+                    P.settle(w);
+                    n++;
+                    if (w.sunk) return n;
+                    if (w.splash) { n += C.WATER_PENALTY; time = w.time + C.BOT_PAUSE; continue; }
+                    // The game rolls the same steps from the same instant, so
+                    // a planned shot comes to rest exactly where it said.
+                    if (shot.to && Math.hypot(shot.to.x - w.ball.x, shot.to.y - w.ball.y) > 1e-9) drift++;
+                    ball = { x: w.ball.x, y: w.ball.y };
+                    time = w.time + C.BOT_PAUSE;
+                }
+                return null;
+            }
+
+            var rack = GOLF.COURSES.filter(function (c) { return c.id !== 'draw'; })
+                .map(function (c) { return { id: c.id, holes: c.holes }; });
+            rack.push({ id: 'draw ' + GOLF.generator.seedLabel(4242), holes: GOLF.generateCourse(4242).holes });
+            rack.forEach(function (course) {
+                course.holes.forEach(function (h, i) {
+                    holes++;
+                    par += h.par;
+                    var got = caddie(h, i);
+                    if (got === null) picked.push(course.id + ' ' + (i + 1));
+                    else strokes += got;
+                });
+            });
+            assert('the caddie holes out on every hole it is handed', picked.length === 0,
+                'picked up on ' + picked.join(', '));
+            assert('it never swings into the overswing', over === 0, over + ' shots past SAFE_POWER');
+            assert('every planned shot stops exactly where the plan said', drift === 0, drift + ' drifted');
+            assert('a line is read about once a hole, not once a shot', reads <= holes * 1.5,
+                reads + ' reads over ' + holes + ' holes');
+            note('the caddie round the rack: ' + strokes + ' strokes against a par of ' + par +
+                 ' over ' + holes + ' holes, ' + reads + ' reads');
+        })();
+
+        /* The walking map it ranks lies by: round the walls and the water,
+           through a tunnel for nothing. Every tee has to be on it — a tee the
+           flood never reaches would leave the beam ranking every lie as
+           equally hopeless — and nothing but a tunnel may make the walk to
+           the cup shorter than the crow flies. */
+        (function () {
+            var B = GOLF.bot, cut = [], lost = [];
+            var all = [];
+            GOLF.COURSES.forEach(function (c) {
+                c.holes.forEach(function (h, i) { all.push({ name: c.id + ' ' + (i + 1), h: h }); });
+            });
+            GOLF.generateCourse(606).holes.forEach(function (h, i) { all.push({ name: 'draw ' + (i + 1), h: h }); });
+            all.forEach(function (x) {
+                var h = x.h, m = B.walkingMap(h);
+                var d = B.walk(m, h.tee.x, h.tee.y);
+                var crow = Math.hypot(h.tee.x - h.hole.x, h.tee.y - h.hole.y);
+                if (d >= 1e6) lost.push(x.name);
+                else if (!(h.tunnels || []).length && d < crow - 20) cut.push(x.name);
+            });
+            assert('every tee is on the walking map', lost.length === 0, lost.join(', '));
+            assert('only a tunnel walks shorter than the crow flies', cut.length === 0, cut.join(', '));
+            var ferry = GOLF.COURSES.filter(function (c) { return c.id === 'warren'; })[0].holes[1];
+            var fm = B.walkingMap(ferry);
+            assert('…and a tunnel does',
+                B.walk(fm, ferry.tee.x, ferry.tee.y) < Math.hypot(ferry.tee.x - ferry.hole.x, ferry.tee.y - ferry.hole.y));
+            assert('the map is read once per hole and kept', B.walkingMap(ferry) === fm);
         })();
 
         /* ── done ───────────────────────────────────────────────────────── */

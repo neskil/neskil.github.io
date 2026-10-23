@@ -150,8 +150,9 @@
        keeps the rule with the course rather than in a list of ids here. */
     function isRecorded() {
         var course = currentCourse();
-        // A party is everybody's round and so nobody's record.
-        return !GOLF.PLAYTEST && !(course && course.record === false) && !(state && state.party);
+        // A party is everybody's round and so nobody's record — and a sitting
+        // the caddie has played in is nobody's either. See startAuto.
+        return !GOLF.PLAYTEST && !autoUsed && !(course && course.record === false) && !(state && state.party);
     }
 
     function currentCourse() {
@@ -640,11 +641,14 @@
        party keeps a round of its own (see saveParty) and stays out of the
        solo one for the same reason. */
     function storeRound(i) {
-        if (!GOLF.PLAYTEST && !state.party) S.saveRound(i, state.scores, GOLF.COURSE);
+        if (!GOLF.PLAYTEST && !autoUsed && !state.party) S.saveRound(i, state.scores, GOLF.COURSE);
     }
 
+    /* Autoplay keeps out of both, for the playtest's reason: a round the
+       caddie has had a hand in is not one to hand back on a refresh, and a
+       course it walks onto must not throw away the round you left there. */
     function clearStoredRound() {
-        if (!GOLF.PLAYTEST) S.clearRound();
+        if (!GOLF.PLAYTEST && !autoUsed) S.clearRound();
     }
 
     function blankState() {
@@ -689,6 +693,11 @@
 
     function loadHole(i) {
         var hole = GOLF.COURSE[i];
+        /* A new tee is a new walk for the caddie: whatever it was in the
+           middle of was planned for a hole that is not there any more, and
+           Autoplay starts it again on this one next frame. */
+        stopSim(null);
+        if (auto) { auto.playing = false; auto.wait = 0; }
         state.holeIndex = i;
         state.strokes = 0;
         state.world = P.createWorld(hole, hole.tee, 0);
@@ -717,8 +726,10 @@
         storeRound(i);
         // The ghost stroke is for somebody who has never taken one, and the
         // editor's playtest is by definition somebody who has.
-        state.coach = !GOLF.PLAYTEST && !PR.coached();
-        showLessons(hole);
+        state.coach = !GOLF.PLAYTEST && !auto && !PR.coached();
+        // The lessons are for the player, and are spent by being shown; a
+        // caddie walking past a hazard has not taught anybody anything.
+        if (auto) hideLessons(); else showLessons(hole);
         syncHud();
     }
 
@@ -870,7 +881,8 @@
         a.origin = null;
         if (state.coach) {
             state.coach = false;
-            PR.markCoached();
+            // The caddie's first stroke is not the player's.
+            if (!sim) PR.markCoached();
         }
         hideLessons();
         var frac = power / C.MAX_POWER, hot = power > C.SAFE_POWER;
@@ -1204,6 +1216,8 @@
 
     function beginParty(courseId, players, cards, holeIndex, order, pos) {
         if (!GOLF.selectCourse(courseId)) return false;
+        // A party plays its own shots.
+        stopAuto(null);
         PR.grant(courseId);
         try { localStorage.setItem(C.COURSE_KEY, GOLF.COURSE_ID); } catch (e) { /* storage off */ }
         closeTitle();
@@ -1503,6 +1517,9 @@
         var summary;
         if (!res) {
             summary = 'Through ' + t.played + ' hole' + (t.played === 1 ? '' : 's');
+        } else if (autoUsed) {
+            summary = t.strokes + ' strokes, ' + S.formatVsPar(t.vsPar) +
+                ' · not recorded — the caddie has had the club this session';
         } else if (!isRecorded()) {
             // Not an apology: a draw nobody else has played has no record to
             // beat, and pretending otherwise would put a nine-hole score up
@@ -1564,6 +1581,306 @@
 
     function closeCard() { shut('scorecard'); }
 
+    /* ── the caddie ──────────────────────────────────────────────────────
+
+       Autoplay, the way Loft Links has it: the 🤖 chip hands the club to
+       `js/bot.js` and it plays — from wherever the ball is standing, and
+       then *on*: the next hole when this one drops, and the next course when
+       the card runs out. Press it again, or Esc, to take the club back.
+
+       It plays through the same three things a player touches — the line,
+       the weight, and the strike — so what you watch is a shot the game
+       played, not one drawn on top of it. And it plays it the way a person
+       does, over a moment: it stands over the ball, the arrow swings round
+       to the line it chose, the ring winds up to the weight, and only then
+       does it putt. A shot with no moment before it reads as a glitch.
+
+       **The roll is stepped at SIM_DT while it has the club.** The plan was
+       made by settling copies of this world at that step, and `advance`
+       subdivides by speed rather than to a fixed clock, so a frame of any
+       other length is a slightly different roll — enough, over a long putt,
+       to turn the shot it holed into one that lips out. Fixed steps make the
+       game's roll the plan's roll to the last bit, which is what lets the
+       caddie keep a whole line rather than planning every stroke afresh, and
+       what lets it time a gate: the strike lands on the planned instant,
+       inside the step, not on whichever frame happens to come after it.
+
+       **It costs you the session's records.** Once the caddie has had the
+       club, nothing reaches the save file until the page is reloaded — no
+       best, no stars, no doors opened, and no round in progress either, so
+       the course it walks onto keeps the round you left there. It is the
+       whole sitting rather than the round because by the time a card is
+       written there is no telling whose holes those were; erring the other
+       way would mean a record set by the bot, which is the one thing a record
+       must never be. */
+
+    var sim = null;        // the caddie's turn on this hole, stage by stage
+    var auto = null;       // { playing, wait } while Autoplay is walking
+    // Whether the caddie has had the club this sitting. Never stored: a
+    // reload is a new sitting.
+    var autoUsed = false;
+    var simAcc = 0;        // frame time not yet stepped, under the caddie
+
+    // The beat from one shot stopping to the next being struck, which the
+    // plan's later shots are timed on. See CONFIG.BOT_SLACK.
+    function botGap() { return C.BOT_PAUSE + C.BOT_TURN + C.BOT_WIND + C.BOT_SLACK; }
+
+    function syncSim() {
+        var btn = $('btn-sim');
+        if (!btn) return;
+        btn.classList.toggle('on', !!auto);
+        btn.setAttribute('aria-pressed', auto ? 'true' : 'false');
+        btn.title = auto ? 'Stop Autoplay — take the club back (Esc)'
+                         : 'Let the caddie play on — hole after hole, course after course';
+    }
+
+    function toggleAuto() {
+        if (auto) { stopAuto('Your club again'); return; }
+        startAuto();
+    }
+
+    function startAuto() {
+        if (!GOLF.bot || !state || !state.world) return;
+        if (state.party) { toast('Autoplay is for a round on your own — a party plays its own shots'); return; }
+        // A ball half aimed by hand is the caddie's to aim now.
+        cancelAim();
+        closeTopMenu();
+        auto = { playing: false, wait: 0 };
+        /* The press, not the first shot: somebody who switches this on and
+           straight off again has still asked for it. */
+        autoUsed = true;
+        syncSim();
+        syncHud();
+        // Said once, on the press: the one thing about it nobody can see
+        // coming is what it costs.
+        toast('Autoplay — the caddie plays on. Nothing is recorded this session; press 🤖 or Esc to stop.');
+    }
+
+    function stopAuto(why) {
+        if (!auto) return;
+        auto = null;
+        stopSim(null);
+        syncSim();
+        if (why) toast(why);
+    }
+
+    function startSim() {
+        if (!GOLF.bot || !state || state.phase !== 'aim') return;
+        hideLessons();
+        // Nor the ghost stroke: it is a demonstration for a first-time hand.
+        state.coach = false;
+        // `plan` is the line it is playing out, a shot at a time; `shot` the
+        // one it is standing over now. Both are filled in by think.
+        sim = { stage: 'rest', until: state.world.time + C.BOT_PAUSE, said: false,
+                plan: null, shot: null, t: 0, fromAngle: 0, turnDur: 0, restAt: null };
+        simAcc = 0;
+    }
+
+    function stopSim(why) {
+        if (!sim) return;
+        sim = null;
+        simAcc = 0;
+        if (state) cancelAim();
+        if (why) toast(why);
+    }
+
+    function easeInOut(x) { return x < 0 ? 0 : x > 1 ? 1 : x * x * (3 - 2 * x); }
+
+    // The short way round, which is the way a person turns.
+    function turnTowards(from, to, f) {
+        var d = (to - from) % (Math.PI * 2);
+        if (d > Math.PI) d -= Math.PI * 2;
+        if (d < -Math.PI) d += Math.PI * 2;
+        return from + d * f;
+    }
+
+    /* The next shot of the line in hand, if the ball really is where the line
+       said it would be and there is still time to address it before the
+       instant it was timed for. Anything else — a gate that shoved the ball
+       while it stood, a dialog that held the caddie past its beat, a splash
+       the plan never meant — and the line is thrown away and read again. */
+    function nextPlanned() {
+        var shot = sim.plan && sim.plan[0];
+        if (!shot) return null;
+        var b = state.world.ball;
+        if (Math.hypot(b.x - shot.from.x, b.y - shot.from.y) > 0.01) return null;
+        if (shot.at < state.world.time + C.BOT_TURN + C.BOT_WIND) return null;
+        return shot;
+    }
+
+    function readHole() {
+        var w = state.world, hole = GOLF.COURSE[state.holeIndex];
+        var t0 = performance.now();
+        var left = S.strokeLimit(hole.par) - state.strokes;
+        /* Planned for the world the address is about to arrive in, not the
+           one it is standing in: every gate on the hole will have moved by
+           the time the ring has wound up, and a shot chosen for the wrong
+           moment is chosen against a different hole. */
+        var found = GOLF.bot.bestShot(hole, { x: w.ball.x, y: w.ball.y },
+            w.time + C.BOT_TURN + C.BOT_WIND,
+            { strokes: left, gap: botGap(), budget: C.BOT_BUDGET,
+              seed: 1 + state.holeIndex * 7919 + state.strokes * 104729 });
+        if (!found) return null;
+        sim.plan = found.shots;
+        var ms = Math.round(performance.now() - t0);
+        toast(found.line
+            ? 'The caddie sees it in ' + found.line + ' · ' + found.sims + ' shots tried in ' + ms + 'ms'
+            : 'No clean line from here — the caddie plays for position');
+        return sim.plan[0];
+    }
+
+    /* One frame of the caddie's turn, `beat` seconds of world time long — the
+       clock its shots are timed on, so the pauses are too. Only `think` costs
+       anything, and only when it has to read the hole again. */
+    function tickSim(beat) {
+        if (state.phase === 'holed' || state.phase === 'finished') { stopSim(null); return; }
+        // A dialog over the board holds the caddie where it stands; whatever
+        // it was addressing is read again when the board comes back.
+        if (dialogOpen()) {
+            if (sim.stage !== 'watch' && sim.stage !== 'rest') { sim.stage = 'think'; sim.said = false; cancelAim(); }
+            return;
+        }
+        var a = state.aim;
+        if (sim.stage === 'rest') {
+            if (state.world.time >= sim.until) { sim.stage = 'think'; sim.said = false; }
+            return;
+        }
+        if (sim.stage === 'think') {
+            if (state.phase !== 'aim') return;
+            var shot = nextPlanned();
+            if (!shot) {
+                // Said on one frame, read on the next, so the moment the
+                // search holds the world still lands under a message.
+                if (!sim.said) { sim.said = true; toast('The caddie is reading the green…'); return; }
+                shot = readHole();
+                if (!shot) { stopSim('The caddie cannot see a shot from there'); return; }
+            }
+            sim.plan.shift();
+            sim.shot = shot;
+            sim.stage = 'turn';
+            sim.t = 0;
+            sim.fromAngle = a.angle;
+            // A two-degree correction takes almost none of the turn; what is
+            // left of BOT_TURN is spent standing over the ball.
+            sim.turnDur = Math.max(0.15, Math.min(C.BOT_TURN,
+                Math.abs(turnTowards(a.angle, shot.aim, 1) - a.angle) / C.BOT_TURN_RATE));
+            a.active = true;
+            a.keyboard = true;
+            a.origin = null;
+            a.power = 0;
+            return;
+        }
+        if (sim.stage === 'turn') {
+            sim.t += beat;
+            a.active = true;
+            a.angle = turnTowards(sim.fromAngle, sim.shot.aim, easeInOut(sim.t / sim.turnDur));
+            if (sim.t < C.BOT_TURN) return;
+            a.angle = sim.shot.aim;
+            sim.stage = 'wind';
+            sim.t = 0;
+            return;
+        }
+        if (sim.stage === 'wind') {
+            sim.t += beat;
+            // Up the ring rather than onto it: the arrow on the green grows
+            // out of the ball the way it does under a finger.
+            a.power = sim.shot.power * easeInOut(sim.t / C.BOT_WIND);
+            if (sim.t < C.BOT_WIND) return;
+            a.power = sim.shot.power;
+            sim.stage = 'wait';
+            return;
+        }
+        if (sim.stage === 'wait') return;      // struck from the step loop, on the instant
+        // 'watch': the roll is the game's business until it ends.
+        if (state.phase === 'aim') {
+            sim.stage = 'rest';
+            sim.until = (sim.restAt !== null ? sim.restAt : state.world.time) + C.BOT_PAUSE;
+            sim.restAt = null;
+        }
+    }
+
+    /* The strike, from inside the step loop: on the planned instant to the
+       step, through the same door a released finger goes through. Inside the
+       safe zone the overswing has nothing to scatter, so the ball leaves on
+       exactly the line that was simulated. */
+    function strikePlanned() {
+        var w = state.world, shot = sim.shot;
+        // Shoved off its spot while it stood — a gate came through — and the
+        // shot it was addressing is a shot from somewhere else.
+        if (Math.hypot(w.ball.x - shot.from.x, w.ball.y - shot.from.y) > 0.01) {
+            sim.plan = null;
+            sim.stage = 'think';
+            sim.said = false;
+            cancelAim();
+            return;
+        }
+        // Within a step of the instant: the clock is set to it, so the gates
+        // stand exactly where the plan saw them.
+        if (Math.abs(w.time - shot.at) < C.SIM_DT) w.time = shot.at;
+        state.aim.angle = shot.aim;
+        state.aim.power = shot.power;
+        sim.stage = 'watch';
+        takeShot();
+        // A shot the physics refused would leave it standing here for ever.
+        if (state.phase !== 'rolling') stopSim('That shot would not go — your club again');
+    }
+
+    /* Autoplay walking a course. `playing` means "the caddie was started on
+       this hole", which is not the same as `sim` being alive — and the pair
+       is the whole trick: a caddie that has stopped for any reason (holed
+       out, out of strokes, no shot it can see) is noticed here without ever
+       having to ask which. */
+    function tickAuto(beat) {
+        if (dialogOpen()) return;
+        if (auto.wait > 0) {
+            auto.wait -= beat;
+            if (auto.wait <= 0) autoNext();
+            return;
+        }
+        if (state.phase === 'holed' || state.phase === 'finished' || (auto.playing && !sim)) {
+            auto.wait = C.BOT_HOLD;
+            return;
+        }
+        if (!auto.playing && state.phase === 'aim') {
+            auto.playing = true;
+            startSim();
+        }
+    }
+
+    /* The next thing to play: a hole if this card has one left, a course if
+       it does not. The card never opens on the way past — it is a modal, and
+       a modal would stall the caddie mid-read — and none is written, because
+       nothing about this round is being kept anyway. */
+    function autoNext() {
+        stopSim(null);
+        // A caddie that stopped short of the cup picks up, as anybody would.
+        if (state.phase !== 'holed' && state.phase !== 'finished') { holeComplete(true); return; }
+        if (state.phase === 'holed' && state.holeIndex < GOLF.COURSE.length - 1) {
+            loadHole(state.holeIndex + 1);
+            return;
+        }
+        if (GOLF.PLAYTEST) { stopAuto('The caddie has played your hole — the club is yours'); return; }
+        var id = nextCourseId();
+        // From the first tee: the round it is leaving and the one it lands
+        // on were both never going to be kept, and newRound(false) clears
+        // nothing while the caddie has had the club.
+        if (id && playCourse(id, null, 0)) toast('Autoplay — ' + currentCourse().name);
+        else newRound(false);
+    }
+
+    /* The next open course down the rack, round to the top after the last.
+       Down the list is the order the stars open them, so it is the order the
+       game already offers them in; a locked card is skipped, not opened. */
+    function nextCourseId() {
+        var at = 0, i, c;
+        for (i = 0; i < GOLF.COURSES.length; i++) if (GOLF.COURSES[i].id === GOLF.COURSE_ID) at = i;
+        for (i = 1; i <= GOLF.COURSES.length; i++) {
+            c = GOLF.COURSES[(at + i) % GOLF.COURSES.length];
+            if (PR.isOpen(c)) return c.id;
+        }
+        return null;
+    }
+
     /* ── input ──────────────────────────────────────────────────────────── */
 
     /* Screen to world. On a turned board the world's left edge is the
@@ -1611,6 +1928,7 @@
 
     function bindInput() {
         canvas.addEventListener('pointerdown', function (e) {
+            if (auto) { toast('The caddie has the club — press 🤖 or Esc to take it back'); return; }
             if (state.phase !== 'aim') {
                 if (state.phase === 'holed') advanceHole();
                 return;
@@ -1622,12 +1940,12 @@
         });
 
         canvas.addEventListener('pointermove', function (e) {
-            if (!state.aim.active || state.aim.keyboard || state.phase !== 'aim') return;
+            if (auto || !state.aim.active || state.aim.keyboard || state.phase !== 'aim') return;
             aimFrom(toWorld(e));
         });
 
         function release(e) {
-            if (!state.aim.active || state.aim.keyboard) return;
+            if (auto || !state.aim.active || state.aim.keyboard) return;
             if (canvas.hasPointerCapture && canvas.hasPointerCapture(e.pointerId)) {
                 canvas.releasePointerCapture(e.pointerId);
             }
@@ -1657,12 +1975,14 @@
             if (k === 'd' || k === 'D') { dealRandomCourse(); return; }
             if (k === 'g' || k === 'G') { newDraw(); return; }
             if (k === 's' || k === 'S') { nextScenery(); return; }
+            if (k === 'a' || k === 'A') { if (!dialogOpen()) toggleAuto(); return; }
             /* One key shuts whatever is open, and the panel counts: a ☰ left
                hanging over the board is chrome with no way off it on a
                keyboard. With nothing open it is the pause key every game
                has, and brings the menu up; on the menu it is "back to the
                game". */
             if (k === 'Escape') {
+                if (auto && !dialogOpen()) { stopAuto('Your club again'); return; }
                 if (titleOpen()) { closeTitle(); return; }
                 if (dialogOpen() || $('topbar-menu').classList.contains('open')) {
                     closeCard(); closeMenu(); closeParty(); closeTopMenu();
@@ -1673,6 +1993,8 @@
             }
             if (dialogOpen()) return;
             if (k === 'r' || k === 'R') { restartHole(); return; }
+            // Every key below plays a shot, and the shots are the caddie's.
+            if (auto) return;
 
             if (state.phase === 'holed' && (k === ' ' || k === 'Enter')) {
                 e.preventDefault();
@@ -1917,7 +2239,26 @@
         lastT = now;
 
         var w = state.world;
-        var ev = P.advance(w, dt, {});
+        var ev, before = w.time;
+        if (auto) {
+            /* Under the caddie, the step it planned on — see "the caddie".
+               What a frame does not use is carried, so the ball still runs
+               at real speed on a screen of any refresh rate, and the strike
+               is checked before every step rather than once a frame. */
+            ev = {};
+            simAcc = Math.min(simAcc + dt, 0.1);
+            while (simAcc >= C.SIM_DT) {
+                simAcc -= C.SIM_DT;
+                if (sim && sim.stage === 'wait' && w.time >= sim.shot.at - 1e-6) strikePlanned();
+                var rested = !!ev.rest;
+                P.advance(w, C.SIM_DT, ev);
+                // The step it stopped on, not the frame that noticed: the
+                // beat to the next shot is counted from here, as planned.
+                if (sim && !rested && ev.rest) sim.restAt = w.time;
+            }
+        } else {
+            ev = P.advance(w, dt, {});
+        }
         var shot = state.phase === 'rolling' ? state.shot : null;
 
         /* A knock. `ev.impact` is the hardest contact of the frame — where,
@@ -2030,6 +2371,12 @@
             }
         }
 
+        /* The walk between holes is a pause for a person to follow, so it
+           runs on the frame; the caddie's own turn runs on the world's clock,
+           which is the one its shots were timed on. */
+        if (auto) tickAuto(dt);
+        if (sim) tickSim(w.time - before);
+
         syncPower();
         ctx.clearRect(0, 0, C.WORLD_W, C.WORLD_H);
         state.turned = turned;
@@ -2078,6 +2425,7 @@
             $('btn-full').style.display = 'none';   // iPhone Safari, mostly
         }
         $('btn-restart').addEventListener('click', restartHole);
+        $('btn-sim').addEventListener('click', toggleAuto);
         $('btn-card').addEventListener('click', function () { openCard(null); });
         $('btn-mute').addEventListener('click', function () { setMuted(A.toggleMute()); });
         $('card-close').addEventListener('click', closeCard);
@@ -2113,6 +2461,9 @@
         startParty: startParty,
         resumeParty: resumeParty,
         advanceHole: advanceHole,
+        // The caddie, for the suites: on, off, and whether it is walking.
+        toggleAuto: toggleAuto,
+        autoplay: function () { return !!auto; },
         // For ui-tests.html, whose frame is not promised animation frames:
         // the loop is what notices a ball drop, so the suite calls what the
         // loop would, and checks the pointer mapping against the transform.

@@ -7,7 +7,7 @@
    and on a desktop and none of the tuning below is resolution dependent. */
 window.GOLF = window.GOLF || {};
 
-GOLF.VERSION = '1.11.0';
+GOLF.VERSION = '1.12.0';
 
 GOLF.CONFIG = {
     WORLD_W: 960,
@@ -157,6 +157,29 @@ GOLF.CONFIG = {
        stops one player holding up a party. The last stroke still matters:
        holed, it scores par + 3; missed, par + 4. */
     STROKE_ALLOWANCE: 3,
+
+    /* The caddie — Autoplay, see game.js and bot.js. What is tuned here is a
+       watcher's patience rather than the bot: PAUSE is the beat it stands
+       over a ball that has just stopped, TURN the most the arrow takes to
+       swing round to the line (at no more than TURN_RATE radians a second, so
+       a small correction is quick and the rest of TURN is spent standing
+       still), WIND how long the ring takes to fill, and HOLD how long a
+       holed ball is left on the banner before the next tee.
+
+       SLACK is the one that is not taste. The plan times every shot after
+       the first on the beat PAUSE + TURN + WIND after the last one stopped,
+       but the game only moves on from a pause on a frame, so it can arrive a
+       frame late; SLACK is longer than the most world time a frame is let
+       step under the caddie (0.1s), which is what keeps a planned instant in
+       front of the caddie rather than behind it. BUDGET is shots simulated per read of the hole —
+       every one a whole world settled while the frame waits. */
+    BOT_PAUSE: 0.9,
+    BOT_TURN: 0.6,
+    BOT_TURN_RATE: 3.0,
+    BOT_WIND: 0.5,
+    BOT_SLACK: 0.2,
+    BOT_HOLD: 2.4,
+    BOT_BUDGET: 2400,
 
     /* A tunnel mouth: the ball's centre over the dark disc drops it in, and
        it comes out of the other mouth at the same speed and heading. The
