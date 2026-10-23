@@ -92,12 +92,28 @@
         // Screen point of a node (its ground anchor sits inside the hit capsule)
         // and of a road's midpoint.
         const at = n => SC.camera.toScreen(n.x, n.y);
-        const mid = e => SC.camera.toScreen((e.a.x + e.b.x) / 2, (e.a.y + e.b.y) / 2);
         const tap = p => SC.input._handleTap(p.x, p.y, false);
         const toastText = () => $('toast').textContent;
 
+        // Screen point on the a–b line that a tap reads as the road, not a
+        // site. Sites are hit-tested first, with a capsule up the whole
+        // building, so on a short road the midpoint can sit inside an end's
+        // hit area, or a third site can stand over it — the probe world is
+        // random, so that was a one-run-in-six failure. Asks the game's own
+        // hit-test (through the debug hover hook) rather than copying it.
+        function onRoad(a, b) {
+            for (const t of [0.5, 0.4, 0.6, 0.3, 0.7]) {
+                const x = a.x + (b.x - a.x) * t, y = a.y + (b.y - a.y) * t;
+                SC.input._setDebugHover(x, y);
+                if (!SC.input.getHoverNode()) return SC.camera.toScreen(x, y);
+            }
+            return null;
+        }
+        const mid = e => onRoad(e.a, e.b);
+
         // A pair of active, unconnected sites a plain road may join: no
-        // river (that opens the bridge/ferry choice) and nothing in the way.
+        // river (that opens the bridge/ferry choice), nothing in the way,
+        // and somewhere along it a tap would land on the road.
         function freePair(exclude) {
             const ns = st.nodes.filter(n => n.active && !n.underConstruction && !n.forSale && !(exclude || []).includes(n));
             for (const a of ns) for (const b of ns) {
@@ -106,6 +122,7 @@
                 if (!q || q.blocked || q.len > 700) continue;
                 if (SC.map.segmentCrossesRiver(a.x, a.y, b.x, b.y)) continue;
                 if (q.crossings && q.crossings.length) continue;
+                if (!onRoad(a, b)) continue;
                 return [a, b];
             }
             return null;
