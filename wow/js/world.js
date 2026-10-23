@@ -248,7 +248,7 @@
     fig.userData.body.add(roll);
   }
 
-  // Gear follows whatever class the page rolled for this visit.
+  // Gear follows the class the page picked for this load.
   function gearFor(p) {
     const c = p.classes[0];
     if (c === "warrior" || c === "paladin") return [sword, shield];
