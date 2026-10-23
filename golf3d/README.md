@@ -2973,14 +2973,17 @@ library at once.
   height (`render.addGrid` — the lines bending over a wave are how you read
   it), glowing rails, and a grade of its own over the weather's, because a
   clear sky's bloom spread the lines across the whole floor as a violet wash.
-- **The effects** (`render.hitAt`): a landing or a rail hit on glass sends a
-  ripple out through the floor (a pinch of cyan sparks only when it is hard),
-  and a rolling ball leaves a wake of smaller ripples and drags a neon tail.
-  The ripples are drawn by the glass shader itself (`gridGlass`), off the same
-  world position as the grid, so they bend the lines exactly on the surface at
-  any curvature. Until v1.74.0 they were flat rings laid over the floor with
-  the depth test off — on a wave, a flat disc hanging over the hills that
-  ignored the grid — plus a fistful of sparks on every bounce.
+- **The effects** (`render.hitAt`, `stepWake`): a rolling ball leaves a
+  boat's wake — a V opening at the Kelvin angle off the trail behind it,
+  feathered into little crests, with faint transverse ripples inside — and a
+  firm landing or rail hit sends one ring out through the floor (a pinch of
+  cyan sparks only when it is hard). Both are drawn by the glass shader itself
+  (`gridGlass`), off the same world position as the grid: the wake reads the
+  ball's last few units of trail as breadcrumbs and finds the nearest stretch,
+  so it pushes the lines aside exactly on the surface at any curvature. Until
+  v1.74.0 these were flat rings laid over the floor with the depth test off —
+  on a wave, a flat disc hanging over the hills that ignored the grid — plus a
+  fistful of sparks on every bounce.
 - Played out of the lofted mini bag. Records are kept against par, like the
   showcase's. "New ground, new cups" deals again; Play again replays the deal.
   Each deal's plans and skies are keyed `challenge-<seed>`, because hole 3 of
@@ -3841,11 +3844,10 @@ was falling. Rather than special-case the weather, the camera lifts it.
 things ride on it: the fog's near and far are pushed out past whatever distance
 the map is standing back at (`Math.max`, so a clear day is untouched — it never
 *adds* fog), the rain and the mist banks thin to a seventh of themselves
-(`weather.setAtmosphere`), and the markers come up — a ring under the ball,
-pulsing slowly because from up there the ball is four pixels across, and two
-rings at the cup, the outer one breathing half a turn behind it so the two ends
-of the shot are never both at their faintest. All of them are drawn with the
-depth test off, so a ridge between them hides neither.
+(`weather.setAtmosphere`), and the markers come up — two rings at the cup, the
+outer one breathing slowly. Both are drawn with the depth test off, so a ridge
+in front hides neither. There was a pulsing ring under the ball too; v1.74.0
+took it out on the owner's word that the ball is plain to see without it.
 
 The cup used to get a beacon as well: an open cylinder four metres tall
 standing in the hole, unlit, drawn through everything. Straight down it was
