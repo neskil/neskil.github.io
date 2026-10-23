@@ -12,6 +12,28 @@ to be worked out again.
 
 ---
 
+## Where it stands (v1.74.0)
+
+- **The long game flies.** The driver is 21° at 28 and the iron 30° at 16:
+  about three times the height of the old 10° skim, half as much carry again,
+  and a quarter more in total. The wedges and putters are shared with mini
+  golf and were left alone. Four holes went drive-and-putt under it and had
+  their tees moved six back (The Elbow, Homeward, Long Way Round, Burnside;
+  `moor` takes `z0` for that). Deadlift's pads went 13 → 15 so the new driver
+  still gets over both steps.
+- **Coral Keys**, the fifth long course: island-hopping across a lagoon
+  (`isle`, `keyGreen`, `keys` in courses.js). Its islands are **flat on
+  purpose** — a disc of ground with bumps on it is drawn on the square terrain
+  grid, so a domed key renders as a raft with corners. Making `addTerrain`
+  draw a round outline for a bumped disc is what would let keys have a hump.
+- The owner asked whether there are too many long courses. Five is the count
+  now; rather than naturalise all four of the older ones hole by hole, new
+  concepts (this one) are the better spend than a fifth pass over the same
+  four.
+- Still open from before: lighting setups on Challenge (neon only has
+  `clear`), and the naturalising of the older long courses (partial work in
+  `.claude/worktrees/agent-*`, uncommitted).
+
 ## 0. The course rehaul — approved, in progress
 
 The props are good now and the holes under them are not: the owner's verdict
