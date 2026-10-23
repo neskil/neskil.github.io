@@ -304,6 +304,18 @@ canvas {
     cursor: crosshair;
 }
 
+/* A shot can be started off the board too — on the letterbox, the meter, and
+   when the page fits the screen, the page itself (game.js → onSurface). A
+   touch there must not be taken for a scroll, or the browser cancels the
+   pull-back halfway; the modals' lists scroll in boxes of their own, which a
+   touch-action up here does not reach. */
+.stage,
+.power,
+html.drag-anywhere,
+html.drag-anywhere body { touch-action: none; }
+
+html.drag-anywhere { overscroll-behavior: none; }
+
 /* ── power meter ────────────────────────────────────────────────────────── */
 
 .power {
@@ -1391,6 +1403,10 @@ body.compact-ui .course-card.expanded .cc-holes {
     .power { margin-top: 0.45rem; padding: 0.4rem 0.8rem; }
     .power-track { height: 18px; }
     .tip { font-size: 0.72rem; max-width: min(230px, calc(100% - 16px)); padding: 0.4rem 0.55rem; }
+    /* Fullscreen must never be the smaller board: framed wider than the
+       page is, it was. */
+    .wrap:fullscreen { padding: 0.5rem; }
+    .wrap:-webkit-full-screen { padding: 0.5rem; }
 }
 
 /* ── the side layout ────────────────────────────────────────────────────
@@ -1403,7 +1419,9 @@ body.compact-ui .course-card.expanded .cc-holes {
    and the bar, the scoreboard and the meter stand in a column beside it.
    Set from game.js, which needs to know which way the room runs before it
    can size the board. */
-body.is-side { padding: 0.45rem 0.55rem; }
+body.is-side,
+body.is-side .wrap:fullscreen { padding: 0.45rem 0.55rem; }
+body.is-side .wrap:-webkit-full-screen { padding: 0.45rem 0.55rem; }
 
 body.is-side .wrap,
 body.is-side .wrap:fullscreen {
