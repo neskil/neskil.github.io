@@ -12,7 +12,7 @@ to be worked out again.
 
 ---
 
-## Where it stands (v1.75.0)
+## Where it stands (v1.79.0)
 
 - **The long game flies.** The driver is 21° at 28 and the iron 30° at 16:
   about three times the height of the old 10° skim, half as much carry again,
@@ -34,6 +34,8 @@ to be worked out again.
   now; rather than naturalise all four of the older ones hole by hole, new
   concepts (this one) are the better spend than a fifth pass over the same
   four.
+- **The mini courses stopped being lanes** (v1.79.0): Quarry, Tidewater and
+  Highland rebuilt hole by hole — §0 → "Mini golf", item 8.
 - Still open from before: lighting setups on Challenge (neon only has
   `clear`), and the naturalising of the older long courses — Ashdown is done
   (v1.78.0, §0 → "Where round two stands"), the other three are not.
@@ -243,9 +245,17 @@ tee shows (Sea Legs' was).
    **Seaside Green is the plainest course and it is the first one.** Six flat
    rectangles with rails, no slope and nothing that moves. A gentle tilt on one
    green and one slow gate would give it life without making it hard.
-8. **Single-trick holes** — The Letterbox, Bumper City, The Sweeper and others —
-   get a second thing to read: a slope near the cup, a bank shot that saves a
-   stroke.
+8. **Single-trick holes** — ~~the mini group~~ (done, v1.79.0: the fourteen
+   straight lanes on Quarry, Tidewater and Highland were rebuilt as forks,
+   doglegs, slants and a stair round a pool, each with a safe way and a short
+   one — README → "The courses"). **Still open on the crazy courses**: Bumper
+   City, The Sweeper, First Gear and The Mill are still a lane with one machine
+   in it. Findings from the mini pass: *a bunker at the foot of a face is a
+   lie nobody can play out of* (the greedy bot jammed in one for eight strokes
+   on Step Up; a pool there costs a stroke instead); *a sloped chute's rails
+   are one wall the height of its top* (`railFor` is a level box), so a way
+   down goes in steps with a `gaps` strip per riser; and a `channel` half-ring
+   behind a cup is a backboard that hands the ball back towards the pin.
 9. **An ace line on every mini hole.** On most of them the right play is two
    safe putts; one risky line per hole that can drop makes every tee worth a
    go. §2's "the bot could prove a hole is ace-able" is the check for it.
