@@ -238,6 +238,8 @@ h1.forever .shine {
 .frame.dead .portrait { filter: grayscale(1) brightness(.55); }
 .frame.dead .f-name { color: var(--mute); text-decoration: line-through; text-decoration-color: rgba(255,59,47,.7); }
 .dead-tag { color: var(--not-ready); font-weight: 700; }
+.rolled { display: block; margin-top: 6px; font-size: .88rem; color: var(--arcane); font-style: italic; }
+.rolled b { font-style: normal; font-family: var(--font-caps); }
 .frame.pending { border-style: dashed; border-color: #4a4434; background: linear-gradient(180deg, rgba(26,32,48,.55), rgba(12,16,25,.55)); }
 .frame.pending .portrait { filter: grayscale(1) brightness(.7); border-color: var(--mute); }
 .frame.pending .f-name { color: var(--mute); }
@@ -651,17 +653,32 @@ body.launched .tagline { color: var(--gold-hi); font-style: normal; font-family:
   const party = [
     { name: "Adam", role: "tank", classes: ["warrior"], spec: "Protection Warrior", race: "Gnome",
       note: "Tried every tank spec in the beta. Verdict: a female gnome warrior is <abbr title=\"best in slot\">BiS</abbr>." },
-    { name: "Kocken", role: "healer", classes: ["shaman", "priest"], spec: "Shaman or Priest",
+    { name: "Kocken", role: "healer", options: ["shaman", "priest"],
       note: "Shaman is a given if Victor goes melee: <q>WF totem</q>. Adam's tip for levelling is Priest." },
-    { name: "Victor", role: "dps", classes: ["shaman", "warlock", "priest"], spec: "Shaman, Warlock or Priest", dead: true,
-      note: "Died constantly the last time you all played, so the spirit healer knows Victor by name. Picking Shaman, Warlock or Priest this time. Skipping launch night, in for the weekend after." },
+    { name: "Victor", role: "dps", options: ["shaman", "warlock", "priest"], dead: true,
+      note: "Died constantly the last time you all played, so the spirit healer knows Victor by name. Skipping launch night, in for the weekend after." },
     { name: "Niklas", role: "dps", classes: ["rogue"], spec: "Undead Rogue", race: "Undead",
       note: "Rolled Undead, so the Alliance plan is open for debate again. Will squeeze quests in around work." },
-    { name: "Dredde", role: "dps", classes: [], spec: "Class TBD",
-      note: "Third DPS slot, class still under wraps. <q>Now it's cooking.</q>" },
+    { name: "Dredde", role: "dps", options: Object.keys(CLASS),
+      note: "Fredrik on paper, Dredde to the party. Third DPS, and by his own account has so much free time these days." },
     { name: "Robin", role: "pending", classes: [], spec: "Not committed yet", pending: true,
       note: "The invite is still open. <q>Jag har inte tålamodet</q>, says Robin. The party says it's not too late." }
   ];
+  // Nobody undecided gets a blank frame: each visit rolls one of the classes they are weighing,
+  // so two people opening the page can see two different parties. Reload to reroll.
+  const SPEC = {
+    healer: { shaman: "Restoration", priest: "Holy", paladin: "Holy", druid: "Restoration" },
+    dps: { warrior: "Fury", paladin: "Retribution", hunter: "Beast Mastery", rogue: "Combat", priest: "Shadow",
+           shaman: "Enhancement", mage: "Frost", warlock: "Affliction", druid: "Feral" }
+  };
+  for (const p of party) {
+    if (!p.options) continue;
+    const pick = p.options[Math.floor(Math.random() * p.options.length)];
+    p.classes = [pick];
+    p.spec = `${SPEC[p.role][pick]} ${CLASS[pick][0]}`;
+    const pool = p.options.length === Object.keys(CLASS).length ? "Still deciding" : "Still deciding between " + p.options.map(c => CLASS[c][0]).join(", ").replace(/, ([^,]*)$/, " and $1");
+    p.note += ` <span class="rolled">${pool}, so this visit rolled <b>${CLASS[pick][0]}</b>. Reload to reroll.</span>`;
+  }
   const roleName = { tank: "Tank", healer: "Healer", dps: "DPS", pending: "Invited" };
   const barFill = p => {
     const cols = p.classes.map(c => CLASS[c][1]);
@@ -774,6 +791,7 @@ body.launched .tagline { color: var(--gold-hi); font-style: normal; font-family:
     "Raids open on 9 December: Barrow Deeps for 10, Hyjal Summit for 20 and Onyxia's Lair for 40.",
     "If the levels drift apart, an alt helps. Alts level faster, too.",
     "This group got properly sweaty, says Robin.",
+    "Kocken, Victor and Dredde have not picked a class yet, so the page rolls one for them on every visit.",
     "Victor died a lot last time. The spirit healer at the graveyard has been warned.",
     "Undead rogues start in Tirisfal Glades, a long way from any Alliance friends. Just saying, Niklas."
   ];
