@@ -898,6 +898,19 @@ a tenth in scale, so a roughly square window does not flip as it is dragged.
 The phone's scoreboard and meter tighten for the same reason — every pixel of
 chrome above the board is one the board cannot have.
 
+**A shot starts wherever the thumb lands — on the board or off it.** The drag
+is measured from where the finger went down, not from the ball, so nothing
+needs the press to be on the canvas. It used to have to be, and on a turned
+phone that was exactly wrong: the tee is at the bottom of the board, the
+pull-back runs down from it, and the thumb that makes it lands on the meter or
+the blank strip under the board — which took the touch and did nothing. Now
+the letterbox round the board and the meter always count, and when the page
+fits the screen (`is-tight`, `is-side` or fullscreen — `html.drag-anywhere`,
+set by `resize()`) so does the page itself, with `touch-action: none` so the
+browser does not take the pull for a scroll and cancel it. The bar, the
+scoreboard and the banner never start a shot; the modals' lists still scroll,
+because `touch-action` starts over at a scrolling box.
+
 **On its side, the chrome stands beside the board.** A phone in landscape is
 about 340px tall, and stacked, the bar and the scoreboard took half of it and
 left the board at its minimum size with the page scrolling under the thumb —
@@ -920,7 +933,15 @@ the scoreboard is part of the game, so it goes too; the reference text does
 not. Only what is inside the fullscreen element is drawn, and the menu, title,
 party and scorecard modals live beside the wrap, on the body — so they are
 moved into the wrap as it goes fullscreen and back out after, or a round
-finished in fullscreen opens a scorecard nobody can see. The backing store is capped at three device pixels per world pixel, or a
+finished in fullscreen opens a scorecard nobody can see. Two measurements
+differ in there. The wrap centres its content, so the board's top edge on the
+screen moves with the board's own size — a small board sits low and stays
+small, a big one sits high and grew a little on every resize — and the height
+budget counts the chrome above the board from the top of the wrap's content
+instead. And the wrap has padding of its own, which `clientWidth` includes:
+asked for that width, the canvas was squeezed by its `max-width` and the board
+drawn narrower than it is tall. On a phone the fullscreen frame is no wider
+than the page's, so fullscreen is never the smaller board. The backing store is capped at three device pixels per world pixel, or a
 4K monitor at `devicePixelRatio` 2 would ask for a ten-megapixel canvas sixty
 times a second.
 
