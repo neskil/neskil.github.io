@@ -32,7 +32,7 @@
 
         gtag('config', 'G-9GP823TGLB');
     </script>
-    <link rel="stylesheet" href="style.css?v=1.12.0">
+    <link rel="stylesheet" href="style.css?v=1.13.0">
 <script type="application/ld+json">
     {
         "@context": "https://schema.org",
@@ -74,6 +74,27 @@
     </script>
 </head>
 <body>
+    <!-- One set of line icons for every control, drawn in the text's own
+         colour. The bar used to mix colour emoji (a flag, a robot, a
+         speaker) with plain glyphs (a star, an arrow, a pencil), and no two
+         of them sat on the same baseline or at the same weight. -->
+    <svg class="sprite" aria-hidden="true" focusable="false">
+        <symbol id="i-back" viewBox="0 0 24 24"><path d="M19 12H5M11 18l-6-6 6-6"/></symbol>
+        <symbol id="i-full" viewBox="0 0 24 24"><path d="M8 3H5a2 2 0 0 0-2 2v3M21 8V5a2 2 0 0 0-2-2h-3M3 16v3a2 2 0 0 0 2 2h3M16 21h3a2 2 0 0 0 2-2v-3"/></symbol>
+        <symbol id="i-unfull" viewBox="0 0 24 24"><path d="M8 3v3a2 2 0 0 1-2 2H3M21 8h-3a2 2 0 0 1-2-2V3M3 16h3a2 2 0 0 1 2 2v3M16 21v-3a2 2 0 0 1 2-2h3"/></symbol>
+        <symbol id="i-house" viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5M5.5 9v11h13V9M10 20v-5.5h4V20"/></symbol>
+        <symbol id="i-flag" viewBox="0 0 24 24"><path d="M7 21V3"/><path d="M7 3.5 18 8l-11 4.5z" fill="currentColor" fill-opacity="0.25"/><ellipse cx="7" cy="20.5" rx="4" ry="1.2"/></symbol>
+        <symbol id="i-restart" viewBox="0 0 24 24"><path d="M3.5 12a8.5 8.5 0 1 0 2.6-6.1M3.5 3.5v5h5"/></symbol>
+        <symbol id="i-card" viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="18" rx="2.5"/><path d="M8 8h8M8 12h8M8 16h5"/></symbol>
+        <symbol id="i-caddie" viewBox="0 0 24 24"><rect x="4.5" y="8" width="15" height="11" rx="3"/><path d="M12 8V4.5M9.5 13.5h.01M14.5 13.5h.01M2 12.5v2M22 12.5v2"/><circle cx="12" cy="3.5" r="1"/></symbol>
+        <symbol id="i-edit" viewBox="0 0 24 24"><path d="M13 20h8M16.5 3.6a2.1 2.1 0 0 1 3 3L7.5 18.6 3.5 19.5l.9-4z"/></symbol>
+        <symbol id="i-sound" viewBox="0 0 24 24"><path d="M11 5 6.5 9H3v6h3.5l4.5 4z"/><path d="M15.5 9a4.2 4.2 0 0 1 0 6M18.5 6a8.5 8.5 0 0 1 0 12"/></symbol>
+        <symbol id="i-mute" viewBox="0 0 24 24"><path d="M11 5 6.5 9H3v6h3.5l4.5 4z"/><path d="m16 9.5 5 5M21 9.5l-5 5"/></symbol>
+        <symbol id="i-more" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></symbol>
+        <symbol id="i-dice" viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="17" height="17" rx="3.5"/><path d="M8.5 8.5h.01M15.5 8.5h.01M12 12h.01M8.5 15.5h.01M15.5 15.5h.01"/></symbol>
+        <symbol id="i-play" viewBox="0 0 24 24"><path fill="currentColor" stroke="none" d="M7.5 4.8v14.4a1 1 0 0 0 1.5.86l11.6-7.2a1 1 0 0 0 0-1.72L9 3.94a1 1 0 0 0-1.5.86z"/></symbol>
+        <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2.5"/><path d="M8.5 11V7.5a3.5 3.5 0 0 1 7 0V11"/></symbol>
+    </svg>
     <div class="wrap" id="wrap">
         <!-- One row, and never more than one. It used to be eight controls
              laid flat — a course menu, a die, a draw, restart, card, editor,
@@ -84,33 +105,33 @@
              compact, with fullscreen left out because it is the one chip
              worth a thumb with a shot half aimed. -->
         <div class="topbar">
-            <a class="home-link" href="../index.html" title="Back to home" aria-label="Back to home">&#8592;</a>
+            <a class="home-link" href="../index.html" title="Back to home" aria-label="Back to home"><svg class="ico" aria-hidden="true"><use href="#i-back"/></svg></a>
             <div class="brand">
                 <h1 class="title">Pocket <span>Links</span></h1>
                 <p class="tagline">Five courses, or one dealt on the spot. Caddie optional.</p>
             </div>
             <div class="topbar-actions">
-                <button class="chip" id="btn-full" title="Fullscreen (F)" aria-label="Fullscreen"><span id="full-icon">⛶</span><span class="chip-text">Full</span></button>
+                <button class="chip" id="btn-full" title="Fullscreen (F)" aria-label="Fullscreen"><span id="full-icon"><svg class="ico" aria-hidden="true"><use href="#i-full"/></svg></span><span class="chip-text">Full</span></button>
                 <div class="topbar-menu" id="topbar-menu">
                     <!-- Five cards on one field, and the picker is where the
                          choice is made: the courses, the die and the draw all
                          live behind this one chip now. -->
                     <!-- The clubhouse: continue, courses, a party, and how many
                          stars you have. Esc opens it from the keyboard. -->
-                    <button class="chip" id="btn-title" title="Menu (Esc)">&#9733;<span class="chip-text">Menu</span></button>
-                    <button class="chip" id="btn-courses" title="Pick a course (C)">&#9971;<span class="chip-text">Courses</span></button>
-                    <button class="chip" id="btn-restart" title="Restart this hole (R)">↻<span class="chip-text">Hole</span></button>
-                    <button class="chip" id="btn-card" title="Scorecard">&#9636;<span class="chip-text">Card</span></button>
+                    <button class="chip" id="btn-title" title="Menu (Esc)"><svg class="ico" aria-hidden="true"><use href="#i-house"/></svg><span class="chip-text">Menu</span></button>
+                    <button class="chip" id="btn-courses" title="Pick a course (C)"><svg class="ico" aria-hidden="true"><use href="#i-flag"/></svg><span class="chip-text">Courses</span></button>
+                    <button class="chip" id="btn-restart" title="Restart this hole (R)"><svg class="ico" aria-hidden="true"><use href="#i-restart"/></svg><span class="chip-text">Hole</span></button>
+                    <button class="chip" id="btn-card" title="Scorecard"><svg class="ico" aria-hidden="true"><use href="#i-card"/></svg><span class="chip-text">Card</span></button>
                     <!-- The caddie: js/bot.js, the planner the suite proves
                          every hole with, playing on — hole after hole, course
                          after course. A press or A starts it; a press or Esc
                          takes the club back. -->
-                    <button class="chip" id="btn-sim" title="Let the caddie play on — hole after hole, course after course" aria-pressed="false">🤖<span class="chip-text">Autoplay</span></button>
-                    <a class="chip" id="chip-editor" href="level-editor.html" title="Build a hole of your own">&#9998;<span class="chip-text">Editor</span></a>
-                    <button class="chip" id="btn-mute" title="Sound (M)" aria-label="Mute"><span id="mute-icon">🔊</span><span class="chip-text">Sound</span></button>
+                    <button class="chip" id="btn-sim" title="Let the caddie play on — hole after hole, course after course" aria-pressed="false"><svg class="ico" aria-hidden="true"><use href="#i-caddie"/></svg><span class="chip-text">Autoplay</span></button>
+                    <a class="chip" id="chip-editor" href="level-editor.html" title="Build a hole of your own"><svg class="ico" aria-hidden="true"><use href="#i-edit"/></svg><span class="chip-text">Editor</span></a>
+                    <button class="chip" id="btn-mute" title="Sound (M)" aria-label="Mute"><span id="mute-icon"><svg class="ico" aria-hidden="true"><use href="#i-sound"/></svg></span><span class="chip-text">Sound</span></button>
                 </div>
                 <button class="chip chip-menu" id="btn-menu" title="More" aria-label="More controls"
-                        aria-expanded="false" aria-controls="topbar-menu">☰</button>
+                        aria-expanded="false" aria-controls="topbar-menu"><svg class="ico" aria-hidden="true"><use href="#i-more"/></svg></button>
             </div>
         </div>
 
@@ -241,7 +262,7 @@
                 <!-- The die is the other way through the rack: press it and a
                      card you did not choose comes up. It never deals the one
                      already under you. -->
-                <button type="button" id="menu-shuffle" title="Deal a random course (D)">&#127922; Surprise me</button>
+                <button type="button" id="menu-shuffle" title="Deal a random course (D)"><svg class="ico lead" aria-hidden="true"><use href="#i-dice"/></svg>Surprise me</button>
                 <button type="button" id="menu-close">Keep playing</button>
             </div>
         </div>
@@ -267,7 +288,7 @@
                 <button type="button" class="title-play" id="title-play">Play</button>
                 <button type="button" class="title-wide" id="title-resume-party" hidden>Resume party</button>
                 <div class="title-row">
-                    <button type="button" id="title-courses">&#9971; Courses</button>
+                    <button type="button" id="title-courses"><svg class="ico lead" aria-hidden="true"><use href="#i-flag"/></svg>Courses</button>
                     <button type="button" id="title-party"><span class="party-dots" aria-hidden="true"><i></i><i></i></span>Party</button>
                 </div>
             </div>
@@ -275,7 +296,7 @@
             <!-- The way back to the beginning: the intro again with
                  nothing lost, or the whole climb again from nothing. -->
             <div class="title-foot">
-                <button type="button" id="title-intro">&#8634; Replay the intro</button>
+                <button type="button" id="title-intro"><svg class="ico lead" aria-hidden="true"><use href="#i-restart"/></svg>Replay the intro</button>
                 <button type="button" id="title-reset">Reset progress</button>
             </div>
         </div>
@@ -314,8 +335,8 @@
 
     <!-- Load order is dependency order: config, then the pure logic, then the
          things that touch the screen. game.js boots itself on DOMContentLoaded. -->
-    <script src="js/config.js?v=1.12.0"></script>
-    <script src="js/courses.js?v=1.12.0"></script>
+    <script src="js/config.js?v=1.13.0"></script>
+    <script src="js/courses.js?v=1.13.0"></script>
     <script>
         /* Playtest hand-off from the hole editor. It writes one hole into
            session storage and sends the player here with ?playtest=1; swapping
@@ -349,23 +370,23 @@
             } catch (e) { /* storage disabled: fall through to the real course */ }
         })();
     </script>
-    <script src="js/physics.js?v=1.12.0"></script>
+    <script src="js/physics.js?v=1.13.0"></script>
     <!-- The caddie. Pure like physics.js; game.js plays its answers. -->
-    <script src="js/bot.js?v=1.12.0"></script>
+    <script src="js/bot.js?v=1.13.0"></script>
     <!-- Adds nothing to the rack by itself; game.js deals the draw on boot. -->
-    <script src="js/generator.js?v=1.12.0"></script>
-    <script src="js/scoring.js?v=1.12.0"></script>
+    <script src="js/generator.js?v=1.13.0"></script>
+    <script src="js/scoring.js?v=1.13.0"></script>
     <!-- Stars, unlocks and first-run lessons. Reads the save files; draws nothing. -->
-    <script src="js/progress.js?v=1.12.0"></script>
+    <script src="js/progress.js?v=1.13.0"></script>
     <!-- The biomes, and where the decoration goes. Draws nothing itself. -->
-    <script src="js/scenery.js?v=1.12.0"></script>
-    <script src="js/audio.js?v=1.12.0"></script>
+    <script src="js/scenery.js?v=1.13.0"></script>
+    <script src="js/audio.js?v=1.13.0"></script>
     <!-- Thumbnails for the course picker. Nothing on the board reads it. -->
-    <script src="js/plan.js?v=1.12.0"></script>
-    <script src="js/landscape.js?v=1.12.0"></script>
-    <script src="js/ambience.js?v=1.12.0"></script>
-    <script src="js/water.js?v=1.12.0"></script>
-    <script src="js/render.js?v=1.12.0"></script>
-    <script src="js/game.js?v=1.12.0"></script>
+    <script src="js/plan.js?v=1.13.0"></script>
+    <script src="js/landscape.js?v=1.13.0"></script>
+    <script src="js/ambience.js?v=1.13.0"></script>
+    <script src="js/water.js?v=1.13.0"></script>
+    <script src="js/render.js?v=1.13.0"></script>
+    <script src="js/game.js?v=1.13.0"></script>
 </body>
 </html>

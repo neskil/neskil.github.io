@@ -388,7 +388,7 @@
     function lockedToast(course) {
         var need = PR.need(course);
         var short = need - PR.totalStars().got;
-        toast('\uD83D\uDD12 ' + course.name + ' opens at ' + need + ' \u2605 \u2014 ' +
+        toast(course.name + ' opens at ' + need + ' \u2605 \u2014 ' +
               short + ' more to go', 'bad');
     }
 
@@ -424,7 +424,7 @@
                blurb. What is coming is the reason to keep going, and a grey
                box that says "locked" gives nobody a reason. */
             var badge = here ? '<span class="cc-here">playing</span>'
-                : !open ? '<span class="cc-lock">\uD83D\uDD12 ' + PR.need(course) + ' \u2605</span>'
+                : !open ? '<span class="cc-lock"><svg class="ico lead" aria-hidden="true"><use href="#i-lock"/></svg>' + PR.need(course) + ' \u2605</span>'
                 : course.starter && total === 0 && !PR.get().veteran ? '<span class="cc-here">start here</span>'
                 : '';
             head.innerHTML =
@@ -1423,7 +1423,7 @@
             label = 'Tee off';
             sub = name + (state.holeIndex > 0 ? ' · hole ' + (state.holeIndex + 1) : '');
         }
-        $('title-play').innerHTML = '<span class="tpl-main">▶ ' + label + '</span><span class="tpl-sub">' +
+        $('title-play').innerHTML = '<span class="tpl-main"><svg class="ico lead" aria-hidden="true"><use href="#i-play"/></svg>' + label + '</span><span class="tpl-sub">' +
             esc(sub) + '</span>';
 
         var saved = !state.party && loadParty();
@@ -1653,7 +1653,7 @@
         syncHud();
         // Said once, on the press: the one thing about it nobody can see
         // coming is what it costs.
-        toast('Autoplay — the caddie plays on. Nothing is recorded this session; press 🤖 or Esc to stop.');
+        toast('Autoplay — the caddie plays on. Nothing is recorded this session; press Autoplay or Esc to stop.');
     }
 
     function stopAuto(why) {
@@ -1928,7 +1928,7 @@
 
     function bindInput() {
         canvas.addEventListener('pointerdown', function (e) {
-            if (auto) { toast('The caddie has the club — press 🤖 or Esc to take it back'); return; }
+            if (auto) { toast('The caddie has the club — press Autoplay or Esc to take it back'); return; }
             if (state.phase !== 'aim') {
                 if (state.phase === 'holed') advanceHole();
                 return;
@@ -2041,7 +2041,7 @@
     // Only the icon: the chip carries a label beside it now, and setting the
     // button's text would take the label with it.
     function setMuted(m) {
-        $('mute-icon').textContent = m ? '🔇' : '🔊';
+        $('mute-icon').querySelector('use').setAttribute('href', m ? '#i-mute' : '#i-sound');
         $('btn-mute').setAttribute('aria-label', m ? 'Unmute' : 'Mute');
     }
 
@@ -2189,7 +2189,7 @@
         var on = !!fullscreenEl();
         hostModals(on ? fullscreenEl() : document.body);
         document.body.classList.toggle('is-full', on);
-        $('full-icon').textContent = on ? '⤡' : '⛶';
+        $('full-icon').querySelector('use').setAttribute('href', on ? '#i-unfull' : '#i-full');
         $('btn-full').setAttribute('aria-label', on ? 'Leave fullscreen' : 'Fullscreen');
         // Fullscreen is compact chrome whatever the screen is: the bar is the
         // only thing standing between the player and a bigger board.

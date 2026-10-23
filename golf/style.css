@@ -18,6 +18,25 @@
 
 * { box-sizing: border-box; }
 
+/* The icon set (the sprite at the top of the body): line drawings in the
+   text's own colour, sized to the text they sit beside. */
+.sprite { position: absolute; width: 0; height: 0; overflow: hidden; }
+
+.ico {
+    width: 1.15em;
+    height: 1.15em;
+    flex: none;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.9;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    vertical-align: -0.22em;
+}
+
+/* An icon with a word after it. */
+.ico.lead { margin-right: 0.42em; }
+
 /* No double-tap zoom on a control: the second tap of an impatient player
    should press the button again, not blow the page up around it. */
 button, a, input { touch-action: manipulation; }
@@ -36,7 +55,8 @@ body {
     padding: 1rem 1rem 3rem;
 }
 
-/* Faint contour rings behind the page — a topographic hint, cheap and static. */
+/* Two soft pools of light behind the page, one green and one water-blue —
+   the course's own two colours, cheap and static. */
 body::before {
     content: '';
     position: fixed;
@@ -1123,16 +1143,17 @@ kbd {
 .cc-blurb { font-size: 0.82rem; color: var(--ink-dim); font-weight: 300; }
 
 .cc-meta {
-    font-family: 'JetBrains Mono', ui-monospace, monospace;
-    font-size: 0.68rem;
+    font-size: 0.74rem;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
     color: var(--accent);
     margin-top: 0.2rem;
 }
 
 /* The card you are standing on. */
 .cc-here {
-    font-family: 'JetBrains Mono', ui-monospace, monospace;
-    font-size: 0.6rem;
+    font-size: 0.62rem;
+    font-weight: 600;
     letter-spacing: 0.1em;
     text-transform: uppercase;
     color: var(--accent);
@@ -1196,8 +1217,9 @@ kbd {
 .course-card.locked .cc-hole:hover { transform: none; border-color: transparent; }
 
 .cc-lock {
-    font-family: 'JetBrains Mono', ui-monospace, monospace;
-    font-size: 0.62rem;
+    font-size: 0.68rem;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
     color: var(--gold);
     border: 1px solid rgba(251, 191, 36, 0.5);
     border-radius: 999px;
@@ -1301,8 +1323,9 @@ kbd {
 .cc-num, .cc-par {
     position: absolute;
     bottom: 0;
-    font-family: 'JetBrains Mono', ui-monospace, monospace;
-    font-size: 0.56rem;
+    font-size: 0.6rem;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
     line-height: 1;
     padding: 2px 3px;
     color: #fff;
@@ -1454,7 +1477,7 @@ body.is-side .tip { font-size: 0.72rem; max-width: min(240px, calc(100% - 16px))
    is not a property of the screen at all. Fullscreen is a state, and in it a
    bar of chrome is a strip of board the player asked for and did not get. */
 
-body.compact-ui .chip-menu { display: inline-block; }
+body.compact-ui .chip-menu { display: inline-flex; }
 body.compact-ui .tagline { display: none; }
 body.compact-ui .title { font-size: 1.15rem; }
 

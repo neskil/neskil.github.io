@@ -6,11 +6,12 @@
    seen through the water and bent by its waves, sunlight is focused into
    caustics across the shallows, the colour deepens with the distance from
    the shore, the far side reflects more sky than the near one, and the sun
-   — or the moon — glints off the crests. What happens *on* it is drawn like
-   a cartoon: a crisp band of foam at the shore with a second line breathing
-   in and out beyond it, cel-shaded contour lines along the crests, surf
-   rolling in on the sea, a skin of ice round a winter pond. Realism tells
-   the eye it is water; the outlines tell it where the water starts.
+   — or the moon — now and then glints off a crest. What happens *on* it is
+   drawn like a cartoon, and sparingly: one band of foam where it laps the
+   shore, pen strokes and surf on the sea alone, a skin of ice round a
+   winter pond. Realism tells the eye it is water; the foam tells it where
+   the water starts. Each hole's water has a character of its own — still,
+   breezy or lively — so a course of ponds is not one pond nine times.
 
    Three rules, the scenery's own.
 
@@ -71,6 +72,9 @@
         'uniform float uNight;',
         'uniform float uSkin;',
         'uniform float uClear;',
+        'uniform float uMood;',      // 0 a still pond .. 1 a lively one
+        'uniform vec2 uWind;',       // which way this water's wind blows
+        'uniform float uSeed;',
         'uniform vec4 uRip[' + RIPPLES + '];',
 
         'float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }',
@@ -97,13 +101,19 @@
         '    float glen = length(gd);',
         '    vec2 inland = glen > 0.0001 ? gd / glen : vec2(0.0);',
 
-        // The surface: two long swells and two short chops, the sea taller,
-        // a stream carried along by its flow. Calmer in the shallows.
+        // The surface: two long swells and two short chops, turned to this
+        // water's wind and sized by its mood — a still pond barely moves, a
+        // lively one and the sea a good deal more. A stream is carried
+        // along by its flow. Calmer in the shallows.
         '    vec2 q = p - uFlow * t;',
-        '    vec3 s = wave(q, vec2(0.030, 0.011), 1.0 + uSea * 1.2, 1.2, t);',
-        '    s += wave(q, vec2(-0.012, 0.034), 0.8 + uSea * 0.8, 1.5, t);',
-        '    s += wave(q, vec2(0.071, -0.043), 0.35, 2.6, t);',
-        '    s += wave(q, vec2(-0.052, -0.083), 0.25, 3.1, t);',
+        '    vec2 wx = uWind, wy = vec2(-uWind.y, uWind.x);',
+        '    vec2 qw = vec2(dot(q, wx), dot(q, wy));',
+        '    float amp = mix(0.3, 1.0, uMood) + uSea * 1.0;',
+        '    vec3 s = wave(qw, vec2(0.030, 0.011), amp, 1.1, t);',
+        '    s += wave(qw, vec2(-0.012, 0.034), amp * 0.75, 1.4, t);',
+        '    s += wave(qw, vec2(0.071, -0.043), 0.3 * amp, 2.4, t);',
+        '    s += wave(qw, vec2(-0.052, -0.083), 0.2 * amp, 2.9, t);',
+        '    s.yz = s.y * wx + s.z * wy;',
         '    float calm = 0.45 + 0.55 * smoothstep(0.0, 0.5, d);',
         '    vec2 slope = s.yz * calm;',
         '    float h = s.x * calm;',
@@ -119,70 +129,82 @@
         '        slope += dv / dist * ring * 0.45;',
         '        h += ring * 2.2;',
         '    }',
-        // A fine chop on top, which is what breaks the sun into sparkles.
-        '    vec2 chop = vec2(noise(q * 0.24 + vec2(t * 0.7, 0.0)), noise(q * 0.24 + vec2(31.0, -t * 0.6))) - 0.5;',
-        '    vec3 n = normalize(vec3(-slope * 5.0 + chop * 0.42, 1.0));',
-        '    vec3 n0 = normalize(vec3(-slope * 6.0, 1.0));',
+        // A fine chop on top, as much of it as there is wind.
+        '    vec2 chop = vec2(noise(q * 0.2 + vec2(t * 0.6, 0.0)), noise(q * 0.2 + vec2(31.0, -t * 0.5))) - 0.5;',
+        '    vec3 n = normalize(vec3(-slope * 4.0 + chop * 0.3 * uMood, 1.0));',
+        '    vec3 n0 = normalize(vec3(-slope * 5.0, 1.0));',
 
         // Under the surface: the bed, seen through the water and bent by it.
-        '    vec2 bp = p + n.xy * (5.0 + 22.0 * d);',
-        '    vec3 bed = uBed * (0.78 + 0.36 * noise(bp * 0.05));',
-        '    bed *= 0.92 + 0.16 * smoothstep(0.58, 0.72, noise(bp * 0.21 + 7.0));',
-        // Caustics: light focused into bright veins that crawl across it.
-        '    vec2 cq = bp * 0.055 + vec2(t * 0.17, -t * 0.12);',
-        '    float c1 = sin(cq.x * 3.0 + sin(cq.y * 2.1 + t * 0.9) * 1.7);',
-        '    float c2 = sin(cq.y * 2.7 + sin(cq.x * 1.9 - t * 0.8) * 1.7);',
-        '    float caust = pow(max(0.0, 1.0 - abs(c1 + c2) * 0.55), 7.0);',
-        '    bed += caust * (1.0 - smoothstep(0.0, 0.8, d)) * (1.0 - uNight * 0.75) * 0.55;',
+        '    vec2 bp = p + n.xy * (4.0 + 18.0 * d);',
+        '    vec3 bed = uBed * (0.8 + 0.3 * noise(bp * 0.05));',
+        // Caustics: soft veins of focused light, only in the shallows.
+        '    vec2 cq = bp * 0.05 + vec2(t * 0.14, -t * 0.1);',
+        '    float c1 = sin(cq.x * 3.0 + sin(cq.y * 2.1 + t * 0.8) * 1.7);',
+        '    float c2 = sin(cq.y * 2.7 + sin(cq.x * 1.9 - t * 0.7) * 1.7);',
+        '    float caust = pow(max(0.0, 1.0 - abs(c1 + c2) * 0.55), 6.0);',
+        '    bed += caust * (1.0 - smoothstep(0.0, 0.45, d)) * (1.0 - uNight * 0.8) * 0.28;',
         // Absorbed with depth: clear at the edge, the deep colour mid-lake.
         '    float absorb = 1.0 - exp(-d * 2.8 / uClear);',
-        '    vec3 col = mix(bed, uShallow, 0.42 + 0.3 * d);',
+        '    vec3 col = mix(bed, uShallow, 0.5 + 0.3 * d);',
         '    col = mix(col, uDeep, absorb);',
 
         // The bank: in shadow on the water below the banks towards the
         // light, and reflected in it below the far bank.
         '    float nearBank = 1.0 - smoothstep(0.0, 0.22, d);',
-        '    col *= 1.0 - 0.38 * nearBank * smoothstep(0.1, 0.7, dot(inland, -uLight));',
-        '    col = mix(col, uBank * 0.7, 0.35 * nearBank * smoothstep(0.2, 0.9, dot(inland, uDown)));',
+        '    col *= 1.0 - 0.32 * nearBank * smoothstep(0.1, 0.7, dot(inland, -uLight));',
+        '    col = mix(col, uBank * 0.7, 0.3 * nearBank * smoothstep(0.2, 0.9, dot(inland, uDown)));',
 
-        // The sky: seen at a steeper angle across the far side of the water,
-        // so the far side reflects more of it.
+        // The sky: seen at a steeper angle across the far side, so the far
+        // side reflects more of it — and a still pond reflects it whole,
+        // slow drifting cloud and all, where a ruffled one breaks it up.
         '    float sy = clamp((dot(p, uDown) + uScreenY.x) * uScreenY.y, 0.0, 1.0);',
-        '    float fres = 0.05 + 0.15 * (1.0 - sy) + 0.5 * (1.0 - n.z);',
-        '    col = mix(col, uSky, clamp(fres, 0.0, 0.32));',
+        '    vec2 cl = p * 0.006 + n.xy * (0.6 + 1.4 * uMood) + vec2(t * 0.004, t * 0.002);',
+        '    float cloud = smoothstep(0.45, 0.85, noise(cl) * 0.65 + noise(cl * 2.3 + 5.0) * 0.35);',
+        '    float still = 1.0 - uMood;',
+        '    float fres = 0.04 + (0.1 + 0.08 * still) * (1.0 - sy) + 0.4 * (1.0 - n.z);',
+        '    col = mix(col, uSky, clamp(fres, 0.0, 0.3));',
+        '    col = mix(col, uSky, cloud * still * (1.0 - uNight) * 0.16 * smoothstep(0.1, 0.4, d));',
+
+        // Breeze: long soft streaks running with the wind where it ruffles
+        // the surface, lighter and darker in turn — the cat's paws a gust
+        // leaves on a pond. No outlines: this is the realism doing it.
+        '    vec2 gq = vec2(qw.x * 0.009 - t * 0.05, qw.y * 0.03);',
+        '    float gust = noise(gq) * 0.7 + noise(gq * 2.1 + 3.0) * 0.3;',
+        '    float paw = smoothstep(0.55, 0.8, gust) * smoothstep(0.1, 0.35, d);',
+        '    float wind = uMood * (1.0 - uSea) * (1.0 - smoothstep(0.75, 1.0, uMood));',
+        '    col = mix(col, uSky, paw * wind * 0.14);',
+        '    col *= 1.0 - smoothstep(0.2, 0.0, gust) * wind * 0.08;',
 
         // Light off the surface, sun or moon: a soft sheen where the swell
-        // faces it, and in that sheen, sparkles: points scattered on a
-        // jittered grid, each twinkling at its own rate.
+        // faces it, and in that sheen, now and then, a glint.
         '    vec3 L = normalize(vec3(uLight * 0.7, 0.75));',
         '    vec3 V = normalize(vec3(uDown * 0.45, 1.0));',
         '    float facing = max(dot(n0, normalize(L + V)), 0.0);',
         '    vec3 glint = mix(vec3(1.0, 0.97, 0.88), vec3(0.78, 0.85, 1.0), uNight);',
-        '    col += pow(facing, 220.0) * 0.18 * glint;',
-        '    vec2 cell = floor(p / 7.0);',
-        '    vec2 rnd = vec2(hash(cell), hash(cell + 17.0));',
-        '    float dd = length(p - (cell + 0.2 + rnd * 0.6) * 7.0);',
-        '    float tw = 0.5 + 0.5 * sin(t * (2.5 + rnd.x * 4.0) + rnd.y * 6.283);',
-        '    float sparkle = (1.0 - smoothstep(0.5, 1.5, dd)) * smoothstep(0.6, 0.95, tw) * smoothstep(0.55, 0.95, pow(facing, 40.0));',
-        '    col += sparkle * (1.1 - uNight * 0.4) * glint * smoothstep(0.05, 0.25, d);',
+        '    col += pow(facing, 160.0) * 0.12 * glint;',
+        '    vec2 cell = floor(p / 16.0);',
+        '    vec2 rnd = vec2(hash(cell + uSeed), hash(cell + uSeed + 17.0));',
+        '    float dd = length(p - (cell + 0.25 + rnd * 0.5) * 16.0);',
+        '    float tw = 0.5 + 0.5 * sin(t * (1.5 + rnd.x * 2.5) + rnd.y * 6.283);',
+        '    float sparkle = (1.0 - smoothstep(0.4, 1.4, dd)) * step(0.72, rnd.x) * smoothstep(0.7, 1.0, tw) * smoothstep(0.5, 0.9, pow(facing, 30.0));',
+        '    col += sparkle * (0.7 - uNight * 0.25) * (0.35 + 0.65 * uMood) * glint * smoothstep(0.08, 0.3, d);',
 
-        // Cartoon: short strokes along the crests of the main swell, broken
-        // up and drifting, like the marks a pen makes for waves.
-        '    float ph = dot(vec2(0.030, 0.011), q) + 1.2 * t + noise(q * 0.018) * 2.4 + h * 0.15;',
-        '    float crest = smoothstep(0.972, 0.99, sin(ph)) * smoothstep(0.70, 0.78, noise(q * 0.06 + vec2(t * 0.05, 0.0)));',
-        '    col = mix(col, vec3(1.0), crest * (0.6 + uSea * 0.2) * smoothstep(0.12, 0.35, d));',
+        // Cartoon, on the sea alone: soft broken strokes along the crests
+        // of the swell, the marks a pen makes for waves.
+        '    float ph = dot(vec2(0.030, 0.011), qw) + 1.1 * t + noise(q * 0.018) * 2.4 + h * 0.15;',
+        '    float crest = smoothstep(0.975, 0.995, sin(ph)) * smoothstep(0.66, 0.78, noise(q * 0.05 + vec2(t * 0.05, 0.0)));',
+        '    col = mix(col, vec3(1.0), crest * uSea * 0.45 * smoothstep(0.12, 0.35, d));',
 
-        // Cartoon: the foam at the shore, wobbling, and a second line
-        // beyond it breathing in and out. Surf rolls in on the sea.
-        '    float wob = (noise(p * 0.07 + vec2(t * 0.25, -t * 0.2)) - 0.5) * 0.08;',
-        '    float edge = 0.085 + uSea * 0.06 + wob;',
-        '    float foam = 1.0 - smoothstep(edge - 0.012, edge + 0.004, d);',
-        '    float l2 = 0.2 + uSea * 0.07 + sin(t * 1.2 + noise(p * 0.04) * 6.0) * 0.035 + wob;',
-        '    float line = smoothstep(l2 - 0.025, l2 - 0.01, d) - smoothstep(l2 + 0.01, l2 + 0.025, d);',
-        '    float roll = fract(d * 1.7 + t * 0.16 + noise(p * 0.025) * 0.5);',
-        '    float surf = uSea * (smoothstep(0.90, 0.93, roll) - smoothstep(0.96, 0.99, roll)) * (1.0 - smoothstep(0.3, 0.9, d));',
-        '    vec3 foamCol = mix(vec3(1.0), vec3(0.62, 0.70, 0.82), uNight);',
-        '    float wash = (foam * 0.92 + line * 0.5 + surf * 0.6) * (1.0 - uSkin);',
+        // Cartoon: one band of foam where the water laps the shore, the
+        // width of it breathing; the sea rolls surf in on top.
+        '    float wob = (noise(p * 0.06 + vec2(t * 0.2, -t * 0.16)) - 0.5) * 0.06;',
+        '    float lap = sin(t * 0.9 + noise(p * 0.03) * 5.0) * 0.012;',
+        '    float edge = 0.06 + uSea * 0.05 + wob + lap;',
+        '    float foam = 1.0 - smoothstep(edge - 0.02, edge + 0.006, d);',
+        '    float roll = fract(d * 1.7 + t * 0.14 + noise(p * 0.025) * 0.5);',
+        '    float surf = uSea * (smoothstep(0.90, 0.93, roll) - smoothstep(0.96, 0.99, roll)) * (1.0 - smoothstep(0.25, 0.8, d));',
+        '    vec3 foamCol = mix(vec3(0.96, 0.98, 0.97), vec3(0.62, 0.70, 0.82), uNight);',
+        '    float wash = (foam * (0.55 + 0.25 * uSea) + surf * 0.45) * (1.0 - uSkin);',
         '    col = mix(col, foamCol, clamp(wash, 0.0, 1.0));',
 
         // Winter: a skin of ice round the edge, frosted, with its own rim.
@@ -190,14 +212,14 @@
         '    float rim = smoothstep(0.15 + wob, 0.17 + wob, d) - smoothstep(0.19 + wob, 0.21 + wob, d);',
         '    vec3 frost = vec3(0.84, 0.92, 0.97) - noise(p * 0.12) * 0.06;',
         '    col = mix(col, frost, uSkin * ice * 0.82);',
-        '    col = mix(col, vec3(1.0), uSkin * rim * 0.7);',
+        '    col = mix(col, vec3(1.0), uSkin * rim * 0.5);',
 
         '    gl_FragColor = vec4(col, 1.0);',
         '}'
     ].join('\n');
 
     var gl = null, canvas = null, prog = null, loc = {}, tex = null, failed = false, off = false;
-    var hole = { key: null, box: null, cols: 0, rows: 0 };
+    var hole = { key: null, box: null, cols: 0, rows: 0, char: null };
     var ripples = [], now = 0;
 
     function compile(type, src) {
@@ -228,7 +250,7 @@
             gl.enableVertexAttribArray(aPos);
             gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 0, 0);
             ['uDist', 'uTexel', 'uOrigin', 'uSize', 'uTime', 'uShallow', 'uDeep', 'uBed', 'uSky', 'uBank', 'uLight', 'uDown',
-             'uScreenY', 'uFlow', 'uSea', 'uNight', 'uSkin', 'uClear', 'uRip'].forEach(function (n) {
+             'uScreenY', 'uFlow', 'uSea', 'uNight', 'uSkin', 'uClear', 'uMood', 'uWind', 'uSeed', 'uRip'].forEach(function (n) {
                 loc[n] = gl.getUniformLocation(prog, n);
             });
             tex = gl.createTexture();
@@ -247,10 +269,34 @@
         }
     }
 
+    /* Not every water is the same water. Each hole's is given a character
+       of its own, from its shape, so it is the same every time the hole is
+       played: a still pond that holds the sky, one ruffled by a breeze that
+       blows its own way, or a lively one. The sea is always lively, and
+       winter's and the night's lean still, which is what ice and a moon
+       want. Pure, so the suite can ask what a hole got. */
+    var MOODS = [0.08, 0.45, 0.85];
+
+    function character(list, theme) {
+        var hsh = 2166136261;
+        for (var i = 0; i < list.length; i++) {
+            var z = list[i], pts = z.pts || [z.x, z.y, z.w, z.h];
+            for (var j = 0; j < pts.length; j++) hsh = Math.imul(hsh ^ Math.round(pts[j]), 16777619);
+        }
+        hsh >>>= 0;
+        var w = theme.water || {};
+        var mood = MOODS[hsh % 3];
+        if (w.kind === 'sea') mood = Math.max(mood, 0.7);
+        else if (w.skin || theme.night) mood = Math.min(mood, 0.45);
+        var ang = ((hsh >>> 4) % 360) * Math.PI / 180;
+        return { mood: mood, wind: [Math.cos(ang), Math.sin(ang)], seed: (hsh >>> 12) % 97 };
+    }
+
     // The depth field for this hole, as a texture over the water's box.
-    function prepare(list, key) {
+    function prepare(list, key, theme) {
         if (hole.key === key) return hole.box !== null;
         hole.key = key;
+        hole.char = character(list, theme);
         hole.box = SC.waterBox(list);
         if (!hole.box || hole.box.w < 2 || hole.box.h < 2) { hole.box = null; return false; }
         var f = SC.shoreField(list, hole.box);
@@ -275,7 +321,7 @@
     function draw(g, list, theme, v, clock, opts) {
         if (off || !opts || !opts.key || !list || !list.length || !setup()) return false;
         try {
-            if (!prepare(list, opts.key + '|' + list.length)) return false;
+            if (!prepare(list, opts.key + '|' + list.length + '|' + theme.id, theme)) return false;
             now = clock;
             var box = hole.box, w = theme.water;
             var scale = Math.min(1.5, Math.max(0.25, opts.res || 1));
@@ -308,6 +354,9 @@
             gl.uniform1f(loc.uNight, theme.night ? 1 : 0);
             gl.uniform1f(loc.uSkin, w.skin ? 1 : 0);
             gl.uniform1f(loc.uClear, w.clear || 1);
+            gl.uniform1f(loc.uMood, hole.char.mood);
+            gl.uniform2f(loc.uWind, hole.char.wind[0], hole.char.wind[1]);
+            gl.uniform1f(loc.uSeed, hole.char.seed);
             // Under reduced motion there is no clock, and a ring that never
             // spreads is a stain: no ripples at all.
             var rip = new Float32Array(RIPPLES * 4);
@@ -339,6 +388,7 @@
         // For the suite: force the plain water, or let the shader back.
         disable: function (yes) { off = !!yes; },
         ripples: function () { return ripples.length; },
+        character: character,
         FRAG: FRAG
     };
 

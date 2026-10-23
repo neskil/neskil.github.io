@@ -802,6 +802,27 @@
             assert('every hole of every course draws, flat and turned, in every biome', broken.length === 0, broken.slice(0, 2).join(' · '));
             assert('…and none of them comes out blank', blank === 0, blank + ' blank');
 
+            /* Not every water is the same water: each hole's is given a
+               character from its own shape. The rack should show all three,
+               a hole should keep the one it got, the sea is never still, and
+               ice and moonlight are never ruffled. */
+            var moods = {}, wrong = [];
+            G.COURSES.forEach(function (c) {
+                c.holes.forEach(function (h) {
+                    if (!(h.water || []).length) return;
+                    G.scenery.ORDER.forEach(function (k) {
+                        var th = G.scenery.THEMES[k], a = G.water.character(h.water, th);
+                        if (JSON.stringify(a) !== JSON.stringify(G.water.character(h.water, th))) wrong.push(h.name + ' changed its mind');
+                        if (!(a.mood >= 0 && a.mood <= 1) || Math.abs(Math.hypot(a.wind[0], a.wind[1]) - 1) > 1e-6) wrong.push(h.name + ' in ' + k + ': ' + JSON.stringify(a));
+                        if (th.water.kind === 'sea' && a.mood < 0.7) wrong.push(h.name + ': a still sea');
+                        if ((th.water.skin || th.night) && a.mood > 0.45) wrong.push(h.name + ' in ' + k + ': ruffled');
+                        if (k === G.scenery.themeOf(c).id) moods[a.mood] = true;
+                    });
+                });
+            });
+            assert('the rack\'s water comes still, breezy and lively, not one way everywhere', Object.keys(moods).length >= 3, Object.keys(moods).join(', '));
+            assert('…each hole keeps the water it got, the sea is never still, ice and moonlight never ruffled', wrong.length === 0, wrong.slice(0, 3).join(' · '));
+
             /* The aim is an arrow and a short run past it, not a ruler laid
                across the hole: a frame with the aim up and one without
                differ at the arrow, and agree a few hundred pixels on. */

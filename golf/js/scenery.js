@@ -423,10 +423,15 @@
             lawn++;
         }
 
-        // The water: dressing round its shore and on its open middle.
+        /* The water: dressing round its shore and on its open middle. Not
+           every pond is dressed alike — one is reedy, one has a stand of
+           reeds on a single bank and open shore on the rest, one is nearly
+           bare — and lily pads grow the way they do, in a colony or two,
+           not one to every square yard. */
         var water = hole.water || [];
         if (water.length) {
             var loops = outline(water, true);
+            var reedy = [0.25, 0.5, 0.8][(rand() * 3) | 0];
             loops.forEach(function (loop) {
                 for (var i = 0; i < loop.length; i++) {
                     var a = loop[i], b = loop[(i + 1) % loop.length];
@@ -434,8 +439,9 @@
                     var ux = (b.x - a.x) / (len || 1), uy = (b.y - a.y) / (len || 1);
                     // Clockwise loops have the water on their right.
                     var nx = -uy, ny = ux;
+                    if (rand() > reedy) continue;
                     // In clumps with open shore between them, not a fence.
-                    for (var d = 14 + rand() * 50; d < len - 14; d += 50 + rand() * 110) {
+                    for (var d = 14 + rand() * 60; d < len - 14; d += 70 + rand() * 150) {
                         var bunch = 1 + ((rand() * 3) | 0);
                         for (var e = 0; e < bunch; e++) {
                             var along = d + e * (7 + rand() * 6), inset = 7 + rand() * 6;
@@ -447,10 +453,19 @@
                 }
             });
             if (theme.water.pads !== false) {
-                for (var m = 0; m < 60 && out.pads.length < 9; m++) {
-                    var lx = rand() * W, ly = rand() * H;
-                    if (!P.zoneAt(water, lx, ly) || shoreDistance(loops, lx, ly) < 24) continue;
-                    out.pads.push({ x: lx, y: ly, r: 7 + rand() * 6, a: rand() * Math.PI * 2, flower: rand() < 0.35 });
+                var colonies = [0, 1, 1, 2][(rand() * 4) | 0];
+                for (var m = 0, found = 0; m < 40 && found < colonies; m++) {
+                    var cx = rand() * W, cy = rand() * H;
+                    if (!P.zoneAt(water, cx, cy) || shoreDistance(loops, cx, cy) < 30) continue;
+                    found++;
+                    for (var n = 0, size = 3 + ((rand() * 4) | 0), tries = 0; n < size && tries < 24; tries++) {
+                        var pr = 6 + rand() * 6, pa = rand() * Math.PI * 2, pd = n ? 12 + rand() * 22 : 0;
+                        var lx = cx + Math.cos(pa) * pd, ly = cy + Math.sin(pa) * pd;
+                        if (!P.zoneAt(water, lx, ly) || shoreDistance(loops, lx, ly) < 22) continue;
+                        if (out.pads.some(function (o) { return Math.hypot(o.x - lx, o.y - ly) < o.r + pr + 1; })) continue;
+                        out.pads.push({ x: lx, y: ly, r: pr, a: rand() * Math.PI * 2, flower: rand() < 0.3 });
+                        n++;
+                    }
                 }
             }
             /* The deepest point of the water, if it has room: where a duck

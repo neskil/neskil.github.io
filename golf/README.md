@@ -16,7 +16,7 @@ same as everything else here, open `index.html` and it runs.
 | Path | What it is |
 | --- | --- |
 | `index.html` | Page shell: bar, scoreboard, canvas, banner, course picker and scorecard modals. |
-| `style.css` | Page chrome. The course itself is all canvas. |
+| `style.css` | Page chrome. The course itself is all canvas. Every control's icon is one line-drawn set, an SVG sprite at the top of `index.html`'s body. |
 | `js/config.js` | Every tuning constant. Nothing else holds a magic number. |
 | `js/courses.js` | Every hand-built course, as data. |
 | `js/generator.js` | Courses dealt from a seed. See [The draw](#the-draw). |
@@ -645,16 +645,30 @@ board then draws inside the water's outline:
 - **The real part** comes from a depth field: `scenery.shoreField` measures,
   on a 4px grid, how far each point is from the shore. From that the shader
   gets the colour deepening away from the bank, the bed seen refracted through
-  the shallows, caustic light on it, the bank's shadow, the sky by height on
-  the screen, and sparkles where the sun — or the moon — catches a facet.
-- **The cartoon part** is drawn over it: a crisp band of foam at the shore with
-  a line that breathes, broken crest strokes, surf on the sea, and rings that
-  spread when the ball goes in. Winter lays a skin of ice over the lot.
+  the shallows, soft caustics in the shallowest of it, the bank's shadow, the
+  sky by height on the screen, and now and then a glint where the sun — or the
+  moon — catches a facet.
+- **The cartoon part** is kept to a minimum: one band of foam where the water
+  laps the shore, broken crest strokes and surf on the sea alone, and rings
+  that spread when the ball goes in. Winter lays a skin of ice over the lot.
+
+**Not every water is the same water.** It used to be: every pond on every
+hole wore the same sparkle field, the same pen strokes and the same double
+line of foam, and on a hole that is mostly lake that was most of the picture.
+Now each hole's water gets a character from its own shape
+(`GOLF.water.character`) — *still*, holding the sky and the slow drift of a
+cloud; *breezy*, with long soft streaks running the way its own wind blows;
+or *lively* — so the same hole always looks the same and the next one need
+not. The sea is always lively; ice and moonlight are never ruffled. The
+dressing varies the same way: one pond is reedy, one has reeds on a single
+bank, one is nearly bare, and lily pads grow in a colony or two rather than
+one to every square yard. `ui-tests.html` checks that the rack shows all
+three characters and that each hole keeps the one it got.
 
 The water also sits below the grass: its surface is the outline pushed down
 the screen (`landscape.bankDepth`), so the far bank shows a face of earth
-above the waterline. Without WebGL the old 2D surface is drawn instead, and
-the board looks as it did.
+above the waterline. Without WebGL — and in the editor, which draws live — a
+plain 2D surface with a few slow rows of waves is drawn instead.
 
 ## The physics, and the one thing worth protecting
 
@@ -1013,7 +1027,7 @@ indexable; the self-test overlay only appears with the query string.
 
 Two harnesses, and the runner finds both.
 
-Open `tests.html`. 885 assertions covering geometry, the integrator, the four
+Open `tests.html`. 893 assertions covering geometry, the integrator, the four
 surfaces, the overswing, skipping, tunnels, rails and polygons, the cup in
 three dimensions, scenery in every biome, the course data
 on every course, the generator, the scorecard, the pick-up and the stars,
@@ -1023,12 +1037,12 @@ the bot's, which now searches for a way round every hole on the rack and every
 hole of twelve draws. The bot needed nothing new for tunnels: it plans over
 simulated shots, and a shot down a tunnel is a simulated shot.
 
-Open `ui-tests.html` for the other half: 155 assertions about the *page* — the
+Open `ui-tests.html` for the other half: 170 assertions about the *page* — the
 bar, the modals in fullscreen, the picker, the title screen on a first visit, locks and the way past
 them, stars on the banner and the plans, a door opening, a three-player party
 from roster to honour to resume, the board turned for an upright phone and
 laid out beside its column for one on its side, replaying the intro and
-resetting progress, the Scenery row and its soundscapes, the aim's guide
+resetting progress, the Scenery row and its soundscapes, the water's character, the aim's guide
 running out short, the ball's roll, and every hole of every course drawn through the real
 renderer, flat and turned, in every biome. The last two narrow the frame
 and ask the board to fit again; the turned one sends world points through the

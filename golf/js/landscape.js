@@ -511,7 +511,7 @@
         g.lineWidth = 2;
         g.beginPath();
         var x0 = Math.max(b.x0, 0), x1 = Math.min(b.x1, W);
-        for (var row = Math.max(b.y0, 0) + 11; row < Math.min(b.y1, H); row += 22) {
+        for (var row = Math.max(b.y0, 0) + 15; row < Math.min(b.y1, H); row += 32) {
             g.moveTo(x0, row + Math.sin(x0 * 0.05 + t * 1.6 + row * 0.4) * 3);
             for (var x = x0 + 12; x <= x1 + 11; x += 12) {
                 g.lineTo(x, row + Math.sin(x * 0.05 + t * 1.6 + row * 0.4) * 3);
