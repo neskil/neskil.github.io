@@ -376,9 +376,6 @@ card shapes are already there to hang a third off (`CARDS` in `bag.js`).
 - **The bot could prove a hole is ace-able**, not only solvable, on the holes
   where that is the design. Sea Legs is the first hole where the ace *is* the
   point, and nothing measures that it stays available.
-- **The bag models pockets, a strap and a foot ring** that are below the bottom
-  of the screen on every window anybody uses. Either move them into the band
-  that shows or stop building them.
 - **`tests.html` walks greens on a 0.3 grid** and misses peaks between samples
   (see §1). A finer grid, or sampling at each hump's own steepest radius.
 - **Pass-and-play local multiplayer**: 2–4 players taking turns with color-coded balls.
