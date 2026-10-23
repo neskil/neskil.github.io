@@ -2326,6 +2326,114 @@
         group.add(rim);
     }
 
+    /* A loop-the-loop: the track the ball rides round (physics.js, "the
+       loop"), drawn from the same loop the physics reads — its foot, its
+       radius, its corkscrew — so the rails are exactly where the ball is.
+
+       Open track, not a solid chute, and that is the whole of the design. A
+       loop seen from the tee is seen edge-on, and a solid deck edge-on is a
+       wall: the first version was a pink band you watched the ball vanish
+       into and come out of. Two running rails the ball sits between, a guard
+       rail outside each, and a tie across the back every few degrees is what
+       a fairground loop is made of, and the ball shows through it from every
+       seat. Not solid either way: the ball is carried round, never collided.
+
+       The rails are swept by hand rather than as a TubeGeometry along a Curve
+       because a Curve has to be subclassed and the vendored three.js is an
+       ES6 build. Everything is built in the loop's own frame — forward along
+       +z, the corkscrew stepping along +x — inside a group turned to its yaw,
+       which is exactly physics.loopFrame's axes.
+
+       Then a post either side of the foot, up to an axle through the middle
+       of the circle, because a loop with nothing holding it up is a ribbon
+       hanging in the air. */
+    var LOOP_SEGS = 120;
+
+    function addLoop(group, hole, L, theme) {
+        var F = P.loopFrame(L);
+        var floor = P.loopBase(hole, L) - C.BALL_R;
+        var deck = L.R + C.BALL_R;             // where the ball touches
+        var cy = L.R + C.BALL_R;               // the middle of the circle, over the floor
+        var col = theme.machine || 0xffd34d;
+        var steel = new THREE.MeshLambertMaterial({ color: new THREE.Color(col).multiplyScalar(0.55) });
+        var paint = new THREE.MeshLambertMaterial({ color: col });
+        var g = new THREE.Group();
+        g.position.set(L.x, floor, L.z);
+        g.rotation.y = L.yaw;
+        group.add(g);
+
+        function at(th, side, rad) {
+            return [F.k * th + side, cy - rad * Math.cos(th), rad * Math.sin(th)];
+        }
+        // A square bar of half-width `w` swept round the loop with its middle
+        // at (side, rad), each face its own strip so the edges stay sharp.
+        function bar(side, rad, w, mat) {
+            var sq = [[-w, -w], [w, -w], [w, w], [-w, w]];
+            var pos = [], idx = [], j, i, a, b, base, k, th;
+            for (j = 0; j < 4; j++) {
+                a = sq[j]; b = sq[(j + 1) % 4];
+                base = pos.length / 3;
+                for (i = 0; i <= LOOP_SEGS; i++) {
+                    th = i / LOOP_SEGS * Math.PI * 2;
+                    Array.prototype.push.apply(pos, at(th, side + a[0], rad + a[1]));
+                    Array.prototype.push.apply(pos, at(th, side + b[0], rad + b[1]));
+                    if (i < LOOP_SEGS) {
+                        k = base + i * 2;
+                        idx.push(k, k + 2, k + 1, k + 1, k + 2, k + 3);
+                    }
+                }
+            }
+            var geo = new THREE.BufferGeometry();
+            geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+            geo.setIndex(idx);
+            geo.computeVertexNormals();
+            var m = new THREE.Mesh(geo, mat);
+            m.castShadow = true;
+            g.add(m);
+        }
+        var run = 0.11, rw = 0.035;            // the running rails: either side of the ball's line
+        var guard = 0.3;                        // and the guards, up at the ball's middle
+        bar(-run, deck + rw, rw, paint);
+        bar(run, deck + rw, rw, paint);
+        bar(-guard, deck - C.BALL_R, rw, paint);
+        bar(guard, deck - C.BALL_R, rw, paint);
+
+        // A tie across the back every fifteen degrees, holding the four
+        // together: a flat bar behind the running rails, turned to the radius.
+        var n = 24, i, th, tie, p;
+        for (i = 0; i < n; i++) {
+            th = (i + 0.5) / n * Math.PI * 2;
+            p = at(th, 0, deck + 2 * rw + 0.02);
+            tie = new THREE.Mesh(new THREE.BoxGeometry(2 * guard + 2 * rw, 0.04, 0.06), steel);
+            tie.position.set(p[0], p[1], p[2]);
+            tie.rotation.x = Math.PI - th;
+            g.add(tie);
+            // and a strut out from the tie to each guard
+            var sa = new THREE.Mesh(new THREE.BoxGeometry(0.04, C.BALL_R + 2 * rw + 0.02, 0.04), steel);
+            var q = at(th, -guard, deck + rw - C.BALL_R / 2 + 0.01);
+            sa.position.set(q[0], q[1], q[2]);
+            sa.rotation.x = Math.PI - th;
+            g.add(sa);
+            var sb = sa.clone();
+            q = at(th, guard, deck + rw - C.BALL_R / 2 + 0.01);
+            sb.position.set(q[0], q[1], q[2]);
+            g.add(sb);
+        }
+
+        var sides = [-guard - 0.3, L.shift + guard + 0.3], k2;
+        for (k2 = 0; k2 < 2; k2++) {
+            var post = new THREE.Mesh(new THREE.BoxGeometry(0.16, cy + 0.3, 0.16), steel);
+            post.position.set(sides[k2], (cy + 0.3) / 2 - 0.3, 0);
+            post.castShadow = true;
+            g.add(post);
+        }
+        var axle = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, sides[1] - sides[0], 10), steel);
+        axle.rotation.z = Math.PI / 2;
+        axle.position.set((sides[0] + sides[1]) / 2, cy, 0);
+        axle.castShadow = true;
+        g.add(axle);
+    }
+
     /* A tree.
 
        The solid part of it is the trunk and only the trunk — courses.js says
@@ -3836,6 +3944,7 @@
             if (hole.pads[i].spring) addSpring(g, hole.pads[i], theme);
         }
         for (i = 0; i < (hole.warps || []).length; i++) addMouth(g, hole, hole.warps[i], theme);
+        for (i = 0; i < (hole.loops || []).length; i++) addLoop(g, hole, hole.loops[i], theme);
         for (i = 0; i < hole.walls.length; i++) addWall(g, hole.walls[i]);
         for (i = 0; i < hole.water.length; i++) addWater(g, hole.water[i], theme);
         addCup(g, hole);

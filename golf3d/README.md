@@ -872,7 +872,7 @@ approach.
 | The Millrace | crazy | `mill` | The same machines with the river underneath them. A mistimed shot is a stroke here rather than a bounce, so laying up is a real option for the first time on a timing course. |
 | The Belfry | crazy | `belfry` | Two machines on every hole, geared to each other: 2:1, 3:2, 1:4, and four shutters a quarter-beat apart. Counting bars rather than beats. |
 | Icehouse Yard | adventure | `icehouse` | Nothing stops. A putter runs eight and a half units on grass and thirty-two on ice. |
-| Helter Skelter | adventure | `fairground` | Launch pads, travelators and pipes. The floor decides; you only decide how hard. |
+| Helter Skelter | adventure | `fairground` | Launch pads, travelators, pipes and a loop-the-loop. The floor decides; you only decide how hard. |
 | Cinder Cone | adventure | `volcano` | The same machinery pointed downhill. Belts that run back at you, vents that are the only way up, and two lava tubes — one of which comes out where you started. |
 | Apogee Yard | adventure | `lunar` | The floor sits still and the ball does not: six holes at six gravities. Light takes distance away as a defence; heavy takes the air. |
 | Ashdown Park | long | `parkland` | The long game, on a hillside: bluffs, a crest, a cross-fall into a lake, and two round greens. No fence — the park carries on past the stakes. |
@@ -1170,6 +1170,7 @@ next.
 | **Travelator** | An acceleration on a pad: `pad.push = { x, z }` | `physics.substep`, grounded branch | Drag balances it at `|push| / -ln(friction)`, so a belt has a *speed* rather than a shove, and a ball put down against the run of it is turned round instead of stopped. |
 | **Launch pad** | An upward speed given to anything that touches it: `pad.spring` | landing and rolling, both | `sqrt(2·GRAVITY·h)` reaches height h — 8.5 clears two units, 10.4 clears three. |
 | **Pipe** | A mouth and where it puts you: `hole.warps = [{ x, z, r, tx, tz, yaw }]` | `physics.takeWarp` | One way. A two-way pipe is two of them; `pipes()` returns the pair. |
+| **Loop** | A track the ball rides round the inside of: `hole.loops = [{ x, z, yaw, R, shift }]`, `loop()` in courses.js | `physics.takeLoop` / `rideLoop` | About √(5gR) at the foot to make the top, and the boards take more — a 1.1 loop wants about 14, a firm mallet. Under that it comes off the top or rolls back out. See [The loop](#the-loop). |
 | **Gravity** | One number on the hole: `hole.gravity` | `physics.gravityOf` | Carry goes as 1/g and so does apex, so two fifths of a g is two and a half times both. The gradient a surface holds a ball on does not move at all. |
 
 Three details in those are load-bearing.
@@ -1216,6 +1217,50 @@ machinery is kept flat**, the same way it is under the tee and the cup
 `surfaceUnder` and loses outright to ground lifted above it, so a single hump
 of `contour` under a trampoline does not make a lumpy trampoline — it makes one
 the ball rolls straight over without ever touching.
+
+#### The loop
+
+The one piece of track in the game the ball rides on the *inside* of — and the
+ground here is a height field, a single y for every (x, z), which cannot have a
+ceiling. So a loop is not ground. It is a track the ball is carried along, the
+way a pipe is a mouth and an exit: `world.ride` holds the ball's angle round
+the loop (0 at the foot, π at the top) and its speed along the track, and while
+it is set the step is the loop and nothing else — no ground, no walls, no cup.
+
+What keeps that from being a teleport is that the speed is honest. It obeys
+what a rolling ball obeys anywhere: gravity along the slope of the track, and
+the boards' drag and rolling resistance (`wood`). So what reaches the top is
+what the foot paid for, v² − 4gR less the friction. And the track only holds a
+ball that is pressing on it: when v²/R + g·cos θ goes negative it would have to
+pull, it cannot, and the ball comes off (`events.loopFell`). It then falls
+*inside* the loop and is caught by the track the moment its middle is a radius
+from the loop's (`catchOnLoop`), keeping the part of its velocity that runs
+along the boards. That is where a failed loop really goes, and before it the
+ball fell straight through the rails. Three outcomes from one number:
+
+| Pace at the foot (R 1.1) | What happens |
+| --- | --- |
+| under about 8 | runs up and back down, out of the mouth it went in by |
+| about 8 to 13 | comes off near the top, lands back on the track — the near side rolls it back to you, the far side dribbles it out |
+| about 13 and up | over the top and out of the far end (`events.loopRound`) |
+
+Every loop is a corkscrew by `shift`, as every real one is: the way out runs
+beside the way in instead of through it. The mouth takes a ball that is on the
+floor, inside the lane (`LOOP_LANE`), within `LOOP_MOUTH` past the foot and
+heading up the lane within 45° — a ball crossing the foot is walking under the
+loop, not into it. The aim line stops at the mouth, as it does at a pipe,
+because a line drawn round the loop would answer the one question the loop is
+asking.
+
+It is drawn as open track — two running rails, a guard either side and a tie
+across the back every fifteen degrees, on two posts and an axle (`addLoop`).
+A solid deck was tried first, and a loop seen from the tee is seen edge-on, so
+a solid one is a wall the ball disappears into. Nothing the ball rides is
+collided with, so `tests.html` holds every wall on a hole clear of every point
+of its loops, and the floor level and flat at both feet. **Loop the Loop**, on
+Helter Skelter, is the hole: a deck, a wooden drop to the foot for the pace, a
+housing so the mouth is the only road north, and the belt lane up the side for
+anyone who would rather not.
 
 #### Drawing something that is not there
 

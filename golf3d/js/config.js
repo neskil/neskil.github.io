@@ -8,7 +8,7 @@
    — the renderer scales to the viewport, the simulation never sees a pixel. */
 window.G3 = window.G3 || {};
 
-G3.VERSION = '1.89.0';
+G3.VERSION = '1.90.0';
 
 G3.CONFIG = {
     BALL_R: 0.16,
@@ -441,6 +441,18 @@ G3.CONFIG = {
     SPRING_DECAY: 0.62,
     WARP_LOCK: 0.4,
     WARP_MOUTH: 0.18,
+
+    /* A loop-the-loop (physics.js, "the loop"). LOOP_MOUTH is how far past the
+       foot of the loop a rolling ball is still caught by it — a step's worth,
+       so a fast ball cannot skip over the mouth between two substeps — and
+       LOOP_LOCK how long a ball that has just come off one, out of the far end
+       or back out of the mouth or off the top, is left alone before the
+       mouth will take it again. LOOP_LANE is the half-width of the mouth: the
+       track is a lane with a kerb either side, and a ball wider of it than
+       that has missed the ride. */
+    LOOP_MOUTH: 0.4,
+    LOOP_LOCK: 0.4,
+    LOOP_LANE: 0.42,
 
     /* Two timers for the two ways a ball stops without the lie deciding it.
        SLOPE_SETTLE is for a ball that is not standing on anything — leaning on
