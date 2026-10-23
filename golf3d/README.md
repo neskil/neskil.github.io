@@ -574,6 +574,20 @@ turned to face the camera rather than centred on the bag's nominal front —
 the rig is deliberately twisted off-axis, so a patch centred on local `+z`
 spends half of itself round the side.
 
+**And then it was still a stack of grey tubes.** Body, panel, band and cuff
+were each their own cylinder in a slightly different mid grey, so nothing
+separated from anything; the seam rings were a fixed radius on a tapering body
+and hung a centimetre clear of it; and the pockets were boxes standing off the
+curve on their corners. Lambert lit it from the course's lamps alone, so it was
+a different bag on every hole. Since v1.82.0 it is one lathed outline
+(`BODY_LINE`) that everything else is fitted to through `radiusAt` — the band,
+the piping and the padded pockets (`puff`) all sit on the taper rather than
+near it — with a moulded top rolled over at the lip, and a tour bag's palette:
+navy body, a white band carrying the name printed straight onto it, the page's
+sky-blue for piping, near-black for the parts that take wear. The nylon is a
+non-metal standard material lit by the same studio room the heads reflect, so
+it reads round, and the same, on every course and under every sky.
+
 Two smaller things came out of the same pass. The clubs bunch tighter and lean
 less, because the old spread put the outer two grips within a centimetre of the
 wall and the lean then carried their shafts out across the bag's own silhouette

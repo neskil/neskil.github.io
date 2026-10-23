@@ -414,9 +414,6 @@
                 metalness: 0.10, roughness: 0.34,
                 envMap: studioRadiance(), envMapIntensity: 0.85
             }),
-            leather: new THREE.MeshLambertMaterial({ color: ink(0x59636f) }),
-            panel: new THREE.MeshLambertMaterial({ color: ink(0x6d7886) }),
-            trim: new THREE.MeshLambertMaterial({ color: ink(0x2b93c8) }),
             dark: new THREE.MeshLambertMaterial({ color: ink(0x353d47) }),
             /* The inside of the bag, which used to be the outside of the
                world: a cylinder is single-sided, so looking down into the
@@ -1687,17 +1684,18 @@
     /* ── the bag itself ────────────────────────────────────────────────── */
 
     /* A cart bag: 0.89 tall, a 0.26 cuff, and the details that make it one
-       rather than a cylinder — a divider cross in the mouth, stitched seams, a
-       zip pocket, a padded strap and a foot ring.
+       rather than a cylinder — a moulded top with a rolled lip, a divider
+       cross in the mouth, a printed band under the cuff, padded pockets, a
+       strap and a rubber foot.
 
        Where those details *sit* matters as much as having them. The bag stands
        mostly below the bottom of the screen on purpose, so everything that
        says "golf bag" rather than "bin" has to live in the hand's width of it
-       that shows: the cuff, the piping under it, the panel with the name on
-       it and the carry handle. The pocket, the strap and the foot
-       ring are still modelled, and are still the first things you see if the
-       window is tall enough to show them, but they are no longer carrying the
-       silhouette on their own. */
+       that shows: the cuff, the piping under it, the band with the name on
+       it and the carry handle. The pockets, the strap and the foot are still
+       modelled, and are still the first things you see if the window is tall
+       enough to show them, but they are no longer carrying the silhouette on
+       their own. */
     var BAG_H = 0.89, BAG_R = 0.13, WELL = 0.72;
 
     /* Which way round the bag is standing, as an angle about its own axis.
@@ -1707,46 +1705,163 @@
        the side — is centred here rather than on the bag's nominal front. */
     var TWIST = 0.62, FACING = TWIST;
 
-    /* The name on the side, drawn rather than modelled. A bag with nothing on
-       it is a container; a bag with a maker on it is somebody's. */
+    /* The body's outline, foot to cuff, as [height, radius] in metres.
+
+       One outline rather than a stack of cylinders, because the stack is what
+       the last pass looked like: five tubes of slightly different widths, each
+       with its own hard step, which reads as a bin assembled from parts. And
+       one outline because everything else on the bag is fitted *to* it — the
+       band, the piping, the pockets are all read off `radiusAt`, so none of
+       them can float off the taper the way a fixed-radius ring did (the old
+       seams were 0.99 of the cuff's radius on a body that narrows to 0.86, so
+       the lower one hung a centimetre clear of the bag all the way round).
+
+       Straight between the foot and the cuff, so a band wrapped anywhere on it
+       is an exact cone rather than an approximation of one. */
+    var BODY_LINE = [[0.06, BAG_R * 0.88], [0.80, BAG_R * 1.0], [BAG_H - 0.06, BAG_R * 1.0]];
+    function radiusAt(y) {
+        var L = BODY_LINE;
+        if (y <= L[0][0]) return L[0][1];
+        for (var i = 1; i < L.length; i++) {
+            if (y <= L[i][0]) {
+                var t = (y - L[i - 1][0]) / (L[i][0] - L[i - 1][0]);
+                return L[i - 1][1] + (L[i][1] - L[i - 1][1]) * t;
+            }
+        }
+        return L[L.length - 1][1];
+    }
+
+    function lathe(pts, mat, seg) {
+        return new THREE.Mesh(new THREE.LatheGeometry(pts.map(function (p) {
+            return new THREE.Vector2(p[1], p[0]);
+        }), seg || 48), mat);
+    }
+
+    // A band laid on the body between two heights, `out` proud of it. `from`
+    // and `span` make it a panel rather than a ring.
+    function wrap(y0, y1, out, mat, from, span) {
+        var m = new THREE.Mesh(new THREE.CylinderGeometry(
+            radiusAt(y1) + out, radiusAt(y0) + out, y1 - y0, 48, 1, true,
+            from || 0, span || Math.PI * 2), mat);
+        m.position.y = (y0 + y1) / 2;
+        return m;
+    }
+
+    function piping(y, mat) {
+        var m = new THREE.Mesh(new THREE.TorusGeometry(radiusAt(y) + 0.002, 0.0042, 6, 48), mat);
+        m.rotation.x = Math.PI / 2;
+        m.position.y = y;
+        return m;
+    }
+
+    /* A padded pocket: flat across the middle, rolling down into the body at
+       every edge. The boxes it replaces stood off the curve on their corners —
+       a flat slab touching a round bag along one line — which is a crate
+       strapped to a bin. Built on `radiusAt`, so it sits on the taper. */
+    function puffAt(y, a, y0, y1, mid, span, depth) {
+        var s = (a - mid) / span + 0.5, t = (y - y0) / (y1 - y0);
+        var k = (1 - Math.pow(Math.abs(2 * s - 1), 3)) * (1 - Math.pow(Math.abs(2 * t - 1), 3));
+        var r = radiusAt(y) + 0.001 + depth * Math.max(0, k);
+        return v3(r * Math.sin(a), y, r * Math.cos(a));
+    }
+    function puff(y0, y1, mid, span, depth, mat) {
+        var NU = 28, NV = 18, pos = [], idx = [];
+        for (var v = 0; v <= NV; v++) {
+            for (var u = 0; u <= NU; u++) {
+                var p = puffAt(y0 + (y1 - y0) * v / NV, mid + (u / NU - 0.5) * span, y0, y1, mid, span, depth);
+                pos.push(p.x, p.y, p.z);
+            }
+        }
+        for (v = 0; v < NV; v++) {
+            for (u = 0; u < NU; u++) {
+                var a = v * (NU + 1) + u, b = a + 1, c = a + NU + 1, d = c + 1;
+                idx.push(a, b, c, b, d, c);
+            }
+        }
+        var geo = new THREE.BufferGeometry();
+        geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+        geo.setIndex(idx);
+        geo.computeVertexNormals();
+        return new THREE.Mesh(geo, mat);
+    }
+    // A zip run across a pocket at height `y`, following the pad's own curve.
+    function zip(y, y0, y1, mid, span, depth, mat) {
+        var pts = [];
+        for (var i = 0; i <= 12; i++) {
+            var a = mid + (i / 12 - 0.5) * span * 0.84;
+            var p = puffAt(y, a, y0, y1, mid, span, depth);
+            pts.push(p.multiplyScalar(1 + 0.0025 / Math.hypot(p.x, p.z)));
+        }
+        return new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 24, 0.0032, 5), mat);
+    }
+
+    /* The name on the side, printed on the band rather than stuck on as a
+       patch. A bag with nothing on it is a container; a bag with a maker on
+       it is somebody's. The canvas is transparent round the letters, so the
+       band shows through and the name reads as ink, not as a label. */
     var _mono = null;
     function monogramTexture() {
         if (_mono) return _mono;
         var cv = document.createElement('canvas');
-        cv.width = 256; cv.height = 144;
+        cv.width = 512; cv.height = 320;
         var g = cv.getContext('2d');
-        g.fillStyle = '#414d59';
-        g.fillRect(0, 0, 256, 144);
-        g.strokeStyle = 'rgba(148, 210, 240, 0.75)';
-        g.lineWidth = 5;
-        g.strokeRect(9, 9, 238, 126);
         g.textAlign = 'center';
         g.textBaseline = 'middle';
         // Big enough to survive being a centimetre of curved canvas on a
-        // laptop: a maker's patch nobody can read is a smudge.
-        g.fillStyle = '#f2f9ff';
-        g.font = '800 62px ' + FACE;
-        g.fillText('LOFT', 128, 52);
-        g.fillStyle = '#a8dcf5';
-        g.font = '800 46px ' + FACE;
-        g.fillText('LINKS', 128, 104);
+        // laptop: a maker's mark nobody can read is a smudge.
+        g.fillStyle = BAG_INK.navy;
+        g.font = '800 178px ' + FACE;
+        g.fillText('LOFT', 256, 108);
+        g.fillStyle = BAG_INK.accent;
+        g.fillRect(96, 200, 320, 12);
+        g.fillStyle = BAG_INK.navy;
+        g.font = '700 84px ' + FACE;
+        if ('letterSpacing' in g) g.letterSpacing = '18px';
+        g.fillText('LINKS', 265, 266);
         _mono = srgbCanvas(cv);
         return _mono;
     }
 
+    /* The bag's own palette, which is a tour bag's: a deep navy body, a white
+       band under the cuff to carry the name, the page's own sky-blue accent
+       for the piping, and near-black for everything that takes wear — the
+       moulded top, the foot, the strap.
+
+       The grey it replaces was chosen to be calm, and it was calm the way a
+       bin is: every part a slightly different mid grey, so nothing separated
+       from anything and the bag read as one lump. Two tones and an accent is
+       the least it takes for the cuff, the band and the body to read as
+       three parts of one made thing. */
+    var BAG_INK = { navy: '#1b2b4b', white: '#eef2f7', accent: '#38bdf8', black: '#191e26' };
+
+    /* Woven nylon, lit by the same studio room the clubs reflect. Lambert lit
+       the bag from the course's own lamps alone, so it was a different bag on
+       every hole and a black one at night; the room is the same fair weather
+       everywhere, and it is what puts the soft highlight down the curve that
+       makes a cylinder read as round. Never metal: a sheen, not a mirror. */
+    function nylon(hex, rough, env) {
+        return new THREE.MeshStandardMaterial({
+            color: ink(hex), metalness: 0, roughness: rough,
+            envMap: studioRadiance(), envMapIntensity: env
+        });
+    }
+
     function buildBody(M) {
         var g = new THREE.Group();
+        var body = nylon(BAG_INK.navy, 0.52, 1.0);
+        var white = nylon(BAG_INK.white, 0.6, 0.75);
+        var accent = nylon(BAG_INK.accent, 0.5, 0.45);
+        var rubber = nylon(BAG_INK.black, 0.7, 0.8);
+        var lid = nylon(BAG_INK.black, 0.4, 1.0);
+        var side = { side: THREE.DoubleSide };
+        body.setValues(side);
 
-        /* Open at the top, both here and at the cuff. A three.js cylinder is
-           capped by default, and those two caps were a pair of solid discs
-           lying across the mouth: the clubs came *through* the lid rather
-           than standing in the bag, which is most of why the whole thing read
-           as a bin with sticks in it. The lining below is what the mouth
-           shows now. */
-        var body = new THREE.Mesh(
-            new THREE.CylinderGeometry(BAG_R, BAG_R * 0.86, BAG_H, 24, 1, true), M.leather);
-        body.position.y = BAG_H / 2;
-        g.add(body);
+        /* Open at the top, both here and at the cuff. A capped cylinder is a
+           pair of solid discs lying across the mouth: the clubs came *through*
+           the lid rather than standing in the bag, which is most of why the
+           first pass read as a bin with sticks in it. The lining below is what
+           the mouth shows now. */
+        g.add(lathe(BODY_LINE.map(function (p) { return [p[0], p[1]]; }), body));
 
         // The lining, and the floor of the well the grips rest on. Both exist
         // only so that the mouth reads as an inside.
@@ -1759,51 +1874,43 @@
         floor.position.y = BAG_H - WELL;
         g.add(floor);
 
-        /* The panel with the name on it, and the accent piping over it, both
-           held up under the cuff where they can be seen. Below about y = 0.55
-           the bag is off the bottom of the screen on a phone. */
-        var panel = new THREE.Mesh(new THREE.CylinderGeometry(BAG_R * 1.015, BAG_R * 0.985, 0.24, 24), M.panel);
-        panel.position.y = BAG_H * 0.74;
-        g.add(panel);
+        /* The moulded top: flared a little past the body and rolled over at
+           the lip, which is the curve every cart bag's top has and a cylinder
+           never will. It is the part of the bag that shows on every screen,
+           so it is the part given the most shape. */
+        var R = BAG_R;
+        g.add(lathe([
+            [BAG_H - 0.075, R * 0.99], [BAG_H - 0.074, R * 1.02], [BAG_H - 0.05, R * 1.035],
+            [BAG_H - 0.016, R * 1.07], [BAG_H - 0.004, R * 1.085], [BAG_H + 0.005, R * 1.08],
+            [BAG_H + 0.010, R * 1.055], [BAG_H + 0.006, R * 1.0], [BAG_H - 0.01, R * 0.985]
+        ], lid));
+
+        /* The band with the name on it, piped top and bottom. Below about
+           y = 0.55 the bag is off the bottom of the screen on a phone, so this
+           is the last thing down it that is guaranteed to show. */
+        var b0 = 0.565, b1 = 0.785;
+        g.add(wrap(b0, b1, 0.0012, white));
+        g.add(piping(b0, accent));
+        g.add(piping(b1, accent));
+        g.add(piping(BAG_H - 0.084, accent));
 
         /* Centred on the face the camera is actually looking at, not on the
            bag's own front: the rig stands turned off-axis so it reads as an
-           object with sides, and a patch centred on local +z spent half of
+           object with sides, and a mark centred on local +z spent half of
            itself round the side. FACING is that turn. */
-        _monoMat = new THREE.MeshLambertMaterial({ map: monogramTexture(), side: THREE.DoubleSide });
-        var mono = new THREE.Mesh(
-            new THREE.CylinderGeometry(BAG_R * 1.03, BAG_R * 1.02, 0.115, 16, 1, true,
-                FACING - 0.58, 1.16),
-            _monoMat);
-        mono.position.y = BAG_H * 0.74;
-        g.add(mono);
-
-        var band = new THREE.Mesh(new THREE.CylinderGeometry(BAG_R * 1.035, BAG_R * 1.03, 0.018, 24), M.trim);
-        band.position.y = BAG_H * 0.86;
-        g.add(band);
-
-        [0.40, 0.62].forEach(function (f) {
-            var seam = new THREE.Mesh(new THREE.TorusGeometry(BAG_R * 0.99, 0.004, 6, 26), M.dark);
-            seam.rotation.x = Math.PI / 2;
-            seam.position.y = BAG_H * f;
-            g.add(seam);
+        _monoMat = new THREE.MeshStandardMaterial({
+            map: monogramTexture(), transparent: true, metalness: 0, roughness: 0.6,
+            envMap: studioRadiance(), envMapIntensity: 0.75,
+            polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2
         });
-
-        var cuff = new THREE.Mesh(
-            new THREE.CylinderGeometry(BAG_R * 1.06, BAG_R * 1.02, 0.075, 24, 1, true), M.dark);
-        cuff.position.y = BAG_H - 0.035;
-        g.add(cuff);
-        var lip = new THREE.Mesh(new THREE.TorusGeometry(BAG_R * 1.06, 0.011, 8, 26), M.dark);
-        lip.rotation.x = Math.PI / 2;
-        lip.position.y = BAG_H;
-        g.add(lip);
+        g.add(wrap(0.605, 0.745, 0.0022, _monoMat, FACING - 0.7, 1.4));
 
         /* The carry handle over the mouth. It is the one part of a bag nobody
            mistakes for anything else, and at this crop it is right in the
            middle of what shows. */
-        var handle = new THREE.Mesh(new THREE.TorusGeometry(0.052, 0.008, 6, 18, Math.PI), M.panel);
+        var handle = new THREE.Mesh(new THREE.TorusGeometry(0.052, 0.0095, 8, 20, Math.PI), lid);
         handle.rotation.y = Math.PI / 2;
-        handle.position.set(-BAG_R * 0.72, BAG_H - 0.02, 0);
+        handle.position.set(-BAG_R * 0.72, BAG_H - 0.01, 0);
         g.add(handle);
 
         // The divider cross. Real bags run fourteen full-length slots; four is
@@ -1815,36 +1922,37 @@
             g.add(d);
         });
 
-        var base = new THREE.Mesh(new THREE.CylinderGeometry(BAG_R * 0.9, BAG_R * 0.92, 0.05, 24), M.dark);
-        base.position.y = 0.025;
-        g.add(base);
-        var foot = new THREE.Mesh(new THREE.TorusGeometry(BAG_R * 0.9, 0.012, 6, 24), M.dark);
-        foot.rotation.x = Math.PI / 2;
-        foot.position.y = 0.012;
-        g.add(foot);
+        // The foot: a rubber base, rounded under, and proud of the body by a
+        // lip so it reads as a separate, harder part.
+        g.add(lathe([
+            [0.0, 0], [0.0, R * 0.78], [0.006, R * 0.86], [0.02, R * 0.905],
+            [0.07, R * 0.915], [0.078, R * 0.895], [0.082, R * 0.86]
+        ], rubber));
 
-        var pocket = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.24, 0.075), M.panel);
-        pocket.position.set(0, 0.30, 0.10);
-        g.add(pocket);
-        var zip = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.008, 0.006), M.trim);
-        zip.position.set(0, 0.41, 0.142);
-        g.add(zip);
-        var pull = new THREE.Mesh(new THREE.BoxGeometry(0.012, 0.03, 0.005), M.trim);
-        pull.position.set(0.06, 0.392, 0.145);
-        g.add(pull);
+        /* Pockets: a long apparel pocket down the side and a ball pocket on
+           the front, each with its zip. Both are the body's own navy and are
+           told apart from it by their shape alone: a white pocket was tried,
+           and flat white on a curve reads as a sticker, not a pad. */
+        var front = [0.16, 0.44, FACING + 0.08, 1.0, 0.034];
+        g.add(puff(front[0], front[1], front[2], front[3], front[4], body));
+        g.add(zip(0.40, front[0], front[1], front[2], front[3], front[4], rubber));
+        g.add(piping(0.13, accent));
+        var flank = [0.12, 0.54, FACING + 1.35, 0.85, 0.032];
+        g.add(puff(flank[0], flank[1], flank[2], flank[3], flank[4], body));
+        g.add(zip(0.5, flank[0], flank[1], flank[2], flank[3], flank[4], accent));
 
-        var ball = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.13, 0.06), M.panel);
-        ball.position.set(0.105, 0.18, 0.045);
-        ball.rotation.y = -0.7;
-        g.add(ball);
-
-        var strap = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.60, 0.012), M.dark);
-        strap.position.set(-0.115, 0.42, 0.045);
-        strap.rotation.z = 0.16;
-        g.add(strap);
-        var pad = new THREE.Mesh(new THREE.BoxGeometry(0.055, 0.22, 0.022), M.panel);
-        pad.position.set(-0.125, 0.50, 0.045);
-        pad.rotation.z = 0.16;
+        /* The strap, slung off the far side: anchored under the band and above
+           the foot, hanging clear of the body between, with a pad on it. */
+        var sa = FACING - 1.55, sx = Math.sin(sa), sz = Math.cos(sa);
+        var strapPts = [[0.70, 0], [0.62, 0.035], [0.48, 0.055], [0.34, 0.04], [0.22, 0]].map(function (p) {
+            var r = radiusAt(p[0]) + 0.006 + p[1];
+            return v3(r * sx, p[0], r * sz);
+        });
+        var strap = new THREE.CatmullRomCurve3(strapPts);
+        g.add(new THREE.Mesh(new THREE.TubeGeometry(strap, 28, 0.0075, 6), rubber));
+        var padPts = [];
+        for (var i = 0; i <= 8; i++) padPts.push(strap.getPoint(0.28 + 0.36 * i / 8));
+        var pad = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(padPts), 16, 0.016, 8), body);
         g.add(pad);
 
         var hit = new THREE.Mesh(
