@@ -26,6 +26,10 @@ to be worked out again.
   purpose** — a disc of ground with bumps on it is drawn on the square terrain
   grid, so a domed key renders as a raft with corners. Making `addTerrain`
   draw a round outline for a bumped disc is what would let keys have a hump.
+  Their outlines are dealt per island by `coast` (a stronger, seeded wave):
+  the keys you must land on are kept near 0.15 of wildness, because the bot
+  — and a person — cannot find a target that bites in by half; the bare sand
+  islets take the wild shapes.
 - The owner asked whether there are too many long courses. Five is the count
   now; rather than naturalise all four of the older ones hole by hole, new
   concepts (this one) are the better spend than a fifth pass over the same
