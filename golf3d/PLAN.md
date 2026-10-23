@@ -241,8 +241,13 @@ audit's `prop-afloat`). **Stone Bridge** (v1.85.0) is two segments of one
 gully with the bridge as the ground neither reaches; the west one is a `pond`
 with `freeboard: 0.7` (water set down in the canyon, not brim-full) and stops
 inside the ground — a pond's water is its box, and a box past the edge of the
-ground hangs over the desert. Next, one at a time — Long Way Round (a bite, ending mid-hole — so the way round is the hole), The
-Narrows (twice), Redstone (round the mesa).
+ground hangs over the desert. **Long Way Round** (v1.87.0): the bite starts in a rounded end east of the
+west lane (six units of fairway now, from seven and a half, to give the end
+cap room) and runs out of the east side. The same release swapped `gully`'s
+two chains for four: two left a V in the floor with a climb out of 1.4 to 2
+that trapped the bot outright — check any carved floor with the bot from
+its lowest point, not just from the tee. Next, one at a time — The Narrows
+(twice), then Redstone (round the mesa).
 
 **Redstone, partly (v1.81.0).** Long Way Round's spring is a pool in a hollow.
 Nothing else on it moved, and two things were left on purpose:
