@@ -5908,7 +5908,13 @@
                of it therefore comes from the field and from the depth of the
                cut, and the cross-fall — which lifts every pad, the canyon's
                included — is the one tilt that is safe to lay over it. */
-            var cut = ravine(0, 6, 6.5, 56, 2.2, { along: true, bank: [0, 2.8] });
+            /* Carved (`gully`) down a line that wanders a unit from side to
+               side, sheer on the outside and banked towards the fairway — the
+               line runs south so the canyon opens east, and its far bank is a
+               little narrower than the default so it stops short of the
+               green strung along its lip. */
+            var cut = gully([[-2.3, 76], [-1.9, 62], [-3.6, 50], [-2.0, 38], [-4.4, 26], [-2.1, 12], [-3.8, 0], [-2.4, -14]],
+                            9221, { o2: 3.0, r2: 4.0 });
             /* No hollow anywhere near the fairway on this one. The massif
                east of the property is already spending a fifth of what the
                fairway will hold by the time its skirt reaches the short grass,
@@ -5920,11 +5926,11 @@
                 .concat(ridge(8, 15, 20, 15, 5, 0.3, 3));
             var land = commons(0, [
                 [6,                     [6.5, rgh], [11, fwy], [4.5, rgh]],
-                [12,                    [6.5, null], [11, fwy], [4.5, rgh]],
-                [10,                    [6.5, null], [11.5, fwy], [4, rgh]],
-                [10,                    [6.5, null], [8.5, fwy], [7, rgh]],
-                [10,                    [6.5, null], [10, fwy], [5.5, rgh]],
-                [16,                    [6.5, null], [9, fwy], [6.5, rgh]],
+                [12,                    [6.5, rgh], [11, fwy], [4.5, rgh]],
+                [10,                    [6.5, rgh], [11.5, fwy], [4, rgh]],
+                [10,                    [6.5, rgh], [8.5, fwy], [7, rgh]],
+                [10,                    [6.5, rgh], [10, fwy], [5.5, rgh]],
+                [16,                    [6.5, rgh], [9, fwy], [6.5, rgh]],
                 [3,                     [22, rgh]]
             ], { w: 15 });
             return build({
@@ -5936,12 +5942,12 @@
                         inlay(g, 13.7, 52.5, 1.3, snd, 2.0),
                         inlay(g, 9.4, 55, 2.6, grn, 6.5)
                     ]);
-                }(shape(tilt(land.pads.concat(cut.pads), -0.032, 0, 22, 0), field))),
-                fence: land.fence,
+                }(carve(shape(tilt(land.pads, -0.032, 0, 22, 0), field), cut, { rock: true }))),
+                fence: widen(land.fence, 5, 5),
                 extra: [].concat(
                     crags(20, 13, 3, 5, 9211, { s: 1.3, h: 1.0 }),
                     crags(20, 42, 2.8, 4, 9217, { s: 1.2, h: 0.9 }),
-                    crags(-3, 34, 3, 4, 9219, { s: 1.25, h: 0.95 })
+                    crags(-9.5, 34, 3, 4, 9219, { s: 1.25, h: 0.95 })
                 ),
                 tee: { x: 13, z: 3 }, cup: { x: 9.5, z: 58 }
             });
