@@ -919,7 +919,7 @@
                 '<div class="hint" style="margin-top:6px">' +
                 (S.sel.kind === 'tee'
                     ? 'Where the ball starts. It must not sit in a wall, a post or a lake.'
-                    : 'The cup pulls the ball in below ' + C.CAPTURE_SPEED + 'px/s; faster than that and the rim spits it back out.') +
+                    : 'A slow ball topples in, a firm one at the middle hits the back and drops, one that catches the edge rides the lip and may spin out.') +
                 '</div>';
             return;
         }

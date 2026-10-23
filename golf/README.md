@@ -5,7 +5,9 @@ three nines — plus a sixth that is generated from a seed and is different ever
 time you ask for one. A first visit is handed the six and a reason to finish
 it; every hole gives up to three stars, and stars open the rest. Up to four can
 play on one screen. Each course is drawn in a biome of its own — parkland,
-garden, seaside, woodland, meadow — and a hole may run on the slant.
+garden, seaside, woodland, meadow — and any of them can be played in any of
+nine, autumn, winter, desert and a moonlit night among them. A hole may run on
+the slant.
 Canvas, plain ES5-flavoured JavaScript, no build step and no dependencies —
 same as everything else here, open `index.html` and it runs.
 
@@ -21,10 +23,12 @@ same as everything else here, open `index.html` and it runs.
 | `js/physics.js` | The simulation. No DOM, no canvas, pure. |
 | `js/scoring.js` | Scorecard arithmetic, the pick-up, stars and the save file. |
 | `js/progress.js` | Which courses are open, and the lessons a first round teaches. See [Starting up](#starting-up-and-the-stars). |
-| `js/audio.js` | Synthesised sound effects — no audio files to ship. |
+| `js/audio.js` | Synthesised sound effects and each biome's soundscape — no audio files to ship. |
 | `js/scenery.js` | The biomes, hazard outlines and where decoration goes. Draws nothing. See [Biomes](#biomes-and-what-a-hole-is-drawn-as). |
 | `js/plan.js` | Flat hole thumbnails for the course picker. Nothing on the board reads it. |
 | `js/landscape.js` | The place: turf, hazards, walls, posts, trees, weather, the rim — and the cached layers. |
+| `js/water.js` | The water's surface, as a WebGL shader over a depth field, with the 2D picture as its fallback. See [Water](#water). |
+| `js/ambience.js` | What lives over the course — snow, leaves, birds, fireflies — and the dark of the night biome. Stateless, driven by the clock. |
 | `js/render.js` | The frame: ball, cup, tunnels, aim, effects, and the order everything is laid down in. |
 | `js/game.js` | Loop, input, what a shot means, the title screen and the party. |
 | `level-editor.html` | Visual hole editor. See [The editor](#the-editor). |
@@ -178,7 +182,8 @@ starter course, and nothing earned goes anywhere. *Reset progress* is "let me
 climb it again": two presses, like opening every course, and then every star,
 record and round in progress is cleared and the page boots again in place as a
 first visit — not a veteran, so the ladder is locked again. It leaves the sound
-setting and a hole half-built in the editor alone; neither is progress. Before
+setting, the scenery and a hole half-built in the editor alone; none of
+them is progress. Before
 it existed the only way to see the intro twice was to clear the site's data,
 which also cleared everything else.
 
@@ -504,6 +509,26 @@ bumper cap (brass, a flowerpot, a buoy, a toadstool, a hay bale), the rim of
 the course, the trees beside it and the flowers, leaves or shells in its
 grass. `scenery.js` holds all of it as data; `landscape.js` draws it.
 
+Four more exist only to be chosen: **autumn** (stone walls, maples, pumpkins,
+leaves on the pond), **winter** (snowy logs, snow pines, a snowman for a post,
+a skin of ice on the water), **desert** (sandstone, acacias, cacti, a
+tumbleweed) and **moonlit**, a night course lit by lanterns round the cushion
+and posts that glow, with the moon on the water. The **Scenery** row in the
+course picker — or `S` — puts any course in any of the nine, or back in its
+own; the choice is kept in `miniGolf.scenery.v1` and survives Reset progress,
+which is about the player's record, not their taste.
+
+**A biome is alive.** `ambience.js` draws what moves through it from the
+clock alone, so there is nothing to step and nothing to save: snow, falling
+leaves, petals, dandelion fluff, dust, fireflies and butterflies in the air
+over the ball (thinning as they pass it), and the shadows of birds and gulls,
+or a tumbleweed, on the ground under it. Under `prefers-reduced-motion` only
+the night's lamps and dark are left. Each biome has a soundscape to go with it
+— a looped bed of filtered noise (wind, the sea) and calls dropped in at random
+(birds, gulls, crickets, an owl, crows, a woodpecker) — on its own quiet bus,
+started by the first sound the player makes, stopped by the mute switch and a
+hidden tab.
+
 **A hazard is drawn as one shape.** A lake built of six overlapping boxes used
 to be drawn as six boxes, with a seam wherever two met. `scenery.outline`
 merges a zone list into the loops that bound its union — rectangles on the
@@ -515,6 +540,12 @@ bunkers' 34px corners have always made. The suite checks, on every shipped
 list and a handful of draws, that the outline covers exactly the union's
 area. A zone that runs to the cushion is pushed past it for the picture only,
 so a lake that meets the edge has no shore along it.
+
+**Flowers grow at the edges.** A fairway carpeted in blooms is a lawn nobody
+mows, and it fights the ball for the eye. The showy decals — flowers, leaves,
+shells — are planted only in the border (`scenery.border`): the rough, a band
+along the cushion and the foot of the walls. The open fairway gets at most a
+handful of faint lawn kinds (clover, a stray leaf), drawn at half strength.
 
 **Decoration may never hide anything.** Flat things — flowers in patches,
 fallen leaves, shells, lily pads, reeds at the water's edge — go only where
@@ -546,6 +577,26 @@ on the page. On a software rasteriser this makes the heaviest hole about half
 again the old frame on a laptop and level with it on most, and the editor,
 whose hole changes under the mouse, is handed no cache key and draws live.
 
+## Water
+
+The water is the one place realism and the cartoon meet. `water.js` draws its
+surface with a small WebGL fragment shader into a canvas of its own, which the
+board then draws inside the water's outline:
+
+- **The real part** comes from a depth field: `scenery.shoreField` measures,
+  on a 4px grid, how far each point is from the shore. From that the shader
+  gets the colour deepening away from the bank, the bed seen refracted through
+  the shallows, caustic light on it, the bank's shadow, the sky by height on
+  the screen, and sparkles where the sun — or the moon — catches a facet.
+- **The cartoon part** is drawn over it: a crisp band of foam at the shore with
+  a line that breathes, broken crest strokes, surf on the sea, and rings that
+  spread when the ball goes in. Winter lays a skin of ice over the lot.
+
+The water also sits below the grass: its surface is the outline pushed down
+the screen (`landscape.bankDepth`), so the far bank shows a face of earth
+above the waterline. Without WebGL the old 2D surface is drawn instead, and
+the board looks as it did.
+
 ## The physics, and the one thing worth protecting
 
 `advance(world, dt)` is the only integrator. The game loop calls it once per
@@ -571,10 +622,35 @@ Two details that are easy to get wrong and are pinned by tests:
   reason a slope may not reach something it can pin the ball against, per the
   hole rules above.
 
-The cup pulls the ball inward while it is over the rim and only captures below
-`CAPTURE_SPEED`, which is what makes a slow ball on a bad line still drop and a
-fast one curl around the lip and come out the far side. A ball hit far too hard
-runs straight past — and often rolls back in off the cushion, which is a feature.
+The cup is the one place the ball has a height. Everywhere else `z` is its
+radius and nothing reads it; over the cup (`physics.cup`) the ball is a sphere
+falling under `CUP_GRAVITY`, and the cup is a hole with a lip:
+
+- **A funnel** `CUP_BEVEL` wide falls `CUP_FALL` to the lip. It is the ground,
+  not a force, so what it gives a slow ball rolling in is paid for in height —
+  and a ball dying on it topples in.
+- **The lip** is a circle the ball's sphere touches, in the plane through the
+  cup's centre and the ball's. A ball can lean on it, roll round it, and spiral
+  in or spin out; hitting it harder than `RIM_KNOCK` is a knock that bounces
+  (`RIM_RESTITUTION`) and takes pace off (`RIM_KEEP`), which is how a firm putt
+  at the middle drops off the back of the cup and a firmer one hops out over
+  it. Riding the lip scrubs speed (`RIM_DRAG`).
+- **It is in** once the ball's centre is a `CUP_DOWN` share of its radius below
+  the lip; until then the cup's wall holds it. A ball may not come to rest in
+  the air or on the funnel (`physics.grounded`).
+
+The knock is never allowed to add speed: the push out of the lip is paid for
+from the ball's speed and the result is capped at the speed before, so the
+invariant below holds at the cup too, to within a step's worth of slack. The
+renderer follows `z` — a ball dropping in sinks down the screen, darker, the
+near side of the cup covering it; a ball hopping out rises and leaves its
+shadow on the turf — and a knock is heard as a short tock. Off the cup the
+ball still rolls in three dimensions for the eye: its dimples and an
+alignment line are fixed to a sphere the renderer turns about the axis a
+rolling ball turns about (`render.roll`), fading to a blur at pace rather than
+strobing backwards. A ball hit far too
+hard runs straight past, and often rolls back in off the cushion, which is a
+feature.
 
 There are four surfaces, and they are one lookup rather than a blend — sand
 first, then ice, then rough, then grass. Rough is the one worth arguing for:
@@ -617,8 +693,8 @@ there must not go down it unplayed.
 
 ## Aiming
 
-The arrow gives you the line, and a faint ray runs on from its head to the edge
-of the field. There is no trajectory preview.
+The arrow gives you the line, and a faint ray runs on from its head for
+`AIM_GUIDE_LEN` and fades out. There is no trajectory preview.
 
 There used to be one: the renderer cloned the world, ran 0.6 seconds forward and
 dashed the ball's real path on screen, stopping at the first bounce. Between that
@@ -627,14 +703,17 @@ only two questions a golf shot is made of — how far will this go, and where do
 it come off that wall. Both are gone, and `physics.previewPath` with them.
 
 What went too far was the replacement: an arrow of exactly one length made a
-gentle tap and a full swing look identical, and lining a putt up across a 960px
-field off a 100px arrow asked the player to extend a line by eye that the screen
-could simply draw. So two things came back, neither of them a prediction:
+gentle tap and a full swing look identical. So two things came back, neither
+of them a prediction:
 
-- **The ray**, which is pure direction. It does not stop at a wall, because
-  where the ball comes off a wall is the question the hole is asking.
+- **The ray**, which is pure direction, and short. It once ran to the edge of
+  the field, on the argument that extending a line by eye is something the
+  screen could simply do — but a ruled line across the hole is the putt read
+  for you, and all that was left was to lay it on the cup. It now carries the
+  arrow's direction about a hand's width further and leaves the rest of the
+  line to be judged.
 - **A little length.** The arrow runs 54px to 108px while the ball rolls up to
-  1250px — a twelfth of the scale of the thing it is hinting at, on a
+  1600px — a fifteenth of the scale of the thing it is hinting at, on a
   square-root curve that spends most of its travel in the bottom half of the
   dial where the touch shots live. You can see that this shot is harder than
   the last one. You cannot read a distance off it.
@@ -701,9 +780,9 @@ said out loud as well as drawn:
 ## The overswing
 
 The dial runs past what you can control. Everything up to `SAFE_POWER` goes
-exactly where the arrow points and is the whole of the old game — 1080 coasts
-about 1180px, more than the 960px field, so every hole stays reachable in one
-clean shot. The last fifth is borrowed distance: 1400 reaches about 1530px and
+exactly where the arrow points and is the whole of the old game — 1134 coasts
+about 1240px, more than the 960px field, so every hole stays reachable in one
+clean shot. The last fifth is borrowed distance: 1470 reaches about 1605px and
 pays for it in accuracy, `physics.spread` opening from nothing at the line to
 ±0.13rad — about 7.5°, or ±52px over a 400px carry — at the top.
 
@@ -714,7 +793,9 @@ Three things make it a choice rather than a trick:
   sliver costs everything.
 - **The cone is drawn before you commit**, to scale, in the moment you are
   deciding how far to pull — and the meters mark where the safe zone ends, on
-  the ring and in hatching on the bar.
+  the ring and in hatching on the bar. Its edges run on past the short guide
+  (`AIM_CONE_LEN` against `AIM_GUIDE_LEN`) so the warning cannot be missed;
+  its centre line stops with the guide.
 - **The draw bunches in the middle.** `scatter` squares the signed offset, so
   half of all shots land inside a quarter of the cone. A uniform draw would put
   the ball on the edge as often as on the line, which reads as the game taking
@@ -873,8 +954,9 @@ indexable; the self-test overlay only appears with the query string.
 
 Two harnesses, and the runner finds both.
 
-Open `tests.html`. 867 assertions covering geometry, the integrator, the four
-surfaces, the overswing, skipping, tunnels, rails and polygons, scenery, the course data
+Open `tests.html`. 885 assertions covering geometry, the integrator, the four
+surfaces, the overswing, skipping, tunnels, rails and polygons, the cup in
+three dimensions, scenery in every biome, the course data
 on every course, the generator, the scorecard, the pick-up and the stars,
 progression and starting over, the per-course save keys and the resumable
 round, in a few seconds — most of them
@@ -882,13 +964,14 @@ the bot's, which now searches for a way round every hole on the rack and every
 hole of twelve draws. The bot needed nothing new for tunnels: it plans over
 simulated shots, and a shot down a tunnel is a simulated shot.
 
-Open `ui-tests.html` for the other half: 135 assertions about the *page* — the
+Open `ui-tests.html` for the other half: 155 assertions about the *page* — the
 bar, the modals in fullscreen, the picker, the title screen on a first visit, locks and the way past
 them, stars on the banner and the plans, a door opening, a three-player party
 from roster to honour to resume, the board turned for an upright phone and
 laid out beside its column for one on its side, replaying the intro and
-resetting progress, and every hole of every course drawn through the real
-renderer, flat and turned. The last two narrow the frame
+resetting progress, the Scenery row and its soundscapes, the aim's guide
+running out short, the ball's roll, and every hole of every course drawn through the real
+renderer, flat and turned, in every biome. The last two narrow the frame
 and ask the board to fit again; the turned one sends world points through the
 canvas's own transform and back through `toWorld`, which is the check that the
 pointer lands where the drawing puts things. It
@@ -1014,5 +1097,6 @@ whether the first stroke has been shown, whether this browser is a veteran's —
 lives under `miniGolf.progress.v1`, a party in progress under
 `miniGolf.party.v1` (course, seed, roster, cards and whose turn it is; a party
 written for one draw is not offered to the next), and the last roster under
-`miniGolf.players.v1`. Mute state lives separately under `miniGolf.muted`. Both writes are wrapped —
+`miniGolf.players.v1`. Mute state lives separately under `miniGolf.muted`, and
+the chosen scenery under `miniGolf.scenery.v1`. Both writes are wrapped —
 a browser with storage disabled should cost you your records, not your round.

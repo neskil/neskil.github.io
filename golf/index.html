@@ -32,7 +32,7 @@
 
         gtag('config', 'G-9GP823TGLB');
     </script>
-    <link rel="stylesheet" href="style.css?v=1.10.0">
+    <link rel="stylesheet" href="style.css?v=1.11.0">
 <script type="application/ld+json">
     {
         "@context": "https://schema.org",
@@ -194,7 +194,7 @@
             <span class="kb-help"><kbd>←</kbd><kbd>→</kbd> aim · <kbd>↑</kbd><kbd>↓</kbd> power · <kbd>space</kbd> hit
                 (<kbd>shift</kbd> for fine control)</span>
             <span class="kb-help"><kbd>Esc</kbd> menu · <kbd>C</kbd> pick a course · <kbd>R</kbd> restart hole ·
-                <kbd>D</kbd> deal a random course · <kbd>G</kbd> generate a new one ·
+                <kbd>D</kbd> deal a random course · <kbd>G</kbd> generate a new one · <kbd>S</kbd> scenery ·
                 <kbd>F</kbd> fullscreen · <kbd>M</kbd> sound</span>
             <span class="touch-help">Drag from anywhere on the course — your finger never has to cover the ball.
                 Upright, the course turns to fill the screen.</span>
@@ -226,6 +226,12 @@
                 Every hole gives up to three stars, and stars open the courses further down.</p>
             <div id="menu-list" class="course-list"></div>
             <button type="button" class="menu-unlock" id="menu-unlock" hidden>Open every course</button>
+            <!-- How the courses look, picked once for all of them: each its
+                 own biome, or any one of them everywhere. Only the look. -->
+            <div class="scenery-pick">
+                <div class="scenery-label">Scenery <span>— S steps through them</span></div>
+                <div class="scenery-list" id="scenery-list" role="radiogroup" aria-label="Scenery"></div>
+            </div>
             <div class="modal-actions">
                 <!-- The die is the other way through the rack: press it and a
                      card you did not choose comes up. It never deals the one
@@ -303,8 +309,8 @@
 
     <!-- Load order is dependency order: config, then the pure logic, then the
          things that touch the screen. game.js boots itself on DOMContentLoaded. -->
-    <script src="js/config.js?v=1.10.0"></script>
-    <script src="js/courses.js?v=1.10.0"></script>
+    <script src="js/config.js?v=1.11.0"></script>
+    <script src="js/courses.js?v=1.11.0"></script>
     <script>
         /* Playtest hand-off from the hole editor. It writes one hole into
            session storage and sends the player here with ?playtest=1; swapping
@@ -338,19 +344,21 @@
             } catch (e) { /* storage disabled: fall through to the real course */ }
         })();
     </script>
-    <script src="js/physics.js?v=1.10.0"></script>
+    <script src="js/physics.js?v=1.11.0"></script>
     <!-- Adds nothing to the rack by itself; game.js deals the draw on boot. -->
-    <script src="js/generator.js?v=1.10.0"></script>
-    <script src="js/scoring.js?v=1.10.0"></script>
+    <script src="js/generator.js?v=1.11.0"></script>
+    <script src="js/scoring.js?v=1.11.0"></script>
     <!-- Stars, unlocks and first-run lessons. Reads the save files; draws nothing. -->
-    <script src="js/progress.js?v=1.10.0"></script>
+    <script src="js/progress.js?v=1.11.0"></script>
     <!-- The biomes, and where the decoration goes. Draws nothing itself. -->
-    <script src="js/scenery.js?v=1.10.0"></script>
-    <script src="js/audio.js?v=1.10.0"></script>
+    <script src="js/scenery.js?v=1.11.0"></script>
+    <script src="js/audio.js?v=1.11.0"></script>
     <!-- Thumbnails for the course picker. Nothing on the board reads it. -->
-    <script src="js/plan.js?v=1.10.0"></script>
-    <script src="js/landscape.js?v=1.10.0"></script>
-    <script src="js/render.js?v=1.10.0"></script>
-    <script src="js/game.js?v=1.10.0"></script>
+    <script src="js/plan.js?v=1.11.0"></script>
+    <script src="js/landscape.js?v=1.11.0"></script>
+    <script src="js/ambience.js?v=1.11.0"></script>
+    <script src="js/water.js?v=1.11.0"></script>
+    <script src="js/render.js?v=1.11.0"></script>
+    <script src="js/game.js?v=1.11.0"></script>
 </body>
 </html>

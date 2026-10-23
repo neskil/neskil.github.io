@@ -223,8 +223,8 @@
        *Reset progress* is "let me climb it again": every star, record and
        round in progress is cleared and the browser is a first visit — not
        a veteran, so the ladder is locked again. What it leaves alone is what
-       is not progress: the sound setting, and a hole half-built in the
-       editor, which is the player's work rather than the game's. */
+       is not progress: the sound and the scenery, and a hole half-built in
+       the editor, which is the player's work rather than the game's. */
     function replayIntro() {
         var st = get();
         st.coached = false;
@@ -232,7 +232,7 @@
         write();
     }
 
-    var KEEP = /^miniGolf\.(muted|editor\.v1|playtest\.v1)$/;
+    var KEEP = /^miniGolf\.(muted|scenery\.v1|editor\.v1|playtest\.v1)$/;
 
     function resetAll() {
         try {

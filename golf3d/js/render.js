@@ -140,14 +140,50 @@
     function buildAim() {
         R.aimGroup = new THREE.Group();
 
-        // Ground arrow: a flat wedge that grows with power. Drawn without depth
-        // testing so it is never swallowed by the pad it lies on.
+        /* Ground arrow: a strip on the ground ahead of the ball with soft
+           chevrons drifting along it, fading in off the ball and out at the
+           tip. It used to be a solid wedge, which the owner found a bit on
+           the nose; this says "that way" as quietly as it can and still
+           grows and warms with power. Drawn without depth testing so it is
+           never swallowed by the pad it lies on. `color` is kept as a
+           property because the cone and its head take their red off it. */
         var shape = new THREE.BufferGeometry();
-        shape.setAttribute('position', new THREE.Float32BufferAttribute(new Array(9 * 3).fill(0), 3));
-        R.arrow = new THREE.Mesh(shape, new THREE.MeshBasicMaterial({
-            color: 0xffffff, transparent: true, opacity: 0.55, side: THREE.DoubleSide,
-            depthTest: false
+        shape.setAttribute('position', new THREE.Float32BufferAttribute(new Array(6 * 3).fill(0), 3));
+        // Across (-1..1) and along (0..1) the strip, for the shader.
+        shape.setAttribute('uv', new THREE.Float32BufferAttribute(
+            [-1, 0, 1, 0, 1, 1, -1, 0, 1, 1, -1, 1], 2));
+        var arrowCol = new THREE.Color(0xffffff);
+        R.arrow = new THREE.Mesh(shape, new THREE.ShaderMaterial({
+            uniforms: {
+                col: { value: arrowCol }, time: { value: 0 },
+                len: { value: 1 }, halfW: { value: 0.25 }
+            },
+            vertexShader: [
+                'varying vec2 vUv;',
+                'void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }'
+            ].join('\n'),
+            fragmentShader: [
+                'uniform vec3 col; uniform float time, len, halfW;',
+                'varying vec2 vUv;',
+                'void main() {',
+                '  float s = vUv.y * len, x = vUv.x * halfW;',
+                // Chevrons pointing down the shot, a third of a unit apart,
+                // drifting forward; each a soft line about 0.06 thick.
+                '  float ph = (s + abs(x) * 1.1) / 0.34 - time * 1.3;',
+                '  float d = abs(fract(ph) - 0.5) * 0.34;',
+                '  float band = 1.0 - smoothstep(0.018, 0.04, d);',
+                // The strip narrows to a point, so the chevrons do too.
+                '  float edge = halfW * (1.0 - smoothstep(len * 0.55, len, s));',
+                '  float m = 1.0 - smoothstep(edge * 0.55, edge, abs(x));',
+                '  m *= smoothstep(0.2, 0.55, s) * (1.0 - smoothstep(len * 0.7, len, s));',
+                '  float a = band * m;',
+                '  if (a < 0.01) discard;',
+                '  gl_FragColor = vec4(col, a * 0.85);',
+                '}'
+            ].join('\n'),
+            transparent: true, side: THREE.DoubleSide, depthTest: false, depthWrite: false
         }));
+        R.arrow.material.color = arrowCol;
         R.arrow.renderOrder = 5;
         R.aimGroup.add(R.arrow);
 
@@ -1645,6 +1681,168 @@
        curvature: one line a unit, a pixel or so wide whatever the distance
        (fwidth), in the theme's colour or — on a rainbow pad — in the pad's
        own colour, brightened. */
+    /* Ripples in the glass (the owner: "I'd rather have ripples as the ball
+       rolls on the surface"). They used to be flat rings of light laid over
+       the floor with the depth test off, which on a wave is a flat disc
+       hanging over the hills — a second floor that ignored the grid. Now the
+       glass draws them itself, off the same world position as the grid:
+       each source is a ring running outwards that pushes the lines aside as
+       it passes and lights them a little, so a ripple is exactly on the
+       surface at any curvature. The sources are a small ring buffer that
+       frame() ages and the ball feeds (stepRipples); the uniforms are one
+       shared object, so both glass materials see the same ripples. */
+    var RIPPLES = 8, RIPPLE_LIFE = 2.4;
+    var RIPPLE_U = {
+        pos: { value: [] },     // x, y, z, strength (0 = idle)
+        age: { value: [] }      // seconds since it was dropped
+    };
+    (function () {
+        for (var i = 0; i < RIPPLES; i++) {
+            RIPPLE_U.pos.value.push(new THREE.Vector4(0, 0, 0, 0));
+            RIPPLE_U.age.value.push(0);
+        }
+    })();
+    var RIPPLE_GLSL = [
+        'vec2 gwarp = vec2(0.0);',
+        'float glit = 0.0, wglow = 0.0;',
+        'for (int i = 0; i < ' + RIPPLES + '; i++) {',
+        '  vec4 rp = ripPos[i];',
+        '  if (rp.w <= 0.0) continue;',
+        '  vec2 rd = vGridPos.xz - rp.xz;',
+        '  float rr = length(rd) + 1e-4;',
+        '  float ra = ripAge[i];',
+        // The front runs out at 1.6 units a second; behind it a short train
+        // of crests, fading with age, with distance, and on another level.
+        '  float rx = rr - ra * 1.6;',
+        '  float env = exp(-rx * rx * 3.0) * (1.0 - smoothstep(0.0, ' + RIPPLE_LIFE.toFixed(1) + ', ra));',
+        '  env *= rp.w / (1.0 + rr * 0.6) * (1.0 - smoothstep(0.6, 1.4, abs(vGridPos.y - rp.y)));',
+        '  float rw = sin(rx * 9.0) * env;',
+        '  gwarp += rd / rr * rw * 0.09;',
+        '  glit += max(rw, 0.0) * 0.35;',
+        '}'
+    ].join('\n');
+
+    function stepRipples(dt) {
+        var p = RIPPLE_U.pos.value, a = RIPPLE_U.age.value;
+        for (var i = 0; i < RIPPLES; i++) {
+            if (p[i].w <= 0) continue;
+            a[i] += dt;
+            if (a[i] > RIPPLE_LIFE) p[i].w = 0;
+        }
+    }
+    var _ripAt = 0;
+    function ripple(x, y, z, strength) {
+        _ripAt = (_ripAt + 1) % RIPPLES;
+        RIPPLE_U.pos.value[_ripAt].set(x, y, z, Math.min(1, strength));
+        RIPPLE_U.age.value[_ripAt] = 0;
+    }
+    function clearRipples() {
+        for (var i = 0; i < RIPPLES; i++) RIPPLE_U.pos.value[i].w = 0;
+        clearWake();
+    }
+
+    /* The wake (the owner: "more like the wake from a boat when you roll").
+       A rolling ball drops a breadcrumb every quarter unit; the glass finds
+       the nearest stretch of that trail and draws the two arms of a V off
+       it, opening at the Kelvin angle (about 19.5 degrees, so each arm sits
+       0.354 of the distance behind the ball out to the side) and broken into
+       little feathered crests, with a few transverse ripples between them.
+       Like the rings, it pushes the grid lines rather than painting over
+       them, so it lies on the surface. Each crumb is x, y, z and how far
+       behind the ball it is now; wakeInfo is its age and its strength, so a
+       ball that stops leaves a V that settles rather than vanishing, and a
+       ball that leaves the ground breaks the trail (strength 0). Crumb 0 is
+       the ball itself. */
+    var WAKE = 20, WAKE_STEP = 0.25, WAKE_LIFE = 2.6;
+    var WAKE_U = { pos: { value: [] }, info: { value: [] }, on: { value: 0 } };
+    var _wake = [];      // the crumbs: x, y, z, at (distance rolled), born, strength
+    (function () {
+        for (var i = 0; i < WAKE; i++) {
+            WAKE_U.pos.value.push(new THREE.Vector4(0, 0, 0, 0));
+            WAKE_U.info.value.push(new THREE.Vector2(0, 0));
+            _wake.push({ x: 0, y: 0, z: 0, at: 0, born: 0, k: 0 });
+        }
+    })();
+    var WAKE_GLSL = [
+        'if (wakeOn > 0.5) {',
+        '  float wd = 1e9, ws = 0.0, wa = 0.0, wk = 0.0; vec2 wn = vec2(0.0), wt = vec2(0.0);',
+        '  for (int i = 0; i < ' + (WAKE - 1) + '; i++) {',
+        '    vec2 k0 = wakeInfo[i], k1 = wakeInfo[i + 1];',
+        '    if (k0.y <= 0.0 || k1.y <= 0.0) continue;',
+        '    vec4 p0 = wakePos[i], p1 = wakePos[i + 1];',
+        '    if (abs(vGridPos.y - p0.y) > 1.2) continue;',
+        '    vec2 sg = p1.xz - p0.xz, rel = vGridPos.xz - p0.xz;',
+        '    float t = clamp(dot(rel, sg) / max(dot(sg, sg), 1e-5), 0.0, 1.0);',
+        '    vec2 off = rel - sg * t;',
+        '    float d = length(off);',
+        '    if (d < wd) { wd = d; wn = off / max(d, 1e-4); wt = sg / max(length(sg), 1e-4); ws = mix(p0.w, p1.w, t);',
+        '      wa = mix(k0.x, k1.x, t); wk = mix(k0.y, k1.y, t); }',
+        '  }',
+        '  if (wd < 1e8) {',
+        '    float arm = 0.12 + ws * 0.354;',
+        '    float wide = 0.09 + ws * 0.05;',
+        '    float ax = (wd - arm) / wide;',
+        '    float fade = wk * (1.0 - smoothstep(0.0, ' + WAKE_LIFE.toFixed(1) + ', wa))',
+        '      * smoothstep(0.0, 0.35, ws) * (1.0 - smoothstep(' + ((WAKE - 3) * WAKE_STEP * 0.6).toFixed(2) + ', ' + ((WAKE - 2) * WAKE_STEP).toFixed(2) + ', ws));',
+        // The arms: crests a few across, feathered along their length.
+        '    float armW = exp(-ax * ax * 0.5) * sin(ax * 2.4) * (0.65 + 0.35 * sin(ws * 11.0 - wd * 6.0));',
+        // Between them, faint transverse crests square to the track.
+        '    float inside = (1.0 - smoothstep(arm * 0.7, arm, wd)) * sin(ws * 9.0) * 0.35;',
+        // The arms push the lines outwards, the transverse crests along the
+        // track: pushing those sideways too zig-zags the line down the middle.
+        '    float wv = (armW + inside) * fade;',
+        '    gwarp += (wn * armW + wt * inside) * fade * 0.14;',
+        '    glit += max(wv, 0.0) * 0.6;',
+        // And the crests shine a little on their own, so the V reads between
+        // the lines as well as in them.
+        '    wglow += max(wv, 0.0) * 0.22 + max(-wv, 0.0) * 0.04;',
+        '  }',
+        '}'
+    ].join('\n');
+
+    function clearWake() {
+        for (var i = 0; i < WAKE; i++) { _wake[i].k = 0; WAKE_U.info.value[i].y = 0; }
+        WAKE_U.on.value = 0;
+        R.wakeRolled = 0;
+        R.wakeLast = null;
+    }
+    /* Called every frame: lays a crumb when the ball has rolled far enough on
+       glass, breaks the trail when it is in the air, keeps crumb 0 on the
+       ball, and writes the distances and ages the shader reads. */
+    function stepWake(world, speed) {
+        var b = world.ball, i, c, live = false, head = _wake[0];
+        if (world.moving) {
+            var last = R.wakeLast;
+            if (last) R.wakeRolled += Math.sqrt((b.x - last.x) * (b.x - last.x) + (b.z - last.z) * (b.z - last.z));
+            R.wakeLast = { x: b.x, z: b.z };
+        }
+        function lay(k) {           // a new crumb at 1, the oldest recycled
+            c = _wake.pop();
+            _wake.splice(1, 0, c);
+            c.x = b.x; c.y = b.y - C.BALL_R; c.z = b.z;
+            c.at = R.wakeRolled; c.born = R.clock; c.k = k;
+        }
+        if (world.moving && world.grounded && speed > 0.2) {
+            var k = Math.min(1, 0.3 + speed * 0.12);
+            if (_wake[1].k <= 0 || R.wakeRolled - _wake[1].at >= WAKE_STEP) lay(k);
+            head.x = b.x; head.y = b.y - C.BALL_R; head.z = b.z;
+            head.at = R.wakeRolled; head.born = R.clock; head.k = k;
+        } else if (world.moving && !world.grounded) {
+            // In the air: what was drawn stays and settles, and a break goes
+            // in so the next stretch on the ground starts a trail of its own.
+            head.k = 0;
+            if (_wake[1].k > 0) lay(0);
+        }
+        for (i = 0; i < WAKE; i++) {
+            c = _wake[i];
+            var age = R.clock - c.born, on = c.k > 0 && age < WAKE_LIFE;
+            WAKE_U.pos.value[i].set(c.x, c.y, c.z, R.wakeRolled - c.at);
+            WAKE_U.info.value[i].set(age, on ? c.k : 0);
+            if (on) live = true;
+        }
+        WAKE_U.on.value = live ? 1 : 0;
+    }
+
     function gridGlass(mat, theme) {
         if (!theme.grid) return mat;
         var col = new THREE.Color(theme.grid.colour), every = theme.grid.every || 1;
@@ -1652,12 +1850,21 @@
         mat.onBeforeCompile = function (sh) {
             sh.uniforms.gridCol = { value: col };
             sh.uniforms.gridEvery = { value: every };
+            sh.uniforms.ripPos = RIPPLE_U.pos;
+            sh.uniforms.ripAge = RIPPLE_U.age;
+            sh.uniforms.wakePos = WAKE_U.pos;
+            sh.uniforms.wakeInfo = WAKE_U.info;
+            sh.uniforms.wakeOn = WAKE_U.on;
             sh.vertexShader = 'varying vec3 vGridPos;\n' + sh.vertexShader.replace(
                 '#include <project_vertex>',
                 '#include <project_vertex>\n vGridPos = (modelMatrix * vec4(transformed, 1.0)).xyz;');
             sh.fragmentShader = 'varying vec3 vGridPos;\nuniform vec3 gridCol;\nuniform float gridEvery;\n' +
+                'uniform vec4 ripPos[' + RIPPLES + '];\nuniform float ripAge[' + RIPPLES + '];\n' +
+                'uniform vec4 wakePos[' + WAKE + '];\nuniform vec2 wakeInfo[' + WAKE + '];\nuniform float wakeOn;\n' +
                 sh.fragmentShader.replace('#include <fog_fragment>', [
-                    'vec2 gq = vGridPos.xz / gridEvery;',
+                    RIPPLE_GLSL,
+                    WAKE_GLSL,
+                    'vec2 gq = (vGridPos.xz - gwarp) / gridEvery;',
                     'vec2 gf = max(fwidth(gq), vec2(1e-4));',
                     'vec2 gw = abs(fract(gq - 0.5) - 0.5) / gf;',
                     'float gl = 1.0 - min(min(gw.x, gw.y), 1.0);',
@@ -1671,7 +1878,7 @@
                     '#else',
                     'vec3 gc = gridCol;',
                     '#endif',
-                    'gl_FragColor.rgb += gc * gl;',
+                    'gl_FragColor.rgb += gc * gl * (1.0 + glit) + gc * glit * 0.08 + gc * wglow;',
                     '#include <fog_fragment>'
                 ].join('\n'));
         };
@@ -3331,16 +3538,6 @@
         R.pinShake = 0;
     }
 
-    function addTeeMark(group, hole) {
-        var m = new THREE.Mesh(
-            new THREE.RingGeometry(0.20, 0.26, 20),
-            new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.5, side: THREE.DoubleSide })
-        );
-        m.rotation.x = -Math.PI / 2;
-        m.position.set(hole.tee.x, hole.tee.y + 0.015, hole.tee.z);
-        group.add(m);
-    }
-
     /* Three lights, and the weather sets all three.
 
        The sun is the one that changes most: overcast takes it down to a fifth
@@ -3595,7 +3792,9 @@
         for (i = 0; i < hole.walls.length; i++) addWall(g, hole.walls[i]);
         for (i = 0; i < hole.water.length; i++) addWater(g, hole.water[i], theme);
         addCup(g, hole);
-        addTeeMark(g, hole);
+        // No ring on the tee any more: it sat round the ball at every
+        // address and said where the ball was while the ball said so itself
+        // (the owner, v1.74.0).
         addStakes(g, hole, theme);
         for (i = 0; i < (hole.decor || []).length; i++) addDecor(g, hole.decor[i], theme, hole);
         // The long game's dressing, and what lives on it (life.js).
@@ -3641,6 +3840,7 @@
         // computed from can be assumed to mean the same thing.
         clearPathCache();
         R.clock = 0;
+        clearRipples();
         R.cam.kick = 0;
         R.cam.speedPull = 0;
         clearTrail();
@@ -3948,6 +4148,9 @@
         // only there to say which way.
         var frac = Math.max(0.08, rawFrac);
         var len = 0.7 + frac * 2.6;
+        // The arrow is only up before a shot is loaded (the cone takes over),
+        // so it can afford the room for three chevrons rather than one.
+        var arrowLen = Math.max(1.5, len);
         var halfW = 0.11 + frac * 0.05;
         var y = b.y - C.BALL_R + 0.02;
 
@@ -3959,7 +4162,9 @@
         var over = Math.max(0, Math.min(1, aim.over || 0));
         var hot = over > 0 || frac > C.OVERSWING;
         var hue = hot ? 0 : 0.33 * (1 - frac / C.OVERSWING);
-        R.arrow.material.color.setHSL(hue, 0.85, hot ? 0.62 + over * 0.16 : 0.55);
+        // Pale at a tap, filling with colour as the swing loads.
+        R.arrow.material.color.setHSL(hue, hot ? 0.85 : 0.35 + 0.5 * frac / C.OVERSWING,
+            hot ? 0.62 + over * 0.16 : 0.7 - 0.12 * frac / C.OVERSWING);
 
         // The path is the expensive half of this function, and most frames
         // do not need it recomputed — see updatePath.
@@ -3971,8 +4176,8 @@
         R.arrow.visible = !R.pathCone.visible;
 
         if (R.arrow.visible) {
-            // Wedge: a shaft and a head, six vertices, written straight into the
-            // buffer so nothing is allocated per frame.
+            // The strip: two triangles, written straight into the buffer so
+            // nothing is allocated per frame.
             var px = -dirZ, pz = dirX;   // perpendicular
             var a = R.arrow.geometry.attributes.position.array;
             function put(i, sx, sz) {
@@ -3980,10 +4185,11 @@
                 a[i * 3 + 1] = y;
                 a[i * 3 + 2] = b.z + dirZ * sx + pz * sz;
             }
-            var shaft = len * 0.72;
-            put(0, 0.22, -halfW); put(1, 0.22, halfW); put(2, shaft, halfW);
-            put(3, 0.22, -halfW); put(4, shaft, halfW); put(5, shaft, -halfW);
-            put(6, shaft, -halfW * 2.4); put(7, shaft, halfW * 2.4); put(8, len, 0);
+            var w = halfW * 2.4;
+            put(0, 0, -w); put(1, 0, w); put(2, arrowLen, w);
+            put(3, 0, -w); put(4, arrowLen, w); put(5, arrowLen, -w);
+            var u = R.arrow.material.uniforms;
+            u.len.value = arrowLen; u.halfW.value = w; u.time.value = R.clock;
             R.arrow.geometry.attributes.position.needsUpdate = true;
             R.arrow.geometry.computeBoundingSphere();
         }
@@ -4489,31 +4695,29 @@
             return m;
         }
 
-        R.markBall = flat(0.42, 0.58, 0xffffff, 0.9);
+        /* There was a white ring under the ball as well, breathing so a
+           four-pixel ball could be found from the overview. It went in
+           v1.74.0 (the owner: "redundant — you clearly see the ball"). */
         R.markCup = flat(0.5, 0.66, 0xffd166, 0.9);
         R.markCupHalo = flat(0.88, 0.98, 0xffd166, 0.36);
 
-        R.marks.add(R.markBall, R.markCup, R.markCupHalo);
+        R.marks.add(R.markCup, R.markCupHalo);
         R.scene.add(R.marks);
     }
 
     function placeMarkers(hole, ball) {
         if (!R.marks) return;
-        /* Not during the intro. These two rings are a map's legend — drawn
+        /* Not during the intro. These rings are a map's legend — drawn
            through the ground so a ridge hides neither — and a sweep over the
            course with the depth test off is a sweep with two glowing discs
            riding over the hills in front of it. */
         R.marks.visible = R.lift > 0.01 && !R.fly;
         if (!R.marks.visible) return;
-        R.markBall.position.set(ball.x, ball.y - C.BALL_R + 0.02, ball.z);
         R.markCup.position.set(hole.cup.x, hole.cup.y + 0.02, hole.cup.z);
         R.markCupHalo.position.set(hole.cup.x, hole.cup.y + 0.02, hole.cup.z);
-        // A slow pulse on the ring under the ball, because from up here the
-        // ball is four pixels across and a moving thing is easier to find —
-        // and the same breath on the cup's outer ring, half a turn behind it,
-        // so the two ends of the shot are never both at their faintest.
+        // A slow breath on the cup's outer ring, because from up here a
+        // moving thing is easier to find.
         var pulse = 0.72 + 0.28 * Math.sin(R.clock * 2.4);
-        R.markBall.material.opacity = 0.9 * R.lift * pulse;
         R.markCup.material.opacity = 0.9 * R.lift;
         R.markCupHalo.material.opacity = 0.36 * R.lift * (1.44 - pulse);
     }
@@ -4543,24 +4747,16 @@
         if (world.moving && speed > 1.2) {
             R.trailOn = true;
             pushTrail(world.ball.x, world.ball.y, world.ball.z);
-            /* On glass the ball sheds light as it goes: a few pink sparks off
-               the contact patch, more of them the faster it is rolling. */
-            if (R.glow && world.grounded) {
-                R.sparkClock = (R.sparkClock || 0) - dt;
-                if (R.sparkClock <= 0) {
-                    R.sparkClock = 0.09 / Math.min(3, speed * 0.4);
-                    burst(world.ball.x, world.ball.y - C.BALL_R + 0.03, world.ball.z, 0xff3df2,
-                        2, 0.5 + Math.min(1.2, speed * 0.12));
-                }
-            }
         } else if (R.trailOn) {
             R.trailOn = false;
             clearTrail();
         }
+        // On glass the ball leaves a wake behind it (stepWake).
+        if (R.glow) stepWake(world, speed);
 
         updateAim(world, aim);
         stepParticles(dt);
-        stepPulses(dt);
+        stepRipples(dt);
         if (R.wells) for (var wi = 0; wi < R.wells.length; wi++) R.wells[wi].rotation.y += dt * 0.9;
         updateCamera(world.hole, world.ball, dt);
 
@@ -4681,54 +4877,17 @@
     function splashAt(x, y, z) { burst(x, y, z, 0x9fd8ff, 26, 2.6); }
 
     /* The grid world's effects (Challenge mode). A landing or a rail hit on
-       glass throws cyan sparks and sends a ring of light out across the floor
-       from where it happened; a ball scooting along glass sheds a stream of
-       pink ones and drags a neon tail (pushTrail's tint). Nothing here
-       touches the simulation — it is what the ground does *back*. */
-    var PULSES = 6;
-    function buildPulses() {
-        R.pulses = [];
-        for (var i = 0; i < PULSES; i++) {
-            var m = new THREE.Mesh(new THREE.RingGeometry(0.82, 1, 40),
-                // Drawn over the floor rather than into it: a flat ring on a
-                // wave is half buried, and it is a light, not a thing.
-                new THREE.MeshBasicMaterial({ color: 0x27f0ff, transparent: true, opacity: 0,
-                    blending: THREE.AdditiveBlending, depthWrite: false, depthTest: false,
-                    side: THREE.DoubleSide }));
-            m.rotation.x = -Math.PI / 2;
-            m.renderOrder = 5;
-            m.visible = false;
-            m.userData.life = 0;
-            R.scene.add(m);
-            R.pulses.push(m);
-        }
-        R.pulseAt = 0;
-    }
-    function pulse(x, y, z, strength) {
-        if (!R.pulses) buildPulses();
-        var m = R.pulses[R.pulseAt = (R.pulseAt + 1) % PULSES];
-        m.position.set(x, y + 0.05, z);
-        m.userData.life = 1;
-        m.userData.grow = 1.2 + Math.min(2.2, strength * 0.35);
-        m.visible = true;
-    }
-    function stepPulses(dt) {
-        if (!R.pulses) return;
-        for (var i = 0; i < R.pulses.length; i++) {
-            var m = R.pulses[i], u = m.userData;
-            if (u.life <= 0) continue;
-            u.life -= dt * 1.6;
-            var t = 1 - Math.max(0, u.life);
-            var s = 0.15 + t * u.grow;
-            m.scale.set(s, s, s);
-            m.material.opacity = Math.max(0, u.life) * 0.85;
-            if (u.life <= 0) m.visible = false;
-        }
-    }
+       glass sends a ripple out through the floor from where it happened, with
+       a pinch of cyan sparks only when it is properly hard; a rolling ball
+       leaves a wake of smaller ripples (frame) and drags a neon tail
+       (pushTrail's tint). Nothing here touches the simulation — it is what
+       the ground does *back*. It used to be a fistful of sparks and a flat
+       ring of light on every bounce, which the owner found a bit much; a soft
+       touch-down now makes no ring at all, only the wake. */
     function hitAt(x, y, z, speed) {
         if (!R.glow) return;
-        burst(x, y + 0.05, z, 0x27f0ff, Math.min(22, 6 + Math.round(speed * 2)), 1.4 + Math.min(2, speed * 0.2));
-        pulse(x, y, z, speed);
+        if (speed > 1.5) ripple(x, y, z, 0.2 + speed * 0.08);
+        if (speed > 4) burst(x, y + 0.05, z, 0x27f0ff, Math.min(8, Math.round(speed)), 0.8 + Math.min(1, speed * 0.1));
     }
     function sandAt(x, y, z) { burst(x, y, z, 0xe8d8a8, 14, 1.5); }
     /* The ball goes past the pin on its way in — nothing stops it, since the
