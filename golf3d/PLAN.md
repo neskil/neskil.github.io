@@ -36,7 +36,8 @@ to be worked out again.
   four.
 - Still open from before: lighting setups on Challenge (neon only has
   `clear`), and the naturalising of the older long courses — Ashdown is done
-  (v1.78.0, §0 → "Where round two stands"), the other three are not.
+  (v1.78.0) and so is Whinstone (v1.79.0, §0 → "Where round two stands");
+  Dunmore and Redstone are not.
 
 ## 0. The course rehaul — approved, in progress
 
@@ -182,8 +183,12 @@ The tools for it:
   is the expensive part (1-unit terrain under 4–6 grass layers). Wider margins
   are fine in moderation; keep total ground area within about +40%.
 
-**Where round two stands (v1.78.0).** Done: `pond`, `forest`, and **all of
-Ashdown Park**. Every box of water on it is a hollow now — Opening Drive's burn
+**Where round two stands (v1.79.0).** Done: `pond`, `forest`, **all of
+Ashdown Park** and **all of Whinstone Links** — its burn, its two pools and the
+water behind Elbow Point's green are hollows now, and The Ait is a round island
+in a ring of water (a disc of rough 0.45 up, because a pond's box drowns
+everything under its surface — the cup included — and the base ground is cut
+away under it so the green has one bed). Ashdown, for the record: Every box of water on it is a hollow now — Opening Drive's burn
 (`burn`), Long Meadow's and The Elbow's ponds (`mere`), Homeward's lake as
 three pools stepping down the fall — every straight treeline is a ragged strip
 (`forest` with a narrow oval), and the stakes stand six units back
@@ -217,10 +222,10 @@ What Ashdown taught, for Whinstone, Dunmore and Redstone:
   `postfx.js`; if a far view ever shows something drawn through the ground,
   that is the first place to look.
 
-Next: one course at a time. Whinstone is a links and Redstone a canyon, so
-`forest` is the wrong tool on both — what they get is the water (`mere`,
-`burn`) and outlines that are not rectangles. Dunmore is a moor and can take
-a few strips of scrub wood.
+Next: Dunmore, then Redstone, one at a time. Redstone is a canyon, so
+`forest` is the wrong tool there — what it gets is the water (`mere`, `burn`)
+and outlines that are not rectangles. Dunmore is a moor and can take a few
+strips of scrub wood.
 
 ### Mini golf
 

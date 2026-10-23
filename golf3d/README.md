@@ -1909,7 +1909,10 @@ fault everywhere else.
   strings lobes along a line for a burn; `mere(cx, cz, rx, rz, depth, seed)`
   packs a lake's worth inside a wobbling outline. A handful of big lobes always
   comes out as a handful of circles, and many small overlapping ones is what
-  comes out as one shoreline.
+  comes out as one shoreline. **Anything inside a pond's box and below its
+  surface is wet**, island included: water all the way round something (The
+  Ait's ring, a `burn` along a closed loop) needs that something standing
+  above the surface by more than a cup's depth, or a holed putt is a splash.
 - **wall** — a box. `yaw` turns it, `move` slides it on a sine, `spin` rotates
   it. A `spinner` is a blade authored the way you think about it (middle,
   length, thickness); a `slider` is a gate.

@@ -3520,7 +3520,13 @@
             fence: { x: 12, z: 4, w: 34, d: 76 },
             tee: { x: 31, z: 12 }, cup: { x: 35, z: 67.5 }
         }),
-        build({
+        (function () {
+          /* The burn runs from just past the neck to beyond the stakes, kept
+             inside its own seven-unit row so no hollow reaches the fairway
+             either side of it, and wandering a unit up and down the hole. */
+          var lobes = burn([[23, 37.6], [31, 37.0], [40, 38.1], [49, 37.2], [56, 37.7]], 2.2, 1.2, 3319);
+          var ground;
+          return build({
             /* The bowl is the same bowl, and the hole in front of it is new: a
                burn seven units across lying over the line where a full drive
                runs out. Throttle the drive to stop short of it and the second
@@ -3531,13 +3537,13 @@
                side. */
             name: 'The Punchbowl', par: 4, open: true,
             blurb: 'A burn across the hole where the drive runs out, and the green in a bowl beyond it. Lay up and carry it, or thread the dry neck down the left.',
-            pads: moor({
+            pads: ground = moor({
                 tee: { x: 30, z: 10 }, seed: 3313, n: 52,
                 area: { x: 3, z: 3, w: 54, d: 80 },
                 r: 5, rMax: 10, grad: 0.20,
                 strips: [
                     [34, [16, rgh], [24, fwy], [20, rgh]],
-                    [7, [14, rgh], [6, fwy], [32, null], [8, rgh]],
+                    [7, [14, rgh], [6, fwy], [40, rgh]],
                     [43, [20, rgh], [20, fwy], [20, rgh]]
                 ],
                 flat: [keep(28, 62, 13), keep(38, 26, 3.6)]
@@ -3550,10 +3556,11 @@
                 bumps: ring(28, 62, 12.5, 6.5, 1.3, 8),
                 inlays: [[28, 62, 5.4, grn], [38, 26, 2.2, snd, 1.6]]
             }),
-            water: [rect(20, 34, 32, 7, -0.55)],
+            water: [pond(ground, lobes)],
             fence: { x: 12, z: 4, w: 36, d: 76 },
             tee: { x: 30, z: 10 }, cup: { x: 28.5, z: 62.5 }
-        }),
+          });
+        })(),
         build({
             /* The hole that used to be here was called Stake and Ditch and it
                was a corridor: one strip of fairway, a bunker either side and
@@ -3604,7 +3611,9 @@
             fence: { x: 4, z: 4, w: 24, d: 74 },
             tee: { x: 15, z: 8 }, cup: { x: 15, z: 66.5 }
         }),
-        build({
+        (function () {
+          var ground;
+          return build({
             /* A dogleg right round the pool where the burn widens, off a tee
                on top of a dune three units high. The fairway runs north off
                the dune and turns hard right along the top to the green, and
@@ -3621,7 +3630,7 @@
                carry, and the carry is what puts the pool in reach at all. */
             name: 'Burnside', par: 4, open: true,
             blurb: 'Off a tee up in the dunes and hard right round the burn pool. Go the long way round, or carry as much of the water as you dare.',
-            pads: moor({
+            pads: ground = moor({
                 tee: { x: 13, z: 4 }, seed: 2237, n: 50, z0: -6,
                 area: { x: 3, z: -3, w: 58, d: 79 },
                 r: 5, rMax: 10, grad: 0.21,
@@ -3629,7 +3638,7 @@
                 strips: [
                     [12, [64, rgh]],
                     [15, [6, rgh], [14, fwy], [44, rgh]],
-                    [12, [6, rgh], [14, fwy], [2, rgh], [18, null], [24, rgh]],
+                    [12, [6, rgh], [14, fwy], [44, rgh]],
                     [10, [6, rgh], [14, fwy], [44, rgh]],
                     [16, [6, rgh], [44, fwy], [14, rgh]],
                     [4, [10, rgh], [30, fwy], [24, rgh]],
@@ -3644,7 +3653,9 @@
                     [35.5, 49.5, 1.5, snd]
                 ]
             }),
-            water: [rect(22, 21, 18, 12, -0.55)],
+            // The pool in the corner, in a hollow rather than a box: its
+            // hollows stop a unit and more short of the fairway on the left.
+            water: [pond(ground, mere(31, 27, 6.6, 5.2, 2.2, 2241))],
             extra: [].concat(
                 crags(46, 25, 4, 6, 2237, { s: 1.4, h: 1.0 }),
                 crags(44, 37, 2.5, 3, 2239, { s: 1.1, h: 0.8 })
@@ -3654,8 +3665,28 @@
                 { x: 3, z: 31, w: 51, d: 34 }
             ],
             tee: { x: 13, z: 4 }, cup: { x: 41.5, z: 54.5 }
-        }),
-        build({
+          });
+        })(),
+        (function () {
+          /* The moat is a ring of water round a round island now, which is
+             what an ait is: a burn that splits round a hump of ground. The
+             near bank is where the old one was — seven units of carry off
+             the tee — and the island is rough round the green.
+
+             The island is a disc of its own standing 0.45 above the ground
+             the ring is cut into, rather than ground the ring was cut round.
+             A pond is drawn and drowned as its bounding box (anything in it
+             and below the surface is wet), and the box of a ring covers its
+             middle: on level ground the cup's floor would be under the water
+             and a holed putt a splash. Up on its own disc the whole cup is
+             above the surface, and the island's bank drops straight into the
+             burn, which is what the bank of an ait does. */
+          var ring = [], k, ground, isle;
+          for (k = 0; k <= 16; k++) {
+              ring.push([26 + Math.sin(k / 16 * Math.PI * 2) * 12.6,
+                         39 - Math.cos(k / 16 * Math.PI * 2) * 12.0]);
+          }
+          return build({
             name: 'The Ait', par: 3, open: true,
             blurb: 'An island in a burn. Seven units of carry, and no way to lay up.',
             /* The one hole on the course that is target golf rather than
@@ -3670,30 +3701,33 @@
                would be a second thing to read on a hole that already asks for
                one exact shot, and a hollow beside the water would sit below
                the surface of it and look like a hole in the world. */
-            pads: moor({
+            pads: ground = moor({
                 tee: { x: 26, z: 22 }, seed: 6421, n: 26,
                 area: { x: 3, z: 3, w: 46, d: 58 },
                 r: 4.5, rMax: 9, grad: 0.22,
+                /* The ground stops under the island — a square inside its
+                   disc, and the green inside the square — so the green is
+                   laid into the island and nothing else. */
                 strips: [
-                    [23.5, [52, fwy]],
-                    [5.5, [12, fwy], [28, null], [12, fwy]],
-                    [18, [12, fwy], [4, null], [20, fwy], [4, null], [12, fwy]],
-                    [5, [12, fwy], [28, null], [12, fwy]],
-                    [12, [52, fwy]]
+                    [22.5, [12, rgh], [28, fwy], [12, rgh]],
+                    [9.7, [52, rgh]],
+                    [13.6, [19.2, rgh], [13.6, null], [19.2, rgh]],
+                    [18.2, [52, rgh]]
                 ],
-                flat: [keep(26, 38, 22)],
-                inlays: [circle(26, 39, 5.4, grn)]
-            }),
-            water: [
-                rect(12, 23.5, 28, 5.5, -0.55),
-                rect(12, 29, 4, 18, -0.55),
-                rect(36, 29, 4, 18, -0.55),
-                rect(12, 47, 28, 5, -0.55)
-            ],
+                flat: [keep(26, 38, 22)]
+            }).concat([
+                isle = shapeDisc(Object.assign(pad(16.4, 29.4, 19.2, 19.2, 0.45, rgh), { r: 9.6 })),
+                circle(26, 39, 5.4, grn, 0.45)
+            ]),
+            water: [pond(ground.filter(function (p) { return p !== isle && !p.inlay; }),
+                         burn(ring, 2.5, 1.3, 6427))],
             fence: { x: 8, z: 8, w: 36, d: 52 },
             tee: { x: 26, z: 22 }, cup: { x: 26, z: 39 }
-        }),
-        build({
+          });
+        })(),
+        (function () {
+          var ground;
+          return build({
             /* A three-shotter that turns left at the point. Two pots wait in
                the landing ground with the stakes close on the right, and the
                inside of the elbow is a pool lying in country that is not the
@@ -3705,17 +3739,17 @@
                it, so the third has to be flown and stopped. */
             name: 'Elbow Point', par: 5, open: true,
             blurb: 'Hard left at the point, round a pool in the elbow. Go round, or carry the end of it with the second — then a green between the sand and the water.',
-            pads: moor({
+            pads: ground = moor({
                 tee: { x: 60, z: 8 }, seed: 5519, n: 70,
                 area: { x: 3, z: 6, w: 74, d: 85 },
                 r: 5, rMax: 11, grad: 0.20,
                 strips: [
                     [4, [80, rgh]],
                     [26, [50, rgh], [18, fwy], [12, rgh]],
-                    [24, [34, rgh], [16, null], [2, rgh], [16, fwy], [12, rgh]],
+                    [24, [52, rgh], [16, fwy], [12, rgh]],
                     [4, [50, rgh], [18, fwy], [12, rgh]],
-                    [14, [12, rgh], [8, null], [2, rgh], [46, fwy], [12, rgh]],
-                    [4, [12, rgh], [8, null], [10, rgh], [30, fwy], [20, rgh]],
+                    [14, [22, rgh], [46, fwy], [12, rgh]],
+                    [4, [30, rgh], [30, fwy], [20, rgh]],
                     [18, [80, rgh]]
                 ],
                 flat: [keep(42, 42, 15), keep(16, 67, 10.5), keep(27, 67, 7),
@@ -3727,7 +3761,12 @@
                     [64, 42, 1.6, snd]
                 ]
             }),
-            water: [rect(34, 30, 16, 24, -0.55), rect(12, 58, 8, 18, -0.55)],
+            // The pool in the elbow and the water behind the green, each a
+            // hollow kept a unit and more off the mown line.
+            water: [
+                pond(ground, mere(41.5, 41.5, 5.4, 8.8, 2.4, 5523)),
+                pond(ground, mere(15.2, 67, 3.1, 7.8, 2.3, 5527))
+            ],
             extra: [].concat(
                 crags(22, 32, 6, 7, 5519, { s: 1.5, h: 1.1 }),
                 crags(28, 84, 3, 4, 5521, { s: 1.2, h: 0.9 })
@@ -3737,7 +3776,8 @@
                 { x: 8, z: 54, w: 66, d: 27 }
             ],
             tee: { x: 60, z: 8 }, cup: { x: 26, z: 67.5 }
-        })
+          });
+        })()
     ];
 
 
