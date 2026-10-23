@@ -36,8 +36,8 @@ to be worked out again.
   four.
 - Still open from before: lighting setups on Challenge (neon only has
   `clear`), and the naturalising of the older long courses — Ashdown is done
-  (v1.78.0) and so is Whinstone (v1.79.0, §0 → "Where round two stands");
-  Dunmore and Redstone are not.
+  (v1.78.0), Whinstone (v1.79.0) and Dunmore (v1.80.0, §0 → "Where round
+  two stands"); Redstone is not.
 
 ## 0. The course rehaul — approved, in progress
 
@@ -183,8 +183,11 @@ The tools for it:
   is the expensive part (1-unit terrain under 4–6 grass layers). Wider margins
   are fine in moderation; keep total ground area within about +40%.
 
-**Where round two stands (v1.79.0).** Done: `pond`, `forest`, **all of
-Ashdown Park** and **all of Whinstone Links** — its burn, its two pools and the
+**Where round two stands (v1.80.0).** Done: `pond`, `forest`, **all of
+Ashdown Park**, **all of Dunmore Heath** (Gorse Corner's and Long Ling's burns,
+The Beacon's tarn and Long Ling's pond are hollows; its treelines are strips
+and its stakes stand five back behind scrub wood — The Ravine's gorge is
+ground, not water, and is still a straight cut) and **all of Whinstone Links** — its burn, its two pools and the
 water behind Elbow Point's green are hollows now, and The Ait is a round island
 in a ring of water (a disc of rough 0.45 up, because a pond's box drowns
 everything under its surface — the cup included — and the base ground is cut
@@ -222,10 +225,10 @@ What Ashdown taught, for Whinstone, Dunmore and Redstone:
   `postfx.js`; if a far view ever shows something drawn through the ground,
   that is the first place to look.
 
-Next: Dunmore, then Redstone, one at a time. Redstone is a canyon, so
-`forest` is the wrong tool there — what it gets is the water (`mere`, `burn`)
-and outlines that are not rectangles. Dunmore is a moor and can take a few
-strips of scrub wood.
+Next: Redstone. It is a canyon, so `forest` is the wrong tool there — what it
+gets is the water (`mere`, `burn`) and outlines that are not rectangles. Its
+canyons are `ravine` cuts with water rectangles held up by `addBank`, which is
+a different problem from a pond in a hollow: read README → "The gorge" first.
 
 ### Mini golf
 

@@ -5246,9 +5246,11 @@
                     inlay(ground, 13.9, 33.5, 1.9, snd, 3.6),
                     inlay(ground, 11.5, 55.5, 4.6, grn, 3.4)
                 ]),
-                fence: heath.fence,
+                fence: widen(heath.fence, 5, 5),
                 extra: [].concat(
-                    treeline(2, 7, 2, 22, 4),
+                    forest(2, 12, 0.6, 5, 3, 8103, { gap: 2.2, clear: [keep(1.5, 19, 4.4)] }),
+                    forest(-3, 38, 1.8, 16, 7, 8105, { gap: 2.6, clear: [keep(1.5, 19, 5)] }),
+                    forest(25, 40, 1.8, 15, 7, 8107, { gap: 2.6, clear: [keep(20.5, 16, 4.5)] }),
                     crags(1.5, 19, 3.4, 5, 8101, { s: 1.3, h: 1.0 }),
                     crags(20.5, 16, 3, 4, 8117, { s: 1.15, h: 0.9 }),
                     [tree(2.2, 55), tree(4, 58)]
@@ -5279,14 +5281,18 @@
             var heath = commons(0, [
                 [{ d: 5, y: 1.6 },     [2, rgh], [8, fwy], [26, rgh]],
                 [{ d: 3, sz: -0.45 },  [36, rgh]],
-                [14,                   [2, rgh], [9, fwy], [2, rgh], [3, null], [20, rgh]],
-                [14,                   [2, rgh], [9, fwy], [2, rgh], [3, null], [1, rgh], [6, fwy], [13, rgh]],
+                [14,                   [2, rgh], [9, fwy], [25, rgh]],
+                [14,                   [2, rgh], [9, fwy], [6, rgh], [6, fwy], [13, rgh]],
                 [8,                    [2, rgh], [28, fwy], [6, rgh]],
                 [{ d: 3, sz: 0.25 },   [18, rgh], [14, fwy], [4, rgh]],
                 [10,                   [20, rgh], [14, fwy], [2, rgh]],
                 [3,                    [36, rgh]]
             ], { e: 14 });
             var ground = shape(tilt(scoop(heath.pads, { seed: 7 }), 0.032, 0, 0, 0), field);
+            /* The burn runs down the inside of the corner in a hollow of its
+               own, narrow enough that its banks stay off both fairways. */
+            var lobes = burn([[14.1, 9.6], [13.8, 17], [14.2, 25], [14, 33.4]], 1.9, 1.1, 8313);
+            var wet = clearOf(lobes, 0.5);
             return build({
                 name: 'Gorse Corner', par: 4, long: true, shaped: true, open: true,
                 blurb: 'A dogleg right round a burn and a bank of gorse. Go round, or carry the burn to the strip of fairway beyond it.',
@@ -5294,12 +5300,14 @@
                     inlay(ground, 6, 40, 1.6, snd, 2.0),
                     inlay(ground, 28, 51, 4.4, grn, 2.2)
                 ]),
-                fence: heath.fence,
-                water: [rect(13, 8, 3, 28, 0.3)],
+                fence: widen(heath.fence, 5, 5),
+                water: [pond(ground, lobes)],
                 extra: [].concat(
-                    treeline(16.8, 10, 16.8, 20, 4),
-                    treeline(25, 16, 25, 34, 6),
-                    treeline(1, 9, 1, 34, 5),
+                    forest(16.9, 15, 0.45, 5, 4, 8315, { gap: 2, clear: wet }),
+                    forest(25, 25, 0.7, 9, 6, 8317, { gap: 2.2, clear: [keep(30, 26, 4)] }),
+                    forest(1, 21.5, 0.6, 12.5, 5, 8319, { gap: 2.2 }),
+                    forest(-3, 30, 1.8, 20, 8, 8321, { gap: 2.6 }),
+                    forest(39, 32, 1.8, 20, 8, 8323, { gap: 2.6 }),
                     crags(30, 26, 3, 5, 8311, { s: 1.3, h: 1.0 }),
                     [tree(35, 48), tree(35, 54)]
                 ),
@@ -5339,23 +5347,27 @@
                 [{ d: 6,  sz: 0.15 },   [6, rgh], [9, fwy], [7, rgh]],
                 [{ d: 5, sz: -0.07 },   [5, rgh], [12, fwy], [5, rgh]],
                 [5,                     [6, rgh], [11, fwy], [5, rgh]],
-                [16,                    [3, rgh], [6, null], [1, rgh], [10, fwy], [2, rgh]],
+                [16,                    [10, rgh], [10, fwy], [2, rgh]],
                 [3,                     [22, rgh]]
             ]);
+            var ground = shape(scoop(heath.pads, { seed: 17 }), field);
+            // The tarn on the summit, in a hollow and off the green's left.
+            var tarn = mere(5.4, 50.5, 2.4, 6.4, 1.9, 8241);
+            var lake = pond(ground, tarn);
             return build({
                 name: 'The Beacon', par: 4, long: true, shaped: true, open: true,
                 blurb: 'Four units of climb, and over the top a long thin green with a tarn beside it.',
-                pads: (function (g) {
-                    return g.concat([
-                        inlay(g, 14.5, 21, 1.5, snd, 2.2),
-                        inlay(g, 13.5, 51, 2.3, grn, 5.0)
-                    ]);
-                }(shape(scoop(heath.pads, { seed: 17 }), field))),
-                fence: heath.fence,
-                water: [rect(3, 42, 6, 16, 3.7)],
+                pads: ground.concat([
+                    inlay(ground, 14.5, 21, 1.5, snd, 2.2),
+                    inlay(ground, 13.5, 51, 2.3, grn, 5.0)
+                ]),
+                fence: widen(heath.fence, 5, 5),
+                water: [lake],
                 extra: [].concat(
-                    treeline(1.8, 8, 1.8, 24, 4),
-                    treeline(20.2, 28, 20.2, 38, 4),
+                    forest(1.8, 16, 0.6, 8, 4, 8243, { gap: 2.2 }),
+                    forest(20.2, 33, 0.6, 5, 4, 8245, { gap: 2.2 }),
+                    forest(-3, 30, 1.8, 16, 7, 8247, { gap: 2.6, clear: [keep(2.6, 28, 5.2), keep(-1.5, 50, 3.6)].concat(clearOf(tarn)) }),
+                    forest(25, 30, 1.8, 16, 7, 8249, { gap: 2.6, clear: [keep(19.4, 24, 4.2)] }),
                     crags(2.6, 28, 3.6, 6, 8231, { s: 1.4, h: 1.1 }),
                     crags(19.4, 24, 3, 4, 8237, { s: 1.2, h: 0.95 }),
                     crags(-1.5, 50, 2.5, 4, 8239, { s: 1.2, h: 0.9 })
@@ -5398,7 +5410,7 @@
                     inlay(ground, 10, 10, 8, snd, 2.0),
                     circle(10, 21, 3.0, grn, 0.3)
                 ]),
-                fence: heath.fence,
+                fence: widen(heath.fence, 4, 4),
                 extra: [].concat(
                     crags(-4, 17, 3.5, 6, 8353, { s: 1.4, h: 1.1 }),
                     crags(24, 15, 3.2, 5, 8363, { s: 1.3, h: 1.0 })
@@ -5436,15 +5448,20 @@
                 [4,                     [6, rgh], [10, fwy], [6, rgh]],
                 [{ d: 5, sz: -0.16 },   [7, rgh], [9, fwy], [6, rgh]],
                 [17,                    [7, rgh], [9, fwy], [6, rgh]],
-                [1,                     [22, rgh]],
-                [7,                     [22, null]],
-                [1,                     [22, rgh]],
+                [9,                     [22, rgh]],
                 [13,                    [7, rgh], [9, fwy], [6, rgh]],
                 [{ d: 4, sz: 0.16 },    [7, rgh], [10, fwy], [5, rgh]],
-                [16,                    [3, rgh], [4.5, null], [1.5, rgh], [10, fwy], [3, rgh]],
+                [16,                    [9, rgh], [10, fwy], [3, rgh]],
                 [3,                     [22, rgh]]
             ], { w: 16 });
             var ground = shape(scoop(heath.pads, { seed: 11 }), field);
+            /* The burn across the valley and the pond off the green's left,
+               each in a hollow: the burn kept inside its own nine-unit row,
+               the pond a unit and more off the mown line. */
+            var water = [
+                pond(ground, burn([[-11, 58.7], [0, 58.0], [9, 59.1], [18, 58.2], [31, 58.8]], 2.2, 1.2, 8379)),
+                pond(ground, mere(3.4, 88, 2.4, 6, 2.0, 8381))
+            ];
             return build({
                 name: 'Long Ling', par: 5, long: true, shaped: true, open: true,
                 blurb: 'Over a shoulder, then lay up short of the burn. A long third over the whorl and the swale, with a pond off the left of the green.',
@@ -5453,10 +5470,12 @@
                     inlay(ground, 16, 49, 1.5, snd, 2.0),
                     inlay(ground, 12.5, 90, 3.6, grn, 3.2)
                 ]),
-                fence: heath.fence,
-                water: [rect(0, 55, 22, 7, -1.25), rect(3, 80, 4.5, 16, -0.6)],
+                fence: widen(heath.fence, 5, 5),
+                water: water,
                 extra: [].concat(
-                    treeline(2, 9, 2, 32, 6),
+                    forest(2, 20.5, 0.6, 11.5, 6, 8383, { gap: 2.2 }),
+                    forest(-3.5, 32, 1.8, 18, 8, 8385, { gap: 2.6 }),
+                    forest(25, 34, 1.8, 18, 8, 8387, { gap: 2.6, clear: [keep(19.6, 15, 4.6)] }),
                     crags(19.6, 15, 3.2, 5, 8377, { s: 1.3, h: 1.0 }),
                     [tree(20, 87), tree(20, 92)]
                 ),
@@ -5507,9 +5526,11 @@
                         inlay(g, 10, 59.5, 4.4, grn, 3.4)
                     ]);
                 }(shape(scoop(heath.pads.concat(cut.pads), { seed: 13 }), field))),
-                fence: heath.fence,
+                fence: widen(heath.fence, 5, 5),
                 extra: [].concat(
-                    treeline(1.7, 10, 1.7, 20, 3),
+                    forest(1.7, 15, 0.5, 5, 3, 8299, { gap: 2.2 }),
+                    forest(-3, 34, 1.8, 18, 7, 8301, { gap: 2.6, clear: [keep(2.4, 38, 4.5)] }),
+                    forest(23, 34, 1.8, 18, 7, 8303, { gap: 2.6, clear: [keep(17.6, 40, 4)] }),
                     crags(2.4, 38, 3, 5, 8291, { s: 1.2, h: 0.8 }),
                     crags(17.6, 40, 2.6, 4, 8297, { s: 1.1, h: 0.75 }),
                     [tree(18.3, 58), tree(18.3, 61)]
