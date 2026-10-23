@@ -7,7 +7,7 @@
    and on a desktop and none of the tuning below is resolution dependent. */
 window.GOLF = window.GOLF || {};
 
-GOLF.VERSION = '1.10.0';
+GOLF.VERSION = '1.11.0';
 
 GOLF.CONFIG = {
     WORLD_W: 960,
@@ -39,13 +39,14 @@ GOLF.CONFIG = {
     /* The dial runs past what you can control.
 
        Up to SAFE_POWER the ball goes exactly where the arrow points, and that
-       is still the whole of the old game: 1080 coasts v0 / -ln(k) ≈ 1180px,
+       is still the whole of the old game: 1134 coasts v0 / -ln(k) ≈ 1240px,
        more than the 960px field, so every hole stays reachable in one clean
-       shot. The last fifth of the dial is the overswing — 1400 reaches
-       ≈ 1530px, and buys that extra roll with the only currency the game has
-       left to charge in, which is accuracy. See physics.spread. */
-    MAX_POWER: 1400,
-    SAFE_POWER: 1080,
+       shot. The last fifth of the dial is the overswing — 1470 reaches
+       ≈ 1605px, and buys that extra roll with the only currency the game has
+       left to charge in, which is accuracy. See physics.spread. (Both were
+       raised 5% from 1080 and 1400: a full swing felt a touch short.) */
+    MAX_POWER: 1470,
+    SAFE_POWER: 1134,
     MIN_POWER: 35,
     DRAG_MAX: 210,        // world px of pull-back that equals MAX_POWER
 
@@ -65,8 +66,24 @@ GOLF.CONFIG = {
     BUMPER_MIN_R: 14,     // smaller than this and the substep cap cannot protect it
     STOP_SPEED: 14,       // below this the ball is considered at rest
 
-    CUP_PULL: 900,        // inward acceleration while the ball is over the cup
-    CAPTURE_SPEED: 250,   // faster than this and the rim spits it back out
+    /* The cup is a hole, not a target. Everywhere else the ball rolls on
+       the plane of the green; over the cup there is nothing under it, so it
+       falls, and the edge of the hole is a circle it can lean on, ride
+       round, hit and climb back out over — see physics.cup. These are the
+       numbers that fall is made of. Gravity is well under the real thing
+       for a ball this size (about 3400px/s²) on purpose: it is what sets
+       how firm a putt may be and still drop, and at 800 the cup takes as
+       many of the lines and paces a ball can arrive on as the old flat
+       capture rule did — more of them firm at the middle, fewer off the
+       edge, where it now rides the lip instead. */
+    CUP_GRAVITY: 800,
+    RIM_RESTITUTION: 0.42, // of the speed into the lip, what it gives back
+    RIM_KNOCK: 40,         // slower into the lip than this is leaning on it, not hitting it
+    RIM_KEEP: 0.7,         // of the ball's whole speed, what a knock on the lip leaves it
+    RIM_DRAG: 0.0016,      // speed scrubbed off along the lip, per px/s of knock
+    CUP_DOWN: 0.35,        // once the ball's centre is this many radii below the green, it is in
+    CUP_BEVEL: 6,          // how far out from the lip the green slopes down into the cup
+    CUP_FALL: 1.5,         // and how far down it slopes over that width
 
     /* The aim arrow. It was once the ball's simulated path, which answered the
        only two questions the game asks — how hard, and off which cushion — and
@@ -74,7 +91,7 @@ GOLF.CONFIG = {
        made a gentle tap and a full swing look identical.
 
        It now grows with the shot, but only from 54px to 108px while the ball
-       itself rolls up to 1530px: a hint you can feel, at a twelfth of the
+       itself rolls up to 1605px: a hint you can feel, at a fifteenth of the
        scale of the thing it is hinting at, on a square-root curve that spends
        most of its travel in the bottom half of the dial where the touch shots
        live. You can see that this one is harder than the last one. You still
@@ -82,12 +99,18 @@ GOLF.CONFIG = {
     AIM_ARROW: 54,
     AIM_ARROW_FULL: 108,
 
-    /* The guide ray runs on past the arrowhead to the edge of the field, thin
-       and faint. It is pure direction — no bounce, no distance, no stopping
-       where the ball would stop — and it is the whole of the leniency: lining
-       a putt up across a 960px field off a 100px arrow was asking players to
-       extend a line by eye that the screen could simply draw. */
+    /* The guide ray runs on past the arrowhead for AIM_GUIDE_LEN and fades
+       out. It used to reach the edge of the field, which turned every putt
+       into laying a ruler on the cup; a short stub keeps the direction
+       readable at the arrow and leaves the line to be judged. */
     AIM_GUIDE_ALPHA: 0.17,
+    AIM_GUIDE_LEN: 110,
+    /* Past SAFE_POWER the scatter cone reaches further than the plain guide:
+       it is the warning, and a warning a hand's width long is easy to miss
+       at the top of the dial where it matters most. Its centre line is not
+       drawn past the guide, so it still says "this may go anywhere in here",
+       not "the cup is there". */
+    AIM_CONE_LEN: 300,
 
     /* The power gauge used to be a 16px arc hugging the ball, which is a
        readable *shape* and an unreadable *value* — at a glance you could tell
@@ -167,5 +190,8 @@ GOLF.CONFIG = {
     PROGRESS_KEY: 'miniGolf.progress.v1',
     /* A party round in progress, and the last roster typed in. */
     PARTY_KEY: 'miniGolf.party.v1',
-    PLAYERS_KEY: 'miniGolf.players.v1'
+    PLAYERS_KEY: 'miniGolf.players.v1',
+    /* The scenery picked for every course, or nothing for each course's
+       own. A preference, like the sound: starting over leaves it alone. */
+    SCENERY_KEY: 'miniGolf.scenery.v1'
 };

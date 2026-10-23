@@ -549,6 +549,73 @@
             assert('a putt pushed off line misses', !wide.sunk);
         })();
 
+        /* The cup in three dimensions: a ball over the hole falls, and the lip
+           is a circle it can lean on, ride round, hit and climb out over. Each
+           shot here is set up to *arrive* at the rim on a given line at a
+           given speed. */
+        (function () {
+            var cup = {
+                name: 'cup', par: 3, tee: { x: 200, y: 320 }, hole: { x: 600, y: 320 },
+                walls: [], water: [], sand: [], rough: [], ice: [], bumpers: [], slopes: [], tunnels: [], rails: []
+            };
+            function arrive(off, v) {
+                var w = P.createWorld(cup, { x: 600 - C.HOLE_R - 40, y: 320 + off }, 0);
+                P.launch(w, 0, v + 40 * -Math.log(C.FRICTION_GRASS));
+                var out = { w: w, lip: false, knock: 0, high: 0, turn: 0, worst: 0, exit: null };
+                var energy = function (b) {
+                    return 0.5 * (b.vx * b.vx + b.vy * b.vy + b.vz * b.vz) + C.CUP_GRAVITY * b.z;
+                };
+                for (var i = 0; i < 2400 && w.moving && !w.sunk; i++) {
+                    var e0 = energy(w.ball);
+                    var ev = P.advance(w, 1 / 480);
+                    if (w.sunk) break;
+                    // Friction takes and gravity trades; nothing may give.
+                    out.worst = Math.max(out.worst, energy(w.ball) - e0);
+                    if (ev.lip) out.lip = true;
+                    if (ev.rim) out.knock = Math.max(out.knock, ev.rim);
+                    out.high = Math.max(out.high, w.ball.z - C.BALL_R);
+                    if (w.ball.vx || w.ball.vy) out.turn = Math.max(out.turn, Math.abs(Math.atan2(w.ball.vy, w.ball.vx)));
+                    if (!out.exit && out.lip && Math.hypot(w.ball.x - 600, w.ball.y - 320) > C.HOLE_R + C.BALL_R) out.exit = P.speedOf(w.ball);
+                    if (w.ball.x > 700) break;
+                }
+                return out;
+            }
+            assert('a ball creeping over the edge of the cup topples in', arrive(14, 80).w.sunk);
+            var firm = arrive(0, 280);
+            assert('a firm putt at the middle hits the back of the cup and drops', firm.w.sunk && firm.lip);
+            var hard = arrive(0, 380);
+            assert('too firm, and it hops out over the back of the cup', !hard.w.sunk && hard.high > 2, 'rose ' + hard.high.toFixed(1) + 'px');
+            assert('…slower than it went in', hard.exit !== null && hard.exit < 380 * 0.8, hard.exit && hard.exit.toFixed(0));
+            assert('hitting the back of the cup is a knock you hear', firm.knock > C.RIM_KNOCK && hard.knock > C.RIM_KNOCK,
+                firm.knock.toFixed(0) + ' / ' + hard.knock.toFixed(0));
+            var ride = arrive(11, 180);
+            assert('a ball that catches the edge rides round the lip and spins out', !ride.w.sunk && ride.lip && ride.turn > 0.5,
+                'turned ' + (ride.turn * 180 / Math.PI).toFixed(0) + '°');
+            var hang = arrive(C.HOLE_R + 2, 80);
+            assert('a ball dying on the edge of the funnel round the cup topples in', hang.w.sunk);
+            assert('…without a knock: toppling in is not hitting anything', arrive(14, 80).knock === 0);
+            var past = arrive(C.HOLE_R + C.CUP_BEVEL + 1, 200);
+            assert('a ball that never reaches the funnel rolls by untouched', !past.w.sunk && !past.lip && past.high === 0 && past.turn === 0);
+            var worst = 0, rest = 0;
+            [0, 4, 8, 11, 13, 14, 16, 19].forEach(function (o) {
+                [90, 200, 320, 450, 700].forEach(function (v) {
+                    var r = arrive(o, v);
+                    worst = Math.max(worst, r.worst);
+                    if (!r.w.sunk && !r.w.moving && !P.grounded(r.w.ball, cup.hole)) rest++;
+                });
+            });
+            // A step's worth of slack where the funnel meets the green — under
+            // a twentieth of a pixel of height. A real source of energy, like
+            // a lip that kicks, shows up in the hundreds.
+            assert('nothing at the cup hands the ball energy', worst < 40, 'gained ' + worst.toFixed(2));
+            assert('no shot comes to rest hanging in the air or over the hole', rest === 0, rest + ' did');
+            var far = P.createWorld(cup, { x: 200, y: 200 }, 0);
+            P.launch(far, 0, 900);
+            var flat = true;
+            for (var k = 0; k < 600 && far.moving; k++) { P.advance(far, 1 / 120); if (far.ball.z !== C.BALL_R) flat = false; }
+            assert('away from the cup the ball never leaves the green', flat);
+        })();
+
         (function () {
             // Tunnelling check: fire a fan of full-power shots at a thin wall
             // from close range and make sure none of them get through.
@@ -791,12 +858,31 @@
             var cw = SCN.outline([{ pts: [100, 100, 100, 300, 300, 300] }])[0];
             assert('a polygon drawn the other way round is turned clockwise, so overlaps add up', SCN.signedArea(cw) > 0);
 
-            var problems = [];
+            /* Every hole in its own biome, and every hole in every other one
+               too: the Scenery row can put any course in any of them. */
+            var problems = [], fairway = [], night = [], dressed = 0;
             holes.forEach(function (e) {
-                var theme = SCN.themeOf(e.course);
+              [SCN.themeOf(e.course)].concat(SCN.ORDER.map(SCN.themeNamed)).forEach(function (theme, ti) {
+                if (ti > 0 && theme === SCN.themeOf(e.course)) return;
+                dressed++;
                 var d = SCN.decor(e.h, theme);
                 var again = SCN.decor(e.h, theme);
                 if (JSON.stringify(d) !== JSON.stringify(again)) problems.push(e.tag + ': decoration moved between two loads');
+                var soft = d.decals.filter(function (p) { return p.soft; }), showy = d.decals.length - soft.length;
+                d.decals.forEach(function (p) {
+                    if (p.soft ? theme.lawn.indexOf(p.kind) < 0 : theme.border.indexOf(p.kind) < 0) fairway.push(e.tag + ' ' + theme.id + ': a ' + p.kind + ' that is not this biome\'s');
+                    if (!p.soft && !SCN.border(e.h, p.x, p.y)) fairway.push(e.tag + ' ' + theme.id + ': a ' + p.kind + ' out on the fairway');
+                    if (p.soft && SCN.border(e.h, p.x, p.y)) fairway.push(e.tag + ' ' + theme.id + ': a faint stray in the border');
+                });
+                if (soft.length > SCN.LAWN_MAX) fairway.push(e.tag + ' ' + theme.id + ': ' + soft.length + ' strays on the fairway');
+                // A patch is started while there is room for one, so the last
+                // can run a few over.
+                if (showy > SCN.BORDER_MAX + 6) fairway.push(e.tag + ' ' + theme.id + ': ' + showy + ' flowers');
+                if (!!theme.night !== d.lamps.length > 0) night.push(e.tag + ' ' + theme.id + ': lamps by day or none at night');
+                d.lamps.forEach(function (l) {
+                    if (Math.min(l.x, l.y, C.WORLD_W - l.x, C.WORLD_H - l.y) > 12) night.push(e.tag + ': a lamp off the cushion');
+                });
+                if (d.moon && !P.zoneAt(e.h.water, d.moon.x, d.moon.y)) night.push(e.tag + ': a moon that is not on the water');
                 var keep = SCN.keepouts(e.h);
                 d.decals.forEach(function (p) {
                     if (keep.some(function (k) { return Math.hypot(p.x - k.x, p.y - k.y) < k.r; })) problems.push(e.tag + ': a decal on the tee, the cup or a mouth');
@@ -816,8 +902,28 @@
                     // Standing off the field, reaching in over its edge.
                     if (c.x > 0 && c.x < C.WORLD_W && c.y > 0 && c.y < C.WORLD_H) problems.push(e.tag + ': a tree standing on the course');
                 });
+              });
             });
-            assert('decoration keeps every rule on every hole', problems.length === 0, problems.slice(0, 3).join(' · '));
+            note(dressed + ' holes dressed, every hole in every biome');
+            assert('decoration keeps every rule on every hole, in every biome', problems.length === 0, problems.slice(0, 3).join(' · '));
+            assert('flowers grow in the borders, and the fairway gets a few faint strays at most', fairway.length === 0, fairway.slice(0, 3).join(' · '));
+            assert('lamps only after dark, on the cushion, and the moon on the water', night.length === 0, night.slice(0, 3).join(' · '));
+            assert('the open fairway is the fairway: the middle of the field is not a border',
+                !SCN.border({ rough: [], walls: [], rails: [], bumpers: [] }, C.WORLD_W / 2, C.WORLD_H / 2) &&
+                SCN.border({ rough: [], walls: [], rails: [], bumpers: [] }, 20, C.WORLD_H / 2));
+
+            var keys = Object.keys(SCN.THEMES);
+            assert('the order names every biome exactly once', SCN.ORDER.length === keys.length &&
+                keys.every(function (k) { return SCN.ORDER.indexOf(k) >= 0; }));
+            var incomplete = [];
+            SCN.ORDER.forEach(function (k) {
+                var t = SCN.THEMES[k];
+                ['turf', 'rough', 'sand', 'water', 'wall', 'bumper', 'rim', 'canopy', 'border', 'lawn', 'leaves', 'ambient', 'sound', 'backdrop', 'plan', 'name']
+                    .forEach(function (f) { if (t[f] === undefined) incomplete.push(k + ' has no ' + f); });
+                if (t.id !== k) incomplete.push(k + ' does not know its own id');
+                if (!t.border.length || !t.lawn.length || !t.leaves.length) incomplete.push(k + ' has an empty list');
+            });
+            assert('every biome says everything the renderer will ask it', incomplete.length === 0, incomplete.slice(0, 3).join(' · '));
 
             assert('every course is drawn in a biome that exists', GOLF.COURSES.every(function (c) {
                 return !c.theme || !!SCN.THEMES[c.theme];
@@ -1327,6 +1433,7 @@
                 /* Starting over, both ways. */
                 starsOnShort(6);
                 localStorage.setItem('miniGolf.muted', '1');
+                localStorage.setItem(C.SCENERY_KEY, 'winter');
                 localStorage.setItem('miniGolf.editor.v1', '{"name":"draft"}');
                 PR.replayIntro();
                 PR.reload();
@@ -1341,6 +1448,7 @@
                 assert('…and is a first visit, not a veteran', !PR.get().veteran && !PR.everythingOpen() && !PR.isOpen(byIdP('wild')));
                 assert('…which shows the first stroke', !PR.coached());
                 assert('it leaves the sound setting alone', localStorage.getItem('miniGolf.muted') === '1');
+                assert('…and the scenery', localStorage.getItem(C.SCENERY_KEY) === 'winter');
                 assert('…and a hole half-built in the editor', localStorage.getItem('miniGolf.editor.v1') !== null);
             } finally {
                 for (var m = localStorage.length - 1; m >= 0; m--) {

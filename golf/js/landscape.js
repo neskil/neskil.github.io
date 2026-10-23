@@ -166,6 +166,13 @@
             g.fillStyle = hash(n * 5.3) < 0.5 ? 'rgba(255,255,255,0.055)' : 'rgba(0,0,0,0.065)';
             g.fillRect(x, y, 1.6, 1.6);
         }
+        // Hoar frost: a second, paler speckle on a winter lawn.
+        if (theme.turf.frost) {
+            g.fillStyle = 'rgba(240, 250, 255, ' + theme.turf.frost + ')';
+            for (n = 0; n < 2600; n++) {
+                g.fillRect(hash(seed * 13 + n * 1.9) * W, hash(seed * 29 + n * 2.3) * H, 1.4, 1.4);
+            }
+        }
 
         var vg = g.createRadialGradient(W / 2, H / 2, H * 0.35, W / 2, H / 2, H * 0.95);
         vg.addColorStop(0, 'rgba(0,0,0,0)');
@@ -387,8 +394,24 @@
        built of six boxes is one lake. Depth is a shadow inside the far bank;
        the surface moves. What lives on it depends on the biome — a pond has
        reeds and lily pads and sometimes a duck, the sea has surf. */
-    /* The part of the water that holds still — the shore, the body and the
-       depth under the near bank — is painted into the ground layer once. */
+    /* Water lies below the grass. Seen from above and in front, the way
+       the walls are, that shows as the face of the far bank standing above
+       the waterline: the surface is the water's own outline moved a few
+       pixels down the screen, and what it uncovers along the top of every
+       pond is earth, sand, stone or snow. Only the picture moves; the
+       physics' water is where it always was, bank face and all. */
+    function bankDepth(theme) { return theme.water.kind === 'sea' ? 4 : 8; }
+
+    function surfacePath(g, loops, v, theme) {
+        var dn = sv(v, 0, bankDepth(theme));
+        g.translate(dn.x, dn.y);
+        loopPath(g, loops, 22);
+        g.translate(-dn.x, -dn.y);
+    }
+
+    /* The part of the water that holds still — the shore, the bank's face,
+       the body and the depth under the near bank — is painted into the
+       ground layer once. */
     function drawWaterBed(g, list, theme, v) {
         if (!list || !list.length) return;
         var loops = SC.outline(list, true);
@@ -400,6 +423,18 @@
         g.lineWidth = sea ? 14 : 8;
         g.lineJoin = 'round';
         g.stroke();
+        // The bank's face: lit along the lip, darker down to the waterline.
+        g.fillStyle = w.bank || '#5d4a2f';
+        g.fill();
+        g.clip();
+        g.strokeStyle = 'rgba(255, 255, 255, 0.16)';
+        g.lineWidth = 3;
+        g.stroke();
+        surfacePath(g, loops, v, theme);
+        g.strokeStyle = 'rgba(0, 0, 0, 0.32)';
+        g.lineWidth = 7;
+        g.stroke();
+        // The surface, below it.
         var grad = g.createLinearGradient(0, b.y0, 0, b.y1);
         grad.addColorStop(0, w.top);
         grad.addColorStop(1, w.deep);
@@ -421,11 +456,18 @@
             g.lineWidth = 22;
             g.stroke();
         }
+        // The waterline catches the light.
+        surfacePath(g, loops, v, theme);
+        g.strokeStyle = 'rgba(255, 255, 255, 0.22)';
+        g.lineWidth = 2;
+        g.stroke();
         g.restore();
     }
 
-    // The part that moves: waves, surf, and what lives on the water.
-    function drawWater(g, list, theme, v, t, clock, dec) {
+    /* The part that moves: the surface, and what lives on it. Where the
+       browser can, the surface is water.js's shader; where it cannot, it is
+       the rows of waves and the dashed surf this has always drawn. */
+    function drawWater(g, list, theme, v, t, clock, dec, opts) {
         if (!list || !list.length) return;
         var loops = SC.outline(list, true);
         var b = boundsOf(loops);
@@ -434,7 +476,35 @@
         g.save();
         loopPath(g, loops, 22);
         g.clip();
+        surfacePath(g, loops, v, theme);
+        g.clip();
 
+        var shaded = !!(GOLF.water && GOLF.water.draw(g, list, theme, v, opts && opts.still ? 0 : clock, opts));
+        if (!shaded) plainSurface(g, b, w, sea, loops, t, clock);
+        if (dec && dec.moon) moon(g, dec.moon, v);
+
+        if (dec) {
+            var i;
+            for (i = 0; i < dec.pads.length; i++) {
+                if (w.pads === 'leaf') floatingLeaf(g, dec.pads[i], clock, theme);
+                else pad(g, dec.pads[i], clock);
+            }
+            for (i = 0; i < dec.ducks.length; i++) duck(g, dec.ducks[i], clock);
+        }
+        g.restore();
+
+        // Reeds and rocks at the edge stand up out of the water, over the
+        // shoreline, so they are drawn after the clip comes off.
+        if (dec) {
+            if (w.edge === 'rocks') {
+                for (var k = 0; k < dec.shore.length; k++) if (dec.shore[k].big) rock(g, dec.shore[k], v, w.snow);
+            } else {
+                reeds(g, dec.shore, v, clock);
+            }
+        }
+    }
+
+    function plainSurface(g, b, w, sea, loops, t, clock) {
         // Every row of waves in one path and one stroke: on a phone the
         // stroke calls, not the points, were most of what water cost.
         g.strokeStyle = w.wave;
@@ -459,23 +529,36 @@
             g.stroke();
             g.setLineDash([]);
         }
+    }
 
-        if (dec) {
-            var i;
-            for (i = 0; i < dec.pads.length; i++) pad(g, dec.pads[i], clock);
-            for (i = 0; i < dec.ducks.length; i++) duck(g, dec.ducks[i], clock);
-        }
+    /* The moon on a pond after dark: a soft pale glow on the deepest water,
+       drawn before the waves so the ripples run across it. */
+    function moon(g, m, v) {
+        var up = sv(v, -26, -18);
+        var x = m.x + up.x, y = m.y + up.y;
+        var glow = g.createRadialGradient(x, y, 2, x, y, 40);
+        glow.addColorStop(0, 'rgba(240, 244, 255, 0.55)');
+        glow.addColorStop(0.3, 'rgba(235, 240, 255, 0.22)');
+        glow.addColorStop(1, 'rgba(235, 240, 255, 0)');
+        g.fillStyle = glow;
+        g.fillRect(x - 40, y - 40, 80, 80);
+    }
+
+    // An autumn pond has no lily pads; it has the leaves the trees dropped.
+    function floatingLeaf(g, p, clock, theme) {
+        var pal = theme.leaves;
+        g.save();
+        g.translate(p.x + Math.sin(clock * 0.3 + p.a) * 3, p.y + Math.cos(clock * 0.25 + p.a) * 2);
+        g.rotate(p.a + Math.sin(clock * 0.4 + p.a) * 0.2);
+        var L0 = p.r * 0.9;
+        g.fillStyle = 'rgba(0, 20, 30, 0.25)';
+        g.beginPath(); g.ellipse(2, 2, L0, L0 * 0.45, 0, 0, Math.PI * 2); g.fill();
+        g.fillStyle = pal[((p.a * 10) | 0) % pal.length];
+        g.beginPath(); g.ellipse(0, 0, L0, L0 * 0.45, 0, 0, Math.PI * 2); g.fill();
+        g.strokeStyle = 'rgba(60, 25, 5, 0.45)';
+        g.lineWidth = 0.8;
+        g.beginPath(); g.moveTo(-L0 - 3, 0); g.lineTo(L0, 0); g.stroke();
         g.restore();
-
-        // Reeds and rocks at the edge stand up out of the water, over the
-        // shoreline, so they are drawn after the clip comes off.
-        if (dec) {
-            if (sea) {
-                for (var k = 0; k < dec.shore.length; k++) if (dec.shore[k].big) rock(g, dec.shore[k], v);
-            } else {
-                reeds(g, dec.shore, v, clock);
-            }
-        }
     }
 
     function pad(g, p, clock) {
@@ -590,7 +673,7 @@
         g.stroke();
     };
 
-    function rock(g, s, v) {
+    function rock(g, s, v, snowy) {
         var sh = sv(v, 2, 3);
         var r = 6 + s.r * 5;
         g.save();
@@ -606,6 +689,19 @@
         g.beginPath();
         g.ellipse(s.x, s.y, r, r * 0.8, s.a, 0, Math.PI * 2);
         g.fill();
+        if (snowy) {
+            // Snow lies on the lit top of the stone.
+            // Only a cap of it: a white stone is a ball sitting by the water.
+            g.save();
+            g.beginPath();
+            g.ellipse(s.x, s.y, r, r * 0.8, s.a, 0, Math.PI * 2);
+            g.clip();
+            g.fillStyle = 'rgba(244, 249, 255, 0.85)';
+            g.beginPath();
+            g.ellipse(s.x + hl.x * 1.6, s.y + hl.y * 1.6, r * 0.8, r * 0.55, s.a, 0, Math.PI * 2);
+            g.fill();
+            g.restore();
+        }
         g.restore();
     }
 
@@ -616,10 +712,6 @@
        than objects — nothing here is in the way of anything, by placement
        (scenery.decor) and by size. */
     var PETALS = ['#f9a8d4', '#c084fc', '#fde047', '#ffffff', '#fb7185', '#93c5fd'];
-    var LEAVES = {
-        woodland: ['#c2742f', '#d9a441', '#8a4b1f', '#b5502e', '#9a6b2a'],
-        other: ['#6f8f3a', '#8a7b3a', '#5e7d33']
-    };
 
     function drawDecals(g, list, theme) {
         for (var i = 0; i < list.length; i++) decal(g, list[i], theme);
@@ -627,6 +719,8 @@
 
     function decal(g, d, theme) {
         g.save();
+        // Out on the fairway everything is drawn faint: texture, not things.
+        if (d.soft) g.globalAlpha = 0.5;
         g.translate(d.x, d.y);
         g.rotate(d.a);
         g.scale(d.s, d.s);
@@ -640,7 +734,9 @@
             case 'flower':
             case 'poppy':
             case 'cornflower':
-                g.fillStyle = d.kind === 'poppy' ? '#ef4444' : d.kind === 'cornflower' ? '#60a5fa' : PETALS[(d.t * PETALS.length) | 0];
+            case 'bloom':
+                g.fillStyle = d.kind === 'poppy' ? '#ef4444' : d.kind === 'cornflower' ? '#60a5fa' :
+                    d.kind === 'bloom' ? (d.t < 0.5 ? '#e879f9' : '#fbbf24') : PETALS[(d.t * PETALS.length) | 0];
                 for (k = 0; k < 5; k++) { g.beginPath(); g.arc(Math.cos(k * 1.26) * 2.2, Math.sin(k * 1.26) * 2.2, 1.9, 0, Math.PI * 2); g.fill(); }
                 g.fillStyle = d.kind === 'poppy' ? '#1f2937' : '#fde68a';
                 g.beginPath(); g.arc(0, 0, 1.2, 0, Math.PI * 2); g.fill();
@@ -650,7 +746,7 @@
                 for (k = 0; k < 3; k++) { g.beginPath(); g.arc(Math.cos(k * 2.09) * 2.2, Math.sin(k * 2.09) * 2.2, 2.1, 0, Math.PI * 2); g.fill(); }
                 break;
             case 'leaf':
-                var pal = theme.name === 'Woodland' ? LEAVES.woodland : LEAVES.other;
+                var pal = theme.leaves;
                 g.fillStyle = pal[(d.t * pal.length) | 0];
                 g.beginPath(); g.ellipse(0, 0, 5, 2.4, 0, 0, Math.PI * 2); g.fill();
                 g.strokeStyle = 'rgba(0,0,0,0.25)'; g.lineWidth = 0.7;
@@ -685,6 +781,20 @@
                 g.strokeStyle = 'rgba(40, 20, 5, 0.6)'; g.lineWidth = 0.6;
                 for (k = -2; k <= 2; k++) { g.beginPath(); g.moveTo(k * 1.4, -2.4); g.lineTo(k * 1.4 + 1, 2.4); g.stroke(); }
                 break;
+            case 'snowclump':
+                // A drift, long and low and soft at the edge — never a round
+                // white thing the size of a ball.
+                g.fillStyle = 'rgba(236, 244, 252, 0.32)';
+                g.beginPath(); g.ellipse(0, 0, 17, 5, 0, 0, Math.PI * 2); g.fill();
+                g.fillStyle = 'rgba(244, 249, 255, 0.45)';
+                g.beginPath(); g.ellipse(-3, -0.5, 10, 3, 0, 0, Math.PI * 2); g.fill();
+                break;
+            case 'frost':
+                g.strokeStyle = 'rgba(240, 250, 255, 0.8)'; g.lineWidth = 0.8;
+                g.beginPath();
+                for (k = 0; k < 3; k++) { var fa = k * Math.PI / 3; g.moveTo(-Math.cos(fa) * 3.5, -Math.sin(fa) * 3.5); g.lineTo(Math.cos(fa) * 3.5, Math.sin(fa) * 3.5); }
+                g.stroke();
+                break;
             case 'toadstool':
                 g.fillStyle = '#dc2626'; g.beginPath(); g.arc(0, 0, 3, 0, Math.PI * 2); g.fill();
                 g.fillStyle = '#ffffff';
@@ -698,7 +808,9 @@
 
        A material per biome, each a top colour, a near-face colour and a
        texture: timber sleepers in the parkland, brick in the garden,
-       driftwood by the sea, logs in the wood, a clipped hedge in the meadow.
+       driftwood by the sea, logs in the wood, a clipped hedge in the meadow,
+       dry stone in the autumn, logs under snow in the winter, layered
+       sandstone in the desert.
        A wall that moves keeps its hazard stripes whatever it is made of — a
        player who gets hit by one should at least have known it was coming. */
     var MATERIAL = {
@@ -706,7 +818,10 @@
         brick:     { top: '#9c4f36', side: '#5a2b1b', move: '#b0623f', grain: 'rgba(240,220,200,0.35)', hi: 'rgba(255,220,200,0.25)' },
         driftwood: { top: '#ae9c80', side: '#685b47', move: '#c2ac84', grain: 'rgba(80,65,45,0.30)', hi: 'rgba(255,250,235,0.32)' },
         log:       { top: '#7a4c2b', side: '#3b230e', move: '#8f5a33', grain: 'rgba(35,18,6,0.40)', hi: 'rgba(240,200,150,0.20)' },
-        hedge:     { top: '#2f6d33', side: '#163a1a', move: '#3f8040', grain: 'rgba(10,40,12,0.40)', hi: 'rgba(200,255,180,0.18)' }
+        hedge:     { top: '#2f6d33', side: '#163a1a', move: '#3f8040', grain: 'rgba(10,40,12,0.40)', hi: 'rgba(200,255,180,0.18)' },
+        stone:     { top: '#8d8f88', side: '#4a4b46', move: '#a3a59c', grain: 'rgba(35,35,30,0.45)', hi: 'rgba(255,255,245,0.24)' },
+        snowlog:   { top: '#eef4f8', side: '#4b3423', move: '#f6f9fb', grain: 'rgba(110,140,175,0.30)', hi: 'rgba(255,255,255,0.7)' },
+        sandstone: { top: '#c9854f', side: '#7a4526', move: '#d99a62', grain: 'rgba(110,52,22,0.36)', hi: 'rgba(255,226,190,0.30)' }
     };
 
     function material(theme) { return MATERIAL[theme.wall] || MATERIAL.timber; }
@@ -794,6 +909,44 @@
                 g.fill();
             }
             g.beginPath();
+        } else if (kind === 'stone') {
+            // Dry stone: two courses of uneven stones, each its own shade.
+            g.stroke();
+            var rows = Math.max(1, Math.round(wid / 11)), rh = wid / rows;
+            for (k = 0; k < rows; k++) {
+                for (a = -(hash(seed + k) * 8); a < len; ) {
+                    var sw = 9 + hash(seed + a * 0.37 + k * 5.1) * 12;
+                    var tone = hash(seed + a * 0.71 + k * 3.3);
+                    g.fillStyle = tone < 0.33 ? 'rgba(255,255,240,0.14)' : tone < 0.66 ? 'rgba(0,0,0,0.10)' : 'rgba(120,110,90,0.16)';
+                    var bx0 = Math.max(0, a) + 0.8, bx1 = Math.min(len, a + sw) - 0.8;
+                    if (bx1 > bx0) {
+                        if (along) roundRect(g, R.x + bx0, R.y + k * rh + 0.8, bx1 - bx0, rh - 1.6, 2.5);
+                        else roundRect(g, R.x + k * rh + 0.8, R.y + bx0, rh - 1.6, bx1 - bx0, 2.5);
+                        g.fill();
+                        g.stroke();
+                    }
+                    a += sw;
+                }
+            }
+            g.beginPath();
+        } else if (kind === 'snowlog') {
+            // Snow on a log: soft blue hollows where it lies thinner.
+            g.stroke();
+            for (k = 0; k < len / 14; k++) {
+                var sx2 = hash(seed + k * 2.9) * len, sy2 = hash(seed + k * 6.1) * wid;
+                g.fillStyle = 'rgba(150, 180, 215, 0.22)';
+                g.beginPath();
+                if (along) g.ellipse(R.x + sx2, R.y + sy2, 5, 2.2, 0, 0, Math.PI * 2);
+                else g.ellipse(R.x + sy2, R.y + sx2, 2.2, 5, 0, 0, Math.PI * 2);
+                g.fill();
+            }
+            g.beginPath();
+        } else if (kind === 'sandstone') {
+            // Strata: bands of rock laid down along the wall, gently wavy.
+            for (k = 3; k < wid; k += 4 + hash(seed + k) * 3) {
+                var amp = 1 + hash(seed + k * 4) * 1.5;
+                for (a = 0; a < len; a += 12) line(a, k + Math.sin(a * 0.08 + k) * amp, Math.min(len, a + 12), k + Math.sin((a + 12) * 0.08 + k) * amp);
+            }
         } else if (kind === 'log') {
             for (k = 4; k < wid; k += 3 + hash(seed + k) * 4) line(0, k, len, k + (hash(seed + k * 3) - 0.5) * 2);
             g.stroke();
@@ -876,8 +1029,9 @@
        radius the simulation uses, pulsing orange on every card so that
        "livelier than a wall" reads the same in every biome. The cap inside
        it is the biome's: a brass post, a flowerpot, a buoy, a toadstool, a
-       hay bale. It is drawn a little up and left of the ring, so it stands
-       on the grass rather than being painted on it. */
+       hay bale, a pumpkin, a snowman, a barrel cactus, a lamp. It is drawn
+       a little up and left of the ring, so it stands on the grass rather
+       than being painted on it. */
     function drawBumper(g, b, t, theme, v) {
         var pulse = 0.5 + Math.sin(t * 2.2 + b.x * 0.03) * 0.5;
         var sh = sv(v, 3, 4), up = sv(v, -1, -1.5);
@@ -937,6 +1091,73 @@
                 grad.addColorStop(0, 'rgba(255,250,210,0.4)'); grad.addColorStop(1, 'rgba(90,60,10,0.3)');
                 g.fillStyle = grad; g.beginPath(); g.arc(cx, cy, r, 0, Math.PI * 2); g.fill();
                 break;
+            case 'pumpkin':
+                grad = g.createRadialGradient(cx + hl.x, cy + hl.y, r * 0.1, cx, cy, r);
+                grad.addColorStop(0, '#fdba74'); grad.addColorStop(1, '#c2410c');
+                g.fillStyle = grad; g.beginPath(); g.arc(cx, cy, r, 0, Math.PI * 2); g.fill();
+                // The ribs, running in to the stalk.
+                g.strokeStyle = 'rgba(124, 45, 18, 0.55)'; g.lineWidth = 1.3;
+                g.beginPath();
+                for (k = 0; k < 8; k++) {
+                    var pa = k * Math.PI / 4;
+                    g.moveTo(cx + Math.cos(pa) * r * 0.22, cy + Math.sin(pa) * r * 0.22);
+                    g.quadraticCurveTo(cx + Math.cos(pa + 0.2) * r * 0.7, cy + Math.sin(pa + 0.2) * r * 0.7, cx + Math.cos(pa) * r * 0.96, cy + Math.sin(pa) * r * 0.96);
+                }
+                g.stroke();
+                g.fillStyle = '#4d7c0f'; g.beginPath(); g.arc(cx, cy, r * 0.2, 0, Math.PI * 2); g.fill();
+                g.fillStyle = '#65a30d'; g.beginPath(); g.ellipse(cx + r * 0.28, cy - r * 0.08, r * 0.26, r * 0.12, 0.5, 0, Math.PI * 2); g.fill();
+                break;
+            case 'snowman':
+                // Seen the way the walls are, from above and in front: the
+                // body, the head stacked on it and so higher up the screen,
+                // coal eyes and buttons, a carrot nose and a red scarf.
+                var down = Math.atan2(v.dy, v.dx);
+                var hd = sv(v, 0, -r * 0.4), hx = cx + hd.x, hy = cy + hd.y, hr = r * 0.52;
+                grad = g.createRadialGradient(cx + hl.x, cy + hl.y, r * 0.1, cx, cy, r);
+                grad.addColorStop(0, '#ffffff'); grad.addColorStop(1, '#b4c6d8');
+                g.fillStyle = grad; g.beginPath(); g.arc(cx, cy, r, 0, Math.PI * 2); g.fill();
+                g.fillStyle = '#1f2937';
+                [0.3, 0.62].forEach(function (d) { var bt = sv(v, 0, r * d); g.beginPath(); g.arc(cx + bt.x, cy + bt.y, r * 0.07, 0, Math.PI * 2); g.fill(); });
+                g.fillStyle = 'rgba(60, 90, 120, 0.25)'; g.beginPath(); g.arc(hx, hy + 0, hr * 1.05, 0, Math.PI * 2); g.fill();
+                grad = g.createRadialGradient(hx + hl.x * 0.5, hy + hl.y * 0.5, r * 0.05, hx, hy, hr);
+                grad.addColorStop(0, '#ffffff'); grad.addColorStop(1, '#c6d4e3');
+                g.fillStyle = grad; g.beginPath(); g.arc(hx, hy, hr, 0, Math.PI * 2); g.fill();
+                g.strokeStyle = '#c81e1e'; g.lineWidth = r * 0.14; g.lineCap = 'round';
+                g.beginPath(); g.arc(hx, hy, hr * 0.98, down - 1.05, down + 1.05); g.stroke();
+                g.fillStyle = '#111827';
+                [-1, 1].forEach(function (sd) { var e = sv(v, sd * hr * 0.36, -hr * 0.12); g.beginPath(); g.arc(hx + e.x, hy + e.y, r * 0.065, 0, Math.PI * 2); g.fill(); });
+                var n0 = sv(v, 0, hr * 0.22), n1 = sv(v, hr * 0.62, hr * 0.36), nw = sv(v, 0, hr * 0.1);
+                g.fillStyle = '#f97316';
+                g.beginPath(); g.moveTo(hx + n0.x - nw.x, hy + n0.y - nw.y); g.lineTo(hx + n1.x, hy + n1.y); g.lineTo(hx + n0.x + nw.x, hy + n0.y + nw.y); g.closePath(); g.fill();
+                break;
+            case 'cactus':
+                grad = g.createRadialGradient(cx + hl.x, cy + hl.y, r * 0.1, cx, cy, r);
+                grad.addColorStop(0, '#86c06a'); grad.addColorStop(1, '#2f6b35');
+                g.fillStyle = grad; g.beginPath(); g.arc(cx, cy, r, 0, Math.PI * 2); g.fill();
+                g.strokeStyle = 'rgba(20, 60, 25, 0.55)'; g.lineWidth = 1.1;
+                g.beginPath();
+                for (k = 0; k < 12; k++) { var ca = k * Math.PI / 6; g.moveTo(cx, cy); g.lineTo(cx + Math.cos(ca) * r, cy + Math.sin(ca) * r); }
+                g.stroke();
+                g.fillStyle = 'rgba(255, 250, 220, 0.8)';
+                for (k = 0; k < 12; k++) {
+                    var ta = k * Math.PI / 6 + 0.26;
+                    g.fillRect(cx + Math.cos(ta) * r * 0.72 - 0.6, cy + Math.sin(ta) * r * 0.72 - 0.6, 1.2, 1.2);
+                }
+                g.fillStyle = '#f472b6';
+                for (k = 0; k < 5; k++) { g.beginPath(); g.arc(cx + Math.cos(k * 1.26) * r * 0.16, cy + Math.sin(k * 1.26) * r * 0.16, r * 0.14, 0, Math.PI * 2); g.fill(); }
+                g.fillStyle = '#fde68a'; g.beginPath(); g.arc(cx, cy, r * 0.09, 0, Math.PI * 2); g.fill();
+                break;
+            case 'lamp':
+                // A lantern globe, lit: the light it throws is ambience.js's.
+                grad = g.createRadialGradient(cx + hl.x * 0.4, cy + hl.y * 0.4, r * 0.05, cx, cy, r);
+                grad.addColorStop(0, '#fffbeb'); grad.addColorStop(0.45, '#fde68a'); grad.addColorStop(1, '#d97706');
+                g.fillStyle = grad; g.beginPath(); g.arc(cx, cy, r, 0, Math.PI * 2); g.fill();
+                g.strokeStyle = 'rgba(60, 40, 20, 0.6)'; g.lineWidth = 1.2;
+                g.beginPath();
+                for (k = 0; k < 4; k++) { var la2 = k * Math.PI / 2 + 0.4; g.moveTo(cx + Math.cos(la2) * r * 0.3, cy + Math.sin(la2) * r * 0.3); g.lineTo(cx + Math.cos(la2) * r, cy + Math.sin(la2) * r); }
+                g.stroke();
+                g.fillStyle = '#3f2d1c'; g.beginPath(); g.arc(cx, cy, r * 0.22, 0, Math.PI * 2); g.fill();
+                break;
             default:
                 grad = g.createRadialGradient(cx + hl.x, cy + hl.y, b.r * 0.15, b.x, b.y, b.r);
                 grad.addColorStop(0, '#fde68a'); grad.addColorStop(0.55, '#f59e0b'); grad.addColorStop(1, '#b45309');
@@ -959,7 +1180,11 @@
         blossom: ['#3f7d3a', '#57994d', '#2c5e2a'],
         palm: ['#4d8c2b', '#6aa33a', '#3a6e21'],
         pine: ['#1d4a2b', '#25603a', '#163a22'],
-        willow: ['#7aa84a', '#8fbd58', '#5f8c3a']
+        willow: ['#7aa84a', '#8fbd58', '#5f8c3a'],
+        maple: ['#b8471f', '#e98a2e', '#8f2f14', '#d9a03a'],
+        snowpine: ['#1f4a38', '#2a5f48', '#173a2c'],
+        acacia: ['#6c7f2e', '#8a9a40', '#4f5f22'],
+        nightoak: ['#16302c', '#21453b', '#0f2420']
     };
 
     function drawCanopyShadows(g, list, v) {
@@ -984,7 +1209,7 @@
             g.translate(c.x, c.y);
             g.rotate(Math.sin(clock * 0.5 + c.p) * 0.025);
             if (theme.canopy === 'palm') palm(g, c.r, pal, c.p);
-            else if (theme.canopy === 'pine') pine(g, c.r, pal, c.p);
+            else if (theme.canopy === 'pine' || theme.canopy === 'snowpine') pine(g, c.r, pal, c.p, theme.canopy === 'snowpine');
             else crown(g, c.r, pal, c.p, theme.canopy, v);
             g.restore();
         }
@@ -993,12 +1218,16 @@
     // A broadleaf crown: overlapping clumps, lit on the side towards the light.
     function crown(g, R, pal, p, kind, v) {
         var lightDir = sv(v, -1, -1);
-        for (var k = 0; k < 9; k++) {
-            var a = k * 0.7 + p, d = k === 0 ? 0 : R * (0.35 + hash(p * 10 + k) * 0.35);
-            var x = Math.cos(a) * d, y = Math.sin(a) * d, r = R * (0.42 + hash(p * 7 + k) * 0.2);
+        // An acacia is wide and flat: more, smaller clumps spread further.
+        var flat = kind === 'acacia', n = flat ? 14 : 9;
+        for (var k = 0; k < n; k++) {
+            var a = k * 0.7 + p, d = k === 0 ? 0 : R * (flat ? 0.45 + hash(p * 10 + k) * 0.45 : 0.35 + hash(p * 10 + k) * 0.35);
+            var x = Math.cos(a) * d, y = Math.sin(a) * d, r = R * (flat ? 0.28 + hash(p * 7 + k) * 0.14 : 0.42 + hash(p * 7 + k) * 0.2);
             var grad = g.createRadialGradient(x + lightDir.x * r * 0.4, y + lightDir.y * r * 0.4, r * 0.1, x, y, r);
-            grad.addColorStop(0, pal[1]);
-            grad.addColorStop(1, pal[2]);
+            // A maple turns unevenly, clump by clump.
+            var lit0 = kind === 'maple' ? pal[1 + (k % 3)] : pal[1];
+            grad.addColorStop(0, lit0);
+            grad.addColorStop(1, pal[kind === 'maple' ? (k % 2 ? 2 : 0) : 2]);
             g.fillStyle = grad;
             g.beginPath();
             g.arc(x, y, r, 0, Math.PI * 2);
@@ -1052,7 +1281,7 @@
         g.fill();
     }
 
-    function pine(g, R, pal, p) {
+    function pine(g, R, pal, p, snowy) {
         for (var layer = 0; layer < 3; layer++) {
             var r = R * (1 - layer * 0.28);
             g.fillStyle = pal[layer % 3];
@@ -1064,17 +1293,29 @@
             }
             g.closePath();
             g.fill();
+            if (snowy) {
+                // Snow along the tips of each tier of branches.
+                g.fillStyle = 'rgba(245, 250, 255, 0.9)';
+                for (k = 0; k < 24; k += 2) {
+                    var sa = k * Math.PI / 12 + p + layer * 0.2;
+                    g.beginPath();
+                    g.ellipse(Math.cos(sa) * r * 0.84, Math.sin(sa) * r * 0.84, r * 0.11, r * 0.06, sa + Math.PI / 2, 0, Math.PI * 2);
+                    g.fill();
+                }
+            }
         }
     }
 
-    /* Clouds: two soft shadows drifting over everything, trees included.
-       Wind runs across the screen, not across the world, so on a turned
-       phone they still drift the way the eye expects. Still under reduced
-       motion — there is no clock to move them. */
-    function drawClouds(g, clock, v, seed) {
+    /* Clouds: soft shadows drifting over everything, trees included — two
+       on most days, more over the meadow, none over the desert or after
+       dark. Wind runs across the screen, not across the world, so on a
+       turned phone they still drift the way the eye expects. Still under
+       reduced motion — there is no clock to move them. */
+    function drawClouds(g, clock, v, seed, count) {
         var span = W + H;
+        var n = typeof count === 'number' ? count : 2;
         g.save();
-        for (var i = 0; i < 2; i++) {
+        for (var i = 0; i < n; i++) {
             var lane = hash(seed + i * 3.3);
             var along = ((clock * (6 + i * 2.5) + hash(seed + i) * span) % (span + 500)) - 250;
             var across = (0.15 + lane * 0.7);
@@ -1101,7 +1342,11 @@
         brick: { face: '#8a432d', hi: 'rgba(255, 220, 200, 0.3)' },
         plank: { face: '#9c8a6d', hi: 'rgba(255, 250, 230, 0.35)' },
         log: { face: '#5b3820', hi: 'rgba(240, 200, 150, 0.25)' },
-        hedge: { face: '#24552a', hi: 'rgba(200, 255, 180, 0.22)' }
+        hedge: { face: '#24552a', hi: 'rgba(200, 255, 180, 0.22)' },
+        stone: { face: '#75766f', hi: 'rgba(255, 255, 240, 0.3)', joints: 'rgba(30, 30, 25, 0.5)' },
+        snow: { face: '#e4edf3', hi: 'rgba(255, 255, 255, 0.6)' },
+        adobe: { face: '#b06f45', hi: 'rgba(255, 220, 180, 0.32)' },
+        night: { face: '#1a2232', hi: 'rgba(160, 180, 220, 0.22)' }
     };
 
     function drawRim(g, theme, v) {
@@ -1130,12 +1375,14 @@
         g.strokeStyle = 'rgba(0,0,0,0.35)';
         g.lineWidth = 1.5;
         g.strokeRect(9, 9, W - 18, H - 18);
-        if (theme.rim === 'brick') {
-            g.strokeStyle = 'rgba(240, 220, 200, 0.3)';
+        if (theme.rim === 'brick' || theme.rim === 'stone') {
+            // Joints: regular for brick, uneven for dry stone.
+            var stone = theme.rim === 'stone';
+            g.strokeStyle = rim.joints || 'rgba(240, 220, 200, 0.3)';
             g.lineWidth = 1;
             g.beginPath();
-            for (var x = 20; x < W; x += 22) { g.moveTo(x, 0); g.lineTo(x, 9); g.moveTo(x, H - 9); g.lineTo(x, H); }
-            for (var y = 20; y < H; y += 22) { g.moveTo(0, y); g.lineTo(9, y); g.moveTo(W - 9, y); g.lineTo(W, y); }
+            for (var x = 20; x < W; x += stone ? 14 + hash(x) * 16 : 22) { g.moveTo(x, 0); g.lineTo(x, 9); g.moveTo(x + 7, H - 9); g.lineTo(x + 7, H); }
+            for (var y = 20; y < H; y += stone ? 14 + hash(y + 3) * 16 : 22) { g.moveTo(0, y); g.lineTo(9, y); g.moveTo(W - 9, y + 5); g.lineTo(W, y + 5); }
             g.stroke();
         }
         g.restore();
@@ -1195,12 +1442,33 @@
         drawDecals(g, dec.decals, theme);
         drawCanopyShadows(g, dec.canopies, v);
         drawTee(g, course.tee, v);
+        grade(g, theme, v, false);
     }
 
     function paintSolids(g, course, theme, v) {
         var i, rails = course.rails || [];
         for (i = 0; i < rails.length; i++) drawRail(g, rails[i], theme, v);
         for (i = 0; i < course.walls.length; i++) if (!course.walls[i].move) drawWall(g, course.walls[i], 0, theme, v);
+        grade(g, theme, v, true);
+    }
+
+    /* The light of the hour: a tint across the whole field from the
+       screen's lit corner to its far one — gold in the autumn and the
+       desert, cold blue in the snow. Painted into the still layers, so it
+       costs a frame nothing; on the walls' layer it is laid only where there
+       is paint already, or it would tint the air round them. */
+    function grade(g, theme, v, atop) {
+        if (!theme.grade) return;
+        var d = sv(v, -1, -1), n = Math.hypot(d.x, d.y), ux = d.x / n, uy = d.y / n;
+        var ext = Math.abs(ux) * W / 2 + Math.abs(uy) * H / 2;
+        var grad = g.createLinearGradient(W / 2 + ux * ext, H / 2 + uy * ext, W / 2 - ux * ext, H / 2 - uy * ext);
+        grad.addColorStop(0, theme.grade.a);
+        grad.addColorStop(1, theme.grade.b);
+        g.save();
+        if (atop) g.globalCompositeOperation = 'source-atop';
+        g.fillStyle = grad;
+        g.fillRect(0, 0, W, H);
+        g.restore();
     }
 
     /* Everything under the ball that `frame` would otherwise draw piece by
@@ -1244,7 +1512,11 @@
         drawCanopies: drawCanopies,
         drawClouds: drawClouds,
         drawRim: drawRim,
-        MATERIAL: MATERIAL
+        layer: layer,
+        hash: hash,
+        MATERIAL: MATERIAL,
+        RIM: RIM,
+        CANOPY: CANOPY
     };
 
 })(window.GOLF);

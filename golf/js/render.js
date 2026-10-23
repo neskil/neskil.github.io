@@ -11,6 +11,7 @@
     var P = GOLF.physics;
 
     var L = GOLF.landscape;
+    var AMB = GOLF.ambience;
     var SC = GOLF.scenery;
     var roundRect = L.roundRect;
     var motionQuery = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : null;
@@ -23,6 +24,19 @@
     function drawHole(g, hole, t, ball, v) {
         var up = v.turned ? Math.PI / 2 : 0;
         var lip = L.sv(v, 0, -3);
+        // The funnel: the turf falls away for a few pixels round the lip
+        // (physics.groundAt), shaded as a soft dip so the slope that tips a
+        // slow ball in is a thing you can see.
+        g.save();
+        var fun = g.createRadialGradient(hole.x, hole.y, C.HOLE_R, hole.x, hole.y, C.HOLE_R + C.CUP_BEVEL + 2);
+        fun.addColorStop(0, 'rgba(0,0,0,0.26)');
+        fun.addColorStop(0.55, 'rgba(0,0,0,0.08)');
+        fun.addColorStop(1, 'rgba(0,0,0,0)');
+        g.fillStyle = fun;
+        g.beginPath();
+        g.arc(hole.x, hole.y, C.HOLE_R + C.CUP_BEVEL + 2, 0, Math.PI * 2);
+        g.fill();
+        g.restore();
         // Cup.
         g.save();
         g.beginPath();
@@ -112,10 +126,114 @@
         g.restore();
     }
 
-    /* The dimples turn with the roll — `spin` is distance travelled over the
-       radius, i.e. the angle a real ball would have turned through. It is the
-       cheapest possible cue that the ball is rolling and not sliding, and at
-       rest it leaves the ball sitting at whatever angle it stopped at. */
+    /* The ball rolls. `spin` is its orientation — a rotation from the
+       ball's own frame to the world's, x and y on the green and z up out of
+       it — turned every frame about the axis a ball rolling without
+       slipping turns about (up × velocity), through distance over radius.
+       Its marks are fixed to the sphere: dimples scattered over it, and a
+       triple track of alignment stripes. Only the half
+       facing up is drawn, each mark squashed and faded as it turns towards
+       the edge, while the shading and the glint stay with the light — which
+       is what makes it read as a ball turning over rather than a picture of
+       one spinning on the spot. At pace the marks fade into a blur, since a
+       ball turning a third of a revolution a frame would otherwise strobe
+       and appear to roll backwards. */
+    var ROLL_DOTS = (function () {
+        var out = [], n = 64, gold = Math.PI * (3 - Math.sqrt(5));
+        for (var i = 0; i < n; i++) {
+            var z = 1 - (2 * i + 1) / n, rr = Math.sqrt(1 - z * z), a = i * gold;
+            out.push([Math.cos(a) * rr, Math.sin(a) * rr, z]);
+        }
+        return out;
+    })();
+    var ROLL_LINE = 36;
+
+    function rolled() { return { m: [1, 0, 0, 0, 1, 0, 0, 0, 1], blur: 0, n: 0 }; }
+
+    // Turn the ball through a frame's roll: Rodrigues about the horizontal
+    // axis (-vy, vx, 0), applied in the world frame.
+    function roll(o, vx, vy, dt) {
+        var sp = Math.hypot(vx, vy), ang = sp * dt / C.BALL_R;
+        o.blur = ang;
+        if (ang < 1e-6) return;
+        var ax = -vy / sp, ay = vx / sp, c = Math.cos(ang), s = Math.sin(ang), t = 1 - c;
+        var R = [t * ax * ax + c, t * ax * ay, s * ay,
+                 t * ax * ay, t * ay * ay + c, -s * ax,
+                 -s * ay, s * ax, c];
+        var m = o.m, out = new Array(9);
+        for (var i = 0; i < 3; i++) for (var j = 0; j < 3; j++) {
+            out[i * 3 + j] = R[i * 3] * m[j] + R[i * 3 + 1] * m[3 + j] + R[i * 3 + 2] * m[6 + j];
+        }
+        o.m = out;
+        // A frame's rounding at a time adds up; straighten the axes now and
+        // then so the ball does not slowly turn into an egg.
+        if (++o.n % 120 === 0) orthonormal(o.m);
+    }
+
+    function orthonormal(m) {
+        var c0 = [m[0], m[3], m[6]], c1 = [m[1], m[4], m[7]];
+        var l = Math.hypot(c0[0], c0[1], c0[2]);
+        c0 = [c0[0] / l, c0[1] / l, c0[2] / l];
+        var d = c0[0] * c1[0] + c0[1] * c1[1] + c0[2] * c1[2];
+        c1 = [c1[0] - d * c0[0], c1[1] - d * c0[1], c1[2] - d * c0[2]];
+        l = Math.hypot(c1[0], c1[1], c1[2]);
+        c1 = [c1[0] / l, c1[1] / l, c1[2] / l];
+        var c2 = [c0[1] * c1[2] - c0[2] * c1[1], c0[2] * c1[0] - c0[0] * c1[2], c0[0] * c1[1] - c0[1] * c1[0]];
+        m[0] = c0[0]; m[3] = c0[1]; m[6] = c0[2];
+        m[1] = c1[0]; m[4] = c1[1]; m[7] = c1[2];
+        m[2] = c2[0]; m[5] = c2[1]; m[8] = c2[2];
+    }
+
+    /* The marks on the sphere, drawn over the ball at (x, y): a fine cover
+       of dimples, and a triple track — three parallel stripes, blue, red,
+       blue, part of the way round, as the alignment balls have them. On a
+       party ball in colour the stripes are white. */
+    var TRACKS = [
+        { off: -0.27, ink: 'rgba(37,99,235,0.85)', alt: 'rgba(255,255,255,0.7)', w: 0.85 },
+        { off: 0, ink: 'rgba(225,29,72,0.9)', alt: 'rgba(255,255,255,0.85)', w: 1.05 },
+        { off: 0.27, ink: 'rgba(37,99,235,0.85)', alt: 'rgba(255,255,255,0.7)', w: 0.85 }
+    ];
+    var TRACK_ARC = Math.PI * 0.62;
+    function drawMarks(g, x, y, o, tinted, R) {
+        var m = o.m, r = R || C.BALL_R;
+        // Clear below a sixth of a turn a frame, gone to a haze by half.
+        var clear = Math.max(0.12, Math.min(1, 1 - (o.blur - 0.9) / 1.6));
+        function at(p) {
+            return [m[0] * p[0] + m[1] * p[1] + m[2] * p[2],
+                    m[3] * p[0] + m[4] * p[1] + m[5] * p[2],
+                    m[6] * p[0] + m[7] * p[1] + m[8] * p[2]];
+        }
+        g.fillStyle = tinted ? 'rgba(0,0,0,0.22)' : 'rgba(110,128,145,0.34)';
+        for (var i = 0; i < ROLL_DOTS.length; i++) {
+            var q = at(ROLL_DOTS[i]);
+            if (q[2] < 0.08) continue;
+            g.globalAlpha = clear * Math.min(1, q[2] * 1.6);
+            g.beginPath();
+            g.ellipse(x + q[0] * r * 0.94, y + q[1] * r * 0.94, 0.72 * Math.max(0.25, q[2]), 0.72,
+                Math.atan2(q[1], q[0]), 0, Math.PI * 2);
+            g.fill();
+        }
+        g.lineCap = 'round';
+        for (var t = 0; t < TRACKS.length; t++) {
+            var tr = TRACKS[t], c = Math.sqrt(1 - tr.off * tr.off), prev = null;
+            g.strokeStyle = tinted ? tr.alt : tr.ink;
+            g.lineWidth = tr.w * r / C.BALL_R;
+            for (var k = 0; k <= ROLL_LINE; k++) {
+                var a = -TRACK_ARC + 2 * TRACK_ARC * k / ROLL_LINE;
+                var p = at([Math.sin(a) * c, tr.off, Math.cos(a) * c]);
+                if (prev && prev[2] > 0 && p[2] > 0) {
+                    g.globalAlpha = clear * Math.min(1, (prev[2] + p[2]) * 1.2);
+                    g.beginPath();
+                    g.moveTo(x + prev[0] * r * 0.97, y + prev[1] * r * 0.97);
+                    g.lineTo(x + p[0] * r * 0.97, y + p[1] * r * 0.97);
+                    g.stroke();
+                }
+                prev = p;
+            }
+        }
+        g.globalAlpha = 1;
+    }
+
     /* A party plays in colour. The white ball is the one the game has
        always had; a coloured one keeps the same highlight and dimples and
        takes its body from the player's colour, with a dark rim so that an
@@ -125,12 +243,54 @@
        further away and fainter), `squash` flattens it against whatever it
        just hit, along `nx, ny`, and `drown` 0..1 is how far under the water
        it has gone. All three are drawing only — the physics never sees them. */
-    function drawBall(g, ball, spin, color, v, pose) {
+    /* And it has a height. Over the cup the ball is a sphere with a centre
+       `z` above the green (physics.cup), and the drawing follows it: hopping
+       out over the back it rises up the screen and leaves its shadow behind
+       on the turf; dropping in it sinks down the screen, darker and a touch
+       smaller, and the near side of the cup covers whatever of it is below
+       the green. Everywhere else z is the radius and none of this shows. */
+    function drawBall(g, ball, spin, color, v, pose, hole) {
+        var r = C.BALL_R, h = ball.z === undefined ? 0 : ball.z - r;
+        var hop = Math.max(0, h), dip = Math.max(0, -h);
+        if (hop < 0.05 && dip < 0.05) return drawBallAt(g, ball, ball, spin, color, v, pose, 0, 0);
+        var off = L.sv(v, 0, dip * 0.55 - hop);
+        var at = { x: ball.x + off.x, y: ball.y + off.y };
+        var deep = Math.min(1, dip / (2 * r));
+        g.save();
+        // Below the green: what the cup's near wall hides. The part still
+        // above the green is the cap the turf has not reached yet.
+        if (hole && dip > r) {
+            var z = r - dip, cap = Math.sqrt(Math.max(0, r * r - z * z));
+            g.beginPath();
+            g.arc(hole.x, hole.y, C.HOLE_R, 0, Math.PI * 2);
+            g.moveTo(ball.x + cap, ball.y);
+            g.arc(ball.x, ball.y, cap, 0, Math.PI * 2);
+            g.clip();
+        }
+        var k = 1 - 0.14 * deep;
+        g.translate(at.x, at.y);
+        g.scale(k, k);
+        g.translate(-at.x, -at.y);
+        drawBallAt(g, ball, at, spin, color, v, pose, hop, dip);
+        if (deep > 0) {
+            g.fillStyle = 'rgba(0,0,0,' + (0.62 * deep).toFixed(3) + ')';
+            g.beginPath();
+            g.arc(at.x, at.y, r + 0.5, 0, Math.PI * 2);
+            g.fill();
+        }
+        g.restore();
+    }
+
+    // The ball itself, drawn at `at`, its shadow on the ground under
+    // `ground`: pushed further out and fainter the higher it flies, gone
+    // once the ball is down in the dark of the cup or under the water.
+    function drawBallAt(g, ground, ball, spin, color, v, pose, hop, dip) {
         pose = pose || NO_POSE;
         var lift = pose.lift || 0, drown = pose.drown || 0, sq = pose.squash || 0;
         var R = C.BALL_R * (1 + lift * 0.4) * (1 - drown * 0.6);
         var reach = 1 + lift * 3.2;
-        var sh = L.sv(v, 2.5 * reach, 3.5 * reach), hl = L.sv(v, -2.5, -3), dot = L.sv(v, 0, -1), glint = L.sv(v, -2.4, -2.8);
+        var sh = L.sv(v, 2.5 * reach + hop * 0.5, 3.5 * reach + hop * 0.7), hl = L.sv(v, -2.5, -3), glint = L.sv(v, -2.4, -2.8);
+        var shade0 = drown ? 0 : (0.35 - lift * 0.17) * Math.max(0.3, 1 - hop / 28) * Math.max(0, 1 - dip / C.BALL_R);
         g.save();
         if (drown) g.globalAlpha = Math.max(0, 1 - drown);
         if (sq) {
@@ -142,10 +302,12 @@
             g.translate(-ball.x, -ball.y);
         }
         g.save();
-        g.fillStyle = 'rgba(0,0,0,' + (drown ? 0 : 0.35 - lift * 0.17).toFixed(3) + ')';
-        g.beginPath();
-        g.ellipse(ball.x + sh.x, ball.y + sh.y, R * 1.05, R * 0.9, 0, 0, Math.PI * 2);
-        g.fill();
+        if (shade0 > 0) {
+            g.fillStyle = 'rgba(0,0,0,' + shade0.toFixed(3) + ')';
+            g.beginPath();
+            g.ellipse(ground.x + sh.x, ground.y + sh.y, R * (1.05 + hop * 0.01), R * (0.9 + hop * 0.01), 0, 0, Math.PI * 2);
+            g.fill();
+        }
 
         var tinted = color && color !== C.PLAYER_COLORS[0];
         var grad = g.createRadialGradient(ball.x + hl.x, ball.y + hl.y, 1, ball.x, ball.y, R);
@@ -165,15 +327,14 @@
         g.beginPath();
         g.arc(ball.x, ball.y, R, 0, Math.PI * 2);
         g.clip();
-        g.fillStyle = 'rgba(120,140,155,0.35)';
-        for (var i = 0; i < 5; i++) {
-            var a = spin + i * (Math.PI * 2 / 5);
-            var dx = Math.cos(a) * R * 0.52 + dot.x;
-            var dy = Math.sin(a) * R * 0.52 + dot.y;
-            g.beginPath();
-            g.arc(ball.x + dx, ball.y + dy, 1.25, 0, Math.PI * 2);
-            g.fill();
-        }
+        drawMarks(g, ball.x, ball.y, spin, tinted, R);
+        // The shading again, faintly, over the marks: they sit on the
+        // sphere, so they darken towards its edge with everything else.
+        var rim = g.createRadialGradient(ball.x + hl.x, ball.y + hl.y, R * 0.4, ball.x, ball.y, R);
+        rim.addColorStop(0, 'rgba(0,0,0,0)');
+        rim.addColorStop(1, 'rgba(40,55,70,0.22)');
+        g.fillStyle = rim;
+        g.fillRect(ball.x - R, ball.y - R, R * 2, R * 2);
         // Going under: the water closes over it from the outside in.
         if (drown) {
             g.fillStyle = 'rgba(56, 120, 160,' + (drown * 0.8).toFixed(3) + ')';
@@ -358,42 +519,58 @@
         // top where nobody is trying to tell 90% from 95% by eye.
         var tip = tail + C.AIM_ARROW + (C.AIM_ARROW_FULL - C.AIM_ARROW) * Math.sqrt(frac);
 
-        /* The guide ray, out to the edge of the field. Direction only: it does
-           not stop at a wall, because where the ball comes off a wall is the
-           question the hole is asking.
+        /* The guide ray: a short, fading run past the arrowhead. It used to
+           go on to the edge of the field, and a ruled line across the whole
+           hole is the putt read for you — the player only had to lay it on
+           the cup. Now it says which way the arrow is pointing for a hand's
+           width more and then leaves the line to your eye.
 
            Past SAFE_POWER it opens into the cone the shot can actually leave
            in. The scatter is not a surprise the game springs on you after the
            fact — it is drawn, to scale, in the moment you are deciding how far
            to pull, which is the only way a risk is a choice rather than a
-           trick. */
+           trick. Its edges and fill run further than the plain ray
+           (AIM_CONE_LEN) before fading, so the warning is plain at a glance;
+           the centre line stops with the ray all the same. */
         var cone = P.spread(aim.power);
+        var far = tip + C.AIM_GUIDE_LEN, wide = tip + C.AIM_CONE_LEN;
+        var colour = cone > 0 ? '251,113,133' : '255,255,255';
+        function fade(a, ea, to) {
+            var x0 = b.x + Math.cos(ea) * tip, y0 = b.y + Math.sin(ea) * tip;
+            var grad = g.createLinearGradient(x0, y0, b.x + Math.cos(ea) * to, b.y + Math.sin(ea) * to);
+            grad.addColorStop(0, 'rgba(' + colour + ',' + a + ')');
+            grad.addColorStop(1, 'rgba(' + colour + ',0)');
+            return grad;
+        }
         g.save();
         // The cone is a warning, not a hint: it earns twice the ink the plain
         // ray gets, or the one drawing on screen that says "this shot may not
         // go where you are pointing" is the faintest thing on the field.
-        g.globalAlpha = cone > 0 ? C.AIM_GUIDE_ALPHA * 2.2 : C.AIM_GUIDE_ALPHA;
-        g.strokeStyle = cone > 0 ? '#fb7185' : '#ffffff';
+        var ink = cone > 0 ? C.AIM_GUIDE_ALPHA * 2.2 : C.AIM_GUIDE_ALPHA;
         g.lineWidth = 1.5;
         g.setLineDash([2, 9]);
         g.lineDashOffset = -t * 18;
         for (var e = -1; e <= 1; e++) {
             if (e !== 0 && cone === 0) continue;
-            var ea = angle + e * cone;
+            var ea = angle + e * cone, to = e === 0 ? far : wide;
+            g.strokeStyle = fade(ink, ea, to);
             g.beginPath();
             g.moveTo(b.x + Math.cos(ea) * tip, b.y + Math.sin(ea) * tip);
-            g.lineTo(b.x + Math.cos(ea) * 1600, b.y + Math.sin(ea) * 1600);
+            g.lineTo(b.x + Math.cos(ea) * to, b.y + Math.sin(ea) * to);
             g.stroke();
         }
         g.restore();
 
         if (cone > 0) {
             g.save();
-            g.globalAlpha = 0.13;
-            g.fillStyle = '#fb7185';
+            var halo = g.createRadialGradient(b.x, b.y, tip, b.x, b.y, wide);
+            halo.addColorStop(0, 'rgba(251,113,133,0.16)');
+            halo.addColorStop(0.6, 'rgba(251,113,133,0.08)');
+            halo.addColorStop(1, 'rgba(251,113,133,0)');
+            g.fillStyle = halo;
             g.beginPath();
             g.moveTo(b.x + ux * tip, b.y + uy * tip);
-            g.arc(b.x, b.y, 1600, angle - cone, angle + cone);
+            g.arc(b.x, b.y, wide, angle - cone, angle + cone);
             g.closePath();
             g.fill();
             g.restore();
@@ -634,6 +811,8 @@
             for (var k = 0; k < 3; k++) {
                 addRing(x, y, C.BALL_R, { color: FOAM, grow: 34 + k * 14, life: 0.9, delay: k * 0.16, width: 2.5, alpha: 0.7 });
             }
+            // And the shader's own rings, in the water itself.
+            if (GOLF.water) GOLF.water.ripple(x, y, 1);
             drown = { life: 0 };
         },
         /* Off the top: a ripple where it touched, and spray thrown out to
@@ -737,7 +916,7 @@
 
     /* ── frame ──────────────────────────────────────────────────────────── */
 
-    var spin = 0;
+    var spin = rolled();
     // The coach's own clock: world time stands still between shots on a hole
     // with nothing moving, and the ghost finger has to keep going.
     var clock = 0;
@@ -753,6 +932,11 @@
         // reach hsl() and paint the whole field transparent.
         var key = typeof state.holeIndex === 'number' ? state.holeIndex : 0;
         var scene = L.scene(course, theme, v, { key: state.sceneKey, res: state.res || 1, seed: key + 1 });
+        var ball = state.world.sunk ? null : state.world.ball;
+        var still = !!(motionQuery && motionQuery.matches);
+        // The life over a course is the game's, not the editor's: a
+        // butterfly crossing a hole you are building is in the way.
+        var life = AMB && !!state.sceneKey;
         var i;
 
         // Nothing is drawn off the field. The game's canvas is the field, so
@@ -767,24 +951,27 @@
         // Under the ball: the ground, the water, tunnels, the cup, every
         // wall that holds still — then the ones that move, and the posts.
         scene.ground(g);
-        L.drawWater(g, course.water, theme, v, t, clock, scene.decor);
+        L.drawWater(g, course.water, theme, v, t, clock, scene.decor, { key: state.sceneKey, res: state.res || 1, still: still });
         drawTunnels(g, course.tunnels, t, v);
         drawHole(g, course.hole, t, state.world.ball, v);
+        if (life) AMB.under(g, theme, v, clock, still);
         scene.solids(g);
         for (i = 0; i < course.walls.length; i++) {
             if (course.walls[i].move) L.drawWall(g, course.walls[i], t, theme, v);
         }
         for (i = 0; i < course.bumpers.length; i++) L.drawBumper(g, course.bumpers[i], t, theme, v);
+        // After dark, the dark: over the course, under the ball.
+        if (AMB) AMB.light(g, course, theme, v, ball, scene.decor, { key: state.sceneKey, res: state.res || 1 });
 
         updateParticles(dt);
         updateRings(g, dt);
         drawParticles(g);
 
-        spin += P.speedOf(state.world.ball) * dt / C.BALL_R;
+        roll(spin, state.world.ball.vx, state.world.ball.vy, dt);
         var pose = poseOf(state.world, dt || 0);
         if (!state.world.sunk) {
             drawTrail(g, state.trail, state.ballColor);
-            drawBall(g, state.world.ball, spin, state.ballColor, v, pose);
+            drawBall(g, state.world.ball, spin, state.ballColor, v, pose, course.hole);
         }
         if (state.aim && state.aim.active && !state.world.moving && !state.world.sunk) {
             drawAim(g, state.world, state.aim, t, state.lastFrac);
@@ -792,14 +979,16 @@
             drawCoach(g, state.world.ball, state.aim.angle, clock);
         }
 
-        // Over the ball: the course's edge, the trees reaching over it, and
-        // the weather over everything. A crown the ball is under goes thin.
+        // Over the ball: the course's edge, the trees reaching over it, what
+        // lives in the air, and the weather over everything. A crown the
+        // ball is under goes thin, and so does anything flying past it.
         L.drawRim(g, theme, v);
-        L.drawCanopies(g, scene.decor.canopies, theme, v, clock, state.world.sunk ? null : state.world.ball);
-        L.drawClouds(g, motionQuery && motionQuery.matches ? 0 : clock, v, key + 1);
+        L.drawCanopies(g, scene.decor.canopies, theme, v, clock, ball);
+        if (life) AMB.over(g, theme, v, clock, ball, still, scene.decor);
+        L.drawClouds(g, still ? 0 : clock, v, key + 1, theme.clouds);
         g.restore();
     }
 
-    GOLF.render = { frame: frame, effects: effects, roundRect: roundRect, tunnelInk: tunnelInk };
+    GOLF.render = { frame: frame, effects: effects, roundRect: roundRect, tunnelInk: tunnelInk, roll: roll, rolled: rolled };
 
 })(window.GOLF);
