@@ -2254,7 +2254,7 @@ climbs like every other one here:
 | 3 | The Beacon | 4 | Four units of climb, a pot bunker on the face of it where the drive stops, and over the top a long thin green on the summit with a tarn off its left. A three-shotter for anybody: a driver off a slope of a fifth barely leaves the ground. |
 | 4 | The Waste | 3 | Off a shelf, over the waste, to a round green at the bottom of a punchbowl between two hills. |
 | 5 | Long Ling | 5 | Over a shoulder and down the far side, then a lay-up: a burn seven units wide lies across the hole where a full second runs out, and nothing carries it from the valley floor. A full third over the whorl and a swale to a green with a pond off its left side. |
-| 6 | The Ravine | 4 | Off a bluff three and a half units up, and a full drive just carries a gorge two units deep — anything less finishes on its floor. Lay up and the second is a full drive over it. The green is on a shelf behind a cross bunker, with the ground falling away behind. |
+| 6 | The Ravine | 4 | Off a bluff three and a half units up, and a full drive just carries a bending gorge, rock on its near lip, between two and three units deep — anything less finishes on its floor. Lay up and the second is a full drive over it. The green is on a shelf behind a cross bunker, with the ground falling away behind. |
 
 Bell Heather's crest and every bunker and green on the course sit inside one
 flat row, so a landform's skirt is not spending a gradient the fairway has
@@ -2315,7 +2315,11 @@ and from the floor it gets out and is a shot or two down — and `carve(…, { r
 steeper than about 44° as bare rock in the skirt colour, with no grass on it,
 which is what makes a dip in the scrub read as a canyon. A carved canyon runs
 off both edges of the ground, so unlike a cut one it has no way round it and
-the stakes can stand back.
+the stakes can stand back. Dunmore's The Ravine went the same way (v1.91.0),
+which leaves `ravine` with no hole using it; it stays in the vocabulary for a
+gorge that wants a dead straight wall. Its floor is about 2.8 down at the
+deepest, inside Dunmore's `surroundY` of −3.2 — carve deeper there and the
+surround is drawn across the bottom of it.
 
 Redstone's mesa went the same way: a bands cell lifted MESA up is a box, so
 it is an oval disc of scrub now, marked `stands` — ground of its own with

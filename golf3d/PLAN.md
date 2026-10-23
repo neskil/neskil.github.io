@@ -189,7 +189,7 @@ The tools for it:
 Ashdown Park**, **all of Dunmore Heath** (Gorse Corner's and Long Ling's burns,
 The Beacon's tarn and Long Ling's pond are hollows; its treelines are strips
 and its stakes stand five back behind scrub wood — The Ravine's gorge is
-ground, not water, and is still a straight cut) and **all of Whinstone Links** — its burn, its two pools and the
+ground, not water, and is carved since v1.91.0) and **all of Whinstone Links** — its burn, its two pools and the
 water behind Elbow Point's green are hollows now, and The Ait is a round island
 in a ring of water (a disc of rough 0.45 up, because a pond's box drowns
 everything under its surface — the cup included — and the base ground is cut
@@ -250,8 +250,12 @@ crossings carved in eleven-unit bands (the island is fourteen long now, from
 sixteen), both running out of both sides. **Redstone** (v1.89.0): its canyon
 carved, and the mesa an oval disc that `stands` (README → "The gorge" for why
 the flag is load-bearing twice). **All six of Redstone's crossings are carved;
-round two is done on all four long courses.** The Ravine on Dunmore is the
-one `ravine` left in the long game, and it could go the same way.
+round two is done on all four long courses.** **The Ravine** (v1.91.0): the
+last `ravine` in the long game, carved at `scale: 0.9` and running out of
+both sides, so no long hole has a ruled edge left. The bot's card is
+unchanged (driver, 7-iron) and every point on the floor gets out in two or
+three. Its floor is 2.8 down against Dunmore's `surroundY` of −3.2, so that
+number still moves when the gorge does.
 
 **Redstone, the spring (v1.81.0).** Long Way Round's spring is a pool in a
 hollow. That release left the stakes and the canyons alone — a cut canyon
