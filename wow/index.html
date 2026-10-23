@@ -238,6 +238,8 @@ h1.forever .shine {
 .frame.dead .portrait { filter: grayscale(1) brightness(.55); }
 .frame.dead .f-name { color: var(--mute); text-decoration: line-through; text-decoration-color: rgba(255,59,47,.7); }
 .dead-tag { color: var(--not-ready); font-weight: 700; }
+.frame.shake { animation: shake .5s ease-in-out; }
+@keyframes shake { 20% { transform: translateX(-6px) rotate(-1deg); } 40% { transform: translateX(6px) rotate(1deg); } 60% { transform: translateX(-4px); } 80% { transform: translateX(3px); } }
 .frame.pending { border-style: dashed; border-color: #4a4434; background: linear-gradient(180deg, rgba(26,32,48,.55), rgba(12,16,25,.55)); }
 .frame.pending .portrait { filter: grayscale(1) brightness(.7); border-color: var(--mute); }
 .frame.pending .f-name { color: var(--mute); }
@@ -716,6 +718,7 @@ body.launched .tagline { color: var(--gold-hi); font-style: normal; font-family:
       rcTimer.push(setTimeout(() => {
         const yes = !p.pending;
         el.className = "rc show " + (yes ? "yes" : "no");
+        if (!yes && !reduce) { const fr = el.parentElement; fr.classList.remove("shake"); void fr.offsetWidth; fr.classList.add("shake"); }
         el.textContent = yes ? "✓" : "✗";
         emit("wow:rc", { i, state: yes ? "yes" : "no" });
       }, reduce ? 0 : 500 + i * 380 + Math.random() * 250));
