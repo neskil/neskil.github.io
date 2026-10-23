@@ -811,6 +811,22 @@
             var full = shotAt(true, undefined, G.CONFIG.MAX_POWER);
             assert('at the top of the dial the scatter cone reaches on past the short guide, then ends', near(off, full, 330) > 0 && near(off, full, 480) === 0,
                 near(off, full, 330) + ' / ' + near(off, full, 480));
+            /* The ball rolls rather than spins: its marks turn about the
+               axis a ball rolling along the green turns about, and one
+               circumference of travel brings it back where it started. */
+            var o = G.render.rolled(), r0 = G.CONFIG.BALL_R, steps = 240;
+            for (var q = 0; q < steps; q++) G.render.roll(o, 300, 0, 2 * Math.PI * r0 / 300 / steps);
+            var home = o.m.every(function (x, n) { return Math.abs(x - (n % 4 === 0 ? 1 : 0)) < 1e-6; });
+            var top = G.render.rolled();
+            G.render.roll(top, 0, 120, 0.01);
+            assert('one turn of the ball is one circumference of roll, and brings its marks home', home, o.m.map(function (x) { return x.toFixed(3); }).join(','));
+            assert('…and the top of the ball moves the way the ball is going', top.m[5] > 0 && Math.abs(top.m[2]) < 1e-9 && top.m[8] < 1);
+            var long = G.render.rolled();
+            for (q = 0; q < 5000; q++) G.render.roll(long, 300 * Math.cos(q * 0.01), 300 * Math.sin(q * 0.013), 1 / 60);
+            var m = long.m, cols = [[m[0], m[3], m[6]], [m[1], m[4], m[7]], [m[2], m[5], m[8]]];
+            var ortho = cols.every(function (c, a) { return cols.every(function (d, b) {
+                return Math.abs(c[0] * d[0] + c[1] * d[1] + c[2] * d[2] - (a === b ? 1 : 0)) < 1e-6; }); });
+            assert('…and a long wandering roll leaves it a sphere, not an egg', ortho);
             var hop = shotAt(false, G.CONFIG.BALL_R + 12);
             assert('a ball in the air is drawn up off the green, not where it stands', near(off, hop, 0) > 200);
             return Promise.resolve();

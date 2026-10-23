@@ -126,10 +126,103 @@
         g.restore();
     }
 
-    /* The dimples turn with the roll — `spin` is distance travelled over the
-       radius, i.e. the angle a real ball would have turned through. It is the
-       cheapest possible cue that the ball is rolling and not sliding, and at
-       rest it leaves the ball sitting at whatever angle it stopped at. */
+    /* The ball rolls. `spin` is its orientation — a rotation from the
+       ball's own frame to the world's, x and y on the green and z up out of
+       it — turned every frame about the axis a ball rolling without
+       slipping turns about (up × velocity), through distance over radius.
+       Its marks are fixed to the sphere: dimples scattered over it, and an
+       alignment line round it the way golfers draw one. Only the half
+       facing up is drawn, each mark squashed and faded as it turns towards
+       the edge, while the shading and the glint stay with the light — which
+       is what makes it read as a ball turning over rather than a picture of
+       one spinning on the spot. At pace the marks fade into a blur, since a
+       ball turning a third of a revolution a frame would otherwise strobe
+       and appear to roll backwards. */
+    var ROLL_DOTS = (function () {
+        var out = [], n = 22, gold = Math.PI * (3 - Math.sqrt(5));
+        for (var i = 0; i < n; i++) {
+            var z = 1 - (2 * i + 1) / n, rr = Math.sqrt(1 - z * z), a = i * gold;
+            out.push([Math.cos(a) * rr, Math.sin(a) * rr, z]);
+        }
+        return out;
+    })();
+    var ROLL_LINE = 36;
+
+    function rolled() { return { m: [1, 0, 0, 0, 1, 0, 0, 0, 1], blur: 0, n: 0 }; }
+
+    // Turn the ball through a frame's roll: Rodrigues about the horizontal
+    // axis (-vy, vx, 0), applied in the world frame.
+    function roll(o, vx, vy, dt) {
+        var sp = Math.hypot(vx, vy), ang = sp * dt / C.BALL_R;
+        o.blur = ang;
+        if (ang < 1e-6) return;
+        var ax = -vy / sp, ay = vx / sp, c = Math.cos(ang), s = Math.sin(ang), t = 1 - c;
+        var R = [t * ax * ax + c, t * ax * ay, s * ay,
+                 t * ax * ay, t * ay * ay + c, -s * ax,
+                 -s * ay, s * ax, c];
+        var m = o.m, out = new Array(9);
+        for (var i = 0; i < 3; i++) for (var j = 0; j < 3; j++) {
+            out[i * 3 + j] = R[i * 3] * m[j] + R[i * 3 + 1] * m[3 + j] + R[i * 3 + 2] * m[6 + j];
+        }
+        o.m = out;
+        // A frame's rounding at a time adds up; straighten the axes now and
+        // then so the ball does not slowly turn into an egg.
+        if (++o.n % 120 === 0) orthonormal(o.m);
+    }
+
+    function orthonormal(m) {
+        var c0 = [m[0], m[3], m[6]], c1 = [m[1], m[4], m[7]];
+        var l = Math.hypot(c0[0], c0[1], c0[2]);
+        c0 = [c0[0] / l, c0[1] / l, c0[2] / l];
+        var d = c0[0] * c1[0] + c0[1] * c1[1] + c0[2] * c1[2];
+        c1 = [c1[0] - d * c0[0], c1[1] - d * c0[1], c1[2] - d * c0[2]];
+        l = Math.hypot(c1[0], c1[1], c1[2]);
+        c1 = [c1[0] / l, c1[1] / l, c1[2] / l];
+        var c2 = [c0[1] * c1[2] - c0[2] * c1[1], c0[2] * c1[0] - c0[0] * c1[2], c0[0] * c1[1] - c0[1] * c1[0]];
+        m[0] = c0[0]; m[3] = c0[1]; m[6] = c0[2];
+        m[1] = c1[0]; m[4] = c1[1]; m[7] = c1[2];
+        m[2] = c2[0]; m[5] = c2[1]; m[8] = c2[2];
+    }
+
+    // The marks on the sphere, drawn over the ball at (x, y).
+    function drawMarks(g, x, y, o, tinted) {
+        var m = o.m, r = C.BALL_R;
+        // Clear below a sixth of a turn a frame, gone to a haze by half.
+        var clear = Math.max(0.12, Math.min(1, 1 - (o.blur - 0.9) / 1.6));
+        function at(p) {
+            return [m[0] * p[0] + m[1] * p[1] + m[2] * p[2],
+                    m[3] * p[0] + m[4] * p[1] + m[5] * p[2],
+                    m[6] * p[0] + m[7] * p[1] + m[8] * p[2]];
+        }
+        g.fillStyle = tinted ? 'rgba(0,0,0,0.28)' : 'rgba(110,128,145,0.42)';
+        for (var i = 0; i < ROLL_DOTS.length; i++) {
+            var q = at(ROLL_DOTS[i]);
+            if (q[2] < 0.08) continue;
+            g.globalAlpha = clear * Math.min(1, q[2] * 1.6);
+            g.beginPath();
+            g.ellipse(x + q[0] * r * 0.94, y + q[1] * r * 0.94, 1.05 * Math.max(0.25, q[2]), 1.05,
+                Math.atan2(q[1], q[0]), 0, Math.PI * 2);
+            g.fill();
+        }
+        g.strokeStyle = tinted ? 'rgba(255,255,255,0.75)' : 'rgba(30,64,140,0.62)';
+        g.lineWidth = 1.1;
+        g.lineCap = 'round';
+        var prev = null;
+        for (var k = 0; k <= ROLL_LINE; k++) {
+            var a = k / ROLL_LINE * Math.PI * 2;
+            var p = at([Math.cos(a), 0, Math.sin(a)]);
+            if (prev && prev[2] > 0 && p[2] > 0) {
+                g.globalAlpha = clear * Math.min(1, (prev[2] + p[2]) * 1.2);
+                g.beginPath();
+                g.moveTo(x + prev[0] * r * 0.96, y + prev[1] * r * 0.96);
+                g.lineTo(x + p[0] * r * 0.96, y + p[1] * r * 0.96);
+                g.stroke();
+            }
+            prev = p;
+        }
+        g.globalAlpha = 1;
+    }
+
     /* A party plays in colour. The white ball is the one the game has
        always had; a coloured one keeps the same highlight and dimples and
        takes its body from the player's colour, with a dark rim so that an
@@ -176,7 +269,7 @@
     // `ground`: pushed further out and fainter the higher it flies, gone
     // once the ball is down in the dark of the cup.
     function drawBallAt(g, ground, ball, spin, color, v, lift, dip) {
-        var sh = L.sv(v, 2.5 + lift * 0.5, 3.5 + lift * 0.7), hl = L.sv(v, -2.5, -3), dot = L.sv(v, 0, -1), glint = L.sv(v, -2.4, -2.8);
+        var sh = L.sv(v, 2.5 + lift * 0.5, 3.5 + lift * 0.7), hl = L.sv(v, -2.5, -3), glint = L.sv(v, -2.4, -2.8);
         var shade0 = 0.35 * Math.max(0.3, 1 - lift / 28) * Math.max(0, 1 - dip / C.BALL_R);
         g.save();
         if (shade0 > 0) {
@@ -204,15 +297,14 @@
         g.beginPath();
         g.arc(ball.x, ball.y, C.BALL_R, 0, Math.PI * 2);
         g.clip();
-        g.fillStyle = 'rgba(120,140,155,0.35)';
-        for (var i = 0; i < 5; i++) {
-            var a = spin + i * (Math.PI * 2 / 5);
-            var dx = Math.cos(a) * C.BALL_R * 0.52 + dot.x;
-            var dy = Math.sin(a) * C.BALL_R * 0.52 + dot.y;
-            g.beginPath();
-            g.arc(ball.x + dx, ball.y + dy, 1.25, 0, Math.PI * 2);
-            g.fill();
-        }
+        drawMarks(g, ball.x, ball.y, spin, tinted);
+        // The shading again, faintly, over the marks: they sit on the
+        // sphere, so they darken towards its edge with everything else.
+        var rim = g.createRadialGradient(ball.x + hl.x, ball.y + hl.y, C.BALL_R * 0.4, ball.x, ball.y, C.BALL_R);
+        rim.addColorStop(0, 'rgba(0,0,0,0)');
+        rim.addColorStop(1, 'rgba(40,55,70,0.22)');
+        g.fillStyle = rim;
+        g.fillRect(ball.x - C.BALL_R, ball.y - C.BALL_R, C.BALL_R * 2, C.BALL_R * 2);
         g.restore();
 
         g.save();
@@ -690,7 +782,7 @@
 
     /* ── frame ──────────────────────────────────────────────────────────── */
 
-    var spin = 0;
+    var spin = rolled();
     var sinkAt = -1;
     // The coach's own clock: world time stands still between shots on a hole
     // with nothing moving, and the ghost finger has to keep going.
@@ -742,7 +834,7 @@
         updateRings(g, dt);
         drawParticles(g);
 
-        spin += P.speedOf(state.world.ball) * dt / C.BALL_R;
+        roll(spin, state.world.ball.vx, state.world.ball.vy, dt);
         if (state.world.splash) {
             // In the water: the ball sinks, smaller and bluer and fainter,
             // until the penalty puts it back.
@@ -774,6 +866,6 @@
         g.restore();
     }
 
-    GOLF.render = { frame: frame, effects: effects, roundRect: roundRect, tunnelInk: tunnelInk };
+    GOLF.render = { frame: frame, effects: effects, roundRect: roundRect, tunnelInk: tunnelInk, roll: roll, rolled: rolled };
 
 })(window.GOLF);

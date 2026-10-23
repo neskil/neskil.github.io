@@ -644,7 +644,11 @@ from the ball's speed and the result is capped at the speed before, so the
 invariant below holds at the cup too, to within a step's worth of slack. The
 renderer follows `z` — a ball dropping in sinks down the screen, darker, the
 near side of the cup covering it; a ball hopping out rises and leaves its
-shadow on the turf — and a knock is heard as a short tock. A ball hit far too
+shadow on the turf — and a knock is heard as a short tock. Off the cup the
+ball still rolls in three dimensions for the eye: its dimples and an
+alignment line are fixed to a sphere the renderer turns about the axis a
+rolling ball turns about (`render.roll`), fading to a blur at pace rather than
+strobing backwards. A ball hit far too
 hard runs straight past, and often rolls back in off the cushion, which is a
 feature.
 
@@ -929,13 +933,13 @@ the bot's, which now searches for a way round every hole on the rack and every
 hole of twelve draws. The bot needed nothing new for tunnels: it plans over
 simulated shots, and a shot down a tunnel is a simulated shot.
 
-Open `ui-tests.html` for the other half: 149 assertions about the *page* — the
+Open `ui-tests.html` for the other half: 152 assertions about the *page* — the
 bar, the picker, the title screen on a first visit, locks and the way past
 them, stars on the banner and the plans, a door opening, a three-player party
 from roster to honour to resume, the board turned for an upright phone and
 laid out beside its column for one on its side, replaying the intro and
 resetting progress, the Scenery row and its soundscapes, the aim's guide
-running out short, and every hole of every course drawn through the real
+running out short, the ball's roll, and every hole of every course drawn through the real
 renderer, flat and turned, in every biome. The last two narrow the frame
 and ask the board to fit again; the turned one sends world points through the
 canvas's own transform and back through `toWorld`, which is the check that the
