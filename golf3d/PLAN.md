@@ -12,7 +12,7 @@ to be worked out again.
 
 ---
 
-## Where it stands (v1.74.0)
+## Where it stands (v1.75.0)
 
 - **The long game flies.** The driver is 21° at 28 and the iron 30° at 16:
   about three times the height of the old 10° skim, half as much carry again,
