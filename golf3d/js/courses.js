@@ -2030,7 +2030,11 @@
             for (k = 0; k < ground.length; k++) {
                 p = ground[k];
                 if (!P.padContains(p, x, z)) continue;
-                if (p.kind !== 'rough') return false;
+                // A disc that stands (a mesa, an island) is ground of its
+                // own with walls, drawn as a solid disc; humps would make it
+                // terrain, and a disc of terrain is drawn for the ground
+                // round it, not for a table three units up.
+                if (p.kind !== 'rough' || p.stands) return false;
                 if (Math.abs(p.sx || 0) + Math.abs(p.sz || 0) > HUMMOCK.tilt) return false;
                 // The row's tilt is not the only slope already there: a hole's
                 // own landforms run through its rough, and a hummock on the
@@ -2069,6 +2073,7 @@
         // Onto every piece of ground a hummock can reach — and that reach
         // includes how far a mown edge can carry a pad past its own cell.
         for (q = 0; q < ground.length; q++) {
+            if (ground[q].stands) continue;
             var p = ground[q], x0 = p.west ? p.west.lo : p.x, x1 = p.east ? p.east.hi : p.x + p.w;
             var mine = made.filter(function (m) {
                 var dx = Math.max(x0 - m.cx, 0, m.cx - x1), dz = Math.max(p.z - m.cz, 0, m.cz - p.z - p.d);
@@ -3961,7 +3966,7 @@
                 ],
                 flat: [keep(26, 38, 22)]
             }).concat([
-                isle = shapeDisc(Object.assign(pad(16.4, 29.4, 19.2, 19.2, 0.45, rgh), { r: 9.6 })),
+                isle = shapeDisc(Object.assign(pad(16.4, 29.4, 19.2, 19.2, 0.45, rgh), { r: 9.6, stands: true })),
                 circle(26, 39, 5.4, grn, 0.45)
             ]),
             water: [pond(ground.filter(function (p) { return p !== isle && !p.inlay; }),
@@ -5820,15 +5825,18 @@
        a pool cut into a ravine floor would be both an audit error (water
        standing above the gravel beside it) and invisible.
 
-       `ravine` writes all of them. It is one helper, `opts.along` turns it a
-       quarter turn, and `opts.bank` is how much of its depth each long side
-       spends climbing out — a number, or `[near, far]`. Past about a unit of
-       depth that is not decoration: nothing in the bag gets a ball out of a
-       lie hard against a two-unit cliff, so a wall the ball can come back up
-       has to be a ramp, and a *near* wall wide enough to play out of is a ramp
-       a drive bounces clean across the canyon off. Which is why every crossing
-       here is sheer on the near side and banked on the far one, and why the
-       one hole you are meant to play *along* the floor of is banked on both.
+       `gully` carves all of them (v1.83.0 →): each was a `ravine` — a box
+       with a sheer near wall and a banked far one — and a box is a straight
+       line, which on a course whose whole subject is the canyon read as six
+       ruled cuts. A carved one bends, and keeps the same two sides: past
+       about a unit of depth that is not decoration, because nothing in the
+       bag gets a ball out of a lie hard against a two-unit cliff, so a wall
+       the ball can come back up has to be a ramp, and a *near* wall wide
+       enough to play out of is a ramp a drive bounces clean across the canyon
+       off. So every crossing here is steep on the near side and banked on the
+       far one, its steep faces drawn as rock (`carve(…, { rock: true })`), and
+       every one runs out of both sides of the ground, so none has a way round
+       and the stakes stand back.
 
        The rough is scrub — `rough` like everywhere else, the engine has one
        word for it — and what stands in it is stone rather than timber. There
@@ -6164,12 +6172,22 @@
                ring of low rises round it, so the green is the floor of a
                hollow and a ball that reaches the rim is fed in.
 
-               A mesa is a `bands` cell with a height of its own rather than a
+               A mesa is a pad with a height of its own rather than a
                landform, because a landform is a slope and the one thing this
-               needs is a wall: a cell lifted clear of STEP_UP is a kerb the
+               needs is a wall: ground lifted clear of STEP_UP is a kerb the
                ball cannot climb, and the cut face is drawn in the canyon's
-               rock colour. */
-            var cut = ravine(0, 58, 38, 8, 2, { bank: [0, 2.6] });
+               rock colour. It is an oval disc that `stands` (below), not a
+               bands cell, since a cell is a box. */
+            /* The canyon is carved (`gully`) in an eleven-unit band and runs
+               out of both sides. The mesa is no longer a bands cell: a cell
+               is a box, and a box is the one shape a mesa never is. It is an
+               oval disc of scrub standing MESA up on its own (the way The
+               Ait's island stands), its edge waved like every other disc's
+               and its walls the skirt colour — inscribed in the box it used
+               to be, so it stays a unit clear of the fairway up its east
+               side. */
+            var cut = gully([[-14, 55.9], [-2, 56.5], [9, 55.7], [20, 56.4], [31, 55.8], [50, 56.2]], 9603, { scale: 0.85 });
+            var mesa = shapeDisc(Object.assign(pad(3, 12, 18.5, 34, MESA, rgh), { r: 17, stands: true }));
             var field = massif(48, 24, 12, 2.2, 5)
                 .concat(massif(-10, 70, 11, 2.1, 5))
                 .concat(ring(9, 81, 7.4, 3.2, 0.42, 8))
@@ -6177,11 +6195,10 @@
             var land = commons(0, [
                 [6,                    [22, rgh], [12, fwy], [4, rgh]],
                 [6,                    [22, rgh], [12, fwy], [4, rgh]],
-                [18,                   [4, rgh], [17, rgh, MESA], [1, rgh], [12, fwy], [4, rgh]],
-                [16,                   [4, rgh], [17, rgh, MESA], [1, rgh], [14, fwy], [2, rgh]],
-                [10,                   [3, rgh], [31, fwy], [4, rgh]],
-                [2,                    [38, rgh]],
-                [8,                    [38, null]],
+                [18,                   [22, rgh], [12, fwy], [4, rgh]],
+                [16,                   [22, rgh], [14, fwy], [2, rgh]],
+                [9,                    [3, rgh], [31, fwy], [4, rgh]],
+                [11,                   [38, rgh]],
                 [{ d: 4, sz: 0.3 },    [3, rgh], [14, fwy], [21, rgh]],
                 [22,                   [3, rgh], [14, fwy], [21, rgh]],
                 [3,                    [38, rgh]]
@@ -6191,10 +6208,11 @@
                 blurb: 'Up the right of a mesa nothing flies, round its corner as tight as you dare, then over the canyon to a green in a hollow on the far shelf.',
                 pads: (function (g) {
                     return g.concat([
+                        mesa,
                         inlay(g, 9, 81, 4.0, grn, 4.0)
                     ]);
-                }(shape(land.pads.concat(cut.pads), field))),
-                fence: land.fence,
+                }(carve(shape(land.pads, field), cut, { rock: true }))),
+                fence: widen(land.fence, 5, 5),
                 extra: [].concat(
                     crags(10, 18, 2.6, 5, 9601, { s: 1.35, h: 1.05 }),
                     crags(15, 40, 2.6, 4, 9607, { s: 1.25, h: 0.95 }),

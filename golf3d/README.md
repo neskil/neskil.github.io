@@ -2272,6 +2272,15 @@ which is what makes a dip in the scrub read as a canyon. A carved canyon runs
 off both edges of the ground, so unlike a cut one it has no way round it and
 the stakes can stand back.
 
+Redstone's mesa went the same way: a bands cell lifted MESA up is a box, so
+it is an oval disc of scrub now, marked `stands` — ground of its own with
+walls rather than a disc laid into something. That flag matters twice:
+render.js draws an ordinary disc three tenths thick (it is a green, flush
+with what it is laid into), which made the mesa a plate floating three units
+over the fairway, and `hummocks` would otherwise roll its top, which sends a
+disc down the terrain path — drawn for ground you look *across*, so from
+above the top was simply missing. The Ait's island stands the same way.
+
 **What the suite grew when the ground did.** Four assertions arrived with the
 height, and three of the four caught something the same afternoon they were
 written — which is the only reason to trust the fourth.
