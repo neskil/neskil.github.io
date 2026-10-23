@@ -2635,19 +2635,34 @@
 
     var quarry = [
         build({
+            /* Two ways up to the shelf, and the pin sits over the face of it
+               between them. The ramp on the left is long and gentle and leaves
+               a putt along the top; the one on the right is short and steep,
+               nearer the flag, and only a firm hit gets over the lip of it —
+               half measures roll back to you, which is what the blurb has
+               always promised. Straight up the middle is a pool at the foot of
+               the face, which is where the line at the flag goes. It used
+               to be one ramp up the middle of a straight lane, which was the
+               same shot every time. */
             name: 'Step Up', par: 3,
-            blurb: 'Hit it up the ramp. Half measures roll back to you.',
+            blurb: 'Two ramps to the shelf: the long gentle one, or the short steep one nearer the flag. Half measures roll back.',
             pads: [
-                pad(0, 0, 6, 5),
-                pad(0, 5, 6, 3, 0, 'green', 0, 0.3),
-                pad(0, 8, 6, 6, 0.9)
+                pad(0, 0, 10, 4.5),
+                pad(0, 4.5, 3, 4.5, 0, 'green', 0, 0.24),         // the long way up
+                pad(7, 4.5, 3, 1.7),
+                pad(7, 6.2, 3, 2.8, 0, 'wood', 0, 0.39),          // the short one
+                pad(0, 9, 10, 4.5, 1.08)
             ],
-            tee: { x: 3, z: 1.5 }, cup: { x: 3, z: 12 },
+            water: [rect(3, 4.5, 4, 4.5, -0.9)],
+            gaps: [shore(rect(3, 4.5, 4, 0.01), 0.4)],
+            tee: { x: 5, z: 1.6 }, cup: { x: 5.6, z: 11.4 },
             decor: [
-                sign(0.8, 1.2, { yaw: 0.3 }),
+                sign(3.2, 0.6, { yaw: 0.3 }),
+                crate(11.8, 2.4, { yaw: 0.2 }),
+                barrel(12.2, 3.4),
+                crate(-1.8, 9.8, { yaw: -0.3 }),
                 pine(-2.8, 6.0),
-                pine(8.8, 10.0, { yaw: 1.2 }),
-                crate(-1.8, 2.0),
+                pine(12.6, 11.0, { yaw: 1.2 }),
                 barrel(-2.2, 1.2)
             ]
         }),
@@ -2655,13 +2670,41 @@
             /* Rolling, and it is the one mini golf hole that is. The drop
                decides whether you get across; the green below decides how
                close you finish, and a flat one would make that a matter of
-               pace alone. Eight units square is room for a putt to break. */
+               pace alone.
+
+               And there is a second way down. Straight off the front of the
+               pillar is the short way — over the pool and onto the green, and
+               too gentle is a swim. Or down the stair of planks off the east
+               side of it, a drop at a time, which cannot put you in the water
+               and leaves a long putt back across the green. The pin is on the
+               near side, over the pool, so the stair is the long way round.
+
+               A stair rather than a sloped chute because of the rails: a rail
+               is a level box as tall as the highest ground it guards, so the
+               sides of a chute falling two units came out as one blank wall
+               the height of the pillar. A step at a time, each rail is a
+               step's height. */
             name: 'The Drop', par: 3, rolling: true,
-            blurb: 'Over the edge and down. Too gentle and you are swimming.',
-            pads: [pad(0, 0, 5, 4, 3), pad(0, 6, 8, 8)],
-            water: [rect(-2, 4, 12, 2, -0.9)],
-            gaps: [shore(rect(-2, 4, 12, 2), 0.6)],
-            tee: { x: 2.5, z: 1.5 }, cup: { x: 4.5, z: 11 }
+            blurb: 'Over the edge and down — too gentle and you are swimming. Or take the stair down the side, and the long putt.',
+            pads: [
+                pad(0, 0, 5, 4, 2.4),
+                pad(5, 1, 1.6, 2, 1.8, 'wood'),                   // the stair
+                pad(6.6, 1, 1.6, 2, 1.2, 'wood'),
+                pad(8.2, 1, 1.8, 2, 0.6, 'wood'),
+                pad(10, 0, 3.5, 6),
+                pad(-1, 6, 14.5, 8)
+            ],
+            water: [rect(-3, 4, 13, 2, -0.9)],
+            /* The pool's edge, and one strip per riser of the stair, each
+               short of the stair's sides so its rails stay. */
+            gaps: [
+                shore(rect(-3, 4, 13, 2), 0.6),
+                { x: 4.6, z: 1.05, w: 0.8, d: 1.9 },
+                { x: 6.2, z: 1.05, w: 0.8, d: 1.9 },
+                { x: 7.8, z: 1.05, w: 0.8, d: 1.9 },
+                { x: 9.6, z: 1.05, w: 0.8, d: 1.9 }
+            ],
+            tee: { x: 2.5, z: 1.5 }, cup: { x: 3.4, z: 9.2 }
         }),
         build({
             /* Up the ramp and round a banked turn. The outside of the corner
@@ -2724,22 +2767,31 @@
         }),
         build({
             /* The finisher, and it is the only hole on the course that asks
-               for the shot to be *over*-hit. What is new is behind the green:
-               the far bank used to run on for seven units, so a cannon shot
-               that cleared the water by four was as good as one that cleared
-               it by one. Now there is beach back there, and the gap is wider
-               than it was. */
+               for the shot to be *over*-hit. The ramp stands in the left of the
+               tee and the green across the gap runs off to the right, with the
+               pin at its far end under a curved rail, so the cannon only gets
+               you over: fired straight, the last of it is a putt along the
+               green. Fired across at an angle, the rail brings it round to the
+               pin. And there is beach behind, so a shot that clears the water
+               by four is no better than one that clears it by one.
+
+               The other way over is the plank on the right — a board laid
+               across the gap, a putter's width, with no rails on it. That is
+               the safe way, if a plank over a quarry pool is anybody's idea of
+               safe. */
             name: 'The Cannon', par: 3,
-            blurb: 'The ramp is not a suggestion. Flat out, fly the gap — and stop before the sand.',
+            blurb: 'Flat out up the ramp and fly the gap, or walk the plank on the right. The green runs away to the pin either way.',
             pads: [
-                pad(0, 0, 6, 4),
-                pad(1.2, 4, 3.6, 2.5, 0, 'wood', 0, 0.45),
-                pad(0, 9.8, 7, 5),
-                pad(0, 14.8, 7, 2.5, 0, 'sand')
+                pad(0, 0, 10, 4),
+                pad(0.8, 4, 3.6, 2.5, 0, 'wood', 0, 0.45),
+                pad(7.6, 4, 1.2, 5.8, 0, 'wood'),          // the plank
+                pad(0, 9.8, 10.5, 5),
+                pad(0, 14.8, 10.5, 2.2, 0, 'sand')
             ],
-            water: [rect(-3, 6.5, 14, 3.3, -0.9)],
-            gaps: [shore(rect(-3, 6.5, 14, 3.3), 0.7)],
-            tee: { x: 3, z: 1.5 }, cup: { x: 3.5, z: 12.5 }
+            water: [rect(-3, 4, 16, 5.8, -0.9)],
+            gaps: [shore(rect(-3, 4, 16, 5.8), 0.7)],
+            extra: arc(7.6, 12, 2.6, -0.15, Math.PI / 2 + 0.3, { h: 0.55 }),
+            tee: { x: 3, z: 1.5 }, cup: { x: 8.2, z: 12.4 }
         })
     ];
 
@@ -2859,78 +2911,155 @@
 
     var tidewater = [
         build({
+            /* Two carries, but not in a line. The old hole was three squares
+               stacked north of one another, so the only question was how far;
+               now the stones are off to either side and the first carry is a
+               choice. The big stone out east is the safe one — a wide target,
+               and from it a long diagonal second over the bay to a green that
+               reaches out towards it. The little stone on the line is the
+               short way: half the second shot, and a third of the room to
+               stop on. Nothing carries the whole bay from the tee. */
             name: 'Stepping Stones', par: 3, needsLoft: true,
-            blurb: 'Two carries, three islands. There is no way round the water.',
+            blurb: 'Two carries, and two stones to make the first one to. The big one is safe; the little one is short.',
             pads: [
                 pad(0, 0, 5.5, 4.5),
-                pad(1.2, 7, 3.4, 3.4),
-                pad(0, 13.5, 6, 5.5)
+                pad(6.4, 6, 3.8, 3.8),          // the big stone, out east
+                pad(0.8, 7.8, 2.2, 2.2),        // the little one, on the line
+                pad(-0.5, 13, 9, 5.5)           // the green, reaching east
             ],
-            water: [rect(-4, 4.5, 14, 9, -0.7)],
-            tee: { x: 2.75, z: 1.8 }, cup: { x: 3, z: 16.5 },
+            water: [rect(-5, 4.5, 20, 8.5, -0.7)],
+            tee: { x: 2.75, z: 1.8 }, cup: { x: 1.8, z: 16 },
             decor: [
-                palm(0.8, 18.0),
-                palm(5.2, 18.0, { yaw: 2 }),
-                buoy(-2.5, 8.5),
-                sailboat(10.5, 9.0, { yaw: 0.8 }),
-                piling(-1.5, 6.0)
+                palm(-1.6, 17.6),
+                palm(9.8, 18.2, { yaw: 2 }),
+                buoy(4.4, 9.8, -0.7),
+                sailboat(13.5, 10.5, { yaw: 0.8 }),
+                piling(-1.2, 6.2, -0.7),
+                piling(5.6, 5.2, -0.7)
             ]
         }),
         build({
+            /* Short-sided: the pin is tucked in behind the sand on the near
+               right, a step from the bank at the back, and the whole of the
+               left of the green is open. So there are two pitches. The safe
+               one is to the fat of the green on the left and a putt across;
+               the brave one goes straight at the flag over the bay and the
+               bunker, and it has a club-length to stop in before the bank
+               behind the pin sends it back. It used to be seven units of
+               lane with the sand straight across it, one pitch at the flag
+               and nothing to choose. */
             name: 'Short Side', par: 3, needsLoft: true,
-            blurb: 'Sand at the front, a kerb on the green, two metres behind the pin.',
+            blurb: 'The pin hides behind the sand on the right. The fat of the green is on the left — go there, or go at it.',
             pads: [
-                pad(0, 0, 6, 6),
-                pad(0, 6, 6, 3, 0, 'sand'),
-                pad(0, 9, 6, 3.6, 0, 'green', 0, 0.16)
+                pad(1, 0, 6, 4.5),
+                pad(-1, 8.5, 6, 4.5),                       // the fat of the green
+                pad(5, 8.5, 6, 1.6, 0, 'sand'),             // the trap, short right
+                pad(5, 10.1, 6, 2.9),                        // the pin's shelf
+                pad(-1, 13, 12, 1.6, 0, 'green', 0, 0.2)    // the bank behind it all
             ],
-            extra: [wall(-0.1, 8.75, 6.2, 0.3, 0.55, { base: -0.1 })],
-            tee: { x: 3, z: 3.6 }, cup: { x: 3, z: 10.4 }
+            water: [rect(-5, 4.5, 20, 4, -0.7)],
+            gaps: [shore(rect(1, 4.5, 6, 0.01), 0.4)],
+            tee: { x: 4, z: 1.8 }, cup: { x: 8.6, z: 11.6 },
+            decor: [
+                palm(-2.4, 14.5),
+                palm(12.4, 13.8, { yaw: 1.4 }),
+                buoy(-1.5, 6.4, -0.7),
+                boat(9.5, 6.2, -0.7, { yaw: -0.5 }),
+                piling(0.2, 5.0, -0.7)
+            ]
         }),
         build({
+            /* Four walls and no door — and now it is round a corner. The lane
+               goes up and turns right, and the letterbox stands at the far end
+               of the turn, so the hole has the two ways every hole on the card
+               ought to. Round, which is a putt up the leg and a putt along the
+               top to the foot of the box, and then the short chip in; or the
+               pitch from the tee straight over the bay into the box, which is
+               the ace and is also the way into the water. It was a box in the
+               middle of a straight lane seven units from the tee, which was
+               one pitch and nothing to decide. */
             name: 'The Letterbox', par: 3, needsLoft: true,
-            blurb: 'Four walls and no door. Post it through the top.',
-            pads: [pad(0, 0, 7, 13)],
-            extra: pen(1.8, 6.5, 3.8, 3.8, { h: 0.6 }),
-            tee: { x: 3.5, z: 1.6 }, cup: { x: 3.7, z: 8.4 }
+            blurb: 'Four walls and no door, round the corner. Walk it round and post it in, or post it from the tee.',
+            pads: [
+                pad(0, 0, 4.5, 9),
+                pad(0, 9, 4.5, 4.5),
+                pad(4.5, 9, 9, 4.5)
+            ],
+            water: [rect(4.5, -2, 12, 11, -0.7)],
+            extra: pen(9.4, 9, 4.1, 4.5, { h: 0.6 }),
+            tee: { x: 2.25, z: 1.5 }, cup: { x: 11.45, z: 11.25 },
+            decor: [
+                buoy(8.5, 4.5, -0.7),
+                piling(5.2, 1.0, -0.7),
+                sailboat(12.5, 3.5, { yaw: -0.6 }),
+                palm(-1.8, 12.6),
+                palm(14.6, 14.2, { yaw: 2.4 })
+            ]
         }),
         build({
             name: 'Tabletop', par: 3, needsLoft: true,
-            blurb: 'The green is a metre up with nothing to run up. Land it or swim.',
+            blurb: 'The green is a metre up, out to the right, with nothing to run up. Land it on top, or land short and chip.',
             pads: [
-                pad(0, 0, 6, 5.5),
+                pad(0, 0, 6, 4.5),
                 /* The apron runs under the table rather than up to it — pads
                    are allowed to overlap when one is clearly above the other,
                    which is the same rule that makes a bridge work. It turns a
                    missed wedge from a swim into a chip, and it is the reason
-                   this hole is hard rather than cruel. */
-                pad(0.2, 7.6, 6.6, 7.4),
-                pad(1.2, 9, 4.6, 4.6, 0.9)
+                   this hole is hard rather than cruel. The table is out to the
+                   right of the apron rather than in the middle of it, so the
+                   safe pitch and the brave one are aimed at different places,
+                   and every edge of it is a brink: long or wide rolls off on to
+                   the apron, which is a chip back rather than a kerb that
+                   saves you. */
+                pad(0.5, 7.5, 11, 8),
+                pad(5.6, 9.4, 4.4, 4.2, 0.9)
             ],
-            water: [rect(-4, 5.5, 14, 9, -0.7)],
+            water: [rect(-5, 4.5, 22, 3, -0.7), rect(-5, 7.5, 5.5, 9, -0.7), rect(11.5, 7.5, 6, 9, -0.7)],
             gaps: [
-                { x: 0.05, z: 5.1, w: 5.9, d: 0.8 },       // the tee's own shoreline
-                { x: 0.6, z: 8.5, w: 5.8, d: 1.0 }         // …and the front of the table
+                { x: 0.05, z: 4.1, w: 5.9, d: 0.8 },       // the tee's own shoreline
+                brink({ x: 5.6, z: 9.4, w: 4.4, d: 4.2 }, 0.4)   // …and every edge of the table
             ],
-            tee: { x: 3, z: 4.2 }, cup: { x: 3.5, z: 11.6 }
+            tee: { x: 3.4, z: 3.2 }, cup: { x: 7.8, z: 11.6 },
+            decor: [
+                palm(-1.6, 15.4),
+                palm(13.2, 16.0, { yaw: 1.8 }),
+                buoy(12.8, 5.5, -0.7),
+                boat(-2.8, 5.8, -0.7, { yaw: 0.9 })
+            ]
         }),
         build({
+            /* The joke at the course's expense, now with a corner in it. The
+               boardwalk stands across the top leg in front of the pin, too
+               tall to fly and high enough off the boards that a putt runs
+               under it — so the club that has answered every other hole is the
+               wrong one. Round is two or three putts up the leg, through the
+               sand and along under the bar. Short is a pitch over the inside
+               of the corner that lands in front of the bar and runs on under
+               it, and that is the ace. Land it past the bar and it is sitting
+               behind the pin with a putt back. */
             name: 'Under the Boardwalk', par: 4,
             bag: ['putter', 'mallet', 'chipper', 'wedge'],   // a lofted route is part of the hole
-            blurb: 'Too tall to fly, and it stands high enough that a putt runs under. Land it short.',
+            blurb: 'Round the corner and under the boardwalk. Pitch the corner if you like — but land it short and let it run.',
             pads: [
-                pad(0, 0, 6, 5),
-                pad(0, 5, 6, 2.6, 0, 'sand'),
-                pad(0, 7.6, 6, 9)
+                pad(0, 0, 5, 4.4),
+                pad(0, 4.4, 5, 1.8, 0, 'sand'),
+                pad(0, 6.2, 5, 5.8),
+                pad(5, 7, 10, 5)
             ],
+            water: [rect(5, -2, 12, 9, -0.7)],
             /* The bar stops short of the rails on both sides. Partly so there
                is a second way through for anyone who would rather thread a
                gap than trust the run-out, and partly for the camera: a bar
-               this tall spanning the whole fairway hides the flag and half the
-               hole behind it from the tee, and a hole you cannot see is not a
-               hole you can plan. */
-            extra: beam(0.75, 11.2, 4.5, 0.5),
-            tee: { x: 3, z: 1.6 }, cup: { x: 3, z: 14.5 }
+               this tall spanning the whole lane hides the flag behind it. */
+            extra: beam(10.6, 7.6, 0.5, 3.8),
+            tee: { x: 2.5, z: 1.6 }, cup: { x: 13.2, z: 9.5 },
+            decor: [
+                piling(7.5, 3.0, -0.7),
+                piling(11.0, 3.0, -0.7),
+                buoy(9.2, 5.0, -0.7, { variant: 1 }),
+                palm(-1.8, 9.6),
+                palm(16.4, 12.4, { yaw: 1.1 })
+            ]
         }),
         build({
             /* The rock has moved out to the east, so the hole turns twice
@@ -2962,76 +3091,125 @@
 
     var highland = [
         build({
+            /* The front door is bricked up and the back of the green is a
+               curved bank — a half-ring of ground rising round the far side of
+               the cup — so a ball sent past either end of the wall climbs the
+               bank and is handed back down it towards the pin. Which end is the
+               choice: the near one off the tee is short and the bank catches
+               it square; the far one is the long way round and comes back at
+               an angle. It used to be a straight bank across the back of a
+               straight lane, which hands the ball back the way it came and
+               onto the wall. */
             name: 'The Backboard', par: 3,
-            blurb: 'The front door is bricked up. Throw it at the hill and let the hill hand it back.',
+            blurb: 'The front door is bricked up. Send it round the end of the wall and let the curved bank hand it back.',
             pads: [
-                pad(0, 0, 6, 8),
-                pad(0, 8, 6, 3.4),                              // the shelf, and the pin
-                pad(0, 11.4, 6, 2.6, 0, 'green', 0, 0.42)       // the hill behind it
+                pad(3, 0, 5, 5),
+                (function () {
+                    var p = pad(0, 5, 8, 9);
+                    p.bumps = [channel(4, 9.6, 2.9, 1.3, 0.5, 0, Math.PI)];
+                    return p;
+                })()
             ],
-            extra: [wall(0.9, 9.4, 4.2, 0.32, 0.62, { base: -0.1 })],
-            tee: { x: 3, z: 3.4 }, cup: { x: 3, z: 10.6 }
+            extra: [wall(1.9, 7.6, 4.2, 0.32, 0.62, { base: -0.1 })],
+            tee: { x: 5.5, z: 1.6 }, cup: { x: 4, z: 9.6 }
         }),
         build({
+            /* A wall nothing goes round and one club goes over — and the wall
+               runs across the lane at a slant, so where you go over it decides
+               how much green there is to land on. Over the near end, by the
+               pin, there are three units before the sand; over the far end
+               there is the whole of the green, and a putt back. It used to be
+               square across the lane, which made it the same carry from
+               everywhere. */
             name: 'Over the Top', par: 3, needsLoft: true,
-            blurb: 'Nothing goes round it and one club in the bag goes over it.',
+            blurb: 'A slanted wall, and one club goes over it. Over the near end is short; over the far end is safe.',
             pads: [
-                pad(0, 0, 6, 7),
-                pad(0, 7, 6, 5.5, 0, 'green', 0, 0.08),   // and it climbs on the far side
-                pad(0, 12.5, 6, 2.5, 0, 'sand')           // no reward for over-clubbing it
+                pad(0, 0, 7, 4),
+                pad(0, 4, 7, 8.5, 0, 'green', 0, 0.04),    // climbs gently to the back
+                pad(0, 12.5, 7, 2.5, 0, 'sand')             // no reward for over-clubbing it
             ],
-            extra: [wall(-0.2, 5, 6.4, 0.4, 1.0, { base: -0.1 })],
-            tee: { x: 3, z: 1.8 }, cup: { x: 3, z: 11.2 }
+            /* Long enough that both ends bury themselves in the rails, so
+               there is no way round at either end. */
+            extra: [bank(3.5, 6.6, 8.2, Math.atan2(3.2, 7), { t: 0.4, h: 1.15 })],
+            tee: { x: 5.2, z: 1.6 }, cup: { x: 1.8, z: 10.6 }
         }),
         build({
+            /* Four flights, and they go round. The stairs climb a turn at a
+               time round a pool in the middle of the hill — east, north, west
+               — with the pin on the top landing, which stands right over the
+               tee. So it can be walked up a step at a time, a chip for each
+               riser, or the middle flights can be skipped with a longer chip
+               across the corner of the pool; and the ace is the lob straight
+               up the face from the tee, which is two steps of height at once
+               onto a landing three units across. */
             name: 'Stairway', par: 4, needsLoft: true,
-            blurb: 'Three steps, no ramp. Loft is the only way up a wall you cannot climb.',
+            blurb: 'Four flights round a pool, no ramp. Climb them one at a time, cut a corner, or lob it to the top.',
             pads: [
-                pad(0, 0, 5.5, 4.2),
-                pad(0, 4.2, 5.5, 3.4, 0.4),
-                pad(0, 7.6, 5.5, 3.4, 0.8),
-                pad(0, 11, 5.5, 4.6, 1.15)
+                pad(0, 0, 9, 3),                 // the foot of the stair, and the tee
+                pad(6, 3, 3, 6, 0.4),            // the east flight
+                pad(0, 9, 9, 3.2, 0.8),          // the north flight
+                pad(0, 3, 3, 6, 1.2)             // the top landing, and the pin
             ],
-            /* One strip per riser, each stopping just short of the side rails.
-               A gap wide enough to reach x = 0 opens the *side* of the hole as
-               well as the step, and the ball then quietly falls off the hill
-               at three specific heights. */
+            water: [rect(3, 3, 3, 6, -0.6)],
+            /* One strip per riser, each stopping just short of the outside
+               rails — a gap reaching the outside edge would open the side of
+               the hill as well as the step. */
             gaps: [
-                { x: 0.05, z: 3.8, w: 5.4, d: 0.8 },
-                { x: 0.05, z: 7.2, w: 5.4, d: 0.8 },
-                { x: 0.05, z: 10.6, w: 5.4, d: 0.8 }
+                { x: 6.05, z: 2.6, w: 2.9, d: 0.8 },
+                { x: 6.05, z: 8.6, w: 2.9, d: 0.8 },
+                { x: 0.05, z: 8.6, w: 2.9, d: 0.8 },
+                { x: 0.05, z: 2.6, w: 2.9, d: 0.8 },
+                shore(rect(3, 3, 3, 6), 0.4)
             ],
-            tee: { x: 2.75, z: 1.5 }, cup: { x: 2.75, z: 13.2 }
+            tee: { x: 7.4, z: 1.5 }, cup: { x: 1.5, z: 6.6 }
         }),
         build({
+            /* Three metres of nothing at its narrowest — and that is not on
+               the line. The gorge is narrow on the left and wide on the right,
+               and the pin is on the right, over the wide part. Carry the
+               narrow side and putt across a green that climbs gently away from
+               you, or carry the whole width at the flag. It used to be one
+               straight carry the same distance everywhere. */
             name: 'The Gorge', par: 3,
             needsLoft: true,   // a carry: there is no road along the floor
-            blurb: 'Three metres of nothing, and a green that leans away east.',
+            blurb: 'Narrow on the left, wide on the right, and the pin is on the right. Lay up across the narrow side or fly it.',
             pads: [
-                pad(0, 0, 6, 6.4),
-                pad(0, 9.7, 6.5, 7.3, 0, 'green', 0.10, 0)
+                pad(0, 0, 11, 5),
+                pad(0, 7.5, 5, 8.5, 0, 'green', 0.04, 0),
+                pad(5, 10, 6.5, 6, 0.2, 'green', 0.04, 0)
             ],
-            water: [rect(-3, 6.4, 12, 3.3, -2.4)],
-            gaps: [shore(rect(-3, 6.4, 12, 3.3), 0.6)],
-            tee: { x: 3, z: 4.2 }, cup: { x: 4.6, z: 13 }
+            water: [rect(-3, 5, 8, 2.5, -2.4), rect(5, 5, 9.5, 5, -2.4)],
+            gaps: [
+                shore(rect(0, 5, 11, 0.01), 0.6),
+                shore(rect(0, 7.5, 5, 0.01), 0.6),
+                shore(rect(5, 10, 6.5, 0.01), 0.6)
+            ],
+            tee: { x: 3, z: 2.4 }, cup: { x: 8.6, z: 13 }
         }),
         build({
+            /* The two roads are two roads now, with a burn between them. The
+               low road runs up the west side and under a beam, long and flat
+               and all putting. The high road is a shelf up the east side that
+               wants a chip to get on to, and it runs straight at the pin and
+               drops off its end on to the green — shorter, and one shot that
+               has to be the right one. */
             name: 'Two Roads', par: 4,
             bag: ['putter', 'mallet', 'chipper', 'wedge'],   // a lofted route is part of the hole
-            blurb: 'The low road goes under the bar. The high road wants a chip first.',
+            blurb: 'The low road goes the long way, under the bar. The high road wants a chip first, and runs straight at the pin.',
             pads: [
-                pad(0, 0, 6, 5),
-                pad(0, 5, 3, 9),
-                pad(3, 5, 3, 9, 0.5),
-                pad(0, 14, 6, 5)
+                pad(0, 0, 9, 4),
+                pad(0, 4, 3, 11),               // the low road
+                pad(5, 4, 4, 11, 0.5),          // the high road
+                pad(0, 15, 9, 5)
             ],
+            water: [rect(3, 4, 2, 11, -0.6)],
             gaps: [
-                { x: 2.5, z: 4.6, w: 1, d: 9.8 },          // the step between the roads
-                { x: 2.5, z: 4.6, w: 3.4, d: 0.9 },        // the face you chip up on to
-                { x: 0.05, z: 13.6, w: 5.9, d: 0.8 }       // and the drop off the far end
+                { x: 5.05, z: 3.6, w: 3.9, d: 0.8 },       // the face you chip up on to
+                { x: 5.05, z: 14.6, w: 3.9, d: 0.8 },      // and the drop off the far end
+                shore(rect(3, 4, 2, 11), 0.4)
             ],
-            extra: beam(-0.3, 9, 3.2, 0.5),
-            tee: { x: 1.4, z: 1.6 }, cup: { x: 3, z: 16.5 }
+            extra: beam(-0.3, 9.5, 3.6, 0.5),
+            tee: { x: 4.5, z: 1.6 }, cup: { x: 6.8, z: 17.6 }
         }),
         build({
             name: 'Crown', par: 4, needsLoft: true,
