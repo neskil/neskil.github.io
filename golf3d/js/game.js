@@ -161,6 +161,7 @@
         }
         state.phase = 'aim';
         state.aim.power = 0;
+        state.aim.shape = 'straight';
         state.aim.show = true;
         // Point the player at the cup to begin with; it is a suggestion, not a
         // solution — the cup is rarely straight ahead of anything.
@@ -325,7 +326,8 @@
         if (state.phase !== 'aim') return;
         if (state.aim.power < C.MIN_POWER) { askForPower(); return; }
         var over = P.overdraw(state.aim.power, state.club.power);
-        if (SW.arms(over)) { openGate(over); return; }
+        // A shape has to be struck, whatever the meter says (swing.js).
+        if (SW.armsShape(shapeNow(), over)) { openGate(over); return; }
         strike(null);
     }
 
@@ -342,14 +344,22 @@
            handed to whoever was holding the club. */
         var asked = { yaw: state.aim.yaw, power: P.deliver(state.aim.power, state.club.power) };
         var shot = g ? SW.apply(asked, g) : { yaw: asked.yaw, power: asked.power, spin: 0 };
-        if (!P.launch(state.world, shot.yaw, shot.power, state.club.loft, state.club.bite)) return;
+        // Then the shape that was asked for on purpose, as much of it as the
+        // strike delivered (swing.js `shape`).
+        shot = SW.shape(shot, shapeNow(), state.club.loft, state.club.bite,
+            P.gravityOf(state.world.hole), g ? g.off : 0);
+        if (!P.launch(state.world, shot.yaw, shot.power, shot.loft, shot.bite)) return;
         // The range asks of every shot whether it went past the line (see
         // judgeRangeShot), and the gate is gone by the time it lands.
         state.shotOver = state.aim.power > state.club.power + 1e-9;
-        if (g && state.course.isRange) markGateLesson(g);
+        // A shape's strike is not a lesson's: the school grades the rhythms.
+        if (g && state.course.isRange && !g.shape) markGateLesson(g);
         // launch() clears the spin, so the bend goes on after it.
         state.world.spin = shot.spin || 0;
         if (g) sayStrike(g);
+        // A shape is for one shot. Kept, it would bend the next one too — the
+        // approach after a drawn drive — and nobody asked for that one.
+        setShape('straight');
 
         hideHoleCard();
         state.strokes++;
@@ -540,13 +550,21 @@
         // On the range the lesson picks it, so a rhythm can be practised on
         // its own; everywhere else it is the hole's.
         var variant = state.course.isRange ? G3.school.variantFor(school.lesson) : SW.pick(state.holeIndex);
-        gate = SW.start(variant, over, state.aim.power / maxPower());
+        /* A shape inside a full swing is struck on the plain rhythm: the
+           rotating gates are the overdraw's, and a shot-maker should not have
+           to learn a hole's rhythm to play the shot they picked. */
+        var shaped = shapeNow() !== 'straight';
+        if (shaped && !SW.arms(over)) variant = 'tempo';
+        gate = SW.start(variant, SW.shapeOver(shapeNow(), over), state.aim.power / maxPower());
+        gate.shape = shaped ? shapeNow() : null;
         A.tick(0.5);
         $('power-track').classList.add('gate');
         $('gate').hidden = false;
         $('gate-zone').style.left = ((gate.mark - gate.win) * 100).toFixed(2) + '%';
         $('gate-zone').style.width = (gate.win * 200).toFixed(2) + '%';
-        $('gate-name').textContent = GATE_SAYS[gate.variant];
+        $('gate-name').textContent = gate.shape && variant === 'tempo'
+            ? 'Strike on the line — ' + SHAPE_SAYS[gate.shape].toLowerCase()
+            : GATE_SAYS[gate.variant];
         syncGate();
         syncSwing();
     }
@@ -599,12 +617,99 @@
     /* What the strike was, in the fewest words that are still an answer. The
        ball is about to say the rest of it. */
     function sayStrike(g) {
+        if (g.shape) { sayShape(g); return; }
         if (g.perfect) { toast('Flushed it — all of the overdraw, none of the spray'); return; }
         var a = Math.abs(g.off);
         var way = g.off < 0 ? 'pulled' : 'pushed';
         if (a < 0.34) toast('A touch ' + (g.off < 0 ? 'early' : 'late') + ' — ' + way + ' a little');
         else if (a < 0.75) toast('Off the middle — ' + way + ', and it will bend');
         else toast(g.struck ? 'Thrashed it — ' + way + ' miles' : 'Never swung — the club came through on its own', 'bad');
+    }
+
+    /* ── shot shaping ───────────────────────────────────────────────────────
+
+       Draw, fade, backspin or topped — whichever of them the club in hand can
+       play (CONFIG `shapes`; swing.js `shape` for what each does to the ball,
+       and why each one has to be struck). One chip above the meter steps
+       through them, and a key each from the keyboard: Z draw, X fade, Q
+       backspin, E topped, and the same key again to go back to straight. On a
+       club with no shapes the chip is hidden rather than greyed: a control
+       that is there and does nothing is a question every shot. */
+    var SHAPE_SAYS = { straight: 'Straight', draw: 'Draw', fade: 'Fade', backspin: 'Backspin', topped: 'Topped' };
+    var SHAPE_KEYS = { z: 'draw', x: 'fade', q: 'backspin', e: 'topped' };
+    // The chip's little picture of the flight, drawn up the chip from the
+    // ball at the bottom: out to one side and back, straight up, up and back
+    // on itself, or skipping along low.
+    var SHAPE_PATH = {
+        straight: 'M7 15 L 7 1',
+        draw: 'M7 15 C 12 10, 12 5, 5 1',
+        fade: 'M7 15 C 2 10, 2 5, 9 1',
+        backspin: 'M7 15 L 7 5 C 7 1, 12 1, 12 5 L 12 8',
+        topped: 'M7 15 L 7 12 M 7 9.5 L 7 7.5 M 7 5 L 7 4'
+    };
+
+    function shapesOf(club) { return ['straight'].concat((club || state.club).shapes || []); }
+
+    function shapeNow() {
+        if (!state) return 'straight';
+        var s = state.aim.shape || 'straight';
+        return shapesOf().indexOf(s) >= 0 ? s : 'straight';
+    }
+
+    function setShape(name) {
+        if (!state) return;
+        state.aim.shape = SW.SHAPES.indexOf(name) >= 0 ? name : 'straight';
+        syncShape();
+    }
+
+    function canShape() {
+        return !!(state && state.phase === 'aim' && !gate && state.club.shapes);
+    }
+
+    // A key: that shape, or back to straight if it is the one already set.
+    function keyShape(name) {
+        if (!canShape() || shapesOf().indexOf(name) < 0) return false;
+        setShape(shapeNow() === name ? 'straight' : name);
+        A.tick(0.4);
+        return true;
+    }
+
+    // The chip cycles, because a thumb has one button.
+    function cycleShape() {
+        if (!canShape()) return;
+        var list = shapesOf();
+        setShape(list[(list.indexOf(shapeNow()) + 1) % list.length]);
+        A.tick(0.4);
+    }
+
+    function syncShape() {
+        var el = $('btn-shape');
+        if (!el || !state) return;
+        var now = shapeNow();
+        el.hidden = !state.club.shapes;
+        el.classList.toggle('on', now !== 'straight');
+        $('shape-val').textContent = SHAPE_SAYS[now];
+        $('shape-path').setAttribute('d', SHAPE_PATH[now]);
+        el.setAttribute('aria-label', 'Shot shape: ' + SHAPE_SAYS[now] + '. Press to change.');
+    }
+
+    /* A shaped strike says what happened to the shape, because that is what
+       was asked for: clean, over-cooked or under-cooked, in that shape's own
+       words. */
+    var SHAPE_MISS = {
+        draw: ['Hooked it — that draw kept turning', 'Hung out right — the draw never came back'],
+        fade: ['Pulled it — the fade never turned', 'Sliced it — the fade kept going'],
+        backspin: ['Caught it thin — no spin on that one', 'Caught it thin — no spin on that one'],
+        topped: ['Dug it in — even lower than you wanted', 'Got under it — that one is up in the air']
+    };
+
+    function sayShape(g) {
+        if (g.perfect) { toast('Shaped it — a clean ' + SHAPE_SAYS[g.shape].toLowerCase(), 'good'); return; }
+        if (!g.struck) { toast('Never swung — the club came through on its own', 'bad'); return; }
+        var a = Math.abs(g.off);
+        var said = SHAPE_MISS[g.shape][g.off < 0 ? 0 : 1];
+        toast(a < 0.34 ? 'Nearly — ' + said.charAt(0).toLowerCase() + said.slice(1) + ', a little' : said,
+            a < 0.75 ? undefined : 'bad');
     }
 
     /* Picking a club is picking a loft and a ceiling on power. The power
@@ -1357,6 +1462,7 @@
         $('club-chip').setAttribute('aria-label',
             'Club in hand: ' + state.club.name + '. Press to pick another.');
         drawPowerTicks(state.club);
+        syncShape();
         syncPicker();
     }
 
@@ -2296,6 +2402,7 @@
            in here that asks for the modifier rather than offering it. */
         else if (k === 'Home') { setPower(0); e.preventDefault(); }
         else if (k === 'End') { setPower(fine ? maxPower() : state.club.power); e.preventDefault(); }
+        else if (SHAPE_KEYS[k.toLowerCase()]) { keyShape(SHAPE_KEYS[k.toLowerCase()]); }
         else if (k === ' ') { shoot(); e.preventDefault(); }
     }
 
@@ -3823,7 +3930,7 @@
 
     /* ── loop ───────────────────────────────────────────────────────────── */
 
-    var intent = { show: false, yaw: 0, power: 0, loft: 0, bite: 0, over: 0 };
+    var intent = { show: false, yaw: 0, power: 0, loft: 0, bite: 0, over: 0, bend: 0, spin: 0 };
 
     // The bot's fixed roll, and the frame time left over from it.
     var SIM_STEP = 1 / 60;
@@ -3913,8 +4020,22 @@
         // the two are different (physics.deliver) and the cone has to draw the
         // ball that is going to be played.
         intent.power = P.deliver(state.aim.power, state.club.power);
+        /* A shaped shot is previewed as it plays when it is struck clean: off
+           on its start line and bending back, low, or biting. The aim
+           (intent.yaw) stays the aim — the camera rides it and the arrow
+           points down it — and `bend` is how far off it the ball sets out.
+           Whether the strike delivers it is the gate's business. */
         intent.loft = state.club.loft;
         intent.bite = state.club.bite || 0;
+        intent.bend = intent.spin = 0;
+        if (shapeNow() !== 'straight') {
+            var fly = SW.shape(intent, shapeNow(), state.club.loft, state.club.bite, P.gravityOf(state.world.hole));
+            intent.loft = fly.loft;
+            intent.power = fly.power;
+            intent.bite = fly.bite;
+            intent.bend = fly.bend;
+            intent.spin = fly.spin;
+        }
         // How far past a full swing this is, 0..1. The renderer opens the cone
         // by exactly the spread physics would apply — the club's ceiling is
         // the only part of that sum the renderer has no way to know.
@@ -4027,6 +4148,7 @@
         $('btn-map').addEventListener('click', function () { toggleMiniMap(); });
         $('btn-view').addEventListener('click', cycleSeat);
         $('btn-swing').addEventListener('click', shoot);
+        $('btn-shape').addEventListener('click', cycleShape);
         holdToRepeat('btn-aim-left', function () { nudgeAim(0.035); }, 60);
         holdToRepeat('btn-aim-right', function () { nudgeAim(-0.035); }, 60);
         holdToRepeat('btn-view-left', function () { nudgeView(-VIEW_STEP); }, 110);

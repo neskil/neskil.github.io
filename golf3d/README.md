@@ -332,6 +332,59 @@ through over a shot that can barely go wrong is a hoop for its own sake.
 plain object, which is what lets `tests.html` cover all four gates, both edges
 of every miss and the bound on the envelope without a browser.
 
+### Shot shaping
+
+The gate is what a swing does to the ball by accident; shaping is what you ask
+it to do. Each club lists the shapes it can play (`shapes` in the bag), and a
+chip above the meter steps through them — or a key each: <kbd>Z</kbd> draw,
+<kbd>X</kbd> fade, <kbd>Q</kbd> backspin, <kbd>E</kbd> topped, and the same key
+again for straight.
+
+| shape | what it does | clubs |
+| --- | --- | --- |
+| draw | starts right of the aim, curves back left onto it, runs on | driver, 7 iron |
+| fade | the mirror, and lands with extra backspin (`SHAPE.FADE_BITE`) | driver, 7 iron |
+| backspin | the same flight, stops where it lands (`SHAPE.BACKSPIN`) | 7 iron, pitch, wedge |
+| topped | low (`SHAPE.TOPPED_LOFT` of the loft), under the branches, runs | driver, 7 iron, pitch |
+
+All of it is `swing.js` `shape`, and none of it is new to the simulation: the
+bends are the sidespin a mishit already got (`world.spin`), the stop is the
+backspin a club already carried (`bite`), and topped is a lower loft.
+
+- **A shape has to be struck.** Picking one arms the [gate](#the-swing-gate)
+  even inside a full swing — always the plain *tempo* rhythm there, at a
+  difficulty of its own (`SHAPE.GATE`, on the overdraw's 0..1 scale) or the
+  overdraw's if that is harder. A clean strike plays exactly what the preview
+  drew. A miss costs the push or pull any miss does, and it goes wrong *as that
+  shape*: early is left, so it over-turns a draw into a hook and stops a fade
+  turning; late is right, so the draw hangs out and the fade slices. A miss
+  catches backspin thin and the spin is gone, and it digs a topped shot in
+  lower still (early) or gets under it so it climbs (late). That is what makes
+  it a shot rather than a menu: the preview shows what you asked for, the
+  timing decides whether you get it, and the toast says which way it went.
+- **The bends land on your line.** The ball starts half the turn to one side
+  of the aim and curves back across it, so the arrow still points at the target
+  and the shape is the way the ball gets there — round the tree, not past the
+  flag. The turn over the whole flight is fixed (`SHAPE.TURN`, 20°) and the spin
+  is worked out from the flight time — 2·v·sin(loft)/g on flat ground — so a
+  draw is the same picture at half a swing and at a full one, capped
+  (`SHAPE.SPIN_MAX`) for the short flights that would want a corkscrew.
+- **The preview draws it.** `previewPath` takes the spin, and the renderer
+  starts the cone on the shaped start line (`intent.bend`) at the shaped loft
+  and bite, so the dots are the clean strike.
+- **One shot at a time.** The shape goes back to straight after every stroke
+  and on every new hole; kept, it would curve the approach after a drawn drive.
+- **Not the range's lessons.** A shape's strike does not count towards the
+  swing school, which grades the overdraw's rhythms.
+
+Building this is what showed the gate's misses ran the wrong way: the toasts
+and the school had always said early pulls left and draws, and the ball went
+right and faded, because +yaw (and +spin) is *left* on screen. `apply` has the
+sign the words always had now, and `tests.html` pins it.
+
+Not to be confused with the gate called **fade** above, which is a timing
+rhythm and bends nothing on purpose.
+
 ### The range and its swing school
 
 The four gates rotating by hole is the right design for a round and the wrong
@@ -4299,7 +4352,9 @@ camera swings with it. Where the camera stands *relative to* that aim is the
 many tenths of a full swing (<kbd>Home</kbd> empty, <kbd>End</kbd> a full
 swing, <kbd>shift</kbd>+<kbd>End</kbd> the overdraw — the ladder itself stops
 at a full swing, because the overdraw is a thing to ask for on purpose and a
-mistyped key should not be able to spray a shot), <kbd>1</kbd>–<kbd>4</kbd> club (<kbd>C</kbd>
+mistyped key should not be able to spray a shot), <kbd>Z</kbd> draw,
+<kbd>X</kbd> fade, <kbd>Q</kbd> backspin, <kbd>E</kbd> topped — the same key
+again is straight (see [Shot shaping](#shot-shaping)), <kbd>1</kbd>–<kbd>4</kbd> club (<kbd>C</kbd>
 cycles), <kbd>space</kbd> hit, <kbd>shift</kbd> for fine control, <kbd>V</kbd>
 the seat — follow, side on, overview — <kbd>,</kbd><kbd>.</kbd> walk the view
 round the ball, <kbd>L</kbd> lock it where it is, <kbd>0</kbd> straighten it,

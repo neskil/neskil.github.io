@@ -238,11 +238,100 @@
         var s = G3.physics.spray(g ? g.over : 0);
         var off = g ? g.off : 0;
         if (!off) return { yaw: shot.yaw, power: shot.power, spin: 0 };
+        /* +yaw is left on screen, and so is +spin (physics bends a ball
+           toward rising yaw). Early is left — a pull that draws — so the sign
+           is flipped: `off` is negative for early. It ran the other way until
+           shot shaping drew a draw in the preview and put the two side by
+           side: every word the game said about a miss was right, and every
+           ball went the opposite way. */
         return {
-            yaw: shot.yaw + off * s.yaw,
+            yaw: shot.yaw - off * s.yaw,
             power: shot.power * (1 - Math.abs(off) * s.power),
-            spin: off * s.yaw * C.SWING.SPIN
+            spin: -off * s.yaw * C.SWING.SPIN
         };
+    }
+
+    /* ── shot shaping ─────────────────────────────────────────────────────
+
+       Everything above is what a swing costs you by accident. This is what
+       you ask the ball to do on purpose, picked before the shot from the
+       shapes the club in hand can play (CONFIG `shapes` on each club):
+
+         draw      starts right of the aim and curves back left onto it
+         fade      the mirror of it, and lands soft where a draw runs on
+         backspin  the same flight, and it stops dead where it lands
+         topped    caught on the way up: low, skidding, and it runs
+
+       The bends are the same sidespin a mishit gets (`world.spin`) and the
+       stop is the same backspin a club already carries (`bite`), so nothing
+       here is new to the simulation — only to the player.
+
+       **A shape has to be struck.** Asking for one arms the gate even inside
+       a full swing (`armsShape`), at a difficulty of its own (SHAPE.GATE) or
+       the overdraw's if that is harder. Strike it clean and the ball does
+       exactly what the chip said; miss and the shape goes wrong in the way
+       that shape goes wrong — early over-cooks it, late under-cooks it — on
+       top of the push or pull any miss already costs (`apply`). That is the
+       difference between a menu and a shot: the preview shows what you asked
+       for, and the timing decides whether you get it.
+
+       The draw and the fade **land on your line**. The ball starts out half
+       the turn to one side of the aim, so the arrow still points at the target
+       and the shape is the way the ball gets there — round the tree, not past
+       the flag. The turn over the whole flight is fixed (SHAPE.TURN), so a
+       draw is the same picture at half a swing and at a full one; the spin is
+       worked out from the flight time, 2·v·sin(loft)/g on flat ground, capped
+       (SHAPE.SPIN_MAX) for the short flights that would want a corkscrew. */
+    var SHAPES = ['straight', 'draw', 'fade', 'backspin', 'topped'];
+
+    function bendOf(name) { return name === 'draw' ? 1 : name === 'fade' ? -1 : 0; }
+
+    // Does this shot need striking? Any shape at all, or the overdraw's own rule.
+    function armsShape(name, over) {
+        return (!!name && name !== 'straight') || arms(over);
+    }
+
+    // How hard the gate for this shot is: the shape's own difficulty, or the
+    // overdraw's if the meter has gone further than that.
+    function shapeOver(name, over) {
+        return (name && name !== 'straight') ? Math.max(C.SHAPE.GATE, over || 0) : (over || 0);
+    }
+
+    /* `shot` is { yaw, power, spin } — the shot after the gate's push or pull,
+       if there was a gate. `off` is that gate's timing (−1 early … +1 late,
+       0 clean); it decides how much of the shape arrives. Returns the shot to
+       launch, plus `loft`, `bite`, and `bend` (how far off the aim it starts). */
+    function shape(shot, name, loft, bite, grav, off) {
+        var S = C.SHAPE;
+        var out = { yaw: shot.yaw, power: shot.power, spin: shot.spin || 0,
+                    loft: loft || 0, bite: bite || 0, bend: 0 };
+        off = off || 0;
+        if (name === 'backspin') {
+            // A clean one bites; a miss catches it thin and the spin is gone.
+            out.bite = Math.min(0.95, out.bite + S.BACKSPIN * (1 - Math.abs(off)));
+            out.power *= 1 - Math.abs(off) * S.MISS_POWER;
+            return out;
+        }
+        if (name === 'topped') {
+            // Early digs it in harder still; late gets under it and it rises.
+            var low = Math.max(0.05, Math.min(1, S.TOPPED_LOFT * (1 + off)));
+            out.loft = out.loft * low;
+            out.power *= S.TOPPED_POWER * (1 - Math.abs(off) * S.MISS_POWER);
+            return out;
+        }
+        var dir = bendOf(name);
+        var t = 2 * out.power * Math.sin(out.loft) / (grav || C.GRAVITY);
+        if (!dir || !(t > 0)) return out;
+        var spin = Math.min(S.SPIN_MAX, S.TURN / (C.SPIN_ACCEL * t));
+        // The start line is set for the shape that was asked for; what the
+        // strike delivers is the bend. Early is left, as every miss is: it
+        // over-turns a draw into a hook and stops a fade turning at all. Late
+        // is right: the draw hangs out on its start line, the fade slices.
+        out.bend = -dir * spin * C.SPIN_ACCEL * t / 2;
+        out.yaw += out.bend;
+        out.spin += dir * spin * Math.max(0, 1 - dir * off * S.MISS_TURN);
+        if (dir < 0) out.bite = Math.min(0.95, out.bite + S.FADE_BITE * (1 - Math.abs(off)));
+        return out;
     }
 
     G3.swing = {
@@ -258,7 +347,12 @@
         live: live,
         visible: visible,
         targetOf: targetOf,
-        apply: apply
+        apply: apply,
+        SHAPES: SHAPES,
+        bendOf: bendOf,
+        armsShape: armsShape,
+        shapeOver: shapeOver,
+        shape: shape
     };
 
 })(window.G3);

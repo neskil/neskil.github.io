@@ -3171,6 +3171,11 @@
                     a.yaw * b.yaw < 0);
                 assert('and each one bends the way it was already going',
                     a.yaw * a.spin > 0 && b.yaw * b.spin > 0);
+                /* And the right way round. +yaw is left on screen and +spin
+                   bends left, and every word the game says about a miss — the
+                   toasts, the school — says early pulls left and draws. */
+                assert('early is the pull: left of the line, bending left',
+                    a.yaw > 0 && a.spin > 0 && b.yaw < 0 && b.spin < 0);
                 assert('a near miss costs less than a far one', (function () {
                     var near = pressAt('tempo', 1, 1, SW.markAt() + SW.windowFor(1) + 0.02);
                     return Math.abs(near.off) < Math.abs(late.off);
@@ -3243,6 +3248,131 @@
         })();
 
         /* ── scoring ───────────────────────────────────────────────────── */
+
+        section('Shot shaping');
+        (function () {
+            var SW = G3.swing;
+            /* A long flat field with nothing on it, so the only thing bending
+               the ball is the spin it was asked for. */
+            var field = {
+                pads: [A.pad(-60, -10, 120, 160, 0, 'fairway', 0, 0)],
+                water: [], walls: [], tee: { x: 0, z: 0, y: 0 }, cup: { x: 0, z: 140, y: 0 }
+            };
+            var from = { x: 0, z: 0, y: C.BALL_R };
+            function club(id) { return C.CLUBS.filter(function (c) { return c.id === id; })[0]; }
+
+            // Where it lands, how far it strays from the aim (+z) on the way,
+            // and where it stops. x is left of the line, because +yaw is left.
+            function fly(cl, frac, name, off) {
+                var shot = { yaw: 0, power: cl.power * frac, spin: 0 };
+                var s = SW.shape(shot, name, cl.loft, cl.bite, P.gravityOf(field), off);
+                var w = P.createWorld(field, from, 0), lo = 0, hi = 0, top = 0, i;
+                P.launch(w, s.yaw, s.power, s.loft, s.bite);
+                w.spin = s.spin;
+                for (i = 0; i < 2000 && !w.firstLand; i++) {
+                    P.advance(w, C.SIM_DT, {});
+                    lo = Math.min(lo, w.ball.x); hi = Math.max(hi, w.ball.x); top = Math.max(top, w.ball.y);
+                }
+                var land = w.firstLand || w.ball;
+                P.settle(w);
+                return { shot: s, landX: land.x, carry: land.z, lo: lo, hi: hi, top: top,
+                         restX: w.ball.x, rest: w.ball.z };
+            }
+
+            assert('straight is untouched',
+                (function () { var s = SW.shape({ yaw: 0.3, power: 20, spin: 0 }, 'straight', 0.2, 0, C.GRAVITY);
+                    return s.yaw === 0.3 && s.spin === 0 && s.bend === 0 && s.power === 20 && s.loft === 0.2; })());
+            assert('a flat club cannot bend one — it never leaves the ground',
+                SW.shape({ yaw: 0, power: 8, spin: 0 }, 'draw', 0, 0, C.GRAVITY).spin === 0);
+            assert('every shape a club offers is one swing.js knows',
+                C.CLUBS.every(function (c) {
+                    return (c.shapes || []).every(function (n) { return SW.SHAPES.indexOf(n) > 0; });
+                }));
+
+            /* The challenge: a shape is never free. Straight inside a full
+               swing is the one shot that plays without a strike. */
+            assert('a straight full swing needs no strike', !SW.armsShape('straight', 0));
+            assert('any shape does, even at half a swing',
+                SW.SHAPES.slice(1).every(function (n) { return SW.armsShape(n, 0); }));
+            assert('and its gate is at least as hard as SHAPE.GATE, or the overdraw if harder',
+                SW.shapeOver('draw', 0) === C.SHAPE.GATE && SW.shapeOver('draw', 0.9) === 0.9 &&
+                SW.shapeOver('straight', 0) === 0);
+
+            ['driver', 'iron'].forEach(function (id) {
+                var cl = club(id);
+                [1, 0.5].forEach(function (frac) {
+                    var tag = cl.name + ' at ' + Math.round(frac * 100) + '%';
+                    var d = fly(cl, frac, 'draw'), f = fly(cl, frac, 'fade'), st = fly(cl, frac, 'straight');
+                    /* The whole promise: aim at it and the shape is how the
+                       ball gets there, not where it goes instead. */
+                    assert(tag + ': a clean draw lands back on the line',
+                        Math.abs(d.landX) < 0.06 * d.carry, d.landX.toFixed(2) + ' off at ' + d.carry.toFixed(1));
+                    assert(tag + ': and so does a clean fade',
+                        Math.abs(f.landX) < 0.06 * f.carry, f.landX.toFixed(2) + ' off at ' + f.carry.toFixed(1));
+                    // Out right and back is a draw; out left and back a fade.
+                    assert(tag + ': a draw bows out right of the line on the way',
+                        d.lo < -0.03 * d.carry && d.hi < 0.02 * d.carry, d.lo.toFixed(2) + ' / ' + d.hi.toFixed(2));
+                    assert(tag + ': a fade bows out left',
+                        f.hi > 0.03 * f.carry && f.lo > -0.02 * f.carry, f.lo.toFixed(2) + ' / ' + f.hi.toFixed(2));
+                    assert(tag + ': a shaped shot carries about as far as a straight one',
+                        Math.abs(d.carry - st.carry) < 0.05 * st.carry && Math.abs(f.carry - st.carry) < 0.05 * st.carry);
+                    assert(tag + ': a fade finishes shorter than a draw',
+                        f.rest < d.rest - 0.5, f.rest.toFixed(1) + ' vs ' + d.rest.toFixed(1));
+                    /* And the timing is what decides it. Early over-turns the
+                       draw into a hook, left of the line; late leaves it
+                       hanging out right. */
+                    var early = fly(cl, frac, 'draw', -0.6), late = fly(cl, frac, 'draw', 0.6);
+                    assert(tag + ': an early draw hooks past the line, a late one hangs out',
+                        early.landX > 0.04 * early.carry && late.landX < -0.04 * late.carry,
+                        early.landX.toFixed(2) + ' / ' + late.landX.toFixed(2));
+                    var fe = fly(cl, frac, 'fade', -0.6), fl = fly(cl, frac, 'fade', 0.6);
+                    assert(tag + ': an early fade never turns back, a late one slices',
+                        fe.landX > 0.04 * fe.carry && fl.landX < -0.04 * fl.carry,
+                        fe.landX.toFixed(2) + ' / ' + fl.landX.toFixed(2));
+                });
+            });
+
+            ['iron', 'chipper'].forEach(function (id) {
+                var cl = club(id), st = fly(cl, 1, 'straight');
+                var bs = fly(cl, 1, 'backspin'), thin = fly(cl, 1, 'backspin', 0.8);
+                var tp = fly(cl, 1, 'topped'), under = fly(cl, 1, 'topped', 0.8);
+                assert(cl.name + ': backspin stops it nearer where it lands',
+                    bs.rest - bs.carry < 0.6 * (st.rest - st.carry),
+                    (bs.rest - bs.carry).toFixed(1) + ' vs ' + (st.rest - st.carry).toFixed(1));
+                assert(cl.name + ': and a thin one does not',
+                    thin.rest - thin.carry > bs.rest - bs.carry + 0.3);
+                // Runs for its carry: more of a topped shot is on the ground.
+                assert(cl.name + ': topped flies low and runs',
+                    tp.top < 0.6 * st.top && (tp.rest - tp.carry) / tp.carry > (st.rest - st.carry) / st.carry,
+                    tp.top.toFixed(2) + ' vs ' + st.top.toFixed(2) + '; ran ' + (tp.rest - tp.carry).toFixed(2) +
+                    ' (carry ' + tp.carry.toFixed(2) + ') vs ' + (st.rest - st.carry).toFixed(2) + ' (carry ' + st.carry.toFixed(2) + ')');
+                assert(cl.name + ': get under a topped one and it climbs',
+                    under.top > tp.top * 1.3);
+            });
+
+            /* The preview is the shot: the same shape, previewed, lands where
+               it is played. */
+            (function () {
+                var cl = club('driver');
+                var s = SW.shape({ yaw: 0, power: cl.power, spin: 0 }, 'draw', cl.loft, cl.bite, P.gravityOf(field));
+                var w = P.createWorld(field, from, 0);
+                var pts = P.previewPath(w, s.yaw, s.power, s.loft, 2, s.bite, s.spin);
+                var end = pts[pts.length - 1], played = fly(cl, 1, 'draw');
+                assert('the preview of a draw lands where the draw does',
+                    Math.hypot(end.x - played.landX, end.z - played.carry) < 0.2,
+                    end.x.toFixed(2) + ',' + end.z.toFixed(2) + ' vs ' + played.landX.toFixed(2) + ',' + played.carry.toFixed(2));
+            })();
+
+            /* A shaped miss is the gate's push as well as the shape's own. */
+            (function () {
+                var cl = club('driver');
+                var g = SW.start('tempo', SW.shapeOver('draw', 0), 0.6);
+                SW.press(g);                       // far too early
+                var missed = SW.apply({ yaw: 0, power: cl.power }, g);
+                assert('a mistimed shape is pushed or pulled like any miss',
+                    !g.perfect && missed.yaw !== 0);
+            })();
+        })();
 
         section('The range and its swing school');
         (function () {

@@ -893,6 +893,42 @@ button,
 
 .ctl-label b { color: var(--ink); font-variant-numeric: tabular-nums; }
 
+/* The shot shape (game.js `syncShape`). Floated into the Power label's line
+   rather than given a row of its own: on a phone the power column is about two
+   hundred pixels across and the stack under it is already the tallest thing
+   on the screen. Lit in the accent when it is anything but straight, because
+   a shot that is about to bend is the one you want to have noticed. */
+.shape-chip {
+    float: right;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    margin: -0.35rem 0 0 0.5rem;
+    padding: 0.18rem 0.55rem 0.18rem 0.4rem;
+    font: inherit;
+    font-size: 0.62rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--ink);
+    background: rgba(6, 20, 32, 0.72);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 999px;
+    cursor: pointer;
+    pointer-events: auto;
+    transition: background 0.15s, color 0.15s;
+}
+.shape-chip[hidden] { display: none; }
+.shape-chip:hover { background: rgba(56, 189, 248, 0.3); }
+.shape-chip.on { color: #06212f; background: var(--accent); border-color: transparent; }
+.shape-chip svg { width: 0.75rem; height: 0.85rem; flex: none; }
+.shape-chip path {
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+}
+
 /* The club's full swing, alongside the number being loaded against it. Dim,
    because it is the fixed half of the pair. */
 .power-of {
@@ -1344,6 +1380,7 @@ button,
     .power-grip::after { inset: 16px 8px; }
     .power-cue { font-size: 0.72rem; }
     .power .ctl-label { font-size: 0.72rem; }
+    .shape-chip { font-size: 0.72rem; padding: 0.4rem 0.75rem 0.4rem 0.55rem; margin-top: -0.75rem; }
 
     .view-step { width: 46px; height: 44px; font-size: 1.15rem; border-radius: 13px; }
     .view-lock { font-size: 1rem; }

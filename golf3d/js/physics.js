@@ -1509,9 +1509,12 @@
        spends its whole window reaching the wall would otherwise come off it in
        three dots. A second wall inside that window is where honest prediction
        ends, so that is where it stops. */
-    function previewPath(world, yaw, power, loft, seconds, bite) {
+    function previewPath(world, yaw, power, loft, seconds, bite, spin) {
         var w = cloneWorld(world);
         if (!launch(w, yaw, power, loft, bite)) return [];
+        // A shaped shot (swing.js) bends from the clubface on; launch() clears
+        // the spin, so it goes on after, exactly as the game plays it.
+        w.spin = spin || 0;
         var pts = [{ x: w.ball.x, y: w.ball.y, z: w.ball.z }];
         var steps = Math.ceil((seconds || 0.7) / C.SIM_DT);
         var grant = Math.ceil(steps * 0.6);

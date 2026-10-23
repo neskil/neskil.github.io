@@ -3920,7 +3920,7 @@
     var LINE_ALPHA = 0.92;
     var LINE_HALF = 0.032;
     var LINE_GROW = 0.0035;
-    var _path = { valid: false, x: 0, y: 0, z: 0, yaw: 0, power: 0, loft: 0, over: 0, t: 0 };
+    var _path = { valid: false, x: 0, y: 0, z: 0, yaw: 0, power: 0, loft: 0, over: 0, bend: 0, spin: 0, bite: 0, t: 0 };
 
     function clearPathCache() { _path.valid = false; }
 
@@ -3932,11 +3932,14 @@
         if (_path.valid && _path.x === b.x && _path.y === b.y && _path.z === b.z &&
             _path.yaw === aim.yaw && _path.power === aim.power &&
             _path.loft === aim.loft && _path.over === (aim.over || 0) &&
-            _path.t === t) return false;
+            _path.bend === (aim.bend || 0) && _path.spin === (aim.spin || 0) &&
+            _path.bite === (aim.bite || 0) && _path.t === t) return false;
         _path.valid = true;
         _path.x = b.x; _path.y = b.y; _path.z = b.z;
         _path.yaw = aim.yaw; _path.power = aim.power; _path.loft = aim.loft;
         _path.over = aim.over || 0;
+        // A shaped shot (swing.js) is the same aim on a different flight.
+        _path.bend = aim.bend || 0; _path.spin = aim.spin || 0; _path.bite = aim.bite || 0;
         _path.t = t;
         return true;
     }
@@ -3967,7 +3970,7 @@
         var spread = P.spray(aim.over || 0);
         var angle = C.CONE_ANGLE + spread.yaw;
         var seconds = 0.5 + frac * 0.5;
-        var pts = P.previewPath(world, aim.yaw, aim.power, aim.loft, seconds, aim.bite);
+        var pts = P.previewPath(world, aim.yaw + (aim.bend || 0), aim.power, aim.loft, seconds, aim.bite, aim.spin);
 
         /* Under MIN_POWER there is no shot to preview: launch() refuses it and
            previewPath hands back nothing. Park the cone and the arrowhead
