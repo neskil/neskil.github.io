@@ -237,9 +237,11 @@ the line runs south so the canyon opens east, banked towards the fairway and
 sheer on the outside, and its far bank is a shade narrower (`o2: 3, r2: 4`)
 so the whole carve stops short of the green on its lip. Mind props near a
 carved canyon: a stone seated off its middle on a 60° wall floats (the
-audit's `prop-afloat`). Next, one at a time — Stone Bridge (flooded west of a bridge: a `pond` in
-the carved floor, and the bridge as the one piece of ground the gully skips),
-Long Way Round (a bite, ending mid-hole — so the way round is the hole), The
+audit's `prop-afloat`). **Stone Bridge** (v1.85.0) is two segments of one
+gully with the bridge as the ground neither reaches; the west one is a `pond`
+with `freeboard: 0.7` (water set down in the canyon, not brim-full) and stops
+inside the ground — a pond's water is its box, and a box past the edge of the
+ground hangs over the desert. Next, one at a time — Long Way Round (a bite, ending mid-hole — so the way round is the hole), The
 Narrows (twice), Redstone (round the mesa).
 
 **Redstone, partly (v1.81.0).** Long Way Round's spring is a pool in a hollow.
