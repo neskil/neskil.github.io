@@ -1,4 +1,4 @@
-/* Seventeen courses of six holes, as data.
+/* Eighteen courses of six holes, as data.
 
    A hole is a set of pads (the ground), a set of walls (things that bounce),
    a set of water rectangles (things that punish), a tee and a cup. Everything
@@ -6,8 +6,8 @@
    look — is derived below, because a hole that has to repeat itself is a hole
    that will one day disagree with itself.
 
-   Four of the seventeen courses are mini golf, five are crazy golf, four are
-   adventure golf and four are the long game — tee, fairway, rough, sand,
+   Four of the eighteen courses are mini golf, five are crazy golf, four are
+   adventure golf and five are the long game — tee, fairway, rough, sand,
    trees, green — authored through `bands` and `tree` rather than a hole at a
    time; see the comment above them. They use the same pads, the same walls
    and the same solver as everything else, which is the point: a parkland hole
@@ -24,8 +24,8 @@
    much they ask for, and so are the five crazy ones, the three adventure ones
    and the three long ones.
 
-   **A hole is not the hole beside it.** A hundred and two holes on one list is a
-   hundred and two
+   **A hole is not the hole beside it.** A hundred and eight holes on one list is a
+   hundred and eight
    chances to write the same corridor again, and the way out is the
    plan rather than the furniture: a hole that turns, a hole that goes round
    something, a hole played over a corner, a hole with two ways to the green
@@ -3109,8 +3109,9 @@
                 massif(-11, 30, 12, 2.2, 5),
                 [hill(5.5, 58.5, 2.4, 0.4)]
             );
-            var park = commons(0, [
-                [{ d: 5, y: 3.4 },      [20, rgh], [9, fwy], [5, rgh]],
+            var park = commons(-6, [
+                [{ d: 6, y: 3.4 },      [20, rgh], [9, fwy], [5, rgh]],
+                [5,                     [20, rgh], [9, fwy], [5, rgh]],
                 [{ d: 4, sz: -0.65 },   [34, rgh]],
                 [9.5,                   [19, rgh], [11, fwy], [4, rgh]],
                 [14.5,                  [3, rgh], [12, null], [4, rgh], [11, fwy], [4, rgh]],
@@ -3138,7 +3139,7 @@
                     treeline(32.6, 10, 32.6, 44, 7),
                     crags(30, 50, 3, 5, 7113, { s: 1.3, h: 1.0 })
                 ),
-                tee: { x: 24.5, z: 2.5 }, cup: { x: 9, z: 51.5 }
+                tee: { x: 24.5, z: -3.5 }, cup: { x: 9, z: 51.5 }
             });
         })(),
         (function () {
@@ -3247,8 +3248,9 @@
                 massif(-10, 20, 13, 2.6, 5),
                 [hill(6, 27, 1.9, -0.22), hill(6.5, 34, 2.2, 0.35)]
             );
-            var park = commons(0, [
-                [{ d: 5, y: 1.6 },      [4, rgh], [9, fwy], [9, rgh]],
+            var park = commons(-6, [
+                [{ d: 6, y: 1.6 },      [4, rgh], [9, fwy], [9, rgh]],
+                [5,                     [4, rgh], [9, fwy], [9, rgh]],
                 [{ d: 4, sz: -0.09 },   [4, rgh], [9, fwy], [3, rgh], [6, null]],
                 [{ d: 4, sz: -0.09 },   [4, rgh], [8, fwy], [2, rgh], [8, null]],
                 [{ d: 4, sz: -0.09 },   [4, rgh], [7, fwy], [2, rgh], [9, null]],
@@ -3283,7 +3285,7 @@
                     crags(1.4, 46, 3, 5, 7137, { s: 1.3, h: 1.0 }),
                     [tree(21.4, 45.5), tree(21.4, 53.5)]
                 ),
-                tee: { x: 8.5, z: 2.5 }, cup: { x: 12.5, z: 48 }
+                tee: { x: 8.5, z: -3.5 }, cup: { x: 12.5, z: 48 }
             });
         })()
     ];
@@ -3315,7 +3317,9 @@
         var flat = [keep(spec.tee.x, spec.tee.z, 4.5)].concat(spec.flat || []);
         var bumps = (spec.bumps || []).concat(dunes(spec.area, spec.n, spec.seed,
             { clear: flat, r: spec.r, rMax: spec.rMax, grad: spec.grad }));
-        var pads = bands(0, spec.strips, 0, { mow: spec.seed || 1 }), i, d;
+        // The strips start at z0, or at 0 — a hole lengthened from the tee end
+        // starts them further back and every other coordinate stays put.
+        var pads = bands(spec.z0 || 0, spec.strips, 0, { mow: spec.seed || 1 }), i, d;
         // One field of humps, shared by every strip on the hole. The height of
         // the ground is a function of where you are and not of which strip you
         // happen to be standing on, so the seams between them are invisible to
@@ -3497,12 +3501,12 @@
             name: 'Burnside', par: 4, open: true,
             blurb: 'Off a tee up in the dunes and hard right round the burn pool. Go the long way round, or carry as much of the water as you dare.',
             pads: moor({
-                tee: { x: 13, z: 10 }, seed: 2237, n: 50,
-                area: { x: 3, z: 3, w: 58, d: 73 },
+                tee: { x: 13, z: 4 }, seed: 2237, n: 50, z0: -6,
+                area: { x: 3, z: -3, w: 58, d: 79 },
                 r: 5, rMax: 10, grad: 0.21,
-                bumps: [hill(13, 10, 9.5, 3)],
+                bumps: [hill(13, 4, 9.5, 3)],
                 strips: [
-                    [6, [64, rgh]],
+                    [12, [64, rgh]],
                     [15, [6, rgh], [14, fwy], [44, rgh]],
                     [12, [6, rgh], [14, fwy], [2, rgh], [18, null], [24, rgh]],
                     [10, [6, rgh], [14, fwy], [44, rgh]],
@@ -3510,7 +3514,7 @@
                     [4, [10, rgh], [30, fwy], [24, rgh]],
                     [16, [64, rgh]]
                 ],
-                flat: [keep(13, 10, 10), keep(31, 27, 11), keep(41, 54, 7),
+                flat: [keep(13, 4, 10), keep(31, 27, 11), keep(41, 54, 7),
                        keep(31, 38, 3.2), keep(10, 52, 3.4), keep(35.5, 49.5, 3)],
                 inlays: [
                     [41, 54, 4.6, grn],
@@ -3525,10 +3529,10 @@
                 crags(44, 37, 2.5, 3, 2239, { s: 1.1, h: 0.8 })
             ),
             fence: [
-                { x: 3, z: 3, w: 21, d: 62 },
+                { x: 3, z: -3, w: 21, d: 68 },
                 { x: 3, z: 31, w: 51, d: 34 }
             ],
-            tee: { x: 13, z: 10 }, cup: { x: 41.5, z: 54.5 }
+            tee: { x: 13, z: 4 }, cup: { x: 41.5, z: 54.5 }
         }),
         build({
             name: 'The Ait', par: 3, open: true,
@@ -4920,15 +4924,15 @@
                is, except that there the answer is a club that flies and here
                there is no such thing. What is left is the floor throwing the
                ball for you, and it is throwing something twice as heavy: a
-               launch pad rated at thirteen reaches four and three quarter
-               units at home and just under two at the two and two fifths of a
-               g this hole is played at, so a step of one point two is a step
-               it clears with about half a ball's worth of daylight by the time
-               the ball has travelled far enough forward to land on it.
+               launch pad rated at fifteen reaches six and a quarter units at
+               home and two and a half at the two and two fifths of a g this
+               hole is played at, so a step of one point two is a step it
+               clears with daylight to spare by the time the ball has travelled
+               far enough forward to land on it. (It was thirteen, which was
+               enough only for the old flat driver skimming in at full pace.)
 
-               Nothing has been done to the pads. They are the Helter Skelter
-               pads, at the Helter Skelter ratings, and the whole difference is
-               what is standing on them. */
+               The pads are the Helter Skelter pads turned up a notch, and the
+               rest of the difference is what is standing on them. */
             name: 'Deadlift', par: 3, gravity: 2.4,
             /* The long game's bag, which is what this hole has always been
                played and tested with — and, against the comment above, what
@@ -4940,9 +4944,9 @@
             blurb: 'Two steps up, no ramps, and the pads have twice the weight to lift.',
             pads: [
                 pad(0, 0, 7, 10),
-                sprung(3.5, 8, 1.2, 13),
+                sprung(3.5, 8, 1.2, 15),
                 pad(0, 10, 7, 6, 1.2),
-                sprung(3.5, 14, 1.2, 13, 1.2),
+                sprung(3.5, 14, 1.2, 15, 1.2),
                 pad(0, 16, 7, 8, 2.4)
             ],
             tee: { x: 3.5, z: 2 }, cup: { x: 3.5, z: 20.5 }
@@ -5601,8 +5605,9 @@
             var field = massif(-7, 28, 12, 2.3, 5)
                 .concat(massif(36, 42, 12, 2.2, 5))
                 .concat([hill(2.2, 15, 2.6, 0.4), hill(22.5, 15, 3, 0.45)]);
-            var land = commons(0, [
-                [{ d: 5, y: 2.0 },     [3, rgh], [9, fwy], [14, rgh]],
+            var land = commons(-6, [
+                [{ d: 6, y: 2.0 },     [3, rgh], [9, fwy], [14, rgh]],
+                [5,                    [3, rgh], [9, fwy], [14, rgh]],
                 [{ d: 4, sz: -0.5 },   [26, rgh]],
                 [12,                   [3, rgh], [15, fwy], [8, rgh]],
                 [10,                   [3, rgh], [7.5, fwy], [15.5, null]],
@@ -5628,7 +5633,7 @@
                     crags(23.5, 40, 2.6, 4, 9407, { s: 1.25, h: 0.95 }),
                     crags(1.4, 52, 2.4, 4, 9411, { s: 1.2, h: 0.9 })
                 ),
-                tee: { x: 7.5, z: 2.5 }, cup: { x: 20.5, z: 53 }
+                tee: { x: 7.5, z: -3.5 }, cup: { x: 20.5, z: 53 }
             });
         })(),
         (function () {
@@ -5683,7 +5688,7 @@
         })(),
         (function () {
             /* The finish, and the course's real dogleg. The inside of the
-               corner is a mesa: a table of scrub seventeen units by thirty-four
+               corner is a mesa: a table of scrub eighteen units by thirty-four
                standing MESA units above the fairway on sheer walls, which is
                higher than anything in the bag lifts a ball, so it is not
                carried, it is gone round. The tee is in the south-east corner,
@@ -5740,7 +5745,7 @@
         })()
     ];
 
-    /* Seventeen courses is far too long a list to read as one list, and the
+    /* Eighteen courses is far too long a list to read as one list, and the
        four kinds of golf on it are not variations of each other — a mini golf hole
        is one swing and a putt, a crazy golf hole is a machine you have to time,
        and a links hole is a drive and an approach. So the group is not a
@@ -5751,6 +5756,151 @@
        `tint` is the group's colour in that picker and `icon` its mark. Both
        live here rather than in the menu, so a new course arrives already filed
        and a new group arrives already dressed. */
+    /* ── Coral Keys: the long game over open water ─────────────────────────
+
+       Every other long course is one piece of country with trouble cut into
+       it. This one is the other way round: the sea is the course and the
+       ground is what is cut into it, a handful of islands with nothing
+       between them, so every shot is a carry and every carry has to land on
+       something. There is no running a ball up to anything here; what you
+       choose is which island next, and how much water you are prepared to
+       put between you and it.
+
+       An island is a disc of beach with grass inlaid on it (`isle`). The
+       beach is the mercy: sand holds whatever lands on it, so a ball that
+       comes up a yard short of the grass is in a bunker rather than the sea,
+       and a ball that runs through the grass stops in the sand before the far
+       shore. The wave in the edge is the same mown wobble a green has
+       (`shapeDisc`), which is all it takes for nothing out here to be square.
+       The islands are level: a disc of ground given humps is drawn on the
+       square grid the rest of the terrain uses, and from above every domed
+       key came out as a raft with corners.
+
+       Every tee is up on a sea stack, a flat-topped pillar of sandstone
+       standing out of the water — the one place on the course with any height
+       to it, which is the height the drive needs to get out over the first
+       channel and the reason it is worth looking down from.
+
+       The water is one sheet under the lot, and the stakes are off: there is
+       nowhere to go out of bounds that is not already wet. */
+    var KEY_SEA = -0.6, KEY_SHORE = -0.28;
+    function isle(cx, cz, rx, rz, opts) {
+        var o = opts || {};
+        var base = circle(cx, cz, rx, 'sand', KEY_SHORE + (o.y || 0), rz);
+        base.inlay = false;
+        var pads = [base];
+        var g = function (r) { return Math.max(1.2, Math.min(r - 1.3, r * 0.8)); };
+        pads.push(inlay([base], cx, cz, g(rx), o.kind || 'fairway', g(rz)));
+        /* Trees are named by bearing and by how far out, as a fraction of the
+           island, so they stay on it whatever size it is drawn at. */
+        var keepIn = pads[1].rIn - 0.7;      // the grass's own wobble, and the trunk
+        pads.props = (o.trees || []).map(function (t, k) {
+            var dx = Math.cos(t[0]) * rx * t[1], dz = Math.sin(t[0]) * rz * t[1];
+            var f = Math.min(1, keepIn / Math.max(1e-6, Math.sqrt(dx * dx + dz * dz)));
+            return tree(cx + dx * f, cz + dz * f,
+                { h: 2.8 + ((k * 7 + Math.round(cx + cz)) % 5) * 0.2 });
+        });
+        return pads;
+    }
+    /* A green island: flat, and the green laid straight into the beach, so
+       what is round a green out here is a bunker in every direction and then
+       the sea. */
+    function keyGreen(cx, cz, r, gr) {
+        var base = circle(cx, cz, r, 'sand', KEY_SHORE, r);
+        base.inlay = false;
+        return [base, inlay([base], cx, cz, gr, 'green')];
+    }
+    function keys(name, par, blurb, isles, tee, cup) {
+        var pads = [].concat.apply([], isles);
+        var extra = [].concat.apply([], isles.map(function (i) { return i.props || []; }));
+        var minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
+        pads.forEach(function (p) {
+            minX = Math.min(minX, p.x); maxX = Math.max(maxX, p.x + p.w);
+            minZ = Math.min(minZ, p.z); maxZ = Math.max(maxZ, p.z + p.d);
+        });
+        var M = 40;
+        return build({
+            name: name, par: par, long: true, open: true, calm: true, stakes: false,
+            blurb: blurb,
+            pads: pads,
+            water: [rect(minX - M, minZ - M, maxX - minX + 2 * M, maxZ - minZ + 2 * M, KEY_SEA)],
+            fence: { x: minX - 2, z: minZ - 2, w: maxX - minX + 4, d: maxZ - minZ + 4 },
+            extra: extra,
+            tee: tee, cup: cup
+        });
+    }
+
+    var coral = [
+        /* The first carry, and a short one: an iron over a channel to a round
+           green on its own key. Nothing to think about but the distance, which
+           is the thing the rest of the course will keep asking. */
+        keys('Landfall', 3, 'One channel, one island, one green. Carry the water, and the sand will catch you if you come up short.', [
+            isle(12, 4, 5, 4.5, { y: 2.8 }),
+            keyGreen(12, 23, 7.5, 4.4)
+        ], { x: 12, z: 3 }, { x: 12.5, z: 23.5 }),
+
+        /* A line of keys across the bay. The driver flies all the way to the
+           second of them and the iron hops one at a time; the long one is the
+           shorter way to the green, if it lands. */
+        keys('Stepping Stones', 4, 'A string of keys across the bay. Hop them one at a time, or fly the first and land on the second.', [
+            isle(10, 4, 5, 5, { y: 2.8 }),
+            isle(7, 19, 5, 4.5, { trees: [[3.0, 0.7]] }),
+            isle(15, 33, 6, 5.5, { trees: [[0.4, 0.72]] }),
+            keyGreen(11, 50, 8, 4.6)
+        ], { x: 10, z: 3 }, { x: 11, z: 51 }),
+
+        /* An atoll: a broken ring of reef round a lagoon, and the green on a
+           key in the middle of it. The near side of the ring is an iron off the
+           tee and a pitch in; the straight line is a drive over the reef and
+           the whole of the lagoon at a green that will not keep a ball that
+           arrives with a driver's run on it. */
+        keys('The Atoll', 4, 'A ring of reef round a lagoon, and the green in the middle. Land on the reef and pitch in, or fly the lot.', (function () {
+            var out = [isle(16, 3, 5, 4.5, { y: 2.8 })], k, a;
+            for (k = 0; k < 6; k++) {
+                a = -Math.PI / 2 + k * Math.PI / 3;
+                out.push(isle(16 + Math.cos(a) * 15, 34 + Math.sin(a) * 15,
+                    k === 0 ? 6 : 4.6, k === 0 ? 5 : 4.6,
+                    { trees: k === 0 ? [] : [[a, 0.6]] }));
+            }
+            out.push(keyGreen(16, 34, 7.5, 4.4));
+            return out;
+        })(), { x: 16, z: 2 }, { x: 16, z: 34.5 }),
+
+        /* The par five, and two ways home. Left is a chain of big keys a full
+           drive apart — three good shots, and the water never more than a
+           club's carry. Right is one long island down the middle of the bay
+           that turns the hole into a drive and a long iron, for anyone who can
+           find it off the tee. */
+        keys('Two Ways Home', 5, 'Two ways down the bay: three big keys on the left, or one long island on the right for the brave.', [
+            isle(10, 4, 5.5, 5, { y: 2.8 }),
+            isle(5, 30, 6.5, 8, { trees: [[3.3, 0.7]] }),
+            isle(5, 56, 6, 7, { trees: [[2.9, 0.68]] }),
+            isle(30, 40, 5, 11, { trees: [[0.2, 0.62], [-0.3, 0.6]] }),
+            keyGreen(20, 76, 8.5, 4.8)
+        ], { x: 10, z: 3 }, { x: 20.5, z: 76.5 }),
+
+        /* One long carry. The tee is the tallest stack on the course, and what it
+           looks out over is twenty units of water and then a long fairway
+           key; a small one off to the left is the lay-up, and costs the shot
+           it saves. */
+        keys('The Long Carry', 4, 'Twenty units of water off the tee. Carry it, or lay up on the little key and take the long way.', [
+            isle(14, 4, 6, 5.5, { y: 3.6 }),
+            isle(3, 20, 4, 4, { trees: [[3.4, 0.55]] }),
+            isle(14, 37, 7, 8.5, { trees: [[3.1, 0.66]] }),
+            keyGreen(20, 55, 8, 4.4)
+        ], { x: 14, z: 4 }, { x: 20.5, z: 55.5 }),
+
+        /* Home round the point: a long key up the left and the green off to
+           the right behind a sandbar. The sandbar is the bail-out and the
+           only thing between the corner and the flag. */
+        keys('Round the Point', 4, 'Up the long key and hard right to the green. The sandbar in the corner will catch you, once.', [
+            isle(8, 4, 5, 5, { y: 2.8 }),
+            isle(8, 27, 5.5, 10, { trees: [[3.4, 0.5], [2.9, 0.48]] }),
+            isle(19.5, 41, 3, 3, { kind: 'sand' }),
+            keyGreen(30, 46, 9, 4.8)
+        ], { x: 8, z: 3 }, { x: 30.5, z: 46.5 })
+    ];
+
     G3.COURSE_GROUPS = [
         {
             id: 'mini', name: 'Mini golf', icon: '\u2691',
@@ -5934,6 +6084,14 @@
             blurb: 'Six holes built round ground that is missing. Carry it, play along it, or go down into it — the canyon asks a different question on every one.',
             theme: 'canyon',
             holes: redstone
+        },
+        {
+            id: 'keys',
+            group: 'long',
+            name: 'Coral Keys',
+            blurb: 'Six holes across a lagoon, and no fairway between the islands — only the next island. Every shot is a carry.',
+            theme: 'lagoon',
+            holes: coral
         }
     ];
 
@@ -5972,7 +6130,7 @@
 
     /* ── shuffle: the course picked for you ──────────────────────────────
 
-       The list is seventeen courses long and most players walk it in the order
+       The list is eighteen courses long and most players walk it in the order
        it is written, which is the order it was *built* in — Seaside Green
        first because it was the first one that existed. Shuffle is the other
        way through it: finish a round and the next course is drawn rather than
@@ -5986,7 +6144,7 @@
        Four modes, because "random" on its own answers the wrong question after
        the first few rounds. Who has just finished Windmill Works wants either
        more of the same or deliberately not-the-same, and who has played eleven
-       of the seventeen wants one of the other four. */
+       of the eighteen wants one of the other four. */
     /* Each mode says three things, and the picker prints all three on the
        option itself rather than hiding any of them in a `title`: a phone has
        no hover, so a tooltip is not a shorter explanation — it is no
@@ -6051,7 +6209,7 @@
        "only these kinds" can both be true at the same time.
 
        **A mode never comes back empty.** "New to you" stops meaning anything
-       the moment you have played all seventeen, and "beat a best" means nothing
+       the moment you have played all eighteen, and "beat a best" means nothing
        before the first round is finished; a picker whose button does nothing
        on press is worse than one that quietly widens its net. So each mode has
        a written-down fallback and says when it took it, and `eased` is what
@@ -6160,7 +6318,7 @@
 
     /* ── the showcase: the game in eight holes ───────────────────────────
 
-       A hundred and two holes is a lot to ask anybody to walk before they
+       A hundred and eight holes is a lot to ask anybody to walk before they
        know what is in them, and the order they are written in shows you six
        holes of one kind of golf before it shows you a second. The showcase is
        the other way in, and it is what a new game plays: two holes from every

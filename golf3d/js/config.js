@@ -8,7 +8,7 @@
    — the renderer scales to the viewport, the simulation never sees a pixel. */
 window.G3 = window.G3 || {};
 
-G3.VERSION = '1.75.0';
+G3.VERSION = '1.76.0';
 
 G3.CONFIG = {
     BALL_R: 0.16,
@@ -115,7 +115,8 @@ G3.CONFIG = {
     },
     HOLD_DEFAULT: 0.22,
 
-    /* At full power the ball coasts v0 / -ln(k) ≈ 27 units on grass. That is
+    /* The driver's ceiling, and so the top of the meter. At full power the
+       ball would coast v0 / -ln(k) ≈ 23 units on grass. That is
        longer than any mini golf hole here and shorter than most of a links
        one, which is the split the number has to serve now: everything on the
        first five courses is reachable with one swing and most of it with half
@@ -123,7 +124,7 @@ G3.CONFIG = {
        will not take a ball arriving much above 7. On the long courses the same
        number is a tee shot, and the skill is in what the ground does with it
        afterwards. */
-    MAX_POWER: 32,
+    MAX_POWER: 28,
     MIN_POWER: 0.9,
 
     /* Past a full swing the meter keeps going. OVERDRAW is how much further,
@@ -270,22 +271,31 @@ G3.CONFIG = {
             loft: 0, power: 10.5, carry: 0, total: 8.0,
             blurb: 'Rolls flat and true. Nothing else stops where you tell it.'
         },
+        /* The long game's clubs fly on their own numbers. At 10° the driver
+           peaked under a unit off the ground — two and a half balls — and
+           was down in six tenths of a second, which is a skim, not a drive.
+           21° and 28 puts the top of the flight near three units and keeps it
+           up for over a second: three times the height, half as much again in
+           carry, and a quarter more in all, because a ball coming down
+           steeper runs out less. The putter, the mallet and both wedges are
+           shared with mini golf and are untouched. */
         {
             id: 'driver', name: 'Driver', short: 'DR', key: '2',
-            loft: 10 * Math.PI / 180, power: 32, carry: 19.4, total: 42.5,
+            loft: 21 * Math.PI / 180, power: 28, carry: 29.1, total: 39.5,
             shapes: ['draw', 'fade', 'topped'],
             blurb: 'The reach club. Up and away, and it still runs.'
         },
         /* The one club that is neither reach nor loft but a real amount of
-           both, and the reason it exists is carry. A driver is in the air for
-           a quarter of a second and a chipper flies eight units at the very
-           most; an iron flies eleven and still runs when it lands, which is
+           both, and the reason it exists is carry. A chipper flies eight
+           units at the very most; an iron flies twelve and still runs when it
+           lands, which is
            what a green with water in front of it needs and what nothing else
            in the bag could do. It is also the club for a long second shot:
-           two thirds of a driver, and it stops. */
+           under half a driver, and it stops. At 30° it now flies twelve and
+           climbs nearly two, so it gets over a tree as well as a pond. */
         {
             id: 'iron', name: '7 Iron', short: '7i', key: '3',
-            loft: 16 * Math.PI / 180, power: 18, carry: 9.8, total: 21.4,
+            loft: 30 * Math.PI / 180, power: 16, carry: 12.3, total: 17.8,
             shapes: ['draw', 'fade', 'backspin', 'topped'],
             blurb: 'The long approach. Carries what the driver runs into.'
         },

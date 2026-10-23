@@ -929,8 +929,8 @@
 
         section('Course data');
         (function () {
-            assert('seventeen courses', G3.COURSES.length === 17);
-            assert('a hundred and two holes in total', ALL.length === 102);
+            assert('eighteen courses', G3.COURSES.length === 18);
+            assert('a hundred and eight holes in total', ALL.length === 108);
             assert('courseById finds a course', G3.courseById('quarry').id === 'quarry');
             assert('courseById falls back to the first', G3.courseById('nope').id === G3.COURSES[0].id);
 
@@ -2031,10 +2031,21 @@
                 entry.hole.walls.forEach(function (wl) {
                     if (wl.kind !== 'tree' && wl.kind !== 'rock') return;
                     rooted++;
+                    /* Boxes first, which is all a rectangular bunker needs. A
+                       disc of sand that is *ground* rather than an inlay — a
+                       Coral Keys island is a beach with grass laid on it — has
+                       its whole island inside its box, so for one of those the
+                       question is what is actually underfoot. */
                     entry.hole.pads.forEach(function (p) {
                         if (p.kind !== 'sand' && p.kind !== 'green') return;
                         if (Math.min(p.x + p.w, wl.x + wl.w) - Math.max(p.x, wl.x) <= 0) return;
                         if (Math.min(p.z + p.d, wl.z + wl.d) - Math.max(p.z, wl.z) <= 0) return;
+                        if (p.r && !p.inlay && [0, 0.5, 1].every(function (fx) {
+                            return [0, 0.5, 1].every(function (fz) {
+                                var top = P.surfaceTop(entry.hole, wl.x + wl.w * fx, wl.z + wl.d * fz);
+                                return top && top.pad !== p;
+                            });
+                        })) return;
                         badTree = entry.course.id + '/' + entry.hole.name +
                             ', a ' + wl.kind + ' in the ' + p.kind;
                     });
@@ -2286,7 +2297,10 @@
                    only fair if a ball that crosses the boundary lands on
                    something: a fence with a cliff behind it is a rail that
                    costs a stroke. */
-                assert(tag + ': there is country outside the boundary',
+                /* …except where there is no country to have: Coral Keys is
+                   islands in a sea, everything past them is water, and the
+                   water is the penalty a boundary would have been. */
+                if (h.stakes !== false) assert(tag + ': there is country outside the boundary',
                     P.fenceRects(h).every(function (f) {
                         return [[f.x - 2, f.z + f.d / 2], [f.x + f.w + 2, f.z + f.d / 2],
                                 [f.x + f.w / 2, f.z - 2], [f.x + f.w / 2, f.z + f.d + 2]]
@@ -2295,7 +2309,7 @@
                             });
                     }));
             });
-            assert('there are open holes to check', openHoles === 24, openHoles + ' found');
+            assert('there are open holes to check', openHoles === 30, openHoles + ' found');
 
             var worstLie = 0, worstLieName = '';
             ALL.forEach(function (entry) {

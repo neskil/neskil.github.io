@@ -1,6 +1,6 @@
 # Loft Links
 
-Seventeen six-hole courses of 3D golf in four kinds. **Mini golf**: four courses
+Eighteen six-hole courses of 3D golf in four kinds. **Mini golf**: four courses
 of lanes, rails, ledges and one horseshoe. **Crazy golf**: five of blades,
 gates, bumpers, angled banks and pendulums, where the shot is a matter of
 timing rather than of aim — of what a mistimed one costs on The Millrace, where
@@ -11,8 +11,9 @@ the ball stop, travelators that carry it off, launch pads that throw it in the
 air, pipes that put it somewhere else entirely, a volcano where all of that
 is pointed downhill, and Apogee Yard, where the floor is ordinary and the
 *ball* is not: six holes at six gravities, from three tenths of a g to two and
-two fifths. **The long game**: four full-size courses with no fence on any of
-them, and the only four built out of the shape of their own ground — Ashdown
+two fifths. **The long game**: five full-size courses with no fence on any of
+them — four built out of the shape of their own ground, and one with almost no
+ground at all — Ashdown
 Park, a parkland falling three units off a bluff and climbing back to a shelf,
 with a blind green in a dell between two hills and a lake the whole hole tilts
 into; Whinstone Links, open rolling country with a whinstone sandhill the size
@@ -20,7 +21,9 @@ of a hill down the right of one of them; Dunmore Heath, where the interest
 is the moor itself — crests, hollows, a punchbowl, a spiral, a burn round a
 dogleg, a tarn on top of four units of hillside and a gorge two units deep
 across the last of it; and
-Redstone Canyon, which is the only one made of ground that is *missing*. three.js (vendored, r128), plain ES5-flavoured JavaScript, no
+Redstone Canyon, which is the only one made of ground that is *missing*; and
+Coral Keys, six holes of island-hopping across a lagoon, where the sea is the
+course and every shot is a carry to the next key. three.js (vendored, r128), plain ES5-flavoured JavaScript, no
 build step and no other dependencies — same as everything else here, open
 `index.html` and it runs.
 
@@ -28,8 +31,8 @@ Two rules run through the whole card. **A course gets harder as you play it** �
 hole one introduces something, the middle develops it and the sixth asks for all
 of it at once — and the same climb runs across each group, so the four mini
 courses are in the order of how much they ask for and so are the crazy, the
-adventure and the long ones. **A hole is not the hole beside it**: a hundred and two holes
-on one list is a hundred and two chances to write the same corridor again, and
+adventure and the long ones. **A hole is not the hole beside it**: a hundred and eight holes
+on one list is a hundred and eight chances to write the same corridor again, and
 the way out is the *plan* rather than the furniture. See
 [The order the holes are in](#the-order-the-holes-are-in).
 
@@ -47,7 +50,7 @@ them.
 | `index.html` | Page shell: scoreboard, canvas, power/loft controls, banner, course picker, scorecard. |
 | `style.css` | Page chrome. The course itself is all WebGL. |
 | `js/config.js` | Every tuning constant. Nothing else holds a magic number. |
-| `js/courses.js` | The hundred and two holes, as data, plus the rail generator, the band layout the long-game courses are written in — rows that tilt and carry their level into the next one, and a cross-fall that puts a whole hole on the side of a hill — the dune fields the links is made of, the landforms the two parkland courses are shaped by, the bag each hole is played out of, and the [draw](#the-draw) behind the picker's die. |
+| `js/courses.js` | The hundred and eight holes, as data, plus the rail generator, the band layout the long-game courses are written in — rows that tilt and carry their level into the next one, and a cross-fall that puts a whole hole on the side of a hill — the dune fields the links is made of, the landforms the two parkland courses are shaped by, the bag each hole is played out of, and the [draw](#the-draw) behind the picker's die. |
 | `js/physics.js` | The simulation. No three.js, no DOM, pure. |
 | `js/audit.js` | The [geometry audit](#the-pictures-which-neither-suite-can-see): the faults that are invisible to the ball and obvious in a screenshot. Pure — read by `tests.html`, by the inspector and by the turntable. |
 | `js/scoring.js` | Scorecard arithmetic and the save file. |
@@ -158,7 +161,7 @@ because that is a hole about a line rather than about pace.
 The mallet exists because of the other half of that. A lane you may only putt
 down is a good hole and the putter is the wrong club for it: 10.5 of power runs
 about nine units, which is most of a mini golf lane and nowhere near a hole in
-one, so the hole becomes two safe taps and no decision in either. Seventeen
+one, so the hole becomes two safe taps and no decision in either. Eighteen
 runs the length of one, and the same hole is a single committed shot that is
 either in or fifteen units past. It stays out of the default bag because a flat
 club with that much reach would quietly become the answer to half the course.
@@ -801,7 +804,7 @@ say what it cost rather than how long it went on.
 
 ## The courses
 
-Seventeen, six holes each, filed under four groups — and the group is not a
+Eighteen, six holes each, filed under four groups — and the group is not a
 heading in the picker, it is a tab (see [The picker](#the-picker)). The four
 are not variations of one another: a mini golf hole is one swing and a putt, a
 crazy golf hole is a mechanism you have to time, an adventure hole is a floor
@@ -827,6 +830,7 @@ approach.
 | Whinstone Links | long | `links` | No flat lies and no straight edges. The ground is the hazard, and on one hole it is a sandhill. |
 | Dunmore Heath | long | `heath` | The long game again, shaped rather than furnished: crests, hollows, a punchbowl, a whorl, one dry ravine and a hillside you climb — and moorland water, a burn, a tarn and a pond. |
 | Redstone Canyon | long | `canyon` | Ground that is missing, six ways. A canyon across the drive, down the side of the hole, flooded under a par three, biting a piece out of the fairway, twice, and at the end of a dogleg round a mesa. |
+| Coral Keys | long | `lagoon` | Islands in a lagoon and nothing between them. Every tee is a sea stack, every key is grass on a beach, and every shot is a carry: a chain of keys, an atoll, two ways down a bay, one long carry. `isle` and `keyGreen` in courses.js. |
 
 **Sea Legs**, the first hole anybody plays, is a bounce hole: one lane, one
 baffle reaching in from the east rail, and a rail across the far corner set at
@@ -1058,8 +1062,8 @@ Because the order carries meaning, moving a hole is a change to the course and
 not a tidy-up. Nothing else depends on it — a hole's ground is seeded from its
 own *name* (`nameSeed`), so reordering a card cannot reshape a single hump.
 
-**A hole is not the hole beside it.** A hundred and two holes on one list is a
-hundred and two chances to write the same corridor again, and the escape is the plan
+**A hole is not the hole beside it.** A hundred and eight holes on one list is a
+hundred and eight chances to write the same corridor again, and the escape is the plan
 rather than the furniture. Before the pass that broke this up, forty-eight of
 the sixty holes then on the card were a rectangle running north with the tee at
 one end and the cup at the other, and the only thing that made one different
@@ -1700,7 +1704,7 @@ both ends of the hole are inside it.
 
 ### The draw
 
-Seventeen courses is more than a list is good for, and the order they are in is
+Eighteen courses is more than a list is good for, and the order they are in is
 the order they were *built* in — Seaside Green first because it was the first
 one that existed. So the picker has a second way out of it, and it is the fifth
 tab on the row: a die, four chips saying how it should be thrown, and a switch
@@ -1722,7 +1726,7 @@ after the first few rounds:
 
 | Mode | Draws from | When it runs out |
 | --- | --- | --- |
-| **Anything** | all seventeen | — |
+| **Anything** | all eighteen | — |
 | **Same kind** | the last *kind* tab you looked at, not the kind you are standing in | widens to anything |
 | **New to you** | courses with no finished round on them | the ones you have played *least* |
 | **Beat a best** | courses that already have a record on them | widens to anything |
@@ -1738,7 +1742,7 @@ the kind rather than pointing at it: *right now that is mini golf*.
 Two rules hold across all four. **Never the course you are already on** — a
 surprise that hands you back the hole you are looking at is the one result
 nobody wants — and **a mode never comes back empty**. "New to you" stops
-meaning anything the moment you have played all seventeen and "beat a best"
+meaning anything the moment you have played all eighteen and "beat a best"
 means nothing before the first round is finished; a button that does nothing on
 press is worse than one that widens its net, so each mode has a written-down
 fallback, `shuffleDraw` reports whether it took it, and the option says so out
@@ -1799,7 +1803,7 @@ never heard of it.
 
 The demo does not read them, and does not read the mode either. Both are what
 somebody wants dealt to *them*; the attract loop is showing the game to a room
-it is talking to, and it draws from all seventeen — see `demoRound`.
+it is talking to, and it draws from all eighteen — see `demoRound`.
 
 **The draw itself is pure.** `G3.shuffleDraw` and `G3.randomCourseId` in
 `courses.js` take the mode, where you are standing, which tab is open, which
@@ -2874,7 +2878,7 @@ is no frame at all.
 
 🤖 **Autoplay**, in the ☰ menu with the other things you do to a round. Press
 it and `js/bot.js`, the same greedy player that proves in `tests.html` that all
-hundred and two holes are solvable, takes the club and plays — from wherever your ball
+hundred and eight holes are solvable, takes the club and plays — from wherever your ball
 is standing, and then **on**: the next hole when this one is holed, and the
 next course when the sixth one is. Press it again, or <kbd>Esc</kbd>, to take
 the club back.
@@ -2957,7 +2961,7 @@ and `BOT_MAX_STROKES` is where it gives up and hands the club back.
 
 ## The showcase: the game in eight holes
 
-A hundred and two holes is a lot to walk before you know what is in them, and
+A hundred and eight holes is a lot to walk before you know what is in them, and
 the order they are written in shows you six holes of one kind of golf before it
 shows you a second. The showcase is the other way in, and it is what a new game
 plays: **two holes from every kind, eight in all, each out of a different
@@ -4045,13 +4049,13 @@ the four things that can move it says otherwise.
 
 Open `tests.html`. Over 2,460 assertions covering the surfaces, the collision
 geometry, the cup, the integrator, the bag, the ground that does something, the
-walls you go through, all hundred and two holes of course data, the scorecard and the
+walls you go through, all hundred and eight holes of course data, the scorecard and the
 intro flyover's path.
 
 The one worth knowing about is the **bot** (`js/bot.js`, and the game plays it
 too — see [autoplay](#the-caddie-autoplay)): a greedy player fans
 out candidate shots on every hole, keeps the one that finishes nearest the cup,
-and plays all hundred and two. If a hole is sealed off, unreachable, or has a cup buried where
+and plays all hundred and eight. If a hole is sealed off, unreachable, or has a cup buried where
 nothing can settle, the bot never holes out and the suite goes red. It is
 deterministic, so a failure is reproducible rather than "sometimes red", it
 plays out of the same five clubs the player gets, its candidates include a wait
@@ -4209,7 +4213,7 @@ Every one of those passed the whole of `tests.html`, on shipped holes.
 
 **`turntable.html`** is the eye's half. It draws every hole in the game with the
 game's own renderer from eight fixed angles and lays them out as one contact
-sheet per course — a hundred and two holes in seventeen pictures. The angles are not
+sheet per course — a hundred and eight holes in eighteen pictures. The angles are not
 decoration; each is there for something the others hide:
 
 | View | What only it shows |
@@ -4221,7 +4225,7 @@ decoration; each is there for something the others hide:
 | **hero at 40°** | The picture the hole would be sold with, which is a fair question to ask of it. |
 
 ```sh
-node golf3d/tools/turntable.mjs                        # all seventeen, ~7 minutes
+node golf3d/tools/turntable.mjs                        # all eighteen, ~7 minutes
 node golf3d/tools/turntable.mjs quarry --hole 4 --tile 640 --views graze,hero
 ```
 
