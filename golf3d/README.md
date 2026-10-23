@@ -579,7 +579,7 @@ were each their own cylinder in a slightly different mid grey, so nothing
 separated from anything; the seam rings were a fixed radius on a tapering body
 and hung a centimetre clear of it; and the pockets were boxes standing off the
 curve on their corners. Lambert lit it from the course's lamps alone, so it was
-a different bag on every hole. Since v1.85.0 it is one lathed outline
+a different bag on every hole. Since v1.86.0 it is one lathed outline
 (`BODY_LINE`) that everything else is fitted to through `radiusAt` — the band,
 the piping and the padded pockets (`puff`) all sit on the taper rather than
 near it — with a moulded top rolled over at the lip, and a tour bag's palette:
