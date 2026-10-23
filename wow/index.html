@@ -465,11 +465,6 @@ footer { position: relative; z-index: 2; text-align: center; padding-block: 0 40
 footer p { margin: 4px auto; max-width: 70ch; }
 footer a { color: var(--gold); }
 
-.egg { appearance: none; margin: 14px auto 0; display: block; padding: 6px; border: 0; border-radius: 50%; background: none; cursor: pointer; opacity: .35; transition: opacity .3s, filter .3s; }
-.egg:hover, .egg:focus-visible { opacity: 1; filter: drop-shadow(0 0 10px rgba(255,138,43,.8)); }
-.egg-f1 { transform-origin: 16px 24px; animation: flick 1.3s ease-in-out infinite; }
-.egg-f2 { transform-origin: 16px 22px; animation: flick 0.9s ease-in-out infinite reverse; }
-@keyframes flick { 50% { transform: scale(.88, 1.08); } }
 .world { margin-top: 4px; }
 
 body.launched .tagline { color: var(--gold-hi); font-style: normal; font-family: var(--font-caps); letter-spacing: .12em; }
@@ -594,8 +589,8 @@ body.launched .tagline { color: var(--gold-hi); font-style: normal; font-family:
     </div>
     <div class="vault-cta"><button class="btn big" id="open-vault" type="button">Open the Great Vault</button></div>
   </section>
-  <section class="panel camp" id="camp" aria-labelledby="camp-ttl" hidden>
-    <h2 class="panel-title" id="camp-ttl"><span class="glyph">✧</span>You found the camp</h2>
+  <section class="panel camp" id="camp" aria-labelledby="camp-ttl">
+    <h2 class="panel-title" id="camp-ttl"><span class="glyph">✧</span>The camp</h2>
     <p class="panel-sub">The party, waiting by the fire in front of the gates. Drag to look around, click someone to target them, and try the action bar.</p>
     <div class="world" id="world" tabindex="0" aria-label="The party in 3D around a campfire in front of the gates. Drag to look around, click someone to target them, press 1 to 6 for the action bar.">
       <canvas id="world-gl"></canvas>
@@ -629,9 +624,6 @@ body.launched .tagline { color: var(--gold-hi); font-style: normal; font-family:
 <footer>
   <p>Fan-made countdown for a group of friends. Not affiliated with or endorsed by Blizzard Entertainment. World of Warcraft is a trademark of Blizzard Entertainment, Inc.</p>
   <p>Dates come from Blizzard's announced roadmap as reported in news coverage. The countdown runs on your device's clock. <a href="../">Neskil's Pot-Pourri</a></p>
-  <button class="egg" id="egg" type="button" title="Something flickers in the dark" aria-label="Something flickers in the dark">
-    <svg viewBox="0 0 32 32" width="30" height="30" aria-hidden="true"><path class="egg-f1" d="M16 5c3 4 6 7 6 11a6 6 0 0 1-12 0c0-3 2-5 3-7 0 3 1 4 2 4 0-3 0-5 1-8z" fill="#ff8a2b"/><path class="egg-f2" d="M16 12c1.6 2.4 3 4 3 6a3 3 0 0 1-6 0c0-1.6 1.2-3 3-6z" fill="#ffd27a"/><path d="M7 26l18-4M7 22l18 4" stroke="#6b4a2a" stroke-width="2.4" stroke-linecap="round"/></svg>
-  </button>
 </footer>
 
 <script>
@@ -967,19 +959,14 @@ body.launched .tagline { color: var(--gold-hi); font-style: normal; font-family:
   setInterval(renderQuests, 60000);
   requestAnimationFrame(draw);
 
-  // The camp: hidden at the foot of the page, and three.js only loads once someone finds it.
+  // The camp sits at the foot of the page; three.js only loads once it scrolls near.
   const loadScript = src => new Promise((ok, fail) => { const el = document.createElement("script"); el.src = src; el.onload = ok; el.onerror = fail; document.body.appendChild(el); });
-  let campLoaded = false;
-  $("egg").addEventListener("click", () => {
-    const camp = $("camp");
-    camp.hidden = false;
-    camp.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" });
-    const r = $("egg").getBoundingClientRect();
-    burst(r.left + r.width / 2, r.top + r.height / 2, 60);
-    if (campLoaded) return;
-    campLoaded = true;
+  const campIO = new IntersectionObserver(es => {
+    if (!es[0].isIntersecting) return;
+    campIO.disconnect();
     loadScript("vendor/three.min.js").then(() => loadScript("js/world.js")).catch(() => $("world").classList.add("no-gl"));
-  });
+  }, { rootMargin: "600px" });
+  campIO.observe($("camp"));
 
   // A click on the open sky throws a few sparks.
   document.addEventListener("pointerdown", e => { if (!e.target.closest("button, a, .url, .frame, .world")) burst(e.clientX, e.clientY, 24); });
