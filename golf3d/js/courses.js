@@ -5634,20 +5634,30 @@
                The pads are the Helter Skelter pads turned up a notch, and the
                rest of the difference is what is standing on them. */
             name: 'Deadlift', par: 3, gravity: 2.4,
-            /* The long game's bag, which is what this hole has always been
-               played and tested with — and, against the comment above, what
-               the bot actually holes it with is the driver over both steps.
-               With the mallet alone the pads do lift a rolled ball a step at a
-               time, but a greedy player runs its first shot past the second
-               pad and jams against the riser behind it. PLAN.md §0 has it. */
-            bag: ['putter', 'driver', 'iron', 'chipper', 'wedge'],
-            blurb: 'Two steps up, no ramps, and the pads have twice the weight to lift.',
+            /* It used to be played with the long game's bag, and — against
+               everything above — holed with the driver flown over both steps.
+               With the mallet alone the pads did lift a rolled ball a step at
+               a time, but each pad stood two units short of its riser, so a
+               ball that missed one ran on past it and jammed against the step
+               behind, and nothing in a mini bag gets it off that.
+
+               So each pad is up against its riser now, and two banks in front
+               of each step make a funnel that turns any ball rolling at the
+               step on to the pad. The hole is what the comment always said it
+               was: a floor that throws the ball for you, a step at a time. The
+               bot holes it in three from anywhere on the bottom floor and in
+               two from the middle step. */
+            blurb: 'Two steps up, no ramps, and the pads have twice the weight to lift. Roll it at the step and let the funnel find the pad.',
             pads: [
                 pad(0, 0, 7, 10),
-                sprung(3.5, 8, 1.2, 15),
+                sprung(3.5, 8.8, 1.2, 15),
                 pad(0, 10, 7, 6, 1.2),
-                sprung(3.5, 14, 1.2, 15, 1.2),
+                sprung(3.5, 14.8, 1.2, 15, 1.2),
                 pad(0, 16, 7, 8, 2.4)
+            ],
+            extra: [
+                bank(1.2, 9, 2.9, -0.62), bank(5.8, 9, 2.9, 0.62),
+                bank(1.2, 15, 2.9, -0.62, { base: 1.1 }), bank(5.8, 15, 2.9, 0.62, { base: 1.1 })
             ],
             tee: { x: 3.5, z: 2 }, cup: { x: 3.5, z: 20.5 }
         }),

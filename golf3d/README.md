@@ -1404,7 +1404,7 @@ carry ratio and the fact the slope does not budge.
 | 1 | Hang Time | 0.5 | 3 | Fourteen units of nothing between two slabs, which is more than anything in the bag carries at home. One number, said out loud, with nothing else on the hole. |
 | 2 | Dead Weight | 2 | 3 | The inversion. Eight units of gap that nothing can fly at any power, and a plank off to the east that is not the safe route but the only one. |
 | 3 | The Crater | 0.45 | 3 | Light again, and the target is the hole: a crater green on an island, because at this weight nothing stops on flat ground and the rim is the only thing that will. |
-| 4 | Deadlift | 2.4 | 3 | The heaviest hole on the card, and the only one with a motor in it. Two steps of one point two, no ramps, and pads at Helter Skelter's own ratings lifting something twice as heavy. |
+| 4 | Deadlift | 2.4 | 3 | The heaviest hole on the card, and the only one with a motor in it. Two steps of one point two, no ramps, and pads at Helter Skelter's own ratings lifting something twice as heavy — each against its riser, with a funnel of two banks in front of the step to put a rolled ball on it. Played with the mini bag. |
 | 5 | Orbit | 0.5 | 3 | A gravity well in the middle of the yard (`wells`) and the cup round the back of it: swing past close enough that it bends the ball in, not so close that it keeps it. Replaced The Mouth, a pipe hole with one answer. |
 | 6 | Apogee | 0.3 | 3 | The pad throws the ball nine and a half units up and holds it there for the best part of four seconds. Two thirds of a putter is the shot; a full one is forty units and gone. |
 
