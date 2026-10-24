@@ -192,6 +192,11 @@ none, because it reads as coverage.
   against a two-unit cliff. And the two sides want different widths — a near
   wall wide enough to play out of is a ramp a drive bounces clean across the
   gorge off. See README → "The gorge".
+- **A pad's rectangle is not its outline any more.** `build` rounds a fenced
+  hole's outside corners (`pad.round`), so anything new that reasons about
+  where a pad's ground is must ask `physics.padContains` rather than read
+  `x`/`w`/`z`/`d`, and anything that draws a slab goes through `slabShape`.
+  README → "Rounded corners".
 - **Trees and rocks with no `y` are seated on the ground by `build`.** Naming a
   height by hand is a second copy of the height field; the copies drift the
   first time a row is retilted, and the tests measure it now. Seating is off the

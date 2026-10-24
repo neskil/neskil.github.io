@@ -402,6 +402,44 @@
                     'finished at x ' + back.ball.x.toFixed(2) + ', z ' + back.ball.z.toFixed(2));
             })();
 
+            /* A rounded corner (courses.roundCorners) is three things that
+               have to agree: the ground stops on the curve, an arc of rail
+               stands on it, and the straight rails either side stop where
+               the arc starts. If the last two leave a chink, a ball fired
+               into the corner finds it — so fire balls at every bearing,
+               from the middle and from beside each corner, and none may
+               leave the hole. */
+            (function () {
+                var h = A.build({ name: 'Round Lab', par: 3, pads: [A.pad(0, 0, 8, 16)],
+                    tee: { x: 4, z: 2 }, cup: { x: 4, z: 13 } });
+                var p = h.pads[0], c = p.round || {};
+                assert('a lane\'s four outside corners are rounded',
+                    c.sw > 0 && c.se > 0 && c.nw > 0 && c.ne > 0, JSON.stringify(c));
+                assert('…the ground stops on the curve',
+                    !P.padContains(p, 0.08, 0.08) && !P.padContains(p, 7.92, 15.92) &&
+                    P.padContains(p, c.sw * 0.5, c.sw * 0.5) && P.padContains(p, 0.05, 4));
+                var bends = [];
+                h.walls.forEach(function (wl) { if (wl.bend && bends.indexOf(wl.bend) < 0) bends.push(wl.bend); });
+                assert('…and each corner has a bend of rail round it', bends.length === 4, bends.length + ' bends');
+                var square = A.build({ name: 'Square Lab', par: 3, round: 0, pads: [A.pad(0, 0, 8, 16)],
+                    tee: { x: 4, z: 2 }, cup: { x: 4, z: 13 } });
+                assert('`round: 0` keeps a hole square', !square.pads[0].round);
+                /* Measured against the same lane with its corners square, so
+                   what is counted is what the rounding let out — a ball sent
+                   across the cup at full pace can be thrown over a straight
+                   rail as well, and that is the cup's business, not this. */
+                var leaks = [], from = [{ x: 4, z: 8 }, { x: 1.6, z: 1.6 }, { x: 6.4, z: 1.6 },
+                    { x: 1.6, z: 14.4 }, { x: 6.4, z: 14.4 }], k, j, yaw;
+                for (k = 0; k < from.length; k++) {
+                    for (j = 0; j < 48; j++) {
+                        yaw = j / 48 * Math.PI * 2;
+                        if (shootFrom(h, from[k], yaw, C.MAX_POWER).out &&
+                            !shootFrom(square, from[k], yaw, C.MAX_POWER).out) leaks.push(from[k].x + ',' + from[k].z + ' @' + j);
+                    }
+                }
+                assert('…and no ball fired into a rounded corner gets out', !leaks.length, leaks.slice(0, 5).join(' '));
+            })();
+
             /* A disc pad is the shape inside its footprint, not the footprint
                — and the shape is a circle with a wave on it, not a circle
                (courses.WAVE). What the wave may do is bounded in one
@@ -1406,6 +1444,26 @@
                 });
                 assert(tag + ': the tee is clear of the walls', !teeBlocked);
                 assert(tag + ': the cup is clear of the walls', !cupBlocked);
+
+                /* A rounded corner gives up the ground within its radius of
+                   the corner, so it may not be anywhere near the tee's or the
+                   cup's flat — and every one has its bend of rail. */
+                var corners = 0, near = [], bendSet = [];
+                h.pads.forEach(function (p) {
+                    if (!p.round) return;
+                    [['sw', p.x, p.z], ['se', p.x + p.w, p.z], ['nw', p.x, p.z + p.d],
+                     ['ne', p.x + p.w, p.z + p.d]].forEach(function (k) {
+                        var r = p.round[k[0]];
+                        if (!r) return;
+                        corners++;
+                        if (Math.hypot(h.tee.x - k[1], h.tee.z - k[2]) < r + 1.1 ||
+                            Math.hypot(h.cup.x - k[1], h.cup.z - k[2]) < r + 1.25) near.push(k[0]);
+                    });
+                });
+                h.walls.forEach(function (wl) { if (wl.bend && bendSet.indexOf(wl.bend) < 0) bendSet.push(wl.bend); });
+                assert(tag + ': no rounded corner takes ground from the tee or the cup', !near.length, near.join(' '));
+                assert(tag + ': every rounded corner has its rail', bendSet.length === corners,
+                    bendSet.length + ' bends for ' + corners + ' corners');
 
                 /* Pads may only overlap when the surface lookup can tell them
                    apart. There are two ways to earn that. One is being clearly

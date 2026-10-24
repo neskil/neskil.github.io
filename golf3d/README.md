@@ -1968,7 +1968,8 @@ fault everywhere else.
     pads: [ pad(x, z, w, d, y, kind, sx, sz) ],   // the cup is cut into one of these
     water: [ rect(x, z, w, d, y) ],
     gaps:  [ rect(…) ],                 // where *not* to build a rail
-    extra: [ wall(…), slider(…), spinner(…) ]
+    extra: [ wall(…), slider(…), spinner(…) ],
+    round: 1.1                          // outside corners' radius; 0 keeps them square
 }
 ```
 
@@ -2139,6 +2140,49 @@ fault everywhere else.
   audit and the minimap's framing never noticed. `tests.html` holds it to
   covering exactly the ground the straight rows covered, point for point. Pass
   `mow: false` to `commons` for a hole that wants its ruled edges back.
+
+### Rounded corners
+
+**A fenced hole's outside corners are rounded** (v1.92.0), and nobody writes
+which ones. Every drawn hole used to be ruled with a set square — a lane a
+rectangle, a dogleg two of them — and from above every mini course read as a
+diagram of itself. Real crazy golf is built of kerb that bends, and the
+outside corner of a lane is where it bends first.
+
+`build` decides it from the ground (`courses.roundCorners`): a corner is
+rounded when both edges meeting there are rails with nothing beyond them. It
+keeps its square when anything about it is load-bearing — a neighbouring pad
+or a gap along either edge or across the diagonal (a floor that carries on, a
+shoreline left open, a brink you are meant to fall off), anything in `extra`
+whose footprint or sweep reaches the corner (Sea Legs turns the ball off a
+rail laid across one), the tee's or the cup's flat within reach, or a pad that
+is not a plain slab (a disc, contoured ground, a mown fairway, a belt, a
+launch pad, a hovering tee). The radius is `ROUND` (1.1), or a quarter of the
+pad's narrow side if that is less, so a plank keeps a plank's corner. A hole
+may name its own with `round: 0.6`, or `round: 0` to keep every corner square.
+
+One field, `pad.round` (a radius for any of `sw`, `se`, `nw`, `ne`; s and w
+are the low z and the low x), and four readers:
+
+- **physics** — `padContains` cuts the corner square outside the
+  quarter-circle, so the minimap, which samples the physics a pixel at a time,
+  draws the curve for nothing;
+- **the rails** — `edgeRails` stops each straight rail exactly where the curve
+  starts and `cornerRails` stands an arc of chords on it, on the same line and
+  to the same height rule. Each chord carries a `bend`, the curve it belongs
+  to;
+- **the renderer** — the slab and its grass are extruded from `slabShape`, and
+  each `bend` is drawn once as one smooth kerb (`addBend`) instead of as its
+  chords, which side-on read as a fan of flat boards;
+- **the editor** — it never imports a chord as an authored wall (a chord is a
+  turned rail, which is otherwise how the editor spots one); `build` lays them
+  again off the ground.
+
+`tests.html` fires a ball at every bearing from the middle of a test lane and
+from beside each corner, and counts any that leave the hole and would not have
+left the same lane with square corners; with `cornerRails` taken out it
+counts fifty. It also holds every real hole to a rail per rounded corner and
+no curve within reach of a tee or a cup.
 
 ### Relief on a drawn hole
 

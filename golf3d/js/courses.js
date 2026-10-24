@@ -1886,9 +1886,22 @@
         var n = Math.max(1, Math.round(along / STEP));
         var step = along / n;
         var run = null, i, t0, t1, mid, px, pz, ex, ez, hHere, hOut, open;
+        /* A rounded corner at either end of this edge takes its own rail
+           (`cornerRails`), so the straight one stops where the curve starts:
+           exactly there, not at the nearest sample, or the two would leave a
+           chink between them a ball could find. */
+        var rc = p.round || {};
+        var rS = (side === 'e' ? rc.se : side === 'n' ? rc.nw : rc.sw) || 0;
+        var rE = (side === 's' ? rc.se : side === 'w' ? rc.nw : rc.ne) || 0;
 
         for (i = 0; i < n; i++) {
             t0 = i * step; t1 = t0 + step; mid = (t0 + t1) / 2;
+            if (mid < rS) continue;
+            if (mid > along - rE) {
+                if (run) { run.t1 = along - rE; out.push(railFor(p, side, run, pads)); run = null; }
+                continue;
+            }
+            if (t0 < rS) t0 = rS;
 
             if (side === 's') { ex = p.x + mid; ez = p.z; px = ex; pz = p.z - PROBE; }
             else if (side === 'n') { ex = p.x + mid; ez = p.z + p.d; px = ex; pz = ez + PROBE; }
@@ -1914,6 +1927,38 @@
         if (run) out.push(railFor(p, side, run, pads));
     }
 
+    /* The rail round a rounded corner: an arc of chords (`arc`) on the same
+       line the straight rails stand on — a rail's half-thickness outside the
+       edge — and built to the same height rule as `railFor`, off the ground
+       at both ends of the curve and in the middle of it. */
+    function cornerRails(p, out) {
+        var P = G3.physics, c = p.round, k, r, cx, cz, a0, lo, hi, j, a, y;
+        var spec = [['sw', 0, 0, Math.PI], ['se', 1, 0, Math.PI * 1.5],
+                    ['ne', 1, 1, 0], ['nw', 0, 1, Math.PI / 2]];
+        for (k = 0; k < spec.length; k++) {
+            r = c[spec[k][0]];
+            if (!r) continue;
+            cx = spec[k][1] ? p.x + p.w - r : p.x + r;
+            cz = spec[k][2] ? p.z + p.d - r : p.z + r;
+            a0 = spec[k][3];
+            lo = Infinity; hi = -Infinity;
+            for (j = 0; j <= 2; j++) {
+                a = a0 + j * Math.PI / 4;
+                y = P.padHeight(p, cx + Math.cos(a) * r * 0.98, cz + Math.sin(a) * r * 0.98);
+                lo = Math.min(lo, y); hi = Math.max(hi, y);
+            }
+            /* The chords are what the ball meets; `bend` is what the eye
+               does. The renderer draws one smooth kerb per bend instead of
+               the chords, which side-on read as a fan of flat boards. */
+            var bend = { cx: cx, cz: cz, R: r + RAIL_T / 2, a0: a0, a1: a0 + Math.PI / 2,
+                         t: RAIL_T, base: lo - 0.35, h: (hi - lo) + RAIL_H + 0.35 };
+            arc(cx, cz, bend.R, bend.a0, bend.a1, {
+                t: RAIL_T, n: Math.max(4, Math.ceil(r / 0.22)),
+                base: bend.base, h: bend.h, kind: 'rail'
+            }).forEach(function (w) { w.bend = bend; out.push(w); });
+        }
+    }
+
     function railFor(p, side, run, pads) {
         // Overhang the ends by a thickness so corners meet and seal. Walls are
         // allowed to overlap; the solver resolves them one at a time.
@@ -1933,8 +1978,97 @@
             edgeRails(pads, pads[i], 'n', gaps, out);
             edgeRails(pads, pads[i], 'w', gaps, out);
             edgeRails(pads, pads[i], 'e', gaps, out);
+            if (pads[i].round) cornerRails(pads[i], out);
         }
         return out;
+    }
+
+    /* ── rounded corners ──
+
+       Every drawn hole used to be drawn with a set square: a lane is a
+       rectangle, a dogleg is two of them, and from above a course read as a
+       diagram of itself — the owner's word for the mini courses was "boxes".
+       Real crazy golf is built of kerb that bends, and the outside corner of
+       a lane is where it bends first.
+
+       So `build` rounds the corners of a fenced hole that are *outside*
+       corners: the ones where both edges meeting there are rails and the
+       ground simply stops. That is decided from the ground rather than
+       written on each hole, because which corners are exposed is a fact
+       about the pads, and an author asked to list them would miss the ones
+       a later edit exposed. A corner keeps its square when anything about
+       it is load-bearing:
+
+       - **a neighbour or a gap** along either edge near it, or across the
+         diagonal — a pad that carries on, a shoreline left open, a brink you
+         are meant to fall off. Rounding there would cut a notch in a floor or
+         a rail into an edge that is meant to be bare;
+       - **anything standing in the corner** — a rail laid across it on
+         purpose (Sea Legs turns the ball off one), a gate whose sweep
+         reaches it, a blade — since the curve would cut the ground out from
+         under it or leave a stub of it poking out through the kerb;
+       - **the tee or the cup** near it, so neither's flat ever loses ground;
+       - **a pad that is not a plain slab**: a disc, contoured ground, a mown
+         fairway, a belt, a launch pad, a hovering platform. Each of those
+         already draws its own outline.
+
+       The radius is ROUND, or a quarter of the pad's narrow side if that is
+       smaller, so a two-unit plank keeps a corner a plank would have. A hole
+       may set its own (`round: 0.6`) or keep every corner square
+       (`round: 0`). Physics (`padContains`), the rails (`cornerRails`), the
+       renderer and the minimap all read the one field, `pad.round`. */
+    var ROUND = 1.1;
+
+    function roundCorners(h) {
+        var R = h.round === undefined ? ROUND : h.round, pads = h.pads, gaps = h.gaps || [];
+        var stood = (h.extra || []).map(function (w) {
+            // Everything a wall can reach, as a box: its own footprint grown
+            // to the circle it turns in, and stretched by however far it slides.
+            var cx = w.x + w.w / 2, cz = w.z + w.d / 2;
+            var e = (w.yaw || w.spin || w.swing) ? Math.hypot(w.w, w.d) / 2 : 0;
+            var ex = e || w.w / 2, ez = e || w.d / 2, amp = w.move ? Math.abs(w.move.amp || 0) : 0;
+            if (w.move && w.move.axis === 'z') ez += amp; else ex += amp;
+            return { x: cx - ex, z: cz - ez, w: ex * 2, d: ez * 2 };
+        });
+        if (!R) return;
+        pads.forEach(function (p) {
+            if (p.r || p.bumps || p.field || p.inlay || p.west || p.east || p.voids ||
+                p.push || p.spring || p.hover || p.round) return;
+            var r = Math.min(R, Math.min(p.w, p.d) / 4), out = {}, any = false;
+            if (r < 0.45) return;
+            [['sw', p.x, p.z, -1, -1], ['se', p.x + p.w, p.z, 1, -1],
+             ['nw', p.x, p.z + p.d, -1, 1], ['ne', p.x + p.w, p.z + p.d, 1, 1]].forEach(function (c) {
+                if (exposed(p, c[1], c[2], c[3], c[4], r)) { out[c[0]] = r; any = true; }
+            });
+            if (any) p.round = out;
+        });
+
+        function bare(x, z) {
+            return heightAt(pads, x, z, null) === null && !inAny(gaps, x, z);
+        }
+        function exposed(p, X, Z, sx, sz, r) {
+            var reach = r + 0.6, s, u, v, i;
+            if (!bare(X + sx * PROBE, Z + sz * PROBE)) return false;
+            for (s = 0; s <= reach; s += 0.1) {
+                // Outside each edge, and on it (a gap is tested at the edge).
+                if (!bare(X - sx * s, Z + sz * PROBE) || inAny(gaps, X - sx * s, Z)) return false;
+                if (!bare(X + sx * PROBE, Z - sz * s) || inAny(gaps, X, Z - sz * s)) return false;
+            }
+            // Nothing else claims the square the curve gives up.
+            for (u = 0.05; u < r; u += 0.15) {
+                for (v = 0.05; v < r; v += 0.15) {
+                    if (heightAt(pads, X - sx * u, Z - sz * v, p) !== null) return false;
+                }
+            }
+            for (i = 0; i < stood.length; i++) {
+                var b = stood[i], x0 = Math.min(X, X - sx * reach), z0 = Math.min(Z, Z - sz * reach);
+                if (b.x < x0 + reach && b.x + b.w > x0 && b.z < z0 + reach && b.z + b.d > z0) return false;
+            }
+            // The ground the curve gives up all lies within `r` of the corner.
+            if (Math.hypot(h.tee.x - X, h.tee.z - Z) < r + TEE_FLAT + 0.3) return false;
+            if (Math.hypot(h.cup.x - X, h.cup.z - Z) < r + CUP_FLAT + 0.3) return false;
+            return true;
+        }
     }
 
     function grow(r, m) {
@@ -2315,6 +2449,7 @@
            edge for `enclose` to find a rail for anyway: the ground runs past
            the fog in every direction, and what keeps the ball on the course is
            `fence`, a line you are only punished for stopping beyond. */
+        if (!h.open) roundCorners(h);
         h.walls = (h.open ? [] : enclose(h.pads, h.gaps || [])).concat(h.extra || []);
 
         /* And whatever grows out of the ground is put on the ground. A tree or
