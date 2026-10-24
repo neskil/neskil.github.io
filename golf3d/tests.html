@@ -440,6 +440,43 @@
                 assert('…and no ball fired into a rounded corner gets out', !leaks.length, leaks.slice(0, 5).join(' '));
             })();
 
+            /* A windmill (courses.mill): four sails turning in front of a
+               door, and the ball meets only the one that is down. So the same
+               putt at the door has to go through when the sails are a quarter
+               turn round and come back when a sail is straight down — and
+               the box it came back off has to be where the drawn sail's tip
+               is, since the renderer turns the sails by the same angle. */
+            (function () {
+                var walls = A.mill(0, 8, 8, { speed: 0.8, phase: 0 });
+                var sail = walls.filter(function (wl) { return wl.sails; })[0];
+                var sl = sail.sails, q = Math.PI / 2 / sl.speed;
+                var h = A.build({ name: 'Mill Lab', par: 3, round: 0, pads: [A.pad(0, 0, 8, 16)],
+                    extra: walls, tee: { x: 4, z: 2 }, cup: { x: 4, z: 13.5 } });
+                var down = P.wallBox(sail, 0), across = P.wallBox(sail, q / 2);
+                assert('a sail pointing down reaches the ball and is over the door',
+                    down.base < 2 * C.BALL_R && Math.abs(down.cx - 4) < 1e-6);
+                assert('…and between two sails the door has daylight',
+                    across.base > 2 * C.BALL_R && Math.abs(across.cx - 4) > 1,
+                    'base ' + across.base.toFixed(2) + ', x ' + across.cx.toFixed(2));
+                var tipX = sl.hx + sl.len * Math.sin(0.3), tipY = sl.hy - sl.len * Math.cos(0.3);
+                var at = P.wallBox(sail, 0.3 / sl.speed);
+                assert('the sail the ball meets is the sail that is drawn',
+                    Math.abs(at.cx - tipX) < 1e-6 && Math.abs(at.base - tipY) < 1e-6);
+                // Rolled from just short of the sails, so the clock at the
+                // door is the clock the shot was struck at, give or take.
+                function putt(t) {
+                    var w = P.createWorld(h, { x: 4, z: 6.4 }, t);
+                    P.launch(w, 0, 9);
+                    P.settle(w, C.MAX_SHOT_SECONDS);
+                    return w;
+                }
+                var shut = putt(0), open = putt(q / 2 - 0.12);
+                assert('a putt at the door with a sail down comes back off it', shut.ball.z < 8,
+                    'finished at z ' + shut.ball.z.toFixed(2));
+                assert('…and the same putt between two sails goes through', open.ball.z > 10.5,
+                    'finished at z ' + open.ball.z.toFixed(2));
+            })();
+
             /* A disc pad is the shape inside its footprint, not the footprint
                — and the shape is a circle with a wave on it, not a circle
                (courses.WAVE). What the wave may do is bounded in one
@@ -1556,12 +1593,13 @@
                    aiming window the ball can be steered through. A hole that
                    can be sealed shut scores zero here and the bot below never
                    finishes it. */
-                var movers = h.walls.filter(function (wl) { return wl.move || wl.spin || wl.swing; });
+                var movers = h.walls.filter(function (wl) { return wl.move || wl.spin || wl.swing || wl.sails; });
                 if (movers.length) {
                     movers.forEach(function (wl) {
                         var B0 = P.wallBox(wl, 0);
                         var period = wl.spin ? (2 * Math.PI / Math.abs(wl.spin))
                             : wl.swing ? (2 * Math.PI / wl.swing.speed)
+                            : wl.sails ? (Math.PI / 2 / wl.sails.speed)
                             : (2 * Math.PI / wl.move.speed);
                         var open = 0, widest = 0, k, t, g;
                         for (k = 0; k < 24; k++) {
@@ -1571,7 +1609,7 @@
                             if (g > 0.25) open++;
                         }
                         if (widest < worstGap) { worstGap = widest; worstGapName = tag; }
-                        var what = wl.spin ? 'blade' : wl.swing ? 'flipper' : 'gate';
+                        var what = wl.spin ? 'blade' : wl.swing ? 'flipper' : wl.sails ? 'windmill' : 'gate';
                         assert(tag + ': the way past this ' + what + ' opens and stays open',
                             open >= 8, 'only ' + open + ' of 24 phases are passable');
                         assert(tag + ': and it opens wide enough to aim at',

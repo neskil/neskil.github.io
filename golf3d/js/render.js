@@ -729,6 +729,14 @@
                 // hole painted a colour nothing else on it wears.
                 bumper: paint(0xf0409a),
                 beam: paint(0x9a6a3c),
+                // A mill's wings are brick, its tower tarred timber, and its
+                // sails pale cloth on a timber frame — pale against the dark
+                // tower, so a sail reads from the tee (addSails).
+                mill: paint(0xa4553b),
+                tower: paint(0x4f3d31),
+                sails: paint(0x8a5d36),
+                cloth: paint(0xf3eee2),
+                cap: paint(0x2f2a2c),
                 // A tree is not drawn as a box (see addTree); this is only
                 // what its trunk is made of, and it is matt because bark is.
                 tree: new THREE.MeshLambertMaterial({
@@ -2801,6 +2809,7 @@
     function addWall(group, wall) {
         if (wall.kind === 'tree') { addTree(group, wall); return; }
         if (wall.kind === 'rock') { addRock(group, wall); return; }
+        if (wall.sails) { addSails(group, wall); return; }
         var B = P.wallBox(wall, 0);
         var geo = new THREE.BoxGeometry(wall.w, wall.h, wall.d);
         // One material per kind, shared by every wall wearing it (see
@@ -2865,6 +2874,64 @@
         mesh.castShadow = true;
         mesh.receiveShadow = true;
         group.add(mesh);
+    }
+
+    /* A windmill's sails (courses.mill), and the cap they turn on.
+
+       What the ball meets is the foot of one sail (physics.millSail); what is
+       drawn is all four, on a hub, turned by the same angle off straight down
+       — so a sail is drawn exactly where its tip is solid. Each is a spar
+       with a cloth panel on it and three cross-bars, which is about the least
+       that reads as a sail rather than as a blade. Behind the hub the mill's
+       tower carries on above the house as a tapered cap with a roof, so the
+       sails are hung on something. */
+    function addSails(group, wall) {
+        var sl = wall.sails, W = R.surf.walls, L = sl.len, k, arm, part;
+        var hz = wall.z + wall.d / 2;
+        var rotor = new THREE.Group();
+        rotor.position.set(sl.hx, sl.hy, hz);
+        for (k = 0; k < 4; k++) {
+            arm = new THREE.Group();
+            arm.rotation.z = k * Math.PI / 2;
+            part = new THREE.Mesh(new THREE.BoxGeometry(0.1, L, 0.1), W.sails);
+            part.position.y = -L / 2;
+            arm.add(part);
+            part = new THREE.Mesh(new THREE.BoxGeometry(sl.width, L * 0.76, 0.04), W.cloth);
+            part.position.set(0, -L * 0.6, -0.03);
+            arm.add(part);
+            for (var b = 0; b < 3; b++) {
+                part = new THREE.Mesh(new THREE.BoxGeometry(sl.width + 0.08, 0.06, 0.08), W.sails);
+                part.position.set(0, -L * (0.3 + b * 0.32), 0.02);
+                arm.add(part);
+            }
+            arm.traverse(function (o) { o.castShadow = true; });
+            rotor.add(arm);
+        }
+        part = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.24, 0.34, 12), W.cap);
+        part.rotation.x = Math.PI / 2;
+        rotor.add(part);
+        group.add(rotor);
+        R.movers.push({ rotor: rotor, wall: wall });
+
+        // The tower: from the wings' top, over the door, up past the hub,
+        // and a roof on it. Narrow enough at the foot to stand clear of the
+        // sails turning in front of it.
+        var hs = sl.house;
+        if (hs) {
+            var mz = hs.z + hs.deep / 2, rise = sl.hy + 0.55 - hs.top;
+            var body = new THREE.Mesh(new THREE.CylinderGeometry(0.66, 0.88, rise, 8), W.tower);
+            body.position.set(sl.hx, hs.top + rise / 2, mz);
+            body.castShadow = true; body.receiveShadow = true;
+            group.add(body);
+            var roof = new THREE.Mesh(new THREE.ConeGeometry(0.86, 0.95, 8), W.cap);
+            roof.position.set(sl.hx, hs.top + rise + 0.45, mz);
+            roof.castShadow = true;
+            group.add(roof);
+            var shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, mz - hz, 8), W.sails);
+            shaft.rotation.x = Math.PI / 2;
+            shaft.position.set(sl.hx, sl.hy, (mz + hz) / 2);
+            group.add(shaft);
+        }
     }
 
     /* Pretty water on or off, for the whole game. It is one define rather than
@@ -4080,6 +4147,11 @@
         var i, m, B;
         for (i = 0; i < R.movers.length; i++) {
             m = R.movers[i];
+            if (m.rotor) {
+                // Sails turn by the angle physics.millSail reads the tip off.
+                m.rotor.rotation.z = t * m.wall.sails.speed + (m.wall.sails.phase || 0);
+                continue;
+            }
             B = P.wallBox(m.wall, t, _box);
             m.mesh.position.set(B.cx, B.base + m.h / 2, B.cz);
             m.mesh.rotation.y = B.yaw;

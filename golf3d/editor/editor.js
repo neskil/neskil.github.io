@@ -69,6 +69,8 @@
         blade: '#d8523f',
         gate: '#e0a13a',
         beam: '#9a6a3c',
+        mill: '#ebe4d3',
+        sails: '#8a5d36',
         tree: '#2d6a3f',
         rock: '#7a7a85'
     };
@@ -262,6 +264,10 @@
                     phase: num(s.swing.phase, 0)
                 };
             }
+            // A windmill's sails (courses.mill): carried whole, since the
+            // hub and the house are where the mill was put, not something
+            // the plan edits a field at a time.
+            if (s.sails) o.sails = JSON.parse(JSON.stringify(s.sails));
         }
         return o;
     }
@@ -650,7 +656,7 @@
             var fill = EXTRA_KIND_COLOR[wl.kind] || '#6d4a2e';
             var stroke = selected ? '#58a6ff' : 'rgba(0,0,0,.6)';
 
-            if (wl.move || wl.spin || wl.swing) {
+            if (wl.move || wl.spin || wl.swing || wl.sails) {
                 drawWallBox(wl, t + 1.4, null, 'rgba(210,153,34,.5)', [4, 3]);
                 drawWallBox(wl, t + 2.8, null, 'rgba(210,153,34,.35)', [4, 3]);
             }
@@ -1850,7 +1856,7 @@
                 var name = document.createElement('span');
                 name.className = 'sname';
 
-                var does = s.swing ? ' flipper' : s.spin ? ' blade' : s.move ? ' gate'
+                var does = s.sails ? ' sails' : s.swing ? ' flipper' : s.spin ? ' blade' : s.move ? ' gate'
                     : s.spring ? ' sprung' : s.push ? ' belt' : '';
                 var label = L.label;
                 if (L.key === 'pads') label = s.kind;
@@ -2485,7 +2491,7 @@
             draw();
         } else if (animate || mode === 'play') {
             world.time += dt;
-            if (list('extra').some(function (w) { return w.move || w.spin || w.swing; })) draw();
+            if (list('extra').some(function (w) { return w.move || w.spin || w.swing || w.sails; })) draw();
         }
 
         if (!gl) return;
@@ -2700,13 +2706,14 @@
                 thinnest.x.toFixed(1) + ',' + thinnest.z.toFixed(1));
         }
 
-        var movers = built.walls.filter(function (wl) { return wl.move || wl.spin || wl.swing; });
+        var movers = built.walls.filter(function (wl) { return wl.move || wl.spin || wl.swing || wl.sails; });
         if (movers.length) {
             var worst = Infinity, at = 0;
             movers.forEach(function (wl) {
                 var z = wl.z + wl.d / 2;
                 var period = wl.spin ? (2 * Math.PI / Math.abs(wl.spin))
                     : wl.swing ? (2 * Math.PI / Math.abs(wl.swing.speed || 1))
+                    : wl.sails ? (2 * Math.PI / Math.abs(wl.sails.speed || 1))
                     : (2 * Math.PI / Math.abs(wl.move.speed || 1));
                 for (var k = 0; k < 32; k++) {
                     var t = period * k / 32;
@@ -3005,6 +3012,7 @@
                 ', speed: ' + n(w.swing.speed) +
                 (w.swing.phase ? ', phase: ' + n(w.swing.phase) : '') + ' }');
         }
+        if (w.sails) opts.push('sails: ' + JSON.stringify(w.sails).replace(/"(\w+)":/g, '$1: '));
         return 'wall(' + [n(w.x), n(w.z), n(w.w), n(w.d), n(w.h)].join(', ') +
             (opts.length ? ', { ' + opts.join(', ') + ' }' : '') + ')';
     }

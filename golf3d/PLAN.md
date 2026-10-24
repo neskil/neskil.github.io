@@ -288,9 +288,11 @@ tee shows (Sea Legs' was).
 8. **Single-trick holes** — ~~the mini group~~ (done, v1.82.0: the fourteen
    straight lanes on Quarry, Tidewater and Highland were rebuilt as forks,
    doglegs, slants and a stair round a pool, each with a safe way and a short
-   one — README → "The courses"). **Still open on the crazy courses**: Bumper
-   City, The Sweeper, First Gear and The Mill are still a lane with one machine
-   in it. Findings from the mini pass: *a bunker at the foot of a face is a
+   one — README → "The courses"). ~~The crazy courses~~ (done, v1.93.0):
+   First Gear has sand round its gate, The Sweeper a lay-by out of the bar's
+   reach, Bumper City is a dome-topped table with a kicker at the top of each
+   side lane, and The Mill is a windmill — sails turning in front of a door
+   (`mill`, the fourth way a wall moves). Findings from the mini pass: *a bunker at the foot of a face is a
    lie nobody can play out of* (the greedy bot jammed in one for eight strokes
    on Step Up; a pool there costs a stroke instead); *a sloped chute's rails
    are one wall the height of its top* (`railFor` is a level box), so a way
