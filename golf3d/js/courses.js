@@ -5606,13 +5606,19 @@
                One pad, and round: a `channel` laid on the rim curves down to a
                flat floor wide enough for the cup's clearing. It was nine flat
                pads — a `bowl`, floor, ramps and corners — and from the demo
-               camera on a phone the facets read as a crumpled sheet. */
+               camera on a phone the facets read as a crumpled sheet.
+
+               And round all the way out now: every corner is rounded to half
+               the pad's width, so the ground is a circle with the crest of the
+               rim on its edge and the rail curved along the crest. It was a
+               round bowl in a square box, which is a crater in a packing case. */
             name: 'The Crater', par: 3, gravity: 0.45,
             needsLoft: true,   // a carry: there is no road along the floor
             blurb: 'Nothing stops out here. The rim of the crater is the only thing that will.',
             pads: [pad(0, 0, 8, 8), (function () {
                 var p = pad(1.4, 20.4, 7.2, 7.2, 0);
                 p.bumps = [channel(5, 24, 3.6, 2.2, 0.55)];
+                p.round = { sw: 3.6, se: 3.6, nw: 3.6, ne: 3.6 };
                 return p;
             })()],
             gaps: [{ x: -1, z: 7.6, w: 10, d: 1 }],

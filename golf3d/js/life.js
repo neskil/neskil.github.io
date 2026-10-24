@@ -1016,14 +1016,12 @@ window.G3 = window.G3 || {};
         },
         lunar: function (w) {
             var i, p;
-            for (i = 0; i < 9; i++) {
-                p = w.spot(3, 22, 2);
-                if (!p) continue;
-                // A low rim thrown up round a floor a shade darker than the
-                // plain — a dent in the ground, not a ring lying on it.
-                var r = 1 + w.rnd() * 2.5, cy = w.ground(p.x, p.z);
-                w.b.add(T.disc, 0x6f6d66, p.x, cy - 0.04, p.z, r * 0.95, 0.1, r * 0.95);
-                w.b.add(T.ring, 0x9a988f, p.x, cy, p.z, r, r, r * 0.18, 0, Math.PI / 2);
+            for (i = 0; i < 10; i++) {
+                // Mostly small, now and then a big one: the size of a crater
+                // goes the way the size of what made it does.
+                var r = 0.8 + Math.pow(w.rnd(), 2.2) * 3.4;
+                p = w.spot(3, 24, r * CRATER_REACH * 1.12);
+                if (p && w.ground3) crater(w, p.x, p.z, r);
             }
             p = w.spot(10, 16, 3);
             if (p) rocket(w, p.x, p.z);
@@ -1048,6 +1046,103 @@ window.G3 = window.G3 || {};
             shootingStar(w.group, w.hole, w.rnd);
         }
     };
+
+    /* An impact crater, as a piece of the plain itself.
+
+       It used to be a dark disc with a torus on it, which from any distance
+       is a grey doughnut lying on the moon. What makes a crater read is the
+       light on it: an inner wall that faces the sun on one side of the bowl
+       and turns away from it on the other, a crisp lit crest, and a flank
+       that falls away outside until it is the plain again. So this is a
+       height field round (x, z), and the shading is the sun on its normals.
+
+       It is drawn in the plain's own material (render.js hands it over as
+       `groundMat`), with the texture laid on by world position exactly as
+       the surround's is, so where the flank meets the plain there is no
+       seam: the same rock carries straight across. The vertex colour only
+       ever *darkens or lightens* that rock — white on the flank, so the
+       outer edge is the plain to the pixel; the floor in shadow-grey and the
+       crest a little bright.
+
+       The plain cannot be dug into from here — the surround is one mesh and
+       this is drawn on it — so the bowl is made the other way up: the rim
+       rises out of the plain and the inner wall falls to a floor at the
+       plain's own level, painted dark, which the eye takes for depth. The
+       crest wanders round the circle and up and down it from the seed, so no
+       two are the same circle; the bigger ones keep a peak in the middle, as
+       real ones do; and about one in three is fresh, with bright rays thrown
+       across its ejecta. `CRATER_REACH` is how far out the flank runs, in
+       rims — what `spot` has to keep clear of the hole. */
+    var CRATER_REACH = 2.1;
+
+    function crater(w, x, z, r) {
+        var rnd = w.rnd, g = w.ground3;
+        var H = r * (0.15 + rnd() * 0.06), reach = CRATER_REACH;
+        var w1 = rnd() * 6.28, w2 = rnd() * 6.28, w3 = rnd() * 6.28;
+        var fresh = rnd() < 0.35, nRays = 5 + Math.floor(rnd() * 5), rayPh = rnd() * 6.28;
+        var peak = r > 2.4 ? H * 0.5 : 0;
+
+        function rimAt(a) { return r * (1 + 0.07 * Math.sin(3 * a + w1) + 0.04 * Math.sin(5 * a + w2)); }
+        function crestAt(a) { return H * (1 + 0.2 * Math.sin(2 * a + w3) + 0.08 * Math.sin(7 * a + w1)); }
+        function smooth(t) { t = Math.max(0, Math.min(1, t)); return t * t * (3 - 2 * t); }
+        // Height over the plain at q rims out along bearing a: a dished floor
+        // (and a peak), a wall up to the crest, and a flank falling away
+        // concave until it is a hair under the plain.
+        function lift(q, a) {
+            var c = crestAt(a), h;
+            if (q < 0.48) h = c * 0.05 * (q / 0.48) * (q / 0.48) + peak * Math.pow(Math.max(0, 1 - q / 0.2), 1.5);
+            else if (q < 1) h = c * 0.05 + c * 0.95 * Math.pow(smooth((q - 0.48) / 0.52), 1.9);
+            else h = c * Math.pow(1 - smooth((q - 1) / (reach - 1)), 2.6);
+            return h + 0.035 - 0.07 * smooth((q - reach + 0.2) / 0.2);
+        }
+        // How much lighter or darker than the plain's own rock.
+        function shade(q, a) {
+            if (q < 0.48) return 0.62 + 0.1 * (q / 0.48);
+            if (q < 1) return 0.72 + 0.4 * Math.pow(smooth((q - 0.5) / 0.5), 2);
+            var k = 1.12 - 0.12 * smooth((q - 1) / (reach - 1) * 1.8);
+            if (fresh) {
+                var ray = Math.pow(Math.max(0, Math.cos((a + rayPh) * nRays * 0.5)), 10);
+                k += ray * 0.22 * (1 - smooth((q - 1) / (reach - 1)));
+            }
+            return k;
+        }
+        // Rings closer together where the profile turns: through the wall
+        // and over the crest.
+        var qs = [0, 0.08, 0.16, 0.26, 0.36, 0.48, 0.58, 0.68, 0.77, 0.85, 0.91, 0.96, 1,
+                  1.04, 1.1, 1.18, 1.3, 1.45, 1.62, 1.82, 1.95, reach];
+        var segs = Math.max(30, Math.round(r * 18)), i, j, k;
+        var V = [];
+        for (i = 0; i < qs.length; i++) {
+            for (j = 0; j < segs; j++) {
+                var a = j / segs * Math.PI * 2, rr = rimAt(a), d = qs[i] * rr;
+                var vx = x + Math.cos(a) * d, vz = z + Math.sin(a) * d;
+                // The normal off the profile, by differences along the bearing
+                // and across it.
+                var e = 0.02, dq = e / rr;
+                var hr = (lift(qs[i] + dq, a) - lift(Math.max(0, qs[i] - dq), a)) / (qs[i] > dq ? 2 * e : e);
+                var ht = (lift(qs[i], a + 0.02) - lift(qs[i], a - 0.02)) / (0.04 * Math.max(d, 0.05));
+                var nx = -(hr * Math.cos(a) - ht * Math.sin(a)), nz = -(hr * Math.sin(a) + ht * Math.cos(a));
+                var nl = Math.hypot(nx, 1, nz);
+                V.push([vx, w.ground(vx, vz) + lift(qs[i], a), vz, nx / nl, 1 / nl, nz / nl, shade(qs[i], a)]);
+            }
+        }
+        function put(v) {
+            v = V[v];
+            g.p.push(v[0], v[1], v[2]);
+            g.n.push(v[3], v[4], v[5]);
+            g.c.push(v[6], v[6], v[6]);
+            g.uv.push(v[0] / g.tile, v[2] / g.tile);
+        }
+        for (i = 0; i + 1 < qs.length; i++) {
+            for (j = 0; j < segs; j++) {
+                k = (j + 1) % segs;
+                var a0 = i * segs + j, a1 = i * segs + k, b0 = (i + 1) * segs + j, b1 = (i + 1) * segs + k;
+                // Counter-clockwise seen from above, so the face is the top.
+                put(a0); put(a1); put(b0);
+                put(a1); put(b1); put(b0);
+            }
+        }
+    }
 
     // ── the set pieces, which are too big for the kit ──
 
@@ -1233,7 +1328,7 @@ window.G3 = window.G3 || {};
         rig({ step: function (t) { blink.visible = (t % 1.6) < 0.25; } });
     }
 
-    function world(group, hole, themeName, ground) {
+    function world(group, hole, themeName, ground, groundMat) {
         var recipe = WORLD[themeName];
         if (!recipe) return { props: 0, glow: 0 };
         moreTemplates();
@@ -1244,12 +1339,27 @@ window.G3 = window.G3 || {};
             b: new Batch(), glow: new Batch(),
             spot: P0.spot, ahead: P0.ahead,
             ground: function (x, z) { return ground ? ground(x, z) : 0; },
+            // Ground of the plain's own (craters): drawn in its material, so
+            // it carries uvs as well, at the plain's tiling.
+            ground3: groundMat ? { p: [], n: [], c: [], uv: [], tile: groundMat.tile } : null,
             flock: function (look) { flock(group, hole, look); }
         };
         recipe(w);
         var props = w.b.count(), glow = w.glow.count(), m, meshes = [];
         if ((m = w.b.mesh())) { group.add(m); meshes.push(m); }
         if ((m = w.glow.mesh(true))) { group.add(m); meshes.push(m); }
+        if (w.ground3 && w.ground3.p.length) {
+            var gg = new THREE.BufferGeometry();
+            gg.setAttribute('position', new THREE.Float32BufferAttribute(w.ground3.p, 3));
+            gg.setAttribute('normal', new THREE.Float32BufferAttribute(w.ground3.n, 3));
+            gg.setAttribute('color', new THREE.Float32BufferAttribute(w.ground3.c, 3));
+            gg.setAttribute('uv', new THREE.Float32BufferAttribute(w.ground3.uv, 2));
+            m = new THREE.Mesh(gg, groundMat.material());
+            m.receiveShadow = true;
+            m.castShadow = true;
+            group.add(m); meshes.push(m);
+            props += w.ground3.p.length / 9;
+        }
         return { props: props, glow: glow, meshes: meshes };
     }
 
@@ -1260,7 +1370,7 @@ window.G3 = window.G3 || {};
        paddle about on. */
     var built = { props: 0, glow: 0, meshes: [] };
 
-    L.build = function (group, hole, themeName, sea, ground) {
+    L.build = function (group, hole, themeName, sea, ground, groundMat) {
         live.birds = [];
         live.ducks = [];
         live.flies = [];
@@ -1269,7 +1379,7 @@ window.G3 = window.G3 || {};
         if (!hole) return;
         templates();
         if (!hole.open) {
-            built = world(group, hole, themeName, ground);
+            built = world(group, hole, themeName, ground, groundMat);
             L.update(0, 0);
             return;
         }
