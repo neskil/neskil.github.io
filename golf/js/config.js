@@ -7,7 +7,7 @@
    and on a desktop and none of the tuning below is resolution dependent. */
 window.GOLF = window.GOLF || {};
 
-GOLF.VERSION = '1.12.1';
+GOLF.VERSION = '1.13.0';
 
 GOLF.CONFIG = {
     WORLD_W: 960,
@@ -148,6 +148,30 @@ GOLF.CONFIG = {
     // Speed kept after one second in the air. A hop lasts a tenth of that,
     // so this is felt as "barely slows" rather than as a number.
     FRICTION_AIR: 0.8,
+
+    /* Avalanches — see physics.js. A slide runs down its chute at SPEED,
+       a band LEN deep unless the chute says otherwise, and takes whatever it
+       is over to its own pace at GRIP per second: fast enough that a ball
+       caught by one is plainly caught, slow enough to watch it happen. WARN
+       is how long before a slide the head of the chute starts to smoke and
+       the mountain rumbles — a hazard you have to time has to be readable a
+       beat before it arrives. CLEAR is the least time any point of a chute
+       must lie open in each cycle, which is what the rule book holds every
+       chute on the rack to. */
+    AVALANCHE_SPEED: 320,
+    AVALANCHE_LEN: 110,
+    AVALANCHE_GRIP: 9,
+    AVALANCHE_WARN: 1.1,
+    AVALANCHE_CLEAR: 1.4,
+
+    /* Geysers. A ball over a vent while it blows is thrown up for AIR
+       seconds and carries on in the air on the line it had: at a putt's
+       400px/s that is about 270px, over a lava channel and down the far
+       side. R is the vent, drawn and caught alike; WARN the steam that
+       comes before it blows. */
+    VENT_R: 20,
+    VENT_AIR: 0.7,
+    VENT_WARN: 0.9,
 
     /* The pick-up. A hole gives you par plus this many strokes; if the ball
        is not down after the last of them you pick it up and write down one

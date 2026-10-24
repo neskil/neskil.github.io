@@ -170,6 +170,40 @@
         g.restore();
     }
 
+    // Embers lifting off the lava on the heat: each a spark that wanders
+    // up the screen, flickers, and is gone off the top.
+    function embers(g, n, clock, v, ball) {
+        var S = span(v), img = sprite('ember', '255, 140, 50');
+        g.save();
+        g.globalCompositeOperation = 'lighter';
+        for (var i = 0; i < n; i++) {
+            var sx = wrap(hash(i * 2.3 + 4) * S.w + Math.sin(clock * 0.9 + i * 1.7) * 16 + clock * 4, S.w);
+            var sy = wrap(hash(i * 5.1 + 3) * S.h - clock * (16 + hash(i) * 16), S.h + 20) - 10;
+            var p = at(v, sx, sy), a = clear(ball, p.x, p.y, 14);
+            if (a <= 0) continue;
+            var flick = 0.5 + 0.5 * Math.sin(clock * 6 + i * 2.1);
+            stamp(g, img, p.x, p.y, 3 + hash(i * 7) * 3, a * (0.3 + flick * 0.5));
+        }
+        g.restore();
+    }
+
+    // Ash coming down: grey flakes, slower and smaller than snow.
+    function ash(g, n, clock, v, ball) {
+        var S = span(v), flakes = new Path();
+        for (var i = 0; i < n; i++) {
+            var size = 0.7 + hash(i * 3.9 + 2) * 1.3;
+            var sx = wrap(hash(i * 1.7 + 8) * S.w + clock * 6 + Math.sin(clock * 0.5 + i * 2.2) * 12, S.w + 20) - 10;
+            var sy = wrap(hash(i * 3.3 + 1) * S.h + clock * (8 + size * 6), S.h + 20) - 10;
+            var p = at(v, sx, sy);
+            if (clear(ball, p.x, p.y, 12) < 0.6) continue;
+            flakes.dot(p.x, p.y, size);
+        }
+        g.save();
+        g.fillStyle = 'rgba(196, 190, 184, 0.5)';
+        flakes.fill(g);
+        g.restore();
+    }
+
     // Fireflies: each wanders round a home of its own and blinks.
     function fireflies(g, n, clock, ball) {
         var img = sprite('firefly', '214, 255, 140');
@@ -457,6 +491,8 @@
         if ((n = count(theme, 'petal'))) falling(g, n, clock, v, ball, ['#fbcfe8', '#f9a8d4', '#fdf2f8'], true);
         if ((n = count(theme, 'fluff'))) fluff(g, n, clock, v, ball);
         if ((n = count(theme, 'dust'))) dust(g, n, clock, v, ball);
+        if ((n = count(theme, 'ash'))) ash(g, n, clock, v, ball);
+        if ((n = count(theme, 'ember'))) embers(g, n, clock, v, ball);
         if ((n = count(theme, 'butterfly'))) butterflies(g, n, clock, v, ball);
         if ((n = count(theme, 'gull'))) gulls(g, n, clock, v, ball);
         if ((n = count(theme, 'firefly'))) fireflies(g, n, clock, ball);

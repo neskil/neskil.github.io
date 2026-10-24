@@ -35,6 +35,10 @@
         rough:  '#1c4a2a',
         sand:   '#dfc78f',
         water:  '#1b6d9e',
+        lava:   '#f05a1a',
+        crust:  '#5a1a08',
+        chute:  'rgba(240, 248, 255, 0.62)',
+        vent:   '#c9c2b8',
         ice:    '#c6e6f2',
         wall:   '#6d4a2e',
         move:   '#c98a3c',
@@ -79,6 +83,15 @@
         rects(g, hole.sand, INK.sand);
         rects(g, hole.ice, INK.ice);
         rects(g, hole.water, INK.water);
+        // Lava is the brightest thing on the plan on purpose: it is the one
+        // zone that asks for the shot back whatever its pace.
+        rects(g, hole.lava || [], INK.lava);
+
+        /* A chute is a pale lane with chevrons down it: which way the snow
+           comes is the whole of what it does, and a plan has no clock to
+           show a slide on. */
+        var avs = hole.avalanches || [], k;
+        for (k = 0; k < avs.length; k++) chute(g, avs[k]);
 
         /* A slope is a tint plus the arrow that says which way it sheds —
            direction is the whole of what a slope does, and a plain grey wash
@@ -120,6 +133,19 @@
             g.fillStyle = INK.bumper;
             g.beginPath();
             g.arc(b.x, b.y, b.r, 0, Math.PI * 2);
+            g.fill();
+        }
+
+        // A vent: a grey grate with a dark throat, drawn big like a mouth.
+        var vents = hole.vents || [];
+        for (i = 0; i < vents.length; i++) {
+            g.fillStyle = INK.vent;
+            g.beginPath();
+            g.arc(vents[i].x, vents[i].y, C.VENT_R + 12, 0, Math.PI * 2);
+            g.fill();
+            g.fillStyle = INK.crust;
+            g.beginPath();
+            g.arc(vents[i].x, vents[i].y, C.VENT_R, 0, Math.PI * 2);
             g.fill();
         }
 
@@ -204,6 +230,32 @@
         g.lineTo(-len * 0.5, len * 0.55);
         g.closePath();
         g.fill();
+        g.restore();
+    }
+
+    // A chute: the lane, and chevrons pointing down it.
+    function chute(g, a) {
+        g.fillStyle = INK.chute;
+        g.fillRect(a.x, a.y, a.w, a.h);
+        var d = GOLF.physics.chuteDir(a), L = GOLF.physics.chuteLength(a);
+        var across = d.x ? a.h : a.w, size = Math.min(across * 0.32, 40);
+        g.save();
+        g.beginPath();
+        g.rect(a.x, a.y, a.w, a.h);
+        g.clip();
+        g.strokeStyle = 'rgba(70, 100, 140, 0.55)';
+        g.lineWidth = 9;
+        g.lineJoin = 'round';
+        var cx = a.x + a.w / 2, cy = a.y + a.h / 2;
+        for (var p = size + 10; p < L; p += size * 2.4) {
+            var off = p - L / 2;
+            var x = cx + d.x * off, y = cy + d.y * off;
+            g.beginPath();
+            g.moveTo(x - d.x * size - d.y * size, y - d.y * size - d.x * size);
+            g.lineTo(x, y);
+            g.lineTo(x - d.x * size + d.y * size, y - d.y * size + d.x * size);
+            g.stroke();
+        }
         g.restore();
     }
 

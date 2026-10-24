@@ -20,6 +20,7 @@
     var lastBounceAt = 0;
     var lastSandAt = 0;
     var lastRimAt = 0;
+    var lastSweptAt = 0;
     // The board is drawn a quarter-turn round when the screen is taller than
     // it is wide. See resize().
     var turned = false;
@@ -359,7 +360,7 @@
 
     /* What one card says about itself under the blurb: length, par, the
        record, and the round waiting on it if there is one. The record line is
-       the reason `scoring.js` takes a course id — all five are priced at once
+       the reason `scoring.js` takes a course id — the whole rack is priced at once
        and none of it may move `GOLF.COURSE_ID`, which is the pointer the ball
        is rolling on. */
     function courseMeta(course, open) {
@@ -789,7 +790,10 @@
         gates:   ['sw-move', 'Gate', 'will not wait for you. Time the gap.'],
         bumpers: ['sw-bump', 'Bumper', 'livelier than a wall — it picks a new line.'],
         slopes:  ['sw-slope', 'Slope', 'arrows point downhill. Aim above the cup.'],
-        tunnels: ['sw-tunnel', 'Tunnel', 'out of the mouth the same colour, same speed, same line.']
+        tunnels: ['sw-tunnel', 'Tunnel', 'out of the mouth the same colour, same speed, same line.'],
+        avalanches: ['sw-chute', 'Avalanche', 'a slide comes down the chute on a clock. Watch for the smoke, go behind it.'],
+        lava: ['sw-lava', 'Lava', 'a stroke and a replay, and nothing skips across it.'],
+        vents: ['sw-vent', 'Geyser', 'catch it blowing and it throws the ball over whatever is beyond.']
     };
 
     /* The card goes wherever on the *screen* is furthest from both the ball
@@ -874,7 +878,7 @@
         state.lastFrac = power / C.MAX_POWER;
         state.trail = [];
         // What this shot does on its way, for the call-out if it drops.
-        state.shot = { from: { x: state.world.ball.x, y: state.world.ball.y }, banks: 0, posts: 0, tunnels: 0, skips: 0, lipped: false };
+        state.shot = { from: { x: state.world.ball.x, y: state.world.ball.y }, banks: 0, posts: 0, tunnels: 0, skips: 0, vents: 0, swept: false, lipped: false };
         state.lipping = false;
         a.active = false;
         a.power = 0;
@@ -909,18 +913,20 @@
     function penaltyReset() {
         state.strokes += C.WATER_PENALTY;
         var w = state.world;
+        var burnt = w.lava;
         var o = w.origin;
         w.ball.x = o.x;
         w.ball.y = o.y;
         w.ball.vx = w.ball.vy = 0;
         w.splash = false;
+        w.lava = false;
         w.moving = false;
         w.air = w.airMax = 0;
         state.trail = [];
         state.phase = 'aim';
         syncHud();
         if (outOfStrokes()) { holeComplete(true); return; }
-        toast('Water hazard — one stroke penalty', 'bad');
+        toast(burnt ? 'Lava — one stroke penalty' : 'Water hazard — one stroke penalty', 'bad');
         warnLastStroke();
     }
 
@@ -939,6 +945,8 @@
         var bits = [];
         if (s.skips) bits.push(s.skips > 1 ? s.skips + ' skips across the water' : 'skipped across');
         if (s.tunnels) bits.push(s.tunnels > 1 ? 'through ' + s.tunnels + ' tunnels' : 'through the tunnel');
+        if (s.vents) bits.push(s.vents > 1 ? 'off ' + s.vents + ' geysers' : 'off the geyser');
+        if (s.swept) bits.push('rode the avalanche');
         if (s.posts >= 3) bits.push('pinball wizard');
         else if (s.posts) bits.push('off the post');
         if (s.banks >= 3) bits.push(s.banks + '-cushion bank');
@@ -1522,8 +1530,8 @@
                 ' · not recorded — the caddie has had the club this session';
         } else if (!isRecorded()) {
             // Not an apology: a draw nobody else has played has no record to
-            // beat, and pretending otherwise would put a nine-hole score up
-            // against the eighteen.
+            // beat, and pretending otherwise would put a score on one field
+            // up against a score on another.
             summary = t.strokes + ' strokes, ' + S.formatVsPar(t.vsPar) +
                 ' · not recorded — no two draws are the same course';
         } else {
@@ -2390,10 +2398,28 @@
             state.trail.shift();
         }
 
+        /* Thrown by a geyser, or caught by a slide. A slide holds the ball
+           for many steps, so it is heard and called once a shot, not once
+           a frame. */
+        if (ev.vent) {
+            A.vent();
+            A.buzz(20);
+            R.effects.vent(ev.vent.x, ev.vent.y);
+            if (shot) shot.vents++;
+        }
+        if (ev.swept && now - lastSweptAt > 600) {
+            lastSweptAt = now;
+            A.avalanche();
+            A.buzz(30);
+            R.effects.swept(w.ball.x, w.ball.y);
+            shake = Math.max(shake, 0.35);
+            if (shot && !shot.swept) { shot.swept = true; toast('Avalanche!', 'bad'); }
+        }
+
         if (ev.splash) {
-            A.splash();
+            if (ev.lava) { A.sizzle(); R.effects.burn(w.ball.x, w.ball.y); }
+            else { A.splash(); R.effects.splash(w.ball.x, w.ball.y); }
             A.buzz(50);
-            R.effects.splash(w.ball.x, w.ball.y);
             state.splashAt = now;
             shake = Math.max(shake, 0.5);
         }

@@ -8,15 +8,17 @@
 
     /* ── one save file per course ───────────────────────────────────────
 
-       Six holes, nine and eighteen are not comparable totals: a six-hole
-       round would take the eighteen-hole record the first time anyone played
-       one, and a card written for one course cannot be resumed on another. So
+       Two cards are not comparable totals even at the same length: a round
+       of the Short Six would take the Old Course's record the first time
+       anyone played one, and a card written for one course cannot be resumed
+       on another. So
        every key below is qualified by the course being played.
 
-       The first course on the rack keeps the bare key it has always had,
-       which is what leaves the record a player already has where they left
-       it — and what keeps the landing page reading `miniGolf.save.v1` for
-       its stat chip without knowing any of this.
+       The Old Course (`GOLF.BARE_KEY_COURSE`) keeps the bare key it has
+       always had, wherever it stands on the rack, which is what leaves the
+       record a player already has where they left it — and what keeps the
+       landing page reading `miniGolf.save.v1` for its stat chip without
+       knowing any of this.
 
        The course defaults to the one being played, and every caller that
        cares about a *different* one names it: the picker asks four courses
@@ -25,8 +27,7 @@
        card under the player's feet. */
     function key(base, courseId) {
         var id = courseId === undefined ? GOLF.COURSE_ID : courseId;
-        var first = GOLF.COURSES && GOLF.COURSES[0].id;
-        return (!id || id === first) ? base : base + '.' + id;
+        return (!id || id === GOLF.BARE_KEY_COURSE) ? base : base + '.' + id;
     }
 
     /* ── the pick-up ────────────────────────────────────────────────────
@@ -92,6 +93,55 @@
         return { best: null, bestVsPar: null, rounds: 0, aces: 0, bestCard: null, holes: [] };
     }
 
+    /* ── a card that has been rebuilt ────────────────────────────────────
+
+       Per-hole bests are kept by position, and a card can change under them:
+       when the rack became seven cards of six, the eighteen lost twelve of
+       its holes and three nines lost three each, and the holes that stayed
+       moved. So a save carries the names of the holes it was written for,
+       and one read against a card whose names are different is remapped
+       name by name — a best on Pinball stays a best on Pinball, wherever
+       Pinball now stands — and loses its best round, which was over a card
+       that no longer exists. A save from before names were kept is read as
+       having been written for the card as it was then, which is `LEGACY`. */
+    var LEGACY = {
+        links: ['Opening Drive', 'The Dogleg', 'Bunker Hill', 'The Narrows', 'Bank Shot', 'Traffic', 'The Break',
+                'Island Green', 'The Turn', 'Cold Snap', 'Pinball', 'Sliding Doors', 'Black Ice', 'The Gauntlet',
+                'Sisyphus', 'Bumper Pool', 'Switchback', 'The Reckoning'],
+        tide: ['Low Tide', 'The Spit', 'Floes', 'Harbour Gate', 'The Skerries', 'Ebb', 'The Bar', 'Riptide', 'High Water'],
+        wild: ['The Keep', 'The Cascade', 'Saddleback', 'Wiper Blades', 'Stepping Stones', 'Crown Green',
+               'The Chute', 'Glass Slalom', 'Last Orders'],
+        warren: ['Rabbit Hole', 'The Ferry', 'Crossed Wires', 'The Lift', 'Snow Globe', 'Snakes and Ladders',
+                 'Burrow Mouth', 'Revolving Doors', 'Warren End']
+    };
+
+    // The hole names of a card that keeps a record, or null.
+    function namesOf(courseId) {
+        var list = GOLF.COURSES || [];
+        for (var i = 0; i < list.length; i++) {
+            if (list[i].id !== courseId) continue;
+            if (list[i].record === false) return null;
+            return list[i].holes.map(function (h) { return h.name; });
+        }
+        return null;
+    }
+
+    function sameNames(a, b) {
+        if (a.length !== b.length) return false;
+        for (var i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;
+        return true;
+    }
+
+    function remap(s, was, now) {
+        s.holes = now.map(function (name) {
+            var i = was.indexOf(name);
+            return i >= 0 && typeof s.holes[i] === 'number' ? s.holes[i] : null;
+        });
+        s.best = s.bestVsPar = null;
+        s.bestCard = null;
+        return s;
+    }
+
     function cleanHoles(list) {
         var out = [];
         for (var i = 0; i < list.length; i++) {
@@ -117,6 +167,22 @@
                stars they already earned instead of asking for them again. */
             if (Array.isArray(d.holes)) s.holes = cleanHoles(d.holes);
             else if (s.bestCard) s.holes = cleanHoles(s.bestCard);
+            var id = courseId === undefined ? GOLF.COURSE_ID : courseId;
+            var now = namesOf(id);
+            var was = Array.isArray(d.names) ? d.names : LEGACY[id];
+            if (now && was && !sameNames(was, now)) {
+                remap(s, was, now);
+                /* Written back at once, so it is remapped only the once —
+                   and so the landing page, which reads the bare key without
+                   knowing any of this, stops showing a best round over a
+                   card that is gone. A playtest touches no save. */
+                if (!GOLF.PLAYTEST) {
+                    var out = {};
+                    for (var k in s) if (Object.prototype.hasOwnProperty.call(s, k)) out[k] = s[k];
+                    out.names = now;
+                    try { localStorage.setItem(key(C.SAVE_KEY, id), JSON.stringify(out)); } catch (e) { /* storage off */ }
+                }
+            }
             return s;
         } catch (e) {
             return emptySave();
@@ -124,6 +190,9 @@
     }
 
     function save(data) {
+        // The card it was written for, so a rebuilt card can be told apart.
+        var names = namesOf(GOLF.COURSE_ID);
+        if (names) data.names = names;
         try {
             localStorage.setItem(key(C.SAVE_KEY), JSON.stringify(data));
         } catch (e) { /* private mode, quota, whatever — not worth a crash */ }
@@ -132,8 +201,8 @@
 
     /* ── the round in progress ──────────────────────────────────────────
 
-       Eighteen holes is a long sitting, and a browser tab is a fragile place
-       to keep one: a refresh, a phone locking, a laptop lid. The card is
+       Even six holes is a sitting, and a browser tab is a fragile place to
+       keep one: a refresh, a phone locking, a laptop lid. The card is
        written to its own key after every hole so the round survives all three.
 
        What is *not* stored is the state of the hole you are standing on — no
@@ -255,6 +324,7 @@
         emptySave: emptySave,
         load: load,
         save: save,
+        LEGACY: LEGACY,
         saveRound: saveRound,
         loadRound: loadRound,
         clearRound: clearRound,

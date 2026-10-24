@@ -1,13 +1,15 @@
 # Pocket Links
 
-A 2D mini golf game with five courses on one field — an eighteen, a six and
-three nines — plus a sixth that is generated from a seed and is different every
-time you ask for one. A first visit is handed the six and a reason to finish
-it; every hole gives up to three stars, and stars open the rest. Up to four can
-play on one screen. Each course is drawn in a biome of its own — parkland,
-garden, seaside, woodland, meadow — and any of them can be played in any of
-nine, autumn, winter, desert and a moonlit night among them. A hole may run on
-the slant.
+A 2D mini golf game with seven courses of six holes, climbing from a walled
+garden to a volcano — plus one more that is generated from a seed and is
+different every time you ask for one. Each course is a place with a trick of
+its own: a garden's basics, parkland corners and posts, the sea's water, a
+wood's hills and sweeping bars, a meadow's tunnels, a mountain's avalanche
+chutes and a volcano's lava and geysers. A first visit is handed the garden and
+a reason to finish it; every hole gives up to three stars, and stars open the
+next card. Up to four can play on one screen. Any course can be dressed in any
+of eleven biomes, autumn, winter, desert and a moonlit night among them. A
+hole may run on the slant.
 Canvas, plain ES5-flavoured JavaScript, no build step and no dependencies —
 same as everything else here, open `index.html` and it runs.
 
@@ -38,7 +40,7 @@ same as everything else here, open `index.html` and it runs.
 | `tests.html` | Headless test harness for the logic. Open it; green is green. |
 | `ui-tests.html` | The same, for the page — the bar, the ☰ panel, the picker, the title, a party, the turned and side layouts. |
 
-## The five courses
+## The seven courses
 
 `GOLF.COURSES` is a rack of cards, each `{ id, name, blurb, holes }`, and
 `GOLF.COURSE` is whichever one is being played. Everything downstream — the
@@ -47,62 +49,92 @@ learns there was a choice; `GOLF.selectCourse(id)` is the one place that
 changes, and it answers `null` for an id that is not on the rack, which is
 the whole handling a stale stored preference needs.
 
-Only the *first* position on the rack is load-bearing. The card at the head
-of it keeps the bare save keys (see [Saving](#saving)), so moving something
-else to the front would quietly take over a record a player already has.
-Each card also names the biome it is drawn in — see
-[Biomes](#biomes-and-what-a-hole-is-drawn-as). Everything else about the order
-is the ladder: the eighteen and the short card
-open from the start, then Tidewater, the Wild Nine and the Warren in the order
-the stars open them — `unlock` on each card, 10, 22 and 34 — and the draw,
-which the generator puts last, at 46. The suite pins that the thresholds never
-fall going down the rack, so the picker reads top to bottom as a climb.
+**The rack is a ladder.** Every card is six holes, drawn in a place of its own
+and built round one thing that place does, and the order is the order the
+stars open them — `unlock` on each card: the Short Six from the start, then the
+Old Course at 4, Tidewater at 10, the Wild Six at 18, the Warren at 26,
+Avalanche Pass at 34 and Ember Ridge at 42, and the draw, which the generator
+puts last, at 50. Each threshold is about a third of the stars the cards above
+it can give, so finishing holes is enough and playing them well is quicker.
+Inside a card the holes get harder as they go, and par is the honest short
+measure of that: the suite pins that par never falls going down a card, and
+that the thresholds never fall going down the rack, so the picker reads top to
+bottom as a climb. No position on the rack is load-bearing: the save keys
+follow `GOLF.BARE_KEY_COURSE` by id (see [Saving](#saving)).
 
-- **The Old Eighteen** is the course this game has always been: one idea per
-  hole on the front nine, the same vocabulary played straight at you on the
-  back.
-- **The Short Six** is the card for the twenty minutes you actually have.
-  Par two or three all the way round, nothing hidden, the whole of every hole
-  visible from the tee — a wide gate, a bunker sat on the straight line, a
+- **The Short Six** (garden) is the card for the twenty minutes you actually
+  have, and the one a first visit is handed. Par two or three all the way
+  round, nothing hidden — a wide gate, a bunker sat on the straight line, a
   causeway with a rink in front of it, one slow bar to time, a gentle tilt,
-  and a close that puts three of those together. It is the one to hand
-  somebody who has never played the thing.
-- **The Tidewater Nine** puts water on all nine, which is the only hazard
-  that does not slow the ball or push it about — it takes the shot off you
-  and asks for it again. That makes it a course about weight rather than
+  and a close that puts three of those together. Every idea the rest of the
+  rack builds on is met here first, gently.
+- **The Old Course** (parkland) is what the game always was, boiled down to
+  the six that were each a different idea: up the field through a bunker,
+  round a corner, a field of posts, the cushions, two doors to time, and a
+  room whose only door faces away. Walls and posts and nothing else — the
+  angles are the hazard.
+- **The Tidewater Six** (seaside) puts water on every hole, which is the only
+  hazard that does not slow the ball or push it about — it takes the shot off
+  you and asks for it again. That makes it a course about weight rather than
   about lines, and it is why the crossings are wide: ninety pixels at the
   tightest and mostly a hundred and twenty, because a hole that punishes a
-  miss with a stroke cannot also demand a thread. The two slopes on it drain
-  into rough rather than into the lakes, for the same reason nothing else
-  does — a hazard with no shot in it is not a hazard, it is a tax.
-- **The Wild Nine** assumes you have played it. Nothing new is in the
-  vocabulary — a room whose only door faces the far cushion, a lattice of
-  posts with no straight line through it, two hills breaking opposite ways,
-  bars that sweep the fairway, a zigzag of bridges, a green that sheds
-  everything you leave on it, a staircase funnel, an iced slalom, and one of
-  everything to close. What *is* new is which of the physics they lean on:
-  a moving wall does not only block, it pushes (physics.js adds the wall's
-  own velocity along the contact normal, so a gate cannot swallow a resting
-  ball), and Wiper Blades is the first hole to make that the point rather
-  than a safety valve.
-- **The Warren** is the one card with a word nobody else has, which is why
-  it is the last thing the stars open: a **tunnel**, two mouths that run both
-  ways and keep the shot. Whatever speed and heading the ball goes down one
-  mouth with, it comes up the other with, and each hole reads a different
-  consequence off that sentence — that weight survives the trip (The Ferry,
-  an island with no causeway), that heading survives it too and is the thing
-  to aim (Crossed Wires, where the obvious line into either mouth comes out
-  on a diagonal into the same bunker), that a mouth runs both ways (Snow
-  Globe sends a ball that bounces back into its own exit home to the tee),
-  and that a door can be a trap as easily as a shortcut (Snakes and Ladders).
-  Every hole on it has one, and the suite says so.
+  miss with a stroke cannot also demand a thread. Ducks and Drakes is the one
+  hole built on the skip: a creek cushion to cushion, a footbridge at the far
+  end that costs a stroke, and a short way straight over for a hard, flat ball.
+- **The Wild Six** (woodland) is where the ground moves the ball: hills
+  breaking opposite ways, a hill that runs back at you, a green that sheds
+  everything you leave on it, a funnel, a lattice of posts, and the one
+  mechanic that arrives here rather than being recombined — a moving wall does
+  not only block, it pushes (physics.js adds the wall's own velocity along the
+  contact normal, so a gate cannot swallow a resting ball), and Wiper Blades
+  makes that the hole.
+- **The Warren** (meadow) is the card built on a door: a **tunnel**, two
+  mouths that run both ways and keep the shot. Whatever speed and heading the
+  ball goes down one mouth with, it comes up the other with, and each hole
+  reads a different consequence off that sentence — that weight survives the
+  trip (Snow Globe, a cup shut in a box of ice), that heading survives it too
+  and is the thing to aim (Crossed Wires), and that a door can be a trap as
+  easily as a shortcut (Snakes and Ladders). Every hole on it has one, and the
+  suite says so.
+- **Avalanche Pass** (alpine) is the card of the clock. A chute is a lane down
+  the mountain, and every few seconds a slide comes down it and carries off
+  whatever it is over — into a drift if you are lucky, into a crevasse if you
+  are not. It is a band you can watch coming, with smoke and a trickle at the
+  head of the chute a second before, and the gap behind it is the shot: one
+  chute to learn on, a chute that runs out into a crevasse with a long way
+  round over its head, two lanes of traffic running opposite ways on different
+  clocks, and a summit reached by a hairpin through an avalanche gully — with
+  a frozen tarn and an iced slalom between them.
+- **Ember Ridge** (volcanic) is the last card and the one most made of
+  choices. **Lava** is water that never lets a ball skip, so every crossing is
+  a risk taken or a long way round, and **geysers** are the risk: a vent blows
+  for a second in every three, and a ball rolling over it then is thrown up
+  and over whatever is beyond — the lava channel, the moat round an island,
+  the river. Every hole has a safe way that costs strokes and a quick way that
+  costs nerve, and par is set for the player who takes one chance in the
+  round, not all of them. Every hole on it has lava, and the suite says so.
 
-Three of those nine started out with a free way round the obstacle they were
+**What went, and why.** The rack used to be fifty-one holes over five cards —
+an eighteen and a six that both taught the basics, and three nines that
+recombined them — and a good share were the same idea twice: an island green
+on three cards, four straight holes through a gap, three different
+one-of-everything closers that were nearly the same picture, and slopes,
+gates and causeways in pairs and threes. Every hole that was another hole
+again is gone; what stayed is the best one of each idea, put on the card
+whose place it belongs to, and the new cards are built round hazards nothing
+else on the rack has. Nine holes in ten also used to be teed off on the left
+and holed on the right, which reads as one corridor however the furniture
+changes, so a few of the holes that stayed are played the other way round —
+`mirror()` in courses.js flips a hole as it is defined, so its data and its
+comments still describe it as designed — and the new ones run up the field,
+down it, on the diagonal and round a hairpin. The suite pins that every card
+is played in at least two directions.
+
+Three of the holes started out with a free way round the obstacle they were
 built on — over the top of the funnel, up the side lane of the lattice, along
 the cushion past the wipers. None of them is walled off. They are all lined
-with **rough** instead, which is the same answer hole one gives: the short
-line has to be earned, the long one costs a stroke's worth of roll and
-nothing more.
+with **rough** instead: the short line has to be earned, the long one costs a
+stroke's worth of roll and nothing more.
 
 **The die deals a card you did not choose.** The 🎲 in the picker (or `D`, or
 `?course=random` as a link) picks a course off the rack at random and starts
@@ -115,13 +147,13 @@ would: a random *choice*, not a random *round*.
 its own round in progress and its own record, under keys qualified by the
 course id — see [Saving](#saving) — so leaving one mid-round and coming back
 puts you on the tee of the hole you left, which is the same promise a refresh
-makes. Six holes, nine and eighteen are not comparable totals, which is the
-other half of why the save file is split: a six-hole round would take the
-eighteen-hole record the first time anyone played one.
+makes. Two cards are not comparable totals even at the same length, which is
+the other half of why the save file is split: a round of the Short Six would
+take the Old Course's record the first time anyone played one.
 
 ## Starting up, and the stars
 
-A first visit used to open on the first tee of the Old Eighteen with a page of
+A first visit used to open on the first tee of the old eighteen with a page of
 reference text under it, which is a fine way to meet a game you already know
 and a poor way to meet one you do not. It now does what a game has done since
 there were arcades: a title, how far you have got, and the obvious next thing
@@ -152,7 +184,7 @@ which is the level select every game with stars has and the reason to go back
 to the hole you bogeyed rather than on to the next card.
 
 **Courses open on stars.** `unlock` on a card is the stars it asks for; the
-eighteen and the six ask for none. The hole that crosses a threshold says so on
+Short Six asks for none. The hole that crosses a threshold says so on
 its banner, and the course is then *granted* — written down by id — so a door
 the stars opened stays open whatever happens to the thresholds later. Starting
 a course grants it too, for the same reason. A locked card in the picker still
@@ -164,12 +196,12 @@ Three things keep the ladder a nudge rather than a wall:
 
 - **Nothing a player had is taken away.** A browser with any of the old keys
   and no progress record is a *veteran* — every course open, the first stroke
-  not shown again, every old hazard already met — because locking the Wild
-  Nine on somebody with a record on it would be the game forgetting them. The
+  not shown again, every old hazard already met — because locking a card on
+  somebody with a record on it would be the game forgetting them. The
   check runs before anything on the page writes a key of its own; the draw's
   seed is remembered on every load, and a first visit would otherwise look
   like a second.
-- **A link is a key.** `?course=wild` opens the Wild Nine for whoever it was
+- **A link is a key.** `?course=wild` opens the Wild Six for whoever it was
   sent to, and `?seed=` opens the draw. Somebody wanted you on that card.
 - **The picker carries a way past.** *Open every course* under the list, for
   the visitor who came to look rather than to climb. Two presses, because it
@@ -478,14 +510,19 @@ A hole is axis-aligned rectangles, round posts and two points:
     bumpers: [ { x, y, r } ],            // round, and bouncier than a wall
     slopes:  [ { x, y, w, h, ax, ay } ], // constant acceleration, i.e. a breaking green
     tunnels: [ { x, y, tx, ty } ],       // two mouths, both ways: same speed, same heading out
-    rails:   [ { x, y, tx, ty, w } ]     // a wall at any angle: its spine and its thickness
+    rails:   [ { x, y, tx, ty, w } ],    // a wall at any angle: its spine and its thickness
+    lava:    [ { x, y, w, h } ],         // water nothing skips: any pace, a stroke and a replay
+    avalanches: [ { x, y, w, h, dir, every, at } ], // a chute: a slide down it every `every` seconds
+    vents:   [ { x, y, every, at, run } ] // a geyser: blowing `run` seconds of every `every`
 }
 ```
 
 A hole lists only the hazards it uses; a normaliser at the foot of
-`courses.js` fills in the rest as empty arrays, so nothing downstream has to
-ask whether a list exists. Water, sand, rough and ice may also be polygons —
-`poly(x0, y0, x1, y1, …)` — for a bank or a bunker that runs on the slant.
+`courses.js` fills in the rest as empty arrays from `GOLF.HAZARD_KEYS`, so
+nothing downstream has to ask whether a list exists. Water, lava, sand, rough
+and ice may also be polygons — `poly(x0, y0, x1, y1, …)` — for a bank or a
+bunker that runs on the slant; `chute(…)` and `vent(…)` are the helpers for
+the other two.
 
 `move` takes `{ axis, amp, speed, phase }`. On `y` it is a gate that rises and
 falls; on `x` it is a door that slides. A door is worth one note: hang it so
@@ -553,38 +590,102 @@ course is exempt from is a rule the second course will break — all asserted in
   off the tee, well off the cup, off every other mouth, and the two ends of a
   tunnel far enough apart to be going somewhere. `validateHole` holds the
   rules and the editor carries a port of them.
+- **A slide has to be something you can wait out.** Every point of a chute
+  lies clear for `AVALANCHE_CLEAR` seconds of each cycle, one slide is gone
+  from a chute before the next sets off (`every` at least the time a slide
+  takes to run its length), and the tee and the cup stand off every chute — a
+  ball teed up in a slide's path would be carried off before it was played.
+- **A vent is a disc of open ground.** Blowing for part of its cycle and
+  resting for the rest, on the field, clear of walls, posts, water and lava (a
+  ball that rolls onto it has to be able to), off slopes and chutes, off the
+  tee, well off the cup and off every tunnel mouth.
+
+## Avalanches, lava and geysers
+
+The two newest cards are built on three shapes, each chosen for what it asks
+of the player rather than for how it looks.
+
+**A chute** is a rectangle with a downhill — `dir`, one of down, up, left or
+right on the field — and a clock: every `every` seconds from `at`, a slide
+sets off from its head and runs its length at `AVALANCHE_SPEED`, a band of
+snow `AVALANCHE_LEN` deep. Whatever the band is over it takes to its own pace
+(at `AVALANCHE_GRIP`, so being caught is plain to see) and carries out of the
+foot, into whatever the hole put there: a drift, a crevasse, the cushion. It
+is a band rather than the whole chute switching on because a band can be
+watched coming — and for `AVALANCHE_WARN` seconds before each one the head of
+the chute smokes and trickles, which is the beat the shot is timed on. A ball
+inside the band is not at rest, the way a ball on a slope is not, but the band
+always passes, so a chute can run to a cushion without the hole ever hanging.
+A ball left lying in a chute is not safe there: the next slide takes it,
+played or not, the way a gate shoves a resting ball. It is the one hazard that
+hands the ball speed, and it is allowed to for the reason a moving gate is —
+it is a moving thing pushing — and it ends because the band moves on.
+
+**Lava** is water with the skip taken away: a ball whose centre reaches it is
+gone whatever its pace, a stroke and a replay from where it was played, said
+with a hiss and a flare instead of a splash. That one difference is what makes
+it a hazard of its own rather than water in a different colour — a creek of
+water can be skipped by a hard enough ball, a channel of lava never can — and
+it is why every crossing on Ember Ridge is a choice between a long way round
+and a geyser.
+
+**A geyser** is a vent that blows for `run` seconds of every `every`. A ball
+rolling over it while it blows is thrown up for `VENT_AIR` seconds and carries
+on in the air on the line it had, over everything on the ground — lava, water,
+sand, slopes — until the air drops it; walls still stop it. A ball rolling
+over it while it is quiet rolls over a grate. Nothing is added to its speed:
+the vent lifts, it does not push, so the rule that nothing hands the ball
+energy holds here as it does at the skip, and the suite watches every substep
+of a hop to be sure. How far the ball flies is how fast it arrived, so the
+quick line over a channel is two judgements at once — when, and how hard. A
+ball resting on a vent is juggled while it blows and left where it was.
+
+All three are functions of the world's clock and nothing else, which is what
+lets the bot and the suite plan through them exactly as they plan through a
+gate: the search waits a random beat before each shot, and a slide or an
+eruption is wherever the clock says it is.
 
 ## Biomes, and what a hole is drawn as
 
 A field of flat blue rectangles is a diagram of a hole rather than a place,
-and five courses in one palette are one course wearing five names. So each
-card is drawn in a biome — the eighteen in **parkland**, the six in a walled
-**garden**, Tidewater by the **seaside**, the Wild Nine in **woodland**, the
-Warren in a **meadow** — and the draw takes one from its seed. Nothing about
-play depends on it. A biome is a turf colour, a water (a pond with reeds and
+and seven courses in one palette are one course wearing seven names. So each
+card is drawn in a biome — the Short Six in a walled **garden**, the Old
+Course in **parkland**, Tidewater by the **seaside**, the Wild Six in
+**woodland**, the Warren in a **meadow**, Avalanche Pass on the **alpine**
+mountain and Ember Ridge on a **volcanic** one — and the draw takes one from
+its seed. Nothing about play depends on the biome: the mountain's chutes and
+the volcano's lava and geysers are hazards in the hole's data, and they are
+drawn as themselves in whatever biome the hole is dressed in. A biome is a turf colour, a water (a pond with reeds and
 lily pads and, on a big one, a duck; a stream; the sea, with surf), a sand, a
 rough, a wall material (timber, brick, driftwood, logs, a clipped hedge), a
 bumper cap (brass, a flowerpot, a buoy, a toadstool, a hay bale), the rim of
 the course, the trees beside it and the flowers, leaves or shells in its
 grass. `scenery.js` holds all of it as data; `landscape.js` draws it.
 
+**Alpine** is granite walls and rim, boulders with snow on them for posts,
+snow pines, deep snow for the bunkers and a glacial tarn with a skin of ice;
+**volcanic** is black basalt cracked with heat, obsidian posts, ash bunkers,
+charred pines, a hot spring for its water, embers rising and ash coming down,
+and a rumble under it all.
+
 Four more exist only to be chosen: **autumn** (stone walls, maples, pumpkins,
 leaves on the pond), **winter** (snowy logs, snow pines, a snowman for a post,
 a skin of ice on the water), **desert** (sandstone, acacias, cacti, a
 tumbleweed) and **moonlit**, a night course lit by lanterns round the cushion
 and posts that glow, with the moon on the water. The **Scenery** row in the
-course picker — or `S` — puts any course in any of the nine, or back in its
+course picker — or `S` — puts any course in any of the eleven, or back in its
 own; the choice is kept in `miniGolf.scenery.v1` and survives Reset progress,
 which is about the player's record, not their taste.
 
 **A biome is alive.** `ambience.js` draws what moves through it from the
 clock alone, so there is nothing to step and nothing to save: snow, falling
-leaves, petals, dandelion fluff, dust, fireflies and butterflies in the air
+leaves, petals, dandelion fluff, dust, ash, embers, fireflies and butterflies in the air
 over the ball (thinning as they pass it), and the shadows of birds and gulls,
 or a tumbleweed, on the ground under it. Under `prefers-reduced-motion` only
 the night's lamps and dark are left. Each biome has a soundscape to go with it
-— a looped bed of filtered noise (wind, the sea) and calls dropped in at random
-(birds, gulls, crickets, an owl, crows, a woodpecker) — on its own quiet bus,
+— a looped bed of filtered noise (wind, the sea, the volcano's rumble) and
+calls dropped in at random (birds, gulls, crickets, an owl, crows, a
+woodpecker, lava blurting) — on its own quiet bus,
 started by the first sound the player makes, stopped by the mute switch and a
 hidden tab.
 
@@ -627,9 +728,14 @@ top left of the glass. Two soft cloud shadows drift over everything, still
 under `prefers-reduced-motion`.
 
 **What does not move is painted once.** The ground — turf, the green, rough,
-bunkers, ice, slopes, decals and the bed of the water — and every wall that
-holds still are cached per hole, biome, orientation and resolution; only the
-water's surface, gates, posts, the ball, trees and clouds are drawn live. The
+bunkers, ice, slopes, chutes, vents, decals and the beds of the water and the
+lava — and every wall that holds still are cached per hole, biome,
+orientation and resolution; only the water's and the lava's surfaces, the
+slides and the eruptions, gates, posts, the ball, trees and clouds are drawn
+live. The lava's crust is a plate to a cell drifting round a home of its own,
+so it creeps without anything being stepped or stored; a slide and a plume
+are drawn off the world's clock, not the screen's, because where they are is
+a fact of play. The
 still-wall layer is cropped to where the walls are, because a field-sized
 image of transparent pixels blitted every frame was the most expensive thing
 on the page. On a software rasteriser this makes the heaviest hole about half
@@ -947,7 +1053,7 @@ times a second.
 
 ## The round in progress
 
-Eighteen holes is a long sitting and a browser tab is a fragile place to keep
+Even six holes is a sitting, and a browser tab is a fragile place to keep
 one, so the card is written to the round key after every hole and the game
 resumes there on load — one key per course, so switching cards mid-round
 leaves each of them where it was. What is not stored is the hole you were standing
@@ -959,10 +1065,11 @@ and cannot be wrong. You get the hole back, not the lie.
 A stored card is discarded rather than trusted when it is corrupt, when its
 index is off the end of the course, when the round never actually started, or
 when it was written for a course with a different number of holes — which is
-what happened to every nine-hole save the day this became eighteen. That last
-check is a belt to the braces of the per-course keys rather than the thing
-that separates the two cards: a card from the Wild Nine is never offered to
-the eighteen in the first place, because it is not under the eighteen's key.
+what happened to every round in progress on the eighteen and the nines the day
+the rack became seven sixes. That last check is a belt to the braces of the
+per-course keys rather than the thing that separates the cards: a card from
+the Wild Six is never offered to the Old Course in the first place, because it
+is not under the Old Course's key.
 
 ## The editor
 
@@ -1000,10 +1107,13 @@ rest.
 A tunnel is the one shape that is two things: drag from one mouth to the other
 to lay it, grab either mouth to move that end alone (`0` picks the tool). A
 **rail** is laid the same way (`L`), from one end to the other, and can be
-grabbed by either end or by its middle. Any water, sand, rough or ice can be
-turned into a **polygon** from the inspector — *Make it a polygon* gives it
-four corners to drag anywhere, *+ corner* splits its longest edge, *Square it*
-puts it back.
+grabbed by either end or by its middle. Any water, lava, sand, rough or ice
+can be turned into a **polygon** from the inspector — *Make it a polygon*
+gives it four corners to drag anywhere, *+ corner* splits its longest edge,
+*Square it* puts it back. **Lava** (`H`) is drawn like water; a **chute** (`A`)
+is a rectangle with its downhill, its period and its first slide set in the
+inspector; a **geyser** (`Y`) is a click, with when and for how long it blows
+beside it. The checks hold all three to the rule book's rules for them.
 
 Everything else is what you would expect. Drag a shape tool across the green
 to draw one, drag it or its grips to reshape, snap at 1/5/10/20 with shift for
@@ -1020,7 +1130,7 @@ helpers, braces or a trailing comma. **Playtest** hands the hole to the game
 through session storage and opens `index.html?playtest=1`, which swaps
 `GOLF.COURSE` for that one hole before `game.js` boots. That round is scored
 and shown but never written down: a one-hole round is three or four strokes
-and would beat any real eighteen-hole record the first time anyone tried a
+and would beat any real round's record the first time anyone tried a
 draft.
 
 `level-editor.html?runTests=1` runs the editor's own tests — the export/parse
@@ -1034,9 +1144,9 @@ indexable; the self-test overlay only appears with the query string.
 
 Two harnesses, and the runner finds both.
 
-Open `tests.html`. 885 assertions covering geometry, the integrator, the four
-surfaces, the overswing, skipping, tunnels, rails and polygons, the cup in
-three dimensions, scenery in every biome, the course data
+Open `tests.html`. 836 assertions covering geometry, the integrator, the four
+surfaces, the overswing, skipping, tunnels, avalanche chutes, lava and
+geysers, rails and polygons, the cup in three dimensions, scenery in every biome, the course data
 on every course, the generator, the scorecard, the pick-up and the stars,
 progression and starting over, the per-course save keys and the resumable
 round, in a few seconds — most of them
@@ -1044,7 +1154,7 @@ the bot's, which now searches for a way round every hole on the rack and every
 hole of twelve draws. The bot needed nothing new for tunnels: it plans over
 simulated shots, and a shot down a tunnel is a simulated shot.
 
-Open `ui-tests.html` for the other half: 155 assertions about the *page* — the
+Open `ui-tests.html` for the other half: 173 assertions about the *page* — the
 bar, the modals in fullscreen, the picker, the title screen on a first visit, locks and the way past
 them, stars on the banner and the plans, a door opening, a three-player party
 from roster to honour to resume, the board turned for an upright phone and
@@ -1094,7 +1204,11 @@ from is a rule the second course will break. The hole counts themselves are
 pinned rather than derived — by course id, not by rack position, since the
 order is taste and the length of a card is not — because the stored round is
 validated against them: changing one has to be a deliberate edit in two
-places.
+places. The shape of the rack is pinned the same way: no two holes share a
+name (the save file remaps by name), par never falls going down a card, every
+card is played in at least two directions and uses at least four kinds of
+hazard, every kind of hazard is in play somewhere on the rack, every hole of
+the Warren has a tunnel and every hole of Ember Ridge has lava.
 
 The one worth knowing about is the **bot**, and it searches rather than plays.
 The field is bucketed into 48px cells; the tee is where the search starts;
@@ -1125,12 +1239,12 @@ there exists a sequence of shots a player could hit that finishes this hole.
 Three things keep it from being a "sometimes red" test nobody trusts:
 
 - **A seed per hole**, not one stream down the course — and per hole *within*
-  its course, so adding a whole second card does not reshuffle the eighteen.
+  its course, so adding a whole card does not reshuffle the others.
   Sharing a stream means editing the second hole reshuffles the shots every
   later hole is played with, so a change here turns a hole there red — a report
   about the PRNG, not about the course. The three checks that do share a stream
-  (resting position, shot length, escapes) walk the rack in order with the
-  eighteen first, for the same reason.
+  (resting position, shot length, escapes) walk the rack in order, for the
+  same reason.
 - **A random wait before striking.** The moving-gate holes are only solvable
   with timing, and a bot that always fires at `t=0` would report a false
   failure. For the same reason a cell may be expanded twice rather than once:
@@ -1152,9 +1266,10 @@ above; `miniGolf.save.v1` is the record — best round, that round's card, round
 played and a running ace count. The landing page reads the record for the
 card's stat chip.
 
-Both are qualified by the course being played, and the first course on the
-rack keeps the bare key: the Old Eighteen goes on writing `miniGolf.round.v1`
-and `miniGolf.save.v1`, and the Wild Nine writes `miniGolf.round.v1.wild` and
+Both are qualified by the course being played, and one course keeps the bare
+key — `GOLF.BARE_KEY_COURSE`, the Old Course, by id rather than by where it
+stands on the rack: it goes on writing `miniGolf.round.v1` and
+`miniGolf.save.v1`, and the Wild Six writes `miniGolf.round.v1.wild` and
 `miniGolf.save.v1.wild`. That is what leaves a record a player already has
 where they left it, and what lets the landing page go on reading
 `miniGolf.save.v1` without knowing there is a rack at all. Which one you were
@@ -1167,11 +1282,20 @@ before it — and never writes a record at all. (The editor keeps its work in pr
 `miniGolf.editor.v1` and hands a playtest over in session storage under
 `miniGolf.playtest.v1`; neither goes near either of them, and a playtest is
 locked out of both the record and the round in progress — a one-hole round of
-three strokes would otherwise beat any real eighteen-hole score, and starting
+three strokes would otherwise beat any real round's score, and starting
 one would throw away the round you had going.)
 The save file also carries `holes`, the best score made on each hole, which the
 stars are read off; a save from before it existed starts from its best round's
-card, so a returning player is handed the stars they already earned.
+card, so a returning player is handed the stars they already earned. And it
+carries `names`, the holes of the card it was written for, because a card can
+be rebuilt under it: when the rack became seven sixes the eighteen lost twelve
+holes and three nines lost three each, and the holes that stayed moved. A save
+read against a card whose names differ is remapped name by name — a best on
+Pinball stays a best on Pinball wherever Pinball now stands — and drops its
+best round, which was over a card that no longer exists; a save from before
+names were kept is read as written for the card as it was then
+(`scoring.LEGACY`). That is also why no two holes on the rack may share a
+name.
 Progression — the courses granted or opened wholesale, the lessons seen,
 whether the first stroke has been shown, whether this browser is a veteran's —
 lives under `miniGolf.progress.v1`, a party in progress under

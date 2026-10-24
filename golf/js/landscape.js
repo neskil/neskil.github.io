@@ -795,6 +795,12 @@
                 for (k = 0; k < 3; k++) { var fa = k * Math.PI / 3; g.moveTo(-Math.cos(fa) * 3.5, -Math.sin(fa) * 3.5); g.lineTo(Math.cos(fa) * 3.5, Math.sin(fa) * 3.5); }
                 g.stroke();
                 break;
+            case 'ember':
+                // A cinder still glowing at its heart.
+                g.fillStyle = '#3a2418'; g.beginPath(); g.ellipse(0, 0, 3.6, 2.7, 0, 0, Math.PI * 2); g.fill();
+                g.fillStyle = 'rgba(255, 122, 26, ' + (0.55 + d.t * 0.4).toFixed(2) + ')';
+                g.beginPath(); g.arc(0.4, -0.2, 1.4, 0, Math.PI * 2); g.fill();
+                break;
             case 'toadstool':
                 g.fillStyle = '#dc2626'; g.beginPath(); g.arc(0, 0, 3, 0, Math.PI * 2); g.fill();
                 g.fillStyle = '#ffffff';
@@ -804,13 +810,384 @@
         g.restore();
     }
 
+    /* ── lava ───────────────────────────────────────────────────────────
+
+       Drawn the way the water is, in two halves. What holds still — the
+       heat it throws on the ground round it, the bank of cooled black rock,
+       the body — goes into the ground layer once; what moves — the crust
+       drifting on it, the bright seams between the plates, a bubble coming
+       up — is drawn live inside its outline. And whatever the biome, lava is
+       lava: it is the one zone the scenery may not dress up, because it is
+       the one that takes the ball at any pace. Its surface sits a few pixels
+       down the screen like the water's, so the far bank shows a face of
+       rock above it. */
+    var LAVA_SINK = 5;
+
+    function lavaSurface(g, loops, v) {
+        var dn = sv(v, 0, LAVA_SINK);
+        g.translate(dn.x, dn.y);
+        loopPath(g, loops, 18);
+        g.translate(-dn.x, -dn.y);
+    }
+
+    function drawLavaBed(g, list, v) {
+        if (!list || !list.length) return;
+        var loops = SC.outline(list, true);
+        g.save();
+        loopPath(g, loops, 18);
+        g.lineJoin = 'round';
+        g.strokeStyle = 'rgba(255, 110, 30, 0.13)';
+        g.lineWidth = 40;
+        g.stroke();
+        g.strokeStyle = 'rgba(255, 150, 60, 0.16)';
+        g.lineWidth = 20;
+        g.stroke();
+        g.strokeStyle = '#21140d';
+        g.lineWidth = 10;
+        g.stroke();
+        g.fillStyle = '#2b1a10';
+        g.fill();
+        g.clip();
+        lavaSurface(g, loops, v);
+        g.fillStyle = '#c2350c';
+        g.fill();
+        g.restore();
+    }
+
+    /* The crust, painted once per lava field into a canvas of its own: a
+       plate to a cell, each a rough polygon, nearly meeting, and what shows
+       between them is the melt — thin bright seams, the way cooling lava
+       cracks. Drawn plate by plate every frame it was most of what a volcano
+       hole cost on a software rasteriser; as one image that drifts a few
+       pixels on a slow sine it costs a blit, and still creeps. Keyed by the
+       field itself, so the editor, whose lava changes under the mouse, gets
+       a new one when it does. */
+    var CRUST_CELL = 58, CRUST_PAD = 12;
+    var crust = { key: null, canvas: null, loops: null, b: null, plates: null };
+
+    function crustFor(list) {
+        var key = JSON.stringify(list);
+        if (crust.key === key) return crust;
+        var loops = SC.outline(list, true), b = boundsOf(loops);
+        b.x0 = Math.max(-20, b.x0); b.y0 = Math.max(-20, b.y0);
+        b.x1 = Math.min(W + 20, b.x1); b.y1 = Math.min(H + 20, b.y1);
+        var plates = [];
+        for (var gx = Math.floor(b.x0 / CRUST_CELL) * CRUST_CELL; gx < b.x1; gx += CRUST_CELL) {
+            for (var gy = Math.floor(b.y0 / CRUST_CELL) * CRUST_CELL; gy < b.y1; gy += CRUST_CELL) {
+                var h0 = hash(gx * 0.37 + gy * 1.91 + 3);
+                plates.push(gx + CRUST_CELL * (0.15 + h0 * 0.7), gy + CRUST_CELL * (0.15 + hash(h0 * 9.1) * 0.7), h0);
+            }
+        }
+        var box = { x: b.x0 - CRUST_PAD, y: b.y0 - CRUST_PAD, w: b.x1 - b.x0 + CRUST_PAD * 2, h: b.y1 - b.y0 + CRUST_PAD * 2 };
+        var canvas = typeof document !== 'undefined' ? layer(1.5, function (g) {
+            g.beginPath();
+            for (var i = 0; i < plates.length; i += 3) {
+                var px = plates[i], py = plates[i + 1], ph0 = plates[i + 2], rot = ph0 * 6;
+                for (var c = 0; c < 7; c++) {
+                    var ca = rot + c * Math.PI * 2 / 7, cr = CRUST_CELL * (0.36 + hash(ph0 * 13 + c) * 0.3);
+                    if (c === 0) g.moveTo(px + Math.cos(ca) * cr, py + Math.sin(ca) * cr);
+                    else g.lineTo(px + Math.cos(ca) * cr, py + Math.sin(ca) * cr);
+                }
+                g.closePath();
+            }
+            g.fillStyle = 'rgba(74, 24, 9, 0.84)';
+            g.fill();
+            g.strokeStyle = 'rgba(255, 196, 92, 0.24)';
+            g.lineWidth = 1.4;
+            g.stroke();
+        }, box) : null;
+        crust = { key: key, canvas: canvas, box: box, loops: loops, b: b, plates: plates };
+        return crust;
+    }
+
+    function drawLava(g, list, v, clock) {
+        if (!list || !list.length) return;
+        var cr = crustFor(list), loops = cr.loops, b = cr.b;
+        g.save();
+        loopPath(g, loops, 18);
+        g.clip();
+        lavaSurface(g, loops, v);
+        g.clip();
+        var glow = 0.5 + Math.sin(clock * 1.3) * 0.5;
+        var grad = g.createLinearGradient(b.x0, b.y0, b.x1, b.y1);
+        grad.addColorStop(0, glow > 0.5 ? '#ffbf47' : '#ffb03a');
+        grad.addColorStop(0.5, '#f26a16');
+        grad.addColorStop(1, '#cf3e0b');
+        g.fillStyle = grad;
+        g.fillRect(b.x0, b.y0, b.x1 - b.x0, b.y1 - b.y0);
+        if (cr.canvas) {
+            var dx = Math.sin(clock * 0.21) * 6, dy = Math.cos(clock * 0.17) * 5;
+            g.drawImage(cr.canvas, cr.box.x + dx, cr.box.y + dy, cr.box.w, cr.box.h);
+        }
+
+        // A bubble now and then: it swells, glows and pops.
+        for (var k = 0; k < cr.plates.length; k += 15) {
+            var ph = (clock * 0.45 + hash(k * 1.7)) % 1;
+            if (ph > 0.3) continue;
+            var bx = cr.plates[k] + CRUST_CELL * 0.5, by = cr.plates[k + 1] + CRUST_CELL * 0.3, br = 2 + ph * 14;
+            g.fillStyle = 'rgba(255, 236, 150, ' + (0.6 - ph * 2).toFixed(2) + ')';
+            g.beginPath();
+            g.arc(bx, by, br, 0, Math.PI * 2);
+            g.fill();
+        }
+
+        // The bank's shadow along the top of the surface, as on the water.
+        var s = sv(v, 4, 6);
+        g.save();
+        g.translate(s.x, s.y);
+        loopPath(g, loops, 18);
+        g.restore();
+        g.strokeStyle = 'rgba(40, 8, 0, 0.35)';
+        g.lineWidth = 10;
+        g.stroke();
+        g.restore();
+    }
+
+    /* ── avalanche chutes ───────────────────────────────────────────────
+
+       The chute itself is ground: a lane of packed snow scoured into streaks
+       down the fall line, with chevrons that say which way is downhill, in
+       the ground layer. The slide is drawn live — a band of tumbling snow
+       with a cloud of powder running ahead of it — and for AVALANCHE_WARN
+       seconds before one sets off, the head of the chute smokes and
+       trickles, which is the beat a player times the shot on. */
+
+    // A point `p` down the chute from its head and `q` across it from its
+    // left-hand side, in the world.
+    function chutePoint(a, p, q) {
+        if (a.dir === 'up') return { x: a.x + q, y: a.y + a.h - p };
+        if (a.dir === 'right') return { x: a.x + p, y: a.y + q };
+        if (a.dir === 'left') return { x: a.x + a.w - p, y: a.y + q };
+        return { x: a.x + q, y: a.y + p };
+    }
+
+    function chuteAcross(a) { return a.dir === 'left' || a.dir === 'right' ? a.h : a.w; }
+
+    function drawChuteBed(g, a) {
+        var L = P.chuteLength(a), across = chuteAcross(a), d = P.chuteDir(a), k, p;
+        g.save();
+        roundRect(g, a.x, a.y, a.w, a.h, 12);
+        g.fillStyle = 'rgba(234, 241, 248, 0.86)';
+        g.fill();
+        g.clip();
+        // Streaks down the fall line, broken where the snow has drifted.
+        g.strokeStyle = 'rgba(130, 158, 196, 0.32)';
+        g.lineWidth = 1.2;
+        g.beginPath();
+        for (k = 5; k < across; k += 6 + hash(a.x + k) * 5) {
+            for (p = hash(a.y + k * 3) * 30; p < L; p += 40 + hash(k + p) * 50) {
+                var e = Math.min(L, p + 20 + hash(p * 1.3 + k) * 40);
+                var p0 = chutePoint(a, p, k), p1 = chutePoint(a, e, k);
+                g.moveTo(p0.x, p0.y);
+                g.lineTo(p1.x, p1.y);
+            }
+        }
+        g.stroke();
+        // Chevrons pointing downhill.
+        var size = Math.min(across * 0.22, 22);
+        g.strokeStyle = 'rgba(100, 130, 172, 0.32)';
+        g.lineWidth = 4;
+        g.lineJoin = 'round';
+        g.beginPath();
+        for (p = size + 24; p < L - 10; p += size * 4) {
+            var tip = chutePoint(a, p, across / 2);
+            g.moveTo(tip.x - d.x * size - d.y * size, tip.y - d.y * size - d.x * size);
+            g.lineTo(tip.x, tip.y);
+            g.lineTo(tip.x - d.x * size + d.y * size, tip.y - d.y * size + d.x * size);
+        }
+        g.stroke();
+        // The banks either side, heaped where slides have pushed the snow.
+        g.strokeStyle = 'rgba(255, 255, 255, 0.75)';
+        g.lineWidth = 5;
+        g.strokeRect(a.x + 1, a.y + 1, a.w - 2, a.h - 2);
+        g.strokeStyle = 'rgba(90, 120, 160, 0.30)';
+        g.lineWidth = 2;
+        g.strokeRect(a.x + 5, a.y + 5, a.w - 10, a.h - 10);
+        g.restore();
+    }
+
+    function drawSlides(g, list, t, v, clock) {
+        if (!list || !list.length) return;
+        var sh = sv(v, 4, 6);
+        for (var i = 0; i < list.length; i++) {
+            var a = list[i], across = chuteAcross(a);
+            var band = P.slideAt(a, t), wait = a.every - P.slideClock(a, t);
+            g.save();
+            g.beginPath();
+            g.rect(a.x, a.y, a.w, a.h);
+            g.clip();
+            if (band && band.to > band.from) {
+                var front = chutePoint(a, band.to, across / 2);
+                // The powder cloud running ahead of the front.
+                var pr = across * 0.75;
+                var pg = g.createRadialGradient(front.x, front.y, 0, front.x, front.y, pr);
+                pg.addColorStop(0, 'rgba(255, 255, 255, 0.6)');
+                pg.addColorStop(1, 'rgba(255, 255, 255, 0)');
+                g.fillStyle = pg;
+                g.fillRect(front.x - pr, front.y - pr, pr * 2, pr * 2);
+                // The mass: lumps of snow tumbling as they come.
+                var lumps = [];
+                var n = 0;
+                for (var p = band.from; p <= band.to; p += 9) {
+                    for (var q = 6; q < across - 2; q += 11) {
+                        n++;
+                        var jx = Math.sin(clock * 7 + n * 1.7) * 3, jy = Math.cos(clock * 6 + n * 2.3) * 3;
+                        var c = chutePoint(a, p + jx, q + jy + (hash(n) - 0.5) * 6);
+                        var near = (band.to - p) / Math.max(1, band.to - band.from);
+                        lumps.push(c.x, c.y, 6 + hash(n * 1.3) * 6 + (1 - near) * 3);
+                    }
+                }
+                var j;
+                g.fillStyle = 'rgba(80, 105, 140, 0.30)';
+                g.beginPath();
+                for (j = 0; j < lumps.length; j += 3) {
+                    g.moveTo(lumps[j] + sh.x + lumps[j + 2], lumps[j + 1] + sh.y);
+                    g.arc(lumps[j] + sh.x, lumps[j + 1] + sh.y, lumps[j + 2], 0, Math.PI * 2);
+                }
+                g.fill();
+                g.fillStyle = '#f4f8fc';
+                g.beginPath();
+                for (j = 0; j < lumps.length; j += 3) {
+                    g.moveTo(lumps[j] + lumps[j + 2], lumps[j + 1]);
+                    g.arc(lumps[j], lumps[j + 1], lumps[j + 2], 0, Math.PI * 2);
+                }
+                g.fill();
+                g.fillStyle = 'rgba(190, 210, 235, 0.55)';
+                g.beginPath();
+                for (j = 0; j < lumps.length; j += 6) {
+                    g.moveTo(lumps[j] + lumps[j + 2] * 0.5 - sh.x * 0.3, lumps[j + 1] - sh.y * 0.3);
+                    g.arc(lumps[j] - sh.x * 0.3, lumps[j + 1] - sh.y * 0.3, lumps[j + 2] * 0.5, 0, Math.PI * 2);
+                }
+                g.fill();
+            } else if (wait < C.AVALANCHE_WARN) {
+                // The cornice letting go: smoke at the head, a trickle below.
+                var k = 1 - wait / C.AVALANCHE_WARN;
+                g.fillStyle = 'rgba(255, 255, 255, ' + (0.25 + k * 0.5).toFixed(2) + ')';
+                g.beginPath();
+                for (var m = 0; m < 6; m++) {
+                    var puff = chutePoint(a, 6 + hash(m * 2.1 + i) * 16 + Math.sin(clock * 5 + m) * 2, across * (0.12 + m * 0.15));
+                    var pr2 = 5 + k * 9 + hash(m) * 4;
+                    g.moveTo(puff.x + pr2, puff.y);
+                    g.arc(puff.x, puff.y, pr2, 0, Math.PI * 2);
+                }
+                g.fill();
+                g.fillStyle = 'rgba(250, 252, 255, 0.85)';
+                g.beginPath();
+                for (var tr = 0; tr < 14; tr++) {
+                    var dp = ((clock * 90 + hash(tr * 3.1 + i) * 80) % (20 + k * 70));
+                    var tc = chutePoint(a, 10 + dp, across * hash(tr * 1.7 + i));
+                    g.moveTo(tc.x + 1.6, tc.y);
+                    g.arc(tc.x, tc.y, 1.6, 0, Math.PI * 2);
+                }
+                g.fill();
+            }
+            g.restore();
+        }
+    }
+
+    /* ── geysers ────────────────────────────────────────────────────────
+
+       The vent is ground — a low cone of mineral crust round a dark throat,
+       ringed in sulphur — and the eruption is drawn live: a column of steam
+       and spray standing up the screen from it while it blows, droplets
+       falling back round it, and before it blows, a wisp and a gurgle. The
+       column stands up the *screen*, whichever way the board is turned, the
+       way the flagstick does. */
+    function drawVentBed(g, vt, v) {
+        var R = C.VENT_R, sh = sv(v, 3, 4);
+        g.save();
+        var grad = g.createRadialGradient(vt.x, vt.y, R * 0.4, vt.x, vt.y, R + 14);
+        grad.addColorStop(0, '#b6aa96');
+        grad.addColorStop(0.7, '#7e7466');
+        grad.addColorStop(1, 'rgba(90, 80, 70, 0)');
+        g.fillStyle = grad;
+        g.beginPath();
+        g.arc(vt.x, vt.y, R + 14, 0, Math.PI * 2);
+        g.fill();
+        g.strokeStyle = 'rgba(236, 214, 110, 0.6)';
+        g.lineWidth = 3;
+        g.beginPath();
+        g.arc(vt.x, vt.y, R * 0.8, 0, Math.PI * 2);
+        g.stroke();
+        g.fillStyle = 'rgba(0, 0, 0, 0.35)';
+        g.beginPath();
+        g.arc(vt.x + sh.x * 0.4, vt.y + sh.y * 0.4, R * 0.56, 0, Math.PI * 2);
+        g.fill();
+        g.fillStyle = '#1b130e';
+        g.beginPath();
+        g.arc(vt.x, vt.y, R * 0.52, 0, Math.PI * 2);
+        g.fill();
+        g.restore();
+    }
+
+    function drawVents(g, list, t, v, clock) {
+        if (!list || !list.length) return;
+        var up = sv(v, 0, -1), side = sv(v, 1, 0), R = C.VENT_R;
+        for (var i = 0; i < list.length; i++) {
+            var vt = list[i], every = vt.every > 0 ? vt.every : 1, run = vt.run || 1;
+            var u = (t - (vt.at || 0)) % every;
+            if (u < 0) u += every;
+            var k, n, h;
+            g.save();
+            if (u < run) {
+                var rise = Math.min(1, u / 0.14), fade = Math.min(1, (run - u) / 0.3);
+                var tall = 150 * rise * (0.6 + fade * 0.4);
+                // Spray falling back round the foot of the column.
+                g.fillStyle = 'rgba(214, 240, 255, 0.8)';
+                g.beginPath();
+                for (n = 0; n < 16; n++) {
+                    var ph = (clock * 1.6 + hash(n * 2.7 + i)) % 1;
+                    var ang = hash(n * 1.3 + i) * Math.PI * 2, rr = R * 0.4 + ph * (R + 24);
+                    h = Math.sin(ph * Math.PI) * tall * 0.45;
+                    var dx = vt.x + Math.cos(ang) * rr + up.x * h, dy = vt.y + Math.sin(ang) * rr * 0.6 + up.y * h;
+                    g.moveTo(dx + 1.8, dy);
+                    g.arc(dx, dy, 1.8, 0, Math.PI * 2);
+                }
+                g.fill();
+                // The column: puffs climbing and spreading as they go.
+                for (n = 0; n < 16; n++) {
+                    var f = n / 15;
+                    h = f * tall;
+                    var wob = Math.sin(clock * 9 + n * 1.9) * (2 + f * 8);
+                    var px = vt.x + up.x * h + side.x * wob, py = vt.y + up.y * h + side.y * wob;
+                    var pr = R * 0.45 + f * 16;
+                    g.fillStyle = 'rgba(255, 255, 255, ' + ((0.75 - f * 0.45) * fade).toFixed(2) + ')';
+                    g.beginPath();
+                    g.arc(px, py, pr, 0, Math.PI * 2);
+                    g.fill();
+                }
+            } else {
+                // Before it blows the throat steams harder; between times, a wisp.
+                var wait = every - u, warn = wait < C.VENT_WARN ? 1 - wait / C.VENT_WARN : 0;
+                for (n = 0; n < 3; n++) {
+                    var ph2 = (clock * (0.5 + warn) + n / 3) % 1;
+                    h = ph2 * (26 + warn * 30);
+                    g.fillStyle = 'rgba(255, 255, 255, ' + ((0.14 + warn * 0.4) * (1 - ph2)).toFixed(2) + ')';
+                    g.beginPath();
+                    g.arc(vt.x + up.x * h + side.x * Math.sin(clock + n) * 4, vt.y + up.y * h + side.y * Math.sin(clock + n) * 4,
+                          R * 0.3 + ph2 * 10, 0, Math.PI * 2);
+                    g.fill();
+                }
+                if (warn > 0) {
+                    g.strokeStyle = 'rgba(255, 240, 200, ' + (warn * 0.6).toFixed(2) + ')';
+                    g.lineWidth = 2;
+                    g.beginPath();
+                    g.arc(vt.x, vt.y, R * (0.55 + (clock * 3 % 1) * 0.4), 0, Math.PI * 2);
+                    g.stroke();
+                }
+            }
+            g.restore();
+        }
+    }
+
     /* ── walls ──────────────────────────────────────────────────────────
 
        A material per biome, each a top colour, a near-face colour and a
        texture: timber sleepers in the parkland, brick in the garden,
        driftwood by the sea, logs in the wood, a clipped hedge in the meadow,
-       dry stone in the autumn, logs under snow in the winter, layered
-       sandstone in the desert.
+       dry stone in the autumn, logs under snow in the winter, speckled
+       granite on the mountain, layered sandstone in the desert and black
+       basalt, cracked and glowing, on the volcano.
        A wall that moves keeps its hazard stripes whatever it is made of — a
        player who gets hit by one should at least have known it was coming. */
     var MATERIAL = {
@@ -821,7 +1198,9 @@
         hedge:     { top: '#2f6d33', side: '#163a1a', move: '#3f8040', grain: 'rgba(10,40,12,0.40)', hi: 'rgba(200,255,180,0.18)' },
         stone:     { top: '#8d8f88', side: '#4a4b46', move: '#a3a59c', grain: 'rgba(35,35,30,0.45)', hi: 'rgba(255,255,245,0.24)' },
         snowlog:   { top: '#eef4f8', side: '#4b3423', move: '#f6f9fb', grain: 'rgba(110,140,175,0.30)', hi: 'rgba(255,255,255,0.7)' },
-        sandstone: { top: '#c9854f', side: '#7a4526', move: '#d99a62', grain: 'rgba(110,52,22,0.36)', hi: 'rgba(255,226,190,0.30)' }
+        sandstone: { top: '#c9854f', side: '#7a4526', move: '#d99a62', grain: 'rgba(110,52,22,0.36)', hi: 'rgba(255,226,190,0.30)' },
+        granite:   { top: '#9aa3ab', side: '#4f565d', move: '#b0b8bf', grain: 'rgba(30,35,40,0.40)', hi: 'rgba(255,255,255,0.34)' },
+        basalt:    { top: '#3d3a3b', side: '#1b1819', move: '#57524f', grain: 'rgba(255,110,40,0.38)', hi: 'rgba(255,170,110,0.22)' }
     };
 
     function material(theme) { return MATERIAL[theme.wall] || MATERIAL.timber; }
@@ -941,6 +1320,40 @@
                 g.fill();
             }
             g.beginPath();
+        } else if (kind === 'granite') {
+            // Speckled rock, with a crust of snow along the lit edge.
+            g.stroke();
+            for (k = 0; k < len * wid / 34; k++) {
+                var gx = hash(seed + k * 1.9) * len, gy = hash(seed + k * 3.7) * wid;
+                g.fillStyle = hash(seed + k * 5.3) < 0.5 ? 'rgba(30, 35, 42, 0.35)' : 'rgba(255, 255, 255, 0.30)';
+                if (along) g.fillRect(R.x + gx, R.y + gy, 1.6, 1.6); else g.fillRect(R.x + gy, R.y + gx, 1.6, 1.6);
+            }
+            g.fillStyle = 'rgba(245, 250, 255, 0.72)';
+            for (a = 0; a < len; a += 9 + hash(seed + a) * 10) {
+                var sw2 = 8 + hash(seed + a * 1.3) * 14, sd = 2 + hash(seed + a * 2.1) * 3;
+                g.beginPath();
+                if (along) g.ellipse(R.x + a + sw2 / 2, R.y + sd / 2, sw2 / 2, sd, 0, 0, Math.PI * 2);
+                else g.ellipse(R.x + sd / 2, R.y + a + sw2 / 2, sd, sw2 / 2, 0, 0, Math.PI * 2);
+                g.fill();
+            }
+            g.beginPath();
+        } else if (kind === 'basalt') {
+            // Columns: joints across the wall, and a seam of heat along it.
+            g.strokeStyle = 'rgba(0, 0, 0, 0.45)';
+            for (a = 6 + hash(seed) * 6; a < len; a += 10 + hash(seed + a) * 6) {
+                var lean = (hash(seed + a * 3) - 0.5) * 4;
+                line(a, 0, a + lean, wid);
+            }
+            g.stroke();
+            g.beginPath();
+            g.strokeStyle = m.grain;
+            g.lineWidth = 1.3;
+            var cy = wid * (0.35 + hash(seed + 7) * 0.3);
+            for (a = 0; a < len; a += 8) {
+                var y0 = cy + (hash(seed + a * 0.7) - 0.5) * wid * 0.5;
+                var y1 = cy + (hash(seed + (a + 8) * 0.7) - 0.5) * wid * 0.5;
+                line(a, y0, Math.min(len, a + 8), y1);
+            }
         } else if (kind === 'sandstone') {
             // Strata: bands of rock laid down along the wall, gently wavy.
             for (k = 3; k < wid; k += 4 + hash(seed + k) * 3) {
@@ -1147,6 +1560,33 @@
                 for (k = 0; k < 5; k++) { g.beginPath(); g.arc(cx + Math.cos(k * 1.26) * r * 0.16, cy + Math.sin(k * 1.26) * r * 0.16, r * 0.14, 0, Math.PI * 2); g.fill(); }
                 g.fillStyle = '#fde68a'; g.beginPath(); g.arc(cx, cy, r * 0.09, 0, Math.PI * 2); g.fill();
                 break;
+            case 'boulder':
+                // A granite boulder with snow lying on its top.
+                grad = g.createRadialGradient(cx + hl.x, cy + hl.y, r * 0.1, cx, cy, r);
+                grad.addColorStop(0, '#c3cad1'); grad.addColorStop(1, '#5a636b');
+                g.fillStyle = grad; g.beginPath(); g.arc(cx, cy, r, 0, Math.PI * 2); g.fill();
+                g.fillStyle = 'rgba(30, 36, 44, 0.35)';
+                for (k = 0; k < 6; k++) g.fillRect(cx + Math.cos(k * 2.3 + b.x) * r * 0.6, cy + Math.sin(k * 2.3 + b.y) * r * 0.6, 1.6, 1.6);
+                g.fillStyle = 'rgba(248, 251, 255, 0.95)';
+                g.beginPath(); g.ellipse(cx + hl.x * 0.9, cy + hl.y * 0.9, r * 0.62, r * 0.42, Math.atan2(hl.y, hl.x) + Math.PI / 2, 0, Math.PI * 2); g.fill();
+                break;
+            case 'obsidian':
+                // Volcanic glass: black, glossy, hot in its cracks.
+                grad = g.createRadialGradient(cx + hl.x, cy + hl.y, r * 0.05, cx, cy, r);
+                grad.addColorStop(0, '#5c5260'); grad.addColorStop(0.5, '#241c22'); grad.addColorStop(1, '#0c080a');
+                g.fillStyle = grad; g.beginPath(); g.arc(cx, cy, r, 0, Math.PI * 2); g.fill();
+                g.strokeStyle = 'rgba(255, 120, 40, ' + (0.35 + pulse * 0.4) + ')'; g.lineWidth = 1.2;
+                g.beginPath();
+                for (k = 0; k < 3; k++) {
+                    var oa = k * 2.1 + b.x * 0.05;
+                    g.moveTo(cx + Math.cos(oa) * r * 0.2, cy + Math.sin(oa) * r * 0.2);
+                    g.lineTo(cx + Math.cos(oa + 0.3) * r * 0.6, cy + Math.sin(oa + 0.3) * r * 0.6);
+                    g.lineTo(cx + Math.cos(oa - 0.1) * r * 0.92, cy + Math.sin(oa - 0.1) * r * 0.92);
+                }
+                g.stroke();
+                g.fillStyle = 'rgba(255, 255, 255, 0.75)';
+                g.beginPath(); g.ellipse(cx + hl.x, cy + hl.y, r * 0.22, r * 0.12, Math.atan2(hl.y, hl.x) + Math.PI / 2, 0, Math.PI * 2); g.fill();
+                break;
             case 'lamp':
                 // A lantern globe, lit: the light it throws is ambience.js's.
                 grad = g.createRadialGradient(cx + hl.x * 0.4, cy + hl.y * 0.4, r * 0.05, cx, cy, r);
@@ -1184,7 +1624,9 @@
         maple: ['#b8471f', '#e98a2e', '#8f2f14', '#d9a03a'],
         snowpine: ['#1f4a38', '#2a5f48', '#173a2c'],
         acacia: ['#6c7f2e', '#8a9a40', '#4f5f22'],
-        nightoak: ['#16302c', '#21453b', '#0f2420']
+        nightoak: ['#16302c', '#21453b', '#0f2420'],
+        // A pine the last eruption killed: bare, black, still standing.
+        charred: ['#2a2622', '#3a342e', '#1c1916']
     };
 
     function drawCanopyShadows(g, list, v) {
@@ -1209,7 +1651,7 @@
             g.translate(c.x, c.y);
             g.rotate(Math.sin(clock * 0.5 + c.p) * 0.025);
             if (theme.canopy === 'palm') palm(g, c.r, pal, c.p);
-            else if (theme.canopy === 'pine' || theme.canopy === 'snowpine') pine(g, c.r, pal, c.p, theme.canopy === 'snowpine');
+            else if (theme.canopy === 'pine' || theme.canopy === 'snowpine' || theme.canopy === 'charred') pine(g, c.r, pal, c.p, theme.canopy === 'snowpine');
             else crown(g, c.r, pal, c.p, theme.canopy, v);
             g.restore();
         }
@@ -1346,7 +1788,9 @@
         stone: { face: '#75766f', hi: 'rgba(255, 255, 240, 0.3)', joints: 'rgba(30, 30, 25, 0.5)' },
         snow: { face: '#e4edf3', hi: 'rgba(255, 255, 255, 0.6)' },
         adobe: { face: '#b06f45', hi: 'rgba(255, 220, 180, 0.32)' },
-        night: { face: '#1a2232', hi: 'rgba(160, 180, 220, 0.22)' }
+        night: { face: '#1a2232', hi: 'rgba(160, 180, 220, 0.22)' },
+        granite: { face: '#8a939b', hi: 'rgba(255, 255, 255, 0.4)', joints: 'rgba(40, 46, 52, 0.5)' },
+        basalt: { face: '#2a2528', hi: 'rgba(255, 150, 90, 0.28)', joints: 'rgba(255, 110, 40, 0.4)' }
     };
 
     function drawRim(g, theme, v) {
@@ -1375,9 +1819,9 @@
         g.strokeStyle = 'rgba(0,0,0,0.35)';
         g.lineWidth = 1.5;
         g.strokeRect(9, 9, W - 18, H - 18);
-        if (theme.rim === 'brick' || theme.rim === 'stone') {
-            // Joints: regular for brick, uneven for dry stone.
-            var stone = theme.rim === 'stone';
+        if (theme.rim === 'brick' || theme.rim === 'stone' || theme.rim === 'granite' || theme.rim === 'basalt') {
+            // Joints: regular for brick, uneven for dry stone and rock.
+            var stone = theme.rim !== 'brick';
             g.strokeStyle = rim.joints || 'rgba(240, 220, 200, 0.3)';
             g.lineWidth = 1;
             g.beginPath();
@@ -1438,7 +1882,10 @@
         for (var i = 0; i < (course.slopes || []).length; i++) drawSlope(g, course.slopes[i]);
         drawIce(g, course.ice || []);
         drawSand(g, course.sand || [], theme, v);
+        for (var k = 0; k < (course.avalanches || []).length; k++) drawChuteBed(g, course.avalanches[k]);
+        for (k = 0; k < (course.vents || []).length; k++) drawVentBed(g, course.vents[k], v);
         drawWaterBed(g, course.water, theme, v);
+        drawLavaBed(g, course.lava, v);
         drawDecals(g, dec.decals, theme);
         drawCanopyShadows(g, dec.canopies, v);
         drawTee(g, course.tee, v);
@@ -1506,6 +1953,9 @@
         roundRect: roundRect,
         scene: scene,
         drawWater: drawWater,
+        drawLava: drawLava,
+        drawSlides: drawSlides,
+        drawVents: drawVents,
         drawWall: drawWall,
         drawRail: drawRail,
         drawBumper: drawBumper,

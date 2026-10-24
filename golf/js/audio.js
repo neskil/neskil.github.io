@@ -134,6 +134,15 @@
             later(call, 9, 22);
         },
         wind: function () { bed(380, 0.5, 'bandpass', 0.035, 0.025, 0.07); },
+        // The mountain under the volcano: a low rumble that never quite
+        // stops, and lava blurting somewhere off the course.
+        rumble: function () { bed(70, 0.7, 'lowpass', 0.07, 0.045, 0.05); },
+        blorp: function call() {
+            var out = placed(rnd(-0.7, 0.7));
+            tone(rnd(90, 140), 0.18, 'sine', 0.03, rnd(50, 70), out, 0);
+            noise(0.12, 300, 1.2, 0.02, 'lowpass', out, 0.05);
+            later(call, 4, 11);
+        },
         crickets: function call() {
             var out = placed(rnd(-0.6, 0.6)), f = rnd(4200, 4800);
             for (var i = 0; i < 3; i++) tone(f, 0.028, 'sine', 0.006, null, out, i * 0.055);
@@ -170,7 +179,7 @@
         amb.want.forEach(function (k) {
             if (!SCAPES[k]) return;
             // Calls start at a random moment; beds start now.
-            if (k === 'sea' || k === 'wind') SCAPES[k]();
+            if (k === 'sea' || k === 'wind' || k === 'rumble') SCAPES[k]();
             else later(SCAPES[k], 0.5, 3);
         });
     }
@@ -224,6 +233,24 @@
         },
         // Off the top of the water: a flat slap and a plip that climbs with
         // each skip in the chain, so a second one sounds like a better one.
+        // Into lava: a hiss and a crackle where water would have splashed.
+        sizzle: function () {
+            noise(0.6, 3200, 0.6, 0.12, 'highpass');
+            for (var i = 0; i < 6; i++) {
+                (function (k) { setTimeout(function () { noise(0.02, 1800 + k * 300, 4, 0.06, 'bandpass'); }, 60 + k * 70); })(i);
+            }
+            tone(220, 0.25, 'sawtooth', 0.04, 90);
+        },
+        // Thrown by a geyser: a rushing whoosh that climbs.
+        vent: function () {
+            noise(0.5, 900, 0.5, 0.12, 'bandpass');
+            tone(240, 0.35, 'sine', 0.06, 620);
+        },
+        // Caught by a slide: a soft heavy rumble and a hush of snow.
+        avalanche: function () {
+            noise(0.7, 160, 0.8, 0.16, 'lowpass');
+            noise(0.5, 2400, 0.6, 0.04, 'highpass');
+        },
         skip: function (n) {
             var up = Math.pow(1.19, Math.max(0, n - 1));
             noise(0.05, 2200 * up, 2.5, 0.12);

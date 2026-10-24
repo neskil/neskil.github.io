@@ -5,7 +5,7 @@
    rectangles is a diagram of a hole rather than a place, and five courses
    drawn in one palette are one course wearing five names. So each card has a
    *biome* — parkland, garden, seaside, woodland, meadow, autumn, winter,
-   desert, a moonlit night — and this file is everything the renderer needs
+   the mountain, desert, a volcano, a moonlit night — and this file is everything the renderer needs
    to dress a hole in one: the palettes and materials, the outline of each
    hazard as one rounded shape rather than a stack of rectangles, and where
    the decoration goes.
@@ -140,6 +140,21 @@
             grade: { a: 'rgba(215, 232, 255, 0.10)', b: 'rgba(30, 60, 120, 0.12)' },
             backdrop: '#081320', plan: '#5c7c7c'
         },
+        alpine: {
+            name: 'Alpine',
+            turf: { h: 150, s: 22, l: 40, frost: 0.14 },
+            rough: { fill: 'rgba(214, 228, 240, 0.38)', tuft: 'rgba(255, 255, 255, 0.55)', edge: 'rgba(120, 145, 170, 0.45)' },
+            // Deep snow, blue in its hollows: what the bunkers are up here.
+            sand: { base: '#e6edf3', rake: 'rgba(110, 140, 180, 0.22)', lip: 'rgba(90, 120, 160, 0.32)' },
+            water: { kind: 'pond', top: '#3a8fb0', deep: '#123a56', wave: 'rgba(225, 245, 255, 0.24)', shore: 'rgba(235, 244, 252, 0.92)', edge: 'rocks', snow: true, pads: false, duck: false, bank: '#d9e4ec', bed: '#6b7c88', sky: '#d4e6f5', clear: 1.3, skin: true },
+            wall: 'granite', bumper: 'boulder', rim: 'granite', canopy: 'snowpine',
+            border: ['snowclump', 'stone', 'cornflower', 'snowclump'], lawn: ['frost'],
+            leaves: ['#6f8f3a', '#8a7b3a', '#5e7d33'],
+            ambient: [{ kind: 'snow', n: 40 }, { kind: 'bird', n: 1 }], sound: ['wind'],
+            clouds: 2,
+            grade: { a: 'rgba(230, 240, 255, 0.10)', b: 'rgba(20, 50, 110, 0.14)' },
+            backdrop: '#0a1626', plan: '#4f7570'
+        },
         desert: {
             name: 'Desert',
             turf: { h: 76, s: 40, l: 36 },
@@ -153,6 +168,22 @@
             clouds: 0,
             grade: { a: 'rgba(255, 196, 118, 0.13)', b: 'rgba(150, 50, 10, 0.10)' },
             backdrop: '#1a0f06', plan: '#8a7a3a'
+        },
+        volcanic: {
+            name: 'Volcanic',
+            turf: { h: 88, s: 22, l: 26 },
+            rough: { fill: 'rgba(28, 20, 16, 0.5)', tuft: 'rgba(170, 160, 140, 0.30)', edge: 'rgba(20, 12, 8, 0.5)' },
+            // Ash: grey, soft, and a ball goes nowhere in it.
+            sand: { base: '#8f8983', rake: 'rgba(40, 36, 32, 0.22)', lip: 'rgba(25, 20, 16, 0.38)' },
+            // Where a course here has water it is a hot spring.
+            water: { kind: 'pond', top: '#2bb3a4', deep: '#0d5856', wave: 'rgba(230, 255, 250, 0.26)', shore: 'rgba(200, 190, 170, 0.8)', edge: 'rocks', pads: false, duck: false, bank: '#3a3230', bed: '#5a524a', sky: '#f2c9a2', clear: 1.3 },
+            wall: 'basalt', bumper: 'obsidian', rim: 'basalt', canopy: 'charred',
+            border: ['ember', 'stone', 'pebble', 'ember'], lawn: ['pebble'],
+            leaves: ['#5a4a3a', '#6b5a44', '#4a3a2a'],
+            ambient: [{ kind: 'ember', n: 26 }, { kind: 'ash', n: 30 }], sound: ['rumble', 'blorp'],
+            clouds: 0,
+            grade: { a: 'rgba(255, 140, 60, 0.10)', b: 'rgba(70, 0, 0, 0.16)' },
+            backdrop: '#140806', plan: '#4e4a33'
         },
         night: {
             name: 'Moonlit',
@@ -169,7 +200,7 @@
             backdrop: '#03060f', plan: '#24455a'
         }
     };
-    var ORDER = ['parkland', 'garden', 'seaside', 'woodland', 'meadow', 'autumn', 'winter', 'desert', 'night'];
+    var ORDER = ['parkland', 'garden', 'seaside', 'woodland', 'meadow', 'autumn', 'winter', 'alpine', 'desert', 'volcanic', 'night'];
     ORDER.forEach(function (k) { THEMES[k].id = k; });
 
     /* The biome a course is drawn in. A card names its own; the draw takes
@@ -359,13 +390,15 @@
         return h >>> 0;
     }
 
-    // Everything decoration must keep away from: the tee, the cup, and both
-    // mouths of every tunnel. `pad` is added to the clearance each needs.
+    // Everything decoration must keep away from: the tee, the cup, both
+    // mouths of every tunnel and every vent. `pad` is added to the clearance
+    // each needs.
     function keepouts(hole) {
         var k = [{ x: hole.tee.x, y: hole.tee.y, r: 46 }, { x: hole.hole.x, y: hole.hole.y, r: 56 }];
         (hole.tunnels || []).forEach(function (t) {
             k.push({ x: t.x, y: t.y, r: C.TUNNEL_R + 22 }, { x: t.tx, y: t.ty, r: C.TUNNEL_R + 22 });
         });
+        (hole.vents || []).forEach(function (v) { k.push({ x: v.x, y: v.y, r: C.VENT_R + 22 }); });
         return k;
     }
 
@@ -398,7 +431,7 @@
             if (x < 14 || y < 14 || x > W - 14 || y > H - 14) return false;
             if (!clearOf(keep, x, y, 0)) return false;
             if (P.zoneAt(hole.water, x, y) || P.zoneAt(hole.sand, x, y) || P.zoneAt(hole.ice, x, y) ||
-                P.zoneAt(hole.slopes, x, y)) return false;
+                P.zoneAt(hole.slopes, x, y) || P.zoneAt(hole.lava, x, y) || P.zoneAt(hole.avalanches, x, y)) return false;
             return !onSolid(hole, x, y, 10);
         }
         var patches = 5 + ((rand() * 4) | 0);

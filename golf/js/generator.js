@@ -422,7 +422,7 @@
 
     /* Shaping rather than blocking: these never carry a hole on their own,
        they are what a hole gets in addition. Rough down both cushions is the
-       lesson hole one of the eighteen teaches, and it is worth repeating. */
+       lesson the first hole anybody plays teaches, and it is worth repeating. */
     var TRIMMINGS = {
         collar: {
             phrase: 'rough down both cushions',
@@ -474,7 +474,8 @@
         var bad = [];
         var margin = C.BALL_R + 1;
         var zones = [].concat(h.walls || [], h.water || [], h.sand || [],
-                              h.rough || [], h.ice || [], h.slopes || []);
+                              h.rough || [], h.ice || [], h.slopes || [],
+                              h.lava || [], h.avalanches || []);
         var rects = zones.filter(function (z) { return !z.pts; });
         var polys = zones.filter(function (z) { return !!z.pts; });
         var posts = h.bumpers || [];
@@ -495,8 +496,9 @@
             var p = z.pts;
             if (!Array.isArray(p) || p.length < 6 || p.length % 2) { bad.push('a polygon with fewer than three corners'); return; }
             if (!((h.water || []).indexOf(z) >= 0 || (h.sand || []).indexOf(z) >= 0 ||
-                  (h.rough || []).indexOf(z) >= 0 || (h.ice || []).indexOf(z) >= 0)) {
-                bad.push('a polygon wall or slope — only water, sand, rough and ice may have corners');
+                  (h.rough || []).indexOf(z) >= 0 || (h.ice || []).indexOf(z) >= 0 ||
+                  (h.lava || []).indexOf(z) >= 0)) {
+                bad.push('a polygon wall, slope or chute — only water, lava, sand, rough and ice may have corners');
             }
             var area = 0, perim = 0;
             for (var i = 0, j = p.length - 2; i < p.length; j = i, i += 2) {
@@ -583,10 +585,13 @@
                 return P.circleCircle(m.x, m.y, TR + C.BALL_R, b) !== null;
             }) || rails.some(function (r) {
                 return P.circleRail(m.x, m.y, TR + C.BALL_R, r) !== null;
-            }) || (h.water || []).some(function (r) {
+            }) || (h.water || []).concat(h.lava || []).some(function (r) {
                 return circleTouches(m.x, m.y, TR + C.BALL_R, r);
             });
             if (solid) bad.push('a tunnel mouth crowded by a wall, a post or water');
+            if ((h.avalanches || []).some(function (a) { return P.circleRect(m.x, m.y, TR, a) !== null; })) {
+                bad.push('a tunnel mouth in an avalanche chute');
+            }
             if ((h.slopes || []).some(function (r) { return circleTouches(m.x, m.y, TR, r); })) {
                 bad.push('a tunnel mouth on a slope');
             }
@@ -595,6 +600,56 @@
             mouths.forEach(function (o, oi) {
                 if (oi <= mi) return;
                 if (Math.hypot(m.x - o.x, m.y - o.y) < TR * 2 + C.BALL_R * 2) bad.push('two tunnel mouths on top of each other');
+            });
+        });
+
+        /* Avalanche chutes. A slide has to be something you can wait out,
+           so every point of a chute lies clear for AVALANCHE_CLEAR seconds of
+           each cycle, and one slide is gone before the next sets off. The
+           tee and the cup stand off the chute: a ball teed up in the path of
+           a slide would be carried off before it was played, and a cup in
+           one could be swept clean of the ball rolling into it. */
+        (h.avalanches || []).forEach(function (a) {
+            if (['down', 'up', 'left', 'right'].indexOf(a.dir) < 0) { bad.push('a chute with no downhill'); return; }
+            if (a.x < -1 || a.y < -1 || a.x + a.w > C.WORLD_W + 1 || a.y + a.h > C.WORLD_H + 1) bad.push('a chute off the field');
+            var len = a.len || C.AVALANCHE_LEN;
+            if (!(a.every > 0) || a.every < (P.chuteLength(a) + len) / C.AVALANCHE_SPEED) {
+                bad.push('a chute whose slides overlap');
+            } else if (a.every - len / C.AVALANCHE_SPEED < C.AVALANCHE_CLEAR) {
+                bad.push('a chute that is never clear long enough to cross');
+            }
+            if (P.circleRect(h.tee.x, h.tee.y, C.BALL_R + 12, a)) bad.push('the tee is in an avalanche chute');
+            if (P.circleRect(h.hole.x, h.hole.y, C.HOLE_R + 24, a)) bad.push('the cup is in an avalanche chute');
+        });
+
+        /* Geysers. A vent is a disc of open ground: off the field's edge,
+           clear of anything solid, wet or burning (a ball that rolls onto a
+           blowing vent has to be able to roll onto it), off every slope and
+           chute, off the tee and well off the cup, and blowing for part of
+           its cycle rather than all of it or none. */
+        var VR = C.VENT_R;
+        (h.vents || []).forEach(function (v) {
+            if (!(v.every > 0) || !(v.run > 0.3) || v.run > v.every - 0.8) bad.push('a vent that never rests or never blows');
+            if (!(v.x - VR > margin && v.x + VR < C.WORLD_W - margin && v.y - VR > margin && v.y + VR < C.WORLD_H - margin)) {
+                bad.push('a vent off the field');
+            }
+            var crowded = (h.walls || []).some(function (w) {
+                return P.circleRect(v.x, v.y, VR + C.BALL_R, travelEnvelope(w)) !== null;
+            }) || posts.some(function (b) {
+                return P.circleCircle(v.x, v.y, VR + C.BALL_R, b) !== null;
+            }) || rails.some(function (r) {
+                return P.circleRail(v.x, v.y, VR + C.BALL_R, r) !== null;
+            }) || [].concat(h.water || [], h.lava || []).some(function (z) {
+                return circleTouches(v.x, v.y, VR, z);
+            });
+            if (crowded) bad.push('a vent crowded by a wall, a post, water or lava');
+            if ((h.slopes || []).concat(h.avalanches || []).some(function (z) { return circleTouches(v.x, v.y, VR, z); })) {
+                bad.push('a vent on a slope or in a chute');
+            }
+            if (Math.hypot(v.x - h.tee.x, v.y - h.tee.y) < VR + C.BALL_R + 12) bad.push('a vent on the tee');
+            if (Math.hypot(v.x - h.hole.x, v.y - h.hole.y) < VR + C.HOLE_R + 40) bad.push('a vent on the cup');
+            mouths.forEach(function (m) {
+                if (Math.hypot(v.x - m.x, v.y - m.y) < VR + TR + C.BALL_R * 2) bad.push('a vent on a tunnel mouth');
             });
         });
 
@@ -634,7 +689,7 @@
             return P.circleCircle(x, y, rad, b) !== null;
         }) || (h.rails || []).some(function (r) {
             return P.circleRail(x, y, rad, r) !== null;
-        }) || P.zoneAt(h.water, x, y) !== null;
+        }) || P.zoneAt(h.water, x, y) !== null || P.zoneAt(h.lava, x, y) !== null;
     }
 
     // Does a circle reach into a zone, rectangle or polygon? Inside it, or
@@ -709,10 +764,10 @@
     };
 
     function tryHole(rng, primary, cap) {
-        // Across the field far more often than up it, which is the shape of
-        // the hand-built rack: one hole of the eighteen is played up the
-        // field and one of the Wild Nine, and both are the better for being
-        // the exception.
+        // Across the field far more often than up it: played up the field a
+        // hole has room for one band, and a draw of nine of those would be
+        // nine one-idea holes. The hand-built rack plays a few up the field,
+        // and they are the better for being the exception.
         var horizontal = rng() < 0.86;
         var U = horizontal ? C.WORLD_W : C.WORLD_H;
         var V = horizontal ? C.WORLD_H : C.WORLD_W;
@@ -729,7 +784,7 @@
            hole that gets thrown away — which is why the field used to be
            crossed nine times out of ten and played up it once. One idea,
            stated across the full width, is what a short hole is anyway:
-           Bunker Hill on the eighteen is exactly that. */
+           Bunker Hill on the Old Course is exactly that. */
         var count = Math.min(cap, horizontal ? 3 : 1,
             1 + (rng() < 0.75 ? 1 : 0) + (rng() < 0.35 ? 1 : 0));
         var keys = [{ set: FEATURES, key: primary }];
@@ -1104,7 +1159,7 @@
             /* The endless card, and so the last rung of the ladder: nine
                holes nobody has played are the reward for having played the
                ones somebody built. See progress.js. */
-            unlock: 46,
+            unlock: 50,
             holes: holes
         };
     }

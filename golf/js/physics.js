@@ -75,6 +75,95 @@
         return null;
     }
 
+    /* ── avalanches ──────────────────────────────────────────────────────
+
+       A chute is a rectangle with a downhill — `dir` is 'down', 'up',
+       'left' or 'right' on the field — and every `every` seconds, starting
+       at `at`, a slide comes down it: a band of snow `len` long running the
+       length of the chute at AVALANCHE_SPEED. Whatever the band is over it
+       carries, at the band's own pace, out of the bottom of the chute.
+
+       It is a band rather than the whole chute switching on because a band
+       can be watched coming. The chute is clear for most of its cycle and
+       every point of it is covered for len / speed seconds of each one —
+       the gap between two slides is the shot. One slide in a chute at a
+       time: the rule book holds `every` to at least the time a slide takes
+       to clear the chute, so the arithmetic below need only ask about the
+       most recent one. */
+    function chuteLength(a) { return a.dir === 'left' || a.dir === 'right' ? a.w : a.h; }
+
+    // How far down the chute a point is, from its head.
+    function chuteAlong(a, x, y) {
+        if (a.dir === 'up') return a.y + a.h - y;
+        if (a.dir === 'left') return a.x + a.w - x;
+        if (a.dir === 'right') return x - a.x;
+        return y - a.y;
+    }
+
+    function chuteDir(a) {
+        if (a.dir === 'up') return { x: 0, y: -1 };
+        if (a.dir === 'left') return { x: -1, y: 0 };
+        if (a.dir === 'right') return { x: 1, y: 0 };
+        return { x: 0, y: 1 };
+    }
+
+    // Seconds since the latest slide set off from the head of the chute.
+    function slideClock(a, t) {
+        var every = a.every > 0 ? a.every : 1;
+        var u = (t - (a.at || 0)) % every;
+        return u < 0 ? u + every : u;
+    }
+
+    /* The stretch of the chute the slide covers at time t, as distances
+       from the head — `{ from, to }`, or null while the chute is clear. */
+    function slideAt(a, t) {
+        var len = a.len || C.AVALANCHE_LEN;
+        var front = slideClock(a, t) * C.AVALANCHE_SPEED;
+        var L = chuteLength(a);
+        if (front - len >= L) return null;
+        return { from: Math.max(0, front - len), to: Math.min(L, front) };
+    }
+
+    function sweptBy(list, x, y, t) {
+        if (!list) return null;
+        for (var i = 0; i < list.length; i++) {
+            var a = list[i];
+            if (!pointInRect(x, y, a)) continue;
+            var band = slideAt(a, t);
+            if (!band) continue;
+            var p = chuteAlong(a, x, y);
+            if (p >= band.from && p <= band.to) return a;
+        }
+        return null;
+    }
+
+    /* ── geysers ────────────────────────────────────────────────────────
+
+       A vent, `{ x, y, every, at, run }`, blows for `run` seconds of every
+       `every`, starting at `at`. A ball rolling over it while it blows is
+       thrown up for VENT_AIR seconds and carries on in the air on the line
+       it had — over the lava, the water, the sand, whatever is beyond — and
+       comes down where the air drops it. A ball rolling over it while it
+       is quiet rolls over a grate. Nothing is added to the ball's speed:
+       the vent lifts, it does not push, so the invariant that nothing hands
+       the ball energy holds here as it does at the skip. */
+    function ventBlowing(v, t) {
+        var every = v.every > 0 ? v.every : 1;
+        var u = (t - (v.at || 0)) % every;
+        if (u < 0) u += every;
+        return u < (v.run || 1);
+    }
+
+    function ventAt(list, x, y, t) {
+        if (!list) return null;
+        var r2 = C.VENT_R * C.VENT_R;
+        for (var i = 0; i < list.length; i++) {
+            var v = list[i], dx = x - v.x, dy = y - v.y;
+            if (dx * dx + dy * dy <= r2 && ventBlowing(v, t)) return v;
+        }
+        return null;
+    }
+
     /* Circle vs axis-aligned box. Returns the outward normal and penetration
        depth, or null. The degenerate case matters: if the ball's center has
        ended up inside the box (a moving wall can sweep over a resting ball)
@@ -153,6 +242,9 @@
             moving: false,
             sunk: false,
             splash: false,
+            // A splash into lava rather than water: the same stroke and
+            // replay, said differently.
+            lava: false,
             /* Seconds left in the air off a skip, and how long that hop was
                all told — the renderer reads the pair as how high the ball is.
                `skips` counts this shot's, for the call-out and the pitch. */
@@ -228,6 +320,7 @@
         world.ball.vy = Math.sin(angle) * p;
         world.moving = true;
         world.splash = false;
+        world.lava = false;
         world.air = world.airMax = 0;
         world.skips = 0;
         return true;
@@ -267,6 +360,16 @@
         if (slope) {
             b.vx += slope.ax * dt;
             b.vy += slope.ay * dt;
+        }
+
+        // A slide over the ball takes it: whatever it was doing, it is soon
+        // doing the slide's pace down the chute.
+        var slide = aloft ? null : sweptBy(course.avalanches, b.x, b.y, world.time);
+        if (slide) {
+            var sd = chuteDir(slide), grip = 1 - Math.exp(-C.AVALANCHE_GRIP * dt);
+            b.vx += (sd.x * C.AVALANCHE_SPEED - b.vx) * grip;
+            b.vy += (sd.y * C.AVALANCHE_SPEED - b.vy) * grip;
+            events.swept = slide;
         }
 
         // Surface, worst first: a bunker under a frozen pond is the worse
@@ -366,7 +469,7 @@
         // Still in the air: nothing on the ground below can have it yet —
         // not a tunnel, not the cup, not the water it is skipping over.
         if (world.air > 0) return;
-        if (aloft) events.land = { x: b.x, y: b.y, wet: !!zoneAt(course.water, b.x, b.y) };
+        if (aloft) events.land = { x: b.x, y: b.y, wet: !!(zoneAt(course.water, b.x, b.y) || zoneAt(course.lava, b.x, b.y)) };
 
         // Tunnels. Only a ball that is going somewhere can fall into one: a
         // ball put back at the spot it was played from after a splash may be
@@ -387,6 +490,26 @@
         }
 
         if (cup(world, b, course.hole, dt, events)) return;
+
+        // A vent blowing under the ball throws it up, on the line it had.
+        var vent = ventAt(course.vents, b.x, b.y, world.time);
+        if (vent) {
+            world.air = world.airMax = C.VENT_AIR;
+            events.vent = { x: vent.x, y: vent.y };
+            return;
+        }
+
+        // Lava takes the ball whatever its speed: nothing skips on rock.
+        if (zoneAt(course.lava, b.x, b.y)) {
+            b.vx = b.vy = 0;
+            world.air = world.airMax = 0;
+            world.splash = true;
+            world.lava = true;
+            world.moving = false;
+            events.splash = true;
+            events.lava = true;
+            return;
+        }
 
         if (zoneAt(course.water, b.x, b.y)) {
             // Fast enough, and it skips: some of the speed goes into the
@@ -412,7 +535,7 @@
         // not finished with it and stopping here would let the ball hang on a
         // hillside, or it is off the green, in which case it is on its way
         // into the cup or bouncing back out of it.
-        if (speedOf(b) < C.STOP_SPEED && !zoneAt(course.slopes, b.x, b.y) && grounded(b, course.hole)) {
+        if (speedOf(b) < C.STOP_SPEED && !zoneAt(course.slopes, b.x, b.y) && !slide && grounded(b, course.hole)) {
             b.vx = b.vy = 0;
             if (world.moving) events.rest = true;
             world.moving = false;
@@ -610,6 +733,14 @@
         zoneAt: zoneAt,
         circleRail: circleRail,
         mouthAt: mouthAt,
+        chuteLength: chuteLength,
+        chuteAlong: chuteAlong,
+        chuteDir: chuteDir,
+        slideClock: slideClock,
+        slideAt: slideAt,
+        sweptBy: sweptBy,
+        ventBlowing: ventBlowing,
+        ventAt: ventAt,
         circleRect: circleRect,
         circleCircle: circleCircle,
         spread: spread,
