@@ -54,7 +54,7 @@ them.
 | `js/physics.js` | The simulation. No three.js, no DOM, pure. |
 | `js/audit.js` | The [geometry audit](#the-pictures-which-neither-suite-can-see): the faults that are invisible to the ball and obvious in a screenshot. Pure — read by `tests.html`, by the inspector and by the turntable. |
 | `js/scoring.js` | Scorecard arithmetic and the save file. |
-| `js/swing.js` | The swing gate: what a shot past a full swing costs. No DOM, no three.js. |
+| `js/swing.js` | The swing gate (what a shot past a full swing costs), shot shapes, and the touch swing's arithmetic. No DOM, no three.js. |
 | `js/school.js` | The range's swing school: the lessons, what passes one, and what to say while the marker moves. No DOM, no three.js. |
 | `js/audio.js` | Synthesised sound effects, the weather's sound bed, the mute and the tab-out — no audio files to ship. |
 | `js/music.js` | The house band: a smooth jazz quartet, synthesised a bar at a time. |
@@ -314,31 +314,61 @@ forget: a marker you can only see for a moment before it arrives cannot be
 anticipated however wide the zone is. `tests.html` asserts a floor under both,
 and that pair of assertions exists because the 60 ms version shipped.
 
-Four gates, rotating **by hole** rather than by stroke or at random. By stroke
-meant the rhythm you had just started to read was replaced by a different one on
-the very next thrash — four gates met at once and none of them learned — and a
-random pick can hand you the same one three times before you have seen another.
-A hole is long enough to get the feel of one and short enough that a round still
-meets all four. All four are the same golf swing with more or less of it to do:
-**tempo** (one pass; strike on the line), **return** (up to the power you
-loaded, turn, strike it coming down), **double** (the same, plus a press at the
-top, whose accuracy the strike inherits) and **fade** (tempo, with the marker
-dark for the run in and back after — rhythm, not sight).
+**One gate, and it is the same on every hole.** There used to be four —
+*tempo*, a *return* that only counted coming back down, a *double* with a press
+at the top, and a *fade* where the marker went dark — rotating hole by hole so a
+round met all of them. Each was fair on its own; together they were the same
+button doing a different thing on every hole with nothing on screen to say
+which, and the verdict from playing it was "random, hard and not fun". A timing
+test is only fair when you know what is being tested, so the rotation went
+(v1.103.0) and *tempo* is the gate: one pass up the bar, strike in the green.
 
 The first `SWING.ARM` of overdraw does not arm the gate at all: a hoop to jump
 through over a shot that can barely go wrong is a hoop for its own sake.
 
 `js/swing.js` knows nothing about the DOM or three.js: it is arithmetic over a
-plain object, which is what lets `tests.html` cover all four gates, both edges
-of every miss and the bound on the envelope without a browser.
+plain object, which is what lets `tests.html` cover the gate, the touch swing,
+both edges of every miss and the bound on the envelope without a browser.
+
+### The touch swing (a trial)
+
+A swing made with the thumb rather than a meter you stop, behind the 👆 chip in
+☰ (`SWIPE_KEY`) and only on the long game and the range: mini golf is putts and
+chips that want an exact number on the meter, not a thrash. While it is on,
+a lane runs up the middle of the stage from about where the ball sits down to
+the controls:
+
+- **Press and pull straight down** — the backswing. The meter fills with the
+  pull (`swipeLoad`), the cone grows with it, and the full swing is at the same
+  white line, ticked on the lane. A tick sounds as you pass it.
+- **Swipe up through where you started** — the strike, the moment the thumb
+  crosses back over its start. Let go before that and there is no shot.
+- **Straight is clean.** What is read is the *angle* of the through-swing from
+  the bottom of the pull to the crossing (`swipeAngle`), so neither the phone's
+  size nor the pull's length changes it. Inside `SWIPE.TOL_*` it is clean; past
+  that it becomes the gate's −1..1 over `SWIPE.SPAN` (`swipeOff`), and `apply`
+  does the rest: drift right and the ball is pushed right and fades, drift left
+  and it is pulled and draws. A green wedge on the lane shows how much lean is
+  allowed, and narrows the further you pulled.
+- **A crooked swipe always costs something.** Inside a full swing the spray is
+  nothing, so a swipe's miss is costed at no less than `SWIPE.FLOOR` of the
+  overdraw (`swiped`) — otherwise the straightness would be decoration.
+
+The meter is a readout while it is on and Swing gives way to a line saying what
+to do; the space bar still plays the meter's way. A shape picked on the ball
+is struck by the swipe the same way the gate strikes it.
 
 ### Shot shaping
 
 The gate is what a swing does to the ball by accident; shaping is what you ask
-it to do. Each club lists the shapes it can play (`shapes` in the bag), and a
-chip above the meter steps through them — or a key each: <kbd>Z</kbd> draw,
-<kbd>X</kbd> fade, <kbd>Q</kbd> backspin, <kbd>E</kbd> topped, and the same key
-again for straight.
+it to do. Each club lists the shapes it can play (`shapes` in the bag). The
+button above the meter is a little ball with a dot where the club will meet
+it; pressing it opens a bigger ball to move the dot on — the top tops it,
+underneath spins it back, either side bends it that way, the middle is
+straight — with the shapes the club cannot play greyed out (`SHAPE_INFO` in
+game.js). It replaced a chip that cycled through five words. Or a key each:
+<kbd>Z</kbd> draw, <kbd>X</kbd> fade, <kbd>Q</kbd> backspin, <kbd>E</kbd>
+topped, and the same key again for straight.
 
 | shape | what it does | clubs |
 | --- | --- | --- |
@@ -352,7 +382,7 @@ bends are the sidespin a mishit already got (`world.spin`), the stop is the
 backspin a club already carried (`bite`), and topped is a lower loft.
 
 - **A shape has to be struck.** Picking one arms the [gate](#the-swing-gate)
-  even inside a full swing — always the plain *tempo* rhythm there, at a
+  even inside a full swing, at a
   difficulty of its own (`SHAPE.GATE`, on the overdraw's 0..1 scale) or the
   overdraw's if that is harder. A clean strike plays exactly what the preview
   drew. A miss costs the push or pull any miss does, and it goes wrong *as that
@@ -375,31 +405,25 @@ backspin a club already carried (`bite`), and topped is a lower loft.
 - **One shot at a time.** The shape goes back to straight after every stroke
   and on every new hole; kept, it would curve the approach after a drawn drive.
 - **Not the range's lessons.** A shape's strike does not count towards the
-  swing school, which grades the overdraw's rhythms.
+  swing school, which grades the overdraw's gate.
 
 Building this is what showed the gate's misses ran the wrong way: the toasts
 and the school had always said early pulls left and draws, and the ball went
 right and faded, because +yaw (and +spin) is *left* on screen. `apply` has the
 sign the words always had now, and `tests.html` pins it.
 
-Not to be confused with the gate called **fade** above, which is a timing
-rhythm and bends nothing on purpose.
-
 ### The range and its swing school
 
-The four gates rotating by hole is the right design for a round and the wrong
-one for a first meeting: met cold, it reads as the same button doing four
-different things for no reason. The driving range is where that is taught.
-`js/school.js` holds five lessons — **the white line** (land two balls on a
-target green without going past it), then **tempo, return, double and fade**,
-in the order the courses rotate them, three clean strikes each — and the
-panel in the range's top-left corner (game.js → `drawSchool`) shows the one
-in hand, a line of why at the top, and a step under it that says what to do
-*now* while the marker is moving (`stepFor`): "Backswing… wait for the turn",
-then "Coming down — strike on the line!". On the range the gate is the
-lesson's (`variantFor`), not the hole's. "Load it for me" puts the meter
-where the lesson needs it, which for the gates is far enough past the line to
-arm one — `tests.html` checks every preset does. Progress is one key
+The overdraw is the one mechanic the screen cannot explain by itself, so the
+driving range teaches it. `js/school.js` holds two lessons — **the white line**
+(land two balls on a target green without going past it), then **tempo**
+(three clean strikes) — and the panel in the range's top-left corner (game.js →
+`drawSchool`) shows the one in hand, a line of why at the top, and a step under
+it while the marker moves (`stepFor`). There were five while four gates rotated
+by hole; their lessons went with them, and a saved count for a retired lesson
+is dropped by `normalise`. "Load it for me" puts the meter where the lesson
+needs it, which for the gate is far enough past the line to arm it —
+`tests.html` checks every preset does. Progress is one key
 (`SCHOOL_KEY`), a count per lesson; it is folded on a phone.
 
 The range itself names its targets: `hole.targets` (courses.js) is the one
@@ -873,7 +897,7 @@ approach.
 | The Belfry | crazy | `belfry` | Two machines on every hole, geared to each other: 2:1, 3:2, 1:4, and four shutters a quarter-beat apart. Counting bars rather than beats. |
 | Icehouse Yard | adventure | `icehouse` | Nothing stops. A putter runs eight and a half units on grass and thirty-two on ice. |
 | Helter Skelter | adventure | `fairground` | Launch pads, travelators, pipes and a loop-the-loop. The floor decides; you only decide how hard. |
-| Cinder Cone | adventure | `volcano` | The same machinery pointed downhill. Belts that run back at you, vents that are the only way up, and two lava tubes — one of which comes out where you started. |
+| Cinder Cone | adventure | `volcano` | The same machinery pointed downhill. Belts that run back at you, vents that are the only way up, and two lava tubes — a narrow one at the pin and a wide one that leaves a putt. |
 | Apogee Yard | adventure | `lunar` | The floor sits still and the ball does not: six holes at six gravities. Light takes distance away as a defence; heavy takes the air. |
 | Ashdown Park | long | `parkland` | The long game, on a hillside: bluffs, a crest, a cross-fall into a lake, and two round greens. No fence — the park carries on past the stakes. |
 | Whinstone Links | long | `links` | No flat lies and no straight edges. The ground is the hazard, and on one hole it is a sandhill. |
@@ -1370,7 +1394,7 @@ only things on the course that move a ball sideways at all.
 | --- | --- | --- | --- |
 | 1 | The Ash Slide | 3 | Two and a half units of ash running back down at four. A full putter just gets over; four fifths of one is handed back to your feet, and a full driver crosses, hits the far rail and comes all the way home. |
 | 2 | Fumarole | 3 | The vent is the lift, and the shelf it throws you on to is open at both ends. Short and long cost the same thing: the lawn runs on underneath, so a miss is played again from the grass. |
-| 3 | Lava Tube | 3 | Eleven units of crater lake — more than anything in the bag carries — and two mouths in the ash in front of it. One comes out at the pin. One comes out where you started. |
+| 3 | Lava Tube | 3 | Eleven units of crater lake — more than anything in the bag carries — and two mouths in the ash in front of it. Both cross: the narrow one comes out at the pin, the wide one in the far corner with a putt to play. |
 | 4 | The Scree | 4 | A shelf with the drop down one side of it and two bands of scree that push south *and* east at once. On Crosstown a belt across the hole costs you the line; here it costs you the ball. |
 | 5 | Blowhole | 3 | Three vents, none of them a lift. A launch pad is the one obstacle in the game that neither stops the ball nor turns it — it hands the ball back travelling exactly as it was, a second later and somewhere else. |
 | 6 | Caldera | 4 | The whole course in one hole: the vent to get up, the belt along the rim to be carried along, and the tube to get in. The crater has no way into it along the ground. |

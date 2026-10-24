@@ -249,6 +249,8 @@
             assert('the first tee is coached', G.game.getState().coach === true);
             $('title-play').click();
             assert('the play button goes to the tee it was showing', !$('title').classList.contains('show') && G.COURSE_ID === 'short');
+            assert('…with no card over it: the stroke is said in words only to a tee left waiting',
+                !$('tip').classList.contains('show'));
             var W0 = frame();
             W0.dispatchEvent(new W0.KeyboardEvent('keydown', { key: 'Escape' }));
             assert('Esc with nothing open brings the menu up', $('title').classList.contains('show'));
@@ -923,7 +925,59 @@
             G.game.holeComplete(false);
             assert('the rest of the sitting keeps no record either, even by hand',
                 JSON.stringify(G.scoring.load('short').holes) === before);
-            return Promise.resolve();
+
+            section('what has faded is gone');
+
+            /* A card, a toast or a banner that has faded out must not stay in
+               front of the board. Clear and pointer-events: none passed every
+               test here and still left a phone's thumb dead wherever one had
+               been, so once the fade is over each is visibility: hidden. */
+            var over = ['tip', 'toast', 'banner', 'menu', 'title', 'party', 'scorecard'];
+            $('toast').className = 'toast show';
+            G.game.openMenu();
+            assert('a toast that is up is visible', css($('toast'), 'visibility') === 'visible');
+            assert('…and so is an open dialog', css($('menu'), 'visibility') === 'visible');
+            $('toast').className = 'toast';
+            G.game.closeMenu();
+            // Moving on puts the next hole's lessons up, so that goes first.
+            if ($('banner').classList.contains('show')) G.game.advanceHole();
+            $('tip').classList.remove('show');
+            function gone() {
+                return over.filter(function (id) { return css($(id), 'visibility') !== 'hidden'; });
+            }
+            return tick(function () { return !gone().length; }).then(function () {
+                assert('once faded, nothing hidden is left in front of the board', !gone().length,
+                    'still visible: ' + gone().join(', '));
+
+                section('two fingers');
+
+                /* A second finger calls off the stroke in hand and the pair
+                   zoom the board while they stay down; lifted, it springs
+                   back and nothing was struck. */
+                var Wf = frame(), cv = $('board'), b = cv.getBoundingClientRect();
+                var mx = b.left + b.width / 2, my = b.top + b.height / 2;
+                function touch(type, id, x, y) {
+                    // A touch that starts on the board stays the board's.
+                    cv.dispatchEvent(new Wf.PointerEvent(type, {
+                        bubbles: true, pointerId: id, pointerType: 'touch', clientX: x, clientY: y
+                    }));
+                }
+                var s2 = G.game.getState();
+                var strokes = s2.strokes;
+                assert('(the ball is waiting to be aimed)', s2.phase === 'aim', s2.phase);
+                touch('pointerdown', 1, mx, my);
+                touch('pointermove', 1, mx, my + 60);
+                assert('one finger draws a stroke', s2.aim.active);
+                touch('pointerdown', 2, mx + 30, my - 30);
+                assert('a second finger calls it off', !s2.aim.active && !s2.aim.origin);
+                touch('pointermove', 1, mx - 40, my + 100);
+                touch('pointermove', 2, mx + 70, my - 70);
+                assert('spreading them zooms the board', /scale\(/.test(cv.style.transform), cv.style.transform || 'no transform');
+                touch('pointerup', 1, mx - 40, my + 100);
+                assert('lifting one springs it back', cv.style.transform === '');
+                touch('pointerup', 2, mx + 70, my - 70);
+                assert('…and nothing was struck', s2.strokes === strokes && s2.phase === 'aim');
+            });
         }
 
         saveStore();

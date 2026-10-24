@@ -733,7 +733,7 @@
         state.coach = !GOLF.PLAYTEST && !auto && !PR.coached();
         // The lessons are for the player, and are spent by being shown; a
         // caddie walking past a hazard has not taught anybody anything.
-        if (auto) hideLessons(); else showLessons(hole);
+        if (auto) hideLessons(); else startLessons(hole);
         syncHud();
     }
 
@@ -779,12 +779,16 @@
     /* ── lessons ────────────────────────────────────────────────────────
 
        The legend under the board says what every hazard does, and nobody
-       reads a legend before they have a reason to. So each one is also said
-       once, on the first tee where it is in play, in the corner of the board
-       — and the stroke itself is shown on the very first tee of all, by the
-       ghost in render.drawCoach and a line here that says it in words. The
-       card never takes a press and never covers the ball's side of the
-       field for long: it goes with the first shot, or by itself. */
+       reads a legend before they have a reason to. Nor, it turned out, a
+       card on the board: one on every new tee was a pop-up in the way of a
+       player who had already read the hole. So a card now waits for the
+       reason. A hazard is explained once, ever, and only when it has cost
+       you — the ball in the water or the lava, or the ball at rest at par
+       or worse and still out, which is a hole that is not being got. The
+       stroke is shown on the very first tee by the ghost in render.drawCoach,
+       and said in words only to a first tee that has gone COACH_WAIT_MS
+       without a shot. The card never takes a press: it goes with the next
+       shot, or by itself. */
     var LESSONS = {
         rough:   ['sw-rough', 'Rough', 'halves the roll.'],
         sand:    ['sw-sand', 'Bunker', 'all but stops the ball. Hit out firmly.'],
@@ -814,12 +818,15 @@
 
     function placeLessons(hole) {
         var best = 'tl', far = -Infinity;
+        // Clear of the ball where it lies — the tee, until a card can come
+        // up mid-hole — and of the cup.
+        var ball = state && state.world ? state.world.ball : hole.tee;
         Object.keys(SPOTS).forEach(function (k) {
             var fx = SPOTS[k][0], fy = SPOTS[k][1];
             // The world point under that spot on the screen (see toWorld).
             var wx = turned ? (1 - fy) * C.WORLD_W : fx * C.WORLD_W;
             var wy = turned ? fx * C.WORLD_H : fy * C.WORLD_H;
-            var d = Math.min(Math.hypot(wx - hole.tee.x, wy - hole.tee.y),
+            var d = Math.min(Math.hypot(wx - ball.x, wy - ball.y),
                              Math.hypot(wx - hole.hole.x, wy - hole.hole.y));
             if (fx !== 0.5 && fy !== 0.5) d += 60;
             if (d > far + 1) { far = d; best = k; }
@@ -828,36 +835,66 @@
         el.className = 'tip at-' + best + (el.classList.contains('show') ? ' show' : '');
     }
 
-    function showLessons(hole) {
-        var items = [];
-        if (state.coach) {
-            items.push(['sw-ball', 'Your shot:', coarse()
-                ? 'drag back from anywhere, away from the flag, and let go.'
-                : 'drag back and let go — or ← → aim, ↑ ↓ power, Space hits.']);
-        }
-        // Two at most, and one beside the stroke: a first tee that explains
-        // five things has explained none of them.
-        var fresh = PR.unseen(hole).slice(0, state.coach ? 1 : 2);
-        fresh.forEach(function (k) {
-            items.push(LESSONS[k]);
-            PR.markSeen(k);
-        });
-        var el = $('tip');
-        clearTimeout(showLessons._t);
-        el.classList.remove('show');
+    var lessonTimer = null;   // takes a hazard card down by itself
+    var coachTimer = null;    // puts the stroke in words up on a slow first tee
+
+    function coachItem() {
+        return ['sw-ball', 'Your shot:', coarse()
+            ? 'drag back from anywhere, away from the flag, and let go.'
+            : 'drag back and let go — or ← → aim, ↑ ↓ power, Space hits.'];
+    }
+
+    // A new hole: nothing on the board, and the stroke in words held back
+    // for a first tee that is still waiting for one.
+    function startLessons(hole) {
+        hideLessons();
         placeLessons(hole);
-        if (!items.length) return;
+        clearTimeout(coachTimer);
+        if (state.coach) armCoach();
+    }
+
+    function armCoach() {
+        coachTimer = setTimeout(function () {
+            if (!state.coach || auto) return;
+            // Not behind a dialog, over a stroke being drawn, or over a card
+            // that is already saying something.
+            if (dialogOpen() || state.phase !== 'aim' || state.aim.active ||
+                $('tip').classList.contains('show')) { armCoach(); return; }
+            teach([coachItem()]);
+        }, C.COACH_WAIT_MS);
+    }
+
+    /* The player is not getting this hole. `cost` is the hazard that just
+       took a stroke, which goes first; then whatever else here has never been
+       explained, two at most. */
+    function struggling(cost) {
+        if (auto || GOLF.PLAYTEST) return;
+        var fresh = PR.unseen(GOLF.COURSE[state.holeIndex]);
+        if (cost && fresh.indexOf(cost) > 0) {
+            fresh.splice(fresh.indexOf(cost), 1);
+            fresh.unshift(cost);
+        }
+        fresh = fresh.slice(0, 2);
+        if (!fresh.length) return;
+        fresh.forEach(function (k) { PR.markSeen(k); });
+        placeLessons(GOLF.COURSE[state.holeIndex]);
+        teach(fresh.map(function (k) { return LESSONS[k]; }));
+        lessonTimer = setTimeout(hideLessons, 9000);
+    }
+
+    function teach(items) {
+        var el = $('tip');
+        clearTimeout(lessonTimer);
         el.innerHTML = items.map(function (it) {
             return '<div class="tip-item"><i class="' + it[0] + '"></i><span><b>' + it[1] +
                 '</b> ' + it[2] + '</span></div>';
         }).join('');
         el.classList.add('show');
-        // The stroke lesson waits for the stroke; a hazard note does not.
-        if (!state.coach) showLessons._t = setTimeout(hideLessons, 9000);
     }
 
     function hideLessons() {
-        clearTimeout(showLessons._t);
+        clearTimeout(lessonTimer);
+        clearTimeout(coachTimer);
         $('tip').classList.remove('show');
     }
 
@@ -933,6 +970,7 @@
         if (outOfStrokes()) { holeComplete(true); return; }
         toast(burnt ? 'Lava — one stroke penalty' : 'Water hazard — one stroke penalty', 'bad');
         warnLastStroke();
+        struggling(burnt ? 'lava' : 'water');
     }
 
     function warnLastStroke() {
@@ -1953,9 +1991,71 @@
             (t === $('wrap') || t === document.body || t === document.documentElement);
     }
 
+    /* Two fingers. A second finger down calls off the stroke in hand — the
+       one way to put a shot back on a phone without sliding all the way home
+       — and the pair then zooms the board for as long as they stay down, a
+       look at a tight gap or a far cup. It is a look, not a setting: lift
+       them and the board springs back, so nothing on the screen is ever
+       somewhere the player did not leave it. The zoom is a CSS transform on
+       the canvas inside the stage, which clips it; nothing in the world or
+       the drawing knows. */
+    var fingers = {};     // pointerId → { x, y }: touches on the surface now
+    var pinch = null;     // while two are down: where they started, and the board's box then
+
+    function fingerCount() { return Object.keys(fingers).length; }
+
+    function firstTwo() {
+        var ids = Object.keys(fingers);
+        return [fingers[ids[0]], fingers[ids[1]]];
+    }
+
+    function startPinch() {
+        if (state.aim.active) A.buzz(15);
+        cancelAim();
+        canvas.style.transition = '';
+        canvas.style.transform = '';
+        var p = firstTwo();
+        var r = canvas.getBoundingClientRect();
+        pinch = {
+            d: Math.max(1, Math.hypot(p[1].x - p[0].x, p[1].y - p[0].y)),
+            // The board point under the middle of the fingers, in its own pixels.
+            px: (p[0].x + p[1].x) / 2 - r.left,
+            py: (p[0].y + p[1].y) / 2 - r.top,
+            r: r
+        };
+    }
+
+    function movePinch() {
+        var p = firstTwo();
+        var s = Math.min(C.PINCH_MAX_ZOOM, Math.max(1, Math.hypot(p[1].x - p[0].x, p[1].y - p[0].y) / pinch.d));
+        // Keep that board point under the middle of the fingers as they
+        // move, but never let the board's edge come inside its own frame.
+        var w = pinch.r.width, h = pinch.r.height;
+        var tx = (p[0].x + p[1].x) / 2 - pinch.r.left - s * pinch.px;
+        var ty = (p[0].y + p[1].y) / 2 - pinch.r.top - s * pinch.py;
+        tx = Math.min(0, Math.max(w - s * w, tx));
+        ty = Math.min(0, Math.max(h - s * h, ty));
+        canvas.style.transformOrigin = '0 0';
+        canvas.style.transform = 'translate(' + tx + 'px, ' + ty + 'px) scale(' + s + ')';
+    }
+
+    function endPinch() {
+        pinch = null;
+        canvas.style.transition = 'transform 0.2s ease-out';
+        canvas.style.transform = '';
+    }
+
     function bindInput() {
         document.addEventListener('pointerdown', function (e) {
             if (!onSurface(e.target)) return;
+            if (e.pointerType === 'touch') {
+                fingers[e.pointerId] = { x: e.clientX, y: e.clientY };
+                if (fingerCount() >= 2) {
+                    if (!pinch && fingerCount() === 2) startPinch();
+                    e.preventDefault();
+                    return;
+                }
+            }
             var onBoard = e.target === canvas || e.target === $('stage');
             if (auto) {
                 if (onBoard) toast('The caddie has the club — press 🤖 or Esc to take it back');
@@ -1993,6 +2093,28 @@
             state.aim.active = false;
             state.aim.power = 0;
             state.aim.origin = null;
+        });
+
+        // The fingers are followed on the document, wherever they began and
+        // whatever has them captured: every touch event bubbles up to here.
+        document.addEventListener('pointermove', function (e) {
+            if (!fingers[e.pointerId]) return;
+            fingers[e.pointerId] = { x: e.clientX, y: e.clientY };
+            if (pinch) movePinch();
+        });
+        function lift(e) {
+            if (!fingers[e.pointerId]) return;
+            delete fingers[e.pointerId];
+            if (pinch && fingerCount() < 2) endPinch();
+        }
+        document.addEventListener('pointerup', lift);
+        document.addEventListener('pointercancel', lift);
+        canvas.addEventListener('transitionend', function () { canvas.style.transition = ''; });
+        // A lift the page never heard about — the app switched away mid-pinch
+        // — must not leave a finger down for ever.
+        window.addEventListener('blur', function () {
+            fingers = {};
+            if (pinch) endPinch();
         });
 
         /* Keyboard play is a first-class path, not an afterthought: aim with
@@ -2440,6 +2562,7 @@
                 var near = Math.hypot(w.course.hole.x - w.ball.x, w.course.hole.y - w.ball.y);
                 if (near < C.HOLE_R + 16 && shot && !shot.lipped) toast('So close!');
                 else warnLastStroke();
+                if (state.strokes >= GOLF.COURSE[state.holeIndex].par) struggling(null);
             }
         }
 

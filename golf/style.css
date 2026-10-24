@@ -474,11 +474,13 @@ body.is-full .stage { box-shadow: none; }
     backdrop-filter: blur(3px);
     opacity: 0;
     pointer-events: none;
-    transition: opacity 0.25s;
+    /* Hidden, not merely clear, once it has faded — see .tip. */
+    visibility: hidden;
+    transition: opacity 0.25s, visibility 0s linear 0.25s;
     line-height: 1.3;
 }
 
-.banner.show { opacity: 1; pointer-events: auto; }
+.banner.show { opacity: 1; pointer-events: auto; visibility: visible; transition-delay: 0s; }
 
 .banner-term {
     font-size: clamp(1.8rem, 6vw, 3rem);
@@ -583,10 +585,11 @@ body.is-full .stage { box-shadow: none; }
     border-radius: 10px;
     opacity: 0;
     pointer-events: none;
-    transition: opacity 0.2s, transform 0.2s;
+    visibility: hidden;
+    transition: opacity 0.2s, transform 0.2s, visibility 0s linear 0.2s;
 }
 
-.toast.show { opacity: 1; transform: translate(-50%, 0); }
+.toast.show { opacity: 1; transform: translate(-50%, 0); visibility: visible; transition-delay: 0s; }
 .toast.bad { border-color: rgba(248, 113, 113, 0.5); color: var(--over); }
 
 /* ── first-run lessons ──────────────────────────────────────────────────── */
@@ -612,7 +615,16 @@ body.is-full .stage { box-shadow: none; }
     pointer-events: none;
     opacity: 0;
     transform: translateY(-6px);
-    transition: opacity 0.25s, transform 0.25s;
+    /* Gone, not merely clear, once it has faded. Clear and pointer-events:
+       none was enough for a desktop and for a headless suite, but a phone's
+       browser decides what a touch is — a pull for the page or a press for
+       the board — before the page sees it, and the board went dead to the
+       thumb wherever a card or a toast had last been shown. visibility:
+       hidden takes the box out of that decision altogether; the delay keeps
+       it for the length of the fade, and .show brings it back at once. The
+       banner, the toast, the dialogs and the ☰ panel do the same. */
+    visibility: hidden;
+    transition: opacity 0.25s, transform 0.25s, visibility 0s linear 0.25s;
 }
 
 /* Where it sits is chosen per hole (game.js → placeLessons). The centring
@@ -621,7 +633,7 @@ body.is-full .stage { box-shadow: none; }
 .tip.at-bl, .tip.at-bc, .tip.at-br { top: auto; bottom: 10px; }
 .tip.at-tc, .tip.at-bc { left: 50%; translate: -50% 0; }
 .tip.at-ml, .tip.at-mr { top: 50%; translate: 0 -50%; }
-.tip.show { opacity: 1; transform: none; }
+.tip.show { opacity: 1; transform: none; visibility: visible; transition-delay: 0s; }
 .tip-item { display: flex; gap: 0.5rem; align-items: flex-start; }
 .tip-item b { color: var(--ink); font-weight: 600; }
 
@@ -724,10 +736,11 @@ kbd {
     backdrop-filter: blur(6px);
     opacity: 0;
     pointer-events: none;
-    transition: opacity 0.22s;
+    visibility: hidden;
+    transition: opacity 0.22s, visibility 0s linear 0.22s;
 }
 
-.modal.show { opacity: 1; pointer-events: auto; }
+.modal.show { opacity: 1; pointer-events: auto; visibility: visible; transition-delay: 0s; }
 
 .modal-inner {
     width: min(460px, 100%);
@@ -1503,13 +1516,16 @@ body.compact-ui .topbar-menu {
     opacity: 0;
     transform: translateY(-6px);
     pointer-events: none;
-    transition: opacity 0.16s ease, transform 0.16s ease;
+    visibility: hidden;
+    transition: opacity 0.16s ease, transform 0.16s ease, visibility 0s linear 0.16s;
 }
 
 body.compact-ui .topbar-menu.open {
     opacity: 1;
     transform: none;
     pointer-events: auto;
+    visibility: visible;
+    transition-delay: 0s;
 }
 
 /* Inside the panel every chip has a line of its own, so the labels come back

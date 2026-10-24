@@ -8,7 +8,7 @@
    — the renderer scales to the viewport, the simulation never sees a pixel. */
 window.G3 = window.G3 || {};
 
-G3.VERSION = '1.102.0';
+G3.VERSION = '1.103.0';
 
 G3.CONFIG = {
     BALL_R: 0.16,
@@ -208,9 +208,7 @@ G3.CONFIG = {
        spray starts to be worth anything at all.
 
        MISS_SPAN is how far past the edge of the zone counts as a total miss,
-       so there is a graded middle rather than a cliff. TOP_WEIGHT is how much
-       of a bad backswing press the strike inherits on the gate that has one.
-       SPIN is how much bend a miss puts on the ball, per radian of the line
+       so there is a graded middle rather than a cliff. SPIN is how much bend a miss puts on the ball, per radian of the line
        error it already cost. */
     SWING: {
         ARM: 0.12,
@@ -220,9 +218,22 @@ G3.CONFIG = {
         SPEED_MAX: 1.00,
         CURVE: 1.8,
         MISS_SPAN: 0.26,
-        TOP_WEIGHT: 0.30,
-        FADE_LEAD: 0.10,
         SPIN: 5.5
+    },
+
+    /* The touch swing (swing.js `swipe…`). TOL_* is how far off straight up
+       the through-swing may lean and still be clean, at a full swing and at
+       the end of the overdraw; SPAN is how much further past that counts as
+       a total miss. FLOOR is the least overdraw a swipe's miss is costed at,
+       so a crooked swipe inside a full swing still goes somewhere (see
+       `swiped`). TURN_PX is how far the thumb has to come back up before the
+       backswing counts as over, so a wobble at the bottom is not a swing. */
+    SWIPE: {
+        TOL_MAX: 8 * Math.PI / 180,
+        TOL_MIN: 3.5 * Math.PI / 180,
+        SPAN: 18 * Math.PI / 180,
+        FLOOR: 0.75,
+        TURN_PX: 14
     },
 
     /* Shot shaping (swing.js `shape`). TURN is how far a draw or a fade turns
@@ -654,6 +665,8 @@ G3.CONFIG = {
        waved off, and nothing at all — which is most players, and which follows
        prefers-reduced-motion instead of guessing. See game.js's flyWanted. */
     FLY_KEY: 'loftLinks.flyover',
+    // The touch swing, while it is a trial: '1' when it has been turned on.
+    SWIPE_KEY: 'loftLinks.touchSwing',
     /* Pass-and-play: how many are sharing the device, 1 to 4 (game.js →
        "pass and play"), and the ball each of them plays. White is player one's
        because it is the ball everybody already has; the other three are a

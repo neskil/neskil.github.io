@@ -3285,17 +3285,11 @@
             var SW = G3.swing;
 
             // A helper: run a gate to a given position and press it there.
-            function pressAt(variant, over, at, pos, alsoTop) {
-                var g = SW.start(variant, over, at);
+            function pressAt(over, pos) {
+                var g = SW.start(over);
                 var guard = 0;
                 while (!g.done && guard++ < 20000) {
-                    if (alsoTop && g.stage === 0 && g.dir > 0 && g.pos >= g.top - 0.002) SW.press(g);
-                    // Walk it to the target and press exactly there, on the
-                    // half of the swing the gate is live for.
-                    if (SW.live(g) && ((g.dir < 0 && g.pos <= pos) || (g.dir > 0 && g.pos >= pos))) {
-                        SW.press(g);
-                        break;
-                    }
+                    if (g.pos >= pos) { SW.press(g); break; }
                     SW.tick(g, 1 / 600);
                 }
                 return g;
@@ -3351,21 +3345,15 @@
                 SW.markAt() / SW.speedFor(1) > 0.5,
                 Math.round(SW.markAt() / SW.speedFor(1) * 1000) + 'ms at a full thrash');
 
-            assert('all four gates exist and are distinct',
-                SW.VARIANTS.length === 4 &&
-                SW.VARIANTS.length === SW.VARIANTS.filter(function (v, i, a) { return a.indexOf(v) === i; }).length);
-            assert('a round meets all four in its first four holes', (function () {
-                var seen = {};
-                for (var i = 0; i < 4; i++) seen[SW.pick(i)] = 1;
-                return Object.keys(seen).length === 4;
-            })());
-            assert('and the rotation wraps rather than falling off the end',
-                SW.pick(4) === SW.pick(0) && SW.pick(-1) === SW.pick(3));
+            /* One gate, the same everywhere. There were four, rotating by
+               hole, and the rotation read as the game changing its mind. */
+            assert('there is one gate, not a rotation of them',
+                !SW.VARIANTS && !SW.pick && typeof SW.start(0.5).variant === 'undefined');
 
             /* The prize. A clean strike is the whole point of taking the gate
                on, so it has to hand the shot back untouched. */
             (function () {
-                var g = pressAt('tempo', 0.8, 0.95, SW.markAt());
+                var g = pressAt(0.8, SW.markAt());
                 assert('a strike on the line is perfect', g.perfect && g.off === 0);
                 var out = SW.apply({ yaw: 0.4, power: 20 }, g);
                 assert('and a perfect strike does not move the shot at all',
@@ -3376,7 +3364,7 @@
                miss costs the spray the dice used to roll at this overdraw,
                and nothing about how wild a thrash can get has changed. */
             (function () {
-                var g = SW.start('tempo', 1, 1);
+                var g = SW.start(1);
                 var guard = 0;
                 while (!g.done && guard++ < 20000) SW.tick(g, 1 / 600);
                 assert('never swinging runs the gate out', g.done && !g.struck);
@@ -3396,8 +3384,8 @@
                push — which is what makes a mishit read as one mistake rather
                than two unrelated ones. */
             (function () {
-                var early = pressAt('tempo', 1, 1, SW.markAt() - SW.windowFor(1) - 0.1);
-                var late = pressAt('tempo', 1, 1, SW.markAt() + SW.windowFor(1) + 0.1);
+                var early = pressAt(1, SW.markAt() - SW.windowFor(1) - 0.1);
+                var late = pressAt(1, SW.markAt() + SW.windowFor(1) + 0.1);
                 assert('early and late miss opposite ways',
                     early.off < 0 && late.off > 0);
                 var a = SW.apply({ yaw: 0, power: 20 }, early);
@@ -3412,55 +3400,9 @@
                 assert('early is the pull: left of the line, bending left',
                     a.yaw > 0 && a.spin > 0 && b.yaw < 0 && b.spin < 0);
                 assert('a near miss costs less than a far one', (function () {
-                    var near = pressAt('tempo', 1, 1, SW.markAt() + SW.windowFor(1) + 0.02);
+                    var near = pressAt(1, SW.markAt() + SW.windowFor(1) + 0.02);
                     return Math.abs(near.off) < Math.abs(late.off);
                 })());
-            })();
-
-            /* The gates that turn are live on the way down only. A player who
-               swings at the ball on the backswing has not hit the ball. */
-            (function () {
-                var g = SW.start('return', 0.8, 0.95);
-                assert('the return gate is dead on the way up', !SW.live(g));
-                var guard = 0;
-                while (!g.turned && guard++ < 20000) SW.tick(g, 1 / 600);
-                assert('it turns at the power that was loaded, not the end of the bar',
-                    approx(g.pos, g.top, 0.01) && g.top < 1);
-                assert('and comes alive coming down', SW.live(g));
-            })();
-            (function () {
-                var g = SW.start('return', 0.8, 0.95);
-                SW.press(g);
-                assert('a swing on the backswing ends it as an early miss',
-                    g.done && g.off < 0);
-            })();
-
-            /* The double gate: a press at the top, then the strike, and a bad
-               top follows you down into a good one. */
-            (function () {
-                var clean = pressAt('double', 0.8, 0.95, SW.markAt(), true);
-                assert('a clean top and a clean strike is still perfect',
-                    clean.perfect, 'off ' + clean.off.toFixed(3));
-                var sloppy = pressAt('double', 0.8, 0.95, SW.markAt(), false);
-                assert('missing the top press entirely is not free',
-                    !sloppy.perfect && Math.abs(sloppy.off) > 0,
-                    'off ' + sloppy.off.toFixed(3));
-            })();
-
-            /* The fade gate hides the marker for the run in, and only that. */
-            (function () {
-                var g = SW.start('fade', 0.8, 1);
-                assert('the fade gate shows the marker at the start', SW.visible(g));
-                var guard = 0;
-                while (SW.visible(g) && !g.done && guard++ < 20000) SW.tick(g, 1 / 600);
-                assert('and hides it before the line', !g.done && g.pos < SW.markAt(),
-                    'went dark at ' + g.pos.toFixed(3));
-                while (!SW.visible(g) && !g.done && guard++ < 20000) SW.tick(g, 1 / 600);
-                assert('and gives it back after, so a miss can be read',
-                    !g.done && g.pos > SW.markAt(),
-                    'came back at ' + g.pos.toFixed(3));
-                assert('every other gate stays visible throughout',
-                    SW.visible(SW.start('tempo', 0.8, 1)) && SW.visible(SW.start('return', 0.8, 1)));
             })();
 
             /* Whatever the gate does, it cannot reach outside the envelope the
@@ -3468,18 +3410,69 @@
                tuning honest: `off` is bounded, so `apply` is too. */
             assert('no gate can push a shot further off line than the spray allows', (function () {
                 var worst = P.spray(1).yaw;
-                for (var v = 0; v < SW.VARIANTS.length; v++) {
-                    for (var at = 0.8; at <= 1.001; at += 0.05) {
-                        for (var p = 0; p <= 1.001; p += 0.05) {
-                            var g = pressAt(SW.VARIANTS[v], 1, at, p, v === 2);
-                            var o = SW.apply({ yaw: 0, power: 20 }, g);
-                            if (Math.abs(o.yaw) > worst + 1e-9) return false;
-                            if (o.power > 20 + 1e-9 || o.power < 0) return false;
-                        }
-                    }
+                for (var p = 0; p <= 1.001; p += 0.02) {
+                    var g = pressAt(1, p);
+                    var o = SW.apply({ yaw: 0, power: 20 }, g);
+                    if (Math.abs(o.yaw) > worst + 1e-9) return false;
+                    if (o.power > 20 + 1e-9 || o.power < 0) return false;
                 }
                 return true;
             })());
+        })();
+
+        section('The touch swing');
+        (function () {
+            var SW = G3.swing;
+            var S = C.SWIPE;
+            // A through-swing from (0, 200) up to the start line at y = 0,
+            // finishing `dx` pixels to the side.
+            function angle(dx) { return SW.swipeAngle({ x: 0, y: 200 }, { x: dx, y: 0 }); }
+
+            assert('the pull loads the meter in proportion, and no further than all of it',
+                SW.swipeLoad(0, 300) === 0 && approx(SW.swipeLoad(150, 300), 0.5) &&
+                SW.swipeLoad(900, 300) === 1 && SW.swipeLoad(-40, 300) === 0);
+            assert('a lane with no length loads nothing rather than dividing by it',
+                SW.swipeLoad(50, 0) === 0);
+
+            assert('a straight swipe up is no angle at all', angle(0) === 0);
+            assert('drifting right is positive, left negative', angle(30) > 0 && angle(-30) < 0);
+            assert('the angle does not care how long the swing was',
+                approx(SW.swipeAngle({ x: 0, y: 100 }, { x: 10, y: 0 }),
+                       SW.swipeAngle({ x: 0, y: 400 }, { x: 40, y: 0 })));
+            assert('a swipe that never came back up reads as straight, not as NaN',
+                SW.swipeAngle({ x: 0, y: 0 }, { x: 10, y: 0 }) === 0);
+
+            assert('a slightly crooked swipe is still clean',
+                SW.swipeOff(S.TOL_MAX * 0.9, 0) === 0);
+            assert('the tolerance narrows the further the meter was pulled',
+                SW.swipeTol(0) > SW.swipeTol(0.5) && SW.swipeTol(0.5) > SW.swipeTol(1));
+            assert('past it the miss grows, and stops at a total one',
+                SW.swipeOff(S.TOL_MAX + S.SPAN * 0.5, 0) > 0 &&
+                approx(SW.swipeOff(S.TOL_MAX + S.SPAN * 0.5, 0), 0.5) &&
+                SW.swipeOff(Math.PI / 2, 0) === 1 && SW.swipeOff(-Math.PI / 2, 0) === -1);
+
+            /* The direction is the point: a swipe that drifts right sends the
+               ball right. +yaw is left on screen, so right is a smaller yaw. */
+            (function () {
+                var right = SW.apply({ yaw: 0, power: 20 }, SW.swiped(0, SW.swipeOff(angle(80), 0)));
+                var left = SW.apply({ yaw: 0, power: 20 }, SW.swiped(0, SW.swipeOff(angle(-80), 0)));
+                assert('a swipe drifting right pushes the ball right, and fades it',
+                    right.yaw < 0 && right.spin < 0);
+                assert('one drifting left pulls it left, and draws it',
+                    left.yaw > 0 && left.spin > 0);
+                var clean = SW.apply({ yaw: 0.3, power: 20 }, SW.swiped(0.5, 0));
+                assert('a straight one hands the shot back untouched',
+                    clean.yaw === 0.3 && clean.power === 20 && clean.spin === 0);
+            })();
+
+            /* Inside a full swing the spray is nothing, so without a floor a
+               crooked swipe would cost nothing and the straightness would be
+               decoration. */
+            assert('a crooked swipe inside a full swing still goes somewhere',
+                SW.apply({ yaw: 0, power: 20 }, SW.swiped(0, 1)).yaw !== 0);
+            assert('and nothing a swipe does reaches past the spray at a full thrash',
+                Math.abs(SW.apply({ yaw: 0, power: 20 }, SW.swiped(1, -1)).yaw) <= P.spray(1).yaw + 1e-9);
+            assert('a swiped gate is a struck one', SW.swiped(0.2, 0.4).struck && SW.swiped(0.2, 0).perfect);
         })();
 
         /* ── scoring ───────────────────────────────────────────────────── */
@@ -3601,7 +3594,7 @@
             /* A shaped miss is the gate's push as well as the shape's own. */
             (function () {
                 var cl = club('driver');
-                var g = SW.start('tempo', SW.shapeOver('draw', 0), 0.6);
+                var g = SW.start(SW.shapeOver('draw', 0));
                 SW.press(g);                       // far too early
                 var missed = SW.apply({ yaw: 0, power: cl.power }, g);
                 assert('a mistimed shape is pushed or pulled like any miss',
@@ -3628,11 +3621,9 @@
             });
             assert('the range hands out the driver', range.bag && range.bag.indexOf('driver') === 0);
 
-            // One lesson per gate, in the order the courses rotate them, after
-            // the one about the line.
-            var gates = SC.LESSONS.filter(function (l) { return l.gate; }).map(function (l) { return l.gate; });
-            assert('the school teaches every gate, in rotation order', gates.join() === SW.VARIANTS.join(), gates.join());
-            assert('the first lesson is inside the line', SC.LESSONS[0].gate === null);
+            // The line, then the gate: two lessons, because there is one gate.
+            assert('the school teaches the line, then the gate',
+                SC.LESSONS.length === 2 && !SC.LESSONS[0].gate && SC.LESSONS[1].gate);
 
             // "Load it for me" has to open the gate it is teaching, or the
             // button loads a shot that skips the lesson.
@@ -3644,8 +3635,8 @@
 
             // Progress: storage junk normalises, counts stop at the goal, and
             // completing reports once.
-            var p = SC.normalise({ line: 99, tempo: -3, bogus: 4, fade: 'x' });
-            assert('progress is clamped and cleaned', p.line === 2 && p.tempo === 0 && p.fade === 0 && !('bogus' in p),
+            var p = SC.normalise({ line: 99, tempo: -3, bogus: 4, fade: 2 });
+            assert('progress is clamped and cleaned — a retired lesson included', p.line === 2 && p.tempo === 0 && !('fade' in p) && !('bogus' in p),
                    JSON.stringify(p));
             assert('a finished lesson is not credited again', SC.credit(p, 'line') === false && p.line === 2);
             assert('the next lesson is the first open one', SC.firstOpen(p) === 'tempo');
@@ -3653,37 +3644,20 @@
             assert('a lesson completes on its last credit, once', done.join() === 'false,false,true');
 
             // Clean is a strike inside the window or near it; running out never is.
-            function played(variant, at) {
-                var g = SW.start(variant, 0.5, 1);
-                if (variant === 'return' || variant === 'double') {
-                    if (variant === 'double') { while (g.pos < g.top - 0.01) SW.tick(g, 0.001); SW.press(g); }
-                    while (!g.turned && !g.done) SW.tick(g, 0.001);
-                    while (g.pos > at && !g.done) SW.tick(g, 0.001);
-                } else {
-                    while (g.pos < at && !g.done) SW.tick(g, 0.001);
-                }
+            function played(at) {
+                var g = SW.start(0.5);
+                while (g.pos < at && !g.done) SW.tick(g, 0.001);
                 SW.press(g);
                 return g;
             }
-            SW.VARIANTS.forEach(function (v) {
-                var g = played(v, SW.markAt());
-                assert(v + ': striking on the line is clean', SC.clean(g), 'off ' + g.off);
-            });
-            var early = played('tempo', 0.2);
+            var onLine = played(SW.markAt());
+            assert('striking on the line is clean', SC.clean(onLine), 'off ' + onLine.off);
+            var early = played(0.2);
             assert('a strike far from the line is not clean', !SC.clean(early), 'off ' + early.off);
-            var ran = SW.start('tempo', 0.5, 1);
+            var ran = SW.start(0.5);
             while (!ran.done) SW.tick(ran, 0.01);
             assert('running out of swing is not clean', !SC.clean(ran));
-
-            // The live step changes at the moments that matter.
-            var r = SW.start('return', 0.5, 1);
-            var up = SC.stepFor(r);
-            while (!r.turned) SW.tick(r, 0.01);
-            assert('return: the step changes at the turn', up !== SC.stepFor(r) && /strike/i.test(SC.stepFor(r)));
-            var d = SW.start('double', 0.5, 1);
-            var top = SC.stepFor(d);
-            SW.press(d);
-            assert('double: the step changes after the top press', top !== SC.stepFor(d));
+            assert('the live step says what to do', /strike/i.test(SC.stepFor(SW.start(0.5))));
             assert('the why names the real bonus', /\d+% further/.test(SC.WHY), SC.WHY);
         })();
 
