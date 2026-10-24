@@ -22,11 +22,12 @@ to be worked out again.
   `moor` takes `z0` for that). Deadlift's pads went 13 → 15 so the new driver
   still gets over both steps.
 - **Coral Keys**, the fifth long course: island-hopping across a lagoon
-  (`isle`, `keyGreen`, `keys` in courses.js). Its islands are **flat on
-  purpose** — a disc of ground with bumps on it is drawn on the square terrain
-  grid, so a domed key renders as a raft with corners. Making `addTerrain`
-  draw a round outline for a bumped disc is what would let keys have a hump.
-  Their outlines are dealt per island by `coast` (a stronger, seeded wave):
+  (`isle`, `keyGreen`, `keys` in courses.js). Its keys are **low domes** now
+  (v1.96.0), with palms and shallows: the raft-with-corners was the grass,
+  which `addTerrain` laid on the square grid with the disc itself cut out of
+  it, not the ground. Keep a dome under a sixteenth — steeper ran balls off
+  the end of Two Ways Home's long island into a spot the bot could not get
+  back to the green from. Their outlines are dealt per island by `coast` (a stronger, seeded wave):
   the keys you must land on are kept near 0.15 of wildness, because the bot
   — and a person — cannot find a target that bites in by half; the bare sand
   islets take the wild shapes.

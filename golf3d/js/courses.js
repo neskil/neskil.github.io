@@ -889,6 +889,7 @@
         var w = wall(cx - t / 2, cz - t / 2, t, t, o.h === undefined ? 2.4 : o.h,
             { base: (o.y || 0) - 0.4, kind: 'tree' });
         if (o.y === undefined) w.seat = 0.4;      // how far its base sinks
+        if (o.palm) w.palm = true;                // drawn as a palm (render.addTree)
         return w;
     }
 
@@ -6557,9 +6558,11 @@
        and a ball that runs through the grass stops in the sand before the far
        shore. The wave in the edge is the same mown wobble a green has
        (`shapeDisc`), which is all it takes for nothing out here to be square.
-       The islands are level: a disc of ground given humps is drawn on the
-       square grid the rest of the terrain uses, and from above every domed
-       key came out as a raft with corners.
+       The keys are low domes (v1.96.0), with palms on them and shallows
+       round them. They were level for a long time because a domed key came
+       out as a raft with corners — not the ground, which a disc draws in
+       rings, but its grass, which was laid on the square grid with the disc
+       itself as the thing cut out of it (render.addTerrain says so now).
 
        Every tee is up on a sea stack, a flat-topped pillar of sandstone
        standing out of the water — the one place on the course with any height
@@ -6569,6 +6572,9 @@
        The water is one sheet under the lot, and the stakes are off: there is
        nowhere to go out of bounds that is not already wet. */
     var KEY_SEA = -0.6, KEY_SHORE = -0.28;
+    // The shallows round a key, as the renderer draws them (render.addShelf):
+    // a band on the water's surface, `out` units wide.
+    var KEY_SHELF = { y: KEY_SEA + 0.02, out: 2.4 };
     /* A coastline rather than a mown edge. `shapeDisc` gives every disc the
        same gentle wobble, which on a green is right and on an island makes
        every key the same pebble at a different size. This is the same wave
@@ -6593,6 +6599,25 @@
         var seed = Math.round(cx * 977 + cz * 7919 + rx * 131) + (o.seed || 0);
         var base = coast(circle(cx, cz, rx, 'sand', KEY_SHORE + (o.y || 0), rz), wild, seed);
         base.inlay = false;
+        /* A key is a low dome, not a raft: the middle stands up out of the
+           sea and the beach runs down to the water's edge. One hump along
+           the island's long axis (a `trough`, which is a hump drawn along a
+           line), so an oval key is domed along its length rather than
+           pinched up in the middle, and about a sixteenth at its steepest — a ball
+           on a key still stops on it. The fairway is laid on top of it
+           (`inlay` takes the host's humps), and `build` seats the palms on
+           whatever height the dome put under them. */
+        // Not a sea stack (`y`): a tee is cut flat on top of its pillar.
+        if (o.dome !== 0 && !o.y) {
+            var rs = Math.min(rx, rz) * 1.1, half = Math.abs(rx - rz);
+            var dome = o.dome === undefined ? Math.min(0.55, rs * 0.04) : o.dome;
+            base.bumps = [rx >= rz
+                ? trough(cx - half, cz, cx + half, cz, rs, dome)
+                : trough(cx, cz - half, cx, cz + half, rs, dome)];
+        }
+        // Shallows round it (render.addShelf), except round a sea stack,
+        // which goes straight down into the water as a stack does.
+        if (!o.y) base.shelf = KEY_SHELF;
         var pads = [base];
         if (o.bare) { pads.props = []; return pads; }   // a sand islet, nothing on it
         /* The grass is the beach's own outline drawn smaller — the same wave,
@@ -6607,7 +6632,7 @@
             var dx = Math.cos(t[0]) * rx * t[1], dz = Math.sin(t[0]) * rz * t[1];
             var f = Math.min(1, keepIn / Math.max(1e-6, Math.sqrt(dx * dx + dz * dz)));
             return tree(cx + dx * f, cz + dz * f,
-                { h: 2.8 + ((k * 7 + Math.round(cx + cz)) % 5) * 0.2 });
+                { h: 2.8 + ((k * 7 + Math.round(cx + cz)) % 5) * 0.2, palm: true });
         });
         return pads;
     }
@@ -6618,6 +6643,7 @@
         var base = coast(circle(cx, cz, rx, 'sand', KEY_SHORE, rz), wild || 0.1,
             Math.round(cx * 613 + cz * 3571));
         base.inlay = false;
+        base.shelf = KEY_SHELF;
         return [base, inlay([base], cx, cz, gr, 'green')];
     }
     function keys(name, par, blurb, isles, tee, cup) {
@@ -6628,7 +6654,9 @@
             minX = Math.min(minX, p.x); maxX = Math.max(maxX, p.x + p.w);
             minZ = Math.min(minZ, p.z); maxZ = Math.max(maxZ, p.z + p.d);
         });
-        var M = 40;
+        // Far enough out that the edge of the hole's water is lost in the
+        // haze rather than drawn across the sea in front of the camera.
+        var M = 140;
         return build({
             name: name, par: par, long: true, open: true, calm: true, stakes: false,
             blurb: blurb,
