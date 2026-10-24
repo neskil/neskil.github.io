@@ -348,9 +348,10 @@ a **curated library** on the owner's word ("it doesn't have to be all random")
 and dropped the daily seed. v1.72.0: no rails or stakes (the glass runs on and
 its edge is the boundary), rainbow glass with the grid in its shader, a
 sunset sun and wire mountains, black holes (`hole.wells`) and holes in the
-surface (`pad.voids`) as two new families. v1.74.0 swapped the bounce sparks and flat light rings for a boat's wake drawn in the glass shader. Open: try every weather on the
-neon theme (the owner asked — only `clear` is in its list so far), moving
-waves, and more variants.
+surface (`pad.voids`) as two new families. v1.74.0 swapped the bounce sparks and flat light rings for a boat's wake drawn in the glass shader. Every weather was tried on
+the neon theme (the owner asked): clear, fair, golden, and rain and drizzle
+in neon cyan are in its list since v1.98.0 (README → "Challenge mode");
+overcast, mist and dust are out. Open: moving waves, and more variants.
 
 The original ask, kept for reference:
 
