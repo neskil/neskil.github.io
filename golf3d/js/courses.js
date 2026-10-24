@@ -5110,22 +5110,43 @@
             tee: { x: 4.5, z: 2 }, cup: { x: 4.5, z: 11.9 }
         }),
         build({
-            /* The finisher: a long iced hall, a belt at the corner that is the
-               only way round it, and a green of honest grass at the far end —
-               the first flat, grippy, ordinary ground the course has offered in
-               six holes, and by now it reads as a reward. */
-            name: 'The Cold Room', par: 4,
-            blurb: 'Down the hall, round the belt, and out on to the only grass in the building.',
+            /* The finisher, and the course's own ride: a bobsleigh run. It was
+               a hall with a belt at the corner, which was The Sluice again a
+               second time; this is the second loop in the game and the first
+               that is not at a fair (`loop`, physics.js "the loop").
+
+               The hall is ice, so whatever the mallet gives the ball at the
+               tee it still has at the foot of the loop — and the loop wants
+               about fourteen there, which is a firm mallet and nothing less.
+               Not quite enough and it comes off near the top, falls inside
+               the loop, and the ice hands it all the way back down the hall to
+               you. Over the top, and it comes out of the far side on to the
+               first honest grass the course has offered in six holes, running
+               at the pin.
+
+               The way that does not need the nerve is the belt lane up the
+               east side, running back at you: a putt has to beat the belt,
+               and on ice a putt that does not is a putt that comes home. The
+               housing is Loop the Loop's, set three units further on, so the
+               mouth and the belt are the only roads north. */
+            name: 'The Cold Room', par: 3,
+            blurb: 'An ice hall into a bobsleigh loop: hit it hard enough and it goes over the top and out on to the grass. Or beat the belt up the side.',
             pads: [
-                pad(0, 0, 5, 3),
-                pad(0, 3, 5, 9, 0, ice),
-                belt(0, 12, 5, 4, 6.5, 0),
-                pad(0, 16, 5, 3, 0, 'sand'),
-                pad(5, 12, 9, 4, 0, ice),
-                pad(14, 12, 6, 4)
+                pad(0, 0, 7, 3),
+                pad(0, 3, 7, 7.5, 0, ice),
+                pad(0, 10.5, 5.5, 3.9, 0, 'wood'),             // under the ride
+                belt(5.5, 10.5, 1.5, 3.9, 0, -6),              // the long way, against the run
+                pad(0, 14.4, 7, 6.6),
+                pad(0, 21, 7, 1.6, 0, 'sand')
             ],
-            extra: [wall(5, 16, 9, 0.34, 0.55, { base: -0.1 })],
-            tee: { x: 2.5, z: 1.5 }, cup: { x: 17, z: 14 }
+            loops: [loop(2.5, 12.7, 0, 1.1, 1)],
+            extra: [
+                wall(0, 11, 1.95, 3.2, 0.6, { base: -0.1 }),         // west
+                wall(2.86, 11, 2.64, 0.5, 0.6, { base: -0.1 }),      // across the way out
+                wall(2.86, 11.5, 0.24, 0.95, 0.6, { base: -0.1 }),   // between the lanes
+                wall(4.08, 11.5, 1.42, 2.7, 0.6, { base: -0.1 })     // and east
+            ],
+            tee: { x: 2.5, z: 1.5 }, cup: { x: 3.5, z: 18 }
         })
     ];
 
