@@ -879,7 +879,7 @@ approach.
 | Whinstone Links | long | `links` | No flat lies and no straight edges. The ground is the hazard, and on one hole it is a sandhill. |
 | Dunmore Heath | long | `heath` | The long game again, shaped rather than furnished: crests, hollows, a punchbowl, a whorl, one dry ravine and a hillside you climb — and moorland water, a burn, a tarn and a pond. |
 | Redstone Canyon | long | `canyon` | Ground that is missing, six ways. A canyon across the drive, down the side of the hole, flooded under a par three, biting a piece out of the fairway, twice, and at the end of a dogleg round a mesa. |
-| Coral Keys | long | `lagoon` | Islands in a lagoon and nothing between them. Every tee is a sea stack, every key is grass on a beach, and every shot is a carry: a chain of keys, an atoll, two ways down a bay, one long carry. `isle` and `keyGreen` in courses.js. |
+| Coral Keys | long | `lagoon` | Islands in a lagoon and nothing between them. Every tee is a sea stack, every key is grass on a low dome of beach with palms on it and shallows round it, and every shot is a carry: a chain of keys, an atoll, two ways down a bay, one long carry. `isle` and `keyGreen` in courses.js; the shallows are `render.addShelf`. The dome is a sixteenth at its steepest — at a tenth, balls ran off the end of the long island in Two Ways Home and the bot could not get back to the green from there. |
 
 **Sea Legs**, the first hole anybody plays, is a bounce hole: one lane, one
 baffle reaching in from the east rail, and a rail across the far corner set at

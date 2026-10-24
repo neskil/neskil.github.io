@@ -1701,7 +1701,7 @@
         // taken away rather than left growing grass through a bunker.
         var cover = [], q;
         for (q = 0; q < (pads || []).length; q++) {
-            if (pads[q].inlay) cover.push(pads[q]);
+            if (pads[q].inlay && pads[q] !== pad) cover.push(pads[q]);
         }
         /* And the holes in it (pad.voids): each is cut the way an inlay is,
            and its rim conformed onto the circle, so a hole in the glass is a
@@ -1765,8 +1765,12 @@
            see cutUnder. Its UVs are rewritten at the blades' own scale inside
            addShells, so building it already tiled for the ground costs
            nothing. */
+        /* A disc's grass is the disc's own ground: the square grid with
+           things cut out of it is for a rectangle. (It used to be handed the
+           grid with the disc itself as the thing to cut — which is how a
+           domed fairway on Coral Keys came out as a square mat.) */
         var grassOn = geo;
-        if (cover.length) {
+        if (cover.length && !pad.r) {
             grassOn = terrainGeometry(pad, res, cx, cy, cz, cut, cover, true);
             if (rockGeo) splitSteep(grassOn);
         }
@@ -2169,7 +2173,54 @@
         }
         return R.surf.rainbow;
     }
+    /* The shallows round an island (courses.isle's `shelf`): a band on the
+       water's surface from the shore outwards, pale turquoise at the beach
+       and fading to nothing over `out` units — the colour a lagoon goes
+       where the sand is a hand under it. The water is all but opaque (it
+       has to be, to read as a sea), so a sandbank drawn under it does not
+       show; this is the same thing said on the surface instead. One
+       gradient texture, shared, laid across the band by its own uv. */
+    var _shallowTex = null;
+    function addShelf(group, pad) {
+        var sh = pad.shelf, pts = padOutline(pad, 0.35), n = pts.length;
+        var cx = pad.x + pad.w / 2, cz = pad.z + pad.d / 2;
+        var pos = new Float32Array(n * 6 * 3), uv = new Float32Array(n * 6 * 2);
+        var i, j = 0, k = 0, a, b, oa, ob;
+        function out(p) {
+            var dx = p[0] - cx, dz = p[1] - cz, l = Math.hypot(dx, dz) || 1;
+            return [p[0] + dx / l * sh.out, p[1] + dz / l * sh.out];
+        }
+        for (i = 0; i < n; i++) {
+            a = pts[i]; b = pts[(i + 1) % n];
+            oa = out(a); ob = out(b);
+            // Wound so the face looks up (the outline runs anticlockwise).
+            pos.set([a[0], sh.y, a[1], ob[0], sh.y, ob[1], oa[0], sh.y, oa[1]], j); j += 9;
+            pos.set([a[0], sh.y, a[1], b[0], sh.y, b[1], ob[0], sh.y, ob[1]], j); j += 9;
+            uv.set([0.5, 0, 0.5, 1, 0.5, 1, 0.5, 0, 0.5, 0, 0.5, 1], k); k += 12;
+        }
+        if (!_shallowTex) {
+            var cv = document.createElement('canvas');
+            cv.width = 4; cv.height = 64;
+            var g2 = cv.getContext('2d'), gr = g2.createLinearGradient(0, 0, 0, 64);
+            gr.addColorStop(0, 'rgba(255,255,255,0.75)');
+            gr.addColorStop(0.35, 'rgba(255,255,255,0.4)');
+            gr.addColorStop(1, 'rgba(255,255,255,0)');
+            g2.fillStyle = gr; g2.fillRect(0, 0, 4, 64);
+            _shallowTex = new THREE.CanvasTexture(cv);
+        }
+        var geo = new THREE.BufferGeometry();
+        geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+        geo.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
+        var mesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({
+            map: _shallowTex, color: sh.colour || 0x8fe6da,
+            transparent: true, depthWrite: false
+        }));
+        mesh.renderOrder = 2;
+        group.add(mesh);
+    }
+
     function addPad(group, pad, theme, cup, pads) {
+        if (pad.shelf) addShelf(group, pad);
         if (pad.bumps || pad.field) { addTerrain(group, pad, theme, cup, pads); return; }
         var cx = pad.x + pad.w / 2, cz = pad.z + pad.d / 2;
         var sx = pad.sx || 0, sz = pad.sz || 0;
@@ -2548,6 +2599,25 @@
 
     function addTree(group, wall) {
         var B = P.wallBox(wall, 0);
+        /* A palm, on the keys: the lagoon's own palm model rather than a
+           conifer on a coral island, stood on the ground the trunk is seated
+           in (`seat` below its base) and turned and sized off where it
+           stands. It leans from its foot in the wind, which is how a palm
+           moves. The trunk the ball hits is the wall, as for any tree. */
+        if (wall.palm && G3.getModelMesh) {
+            var pm = G3.getModelMesh('palm', R.surf.decor.model);
+            if (pm) {
+                var ph = treeHash(B.cx, B.cz);
+                var pivot = new THREE.Group();
+                pivot.position.set(B.cx, B.base + (wall.seat === undefined ? 0.4 : wall.seat), B.cz);
+                pivot.rotation.y = ph * 6.283;
+                pm.scale.setScalar(wall.h * (1.05 + ph * 0.3) / 4.25);
+                pivot.add(pm);
+                group.add(pivot);
+                (R.canopies || (R.canopies = [])).push({ g: pivot, k: 0.025, ph: ph * 9.7 });
+                return;
+            }
+        }
         var a = treeHash(B.cx, B.cz), b = treeHash(B.cz * 1.7, B.cx * 0.9);
         var trunkR = Math.max(B.hw, B.hd) * 0.55;
         // Tall enough to look like a tree from the ball, which is lower down
@@ -3136,9 +3206,14 @@
             color: tint.clone().multiplyScalar(0.45)
         });
         var top = waterMaterial(theme, { alpha: 0.86 });
+        /* On a course whose whole surround is sea, the box's dark sides stood
+           a few centimetres proud of the sea plane and drew a black line
+           ruled across the ocean where the rectangle stopped. The sea needs
+           no sides; it gets the top alone. */
+        var sides = theme.surround === 'water' ? new THREE.MeshBasicMaterial({ visible: false }) : murk;
         // Box material order: +x, -x, +y, -y, +z, -z.
         var mesh = new THREE.Mesh(new THREE.BoxGeometry(w.w, depth, w.d),
-            [murk, murk, top, murk, murk, murk]);
+            [sides, sides, top, sides, sides, sides]);
         mesh.position.set(w.x + w.w / 2, w.y - depth / 2, w.z + w.d / 2);
         group.add(mesh);
 
