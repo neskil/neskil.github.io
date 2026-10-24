@@ -5416,7 +5416,13 @@
         for (var k in patch) if (Object.prototype.hasOwnProperty.call(patch, k)) R.cam[k] = patch[k];
     }
 
+    // Whose ball it is (game.js, pass and play): the same ball, repainted.
+    function setBallColour(hex) {
+        if (R.ball) R.ball.material.color.setHex(hex);
+    }
+
     G3.render = {
+        setBallColour: setBallColour,
         init: init,
         resize: resize,
         buildHole: buildHole,

@@ -399,7 +399,8 @@ card shapes are already there to hang a third off (`CARDS` in `bag.js`).
   point, and nothing measures that it stays available.
 - **`tests.html` walks greens on a 0.3 grid** and misses peaks between samples
   (see §1). A finer grid, or sampling at each hump's own steepest radius.
-- **Pass-and-play local multiplayer**: 2–4 players taking turns with color-coded balls.
+- ~~**Pass-and-play local multiplayer**~~ (done, v1.101.0 — README → "Pass
+  and play"). Open: names a player can type, and a record per player.
 - **1-click level editor sharing**: export custom holes as a compressed URL or snippet.
 
 ---

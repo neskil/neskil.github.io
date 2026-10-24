@@ -757,6 +757,19 @@ button,
 /* The one figure of the four that is worth a second look mid-shot. */
 #shud-dist { color: var(--accent); }
 
+/* Pass and play: a dot the colour of the ball that is up, and its player
+   (game.js → syncTurn). The ring keeps a white dot visible on a pale bar. */
+.ball-dot {
+    display: inline-block;
+    width: 0.62em;
+    height: 0.62em;
+    margin-right: 0.3em;
+    border-radius: 50%;
+    vertical-align: -0.04em;
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.45);
+}
+.hud-player b { font-weight: 700; }
+
 .hud-caret {
     border-left: 0 !important;
     padding-left: 0.1rem !important;
@@ -2804,6 +2817,9 @@ kbd {
 }
 .card-table th:last-child, .card-table td:last-child,
 .card-table th:nth-child(3), .card-table td:nth-child(3) { text-align: right; width: 3rem; }
+
+/* A shared card: every column after the par is a player's, right-aligned. */
+.card-table.shared th:nth-child(n+3), .card-table.shared td:nth-child(n+3) { text-align: right; width: 2.6rem; }
 
 .card-table td.under { color: var(--under); font-weight: 700; }
 .card-table td.over { color: var(--over); }
