@@ -334,8 +334,9 @@ and a banked floor is `padHeight` learning a curved profile.
 **The loop is built (v1.90.0)** — not as ground (a height field has no
 ceiling) but as a track the ball rides, with honest energy and a fall off the
 top: README → "The loop", on Helter Skelter's *Loop the Loop*. The camera
-swings to the side to watch a ride (v1.99.0). Open: a second loop somewhere
-that is not a fairground.
+swings to the side to watch a ride (v1.99.0), and the second loop is the
+bobsleigh at the end of Icehouse Yard (v1.100.0, The Cold Room), where the ice
+hands a ball that falls off it all the way back down the hall.
 
 ### Then: Challenge mode (the owner's idea) — built (v1.70.0)
 
