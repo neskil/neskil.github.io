@@ -425,8 +425,14 @@
                 section('picking with it');
 
                 // Second course on the rack, third hole: a plan press is a new
-                // round teeing off there, not a resumed one.
+                // round teeing off there, not a resumed one. On a first visit
+                // that card waits for stars, so it is granted the way a link
+                // would grant it, and the picker opened again to show it so.
                 var second = G.COURSES[1];
+                G.progress.grant(second.id);
+                $('menu-close').click();
+                $('btn-courses').click();
+                cards = doc().querySelectorAll('#menu-list .course-card');
                 cards[1].querySelectorAll('.cc-hole')[2].click();
                 assert('pressing a plan takes you to that course', G.COURSE_ID === second.id);
                 assert('…and starts you on that hole',
@@ -510,7 +516,7 @@
             var cards = doc().querySelectorAll('#menu-list .course-card');
             var locked = doc().querySelectorAll('#menu-list .course-card.locked');
             assert('on a first visit the later cards are locked', locked.length >= 3, locked.length + ' locked');
-            assert('…and the two at the top are not', !cards[0].classList.contains('locked') && !cards[1].classList.contains('locked'));
+            assert('…and the starter at the top is not', !cards[0].classList.contains('locked') && cards[0].querySelector('.cc-hole').getAttribute('data-course') === 'short');
             var lk = locked[0];
             var lockedId = lk.querySelector('.cc-hole').getAttribute('data-course');
             assert('a locked card says what it costs', /opens at \d+ ★, \d+ to go/.test(lk.querySelector('.cc-meta').textContent),
@@ -548,7 +554,7 @@
             assert('the hole best is written down at once', G.scoring.load('short').holes[0] === G.COURSE[0].par - 1);
             G.game.advanceHole();
             $('btn-courses').click();
-            var shortCard = doc().querySelectorAll('#menu-list .course-card')[1];
+            var shortCard = doc().querySelector('#menu-list .cc-hole[data-course="short"]').closest('.course-card');
             assert('the plan carries the stars it gave', shortCard.querySelector('.cc-stars').textContent === '★★★',
                 shortCard.querySelector('.cc-stars').textContent);
             assert('the card head counts them', /★ 3\/18/.test(shortCard.querySelector('.cc-meta').textContent),
@@ -575,20 +581,20 @@
             G.progress.reload();
             var tide = G.COURSES.filter(function (c) { return c.id === 'tide'; })[0];
             var need = G.progress.need(tide);
-            var shortHoles = G.COURSES[1].holes;
+            var shortHoles = G.COURSES.filter(function (c) { return c.id === 'short'; })[0].holes;
             var seed = shortHoles.map(function () { return null; });
             var have = 0;
             for (var h = 1; h < shortHoles.length && have + 3 < need; h++) { seed[h] = shortHoles[h].par - 1; have += 3; }
             localStorage.setItem(G.scoring.key(G.CONFIG.SAVE_KEY, 'short'), JSON.stringify({ best: null, holes: seed }));
             G.progress.reload();
-            assert('one hole short of the Tidewater Nine, it is still shut', !G.progress.isOpen(tide),
+            assert('one hole short of the Tidewater Six, it is still shut', !G.progress.isOpen(tide),
                 G.progress.totalStars().got + ' of ' + need);
             G.game.playCourse('short', null, 0);
             st = G.game.getState();
             st.strokes = 1;
             G.game.holeComplete(false);
             assert('the hole that crosses the line says the door is open',
-                /The Tidewater Nine is now open/.test($('banner-note').textContent), $('banner-note').textContent);
+                /The Tidewater Six is now open/.test($('banner-note').textContent), $('banner-note').textContent);
             assert('…and it is', G.progress.isOpen(tide) && G.progress.get().granted.tide);
             G.game.advanceHole();
             G.progress.unlockAll();

@@ -29,8 +29,14 @@
         { key: 'rough',   label: 'Rough',  round: false, color: '#1c6b39' },
         { key: 'slopes',  label: 'Slope',  round: false, color: '#8fbf9f' },
         { key: 'ice',     label: 'Ice',    round: false, color: '#bfe4f2' },
+        // A lane down the mountain with a slide on a clock: a rectangle, plus
+        // which way is downhill and when the slides come.
+        { key: 'avalanches', label: 'Chute', round: false, color: '#dbe7f2' },
         { key: 'sand',    label: 'Sand',   round: false, color: '#e3ca92' },
         { key: 'water',   label: 'Water',  round: false, color: '#1b6d9e' },
+        { key: 'lava',    label: 'Lava',   round: false, color: '#f05a1a' },
+        // A geyser is a point: its size is VENT_R, the same on every hole.
+        { key: 'vents',   label: 'Geyser', round: false, point: true, color: '#c9c2b8' },
         // Two mouths rather than one shape: each end is grabbed on its own.
         { key: 'tunnels', label: 'Tunnel', round: false, pair: true, color: '#a78bfa' },
         // A wall at an angle: two ends like a tunnel, and a body to grab.
@@ -41,10 +47,10 @@
     var KIND_KEYS = KINDS.map(function (k) { return k.key; });
     // The order courses.js lists them in, which is not the order they are
     // painted in. The export follows the file; the sidebar follows the paint.
-    var EXPORT_ORDER = ['walls', 'rails', 'water', 'sand', 'rough', 'ice', 'bumpers', 'slopes', 'tunnels'];
+    var EXPORT_ORDER = ['walls', 'rails', 'water', 'lava', 'sand', 'rough', 'ice', 'bumpers', 'slopes', 'tunnels', 'avalanches', 'vents'];
     // The zones that may be drawn as polygons. Walls at an angle are rails,
     // and a slope's rules are written for edges that run with the axes.
-    var POLY_KINDS = { water: 1, sand: 1, rough: 1, ice: 1 };
+    var POLY_KINDS = { water: 1, lava: 1, sand: 1, rough: 1, ice: 1 };
     function kindOf(key) {
         for (var i = 0; i < KINDS.length; i++) if (KINDS[i].key === key) return KINDS[i];
         return null;
@@ -53,7 +59,8 @@
     var MIN_SIDE = 20;          // the thinnest rectangle the substep cap can protect
     var DEFAULT_RECT = {
         walls: [26, 160], water: [200, 140], sand: [180, 160],
-        rough: [240, 170], ice: [220, 180], slopes: [260, 220]
+        rough: [240, 170], ice: [220, 180], slopes: [260, 220],
+        lava: [200, 140], avalanches: [120, 420]
     };
     var HANDLE = 6;             // hit radius for a resize grip, in screen pixels
     var SAVE_KEY = 'miniGolf.editor.v1';
@@ -101,7 +108,8 @@
             par: 3,
             tee: { x: 140, y: 320 },
             hole: { x: 820, y: 320 },
-            walls: [], water: [], sand: [], rough: [], ice: [], bumpers: [], slopes: [], tunnels: [], rails: []
+            walls: [], water: [], sand: [], rough: [], ice: [], bumpers: [], slopes: [], tunnels: [], rails: [],
+            lava: [], avalanches: [], vents: []
         };
     }
 
@@ -127,9 +135,16 @@
         if (kind === 'bumpers') return { x: num(s.x, 0), y: num(s.y, 0), r: num(s.r, C.BUMPER_MIN_R) };
         if (kind === 'tunnels') return { x: num(s.x, 0), y: num(s.y, 0), tx: num(s.tx, 0), ty: num(s.ty, 0) };
         if (kind === 'rails') return { x: num(s.x, 0), y: num(s.y, 0), tx: num(s.tx, 0), ty: num(s.ty, 0), w: num(s.w, 24) };
+        if (kind === 'vents') return { x: num(s.x, 0), y: num(s.y, 0), every: num(s.every, 3), at: num(s.at, 0), run: num(s.run, 1) };
         if (POLY_KINDS[kind] && Array.isArray(s.pts)) return { pts: s.pts.map(function (v) { return num(v, 0); }) };
         var o = { x: num(s.x, 0), y: num(s.y, 0), w: num(s.w, MIN_SIDE), h: num(s.h, MIN_SIDE) };
         if (kind === 'slopes') { o.ax = num(s.ax, 0); o.ay = num(s.ay, 120); }
+        if (kind === 'avalanches') {
+            o.dir = ['down', 'up', 'left', 'right'].indexOf(s.dir) >= 0 ? s.dir : 'down';
+            o.every = num(s.every, 4);
+            o.at = num(s.at, 0);
+            if (typeof s.len === 'number') o.len = s.len;
+        }
         if (kind === 'walls' && s.move) {
             o.move = {
                 axis: s.move.axis === 'x' ? 'x' : 'y',
@@ -363,6 +378,10 @@
             ctx.arc(s.x, s.y, s.r + 3, 0, Math.PI * 2);
             ctx.stroke();
             grip(s.x + s.r, s.y);
+        } else if (S.sel.kind === 'vents') {
+            ctx.beginPath();
+            ctx.arc(s.x, s.y, C.VENT_R + 6, 0, Math.PI * 2);
+            ctx.stroke();
         } else if (s.pts) {
             ctx.beginPath();
             for (var pi = 0; pi < s.pts.length; pi += 2) ctx.lineTo(s.pts[pi], s.pts[pi + 1]);
@@ -418,9 +437,9 @@
         ctx.lineWidth = 2 / view.scale;
         ctx.strokeStyle = k.color;
         ctx.fillStyle = 'rgba(255,255,255,0.12)';
-        if (k.round) {
+        if (k.round || k.point) {
             ctx.beginPath();
-            ctx.arc(drag.preview.x, drag.preview.y, drag.preview.r, 0, Math.PI * 2);
+            ctx.arc(drag.preview.x, drag.preview.y, k.point ? C.VENT_R : drag.preview.r, 0, Math.PI * 2);
             ctx.fill(); ctx.stroke();
         } else if (k.body) {
             ctx.setLineDash([]);
@@ -455,7 +474,7 @@
         var s = selShape();
         if (!s) return null;
         var tol = (HANDLE + 3) / view.scale;
-        if (kindOf(S.sel.kind).pair) return null;   // an end is moved, not resized
+        if (kindOf(S.sel.kind).pair || kindOf(S.sel.kind).point) return null;   // an end or a vent is moved, not resized
         if (s.pts) {
             for (var v = 0; v < s.pts.length; v += 2) {
                 if (Math.abs(wx - s.pts[v]) <= tol && Math.abs(wy - s.pts[v + 1]) <= tol) return { id: 'v', index: v };
@@ -494,6 +513,8 @@
                     if (kind.body && P.circleRail(wx, wy, 2, s)) return { kind: kind.key, idx: j, end: 'body' };
                 } else if (s.pts) {
                     if (P.pointInPoly(wx, wy, s.pts)) return { kind: kind.key, idx: j };
+                } else if (kind.point) {
+                    if (Math.hypot(wx - s.x, wy - s.y) <= C.VENT_R + 4) return { kind: kind.key, idx: j };
                 } else if (kind.round) {
                     if (Math.hypot(wx - s.x, wy - s.y) <= s.r) return { kind: kind.key, idx: j };
                 } else if (rectHit(s, wx, wy)) {
@@ -595,7 +616,9 @@
         if (drag.type === 'draw') {
             var k = kindOf(drag.kind);
             drag.moved = Math.abs(p.wx - drag.x0) > 3 || Math.abs(p.wy - drag.y0) > 3;
-            if (k.round) {
+            if (k.point) {
+                drag.preview = { x: drag.x0, y: drag.y0 };
+            } else if (k.round) {
                 var rad = Math.max(C.BUMPER_MIN_R, Math.round(Math.hypot(p.wx - drag.x0, p.wy - drag.y0)));
                 drag.preview = { x: drag.x0, y: drag.y0, r: drag.moved ? rad : C.BUMPER_MIN_R + 10 };
             } else if (k.pair) {
@@ -671,7 +694,9 @@
         var kind = d.kind, k = kindOf(kind);
         snapshot();
         var shape;
-        if (k.round) {
+        if (k.point) {
+            shape = { x: clampX(d.x0), y: clampY(d.y0), every: 3, at: 0, run: 1 };
+        } else if (k.round) {
             shape = { x: d.x0, y: d.y0, r: d.preview ? d.preview.r : C.BUMPER_MIN_R + 10 };
         } else if (k.pair) {
             // A click with no drag puts the far end a sensible walk away.
@@ -687,6 +712,7 @@
             shape = { x: snapVal(d.x0 - def[0] / 2, e), y: snapVal(d.y0 - def[1] / 2, e), w: def[0], h: def[1] };
         }
         if (kind === 'slopes') { shape.ax = 0; shape.ay = 150; }
+        if (kind === 'avalanches') { shape.dir = 'down'; shape.every = 4; shape.at = 0; }
         list(kind).push(shape);
         S.sel = { kind: kind, idx: list(kind).length - 1 };
         refreshAll();
@@ -787,13 +813,15 @@
         }
         if (w.splash && !play.splashAt) play.splashAt = now;
         if (w.splash && now - play.splashAt > 550) {
+            var burnt = w.lava;
+            w.lava = false;
             play.strokes += C.WATER_PENALTY;
             w.ball.x = w.origin.x; w.ball.y = w.origin.y;
             w.ball.vx = w.ball.vy = 0;
             w.splash = false;
             play.splashAt = 0;
             play.trail = [];
-            toast('Water — one stroke penalty', 'bad');
+            toast(burnt ? 'Lava — one stroke penalty' : 'Water — one stroke penalty', 'bad');
         }
         if (w.sunk && !play.done) {
             play.done = true;
@@ -838,9 +866,11 @@
         if (kind === 'rails') {
             return Math.round(s.x) + ',' + Math.round(s.y) + ' — ' + Math.round(s.tx) + ',' + Math.round(s.ty) + '  w ' + Math.round(s.w);
         }
+        if (kind === 'vents') return '@ ' + Math.round(s.x) + ',' + Math.round(s.y) + '  blows ' + s.run + 's of ' + s.every + 's';
         if (s.pts) return 'polygon · ' + s.pts.length / 2 + ' corners';
         var base = Math.round(s.w) + '×' + Math.round(s.h) + ' @ ' + Math.round(s.x) + ',' + Math.round(s.y);
         if (kind === 'slopes') base += '  ↘ ' + Math.round(s.ax) + ',' + Math.round(s.ay);
+        if (kind === 'avalanches') base += '  ' + ({ down: '↓', up: '↑', left: '←', right: '→' }[s.dir] || '↓') + ' every ' + s.every + 's';
         if (kind === 'walls' && s.move) base += '  ↔ ' + s.move.axis + ' ' + Math.round(s.move.amp);
         return base;
     }
@@ -865,7 +895,7 @@
             l.forEach(function (s, i) {
                 var on = S.sel && S.sel.kind === k.key && S.sel.idx === i;
                 html += '<div class="sitem' + (on ? ' active' : '') + '" data-kind="' + k.key + '" data-idx="' + i + '">' +
-                    '<i class="swatch' + (k.round || (k.pair && !k.body) ? ' round' : '') + '" style="background:' + k.color + '"></i>' +
+                    '<i class="swatch' + (k.round || k.point || (k.pair && !k.body) ? ' round' : '') + '" style="background:' + k.color + '"></i>' +
                     '<span class="sname">' + k.label + ' ' + (i + 1) +
                     (k.key === 'walls' && s.move ? ' <span class="smeta">(moves)</span>' : '') + '</span>' +
                     '<span class="smeta">' + esc(shapeSummary(k.key, s)) + '</span>' +
@@ -945,6 +975,14 @@
                 '<button class="btn" id="btn-pt-add" style="flex:1">+ corner</button>' +
                 '<button class="btn" id="btn-pt-drop" style="flex:1"' + (s.pts.length <= 6 ? ' disabled' : '') + '>− corner</button>' +
                 '<button class="btn" id="btn-square" style="flex:1">Square it</button></div>';
+        } else if (S.sel.kind === 'vents') {
+            html += numRow('x', 'x', s.x) + numRow('y', 'y', s.y) +
+                numRow('every', 'every', s.every, 0.1, 'Seconds from one eruption to the next') +
+                numRow('blows for', 'run', s.run, 0.1, 'Seconds it blows each time') +
+                numRow('first at', 'at', s.at, 0.1, 'When in the hole\'s clock the first eruption starts') +
+                '<div class="hint" style="margin-top:6px">A ball over the vent while it blows is thrown up for ' +
+                C.VENT_AIR + 's and carries on in the air on the line it had. Keep it on open ground: off water, lava, ' +
+                'slopes and chutes, clear of walls, and well off the tee and the cup.</div>';
         } else if (S.sel.kind === 'tunnels') {
             html += numRow('mouth x', 'x', s.x) + numRow('mouth y', 'y', s.y) +
                 numRow('far x', 'tx', s.tx) + numRow('far y', 'ty', s.ty) +
@@ -963,6 +1001,19 @@
                 numRow('accel y', 'ay', s.ay, 10, 'Positive is downward — y grows toward the bottom of the field') +
                 '<div class="hint" style="margin-top:6px">A slope must not reach a cushion or a wall it can pin the ball ' +
                 'against: a ball inside a slope zone is never counted as at rest, so it would rattle there for ever.</div>';
+        }
+
+        if (S.sel.kind === 'avalanches') {
+            html += '<div class="subhead">Slides</div>' +
+                '<div class="row"><span class="lbl">downhill</span><span class="field"><select data-field="dir">' +
+                ['down', 'up', 'left', 'right'].map(function (d) {
+                    return '<option value="' + d + '"' + (s.dir === d ? ' selected' : '') + '>' + d + '</option>';
+                }).join('') + '</select></span></div>' +
+                numRow('every', 'every', s.every, 0.1, 'Seconds from one slide setting off to the next') +
+                numRow('first at', 'at', s.at, 0.1, 'When in the hole\'s clock the first slide sets off') +
+                '<div class="hint" style="margin-top:6px">A slide runs the chute at ' + C.AVALANCHE_SPEED + 'px/s and ' +
+                'carries whatever it is over out of the foot. Every point must lie clear for ' + C.AVALANCHE_CLEAR +
+                's of each cycle, and one slide must be gone before the next sets off.</div>';
         }
 
         if (S.sel.kind === 'walls') {
@@ -1081,6 +1132,7 @@
             return;
         }
         if (f === 'axis') { target.move.axis = el.value; return; }
+        if (f === 'dir') { target.dir = el.value; return; }
         if (f === 'amp' || f === 'speed' || f === 'phase') {
             target.move[f] = parseFloat(el.value) || 0;
             return;
@@ -1132,7 +1184,7 @@
         function ok(cond, label, why) { add(cond ? 'pass' : 'fail', label, cond ? '' : why); }
 
         var rects = [], polys = [];
-        ['walls', 'water', 'sand', 'rough', 'ice', 'slopes'].forEach(function (k) {
+        ['walls', 'water', 'lava', 'sand', 'rough', 'ice', 'slopes', 'avalanches'].forEach(function (k) {
             h[k].forEach(function (r) { (r.pts ? polys : rects).push({ k: k, r: r }); });
         });
 
@@ -1159,8 +1211,8 @@
             });
             ok(slim.length === 0, 'every polygon is at least ' + MIN_SIDE + 'px across',
                 slim.length + ' too thin, or with fewer than three corners');
-            ok(polys.every(function (o) { return POLY_KINDS[o.k]; }), 'only water, sand, rough and ice have corners',
-                'a wall at an angle is a rail; a slope stays a rectangle');
+            ok(polys.every(function (o) { return POLY_KINDS[o.k]; }), 'only water, lava, sand, rough and ice have corners',
+                'a wall at an angle is a rail; a slope and a chute stay rectangles');
         }
         if (h.rails.length) {
             var railThin = h.rails.filter(function (r) { return !(r.w >= MIN_SIDE); });
@@ -1194,8 +1246,8 @@
             return P.circleRail(h.tee.x, h.tee.y, C.BALL_R, r) !== null;
         }) || h.bumpers.some(function (b) {
             return P.circleCircle(h.tee.x, h.tee.y, C.BALL_R, b) !== null;
-        }) || P.zoneAt(h.water, h.tee.x, h.tee.y) !== null;
-        ok(!teeBlocked, 'the ball does not start in a wall, a post or a lake');
+        }) || P.zoneAt(h.water, h.tee.x, h.tee.y) !== null || P.zoneAt(h.lava, h.tee.x, h.tee.y) !== null;
+        ok(!teeBlocked, 'the ball does not start in a wall, a post, a lake or lava');
 
         var cupBlocked = h.walls.some(function (w) {
             return P.circleRect(h.hole.x, h.hole.y, C.HOLE_R, P.wallRect(w, 0)) !== null;
@@ -1203,8 +1255,8 @@
             return P.circleRail(h.hole.x, h.hole.y, C.HOLE_R, r) !== null;
         }) || h.bumpers.some(function (b) {
             return P.circleCircle(h.hole.x, h.hole.y, C.HOLE_R, b) !== null;
-        }) || P.zoneAt(h.water, h.hole.x, h.hole.y) !== null;
-        ok(!cupBlocked, 'the cup is clear of walls, posts and water',
+        }) || P.zoneAt(h.water, h.hole.x, h.hole.y) !== null || P.zoneAt(h.lava, h.hole.x, h.hole.y) !== null;
+        ok(!cupBlocked, 'the cup is clear of walls, posts, water and lava',
             'a flag half-buried is unputtable from one side');
 
         var pinched = [];
@@ -1269,11 +1321,11 @@
                     return P.circleCircle(m.x, m.y, TR + C.BALL_R, b) !== null;
                 }) || h.rails.some(function (r) {
                     return P.circleRail(m.x, m.y, TR + C.BALL_R, r) !== null;
-                }) || h.water.some(function (r) {
+                }) || h.water.concat(h.lava).some(function (r) {
                     return touches(m.x, m.y, TR + C.BALL_R, r);
                 });
             });
-            ok(crowded.length === 0, 'tunnel mouths are clear of walls, posts and water',
+            ok(crowded.length === 0, 'tunnel mouths are clear of walls, posts, water and lava',
                 crowded.length + ' mouth(s) crowded — a gate\'s whole travel counts');
             ok(!mouths.some(function (m) {
                 return h.slopes.some(function (r) { return touches(m.x, m.y, TR, r); });
@@ -1289,6 +1341,50 @@
                 });
             });
             ok(touching === 0, 'no two tunnel mouths overlap', touching + ' pair(s) too close');
+        }
+
+        /* Avalanche chutes — generator.js → validateHole, ported. A slide
+           has to be something you can wait out: every point clear for
+           AVALANCHE_CLEAR seconds a cycle, one slide gone before the next
+           sets off, and the tee and the cup off the chute. */
+        if (h.avalanches.length) {
+            var clash = h.avalanches.filter(function (a) {
+                var L = a.dir === 'left' || a.dir === 'right' ? a.w : a.h, len = a.len || C.AVALANCHE_LEN;
+                return !(a.every > 0) || a.every < (L + len) / C.AVALANCHE_SPEED;
+            });
+            ok(clash.length === 0, 'one slide at a time in every chute',
+                clash.length + ' chute(s) send the next slide before the last has cleared — slow them down');
+            var shut = h.avalanches.filter(function (a) {
+                return a.every - (a.len || C.AVALANCHE_LEN) / C.AVALANCHE_SPEED < C.AVALANCHE_CLEAR;
+            });
+            ok(shut.length === 0, 'every chute lies clear long enough to cross',
+                shut.length + ' chute(s) are covered too much of the time');
+            ok(!h.avalanches.some(function (a) {
+                return P.circleRect(h.tee.x, h.tee.y, C.BALL_R + 12, a) || P.circleRect(h.hole.x, h.hole.y, C.HOLE_R + 24, a);
+            }), 'the tee and the cup are off every chute', 'a slide would carry the ball off before it was played, or out of the cup');
+        }
+
+        /* Geysers — ported the same way. A vent is a disc of open ground:
+           blowing for part of its cycle, off the edge, clear of anything
+           solid, wet or burning, off slopes and chutes, off the tee and well
+           off the cup. */
+        if (h.vents.length) {
+            var VR = C.VENT_R, rim = C.BALL_R + 1;
+            ok(h.vents.every(function (v) { return v.every > 0 && v.run > 0.3 && v.run <= v.every - 0.8; }),
+                'every geyser blows for part of its cycle', 'one never rests, or never blows');
+            ok(h.vents.every(function (v) {
+                return v.x - VR > rim && v.x + VR < C.WORLD_W - rim && v.y - VR > rim && v.y + VR < C.WORLD_H - rim;
+            }), 'every geyser is on the field', 'a vent runs over the cushion');
+            ok(!h.vents.some(function (v) {
+                return h.walls.some(function (w) { return P.circleRect(v.x, v.y, VR + C.BALL_R, P.wallRect(w, 0)) !== null; }) ||
+                    h.bumpers.some(function (b) { return P.circleCircle(v.x, v.y, VR + C.BALL_R, b) !== null; }) ||
+                    h.rails.some(function (r) { return P.circleRail(v.x, v.y, VR + C.BALL_R, r) !== null; }) ||
+                    h.water.concat(h.lava, h.slopes, h.avalanches).some(function (z) { return touches(v.x, v.y, VR, z); });
+            }), 'geysers stand on open ground', 'a vent touches a wall, a post, water, lava, a slope or a chute');
+            ok(!h.vents.some(function (v) {
+                return Math.hypot(v.x - h.tee.x, v.y - h.tee.y) < VR + C.BALL_R + 12 ||
+                       Math.hypot(v.x - h.hole.x, v.y - h.hole.y) < VR + C.HOLE_R + 40;
+            }), 'geysers keep off the tee and the cup', 'move the vent further away');
         }
 
         /* A ball at rest on a slope is not at rest — the stop check skips
@@ -1467,6 +1563,14 @@
         if (kind === 'bumpers') return 'post(' + n(s.x) + ', ' + n(s.y) + ', ' + n(s.r) + ')';
         if (kind === 'tunnels') return 'tunnel(' + n(s.x) + ', ' + n(s.y) + ', ' + n(s.tx) + ', ' + n(s.ty) + ')';
         if (kind === 'rails') return 'rail(' + n(s.x) + ', ' + n(s.y) + ', ' + n(s.tx) + ', ' + n(s.ty) + ', ' + n(s.w) + ')';
+        if (kind === 'vents') return 'vent(' + n(s.x) + ', ' + n(s.y) + ', ' + n(s.every) + ', ' + n(s.at) + ', ' + n(s.run) + ')';
+        if (kind === 'avalanches') {
+            if (typeof s.len === 'number') {
+                return '{ x: ' + n(s.x) + ', y: ' + n(s.y) + ', w: ' + n(s.w) + ', h: ' + n(s.h) + ', dir: ' + q(s.dir) +
+                    ', every: ' + n(s.every) + ', at: ' + n(s.at) + ', len: ' + n(s.len) + ' }';
+            }
+            return 'chute(' + n(s.x) + ', ' + n(s.y) + ', ' + n(s.w) + ', ' + n(s.h) + ', ' + q(s.dir) + ', ' + n(s.every) + ', ' + n(s.at) + ')';
+        }
         if (s.pts) return 'poly(' + s.pts.map(n).join(', ') + ')';
         if (kind === 'slopes') {
             return '{ x: ' + n(s.x) + ', y: ' + n(s.y) + ', w: ' + n(s.w) + ', h: ' + n(s.h) +
@@ -1544,8 +1648,10 @@
         var tunnel = function (x, y, tx, ty) { return { x: x, y: y, tx: tx, ty: ty }; };
         var rail = function (x, y, tx, ty, w) { return { x: x, y: y, tx: tx, ty: ty, w: w || 24 }; };
         var poly = function () { return { pts: Array.prototype.slice.call(arguments) }; };
-        var fn = new Function('r', 'post', 'tunnel', 'rail', 'poly', 'return (' + text + ');');
-        var obj = fn(r, post, tunnel, rail, poly);
+        var chute = function (x, y, w, h, dir, every, at) { return { x: x, y: y, w: w, h: h, dir: dir, every: every, at: at || 0 }; };
+        var vent = function (x, y, every, at, run) { return { x: x, y: y, every: every, at: at || 0, run: run || 1 }; };
+        var fn = new Function('r', 'post', 'tunnel', 'rail', 'poly', 'chute', 'vent', 'return (' + text + ');');
+        var obj = fn(r, post, tunnel, rail, poly, chute, vent);
         if (!obj || typeof obj !== 'object') throw new Error('that is not a hole');
         return normalize(obj);
     }
@@ -1800,7 +1906,8 @@
     var TOOL_KEYS = {
         '1': 'walls', '2': 'water', '3': 'sand', '4': 'rough',
         '5': 'ice', '6': 'bumpers', '7': 'slopes', '8': 'tee', '9': 'hole', '0': 'tunnels',
-        'l': 'rails', 'L': 'rails'
+        'l': 'rails', 'L': 'rails', 'h': 'lava', 'H': 'lava',
+        'a': 'avalanches', 'A': 'avalanches', 'y': 'vents', 'Y': 'vents'
     };
 
     window.addEventListener('keydown', function (e) {
@@ -1990,6 +2097,18 @@
         bad4.tunnels.push({ x: bad4.hole.x + 20, y: bad4.hole.y, tx: 300, ty: 120 });
         check('a tunnel mouth on the cup is caught', runChecks(bad4).some(function (c) {
             return c.level === 'fail' && /tee and the cup/.test(c.label);
+        }));
+
+        var bad7 = normalize(GOLF.COURSE[0]);
+        bad7.avalanches.push({ x: bad7.tee.x - 60, y: 0, w: 120, h: 400, dir: 'down', every: 4, at: 0 });
+        check('a chute over the tee is caught', runChecks(bad7).some(function (c) {
+            return c.level === 'fail' && /off every chute/.test(c.label);
+        }));
+
+        var bad8 = normalize(GOLF.COURSE[0]);
+        bad8.vents.push({ x: bad8.hole.x + 10, y: bad8.hole.y, every: 3, at: 0, run: 1 });
+        check('a geyser on the cup is caught', runChecks(bad8).some(function (c) {
+            return c.level === 'fail' && /geysers keep off/.test(c.label);
         }));
 
         // Undo has to restore the shape that was there, not merely a shape.

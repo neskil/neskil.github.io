@@ -12,7 +12,7 @@
 
    **Nothing a player had is taken away.** Anyone with a save from before
    this file existed is a veteran, and a veteran starts with every course
-   open — locking the Wild Nine on somebody who has a record on it would be
+   open — locking a card on somebody who has a record on it would be
    the game forgetting them. For the same reason a course, once started, is
    granted for good: raising a threshold later cannot shut a door on a round
    already in progress.
@@ -29,7 +29,7 @@
     /* The things a first round has to be told about, in the order they are
        likely to turn up. `gates` is a moving wall rather than a list of its
        own, because a wall that holds still needs no introduction. */
-    var LESSONS = ['rough', 'sand', 'water', 'ice', 'gates', 'bumpers', 'slopes', 'tunnels'];
+    var LESSONS = ['rough', 'sand', 'water', 'ice', 'gates', 'bumpers', 'slopes', 'tunnels', 'avalanches', 'lava', 'vents'];
     // Everything a player of the old game has already met.
     var OLD_LESSONS = ['rough', 'sand', 'water', 'ice', 'gates', 'bumpers', 'slopes'];
 

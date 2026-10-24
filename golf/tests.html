@@ -715,6 +715,94 @@
         })();
 
         /* ── rails and polygons ─────────────────────────────────────────── */
+        section('Avalanches, lava and geysers');
+
+        /* Three hazards on a clock or a temperature. A chute's slide is a
+           band you can watch coming and wait out, and it carries what it is
+           over to the foot; lava is water nothing skips across; a geyser lifts
+           a ball over what is beyond while it blows and is a grate while it
+           does not — and none of the three may hand the ball energy it did
+           not have, except the slide, which is a moving thing pushing. */
+        (function () {
+            function r(x, y, w, h) { return { x: x, y: y, w: w, h: h }; }
+            function field(extra) {
+                var f = { tee: { x: 100, y: 320 }, hole: { x: 880, y: 320 } };
+                GOLF.HAZARD_KEYS.forEach(function (k) { f[k] = []; });
+                Object.keys(extra).forEach(function (k) { f[k] = extra[k]; });
+                return f;
+            }
+
+            // The slide's arithmetic.
+            var a = { x: 400, y: 0, w: 120, h: 500, dir: 'down', every: 4, at: 1 };
+            var len = C.AVALANCHE_LEN, V = C.AVALANCHE_SPEED;
+            assert('before a slide sets off the chute is clear', P.slideAt(a, 0.99) === null || P.slideAt(a, 0.99).from >= 500);
+            var band = P.slideAt(a, 1 + 200 / V);
+            assert('a slide is a band LEN deep, its front SPEED px a second down the chute',
+                band && approx(band.to, 200, 1e-6) && approx(band.to - band.from, len, 1e-6));
+            var covered = 0;
+            for (var t = 0; t < 4; t += 0.005) {
+                var b = P.slideAt(a, t);
+                if (b && b.from <= 250 && b.to >= 250) covered += 0.005;
+            }
+            assert('each point of the chute is under a slide for LEN / SPEED a cycle', approx(covered, len / V, 0.02),
+                covered.toFixed(3) + 's');
+            assert('and clear for the rest of it', 4 - covered >= C.AVALANCHE_CLEAR);
+            assert('the downhill turns with the chute', P.chuteDir({ dir: 'left' }).x === -1 && P.chuteDir({ dir: 'up' }).y === -1);
+
+            // A ball crossing the chute: between slides it goes straight
+            // over, and under one it is carried down to the foot.
+            var f = field({ avalanches: [a], sand: [r(380, 520, 160, 120)] });
+            var clear = P.simulateShot(f, { x: 200, y: 250 }, 0, 700, 2.6);
+            assert('between slides a putt crosses the chute on its line', clear.ball.x > 520 && approx(clear.ball.y, 250, 2),
+                clear.ball.x.toFixed(0) + ',' + clear.ball.y.toFixed(0));
+            var caught = P.simulateShot(f, { x: 330, y: 250 }, 0, 400, 1 + 250 / V - 0.2);
+            assert('a ball the slide is over goes with it, out of the foot', caught.ball.y > 500,
+                caught.ball.x.toFixed(0) + ',' + caught.ball.y.toFixed(0));
+
+            // A ball resting in the chute is not safe there: the next slide
+            // takes it, whether or not anybody played it.
+            var rest = P.createWorld(f, { x: 460, y: 300 }, 0);
+            for (var i = 0; i < 120 * 4; i++) P.advance(rest, 1 / 120);
+            assert('a ball left in a chute is swept away by the next slide', rest.ball.y > 500, rest.ball.y.toFixed(0));
+            var still = P.createWorld(f, { x: 600, y: 300 }, 0);
+            for (i = 0; i < 120 * 4; i++) P.advance(still, 1 / 120);
+            assert('one beside it is not', still.ball.x === 600 && still.ball.y === 300);
+
+            // Lava: no pace is enough.
+            var hot = field({ lava: [r(400, 0, 60, 640)], water: [r(600, 0, 60, 640)] });
+            var burnt = P.simulateShot(hot, { x: 300, y: 320 }, 0, C.MAX_POWER, 0);
+            assert('a full-power ball into lava does not skip — it is gone', burnt.splash && burnt.lava && burnt.skips === 0);
+            var wet = P.simulateShot(field({ water: [r(400, 0, 60, 640)] }), { x: 300, y: 320 }, 0, C.MAX_POWER, 0);
+            assert('the same ball skips the same width of water', wet.skips > 0 && !wet.splash);
+            var slow = P.simulateShot(hot, { x: 300, y: 320 }, 0, 200, 0);
+            assert('and a slow one is gone too, as into water', slow.splash && slow.lava);
+
+            // Geysers.
+            var vt = { x: 400, y: 320, every: 3, at: 0, run: 1 };
+            var spring = field({ vents: [vt], lava: [r(470, 0, 100, 640)] });
+            assert('a vent blows for `run` of every `every`',
+                P.ventBlowing(vt, 0.5) && !P.ventBlowing(vt, 1.5) && P.ventBlowing(vt, 3.2));
+            var up = P.createWorld(spring, { x: 330, y: 320 }, 0);
+            P.launch(up, 0, 450);
+            var lifted = false, fastest = 0, liftSpeed = 0, rising = false;
+            for (i = 0; i < 1200 && up.moving && !up.splash; i++) {
+                var sp = P.speedOf(up.ball);
+                var ev = P.advance(up, 1 / 120);
+                if (ev.vent) { lifted = true; liftSpeed = sp; }
+                if (lifted && P.speedOf(up.ball) > liftSpeed + 1e-6) rising = true;
+                if (up.air > 0) fastest = Math.max(fastest, up.airMax);
+            }
+            assert('a ball over a blowing vent is thrown up', lifted && approx(fastest, C.VENT_AIR, 1e-9));
+            assert('and carried on its line over the lava beyond', !up.splash && up.ball.x > 570 && approx(up.ball.y, 320, 1),
+                up.ball.x.toFixed(0) + (up.splash ? ' (burnt)' : ''));
+            assert('a vent lifts — it never adds speed', !rising);
+            var quiet = P.simulateShot(spring, { x: 330, y: 320 }, 0, 450, 1.4);
+            assert('the same putt over a quiet vent rolls on into the lava', quiet.splash && quiet.lava);
+            var sat = P.createWorld(spring, { x: 400, y: 320 }, 0.2);
+            for (i = 0; i < 120 * 3; i++) P.advance(sat, 1 / 120);
+            assert('a ball resting on a vent is juggled, and stays put', approx(sat.ball.x, 400, 1e-6) && approx(sat.ball.y, 320, 1e-6) && !sat.splash);
+        })();
+
         section('Rails and polygons');
 
         /* The two shapes that let a hole be drawn on the slant: a wall at any
@@ -887,7 +975,8 @@
                 var keep = SCN.keepouts(e.h);
                 d.decals.forEach(function (p) {
                     if (keep.some(function (k) { return Math.hypot(p.x - k.x, p.y - k.y) < k.r; })) problems.push(e.tag + ': a decal on the tee, the cup or a mouth');
-                    if (P.zoneAt(e.h.water, p.x, p.y) || P.zoneAt(e.h.sand, p.x, p.y) || P.zoneAt(e.h.ice, p.x, p.y)) problems.push(e.tag + ': a decal in a hazard');
+                    if (P.zoneAt(e.h.water, p.x, p.y) || P.zoneAt(e.h.sand, p.x, p.y) || P.zoneAt(e.h.ice, p.x, p.y) ||
+                        P.zoneAt(e.h.lava, p.x, p.y) || P.zoneAt(e.h.avalanches, p.x, p.y)) problems.push(e.tag + ': a decal in a hazard');
                 });
                 d.shore.concat(d.pads, d.ducks).forEach(function (p) {
                     if (!P.zoneAt(e.h.water, p.x, p.y)) problems.push(e.tag + ': water dressing out of the water');
@@ -942,9 +1031,9 @@
 
         /* Every hole on the rack, course by course, in the order the rack
            lists them. The order matters to the shared random streams below:
-           the eighteen come first, so their shots are the shots they have
-           always been played with and adding a course cannot turn one of
-           them red. */
+           the starter comes first, so its shots are the shots it has always
+           been played with and adding a course cannot turn one of them
+           red. */
         function byId(id) {
             return GOLF.COURSES.filter(function (c) { return c.id === id; })[0] || null;
         }
@@ -971,7 +1060,7 @@
                deliberate one made here as well as in courses.js. Pinned by
                id rather than by rack position, because the order of the rack
                is a matter of taste and the length of a card is not. */
-            var counts = { links: 18, short: 6, wild: 9, tide: 9, warren: 9 };
+            var counts = { short: 6, links: 6, tide: 6, wild: 6, warren: 6, alpine: 6, ember: 6 };
             Object.keys(counts).forEach(function (id) {
                 var c = byId(id);
                 assert(id + ' is on the rack', !!c);
@@ -984,12 +1073,41 @@
                 GOLF.COURSES.length === Object.keys(counts).length, 'rack of ' + GOLF.COURSES.length);
             assert('GOLF.COURSE starts on the first course of the rack',
                 GOLF.COURSE === GOLF.COURSES[0].holes && GOLF.COURSE_ID === GOLF.COURSES[0].id);
+
+            /* Forty-two holes and no two the same name. The save file remaps a
+               rebuilt card by hole name (scoring.js), so a name has to mean
+               one hole wherever it is on the rack. */
+            var names = [];
+            GOLF.COURSES.forEach(function (c) { c.holes.forEach(function (h) { names.push(h.name); }); });
+            assert('no two holes on the rack share a name', names.every(function (n, i) { return names.indexOf(n) === i; }),
+                names.filter(function (n, i) { return names.indexOf(n) !== i; }).join(', '));
+
+            /* The ladder inside a card: it gets harder as it goes, which par
+               is the honest short measure of. A card that opened on its par
+               five would be a card in the wrong order. */
+            var climbs = GOLF.COURSES.filter(function (c) {
+                return c.holes.some(function (h, i) { return i > 0 && h.par < c.holes[i - 1].par; });
+            }).map(function (c) { return c.id; });
+            assert('par never falls going down a card', climbs.length === 0, climbs.join(', '));
+
+            /* Nine holes in ten on the old rack ran left to right. A card is
+               a place when its holes face different ways. */
+            var ways = GOLF.COURSES.map(function (c) {
+                var dirs = {};
+                c.holes.forEach(function (h) {
+                    var dx = h.hole.x - h.tee.x, dy = h.hole.y - h.tee.y;
+                    dirs[Math.abs(dx) > Math.abs(dy) * 2 ? (dx > 0 ? 'e' : 'w') : Math.abs(dy) > Math.abs(dx) * 2 ? (dy > 0 ? 's' : 'n') : 'diag'] = 1;
+                });
+                return { id: c.id, n: Object.keys(dirs).length };
+            });
+            assert('every card is played in at least two directions', ways.every(function (w) { return w.n >= 2; }),
+                ways.filter(function (w) { return w.n < 2; }).map(function (w) { return w.id; }).join(', '));
         })();
 
         GOLF.COURSES.forEach(function (course) {
             var all = [], posts = [];
             course.holes.forEach(function (h) {
-                all = all.concat(h.walls, h.water, h.sand, h.rough, h.ice, h.slopes);
+                all = all.concat(h.walls, h.water, h.sand, h.rough, h.ice, h.slopes, h.lava, h.avalanches);
                 posts = posts.concat(h.bumpers);
             });
 
@@ -1001,7 +1119,8 @@
             // The normaliser exists so nothing downstream has to guard; if it
             // ever stops running, everything else fails in confusing ways.
             var lists = course.holes.every(function (h) {
-                return ['walls', 'water', 'sand', 'rough', 'ice', 'bumpers', 'slopes', 'tunnels', 'rails'].every(function (k) {
+                return ['walls', 'water', 'sand', 'rough', 'ice', 'bumpers', 'slopes', 'tunnels', 'rails',
+                        'lava', 'avalanches', 'vents'].every(function (k) {
                     return Array.isArray(h[k]);
                 });
             });
@@ -1033,11 +1152,20 @@
             var named = course.holes.every(function (h) { return h.name && h.blurb; });
             assert(course.id + ': every hole has a name and a blurb', named);
 
-            // Hazards are not decoration: each one has to be in play somewhere.
-            ['walls', 'water', 'sand', 'rough', 'ice', 'bumpers', 'slopes'].forEach(function (k) {
-                assert(course.id + ': the course uses ' + k + ' somewhere',
-                    course.holes.some(function (h) { return h[k].length > 0; }));
+            /* A card is built round one thing its place does, so it does not
+               carry every hazard the game has — the volcano has no ice — but
+               six holes of one hazard would be one hole six times. */
+            var used = GOLF.HAZARD_KEYS.filter(function (k) {
+                return course.holes.some(function (h) { return h[k].length > 0; });
             });
+            assert(course.id + ': the course uses at least four kinds of hazard', used.length >= 4, used.join(', '));
+        });
+
+        // Hazards are not decoration: each one has to be in play somewhere.
+        GOLF.HAZARD_KEYS.forEach(function (k) {
+            assert('the rack uses ' + k + ' somewhere', GOLF.COURSES.some(function (c) {
+                return c.holes.some(function (h) { return h[k].length > 0; });
+            }));
         });
 
         /* The Warren is the card with a word nobody else has, so the word has
@@ -1046,8 +1174,15 @@
         (function () {
             var warren = byId('warren');
             assert('warren: every hole has a tunnel', warren && warren.holes.every(function (h) { return h.tunnels.length > 0; }));
-            assert('warren: is the last thing the stars open',
-                warren && GOLF.COURSES.every(function (c) { return (c.unlock || 0) <= warren.unlock; }));
+            // The volcano is the card of lava, and the last the stars open.
+            var ember = byId('ember');
+            assert('ember: every hole has lava', ember && ember.holes.every(function (h) { return h.lava.length > 0; }));
+            assert('ember: is the last hand-built card the stars open',
+                ember && GOLF.COURSES.every(function (c) { return (c.unlock || 0) <= ember.unlock; }));
+            // And the mountain is the card of the clock.
+            var alpine = byId('alpine');
+            assert('alpine: most of its holes have a chute', alpine &&
+                alpine.holes.filter(function (h) { return h.avalanches.length > 0; }).length >= 4);
         })();
 
         GOLF.COURSES.forEach(function (course) {
@@ -1079,8 +1214,8 @@
                     return P.circleRail(h.tee.x, h.tee.y, C.BALL_R, r) !== null;
                 }) || h.bumpers.some(function (b) {
                     return P.circleCircle(h.tee.x, h.tee.y, C.BALL_R, b) !== null;
-                }) || P.zoneAt(h.water, h.tee.x, h.tee.y) !== null;
-            assert(tag + ': the ball does not start inside a wall, a post or a lake', !teeBlocked);
+                }) || P.zoneAt(h.water, h.tee.x, h.tee.y) !== null || P.zoneAt(h.lava, h.tee.x, h.tee.y) !== null;
+            assert(tag + ': the ball does not start inside a wall, a post, a lake or lava', !teeBlocked);
 
             // The cup needs clearance too: a flag half-buried in a wall would
             // be unputtable from one side, and a post on the lip would keep
@@ -1091,8 +1226,8 @@
                     return P.circleRail(h.hole.x, h.hole.y, C.HOLE_R, r) !== null;
                 }) || h.bumpers.some(function (b) {
                     return P.circleCircle(h.hole.x, h.hole.y, C.HOLE_R, b) !== null;
-                }) || P.zoneAt(h.water, h.hole.x, h.hole.y) !== null;
-            assert(tag + ': the cup is clear of walls, posts and water', !cupBlocked);
+                }) || P.zoneAt(h.water, h.hole.x, h.hole.y) !== null || P.zoneAt(h.lava, h.hole.x, h.hole.y) !== null;
+            assert(tag + ': the cup is clear of walls, posts, water and lava', !cupBlocked);
 
             // Two posts closer than this leave a mouth the ball cannot be
             // putted through, which is a hole that looks open and is not.
@@ -1253,24 +1388,61 @@
             /* A save from before there were per-hole bests: its best card is
                the one round it knows hole by hole, and the stars start there
                rather than at nothing. */
-            var raw = localStorage.getItem(C.SAVE_KEY);
-            localStorage.setItem(C.SAVE_KEY, JSON.stringify({ best: 40, bestVsPar: -3, rounds: 2, aces: 0, bestCard: card }));
+            var here = S.key(C.SAVE_KEY);
+            var raw = localStorage.getItem(here);
+            localStorage.setItem(here, JSON.stringify({ best: 40, bestVsPar: -3, rounds: 2, aces: 0, bestCard: card }));
             var old = S.load();
             assert('an old save\'s best card becomes its per-hole bests',
                 old.holes.length === course.length && old.holes[0] === card[0]);
-            localStorage.setItem(C.SAVE_KEY, JSON.stringify({ best: 40, holes: [2, 'x', -1] }));
+            localStorage.setItem(here, JSON.stringify({ best: 40, holes: [2, 'x', -1] }));
             var dirty = S.load();
             assert('stored per-hole bests are cleaned, not trusted',
                 dirty.holes[0] === 2 && dirty.holes[1] === null && dirty.holes[2] === null);
-            if (raw === null) localStorage.removeItem(C.SAVE_KEY); else localStorage.setItem(C.SAVE_KEY, raw);
+            if (raw === null) localStorage.removeItem(here); else localStorage.setItem(here, raw);
+
+            /* A card that has been rebuilt. The Old Course was eighteen holes
+               once; a save from then, with no names in it, is read as the old
+               card and remapped by hole name, so a best on Pinball (hole 11
+               then) is still a best on Pinball — and the best round, over a
+               card that no longer exists, is dropped. */
+            var links = GOLF.COURSES.filter(function (c) { return c.id === 'links'; })[0];
+            var legacy = S.LEGACY.links;
+            var oldCard = legacy.map(function (n, i) { return i + 1; });
+            var bare = localStorage.getItem(C.SAVE_KEY);
+            localStorage.setItem(C.SAVE_KEY, JSON.stringify({ best: 70, bestVsPar: 5, rounds: 3, aces: 1, bestCard: oldCard, holes: oldCard }));
+            var moved = S.load('links');
+            var pin = links.holes.map(function (h) { return h.name; }).indexOf('Pinball');
+            assert('a rebuilt card keeps each hole\'s best under its name',
+                moved.holes.length === links.holes.length && moved.holes[pin] === legacy.indexOf('Pinball') + 1);
+            assert('…drops the best round, which was over another card',
+                moved.best === null && moved.bestCard === null && moved.bestVsPar === null);
+            assert('…and keeps what it can still vouch for', moved.rounds === 3 && moved.aces === 1);
+            var stored = JSON.parse(localStorage.getItem(C.SAVE_KEY));
+            assert('the remap is written back at once, names and all, so the landing page never shows the old best',
+                stored.best === null && Array.isArray(stored.names) && stored.holes[pin] === moved.holes[pin]);
+            var wasId = GOLF.COURSE_ID;
+            GOLF.selectCourse('links');
+            S.save(moved);
+            var again = S.load('links');
+            GOLF.selectCourse(wasId);
+            assert('a save written now names its holes, so it is not remapped twice',
+                JSON.parse(localStorage.getItem(C.SAVE_KEY)).names.length === links.holes.length &&
+                again.holes[pin] === moved.holes[pin]);
+            if (bare === null) localStorage.removeItem(C.SAVE_KEY); else localStorage.setItem(C.SAVE_KEY, bare);
         })();
 
-        /* One card per course. Nine holes and eighteen are not comparable
+        /* One card per course. Two cards are not comparable
            totals, so they cannot share a record — and the course everyone has
            already played has to keep the bare key its record is under. */
         (function () {
-            var first = GOLF.COURSES[0].id, second = GOLF.COURSES[1].id;
-            assert('the first course keeps the bare save key', S.key(C.SAVE_KEY) === C.SAVE_KEY);
+            // Two cards that are neither the Old Course nor each other.
+            var others = GOLF.COURSES.filter(function (c) { return c.id !== 'links'; });
+            var first = others[0].id, second = others[1].id;
+            assert('the Old Course keeps the bare save key wherever it stands on the rack',
+                S.key(C.SAVE_KEY, 'links') === C.SAVE_KEY && S.key(C.ROUND_KEY, 'links') === C.ROUND_KEY &&
+                GOLF.COURSES[0].id !== 'links');
+            GOLF.selectCourse('links');
+            assert('…and while it is being played', S.key(C.SAVE_KEY) === C.SAVE_KEY);
 
             GOLF.selectCourse(second);
             assert('a second course gets a key of its own',
@@ -1291,11 +1463,11 @@
 
             assert('an id that is not on the rack changes nothing',
                 GOLF.selectCourse('no-such-course') === null && GOLF.COURSE_ID === second);
-            GOLF.selectCourse(first);
+            GOLF.selectCourse(GOLF.COURSES[0].id);
             assert('and the rack can always be put back', GOLF.COURSE === GOLF.COURSES[0].holes);
         })();
 
-        /* The round in progress. Eighteen holes is long enough that losing one
+        /* The round in progress. A round is long enough that losing one
            to a refresh matters, and every one of these rejections is a way a
            stored card could come back wrong rather than merely absent. */
         (function () {
@@ -1321,14 +1493,15 @@
             // the next change to the hole count will do the same.
             S.saveRound(2, card, course);
             assert('a card from a course of another size is discarded',
-                S.loadRound(course.slice(0, 9)) === null);
+                S.loadRound(course.slice(0, 4)) === null);
 
-            var raw = localStorage.getItem(C.ROUND_KEY);
-            localStorage.setItem(C.ROUND_KEY, '{not json');
+            var roundKey = S.key(C.ROUND_KEY);
+            var raw = localStorage.getItem(roundKey);
+            localStorage.setItem(roundKey, '{not json');
             assert('corrupt storage is discarded, not thrown', S.loadRound(course) === null);
-            localStorage.setItem(C.ROUND_KEY, JSON.stringify({ holes: course.length, holeIndex: 99, scores: [3] }));
+            localStorage.setItem(roundKey, JSON.stringify({ holes: course.length, holeIndex: 99, scores: [3] }));
             assert('an index off the end of the course is discarded', S.loadRound(course) === null);
-            if (raw) localStorage.setItem(C.ROUND_KEY, raw);
+            if (raw) localStorage.setItem(roundKey, raw);
 
             S.clearRound();
             assert('clearing a round removes it', S.loadRound(course) === null);
@@ -1360,10 +1533,10 @@
                 PR.reload();
                 assert('a first visit is not a veteran', !PR.get().veteran && !PR.get().all);
                 assert('a first visit is pointed at the starter course', PR.starter().id === 'short');
-                assert('the head of the rack and the starter are open from the start',
-                    PR.isOpen(GOLF.COURSES[0]) && PR.isOpen(byIdP('short')));
-                assert('the rest wait for stars', ['tide', 'wild', 'warren'].every(function (id) {
-                    return !PR.isOpen(byIdP(id));
+                assert('the starter heads the rack and is open from the start',
+                    GOLF.COURSES[0].id === 'short' && PR.isOpen(byIdP('short')));
+                assert('every other card waits for stars', GOLF.COURSES.slice(1).every(function (c) {
+                    return !PR.isOpen(c);
                 }));
                 assert('the first visit is written down, so the second is not mistaken for it',
                     localStorage.getItem(C.PROGRESS_KEY) !== null);
@@ -1379,19 +1552,19 @@
                     all.max === GOLF.COURSES.reduce(function (t, c) { return t + (c.record === false ? 0 : c.holes.length * 3); }, 0));
 
                 var next = PR.nextUnlock();
-                assert('the next unlock is the cheapest locked card', next && next.course.id === 'tide' && next.short === PR.need(next.course));
+                assert('the next unlock is the cheapest locked card', next && next.course.id === 'links' && next.short === PR.need(next.course));
 
                 var before = PR.openIds();
-                starsOnShort(PR.need(byIdP('tide')));
-                assert('stars read straight off the per-hole bests', PR.totalStars().got >= PR.need(byIdP('tide')));
+                starsOnShort(PR.need(byIdP('links')));
+                assert('stars read straight off the per-hole bests', PR.totalStars().got >= PR.need(byIdP('links')));
                 var fresh = PR.opened(before);
                 assert('reaching a threshold opens that course, and says so',
-                    fresh.length === 1 && fresh[0].id === 'tide' && PR.isOpen(byIdP('tide')));
-                assert('a course the stars opened is granted for good', PR.get().granted.tide === true);
+                    fresh.length === 1 && fresh[0].id === 'links' && PR.isOpen(byIdP('links')));
+                assert('a course the stars opened is granted for good', PR.get().granted.links === true);
                 localStorage.removeItem(S.key(C.SAVE_KEY, 'short'));
                 PR.reload();
-                assert('…and stays open when the stars are gone', PR.isOpen(byIdP('tide')));
-                assert('the next door along is still shut', !PR.isOpen(byIdP('wild')));
+                assert('…and stays open when the stars are gone', PR.isOpen(byIdP('links')));
+                assert('the next door along is still shut', !PR.isOpen(byIdP('tide')));
 
                 PR.grant('warren');
                 PR.reload();
@@ -1401,8 +1574,8 @@
                 assert('opening everything opens everything', PR.everythingOpen() && PR.nextUnlock() === null);
 
                 /* A veteran: somebody with a save from before stars existed.
-                   Locking the Wild Nine on a player with a record on it would
-                   be the game forgetting them. */
+                   Locking a card on a player with a record on it would be the
+                   game forgetting them. */
                 for (var j = localStorage.length - 1; j >= 0; j--) {
                     if (/^miniGolf\./.test(localStorage.key(j))) localStorage.removeItem(localStorage.key(j));
                 }
@@ -1418,8 +1591,13 @@
                 localStorage.removeItem(C.SAVE_KEY);
                 localStorage.removeItem(C.PROGRESS_KEY);
                 PR.reload();
-                var traffic = GOLF.COURSES[0].holes.filter(function (h) { return h.name === 'Traffic'; })[0];
-                assert('a moving wall is taught as a gate', PR.kindsOn(traffic).indexOf('gates') >= 0);
+                var metronome = byIdP('short').holes.filter(function (h) { return h.name === 'Metronome'; })[0];
+                assert('a moving wall is taught as a gate', PR.kindsOn(metronome).indexOf('gates') >= 0);
+                var faithful = byIdP('ember').holes.filter(function (h) { return h.name === 'Old Faithful'; })[0];
+                var tracks = byIdP('alpine').holes[0];
+                assert('lava, a geyser and a chute are each a lesson',
+                    PR.kindsOn(faithful).indexOf('lava') >= 0 && PR.kindsOn(faithful).indexOf('vents') >= 0 &&
+                    PR.kindsOn(tracks).indexOf('avalanches') >= 0);
                 var opener = GOLF.COURSES[0].holes[0];
                 assert('a still wall is not a lesson', PR.kindsOn(opener).indexOf('gates') < 0);
                 var lessonsBefore = PR.unseen(opener).length;
@@ -1972,6 +2150,7 @@
             });
             assert('every tee is on the walking map', lost.length === 0, lost.join(', '));
             assert('only a tunnel walks shorter than the crow flies', cut.length === 0, cut.join(', '));
+            // Snow Globe: the cup is shut in a box whose only door is a tunnel.
             var ferry = GOLF.COURSES.filter(function (c) { return c.id === 'warren'; })[0].holes[1];
             var fm = B.walkingMap(ferry);
             assert('…and a tunnel does',

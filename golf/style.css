@@ -698,6 +698,12 @@ kbd {
 .sw-slope { background: linear-gradient(#ffffff40, #00000060); border: 1px solid #ffffff30; }
 /* A mouth: dark, in a coloured collar. */
 .sw-tunnel { background: radial-gradient(circle, #0a0f1a 0 45%, #a78bfa 48% 100%); border-radius: 50%; }
+/* Molten, with a crust. */
+.sw-lava { background: radial-gradient(circle at 30% 35%, #ffbf47 0 25%, #f26a16 55%, #5a1a08 100%); }
+/* A lane of snow with its downhill chevron. */
+.sw-chute { background: linear-gradient(160deg, #f4f8fc 0 45%, #b8c9dc 46% 54%, #f4f8fc 55%); border: 1px solid #ffffff60; }
+/* A vent: a dark throat in a ring of crust. */
+.sw-vent { background: radial-gradient(circle, #1b130e 0 38%, #ecd66e 42% 50%, #8a7e6e 54% 100%); border-radius: 50%; }
 .sw-ball { background: radial-gradient(circle at 35% 32%, #ffffff 0 30%, #cbd5e1 75%, #94a3b8 100%); border-radius: 50%; }
 
 /* ── scorecard modal ────────────────────────────────────────────────────── */

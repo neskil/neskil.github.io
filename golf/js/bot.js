@@ -51,8 +51,8 @@
 
     /* ── the walking map ─────────────────────────────────────────────────
 
-       How far the cup is from a point *on foot*: round the walls, the posts
-       and the water rather than through them, and through a tunnel for
+       How far the cup is from a point *on foot*: round the walls, the posts,
+       the water and the lava rather than through them, and through a tunnel for
        nothing. It is what the search ranks lies by, and straight-line
        distance is exactly the wrong ruler on the holes that make a search
        necessary — a ball on the far side of a long wall is a few inches from
@@ -70,7 +70,7 @@
     function blocked(course, x, y) {
         var r = C.BALL_R * 0.8, i;
         var walls = course.walls || NONE, rails = course.rails || NONE, posts = course.bumpers || NONE;
-        if (P.zoneAt(course.water, x, y)) return true;
+        if (P.zoneAt(course.water, x, y) || P.zoneAt(course.lava, x, y)) return true;
         for (i = 0; i < walls.length; i++) {
             if (!walls[i].move && P.circleRect(x, y, r, walls[i])) return true;
         }
@@ -245,7 +245,9 @@
         var gap = opts.gap || 0;
         var rand = mulberry32(opts.seed || 1);
         var cup = course.hole;
-        var gates = (course.walls || NONE).some(function (w) { return w.move; });
+        // Anything on a clock is worth waiting for: a gate, a slide, a vent.
+        var gates = (course.walls || NONE).some(function (w) { return w.move; }) ||
+            (course.avalanches || NONE).length > 0 || (course.vents || NONE).length > 0;
         var cols = Math.ceil(C.WORLD_W / CELL);
         var map = walkingMap(course);
         var visits = {};

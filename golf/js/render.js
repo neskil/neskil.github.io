@@ -826,6 +826,23 @@
             burst(x, y, { count: Math.round(13 * k), color: SPRAY, speed: 150 * k, life: 0.5, size: 2.8, angle: angle - 1.1, spread: 0.6, lift: 50, gravity: 300 });
             burst(x, y, { count: Math.round(6 * k), color: SPRAY, speed: 40, life: 0.45, size: 2.2, lift: 140, gravity: 480 });
         },
+        /* Into the lava: no spray, a flare and smoke, and embers thrown up
+           and falling back — and the ball going under all the same. */
+        burn: function (x, y) {
+            burst(x, y, { count: 22, color: ['#fde047', '#fb923c', '#ef4444', '#ffffff'], speed: 130, life: 0.8, size: 2.6, lift: 160, gravity: 380 });
+            burst(x, y, { count: 10, color: ['rgba(60, 50, 45, 0.7)', 'rgba(110, 100, 95, 0.6)'], speed: 30, life: 1.2, size: 6, lift: 70, gravity: -20 });
+            addRing(x, y, C.BALL_R, { color: '#fdba74', grow: 30, life: 0.6, width: 3, alpha: 0.9 });
+            drown = { life: 0 };
+        },
+        // Thrown up by a geyser: a burst of spray and a ring at the vent.
+        vent: function (x, y) {
+            burst(x, y, { count: 24, color: SPRAY, speed: 110, life: 0.8, size: 2.6, lift: 260, gravity: 420 });
+            addRing(x, y, C.VENT_R, { color: '#ffffff', grow: 26, life: 0.5, width: 3, alpha: 0.8 });
+        },
+        // Caught by a slide: snow thrown up round the ball.
+        swept: function (x, y) {
+            burst(x, y, { count: 16, color: ['#ffffff', '#e2ecf6', '#cbd8e6'], speed: 90, life: 0.6, size: 3, lift: 60, gravity: 160 });
+        },
         // Down on dry ground after a skip.
         land: function (x, y, angle) {
             burst(x, y, { count: 12, color: ['#4ade80', '#3f9d55', '#86efac', '#e2e8f0'], speed: 95, life: 0.45, size: 2.4, angle: angle + Math.PI, spread: 2.4, gravity: 200 });
@@ -892,7 +909,8 @@
     function poseOf(world, dt) {
         var pose = { lift: 0, squash: 0, nx: 1, ny: 0, drown: 0 };
         if (world.air > 0 && world.airMax > 0) {
-            pose.lift = Math.sin(Math.PI * (1 - world.air / world.airMax));
+            // A geyser throws the ball far higher than a skip does.
+            pose.lift = Math.sin(Math.PI * (1 - world.air / world.airMax)) * (world.airMax > 0.3 ? 1.7 : 1);
         }
         if (squash) {
             squash.life += dt;
@@ -952,6 +970,11 @@
         // wall that holds still — then the ones that move, and the posts.
         scene.ground(g);
         L.drawWater(g, course.water, theme, v, t, clock, scene.decor, { key: state.sceneKey, res: state.res || 1, still: still });
+        L.drawLava(g, course.lava, v, still ? 0 : clock);
+        // The slides and the geysers keep the world's clock, not the
+        // screen's: they are hazards, and where one is is a fact of play.
+        L.drawSlides(g, course.avalanches, t, v, still ? 0 : clock);
+        L.drawVents(g, course.vents, t, v, still ? 0 : clock);
         drawTunnels(g, course.tunnels, t, v);
         drawHole(g, course.hole, t, state.world.ball, v);
         if (life) AMB.under(g, theme, v, clock, still);
