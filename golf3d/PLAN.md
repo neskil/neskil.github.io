@@ -368,8 +368,14 @@ the picker.
 
 ### After the rehaul
 
-- **A more fun swing.** The meter and the gate work; they are not yet a thing
-  people enjoy doing for its own sake.
+- **A more fun swing — the touch swing is on trial.** v1.103.0 cut the four
+  rotating gates to one (the owner found the rotation random and not fun) and
+  put a pull-down, swipe-up swing behind the 👆 toggle, long game and range
+  only (README → "The touch swing"). Waiting on the owner's verdict: keep it
+  as a toggle, make it the long game's default, take it to the mini courses
+  too, or drop it. Tuning to look at once it has been played on a phone: the
+  clean lean (`SWIPE.TOL_*`), the floor a miss is costed at (`SWIPE.FLOOR`),
+  and whether the speed of the swipe up should count for something.
 - **Mini golf and the long game as two games.** They share one bag and one set
   of physics and they want different ones — the bot drives The Bend and The
   Zigzag with the *driver*. Separate bags (a mini bag of putter, pitch and

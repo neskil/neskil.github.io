@@ -432,8 +432,9 @@
         // The range asks of every shot whether it went past the line (see
         // judgeRangeShot), and the gate is gone by the time it lands.
         state.shotOver = state.aim.power > state.club.power + 1e-9;
-        // A shape's strike is not a lesson's: the school grades the rhythms.
-        if (g && state.course.isRange && !g.shape) markGateLesson(g);
+        // A shape's strike is not a lesson's, and nor is a swipe: the school
+        // teaches the meter.
+        if (g && state.course.isRange && !g.shape && !g.swipe) markGateLesson(g);
         // launch() clears the spin, so the bend goes on after it.
         state.world.spin = shot.spin || 0;
         if (g) sayStrike(g);
@@ -531,7 +532,7 @@
         if (finished) {
             A.ace();
             if (G3.school.allPassed(school.progress)) {
-                toast('Swing school done — all four rhythms, and the line', 'good');
+                toast('Swing school done — the line and the strike', 'good');
                 sayInSchool(said + ' That is the lot: out on the courses, each hole uses one of these.');
             } else {
                 var next = G3.school.firstOpen(school.progress);
@@ -621,30 +622,17 @@
        which is what lets tests.html cover it without a browser. */
     var gate = null;
 
-    /* The gate is chosen by the hole, not by the stroke. Rotating it every time
-       the meter went past a full swing meant the rhythm you had just started to
-       read was replaced by a different one on the very next thrash — four gates
-       met at once and none of them learned. A hole is long enough to get the
-       feel of one and short enough that a round still meets all four. */
     function openGate(over) {
-        // On the range the lesson picks it, so a rhythm can be practised on
-        // its own; everywhere else it is the hole's.
-        var variant = state.course.isRange ? G3.school.variantFor(school.lesson) : SW.pick(state.holeIndex);
-        /* A shape inside a full swing is struck on the plain rhythm: the
-           rotating gates are the overdraw's, and a shot-maker should not have
-           to learn a hole's rhythm to play the shot they picked. */
-        var shaped = shapeNow() !== 'straight';
-        if (shaped && !SW.arms(over)) variant = 'tempo';
-        gate = SW.start(variant, SW.shapeOver(shapeNow(), over), state.aim.power / maxPower());
-        gate.shape = shaped ? shapeNow() : null;
+        gate = SW.start(SW.shapeOver(shapeNow(), over));
+        gate.shape = shapeNow() !== 'straight' ? shapeNow() : null;
         A.tick(0.5);
         $('power-track').classList.add('gate');
         $('gate').hidden = false;
         $('gate-zone').style.left = ((gate.mark - gate.win) * 100).toFixed(2) + '%';
         $('gate-zone').style.width = (gate.win * 200).toFixed(2) + '%';
-        $('gate-name').textContent = gate.shape && variant === 'tempo'
-            ? 'Strike on the line — ' + SHAPE_SAYS[gate.shape].toLowerCase()
-            : GATE_SAYS[gate.variant];
+        $('gate-name').textContent = gate.shape
+            ? 'Strike in the green — ' + SHAPE_SAYS[gate.shape].toLowerCase()
+            : 'Strike in the green';
         syncGate();
         syncSwing();
     }
@@ -658,11 +646,7 @@
 
     function pressGate() {
         if (!gate) return;
-        var wasStage = gate.stage;
         SW.press(gate);
-        // The press at the top of the backswing is not the strike: it is
-        // answered with a tick and the marker keeps going.
-        if (!gate.done) { if (gate.stage !== wasStage) A.tick(0.65); syncGate(); return; }
         strike(gate);
     }
 
@@ -677,27 +661,17 @@
         if (!gate) return;
         var m = $('gate-mark');
         m.style.left = (gate.pos * 100).toFixed(2) + '%';
-        m.hidden = !SW.visible(gate);
-        $('gate').classList.toggle('live', SW.live(gate));
-        $('gate').classList.toggle('backswing', gate.variant === 'double' && gate.stage === 0);
-        // On the gate with a backswing press, the target moves — so the zone
-        // has to move with it, or it is pointing at the wrong half of the bar.
-        var t = SW.targetOf(gate);
-        $('gate-zone').style.left = ((t - gate.win) * 100).toFixed(2) + '%';
+        // Green while the marker is on its way to the zone or inside it;
+        // once it is past, the chance has gone and the zone says so.
+        $('gate').classList.toggle('live', gate.pos <= gate.mark + gate.win);
         syncSchoolStep();
     }
-
-    var GATE_SAYS = {
-        tempo: 'Strike on the line',
-        'return': 'Catch it coming back',
-        double: 'Press at the top, then strike',
-        fade: 'It goes dark — strike on rhythm'
-    };
 
     /* What the strike was, in the fewest words that are still an answer. The
        ball is about to say the rest of it. */
     function sayStrike(g) {
         if (g.shape) { sayShape(g); return; }
+        if (g.swipe) { saySwipe(g); return; }
         if (g.perfect) { toast('Flushed it — all of the overdraw, none of the spray'); return; }
         var a = Math.abs(g.off);
         var way = g.off < 0 ? 'pulled' : 'pushed';
@@ -710,22 +684,27 @@
 
        Draw, fade, backspin or topped — whichever of them the club in hand can
        play (CONFIG `shapes`; swing.js `shape` for what each does to the ball,
-       and why each one has to be struck). One chip above the meter steps
-       through them, and a key each from the keyboard: Z draw, X fade, Q
-       backspin, E topped, and the same key again to go back to straight. On a
-       club with no shapes the chip is hidden rather than greyed: a control
-       that is there and does nothing is a question every shot. */
+       and why each one has to be struck). The button above the meter is a
+       ball with a dot where the club will meet it, and pressing it opens a
+       bigger ball to move the dot on: the top tops it, underneath spins it
+       back, either side bends it that way. It replaced a chip that cycled
+       through five words, which was a menu you had to read every time and
+       said nothing about what any of them did. A key each from the keyboard
+       still: Z draw, X fade, Q backspin, E topped, and the same key again to
+       go back to straight. On a club with no shapes the button is hidden
+       rather than greyed: a control that is there and does nothing is a
+       question every shot. */
     var SHAPE_SAYS = { straight: 'Straight', draw: 'Draw', fade: 'Fade', backspin: 'Backspin', topped: 'Topped' };
     var SHAPE_KEYS = { z: 'draw', x: 'fade', q: 'backspin', e: 'topped' };
-    // The chip's little picture of the flight, drawn up the chip from the
-    // ball at the bottom: out to one side and back, straight up, up and back
-    // on itself, or skipping along low.
-    var SHAPE_PATH = {
-        straight: 'M7 15 L 7 1',
-        draw: 'M7 15 C 12 10, 12 5, 5 1',
-        fade: 'M7 15 C 2 10, 2 5, 9 1',
-        backspin: 'M7 15 L 7 5 C 7 1, 12 1, 12 5 L 12 8',
-        topped: 'M7 15 L 7 12 M 7 9.5 L 7 7.5 M 7 5 L 7 4'
+    /* Where on the ball each one is struck, as a fraction of the radius
+       (+x right, +y down — the screen's way), and the few words under it on
+       the pad. The ball button's dot and the pad's dots both read `at`. */
+    var SHAPE_INFO = {
+        topped:   { at: [0, -0.62], says: 'low, and runs' },
+        draw:     { at: [-0.62, 0], says: 'curves left' },
+        straight: { at: [0, 0],     says: '' },
+        fade:     { at: [0.62, 0],  says: 'curves right' },
+        backspin: { at: [0, 0.62],  says: 'stops dead' }
     };
 
     function shapesOf(club) { return ['straight'].concat((club || state.club).shapes || []); }
@@ -743,7 +722,7 @@
     }
 
     function canShape() {
-        return !!(state && state.phase === 'aim' && !gate && state.club.shapes);
+        return !!(state && state.phase === 'aim' && !gate && !swipe && state.club.shapes);
     }
 
     // A key: that shape, or back to straight if it is the one already set.
@@ -754,12 +733,35 @@
         return true;
     }
 
-    // The chip cycles, because a thumb has one button.
-    function cycleShape() {
-        if (!canShape()) return;
-        var list = shapesOf();
-        setShape(list[(list.indexOf(shapeNow()) + 1) % list.length]);
-        A.tick(0.4);
+    function buildShapePad() {
+        var ball = $('sp-ball');
+        SW.SHAPES.forEach(function (name) {
+            var info = SHAPE_INFO[name];
+            var b = document.createElement('button');
+            b.type = 'button';
+            b.className = 'sp-opt sp-' + name;
+            b.dataset.shape = name;
+            b.style.setProperty('--x', info.at[0]);
+            b.style.setProperty('--y', info.at[1]);
+            b.innerHTML = '<i class="sp-dot" aria-hidden="true"></i><span class="sp-label"><b>' +
+                SHAPE_SAYS[name] + '</b>' + (info.says ? '<small>' + info.says + '</small>' : '') + '</span>';
+            b.addEventListener('click', function () {
+                if (!canShape() || b.disabled) return;
+                setShape(name);
+                A.tick(0.4);
+                toggleShapePad(false);
+            });
+            ball.appendChild(b);
+        });
+    }
+
+    function toggleShapePad(open) {
+        var pad = $('shape-pad');
+        if (open === undefined) open = pad.hidden;
+        if (open && !canShape()) open = false;
+        pad.hidden = !open;
+        $('btn-shape').setAttribute('aria-expanded', open ? 'true' : 'false');
+        if (open) syncShape();
     }
 
     function syncShape() {
@@ -767,10 +769,18 @@
         if (!el || !state) return;
         var now = shapeNow();
         el.hidden = !state.club.shapes;
+        if (el.hidden && !$('shape-pad').hidden) toggleShapePad(false);
         el.classList.toggle('on', now !== 'straight');
         $('shape-val').textContent = SHAPE_SAYS[now];
-        $('shape-path').setAttribute('d', SHAPE_PATH[now]);
+        $('shape-dot').style.setProperty('--x', SHAPE_INFO[now].at[0]);
+        $('shape-dot').style.setProperty('--y', SHAPE_INFO[now].at[1]);
         el.setAttribute('aria-label', 'Shot shape: ' + SHAPE_SAYS[now] + '. Press to change.');
+        var can = shapesOf();
+        Array.prototype.forEach.call($('sp-ball').children, function (b) {
+            b.disabled = can.indexOf(b.dataset.shape) < 0;
+            b.classList.toggle('on', b.dataset.shape === now);
+            b.setAttribute('aria-pressed', b.dataset.shape === now ? 'true' : 'false');
+        });
     }
 
     /* A shaped strike says what happened to the shape, because that is what
@@ -790,6 +800,201 @@
         var said = SHAPE_MISS[g.shape][g.off < 0 ? 0 : 1];
         toast(a < 0.34 ? 'Nearly — ' + said.charAt(0).toLowerCase() + said.slice(1) + ', a little' : said,
             a < 0.75 ? undefined : 'bad');
+    }
+
+    /* ── the touch swing ────────────────────────────────────────────────────
+
+       A trial, behind the 👆 toggle in ☰, and on the long game (and the
+       range, to practise it) only. Press in the lane up the middle of the
+       stage, pull straight down to take the club back — the meter fills as
+       you go, and the cone grows with it — then swipe up through where you
+       started. Crossing that line is the strike; letting go before it is
+       changing your mind, and costs nothing. How straight the swipe up was
+       is how straight the ball goes (swing.js `swipeOff`): drift right and
+       it is pushed right and fades, drift left and it is pulled and draws.
+
+       The arithmetic is swing.js's; this is the thumb. While it is on, the
+       meter is a readout rather than a slider, and Swing gives its place to a
+       line saying what to do — the space bar still plays the meter's way. */
+    var swipe = null;        // the gesture in progress, null when there is none
+    var swipeOn = (function () {
+        try { return localStorage.getItem(C.SWIPE_KEY) === '1'; } catch (e) { return false; }
+    })();
+
+    function swipeWanted() { return swipeOn; }
+
+    // Is the touch swing the way to hit *this* shot?
+    function swipeLive() {
+        if (!state || !state.course || !swipeWanted()) return false;
+        if (state.course.isRange) return true;
+        var c = G3.courseById(holeRef(state.holeIndex).id) || state.course;
+        return c.group === 'long';
+    }
+
+    function toggleSwipe() {
+        var on = swipeOn = !swipeOn;
+        try { localStorage.setItem(C.SWIPE_KEY, on ? '1' : '0'); } catch (e) { /* ignore */ }
+        syncSwipe();
+        toast(on ? (swipeLive() ? 'Touch swing on — pull down in the middle, swipe up to hit'
+                                : 'Touch swing on — it takes over on the long game')
+                 : 'Touch swing off — back to the meter');
+    }
+
+    function syncSwipe() {
+        var want = swipeWanted();
+        $('btn-swipe').classList.toggle('on', want);
+        $('btn-swipe').setAttribute('aria-pressed', want ? 'true' : 'false');
+        var live = swipeLive();
+        document.body.classList.toggle('swipe-swing', live);
+        var lane = $('swipe');
+        var show = swipeShown(live);
+        if (!show && swipe) endSwipe();
+        lane.hidden = !show;
+        if (show) placeSwipe();
+    }
+
+    // The lane is up while this shot is the player's to hit, and not otherwise.
+    function swipeShown(live) {
+        return !!(live && state && state.phase === 'aim' && !gate && !demo && !sim);
+    }
+
+    /* The lane runs from a little below the middle of the stage down to the
+       top of the controls: that is where the ball sits on the screen from the
+       seat behind it, so the thumb starts on the ball and pulls back off it. */
+    function placeSwipe() {
+        var lane = $('swipe');
+        var stage = $('stage').getBoundingClientRect();
+        var ctl = document.querySelector('.controls .ctl-row').getBoundingClientRect();
+        var top = Math.round(stage.height * 0.46);
+        var bottom = Math.round(ctl.top - stage.top - 34);
+        var h = Math.max(120, bottom - top);
+        lane.style.top = top + 'px';
+        lane.style.height = h + 'px';
+        if (!swipe) drawSwipe();
+    }
+
+    // How far a pull may go: the whole meter is the lane plus the run down
+    // over the controls, so a thumb that started low still has room.
+    function swipeLength() {
+        var r = $('swipe').getBoundingClientRect();
+        return Math.max(140, r.height * 1.05);
+    }
+
+    function onSwipeDown(e) {
+        if (swipe || !swipeLive() || state.phase !== 'aim' || gate) return;
+        if (e.button !== undefined && e.button > 0) return;
+        e.preventDefault();
+        e.stopPropagation();
+        toggleShapePad(false);
+        try { $('swipe').setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
+        swipe = {
+            id: e.pointerId, x0: e.clientX, y0: e.clientY, len: swipeLength(),
+            low: { x: e.clientX, y: e.clientY }, through: false, full: false,
+            last: { x: e.clientX, y: e.clientY }, pts: [[e.clientX, e.clientY]]
+        };
+        setPower(0);
+        $('swipe').classList.add('held');
+        drawSwipe();
+    }
+
+    function onSwipeMove(e) {
+        if (!swipe || e.pointerId !== swipe.id) return;
+        e.preventDefault();
+        var x = e.clientX, y = e.clientY, prev = swipe.last;
+        swipe.last = { x: x, y: y };
+        swipe.pts.push([x, y]);
+        if (swipe.pts.length > 120) swipe.pts.shift();
+        if (y >= swipe.low.y) {
+            // Still going back: the meter follows the thumb down.
+            swipe.low = { x: x, y: y };
+            swipe.through = false;
+            setPower(SW.swipeLoad(y - swipe.y0, swipe.len) * maxPower());
+            var full = state.aim.power >= state.club.power;
+            if (full !== swipe.full) { swipe.full = full; A.tick(full ? 0.9 : 0.4); }
+        } else if (swipe.low.y - y > C.SWIPE.TURN_PX) {
+            swipe.through = true;
+        }
+        if (swipe.through && y <= swipe.y0) {
+            // Where it came back over the start line, between the last two
+            // samples — a fast swipe crosses it between frames.
+            var t = prev.y !== y ? (prev.y - swipe.y0) / (prev.y - y) : 1;
+            var cx = prev.x + (x - prev.x) * Math.max(0, Math.min(1, t));
+            swipeStrike({ x: cx, y: swipe.y0 });
+            return;
+        }
+        drawSwipe();
+    }
+
+    function onSwipeUp(e) {
+        if (!swipe || e.pointerId !== swipe.id) return;
+        // Let go before coming back through: no shot. The meter empties so
+        // nothing half-loaded is left lying on it for Swing to find.
+        var pulled = state.aim.power >= C.MIN_POWER;
+        endSwipe();
+        setPower(0);
+        if (pulled) toast('No swing — swipe up past where you started to hit it');
+    }
+
+    function endSwipe() {
+        $('swipe').classList.remove('held');
+        swipe = null;
+        drawSwipe();
+    }
+
+    function swipeStrike(cross) {
+        var turn = swipe.low;
+        if (state.aim.power < C.MIN_POWER) {
+            endSwipe();
+            askForPower();
+            return;
+        }
+        var over = SW.shapeOver(shapeNow(), P.overdraw(state.aim.power, state.club.power));
+        var angle = SW.swipeAngle(turn, cross);
+        var g = SW.swiped(over, SW.swipeOff(angle, over));
+        g.shape = shapeNow() !== 'straight' ? shapeNow() : null;
+        endSwipe();
+        strike(g);
+    }
+
+    /* The lane's picture: a guide down from where the thumb went in, a tick
+       at the full swing, the ball under the thumb, and — once the club is
+       coming back — a wedge showing how straight is straight enough. */
+    function drawSwipe() {
+        var lane = $('swipe');
+        var r = lane.getBoundingClientRect();
+        var s = swipe;
+        var x0 = s ? s.x0 - r.left : r.width / 2, y0 = s ? s.y0 - r.top : 18;
+        var len = s ? s.len : swipeLength();
+        var fullY = y0 + len * SW.markAt();
+        attrs('sw-guide', { x1: x0, y1: y0, x2: x0, y2: y0 + len });
+        attrs('sw-full', { x1: x0 - 16, y1: fullY, x2: x0 + 16, y2: fullY });
+        attrs('sw-ball', { cx: s ? s.low.x - r.left : x0, cy: s ? s.low.y - r.top : y0 });
+        var cone = '';
+        if (s && s.through) {
+            var tx = s.low.x - r.left, ty = s.low.y - r.top;
+            var over = SW.shapeOver(shapeNow(), P.overdraw(state.aim.power, state.club.power));
+            var half = Math.tan(SW.swipeTol(over)) * (ty - y0);
+            cone = [tx, ty, tx - half, y0, tx + half, y0].join(' ');
+        }
+        $('sw-cone').setAttribute('points', cone);
+        $('sw-trail').setAttribute('points', s
+            ? s.pts.map(function (p) { return (p[0] - r.left) + ',' + (p[1] - r.top); }).join(' ') : '');
+        $('swipe-cue').hidden = !!s;
+    }
+
+    function attrs(id, o) {
+        var el = $(id);
+        for (var k in o) el.setAttribute(k, o[k].toFixed ? o[k].toFixed(1) : o[k]);
+    }
+
+    function saySwipe(g) {
+        if (g.perfect) { toast('Straight through it — pure', 'good'); return; }
+        var a = Math.abs(g.off);
+        var way = g.off < 0 ? 'left' : 'right';
+        var did = g.off < 0 ? 'pulled' : 'pushed';
+        if (a < 0.34) toast('Swiped a touch ' + way + ' — ' + did + ' a little');
+        else if (a < 0.75) toast('Swiped ' + way + ' — ' + did + ', and it will bend');
+        else toast('Swiped way ' + way + ' — ' + did + ' miles', 'bad');
     }
 
     /* Picking a club is picking a loft and a ceiling on power. The power
@@ -1551,6 +1756,12 @@
         btn.classList.toggle('ready', ready);
         btn.classList.toggle('unready', aiming && !ready);
         btn.setAttribute('aria-disabled', ready ? 'false' : 'true');
+        // This is asked after every change of phase, so it is where the touch
+        // swing's lane finds out whether it should be up — cheaply, because
+        // it is also asked on every move of the meter.
+        var live = swipeLive();
+        if ($('swipe').hidden === swipeShown(live) ||
+            document.body.classList.contains('swipe-swing') !== live) syncSwipe();
     }
 
     /* The club in hand lives in the bag now — a modelled one, parked in front
@@ -3470,7 +3681,7 @@
                 '<div style="padding: 18px 8px; text-align: center; color: #cbd5e1; font-size: 0.95rem; line-height: 1.6;">' +
                 '<p>Unlimited balls, any club, nothing kept on the card.</p>' +
                 '<p style="margin-top: 10px; color: #94a3b8; font-size: 0.85rem;">Target greens at 10, 20, 30, 40 and 50 m, each with its board. ' +
-                'The swing school in the corner teaches the white line and the four timing gates.</p>' +
+                'The swing school in the corner teaches the white line and the timing gate.</p>' +
                 '</div>';
             $('card-next').hidden = true;
             $('scorecard').className = 'modal show';
@@ -4317,6 +4528,7 @@
             syncCompact();
             measurePickerBand();
             if (state) drawPowerTicks(state.club);
+            if (state && !$('swipe').hidden) placeSwipe();
         });
 
         $('banner-next').addEventListener('click', nextHole);
@@ -4335,7 +4547,19 @@
         $('btn-map').addEventListener('click', function () { toggleMiniMap(); });
         $('btn-view').addEventListener('click', cycleSeat);
         $('btn-swing').addEventListener('click', shoot);
-        $('btn-shape').addEventListener('click', cycleShape);
+        buildShapePad();
+        $('btn-shape').addEventListener('click', function () { toggleShapePad(); });
+        $('btn-swipe').addEventListener('click', toggleSwipe);
+        $('swipe').addEventListener('pointerdown', onSwipeDown);
+        $('swipe').addEventListener('pointermove', onSwipeMove);
+        $('swipe').addEventListener('pointerup', onSwipeUp);
+        $('swipe').addEventListener('pointercancel', onSwipeUp);
+        // A press anywhere else closes the shape pad, the way a menu shuts.
+        document.addEventListener('pointerdown', function (e) {
+            if ($('shape-pad').hidden) return;
+            if (e.target.closest && (e.target.closest('#shape-pad') || e.target.closest('#btn-shape'))) return;
+            toggleShapePad(false);
+        }, true);
         holdToRepeat('btn-aim-left', function () { nudgeAim(0.035); }, 60);
         holdToRepeat('btn-aim-right', function () { nudgeAim(-0.035); }, 60);
         holdToRepeat('btn-view-left', function () { nudgeView(-VIEW_STEP); }, 110);
@@ -4409,6 +4633,7 @@
         }, true);
         syncFps();
         syncFlyover();
+        syncSwipe();
         syncViewCtl();
         syncCompact();
         if (compactQuery) {
