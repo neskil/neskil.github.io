@@ -223,14 +223,21 @@ which also cleared everything else.
 **The first round teaches itself.** On the very first tee a ghost fingertip
 lands on the ball, pulls back away from the flag and lets go while a gold
 arrow runs out the other way — drawn on the canvas by `render.drawCoach`, so it
-sits on the ball it is about at any scale — with a line in the corner that says
-the same thing for whichever hand is holding the device. It loops until the
-first real shot and never comes back. Each hazard is then said once, on the
-first tee where it is in play, in a card that never takes a press and goes
-with the shot: two at most, because a tee that explains five things has
-explained none of them. The card sits wherever on the *screen* is furthest
-from both the tee and the cup — a corner if one is clear, otherwise the middle
-of an edge — and moves if the board turns under it.
+sits on the ball it is about at any scale. It loops until the first real shot
+and never comes back. A line in words saying the same thing for whichever hand
+is holding the device comes up only if the tee has waited `COACH_WAIT_MS` (six
+seconds) without a shot.
+
+**A card waits for a reason.** Each hazard used to be said on the first tee
+where it was in play, and a card on every new tee was a pop-up in the way of
+players who had already read the hole. Now a hazard is explained once, ever,
+and only when it has cost you: straight after the ball goes in the water or the
+lava (that hazard first), or when the ball comes to rest at par or worse and
+still out — a hole that is not being got. Two at most, because a card that
+explains five things has explained none of them; it never takes a press, and
+it goes with the next shot or after nine seconds. It sits wherever on the
+*screen* is furthest from both the ball and the cup — a corner if one is clear,
+otherwise the middle of an edge — and moves if the board turns under it.
 
 ## The pick-up
 
@@ -1016,6 +1023,24 @@ set by `resize()`) so does the page itself, with `touch-action: none` so the
 browser does not take the pull for a scroll and cancel it. The bar, the
 scoreboard and the banner never start a shot; the modals' lists still scroll,
 because `touch-action` starts over at a scrolling box.
+
+**Two fingers call the stroke off, and zoom while they stay down.** A second
+finger on the surface cancels the stroke the first one is drawing — the way to
+put a shot back without sliding all the way home — and the pair then pinch the
+board up to `PINCH_MAX_ZOOM` (3×) about the point between them. It is a look,
+not a setting: lift them and it springs back, and nothing is struck. The zoom
+is a CSS transform on the canvas, clipped by the stage and kept from showing
+past the board's own edge; the world and the drawing never know, and the
+browser's own pinch-zoom is off on the board (`touch-action: none`) so it never
+competes. Fingers are tracked on the document, so a second finger that lands on
+the meter or the blank page counts too.
+
+**What has faded is gone.** The lesson card, the toast, the hole banner, the
+dialogs and the ☰ panel used to hide by going clear with `pointer-events: none`.
+That passed every test here and still left a phone's thumb dead wherever one
+had last been shown — a phone's browser decides what a touch is before the page
+sees it. Each is now `visibility: hidden` once its fade is over (a delayed
+`visibility` transition), and back at once when it shows.
 
 **On its side, the chrome stands beside the board.** A phone in landscape is
 about 340px tall, and stacked, the bar and the scoreboard took half of it and
