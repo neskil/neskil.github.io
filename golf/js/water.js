@@ -202,7 +202,10 @@
         '    float edge = 0.06 + uSea * 0.05 + wob + lap;',
         '    float foam = 1.0 - smoothstep(edge - 0.02, edge + 0.006, d);',
         '    float roll = fract(d * 1.7 + t * 0.14 + noise(p * 0.025) * 0.5);',
-        '    float surf = uSea * (smoothstep(0.90, 0.93, roll) - smoothstep(0.96, 0.99, roll)) * (1.0 - smoothstep(0.25, 0.8, d));',
+        // Broken into short crests, and only as it nears the shore: a line
+        // run all the way round reads as a box drawn inside the water.
+        '    float broken = smoothstep(0.45, 0.65, noise(p * 0.045 + vec2(t * 0.08, -t * 0.05)));',
+        '    float surf = uSea * (smoothstep(0.90, 0.93, roll) - smoothstep(0.96, 0.99, roll)) * (1.0 - smoothstep(0.08, 0.26, d)) * broken;',
         '    vec3 foamCol = mix(vec3(0.96, 0.98, 0.97), vec3(0.62, 0.70, 0.82), uNight);',
         '    float wash = (foam * (0.55 + 0.25 * uSea) + surf * 0.45) * (1.0 - uSkin);',
         '    col = mix(col, foamCol, clamp(wash, 0.0, 1.0));',

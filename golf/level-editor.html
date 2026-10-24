@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Hole Editor — Pocket Links</title>
 <meta name="description" content="A visual editor for Pocket Links holes: drag out walls at any angle, water and bunkers with banks on the slant, ice, bumpers, slopes and tunnels, putt the ball without leaving the page, and export the hole as courses.js data.">
-<meta name="theme-color" content="#0d1117">
+<meta name="theme-color" content="#0c2418">
 <meta name="color-scheme" content="dark">
 <meta name="author" content="Niklas Billgren">
 <link rel="canonical" href="https://neskil.github.io/golf/level-editor.html">
@@ -24,35 +24,52 @@
     gtag('config', 'G-9GP823TGLB');
 </script>
 <link rel="icon" href="../favicon.ico">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;800&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="editor/editor.css?v=1.13.0">
 </head>
 <body>
+<!-- The game's line icons (see index.html), plus the few only an editor needs. -->
+<svg class="sprite" aria-hidden="true" focusable="false">
+  <symbol id="i-undo" viewBox="0 0 24 24"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></symbol>
+  <symbol id="i-redo" viewBox="0 0 24 24"><path d="m15 14 5-5-5-5"/><path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13"/></symbol>
+  <symbol id="i-edit" viewBox="0 0 24 24"><path d="M13 20h8M16.5 3.6a2.1 2.1 0 0 1 3 3L7.5 18.6 3.5 19.5l.9-4z"/></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24"><path fill="currentColor" stroke="none" d="M7.5 4.8v14.4a1 1 0 0 0 1.5.86l11.6-7.2a1 1 0 0 0 0-1.72L9 3.94a1 1 0 0 0-1.5.86z"/></symbol>
+  <symbol id="i-pause" viewBox="0 0 24 24"><path d="M9 5v14M15 5v14"/></symbol>
+  <symbol id="i-select" viewBox="0 0 24 24"><path d="M5 3.5 18.5 10l-6 1.8-2.3 6.2z"/></symbol>
+  <symbol id="i-tee" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4.5"/><path d="M8.5 14h7l-2.2 2.4V21h-2.6v-4.6z"/></symbol>
+  <symbol id="i-flag" viewBox="0 0 24 24"><path d="M7 21V3"/><path d="M7 3.5 18 8l-11 4.5z" fill="currentColor" fill-opacity="0.25"/><ellipse cx="7" cy="20.5" rx="4" ry="1.2"/></symbol>
+  <symbol id="i-out" viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-9 9M18 14v4.5a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 4 18.5v-11A1.5 1.5 0 0 1 5.5 6H10"/></symbol>
+  <symbol id="i-fit" viewBox="0 0 24 24"><path d="M8 3H5a2 2 0 0 0-2 2v3M21 8V5a2 2 0 0 0-2-2h-3M3 16v3a2 2 0 0 0 2 2h3M16 21h3a2 2 0 0 0 2-2v-3"/></symbol>
+  <symbol id="i-back" viewBox="0 0 24 24"><path d="M19 12H5M11 18l-6-6 6-6"/></symbol>
+</svg>
 
 <div id="sidebar">
   <div id="sidebar-resize-handle"></div>
 
   <div class="sec" style="display:flex; justify-content:space-between; align-items:center; gap:6px;">
     <div class="row">
-      <button class="btn" id="btn-undo" title="Undo (Ctrl+Z)">↶</button>
-      <button class="btn" id="btn-redo" title="Redo (Ctrl+Shift+Z)">↷</button>
+      <button class="btn" id="btn-undo" title="Undo (Ctrl+Z)" aria-label="Undo"><svg class="ico" aria-hidden="true"><use href="#i-undo"/></svg></button>
+      <button class="btn" id="btn-redo" title="Redo (Ctrl+Shift+Z)" aria-label="Redo"><svg class="ico" aria-hidden="true"><use href="#i-redo"/></svg></button>
     </div>
     <div class="row">
-      <button class="btn btn-play" id="btn-playtest" title="Open this hole in the real game">Playtest ↗</button>
-      <a class="btn btn-warn" href="index.html" title="Back to Pocket Links" style="text-decoration:none">Exit</a>
+      <button class="btn btn-play" id="btn-playtest" title="Open this hole in the real game">Playtest <svg class="ico" aria-hidden="true"><use href="#i-out"/></svg></button>
+      <a class="btn btn-warn" href="index.html" title="Back to Pocket Links" style="text-decoration:none"><svg class="ico" aria-hidden="true"><use href="#i-back"/></svg>Exit</a>
     </div>
   </div>
 
   <div class="sec">
     <div class="row" style="margin-bottom:8px">
       <span class="lbl lbl-w">Mode:</span>
-      <button class="btn on" id="mode-edit" title="Edit the hole (E)">✎ Edit</button>
-      <button class="btn" id="mode-play" title="Putt the ball right here (P)">▶ Play</button>
+      <button class="btn on" id="mode-edit" title="Edit the hole (E)"><svg class="ico" aria-hidden="true"><use href="#i-edit"/></svg>Edit</button>
+      <button class="btn" id="mode-play" title="Putt the ball right here (P)"><svg class="ico" aria-hidden="true"><use href="#i-play"/></svg>Play</button>
       <span class="lbl" id="anim-wrap" style="margin-left:auto">
-        <button class="btn" id="btn-anim" title="Pause or resume the moving walls">⏸ Clock</button>
+        <button class="btn" id="btn-anim" title="Pause or resume the moving walls"><svg class="ico" aria-hidden="true"><use href="#i-pause"/></svg>Clock</button>
       </span>
     </div>
     <div id="tools">
-      <button class="btn on" data-tool="select" title="Select and drag (V)">▣ Select</button>
+      <button class="btn on" data-tool="select" title="Select and drag (V)"><svg class="ico" aria-hidden="true"><use href="#i-select"/></svg>Select</button>
       <button class="btn" data-tool="walls" title="Drag out a wall (1)"><i class="swatch" style="background:#6d4a2e"></i>Wall</button>
       <button class="btn" data-tool="rails" title="Drag a wall at any angle, from one end to the other (L)"><i class="swatch" style="background:#8a5a34;transform:rotate(-30deg)"></i>Rail</button>
       <button class="btn" data-tool="water" title="Drag out water (2)"><i class="swatch" style="background:#1b6d9e"></i>Water</button>
@@ -62,8 +79,8 @@
       <button class="btn" data-tool="bumpers" title="Drag out a post (6)"><i class="swatch round" style="background:#f59e0b"></i>Post</button>
       <button class="btn" data-tool="slopes" title="Drag out a slope (7)"><i class="swatch" style="background:#4b6f52"></i>Slope</button>
       <button class="btn" data-tool="tunnels" title="Drag from one tunnel mouth to the other (0)"><i class="swatch round" style="background:#a78bfa"></i>Tunnel</button>
-      <button class="btn" data-tool="tee" title="Place the tee (8)">⛳ Tee</button>
-      <button class="btn" data-tool="hole" title="Place the cup (9)">◉ Cup</button>
+      <button class="btn" data-tool="tee" title="Place the tee (8)"><svg class="ico" aria-hidden="true"><use href="#i-tee"/></svg>Tee</button>
+      <button class="btn" data-tool="hole" title="Place the cup (9)"><svg class="ico" aria-hidden="true"><use href="#i-flag"/></svg>Cup</button>
     </div>
     <div class="row" style="margin-top:8px">
       <span class="lbl lbl-w">Snap:</span>
@@ -130,14 +147,14 @@
         <div class="row" style="margin-bottom:6px">
           <span class="lbl" style="flex:1">Paste into <code>js/courses.js</code></span>
         </div>
-        <textarea id="out" readonly style="height:150px; color:#79c0ff; font-size:11px;"></textarea>
+        <textarea id="out" readonly style="height:150px; color:#86efac;"></textarea>
         <div class="row">
           <button class="btn" id="btn-copy" style="flex:1">Copy</button>
           <button class="btn" id="btn-download" style="flex:1">Download</button>
           <button class="btn" id="btn-copy-ai" style="flex:1" title="Copy the hole with a prompt ready for an AI assistant">For AI</button>
         </div>
         <div class="subhead">Load from source</div>
-        <textarea id="paste-in" placeholder="Paste a hole literal — { name: '…', par: 3, tee: {…}, … } — with or without the r()/post() helpers." style="height:80px; font-size:11px;"></textarea>
+        <textarea id="paste-in" placeholder="Paste a hole literal — { name: '…', par: 3, tee: {…}, … } — with or without the r()/post() helpers." style="height:80px;"></textarea>
         <div class="row">
           <button class="btn" id="btn-paste" style="flex:1">Parse &amp; load</button>
         </div>
@@ -153,7 +170,7 @@
         <div><b>Arrows</b> nudge · <b>Del</b> delete · <b>Ctrl+D</b> duplicate</div>
         <div><b>Ctrl+Z</b> / <b>Ctrl+Shift+Z</b> undo, redo · <b>G</b> grid</div>
         <div><b>Space+drag</b> or middle-drag pans · scroll zooms · <b>F</b> fits</div>
-        <hr style="border:0; border-top:1px solid #30363d; margin:8px 0;">
+        <hr style="border:0; border-top:1px solid var(--line); margin:8px 0;">
         <div><b>Play mode:</b> drag back from the ball and release, exactly as
           in the game. <b>R</b> puts it back on the tee.</div>
         <div style="margin-top:6px">The green is drawn by the game's own
@@ -171,7 +188,7 @@
   <div id="zoom-controls">
     <button id="btn-zoom-in" title="Zoom in">+</button>
     <button id="btn-zoom-out" title="Zoom out">−</button>
-    <button id="btn-fit" title="Fit the field (F)">⤢</button>
+    <button id="btn-fit" title="Fit the field (F)" aria-label="Fit the field"><svg class="ico" aria-hidden="true"><use href="#i-fit"/></svg></button>
   </div>
   <div id="toast"></div>
   <div id="statusbar">

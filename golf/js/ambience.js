@@ -349,7 +349,7 @@
         (course.tunnels || []).forEach(function (t) {
             out.push({ x: t.x, y: t.y, r: C.TUNNEL_R + 34, k: 0.5 }, { x: t.tx, y: t.ty, r: C.TUNNEL_R + 34, k: 0.5 });
         });
-        if (dec.moon) out.push({ x: dec.moon.x, y: dec.moon.y, r: 70, k: 0.35 });
+        if (dec.moon) out.push({ x: dec.moon.x, y: dec.moon.y, r: 48, k: 0.5 });
         return out;
     }
 

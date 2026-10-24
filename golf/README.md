@@ -34,7 +34,7 @@ same as everything else here, open `index.html` and it runs.
 | `js/game.js` | Loop, input, what a shot means, the title screen and the party. |
 | `level-editor.html` | Visual hole editor. See [The editor](#the-editor). |
 | `editor/editor.js` | All of it. Runs on the game's own modules, owns no copy of any of them. |
-| `editor/editor.css` | Sidebar chrome. The green in there is the game's renderer. |
+| `editor/editor.css` | Sidebar chrome: laid out like `cargo-lander`'s editor, dressed in the game's palette, type and icons. The green in there is the game's renderer. |
 | `tests.html` | Headless test harness for the logic. Open it; green is green. |
 | `ui-tests.html` | The same, for the page — the bar, the ☰ panel, the picker, the title, a party, the turned and side layouts. |
 
@@ -595,7 +595,11 @@ grid of their own edges, every polygon a loop of its own, islands as holes —
 and the renderer draws that as one path with its corners rounded off. The
 rounding is a few pixels of picture at a corner and nothing else; the physics
 tests the rectangles and polygons themselves, which is the bargain the
-bunkers' 34px corners have always made. The suite checks, on every shipped
+bunkers' 34px corners have always made. Water keeps the bargain only one
+way round: where the ground juts into it — an island's corners, the elbow
+of an L-shaped lake — a full rounding painted water over ground the ball
+rolls on (it showed as a pale square of foam at every island corner), so
+those corners are rounded by a few pixels only. The suite checks, on every shipped
 list and a handful of draws, that the outline covers exactly the union's
 area. A zone that runs to the cushion is pushed past it for the picture only,
 so a lake that meets the edge has no shore along it.

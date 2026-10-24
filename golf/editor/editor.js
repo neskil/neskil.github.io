@@ -273,7 +273,7 @@
 
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
         ctx.clearRect(0, 0, canvas.clientWidth, canvas.clientHeight);
-        ctx.fillStyle = '#0a0f14';
+        ctx.fillStyle = '#06140c';
         ctx.fillRect(0, 0, canvas.clientWidth, canvas.clientHeight);
 
         ctx.save();
@@ -401,7 +401,7 @@
 
         function grip(x, y) {
             var r = HANDLE / view.scale;
-            ctx.fillStyle = '#0d1117';
+            ctx.fillStyle = '#06140c';
             ctx.fillRect(x - r, y - r, r * 2, r * 2);
             ctx.strokeStyle = '#58a6ff';
             ctx.lineWidth = 1.5 / view.scale;
@@ -854,7 +854,7 @@
         markers.forEach(function (m) {
             var on = S.sel && S.sel.kind === m.kind;
             html += '<div class="sitem' + (on ? ' active' : '') + '" data-marker="' + m.kind + '">' +
-                '<span class="sname">' + (m.kind === 'tee' ? '⛳ ' : '◉ ') + m.label + '</span>' +
+                '<span class="sname"><svg class="ico" aria-hidden="true"><use href="#i-' + (m.kind === 'tee' ? 'tee' : 'flag') + '"/></svg> ' + m.label + '</span>' +
                 '<span class="smeta">' + Math.round(m.p.x) + ',' + Math.round(m.p.y) + '</span></div>';
         });
 
@@ -1680,7 +1680,7 @@
     $('btn-anim').addEventListener('click', function () {
         animate = !animate;
         $('btn-anim').className = 'btn' + (animate ? '' : ' on');
-        $('btn-anim').textContent = animate ? '⏸ Clock' : '▶ Clock';
+        $('btn-anim').innerHTML = '<svg class="ico" aria-hidden="true"><use href="#i-' + (animate ? 'pause' : 'play') + '"/></svg>Clock';
     });
     $('btn-grid').addEventListener('click', function () {
         S.grid = !S.grid;

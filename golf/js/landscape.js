@@ -86,7 +86,13 @@
        nothing else: the physics tests the rectangles and polygons
        themselves, which is the same bargain the bunkers have always made
        with their 34px corners. */
-    function loopPath(g, loops, R) {
+    /* `Rin`, if given, rounds the corners where the ground juts into the
+       zone instead — an island's, the elbow of an L-shaped lake. Rounding
+       one of those by the full radius paints the zone over a wedge of
+       ground the ball rolls on, which for water read as a pale square of
+       foam at every island corner. A loop has its zone on its right, so a
+       left turn is one of those. */
+    function loopPath(g, loops, R, Rin) {
         g.beginPath();
         for (var k = 0; k < loops.length; k++) {
             var loop = loops[k], n = loop.length;
@@ -94,7 +100,8 @@
             g.moveTo((p.x + q.x) / 2, (p.y + q.y) / 2);
             for (var i = 0; i < n; i++) {
                 var a = loop[i], b = loop[(i + 1) % n], z = loop[(i + n - 1) % n];
-                var r = Math.min(R, Math.hypot(a.x - z.x, a.y - z.y) / 2, Math.hypot(b.x - a.x, b.y - a.y) / 2);
+                var jut = Rin !== undefined && (a.x - z.x) * (b.y - a.y) - (a.y - z.y) * (b.x - a.x) < 0;
+                var r = Math.min(jut ? Rin : R, Math.hypot(a.x - z.x, a.y - z.y) / 2, Math.hypot(b.x - a.x, b.y - a.y) / 2);
                 g.arcTo(a.x, a.y, (a.x + b.x) / 2, (a.y + b.y) / 2, r);
             }
             g.closePath();
@@ -405,7 +412,7 @@
     function surfacePath(g, loops, v, theme) {
         var dn = sv(v, 0, bankDepth(theme));
         g.translate(dn.x, dn.y);
-        loopPath(g, loops, 22);
+        loopPath(g, loops, 22, 5);
         g.translate(-dn.x, -dn.y);
     }
 
@@ -418,7 +425,7 @@
         var b = boundsOf(loops);
         var w = theme.water, sea = w.kind === 'sea';
         g.save();
-        loopPath(g, loops, 22);
+        loopPath(g, loops, 22, 5);
         g.strokeStyle = w.shore;
         g.lineWidth = sea ? 14 : 8;
         g.lineJoin = 'round';
@@ -445,14 +452,14 @@
         var s = sv(v, 4, 6);
         g.save();
         g.translate(s.x, s.y);
-        loopPath(g, loops, 22);
+        loopPath(g, loops, 22, 5);
         g.restore();
         g.strokeStyle = 'rgba(0, 20, 40, 0.28)';
         g.lineWidth = 12;
         g.stroke();
         if (sea) {
             g.strokeStyle = 'rgba(255, 255, 255, 0.14)';
-            loopPath(g, loops, 22);
+            loopPath(g, loops, 22, 5);
             g.lineWidth = 22;
             g.stroke();
         }
@@ -474,14 +481,14 @@
         var w = theme.water, sea = w.kind === 'sea';
 
         g.save();
-        loopPath(g, loops, 22);
+        loopPath(g, loops, 22, 5);
         g.clip();
         surfacePath(g, loops, v, theme);
         g.clip();
 
         var shaded = !!(GOLF.water && GOLF.water.draw(g, list, theme, v, opts && opts.still ? 0 : clock, opts));
         if (!shaded) plainSurface(g, b, w, sea, loops, t, clock);
-        if (dec && dec.moon) moon(g, dec.moon, v);
+        if (dec && dec.moon) moon(g, dec.moon, v, clock);
 
         if (dec) {
             var i;
@@ -521,7 +528,7 @@
 
         if (sea) {
             // Surf: a broken white line running round just inside the shore.
-            loopPath(g, loops, 22);
+            loopPath(g, loops, 22, 5);
             g.strokeStyle = 'rgba(255, 255, 255, 0.55)';
             g.lineWidth = 5;
             g.setLineDash([14, 10]);
@@ -531,17 +538,40 @@
         }
     }
 
-    /* The moon on a pond after dark: a soft pale glow on the deepest water,
-       drawn before the waves so the ripples run across it. */
-    function moon(g, m, v) {
-        var up = sv(v, -26, -18);
+    /* The moon on a pond after dark: a small pale disc on the deepest water,
+       cut into slices that each slide a little with the swell, and a broken
+       path of light running down the screen from it — the way a moon sits
+       on water, rather than a glow nobody could name. Drawn in the screen's
+       own axes, so it is the same way up on a turned phone. */
+    function moon(g, m, v, clock) {
+        var up = sv(v, -14, -16);
         var x = m.x + up.x, y = m.y + up.y;
-        var glow = g.createRadialGradient(x, y, 2, x, y, 40);
-        glow.addColorStop(0, 'rgba(240, 244, 255, 0.55)');
-        glow.addColorStop(0.3, 'rgba(235, 240, 255, 0.22)');
-        glow.addColorStop(1, 'rgba(235, 240, 255, 0)');
+        var glow = g.createRadialGradient(x, y, 4, x, y, 28);
+        glow.addColorStop(0, 'rgba(230, 237, 255, 0.22)');
+        glow.addColorStop(1, 'rgba(230, 237, 255, 0)');
         g.fillStyle = glow;
-        g.fillRect(x - 40, y - 40, 80, 80);
+        g.fillRect(x - 28, y - 28, 56, 56);
+        g.save();
+        g.translate(x, y);
+        g.transform(v.rx, v.ry, v.dx, v.dy, 0, 0);
+        var R = 7.5, i, row;
+        g.fillStyle = 'rgba(242, 245, 255, 0.95)';
+        g.beginPath();
+        g.ellipse(Math.sin(clock * 0.9) * 0.6, 0, R * 1.08, R, 0, 0, Math.PI * 2);
+        g.fill();
+        // Two ripples cross it, sliding with the swell.
+        g.fillStyle = 'rgba(14, 34, 66, 0.55)';
+        for (i = 0; i < 2; i++) {
+            var ry = -2.5 + i * 4 + Math.sin(clock * 0.8 + i * 2) * 0.8;
+            g.fillRect(-R * 1.2 + Math.sin(clock * 1.3 + i * 1.9) * 2, ry, R * 2.4, 0.9);
+        }
+        // The path: shorter, fainter dashes the further they run.
+        for (i = 0, row = R + 4; row < R + 40; row += 4, i++) {
+            var f = 1 - (row - R) / 44, w = (6 + 4 * Math.sin(i * 2.3 + 1)) * f;
+            g.fillStyle = 'rgba(225, 233, 255, ' + (0.55 * f).toFixed(3) + ')';
+            g.fillRect(-w + Math.sin(clock * 1.1 + i * 1.7) * 2.5, row, w * 2, 1.4);
+        }
+        g.restore();
     }
 
     // An autumn pond has no lily pads; it has the leaves the trees dropped.
