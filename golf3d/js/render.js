@@ -4185,6 +4185,7 @@
         var weather = weatherKind || (W ? W.now : null) || { cloud: 0.4, fog: 1.3, sun: 1, amb: 1, sunSharp: 1, cloudTop: '#ffffff', cloudBase: '#b9c6d4', grade: {} };
         R.theme = theme;
         R.weather = weather;
+        R.loopCam = null;
         if (R.holeGroup) disposeGroup(R.holeGroup);
         R.movers = [];
         R.waterMats = [];
@@ -5063,6 +5064,11 @@
 
         var px = _seat.px, py = _seat.py, pz = _seat.pz;
         var tx = _seat.tx, ty = _seat.ty, tz = _seat.tz;
+        if (R.loopCam && R.cam.mode !== 'over' && R.cam.mode !== 'editor') {
+            loopSeat(R.loopCam, _seat);
+            px = _seat.px; py = _seat.py; pz = _seat.pz;
+            tx = _seat.tx; ty = _seat.ty; tz = _seat.tz;
+        }
 
         if (!R.smooth.started || (R.cam.mode === 'editor' && R.cam.instant)) {
             R.smooth.pos.set(px, py, pz);
@@ -5076,6 +5082,43 @@
         }
         R.camera.position.copy(R.smooth.pos);
         R.camera.lookAt(R.smooth.target);
+    }
+
+    /* The camera on a loop (physics.js, "the loop").
+
+       The seat behind the ball looks straight up the lane at a loop, and a
+       loop seen from its foot is a hoop seen edge-on: the ride, which is the
+       best thing on the course, was a ball going up and coming down a line.
+       So while the ball is on the track — riding it, or falling off it — and
+       for a moment after it comes out, the camera stands off to the side and
+       looks at the loop's face, on whichever side it already was so it never
+       swings through the track. The ordinary easing in updateCamera carries
+       it over and back; the seat itself is untouched, which is what the
+       intro's hand-off is measured against. */
+    function watchLoop(world, dt) {
+        var rd = world.ride || world.fall;
+        if (rd && rd.loop) {
+            R.loopCam = { L: rd.loop, F: rd.frame, base: rd.base, hold: 0.9, side: R.loopCam ? R.loopCam.side : 0 };
+        } else if (R.loopCam) {
+            R.loopCam.hold -= dt;
+            if (R.loopCam.hold <= 0 || !world.moving) R.loopCam = null;
+        }
+    }
+
+    function loopSeat(lc, out) {
+        var L = lc.L, F = lc.F;
+        // The middle of the circle, half way along the corkscrew's drift.
+        var cx = L.x + F.lx * F.k * Math.PI, cz = L.z + F.lz * F.k * Math.PI, cy = lc.base + L.R;
+        if (!lc.side) {
+            var cam = R.camera.position;
+            lc.side = ((cam.x - cx) * F.lx + (cam.z - cz) * F.lz) < 0 ? -1 : 1;
+        }
+        var d = L.R * 3.2 + 2.6;
+        out.px = cx + F.lx * lc.side * d - F.fx * L.R * 0.6;
+        out.pz = cz + F.lz * lc.side * d - F.fz * L.R * 0.6;
+        out.py = cy + L.R * 0.4;
+        out.tx = cx; out.ty = cy; out.tz = cz;
+        return out;
     }
 
     /* Clearing the air for the map.
@@ -5216,6 +5259,7 @@
         stepParticles(dt);
         stepRipples(dt);
         if (R.wells) for (var wi = 0; wi < R.wells.length; wi++) R.wells[wi].rotation.y += dt * 0.9;
+        watchLoop(world, dt);
         updateCamera(world.hole, world.ball, dt);
 
         // The camera has moved; what the air is doing about it, and the two

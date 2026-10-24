@@ -1278,6 +1278,16 @@ Helter Skelter, is the hole: a deck, a wooden drop to the foot for the pace, a
 housing so the mouth is the only road north, and the belt lane up the side for
 anyone who would rather not.
 
+**The camera goes round to watch** (v1.99.0). From the seat behind the ball a
+loop is a hoop seen edge-on, and the ride — the best thing on the course — was a
+ball going up and coming down a line. So while the ball is on the track, riding
+it or falling off it, and for most of a second after it comes out, the camera
+stands off to the side and looks at the loop's face (`render.watchLoop`,
+`loopSeat`), on whichever side it already was so it never swings through the
+track. The ordinary easing carries it over and back. The seat itself is
+untouched — the intro's hand-off is measured against it — and the map and the
+editor keep their own cameras.
+
 #### Drawing something that is not there
 
 A belt, a launch pad and a pipe mouth are all the same problem: the ground does
