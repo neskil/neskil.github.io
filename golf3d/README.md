@@ -2711,9 +2711,19 @@ Everything the old capture rule used to fake now happens on its own. A ball
 whose centre is still outside the rim is resting on it and rolls past. A slow
 ball crossing the rim drops, and the inside of the edge nudges it toward the
 middle. A fast one is only a few centimetres down by the time it reaches the far
-edge, catches it on the way through, and is thrown up and out — a lip-out
-nobody wrote. "Holed" is then a statement about geometry: the ball is under the
-rim and has not the vertical speed to climb back out.
+edge, catches it on the way through, and hops up and out — a lip-out nobody
+wrote. "Holed" is then a statement about geometry: the ball is under the rim and
+has not the vertical speed to climb back out.
+
+The one thing that is tuned is how high the lip throws it (v1.97.0). Crossing
+the mouth at speed the ball has dropped a hair, so the far edge meets it with a
+normal that is nearly straight up, and a rigid reflection there turns most of
+its pace into height: a putt hit through the hole went a unit and a half into
+the air — three rails' worth — and off the hole. The lip is turf, so it keeps
+`LIP_GIVE` (0.3) of the upward kick it would have given and no more; a lip-out
+now hops a ball's width or less. The pace the cup *accepts* is unchanged to the
+quarter-unit of swing, since that is decided before the ball reaches the far
+edge.
 
 Because none of it is tuned, the pace the hole accepts is a *measurement*, not a
 setting — `tests.html` prints the range and would notice it changing. From ten

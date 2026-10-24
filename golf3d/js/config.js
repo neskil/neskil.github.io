@@ -8,7 +8,7 @@
    — the renderer scales to the viewport, the simulation never sees a pixel. */
 window.G3 = window.G3 || {};
 
-G3.VERSION = '1.96.0';
+G3.VERSION = '1.97.0';
 
 G3.CONFIG = {
     BALL_R: 0.16,
@@ -19,6 +19,7 @@ G3.CONFIG = {
     HOLE_R: 0.40,
     CUP_DEPTH: 0.42,      // the ball is 0.32 across, so it is well under the rim
     CUP_RESTITUTION: 0.35,// what the rim and the shaft wall give back
+    LIP_GIVE: 0.3,        // share of the upward kick the lip's turf hands back (physics.cupContact)
 
     /* Positive downward acceleration. Real gravity makes a lofted shot hang
        for ages at this scale; 18 keeps an arc inside a second or so, which is
