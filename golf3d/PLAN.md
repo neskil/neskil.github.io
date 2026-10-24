@@ -310,9 +310,13 @@ is a real half-pipe now; v1.68.0 put a banked turn on Quarry's
 one surface) and made Apogee's **The Crater** one smooth bowl instead of a
 nine-pad `bowl` — which also fixed its rails, stepped at three heights in the
 owner's phone screenshot. A suite rule holds curved pads to meeting their
-neighbours at every interior seam. Still to do: curved corners where a square
-one reads as a diagram (an `arc` rail in the corners of The Bend, The
-Horseshoe and the crazy courses).
+neighbours at every interior seam. **Rounded corners are done (v1.92.0)**,
+and not hole by hole: `build` rounds every outside corner of a fenced hole
+that nothing depends on (README → "Rounded corners"), about 230 of them over
+the thirteen drawn courses, with every bot card unchanged. Still square, on
+purpose: inside corners (a fillet there would be ground the hole never had),
+corners beside a gap or a neighbour, and corners with something standing in
+them.
 
 The owner's ask after the rehaul. Every wall is a straight box and nearly all
 ground is flat or a gentle hump, which is most of why a mini course reads as

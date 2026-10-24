@@ -406,7 +406,10 @@
                 if (vx * vx + vz * vz < vd.r * vd.r) return false;
             }
         }
-        if (!pad.west && !pad.east) return x >= pad.x && x <= pad.x + pad.w;
+        if (!pad.west && !pad.east) {
+            if (x < pad.x || x > pad.x + pad.w) return false;
+            return !pad.round || !cornerCut(pad, x, z);
+        }
         /* A mown edge (courses.mow) — and the clamp bounds first, which are
            every place the curve can reach, so a point well clear of the line
            never pays for the trigonometry. */
@@ -414,6 +417,21 @@
         if (x > (pad.east ? pad.east.hi : pad.x + pad.w)) return false;
         return x >= (pad.west ? mowEdge(pad.west, z) : pad.x) &&
                x <= (pad.east ? mowEdge(pad.east, z) : pad.x + pad.w);
+    }
+
+    /* A rounded corner (courses.roundCorners): `pad.round` names a radius
+       for any of sw, se, nw and ne — s and w being the low z and the low x —
+       and the ground in the corner square outside that quarter-circle is not
+       there. Asked only of a point already inside the rectangle, so the
+       corner is the only thing left to rule on. */
+    function cornerCut(pad, x, z) {
+        var c = pad.round;
+        var west = x < pad.x + pad.w / 2, south = z < pad.z + pad.d / 2;
+        var r = south ? (west ? c.sw : c.se) : (west ? c.nw : c.ne);
+        if (!r) return false;
+        var ox = west ? pad.x + r - x : x - (pad.x + pad.w - r);
+        var oz = south ? pad.z + r - z : z - (pad.z + pad.d - r);
+        return ox > 0 && oz > 0 && ox * ox + oz * oz > r * r;
     }
 
     /* ── the mown line ──

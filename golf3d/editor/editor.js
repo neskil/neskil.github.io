@@ -3115,7 +3115,11 @@
 
     function documentFrom(course, h) {
         var authoredWalls = (h.extra && h.extra.length) ? h.extra
-            : h.walls.filter(function (wl) { return wl.kind !== 'rail' || wl.move || wl.spin || wl.swing || wl.yaw; });
+            : h.walls.filter(function (wl) {
+                // A rounded corner's chords are turned rails too, and derived:
+                // `build` lays them again off the ground (courses.cornerRails).
+                return !wl.bend && (wl.kind !== 'rail' || wl.move || wl.spin || wl.swing || wl.yaw);
+            });
         return normalize({
             name: h.name, blurb: h.blurb, par: h.par, theme: course.theme,
             open: h.open, fence: h.fence,

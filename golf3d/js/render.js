@@ -876,21 +876,52 @@
        hole in it rather than as a box, so the hole in the picture is the hole
        the ball falls through. Everything else stays a box: this costs a
        triangulation, and only one pad per hole needs it. */
-    function punchedSlab(pad, thick, cup) {
+    /* A rectangular pad's outline as a Shape, built around the pad's centre
+       in the plane three.js extrudes — shape-y runs along world -z once the
+       rotation after it lays it flat. With `pad.round` its exposed corners
+       are quarter-circles (courses.roundCorners), at a chord fine enough
+       that the rail standing on the curve hides the facets. A pad with no
+       rounding comes out as the four corners it always was. */
+    function slabShape(pad) {
         var shape = new THREE.Shape();
-        var hw = pad.w / 2, hd = pad.d / 2;
-        // Built around the pad's centre, in the plane three.js extrudes; after
-        // the rotation below, shape-y runs along world -z.
-        shape.moveTo(-hw, -hd);
-        shape.lineTo(hw, -hd);
-        shape.lineTo(hw, hd);
-        shape.lineTo(-hw, hd);
-        shape.lineTo(-hw, -hd);
+        var hw = pad.w / 2, hd = pad.d / 2, c = pad.round || {};
+        // Counter-clockwise in shape space, each corner as [x, y, its world
+        // name, the angle its arc starts at].
+        var corners = [[-hw, -hd, c.nw, Math.PI], [hw, -hd, c.ne, Math.PI * 1.5],
+                       [hw, hd, c.se, 0], [-hw, hd, c.sw, Math.PI / 2]];
+        var i, k, r, ox, oy, a, n, first = true;
+        for (i = 0; i < corners.length; i++) {
+            r = corners[i][2];
+            if (!r) {
+                if (first) shape.moveTo(corners[i][0], corners[i][1]);
+                else shape.lineTo(corners[i][0], corners[i][1]);
+                first = false;
+                continue;
+            }
+            ox = corners[i][0] - Math.sign(corners[i][0]) * r;
+            oy = corners[i][1] - Math.sign(corners[i][1]) * r;
+            n = Math.max(6, Math.ceil(r / 0.12));
+            for (k = 0; k <= n; k++) {
+                a = corners[i][3] + (Math.PI / 2) * k / n;
+                if (first) shape.moveTo(ox + Math.cos(a) * r, oy + Math.sin(a) * r);
+                else shape.lineTo(ox + Math.cos(a) * r, oy + Math.sin(a) * r);
+                first = false;
+            }
+        }
+        shape.closePath();
+        return shape;
+    }
 
-        var hole = new THREE.Path();
-        var cx = pad.x + hw, cz = pad.z + hd;
-        hole.absarc(cup.x - cx, -(cup.z - cz), C.HOLE_R, 0, Math.PI * 2, true);
-        shape.holes.push(hole);
+    function punchedSlab(pad, thick, cup) {
+        var shape = slabShape(pad);
+        var hw = pad.w / 2, hd = pad.d / 2;
+
+        if (cup) {
+            var hole = new THREE.Path();
+            var cx = pad.x + hw, cz = pad.z + hd;
+            hole.absarc(cup.x - cx, -(cup.z - cz), C.HOLE_R, 0, Math.PI * 2, true);
+            shape.holes.push(hole);
+        }
 
         var geo = new THREE.ExtrudeGeometry(shape, {
             depth: thick, bevelEnabled: false, curveSegments: 28
@@ -934,7 +965,7 @@
                 tp.needsUpdate = true;
             } else if (holed) {
                 geo = shellShape(pad, cup);
-            } else if (pad.r) {
+            } else if (pad.r || pad.round) {
                 geo = shellShape(pad, null);
             } else {
                 geo = new THREE.PlaneGeometry(pad.w, pad.d, 1, 1);
@@ -1019,16 +1050,8 @@
 
     function shellShape(pad, cup) {
         var hw = pad.w / 2, hd = pad.d / 2;
-        var shape = pad.r ? discShape(pad) : new THREE.Shape();
-        if (pad.r) {
-            // …the outline is the disc's own, built above.
-        } else {
-            shape.moveTo(-hw, -hd);
-            shape.lineTo(hw, -hd);
-            shape.lineTo(hw, hd);
-            shape.lineTo(-hw, hd);
-            shape.lineTo(-hw, -hd);
-        }
+        // The disc's own outline, or the slab's — rounded corners and all.
+        var shape = pad.r ? discShape(pad) : slabShape(pad);
         if (cup) {
             var hole = new THREE.Path();
             var cx = pad.x + hw, cz = pad.z + hd;
@@ -2121,10 +2144,10 @@
         if (pad.hover) thick = Math.max(least, 0.4);
         var geo = pad.r
             ? discGeometry(pad, thick, cup, holed)
-            : holed
-                ? punchedSlab(pad, thick, cup)
+            : holed || pad.round
+                ? punchedSlab(pad, thick, holed ? cup : null)
                 : new THREE.BoxGeometry(pad.w, thick, pad.d);
-        if (holed && !pad.r) {
+        if ((holed || pad.round) && !pad.r) {
             // The box is centred on its own middle; the extruded slab is built
             // that way too, so both share the placement below.
             geo.translate(0, thick / 2, 0);
@@ -2804,6 +2827,44 @@
                 group.add(post);
             }
         }
+    }
+
+    /* The kerb round a rounded corner (courses.cornerRails), drawn as the one
+       curve it is rather than as the chords the solver meets. A band of rail
+       swept round the corner's centre, extruded up — and then its two curved
+       faces given the radial normal they would have on a true cylinder, since
+       an extrusion is shaded a facet at a time and a lit fan of facets is the
+       very thing this replaces. The flat ends, top and bottom keep theirs. */
+    function addBend(group, b) {
+        var ro = b.R + b.t / 2, ri = b.R - b.t / 2;
+        var n = Math.max(10, Math.ceil(b.R * Math.abs(b.a1 - b.a0) / 0.07)), k, a;
+        var shape = new THREE.Shape();
+        for (k = 0; k <= n; k++) {
+            a = b.a0 + (b.a1 - b.a0) * k / n;
+            if (k) shape.lineTo(Math.cos(a) * ro, -Math.sin(a) * ro);
+            else shape.moveTo(Math.cos(a) * ro, -Math.sin(a) * ro);
+        }
+        for (k = n; k >= 0; k--) {
+            a = b.a0 + (b.a1 - b.a0) * k / n;
+            shape.lineTo(Math.cos(a) * ri, -Math.sin(a) * ri);
+        }
+        shape.closePath();
+        var geo = new THREE.ExtrudeGeometry(shape, { depth: b.h, bevelEnabled: false });
+        geo.rotateX(-Math.PI / 2);
+        var pos = geo.attributes.position, nrm = geo.attributes.normal, i, x, z, l, d;
+        for (i = 0; i < pos.count; i++) {
+            if (Math.abs(nrm.getY(i)) > 0.5) continue;
+            x = pos.getX(i); z = pos.getZ(i); l = Math.hypot(x, z) || 1;
+            d = (nrm.getX(i) * x + nrm.getZ(i) * z) / l;
+            if (d > 0.7) nrm.setXYZ(i, x / l, 0, z / l);
+            else if (d < -0.7) nrm.setXYZ(i, -x / l, 0, -z / l);
+        }
+        nrm.needsUpdate = true;
+        var mesh = new THREE.Mesh(geo, R.surf.walls.rail);
+        mesh.position.set(b.cx, b.base, b.cz);
+        mesh.castShadow = true;
+        mesh.receiveShadow = true;
+        group.add(mesh);
     }
 
     /* Pretty water on or off, for the whole game. It is one define rather than
@@ -3945,7 +4006,14 @@
         }
         for (i = 0; i < (hole.warps || []).length; i++) addMouth(g, hole, hole.warps[i], theme);
         for (i = 0; i < (hole.loops || []).length; i++) addLoop(g, hole, hole.loops[i], theme);
-        for (i = 0; i < hole.walls.length; i++) addWall(g, hole.walls[i]);
+        var bends = [];
+        for (i = 0; i < hole.walls.length; i++) {
+            if (!hole.walls[i].bend) { addWall(g, hole.walls[i]); continue; }
+            if (bends.indexOf(hole.walls[i].bend) < 0) {
+                bends.push(hole.walls[i].bend);
+                addBend(g, hole.walls[i].bend);
+            }
+        }
         for (i = 0; i < hole.water.length; i++) addWater(g, hole.water[i], theme);
         addCup(g, hole);
         // No ring on the tee any more: it sat round the ball at every
