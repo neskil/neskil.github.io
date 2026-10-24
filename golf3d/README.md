@@ -4828,7 +4828,23 @@ including the swinging ones; and the export writes `swing:`, `belt()`,
 The one it will not *invent* is the pipe, because a pipe is the only part of a
 hole that is neither a rectangle nor a marker — a mouth and a destination — and
 there is no drag on a plan that means it. It rides along, exactly as `open` and
-`fence` do for a links hole.
+`fence` do for a links hole. So do a hole's **loops** (v1.102.0): they used to be
+dropped when a hole was loaded, so Loop the Loop came into the editor — and went
+back out of it to a playtest or an export — with no loop. The playtest dropped
+pipes, loops and decor too, on its way into the game (`custom.js`); it carries
+them now.
+
+**Share 🔗** (v1.102.0) copies a link with the whole hole in it. The editor's
+document goes into the URL's fragment — JSON with every number cut to a
+millimetre, as UTF-8, in URL-safe base64 behind a `v1.` (`G3.holeLink` in
+`custom.js`) — so nothing is hosted and nothing is sent to the server: the
+fragment never leaves the browser. Whoever opens it plays the hole as a one-hole
+course called "Shared hole", under the weather it was made with, and the editor
+chip there becomes ✎ *Edit it*, which opens the same hole here. A hole of a
+dozen pieces is a link of two kilobytes or so. It is held to the same checks as
+a playtest, because a link is a hole handed to someone else; a mangled one is
+turned away rather than half-built, and `tests.html` holds the round trip — a
+name in any script, the millimetres, the rejection, and a pipe that survives.
 
 Export writes the hole as a `build({ … })` literal in the file's own
 vocabulary, ready to paste into a course array in `courses.js`; the paste box

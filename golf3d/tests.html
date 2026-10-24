@@ -25,6 +25,7 @@
     <script src="js/config.js"></script>
     <script src="js/physics.js"></script>
     <script src="js/courses.js"></script>
+    <script src="js/custom.js"></script>
     <script src="js/audit.js"></script>
     <script src="js/scoring.js"></script>
     <script src="js/swing.js"></script>
@@ -3783,6 +3784,39 @@
            usually deliberate (a bare step somebody meant, two stones of an
            outcrop leaning together) and the count is printed so that a jump in
            it is visible on the way past. */
+        /* ── a hole in a link ────────────────────────────────────────── */
+
+        /* custom.js → "a hole in a link": the editor's document in a URL
+           fragment. A link somebody sends has to come back as the same hole,
+           whatever it is called, and one mangled on the way has to be turned
+           away rather than half-built. */
+        section('A hole in a link');
+        (function () {
+            var L = G3.holeLink;
+            assert('the link codec is there', !!(L && L.encode && L.decode));
+            if (!L) return;
+            var doc = {
+                name: 'Ålands Bästa — ⛳ “loop”', par: 3, theme: 'skelter', weather: 'fair',
+                pads: [{ x: 0, z: 0, w: 7, d: 18.123456, y: 0, kind: 'green' }],
+                extra: [{ x: 1, z: 6, w: 2, d: 0.4, h: 0.6, base: -0.1, kind: 'rail' }],
+                water: [], gaps: [], decor: [],
+                warps: [{ x: 3, z: 5, tx: 3, tz: 14, r: 0.85, yaw: 0 }],
+                loops: [],
+                tee: { x: 3.5, z: 1.5 }, cup: { x: 3.5, z: 16 }
+            };
+            var code = L.encode(doc), back = L.decode(code);
+            assert('a hole survives the trip, name and all',
+                !!back && back.name === doc.name && back.pads.length === 1 && back.warps.length === 1);
+            assert('…with its numbers to the millimetre', !!back && back.pads[0].d === 18.123);
+            assert('…in characters a URL carries as they are', /^v1\.[A-Za-z0-9_-]+$/.test(code), code.slice(0, 40));
+            assert('a mangled link is turned away', L.decode(code.slice(0, code.length - 9) + '!!') === null &&
+                L.decode('v2.' + code.slice(3)) === null && L.decode('') === null);
+            assert('a link is read off the fragment', !!L.fromHash('#hole=' + code));
+            var h = A.build({ name: back.name, par: back.par, pads: back.pads, extra: back.extra,
+                warps: back.warps, tee: back.tee, cup: back.cup });
+            assert('and what comes back builds, pipe and all', h.walls.length > 0 && h.warps.length === 1);
+        })();
+
         section('The geometry audit');
         (function () {
             var found = G3.audit.all();

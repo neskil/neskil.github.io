@@ -197,6 +197,15 @@
         LIST_KEYS.forEach(function (k) {
             out[k] = (Array.isArray(h[k]) ? h[k] : []).map(function (s) { return cloneShape(k, s); });
         });
+        /* A hole's loops are not something the plan edits a piece at a time,
+           but they are part of the hole: they ride through the document
+           whole. They used to be dropped here, so Loop the Loop loaded into
+           the editor — and so playtested, exported or shared from it — came
+           out with no loop. */
+        out.loops = (Array.isArray(h.loops) ? h.loops : []).map(function (l) {
+            return { x: num(l.x, 0), z: num(l.z, 0), yaw: num(l.yaw, 0),
+                     R: num(l.R, 1.1), shift: num(l.shift, 1) };
+        });
         return out;
     }
 
@@ -3079,6 +3088,11 @@
             });
             L.push('    ],');
         }
+        if (h.loops && h.loops.length) {
+            L.push('    loops: [' + h.loops.map(function (l) {
+                return 'loop(' + [n(l.x), n(l.z), n(l.yaw), n(l.R), n(l.shift)].join(', ') + ')';
+            }).join(', ') + '],');
+        }
         if (h.decor && h.decor.length) {
             L.push('    decor: [');
             h.decor.forEach(function (d, i) {
@@ -3205,6 +3219,18 @@
         }
         window.open('index.html?course=custom&hole=1&fly=0&weather=' +
                     encodeURIComponent(S.hole.weather), '_blank');
+    }
+
+    /* A link with the whole hole in it (custom.js → "a hole in a link"):
+       to the game, which plays it, and from which the receiver can open it
+       here. Held to the same checks as a playtest — a link is a hole handed
+       to somebody else, and it should be one they can finish. */
+    function share() {
+        var rows = check();
+        var bad = rows.filter(function (r) { return !r.ok && !r.warn; });
+        if (bad.length) { toast('Fix the checks first: ' + bad[0].text, 'bad'); return; }
+        if (!G3.holeLink) { toast('Sharing is not available here', 'bad'); return; }
+        copy(G3.holeLink.link(S.hole), 'Link copied — whoever opens it plays this hole');
     }
 
     /* ── keys ───────────────────────────────────────────────────────────── */
@@ -3422,6 +3448,7 @@
         $('btn-check').addEventListener('click', check);
         $('btn-bot').addEventListener('click', runBot);
         $('btn-playtest').addEventListener('click', playtest);
+        $('btn-share').addEventListener('click', share);
         $('btn-copy').addEventListener('click', function () {
             copy(exportSource(), 'Hole copied — paste it into js/courses.js');
         });
@@ -3499,7 +3526,15 @@
         sidebarResize();
 
         fillLoadSelect();
-        S.hole = loadPlan() || blankHole();
+        /* A shared hole opens over whatever was here — the link is what
+           somebody came for — and the fragment is dropped once it has been
+           read, so a reload is the editor's own document again. */
+        var sharedDoc = G3.holeLink && G3.holeLink.fromHash();
+        S.hole = sharedDoc ? normalize(sharedDoc) : (loadPlan() || blankHole());
+        if (sharedDoc) {
+            try { history.replaceState(null, '', location.pathname + location.search); } catch (e) { /* ignore */ }
+            setTimeout(function () { toast('Opened a shared hole: ' + S.hole.name); }, 300);
+        }
         setTool('select');
         changed();
         resizePlan();
