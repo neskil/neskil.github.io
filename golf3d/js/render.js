@@ -850,9 +850,20 @@
         var c = linear ? lin(hex) : new THREE.Color(hex);
         if (weather && weather.tintSky) {
             c.lerp(linear ? lin(weather.tintSky) : new THREE.Color(weather.tintSky),
-                weather.tintAmt === undefined ? 0.4 : weather.tintAmt);
+                (weather.tintAmt === undefined ? 0.4 : weather.tintAmt) * tintScale());
         }
         return c;
+    }
+
+    /* How far the weather may move a theme's sky, 1 all the way, named per
+       weather (`theme.tintScale`). The grid world takes rain and a golden
+       hour, but its sky's whole job is to be dark behind the glow, and
+       rain's grey pulled it to a pale lavender that switched the neon off —
+       so under rain it keeps most of its own colour, while a golden hour is
+       left to turn it the peach of a vaporwave sunset, which is the point. */
+    function tintScale() {
+        var t = R.theme && R.theme.tintScale, k = t && R.weather ? t[R.weather.id] : undefined;
+        return k === undefined ? 1 : k;
     }
 
     /* ── the grass ──────────────────────────────────────────────────────
@@ -4264,10 +4275,10 @@
             u.fogFar.value = R.fogFar;
             // An overcast sea reflects an overcast sky, not the blue one the
             // theme was drawn against.
-            u.skyColour.value.copy(skyTint(theme.sky[1], weather, true)).lerp(lin(weather.cloudBase), weather.cloud * 0.8);
+            u.skyColour.value.copy(skyTint(theme.sky[1], weather, true)).lerp(lin(weather.cloudBase), weather.cloud * 0.8 * tintScale());
             // Overcast flattens the gradient as well as darkening it: a solid
             // deck reflects as one grey sheet, not as a dome with a bright top.
-            u.skyTop.value.copy(skyTint(theme.sky[0], weather, true)).lerp(lin(weather.cloudBase), weather.cloud * 0.85);
+            u.skyTop.value.copy(skyTint(theme.sky[0], weather, true)).lerp(lin(weather.cloudBase), weather.cloud * 0.85 * tintScale());
             u.fogColour.value.copy(skyTint(theme.fog, weather, false));
         }
         if (R.sky) R.sky.uniforms.sunDir.value.copy(R.sunDir);

@@ -3269,6 +3269,15 @@ library at once.
   height (`render.addGrid` — the lines bending over a wave are how you read
   it), glowing rails, and a grade of its own over the weather's, because a
   clear sky's bloom spread the lines across the whole floor as a violet wash.
+  **Its weather** (v1.98.0) is what survived being tried under every kind
+  there is: clear, fair, a golden hour that turns the sky the peach of a
+  vaporwave sunset, and rain and drizzle drawn in the theme's own cyan
+  (`theme.rain`) — white streaks over the grid read as a fault in the picture,
+  neon ones under the bloom as the city in every film it quotes. Rain may only
+  move this sky a fifth of the way to its grey (`theme.tintScale`, per weather,
+  read by `render.tintScale`), or the dark behind the glow went lavender and
+  the lines stopped glowing. Overcast, mist and dust are out for the same
+  reason.
 - **The effects** (`render.hitAt`, `stepWake`): a rolling ball leaves a
   boat's wake — a V opening at the Kelvin angle off the trail behind it,
   feathered into little crests, with faint transverse ripples inside — and a

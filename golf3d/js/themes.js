@@ -405,6 +405,8 @@
             glow: true,
             motes: false,
             grid: { colour: '#ff3df2', floor: '#27c8ff', every: 1, floorEvery: 3 },
+            rain: 0x3df0ff,         // neon rain: weather.js draws its streaks in this
+            tintScale: { rain: 0.2, drizzle: 0.25 },   // rain cools this sky, never greys it (render.tintScale)
             /* Its own grade, over the weather's (render.js has why): a tight
                bloom with a low threshold, so the lines glow and the floor
                between them stays dark; no rays; a touch more contrast,

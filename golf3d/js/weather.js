@@ -165,9 +165,16 @@
            own the theme would have fallen back to the seaside's list and
            rained on the moon. */
         lunar: ['clear', 'fair'],
-        /* The grid world has no weather at all — rain on a hologram reads as
-           a rendering fault — so it is clear, every time. */
-        neon: ['clear'],
+        /* The grid world, tried under every kind there is (the owner asked):
+           a clear night, a fair one, and a golden hour that turns its sky the
+           peach-to-violet of a vaporwave sunset are all the grid world. So is
+           rain, once it is the theme's own neon (`theme.rain`, the colour the
+           streaks are drawn in): white rain over the grid read as a fault in
+           the picture, and cyan rain under the bloom reads as the city in
+           every film the theme is quoting. Overcast, mist and dust are left
+           out — each lays a pale veil across a sky whose whole job is to be
+           dark, and the lines stop glowing. */
+        neon: ['clear', 'fair', 'golden', 'rain', 'drizzle'],
         /* Desert, and nearly the quarry's list — the same country a long way
            further along. It leaves out the dust, which is the one kind that
            does not survive being stretched over a fifty-unit hole: a haze
@@ -378,7 +385,7 @@
         'void main(){ gl_FragColor = vec4(colour, alpha * clamp(vFade, 0.0, 1.0)); }'
     ].join('\n');
 
-    function buildRain(group, strength) {
+    function buildRain(group, strength, colour) {
         var n = Math.round(1100 + 1300 * strength);
         var pos = new Float32Array(n * 6);
         var tip = new Float32Array(n * 2);
@@ -406,8 +413,8 @@
                 origin: { value: new THREE.Vector3() },
                 wind: { value: new THREE.Vector2() },
                 len: { value: 0.34 + strength * 0.46 },
-                colour: { value: new THREE.Color(0xd6e6f2) },
-                alpha: { value: 0.24 + strength * 0.22 }
+                colour: { value: new THREE.Color(colour || 0xd6e6f2) },
+                alpha: { value: (0.24 + strength * 0.22) * (colour ? 1.6 : 1) }
             },
             vertexShader: RAIN_VS,
             fragmentShader: RAIN_FS,
@@ -563,7 +570,7 @@
         var g = new THREE.Group();
         var k = W.now;
 
-        if (k.rain) buildRain(g, k.rain);
+        if (k.rain) buildRain(g, k.rain, theme.rain);
         if (k.haze) buildMist(g, hole, theme, k.haze);
         // A theme may refuse them: in the grid world a drifting pollen mote is
         // a soft white smudge across the glass, nearest the camera of all.
