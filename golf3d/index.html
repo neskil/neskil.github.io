@@ -32,7 +32,7 @@
 
         gtag('config', 'G-9GP823TGLB');
     </script>
-    <link rel="stylesheet" href="style.css?v=1.102.1">
+    <link rel="stylesheet" href="style.css?v=1.103.0">
 <script type="application/ld+json">
     {
         "@context": "https://schema.org",
@@ -145,6 +145,7 @@
                     <button class="chip" id="btn-music" title="Background music (J)" aria-label="Turn the music off"><span id="music-icon">♪</span><span class="chip-text"> Jazz</span></button>
                     <button class="chip" id="btn-fps" title="Show the frame rate (P)" aria-pressed="false"><span id="fps-icon">▦</span><span class="chip-text"> FPS</span></button>
                     <button class="chip" id="btn-fly" title="A look at the hole before you play it" aria-pressed="true">🎬<span class="chip-text"> Flyover</span></button>
+                    <button class="chip" id="btn-swipe" title="Long game: swing by pulling down and swiping up (trial)" aria-pressed="false">👆<span class="chip-text"> Touch swing</span></button>
                     <button class="chip" id="btn-water" title="Reflections, foam and glitter on the water (O)" aria-label="Turn the fancy water off"><span id="water-icon">≈</span><span class="chip-text"> Water</span></button>
                 </div>
                 <button class="chip chip-menu" id="btn-menu" title="More" aria-label="More controls"
@@ -278,8 +279,8 @@
                         aria-label="Plan of the hole"></canvas>
             </div>
 
-            <!-- The range's swing school: the white line and the four timing
-                 gates, one at a time, each with a small goal. Range only, in
+            <!-- The range's swing school: the white line and the timing gate,
+                 one at a time, each with a small goal. Range only, in
                  the corner the hole card has everywhere else; folded on a
                  phone. Lessons are js/school.js, the panel is game.js. -->
             <section class="school" id="school" hidden aria-label="Swing school">
@@ -337,6 +338,21 @@
                 <i class="mm-ball" id="mm-ball" aria-hidden="true"></i>
             </div>
 
+            <!-- The touch swing (swing.js `swipe…`, game.js "the touch
+                 swing"): long game only, and only with the ☰ toggle on. A
+                 lane up the middle of the stage — press, pull down to load
+                 the meter, swipe up through where you started to hit. -->
+            <div class="swipe" id="swipe" hidden>
+                <svg class="swipe-svg" aria-hidden="true">
+                    <line class="sw-guide" id="sw-guide"/>
+                    <line class="sw-full" id="sw-full"/>
+                    <polygon class="sw-cone" id="sw-cone"/>
+                    <polyline class="sw-trail" id="sw-trail"/>
+                    <circle class="sw-ball" id="sw-ball" r="15"/>
+                </svg>
+                <span class="swipe-cue" id="swipe-cue">Pull down, swipe up</span>
+            </div>
+
             <div class="controls">
                 <!-- Frames per second, and nothing else. It rides above the
                      meter rather than in a corner of its own so it can never
@@ -355,14 +371,26 @@
                              and nineteen with a driver, and it is the nine and
                              the nineteen you are aiming with. -->
                         <!-- Shot shape, on the clubs that bend (js/swing.js
-                             `shape`). Floated into the label's line because
-                             the label is short and the line is not: on a
-                             phone this column is two hundred pixels wide and
-                             there is no second row to spare. -->
-                        <button type="button" class="shape-chip" id="btn-shape" hidden
+                             `shape`). A ball with a dot where the club will
+                             meet it: dead centre is straight, and pressing it
+                             opens the pad below to move the dot. Floated into
+                             the label's line because on a phone this column
+                             is two hundred pixels wide and there is no second
+                             row to spare. -->
+                        <!-- Where the club meets the ball, picked on the ball itself:
+                             hit the top of it and it is topped, get under it for
+                             backspin, either side to bend it that way. A cycle of
+                             five words through one chip said none of that. Built by
+                             game.js (`buildShapePad`) from SHAPE_INFO. -->
+                        <div class="shape-pad" id="shape-pad" hidden role="dialog" aria-label="Shot shape">
+                            <p class="sp-title">Where do you hit it?</p>
+                            <div class="sp-ball" id="sp-ball"></div>
+                        </div>
+                        <button type="button" class="shape-btn" id="btn-shape" hidden
                                 title="Shot shape: draw Z, fade X, backspin Q, topped E"
+                                aria-haspopup="dialog" aria-expanded="false" aria-controls="shape-pad"
                                 aria-label="Shot shape: Straight. Press to change.">
-                            <svg viewBox="0 0 14 16" aria-hidden="true"><path id="shape-path" d="M7 15 L 7 1"/></svg>
+                            <span class="shape-ball" aria-hidden="true"><i class="shape-dot" id="shape-dot"></i></span>
                             <span id="shape-val">Straight</span>
                         </button>
                         <span class="ctl-label">Power <b id="power-val">0.0</b><span class="power-of" id="power-of">/ 32</span></span>
@@ -409,6 +437,7 @@
                     <div class="shot-actions">
                         <button type="button" class="aim-nudge" id="btn-aim-left" title="Aim left (←)" aria-label="Aim left">‹</button>
                         <button type="button" class="swing" id="btn-swing" title="Play the shot (space)">Swing</button>
+                        <span class="swipe-hint" id="swipe-hint" aria-hidden="true">Pull down · swipe up</span>
                         <button type="button" class="aim-nudge" id="btn-aim-right" title="Aim right (→)" aria-label="Aim right">›</button>
                     </div>
                 </div>
@@ -548,15 +577,17 @@
                     keeps bending that way in the air, which is why a bad one finishes so much
                     further off than it left. The further past 100% you wound it, the smaller the
                     zone and the faster the marker: at the very top it is a sixteenth of a second.
-                    There are four gates and they rotate <b>hole by hole</b> — tempo, return,
-                    double, fade, then round again — so a round meets all of them: strike on the
-                    line; catch it coming back off the top; press at the top and then strike; and one
-                    where the marker goes dark for the run in and you have to strike on rhythm.
-                    The label under the meter names the one in play. To practise them one at a
-                    time, go to the driving range (🎯, or <kbd>T</kbd>): its swing school takes
-                    you through each.
+                    The gate is the same on every hole: one pass of the marker, strike in the green.
+                    To practise it, go to the driving range (🎯, or <kbd>T</kbd>) and its swing school.
                     Nothing forces you into any of it — stay inside a full swing and there is no gate
                     at all.
+                </li>
+                <li>
+                    <b>The touch swing (a trial).</b> Turn on 👆 in ☰ and the long game is played with
+                    your thumb instead: press in the middle of the screen, pull straight down to load
+                    the shot, and swipe up through where you started to hit it. A straight swipe is a
+                    straight shot; drift right and it goes right and fades, drift left and it draws.
+                    Let go before you come back up and there is no shot.
                 </li>
                 <li>
                     <b>Read the flag.</b> The pin stands in the cup, and it is the only
@@ -746,30 +777,30 @@
 
     <!-- Load order is dependency order: config, then the pure logic, then the
          things that touch the screen. game.js boots itself on DOMContentLoaded. -->
-    <script src="js/config.js?v=1.102.1"></script>
-    <script src="js/themes.js?v=1.102.1"></script>
-    <script src="js/physics.js?v=1.102.1"></script>
-    <script src="js/courses.js?v=1.102.1"></script>
-    <script src="js/audit.js?v=1.102.1"></script>
-    <script src="js/custom.js?v=1.102.1"></script>
-    <script src="js/scoring.js?v=1.102.1"></script>
-    <script src="js/swing.js?v=1.102.1"></script>
-    <script src="js/school.js?v=1.102.1"></script>
-    <script src="js/audio.js?v=1.102.1"></script>
-    <script src="js/music.js?v=1.102.1"></script>
-    <script src="js/bag.js?v=1.102.1"></script>
-    <script src="js/textures.js?v=1.102.1"></script>
-    <script src="js/shaders.js?v=1.102.1"></script>
-    <script src="js/postfx.js?v=1.102.1"></script>
-    <script src="js/weather.js?v=1.102.1"></script>
-    <script src="js/flyover.js?v=1.102.1"></script>
-    <script src="js/replay.js?v=1.102.1"></script>
-    <script src="js/bot.js?v=1.102.1"></script>
-    <script src="js/models.js?v=1.102.1"></script>
-    <script src="js/life.js?v=1.102.1"></script>
-    <script src="js/render.js?v=1.102.1"></script>
-    <script src="js/minimap.js?v=1.102.1"></script>
-    <script src="js/debug.js?v=1.102.1"></script>
-    <script src="js/game.js?v=1.102.1"></script>
+    <script src="js/config.js?v=1.103.0"></script>
+    <script src="js/themes.js?v=1.103.0"></script>
+    <script src="js/physics.js?v=1.103.0"></script>
+    <script src="js/courses.js?v=1.103.0"></script>
+    <script src="js/audit.js?v=1.103.0"></script>
+    <script src="js/custom.js?v=1.103.0"></script>
+    <script src="js/scoring.js?v=1.103.0"></script>
+    <script src="js/swing.js?v=1.103.0"></script>
+    <script src="js/school.js?v=1.103.0"></script>
+    <script src="js/audio.js?v=1.103.0"></script>
+    <script src="js/music.js?v=1.103.0"></script>
+    <script src="js/bag.js?v=1.103.0"></script>
+    <script src="js/textures.js?v=1.103.0"></script>
+    <script src="js/shaders.js?v=1.103.0"></script>
+    <script src="js/postfx.js?v=1.103.0"></script>
+    <script src="js/weather.js?v=1.103.0"></script>
+    <script src="js/flyover.js?v=1.103.0"></script>
+    <script src="js/replay.js?v=1.103.0"></script>
+    <script src="js/bot.js?v=1.103.0"></script>
+    <script src="js/models.js?v=1.103.0"></script>
+    <script src="js/life.js?v=1.103.0"></script>
+    <script src="js/render.js?v=1.103.0"></script>
+    <script src="js/minimap.js?v=1.103.0"></script>
+    <script src="js/debug.js?v=1.103.0"></script>
+    <script src="js/game.js?v=1.103.0"></script>
 </body>
 </html>

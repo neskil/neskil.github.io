@@ -26,14 +26,18 @@
      curving is a mishit you can read from the tee, and it is the difference
      between "the game moved my ball" and "I came over the top of it".
 
-   Four gates, rotating by stroke so a round meets all of them, and all four
-   are the same golf swing with more or less of it to do:
+   **One gate, always the same.** There used to be four — tempo, a return
+   that only counted on the way down, a double press, and one where the
+   marker went dark — rotating hole by hole. Each was learnable on its own;
+   together they were the game changing its mind: the same button did a
+   different thing on every hole, nothing on the screen said which, and the
+   owner's verdict was "random, hard, and not fun". A timing test is only fair
+   when you know what is being tested, so now there is one: a single pass up
+   the bar, strike on the line.
 
-     tempo    one pass up the bar; strike at the mark.
-     return   up to the power you loaded, turn, and strike it on the way down.
-     double   the same, plus a press at the top — how well you hit that one
-              decides how much room the strike gets.
-     fade     tempo, with the marker hidden for the run in. Rhythm, not sight.
+   The touch swing (`swipe`, at the bottom) is the other way to hit it, and it
+   lands in the same place: a number from -1 to 1 that `apply` turns into the
+   same push, pull and bend.
 
    None of this file knows about the DOM or three.js. It is arithmetic over a
    plain object, so tests.html covers it with no browser at all. */
@@ -41,20 +45,6 @@
     'use strict';
 
     var C = G3.CONFIG;
-
-    /* The four gates in the order a round meets them. Kept as a list rather
-       than picked at random: meeting all four in order is how they get
-       learned, and a random one can hand you `fade` three times before you
-       have seen `tempo` once.
-
-       What is handed to `pick` is the *hole*, not the stroke — see game.js.
-       One gate per hole is the difference between learning a rhythm and being
-       shown a new one every time you wind the meter up. */
-    var VARIANTS = ['tempo', 'return', 'double', 'fade'];
-
-    function pick(n) {
-        return VARIANTS[((n | 0) % VARIANTS.length + VARIANTS.length) % VARIANTS.length];
-    }
 
     /* Where a full swing sits on a bar that runs to the end of the overdraw.
        The white line the player can already see, as a fraction. */
@@ -91,58 +81,18 @@
        cannot go wrong is a hoop to jump through for no reason. */
     function arms(over) { return (over || 0) > C.SWING.ARM; }
 
-    /* `at` is where the meter was loaded to, as a fraction of the whole bar.
-       It is the top of the backswing on the gates that have one: the marker
-       climbs to the power you actually asked for, not to the end of the bar,
-       so a shot wound to 105% has a short swing and one wound to 130% a long
-       one. The gate is the shot's shape, not a fixed animation. */
-    function start(variant, over, at) {
-        var mark = markAt();
-        var top = Math.max(mark + 0.04, Math.min(1, at || 1));
+    function start(over) {
         return {
-            variant: VARIANTS.indexOf(variant) >= 0 ? variant : 'tempo',
             over: Math.max(0, Math.min(1, over || 0)),
-            mark: mark,
-            top: top,
+            mark: markAt(),
             win: windowFor(over),
             speed: speedFor(over),
             pos: 0,
-            dir: 1,
-            turned: false,      // has it come back off the top yet
-            stage: 0,           // 0 = waiting for the top press (double only)
-            topOff: 0,          // how far off that press was, once it is made
             done: false,
             struck: false,      // did a press end it, or did it run out
             off: 0,             // signed timing error, -1 early … +1 late
             perfect: false
         };
-    }
-
-    /* Is the strike zone live right now? On the gates that turn, only on the
-       way down — the marker going *up* is the backswing, and a golfer who
-       hits the ball on the way up has not hit the ball. */
-    function live(g) {
-        if (g.done) return false;
-        if (g.variant === 'double' && g.stage === 0) return false;
-        if (g.variant === 'return' || g.variant === 'double') return g.turned;
-        return true;
-    }
-
-    /* Whether the marker is drawn where it is. `fade` puts it out for the run
-       in to the line and brings it back after — which is the whole of that
-       gate. You have watched it cross most of the bar at a steady speed, so
-       you know when it arrives; the dark stretch only stops you checking. It
-       comes back rather than staying out because a marker that never returns
-       makes a miss unreadable, and a gate you cannot learn from is a gate that
-       stays as hard on the hundredth swing as the first. */
-    function visible(g) {
-        if (g.variant !== 'fade') return true;
-        return Math.abs(g.pos - g.mark) > C.SWING.FADE_LEAD;
-    }
-
-    // Which mark the next press is being judged against.
-    function targetOf(g) {
-        return (g.variant === 'double' && g.stage === 0) ? g.top : g.mark;
     }
 
     /* One frame of the marker. It ends on its own if the swing runs out —
@@ -152,39 +102,13 @@
        already hand you at this overdraw. */
     function tick(g, dt) {
         if (g.done) return g;
-        g.pos += g.dir * g.speed * dt;
-
-        if (g.dir > 0 && g.pos >= g.top && (g.variant === 'return' || g.variant === 'double')) {
-            // The top of the backswing. On `double` a press was due here; not
-            // making one is a missed press, judged where the turn happened.
-            if (g.variant === 'double' && g.stage === 0) {
-                g.stage = 1;
-                g.topOff = 1;
-            }
-            g.pos = g.top;
-            g.dir = -1;
-            g.turned = true;
-            return g;
-        }
-        if (g.dir > 0 && g.pos >= 1) { g.pos = 1; return finish(g, false); }
-        if (g.dir < 0 && g.pos <= 0) { g.pos = 0; return finish(g, false); }
+        g.pos += g.speed * dt;
+        if (g.pos >= 1) { g.pos = 1; return finish(g, false); }
         return g;
     }
 
-    /* A press. On `double` the first one sets the top and the second strikes;
-       everywhere else the first one strikes.
-
-       A press while the zone is not live — swinging at the ball on the way
-       back — is not free and is not ignored either: it ends the gate as a
-       miss on the early side, because that is exactly what it is. */
     function press(g) {
         if (g.done) return g;
-        if (g.variant === 'double' && g.stage === 0) {
-            g.topOff = errAgainst(g, g.top);
-            g.stage = 1;
-            return g;
-        }
-        if (!live(g)) return finish(g, true, -1);
         return finish(g, true, errAgainst(g, g.mark));
     }
 
@@ -206,16 +130,6 @@
         g.done = true;
         g.struck = !!struck;
         g.off = struck ? (off || 0) : 1;      // ran out = late, and all the way
-        /* The top press, on the gate that has one, does not push the ball
-           anywhere by itself — it decides how much room the strike had, which
-           `windowFor` cannot know when the gate is built. What it does instead
-           is add to the miss: coming off a bad top and then striking clean is
-           still a swing that started wrong. */
-        if (g.variant === 'double' && g.topOff) {
-            var add = Math.abs(g.topOff) * C.SWING.TOP_WEIGHT;
-            var sign = g.off !== 0 ? (g.off > 0 ? 1 : -1) : (g.topOff > 0 ? 1 : -1);
-            g.off = Math.max(-1, Math.min(1, Math.abs(g.off) + add)) * sign;
-        }
         g.perfect = g.struck && g.off === 0;
         return g;
     }
@@ -334,9 +248,72 @@
         return out;
     }
 
+    /* ── the touch swing ──────────────────────────────────────────────────
+
+       A swing you make with your thumb instead of a meter you stop: press,
+       pull straight down to take the club back, and swipe up through where
+       you started to hit it. The pull is the power — the same meter fills as
+       you go, with the full swing at the same white line — and the swipe up
+       is the strike. A straight swipe is a clean one; a swipe that drifts
+       right pushes the ball right and fades it, one that drifts left pulls it
+       and draws it. That is the whole rule, and it is the same on every hole.
+
+       It is behind a toggle while it is tried (game.js `swipeWanted`), and
+       on the long game only: mini golf is putts and chips that want a number
+       on the meter, not a thrash.
+
+       What is read is the *angle* of the through-swing, from the bottom of
+       the backswing to where the thumb comes back across the line it
+       started on — not where on the screen it ends up. An angle does not
+       care how big the phone is or how long the pull was. */
+
+    // How much of the meter a pull of `pulled` pixels has loaded, out of a
+    // lane `lane` pixels long. The lane is the whole meter, overdraw and all.
+    function swipeLoad(pulled, lane) {
+        if (!(lane > 0)) return 0;
+        return Math.max(0, Math.min(1, (pulled || 0) / lane));
+    }
+
+    /* The through-swing, as an angle off straight up: 0 dead straight,
+       positive drifting right on screen. `turn` is the bottom of the
+       backswing and `cross` where the thumb came back over the start. */
+    function swipeAngle(turn, cross) {
+        var up = turn.y - cross.y;
+        if (!(up > 0)) return 0;
+        return Math.atan2(cross.x - turn.x, up);
+    }
+
+    // How crooked a swipe may be and still be clean — narrower the further
+    // the meter was pulled, on the gate's own curve.
+    function swipeTol(over) {
+        var S = C.SWIPE;
+        return S.TOL_MAX + (S.TOL_MIN - S.TOL_MAX) * ease(over);
+    }
+
+    /* The swipe as the gate's number: 0 inside the tolerance, then out to ±1
+       over SWIPE.SPAN. Right is +, which is the gate's "late": both push the
+       ball right (`apply`), so a swipe that drifts right sends the ball the
+       way the thumb went. */
+    function swipeOff(angle, over) {
+        var a = Math.abs(angle || 0), tol = swipeTol(over);
+        if (a <= tol) return 0;
+        return Math.min(1, (a - tol) / C.SWIPE.SPAN) * (angle > 0 ? 1 : -1);
+    }
+
+    /* A gate already played, in the shape `apply` and `shape` read. Inside a
+       full swing the meter's gate never arms, and the spray there is nothing —
+       which is right for a shot you stopped on the line and wrong for one
+       you swiped: a crooked swipe has to cost *something* or the straightness
+       is decoration. So the envelope has a floor (SWIPE.FLOOR), and it is
+       still the old spray curve, so a thrash costs what it always did. */
+    function swiped(over, off) {
+        var o = Math.max(0, Math.min(1, over || 0));
+        off = Math.max(-1, Math.min(1, off || 0));
+        return { over: Math.max(C.SWIPE.FLOOR, o), off: off, done: true,
+                 struck: true, perfect: off === 0, swipe: true };
+    }
+
     G3.swing = {
-        VARIANTS: VARIANTS,
-        pick: pick,
         arms: arms,
         markAt: markAt,
         windowFor: windowFor,
@@ -344,15 +321,17 @@
         start: start,
         tick: tick,
         press: press,
-        live: live,
-        visible: visible,
-        targetOf: targetOf,
         apply: apply,
         SHAPES: SHAPES,
         bendOf: bendOf,
         armsShape: armsShape,
         shapeOver: shapeOver,
-        shape: shape
+        shape: shape,
+        swipeLoad: swipeLoad,
+        swipeAngle: swipeAngle,
+        swipeTol: swipeTol,
+        swipeOff: swipeOff,
+        swiped: swiped
     };
 
 })(window.G3);
