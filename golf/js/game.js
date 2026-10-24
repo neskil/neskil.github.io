@@ -1582,6 +1582,7 @@
         }
         $('card-sub').textContent = summary;
         $('card-again').style.display = res ? '' : 'none';
+        showNextCourse(!!res);
         $('scorecard').classList.add('show');
     }
 
@@ -1622,7 +1623,21 @@
                 return pl.name + ' ' + totals[k].strokes + ' (' + S.formatVsPar(totals[k].vsPar) + ')';
             }).join(' · ');
         $('card-again').style.display = final ? '' : 'none';
+        showNextCourse(final);
         $('scorecard').classList.add('show');
+    }
+
+    /* A finished card offers the way on as well as the way round again: the
+       next open course down the rack, the one the caddie would walk to. It
+       is asked after the round is saved, so stars just earned can open it. */
+    function showNextCourse(final) {
+        var id = final && !GOLF.PLAYTEST ? nextCourseId() : null;
+        var card = id && id !== GOLF.COURSE_ID ? courseById(id) : null;
+        var btn = $('card-next');
+        btn.style.display = card ? '' : 'none';
+        btn.dataset.course = card ? id : '';
+        btn.textContent = card ? 'Next: ' + card.name : 'Next course';
+        $('card-again').classList.toggle('primary', !card);
     }
 
     function closeCard() { shut('scorecard'); }
@@ -2622,6 +2637,13 @@
         $('card-again').addEventListener('click', function () {
             if (state.party) startParty(GOLF.COURSE_ID, state.party.players.map(function (p) { return p.name; }));
             else newRound(false);
+        });
+        $('card-next').addEventListener('click', function () {
+            var id = this.dataset.course;
+            if (!id) return;
+            closeCard();
+            if (state.party) startParty(id, state.party.players.map(function (p) { return p.name; }));
+            else playCourse(id, null, 0);
         });
         $('scorecard').addEventListener('click', function (e) {
             if (e.target === $('scorecard')) closeCard();
