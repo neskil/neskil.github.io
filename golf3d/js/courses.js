@@ -5650,9 +5650,9 @@
             blurb: 'Two steps up, no ramps, and the pads have twice the weight to lift. Roll it at the step and let the funnel find the pad.',
             pads: [
                 pad(0, 0, 7, 10),
-                sprung(3.5, 8.8, 1.2, 15),
+                sprung(3.5, 8.7, 1.2, 15),
                 pad(0, 10, 7, 6, 1.2),
-                sprung(3.5, 14.8, 1.2, 15, 1.2),
+                sprung(3.5, 14.7, 1.2, 15, 1.2),
                 pad(0, 16, 7, 8, 2.4)
             ],
             extra: [
