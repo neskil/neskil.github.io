@@ -24,7 +24,7 @@
     gtag('config', 'G-9GP823TGLB');
 </script>
 <link rel="icon" href="../favicon.ico">
-<link rel="stylesheet" href="editor/editor.css?v=1.13.1">
+<link rel="stylesheet" href="editor/editor.css?v=1.14.0">
 </head>
 <body>
 
@@ -55,6 +55,9 @@
       <button class="btn on" data-tool="select" title="Select and drag (V)">▣ Select</button>
       <button class="btn" data-tool="walls" title="Drag out a wall (1)"><i class="swatch" style="background:#6d4a2e"></i>Wall</button>
       <button class="btn" data-tool="rails" title="Drag a wall at any angle, from one end to the other (L)"><i class="swatch" style="background:#8a5a34;transform:rotate(-30deg)"></i>Rail</button>
+      <button class="btn" data-tool="arcs" title="Drag a curved wall out from its centre (C)"><i class="swatch" style="background:transparent;border:3px solid #9c4f36;border-bottom-color:transparent;border-radius:50%"></i>Curve</button>
+      <button class="btn" data-tool="blocks" title="Drag out a solid block — a bed, a hedge, a rock, a windmill, a fan (B)"><i class="swatch" style="background:#3d6b2c;border:2px solid #6d4a2e;border-radius:40%"></i>Block</button>
+      <button class="btn" data-tool="hills" title="Drag a hill out from its centre — a mound, or a bowl (M)"><i class="swatch round" style="background:radial-gradient(circle at 35% 35%, #c8e6b0, #3f8a53)"></i>Hill</button>
       <button class="btn" data-tool="water" title="Drag out water (2)"><i class="swatch" style="background:#1b6d9e"></i>Water</button>
       <button class="btn" data-tool="sand" title="Drag out a bunker (3)"><i class="swatch" style="background:#e3ca92"></i>Sand</button>
       <button class="btn" data-tool="rough" title="Drag out rough (4)"><i class="swatch" style="background:#1c6b39"></i>Rough</button>
@@ -103,6 +106,12 @@
           <span class="lbl lbl-w">Par</span>
           <input type="number" id="f-par" min="2" max="5" step="1" style="width:60px">
           <span class="hint" id="par-hint"></span>
+        </div>
+        <div class="row">
+          <span class="lbl lbl-w">Biome</span>
+          <select id="f-theme" style="flex:1; min-width:0" title="A biome of the hole's own, worn whatever its course wears">
+            <option value="">— the course's own —</option>
+          </select>
         </div>
       </div>
     </details>
@@ -191,14 +200,15 @@
      integrator, the same renderer. A hole that looks and plays right in here
      is the hole that ships, because there is no second implementation of any
      of it. -->
-<script src="js/config.js?v=1.13.1"></script>
-<script src="js/courses.js?v=1.13.1"></script>
-<script src="js/physics.js?v=1.13.1"></script>
-<script src="js/scenery.js?v=1.13.1"></script>
-<script src="js/landscape.js?v=1.13.1"></script>
-<script src="js/ambience.js?v=1.13.1"></script>
-<script src="js/water.js?v=1.13.1"></script>
-<script src="js/render.js?v=1.13.1"></script>
-<script src="editor/editor.js?v=1.13.1"></script>
+<script src="js/config.js?v=1.14.0"></script>
+<script src="js/courses.js?v=1.14.0"></script>
+<script src="js/physics.js?v=1.14.0"></script>
+<script src="js/scenery.js?v=1.14.0"></script>
+<script src="js/landscape.js?v=1.14.0"></script>
+<script src="js/props.js?v=1.14.0"></script>
+<script src="js/ambience.js?v=1.14.0"></script>
+<script src="js/water.js?v=1.14.0"></script>
+<script src="js/render.js?v=1.14.0"></script>
+<script src="editor/editor.js?v=1.14.0"></script>
 </body>
 </html>

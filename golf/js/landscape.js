@@ -1868,6 +1868,10 @@
             x0 = Math.min(x0, r.x - h, r.tx - h); y0 = Math.min(y0, r.y - h, r.ty - h);
             x1 = Math.max(x1, r.x + h, r.tx + h); y1 = Math.max(y1, r.y + h, r.ty + h);
         });
+        var more = GOLF.props && GOLF.props.extent(course);
+        if (more) {
+            x0 = Math.min(x0, more.x0); y0 = Math.min(y0, more.y0); x1 = Math.max(x1, more.x1); y1 = Math.max(y1, more.y1);
+        }
         if (x0 === Infinity) return null;
         var pad = 20;
         x0 = Math.max(0, x0 - pad); y0 = Math.max(0, y0 - pad);
@@ -1879,9 +1883,15 @@
         g.drawImage(turfFor(seed, theme), 0, 0, W, H);
         drawGreen(g, course.hole);
         drawRough(g, course.rough || [], theme);
-        for (var i = 0; i < (course.slopes || []).length; i++) drawSlope(g, course.slopes[i]);
+        var PR = GOLF.props;
+        for (var i = 0; i < (course.slopes || []).length; i++) {
+            if (course.slopes[i].wind && PR) PR.windLane(g, course.slopes[i]);
+            else drawSlope(g, course.slopes[i]);
+        }
         drawIce(g, course.ice || []);
         drawSand(g, course.sand || [], theme, v);
+        // Hills, and the tracks the gates run in. See props.js.
+        if (PR) PR.ground(g, course, theme, v);
         for (var k = 0; k < (course.avalanches || []).length; k++) drawChuteBed(g, course.avalanches[k]);
         for (k = 0; k < (course.vents || []).length; k++) drawVentBed(g, course.vents[k], v);
         drawWaterBed(g, course.water, theme, v);
@@ -1895,6 +1905,8 @@
     function paintSolids(g, course, theme, v) {
         var i, rails = course.rails || [];
         for (i = 0; i < rails.length; i++) drawRail(g, rails[i], theme, v);
+        // Curves and blocks. See props.js.
+        if (GOLF.props) GOLF.props.solids(g, course, theme, v);
         for (i = 0; i < course.walls.length; i++) if (!course.walls[i].move) drawWall(g, course.walls[i], 0, theme, v);
         grade(g, theme, v, true);
     }
@@ -1962,6 +1974,9 @@
         drawCanopies: drawCanopies,
         drawClouds: drawClouds,
         drawRim: drawRim,
+        crown: crown,
+        pine: pine,
+        palm: palm,
         layer: layer,
         hash: hash,
         MATERIAL: MATERIAL,

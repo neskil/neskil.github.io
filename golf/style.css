@@ -708,6 +708,11 @@ kbd {
 /* Round, like the thing it stands for. */
 .sw-bump { background: radial-gradient(circle at 35% 32%, #fde68a 0 22%, #f59e0b 60%, #b45309 100%); border-radius: 50%; }
 .sw-slope { background: linear-gradient(#ffffff40, #00000060); border: 1px solid #ffffff30; }
+/* Air going one way: streaks on a pale lane. */
+.sw-wind { background: repeating-linear-gradient(90deg, #e0f2fe 0 5px, transparent 5px 8px) center / 100% 3px no-repeat,
+    linear-gradient(#e0f2fe 0 0) 0 25% / 70% 2px no-repeat, linear-gradient(#e0f2fe 0 0) 40% 78% / 60% 2px no-repeat, #5b8fa8; }
+/* A mound: lit on its upper left, shaded on its lower right. */
+.sw-hill { background: radial-gradient(circle at 36% 34%, #a7e3a0 0 18%, #3f8a53 55%, #1d4a2a 100%); border-radius: 50%; }
 /* A mouth: dark, in a coloured collar. */
 .sw-tunnel { background: radial-gradient(circle, #0a0f1a 0 45%, #a78bfa 48% 100%); border-radius: 50%; }
 /* Molten, with a crust. */

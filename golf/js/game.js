@@ -168,7 +168,7 @@
         var tagline = document.querySelector('.tagline');
         if (tagline && course) tagline.textContent = course.name + ' — ' + course.blurb;
         // The letterbox round the board is the biome's too.
-        $('stage').style.background = themeFor(course).backdrop;
+        $('stage').style.background = themeFor(course, state && GOLF.COURSE[state.holeIndex]).backdrop;
     }
 
     /* ── scenery ────────────────────────────────────────────────────────
@@ -176,12 +176,14 @@
        Every course has a biome of its own, and that is how it is drawn —
        unless the player has picked one scenery for all of them, from the
        picker's Scenery row or with S. Only the look changes: the holes,
-       the records and the stars are the course's whatever it is wearing. */
+       the records and the stars are the course's whatever it is wearing.
+       A hole may name a biome of its own, which it wears unless the player
+       has picked one for everything. */
     var scenery = '';
     try { scenery = localStorage.getItem(C.SCENERY_KEY) || ''; } catch (e) { /* storage off */ }
     if (!SC.THEMES[scenery]) scenery = '';
 
-    function themeFor(course) { return scenery ? SC.themeNamed(scenery) : SC.themeOf(course); }
+    function themeFor(course, hole) { return scenery ? SC.themeNamed(scenery) : SC.themeOf(course, hole); }
 
     function setScenery(id, quiet) {
         scenery = SC.THEMES[id] ? id : '';
@@ -190,7 +192,7 @@
             else localStorage.removeItem(C.SCENERY_KEY);
         } catch (e) { /* storage off */ }
         if (state && state.world) {
-            state.theme = themeFor(currentCourse()).id;
+            state.theme = themeFor(currentCourse(), GOLF.COURSE[state.holeIndex]).id;
             A.ambience(SC.themeNamed(state.theme).sound);
         }
         syncCourse();
@@ -718,8 +720,9 @@
         }
         // Which biome to dress it in, and the key its painted layers are
         // cached under: a different hole, card or draw is a different picture.
-        state.theme = themeFor(currentCourse()).id;
+        state.theme = themeFor(currentCourse(), hole).id;
         A.ambience(SC.themeNamed(state.theme).sound);
+        $('stage').style.background = SC.themeNamed(state.theme).backdrop;
         state.sceneKey = (GOLF.PLAYTEST ? 'playtest' : GOLF.COURSE_ID) + '/' +
             (typeof GOLF.COURSE_SEED === 'number' ? GOLF.COURSE_SEED : '-') + '/' + i;
         R.effects.clear();
@@ -794,6 +797,8 @@
         gates:   ['sw-move', 'Gate', 'will not wait for you. Time the gap.'],
         bumpers: ['sw-bump', 'Bumper', 'livelier than a wall — it picks a new line.'],
         slopes:  ['sw-slope', 'Slope', 'arrows point downhill. Aim above the cup.'],
+        wind:    ['sw-wind', 'Wind', 'the fan blows the ball downwind while it rolls through. Aim into it.'],
+        hills:   ['sw-hill', 'Hill', 'a mound sheds the ball off its sides; a bowl gathers it to the middle.'],
         tunnels: ['sw-tunnel', 'Tunnel', 'out of the mouth the same colour, same speed, same line.'],
         avalanches: ['sw-chute', 'Avalanche', 'a slide comes down the chute on a clock. Watch for the smoke, go behind it.'],
         lava: ['sw-lava', 'Lava', 'a stroke and a replay, and nothing skips across it.'],

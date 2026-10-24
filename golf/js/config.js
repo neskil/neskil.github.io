@@ -7,7 +7,7 @@
    and on a desktop and none of the tuning below is resolution dependent. */
 window.GOLF = window.GOLF || {};
 
-GOLF.VERSION = '1.13.1';
+GOLF.VERSION = '1.14.0';
 
 GOLF.CONFIG = {
     WORLD_W: 960,
@@ -244,3 +244,12 @@ GOLF.CONFIG = {
        own. A preference, like the sound: starting over leaves it alone. */
     SCENERY_KEY: 'miniGolf.scenery.v1'
 };
+
+/* How hard the ground may pull and still let a ball rest on it. On grass a
+   ball pulled at this rate never rolls faster than STOP_SPEED however long it
+   is left, so a ball that has stopped there has stopped: it is the same line
+   between "at rest" and "still rolling" that STOP_SPEED draws, said as a
+   pull instead of a speed. Every slope on the rack pulls ten times as hard,
+   so nothing rests on a slope; the bottom of a bowl is level, so a ball can.
+   See physics.js → hills. */
+GOLF.CONFIG.REST_PULL = GOLF.CONFIG.STOP_SPEED * -Math.log(GOLF.CONFIG.FRICTION_GRASS);

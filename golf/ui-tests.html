@@ -762,9 +762,16 @@
             var after = G.scenery.ORDER[G.scenery.ORDER.indexOf('winter') + 1];
             assert('S steps on to the next', G.game.getState().theme === after, G.game.getState().theme);
             G.game.setScenery('', true);
-            assert('each course its own puts the course back in its own biome',
-                G.game.getState().theme === G.scenery.themeOf(G.COURSES.filter(function (c) { return c.id === G.COURSE_ID; })[0]).id &&
-                localStorage.getItem(G.CONFIG.SCENERY_KEY) === null);
+            /* Hole 3 of the starter wears a biome of its own — the Short Six
+               walks through every place on the rack — and that is the one it
+               goes back to. */
+            var here = G.COURSES.filter(function (c) { return c.id === G.COURSE_ID; })[0];
+            assert('each course its own puts the hole back in its own biome',
+                G.game.getState().theme === G.scenery.themeOf(here, G.COURSE[G.game.getState().holeIndex]).id &&
+                localStorage.getItem(G.CONFIG.SCENERY_KEY) === null, G.game.getState().theme);
+            assert('…which on the starter\'s third hole is not the card\'s own',
+                G.game.getState().theme !== G.scenery.themeOf(here).id && G.game.getState().theme === G.COURSE[2].theme);
+            assert('…and the letterbox follows the hole', css($('stage'), 'background-color') !== 'rgb(8, 19, 32)');
             var scapes = [];
             G.scenery.ORDER.forEach(function (k) {
                 G.audio.ambience(G.scenery.THEMES[k].sound);
@@ -815,8 +822,8 @@
             }
             G.COURSES.forEach(function (c) {
                 c.holes.forEach(function (h, i) {
-                    draw(c, h, i, G.scenery.themeOf(c).id, false);
-                    draw(c, h, i, G.scenery.themeOf(c).id, true);
+                    draw(c, h, i, G.scenery.themeOf(c, h).id, false);
+                    draw(c, h, i, G.scenery.themeOf(c, h).id, true);
                     G.scenery.ORDER.forEach(function (k, n) { draw(c, h, i, k, (i + n) % 2 === 1); });
                 });
             });

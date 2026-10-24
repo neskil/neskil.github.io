@@ -67,10 +67,10 @@
     // them the same forgiving way.
     var NONE = [];
 
-    function blocked(course, x, y) {
+    function blocked(course, x, y, rails) {
         var r = C.BALL_R * 0.8, i;
-        var walls = course.walls || NONE, rails = course.rails || NONE, posts = course.bumpers || NONE;
-        if (P.zoneAt(course.water, x, y) || P.zoneAt(course.lava, x, y)) return true;
+        var walls = course.walls || NONE, posts = course.bumpers || NONE;
+        if (P.zoneAt(course.water, x, y) || P.zoneAt(course.lava, x, y) || P.inBlock(course, x, y)) return true;
         for (i = 0; i < walls.length; i++) {
             if (!walls[i].move && P.circleRect(x, y, r, walls[i])) return true;
         }
@@ -87,11 +87,11 @@
         var m = maps && maps.get(course);
         if (m) return m;
         var cols = Math.ceil(C.WORLD_W / GRID), rows = Math.ceil(C.WORLD_H / GRID);
-        var n = cols * rows, i;
+        var n = cols * rows, i, rails = P.railsOf(course);
         var wall = new Uint8Array(n), dist = new Float64Array(n);
         for (i = 0; i < n; i++) {
             dist[i] = Infinity;
-            wall[i] = blocked(course, (i % cols + 0.5) * GRID, (Math.floor(i / cols) + 0.5) * GRID) ? 1 : 0;
+            wall[i] = blocked(course, (i % cols + 0.5) * GRID, (Math.floor(i / cols) + 0.5) * GRID, rails) ? 1 : 0;
         }
         function at(x, y) {
             return Math.min(rows - 1, Math.max(0, Math.floor(y / GRID))) * cols +
