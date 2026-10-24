@@ -7,7 +7,7 @@
    and on a desktop and none of the tuning below is resolution dependent. */
 window.GOLF = window.GOLF || {};
 
-GOLF.VERSION = '1.13.0';
+GOLF.VERSION = '1.13.1';
 
 GOLF.CONFIG = {
     WORLD_W: 960,
@@ -49,6 +49,8 @@ GOLF.CONFIG = {
     SAFE_POWER: 1134,
     MIN_POWER: 35,
     DRAG_MAX: 210,        // world px of pull-back that equals MAX_POWER
+    PINCH_MAX_ZOOM: 3,    // how far two fingers can blow the board up while held
+    COACH_WAIT_MS: 6000,  // a first tee this long without a shot gets the stroke in words
 
     /* Radians of scatter at the very top of the dial: ±0.13 is about 7.5°,
        which over a 400px carry is ±52px — enough to miss a cup with, not
