@@ -915,7 +915,34 @@
         B.base = w.base || 0;
         B.top = (w.base || 0) + w.h;
         B.src = w;
+        if (w.sails) millSail(w.sails, t, B);
         return B;
+    }
+
+    /* A windmill's sails: the fourth way a wall moves, and the first that
+       turns in the *upright* plane. Four sails go round a hub in front of the
+       mill door, and only one of them can ever reach the ground — the one
+       nearest pointing straight down — so the box the ball meets is the foot
+       of that one sail: a sail's width across, centred on its tip, starting
+       at the tip and reaching a unit up. Which sail it is changes every
+       quarter turn; the box does not care which.
+
+       θ is the turn off straight down, and the renderer turns its sails by
+       the same θ about the hub (render.addSails), so the tip the eye follows
+       is the tip the ball meets. When that sail is down in front of the door
+       the door is shut; a quarter turn later it is a gap between two sails
+       with daylight under both. `vx` is the tip's own speed across the door,
+       so a sail that comes down on a ball shoves it the way the sail is
+       going, as a blade would. */
+    function millSail(sl, t, B) {
+        var q = Math.PI / 2, th = t * sl.speed + (sl.phase || 0);
+        var phi = th - q * Math.round(th / q);
+        B.cx = sl.hx + sl.len * Math.sin(phi);
+        B.vx = sl.len * Math.cos(phi) * sl.speed;
+        B.hw = sl.width / 2;
+        B.yaw = 0; B.spin = 0;
+        B.base = sl.hy - sl.len * Math.cos(phi);
+        B.top = B.base + 1;
     }
 
     /* Circle vs (possibly rotated) box, in the xz plane. Returns the outward
@@ -1180,6 +1207,10 @@
             if (dx * dx + dz * dz > reach * reach) continue;
 
             B = wallBox(w, world.time, SCRATCH);
+            // A sail's own height is in the box rather than on the wall: the
+            // wall is the whole disc the sails turn in, and the box is the one
+            // sail that is down.
+            if (w.sails && (b.y - C.BALL_R >= B.top || b.y + C.BALL_R <= B.base)) continue;
             hit = circleBox(b.x, b.z, C.BALL_R, B);
             if (!hit) continue;
 

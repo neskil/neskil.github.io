@@ -83,10 +83,10 @@
         var sims = 0;
         var cup = hole.cup;
         var base = Math.atan2(cup.x - from.x, cup.z - from.z);
-        // All three kinds of motion — a flipper (`swing`) is a timing hole too,
-        // and this asked about two of them (golf3d/CLAUDE.md, "a wall may move
-        // three ways").
-        var moves = hole.walls.some(function (wl) { return wl.move || wl.spin || wl.swing; });
+        // All four kinds of motion — a flipper (`swing`) and a windmill's
+        // `sails` are timing holes too, and this once asked about two of them
+        // (golf3d/CLAUDE.md, "a wall may move four ways").
+        var moves = hole.walls.some(function (wl) { return wl.move || wl.spin || wl.swing || wl.sails; });
         var waits = moves ? [0, 0.45, 0.95, 1.5] : [0];
         var here = d2(from, cup);
         var best = null;

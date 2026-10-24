@@ -148,17 +148,16 @@ none, because it reads as coverage.
   arrays of GLSL source strings. The turf is a third thing: four fragments
   spliced into three.js's Lambert via `onBeforeCompile`. Changing any of them
   means reading GLSL, not setting a property.
-- **A wall may move three ways, not two**: `move` slides it, `spin` turns it
-  round, and `swing` sweeps it between two angles and stops at each end (a
-  flipper). Anything that filters for movers has to ask about all three — the
-  renderer's `R.movers`, the tests' gate-window assertion, and then the
-  editor's ported copy of that assertion, its ghost boxes, its plan-repaint
-  trigger and its `cloneShape`, all of which asked about two. That is five
-  places over three files that have each independently written
-  `w.move || w.spin` — six, counting the bot's "does this hole need a wait
-  before striking", which also missed flippers until v1.66.0; if you add a
-  fourth kind of motion, grep for both names together before you do anything
-  else.
+- **A wall may move four ways**: `move` slides it, `spin` turns it round,
+  `swing` sweeps it between two angles and stops at each end (a flipper), and
+  `sails` turns a windmill's four sails in the upright plane (`mill`).
+  Anything that filters for movers has to ask about all four — the renderer's
+  `R.movers` (sails are a `rotor` there, not a box), the tests' gate-window
+  assertion, the editor's ported copy of that assertion, its ghost boxes, its
+  plan-repaint trigger, its `cloneShape` and its export, and the bot's "does
+  this hole need a wait before striking", which missed flippers until v1.66.0.
+  The minimap draws sails as the line they turn in. If you add a fifth kind of
+  motion, grep for `w.move || w.spin` before you do anything else.
 - **A pad may now *do* something as well as be somewhere**: `push` is a
   travelator, `spring` a launch pad, and a hole's `warps` are pipes. All three
   are read by `physics.js` alone and drawn from that same data by `render.js`,

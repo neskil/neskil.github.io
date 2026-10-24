@@ -93,8 +93,41 @@
             move: o.move || null,
             spin: o.spin || 0,
             swing: o.swing || null,
+            sails: o.sails || null,
             kind: o.kind || 'rail'
         };
+    }
+
+    /* A windmill: a mill house across the lane with one door in it, and four
+       sails turning in front of the door (physics.millSail for how the ball
+       meets them). The house is an `aperture` of brick wings, a door's width
+       apart and as deep as a tunnel, with no lintel: the tower the renderer
+       stands over the doorway is the lintel, from the wings' height up to the
+       cap. The sails hang on a hub just in front of it, high enough that a
+       sail pointing straight down clears the floor by a hand and the ball by
+       nothing. `speed` is radians a second, so a sail comes past the door
+       every π/2/speed seconds; the default `phase` starts them in the X a
+       windmill is drawn in, with the door open.
+
+       The sails' wall is the whole disc they turn in, two lengths across and
+       a sail's thickness deep: that is what every reject and every overlap
+       test sees, and the solver narrows it to the one sail that is down. */
+    function mill(x, z, w, opts) {
+        var o = opts || {};
+        var gap = o.gap === undefined ? 1.3 : o.gap;
+        var at = o.at === undefined ? w / 2 : o.at;
+        var deep = o.deep === undefined ? 1.6 : o.deep;
+        var len = o.len === undefined ? 2.3 : o.len;
+        var hy = len + (o.clear === undefined ? 0.15 : o.clear);
+        var hx = x + at, hz = z - 0.25;
+        var sail = wall(hx - len, hz - 0.15, 2 * len, 0.3, 2 * len + 0.3, {
+            base: hy - len - 0.15, kind: 'sails',
+            sails: { hx: hx, hy: hy, len: len, speed: o.speed || 0.8,
+                     phase: o.phase === undefined ? Math.PI / 4 : o.phase, width: o.width || 0.5,
+                     house: { z: z, deep: deep, top: 1.1 } }
+        });
+        return aperture(x, z, w, deep, { gap: gap, at: at, h: 1.1, kind: 'mill' })
+            .concat([sail]);
     }
 
     // A blade or bat that turns about its own centre, authored the way you
@@ -2970,15 +3003,35 @@
 
     var works = [
         build({
+            /* The opener, and it still says one thing: there is a gate, it
+               has a gap, and the gap does not wait for you. What it used to
+               leave out is what to do if you would rather not. A lane with a
+               gate across all of it is a hole with one shot on it, and the
+               first hole on a timing course is where somebody is going to
+               find out they cannot time it.
+
+               So the wall stops short of the east rail and the way round it
+               is sand: always open, a metre and more wide, and nothing gets
+               through a bunker on the run — a ball sent that way stops in it.
+               What it costs is the next shot. The pin is tucked to the west,
+               the far side from the bunker, so the way round leaves the
+               longest putt on the hole, and played out of sand, whose pace is
+               the one nobody can judge. The bot holes it from there; people
+               mostly do not. */
             name: 'First Gear', par: 3,
-            blurb: 'One gate, one gap, and it does not wait for you.',
-            pads: [pad(0, 0, 6, 14)],
+            blurb: 'One gate, one gap, and it does not wait for you. Or go round through the sand, and putt out of it.',
+            pads: [
+                pad(0, 0, 7.5, 6.8),
+                pad(0, 6.8, 5.3, 3),
+                pad(5.3, 6.8, 2.2, 3, 0, 'sand'),
+                pad(0, 9.8, 7.5, 5)
+            ],
             extra: [
                 wall(0, 6.8, 1.5, 0.4, 0.6, { base: -0.1 }),
-                wall(4.5, 6.8, 1.5, 0.4, 0.6, { base: -0.1 }),
+                wall(4.5, 6.8, 0.8, 0.4, 0.6, { base: -0.1 }),
                 slider(1.6, 6.8, 1.4, 0.4, { amp: 0.75, speed: 1.6 })
             ],
-            tee: { x: 3, z: 1.6 }, cup: { x: 3, z: 12 },
+            tee: { x: 3, z: 1.6 }, cup: { x: 2.4, z: 12.6 },
             decor: [
                 sign(4.8, 1.0, { yaw: -0.4 }),
                 crate(-1.8, 3.5, { yaw: 0.3 }),
@@ -2988,15 +3041,33 @@
             ]
         }),
         build({
+            /* The hole the course is named after, and for eighty releases it
+               was a blade on a stick with a windmill stood beside the lane as
+               scenery. Now it is the mill: a whitewashed house across the
+               whole lane with one door in it, and the sails coming round in
+               front of the door, each one sweeping down across it and up
+               again (`mill`, physics.millSail).
+
+               A sail straight down shuts the door; a quarter turn later there
+               is daylight under two of them, and that is the shot — the oldest
+               one in crazy golf. Too early and the sail coming down takes the
+               ball across the front of the house; too late and the next one
+               does. Through the door is a tunnel the depth of the house, and
+               the green behind it falls away a little to the pin, so the pace
+               that beats the sails is the pace that finishes near the flag. */
             name: 'The Mill', par: 3,
-            blurb: 'Sixty centimetres of daylight either side of the blade — and no way over it.',
-            pads: [pad(0, 0, 5, 15)],
-            extra: [spinner(2.5, 8, 3.6, 0.4, { spin: 1.7 })],
-            tee: { x: 2.5, z: 1.6 }, cup: { x: 2.5, z: 13 },
+            blurb: 'The windmill: one door, four sails coming down across it. Wait for the daylight between two of them.',
+            pads: [
+                pad(0, 0, 7, 10.6),
+                pad(0, 10.6, 7, 6.4, 0, 'green', 0, -0.02)
+            ],
+            extra: mill(0, 9, 7, { gap: 1.3, speed: 0.8 }),
+            tee: { x: 3.5, z: 1.6 }, cup: { x: 3.5, z: 14.6 },
             decor: [
-                windmill(-3.5, 8.0, { yaw: 0.5 }),
                 crate(-2.0, 3.0),
-                barrel(-2.0, 4.0)
+                barrel(-2.0, 4.0),
+                barrel(8.6, 12.4),
+                crate(8.8, 13.6, { yaw: 0.4 })
             ]
         }),
         build({
@@ -3021,13 +3092,32 @@
             tee: { x: 2.2, z: 1.6 }, cup: { x: 3.5, z: 15.4 }
         }),
         build({
+            /* The bar runs the length of the floor, and a ball it catches is
+               a ball it carries — back towards the tee, usually, at the pace
+               the bar was doing. That was the whole hole, and the whole hole
+               was one shot: wait for the bar to turn at the far end and run
+               the putt in behind it.
+
+               The lay-by is the second shot. A bay off the west side of the
+               floor, halfway up, where the bar does not reach: putt into it,
+               watch the bar go by, and run the rest. It is the slow way and
+               it is never a three-putt; the run from the tee is a two at best
+               and a walk back down the lane at worst. */
             name: 'The Sweeper', par: 3,
-            blurb: 'The bar runs the length of the floor. Do not be under it.',
-            pads: [pad(0, 0, 7, 15)],
-            extra: [
-                slider(0.4, 7, 6.2, 0.4, { axis: 'z', amp: 3.2, speed: 1.1 })
+            blurb: 'The bar sweeps the length of the floor. Run in behind it, or pull into the lay-by and let it go past.',
+            pads: [
+                pad(0, 0, 7, 16),
+                (function () {
+                    // A D-shaped bay, rounded on the outside like a kerb.
+                    var p = pad(-2.6, 6, 2.6, 4.2);
+                    p.round = { sw: 1.7, nw: 1.7 };
+                    return p;
+                })()
             ],
-            tee: { x: 3.5, z: 1.5 }, cup: { x: 5.4, z: 13 }
+            extra: [
+                slider(0.4, 7.8, 6.2, 0.4, { axis: 'z', amp: 3.4, speed: 1.1 })
+            ],
+            tee: { x: 3.5, z: 1.5 }, cup: { x: 5.2, z: 14 }
         }),
         build({
             /* The hole the course needed and did not have: one that turns.
@@ -4211,15 +4301,37 @@
             tee: { x: 1.2, z: 1.2 }, cup: { x: 3.5, z: 16.6 }
         }),
         build({
+            /* A pinball table, at last, rather than a lane with posts on it:
+               the top of it is a dome, and the pin is up inside the dome.
+               Eight posts still stand between the tee and the pin and there is
+               still no line through them — but a table has a way round the
+               outside, and so does this one.
+
+               Up either side of the posts runs a lane a metre wide with
+               nothing in it, and at the top of each lane, where the dome
+               begins, a kicker is set at forty-five degrees: a ball sent up
+               the lane at the right weight comes off it travelling straight
+               across the table at the pin. Too hard and it finds the dome,
+               which is a curved backboard and hands it round and back; too
+               soft and it dies in the lane. Through the posts is luck. Off
+               the kicker is a shot. */
             name: 'Bumper City', par: 3,
-            blurb: 'Eight posts, no line through them, and the ball stays on the table.',
-            pads: [pad(0, 0, 7, 16)],
+            blurb: 'Eight posts and no line through them. Up the side lane and off the kicker is the shot; through the posts is luck.',
+            pads: [(function () {
+                var p = pad(0, 0, 8, 19);
+                p.round = { nw: 4, ne: 4, sw: 1.1, se: 1.1 };
+                return p;
+            })()],
             extra: [
-                bumper(1.5, 5), bumper(3.5, 6.2), bumper(5.5, 5),
-                bumper(2.4, 9), bumper(4.6, 9),
-                bumper(1.4, 11.8), bumper(3.5, 12.6), bumper(5.6, 11.8)
+                bumper(4, 13.3),
+                bumper(2.7, 11.4), bumper(5.3, 11.4),
+                bumper(4, 9.4),
+                bumper(2.3, 7.2), bumper(5.7, 7.2),
+                bumper(3.1, 5.0), bumper(4.9, 5.0),
+                bank(0.95, 15.65, 1.7, -Math.PI / 4),
+                bank(7.05, 15.65, 1.7, Math.PI / 4)
             ],
-            tee: { x: 3.5, z: 1.5 }, cup: { x: 3.5, z: 14.4 }
+            tee: { x: 4, z: 1.5 }, cup: { x: 4, z: 15.5 }
         }),
         build({
             /* Tilt was a leaning table with two posts on it, and the lean was
@@ -7392,7 +7504,7 @@
         trough: trough, channel: channel, bowl: bowl, dish: dish, bands: bands, tilt: tilt,
         commons: commons,
         sprung: sprung, belt: belt, pipe: pipe, pipes: pipes, loop: loop,
-        aperture: aperture, flipper: flipper,
+        aperture: aperture, flipper: flipper, mill: mill,
         tree: tree, treeline: treeline, forest: forest, crag: crag, crags: crags,
         decor: decor, buoy: buoy, piling: piling, bench: bench, boat: boat, bin: bin,
         hill: hill, ring: ring, pond: pond, burn: burn, mere: mere, carve: carve, gully: gully, clearOf: clearOf, widen: widen, ridge: ridge, whorl: whorl, ravine: ravine,

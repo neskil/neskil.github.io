@@ -866,8 +866,8 @@ approach.
 | Quarry Ridge | mini | `quarry` | Ramps, a road with a corner in it and a long way down off every edge. Height as a hazard. Two ramps to one shelf, a pillar with a stair down its side, and a cannon with a plank beside it. |
 | Tidewater Reach | mini | `lagoon` | The loft course. Almost nothing here can be reached along the floor, and every carry has a safe target and a short one. |
 | Highland Steps | mini | `highland` | The same lesson from the other side: things in the way rather than things missing, and the ground handed back as a tool. A curved backboard, a slanted wall, a stair that climbs round a pool. |
-| Windmill Works | crazy | `works` | Gates and blades, after dark. Timing. |
-| Pinball Parlour | crazy | `arcade` | A table, not a course: bumpers, a plunger chute and two banks set across the throat. The posts *are* the route. |
+| Windmill Works | crazy | `works` | Gates, blades and a windmill, after dark. Timing — and a slower way round on the holes that would otherwise be one shot: sand past First Gear's gate, a lay-by off The Sweeper's floor. |
+| Pinball Parlour | crazy | `arcade` | A table, not a course: bumpers, a plunger chute and two banks set across the throat. The posts *are* the route — and on Bumper City, a dome-topped table, the shot is up a side lane and off a kicker at the pin. |
 | Clockwork Court | crazy | `clockwork` | Six mechanisms at six rates. Two bats that stop, a pendulum, three staggered cogs, a ratchet, and a finish with two lanes to pick between. |
 | The Millrace | crazy | `mill` | The same machines with the river underneath them. A mistimed shot is a stroke here rather than a bounce, so laying up is a real option for the first time on a timing course. |
 | The Belfry | crazy | `belfry` | Two machines on every hole, geared to each other: 2:1, 3:2, 1:4, and four shutters a quarter-beat apart. Counting bars rather than beats. |
@@ -1113,6 +1113,22 @@ as an option beside `move` and `spin`, because all three are things the solver
 reads off a wall and a hole written longhand — by the editor's export, say —
 has to be able to say any of them. It could say two, which is how a flipper
 survived being loaded into the editor and came back a plank.
+
+**Sails** are the fourth (v1.93.0), and the first motion in the upright plane:
+`mill(x, z, w, { gap, speed })` writes a windmill — brick wings across the
+lane with a door between them, and four sails turning in front of the door on
+a hub high enough that a sail pointing straight down clears the floor and not
+the ball. Only that sail can reach the ground, so the box the ball meets
+(`physics.millSail`) is the foot of whichever sail is nearest straight down: a
+sail's width across, centred on its tip, starting at the tip. A sail down
+shuts the door; a quarter turn later there is daylight under two of them. The
+wall itself is the whole disc the sails turn in, which is what every reject
+and overlap test sees, and `collideWalls` reads the sail's height off the box
+rather than off the wall. The renderer turns its sails by the same angle off
+straight down (`addSails`), so the tip the eye follows is the tip the ball
+meets, and it stands a tarred tower over the doorway with the hub on it. The
+Mill on Windmill Works is the one — for eighty releases the course named
+after windmills had a blade on a stick and a model windmill beside the lane.
 
 ### The order the holes are in
 

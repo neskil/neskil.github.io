@@ -178,7 +178,10 @@
         var k, wl, B;
         for (k = 0; k < hole.walls.length; k++) {
             wl = hole.walls[k];
-            B = P.wallBox(wl, 0);
+            // Sails are drawn as the line they turn in rather than as the one
+            // sail that happens to be down at the start of the clock.
+            B = wl.sails ? { cx: wl.x + wl.w / 2, cz: wl.z + wl.d / 2, hw: wl.w / 2, hd: wl.d / 2, yaw: 0 }
+                : P.wallBox(wl, 0);
             if (wl.kind === 'tree') {
                 g.fillStyle = 'rgb(' + TREE.join(',') + ')';
                 g.beginPath();
@@ -191,7 +194,8 @@
             g.rotate(-B.yaw);
             g.fillStyle = wl.kind === 'blade' ? '#d8523f'
                 : wl.kind === 'gate' ? '#e0a13a'
-                : wl.kind === 'beam' ? '#9a6a3c'
+                : wl.kind === 'beam' || wl.kind === 'sails' ? '#9a6a3c'
+                : wl.kind === 'mill' ? '#ebe4d3'
                 : 'rgb(' + RAIL.join(',') + ')';
             g.fillRect(-B.hw * scale, -B.hd * scale,
                 Math.max(1, B.hw * 2 * scale), Math.max(1, B.hd * 2 * scale));
