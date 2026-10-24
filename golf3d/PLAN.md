@@ -270,11 +270,12 @@ as well (above).
 own bag.** Putter and mallet, plus the pitch and wedge on `needsLoft` holes
 (`CONFIG.MINI_BAG` / `MINI_LOFT_BAG`). With the long game's bag the bot played
 two dozen mini holes with the *driver* and flew the wedges over the designs.
-Six holes were re-tagged to say what they are about. **Still open: Deadlift**
-keeps the long bag and is flown with the driver against its own comment — with
-the mallet the pads do lift a rolled ball a step at a time, but a greedy bot
-runs past the second pad and jams on the riser; the hole wants redesigning so
-the pad sits against the riser. Seaside's findings: the mallet's reach after a
+Six holes were re-tagged to say what they are about. ~~Deadlift~~ (done,
+v1.94.0) has the mini bag now: each pad sits against its riser with a funnel
+of two banks in front of the step, and the bot holes it in three from anywhere
+on the bottom floor. Moving the pads alone was not enough — a ball beside a
+pad still jammed against the riser beside it; the funnel is what puts every
+ball rolling at the step on to the pad. Seaside's findings: the mallet's reach after a
 bank (~10 units) is what sizes an ace line; a green slope over about 0.03 makes
 a ball creep rather than stop; blurbs' left/right can be mirrored from what the
 tee shows (Sea Legs' was).
