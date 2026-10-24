@@ -479,7 +479,9 @@
         var rects = zones.filter(function (z) { return !z.pts; });
         var polys = zones.filter(function (z) { return !!z.pts; });
         var posts = h.bumpers || [];
-        var rails = h.rails || [];
+        // Curves and blocks are rails underneath, and are held to every rule
+        // a rail is.
+        var rails = P.railsOf(h);
 
         rects.forEach(function (r) {
             if (Math.min(r.w, r.h) < 20) bad.push('a rectangle thinner than 20px');
@@ -519,6 +521,50 @@
         });
         posts.forEach(function (b) {
             if (b.r < C.BUMPER_MIN_R) bad.push('a post under BUMPER_MIN_R');
+        });
+
+        /* A curve has to turn the right way round and stay open: some sweep
+           and no more than a full turn, and a radius wider than its own
+           thickness so the inside of the bend is not a solid disc. */
+        (h.arcs || []).forEach(function (a) {
+            var sweep = a.to - a.from;
+            if (!(sweep > 0 && sweep <= 360)) bad.push('a curve that does not sweep forwards');
+            if (!(a.r > (a.w || 24))) bad.push('a curve tighter than it is thick');
+        });
+        /* A block is a solid shape the ball can only ever meet the edges of:
+           three corners at least, on the field. Its edges are rails, so
+           their thickness is checked with the rest of them. */
+        (h.blocks || []).forEach(function (b) {
+            var p = b.pts;
+            if (!Array.isArray(p) || p.length < 6 || p.length % 2) { bad.push('a block with fewer than three corners'); return; }
+            for (var i = 0; i < p.length; i += 2) {
+                if (p[i] < -1 || p[i] > C.WORLD_W + 1 || p[i + 1] < -1 || p[i + 1] > C.WORLD_H + 1) {
+                    bad.push('a block corner off the field');
+                    break;
+                }
+            }
+        });
+        /* A hill pulls the ball for as long as it is on it, so — like a
+           slope — it may not reach anything it could hold the ball against:
+           the cushion, a wall, a post, a rail or a block. A bowl gathers to
+           its middle and a mound sheds off its sides, and either would pin
+           a ball on whatever stood in the way for ever. */
+        (h.hills || []).forEach(function (hl) {
+            if (!(hl.r >= 40) || !hl.a) { bad.push('a hill too small or too flat to be one'); return; }
+            if (hl.x - hl.r < margin || hl.y - hl.r < margin || hl.x + hl.r > C.WORLD_W - margin || hl.y + hl.r > C.WORLD_H - margin) {
+                bad.push('a hill that reaches the cushion');
+            }
+            var reach = hl.r + C.BALL_R;
+            var pinned = (h.walls || []).some(function (w) {
+                return P.circleRect(hl.x, hl.y, reach, travelEnvelope(w)) !== null;
+            }) || posts.some(function (b) {
+                return P.circleCircle(hl.x, hl.y, reach, b) !== null;
+            }) || rails.some(function (r) {
+                return P.circleRail(hl.x, hl.y, reach, r) !== null;
+            });
+            if (pinned) bad.push('a hill with something solid on it');
+            if (Math.hypot(h.tee.x - hl.x, h.tee.y - hl.y) < hl.r + C.BALL_R) bad.push('the tee is on a hill');
+            if (strict && Math.hypot(h.hole.x - hl.x, h.hole.y - hl.y) < hl.r) bad.push('the cup is on a hill');
         });
 
         if (!(h.par >= 2 && h.par <= 5)) bad.push('par outside 2..5');
@@ -592,7 +638,7 @@
             if ((h.avalanches || []).some(function (a) { return P.circleRect(m.x, m.y, TR, a) !== null; })) {
                 bad.push('a tunnel mouth in an avalanche chute');
             }
-            if ((h.slopes || []).some(function (r) { return circleTouches(m.x, m.y, TR, r); })) {
+            if ((h.slopes || []).some(function (r) { return circleTouches(m.x, m.y, TR, r); }) || P.inHill(h.hills, m.x, m.y, TR)) {
                 bad.push('a tunnel mouth on a slope');
             }
             if (Math.hypot(m.x - h.tee.x, m.y - h.tee.y) < TR + C.BALL_R + 12) bad.push('a tunnel mouth on the tee');
@@ -643,7 +689,8 @@
                 return circleTouches(v.x, v.y, VR, z);
             });
             if (crowded) bad.push('a vent crowded by a wall, a post, water or lava');
-            if ((h.slopes || []).concat(h.avalanches || []).some(function (z) { return circleTouches(v.x, v.y, VR, z); })) {
+            if ((h.slopes || []).concat(h.avalanches || []).some(function (z) { return circleTouches(v.x, v.y, VR, z); }) ||
+                P.inHill(h.hills, v.x, v.y, VR)) {
                 bad.push('a vent on a slope or in a chute');
             }
             if (Math.hypot(v.x - h.tee.x, v.y - h.tee.y) < VR + C.BALL_R + 12) bad.push('a vent on the tee');
@@ -687,9 +734,9 @@
             return P.circleRect(x, y, rad, P.wallRect(w, 0)) !== null;
         }) || (h.bumpers || []).some(function (b) {
             return P.circleCircle(x, y, rad, b) !== null;
-        }) || (h.rails || []).some(function (r) {
+        }) || P.railsOf(h).some(function (r) {
             return P.circleRail(x, y, rad, r) !== null;
-        }) || P.zoneAt(h.water, x, y) !== null || P.zoneAt(h.lava, x, y) !== null;
+        }) || P.zoneAt(h.water, x, y) !== null || P.zoneAt(h.lava, x, y) !== null || P.inBlock(h, x, y) !== null;
     }
 
     // Does a circle reach into a zone, rectangle or polygon? Inside it, or

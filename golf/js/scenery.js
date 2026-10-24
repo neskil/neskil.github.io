@@ -207,8 +207,12 @@
        one from its seed, so a re-deal can come up as the seaside and a link
        to a seed always comes up as the same place. Anything else — the
        editor's draft, a playtest — is parkland, which is how the game has
-       always looked. */
-    function themeOf(course) {
+       always looked. A hole that names a biome of its own wears that one
+       instead of its card's. */
+    function themeOf(course, hole) {
+        // A hole may wear a biome of its own: the Short Six walks a first
+        // visit through the places the rest of the rack is set in.
+        if (hole && hole.theme && THEMES[hole.theme]) return THEMES[hole.theme];
         if (!course) return THEMES.parkland;
         if (course.theme && THEMES[course.theme]) return THEMES[course.theme];
         if (typeof course.seed === 'number') return THEMES[ORDER[course.seed % ORDER.length]];
@@ -412,8 +416,9 @@
     // Under something solid, or touching it.
     function onSolid(hole, x, y, pad) {
         return (hole.walls || []).some(function (w) { return P.circleRect(x, y, pad, P.wallRect(w, 0)) !== null; }) ||
-            (hole.rails || []).some(function (r) { return P.circleRail(x, y, pad, r) !== null; }) ||
-            (hole.bumpers || []).some(function (b) { return P.circleCircle(x, y, pad, b) !== null; });
+            P.railsOf(hole).some(function (r) { return P.circleRail(x, y, pad, r) !== null; }) ||
+            (hole.bumpers || []).some(function (b) { return P.circleCircle(x, y, pad, b) !== null; }) ||
+            !!P.inBlock(hole, x, y);
     }
 
     function decor(hole, theme) {
@@ -431,7 +436,8 @@
             if (x < 14 || y < 14 || x > W - 14 || y > H - 14) return false;
             if (!clearOf(keep, x, y, 0)) return false;
             if (P.zoneAt(hole.water, x, y) || P.zoneAt(hole.sand, x, y) || P.zoneAt(hole.ice, x, y) ||
-                P.zoneAt(hole.slopes, x, y) || P.zoneAt(hole.lava, x, y) || P.zoneAt(hole.avalanches, x, y)) return false;
+                P.zoneAt(hole.slopes, x, y) || P.zoneAt(hole.lava, x, y) || P.zoneAt(hole.avalanches, x, y) ||
+                P.inHill(hole.hills, x, y)) return false;
             return !onSolid(hole, x, y, 10);
         }
         var patches = 5 + ((rand() * 4) | 0);

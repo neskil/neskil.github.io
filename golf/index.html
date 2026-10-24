@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Pocket Links — 51-Hole Mini Golf | Niklas Billgren</title>
-    <meta name="description" content="Forty-two holes of mini golf in the browser, across seven courses that climb from a garden to a volcano — plus one dealt from a seed, different every time you ask. Earn stars to open the next course, or pass one phone round a party of four. Time the avalanches down their chutes, ride a geyser over the lava or take the long way round, and mind the water, the bunkers, the ice, the bumpers, the tunnels and the gates that will not wait. The arrow gives you the line and nothing else — the weight of the shot is yours. Plays on a phone, a tablet or a keyboard, remembers your round, no install and no account.">
+    <meta name="description" content="Forty-two holes of mini golf in the browser, across seven courses that climb from a garden to a volcano — plus one dealt from a seed, different every time you ask. Earn stars to open the next course, or pass one phone round a party of four. Time the avalanches down their chutes, ride a geyser over the lava or take the long way round, putt through the windmill, bank off a curved wall, read the wind off a snow cannon, and mind the water, the bunkers, the ice, the hills, the tunnels and the gates that will not wait. The arrow gives you the line and nothing else — the weight of the shot is yours. Plays on a phone, a tablet or a keyboard, remembers your round, no install and no account.">
     <meta name="theme-color" content="#0c2418">
     <meta name="color-scheme" content="dark">
     <meta name="author" content="Niklas Billgren">
@@ -32,7 +32,7 @@
 
         gtag('config', 'G-9GP823TGLB');
     </script>
-    <link rel="stylesheet" href="style.css?v=1.13.0">
+    <link rel="stylesheet" href="style.css?v=1.14.0">
 <script type="application/ld+json">
     {
         "@context": "https://schema.org",
@@ -40,7 +40,7 @@
             {
                 "@type": "VideoGame",
                 "url": "https://neskil.github.io/golf/",
-                "description": "Forty-two holes of mini golf in the browser, across seven courses that climb from a garden to a volcano — plus one dealt from a seed, different every time you ask. Earn stars to open the next course, or pass one phone round a party of four. Time the avalanches down their chutes, ride a geyser over the lava or take the long way round, and mind the water, the bunkers, the ice, the bumpers, the tunnels and the gates that will not wait. The arrow gives you the line and nothing else — the weight of the shot is yours. Plays on a phone, a tablet or a keyboard, remembers your round, no install and no account.",
+                "description": "Forty-two holes of mini golf in the browser, across seven courses that climb from a garden to a volcano — plus one dealt from a seed, different every time you ask. Earn stars to open the next course, or pass one phone round a party of four. Time the avalanches down their chutes, ride a geyser over the lava or take the long way round, putt through the windmill, bank off a curved wall, read the wind off a snow cannon, and mind the water, the bunkers, the ice, the hills, the tunnels and the gates that will not wait. The arrow gives you the line and nothing else — the weight of the shot is yours. Plays on a phone, a tablet or a keyboard, remembers your round, no install and no account.",
                 "image": "https://neskil.github.io/assets/og/golf.png",
                 "name": "Pocket Links — 51-Hole Mini Golf",
                 "author": {
@@ -214,6 +214,8 @@
             <span><i class="sw-move"></i>Moving gate</span>
             <span><i class="sw-bump"></i>Bumper — livelier than a wall</span>
             <span><i class="sw-slope"></i>Slope — the arrows point downhill</span>
+            <span><i class="sw-wind"></i>Wind — the fan pushes the ball downwind</span>
+            <span><i class="sw-hill"></i>Hill — a mound sheds the ball, a bowl gathers it</span>
             <span><i class="sw-tunnel"></i>Tunnel — out of the matching mouth, same speed, same line</span>
             <span><i class="sw-chute"></i>Avalanche chute — a slide comes down on a clock and carries you off</span>
             <span><i class="sw-lava"></i>Lava — one stroke penalty, and nothing skips across</span>
@@ -317,8 +319,8 @@
 
     <!-- Load order is dependency order: config, then the pure logic, then the
          things that touch the screen. game.js boots itself on DOMContentLoaded. -->
-    <script src="js/config.js?v=1.13.0"></script>
-    <script src="js/courses.js?v=1.13.0"></script>
+    <script src="js/config.js?v=1.14.0"></script>
+    <script src="js/courses.js?v=1.14.0"></script>
     <script>
         /* Playtest hand-off from the hole editor. It writes one hole into
            session storage and sends the player here with ?playtest=1; swapping
@@ -352,23 +354,24 @@
             } catch (e) { /* storage disabled: fall through to the real course */ }
         })();
     </script>
-    <script src="js/physics.js?v=1.13.0"></script>
+    <script src="js/physics.js?v=1.14.0"></script>
     <!-- The caddie. Pure like physics.js; game.js plays its answers. -->
-    <script src="js/bot.js?v=1.13.0"></script>
+    <script src="js/bot.js?v=1.14.0"></script>
     <!-- Adds nothing to the rack by itself; game.js deals the draw on boot. -->
-    <script src="js/generator.js?v=1.13.0"></script>
-    <script src="js/scoring.js?v=1.13.0"></script>
+    <script src="js/generator.js?v=1.14.0"></script>
+    <script src="js/scoring.js?v=1.14.0"></script>
     <!-- Stars, unlocks and first-run lessons. Reads the save files; draws nothing. -->
-    <script src="js/progress.js?v=1.13.0"></script>
+    <script src="js/progress.js?v=1.14.0"></script>
     <!-- The biomes, and where the decoration goes. Draws nothing itself. -->
-    <script src="js/scenery.js?v=1.13.0"></script>
-    <script src="js/audio.js?v=1.13.0"></script>
+    <script src="js/scenery.js?v=1.14.0"></script>
+    <script src="js/audio.js?v=1.14.0"></script>
     <!-- Thumbnails for the course picker. Nothing on the board reads it. -->
-    <script src="js/plan.js?v=1.13.0"></script>
-    <script src="js/landscape.js?v=1.13.0"></script>
-    <script src="js/ambience.js?v=1.13.0"></script>
-    <script src="js/water.js?v=1.13.0"></script>
-    <script src="js/render.js?v=1.13.0"></script>
-    <script src="js/game.js?v=1.13.0"></script>
+    <script src="js/plan.js?v=1.14.0"></script>
+    <script src="js/landscape.js?v=1.14.0"></script>
+    <script src="js/props.js?v=1.14.0"></script>
+    <script src="js/ambience.js?v=1.14.0"></script>
+    <script src="js/water.js?v=1.14.0"></script>
+    <script src="js/render.js?v=1.14.0"></script>
+    <script src="js/game.js?v=1.14.0"></script>
 </body>
 </html>

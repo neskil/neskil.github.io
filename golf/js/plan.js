@@ -44,12 +44,15 @@
         move:   '#c98a3c',
         bumper: '#f0a52a',
         slope:  'rgba(255, 255, 255, 0.14)',
+        wind:   'rgba(200, 230, 255, 0.30)',
         tee:    '#f8fafc',
         cup:    '#0b1a0d',
         flag:   '#ef4444'
     };
 
     var cache = {};
+
+    var BLOCK_INK = { bed: '#3d6b2c', tree: '#2f5f2a', hedge: '#2f6d33', rock: '#8d8f88', windmill: '#c9c2b4', fan: '#1f2731', castle: '#e3c98f' };
 
     // A zone list in one colour, rectangles and polygons alike.
     function rects(g, list, fill) {
@@ -99,10 +102,15 @@
         var i, s;
         for (i = 0; i < hole.slopes.length; i++) {
             s = hole.slopes[i];
-            g.fillStyle = INK.slope;
+            g.fillStyle = s.wind ? INK.wind : INK.slope;
             g.fillRect(s.x, s.y, s.w, s.h);
             arrow(g, s);
         }
+
+        /* A hill is a disc with arrows round it: out for a mound, in for a
+           bowl — which way it sheds is what it does. */
+        var hills = hole.hills || [];
+        for (i = 0; i < hills.length; i++) hill(g, hills[i]);
 
         /* Walls last of the rectangles: they are the only thing on the field
            the ball cannot pass through, so nothing is allowed to cover one.
@@ -126,7 +134,33 @@
             g.lineTo(rails[i].tx, rails[i].ty);
             g.stroke();
         }
+        // Curves, round-ended like the rails they are laid as.
+        var arcs = hole.arcs || [];
+        for (i = 0; i < arcs.length; i++) {
+            g.lineWidth = arcs[i].w || 24;
+            g.beginPath();
+            g.arc(arcs[i].x, arcs[i].y, arcs[i].r, arcs[i].from * Math.PI / 180, arcs[i].to * Math.PI / 180);
+            g.stroke();
+        }
         g.lineCap = 'butt';
+
+        /* Blocks: a solid shape in the wall's ink with what is in it said
+           as a colour — a bed's green, a fan's steel, a windmill's sails. */
+        var blocks = hole.blocks || [];
+        g.lineJoin = 'round';
+        for (i = 0; i < blocks.length; i++) {
+            var bk = blocks[i];
+            g.beginPath();
+            for (var q = 0; q < bk.pts.length; q += 2) g.lineTo(bk.pts[q], bk.pts[q + 1]);
+            g.closePath();
+            g.fillStyle = BLOCK_INK[bk.look] || BLOCK_INK.bed;
+            g.fill();
+            g.lineWidth = bk.w || 20;
+            g.strokeStyle = INK.wall;
+            g.stroke();
+            if (bk.look === 'windmill' || bk.look === 'fan') mark(g, bk);
+        }
+        g.lineJoin = 'miter';
 
         for (i = 0; i < hole.bumpers.length; i++) {
             var b = hole.bumpers[i];
@@ -233,6 +267,40 @@
         g.restore();
     }
 
+    function hill(g, hl) {
+        g.fillStyle = hl.a > 0 ? 'rgba(255, 255, 255, 0.16)' : 'rgba(0, 0, 0, 0.18)';
+        g.beginPath();
+        g.arc(hl.x, hl.y, hl.r, 0, Math.PI * 2);
+        g.fill();
+        g.fillStyle = 'rgba(255, 255, 255, 0.55)';
+        var size = Math.max(10, hl.r * 0.18);
+        for (var k = 0; k < 4; k++) {
+            var a = k * Math.PI / 2 + Math.PI / 4, out = hl.a > 0 ? 1 : -1;
+            var cx = hl.x + Math.cos(a) * hl.r * 0.55, cy = hl.y + Math.sin(a) * hl.r * 0.55;
+            g.beginPath();
+            g.moveTo(cx + Math.cos(a) * size * out, cy + Math.sin(a) * size * out);
+            g.lineTo(cx + Math.cos(a + Math.PI / 2) * size * 0.6, cy + Math.sin(a + Math.PI / 2) * size * 0.6);
+            g.lineTo(cx - Math.cos(a + Math.PI / 2) * size * 0.6, cy - Math.sin(a + Math.PI / 2) * size * 0.6);
+            g.closePath();
+            g.fill();
+        }
+    }
+
+    // A windmill's sails or a fan's blades, as a cross in the middle of it.
+    function mark(g, bk) {
+        var p = GOLF.props ? GOLF.props.pole(bk.pts) : null;
+        if (!p) return;
+        var r = Math.min(p.r, 60) * (bk.look === 'windmill' ? 1.6 : 0.8);
+        g.strokeStyle = bk.look === 'windmill' ? '#f6eedc' : '#c6ced8';
+        g.lineWidth = bk.look === 'windmill' ? 12 : 8;
+        g.lineCap = 'round';
+        g.beginPath();
+        g.moveTo(p.x - r * 0.7, p.y - r * 0.7); g.lineTo(p.x + r * 0.7, p.y + r * 0.7);
+        g.moveTo(p.x + r * 0.7, p.y - r * 0.7); g.lineTo(p.x - r * 0.7, p.y + r * 0.7);
+        g.stroke();
+        g.lineCap = 'butt';
+    }
+
     // A chute: the lane, and chevrons pointing down it.
     function chute(g, a) {
         g.fillStyle = INK.chute;
@@ -299,7 +367,7 @@
         g.setTransform(w / C.WORLD_W, 0, 0, h / C.WORLD_H, 0, 0);
         // The biome's grass, a shade apart from the others, so a card's
         // plans say which course they are before its name does.
-        paint(g, hole, GOLF.scenery ? GOLF.scenery.themeOf(course).plan : null);
+        paint(g, hole, GOLF.scenery ? GOLF.scenery.themeOf(course, hole).plan : null);
         cache[key] = c;
         return c;
     }

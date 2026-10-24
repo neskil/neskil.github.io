@@ -229,11 +229,142 @@
         return { nx: -ey / L, ny: ex / L, depth: reach };
     }
 
+    /* ── curves and blocks ───────────────────────────────────────────────
+
+       A wall does not have to be straight, and an obstacle does not have to
+       be a box. Both are rails underneath, so neither costs a collision test
+       of its own:
+
+         arcs     a curved wall, `{ x, y, r, from, to, w }`: the arc of radius
+                  r round (x, y) from `from` to `to` degrees — clockwise on
+                  the screen, 0 pointing right — laid as a chain of rails no
+                  more than ARC_STEP degrees or ARC_SEG pixels long. Each link
+                  ends where the next begins, and a rail is round at both
+                  ends, so the chain has no seam to slip through and no
+                  corner to bounce off: at 8° a link stands at most a pixel
+                  off the true curve.
+         blocks   a solid shape, `{ pts, w, look }`: a polygon whose every
+                  edge is a rail w thick. The ball meets the edges; the inside
+                  is somewhere it can never be, and that is where the picture
+                  puts a flower bed, a windmill or a fan — `look` is only
+                  ever read by the renderer.
+
+       The chain of an arc or a block is built once per world and kept with
+       a box round it, so a ball nowhere near a curve does not pay for its
+       twenty links. A hole's plain rails are read from the hole as they
+       always were. */
+    var ARC_STEP = 8, ARC_SEG = 32;
+    var DEG = Math.PI / 180;
+
+    function arcRails(a) {
+        var sweep = a.to - a.from, w = a.w || 24;
+        var n = Math.max(1, Math.ceil(Math.max(Math.abs(sweep) / ARC_STEP, Math.abs(sweep) * DEG * a.r / ARC_SEG)));
+        var out = [], px = a.x + Math.cos(a.from * DEG) * a.r, py = a.y + Math.sin(a.from * DEG) * a.r;
+        for (var i = 1; i <= n; i++) {
+            var t = (a.from + sweep * i / n) * DEG;
+            var qx = a.x + Math.cos(t) * a.r, qy = a.y + Math.sin(t) * a.r;
+            out.push({ x: px, y: py, tx: qx, ty: qy, w: w });
+            px = qx; py = qy;
+        }
+        return out;
+    }
+
+    function blockRails(b) {
+        var p = b.pts, w = b.w || 20, out = [];
+        for (var i = 0, j = p.length - 2; i < p.length; j = i, i += 2) {
+            out.push({ x: p[j], y: p[j + 1], tx: p[i], ty: p[i + 1], w: w });
+        }
+        return out;
+    }
+
+    // Every capsule a hole is walled with: its rails, its curves and the
+    // edges of its blocks. What the rule book, the caddie's map and the
+    // decoration ask about; the integrator uses the boxed form below.
+    function railsOf(h) {
+        var out = (h.rails || EMPTY).slice();
+        (h.arcs || EMPTY).forEach(function (a) { out.push.apply(out, arcRails(a)); });
+        (h.blocks || EMPTY).forEach(function (b) { out.push.apply(out, blockRails(b)); });
+        return out;
+    }
+
+    // Inside a block: the hollow behind its edges, where no ball can be.
+    function inBlock(h, x, y) {
+        var list = h.blocks || EMPTY;
+        for (var i = 0; i < list.length; i++) {
+            if (pointInPoly(x, y, list[i].pts)) return list[i];
+        }
+        return null;
+    }
+
+    function chains(course) {
+        var out = [];
+        function keep(list) {
+            if (!list.length) return;
+            var x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity, w = 0;
+            list.forEach(function (s) {
+                x0 = Math.min(x0, s.x, s.tx); x1 = Math.max(x1, s.x, s.tx);
+                y0 = Math.min(y0, s.y, s.ty); y1 = Math.max(y1, s.y, s.ty);
+                w = Math.max(w, s.w);
+            });
+            var pad = w / 2 + C.BALL_R + 2;
+            out.push({ x0: x0 - pad, y0: y0 - pad, x1: x1 + pad, y1: y1 + pad, rails: list });
+        }
+        (course.arcs || EMPTY).forEach(function (a) { keep(arcRails(a)); });
+        (course.blocks || EMPTY).forEach(function (b) { keep(blockRails(b)); });
+        return out;
+    }
+
+    /* ── hills ──────────────────────────────────────────────────────────
+
+       A slope is a plane tipped one way. A hill is round: `{ x, y, r, a }`,
+       a mound if `a` is positive and a bowl if it is negative, and either
+       way the ground is level at the middle and level again at the rim and
+       steepest halfway between, where it pulls the ball `|a|` px/s² away
+       from the middle or towards it. The profile is a cosine, so the pull
+       is a sine of the distance out: nothing jumps as the ball rolls on or
+       off it.
+
+       A bowl is where a ball can come to rest on a hill — at the bottom,
+       where the ground is level. That is a different rule from a slope's
+       (nothing rests on a slope, ever) and the same rule underneath: see
+       `pull` and the rest check in `substep`. */
+    function hillPull(list, x, y, out) {
+        if (!list) return out;
+        for (var i = 0; i < list.length; i++) {
+            var hl = list[i], dx = x - hl.x, dy = y - hl.y, d2 = dx * dx + dy * dy;
+            if (d2 >= hl.r * hl.r || d2 < 1e-12) continue;
+            var d = Math.sqrt(d2), s = hl.a * Math.sin(Math.PI * d / hl.r) / d;
+            out.x += dx * s;
+            out.y += dy * s;
+        }
+        return out;
+    }
+
+    // Everything the ground does to a ball standing at (x, y): the slope it
+    // is on and every hill it is on, summed.
+    function pull(course, x, y) {
+        var out = { x: 0, y: 0 };
+        var s = zoneAt(course.slopes, x, y);
+        if (s) { out.x += s.ax; out.y += s.ay; }
+        return hillPull(course.hills, x, y, out);
+    }
+
+    function inHill(list, x, y, pad) {
+        if (!list) return null;
+        for (var i = 0; i < list.length; i++) {
+            var hl = list[i];
+            if (Math.hypot(x - hl.x, y - hl.y) < hl.r + (pad || 0)) return hl;
+        }
+        return null;
+    }
+
     /* ── world ──────────────────────────────────────────────────────────── */
 
     function createWorld(course, from, time) {
         return {
             course: course,
+            // The curves and blocks, laid as boxed chains of rails. See above.
+            chains: chains(course),
             // z is the height of the ball's centre above the green; it only
             // ever changes at the cup.
             ball: { x: from.x, y: from.y, vx: 0, vy: 0, z: C.BALL_R, vz: 0 },
@@ -344,6 +475,22 @@
 
     /* ── integration ────────────────────────────────────────────────────── */
 
+    function hitRails(b, rails, events) {
+        for (var ri = 0; ri < rails.length; ri++) {
+            var rh = circleRail(b.x, b.y, C.BALL_R, rails[ri]);
+            if (!rh) continue;
+            b.x += rh.nx * rh.depth;
+            b.y += rh.ny * rh.depth;
+            var rn = b.vx * rh.nx + b.vy * rh.ny;
+            if (rn < 0) {
+                b.vx -= (1 + C.RESTITUTION) * rn * rh.nx;
+                b.vy -= (1 + C.RESTITUTION) * rn * rh.ny;
+                events.bounce = true;
+                knock(events, b, rh.nx, rh.ny, -rn);
+            }
+        }
+    }
+
     function substep(world, dt, events) {
         var b = world.ball, course = world.course;
         world.time += dt;
@@ -356,10 +503,11 @@
             if (world.air <= 0) world.air = 0;
         }
 
-        var slope = aloft ? null : zoneAt(course.slopes, b.x, b.y);
-        if (slope) {
-            b.vx += slope.ax * dt;
-            b.vy += slope.ay * dt;
+        // The ground's pull: the slope under the ball, and the hills.
+        var ground = aloft ? null : pull(course, b.x, b.y);
+        if (ground) {
+            b.vx += ground.x * dt;
+            b.vy += ground.y * dt;
         }
 
         // A slide over the ball takes it: whatever it was doing, it is soon
@@ -424,20 +572,14 @@
         }
 
         // Rails: walls at an angle. They hold still, so the response is the
-        // static half of the wall's — resolve, then reflect.
-        var rails = course.rails || EMPTY;
-        for (var ri = 0; ri < rails.length; ri++) {
-            var rh = circleRail(b.x, b.y, C.BALL_R, rails[ri]);
-            if (!rh) continue;
-            b.x += rh.nx * rh.depth;
-            b.y += rh.ny * rh.depth;
-            var rn = b.vx * rh.nx + b.vy * rh.ny;
-            if (rn < 0) {
-                b.vx -= (1 + C.RESTITUTION) * rn * rh.nx;
-                b.vy -= (1 + C.RESTITUTION) * rn * rh.ny;
-                events.bounce = true;
-                knock(events, b, rh.nx, rh.ny, -rn);
-            }
+        // static half of the wall's — resolve, then reflect. Then the curves
+        // and blocks, which are rails too, a box at a time.
+        hitRails(b, course.rails || EMPTY, events);
+        var ch = world.chains || (world.chains = chains(course));
+        for (var ci = 0; ci < ch.length; ci++) {
+            var c = ch[ci];
+            if (b.x < c.x0 || b.x > c.x1 || b.y < c.y0 || b.y > c.y1) continue;
+            hitRails(b, c.rails, events);
         }
 
         // Bumpers. A post the ball comes off faster than it comes off wood,
@@ -531,11 +673,14 @@
             return;
         }
 
-        // At rest — unless it is sitting on a slope, in which case gravity has
-        // not finished with it and stopping here would let the ball hang on a
-        // hillside, or it is off the green, in which case it is on its way
-        // into the cup or bouncing back out of it.
-        if (speedOf(b) < C.STOP_SPEED && !zoneAt(course.slopes, b.x, b.y) && !slide && grounded(b, course.hole)) {
+        // At rest — unless the ground under it is steep enough to get it
+        // going again, in which case gravity has not finished with it and
+        // stopping here would let the ball hang on a hillside, or it is off
+        // the green, in which case it is on its way into the cup or bouncing
+        // back out of it. Every slope pulls far harder than REST_PULL, so
+        // nothing ever rests on one; a bowl's bottom is level, so a ball can.
+        if (speedOf(b) < C.STOP_SPEED && !slide && grounded(b, course.hole) &&
+            (!ground || Math.hypot(ground.x, ground.y) < C.REST_PULL)) {
             b.vx = b.vy = 0;
             if (world.moving) events.rest = true;
             world.moving = false;
@@ -732,6 +877,13 @@
         inZone: inZone,
         zoneAt: zoneAt,
         circleRail: circleRail,
+        arcRails: arcRails,
+        blockRails: blockRails,
+        railsOf: railsOf,
+        inBlock: inBlock,
+        hillPull: hillPull,
+        pull: pull,
+        inHill: inHill,
         mouthAt: mouthAt,
         chuteLength: chuteLength,
         chuteAlong: chuteAlong,

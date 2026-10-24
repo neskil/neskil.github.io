@@ -6,12 +6,13 @@
    else in the codebase has to know there is more than one course.
 
    The rack is a ladder. Every card is six holes, drawn in a place of its
-   own and built round one thing that place does — the garden's basics, the
-   parkland's corners and posts, the sea's water, the wood's hills and
-   sweeping bars, the meadow's tunnels, the mountain's avalanches, the
-   volcano's lava and geysers — and within a card the holes get harder as
-   they go. A hole that was the same idea as another one somewhere else on
-   the rack is not on it any more.
+   own and built round one thing that place does — the parkland's corners
+   and posts, the sea's water, the wood's hills and sweeping bars, the
+   meadow's tunnels, the mountain's avalanches, the volcano's lava and
+   geysers — and within a card the holes get harder as they go. The first
+   card walks through all of those places, a hole in each. A hole that was
+   the same idea as another one somewhere else on the rack is not on it any
+   more.
 
    A hole is pure data: rectangles, a handful of circles, two points — and,
    since a hole may now be drawn on the slant, capsules and polygons. That is
@@ -44,6 +45,15 @@
               the foot. See physics.js.
      vents    a geyser, vent(x, y, every, at, run): blowing for `run` seconds
               of every `every`, it throws a ball over whatever is beyond.
+     arcs     a curved wall, arc(x, y, r, from, to, w): laid as a chain of
+              short rails round the arc, so a ball can ride the inside of it.
+     blocks   a solid shape, block(look, pts, w): every edge a rail, and the
+              inside scenery — a bed, a hedge, a rock, a windmill, a fan.
+     hills    mound(x, y, r, a) or bowl(x, y, r, a): round ground, steepest
+              halfway out, shedding the ball or gathering it in.
+
+   A slope may say `wind: true` — the same pull, shown as air blowing out of
+   the fan block at its head — and a hole may name a `theme` of its own.
 
    Water, lava, sand, rough and ice may be polygons, poly(x0, y0, x1, y1, …),
    for a bank or a bunker that runs on the slant. Walls, slopes and chutes
@@ -77,6 +87,48 @@
     // A geyser: where, and blowing for `run` seconds of every `every`.
     function vent(x, y, every, at, run) { return { x: x, y: y, every: every, at: at || 0, run: run || 1 }; }
 
+    /* Curves. Everything below is still rails and polygons by the time
+       physics.js sees it; these only save writing the corners out. */
+
+    // A curved wall: the arc of radius r round (x, y), from `from` to `to`
+    // degrees, clockwise on the screen with 0 pointing right.
+    function arc(x, y, r, from, to, w) { return { x: x, y: y, r: r, from: from, to: to, w: w || 24 }; }
+    // A solid shape, its outline as x, y pairs, and what stands in it — a
+    // flower bed, a hedge, a rock, a windmill, a fan. Its every edge is a
+    // rail w thick; `look` is the renderer's business only.
+    function block(look, pts, w) { return { look: look, pts: pts, w: w || 20 }; }
+    // A round hill, steepest halfway out where it pulls `a` px/s²: a mound
+    // sheds the ball away from its middle, a bowl gathers it in.
+    function mound(x, y, r, a) { return { x: x, y: y, r: r, a: a }; }
+    function bowl(x, y, r, a) { return { x: x, y: y, r: r, a: -a }; }
+    // A zone from a list of corners rather than an argument per number.
+    function shape(pts) { return { pts: pts }; }
+    /* Corners cut round: Chaikin's corner cutting, which replaces every
+       corner of a closed outline with two points a quarter of the way along
+       its edges. Twice over, a hexagon is a pebble — a bunker or a bed drawn
+       with six numbers instead of forty, and with no corner a ball can find. */
+    function smooth(pts, passes) {
+        for (var k = 0; k < (passes || 2); k++) {
+            var out = [], n = pts.length;
+            for (var i = 0; i < n; i += 2) {
+                var ax = pts[i], ay = pts[i + 1], bx = pts[(i + 2) % n], by = pts[(i + 3) % n];
+                out.push(ax * 0.75 + bx * 0.25, ay * 0.75 + by * 0.25, ax * 0.25 + bx * 0.75, ay * 0.25 + by * 0.75);
+            }
+            pts = out;
+        }
+        return pts.map(Math.round);
+    }
+    // An ellipse as n corners, clockwise on the screen.
+    function oval(x, y, rx, ry, n) {
+        var pts = [];
+        n = n || 24;
+        for (var i = 0; i < n; i++) {
+            var t = i / n * Math.PI * 2;
+            pts.push(Math.round(x + Math.cos(t) * rx), Math.round(y + Math.sin(t) * ry));
+        }
+        return pts;
+    }
+
     /* The same hole played the other way, right to left. Nine holes in ten
        on the old rack were teed off on the left and holed on the right, and
        a run of them reads as one corridor however different the furniture
@@ -108,109 +160,185 @@
             zone(a);
             if (a.dir === 'left') a.dir = 'right'; else if (a.dir === 'right') a.dir = 'left';
         });
-        (h.bumpers || []).concat(h.vents || []).forEach(function (b) { b.x = W - b.x; });
+        (h.blocks || []).forEach(zone);
+        (h.bumpers || []).concat(h.vents || [], h.hills || []).forEach(function (b) { b.x = W - b.x; });
         (h.tunnels || []).concat(h.rails || []).forEach(function (t) { t.x = W - t.x; t.tx = W - t.tx; });
+        // A curve's angles turn about the vertical: θ becomes 180° - θ.
+        (h.arcs || []).forEach(function (a) {
+            var from = a.from;
+            a.x = W - a.x;
+            a.from = 180 - a.to;
+            a.to = 180 - from;
+        });
         return h;
     }
 
-    /* ── The Short Six — the garden ─────────────────────────────────────
+    /* The helpers, for anything else that writes a hole down the way this
+       file does — the suite's own test holes among them. */
+    GOLF.helpers = { r: r, post: post, tunnel: tunnel, rail: rail, poly: poly, chute: chute, vent: vent,
+                     arc: arc, block: block, mound: mound, bowl: bowl, shape: shape, smooth: smooth, oval: oval,
+                     mirror: mirror };
 
-       The card for the twenty minutes you actually have, and the first one
-       anybody is handed. Nothing on it is hidden: every hole is one question
-       asked in the open, the whole of it visible from the tee, and par is
-       two or three all the way round — a gate, a bunker, an island, a bar to
-       time, a tilt, and a close that puts three of those together. Every
-       idea the rest of the rack builds on is met here first, gently. */
+    /* ── The Short Six — a walk through every place on the rack ─────────
+
+       The card a first visit is handed, and the trailer for everything
+       after it. Each hole is set in a different place — the garden, the
+       park, the beach, the wood, the meadow, the mountain — in the order
+       the rack climbs through them, so six holes in, a player has seen
+       where the game goes and met each place's trick gently, one at a time.
+
+       Every hole is built the same way, which is the oldest rule of golf
+       architecture: a safe way that anybody can take, and a bold one that
+       pays. The safe way is two or three easy putts; the bold one is an
+       ace, and on every hole it is a shot — a weight to judge, a bank to
+       read, a door to find, a wind to aim into — rather than a fluke. Par
+       is set for the safe way, so the stars are there for anybody who
+       finishes, and the aces are there for anybody who looks.
+
+       And nothing is a box. The holes are shaped by flower beds, curved
+       walls, hills and dunes, because a field with furniture in it reads
+       as a diagram; a garden with a gate in it reads as a place. */
 
     var SHORT = [
         {
-            name: 'Front Door',
-            blurb: 'Wide open, one gate, and the walls lean in to find it for you.',
+            name: 'Garden Gate',
+            blurb: 'A walled garden with its gate facing you. Through the gate, and let the green bring it home.',
             par: 2,
-            /* A gate with the door taken off its hinges: a 180px mouth, and
-               rough down both cushions saying the thing the whole game says
-               — the middle of the field is where the ball wants to be. The two halves of the gate lean in towards
-               the mouth, so a first putt that wanders comes off the rail
-               still heading for the door: the first hole anybody plays should
-               forgive the first thing they get wrong. */
+            theme: 'garden',
+            /* The first shot anybody plays. The cup sits in a round walled
+               garden whose gate faces the tee, on a green dished gently
+               towards the cup — so a straight putt through the gate at
+               about the right weight is an ace, and is meant to be: the
+               first hole should show that a hole in one is a thing this
+               game gives out. Wide of the gate, the wall turns it away;
+               too firm, the back wall sends it home again. The corners are
+               flower beds and the cushions are rough: the middle of the
+               field is where the ball wants to be. */
             tee: { x: 140, y: 320 },
-            hole: { x: 830, y: 320 },
-            rails: [rail(470, 0, 540, 218, 24), rail(470, 640, 540, 422, 24)],
-            rough: [r(0, 0, 960, 80), r(0, 560, 960, 80)]
-        },
-        {
-            name: 'Teacup',
-            blurb: 'A saucer of sand across the straight line. Round it, or through it and short.',
-            par: 3,
-            /* One bunker, sat exactly on the line from tee to cup, and no
-               wall anywhere: the hole is a choice about weight rather than a
-               problem about geometry. Through the sand is the short way and
-               costs you the roll; round it is free and costs you the angle. */
-            tee: { x: 120, y: 540 },
-            hole: { x: 840, y: 140 },
-            sand: [r(330, 180, 300, 300)],
-            rough: [r(0, 0, 300, 70)]
-        },
-        {
-            name: 'Little Island',
-            blurb: 'A ninety-pixel causeway, and a rink in front of it to make the weight hard.',
-            par: 3,
-            /* An island green in one shot, plus the one thing that makes a
-               short hole worth playing twice: the approach is iced, so the
-               ball arrives at the causeway carrying whatever it left the tee
-               with. */
-            tee: { x: 120, y: 320 },
-            hole: { x: 760, y: 320 },
-            water: [
-                r(600, 190, 60, 90), r(600, 370, 60, 80),    // near bank, causeway at y 280-370
-                r(600, 190, 300, 60), r(600, 390, 300, 60),  // top and bottom
-                r(840, 190, 60, 260)                         // far bank
+            hole: { x: 780, y: 320 },
+            arcs: [arc(780, 320, 140, 201, 519, 22)],
+            blocks: [
+                block('bed', smooth([0, 0, 200, 0, 150, 70, 60, 130, 0, 180])),
+                block('bed', smooth([0, 640, 0, 460, 60, 510, 150, 570, 200, 640])),
+                block('bed', smooth([560, 0, 960, 0, 960, 120, 900, 90, 700, 60])),
+                block('bed', smooth([560, 640, 700, 580, 900, 550, 960, 520, 960, 640]))
             ],
-            ice: [r(380, 240, 180, 160)]
+            hills: [bowl(780, 320, 100, 32)],
+            rough: [r(200, 0, 360, 60), r(200, 580, 360, 60)]
         },
         {
-            name: 'Metronome',
-            blurb: 'One bar, one rhythm, and all the room in the world either side of it.',
+            name: 'Bank Holiday',
+            blurb: 'Round the copse to the flag. Or hit it hard along the bottom and let the curve carry it round.',
             par: 3,
-            /* A gate hole for somebody who has never timed a gate: a single
-               bar on a slow sine with 220px of daylight above or below it at
-               every phase, so the shot is there whenever you are ready for
-               it. Sliding Doors asks the same question with the daylight
-               taken away; Avalanche Pass asks it with snow. */
-            tee: { x: 120, y: 320 },
-            hole: { x: 860, y: 320 },
-            walls: [
-                { x: 480, y: 200, w: 26, h: 200, move: { axis: 'y', amp: 180, speed: 1.2, phase: 0 } }
+            theme: 'parkland',
+            /* A dogleg round a copse, and the parkland's idea — angles —
+               met for the first time. The safe way is two putts, one to the
+               turn and one up to the flag. The bold way is one: the outside
+               of the turn is a curved wall, and a firm ball sent along the
+               bottom rides it round and comes off it running up the right
+               side at the cup. The curve does the turning; the weight is
+               yours. There are other banks off the copse for anybody who
+               goes looking. */
+            tee: { x: 300, y: 565 },
+            hole: { x: 905, y: 160 },
+            blocks: [
+                block('bed', smooth([0, 0, 650, 0, 700, 100, 700, 330, 600, 440, 300, 470, 0, 470])),
+                block('bed', smooth([0, 520, 140, 500, 200, 560, 200, 640, 0, 640]))
             ],
-            rough: [r(0, 0, 960, 70), r(0, 570, 960, 70)]
+            arcs: [arc(760, 420, 180, 0, 90, 24)]
         },
         {
-            name: 'Tilt',
-            blurb: 'The middle leans south. Aim north of the flag and let the field do the rest.',
+            name: 'Sandcastles',
+            blurb: 'A gap between two dunes points straight at the flag. Weigh it right; the sea is behind the cup.',
             par: 3,
-            /* A breaking green at a gentle gradient, and the rule every slope
-               on the rack keeps underneath it: the slope stops 40px short of the rough and 180px short of
-               the cushion, so everything it sheds comes to rest on the collar
-               rather than rattling at the bottom of the hill for ever. */
-            tee: { x: 110, y: 540 },
-            hole: { x: 850, y: 180 },
-            rough: [r(240, 500, 480, 140)],
-            slopes: [{ x: 300, y: 120, w: 340, h: 340, ax: 0, ay: 140 }]
+            theme: 'seaside',
+            /* Sand and water, the beach's two hazards, met where they cost
+               the least. The dunes leave a gap that lines up with the cup,
+               and the sea is close behind it: a putt down the gap with the
+               right weight is an ace, a firm one is wet. Soft is safe —
+               short of the flag, two putts — and the sandcastles either side
+               are there to be banked off, or into. */
+            tee: { x: 840, y: 560 },
+            hole: { x: 200, y: 175 },
+            water: [shape(smooth([0, 0, 360, 0, 330, 50, 230, 80, 120, 110, 70, 220, 0, 290]))],
+            sand: [
+                shape(smooth([470, 250, 560, 215, 640, 240, 630, 300, 540, 320, 480, 300])),
+                shape(smooth([400, 410, 470, 380, 560, 410, 540, 470, 450, 490, 390, 460]))
+            ],
+            blocks: [
+                block('rock', smooth([960, 0, 960, 140, 900, 120, 860, 60, 880, 0])),
+                block('rock', smooth([0, 640, 0, 470, 70, 500, 120, 580, 150, 640])),
+                block('castle', smooth([655, 265, 725, 265, 725, 335, 655, 335], 1)),
+                block('castle', smooth([295, 435, 365, 435, 365, 505, 295, 505], 1))
+            ]
         },
         {
-            name: 'Last Round',
-            blurb: 'A wall to go round, a bunker to miss and two posts on the doorstep.',
+            name: 'Molehill',
+            blurb: 'A mole has been busy on the line. Over the top, round the shoulder, or the long way.',
             par: 3,
-            /* Six holes is too short a card to close with one of everything,
-               so this closes with one of three: the blocker from hole one,
-               the sand from hole two, and a pair of posts that turn a
-               straight approach into a bank shot. */
-            tee: { x: 100, y: 560 },
-            hole: { x: 860, y: 120 },
-            walls: [r(420, 300, 26, 340)],
-            sand: [r(560, 380, 220, 180)],
-            rough: [r(0, 0, 380, 80)],
-            bumpers: [post(700, 180, 24), post(820, 300, 24)]
+            theme: 'woodland',
+            /* The wood's idea is ground that moves the ball, and a hill is
+               the gentlest way in: a mound sheds a ball off whichever side
+               it meets, so the shoulder of it is a curve you can aim with.
+               Straight over the top holds its line if it is firm enough;
+               off the shoulder it bends; round the outside is long and
+               safe. Two log walls make a ring round the hill, so whatever
+               it sheds comes back into play. The cup sits in a dip. */
+            tee: { x: 110, y: 330 },
+            hole: { x: 830, y: 260 },
+            hills: [mound(470, 340, 140, 170), bowl(830, 260, 70, 40)],
+            arcs: [arc(470, 340, 250, 205, 335, 24), arc(470, 340, 250, 25, 155, 24)],
+            blocks: [
+                block('bed', smooth([0, 0, 260, 0, 200, 80, 60, 120, 0, 160])),
+                block('bed', smooth([0, 640, 0, 500, 80, 540, 200, 640])),
+                block('bed', smooth([960, 640, 700, 640, 760, 560, 900, 520, 960, 480]))
+            ]
+        },
+        {
+            name: 'The Windmill',
+            blurb: 'The door goes right through the mill. In the front, out the back — on the same line.',
+            par: 3,
+            theme: 'meadow',
+            /* The oldest hole in mini golf, and the meadow's idea — a door
+               that keeps the shot — in its most famous clothes. The mill
+               stands in the middle of the field and a tunnel runs through
+               it from the front door to the back: whatever line and pace
+               the ball goes in with, it comes out with. The flag is not
+               straight behind the mill but off on the line from the tee
+               through the door, so the ace is the putt that trusts that.
+               Round the mill either side is two putts and no secrets. */
+            tee: { x: 300, y: 585 },
+            hole: { x: 605, y: 112 },
+            blocks: [
+                block('windmill', oval(480, 330, 56, 56, 20)),
+                block('bed', smooth([0, 0, 260, 0, 230, 120, 120, 260, 0, 300])),
+                block('bed', smooth([960, 640, 960, 330, 880, 380, 800, 520, 760, 640]))
+            ],
+            tunnels: [tunnel(480, 460, 480, 200)],
+            rough: [r(0, 360, 130, 280)]
+        },
+        {
+            name: 'Snow Cannon',
+            blurb: 'The snow cannon blows across the piste, and the flag is on a frozen tarn. Aim into the wind.',
+            par: 3,
+            theme: 'alpine',
+            /* The last hole of the walk is on the mountain, where the rack
+               ends up, and it asks the question the mountain asks: what will
+               the ball do on its way? A snow cannon blows a lane of wind
+               across the middle of the field, and the cup is on a frozen
+               tarn that keeps whatever pace arrives. A straight putt drifts
+               downwind and slides off the ice; the ace is aimed upwind of the
+               flag and struck softly enough for the tarn. Two putts — one to
+               the near side of the lane, one across it short — is safe. */
+            tee: { x: 140, y: 560 },
+            hole: { x: 790, y: 130 },
+            blocks: [
+                block('fan', [880, 255, 960, 255, 960, 385, 880, 385]),
+                block('rock', smooth([0, 0, 280, 0, 230, 90, 90, 140, 0, 160])),
+                block('bed', smooth([960, 640, 640, 640, 700, 560, 860, 520, 960, 480]))
+            ],
+            slopes: [{ x: 150, y: 265, w: 700, h: 110, ax: -140, ay: 0, wind: true }],
+            ice: [shape(smooth([600, 80, 760, 50, 900, 90, 900, 200, 760, 230, 620, 190]))]
         }
     ];
 
@@ -218,64 +346,107 @@
 
        What the game always was, boiled down to the six that were each a
        different idea: up the field through a bunker, round a corner, a
-       field of posts, the cushions, two doors to time and a room whose door
-       faces away. Walls and posts and nothing else that moves the ball —
-       the angles are the hazard. */
+       table of posts, the cushions, two doors to time and a room whose
+       door faces away. Walls and posts and nothing else that moves the
+       ball — the angles are the hazard.
+
+       Its second pass gave it the angles it was always about. The corner
+       has a bank board at it, the cushion shot has a curve to bank off,
+       the posts stand on a pinball table, and the keep is round. Four of
+       the six have an ace in them for the player who reads the angle; the
+       last two are honest par fours — a hole you play in stages is a
+       different pleasure from one you play in a stroke, and a card needs
+       both. */
 
     var LINKS = [
         {
             name: 'Bunker Hill',
-            blurb: 'Straight up through the sand, or thread one of the two side doors.',
+            blurb: 'Up the field, and the sand has a neck of grass through it. Thread it, or go round the ends.',
             par: 3,
-            /* Played up the field rather than across it. A card whose every
-               hole reads left to right stops being a course after a while and
-               starts being a corridor, so the Old Course opens the other way. */
+            /* Played up the field rather than across it. Two kidneys of sand
+               lie across the middle with a strip of grass between them on
+               the straight line: a putt down it is an ace if the weight is
+               right and a bunker if the line is not. Round either end is wide
+               and free, and two putts. */
             tee: { x: 480, y: 590 },
-            hole: { x: 480, y: 70 },
-            walls: [r(0, 300, 150, 26), r(810, 300, 150, 26)],
-            sand: [r(210, 250, 540, 130)]
+            hole: { x: 480, y: 80 },
+            sand: [
+                shape(smooth([120, 300, 260, 250, 420, 270, 440, 330, 400, 390, 240, 400, 130, 370])),
+                shape(smooth([520, 270, 680, 240, 840, 290, 830, 370, 700, 400, 540, 380, 510, 330]))
+            ],
+            blocks: [
+                block('bed', smooth([0, 0, 220, 0, 160, 90, 60, 150, 0, 170])),
+                block('bed', smooth([960, 0, 960, 170, 900, 150, 800, 90, 740, 0]))
+            ],
+            rough: [r(0, 560, 300, 80), r(660, 560, 300, 80)]
         },
         {
             name: 'The Dogleg',
-            blurb: 'Round the corner, and the bunker on the turn is bigger than it looks.',
+            blurb: 'Round the corner, and the corner has a bank board. Hit it firm along the top and let it turn you.',
             par: 3,
-            tee: { x: 140, y: 530 },
-            hole: { x: 830, y: 130 },
-            walls: [r(300, 0, 240, 430)],
-            sand: [r(540, 440, 220, 200)],
-            rough: [r(560, 0, 400, 70)]
+            /* A right-angled dogleg round a copse, with a board set across
+               the outside corner at forty-five degrees. Two putts round the
+               turn is par. One putt off the board is an ace: a cushion keeps
+               less than it is given, so the board turns a ball sent along the
+               top down the right side rather than straight back at you, and
+               it wants a firm one. The bunker sits on the inside of the turn
+               for the putt that cuts it. */
+            tee: { x: 330, y: 110 },
+            hole: { x: 905, y: 540 },
+            blocks: [
+                block('bed', smooth([0, 230, 560, 220, 690, 300, 700, 640, 0, 640])),
+                block('bed', smooth([0, 0, 200, 0, 220, 90, 140, 190, 0, 200]))
+            ],
+            rails: [rail(790, 0, 960, 170, 26)],
+            sand: [shape(smooth([720, 340, 800, 330, 830, 390, 790, 450, 730, 430]))]
         },
-        mirror({
+        {
             name: 'Pinball',
-            blurb: 'Eight posts and no straight line. Something is going to hit something.',
+            blurb: 'A pinball table: a dome, two flippers and five posts. Something is going to hit something.',
             par: 3,
-            tee: { x: 100, y: 320 },
-            hole: { x: 870, y: 320 },
-            rough: [r(0, 0, 960, 90), r(0, 550, 960, 90)],
-            bumpers: [
-                post(370, 160, 26), post(370, 320, 26), post(370, 480, 26),
-                post(540, 240, 26), post(540, 400, 26),
-                post(710, 160, 26), post(710, 320, 26), post(710, 480, 26)
+            /* The posts stood in a corridor once. They stand on a table now:
+               a curved dome over the cup, two inlanes and the flipper rails
+               down to the tee, and five posts between — the middle one on the
+               straight line. Posts are livelier than wood, so the hole is
+               about which of them you are willing to be near; and the dome
+               brings back whatever goes over the top. */
+            tee: { x: 480, y: 590 },
+            hole: { x: 480, y: 140 },
+            arcs: [arc(480, 300, 300, 180, 360, 24)],
+            rails: [rail(180, 300, 180, 470, 24), rail(780, 300, 780, 470, 24), rail(180, 470, 330, 560, 24), rail(780, 470, 630, 560, 24)],
+            bumpers: [post(380, 330, 26), post(580, 330, 26), post(480, 250, 26), post(300, 220, 22), post(660, 220, 22)],
+            blocks: [
+                block('bed', smooth([0, 640, 0, 380, 120, 470, 230, 640])),
+                block('bed', smooth([960, 640, 960, 380, 840, 470, 730, 640]))
             ]
-        }),
+        },
         {
             name: 'Bank Shot',
-            blurb: 'Nothing goes in off the straight line. Use the cushions.',
+            blurb: 'A hedge sits on the straight line. Bank it off the curve over the top, or go round.',
             par: 3,
-            tee: { x: 140, y: 490 },
-            hole: { x: 840, y: 500 },
-            walls: [r(400, 300, 24, 340), r(700, 0, 24, 300)],
-            rough: [r(700, 570, 260, 70)]
+            /* Nothing goes in off the straight line: a clipped hedge, cut as
+               a diamond, stands square on it. Over it hangs a curved timber
+               rail, and a ball sent up at the rail comes off it and down onto
+               the green — each point of a curve is a cushion at a different
+               angle, so where you hit it is the line you get. Round the
+               bottom of the hedge is the long, safe way. */
+            tee: { x: 200, y: 440 },
+            hole: { x: 760, y: 440 },
+            blocks: [block('hedge', [480, 260, 610, 430, 480, 600, 350, 430])],
+            arcs: [arc(480, 430, 290, 220, 320, 24)],
+            rough: [r(0, 610, 960, 30)]
         },
         mirror({
             name: 'Sliding Doors',
-            blurb: 'Two doorways, and the doors linger shut. Go when you can see daylight.',
+            blurb: 'Two doorways, and the doors linger shut. Watch them run along their tracks; go when you see daylight.',
             par: 4,
             /* A door is anchored so that the shut position is one end of its
                travel, not the middle of it. A sine spends most of its time
                near the extremes, so a door parked mid-swing over its doorway
                would be open almost always and the gate would be scenery; hung
-               this way it closes, dwells, and opens again. */
+               this way it closes, dwells, and opens again. Each runs in a
+               track sunk in the grass under its whole travel, so a door is
+               known for one before it is ever seen to move. */
             tee: { x: 110, y: 320 },
             hole: { x: 890, y: 300 },
             walls: [
@@ -283,25 +454,29 @@
                 { x: 270, y: 250, w: 26, h: 140, move: { axis: 'x', amp: 130, speed: 1.25, phase: -Math.PI / 2 } },
                 r(700, 0, 26, 200), r(700, 360, 26, 280),
                 { x: 550, y: 210, w: 26, h: 140, move: { axis: 'x', amp: 150, speed: 1.7, phase: -Math.PI / 2 } }
+            ],
+            blocks: [
+                block('bed', smooth([960, 0, 780, 0, 820, 90, 960, 140])),
+                block('bed', smooth([960, 640, 960, 470, 840, 520, 770, 640]))
             ]
         }),
         {
             name: 'The Keep',
-            blurb: 'One way in, and it faces the far cushion. Go past the flag to reach it.',
+            blurb: 'A round keep with its one door facing away. Go past it and come back in.',
             par: 4,
-            /* A room whose door is on the side you cannot come at directly.
-               The two posts outside the mouth are not there to block it —
-               they line the approach up, so a ball banked off the right
-               cushion is funnelled in rather than merely passing by. */
+            /* A tower whose door is on the side you cannot come at directly.
+               The two posts outside the door are not there to block it —
+               they line the approach up, so a ball brought back off the
+               right-hand side is turned in rather than merely passing by.
+               Round walls do not stop a ball the way square ones do: it
+               runs on round them, which is what makes the long way round
+               shorter than it looks. */
             tee: { x: 90, y: 560 },
-            hole: { x: 470, y: 300 },
-            walls: [
-                r(300, 180, 380, 24), r(300, 416, 380, 24),   // roof and floor
-                r(300, 180, 24, 260),                          // the blind side
-                r(656, 180, 24, 100), r(656, 364, 24, 76)      // the doorway, y 280-364
-            ],
-            rough: [r(700, 0, 260, 160), r(700, 480, 260, 160)],
-            bumpers: [post(770, 250, 22), post(770, 394, 22)]
+            hole: { x: 480, y: 300 },
+            arcs: [arc(480, 300, 130, -20, 290, 24)],
+            bumpers: [post(690, 250, 22), post(690, 380, 22)],
+            rough: [r(760, 0, 200, 160), r(760, 480, 200, 160)],
+            blocks: [block('bed', smooth([0, 0, 220, 0, 160, 100, 0, 160]))]
         }
     ];
 
@@ -422,12 +597,14 @@
                is one end of the travel rather than the middle of it, so the
                gate closes, dwells, and opens again. Vertical, this time —
                the door slides up into the top wall and leaves the whole
-               doorway open when it does. */
+               doorway open when it does. Shut, it stops 18px short of the
+               lower wall rather than 10: a ball caught in a crack narrower
+               than itself would be pinned there between the two. */
             tee: { x: 110, y: 540 },
             hole: { x: 880, y: 180 },
             walls: [
                 r(460, 0, 26, 240), r(460, 460, 26, 180),     // the doorway, y 240-460
-                { x: 460, y: 145, w: 26, h: 200, move: { axis: 'y', amp: 105, speed: 1.2, phase: Math.PI / 2 } }
+                { x: 460, y: 145, w: 26, h: 200, move: { axis: 'y', amp: 97, speed: 1.2, phase: Math.PI / 2 } }
             ],
             water: [r(560, 380, 300, 140)],
             rough: [r(560, 0, 400, 90)]
@@ -950,10 +1127,10 @@
             id: 'short',
             theme: 'garden',
             name: 'The Short Six',
-            blurb: 'Six holes, nothing hidden, and a round inside twenty minutes.',
+            blurb: 'Six short holes through every place the game goes — and an ace on every one, if you look.',
             // Where a first visit is pointed. Par two or three all the way
-            // round and every hole visible from the tee: the tutorial that
-            // does not say it is one.
+            // round, every hole visible from the tee, and each in a biome
+            // of its own: the tutorial that does not say it is one.
             starter: true,
             holes: SHORT
         },
@@ -961,7 +1138,7 @@
             id: 'links',
             theme: 'parkland',
             name: 'The Old Course',
-            blurb: 'Corners, cushions, posts and doors. The classics, six of them.',
+            blurb: 'Corners, cushions, posts and doors — the classics, with the angles to bank off.',
             unlock: 4,
             holes: LINKS
         },
@@ -1018,7 +1195,7 @@
        uses, and every consumer downstream gets to loop without a guard. The
        playtest hand-off in index.html fills a drawn hole from the same list. */
     GOLF.HAZARD_KEYS = ['walls', 'water', 'sand', 'rough', 'ice', 'bumpers', 'slopes', 'tunnels', 'rails',
-                        'lava', 'avalanches', 'vents'];
+                        'lava', 'avalanches', 'vents', 'arcs', 'blocks', 'hills'];
     GOLF.COURSES.forEach(function (c) {
         c.holes.forEach(function (h) {
             GOLF.HAZARD_KEYS.forEach(function (key) {

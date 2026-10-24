@@ -29,7 +29,7 @@
     /* The things a first round has to be told about, in the order they are
        likely to turn up. `gates` is a moving wall rather than a list of its
        own, because a wall that holds still needs no introduction. */
-    var LESSONS = ['rough', 'sand', 'water', 'ice', 'gates', 'bumpers', 'slopes', 'tunnels', 'avalanches', 'lava', 'vents'];
+    var LESSONS = ['rough', 'sand', 'water', 'ice', 'gates', 'bumpers', 'slopes', 'wind', 'hills', 'tunnels', 'avalanches', 'lava', 'vents'];
     // Everything a player of the old game has already met.
     var OLD_LESSONS = ['rough', 'sand', 'water', 'ice', 'gates', 'bumpers', 'slopes'];
 
@@ -190,6 +190,10 @@
     function kindsOn(hole) {
         return LESSONS.filter(function (k) {
             if (k === 'gates') return (hole.walls || []).some(function (w) { return !!w.move; });
+            // A wind is a slope with a fan at its head: the same pull, a
+            // different thing to be told.
+            if (k === 'slopes') return (hole.slopes || []).some(function (s) { return !s.wind; });
+            if (k === 'wind') return (hole.slopes || []).some(function (s) { return !!s.wind; });
             return (hole[k] || []).length > 0;
         });
     }

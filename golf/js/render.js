@@ -975,6 +975,9 @@
         // screen's: they are hazards, and where one is is a fact of play.
         L.drawSlides(g, course.avalanches, t, v, still ? 0 : clock);
         L.drawVents(g, course.vents, t, v, still ? 0 : clock);
+        // The wind's streaks blow on the screen's clock: they are what a
+        // wind looks like, not where it is.
+        if (GOLF.props) GOLF.props.air(g, course, still ? 0 : clock);
         drawTunnels(g, course.tunnels, t, v);
         drawHole(g, course.hole, t, state.world.ball, v);
         if (life) AMB.under(g, theme, v, clock, still);
@@ -983,6 +986,7 @@
             if (course.walls[i].move) L.drawWall(g, course.walls[i], t, theme, v);
         }
         for (i = 0; i < course.bumpers.length; i++) L.drawBumper(g, course.bumpers[i], t, theme, v);
+        if (GOLF.props) GOLF.props.machines(g, course, still ? 0 : clock);
         // After dark, the dark: over the course, under the ball.
         if (AMB) AMB.light(g, course, theme, v, ball, scene.decor, { key: state.sceneKey, res: state.res || 1 });
 
@@ -1006,6 +1010,7 @@
         // lives in the air, and the weather over everything. A crown the
         // ball is under goes thin, and so does anything flying past it.
         L.drawRim(g, theme, v);
+        if (GOLF.props) GOLF.props.over(g, course, v, still ? 0 : clock, ball);
         L.drawCanopies(g, scene.decor.canopies, theme, v, clock, ball);
         if (life) AMB.over(g, theme, v, clock, ball, still, scene.decor);
         L.drawClouds(g, still ? 0 : clock, v, key + 1, theme.clouds);

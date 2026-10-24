@@ -3,13 +3,15 @@
 A 2D mini golf game with seven courses of six holes, climbing from a walled
 garden to a volcano — plus one more that is generated from a seed and is
 different every time you ask for one. Each course is a place with a trick of
-its own: a garden's basics, parkland corners and posts, the sea's water, a
-wood's hills and sweeping bars, a meadow's tunnels, a mountain's avalanche
-chutes and a volcano's lava and geysers. A first visit is handed the garden and
-a reason to finish it; every hole gives up to three stars, and stars open the
-next card. Up to four can play on one screen. Any course can be dressed in any
-of eleven biomes, autumn, winter, desert and a moonlit night among them. A
-hole may run on the slant.
+its own: parkland corners and posts, the sea's water, a wood's hills and
+sweeping bars, a meadow's tunnels, a mountain's avalanche chutes and a
+volcano's lava and geysers — and the first card walks through all of those
+places in six holes, with an ace to find on every one. A first visit is handed
+that card and a reason to finish it; every hole gives up to three stars, and
+stars open the next card. Up to four can play on one screen. Any course can be
+dressed in any of eleven biomes, autumn, winter, desert and a moonlit night
+among them. A hole may run on the slant, bend round a curve, rise over a hill
+and have a windmill in the middle of it.
 Canvas, plain ES5-flavoured JavaScript, no build step and no dependencies —
 same as everything else here, open `index.html` and it runs.
 
@@ -30,6 +32,7 @@ same as everything else here, open `index.html` and it runs.
 | `js/scenery.js` | The biomes, hazard outlines and where decoration goes. Draws nothing. See [Biomes](#biomes-and-what-a-hole-is-drawn-as). |
 | `js/plan.js` | Flat hole thumbnails for the course picker. Nothing on the board reads it. |
 | `js/landscape.js` | The place: turf, hazards, walls, posts, trees, weather, the rim — and the cached layers. |
+| `js/props.js` | Curved walls, blocks and what stands in them (beds, hedges, rocks, sandcastles, a windmill, a fan), hills, the wind, and the tracks gates run in. See [Curves, blocks, hills and props](#curves-blocks-hills-and-props). |
 | `js/water.js` | The water's surface, as a WebGL shader over a depth field, with the 2D picture as its fallback. See [Water](#water). |
 | `js/ambience.js` | What lives over the course — snow, leaves, birds, fireflies — and the dark of the night biome. Stateless, driven by the clock. |
 | `js/render.js` | The frame: ball, cup, tunnels, aim, effects, and the order everything is laid down in. |
@@ -62,17 +65,25 @@ that the thresholds never fall going down the rack, so the picker reads top to
 bottom as a climb. No position on the rack is load-bearing: the save keys
 follow `GOLF.BARE_KEY_COURSE` by id (see [Saving](#saving)).
 
-- **The Short Six** (garden) is the card for the twenty minutes you actually
-  have, and the one a first visit is handed. Par two or three all the way
-  round, nothing hidden — a wide gate, a bunker sat on the straight line, a
-  causeway with a rink in front of it, one slow bar to time, a gentle tilt,
-  and a close that puts three of those together. Every idea the rest of the
-  rack builds on is met here first, gently.
+- **The Short Six** is the card a first visit is handed, and the trailer for
+  everything after it: six short holes, each set in a different place in the
+  order the rack climbs through them — a walled **Garden Gate**, a parkland
+  dogleg (**Bank Holiday**) whose outside corner is a curve to ride, a beach of
+  **Sandcastles** with the sea behind the cup, a **Molehill** in a wood, **The
+  Windmill** in a meadow with a tunnel through its door, and a **Snow Cannon**
+  blowing across a mountain piste onto a frozen tarn. Each hole meets its
+  place's idea gently and alone. Par is two or three, set for the safe way
+  round, and every hole has an ace in it for the player who reads it — a
+  weight, a bank, a door, a wind. See [Designing a hole](#designing-a-hole).
 - **The Old Course** (parkland) is what the game always was, boiled down to
   the six that were each a different idea: up the field through a bunker,
-  round a corner, a field of posts, the cushions, two doors to time, and a
+  round a corner, a table of posts, the cushions, two doors to time, and a
   room whose only door faces away. Walls and posts and nothing else — the
-  angles are the hazard.
+  angles are the hazard, and since its second pass it has the angles to bank
+  off: a neck of grass through the bunker, a bank board at the corner, a
+  pinball table with a dome, a curved rail over a hedge and a round keep. The
+  first four have an ace for the player who reads the angle; the last two are
+  honest par fours played in stages.
 - **The Tidewater Six** (seaside) puts water on every hole, which is the only
   hazard that does not slow the ball or push it about — it takes the shot off
   you and asks for it again. That makes it a course about weight rather than
@@ -130,6 +141,11 @@ comments still describe it as designed — and the new ones run up the field,
 down it, on the diagonal and round a hairpin. The suite pins that every card
 is played in at least two directions.
 
+**The Short Six and the Old Course were rebuilt a second time** when the
+vocabulary grew curves, blocks and hills, because both were still a field of
+grass with a few boxes in it, and a box is the least interesting thing a ball
+can meet. The other five cards have not had that pass yet.
+
 Three of the holes started out with a free way round the obstacle they were
 built on — over the top of the funnel, up the side lane of the lattice, along
 the cushion past the wipers. None of them is walled off. They are all lined
@@ -150,6 +166,55 @@ puts you on the tee of the hole you left, which is the same promise a refresh
 makes. Two cards are not comparable totals even at the same length, which is
 the other half of why the save file is split: a round of the Short Six would
 take the Old Course's record the first time anyone played one.
+
+## Designing a hole
+
+What makes one hole a pleasure and another a chore is the hardest question
+the game has, and the second pass on the first two cards was built on the
+answers that hold up — from golf architecture, from people who build adventure
+golf courses for a living, and from game level design:
+
+- **A safe way and a bold way.** Alister MacKenzie's rule for a golf hole was
+  that it should be strategic rather than penal: a choice, not a punishment.
+  Adventure golf builders say the same thing in their trade's words — every
+  hole wants a route that rewards a skilled, deliberate shot and a forgiving
+  one that still lets a beginner succeed, and that pair is what makes a course
+  worth playing twice. Here the forgiving route is par; the bold one is an
+  ace, and it is always a *shot* — a weight against water behind the cup, a
+  bank board, a curve to ride, a door to find, a wind to aim into — never a
+  fluke. Par is set for the safe way, so the stars are there for anybody who
+  finishes and the aces for anybody who looks.
+- **No straight line.** A hole with a straight path from the tee to the cup
+  asks one question, once. Players of mini golf games say it plainly: holes
+  that are straight don't require much thought. So the line is broken — by a
+  bed, a hedge, a mound, a mill — and what breaks it is something to bank off,
+  ride round or curve past rather than a wall to walk round.
+- **One idea, met alone, then combined.** Nintendo builds a level as an idea
+  introduced where it is safe, developed, twisted and dropped
+  (*kishōtenketsu*). A card is the same at a larger size: the Short Six meets
+  each place's idea on a hole of its own — sand and water where they cost
+  least, a hill before hills move, a wind with nothing else to think about —
+  and the cards after it put them together.
+- **Fair and readable.** A hazard the player cannot see coming is a trick
+  played on them. Every hazard here says what it does before it does it: the
+  gate runs in a track, the wind blows out of a fan, the hill is shaded like a
+  hill and has a mole on it, the tunnel goes through a windmill's door. A
+  force with no cause in sight reads as the game cheating, which is why the
+  suite will not let a wind ship without its fan.
+- **Variety and rhythm.** Holes differ in length, shape, direction and
+  difficulty, and a hard hole sits beside an easy one — MacKenzie's "modest
+  holes and heroic ones". Not every hole has to have an ace: The Keep and
+  Sliding Doors are played in stages, and that is a different pleasure from a
+  hole played in one stroke.
+- **A place, not a diagram.** Theming is what makes a course remembered. The
+  first card walks through every biome the rack is set in, so a first visit
+  has seen where the game goes before it has finished one card.
+
+Two tools in the scratch work for the pass are worth rebuilding if a card is
+redesigned again: a sweep of every angle and weight from the tee, which says
+whether an ace exists and how wide its window is, and the caddie's search,
+which says what par is. A tutorial hole's ace window is a few degrees across;
+a skill hole's is a degree and a narrow band of weight.
 
 ## Starting up, and the stars
 
@@ -228,7 +293,9 @@ the same thing for whichever hand is holding the device. It loops until the
 first real shot and never comes back. Each hazard is then said once, on the
 first tee where it is in play, in a card that never takes a press and goes
 with the shot: two at most, because a tee that explains five things has
-explained none of them. The card sits wherever on the *screen* is furthest
+explained none of them. A wind is told apart from a slope here — the same
+pull, but the fan is the thing to read — and a hill is a lesson of its own.
+The card sits wherever on the *screen* is furthest
 from both the tee and the cup — a corner if one is clear, otherwise the middle
 of an edge — and moves if the board turns under it.
 
@@ -513,16 +580,28 @@ A hole is axis-aligned rectangles, round posts and two points:
     rails:   [ { x, y, tx, ty, w } ],    // a wall at any angle: its spine and its thickness
     lava:    [ { x, y, w, h } ],         // water nothing skips: any pace, a stroke and a replay
     avalanches: [ { x, y, w, h, dir, every, at } ], // a chute: a slide down it every `every` seconds
-    vents:   [ { x, y, every, at, run } ] // a geyser: blowing `run` seconds of every `every`
+    vents:   [ { x, y, every, at, run } ], // a geyser: blowing `run` seconds of every `every`
+    arcs:    [ { x, y, r, from, to, w } ],  // a curved wall: an arc, from/to in degrees clockwise from right
+    blocks:  [ { pts, w, look } ],          // a solid shape: its outline, its kerb, what stands in it
+    hills:   [ { x, y, r, a } ]             // round ground: a mound if a > 0, a bowl if a < 0
 }
 ```
+
+A hole may also name a `theme` — one of the biomes — which it wears instead
+of its course's, and a slope may carry `wind: true`, which changes what it
+looks like and nothing about what it does.
 
 A hole lists only the hazards it uses; a normaliser at the foot of
 `courses.js` fills in the rest as empty arrays from `GOLF.HAZARD_KEYS`, so
 nothing downstream has to ask whether a list exists. Water, lava, sand, rough
 and ice may also be polygons — `poly(x0, y0, x1, y1, …)` — for a bank or a
 bunker that runs on the slant; `chute(…)` and `vent(…)` are the helpers for
-the other two.
+the other two. `arc(…)`, `block(look, pts, w)`, `mound(…)` and `bowl(…)` write
+the newest shapes, and `smooth(pts)` and `oval(…)` save writing a curve out
+corner by corner: `smooth` cuts every corner of an outline in two, twice over
+(Chaikin's corner cutting), so a hexagon of six numbers becomes a pebble with
+no corner a ball can find. The helpers are `GOLF.helpers` to anything else
+that writes a hole down, the suite included.
 
 `move` takes `{ axis, amp, speed, phase }`. On `y` it is a gate that rises and
 falls; on `x` it is a door that slides. A door is worth one note: hang it so
@@ -536,7 +615,7 @@ be obviously correct, so the interesting shapes come from arranging boxes and
 posts — a dogleg is one big blocker, an island green is a moat with a gap in it,
 a pocket is six posts with one mouth — rather than from richer geometry.
 
-It has grown by exactly two shapes, chosen to keep both promises. **A rail** is
+It grew first by two shapes, chosen to keep both promises. **A rail** is
 a wall at any angle, collided as a capsule: the closest point on a segment is a
 clamp and a dot product, so it costs what a box costs and is as easy to see is
 right, and it is round at both ends because a capsule is — a square end drawn
@@ -553,9 +632,12 @@ meant; they are two rails now. The Narrows was six rectangles and looked it —
 a diagram of a staircase rather than a causeway — and its lakes are two
 polygons. Its risers are steep on purpose: at forty-five degrees the three
 landings line up into one band a straight putt can thread, which is a
-different and easier hole. Front Door, the first hole anybody plays, has its
-gate leaning in towards the mouth, so the first putt that wanders comes off a
-rail still heading for the door.
+different and easier hole.
+
+Then by three more, and none of them is a new collision test. **A curve** is a
+chain of rails laid round an arc; **a block** is a polygon whose every edge is
+a rail; **a hill** is a slope that is round. See [Curves, blocks, hills and
+props](#curves-blocks-hills-and-props).
 
 The field is a fixed 960×640 world that the canvas scales to fit, so every
 constant means the same thing on a phone and on a desktop.
@@ -599,6 +681,19 @@ course is exempt from is a rule the second course will break — all asserted in
   resting for the rest, on the field, clear of walls, posts, water and lava (a
   ball that rolls onto it has to be able to), off slopes and chutes, off the
   tee, well off the cup and off every tunnel mouth.
+- **A curve sweeps forwards and stays open** — `to` past `from` by no more
+  than a full turn, and a radius wider than the wall is thick — and **a block
+  has three corners on the field**. Both are rails underneath, so every rail
+  rule holds for them too: 20px thick, off the tee and the cup, clear of every
+  tunnel mouth and vent.
+- **A hill reaches nothing it could hold the ball against.** Like a slope, it
+  pulls for as long as the ball is on it, so its disc keeps off the cushion
+  and off every wall, post, rail and block; the tee is off it, and so are the
+  tunnel mouths and vents.
+- **A wind has a fan at its head, and a windmill's sails reach nothing a hole
+  is about.** The first because a force with no cause in sight reads as the
+  game cheating; the second because the sails are the one prop drawn over the
+  ball, so they keep clear of the tee, the cup and every tunnel mouth.
 
 ## Avalanches, lava and geysers
 
@@ -645,6 +740,75 @@ lets the bot and the suite plan through them exactly as they plan through a
 gate: the search waits a random beat before each shot, and a slide or an
 eruption is wherever the clock says it is.
 
+## Curves, blocks, hills and props
+
+The first two cards were a field of grass with boxes in it, and a box is the
+least interesting thing a ball can meet: it sends the ball back the way a
+mirror does, at one of two angles. Three shapes give a hole geometry instead,
+and every one is built out of what the physics already knew.
+
+**A curve** (`arcs`) is a wall bent round an arc, laid as a chain of rails no
+more than eight degrees or 32px long. Each link ends where the next begins and
+a rail is round at both ends, so the chain has no seam to slip through and no
+corner to bounce off, and at eight degrees a link stands at most a pixel off
+the true curve. It is what a box cannot be: every point of it is a cushion at a
+different angle, so where a ball meets it is the line it gets, and a ball sent
+along the inside of one *rides* it round — the outside of Bank Holiday's turn
+carries a firm putt round the corner and up to the flag. It is drawn as one
+band in the biome's own wall, not as its links.
+
+**A block** (`blocks`) is a solid shape: a polygon whose every edge is a rail
+`w` thick. The ball only ever meets the edge, so the inside is somewhere it
+can never be, and that is where the picture puts something — a flower bed
+edged in the biome's own brick or timber and planted with what grows there, a
+copse when it is big, a clipped hedge, a rock, a sandcastle, a windmill, a
+fan. `look` is read by the renderer and nothing else. Blocks are what shape a
+field: beds round off its corners, a copse is the inside of a dogleg, a hedge
+cut as a diamond sits on the straight line. A ball inside one is impossible
+rather than merely unlikely — the suite fires at them and checks — and the
+caddie's walking map counts a block's hollow as solid.
+
+**A hill** (`hills`) is round ground: level at its middle and at its rim and
+steepest halfway out, where it pulls the ball `|a|` px/s² away from the middle
+(a mound) or towards it (a bowl). The profile is a cosine, so the pull is a
+sine of the distance out and nothing jumps as the ball rolls on or off it. A
+mound's shoulder is a curve you can aim with — Molehill's ace bends round
+one — and a bowl round a cup gathers a ball that arrives about right, which is
+why the first hole anybody plays has one. It is shaded pixel by pixel from the
+same light the walls are lit by, with contours closer where it is steep and the
+slope's chevrons pointing downhill round it.
+
+A bowl is where a ball can come to rest on a hill, at the bottom, and that
+needed one change to the physics: the rest check used to skip slope zones
+outright, and now it asks how hard the ground pulls where the ball is. Below
+`REST_PULL` — `STOP_SPEED` times the grass's drag, the pull that could never
+roll a ball faster than `STOP_SPEED` however long it was left — a ball may
+stop. Every slope on the rack pulls ten times that, so nothing rests on a slope
+any more than it did; the level bottom of a bowl lets a ball settle.
+
+**A wind** is a slope with `wind: true`. The ball meets exactly what it meets
+on a slope; what the player is shown is a pale lane with streaks blowing down
+it, and a fan — a block with `look: 'fan'` — standing at its head with its
+rotor spinning and a chevron on its housing pointing downwind. On the
+mountain the fan is a snow cannon. A tilt in a top-down game is a convention
+you have to be told; air pouring out of a fan is not.
+
+**Props explain hazards.** A force with no cause in sight reads as the game
+cheating, so the hazards that do something invisible are given a reason to be
+seen doing it: the wind blows out of a fan; a moving gate runs in a track sunk
+in the grass under its whole travel, rails and end stops, so it is known for
+a gate before it is ever seen moving; a mound on grass has a molehill at its
+peak and the mole that dug it; a tunnel that runs through a windmill has a
+gravel path from each mouth to the mill's doors. The windmill's sails are the
+one prop drawn over the ball, and like a tree's crown they go thin when the
+ball rolls under them — and the suite keeps them clear of the tee, the cup and
+every mouth.
+
+What does not move is painted into the cached layers — hills and tracks into
+the ground, curves and blocks into the still walls — and what does is drawn
+live: the streaks, a fan's rotor, a windmill's sails, all still under
+`prefers-reduced-motion`.
+
 ## Biomes, and what a hole is drawn as
 
 A field of flat blue rectangles is a diagram of a hole rather than a place,
@@ -661,6 +825,12 @@ rough, a wall material (timber, brick, driftwood, logs, a clipped hedge), a
 bumper cap (brass, a flowerpot, a buoy, a toadstool, a hay bale), the rim of
 the course, the trees beside it and the flowers, leaves or shells in its
 grass. `scenery.js` holds all of it as data; `landscape.js` draws it.
+
+**A hole may wear a biome of its own.** The Short Six walks through six of
+them, one a hole, in the order the rack climbs — so `themeOf(course, hole)`
+answers the hole's `theme` first and the card's after. The letterbox, the
+soundscape and the plan in the picker follow the hole; the Scenery row still
+puts every hole of every course in one biome when it is asked to.
 
 **Alpine** is granite walls and rim, boulders with snow on them for posts,
 snow pines, deep snow for the bunkers and a glacial tarn with a skin of ice;
@@ -782,10 +952,13 @@ Two details that are easy to get wrong and are pinned by tests:
   30Hz and 120Hz is *when the ball is noticed to have stopped* — bounded by one
   frame at `STOP_SPEED`, which is 0.47px, and asserted at exactly that rather
   than at a round number that happened to hold.
-- **A ball at rest on a slope is not at rest.** The stop threshold has to
-  exclude slope zones or the ball hangs on the hillside — which is the whole
-  reason a slope may not reach something it can pin the ball against, per the
-  hole rules above.
+- **A ball at rest on a slope is not at rest.** The stop threshold has to ask
+  how hard the ground pulls where the ball is, or the ball hangs on the
+  hillside — which is the whole reason a slope may not reach something it can
+  pin the ball against, per the hole rules above. Below `REST_PULL` it may
+  stop, and that is the only place it may: on the flat, and at the level
+  bottom of a bowl. See [Curves, blocks, hills and
+  props](#curves-blocks-hills-and-props).
 
 The cup is the one place the ball has a height. Everywhere else `z` is its
 radius and nothing reads it; over the cup (`physics.cup`) the ball is a sphere
@@ -1115,6 +1288,17 @@ is a rectangle with its downhill, its period and its first slide set in the
 inspector; a **geyser** (`Y`) is a click, with when and for how long it blows
 beside it. The checks hold all three to the rule book's rules for them.
 
+A **curve** (`C`) is dragged out from its centre: it starts as the top half
+of a circle, its angles and thickness are in the inspector, and the grip
+halfway round it sets the radius. A **block** (`B`) is dragged out as a
+rectangle and is four corners from the start; its look — bed, tree, hedge,
+rock, castle, windmill, fan — is a menu, *+ corner* splits its longest edge
+and *Round it* cuts every corner in two. A **hill** (`M`) is dragged out from
+its centre like a post, a mound until its pull is made negative. A slope can
+be ticked as *wind*, and the **Biome** menu beside the hole's name gives a hole
+a place of its own. The checks drop a ball on every hill as they do on every
+slope and wait for it to stop.
+
 Everything else is what you would expect. Drag a shape tool across the green
 to draw one, drag it or its grips to reshape, snap at 1/5/10/20 with shift for
 ×5 and alt for off, undo the lot with Ctrl+Z. Moving walls show dashed ghosts
@@ -1134,9 +1318,9 @@ and would beat any real round's record the first time anyone tried a
 draft.
 
 `level-editor.html?runTests=1` runs the editor's own tests — the export/parse
-round trip over every shipped hole on every course, the checks passing
-everything that ships and catching three holes deliberately broken, and
-undo/redo. It is
+round trip over every shipped hole on every course and over a hole that uses
+every new shape, the checks passing everything that ships and catching a
+dozen holes deliberately broken, and undo/redo. It is
 a real feature linked from the game, so unlike `tests.html` it stays
 indexable; the self-test overlay only appears with the query string.
 
@@ -1144,9 +1328,10 @@ indexable; the self-test overlay only appears with the query string.
 
 Two harnesses, and the runner finds both.
 
-Open `tests.html`. 836 assertions covering geometry, the integrator, the four
+Open `tests.html`. 871 assertions covering geometry, the integrator, the four
 surfaces, the overswing, skipping, tunnels, avalanche chutes, lava and
-geysers, rails and polygons, the cup in three dimensions, scenery in every biome, the course data
+geysers, rails and polygons, curves, blocks, hills and wind, the cup in three
+dimensions, scenery in every biome, the props that explain the hazards, the course data
 on every course, the generator, the scorecard, the pick-up and the stars,
 progression and starting over, the per-course save keys and the resumable
 round, in a few seconds — most of them
@@ -1154,7 +1339,7 @@ the bot's, which now searches for a way round every hole on the rack and every
 hole of twelve draws. The bot needed nothing new for tunnels: it plans over
 simulated shots, and a shot down a tunnel is a simulated shot.
 
-Open `ui-tests.html` for the other half: 173 assertions about the *page* — the
+Open `ui-tests.html` for the other half: 175 assertions about the *page* — the
 bar, the modals in fullscreen, the picker, the title screen on a first visit, locks and the way past
 them, stars on the banner and the plans, a door opening, a three-player party
 from roster to honour to resume, the board turned for an upright phone and
@@ -1208,7 +1393,9 @@ places. The shape of the rack is pinned the same way: no two holes share a
 name (the save file remaps by name), par never falls going down a card, every
 card is played in at least two directions and uses at least four kinds of
 hazard, every kind of hazard is in play somewhere on the rack, every hole of
-the Warren has a tunnel and every hole of Ember Ridge has lava.
+the Warren has a tunnel and every hole of Ember Ridge has lava, and the
+starter walks through a different biome on every hole, each one a place the
+rack goes and the first its own.
 
 The one worth knowing about is the **bot**, and it searches rather than plays.
 The field is bucketed into 48px cells; the tee is where the search starts;

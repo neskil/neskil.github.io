@@ -30,6 +30,8 @@
     <script src="js/scoring.js"></script>
     <script src="js/progress.js"></script>
     <script src="js/scenery.js"></script>
+    <!-- Only for where its props stand; nothing here draws them. -->
+    <script src="js/props.js"></script>
 
     <script>
     (function () {
@@ -900,6 +902,143 @@
             assert('a tee in a polygon lake is caught', bad(lake).some(function (m) { return /tee is inside/.test(m); }));
         })();
 
+        section('Curves, blocks, hills and wind');
+
+        /* The shapes that let a hole stop being boxes. A curve and a block
+           are rails underneath — so they are held to what a rail is held
+           to — and a hill is a slope that is round. The things worth pinning
+           are the ones that would be invisible from a screenshot: that a
+           chain of rails has no seam, that a block has no way in, that a
+           bowl lets a ball rest at its bottom and a slope still does not. */
+        (function () {
+            var Hs = GOLF.helpers;
+            function field(extra) {
+                var h = { par: 3, tee: { x: 100, y: 320 }, hole: { x: 880, y: 320 } };
+                GOLF.HAZARD_KEYS.forEach(function (k) { h[k] = []; });
+                Object.keys(extra || {}).forEach(function (k) { h[k] = extra[k]; });
+                return h;
+            }
+
+            // A curve is a chain: each link ends where the next begins, every
+            // end is on the circle, and no link turns more than ARC_STEP.
+            var ring = Hs.arc(480, 200, 200, 0, 180, 24), links = P.arcRails(ring), seamless = true, onCircle = true;
+            links.forEach(function (l, i) {
+                if (i && (l.x !== links[i - 1].tx || l.y !== links[i - 1].ty)) seamless = false;
+                [[l.x, l.y], [l.tx, l.ty]].forEach(function (e) {
+                    if (Math.abs(Math.hypot(e[0] - 480, e[1] - 200) - 200) > 1e-6) onCircle = false;
+                });
+            });
+            assert('a curve is laid as a seamless chain of rails on its circle', links.length >= 180 / 8 && seamless && onCircle,
+                links.length + ' links');
+
+            // Sent along the inside of a curve, a ball rides it round.
+            var bowlField = field({ arcs: [ring] });
+            var rider = P.createWorld(bowlField, { x: 480, y: 372 }, 0);
+            P.launch(rider, 0, 650);
+            var turned = false, outside = false;
+            for (var i = 0; i < 2400 && rider.moving; i++) {
+                P.advance(rider, 1 / 120);
+                if (rider.ball.vy < -80 && rider.ball.x > 600) turned = true;
+                if (Math.hypot(rider.ball.x - 480, rider.ball.y - 200) > 200 && rider.ball.y > 200) outside = true;
+            }
+            assert('a ball sent along the inside of a curve rides it round', turned);
+            assert('…and never through it', !outside);
+
+            // Shut in a whole ring and fired at every angle, nothing gets out.
+            var cage = field({ arcs: [Hs.arc(480, 320, 200, 0, 360, 24)] });
+            var leaks = 0;
+            for (var k = 0; k < 90; k++) {
+                var lw = P.createWorld(cage, { x: 480, y: 320 }, 0);
+                P.launch(lw, k / 90 * Math.PI * 2, C.MAX_POWER);
+                for (var st = 0; st < 2400 && lw.moving; st++) {
+                    P.advance(lw, 1 / 120);
+                    if (Math.hypot(lw.ball.x - 480, lw.ball.y - 320) > 200) { leaks++; break; }
+                }
+            }
+            assert('no full-power shot gets through a curve', leaks === 0, leaks + ' of 90 got out');
+
+            function rideAt(dt) {
+                var s = P.createWorld(bowlField, { x: 480, y: 372 }, 0);
+                P.launch(s, 0.2, 650);
+                for (var n = 0; n < 20 / dt && s.moving; n++) P.advance(s, dt);
+                return s.ball;
+            }
+            var a30 = rideAt(1 / 30), a120 = rideAt(1 / 120);
+            assert('30Hz and 120Hz agree about where a ride round a curve stops',
+                Math.hypot(a30.x - a120.x, a30.y - a120.y) < 1.5, Math.hypot(a30.x - a120.x, a30.y - a120.y).toFixed(2) + 'px apart');
+
+            var flip = Hs.mirror(field({ arcs: [Hs.arc(300, 200, 120, 10, 100, 24)] }));
+            var flipped = P.arcRails(flip.arcs[0]), plain = P.arcRails(Hs.arc(300, 200, 120, 10, 100, 24));
+            assert('a mirrored curve is the curve, mirrored', flipped.length === plain.length && plain.every(function (l, i) {
+                var m = flipped[flipped.length - 1 - i];
+                return approx(m.tx, C.WORLD_W - l.x, 1e-6) && approx(m.ty, l.y, 1e-6);
+            }));
+
+            // A block: rails all round, and nothing ever gets inside it.
+            var wedge = Hs.block('bed', [400, 200, 600, 260, 520, 460]);
+            var bf = field({ blocks: [wedge] });
+            assert('a block is its outline, as rails', P.blockRails(wedge).length === 3 && P.railsOf(bf).length === 3);
+            var inside = 0;
+            for (k = 0; k < 160; k++) {
+                var bw = P.createWorld(bf, { x: 200 + (k % 4) * 10, y: 120 + k * 2.5 }, 0);
+                P.launch(bw, (k % 9 - 4) * 0.12, C.MIN_POWER + (k % 5) / 4 * (C.MAX_POWER - C.MIN_POWER));
+                for (st = 0; st < 2400 && bw.moving; st++) {
+                    P.advance(bw, 1 / 120);
+                    if (P.inBlock(bf, bw.ball.x, bw.ball.y)) { inside++; break; }
+                }
+            }
+            assert('no shot ever gets inside a block', inside === 0, inside + ' of 160 did');
+
+            // Hills: level at the middle and the rim, steepest halfway out.
+            var mound = Hs.mound(480, 320, 120, 150), dip = Hs.bowl(480, 320, 120, 150);
+            function pullAt(hl, d) { var o = P.hillPull([hl], 480 + d, 320, { x: 0, y: 0 }); return o.x; }
+            assert('a hill is level at its middle and at its rim', approx(pullAt(mound, 0), 0, 1e-9) && approx(pullAt(mound, 120), 0, 1e-9));
+            assert('…and pulls hardest halfway out, by as much as it says', approx(pullAt(mound, 60), 150, 1e-6));
+            assert('a mound sheds outwards and a bowl gathers in', pullAt(mound, 30) > 0 && pullAt(dip, 30) < 0);
+
+            assert('the pull a ball may rest under is the one that could never roll it past STOP_SPEED',
+                approx(C.REST_PULL / -Math.log(C.FRICTION_GRASS), C.STOP_SPEED, 1e-9));
+
+            var off = P.createWorld(field({ hills: [mound] }), { x: 520, y: 330 }, 0);
+            off.moving = true;
+            P.settle(off);
+            assert('a ball left on a mound rolls off it and stops', !off.moving && Math.hypot(off.ball.x - 480, off.ball.y - 320) > 110,
+                Math.hypot(off.ball.x - 480, off.ball.y - 320).toFixed(1) + 'px out');
+            var down = P.createWorld(field({ hills: [dip] }), { x: 540, y: 300 }, 0);
+            down.moving = true;
+            P.settle(down);
+            assert('a ball left in a bowl comes to rest at its bottom', !down.moving && Math.hypot(down.ball.x - 480, down.ball.y - 320) < 4,
+                Math.hypot(down.ball.x - 480, down.ball.y - 320).toFixed(2) + 'px off, ' + down.time.toFixed(1) + 's');
+            var tilt = P.createWorld(field({ slopes: [{ x: 300, y: 100, w: 360, h: 440, ax: 0, ay: 140 }], rough: [Hs.r(0, 560, 960, 80)] }), { x: 480, y: 200 }, 0);
+            tilt.moving = true;
+            P.advance(tilt, 1 / 120);
+            assert('nothing rests on a slope, still', tilt.moving && tilt.ball.vy > 0);
+
+            // A wind is a slope to the ball. It is only shown differently.
+            var lane = { x: 300, y: 200, w: 360, h: 240, ax: -120, ay: 40 };
+            var breeze = JSON.parse(JSON.stringify(lane)); breeze.wind = true;
+            var g1 = P.simulateShot(field({ slopes: [lane] }), { x: 100, y: 320 }, 0, 700);
+            var g2 = P.simulateShot(field({ slopes: [breeze] }), { x: 100, y: 320 }, 0, 700);
+            assert('a wind pulls exactly as a slope does', g1.ball.x === g2.ball.x && g1.ball.y === g2.ball.y);
+
+            // The rule book.
+            function bad(h) { return GOLF.validateHole(h); }
+            var ok = field({ arcs: [Hs.arc(480, 320, 150, 200, 340, 24)], blocks: [wedge], hills: [Hs.bowl(780, 470, 90, 60)] });
+            assert('curves, blocks and hills that keep the rules pass the rule book', bad(ok).length === 0, bad(ok).join('; '));
+            var back = JSON.parse(JSON.stringify(ok)); back.arcs[0].to = back.arcs[0].from - 10;
+            assert('a curve that runs backwards is caught', bad(back).some(function (m) { return /sweep forwards/.test(m); }));
+            var walled = JSON.parse(JSON.stringify(ok)); walled.blocks.push(Hs.block('bed', [60, 260, 140, 260, 140, 380, 60, 380]));
+            assert('a block round the tee is caught', bad(walled).some(function (m) { return /tee is inside/.test(m); }));
+            var thinKerb = JSON.parse(JSON.stringify(ok)); thinKerb.blocks[0].w = 10;
+            assert('a kerb thinner than 20px is caught', bad(thinKerb).some(function (m) { return /rail thinner/.test(m); }));
+            var edgeHill = JSON.parse(JSON.stringify(ok)); edgeHill.hills.push(Hs.mound(80, 80, 100, 120));
+            assert('a hill that reaches the cushion is caught', bad(edgeHill).some(function (m) { return /reaches the cushion/.test(m); }));
+            var postHill = JSON.parse(JSON.stringify(ok)); postHill.bumpers.push(Hs.post(780, 470, 20));
+            assert('a post on a hill is caught', bad(postHill).some(function (m) { return /solid on it/.test(m); }));
+            var teeHill = JSON.parse(JSON.stringify(ok)); teeHill.hills.push(Hs.mound(140, 320, 70, 120));
+            assert('a tee on a hill is caught', bad(teeHill).some(function (m) { return /tee is on a hill/.test(m); }));
+        })();
+
         /* ── scenery ───────────────────────────────────────────────────── */
         section('Scenery');
 
@@ -1142,8 +1281,8 @@
                 return p.length < 6 || Math.abs(area) / perim < 10;
             });
             assert(course.id + ': every polygon is at least 20px across', slim.length === 0, slim.length + ' slivers');
-            var rails = course.holes.reduce(function (a, h) { return a.concat(h.rails); }, []);
-            assert(course.id + ': every rail is at least 20px thick', rails.every(function (r) { return r.w >= 20; }));
+            var rails = course.holes.reduce(function (a, h) { return a.concat(P.railsOf(h)); }, []);
+            assert(course.id + ': every rail, curve and kerb is at least 20px thick', rails.every(function (r) { return r.w >= 20; }));
 
             var small = posts.filter(function (b) { return b.r < C.BUMPER_MIN_R; });
             assert(course.id + ': every bumper is at least BUMPER_MIN_R across the radius', small.length === 0,
@@ -1183,6 +1322,49 @@
             var alpine = byId('alpine');
             assert('alpine: most of its holes have a chute', alpine &&
                 alpine.holes.filter(function (h) { return h.avalanches.length > 0; }).length >= 4);
+        })();
+
+        /* A force with no cause in sight reads as the game cheating, so a
+           wind is never on its own: every wind has a fan standing at its head,
+           and every fan has a wind to blow. And the one prop drawn over the
+           ball — a windmill's sails — never reaches the tee, the cup or a
+           tunnel mouth, so it can never hide anything a hole is about. */
+        (function () {
+            var orphans = [], idle = [], shaded = [];
+            everyHole(function (h, i, course) {
+                var fans = h.blocks.filter(function (b) { return b.look === 'fan'; });
+                var winds = h.slopes.filter(function (s) { return s.wind; });
+                winds.forEach(function (s) {
+                    var m = Math.hypot(s.ax, s.ay), ux = s.ax / m, uy = s.ay / m;
+                    // The middle of the edge the wind blows from.
+                    var hx = s.x + s.w / 2 - ux * s.w / 2, hy = s.y + s.h / 2 - uy * s.h / 2;
+                    var fed = fans.some(function (f) {
+                        var p = GOLF.props.pole(f.pts);
+                        return Math.hypot(p.x - hx, p.y - hy) < p.r + (f.w || 20) + 60;
+                    });
+                    if (!fed) orphans.push(course.id + ' ' + h.name);
+                });
+                if (fans.length && !winds.length) idle.push(course.id + ' ' + h.name);
+                h.blocks.filter(function (b) { return b.look === 'windmill'; }).forEach(function (b) {
+                    var reach = GOLF.props.sailReach(b);
+                    var spots = [{ x: h.tee.x, y: h.tee.y, r: 20 }, { x: h.hole.x, y: h.hole.y, r: C.HOLE_R + 10 }];
+                    h.tunnels.forEach(function (t) { spots.push({ x: t.x, y: t.y, r: C.TUNNEL_R }, { x: t.tx, y: t.ty, r: C.TUNNEL_R }); });
+                    if (spots.some(function (q) { return Math.hypot(q.x - reach.x, q.y - reach.y) < reach.r + q.r; })) shaded.push(course.id + ' ' + h.name);
+                });
+            });
+            assert('every wind has a fan at its head', orphans.length === 0, orphans.join(', '));
+            assert('…and every fan has a wind to blow', idle.length === 0, idle.join(', '));
+            assert('a windmill\'s sails never reach the tee, the cup or a tunnel mouth', shaded.length === 0, shaded.join(', '));
+            /* The starter is a walk through the rack: every hole of it in a
+               biome of its own, and those biomes the ones the rest of the
+               rack is set in. */
+            var starter = GOLF.COURSES.filter(function (c) { return c.starter; })[0];
+            var homes = GOLF.COURSES.map(function (c) { return c.theme; });
+            var worn = starter.holes.map(function (h) { return GOLF.scenery.themeOf(starter, h).id; });
+            assert('the starter walks through a different biome on every hole',
+                worn.every(function (t, i) { return worn.indexOf(t) === i; }), worn.join(', '));
+            assert('…every one of them a place the rack goes', worn.every(function (t) { return homes.indexOf(t) >= 0; }), worn.join(', '));
+            assert('…starting at home', worn[0] === starter.theme);
         })();
 
         GOLF.COURSES.forEach(function (course) {
@@ -1591,8 +1773,13 @@
                 localStorage.removeItem(C.SAVE_KEY);
                 localStorage.removeItem(C.PROGRESS_KEY);
                 PR.reload();
-                var metronome = byIdP('short').holes.filter(function (h) { return h.name === 'Metronome'; })[0];
-                assert('a moving wall is taught as a gate', PR.kindsOn(metronome).indexOf('gates') >= 0);
+                var gated = [];
+                GOLF.COURSES.forEach(function (c) { c.holes.forEach(function (h) { if (h.walls.some(function (w) { return !!w.move; })) gated.push(h); }); });
+                assert('a moving wall is taught as a gate', gated.length > 0 && PR.kindsOn(gated[0]).indexOf('gates') >= 0);
+                var cannon = byIdP('short').holes.filter(function (h) { return h.name === 'Snow Cannon'; })[0];
+                var mole = byIdP('short').holes.filter(function (h) { return h.name === 'Molehill'; })[0];
+                assert('a wind is its own lesson, not a slope\'s', PR.kindsOn(cannon).indexOf('wind') >= 0 && PR.kindsOn(cannon).indexOf('slopes') < 0);
+                assert('…and a hill is one too', PR.kindsOn(mole).indexOf('hills') >= 0);
                 var faithful = byIdP('ember').holes.filter(function (h) { return h.name === 'Old Faithful'; })[0];
                 var tracks = byIdP('alpine').holes[0];
                 assert('lava, a geyser and a chute are each a lesson',
@@ -1781,7 +1968,8 @@
             var stuck = 0, samples = 0;
             everyHole(function (h) {
                 var statics = h.walls.filter(function (w) { return !w.move; });
-                if (!statics.length && !h.bumpers.length && !h.rails.length) return;
+                var rails = P.railsOf(h);
+                if (!statics.length && !h.bumpers.length && !rails.length) return;
                 for (var i = 0; i < 60; i++) {
                     var w = P.simulateShot(h, h.tee, rand() * Math.PI * 2, C.MIN_POWER + rand() * C.MAX_POWER);
                     samples++;
@@ -1789,9 +1977,9 @@
                         return P.circleRect(w.ball.x, w.ball.y, C.BALL_R - 0.5, s) !== null;
                     }) || h.bumpers.some(function (b) {
                         return P.circleCircle(w.ball.x, w.ball.y, C.BALL_R - 0.5, b) !== null;
-                    }) || h.rails.some(function (r) {
+                    }) || rails.some(function (r) {
                         return P.circleRail(w.ball.x, w.ball.y, C.BALL_R - 0.5, r) !== null;
-                    });
+                    }) || P.inBlock(h, w.ball.x, w.ball.y) !== null;
                     if (bad) stuck++;
                 }
             });
