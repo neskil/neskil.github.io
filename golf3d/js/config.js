@@ -8,7 +8,7 @@
    — the renderer scales to the viewport, the simulation never sees a pixel. */
 window.G3 = window.G3 || {};
 
-G3.VERSION = '1.100.0';
+G3.VERSION = '1.101.0';
 
 G3.CONFIG = {
     BALL_R: 0.16,
@@ -654,6 +654,18 @@ G3.CONFIG = {
        waved off, and nothing at all — which is most players, and which follows
        prefers-reduced-motion instead of guessing. See game.js's flyWanted. */
     FLY_KEY: 'loftLinks.flyover',
+    /* Pass-and-play: how many are sharing the device, 1 to 4 (game.js →
+       "pass and play"), and the ball each of them plays. White is player one's
+       because it is the ball everybody already has; the other three are a
+       coral, a sky blue and a gold that read against grass, sand, ice, glass
+       and the moon alike, and against each other from the tee. */
+    PLAYERS_KEY: 'loftLinks.players',
+    PLAYERS: [
+        { name: 'Player 1', ball: 0xffffff, css: '#ffffff' },
+        { name: 'Player 2', ball: 0xff7d6b, css: '#ff7d6b' },
+        { name: 'Player 3', ball: 0x6cc4ff, css: '#6cc4ff' },
+        { name: 'Player 4', ball: 0xffcf4a, css: '#ffcf4a' }
+    ],
     /* The secret. Set once the code has been typed, and never unset: the chip
        that lets the bot play for you is hidden until someone has gone looking
        for it, and then it stays found. */

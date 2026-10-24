@@ -3208,6 +3208,30 @@ against the suite's 16), because there a shot costs whatever it costs and here a
 player is holding still while it thinks. `BOT_PAUSE` is the beat between shots
 and `BOT_MAX_STROKES` is where it gives up and hands the club back.
 
+## Pass and play
+
+Two to four people sharing one device (v1.101.0), the way a mini golf course is
+actually played: the 👥 chip in the menu goes 1, 2, 3, 4 and round, and is
+remembered (`PLAYERS_KEY`). Each player takes the hole in turn with a ball of
+their own — white, coral, sky blue, gold (`CONFIG.PLAYERS`) — and the next hole
+starts once everybody has holed out or picked up, with player one teeing off
+first. The banner says who is up next ("Player 2 to play →"), the HUD wears a
+dot the colour of the ball that is up and the strokes figure is labelled with
+their name, and the card has a column each, headed by the ball, with the winner
+— or the leader, mid-round — in its subtitle, compared on the holes everybody
+has played.
+
+Only one ball is ever on the course, so nothing in the physics, the renderer or
+the bot knows there is more than one player: the round keeps a card per player
+and hands `state.scores` to whoever is up (`game.js → setTurn`). Anything that
+asks "has this round been played?" has to ask about *every* card, not the one
+in hand (`anyPlayed`) — with player two on the first tee the card in their hand
+is empty and the round is not, and the demo's idle check read it as an empty
+room. A change of count mid-round deals a fresh card from the hole you are on.
+A shared round is nobody's personal best, so it is not recorded, the same rule
+as a round the caddie has had the club in; the range and the demo are always
+one player.
+
 ## The showcase: the game in eight holes
 
 A hundred and eight holes is a lot to walk before you know what is in them, and
