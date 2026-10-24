@@ -1287,9 +1287,21 @@
             b.x += nx * depth; b.y += ny * depth; b.z += nz * depth;
             var vn = b.vx * nx + b.vy * ny + b.vz * nz;
             if (vn < 0) {
+                var vy0 = b.vy;
                 b.vx -= e * vn * nx;
                 b.vy -= e * vn * ny;
                 b.vz -= e * vn * nz;
+                /* The lip is turf, not a steel edge. A fast ball crossing the
+                   mouth is only a hair down when it meets the far side, so the
+                   contact normal there is nearly straight up and a rigid
+                   reflection turns most of the ball's pace into height: a
+                   putt hit through the hole at speed went a unit and a half
+                   into the air, over the rail and off the course. The grass
+                   on the lip gives the way grass on a landing does — it keeps
+                   a share of what it would have thrown upward (C.LIP_GIVE)
+                   and no more — so a lip-out is a hop and a lost line, not a
+                   launch. */
+                if (b.vy > vy0 && b.vy > 0) b.vy = Math.max(vy0, 0) + (b.vy - Math.max(vy0, 0)) * C.LIP_GIVE;
                 events.rim = true;
             }
         }
