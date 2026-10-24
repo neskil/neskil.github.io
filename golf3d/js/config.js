@@ -8,7 +8,7 @@
    — the renderer scales to the viewport, the simulation never sees a pixel. */
 window.G3 = window.G3 || {};
 
-G3.VERSION = '1.77.0';
+G3.VERSION = '1.101.0';
 
 G3.CONFIG = {
     BALL_R: 0.16,
@@ -19,6 +19,7 @@ G3.CONFIG = {
     HOLE_R: 0.40,
     CUP_DEPTH: 0.42,      // the ball is 0.32 across, so it is well under the rim
     CUP_RESTITUTION: 0.35,// what the rim and the shaft wall give back
+    LIP_GIVE: 0.3,        // share of the upward kick the lip's turf hands back (physics.cupContact)
 
     /* Positive downward acceleration. Real gravity makes a lofted shot hang
        for ages at this scale; 18 keeps an arc inside a second or so, which is
@@ -442,6 +443,18 @@ G3.CONFIG = {
     WARP_LOCK: 0.4,
     WARP_MOUTH: 0.18,
 
+    /* A loop-the-loop (physics.js, "the loop"). LOOP_MOUTH is how far past the
+       foot of the loop a rolling ball is still caught by it — a step's worth,
+       so a fast ball cannot skip over the mouth between two substeps — and
+       LOOP_LOCK how long a ball that has just come off one, out of the far end
+       or back out of the mouth or off the top, is left alone before the
+       mouth will take it again. LOOP_LANE is the half-width of the mouth: the
+       track is a lane with a kerb either side, and a ball wider of it than
+       that has missed the ride. */
+    LOOP_MOUTH: 0.4,
+    LOOP_LOCK: 0.4,
+    LOOP_LANE: 0.42,
+
     /* Two timers for the two ways a ball stops without the lie deciding it.
        SLOPE_SETTLE is for a ball that is not standing on anything — leaning on
        a rail, or perched on the lip of the cup with the ground missing under
@@ -641,6 +654,18 @@ G3.CONFIG = {
        waved off, and nothing at all — which is most players, and which follows
        prefers-reduced-motion instead of guessing. See game.js's flyWanted. */
     FLY_KEY: 'loftLinks.flyover',
+    /* Pass-and-play: how many are sharing the device, 1 to 4 (game.js →
+       "pass and play"), and the ball each of them plays. White is player one's
+       because it is the ball everybody already has; the other three are a
+       coral, a sky blue and a gold that read against grass, sand, ice, glass
+       and the moon alike, and against each other from the tee. */
+    PLAYERS_KEY: 'loftLinks.players',
+    PLAYERS: [
+        { name: 'Player 1', ball: 0xffffff, css: '#ffffff' },
+        { name: 'Player 2', ball: 0xff7d6b, css: '#ff7d6b' },
+        { name: 'Player 3', ball: 0x6cc4ff, css: '#6cc4ff' },
+        { name: 'Player 4', ball: 0xffcf4a, css: '#ffcf4a' }
+    ],
     /* The secret. Set once the code has been typed, and never unset: the chip
        that lets the bot play for you is hidden until someone has gone looking
        for it, and then it stays found. */

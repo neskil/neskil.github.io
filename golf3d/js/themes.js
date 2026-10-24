@@ -258,8 +258,9 @@
                floor of that gorge is over two units below the hole. A surround
                at the usual hand's breadth would be drawn straight across it and
                the one landform on the course you can actually fall into would
-               be invisible from the tee — so this number is the ravine's own
-               depth with room to spare, and it moves when the ravine does. */
+               be invisible from the tee — so this number is the gorge's own
+               depth (2.8 at the deepest, since it was carved) with room to
+               spare, and it moves when the gorge does. */
             surroundY: -3.2, surround: 'floor', floor: '#5a4a63',
             ridge: { colour: '#4d4763', cap: '#8f86a6', peak: 11, rough: 0.50 },
             relief: 3.6,
@@ -404,6 +405,8 @@
             glow: true,
             motes: false,
             grid: { colour: '#ff3df2', floor: '#27c8ff', every: 1, floorEvery: 3 },
+            rain: 0x3df0ff,         // neon rain: weather.js draws its streaks in this
+            tintScale: { rain: 0.2, drizzle: 0.25 },   // rain cools this sky, never greys it (render.tintScale)
             /* Its own grade, over the weather's (render.js has why): a tight
                bloom with a low threshold, so the lines glow and the floor
                between them stays dark; no rays; a touch more contrast,

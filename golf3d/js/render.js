@@ -729,6 +729,14 @@
                 // hole painted a colour nothing else on it wears.
                 bumper: paint(0xf0409a),
                 beam: paint(0x9a6a3c),
+                // A mill's wings are brick, its tower tarred timber, and its
+                // sails pale cloth on a timber frame — pale against the dark
+                // tower, so a sail reads from the tee (addSails).
+                mill: paint(0xa4553b),
+                tower: paint(0x4f3d31),
+                sails: paint(0x8a5d36),
+                cloth: paint(0xf3eee2),
+                cap: paint(0x2f2a2c),
                 // A tree is not drawn as a box (see addTree); this is only
                 // what its trunk is made of, and it is matt because bark is.
                 tree: new THREE.MeshLambertMaterial({
@@ -842,9 +850,20 @@
         var c = linear ? lin(hex) : new THREE.Color(hex);
         if (weather && weather.tintSky) {
             c.lerp(linear ? lin(weather.tintSky) : new THREE.Color(weather.tintSky),
-                weather.tintAmt === undefined ? 0.4 : weather.tintAmt);
+                (weather.tintAmt === undefined ? 0.4 : weather.tintAmt) * tintScale());
         }
         return c;
+    }
+
+    /* How far the weather may move a theme's sky, 1 all the way, named per
+       weather (`theme.tintScale`). The grid world takes rain and a golden
+       hour, but its sky's whole job is to be dark behind the glow, and
+       rain's grey pulled it to a pale lavender that switched the neon off —
+       so under rain it keeps most of its own colour, while a golden hour is
+       left to turn it the peach of a vaporwave sunset, which is the point. */
+    function tintScale() {
+        var t = R.theme && R.theme.tintScale, k = t && R.weather ? t[R.weather.id] : undefined;
+        return k === undefined ? 1 : k;
     }
 
     /* ── the grass ──────────────────────────────────────────────────────
@@ -876,21 +895,52 @@
        hole in it rather than as a box, so the hole in the picture is the hole
        the ball falls through. Everything else stays a box: this costs a
        triangulation, and only one pad per hole needs it. */
-    function punchedSlab(pad, thick, cup) {
+    /* A rectangular pad's outline as a Shape, built around the pad's centre
+       in the plane three.js extrudes — shape-y runs along world -z once the
+       rotation after it lays it flat. With `pad.round` its exposed corners
+       are quarter-circles (courses.roundCorners), at a chord fine enough
+       that the rail standing on the curve hides the facets. A pad with no
+       rounding comes out as the four corners it always was. */
+    function slabShape(pad) {
         var shape = new THREE.Shape();
-        var hw = pad.w / 2, hd = pad.d / 2;
-        // Built around the pad's centre, in the plane three.js extrudes; after
-        // the rotation below, shape-y runs along world -z.
-        shape.moveTo(-hw, -hd);
-        shape.lineTo(hw, -hd);
-        shape.lineTo(hw, hd);
-        shape.lineTo(-hw, hd);
-        shape.lineTo(-hw, -hd);
+        var hw = pad.w / 2, hd = pad.d / 2, c = pad.round || {};
+        // Counter-clockwise in shape space, each corner as [x, y, its world
+        // name, the angle its arc starts at].
+        var corners = [[-hw, -hd, c.nw, Math.PI], [hw, -hd, c.ne, Math.PI * 1.5],
+                       [hw, hd, c.se, 0], [-hw, hd, c.sw, Math.PI / 2]];
+        var i, k, r, ox, oy, a, n, first = true;
+        for (i = 0; i < corners.length; i++) {
+            r = corners[i][2];
+            if (!r) {
+                if (first) shape.moveTo(corners[i][0], corners[i][1]);
+                else shape.lineTo(corners[i][0], corners[i][1]);
+                first = false;
+                continue;
+            }
+            ox = corners[i][0] - Math.sign(corners[i][0]) * r;
+            oy = corners[i][1] - Math.sign(corners[i][1]) * r;
+            n = Math.max(6, Math.ceil(r / 0.12));
+            for (k = 0; k <= n; k++) {
+                a = corners[i][3] + (Math.PI / 2) * k / n;
+                if (first) shape.moveTo(ox + Math.cos(a) * r, oy + Math.sin(a) * r);
+                else shape.lineTo(ox + Math.cos(a) * r, oy + Math.sin(a) * r);
+                first = false;
+            }
+        }
+        shape.closePath();
+        return shape;
+    }
 
-        var hole = new THREE.Path();
-        var cx = pad.x + hw, cz = pad.z + hd;
-        hole.absarc(cup.x - cx, -(cup.z - cz), C.HOLE_R, 0, Math.PI * 2, true);
-        shape.holes.push(hole);
+    function punchedSlab(pad, thick, cup) {
+        var shape = slabShape(pad);
+        var hw = pad.w / 2, hd = pad.d / 2;
+
+        if (cup) {
+            var hole = new THREE.Path();
+            var cx = pad.x + hw, cz = pad.z + hd;
+            hole.absarc(cup.x - cx, -(cup.z - cz), C.HOLE_R, 0, Math.PI * 2, true);
+            shape.holes.push(hole);
+        }
 
         var geo = new THREE.ExtrudeGeometry(shape, {
             depth: thick, bevelEnabled: false, curveSegments: 28
@@ -934,7 +984,7 @@
                 tp.needsUpdate = true;
             } else if (holed) {
                 geo = shellShape(pad, cup);
-            } else if (pad.r) {
+            } else if (pad.r || pad.round) {
                 geo = shellShape(pad, null);
             } else {
                 geo = new THREE.PlaneGeometry(pad.w, pad.d, 1, 1);
@@ -1019,16 +1069,8 @@
 
     function shellShape(pad, cup) {
         var hw = pad.w / 2, hd = pad.d / 2;
-        var shape = pad.r ? discShape(pad) : new THREE.Shape();
-        if (pad.r) {
-            // …the outline is the disc's own, built above.
-        } else {
-            shape.moveTo(-hw, -hd);
-            shape.lineTo(hw, -hd);
-            shape.lineTo(hw, hd);
-            shape.lineTo(-hw, hd);
-            shape.lineTo(-hw, -hd);
-        }
+        // The disc's own outline, or the slab's — rounded corners and all.
+        var shape = pad.r ? discShape(pad) : slabShape(pad);
         if (cup) {
             var hole = new THREE.Path();
             var cx = pad.x + hw, cz = pad.z + hd;
@@ -1179,6 +1221,7 @@
             [pad.x + pad.w, pad.z + pad.d, pad.x, pad.z + pad.d],
             [pad.x, pad.z + pad.d, pad.x, pad.z]
         ];
+        if (pad.round) return roundedOutline(pad, step);
         for (i = 0; i < sides.length; i++) {
             var s0 = sides[i];
             var len = Math.hypot(s0[2] - s0[0], s0[3] - s0[1]);
@@ -1189,6 +1232,61 @@
             }
         }
         return pts;
+    }
+
+    /* A rounded rectangle (courses.roundCorners), walked the way padOutline
+       walks a square one — near end, east side, far end, west side — with
+       each rounded corner as an arc of its own rather than as the corner
+       points squashed on to it. */
+    function roundedOutline(pad, step) {
+        var c = pad.round, pts = [], i, k, n, r, t;
+        var x0 = pad.x, z0 = pad.z, x1 = pad.x + pad.w, z1 = pad.z + pad.d;
+        // Each corner in walking order: where it is, its radius, and the
+        // bearing its arc starts at (atan2 of z, x about its centre).
+        var corners = [[x0, z0, c.sw || 0, Math.PI], [x1, z0, c.se || 0, Math.PI * 1.5],
+                       [x1, z1, c.ne || 0, 0], [x0, z1, c.nw || 0, Math.PI / 2]];
+        for (i = 0; i < 4; i++) {
+            var cn = corners[i], nx = corners[(i + 1) % 4];
+            r = cn[2];
+            if (r) {
+                var ox = cn[0] + (cn[0] === x0 ? r : -r), oz = cn[1] + (cn[1] === z0 ? r : -r);
+                n = Math.max(4, Math.ceil(r * Math.PI / 2 / Math.min(step, 0.15)));
+                for (k = 0; k < n; k++) {
+                    t = cn[3] + Math.PI / 2 * k / n;
+                    pts.push([ox + Math.cos(t) * r, oz + Math.sin(t) * r]);
+                }
+            } else {
+                pts.push([cn[0], cn[1]]);
+            }
+            // …then the straight between this corner's curve and the next's.
+            var ax = cn[0], az = cn[1], bx = nx[0], bz = nx[1];
+            var len = Math.hypot(bx - ax, bz - az), ux = (bx - ax) / len, uz = (bz - az) / len;
+            var from = r, to = len - nx[2];
+            n = Math.max(1, Math.round((to - from) / step));
+            for (k = 0; k < n; k++) {
+                t = from + (to - from) * k / n;
+                pts.push([ax + ux * t, az + uz * t]);
+            }
+        }
+        return pts;
+    }
+
+    /* Where a point in a pad's rectangle is pulled to by its rounded
+       corners: unchanged if it is on the ground, and radially on to the arc
+       if it is in the corner the curve gave up. The terrain grid goes through
+       this so a contoured pad's edge is the curve and not a staircase. */
+    function ontoRound(pad, x, z, out) {
+        var c = pad.round, west = x < pad.x + pad.w / 2, south = z < pad.z + pad.d / 2;
+        var r = south ? (west ? c.sw : c.se) : (west ? c.nw : c.ne);
+        out[0] = x; out[1] = z;
+        if (!r) return out;
+        var ox = west ? pad.x + r : pad.x + pad.w - r, oz = south ? pad.z + r : pad.z + pad.d - r;
+        var dx = x - ox, dz = z - oz;
+        if ((west ? dx > 0 : dx < 0) || (south ? dz > 0 : dz < 0)) return out;
+        var l = Math.hypot(dx, dz);
+        if (l <= r) return out;
+        out[0] = ox + dx / l * r; out[1] = oz + dz / l * r;
+        return out;
     }
 
     /* The wall of earth under a piece of terrain: one quad per outline segment,
@@ -1390,13 +1488,20 @@
         var uv = new Float32Array(nx * nz * 2);
         var idx = [], i, j, k, x, fit = mownFit(pad, xs, zs, cx, cz, cut);
 
+        var rp = [0, 0], zz;
         for (i = 0; i < nx; i++) {
             for (j = 0; j < nz; j++) {
                 k = i * nz + j;
                 x = fit ? fit(i, j) : xs[i];
+                zz = zs[j];
+                // A rounded corner bends the grid on to its curve.
+                if (pad.round) {
+                    ontoRound(pad, cx + x, cz + zz, rp);
+                    x = rp[0] - cx; zz = rp[1] - cz;
+                }
                 pos[k * 3] = x;
-                pos[k * 3 + 1] = P.padHeight(pad, cx + x, cz + zs[j]) - cy;
-                pos[k * 3 + 2] = zs[j];
+                pos[k * 3 + 1] = P.padHeight(pad, cx + x, cz + zz) - cy;
+                pos[k * 3 + 2] = zz;
             }
         }
         for (i = 0; i < nx - 1; i++) {
@@ -1567,6 +1672,39 @@
         return Math.max(TERRAIN_MIN, Math.min(TERRAIN_RES, least / 3));
     }
 
+    /* Bare rock where carved ground stands too steep to grow anything.
+
+       A cut canyon (`ravine`) has red walls because its walls are skirts —
+       the earth under a pad, drawn in the theme's `side` colour. A carved one
+       (courses.gully) has no skirts in it: its walls are the ground itself,
+       and drawn as ground they are turf on a sixty-degree slope, which reads
+       as a grassy dip rather than as a canyon. So on a pad marked `rock` the
+       terrain is split by how steep each triangle is: past ROCK_NY the
+       triangle leaves the turf mesh for a mesh of its own in the skirt's
+       colour, and leaves the grass shells too. A partition rather than an
+       overlay, so there is nothing coplanar to fight. Scenery only — the
+       ball still plays the pad's own surface on it. */
+    var ROCK_NY = 0.72;          // a face's normal.y below this is rock (~44°)
+
+    function splitSteep(geo) {
+        var idx = geo.index.array, pos = geo.attributes.position, keep = [], steep = [];
+        var a = new THREE.Vector3(), b = new THREE.Vector3(), c = new THREE.Vector3(), n = new THREE.Vector3();
+        for (var t = 0; t < idx.length; t += 3) {
+            a.fromBufferAttribute(pos, idx[t]);
+            b.fromBufferAttribute(pos, idx[t + 1]);
+            c.fromBufferAttribute(pos, idx[t + 2]);
+            n.subVectors(c, b).cross(a.clone().sub(b)).normalize();
+            (Math.abs(n.y) < ROCK_NY ? steep : keep).push(idx[t], idx[t + 1], idx[t + 2]);
+        }
+        if (!steep.length) return null;
+        geo.setIndex(keep);
+        var out = new THREE.BufferGeometry();
+        out.setAttribute('position', pos);
+        out.setAttribute('normal', geo.attributes.normal);
+        out.setIndex(steep);
+        return out;
+    }
+
     function addTerrain(group, pad, theme, cup, pads) {
         var cx = pad.x + pad.w / 2, cz = pad.z + pad.d / 2;
         var cy = P.padHeight(pad, cx, cz);
@@ -1574,7 +1712,7 @@
         // taken away rather than left growing grass through a bunker.
         var cover = [], q;
         for (q = 0; q < (pads || []).length; q++) {
-            if (pads[q].inlay) cover.push(pads[q]);
+            if (pads[q].inlay && pads[q] !== pad) cover.push(pads[q]);
         }
         /* And the holes in it (pad.voids): each is cut the way an inlay is,
            and its rim conformed onto the circle, so a hole in the glass is a
@@ -1613,11 +1751,19 @@
         worldUv(geo, TX.SCALE[pad.kind] || TX.SCALE.green, cx, cz);
         if (holes.length) addVoidRims(group, pad);
         if (pad.hue) { tintRainbow(geo, pad, cx, cy, cz, RAINBOW_GLASS); mat = rainbowGlass(); }
+        var rockGeo = pad.rock && !pad.r ? splitSteep(geo) : null;
         var mesh = new THREE.Mesh(geo, mat);
         mesh.position.set(cx, cy + lift, cz);
         mesh.receiveShadow = true;
         mesh.castShadow = true;
         group.add(mesh);
+        if (rockGeo) {
+            var rock = new THREE.Mesh(rockGeo, R.surf.side);
+            rock.position.copy(mesh.position);
+            rock.receiveShadow = true;
+            rock.castShadow = true;
+            group.add(rock);
+        }
 
         var skirt = new THREE.Mesh(skirtGeometry(pad, base, cx, cy, cz),
             R.surf.side);
@@ -1630,10 +1776,16 @@
            see cutUnder. Its UVs are rewritten at the blades' own scale inside
            addShells, so building it already tiled for the ground costs
            nothing. */
-        addShells(group, pad, cup, false, cx, cy, cz,
-            cover.length
-                ? terrainGeometry(pad, res, cx, cy, cz, cut, cover, true)
-                : geo);
+        /* A disc's grass is the disc's own ground: the square grid with
+           things cut out of it is for a rectangle. (It used to be handed the
+           grid with the disc itself as the thing to cut — which is how a
+           domed fairway on Coral Keys came out as a square mat.) */
+        var grassOn = geo;
+        if (cover.length && !pad.r) {
+            grassOn = terrainGeometry(pad, res, cx, cy, cz, cut, cover, true);
+            if (rockGeo) splitSteep(grassOn);
+        }
+        addShells(group, pad, cup, false, cx, cy, cz, grassOn);
 
         // …and the cup's patch, which is a second flat surface stitched into
         // the hole left in the grid, with its own mat of grass over it.
@@ -2032,7 +2184,54 @@
         }
         return R.surf.rainbow;
     }
+    /* The shallows round an island (courses.isle's `shelf`): a band on the
+       water's surface from the shore outwards, pale turquoise at the beach
+       and fading to nothing over `out` units — the colour a lagoon goes
+       where the sand is a hand under it. The water is all but opaque (it
+       has to be, to read as a sea), so a sandbank drawn under it does not
+       show; this is the same thing said on the surface instead. One
+       gradient texture, shared, laid across the band by its own uv. */
+    var _shallowTex = null;
+    function addShelf(group, pad) {
+        var sh = pad.shelf, pts = padOutline(pad, 0.35), n = pts.length;
+        var cx = pad.x + pad.w / 2, cz = pad.z + pad.d / 2;
+        var pos = new Float32Array(n * 6 * 3), uv = new Float32Array(n * 6 * 2);
+        var i, j = 0, k = 0, a, b, oa, ob;
+        function out(p) {
+            var dx = p[0] - cx, dz = p[1] - cz, l = Math.hypot(dx, dz) || 1;
+            return [p[0] + dx / l * sh.out, p[1] + dz / l * sh.out];
+        }
+        for (i = 0; i < n; i++) {
+            a = pts[i]; b = pts[(i + 1) % n];
+            oa = out(a); ob = out(b);
+            // Wound so the face looks up (the outline runs anticlockwise).
+            pos.set([a[0], sh.y, a[1], ob[0], sh.y, ob[1], oa[0], sh.y, oa[1]], j); j += 9;
+            pos.set([a[0], sh.y, a[1], b[0], sh.y, b[1], ob[0], sh.y, ob[1]], j); j += 9;
+            uv.set([0.5, 0, 0.5, 1, 0.5, 1, 0.5, 0, 0.5, 0, 0.5, 1], k); k += 12;
+        }
+        if (!_shallowTex) {
+            var cv = document.createElement('canvas');
+            cv.width = 4; cv.height = 64;
+            var g2 = cv.getContext('2d'), gr = g2.createLinearGradient(0, 0, 0, 64);
+            gr.addColorStop(0, 'rgba(255,255,255,0.75)');
+            gr.addColorStop(0.35, 'rgba(255,255,255,0.4)');
+            gr.addColorStop(1, 'rgba(255,255,255,0)');
+            g2.fillStyle = gr; g2.fillRect(0, 0, 4, 64);
+            _shallowTex = new THREE.CanvasTexture(cv);
+        }
+        var geo = new THREE.BufferGeometry();
+        geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+        geo.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
+        var mesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({
+            map: _shallowTex, color: sh.colour || 0x8fe6da,
+            transparent: true, depthWrite: false
+        }));
+        mesh.renderOrder = 2;
+        group.add(mesh);
+    }
+
     function addPad(group, pad, theme, cup, pads) {
+        if (pad.shelf) addShelf(group, pad);
         if (pad.bumps || pad.field) { addTerrain(group, pad, theme, cup, pads); return; }
         var cx = pad.x + pad.w / 2, cz = pad.z + pad.d / 2;
         var sx = pad.sx || 0, sz = pad.sz || 0;
@@ -2067,17 +2266,21 @@
             ? Math.max(least, cy - floor + 0.06 + rise)
             : Math.max(0.6, cy - (theme.surroundY - 0.4) + rise);
         // A disc green is laid into the ground it sits in rather than standing
-        // on it, so it needs no more depth than the cup does.
-        if (pad.r) thick = holed ? C.CUP_DEPTH + 0.25 : 0.3;
+        // on it, so it needs no more depth than the cup does. A disc marked
+        // `stands` is the other thing — ground of its own with sides, a mesa
+        // or an island (courses.js) — and goes down like any other slab;
+        // drawn three tenths thick, Redstone's mesa was a plate of scrub
+        // floating three units over the fairway.
+        if (pad.r && !pad.stands) thick = holed ? C.CUP_DEPTH + 0.25 : 0.3;
         // And a hovering platform is a slab with daylight under it, which is
         // the whole of what it is (Challenge mode's raised tee).
         if (pad.hover) thick = Math.max(least, 0.4);
         var geo = pad.r
             ? discGeometry(pad, thick, cup, holed)
-            : holed
-                ? punchedSlab(pad, thick, cup)
+            : holed || pad.round
+                ? punchedSlab(pad, thick, holed ? cup : null)
                 : new THREE.BoxGeometry(pad.w, thick, pad.d);
-        if (holed && !pad.r) {
+        if ((holed || pad.round) && !pad.r) {
             // The box is centred on its own middle; the extruded slab is built
             // that way too, so both share the placement below.
             geo.translate(0, thick / 2, 0);
@@ -2097,7 +2300,7 @@
         // what lets every pad of a kind share one material (buildSurfaces).
         worldUv(geo, TX.SCALE[pad.kind] || TX.SCALE.green, cx, cz);
         var mesh = new THREE.Mesh(geo,
-            padMaterial(pad.kind, pad.inlay ? 'inlay' : (holed ? 'slab' : 'box')));
+            padMaterial(pad.kind, pad.inlay ? 'inlay' : (holed || pad.stands ? 'slab' : 'box')));
         mesh.position.set(cx, cy - thick / 2 + (pad.r ? INLAY_LIFT : 0), cz);
         mesh.receiveShadow = true;
         mesh.castShadow = true;
@@ -2279,6 +2482,114 @@
         group.add(rim);
     }
 
+    /* A loop-the-loop: the track the ball rides round (physics.js, "the
+       loop"), drawn from the same loop the physics reads — its foot, its
+       radius, its corkscrew — so the rails are exactly where the ball is.
+
+       Open track, not a solid chute, and that is the whole of the design. A
+       loop seen from the tee is seen edge-on, and a solid deck edge-on is a
+       wall: the first version was a pink band you watched the ball vanish
+       into and come out of. Two running rails the ball sits between, a guard
+       rail outside each, and a tie across the back every few degrees is what
+       a fairground loop is made of, and the ball shows through it from every
+       seat. Not solid either way: the ball is carried round, never collided.
+
+       The rails are swept by hand rather than as a TubeGeometry along a Curve
+       because a Curve has to be subclassed and the vendored three.js is an
+       ES6 build. Everything is built in the loop's own frame — forward along
+       +z, the corkscrew stepping along +x — inside a group turned to its yaw,
+       which is exactly physics.loopFrame's axes.
+
+       Then a post either side of the foot, up to an axle through the middle
+       of the circle, because a loop with nothing holding it up is a ribbon
+       hanging in the air. */
+    var LOOP_SEGS = 120;
+
+    function addLoop(group, hole, L, theme) {
+        var F = P.loopFrame(L);
+        var floor = P.loopBase(hole, L) - C.BALL_R;
+        var deck = L.R + C.BALL_R;             // where the ball touches
+        var cy = L.R + C.BALL_R;               // the middle of the circle, over the floor
+        var col = theme.machine || 0xffd34d;
+        var steel = new THREE.MeshLambertMaterial({ color: new THREE.Color(col).multiplyScalar(0.55) });
+        var paint = new THREE.MeshLambertMaterial({ color: col });
+        var g = new THREE.Group();
+        g.position.set(L.x, floor, L.z);
+        g.rotation.y = L.yaw;
+        group.add(g);
+
+        function at(th, side, rad) {
+            return [F.k * th + side, cy - rad * Math.cos(th), rad * Math.sin(th)];
+        }
+        // A square bar of half-width `w` swept round the loop with its middle
+        // at (side, rad), each face its own strip so the edges stay sharp.
+        function bar(side, rad, w, mat) {
+            var sq = [[-w, -w], [w, -w], [w, w], [-w, w]];
+            var pos = [], idx = [], j, i, a, b, base, k, th;
+            for (j = 0; j < 4; j++) {
+                a = sq[j]; b = sq[(j + 1) % 4];
+                base = pos.length / 3;
+                for (i = 0; i <= LOOP_SEGS; i++) {
+                    th = i / LOOP_SEGS * Math.PI * 2;
+                    Array.prototype.push.apply(pos, at(th, side + a[0], rad + a[1]));
+                    Array.prototype.push.apply(pos, at(th, side + b[0], rad + b[1]));
+                    if (i < LOOP_SEGS) {
+                        k = base + i * 2;
+                        idx.push(k, k + 2, k + 1, k + 1, k + 2, k + 3);
+                    }
+                }
+            }
+            var geo = new THREE.BufferGeometry();
+            geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+            geo.setIndex(idx);
+            geo.computeVertexNormals();
+            var m = new THREE.Mesh(geo, mat);
+            m.castShadow = true;
+            g.add(m);
+        }
+        var run = 0.11, rw = 0.035;            // the running rails: either side of the ball's line
+        var guard = 0.3;                        // and the guards, up at the ball's middle
+        bar(-run, deck + rw, rw, paint);
+        bar(run, deck + rw, rw, paint);
+        bar(-guard, deck - C.BALL_R, rw, paint);
+        bar(guard, deck - C.BALL_R, rw, paint);
+
+        // A tie across the back every fifteen degrees, holding the four
+        // together: a flat bar behind the running rails, turned to the radius.
+        var n = 24, i, th, tie, p;
+        for (i = 0; i < n; i++) {
+            th = (i + 0.5) / n * Math.PI * 2;
+            p = at(th, 0, deck + 2 * rw + 0.02);
+            tie = new THREE.Mesh(new THREE.BoxGeometry(2 * guard + 2 * rw, 0.04, 0.06), steel);
+            tie.position.set(p[0], p[1], p[2]);
+            tie.rotation.x = Math.PI - th;
+            g.add(tie);
+            // and a strut out from the tie to each guard
+            var sa = new THREE.Mesh(new THREE.BoxGeometry(0.04, C.BALL_R + 2 * rw + 0.02, 0.04), steel);
+            var q = at(th, -guard, deck + rw - C.BALL_R / 2 + 0.01);
+            sa.position.set(q[0], q[1], q[2]);
+            sa.rotation.x = Math.PI - th;
+            g.add(sa);
+            var sb = sa.clone();
+            q = at(th, guard, deck + rw - C.BALL_R / 2 + 0.01);
+            sb.position.set(q[0], q[1], q[2]);
+            g.add(sb);
+        }
+
+        var sides = [-guard - 0.3, L.shift + guard + 0.3], k2;
+        for (k2 = 0; k2 < 2; k2++) {
+            var post = new THREE.Mesh(new THREE.BoxGeometry(0.16, cy + 0.3, 0.16), steel);
+            post.position.set(sides[k2], (cy + 0.3) / 2 - 0.3, 0);
+            post.castShadow = true;
+            g.add(post);
+        }
+        var axle = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, sides[1] - sides[0], 10), steel);
+        axle.rotation.z = Math.PI / 2;
+        axle.position.set((sides[0] + sides[1]) / 2, cy, 0);
+        axle.castShadow = true;
+        g.add(axle);
+    }
+
     /* A tree.
 
        The solid part of it is the trunk and only the trunk — courses.js says
@@ -2299,6 +2610,25 @@
 
     function addTree(group, wall) {
         var B = P.wallBox(wall, 0);
+        /* A palm, on the keys: the lagoon's own palm model rather than a
+           conifer on a coral island, stood on the ground the trunk is seated
+           in (`seat` below its base) and turned and sized off where it
+           stands. It leans from its foot in the wind, which is how a palm
+           moves. The trunk the ball hits is the wall, as for any tree. */
+        if (wall.palm && G3.getModelMesh) {
+            var pm = G3.getModelMesh('palm', R.surf.decor.model);
+            if (pm) {
+                var ph = treeHash(B.cx, B.cz);
+                var pivot = new THREE.Group();
+                pivot.position.set(B.cx, B.base + (wall.seat === undefined ? 0.4 : wall.seat), B.cz);
+                pivot.rotation.y = ph * 6.283;
+                pm.scale.setScalar(wall.h * (1.05 + ph * 0.3) / 4.25);
+                pivot.add(pm);
+                group.add(pivot);
+                (R.canopies || (R.canopies = [])).push({ g: pivot, k: 0.025, ph: ph * 9.7 });
+                return;
+            }
+        }
         var a = treeHash(B.cx, B.cz), b = treeHash(B.cz * 1.7, B.cx * 0.9);
         var trunkR = Math.max(B.hw, B.hd) * 0.55;
         // Tall enough to look like a tree from the ball, which is lower down
@@ -2623,6 +2953,7 @@
     function addWall(group, wall) {
         if (wall.kind === 'tree') { addTree(group, wall); return; }
         if (wall.kind === 'rock') { addRock(group, wall); return; }
+        if (wall.sails) { addSails(group, wall); return; }
         var B = P.wallBox(wall, 0);
         var geo = new THREE.BoxGeometry(wall.w, wall.h, wall.d);
         // One material per kind, shared by every wall wearing it (see
@@ -2648,6 +2979,102 @@
                 post.castShadow = true;
                 group.add(post);
             }
+        }
+    }
+
+    /* The kerb round a rounded corner (courses.cornerRails), drawn as the one
+       curve it is rather than as the chords the solver meets. A band of rail
+       swept round the corner's centre, extruded up — and then its two curved
+       faces given the radial normal they would have on a true cylinder, since
+       an extrusion is shaded a facet at a time and a lit fan of facets is the
+       very thing this replaces. The flat ends, top and bottom keep theirs. */
+    function addBend(group, b) {
+        var ro = b.R + b.t / 2, ri = b.R - b.t / 2;
+        var n = Math.max(10, Math.ceil(b.R * Math.abs(b.a1 - b.a0) / 0.07)), k, a;
+        var shape = new THREE.Shape();
+        for (k = 0; k <= n; k++) {
+            a = b.a0 + (b.a1 - b.a0) * k / n;
+            if (k) shape.lineTo(Math.cos(a) * ro, -Math.sin(a) * ro);
+            else shape.moveTo(Math.cos(a) * ro, -Math.sin(a) * ro);
+        }
+        for (k = n; k >= 0; k--) {
+            a = b.a0 + (b.a1 - b.a0) * k / n;
+            shape.lineTo(Math.cos(a) * ri, -Math.sin(a) * ri);
+        }
+        shape.closePath();
+        var geo = new THREE.ExtrudeGeometry(shape, { depth: b.h, bevelEnabled: false });
+        geo.rotateX(-Math.PI / 2);
+        var pos = geo.attributes.position, nrm = geo.attributes.normal, i, x, z, l, d;
+        for (i = 0; i < pos.count; i++) {
+            if (Math.abs(nrm.getY(i)) > 0.5) continue;
+            x = pos.getX(i); z = pos.getZ(i); l = Math.hypot(x, z) || 1;
+            d = (nrm.getX(i) * x + nrm.getZ(i) * z) / l;
+            if (d > 0.7) nrm.setXYZ(i, x / l, 0, z / l);
+            else if (d < -0.7) nrm.setXYZ(i, -x / l, 0, -z / l);
+        }
+        nrm.needsUpdate = true;
+        var mesh = new THREE.Mesh(geo, R.surf.walls.rail);
+        mesh.position.set(b.cx, b.base, b.cz);
+        mesh.castShadow = true;
+        mesh.receiveShadow = true;
+        group.add(mesh);
+    }
+
+    /* A windmill's sails (courses.mill), and the cap they turn on.
+
+       What the ball meets is the foot of one sail (physics.millSail); what is
+       drawn is all four, on a hub, turned by the same angle off straight down
+       — so a sail is drawn exactly where its tip is solid. Each is a spar
+       with a cloth panel on it and three cross-bars, which is about the least
+       that reads as a sail rather than as a blade. Behind the hub the mill's
+       tower carries on above the house as a tapered cap with a roof, so the
+       sails are hung on something. */
+    function addSails(group, wall) {
+        var sl = wall.sails, W = R.surf.walls, L = sl.len, k, arm, part;
+        var hz = wall.z + wall.d / 2;
+        var rotor = new THREE.Group();
+        rotor.position.set(sl.hx, sl.hy, hz);
+        for (k = 0; k < 4; k++) {
+            arm = new THREE.Group();
+            arm.rotation.z = k * Math.PI / 2;
+            part = new THREE.Mesh(new THREE.BoxGeometry(0.1, L, 0.1), W.sails);
+            part.position.y = -L / 2;
+            arm.add(part);
+            part = new THREE.Mesh(new THREE.BoxGeometry(sl.width, L * 0.76, 0.04), W.cloth);
+            part.position.set(0, -L * 0.6, -0.03);
+            arm.add(part);
+            for (var b = 0; b < 3; b++) {
+                part = new THREE.Mesh(new THREE.BoxGeometry(sl.width + 0.08, 0.06, 0.08), W.sails);
+                part.position.set(0, -L * (0.3 + b * 0.32), 0.02);
+                arm.add(part);
+            }
+            arm.traverse(function (o) { o.castShadow = true; });
+            rotor.add(arm);
+        }
+        part = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.24, 0.34, 12), W.cap);
+        part.rotation.x = Math.PI / 2;
+        rotor.add(part);
+        group.add(rotor);
+        R.movers.push({ rotor: rotor, wall: wall });
+
+        // The tower: from the wings' top, over the door, up past the hub,
+        // and a roof on it. Narrow enough at the foot to stand clear of the
+        // sails turning in front of it.
+        var hs = sl.house;
+        if (hs) {
+            var mz = hs.z + hs.deep / 2, rise = sl.hy + 0.55 - hs.top;
+            var body = new THREE.Mesh(new THREE.CylinderGeometry(0.66, 0.88, rise, 8), W.tower);
+            body.position.set(sl.hx, hs.top + rise / 2, mz);
+            body.castShadow = true; body.receiveShadow = true;
+            group.add(body);
+            var roof = new THREE.Mesh(new THREE.ConeGeometry(0.86, 0.95, 8), W.cap);
+            roof.position.set(sl.hx, hs.top + rise + 0.45, mz);
+            roof.castShadow = true;
+            group.add(roof);
+            var shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, mz - hz, 8), W.sails);
+            shaft.rotation.x = Math.PI / 2;
+            shaft.position.set(sl.hx, sl.hy, (mz + hz) / 2);
+            group.add(shaft);
         }
     }
 
@@ -2790,9 +3217,14 @@
             color: tint.clone().multiplyScalar(0.45)
         });
         var top = waterMaterial(theme, { alpha: 0.86 });
+        /* On a course whose whole surround is sea, the box's dark sides stood
+           a few centimetres proud of the sea plane and drew a black line
+           ruled across the ocean where the rectangle stopped. The sea needs
+           no sides; it gets the top alone. */
+        var sides = theme.surround === 'water' ? new THREE.MeshBasicMaterial({ visible: false }) : murk;
         // Box material order: +x, -x, +y, -y, +z, -z.
         var mesh = new THREE.Mesh(new THREE.BoxGeometry(w.w, depth, w.d),
-            [murk, murk, top, murk, murk, murk]);
+            [sides, sides, top, sides, sides, sides]);
         mesh.position.set(w.x + w.w / 2, w.y - depth / 2, w.z + w.d / 2);
         group.add(mesh);
 
@@ -3197,6 +3629,7 @@
            renderer did not lay itself (life.js). The same arithmetic the mesh
            below is built from, rather than a second copy of it. */
         R.groundAt = function () { return theme.surroundY; };
+        R.groundMat = null;
 
         if (theme.surround === 'water') {
             // The sea makes its own shape out of its own waves, and it is flat
@@ -3226,6 +3659,18 @@
         mesh.position.set(cx, theme.surroundY, cz);
         mesh.receiveShadow = true;
         group.add(mesh);
+        /* …and the same ground for anything life.js lays into it (the moon's
+           craters): this material with a vertex colour to darken or lighten
+           it, and the tiling to lay the rock on by world position, so a
+           crater's flank carries straight on into the plain. */
+        R.groundMat = {
+            tile: SUR_TILE,
+            material: function () {
+                var m = groundMaterial(theme);
+                m.vertexColors = true;
+                return m;
+            }
+        };
     }
 
     /* ── the hills on the horizon ───────────────────────────────────────
@@ -3740,6 +4185,7 @@
         var weather = weatherKind || (W ? W.now : null) || { cloud: 0.4, fog: 1.3, sun: 1, amb: 1, sunSharp: 1, cloudTop: '#ffffff', cloudBase: '#b9c6d4', grade: {} };
         R.theme = theme;
         R.weather = weather;
+        R.loopCam = null;
         if (R.holeGroup) disposeGroup(R.holeGroup);
         R.movers = [];
         R.waterMats = [];
@@ -3789,7 +4235,15 @@
             if (hole.pads[i].spring) addSpring(g, hole.pads[i], theme);
         }
         for (i = 0; i < (hole.warps || []).length; i++) addMouth(g, hole, hole.warps[i], theme);
-        for (i = 0; i < hole.walls.length; i++) addWall(g, hole.walls[i]);
+        for (i = 0; i < (hole.loops || []).length; i++) addLoop(g, hole, hole.loops[i], theme);
+        var bends = [];
+        for (i = 0; i < hole.walls.length; i++) {
+            if (!hole.walls[i].bend) { addWall(g, hole.walls[i]); continue; }
+            if (bends.indexOf(hole.walls[i].bend) < 0) {
+                bends.push(hole.walls[i].bend);
+                addBend(g, hole.walls[i].bend);
+            }
+        }
         for (i = 0; i < hole.water.length; i++) addWater(g, hole.water[i], theme);
         addCup(g, hole);
         // No ring on the tee any more: it sat round the ball at every
@@ -3798,7 +4252,7 @@
         addStakes(g, hole, theme);
         for (i = 0; i < (hole.decor || []).length; i++) addDecor(g, hole.decor[i], theme, hole);
         // The long game's dressing, and what lives on it (life.js).
-        if (G3.life) G3.life.build(g, hole, themeName, theme.surround === 'water', R.groundAt);
+        if (G3.life) G3.life.build(g, hole, themeName, theme.surround === 'water', R.groundAt, R.groundMat);
         if (hole.targets) addBoards(g, hole);
 
         // The rain, the mist banks and whatever is drifting in the air are
@@ -3822,10 +4276,10 @@
             u.fogFar.value = R.fogFar;
             // An overcast sea reflects an overcast sky, not the blue one the
             // theme was drawn against.
-            u.skyColour.value.copy(skyTint(theme.sky[1], weather, true)).lerp(lin(weather.cloudBase), weather.cloud * 0.8);
+            u.skyColour.value.copy(skyTint(theme.sky[1], weather, true)).lerp(lin(weather.cloudBase), weather.cloud * 0.8 * tintScale());
             // Overcast flattens the gradient as well as darkening it: a solid
             // deck reflects as one grey sheet, not as a dome with a bright top.
-            u.skyTop.value.copy(skyTint(theme.sky[0], weather, true)).lerp(lin(weather.cloudBase), weather.cloud * 0.85);
+            u.skyTop.value.copy(skyTint(theme.sky[0], weather, true)).lerp(lin(weather.cloudBase), weather.cloud * 0.85 * tintScale());
             u.fogColour.value.copy(skyTint(theme.fog, weather, false));
         }
         if (R.sky) R.sky.uniforms.sunDir.value.copy(R.sunDir);
@@ -3856,6 +4310,11 @@
         var i, m, B;
         for (i = 0; i < R.movers.length; i++) {
             m = R.movers[i];
+            if (m.rotor) {
+                // Sails turn by the angle physics.millSail reads the tip off.
+                m.rotor.rotation.z = t * m.wall.sails.speed + (m.wall.sails.phase || 0);
+                continue;
+            }
             B = P.wallBox(m.wall, t, _box);
             m.mesh.position.set(B.cx, B.base + m.h / 2, B.cz);
             m.mesh.rotation.y = B.yaw;
@@ -4605,6 +5064,11 @@
 
         var px = _seat.px, py = _seat.py, pz = _seat.pz;
         var tx = _seat.tx, ty = _seat.ty, tz = _seat.tz;
+        if (R.loopCam && R.cam.mode !== 'over' && R.cam.mode !== 'editor') {
+            loopSeat(R.loopCam, _seat);
+            px = _seat.px; py = _seat.py; pz = _seat.pz;
+            tx = _seat.tx; ty = _seat.ty; tz = _seat.tz;
+        }
 
         if (!R.smooth.started || (R.cam.mode === 'editor' && R.cam.instant)) {
             R.smooth.pos.set(px, py, pz);
@@ -4618,6 +5082,43 @@
         }
         R.camera.position.copy(R.smooth.pos);
         R.camera.lookAt(R.smooth.target);
+    }
+
+    /* The camera on a loop (physics.js, "the loop").
+
+       The seat behind the ball looks straight up the lane at a loop, and a
+       loop seen from its foot is a hoop seen edge-on: the ride, which is the
+       best thing on the course, was a ball going up and coming down a line.
+       So while the ball is on the track — riding it, or falling off it — and
+       for a moment after it comes out, the camera stands off to the side and
+       looks at the loop's face, on whichever side it already was so it never
+       swings through the track. The ordinary easing in updateCamera carries
+       it over and back; the seat itself is untouched, which is what the
+       intro's hand-off is measured against. */
+    function watchLoop(world, dt) {
+        var rd = world.ride || world.fall;
+        if (rd && rd.loop) {
+            R.loopCam = { L: rd.loop, F: rd.frame, base: rd.base, hold: 0.9, side: R.loopCam ? R.loopCam.side : 0 };
+        } else if (R.loopCam) {
+            R.loopCam.hold -= dt;
+            if (R.loopCam.hold <= 0 || !world.moving) R.loopCam = null;
+        }
+    }
+
+    function loopSeat(lc, out) {
+        var L = lc.L, F = lc.F;
+        // The middle of the circle, half way along the corkscrew's drift.
+        var cx = L.x + F.lx * F.k * Math.PI, cz = L.z + F.lz * F.k * Math.PI, cy = lc.base + L.R;
+        if (!lc.side) {
+            var cam = R.camera.position;
+            lc.side = ((cam.x - cx) * F.lx + (cam.z - cz) * F.lz) < 0 ? -1 : 1;
+        }
+        var d = L.R * 3.2 + 2.6;
+        out.px = cx + F.lx * lc.side * d - F.fx * L.R * 0.6;
+        out.pz = cz + F.lz * lc.side * d - F.fz * L.R * 0.6;
+        out.py = cy + L.R * 0.4;
+        out.tx = cx; out.ty = cy; out.tz = cz;
+        return out;
     }
 
     /* Clearing the air for the map.
@@ -4758,6 +5259,7 @@
         stepParticles(dt);
         stepRipples(dt);
         if (R.wells) for (var wi = 0; wi < R.wells.length; wi++) R.wells[wi].rotation.y += dt * 0.9;
+        watchLoop(world, dt);
         updateCamera(world.hole, world.ball, dt);
 
         // The camera has moved; what the air is doing about it, and the two
@@ -4914,7 +5416,13 @@
         for (var k in patch) if (Object.prototype.hasOwnProperty.call(patch, k)) R.cam[k] = patch[k];
     }
 
+    // Whose ball it is (game.js, pass and play): the same ball, repainted.
+    function setBallColour(hex) {
+        if (R.ball) R.ball.material.color.setHex(hex);
+    }
+
     G3.render = {
+        setBallColour: setBallColour,
         init: init,
         resize: resize,
         buildHole: buildHole,

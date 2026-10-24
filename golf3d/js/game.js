@@ -85,6 +85,13 @@
             save: state && state.save ? state.save : S.load(),
             phase: 'aim'
         };
+        // A card each (pass and play, below) — one, on the range and under
+        // the demo, whatever the chip says.
+        var n = course.isRange || demo ? 1 : playerCount;
+        state.players = C.PLAYERS.slice(0, n).map(function (p) {
+            return { name: p.name, ball: p.ball, css: p.css, scores: [] };
+        });
+        setTurn(0);
         stopSim(null);
         closeMenu();
         closeCard();
@@ -106,6 +113,79 @@
     function themeAt(i) {
         var c = state.course;
         return c.themes ? c.themes[i] : c.theme;
+    }
+
+    /* ── pass and play ──────────────────────────────────────────────────
+
+       Two to four people sharing one device, the way a mini golf course is
+       actually played: each takes the hole in turn with a ball of their own,
+       and the next hole starts once everybody has holed out (or picked up).
+       Only one ball is ever on the course, so nothing in the physics, the
+       renderer or the bot knows there is more than one player — the round
+       keeps a card per player and hands `state.scores` to whoever is up. The
+       ball is repainted for each (CONFIG.PLAYERS), the HUD says whose turn it
+       is, and the card has a column each and names the winner.
+
+       A shared round is nobody's personal best, so it is not recorded: the
+       same rule, for the same reason, as a round the caddie has had the club
+       in (finishRound). The range and the demo are always one player. */
+    function loadPlayers() {
+        var n = 1;
+        try { n = parseInt(localStorage.getItem(C.PLAYERS_KEY), 10) || 1; } catch (e) { /* ignore */ }
+        return Math.max(1, Math.min(C.PLAYERS.length, n));
+    }
+    var playerCount = loadPlayers();
+
+    function multi() { return !!(state && state.players && state.players.length > 1); }
+
+    /* Has anybody on this round holed out anywhere? Not just whoever is up:
+       with player two on the tee of the first hole the card in their hand is
+       empty, and the round is not — which is what the demo's idle check and
+       the waiting showcase both mean to ask. */
+    function anyPlayed() {
+        var ps = state.players || [{ scores: state.scores }];
+        return ps.some(function (p) { return S.totals(p.scores, state.course.holes).played > 0; });
+    }
+
+    function setTurn(i) {
+        state.turn = i;
+        state.scores = state.players[i].scores;
+        R.setBallColour(state.players[i].ball);
+    }
+
+    // Who plays this hole next: the next player round the table with no score
+    // for it yet, or -1 once everybody has one.
+    function nextToPlay() {
+        var n = state.players.length, k, j;
+        for (k = 1; k < n; k++) {
+            j = (state.turn + k) % n;
+            if (typeof state.players[j].scores[state.holeIndex] !== 'number') return j;
+        }
+        return -1;
+    }
+
+    /* The chip goes 1, 2, 3, 4 and round again. A change mid-round deals a
+       fresh card from the hole you are standing on — there is no honest way to
+       add a player to holes already played — and says so. */
+    function cyclePlayers() {
+        playerCount = playerCount % C.PLAYERS.length + 1;
+        try { localStorage.setItem(C.PLAYERS_KEY, String(playerCount)); } catch (e) { /* ignore */ }
+        syncPlayersChip();
+        if (!state || !state.course || state.course.isRange || demo) {
+            toast(playerCount === 1 ? 'One player' : playerCount + ' players, from the next round');
+            return;
+        }
+        newRound(state.course.id, state.holeIndex);
+        toast(playerCount === 1 ? 'One player — a fresh card from this hole'
+            : playerCount + ' players, pass and play — a fresh card from this hole');
+    }
+
+    function syncPlayersChip() {
+        var btn = $('btn-players');
+        if (!btn) return;
+        btn.classList.toggle('on', playerCount > 1);
+        btn.setAttribute('aria-pressed', playerCount > 1 ? 'true' : 'false');
+        $('players-count').textContent = playerCount;
     }
 
     // A fresh deal, from its first tee. Play again is newRound('showcase'),
@@ -879,7 +959,13 @@
                 ' · par ' + hole.par;
             $('banner').className = 'banner show';
         }
-        $('banner-next').textContent = last ? 'See the card →' : 'Next hole →';
+        var up = multi() ? nextToPlay() : -1;
+        if (multi()) {
+            $('banner-detail').textContent = state.players[state.turn].name + ' · ' +
+                $('banner-detail').textContent;
+        }
+        $('banner-next').textContent = up >= 0 ? state.players[up].name + ' to play →'
+            : last ? 'See the card →' : 'Next hole →';
         /* An ace gets shown again, at once: an instant replay, the moment
            the drop has landed, with the banner held back until it is over —
            Autoplay included, since the replay holds the frame and the walk
@@ -1007,6 +1093,18 @@
 
     function nextHole() {
         hideBanner();
+        // Pass and play: the same hole again for whoever has not played it,
+        // and only then on — with player one teeing off first.
+        if (multi()) {
+            var up = nextToPlay();
+            if (up >= 0) {
+                setTurn(up);
+                loadHole(state.holeIndex, true);
+                toast(state.players[up].name + ' to play');
+                return;
+            }
+            setTurn(0);
+        }
         if (state.holeIndex < state.course.holes.length - 1) {
             loadHole(state.holeIndex + 1);
         } else {
@@ -1032,9 +1130,9 @@
        rounds have always been thrown away. */
     function finishRound() {
         var res;
-        if (autoUsed) {
+        if (autoUsed || multi()) {
             res = {
-                save: state.save, isBest: false, unrecorded: true,
+                save: state.save, isBest: false, unrecorded: true, shared: multi() && !autoUsed,
                 totals: S.totals(state.scores, state.course.holes)
             };
         } else {
@@ -1079,6 +1177,7 @@
             $('shud-strokes').textContent = state.strokes + (state.strokes === 1 ? ' shot' : ' shots');
             $('shud-name').textContent = hole.name;
             $('shud-blurb').textContent = hole.blurb;
+            syncTurn(null);
         } else {
             $('hole-num').textContent = (state.holeIndex + 1) + ' / ' + state.course.holes.length;
             $('hole-par').textContent = hole.par;
@@ -1101,12 +1200,24 @@
             $('shud-strokes').textContent = state.strokes + (state.strokes === 1 ? ' stroke' : ' strokes');
             $('shud-name').textContent = hole.name;
             $('shud-blurb').textContent = hole.blurb;
+            syncTurn(multi() ? state.players[state.turn] : null);
         }
 
         syncDistance();
         syncClubs();
         syncPower();
         syncWeather();
+    }
+
+    // Whose turn it is, in the HUD and over the stroke count — or nothing.
+    function syncTurn(who) {
+        if (!$('shud-player')) return;
+        $('shud-player').hidden = !who;
+        if (who) {
+            $('shud-player-dot').style.background = who.css;
+            $('shud-player-name').textContent = who.name.replace('Player ', 'P');
+        }
+        $('strokes-label').textContent = who ? who.name : 'Strokes';
     }
 
     /* The course in the scoreboard. On a showcase it is where this hole is
@@ -3284,7 +3395,7 @@
     // The round behind the list is a showcase nobody has started yet.
     function showcaseWaiting() {
         return !!(state && state.course && state.course.isShowcase && state.world &&
-                  state.strokes === 0 && !S.totals(state.scores, state.course.holes).played);
+                  state.strokes === 0 && !anyPlayed());
     }
 
     /* That one is the one on offer, and taking it is closing the list — a new
@@ -3367,6 +3478,12 @@
         }
         var holes = state.course.holes;
         var rows = '', i, sc, t;
+        if (multi()) {
+            sharedCard(res);
+            cardNext(res);
+            $('scorecard').className = 'modal show';
+            return;
+        }
         for (i = 0; i < holes.length; i++) {
             sc = state.scores[i];
             t = typeof sc === 'number' ? S.term(sc, holes[i].par) : null;
@@ -3396,6 +3513,75 @@
             '<tr><td></td><td>To par</td><td></td><td class="' +
             (tot.vsPar < 0 ? 'under' : tot.vsPar > 0 ? 'over' : 'level') + '">' +
             S.formatVsPar(tot.vsPar) + '</td></tr></tfoot></table>';
+        cardNext(res);
+        $('scorecard').className = 'modal show';
+    }
+
+    // A score's class on the card.
+    function scoreClass(sc, par) {
+        if (typeof sc !== 'number') return '';
+        var t = S.term(sc, par);
+        return sc === 1 ? 'ace' : t.kind === 'over' ? 'over' : t.kind === 'par' ? 'level' : 'under';
+    }
+
+    /* The card for a shared round: a column a player, headed by the colour of
+       their ball, and the subtitle says who is winning — or who won. The
+       lowest total among those who have played the same holes; a tie is a
+       tie. */
+    function sharedCard(res) {
+        var holes = state.course.holes, ps = state.players, i, j, sc;
+        var head = '<tr><th></th><th>Hole</th><th>Par</th>';
+        for (j = 0; j < ps.length; j++) {
+            head += '<th title="' + ps[j].name + '"><i class="ball-dot" style="background:' + ps[j].css +
+                '"></i>P' + (j + 1) + '</th>';
+        }
+        head += '</tr>';
+        var rows = '';
+        for (i = 0; i < holes.length; i++) {
+            rows += '<tr><td class="n">' + (i + 1) + '</td><td class="nm">' + holes[i].name +
+                (state.course.isShowcase
+                    ? '<span class="card-from">' + G3.courseById(holeRef(i).id).name + '</span>'
+                    : '') + '</td><td>' + holes[i].par + '</td>';
+            for (j = 0; j < ps.length; j++) {
+                sc = ps[j].scores[i];
+                rows += '<td class="' + scoreClass(sc, holes[i].par) + '">' +
+                    (typeof sc === 'number' ? sc : '—') + '</td>';
+            }
+            rows += '</tr>';
+        }
+        var tot = ps.map(function (p) { return S.totals(p.scores, holes); });
+        var foot = '<tr><td></td><td>Total</td><td>' + S.coursePar(holes) + '</td>';
+        var vs = '<tr><td></td><td>To par</td><td></td>';
+        for (j = 0; j < ps.length; j++) {
+            foot += '<td>' + tot[j].strokes + '</td>';
+            vs += '<td class="' + (tot[j].vsPar < 0 ? 'under' : tot[j].vsPar > 0 ? 'over' : 'level') + '">' +
+                (tot[j].played ? S.formatVsPar(tot[j].vsPar) : '—') + '</td>';
+        }
+        foot += '</tr>'; vs += '</tr>';
+        // Who leads: compared on the holes everybody has played.
+        var common = holes.map(function (h, k) {
+            return ps.every(function (p) { return typeof p.scores[k] === 'number'; });
+        });
+        var sums = ps.map(function (p) {
+            var t2 = 0;
+            for (var k = 0; k < holes.length; k++) if (common[k]) t2 += p.scores[k];
+            return t2;
+        });
+        var any = common.some(function (c) { return c; });
+        var low = Math.min.apply(null, sums), lead = [];
+        sums.forEach(function (v, k) { if (v === low) lead.push(ps[k].name); });
+        var verdict = !any ? ''
+            : lead.length > 1 ? (res ? ' — a tie: ' : ' — level: ') + lead.join(' and ') + '.'
+            : ' — ' + lead[0] + (res ? ' wins' : ' leads') + ' by ' +
+              (Math.min.apply(null, sums.filter(function (v) { return v !== low; })) - low) + '.';
+        $('card-title').textContent = res ? 'Round complete' : 'Scorecard';
+        $('card-sub').textContent = state.course.name + verdict +
+            (res ? ' Pass and play rounds are not recorded.' : '');
+        $('card-body').innerHTML = '<table class="card-table shared"><thead>' + head + '</thead><tbody>' +
+            rows + '</tbody><tfoot>' + foot + vs + '</tfoot></table>';
+    }
+
+    function cardNext(res) {
         /* A finished round is the moment to offer another course, and the
            offer is the picker itself rather than a one-off button: the list
            is where the records live and where the categories are. Mid-round
@@ -3418,7 +3604,6 @@
         } else {
             next.hidden = true;
         }
-        $('scorecard').className = 'modal show';
     }
 
     function closeCard() { $('scorecard').className = 'modal'; maybeFly(); }
@@ -3920,7 +4105,7 @@
         if ($('howto').classList.contains('show')) return false;
         if ($('scorecard').classList.contains('show')) return false;
         if (state.phase !== 'aim' || state.strokes > 0) return false;
-        return !S.totals(state.scores, state.course.holes).played;
+        return !anyPlayed();
     }
 
     function tickIdle(now) {
@@ -4143,6 +4328,8 @@
         // handler would otherwise hand it an Event.
         $('btn-courses').addEventListener('click', function () { openMenu(); });
         if ($('btn-range')) $('btn-range').addEventListener('click', function () { newRound('range'); });
+        if ($('btn-players')) $('btn-players').addEventListener('click', cyclePlayers);
+        syncPlayersChip();
         if ($('menu-btn-range')) $('menu-btn-range').addEventListener('click', function () { maybeAutoFullscreen(); closeMenu(); newRound('range'); });
         $('btn-card').addEventListener('click', function () { openCard(null); });
         $('btn-map').addEventListener('click', function () { toggleMiniMap(); });

@@ -688,6 +688,20 @@
             assert('the board sits left of the column', box.right <= $('power').getBoundingClientRect().left + 1);
             assert('nothing scrolls', doc().documentElement.scrollHeight <= doc().documentElement.clientHeight + 1,
                 doc().documentElement.scrollHeight + ' > ' + doc().documentElement.clientHeight);
+            /* The thumb that pulls back from a tee at the edge of the board
+               lands off it — on the meter, or the blank page round it. A
+               page that fits the screen gives all of that to the shot. */
+            assert('…so all of the page can start a shot', doc().documentElement.classList.contains('drag-anywhere'));
+            st = G.game.getState();
+            assert('(the ball is waiting to be aimed)', st.phase === 'aim', st.phase);
+            $('power').dispatchEvent(new (frame().PointerEvent)('pointerdown', { bubbles: true, clientX: 700, clientY: 200, pointerId: 1 }));
+            assert('a press on the meter starts the aim', !!st.aim.origin && st.aim.active);
+            $('board').dispatchEvent(new (frame().PointerEvent)('pointercancel', { bubbles: true, pointerId: 1 }));
+            doc().body.dispatchEvent(new (frame().PointerEvent)('pointerdown', { bubbles: true, clientX: 700, clientY: 340, pointerId: 1 }));
+            assert('…and so does one on the blank page', !!st.aim.origin && st.aim.active);
+            $('board').dispatchEvent(new (frame().PointerEvent)('pointercancel', { bubbles: true, pointerId: 1 }));
+            doc().querySelector('.scoreboard').dispatchEvent(new (frame().PointerEvent)('pointerdown', { bubbles: true, clientX: 700, clientY: 60, pointerId: 1 }));
+            assert('…but not one on the scoreboard', !st.aim.origin && !st.aim.active);
 
             f.style.width = '';
             f.style.height = '';

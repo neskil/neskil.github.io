@@ -108,6 +108,7 @@
                 pads: opts.pads || [A.pad(0, 0, 10, 20)],
                 water: opts.water || [],
                 warps: opts.warps || null,
+                loops: opts.loops || null,
                 walls: [],
                 tee: opts.tee || { x: 5, z: 2 },
                 cup: opts.cup || { x: 5, z: 15 }
@@ -399,6 +400,81 @@
                 assert('a ball rolled out from the middle of an arc comes straight back off it',
                     back.ball.z < 10.5 && Math.abs(back.ball.x - 5) < 0.4,
                     'finished at x ' + back.ball.x.toFixed(2) + ', z ' + back.ball.z.toFixed(2));
+            })();
+
+            /* A rounded corner (courses.roundCorners) is three things that
+               have to agree: the ground stops on the curve, an arc of rail
+               stands on it, and the straight rails either side stop where
+               the arc starts. If the last two leave a chink, a ball fired
+               into the corner finds it — so fire balls at every bearing,
+               from the middle and from beside each corner, and none may
+               leave the hole. */
+            (function () {
+                var h = A.build({ name: 'Round Lab', par: 3, pads: [A.pad(0, 0, 8, 16)],
+                    tee: { x: 4, z: 2 }, cup: { x: 4, z: 13 } });
+                var p = h.pads[0], c = p.round || {};
+                assert('a lane\'s four outside corners are rounded',
+                    c.sw > 0 && c.se > 0 && c.nw > 0 && c.ne > 0, JSON.stringify(c));
+                assert('…the ground stops on the curve',
+                    !P.padContains(p, 0.08, 0.08) && !P.padContains(p, 7.92, 15.92) &&
+                    P.padContains(p, c.sw * 0.5, c.sw * 0.5) && P.padContains(p, 0.05, 4));
+                var bends = [];
+                h.walls.forEach(function (wl) { if (wl.bend && bends.indexOf(wl.bend) < 0) bends.push(wl.bend); });
+                assert('…and each corner has a bend of rail round it', bends.length === 4, bends.length + ' bends');
+                var square = A.build({ name: 'Square Lab', par: 3, round: 0, pads: [A.pad(0, 0, 8, 16)],
+                    tee: { x: 4, z: 2 }, cup: { x: 4, z: 13 } });
+                assert('`round: 0` keeps a hole square', !square.pads[0].round);
+                /* Measured against the same lane with its corners square, so
+                   what is counted is what the rounding let out — a ball sent
+                   across the cup at full pace can be thrown over a straight
+                   rail as well, and that is the cup's business, not this. */
+                var leaks = [], from = [{ x: 4, z: 8 }, { x: 1.6, z: 1.6 }, { x: 6.4, z: 1.6 },
+                    { x: 1.6, z: 14.4 }, { x: 6.4, z: 14.4 }], k, j, yaw;
+                for (k = 0; k < from.length; k++) {
+                    for (j = 0; j < 48; j++) {
+                        yaw = j / 48 * Math.PI * 2;
+                        if (shootFrom(h, from[k], yaw, C.MAX_POWER).out &&
+                            !shootFrom(square, from[k], yaw, C.MAX_POWER).out) leaks.push(from[k].x + ',' + from[k].z + ' @' + j);
+                    }
+                }
+                assert('…and no ball fired into a rounded corner gets out', !leaks.length, leaks.slice(0, 5).join(' '));
+            })();
+
+            /* A windmill (courses.mill): four sails turning in front of a
+               door, and the ball meets only the one that is down. So the same
+               putt at the door has to go through when the sails are a quarter
+               turn round and come back when a sail is straight down — and
+               the box it came back off has to be where the drawn sail's tip
+               is, since the renderer turns the sails by the same angle. */
+            (function () {
+                var walls = A.mill(0, 8, 8, { speed: 0.8, phase: 0 });
+                var sail = walls.filter(function (wl) { return wl.sails; })[0];
+                var sl = sail.sails, q = Math.PI / 2 / sl.speed;
+                var h = A.build({ name: 'Mill Lab', par: 3, round: 0, pads: [A.pad(0, 0, 8, 16)],
+                    extra: walls, tee: { x: 4, z: 2 }, cup: { x: 4, z: 13.5 } });
+                var down = P.wallBox(sail, 0), across = P.wallBox(sail, q / 2);
+                assert('a sail pointing down reaches the ball and is over the door',
+                    down.base < 2 * C.BALL_R && Math.abs(down.cx - 4) < 1e-6);
+                assert('…and between two sails the door has daylight',
+                    across.base > 2 * C.BALL_R && Math.abs(across.cx - 4) > 1,
+                    'base ' + across.base.toFixed(2) + ', x ' + across.cx.toFixed(2));
+                var tipX = sl.hx + sl.len * Math.sin(0.3), tipY = sl.hy - sl.len * Math.cos(0.3);
+                var at = P.wallBox(sail, 0.3 / sl.speed);
+                assert('the sail the ball meets is the sail that is drawn',
+                    Math.abs(at.cx - tipX) < 1e-6 && Math.abs(at.base - tipY) < 1e-6);
+                // Rolled from just short of the sails, so the clock at the
+                // door is the clock the shot was struck at, give or take.
+                function putt(t) {
+                    var w = P.createWorld(h, { x: 4, z: 6.4 }, t);
+                    P.launch(w, 0, 9);
+                    P.settle(w, C.MAX_SHOT_SECONDS);
+                    return w;
+                }
+                var shut = putt(0), open = putt(q / 2 - 0.12);
+                assert('a putt at the door with a sail down comes back off it', shut.ball.z < 8,
+                    'finished at z ' + shut.ball.z.toFixed(2));
+                assert('…and the same putt between two sails goes through', open.ball.z > 10.5,
+                    'finished at z ' + open.ball.z.toFixed(2));
             })();
 
             /* A disc pad is the shape inside its footprint, not the footprint
@@ -1406,6 +1482,26 @@
                 assert(tag + ': the tee is clear of the walls', !teeBlocked);
                 assert(tag + ': the cup is clear of the walls', !cupBlocked);
 
+                /* A rounded corner gives up the ground within its radius of
+                   the corner, so it may not be anywhere near the tee's or the
+                   cup's flat — and every one has its bend of rail. */
+                var corners = 0, near = [], bendSet = [];
+                h.pads.forEach(function (p) {
+                    if (!p.round) return;
+                    [['sw', p.x, p.z], ['se', p.x + p.w, p.z], ['nw', p.x, p.z + p.d],
+                     ['ne', p.x + p.w, p.z + p.d]].forEach(function (k) {
+                        var r = p.round[k[0]];
+                        if (!r) return;
+                        corners++;
+                        if (Math.hypot(h.tee.x - k[1], h.tee.z - k[2]) < r + 1.1 ||
+                            Math.hypot(h.cup.x - k[1], h.cup.z - k[2]) < r + 1.25) near.push(k[0]);
+                    });
+                });
+                h.walls.forEach(function (wl) { if (wl.bend && bendSet.indexOf(wl.bend) < 0) bendSet.push(wl.bend); });
+                assert(tag + ': no rounded corner takes ground from the tee or the cup', !near.length, near.join(' '));
+                assert(tag + ': every rounded corner has its rail', bendSet.length === corners,
+                    bendSet.length + ' bends for ' + corners + ' corners');
+
                 /* Pads may only overlap when the surface lookup can tell them
                    apart. There are two ways to earn that. One is being clearly
                    a bridge above the other, which is a height gap. The other is
@@ -1497,12 +1593,13 @@
                    aiming window the ball can be steered through. A hole that
                    can be sealed shut scores zero here and the bot below never
                    finishes it. */
-                var movers = h.walls.filter(function (wl) { return wl.move || wl.spin || wl.swing; });
+                var movers = h.walls.filter(function (wl) { return wl.move || wl.spin || wl.swing || wl.sails; });
                 if (movers.length) {
                     movers.forEach(function (wl) {
                         var B0 = P.wallBox(wl, 0);
                         var period = wl.spin ? (2 * Math.PI / Math.abs(wl.spin))
                             : wl.swing ? (2 * Math.PI / wl.swing.speed)
+                            : wl.sails ? (Math.PI / 2 / wl.sails.speed)
                             : (2 * Math.PI / wl.move.speed);
                         var open = 0, widest = 0, k, t, g;
                         for (k = 0; k < 24; k++) {
@@ -1512,7 +1609,7 @@
                             if (g > 0.25) open++;
                         }
                         if (widest < worstGap) { worstGap = widest; worstGapName = tag; }
-                        var what = wl.spin ? 'blade' : wl.swing ? 'flipper' : 'gate';
+                        var what = wl.spin ? 'blade' : wl.swing ? 'flipper' : wl.sails ? 'windmill' : 'gate';
                         assert(tag + ': the way past this ' + what + ' opens and stays open',
                             open >= 8, 'only ' + open + ' of 24 phases are passable');
                         assert(tag + ': and it opens wide enough to aim at',
@@ -2602,6 +2699,143 @@
             });
             assert('and a hole with no pipes on it warps nothing',
                 !shotEvents(pipeless, { x: 5, z: 2 }, 0, 10.5, 0).events.warp);
+
+            // ── the loop ──
+            /* physics.js, "the loop". A lane of boards with a loop of radius
+               1.1 stood on it, its foot at z = 10 and its way out a unit to
+               the east. Every shot starts a unit short of the foot. */
+            var LR = 1.1, ring = A.loop(5, 10, 0, LR, 1);
+            var looped = lab({ pads: [A.pad(0, 0, 10, 40, 0, 'wood')], loops: [ring], cup: { x: 2, z: 38 } });
+            var round = shotEvents(looped, { x: 5, z: 9 }, 0, 16, 0);
+            assert('a ball hit hard enough goes round the loop and out of the far side',
+                round.events.loop === 1 && round.events.loopRound === 1 && !round.events.loopFell &&
+                    round.world.ball.z > 12,
+                JSON.stringify(round.events) + ', z=' + round.world.ball.z.toFixed(1));
+            assert('…on the line one corkscrew across from the one it went in on',
+                Math.abs(round.world.ball.x - 6) < 0.02, 'x=' + round.world.ball.x.toFixed(3));
+            var back = shotEvents(looped, { x: 5, z: 9 }, 0, 6, 0);
+            assert('a slow one runs back down and out of the mouth it went in by',
+                back.events.loop === 1 && !back.events.loopRound && !back.events.loopFell &&
+                    back.world.ball.z < 10 && Math.abs(back.world.ball.x - 5) < 0.02,
+                JSON.stringify(back.events) + ', z=' + back.world.ball.z.toFixed(1));
+            var fell = shotEvents(looped, { x: 5, z: 9 }, 0, 9, 0);
+            assert('one that passes a quarter of the way but not the top comes off the track',
+                fell.events.loopFell >= 1, JSON.stringify(fell.events));
+            /* The line between those is the physics and nothing else: a ball
+               needs √(5gR) at the foot to make the top with no friction at
+               all, and the boards take some more. So the first speed that
+               gets round clean — never leaving the track — is above that and
+               not wildly above it. A loop that any putt got round, or that
+               nothing in the bag could, would show here first. (A ball that
+               comes off and lands on the far side also comes out of the far
+               end, slowly, and does so from a little under √(5gR); that is a
+               fall, not a loop, and it is not what this asks.) */
+            var need = Math.sqrt(5 * C.GRAVITY * LR), first = null, sp;
+            for (sp = 6; sp <= 24 && first === null; sp += 0.25) {
+                var tw = P.createWorld(looped, { x: 5, z: 10 }, 0), got = false, lost = false, ti, te;
+                tw.ball.vz = sp; tw.moving = true;
+                for (ti = 0; ti < 1200 && !P.done(tw); ti++) {
+                    te = P.advance(tw, C.SIM_DT, {});
+                    if (te.loopRound) got = true;
+                    if (te.loopFell) lost = true;
+                }
+                if (got && !lost) first = sp;
+            }
+            assert('what it takes to get round is √(5gR) at the foot and a little for the boards',
+                first !== null && first >= need && first <= need * 1.45,
+                'first round at ' + first + ' against ' + need.toFixed(2));
+            /* While it rides, the ball's middle is the radius from the middle
+               of the loop, exactly — the track is the function the renderer
+               draws, so a ball off it by anything would be a ball drawn
+               through the rails. */
+            (function () {
+                var w = P.createWorld(looped, { x: 5, z: 9 }, 0), worst = 0, rides = 0, i, F = P.loopFrame(ring);
+                var cy = P.loopBase(looped, ring) + LR;
+                P.launch(w, 0, 16, 0, 0);
+                for (i = 0; i < 2000 && !P.done(w); i++) {
+                    P.advance(w, C.SIM_DT, {});
+                    if (!w.ride) continue;
+                    rides++;
+                    var fw = (w.ball.x - ring.x) * F.fx + (w.ball.z - ring.z) * F.fz;
+                    worst = Math.max(worst, Math.abs(Math.sqrt(fw * fw + (w.ball.y - cy) * (w.ball.y - cy)) - LR));
+                }
+                assert('a riding ball is on the track, the radius from the middle, all the way round',
+                    rides > 10 && worst < 1e-9, rides + ' frames, worst ' + worst.toExponential(2));
+            })();
+            /* And one that comes off falls inside the loop and lands back on
+               the track — it was falling straight through the boards. */
+            (function () {
+                var w = P.createWorld(looped, { x: 5, z: 9 }, 0), F = P.loopFrame(ring), i, off = false, caught = false, worst = 0;
+                var cy = P.loopBase(looped, ring) + LR;
+                P.launch(w, 0, 9, 0, 0);
+                for (i = 0; i < 2000 && !P.done(w); i++) {
+                    var ev = P.advance(w, C.SIM_DT, {});
+                    if (ev.loopFell) off = true;
+                    if (off && w.ride) caught = true;
+                    if (off && !w.grounded && !w.ride) {
+                        var fw = (w.ball.x - ring.x) * F.fx + (w.ball.z - ring.z) * F.fz;
+                        worst = Math.max(worst, Math.sqrt(fw * fw + (w.ball.y - cy) * (w.ball.y - cy)) - LR);
+                    }
+                }
+                assert('a ball that comes off the top falls inside the loop and is caught by the track',
+                    off && caught && worst < 0.25, 'caught ' + caught + ', outside by ' + worst.toFixed(2));
+            })();
+            assert('a ball crossing the foot sideways walks under the loop',
+                !shotEvents(looped, { x: 2, z: 10.2 }, Math.PI / 2, 9, 0).events.loop);
+            assert('and one crossing it backwards does too',
+                !shotEvents(looped, { x: 5, z: 12 }, Math.PI, 9, 0).events.loop);
+            (function () {
+                var w = P.createWorld(looped, { x: 5, z: 9.8 }, 0), i, took = false;
+                w.ball.y = 0.9; w.grounded = false; w.ball.vz = 4; w.moving = true;
+                for (i = 0; i < 6; i++) if (P.advance(w, C.SIM_DT, {}).loop) took = true;
+                assert('a ball in the air over the foot is not taken', !took);
+            })();
+            (function () {
+                var a = P.createWorld(looped, { x: 5, z: 9 }, 0), i;
+                P.launch(a, 0, 16, 0, 0);
+                for (i = 0; i < 400 && !a.ride; i++) P.advance(a, C.SIM_DT, {});
+                P.advance(a, C.SIM_DT * 3, {});
+                var b = P.cloneWorld(a);
+                P.advance(a, C.SIM_DT * 5, {});
+                P.advance(b, C.SIM_DT * 5, {});
+                assert('a world cloned on the loop rides on exactly as the original does',
+                    b.ride && a.ride && b.ride.th === a.ride.th && b.ball.y === a.ball.y && b.ride !== a.ride);
+            })();
+            assert('the aim line stops at the mouth of a loop',
+                (function () {
+                    var w = P.createWorld(looped, { x: 5, z: 9 }, 0);
+                    var pts = P.previewPath(w, 0, 16, 0, 3);
+                    return pts.every(function (q) { return q.y < 0.5; });
+                })());
+            /* On the courses: the track stands clear of every wall on the
+               hole. The ball is never collided with anything while it rides,
+               so a wall standing in the loop would be a wall the ball is
+               drawn going through — which is exactly what the first housing
+               on Loop the Loop was. */
+            var loopsSeen = 0;
+            ALL.forEach(function (entry) {
+                var h = entry.hole;
+                (h.loops || []).forEach(function (L) {
+                    loopsSeen++;
+                    var F = P.loopFrame(L), base = P.loopBase(h, L), hit = '', i, q = {};
+                    for (i = 0; i <= 96 && !hit; i++) {
+                        P.loopPoint(L, F, base, i / 96 * Math.PI * 2, q);
+                        h.walls.forEach(function (wl) {
+                            var B = P.wallBox(wl, 0);
+                            if (q.y + C.BALL_R > B.base && q.y - C.BALL_R < B.top &&
+                                P.circleBox(q.x, q.z, C.BALL_R, B)) hit = 'at ' + (i / 96 * 360).toFixed(0) + '°';
+                        });
+                    }
+                    assert(entry.course.id + '/' + h.name + ': nothing stands in the loop', !hit, hit);
+                    var foot = P.surfaceTop(h, L.x, L.z);
+                    q = P.loopPoint(L, F, base, Math.PI * 2, {});
+                    var out = P.surfaceTop(h, q.x, q.z);
+                    assert(entry.course.id + '/' + h.name + ': the loop stands on level floor, in and out',
+                        foot && out && approx(foot.y, out.y, 1e-9) &&
+                            P.slopeAt(foot.pad, L.x, L.z) < 1e-9 && P.slopeAt(out.pad, q.x, q.z) < 1e-9);
+                });
+            });
+            assert('there is a loop on the courses', loopsSeen >= 1);
 
             // ── backspin ──
             var green = lab({ pads: [A.pad(0, 0, 10, 60)], cup: { x: 5, z: 55 } });

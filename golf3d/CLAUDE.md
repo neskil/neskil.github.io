@@ -148,17 +148,16 @@ none, because it reads as coverage.
   arrays of GLSL source strings. The turf is a third thing: four fragments
   spliced into three.js's Lambert via `onBeforeCompile`. Changing any of them
   means reading GLSL, not setting a property.
-- **A wall may move three ways, not two**: `move` slides it, `spin` turns it
-  round, and `swing` sweeps it between two angles and stops at each end (a
-  flipper). Anything that filters for movers has to ask about all three — the
-  renderer's `R.movers`, the tests' gate-window assertion, and then the
-  editor's ported copy of that assertion, its ghost boxes, its plan-repaint
-  trigger and its `cloneShape`, all of which asked about two. That is five
-  places over three files that have each independently written
-  `w.move || w.spin` — six, counting the bot's "does this hole need a wait
-  before striking", which also missed flippers until v1.66.0; if you add a
-  fourth kind of motion, grep for both names together before you do anything
-  else.
+- **A wall may move four ways**: `move` slides it, `spin` turns it round,
+  `swing` sweeps it between two angles and stops at each end (a flipper), and
+  `sails` turns a windmill's four sails in the upright plane (`mill`).
+  Anything that filters for movers has to ask about all four — the renderer's
+  `R.movers` (sails are a `rotor` there, not a box), the tests' gate-window
+  assertion, the editor's ported copy of that assertion, its ghost boxes, its
+  plan-repaint trigger, its `cloneShape` and its export, and the bot's "does
+  this hole need a wait before striking", which missed flippers until v1.66.0.
+  The minimap draws sails as the line they turn in. If you add a fifth kind of
+  motion, grep for `w.move || w.spin` before you do anything else.
 - **A pad may now *do* something as well as be somewhere**: `push` is a
   travelator, `spring` a launch pad, and a hole's `warps` are pipes. All three
   are read by `physics.js` alone and drawn from that same data by `render.js`,
@@ -166,6 +165,10 @@ none, because it reads as coverage.
   "Adventure golf". The one that bites: a launch pad is an **inlay**, and an
   inlay loses outright to ground lifted above it, so anything with a motor in
   it needs the ground under it kept flat (`courses.machineKeeps`).
+  A hole's `loops` are the fourth: a track the ball is carried round, and
+  while it rides (`world.ride`) the step skips the ground, the walls and the
+  cup entirely — so a new per-step rule that has to hold on a loop goes in
+  `rideLoop`, not after it.
 - **The intro flyover ends *at* the live seat, not near it.** `flyover.js` is
   handed the pose `render.js`'s `seatFor` has just worked out and makes it the
   last key of the path, re-read every frame; that exactness is the whole
@@ -188,6 +191,11 @@ none, because it reads as coverage.
   against a two-unit cliff. And the two sides want different widths — a near
   wall wide enough to play out of is a ramp a drive bounces clean across the
   gorge off. See README → "The gorge".
+- **A pad's rectangle is not its outline any more.** `build` rounds a fenced
+  hole's outside corners (`pad.round`), so anything new that reasons about
+  where a pad's ground is must ask `physics.padContains` rather than read
+  `x`/`w`/`z`/`d`, and anything that draws a slab goes through `slabShape`.
+  README → "Rounded corners".
 - **Trees and rocks with no `y` are seated on the ground by `build`.** Naming a
   height by hand is a second copy of the height field; the copies drift the
   first time a row is retilted, and the tests measure it now. Seating is off the

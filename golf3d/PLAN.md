@@ -12,7 +12,7 @@ to be worked out again.
 
 ---
 
-## Where it stands (v1.75.0)
+## Where it stands (v1.82.0)
 
 - **The long game flies.** The driver is 21° at 28 and the iron 30° at 16:
   about three times the height of the old 10° skim, half as much carry again,
@@ -22,11 +22,12 @@ to be worked out again.
   `moor` takes `z0` for that). Deadlift's pads went 13 → 15 so the new driver
   still gets over both steps.
 - **Coral Keys**, the fifth long course: island-hopping across a lagoon
-  (`isle`, `keyGreen`, `keys` in courses.js). Its islands are **flat on
-  purpose** — a disc of ground with bumps on it is drawn on the square terrain
-  grid, so a domed key renders as a raft with corners. Making `addTerrain`
-  draw a round outline for a bumped disc is what would let keys have a hump.
-  Their outlines are dealt per island by `coast` (a stronger, seeded wave):
+  (`isle`, `keyGreen`, `keys` in courses.js). Its keys are **low domes** now
+  (v1.96.0), with palms and shallows: the raft-with-corners was the grass,
+  which `addTerrain` laid on the square grid with the disc itself cut out of
+  it, not the ground. Keep a dome under a sixteenth — steeper ran balls off
+  the end of Two Ways Home's long island into a spot the bot could not get
+  back to the green from. Their outlines are dealt per island by `coast` (a stronger, seeded wave):
   the keys you must land on are kept near 0.15 of wildness, because the bot
   — and a person — cannot find a target that bites in by half; the bare sand
   islets take the wild shapes.
@@ -34,9 +35,12 @@ to be worked out again.
   now; rather than naturalise all four of the older ones hole by hole, new
   concepts (this one) are the better spend than a fifth pass over the same
   four.
+- **The mini courses stopped being lanes** (v1.82.0): Quarry, Tidewater and
+  Highland rebuilt hole by hole — §0 → "Mini golf", item 8.
 - Still open from before: lighting setups on Challenge (neon only has
-  `clear`), and the naturalising of the older long courses (partial work in
-  `.claude/worktrees/agent-*`, uncommitted).
+  `clear`), and the naturalising of the older long courses — Ashdown is done
+  (v1.78.0), Whinstone (v1.79.0), Dunmore (v1.80.0) and Redstone (spring
+  v1.81.0, carved canyons and an oval mesa v1.83.0–v1.89.0).
 
 ## 0. The course rehaul — approved, in progress
 
@@ -182,12 +186,84 @@ The tools for it:
   is the expensive part (1-unit terrain under 4–6 grass layers). Wider margins
   are fine in moderation; keep total ground area within about +40%.
 
-**Where round two stands (v1.72.0).** Done: `pond`, `forest`, and Ashdown's
-*Over the Water* as the worked example. The four per-course agents were
-stopped part-way on the owner's word (they ate the usage limit): their
-uncommitted work is in `.claude/worktrees/agent-*` — Ashdown had Opening Drive
-and Long Meadow done (a 9×9 pond, a 15-stone wall, 52 trees). Next time, one
-course at a time, by hand or by a single agent.
+**Where round two stands (v1.81.0).** Done: `pond`, `forest`, **all of
+Ashdown Park**, **all of Dunmore Heath** (Gorse Corner's and Long Ling's burns,
+The Beacon's tarn and Long Ling's pond are hollows; its treelines are strips
+and its stakes stand five back behind scrub wood — The Ravine's gorge is
+ground, not water, and is carved since v1.91.0) and **all of Whinstone Links** — its burn, its two pools and the
+water behind Elbow Point's green are hollows now, and The Ait is a round island
+in a ring of water (a disc of rough 0.45 up, because a pond's box drowns
+everything under its surface — the cup included — and the base ground is cut
+away under it so the green has one bed). Ashdown, for the record: Every box of water on it is a hollow now — Opening Drive's burn
+(`burn`), Long Meadow's and The Elbow's ponds (`mere`), Homeward's lake as
+three pools stepping down the fall — every straight treeline is a ragged strip
+(`forest` with a narrow oval), and the stakes stand six units back
+(`widen`) behind a wood on each side. The bot's card is unchanged (−13) and
+every par 4 and 5 still leaves a second shot. The four per-course agents of
+v1.72.0 were stopped part-way and their worktrees were never committed; that
+work is not coming back and this pass did not need it.
+
+What Ashdown taught, for Whinstone, Dunmore and Redstone:
+- **A pond wants many small lobes, not a few big ones.** Three to six hollows
+  of 2–4 units come out as that many circles with waists between them; `mere`
+  packs a dozen-plus at 0.75 of a radius apart and the shoreline is one curve.
+  Its `depth` is what the middle comes to.
+- **On a fall, depth is what buys water.** The level is the lowest ground
+  round the lobes *and* round the box (the box's downhill corner is lower than
+  any rim — that was the audit's `water-spills`), so a hollow on a slope only
+  fills its bottom. Homeward's pools needed 3.4–3.6 of depth to come out five
+  units wide on a 0.055 cross-fall plus the rows' own 0.09.
+- **One sheet of water cannot lie on ground that drops two units along it**:
+  that is why Homeward's lake was five boxes in a staircase, and it is a chain
+  of pools now for the same reason.
+- **Keep a hollow's whole radius off fairway cells**, not just its water —
+  the tails are what tip a fairway past `HOLD`. A `mere`'s hollows reach about
+  0.87·rx + 0.72·min(rx, rz) from its middle.
+- **Trees cost about four meshes each.** Ashdown went from 14–21 trees a hole
+  to 19–42, which is +10–15% meshes and +5–14% triangles (Homeward, the
+  heaviest, is 206k). Forty a hole is about the budget.
+- **The renderer's depth buffer was 16-bit** whenever post-processing was on
+  (three.js r128 gives a render target with no stencil DEPTH_COMPONENT16), so
+  from the overview a pond in a hollow came back as its bounding box. Fixed in
+  `postfx.js`; if a far view ever shows something drawn through the ground,
+  that is the first place to look.
+
+**Curved canyons, started (v1.83.0).** The owner said go: First Cut's canyon
+is carved (`gully`) on a bent line, with bare rock on its steep near wall
+(`carve(…, { rock: true })`, render.js → `splitSteep`), it runs off both edges
+of the ground, and its stakes are five back. The bot's card and drive are the
+same, and from the floor it is a shot lost. **The Rim** followed (v1.84.0):
+the line runs south so the canyon opens east, banked towards the fairway and
+sheer on the outside, and its far bank is a shade narrower (`o2: 3, r2: 4`)
+so the whole carve stops short of the green on its lip. Mind props near a
+carved canyon: a stone seated off its middle on a 60° wall floats (the
+audit's `prop-afloat`). **Stone Bridge** (v1.85.0) is two segments of one
+gully with the bridge as the ground neither reaches; the west one is a `pond`
+with `freeboard: 0.7` (water set down in the canyon, not brim-full) and stops
+inside the ground — a pond's water is its box, and a box past the edge of the
+ground hangs over the desert. **Long Way Round** (v1.87.0): the bite starts in a rounded end east of the
+west lane (six units of fairway now, from seven and a half, to give the end
+cap room) and runs out of the east side. The same release swapped `gully`'s
+two chains for four: two left a V in the floor with a climb out of 1.4 to 2
+that trapped the bot outright — check any carved floor with the bot from
+its lowest point, not just from the tee. **Switchback** (v1.88.0): both
+crossings carved in eleven-unit bands (the island is fourteen long now, from
+sixteen), both running out of both sides. **Redstone** (v1.89.0): its canyon
+carved, and the mesa an oval disc that `stands` (README → "The gorge" for why
+the flag is load-bearing twice). **All six of Redstone's crossings are carved;
+round two is done on all four long courses.** **The Ravine** (v1.91.0): the
+last `ravine` in the long game, carved at `scale: 0.9` and running out of
+both sides, so no long hole has a ruled edge left. The bot's card is
+unchanged (driver, 7-iron) and every point on the floor gets out in two or
+three. Its floor is 2.8 down against Dunmore's `surroundY` of −3.2, so that
+number still moves when the gorge does.
+
+**Redstone, the spring (v1.81.0).** Long Way Round's spring is a pool in a
+hollow. That release left the stakes and the canyons alone — a cut canyon
+with ground past its ends has a dry way round it once the boundary moves, and
+a curved canyon was a gameplay call — and the owner made the call: the
+canyons are carved now and run out of both sides, which settles the stakes
+as well (above).
 
 ### Mini golf
 
@@ -195,11 +271,12 @@ course at a time, by hand or by a single agent.
 own bag.** Putter and mallet, plus the pitch and wedge on `needsLoft` holes
 (`CONFIG.MINI_BAG` / `MINI_LOFT_BAG`). With the long game's bag the bot played
 two dozen mini holes with the *driver* and flew the wedges over the designs.
-Six holes were re-tagged to say what they are about. **Still open: Deadlift**
-keeps the long bag and is flown with the driver against its own comment — with
-the mallet the pads do lift a rolled ball a step at a time, but a greedy bot
-runs past the second pad and jams on the riser; the hole wants redesigning so
-the pad sits against the riser. Seaside's findings: the mallet's reach after a
+Six holes were re-tagged to say what they are about. ~~Deadlift~~ (done,
+v1.94.0) has the mini bag now: each pad sits against its riser with a funnel
+of two banks in front of the step, and the bot holes it in three from anywhere
+on the bottom floor. Moving the pads alone was not enough — a ball beside a
+pad still jammed against the riser beside it; the funnel is what puts every
+ball rolling at the step on to the pad. Seaside's findings: the mallet's reach after a
 bank (~10 units) is what sizes an ace line; a green slope over about 0.03 makes
 a ball creep rather than stop; blurbs' left/right can be mirrored from what the
 tee shows (Sea Legs' was).
@@ -210,9 +287,19 @@ tee shows (Sea Legs' was).
    **Seaside Green is the plainest course and it is the first one.** Six flat
    rectangles with rails, no slope and nothing that moves. A gentle tilt on one
    green and one slow gate would give it life without making it hard.
-8. **Single-trick holes** — The Letterbox, Bumper City, The Sweeper and others —
-   get a second thing to read: a slope near the cup, a bank shot that saves a
-   stroke.
+8. **Single-trick holes** — ~~the mini group~~ (done, v1.82.0: the fourteen
+   straight lanes on Quarry, Tidewater and Highland were rebuilt as forks,
+   doglegs, slants and a stair round a pool, each with a safe way and a short
+   one — README → "The courses"). ~~The crazy courses~~ (done, v1.93.0):
+   First Gear has sand round its gate, The Sweeper a lay-by out of the bar's
+   reach, Bumper City is a dome-topped table with a kicker at the top of each
+   side lane, and The Mill is a windmill — sails turning in front of a door
+   (`mill`, the fourth way a wall moves). Findings from the mini pass: *a bunker at the foot of a face is a
+   lie nobody can play out of* (the greedy bot jammed in one for eight strokes
+   on Step Up; a pool there costs a stroke instead); *a sloped chute's rails
+   are one wall the height of its top* (`railFor` is a level box), so a way
+   down goes in steps with a `gaps` strip per riser; and a `channel` half-ring
+   behind a cup is a backboard that hands the ball back towards the pin.
 9. **An ace line on every mini hole.** On most of them the right play is two
    safe putts; one risky line per hole that can drop makes every tee worth a
    go. §2's "the bot could prove a hole is ace-able" is the check for it.
@@ -227,9 +314,13 @@ is a real half-pipe now; v1.68.0 put a banked turn on Quarry's
 one surface) and made Apogee's **The Crater** one smooth bowl instead of a
 nine-pad `bowl` — which also fixed its rails, stepped at three heights in the
 owner's phone screenshot. A suite rule holds curved pads to meeting their
-neighbours at every interior seam. Still to do: curved corners where a square
-one reads as a diagram (an `arc` rail in the corners of The Bend, The
-Horseshoe and the crazy courses).
+neighbours at every interior seam. **Rounded corners are done (v1.92.0)**,
+and not hole by hole: `build` rounds every outside corner of a fenced hole
+that nothing depends on (README → "Rounded corners"), about 230 of them over
+the thirteen drawn courses, with every bot card unchanged. Still square, on
+purpose: inside corners (a fillet there would be ground the hole never had),
+corners beside a gap or a neighbour, and corners with something standing in
+them.
 
 The owner's ask after the rehaul. Every wall is a straight box and nearly all
 ground is flat or a gentle hump, which is most of why a mini course reads as
@@ -239,6 +330,13 @@ floor rises toward the outside so pace carries a ball round it), and
 **half-pipes / loops** where the ground itself curves. The physics already
 solves rotated boxes and humped ground; an arc rail is the cheap first step,
 and a banked floor is `padHeight` learning a curved profile.
+
+**The loop is built (v1.90.0)** — not as ground (a height field has no
+ceiling) but as a track the ball rides, with honest energy and a fall off the
+top: README → "The loop", on Helter Skelter's *Loop the Loop*. The camera
+swings to the side to watch a ride (v1.99.0), and the second loop is the
+bobsleigh at the end of Icehouse Yard (v1.100.0, The Cold Room), where the ice
+hands a ball that falls off it all the way back down the hall.
 
 ### Then: Challenge mode (the owner's idea) — built (v1.70.0)
 
@@ -250,9 +348,10 @@ a **curated library** on the owner's word ("it doesn't have to be all random")
 and dropped the daily seed. v1.72.0: no rails or stakes (the glass runs on and
 its edge is the boundary), rainbow glass with the grid in its shader, a
 sunset sun and wire mountains, black holes (`hole.wells`) and holes in the
-surface (`pad.voids`) as two new families. v1.74.0 swapped the bounce sparks and flat light rings for a boat's wake drawn in the glass shader. Open: try every weather on the
-neon theme (the owner asked — only `clear` is in its list so far), moving
-waves, and more variants.
+surface (`pad.voids`) as two new families. v1.74.0 swapped the bounce sparks and flat light rings for a boat's wake drawn in the glass shader. Every weather was tried on
+the neon theme (the owner asked): clear, fair, golden, and rain and drizzle
+in neon cyan are in its list since v1.98.0 (README → "Challenge mode");
+overcast, mist and dust are out. Open: moving waves, and more variants.
 
 The original ask, kept for reference:
 
@@ -298,12 +397,10 @@ card shapes are already there to hang a third off (`CARDS` in `bag.js`).
 - **The bot could prove a hole is ace-able**, not only solvable, on the holes
   where that is the design. Sea Legs is the first hole where the ace *is* the
   point, and nothing measures that it stays available.
-- **The bag models pockets, a strap and a foot ring** that are below the bottom
-  of the screen on every window anybody uses. Either move them into the band
-  that shows or stop building them.
 - **`tests.html` walks greens on a 0.3 grid** and misses peaks between samples
   (see §1). A finer grid, or sampling at each hump's own steepest radius.
-- **Pass-and-play local multiplayer**: 2–4 players taking turns with color-coded balls.
+- ~~**Pass-and-play local multiplayer**~~ (done, v1.101.0 — README → "Pass
+  and play"). Open: names a player can type, and a record per player.
 - **1-click level editor sharing**: export custom holes as a compressed URL or snippet.
 
 ---

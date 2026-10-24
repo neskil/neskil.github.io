@@ -65,6 +65,9 @@ Folder-based routing — each major page or app is fully isolated with its own
     routes, road-sign section headers (Barlow Semi Condensed) and number
     plates for answers. Chart colours are the validated categorical order
     noted in `bil/style.css`; keep them out of the theming.
+  - **`/wow/`** is Warcraft-themed on the owner's request: night
+    sky, gilded Cinzel type, party frames and quest log. Keep it in the
+    game's look rather than the site's slate glass.
 - **Analytics**: every page a visitor can land on must include the Google
   Analytics tag (`G-9GP823TGLB`) in its `<head>` — not just the ones in the
   sitemap. `tools/check-site.mjs` enforces this; the only exception is

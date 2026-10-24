@@ -1926,13 +1926,34 @@
         state.aim.keyboard = false;
     }
 
+    /* Where a shot can be started. Not only the canvas: the origin is
+       wherever the finger lands, so any spot will do, and on a turned phone
+       the tee is at the bottom of the board — the natural place for the
+       thumb that pulls back from it is the meter and the blank strip under
+       the board, which used to swallow the touch. The letterbox round the
+       board counts too, and when the page is all game (see resize) so does
+       the page itself. Controls, the scoreboard and the banner never do. */
+    function onSurface(t) {
+        var stage = $('stage');
+        if (t === canvas || t === stage || $('power').contains(t)) return true;
+        return document.documentElement.classList.contains('drag-anywhere') &&
+            (t === $('wrap') || t === document.body || t === document.documentElement);
+    }
+
     function bindInput() {
-        canvas.addEventListener('pointerdown', function (e) {
-            if (auto) { toast('The caddie has the club — press Autoplay or Esc to take it back'); return; }
-            if (state.phase !== 'aim') {
-                if (state.phase === 'holed') advanceHole();
+        document.addEventListener('pointerdown', function (e) {
+            if (!onSurface(e.target)) return;
+            var onBoard = e.target === canvas || e.target === $('stage');
+            if (auto) {
+                if (onBoard) toast('The caddie has the club — press Autoplay or Esc to take it back');
                 return;
             }
+            if (state.phase !== 'aim') {
+                if (onBoard && state.phase === 'holed') advanceHole();
+                return;
+            }
+            // Captured by the canvas wherever it started, so the moves and the
+            // release come to the listeners below.
             canvas.setPointerCapture(e.pointerId);
             state.aim.origin = toWorld(e);
             aimFrom(state.aim.origin);
@@ -2068,6 +2089,18 @@
         var side = window.innerHeight <= 520 && window.innerWidth >= window.innerHeight * 1.3;
         document.body.classList.toggle('is-side', side);
         var top = stage.getBoundingClientRect().top;
+        // The wrap's own padding: none on the page, a frame in fullscreen.
+        var box = getComputedStyle(full ? wrap : document.body);
+        var wrapBox = getComputedStyle(wrap);
+        /* Fullscreen centres the wrap's content in the screen, so the board's
+           top edge moves with the board's own size: a small board sits lower,
+           leaves less room and stays small, and a big one sits higher and
+           grows a little more on every resize. Measure the chrome above the
+           board instead, from the top of the wrap's content. */
+        if (full) {
+            top = (parseFloat(wrapBox.paddingTop) || 0) +
+                top - wrap.firstElementChild.getBoundingClientRect().top;
+        }
 
         // Measure the reference text only while it is on screen, and keep the
         // figure: the tight-mode decision below has to be answerable when the
@@ -2087,7 +2120,7 @@
            material you read once — the board is the game. */
         // The page's own bottom padding is part of the budget; without it the
         // board fits the viewport and the document still scrolls by an inch.
-        var pad = full ? 14 : (parseFloat(getComputedStyle(document.body).paddingBottom) || 0) + 4;
+        var pad = (parseFloat(box.paddingBottom) || 0) + 4;
         // In the side layout the meter is in the column, not under the board.
         var meter = side ? 0 : $('power').offsetHeight + 10;   // always on, even in fullscreen
         var room = window.innerHeight - top - pad - meter;
@@ -2098,14 +2131,22 @@
            height of the screen less the padding round it, whatever the board
            happens to be this frame. */
         if (side) {
-            var box = getComputedStyle(full ? wrap : document.body);
-            room = window.innerHeight - (parseFloat(box.paddingTop) || 0) - (parseFloat(box.paddingBottom) || 0) - 4;
+            room =window.innerHeight - (parseFloat(box.paddingTop) || 0) - (parseFloat(box.paddingBottom) || 0) - 4;
         }
         var tight = !full && !side && (room - chromeH) < C.WORLD_H * 0.7;
         document.body.classList.toggle('is-tight', tight);
+        // With the reference text gone the page fits the screen and has
+        // nothing to scroll, so all of it can take the start of a shot.
+        document.documentElement.classList.toggle('drag-anywhere', full || side || tight);
 
         var availH = room - ((full || tight || side) ? 0 : chromeH);
-        var availW = side ? wrap.clientWidth - $('power').offsetWidth - 10 : wrap.clientWidth;
+        /* The width the canvas can actually have: clientWidth counts the
+           wrap's padding, which fullscreen adds, and the stage's border sits
+           inside it too. Asked for more, the canvas's max-width squeezed it
+           and the board was drawn narrower than it is tall. */
+        var inner = wrap.clientWidth - (parseFloat(wrapBox.paddingLeft) || 0) -
+            (parseFloat(wrapBox.paddingRight) || 0) - (stage.offsetWidth - stage.clientWidth);
+        var availW = side ? inner - $('power').offsetWidth - 10 : inner;
 
         /* A phone held upright has a screen the wrong shape for a 3:2 field:
            fitted flat, the board is a strip 260px tall across the top of a

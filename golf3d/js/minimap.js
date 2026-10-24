@@ -178,7 +178,10 @@
         var k, wl, B;
         for (k = 0; k < hole.walls.length; k++) {
             wl = hole.walls[k];
-            B = P.wallBox(wl, 0);
+            // Sails are drawn as the line they turn in rather than as the one
+            // sail that happens to be down at the start of the clock.
+            B = wl.sails ? { cx: wl.x + wl.w / 2, cz: wl.z + wl.d / 2, hw: wl.w / 2, hd: wl.d / 2, yaw: 0 }
+                : P.wallBox(wl, 0);
             if (wl.kind === 'tree') {
                 g.fillStyle = 'rgb(' + TREE.join(',') + ')';
                 g.beginPath();
@@ -191,7 +194,8 @@
             g.rotate(-B.yaw);
             g.fillStyle = wl.kind === 'blade' ? '#d8523f'
                 : wl.kind === 'gate' ? '#e0a13a'
-                : wl.kind === 'beam' ? '#9a6a3c'
+                : wl.kind === 'beam' || wl.kind === 'sails' ? '#9a6a3c'
+                : wl.kind === 'mill' ? '#ebe4d3'
                 : 'rgb(' + RAIL.join(',') + ')';
             g.fillRect(-B.hw * scale, -B.hd * scale,
                 Math.max(1, B.hw * 2 * scale), Math.max(1, B.hd * 2 * scale));
@@ -221,6 +225,27 @@
             g.beginPath();
             g.arc(toX(wp.x), toY(wp.z), Math.max(1, wp.r * 0.6 * scale), 0, 6.283);
             g.fill();
+        }
+
+        /* The loops, drawn the way they look from straight above: the track
+           seen edge-on is a band from one side of the circle to the other,
+           stepping across by its corkscrew as it goes. Drawn as its own
+           footprint so the plan says why the lane narrows to a mouth there. */
+        var ls = hole.loops || [], lp, F, t, th, fw, la;
+        for (q = 0; q < ls.length; q++) {
+            lp = ls[q];
+            F = P.loopFrame(lp);
+            g.strokeStyle = 'rgb(244,122,178)';
+            g.lineWidth = Math.max(1.5, 0.5 * scale);
+            g.beginPath();
+            for (t = 0; t <= 48; t++) {
+                th = t / 48 * Math.PI * 2;
+                fw = lp.R * Math.sin(th);
+                la = F.k * th;
+                if (t === 0) g.moveTo(toX(lp.x + F.fx * fw + F.lx * la), toY(lp.z + F.fz * fw + F.lz * la));
+                else g.lineTo(toX(lp.x + F.fx * fw + F.lx * la), toY(lp.z + F.fz * fw + F.lz * la));
+            }
+            g.stroke();
         }
 
         // The tee, and the hole itself. Both are drawn at a size you can see
