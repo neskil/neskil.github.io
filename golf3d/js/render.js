@@ -1210,6 +1210,7 @@
             [pad.x + pad.w, pad.z + pad.d, pad.x, pad.z + pad.d],
             [pad.x, pad.z + pad.d, pad.x, pad.z]
         ];
+        if (pad.round) return roundedOutline(pad, step);
         for (i = 0; i < sides.length; i++) {
             var s0 = sides[i];
             var len = Math.hypot(s0[2] - s0[0], s0[3] - s0[1]);
@@ -1220,6 +1221,61 @@
             }
         }
         return pts;
+    }
+
+    /* A rounded rectangle (courses.roundCorners), walked the way padOutline
+       walks a square one — near end, east side, far end, west side — with
+       each rounded corner as an arc of its own rather than as the corner
+       points squashed on to it. */
+    function roundedOutline(pad, step) {
+        var c = pad.round, pts = [], i, k, n, r, t;
+        var x0 = pad.x, z0 = pad.z, x1 = pad.x + pad.w, z1 = pad.z + pad.d;
+        // Each corner in walking order: where it is, its radius, and the
+        // bearing its arc starts at (atan2 of z, x about its centre).
+        var corners = [[x0, z0, c.sw || 0, Math.PI], [x1, z0, c.se || 0, Math.PI * 1.5],
+                       [x1, z1, c.ne || 0, 0], [x0, z1, c.nw || 0, Math.PI / 2]];
+        for (i = 0; i < 4; i++) {
+            var cn = corners[i], nx = corners[(i + 1) % 4];
+            r = cn[2];
+            if (r) {
+                var ox = cn[0] + (cn[0] === x0 ? r : -r), oz = cn[1] + (cn[1] === z0 ? r : -r);
+                n = Math.max(4, Math.ceil(r * Math.PI / 2 / Math.min(step, 0.15)));
+                for (k = 0; k < n; k++) {
+                    t = cn[3] + Math.PI / 2 * k / n;
+                    pts.push([ox + Math.cos(t) * r, oz + Math.sin(t) * r]);
+                }
+            } else {
+                pts.push([cn[0], cn[1]]);
+            }
+            // …then the straight between this corner's curve and the next's.
+            var ax = cn[0], az = cn[1], bx = nx[0], bz = nx[1];
+            var len = Math.hypot(bx - ax, bz - az), ux = (bx - ax) / len, uz = (bz - az) / len;
+            var from = r, to = len - nx[2];
+            n = Math.max(1, Math.round((to - from) / step));
+            for (k = 0; k < n; k++) {
+                t = from + (to - from) * k / n;
+                pts.push([ax + ux * t, az + uz * t]);
+            }
+        }
+        return pts;
+    }
+
+    /* Where a point in a pad's rectangle is pulled to by its rounded
+       corners: unchanged if it is on the ground, and radially on to the arc
+       if it is in the corner the curve gave up. The terrain grid goes through
+       this so a contoured pad's edge is the curve and not a staircase. */
+    function ontoRound(pad, x, z, out) {
+        var c = pad.round, west = x < pad.x + pad.w / 2, south = z < pad.z + pad.d / 2;
+        var r = south ? (west ? c.sw : c.se) : (west ? c.nw : c.ne);
+        out[0] = x; out[1] = z;
+        if (!r) return out;
+        var ox = west ? pad.x + r : pad.x + pad.w - r, oz = south ? pad.z + r : pad.z + pad.d - r;
+        var dx = x - ox, dz = z - oz;
+        if ((west ? dx > 0 : dx < 0) || (south ? dz > 0 : dz < 0)) return out;
+        var l = Math.hypot(dx, dz);
+        if (l <= r) return out;
+        out[0] = ox + dx / l * r; out[1] = oz + dz / l * r;
+        return out;
     }
 
     /* The wall of earth under a piece of terrain: one quad per outline segment,
@@ -1421,13 +1477,20 @@
         var uv = new Float32Array(nx * nz * 2);
         var idx = [], i, j, k, x, fit = mownFit(pad, xs, zs, cx, cz, cut);
 
+        var rp = [0, 0], zz;
         for (i = 0; i < nx; i++) {
             for (j = 0; j < nz; j++) {
                 k = i * nz + j;
                 x = fit ? fit(i, j) : xs[i];
+                zz = zs[j];
+                // A rounded corner bends the grid on to its curve.
+                if (pad.round) {
+                    ontoRound(pad, cx + x, cz + zz, rp);
+                    x = rp[0] - cx; zz = rp[1] - cz;
+                }
                 pos[k * 3] = x;
-                pos[k * 3 + 1] = P.padHeight(pad, cx + x, cz + zs[j]) - cy;
-                pos[k * 3 + 2] = zs[j];
+                pos[k * 3 + 1] = P.padHeight(pad, cx + x, cz + zz) - cy;
+                pos[k * 3 + 2] = zz;
             }
         }
         for (i = 0; i < nx - 1; i++) {
@@ -3480,6 +3543,7 @@
            renderer did not lay itself (life.js). The same arithmetic the mesh
            below is built from, rather than a second copy of it. */
         R.groundAt = function () { return theme.surroundY; };
+        R.groundMat = null;
 
         if (theme.surround === 'water') {
             // The sea makes its own shape out of its own waves, and it is flat
@@ -3509,6 +3573,18 @@
         mesh.position.set(cx, theme.surroundY, cz);
         mesh.receiveShadow = true;
         group.add(mesh);
+        /* …and the same ground for anything life.js lays into it (the moon's
+           craters): this material with a vertex colour to darken or lighten
+           it, and the tiling to lay the rock on by world position, so a
+           crater's flank carries straight on into the plain. */
+        R.groundMat = {
+            tile: SUR_TILE,
+            material: function () {
+                var m = groundMaterial(theme);
+                m.vertexColors = true;
+                return m;
+            }
+        };
     }
 
     /* ── the hills on the horizon ───────────────────────────────────────
@@ -4089,7 +4165,7 @@
         addStakes(g, hole, theme);
         for (i = 0; i < (hole.decor || []).length; i++) addDecor(g, hole.decor[i], theme, hole);
         // The long game's dressing, and what lives on it (life.js).
-        if (G3.life) G3.life.build(g, hole, themeName, theme.surround === 'water', R.groundAt);
+        if (G3.life) G3.life.build(g, hole, themeName, theme.surround === 'water', R.groundAt, R.groundMat);
         if (hole.targets) addBoards(g, hole);
 
         // The rain, the mist banks and whatever is drifting in the air are

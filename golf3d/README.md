@@ -1403,7 +1403,7 @@ carry ratio and the fact the slope does not budge.
 | --- | --- | --- | --- | --- |
 | 1 | Hang Time | 0.5 | 3 | Fourteen units of nothing between two slabs, which is more than anything in the bag carries at home. One number, said out loud, with nothing else on the hole. |
 | 2 | Dead Weight | 2 | 3 | The inversion. Eight units of gap that nothing can fly at any power, and a plank off to the east that is not the safe route but the only one. |
-| 3 | The Crater | 0.45 | 3 | Light again, and the target is the hole: a crater green on an island, because at this weight nothing stops on flat ground and the rim is the only thing that will. |
+| 3 | The Crater | 0.45 | 3 | Light again, and the target is the hole: a round crater green on an island, the rail along its crest, because at this weight nothing stops on flat ground and the rim is the only thing that will. |
 | 4 | Deadlift | 2.4 | 3 | The heaviest hole on the card, and the only one with a motor in it. Two steps of one point two, no ramps, and pads at Helter Skelter's own ratings lifting something twice as heavy — each against its riser, with a funnel of two banks in front of the step to put a rolled ball on it. Played with the mini bag. |
 | 5 | Orbit | 0.5 | 3 | A gravity well in the middle of the yard (`wells`) and the cup round the back of it: swing past close enough that it bends the ball in, not so close that it keeps it. Replaced The Mouth, a pipe hole with one answer. |
 | 6 | Apogee | 0.3 | 3 | The pad throws the ball nine and a half units up and holds it there for the best part of four seconds. Two thirds of a putter is the shot; a full one is forty units and gone. |
@@ -3768,6 +3768,23 @@ counting each prop's size. And the landmarks — the lighthouse, the Ferris
 wheel, the volcano, the windmill, the planet — go *ahead*, beyond the flag and
 a little to one side, because a portrait phone sees a narrow wedge of the
 world and a landmark on a random bearing is a landmark behind you.
+
+**The moon's craters are ground, not props** (v1.95.0). They were a dark disc
+with a torus on it — a grey doughnut on the moon from any distance — and what
+makes a crater read is light: an inner wall that faces the sun on one side and
+turns from it on the other, a lit crest, and a flank that falls away into the
+plain. So each is a height field (`life.crater`): a rim that wanders round the
+circle and up and down it from the seed, a dished floor, a peak in the middle
+of the big ones, and bright rays across the ejecta of about one in three. It is
+drawn in the plain's own material, which render.js hands over (`R.groundMat`),
+with the rock laid on by world position at the plain's tiling, so the flank
+carries straight on into the plain with no seam; a vertex colour only darkens
+the floor and lightens the crest. The plain is one mesh and cannot be dug
+into from here, so the bowl is made the other way up — the rim rises out of it
+and the floor, at the plain's own level, is painted dark. The Crater itself is
+round now too: every corner of its pad rounded to half its width, which makes
+it a circle with the rim's crest on its edge (README → "Rounded corners"; a
+contoured pad's grid is bent on to the curve by `ontoRound`).
 
 The kit is shared: static props go into one lit mesh and one unlit one (for
 what glows — lava, neon, lamps), and what moves is a handful of small groups,
