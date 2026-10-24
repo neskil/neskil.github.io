@@ -5417,22 +5417,18 @@
         build({
             /* Eleven units of crater lake, which is more than anything in the
                bag carries, and two tube mouths side by side in the ash in
-               front of it. One of them comes out on the far shore facing the
-               pin. The other comes out where you started.
+               front of it. Both of them cross.
 
-               A pipe with a bad end on it is the hole Jackpot was making the
-               same point with on the pinball table: the luckiest-looking line
-               is a bad one, and a course made of machinery you cannot aim
-               ought to have at least one machine that is not on your side. It
-               is the third hole rather than the sixth because the punishment
-               is only distance — the ball comes out on grass, facing the way
-               you were, with the whole hole still in front of it.
-
-               Which mouth is which is not marked, and it does not have to be:
-               they are three and a half units apart, and a player who takes
-               the wrong one takes the other next time. */
+               It used to be a coin toss: two unmarked mouths, one at the pin
+               and one that put you back on the tee, and nothing to tell them
+               apart but having lost to the wrong one already. A guess is not
+               a shot. Now the choice is one you can see and size up. The
+               left mouth is narrow and comes out on the far shore facing the
+               pin — the two, maybe the one. The right mouth is wide and easy
+               to find, and comes out in the far corner with a putt still to
+               play — the safe three. */
             name: 'Lava Tube', par: 3,
-            blurb: 'Two mouths in the ash and eleven units of lake. One of them comes out at the pin; one comes out here.',
+            blurb: 'Two mouths in the ash and eleven units of lake. The narrow one comes out at the pin; the wide one leaves you a putt.',
             pads: [
                 pad(0, 0, 9, 10),
                 pad(0, 21, 9, 9)
@@ -5440,8 +5436,8 @@
             water: [rect(-2, 10, 13, 11, -0.8)],
             gaps: [shore(rect(-2, 10, 13, 11), 0.6)],
             warps: [
-                pipe(2.6, 8, 3.2, 23, 0, 0.9),
-                pipe(6.4, 8, 7.8, 2.2, Math.PI, 0.9)
+                pipe(2.6, 8, 3.2, 23, 0, 0.75),
+                pipe(6.4, 8, 7.8, 22.2, 0, 1.1)
             ],
             tee: { x: 2.2, z: 1.8 }, cup: { x: 4.6, z: 26.5 }
         }),

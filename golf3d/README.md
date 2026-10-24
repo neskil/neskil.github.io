@@ -873,7 +873,7 @@ approach.
 | The Belfry | crazy | `belfry` | Two machines on every hole, geared to each other: 2:1, 3:2, 1:4, and four shutters a quarter-beat apart. Counting bars rather than beats. |
 | Icehouse Yard | adventure | `icehouse` | Nothing stops. A putter runs eight and a half units on grass and thirty-two on ice. |
 | Helter Skelter | adventure | `fairground` | Launch pads, travelators, pipes and a loop-the-loop. The floor decides; you only decide how hard. |
-| Cinder Cone | adventure | `volcano` | The same machinery pointed downhill. Belts that run back at you, vents that are the only way up, and two lava tubes — one of which comes out where you started. |
+| Cinder Cone | adventure | `volcano` | The same machinery pointed downhill. Belts that run back at you, vents that are the only way up, and two lava tubes — a narrow one at the pin and a wide one that leaves a putt. |
 | Apogee Yard | adventure | `lunar` | The floor sits still and the ball does not: six holes at six gravities. Light takes distance away as a defence; heavy takes the air. |
 | Ashdown Park | long | `parkland` | The long game, on a hillside: bluffs, a crest, a cross-fall into a lake, and two round greens. No fence — the park carries on past the stakes. |
 | Whinstone Links | long | `links` | No flat lies and no straight edges. The ground is the hazard, and on one hole it is a sandhill. |
@@ -1370,7 +1370,7 @@ only things on the course that move a ball sideways at all.
 | --- | --- | --- | --- |
 | 1 | The Ash Slide | 3 | Two and a half units of ash running back down at four. A full putter just gets over; four fifths of one is handed back to your feet, and a full driver crosses, hits the far rail and comes all the way home. |
 | 2 | Fumarole | 3 | The vent is the lift, and the shelf it throws you on to is open at both ends. Short and long cost the same thing: the lawn runs on underneath, so a miss is played again from the grass. |
-| 3 | Lava Tube | 3 | Eleven units of crater lake — more than anything in the bag carries — and two mouths in the ash in front of it. One comes out at the pin. One comes out where you started. |
+| 3 | Lava Tube | 3 | Eleven units of crater lake — more than anything in the bag carries — and two mouths in the ash in front of it. Both cross: the narrow one comes out at the pin, the wide one in the far corner with a putt to play. |
 | 4 | The Scree | 4 | A shelf with the drop down one side of it and two bands of scree that push south *and* east at once. On Crosstown a belt across the hole costs you the line; here it costs you the ball. |
 | 5 | Blowhole | 3 | Three vents, none of them a lift. A launch pad is the one obstacle in the game that neither stops the ball nor turns it — it hands the ball back travelling exactly as it was, a second later and somewhere else. |
 | 6 | Caldera | 4 | The whole course in one hole: the vent to get up, the belt along the rim to be carried along, and the tube to get in. The crater has no way into it along the ground. |
