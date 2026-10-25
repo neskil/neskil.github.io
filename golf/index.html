@@ -32,7 +32,7 @@
 
         gtag('config', 'G-9GP823TGLB');
     </script>
-    <link rel="stylesheet" href="style.css?v=1.14.0">
+    <link rel="stylesheet" href="style.css?v=1.14.1">
 <script type="application/ld+json">
     {
         "@context": "https://schema.org",
@@ -312,15 +312,16 @@
             <div id="card-body"></div>
             <div class="modal-actions">
                 <button type="button" id="card-close">Close</button>
-                <button type="button" class="primary" id="card-again">Play again</button>
+                <button type="button" id="card-again">Play again</button>
+                <button type="button" class="primary" id="card-next">Next course</button>
             </div>
         </div>
     </div>
 
     <!-- Load order is dependency order: config, then the pure logic, then the
          things that touch the screen. game.js boots itself on DOMContentLoaded. -->
-    <script src="js/config.js?v=1.14.0"></script>
-    <script src="js/courses.js?v=1.14.0"></script>
+    <script src="js/config.js?v=1.14.1"></script>
+    <script src="js/courses.js?v=1.14.1"></script>
     <script>
         /* Playtest hand-off from the hole editor. It writes one hole into
            session storage and sends the player here with ?playtest=1; swapping
@@ -354,24 +355,24 @@
             } catch (e) { /* storage disabled: fall through to the real course */ }
         })();
     </script>
-    <script src="js/physics.js?v=1.14.0"></script>
+    <script src="js/physics.js?v=1.14.1"></script>
     <!-- The caddie. Pure like physics.js; game.js plays its answers. -->
-    <script src="js/bot.js?v=1.14.0"></script>
+    <script src="js/bot.js?v=1.14.1"></script>
     <!-- Adds nothing to the rack by itself; game.js deals the draw on boot. -->
-    <script src="js/generator.js?v=1.14.0"></script>
-    <script src="js/scoring.js?v=1.14.0"></script>
+    <script src="js/generator.js?v=1.14.1"></script>
+    <script src="js/scoring.js?v=1.14.1"></script>
     <!-- Stars, unlocks and first-run lessons. Reads the save files; draws nothing. -->
-    <script src="js/progress.js?v=1.14.0"></script>
+    <script src="js/progress.js?v=1.14.1"></script>
     <!-- The biomes, and where the decoration goes. Draws nothing itself. -->
-    <script src="js/scenery.js?v=1.14.0"></script>
-    <script src="js/audio.js?v=1.14.0"></script>
+    <script src="js/scenery.js?v=1.14.1"></script>
+    <script src="js/audio.js?v=1.14.1"></script>
     <!-- Thumbnails for the course picker. Nothing on the board reads it. -->
-    <script src="js/plan.js?v=1.14.0"></script>
-    <script src="js/landscape.js?v=1.14.0"></script>
-    <script src="js/props.js?v=1.14.0"></script>
-    <script src="js/ambience.js?v=1.14.0"></script>
-    <script src="js/water.js?v=1.14.0"></script>
-    <script src="js/render.js?v=1.14.0"></script>
-    <script src="js/game.js?v=1.14.0"></script>
+    <script src="js/plan.js?v=1.14.1"></script>
+    <script src="js/landscape.js?v=1.14.1"></script>
+    <script src="js/props.js?v=1.14.1"></script>
+    <script src="js/ambience.js?v=1.14.1"></script>
+    <script src="js/water.js?v=1.14.1"></script>
+    <script src="js/render.js?v=1.14.1"></script>
+    <script src="js/game.js?v=1.14.1"></script>
 </body>
 </html>
