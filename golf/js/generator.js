@@ -1221,20 +1221,46 @@
 
     function fallbackHole(rng, primary) {
         /* The hole that cannot fail: a straight one with a collar of rough
-           and nothing else on it. Twelve re-rolls of a feature that will not
-           fit is vanishingly rare and not worth an infinite loop, and a dull
-           hole is a better answer than a hung boot or an illegal one. */
+           and a post halfway down the line, and nothing else on it. Twelve
+           re-rolls of a feature that will not fit is vanishingly rare and
+           not worth an infinite loop, and a dull hole is a better answer
+           than a hung boot or an illegal one. The post is the least a hole
+           can have and still not be a straight putt. */
         var f = makeFrame(true, 130, 830);
+        var tee = f.point(130, between(rng, 160, 480)), cup = f.point(830, between(rng, 160, 480));
         return {
             primary: primary,
-            phrases: ['nothing but the length of it'],
+            phrases: ['nothing but the length of it, and a post'],
             par: 3,
-            tee: f.point(130, between(rng, 160, 480)),
-            hole: f.point(830, between(rng, 160, 480)),
+            tee: tee,
+            hole: cup,
             walls: [], water: [], sand: [],
             rough: [f.rect(0, 960, 0, 80), f.rect(0, 960, 560, 80)],
-            ice: [], bumpers: [], slopes: []
+            ice: [], bumpers: [{ x: (tee.x + cup.x) / 2, y: (tee.y + cup.y) / 2, r: 30 }], slopes: []
         };
+    }
+
+    /* A dealt hole that a straight putt can hole gets a post on the line
+       rather than a re-roll: the feature the deck dealt it is still the
+       hole, and one post is the smallest thing that turns the putt at the
+       flag into a putt round something. A few places along the line are
+       tried, nearest the middle first, and the first that keeps every rule
+       is kept. If none does, the hole is thrown away like any other that
+       breaks one. */
+    function unstraighten(h) {
+        if (!P.straightAce(h)) return h;
+        var spots = [0.55, 0.45, 0.65, 0.35, 0.75];
+        for (var i = 0; i < spots.length; i++) {
+            var t = spots[i];
+            var copy = JSON.parse(JSON.stringify(h));
+            copy.bumpers = (copy.bumpers || []).concat([{
+                x: Math.round(h.tee.x + (h.hole.x - h.tee.x) * t),
+                y: Math.round(h.tee.y + (h.hole.y - h.tee.y) * t),
+                r: 24
+            }]);
+            if (validateHole(copy, { strict: true }).length === 0 && !P.straightAce(copy)) return copy;
+        }
+        return null;
     }
 
     function capitalise(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
@@ -1282,7 +1308,7 @@
             var candidate = (wantsElbow && attempt < 4)
                 ? tryElbow(rng, primary, cap)
                 : tryHole(rng, primary, cap);
-            if (candidate && validateHole(candidate, { strict: true }).length === 0) hole = candidate;
+            if (candidate && validateHole(candidate, { strict: true }).length === 0) hole = unstraighten(candidate);
         }
         if (!hole) hole = fallbackHole(rng, primary);
         hole.name = nameHole(rng, hole.names || FEATURES[hole.primary].names, used);

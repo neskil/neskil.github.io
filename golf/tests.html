@@ -2139,6 +2139,16 @@
         var SEEDS = [1, 7, 42, 1234, 20260908, 0xC0FFEE, 987654321, 31337,
                      555, 900001, 12, 77777];
 
+        /* A seed always deals the same course — the section below asserts
+           it — so the sections that only read a draw share one dealing of
+           each seed rather than paying for it four times over. Each gets its
+           own copy, so nothing one section does to a hole reaches another. */
+        var dealt = {};
+        function deal(seed) {
+            if (!dealt[seed]) dealt[seed] = JSON.stringify(GOLF.generateCourse(seed));
+            return JSON.parse(dealt[seed]);
+        }
+
         (function () {
             var G = GOLF.generator;
             assert('the generator is loaded', !!G && typeof GOLF.generateCourse === 'function');
@@ -2158,6 +2168,24 @@
             });
             assert('every shipped hole passes the generator\'s own rule book', shipped.length === 0,
                 shipped.slice(0, 3).join(' · '));
+
+            // The straight putt. No hole on the rack may be aced by a putt
+            // struck at the flag — at any weight, a hair either side, or at
+            // any moment of a clock — and the check has to be able to see
+            // one: an empty field is nothing but a straight putt.
+            var straight = [];
+            everyHole(function (h, i, course) {
+                var hit = GOLF.physics.straightAce(h);
+                if (hit) straight.push(course.id + ' ' + h.name + ' (' + Math.round(hit.power) + ' at ' + hit.at.toFixed(1) + 's)');
+            });
+            assert('no shipped hole is aced by a putt struck straight at the cup', straight.length === 0,
+                straight.slice(0, 4).join(' · '));
+            var bare = { par: 2, tee: { x: 200, y: 320 }, hole: { x: 600, y: 320 } };
+            GOLF.HAZARD_KEYS.forEach(function (k) { bare[k] = []; });
+            assert('…and the check finds the one an empty field gives', GOLF.physics.straightAce(bare) !== null);
+            var posted = JSON.parse(JSON.stringify(bare));
+            posted.bumpers = [{ x: 400, y: 320, r: 24 }];
+            assert('…and a post on the line answers it', GOLF.physics.straightAce(posted) === null);
 
             var a = GOLF.generateCourse(4242);
             var b = GOLF.generateCourse(4242);
@@ -2179,7 +2207,7 @@
             var problems = [], thin = 0, features = 0;
 
             SEEDS.forEach(function (seed) {
-                var course = GOLF.generateCourse(seed);
+                var course = deal(seed);
                 var tag = 'seed ' + GOLF.generator.seedLabel(seed);
                 var names = {};
                 var seen = {};
@@ -2193,6 +2221,7 @@
                     if (names[h.name]) problems.push(tag + ': two holes called ' + h.name);
                     names[h.name] = true;
                     if (!h.name || !h.blurb) problems.push(tag + ' hole ' + (i + 1) + ': no name or blurb');
+                    if (GOLF.physics.straightAce(h)) problems.push(tag + ' hole ' + (i + 1) + ': a putt straight at the cup holes it');
                     families.forEach(function (k) {
                         if (!Array.isArray(h[k])) thin++;
                         if (h[k].length) seen[k] = true;
@@ -2250,7 +2279,7 @@
 
             var round = 0, total = 0, flat = [], cheap = [];
             SEEDS.forEach(function (seed) {
-                var course = GOLF.generateCourse(seed);
+                var course = deal(seed);
                 var here = 0;
                 course.holes.forEach(function (h, i) {
                     total++;
@@ -2280,7 +2309,7 @@
             var LIMIT = 10;
             var failed = [], total = 0, holes = 0;
             SEEDS.slice(0, 8).forEach(function (seed, s) {
-                var course = GOLF.generateCourse(seed);
+                var course = deal(seed);
                 course.holes.forEach(function (h, i) {
                     var shots = botCanFinish(h, s * 31 + i, { maxShots: LIMIT, tries: 28, attempts: 2 });
                     holes++;
@@ -2300,7 +2329,7 @@
             var rand = mulberry32(606);
             var hung = 0, slowest = 0, escaped = 0, stuck = 0, holes = 0;
             SEEDS.slice(0, 6).forEach(function (seed) {
-                GOLF.generateCourse(seed).holes.forEach(function (h) {
+                deal(seed).holes.forEach(function (h) {
                     holes++;
                     for (var i = 0; i < 24; i++) {
                         var w = P.createWorld(h, h.tee, rand() * 6);
