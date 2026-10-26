@@ -986,7 +986,7 @@
             if (course.walls[i].move) L.drawWall(g, course.walls[i], t, theme, v);
         }
         for (i = 0; i < course.bumpers.length; i++) L.drawBumper(g, course.bumpers[i], t, theme, v);
-        if (GOLF.props) GOLF.props.machines(g, course, still ? 0 : clock);
+        if (GOLF.props) GOLF.props.machines(g, course, still ? 0 : clock, t, theme, v);
         // After dark, the dark: over the course, under the ball.
         if (AMB) AMB.light(g, course, theme, v, ball, scene.decor, { key: state.sceneKey, res: state.res || 1 });
 

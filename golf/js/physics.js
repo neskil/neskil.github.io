@@ -346,8 +346,30 @@
         var out = { x: 0, y: 0 };
         var s = zoneAt(course.slopes, x, y);
         if (s) { out.x += s.ax; out.y += s.ay; }
-        return hillPull(course.hills, x, y, out);
+        var hills = course.hills;
+        if (!hills || !hills.length) return out;
+        /* The green round a cup is cut level, as a real one is. A mound with
+           the cup on its top would otherwise push a ball outwards against the
+           lip while the cup's funnel drew it in, and a ball can balance on a
+           lip held like that for ever. So a mound's push fades out over the
+           last ball's width or two before the funnel. A bowl's pull is
+           towards the cup it holds, and is left alone. */
+        var hole = course.hole, level = 1;
+        if (hole) {
+            var dc = Math.hypot(x - hole.x, y - hole.y) - C.HOLE_R - C.CUP_BEVEL;
+            level = dc <= 0 ? 0 : dc >= LEVEL_RING ? 1 : dc / LEVEL_RING;
+        }
+        for (var i = 0; i < hills.length; i++) {
+            var f = hills[i].a > 0 ? level : 1;
+            if (!f) continue;
+            var one = hillPull([hills[i]], x, y, { x: 0, y: 0 });
+            out.x += one.x * f;
+            out.y += one.y * f;
+        }
+        return out;
     }
+
+    var LEVEL_RING = C.BALL_R * 3;
 
     function inHill(list, x, y, pad) {
         if (!list) return null;
@@ -356,6 +378,44 @@
             if (Math.hypot(x - hl.x, y - hl.y) < hl.r + (pad || 0)) return hl;
         }
         return null;
+    }
+
+    /* ── spinners ───────────────────────────────────────────────────────
+
+       A spinner is a turnstile laid flat on the green: `arms` rails out
+       from a pivot, `r` long and `w` thick, turning at `speed` radians a
+       second (clockwise on the screen when positive) from `phase`. Each arm
+       is a rail at the angle the clock says, and it pushes the way a gate
+       does — a moving thing handing the ball its own speed along the line
+       it meets it on — so a ball is batted out of the way rather than
+       swallowed. The rule book keeps everything solid out of its sweep, so
+       an arm can only ever bat a ball into open grass, never crush it. */
+    function spinnerArms(s, t) {
+        var out = [], n = Math.max(1, s.arms | 0), w = s.w || 20, a0 = (s.phase || 0) + s.speed * t;
+        for (var i = 0; i < n; i++) {
+            var a = a0 + i * Math.PI * 2 / n;
+            out.push({ x: s.x, y: s.y, tx: s.x + Math.cos(a) * s.r, ty: s.y + Math.sin(a) * s.r, w: w });
+        }
+        return out;
+    }
+
+    // Everything an arm sweeps: the disc round the pivot its tips draw.
+    function sweepOf(s) { return s.r + (s.w || 20) / 2; }
+
+    /* ── belts ──────────────────────────────────────────────────────────
+
+       A belt is a rectangle of ground that moves: `dir` (down, up, left or
+       right on the field) at `speed` px/s. On it the ball's grip on the
+       ground is the same as on grass, but the ground under it is going
+       somewhere, so it is the ball's speed *relative to the belt* that the
+       friction takes away: left alone on a belt, a ball comes up to the
+       belt's pace and rides it to the end. Nothing rests on a belt; the rule
+       book makes sure every belt runs out onto open grass. */
+    function beltAt(list, x, y) { return zoneAt(list, x, y); }
+
+    function beltVelocity(bt) {
+        var d = chuteDir(bt);
+        return { x: d.x * bt.speed, y: d.y * bt.speed };
     }
 
     /* ── world ──────────────────────────────────────────────────────────── */
@@ -534,6 +594,15 @@
             k = C.FRICTION_ROUGH; lnK = LN_ROUGH;
         }
 
+        // A belt is grass that moves: the friction works on the ball's speed
+        // over the belt, and the belt's own speed carries it as well.
+        var belt = aloft ? null : beltAt(course.belts, b.x, b.y), bu = null;
+        if (belt) {
+            k = C.FRICTION_GRASS; lnK = LN_GRASS;
+            bu = beltVelocity(belt);
+            b.vx -= bu.x; b.vy -= bu.y;
+        }
+
         var decay = Math.pow(k, dt);
         var travel = (decay - 1) / lnK;  // ∫₀^dt k^s ds
 
@@ -541,6 +610,10 @@
         b.y += b.vy * travel;
         b.vx *= decay;
         b.vy *= decay;
+        if (bu) {
+            b.x += bu.x * dt; b.y += bu.y * dt;
+            b.vx += bu.x; b.vy += bu.y;
+        }
 
         // Walls. Resolve the overlap first, then reflect, then add the wall's
         // own motion along the normal so a sweeping gate pushes rather than
@@ -580,6 +653,32 @@
             var c = ch[ci];
             if (b.x < c.x0 || b.x > c.x1 || b.y < c.y0 || b.y > c.y1) continue;
             hitRails(b, c.rails, events);
+        }
+
+        // Spinners: rails at the angle the clock says, which push. The
+        // response is worked in the arm's own frame — the ball's speed
+        // relative to the arm where they touch is what is reflected.
+        var spins = course.spinners || EMPTY;
+        for (var si = 0; si < spins.length; si++) {
+            var sp = spins[si];
+            if (Math.hypot(b.x - sp.x, b.y - sp.y) > sweepOf(sp) + C.BALL_R) continue;
+            var arms = spinnerArms(sp, world.time);
+            for (var ai = 0; ai < arms.length; ai++) {
+                var ah = circleRail(b.x, b.y, C.BALL_R, arms[ai]);
+                if (!ah) continue;
+                b.x += ah.nx * ah.depth;
+                b.y += ah.ny * ah.depth;
+                // Where the arm touches the ball, and how fast that point moves.
+                var cx = b.x - ah.nx * C.BALL_R, cy = b.y - ah.ny * C.BALL_R;
+                var ux = -sp.speed * (cy - sp.y), uy = sp.speed * (cx - sp.x);
+                var an = (b.vx - ux) * ah.nx + (b.vy - uy) * ah.ny;
+                if (an < 0) {
+                    b.vx -= (1 + C.RESTITUTION) * an * ah.nx;
+                    b.vy -= (1 + C.RESTITUTION) * an * ah.ny;
+                    events.bounce = true;
+                    knock(events, b, ah.nx, ah.ny, -an);
+                }
+            }
         }
 
         // Bumpers. A post the ball comes off faster than it comes off wood,
@@ -679,7 +778,7 @@
         // the green, in which case it is on its way into the cup or bouncing
         // back out of it. Every slope pulls far harder than REST_PULL, so
         // nothing ever rests on one; a bowl's bottom is level, so a ball can.
-        if (speedOf(b) < C.STOP_SPEED && !slide && grounded(b, course.hole) &&
+        if (speedOf(b) < C.STOP_SPEED && !slide && !belt && grounded(b, course.hole) &&
             (!ground || Math.hypot(ground.x, ground.y) < C.REST_PULL)) {
             b.vx = b.vy = 0;
             if (world.moving) events.rest = true;
@@ -833,9 +932,17 @@
         if (world.sunk || world.splash) return events;
 
         var b = world.ball, fall = b.vz ? Math.abs(b.vz) : 0;
+        // A spinner's tip moves whether the ball does or not, and must not
+        // jump past it between two steps either.
+        var sweep = 0, spins = world.course.spinners || EMPTY;
+        for (var si = 0; si < spins.length; si++) {
+            if (Math.hypot(b.x - spins[si].x, b.y - spins[si].y) < sweepOf(spins[si]) + C.BALL_R * 4) {
+                sweep = Math.max(sweep, Math.abs(spins[si].speed) * sweepOf(spins[si]));
+            }
+        }
         var steps = Math.min(
             C.MAX_SUBSTEPS,
-            Math.max(1, Math.ceil((speedOf(b) + fall) * dt / (C.BALL_R * 0.5)))
+            Math.max(1, Math.ceil((speedOf(b) + fall + sweep) * dt / (C.BALL_R * 0.5)))
         );
         var h = dt / steps;
         for (var i = 0; i < steps; i++) {
@@ -877,6 +984,10 @@
         inZone: inZone,
         zoneAt: zoneAt,
         circleRail: circleRail,
+        spinnerArms: spinnerArms,
+        sweepOf: sweepOf,
+        beltAt: beltAt,
+        beltVelocity: beltVelocity,
         arcRails: arcRails,
         blockRails: blockRails,
         railsOf: railsOf,

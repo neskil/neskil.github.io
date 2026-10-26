@@ -34,6 +34,8 @@
         // A lane down the mountain with a slide on a clock: a rectangle, plus
         // which way is downhill and when the slides come.
         { key: 'avalanches', label: 'Chute', round: false, color: '#dbe7f2' },
+        // Ground that moves: a rectangle with a direction and a pace.
+        { key: 'belts',   label: 'Belt',   round: false, color: '#4b525c' },
         { key: 'sand',    label: 'Sand',   round: false, color: '#e3ca92' },
         { key: 'water',   label: 'Water',  round: false, color: '#1b6d9e' },
         { key: 'lava',    label: 'Lava',   round: false, color: '#f05a1a' },
@@ -48,15 +50,17 @@
         // A solid shape: always a polygon, and what stands in it.
         { key: 'blocks',  label: 'Block',  round: false, block: true, color: '#3d6b2c' },
         { key: 'walls',   label: 'Wall',   round: false, color: '#6d4a2e' },
-        { key: 'bumpers', label: 'Post',   round: true,  color: '#f59e0b' }
+        { key: 'bumpers', label: 'Post',   round: true,  color: '#f59e0b' },
+        // A turnstile: a pivot and the reach of its arms, grabbed like a post.
+        { key: 'spinners', label: 'Spinner', round: true, spin: true, color: '#fbbf24' }
     ];
     var KIND_KEYS = KINDS.map(function (k) { return k.key; });
     // The order courses.js lists them in, which is not the order they are
     // painted in. The export follows the file; the sidebar follows the paint.
     var EXPORT_ORDER = ['walls', 'rails', 'arcs', 'blocks', 'water', 'lava', 'sand', 'rough', 'ice', 'bumpers', 'slopes', 'hills',
-                        'tunnels', 'avalanches', 'vents'];
+                        'tunnels', 'avalanches', 'vents', 'spinners', 'belts'];
     // What a block may have standing in it. See props.js.
-    var LOOKS = ['bed', 'tree', 'hedge', 'rock', 'castle', 'windmill', 'fan'];
+    var LOOKS = ['bed', 'tree', 'hedge', 'rock', 'castle', 'windmill', 'fan', 'tent', 'carousel', 'wheel', 'mirror', 'hut', 'pyramid', 'palm', 'snowman'];
     // The zones that may be drawn as polygons. Walls at an angle are rails,
     // and a slope's rules are written for edges that run with the axes.
     var POLY_KINDS = { water: 1, lava: 1, sand: 1, rough: 1, ice: 1 };
@@ -69,7 +73,7 @@
     var DEFAULT_RECT = {
         walls: [26, 160], water: [200, 140], sand: [180, 160],
         rough: [240, 170], ice: [220, 180], slopes: [260, 220],
-        lava: [200, 140], avalanches: [120, 420], blocks: [120, 100]
+        lava: [200, 140], avalanches: [120, 420], blocks: [120, 100], belts: [260, 70]
     };
     var HANDLE = 6;             // hit radius for a resize grip, in screen pixels
     var SAVE_KEY = 'miniGolf.editor.v1';
@@ -118,7 +122,7 @@
             tee: { x: 140, y: 320 },
             hole: { x: 820, y: 320 },
             walls: [], water: [], sand: [], rough: [], ice: [], bumpers: [], slopes: [], tunnels: [], rails: [],
-            lava: [], avalanches: [], vents: [], arcs: [], blocks: [], hills: []
+            lava: [], avalanches: [], vents: [], arcs: [], blocks: [], hills: [], spinners: [], belts: []
         };
     }
 
@@ -148,6 +152,10 @@
         if (kind === 'rails') return { x: num(s.x, 0), y: num(s.y, 0), tx: num(s.tx, 0), ty: num(s.ty, 0), w: num(s.w, 24) };
         if (kind === 'vents') return { x: num(s.x, 0), y: num(s.y, 0), every: num(s.every, 3), at: num(s.at, 0), run: num(s.run, 1) };
         if (kind === 'hills') return { x: num(s.x, 0), y: num(s.y, 0), r: num(s.r, 90), a: num(s.a, 120) };
+        if (kind === 'spinners') {
+            return { x: num(s.x, 0), y: num(s.y, 0), r: num(s.r, 100), arms: Math.max(1, Math.min(4, Math.round(num(s.arms, 2)))),
+                     speed: num(s.speed, 1), phase: num(s.phase, 0), w: num(s.w, 20) };
+        }
         if (kind === 'arcs') {
             return { x: num(s.x, 0), y: num(s.y, 0), r: num(s.r, 120), from: num(s.from, 180), to: num(s.to, 360), w: num(s.w, 24) };
         }
@@ -160,6 +168,10 @@
         if (kind === 'slopes') {
             o.ax = num(s.ax, 0); o.ay = num(s.ay, 120);
             if (s.wind) o.wind = true;
+        }
+        if (kind === 'belts') {
+            o.dir = ['down', 'up', 'left', 'right'].indexOf(s.dir) >= 0 ? s.dir : 'right';
+            o.speed = num(s.speed, 140);
         }
         if (kind === 'avalanches') {
             o.dir = ['down', 'up', 'left', 'right'].indexOf(s.dir) >= 0 ? s.dir : 'down';
@@ -395,7 +407,7 @@
         var s = selShape();
         if (!s) { ctx.restore(); return; }
 
-        if (S.sel.kind === 'bumpers' || S.sel.kind === 'hills') {
+        if (S.sel.kind === 'bumpers' || S.sel.kind === 'hills' || S.sel.kind === 'spinners') {
             ctx.beginPath();
             ctx.arc(s.x, s.y, s.r + 3, 0, Math.PI * 2);
             ctx.stroke();
@@ -531,7 +543,7 @@
             }
             return null;
         }
-        if (S.sel.kind === 'bumpers' || S.sel.kind === 'hills') {
+        if (S.sel.kind === 'bumpers' || S.sel.kind === 'hills' || S.sel.kind === 'spinners') {
             if (Math.abs(wx - (s.x + s.r)) <= tol && Math.abs(wy - s.y) <= tol) return { id: 'r' };
             return null;
         }
@@ -678,7 +690,7 @@
             drag.moved = Math.abs(p.wx - drag.x0) > 3 || Math.abs(p.wy - drag.y0) > 3;
             if (k.point) {
                 drag.preview = { x: drag.x0, y: drag.y0 };
-            } else if (k.arc || k.hill) {
+            } else if (k.arc || k.hill || k.spin) {
                 drag.preview = { x: drag.x0, y: drag.y0, r: drag.moved ? Math.max(40, Math.round(Math.hypot(p.wx - drag.x0, p.wy - drag.y0))) : 110 };
             } else if (k.round) {
                 var rad = Math.max(C.BUMPER_MIN_R, Math.round(Math.hypot(p.wx - drag.x0, p.wy - drag.y0)));
@@ -727,7 +739,7 @@
         } else if (drag.type === 'move') {
             s.x = snapVal(p.wx + drag.dx, e);
             s.y = snapVal(p.wy + drag.dy, e);
-        } else if (drag.type === 'radius' && (S.sel.kind === 'hills' || S.sel.kind === 'arcs')) {
+        } else if (drag.type === 'radius' && (S.sel.kind === 'hills' || S.sel.kind === 'arcs' || S.sel.kind === 'spinners')) {
             s.r = Math.max(40, Math.round(Math.hypot(snapVal(p.wx, e) - s.x, snapVal(p.wy, e) - s.y)));
         } else if (drag.type === 'radius') {
             s.r = Math.max(C.BUMPER_MIN_R, Math.round(Math.abs(snapVal(p.wx, e) - s.x)));
@@ -762,6 +774,8 @@
             shape = { x: clampX(d.x0), y: clampY(d.y0), every: 3, at: 0, run: 1 };
         } else if (k.hill) {
             shape = { x: d.x0, y: d.y0, r: d.preview ? d.preview.r : 110, a: 120 };
+        } else if (k.spin) {
+            shape = { x: d.x0, y: d.y0, r: d.preview ? Math.min(d.preview.r, 160) : 100, arms: 2, speed: 1, phase: 0, w: 20 };
         } else if (k.arc) {
             shape = { x: d.x0, y: d.y0, r: d.preview ? d.preview.r : 110, from: 180, to: 360, w: 24 };
         } else if (k.round) {
@@ -781,6 +795,7 @@
         }
         if (kind === 'slopes') { shape.ax = 0; shape.ay = 150; }
         if (kind === 'avalanches') { shape.dir = 'down'; shape.every = 4; shape.at = 0; }
+        if (kind === 'belts') { shape.dir = shape.w >= shape.h ? 'right' : 'down'; shape.speed = 140; }
         // A block is a shape from the start: four corners to drag about.
         if (kind === 'blocks') {
             shape = { look: 'bed', pts: [shape.x, shape.y, shape.x + shape.w, shape.y, shape.x + shape.w, shape.y + shape.h, shape.x, shape.y + shape.h], w: 20 };
@@ -941,12 +956,14 @@
         }
         if (kind === 'vents') return '@ ' + Math.round(s.x) + ',' + Math.round(s.y) + '  blows ' + s.run + 's of ' + s.every + 's';
         if (kind === 'hills') return (s.a < 0 ? 'bowl' : 'mound') + ' r ' + Math.round(s.r) + ' @ ' + Math.round(s.x) + ',' + Math.round(s.y);
+        if (kind === 'spinners') return s.arms + ' arms r ' + Math.round(s.r) + ' @ ' + Math.round(s.x) + ',' + Math.round(s.y) + '  ' + s.speed + ' rad/s';
         if (kind === 'arcs') return 'r ' + Math.round(s.r) + ' @ ' + Math.round(s.x) + ',' + Math.round(s.y) + '  ' + Math.round(s.from) + '°→' + Math.round(s.to) + '°';
         if (kind === 'blocks') return s.look + ' · ' + s.pts.length / 2 + ' corners';
         if (s.pts) return 'polygon · ' + s.pts.length / 2 + ' corners';
         var base = Math.round(s.w) + '×' + Math.round(s.h) + ' @ ' + Math.round(s.x) + ',' + Math.round(s.y);
         if (kind === 'slopes') base += '  ↘ ' + Math.round(s.ax) + ',' + Math.round(s.ay) + (s.wind ? ' (wind)' : '');
         if (kind === 'avalanches') base += '  ' + ({ down: '↓', up: '↑', left: '←', right: '→' }[s.dir] || '↓') + ' every ' + s.every + 's';
+        if (kind === 'belts') base += '  ' + ({ down: '↓', up: '↑', left: '←', right: '→' }[s.dir] || '→') + ' ' + s.speed + 'px/s';
         if (kind === 'walls' && s.move) base += '  ↔ ' + s.move.axis + ' ' + Math.round(s.move.amp);
         return base;
     }
@@ -1045,6 +1062,16 @@
                 '<div class="hint" style="margin-top:6px">A mound sheds the ball off its sides; a bowl gathers it to ' +
                 'the middle, where it can come to rest. Keep it clear of the cushion and of anything solid — it would ' +
                 'hold the ball against them for ever.</div>';
+        } else if (S.sel.kind === 'spinners') {
+            html += numRow('pivot x', 'x', s.x) + numRow('pivot y', 'y', s.y) +
+                numRow('arm length', 'r', s.r, 5) +
+                numRow('arms', 'arms', s.arms, 1, 'One to four') +
+                numRow('speed', 'speed', s.speed, 0.1, 'Radians a second, clockwise when positive — 0.3 to 3') +
+                numRow('phase', 'phase', s.phase, 0.1, 'Where the first arm points at the start, in radians') +
+                numRow('thickness', 'w', s.w, 1, 'Nothing thinner than ' + MIN_SIDE + 'px') +
+                '<div class="hint" style="margin-top:6px">A turnstile laid flat: its arms bat the ball on as they come ' +
+                'round. Keep the whole disc it sweeps, and a ball\'s width round it, clear of anything solid, the cushion, ' +
+                'the tee and the cup — an arm must never be able to crush a ball.</div>';
         } else if (S.sel.kind === 'arcs') {
             html += numRow('centre x', 'x', s.x) + numRow('centre y', 'y', s.y) +
                 numRow('radius', 'r', s.r, 5) +
@@ -1107,6 +1134,18 @@
                 '> it is wind, not ground — put a fan block at its head</label></div>' +
                 '<div class="hint" style="margin-top:6px">A slope must not reach a cushion or a wall it can pin the ball ' +
                 'against: a ball inside a slope zone is never counted as at rest, so it would rattle there for ever.</div>';
+        }
+
+        if (S.sel.kind === 'belts') {
+            html += '<div class="subhead">Running</div>' +
+                '<div class="row"><span class="lbl">runs</span><span class="field"><select data-field="dir">' +
+                ['right', 'left', 'down', 'up'].map(function (d) {
+                    return '<option value="' + d + '"' + (s.dir === d ? ' selected' : '') + '>' + d + '</option>';
+                }).join('') + '</select></span></div>' +
+                numRow('speed', 'speed', s.speed, 10, 'Pixels a second, 40 to 320') +
+                '<div class="hint" style="margin-top:6px">Ground that moves: a ball on it comes up to its pace and rides ' +
+                'it to the end. The far end has to run out onto open grass — not into the cushion or anything solid — and ' +
+                'nothing else may lie on a belt.</div>';
         }
 
         if (S.sel.kind === 'avalanches') {
@@ -1223,8 +1262,8 @@
         if (!target) return;
         for (var i = 0; i < inputs.length; i++) {
             var f = inputs[i].dataset.field;
-            var v = f === 'amp' || f === 'speed' || f === 'phase'
-                ? (target.move ? target.move[f] : null)
+            var v = (f === 'amp' || f === 'speed' || f === 'phase') && target.move
+                ? target.move[f]
                 : target[f];
             if (v === null || v === undefined || document.activeElement === inputs[i]) continue;
             inputs[i].value = Math.round(v * 1000) / 1000;
@@ -1256,15 +1295,16 @@
             if (el.checked) target.wind = true; else delete target.wind;
             return;
         }
-        if (f === 'amp' || f === 'speed' || f === 'phase') {
+        if ((f === 'amp' || f === 'speed' || f === 'phase') && target.move) {
             target.move[f] = parseFloat(el.value) || 0;
             return;
         }
+        if (f === 'arms') { target.arms = Math.max(1, Math.min(4, Math.round(parseFloat(el.value) || 2))); return; }
 
         var v = parseFloat(el.value);
         if (!isFinite(v)) return;
         if (f === 'w' || f === 'h') v = Math.max(MIN_SIDE, v);
-        if (f === 'r') v = Math.max(S.sel.kind === 'hills' || S.sel.kind === 'arcs' ? 40 : C.BUMPER_MIN_R, v);
+        if (f === 'r') v = Math.max(S.sel.kind === 'hills' || S.sel.kind === 'arcs' || S.sel.kind === 'spinners' ? 40 : C.BUMPER_MIN_R, v);
         if ((S.sel.kind === 'tee' || S.sel.kind === 'hole') && f === 'x') v = clampX(v);
         if ((S.sel.kind === 'tee' || S.sel.kind === 'hole') && f === 'y') v = clampY(v);
         target[f] = v;
@@ -1377,6 +1417,78 @@
             ok(!h.hills.some(function (hl) { return Math.hypot(h.tee.x - hl.x, h.tee.y - hl.y) < hl.r + C.BALL_R; }),
                 'the tee is off every hill', 'a ball teed up on a hill would not stay there');
         }
+        /* Spinners and belts — generator.js → validateHole, ported. An arm
+           must never be able to crush a ball, so its whole sweep and a
+           ball's width round it is open grass; a belt must put the ball
+           down on open grass at its far end. */
+        if (h.spinners.length) {
+            ok(h.spinners.every(function (sp) {
+                return sp.r >= 40 && sp.arms >= 1 && sp.arms <= 4 && Math.abs(sp.speed) >= 0.3 && Math.abs(sp.speed) <= 3 && sp.w >= MIN_SIDE;
+            }), 'every spinner is a sane size and pace', 'arms 40px or longer, one to four of them, 0.3 to 3 rad/s, ' + MIN_SIDE + 'px thick');
+            var cramped = h.spinners.filter(function (sp, si) {
+                var room = P.sweepOf(sp) + C.BALL_R * 2 + 4;
+                if (sp.x - room < 0 || sp.y - room < 0 || sp.x + room > C.WORLD_W || sp.y + room > C.WORLD_H) return true;
+                return h.walls.some(function (w) {
+                    var a = w.move ? Math.abs(w.move.amp) : 0;
+                    var env = !w.move ? w : w.move.axis === 'y'
+                        ? { x: w.x, y: w.y - a, w: w.w, h: w.h + a * 2 }
+                        : { x: w.x - a, y: w.y, w: w.w + a * 2, h: w.h };
+                    return P.circleRect(sp.x, sp.y, room, env) !== null;
+                }) || h.bumpers.some(function (b) { return P.circleCircle(sp.x, sp.y, room, b) !== null; }) ||
+                    solids.some(function (r) { return P.circleRail(sp.x, sp.y, room, r) !== null; }) ||
+                    h.spinners.some(function (o, oi) { return oi !== si && Math.hypot(o.x - sp.x, o.y - sp.y) < room + P.sweepOf(o); });
+            });
+            ok(cramped.length === 0, 'every spinner sweeps open grass', cramped.length + ' could crush a ball against something — or the cushion');
+            ok(!h.spinners.some(function (sp) {
+                var sw = P.sweepOf(sp);
+                return Math.hypot(h.tee.x - sp.x, h.tee.y - sp.y) < sw + C.BALL_R + 12 ||
+                    Math.hypot(h.hole.x - sp.x, h.hole.y - sp.y) < sw + C.HOLE_R + 12 ||
+                    h.tunnels.some(function (t) {
+                        return Math.hypot(t.x - sp.x, t.y - sp.y) < sw + C.TUNNEL_R + C.BALL_R ||
+                            Math.hypot(t.tx - sp.x, t.ty - sp.y) < sw + C.TUNNEL_R + C.BALL_R;
+                    });
+            }), 'the tee, the cup and every mouth are out of every sweep', 'an arm would hit a ball before it was played');
+        }
+        if (h.belts.length) {
+            ok(h.belts.every(function (bt) { return bt.speed >= 40 && bt.speed <= 320; }), 'every belt runs at a pace you can ride',
+                '40 to 320 px/s');
+            var dead = h.belts.filter(function (bt) {
+                var d = P.chuteDir(bt), reach = C.BALL_R * 3 + 4;
+                var foot = d.x > 0 ? { x: bt.x + bt.w, y: bt.y, w: reach, h: bt.h }
+                         : d.x < 0 ? { x: bt.x - reach, y: bt.y, w: reach, h: bt.h }
+                         : d.y > 0 ? { x: bt.x, y: bt.y + bt.h, w: bt.w, h: reach }
+                         : { x: bt.x, y: bt.y - reach, w: bt.w, h: reach };
+                if (foot.x < 0 || foot.y < 0 || foot.x + foot.w > C.WORLD_W || foot.y + foot.h > C.WORLD_H) return true;
+                return h.walls.some(function (w) { return P.circleRect(foot.x + foot.w / 2, foot.y + foot.h / 2, Math.max(foot.w, foot.h) / 2, w) !== null; }) ||
+                    solids.some(function (r) { return P.circleRail(foot.x + foot.w / 2, foot.y + foot.h / 2, Math.min(foot.w, foot.h) / 2, r) !== null; });
+            });
+            ok(dead.length === 0, 'every belt runs out onto open grass', dead.length + ' run into the cushion or something solid');
+            ok(!h.belts.some(function (bt) {
+                return P.circleRect(h.tee.x, h.tee.y, C.BALL_R + 4, bt) || P.circleRect(h.hole.x, h.hole.y, C.HOLE_R + 12, bt);
+            }), 'the tee and the cup are off every belt', 'nothing rests on a belt');
+        }
+
+        /* A shape running along the cushion meets it or leaves a ball's
+           width: a sliver narrower than the ball is where a hard shot wedges
+           one and leaves it overlapping the wall (generator.js, ported). */
+        var crack = C.BALL_R * 2 + 1;
+        var slivers = h.rails.map(function (r) { return [r]; }).concat(h.arcs.map(P.arcRails), h.blocks.map(P.blockRails))
+            .filter(function (links) {
+                var near = [Infinity, Infinity, Infinity, Infinity], touch = [false, false, false, false];
+                links.forEach(function (r) {
+                    var hw = r.w / 2, L = Math.hypot(r.tx - r.x, r.ty - r.y) || 1;
+                    var flatX = Math.abs(r.ty - r.y) / L < 0.6, flatY = Math.abs(r.tx - r.x) / L < 0.6;
+                    [[flatX, Math.min(r.y, r.ty) - hw], [flatX, C.WORLD_H - Math.max(r.y, r.ty) - hw],
+                     [flatY, Math.min(r.x, r.tx) - hw], [flatY, C.WORLD_W - Math.max(r.x, r.tx) - hw]].forEach(function (c, side) {
+                        if (c[1] <= 0.5) touch[side] = true;
+                        else if (c[0]) near[side] = Math.min(near[side], c[1]);
+                    });
+                });
+                return near.some(function (gap, side) { return !touch[side] && gap < crack; });
+            });
+        ok(slivers.length === 0, 'nothing leaves a sliver against the cushion narrower than a ball',
+            slivers.length + ' shape(s) run along the cushion ' + 'too close to it — touch it, or leave ' + Math.ceil(crack) + 'px');
+
         if (solids.length) {
             var railThin = solids.filter(function (r) { return !(r.w >= MIN_SIDE); });
             ok(railThin.length === 0, 'every rail, curve and kerb is at least ' + MIN_SIDE + 'px thick',
@@ -1752,6 +1864,11 @@
             return (s.a < 0 ? 'bowl(' : 'mound(') + n(s.x) + ', ' + n(s.y) + ', ' + n(s.r) + ', ' + n(Math.abs(s.a)) + ')';
         }
         if (kind === 'arcs') return 'arc(' + n(s.x) + ', ' + n(s.y) + ', ' + n(s.r) + ', ' + n(s.from) + ', ' + n(s.to) + ', ' + n(s.w) + ')';
+        if (kind === 'spinners') {
+            return 'spinner(' + n(s.x) + ', ' + n(s.y) + ', ' + n(s.r) + ', ' + n(s.arms) + ', ' + n(s.speed) + ', ' +
+                phaseSource(s.phase) + ', ' + n(s.w) + ')';
+        }
+        if (kind === 'belts') return 'belt(' + n(s.x) + ', ' + n(s.y) + ', ' + n(s.w) + ', ' + n(s.h) + ', ' + q(s.dir) + ', ' + n(s.speed) + ')';
         if (kind === 'blocks') return 'block(' + q(s.look) + ', [' + s.pts.map(n).join(', ') + ']' + (s.w === 20 ? '' : ', ' + n(s.w)) + ')';
         if (kind === 'avalanches') {
             if (typeof s.len === 'number') {
@@ -1843,8 +1960,9 @@
         // The shapes courses.js writes curves with, from courses.js itself.
         var H = GOLF.helpers;
         var fn = new Function('r', 'post', 'tunnel', 'rail', 'poly', 'chute', 'vent',
-            'arc', 'block', 'mound', 'bowl', 'shape', 'smooth', 'oval', 'return (' + text + ');');
-        var obj = fn(r, post, tunnel, rail, poly, chute, vent, H.arc, H.block, H.mound, H.bowl, H.shape, H.smooth, H.oval);
+            'arc', 'block', 'mound', 'bowl', 'shape', 'smooth', 'oval', 'spinner', 'belt', 'return (' + text + ');');
+        var obj = fn(r, post, tunnel, rail, poly, chute, vent, H.arc, H.block, H.mound, H.bowl, H.shape, H.smooth, H.oval,
+            H.spinner, H.belt);
         if (!obj || typeof obj !== 'object') throw new Error('that is not a hole');
         return normalize(obj);
     }
@@ -2112,7 +2230,8 @@
         '5': 'ice', '6': 'bumpers', '7': 'slopes', '8': 'tee', '9': 'hole', '0': 'tunnels',
         'l': 'rails', 'L': 'rails', 'h': 'lava', 'H': 'lava',
         'a': 'avalanches', 'A': 'avalanches', 'y': 'vents', 'Y': 'vents',
-        'c': 'arcs', 'C': 'arcs', 'b': 'blocks', 'B': 'blocks', 'm': 'hills', 'M': 'hills'
+        'c': 'arcs', 'C': 'arcs', 'b': 'blocks', 'B': 'blocks', 'm': 'hills', 'M': 'hills',
+        't': 'spinners', 'T': 'spinners', 'k': 'belts', 'K': 'belts'
     };
 
     window.addEventListener('keydown', function (e) {
@@ -2341,8 +2460,10 @@
             arcs: [{ x: 480, y: 320, r: 160, from: 200, to: 340, w: 24 }],
             blocks: [{ look: 'windmill', pts: [440, 500, 520, 500, 520, 580, 440, 580], w: 22 }],
             hills: [{ x: 480, y: 330, r: 90, a: -60 }],
-            slopes: [{ x: 600, y: 60, w: 200, h: 80, ax: -120, ay: 0, wind: true }] });
-        check('curves, blocks, hills, a wind and a biome survive the round trip',
+            slopes: [{ x: 600, y: 60, w: 200, h: 80, ax: -120, ay: 0, wind: true }],
+            spinners: [{ x: 700, y: 400, r: 80, arms: 3, speed: -1.2, phase: Math.PI / 2, w: 22 }],
+            belts: [{ x: 300, y: 40, w: 220, h: 60, dir: 'left', speed: 150 }] });
+        check('curves, blocks, hills, spinners, belts, a wind and a biome survive the round trip',
             JSON.stringify(parseHole(buildOut(withAll))) === JSON.stringify(withAll));
 
         // Undo has to restore the shape that was there, not merely a shape.

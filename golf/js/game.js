@@ -799,6 +799,8 @@
         slopes:  ['sw-slope', 'Slope', 'arrows point downhill. Aim above the cup.'],
         wind:    ['sw-wind', 'Wind', 'the fan blows the ball downwind while it rolls through. Aim into it.'],
         hills:   ['sw-hill', 'Hill', 'a mound sheds the ball off its sides; a bowl gathers it to the middle.'],
+        spinners: ['sw-spin', 'Spinner', 'the arms come round on a clock and bat the ball on. Go between them.'],
+        belts:   ['sw-belt', 'Belt', 'the ground moves: it carries the ball along at its own pace.'],
         tunnels: ['sw-tunnel', 'Tunnel', 'out of the mouth the same colour, same speed, same line.'],
         avalanches: ['sw-chute', 'Avalanche', 'a slide comes down the chute on a clock. Watch for the smoke, go behind it.'],
         lava: ['sw-lava', 'Lava', 'a stroke and a replay, and nothing skips across it.'],
