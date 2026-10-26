@@ -1,17 +1,18 @@
 # Pocket Links
 
-A 2D mini golf game with seven courses of six holes, climbing from a walled
+A 2D mini golf game with eleven courses of six holes, climbing from a walled
 garden to a volcano — plus one more that is generated from a seed and is
 different every time you ask for one. Each course is a place with a trick of
-its own: parkland corners and posts, the sea's water, a wood's hills and
-sweeping bars, a meadow's tunnels, a mountain's avalanche chutes and a
-volcano's lava and geysers — and the first card walks through all of those
-places in six holes, with an ace to find on every one. A first visit is handed
+its own: parkland corners and posts, the sea's water, a farm's wind, a wood's
+hills and sweeping bars, the desert's dunes, a meadow's tunnels, a winter ice
+run's curves, a mountain's avalanche chutes, a funfair's turnstiles and
+travelators and a volcano's lava and geysers — and the first card walks
+through six of those places in six holes, with an ace to find on every one. A first visit is handed
 that card and a reason to finish it; every hole gives up to three stars, and
 stars open the next card. Up to four can play on one screen. Any course can be
 dressed in any of eleven biomes, autumn, winter, desert and a moonlit night
 among them. A hole may run on the slant, bend round a curve, rise over a hill
-and have a windmill in the middle of it.
+and have a windmill, a big wheel or a snowman in the middle of it.
 Canvas, plain ES5-flavoured JavaScript, no build step and no dependencies —
 same as everything else here, open `index.html` and it runs.
 
@@ -32,7 +33,7 @@ same as everything else here, open `index.html` and it runs.
 | `js/scenery.js` | The biomes, hazard outlines and where decoration goes. Draws nothing. See [Biomes](#biomes-and-what-a-hole-is-drawn-as). |
 | `js/plan.js` | Flat hole thumbnails for the course picker. Nothing on the board reads it. |
 | `js/landscape.js` | The place: turf, hazards, walls, posts, trees, weather, the rim — and the cached layers. |
-| `js/props.js` | Curved walls, blocks and what stands in them (beds, hedges, rocks, sandcastles, a windmill, a fan), hills, the wind, and the tracks gates run in. See [Curves, blocks, hills and props](#curves-blocks-hills-and-props). |
+| `js/props.js` | Curved walls, blocks and what stands in them (beds, hedges, rocks, sandcastles, a windmill, a fan, the fair's rides), hills, the wind, spinners, belts, and the tracks gates run in. See [Curves, blocks, hills and props](#curves-blocks-hills-and-props). |
 | `js/water.js` | The water's surface, as a WebGL shader over a depth field, with the 2D picture as its fallback. See [Water](#water). |
 | `js/ambience.js` | What lives over the course — snow, leaves, birds, fireflies — and the dark of the night biome. Stateless, driven by the clock. |
 | `js/render.js` | The frame: ball, cup, tunnels, aim, effects, and the order everything is laid down in. |
@@ -43,7 +44,7 @@ same as everything else here, open `index.html` and it runs.
 | `tests.html` | Headless test harness for the logic. Open it; green is green. |
 | `ui-tests.html` | The same, for the page — the bar, the ☰ panel, the picker, the title, a party, the turned and side layouts. |
 
-## The seven courses
+## The eleven courses
 
 `GOLF.COURSES` is a rack of cards, each `{ id, name, blurb, holes }`, and
 `GOLF.COURSE` is whichever one is being played. Everything downstream — the
@@ -55,10 +56,13 @@ the whole handling a stale stored preference needs.
 **The rack is a ladder.** Every card is six holes, drawn in a place of its own
 and built round one thing that place does, and the order is the order the
 stars open them — `unlock` on each card: the Short Six from the start, then the
-Old Course at 4, Tidewater at 10, the Wild Six at 18, the Warren at 26,
-Avalanche Pass at 34 and Ember Ridge at 42, and the draw, which the generator
-puts last, at 50. Each threshold is about a third of the stars the cards above
-it can give, so finishing holes is enough and playing them well is quicker.
+Old Course at 4, Tidewater at 10, Harvest Wind at 16, the Wild Six at 22, the
+Dunes at 28, the Warren at 34, the Ice Run at 40, Avalanche Pass at 46, the
+Midnight Funfair at 52 and Ember Ridge at 58, and the draw, which the
+generator puts last, at 66. Each threshold is about a third of the stars the
+cards above it can give, so finishing holes is enough and playing them well is
+quicker. The cards alternate: one that recombines what has gone before, then
+one built round something new.
 Inside a card the holes get harder as they go, and par is the honest short
 measure of that: the suite pins that par never falls going down a card, and
 that the thresholds never fall going down the rack, so the picker reads top to
@@ -92,21 +96,47 @@ follow `GOLF.BARE_KEY_COURSE` by id (see [Saving](#saving)).
   miss with a stroke cannot also demand a thread. Ducks and Drakes is the one
   hole built on the skip: a creek cushion to cushion, a footbridge at the far
   end that costs a stroke, and a short way straight over for a hard, flat ball.
+- **Harvest Wind** (autumn) is the card of the air. Every hole has a wind on
+  it, and every wind blows out of a fan standing at its head — the suite will
+  not ship one without. A wind is a slope to the ball, so the trick is a
+  breaking green's: aim into it and let it bring the ball round. But a wind
+  also brings a ball up to its own pace, whatever pace it came in with, and
+  that is the card's other half — a ball that rides one arrives at the speed
+  the wind chose. A crosswind, a tailwind round a hedge, a barn to go round
+  or through the slipstream of, a leaf blower, a pumpkin patch between two
+  lanes blowing opposite ways, and a windmill on a hill to finish.
 - **The Wild Six** (woodland) is where the ground moves the ball: hills
   breaking opposite ways, a hill that runs back at you, a green that sheds
   everything you leave on it, a funnel, a lattice of posts, and the one
   mechanic that arrives here rather than being recombined — a moving wall does
   not only block, it pushes (physics.js adds the wall's own velocity along the
   contact normal, so a gate cannot swallow a resting ball), and Wiper Blades
-  makes that the hole.
+  makes that the hole. Crown Green, the closer, is a real mound with the cup
+  on its crown and a collar of rough round its foot.
+- **The Dunes** (desert) is the card of the ground's shape, and every hole on
+  it is built of hills. The Wild Six's slopes tip one way; a dune tips every
+  way at once, so its shoulder is a curve to aim with and its top is a line
+  only a firm ball holds. A saddle between two dunes, sinkholes that gather
+  whatever stops short in them, an oasis at the bottom of a bowl that drinks
+  anything drifting too near its pool, a mesa, a pyramid whose four faces
+  are four cushions at forty-five degrees, and a closer over rolling dunes.
 - **The Warren** (meadow) is the card built on a door: a **tunnel**, two
   mouths that run both ways and keep the shot. Whatever speed and heading the
   ball goes down one mouth with, it comes up the other with, and each hole
   reads a different consequence off that sentence — that weight survives the
-  trip (Snow Globe, a cup shut in a box of ice), that heading survives it too
-  and is the thing to aim (Crossed Wires), and that a door can be a trap as
-  easily as a shortcut (Snakes and Ladders). Every hole on it has one, and the
-  suite says so.
+  trip (Rabbit Hole), that heading survives it too and is the thing to aim
+  (Snow Globe, a cup behind a snowman in a globe of ice, whose ace is a putt a
+  hair off the middle of the mouth; and Crossed Wires), and that a door can be
+  a trap as easily as a shortcut (Snakes and Ladders). Every hole on it has
+  one, and the suite says so.
+- **The Ice Run** (winter) is the card of the curve. Its walls are bent, its
+  floor is mostly ice, and the shots it asks for are rides: sent along the
+  inside of a curve, a ball follows it round, and on ice it keeps its pace all
+  the way. A ring with a bowl in it is a plughole, a curling sheet with two
+  snowmen guarding the house asks for weight and nothing else, a hairpin is a
+  ride round and back, a frozen lake has fishing holes cut in it, a chicane is
+  an S to thread, and the closer is a bobsleigh run of two hairpins, played in
+  stages or — if you dare — in one.
 - **Avalanche Pass** (alpine) is the card of the clock. A chute is a lane down
   the mountain, and every few seconds a slide comes down it and carries off
   whatever it is over — into a drift if you are lucky, into a crevasse if you
@@ -116,6 +146,14 @@ follow `GOLF.BARE_KEY_COURSE` by id (see [Saving](#saving)).
   round over its head, two lanes of traffic running opposite ways on different
   clocks, and a summit reached by a hairpin through an avalanche gully — with
   a frozen tarn and an iced slalom between them.
+- **Midnight Funfair** (night) is crazy golf after dark, and the card of
+  things that move by themselves. A **spinner** is a turnstile laid flat whose
+  arms bat the ball on as they come round; a **belt** is ground that runs and
+  carries the ball at its own pace. Neither waits for you and neither can keep
+  you (see [Spinners and belts](#spinners-and-belts)). The big top, the
+  carousel, the big wheel and the hall of mirrors are what a fair has; here
+  they are things to putt round and bank off, and the Grand Finale has a
+  little of each.
 - **Ember Ridge** (volcanic) is the last card and the one most made of
   choices. **Lava** is water that never lets a ball skip, so every crossing is
   a risk taken or a long way round, and **geysers** are the risk: a vent blows
@@ -144,7 +182,12 @@ is played in at least two directions.
 **The Short Six and the Old Course were rebuilt a second time** when the
 vocabulary grew curves, blocks and hills, because both were still a field of
 grass with a few boxes in it, and a box is the least interesting thing a ball
-can meet. The other five cards have not had that pass yet.
+can meet. The other five of the first seven had a lighter pass after them:
+their water, sand and lava follow curves rather than ruled lines, their walls
+became hedges and rocks, and the two holes that were most a diagram — Crown
+Green's four rectangles of slope and Snow Globe's box of ice — became a mound
+and a globe. Four new cards came with the pass, each built round a thing the
+first seven did not have: wind, dunes, ice curves, and rides.
 
 Three of the holes started out with a free way round the obstacle they were
 built on — over the top of the funnel, up the side lane of the lattice, along
@@ -590,7 +633,9 @@ A hole is axis-aligned rectangles, round posts and two points:
     vents:   [ { x, y, every, at, run } ], // a geyser: blowing `run` seconds of every `every`
     arcs:    [ { x, y, r, from, to, w } ],  // a curved wall: an arc, from/to in degrees clockwise from right
     blocks:  [ { pts, w, look } ],          // a solid shape: its outline, its kerb, what stands in it
-    hills:   [ { x, y, r, a } ]             // round ground: a mound if a > 0, a bowl if a < 0
+    hills:   [ { x, y, r, a } ],            // round ground: a mound if a > 0, a bowl if a < 0
+    spinners: [ { x, y, r, arms, speed, phase, w } ], // a turnstile laid flat: arms of reach r, turning
+    belts:   [ { x, y, w, h, dir, speed } ] // ground that runs: carries the ball `dir` at `speed`
 }
 ```
 
@@ -604,10 +649,13 @@ nothing downstream has to ask whether a list exists. Water, lava, sand, rough
 and ice may also be polygons — `poly(x0, y0, x1, y1, …)` — for a bank or a
 bunker that runs on the slant; `chute(…)` and `vent(…)` are the helpers for
 the other two. `arc(…)`, `block(look, pts, w)`, `mound(…)` and `bowl(…)` write
-the newest shapes, and `smooth(pts)` and `oval(…)` save writing a curve out
-corner by corner: `smooth` cuts every corner of an outline in two, twice over
-(Chaikin's corner cutting), so a hexagon of six numbers becomes a pebble with
-no corner a ball can find. The helpers are `GOLF.helpers` to anything else
+the newest shapes, `spinner(…)` and `belt(…)` the two that move, and
+`smooth(pts)` and `oval(…)` save writing a curve out corner by corner:
+`smooth` cuts every corner of an outline in two, twice over (Chaikin's corner
+cutting), so a hexagon of six numbers becomes a pebble with no corner a ball
+can find. A corner that sits on the cushion is the one it keeps — cut, it
+would leave the shape meeting the cushion at a slant, and a sliver narrower
+than a ball between them. The helpers are `GOLF.helpers` to anything else
 that writes a hole down, the suite included.
 
 `move` takes `{ axis, amp, speed, phase }`. On `y` it is a gate that rises and
@@ -699,8 +747,26 @@ course is exempt from is a rule the second course will break — all asserted in
   tunnel mouths and vents.
 - **A wind has a fan at its head, and a windmill's sails reach nothing a hole
   is about.** The first because a force with no cause in sight reads as the
-  game cheating; the second because the sails are the one prop drawn over the
-  ball, so they keep clear of the tee, the cup and every tunnel mouth.
+  game cheating; the second because the sails are drawn over the ball, so
+  they keep clear of the tee, the cup and every tunnel mouth. The big wheel's
+  rim is held to the same.
+- **No crack a ball can be wedged in.** A wall, rail, curve or block that runs
+  along a cushion either meets it or leaves a ball's width and a pixel
+  between them. A gap narrower than that is somewhere a hard shot can drive a
+  ball and the walls either side hold it overlapping one of them — the
+  suite's thousands of shots found the one that did. The rule is checked
+  shape by shape, because two shapes meeting the cushion side by side make a
+  corner, not a crack.
+- **A spinner's sweep is clear.** Nothing solid lies within the reach of its
+  arms and a ball's width — no wall over its whole travel, post, rail, block,
+  curve or other spinner, and not the cushion — because an arm coming round
+  on a ball with nowhere to go would crush it. The tee, the cup, every mouth
+  and every vent stand off the sweep. An arm is at least 40px long, there are
+  one to four of them, and they turn at between 0.3 and 3 radians a second.
+- **A belt runs out onto open grass.** Its far end puts the ball down on grass
+  with nothing solid in the way and not against the cushion, so a ball it
+  carries is always set down somewhere it can stop; nothing else lies on a
+  belt, and the tee, the cup, the mouths and the vents are off it.
 
 ## Avalanches, lava and geysers
 
@@ -768,8 +834,10 @@ band in the biome's own wall, not as its links.
 `w` thick. The ball only ever meets the edge, so the inside is somewhere it
 can never be, and that is where the picture puts something — a flower bed
 edged in the biome's own brick or timber and planted with what grows there, a
-copse when it is big, a clipped hedge, a rock, a sandcastle, a windmill, a
-fan. `look` is read by the renderer and nothing else. Blocks are what shape a
+copse when it is big, a palm, a clipped hedge, a rock, a sandcastle, a
+windmill, a fan, a hut or a barn, a pyramid, a snowman, and the fair's big
+top, carousel, big wheel and mirrors. `look` is read by the renderer and
+nothing else. Blocks are what shape a
 field: beds round off its corners, a copse is the inside of a dogleg, a hedge
 cut as a diamond sits on the straight line. A ball inside one is impossible
 rather than merely unlikely — the suite fires at them and checks — and the
@@ -784,6 +852,12 @@ one — and a bowl round a cup gathers a ball that arrives about right, which is
 why the first hole anybody plays has one. It is shaded pixel by pixel from the
 same light the walls are lit by, with contours closer where it is steep and the
 slope's chevrons pointing downhill round it.
+
+A mound with the cup on its crown needed one more: the green round a cup is
+cut level, as a real one is, so a mound's push fades out over the last three
+ball-radii before the cup's funnel. Without it the mound pushed a ball out
+while the funnel drew it in, and a ball could balance on the lip between the
+two for ever. A bowl's pull runs towards the cup it holds and is left alone.
 
 A bowl is where a ball can come to rest on a hill, at the bottom, and that
 needed one change to the physics: the rest check used to skip slope zones
@@ -806,20 +880,50 @@ seen doing it: the wind blows out of a fan; a moving gate runs in a track sunk
 in the grass under its whole travel, rails and end stops, so it is known for
 a gate before it is ever seen moving; a mound on grass has a molehill at its
 peak and the mole that dug it; a tunnel that runs through a windmill has a
-gravel path from each mouth to the mill's doors. The windmill's sails are the
-one prop drawn over the ball, and like a tree's crown they go thin when the
-ball rolls under them — and the suite keeps them clear of the tee, the cup and
+gravel path from each mouth to the mill's doors; a spinner turns over a ring
+sunk in the grass that shows its whole sweep; a belt is slats and chevrons
+running the way it carries. The windmill's sails and the big wheel are the
+props drawn over the ball, and like a tree's crown they go thin when the ball
+rolls under them — and the suite keeps them clear of the tee, the cup and
 every mouth.
 
 What does not move is painted into the cached layers — hills and tracks into
 the ground, curves and blocks into the still walls — and what does is drawn
-live: the streaks, a fan's rotor, a windmill's sails, all still under
-`prefers-reduced-motion`.
+live: the streaks, a fan's rotor, a windmill's sails, the carousel's canopy,
+the big wheel and a belt's slats, all still under `prefers-reduced-motion`.
+A spinner's arms are the exception: they are drawn on the world's clock
+whatever the setting, because where an arm is is a fact of play.
+
+## Spinners and belts
+
+The funfair's two shapes are the only things on the rack that move the ball
+of their own accord, and both were built so that nothing new can go wrong.
+
+**A spinner** (`spinners`) is a pivot and `arms` arms of reach `r` and width
+`w`, turning at `speed` radians a second from `phase`. Each arm is a rail
+whose ends move, collided as a capsule like any other; what is new is only
+the response. The ball's velocity is taken relative to the arm at the point of
+contact, reflected there, and the arm's own velocity added back, so an arm
+coming round bats a resting ball on and a ball rolling with an arm is merely
+nudged. The substep count reads the arm tips' speed as well as the ball's, so
+neither can pass through the other between steps, and the rule book clears
+the sweep (above), so an arm can never trap a ball against something.
+
+**A belt** (`belts`) is a rectangle of ground that runs `dir` at `speed`. On a
+belt friction acts on the ball's velocity *relative to the belt*: the belt's
+velocity is taken off, the surface's drag applied, and the belt's put back,
+so a ball dropped on one is brought up to the belt's pace and a ball rolling
+against it is slowed to a stop and then carried back. A ball on a belt is
+never at rest, the way one on a slope is not, and the rule book runs every
+belt out onto open grass so that the ball is always put down somewhere it can
+stop. The caddie needed nothing new for either: it plans over simulated
+shots, and a shot that rides a belt or is batted by an arm is a simulated
+shot.
 
 ## Biomes, and what a hole is drawn as
 
 A field of flat blue rectangles is a diagram of a hole rather than a place,
-and seven courses in one palette are one course wearing seven names. So each
+and eleven courses in one palette are one course wearing eleven names. So each
 card is drawn in a biome — the Short Six in a walled **garden**, the Old
 Course in **parkland**, Tidewater by the **seaside**, the Wild Six in
 **woodland**, the Warren in a **meadow**, Avalanche Pass on the **alpine**
@@ -1316,13 +1420,17 @@ beside it. The checks hold all three to the rule book's rules for them.
 A **curve** (`C`) is dragged out from its centre: it starts as the top half
 of a circle, its angles and thickness are in the inspector, and the grip
 halfway round it sets the radius. A **block** (`B`) is dragged out as a
-rectangle and is four corners from the start; its look — bed, tree, hedge,
-rock, castle, windmill, fan — is a menu, *+ corner* splits its longest edge
+rectangle and is four corners from the start; its look — bed, tree, palm,
+hedge, rock, castle, windmill, fan, the fair's rides, hut, pyramid, snowman
+— is a menu, *+ corner* splits its longest edge
 and *Round it* cuts every corner in two. A **hill** (`M`) is dragged out from
 its centre like a post, a mound until its pull is made negative. A slope can
 be ticked as *wind*, and the **Biome** menu beside the hole's name gives a hole
 a place of its own. The checks drop a ball on every hill as they do on every
-slope and wait for it to stop.
+slope and wait for it to stop. A **spinner** (`T`) is dragged out from its
+pivot like a post, with its arms, pace and phase in the inspector, and a
+**belt** (`K`) is a rectangle with a direction and a pace; the checks hold
+both to the rule book, sweep and run-out included, and the crack rule too.
 
 Everything else is what you would expect. Drag a shape tool across the green
 to draw one, drag it or its grips to reshape, snap at 1/5/10/20 with shift for
@@ -1353,9 +1461,10 @@ indexable; the self-test overlay only appears with the query string.
 
 Two harnesses, and the runner finds both.
 
-Open `tests.html`. 871 assertions covering geometry, the integrator, the four
+Open `tests.html`. 1,172 assertions covering geometry, the integrator, the four
 surfaces, the overswing, skipping, tunnels, avalanche chutes, lava and
-geysers, rails and polygons, curves, blocks, hills and wind, the cup in three
+geysers, rails and polygons, curves, blocks, hills and wind, spinners and
+belts, the cup in three
 dimensions, scenery in every biome, the props that explain the hazards, the course data
 on every course, the generator, the scorecard, the pick-up and the stars,
 progression and starting over, the per-course save keys and the resumable

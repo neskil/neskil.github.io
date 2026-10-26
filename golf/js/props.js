@@ -812,7 +812,7 @@
        it, all inside the bottom one — which is the block, rail and all —
        with stick arms, a scarf, a carrot and a hat. */
     function snowman(g, p, w, v, seed) {
-        var r0 = p.r + w / 2, up = sv(v, 0, -1), side = sv(v, 1, 0), lt = sv(v, -0.35, -0.4), sh = sv(v, 6, 9);
+        var r0 = p.r + w / 2, up = sv(v, 0, -1), side = sv(v, 1, 0), lt = sv(v, -0.35, -0.4), sh = sv(v, Math.min(6, r0 * 0.2), Math.min(9, r0 * 0.3));
         g.save();
         g.fillStyle = 'rgba(30, 50, 75, 0.22)';
         g.beginPath();
