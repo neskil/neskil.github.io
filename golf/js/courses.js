@@ -1,4 +1,4 @@
-/* Seven courses of six holes, forty-two in all.
+/* Eleven courses of six holes, sixty-six in all.
 
    `GOLF.COURSES` is the rack — each entry `{ id, name, blurb, holes }` — and
    `GOLF.COURSE` is whichever card is being played, which is what every
@@ -51,6 +51,10 @@
               inside scenery — a bed, a hedge, a rock, a windmill, a fan.
      hills    mound(x, y, r, a) or bowl(x, y, r, a): round ground, steepest
               halfway out, shedding the ball or gathering it in.
+     spinners spinner(x, y, r, arms, speed, phase, w): a turnstile laid flat,
+              its arms batting the ball on as they come round.
+     belts    belt(x, y, w, h, dir, speed): ground that moves, carrying the
+              ball along at its own pace.
 
    A slope may say `wind: true` — the same pull, shown as air blowing out of
    the fan block at its head — and a hole may name a `theme` of its own.
@@ -103,6 +107,13 @@
     function bowl(x, y, r, a) { return { x: x, y: y, r: r, a: -a }; }
     // A zone from a list of corners rather than an argument per number.
     function shape(pts) { return { pts: pts }; }
+    // A turnstile laid flat: `arms` arms r long round (x, y), turning at
+    // `speed` radians a second, clockwise when positive, from `phase`.
+    function spinner(x, y, r, arms, speed, phase, w) {
+        return { x: x, y: y, r: r, arms: arms, speed: speed, phase: phase || 0, w: w || 20 };
+    }
+    // Ground that moves: a rectangle carrying the ball `dir` at `speed` px/s.
+    function belt(x, y, w, h, dir, speed) { return { x: x, y: y, w: w, h: h, dir: dir, speed: speed }; }
     /* Corners cut round: Chaikin's corner cutting, which replaces every
        corner of a closed outline with two points a quarter of the way along
        its edges. Twice over, a hexagon is a pebble — a bunker or a bed drawn
@@ -156,9 +167,16 @@
             }
         });
         (h.slopes || []).forEach(function (s) { zone(s); s.ax = -s.ax; });
-        (h.avalanches || []).forEach(function (a) {
+        (h.avalanches || []).concat(h.belts || []).forEach(function (a) {
             zone(a);
             if (a.dir === 'left') a.dir = 'right'; else if (a.dir === 'right') a.dir = 'left';
+        });
+        // A spinner turns the other way in a mirror, and its arms start
+        // reflected: an angle θ becomes π − θ.
+        (h.spinners || []).forEach(function (sp) {
+            sp.x = W - sp.x;
+            sp.speed = -sp.speed;
+            sp.phase = Math.PI - (sp.phase || 0);
         });
         (h.blocks || []).forEach(zone);
         (h.bumpers || []).concat(h.vents || [], h.hills || []).forEach(function (b) { b.x = W - b.x; });
@@ -177,7 +195,7 @@
        file does — the suite's own test holes among them. */
     GOLF.helpers = { r: r, post: post, tunnel: tunnel, rail: rail, poly: poly, chute: chute, vent: vent,
                      arc: arc, block: block, mound: mound, bowl: bowl, shape: shape, smooth: smooth, oval: oval,
-                     mirror: mirror };
+                     spinner: spinner, belt: belt, mirror: mirror };
 
     /* ── The Short Six — a walk through every place on the rack ─────────
 
@@ -1111,6 +1129,469 @@
         }
     ];
 
+    /* ── Harvest Wind — the autumn farm ─────────────────────────────────
+
+       The card of the air. Every hole has a wind on it, and every wind
+       blows out of a fan standing at its head — a force with no cause in
+       sight reads as the game cheating, a fan with leaves streaming out of
+       it does not. A wind is a slope to the ball, so the trick is the one a
+       breaking green asks: aim into it and let it bring the ball round. But
+       a wind also brings a ball up to its own pace, whatever pace it came
+       in with, and that is the other half of the card — a ball that rides a
+       wind arrives at the speed the wind chose. */
+
+    var HARVEST = [
+        {
+            name: 'Crosswind',
+            blurb: 'A fan blows straight across the fairway. Aim upwind of the flag and let it bring you round.',
+            par: 3,
+            /* The terms, stated once: one lane of wind across the middle of
+               the field, blowing down from a fan at the top. A straight putt
+               drifts below the flag; one aimed above it comes down onto it. */
+            tee: { x: 110, y: 320 },
+            hole: { x: 850, y: 320 },
+            blocks: [
+                block('fan', [400, 0, 560, 0, 560, 70, 400, 70]),
+                block('bed', smooth([0, 640, 0, 500, 120, 540, 190, 640])),
+                block('bed', smooth([960, 640, 760, 640, 820, 560, 960, 520]))
+            ],
+            slopes: [{ x: 400, y: 80, w: 160, h: 400, ax: 0, ay: 150, wind: true }],
+            rough: [r(380, 560, 200, 80)]
+        },
+        {
+            name: 'Tailwind',
+            blurb: 'Two lanes past the hedge: one wind with you, one against. The quick one ends at the duck pond.',
+            par: 3,
+            /* A hedge splits the field into two lanes, each with a fan at
+               its head blowing opposite ways. The bottom lane is the straight
+               line and the wind is in your face; the top one is round the
+               hedge's end and the wind carries you — up to its own pace, so
+               the ace is a ball that rides it and still has a little of its
+               own to spare. The pond behind the flag is for one with too
+               much. */
+            tee: { x: 110, y: 450 },
+            hole: { x: 850, y: 190 },
+            blocks: [
+                block('hedge', smooth([200, 290, 780, 290, 780, 350, 200, 350], 0)),
+                block('fan', [0, 120, 80, 120, 80, 260, 0, 260]),
+                block('fan', [880, 380, 960, 380, 960, 520, 880, 520])
+            ],
+            slopes: [
+                { x: 90, y: 110, w: 585, h: 160, ax: 145, ay: 0, wind: true },
+                { x: 230, y: 370, w: 640, h: 160, ax: -120, ay: 0, wind: true }
+            ],
+            water: [shape(smooth([900, 60, 960, 40, 960, 300, 920, 300], 0))]
+        },
+        {
+            name: 'The Barn',
+            blurb: 'Round the barn, and the wind up its far side blows you to the flag. Mind the pumpkins.',
+            par: 3,
+            /* A barn in the middle of the yard and a fan behind it blowing up
+               its far side: the way round to the right is a lift to the flag,
+               the way round to the left is not. Two pumpkins sit where a ball
+               that goes wide wants to be. */
+            tee: { x: 120, y: 540 },
+            hole: { x: 840, y: 120 },
+            blocks: [
+                block('hut', smooth([400, 230, 560, 230, 560, 410, 400, 410], 0)),
+                block('fan', [620, 565, 780, 565, 780, 640, 620, 640])
+            ],
+            slopes: [{ x: 600, y: 160, w: 200, h: 390, ax: 0, ay: -130, wind: true }],
+            bumpers: [post(250, 300, 22), post(530, 500, 22)]
+        },
+        {
+            name: 'Leaf Blower',
+            blurb: 'Two fans, two winds, and a corner to be blown round. Let the second one bring you down to the flag.',
+            par: 3,
+            /* A bed of pumpkins in the middle and two winds at right angles
+               round it: one blowing along the top towards the corner, one down
+               the right side to the flag. Strung together they turn a ball
+               through a corner it was never aimed round — the shot is the one
+               that reaches the second wind at the right pace. */
+            tee: { x: 120, y: 120 },
+            hole: { x: 790, y: 520 },
+            blocks: [
+                block('bed', smooth([300, 260, 560, 240, 640, 360, 560, 420, 320, 420], 1)),
+                block('fan', [0, 330, 70, 330, 70, 470, 0, 470]),
+                block('fan', [700, 0, 860, 0, 860, 70, 700, 70])
+            ],
+            slopes: [
+                { x: 80, y: 320, w: 220, h: 160, ax: 140, ay: 0, wind: true },
+                { x: 690, y: 80, w: 180, h: 340, ax: 0, ay: 120, wind: true }
+            ]
+        },
+        {
+            name: 'Pumpkin Patch',
+            blurb: 'Up the field through two winds blowing opposite ways, past three pumpkins.',
+            par: 4,
+            /* Played up the field across two lanes of wind going opposite
+               ways, so a ball that crosses both is pushed one way and then
+               back: aimed square, the two nearly cancel; aimed off, one wins.
+               Each wind runs out onto open grass, never into the fan of the
+               other — a wind that blew a ball into a wall would never let it
+               stop. */
+            tee: { x: 480, y: 600 },
+            hole: { x: 480, y: 70 },
+            blocks: [block('fan', [0, 290, 70, 290, 70, 430, 0, 430]), block('fan', [890, 110, 960, 110, 960, 250, 890, 250])],
+            slopes: [
+                { x: 80, y: 300, w: 620, h: 120, ax: 140, ay: 0, wind: true },
+                { x: 260, y: 120, w: 620, h: 120, ax: -140, ay: 0, wind: true }
+            ],
+            bumpers: [post(300, 480, 24), post(660, 480, 24), post(480, 420, 24)]
+        },
+        {
+            name: 'Windmill Hill',
+            blurb: 'A windmill with a door through it, a wind along the top and a hill by the flag.',
+            par: 4,
+            /* The card's close: the mill stands across the line with a
+               tunnel through it from door to door, a wind blows along the top
+               of the field from a fan at the left, and a mound by the flag
+               sheds what comes in too wide. The straight way is through the
+               mill; the windy way is over the top and round. */
+            tee: { x: 100, y: 560 },
+            hole: { x: 850, y: 300 },
+            blocks: [block('windmill', oval(480, 300, 56, 56, 20)), block('fan', [0, 60, 70, 60, 70, 200, 0, 200])],
+            hills: [mound(700, 470, 110, 150)],
+            slopes: [{ x: 80, y: 50, w: 560, h: 160, ax: 140, ay: 0, wind: true }],
+            tunnels: [tunnel(350, 300, 615, 300)]
+        }
+    ];
+
+    /* ── The Dunes — the desert ────────────────────────────────────────
+
+       The card of the ground's shape. Every hole is built of hills: dunes
+       you curve a putt round, a saddle between two of them, sinkholes that
+       gather whatever stops short in them, and an oasis at the bottom of a
+       bowl that drinks anything that drifts too near. The Wild Six's slopes
+       tip one way; a dune tips every way at once, so its shoulder is a
+       curve to aim with and its top is a line that only a firm ball holds. */
+
+    var DUNES = [
+        {
+            name: 'Saddle',
+            blurb: 'Two dunes either side of the line and a saddle between them. Straight through it.',
+            par: 3,
+            /* The terms: a dune sheds a ball off whichever side it meets.
+               Two side by side leave a saddle on the straight line, and the
+               saddle is a channel — a putt down it is held there by both
+               dunes, so the ace is the putt with the right weight. Over the
+               shoulder of either is the long way round. */
+            tee: { x: 110, y: 330 },
+            hole: { x: 850, y: 300 },
+            hills: [mound(470, 160, 130, 180), mound(470, 480, 130, 180)],
+            blocks: [
+                block('rock', smooth([960, 0, 960, 150, 880, 110, 820, 0])),
+                block('rock', smooth([0, 640, 0, 520, 100, 560, 140, 640]))
+            ]
+        },
+        {
+            name: 'Sinkhole',
+            blurb: 'A sinkhole on the line. Carry it with pace, or climb out of it if you come up short.',
+            par: 3,
+            /* A bowl is a dune turned inside out: whatever stops in it rolls
+               to the bottom and waits there, and the putt out is uphill both
+               ways. Straight up the field crosses it — a bowl gives back on
+               the way out what it took on the way in, so a putt with enough
+               pace carries on to the flag as if it were not there. Cacti
+               stand either side for anybody going round. */
+            tee: { x: 480, y: 590 },
+            hole: { x: 480, y: 90 },
+            hills: [bowl(480, 330, 150, 130)],
+            blocks: [
+                block('rock', smooth([0, 0, 220, 0, 160, 120, 0, 180])),
+                block('rock', smooth([960, 0, 960, 180, 800, 120, 740, 0]))
+            ],
+            bumpers: [post(300, 200, 20), post(660, 200, 20)]
+        },
+        {
+            name: 'Oasis',
+            blurb: 'The oasis lies at the bottom of a hollow. Skirt the rim and let the slope curve you round — not in.',
+            par: 3,
+            /* Water at the bottom of a bowl: anything that strays onto the
+               slope is drawn down to it. The straight line runs over the
+               pond; the safe line goes wide of the whole hollow. The ace is
+               between — a putt along the rim, close enough that the slope
+               bends it round towards the flag and far enough that it does
+               not take it. */
+            tee: { x: 120, y: 520 },
+            hole: { x: 840, y: 170 },
+            hills: [bowl(470, 330, 170, 110)],
+            water: [shape(oval(470, 330, 62, 50, 18))],
+            blocks: [block('tree', oval(110, 110, 42, 40, 12)), block('tree', oval(860, 540, 46, 42, 12))]
+        },
+        {
+            name: 'Mesa',
+            blurb: 'Two mesas and a canyon between them. Round the dune and down the canyon.',
+            par: 3,
+            /* Two flat-topped rocks stand between the tee and the flag, and a
+               dune at the canyon's mouth shoulders the ball either way. It is
+               the card's two-shot hole: one to the canyon, one down it, and a
+               bunker for the second that runs on too far. */
+            tee: { x: 110, y: 120 },
+            hole: { x: 860, y: 520 },
+            blocks: [
+                block('rock', smooth([300, 160, 500, 120, 560, 260, 470, 380, 320, 330], 2)),
+                block('rock', smooth([560, 420, 720, 380, 800, 470, 700, 560, 580, 540], 2))
+            ],
+            hills: [mound(200, 470, 110, 140)],
+            sand: [shape(smooth([800, 300, 900, 290, 930, 360, 880, 400, 810, 380], 1))]
+        },
+        {
+            name: 'Pyramid',
+            blurb: 'A pyramid on the straight line. Bank off a face, and mind the dunes either side.',
+            par: 4,
+            /* The pyramid's four faces are four cushions set at forty-five
+               degrees, so a putt that meets one comes off it at a right angle
+               — the ace banks off a face onto the green behind. Dunes stand
+               off its top and bottom corners for the ball that goes round,
+               and the cup sits between two drifts of soft sand. */
+            tee: { x: 110, y: 320 },
+            hole: { x: 850, y: 320 },
+            blocks: [block('pyramid', [480, 190, 610, 320, 480, 450, 350, 320])],
+            hills: [mound(480, 80, 70, 120), mound(480, 560, 70, 120), bowl(850, 320, 70, 35)],
+            sand: [
+                shape(smooth([700, 170, 780, 150, 820, 200, 760, 240, 700, 220], 1)),
+                shape(smooth([700, 420, 780, 400, 820, 450, 760, 490, 700, 470], 1))
+            ]
+        },
+        {
+            name: 'Rolling Dunes',
+            blurb: 'A whole field of dunes and a sinkhole on the way. Pick a valley and follow it.',
+            par: 4,
+            /* Everything the card has said, at once: five hills on the way
+               to a flag in the far corner, mounds and one bowl, and the line
+               between them a valley that winds. The straight line is over the
+               tops; the putt that reads the valleys is shorter than it looks. */
+            tee: { x: 100, y: 560 },
+            hole: { x: 860, y: 90 },
+            hills: [mound(280, 380, 120, 150), mound(500, 520, 100, 140), mound(560, 240, 130, 160), bowl(780, 420, 110, 90), mound(820, 220, 80, 120)],
+            blocks: [block('rock', smooth([0, 0, 260, 0, 200, 110, 0, 160]))]
+        }
+    ];
+
+    /* ── The Ice Run — the winter ──────────────────────────────────────
+
+       The card of the curve. Its walls are bent, its floor is mostly ice,
+       and the shots it asks for are rides: sent along the inside of a
+       curve, a ball follows it round, and on ice it keeps its pace all the
+       way. A ring with a bowl in it is a plughole; a hairpin is a ride round
+       and back; the closing hole is a bobsleigh run of two hairpins, played
+       in stages or — if you dare — in one. */
+
+    var ICERUN = [
+        {
+            name: 'Plughole',
+            blurb: 'A ring of ice-wall round a hollow. Get inside and it spirals you down to the cup.',
+            par: 3,
+            /* The card's open door: a ring with one gap and a bowl inside
+               it, the cup at the bottom. A ball that gets in rides the wall
+               round, and as it slows the hollow draws it inwards — round and
+               round and down. Come in too hard and it rides round and out
+               again by the door. */
+            tee: { x: 860, y: 500 },
+            hole: { x: 470, y: 300 },
+            arcs: [arc(470, 300, 190, 95, 395, 24)],
+            hills: [bowl(470, 300, 120, 42)],
+            blocks: [block('bed', smooth([960, 0, 960, 260, 860, 230, 780, 120, 760, 0]))]
+        },
+        {
+            name: 'Curling',
+            blurb: 'A long sheet of ice to the house. Weight is everything, and two snowmen guard the button.',
+            par: 3,
+            /* Curling, near enough: a sheet of ice from the tee to a target
+               dished round the cup, and snowbanks either side. Ice keeps three
+               times the roll of grass, so the weight that reaches the house is
+               a whisper; two snowmen stand guard in front of it. */
+            tee: { x: 110, y: 320 },
+            hole: { x: 820, y: 320 },
+            ice: [shape(smooth([200, 230, 900, 230, 900, 410, 200, 410], 0))],
+            hills: [bowl(820, 320, 75, 45)],
+            bumpers: [post(640, 290, 20), post(660, 360, 20)],
+            rough: [r(0, 0, 960, 120), r(0, 520, 960, 120)]
+        },
+        {
+            name: 'Hairpin',
+            blurb: 'Out along the bottom, round the hairpin, back along the top. Firm enough to ride it all the way.',
+            par: 3,
+            /* A snowbank down the middle and a semicircle of ice-wall at
+               its end: the way to the flag is out, round and back, the whole
+               of it iced. Two putts — to the turn, and home — is par. One is
+               a ride: sent firmly along the bottom, the ball runs into the
+               hairpin, follows it round and comes back along the top. */
+            tee: { x: 120, y: 520 },
+            hole: { x: 150, y: 120 },
+            blocks: [block('bed', smooth([0, 270, 560, 260, 640, 300, 640, 340, 560, 380, 0, 370], 1))],
+            arcs: [arc(690, 320, 270, -90, 90, 26)],
+            ice: [shape([60, 400, 640, 400, 760, 320, 640, 240, 60, 240, 60, 40, 700, 40, 960, 320, 700, 600, 60, 600])]
+        },
+        {
+            name: 'Ice Fishing',
+            blurb: 'A frozen lake with fishing holes cut in it. Glide between them — and not too far.',
+            par: 3,
+            /* A sheet of ice with five holes cut through it, and two fishing
+               huts. A ball on ice goes where it was sent, so the line between
+               the holes is a line you have to choose before you strike —
+               there is no correcting it on the way — and the weight has to
+               stop it at the cup rather than in the snow beyond. */
+            tee: { x: 110, y: 320 },
+            hole: { x: 830, y: 330 },
+            ice: [shape(smooth([200, 120, 560, 80, 900, 140, 900, 520, 560, 570, 200, 520], 1))],
+            water: [
+                shape(oval(380, 250, 26, 24, 14)), shape(oval(470, 400, 28, 26, 14)), shape(oval(580, 290, 26, 26, 14)),
+                shape(oval(660, 450, 24, 24, 14)), shape(oval(700, 200, 26, 24, 14))
+            ],
+            blocks: [
+                block('hut', smooth([300, 470, 360, 470, 360, 530, 300, 530], 0)),
+                block('hut', smooth([600, 100, 660, 100, 660, 160, 600, 160], 0))
+            ],
+            rough: [r(920, 0, 40, 640)]
+        },
+        {
+            name: 'The Chicane',
+            blurb: 'Two bends, one each way, on a strip of ice. Thread the S.',
+            par: 3,
+            /* An S of two curved walls across a strip of ice: whichever bend
+               the ball meets turns it, and the ice keeps it going into the
+               other. The putt that threads both is the ace; one that meets
+               only one is turned somewhere else entirely. */
+            tee: { x: 110, y: 540 },
+            hole: { x: 850, y: 110 },
+            arcs: [arc(330, 330, 200, 0, 90, 24), arc(630, 330, 200, 180, 270, 24)],
+            ice: [shape(smooth([200, 380, 760, 260, 760, 380, 200, 500], 0))],
+            blocks: [
+                block('rock', smooth([0, 0, 260, 0, 200, 120, 0, 200])),
+                block('rock', smooth([960, 640, 700, 640, 760, 520, 960, 440]))
+            ]
+        },
+        {
+            name: 'Bobsleigh',
+            blurb: 'A bobsleigh run: two hairpins down the mountain, all of it ice. Three runs, or one heroic one.',
+            par: 4,
+            /* The card's close: out along the top, round a hairpin, back
+               along the middle, round another and down to the flag, every
+               inch iced. Played a leg at a time it is three putts and par;
+               the ball that rides both hairpins in one go needs every bit of
+               a full swing. */
+            tee: { x: 100, y: 100 },
+            hole: { x: 860, y: 540 },
+            blocks: [
+                block('bed', smooth([0, 190, 700, 190, 760, 220, 760, 230, 700, 260, 0, 260], 0)),
+                block('bed', smooth([960, 380, 260, 380, 200, 410, 200, 420, 260, 450, 960, 450], 0))
+            ],
+            arcs: [arc(760, 225, 160, -90, 90, 26), arc(200, 415, 160, 90, 270, 26)],
+            ice: [shape([0, 0, 960, 0, 960, 640, 0, 640])]
+        }
+    ];
+
+    /* ── Midnight Funfair — the night ──────────────────────────────────
+
+       Crazy golf, after dark, and the card of things that move by
+       themselves. A spinner is a turnstile laid flat whose arms bat the
+       ball on as they come round; a belt is ground that runs and carries
+       the ball at its own pace. Neither waits for you, and neither can keep
+       you: the rule book clears every sweep of anything an arm could crush
+       a ball against, and runs every belt out onto open grass. The big top,
+       the carousel, the big wheel and the hall of mirrors are what a fair
+       has; here they are things to putt round and bank off. */
+
+    var FUNFAIR = [
+        {
+            name: 'Turnstile',
+            blurb: 'A turnstile on the straight line between the big top and the carousel. Go when the arms are clear.',
+            par: 3,
+            /* The terms: one spinner, two arms, a slow turn, and the straight
+               line through the middle of it. A putt timed to pass between
+               the arms is an ace; one that meets an arm is batted somewhere
+               of the arm's choosing. The lane round the top of the sweep is
+               there, narrow, for anybody who would rather not. */
+            tee: { x: 110, y: 320 },
+            hole: { x: 850, y: 320 },
+            spinners: [spinner(480, 320, 100, 2, 1.0, 0, 22)],
+            blocks: [
+                block('tent', oval(480, 85, 130, 70, 24)),
+                block('carousel', oval(480, 555, 130, 70, 24)),
+                block('bed', smooth([0, 0, 200, 0, 150, 80, 0, 130])),
+                block('bed', smooth([0, 640, 0, 510, 150, 560, 200, 640]))
+            ]
+        },
+        {
+            name: 'Travelator',
+            blurb: 'Two belts either side of the hedge: one runs your way, one runs back. Ride the right one.',
+            par: 3,
+            /* The two belts run opposite ways, one each side of a hedge.
+               Along the bottom is the straight way and the belt fights you
+               all of it; up round the hedge's end, the top belt carries you to
+               the flag — and a ball crossing a belt at an angle is dragged
+               along it, so a putt that meets it slantwise is bent. */
+            tee: { x: 120, y: 545 },
+            hole: { x: 860, y: 130 },
+            blocks: [block('hedge', smooth([200, 290, 770, 280, 780, 360, 210, 370], 1))],
+            belts: [belt(230, 100, 470, 70, 'right', 170), belt(260, 460, 470, 70, 'left', 150)]
+        },
+        {
+            name: 'Big Wheel',
+            blurb: 'The big wheel stands on the line, and a turnstile guards each way round it.',
+            par: 3,
+            /* The wheel's platform blocks the straight line, and each way
+               round it goes through a spinner, the two turning opposite ways.
+               The wheel turns overhead and goes thin when the ball rolls
+               under it. */
+            tee: { x: 110, y: 320 },
+            hole: { x: 840, y: 320 },
+            blocks: [block('wheel', oval(480, 320, 72, 62, 24))],
+            spinners: [spinner(480, 120, 62, 2, 1.1, 0, 20), spinner(480, 520, 62, 2, -1.1, 0, 20)]
+        },
+        {
+            name: 'Hall of Mirrors',
+            blurb: 'Mirrors at every angle and the flag behind them. Every line is a bank shot.',
+            par: 3,
+            /* Five mirrors, three of them on the slant, and nothing on the
+               straight line but glass. A mirror is a cushion like any other,
+               so the hole is a bank shot — or two — and there are more ways
+               in than there look. */
+            tee: { x: 120, y: 540 },
+            hole: { x: 820, y: 150 },
+            blocks: [
+                block('mirror', [330, 340, 460, 210, 474, 224, 344, 354]),
+                block('mirror', [560, 480, 690, 350, 704, 364, 574, 494]),
+                block('mirror', [600, 30, 760, 30, 760, 44, 600, 44]),
+                block('mirror', [700, 270, 880, 270, 880, 284, 700, 284]),
+                block('mirror', [60, 200, 74, 200, 74, 380, 60, 380])
+            ],
+            bumpers: [post(300, 130, 22), post(560, 580, 22)]
+        },
+        {
+            name: 'Big Top',
+            blurb: 'The ring has one way in, and a belt that runs straight at it.',
+            par: 3,
+            /* The cup is in the circus ring, and the ring's door faces the
+               end of a belt. A ball laid on the belt is carried to the door at
+               the belt's own pace — the ace is a putt onto the belt on a line
+               that the belt then carries through the door. */
+            tee: { x: 110, y: 120 },
+            hole: { x: 760, y: 400 },
+            arcs: [arc(760, 400, 115, 210, 510, 22)],
+            belts: [belt(160, 290, 380, 70, 'right', 150)],
+            blocks: [block('tent', oval(330, 540, 110, 70, 24))]
+        },
+        {
+            name: 'Grand Finale',
+            blurb: 'A belt, a turnstile, a curve and two posts on the way to the flag. The whole fair at once.',
+            par: 4,
+            /* Everything the fair has, in one hole: a belt to ride, a
+               three-armed turnstile to time, a curved wall that turns the ball
+               up to the flag, and two posts to stay off. Par is a belt and a
+               curve and a putt; the ace rides the lot. */
+            tee: { x: 100, y: 560 },
+            hole: { x: 860, y: 100 },
+            belts: [belt(200, 380, 300, 70, 'right', 160)],
+            spinners: [spinner(700, 470, 80, 3, 1.2, 0, 20)],
+            arcs: [arc(660, 160, 150, 90, 250, 22)],
+            bumpers: [post(420, 180, 24), post(300, 260, 24)],
+            blocks: [block('carousel', oval(160, 140, 100, 90, 24))]
+        }
+    ];
+
     /* The rack. `GOLF.COURSE` is whichever card is being played — the first
        one unless something says otherwise — and every consumer downstream
        keeps reading exactly that, so a course is chosen in one place and
@@ -1151,35 +1632,67 @@
             holes: TIDE
         },
         {
+            id: 'harvest',
+            theme: 'autumn',
+            name: 'Harvest Wind',
+            blurb: 'A farm where the fans blow the ball about. Aim into the wind.',
+            unlock: 16,
+            holes: HARVEST
+        },
+        {
             id: 'wild',
             theme: 'woodland',
             name: 'The Wild Six',
             blurb: 'Hills that break, bars that sweep and a green that sheds everything.',
-            unlock: 18,
+            unlock: 22,
             holes: WILD
+        },
+        {
+            id: 'dunes',
+            theme: 'desert',
+            name: 'The Dunes',
+            blurb: 'Dunes to curve round, sinkholes to stay out of, and an oasis that drinks.',
+            unlock: 28,
+            holes: DUNES
         },
         {
             id: 'warren',
             theme: 'meadow',
             name: 'The Warren',
             blurb: 'Six holes riddled with tunnels. Go in one, come out another.',
-            unlock: 26,
+            unlock: 34,
             holes: WARREN
+        },
+        {
+            id: 'icerun',
+            theme: 'winter',
+            name: 'The Ice Run',
+            blurb: 'Banked curves on ice. Hit it firm and ride the turns.',
+            unlock: 40,
+            holes: ICERUN
         },
         {
             id: 'alpine',
             theme: 'alpine',
             name: 'Avalanche Pass',
             blurb: 'Ice, crevasses and chutes that slide on a clock. Wait for the gap.',
-            unlock: 34,
+            unlock: 46,
             holes: ALPINE
+        },
+        {
+            id: 'funfair',
+            theme: 'night',
+            name: 'Midnight Funfair',
+            blurb: 'Turnstiles, travelators, a big wheel and a hall of mirrors, after dark.',
+            unlock: 52,
+            holes: FUNFAIR
         },
         {
             id: 'ember',
             theme: 'volcanic',
             name: 'Ember Ridge',
             blurb: 'Lava nothing skips across, and geysers that throw you over it if you time them.',
-            unlock: 42,
+            unlock: 58,
             holes: EMBER
         }
     ];
@@ -1195,7 +1708,7 @@
        uses, and every consumer downstream gets to loop without a guard. The
        playtest hand-off in index.html fills a drawn hole from the same list. */
     GOLF.HAZARD_KEYS = ['walls', 'water', 'sand', 'rough', 'ice', 'bumpers', 'slopes', 'tunnels', 'rails',
-                        'lava', 'avalanches', 'vents', 'arcs', 'blocks', 'hills'];
+                        'lava', 'avalanches', 'vents', 'arcs', 'blocks', 'hills', 'spinners', 'belts'];
     GOLF.COURSES.forEach(function (c) {
         c.holes.forEach(function (h) {
             GOLF.HAZARD_KEYS.forEach(function (key) {

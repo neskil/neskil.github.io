@@ -574,6 +574,78 @@
             g.restore();
             return;
         }
+        /* The funfair's: a big top, a carousel and a big wheel, each on a
+           painted platform. The carousel's canopy and the wheel turn, so
+           those are drawn live (see machines and over); this is what holds
+           still under them. */
+        if (look === 'tent' || look === 'carousel' || look === 'wheel') {
+            m = { top: '#5b2a6e', side: '#2a1033', hi: 'rgba(255, 220, 255, 0.45)', grain: 'rgba(255, 210, 120, 0.4)' };
+            solid(g, pts, w, m, v, 8, '#3a2147');
+            // Bulbs round the platform's edge.
+            g.save();
+            trace(g, pts, 0, 0);
+            g.setLineDash([2.4, 9]);
+            g.lineCap = 'round';
+            g.lineWidth = 3;
+            g.strokeStyle = '#fde68a';
+            g.stroke();
+            g.restore();
+            if (look === 'tent') bigTop(g, pole(pts), v, seed);
+            if (look === 'wheel') wheelStand(g, pole(pts), v);
+            return;
+        }
+        /* A mirror: a polished panel in a dark frame, with the fair's
+           lights caught in it as streaks of colour and a sheen across. */
+        if (look === 'mirror') {
+            m = { top: '#3b4250', side: '#1c2129', hi: 'rgba(255, 255, 255, 0.5)', grain: 'rgba(0, 0, 0, 0.3)' };
+            solid(g, pts, w, m, v, 8, '#b8c4d4');
+            g.save();
+            trace(g, pts, 0, 0);
+            g.clip();
+            var mb = boxOf(pts), span = Math.max(mb.x1 - mb.x0, mb.y1 - mb.y0);
+            var mg = g.createLinearGradient(mb.x0, mb.y0, mb.x1, mb.y1);
+            mg.addColorStop(0, '#e2e8f0');
+            mg.addColorStop(0.45, '#94a3b8');
+            mg.addColorStop(0.55, '#cbd5e1');
+            mg.addColorStop(1, '#64748b');
+            g.fillStyle = mg;
+            g.fillRect(mb.x0, mb.y0, mb.x1 - mb.x0, mb.y1 - mb.y0);
+            ['rgba(244, 63, 94, 0.35)', 'rgba(34, 211, 238, 0.35)', 'rgba(250, 204, 21, 0.35)'].forEach(function (c, k) {
+                g.strokeStyle = c;
+                g.lineWidth = 3;
+                g.beginPath();
+                var off = (hash(seed + k) - 0.5) * span;
+                g.moveTo(mb.x0 + off, mb.y1);
+                g.lineTo(mb.x0 + off + span, mb.y1 - span);
+                g.stroke();
+            });
+            g.strokeStyle = 'rgba(255, 255, 255, 0.7)';
+            g.lineWidth = 2;
+            g.beginPath();
+            g.moveTo(mb.x0, mb.y0 + span * 0.3);
+            g.lineTo(mb.x0 + span * 0.3, mb.y0);
+            g.stroke();
+            g.restore();
+            return;
+        }
+        /* A hut: a small timber shack with its roof to the viewer — in the
+           snow a fishing hut with a white roof and a stovepipe, elsewhere a
+           beach hut or a shed — on a plank deck. */
+        if (look === 'hut') {
+            m = material(theme.id === 'winter' || theme.id === 'alpine' ? 'snowlog' : 'timber');
+            solid(g, pts, w, m, v, EXT, '#8b6b4a');
+            shack(g, pole(pts), v, theme, seed);
+            return;
+        }
+        /* A pyramid seen from above: four faces running up to an apex,
+           each as light as it faces the light, and the courses of stone
+           showing as steps. */
+        if (look === 'pyramid') {
+            m = { top: '#d9a066', side: '#8a5a2b', hi: 'rgba(255, 236, 200, 0.5)', grain: 'rgba(120, 70, 30, 0.35)' };
+            solid(g, pts, w, m, v, 10, '#d9a066');
+            pyramid(g, pts, v);
+            return;
+        }
         if (look === 'castle') {
             m = { top: '#e6cf98', side: '#b8975a', hi: 'rgba(255, 250, 230, 0.55)', grain: 'rgba(150, 110, 60, 0.3)' };
             solid(g, pts, w, m, v, 9, '#dcc48c');
@@ -728,6 +800,254 @@
         g.restore();
     }
 
+    function shack(g, p, v, theme, seed) {
+        // As big as its plot allows: a fishing hut on a small one, a barn
+        // on a big one.
+        var s = Math.min(p.r * 1.3, 130);
+        if (s < 14) return;
+        var snow = theme.id === 'winter' || theme.id === 'alpine';
+        var walls = snow ? '#a0522d' : ['#e11d48', '#2563eb', '#16a34a', '#f59e0b'][(hash(seed) * 4) | 0];
+        var x0 = p.x - s / 2, y0 = p.y - s / 2, sh = sv(v, 6, 9);
+        g.save();
+        g.fillStyle = 'rgba(0, 0, 0, 0.25)';
+        g.fillRect(x0 + sh.x, y0 + sh.y, s, s);
+        prism(g, x0, y0, s, s, Math.max(14, s * 0.18), snow ? '#f1f5f9' : s > 70 ? '#6b7280' : '#7c4a2a', walls, v);
+        if (s > 70 && !snow) {
+            // A barn's roof: corrugated, in lines down from the ridge.
+            g.strokeStyle = 'rgba(30, 30, 35, 0.35)';
+            g.lineWidth = 1;
+            g.beginPath();
+            for (var c = x0 + 6; c < x0 + s; c += 7) { g.moveTo(c, y0); g.lineTo(c, y0 + s); }
+            g.stroke();
+        }
+        // The roof: two planes meeting at a ridge, lit on one side.
+        var lt = sv(v, -1, 0);
+        g.fillStyle = 'rgba(0, 0, 0, 0.12)';
+        if (Math.abs(lt.x) > Math.abs(lt.y)) g.fillRect(x0 + s / 2, y0, s / 2, s); else g.fillRect(x0, y0 + s / 2, s, s / 2);
+        g.strokeStyle = 'rgba(0, 0, 0, 0.3)';
+        g.lineWidth = 1.5;
+        g.beginPath();
+        if (Math.abs(lt.x) > Math.abs(lt.y)) { g.moveTo(x0 + s / 2, y0); g.lineTo(x0 + s / 2, y0 + s); }
+        else { g.moveTo(x0, y0 + s / 2); g.lineTo(x0 + s, y0 + s / 2); }
+        g.stroke();
+        // A door on the near face, and a stovepipe with a wisp.
+        var door = sv(v, 0, s / 2 + Math.max(14, s * 0.18) * 0.5);
+        g.fillStyle = 'rgba(40, 25, 15, 0.85)';
+        g.fillRect(p.x + door.x - s * 0.14, p.y + door.y - s * 0.07, s * 0.28, s * 0.14);
+        if (s > 70) {
+            // Barn doors: the white cross on each leaf.
+            g.strokeStyle = '#f5f5f4';
+            g.lineWidth = 2;
+            var dx0 = p.x + door.x - s * 0.14, dy0 = p.y + door.y - s * 0.07;
+            g.strokeRect(dx0, dy0, s * 0.28, s * 0.14);
+            g.beginPath();
+            g.moveTo(dx0, dy0); g.lineTo(dx0 + s * 0.28, dy0 + s * 0.14);
+            g.moveTo(dx0 + s * 0.28, dy0); g.lineTo(dx0, dy0 + s * 0.14);
+            g.stroke();
+        }
+        var pipe = sv(v, s * 0.22, -s * 0.18);
+        g.fillStyle = '#334155';
+        g.beginPath();
+        g.arc(p.x + pipe.x, p.y + pipe.y, 3.5, 0, Math.PI * 2);
+        g.fill();
+        g.restore();
+    }
+
+    function pyramid(g, pts, v) {
+        var p = pole(pts), ld = sv(v, -1, -1), ln = Math.hypot(ld.x, ld.y);
+        g.save();
+        trace(g, pts, 0, 0);
+        g.clip();
+        for (var i = 0, j = pts.length - 2; i < pts.length; j = i, i += 2) {
+            var ax = pts[j], ay = pts[j + 1], bx = pts[i], by = pts[i + 1];
+            // A face's outward normal, and how squarely it meets the light.
+            var nx = by - ay, ny = -(bx - ax), nn = Math.hypot(nx, ny) || 1;
+            var lit = (nx * ld.x + ny * ld.y) / nn / ln;
+            var sign = polyArea(pts) > 0 ? 1 : -1;
+            lit *= sign;
+            g.fillStyle = lit > 0 ? 'rgba(255, 245, 220, ' + (0.35 * lit).toFixed(3) + ')' : 'rgba(60, 30, 10, ' + (-0.4 * lit).toFixed(3) + ')';
+            g.beginPath();
+            g.moveTo(ax, ay); g.lineTo(bx, by); g.lineTo(p.x, p.y);
+            g.closePath();
+            g.fill();
+            // Courses of stone, as steps parallel to the face's foot.
+            g.strokeStyle = 'rgba(110, 65, 25, 0.35)';
+            g.lineWidth = 1;
+            g.beginPath();
+            for (var k = 1; k < 8; k++) {
+                var f = k / 8;
+                g.moveTo(ax + (p.x - ax) * f, ay + (p.y - ay) * f);
+                g.lineTo(bx + (p.x - bx) * f, by + (p.y - by) * f);
+            }
+            g.stroke();
+            g.strokeStyle = 'rgba(80, 45, 15, 0.45)';
+            g.beginPath();
+            g.moveTo(ax, ay); g.lineTo(p.x, p.y);
+            g.stroke();
+        }
+        g.fillStyle = '#f5deb3';
+        g.beginPath();
+        g.arc(p.x, p.y, 3, 0, Math.PI * 2);
+        g.fill();
+        g.restore();
+    }
+
+    /* A big top seen from above: a cone of red and white stripes from a
+       king pole, its skirt scalloped, a pennant at the top. */
+    function bigTop(g, p, v, seed) {
+        var R = Math.min(p.r - 2, 70);
+        if (R < 14) return;
+        var sh = sv(v, 8, 12);
+        g.save();
+        g.fillStyle = 'rgba(0, 0, 0, 0.3)';
+        g.beginPath();
+        g.arc(p.x + sh.x, p.y + sh.y, R, 0, Math.PI * 2);
+        g.fill();
+        var n = 12;
+        for (var i = 0; i < n; i++) {
+            var a0 = i / n * Math.PI * 2, a1 = (i + 1) / n * Math.PI * 2;
+            g.fillStyle = i % 2 ? '#f8fafc' : '#dc2626';
+            g.beginPath();
+            g.moveTo(p.x, p.y);
+            g.arc(p.x, p.y, R, a0, a1);
+            g.closePath();
+            g.fill();
+        }
+        // Scallops round the skirt.
+        for (i = 0; i < n * 2; i++) {
+            var a = (i + 0.5) / (n * 2) * Math.PI * 2;
+            g.fillStyle = i % 2 ? '#fbbf24' : '#b91c1c';
+            g.beginPath();
+            g.arc(p.x + Math.cos(a) * R, p.y + Math.sin(a) * R, R * 0.09, 0, Math.PI * 2);
+            g.fill();
+        }
+        // Lit from the top left: the cone's near side darker.
+        var l = sv(v, -R * 0.4, -R * 0.4);
+        var grad = g.createRadialGradient(p.x + l.x, p.y + l.y, R * 0.1, p.x, p.y, R);
+        grad.addColorStop(0, 'rgba(255, 255, 255, 0.25)');
+        grad.addColorStop(1, 'rgba(0, 0, 0, 0.30)');
+        g.fillStyle = grad;
+        g.beginPath();
+        g.arc(p.x, p.y, R, 0, Math.PI * 2);
+        g.fill();
+        var up = sv(v, 0, -1), side = sv(v, 1, 0);
+        g.strokeStyle = '#6b4a2a';
+        g.lineWidth = 2;
+        g.beginPath();
+        g.moveTo(p.x, p.y);
+        g.lineTo(p.x + up.x * 16, p.y + up.y * 16);
+        g.stroke();
+        g.fillStyle = hash(seed) < 0.5 ? '#22d3ee' : '#fbbf24';
+        g.beginPath();
+        g.moveTo(p.x + up.x * 16, p.y + up.y * 16);
+        g.lineTo(p.x + up.x * 12 + side.x * 12, p.y + up.y * 12 + side.y * 12);
+        g.lineTo(p.x + up.x * 8, p.y + up.y * 8);
+        g.closePath();
+        g.fill();
+        g.restore();
+    }
+
+    /* A carousel's canopy, turning: coloured panels round a gilt crown,
+       and the horses' poles showing at its rim. Live, on the screen's clock. */
+    function carousel(g, b, clock) {
+        var p = pole(b.pts), R = Math.min(p.r - 2, 66);
+        if (R < 14) return;
+        var turn = clock * 0.6, n = 10, cols = ['#e11d48', '#fbbf24', '#2563eb', '#f8fafc', '#16a34a'];
+        g.save();
+        for (var i = 0; i < n; i++) {
+            var a0 = turn + i / n * Math.PI * 2, a1 = turn + (i + 1) / n * Math.PI * 2;
+            g.fillStyle = cols[i % cols.length];
+            g.beginPath();
+            g.moveTo(p.x, p.y);
+            g.arc(p.x, p.y, R, a0, a1);
+            g.closePath();
+            g.fill();
+            // A pole and a horse's head showing at the rim.
+            var am = (a0 + a1) / 2;
+            g.fillStyle = '#fde68a';
+            g.beginPath();
+            g.arc(p.x + Math.cos(am) * R * 0.86, p.y + Math.sin(am) * R * 0.86, R * 0.05, 0, Math.PI * 2);
+            g.fill();
+        }
+        g.strokeStyle = 'rgba(60, 20, 40, 0.5)';
+        g.lineWidth = 1;
+        g.beginPath();
+        g.arc(p.x, p.y, R, 0, Math.PI * 2);
+        g.stroke();
+        g.fillStyle = '#fbbf24';
+        g.beginPath();
+        g.arc(p.x, p.y, R * 0.22, 0, Math.PI * 2);
+        g.fill();
+        g.fillStyle = '#b45309';
+        g.beginPath();
+        g.arc(p.x, p.y, R * 0.1, 0, Math.PI * 2);
+        g.fill();
+        g.restore();
+    }
+
+    /* A big wheel: its stand is painted with the platform, and the wheel
+       itself — a rim, spokes and swinging gondolas — turns live over the
+       ball like a windmill's sails, going thin when the ball is under it. */
+    function wheelOf(p) { var r = Math.min(p.r - 4, 40); return { x: p.x, y: p.y, r: r, len: r * 2.4 }; }
+
+    function wheelStand(g, p, v) {
+        var t = wheelOf(p);
+        if (t.r < 10) return;
+        g.save();
+        g.strokeStyle = '#94a3b8';
+        g.lineWidth = 5;
+        g.lineCap = 'round';
+        var foot = sv(v, 0, t.r * 0.9), side = sv(v, t.r * 0.7, 0);
+        g.beginPath();
+        g.moveTo(t.x, t.y); g.lineTo(t.x + foot.x + side.x, t.y + foot.y + side.y);
+        g.moveTo(t.x, t.y); g.lineTo(t.x + foot.x - side.x, t.y + foot.y - side.y);
+        g.stroke();
+        g.restore();
+    }
+
+    function bigWheel(g, b, v, clock, ball) {
+        var t = wheelOf(pole(b.pts));
+        if (t.r < 10) return;
+        var R = t.len, near = ball ? Math.hypot(ball.x - t.x, ball.y - t.y) - R : 999;
+        var turn = clock * 0.25, n = 10, cols = ['#f43f5e', '#fbbf24', '#22d3ee', '#a3e635', '#c084fc'];
+        g.save();
+        g.globalAlpha = near < 0 ? 0.32 : near < 50 ? 0.32 + near / 50 * 0.6 : 0.92;
+        g.strokeStyle = '#cbd5e1';
+        g.lineWidth = 3;
+        g.beginPath();
+        g.arc(t.x, t.y, R, 0, Math.PI * 2);
+        g.moveTo(t.x + R * 0.82, t.y);
+        g.arc(t.x, t.y, R * 0.82, 0, Math.PI * 2);
+        g.stroke();
+        g.lineWidth = 1.4;
+        g.beginPath();
+        for (var i = 0; i < n; i++) {
+            var a = turn + i / n * Math.PI * 2;
+            g.moveTo(t.x, t.y);
+            g.lineTo(t.x + Math.cos(a) * R, t.y + Math.sin(a) * R);
+        }
+        g.stroke();
+        // Lights on the rim, and a gondola hanging from each spoke's end.
+        var down = sv(v, 0, 1);
+        for (i = 0; i < n; i++) {
+            a = turn + i / n * Math.PI * 2;
+            var gx = t.x + Math.cos(a) * R, gy = t.y + Math.sin(a) * R;
+            g.fillStyle = cols[i % cols.length];
+            g.beginPath();
+            g.ellipse(gx + down.x * 7, gy + down.y * 7, 7, 6, 0, 0, Math.PI * 2);
+            g.fill();
+            g.fillStyle = '#fef3c7';
+            g.beginPath();
+            g.arc(t.x + Math.cos(a + Math.PI / n) * R, t.y + Math.sin(a + Math.PI / n) * R, 2, 0, Math.PI * 2);
+            g.fill();
+        }
+        g.fillStyle = '#e2e8f0';
+        g.beginPath();
+        g.arc(t.x, t.y, 6, 0, Math.PI * 2);
+        g.fill();
+        g.restore();
+    }
+
     /* The windmill: a whitewashed tower with its door to the viewer, a
        thatched cap, and — drawn live, over the ball — four sails turning.
        Its height hangs towards the viewer like every wall's near face. */
@@ -788,7 +1108,13 @@
     function sailLength(t) { return t.r * 2.3; }
 
     // Everything a windmill's sails sweep: a disc round its cap.
+    // Everything drawn over the ball from a block: a windmill's sails, a big
+    // wheel. Nothing a hole is about may sit under it.
     function sailReach(b) {
+        if (b.look === 'wheel') {
+            var wl = wheelOf(pole(b.pts));
+            return { x: wl.x, y: wl.y, r: wl.r < 10 ? 0 : wl.len + 10 };
+        }
         var t = towerOf(pole(b.pts));
         return { x: t.x, y: t.y, r: t.r < 10 ? 0 : sailLength(t) };
     }
@@ -1102,6 +1428,162 @@
         g.restore();
     }
 
+    /* ── spinners ───────────────────────────────────────────────────────
+
+       A turnstile laid flat. Its track — the ring its tips run round — is
+       sunk in the grass like a gate's, so the disc it sweeps is plain
+       before an arm ever comes round; the arms are drawn live, off the
+       world's clock, because where they are is a fact of play, and they
+       wear the moving wall's hazard stripes on the biome's own material. */
+    function drawSpinTrack(g, sp) {
+        var R = P.sweepOf(sp);
+        g.save();
+        g.strokeStyle = 'rgba(0, 0, 0, 0.16)';
+        g.lineWidth = 10;
+        g.beginPath();
+        g.arc(sp.x, sp.y, R - 4, 0, Math.PI * 2);
+        g.stroke();
+        g.strokeStyle = 'rgba(205, 210, 215, 0.35)';
+        g.lineWidth = 1.6;
+        g.beginPath();
+        g.arc(sp.x, sp.y, R - 1, 0, Math.PI * 2);
+        g.moveTo(sp.x + R - 8, sp.y);
+        g.arc(sp.x, sp.y, R - 8, 0, Math.PI * 2);
+        g.stroke();
+        // A faint wash over the whole sweep: this is the arms' ground.
+        g.fillStyle = 'rgba(0, 0, 0, 0.05)';
+        g.beginPath();
+        g.arc(sp.x, sp.y, R, 0, Math.PI * 2);
+        g.fill();
+        g.restore();
+    }
+
+    function drawSpinner(g, sp, t, theme, v) {
+        var m = material(theme.wall), arms = P.spinnerArms(sp, t), hw = (sp.w || 20) / 2;
+        var s1 = sv(v, 5, 8);
+        g.save();
+        g.lineCap = 'round';
+        // Shadows, then the near faces, then the tops.
+        arms.forEach(function (a) {
+            g.strokeStyle = 'rgba(0, 0, 0, 0.26)';
+            g.lineWidth = hw * 2;
+            g.beginPath(); g.moveTo(a.x + s1.x, a.y + s1.y); g.lineTo(a.tx + s1.x, a.ty + s1.y); g.stroke();
+        });
+        arms.forEach(function (a) {
+            g.strokeStyle = m.side;
+            g.lineWidth = hw * 2;
+            g.beginPath(); g.moveTo(a.x + v.dx * EXT, a.y + v.dy * EXT); g.lineTo(a.tx + v.dx * EXT, a.ty + v.dy * EXT); g.stroke();
+        });
+        arms.forEach(function (a) {
+            g.strokeStyle = m.move;
+            g.lineWidth = hw * 2;
+            g.beginPath(); g.moveTo(a.x, a.y); g.lineTo(a.tx, a.ty); g.stroke();
+            // Hazard stripes across the arm.
+            var L = Math.hypot(a.tx - a.x, a.ty - a.y), ux = (a.tx - a.x) / L, uy = (a.ty - a.y) / L;
+            g.strokeStyle = 'rgba(251, 191, 36, 0.6)';
+            g.lineWidth = 4;
+            g.lineCap = 'butt';
+            g.beginPath();
+            for (var d = hw + 6; d < L; d += 14) {
+                var cx = a.x + ux * d, cy = a.y + uy * d;
+                g.moveTo(cx - uy * hw * 0.8 - ux * 3, cy + ux * hw * 0.8 - uy * 3);
+                g.lineTo(cx + uy * hw * 0.8 + ux * 3, cy - ux * hw * 0.8 + uy * 3);
+            }
+            g.stroke();
+            g.lineCap = 'round';
+            g.strokeStyle = m.hi;
+            g.lineWidth = 1;
+            g.beginPath(); g.moveTo(a.x - uy * hw, a.y + ux * hw); g.lineTo(a.tx - uy * hw, a.ty + ux * hw); g.stroke();
+        });
+        // The hub: the post it all turns on.
+        var l = sv(v, -hw * 0.3, -hw * 0.3);
+        var grad = g.createRadialGradient(sp.x + l.x, sp.y + l.y, 1, sp.x, sp.y, hw + 4);
+        grad.addColorStop(0, '#f5f0e0');
+        grad.addColorStop(1, '#6b6f76');
+        g.fillStyle = grad;
+        g.beginPath();
+        g.arc(sp.x, sp.y, hw + 4, 0, Math.PI * 2);
+        g.fill();
+        g.fillStyle = '#2b2f36';
+        g.beginPath();
+        g.arc(sp.x, sp.y, 3, 0, Math.PI * 2);
+        g.fill();
+        g.restore();
+    }
+
+    /* ── belts ──────────────────────────────────────────────────────────
+
+       A conveyor: a rubber band between two steel lips with a roller at
+       each end, painted once, and slats across it running the way it runs,
+       drawn live — the belt says which way and how fast by doing it. */
+    function beltAxis(bt) {
+        var d = P.chuteDir(bt);
+        return { d: d, along: d.x ? bt.w : bt.h, across: d.x ? bt.h : bt.w };
+    }
+
+    function drawBeltBase(g, bt, v) {
+        var sh = sv(v, 4, 6);
+        g.save();
+        g.fillStyle = 'rgba(0, 0, 0, 0.25)';
+        GOLF.landscape.roundRect(g, bt.x + sh.x, bt.y + sh.y, bt.w, bt.h, 8);
+        g.fill();
+        GOLF.landscape.roundRect(g, bt.x, bt.y, bt.w, bt.h, 8);
+        g.fillStyle = '#2b2f36';
+        g.fill();
+        // The steel lips along both sides, and a roller at each end.
+        var ax = beltAxis(bt);
+        g.fillStyle = '#9aa3ad';
+        if (ax.d.x) {
+            g.fillRect(bt.x, bt.y, bt.w, 4); g.fillRect(bt.x, bt.y + bt.h - 4, bt.w, 4);
+        } else {
+            g.fillRect(bt.x, bt.y, 4, bt.h); g.fillRect(bt.x + bt.w - 4, bt.y, 4, bt.h);
+        }
+        g.fillStyle = '#5b636d';
+        if (ax.d.x) {
+            g.fillRect(bt.x, bt.y + 4, 8, bt.h - 8); g.fillRect(bt.x + bt.w - 8, bt.y + 4, 8, bt.h - 8);
+        } else {
+            g.fillRect(bt.x + 4, bt.y, bt.w - 8, 8); g.fillRect(bt.x + 4, bt.y + bt.h - 8, bt.w - 8, 8);
+        }
+        g.restore();
+    }
+
+    function drawBeltSlats(g, bt, t) {
+        var ax = beltAxis(bt), gap = 16, off = ((bt.speed * t) % gap + gap) % gap;
+        g.save();
+        g.beginPath();
+        if (ax.d.x) g.rect(bt.x + 8, bt.y + 4, bt.w - 16, bt.h - 8);
+        else g.rect(bt.x + 4, bt.y + 8, bt.w - 8, bt.h - 16);
+        g.clip();
+        g.strokeStyle = 'rgba(150, 160, 172, 0.55)';
+        g.lineWidth = 3;
+        g.beginPath();
+        for (var p = -gap; p < ax.along + gap; p += gap) {
+            // Distance along the belt in the direction it runs.
+            var q = p + off;
+            if (ax.d.x > 0) { g.moveTo(bt.x + q, bt.y); g.lineTo(bt.x + q, bt.y + bt.h); }
+            else if (ax.d.x < 0) { g.moveTo(bt.x + bt.w - q, bt.y); g.lineTo(bt.x + bt.w - q, bt.y + bt.h); }
+            else if (ax.d.y > 0) { g.moveTo(bt.x, bt.y + q); g.lineTo(bt.x + bt.w, bt.y + q); }
+            else { g.moveTo(bt.x, bt.y + bt.h - q); g.lineTo(bt.x + bt.w, bt.y + bt.h - q); }
+        }
+        g.stroke();
+        // Chevrons down the middle, pointing the way it goes.
+        g.strokeStyle = 'rgba(251, 191, 36, 0.55)';
+        g.lineWidth = 2.5;
+        g.lineJoin = 'round';
+        var size = Math.min(ax.across * 0.22, 10), step = 46, coff = ((bt.speed * t) % step + step) % step;
+        for (var c = -step; c < ax.along + step; c += step) {
+            var u = c + coff, cx, cy;
+            if (ax.d.x) { cx = ax.d.x > 0 ? bt.x + u : bt.x + bt.w - u; cy = bt.y + bt.h / 2; }
+            else { cx = bt.x + bt.w / 2; cy = ax.d.y > 0 ? bt.y + u : bt.y + bt.h - u; }
+            g.beginPath();
+            g.moveTo(cx - ax.d.x * size - ax.d.y * size, cy - ax.d.y * size - ax.d.x * size);
+            g.lineTo(cx, cy);
+            g.lineTo(cx - ax.d.x * size + ax.d.y * size, cy - ax.d.y * size + ax.d.x * size);
+            g.stroke();
+        }
+        g.restore();
+    }
+
     /* ── curves ─────────────────────────────────────────────────────────
 
        A curved wall is drawn as what it stands for — one band round the
@@ -1277,6 +1759,8 @@
     function ground(g, course, theme, v) {
         var i;
         millPaths(g, course);
+        for (i = 0; i < (course.belts || []).length; i++) drawBeltBase(g, course.belts[i], v);
+        for (i = 0; i < (course.spinners || []).length; i++) drawSpinTrack(g, course.spinners[i]);
         for (i = 0; i < (course.hills || []).length; i++) {
             var hl = course.hills[i];
             drawHill(g, hl, v);
@@ -1309,19 +1793,29 @@
         return b.x0 === Infinity ? null : b;
     }
 
-    // Live, under the ball: the wind's streaks.
+    // Live, under the ball: the wind's streaks and the belts' slats.
     function air(g, course, clock) {
         (course.slopes || []).forEach(function (s) { if (s.wind) streaks(g, s, clock); });
+        (course.belts || []).forEach(function (bt) { drawBeltSlats(g, bt, clock); });
     }
 
-    // Live, on the still walls: a fan's rotor.
-    function machines(g, course, clock) {
-        (course.blocks || []).forEach(function (b) { if (b.look === 'fan') rotor(g, b, course, clock); });
+    // Live, on the still walls: a fan's rotor, and the spinners' arms —
+    // those on the world's clock `t`, because where an arm is is a fact
+    // of play.
+    function machines(g, course, clock, t, theme, v) {
+        (course.blocks || []).forEach(function (b) {
+            if (b.look === 'fan') rotor(g, b, course, clock);
+            if (b.look === 'carousel') carousel(g, b, clock);
+        });
+        (course.spinners || []).forEach(function (sp) { drawSpinner(g, sp, t, theme, v); });
     }
 
     // Live, over the ball: a windmill's sails.
     function over(g, course, v, clock, ball) {
-        (course.blocks || []).forEach(function (b) { if (b.look === 'windmill') sails(g, b, v, clock, ball); });
+        (course.blocks || []).forEach(function (b) {
+            if (b.look === 'windmill') sails(g, b, v, clock, ball);
+            if (b.look === 'wheel') bigWheel(g, b, v, clock, ball);
+        });
     }
 
     GOLF.props = {

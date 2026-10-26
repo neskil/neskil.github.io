@@ -437,7 +437,8 @@
             if (!clearOf(keep, x, y, 0)) return false;
             if (P.zoneAt(hole.water, x, y) || P.zoneAt(hole.sand, x, y) || P.zoneAt(hole.ice, x, y) ||
                 P.zoneAt(hole.slopes, x, y) || P.zoneAt(hole.lava, x, y) || P.zoneAt(hole.avalanches, x, y) ||
-                P.inHill(hole.hills, x, y)) return false;
+                P.inHill(hole.hills, x, y) || P.zoneAt(hole.belts, x, y) ||
+                (hole.spinners || []).some(function (sp) { return Math.hypot(x - sp.x, y - sp.y) < P.sweepOf(sp) + 6; })) return false;
             return !onSolid(hole, x, y, 10);
         }
         var patches = 5 + ((rand() * 4) | 0);

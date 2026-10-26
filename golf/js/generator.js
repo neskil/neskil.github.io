@@ -700,6 +700,83 @@
             });
         });
 
+        /* Spinners. An arm bats a ball on; it must never be able to crush
+           one. So the whole disc its tips sweep, and a ball's width and a
+           little more round it, is open grass: off the cushion, clear of
+           every wall over its whole travel, every post, rail, curve, block
+           and other spinner, and off the tee, the cup, every mouth and every
+           vent — a ball teed up in a sweep would be hit before it was played. */
+        var spins = h.spinners || [];
+        spins.forEach(function (sp, si) {
+            if (!(sp.r >= 40) || !(sp.arms >= 1 && sp.arms <= 4) || !(Math.abs(sp.speed) >= 0.3 && Math.abs(sp.speed) <= 3)) {
+                bad.push('a spinner too small, too fast, too slow or with no arms');
+                return;
+            }
+            var sweep = P.sweepOf(sp), room = sweep + C.BALL_R * 2 + 4;
+            if (sp.x - room < 0 || sp.y - room < 0 || sp.x + room > C.WORLD_W || sp.y + room > C.WORLD_H) {
+                bad.push('a spinner that sweeps too near the cushion');
+            }
+            var crowded = (h.walls || []).some(function (w) {
+                return P.circleRect(sp.x, sp.y, room, travelEnvelope(w)) !== null;
+            }) || posts.some(function (b) {
+                return P.circleCircle(sp.x, sp.y, room, b) !== null;
+            }) || rails.some(function (r) {
+                return P.circleRail(sp.x, sp.y, room, r) !== null;
+            }) || spins.some(function (o, oi) {
+                return oi !== si && Math.hypot(o.x - sp.x, o.y - sp.y) < room + P.sweepOf(o);
+            });
+            if (crowded) bad.push('a spinner with something solid in its sweep');
+            if (Math.hypot(h.tee.x - sp.x, h.tee.y - sp.y) < sweep + C.BALL_R + 12) bad.push('the tee is in a spinner\'s sweep');
+            if (Math.hypot(h.hole.x - sp.x, h.hole.y - sp.y) < sweep + C.HOLE_R + 12) bad.push('the cup is in a spinner\'s sweep');
+            mouths.forEach(function (m) {
+                if (Math.hypot(m.x - sp.x, m.y - sp.y) < sweep + TR + C.BALL_R) bad.push('a tunnel mouth in a spinner\'s sweep');
+            });
+            (h.vents || []).forEach(function (v) {
+                if (Math.hypot(v.x - sp.x, v.y - sp.y) < sweep + VR + C.BALL_R) bad.push('a vent in a spinner\'s sweep');
+            });
+        });
+
+        /* Belts. Ground that moves carries the ball to its far end, so the
+           far end has to run out onto open ground: not into the cushion and
+           not into anything solid, or the ball would ride it into a wall and
+           never stop. Nothing else lies on a belt — no sand, ice, slope,
+           hill, chute, water or lava — because it is its own surface. */
+        (h.belts || []).forEach(function (bt) {
+            if (['down', 'up', 'left', 'right'].indexOf(bt.dir) < 0) { bad.push('a belt going nowhere'); return; }
+            if (!(bt.speed >= 40 && bt.speed <= 320)) bad.push('a belt too slow to see or too fast to ride');
+            if (bt.x < -1 || bt.y < -1 || bt.x + bt.w > C.WORLD_W + 1 || bt.y + bt.h > C.WORLD_H + 1) bad.push('a belt off the field');
+            var d = P.chuteDir(bt), reach = C.BALL_R * 3 + 4;
+            // The strip just past the belt's far end, where it puts the ball down.
+            var foot = d.x > 0 ? { x: bt.x + bt.w, y: bt.y, w: reach, h: bt.h }
+                     : d.x < 0 ? { x: bt.x - reach, y: bt.y, w: reach, h: bt.h }
+                     : d.y > 0 ? { x: bt.x, y: bt.y + bt.h, w: bt.w, h: reach }
+                     : { x: bt.x, y: bt.y - reach, w: bt.w, h: reach };
+            if (foot.x < 0 || foot.y < 0 || foot.x + foot.w > C.WORLD_W || foot.y + foot.h > C.WORLD_H) {
+                bad.push('a belt that runs into the cushion');
+            }
+            var span = { x: Math.min(bt.x, foot.x), y: Math.min(bt.y, foot.y),
+                         w: Math.max(bt.x + bt.w, foot.x + foot.w) - Math.min(bt.x, foot.x),
+                         h: Math.max(bt.y + bt.h, foot.y + foot.h) - Math.min(bt.y, foot.y) };
+            var blocked = (h.walls || []).some(function (w) { return overlaps(travelEnvelope(w), span); }) ||
+                posts.some(function (b) { return P.circleRect(b.x, b.y, b.r, span) !== null; }) ||
+                rails.some(function (r) { return railTouches(r, span); }) ||
+                spins.some(function (sp) { return P.circleRect(sp.x, sp.y, P.sweepOf(sp), span) !== null; });
+            if (blocked) bad.push('a belt that runs into something solid');
+            var layered = false;
+            for (var gx = bt.x + 4; gx < bt.x + bt.w && !layered; gx += 8) {
+                for (var gy = bt.y + 4; gy < bt.y + bt.h && !layered; gy += 8) {
+                    layered = !!(P.zoneAt(h.water, gx, gy) || P.zoneAt(h.lava, gx, gy) || P.zoneAt(h.sand, gx, gy) ||
+                        P.zoneAt(h.ice, gx, gy) || P.zoneAt(h.slopes, gx, gy) || P.zoneAt(h.avalanches, gx, gy) ||
+                        P.inHill(h.hills, gx, gy));
+                }
+            }
+            if (layered) bad.push('a belt laid over another surface');
+            if (P.circleRect(h.tee.x, h.tee.y, C.BALL_R + 4, bt)) bad.push('the tee is on a belt');
+            if (P.circleRect(h.hole.x, h.hole.y, C.HOLE_R + 12, bt)) bad.push('the cup is on a belt');
+            mouths.forEach(function (m) { if (P.circleRect(m.x, m.y, TR, bt)) bad.push('a tunnel mouth on a belt'); });
+            (h.vents || []).forEach(function (v) { if (P.circleRect(v.x, v.y, VR, bt)) bad.push('a vent on a belt'); });
+        });
+
         if (strict) {
             (h.slopes || []).forEach(function (s) {
                 if (s.pts) return;   // reported above
@@ -762,6 +839,16 @@
 
     function grow(r, by) {
         return { x: r.x - by, y: r.y - by, w: r.w + by * 2, h: r.h + by * 2 };
+    }
+
+    // Does a rail reach into a rectangle? Its spine sampled every few pixels,
+    // each sample a disc as wide as the rail.
+    function railTouches(r, R) {
+        var L = Math.hypot(r.tx - r.x, r.ty - r.y), n = Math.max(1, Math.ceil(L / 4));
+        for (var i = 0; i <= n; i++) {
+            if (P.circleRect(r.x + (r.tx - r.x) * i / n, r.y + (r.ty - r.y) * i / n, r.w / 2, R)) return true;
+        }
+        return false;
     }
 
     function overlaps(a, b) {
@@ -1206,7 +1293,7 @@
             /* The endless card, and so the last rung of the ladder: nine
                holes nobody has played are the reward for having played the
                ones somebody built. See progress.js. */
-            unlock: 50,
+            unlock: 66,
             holes: holes
         };
     }

@@ -52,7 +52,8 @@
 
     var cache = {};
 
-    var BLOCK_INK = { bed: '#3d6b2c', tree: '#2f5f2a', hedge: '#2f6d33', rock: '#8d8f88', windmill: '#c9c2b4', fan: '#1f2731', castle: '#e3c98f' };
+    var BLOCK_INK = { bed: '#3d6b2c', tree: '#2f5f2a', hedge: '#2f6d33', rock: '#8d8f88', windmill: '#c9c2b4', fan: '#1f2731', castle: '#e3c98f',
+                      tent: '#dc2626', carousel: '#fbbf24', wheel: '#5b2a6e', mirror: '#b8c4d4', hut: '#8b6b4a', pyramid: '#d9a066' };
 
     // A zone list in one colour, rectangles and polygons alike.
     function rects(g, list, fill) {
@@ -168,6 +169,32 @@
             g.beginPath();
             g.arc(b.x, b.y, b.r, 0, Math.PI * 2);
             g.fill();
+        }
+
+        /* A belt: dark rubber with an arrow down it. A spinner: the disc it
+           sweeps, and its arms as a cross — drawn at rest, like a gate, since
+           a plan has no clock to put them anywhere. */
+        var belts = hole.belts || [];
+        for (i = 0; i < belts.length; i++) {
+            var bt = belts[i], bd = GOLF.physics.chuteDir(bt);
+            g.fillStyle = '#2b2f36';
+            g.fillRect(bt.x, bt.y, bt.w, bt.h);
+            arrow(g, { x: bt.x, y: bt.y, w: bt.w, h: bt.h, ax: bd.x, ay: bd.y });
+        }
+        var spins = hole.spinners || [];
+        for (i = 0; i < spins.length; i++) {
+            var sp = spins[i], reach = GOLF.physics.sweepOf(sp);
+            g.fillStyle = 'rgba(0, 0, 0, 0.18)';
+            g.beginPath();
+            g.arc(sp.x, sp.y, reach, 0, Math.PI * 2);
+            g.fill();
+            g.strokeStyle = INK.move;
+            g.lineWidth = sp.w || 20;
+            g.lineCap = 'round';
+            g.beginPath();
+            GOLF.physics.spinnerArms(sp, 0).forEach(function (a) { g.moveTo(a.x, a.y); g.lineTo(a.tx, a.ty); });
+            g.stroke();
+            g.lineCap = 'butt';
         }
 
         // A vent: a grey grate with a dark throat, drawn big like a mouth.

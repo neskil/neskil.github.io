@@ -29,7 +29,8 @@
     /* The things a first round has to be told about, in the order they are
        likely to turn up. `gates` is a moving wall rather than a list of its
        own, because a wall that holds still needs no introduction. */
-    var LESSONS = ['rough', 'sand', 'water', 'ice', 'gates', 'bumpers', 'slopes', 'wind', 'hills', 'tunnels', 'avalanches', 'lava', 'vents'];
+    var LESSONS = ['rough', 'sand', 'water', 'ice', 'gates', 'bumpers', 'slopes', 'wind', 'hills', 'spinners', 'belts',
+                   'tunnels', 'avalanches', 'lava', 'vents'];
     // Everything a player of the old game has already met.
     var OLD_LESSONS = ['rough', 'sand', 'water', 'ice', 'gates', 'bumpers', 'slopes'];
 

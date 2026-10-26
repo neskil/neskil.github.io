@@ -713,6 +713,11 @@ kbd {
     linear-gradient(#e0f2fe 0 0) 0 25% / 70% 2px no-repeat, linear-gradient(#e0f2fe 0 0) 40% 78% / 60% 2px no-repeat, #5b8fa8; }
 /* A mound: lit on its upper left, shaded on its lower right. */
 .sw-hill { background: radial-gradient(circle at 36% 34%, #a7e3a0 0 18%, #3f8a53 55%, #1d4a2a 100%); border-radius: 50%; }
+/* A turnstile seen from above: a cross in a ring. */
+.sw-spin { background: linear-gradient(45deg, transparent 42%, #fbbf24 42% 58%, transparent 58%),
+    linear-gradient(-45deg, transparent 42%, #fbbf24 42% 58%, transparent 58%), #3a3f47; border-radius: 50%; }
+/* A belt: slats running one way. */
+.sw-belt { background: repeating-linear-gradient(90deg, #2b2f36 0 4px, #4b525c 4px 6px); border: 1px solid #8a94a0; }
 /* A mouth: dark, in a coloured collar. */
 .sw-tunnel { background: radial-gradient(circle, #0a0f1a 0 45%, #a78bfa 48% 100%); border-radius: 50%; }
 /* Molten, with a crust. */

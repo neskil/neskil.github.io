@@ -1039,6 +1039,84 @@
             assert('a tee on a hill is caught', bad(teeHill).some(function (m) { return /tee is on a hill/.test(m); }));
         })();
 
+        section('Spinners and belts');
+
+        /* The two things on the green that move without a clock you have to
+           wait for: an arm that comes round and a floor that goes along. Both
+           hand the ball speed — a moving thing pushing, like a gate — so what
+           is pinned is that they can never keep it: a spinner never crushes
+           a ball or leaves it inside an arm, and a belt always puts it down. */
+        (function () {
+            var Hs = GOLF.helpers;
+            function field(extra) {
+                var h = { par: 3, tee: { x: 100, y: 320 }, hole: { x: 880, y: 320 } };
+                GOLF.HAZARD_KEYS.forEach(function (k) { h[k] = []; });
+                Object.keys(extra || {}).forEach(function (k) { h[k] = extra[k]; });
+                return h;
+            }
+            var turn = Hs.spinner(480, 320, 110, 3, 1.2, 0, 22);
+            var arms0 = P.spinnerArms(turn, 0), arms1 = P.spinnerArms(turn, 1);
+            assert('a spinner has its arms, each as long as it says',
+                arms0.length === 3 && arms0.every(function (a) { return approx(Math.hypot(a.tx - a.x, a.ty - a.y), 110, 1e-9); }));
+            assert('…and they turn at its speed', approx(Math.atan2(arms1[0].ty - 320, arms1[0].tx - 480), 1.2, 1e-9));
+
+            var sf = field({ spinners: [turn] });
+            var sat = P.createWorld(sf, { x: 540, y: 380 }, 0);
+            for (var i = 0; i < 600; i++) P.advance(sat, 1 / 60);
+            assert('a ball left in a sweep is batted out of it', Math.hypot(sat.ball.x - 480, sat.ball.y - 320) > P.sweepOf(turn),
+                Math.hypot(sat.ball.x - 480, sat.ball.y - 320).toFixed(1) + 'px out');
+
+            var inArm = 0, hung = 0;
+            for (var k = 0; k < 160; k++) {
+                var w = P.simulateShot(sf, sf.tee, (k % 13 - 6) * 0.05, 300 + (k % 7) * 160, k * 0.07);
+                if (w.moving) hung++;
+                if (P.spinnerArms(turn, w.time).some(function (a) { return P.circleRail(w.ball.x, w.ball.y, C.BALL_R - 0.5, a); })) inArm++;
+            }
+            assert('no shot through a spinner ends inside an arm', inArm === 0, inArm + ' of 160');
+            assert('…or fails to settle', hung === 0, hung + ' of 160');
+
+            var flipped = Hs.mirror(field({ spinners: [Hs.spinner(300, 200, 90, 2, 0.8, 0.3, 20)] })).spinners[0];
+            var a0 = P.spinnerArms(Hs.spinner(300, 200, 90, 2, 0.8, 0.3, 20), 1.7)[0], m0 = P.spinnerArms(flipped, 1.7)[0];
+            assert('a mirrored spinner turns the other way, from a mirrored start',
+                approx(m0.tx, C.WORLD_W - a0.tx, 1e-6) && approx(m0.ty, a0.ty, 1e-6));
+
+            // Belts.
+            var lane = Hs.belt(300, 280, 300, 80, 'right', 150);
+            var ride = P.createWorld(field({ belts: [lane] }), { x: 320, y: 320 }, 0);
+            ride.moving = true;
+            P.advance(ride, 0.5);
+            assert('a ball on a belt is not at rest: it comes up to the belt\'s pace', ride.moving && ride.ball.vx > 40, ride.ball.vx.toFixed(1));
+            P.settle(ride);
+            assert('…and is carried off the far end and stops', !ride.moving && ride.ball.x > 600, ride.ball.x.toFixed(1));
+            var up = P.simulateShot(field({ belts: [Hs.belt(300, 280, 300, 80, 'left', 150)] }), { x: 100, y: 320 }, 0, 700);
+            var flat = P.simulateShot(field({}), { x: 100, y: 320 }, 0, 700);
+            assert('a putt into a belt\'s teeth is cut short', up.ball.x < flat.ball.x - 80, up.ball.x.toFixed(0) + ' against ' + flat.ball.x.toFixed(0));
+            function rideAt(dt) {
+                var r = P.createWorld(field({ belts: [lane] }), { x: 200, y: 300 }, 0);
+                P.launch(r, 0.2, 500);
+                for (var n = 0; n < 20 / dt && r.moving; n++) P.advance(r, dt);
+                return r.ball;
+            }
+            var b30 = rideAt(1 / 30), b120 = rideAt(1 / 120);
+            assert('30Hz and 120Hz agree about where a ride on a belt stops',
+                Math.hypot(b30.x - b120.x, b30.y - b120.y) < 1.5, Math.hypot(b30.x - b120.x, b30.y - b120.y).toFixed(2) + 'px apart');
+
+            // The rule book.
+            function bad(h) { return GOLF.validateHole(h); }
+            var ok = field({ spinners: [turn], belts: [Hs.belt(240, 470, 400, 70, 'right', 160)] });
+            assert('a spinner and a belt that keep the rules pass the rule book', bad(ok).length === 0, bad(ok).join('; '));
+            var crushed = JSON.parse(JSON.stringify(ok)); crushed.walls.push(Hs.r(560, 200, 26, 60));
+            assert('a wall in a spinner\'s sweep is caught', bad(crushed).some(function (m) { return /solid in its sweep/.test(m); }));
+            var teed = JSON.parse(JSON.stringify(ok)); teed.tee = { x: 420, y: 320 };
+            assert('a tee in a sweep is caught', bad(teed).some(function (m) { return /tee is in a spinner/.test(m); }));
+            var wall = JSON.parse(JSON.stringify(ok)); wall.belts[0] = Hs.belt(600, 470, 360, 70, 'right', 160);
+            assert('a belt into the cushion is caught', bad(wall).some(function (m) { return /into the cushion/.test(m); }));
+            var blocked = JSON.parse(JSON.stringify(ok)); blocked.walls.push(Hs.r(650, 450, 30, 110));
+            assert('a belt into a wall is caught', bad(blocked).some(function (m) { return /into something solid/.test(m); }));
+            var sandy = JSON.parse(JSON.stringify(ok)); sandy.sand.push(Hs.r(300, 480, 60, 40));
+            assert('a belt over a bunker is caught', bad(sandy).some(function (m) { return /over another surface/.test(m); }));
+        })();
+
         /* ── scenery ───────────────────────────────────────────────────── */
         section('Scenery');
 
@@ -1199,7 +1277,7 @@
                deliberate one made here as well as in courses.js. Pinned by
                id rather than by rack position, because the order of the rack
                is a matter of taste and the length of a card is not. */
-            var counts = { short: 6, links: 6, tide: 6, wild: 6, warren: 6, alpine: 6, ember: 6 };
+            var counts = { short: 6, links: 6, tide: 6, harvest: 6, wild: 6, dunes: 6, warren: 6, icerun: 6, alpine: 6, funfair: 6, ember: 6 };
             Object.keys(counts).forEach(function (id) {
                 var c = byId(id);
                 assert(id + ' is on the rack', !!c);
@@ -1345,7 +1423,7 @@
                     if (!fed) orphans.push(course.id + ' ' + h.name);
                 });
                 if (fans.length && !winds.length) idle.push(course.id + ' ' + h.name);
-                h.blocks.filter(function (b) { return b.look === 'windmill'; }).forEach(function (b) {
+                h.blocks.filter(function (b) { return b.look === 'windmill' || b.look === 'wheel'; }).forEach(function (b) {
                     var reach = GOLF.props.sailReach(b);
                     var spots = [{ x: h.tee.x, y: h.tee.y, r: 20 }, { x: h.hole.x, y: h.hole.y, r: C.HOLE_R + 10 }];
                     h.tunnels.forEach(function (t) { spots.push({ x: t.x, y: t.y, r: C.TUNNEL_R }, { x: t.tx, y: t.ty, r: C.TUNNEL_R }); });
@@ -1354,7 +1432,7 @@
             });
             assert('every wind has a fan at its head', orphans.length === 0, orphans.join(', '));
             assert('…and every fan has a wind to blow', idle.length === 0, idle.join(', '));
-            assert('a windmill\'s sails never reach the tee, the cup or a tunnel mouth', shaded.length === 0, shaded.join(', '));
+            assert('a windmill\'s sails and a big wheel never reach the tee, the cup or a tunnel mouth', shaded.length === 0, shaded.join(', '));
             /* The starter is a walk through the rack: every hole of it in a
                biome of its own, and those biomes the ones the rest of the
                rack is set in. */
