@@ -136,6 +136,8 @@
         var lum = theme.turf.l + Math.round(hash(seed + 9) * 5);
         g.fillStyle = 'hsl(' + hue + ', ' + theme.turf.s + '%, ' + lum + '%)';
         g.fillRect(0, 0, W, H);
+        if (theme.floor === 'wood') return woodFloor(g, seed, hue, lum, theme);
+        if (theme.floor === 'deck') return deckFloor(g, seed);
 
         var angle = -0.55 + hash(seed + 3) * 1.1;
         var band = 44 + Math.round(hash(seed + 5) * 34);
@@ -182,6 +184,75 @@
         return c;
     }
 
+    /* A desk top: boards running the long way, each its own shade, with
+       the grain drawn in long wavering lines and a knot now and then. */
+    function woodFloor(g, seed, hue, lum, theme) {
+        var board = 92, n, k;
+        for (var y = -board / 2, row = 0; y < H; y += board, row++) {
+            g.fillStyle = 'hsla(' + (hue + (hash(seed + row) - 0.5) * 8) + ', ' + theme.turf.s + '%, ' +
+                (lum + (hash(seed + row * 3.1) - 0.5) * 6) + '%, 1)';
+            g.fillRect(0, y, W, board);
+            g.strokeStyle = 'rgba(60, 30, 10, 0.22)';
+            g.lineWidth = 1;
+            for (k = 0; k < 9; k++) {
+                var gy = y + 6 + k * board / 9;
+                g.beginPath();
+                for (var x = 0; x <= W; x += 24) g.lineTo(x, gy + Math.sin(x * 0.012 + hash(seed + row + k) * 6) * 3);
+                g.stroke();
+            }
+            if (hash(seed + row * 7.7) < 0.6) {
+                var kx = hash(seed + row * 5.3) * W, ky = y + board * (0.3 + hash(seed + row) * 0.4);
+                g.fillStyle = 'rgba(70, 35, 12, 0.35)';
+                g.beginPath(); g.ellipse(kx, ky, 9, 4, 0, 0, Math.PI * 2); g.fill();
+            }
+            g.fillStyle = 'rgba(30, 14, 4, 0.45)';
+            g.fillRect(0, y + board - 1.5, W, 1.5);
+        }
+        // The varnish catches the light.
+        for (n = 0; n < 1600; n++) {
+            g.fillStyle = hash(n * 5.3) < 0.5 ? 'rgba(255, 230, 190, 0.05)' : 'rgba(40, 20, 6, 0.06)';
+            g.fillRect(hash(seed * 31 + n) * W, hash(seed * 17 + n * 3.7) * H, 1.6, 1.6);
+        }
+        vignette(g);
+        return g.canvas;
+    }
+
+    /* A deck over the dark: glass plates on a grid, and the stars showing
+       through them — a few bright, most faint, with a smudge of nebula. */
+    function deckFloor(g, seed) {
+        var n;
+        for (n = 0; n < 3; n++) {
+            var nx = hash(seed + n * 4.1) * W, ny = hash(seed + n * 7.3) * H, nr = 160 + hash(seed + n) * 200;
+            var neb = g.createRadialGradient(nx, ny, 10, nx, ny, nr);
+            neb.addColorStop(0, n % 2 ? 'rgba(160, 80, 220, 0.16)' : 'rgba(60, 120, 230, 0.14)');
+            neb.addColorStop(1, 'rgba(0, 0, 0, 0)');
+            g.fillStyle = neb;
+            g.fillRect(0, 0, W, H);
+        }
+        for (n = 0; n < 900; n++) {
+            var b = hash(n * 9.7 + seed);
+            g.fillStyle = 'rgba(255, 255, 255, ' + (b < 0.9 ? 0.18 + b * 0.25 : 0.85).toFixed(2) + ')';
+            var sz = b < 0.95 ? 1.1 : 2;
+            g.fillRect(hash(seed * 13 + n * 1.9) * W, hash(seed * 29 + n * 2.3) * H, sz, sz);
+        }
+        g.strokeStyle = 'rgba(140, 170, 255, 0.10)';
+        g.lineWidth = 1;
+        g.beginPath();
+        for (var x = 0; x <= W; x += 80) { g.moveTo(x, 0); g.lineTo(x, H); }
+        for (var y = 0; y <= H; y += 80) { g.moveTo(0, y); g.lineTo(W, y); }
+        g.stroke();
+        vignette(g);
+        return g.canvas;
+    }
+
+    function vignette(g) {
+        var vg = g.createRadialGradient(W / 2, H / 2, H * 0.35, W / 2, H / 2, H * 0.95);
+        vg.addColorStop(0, 'rgba(0,0,0,0)');
+        vg.addColorStop(1, 'rgba(0,0,0,0.36)');
+        g.fillStyle = vg;
+        g.fillRect(0, 0, W, H);
+    }
+
     function turfFor(seed, theme) {
         var key = seed + '/' + theme.name;
         if (!turf || turfKey !== key) { turf = makeTurf(seed, theme); turfKey = key; }
@@ -193,8 +264,37 @@
        it — and the one piece of the picture that tells you where the hole is
        from across the field. Faded at the rim rather than cut off at it: a
        hard circle of paler grass reads as a target painted on the field. */
-    function drawGreen(g, hole) {
+    function drawGreen(g, hole, theme) {
         var R = 96;
+        // Off the grass there is no green to mow: a cork coaster on the
+        // desk, and a landing ring on the deck.
+        if (theme && theme.floor === 'wood') {
+            g.save();
+            g.fillStyle = 'rgba(0, 0, 0, 0.22)';
+            g.beginPath(); g.arc(hole.x + 3, hole.y + 4, 52, 0, Math.PI * 2); g.fill();
+            g.fillStyle = '#b98a5a';
+            g.beginPath(); g.arc(hole.x, hole.y, 52, 0, Math.PI * 2); g.fill();
+            for (var c = 0; c < 260; c++) {
+                var ca = hash(c * 3.1) * Math.PI * 2, cd = Math.sqrt(hash(c * 7.7)) * 50;
+                g.fillStyle = hash(c) < 0.5 ? 'rgba(90, 55, 25, 0.35)' : 'rgba(240, 210, 160, 0.3)';
+                g.fillRect(hole.x + Math.cos(ca) * cd, hole.y + Math.sin(ca) * cd, 1.6, 1.6);
+            }
+            g.strokeStyle = 'rgba(80, 50, 20, 0.5)';
+            g.lineWidth = 2;
+            g.beginPath(); g.arc(hole.x, hole.y, 51, 0, Math.PI * 2); g.stroke();
+            g.restore();
+            return;
+        }
+        if (theme && theme.floor === 'deck') {
+            g.save();
+            for (var lr = 26; lr < R; lr += 22) {
+                g.strokeStyle = 'rgba(120, 220, 255, ' + (0.32 * (1 - lr / R)).toFixed(3) + ')';
+                g.lineWidth = 2;
+                g.beginPath(); g.arc(hole.x, hole.y, lr, 0, Math.PI * 2); g.stroke();
+            }
+            g.restore();
+            return;
+        }
         g.save();
         g.beginPath();
         g.arc(hole.x, hole.y, R, 0, Math.PI * 2);
@@ -495,7 +595,7 @@
 
         // Reeds and rocks at the edge stand up out of the water, over the
         // shoreline, so they are drawn after the clip comes off.
-        if (dec) {
+        if (dec && w.edge !== 'none') {
             if (w.edge === 'rocks') {
                 for (var k = 0; k < dec.shore.length; k++) if (dec.shore[k].big) rock(g, dec.shore[k], v, w.snow);
             } else {
@@ -801,6 +901,39 @@
                 g.fillStyle = 'rgba(255, 122, 26, ' + (0.55 + d.t * 0.4).toFixed(2) + ')';
                 g.beginPath(); g.arc(0.4, -0.2, 1.4, 0, Math.PI * 2); g.fill();
                 break;
+            case 'clip':
+                // A paperclip: two loops of wire, one inside the other.
+                g.strokeStyle = 'rgba(210, 218, 228, 0.9)'; g.lineWidth = 1;
+                roundRect(g, -7, -2.6, 14, 5.2, 2.6); g.stroke();
+                roundRect(g, -5, -1.3, 9, 2.6, 1.3); g.stroke();
+                break;
+            case 'staple':
+                g.strokeStyle = 'rgba(200, 205, 215, 0.85)'; g.lineWidth = 0.9;
+                g.beginPath(); g.moveTo(-3.5, 1.5); g.lineTo(-3.5, -1); g.lineTo(3.5, -1); g.lineTo(3.5, 1.5); g.stroke();
+                break;
+            case 'crumb':
+                // Eraser crumbs.
+                g.fillStyle = 'rgba(236, 170, 170, 0.55)';
+                for (k = 0; k < 3; k++) { g.beginPath(); g.ellipse(k * 2.4 - 2.4, (k % 2) * 1.6, 1.4, 0.9, k, 0, Math.PI * 2); g.fill(); }
+                break;
+            case 'bolt':
+                g.fillStyle = 'rgba(150, 165, 185, 0.7)';
+                g.beginPath();
+                for (k = 0; k < 6; k++) g.lineTo(Math.cos(k * Math.PI / 3) * 3, Math.sin(k * Math.PI / 3) * 3);
+                g.closePath(); g.fill();
+                g.fillStyle = 'rgba(30, 36, 48, 0.8)'; g.beginPath(); g.arc(0, 0, 1.1, 0, Math.PI * 2); g.fill();
+                break;
+            case 'panel':
+                // A lit panel in the deck: a row of little lights.
+                for (k = 0; k < 4; k++) {
+                    g.fillStyle = k === (d.t * 4 | 0) ? 'rgba(120, 255, 180, 0.8)' : 'rgba(120, 200, 255, 0.45)';
+                    g.fillRect(k * 3.4 - 6.5, -1, 2.2, 2.2);
+                }
+                break;
+            case 'speck':
+                g.fillStyle = 'rgba(200, 210, 255, 0.35)';
+                g.fillRect(-0.8, -0.8, 1.6, 1.6);
+                break;
             case 'toadstool':
                 g.fillStyle = '#dc2626'; g.beginPath(); g.arc(0, 0, 3, 0, Math.PI * 2); g.fill();
                 g.fillStyle = '#ffffff';
@@ -817,8 +950,9 @@
        the body — goes into the ground layer once; what moves — the crust
        drifting on it, the bright seams between the plates, a bubble coming
        up — is drawn live inside its outline. And whatever the biome, lava is
-       lava: it is the one zone the scenery may not dress up, because it is
-       the one that takes the ball at any pace. Its surface sits a few pixels
+       lava: it is the one zone the scenery may not dress up as anything
+       gentle, because it is the one that takes the ball at any pace — the
+       only other thing it is ever drawn as is the void, in space. Its surface sits a few pixels
        down the screen like the water's, so the far bank shows a face of
        rock above it. */
     var LAVA_SINK = 5;
@@ -830,9 +964,10 @@
         g.translate(-dn.x, -dn.y);
     }
 
-    function drawLavaBed(g, list, v) {
+    function drawLavaBed(g, list, v, theme) {
         if (!list || !list.length) return;
         var loops = SC.outline(list, true);
+        if (theme && theme.lava === 'void') return voidBed(g, loops);
         g.save();
         loopPath(g, loops, 18);
         g.lineJoin = 'round';
@@ -900,8 +1035,55 @@
         return crust;
     }
 
-    function drawLava(g, list, v, clock) {
+    /* In space what takes the ball at any pace is the dark itself: a hole
+       in the deck with nothing under it, its rim glowing where the light of
+       what falls in is bent round it. Still drawn so that nothing could be
+       mistaken for something you can roll on. */
+    function voidBed(g, loops) {
+        g.save();
+        loopPath(g, loops, 18);
+        g.lineJoin = 'round';
+        g.strokeStyle = 'rgba(170, 110, 255, 0.16)';
+        g.lineWidth = 34;
+        g.stroke();
+        g.strokeStyle = 'rgba(255, 170, 90, 0.35)';
+        g.lineWidth = 9;
+        g.stroke();
+        g.fillStyle = '#000000';
+        g.fill();
+        g.restore();
+    }
+
+    function drawVoid(g, list, clock) {
+        var loops = SC.outline(list, true);
+        g.save();
+        loopPath(g, loops, 18);
+        g.clip();
+        g.fillStyle = '#000';
+        g.fillRect(0, 0, W, H);
+        loops.forEach(function (lp) {
+            var b = boundsOf([lp]), cx = (b.x0 + b.x1) / 2, cy = (b.y0 + b.y1) / 2;
+            var r = Math.max(b.x1 - b.x0, b.y1 - b.y0) / 2;
+            // What is falling in: arcs of light swirling inwards.
+            for (var k = 0; k < 7; k++) {
+                var ph = (clock * 0.12 + k / 7) % 1, rr = r * (1 - ph * 0.85);
+                var a0 = clock * (1.4 + k * 0.1) + k * 1.9;
+                g.strokeStyle = k % 2 ? 'rgba(255, 170, 90, ' + (0.5 * (1 - ph)).toFixed(2) + ')' : 'rgba(180, 120, 255, ' + (0.5 * (1 - ph)).toFixed(2) + ')';
+                g.lineWidth = 2.2;
+                g.beginPath(); g.arc(cx, cy, Math.max(2, rr), a0, a0 + 1.6); g.stroke();
+            }
+            var core = g.createRadialGradient(cx, cy, 0, cx, cy, r * 0.55);
+            core.addColorStop(0, 'rgba(0, 0, 0, 1)');
+            core.addColorStop(1, 'rgba(0, 0, 0, 0)');
+            g.fillStyle = core;
+            g.beginPath(); g.arc(cx, cy, r * 0.55, 0, Math.PI * 2); g.fill();
+        });
+        g.restore();
+    }
+
+    function drawLava(g, list, v, clock, theme) {
         if (!list || !list.length) return;
+        if (theme && theme.lava === 'void') return drawVoid(g, list, clock);
         var cr = crustFor(list), loops = cr.loops, b = cr.b;
         g.save();
         loopPath(g, loops, 18);
@@ -1200,7 +1382,12 @@
         snowlog:   { top: '#eef4f8', side: '#4b3423', move: '#f6f9fb', grain: 'rgba(110,140,175,0.30)', hi: 'rgba(255,255,255,0.7)' },
         sandstone: { top: '#c9854f', side: '#7a4526', move: '#d99a62', grain: 'rgba(110,52,22,0.36)', hi: 'rgba(255,226,190,0.30)' },
         granite:   { top: '#9aa3ab', side: '#4f565d', move: '#b0b8bf', grain: 'rgba(30,35,40,0.40)', hi: 'rgba(255,255,255,0.34)' },
-        basalt:    { top: '#3d3a3b', side: '#1b1819', move: '#57524f', grain: 'rgba(255,110,40,0.38)', hi: 'rgba(255,170,110,0.22)' }
+        basalt:    { top: '#3d3a3b', side: '#1b1819', move: '#57524f', grain: 'rgba(255,110,40,0.38)', hi: 'rgba(255,170,110,0.22)' },
+        // A row of books lying on the desk: cloth covers, and the cream of
+        // the pages on the face towards you.
+        book:      { top: '#7f2a2a', side: '#efe4c8', move: '#9a3a32', grain: 'rgba(250,215,120,0.55)', hi: 'rgba(255,230,210,0.25)' },
+        // Hull plating: panels, seams and rivets.
+        hull:      { top: '#5d6673', side: '#2b3038', move: '#7a8594', grain: 'rgba(15,20,26,0.45)', hi: 'rgba(200,230,255,0.32)' }
     };
 
     function material(theme) { return MATERIAL[theme.wall] || MATERIAL.timber; }
@@ -1262,7 +1449,37 @@
         g.strokeStyle = m.grain;
         g.lineWidth = 1;
         g.beginPath();
-        if (kind === 'brick') {
+        if (kind === 'book') {
+            // Books end to end, each a cover of its own colour, with the
+            // gilt of a title across it.
+            g.stroke();
+            var COVERS = ['#7f2a2a', '#1f4e79', '#2f5d3a', '#6b4a8a', '#8a5a1f', '#24303d'];
+            for (a = 0; a < len; ) {
+                var bl = 46 + hash(seed + a * 0.13) * 50, b1 = Math.min(len, a + bl);
+                g.fillStyle = COVERS[(hash(seed + a * 0.71) * COVERS.length) | 0];
+                if (along) g.fillRect(R.x + a + 0.8, R.y + 0.8, b1 - a - 1.6, wid - 1.6);
+                else g.fillRect(R.x + 0.8, R.y + a + 0.8, wid - 1.6, b1 - a - 1.6);
+                g.fillStyle = m.grain;
+                var tl = (b1 - a) * 0.5;
+                if (along) g.fillRect(R.x + a + (b1 - a - tl) / 2, R.y + wid / 2 - 1, tl, 2);
+                else g.fillRect(R.x + wid / 2 - 1, R.y + a + (b1 - a - tl) / 2, 2, tl);
+                a = b1;
+            }
+            g.beginPath();
+        } else if (kind === 'hull') {
+            // Panels with seams across, and a rivet at each corner.
+            for (a = 30; a < len; a += 30) line(a, 0, a, wid);
+            g.stroke();
+            g.fillStyle = 'rgba(210, 230, 255, 0.45)';
+            for (a = 4; a < len; a += 30) {
+                [[a, 3], [a, wid - 3], [a + 22, 3], [a + 22, wid - 3]].forEach(function (pt) {
+                    if (pt[0] > len - 2) return;
+                    if (along) g.fillRect(R.x + pt[0] - 0.8, R.y + pt[1] - 0.8, 1.6, 1.6);
+                    else g.fillRect(R.x + pt[1] - 0.8, R.y + pt[0] - 0.8, 1.6, 1.6);
+                });
+            }
+            g.beginPath();
+        } else if (kind === 'brick') {
             g.lineWidth = 1.4;
             for (k = 10; k < wid; k += 10) line(0, k, len, k);
             for (k = 0; k * 10 < wid; k++) {
@@ -1543,6 +1760,30 @@
                 g.fillStyle = '#f97316';
                 g.beginPath(); g.moveTo(hx + n0.x - nw.x, hy + n0.y - nw.y); g.lineTo(hx + n1.x, hy + n1.y); g.lineTo(hx + n0.x + nw.x, hy + n0.y + nw.y); g.closePath(); g.fill();
                 break;
+            case 'pin':
+                // A drawing pin: a plastic dome on a metal disc.
+                g.fillStyle = '#9ca3af'; g.beginPath(); g.arc(cx, cy, r, 0, Math.PI * 2); g.fill();
+                var pinHue = ['#ef4444', '#3b82f6', '#22c55e', '#eab308'][(hash(b.x * 0.1 + b.y) * 4) | 0];
+                grad = g.createRadialGradient(cx + hl.x * 0.8, cy + hl.y * 0.8, r * 0.08, cx, cy, r * 0.78);
+                grad.addColorStop(0, '#ffffff'); grad.addColorStop(0.25, pinHue); grad.addColorStop(1, 'rgba(0,0,0,0.55)');
+                g.fillStyle = grad; g.beginPath(); g.arc(cx, cy, r * 0.78, 0, Math.PI * 2); g.fill();
+                break;
+            case 'asteroid':
+                grad = g.createRadialGradient(cx + hl.x, cy + hl.y, r * 0.1, cx, cy, r);
+                grad.addColorStop(0, '#a8a29e'); grad.addColorStop(1, '#3f3a36');
+                g.fillStyle = grad;
+                g.beginPath();
+                for (k = 0; k < 10; k++) {
+                    var aa = k / 10 * Math.PI * 2, ar = r * (0.86 + hash(b.x + k * 3.7) * 0.14);
+                    g.lineTo(cx + Math.cos(aa) * ar, cy + Math.sin(aa) * ar);
+                }
+                g.closePath(); g.fill();
+                g.fillStyle = 'rgba(30, 26, 24, 0.45)';
+                for (k = 0; k < 4; k++) {
+                    var ka = hash(b.y + k * 5.1) * Math.PI * 2, kd = r * 0.5 * hash(b.x + k);
+                    g.beginPath(); g.arc(cx + Math.cos(ka) * kd, cy + Math.sin(ka) * kd, r * (0.12 + hash(k + b.x) * 0.1), 0, Math.PI * 2); g.fill();
+                }
+                break;
             case 'cactus':
                 grad = g.createRadialGradient(cx + hl.x, cy + hl.y, r * 0.1, cx, cy, r);
                 grad.addColorStop(0, '#86c06a'); grad.addColorStop(1, '#2f6b35');
@@ -1626,7 +1867,9 @@
         acacia: ['#6c7f2e', '#8a9a40', '#4f5f22'],
         nightoak: ['#16302c', '#21453b', '#0f2420'],
         // A pine the last eruption killed: bare, black, still standing.
-        charred: ['#2a2622', '#3a342e', '#1c1916']
+        charred: ['#2a2622', '#3a342e', '#1c1916'],
+        // A pot plant on the corner of the desk, trailing over it.
+        plant: ['#2f7a3a', '#47a052', '#21592a']
     };
 
     function drawCanopyShadows(g, list, v) {
@@ -1642,6 +1885,7 @@
     }
 
     function drawCanopies(g, list, theme, v, clock, ball) {
+        if (theme.canopy === 'none') return;
         var pal = CANOPY[theme.canopy] || CANOPY.oak;
         for (var i = 0; i < list.length; i++) {
             var c = list[i];
@@ -1790,7 +2034,9 @@
         adobe: { face: '#b06f45', hi: 'rgba(255, 220, 180, 0.32)' },
         night: { face: '#1a2232', hi: 'rgba(160, 180, 220, 0.22)' },
         granite: { face: '#8a939b', hi: 'rgba(255, 255, 255, 0.4)', joints: 'rgba(40, 46, 52, 0.5)' },
-        basalt: { face: '#2a2528', hi: 'rgba(255, 150, 90, 0.28)', joints: 'rgba(255, 110, 40, 0.4)' }
+        basalt: { face: '#2a2528', hi: 'rgba(255, 150, 90, 0.28)', joints: 'rgba(255, 110, 40, 0.4)' },
+        desk: { face: '#3b2414', hi: 'rgba(255, 220, 180, 0.28)' },
+        hull: { face: '#2c3340', hi: 'rgba(150, 200, 255, 0.34)', joints: 'rgba(250, 200, 60, 0.55)' }
     };
 
     function drawRim(g, theme, v) {
@@ -1819,6 +2065,15 @@
         g.strokeStyle = 'rgba(0,0,0,0.35)';
         g.lineWidth = 1.5;
         g.strokeRect(9, 9, W - 18, H - 18);
+        if (theme.rim === 'hull') {
+            // Hazard striping on the coaming.
+            g.strokeStyle = rim.joints;
+            g.lineWidth = 3;
+            g.beginPath();
+            for (var hx = 6; hx < W; hx += 18) { g.moveTo(hx, 1); g.lineTo(hx + 7, 8); g.moveTo(hx, H - 8); g.lineTo(hx + 7, H - 1); }
+            for (var hy = 6; hy < H; hy += 18) { g.moveTo(1, hy); g.lineTo(8, hy + 7); g.moveTo(W - 8, hy); g.lineTo(W - 1, hy + 7); }
+            g.stroke();
+        }
         if (theme.rim === 'brick' || theme.rim === 'stone' || theme.rim === 'granite' || theme.rim === 'basalt') {
             // Joints: regular for brick, uneven for dry stone and rock.
             var stone = theme.rim !== 'brick';
@@ -1881,7 +2136,7 @@
 
     function paintGround(g, course, theme, v, seed, dec) {
         g.drawImage(turfFor(seed, theme), 0, 0, W, H);
-        drawGreen(g, course.hole);
+        drawGreen(g, course.hole, theme);
         drawRough(g, course.rough || [], theme);
         var PR = GOLF.props;
         for (var i = 0; i < (course.slopes || []).length; i++) {
@@ -1895,7 +2150,7 @@
         for (var k = 0; k < (course.avalanches || []).length; k++) drawChuteBed(g, course.avalanches[k]);
         for (k = 0; k < (course.vents || []).length; k++) drawVentBed(g, course.vents[k], v);
         drawWaterBed(g, course.water, theme, v);
-        drawLavaBed(g, course.lava, v);
+        drawLavaBed(g, course.lava, v, theme);
         drawDecals(g, dec.decals, theme);
         drawCanopyShadows(g, dec.canopies, v);
         drawTee(g, course.tee, v);

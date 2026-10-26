@@ -197,6 +197,16 @@
             g.lineCap = 'butt';
         }
 
+        // A turntable: the record, its label and the spindle.
+        var decks = hole.turntables || [];
+        for (i = 0; i < decks.length; i++) {
+            var tt = decks[i];
+            g.fillStyle = '#16161a';
+            g.beginPath(); g.arc(tt.x, tt.y, tt.r, 0, Math.PI * 2); g.fill();
+            g.fillStyle = '#e8573a';
+            g.beginPath(); g.arc(tt.x, tt.y, tt.r * 0.33, 0, Math.PI * 2); g.fill();
+        }
+
         // A vent: a grey grate with a dark throat, drawn big like a mouth.
         var vents = hole.vents || [];
         for (i = 0; i < vents.length; i++) {

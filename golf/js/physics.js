@@ -418,6 +418,51 @@
         return { x: d.x * bt.speed, y: d.y * bt.speed };
     }
 
+    /* ── turntables ─────────────────────────────────────────────────────
+
+       A turntable is a disc of ground that turns: centre (x, y), radius r,
+       `speed` radians a second, clockwise on the field when positive. It is
+       a belt bent round on itself — the ground under the ball moves at the
+       platter's velocity there, its speed times the distance out — and the
+       friction works on the ball's speed over the platter, exactly as on a
+       belt. The grip is grass's, which is weak beside a turn of the record,
+       so a firm putt across one is mostly hurried along on the side that
+       turns with it and held back on the side that turns against it, while
+       a slow one is swung the way the platter under it is going and comes
+       off well round from where it was aimed. One left on it is flung off
+       the rim. A spindle stands at the
+       middle, as on any record player, because the one point of the
+       platter that does not move is the one place a ball could stop on it
+       and never be told to go. Nothing rests on a turntable. */
+    function turntableAt(list, x, y) {
+        if (!list) return null;
+        for (var i = 0; i < list.length; i++) {
+            var t = list[i], dx = x - t.x, dy = y - t.y;
+            if (dx * dx + dy * dy <= t.r * t.r) return t;
+        }
+        return null;
+    }
+
+    function turntableVelocity(t, x, y) {
+        return { x: -t.speed * (y - t.y), y: t.speed * (x - t.x) };
+    }
+
+    function spindleOf(t) { return { x: t.x, y: t.y, r: C.SPINDLE_R }; }
+
+    function bumpOff(b, post, events) {
+        var bump = circleCircle(b.x, b.y, C.BALL_R, post);
+        if (!bump) return;
+        b.x += bump.nx * bump.depth;
+        b.y += bump.ny * bump.depth;
+        var bn = b.vx * bump.nx + b.vy * bump.ny;
+        if (bn < 0) {
+            b.vx -= (1 + C.BUMPER_RESTITUTION) * bn * bump.nx;
+            b.vy -= (1 + C.BUMPER_RESTITUTION) * bn * bump.ny;
+            events.bumper = true;
+            knock(events, b, bump.nx, bump.ny, -bn);
+        }
+    }
+
     /* ── world ──────────────────────────────────────────────────────────── */
 
     function createWorld(course, from, time) {
@@ -594,12 +639,14 @@
             k = C.FRICTION_ROUGH; lnK = LN_ROUGH;
         }
 
-        // A belt is grass that moves: the friction works on the ball's speed
-        // over the belt, and the belt's own speed carries it as well.
-        var belt = aloft ? null : beltAt(course.belts, b.x, b.y), bu = null;
-        if (belt) {
+        // A belt is grass that moves, and a turntable is grass that turns:
+        // the friction works on the ball's speed over the ground, and the
+        // ground's own speed carries it as well.
+        var belt = aloft ? null : beltAt(course.belts, b.x, b.y);
+        var deck = aloft || belt ? null : turntableAt(course.turntables, b.x, b.y);
+        var bu = belt ? beltVelocity(belt) : deck ? turntableVelocity(deck, b.x, b.y) : null;
+        if (bu) {
             k = C.FRICTION_GRASS; lnK = LN_GRASS;
-            bu = beltVelocity(belt);
             b.vx -= bu.x; b.vy -= bu.y;
         }
 
@@ -685,21 +732,10 @@
         // which is what makes them worth avoiding: they do not merely block a
         // line, they choose a new one for you.
         var bumpers = course.bumpers || EMPTY;
-        for (var j = 0; j < bumpers.length; j++) {
-            var bump = circleCircle(b.x, b.y, C.BALL_R, bumpers[j]);
-            if (!bump) continue;
-
-            b.x += bump.nx * bump.depth;
-            b.y += bump.ny * bump.depth;
-
-            var bn = b.vx * bump.nx + b.vy * bump.ny;
-            if (bn < 0) {
-                b.vx -= (1 + C.BUMPER_RESTITUTION) * bn * bump.nx;
-                b.vy -= (1 + C.BUMPER_RESTITUTION) * bn * bump.ny;
-                events.bumper = true;
-                knock(events, b, bump.nx, bump.ny, -bn);
-            }
-        }
+        for (var j = 0; j < bumpers.length; j++) bumpOff(b, bumpers[j], events);
+        // A turntable's spindle is a post like any other.
+        var decks = course.turntables || EMPTY;
+        for (j = 0; j < decks.length; j++) bumpOff(b, spindleOf(decks[j]), events);
 
         // Cushions. The field edge is solid on all four sides.
         if (b.x < C.BALL_R) { b.x = C.BALL_R; knock(events, b, 1, 0, Math.abs(b.vx)); b.vx = Math.abs(b.vx) * C.RESTITUTION; events.bounce = true; }
@@ -778,7 +814,7 @@
         // the green, in which case it is on its way into the cup or bouncing
         // back out of it. Every slope pulls far harder than REST_PULL, so
         // nothing ever rests on one; a bowl's bottom is level, so a ball can.
-        if (speedOf(b) < C.STOP_SPEED && !slide && !belt && grounded(b, course.hole) &&
+        if (speedOf(b) < C.STOP_SPEED && !slide && !bu && grounded(b, course.hole) &&
             (!ground || Math.hypot(ground.x, ground.y) < C.REST_PULL)) {
             b.vx = b.vy = 0;
             if (world.moving) events.rest = true;
@@ -1036,6 +1072,9 @@
         sweepOf: sweepOf,
         beltAt: beltAt,
         beltVelocity: beltVelocity,
+        turntableAt: turntableAt,
+        turntableVelocity: turntableVelocity,
+        spindleOf: spindleOf,
         arcRails: arcRails,
         blockRails: blockRails,
         railsOf: railsOf,

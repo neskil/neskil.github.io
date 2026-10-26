@@ -163,6 +163,20 @@
             var out = placed(rnd(-0.8, 0.8));
             for (var i = 0; i < 9; i++) noise(0.014, 1900, 6, 0.05, 'bandpass', out, i * 0.048);
             later(call, 14, 30);
+        },
+        // The study's clock on the shelf: tick, and tock, a second apart.
+        clock: function call() {
+            var out = placed(0.35);
+            amb.tock = !amb.tock;
+            noise(0.012, amb.tock ? 2600 : 3200, 9, 0.035, 'bandpass', out, 0);
+            amb.timers.push(setTimeout(function () { if (amb.on) call(); }, 1000));
+        },
+        // The ship: the hum of the air plant, and now and then the radio.
+        hum: function () { bed(110, 4, 'bandpass', 0.05, 0.02, 0.09); },
+        beeps: function call() {
+            var out = placed(rnd(-0.6, 0.6)), f = rnd(900, 1500);
+            for (var i = 0; i < 2 + (Math.random() * 3 | 0); i++) tone(f * (i % 2 ? 1.5 : 1), 0.06, 'sine', 0.012, null, out, i * 0.11);
+            later(call, 6, 15);
         }
     };
 
@@ -179,7 +193,7 @@
         amb.want.forEach(function (k) {
             if (!SCAPES[k]) return;
             // Calls start at a random moment; beds start now.
-            if (k === 'sea' || k === 'wind' || k === 'rumble') SCAPES[k]();
+            if (k === 'sea' || k === 'wind' || k === 'rumble' || k === 'hum') SCAPES[k]();
             else later(SCAPES[k], 0.5, 3);
         });
     }

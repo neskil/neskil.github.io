@@ -33,6 +33,7 @@
     var C = GOLF.CONFIG;
     var P = GOLF.physics;
     var DEG = Math.PI / 180;
+    var TAU = Math.PI * 2;
     var EXT = 7;   // a wall's near face, as landscape.js draws it
 
     function sv(v, a, b) { return { x: v.rx * a + v.dx * b, y: v.ry * a + v.dy * b }; }
@@ -112,14 +113,19 @@
         alpine:   { kerb: 'granite', soil: '#dfe7ee', plants: ['snowpine', 'boulder', 'drift'], flowers: ['#ffffff'] },
         desert:   { kerb: 'sandstone', soil: '#d8b27a', plants: ['cactus', 'pebble', 'agave'], flowers: ['#f472b6'] },
         volcanic: { kerb: 'basalt', soil: '#2a2422', plants: ['ember', 'boulder', 'stump'], flowers: ['#fb923c'] },
-        night:    { kerb: 'stone', soil: '#2c3328', plants: ['shrub', 'flowers'], flowers: ['#e0e7ff', '#c7d2fe'] }
+        night:    { kerb: 'stone', soil: '#2c3328', plants: ['shrub', 'flowers'], flowers: ['#e0e7ff', '#c7d2fe'] },
+        // A planter on the desk; a hydroponics tray on the ship.
+        study:    { kerb: 'book', soil: '#3b2a1c', plants: ['shrub', 'flowers'], flowers: ['#fef3c7', '#fda4af'] },
+        space:    { kerb: 'hull', soil: '#10131c', plants: ['boulder', 'pebble'], flowers: ['#a5f3fc'] }
     };
     var SHRUB = {
         parkland: ['#1f5a2a', '#3f8a46'], garden: ['#22602e', '#4f9a4f'], meadow: ['#3a6a26', '#6a9a3a'],
-        autumn: ['#8f2f14', '#e98a2e'], night: ['#12302a', '#21453b'], woodland: ['#1d4a2b', '#2f6a3a']
+        autumn: ['#8f2f14', '#e98a2e'], night: ['#12302a', '#21453b'], woodland: ['#1d4a2b', '#2f6a3a'],
+        study: ['#21592a', '#47a052']
     };
     // A rock in the biome it lies in.
     var ROCK = {
+        space: { kind: 'granite', top: '#7b7f8c', side: '#3a3d48' },
         alpine: { kind: 'granite', top: '#9aa3ab', side: '#4f565d', snow: true },
         winter: { kind: 'granite', top: '#a7b0b8', side: '#59626b', snow: true },
         volcanic: { kind: 'basalt', top: '#3d3a3b', side: '#1b1819', glow: true },
@@ -651,6 +657,15 @@
             snowman(g, pole(pts), w, v, seed);
             return;
         }
+        // The desk's things, long and round, and a planet.
+        if (look === 'book' || look === 'pencil' || look === 'tonearm') {
+            deskProp(g, pts, w, v, look, seed);
+            return;
+        }
+        if (look === 'mug' || look === 'inkpot' || look === 'planet') {
+            roundProp(g, pole(pts), w, v, look, seed);
+            return;
+        }
         if (look === 'lighthouse') {
             lighthouse(g, pole(pts), w, v);
             return;
@@ -936,6 +951,120 @@
         g.beginPath();
         g.arc(lamp.x + up.x * lamp.r * 0.15, lamp.y + up.y * lamp.r * 0.15, lamp.r * 0.45, 0, Math.PI * 2);
         g.fill();
+        g.restore();
+    }
+
+    /* The long axis of an outline: the direction of its longest edge, its
+       middle, and how far it reaches along and across that direction. */
+    function axisOf(pts) {
+        var best = 0, ux = 1, uy = 0, cx = 0, cy = 0, n = pts.length / 2, i;
+        for (i = 0; i < pts.length; i += 2) {
+            var j = (i + 2) % pts.length, ex = pts[j] - pts[i], ey = pts[j + 1] - pts[i + 1], L = Math.hypot(ex, ey);
+            if (L > best) { best = L; ux = ex / L; uy = ey / L; }
+            cx += pts[i] / n; cy += pts[i + 1] / n;
+        }
+        var a0 = Infinity, a1 = -Infinity, b0 = Infinity, b1 = -Infinity;
+        for (i = 0; i < pts.length; i += 2) {
+            var dx = pts[i] - cx, dy = pts[i + 1] - cy, a = dx * ux + dy * uy, b = -dx * uy + dy * ux;
+            a0 = Math.min(a0, a); a1 = Math.max(a1, a); b0 = Math.min(b0, b); b1 = Math.max(b1, b);
+        }
+        return { cx: cx + ux * (a0 + a1) / 2 - uy * (b0 + b1) / 2, cy: cy + uy * (a0 + a1) / 2 + ux * (b0 + b1) / 2,
+                 ux: ux, uy: uy, len: a1 - a0, wid: b1 - b0 };
+    }
+
+    /* A book lying shut, a pencil and a record player's tone arm: each the
+       block's own outline, with the rail round it, drawn as the thing. */
+    function deskProp(g, pts, w, v, look, seed) {
+        var ax = axisOf(pts), L = ax.len + w, Wd = ax.wid + w;
+        var COVERS = ['#7f2a2a', '#1f4e79', '#2f5d3a', '#6b4a8a', '#8a5a1f'];
+        var m = look === 'book' ? { top: COVERS[(hash(seed) * COVERS.length) | 0], side: '#efe4c8', hi: 'rgba(255, 235, 215, 0.3)', grain: 'rgba(0,0,0,0.2)' }
+              : look === 'pencil' ? { top: '#f4c430', side: '#a87d12', hi: 'rgba(255, 250, 210, 0.45)', grain: 'rgba(0,0,0,0.2)' }
+              : { top: '#c9ced6', side: '#5b6370', hi: 'rgba(255, 255, 255, 0.5)', grain: 'rgba(0,0,0,0.2)' };
+        solid(g, pts, w, m, v, EXT, m.top);
+        g.save();
+        g.translate(ax.cx, ax.cy);
+        g.rotate(Math.atan2(ax.uy, ax.ux));
+        var hl = L / 2, hw = Wd / 2;
+        if (look === 'book') {
+            g.fillStyle = 'rgba(0, 0, 0, 0.25)';
+            g.fillRect(-hl + 1, -hw + 1, 9, Wd - 2);             // the spine
+            g.fillStyle = 'rgba(250, 215, 120, 0.75)';
+            g.fillRect(-hl * 0.45, -hw * 0.18, hl * 0.9, 2.2);   // the title
+            g.fillRect(-hl * 0.3, hw * 0.08, hl * 0.6, 1.4);
+            g.strokeStyle = 'rgba(250, 215, 120, 0.45)';
+            g.lineWidth = 1;
+            g.strokeRect(-hl + 14, -hw + 5, L - 20, Wd - 10);
+        } else if (look === 'pencil') {
+            // Facets down the length, a sharpened end and an eraser.
+            g.strokeStyle = 'rgba(120, 80, 0, 0.35)';
+            g.lineWidth = 1;
+            g.beginPath(); g.moveTo(-hl + 26, -hw * 0.33); g.lineTo(hl - 22, -hw * 0.33);
+            g.moveTo(-hl + 26, hw * 0.33); g.lineTo(hl - 22, hw * 0.33); g.stroke();
+            g.fillStyle = '#e8c49a';
+            g.beginPath(); g.moveTo(hl - 22, -hw); g.lineTo(hl + 2, 0); g.lineTo(hl - 22, hw); g.closePath(); g.fill();
+            g.fillStyle = '#374151';
+            g.beginPath(); g.moveTo(hl - 6, -hw * 0.3); g.lineTo(hl + 2, 0); g.lineTo(hl - 6, hw * 0.3); g.closePath(); g.fill();
+            g.fillStyle = '#b8bec8'; g.fillRect(-hl + 14, -hw, 12, Wd);
+            g.fillStyle = '#f9a8b4'; g.fillRect(-hl, -hw, 14, Wd);
+        } else {
+            // The arm: a counterweight and pivot at one end, the headshell
+            // at the other.
+            g.fillStyle = '#3f4652';
+            g.beginPath(); g.arc(-hl + hw, 0, hw * 1.1, 0, TAU); g.fill();
+            g.fillStyle = '#9aa3af';
+            g.beginPath(); g.arc(-hl + hw, 0, hw * 0.55, 0, TAU); g.fill();
+            g.fillStyle = 'rgba(255, 255, 255, 0.5)';
+            g.fillRect(-hl + hw * 2.2, -1, L - hw * 4, 2);
+            g.fillStyle = '#1f2937';
+            g.fillRect(hl - 22, -hw * 0.9, 20, hw * 1.8);
+        }
+        g.restore();
+    }
+
+    /* A mug of coffee, an ink pot and a planet: round, the block's disc
+       and its rail. */
+    function roundProp(g, p, w, v, look, seed) {
+        var r0 = p.r + w / 2, sh = sv(v, Math.min(7, r0 * 0.2), Math.min(10, r0 * 0.3)), lt = sv(v, -0.35, -0.4), gr;
+        g.save();
+        g.fillStyle = 'rgba(0, 0, 0, 0.28)';
+        g.beginPath(); g.arc(p.x + sh.x, p.y + sh.y, r0, 0, TAU); g.fill();
+        if (look === 'mug') {
+            var glaze = ['#f1f5f9', '#fca5a5', '#93c5fd', '#fde68a'][(hash(seed) * 4) | 0];
+            var hd = sv(v, 1, 0.2), hx = p.x + hd.x * r0 * 0.95, hy = p.y + hd.y * r0 * 0.95;
+            g.strokeStyle = glaze; g.lineWidth = Math.max(4, r0 * 0.16);
+            g.beginPath(); g.arc(hx, hy, r0 * 0.32, 0, TAU); g.stroke();
+            gr = g.createRadialGradient(p.x + lt.x * r0, p.y + lt.y * r0, r0 * 0.1, p.x, p.y, r0);
+            gr.addColorStop(0, '#ffffff'); gr.addColorStop(1, glaze);
+            g.fillStyle = gr; g.beginPath(); g.arc(p.x, p.y, r0, 0, TAU); g.fill();
+            g.fillStyle = '#3b2312'; g.beginPath(); g.arc(p.x, p.y, r0 * 0.8, 0, TAU); g.fill();
+            g.strokeStyle = 'rgba(214, 160, 100, 0.55)'; g.lineWidth = 2;
+            g.beginPath(); g.arc(p.x, p.y, r0 * 0.66, 0.4, 5.2); g.stroke();
+        } else if (look === 'inkpot') {
+            gr = g.createRadialGradient(p.x + lt.x * r0, p.y + lt.y * r0, r0 * 0.1, p.x, p.y, r0);
+            gr.addColorStop(0, 'rgba(220, 240, 255, 0.95)'); gr.addColorStop(1, 'rgba(120, 150, 180, 0.9)');
+            g.fillStyle = gr; g.beginPath(); g.arc(p.x, p.y, r0, 0, TAU); g.fill();
+            g.fillStyle = '#121a4a'; g.beginPath(); g.arc(p.x, p.y, r0 * 0.72, 0, TAU); g.fill();
+            g.fillStyle = 'rgba(255, 255, 255, 0.35)';
+            g.beginPath(); g.ellipse(p.x + lt.x * r0 * 0.4, p.y + lt.y * r0 * 0.4, r0 * 0.25, r0 * 0.1, -0.7, 0, TAU); g.fill();
+        } else {
+            var hue = Math.floor(hash(seed) * 360);
+            g.save();
+            g.beginPath(); g.arc(p.x, p.y, r0 * 0.8, 0, TAU); g.clip();
+            g.fillStyle = 'hsl(' + hue + ', 55%, 52%)';
+            g.fillRect(p.x - r0, p.y - r0, r0 * 2, r0 * 2);
+            for (var k = -3; k <= 3; k++) {
+                g.fillStyle = k % 2 ? 'hsla(' + (hue + 20) + ', 60%, 40%, 0.55)' : 'hsla(' + (hue - 15) + ', 50%, 70%, 0.35)';
+                g.fillRect(p.x - r0, p.y + k * r0 * 0.24 - r0 * 0.07, r0 * 2, r0 * 0.14);
+            }
+            gr = g.createRadialGradient(p.x + lt.x * r0, p.y + lt.y * r0, r0 * 0.1, p.x, p.y, r0 * 0.8);
+            gr.addColorStop(0, 'rgba(255, 255, 255, 0.25)'); gr.addColorStop(1, 'rgba(0, 0, 20, 0.6)');
+            g.fillStyle = gr; g.fillRect(p.x - r0, p.y - r0, r0 * 2, r0 * 2);
+            g.restore();
+            if (hash(seed + 3) < 0.6) {
+                g.strokeStyle = 'rgba(230, 220, 200, 0.7)'; g.lineWidth = Math.max(2, r0 * 0.07);
+                g.beginPath(); g.ellipse(p.x, p.y, r0 * 0.98, r0 * 0.3, -0.4, 0, TAU); g.stroke();
+            }
+        }
         g.restore();
     }
 
@@ -1456,7 +1585,36 @@
        canvas a frame. */
     var shades = {}, shadeKeys = [];
 
-    function drawHill(g, hl, v) {
+    /* In space a hill is gravity: a bowl is a well and a mound a field
+       that pushes away, drawn as rings closing in on the middle — tighter
+       where it pulls hardest — and the chevrons any hill has. */
+    function gravityRings(g, hl, v) {
+        var R = hl.r, well = hl.a < 0;
+        g.save();
+        var glow = g.createRadialGradient(hl.x, hl.y, 0, hl.x, hl.y, R);
+        glow.addColorStop(0, well ? 'rgba(150, 110, 255, 0.28)' : 'rgba(255, 160, 90, 0.20)');
+        glow.addColorStop(1, 'rgba(0, 0, 0, 0)');
+        g.fillStyle = glow;
+        g.beginPath(); g.arc(hl.x, hl.y, R, 0, TAU); g.fill();
+        g.lineWidth = 1.3;
+        for (var k = 1; k <= 7; k++) {
+            var rr = R * (1 - Math.pow(k / 8, 0.7));
+            g.strokeStyle = (well ? 'rgba(180, 160, 255, ' : 'rgba(255, 190, 140, ') + (0.08 + k * 0.035).toFixed(3) + ')';
+            g.beginPath(); g.arc(hl.x, hl.y, Math.max(2, rr), 0, TAU); g.stroke();
+        }
+        g.strokeStyle = 'rgba(200, 200, 255, 0.07)';
+        g.beginPath();
+        for (k = 0; k < 16; k++) {
+            var a = k / 16 * TAU;
+            g.moveTo(hl.x + Math.cos(a) * R * 0.12, hl.y + Math.sin(a) * R * 0.12);
+            g.lineTo(hl.x + Math.cos(a) * R, hl.y + Math.sin(a) * R);
+        }
+        g.stroke();
+        g.restore();
+    }
+
+    function drawHill(g, hl, v, theme) {
+        if (theme && theme.id === 'space') return gravityRings(g, hl, v);
         var R = hl.r, n = Math.max(8, Math.ceil(R)), sign = hl.a > 0 ? 1 : -1;
         if (typeof document === 'undefined') return;
         var key = [R, hl.a, v.turned ? 1 : 0].join('|'), c = shades[key];
@@ -1895,14 +2053,90 @@
         });
     }
 
+    /* A turntable, from above: a record on its platter. The plinth's rim,
+       the vinyl with its grooves, the sheen of the light on it — which
+       stays where the light is while the record turns under it, as it does
+       on a real one — and arrows printed round the rim the way it turns, so
+       it is known for a turntable and its direction before a ball is near
+       it. The label and the spindle turn, and are drawn live. */
+    function drawPlatter(g, tt, v) {
+        var sh = sv(v, 5, 8), r = tt.r, cw = tt.speed > 0 ? 1 : -1, k;
+        g.save();
+        g.fillStyle = 'rgba(0, 0, 0, 0.3)';
+        g.beginPath(); g.arc(tt.x + sh.x, tt.y + sh.y, r + 7, 0, TAU); g.fill();
+        g.fillStyle = '#9aa1a8';
+        g.beginPath(); g.arc(tt.x, tt.y, r + 6, 0, TAU); g.fill();
+        g.fillStyle = '#5b6168';
+        g.beginPath(); g.arc(tt.x, tt.y, r + 2.5, 0, TAU); g.fill();
+        var vinyl = g.createRadialGradient(tt.x, tt.y, r * 0.3, tt.x, tt.y, r);
+        vinyl.addColorStop(0, '#1d1d22'); vinyl.addColorStop(1, '#0c0c0f');
+        g.fillStyle = vinyl;
+        g.beginPath(); g.arc(tt.x, tt.y, r, 0, TAU); g.fill();
+        // Grooves, with a gap between two tracks.
+        g.lineWidth = 0.8;
+        for (var rr = r * 0.38; rr < r - 4; rr += 3.2) {
+            g.strokeStyle = Math.abs(rr - r * 0.7) < 3 ? 'rgba(0, 0, 0, 0.6)' : 'rgba(255, 255, 255, 0.045)';
+            g.beginPath(); g.arc(tt.x, tt.y, rr, 0, TAU); g.stroke();
+        }
+        // The light's sheen: two opposite wedges, still while the record turns.
+        var lt = Math.atan2(sv(v, -1, -1).y, sv(v, -1, -1).x);
+        [lt, lt + Math.PI].forEach(function (a) {
+            var gl = g.createRadialGradient(tt.x, tt.y, r * 0.35, tt.x, tt.y, r);
+            gl.addColorStop(0, 'rgba(255, 255, 255, 0)');
+            gl.addColorStop(0.6, 'rgba(210, 225, 255, 0.10)');
+            gl.addColorStop(1, 'rgba(255, 255, 255, 0.02)');
+            g.fillStyle = gl;
+            g.beginPath(); g.moveTo(tt.x, tt.y); g.arc(tt.x, tt.y, r, a - 0.35, a + 0.35); g.closePath(); g.fill();
+        });
+        // Which way it turns, round the plinth.
+        g.strokeStyle = 'rgba(255, 255, 255, 0.75)';
+        g.lineWidth = 1.6;
+        g.lineCap = 'round';
+        for (k = 0; k < 6; k++) {
+            var a0 = k / 6 * TAU, rx = r + 4.2;
+            var px = tt.x + Math.cos(a0) * rx, py = tt.y + Math.sin(a0) * rx;
+            var tx = -Math.sin(a0) * cw, ty = Math.cos(a0) * cw, nx = Math.cos(a0), ny = Math.sin(a0);
+            g.beginPath();
+            g.moveTo(px - tx * 3 + nx * 2, py - ty * 3 + ny * 2);
+            g.lineTo(px + tx * 2, py + ty * 2);
+            g.lineTo(px - tx * 3 - nx * 2, py - ty * 3 - ny * 2);
+            g.stroke();
+        }
+        g.restore();
+    }
+
+    // The label and the spindle, turning on the world's clock.
+    function drawLabel(g, tt, t) {
+        var r = tt.r * 0.33, a = tt.speed * t, seed = tt.x * 0.7 + tt.y * 1.3;
+        var hue = Math.floor(hash(seed) * 360);
+        g.save();
+        g.translate(tt.x, tt.y);
+        g.rotate(a);
+        g.fillStyle = 'hsl(' + hue + ', 70%, 52%)';
+        g.beginPath(); g.arc(0, 0, r, 0, TAU); g.fill();
+        g.fillStyle = 'hsl(' + hue + ', 75%, 38%)';
+        g.beginPath(); g.arc(0, 0, r, -0.9, 0.9); g.lineTo(0, 0); g.closePath(); g.fill();
+        g.fillStyle = 'rgba(255, 255, 255, 0.8)';
+        g.fillRect(-r * 0.55, -r * 0.5, r * 1.1, r * 0.12);
+        g.fillRect(-r * 0.4, -r * 0.3, r * 0.8, r * 0.08);
+        g.fillRect(-r * 0.3, r * 0.4, r * 0.6, r * 0.08);
+        g.restore();
+        var sp = P.spindleOf(tt);
+        var gr = g.createRadialGradient(sp.x - 2, sp.y - 2, 1, sp.x, sp.y, sp.r);
+        gr.addColorStop(0, '#f8fafc'); gr.addColorStop(1, '#64748b');
+        g.fillStyle = gr;
+        g.beginPath(); g.arc(sp.x, sp.y, sp.r, 0, TAU); g.fill();
+    }
+
     function ground(g, course, theme, v) {
         var i;
         millPaths(g, course);
         for (i = 0; i < (course.belts || []).length; i++) drawBeltBase(g, course.belts[i], v);
+        for (i = 0; i < (course.turntables || []).length; i++) drawPlatter(g, course.turntables[i], v);
         for (i = 0; i < (course.spinners || []).length; i++) drawSpinTrack(g, course.spinners[i]);
         for (i = 0; i < (course.hills || []).length; i++) {
             var hl = course.hills[i];
-            drawHill(g, hl, v);
+            drawHill(g, hl, v, theme);
             if (hl.a > 0 && MOLES[theme.id] && Math.hypot(course.hole.x - hl.x, course.hole.y - hl.y) > 60 &&
                 Math.hypot(course.tee.x - hl.x, course.tee.y - hl.y) > 60) mole(g, hl.x, hl.y, v, hl.x + hl.y);
         }
@@ -1947,6 +2181,7 @@
             if (b.look === 'carousel') carousel(g, b, clock);
         });
         (course.spinners || []).forEach(function (sp) { drawSpinner(g, sp, t, theme, v); });
+        (course.turntables || []).forEach(function (tt) { drawLabel(g, tt, t); });
     }
 
     // Live, over the ball: a windmill's sails.

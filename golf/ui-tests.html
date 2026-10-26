@@ -783,7 +783,8 @@
                 var t = G.scenery.THEMES[k];
                 if (!L.MATERIAL[t.wall]) unknown.push(k + ' wall ' + t.wall);
                 if (!L.RIM[t.rim]) unknown.push(k + ' rim ' + t.rim);
-                if (!L.CANOPY[t.canopy]) unknown.push(k + ' trees ' + t.canopy);
+                // Space has no trees to reach over its edge, and says so.
+                if (t.canopy !== 'none' && !L.CANOPY[t.canopy]) unknown.push(k + ' trees ' + t.canopy);
             });
             assert('every biome\'s walls, rim and trees are ones the renderer knows', unknown.length === 0, unknown.join(', '));
             var hole0 = G.COURSES[0].holes[0], lit = G.ambience.lights(hole0, G.scenery.THEMES.night, G.scenery.decor(hole0, G.scenery.THEMES.night));

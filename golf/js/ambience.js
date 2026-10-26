@@ -170,6 +170,40 @@
         g.restore();
     }
 
+    /* Stars through the deck, a few of them catching: each brightens and
+       fades on its own slow clock. On the ground, under the ball, like the
+       deck they shine through. */
+    function twinkle(g, n, clock) {
+        var img = sprite('star', '220, 230, 255');
+        g.save();
+        for (var i = 0; i < n; i++) {
+            var x = hash(i * 7.3 + 1) * W, y = hash(i * 3.1 + 5) * H;
+            var a = Math.max(0, Math.sin(clock * (0.6 + hash(i) * 0.9) + i * 2.1));
+            if (a < 0.05) continue;
+            stamp(g, img, x, y, 3 + hash(i * 1.7) * 3, a * 0.7);
+        }
+        g.restore();
+    }
+
+    // Now and then a comet: a streak across the far side of the glass.
+    function comets(g, n, clock, v, ball) {
+        var S = span(v);
+        for (var i = 0; i < n; i++) {
+            var period = 11 + i * 4, ph = ((clock + i * 5.3) % period) / period;
+            if (ph > 0.18) continue;
+            var t = ph / 0.18, k = Math.floor((clock + i * 5.3) / period);
+            var y0 = hash(k * 3.7 + i) * S.h * 0.8, x0 = -60 + t * (S.w + 120);
+            var p = at(v, x0, y0 + t * 120), q = at(v, x0 - 70, y0 + t * 120 - 22);
+            if (clear(ball, p.x, p.y, 20) < 0.6) continue;
+            var gr = g.createLinearGradient(q.x, q.y, p.x, p.y);
+            gr.addColorStop(0, 'rgba(255, 255, 255, 0)');
+            gr.addColorStop(1, 'rgba(220, 235, 255, 0.75)');
+            g.strokeStyle = gr;
+            g.lineWidth = 2;
+            g.beginPath(); g.moveTo(q.x, q.y); g.lineTo(p.x, p.y); g.stroke();
+        }
+    }
+
     // Embers lifting off the lava on the heat: each a spark that wanders
     // up the screen, flickers, and is gone off the top.
     function embers(g, n, clock, v, ball) {
@@ -479,6 +513,7 @@
         if ((n = count(theme, 'bird'))) birdShadows(g, n, clock, v, 1, 1);
         if ((n = count(theme, 'gull'))) birdShadows(g, n, clock, v, 2, 1.25);
         if ((n = count(theme, 'tumbleweed'))) tumbleweed(g, n, clock, v);
+        if ((n = count(theme, 'twinkle'))) twinkle(g, n, clock);
     }
 
     // In the air, over everything but the clouds.
@@ -496,6 +531,7 @@
         if ((n = count(theme, 'butterfly'))) butterflies(g, n, clock, v, ball);
         if ((n = count(theme, 'gull'))) gulls(g, n, clock, v, ball);
         if ((n = count(theme, 'firefly'))) fireflies(g, n, clock, ball);
+        if ((n = count(theme, 'comet'))) comets(g, n, clock, v, ball);
     }
 
     // Lines and dots gathered into one path each, stroked or filled once.

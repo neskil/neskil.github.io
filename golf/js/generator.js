@@ -809,6 +809,41 @@
             (h.vents || []).forEach(function (v) { if (P.circleRect(v.x, v.y, VR, bt)) bad.push('a vent on a belt'); });
         });
 
+        /* Turntables. A platter flings what it holds off its rim, so there
+           has to be somewhere for it to go: the disc and a ball's width and a
+           half round it are on the field and clear of anything solid, and
+           nothing else lies on the platter. The tee and the cup stand off it,
+           as do the mouths and the vents, and two platters do not touch. */
+        var decks = h.turntables || [];
+        decks.forEach(function (tt, ti) {
+            if (!(tt.r >= 50 && tt.r <= 200)) bad.push('a turntable too small or too big');
+            if (!(Math.abs(tt.speed) >= 0.5 && Math.abs(tt.speed) <= 3)) bad.push('a turntable too slow to see or too fast to ride');
+            var room = tt.r + C.BALL_R * 3;
+            if (tt.x - room < 0 || tt.y - room < 0 || tt.x + room > C.WORLD_W || tt.y + room > C.WORLD_H) {
+                bad.push('a turntable too near the cushion');
+            }
+            var near = (h.walls || []).some(function (w) { return P.circleRect(tt.x, tt.y, room, travelEnvelope(w)) !== null; }) ||
+                posts.some(function (b) { return Math.hypot(b.x - tt.x, b.y - tt.y) < room + b.r; }) ||
+                rails.some(function (r) { return P.circleRail(tt.x, tt.y, room, r) !== null; }) ||
+                spins.some(function (sp) { return Math.hypot(sp.x - tt.x, sp.y - tt.y) < room + P.sweepOf(sp); }) ||
+                decks.some(function (o, oi) { return oi !== ti && Math.hypot(o.x - tt.x, o.y - tt.y) < tt.r + o.r + C.BALL_R * 2; });
+            if (near) bad.push('a turntable with something solid on it or round it');
+            var layered = false;
+            for (var gx = tt.x - tt.r + 4; gx < tt.x + tt.r && !layered; gx += 8) {
+                for (var gy = tt.y - tt.r + 4; gy < tt.y + tt.r && !layered; gy += 8) {
+                    if (Math.hypot(gx - tt.x, gy - tt.y) > tt.r) continue;
+                    layered = !!(P.zoneAt(h.water, gx, gy) || P.zoneAt(h.lava, gx, gy) || P.zoneAt(h.sand, gx, gy) ||
+                        P.zoneAt(h.ice, gx, gy) || P.zoneAt(h.rough, gx, gy) || P.zoneAt(h.slopes, gx, gy) ||
+                        P.zoneAt(h.avalanches, gx, gy) || P.zoneAt(h.belts, gx, gy) || P.inHill(h.hills, gx, gy));
+                }
+            }
+            if (layered) bad.push('a turntable laid over another surface');
+            if (Math.hypot(h.tee.x - tt.x, h.tee.y - tt.y) < tt.r + C.BALL_R + 12) bad.push('the tee is on a turntable');
+            if (Math.hypot(h.hole.x - tt.x, h.hole.y - tt.y) < tt.r + C.HOLE_R + 12) bad.push('the cup is on a turntable');
+            mouths.forEach(function (m) { if (Math.hypot(m.x - tt.x, m.y - tt.y) < tt.r + TR) bad.push('a tunnel mouth on a turntable'); });
+            (h.vents || []).forEach(function (v) { if (Math.hypot(v.x - tt.x, v.y - tt.y) < tt.r + VR) bad.push('a vent on a turntable'); });
+        });
+
         if (strict) {
             (h.slopes || []).forEach(function (s) {
                 if (s.pts) return;   // reported above
@@ -1351,7 +1386,7 @@
             /* The endless card, and so the last rung of the ladder: nine
                holes nobody has played are the reward for having played the
                ones somebody built. See progress.js. */
-            unlock: 66,
+            unlock: 78,
             holes: holes
         };
     }

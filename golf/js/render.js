@@ -970,7 +970,7 @@
         // wall that holds still — then the ones that move, and the posts.
         scene.ground(g);
         L.drawWater(g, course.water, theme, v, t, clock, scene.decor, { key: state.sceneKey, res: state.res || 1, still: still });
-        L.drawLava(g, course.lava, v, still ? 0 : clock);
+        L.drawLava(g, course.lava, v, still ? 0 : clock, theme);
         // The slides and the geysers keep the world's clock, not the
         // screen's: they are hazards, and where one is is a fact of play.
         L.drawSlides(g, course.avalanches, t, v, still ? 0 : clock);

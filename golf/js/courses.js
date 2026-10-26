@@ -114,6 +114,9 @@
     }
     // Ground that moves: a rectangle carrying the ball `dir` at `speed` px/s.
     function belt(x, y, w, h, dir, speed) { return { x: x, y: y, w: w, h: h, dir: dir, speed: speed }; }
+    // Ground that turns: a disc of radius r about (x, y), `speed` radians a
+    // second, clockwise when positive. A record on its player.
+    function turntable(x, y, r, speed) { return { x: x, y: y, r: r, speed: speed }; }
     /* Corners cut round: Chaikin's corner cutting, which replaces every
        corner of a closed outline with two points a quarter of the way along
        its edges. Twice over, a hexagon is a pebble — a bunker or a bed drawn
@@ -204,6 +207,8 @@
             sp.speed = -sp.speed;
             sp.phase = Math.PI - (sp.phase || 0);
         });
+        // So does a turntable.
+        (h.turntables || []).forEach(function (t) { t.x = W - t.x; t.speed = -t.speed; });
         (h.blocks || []).forEach(zone);
         (h.bumpers || []).concat(h.vents || [], h.hills || []).forEach(function (b) { b.x = W - b.x; });
         (h.tunnels || []).concat(h.rails || []).forEach(function (t) { t.x = W - t.x; t.tx = W - t.tx; });
@@ -221,7 +226,7 @@
        file does — the suite's own test holes among them. */
     GOLF.helpers = { r: r, post: post, tunnel: tunnel, rail: rail, poly: poly, chute: chute, vent: vent,
                      arc: arc, block: block, mound: mound, bowl: bowl, shape: shape, smooth: smooth, oval: oval, ring: ring,
-                     spinner: spinner, belt: belt, mirror: mirror };
+                     spinner: spinner, belt: belt, turntable: turntable, mirror: mirror };
 
     /* ── The Short Six — a walk through every place on the rack ─────────
 
@@ -1296,6 +1301,113 @@
         }
     ];
 
+    /* ── Orbit — space ─────────────────────────────────────────────────
+
+       The last card, past the volcano: a deck in space, and the card of
+       gravity. A well is a hill that gathers, drawn as rings closing in;
+       a black hole is a well with the dark at the bottom of it, which takes
+       the ball at any pace. What bends a putt round a black hole is what
+       bends light round one, so the shots here are slingshots — aimed past
+       the hole and let fall round it — and the price of skimming too close
+       is the dark. Planets are the bank boards, asteroids the posts and a
+       wormhole is a tunnel. */
+
+    var ORBIT = [
+        {
+            name: 'Liftoff',
+            blurb: 'A gravity well beside the line. Aim wide of the flag and let it pull you round.',
+            par: 3,
+            /* The terms: one well, nothing in it, off the straight line, so a
+               putt that passes its edge is bent towards its middle. The
+               straight putt is bent off the flag; the one aimed wide of it is
+               bent on. A ball that stops in the well rolls to its bottom and
+               waits there. */
+            tee: { x: 110, y: 400 },
+            hole: { x: 850, y: 400 },
+            hills: [bowl(480, 300, 170, 120)],
+            blocks: [block('planet', oval(480, 560, 40, 40, 18))],
+            bumpers: [post(860, 560, 18), post(300, 100, 16)]
+        },
+        mirror({
+            name: 'Event Horizon',
+            blurb: 'A black hole on the line. Pass it close enough to bend, not close enough to fall.',
+            par: 3,
+            /* A black hole square on the straight line: a strong well with
+               the dark at its bottom. A putt past either side of it is bent
+               round it and across the line behind it, the way light is — the
+               ace is the one bent onto the flag. Too close and it falls in. */
+            tee: { x: 110, y: 320 },
+            hole: { x: 850, y: 320 },
+            hills: [bowl(480, 320, 180, 150)],
+            lava: [shape(oval(480, 320, 42, 42, 18))],
+            bumpers: [post(200, 120, 16), post(760, 520, 18)]
+        }),
+        {
+            name: 'Asteroid Belt',
+            blurb: 'A belt of asteroids across the way, and a ringed planet to bank off beyond it.',
+            par: 3,
+            /* Asteroids are posts, livelier than anything else out here, and
+               the belt of them lies across the straight line. Thread a gap,
+               or bank off the planet's flank behind it; anything that clips
+               a rock goes where the rock chooses. */
+            tee: { x: 110, y: 540 },
+            hole: { x: 850, y: 120 },
+            bumpers: [
+                post(380, 360, 20), post(440, 300, 16), post(500, 250, 22), post(560, 190, 16),
+                post(330, 440, 16), post(620, 140, 18), post(470, 380, 14), post(560, 300, 18)
+            ],
+            blocks: [block('planet', oval(760, 420, 70, 70, 20))]
+        },
+        {
+            name: 'Wormhole',
+            blurb: 'A wormhole past the planet, and the flag at the edge of a black hole\'s pull.',
+            par: 3,
+            /* A planet on the straight line, and a wormhole beside it that
+               keeps the shot's heading and pace. The flag stands at the rim
+               of a black hole's well, so a ball arriving beside it is drawn
+               in — to the cup, or past it to the dark. Drifted dust along the
+               bottom takes the pace off the bank that would otherwise bring
+               anything home. */
+            tee: { x: 110, y: 120 },
+            hole: { x: 865, y: 420 },
+            tunnels: [tunnel(260, 260, 480, 500)],
+            hills: [bowl(700, 330, 150, 140)],
+            lava: [shape(oval(700, 330, 40, 40, 18))],
+            blocks: [block('planet', oval(440, 290, 50, 50, 20))],
+            rough: [shape(smooth([420, 640, 440, 580, 700, 565, 960, 575, 960, 640], 1))]
+        },
+        {
+            name: 'Binary',
+            blurb: 'Two black holes, one above the line and one below. Thread the pair.',
+            par: 3,
+            /* A pair of black holes either side of the straight line, and an
+               asteroid between them on it. Each bends a passing putt towards
+               itself, so the way through is bent one way and then the other;
+               the asteroid takes the putt that tries to split the difference. */
+            tee: { x: 110, y: 320 },
+            hole: { x: 860, y: 320 },
+            hills: [bowl(400, 200, 140, 140), bowl(620, 440, 140, 140)],
+            lava: [shape(oval(400, 200, 34, 34, 18)), shape(oval(620, 440, 34, 34, 18))],
+            bumpers: [post(510, 320, 15), post(200, 520, 18), post(820, 140, 18)]
+        },
+        {
+            name: 'Mission Control',
+            blurb: 'A station turning in the middle, two black holes, a wormhole and a long way to the flag.',
+            par: 4,
+            /* The close: a three-armed station turning in the middle of the
+               deck, a black hole guarding the flag and another by the tee, a
+               wormhole from the near side to the far one, and two planets.
+               A hole of stages with every hazard the card has had. */
+            tee: { x: 100, y: 560 },
+            hole: { x: 860, y: 100 },
+            spinners: [spinner(430, 330, 90, 3, 1.0, 0, 20)],
+            hills: [bowl(720, 260, 130, 140), bowl(300, 140, 110, 130)],
+            lava: [shape(oval(720, 260, 32, 32, 18)), shape(oval(300, 140, 28, 28, 18))],
+            tunnels: [tunnel(160, 360, 600, 560)],
+            blocks: [block('planet', oval(860, 420, 50, 50, 20)), block('planet', oval(560, 80, 40, 40, 18))]
+        }
+    ];
+
     /* ── Harvest Wind — the autumn farm ─────────────────────────────────
 
        The card of the air. Every hole has a wind on it, and every wind
@@ -1698,6 +1810,122 @@
         }
     ];
 
+    /* ── Desk Job — the study ───────────────────────────────────────────
+
+       Mini golf on a desk, and the card of ground that turns. A record
+       player stands open on the desk, and its platter is the new thing: a
+       firm putt across it is hurried along on the side that turns with it
+       and held back on the side that turns against it, a slow one is swung
+       the way the platter is going, and one left on it is flung off the
+       rim. Round it, the desk's own furniture: books to bank off, a pencil
+       laid as a bank board, a tipped ink pot and its spill, spilt sugar,
+       the felt blotter and a mug of coffee going cold. */
+
+    var DESK = [
+        {
+            name: 'Side A',
+            blurb: 'A record on the line. Let the turn of it bend your putt round the spindle.',
+            par: 3,
+            /* The terms, stated once: one platter between the tee and the
+               flag, turning clockwise, with its spindle on the straight line.
+               The putt that drops crosses the platter where its turn bends it
+               up to the flag; the tone arm stands off to the side, parked. */
+            tee: { x: 110, y: 430 },
+            hole: { x: 850, y: 210 },
+            turntables: [turntable(480, 320, 120, 1.4)],
+            blocks: [block('tonearm', [640, 110, 760, 150, 754, 172, 634, 132]), block('mug', oval(860, 470, 40, 40, 16))]
+        },
+        mirror({
+            name: 'Inkwell',
+            blurb: 'The ink pot went over, and the spill is on the line. Bank off the book.',
+            par: 3,
+            /* A spill across the straight line, from the pot lying tipped at
+               its head, and a book on the desk below it. The bank off the
+               book's face comes up past the spill onto the flag; over the top
+               of the spill is the pot, and round it is two putts. */
+            tee: { x: 110, y: 320 },
+            hole: { x: 850, y: 320 },
+            water: [shape(smooth([400, 240, 520, 220, 580, 300, 560, 400, 440, 420, 390, 330], 1))],
+            blocks: [
+                block('inkpot', oval(470, 170, 26, 26, 14)),
+                block('book', [380, 470, 600, 470, 600, 560, 380, 560]),
+                block('book', [700, 40, 900, 40, 900, 130, 700, 130])
+            ]
+        }),
+        {
+            name: 'Bookends',
+            blurb: 'Two books across the way and a pencil laid as a bank board. Off the pencil to the flag.',
+            par: 3,
+            /* The books close the low ways to the flag; the pencil, laid on
+               the slant above them, is the board the ace comes off. Too far
+               along it and the ball runs into the blotter in the corner. */
+            tee: { x: 110, y: 540 },
+            hole: { x: 860, y: 110 },
+            blocks: [
+                block('book', [430, 280, 660, 280, 660, 380, 430, 380]),
+                block('book', [640, 400, 800, 400, 800, 640, 640, 640]),
+                block('pencil', [379, 126, 591, 36, 601, 58, 389, 148])
+            ],
+            rough: [shape(smooth([0, 0, 220, 0, 220, 160, 0, 160], 0))]
+        },
+        {
+            name: 'B-Side',
+            blurb: 'Two records turning against each other. Between them they throw the ball on.',
+            par: 3,
+            /* Two platters side by side, the top one turning against the
+               clock and the bottom one with it, so where they nearly meet
+               both are running towards the flag: a soft putt into the gap
+               is picked up and thrown on. The mug stands where the straight
+               line would come out. */
+            tee: { x: 110, y: 360 },
+            hole: { x: 850, y: 250 },
+            turntables: [turntable(420, 225, 100, -1.6), turntable(420, 460, 100, 1.6)],
+            blocks: [block('mug', oval(700, 300, 34, 34, 16))]
+        },
+        {
+            name: 'Sugar Rush',
+            blurb: 'Sugar spilt in two drifts, the blotter at the side and a pencil to bank off at the bottom.',
+            par: 3,
+            /* Played down the desk, diagonally, past two drifts of spilt
+               sugar — sand, in all but taste — and a drawing pin. The
+               pencil along the bottom edge is the bank to the flag. */
+            tee: { x: 110, y: 120 },
+            hole: { x: 840, y: 520 },
+            sand: [
+                shape(smooth([330, 230, 470, 200, 560, 260, 520, 340, 380, 330], 1)),
+                shape(smooth([640, 420, 740, 400, 780, 470, 700, 520, 620, 490], 1))
+            ],
+            rough: [shape(smooth([0, 420, 260, 420, 300, 640, 0, 640], 1))],
+            blocks: [
+                block('pencil', [560, 540, 800, 580, 796, 604, 556, 564]),
+                block('book', [720, 100, 960, 100, 960, 230, 720, 230])
+            ],
+            bumpers: [post(600, 380, 18)]
+        },
+        {
+            name: 'Deadline',
+            blurb: 'The whole desk on the way to the corner: books, the record, a spill and a pencil.',
+            par: 4,
+            /* The card's close, played from one corner of the desk to the
+               other, past a book, round or across the record, and up to a
+               flag tucked behind the pencil with ink below it. A hole of
+               stages: the record is the quick way round the book, and the
+               spill is the price of hurrying the last putt. */
+            tee: { x: 100, y: 560 },
+            hole: { x: 860, y: 100 },
+            turntables: [turntable(620, 360, 110, 1.5)],
+            blocks: [
+                block('book', [240, 300, 440, 300, 440, 400, 240, 400]),
+                block('book', [0, 0, 200, 0, 200, 120, 0, 120]),
+                block('mug', oval(860, 300, 36, 36, 16)),
+                block('pencil', [440, 120, 660, 70, 665, 94, 445, 144]),
+                block('tonearm', [770, 470, 890, 520, 884, 542, 764, 492])
+            ],
+            water: [shape(smooth([700, 140, 780, 120, 800, 200, 740, 230, 690, 200], 1))],
+            sand: [shape(smooth([300, 480, 420, 470, 450, 540, 360, 580, 290, 540], 1))]
+        }
+    ];
+
     /* ── Midnight Funfair — the night ──────────────────────────────────
 
        Crazy golf, after dark, and the card of things that move by
@@ -1907,12 +2135,28 @@
             holes: FUNFAIR
         },
         {
+            id: 'desk',
+            theme: 'study',
+            name: 'Desk Job',
+            blurb: 'Mini golf on a desk: books, an ink spill and a record player that will not stop turning.',
+            unlock: 58,
+            holes: DESK
+        },
+        {
             id: 'ember',
             theme: 'volcanic',
             name: 'Ember Ridge',
             blurb: 'Lava nothing skips across, and geysers that throw you over it if you time them.',
-            unlock: 58,
+            unlock: 64,
             holes: EMBER
+        },
+        {
+            id: 'orbit',
+            theme: 'space',
+            name: 'Orbit',
+            blurb: 'Black holes to slingshot round, planets to bank off and a wormhole. The last card.',
+            unlock: 70,
+            holes: ORBIT
         }
     ];
 
@@ -1927,7 +2171,7 @@
        uses, and every consumer downstream gets to loop without a guard. The
        playtest hand-off in index.html fills a drawn hole from the same list. */
     GOLF.HAZARD_KEYS = ['walls', 'water', 'sand', 'rough', 'ice', 'bumpers', 'slopes', 'tunnels', 'rails',
-                        'lava', 'avalanches', 'vents', 'arcs', 'blocks', 'hills', 'spinners', 'belts'];
+                        'lava', 'avalanches', 'vents', 'arcs', 'blocks', 'hills', 'spinners', 'belts', 'turntables'];
     GOLF.COURSES.forEach(function (c) {
         c.holes.forEach(function (h) {
             GOLF.HAZARD_KEYS.forEach(function (key) {
