@@ -8,7 +8,7 @@
    — the renderer scales to the viewport, the simulation never sees a pixel. */
 window.G3 = window.G3 || {};
 
-G3.VERSION = '1.103.0';
+G3.VERSION = '1.104.0';
 
 G3.CONFIG = {
     BALL_R: 0.16,
@@ -234,6 +234,39 @@ G3.CONFIG = {
         SPAN: 18 * Math.PI / 180,
         FLOOR: 0.75,
         TURN_PX: 14
+    },
+
+    /* The arcade arc (swing.js `arc…`), in fractions of the dial per second.
+       SPEED is the climb, BACK the swing back — a touch slower, because the
+       strike is the press that has to be exact. WIN_* is the half-width of the
+       strike zone at a full swing and at the end of the overdraw, set like the
+       gate's so the time inside it never drops under about a sixth of a
+       second; SPAN is how far past it is a total miss, and TAIL how far the
+       needle runs on past the start before the swing is over. FLOOR is the
+       swipe's: the least overdraw a miss is costed at. */
+    ARC: {
+        SPEED: 0.80,
+        BACK: 0.70,
+        WIN_MAX: 0.080,
+        WIN_MIN: 0.056,
+        SPAN: 0.16,
+        TAIL: 0.20,
+        FLOOR: 0.75
+    },
+
+    /* The needle (swing.js `needle…`). PERIOD_* is one full sweep there and
+       back, in seconds, at a full swing and at the end of the overdraw; WIN_*
+       the half-width of the clean middle as a fraction of the half-fan; SPAN
+       how far past it is a total miss. The sweep crosses 4/PERIOD of the fan
+       a second, so the time in the middle is WIN·PERIOD/2 — 234ms at the
+       easy end, 150ms at the hard one. */
+    NEEDLE: {
+        PERIOD_MAX: 2.6,
+        PERIOD_MIN: 2.0,
+        WIN_MAX: 0.18,
+        WIN_MIN: 0.15,
+        SPAN: 0.6,
+        FLOOR: 0.75
     },
 
     /* Shot shaping (swing.js `shape`). TURN is how far a draw or a fade turns
@@ -665,7 +698,11 @@ G3.CONFIG = {
        waved off, and nothing at all — which is most players, and which follows
        prefers-reduced-motion instead of guessing. See game.js's flyWanted. */
     FLY_KEY: 'loftLinks.flyover',
-    // The touch swing, while it is a trial: '1' when it has been turned on.
+    /* The swing style on the long game, while the styles are on trial:
+       'meter', 'swipe', 'arc' or 'needle' (game.js "swing styles"). SWIPE_KEY
+       is the touch swing's old on/off, read once so a player who had turned
+       it on keeps it. */
+    STYLE_KEY: 'loftLinks.swingStyle',
     SWIPE_KEY: 'loftLinks.touchSwing',
     /* Pass-and-play: how many are sharing the device, 1 to 4 (game.js →
        "pass and play"), and the ball each of them plays. White is player one's

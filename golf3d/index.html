@@ -32,7 +32,7 @@
 
         gtag('config', 'G-9GP823TGLB');
     </script>
-    <link rel="stylesheet" href="style.css?v=1.103.0">
+    <link rel="stylesheet" href="style.css?v=1.104.0">
 <script type="application/ld+json">
     {
         "@context": "https://schema.org",
@@ -145,7 +145,7 @@
                     <button class="chip" id="btn-music" title="Background music (J)" aria-label="Turn the music off"><span id="music-icon">♪</span><span class="chip-text"> Jazz</span></button>
                     <button class="chip" id="btn-fps" title="Show the frame rate (P)" aria-pressed="false"><span id="fps-icon">▦</span><span class="chip-text"> FPS</span></button>
                     <button class="chip" id="btn-fly" title="A look at the hole before you play it" aria-pressed="true">🎬<span class="chip-text"> Flyover</span></button>
-                    <button class="chip" id="btn-swipe" title="Long game: swing by pulling down and swiping up (trial)" aria-pressed="false">👆<span class="chip-text"> Touch swing</span></button>
+                    <button class="chip" id="btn-style" title="How you swing on the long game (trial)" aria-haspopup="dialog" aria-expanded="false" aria-controls="style-pad">🏌<span class="chip-text"> Swing: <span id="style-now">Meter</span></span></button>
                     <button class="chip" id="btn-water" title="Reflections, foam and glitter on the water (O)" aria-label="Turn the fancy water off"><span id="water-icon">≈</span><span class="chip-text"> Water</span></button>
                 </div>
                 <button class="chip chip-menu" id="btn-menu" title="More" aria-label="More controls"
@@ -351,6 +351,52 @@
                     <circle class="sw-ball" id="sw-ball" r="15"/>
                 </svg>
                 <span class="swipe-cue" id="swipe-cue">Pull down, swipe up</span>
+            </div>
+
+            <!-- The arcade arc (swing.js `arc…`, game.js "swing styles"): a
+                 half-dial over the ball. game.js writes the paths. -->
+            <div class="arc" id="arc" hidden>
+                <svg class="arc-svg" viewBox="-128 -128 256 196" aria-hidden="true">
+                    <path class="arc-track" id="arc-track"/>
+                    <path class="arc-over" id="arc-over"/>
+                    <path class="arc-zone" id="arc-zone"/>
+                    <path class="arc-fill" id="arc-fill"/>
+                    <line class="arc-full" id="arc-full"/>
+                    <line class="arc-set" id="arc-set"/>
+                    <line class="arc-needle" id="arc-needle"/>
+                    <circle class="arc-hub" r="8"/>
+                </svg>
+                <span class="arc-say" id="arc-say" aria-live="polite">Tap to swing</span>
+            </div>
+
+            <!-- The needle's fan, over the ball, and a tap anywhere on the
+                 stage while it sweeps is the strike. -->
+            <div class="needle" id="needle" hidden>
+                <div class="needle-dial" id="needle-dial">
+                    <svg class="needle-svg" viewBox="-128 -124 256 140" aria-hidden="true">
+                        <path class="nd-band nd-red" id="nd-red-l"/>
+                        <path class="nd-band nd-amb" id="nd-amb-l"/>
+                        <path class="nd-band nd-zone" id="nd-zone"/>
+                        <path class="nd-band nd-amb" id="nd-amb-r"/>
+                        <path class="nd-band nd-red" id="nd-red-r"/>
+                        <line class="nd-needle" id="nd-needle"/>
+                        <circle class="nd-hub" r="7"/>
+                    </svg>
+                    <span class="needle-say">Tap when it is in the green</span>
+                </div>
+            </div>
+
+            <!-- How the strike went, in one word (game.js `showGrade`). -->
+            <div class="grade" id="grade" aria-hidden="true"></div>
+
+            <!-- Which way to swing on the long game (game.js "swing styles"):
+                 four on trial, built from STYLE_INFO. -->
+            <div class="style-pad" id="style-pad" hidden role="dialog" aria-label="Swing style">
+                <div class="st-head">
+                    <span><b>Swing style</b><small>long game and the range</small></span>
+                    <button type="button" class="st-close" id="style-close" aria-label="Close">✕</button>
+                </div>
+                <div class="st-list" id="style-list"></div>
             </div>
 
             <div class="controls">
@@ -583,11 +629,14 @@
                     at all.
                 </li>
                 <li>
-                    <b>The touch swing (a trial).</b> Turn on 👆 in ☰ and the long game is played with
-                    your thumb instead: press in the middle of the screen, pull straight down to load
-                    the shot, and swipe up through where you started to hit it. A straight swipe is a
-                    straight shot; drift right and it goes right and fades, drift left and it draws.
-                    Let go before you come back up and there is no shot.
+                    <b>Swing styles (on trial).</b> 🏌 Swing in ☰ picks how you hit the ball on the
+                    long game and the range. <b>Meter</b> is all of the above. <b>Touch swing</b>: press
+                    in the middle of the screen, pull straight down to load, swipe up through where you
+                    started — straight is straight, drift right and it goes right and fades.
+                    <b>Arcade</b>: three taps on a dial — start the swing, stop the power, strike as the
+                    needle comes back into the green. <b>Needle</b>: pull down to load, let go, and tap
+                    while a needle sweeping over the ball is in the green; tap left of it and the ball
+                    goes left.
                 </li>
                 <li>
                     <b>Read the flag.</b> The pin stands in the cup, and it is the only
@@ -777,30 +826,30 @@
 
     <!-- Load order is dependency order: config, then the pure logic, then the
          things that touch the screen. game.js boots itself on DOMContentLoaded. -->
-    <script src="js/config.js?v=1.103.0"></script>
-    <script src="js/themes.js?v=1.103.0"></script>
-    <script src="js/physics.js?v=1.103.0"></script>
-    <script src="js/courses.js?v=1.103.0"></script>
-    <script src="js/audit.js?v=1.103.0"></script>
-    <script src="js/custom.js?v=1.103.0"></script>
-    <script src="js/scoring.js?v=1.103.0"></script>
-    <script src="js/swing.js?v=1.103.0"></script>
-    <script src="js/school.js?v=1.103.0"></script>
-    <script src="js/audio.js?v=1.103.0"></script>
-    <script src="js/music.js?v=1.103.0"></script>
-    <script src="js/bag.js?v=1.103.0"></script>
-    <script src="js/textures.js?v=1.103.0"></script>
-    <script src="js/shaders.js?v=1.103.0"></script>
-    <script src="js/postfx.js?v=1.103.0"></script>
-    <script src="js/weather.js?v=1.103.0"></script>
-    <script src="js/flyover.js?v=1.103.0"></script>
-    <script src="js/replay.js?v=1.103.0"></script>
-    <script src="js/bot.js?v=1.103.0"></script>
-    <script src="js/models.js?v=1.103.0"></script>
-    <script src="js/life.js?v=1.103.0"></script>
-    <script src="js/render.js?v=1.103.0"></script>
-    <script src="js/minimap.js?v=1.103.0"></script>
-    <script src="js/debug.js?v=1.103.0"></script>
-    <script src="js/game.js?v=1.103.0"></script>
+    <script src="js/config.js?v=1.104.0"></script>
+    <script src="js/themes.js?v=1.104.0"></script>
+    <script src="js/physics.js?v=1.104.0"></script>
+    <script src="js/courses.js?v=1.104.0"></script>
+    <script src="js/audit.js?v=1.104.0"></script>
+    <script src="js/custom.js?v=1.104.0"></script>
+    <script src="js/scoring.js?v=1.104.0"></script>
+    <script src="js/swing.js?v=1.104.0"></script>
+    <script src="js/school.js?v=1.104.0"></script>
+    <script src="js/audio.js?v=1.104.0"></script>
+    <script src="js/music.js?v=1.104.0"></script>
+    <script src="js/bag.js?v=1.104.0"></script>
+    <script src="js/textures.js?v=1.104.0"></script>
+    <script src="js/shaders.js?v=1.104.0"></script>
+    <script src="js/postfx.js?v=1.104.0"></script>
+    <script src="js/weather.js?v=1.104.0"></script>
+    <script src="js/flyover.js?v=1.104.0"></script>
+    <script src="js/replay.js?v=1.104.0"></script>
+    <script src="js/bot.js?v=1.104.0"></script>
+    <script src="js/models.js?v=1.104.0"></script>
+    <script src="js/life.js?v=1.104.0"></script>
+    <script src="js/render.js?v=1.104.0"></script>
+    <script src="js/minimap.js?v=1.104.0"></script>
+    <script src="js/debug.js?v=1.104.0"></script>
+    <script src="js/game.js?v=1.104.0"></script>
 </body>
 </html>

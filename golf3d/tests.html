@@ -3475,6 +3475,94 @@
             assert('a swiped gate is a struck one', SW.swiped(0.2, 0.4).struck && SW.swiped(0.2, 0).perfect);
         })();
 
+        section('The arcade arc');
+        (function () {
+            var SW = G3.swing, AR = C.ARC;
+            // Run an arc: set the power at `power`, strike at `at` on the way back.
+            function played(power, at, shape) {
+                var a = SW.arcStart(shape);
+                var guard = 0;
+                while (a.phase === 'up' && a.pos < power && guard++ < 100000) SW.arcTick(a, 1 / 2000);
+                SW.arcPress(a);
+                while (!a.done && a.pos > at && guard++ < 200000) SW.arcTick(a, 1 / 2000);
+                if (!a.done) SW.arcPress(a);
+                return a;
+            }
+
+            var a = played(0.5, 0);
+            assert('the second press sets the power where the needle was', approx(a.power, 0.5, 0.002));
+            assert('a strike as it comes home is perfect', a.perfect && a.off === 0);
+            var early = played(0.5, 0.3), late = played(0.5, -0.15);
+            assert('early pulls and late pushes, as every miss does', early.off < 0 && late.off > 0);
+            assert('a near miss costs less than a far one',
+                Math.abs(played(0.5, a.win + 0.03).off) < Math.abs(early.off));
+
+            var ran = SW.arcStart();
+            var guard = 0;
+            while (!ran.done && guard++ < 100000) SW.arcTick(ran, 1 / 200);
+            assert('left alone it goes all the way round — the most power there is',
+                ran.power === 1 && !ran.struck && ran.off === 1);
+
+            assert('the power half of the dial is the meter, overdraw and all',
+                SW.overOfFrac(SW.markAt()) < 1e-9 && approx(SW.overOfFrac(1), 1) && SW.overOfFrac(0.3) === 0);
+            assert('the zone narrows past a full swing',
+                played(SW.markAt() * 0.9, 0).win > played(1, 0).win);
+            assert('a shape makes the zone the shape\'s, however soft the swing',
+                played(0.4, 0, 'draw').over >= C.SHAPE.GATE);
+            (function () {
+                var worst = Infinity;
+                for (var t = 0; t <= 1.0001; t += 0.05) worst = Math.min(worst, 2 * SW.arcWin(t) / AR.BACK);
+                assert('there is time to react in the zone at every power', worst >= 0.15,
+                    Math.round(worst * 1000) + 'ms');
+            })();
+            var g = SW.arcGate(played(0.5, 0.4));
+            assert('a mistimed arc moves the ball even inside a full swing',
+                SW.apply({ yaw: 0, power: 20 }, g).yaw !== 0 && g.arc);
+        })();
+
+        section('The needle');
+        (function () {
+            var SW = G3.swing, N = C.NEEDLE;
+            var n = SW.needleStart(0);
+            assert('it starts at the left edge', n.pos === -1);
+            SW.needleTick(n, n.period / 4);
+            assert('a quarter of a sweep later it is in the middle', approx(n.pos, 0, 1e-9));
+            SW.needleTick(n, n.period / 4);
+            assert('and at the right edge half a sweep in', approx(n.pos, 1, 1e-9));
+            SW.needleTick(n, n.period / 2);
+            assert('and back at the left after a whole one', approx(n.pos, -1, 1e-9));
+
+            function tapAt(pos, over) {
+                var m = SW.needleStart(over || 0);
+                m.pos = pos;
+                return SW.needlePress(m);
+            }
+            assert('a tap in the middle is perfect', tapAt(0).perfect && tapAt(N.WIN_MAX * 0.9).perfect);
+            assert('left of it pulls, right of it pushes', tapAt(-0.6).off < 0 && tapAt(0.6).off > 0);
+            var l = SW.apply({ yaw: 0, power: 20 }, SW.needleGate(tapAt(-0.7)));
+            assert('and the ball goes the side the needle was on — left is left', l.yaw > 0);
+            assert('the sweep quickens and the middle narrows the harder it is loaded',
+                SW.needleStart(1).period < SW.needleStart(0).period && SW.needleStart(1).win < SW.needleStart(0).win);
+            var worst = Math.min(SW.needleStart(0).win * SW.needleStart(0).period / 2,
+                                 SW.needleStart(1).win * SW.needleStart(1).period / 2);
+            assert('there is time to react in the middle at every power', worst >= 0.149,
+                Math.round(worst * 1000) + 'ms');
+            assert('the miss is bounded', Math.abs(tapAt(1).off) <= 1 && Math.abs(tapAt(-1).off) <= 1);
+        })();
+
+        section('The strike grade');
+        (function () {
+            var SW = G3.swing;
+            assert('no gate, no grade', SW.grade(null) === null);
+            assert('a clean strike is perfect', SW.grade({ struck: true, perfect: true, off: 0 }).word === 'Perfect');
+            assert('a near miss is great, then good',
+                SW.grade({ struck: true, off: 0.1 }).tier === 'great' && SW.grade({ struck: true, off: -0.3 }).tier === 'good');
+            assert('a real miss names the side', SW.grade({ struck: true, off: -0.6 }).word === 'Pulled' &&
+                SW.grade({ struck: true, off: 0.6 }).word === 'Pushed');
+            assert('the worst is a shank, and not swinging is a whiff',
+                SW.grade({ struck: true, off: 1 }).tier === 'bad' && SW.grade({ struck: false, off: 1 }).word === 'Whiff');
+        })();
+
         /* ── scoring ───────────────────────────────────────────────────── */
 
         section('Shot shaping');

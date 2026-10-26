@@ -368,14 +368,15 @@ the picker.
 
 ### After the rehaul
 
-- **A more fun swing — the touch swing is on trial.** v1.103.0 cut the four
-  rotating gates to one (the owner found the rotation random and not fun) and
-  put a pull-down, swipe-up swing behind the 👆 toggle, long game and range
-  only (README → "The touch swing"). Waiting on the owner's verdict: keep it
-  as a toggle, make it the long game's default, take it to the mini courses
-  too, or drop it. Tuning to look at once it has been played on a phone: the
-  clean lean (`SWIPE.TOL_*`), the floor a miss is costed at (`SWIPE.FLOOR`),
-  and whether the speed of the swipe up should count for something.
+- **A more fun swing — four styles on trial.** v1.103.0 cut the four rotating
+  gates to one (the owner found the rotation random and not fun) and added
+  the touch swing; v1.104.0 made it a choice of four — meter, touch swing,
+  arcade arc, needle — from 🏌 Swing in ☰, long game and range only, plus a
+  strike grade and a livelier meter (README → "Swing styles"). Waiting on the
+  owner's verdict: which to keep, whether one becomes the long game's default,
+  and whether any belongs on the mini courses. Tuning to look at once played
+  on a phone: each style's clean allowance (`SWIPE.TOL_*`, `ARC.WIN_*`,
+  `NEEDLE.WIN_*`), their `FLOOR`s, and the arc's and needle's speeds.
 - **Mini golf and the long game as two games.** They share one bag and one set
   of physics and they want different ones — the bot drives The Bend and The
   Zigzag with the *driver*. Separate bags (a mini bag of putter, pitch and

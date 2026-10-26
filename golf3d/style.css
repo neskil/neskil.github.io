@@ -450,6 +450,11 @@ button,
 .gate.live .gate-zone {
     background: rgba(74, 222, 128, 0.34);
     box-shadow: inset 0 0 0 1px rgba(74, 222, 128, 0.85), 0 0 14px rgba(74, 222, 128, 0.4);
+    animation: zoneBreathe 0.6s ease-in-out infinite alternate;
+}
+@keyframes zoneBreathe {
+    from { background-color: rgba(74, 222, 128, 0.26); }
+    to { background-color: rgba(74, 222, 128, 0.46); }
 }
 
 /* The clubhead. Two pixels of hard white, because a soft marker on a moving
@@ -463,6 +468,19 @@ button,
     border-radius: 2px;
     background: #fff;
     box-shadow: 0 0 10px rgba(255, 255, 255, 0.9);
+}
+
+/* And a comet tail behind it, which is what makes its speed readable at a
+   glance: a longer smear is a faster marker. */
+.gate-mark::before {
+    content: '';
+    position: absolute;
+    top: 4px;
+    bottom: 4px;
+    right: 3px;
+    width: 44px;
+    border-radius: 3px 0 0 3px;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.55));
 }
 
 /* What this gate wants, in one line, over the bar. It replaces the "press or
@@ -1406,11 +1424,47 @@ button,
    line stays, and .asking below is what points at it. */
 
 .power-fill {
+    position: relative;
     height: 100%;
     width: 0;
+    overflow: hidden;
     background: var(--accent);
     box-shadow: 0 0 12px currentColor;
     transition: width 0.04s linear;
+}
+
+/* A glint that runs along the fill while it is loaded, so the bar looks
+   charged rather than painted. Cheap: one gradient sliding on the GPU. */
+.power-fill::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(100deg, transparent 0 35%, rgba(255, 255, 255, 0.55) 50%, transparent 65% 100%);
+    background-size: 220% 100%;
+    animation: powerSheen 1.6s linear infinite;
+}
+@keyframes powerSheen {
+    from { background-position: 130% 0; }
+    to { background-position: -90% 0; }
+}
+
+/* Loaded to exactly a full swing (game.js → syncPower, within a couple of
+   percent): the white line lights up, which is the sweet spot saying so —
+   and so does the rim of the bar, because the grip is parked on the line
+   and would hide the line's glow on its own. */
+.power-track.at-full {
+    border-color: #a5f3fc;
+    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(165, 243, 252, 0.6), 0 0 16px rgba(165, 243, 252, 0.75);
+}
+.power-track.at-full .power-grip { box-shadow: 0 1px 3px rgba(0, 0, 0, 0.55), 0 0 14px #fff; }
+.power-track.at-full .power-max {
+    background: #fff;
+    box-shadow: 0 0 8px #fff, 0 0 18px rgba(165, 243, 252, 0.9);
+    animation: fullGlow 0.7s ease-in-out infinite alternate;
+}
+@keyframes fullGlow {
+    from { opacity: 0.75; }
+    to { opacity: 1; }
 }
 
 /* A full swing — 100% of the club in hand, which is not the end of the track
@@ -3720,16 +3774,25 @@ body.compact-ui .picker { padding-top: 52px; }
 }
 .swipe-cue[hidden] { display: none; }
 .stage.flying .swipe,
-body.demo .swipe { display: none; }
+.stage.flying .arc,
+.stage.flying .needle,
+body.demo .swipe,
+body.demo .arc,
+body.demo .needle { display: none; }
 
-/* While the touch swing is in charge, the meter is a readout and Swing gives
-   its place to a line saying what to do instead. */
+/* While a lane style (the touch swing, the needle) is in charge, the meter is
+   a readout and Swing gives its place to a line saying what to do instead.
+   The arc keeps Swing — it is the button the three presses are made on — and
+   freezes the meter the same way, because the needle is what loads it. */
+body.arc-swing .power-hit { pointer-events: none; }
+body.arc-swing .power-cue,
+body.arc-swing .power-grip { opacity: 0; }
 .swipe-hint { display: none; }
-body.swipe-swing .power-hit { pointer-events: none; }
-body.swipe-swing .power-cue,
-body.swipe-swing .power-grip { opacity: 0; }
-body.swipe-swing #btn-swing { display: none; }
-body.swipe-swing .swipe-hint {
+body.lane-swing .power-hit { pointer-events: none; }
+body.lane-swing .power-cue,
+body.lane-swing .power-grip { opacity: 0; }
+body.lane-swing #btn-swing { display: none; }
+body.lane-swing .swipe-hint {
     display: grid;
     place-items: center;
     flex: 1 1 auto;
@@ -3743,3 +3806,222 @@ body.swipe-swing .swipe-hint {
     border-radius: 14px;
     align-self: stretch;
 }
+
+/* ── the arcade arc ─────────────────────────────────────────────────────── */
+
+/* A half-dial standing over the ball, bottom-centred above the controls
+   (game.js `placeArc` sets how far up). The whole of it takes a press, as
+   well as Swing, because a thumb aimed at a dial should be able to hit it. */
+.arc {
+    position: absolute;
+    line-height: 1.2;
+    left: 50%;
+    width: min(78%, 320px);
+    transform: translateX(-50%);
+    z-index: 3;
+    cursor: pointer;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+}
+.arc[hidden] { display: none; }
+.arc-svg { display: block; width: 100%; height: auto; overflow: visible; }
+.arc-track {
+    fill: none;
+    stroke: rgba(3, 12, 20, 0.62);
+    stroke-width: 22;
+    stroke-linecap: round;
+}
+.arc-over {
+    fill: none;
+    stroke: rgba(248, 113, 113, 0.32);
+    stroke-width: 22;
+    stroke-dasharray: 3 3;
+}
+.arc-zone {
+    fill: none;
+    stroke: rgba(74, 222, 128, 0.55);
+    stroke-width: 26;
+    filter: drop-shadow(0 0 6px rgba(74, 222, 128, 0.7));
+}
+.arc.down .arc-zone { animation: arcZone 0.5s ease-in-out infinite alternate; }
+@keyframes arcZone {
+    from { stroke: rgba(74, 222, 128, 0.45); }
+    to { stroke: rgba(74, 222, 128, 0.95); }
+}
+.arc-fill {
+    fill: none;
+    stroke: var(--accent);
+    stroke-width: 14;
+    stroke-linecap: round;
+    filter: drop-shadow(0 0 6px rgba(56, 189, 248, 0.8));
+}
+.arc.hot .arc-fill { stroke: #f87171; filter: drop-shadow(0 0 8px rgba(248, 113, 113, 0.9)); }
+.arc-full { stroke: #fff; stroke-width: 3; stroke-linecap: round; }
+.arc-set { stroke: #fde68a; stroke-width: 4; stroke-linecap: round; filter: drop-shadow(0 0 4px #fde68a); }
+.arc-needle {
+    stroke: #fff;
+    stroke-width: 4;
+    stroke-linecap: round;
+    filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.9));
+}
+.arc-hub { fill: #fff; stroke: rgba(3, 12, 20, 0.7); stroke-width: 3; }
+.arc-say {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 6%;
+    text-align: center;
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    color: #eaf6ff;
+    text-shadow: 0 1px 6px rgba(0, 0, 0, 0.9);
+    pointer-events: none;
+}
+
+/* ── the needle ─────────────────────────────────────────────────────────── */
+
+/* While it sweeps, the whole stage is the button: a tap anywhere strikes. */
+.needle {
+    position: absolute;
+    line-height: 1.2;
+    inset: 0;
+    z-index: 4;
+    cursor: pointer;
+    touch-action: none;
+}
+.needle[hidden] { display: none; }
+.needle-dial {
+    position: absolute;
+    left: 50%;
+    width: min(80%, 320px);
+    transform: translateX(-50%);
+    pointer-events: none;
+}
+.needle-svg { display: block; width: 100%; height: auto; overflow: visible; }
+.nd-band { fill: none; stroke-width: 22; }
+.nd-red { stroke: rgba(248, 113, 113, 0.55); }
+.nd-amb { stroke: rgba(251, 191, 36, 0.6); }
+.nd-zone { stroke: rgba(74, 222, 128, 0.9); filter: drop-shadow(0 0 8px rgba(74, 222, 128, 0.8)); }
+.nd-needle {
+    stroke: #fff;
+    stroke-width: 4;
+    stroke-linecap: round;
+    filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.9));
+}
+.nd-hub { fill: #fff; stroke: rgba(3, 12, 20, 0.7); stroke-width: 3; }
+.needle-say {
+    display: block;
+    margin-top: 0.3rem;
+    text-align: center;
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: #eaf6ff;
+    text-shadow: 0 1px 6px rgba(0, 0, 0, 0.9);
+}
+
+/* ── the grade ──────────────────────────────────────────────────────────── */
+
+/* One word, big, for about a second, a little above the middle of the stage
+   — over the ball's flight, under nothing that matters. */
+.grade {
+    position: absolute;
+    line-height: 1;
+    left: 50%;
+    top: 34%;
+    transform: translate(-50%, -50%) scale(0.6);
+    font-family: 'Outfit', sans-serif;
+    font-size: clamp(2rem, 9vw, 3.4rem);
+    font-weight: 800;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    color: #fff;
+    text-shadow: 0 3px 14px rgba(0, 0, 0, 0.6);
+    pointer-events: none;
+    opacity: 0;
+    z-index: 6;
+    white-space: nowrap;
+}
+.grade.show { animation: gradePop 1.25s cubic-bezier(0.2, 0.9, 0.3, 1.2) forwards; }
+.grade.perfect { color: #fde68a; text-shadow: 0 0 18px rgba(253, 230, 138, 0.9), 0 3px 14px rgba(0, 0, 0, 0.6); }
+.grade.great { color: #86efac; }
+.grade.good { color: #a5f3fc; }
+.grade.off { color: #fdba74; }
+.grade.bad { color: #fca5a5; }
+@keyframes gradePop {
+    0% { opacity: 0; transform: translate(-50%, -50%) scale(0.5); }
+    18% { opacity: 1; transform: translate(-50%, -50%) scale(1.12); }
+    30% { transform: translate(-50%, -50%) scale(1); }
+    75% { opacity: 1; transform: translate(-50%, -60%) scale(1); }
+    100% { opacity: 0; transform: translate(-50%, -75%) scale(0.96); }
+}
+@media (prefers-reduced-motion: reduce) {
+    .grade.show { animation-duration: 1.6s; animation-timing-function: linear; }
+    .power-fill::after { animation: none; }
+}
+
+/* ── the style picker ───────────────────────────────────────────────────── */
+
+.style-pad {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: min(92%, 380px);
+    padding: 0.8rem;
+    line-height: 1.3;      /* the stage sets 0 for the canvas; text needs its own */
+    border-radius: 18px;
+    background: rgba(6, 20, 32, 0.9);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    z-index: 20;
+}
+.style-pad[hidden] { display: none; }
+.st-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.6rem; }
+.st-head span { display: flex; flex-direction: column; }
+.st-head b { font-family: 'Outfit', sans-serif; font-size: 1.05rem; color: #eaf6ff; }
+.st-head small { font-size: 0.7rem; color: rgba(234, 246, 255, 0.6); }
+.st-close {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    background: rgba(255, 255, 255, 0.06);
+    color: #eaf6ff;
+    font: inherit;
+    cursor: pointer;
+}
+.st-list { display: grid; gap: 0.45rem; }
+.st-opt {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.6rem 0.75rem;
+    border-radius: 13px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: rgba(255, 255, 255, 0.04);
+    color: #eaf6ff;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+}
+.st-opt:hover { background: rgba(56, 189, 248, 0.14); }
+.st-opt.on { border-color: var(--accent); background: rgba(56, 189, 248, 0.18); }
+.st-icon {
+    flex: none;
+    display: grid;
+    place-items: center;
+    width: 2.3rem;
+    height: 2.3rem;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.08);
+    font-size: 1.15rem;
+}
+.st-opt.on .st-icon { background: var(--accent); color: #06212f; }
+.st-text { display: flex; flex-direction: column; gap: 0.1rem; }
+.st-text b { font-size: 0.9rem; }
+.st-text small { font-size: 0.72rem; line-height: 1.3; color: rgba(234, 246, 255, 0.7); }
