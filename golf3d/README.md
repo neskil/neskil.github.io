@@ -54,7 +54,7 @@ them.
 | `js/physics.js` | The simulation. No three.js, no DOM, pure. |
 | `js/audit.js` | The [geometry audit](#the-pictures-which-neither-suite-can-see): the faults that are invisible to the ball and obvious in a screenshot. Pure — read by `tests.html`, by the inspector and by the turntable. |
 | `js/scoring.js` | Scorecard arithmetic and the save file. |
-| `js/swing.js` | The swing gate (what a shot past a full swing costs), shot shapes, and the touch swing's arithmetic. No DOM, no three.js. |
+| `js/swing.js` | The swing gate (what a shot past a full swing costs), shot shapes, the arithmetic of the four swing styles and the strike grade. No DOM, no three.js. |
 | `js/school.js` | The range's swing school: the lessons, what passes one, and what to say while the marker moves. No DOM, no three.js. |
 | `js/audio.js` | Synthesised sound effects, the weather's sound bed, the mute and the tab-out — no audio files to ship. |
 | `js/music.js` | The house band: a smooth jazz quartet, synthesised a bar at a time. |
@@ -327,36 +327,58 @@ The first `SWING.ARM` of overdraw does not arm the gate at all: a hoop to jump
 through over a shot that can barely go wrong is a hoop for its own sake.
 
 `js/swing.js` knows nothing about the DOM or three.js: it is arithmetic over a
-plain object, which is what lets `tests.html` cover the gate, the touch swing,
+plain object, which is what lets `tests.html` cover the gate, every swing style,
 both edges of every miss and the bound on the envelope without a browser.
 
-### The touch swing (a trial)
+### Swing styles (on trial)
 
-A swing made with the thumb rather than a meter you stop, behind the 👆 chip in
-☰ (`SWIPE_KEY`) and only on the long game and the range: mini golf is putts and
-chips that want an exact number on the meter, not a thrash. While it is on,
-a lane runs up the middle of the stage from about where the ball sits down to
-the controls:
+Four ways to hit the ball, picked from 🏌 Swing in ☰ (`STYLE_KEY`; the old
+touch-swing on/off, `SWIPE_KEY`, is read once so a player who had it keeps it),
+and only on the long game and the range: mini golf is putts and chips that want
+an exact number on the meter, not a thrash. Each style's arithmetic is in
+`swing.js` and each ends as a gate-shaped object handed to `strike`, so the
+push, the pull, the bend and the [shapes](#shot-shaping) are the same whichever
+way the ball was hit. game.js "swing styles" is the thumb and the pictures.
 
-- **Press and pull straight down** — the backswing. The meter fills with the
-  pull (`swipeLoad`), the cone grows with it, and the full swing is at the same
-  white line, ticked on the lane. A tick sounds as you pass it.
-- **Swipe up through where you started** — the strike, the moment the thumb
-  crosses back over its start. Let go before that and there is no shot.
-- **Straight is clean.** What is read is the *angle* of the through-swing from
-  the bottom of the pull to the crossing (`swipeAngle`), so neither the phone's
-  size nor the pull's length changes it. Inside `SWIPE.TOL_*` it is clean; past
-  that it becomes the gate's −1..1 over `SWIPE.SPAN` (`swipeOff`), and `apply`
-  does the rest: drift right and the ball is pushed right and fades, drift left
-  and it is pulled and draws. A green wedge on the lane shows how much lean is
-  allowed, and narrows the further you pulled.
-- **A crooked swipe always costs something.** Inside a full swing the spray is
-  nothing, so a swipe's miss is costed at no less than `SWIPE.FLOOR` of the
-  overdraw (`swiped`) — otherwise the straightness would be decoration.
+| style | power | accuracy | `swing.js` | tuning |
+| --- | --- | --- | --- | --- |
+| **Meter** | drag the bar | past the white line, [the gate](#the-swing-gate) | `start`/`tick`/`press` | `SWING` |
+| **Touch swing** | pull down from the ball | how straight the swipe up is | `swipe…` | `SWIPE` |
+| **Arcade** | stop a needle climbing round a dial | stop it again as it comes home | `arc…` | `ARC` |
+| **Needle** | pull down, as the touch swing | tap while a sweeping needle is central | `needle…` | `NEEDLE` |
 
-The meter is a readout while it is on and Swing gives way to a line saying what
-to do; the space bar still plays the meter's way. A shape picked on the ball
-is struck by the swipe the same way the gate strikes it.
+- **Touch swing.** A lane up the middle of the stage, from about where the ball
+  sits down to the controls. Press and pull straight down — the meter fills
+  with the pull (`swipeLoad`), the full swing ticked at the same white line —
+  then swipe up through where you started; crossing that line is the strike,
+  and letting go before it is no shot. What is read is the *angle* of the
+  through-swing (`swipeAngle`), so neither the phone's size nor the pull's
+  length changes it: inside `SWIPE.TOL_*` it is clean, past it the −1..1 over
+  `SWIPE.SPAN` (`swipeOff`), and a green wedge on the lane shows the allowance.
+- **Arcade.** The three-press swing every arcade golf game has had: a half-dial
+  over the ball, Swing (or a tap on the dial, or space) to start the needle
+  climbing, again to set the power, and the third press as it swings back to
+  the start is the strike. The dial is the meter bent round — the same white
+  line, the same hatched overdraw — and the zone at its start narrows past a
+  full swing (`arcWin`). Above the start is early (pull), past it into the
+  short tail (`ARC.TAIL`) is late (push); left alone the needle goes all the
+  way round, which is the most power there is and a whiff.
+- **Needle.** Pull down to load, let go, and a needle sweeps a fan over the
+  ball; a tap anywhere on the stage strikes. The miss is a *place*: left of
+  the middle pulls the ball left, right pushes it right. The sweep is a
+  triangle wave, not a pendulum — a pendulum races through the middle, which
+  is exactly where you want to tap — and it quickens with the overdraw.
+- **A miss always costs something.** Inside a full swing the spray is nothing,
+  so the three new styles cost a miss at no less than their `FLOOR` of the
+  overdraw — otherwise their accuracy would be decoration. A clean strike is
+  untouched, exactly as the meter's.
+
+Every strike, in any style, pops one word over the stage (`grade`: Perfect,
+Great, Good, Pulled/Pushed, Shanked, Whiff) and buzzes a phone that can
+(`navigator.vibrate`). The meter itself got the same attention: a glint runs
+along the fill, the bar's rim and the white line light up when it is loaded to
+exactly a full swing, the gate's marker trails a tail you can read its speed
+from, and the zone breathes while there is a strike to be had.
 
 ### Shot shaping
 

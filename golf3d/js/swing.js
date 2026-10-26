@@ -35,9 +35,9 @@
    when you know what is being tested, so now there is one: a single pass up
    the bar, strike on the line.
 
-   The touch swing (`swipe`, at the bottom) is the other way to hit it, and it
-   lands in the same place: a number from -1 to 1 that `apply` turns into the
-   same push, pull and bend.
+   The swing styles at the bottom — the touch swing, the arcade arc and the
+   needle — are other ways to hit it, and every one lands in the same place:
+   a number from -1 to 1 that `apply` turns into the same push, pull and bend.
 
    None of this file knows about the DOM or three.js. It is arithmetic over a
    plain object, so tests.html covers it with no browser at all. */
@@ -258,9 +258,9 @@
        right pushes the ball right and fades it, one that drifts left pulls it
        and draws it. That is the whole rule, and it is the same on every hole.
 
-       It is behind a toggle while it is tried (game.js `swipeWanted`), and
-       on the long game only: mini golf is putts and chips that want a number
-       on the meter, not a thrash.
+       It is one of the swing styles on trial (game.js "swing styles"), on the
+       long game only: mini golf is putts and chips that want a number on the
+       meter, not a thrash.
 
        What is read is the *angle* of the through-swing, from the bottom of
        the backswing to where the thumb comes back across the line it
@@ -313,6 +313,141 @@
                  struck: true, perfect: off === 0, swipe: true };
     }
 
+    /* ── the arcade arc ────────────────────────────────────────────────────
+
+       The three-press swing every arcade golf game has had since the eighties,
+       drawn as a half-dial over the ball. Press once and the needle climbs
+       round the dial; press again to set the power where it is; it swings
+       back, and the third press — as it comes back to where it started — is
+       the strike. Power and accuracy are both timing, and neither is hidden:
+       the full swing is the same white line, past it is the same hatched
+       overdraw, and the zone you strike in is drawn at the start of the dial.
+
+       `pos` runs 0 at the start to 1 at the end of the dial (the whole meter,
+       overdraw included), and on the way back it may run on past 0 into a
+       short tail (ARC.TAIL) before the swing is over — that is "late". Leaving
+       the needle to go round on its own sets the most power there is, which
+       is a thrash, and that is what it costs. */
+    function overOfFrac(f) {
+        return Math.max(0, Math.min(1, ((f || 0) * (1 + C.OVERDRAW) - 1) / C.OVERDRAW));
+    }
+
+    function arcWin(over) {
+        var A = C.ARC;
+        return A.WIN_MAX + (A.WIN_MIN - A.WIN_MAX) * ease(over);
+    }
+
+    // `shape` is the shot shape asked for, which makes the zone the shape's.
+    function arcStart(shape) {
+        return { phase: 'up', pos: 0, power: 0, shape: shape || 'straight',
+                 over: 0, win: arcWin(0), done: false, struck: false, off: 0, perfect: false };
+    }
+
+    function arcSet(a) {
+        a.power = a.pos;
+        a.over = shapeOver(a.shape, overOfFrac(a.power));
+        a.win = arcWin(a.over);
+        a.phase = 'down';
+    }
+
+    function arcTick(a, dt) {
+        if (a.done) return a;
+        if (a.phase === 'up') {
+            a.pos += C.ARC.SPEED * dt;
+            if (a.pos >= 1) { a.pos = 1; arcSet(a); }
+        } else {
+            a.pos -= C.ARC.BACK * dt;
+            if (a.pos <= -C.ARC.TAIL) { a.pos = -C.ARC.TAIL; arcEnd(a, false, 1); }
+        }
+        return a;
+    }
+
+    function arcPress(a) {
+        if (a.done) return a;
+        if (a.phase === 'up') { arcSet(a); return a; }
+        // Still above the start is early, past it is late: early pulls, as
+        // every miss in the game does.
+        var e = Math.abs(a.pos);
+        var off = e <= a.win ? 0 : Math.min(1, (e - a.win) / C.ARC.SPAN) * (a.pos > 0 ? -1 : 1);
+        return arcEnd(a, true, off);
+    }
+
+    function arcEnd(a, struck, off) {
+        a.done = true;
+        a.phase = 'done';
+        a.struck = struck;
+        a.off = off;
+        a.perfect = struck && off === 0;
+        return a;
+    }
+
+    // The finished arc in the shape `apply` and `shape` read, floored like the
+    // swipe so a mistimed strike inside a full swing still costs something.
+    function arcGate(a) {
+        return { over: Math.max(C.ARC.FLOOR, a.over), off: a.off, done: true,
+                 struck: a.struck, perfect: a.perfect, arc: true };
+    }
+
+    /* ── the needle ───────────────────────────────────────────────────────
+
+       Pull down to load, as the touch swing does; let go and a needle starts
+       sweeping side to side over a fan above the ball, and a tap anywhere is
+       the strike. Where the needle is when you tap is where the ball goes:
+       left of the middle pulls it left and draws it, right pushes it right
+       and fades it. It is the one style where the miss is a *place* on the
+       screen rather than a time, so it is the easiest of them to read.
+
+       The sweep is a triangle wave rather than a pendulum: a needle that slows
+       at the ends and races through the middle spends the least time exactly
+       where you want to tap. It starts at the left edge, so the first pass is
+       one you can watch coming. The further the meter was pulled, the quicker
+       the sweep and the narrower the middle. */
+    function needleStart(over) {
+        var N = C.NEEDLE, e = ease(over);
+        return { over: Math.max(0, Math.min(1, over || 0)), t: 0, pos: -1,
+                 period: N.PERIOD_MAX + (N.PERIOD_MIN - N.PERIOD_MAX) * e,
+                 win: N.WIN_MAX + (N.WIN_MIN - N.WIN_MAX) * e,
+                 done: false, struck: false, off: 0, perfect: false };
+    }
+
+    function needleTick(n, dt) {
+        if (n.done) return n;
+        n.t += dt;
+        var u = (n.t / n.period) % 1;
+        n.pos = -1 + 2 * (u < 0.5 ? u * 2 : 2 - u * 2);
+        return n;
+    }
+
+    function needlePress(n) {
+        if (n.done) return n;
+        var a = Math.abs(n.pos);
+        n.off = a <= n.win ? 0 : Math.min(1, (a - n.win) / C.NEEDLE.SPAN) * (n.pos < 0 ? -1 : 1);
+        n.done = n.struck = true;
+        n.perfect = n.off === 0;
+        return n;
+    }
+
+    function needleGate(n) {
+        return { over: Math.max(C.NEEDLE.FLOOR, n.over), off: n.off, done: true,
+                 struck: n.struck, perfect: n.perfect, needle: true };
+    }
+
+    /* ── the grade ───────────────────────────────────────────────────────
+
+       One word for how a strike went, whichever style made it, popped up over
+       the stage the moment the ball leaves. The toast underneath says which
+       way it went; this says how well, in the size a glance takes in. */
+    function grade(g) {
+        if (!g) return null;
+        if (!g.struck) return { word: 'Whiff', tier: 'bad' };
+        if (g.perfect) return { word: 'Perfect', tier: 'perfect' };
+        var a = Math.abs(g.off);
+        if (a < 0.2) return { word: 'Great', tier: 'great' };
+        if (a < 0.45) return { word: 'Good', tier: 'good' };
+        if (a < 0.75) return { word: g.off < 0 ? 'Pulled' : 'Pushed', tier: 'off' };
+        return { word: 'Shanked', tier: 'bad' };
+    }
+
     G3.swing = {
         arms: arms,
         markAt: markAt,
@@ -331,7 +466,18 @@
         swipeAngle: swipeAngle,
         swipeTol: swipeTol,
         swipeOff: swipeOff,
-        swiped: swiped
+        swiped: swiped,
+        overOfFrac: overOfFrac,
+        arcWin: arcWin,
+        arcStart: arcStart,
+        arcTick: arcTick,
+        arcPress: arcPress,
+        arcGate: arcGate,
+        needleStart: needleStart,
+        needleTick: needleTick,
+        needlePress: needlePress,
+        needleGate: needleGate,
+        grade: grade
     };
 
 })(window.G3);
