@@ -1393,11 +1393,14 @@
         {
             name: 'Mission Control',
             blurb: 'A station turning in the middle, two black holes, a wormhole and a long way to the flag.',
-            par: 4,
+            par: 3,
             /* The close: a three-armed station turning in the middle of the
                deck, a black hole guarding the flag and another by the tee, a
                wormhole from the near side to the far one, and two planets.
-               A hole of stages with every hazard the card has had. */
+               Built as a par four of stages, but the lab's club player holes
+               it in a median of two — off the left cushion into the wormhole,
+               off the right one up to the flag — so it is a par three, and
+               the station is what the line through the middle costs. */
             tee: { x: 100, y: 560 },
             hole: { x: 860, y: 100 },
             spinners: [spinner(430, 330, 90, 3, 1.0, 0, 20)],
