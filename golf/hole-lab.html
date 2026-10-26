@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Pocket Links — hole lab</title>
+    <meta name="robots" content="noindex">
+    <style>
+        :root { --bg: #071a10; --ink: #ecfdf5; --dim: #a7c4b5; --ok: #4ade80; --bad: #f87171; --warn: #fbbf24; }
+        body { background: var(--bg); color: var(--ink); font-family: ui-monospace, 'JetBrains Mono', monospace; margin: 0; padding: 16px; line-height: 1.45; }
+        h1 { font-size: 1.1rem; margin: 0 0 0.3rem; }
+        p { color: var(--dim); font-size: 0.85rem; max-width: 70ch; margin: 0.3rem 0; }
+        nav { display: flex; flex-wrap: wrap; gap: 6px; margin: 0.8rem 0; }
+        nav a { color: var(--ink); text-decoration: none; padding: 3px 9px; border: 1px solid #ffffff2a; border-radius: 999px; font-size: 0.8rem; }
+        nav a.on { background: #ffffff1a; }
+        #status { color: var(--dim); font-size: 0.85rem; margin-bottom: 0.6rem; }
+        .holes { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 420px), 1fr)); gap: 14px; }
+        .hole { background: #ffffff0a; border-radius: 10px; padding: 8px; }
+        .hole canvas { width: 100%; height: auto; display: block; border-radius: 6px; }
+        .hole h2 { font-size: 0.9rem; margin: 0 0 4px; }
+        .row { font-size: 0.78rem; color: var(--dim); }
+        .ok { color: var(--ok); } .bad { color: var(--bad); font-weight: bold; } .warn { color: var(--warn); }
+        .key { font-size: 0.78rem; color: var(--dim); }
+        .key b { font-weight: normal; padding: 0 4px; border-radius: 3px; }
+    </style>
+</head>
+<body>
+    <h1>Hole lab</h1>
+    <p>Every hole of a card, measured the way the design notes in README.md → "Designing a hole"
+       ask for: every angle and weight from the tee (and every few moments on a hole with a clock),
+       how many of them are aces and where, whether a putt aimed straight at the flag drops, and
+       how many strokes the caddie needs. Slow on purpose — about a second a hole, more with a clock.</p>
+    <p class="key"><b style="background:#50ff78;color:#000">green</b> aces ·
+       <b style="background:#ff3c3c;color:#000">red</b> the straight putt at five weights</p>
+    <nav id="cards"></nav>
+    <div id="status">…</div>
+    <div class="holes" id="holes"></div>
+
+    <script src="js/config.js"></script>
+    <script src="js/courses.js"></script>
+    <script src="js/physics.js"></script>
+    <script src="js/bot.js"></script>
+    <script src="js/generator.js"></script>
+    <script src="js/scenery.js"></script>
+    <script src="js/landscape.js"></script>
+    <script src="js/props.js"></script>
+    <script src="js/ambience.js"></script>
+    <script src="js/water.js"></script>
+    <script src="js/render.js"></script>
+    <script>
+    (function () {
+        'use strict';
+        var G = window.GOLF, C = G.CONFIG, P = G.physics;
+        var DEG = Math.PI / 180;
+        var params = new URLSearchParams(location.search);
+        var id = params.get('course') || 'short';
+        var only = params.get('hole');
+
+        var nav = document.getElementById('cards');
+        G.COURSES.forEach(function (c) {
+            var a = document.createElement('a');
+            a.href = '?course=' + c.id;
+            a.textContent = c.name;
+            if (c.id === id) a.className = 'on';
+            nav.appendChild(a);
+        });
+        var course = G.COURSES.filter(function (c) { return c.id === id; })[0];
+        var status = document.getElementById('status');
+        if (!course) { status.textContent = 'No card called ' + id + '.'; return; }
+
+        function timed(h) {
+            return h.walls.some(function (w) { return w.move; }) || h.vents.length || h.avalanches.length || h.spinners.length;
+        }
+
+        // Every angle in half degrees and every weight in fiftieths of the
+        // safe dial: the sweep the ace windows in the notes were read off.
+        function sweep(h) {
+            var times = timed(h) ? [0, 0.8, 1.6, 2.4] : [0], aces = [], sims = 0;
+            times.forEach(function (at) {
+                for (var a = 0; a < 360; a += 0.5) {
+                    for (var p = 0.04; p <= 1.0001; p += 0.02) {
+                        var w = P.simulateShot(h, h.tee, a * DEG, C.SAFE_POWER * p, at);
+                        sims++;
+                        if (w.sunk) aces.push({ a: a, p: p, at: at });
+                    }
+                }
+            });
+            return { aces: aces, sims: sims };
+        }
+
+        // Aces next to each other in angle at one moment are one window.
+        function windows(aces) {
+            var out = [];
+            aces.slice().sort(function (x, y) { return x.at - y.at || x.a - y.a; }).forEach(function (s) {
+                var w = out[out.length - 1];
+                if (w && w.at === s.at && s.a - w.a1 <= 1) { w.a1 = s.a; w.n++; w.p0 = Math.min(w.p0, s.p); w.p1 = Math.max(w.p1, s.p); }
+                else out.push({ at: s.at, a0: s.a, a1: s.a, p0: s.p, p1: s.p, n: 1 });
+            });
+            return out.sort(function (x, y) { return y.n - x.n; });
+        }
+
+        function path(h, angle, power, at) {
+            var w = P.createWorld(h, h.tee, at);
+            P.launch(w, angle, power);
+            var pts = [[w.ball.x, w.ball.y]];
+            for (var n = 0; w.moving && !w.sunk && !w.splash && n < 2400; n++) {
+                P.advance(w, C.SIM_DT);
+                if (n % 3 === 0) pts.push([w.ball.x, w.ball.y]);
+            }
+            pts.push([w.ball.x, w.ball.y]);
+            return pts;
+        }
+
+        function draw(h, i, aces) {
+            var cv = document.createElement('canvas');
+            cv.width = C.WORLD_W; cv.height = C.WORLD_H;
+            var g = cv.getContext('2d');
+            G.render.frame(g, { world: P.createWorld(h, h.tee, 0), holeIndex: i, trail: [], aim: { active: false, angle: 0, power: 0 },
+                theme: G.scenery.themeOf(course, h).id, sceneKey: 'lab/' + id + '/' + i, res: 1, turned: false, ballColor: '#fff' }, 2);
+            function stroke(pts, colour, width) {
+                g.strokeStyle = colour; g.lineWidth = width;
+                g.beginPath();
+                pts.forEach(function (q, k) { if (k) g.lineTo(q[0], q[1]); else g.moveTo(q[0], q[1]); });
+                g.stroke();
+            }
+            var step = Math.max(1, Math.floor(aces.length / 40));
+            aces.forEach(function (s, k) { if (k % step === 0) stroke(path(h, s.a * DEG, C.SAFE_POWER * s.p, s.at), 'rgba(80, 255, 120, 0.75)', 1.4); });
+            var direct = Math.atan2(h.hole.y - h.tee.y, h.hole.x - h.tee.x);
+            [0.3, 0.5, 0.7, 0.9, 1].forEach(function (p) { stroke(path(h, direct, C.SAFE_POWER * p, 0), 'rgba(255, 60, 60, 0.9)', 2); });
+            return cv;
+        }
+
+        function report(h, i) {
+            var box = document.createElement('div');
+            box.className = 'hole';
+            var res = sweep(h), win = windows(res.aces);
+            var straight = P.straightAce(h);
+            var bots = [1, 2, 3].map(function (seed) {
+                var r = G.bot.bestShot(h, h.tee, 0, { budget: 6000, strokes: 6, seed: seed });
+                return r ? (r.line || '×') : '×';
+            });
+            var rules = G.validateHole(h);
+            var pct = (res.aces.length / res.sims * 100).toFixed(2);
+            box.innerHTML = '<h2>' + (i + 1) + ' · ' + h.name + ' · par ' + h.par + '</h2>' +
+                '<div class="row">aces <span class="' + (res.aces.length ? 'ok' : 'warn') + '">' + pct + '%</span> (' +
+                res.aces.length + ' of ' + res.sims + ') · caddie ' + bots.join(', ') + '</div>' +
+                '<div class="row">straight putt: ' + (straight
+                    ? '<span class="bad">drops at ' + Math.round(straight.power / C.SAFE_POWER * 100) + '% weight</span>'
+                    : '<span class="ok">never drops</span>') +
+                (rules.length ? ' · <span class="bad">' + rules.join('; ') + '</span>' : '') + '</div>' +
+                '<div class="row">' + win.slice(0, 4).map(function (w) {
+                    return (w.at ? 't' + w.at + ' ' : '') + w.a0 + '–' + w.a1 + '° at ' + Math.round(w.p0 * 100) + '–' + Math.round(w.p1 * 100) + '%';
+                }).join(' · ') + '</div>';
+            box.insertBefore(draw(h, i, res.aces), box.children[1]);
+            document.getElementById('holes').appendChild(box);
+        }
+
+        var holes = course.holes.map(function (h, i) { return { h: h, i: i }; })
+            .filter(function (x) { return only === null || String(x.i + 1) === only; });
+        var k = 0;
+        (function next() {
+            if (k >= holes.length) { status.textContent = course.name + ' — done.'; return; }
+            status.textContent = course.name + ' — hole ' + (holes[k].i + 1) + ' of ' + course.holes.length + '…';
+            setTimeout(function () { report(holes[k].h, holes[k].i); k++; next(); }, 20);
+        })();
+    })();
+    </script>
+</body>
+</html>

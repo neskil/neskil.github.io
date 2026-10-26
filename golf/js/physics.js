@@ -964,6 +964,54 @@
         return world;
     }
 
+    /* The straight putt.
+
+       A hole that a putt struck straight at the cup can hole has no
+       question in it: the arrow points at the flag and all that is left
+       to judge is the weight. So no hole may be aced that way — at no
+       weight, not a hair either side of dead straight, and on a hole with
+       a clock at no moment of it. Something has to stand on the line and
+       mean it: a bank, a bed, a hill, a door that is never open when the
+       putt gets there.
+
+       It is a simulation rather than a geometric rule because "something
+       on the line" is the wrong test. A ball runs straight through sand
+       and rough and over a gentle hill, and a tunnel on the line is a
+       straight putt that happens to go underground; the right question is
+       whether the putt drops, so the putt is played. Answers the first
+       straight ace it finds, as { angle, power, at }, or null. The rule
+       is the generator's and the suite's, and the editor's checks ask it
+       too, which is why it lives here rather than with the rest of the
+       rule book. */
+    function straightAce(h) {
+        var dir = Math.atan2(h.hole.y - h.tee.y, h.hole.x - h.tee.x);
+        // One turn of the slowest thing on a clock, so every moment it has
+        // is tried; a spinner repeats itself once per arm.
+        var period = 0;
+        (h.walls || []).forEach(function (w) { if (w.move) period = Math.max(period, 2 * Math.PI / Math.abs(w.move.speed)); });
+        (h.vents || []).concat(h.avalanches || []).forEach(function (v) { period = Math.max(period, v.every || 0); });
+        (h.spinners || []).forEach(function (s) {
+            period = Math.max(period, 2 * Math.PI / Math.abs(s.speed) / Math.max(1, s.arms));
+        });
+        period = Math.min(period, 8);
+        var moments = 12, step = 0.04;
+        var times = [0];
+        if (period > 0) for (var k = 1; k < moments; k++) times.push(period * k / moments);
+        var tilts = [0, -0.5, 0.5];
+        for (var ti = 0; ti < times.length; ti++) {
+            for (var ai = 0; ai < tilts.length; ai++) {
+                var angle = dir + tilts[ai] * Math.PI / 180;
+                for (var p = step; p <= 1 + 1e-9; p += step) {
+                    var w = createWorld(h, h.tee, times[ti]);
+                    if (!launch(w, angle, C.SAFE_POWER * p)) continue;
+                    settle(w);
+                    if (w.sunk) return { angle: angle, power: C.SAFE_POWER * p, at: times[ti] };
+                }
+            }
+        }
+        return null;
+    }
+
     function simulateShot(course, from, angle, power, time) {
         var w = createWorld(course, from, time);
         if (!launch(w, angle, power)) return w;
@@ -1013,6 +1061,7 @@
         advance: advance,
         settle: settle,
         simulateShot: simulateShot,
+        straightAce: straightAce,
         speedOf: speedOf,
         hopTime: hopTime,
         grounded: grounded,

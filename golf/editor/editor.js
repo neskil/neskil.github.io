@@ -60,7 +60,7 @@
     var EXPORT_ORDER = ['walls', 'rails', 'arcs', 'blocks', 'water', 'lava', 'sand', 'rough', 'ice', 'bumpers', 'slopes', 'hills',
                         'tunnels', 'avalanches', 'vents', 'spinners', 'belts'];
     // What a block may have standing in it. See props.js.
-    var LOOKS = ['bed', 'tree', 'hedge', 'rock', 'castle', 'windmill', 'fan', 'tent', 'carousel', 'wheel', 'mirror', 'hut', 'pyramid', 'palm', 'snowman'];
+    var LOOKS = ['bed', 'tree', 'hedge', 'rock', 'castle', 'windmill', 'fan', 'tent', 'carousel', 'wheel', 'mirror', 'hut', 'pyramid', 'palm', 'snowman', 'lighthouse'];
     // The zones that may be drawn as polygons. Walls at an angle are rails,
     // and a slope's rules are written for edges that run with the axes.
     var POLY_KINDS = { water: 1, lava: 1, sand: 1, rough: 1, ice: 1 };
@@ -1355,7 +1355,7 @@
         });
 
         add(h.name && h.blurb ? 'pass' : 'warn', 'it has a name and a blurb',
-            h.name && h.blurb ? '' : 'the scoreboard shows both');
+            h.name && h.blurb ? '' : 'every hole carries both, though the scoreboard shows only the name for now');
         ok(h.par >= 2 && h.par <= 5, 'par is between 2 and 5', 'par is ' + h.par);
 
         var thin = rects.filter(function (o) { return Math.min(o.r.w, o.r.h) < MIN_SIDE; });
@@ -1718,6 +1718,13 @@
         ok(unsettled === 0, 'every full-power shot settles inside ' + C.MAX_SHOT_SECONDS + 's',
             unsettled + ' of 24 were still rolling at the limit');
         add('pass', 'slowest of 24 full-power shots: ' + slowest.toFixed(1) + 's', '');
+
+        // The straight putt: aimed at the flag, it must never drop.
+        var straight = P.straightAce(h);
+        ok(!straight, 'a putt struck straight at the cup never holes out',
+            straight ? 'one at ' + Math.round(straight.power / C.SAFE_POWER * 100) + '% weight' +
+                (straight.at ? ', ' + straight.at.toFixed(1) + 's into the clock' : '') +
+                ' drops — put something on the line' : '');
 
         return out;
     }
@@ -2393,6 +2400,11 @@
         bad.walls.push({ x: 300, y: 300, w: 6, h: 100 });
         check('a too-thin wall is caught', runChecks(bad).some(function (c) {
             return c.level === 'fail' && /thick/.test(c.label);
+        }));
+
+        var open = normalize({ name: 'Open', blurb: 'Nothing on it.', par: 2, tee: { x: 200, y: 320 }, hole: { x: 600, y: 320 } });
+        check('a hole with nothing on the straight line is caught', runChecks(open).some(function (c) {
+            return c.level === 'fail' && /straight at the cup/.test(c.label);
         }));
 
         var bad2 = normalize(GOLF.COURSE[0]);
