@@ -224,7 +224,12 @@ button.chip.on, a.chip.on {
     text-overflow: ellipsis;
 }
 
+/* Hidden for now. Under the hole's name it read as instructions, and a
+   hole should say what it is by what stands on it — the fan, the track, the
+   mole. The text stays in the data and game.js still fills it in, so
+   showing it again is this one line. */
 .hole-blurb {
+    display: none;
     font-size: 0.75rem;
     color: var(--ink-dim);
     font-weight: 300;

@@ -651,6 +651,10 @@
             snowman(g, pole(pts), w, v, seed);
             return;
         }
+        if (look === 'lighthouse') {
+            lighthouse(g, pole(pts), w, v);
+            return;
+        }
         if (look === 'castle') {
             m = { top: '#e6cf98', side: '#b8975a', hi: 'rgba(255, 250, 230, 0.55)', grain: 'rgba(150, 110, 60, 0.3)' };
             solid(g, pts, w, m, v, 9, '#dcc48c');
@@ -891,6 +895,46 @@
         g.fillStyle = '#374151';
         g.beginPath();
         g.ellipse(hx + up.x * head.r * 0.12, hy + up.y * head.r * 0.12, head.r * 0.42, head.r * 0.28, Math.atan2(side.y, side.x), 0, Math.PI * 2);
+        g.fill();
+        g.restore();
+    }
+
+    /* A lighthouse seen from above and a little in front: a white tower
+       with a red band, narrowing as it rises away from the viewer, a dark
+       gallery round the top and the lantern lit inside it. The foot of the
+       tower is the block. */
+    function lighthouse(g, p, w, v) {
+        var r0 = p.r + w / 2, up = sv(v, 0, -1), lt = sv(v, -0.35, -0.4), sh = sv(v, Math.min(8, r0 * 0.3), Math.min(12, r0 * 0.4));
+        g.save();
+        g.fillStyle = 'rgba(20, 40, 60, 0.25)';
+        g.beginPath();
+        g.arc(p.x + sh.x, p.y + sh.y, r0, 0, Math.PI * 2);
+        g.fill();
+        function disc(k, rr, a, b) {
+            var x = p.x + up.x * r0 * k, y = p.y + up.y * r0 * k;
+            var gr = g.createRadialGradient(x + lt.x * rr, y + lt.y * rr, rr * 0.1, x, y, rr);
+            gr.addColorStop(0, a);
+            gr.addColorStop(1, b);
+            g.fillStyle = gr;
+            g.beginPath();
+            g.arc(x, y, rr, 0, Math.PI * 2);
+            g.fill();
+            return { x: x, y: y, r: rr };
+        }
+        disc(0, r0, '#ffffff', '#c9d2dc');
+        disc(0.12, r0 * 0.86, '#ef4444', '#991b1b');
+        disc(0.22, r0 * 0.72, '#ffffff', '#cbd5e1');
+        disc(0.32, r0 * 0.6, '#ef4444', '#991b1b');
+        var gal = disc(0.4, r0 * 0.5, '#374151', '#111827');
+        var lamp = disc(0.42, r0 * 0.34, '#fef9c3', '#facc15');
+        g.fillStyle = 'rgba(253, 224, 71, 0.25)';
+        g.beginPath();
+        g.arc(lamp.x, lamp.y, gal.r * 1.6, 0, Math.PI * 2);
+        g.fill();
+        // The cap on the lantern.
+        g.fillStyle = '#7f1d1d';
+        g.beginPath();
+        g.arc(lamp.x + up.x * lamp.r * 0.15, lamp.y + up.y * lamp.r * 0.15, lamp.r * 0.45, 0, Math.PI * 2);
         g.fill();
         g.restore();
     }

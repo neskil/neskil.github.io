@@ -39,6 +39,7 @@ same as everything else here, open `index.html` and it runs.
 | `js/render.js` | The frame: ball, cup, tunnels, aim, effects, and the order everything is laid down in. |
 | `js/game.js` | Loop, input, what a shot means, the title screen and the party. |
 | `level-editor.html` | Visual hole editor. See [The editor](#the-editor). |
+| `hole-lab.html` | Ace windows, the straight putt and the caddie's par for every hole of a card, drawn. See [Designing a hole](#designing-a-hole). |
 | `editor/editor.js` | All of it. Runs on the game's own modules, owns no copy of any of them. |
 | `editor/editor.css` | Sidebar chrome. The green in there is the game's renderer. |
 | `tests.html` | Headless test harness for the logic. Open it; green is green. |
@@ -78,24 +79,36 @@ follow `GOLF.BARE_KEY_COURSE` by id (see [Saving](#saving)).
   blowing across a mountain piste onto a frozen tarn. Each hole meets its
   place's idea gently and alone. Par is two or three, set for the safe way
   round, and every hole has an ace in it for the player who reads it — a
-  weight, a bank, a door, a wind. See [Designing a hole](#designing-a-hole).
+  weight past the bush at the gate, a ride round the curve, a bank off a
+  sandcastle, a bend round a tree, a door, a wind — and never for the putt
+  aimed at the flag. See [Designing a hole](#designing-a-hole).
 - **The Old Course** (parkland) is what the game always was, boiled down to
   the six that were each a different idea: up the field through a bunker,
   round a corner, a table of posts, the cushions, two doors to time, and a
   room whose only door faces away. Walls and posts and nothing else — the
   angles are the hazard, and since its second pass it has the angles to bank
   off: a neck of grass through the bunker, a bank board at the corner, a
-  pinball table with a dome, a curved rail over a hedge and a round keep. The
-  first four have an ace for the player who reads the angle; the last two are
-  honest par fours played in stages.
+  pinball table with a dome, a curved rail over a hedge, two sliding doors in
+  a hedge that take turns — the top one leads to a bank board and the flag,
+  the bottom one to the long way round a bed — and a round keep. Five have an
+  ace for the player who reads the angle; The Keep is an honest par four
+  played in stages.
 - **The Tidewater Six** (seaside) puts water on every hole, which is the only
   hazard that does not slow the ball or push it about — it takes the shot off
-  you and asks for it again. That makes it a course about weight rather than
-  about lines, and it is why the crossings are wide: ninety pixels at the
-  tightest and mostly a hundred and twenty, because a hole that punishes a
-  miss with a stroke cannot also demand a thread. Ducks and Drakes is the one
-  hole built on the skip: a creek cushion to cushion, a footbridge at the far
-  end that costs a stroke, and a short way straight over for a hard, flat ball.
+  you and asks for it again, so every crossing here is a line *and* a weight.
+  It was rebuilt a third time when its holes turned out to be the easiest on
+  the rack: every one had a clear line from the tee to the flag. Now **Low
+  Tide** has a rock pool on that line and a curved sea wall over it to bank
+  off; **The Skerries** is a beach of rocks between two seas, with a centre
+  rock that sends the straight putt back into the water and a long shore rock
+  with a flat face to bank off between two small ones guarding the flag; **The
+  Bar** is two weights and no ace — onto a sandbar off the line, then up a far
+  bank with the sea behind the flag; **Ducks and Drakes** is the skip — a
+  creek, a footbridge at the far end, a tee close enough to skip it from and a
+  bed of marram on the straight line beyond; **The Narrows** is the causeway
+  staircase it always was; and **Harbour Gate** is a round harbour with its
+  mouth to the tee, a boom shuttling across it, a lighthouse on the line and a
+  wall behind to bank off.
 - **Harvest Wind** (autumn) is the card of the air. Every hole has a wind on
   it, and every wind blows out of a fan standing at its head — the suite will
   not ship one without. A wind is a slope to the ball, so the trick is a
@@ -124,7 +137,8 @@ follow `GOLF.BARE_KEY_COURSE` by id (see [Saving](#saving)).
   mouths that run both ways and keep the shot. Whatever speed and heading the
   ball goes down one mouth with, it comes up the other with, and each hole
   reads a different consequence off that sentence — that weight survives the
-  trip (Rabbit Hole), that heading survives it too and is the thing to aim
+  trip (Rabbit Hole, whose flag sits in a dip beside the tunnel's line rather
+  than on it), that heading survives it too and is the thing to aim
   (Snow Globe, a cup behind a snowman in a globe of ice, whose ace is a putt a
   hair off the middle of the mouth; and Crossed Wires), and that a door can be
   a trap as easily as a shortcut (Snakes and Ladders). Every hole on it has
@@ -227,11 +241,19 @@ golf courses for a living, and from game level design:
   bank board, a curve to ride, a door to find, a wind to aim into — never a
   fluke. Par is set for the safe way, so the stars are there for anybody who
   finishes and the aces for anybody who looks.
-- **No straight line.** A hole with a straight path from the tee to the cup
-  asks one question, once. Players of mini golf games say it plainly: holes
-  that are straight don't require much thought. So the line is broken — by a
-  bed, a hedge, a mound, a mill — and what breaks it is something to bank off,
-  ride round or curve past rather than a wall to walk round.
+- **Never a straight putt.** A hole with a straight path from the tee to the
+  cup asks one question, once. Players of mini golf games say it plainly:
+  holes that are straight don't require much thought. So the line is broken —
+  by a bed, a hedge, a rock, a mill, a pool — and what breaks it is something
+  to bank off, ride round or curve past rather than a wall to walk round.
+  This one is a rule, not a taste: **no hole may be aced by a putt aimed
+  straight at the flag**, at any weight, half a degree either side, or at any
+  moment of a clock. `GOLF.physics.straightAce` plays those putts, the suite
+  runs it over every hole on the rack and every draw it deals, the generator
+  puts a post on the line of any hole that fails it, and the editor's checks
+  report it. It is a simulation rather than a test for something on the line
+  because a ball runs straight over sand, rough and a gentle hill, and a
+  tunnel on the line is a straight putt that goes underground.
 - **One idea, met alone, then combined.** Nintendo builds a level as an idea
   introduced where it is safe, developed, twisted and dropped
   (*kishōtenketsu*). A card is the same at a larger size: the Short Six meets
@@ -243,21 +265,52 @@ golf courses for a living, and from game level design:
   gate runs in a track, the wind blows out of a fan, the hill is shaded like a
   hill and has a mole on it, the tunnel goes through a windmill's door. A
   force with no cause in sight reads as the game cheating, which is why the
-  suite will not let a wind ship without its fan.
+  suite will not let a wind ship without its fan. The hole says it, not the
+  text: the one-line blurb under the hole's name is hidden for now (one
+  `display: none` in style.css), because under the name it read as
+  instructions.
 - **Variety and rhythm.** Holes differ in length, shape, direction and
   difficulty, and a hard hole sits beside an easy one — MacKenzie's "modest
-  holes and heroic ones". Not every hole has to have an ace: The Keep and
-  Sliding Doors are played in stages, and that is a different pleasure from a
-  hole played in one stroke.
+  holes and heroic ones". Not every hole has to have an ace: The Keep, The Bar
+  and Ducks and Drakes are played in stages, and that is a different pleasure
+  from a hole played in one stroke.
 - **A place, not a diagram.** Theming is what makes a course remembered. The
   first card walks through every biome the rack is set in, so a first visit
   has seen where the game goes before it has finished one card.
 
-Two tools in the scratch work for the pass are worth rebuilding if a card is
-redesigned again: a sweep of every angle and weight from the tee, which says
-whether an ace exists and how wide its window is, and the caddie's search,
-which says what par is. A tutorial hole's ace window is a few degrees across;
-a skill hole's is a degree and a narrow band of weight.
+**The hole lab.** `hole-lab.html?course=<id>` measures a card the way this
+section asks for: a sweep of every angle in half degrees and every weight in
+fiftieths of the dial from the tee (at four moments on a hole with a clock),
+which says whether an ace exists and how wide its windows are; the straight
+putt's verdict; the caddie's search, which says what par is; and the hole
+drawn with the aces in green and the straight putt at five weights in red.
+It is slow on purpose — a second a hole, more with a clock — and linked from
+nothing.
+
+What the numbers have come out as, and what to aim for:
+
+- **An ace window is a share of the sweep.** A tutorial hole's is 0.3–0.9%
+  — a few degrees across and most of the dial. A skill hole's is 0.1–0.3%,
+  a degree or two and a band of weight. A closer's is 0.05–0.15%. Over 1%
+  the hole is giving it away; under 0.03% the ace is a fluke, not a shot, and
+  the hole is a staged one whether it means to be or not.
+- **The caddie finds anything over about 0.1%.** Its stroke count says what
+  par is, not how hard the hole feels: it will ace a 0.1% hole every time.
+- **A round post is a poor bank.** Its deflection doubles any error in the
+  line, so a carom off one is a 0.01% shot. A flat face — a board, a rock, a
+  mirror — gives a window ten times wider for the same idea.
+- **A concave wall is a mirror and has a focus.** Banked off the inside of a
+  ring, every line converges on one spot, half the radius out; a cup there is
+  an ace for anybody. Harbour Gate's flag stands past it.
+- **Things that do not break a straight line.** A mound centred on the line
+  (the putt down its middle holds the line), two slopes breaking opposite
+  ways (they cancel), a bowl round the cup (it gathers the straight putt
+  too), a tunnel whose mouths sit on the line, and a small fishing hole a
+  firm putt skips. A post right in front of the tee fails the other way: a
+  putt that glances off it can fluke in off a cushion.
+- **A skip never holes out.** A ball comes down off the water with six tenths
+  of its pace, too quick for any cup it lands near, so a skip is a way across
+  and not an ace — the skip holes are played in stages.
 
 ## Starting up, and the stars
 
@@ -540,6 +593,14 @@ gap and near enough that the answer is a correction rather than a different
 hole. The first draft ignored the line, and it produced nine fields with
 something interesting happening in the corner of each.
 
+Whatever a builder makes of the line, the straight putt is played before a
+hole is kept. One that drops gets a post on the line — at a few places along
+it, nearest the middle first, until one keeps every rule — or the hole is
+thrown away like any other that breaks one. A post is the least a hole can
+have and still not be a straight putt, and it leaves the feature the deck
+dealt the hole as the hole. The fallback, a straight hole with nothing else
+on it, has one too.
+
 **Rules are checked, not remembered.** `GOLF.validateHole` is the rule book
 out of `tests.html` — thicknesses, post radii, tee and cup clearance, gates
 that stray off the field or seal it shut — as a function rather than as a
@@ -750,6 +811,10 @@ course is exempt from is a rule the second course will break — all asserted in
   game cheating; the second because the sails are drawn over the ball, so
   they keep clear of the tee, the cup and every tunnel mouth. The big wheel's
   rim is held to the same.
+- **A putt struck straight at the cup never drops.** See [Designing a
+  hole](#designing-a-hole): the suite plays the straight putt at every weight,
+  half a degree either side and, on a hole with a clock, at twelve moments of
+  its slowest cycle.
 - **No crack a ball can be wedged in.** A wall, rail, curve or block that runs
   along a cushion either meets it or leaves a ball's width and a pixel
   between them. A gap narrower than that is somewhere a hard shot can drive a
@@ -835,7 +900,7 @@ band in the biome's own wall, not as its links.
 can never be, and that is where the picture puts something — a flower bed
 edged in the biome's own brick or timber and planted with what grows there, a
 copse when it is big, a palm, a clipped hedge, a rock, a sandcastle, a
-windmill, a fan, a hut or a barn, a pyramid, a snowman, and the fair's big
+windmill, a fan, a hut or a barn, a pyramid, a snowman, a lighthouse, and the fair's big
 top, carousel, big wheel and mirrors. `look` is read by the renderer and
 nothing else. Blocks are what shape a
 field: beds round off its corners, a copse is the inside of a dogleg, a hedge
@@ -1421,8 +1486,8 @@ A **curve** (`C`) is dragged out from its centre: it starts as the top half
 of a circle, its angles and thickness are in the inspector, and the grip
 halfway round it sets the radius. A **block** (`B`) is dragged out as a
 rectangle and is four corners from the start; its look — bed, tree, palm,
-hedge, rock, castle, windmill, fan, the fair's rides, hut, pyramid, snowman
-— is a menu, *+ corner* splits its longest edge
+hedge, rock, castle, windmill, fan, the fair's rides, hut, pyramid, snowman,
+lighthouse — is a menu, *+ corner* splits its longest edge
 and *Round it* cuts every corner in two. A **hill** (`M`) is dragged out from
 its centre like a post, a mound until its pull is made negative. A slope can
 be ticked as *wind*, and the **Biome** menu beside the hole's name gives a hole
@@ -1431,6 +1496,7 @@ slope and wait for it to stop. A **spinner** (`T`) is dragged out from its
 pivot like a post, with its arms, pace and phase in the inspector, and a
 **belt** (`K`) is a rectangle with a direction and a pace; the checks hold
 both to the rule book, sweep and run-out included, and the crack rule too.
+The last check plays the straight putt and fails the hole if it drops.
 
 Everything else is what you would expect. Drag a shape tool across the green
 to draw one, drag it or its grips to reshape, snap at 1/5/10/20 with shift for
@@ -1461,10 +1527,10 @@ indexable; the self-test overlay only appears with the query string.
 
 Two harnesses, and the runner finds both.
 
-Open `tests.html`. 1,172 assertions covering geometry, the integrator, the four
+Open `tests.html`. 1,175 assertions covering geometry, the integrator, the four
 surfaces, the overswing, skipping, tunnels, avalanche chutes, lava and
 geysers, rails and polygons, curves, blocks, hills and wind, spinners and
-belts, the cup in three
+belts, the straight putt on every hole and every draw, the cup in three
 dimensions, scenery in every biome, the props that explain the hazards, the course data
 on every course, the generator, the scorecard, the pick-up and the stars,
 progression and starting over, the per-course save keys and the resumable
