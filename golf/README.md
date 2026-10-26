@@ -88,7 +88,7 @@ follow `GOLF.BARE_KEY_COURSE` by id (see [Saving](#saving)).
   room whose only door faces away. Walls and posts and nothing else — the
   angles are the hazard, and since its second pass it has the angles to bank
   off: a neck of grass through the bunker, a bank board at the corner, a
-  pinball table with a dome, a curved rail over a hedge, two sliding doors in
+  pinball table with a dome and rough for felt, a curved rail over a hedge, two sliding doors in
   a hedge that take turns — the top one leads to a bank board and the flag,
   the bottom one to the long way round a bed — and a round keep. Five have an
   ace for the player who reads the angle; The Keep is an honest par four
@@ -132,7 +132,9 @@ follow `GOLF.BARE_KEY_COURSE` by id (see [Saving](#saving)).
   only a firm ball holds. A saddle between two dunes, sinkholes that gather
   whatever stops short in them, an oasis at the bottom of a bowl that drinks
   anything drifting too near its pool, a mesa, a pyramid whose four faces
-  are four cushions at forty-five degrees, and a closer over rolling dunes.
+  are four cushions at forty-five degrees, and a closer over rolling dunes
+  with a second sinkhole in the valley. All six are par three, which is what
+  the lab's club player made of each.
 - **The Warren** (meadow) is the card built on a door: a **tunnel**, two
   mouths that run both ways and keep the shot. Whatever speed and heading the
   ball goes down one mouth with, it comes up the other with, and each hole
@@ -146,11 +148,11 @@ follow `GOLF.BARE_KEY_COURSE` by id (see [Saving](#saving)).
 - **The Ice Run** (winter) is the card of the curve. Its walls are bent, its
   floor is mostly ice, and the shots it asks for are rides: sent along the
   inside of a curve, a ball follows it round, and on ice it keeps its pace all
-  the way. A ring with a bowl in it is a plughole, a curling sheet with two
-  snowmen guarding the house asks for weight and nothing else, a hairpin is a
+  the way. A ring with a bowl in it is a plughole, a curling sheet with a
+  snowman guarding the house asks for weight and nothing else, a hairpin is a
   ride round and back, a frozen lake has fishing holes cut in it, a chicane is
   an S to thread, and the closer is a bobsleigh run of two hairpins, played in
-  stages or — if you dare — in one.
+  stages past a spectator and a hole in the ice.
 - **Avalanche Pass** (alpine) is the card of the clock. A chute is a lane down
   the mountain, and every few seconds a slide comes down it and carries off
   whatever it is over — into a drift if you are lucky, into a crevasse if you
@@ -172,7 +174,7 @@ follow `GOLF.BARE_KEY_COURSE` by id (see [Saving](#saving)).
   choices. **Lava** is water that never lets a ball skip, so every crossing is
   a risk taken or a long way round, and **geysers** are the risk: a vent blows
   for a second in every three, and a ball rolling over it then is thrown up
-  and over whatever is beyond — the lava channel, the moat round an island,
+  and over whatever is beyond — the lava channel, a crater's ring round an island,
   the river. Every hole has a safe way that costs strokes and a quick way that
   costs nerve, and par is set for the player who takes one chance in the
   round, not all of them. Every hole on it has lava, and the suite says so.
@@ -284,8 +286,16 @@ fiftieths of the dial from the tee (at four moments on a hole with a clock),
 which says whether an ace exists and how wide its windows are; the straight
 putt's verdict; the caddie's search, which says what par is; and the hole
 drawn with the aces in green and the straight putt at five weights in red.
-It is slow on purpose — a second a hole, more with a clock — and linked from
-nothing.
+Then the **club player**: the caddie's plan from wherever the ball lies,
+struck with a human's hands — a degree and a half of aim and an eighth of the
+weight either way, one sigma — for twenty rounds (`&rounds=` for more), with
+water costing its stroke as in the game. It reports the mean, the median and
+how many rounds got wet. It plays the caddie's line, which is the boldest, so
+it is a decent player who goes for it, not a cautious one. Last, a dot where
+every sixteenth shot of the sweep finished — white on the ground, orange in
+the water — which is the map of where a tee shot actually ends up, and a
+verdict that reads the ace share against the targets below. It is slow on
+purpose — several seconds a hole — and linked from nothing.
 
 What the numbers have come out as, and what to aim for:
 
@@ -311,6 +321,26 @@ What the numbers have come out as, and what to aim for:
 - **A skip never holes out.** A ball comes down off the water with six tenths
   of its pace, too quick for any cup it lands near, so a skip is a way across
   and not an ace — the skip holes are played in stages.
+- **Read par off the club player's median.** A par three it holes in one most
+  rounds plays itself (The Windmill and Crosswind did; their flags moved and
+  grew a pond). A par four it holes in two is a par three — Pyramid and
+  Rolling Dunes were, and say so now. A median two over par with most rounds
+  wet is a hole that punishes the bold line too hard for the card it is on
+  (Caldera's old box island went in nine rounds in ten). Ten rounds wander by
+  half a stroke; trust twenty, and settle an argument with forty.
+- **An enclosed table rattles a ball in.** Lively posts inside walls keep a
+  ball moving until it passes over the cup slowly enough: Pinball gave one ace
+  in fifty. Rough on the table's floor damps it to one in two hundred.
+- **A wind that ends over the cup holes everything that reaches it.** It
+  brings the ball up to its own pace whatever pace it arrived with, so the
+  weight stops mattering; Leaf Blower's flag stands to the side of where the
+  lane sets a ball down.
+- **A geyser throws along the ball's heading.** Two chained throws are always
+  a straight line, so a flag at the end of the chain is a straight putt; a
+  flag beside where it lands is a putt away.
+- **A cup off the middle of a bowl can hold a ball on its lip** — the bowl
+  pulls one way and the cup's funnel the other — so a bowl's cup stays at its
+  bottom. The level ring round a cup is only for mounds.
 
 ## Starting up, and the stars
 

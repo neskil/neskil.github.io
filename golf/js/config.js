@@ -7,7 +7,7 @@
    and on a desktop and none of the tuning below is resolution dependent. */
 window.GOLF = window.GOLF || {};
 
-GOLF.VERSION = '1.16.0';
+GOLF.VERSION = '1.17.0';
 
 GOLF.CONFIG = {
     WORLD_W: 960,
