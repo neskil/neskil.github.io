@@ -1056,7 +1056,7 @@
             assert('a tee on a hill is caught', bad(teeHill).some(function (m) { return /tee is on a hill/.test(m); }));
         })();
 
-        section('Spinners and belts');
+        section('Spinners, belts and turntables');
 
         /* The two things on the green that move without a clock you have to
            wait for: an arm that comes round and a floor that goes along. Both
@@ -1132,6 +1132,47 @@
             assert('a belt into a wall is caught', bad(blocked).some(function (m) { return /into something solid/.test(m); }));
             var sandy = JSON.parse(JSON.stringify(ok)); sandy.sand.push(Hs.r(300, 480, 60, 40));
             assert('a belt over a bunker is caught', bad(sandy).some(function (m) { return /over another surface/.test(m); }));
+
+            // Turntables: ground that turns, with a spindle at the middle.
+            var deck = Hs.turntable(480, 320, 120, 1.5);
+            var onDeck = P.createWorld(field({ turntables: [deck] }), { x: 540, y: 320 }, 0);
+            onDeck.moving = true;
+            P.advance(onDeck, 0.3);
+            assert('a ball left on a turntable is not at rest: the platter swings it the way it turns',
+                onDeck.moving && onDeck.ball.vy > 10, onDeck.ball.vy.toFixed(1));
+            P.settle(onDeck);
+            assert('…and flings it off the rim, where it stops',
+                !onDeck.moving && Math.hypot(onDeck.ball.x - 480, onDeck.ball.y - 320) > 120 + C.BALL_R,
+                Math.hypot(onDeck.ball.x - 480, onDeck.ball.y - 320).toFixed(1) + 'px out');
+            var still = P.createWorld(field({ turntables: [deck] }), { x: 480, y: 320 - C.SPINDLE_R - C.BALL_R - 1 }, 0);
+            still.moving = true;
+            P.settle(still);
+            assert('a ball put down by the spindle is still sent on its way', !still.moving &&
+                Math.hypot(still.ball.x - 480, still.ball.y - 320) > 120, Math.hypot(still.ball.x - 480, still.ball.y - 320).toFixed(1));
+            // Across the top of a platter turning clockwise the ground runs
+            // with the putt; turning the other way, against it.
+            var withIt = P.simulateShot(field({ turntables: [deck] }), { x: 200, y: 250 }, 0, 600);
+            var against = P.simulateShot(field({ turntables: [Hs.turntable(480, 320, 120, -1.5)] }), { x: 200, y: 250 }, 0, 600);
+            assert('a putt across the side of a platter turning with it runs on, and against it is cut short',
+                withIt.ball.x > against.ball.x + 40, withIt.ball.x.toFixed(0) + ' against ' + against.ball.x.toFixed(0));
+            // A slow ball is swung the way the platter's near edge is going —
+            // up the field, on the left of a record turning clockwise — and
+            // comes off well round from where it was aimed.
+            var swung = P.simulateShot(field({ turntables: [deck] }), { x: 300, y: 270 }, 0, 170);
+            assert('a slow ball onto a platter is swung round it', swung.ball.y < 230, swung.ball.x.toFixed(0) + ',' + swung.ball.y.toFixed(0));
+            var hub = P.simulateShot(field({ turntables: [Hs.turntable(480, 320, 120, 0.5)] }), { x: 200, y: 320 }, 0, 900);
+            assert('the spindle is a post: a putt down the middle hits it', hub.ball.x < 480, hub.ball.x.toFixed(0));
+            assert('a mirrored turntable turns the other way', Hs.mirror(field({ turntables: [Hs.turntable(300, 320, 90, 1.2)] })).turntables[0].speed === -1.2);
+            var deckOk = field({ turntables: [Hs.turntable(480, 320, 110, 1.4)] });
+            assert('a turntable that keeps the rules passes the rule book', bad(deckOk).length === 0, bad(deckOk).join('; '));
+            var edge = field({ turntables: [Hs.turntable(480, 120, 110, 1.4)] });
+            assert('a turntable against the cushion is caught', bad(edge).some(function (m) { return /near the cushion/.test(m); }));
+            var stacked = JSON.parse(JSON.stringify(deckOk)); stacked.bumpers.push(Hs.post(520, 330, 20));
+            assert('a post on a turntable is caught', bad(stacked).some(function (m) { return /something solid on it/.test(m); }));
+            var wet = JSON.parse(JSON.stringify(deckOk)); wet.water.push(Hs.r(440, 300, 60, 40));
+            assert('a turntable over water is caught', bad(wet).some(function (m) { return /over another surface/.test(m); }));
+            var cupped = JSON.parse(JSON.stringify(deckOk)); cupped.hole = { x: 520, y: 320 };
+            assert('a cup on a turntable is caught', bad(cupped).some(function (m) { return /cup is on a turntable/.test(m); }));
         })();
 
         /* ── scenery ───────────────────────────────────────────────────── */
@@ -1294,7 +1335,7 @@
                deliberate one made here as well as in courses.js. Pinned by
                id rather than by rack position, because the order of the rack
                is a matter of taste and the length of a card is not. */
-            var counts = { short: 6, links: 6, tide: 6, harvest: 6, wild: 6, dunes: 6, warren: 6, icerun: 6, alpine: 6, funfair: 6, ember: 6 };
+            var counts = { short: 6, links: 6, tide: 6, harvest: 6, wild: 6, dunes: 6, warren: 6, icerun: 6, alpine: 6, funfair: 6, desk: 6, ember: 6, orbit: 6 };
             Object.keys(counts).forEach(function (id) {
                 var c = byId(id);
                 assert(id + ' is on the rack', !!c);
@@ -1408,11 +1449,16 @@
         (function () {
             var warren = byId('warren');
             assert('warren: every hole has a tunnel', warren && warren.holes.every(function (h) { return h.tunnels.length > 0; }));
-            // The volcano is the card of lava, and the last the stars open.
+            // The volcano is the card of lava; space, past it, is the last
+            // the stars open.
             var ember = byId('ember');
             assert('ember: every hole has lava', ember && ember.holes.every(function (h) { return h.lava.length > 0; }));
-            assert('ember: is the last hand-built card the stars open',
-                ember && GOLF.COURSES.every(function (c) { return (c.unlock || 0) <= ember.unlock; }));
+            var orbit = byId('orbit');
+            assert('orbit: is the last hand-built card the stars open',
+                orbit && GOLF.COURSES.every(function (c) { return (c.unlock || 0) <= orbit.unlock; }));
+            // And the desk is the card of the turntable.
+            var desk = byId('desk');
+            assert('desk: the record player is on the card', desk && desk.holes.some(function (h) { return h.turntables.length > 0; }));
             // And the mountain is the card of the clock.
             var alpine = byId('alpine');
             assert('alpine: most of its holes have a chute', alpine &&

@@ -36,6 +36,8 @@
         { key: 'avalanches', label: 'Chute', round: false, color: '#dbe7f2' },
         // Ground that moves: a rectangle with a direction and a pace.
         { key: 'belts',   label: 'Belt',   round: false, color: '#4b525c' },
+        // Ground that turns: a centre and a radius, grabbed like a hill.
+        { key: 'turntables', label: 'Turntable', round: true, turn: true, color: '#1d1d22' },
         { key: 'sand',    label: 'Sand',   round: false, color: '#e3ca92' },
         { key: 'water',   label: 'Water',  round: false, color: '#1b6d9e' },
         { key: 'lava',    label: 'Lava',   round: false, color: '#f05a1a' },
@@ -58,9 +60,9 @@
     // The order courses.js lists them in, which is not the order they are
     // painted in. The export follows the file; the sidebar follows the paint.
     var EXPORT_ORDER = ['walls', 'rails', 'arcs', 'blocks', 'water', 'lava', 'sand', 'rough', 'ice', 'bumpers', 'slopes', 'hills',
-                        'tunnels', 'avalanches', 'vents', 'spinners', 'belts'];
+                        'tunnels', 'avalanches', 'vents', 'spinners', 'belts', 'turntables'];
     // What a block may have standing in it. See props.js.
-    var LOOKS = ['bed', 'tree', 'hedge', 'rock', 'castle', 'windmill', 'fan', 'tent', 'carousel', 'wheel', 'mirror', 'hut', 'pyramid', 'palm', 'snowman', 'lighthouse'];
+    var LOOKS = ['bed', 'tree', 'hedge', 'rock', 'castle', 'windmill', 'fan', 'tent', 'carousel', 'wheel', 'mirror', 'hut', 'pyramid', 'palm', 'snowman', 'lighthouse', 'book', 'pencil', 'tonearm', 'mug', 'inkpot', 'planet'];
     // The zones that may be drawn as polygons. Walls at an angle are rails,
     // and a slope's rules are written for edges that run with the axes.
     var POLY_KINDS = { water: 1, lava: 1, sand: 1, rough: 1, ice: 1 };
@@ -122,7 +124,7 @@
             tee: { x: 140, y: 320 },
             hole: { x: 820, y: 320 },
             walls: [], water: [], sand: [], rough: [], ice: [], bumpers: [], slopes: [], tunnels: [], rails: [],
-            lava: [], avalanches: [], vents: [], arcs: [], blocks: [], hills: [], spinners: [], belts: []
+            lava: [], avalanches: [], vents: [], arcs: [], blocks: [], hills: [], spinners: [], belts: [], turntables: []
         };
     }
 
@@ -152,6 +154,7 @@
         if (kind === 'rails') return { x: num(s.x, 0), y: num(s.y, 0), tx: num(s.tx, 0), ty: num(s.ty, 0), w: num(s.w, 24) };
         if (kind === 'vents') return { x: num(s.x, 0), y: num(s.y, 0), every: num(s.every, 3), at: num(s.at, 0), run: num(s.run, 1) };
         if (kind === 'hills') return { x: num(s.x, 0), y: num(s.y, 0), r: num(s.r, 90), a: num(s.a, 120) };
+        if (kind === 'turntables') return { x: num(s.x, 0), y: num(s.y, 0), r: num(s.r, 110), speed: num(s.speed, 1.5) };
         if (kind === 'spinners') {
             return { x: num(s.x, 0), y: num(s.y, 0), r: num(s.r, 100), arms: Math.max(1, Math.min(4, Math.round(num(s.arms, 2)))),
                      speed: num(s.speed, 1), phase: num(s.phase, 0), w: num(s.w, 20) };
@@ -407,7 +410,7 @@
         var s = selShape();
         if (!s) { ctx.restore(); return; }
 
-        if (S.sel.kind === 'bumpers' || S.sel.kind === 'hills' || S.sel.kind === 'spinners') {
+        if (S.sel.kind === 'bumpers' || S.sel.kind === 'hills' || S.sel.kind === 'spinners' || S.sel.kind === 'turntables') {
             ctx.beginPath();
             ctx.arc(s.x, s.y, s.r + 3, 0, Math.PI * 2);
             ctx.stroke();
@@ -543,7 +546,7 @@
             }
             return null;
         }
-        if (S.sel.kind === 'bumpers' || S.sel.kind === 'hills' || S.sel.kind === 'spinners') {
+        if (S.sel.kind === 'bumpers' || S.sel.kind === 'hills' || S.sel.kind === 'spinners' || S.sel.kind === 'turntables') {
             if (Math.abs(wx - (s.x + s.r)) <= tol && Math.abs(wy - s.y) <= tol) return { id: 'r' };
             return null;
         }
@@ -690,7 +693,7 @@
             drag.moved = Math.abs(p.wx - drag.x0) > 3 || Math.abs(p.wy - drag.y0) > 3;
             if (k.point) {
                 drag.preview = { x: drag.x0, y: drag.y0 };
-            } else if (k.arc || k.hill || k.spin) {
+            } else if (k.arc || k.hill || k.spin || k.turn) {
                 drag.preview = { x: drag.x0, y: drag.y0, r: drag.moved ? Math.max(40, Math.round(Math.hypot(p.wx - drag.x0, p.wy - drag.y0))) : 110 };
             } else if (k.round) {
                 var rad = Math.max(C.BUMPER_MIN_R, Math.round(Math.hypot(p.wx - drag.x0, p.wy - drag.y0)));
@@ -739,7 +742,7 @@
         } else if (drag.type === 'move') {
             s.x = snapVal(p.wx + drag.dx, e);
             s.y = snapVal(p.wy + drag.dy, e);
-        } else if (drag.type === 'radius' && (S.sel.kind === 'hills' || S.sel.kind === 'arcs' || S.sel.kind === 'spinners')) {
+        } else if (drag.type === 'radius' && (S.sel.kind === 'hills' || S.sel.kind === 'arcs' || S.sel.kind === 'spinners' || S.sel.kind === 'turntables')) {
             s.r = Math.max(40, Math.round(Math.hypot(snapVal(p.wx, e) - s.x, snapVal(p.wy, e) - s.y)));
         } else if (drag.type === 'radius') {
             s.r = Math.max(C.BUMPER_MIN_R, Math.round(Math.abs(snapVal(p.wx, e) - s.x)));
@@ -776,6 +779,8 @@
             shape = { x: d.x0, y: d.y0, r: d.preview ? d.preview.r : 110, a: 120 };
         } else if (k.spin) {
             shape = { x: d.x0, y: d.y0, r: d.preview ? Math.min(d.preview.r, 160) : 100, arms: 2, speed: 1, phase: 0, w: 20 };
+        } else if (k.turn) {
+            shape = { x: d.x0, y: d.y0, r: d.preview ? Math.max(50, Math.min(d.preview.r, 200)) : 110, speed: 1.5 };
         } else if (k.arc) {
             shape = { x: d.x0, y: d.y0, r: d.preview ? d.preview.r : 110, from: 180, to: 360, w: 24 };
         } else if (k.round) {
@@ -956,6 +961,7 @@
         }
         if (kind === 'vents') return '@ ' + Math.round(s.x) + ',' + Math.round(s.y) + '  blows ' + s.run + 's of ' + s.every + 's';
         if (kind === 'hills') return (s.a < 0 ? 'bowl' : 'mound') + ' r ' + Math.round(s.r) + ' @ ' + Math.round(s.x) + ',' + Math.round(s.y);
+        if (kind === 'turntables') return 'r ' + Math.round(s.r) + ' @ ' + Math.round(s.x) + ',' + Math.round(s.y) + '  ' + s.speed + ' rad/s';
         if (kind === 'spinners') return s.arms + ' arms r ' + Math.round(s.r) + ' @ ' + Math.round(s.x) + ',' + Math.round(s.y) + '  ' + s.speed + ' rad/s';
         if (kind === 'arcs') return 'r ' + Math.round(s.r) + ' @ ' + Math.round(s.x) + ',' + Math.round(s.y) + '  ' + Math.round(s.from) + '°→' + Math.round(s.to) + '°';
         if (kind === 'blocks') return s.look + ' · ' + s.pts.length / 2 + ' corners';
@@ -1062,6 +1068,13 @@
                 '<div class="hint" style="margin-top:6px">A mound sheds the ball off its sides; a bowl gathers it to ' +
                 'the middle, where it can come to rest. Keep it clear of the cushion and of anything solid — it would ' +
                 'hold the ball against them for ever.</div>';
+        } else if (S.sel.kind === 'turntables') {
+            html += numRow('centre x', 'x', s.x) + numRow('centre y', 'y', s.y) +
+                numRow('radius', 'r', s.r, 5, '50 to 200') +
+                numRow('speed', 'speed', s.speed, 0.1, 'Radians a second, clockwise when positive — 0.5 to 3') +
+                '<div class="hint" style="margin-top:6px">A record on its player: ground that turns. A putt across it ' +
+                'comes off bent the way it turns, and a ball left on it is flung off the rim — so keep the disc and a ' +
+                'ball\'s width and a half round it clear of anything solid, the cushion, the tee and the cup.</div>';
         } else if (S.sel.kind === 'spinners') {
             html += numRow('pivot x', 'x', s.x) + numRow('pivot y', 'y', s.y) +
                 numRow('arm length', 'r', s.r, 5) +
@@ -1304,7 +1317,7 @@
         var v = parseFloat(el.value);
         if (!isFinite(v)) return;
         if (f === 'w' || f === 'h') v = Math.max(MIN_SIDE, v);
-        if (f === 'r') v = Math.max(S.sel.kind === 'hills' || S.sel.kind === 'arcs' || S.sel.kind === 'spinners' ? 40 : C.BUMPER_MIN_R, v);
+        if (f === 'r') v = Math.max(S.sel.kind === 'turntables' ? 50 : S.sel.kind === 'hills' || S.sel.kind === 'arcs' || S.sel.kind === 'spinners' ? 40 : C.BUMPER_MIN_R, v);
         if ((S.sel.kind === 'tee' || S.sel.kind === 'hole') && f === 'x') v = clampX(v);
         if ((S.sel.kind === 'tee' || S.sel.kind === 'hole') && f === 'y') v = clampY(v);
         target[f] = v;
@@ -1466,6 +1479,32 @@
             ok(!h.belts.some(function (bt) {
                 return P.circleRect(h.tee.x, h.tee.y, C.BALL_R + 4, bt) || P.circleRect(h.hole.x, h.hole.y, C.HOLE_R + 12, bt);
             }), 'the tee and the cup are off every belt', 'nothing rests on a belt');
+        }
+
+        /* Turntables — generator.js → validateHole, ported. A platter flings
+           what it holds off its rim, so it and a ball's width and a half
+           round it are on the field and clear of anything solid. */
+        if (h.turntables.length) {
+            ok(h.turntables.every(function (tt) { return tt.r >= 50 && tt.r <= 200 && Math.abs(tt.speed) >= 0.5 && Math.abs(tt.speed) <= 3; }),
+                'every turntable is a sane size and pace', 'a radius of 50 to 200, 0.5 to 3 rad/s');
+            var crowded = h.turntables.filter(function (tt) {
+                var room = tt.r + C.BALL_R * 3;
+                if (tt.x - room < 0 || tt.y - room < 0 || tt.x + room > C.WORLD_W || tt.y + room > C.WORLD_H) return true;
+                return h.walls.some(function (w) {
+                    var a = w.move ? Math.abs(w.move.amp) : 0;
+                    var env = !w.move ? w : w.move.axis === 'y'
+                        ? { x: w.x, y: w.y - a, w: w.w, h: w.h + a * 2 }
+                        : { x: w.x - a, y: w.y, w: w.w + a * 2, h: w.h };
+                    return P.circleRect(tt.x, tt.y, room, env) !== null;
+                }) || h.bumpers.some(function (b) { return Math.hypot(b.x - tt.x, b.y - tt.y) < room + b.r; }) ||
+                    solids.some(function (r) { return P.circleRail(tt.x, tt.y, room, r) !== null; }) ||
+                    h.spinners.some(function (sp) { return Math.hypot(sp.x - tt.x, sp.y - tt.y) < room + P.sweepOf(sp); });
+            });
+            ok(crowded.length === 0, 'every turntable has open grass round it', crowded.length + ' would fling a ball into something, or the cushion');
+            ok(!h.turntables.some(function (tt) {
+                return Math.hypot(h.tee.x - tt.x, h.tee.y - tt.y) < tt.r + C.BALL_R + 12 ||
+                    Math.hypot(h.hole.x - tt.x, h.hole.y - tt.y) < tt.r + C.HOLE_R + 12;
+            }), 'the tee and the cup are off every turntable', 'nothing rests on a turntable');
         }
 
         /* A shape running along the cushion meets it or leaves a ball's
@@ -1875,6 +1914,7 @@
             return 'spinner(' + n(s.x) + ', ' + n(s.y) + ', ' + n(s.r) + ', ' + n(s.arms) + ', ' + n(s.speed) + ', ' +
                 phaseSource(s.phase) + ', ' + n(s.w) + ')';
         }
+        if (kind === 'turntables') return 'turntable(' + n(s.x) + ', ' + n(s.y) + ', ' + n(s.r) + ', ' + n(s.speed) + ')';
         if (kind === 'belts') return 'belt(' + n(s.x) + ', ' + n(s.y) + ', ' + n(s.w) + ', ' + n(s.h) + ', ' + q(s.dir) + ', ' + n(s.speed) + ')';
         if (kind === 'blocks') return 'block(' + q(s.look) + ', [' + s.pts.map(n).join(', ') + ']' + (s.w === 20 ? '' : ', ' + n(s.w)) + ')';
         if (kind === 'avalanches') {
@@ -1967,9 +2007,9 @@
         // The shapes courses.js writes curves with, from courses.js itself.
         var H = GOLF.helpers;
         var fn = new Function('r', 'post', 'tunnel', 'rail', 'poly', 'chute', 'vent',
-            'arc', 'block', 'mound', 'bowl', 'shape', 'smooth', 'oval', 'spinner', 'belt', 'return (' + text + ');');
+            'arc', 'block', 'mound', 'bowl', 'shape', 'smooth', 'oval', 'ring', 'spinner', 'belt', 'turntable', 'return (' + text + ');');
         var obj = fn(r, post, tunnel, rail, poly, chute, vent, H.arc, H.block, H.mound, H.bowl, H.shape, H.smooth, H.oval,
-            H.spinner, H.belt);
+            H.ring, H.spinner, H.belt, H.turntable);
         if (!obj || typeof obj !== 'object') throw new Error('that is not a hole');
         return normalize(obj);
     }
@@ -2238,7 +2278,7 @@
         'l': 'rails', 'L': 'rails', 'h': 'lava', 'H': 'lava',
         'a': 'avalanches', 'A': 'avalanches', 'y': 'vents', 'Y': 'vents',
         'c': 'arcs', 'C': 'arcs', 'b': 'blocks', 'B': 'blocks', 'm': 'hills', 'M': 'hills',
-        't': 'spinners', 'T': 'spinners', 'k': 'belts', 'K': 'belts'
+        't': 'spinners', 'T': 'spinners', 'k': 'belts', 'K': 'belts', 'o': 'turntables', 'O': 'turntables'
     };
 
     window.addEventListener('keydown', function (e) {
@@ -2474,8 +2514,9 @@
             hills: [{ x: 480, y: 330, r: 90, a: -60 }],
             slopes: [{ x: 600, y: 60, w: 200, h: 80, ax: -120, ay: 0, wind: true }],
             spinners: [{ x: 700, y: 400, r: 80, arms: 3, speed: -1.2, phase: Math.PI / 2, w: 22 }],
-            belts: [{ x: 300, y: 40, w: 220, h: 60, dir: 'left', speed: 150 }] });
-        check('curves, blocks, hills, spinners, belts, a wind and a biome survive the round trip',
+            belts: [{ x: 300, y: 40, w: 220, h: 60, dir: 'left', speed: 150 }],
+            turntables: [{ x: 200, y: 470, r: 90, speed: -1.5 }] });
+        check('curves, blocks, hills, spinners, belts, a turntable, a wind and a biome survive the round trip',
             JSON.stringify(parseHole(buildOut(withAll))) === JSON.stringify(withAll));
 
         // Undo has to restore the shape that was there, not merely a shape.

@@ -5,7 +5,7 @@
    rectangles is a diagram of a hole rather than a place, and five courses
    drawn in one palette are one course wearing five names. So each card has a
    *biome* — parkland, garden, seaside, woodland, meadow, autumn, winter,
-   the mountain, desert, a volcano, a moonlit night — and this file is everything the renderer needs
+   the mountain, desert, a volcano, a moonlit night, a desk in a study and the deck of a ship in space — and this file is everything the renderer needs
    to dress a hole in one: the palettes and materials, the outline of each
    hazard as one rounded shape rather than a stack of rectangles, and where
    the decoration goes.
@@ -198,9 +198,50 @@
             clouds: 0,
             night: { dark: 'rgba(6, 10, 36, 0.46)', far: 'rgba(4, 6, 26, 0.62)' },
             backdrop: '#03060f', plan: '#24455a'
+        },
+        /* The two places that are not out of doors. `floor` swaps the lawn
+           for something else under the ball — a desk's wood, a deck over the
+           stars — and the green round the cup with it. */
+        study: {
+            name: 'Study',
+            floor: 'wood',
+            turf: { h: 28, s: 44, l: 34 },
+            // The desk's felt blotter, which is rough as felt is.
+            rough: { fill: 'rgba(24, 78, 50, 0.66)', tuft: 'rgba(120, 190, 150, 0.16)', edge: 'rgba(10, 40, 24, 0.55)' },
+            // Spilt sugar.
+            sand: { base: '#f4efe4', rake: 'rgba(170, 160, 140, 0.22)', lip: 'rgba(140, 120, 90, 0.28)' },
+            // Spilt ink.
+            water: { kind: 'pond', top: '#1f2b78', deep: '#0b1038', wave: 'rgba(170, 190, 255, 0.18)', shore: 'rgba(30, 40, 110, 0.55)', edge: 'none', pads: false, duck: false, bank: '#5a3a20', bed: '#151a44', sky: '#aab6ff', clear: 0.6 },
+            wall: 'book', bumper: 'pin', rim: 'desk', canopy: 'plant',
+            border: ['clip', 'clip', 'staple', 'crumb'], lawn: ['crumb'],
+            leaves: ['#f8fafc', '#fde68a', '#bfdbfe'],
+            ambient: [{ kind: 'dust', n: 14 }], sound: ['clock'],
+            clouds: 0,
+            // The desk lamp's pool of light.
+            grade: { a: 'rgba(255, 214, 150, 0.16)', b: 'rgba(30, 14, 0, 0.22)' },
+            backdrop: '#140c06', plan: '#8a5a32'
+        },
+        space: {
+            name: 'Space',
+            floor: 'deck',
+            turf: { h: 232, s: 42, l: 12 },
+            // Drifts of dust — the rough out here.
+            rough: { fill: 'rgba(110, 80, 170, 0.34)', tuft: 'rgba(210, 190, 255, 0.22)', edge: 'rgba(60, 40, 110, 0.4)' },
+            // Moon dust.
+            sand: { base: '#a3a3ad', rake: 'rgba(60, 60, 72, 0.25)', lip: 'rgba(40, 40, 52, 0.35)' },
+            water: { kind: 'pond', top: '#2a3d8f', deep: '#0b1030', wave: 'rgba(190, 210, 255, 0.22)', shore: 'rgba(140, 160, 255, 0.5)', edge: 'none', pads: false, duck: false, bank: '#30364a', bed: '#151a35', sky: '#5b4a9a', clear: 0.8 },
+            // What takes the ball at any pace out here is the dark itself.
+            lava: 'void',
+            wall: 'hull', bumper: 'asteroid', rim: 'hull', canopy: 'none',
+            border: ['bolt', 'bolt', 'panel'], lawn: ['speck'],
+            leaves: ['#c4b5fd', '#93c5fd', '#f0abfc'],
+            ambient: [{ kind: 'twinkle', n: 36 }, { kind: 'comet', n: 1 }], sound: ['hum', 'beeps'],
+            clouds: 0,
+            grade: { a: 'rgba(150, 120, 255, 0.10)', b: 'rgba(0, 0, 30, 0.22)' },
+            backdrop: '#02030a', plan: '#1f2650'
         }
     };
-    var ORDER = ['parkland', 'garden', 'seaside', 'woodland', 'meadow', 'autumn', 'winter', 'alpine', 'desert', 'volcanic', 'night'];
+    var ORDER = ['parkland', 'garden', 'seaside', 'woodland', 'meadow', 'autumn', 'winter', 'alpine', 'desert', 'volcanic', 'night', 'study', 'space'];
     ORDER.forEach(function (k) { THEMES[k].id = k; });
 
     /* The biome a course is drawn in. A card names its own; the draw takes
@@ -438,7 +479,8 @@
             if (P.zoneAt(hole.water, x, y) || P.zoneAt(hole.sand, x, y) || P.zoneAt(hole.ice, x, y) ||
                 P.zoneAt(hole.slopes, x, y) || P.zoneAt(hole.lava, x, y) || P.zoneAt(hole.avalanches, x, y) ||
                 P.inHill(hole.hills, x, y) || P.zoneAt(hole.belts, x, y) ||
-                (hole.spinners || []).some(function (sp) { return Math.hypot(x - sp.x, y - sp.y) < P.sweepOf(sp) + 6; })) return false;
+                (hole.spinners || []).some(function (sp) { return Math.hypot(x - sp.x, y - sp.y) < P.sweepOf(sp) + 6; }) ||
+                (hole.turntables || []).some(function (tt) { return Math.hypot(x - tt.x, y - tt.y) < tt.r + 10; })) return false;
             return !onSolid(hole, x, y, 10);
         }
         var patches = 5 + ((rand() * 4) | 0);
@@ -523,7 +565,7 @@
             [W * 0.3, -46], [W * 0.7, H + 46], [-46, H * 0.62], [W + 46, H * 0.38]
         ];
         shuffle(spots, rand);
-        for (var c = 0; c < spots.length && out.canopies.length < 3; c++) {
+        for (var c = 0; c < spots.length && out.canopies.length < 3 && theme.canopy !== 'none'; c++) {
             var rad = 78 + rand() * 26;
             var sx = spots[c][0], sy = spots[c][1];
             if (!clearOf(keep, sx, sy, rad + 120)) continue;

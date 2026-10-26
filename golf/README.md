@@ -1,18 +1,20 @@
 # Pocket Links
 
-A 2D mini golf game with eleven courses of six holes, climbing from a walled
-garden to a volcano — plus one more that is generated from a seed and is
+A 2D mini golf game with thirteen courses of six holes, climbing from a walled
+garden past a volcano and out into space — plus one more that is generated from a seed and is
 different every time you ask for one. Each course is a place with a trick of
 its own: parkland corners and posts, the sea's water, a farm's wind, a wood's
 hills and sweeping bars, the desert's dunes, a meadow's tunnels, a winter ice
 run's curves, a mountain's avalanche chutes, a funfair's turnstiles and
-travelators and a volcano's lava and geysers — and the first card walks
+travelators, a volcano's lava and geysers, a desk's record player and the
+black holes of space — and the first card walks
 through six of those places in six holes, with an ace to find on every one. A first visit is handed
 that card and a reason to finish it; every hole gives up to three stars, and
 stars open the next card. Up to four can play on one screen. Any course can be
-dressed in any of eleven biomes, autumn, winter, desert and a moonlit night
-among them. A hole may run on the slant, bend round a curve, rise over a hill
-and have a windmill, a big wheel or a snowman in the middle of it.
+dressed in any of thirteen biomes, autumn, winter, desert, a moonlit night, a
+study desk and deep space among them. A hole may run on the slant, bend round a curve, rise over a hill
+and have a windmill, a big wheel, a snowman or a turning record in the middle
+of it.
 Canvas, plain ES5-flavoured JavaScript, no build step and no dependencies —
 same as everything else here, open `index.html` and it runs.
 
@@ -45,7 +47,7 @@ same as everything else here, open `index.html` and it runs.
 | `tests.html` | Headless test harness for the logic. Open it; green is green. |
 | `ui-tests.html` | The same, for the page — the bar, the ☰ panel, the picker, the title, a party, the turned and side layouts. |
 
-## The eleven courses
+## The thirteen courses
 
 `GOLF.COURSES` is a rack of cards, each `{ id, name, blurb, holes }`, and
 `GOLF.COURSE` is whichever one is being played. Everything downstream — the
@@ -59,8 +61,8 @@ and built round one thing that place does, and the order is the order the
 stars open them — `unlock` on each card: the Short Six from the start, then the
 Old Course at 4, Tidewater at 10, Harvest Wind at 16, the Wild Six at 22, the
 Dunes at 28, the Warren at 34, the Ice Run at 40, Avalanche Pass at 46, the
-Midnight Funfair at 52 and Ember Ridge at 58, and the draw, which the
-generator puts last, at 66. Each threshold is about a third of the stars the
+Midnight Funfair at 52, Desk Job at 58, Ember Ridge at 64 and Orbit at 70, and
+the draw, which the generator puts last, at 78. Each threshold is about a third of the stars the
 cards above it can give, so finishing holes is enough and playing them well is
 quicker. The cards alternate: one that recombines what has gone before, then
 one built round something new.
@@ -170,7 +172,17 @@ follow `GOLF.BARE_KEY_COURSE` by id (see [Saving](#saving)).
   carousel, the big wheel and the hall of mirrors are what a fair has; here
   they are things to putt round and bank off, and the Grand Finale has a
   little of each.
-- **Ember Ridge** (volcanic) is the last card and the one most made of
+- **Desk Job** (study) is mini golf on somebody's desk, and the card of the
+  **turntable**: a disc of ground that turns, a record player that will not
+  stop (see [Turntables](#turntables)). A firm putt across it is sped up on the
+  side turning with it and cut short on the side turning against it; a slow
+  one is swung round the way its near edge runs; nothing is left on it. Side A
+  is one record between the tee and a flag behind the tonearm, Inkwell a spill
+  of ink round an inkpot, Bookends a lane between books with a pencil laid
+  over the straight line, B-Side two records turning opposite ways, Sugar Rush
+  a coffee table of spilt sugar and a mug, and Deadline, the par-four closer,
+  has a record, the books, the ink and the mug all at once.
+- **Ember Ridge** (volcanic) is the one most made of
   choices. **Lava** is water that never lets a ball skip, so every crossing is
   a risk taken or a long way round, and **geysers** are the risk: a vent blows
   for a second in every three, and a ball rolling over it then is thrown up
@@ -178,6 +190,14 @@ follow `GOLF.BARE_KEY_COURSE` by id (see [Saving](#saving)).
   the river. Every hole has a safe way that costs strokes and a quick way that
   costs nerve, and par is set for the player who takes one chance in the
   round, not all of them. Every hole on it has lava, and the suite says so.
+- **Orbit** (space) is the last card, and the one where the hills come back
+  as gravity. A black hole is a bowl with a hole of **void** at its heart —
+  void is lava drawn as nothing at all — so the ball that falls in is gone,
+  and the ball that skims the well is slung round it. Liftoff is one well to
+  learn the bend on, Event Horizon a deeper one right on the line, Asteroid
+  Belt a field of rocks round a planet to bank off, Wormhole a tunnel out to a
+  well beside the flag, Binary two wells pulling against each other, and
+  Mission Control a spinning station, two wells and a wormhole home.
 
 **What went, and why.** The rack used to be fifty-one holes over five cards —
 an eighteen and a six that both taught the basics, and three nines that
@@ -727,6 +747,7 @@ A hole is axis-aligned rectangles, round posts and two points:
     hills:   [ { x, y, r, a } ],            // round ground: a mound if a > 0, a bowl if a < 0
     spinners: [ { x, y, r, arms, speed, phase, w } ], // a turnstile laid flat: arms of reach r, turning
     belts:   [ { x, y, w, h, dir, speed } ] // ground that runs: carries the ball `dir` at `speed`
+    turntables: [ { x, y, r, speed } ]       // a disc of ground turning at `speed` rad/s, clockwise +
 }
 ```
 
@@ -991,8 +1012,10 @@ whatever the setting, because where an arm is is a fact of play.
 
 ## Spinners and belts
 
-The funfair's two shapes are the only things on the rack that move the ball
-of their own accord, and both were built so that nothing new can go wrong.
+The funfair's two shapes were the first things on the rack to move the ball
+of their own accord (the desk's turntable came after, and is built the same
+way — see [Turntables](#turntables)), and both were built so that nothing new
+can go wrong.
 
 **A spinner** (`spinners`) is a pivot and `arms` arms of reach `r` and width
 `w`, turning at `speed` radians a second from `phase`. Each arm is a rail
@@ -1015,14 +1038,39 @@ stop. The caddie needed nothing new for either: it plans over simulated
 shots, and a shot that rides a belt or is batted by an arm is a simulated
 shot.
 
+## Turntables
+
+**A turntable** (`turntables`) is a disc of ground `{ x, y, r, speed }` that
+turns at `speed` radians a second, clockwise on screen when positive. It is a
+belt bent round: the ground under the ball moves at ω × (distance from the
+centre), at right angles to the radius, and friction acts on the ball's
+velocity relative to that, exactly as on a belt. What that does is not what
+the eye first expects, and the suite pins what it really does: a firm putt
+across the disc is sped up on the side turning with it and cut short on the
+side turning against it; a slow ball is swung round the way its near edge
+runs; and a ball left on the disc is flung off it, because nothing on it is
+at rest. A spindle stands at the centre (`C.SPINDLE_R`), collided like a
+post, so the dead centre — the one point that does not move — is not a place
+to stop either.
+
+The rule book keeps one fair: a radius of 50 to 200 and a pace of 0.5 to 3;
+a ring of open ground at least three balls wide round the platter, inside
+the cushion, with nothing solid in it; no other surface on the disc and no
+two discs touching; and the tee, the cup, every tunnel mouth and every vent
+off it. A platter and its label are drawn on the ground layer — the label
+turns on the world's clock whatever the motion setting, like a spinner's arms,
+because where it points is how fast the ground is going. `mirror()` flips a
+turntable's spin as well as its place.
+
 ## Biomes, and what a hole is drawn as
 
 A field of flat blue rectangles is a diagram of a hole rather than a place,
-and eleven courses in one palette are one course wearing eleven names. So each
+and thirteen courses in one palette are one course wearing thirteen names. So each
 card is drawn in a biome — the Short Six in a walled **garden**, the Old
 Course in **parkland**, Tidewater by the **seaside**, the Wild Six in
 **woodland**, the Warren in a **meadow**, Avalanche Pass on the **alpine**
-mountain and Ember Ridge on a **volcanic** one — and the draw takes one from
+mountain, Ember Ridge on a **volcanic** one, Desk Job on a **study** desk and
+Orbit in **space** — and the draw takes one from
 its seed. Nothing about play depends on the biome: the mountain's chutes and
 the volcano's lava and geysers are hazards in the hole's data, and they are
 drawn as themselves in whatever biome the hole is dressed in. A biome is a turf colour, a water (a pond with reeds and
@@ -1044,12 +1092,26 @@ snow pines, deep snow for the bunkers and a glacial tarn with a skin of ice;
 charred pines, a hot spring for its water, embers rising and ash coming down,
 and a rumble under it all.
 
+**Study** and **space** are the two biomes that are not out of doors, and the
+first two whose floor is not grass. A study is a desk of planked wood under a
+lamp's vignette, its walls book spines, its posts drawing pins, its water
+spilt ink (no reeds: a water's `edge: 'none'` leaves the shore bare), its
+flag on a cork coaster, a plant leaning in for a tree, paper clips, staples
+and crumbs on the wood and a clock ticking; a book, a pencil, a tonearm, a mug
+and an inkpot are its props. Space is a ship's deck plate in a field of stars,
+its rim a hull with hazard stripes, its posts asteroids, its flag on a ring of
+light, comets going over and a hum with the odd beep. It has no trees
+(`canopy: 'none'`) and its lava is drawn as **void** — a hole in the deck with
+the starfield showing through, so a black hole looks like one — and every hill
+in it is drawn as rings of gravity rather than a slope of grass. A planet is
+its prop.
+
 Four more exist only to be chosen: **autumn** (stone walls, maples, pumpkins,
 leaves on the pond), **winter** (snowy logs, snow pines, a snowman for a post,
 a skin of ice on the water), **desert** (sandstone, acacias, cacti, a
 tumbleweed) and **moonlit**, a night course lit by lanterns round the cushion
 and posts that glow, with the moon on the water. The **Scenery** row in the
-course picker — or `S` — puts any course in any of the eleven, or back in its
+course picker — or `S` — puts any course in any of the thirteen, or back in its
 own; the choice is kept in `miniGolf.scenery.v1` and survives Reset progress,
 which is about the player's record, not their taste.
 
@@ -1517,15 +1579,17 @@ of a circle, its angles and thickness are in the inspector, and the grip
 halfway round it sets the radius. A **block** (`B`) is dragged out as a
 rectangle and is four corners from the start; its look — bed, tree, palm,
 hedge, rock, castle, windmill, fan, the fair's rides, hut, pyramid, snowman,
-lighthouse — is a menu, *+ corner* splits its longest edge
+lighthouse, book, pencil, tonearm, mug, inkpot, planet — is a menu, *+ corner* splits its longest edge
 and *Round it* cuts every corner in two. A **hill** (`M`) is dragged out from
 its centre like a post, a mound until its pull is made negative. A slope can
 be ticked as *wind*, and the **Biome** menu beside the hole's name gives a hole
 a place of its own. The checks drop a ball on every hill as they do on every
 slope and wait for it to stop. A **spinner** (`T`) is dragged out from its
 pivot like a post, with its arms, pace and phase in the inspector, and a
-**belt** (`K`) is a rectangle with a direction and a pace; the checks hold
-both to the rule book, sweep and run-out included, and the crack rule too.
+**belt** (`K`) is a rectangle with a direction and a pace, and a
+**turntable** (`O`) is dragged out from its centre with its pace in the
+inspector; the checks hold all three to the rule book, sweep, run-out and the
+turntable's clear ring included, and the crack rule too.
 The last check plays the straight putt and fails the hole if it drops.
 
 Everything else is what you would expect. Drag a shape tool across the green
@@ -1557,10 +1621,10 @@ indexable; the self-test overlay only appears with the query string.
 
 Two harnesses, and the runner finds both.
 
-Open `tests.html`. 1,175 assertions covering geometry, the integrator, the four
+Open `tests.html`. 1,330 assertions covering geometry, the integrator, the four
 surfaces, the overswing, skipping, tunnels, avalanche chutes, lava and
-geysers, rails and polygons, curves, blocks, hills and wind, spinners and
-belts, the straight putt on every hole and every draw, the cup in three
+geysers, rails and polygons, curves, blocks, hills and wind, spinners,
+belts and turntables, the straight putt on every hole and every draw, the cup in three
 dimensions, scenery in every biome, the props that explain the hazards, the course data
 on every course, the generator, the scorecard, the pick-up and the stars,
 progression and starting over, the per-course save keys and the resumable
