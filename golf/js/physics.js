@@ -346,8 +346,30 @@
         var out = { x: 0, y: 0 };
         var s = zoneAt(course.slopes, x, y);
         if (s) { out.x += s.ax; out.y += s.ay; }
-        return hillPull(course.hills, x, y, out);
+        var hills = course.hills;
+        if (!hills || !hills.length) return out;
+        /* The green round a cup is cut level, as a real one is. A mound with
+           the cup on its top would otherwise push a ball outwards against the
+           lip while the cup's funnel drew it in, and a ball can balance on a
+           lip held like that for ever. So a mound's push fades out over the
+           last ball's width or two before the funnel. A bowl's pull is
+           towards the cup it holds, and is left alone. */
+        var hole = course.hole, level = 1;
+        if (hole) {
+            var dc = Math.hypot(x - hole.x, y - hole.y) - C.HOLE_R - C.CUP_BEVEL;
+            level = dc <= 0 ? 0 : dc >= LEVEL_RING ? 1 : dc / LEVEL_RING;
+        }
+        for (var i = 0; i < hills.length; i++) {
+            var f = hills[i].a > 0 ? level : 1;
+            if (!f) continue;
+            var one = hillPull([hills[i]], x, y, { x: 0, y: 0 });
+            out.x += one.x * f;
+            out.y += one.y * f;
+        }
+        return out;
     }
+
+    var LEVEL_RING = C.BALL_R * 3;
 
     function inHill(list, x, y, pad) {
         if (!list) return null;

@@ -60,7 +60,7 @@
     var EXPORT_ORDER = ['walls', 'rails', 'arcs', 'blocks', 'water', 'lava', 'sand', 'rough', 'ice', 'bumpers', 'slopes', 'hills',
                         'tunnels', 'avalanches', 'vents', 'spinners', 'belts'];
     // What a block may have standing in it. See props.js.
-    var LOOKS = ['bed', 'tree', 'hedge', 'rock', 'castle', 'windmill', 'fan', 'tent', 'carousel', 'wheel', 'mirror', 'hut', 'pyramid'];
+    var LOOKS = ['bed', 'tree', 'hedge', 'rock', 'castle', 'windmill', 'fan', 'tent', 'carousel', 'wheel', 'mirror', 'hut', 'pyramid', 'palm', 'snowman'];
     // The zones that may be drawn as polygons. Walls at an angle are rails,
     // and a slope's rules are written for edges that run with the axes.
     var POLY_KINDS = { water: 1, lava: 1, sand: 1, rough: 1, ice: 1 };
@@ -1467,6 +1467,27 @@
                 return P.circleRect(h.tee.x, h.tee.y, C.BALL_R + 4, bt) || P.circleRect(h.hole.x, h.hole.y, C.HOLE_R + 12, bt);
             }), 'the tee and the cup are off every belt', 'nothing rests on a belt');
         }
+
+        /* A shape running along the cushion meets it or leaves a ball's
+           width: a sliver narrower than the ball is where a hard shot wedges
+           one and leaves it overlapping the wall (generator.js, ported). */
+        var crack = C.BALL_R * 2 + 1;
+        var slivers = h.rails.map(function (r) { return [r]; }).concat(h.arcs.map(P.arcRails), h.blocks.map(P.blockRails))
+            .filter(function (links) {
+                var near = [Infinity, Infinity, Infinity, Infinity], touch = [false, false, false, false];
+                links.forEach(function (r) {
+                    var hw = r.w / 2, L = Math.hypot(r.tx - r.x, r.ty - r.y) || 1;
+                    var flatX = Math.abs(r.ty - r.y) / L < 0.6, flatY = Math.abs(r.tx - r.x) / L < 0.6;
+                    [[flatX, Math.min(r.y, r.ty) - hw], [flatX, C.WORLD_H - Math.max(r.y, r.ty) - hw],
+                     [flatY, Math.min(r.x, r.tx) - hw], [flatY, C.WORLD_W - Math.max(r.x, r.tx) - hw]].forEach(function (c, side) {
+                        if (c[1] <= 0.5) touch[side] = true;
+                        else if (c[0]) near[side] = Math.min(near[side], c[1]);
+                    });
+                });
+                return near.some(function (gap, side) { return !touch[side] && gap < crack; });
+            });
+        ok(slivers.length === 0, 'nothing leaves a sliver against the cushion narrower than a ball',
+            slivers.length + ' shape(s) run along the cushion ' + 'too close to it — touch it, or leave ' + Math.ceil(crack) + 'px');
 
         if (solids.length) {
             var railThin = solids.filter(function (r) { return !(r.w >= MIN_SIDE); });

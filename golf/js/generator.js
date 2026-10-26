@@ -513,6 +513,38 @@
             if (perim > 0 && Math.abs(area) / perim < 10) bad.push('a polygon thinner than 20px');
         });
 
+        /* A solid running along the cushion either meets it or leaves a
+           ball's width and a little more. A sliver narrower than the ball,
+           between a wall and the cushion and parallel to it, is somewhere a
+           hard shot can drive a ball and leave it held, pressed between the
+           two and overlapping both. A wall that meets the cushion at an
+           angle is a corner, which a ball simply sits in. */
+        var crack = C.BALL_R * 2 + 1, cracked = false;
+        // Shape by shape: a curve that meets the cushion somewhere along it
+        // makes a corner where it does, not a crack.
+        var shapes = (h.rails || []).map(function (r) { return [r]; })
+            .concat((h.arcs || []).map(P.arcRails), (h.blocks || []).map(P.blockRails));
+        shapes.forEach(function (links) {
+            var near = [Infinity, Infinity, Infinity, Infinity], touch = [false, false, false, false];
+            links.forEach(function (r) {
+                var hw = r.w / 2, L = Math.hypot(r.tx - r.x, r.ty - r.y) || 1;
+                var flatX = Math.abs(r.ty - r.y) / L < 0.6, flatY = Math.abs(r.tx - r.x) / L < 0.6;
+                [[flatX, Math.min(r.y, r.ty) - hw], [flatX, C.WORLD_H - Math.max(r.y, r.ty) - hw],
+                 [flatY, Math.min(r.x, r.tx) - hw], [flatY, C.WORLD_W - Math.max(r.x, r.tx) - hw]].forEach(function (c, side) {
+                    if (c[1] <= 0.5) touch[side] = true;
+                    else if (c[0]) near[side] = Math.min(near[side], c[1]);
+                });
+            });
+            near.forEach(function (gap, side) { if (!touch[side] && gap < crack) cracked = true; });
+        });
+        (h.walls || []).forEach(function (w) {
+            if (w.move) return;
+            [w.x, w.y, C.WORLD_W - w.x - w.w, C.WORLD_H - w.y - w.h].forEach(function (gap) {
+                if (gap > 0.5 && gap < crack) cracked = true;
+            });
+        });
+        if (cracked) bad.push('a crack between a wall and the cushion narrower than a ball');
+
         rails.forEach(function (r) {
             if (!(r.w >= 20)) bad.push('a rail thinner than 20px');
             [[r.x, r.y], [r.tx, r.ty]].forEach(function (e) {

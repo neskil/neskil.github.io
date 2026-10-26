@@ -1009,6 +1009,23 @@
             P.settle(down);
             assert('a ball left in a bowl comes to rest at its bottom', !down.moving && Math.hypot(down.ball.x - 480, down.ball.y - 320) < 4,
                 Math.hypot(down.ball.x - 480, down.ball.y - 320).toFixed(2) + 'px off, ' + down.time.toFixed(1) + 's');
+            // A cup on a mound's crown: the green round it is cut level, so
+            // a ball can never be held on the lip between the two.
+            var crown = field({ hills: [Hs.mound(480, 320, 170, 170)] });
+            crown.hole = { x: 480, y: 320 };
+            var lip = C.HOLE_R + C.CUP_BEVEL;
+            var lp = P.pull(crown, 480 + lip + 1, 320);
+            assert('the ground round a cup on a mound is level', Math.hypot(lp.x, lp.y) < C.REST_PULL, Math.hypot(lp.x, lp.y).toFixed(1));
+            var hung = 0;
+            for (k = 0; k < 24; k++) {
+                var cr = C.HOLE_R + k % 8 * 3, ca = k / 24 * 2 * Math.PI;
+                var cw = P.createWorld(crown, { x: 480 + Math.cos(ca) * cr, y: 320 + Math.sin(ca) * cr }, 0);
+                cw.moving = true;
+                P.settle(cw);
+                if (cw.moving) hung++;
+            }
+            assert('…and a ball left beside it always settles', hung === 0, hung + ' of 24 still rolling');
+
             var tilt = P.createWorld(field({ slopes: [{ x: 300, y: 100, w: 360, h: 440, ax: 0, ay: 140 }], rough: [Hs.r(0, 560, 960, 80)] }), { x: 480, y: 200 }, 0);
             tilt.moving = true;
             P.advance(tilt, 1 / 120);

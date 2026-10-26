@@ -117,13 +117,21 @@
     /* Corners cut round: Chaikin's corner cutting, which replaces every
        corner of a closed outline with two points a quarter of the way along
        its edges. Twice over, a hexagon is a pebble — a bunker or a bed drawn
-       with six numbers instead of forty, and with no corner a ball can find. */
+       with six numbers instead of forty, and with no corner a ball can find.
+
+       A corner that sits on the cushion is kept, not cut. Cut, it would
+       leave the shape meeting the cushion at a shallow slant — a sliver
+       between a wall and the cushion narrower than a ball, which a hard shot
+       can wedge a ball into. Kept, the shape meets the cushion square. */
     function smooth(pts, passes) {
-        for (var k = 0; k < (passes || 2); k++) {
+        function edge(x, y) { return x <= 0 || y <= 0 || x >= W || y >= GOLF.CONFIG.WORLD_H; }
+        for (var k = 0; k < (passes === undefined ? 2 : passes); k++) {
             var out = [], n = pts.length;
             for (var i = 0; i < n; i += 2) {
-                var ax = pts[i], ay = pts[i + 1], bx = pts[(i + 2) % n], by = pts[(i + 3) % n];
-                out.push(ax * 0.75 + bx * 0.25, ay * 0.75 + by * 0.25, ax * 0.25 + bx * 0.75, ay * 0.25 + by * 0.75);
+                var px = pts[(i - 2 + n) % n], py = pts[(i - 1 + n) % n];
+                var cx = pts[i], cy = pts[i + 1], nx = pts[(i + 2) % n], ny = pts[(i + 3) % n];
+                if (edge(cx, cy)) { out.push(cx, cy); continue; }
+                out.push(cx * 0.75 + px * 0.25, cy * 0.75 + py * 0.25, cx * 0.75 + nx * 0.25, cy * 0.75 + ny * 0.25);
             }
             pts = out;
         }
@@ -260,10 +268,10 @@
             tee: { x: 300, y: 565 },
             hole: { x: 905, y: 160 },
             blocks: [
-                block('bed', smooth([0, 0, 650, 0, 700, 100, 700, 330, 600, 440, 300, 470, 0, 470])),
+                block('bed', smooth([0, 0, 640, 0, 700, 100, 700, 330, 600, 440, 300, 470, 0, 470])),
                 block('bed', smooth([0, 520, 140, 500, 200, 560, 200, 640, 0, 640]))
             ],
-            arcs: [arc(760, 420, 180, 0, 90, 24)]
+            arcs: [arc(760, 420, 188, 0, 90, 24)]
         },
         {
             name: 'Sandcastles',
@@ -413,7 +421,7 @@
             hole: { x: 905, y: 540 },
             blocks: [
                 block('bed', smooth([0, 230, 560, 220, 690, 300, 700, 640, 0, 640])),
-                block('bed', smooth([0, 0, 200, 0, 220, 90, 140, 190, 0, 200]))
+                block('bed', smooth([0, 0, 200, 0, 220, 80, 140, 155, 0, 165]))
             ],
             rails: [rail(790, 0, 960, 170, 26)],
             sand: [shape(smooth([720, 340, 800, 330, 830, 390, 790, 450, 730, 430]))]
@@ -522,8 +530,12 @@
                on is a stroke's worth of roll rather than a stroke. */
             tee: { x: 110, y: 320 },
             hole: { x: 860, y: 320 },
-            water: [r(380, 0, 180, 230), r(380, 410, 180, 230)],
-            rough: [r(600, 0, 360, 110), r(600, 530, 360, 110)]
+            water: [
+                shape(smooth([380, 0, 560, 0, 585, 120, 545, 230, 420, 232, 370, 140], 1)),
+                shape(smooth([400, 410, 545, 408, 580, 520, 562, 640, 378, 640, 362, 520], 1))
+            ],
+            rough: [r(600, 0, 360, 110), r(600, 530, 360, 110)],
+            blocks: [block('hut', smooth([30, 30, 100, 30, 100, 100, 30, 100], 0))]
         },
         mirror({
             name: 'The Skerries',
@@ -539,8 +551,10 @@
             // is 300px wide at the pinch and the whole of it is over water,
             // so a ricochet has somewhere to be lost.
             water: [
-                r(360, 0, 240, 140), r(360, 500, 240, 140),
-                r(760, 0, 200, 170), r(760, 470, 200, 170)
+                shape(smooth([360, 0, 600, 0, 610, 90, 540, 140, 400, 145, 350, 80], 1)),
+                shape(smooth([350, 560, 400, 495, 540, 500, 610, 550, 600, 640, 360, 640], 1)),
+                shape(smooth([760, 0, 960, 0, 960, 170, 860, 175, 770, 120], 1)),
+                shape(smooth([770, 520, 860, 465, 960, 470, 960, 640, 760, 640], 1))
             ],
             rough: [r(0, 0, 300, 90), r(0, 550, 300, 90)],
             bumpers: [
@@ -558,8 +572,11 @@
                nothing back. */
             tee: { x: 120, y: 320 },
             hole: { x: 840, y: 320 },
-            water: [r(360, 0, 220, 220), r(360, 420, 220, 220)],
-            sand: [r(360, 220, 220, 200)],
+            water: [
+                shape(smooth([360, 0, 580, 0, 590, 120, 560, 225, 380, 225, 350, 120], 1)),
+                shape(smooth([380, 415, 560, 415, 590, 520, 580, 640, 360, 640, 350, 520], 1))
+            ],
+            sand: [shape(smooth([370, 215, 570, 215, 590, 320, 570, 425, 370, 425, 350, 320], 1))],
             rough: [r(620, 0, 340, 90), r(620, 550, 340, 90)]
         },
         {
@@ -576,8 +593,9 @@
                there for the ball that skipped and kept going. */
             tee: { x: 480, y: 70 },
             hole: { x: 480, y: 540 },
-            water: [r(90, 290, 870, 70)],
-            sand: [r(360, 600, 240, 40)],
+            water: [shape([90, 300, 260, 288, 440, 296, 620, 286, 800, 294, 960, 288,
+                           960, 360, 800, 366, 620, 358, 440, 368, 260, 360, 90, 362])],
+            sand: [shape(smooth([360, 640, 380, 605, 480, 595, 580, 605, 600, 640], 1))],
             rough: [r(0, 250, 90, 150)]
         },
         {
@@ -624,7 +642,7 @@
                 r(460, 0, 26, 240), r(460, 460, 26, 180),     // the doorway, y 240-460
                 { x: 460, y: 145, w: 26, h: 200, move: { axis: 'y', amp: 97, speed: 1.2, phase: Math.PI / 2 } }
             ],
-            water: [r(560, 380, 300, 140)],
+            water: [shape(smooth([560, 420, 640, 375, 800, 380, 865, 440, 840, 515, 680, 525, 575, 490], 1))],
             rough: [r(560, 0, 400, 90)]
         })
     ];
@@ -675,7 +693,8 @@
                cushion — a ball they shed has somewhere to come to rest. */
             tee: { x: 100, y: 320 },
             hole: { x: 880, y: 320 },
-            sand: [r(820, 0, 140, 200), r(820, 440, 140, 200)],
+            sand: [shape(smooth([820, 0, 960, 0, 960, 200, 880, 210, 820, 140], 1)),
+                   shape(smooth([820, 500, 880, 430, 960, 440, 960, 640, 820, 640], 1))],
             // A slope may not reach a cushion, so both hills stop short and
             // the lane past them is rough — which doubles as the collar the
             // hills shed into.
@@ -737,7 +756,7 @@
             par: 4,
             tee: { x: 110, y: 320 },
             hole: { x: 850, y: 320 },
-            sand: [r(880, 200, 80, 240)],
+            sand: [shape(smooth([890, 200, 960, 190, 960, 450, 890, 440, 870, 320], 1))],
             slopes: [{ x: 300, y: 0, w: 420, h: 640, ax: -150, ay: 0 }]
         }),
         {
@@ -745,26 +764,21 @@
             blurb: 'The green sheds everything you leave on it. Only the cup itself holds.',
             par: 4,
             /* A crowned green, which every other slope on the rack is the
-               opposite of: four bands around the cup, each pushing away from
-               it, so a ball that finishes near the flag does not stay near
-               the flag. It is still holeable and not by luck — the cup pulls
-               at 900 against the crown's 160, so anything that actually
-               reaches the rim slowly enough drops. Nothing else does. */
+               opposite of: a dome with the cup at its very top, shedding a
+               ball off every side, so one that finishes near the flag does
+               not stay near the flag. It is still holeable and not by luck —
+               the dome is level at its peak, the cup's own funnel pulls far
+               harder than the crown does that close in, and anything that
+               reaches the rim slowly enough drops. Nothing else does. It was
+               four tilted bands round the cup once, which shed square; a dome
+               sheds round, the way a crown does. */
             tee: { x: 100, y: 570 },
             hole: { x: 480, y: 320 },
             // A collar of rough all the way round. What the crown sheds has to
             // land somewhere, and rough stops it in a stride — so the next
             // putt is from beside the green rather than from across the field.
-            rough: [
-                r(240, 80, 480, 60), r(240, 500, 480, 60),
-                r(240, 140, 60, 360), r(660, 140, 60, 360)
-            ],
-            slopes: [
-                { x: 300, y: 200, w: 180, h: 240, ax: -160, ay: 0 },
-                { x: 480, y: 200, w: 180, h: 240, ax: 160, ay: 0 },
-                { x: 300, y: 140, w: 360, h: 60, ax: 0, ay: -160 },
-                { x: 300, y: 440, w: 360, h: 60, ax: 0, ay: 160 }
-            ]
+            rough: [shape(smooth([250, 120, 710, 120, 720, 520, 240, 520], 2))],
+            hills: [mound(480, 320, 175, 170)]
         }
     ];
 
@@ -793,29 +807,31 @@
                drops as if the wall were not there. */
             tee: { x: 130, y: 320 },
             hole: { x: 830, y: 320 },
-            walls: [r(460, 0, 40, 640)],
+            blocks: [block('hedge', [470, 0, 490, 0, 495, 160, 488, 320, 495, 480, 490, 640, 470, 640, 465, 480, 472, 320, 465, 160])],
             rough: [r(0, 0, 960, 90), r(0, 550, 960, 90)],
             tunnels: [tunnel(320, 320, 640, 320)]
         },
         mirror({
             name: 'Snow Globe',
-            blurb: 'The cup is shut in a box of ice. The only door is a tunnel, and it opens both ways.',
+            blurb: 'The cup is shut in a globe of ice with a snowman. The only door is a tunnel, and it keeps your heading.',
             par: 3,
-            /* A room with no door, an ice floor and a cup in it. Whatever
-               the ball carries into the tunnel it carries onto the rink,
-               and the rink triples it — so the putt is a whisper. Too firm
-               and it rattles round the walls, which is not always a
-               disaster: a ball that comes back off the far wall and finds
-               its own exit goes home to the tee. */
+            /* A room with no door, an ice floor, a snowman in the middle and
+               the cup behind him. The tunnel's mouths face him square, so the
+               putt down the middle of the mouth comes out into his belly and
+               back into the tunnel, which takes it home to the tee. The ace is
+               a hair either side of the middle: the heading carries through,
+               the ball slips past him, and the glass wall turns it round to
+               the cup. The rink keeps whatever the putt had, so the weight
+               barely matters and the line is everything. */
             tee: { x: 110, y: 320 },
-            hole: { x: 790, y: 320 },
-            walls: [
-                r(560, 140, 330, 30), r(560, 470, 330, 30),
-                r(560, 170, 30, 300), r(860, 170, 30, 300)
-            ],
-            ice: [r(590, 170, 270, 300)],
+            hole: { x: 850, y: 320 },
+            // A globe, as the name always said: a ring of wall round a
+            // round rink, with no way in but the tunnel.
+            arcs: [arc(725, 320, 165, 0, 360, 26)],
+            blocks: [block('snowman', oval(725, 320, 42, 42, 16))],
+            ice: [shape(oval(725, 320, 150, 150, 32))],
             rough: [r(0, 0, 520, 110), r(0, 530, 520, 110)],
-            tunnels: [tunnel(330, 320, 640, 320)]
+            tunnels: [tunnel(330, 320, 600, 320)]
         }),
         mirror({
             name: 'Crossed Wires',
@@ -829,8 +845,8 @@
                putt to somewhere that can see the mouth square on. */
             tee: { x: 120, y: 320 },
             hole: { x: 840, y: 170 },
-            walls: [r(460, 0, 40, 640)],
-            sand: [r(760, 250, 170, 140)],
+            blocks: [block('hedge', [470, 0, 490, 0, 494, 320, 490, 640, 470, 640, 466, 320])],
+            sand: [shape(smooth([760, 300, 820, 245, 920, 255, 935, 330, 880, 390, 780, 380], 1))],
             tunnels: [tunnel(300, 170, 660, 470), tunnel(300, 470, 660, 170)]
         }),
         {
@@ -861,7 +877,7 @@
                the gap is cut on. */
             tee: { x: 120, y: 500 },
             hole: { x: 840, y: 140 },
-            walls: [r(440, 0, 30, 470)],
+            blocks: [block('hedge', [445, 0, 465, 0, 468, 240, 465, 460, 445, 460, 442, 240])],
             rough: [r(470, 560, 490, 80)],
             // Five posts on a 52px ring round the mouth, each touching the
             // next, with the sixth left out on the side that faces the tee.
@@ -882,9 +898,12 @@
                the far side of the flag for whatever arrives too quickly. */
             tee: { x: 100, y: 520 },
             hole: { x: 860, y: 160 },
-            walls: [r(300, 0, 30, 640), r(630, 0, 30, 640)],
-            sand: [r(370, 250, 200, 110)],
-            water: [r(880, 330, 80, 220)],
+            blocks: [
+                block('hedge', [305, 0, 325, 0, 329, 320, 325, 640, 305, 640, 301, 320]),
+                block('hedge', [635, 0, 655, 0, 659, 320, 655, 640, 635, 640, 631, 320])
+            ],
+            sand: [shape(smooth([370, 300, 430, 250, 540, 255, 570, 310, 520, 360, 400, 358], 1))],
+            water: [shape(smooth([890, 330, 960, 320, 960, 560, 900, 550, 875, 440], 1))],
             tunnels: [
                 tunnel(200, 160, 400, 520),
                 tunnel(560, 140, 760, 500),
@@ -930,8 +949,8 @@
                the lake off ice. */
             tee: { x: 110, y: 540 },
             hole: { x: 790, y: 150 },
-            water: [r(880, 0, 80, 640)],
-            ice: [r(300, 80, 380, 470)]
+            water: [shape([890, 0, 960, 0, 960, 640, 885, 640, 900, 480, 875, 320, 895, 160])],
+            ice: [shape(smooth([300, 120, 480, 70, 680, 120, 680, 500, 480, 560, 300, 500], 1))]
         },
         {
             name: 'Crevasse',
@@ -999,10 +1018,10 @@
                one. */
             tee: { x: 860, y: 560 },
             hole: { x: 860, y: 130 },
-            walls: [r(250, 290, 710, 26)],
+            blocks: [block('rock', [255, 288, 400, 282, 560, 292, 720, 284, 960, 286, 960, 318, 720, 322, 560, 314, 400, 322, 255, 314])],
             avalanches: [chute(30, 40, 190, 500, 'down', 4.0, 0)],
             sand: [r(0, 540, 250, 100)],
-            ice: [r(330, 60, 360, 190)],
+            ice: [shape(smooth([330, 80, 500, 55, 690, 80, 690, 230, 500, 255, 330, 230], 1))],
             rough: [r(760, 316, 200, 120)],
             bumpers: [post(760, 80, 22), post(760, 230, 22)]
         }
@@ -1065,10 +1084,11 @@
                rather not. */
             tee: { x: 110, y: 320 },
             hole: { x: 800, y: 320 },
-            lava: [r(470, 0, 120, 500)],
-            sand: [r(880, 220, 80, 200)],
+            lava: [shape([475, 0, 590, 0, 600, 120, 580, 250, 600, 380, 585, 500, 470, 500, 480, 380, 462, 250, 482, 120])],
+            sand: [shape(smooth([890, 220, 960, 210, 960, 430, 890, 420, 870, 320], 1))],
             rough: [r(440, 500, 180, 140)],
-            vents: [vent(390, 320, 3.2, 0, 1.1)]
+            vents: [vent(390, 320, 3.2, 0, 1.1)],
+            blocks: [block('rock', smooth([0, 0, 200, 0, 150, 100, 0, 140])), block('rock', smooth([960, 640, 760, 640, 820, 560, 960, 520]))]
         },
         {
             name: 'Stepping Vents',
@@ -1082,7 +1102,10 @@
                you. */
             tee: { x: 480, y: 600 },
             hole: { x: 480, y: 60 },
-            lava: [r(200, 380, 560, 90), r(200, 150, 560, 90)],
+            lava: [
+                shape(smooth([200, 390, 360, 375, 560, 392, 760, 380, 760, 465, 560, 475, 360, 460, 200, 470], 1)),
+                shape(smooth([200, 160, 360, 148, 560, 162, 760, 150, 760, 235, 560, 245, 360, 232, 200, 240], 1))
+            ],
             rough: [r(0, 130, 160, 360), r(800, 130, 160, 360)],
             vents: [vent(480, 525, 3.0, 0, 1.0), vent(480, 305, 3.0, 0.9, 1.0)]
         },
@@ -1317,7 +1340,7 @@
             hole: { x: 840, y: 170 },
             hills: [bowl(470, 330, 170, 110)],
             water: [shape(oval(470, 330, 62, 50, 18))],
-            blocks: [block('tree', oval(110, 110, 42, 40, 12)), block('tree', oval(860, 540, 46, 42, 12))]
+            blocks: [block('palm', oval(110, 110, 42, 40, 12)), block('palm', oval(860, 540, 46, 42, 12))]
         },
         {
             name: 'Mesa',
@@ -1508,8 +1531,8 @@
             hole: { x: 850, y: 320 },
             spinners: [spinner(480, 320, 100, 2, 1.0, 0, 22)],
             blocks: [
-                block('tent', oval(480, 85, 130, 70, 24)),
-                block('carousel', oval(480, 555, 130, 70, 24)),
+                block('tent', oval(480, 100, 130, 62, 24)),
+                block('carousel', oval(480, 540, 130, 62, 24)),
                 block('bed', smooth([0, 0, 200, 0, 150, 80, 0, 130])),
                 block('bed', smooth([0, 640, 0, 510, 150, 560, 200, 640]))
             ]
@@ -1586,7 +1609,7 @@
             hole: { x: 860, y: 100 },
             belts: [belt(200, 380, 300, 70, 'right', 160)],
             spinners: [spinner(700, 470, 80, 3, 1.2, 0, 20)],
-            arcs: [arc(660, 160, 150, 90, 250, 22)],
+            arcs: [arc(660, 170, 150, 90, 245, 22)],
             bumpers: [post(420, 180, 24), post(300, 260, 24)],
             blocks: [block('carousel', oval(160, 140, 100, 90, 24))]
         }

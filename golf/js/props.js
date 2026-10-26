@@ -488,8 +488,9 @@
         return out;
     }
 
-    function tree(g, x, y, r, theme, v, seed) {
-        var pal = GOLF.landscape.CANOPY[theme.canopy] || GOLF.landscape.CANOPY.oak;
+    function tree(g, x, y, r, theme, v, seed, kind) {
+        kind = kind || theme.canopy;
+        var pal = GOLF.landscape.CANOPY[kind] || GOLF.landscape.CANOPY.oak;
         var ts = sv(v, r * 0.25, r * 0.35);
         g.fillStyle = 'rgba(0, 20, 0, 0.25)';
         g.beginPath();
@@ -497,12 +498,12 @@
         g.fill();
         g.save();
         g.translate(x, y);
-        if (theme.canopy === 'pine' || theme.canopy === 'snowpine' || theme.canopy === 'charred') {
-            GOLF.landscape.pine(g, r, pal, seed, theme.canopy === 'snowpine');
-        } else if (theme.canopy === 'palm') {
+        if (kind === 'pine' || kind === 'snowpine' || kind === 'charred') {
+            GOLF.landscape.pine(g, r, pal, seed, kind === 'snowpine');
+        } else if (kind === 'palm') {
             GOLF.landscape.palm(g, r, pal, seed);
         } else {
-            GOLF.landscape.crown(g, r, pal, seed, theme.canopy, v);
+            GOLF.landscape.crown(g, r, pal, seed, kind, v);
         }
         g.restore();
     }
@@ -646,6 +647,10 @@
             pyramid(g, pts, v);
             return;
         }
+        if (look === 'snowman') {
+            snowman(g, pole(pts), w, v, seed);
+            return;
+        }
         if (look === 'castle') {
             m = { top: '#e6cf98', side: '#b8975a', hi: 'rgba(255, 250, 230, 0.55)', grain: 'rgba(150, 110, 60, 0.3)' };
             solid(g, pts, w, m, v, 9, '#dcc48c');
@@ -689,7 +694,8 @@
            where they can be seen — a bed of three hundred shrubs is a
            carpet, not a garden. */
         var room = pole(pts), area = Math.abs(polyArea(pts));
-        var big = look === 'tree' || room.r > 48;
+        // A palm is a palm in any biome: an oasis is not an oasis without one.
+        var big = look === 'tree' || look === 'palm' || room.r > 48;
         var trees = big ? spots(pts, w, 30, Math.max(1, Math.round(area / 9000)), seed + 1, 62) : [];
         if (big && !trees.length) trees = [{ x: room.x, y: room.y }];
         var plants = spots(pts, w, 9, Math.round(area / 520), seed, 13.5, big ? 26 : 0);
@@ -699,7 +705,8 @@
         });
         trees.forEach(function (p, n) {
             var tr = Math.min(Math.max(20, edgeDist(pts, p.x, p.y) - w / 2 - 2), 30 + hash(seed + n * 1.9) * 16);
-            tree(g, p.x, p.y, tr, theme, v, seed + n * 2.3);
+            tree(g, p.x, p.y, look === 'palm' ? Math.max(tr, Math.min(room.r + 8, 46)) : tr, theme, v, seed + n * 2.3,
+                look === 'palm' ? 'palm' : null);
         });
         g.restore();
     }
@@ -796,6 +803,94 @@
         g.lineTo(fx + side.x * 13 - up.x * 4, fy + side.y * 13 - up.y * 4);
         g.lineTo(fx - up.x * 8, fy - up.y * 8);
         g.closePath();
+        g.fill();
+        g.restore();
+    }
+
+    /* A snowman seen from above and a little in front: three balls of
+       snow stacked away from the viewer, each smaller than the one under
+       it, all inside the bottom one — which is the block, rail and all —
+       with stick arms, a scarf, a carrot and a hat. */
+    function snowman(g, p, w, v, seed) {
+        var r0 = p.r + w / 2, up = sv(v, 0, -1), side = sv(v, 1, 0), lt = sv(v, -0.35, -0.4), sh = sv(v, 6, 9);
+        g.save();
+        g.fillStyle = 'rgba(30, 50, 75, 0.22)';
+        g.beginPath();
+        g.arc(p.x + sh.x, p.y + sh.y, r0, 0, Math.PI * 2);
+        g.fill();
+        function ball(k, rr) {
+            var x = p.x + up.x * r0 * k, y = p.y + up.y * r0 * k;
+            var gr = g.createRadialGradient(x + lt.x * rr, y + lt.y * rr, rr * 0.08, x, y, rr);
+            gr.addColorStop(0, '#ffffff');
+            gr.addColorStop(0.65, '#e9f0f7');
+            gr.addColorStop(1, '#b4c4d6');
+            g.fillStyle = gr;
+            g.beginPath();
+            g.arc(x, y, rr, 0, Math.PI * 2);
+            g.fill();
+            return { x: x, y: y, r: rr };
+        }
+        ball(0, r0);
+        // Stick arms, out from the middle ball to the edge of the bottom one.
+        var mid = { x: p.x + up.x * r0 * 0.2, y: p.y + up.y * r0 * 0.2 };
+        g.strokeStyle = '#5b3a1e';
+        g.lineCap = 'round';
+        g.lineWidth = 2.2;
+        [-1, 1].forEach(function (d) {
+            var ex = mid.x + side.x * d * r0 * 0.92 + up.x * r0 * 0.18, ey = mid.y + side.y * d * r0 * 0.92 + up.y * r0 * 0.18;
+            g.beginPath();
+            g.moveTo(mid.x + side.x * d * r0 * 0.5, mid.y + side.y * d * r0 * 0.5);
+            g.lineTo(ex, ey);
+            g.moveTo(ex - side.x * d * r0 * 0.14, ey - side.y * d * r0 * 0.14);
+            g.lineTo(ex - side.x * d * r0 * 0.04 + up.x * r0 * 0.12, ey - side.y * d * r0 * 0.04 + up.y * r0 * 0.12);
+            g.stroke();
+        });
+        var chest = ball(0.2, r0 * 0.7);
+        // Coal buttons down the front.
+        g.fillStyle = '#1f2937';
+        for (var i = 0; i < 2; i++) {
+            g.beginPath();
+            g.arc(chest.x - up.x * chest.r * (0.25 + i * 0.35), chest.y - up.y * chest.r * (0.25 + i * 0.35), Math.max(1.5, r0 * 0.05), 0, Math.PI * 2);
+            g.fill();
+        }
+        // The scarf: a ring at the neck and an end hanging down one side.
+        var scarf = hash(seed) < 0.5 ? '#dc2626' : '#2563eb';
+        var nx = p.x + up.x * r0 * 0.36, ny = p.y + up.y * r0 * 0.36;
+        g.fillStyle = scarf;
+        g.beginPath();
+        g.arc(nx, ny, r0 * 0.5, 0, Math.PI * 2);
+        g.fill();
+        g.strokeStyle = scarf;
+        g.lineWidth = Math.max(3, r0 * 0.12);
+        g.beginPath();
+        g.moveTo(nx + side.x * r0 * 0.3, ny + side.y * r0 * 0.3);
+        g.lineTo(nx + side.x * r0 * 0.42 - up.x * r0 * 0.38, ny + side.y * r0 * 0.42 - up.y * r0 * 0.38);
+        g.stroke();
+        var head = ball(0.4, r0 * 0.44);
+        // Eyes and a carrot on the near side of the head.
+        g.fillStyle = '#111827';
+        [-1, 1].forEach(function (d) {
+            g.beginPath();
+            g.arc(head.x + side.x * d * head.r * 0.32 - up.x * head.r * 0.12, head.y + side.y * d * head.r * 0.32 - up.y * head.r * 0.12, Math.max(1.4, head.r * 0.1), 0, Math.PI * 2);
+            g.fill();
+        });
+        var nose = { x: head.x - up.x * head.r * 0.35, y: head.y - up.y * head.r * 0.35 };
+        g.fillStyle = '#f97316';
+        g.beginPath();
+        g.moveTo(nose.x + side.x * head.r * 0.12, nose.y + side.y * head.r * 0.12);
+        g.lineTo(nose.x - side.x * head.r * 0.12, nose.y - side.y * head.r * 0.12);
+        g.lineTo(nose.x - up.x * head.r * 0.6 + side.x * head.r * 0.08, nose.y - up.y * head.r * 0.6 + side.y * head.r * 0.08);
+        g.closePath();
+        g.fill();
+        // A top hat at the back of the head: brim, then crown.
+        var hx = head.x + up.x * head.r * 0.45, hy = head.y + up.y * head.r * 0.45;
+        g.fillStyle = '#1f2937';
+        g.beginPath();
+        g.ellipse(hx, hy, head.r * 0.7, head.r * 0.42, Math.atan2(side.y, side.x), 0, Math.PI * 2);
+        g.fill();
+        g.fillStyle = '#374151';
+        g.beginPath();
+        g.ellipse(hx + up.x * head.r * 0.12, hy + up.y * head.r * 0.12, head.r * 0.42, head.r * 0.28, Math.atan2(side.y, side.x), 0, Math.PI * 2);
         g.fill();
         g.restore();
     }
