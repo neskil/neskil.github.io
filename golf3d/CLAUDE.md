@@ -37,12 +37,12 @@ point at them.
 - Bump `G3.VERSION` (top of `js/config.js`) on every commit that ships a
   user-visible change — patch for fixes, minor for features — and update the
   matching `?v=X.Y.Z` cache-busting string on **every** local `<script>` and
-  `<link>` in **all three** pages that load the modules: `index.html`,
-  `level-editor.html` **and** `turntable.html`. GitHub Pages
+  `<link>` in **all four** pages that load the modules: `index.html`,
+  `level-editor.html`, `turntable.html` **and** `hole-lab.html`. GitHub Pages
   caches hard; a stale query string means phones keep running the old JS after
   a deploy. Skip only for docs/comment-only or pure-refactor commits.
 
-  All three, and the same string in all three. `level-editor.html` sat on
+  All four, and the same string in all four. `level-editor.html` sat on
   `1.15.0` for thirteen releases because this rule named only `index.html`, and
   they are separate cache keys for the *same* modules: the editor was serving a
   browser its own months-old copy of `physics.js` while the game next door got
@@ -52,8 +52,10 @@ point at them.
   Then `turntable.html` did the same thing — six releases, for the same reason,
   because the rule had been widened once and named two. It is the worse case of
   the two: a tool whose entire job is to show you what the current build looks
-  like, quietly photographing an old one. If a fourth page ever loads `js/`,
-  it goes in this list on the same commit.
+  like, quietly photographing an old one. `hole-lab.html` went in on the
+  commit that added it — its workers load `js/` by the page's own version, so
+  a stale string there measures an old build. If a fifth page ever loads
+  `js/`, it goes in this list on the same commit.
 
 ## Verification
 
@@ -90,6 +92,18 @@ is how the geometry faults the suites structurally cannot see were found — see
 README → "The pictures, which neither suite can see". Run it after anything that
 touches `courses.js` or the way the renderer builds a hole. The sheets land
 outside the repo and are not committed.
+
+And the hole lab, which measures what the turntable photographs — ace windows
+from a sweep of every line and weight from the tee, whether a putt at the flag
+drops, the caddie's card (README → "The hole lab"):
+
+```sh
+node golf3d/tools/hole-lab.mjs works --hole 2         # one hole, the full sweep
+node golf3d/tools/hole-lab.mjs --coarse               # every drawn hole, ~15 min
+```
+
+Run it after moving a drawn hole's tee or cup or anything on the line between
+them; `hole-lab.html?course=<id>` draws the same traces on the hole's plan.
 
 `shader-tests.html` skips its GPU half with a note (not a failure) when there
 is no WebGL, so it is safe to run anywhere; on this box it runs on SwiftShader:

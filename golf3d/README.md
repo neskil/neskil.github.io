@@ -79,6 +79,7 @@ them.
 | `shader-tests.html` | The other half: compiles every shader for real against a live context. Green is green there too. |
 | `ui-tests.html` | Headless CSS/UI test harness: checks custom property definitions and active control states. |
 | `turntable.html` + `tools/turntable.mjs` | [The turntable](#the-pictures-which-neither-suite-can-see): every hole drawn from eight fixed angles, as one contact sheet per course, with the audit's findings printed under each row. |
+| `js/lab.js`, `hole-lab.html` + `tools/hole-lab.mjs` | [The hole lab](#the-hole-lab): every line and weight from the tee out of every club in the bag — how many are aces and how wide their windows are, whether a shot aimed straight at the flag drops, and the caddie's card. The page draws the traces on the hole's plan; the tool prints the numbers. Pure, no install. |
 | `tools/par-check.mjs` | The bot plays a course and prints its card against par — a reading of each hole's shape (a par 4 it drives in one has no second shot). Plain Node, no install. PLAN.md §0 sets the line it is measured against. |
 
 The three files above `weather.js` in that list are three of the four different
@@ -967,7 +968,7 @@ thirteen, and why The Bend lost two units off each leg.
 | Harbour Gate | one bar of beach with the gap at the tee's end, and a slow gate | through the gap, then past the gate when it has moved | at the flag: the inside edge of the gap, timed past the gate |
 | Low Tide | the bridge and the water | over the bridge, then putt | the mallet across the bridge all the way to the cup, or a pitch at the pin |
 | The Horseshoe | the return leg leans at the sea wall, and the cup is against it | round the long way, four putts, par | a pitch across the bay onto the cup's line, and the lean rolls it in |
-| The Jetty | the kink, and no rails | a putt along each plank, par | the mallet dead straight down the one line where all three planks overlap |
+| The Jetty | the kink, no rails, and the far green leaning gently east to the pin | a putt along each plank, par | the mallet dead straight down the one line where all three planks overlap, and the lean takes it across to the pin — the longest shot on the card |
 
 **Harbour Gate** is the first thing in the game that moves, and the slowest. It
 is a two-unit gate drifting across a six-unit lane about once every nine
@@ -1004,12 +1005,17 @@ gentle one on the left, a short steep one on the right that only a firm hit
 gets over — and a pool between them at the foot of the face, which is where
 the line at the flag goes. **The Drop** keeps the drop off the front of the
 pillar over the pool, and adds a stair of planks down its east side that cannot
-put you in the water and leaves a long putt back. The stair is a stair rather
+put you in the water and leaves a long putt back. The drop is not at the flag
+any more: a block of quarry stone stands on that line below the pool, too tall
+to fly, with the pin in its lee, and a bank across the green to the west of it
+turns a drop aimed at the bank along the back of the block to the pin. The stair is a stair rather
 than a sloped chute for a reason worth knowing: a rail is a level box as tall
 as the highest ground it guards, so the sides of a chute falling two units are
 one blank wall the height of the pillar. **The Cannon**'s green runs off to the
-right with the pin under a curved rail at its far end, so the ramp only gets
-you over, and a putter-wide plank across the gap is the other way.
+right with the pin round under a curved rail at its far end — a unit past
+where the ramp fired straight at the flag dropped — so the ramp only gets you
+over and the rail brings you in, and a putter-wide plank across the gap is the
+other way.
 
 Tidewater and Highland are why the bag has more than two clubs. Every hole on
 Tidewater is built round the one thing a chip can do that a putt cannot —
@@ -1175,6 +1181,8 @@ straight down (`addSails`), so the tip the eye follows is the tip the ball
 meets, and it stands a tarred tower over the doorway with the hub on it. The
 Mill on Windmill Works is the one — for eighty releases the course named
 after windmills had a blade on a stick and a model windmill beside the lane.
+Its pin is off to the east behind the brick, on a green that leans to it, so
+the shot is at the door rather than at the flag ([the hole lab](#the-hole-lab)).
 
 ### The order the holes are in
 
@@ -1211,6 +1219,95 @@ corner in it, a hole with two ways to the green and a reason to pick one — tho
 read as different courses from the tee in a way that a second windmill never
 will. If a new hole's plan can be described as "a lane with an X in the middle",
 it needs a different X *and* a different lane.
+
+### The hole lab
+
+Pocket Links measured its cards first ([`golf/README.md` → "Designing a
+hole"](../golf/README.md#designing-a-hole)), and the measure came across whole.
+`hole-lab.html?course=<id>` and `tools/hole-lab.mjs` sweep every line and every
+weight from the tee — every half degree and every fiftieth of a full swing, out
+of every club the hole hands out, at four moments of the slowest beat on a hole
+that moves — and report three things: how much of the sweep is an ace and in
+how many windows, whether a putt struck straight at the flag drops, and the
+caddie's card. The page draws the hole's own plan (`minimap.render`) with the
+aces traced over it in green and the shots at the flag in red, amber for a
+lofted club, faint where the ball is in the air; it sweeps at 1° and 25 weights
+on the machine's cores (`&fine=1` for the full one, `&quick=1` for the plan and
+the shots at the flag alone). The tool deals the full sweep across the cores
+and prints it. Both run `js/lab.js`, which is pure, and both step the roll a
+60 Hz frame at a time — the roll a player gets — rather than at `SIM_DT`.
+
+The numbers mean what Pocket Links found them to mean, and `lab.verdict` holds
+the bands: an ace over 1% of the sweep is the hole giving it away, under 0.03%
+is a fluke and the hole is played in stages whether it means to be or not, and
+between them a tutorial hole runs 0.3–0.9%, a skill hole 0.1–0.3% and a closer
+0.05–0.15%. The share is the best club's, because a player picks one.
+
+**A putt struck straight at the flag never drops.** A hole whose ace is the line
+at the pin asks how hard and never where. `tests.html` holds every drawn hole
+with no clock on it to that — at every weight, half a degree either side — and
+the two timing holes rebuilt to it as well (`CLOCKED`): a clock makes the check
+twelve times dearer, since it is played at twelve moments of the slowest beat,
+so the other clocked holes are left to the tool. A putt is any club under nine
+degrees, the suite's `LOFTED` line; a lofted club at the flag is reported apart,
+because on a hole built to be flown the carry at the pin is sometimes the bold
+line.
+
+What the first sweep found (v1.105.0), over the seventy-eight drawn holes:
+
+- **Twenty-two were aced by a putt at the flag**, seventeen of them with no
+  timing in it at all. Twelve were rebuilt to the rule, each swept again so the
+  bold line is still there: Cold Store, The Draught and The Sluice; The Ash
+  Slide and Caldera; The Springboard; The Jetty; The Drop and The Cannon; The
+  Mill; Plunger Lane; Pendulum. The ten left are PLAN.md's.
+- **The Sluice gave two shots in a hundred away.** Its belt is a governor —
+  whatever pace a ball brings, it leaves at the belt's — and the grass at the
+  end took that pace off at one spot, which was where the pin was. 0.32% now.
+- **Caldera's only ace was the shot the hole says not to play**, the vent flown
+  straight across the crater. It has none now, which is fair for a par 4.
+- **Three fixes did all twelve.** A block on the line, where a wall gives the
+  bold line its bank (the ice store, the ash, the crater). A lean, with the pin
+  moved off the line, where the obstacle is a door or a plank the bold line has
+  to go *through* — The Mill, The Jetty: the line is the one it always was, and
+  the ground does the turning. And a bank to turn it (The Springboard, The
+  Drop, Pendulum).
+- **A lean across a seam is a lip.** Two pads meet without a step only where a
+  fall runs across the seam between them, so a green that leans sideways past a
+  plank or a door trips the ball where they meet — the audit's `bare-step`,
+  which the first Mill had. The Mill's whole lawn leans now, both halves
+  together; The Jetty's far green turns about the middle of the last plank and
+  leans only a fiftieth, which keeps the lip under the audit's two hundredths;
+  Pendulum's plank is too narrow for either and has a bank at its end instead.
+- **A launch pad leaves the ball's heading alone.** It throws the ball up and
+  hands it back travelling as it was, so with the tee, the pad and the pin in a
+  row every ace through the pad is a straight line from the tee. And the bot in
+  `tests.html` only solves a pad hole when the line from the tee to the cup
+  goes through the pad, because that is where its fan of shots starts — move
+  the pad off the line and the suite's proof breaks before the straight putt
+  does. The Springboard got round it with a wider lane and the kicker; Bounce
+  Alley, The Gravitron, Fumarole, Blowhole and Apogee did not, and they are the
+  open half of the list.
+- **A rock may not stand on a green** (tests.html, "nothing grows or stands out
+  of a bunker or a green"), and every drawn hole is green, so the blocks on the
+  line are walls.
+
+The twelve, before and after, from the coarse sweep (`--coarse`, 1° and 25
+weights) so both columns are the same measure:
+
+| Hole | Ace before | Putt at the flag | Ace after | Putt at the flag | Caddie |
+| --- | --- | --- | --- | --- | --- |
+| Cold Store | 0.811% tutorial | drops | 0.622% tutorial | never | 1 → 1 |
+| The Draught | 0.678% tutorial | drops | 0.522% tutorial | never | 1 → 1 |
+| The Sluice | 1.978% giveaway | drops | 0.356% tutorial | never | 1 → 1 |
+| The Ash Slide | 0.522% tutorial | drops | 0.289% skill | never | 1 → 1 |
+| Caldera | 0.022% fluke | drops | none | never | 1 → 2 |
+| The Springboard | 0.100% skill | drops | 0.344% tutorial | never | 1 → 1 |
+| The Jetty | 0.056% closer | drops | 0.044% closer | never | 2 → 2 |
+| The Drop | 0.567% tutorial | drops | 0.289% skill | never | 1 → 1 |
+| The Cannon | 0.189% skill | drops | 0.067% closer | never | 1 → 1 |
+| The Mill | 0.072% closer | drops | 0.119% skill | never | 1 → 2 |
+| Plunger Lane | 0.267% skill | drops | 0.111% skill | never | 1 → 2 |
+| Pendulum | 0.144% skill | drops | 0.225% skill | never | 1 → 1 |
 
 ### Adventure golf
 
@@ -1375,10 +1472,10 @@ sand, or somewhere it never arrives.
 
 | # | Hole | Par | What it asks |
 | --- | --- | --- | --- |
-| 1 | Cold Store | 3 | Twenty units of bare ice and a patch of grass at the end. Half a swing is too much. |
+| 1 | Cold Store | 3 | Twenty units of bare ice and a patch of grass at the end. Half a swing is too much — and a stack of ice blocks on the line, so the ace is one cushion off a wall. |
 | 2 | The Salt Line | 3 | A bar of grit across the sheet with one gap in it. Sand keeps four thousandths of the ball's speed. |
-| 3 | The Draught | 3 | The sheet falls east and ice holds nothing, so the gutter of ordinary grass at the bottom of it is the hole. |
-| 4 | The Sluice | 3 | A belt across the corner and grit on the far side of it. |
+| 3 | The Draught | 3 | The sheet falls east and ice holds nothing, so the gutter of ordinary grass at the bottom of it is the hole. A pillar stands where the putt at the flag crosses the sheet. |
+| 4 | The Sluice | 3 | A belt across the corner and grit on the far side of it. The belt is a governor — whatever pace a ball brings, it leaves at the belt's — so the pin is past the spot where that pace dies, and the line up the west side has to bring some of its own. |
 | 5 | Glass Table | 3 | An iced green half a unit up. Nothing to run up, nothing to stop on, and one club in the bag that arrives and stays. |
 | 6 | The Cold Room | 3 | A bobsleigh run: an ice hall that keeps every bit of a firm mallet's pace, into a loop (the game's second, and the first not at a fair), and out on to the only grass in the building. Short of the pace the loop wants and the ice hands the ball all the way back down the hall; the belt lane up the side, against the run, is the way without the nerve. |
 
@@ -1387,7 +1484,9 @@ sand, or somewhere it never arrives.
 The second of the three, and the other half of the idea: the floor is as grippy as a green has always been
 and has machinery in it instead. **The Springboard** is the introduction and it
 is deliberately blunt — a wall too tall to fly, and a bag with nothing in it
-that flies. **Crosstown** is the one that could not have been built before:
+that flies. The pad is over on the west side and the pin on the east, with a
+kicker across the far west corner: a pad throws a ball up and leaves its
+heading alone, so tee, pad and pin in a row made the putt at the flag the ace. **Crosstown** is the one that could not have been built before:
 three belts running east, west and east, so a ball putted straight at the flag
 arrives a long way east of it and *how far* east depends on how hard it was
 hit, because a slow ball spends longer on each belt. Aim and weight stop being
@@ -1414,20 +1513,22 @@ only things on the course that move a ball sideways at all.
 
 | # | Hole | Par | What it asks |
 | --- | --- | --- | --- |
-| 1 | The Ash Slide | 3 | Two and a half units of ash running back down at four. A full putter just gets over; four fifths of one is handed back to your feet, and a full driver crosses, hits the far rail and comes all the way home. |
+| 1 | The Ash Slide | 3 | Two and a half units of ash running back down at four. A full putter just gets over; four fifths of one is handed back to your feet, and a full driver crosses, hits the far rail and comes all the way home. A block of tuff stands on the line past the ash, so the ace is off a side wall, across the ash at an angle. |
 | 2 | Fumarole | 3 | The vent is the lift, and the shelf it throws you on to is open at both ends. Short and long cost the same thing: the lawn runs on underneath, so a miss is played again from the grass. |
 | 3 | Lava Tube | 3 | Eleven units of crater lake — more than anything in the bag carries — and two mouths in the ash in front of it. Both cross: the narrow one comes out at the pin, the wide one in the far corner with a putt to play. |
 | 4 | The Scree | 4 | A shelf with the drop down one side of it and two bands of scree that push south *and* east at once. On Crosstown a belt across the hole costs you the line; here it costs you the ball. |
 | 5 | Blowhole | 3 | Three vents, none of them a lift. A launch pad is the one obstacle in the game that neither stops the ball nor turns it — it hands the ball back travelling exactly as it was, a second later and somewhere else. |
-| 6 | Caldera | 4 | The whole course in one hole: the vent to get up, the belt along the rim to be carried along, and the tube to get in. The crater has no way into it along the ground. |
+| 6 | Caldera | 4 | The whole course in one hole: the vent to get up, the belt along the rim to be carried along, and the tube to get in. The crater has no way into it along the ground, and no ace: the tube points at the pin across the floor, and a block in front of the pin stops the flight from the lawn that used to be one. |
 
 **Caldera is the hole the belt's own physics wrote.** A travelator has a speed
 of its own that a ball approaches from either side, so it does not matter how
 hard the shot on to the rim is hit: everything arrives at the mouth at about the
 same pace and comes out of the far end at that pace, which is a putt's worth
 across the crater floor. The machine spends the shot for you and the only thing
-you own is getting on to it — and the bot, handed the hole cold, holes it in one
-by rolling a putter into the vent and letting the mountain do the rest.
+you own is getting on to it. The bot, handed the hole cold, used to hole it in
+one by rolling a putter into the vent and flying the whole crater, which is
+what the block on the floor is for: that flight lands short of it now and
+leaves a putt, the same as the tube does.
 
 #### Apogee Yard
 
@@ -4451,8 +4552,16 @@ several deliberately do — Under the Boardwalk wants one, The Backboard's bank
 and Two Roads' low road are the whole point of those holes, and The Gorge will
 let you lay up and blast it for the price of a stroke.
 
+And then it putts at the flag. Every drawn hole with no clock on it, and the
+timing holes rebuilt to the rule, is struck straight at the pin at every weight
+and half a degree either side, and must not drop ([the hole lab](#the-hole-lab)).
+The holes still open in PLAN.md are listed by name and have to keep *failing*
+it to stay listed, so the commit that fixes one is told to take it off. Both
+halves were mutation-checked: a pillar taken off Cold Store and a pad hole taken
+off the list each fail a named assertion.
+
 Being pure logic, `tests.html` needs no WebGL, no canvas and no AudioContext. It
-loads `config.js`, `physics.js`, `courses.js`, `scoring.js` and `bot.js` and
+loads `config.js`, `physics.js`, `courses.js`, `scoring.js`, `bot.js` and `lab.js` and
 nothing else
 — the weather, the renderer and the post chain are all absent from it, which is
 the strongest statement available that none of them can change a score.
