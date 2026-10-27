@@ -393,15 +393,14 @@ the picker.
 
 ### After the rehaul
 
-- **A more fun swing — four styles on trial.** v1.103.0 cut the four rotating
-  gates to one (the owner found the rotation random and not fun) and added
-  the touch swing; v1.104.0 made it a choice of four — meter, touch swing,
-  arcade arc, needle — from 🏌 Swing in ☰, long game and range only, plus a
-  strike grade and a livelier meter (README → "Swing styles"). Waiting on the
-  owner's verdict: which to keep, whether one becomes the long game's default,
-  and whether any belongs on the mini courses. Tuning to look at once played
-  on a phone: each style's clean allowance (`SWIPE.TOL_*`, `ARC.WIN_*`,
-  `NEEDLE.WIN_*`), their `FLOOR`s, and the arc's and needle's speeds.
+- **A more fun swing — the touch swing is the favourite, being tuned.**
+  v1.104.0 offered four styles; the owner found the touch swing the most fun
+  and too easy. v1.106.0 made it judge the line harder, read timing (rhythm or
+  snap) and drawn shapes, explain every shot on a card, and play on every
+  course — each as a setting in the Swing panel (README → "Swing styles").
+  Waiting on the owner's verdict on which settings are fun, to make them the
+  defaults (`SWIPE.DEFAULT`) and retire the rest; and on whether the arcade
+  arc and the needle stay.
 - **Mini golf and the long game as two games.** They share one bag and one set
   of physics and they want different ones — the bot drives The Bend and The
   Zigzag with the *driver*. Separate bags (a mini bag of putter, pitch and

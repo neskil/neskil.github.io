@@ -335,8 +335,8 @@ both edges of every miss and the bound on the envelope without a browser.
 
 Four ways to hit the ball, picked from 🏌 Swing in ☰ (`STYLE_KEY`; the old
 touch-swing on/off, `SWIPE_KEY`, is read once so a player who had it keeps it),
-and only on the long game and the range: mini golf is putts and chips that want
-an exact number on the meter, not a thrash. Each style's arithmetic is in
+on every course or on the long game and the range only — the panel's
+**Courses** setting, which is for every style. Each style's arithmetic is in
 `swing.js` and each ends as a gate-shaped object handed to `strike`, so the
 push, the pull, the bend and the [shapes](#shot-shaping) are the same whichever
 way the ball was hit. game.js "swing styles" is the thumb and the pictures.
@@ -348,14 +348,38 @@ way the ball was hit. game.js "swing styles" is the thumb and the pictures.
 | **Arcade** | stop a needle climbing round a dial | stop it again as it comes home | `arc…` | `ARC` |
 | **Needle** | pull down, as the touch swing | tap while a sweeping needle is central | `needle…` | `NEEDLE` |
 
-- **Touch swing.** A lane up the middle of the stage, from about where the ball
-  sits down to the controls. Press and pull straight down — the meter fills
+- **Touch swing.** A light grey lane up the middle of the stage, from about
+  where the ball sits down to the controls; a mouse drag is the same gesture,
+  so it plays on a desktop too. Press and pull straight down — the meter fills
   with the pull (`swipeLoad`), the full swing ticked at the same white line —
   then swipe up through where you started; crossing that line is the strike,
-  and letting go before it is no shot. What is read is the *angle* of the
-  through-swing (`swipeAngle`), so neither the phone's size nor the pull's
-  length changes it: inside `SWIPE.TOL_*` it is clean, past it the −1..1 over
-  `SWIPE.SPAN` (`swipeOff`), and a green wedge on the lane shows the allowance.
+  and letting go before it is no shot. Three things are read off the
+  gesture's samples (`swipeRead`, coalesced pointer events, timestamped), each
+  with a setting in the panel (`TUNE_KEY`; defaults `SWIPE.DEFAULT`):
+  - **Line** (`feel`: easy / normal / hard): the *angle* of the through-swing
+    from the bottom of the pull to the crossing (`swipeAngle`), so neither the
+    phone's size nor the pull's length changes it. Inside the feel's `TOL` it
+    is clean, past it the −1..1 over its `SPAN` (`swipeOff`), and a miss is
+    costed at no less than its `FLOOR` of overdraw. Easy is the swipe as it
+    first shipped (8°); normal forgives 3½°, hard under 2°.
+  - **Timing** (off / rhythm / snap, `swipeTimes`, `swipeTempo`): *rhythm*
+    wants the swipe up at the pace of the pull down; *snap* wants it to take
+    about `TIMING.snap.TARGET` (0.22 s) however far you pulled, so length and
+    speed together make the shot. Read in doublings, and pauses (holding at
+    the bottom) are not counted. Rushed pulls the ball left; lazy — quitting on
+    it — pushes it right and gives away up to `TIMING.POWER_LOSS` of distance.
+  - **Swipe shapes** (off / curve to bend, `swipeBow`, `swipeShape`): bow the
+    swipe out to the right and back and the ball does the same — starts right,
+    draws back; bow left for a fade. Under `BOW.MIN` of the swipe's length is a
+    straight swing, about `BOW.IDEAL` is clean, and more over-cooks it into a
+    hook or slice. A shape picked on the ball wins over a drawn one, and a club
+    that cannot bend does not.
+
+  After the shot a card under the top chips (`showSwingCard`) draws the swipe
+  small against a straight line and the lean that was forgiven, and says one
+  line per thing read — "13° right — pushed right", "snatched — 70 ms, too
+  quick", "draw — just the right bend", "71% of a full swing, 30% lost
+  quitting on it" — coloured by how it went (`swipeReport`).
 - **Arcade.** The three-press swing every arcade golf game has had: a half-dial
   over the ball, Swing (or a tap on the dial, or space) to start the needle
   climbing, again to set the power, and the third press as it swings back to

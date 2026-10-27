@@ -254,18 +254,31 @@
        pull straight down to take the club back, and swipe up through where
        you started to hit it. The pull is the power — the same meter fills as
        you go, with the full swing at the same white line — and the swipe up
-       is the strike. A straight swipe is a clean one; a swipe that drifts
-       right pushes the ball right and fades it, one that drifts left pulls it
-       and draws it. That is the whole rule, and it is the same on every hole.
+       is the strike. A mouse drag is the same gesture, so it plays on a
+       desktop as it does on a phone.
 
-       It is one of the swing styles on trial (game.js "swing styles"), on the
-       long game only: mini golf is putts and chips that want a number on the
-       meter, not a thrash.
+       Three things are read off the swipe, and each has a setting (CONFIG
+       SWIPE, game.js "touch swing settings"), because which of them is fun is
+       what is being found out:
 
-       What is read is the *angle* of the through-swing, from the bottom of
-       the backswing to where the thumb comes back across the line it
-       started on — not where on the screen it ends up. An angle does not
-       care how big the phone is or how long the pull was. */
+         line     the *angle* of the through-swing, from the bottom of the
+                  pull to where the thumb crosses back over its start. Drift
+                  right and the ball is pushed right and fades; left, pulled
+                  and drawn. An angle does not care how big the phone is or
+                  how long the pull was. How much lean is forgiven is `feel`.
+         timing   'rhythm': the swipe up at the same pace as the pull down.
+                  'snap': the swipe up in about the same short time however
+                  far you pulled — so a long pull wants a fast swipe and a
+                  short one a gentle one, and length and speed together make
+                  the shot. Rushed pulls the ball left; quitting on it pushes
+                  it right and costs distance. 'off' reads no timing at all.
+         bow      with shapes on, a swipe that bends on purpose is a shaped
+                  shot: bow out to the right and come back, and the ball does
+                  the same — starts right, draws back left. Bow left for a
+                  fade. Too little is a straight shot, too much over-cooks it.
+
+       Everything is read from the samples of the gesture, so it is all
+       arithmetic here and all testable without a thumb. */
 
     // How much of the meter a pull of `pulled` pixels has loaded, out of a
     // lane `lane` pixels long. The lane is the whole meter, overdraw and all.
@@ -283,34 +296,181 @@
         return Math.atan2(cross.x - turn.x, up);
     }
 
+    function feelOf(name) { return C.SWIPE.FEEL[name] || C.SWIPE.FEEL[C.SWIPE.DEFAULT.feel]; }
+
     // How crooked a swipe may be and still be clean — narrower the further
     // the meter was pulled, on the gate's own curve.
-    function swipeTol(over) {
-        var S = C.SWIPE;
-        return S.TOL_MAX + (S.TOL_MIN - S.TOL_MAX) * ease(over);
+    function swipeTol(over, feel) {
+        return feelOf(feel).TOL * (1 - C.SWIPE.TIGHTEN * ease(over));
     }
 
-    /* The swipe as the gate's number: 0 inside the tolerance, then out to ±1
-       over SWIPE.SPAN. Right is +, which is the gate's "late": both push the
-       ball right (`apply`), so a swipe that drifts right sends the ball the
-       way the thumb went. */
-    function swipeOff(angle, over) {
-        var a = Math.abs(angle || 0), tol = swipeTol(over);
+    /* The line as the gate's number: 0 inside the tolerance, then out to ±1
+       over the feel's SPAN. Right is +, which is the gate's "late": both push
+       the ball right (`apply`), so a swipe that drifts right sends the ball
+       the way the thumb went. */
+    function swipeOff(angle, over, feel) {
+        var a = Math.abs(angle || 0), tol = swipeTol(over, feel);
         if (a <= tol) return 0;
-        return Math.min(1, (a - tol) / C.SWIPE.SPAN) * (angle > 0 ? 1 : -1);
+        return Math.min(1, (a - tol) / feelOf(feel).SPAN) * (angle > 0 ? 1 : -1);
     }
 
-    /* A gate already played, in the shape `apply` and `shape` read. Inside a
-       full swing the meter's gate never arms, and the spray there is nothing —
-       which is right for a shot you stopped on the line and wrong for one
-       you swiped: a crooked swipe has to cost *something* or the straightness
-       is decoration. So the envelope has a floor (SWIPE.FLOOR), and it is
-       still the old spray curve, so a thrash costs what it always did. */
-    function swiped(over, off) {
+    /* How long each half of the swing took, from the samples [x, y, t]: the
+       pull from the press to where it first reached nine-tenths of its depth,
+       and the swipe from where it last left the bottom tenth to the crossing.
+       Measured that way so a pause — holding at the bottom to steady the
+       thumb, or resting before pulling — is not counted as a slow swing. */
+    function swipeTimes(pts, y0, lowY, crossT) {
+        var depth = lowY - y0, tb = 0, td = 0, i;
+        if (!(depth > 0) || !pts || pts.length < 2) return { back: 0, through: 0 };
+        var t0 = pts[0][2];
+        for (i = 0; i < pts.length; i++) {
+            if (pts[i][1] - y0 >= 0.9 * depth) { tb = (pts[i][2] - t0) / 0.9; break; }
+        }
+        for (i = pts.length - 1; i >= 0; i--) {
+            if (pts[i][1] >= lowY - 0.1 * depth) { td = (crossT - pts[i][2]) / 0.9; break; }
+        }
+        return { back: Math.max(0, tb), through: Math.max(0, td) };
+    }
+
+    /* The timing, as a signed amount: 0 clean, negative rushed, positive
+       lazy (quit on it), out to ±1. Read in doublings (log2), because "twice
+       too fast" and "half as fast" are the same size of mistake. */
+    function swipeTempo(times, mode) {
+        var T = C.SWIPE.TIMING[mode];
+        if (!T || !(times.through > 0)) return { amount: 0, ratio: 1, said: null };
+        var ratio = mode === 'rhythm'
+            ? (times.back > 0 ? times.back / times.through : 1)        // >1: the swipe was the quicker half
+            : T.TARGET / times.through;                                // >1: quicker than the target
+        var l = Math.log(ratio) / Math.LN2 - Math.log(T.IDEAL || 1) / Math.LN2;
+        var a = Math.abs(l);
+        var amount = a <= T.TOL ? 0 : Math.min(1, (a - T.TOL) / T.SPAN) * (l > 0 ? -1 : 1);
+        return { amount: amount, ratio: ratio, said: amount < 0 ? 'rushed' : amount > 0 ? 'lazy' : 'clean' };
+    }
+
+    /* How far the through-swing bowed out from the straight line between its
+       ends, as a fraction of its length: + out to the right, − to the left.
+       The biggest excursion, signed, rather than an average — a bow is a
+       shape you draw, and its belly is what you meant. */
+    function swipeBow(path, turn, cross) {
+        var dx = cross.x - turn.x, dy = cross.y - turn.y;
+        var len = Math.sqrt(dx * dx + dy * dy);
+        if (!(len > 0) || !path) return 0;
+        var best = 0;
+        for (var i = 0; i < path.length; i++) {
+            // Signed distance from the chord; with the chord running up the
+            // screen, positive is to the right of it.
+            var d = ((path[i][0] - turn.x) * dy - (path[i][1] - turn.y) * dx) / len;
+            if (Math.abs(d) > Math.abs(best)) best = d;
+        }
+        return -best / len;
+    }
+
+    /* The bow as a shape: null below the threshold (a straight swing), else
+       draw for a bow to the right, fade to the left, with an `off` on the
+       scale `shape` reads — 0 when the bow is about right, over-cooked when it
+       is too big (early: a draw turns into a hook), under-cooked when it is
+       too small (late: the draw hangs out on its start line). */
+    function swipeShape(bow, allowed) {
+        var B = C.SWIPE.BOW, a = Math.abs(bow || 0);
+        if (a < B.MIN) return null;
+        var name = bow > 0 ? 'draw' : 'fade';
+        if (allowed && allowed.indexOf(name) < 0) return null;
+        var e = a - B.IDEAL, m = Math.abs(e);
+        var cook = m <= B.TOL ? 0 : Math.min(1, (m - B.TOL) / B.SPAN) * (e > 0 ? 1 : -1);
+        // Over-cooked is "early" for a draw and "late" for a fade (swing.js
+        // `shape`): both mean more bend than asked for.
+        return { name: name, off: name === 'draw' ? -cook : cook, cook: cook };
+    }
+
+    /* Everything a swipe says, from the gesture's samples. `g` is
+         { pts: [[x, y, t]…] the whole gesture, x0, y0 where it started,
+           low: { x, y } the bottom of the pull, cross: { x, y, t } the strike,
+           through: [[x, y]…] the swipe up only }
+       and `opt` is { over, feel, timing, shapes: names the club can bend, or
+       null for none }. */
+    function swipeRead(g, opt) {
+        opt = opt || {};
+        var over = Math.max(0, Math.min(1, opt.over || 0));
+        var angle = swipeAngle(g.low, g.cross);
+        var line = swipeOff(angle, over, opt.feel);
+        var times = swipeTimes(g.pts, g.y0, g.low.y, g.cross.t);
+        var tempo = swipeTempo(times, opt.timing);
+        var bow = swipeBow(g.through, g.low, g.cross);
+        var shape = opt.shapes ? swipeShape(bow, opt.shapes) : null;
+        // Rushing comes over the top and pulls it; quitting on it blocks it
+        // right. On top of whatever the line already did.
+        var off = Math.max(-1, Math.min(1, line + tempo.amount * C.SWIPE.TIMING.LINE));
+        var weight = 1 - Math.max(0, tempo.amount) * C.SWIPE.TIMING.POWER_LOSS;
+        return {
+            angle: angle, line: line, times: times, tempo: tempo, timing: opt.timing || 'off',
+            bow: bow, shape: shape, off: off, weight: weight, over: over, feel: opt.feel,
+            perfect: off === 0 && tempo.amount === 0 && (!shape || shape.cook === 0)
+        };
+    }
+
+    /* The read as a gate, the shape `apply` and `shape` read. Inside a full
+       swing the meter's gate never arms and the spray there is nothing —
+       right for a shot stopped on the line, wrong for one swiped: a crooked
+       swipe has to cost *something* or the straightness is decoration. So
+       the envelope has a floor (the feel's FLOOR), and it is still the old
+       spray curve, so a thrash costs what it always did. */
+    function swiped(over, off, feel) {
         var o = Math.max(0, Math.min(1, over || 0));
         off = Math.max(-1, Math.min(1, off || 0));
-        return { over: Math.max(C.SWIPE.FLOOR, o), off: off, done: true,
+        return { over: Math.max(feelOf(feel).FLOOR, o), off: off, done: true,
                  struck: true, perfect: off === 0, swipe: true };
+    }
+
+    function swipeGate(read) {
+        var g = swiped(read.over, read.off, read.feel);
+        g.perfect = read.perfect;
+        g.weight = read.weight;
+        if (read.shape) { g.shapeName = read.shape.name; g.shapeOff = read.shape.off; }
+        g.read = read;
+        return g;
+    }
+
+    /* Why it went where it went, one line per thing that was read: what it
+       was, what it said, and whether that was good. game.js prints it on the
+       card after the shot, beside a drawing of the swipe. */
+    function swipeReport(read, power) {
+        var out = [], deg = Math.round(Math.abs(read.angle) * 180 / Math.PI);
+        var side = read.angle > 0 ? 'right' : 'left';
+        out.push(read.line === 0
+            ? { what: 'Line', says: deg ? 'straight enough (' + deg + '° ' + side + ')' : 'dead straight', tier: 'good' }
+            : { what: 'Line', says: deg + '° ' + side + ' — ' + (read.angle > 0 ? 'pushed right' : 'pulled left'),
+                tier: Math.abs(read.line) < 0.5 ? 'meh' : 'bad' });
+        var t = read.tempo, tm = read.times;
+        if (read.timing === 'rhythm' && t.said) {
+            var r = t.ratio;
+            out.push(t.said === 'clean'
+                ? { what: 'Tempo', says: 'even — up as smooth as down', tier: 'good' }
+                : t.said === 'rushed'
+                    ? { what: 'Tempo', says: 'rushed — up ' + r.toFixed(1) + '× faster than down', tier: t.amount > -0.5 ? 'meh' : 'bad' }
+                    : { what: 'Tempo', says: 'lazy — up ' + (1 / r).toFixed(1) + '× slower than down', tier: t.amount < 0.5 ? 'meh' : 'bad' });
+        } else if (read.timing === 'snap' && t.said) {
+            var ms = Math.round(tm.through * 1000);
+            out.push(t.said === 'clean'
+                ? { what: 'Speed', says: 'crisp — ' + ms + ' ms through', tier: 'good' }
+                : t.said === 'rushed'
+                    ? { what: 'Speed', says: 'snatched — ' + ms + ' ms, too quick', tier: t.amount > -0.5 ? 'meh' : 'bad' }
+                    : { what: 'Speed', says: 'quit on it — ' + ms + ' ms, too slow for that pull', tier: t.amount < 0.5 ? 'meh' : 'bad' });
+        }
+        if (read.shape) {
+            var nm = read.shape.name === 'draw' ? 'Draw' : 'Fade';
+            out.push(read.shape.cook === 0
+                ? { what: 'Shape', says: nm.toLowerCase() + ' — just the right bend', tier: 'good' }
+                : read.shape.cook > 0
+                    ? { what: 'Shape', says: nm.toLowerCase() + ' — too much bend, ' + (nm === 'Draw' ? 'it will hook' : 'it will slice'), tier: 'meh' }
+                    : { what: 'Shape', says: nm.toLowerCase() + ' — not enough bend', tier: 'meh' });
+        }
+        if (power) {
+            var pc = Math.round(power.frac * 100);
+            var lost = Math.round((1 - read.weight) * 100);
+            out.push({ what: 'Power', says: pc + '% of a full swing' + (lost ? ', ' + lost + '% lost quitting on it' : ''),
+                       tier: lost ? 'meh' : pc > 100 ? 'hot' : 'good' });
+        }
+        return out;
     }
 
     /* ── the arcade arc ────────────────────────────────────────────────────
@@ -466,6 +626,13 @@
         swipeAngle: swipeAngle,
         swipeTol: swipeTol,
         swipeOff: swipeOff,
+        swipeTimes: swipeTimes,
+        swipeTempo: swipeTempo,
+        swipeBow: swipeBow,
+        swipeShape: swipeShape,
+        swipeRead: swipeRead,
+        swipeGate: swipeGate,
+        swipeReport: swipeReport,
         swiped: swiped,
         overOfFrac: overOfFrac,
         arcWin: arcWin,

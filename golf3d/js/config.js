@@ -8,7 +8,7 @@
    — the renderer scales to the viewport, the simulation never sees a pixel. */
 window.G3 = window.G3 || {};
 
-G3.VERSION = '1.105.0';
+G3.VERSION = '1.106.0';
 
 G3.CONFIG = {
     BALL_R: 0.16,
@@ -221,18 +221,44 @@ G3.CONFIG = {
         SPIN: 5.5
     },
 
-    /* The touch swing (swing.js `swipe…`). TOL_* is how far off straight up
-       the through-swing may lean and still be clean, at a full swing and at
-       the end of the overdraw; SPAN is how much further past that counts as
-       a total miss. FLOOR is the least overdraw a swipe's miss is costed at,
-       so a crooked swipe inside a full swing still goes somewhere (see
-       `swiped`). TURN_PX is how far the thumb has to come back up before the
-       backswing counts as over, so a wobble at the bottom is not a swing. */
+    /* The touch swing (swing.js `swipe…`), whose settings are on trial —
+       the player picks them in the Swing panel (game.js), and DEFAULT is what
+       a player who has not is given.
+
+       FEEL is how hard the line is judged. TOL is how far off straight up
+       the swipe may lean and still be clean, at a full swing (it narrows by
+       TIGHTEN of itself towards the end of the overdraw); SPAN is how much
+       further past that is a total miss; FLOOR is the least overdraw a miss
+       is costed at, so a crooked swipe inside a full swing still goes
+       somewhere. Easy is the swipe as it first shipped.
+
+       TIMING is read in doublings either side of the ideal. 'rhythm' wants
+       the swipe up at IDEAL times the pace of the pull down (1: the same);
+       'snap' wants the swipe up to take TARGET seconds however long the pull
+       was. TOL doublings are clean, SPAN more is the worst. LINE is how much
+       of a timing miss goes on the line (rushed pulls, lazy pushes), and
+       POWER_LOSS how much distance a fully lazy swing gives away.
+
+       BOW is the shaped swipe, as a fraction of the swipe's length: under MIN
+       is a straight swing, IDEAL is a clean shape, TOL either side of it still
+       is, and SPAN past that over- or under-cooks it fully. TURN_PX is how far
+       the thumb has to come back up before the backswing counts as over, so a
+       wobble at the bottom is not a swing. */
     SWIPE: {
-        TOL_MAX: 8 * Math.PI / 180,
-        TOL_MIN: 3.5 * Math.PI / 180,
-        SPAN: 18 * Math.PI / 180,
-        FLOOR: 0.75,
+        DEFAULT: { feel: 'normal', timing: 'snap', shapes: 'on', where: 'all' },
+        FEEL: {
+            easy:   { TOL: 8 * Math.PI / 180,   SPAN: 18 * Math.PI / 180, FLOOR: 0.75 },
+            normal: { TOL: 3.5 * Math.PI / 180, SPAN: 11 * Math.PI / 180, FLOOR: 0.9 },
+            hard:   { TOL: 1.8 * Math.PI / 180, SPAN: 7 * Math.PI / 180,  FLOOR: 1 }
+        },
+        TIGHTEN: 0.45,
+        TIMING: {
+            rhythm: { IDEAL: 1, TOL: 0.6, SPAN: 1.6 },
+            snap:   { TARGET: 0.22, TOL: 0.55, SPAN: 1.4 },
+            LINE: 0.6,
+            POWER_LOSS: 0.3
+        },
+        BOW: { MIN: 0.09, IDEAL: 0.18, TOL: 0.06, SPAN: 0.14 },
         TURN_PX: 14
     },
 
@@ -704,6 +730,8 @@ G3.CONFIG = {
        it on keeps it. */
     STYLE_KEY: 'loftLinks.swingStyle',
     SWIPE_KEY: 'loftLinks.touchSwing',
+    // The swing panel's settings (feel, timing, shapes, where), as JSON.
+    TUNE_KEY: 'loftLinks.swingTune',
     /* Pass-and-play: how many are sharing the device, 1 to 4 (game.js →
        "pass and play"), and the ball each of them plays. White is player one's
        because it is the ball everybody already has; the other three are a

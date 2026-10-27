@@ -3424,7 +3424,7 @@
         section('The touch swing');
         (function () {
             var SW = G3.swing;
-            var S = C.SWIPE;
+            var S = C.SWIPE, F = S.FEEL;
             // A through-swing from (0, 200) up to the start line at y = 0,
             // finishing `dx` pixels to the side.
             function angle(dx) { return SW.swipeAngle({ x: 0, y: 200 }, { x: dx, y: 0 }); }
@@ -3443,37 +3443,123 @@
             assert('a swipe that never came back up reads as straight, not as NaN',
                 SW.swipeAngle({ x: 0, y: 0 }, { x: 10, y: 0 }) === 0);
 
-            assert('a slightly crooked swipe is still clean',
-                SW.swipeOff(S.TOL_MAX * 0.9, 0) === 0);
-            assert('the tolerance narrows the further the meter was pulled',
-                SW.swipeTol(0) > SW.swipeTol(0.5) && SW.swipeTol(0.5) > SW.swipeTol(1));
+            ['easy', 'normal', 'hard'].forEach(function (f) {
+                assert(f + ': a slightly crooked swipe is still clean',
+                    SW.swipeOff(F[f].TOL * 0.9, 0, f) === 0);
+                assert(f + ': the tolerance narrows the further the meter was pulled',
+                    SW.swipeTol(0, f) > SW.swipeTol(0.5, f) && SW.swipeTol(0.5, f) > SW.swipeTol(1, f));
+            });
+            assert('the feels get stricter in order, on the lean and on the cost',
+                F.easy.TOL > F.normal.TOL && F.normal.TOL > F.hard.TOL &&
+                F.easy.SPAN > F.normal.SPAN && F.normal.SPAN > F.hard.SPAN &&
+                F.easy.FLOOR <= F.normal.FLOOR && F.normal.FLOOR <= F.hard.FLOOR);
+            assert('the same 6° lean is clean on easy and a miss on normal',
+                SW.swipeOff(6 * Math.PI / 180, 0, 'easy') === 0 && SW.swipeOff(6 * Math.PI / 180, 0, 'normal') > 0);
             assert('past it the miss grows, and stops at a total one',
-                SW.swipeOff(S.TOL_MAX + S.SPAN * 0.5, 0) > 0 &&
-                approx(SW.swipeOff(S.TOL_MAX + S.SPAN * 0.5, 0), 0.5) &&
-                SW.swipeOff(Math.PI / 2, 0) === 1 && SW.swipeOff(-Math.PI / 2, 0) === -1);
+                approx(SW.swipeOff(F.normal.TOL + F.normal.SPAN * 0.5, 0, 'normal'), 0.5) &&
+                SW.swipeOff(Math.PI / 2, 0, 'normal') === 1 && SW.swipeOff(-Math.PI / 2, 0, 'normal') === -1);
+            assert('an unknown feel falls back to the default rather than throwing',
+                SW.swipeTol(0, 'bogus') === SW.swipeTol(0, S.DEFAULT.feel));
 
             /* The direction is the point: a swipe that drifts right sends the
                ball right. +yaw is left on screen, so right is a smaller yaw. */
             (function () {
-                var right = SW.apply({ yaw: 0, power: 20 }, SW.swiped(0, SW.swipeOff(angle(80), 0)));
-                var left = SW.apply({ yaw: 0, power: 20 }, SW.swiped(0, SW.swipeOff(angle(-80), 0)));
+                var right = SW.apply({ yaw: 0, power: 20 }, SW.swiped(0, SW.swipeOff(angle(80), 0, 'normal'), 'normal'));
+                var left = SW.apply({ yaw: 0, power: 20 }, SW.swiped(0, SW.swipeOff(angle(-80), 0, 'normal'), 'normal'));
                 assert('a swipe drifting right pushes the ball right, and fades it',
                     right.yaw < 0 && right.spin < 0);
                 assert('one drifting left pulls it left, and draws it',
                     left.yaw > 0 && left.spin > 0);
-                var clean = SW.apply({ yaw: 0.3, power: 20 }, SW.swiped(0.5, 0));
+                var clean = SW.apply({ yaw: 0.3, power: 20 }, SW.swiped(0.5, 0, 'normal'));
                 assert('a straight one hands the shot back untouched',
                     clean.yaw === 0.3 && clean.power === 20 && clean.spin === 0);
             })();
-
-            /* Inside a full swing the spray is nothing, so without a floor a
-               crooked swipe would cost nothing and the straightness would be
-               decoration. */
             assert('a crooked swipe inside a full swing still goes somewhere',
-                SW.apply({ yaw: 0, power: 20 }, SW.swiped(0, 1)).yaw !== 0);
+                SW.apply({ yaw: 0, power: 20 }, SW.swiped(0, 1, 'easy')).yaw !== 0);
+            assert('and hurts more on hard than on easy',
+                Math.abs(SW.apply({ yaw: 0, power: 20 }, SW.swiped(0, 1, 'hard')).yaw) >
+                Math.abs(SW.apply({ yaw: 0, power: 20 }, SW.swiped(0, 1, 'easy')).yaw));
             assert('and nothing a swipe does reaches past the spray at a full thrash',
-                Math.abs(SW.apply({ yaw: 0, power: 20 }, SW.swiped(1, -1)).yaw) <= P.spray(1).yaw + 1e-9);
-            assert('a swiped gate is a struck one', SW.swiped(0.2, 0.4).struck && SW.swiped(0.2, 0).perfect);
+                Math.abs(SW.apply({ yaw: 0, power: 20 }, SW.swiped(1, -1, 'hard')).yaw) <= P.spray(1).yaw + 1e-9);
+
+            /* A whole gesture: pulled straight down 200 px over `back` seconds,
+               then swiped up over `through`, bowing `bow` px at its middle and
+               finishing `dx` to the side. Times in seconds. */
+            function gesture(back, through, bow, dx) {
+                var pts = [], up = [], i;
+                for (i = 0; i <= 20; i++) pts.push([0, 10 * i, back * i / 20]);
+                for (i = 1; i <= 20; i++) {
+                    var f = i / 20, x = Math.sin(Math.PI * f) * (bow || 0) + f * (dx || 0), y = 200 - 200 * f;
+                    pts.push([x, y, back + through * f]);
+                    up.push([x, y]);
+                }
+                return { pts: pts, x0: 0, y0: 0, low: { x: 0, y: 200, t: back },
+                         cross: { x: dx || 0, y: 0, t: back + through }, through: [[0, 200]].concat(up) };
+            }
+            function read(g, timing, shapes, feel) {
+                return SW.swipeRead(g, { over: 0, feel: feel || 'normal', timing: timing, shapes: shapes });
+            }
+
+            var t = SW.swipeTimes(gesture(0.4, 0.2).pts, 0, 200, 0.6);
+            assert('the two halves are timed', approx(t.back, 0.4, 0.03) && approx(t.through, 0.2, 0.03),
+                t.back.toFixed(3) + ' / ' + t.through.toFixed(3));
+            (function () {
+                var g = gesture(0.4, 0.2);
+                // Hold at the bottom for a second before swiping.
+                g.pts.splice(21, 0, [0, 200, 0.9]);
+                g.pts.slice(22).forEach(function (p) { p[2] += 1; });
+                g.cross.t += 1;
+                var h = SW.swipeTimes(g.pts, 0, 200, g.cross.t);
+                assert('a pause at the bottom is not counted as a slow swing',
+                    approx(h.through, 0.2, 0.05), h.through.toFixed(3));
+            })();
+
+            var even = read(gesture(0.3, 0.3), 'rhythm'), rushed = read(gesture(0.6, 0.12), 'rhythm'),
+                lazy = read(gesture(0.15, 0.6), 'rhythm');
+            assert('rhythm: up at the pace of down is clean', even.tempo.said === 'clean' && even.perfect);
+            assert('rhythm: much faster up is rushed, and pulls', rushed.tempo.said === 'rushed' && rushed.off < 0);
+            assert('rhythm: much slower up is lazy, pushes, and costs distance',
+                lazy.tempo.said === 'lazy' && lazy.off > 0 && lazy.weight < 1);
+            var crisp = read(gesture(0.5, S.TIMING.snap.TARGET), 'snap'),
+                snatched = read(gesture(0.5, 0.05), 'snap'), quit = read(gesture(0.5, 0.9), 'snap');
+            assert('snap: the target time through is clean, however long the pull took',
+                crisp.tempo.said === 'clean' && read(gesture(2, S.TIMING.snap.TARGET), 'snap').tempo.said === 'clean');
+            assert('snap: far too quick is snatched, far too slow quit on',
+                snatched.tempo.said === 'rushed' && quit.tempo.said === 'lazy' && quit.weight < 1);
+            assert('with timing off only the line counts',
+                read(gesture(0.1, 0.9), 'off').perfect && read(gesture(0.1, 0.9), 'off').weight === 1);
+            assert('and a crooked swipe is not perfect whatever its timing',
+                !read(gesture(0.3, 0.3, 0, 60), 'rhythm').perfect);
+
+            // The bow: drawn shapes.
+            assert('a straight swipe has no bow', approx(SW.swipeBow(gesture(0.3, 0.3).through, { x: 0, y: 200 }, { x: 0, y: 0 }), 0, 1e-9));
+            var bowR = SW.swipeBow(gesture(0.3, 0.3, 36).through, { x: 0, y: 200 }, { x: 0, y: 0 });
+            assert('a bow to the right reads positive, as a fraction of the swipe', approx(bowR, 0.18, 0.01), bowR.toFixed(3));
+            var both = ['draw', 'fade'];
+            assert('a clean bow right is a clean draw', (function () {
+                var r = read(gesture(0.3, S.TIMING.snap.TARGET, 200 * S.BOW.IDEAL), 'snap', both);
+                return r.shape && r.shape.name === 'draw' && r.shape.cook === 0 && r.perfect;
+            })());
+            assert('a bow left is a fade', read(gesture(0.3, 0.3, -200 * S.BOW.IDEAL), 'off', both).shape.name === 'fade');
+            assert('a wobble under the threshold is no shape at all',
+                read(gesture(0.3, 0.3, 200 * S.BOW.MIN * 0.5), 'off', both).shape === null);
+            assert('too much bend over-cooks it, the way shape() reads an over-cooked draw (early)',
+                read(gesture(0.3, 0.3, 200 * (S.BOW.IDEAL + S.BOW.TOL + S.BOW.SPAN)), 'off', both).shape.off === -1);
+            assert('a club that cannot draw does not, however it is swiped',
+                read(gesture(0.3, 0.3, 36), 'off', ['fade']).shape === null);
+            assert('with shapes off, a bow is no shape', read(gesture(0.3, 0.3, 36), 'off', null).shape === null);
+
+            // The gate it makes, and the card it writes.
+            var gate = SW.swipeGate(read(gesture(0.3, 0.3, 36), 'off', both));
+            assert('a swiped shape travels with its gate', gate.shapeName === 'draw' && gate.shapeOff === 0 && gate.swipe);
+            assert('a lazy swing carries its lost distance', SW.swipeGate(lazy).weight === lazy.weight);
+            var rep = SW.swipeReport(lazy, { frac: 0.8 });
+            assert('the card names the line, the tempo and the power',
+                rep.length === 3 && rep[0].what === 'Line' && rep[1].what === 'Tempo' && rep[2].what === 'Power', JSON.stringify(rep));
+            assert('and says what was wrong with the tempo', /lazy/.test(rep[1].says) && rep[1].tier !== 'good');
+            assert('and what it cost', /lost/.test(rep[2].says));
+            var drawn = SW.swipeReport(read(gesture(0.3, 0.3, 36, 30), 'off', both));
+            assert('a crooked shaped swipe reports the line and the shape', drawn[0].tier !== 'good' && drawn[1].what === 'Shape');
         })();
 
         section('The arcade arc');
