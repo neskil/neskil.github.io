@@ -395,7 +395,7 @@ the picker.
 
 - **A more fun swing — the touch swing is the favourite, being tuned.**
   v1.104.0 offered four styles; the owner found the touch swing the most fun
-  and too easy. v1.105.0 made it judge the line harder, read timing (rhythm or
+  and too easy. v1.106.0 made it judge the line harder, read timing (rhythm or
   snap) and drawn shapes, explain every shot on a card, and play on every
   course — each as a setting in the Swing panel (README → "Swing styles").
   Waiting on the owner's verdict on which settings are fun, to make them the
