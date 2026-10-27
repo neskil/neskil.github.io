@@ -8,7 +8,7 @@
    — the renderer scales to the viewport, the simulation never sees a pixel. */
 window.G3 = window.G3 || {};
 
-G3.VERSION = '1.106.0';
+G3.VERSION = '1.107.0';
 
 G3.CONFIG = {
     BALL_R: 0.16,
@@ -259,6 +259,19 @@ G3.CONFIG = {
             POWER_LOSS: 0.3
         },
         BOW: { MIN: 0.09, IDEAL: 0.18, TOL: 0.06, SPAN: 0.14 },
+        /* A scribble rather than a swing (swing.js `swipeMess`, `swipeJunk`):
+           a path more than RATIO times as long as a clean pull-and-swipe of
+           the same depth (plus SLACK px), or more than TURNS changes between
+           down and up (a swing is one; HYST px is how far back counts as a
+           change, STEP px the least move counted at all). It comes off as a
+           duff DUFF of the time — DUFF_POWER of the shot, DUFF_YAW either
+           side — and otherwise a shank: SHANK_POWER of it, SHANK_YAW off the
+           line, to the right SHANK_RIGHT of the time. */
+        JUNK: {
+            RATIO: 1.5, SLACK: 40, TURNS: 4, HYST: 18, STEP: 6,
+            DUFF: 0.5, DUFF_POWER: [0.12, 0.25], DUFF_YAW: 6 * Math.PI / 180,
+            SHANK_POWER: [0.15, 0.3], SHANK_YAW: [35 * Math.PI / 180, 65 * Math.PI / 180], SHANK_RIGHT: 0.75
+        },
         TURN_PX: 14
     },
 

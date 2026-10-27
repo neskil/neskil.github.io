@@ -382,6 +382,58 @@
         return { name: name, off: name === 'draw' ? -cook : cook, cook: cook };
     }
 
+    /* Was it a swing at all? A scribble — loops, zig-zags, a thumb playing
+       with the screen — is not a crooked swing to be graded, it is a junk
+       one, and golf has a word for each of the two ways it comes off: a duff
+       (dribbled a few feet) or a shank (squirted off sideways). Either way the
+       stroke counts and the ball goes nowhere much, which is the point — it
+       costs a stroke to play about, not a hole.
+
+       Read from the whole gesture: how much longer its path was than a pull
+       and a swipe of the same depth would be (`ratio`, with JUNK.SLACK px of
+       forgiveness so jitter on a short putt is not a scribble), and how many
+       times it changed between going down and going up (`turns`; a swing is
+       one). Samples closer than JUNK.STEP px to the last one kept are skipped
+       first, so the shake in a thumb does not add up to a path. */
+    function swipeMess(pts, y0, depth) {
+        var J = C.SWIPE.JUNK;
+        if (!pts || pts.length < 2) return { ratio: 0, turns: 0, junk: false };
+        var last = pts[0], len = 0, turns = 0, dir = 0, ext = pts[0][1];
+        for (var i = 1; i < pts.length; i++) {
+            var p = pts[i], dx = p[0] - last[0], dy = p[1] - last[1];
+            var d = Math.sqrt(dx * dx + dy * dy);
+            if (d < J.STEP) continue;
+            len += d;
+            last = p;
+            if (dir >= 0) {
+                if (p[1] >= ext) { ext = p[1]; dir = 1; }
+                else if (dir === 1 && ext - p[1] > J.HYST) { turns++; dir = -1; ext = p[1]; }
+            } else {
+                if (p[1] <= ext) ext = p[1];
+                else if (p[1] - ext > J.HYST) { turns++; dir = 1; ext = p[1]; }
+            }
+        }
+        var ratio = len / (2 * Math.max(0, depth || 0) + J.SLACK);
+        return { ratio: ratio, turns: turns, junk: ratio > J.RATIO || turns > J.TURNS };
+    }
+
+    /* What a junk swing does: the one place in the swing that is a dice roll,
+       on purpose — a scribble has no line to read, so there is nothing to be
+       fair about. A duff goes about straight and barely moves; a shank leaves
+       at a right angle-ish, usually to the right, and not far either. Never
+       less than the least the physics will launch, or the stroke would not
+       count at all. `rand` defaults to Math.random; the tests hand in one. */
+    function swipeJunk(rand) {
+        var r = rand || Math.random, J = C.SWIPE.JUNK;
+        if (r() < J.DUFF) {
+            return { kind: 'duff', power: J.DUFF_POWER[0] + (J.DUFF_POWER[1] - J.DUFF_POWER[0]) * r(),
+                     yaw: (r() * 2 - 1) * J.DUFF_YAW };
+        }
+        var side = r() < J.SHANK_RIGHT ? -1 : 1;           // +yaw is left
+        return { kind: 'shank', power: J.SHANK_POWER[0] + (J.SHANK_POWER[1] - J.SHANK_POWER[0]) * r(),
+                 yaw: side * (J.SHANK_YAW[0] + (J.SHANK_YAW[1] - J.SHANK_YAW[0]) * r()) };
+    }
+
     /* Everything a swipe says, from the gesture's samples. `g` is
          { pts: [[x, y, t]…] the whole gesture, x0, y0 where it started,
            low: { x, y } the bottom of the pull, cross: { x, y, t } the strike,
@@ -401,10 +453,12 @@
         // right. On top of whatever the line already did.
         var off = Math.max(-1, Math.min(1, line + tempo.amount * C.SWIPE.TIMING.LINE));
         var weight = 1 - Math.max(0, tempo.amount) * C.SWIPE.TIMING.POWER_LOSS;
+        var mess = swipeMess(g.pts, g.y0, g.low.y - g.y0);
         return {
             angle: angle, line: line, times: times, tempo: tempo, timing: opt.timing || 'off',
-            bow: bow, shape: shape, off: off, weight: weight, over: over, feel: opt.feel,
-            perfect: off === 0 && tempo.amount === 0 && (!shape || shape.cook === 0)
+            bow: bow, shape: mess.junk ? null : shape, off: off, weight: weight, over: over, feel: opt.feel,
+            mess: mess, junk: mess.junk ? swipeJunk(opt.rand) : null,
+            perfect: !mess.junk && off === 0 && tempo.amount === 0 && (!shape || shape.cook === 0)
         };
     }
 
@@ -425,49 +479,58 @@
         var g = swiped(read.over, read.off, read.feel);
         g.perfect = read.perfect;
         g.weight = read.weight;
+        if (read.junk) { g.junk = read.junk; g.perfect = false; return (g.read = read, g); }
         if (read.shape) { g.shapeName = read.shape.name; g.shapeOff = read.shape.off; }
         g.read = read;
         return g;
     }
 
-    /* Why it went where it went, one line per thing that was read: what it
-       was, what it said, and whether that was good. game.js prints it on the
-       card after the shot, beside a drawing of the swipe. */
+    /* Why it went where it went, one short line per thing that was read:
+       what it was, what it said, and whether that was good. game.js prints it
+       on a small card after the shot, beside a drawing of the swipe — short,
+       because the card sits over the course the ball is flying across. */
     function swipeReport(read, power) {
-        var out = [], deg = Math.round(Math.abs(read.angle) * 180 / Math.PI);
+        var out = [];
+        if (read.junk) {
+            out.push({ what: 'Swing', says: 'a scribble, not a swing — ' +
+                (read.junk.kind === 'duff' ? 'duffed' : 'shanked'), tier: 'bad' });
+            out.push({ what: 'Path', says: read.mess.ratio.toFixed(1) + '× a clean swing\'s', tier: 'bad' });
+            return out;
+        }
+        var deg = Math.round(Math.abs(read.angle) * 180 / Math.PI);
         var side = read.angle > 0 ? 'right' : 'left';
         out.push(read.line === 0
-            ? { what: 'Line', says: deg ? 'straight enough (' + deg + '° ' + side + ')' : 'dead straight', tier: 'good' }
-            : { what: 'Line', says: deg + '° ' + side + ' — ' + (read.angle > 0 ? 'pushed right' : 'pulled left'),
+            ? { what: 'Line', says: deg ? 'straight (' + deg + '° ' + side + ')' : 'dead straight', tier: 'good' }
+            : { what: 'Line', says: deg + '° ' + side + ' — ' + (read.angle > 0 ? 'pushed' : 'pulled'),
                 tier: Math.abs(read.line) < 0.5 ? 'meh' : 'bad' });
         var t = read.tempo, tm = read.times;
         if (read.timing === 'rhythm' && t.said) {
             var r = t.ratio;
             out.push(t.said === 'clean'
-                ? { what: 'Tempo', says: 'even — up as smooth as down', tier: 'good' }
+                ? { what: 'Tempo', says: 'even', tier: 'good' }
                 : t.said === 'rushed'
-                    ? { what: 'Tempo', says: 'rushed — up ' + r.toFixed(1) + '× faster than down', tier: t.amount > -0.5 ? 'meh' : 'bad' }
-                    : { what: 'Tempo', says: 'lazy — up ' + (1 / r).toFixed(1) + '× slower than down', tier: t.amount < 0.5 ? 'meh' : 'bad' });
+                    ? { what: 'Tempo', says: 'rushed — up ' + r.toFixed(1) + '× quicker', tier: t.amount > -0.5 ? 'meh' : 'bad' }
+                    : { what: 'Tempo', says: 'lazy — up ' + (1 / r).toFixed(1) + '× slower', tier: t.amount < 0.5 ? 'meh' : 'bad' });
         } else if (read.timing === 'snap' && t.said) {
-            var ms = Math.round(tm.through * 1000);
+            var ms = Math.round(tm.through * 1000) + ' ms';
             out.push(t.said === 'clean'
-                ? { what: 'Speed', says: 'crisp — ' + ms + ' ms through', tier: 'good' }
+                ? { what: 'Speed', says: 'crisp, ' + ms, tier: 'good' }
                 : t.said === 'rushed'
-                    ? { what: 'Speed', says: 'snatched — ' + ms + ' ms, too quick', tier: t.amount > -0.5 ? 'meh' : 'bad' }
-                    : { what: 'Speed', says: 'quit on it — ' + ms + ' ms, too slow for that pull', tier: t.amount < 0.5 ? 'meh' : 'bad' });
+                    ? { what: 'Speed', says: 'snatched, ' + ms, tier: t.amount > -0.5 ? 'meh' : 'bad' }
+                    : { what: 'Speed', says: 'quit on it, ' + ms, tier: t.amount < 0.5 ? 'meh' : 'bad' });
         }
         if (read.shape) {
-            var nm = read.shape.name === 'draw' ? 'Draw' : 'Fade';
+            var nm = read.shape.name;
             out.push(read.shape.cook === 0
-                ? { what: 'Shape', says: nm.toLowerCase() + ' — just the right bend', tier: 'good' }
+                ? { what: 'Shape', says: nm + ' — clean', tier: 'good' }
                 : read.shape.cook > 0
-                    ? { what: 'Shape', says: nm.toLowerCase() + ' — too much bend, ' + (nm === 'Draw' ? 'it will hook' : 'it will slice'), tier: 'meh' }
-                    : { what: 'Shape', says: nm.toLowerCase() + ' — not enough bend', tier: 'meh' });
+                    ? { what: 'Shape', says: nm + ' — too much, ' + (nm === 'draw' ? 'hooks' : 'slices'), tier: 'meh' }
+                    : { what: 'Shape', says: nm + ' — too little', tier: 'meh' });
         }
         if (power) {
             var pc = Math.round(power.frac * 100);
             var lost = Math.round((1 - read.weight) * 100);
-            out.push({ what: 'Power', says: pc + '% of a full swing' + (lost ? ', ' + lost + '% lost quitting on it' : ''),
+            out.push({ what: 'Power', says: pc + '%' + (lost ? ', −' + lost + '% lazy' : ''),
                        tier: lost ? 'meh' : pc > 100 ? 'hot' : 'good' });
         }
         return out;
@@ -600,12 +663,13 @@
     function grade(g) {
         if (!g) return null;
         if (!g.struck) return { word: 'Whiff', tier: 'bad' };
+        if (g.junk) return { word: g.junk.kind === 'duff' ? 'Duffed' : 'Shanked', tier: 'bad' };
         if (g.perfect) return { word: 'Perfect', tier: 'perfect' };
         var a = Math.abs(g.off);
         if (a < 0.2) return { word: 'Great', tier: 'great' };
         if (a < 0.45) return { word: 'Good', tier: 'good' };
         if (a < 0.75) return { word: g.off < 0 ? 'Pulled' : 'Pushed', tier: 'off' };
-        return { word: 'Shanked', tier: 'bad' };
+        return { word: 'Sprayed', tier: 'bad' };
     }
 
     G3.swing = {
@@ -630,6 +694,8 @@
         swipeTempo: swipeTempo,
         swipeBow: swipeBow,
         swipeShape: swipeShape,
+        swipeMess: swipeMess,
+        swipeJunk: swipeJunk,
         swipeRead: swipeRead,
         swipeGate: swipeGate,
         swipeReport: swipeReport,
