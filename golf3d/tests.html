@@ -720,9 +720,13 @@
                far side and it must not be lost. It comes back off the face
                with a good deal of pace and hops away low, so the ground runs
                on behind the tee: a ball that rolls off the back of an
-               eight-unit pad is out for an ordinary reason, not this one. */
+               eight-unit pad is out for an ordinary reason, not this one. And
+               it is struck topped: a lifted drive climbs over the step, which
+               is a different shot from the one this is about. */
             var faced = lab({ pads: [A.pad(0, -4, 10, 12, 0), A.pad(0, 8, 10, 12, 1.5)] });
-            var flown = shootFrom(faced, { x: 5, z: 2 }, 0, 20, 0.12);
+            var flown = P.createWorld(faced, { x: 5, z: 2 }, 0);
+            P.launch(flown, 0, 20, 0.12, 0, true);
+            P.settle(flown, C.MAX_SHOT_SECONDS);
             assert('a ball flown into the face of a step does not pass through it',
                 !flown.out && flown.ball.z < 8.2,
                 (flown.out ? 'lost' : 'z = ' + flown.ball.z.toFixed(2)));
@@ -3723,9 +3727,9 @@
             // and where it stops. x is left of the line, because +yaw is left.
             function fly(cl, frac, name, off) {
                 var shot = { yaw: 0, power: cl.power * frac, spin: 0 };
-                var s = SW.shape(shot, name, cl.loft, cl.bite, P.gravityOf(field), off);
+                var s = SW.shape(shot, name, cl.loft, cl.bite, P.gravityOf(field), off, field);
                 var w = P.createWorld(field, from, 0), lo = 0, hi = 0, top = 0, i;
-                P.launch(w, s.yaw, s.power, s.loft, s.bite);
+                P.launch(w, s.yaw, s.power, s.loft, s.bite, s.topped);
                 w.spin = s.spin;
                 for (i = 0; i < 2000 && !w.firstLand; i++) {
                     P.advance(w, C.SIM_DT, {});
@@ -3808,13 +3812,41 @@
                     under.top > tp.top * 1.3);
             });
 
+            /* The flight itself (CONFIG.AIR_*): a long club's launch is lifted
+               and the lift wears off, so a drive tops out past halfway and
+               comes down steeper than it went up. A pitch is still a plain
+               arc, and a topped drive gets no lift at all. */
+            (function () {
+                function arc(cl, topped) {
+                    var w = P.createWorld(field, from, 0), top = 0, topZ = 0, vy = 0, vz = 0, t = 0, i;
+                    P.launch(w, 0, cl.power, cl.loft, 0, topped);
+                    for (i = 0; i < 4000 && !w.firstLand; i++) {
+                        vy = w.ball.vy; vz = w.ball.vz;
+                        P.advance(w, C.SIM_DT, {});
+                        t += C.SIM_DT;
+                        if (w.ball.y > top) { top = w.ball.y; topZ = w.ball.z; }
+                    }
+                    return { at: topZ / w.firstLand.z, fall: Math.atan2(-vy, vz), top: top, t: t };
+                }
+                var dr = club('driver'), pw = club('chipper'), d = arc(dr), p = arc(pw), tp = arc(dr, true);
+                assert('a drive tops out past halfway', d.at > 0.53, (d.at * 100).toFixed(0) + '%');
+                assert('…and comes down steeper than it went up', d.fall > dr.loft * 1.6,
+                    (d.fall * 180 / Math.PI).toFixed(0) + '° against ' + (dr.loft * 180 / Math.PI).toFixed(0) + '°');
+                assert('…for as long as hangTime says', Math.abs(P.hangTime(field, dr.power, dr.loft) - d.t) < 0.03,
+                    P.hangTime(field, dr.power, dr.loft).toFixed(3) + ' against ' + d.t.toFixed(3));
+                assert('a pitch is still a plain arc', Math.abs(p.at - 0.5) < 0.02 && !P.flies(field, pw.loft),
+                    (p.at * 100).toFixed(1) + '%');
+                assert('a drive struck topped is not lifted', tp.top < d.top * 0.6 && Math.abs(tp.at - 0.5) < 0.02,
+                    tp.top.toFixed(2) + ' against ' + d.top.toFixed(2));
+            })();
+
             /* The preview is the shot: the same shape, previewed, lands where
                it is played. */
             (function () {
                 var cl = club('driver');
-                var s = SW.shape({ yaw: 0, power: cl.power, spin: 0 }, 'draw', cl.loft, cl.bite, P.gravityOf(field));
+                var s = SW.shape({ yaw: 0, power: cl.power, spin: 0 }, 'draw', cl.loft, cl.bite, P.gravityOf(field), 0, field);
                 var w = P.createWorld(field, from, 0);
-                var pts = P.previewPath(w, s.yaw, s.power, s.loft, 2, s.bite, s.spin);
+                var pts = P.previewPath(w, s.yaw, s.power, s.loft, 2, s.bite, s.spin, s.topped);
                 var end = pts[pts.length - 1], played = fly(cl, 1, 'draw');
                 assert('the preview of a draw lands where the draw does',
                     Math.hypot(end.x - played.landX, end.z - played.carry) < 0.2,

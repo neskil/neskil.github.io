@@ -439,8 +439,8 @@
         // strike delivered (swing.js `shape`) — picked on the ball, or drawn
         // with the swipe, which brings its own measure of how well it was.
         shot = SW.shape(shot, g && g.junk ? 'straight' : (g && g.shapeName) || shapeNow(), state.club.loft, state.club.bite,
-            P.gravityOf(state.world.hole), g ? (g.shapeOff !== undefined ? g.shapeOff : g.off) : 0);
-        if (!P.launch(state.world, shot.yaw, shot.power, shot.loft, shot.bite)) return;
+            P.gravityOf(state.world.hole), g ? (g.shapeOff !== undefined ? g.shapeOff : g.off) : 0, state.world.hole);
+        if (!P.launch(state.world, shot.yaw, shot.power, shot.loft, shot.bite, shot.topped)) return;
         // The range asks of every shot whether it went past the line (see
         // judgeRangeShot), and the gate is gone by the time it lands.
         state.shotOver = state.aim.power > state.club.power + 1e-9;
@@ -4776,7 +4776,7 @@
 
     /* ── loop ───────────────────────────────────────────────────────────── */
 
-    var intent = { show: false, yaw: 0, power: 0, loft: 0, bite: 0, over: 0, bend: 0, spin: 0 };
+    var intent = { show: false, yaw: 0, power: 0, loft: 0, bite: 0, over: 0, bend: 0, spin: 0, topped: false };
 
     // The bot's fixed roll, and the frame time left over from it.
     var SIM_STEP = 1 / 60;
@@ -4876,13 +4876,15 @@
         intent.loft = state.club.loft;
         intent.bite = state.club.bite || 0;
         intent.bend = intent.spin = 0;
+        intent.topped = false;
         if (shapeNow() !== 'straight') {
-            var fly = SW.shape(intent, shapeNow(), state.club.loft, state.club.bite, P.gravityOf(state.world.hole));
+            var fly = SW.shape(intent, shapeNow(), state.club.loft, state.club.bite, P.gravityOf(state.world.hole), 0, state.world.hole);
             intent.loft = fly.loft;
             intent.power = fly.power;
             intent.bite = fly.bite;
             intent.bend = fly.bend;
             intent.spin = fly.spin;
+            intent.topped = !!fly.topped;
         }
         // How far past a full swing this is, 0..1. The renderer opens the cone
         // by exactly the spread physics would apply — the club's ceiling is

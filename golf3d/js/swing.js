@@ -215,7 +215,7 @@
        if there was a gate. `off` is that gate's timing (−1 early … +1 late,
        0 clean); it decides how much of the shape arrives. Returns the shot to
        launch, plus `loft`, `bite`, and `bend` (how far off the aim it starts). */
-    function shape(shot, name, loft, bite, grav, off) {
+    function shape(shot, name, loft, bite, grav, off, hole) {
         var S = C.SHAPE;
         var out = { yaw: shot.yaw, power: shot.power, spin: shot.spin || 0,
                     loft: loft || 0, bite: bite || 0, bend: 0 };
@@ -230,11 +230,15 @@
             // Early digs it in harder still; late gets under it and it rises.
             var low = Math.max(0.05, Math.min(1, S.TOPPED_LOFT * (1 + off)));
             out.loft = out.loft * low;
+            out.topped = true;          // struck on the top: no backspin, no lift
             out.power *= S.TOPPED_POWER * (1 - Math.abs(off) * S.MISS_POWER);
             return out;
         }
         var dir = bendOf(name);
-        var t = 2 * out.power * Math.sin(out.loft) / (grav || C.GRAVITY);
+        // The time it is in the air to bend in: the long clubs' lifted flight
+        // hangs for longer than the arc's formula, and is flown to say so.
+        var t = hole && G3.physics ? G3.physics.hangTime(hole, out.power, out.loft)
+            : 2 * out.power * Math.sin(out.loft) / (grav || C.GRAVITY);
         if (!dir || !(t > 0)) return out;
         var spin = Math.min(S.SPIN_MAX, S.TURN / (C.SPIN_ACCEL * t));
         // The start line is set for the shape that was asked for; what the

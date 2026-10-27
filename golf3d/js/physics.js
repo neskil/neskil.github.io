@@ -1050,6 +1050,7 @@
             time: w.time,
             grounded: w.grounded,
             spin: w.spin || 0,
+            lift: w.lift || 0,
             slowFor: w.slowFor,
             moving: w.moving,
             sunk: w.sunk,
@@ -1076,7 +1077,65 @@
        loft and the same power. The simulation still does not hear the word
        "club": it is handed an angle, a speed and now a number for how much the
        first bounce costs. config.js decides which club supplies which. */
-    function launch(world, yaw, power, loft, bite) {
+    /* ── the long game's flight ─────────────────────────────────────────
+
+       A struck ball with backspin on it is lifted, square to the way it is
+       going, and the spin wears off as it flies (CONFIG.AIR_*). That is the
+       whole of the model and it is enough: lift does no work, so the ball
+       lands at the pace a plain arc would have given it, and the run after
+       it is the run the turf is tuned for — but it comes off the face low,
+       climbs, hangs past halfway and falls more steeply than it rose, which
+       is the shape a drive has and a parabola never does.
+
+       Only the long clubs' launches fly it (`flies`, CONFIG.AIR_LOFT): the
+       driver and the iron, wherever they are handed out. The pitch and the
+       wedge go up and come down steeply either way, and mini golf's chips
+       are built on the plain arc. `hole` is taken for the day a course wants
+       its own air; nothing reads it yet. */
+    function flies(hole, loft) {
+        return loft > 0 && loft <= C.AIR_LOFT;
+    }
+
+    function carryFlight(world, dt) {
+        var b = world.ball;
+        var h = Math.sqrt(b.vx * b.vx + b.vz * b.vz);
+        var lf = world.lift * dt;
+        // Square to the velocity in its own upright plane: (−vy·ĥ, |h|),
+        // scaled by the speed it already carries. Both components come off
+        // the velocity as it was.
+        if (h > 1e-4) {
+            var k = 1 - lf * b.vy / h;
+            b.vy += lf * h;
+            b.vx *= k;
+            b.vz *= k;
+        }
+        world.lift *= Math.exp(-C.AIR_DECAY * dt);
+    }
+
+    /* How long a full flight off flat ground lasts, for the swing's shapes
+       (swing.js), which bend a ball by the time it spends in the air. A
+       plain arc has a formula; a lifted one is flown, on the same step. */
+    function hangTime(hole, power, loft) {
+        var g = gravityOf(hole);
+        var vy = Math.sin(loft) * power, h = Math.cos(loft) * power;
+        if (!flies(hole, loft)) return 2 * vy / g;
+        var lift = C.AIR_LIFT, y = 0, t = 0, dt = C.SIM_DT / 4, lf, k;
+        while (t < 30) {
+            lf = lift * dt;
+            k = 1 - lf * vy / h;
+            vy += lf * h;
+            h *= k;
+            lift *= Math.exp(-C.AIR_DECAY * dt);
+            vy -= g * dt;
+            y += vy * dt;
+            t += dt;
+            if (y <= 0 && vy < 0) break;
+        }
+        return t;
+    }
+
+    // `topped` is a shot struck without backspin: no lift.
+    function launch(world, yaw, power, loft, bite, topped) {
         /* The ceiling is the longest club's ceiling, plus its overdraw, plus
            what a clean strike at the top of that overdraw is worth (deliver).
            The meter is allowed past a full swing and the gate is allowed to
@@ -1106,6 +1165,7 @@
         world.loopFor = 0;
         world.firstLand = null;
         world.carry = 0;
+        world.lift = !topped && flies(world.hole, l) ? C.AIR_LIFT : 0;
         if (b.vy > 0.01) world.grounded = false;
         return true;
     }
@@ -1615,6 +1675,7 @@
                     b.vz += (-ovx / gs) * sa;
                 }
             }
+            if (world.lift) carryFlight(world, dt);
             b.vy -= grav * dt;
             if (hole.wells) {
                 var wa = wellPull(hole, b.x, b.z);
@@ -1669,6 +1730,7 @@
             if (land && b.y - C.BALL_R <= land.y) {
                 b.y = land.y + C.BALL_R;
                 if (!world.firstLand) world.firstLand = { x: b.x, y: b.y, z: b.z };
+                world.lift = 0;          // the flight is over; a hop is a plain arc
                 var impact = -b.vy;
                 var kick = springKick(world, land.pad);
                 if (kick) {
@@ -1844,9 +1906,9 @@
        spends its whole window reaching the wall would otherwise come off it in
        three dots. A second wall inside that window is where honest prediction
        ends, so that is where it stops. */
-    function previewPath(world, yaw, power, loft, seconds, bite, spin) {
+    function previewPath(world, yaw, power, loft, seconds, bite, spin, topped) {
         var w = cloneWorld(world);
-        if (!launch(w, yaw, power, loft, bite)) return [];
+        if (!launch(w, yaw, power, loft, bite, topped)) return [];
         // A shaped shot (swing.js) bends from the clubface on; launch() clears
         // the spin, so it goes on after, exactly as the game plays it.
         w.spin = spin || 0;
@@ -1888,6 +1950,8 @@
         wallPointVelocity: wallPointVelocity,
         ballTop: ballTop,
         createWorld: createWorld,
+        flies: flies,
+        hangTime: hangTime,
         cloneWorld: cloneWorld,
         launch: launch,
         overdraw: overdraw,
