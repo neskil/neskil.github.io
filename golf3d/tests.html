@@ -34,6 +34,7 @@
     <script src="js/flyover.js"></script>
     <script src="js/replay.js"></script>
     <script src="js/bot.js"></script>
+    <script src="js/lab.js"></script>
 
     <script>
     (function () {
@@ -4083,6 +4084,46 @@
             assert('some holes are marked as needing loft', marked >= 6, marked + ' marked');
             note(marked + ' holes checked against the flat bag in ' +
                  Math.round(performance.now() - b1) + 'ms');
+        })();
+
+        /* ── the hole lab ──────────────────────────────────────────────── */
+
+        section('The hole lab');
+        (function () {
+            /* A putt aimed straight at the flag never drops (js/lab.js,
+               README → "The hole lab"). A hole whose ace is the line at the pin
+               asks how hard and never where, and Pocket Links made it a rule
+               for the same reason.
+
+               Held on every drawn hole with no clock on it. A clock makes the
+               check twelve times dearer — it is played at twelve moments of
+               the slowest beat — so the holes that move are measured by
+               tools/hole-lab.mjs, and only the ones rebuilt to the rule are
+               held here (CLOCKED), the way a long course joins REBUILT. OPEN
+               is the clock-free holes PLAN.md still lists; each has to *fail*
+               the rule to stay on it, so fixing one fails this until it comes
+               off the list. */
+            var L = G3.lab;
+            var OPEN = ['skelter/Bounce Alley', 'skelter/The Gravitron', 'cinder/Fumarole',
+                        'cinder/Blowhole', 'apogee/Apogee'];
+            var CLOCKED = ['works/The Mill', 'clockwork/Pendulum'];
+            assert('the lab module is loaded', !!L);
+            var b0 = performance.now(), held = 0;
+            ALL.forEach(function (entry) {
+                var h = entry.hole, tag = entry.course.id + '/' + h.name;
+                if (C.MINI_GROUPS.indexOf(entry.course.group) < 0) return;
+                if (L.beat(h) && CLOCKED.indexOf(tag) < 0) return;
+                var drop = L.straight(h);
+                if (OPEN.indexOf(tag) >= 0) {
+                    assert(tag + ': is still open in PLAN.md (a putt at the flag drops)', !!drop,
+                        'it never drops now — take it off OPEN, and out of PLAN.md');
+                    return;
+                }
+                held++;
+                assert(tag + ': a putt struck straight at the flag never drops', !drop, drop ? drop.club + ' at ' +
+                    Math.round(drop.power * 100) + '%' + (drop.at ? ', t ' + drop.at : '') : '');
+            });
+            note(held + ' holes held to the straight putt in ' + Math.round(performance.now() - b0) + 'ms');
         })();
 
         /* ── the intro flyover ─────────────────────────────────────────── */
