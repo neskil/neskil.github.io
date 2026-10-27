@@ -427,10 +427,13 @@
            handed to whoever was holding the club. */
         var asked = { yaw: state.aim.yaw, power: P.deliver(state.aim.power, state.club.power) };
         var shot = g ? SW.apply(asked, g) : { yaw: asked.yaw, power: asked.power, spin: 0 };
+        // A touch swing that quit on it gives distance away (swing.js `swipeRead`).
+        if (g && g.weight) shot.power *= g.weight;
         // Then the shape that was asked for on purpose, as much of it as the
-        // strike delivered (swing.js `shape`).
-        shot = SW.shape(shot, shapeNow(), state.club.loft, state.club.bite,
-            P.gravityOf(state.world.hole), g ? g.off : 0);
+        // strike delivered (swing.js `shape`) — picked on the ball, or drawn
+        // with the swipe, which brings its own measure of how well it was.
+        shot = SW.shape(shot, (g && g.shapeName) || shapeNow(), state.club.loft, state.club.bite,
+            P.gravityOf(state.world.hole), g ? (g.shapeOff !== undefined ? g.shapeOff : g.off) : 0);
         if (!P.launch(state.world, shot.yaw, shot.power, shot.loft, shot.bite)) return;
         // The range asks of every shot whether it went past the line (see
         // judgeRangeShot), and the gate is gone by the time it lands.
@@ -674,6 +677,8 @@
     /* What the strike was, in the fewest words that are still an answer. The
        ball is about to say the rest of it. */
     function sayStrike(g) {
+        // The touch swing says it all on its card (showSwingCard).
+        if (g.read) return;
         if (g.shape) { sayShape(g); return; }
         if (g.swipe || g.arc || g.needle) { saySwipe(g); return; }
         if (g.perfect) { toast('Flushed it — all of the overdraw, none of the spray'); return; }
@@ -808,9 +813,8 @@
 
     /* ── swing styles ───────────────────────────────────────────────────────
 
-       Four ways to hit the ball, on trial, picked from "Swing" in ☰ — and on
-       the long game (and the range, to practise them) only, because mini golf
-       is putts and chips that want an exact number on the meter:
+       Four ways to hit the ball, on trial, picked from "Swing" in ☰ — on
+       every course, or on the long game and the range only (`tune.where`):
 
          meter    drag the bar, press Swing; past the white line the gate.
          swipe    pull down from the ball, swipe up through it (swing.js).
@@ -836,6 +840,82 @@
             return localStorage.getItem(C.SWIPE_KEY) === '1' ? 'swipe' : 'meter';
         } catch (e) { return 'meter'; }
     })();
+    /* ── touch swing settings ──
+
+       What the touch swing reads and how hard, picked in the Swing panel so
+       the owner can try them and say which is fun (swing.js says what each
+       one does). `where` is for every style: the long game only, or every
+       course. Kept as one JSON key; anything missing or unknown in it falls
+       back to CONFIG.SWIPE.DEFAULT. */
+    var TUNE_ROWS = [
+        { key: 'where', label: 'Courses', opts: [['all', 'Every course'], ['long', 'Long game']] },
+        { key: 'feel', label: 'Line', opts: [['easy', 'Easy'], ['normal', 'Normal'], ['hard', 'Hard']] },
+        { key: 'timing', label: 'Timing', opts: [['off', 'Off'], ['rhythm', 'Rhythm'], ['snap', 'Snap']] },
+        { key: 'shapes', label: 'Swipe shapes', opts: [['off', 'Off'], ['on', 'Curve to bend']] }
+    ];
+    var TUNE_SAYS = {
+        where: { all: 'Your swing style on every course, mini golf included.',
+                 long: 'Your swing style on the long game and the range; the meter elsewhere.' },
+        feel: { easy: 'A swipe can lean about 8° and still be straight.',
+                normal: 'About 3½° of lean is forgiven; a real drift costs you.',
+                hard: 'Under 2° — a swipe has to be ruler-straight.' },
+        timing: { off: 'Only the line counts.',
+                  rhythm: 'Swipe up at the same pace you pulled down.',
+                  snap: 'Swipe up in about a fifth of a second, however far you pulled — length and speed together.' },
+        shapes: { off: 'A curved swipe is just a crooked one.',
+                  on: 'Bow the swipe out right and back for a draw, left for a fade.' }
+    };
+    var tune = (function () {
+        var raw = {};
+        try { raw = JSON.parse(localStorage.getItem(C.TUNE_KEY) || '{}') || {}; } catch (e) { raw = {}; }
+        var out = {};
+        TUNE_ROWS.forEach(function (r) {
+            var ok = r.opts.some(function (o) { return o[0] === raw[r.key]; });
+            out[r.key] = ok ? raw[r.key] : C.SWIPE.DEFAULT[r.key];
+        });
+        return out;
+    })();
+
+    function setTune(key, value) {
+        tune[key] = value;
+        try { localStorage.setItem(C.TUNE_KEY, JSON.stringify(tune)); } catch (e) { /* ignore */ }
+        syncStyle();
+        A.tick(0.4);
+        $('tune-says').textContent = TUNE_SAYS[key][value];
+    }
+
+    function buildTune() {
+        var box = $('tune-rows');
+        TUNE_ROWS.forEach(function (r) {
+            var row = document.createElement('div');
+            row.className = 'tn-row';
+            row.innerHTML = '<span class="tn-label">' + r.label + '</span>';
+            var seg = document.createElement('div');
+            seg.className = 'tn-seg';
+            seg.setAttribute('role', 'group');
+            seg.setAttribute('aria-label', r.label);
+            r.opts.forEach(function (o) {
+                var b = document.createElement('button');
+                b.type = 'button';
+                b.dataset.key = r.key;
+                b.dataset.value = o[0];
+                b.textContent = o[1];
+                b.addEventListener('click', function () { setTune(r.key, o[0]); });
+                seg.appendChild(b);
+            });
+            row.appendChild(seg);
+            box.appendChild(row);
+        });
+    }
+
+    function syncTune() {
+        Array.prototype.forEach.call(document.querySelectorAll('#tune-rows button'), function (b) {
+            var on = tune[b.dataset.key] === b.dataset.value;
+            b.classList.toggle('on', on);
+            b.setAttribute('aria-pressed', on ? 'true' : 'false');
+        });
+    }
+
     var swipe = null;        // the lane gesture in progress
     var arc = null;          // the arc, while its needle is moving
     var needle = null;       // the needle, while it is sweeping
@@ -844,7 +924,7 @@
     // The style that hits *this* shot: the one picked, where the trial runs.
     function styleLive() {
         if (!state || !state.course || styleWanted === 'meter') return 'meter';
-        if (state.course.isRange) return styleWanted;
+        if (state.course.isRange || tune.where === 'all') return styleWanted;
         var c = G3.courseById(holeRef(state.holeIndex).id) || state.course;
         return c.group === 'long' ? styleWanted : 'meter';
     }
@@ -864,7 +944,7 @@
         syncStyle();
         A.tick(0.5);
         toast(STYLE_INFO[name].name + (name !== 'meter' && styleLive() === 'meter'
-            ? ' — it takes over on the long game and the range' : ' — ' + STYLE_INFO[name].says));
+            ? ' — set Courses to every course to use it here' : ' — ' + STYLE_INFO[name].says));
     }
 
     function buildStylePad() {
@@ -902,6 +982,7 @@
             b.classList.toggle('on', b.dataset.style === styleWanted);
             b.setAttribute('aria-pressed', b.dataset.style === styleWanted ? 'true' : 'false');
         });
+        syncTune();
         document.body.classList.toggle('lane-swing', lane);
         document.body.classList.toggle('arc-swing', live === 'arc');
         $('swipe-hint').textContent = live === 'needle' ? 'Pull · let go · tap' : 'Pull down · swipe up';
@@ -927,7 +1008,7 @@
     // What syncStyle last drew for, so the cheap check in syncSwing can tell
     // whether anything has changed without touching the layout.
     function styleKey() {
-        return styleWanted + styleLive() + styleOpen() + !!arc + !!needle;
+        return styleWanted + styleLive() + styleOpen() + !!arc + !!needle + tune.where;
     }
 
     /* The lane (the touch swing and the needle's pull) runs from a little
@@ -960,13 +1041,15 @@
         e.stopPropagation();
         toggleShapePad(false);
         try { $('swipe').setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
+        var now = performance.now() / 1000;
         swipe = {
             id: e.pointerId, x0: e.clientX, y0: e.clientY, len: swipeLength(),
-            low: { x: e.clientX, y: e.clientY }, through: false, full: false,
-            last: { x: e.clientX, y: e.clientY }, pts: [[e.clientX, e.clientY]],
-            needle: live === 'needle'
+            low: { x: e.clientX, y: e.clientY, t: now }, through: false, full: false,
+            last: { x: e.clientX, y: e.clientY, t: now }, pts: [[e.clientX, e.clientY, now]],
+            up: [], needle: live === 'needle'
         };
         setPower(0);
+        hideSwingCard();
         $('swipe').classList.add('held');
         drawSwipe();
     }
@@ -974,32 +1057,45 @@
     function onSwipeMove(e) {
         if (!swipe || e.pointerId !== swipe.id) return;
         e.preventDefault();
-        var x = e.clientX, y = e.clientY, prev = swipe.last;
-        swipe.last = { x: x, y: y };
-        swipe.pts.push([x, y]);
-        if (swipe.pts.length > 120) swipe.pts.shift();
+        /* Every sample the browser has, not one per frame: the timing and the
+           bow are read off them, and a fast swipe is three frames long. The
+           event's own timestamps are on the same clock as performance.now. */
+        var list = e.getCoalescedEvents ? e.getCoalescedEvents() : null;
+        if (!list || !list.length) list = [e];
+        for (var i = 0; i < list.length && swipe; i++) swipeSample(list[i]);
+        if (swipe) drawSwipe();
+    }
+
+    function swipeSample(ev) {
+        var x = ev.clientX, y = ev.clientY, prev = swipe.last;
+        var t = (ev.timeStamp > 0 ? ev.timeStamp : performance.now()) / 1000;
+        swipe.last = { x: x, y: y, t: t };
+        swipe.pts.push([x, y, t]);
+        if (swipe.pts.length > 400) swipe.pts.shift();
         if (swipe.needle) {
             // The needle's pull is only the power, and it can be trimmed both
             // ways until the thumb lets go.
-            swipe.low = { x: swipe.x0, y: Math.max(swipe.y0, y) };
+            swipe.low = { x: swipe.x0, y: Math.max(swipe.y0, y), t: t };
             loadFromPull(y);
-        } else if (y >= swipe.low.y) {
+            return;
+        }
+        if (y >= swipe.low.y) {
             // Still going back: the meter follows the thumb down.
-            swipe.low = { x: x, y: y };
+            swipe.low = { x: x, y: y, t: t };
             swipe.through = false;
+            swipe.up = [[x, y]];
             loadFromPull(y);
-        } else if (swipe.low.y - y > C.SWIPE.TURN_PX) {
-            swipe.through = true;
+        } else {
+            swipe.up.push([x, y]);
+            if (swipe.low.y - y > C.SWIPE.TURN_PX) swipe.through = true;
         }
         if (swipe.through && y <= swipe.y0) {
             // Where it came back over the start line, between the last two
             // samples — a fast swipe crosses it between frames.
-            var t = prev.y !== y ? (prev.y - swipe.y0) / (prev.y - y) : 1;
-            var cx = prev.x + (x - prev.x) * Math.max(0, Math.min(1, t));
-            swipeStrike({ x: cx, y: swipe.y0 });
-            return;
+            var f = prev.y !== y ? (prev.y - swipe.y0) / (prev.y - y) : 1;
+            f = Math.max(0, Math.min(1, f));
+            swipeStrike({ x: prev.x + (x - prev.x) * f, y: swipe.y0, t: prev.t + (t - prev.t) * f });
         }
-        drawSwipe();
     }
 
     function loadFromPull(y) {
@@ -1030,18 +1126,80 @@
     }
 
     function swipeStrike(cross) {
-        var turn = swipe.low;
+        var sw = swipe;
         if (state.aim.power < C.MIN_POWER) {
             endSwipe();
             askForPower();
             return;
         }
-        var over = SW.shapeOver(shapeNow(), P.overdraw(state.aim.power, state.club.power));
-        var angle = SW.swipeAngle(turn, cross);
-        var g = SW.swiped(over, SW.swipeOff(angle, over));
-        g.shape = shapeNow() !== 'straight' ? shapeNow() : null;
+        var picked = shapeNow() !== 'straight' ? shapeNow() : null;
+        var over = SW.shapeOver(picked, P.overdraw(state.aim.power, state.club.power));
+        // A shape picked on the ball wins; otherwise a bowed swipe may draw
+        // one, if the club can bend and the setting is on.
+        var bendable = (state.club.shapes || []).filter(function (n) { return n === 'draw' || n === 'fade'; });
+        var read = SW.swipeRead({
+            pts: sw.pts, x0: sw.x0, y0: sw.y0, low: sw.low, cross: cross,
+            through: sw.up.concat([[cross.x, cross.y]])
+        }, {
+            over: over, feel: tune.feel, timing: tune.timing,
+            shapes: !picked && tune.shapes === 'on' && bendable.length ? bendable : null
+        });
+        var g = SW.swipeGate(read);
+        g.shape = picked || (read.shape && read.shape.name) || null;
+        var frac = state.aim.power / state.club.power;
+        var drawn = sw.pts.map(function (p) { return [p[0], p[1]]; }).concat([[cross.x, cross.y]]);
         endSwipe();
         strike(g);
+        showSwingCard(read, frac, drawn, sw, cross);
+    }
+
+    /* ── the swing card ──
+
+       After a touch swing, a card at the top of the stage says why the ball
+       went where it did: the swipe drawn small against a straight line and
+       the lean that was forgiven, and a line for each thing that was read.
+       It stays while the ball flies and goes when the next swing starts. */
+    var cardTimer = 0;
+
+    function showSwingCard(read, frac, drawn, sw, cross) {
+        var card = $('swing-card');
+        var rows = SW.swipeReport(read, { frac: frac });
+        $('sc2-rows').innerHTML = rows.map(function (r) {
+            return '<li class="' + r.tier + '"><b>' + r.what + '</b><span>' + r.says + '</span></li>';
+        }).join('');
+        var gr = SW.grade(SW.swipeGate(read));
+        $('sc2-grade').textContent = gr.word;
+        $('sc2-grade').className = 'sc2-grade ' + gr.tier;
+        drawCardSwipe(drawn, sw, cross, read);
+        card.hidden = false;
+        card.classList.remove('show');
+        void card.offsetWidth;
+        card.classList.add('show');
+        clearTimeout(cardTimer);
+        cardTimer = setTimeout(hideSwingCard, 6500);
+    }
+
+    function hideSwingCard() {
+        clearTimeout(cardTimer);
+        $('swing-card').hidden = true;
+    }
+
+    // The swipe, scaled into the card's little box (60 × 100), with the
+    // straight line from the bottom of the pull and the wedge of lean that
+    // counted as straight.
+    function drawCardSwipe(pts, sw, cross, read) {
+        var W = 60, H = 100, pad = 8;
+        var depth = Math.max(1, sw.low.y - sw.y0);
+        var k = (H - 2 * pad) / depth;
+        function X(x) { return W / 2 + (x - sw.low.x) * k; }
+        function Y(y) { return pad + (y - sw.y0) * k; }
+        $('sc2-trail').setAttribute('points', pts.map(function (p) {
+            return X(p[0]).toFixed(1) + ',' + Y(p[1]).toFixed(1);
+        }).join(' '));
+        var tol = SW.swipeTol(read.over, read.feel), half = Math.tan(tol) * (H - 2 * pad);
+        $('sc2-cone').setAttribute('points', [W / 2, H - pad, W / 2 - half, pad, W / 2 + half, pad].join(' '));
+        attrs('sc2-ideal', { x1: W / 2, y1: H - pad, x2: W / 2, y2: pad });
+        $('sc2-svg').setAttribute('class', 'sc2-svg ' + (read.perfect ? 'good' : Math.abs(read.off) < 0.5 ? 'meh' : 'bad'));
     }
 
     /* The lane's picture: a guide down from where the thumb went in, a tick
@@ -4838,6 +4996,7 @@
         buildShapePad();
         $('btn-shape').addEventListener('click', function () { toggleShapePad(); });
         buildStylePad();
+        buildTune();
         $('btn-style').addEventListener('click', function () { toggleStylePad(); });
         $('style-close').addEventListener('click', function () { toggleStylePad(false); });
         $('arc').addEventListener('pointerdown', function (e) {
