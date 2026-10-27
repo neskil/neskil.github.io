@@ -429,10 +429,16 @@
         var shot = g ? SW.apply(asked, g) : { yaw: asked.yaw, power: asked.power, spin: 0 };
         // A touch swing that quit on it gives distance away (swing.js `swipeRead`).
         if (g && g.weight) shot.power *= g.weight;
+        /* A scribbled one is a duff or a shank: short, and a shank sideways —
+           never under what the physics will launch, so the stroke still counts. */
+        if (g && g.junk) {
+            shot = { yaw: asked.yaw + g.junk.yaw, spin: 0,
+                     power: Math.max(C.MIN_POWER * 1.05, asked.power * g.junk.power) };
+        }
         // Then the shape that was asked for on purpose, as much of it as the
         // strike delivered (swing.js `shape`) — picked on the ball, or drawn
         // with the swipe, which brings its own measure of how well it was.
-        shot = SW.shape(shot, (g && g.shapeName) || shapeNow(), state.club.loft, state.club.bite,
+        shot = SW.shape(shot, g && g.junk ? 'straight' : (g && g.shapeName) || shapeNow(), state.club.loft, state.club.bite,
             P.gravityOf(state.world.hole), g ? (g.shapeOff !== undefined ? g.shapeOff : g.off) : 0);
         if (!P.launch(state.world, shot.yaw, shot.power, shot.loft, shot.bite)) return;
         // The range asks of every shot whether it went past the line (see
@@ -1155,8 +1161,8 @@
 
     /* ── the swing card ──
 
-       After a touch swing, a card at the top of the stage says why the ball
-       went where it did: the swipe drawn small against a straight line and
+       After a touch swing, a small card docked in the top-left corner of the
+       stage says why the ball went where it did: the swipe drawn small against a straight line and
        the lean that was forgiven, and a line for each thing that was read.
        It stays while the ball flies and goes when the next swing starts. */
     var cardTimer = 0;
@@ -1176,7 +1182,7 @@
         void card.offsetWidth;
         card.classList.add('show');
         clearTimeout(cardTimer);
-        cardTimer = setTimeout(hideSwingCard, 6500);
+        cardTimer = setTimeout(hideSwingCard, 5000);
     }
 
     function hideSwingCard() {
@@ -1199,7 +1205,7 @@
         var tol = SW.swipeTol(read.over, read.feel), half = Math.tan(tol) * (H - 2 * pad);
         $('sc2-cone').setAttribute('points', [W / 2, H - pad, W / 2 - half, pad, W / 2 + half, pad].join(' '));
         attrs('sc2-ideal', { x1: W / 2, y1: H - pad, x2: W / 2, y2: pad });
-        $('sc2-svg').setAttribute('class', 'sc2-svg ' + (read.perfect ? 'good' : Math.abs(read.off) < 0.5 ? 'meh' : 'bad'));
+        $('sc2-svg').setAttribute('class', 'sc2-svg ' + (read.perfect ? 'good' : !read.junk && Math.abs(read.off) < 0.5 ? 'meh' : 'bad'));
     }
 
     /* The lane's picture: a guide down from where the thumb went in, a tick
