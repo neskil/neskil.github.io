@@ -54,13 +54,16 @@
         { key: 'walls',   label: 'Wall',   round: false, color: '#6d4a2e' },
         { key: 'bumpers', label: 'Post',   round: true,  color: '#f59e0b' },
         // A turnstile: a pivot and the reach of its arms, grabbed like a post.
-        { key: 'spinners', label: 'Spinner', round: true, spin: true, color: '#fbbf24' }
+        { key: 'spinners', label: 'Spinner', round: true, spin: true, color: '#fbbf24' },
+        // A skater: a lap, an oval or an eight, dragged out from its middle
+        // like a box and grabbed anywhere on it.
+        { key: 'skaters', label: 'Skater', skate: true, color: '#e0f2fe' }
     ];
     var KIND_KEYS = KINDS.map(function (k) { return k.key; });
     // The order courses.js lists them in, which is not the order they are
     // painted in. The export follows the file; the sidebar follows the paint.
     var EXPORT_ORDER = ['walls', 'rails', 'arcs', 'blocks', 'water', 'lava', 'sand', 'rough', 'ice', 'bumpers', 'slopes', 'hills',
-                        'tunnels', 'avalanches', 'vents', 'spinners', 'belts', 'turntables'];
+                        'tunnels', 'avalanches', 'vents', 'spinners', 'belts', 'turntables', 'skaters'];
     // What a block may have standing in it. See props.js.
     var LOOKS = ['bed', 'tree', 'hedge', 'rock', 'castle', 'windmill', 'fan', 'tent', 'carousel', 'wheel', 'mirror', 'hut', 'pyramid', 'palm', 'snowman', 'lighthouse', 'book', 'pencil', 'tonearm', 'mug', 'inkpot', 'planet'];
     // The zones that may be drawn as polygons. Walls at an angle are rails,
@@ -124,7 +127,8 @@
             tee: { x: 140, y: 320 },
             hole: { x: 820, y: 320 },
             walls: [], water: [], sand: [], rough: [], ice: [], bumpers: [], slopes: [], tunnels: [], rails: [],
-            lava: [], avalanches: [], vents: [], arcs: [], blocks: [], hills: [], spinners: [], belts: [], turntables: []
+            lava: [], avalanches: [], vents: [], arcs: [], blocks: [], hills: [], spinners: [], belts: [], turntables: [],
+            skaters: []
         };
     }
 
@@ -140,6 +144,8 @@
         };
         // A biome of the hole's own, if it names one the game knows.
         if (typeof h.theme === 'string' && GOLF.scenery && GOLF.scenery.THEMES[h.theme]) out.theme = h.theme;
+        // A hole that means its straight putt. See the checks.
+        if (h.straight === true) out.straight = true;
         KIND_KEYS.forEach(function (k) {
             out[k] = (Array.isArray(h[k]) ? h[k] : []).map(function (s) { return cloneShape(k, s); });
         });
@@ -155,6 +161,11 @@
         if (kind === 'vents') return { x: num(s.x, 0), y: num(s.y, 0), every: num(s.every, 3), at: num(s.at, 0), run: num(s.run, 1) };
         if (kind === 'hills') return { x: num(s.x, 0), y: num(s.y, 0), r: num(s.r, 90), a: num(s.a, 120) };
         if (kind === 'turntables') return { x: num(s.x, 0), y: num(s.y, 0), r: num(s.r, 110), speed: num(s.speed, 1.5) };
+        if (kind === 'skaters') {
+            var sk = { x: num(s.x, 0), y: num(s.y, 0), rx: num(s.rx, 150), ry: num(s.ry, 100), speed: num(s.speed, 1), phase: num(s.phase, 0) };
+            if (s.eight) sk.eight = true;
+            return sk;
+        }
         if (kind === 'spinners') {
             return { x: num(s.x, 0), y: num(s.y, 0), r: num(s.r, 100), arms: Math.max(1, Math.min(4, Math.round(num(s.arms, 2)))),
                      speed: num(s.speed, 1), phase: num(s.phase, 0), w: num(s.w, 20) };
@@ -415,6 +426,13 @@
             ctx.arc(s.x, s.y, s.r + 3, 0, Math.PI * 2);
             ctx.stroke();
             grip(s.x + s.r, s.y);
+        } else if (S.sel.kind === 'skaters') {
+            lapPath(s);
+            ctx.stroke();
+            ctx.setLineDash([4 / view.scale, 4 / view.scale]);
+            ctx.strokeRect(s.x - s.rx, s.y - s.ry, s.rx * 2, s.ry * 2);
+            ctx.setLineDash([]);
+            grip(s.x + s.rx, s.y + s.ry);
         } else if (S.sel.kind === 'arcs') {
             ctx.save();
             ctx.lineCap = 'round';
@@ -479,6 +497,15 @@
         }
     }
 
+    // A skater's lap, as a path on the editor's canvas.
+    function lapPath(s) {
+        ctx.beginPath();
+        for (var q = 0; q <= 72; q++) {
+            var a = q / 72 * Math.PI * 2;
+            ctx.lineTo(s.x + s.rx * Math.cos(a), s.y + s.ry * Math.sin((s.eight ? 2 : 1) * a));
+        }
+    }
+
     // Where a curve's radius is grabbed: halfway round it.
     function arcGrip(s) {
         var m = (s.from + s.to) / 2 * Math.PI / 180;
@@ -501,6 +528,9 @@
             ctx.strokeStyle = 'rgba(156,79,54,0.6)';
             ctx.beginPath();
             ctx.arc(drag.preview.x, drag.preview.y, drag.preview.r, Math.PI, Math.PI * 2);
+            ctx.stroke();
+        } else if (k.skate) {
+            lapPath(drag.preview);
             ctx.stroke();
         } else if (k.round || k.point) {
             ctx.beginPath();
@@ -550,6 +580,10 @@
             if (Math.abs(wx - (s.x + s.r)) <= tol && Math.abs(wy - s.y) <= tol) return { id: 'r' };
             return null;
         }
+        if (S.sel.kind === 'skaters') {
+            if (Math.abs(wx - (s.x + s.rx)) <= tol && Math.abs(wy - (s.y + s.ry)) <= tol) return { id: 'r' };
+            return null;
+        }
         if (S.sel.kind === 'arcs') {
             var g = arcGrip(s);
             if (Math.abs(wx - g.x) <= tol && Math.abs(wy - g.y) <= tol) return { id: 'r' };
@@ -587,6 +621,13 @@
                     if (P.pointInPoly(wx, wy, s.pts) ||
                         (kind.block && P.blockRails(s).some(function (seg) { return P.circleRail(wx, wy, 2, seg); }))) {
                         return { kind: kind.key, idx: j };
+                    }
+                } else if (kind.skate) {
+                    for (var q = 0; q < 96; q++) {
+                        var qa = q / 96 * Math.PI * 2;
+                        if (Math.hypot(wx - s.x - s.rx * Math.cos(qa), wy - s.y - s.ry * Math.sin((s.eight ? 2 : 1) * qa)) <= C.SKATER_R + 4) {
+                            return { kind: kind.key, idx: j };
+                        }
                     }
                 } else if (kind.point) {
                     if (Math.hypot(wx - s.x, wy - s.y) <= C.VENT_R + 4) return { kind: kind.key, idx: j };
@@ -693,6 +734,10 @@
             drag.moved = Math.abs(p.wx - drag.x0) > 3 || Math.abs(p.wy - drag.y0) > 3;
             if (k.point) {
                 drag.preview = { x: drag.x0, y: drag.y0 };
+            } else if (k.skate) {
+                drag.preview = drag.moved
+                    ? { x: drag.x0, y: drag.y0, rx: Math.max(40, Math.round(Math.abs(p.wx - drag.x0))), ry: Math.max(40, Math.round(Math.abs(p.wy - drag.y0))) }
+                    : { x: drag.x0, y: drag.y0, rx: 150, ry: 100 };
             } else if (k.arc || k.hill || k.spin || k.turn) {
                 drag.preview = { x: drag.x0, y: drag.y0, r: drag.moved ? Math.max(40, Math.round(Math.hypot(p.wx - drag.x0, p.wy - drag.y0))) : 110 };
             } else if (k.round) {
@@ -742,6 +787,9 @@
         } else if (drag.type === 'move') {
             s.x = snapVal(p.wx + drag.dx, e);
             s.y = snapVal(p.wy + drag.dy, e);
+        } else if (drag.type === 'radius' && S.sel.kind === 'skaters') {
+            s.rx = Math.max(40, Math.round(Math.abs(snapVal(p.wx, e) - s.x)));
+            s.ry = Math.max(40, Math.round(Math.abs(snapVal(p.wy, e) - s.y)));
         } else if (drag.type === 'radius' && (S.sel.kind === 'hills' || S.sel.kind === 'arcs' || S.sel.kind === 'spinners' || S.sel.kind === 'turntables')) {
             s.r = Math.max(40, Math.round(Math.hypot(snapVal(p.wx, e) - s.x, snapVal(p.wy, e) - s.y)));
         } else if (drag.type === 'radius') {
@@ -781,6 +829,9 @@
             shape = { x: d.x0, y: d.y0, r: d.preview ? Math.min(d.preview.r, 160) : 100, arms: 2, speed: 1, phase: 0, w: 20 };
         } else if (k.turn) {
             shape = { x: d.x0, y: d.y0, r: d.preview ? Math.max(50, Math.min(d.preview.r, 200)) : 110, speed: 1.5 };
+        } else if (k.skate) {
+            shape = { x: d.x0, y: d.y0, rx: d.preview ? Math.min(d.preview.rx, 320) : 150, ry: d.preview ? Math.min(d.preview.ry, 320) : 100,
+                      speed: 1, phase: 0 };
         } else if (k.arc) {
             shape = { x: d.x0, y: d.y0, r: d.preview ? d.preview.r : 110, from: 180, to: 360, w: 24 };
         } else if (k.round) {
@@ -962,6 +1013,10 @@
         if (kind === 'vents') return '@ ' + Math.round(s.x) + ',' + Math.round(s.y) + '  blows ' + s.run + 's of ' + s.every + 's';
         if (kind === 'hills') return (s.a < 0 ? 'bowl' : 'mound') + ' r ' + Math.round(s.r) + ' @ ' + Math.round(s.x) + ',' + Math.round(s.y);
         if (kind === 'turntables') return 'r ' + Math.round(s.r) + ' @ ' + Math.round(s.x) + ',' + Math.round(s.y) + '  ' + s.speed + ' rad/s';
+        if (kind === 'skaters') {
+            return (s.eight ? 'eight ' : 'oval ') + Math.round(s.rx * 2) + '×' + Math.round(s.ry * 2) + ' @ ' + Math.round(s.x) + ',' + Math.round(s.y) +
+                '  ' + s.speed + ' rad/s';
+        }
         if (kind === 'spinners') return s.arms + ' arms r ' + Math.round(s.r) + ' @ ' + Math.round(s.x) + ',' + Math.round(s.y) + '  ' + s.speed + ' rad/s';
         if (kind === 'arcs') return 'r ' + Math.round(s.r) + ' @ ' + Math.round(s.x) + ',' + Math.round(s.y) + '  ' + Math.round(s.from) + '°→' + Math.round(s.to) + '°';
         if (kind === 'blocks') return s.look + ' · ' + s.pts.length / 2 + ' corners';
@@ -1075,6 +1130,17 @@
                 '<div class="hint" style="margin-top:6px">A record on its player: ground that turns. A putt across it ' +
                 'comes off bent the way it turns, and a ball left on it is flung off the rim — so keep the disc and a ' +
                 'ball\'s width and a half round it clear of anything solid, the cushion, the tee and the cup.</div>';
+        } else if (S.sel.kind === 'skaters') {
+            html += numRow('centre x', 'x', s.x) + numRow('centre y', 'y', s.y) +
+                numRow('across', 'rx', s.rx, 5, 'Half the lap\'s width — 40 to 320') +
+                numRow('down', 'ry', s.ry, 5, 'Half the lap\'s height — 40 to 320') +
+                numRow('speed', 'speed', s.speed, 0.1, 'Radians a second round the lap; the sign is which way round') +
+                numRow('phase', 'phase', s.phase, 0.1, 'Where on the lap the skater starts, in radians') +
+                '<div class="row"><label class="lbl"><input type="checkbox" data-field="eight"' + (s.eight ? ' checked' : '') +
+                '> a figure of eight</label></div>' +
+                '<div class="hint" style="margin-top:6px">Does laps of the ice and leaves a ball at rest alone. A moving ' +
+                'ball that comes near is taken, dribbled a moment and passed on somewhere the player cannot choose. ' +
+                'Keep the lap on ice, on the field and clear of anything solid, wet, the tee and the cup.</div>';
         } else if (S.sel.kind === 'spinners') {
             html += numRow('pivot x', 'x', s.x) + numRow('pivot y', 'y', s.y) +
                 numRow('arm length', 'r', s.r, 5) +
@@ -1308,6 +1374,10 @@
             if (el.checked) target.wind = true; else delete target.wind;
             return;
         }
+        if (f === 'eight') {
+            if (el.checked) target.eight = true; else delete target.eight;
+            return;
+        }
         if ((f === 'amp' || f === 'speed' || f === 'phase') && target.move) {
             target.move[f] = parseFloat(el.value) || 0;
             return;
@@ -1317,6 +1387,7 @@
         var v = parseFloat(el.value);
         if (!isFinite(v)) return;
         if (f === 'w' || f === 'h') v = Math.max(MIN_SIDE, v);
+        if (f === 'rx' || f === 'ry') v = Math.max(40, Math.min(320, v));
         if (f === 'r') v = Math.max(S.sel.kind === 'turntables' ? 50 : S.sel.kind === 'hills' || S.sel.kind === 'arcs' || S.sel.kind === 'spinners' ? 40 : C.BUMPER_MIN_R, v);
         if ((S.sel.kind === 'tee' || S.sel.kind === 'hole') && f === 'x') v = clampX(v);
         if ((S.sel.kind === 'tee' || S.sel.kind === 'hole') && f === 'y') v = clampY(v);
@@ -1505,6 +1576,43 @@
                 return Math.hypot(h.tee.x - tt.x, h.tee.y - tt.y) < tt.r + C.BALL_R + 12 ||
                     Math.hypot(h.hole.x - tt.x, h.hole.y - tt.y) < tt.r + C.HOLE_R + 12;
             }), 'the tee and the cup are off every turntable', 'nothing rests on a turntable');
+        }
+
+        /* Skaters — generator.js → validateHole, ported. A dribbled ball
+           goes wherever the lap goes and nothing on the ground has it, so
+           the lap and a ball's reach round it are open ice on the field. */
+        if (h.skaters.length) {
+            ok(h.skaters.every(function (sk) {
+                var top = Math.max(sk.rx, sk.ry * (sk.eight ? 2 : 1)) * Math.abs(sk.speed);
+                return sk.rx >= 40 && sk.rx <= 320 && sk.ry >= 40 && sk.ry <= 320 && Math.abs(sk.speed) >= 0.3 && top <= 260;
+            }), 'every skater\'s lap is a sane size and pace', '40 to 320 each way, and no quicker than 260px/s at the fastest');
+            var room = P.reachOf() + C.BALL_R + 4, offIce = 0, blocked = 0, nearEnds = 0;
+            h.skaters.forEach(function (sk) {
+                var ice = true, clear = true, ends = false;
+                for (var q = 0; q < 96; q++) {
+                    var a = q / 96 * Math.PI * 2, x = sk.x + sk.rx * Math.cos(a), y = sk.y + sk.ry * Math.sin((sk.eight ? 2 : 1) * a);
+                    if (!P.zoneAt(h.ice, x, y)) ice = false;
+                    if (x - room < 0 || y - room < 0 || x + room > C.WORLD_W || y + room > C.WORLD_H ||
+                        h.walls.some(function (w) {
+                            var am = w.move ? Math.abs(w.move.amp) : 0;
+                            var env = !w.move ? w : w.move.axis === 'y'
+                                ? { x: w.x, y: w.y - am, w: w.w, h: w.h + am * 2 }
+                                : { x: w.x - am, y: w.y, w: w.w + am * 2, h: w.h };
+                            return P.circleRect(x, y, room, env) !== null;
+                        }) || h.bumpers.some(function (b) { return P.circleCircle(x, y, room, b) !== null; }) ||
+                        solids.some(function (r) { return P.circleRail(x, y, room, r) !== null; }) ||
+                        h.spinners.some(function (sp) { return Math.hypot(sp.x - x, sp.y - y) < room + P.sweepOf(sp); }) ||
+                        h.turntables.some(function (tt) { return Math.hypot(tt.x - x, tt.y - y) < room + tt.r; }) ||
+                        P.zoneAt(h.water, x, y) || P.zoneAt(h.lava, x, y)) clear = false;
+                    if (Math.hypot(h.tee.x - x, h.tee.y - y) < room + 24 || Math.hypot(h.hole.x - x, h.hole.y - y) < room + C.HOLE_R + 24) ends = true;
+                }
+                if (!ice) offIce++;
+                if (!clear) blocked++;
+                if (ends) nearEnds++;
+            });
+            ok(offIce === 0, 'every skater skates on ice', offIce + ' lap(s) leave the ice');
+            ok(blocked === 0, 'every skater\'s lap is open ice', blocked + ' would carry a ball into something, the water or the cushion');
+            ok(nearEnds === 0, 'the tee and the cup are well off every lap', 'a skater would take the ball off the tee or the lip');
         }
 
         /* A shape running along the cushion meets it or leaves a ball's
@@ -1758,12 +1866,20 @@
             unsettled + ' of 24 were still rolling at the limit');
         add('pass', 'slowest of 24 full-power shots: ' + slowest.toFixed(1) + 's', '');
 
-        // The straight putt: aimed at the flag, it must never drop.
+        /* The straight putt: aimed at the flag, it should not drop — the
+           hole's shape, not a prop stood on the line, is what turns it. A
+           hole that means it (a first hole, or one whose question is the
+           weight) says so, and is told how it stands rather than failed. */
         var straight = P.straightAce(h);
-        ok(!straight, 'a putt struck straight at the cup never holes out',
-            straight ? 'one at ' + Math.round(straight.power / C.SAFE_POWER * 100) + '% weight' +
-                (straight.at ? ', ' + straight.at.toFixed(1) + 's into the clock' : '') +
-                ' drops — put something on the line' : '');
+        if (h.straight) {
+            add('pass', straight ? 'a straight putt drops — and this hole says it may' : 'this hole allows a straight putt, and none drops', '');
+        } else {
+            ok(!straight, 'a putt struck straight at the cup never holes out',
+                straight ? 'one at ' + Math.round(straight.power / C.SAFE_POWER * 100) + '% weight' +
+                    (straight.at ? ', ' + straight.at.toFixed(1) + 's into the clock' : '') +
+                    ' drops — reshape the hole so the flag is round something (move the cup or the tee, angle a wall), ' +
+                    'or tick "a straight putt may drop" if that is the point' : '');
+        }
 
         return out;
     }
@@ -1915,6 +2031,10 @@
                 phaseSource(s.phase) + ', ' + n(s.w) + ')';
         }
         if (kind === 'turntables') return 'turntable(' + n(s.x) + ', ' + n(s.y) + ', ' + n(s.r) + ', ' + n(s.speed) + ')';
+        if (kind === 'skaters') {
+            return 'skater(' + n(s.x) + ', ' + n(s.y) + ', ' + n(s.rx) + ', ' + n(s.ry) + ', ' + n(s.speed) +
+                (s.phase || s.eight ? ', ' + phaseSource(s.phase || 0) : '') + (s.eight ? ', true' : '') + ')';
+        }
         if (kind === 'belts') return 'belt(' + n(s.x) + ', ' + n(s.y) + ', ' + n(s.w) + ', ' + n(s.h) + ', ' + q(s.dir) + ', ' + n(s.speed) + ')';
         if (kind === 'blocks') return 'block(' + q(s.look) + ', [' + s.pts.map(n).join(', ') + ']' + (s.w === 20 ? '' : ', ' + n(s.w)) + ')';
         if (kind === 'avalanches') {
@@ -1960,6 +2080,7 @@
         lines.push('    blurb: ' + q(h.blurb) + ',');
         lines.push('    par: ' + h.par + ',');
         if (h.theme) lines.push('    theme: ' + q(h.theme) + ',');
+        if (h.straight) lines.push('    straight: true,');
         lines.push('    tee: { x: ' + n(h.tee.x) + ', y: ' + n(h.tee.y) + ' },');
         lines.push('    hole: { x: ' + n(h.hole.x) + ', y: ' + n(h.hole.y) + ' }');
 
@@ -2007,9 +2128,10 @@
         // The shapes courses.js writes curves with, from courses.js itself.
         var H = GOLF.helpers;
         var fn = new Function('r', 'post', 'tunnel', 'rail', 'poly', 'chute', 'vent',
-            'arc', 'block', 'mound', 'bowl', 'shape', 'smooth', 'oval', 'ring', 'spinner', 'belt', 'turntable', 'return (' + text + ');');
+            'arc', 'block', 'mound', 'bowl', 'shape', 'smooth', 'oval', 'ring', 'spinner', 'belt', 'turntable', 'skater',
+            'return (' + text + ');');
         var obj = fn(r, post, tunnel, rail, poly, chute, vent, H.arc, H.block, H.mound, H.bowl, H.shape, H.smooth, H.oval,
-            H.ring, H.spinner, H.belt, H.turntable);
+            H.ring, H.spinner, H.belt, H.turntable, H.skater);
         if (!obj || typeof obj !== 'object') throw new Error('that is not a hole');
         return normalize(obj);
     }
@@ -2034,6 +2156,7 @@
         $('f-blurb').value = S.hole.blurb;
         $('f-par').value = S.hole.par;
         $('f-theme').value = S.hole.theme || '';
+        $('f-straight').checked = !!S.hole.straight;
     }
 
     /* ── persistence ────────────────────────────────────────────────────── */
@@ -2169,10 +2292,12 @@
         $('f-theme').appendChild(opt);
     });
 
-    ['f-name', 'f-blurb', 'f-par', 'f-theme'].forEach(function (id) {
+    ['f-name', 'f-blurb', 'f-par', 'f-theme', 'f-straight'].forEach(function (id) {
         $(id).addEventListener('change', function () {
             snapshot();
-            if (id === 'f-par') S.hole.par = Math.max(1, Math.round(+$(id).value || 3));
+            if (id === 'f-straight') {
+                if ($(id).checked) S.hole.straight = true; else delete S.hole.straight;
+            } else if (id === 'f-par') S.hole.par = Math.max(1, Math.round(+$(id).value || 3));
             else if (id === 'f-theme') {
                 if ($(id).value) S.hole.theme = $(id).value; else delete S.hole.theme;
             } else S.hole[id === 'f-name' ? 'name' : 'blurb'] = $(id).value;
@@ -2278,7 +2403,8 @@
         'l': 'rails', 'L': 'rails', 'h': 'lava', 'H': 'lava',
         'a': 'avalanches', 'A': 'avalanches', 'y': 'vents', 'Y': 'vents',
         'c': 'arcs', 'C': 'arcs', 'b': 'blocks', 'B': 'blocks', 'm': 'hills', 'M': 'hills',
-        't': 'spinners', 'T': 'spinners', 'k': 'belts', 'K': 'belts', 'o': 'turntables', 'O': 'turntables'
+        't': 'spinners', 'T': 'spinners', 'k': 'belts', 'K': 'belts', 'o': 'turntables', 'O': 'turntables',
+        'j': 'skaters', 'J': 'skaters'
     };
 
     window.addEventListener('keydown', function (e) {
@@ -2508,15 +2634,22 @@
             return c.level === 'fail' && /cushion/.test(c.label);
         }));
 
-        var withAll = normalize({ name: 'All', blurb: 'b', par: 3, theme: 'meadow', tee: { x: 120, y: 320 }, hole: { x: 840, y: 320 },
+        var bad12 = normalize(GOLF.COURSE[0]);
+        bad12.skaters.push({ x: 480, y: 320, rx: 120, ry: 80, speed: 1, phase: 0 });
+        check('a skater off the ice is caught', runChecks(bad12).some(function (c) {
+            return c.level === 'fail' && /skates on ice/.test(c.label);
+        }));
+
+        var withAll = normalize({ name: 'All', blurb: 'b', par: 3, theme: 'meadow', straight: true, tee: { x: 120, y: 320 }, hole: { x: 840, y: 320 },
             arcs: [{ x: 480, y: 320, r: 160, from: 200, to: 340, w: 24 }],
             blocks: [{ look: 'windmill', pts: [440, 500, 520, 500, 520, 580, 440, 580], w: 22 }],
             hills: [{ x: 480, y: 330, r: 90, a: -60 }],
             slopes: [{ x: 600, y: 60, w: 200, h: 80, ax: -120, ay: 0, wind: true }],
             spinners: [{ x: 700, y: 400, r: 80, arms: 3, speed: -1.2, phase: Math.PI / 2, w: 22 }],
             belts: [{ x: 300, y: 40, w: 220, h: 60, dir: 'left', speed: 150 }],
-            turntables: [{ x: 200, y: 470, r: 90, speed: -1.5 }] });
-        check('curves, blocks, hills, spinners, belts, a turntable, a wind and a biome survive the round trip',
+            turntables: [{ x: 200, y: 470, r: 90, speed: -1.5 }],
+            skaters: [{ x: 480, y: 150, rx: 140, ry: 60, speed: 0.9, phase: Math.PI / 2, eight: true }, { x: 300, y: 300, rx: 80, ry: 50, speed: -1, phase: 0 }] });
+        check('curves, blocks, hills, spinners, belts, a turntable, skaters, a wind, a biome and a straight putt allowed survive the round trip',
             JSON.stringify(parseHole(buildOut(withAll))) === JSON.stringify(withAll));
 
         // Undo has to restore the shape that was there, not merely a shape.

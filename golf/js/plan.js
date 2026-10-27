@@ -207,6 +207,26 @@
             g.beginPath(); g.arc(tt.x, tt.y, tt.r * 0.33, 0, Math.PI * 2); g.fill();
         }
 
+        // A skater: the lap dashed in white, and the skater a red dot on it
+        // where the hole's clock starts.
+        var skaters = hole.skaters || [];
+        for (i = 0; i < skaters.length; i++) {
+            var sk = skaters[i];
+            g.strokeStyle = 'rgba(255, 255, 255, 0.85)';
+            g.lineWidth = 6;
+            g.setLineDash([18, 12]);
+            g.beginPath();
+            for (var q = 0; q <= 64; q++) {
+                var qa = q / 64 * Math.PI * 2;
+                g.lineTo(sk.x + sk.rx * Math.cos(qa), sk.y + sk.ry * Math.sin((sk.eight ? 2 : 1) * qa));
+            }
+            g.stroke();
+            g.setLineDash([]);
+            var sa = GOLF.physics.skaterAt(sk, 0);
+            g.fillStyle = '#dc2626';
+            g.beginPath(); g.arc(sa.x, sa.y, 18, 0, Math.PI * 2); g.fill();
+        }
+
         // A vent: a grey grate with a dark throat, drawn big like a mouth.
         var vents = hole.vents || [];
         for (i = 0; i < vents.length; i++) {

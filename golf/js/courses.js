@@ -117,6 +117,14 @@
     // Ground that turns: a disc of radius r about (x, y), `speed` radians a
     // second, clockwise when positive. A record on its player.
     function turntable(x, y, r, speed) { return { x: x, y: y, r: r, speed: speed }; }
+    // A skater doing laps: an oval round (x, y), rx across and ry down — or
+    // a figure of eight in the same box — at `speed` radians a second from
+    // `phase`. Takes a moving ball, dribbles it, passes it on.
+    function skater(x, y, rx, ry, speed, phase, eight) {
+        var s = { x: x, y: y, rx: rx, ry: ry, speed: speed, phase: phase || 0 };
+        if (eight) s.eight = true;
+        return s;
+    }
     /* Corners cut round: Chaikin's corner cutting, which replaces every
        corner of a closed outline with two points a quarter of the way along
        its edges. Twice over, a hexagon is a pebble — a bunker or a bed drawn
@@ -209,6 +217,18 @@
         });
         // So does a turntable.
         (h.turntables || []).forEach(function (t) { t.x = W - t.x; t.speed = -t.speed; });
+        /* A skater's lap reflects too. On an oval the angle a becomes π − a
+           and the skater goes round the other way; an eight's x is cos a and
+           its y sin 2a, which a half turn reflects as it stands. */
+        (h.skaters || []).forEach(function (k) {
+            k.x = W - k.x;
+            if (k.eight) {
+                k.phase = (k.phase || 0) + Math.PI;
+            } else {
+                k.phase = Math.PI - (k.phase || 0);
+                k.speed = -k.speed;
+            }
+        });
         (h.blocks || []).forEach(zone);
         (h.bumpers || []).concat(h.vents || [], h.hills || []).forEach(function (b) { b.x = W - b.x; });
         (h.tunnels || []).concat(h.rails || []).forEach(function (t) { t.x = W - t.x; t.tx = W - t.tx; });
@@ -226,7 +246,7 @@
        file does — the suite's own test holes among them. */
     GOLF.helpers = { r: r, post: post, tunnel: tunnel, rail: rail, poly: poly, chute: chute, vent: vent,
                      arc: arc, block: block, mound: mound, bowl: bowl, shape: shape, smooth: smooth, oval: oval, ring: ring,
-                     spinner: spinner, belt: belt, turntable: turntable, mirror: mirror };
+                     spinner: spinner, belt: belt, turntable: turntable, skater: skater, mirror: mirror };
 
     /* ── The Short Six — a walk through every place on the rack ─────────
 
@@ -251,49 +271,47 @@
     var SHORT = [
         {
             name: 'Garden Gate',
-            blurb: 'A walled garden with its gate facing you. Past the bush, through the gate, and let the green bring it home.',
+            blurb: 'A walled garden with its gate wide open. Through the gate, and let the green bring it home.',
             par: 2,
             theme: 'garden',
-            /* The first shot anybody plays. The cup sits in a round walled
-               garden whose gate faces the tee, on a green dished gently
-               towards the cup, and a clipped bush stands on the straight
-               line short of the gate. A putt past either side of the bush
-               and through the gate at about the right weight is an ace,
-               and is meant to be: the first hole should show that a hole in
-               one is a thing this game gives out — and that it is never
-               the putt aimed straight at the flag. Wide of the gate, the
-               wall turns it away; too firm, the back wall sends it home
-               again. The corners are
-               flower beds and the cushions are rough: the middle of the
-               field is where the ball wants to be. */
+            // The first shot anybody plays, and it may be the putt at the flag.
+            straight: true,
+            /* The first shot anybody plays, so it is easy and says so. The
+               cup sits in a round walled garden whose gate stands wide open
+               to the tee, on a green dished gently towards the cup: aim at
+               the flag, pick a weight, and the dish does the rest. Too firm
+               and the back wall sends it home again; wide of the gate and
+               the wall turns it away for a second putt. Nothing stands in
+               the way — the first hole should show that a hole in one is a
+               thing this game gives out. The corners are flower beds and
+               the cushions are rough: the middle of the field is where the
+               ball wants to be. */
             tee: { x: 140, y: 320 },
             hole: { x: 780, y: 320 },
-            arcs: [arc(780, 320, 140, 201, 519, 22)],
+            arcs: [arc(780, 320, 140, 208, 512, 22)],
             blocks: [
                 block('bed', smooth([0, 0, 200, 0, 150, 70, 60, 130, 0, 180])),
                 block('bed', smooth([0, 640, 0, 460, 60, 510, 150, 570, 200, 640])),
                 block('bed', smooth([560, 0, 960, 0, 960, 120, 900, 90, 700, 60])),
-                block('bed', smooth([560, 640, 700, 580, 900, 550, 960, 520, 960, 640])),
-                // A clipped bush on the line, so the putt through the gate goes
-                // in beside it and the dish brings it round.
-                block('hedge', oval(560, 320, 12, 12, 12))
+                block('bed', smooth([560, 640, 700, 580, 900, 550, 960, 520, 960, 640]))
             ],
-            hills: [bowl(780, 320, 100, 32)],
+            hills: [bowl(780, 320, 100, 12)],
             rough: [r(200, 0, 360, 60), r(200, 580, 360, 60)]
         },
         {
             name: 'Bank Holiday',
-            blurb: 'Round the copse to the flag. Or hit it hard along the bottom and let the curve carry it round.',
+            blurb: 'Round the copse to the flag. Or hit it along the bottom and let the board in the corner turn it up.',
             par: 3,
             theme: 'parkland',
             /* A dogleg round a copse, and the parkland's idea — angles —
                met for the first time. The safe way is two putts, one to the
-               turn and one up to the flag. The bold way is one: the outside
-               of the turn is a curved wall, and a firm ball sent along the
-               bottom rides it round and comes off it running up the right
-               side at the cup. The curve does the turning; the weight is
-               yours. There are other banks off the copse for anybody who
-               goes looking. */
+               turn and one up to the flag. The bold way is one: a bank board
+               stands across the far corner at forty-five degrees, and a ball
+               sent straight along the bottom meets it square and goes
+               straight up the right side at the cup. A flat board, not a
+               curve, because a first bank should be one you can read: the
+               angle in is the angle out. There are other banks off the
+               copse for anybody who goes looking. */
             tee: { x: 360, y: 585 },
             hole: { x: 905, y: 160 },
             blocks: [
@@ -301,22 +319,22 @@
                 block('bed', smooth([0, 520, 140, 500, 200, 560, 200, 640, 0, 640])),
                 block('tree', oval(770, 255, 24, 24, 12))
             ],
-            arcs: [arc(760, 420, 188, 0, 90, 24)]
+            rails: [rail(878, 640, 960, 558, 24)]
         },
         {
             name: 'Sandcastles',
-            blurb: 'A gap between two dunes, and a sandcastle in front of the flag. Bank off a castle; the sea is behind the cup.',
+            blurb: 'A gap between two dunes that lines up with the flag. Mind the weight: the sea is behind the cup.',
             par: 3,
             theme: 'seaside',
+            // A putt down the gap may drop: the question here is the weight.
+            straight: true,
             /* Sand and water, the beach's two hazards, met where they cost
                the least. The dunes leave a gap that lines up with the cup,
-               but a third sandcastle stands in front of the flag on that
-               line, so the putt down the gap meets the castle, not the cup.
-               The castles either side of the gap are there to be banked off,
-               and the cup sits in a little dish that gathers a ball arriving
-               past the near castle at the right weight; a firm one is wet,
-               since the sea is close behind. Soft is safe — short of the
-               flag, two putts. */
+               and the putt down it is the hole — but the sea is close behind
+               the flag, so it is a putt about weight: the dish round the cup
+               gathers one that arrives gently, and a firm one is wet. Soft is
+               safe — short of the flag, two putts. The castles either side
+               of the gap are there to be banked off. */
             tee: { x: 840, y: 560 },
             hole: { x: 200, y: 175 },
             water: [shape(smooth([0, 0, 360, 0, 330, 50, 230, 80, 120, 110, 70, 220, 0, 290]))],
@@ -328,22 +346,22 @@
                 block('rock', smooth([960, 0, 960, 140, 900, 120, 860, 60, 880, 0])),
                 block('rock', smooth([0, 640, 0, 470, 70, 500, 120, 580, 150, 640])),
                 block('castle', smooth([655, 265, 725, 265, 725, 335, 655, 335], 1)),
-                block('castle', smooth([295, 435, 365, 435, 365, 505, 295, 505], 1)),
-                block('castle', smooth([295, 220, 365, 220, 365, 290, 295, 290], 1))
+                block('castle', smooth([295, 435, 365, 435, 365, 505, 295, 505], 1))
             ],
-            hills: [bowl(200, 175, 90, 30)]
+            hills: [bowl(200, 175, 70, 14)]
         },
         {
             name: 'Molehill',
             blurb: 'A mole has been busy on the line. Over the top, round the shoulder, or the long way.',
             par: 3,
             theme: 'woodland',
+            // Over the top of the hill is one of the three ways, and it is straight.
+            straight: true,
             /* The wood's idea is ground that moves the ball, and a hill is
                the gentlest way in: a mound sheds a ball off whichever side
-               it meets, so the shoulder of it is a curve you can aim with.
-               Off the shoulder it bends round a tree standing on the
-               straight line between the hill and the flag; round the
-               outside is long and safe. Two log walls make a ring round the
+               it meets, so the shoulder of it is a curve you can aim with,
+               and the putt at the flag runs over its side and is shed off
+               the line; round the outside is long and safe. Two log walls make a ring round the
                hill, so whatever it sheds comes back into play. The cup sits
                in a dip. */
             tee: { x: 110, y: 330 },
@@ -353,9 +371,7 @@
             blocks: [
                 block('bed', smooth([0, 0, 260, 0, 200, 80, 60, 120, 0, 160])),
                 block('bed', smooth([0, 640, 0, 500, 80, 540, 200, 640])),
-                block('bed', smooth([960, 640, 700, 640, 760, 560, 900, 520, 960, 480])),
-                // A tree between the hill and the flag, on the straight line.
-                block('tree', oval(690, 274, 16, 16, 12))
+                block('bed', smooth([960, 640, 700, 640, 760, 560, 900, 520, 960, 480]))
             ]
         },
         {
@@ -385,24 +401,27 @@
         },
         {
             name: 'Snow Cannon',
-            blurb: 'The snow cannon blows across the piste, and the flag is on a frozen tarn. Aim into the wind.',
+            blurb: 'The snow cannon blows across the piste, and the flag is on a frozen tarn. Aim into the wind — or blast through it.',
             par: 3,
             theme: 'alpine',
+            // Straight at the flag only at full weight, through the wind: the bold way.
+            straight: true,
             /* The last hole of the walk is on the mountain, where the rack
                ends up, and it asks the question the mountain asks: what will
                the ball do on its way? A snow cannon blows a lane of wind
                across the middle of the field, and the cup is on a frozen
                tarn that keeps whatever pace arrives. A straight putt drifts
-               downwind and slides off the ice; the ace is aimed upwind of the
-               flag and struck softly enough for the tarn. Two putts — one to
-               the near side of the lane, one across it short — is safe. */
+               downwind and slides off the ice unless it is struck at full
+               weight, fast enough that the wind barely bends it — and then a
+               miss runs across the tarn and away. The softer ace is aimed
+               upwind of the flag. Two putts — one to the near side of the
+               lane, one across it short — is safe. */
             tee: { x: 140, y: 560 },
             hole: { x: 790, y: 130 },
             blocks: [
                 block('fan', [880, 255, 960, 255, 960, 385, 880, 385]),
                 block('rock', smooth([0, 0, 280, 0, 230, 90, 90, 140, 0, 160])),
-                block('bed', smooth([960, 640, 640, 640, 700, 560, 860, 520, 960, 480])),
-                block('snowman', oval(615, 245, 13, 13, 12))
+                block('bed', smooth([960, 640, 640, 640, 700, 560, 860, 520, 960, 480]))
             ],
             slopes: [{ x: 150, y: 265, w: 700, h: 110, ax: -140, ay: 0, wind: true }],
             ice: [shape(smooth([600, 80, 760, 50, 900, 90, 900, 200, 760, 230, 620, 190]))]
@@ -1727,7 +1746,9 @@
             ice: [shape(smooth([200, 230, 900, 230, 900, 410, 200, 410], 0))],
             hills: [bowl(820, 320, 75, 45)],
             blocks: [block('snowman', oval(660, 320, 12, 12, 12))],
-            rough: [r(0, 0, 960, 120), r(0, 520, 960, 120)]
+            rough: [r(0, 0, 960, 120), r(0, 520, 960, 120)],
+            // A skater doing laps of the sheet, across the line twice a lap.
+            skaters: [skater(450, 320, 130, 60, 1.0, Math.PI)]
         },
         {
             name: 'Hairpin',
@@ -1742,7 +1763,9 @@
             hole: { x: 150, y: 120 },
             blocks: [block('bed', smooth([0, 270, 560, 260, 640, 300, 640, 340, 560, 380, 0, 370], 1))],
             arcs: [arc(690, 320, 270, -90, 90, 26)],
-            ice: [shape([60, 400, 640, 400, 760, 320, 640, 240, 60, 240, 60, 40, 700, 40, 960, 320, 700, 600, 60, 600])]
+            ice: [shape([60, 400, 640, 400, 760, 320, 640, 240, 60, 240, 60, 40, 700, 40, 960, 320, 700, 600, 60, 600])],
+            // A skater going round the bottom straight, where the ride runs.
+            skaters: [skater(400, 500, 180, 55, -0.9, 0)]
         },
         {
             name: 'Ice Fishing',
@@ -1809,7 +1832,9 @@
             // A hole cut in the ice on the run in to the flag.
             water: [shape(oval(600, 545, 32, 30, 16))],
             arcs: [arc(760, 225, 160, -90, 90, 26), arc(200, 415, 160, 90, 270, 26)],
-            ice: [shape([0, 0, 960, 0, 960, 640, 0, 640])]
+            ice: [shape([0, 0, 960, 0, 960, 640, 0, 640])],
+            // A skater cutting figures of eight on the top straight.
+            skaters: [skater(480, 95, 170, 42, 0.8, 0, true)]
         }
     ];
 
@@ -2174,7 +2199,8 @@
        uses, and every consumer downstream gets to loop without a guard. The
        playtest hand-off in index.html fills a drawn hole from the same list. */
     GOLF.HAZARD_KEYS = ['walls', 'water', 'sand', 'rough', 'ice', 'bumpers', 'slopes', 'tunnels', 'rails',
-                        'lava', 'avalanches', 'vents', 'arcs', 'blocks', 'hills', 'spinners', 'belts', 'turntables'];
+                        'lava', 'avalanches', 'vents', 'arcs', 'blocks', 'hills', 'spinners', 'belts', 'turntables',
+                        'skaters'];
     GOLF.COURSES.forEach(function (c) {
         c.holes.forEach(function (h) {
             GOLF.HAZARD_KEYS.forEach(function (key) {

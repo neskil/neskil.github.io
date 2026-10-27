@@ -449,6 +449,88 @@
 
     function spindleOf(t) { return { x: t.x, y: t.y, r: C.SPINDLE_R }; }
 
+    /* ── skaters ────────────────────────────────────────────────────────
+
+       A skater does laps of the ice: an oval round (x, y), `rx` across and
+       `ry` down, or a figure of eight on the same box when `eight` is set,
+       at `speed` radians a second from `phase`. Where a skater is, is the
+       clock's, like a spinner's arms.
+
+       A skater leaves a ball at rest alone. A moving one that comes within
+       SKATER_R is taken: dribbled ahead of the skate for a moment, then
+       passed on, off the skater's heading by up to SKATER_CONE either way
+       and on top of the skater's own speed. How long, how far off and how
+       hard are a hash of the skater and the half-second it happened in —
+       to the player a coin toss, to the simulation a fact, so the caddie
+       and the tests see exactly the pass the game makes. Each skater plays
+       the ball once a shot: a pass hands the ball energy, and a skater who
+       could take it again could keep it going for ever. */
+    function skaterAt(s, t) {
+        var a = (s.phase || 0) + s.speed * t, k = s.eight ? 2 : 1;
+        return {
+            x: s.x + s.rx * Math.cos(a), y: s.y + s.ry * Math.sin(k * a),
+            vx: -s.rx * Math.sin(a) * s.speed, vy: s.ry * k * Math.cos(k * a) * s.speed
+        };
+    }
+
+    // How far ahead of the skater's middle the ball is dribbled.
+    function reachOf() { return C.SKATER_R + C.BALL_R + 2; }
+
+    // A uniform number in [0, 1) from an integer, the same everywhere.
+    function chance(n) {
+        n = Math.imul(n ^ (n >>> 16), 0x45d9f3b);
+        n = Math.imul(n ^ (n >>> 16), 0x45d9f3b);
+        n ^= n >>> 16;
+        return (n >>> 0) / 4294967296;
+    }
+
+    function takeBall(world, events) {
+        var list = world.course.skaters, b = world.ball;
+        if (!list || !world.moving) return false;
+        for (var i = 0; i < list.length; i++) {
+            if (world.passed[i]) continue;
+            var p = skaterAt(list[i], world.time), ox = b.x - p.x, oy = b.y - p.y;
+            if (ox * ox + oy * oy > (C.SKATER_R + C.BALL_R) * (C.SKATER_R + C.BALL_R)) continue;
+            var n = (i + 1) * 7919 + Math.floor(world.time * 2) * 104729;
+            var sp = Math.hypot(p.vx, p.vy) || 1, hx = p.vx / sp, hy = p.vy / sp;
+            var H = C.SKATER_HOLD, S = C.SKATER_PASS;
+            world.held = {
+                i: i, from: world.time,
+                until: world.time + H[0] + chance(n) * (H[1] - H[0]),
+                turn: (chance(n + 1) * 2 - 1) * C.SKATER_CONE,
+                speed: S[0] + chance(n + 2) * (S[1] - S[0]),
+                // Where it was taken, in the skater's own frame, so the
+                // ball is drawn in to the stick rather than jumping there.
+                ax: ox * hx + oy * hy, ay: oy * hx - ox * hy
+            };
+            world.air = world.airMax = 0;
+            b.vx = p.vx; b.vy = p.vy;
+            events.caught = { x: b.x, y: b.y, i: i };
+            return true;
+        }
+        return false;
+    }
+
+    function dribble(world, events) {
+        var h = world.held, s = world.course.skaters[h.i], b = world.ball;
+        var p = skaterAt(s, world.time), sp = Math.hypot(p.vx, p.vy) || 1, hx = p.vx / sp, hy = p.vy / sp;
+        var reach = reachOf(), k = Math.min(1, (world.time - h.from) / 0.18);
+        // Tapped from side to side as it goes.
+        var tap = Math.sin((world.time - h.from) * 15) * 3 * k;
+        var fx = h.ax + (reach - h.ax) * k, fy = h.ay + (tap - h.ay) * k;
+        b.x = p.x + hx * fx - hy * fy;
+        b.y = p.y + hy * fx + hx * fy;
+        b.vx = p.vx; b.vy = p.vy;
+        b.z = C.BALL_R; b.vz = 0;
+        if (world.time < h.until) return;
+        var a = Math.atan2(hy, hx) + h.turn;
+        b.vx = p.vx + Math.cos(a) * h.speed;
+        b.vy = p.vy + Math.sin(a) * h.speed;
+        world.passed[h.i] = true;
+        world.held = null;
+        events.pass = { x: b.x, y: b.y, i: h.i, angle: a };
+    }
+
     function bumpOff(b, post, events) {
         var bump = circleCircle(b.x, b.y, C.BALL_R, post);
         if (!bump) return;
@@ -492,7 +574,11 @@
                cannot take it until it has left it; without the latch a ball
                coming out of one end would be inside that end's catch and go
                straight back down it. */
-            tunnelLock: null
+            tunnelLock: null,
+            /* A skater dribbling the ball — { i, from, until, turn, speed }
+               — and which skaters have already played it this shot. */
+            held: null,
+            passed: {}
         };
     }
 
@@ -559,6 +645,8 @@
         world.lava = false;
         world.air = world.airMax = 0;
         world.skips = 0;
+        world.held = null;
+        world.passed = {};
         return true;
     }
 
@@ -599,6 +687,10 @@
     function substep(world, dt, events) {
         var b = world.ball, course = world.course;
         world.time += dt;
+
+        // On a skater's stick the ball goes where the skater goes, and
+        // nothing on the ground has it until it is passed on.
+        if (world.held) { dribble(world, events); return; }
 
         // Off a skip the ball is over everything on the ground: no slope
         // pulls it and no surface holds it, only the air.
@@ -747,6 +839,9 @@
         // not a tunnel, not the cup, not the water it is skipping over.
         if (world.air > 0) return;
         if (aloft) events.land = { x: b.x, y: b.y, wet: !!(zoneAt(course.water, b.x, b.y) || zoneAt(course.lava, b.x, b.y)) };
+
+        // A skater takes a moving ball off whatever it was doing.
+        if (takeBall(world, events)) return;
 
         // Tunnels. Only a ball that is going somewhere can fall into one: a
         // ball put back at the spot it was played from after a splash may be
@@ -1029,6 +1124,7 @@
         (h.spinners || []).forEach(function (s) {
             period = Math.max(period, 2 * Math.PI / Math.abs(s.speed) / Math.max(1, s.arms));
         });
+        (h.skaters || []).forEach(function (s) { period = Math.max(period, 2 * Math.PI / Math.abs(s.speed)); });
         period = Math.min(period, 8);
         var moments = 12, step = 0.04;
         var times = [0];
@@ -1075,6 +1171,9 @@
         turntableAt: turntableAt,
         turntableVelocity: turntableVelocity,
         spindleOf: spindleOf,
+        skaterAt: skaterAt,
+        reachOf: reachOf,
+        chance: chance,
         arcRails: arcRails,
         blockRails: blockRails,
         railsOf: railsOf,

@@ -305,6 +305,19 @@
             setTimeout(function () { tone(160, 0.18, 'sine', 0.08, 640); }, 120);
             noise(0.3, 500, 0.8, 0.05, 'lowpass');
         },
+        // Taken by a skater: the hiss of a blade turning on the ice and a
+        // little whistle — the skater is pleased with it, even if you are not.
+        steal: function () {
+            noise(0.32, 5200, 0.8, 0.07, 'highpass');
+            tone(1180, 0.08, 'sine', 0.05, 1560);
+            setTimeout(function () { tone(1560, 0.1, 'sine', 0.045, 1180); }, 90);
+        },
+        // Passed on: the clack of a stick and a scrape away.
+        pass: function () {
+            noise(0.03, 1900, 3, 0.14);
+            tone(300, 0.05, 'triangle', 0.1, 170);
+            setTimeout(function () { noise(0.22, 4600, 0.7, 0.05, 'highpass'); }, 40);
+        },
         // Out of strokes. Two notes down, kindly: it is a rule, not a scolding.
         pickup: function () {
             tone(392, 0.18, 'triangle', 0.1);

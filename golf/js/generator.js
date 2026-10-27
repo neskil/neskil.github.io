@@ -844,6 +844,59 @@
             (h.vents || []).forEach(function (v) { if (Math.hypot(v.x - tt.x, v.y - tt.y) < tt.r + VR) bad.push('a vent on a turntable'); });
         });
 
+        /* Skaters. A skater carries the ball wherever the lap goes and
+           nothing on the ground has it meanwhile, so the whole lap, and a
+           dribbled ball's reach and a ball's width round it, is open ground
+           on the field: nothing solid, wet, burning, moving or turning on
+           it, no chute, vent or mouth, and the tee and the cup well off it.
+           The lap itself is ice: a skater does not skate on grass. A lap is an oval or an eight between 40px and 320px each way, at
+           a pace a player can read, and two laps never meet. */
+        var skaters = h.skaters || [];
+        function lap(sk, n) {
+            var pts = [], k = sk.eight ? 2 : 1;
+            for (var q = 0; q < n; q++) {
+                var a = q / n * Math.PI * 2;
+                pts.push({ x: sk.x + sk.rx * Math.cos(a), y: sk.y + sk.ry * Math.sin(k * a) });
+            }
+            return pts;
+        }
+        skaters.forEach(function (sk, ki) {
+            if (!(sk.rx >= 40 && sk.rx <= 320 && sk.ry >= 40 && sk.ry <= 320)) { bad.push('a skater\'s lap too small or too big'); return; }
+            var top = Math.max(sk.rx, sk.ry * (sk.eight ? 2 : 1)) * Math.abs(sk.speed);
+            if (!(Math.abs(sk.speed) >= 0.3) || top > 260) bad.push('a skater too slow to see or too quick to read');
+            var room = P.reachOf() + C.BALL_R + 4, pts = lap(sk, 96);
+            var off = false, solid = false, wet = false, busy = false, onTee = false, onCup = false, dry = false;
+            pts.forEach(function (p) {
+                if (!P.zoneAt(h.ice, p.x, p.y)) dry = true;
+                if (p.x - room < 0 || p.y - room < 0 || p.x + room > C.WORLD_W || p.y + room > C.WORLD_H) off = true;
+                solid = solid || (h.walls || []).some(function (w) { return P.circleRect(p.x, p.y, room, travelEnvelope(w)) !== null; }) ||
+                    posts.some(function (b) { return P.circleCircle(p.x, p.y, room, b) !== null; }) ||
+                    rails.some(function (r) { return P.circleRail(p.x, p.y, room, r) !== null; }) ||
+                    spins.some(function (sp) { return Math.hypot(sp.x - p.x, sp.y - p.y) < room + P.sweepOf(sp); }) ||
+                    decks.some(function (tt) { return Math.hypot(tt.x - p.x, tt.y - p.y) < room + tt.r; });
+                wet = wet || [].concat(h.water || [], h.lava || []).some(function (z) { return circleTouches(p.x, p.y, room, z); });
+                busy = busy || [].concat(h.belts || [], h.avalanches || []).some(function (z) { return circleTouches(p.x, p.y, room, z); }) ||
+                    mouths.some(function (m) { return Math.hypot(m.x - p.x, m.y - p.y) < room + TR; }) ||
+                    (h.vents || []).some(function (v) { return Math.hypot(v.x - p.x, v.y - p.y) < room + VR; });
+                onTee = onTee || Math.hypot(h.tee.x - p.x, h.tee.y - p.y) < room + 24;
+                onCup = onCup || Math.hypot(h.hole.x - p.x, h.hole.y - p.y) < room + C.HOLE_R + 24;
+            });
+            if (dry) bad.push('a skater off the ice');
+            if (off) bad.push('a skater\'s lap too near the cushion');
+            if (solid) bad.push('a skater\'s lap with something solid on it');
+            if (wet) bad.push('a skater\'s lap over water or lava');
+            if (busy) bad.push('a skater\'s lap over a belt, a chute, a vent or a mouth');
+            if (onTee) bad.push('the tee is on a skater\'s lap');
+            if (onCup) bad.push('the cup is on a skater\'s lap');
+            skaters.forEach(function (o, oi) {
+                if (oi <= ki) return;
+                var near = lap(o, 96).some(function (q) {
+                    return pts.some(function (p) { return Math.hypot(p.x - q.x, p.y - q.y) < C.SKATER_R * 2 + 10; });
+                });
+                if (near) bad.push('two skaters\' laps that meet');
+            });
+        });
+
         if (strict) {
             (h.slopes || []).forEach(function (s) {
                 if (s.pts) return;   // reported above
@@ -1255,44 +1308,58 @@
     }
 
     function fallbackHole(rng, primary) {
-        /* The hole that cannot fail: a straight one with a collar of rough
-           and a post halfway down the line, and nothing else on it. Twelve
-           re-rolls of a feature that will not fit is vanishingly rare and
-           not worth an infinite loop, and a dull hole is a better answer
-           than a hung boot or an illegal one. The post is the least a hole
-           can have and still not be a straight putt. */
+        /* The hole that cannot fail: a dogleg round one wall, with a collar
+           of rough, and nothing else on it. Twelve re-rolls of a feature
+           that will not fit is rare and not worth an infinite loop, and a
+           plain hole is a better answer than a hung boot or an illegal one.
+           The wall runs in from whichever cushion the line from the tee to
+           the cup passes nearer, past that line, so the way to the flag is
+           round its end. */
         var f = makeFrame(true, 130, 830);
-        var tee = f.point(130, between(rng, 160, 480)), cup = f.point(830, between(rng, 160, 480));
-        return {
+        var tv = between(rng, 160, 480), cv = between(rng, 160, 480), mid = (tv + cv) / 2;
+        var tee = f.point(130, tv), cup = f.point(830, cv);
+        var wall = mid < 320 ? f.rect(330, 24, 0, mid + 90) : f.rect(330, 24, mid - 90, 640 - (mid - 90));
+        var plain = {
             primary: primary,
-            phrases: ['nothing but the length of it, and a post'],
+            phrases: ['a dogleg round a wall'],
             par: 3,
             tee: tee,
             hole: cup,
-            walls: [], water: [], sand: [],
-            rough: [f.rect(0, 960, 0, 80), f.rect(0, 960, 560, 80)],
-            ice: [], bumpers: [{ x: (tee.x + cup.x) / 2, y: (tee.y + cup.y) / 2, r: 30 }], slopes: []
+            walls: [wall], water: [], sand: [],
+            rough: [f.rect(0, 960, 0, 60), f.rect(0, 960, 580, 60)],
+            ice: [], bumpers: [], slopes: [], tunnels: [], rails: []
         };
+        /* And the feature it was dealt, beyond the wall, if it fits there:
+           a draw carries the deck's whole vocabulary, and the fallback is
+           still one of its nine holes. */
+        var feat = FEATURES[primary];
+        var part = feat && feat.build(rng, f, 600, tv + (cv - tv) * 0.67);
+        if (part) {
+            var whole = JSON.parse(JSON.stringify(plain));
+            Object.keys(part).forEach(function (k) { whole[k] = (whole[k] || []).concat(part[k]); });
+            whole.phrases = ['a dogleg round a wall', feat.phrase];
+            if (validateHole(whole, { strict: true }).length === 0 && !P.straightAce(whole)) return whole;
+        }
+        return plain;
     }
 
-    /* A dealt hole that a straight putt can hole gets a post on the line
-       rather than a re-roll: the feature the deck dealt it is still the
-       hole, and one post is the smallest thing that turns the putt at the
-       flag into a putt round something. A few places along the line are
-       tried, nearest the middle first, and the first that keeps every rule
-       is kept. If none does, the hole is thrown away like any other that
-       breaks one. */
+    /* A dealt hole that a straight putt can hole is not mended with a
+       post on the line: that answers the rule and nothing else, the same
+       straight hole with a thing in the way. Its cup is moved instead,
+       across the line of play a little way and then further, either side,
+       so the hole's own feature comes between the tee and the flag; the
+       first place that keeps every rule is kept. If none does, the hole is
+       dealt again like any other that breaks one. */
     function unstraighten(h) {
         if (!P.straightAce(h)) return h;
-        var spots = [0.55, 0.45, 0.65, 0.35, 0.75];
-        for (var i = 0; i < spots.length; i++) {
-            var t = spots[i];
+        var dx = h.hole.x - h.tee.x, dy = h.hole.y - h.tee.y, L = Math.hypot(dx, dy) || 1;
+        var nx = -dy / L, ny = dx / L, m = C.HOLE_R + 30;
+        var shifts = [90, -90, 150, -150, 210, -210];
+        for (var i = 0; i < shifts.length; i++) {
+            var x = Math.round(h.hole.x + nx * shifts[i]), y = Math.round(h.hole.y + ny * shifts[i]);
+            if (x < m || y < m || x > C.WORLD_W - m || y > C.WORLD_H - m) continue;
             var copy = JSON.parse(JSON.stringify(h));
-            copy.bumpers = (copy.bumpers || []).concat([{
-                x: Math.round(h.tee.x + (h.hole.x - h.tee.x) * t),
-                y: Math.round(h.tee.y + (h.hole.y - h.tee.y) * t),
-                r: 24
-            }]);
+            copy.hole = { x: x, y: y };
             if (validateHole(copy, { strict: true }).length === 0 && !P.straightAce(copy)) return copy;
         }
         return null;

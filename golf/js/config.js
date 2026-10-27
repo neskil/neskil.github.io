@@ -7,7 +7,7 @@
    and on a desktop and none of the tuning below is resolution dependent. */
 window.GOLF = window.GOLF || {};
 
-GOLF.VERSION = '1.18.1';
+GOLF.VERSION = '1.19.0';
 
 GOLF.CONFIG = {
     WORLD_W: 960,
@@ -66,6 +66,14 @@ GOLF.CONFIG = {
        there for ever and the hole would never return to the aim phase. */
     BUMPER_RESTITUTION: 0.94,
     SPINDLE_R: 9,         // the post at the middle of a turntable
+    /* A skater: how near a ball has to come to be taken (body and stick),
+       how long it is dribbled, in seconds, and how hard and how far off the
+       skater's heading it is passed on. The pass is on top of the skater's
+       own speed, so the slowest one still leaves the skater behind. */
+    SKATER_R: 15,
+    SKATER_HOLD: [0.5, 1.2],
+    SKATER_PASS: [180, 380],
+    SKATER_CONE: 70 * Math.PI / 180,
     BUMPER_MIN_R: 14,     // smaller than this and the substep cap cannot protect it
     STOP_SPEED: 14,       // below this the ball is considered at rest
 

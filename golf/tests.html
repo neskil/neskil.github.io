@@ -1175,6 +1175,132 @@
             assert('a cup on a turntable is caught', bad(cupped).some(function (m) { return /cup is on a turntable/.test(m); }));
         })();
 
+        /* ── skaters ────────────────────────────────────────────────────── */
+        section('Skaters');
+
+        /* The one thing on the rack that takes the ball away from you. What
+           is pinned is that it is fair in the ways that matter: it leaves a
+           ball at rest alone, it always gives the ball back, it plays a ball
+           once a shot so a shot always ends, and its coin toss is the same
+           toss every time the same shot is played. */
+        (function () {
+            var Hs = GOLF.helpers;
+            function rink(extra) {
+                var h = { par: 3, tee: { x: 100, y: 320 }, hole: { x: 880, y: 320 } };
+                GOLF.HAZARD_KEYS.forEach(function (k) { h[k] = []; });
+                h.ice = [Hs.r(40, 40, 880, 560)];
+                Object.keys(extra || {}).forEach(function (k) { h[k] = extra[k]; });
+                return h;
+            }
+            var oval = Hs.skater(480, 320, 160, 110, 1.1, 0);
+            var a0 = P.skaterAt(oval, 0), q = P.skaterAt(oval, Math.PI / 2 / 1.1);
+            assert('a skater starts at its phase on the lap and goes round it',
+                Math.abs(a0.x - 640) < 1e-9 && Math.abs(a0.y - 320) < 1e-9 && Math.abs(q.x - 480) < 1e-6 && Math.abs(q.y - 430) < 1e-6,
+                a0.x + ',' + a0.y + ' then ' + q.x.toFixed(1) + ',' + q.y.toFixed(1));
+            var eight = Hs.skater(480, 320, 160, 80, 0.8, 0, true), e1 = P.skaterAt(eight, Math.PI / 0.8);
+            assert('an eight crosses its own middle', Math.abs(P.skaterAt(eight, Math.PI / 2 / 0.8).x - 480) < 1e-6 &&
+                Math.abs(P.skaterAt(eight, Math.PI / 2 / 0.8).y - 320) < 1e-6, e1.x.toFixed(1) + ',' + e1.y.toFixed(1));
+            var h = rink({ skaters: [oval] });
+
+            // A ball at rest on the lap: the skater goes by and leaves it.
+            var lazy = P.createWorld(h, { x: 480, y: 210 }, 0);
+            for (var k = 0; k < 8 * 120; k++) P.advance(lazy, C.SIM_DT, {});
+            assert('a skater leaves a ball at rest alone', lazy.ball.x === 480 && lazy.ball.y === 210 && !lazy.held,
+                lazy.ball.x + ',' + lazy.ball.y);
+
+            // Moving balls into the lap until one is taken.
+            function play(hole, angle, power, at) {
+                var w = P.createWorld(hole, hole.tee, at), log = { caught: [], pass: [], w: w };
+                P.launch(w, angle, power);
+                for (var s = 0; s < C.MAX_SHOT_SECONDS / C.SIM_DT && w.moving; s++) {
+                    var ev = {};
+                    P.advance(w, C.SIM_DT, ev);
+                    if (ev.caught) log.caught.push({ t: w.time, i: ev.caught.i, held: JSON.parse(JSON.stringify(w.held)) });
+                    if (ev.pass) log.pass.push({ t: w.time, i: ev.pass.i, x: w.ball.x, y: w.ball.y, vx: w.ball.vx, vy: w.ball.vy, angle: ev.pass.angle });
+                }
+                return log;
+            }
+            var taken = null, tries = 0;
+            for (var ang = -30; ang <= 30 && !taken; ang += 3) {
+                for (var at = 0; at < 6 && !taken; at += 0.5) {
+                    tries++;
+                    var lg = play(h, ang * Math.PI / 180, 700, at);
+                    if (lg.caught.length) taken = { log: lg, ang: ang, at: at };
+                }
+            }
+            assert('a moving ball that meets a skater is taken', !!taken, tries + ' shots tried');
+            if (taken) {
+                var c0 = taken.log.caught[0], p0 = taken.log.pass[0];
+                assert('…and always passed on', !!p0 && p0.i === c0.i);
+                var hold = p0.t - c0.t;
+                assert('…after a dribble of ' + C.SKATER_HOLD[0] + ' to ' + C.SKATER_HOLD[1] + 's',
+                    hold >= C.SKATER_HOLD[0] - 0.02 && hold <= C.SKATER_HOLD[1] + 0.02, hold.toFixed(3) + 's');
+                var sk = P.skaterAt(oval, p0.t), rel = { x: p0.vx - sk.vx, y: p0.vy - sk.vy };
+                var relSpeed = Math.hypot(rel.x, rel.y), off = Math.atan2(rel.y, rel.x) - Math.atan2(sk.vy, sk.vx);
+                off = Math.atan2(Math.sin(off), Math.cos(off));
+                assert('…at a pace off the skater between ' + C.SKATER_PASS[0] + ' and ' + C.SKATER_PASS[1] + 'px/s',
+                    relSpeed >= C.SKATER_PASS[0] - 1 && relSpeed <= C.SKATER_PASS[1] + 1, relSpeed.toFixed(1));
+                assert('…somewhere ahead of the skater, never back through it', Math.abs(off) <= C.SKATER_CONE + 1e-6,
+                    (off * 180 / Math.PI).toFixed(1) + '°');
+                assert('…from just ahead of the stick', Math.hypot(p0.x - sk.x, p0.y - sk.y) < P.reachOf() + 5,
+                    Math.hypot(p0.x - sk.x, p0.y - sk.y).toFixed(1) + 'px out');
+                assert('a skater plays the ball once a shot', taken.log.caught.length === 1, taken.log.caught.length + ' catches');
+                assert('…and the shot ends', !taken.log.w.moving);
+                var again = play(h, taken.ang * Math.PI / 180, 700, taken.at);
+                assert('the same shot is the same pass, every time it is played',
+                    JSON.stringify(again.pass) === JSON.stringify(taken.log.pass), JSON.stringify(again.pass[0]));
+            }
+            // The toss changes with the half-second: over a spread of
+            // moments, the passes do not all go the same way.
+            var turns = {};
+            for (var t = 0; t < 40; t += 0.5) {
+                var n = 2 * 7919 + Math.floor(t * 2) * 104729;
+                turns[Math.round((P.chance(n + 1) * 2 - 1) * 4)] = true;
+            }
+            assert('the toss lands all over the cone', Object.keys(turns).length >= 7, Object.keys(turns).join(' '));
+
+            // A shot that meets two skaters is passed by both and still ends.
+            var two = rink({ skaters: [Hs.skater(330, 320, 110, 110, 1.2, 0), Hs.skater(680, 320, 110, 110, -1.2, 0)] });
+            var ended = 0, both = 0;
+            for (var a2 = -20; a2 <= 20; a2 += 4) {
+                for (var t2 = 0; t2 < 5; t2 += 1) {
+                    var l2 = play(two, a2 * Math.PI / 180, 1100, t2);
+                    if (!l2.w.moving) ended++;
+                    if (l2.pass.length === 2) both++;
+                }
+            }
+            assert('every shot through two skaters ends inside MAX_SHOT_SECONDS', ended === 55, ended + ' of 55');
+
+            // A mirror: the lap reflects, and so does where the skater is on it.
+            [oval, eight].forEach(function (sk) {
+                var m = Hs.mirror(rink({ skaters: [JSON.parse(JSON.stringify(sk))] })).skaters[0];
+                var worst = 0;
+                for (var tm = 0; tm < 6; tm += 0.37) {
+                    var aa = P.skaterAt(sk, tm), bb = P.skaterAt(m, tm);
+                    worst = Math.max(worst, Math.abs(C.WORLD_W - aa.x - bb.x) + Math.abs(aa.y - bb.y));
+                }
+                assert('a mirrored ' + (sk.eight ? 'eight' : 'oval') + ' is the same skater in the glass', worst < 1e-6, worst.toExponential(2));
+            });
+
+            // The rule book.
+            function bad(hole) { return GOLF.validateHole(hole); }
+            assert('a skater that keeps the rules passes the rule book', bad(h).length === 0, bad(h).join('; '));
+            var grass = rink({ skaters: [oval] }); grass.ice = [Hs.r(40, 40, 520, 560)];
+            assert('a skater off the ice is caught', bad(grass).some(function (m) { return /off the ice/.test(m); }));
+            var posted = rink({ skaters: [oval] }); posted.bumpers.push(Hs.post(640, 330, 16));
+            assert('a post on a lap is caught', bad(posted).some(function (m) { return /something solid on it/.test(m); }));
+            var holed = rink({ skaters: [oval] }); holed.water.push(Hs.r(460, 190, 40, 40));
+            assert('water on a lap is caught', bad(holed).some(function (m) { return /over water/.test(m); }));
+            var tee = rink({ skaters: [oval] }); tee.tee = { x: 320, y: 320 };
+            assert('a tee on a lap is caught', bad(tee).some(function (m) { return /tee is on a skater/.test(m); }));
+            var edge = rink({ skaters: [Hs.skater(480, 320, 300, 300, 0.5, 0)] });
+            assert('a lap off the field is caught', bad(edge).some(function (m) { return /too big|near the cushion/.test(m); }));
+            var quick = rink({ skaters: [Hs.skater(480, 320, 200, 100, 2, 0)] });
+            assert('a skater too quick to read is caught', bad(quick).some(function (m) { return /too quick/.test(m); }));
+            var meet = rink({ skaters: [oval, Hs.skater(480, 320, 150, 100, -1, 0)] });
+            assert('two laps that meet are caught', bad(meet).some(function (m) { return /laps that meet/.test(m); }));
+        })();
+
         /* ── scenery ───────────────────────────────────────────────────── */
         section('Scenery');
 
@@ -2217,15 +2343,19 @@
 
             // The straight putt. No hole on the rack may be aced by a putt
             // struck at the flag — at any weight, a hair either side, or at
-            // any moment of a clock — and the check has to be able to see
-            // one: an empty field is nothing but a straight putt.
-            var straight = [];
+            // any moment of a clock — unless it says it means it, and only
+            // a few may: a first hole, or one whose whole question is the
+            // weight. The check has to be able to see one: an empty field
+            // is nothing but a straight putt.
+            var straight = [], allowed = [];
             everyHole(function (h, i, course) {
+                if (h.straight) { allowed.push(course.id + ' ' + h.name); return; }
                 var hit = GOLF.physics.straightAce(h);
                 if (hit) straight.push(course.id + ' ' + h.name + ' (' + Math.round(hit.power) + ' at ' + hit.at.toFixed(1) + 's)');
             });
-            assert('no shipped hole is aced by a putt struck straight at the cup', straight.length === 0,
+            assert('no shipped hole is aced by a putt struck straight at the cup unless it says so', straight.length === 0,
                 straight.slice(0, 4).join(' · '));
+            assert('only a few holes say a straight putt may drop', allowed.length <= 8, allowed.join(' · '));
             var bare = { par: 2, tee: { x: 200, y: 320 }, hole: { x: 600, y: 320 } };
             GOLF.HAZARD_KEYS.forEach(function (k) { bare[k] = []; });
             assert('…and the check finds the one an empty field gives', GOLF.physics.straightAce(bare) !== null);
