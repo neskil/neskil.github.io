@@ -21,6 +21,8 @@
     var lastSandAt = 0;
     var lastRimAt = 0;
     var lastSweptAt = 0;
+    // What a player hears when a skater takes the ball off them.
+    var SKATER_CALLS = ['Stolen by a skater!', 'The skater\'s got it!', 'Intercepted!', 'Off on a lap with it!'];
     // The board is drawn a quarter-turn round when the screen is taller than
     // it is wide. See resize().
     var turned = false;
@@ -922,7 +924,7 @@
         state.lastFrac = power / C.MAX_POWER;
         state.trail = [];
         // What this shot does on its way, for the call-out if it drops.
-        state.shot = { from: { x: state.world.ball.x, y: state.world.ball.y }, banks: 0, posts: 0, tunnels: 0, skips: 0, vents: 0, swept: false, lipped: false };
+        state.shot = { from: { x: state.world.ball.x, y: state.world.ball.y }, banks: 0, posts: 0, tunnels: 0, skips: 0, vents: 0, skaters: 0, swept: false, lipped: false };
         state.lipping = false;
         a.active = false;
         a.power = 0;
@@ -966,6 +968,7 @@
         w.lava = false;
         w.moving = false;
         w.air = w.airMax = 0;
+        w.held = null;
         state.trail = [];
         state.phase = 'aim';
         syncHud();
@@ -992,6 +995,7 @@
         if (s.tunnels) bits.push(s.tunnels > 1 ? 'through ' + s.tunnels + ' tunnels' : 'through the tunnel');
         if (s.vents) bits.push(s.vents > 1 ? 'off ' + s.vents + ' geysers' : 'off the geyser');
         if (s.swept) bits.push('rode the avalanche');
+        if (s.skaters) bits.push(s.skaters > 1 ? 'passed down the line' : 'an assist from the skater');
         if (s.posts >= 3) bits.push('pinball wizard');
         else if (s.posts) bits.push('off the post');
         if (s.banks >= 3) bits.push(s.banks + '-cushion bank');
@@ -2550,6 +2554,19 @@
             A.buzz(20);
             R.effects.vent(ev.vent.x, ev.vent.y);
             if (shot) shot.vents++;
+        }
+        /* Taken by a skater, and passed on. Called once, on the steal: the
+           pass that follows is what the player is watching, not reading. */
+        if (ev.caught) {
+            A.steal();
+            A.buzz(15);
+            R.effects.steal(ev.caught.x, ev.caught.y);
+            if (shot) shot.skaters++;
+            toast(SKATER_CALLS[(Math.random() * SKATER_CALLS.length) | 0]);
+        }
+        if (ev.pass) {
+            A.pass();
+            R.effects.pass(ev.pass.x, ev.pass.y, ev.pass.angle);
         }
         if (ev.swept && now - lastSweptAt > 600) {
             lastSweptAt = now;

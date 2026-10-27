@@ -85,7 +85,8 @@
         if (!course) { status.textContent = 'No card called ' + id + '.'; return; }
 
         function timed(h) {
-            return h.walls.some(function (w) { return w.move; }) || h.vents.length || h.avalanches.length || h.spinners.length;
+            return h.walls.some(function (w) { return w.move; }) || h.vents.length || h.avalanches.length || h.spinners.length ||
+                h.skaters.length;
         }
 
         // Every angle in half degrees and every weight in fiftieths of the
@@ -217,7 +218,8 @@
                 '<div class="row">aces <span class="' + v.cls + '">' + pct + '% · ' + v.word + '</span> · caddie ' + bots.join(', ') +
                 ' · club player <span class="' + clubCls + '">' + club + '</span>, wet in ' + wetRounds + '/' + ROUNDS + '</div>' +
                 '<div class="row">straight putt: ' + (straight
-                    ? '<span class="bad">drops at ' + Math.round(straight.power / C.SAFE_POWER * 100) + '% weight</span>'
+                    ? '<span class="' + (h.straight ? 'warn' : 'bad') + '">drops at ' + Math.round(straight.power / C.SAFE_POWER * 100) + '% weight' +
+                        (h.straight ? ' — allowed on this hole' : '') + '</span>'
                     : '<span class="ok">never drops</span>') +
                 (rules.length ? ' · <span class="bad">' + rules.join('; ') + '</span>' : '') + '</div>' +
                 '<div class="row">' + win.slice(0, 4).map(function (w) {

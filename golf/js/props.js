@@ -124,15 +124,29 @@
         study: ['#21592a', '#47a052']
     };
     // A rock in the biome it lies in.
+    /* What a rock is made of where it stands: the stone's colour lit and
+       in shade, the dark in the cracks between boulders, and what grows or
+       lies on it — snow, moss, lichen, the strata of sandstone, craters, or
+       the volcano's glow coming up through the gaps. */
     var ROCK = {
-        space: { kind: 'granite', top: '#7b7f8c', side: '#3a3d48' },
-        alpine: { kind: 'granite', top: '#9aa3ab', side: '#4f565d', snow: true },
-        winter: { kind: 'granite', top: '#a7b0b8', side: '#59626b', snow: true },
-        volcanic: { kind: 'basalt', top: '#3d3a3b', side: '#1b1819', glow: true },
-        desert: { kind: 'sandstone', top: '#c9854f', side: '#7a4526' },
-        seaside: { kind: 'stone', top: '#9a958a', side: '#55514a' },
-        _: { kind: 'stone', top: '#8d8f88', side: '#4a4b46' }
+        space: { kind: 'granite', top: '#868b99', side: '#3a3d48', gap: '#1d1f27', on: 'crater' },
+        alpine: { kind: 'granite', top: '#a1aab2', side: '#4f565d', gap: '#2c3136', snow: true, on: 'snow' },
+        winter: { kind: 'granite', top: '#adb6be', side: '#59626b', gap: '#353b42', snow: true, on: 'snow' },
+        volcanic: { kind: 'basalt', top: '#4a4546', side: '#1b1819', gap: '#2a0c04', glow: true, on: 'ember' },
+        desert: { kind: 'sandstone', top: '#d08f58', side: '#7a4526', gap: '#4d2a16', on: 'strata' },
+        seaside: { kind: 'stone', top: '#a6a195', side: '#55514a', gap: '#2f2c27', on: 'lichen' },
+        study: { kind: 'stone', top: '#9b968c', side: '#4d4a44', gap: '#2a2824', on: 'none' },
+        _: { kind: 'stone', top: '#999b93', side: '#4a4b46', gap: '#282a25', on: 'moss' }
     };
+
+    // Two hex colours mixed, `t` of the way from a to b.
+    function mixHex(a, b, t) {
+        var A = parseInt(a.slice(1), 16), B = parseInt(b.slice(1), 16);
+        var r = Math.round(((A >> 16) & 255) + ((((B >> 16) & 255) - ((A >> 16) & 255)) * t));
+        var gg = Math.round(((A >> 8) & 255) + ((((B >> 8) & 255) - ((A >> 8) & 255)) * t));
+        var bl = Math.round((A & 255) + (((B & 255) - (A & 255)) * t));
+        return 'rgb(' + r + ', ' + gg + ', ' + bl + ')';
+    }
 
     function bedOf(theme) { return BEDS[theme.id] || BEDS.parkland; }
 
@@ -539,46 +553,7 @@
             return;
         }
         if (look === 'rock') {
-            var rk = ROCK[theme.id] || ROCK._;
-            m = { top: rk.top, side: rk.side, hi: 'rgba(255, 255, 255, 0.3)', grain: 'rgba(0, 0, 0, 0.3)' };
-            solid(g, pts, w, m, v, 11, rk.top);
-            g.save();
-            trace(g, pts, 0, 0);
-            g.lineJoin = 'round';
-            g.lineWidth = w;
-            g.clip();
-            // Facets: lighter on the side towards the light.
-            var rb = boxOf(pts), lt = sv(v, -1, -1);
-            for (i = 0; i < 18; i++) {
-                var fx = rb.x0 + hash(seed + i) * (rb.x1 - rb.x0), fy = rb.y0 + hash(seed + i * 3.3) * (rb.y1 - rb.y0);
-                var fr = 10 + hash(seed + i * 7) * 22, lean = (fx - rb.x0) / (rb.x1 - rb.x0 + 1) * lt.x + (fy - rb.y0) / (rb.y1 - rb.y0 + 1) * lt.y;
-                g.fillStyle = lean > -0.5 ? 'rgba(255, 255, 255, 0.10)' : 'rgba(0, 0, 0, 0.12)';
-                g.beginPath();
-                for (var k = 0; k < 5; k++) {
-                    var a = k / 5 * Math.PI * 2 + i;
-                    g.lineTo(fx + Math.cos(a) * fr, fy + Math.sin(a) * fr * 0.8);
-                }
-                g.fill();
-            }
-            g.strokeStyle = rk.glow ? 'rgba(255, 110, 40, 0.55)' : 'rgba(0, 0, 0, 0.3)';
-            g.lineWidth = 1.2;
-            for (i = 0; i < 6; i++) {
-                var cx = rb.x0 + hash(seed + i * 5.1) * (rb.x1 - rb.x0), cy = rb.y0 + hash(seed + i * 6.7) * (rb.y1 - rb.y0);
-                g.beginPath();
-                g.moveTo(cx, cy);
-                for (k = 0; k < 3; k++) { cx += (hash(seed + i + k) - 0.5) * 30; cy += (hash(seed + i * 2 + k) - 0.5) * 30; g.lineTo(cx, cy); }
-                g.stroke();
-            }
-            if (rk.snow) {
-                g.fillStyle = 'rgba(245, 250, 255, 0.85)';
-                var sp = spots(pts, 0, 10, 6, seed + 9);
-                sp.forEach(function (p, n) {
-                    g.beginPath();
-                    g.ellipse(p.x + lt.x * 4, p.y + lt.y * 4, 12 + hash(n) * 10, 6 + hash(n + 1) * 4, 0, 0, Math.PI * 2);
-                    g.fill();
-                });
-            }
-            g.restore();
+            outcrop(g, pts, w, theme, v, seed);
             return;
         }
         /* The funfair's: a big top, a carousel and a big wheel, each on a
@@ -727,6 +702,233 @@
             tree(g, p.x, p.y, look === 'palm' ? Math.max(tr, Math.min(room.r + 8, 46)) : tr, theme, v, seed + n * 2.3,
                 look === 'palm' ? 'palm' : null);
         });
+        g.restore();
+    }
+
+    /* ── rocks ──────────────────────────────────────────────────────────
+
+       A rock is an outcrop of boulders rather than a slab: rounded stones
+       packed into the outline and out to the kerb the ball meets, each lit
+       on the side towards the light with a crack of shade where it sits on
+       its neighbour, the nearer ones over the further. Small ones are a
+       single stone. What lies on them is the place's: see ROCK. */
+
+    // An outline pushed out by d, each corner along the bisector of its edges.
+    function grown(pts, d) {
+        var n = pts.length / 2, out = [], sgn = polyArea(pts) > 0 ? 1 : -1;
+        for (var i = 0; i < n; i++) {
+            var a = (i - 1 + n) % n, c = (i + 1) % n;
+            var x = pts[i * 2], y = pts[i * 2 + 1];
+            var e1x = x - pts[a * 2], e1y = y - pts[a * 2 + 1], e2x = pts[c * 2] - x, e2y = pts[c * 2 + 1] - y;
+            var l1 = Math.hypot(e1x, e1y) || 1, l2 = Math.hypot(e2x, e2y) || 1;
+            var n1x = sgn * e1y / l1, n1y = -sgn * e1x / l1, n2x = sgn * e2y / l2, n2y = -sgn * e2x / l2;
+            var mx = n1x + n2x, my = n1y + n2y, ml = Math.hypot(mx, my) || 1;
+            mx /= ml; my /= ml;
+            var k = Math.min(2, 1 / Math.max(0.5, mx * n1x + my * n1y));
+            out.push(x + mx * d * k, y + my * d * k);
+        }
+        return out;
+    }
+
+    // A lumpy round stone's outline, as a closed smooth path.
+    function stonePath(g, x, y, r, seed) {
+        var n = 8, q = [], sq = 0.78 + hash(seed + 0.5) * 0.18, rot = hash(seed + 0.25) * TAU;
+        for (var i = 0; i < n; i++) {
+            var a = i / n * TAU + hash(seed) * TAU, rr = r * (0.8 + hash(seed + i * 1.37) * 0.28);
+            var ox = Math.cos(a) * rr, oy = Math.sin(a) * rr * sq;
+            q.push({ x: x + ox * Math.cos(rot) - oy * Math.sin(rot), y: y + ox * Math.sin(rot) + oy * Math.cos(rot) });
+        }
+        g.beginPath();
+        var m0 = { x: (q[n - 1].x + q[0].x) / 2, y: (q[n - 1].y + q[0].y) / 2 };
+        g.moveTo(m0.x, m0.y);
+        for (i = 0; i < n; i++) {
+            var p = q[i], nx = q[(i + 1) % n];
+            g.quadraticCurveTo(p.x, p.y, (p.x + nx.x) / 2, (p.y + nx.y) / 2);
+        }
+        g.closePath();
+    }
+
+    function boulder(g, x, y, r, rk, v, seed) {
+        var lt = sv(v, -1, -1), dn = sv(v, 1, 1.3);
+        // The crack of shade it casts on whatever it sits against.
+        stonePath(g, x + dn.x * r * 0.16, y + dn.y * r * 0.16, r * 1.02, seed);
+        g.fillStyle = 'rgba(0, 0, 0, 0.32)';
+        g.fill();
+        stonePath(g, x, y, r, seed);
+        var tone = (hash(seed + 6.6) - 0.5) * 0.16;
+        var face = tone > 0 ? mixHex(rk.top, '#ffffff', tone) : mixHex(rk.top, rk.side, -tone);
+        var gr = g.createRadialGradient(x + lt.x * r * 0.3, y + lt.y * r * 0.3, r * 0.2, x, y, r * 1.05);
+        gr.addColorStop(0, mixHex(rk.top, '#ffffff', 0.16 + tone));
+        gr.addColorStop(0.55, face);
+        gr.addColorStop(1, mixHex(rk.top, rk.side, 0.62));
+        g.fillStyle = gr;
+        g.fill();
+        g.save();
+        g.clip();
+        stoneDetails(g, x, y, r, rk, v, seed);
+        g.restore();
+        // Lit along the top edge, darker along the bottom.
+        stonePath(g, x, y, r, seed);
+        rimLight(g, x, y, r, v);
+    }
+
+    function rimLight(g, x, y, r, v) {
+        var lt = sv(v, -1, -1);
+        var rim = g.createLinearGradient(x + lt.x * r, y + lt.y * r, x - lt.x * r, y - lt.y * r);
+        rim.addColorStop(0, 'rgba(255, 255, 255, 0.4)');
+        rim.addColorStop(0.45, 'rgba(255, 255, 255, 0)');
+        rim.addColorStop(0.6, 'rgba(0, 0, 0, 0)');
+        rim.addColorStop(1, 'rgba(0, 0, 0, 0.35)');
+        g.strokeStyle = rim;
+        g.lineWidth = 1.3;
+        g.stroke();
+    }
+
+    // What lies on a stone, inside its clip: see ROCK.
+    function stoneDetails(g, x, y, r, rk, v, seed) {
+        var lt = sv(v, -1, -1), on = rk.on, k;
+        if (on === 'snow') {
+            // A cap of snow on the top of the stone, soft at its edge.
+            var sx = x + lt.x * r * 0.42, sy = y + lt.y * r * 0.5;
+            var sg = g.createRadialGradient(sx, sy, r * 0.1, sx, sy, r * 0.66);
+            sg.addColorStop(0, '#ffffff');
+            sg.addColorStop(0.62, 'rgba(240, 246, 252, 0.95)');
+            sg.addColorStop(1, 'rgba(225, 235, 245, 0)');
+            g.fillStyle = sg;
+            g.beginPath();
+            g.ellipse(sx, sy, r * 0.74, r * 0.5, 0, 0, TAU);
+            g.fill();
+        } else if (on === 'moss' || on === 'lichen') {
+            var cols = on === 'moss' ? ['rgba(96, 132, 56, 0.32)', 'rgba(124, 160, 70, 0.26)'] : ['rgba(226, 150, 48, 0.6)', 'rgba(214, 200, 96, 0.5)'];
+            for (k = 0; k < (on === 'moss' ? (hash(seed + 8) < 0.5 ? 0 : 2) : 5); k++) {
+                var ma = hash(seed + k * 3.1) * TAU, md = hash(seed + k * 5.7) * r * 0.6;
+                g.fillStyle = cols[k % 2];
+                g.beginPath();
+                g.arc(x + Math.cos(ma) * md + lt.x * r * 0.2, y + Math.sin(ma) * md + lt.y * r * 0.2,
+                      (on === 'moss' ? 0.22 : 0.08) * r + hash(seed + k) * r * (on === 'moss' ? 0.18 : 0.08), 0, TAU);
+                g.fill();
+            }
+        } else if (on === 'strata') {
+            g.lineWidth = Math.max(1, r * 0.07);
+            for (k = -1; k <= 1; k++) {
+                g.strokeStyle = k ? 'rgba(120, 60, 25, 0.13)' : 'rgba(255, 225, 180, 0.15)';
+                g.beginPath();
+                g.moveTo(x - r, y + k * r * 0.32 + (hash(seed + k) - 0.5) * 3);
+                g.quadraticCurveTo(x, y + k * r * 0.32 - r * 0.12, x + r, y + k * r * 0.32 + (hash(seed + k + 9) - 0.5) * 3);
+                g.stroke();
+            }
+        } else if (on === 'crater') {
+            for (k = 0; k < 2; k++) {
+                var ca = hash(seed + k * 7) * TAU, cd = hash(seed + k * 11) * r * 0.45, cr = r * (0.14 + hash(seed + k * 13) * 0.14);
+                var cx = x + Math.cos(ca) * cd, cy = y + Math.sin(ca) * cd;
+                g.fillStyle = 'rgba(0, 0, 0, 0.28)';
+                g.beginPath(); g.arc(cx, cy, cr, 0, TAU); g.fill();
+                g.strokeStyle = 'rgba(255, 255, 255, 0.28)';
+                g.lineWidth = 1;
+                g.beginPath(); g.arc(cx, cy, cr, -Math.PI * 0.1, Math.PI * 0.6); g.stroke();
+            }
+        } else if (on === 'ember' && hash(seed + 4) < 0.6) {
+            // A seam of the heat underneath showing through the stone.
+            g.strokeStyle = 'rgba(255, 110, 30, 0.6)';
+            g.lineWidth = 1.2;
+            g.beginPath();
+            var ex = x + (hash(seed + 1) - 0.5) * r, ey = y + (hash(seed + 2) - 0.5) * r;
+            g.moveTo(ex, ey);
+            for (k = 0; k < 3; k++) { ex += (hash(seed + k * 3) - 0.5) * r * 0.8; ey += (hash(seed + k * 5) - 0.5) * r * 0.8; g.lineTo(ex, ey); }
+            g.stroke();
+        }
+        // Grain: a dusting of light and dark flecks.
+        for (k = 0; k < r * 1.2; k++) {
+            g.fillStyle = hash(seed + k * 0.77) < 0.5 ? 'rgba(255, 255, 255, 0.16)' : 'rgba(0, 0, 0, 0.14)';
+            g.fillRect(x + (hash(seed + k * 1.9) - 0.5) * r * 1.8, y + (hash(seed + k * 2.3) - 0.5) * r * 1.8, 1.2, 1.2);
+        }
+    }
+
+    /* A rock too small to be a heap is one stone the shape of its outline:
+       shaded across, with ridges running out from its crown to its
+       corners, lit on one side and in shade on the other. */
+    function monolith(g, out, rk, v, seed) {
+        var c = pole(out), bb = boxOf(out), R = Math.max(bb.x1 - bb.x0, bb.y1 - bb.y0) / 2, lt = sv(v, -1, -1);
+        var cx = (bb.x0 + bb.x1) / 2, cy = (bb.y0 + bb.y1) / 2;
+        trace(g, out, 0, 0);
+        var gr = g.createRadialGradient(c.x + lt.x * R * 0.3, c.y + lt.y * R * 0.3, R * 0.1, cx, cy, R * 1.1);
+        gr.addColorStop(0, mixHex(rk.top, '#ffffff', 0.2));
+        gr.addColorStop(0.5, rk.top);
+        gr.addColorStop(1, mixHex(rk.top, rk.side, 0.6));
+        g.fillStyle = gr;
+        g.fill();
+        g.save();
+        g.clip();
+        // Ridges from the crown to every other corner.
+        var n = out.length / 2, every = n > 8 ? Math.round(n / 5) : 1;
+        for (var i = 0; i < n; i += every) {
+            var vx = out[i * 2], vy = out[i * 2 + 1];
+            var lit = ((vx - c.x) * lt.x + (vy - c.y) * lt.y) > 0;
+            g.strokeStyle = lit ? 'rgba(255, 255, 255, 0.22)' : 'rgba(0, 0, 0, 0.2)';
+            g.lineWidth = 1.2;
+            g.beginPath();
+            g.moveTo(c.x + lt.x * 2, c.y + lt.y * 2);
+            g.lineTo(vx, vy);
+            g.stroke();
+        }
+        stoneDetails(g, c.x, c.y, Math.max(c.r, R * 0.7), rk, v, seed);
+        g.restore();
+        trace(g, out, 0, 0);
+        rimLight(g, cx, cy, R, v);
+    }
+
+    function outcrop(g, pts, w, theme, v, seed) {
+        var rk = ROCK[theme.id] || ROCK._;
+        var m = { top: rk.top, side: rk.side, hi: 'rgba(255, 255, 255, 0.3)', grain: 'rgba(0, 0, 0, 0.3)' };
+        solid(g, pts, w, m, v, 11, rk.gap);
+        var out = grown(pts, w / 2 - 1.5), bb = boxOf(out);
+        g.save();
+        trace(g, out, 0, 0);
+        g.clip();
+        // The gaps: dark, or on the volcano lit from below.
+        if (rk.on === 'ember') {
+            var room = pole(pts);
+            var eg = g.createRadialGradient(room.x, room.y, 2, room.x, room.y, Math.max(bb.x1 - bb.x0, bb.y1 - bb.y0) * 0.6);
+            eg.addColorStop(0, '#ff7a1a');
+            eg.addColorStop(0.5, '#a3260a');
+            eg.addColorStop(1, '#3a0d04');
+            g.fillStyle = eg;
+        } else {
+            g.fillStyle = mixHex(rk.gap, rk.side, 0.55);
+        }
+        g.fillRect(bb.x0 - 2, bb.y0 - 2, bb.x1 - bb.x0 + 4, bb.y1 - bb.y0 + 4);
+        // The stones: packed in big ones first, then smaller ones into the
+        // room they leave, each allowed to sit a little on its neighbours;
+        // a size to suit the outcrop's narrow way, and a lone stone for a
+        // rock too small to be a heap.
+        var narrow = Math.min(bb.x1 - bb.x0, bb.y1 - bb.y0), wide = Math.max(bb.x1 - bb.x0, bb.y1 - bb.y0);
+        var size = Math.max(8, Math.min(28, narrow * 0.5)), stones = [];
+        if (wide < 96 || wide < size * 2.3) {
+            monolith(g, out, rk, v, seed);
+        } else {
+            var tries = Math.ceil(Math.abs(polyArea(out)) / (size * size) * 60);
+            for (var t = 0; t < tries; t++) {
+                var n = seed + t * 1.618;
+                var r = size * (1.3 - 0.85 * t / tries) * (0.85 + hash(n + 5.5) * 0.3);
+                var x = bb.x0 + hash(n) * (bb.x1 - bb.x0), y = bb.y0 + hash(n + 2.2) * (bb.y1 - bb.y0);
+                if (!P.pointInPoly(x, y, out) && edgeDist(out, x, y) > r * 0.4) continue;
+                var free = true;
+                for (var q = 0; q < stones.length && free; q++) {
+                    if (Math.hypot(stones[q].x - x, stones[q].y - y) < (stones[q].r + r) * 0.62) free = false;
+                }
+                if (free) stones.push({ x: x, y: y, r: r, s: n });
+            }
+        }
+        var down = sv(v, 0.35, 1);
+        stones.sort(function (a, b) { return (a.x * down.x + a.y * down.y) - (b.x * down.x + b.y * down.y); });
+        stones.forEach(function (st) { boulder(g, st.x, st.y, st.r, rk, v, st.s); });
+        // A touch of shade over the whole outcrop's far side.
+        var lt = sv(v, -1, -1), sh = g.createLinearGradient(bb.x0 + (lt.x < 0 ? 0 : bb.x1 - bb.x0), bb.y0 + (lt.y < 0 ? 0 : bb.y1 - bb.y0),
+            bb.x0 + (lt.x < 0 ? bb.x1 - bb.x0 : 0), bb.y0 + (lt.y < 0 ? bb.y1 - bb.y0 : 0));
+        sh.addColorStop(0, 'rgba(255, 255, 255, 0.06)');
+        sh.addColorStop(1, 'rgba(0, 0, 0, 0.14)');
+        g.fillStyle = sh;
+        g.fillRect(bb.x0, bb.y0, bb.x1 - bb.x0, bb.y1 - bb.y0);
         g.restore();
     }
 
@@ -1068,56 +1270,145 @@
         g.restore();
     }
 
+    /* A hut seen from above and a little in front: a pitched roof with
+       its ridge across the view, the upper plane catching the light, and
+       under the near eave the front wall with its door and a window. What
+       kind of hut is the place's — a striped beach hut by the sea, a
+       fishing hut with snow on its roof, icicles and a stovepipe on the
+       ice, a slate-roofed shed, and on a big plot a red barn. */
     function shack(g, p, v, theme, seed) {
-        // As big as its plot allows: a fishing hut on a small one, a barn
-        // on a big one.
         var s = Math.min(p.r * 1.3, 130);
         if (s < 14) return;
         var snow = theme.id === 'winter' || theme.id === 'alpine';
-        var walls = snow ? '#a0522d' : ['#e11d48', '#2563eb', '#16a34a', '#f59e0b'][(hash(seed) * 4) | 0];
-        var x0 = p.x - s / 2, y0 = p.y - s / 2, sh = sv(v, 6, 9);
+        var kind = snow ? 'fishing' : theme.id === 'seaside' ? 'beach' : s > 100 ? 'barn' : 'shed';
+        var paint = ['#e11d48', '#2563eb', '#16a34a', '#f59e0b', '#0ea5e9'][(hash(seed) * 5) | 0];
+        var half = s / 2, wallH = Math.max(9, s * 0.2), eave = Math.max(2.5, s * 0.06), ridge = -wallH - s * 0.04;
+        var wall = kind === 'beach' ? paint : kind === 'fishing' ? '#9a3412' : kind === 'barn' ? '#b91c1c' : '#8b5a2b';
+        var roofHi = kind === 'fishing' ? '#ffffff' : kind === 'beach' ? mixHex(paint, '#ffffff', 0.2) : kind === 'barn' ? '#8b929c' : '#6b7480';
+        var roofLo = kind === 'fishing' ? '#d6e0ea' : kind === 'beach' ? mixHex(paint, '#000000', 0.22) : kind === 'barn' ? '#5d636c' : '#4b535d';
+        function Q(a, b) { var o = sv(v, a, b); return { x: p.x + o.x, y: p.y + o.y }; }
+        function poly(list, fill) {
+            g.beginPath();
+            list.forEach(function (q) { var o = Q(q[0], q[1]); g.lineTo(o.x, o.y); });
+            g.closePath();
+            if (fill) { g.fillStyle = fill; g.fill(); }
+        }
+        function line(a0, b0, a1, b1) { var o = Q(a0, b0), e = Q(a1, b1); g.moveTo(o.x, o.y); g.lineTo(e.x, e.y); }
         g.save();
-        g.fillStyle = 'rgba(0, 0, 0, 0.25)';
-        g.fillRect(x0 + sh.x, y0 + sh.y, s, s);
-        prism(g, x0, y0, s, s, Math.max(14, s * 0.18), snow ? '#f1f5f9' : s > 70 ? '#6b7280' : '#7c4a2a', walls, v);
-        if (s > 70 && !snow) {
-            // A barn's roof: corrugated, in lines down from the ridge.
-            g.strokeStyle = 'rgba(30, 30, 35, 0.35)';
-            g.lineWidth = 1;
+        g.lineJoin = 'round';
+        // Its shadow on the deck.
+        poly([[-half + 5, -half - wallH + 9], [half + 9, -half - wallH + 9], [half + 9, half + 8], [-half + 5, half + 8]], 'rgba(0, 0, 0, 0.26)');
+        // The front wall under the near eave.
+        var fy0 = half - wallH, fy1 = half;
+        poly([[-half, fy0], [half, fy0], [half, fy1], [-half, fy1]], wall);
+        g.save();
+        poly([[-half, fy0], [half, fy0], [half, fy1], [-half, fy1]]);
+        g.clip();
+        g.lineWidth = 1;
+        if (kind === 'beach') {
+            // Painted boards, every other one white.
+            for (var bx = -half, n = 0; bx < half; bx += s / 9, n++) {
+                if (n % 2) poly([[bx, fy0], [bx + s / 9, fy0], [bx + s / 9, fy1], [bx, fy1]], 'rgba(255, 255, 255, 0.85)');
+            }
+        } else {
+            // Boards, as lines along the wall.
+            g.strokeStyle = 'rgba(0, 0, 0, 0.22)';
             g.beginPath();
-            for (var c = x0 + 6; c < x0 + s; c += 7) { g.moveTo(c, y0); g.lineTo(c, y0 + s); }
+            for (var by = fy0 + 3; by < fy1; by += 3.2) line(-half, by, half, by);
             g.stroke();
         }
-        // The roof: two planes meeting at a ridge, lit on one side.
-        var lt = sv(v, -1, 0);
-        g.fillStyle = 'rgba(0, 0, 0, 0.12)';
-        if (Math.abs(lt.x) > Math.abs(lt.y)) g.fillRect(x0 + s / 2, y0, s / 2, s); else g.fillRect(x0, y0 + s / 2, s, s / 2);
-        g.strokeStyle = 'rgba(0, 0, 0, 0.3)';
-        g.lineWidth = 1.5;
+        // Shade from the eave.
+        poly([[-half, fy0], [half, fy0], [half, fy0 + 3], [-half, fy0 + 3]], 'rgba(0, 0, 0, 0.25)');
+        g.restore();
+        // The door, and a window beside it.
+        var dw = Math.max(5, s * (kind === 'barn' ? 0.34 : 0.2)), dh = wallH * 0.82;
+        poly([[-dw / 2, fy1 - dh], [dw / 2, fy1 - dh], [dw / 2, fy1], [-dw / 2, fy1]], kind === 'barn' ? '#7f1d1d' : 'rgba(45, 28, 18, 0.92)');
+        g.strokeStyle = kind === 'barn' ? '#f8fafc' : 'rgba(255, 255, 255, 0.35)';
+        g.lineWidth = kind === 'barn' ? 1.6 : 0.8;
         g.beginPath();
-        if (Math.abs(lt.x) > Math.abs(lt.y)) { g.moveTo(x0 + s / 2, y0); g.lineTo(x0 + s / 2, y0 + s); }
-        else { g.moveTo(x0, y0 + s / 2); g.lineTo(x0 + s, y0 + s / 2); }
+        if (kind === 'barn') {
+            line(-dw / 2, fy1 - dh, dw / 2, fy1); line(dw / 2, fy1 - dh, -dw / 2, fy1); line(0, fy1 - dh, 0, fy1);
+        } else {
+            line(-dw / 2, fy1 - dh, dw / 2, fy1 - dh); line(-dw / 2, fy1 - dh, -dw / 2, fy1); line(dw / 2, fy1 - dh, dw / 2, fy1);
+        }
         g.stroke();
-        // A door on the near face, and a stovepipe with a wisp.
-        var door = sv(v, 0, s / 2 + Math.max(14, s * 0.18) * 0.5);
-        g.fillStyle = 'rgba(40, 25, 15, 0.85)';
-        g.fillRect(p.x + door.x - s * 0.14, p.y + door.y - s * 0.07, s * 0.28, s * 0.14);
-        if (s > 70) {
-            // Barn doors: the white cross on each leaf.
-            g.strokeStyle = '#f5f5f4';
-            g.lineWidth = 2;
-            var dx0 = p.x + door.x - s * 0.14, dy0 = p.y + door.y - s * 0.07;
-            g.strokeRect(dx0, dy0, s * 0.28, s * 0.14);
-            g.beginPath();
-            g.moveTo(dx0, dy0); g.lineTo(dx0 + s * 0.28, dy0 + s * 0.14);
-            g.moveTo(dx0 + s * 0.28, dy0); g.lineTo(dx0, dy0 + s * 0.14);
-            g.stroke();
+        if (s > 34 && kind !== 'barn') {
+            var wx = half * 0.55, ww = Math.max(4, s * 0.12), wh = wallH * 0.4;
+            poly([[wx - ww / 2, fy0 + wallH * 0.25], [wx + ww / 2, fy0 + wallH * 0.25], [wx + ww / 2, fy0 + wallH * 0.25 + wh], [wx - ww / 2, fy0 + wallH * 0.25 + wh]],
+                kind === 'fishing' ? '#fde68a' : '#bfdbfe');
+            g.strokeStyle = 'rgba(255, 255, 255, 0.8)';
+            g.lineWidth = 0.8;
+            g.beginPath(); line(wx, fy0 + wallH * 0.25, wx, fy0 + wallH * 0.25 + wh); g.stroke();
         }
-        var pipe = sv(v, s * 0.22, -s * 0.18);
-        g.fillStyle = '#334155';
-        g.beginPath();
-        g.arc(p.x + pipe.x, p.y + pipe.y, 3.5, 0, Math.PI * 2);
-        g.fill();
+        // The roof: the far plane up to the ridge, lit; the near plane down
+        // to the eave, in shade; and the ridge cap along the top.
+        var top = -half - wallH - eave, low = half - wallH + eave * 0.6;
+        poly([[-half - eave, top], [half + eave, top], [half + eave, ridge], [-half - eave, ridge]], roofHi);
+        poly([[-half - eave, ridge], [half + eave, ridge], [half + eave, low], [-half - eave, low]], roofLo);
+        g.save();
+        poly([[-half - eave, top], [half + eave, top], [half + eave, low], [-half - eave, low]]);
+        g.clip();
+        g.lineWidth = 1;
+        if (kind === 'barn') {
+            // Corrugated: ribs running down from the ridge.
+            g.strokeStyle = 'rgba(20, 20, 25, 0.28)';
+            g.beginPath();
+            for (var cx = -half; cx < half + eave; cx += 5) { line(cx, top, cx, low); }
+            g.stroke();
+        } else if (kind === 'shed') {
+            // Slates: rows parallel to the ridge, each row's joints offset.
+            g.strokeStyle = 'rgba(0, 0, 0, 0.28)';
+            g.beginPath();
+            var row = 0;
+            for (var ry = top + 4; ry < low; ry += 4, row++) {
+                line(-half - eave, ry, half + eave, ry);
+                for (var rx = -half - eave + (row % 2) * 3; rx < half + eave; rx += 6) line(rx, ry - 4, rx, ry);
+            }
+            g.stroke();
+        } else if (kind === 'beach') {
+            g.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+            g.beginPath();
+            for (var bx2 = -half; bx2 < half + eave; bx2 += 4.5) line(bx2, top, bx2, low);
+            g.stroke();
+        } else {
+            // Snow, drifted deeper at the ridge, blue in its hollows.
+            g.fillStyle = 'rgba(148, 178, 210, 0.25)';
+            for (var k = 0; k < 5; k++) {
+                var o = Q(-half + hash(seed + k) * s, ridge + 3 + hash(seed + k * 3) * (low - ridge - 5));
+                g.beginPath(); g.ellipse(o.x, o.y, s * 0.12, 2.2, 0, 0, TAU); g.fill();
+            }
+        }
+        g.restore();
+        g.strokeStyle = kind === 'beach' ? '#ffffff' : 'rgba(0, 0, 0, 0.3)';
+        g.lineWidth = kind === 'beach' ? 2.4 : 1.6;
+        g.beginPath(); line(-half - eave, ridge, half + eave, ridge); g.stroke();
+        g.strokeStyle = 'rgba(0, 0, 0, 0.35)';
+        g.lineWidth = 1;
+        g.beginPath(); poly([[-half - eave, top], [half + eave, top], [half + eave, low], [-half - eave, low]]); g.stroke();
+        if (kind === 'fishing') {
+            // Icicles along the near eave.
+            g.fillStyle = 'rgba(226, 240, 252, 0.95)';
+            for (var ix = -half; ix < half; ix += 4 + hash(seed + ix) * 3) {
+                var len = 2 + hash(seed + ix * 1.7) * 4;
+                poly([[ix, low], [ix + 2, low], [ix + 1, low + len]], 'rgba(226, 240, 252, 0.95)');
+            }
+        }
+        if (kind === 'fishing' || (kind === 'shed' && s > 40)) {
+            // A stovepipe through the far plane, and its smoke.
+            var pipe = Q(half * 0.45, top + (ridge - top) * 0.45);
+            var pr = Math.max(2.4, s * 0.05);
+            g.fillStyle = '#334155';
+            g.beginPath(); g.ellipse(pipe.x, pipe.y, pr, pr * 0.8, 0, 0, TAU); g.fill();
+            g.fillStyle = '#0f172a';
+            g.beginPath(); g.ellipse(pipe.x, pipe.y - 0.5, pr * 0.6, pr * 0.45, 0, 0, TAU); g.fill();
+            var up = sv(v, 0.6, -1);
+            for (k = 0; k < 3; k++) {
+                g.fillStyle = 'rgba(226, 232, 240, ' + (0.45 - k * 0.12) + ')';
+                g.beginPath();
+                g.arc(pipe.x + up.x * (5 + k * 6), pipe.y + up.y * (5 + k * 6), 2.6 + k * 1.6, 0, TAU);
+                g.fill();
+            }
+        }
         g.restore();
     }
 
@@ -2128,9 +2419,211 @@
         g.beginPath(); g.arc(sp.x, sp.y, sp.r, 0, TAU); g.fill();
     }
 
+    /* ── skaters ─────────────────────────────────────────────────────────
+
+       A skater is the one thing on the rack with a mind of its own, so it
+       is drawn as somebody: a bobble hat, a scarf streaming behind, a
+       striped jumper and a hockey stick held down on the ice in front —
+       the stick is what says a ball that comes near will be played. Its lap
+       is cut into the ice as a pair of blade marks, so where it goes can be
+       read before it gets there. The figure keeps the world's clock: where
+       a skater is, is a fact of play. */
+    var KIT = [
+        { jumper: '#dc2626', band: '#fef2f2', hat: '#1e3a8a', bobble: '#ffffff', scarf: ['#facc15', '#1e3a8a'] },
+        { jumper: '#0f766e', band: '#ccfbf1', hat: '#ea580c', bobble: '#fde68a', scarf: ['#ea580c', '#fff7ed'] },
+        { jumper: '#6d28d9', band: '#ede9fe', hat: '#db2777', bobble: '#fce7f3', scarf: ['#db2777', '#ffffff'] },
+        { jumper: '#1d4ed8', band: '#dbeafe', hat: '#16a34a', bobble: '#ffffff', scarf: ['#16a34a', '#facc15'] }
+    ];
+
+    var SKATER_SCALE = 1.45;
+
+    function lapPoint(sk, a) {
+        return { x: sk.x + sk.rx * Math.cos(a), y: sk.y + sk.ry * Math.sin((sk.eight ? 2 : 1) * a) };
+    }
+
+    // Blade marks: two fine lines a stride apart round the lap, broken
+    // where a blade lifted, and a fan of scuffs where it turns hardest.
+    function drawLap(g, sk) {
+        var n = 160, i, pts = [];
+        for (i = 0; i <= n; i++) pts.push(lapPoint(sk, i / n * TAU));
+        g.save();
+        g.lineCap = 'round';
+        [-2.2, 2.2].forEach(function (off, k) {
+            g.strokeStyle = 'rgba(255, 255, 255, ' + (k ? 0.6 : 0.45) + ')';
+            g.lineWidth = 1;
+            g.setLineDash([22 + k * 7, 5, 9, 4]);
+            g.lineDashOffset = k * 11;
+            g.beginPath();
+            for (i = 0; i <= n; i++) {
+                var a = pts[i], b = pts[Math.min(n, i + 1)], c = pts[Math.max(0, i - 1)];
+                var dx = b.x - c.x, dy = b.y - c.y, L = Math.hypot(dx, dy) || 1;
+                var wob = Math.sin(i * 0.9 + k * 2) * 0.6;
+                g.lineTo(a.x - dy / L * (off + wob), a.y + dx / L * (off + wob));
+            }
+            g.stroke();
+        });
+        g.setLineDash([]);
+        // A faint polish where the blades have worn the lap.
+        g.strokeStyle = 'rgba(255, 255, 255, 0.13)';
+        g.lineWidth = 12;
+        g.beginPath();
+        pts.forEach(function (p) { g.lineTo(p.x, p.y); });
+        g.stroke();
+        g.restore();
+    }
+
+    function drawSkater(g, sk, i, world, v) {
+        var t = world.time, P = GOLF.physics;
+        var at = P.skaterAt(sk, t), sp = Math.hypot(at.vx, at.vy) || 1, hx = at.vx / sp, hy = at.vy / sp;
+        var px = -hy, py = hx;                       // across the skater, to its right
+        var up = sv(v, 0, -1), kit = KIT[i % KIT.length], ball = world.ball;
+        // Hopping over a ball at rest on the lap, as a good sport would.
+        var lift = 0;
+        if (!world.moving && !world.sunk) {
+            var bd = Math.hypot(ball.x - at.x, ball.y - at.y);
+            if (bd < 34) lift = Math.sin((1 - bd / 34) * Math.PI / 2) * 8;
+        }
+        var held = world.held && world.held.i === i ? world.held : null;
+        // The stick: wound back in the last moments of a dribble, swung
+        // through just after the pass.
+        var wind = held ? Math.max(0, 1 - (held.until - t) / 0.22) : 0;
+        var since = world.passed && world.passed[i] ? t - world.passed[i] : 9;
+        var follow = since < 0.3 ? 1 - since / 0.3 : 0;
+        var stride = Math.sin(t * 7 + i * 1.7);
+        // The figure is laid out in small units — along the heading, across
+        // it, and up off the ice — and drawn SK times over.
+        var SK = SKATER_SCALE, INK = 'rgba(15, 23, 42, 0.55)';
+        function X(a, b, u) { return at.x + (hx * a + px * b + up.x * u) * SK + up.x * lift; }
+        function Y(a, b, u) { return at.y + (hy * a + py * b + up.y * u) * SK + up.y * lift; }
+        // A limb: a stroke with a soft dark edge, so it reads on white ice.
+        function limb(pts, w, color) {
+            [[INK, w + 1.4], [color, w]].forEach(function (pass) {
+                g.strokeStyle = pass[0];
+                g.lineWidth = pass[1] * SK;
+                g.beginPath();
+                pts.forEach(function (q) { g.lineTo(X(q[0], q[1], q[2]), Y(q[0], q[1], q[2])); });
+                g.stroke();
+            });
+        }
+        function blob(a, b, u, r, color, edge) {
+            g.beginPath();
+            g.arc(X(a, b, u), Y(a, b, u), r * SK, 0, TAU);
+            g.fillStyle = color;
+            g.fill();
+            if (edge !== false) { g.strokeStyle = INK; g.lineWidth = 0.7 * SK; g.stroke(); }
+        }
+        g.save();
+        g.lineCap = 'round';
+        g.lineJoin = 'round';
+        // Shadow on the ice, staying put while the skater hops.
+        var sh = sv(v, 5, 6);
+        g.fillStyle = 'rgba(30, 55, 85, 0.24)';
+        g.beginPath();
+        g.ellipse(at.x + sh.x, at.y + sh.y, 15 - lift * 0.4, 9 - lift * 0.3, Math.atan2(hy, hx), 0, TAU);
+        g.fill();
+        // Legs and skates: the one pushing off swings out and back.
+        [-1, 1].forEach(function (side) {
+            var push = Math.max(0, stride * side);
+            var fa = -push * 4 + (1 - push) * 1.2, fb = side * (3 + push * 3.5);
+            limb([[0.5, side * 2.2, 10], [fa + 0.4, fb * 0.9, 5], [fa, fb, 1.6]], 3.2, '#1f2937');
+            // Blade, then boot on it.
+            g.strokeStyle = '#64748b';
+            g.lineWidth = 0.9 * SK;
+            g.beginPath();
+            g.moveTo(X(fa - 3.6, fb, 0), Y(fa - 3.6, fb, 0));
+            g.lineTo(X(fa + 3.8, fb, 0), Y(fa + 3.8, fb, 0));
+            g.stroke();
+            limb([[fa - 2.2, fb, 1.3], [fa + 2.2, fb, 1.3]], 2.8, '#f8fafc');
+        });
+        // The stick: hands at the chest, blade on the ice ahead and a
+        // little to the right, where the ball is played.
+        var reach = P.reachOf();
+        var ba = (reach - C.BALL_R - 1) / SK - wind * 7 + follow * 5, bb = 2.5 + wind * 2 - follow * 3, bu = wind * 5 + follow * 2;
+        var ha = 6, hb = 2.2, hu = 12.5;
+        limb([[ha - 3, hb - 1.6, hu + 3], [ba, bb, bu]], 1.7, '#b7791f');
+        limb([[ba, bb, bu], [ba + 1.4, bb - 4.5, bu]], 2.4, '#111827');
+        // The scarf, streaming out behind and rippling as it goes.
+        function scarf() {
+            for (var k = 0; k < 4; k++) {
+                var w0 = Math.sin(t * 9 - k * 0.9) * k * 0.55, w1 = Math.sin(t * 9 - (k + 1) * 0.9) * (k + 1) * 0.55;
+                limb([[-0.5 - k * 2.5, w0 - 1, 18 - k * 0.6], [-0.5 - (k + 1) * 2.5, w1 - 1, 18 - (k + 1) * 0.6]], 2.3, kit.scarf[k % 2]);
+            }
+        }
+        // Behind the body when it streams up the screen, in front when down.
+        var trailsAway = -(hx * up.x + hy * up.y) > 0;
+        if (trailsAway) scarf();
+        // The body: a jumper leaning into the stride, shaded away from the
+        // light, with a stripe across the chest.
+        limb([[0.8, 0, 10.2], [2.4, 0, 16.6]], 8.6, kit.jumper);
+        g.strokeStyle = 'rgba(0, 0, 0, 0.16)';
+        g.lineWidth = 3.4 * SK;
+        g.beginPath();
+        g.moveTo(X(0.8, 2.3, 10.2), Y(0.8, 2.3, 10.2));
+        g.lineTo(X(2.4, 2.3, 16.6), Y(2.4, 2.3, 16.6));
+        g.stroke();
+        g.strokeStyle = kit.band;
+        g.lineWidth = 1.5 * SK;
+        g.beginPath();
+        g.moveTo(X(1.9, -4.2, 14.4), Y(1.9, -4.2, 14.4));
+        g.lineTo(X(1.9, 4.2, 14.4), Y(1.9, 4.2, 14.4));
+        g.stroke();
+        // Arms out to the stick, and mittens on it.
+        [-1, 1].forEach(function (side) {
+            var hand = side < 0 ? [ha - 3, hb - 1.6, hu + 3] : [ha, hb, hu];
+            limb([[2.2, side * 4, 16], [3.2 + (hand[0] - 3.2) * 0.5, side * 4.4 + (hand[1] - side * 4.4) * 0.4, (16 + hand[2]) / 2 - 1], hand], 2.3, kit.jumper);
+            blob(hand[0], hand[1], hand[2], 1.5, kit.hat);
+        });
+        if (!trailsAway) scarf();
+        // Head, and a bobble hat pulled down over it: the crown, a turned-up
+        // band at the brim and the bobble on top.
+        var toward = hx * -up.x + hy * -up.y;
+        blob(3.2, 0, 20.8, 3.6, '#f1c6a3');
+        if (toward > 0.25) {
+            g.fillStyle = '#1f2937';
+            [-1, 1].forEach(function (side) {
+                g.beginPath();
+                g.arc(X(5.6, side * 1.3, 20), Y(5.6, side * 1.3, 20), 0.5 * SK, 0, TAU);
+                g.fill();
+            });
+            g.fillStyle = 'rgba(244, 114, 182, 0.55)';
+            [-1, 1].forEach(function (side) {
+                g.beginPath();
+                g.arc(X(5.2, side * 2.4, 19.2), Y(5.2, side * 2.4, 19.2), 0.7 * SK, 0, TAU);
+                g.fill();
+            });
+        }
+        g.beginPath();
+        g.ellipse(X(2.7, 0, 22.4), Y(2.7, 0, 22.4), 3.7 * SK, 3.3 * SK, Math.atan2(up.y, up.x), 0, TAU);
+        g.fillStyle = kit.hat;
+        g.fill();
+        g.strokeStyle = INK;
+        g.lineWidth = 0.7 * SK;
+        g.stroke();
+        // Ribs on the crown.
+        g.strokeStyle = 'rgba(255, 255, 255, 0.28)';
+        g.lineWidth = 0.6 * SK;
+        [-1.6, 0, 1.6].forEach(function (b) {
+            g.beginPath();
+            g.moveTo(X(2.7, b, 24.6), Y(2.7, b, 24.6));
+            g.lineTo(X(2.7, b * 1.15, 20.4), Y(2.7, b * 1.15, 20.4));
+            g.stroke();
+        });
+        limb([[3.4, -3.3, 20.4], [3.9, 0, 19.9], [3.4, 3.3, 20.4]], 1.6, kit.band);
+        blob(2.5, 0, 26.2, 1.8, kit.bobble);
+        g.restore();
+    }
+
+    /* All of them, under the ball: a skater stands up off the ice, but the
+       ball is the one thing on the course that is never hidden. */
+    function skaters(g, world, v) {
+        var list = world.course.skaters || [];
+        for (var i = 0; i < list.length; i++) drawSkater(g, list[i], i, world, v);
+    }
+
     function ground(g, course, theme, v) {
         var i;
         millPaths(g, course);
+        for (i = 0; i < (course.skaters || []).length; i++) drawLap(g, course.skaters[i]);
         for (i = 0; i < (course.belts || []).length; i++) drawBeltBase(g, course.belts[i], v);
         for (i = 0; i < (course.turntables || []).length; i++) drawPlatter(g, course.turntables[i], v);
         for (i = 0; i < (course.spinners || []).length; i++) drawSpinTrack(g, course.spinners[i]);
@@ -2201,6 +2694,7 @@
         over: over,
         windLane: windLane,
         pole: pole,
+        skaters: skaters,
         sailReach: sailReach,
         travel: travel,
         BEDS: BEDS

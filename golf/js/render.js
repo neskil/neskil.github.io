@@ -839,6 +839,16 @@
             burst(x, y, { count: 24, color: SPRAY, speed: 110, life: 0.8, size: 2.6, lift: 260, gravity: 420 });
             addRing(x, y, C.VENT_R, { color: '#ffffff', grow: 26, life: 0.5, width: 3, alpha: 0.8 });
         },
+        // Taken by a skater: ice shaved up off the blades as it turns in.
+        steal: function (x, y) {
+            burst(x, y, { count: 14, color: ['#ffffff', '#e0f2fe', '#bae6fd'], speed: 80, life: 0.45, size: 2.2, lift: 40, gravity: 220 });
+            addRing(x, y, C.BALL_R + 3, { color: '#e0f2fe', grow: 18, life: 0.35, width: 2, alpha: 0.8 });
+        },
+        // Passed on: a spray of ice thrown the way the ball goes.
+        pass: function (x, y, angle) {
+            burst(x, y, { count: 12, color: ['#ffffff', '#e0f2fe', '#bae6fd'], speed: 150, life: 0.4, size: 2, angle: angle, spread: 0.7, gravity: 160 });
+            addRing(x, y, C.BALL_R + 2, { color: '#ffffff', grow: 14, life: 0.25, width: 2, alpha: 0.9 });
+        },
         // Caught by a slide: snow thrown up round the ball.
         swept: function (x, y) {
             burst(x, y, { count: 16, color: ['#ffffff', '#e2ecf6', '#cbd8e6'], speed: 90, life: 0.6, size: 3, lift: 60, gravity: 160 });
@@ -996,6 +1006,7 @@
 
         roll(spin, state.world.ball.vx, state.world.ball.vy, dt);
         var pose = poseOf(state.world, dt || 0);
+        if (GOLF.props) GOLF.props.skaters(g, state.world, v);
         if (!state.world.sunk) {
             drawTrail(g, state.trail, state.ballColor);
             drawBall(g, state.world.ball, spin, state.ballColor, v, pose, course.hole);

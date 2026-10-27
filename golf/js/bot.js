@@ -245,10 +245,11 @@
         var gap = opts.gap || 0;
         var rand = mulberry32(opts.seed || 1);
         var cup = course.hole;
-        // Anything on a clock is worth waiting for: a gate, a slide, a vent.
+        // Anything on a clock is worth waiting for: a gate, a slide, a vent,
+        // a spinner's arms, a skater's lap.
         var gates = (course.walls || NONE).some(function (w) { return w.move; }) ||
             (course.avalanches || NONE).length > 0 || (course.vents || NONE).length > 0 ||
-            (course.spinners || NONE).length > 0;
+            (course.spinners || NONE).length > 0 || (course.skaters || NONE).length > 0;
         var cols = Math.ceil(C.WORLD_W / CELL);
         var map = walkingMap(course);
         var visits = {};

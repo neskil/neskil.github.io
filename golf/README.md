@@ -75,15 +75,18 @@ follow `GOLF.BARE_KEY_COURSE` by id (see [Saving](#saving)).
 - **The Short Six** is the card a first visit is handed, and the trailer for
   everything after it: six short holes, each set in a different place in the
   order the rack climbs through them — a walled **Garden Gate**, a parkland
-  dogleg (**Bank Holiday**) whose outside corner is a curve to ride, a beach of
-  **Sandcastles** with the sea behind the cup, a **Molehill** in a wood, **The
-  Windmill** in a meadow with a tunnel through its door, and a **Snow Cannon**
-  blowing across a mountain piste onto a frozen tarn. Each hole meets its
-  place's idea gently and alone. Par is two or three, set for the safe way
-  round, and every hole has an ace in it for the player who reads it — a
-  weight past the bush at the gate, a ride round the curve, a bank off a
-  sandcastle, a bend round a tree, a door, a wind — and never for the putt
-  aimed at the flag. See [Designing a hole](#designing-a-hole).
+  dogleg (**Bank Holiday**) with a bank board across its far corner, a beach
+  of **Sandcastles** with the sea behind the cup, a **Molehill** in a wood,
+  **The Windmill** in a meadow with a tunnel through its door, and a **Snow
+  Cannon** blowing across a mountain piste onto a frozen tarn. Each hole
+  meets its place's idea gently and alone, and it is the easy card on
+  purpose: a first player who plays it should mostly make par and now and
+  then hole one. Par is two or three, set for the safe way round, and every
+  hole has an ace for the player who reads it — straight through the open
+  gate, a bank off the board, a weight down the gap between the dunes, over
+  the top of the hill, a door, a wind. Four of the six may be aced by the
+  putt at the flag, and say so; the other two are not, because of their
+  shape. See [Designing a hole](#designing-a-hole).
 - **The Old Course** (parkland) is what the game always was, boiled down to
   the six that were each a different idea: up the field through a bunker,
   round a corner, a table of posts, the cushions, two doors to time, and a
@@ -154,7 +157,10 @@ follow `GOLF.BARE_KEY_COURSE` by id (see [Saving](#saving)).
   snowman guarding the house asks for weight and nothing else, a hairpin is a
   ride round and back, a frozen lake has fishing holes cut in it, a chicane is
   an S to thread, and the closer is a bobsleigh run of two hairpins, played in
-  stages past a spectator and a hole in the ice.
+  stages past a spectator and a hole in the ice. And there are skaters: one
+  doing laps of the curling sheet, one going round the hairpin's bottom
+  straight, and one cutting figures of eight on the bobsleigh run's first leg
+  (see [Skaters](#skaters)).
 - **Avalanche Pass** (alpine) is the card of the clock. A chute is a lane down
   the mountain, and every few seconds a slide comes down it and carries off
   whatever it is over — into a drift if you are lucky, into a crevasse if you
@@ -263,19 +269,32 @@ golf courses for a living, and from game level design:
   bank board, a curve to ride, a door to find, a wind to aim into — never a
   fluke. Par is set for the safe way, so the stars are there for anybody who
   finishes and the aces for anybody who looks.
-- **Never a straight putt.** A hole with a straight path from the tee to the
-  cup asks one question, once. Players of mini golf games say it plainly:
-  holes that are straight don't require much thought. So the line is broken —
-  by a bed, a hedge, a rock, a mill, a pool — and what breaks it is something
-  to bank off, ride round or curve past rather than a wall to walk round.
-  This one is a rule, not a taste: **no hole may be aced by a putt aimed
-  straight at the flag**, at any weight, half a degree either side, or at any
-  moment of a clock. `GOLF.physics.straightAce` plays those putts, the suite
-  runs it over every hole on the rack and every draw it deals, the generator
-  puts a post on the line of any hole that fails it, and the editor's checks
-  report it. It is a simulation rather than a test for something on the line
-  because a ball runs straight over sand, rough and a gentle hill, and a
+- **Rarely a straight putt — and never a prop on the line.** A hole with a
+  straight path from the tee to the cup asks one question, once. Players of
+  mini golf games say it plainly: holes that are straight don't require much
+  thought. So on most holes the line is broken, and it is broken by the
+  hole's *shape* — a dogleg, a cup set behind a corner or a bed, a hill, a
+  pool, a door — not by a prop stood on the line. A post, a snowman or a tree
+  planted between the tee and the flag answers the rule and nothing else: it
+  is the same straight hole with a thing in the way, and the first pass of
+  this rule did exactly that on a score of holes before it was called a cop
+  out and taken back out. If a hole is too easy without one, the hole is
+  redesigned. **A putt aimed straight at the flag should not drop**, at any
+  weight, half a degree either side, or at any moment of a clock —
+  `GOLF.physics.straightAce` plays those putts, the suite runs it over every
+  hole on the rack and every draw, and the editor's checks report it — but a
+  hole may say `straight: true` and mean it: a first hole that should simply
+  be easy (Garden Gate), or one whose whole question is something else, the
+  weight with the sea behind the flag (Sandcastles), over the top of a hill
+  (Molehill), full weight through a crosswind (Snow Cannon). The suite allows
+  eight at most. It is a simulation rather than a test for something on the
+  line because a ball runs straight over sand, rough and a gentle hill, and a
   tunnel on the line is a straight putt that goes underground.
+- **A bank to learn on is flat.** Off a flat board the angle in is the angle
+  out, and a player can read it before the shot; off a curve the same miss
+  of a degree comes off somewhere else entirely. So the early holes bank off
+  boards (Bank Holiday's corner) and the curves to ride come later, on the
+  card that is about them.
 - **One idea, met alone, then combined.** Nintendo builds a level as an idea
   introduced where it is safe, developed, twisted and dropped
   (*kishōtenketsu*). A card is the same at a larger size: the Short Six meets
@@ -644,12 +663,14 @@ hole. The first draft ignored the line, and it produced nine fields with
 something interesting happening in the corner of each.
 
 Whatever a builder makes of the line, the straight putt is played before a
-hole is kept. One that drops gets a post on the line — at a few places along
-it, nearest the middle first, until one keeps every rule — or the hole is
-thrown away like any other that breaks one. A post is the least a hole can
-have and still not be a straight putt, and it leaves the feature the deck
-dealt the hole as the hole. The fallback, a straight hole with nothing else
-on it, has one too.
+hole is kept. One that drops has its cup moved — across the line of play,
+90px and then further, either side — so that the feature the deck dealt it
+comes between the tee and the flag, and the first place that keeps every
+rule is kept; if none does, the hole is dealt again like any other that
+breaks one. It used to get a post on the line instead, which kept the rule
+and made the hole no better (see [Designing a hole](#designing-a-hole)). The
+fallback, when twelve deals of a feature will not fit, is a dogleg round one
+wall with the dealt feature beyond it where it fits.
 
 **Rules are checked, not remembered.** `GOLF.validateHole` is the rule book
 out of `tests.html` — thicknesses, post radii, tee and cup clearance, gates
@@ -748,6 +769,8 @@ A hole is axis-aligned rectangles, round posts and two points:
     spinners: [ { x, y, r, arms, speed, phase, w } ], // a turnstile laid flat: arms of reach r, turning
     belts:   [ { x, y, w, h, dir, speed } ] // ground that runs: carries the ball `dir` at `speed`
     turntables: [ { x, y, r, speed } ]       // a disc of ground turning at `speed` rad/s, clockwise +
+    skaters: [ { x, y, rx, ry, speed, phase, eight? } ] // laps of the ice; takes a moving ball and passes it on
+    straight: true                           // optional: a putt at the flag may drop here (a few holes only)
 }
 ```
 
@@ -862,7 +885,8 @@ course is exempt from is a rule the second course will break — all asserted in
   game cheating; the second because the sails are drawn over the ball, so
   they keep clear of the tee, the cup and every tunnel mouth. The big wheel's
   rim is held to the same.
-- **A putt struck straight at the cup never drops.** See [Designing a
+- **A putt struck straight at the cup never drops**, unless the hole says
+  `straight: true`, and no more than eight do. See [Designing a
   hole](#designing-a-hole): the suite plays the straight putt at every weight,
   half a degree either side and, on a hole with a clock, at twelve moments of
   its slowest cycle.
@@ -942,9 +966,11 @@ a rail is round at both ends, so the chain has no seam to slip through and no
 corner to bounce off, and at eight degrees a link stands at most a pixel off
 the true curve. It is what a box cannot be: every point of it is a cushion at a
 different angle, so where a ball meets it is the line it gets, and a ball sent
-along the inside of one *rides* it round — the outside of Bank Holiday's turn
-carries a firm putt round the corner and up to the flag. It is drawn as one
-band in the biome's own wall, not as its links.
+along the inside of one *rides* it round — the Ice Run's plughole and hairpins
+are built on that. It is drawn as one band in the biome's own wall, not as
+its links. A curve is a harder bank than a board, though: a degree off going
+in is several coming out, so the holes that teach banking use boards and the
+curves come later (see [Designing a hole](#designing-a-hole)).
 
 **A block** (`blocks`) is a solid shape: a polygon whose every edge is a rail
 `w` thick. The ball only ever meets the edge, so the inside is somewhere it
@@ -953,9 +979,19 @@ edged in the biome's own brick or timber and planted with what grows there, a
 copse when it is big, a palm, a clipped hedge, a rock, a sandcastle, a
 windmill, a fan, a hut or a barn, a pyramid, a snowman, a lighthouse, and the fair's big
 top, carousel, big wheel and mirrors. `look` is read by the renderer and
-nothing else. Blocks are what shape a
-field: beds round off its corners, a copse is the inside of a dogleg, a hedge
-cut as a diamond sits on the straight line. A ball inside one is impossible
+nothing else. Blocks are what shape a field: beds round off its corners, a
+copse is the inside of a dogleg, a rock outcrop is the shore a ball banks off.
+A rock is drawn as an outcrop of boulders packed into the outline out to the
+kerb the ball meets — big stones first, small ones into the gaps, the nearer
+over the further, each lit on its upper side — with what lies on rock in that
+place: snow caps in the mountains and in winter, moss in the park, orange
+lichen by the sea, strata in sandstone, craters in space and the volcano's
+glow coming up between the stones; a rock too small to be a heap is one stone
+the shape of its outline, ridged from its crown to its corners. A hut is a
+building seen from a little in front — a pitched roof, its near wall with a
+door and a window — and which building is the place's: a striped beach hut by
+the sea, a fishing hut with snow on its roof, icicles and a smoking stovepipe
+on the ice, a slate-roofed shed, and a red barn on a big plot. A ball inside one is impossible
 rather than merely unlikely — the suite fires at them and checks — and the
 caddie's walking map counts a block's hollow as solid.
 
@@ -1061,6 +1097,37 @@ off it. A platter and its label are drawn on the ground layer — the label
 turns on the world's clock whatever the motion setting, like a spinner's arms,
 because where it points is how fast the ground is going. `mirror()` flips a
 turntable's spin as well as its place.
+
+## Skaters
+
+**A skater** (`skaters`) does laps of the ice: `{ x, y, rx, ry, speed, phase }`
+is an oval round (x, y), `rx` across and `ry` down, gone round at `speed`
+radians a second from `phase` — or, with `eight: true`, a figure of eight in
+the same box. Where a skater is, is the clock's, like a spinner's arms, so
+the caddie, the lab and the suite all see the same skater the player does.
+
+A skater leaves a ball at rest alone (one on the lap is hopped over). A
+*moving* ball that comes within `C.SKATER_R` is taken: drawn in to the stick,
+dribbled ahead of the skate and tapped side to side for `SKATER_HOLD`
+seconds, then passed on — off the skater's heading by up to `SKATER_CONE`
+either way, at `SKATER_PASS` px/s on top of the skater's own speed, so the
+pass always leaves the skater behind. How long, how far off and how hard are
+a hash of the skater and the half-second it happened in: to the player a
+coin toss, to the simulation a fact, so the same shot is the same pass every
+time it is played. Each skater plays the ball once a shot, because a pass
+hands the ball energy and a skater that could take it again could keep a
+shot going for ever.
+
+The rule book keeps one fair: the whole lap is on ice, inside the cushion by
+a dribbled ball's reach and a ball's width, with nothing solid, wet, moving,
+turning or burning within that reach of it, no chute, vent or mouth on it,
+and the tee and the cup well off it; a lap is 40 to 320px each way at no
+more than 260px/s, and two laps never meet. The figure is drawn as somebody
+— bobble hat, a scarf streaming behind, striped jumper, a hockey stick held
+down on the ice in front, which is what says a ball that comes near will be
+played — and its lap is cut into the ice as a pair of blade marks, so where
+it goes can be read before it gets there. `mirror()` reflects the lap and
+where the skater is on it.
 
 ## Biomes, and what a hole is drawn as
 
@@ -1586,11 +1653,15 @@ be ticked as *wind*, and the **Biome** menu beside the hole's name gives a hole
 a place of its own. The checks drop a ball on every hill as they do on every
 slope and wait for it to stop. A **spinner** (`T`) is dragged out from its
 pivot like a post, with its arms, pace and phase in the inspector, and a
-**belt** (`K`) is a rectangle with a direction and a pace, and a
+**belt** (`K`) is a rectangle with a direction and a pace, a
 **turntable** (`O`) is dragged out from its centre with its pace in the
-inspector; the checks hold all three to the rule book, sweep, run-out and the
-turntable's clear ring included, and the crack rule too.
-The last check plays the straight putt and fails the hole if it drops.
+inspector, and a **skater** (`J`) is a lap dragged out from its middle like a
+box, with *a figure of eight* in the inspector; the checks hold all four to
+the rule book, sweep, run-out, the turntable's clear ring and the skater's
+open ice included, and the crack rule too.
+The last check plays the straight putt and fails the hole if it drops —
+unless *a straight putt may drop* is ticked under the hole's name, which
+exports as `straight: true`.
 
 Everything else is what you would expect. Drag a shape tool across the green
 to draw one, drag it or its grips to reshape, snap at 1/5/10/20 with shift for
@@ -1621,10 +1692,10 @@ indexable; the self-test overlay only appears with the query string.
 
 Two harnesses, and the runner finds both.
 
-Open `tests.html`. 1,330 assertions covering geometry, the integrator, the four
+Open `tests.html`. 1,356 assertions covering geometry, the integrator, the four
 surfaces, the overswing, skipping, tunnels, avalanche chutes, lava and
 geysers, rails and polygons, curves, blocks, hills and wind, spinners,
-belts and turntables, the straight putt on every hole and every draw, the cup in three
+belts, turntables and skaters, the straight putt on every hole and every draw, the cup in three
 dimensions, scenery in every biome, the props that explain the hazards, the course data
 on every course, the generator, the scorecard, the pick-up and the stars,
 progression and starting over, the per-course save keys and the resumable
