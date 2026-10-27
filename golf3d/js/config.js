@@ -148,8 +148,11 @@ G3.CONFIG = {
 
        Only what a ball sinks into. Wood, glass and ice are hard, and a plank
        that grabbed a slow ball would not send half measures back down a
-       ramp. A ball faster than this never feels it, so a putt's length is
-       its pace as it always was, give or take its last few centimetres. */
+       ramp. And only the long game's grass: a mini golf green is felt, and
+       its holes are built to the hole lab's ace windows at the pace a putt
+       always had — sitting the ball down there closed three of them. A ball
+       faster than this never feels it, so a putt's length is its pace as it
+       always was, give or take its last few centimetres. */
     SIT: {
         green: 1.0,
         fairway: 1.5,
@@ -381,7 +384,7 @@ G3.CONFIG = {
     CLUBS: [
         {
             id: 'putter', name: 'Putter', short: 'PT', key: '1',
-            loft: 0, power: 10.5, carry: 0, total: 7.8,
+            loft: 0, power: 10.5, carry: 0, total: 8.0,
             blurb: 'Rolls flat and true. Nothing else stops where you tell it.'
         },
         /* The long game's clubs fly on their own numbers. At 10° the driver
@@ -425,13 +428,13 @@ G3.CONFIG = {
            stopping, which is the whole reason to reach for either. */
         {
             id: 'chipper', name: 'Pitch', short: 'PW', key: '4',
-            loft: 45 * Math.PI / 180, power: 11.7, carry: 7.6, total: 14.4,
+            loft: 45 * Math.PI / 180, power: 11.7, carry: 7.6, total: 14.6,
             shapes: ['backspin', 'topped'],
             blurb: 'Up steep and down steeper. Stops near where it lands.'
         },
         {
             id: 'wedge', name: 'Wedge', short: 'LW', key: '5',
-            loft: 58 * Math.PI / 180, power: 12.1, carry: 7.3, total: 12.8,
+            loft: 58 * Math.PI / 180, power: 12.1, carry: 7.3, total: 13.0,
             shapes: ['backspin'],
             blurb: 'The lob. Straight up over water, sand and trees.'
         }
@@ -452,7 +455,7 @@ G3.CONFIG = {
     EXTRA_CLUBS: [
         {
             id: 'mallet', name: 'Mallet', short: 'ML', key: '6',
-            loft: 0, power: 17, carry: 0, total: 13.1,
+            loft: 0, power: 17, carry: 0, total: 13.3,
             blurb: 'A putter with a hammer behind it. Rolls flat, and rolls a long way.'
         },
         /* The first club in the bag that is not a loft and a ceiling.
@@ -474,7 +477,7 @@ G3.CONFIG = {
            different problems. */
         {
             id: 'checker', name: 'Checker', short: 'CK', key: '7',
-            loft: 38 * Math.PI / 180, power: 13.5, bite: 0.78, carry: 9.9, total: 11.3,
+            loft: 38 * Math.PI / 180, power: 13.5, bite: 0.78, carry: 9.9, total: 11.5,
             blurb: 'Lands and stops. The one club that gives up its run on purpose.'
         }
     ],

@@ -1443,12 +1443,14 @@
        as the ball slows, from the surface's own c at sit·(1 - c/h) to the
        whole of its hold h = g·HOLD at a standstill, so the ground that will
        keep a stopped ball on a slope is the same ground that stops a slow one
-       there — and still linear in v, so the step stays exact. Answers false
-       when the surface has nothing to add to the pure drag. */
+       there — and still linear in v, so the step stays exact. Only on turf,
+       which is the long game's (`hole.long`): mini golf's green is felt, and
+       its putts are built to the pace they always had. Answers false when the
+       surface has nothing to add to the pure drag. */
     var _seg = { v: 0, cover: 0, t: 0 };
     var _run = { v: 0, cover: 0 };
-    function runOut(kind, grav, s0, dt, out) {
-        var a = -lnFrictionOf(kind), c = rollOf(kind), sit = sitOf(kind);
+    function runOut(kind, grav, s0, dt, turf, out) {
+        var a = -lnFrictionOf(kind), c = rollOf(kind), sit = turf ? sitOf(kind) : 0;
         var h = sit > 0 ? grav * holdOf(kind) : 0;
         var vx = h > c ? sit * (1 - c / h) : 0;       // where sitting down takes over
         if (c <= 0 && vx <= 0) return false;
@@ -1533,7 +1535,7 @@
                    travel are rewritten as the factors of v0 that this step
                    keeps and covers, so nothing below has to know. */
                 var s0 = Math.sqrt(b.vx * b.vx + b.vz * b.vz);
-                if (s0 > 1e-9 && runOut(pad.kind, grav, s0, dt, _run)) {
+                if (s0 > 1e-9 && runOut(pad.kind, grav, s0, dt, !!hole.long, _run)) {
                     travel = _run.cover / s0;
                     decay = _run.v / s0;
                 }
