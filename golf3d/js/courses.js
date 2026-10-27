@@ -2812,19 +2812,31 @@
                the safe way is a putt along each plank in turn. The three
                planks overlap by a whisker on one line down the middle, and a
                mallet hit dead straight down that line runs the length of the
-               jetty onto the far green. Off it by a degree is the sea. */
+               jetty onto the far green. Off it by a degree is the sea.
+
+               That line used to end at the pin, which made the bold shot a
+               putt at the flag (README → "The hole lab"). The pin is further
+               east, at the back of the far green, and the green leans a
+               fiftieth to it: the line down the planks is the same line, and
+               the lean brings it in, which makes it the long shot it always
+               should have been on the last hole of the card — and the first
+               plank is a few centimetres wider, so the whisker the planks
+               overlap by is a line rather than a fluke. Aimed at the
+               flag, a putt is off the first plank before the turn. The lean
+               turns about the middle of the last plank, so where the plank
+               meets the green there is no lip to trip on. */
             name: 'The Jetty', par: 4,
             blurb: 'A plank over the shallows with a turn in it, and nothing to bounce off but nerve.',
             pads: [
                 pad(0, 0, 6, 5.5),
-                pad(1.3, 5.5, 1.9, 3.6, 0, 'wood'),
+                pad(1.3, 5.5, 2.05, 3.6, 0, 'wood'),
                 pad(1.3, 9.1, 3.6, 1.9, 0, 'wood'),
                 pad(3, 11, 1.9, 3.2, 0, 'wood'),
-                pad(0, 14.2, 6, 5)
+                pad(0, 14.2, 6, 5, 0.079, 'green', -0.02, 0)
             ],
             water: [rect(-1, 5.5, 8, 8.7, -0.7)],
             gaps: [shore(rect(-1, 5.5, 8, 8.7), 0.6)],
-            tee: { x: 3, z: 2 }, cup: { x: 3.6, z: 16.8 },
+            tee: { x: 3, z: 2 }, cup: { x: 4.3, z: 18.5 },
             decor: [
                 piling(-0.2, 6.2, -0.7),
                 piling(5.4, 10.5, -0.7),
@@ -2888,7 +2900,15 @@
                is a level box as tall as the highest ground it guards, so the
                sides of a chute falling two units came out as one blank wall
                the height of the pillar. A step at a time, each rail is a
-               step's height. */
+               step's height.
+
+               The short way is no longer at the flag. Off the front of the
+               pillar straight at the pin was the ace (README → "The hole lab"),
+               so a block of quarry stone stands on that line below the pool,
+               tall enough that the drop cannot clear it, and the pin is in its
+               lee with a bank across the green to the west of it: the drop is
+               aimed at the bank, which turns it east along the back of the
+               block to the pin. */
             name: 'The Drop', par: 3, rolling: true,
             blurb: 'Over the edge and down — too gentle and you are swimming. Or take the stair down the side, and the long putt.',
             pads: [
@@ -2909,7 +2929,11 @@
                 { x: 7.8, z: 1.05, w: 0.8, d: 1.9 },
                 { x: 9.6, z: 1.05, w: 0.8, d: 1.9 }
             ],
-            tee: { x: 2.5, z: 1.5 }, cup: { x: 3.4, z: 9.2 }
+            extra: [
+                bank(0.6, 11.0, 3.0, -Math.PI / 4),
+                wall(2.7, 8.0, 1.2, 1.2, 1.5, { base: -0.3 })
+            ],
+            tee: { x: 2.5, z: 1.5 }, cup: { x: 3.6, z: 10.8 }
         }),
         build({
             /* Up the ramp and round a banked turn. The outside of the corner
@@ -2983,7 +3007,13 @@
                The other way over is the plank on the right — a board laid
                across the gap, a putter's width, with no rails on it. That is
                the safe way, if a plank over a quarry pool is anybody's idea of
-               safe. */
+               safe.
+
+               The pin is round under the rail, not in front of it. Where it
+               was, the ramp fired straight at the flag dropped (README → "The
+               hole lab"); a unit further round, the only way in is the one
+               this hole was built for — across at an angle and round the
+               rail. */
             name: 'The Cannon', par: 3,
             blurb: 'Flat out up the ramp and fly the gap, or walk the plank on the right. The green runs away to the pin either way.',
             pads: [
@@ -2996,7 +3026,7 @@
             water: [rect(-3, 4, 16, 5.8, -0.9)],
             gaps: [shore(rect(-3, 4, 16, 5.8), 0.7)],
             extra: arc(7.6, 12, 2.6, -0.15, Math.PI / 2 + 0.3, { h: 0.55 }),
-            tee: { x: 3, z: 1.5 }, cup: { x: 8.2, z: 12.4 }
+            tee: { x: 3, z: 1.5 }, cup: { x: 9.2, z: 12.2 }
         })
     ];
 
@@ -3055,15 +3085,24 @@
                ball across the front of the house; too late and the next one
                does. Through the door is a tunnel the depth of the house, and
                the green behind it falls away a little to the pin, so the pace
-               that beats the sails is the pace that finishes near the flag. */
+               that beats the sails is the pace that finishes near the flag.
+
+               The whole lawn falls to the east as well, a thirtieth, and the
+               pin is over on that side behind the brick. With the pin straight
+               through the door the putt at the flag was the ace at almost any
+               moment (README → "The hole lab"); now a putt at the flag curls
+               into the wall, and the shot is still the door — allowed for on
+               the way in, and the same fall takes it across to the pin on the
+               way out. Both halves of the lawn lean together because a fall
+               along the seam between them would be a lip across the door. */
             name: 'The Mill', par: 3,
             blurb: 'The windmill: one door, four sails coming down across it. Wait for the daylight between two of them.',
             pads: [
-                pad(0, 0, 7, 10.6),
-                pad(0, 10.6, 7, 6.4, 0, 'green', 0, -0.02)
+                pad(0, 0, 7, 10.6, 0, 'green', -0.03, 0),
+                pad(0, 10.6, 7, 6.4, 0, 'green', -0.03, -0.02)
             ],
             extra: mill(0, 9, 7, { gap: 1.3, speed: 0.8 }),
-            tee: { x: 3.5, z: 1.6 }, cup: { x: 3.5, z: 14.6 },
+            tee: { x: 3.5, z: 1.6 }, cup: { x: 5.4, z: 14.6 },
             decor: [
                 crate(-2.0, 3.0),
                 barrel(-2.0, 4.0),
@@ -4298,7 +4337,12 @@
                 pad(2.4, 0, 4.6, 9),
                 pad(0, 9, 7, 9)
             ],
-            extra: [bumper(1.6, 12), bumper(3.5, 13.7), bumper(5.4, 12)],
+            /* The middle pin a quarter of a unit west of where it stood, which
+               is the width of the gap the line out of the chute at the flag
+               used to thread (README → "The hole lab"). The shot now is the
+               one the plunger is for: off the chute's wall and through the
+               pins on the inside of it. */
+            extra: [bumper(1.6, 12), bumper(3.25, 13.7), bumper(5.4, 12)],
             tee: { x: 1.2, z: 1.2 }, cup: { x: 3.5, z: 16.6 }
         }),
         build({
@@ -4482,6 +4526,15 @@
             tee: { x: 3, z: 1.5 }, cup: { x: 3, z: 13.2 }
         }),
         build({
+            /* One plank and one bar across it, and a bank at the end of the
+               plank that turns a ball coming off it west, to a pin tucked by
+               the west rail. With the pin at the end of the plank the putt at
+               the flag ran straight down the boards and in (README → "The hole
+               lab"), and from the tee the plank is the only line there is — so
+               the bank does the turning: straight down the plank, past the
+               bar, and off the bank to the pin. A putt at the flag runs off
+               the side of the plank. A lean would have done it more gently and
+               left a lip where the plank meets the green. */
             name: 'Pendulum', par: 3,
             blurb: 'One plank over the water and one bar sweeping across it.',
             pads: [
@@ -4491,8 +4544,11 @@
             ],
             water: [rect(-3, 7, 12, 4, -0.8)],
             gaps: [shore(rect(-3, 7, 12, 4), 0.7)],
-            extra: [slider(2.4, 8.6, 1.2, 0.4, { amp: 2.4, speed: 1.3 })],
-            tee: { x: 3, z: 1.5 }, cup: { x: 3, z: 15 }
+            extra: [
+                slider(2.4, 8.6, 1.2, 0.4, { amp: 2.4, speed: 1.3 }),
+                bank(3.2, 12.8, 2.2, Math.PI / 4)
+            ],
+            tee: { x: 3, z: 1.5 }, cup: { x: 1.0, z: 12.8 }
         }),
         build({
             /* The Long Hand was one blade the width of the court turning
@@ -5027,7 +5083,16 @@
             /* The opener, and it teaches the one number the course is built
                on by giving you nowhere to hide from it: twenty units of bare
                ice with a patch of grass at the end. Half a swing of the putter
-               is already too much. */
+               is already too much.
+
+               And a stack of ice blocks in the middle of the store, on the
+               line. It was a lane with nothing on it, so the putt at the flag
+               was the ace and the hole asked how hard and nothing else (README
+               → "The hole lab"). Now the straight putt stops on the stack and
+               the ace is off a wall: ice keeps a bank's angle the way it keeps
+               everything else, so one cushion off either side runs the length
+               of the store to the pin — the course's first lesson and its
+               second in one shot. */
             name: 'Cold Store', par: 3,
             blurb: 'Twenty units of ice and a patch of grass at the end of it. Half a swing is too much.',
             pads: [
@@ -5035,6 +5100,7 @@
                 pad(0, 3, 6, 17, 0, ice),
                 pad(0, 20, 6, 6)
             ],
+            extra: [wall(2.4, 11.4, 1.2, 1.2, 0.9, { base: -0.1 })],
             tee: { x: 3, z: 1.5 }, cup: { x: 3, z: 23 }
         }),
         build({
@@ -5064,7 +5130,13 @@
                sheet falling away east, and a gutter of ordinary grass at the
                bottom of it with the pin in it. Land anywhere on the ice and
                the ice decides where you finish; the only choice you have is
-               how far down the gutter that turns out to be. */
+               how far down the gutter that turns out to be.
+
+               A pillar stands on the sheet where the putt aimed at the flag
+               crosses it, so that putt is not the ace any more: the aces are
+               aimed north of the flag and let the fall bring them down past
+               the pillar to the gutter, or come off the rail beside the ledge
+               first. */
             name: 'The Draught', par: 3,
             blurb: 'The whole sheet falls east and ice holds nothing. The gutter at the bottom is the hole.',
             pads: [
@@ -5072,6 +5144,7 @@
                 pad(2.4, 0, 5.6, 18, 0.72, ice, -0.12857, 0),
                 pad(8, 0, 2.6, 18)
             ],
+            extra: [wall(4.9, 7.5, 1.0, 1.0, 1.1, { base: -0.3 })],
             tee: { x: 1.2, z: 2 }, cup: { x: 9.3, z: 15 }
         }),
         build({
@@ -5079,7 +5152,17 @@
                turn, which is the one thing on this course that can move a ball
                that has stopped. Too slow into it and the belt is the whole of
                your second shot; too fast and it puts you in the grit on the
-               far side. */
+               far side.
+
+               The belt is also a governor. Whatever pace a ball brings to it,
+               it leaves at the belt's, and the grass at the end took that pace
+               off at one spot — which is where the pin used to be, so two
+               shots in every hundred from the tee were aces, a putt at the
+               flag among them (README → "The hole lab"). The pin is a unit
+               further on now, past where the belt's pace dies, and a pillar
+               stands in the ice where the putt at the flag comes off the east
+               wall. What is left is the line up the west side, hit firmly
+               enough to bring some pace of its own to the belt. */
             name: 'The Sluice', par: 3,
             blurb: 'A belt across the corner, and grit on the far side of it. Let it take you round.',
             pads: [
@@ -5090,7 +5173,8 @@
                 pad(5, 12, 6, 3.4, 0, ice),
                 pad(11, 12, 5, 3.4)
             ],
-            tee: { x: 2.5, z: 1.6 }, cup: { x: 13.4, z: 13.7 }
+            extra: [wall(2.9, 6.4, 1.2, 1.2, 0.9, { base: -0.1 })],
+            tee: { x: 2.5, z: 1.6 }, cup: { x: 14.4, z: 13.7 }
         }),
         build({
             /* The Checker's hole, and the reason the club exists. The green is
@@ -5170,15 +5254,27 @@
             /* Launch pads, introduced the only honest way: a wall with no way
                round it, a pad in front of the wall, and a bag with no loft in
                it at all. The ball goes over because the floor throws it over,
-               and the first time it happens is worth the whole course. */
+               and the first time it happens is worth the whole course.
+
+               The pad and the tee are over on the west side, the pin is over
+               on the east, and a bank across the far west corner turns a ball
+               running up the lane on to the pin — Sea Legs' kicker. A pad
+               throws a ball up and leaves its heading alone, so with the tee,
+               the pad and the pin in a row the putt at the flag was the ace
+               (README → "The hole lab"); out of line, the pad is the way over
+               and the bank the way in, and the safe two is over and a putt
+               across. */
             name: 'The Springboard', par: 3,
             blurb: 'A wall too tall to fly and a bag with nothing that flies. Stand on the pad instead.',
             pads: [
-                pad(0, 0, 6, 20),
-                sprung(3, 8.6, 1.3, 10.2)
+                pad(0, 0, 7, 20),
+                sprung(1.6, 8.6, 1.2, 10.2)
             ],
-            extra: [wall(-0.2, 10.2, 6.4, 0.4, 1.35, { base: -0.1 })],
-            tee: { x: 3, z: 1.6 }, cup: { x: 3, z: 16.5 }
+            extra: [
+                wall(-0.2, 10.2, 7.4, 0.4, 1.35, { base: -0.1 }),
+                bank(1.1, 18.9, 3.1, -Math.PI / 4)
+            ],
+            tee: { x: 1.4, z: 1.6 }, cup: { x: 6.2, z: 18.9 }
         }),
         build({
             /* And the pipes. Eleven units of water, which is more than
@@ -5368,7 +5464,13 @@
                crosses, hits the far rail and comes all the way home, which is
                the other half of the lesson and the half this course keeps
                coming back to. Nothing is lost by being short here. That stops
-               being true on the third hole. */
+               being true on the third hole.
+
+               A block of tuff sits on the line past the ash, because the mallet
+               straight at the flag used to be the ace and the hole asked how
+               hard and never where (README → "The hole lab"). The line now is
+               off a side wall: across the ash at an angle, which is a longer
+               crossing, so it wants nearly all of the mallet. */
             name: 'The Ash Slide', par: 3,
             blurb: 'A band of ash running back down at you. A full swing of the putter just gets over; anything less is returned.',
             pads: [
@@ -5376,6 +5478,7 @@
                 belt(0, 5, 6, 2.5, 0, -4),
                 pad(0, 7.5, 6, 7)
             ],
+            extra: [wall(2.55, 9.15, 0.9, 0.9, 0.7, { base: -0.1 })],
             tee: { x: 3, z: 1.5 }, cup: { x: 3, z: 12 }
         }),
         build({
@@ -5511,7 +5614,15 @@
                arrives at the mouth at about six units per second and comes out
                of the far end at the same, which is a putt's worth of pace
                across a crater floor eleven wide. The machine spends the shot
-               for you, and the only thing you own is getting on to it. */
+               for you, and the only thing you own is getting on to it.
+
+               The tube comes out on the east side of the floor, aimed at the
+               pin, and a block stands on the floor in front of the pin on the
+               line from the tee. The flight from the lawn used to be the only
+               ace on the hole, and it was a putt struck at the flag (README →
+               "The hole lab") — the uncomfortable shot paid better than the
+               road the hole is about. It lands short of the block now and
+               leaves a putt round it, the same as the tube does. */
             name: 'Caldera', par: 4,
             blurb: 'Up the vent, along the rim on the scree, and in through the tube. There is no other road into the crater.',
             pads: [
@@ -5528,7 +5639,8 @@
                 { x: -0.6, z: 10.7, w: 8.6, d: 0.6 },    // the face of the rim, where you land
                 { x: -1, z: 14.7, w: 21, d: 0.9 }        // and the crater's own
             ],
-            warps: [pipe(15.7, 12.75, 4, 18, 0, 0.95)],
+            warps: [pipe(15.7, 12.75, 7.4, 17.4, Math.atan2(4.5 - 7.4, 21.5 - 17.4), 0.95)],
+            extra: [wall(3.9, 18.9, 1.0, 1.0, 0.9, { base: 0.7 })],
             tee: { x: 4, z: 2 }, cup: { x: 4.5, z: 21.5 }
         })
     ];
