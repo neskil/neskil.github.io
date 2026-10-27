@@ -47,9 +47,18 @@
     function landingOf(kind) {
         return C.LANDING[kind] || C.LANDING_DEFAULT;
     }
+    // What one landing keeps of the ground speed: the surface's whole grip
+    // from a real fall, less of it from a hop. See CONFIG.LAND_FIRM.
+    function landGrip(grip, impact) {
+        return 1 - (1 - grip) * Math.min(1, impact / C.LAND_FIRM);
+    }
     // The constant part of the ground's drag, per surface. See CONFIG.ROLL.
     function rollOf(kind) {
         return C.ROLL[kind] !== undefined ? C.ROLL[kind] : C.ROLL_DEFAULT;
+    }
+    // The speed below which this surface starts to sit a ball down. See CONFIG.SIT.
+    function sitOf(kind) {
+        return C.SIT[kind] !== undefined ? C.SIT[kind] : C.SIT_DEFAULT;
     }
     // The steepest lie this surface will hold a stopped ball on. See CONFIG.HOLD.
     function holdOf(kind) {
@@ -1403,6 +1412,60 @@
     // every substep, never held on to.
     var _lie = { x: 0, z: 0 };
 
+    /* One stretch of v' = -a·v - c, from v0, for at most `t` seconds and never
+       below `floor`. v(t) = (v0 + c/a)·e^(-at) - c/a, which holds for a
+       negative `a` as well (the sitting-down stretch below can have one), and
+       the straight line v0 - c·t when `a` is nothing. Writes the speed it
+       ends on, the distance and the time into `out`. */
+    function coast(v0, a, c, t, floor, out) {
+        var T, q;
+        if (Math.abs(a) < 1e-9) {
+            T = c > 0 ? Math.min(t, (v0 - floor) / c) : t;
+            out.v = v0 - c * T;
+            out.cover = (v0 - 0.5 * c * T) * T;
+        } else {
+            q = c / a;
+            T = (floor + q) * (v0 + q) > 0 && Math.abs(floor + q) > 1e-12 ?
+                Math.log((v0 + q) / (floor + q)) / a : Infinity;
+            T = Math.min(t, T >= 0 ? T : Infinity);
+            var e = Math.exp(-a * T);
+            out.v = (v0 + q) * e - q;
+            out.cover = (v0 + q) * (1 - e) / a - q * T;
+        }
+        if (out.v < floor) out.v = floor;
+        out.t = T;
+        return out;
+    }
+
+    /* What one step of rolling does to a ball's ground speed on this surface:
+       the drag, the rolling resistance, and below CONFIG.SIT the grass
+       sitting the ball down. That last one is a rolling resistance that grows
+       as the ball slows, from the surface's own c at sit·(1 - c/h) to the
+       whole of its hold h = g·HOLD at a standstill, so the ground that will
+       keep a stopped ball on a slope is the same ground that stops a slow one
+       there — and still linear in v, so the step stays exact. Answers false
+       when the surface has nothing to add to the pure drag. */
+    var _seg = { v: 0, cover: 0, t: 0 };
+    var _run = { v: 0, cover: 0 };
+    function runOut(kind, grav, s0, dt, out) {
+        var a = -lnFrictionOf(kind), c = rollOf(kind), sit = sitOf(kind);
+        var h = sit > 0 ? grav * holdOf(kind) : 0;
+        var vx = h > c ? sit * (1 - c / h) : 0;       // where sitting down takes over
+        if (c <= 0 && vx <= 0) return false;
+        var v = s0, left = dt, cover = 0;
+        if (v > vx) {
+            coast(v, a, c, left, vx, _seg);
+            v = _seg.v; cover += _seg.cover; left -= _seg.t;
+        }
+        if (left > 0 && vx > 0 && v > 0) {
+            coast(v, a - h / sit, h, left, 0, _seg);
+            v = _seg.v; cover += _seg.cover;
+        }
+        out.v = v > 0 ? v : 0;
+        out.cover = cover;
+        return true;
+    }
+
     function substep(world, dt, events) {
         var b = world.ball, hole = world.hole;
         var grav = gravityOf(hole);
@@ -1462,21 +1525,17 @@
                 var decay = Math.pow(fr, dt);
                 var travel = (decay - 1) / lnFrictionOf(pad.kind);   // ∫₀^dt k^s ds
 
-                /* Rolling resistance, the constant half of the drag (CONFIG.ROLL).
-                   With it the speed obeys v' = -a·v - c, which still has an
-                   exact solution, so the step stays as frame-rate independent
-                   as the pure decay above: v(t) = (v0 + c/a)·e^(-at) - c/a,
-                   and it reaches zero at ts = ln(1 + a·v0/c) / a. decay and
+                /* Rolling resistance, the constant half of the drag (CONFIG.ROLL),
+                   and the grass sitting the ball down as it slows (CONFIG.SIT).
+                   Both keep the speed on v' = -a·v - c, which has an exact
+                   solution, so the step stays as frame-rate independent as the
+                   pure decay above; runOut has the arithmetic. decay and
                    travel are rewritten as the factors of v0 that this step
                    keeps and covers, so nothing below has to know. */
-                var rr = rollOf(pad.kind);
                 var s0 = Math.sqrt(b.vx * b.vx + b.vz * b.vz);
-                if (rr > 0 && s0 > 1e-9) {
-                    var ra = -lnFrictionOf(pad.kind), q = rr / ra;
-                    var t = Math.min(dt, Math.log(1 + s0 / q) / ra);
-                    var e = Math.exp(-ra * t);
-                    travel = ((s0 + q) * (1 - e) / ra - q * t) / s0;
-                    decay = t < dt ? 0 : Math.max(0, ((s0 + q) * e - q) / s0);
+                if (s0 > 1e-9 && runOut(pad.kind, grav, s0, dt, _run)) {
+                    travel = _run.cover / s0;
+                    decay = _run.v / s0;
                 }
                 var climb = b.vx * sx + b.vz * sz;                   // rise rate along the lie
 
@@ -1515,6 +1574,13 @@
                     b.vy = climb > 0 ? climb : 0;
                 } else {
                     b.y = next.y + C.BALL_R;
+                    /* On the ground the ground is the height, so a grounded
+                       ball has no vertical speed of its own. The cup's lip can
+                       hand one a little as the ball grazes it, and kept, that
+                       was counted by speedOf for ever: a ball sitting still
+                       beside the hole, never slow enough to be at rest, until
+                       the shot clock ran out. */
+                    b.vy = 0;
                     // Rolled on to a launch pad. A trampoline does not ask how
                     // you got there, so this is the same event as landing on
                     // one and it goes through the same counter.
@@ -1610,8 +1676,9 @@
                     b.vy = kick;
                 } else {
                     var lands = landingOf(land.pad.kind);
-                    b.vx *= lands.grip;
-                    b.vz *= lands.grip;
+                    var grip = landGrip(lands.grip, Math.max(0, impact));
+                    b.vx *= grip;
+                    b.vz *= grip;
                     b.vy = impact * lands.bounce;
                 }
                 /* Backspin, spent on the first thing the ball touches. It is
@@ -1835,6 +1902,7 @@
         frictionOf: frictionOf,
         wellPull: wellPull,
         rollOf: rollOf,
+        sitOf: sitOf,
         landingOf: landingOf,
         holdOf: holdOf,
         gravityOf: gravityOf,
