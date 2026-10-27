@@ -8,7 +8,7 @@
    — the renderer scales to the viewport, the simulation never sees a pixel. */
 window.G3 = window.G3 || {};
 
-G3.VERSION = '1.108.0';
+G3.VERSION = '1.109.0';
 
 G3.CONFIG = {
     BALL_R: 0.16,
@@ -170,7 +170,7 @@ G3.CONFIG = {
        will not take a ball arriving much above 7. On the long courses the same
        number is a tee shot, and the skill is in what the ground does with it
        afterwards. */
-    MAX_POWER: 28,
+    MAX_POWER: 24,
     MIN_POWER: 0.9,
 
     /* Past a full swing the meter keeps going. OVERDRAW is how much further,
@@ -225,6 +225,28 @@ G3.CONFIG = {
        curving along the ground would be a putt with a mind of its own. */
     SPIN_ACCEL: 0.55,
     SPIN_LAND: 0.25,
+
+    /* The long game's flight: backspin, as lift (physics.carryFlight). A
+       struck ball is pushed square to the way it is going by AIR_LIFT times
+       its own speed, and the spin wears off at AIR_DECAY per second, so the
+       lift is strong off the face and nearly gone by the time the ball comes
+       down. Without it every shot was a parabola — up at the launch angle,
+       the top exactly halfway, down at the launch angle — which is a thrown
+       ball, not a struck one. With it a drive starts low, climbs, peaks past
+       halfway and drops in steeper than it rose, and the iron hangs.
+
+       There is no drag, on purpose. Lift does no work, so the ball lands as
+       fast as it left and the turf's run is the run it was tuned for; drag
+       took a fifth off every drive's total for a shape that the decaying
+       lift gives on its own.
+
+       AIR_LOFT is which launches fly it: the driver and the iron, and a
+       topped one of either, wherever they are played. The pitch and the
+       wedge are steep enough that a parabola is what they look like anyway,
+       and mini golf's chips are built on the plain arc. */
+    AIR_LIFT: 1.4,
+    AIR_DECAY: 3,
+    AIR_LOFT: 32 * Math.PI / 180,
 
     /* The swing gate itself — what a shot past a full swing has to do to keep
        its line. All of the difficulty is these numbers.
@@ -407,10 +429,16 @@ G3.CONFIG = {
            up for over a second: three times the height, half as much again in
            carry, and a quarter more in all, because a ball coming down
            steeper runs out less. The putter, the mallet and both wedges are
-           shared with mini golf and are untouched. */
+           shared with mini golf and are untouched.
+
+           Then the flight got its lift (AIR_LIFT), and the driver went back
+           down to 12°: a lifted ball does its own climbing, so it comes off
+           the face low, rises and hangs, where at 21° it had been a lob. 24
+           of pace at 12° runs out exactly as far as 28 at 21° did and carries
+           two units more of it, because more of the distance is in the air. */
         {
             id: 'driver', name: 'Driver', short: 'DR', key: '2',
-            loft: 21 * Math.PI / 180, power: 28, carry: 29.1, total: 41.4,
+            loft: 12 * Math.PI / 180, power: 24, carry: 31.4, total: 41.4,
             shapes: ['draw', 'fade', 'topped'],
             blurb: 'The reach club. Up and away, and it still runs.'
         },
@@ -420,11 +448,13 @@ G3.CONFIG = {
            lands, which is
            what a green with water in front of it needs and what nothing else
            in the bag could do. It is also the club for a long second shot:
-           under half a driver, and it stops. At 30° it now flies twelve and
-           climbs nearly two, so it gets over a tree as well as a pond. */
+           under half a driver, and it stops. At 30° it flew twelve and climbed
+           nearly two, so it got over a tree as well as a pond; at 22° with the
+           flight's lift it flies thirteen and climbs two, and finishes where
+           it did. */
         {
             id: 'iron', name: '7 Iron', short: '7i', key: '3',
-            loft: 30 * Math.PI / 180, power: 16, carry: 12.3, total: 17.8,
+            loft: 22 * Math.PI / 180, power: 14.7, carry: 13.1, total: 17.9,
             shapes: ['draw', 'fade', 'backspin', 'topped'],
             blurb: 'The long approach. Carries what the driver runs into.'
         },
