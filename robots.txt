@@ -13,6 +13,7 @@ Disallow: /*/tests.html
 Disallow: /3d-engine-poc/physics-tests.html
 Disallow: /golf/ui-tests.html
 Disallow: /golf/hole-lab.html
+Disallow: /golf3d/hole-lab.html
 Disallow: /golf3d/shader-tests.html
 Disallow: /golf3d/ui-tests.html
 Disallow: /golf3d/turntable.html

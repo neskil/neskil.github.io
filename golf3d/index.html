@@ -32,7 +32,7 @@
 
         gtag('config', 'G-9GP823TGLB');
     </script>
-    <link rel="stylesheet" href="style.css?v=1.104.0">
+    <link rel="stylesheet" href="style.css?v=1.106.0">
 <script type="application/ld+json">
     {
         "@context": "https://schema.org",
@@ -386,6 +386,21 @@
                 </div>
             </div>
 
+            <!-- After a touch swing: why the ball went where it did (game.js
+                 `showSwingCard`) — the swipe drawn small, and a line for each
+                 thing swing.js read off it. -->
+            <div class="swing-card" id="swing-card" hidden aria-live="polite">
+                <svg class="sc2-svg" id="sc2-svg" viewBox="0 0 60 100" aria-hidden="true">
+                    <polygon class="sc2-cone" id="sc2-cone"/>
+                    <line class="sc2-ideal" id="sc2-ideal"/>
+                    <polyline class="sc2-trail" id="sc2-trail"/>
+                </svg>
+                <div class="sc2-body">
+                    <span class="sc2-grade" id="sc2-grade"></span>
+                    <ul class="sc2-rows" id="sc2-rows"></ul>
+                </div>
+            </div>
+
             <!-- How the strike went, in one word (game.js `showGrade`). -->
             <div class="grade" id="grade" aria-hidden="true"></div>
 
@@ -393,10 +408,17 @@
                  four on trial, built from STYLE_INFO. -->
             <div class="style-pad" id="style-pad" hidden role="dialog" aria-label="Swing style">
                 <div class="st-head">
-                    <span><b>Swing style</b><small>long game and the range</small></span>
+                    <span><b>Swing style</b><small>pick one, then tune the touch swing below</small></span>
                     <button type="button" class="st-close" id="style-close" aria-label="Close">✕</button>
                 </div>
                 <div class="st-list" id="style-list"></div>
+                <!-- What the touch swing reads, and how hard; plus where any
+                     style applies. game.js `buildTune` from TUNE_ROWS. -->
+                <div class="tune">
+                    <p class="tn-title">Touch swing settings <small>try them and say which is fun</small></p>
+                    <div class="tn-rows" id="tune-rows"></div>
+                    <p class="tn-says" id="tune-says" aria-live="polite">Each one says what it does when you pick it.</p>
+                </div>
             </div>
 
             <div class="controls">
@@ -629,10 +651,14 @@
                     at all.
                 </li>
                 <li>
-                    <b>Swing styles (on trial).</b> 🏌 Swing in ☰ picks how you hit the ball on the
-                    long game and the range. <b>Meter</b> is all of the above. <b>Touch swing</b>: press
-                    in the middle of the screen, pull straight down to load, swipe up through where you
-                    started — straight is straight, drift right and it goes right and fades.
+                    <b>Swing styles (on trial).</b> 🏌 Swing in ☰ picks how you hit the ball, on every
+                    course or on the long game only. <b>Meter</b> is all of the above. <b>Touch swing</b>:
+                    press in the grey lane in the middle of the screen (or drag with the mouse), pull
+                    straight down to load, swipe up through where you started — straight is straight,
+                    drift right and it goes right and fades. Its settings in the same panel make it judge
+                    the line harder, time the swipe (<i>rhythm</i>: up at the pace you pulled down;
+                    <i>snap</i>: a quick swipe up whatever the pull), and let you curve the swipe to draw
+                    or fade the ball. A card after each shot says what you did and what it cost.
                     <b>Arcade</b>: three taps on a dial — start the swing, stop the power, strike as the
                     needle comes back into the green. <b>Needle</b>: pull down to load, let go, and tap
                     while a needle sweeping over the ball is in the green; tap left of it and the ball
@@ -826,30 +852,30 @@
 
     <!-- Load order is dependency order: config, then the pure logic, then the
          things that touch the screen. game.js boots itself on DOMContentLoaded. -->
-    <script src="js/config.js?v=1.104.0"></script>
-    <script src="js/themes.js?v=1.104.0"></script>
-    <script src="js/physics.js?v=1.104.0"></script>
-    <script src="js/courses.js?v=1.104.0"></script>
-    <script src="js/audit.js?v=1.104.0"></script>
-    <script src="js/custom.js?v=1.104.0"></script>
-    <script src="js/scoring.js?v=1.104.0"></script>
-    <script src="js/swing.js?v=1.104.0"></script>
-    <script src="js/school.js?v=1.104.0"></script>
-    <script src="js/audio.js?v=1.104.0"></script>
-    <script src="js/music.js?v=1.104.0"></script>
-    <script src="js/bag.js?v=1.104.0"></script>
-    <script src="js/textures.js?v=1.104.0"></script>
-    <script src="js/shaders.js?v=1.104.0"></script>
-    <script src="js/postfx.js?v=1.104.0"></script>
-    <script src="js/weather.js?v=1.104.0"></script>
-    <script src="js/flyover.js?v=1.104.0"></script>
-    <script src="js/replay.js?v=1.104.0"></script>
-    <script src="js/bot.js?v=1.104.0"></script>
-    <script src="js/models.js?v=1.104.0"></script>
-    <script src="js/life.js?v=1.104.0"></script>
-    <script src="js/render.js?v=1.104.0"></script>
-    <script src="js/minimap.js?v=1.104.0"></script>
-    <script src="js/debug.js?v=1.104.0"></script>
-    <script src="js/game.js?v=1.104.0"></script>
+    <script src="js/config.js?v=1.106.0"></script>
+    <script src="js/themes.js?v=1.106.0"></script>
+    <script src="js/physics.js?v=1.106.0"></script>
+    <script src="js/courses.js?v=1.106.0"></script>
+    <script src="js/audit.js?v=1.106.0"></script>
+    <script src="js/custom.js?v=1.106.0"></script>
+    <script src="js/scoring.js?v=1.106.0"></script>
+    <script src="js/swing.js?v=1.106.0"></script>
+    <script src="js/school.js?v=1.106.0"></script>
+    <script src="js/audio.js?v=1.106.0"></script>
+    <script src="js/music.js?v=1.106.0"></script>
+    <script src="js/bag.js?v=1.106.0"></script>
+    <script src="js/textures.js?v=1.106.0"></script>
+    <script src="js/shaders.js?v=1.106.0"></script>
+    <script src="js/postfx.js?v=1.106.0"></script>
+    <script src="js/weather.js?v=1.106.0"></script>
+    <script src="js/flyover.js?v=1.106.0"></script>
+    <script src="js/replay.js?v=1.106.0"></script>
+    <script src="js/bot.js?v=1.106.0"></script>
+    <script src="js/models.js?v=1.106.0"></script>
+    <script src="js/life.js?v=1.106.0"></script>
+    <script src="js/render.js?v=1.106.0"></script>
+    <script src="js/minimap.js?v=1.106.0"></script>
+    <script src="js/debug.js?v=1.106.0"></script>
+    <script src="js/game.js?v=1.106.0"></script>
 </body>
 </html>

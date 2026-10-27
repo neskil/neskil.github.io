@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Loft Links — hole lab</title>
+    <meta name="robots" content="noindex">
+    <style>
+        :root { --bg: #061422; --ink: #eaf6ff; --dim: #9fb6c9; --ok: #4ade80; --bad: #f87171; --warn: #fbbf24; }
+        body { background: var(--bg); color: var(--ink); font-family: 'JetBrains Mono', ui-monospace, monospace; margin: 0; padding: 16px; line-height: 1.45; }
+        h1 { font-size: 1.05rem; margin: 0 0 0.3rem; }
+        p { color: var(--dim); font-size: 0.82rem; max-width: 76ch; margin: 0.3rem 0; }
+        nav { display: flex; flex-wrap: wrap; gap: 6px; margin: 0.8rem 0; }
+        nav a { color: var(--ink); text-decoration: none; padding: 3px 9px; border: 1px solid #ffffff2a; border-radius: 999px; font-size: 0.78rem; }
+        nav a.on { background: #ffffff1a; }
+        #summary { color: var(--dim); font-size: 0.82rem; margin-bottom: 0.6rem; }
+        .holes { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr)); gap: 14px; }
+        .hole { background: #ffffff0a; border-radius: 10px; padding: 8px; }
+        .hole canvas { width: 100%; height: auto; display: block; border-radius: 6px; background: #0b1d2e; }
+        .hole h2 { font-size: 0.86rem; margin: 0 0 4px; }
+        .row { font-size: 0.74rem; color: var(--dim); }
+        .ok { color: var(--ok); } .bad { color: var(--bad); font-weight: bold; } .warn { color: var(--warn); }
+        .key { font-size: 0.76rem; color: var(--dim); }
+        .key b { font-weight: normal; padding: 0 4px; border-radius: 3px; color: #000; }
+    </style>
+</head>
+<body>
+    <h1>Hole lab</h1>
+    <p>Every drawn hole of a card, measured the way README.md → "The hole lab" asks for: every line
+       and weight from the tee out of every club in the hole's bag (at four moments of the slowest
+       beat on a hole that moves), how many are aces and where, whether a shot aimed straight at the
+       flag drops, and the caddie's card. A coarse sweep here — 1° and 25 weights — spread over the
+       machine's cores; <code>&amp;fine=1</code> asks for the half-degree one
+       <code>tools/hole-lab.mjs</code> prints, and <code>&amp;quick=1</code> for the plan and the
+       straight shots alone.</p>
+    <p class="key"><b style="background:#50ff78">green</b> aces ·
+       <b style="background:#ff3c3c">red</b> a putt straight at the flag at five weights ·
+       <b style="background:#ffb03c">amber</b> the same with a lofted club · faint where the ball is in the air</p>
+    <nav id="cards"></nav>
+    <div id="summary">…</div>
+    <div class="holes" id="holes"></div>
+
+    <script src="js/config.js?v=1.106.0"></script>
+    <script src="js/physics.js?v=1.106.0"></script>
+    <script src="js/courses.js?v=1.106.0"></script>
+    <script src="js/swing.js?v=1.106.0"></script>
+    <script src="js/bot.js?v=1.106.0"></script>
+    <script src="js/lab.js?v=1.106.0"></script>
+    <script src="js/minimap.js?v=1.106.0"></script>
+    <script>
+    (function () {
+        'use strict';
+        var G3 = window.G3, C = G3.CONFIG, P = G3.physics, L = G3.lab;
+        var DEG = Math.PI / 180;
+        var params = new URLSearchParams(location.search);
+        var id = params.get('course') || 'seaside';
+        var only = params.get('hole');
+        var fine = params.get('fine') === '1';
+        // The plan and the straight shots only: for working on a hole, where
+        // the sweep is the slow half and the question is the line at the pin.
+        var quick = params.get('quick') === '1';
+        var step = fine ? 0.5 : 1, weights = fine ? 50 : 25;
+        var SLICES = 12;
+
+        var nav = document.getElementById('cards');
+        G3.COURSES.forEach(function (c) {
+            if (C.MINI_GROUPS.indexOf(c.group) < 0) return;
+            var a = document.createElement('a');
+            a.href = '?course=' + c.id + (fine ? '&fine=1' : '') + (quick ? '&quick=1' : '');
+            a.textContent = c.name;
+            if (c.id === id) a.className = 'on';
+            nav.appendChild(a);
+        });
+        var course = G3.courseById(id);
+        var summary = document.getElementById('summary');
+        if (!course) { summary.textContent = 'No card called ' + id + '.'; return; }
+
+        /* The workers load the same modules this page did, by the same URLs,
+           so the cache key and the build are the page's own. */
+        var base = location.href.replace(/[^/]*$/, '');
+        var srcs = ['config.js', 'physics.js', 'courses.js', 'swing.js', 'bot.js', 'lab.js'].map(function (f) {
+            return JSON.stringify(base + 'js/' + f + '?v=' + G3.VERSION);
+        });
+        var body = 'self.window = self; importScripts(' + srcs.join(',') + ');\n' +
+            'onmessage = function (e) { var j = e.data, G3 = self.G3, h = G3.courseById(j.course).holes[j.hole], out;\n' +
+            '  if (j.kind === "sweep") out = G3.lab.sweep(h, { step: j.step, weights: j.weights, from: j.from, to: j.to });\n' +
+            '  else if (j.kind === "straight") out = { putt: G3.lab.straight(h), lofted: G3.lab.straight(h, { lofted: true }) };\n' +
+            '  else { var r = G3.bot.play(h, 10, G3.bagFor(h)); out = { sunk: r.sunk, strokes: r.strokes, clubs: r.shots.map(function (s) { return s.club.short; }) }; }\n' +
+            '  postMessage({ id: j.id, out: out }); };';
+        var url = URL.createObjectURL(new Blob([body], { type: 'text/javascript' }));
+
+        var holes = course.holes.map(function (h, i) { return { h: h, i: i }; })
+            .filter(function (x) { return only === null || String(x.i + 1) === only; });
+        var jobs = [], results = holes.map(function () { return { sims: 0, aces: [], per: {} }; });
+        holes.forEach(function (x, k) {
+            jobs.push({ kind: 'straight', course: id, hole: x.i, k: k });
+            if (quick) return;
+            jobs.push({ kind: 'bot', course: id, hole: x.i, k: k });
+            for (var s = 0; s < SLICES; s++) {
+                jobs.push({ kind: 'sweep', course: id, hole: x.i, k: k, step: step, weights: weights,
+                    from: 360 * s / SLICES, to: 360 * (s + 1) / SLICES });
+            }
+        });
+        jobs.forEach(function (j, n) { j.id = n; });
+        var left = jobs.map(function (j) { return j.k; });     // jobs outstanding, per hole
+        var started = performance.now(), next = 0, done = 0;
+
+        function finished(k) {
+            return left.indexOf(k) < 0;
+        }
+
+        var pool = Math.max(1, Math.min(8, navigator.hardwareConcurrency || 4));
+        for (var n = 0; n < pool; n++) (function () {
+            var w = new Worker(url);
+            function feed() {
+                if (next >= jobs.length) { w.terminate(); return; }
+                w.postMessage(jobs[next++]);
+            }
+            w.onmessage = function (e) {
+                var job = jobs[e.data.id], out = e.data.out, r = results[job.k];
+                if (job.kind === 'sweep') {
+                    r.sims += out.sims;
+                    r.aces = r.aces.concat(out.aces);
+                    Object.keys(out.per).forEach(function (c) {
+                        var t = r.per[c] || (r.per[c] = { sims: 0, aces: 0 });
+                        t.sims += out.per[c].sims; t.aces += out.per[c].aces;
+                    });
+                } else r[job.kind] = out;
+                left.splice(left.indexOf(job.k), 1);
+                done++;
+                summary.textContent = course.name + ' — ' + done + ' of ' + jobs.length + ' jobs on ' + pool + ' workers…';
+                if (finished(job.k)) report(holes[job.k].h, holes[job.k].i, r);
+                if (done === jobs.length) {
+                    summary.textContent = course.name + ' — done in ' + ((performance.now() - started) / 1000).toFixed(0) +
+                        's (' + (quick ? 'the straight shots only' : step + '° × ' + weights + ' weights') + ').';
+                    window.DONE = true;
+                }
+                feed();
+            };
+            feed();
+        })();
+
+        function draw(h, aces) {
+            var W = 640, H = Math.round(W / G3.minimap.aspect(h, 0.42, 1.7));
+            var cv = G3.minimap.render(h, W, H);
+            var g = cv.getContext('2d');
+            var tf = G3.minimap.transform(h, W, H);
+            function X(v) { return (v - tf.ox) * tf.scale; }
+            function Y(v) { return (v - tf.oz) * tf.scale; }
+            function stroke(pts, colour, width) {
+                g.lineWidth = width;
+                g.lineCap = 'round';
+                for (var k = 1; k < pts.length; k++) {
+                    var q = pts[k - 1], p = pts[k];
+                    var top = P.ballTop(h, p[0], p[1]);
+                    g.strokeStyle = colour;
+                    g.globalAlpha = p[2] > top + 0.08 ? 0.35 : 1;
+                    g.beginPath(); g.moveTo(X(q[0]), Y(q[1])); g.lineTo(X(p[0]), Y(p[1])); g.stroke();
+                }
+                g.globalAlpha = 1;
+            }
+            var yaw = Math.atan2(h.cup.x - h.tee.x, h.cup.z - h.tee.z);
+            G3.bagFor(h).forEach(function (club) {
+                [0.3, 0.5, 0.7, 0.9, 1].forEach(function (f) {
+                    stroke(L.path(h, club, yaw, club.power * f, 0),
+                        club.loft ? 'rgba(255, 176, 60, 0.85)' : 'rgba(255, 60, 60, 0.9)', 2);
+                });
+            });
+            var every = Math.max(1, Math.floor(aces.length / 40));
+            aces.forEach(function (s, k) {
+                if (k % every) return;
+                var club = L.clubById(s.club);
+                stroke(L.path(h, club, s.a * DEG, club.power * s.p, s.at), 'rgba(80, 255, 120, 0.8)', 1.4);
+            });
+            return cv;
+        }
+
+        function pct(x) { return (x * 100).toFixed(3) + '%'; }
+
+        function report(h, i, r) {
+            var box = document.createElement('div');
+            box.className = 'hole';
+            box.style.order = i;
+            var best = null;
+            Object.keys(r.per).forEach(function (c) {
+                var share = r.per[c].aces / r.per[c].sims;
+                if (!best || share > best.share) best = { club: c, share: share };
+            });
+            var verdict = quick ? 'not swept' : L.verdict(best && best.share);
+            var cls = verdict === 'none' || verdict === 'fluke' || verdict === 'giveaway' ? 'warn' : 'ok';
+            var win = L.windows(r.aces, step);
+            var s = r.straight;
+            function drop(x) {
+                return x.club + ' at ' + Math.round(x.power * 100) + '%' + (x.at ? ', t ' + x.at : '');
+            }
+            box.innerHTML = '<h2>' + (i + 1) + ' · ' + h.name + ' · par ' + h.par + '</h2>' +
+                '<div class="row">aces <span class="' + cls + '">' + (best ? best.club + ' ' + pct(best.share) : '–') +
+                ' · ' + verdict + '</span> (' + r.aces.length + ' of ' + r.sims + ') · caddie ' +
+                (!r.bot ? '–' : r.bot.sunk ? r.bot.strokes + ' (' + r.bot.clubs.join(' ') + ')' : '<span class="bad">never holes out</span>') + '</div>' +
+                '<div class="row">straight putt: ' + (s.putt ? '<span class="bad">drops, ' + drop(s.putt) + '</span>'
+                    : '<span class="ok">never drops</span>') +
+                (s.lofted ? ' · lofted at the flag: <span class="warn">drops, ' + drop(s.lofted) + '</span>' : '') + '</div>' +
+                '<div class="row">' + win.slice(0, 4).map(function (w) {
+                    return w.club + ' ' + (w.at ? 't' + w.at + ' ' : '') + w.a0 + '–' + w.a1 + '° at ' +
+                        Math.round(w.p0 * 100) + '–' + Math.round(w.p1 * 100) + '%';
+                }).join(' · ') + '</div>';
+            box.insertBefore(draw(h, r.aces), box.children[1]);
+            document.getElementById('holes').appendChild(box);
+        }
+    })();
+    </script>
+</body>
+</html>

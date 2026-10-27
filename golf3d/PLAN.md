@@ -302,7 +302,32 @@ tee shows (Sea Legs' was).
    behind a cup is a backboard that hands the ball back towards the pin.
 9. **An ace line on every mini hole.** On most of them the right play is two
    safe putts; one risky line per hole that can drop makes every tee worth a
-   go. §2's "the bot could prove a hole is ace-able" is the check for it.
+   go. §2's "the bot could prove a hole is ace-able" is the check for it —
+   built now as the hole lab (v1.105.0, README → "The hole lab"), and it says
+   43 of the 78 drawn holes have no ace from the tee at 1° and 25 weights
+   (`node golf3d/tools/hole-lab.mjs --coarse`; 42 before v1.105.0 made
+   Caldera a par 4 in stages on purpose). Some are par 4s played in
+   stages and fine as they are; the mini par 3s among them are the list.
+10. **The putt at the flag, on the ten holes that still drop it** (README →
+   "The hole lab"; v1.105.0 rebuilt twelve). Two kinds, and they want
+   different answers:
+   - *Launch pads in a row* — Bounce Alley, The Gravitron, Fumarole, Blowhole,
+     Apogee. A pad leaves the heading alone, so the ace through it is the line
+     from the tee. Moving the pad or the pin off the line is the obvious fix and
+     it fails the other way: the bot's fan starts at the cup's bearing, finds no
+     pad there and cannot finish the hole (every variant tried left it short).
+     The Springboard is the one that worked — a lane widened to seven and a
+     kicker in the far corner — so the shape of an answer is a bank *after* the
+     landing; or a smarter bot, one that aims at the pads as well as the pin.
+     The Gravitron also has its doorway skipped: a full putter lands on the
+     second pad over the wall, and a mallet at nine tenths flies both moats.
+     These five are `OPEN` in tests.html and must leave it when fixed.
+   - *Timed at the flag* — Harbour Gate, First Gear, Headrace, Half Time,
+     Rounds. A putt at the pin that drops at the right moment, which is the
+     oldest shot in crazy golf and the rule Pocket Links made anyway ("or at any
+     moment of a clock"). Rounds is a wave ridden straight down the lane by
+     design. Worth the owner's call before any of them changes; the suite does
+     not check clocked holes unless they are in `CLOCKED`.
 
 ### Next: curved surfaces — started (v1.67.0)
 
@@ -368,15 +393,14 @@ the picker.
 
 ### After the rehaul
 
-- **A more fun swing — four styles on trial.** v1.103.0 cut the four rotating
-  gates to one (the owner found the rotation random and not fun) and added
-  the touch swing; v1.104.0 made it a choice of four — meter, touch swing,
-  arcade arc, needle — from 🏌 Swing in ☰, long game and range only, plus a
-  strike grade and a livelier meter (README → "Swing styles"). Waiting on the
-  owner's verdict: which to keep, whether one becomes the long game's default,
-  and whether any belongs on the mini courses. Tuning to look at once played
-  on a phone: each style's clean allowance (`SWIPE.TOL_*`, `ARC.WIN_*`,
-  `NEEDLE.WIN_*`), their `FLOOR`s, and the arc's and needle's speeds.
+- **A more fun swing — the touch swing is the favourite, being tuned.**
+  v1.104.0 offered four styles; the owner found the touch swing the most fun
+  and too easy. v1.106.0 made it judge the line harder, read timing (rhythm or
+  snap) and drawn shapes, explain every shot on a card, and play on every
+  course — each as a setting in the Swing panel (README → "Swing styles").
+  Waiting on the owner's verdict on which settings are fun, to make them the
+  defaults (`SWIPE.DEFAULT`) and retire the rest; and on whether the arcade
+  arc and the needle stay.
 - **Mini golf and the long game as two games.** They share one bag and one set
   of physics and they want different ones — the bot drives The Bend and The
   Zigzag with the *driver*. Separate bags (a mini bag of putter, pitch and
@@ -401,9 +425,10 @@ card shapes are already there to hang a third off (`CARDS` in `bag.js`).
 
 ## 2. Smaller things & feature backlog
 
-- **The bot could prove a hole is ace-able**, not only solvable, on the holes
-  where that is the design. Sea Legs is the first hole where the ace *is* the
-  point, and nothing measures that it stays available.
+- ~~**The bot could prove a hole is ace-able**~~ (done, v1.105.0 — the hole
+  lab measures every drawn hole's ace windows; README → "The hole lab"). Not
+  in the suite: a sweep is ~36,000 shots a club, so "the ace stays available"
+  is the tool's to say, and §0 item 9 holds the list.
 - **`tests.html` walks greens on a 0.3 grid** and misses peaks between samples
   (see §1). A finer grid, or sampling at each hump's own steepest radius.
 - ~~**Pass-and-play local multiplayer**~~ (done, v1.101.0 — README → "Pass
