@@ -92,7 +92,8 @@ follow `GOLF.BARE_KEY_COURSE` by id (see [Saving](#saving)).
   round a corner, a table of posts, the cushions, two doors to time, and a
   room whose only door faces away. Walls and posts and nothing else — the
   angles are the hazard, and since its second pass it has the angles to bank
-  off: a neck of grass through the bunker, a bank board at the corner, a
+  off: a long bunker on the line with a neck of grass beside it and a board
+  past the neck to turn the putt in, a bank board at the corner, a
   pinball table with a dome and rough for felt, a curved rail over a hedge, two sliding doors in
   a hedge that take turns — the top one leads to a bank board and the flag,
   the bottom one to the long way round a bed — and a round keep. Five have an
@@ -109,11 +110,11 @@ follow `GOLF.BARE_KEY_COURSE` by id (see [Saving](#saving)).
   with a flat face to bank off between two small ones guarding the flag; **The
   Bar** is two weights and no ace — onto a sandbar off the line, then up a far
   bank with the sea behind the flag; **Ducks and Drakes** is the skip — a
-  creek, a footbridge at the far end, a tee close enough to skip it from and a
-  bed of marram on the straight line beyond; **The Narrows** is the causeway
-  staircase it always was; and **Harbour Gate** is a round harbour with its
-  mouth to the tee, a boom shuttling across it, a lighthouse on the line and a
-  wall behind to bank off.
+  creek, a footbridge at the far end and a tee close enough to skip it from;
+  **Harbour Gate** is a round harbour with its mouth to the tee, a boom
+  shuttling across the mouth whose travel always covers its middle, its
+  lighthouse out on the breakwater and a wall inside to bank off; and **The
+  Narrows**, the closer, is the causeway staircase it always was.
 - **Harvest Wind** (autumn) is the card of the air. Every hole has a wind on
   it, and every wind blows out of a fan standing at its head — the suite will
   not ship one without. A wind is a slope to the ball, so the trick is a
@@ -121,10 +122,14 @@ follow `GOLF.BARE_KEY_COURSE` by id (see [Saving](#saving)).
   also brings a ball up to its own pace, whatever pace it came in with, and
   that is the card's other half — a ball that rides one arrives at the speed
   the wind chose. A crosswind, a tailwind round a hedge, a barn to go round
-  or through the slipstream of, a leaf blower, a pumpkin patch between two
-  lanes blowing opposite ways, and a windmill on a hill to finish.
+  or through the slipstream of, a leaf blower, a windmill on a hill standing
+  across the line with its door below it, and to finish a pumpkin patch
+  between two lanes blowing opposite ways, with a hedgerow between them and
+  the field gate off the line.
 - **The Wild Six** (woodland) is where the ground moves the ball: hills
-  breaking opposite ways, a hill that runs back at you, a green that sheds
+  breaking opposite ways (the second steeper, so they never cancel), a hill
+  that runs back at you with a stone wall along its crest and one stile in
+  it, a green that sheds
   everything you leave on it, a funnel, a lattice of posts, and the one
   mechanic that arrives here rather than being recombined — a moving wall does
   not only block, it pushes (physics.js adds the wall's own velocity along the
@@ -134,30 +139,31 @@ follow `GOLF.BARE_KEY_COURSE` by id (see [Saving](#saving)).
 - **The Dunes** (desert) is the card of the ground's shape, and every hole on
   it is built of hills. The Wild Six's slopes tip one way; a dune tips every
   way at once, so its shoulder is a curve to aim with and its top is a line
-  only a firm ball holds. A saddle between two dunes, sinkholes that gather
-  whatever stops short in them, an oasis at the bottom of a bowl that drinks
+  only a firm ball holds. A saddle between two dunes, a sinkhole in the turn
+  round the end of a sandstone ridge, an oasis at the bottom of a bowl that drinks
   anything drifting too near its pool, a mesa, a pyramid whose four faces
   are four cushions at forty-five degrees, and a closer over rolling dunes
   with a second sinkhole in the valley. All six are par three, which is what
-  the lab's club player made of each.
+  the lab's club player made of each — Sinkhole and Mesa are the two played
+  in stages.
 - **The Warren** (meadow) is the card built on a door: a **tunnel**, two
   mouths that run both ways and keep the shot. Whatever speed and heading the
   ball goes down one mouth with, it comes up the other with, and each hole
   reads a different consequence off that sentence — that weight survives the
   trip (Rabbit Hole, whose flag sits in a dip beside the tunnel's line rather
   than on it), that heading survives it too and is the thing to aim
-  (Snow Globe, a cup behind a snowman in a globe of ice, whose ace is a putt a
+  (Snow Globe, a cup beside a snowman in a globe of ice, whose ace is a putt a
   hair off the middle of the mouth; and Crossed Wires), and that a door can be
   a trap as easily as a shortcut (Snakes and Ladders). Every hole on it has
   one, and the suite says so.
 - **The Ice Run** (winter) is the card of the curve. Its walls are bent, its
   floor is mostly ice, and the shots it asks for are rides: sent along the
   inside of a curve, a ball follows it round, and on ice it keeps its pace all
-  the way. A ring with a bowl in it is a plughole, a curling sheet with a
-  snowman guarding the house asks for weight and nothing else, a hairpin is a
+  the way. A ring with a bowl in it is a plughole, a curling sheet asks for
+  weight and nothing else — and timing, with a skater across it — a hairpin is a
   ride round and back, a frozen lake has fishing holes cut in it, a chicane is
   an S to thread, and the closer is a bobsleigh run of two hairpins, played in
-  stages past a spectator and a hole in the ice. And there are skaters: one
+  stages past a hole in the ice. And there are skaters: one
   doing laps of the curling sheet, one going round the hairpin's bottom
   straight, and one cutting figures of eight on the bobsleigh run's first leg
   (see [Skaters](#skaters)).
@@ -169,7 +175,11 @@ follow `GOLF.BARE_KEY_COURSE` by id (see [Saving](#saving)).
   chute to learn on, a chute that runs out into a crevasse with a long way
   round over its head, two lanes of traffic running opposite ways on different
   clocks, and a summit reached by a hairpin through an avalanche gully — with
-  a frozen tarn and an iced slalom between them.
+  a frozen tarn and an iced slalom between them. None of its flags is
+  behind a boulder any more: a moraine, a spur of rock, an inlet of the lake
+  and a spine of rock between the lanes are what stand between the tee and
+  the flag now, and two of them come with a granite slab to bank off — the
+  puzzle that turns two slides and a stone into an ace.
 - **Midnight Funfair** (night) is crazy golf after dark, and the card of
   things that move by themselves. A **spinner** is a turnstile laid flat whose
   arms bat the ball on as they come round; a **belt** is ground that runs and
@@ -185,8 +195,10 @@ follow `GOLF.BARE_KEY_COURSE` by id (see [Saving](#saving)).
   one is swung round the way its near edge runs; nothing is left on it. Side A
   is one record between the tee and a flag behind the tonearm, Inkwell a spill
   of ink round an inkpot, Bookends a lane between books with a pencil laid
-  over the straight line, B-Side two records turning opposite ways, Sugar Rush
-  a coffee table of spilt sugar and a mug, and Deadline, the par-four closer,
+  over the straight line, B-Side two records turning opposite ways whose gap
+  throws a putt on to a flag that is not on the tee's line — the puzzle is to
+  stop aiming at the flag — Sugar Rush a coffee table of spilt sugar, and
+  Deadline, the par-four closer,
   has a record, the books, the ink and the mug all at once.
 - **Ember Ridge** (volcanic) is the one most made of
   choices. **Lava** is water that never lets a ball skip, so every crossing is
@@ -202,7 +214,9 @@ follow `GOLF.BARE_KEY_COURSE` by id (see [Saving](#saving)).
   and the ball that skims the well is slung round it. Liftoff is one well to
   learn the bend on, Event Horizon a deeper one right on the line, Asteroid
   Belt a field of rocks round a planet to bank off, Wormhole a tunnel out to a
-  well beside the flag, Binary two wells pulling against each other, and
+  well beside the flag, Binary two wells with the line to the flag running past
+  the mouth of the first, so the way in is slung round one and back past the
+  other, and
   Mission Control a spinning station, two wells and a wormhole home.
 
 **What went, and why.** The rack used to be fifty-one holes over five cards —
@@ -286,8 +300,12 @@ golf courses for a living, and from game level design:
   hole may say `straight: true` and mean it: a first hole that should simply
   be easy (Garden Gate), or one whose whole question is something else, the
   weight with the sea behind the flag (Sandcastles), over the top of a hill
-  (Molehill), full weight through a crosswind (Snow Cannon). The suite allows
-  eight at most. It is a simulation rather than a test for something on the
+  (Molehill), full weight through a crosswind (Snow Cannon), the moment two
+  bars part (Wiper Blades), a geyser met at the right moment and pace (Old
+  Faithful). Four to a card at most, mostly on the easier half of the ladder,
+  and the lab still has to say the hole is not too easy — a straight hole
+  that plays itself is redesigned like any other.
+  It is a simulation rather than a test for something on the
   line because a ball runs straight over sand, rough and a gentle hill, and a
   tunnel on the line is a straight putt that goes underground.
 - **A bank to learn on is flat.** Off a flat board the angle in is the angle
@@ -295,6 +313,19 @@ golf courses for a living, and from game level design:
   of a degree comes off somewhere else entirely. So the early holes bank off
   boards (Bank Holiday's corner) and the curves to ride come later, on the
   card that is about them.
+- **Some holes are puzzles.** The ace on them is a use of the mechanics the
+  player has to see, not a line they have to find by trial: aim at the gap
+  between two records and let them throw the ball on (B-Side), sling round
+  one black hole and back past the other (Binary), go in behind a slide and
+  off a granite slab (First Tracks), cross one lane, bank off the slab on the
+  verge and cross the other (Rush Hour), drift through the field gate on one
+  wind and come back on the other (Pumpkin Patch), go in at the mill door that
+  is not where the flag is (Windmill Hill). The putt at the flag is closed by
+  the shape of the hole, and the trick is there for the player who reads it.
+  When a hole is made non-straight, it should gain a puzzle like these
+  rather than lose its ace — a hole with no ace at all is allowed, but it is
+  a choice (Crevasse, Sinkhole and Mesa are played in stages), not the
+  default.
 - **One idea, met alone, then combined.** Nintendo builds a level as an idea
   introduced where it is safe, developed, twisted and dropped
   (*kishōtenketsu*). A card is the same at a larger size: the Short Six meets
@@ -770,7 +801,7 @@ A hole is axis-aligned rectangles, round posts and two points:
     belts:   [ { x, y, w, h, dir, speed } ] // ground that runs: carries the ball `dir` at `speed`
     turntables: [ { x, y, r, speed } ]       // a disc of ground turning at `speed` rad/s, clockwise +
     skaters: [ { x, y, rx, ry, speed, phase, eight? } ] // laps of the ice; takes a moving ball and passes it on
-    straight: true                           // optional: a putt at the flag may drop here (a few holes only)
+    straight: true                           // optional: a putt at the flag may drop here (early cards, a few holes)
 }
 ```
 
@@ -886,7 +917,7 @@ course is exempt from is a rule the second course will break — all asserted in
   they keep clear of the tee, the cup and every tunnel mouth. The big wheel's
   rim is held to the same.
 - **A putt struck straight at the cup never drops**, unless the hole says
-  `straight: true`, and no more than eight do. See [Designing a
+  `straight: true`, four to a card at most. See [Designing a
   hole](#designing-a-hole): the suite plays the straight putt at every weight,
   half a degree either side and, on a hole with a clock, at twelve moments of
   its slowest cycle.

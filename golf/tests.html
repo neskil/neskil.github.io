@@ -2343,19 +2343,25 @@
 
             // The straight putt. No hole on the rack may be aced by a putt
             // struck at the flag — at any weight, a hair either side, or at
-            // any moment of a clock — unless it says it means it, and only
-            // a few may: a first hole, or one whose whole question is the
-            // weight. The check has to be able to see one: an empty field
-            // is nothing but a straight putt.
-            var straight = [], allowed = [];
+            // any moment of a clock — unless it says it means it: a first
+            // hole, or one whose whole question is something else, the
+            // weight, the timing, the wind, a geyser to meet — and no more
+            // than four holes of a card. The check has to be able to see
+            // one: an empty field is nothing but a straight putt.
+            var straight = [], perCard = {};
             everyHole(function (h, i, course) {
-                if (h.straight) { allowed.push(course.id + ' ' + h.name); return; }
+                if (h.straight) {
+                    perCard[course.id] = (perCard[course.id] || 0) + 1;
+                    return;
+                }
                 var hit = GOLF.physics.straightAce(h);
                 if (hit) straight.push(course.id + ' ' + h.name + ' (' + Math.round(hit.power) + ' at ' + hit.at.toFixed(1) + 's)');
             });
             assert('no shipped hole is aced by a putt struck straight at the cup unless it says so', straight.length === 0,
                 straight.slice(0, 4).join(' · '));
-            assert('only a few holes say a straight putt may drop', allowed.length <= 8, allowed.join(' · '));
+            var crowded = Object.keys(perCard).filter(function (id) { return perCard[id] > 4; });
+            assert('a straight putt is allowed on no more than four holes of a card', crowded.length === 0,
+                crowded.map(function (id) { return id + ' ' + perCard[id]; }).join(' · '));
             var bare = { par: 2, tee: { x: 200, y: 320 }, hole: { x: 600, y: 320 } };
             GOLF.HAZARD_KEYS.forEach(function (k) { bare[k] = []; });
             assert('…and the check finds the one an empty field gives', GOLF.physics.straightAce(bare) !== null);

@@ -447,29 +447,30 @@
     var LINKS = [
         {
             name: 'Bunker Hill',
-            blurb: 'Up the field, and the sand has a neck of grass through it. Thread it, or go round the ends.',
+            blurb: 'Up the field past a long bunker. Thread the neck of grass and bank it off the board, or go round.',
             par: 3,
-            /* Played up the field rather than across it. Two kidneys of sand
-               lie across the middle with a strip of grass between them on
-               the straight line, and a round bed past the neck on the same
-               line: the putt down the neck goes in beside the bed and the
-               dish round the cup brings it on, if the weight is right, and is
-               a bunker if the line is not. Round either end is wide and free,
-               and two putts. */
-            tee: { x: 480, y: 590 },
+            /* Played up the field rather than across it, from a tee off to
+               the left. A long bunker lies between the tee and the flag, the
+               long way on, so the putt at the flag ploughs through two
+               hundred pixels of sand and dies in it; beside it a second
+               bunker leaves a neck of grass between the two. The putt down
+               the neck runs on past the flag's right — and a bank board
+               stands there, square to it, to turn it in. The Old Course's
+               idea in one hole: the angle in is the angle out. Round either
+               end of the sand is wide and free, and two putts. */
+            tee: { x: 300, y: 590 },
             hole: { x: 480, y: 90 },
             sand: [
-                shape(smooth([120, 300, 260, 250, 420, 270, 440, 330, 400, 390, 240, 400, 130, 370])),
+                shape(smooth([130, 300, 260, 240, 400, 190, 455, 235, 455, 330, 420, 470, 310, 490, 160, 410])),
                 shape(smooth([520, 270, 680, 240, 840, 290, 830, 370, 700, 400, 540, 380, 510, 330]))
             ],
             blocks: [
                 block('bed', smooth([0, 0, 220, 0, 160, 90, 60, 150, 0, 170])),
-                block('bed', smooth([960, 0, 960, 170, 900, 150, 800, 90, 740, 0])),
-                // A round bed past the neck, on the straight line: the putt
-                // through the neck goes in beside it and the dish brings it on.
-                block('bed', oval(480, 215, 26, 26, 14))
+                block('bed', smooth([960, 0, 960, 170, 900, 150, 800, 90, 740, 0]))
             ],
-            hills: [bowl(480, 90, 50, 30)],
+            // The bank board beside the green.
+            rails: [rail(608, 87, 639, 203, 24)],
+            hills: [bowl(480, 90, 40, 20)],
             rough: [r(0, 560, 300, 80), r(660, 560, 300, 80)]
         },
         {
@@ -694,18 +695,42 @@
                end, so there is a long way round that costs nothing but a
                stroke — and a short way over it for a firm, flat ball. The tee
                stands close enough for a putt to skip it, and a soft one goes
-               in. The straight line comes down into a bed of marram on the
-               far bank, so the skip that saves the stroke is aimed beside
-               it, and the bunker behind the flag is there for the one that
+               in. The bunker behind the flag is there for the one that
                skipped and kept going. */
             tee: { x: 300, y: 190 },
             hole: { x: 640, y: 540 },
             water: [shape(smooth([0, 290, 160, 270, 330, 300, 500, 330, 680, 300, 860, 280,
                                   860, 345, 680, 365, 500, 395, 330, 365, 160, 335, 0, 355], 1))],
-            blocks: [block('bed', smooth([470, 420, 560, 410, 590, 470, 520, 500, 460, 470], 1))],
             sand: [shape(smooth([560, 640, 580, 610, 640, 600, 700, 610, 720, 640], 1))],
             rough: [r(860, 230, 100, 180)]
         },
+        mirror({
+            name: 'Harbour Gate',
+            blurb: 'A round harbour, its lighthouse on the breakwater. The boom crosses its mouth; bank off the wall behind.',
+            par: 3,
+            /* The harbour wall is a ring with its mouth to the tee. The boom
+               across the mouth shuttles from one side of it to the other, and
+               its travel always covers the middle of the mouth, so nothing
+               goes in on the line to the flag: half the mouth is open at any
+               moment, and the half you aim at is the one that has to be open
+               when the ball gets there. The lighthouse stands on the
+               breakwater behind the harbour, out of play. Inside,
+               the wall is a curve to bank off, and the flag stands past the
+               point the curve throws everything back to — a bank that holds
+               its line is an ace, and one that rattles round the harbour
+               usually is not. Sea along both shores for the putt that misses
+               the mouth altogether. */
+            tee: { x: 110, y: 320 },
+            hole: { x: 800, y: 320 },
+            arcs: [arc(640, 320, 190, 210, 510, 24)],
+            walls: [{ x: 440, y: 270, w: 24, h: 100, move: { axis: 'y', amp: 50, speed: 1.0, phase: 0 } }],
+            // The lighthouse, on the breakwater behind the harbour.
+            blocks: [block('lighthouse', oval(895, 470, 28, 28, 14))],
+            water: [
+                shape(smooth([0, 640, 0, 590, 300, 575, 620, 585, 960, 575, 960, 640], 1)),
+                shape(smooth([0, 0, 960, 0, 960, 60, 620, 70, 300, 55, 0, 65], 1))
+            ]
+        }),
         {
             name: 'The Narrows',
             blurb: 'A causeway between two lakes, climbing in three landings. The banks run on the slant.',
@@ -732,32 +757,8 @@
                 poly(280, 640, 280, 420, 480, 420, 520, 340, 700, 340, 740, 260, 960, 260, 960, 640)
             ],
             rough: [r(0, 0, 230, 80), r(0, 560, 230, 80)]
-        },
-        mirror({
-            name: 'Harbour Gate',
-            blurb: 'A round harbour with a lighthouse in it. The boom crosses its mouth; bank off the wall behind.',
-            par: 4,
-            /* The harbour wall is a ring with its mouth to the tee, and a
-               lighthouse stands in the middle of it on the straight line, so
-               nothing goes in and drops without touching the wall. The boom
-               across the mouth shuttles from one side of it to the other, so
-               half the mouth is open at any moment and the half you aim at is
-               the one that has to be open when the ball gets there. Inside,
-               the wall is a curve to bank off, and the flag stands past the
-               point the curve throws everything back to — a bank that holds
-               its line is an ace, and one that rattles round the harbour
-               usually is not. Sea along both shores for the putt that misses
-               the mouth altogether. */
-            tee: { x: 110, y: 320 },
-            hole: { x: 800, y: 320 },
-            arcs: [arc(640, 320, 190, 210, 510, 24)],
-            walls: [{ x: 440, y: 270, w: 24, h: 100, move: { axis: 'y', amp: 50, speed: 1.0, phase: 0 } }],
-            blocks: [block('lighthouse', oval(570, 320, 28, 28, 14))],
-            water: [
-                shape(smooth([0, 640, 0, 590, 300, 575, 620, 585, 960, 575, 960, 640], 1)),
-                shape(smooth([0, 0, 960, 0, 960, 60, 620, 70, 300, 55, 0, 65], 1))
-            ]
-        })
+        }
+
     ];
 
     /* ── The Wild Six — the woodland ────────────────────────────────────
@@ -805,10 +806,13 @@
             /* Tilt falls one way and asks you to aim above it. This asks the
                question twice in opposite directions, which is a different
                shot: the correction that holds the first half of the roll is
-               exactly wrong for the second. Both slopes stop well short of a
-               cushion — a ball they shed has somewhere to come to rest — and a
-               boulder past the second stands on the straight line, for the
-               putt aimed square that the two hills hand back to it. */
+               exactly wrong for the second. The second hill is steeper than
+               the first, so they do not cancel — the putt aimed square comes
+               off the pair breaking down and past the flag, and the ace is
+               aimed above it by an amount that depends on the weight. (Equal
+               hills cancel, and a boulder used to stand on the line to make
+               up for it.) Both slopes stop well short of a cushion, so a ball
+               they shed has somewhere to come to rest. */
             tee: { x: 100, y: 320 },
             hole: { x: 880, y: 320 },
             sand: [shape(smooth([820, 0, 960, 0, 960, 200, 880, 210, 820, 140], 1)),
@@ -817,26 +821,26 @@
             // the lane past them is rough — which doubles as the collar the
             // hills shed into.
             rough: [r(240, 0, 500, 90), r(240, 550, 500, 90)],
-            // A boulder past the second hill, on the straight line.
-            blocks: [block('rock', oval(780, 320, 12, 12, 12))],
             slopes: [
-                { x: 240, y: 100, w: 250, h: 440, ax: 0, ay: -150 },
-                { x: 490, y: 100, w: 250, h: 440, ax: 0, ay: 150 }
+                { x: 240, y: 100, w: 250, h: 440, ax: 0, ay: -250 },
+                { x: 490, y: 100, w: 250, h: 440, ax: 0, ay: 320 }
             ]
         },
         mirror({
             name: 'Wiper Blades',
             blurb: 'Two bars sweeping the middle of the field. They do not block the shot — they hit it.',
             par: 3,
+            // Straight at the flag through both bars as they part: a putt about when.
+            straight: true,
             /* The one hole built on the push rather than the block. A gate
                that meets the ball while travelling hands it the gate's own
                velocity, so a ball nudged by a descending bar leaves faster
                and lower than it arrived. Both bars are hung so their travel
                ends 95px short of the top cushion and 219px short of the
                bottom one: they can shove the ball about, but they can never
-               trap it against anything. A tree stands on the straight line
-               out of the tee, so the putt through the bars starts beside it.
-               It is a hole of stages rather than an ace. */
+               trap it against anything. The straight putt is a putt about
+               when: through both bars as they part, which is the ace for the
+               player who can time two clocks at once. */
             tee: { x: 100, y: 380 },
             hole: { x: 880, y: 240 },
             walls: [
@@ -845,9 +849,7 @@
             ],
             // The lanes the bars cannot reach, in rough. Without them the hole
             // is walked round the outside for nothing and the bars are scenery.
-            rough: [r(280, 0, 680, 90), r(280, 440, 680, 200)],
-            // A tree on the straight line out of the tee.
-            blocks: [block('tree', oval(250, 353, 18, 18, 12))]
+            rough: [r(280, 0, 680, 90), r(280, 440, 680, 200)]
         }),
         {
             name: 'The Cascade',
@@ -876,19 +878,29 @@
         },
         mirror({
             name: 'Sisyphus',
-            blurb: 'The middle runs back at you. Nothing you leave there stays there.',
+            blurb: 'The middle runs back at you, and the only way over the wall at the top is the stile.',
             par: 4,
+            /* A hill running back at the tee the whole width of the field,
+               and along its crest a stone wall with one stile in it, off to
+               the side. The flag is just over the top, in a dip below the
+               stile: a putt has to climb the hill, find the gap and still
+               have the weight to drop over into the dip. Anything short of
+               the crest, or into the wall, rolls all the way back down to
+               you. A stroke to the top and one through is par's way. */
             tee: { x: 110, y: 320 },
-            hole: { x: 850, y: 320 },
+            hole: { x: 840, y: 230 },
             sand: [shape(smooth([890, 200, 960, 190, 960, 450, 890, 440, 870, 320], 1))],
             slopes: [{ x: 300, y: 0, w: 420, h: 640, ax: -150, ay: 0 }],
-            // A boulder between the top of the hill and the flag.
-            blocks: [block('rock', oval(770, 320, 18, 18, 12))]
+            // The wall along the crest, and the stile in it.
+            rails: [rail(745, 0, 745, 110, 24), rail(745, 200, 745, 640, 24)],
+            hills: [bowl(840, 230, 70, 22)]
         }),
         {
             name: 'Crown Green',
             blurb: 'The green sheds everything you leave on it. Only the cup itself holds.',
             par: 4,
+            // Straight up the crown is the only way to it; the weight is the hole.
+            straight: true,
             /* A crowned green, which every other slope on the rack is the
                opposite of: a dome with the cup at its very top, shedding a
                ball off every side, so one that finishes near the flag does
@@ -897,19 +909,18 @@
                harder than the crown does that close in, and anything that
                reaches the rim slowly enough drops. Nothing else does. It was
                four tilted bands round the cup once, which shed square; a dome
-               sheds round, the way a crown does. A tree at the foot of the
-               green stands on the line from the tee. The crown is steep: the
-               card's close should be a putt you have to hold your nerve
-               over, and a gentler one let a firm ball run up and drop. */
+               sheds round, the way a crown does. Every putt at it is straight
+               up the slope, so the line is never the question: the weight is.
+               The crown is steep: the card's close should be a putt you have
+               to hold your nerve over, and a gentler one let a firm ball run
+               up and drop. */
             tee: { x: 100, y: 570 },
             hole: { x: 480, y: 320 },
             // A collar of rough all the way round. What the crown sheds has to
             // land somewhere, and rough stops it in a stride — so the next
             // putt is from beside the green rather than from across the field.
             rough: [shape(smooth([250, 120, 710, 120, 720, 520, 240, 520], 2))],
-            hills: [mound(480, 320, 175, 260)],
-            // A tree at the foot of the green, on the line from the tee.
-            blocks: [block('tree', oval(268, 459, 20, 20, 12))]
+            hills: [mound(480, 320, 175, 260)]
         }
     ];
 
@@ -950,16 +961,17 @@
             name: 'Snow Globe',
             blurb: 'The cup is shut in a globe of ice with a snowman. The only door is a tunnel, and it keeps your heading.',
             par: 3,
-            /* A room with no door, an ice floor, a snowman in the middle and
-               the cup behind him. The tunnel's mouths face him square, so the
-               putt down the middle of the mouth comes out into his belly and
-               back into the tunnel, which takes it home to the tee. The ace is
-               a hair either side of the middle: the heading carries through,
-               the ball slips past him, and the glass wall turns it round to
-               the cup. The rink keeps whatever the putt had, so the weight
-               barely matters and the line is everything. */
+            /* A room with no door, an ice floor, a snowman in the middle as
+               in any snow globe, and the cup off to one side of him. The
+               tunnel's mouths face him square, so the putt down the middle of
+               the mouth comes out into his belly and back into the tunnel,
+               which takes it home to the tee. The ace is a hair to the cup's
+               side of the middle: the heading carries through, the ball slips
+               past him, and the glass wall turns it round to the cup. The
+               rink keeps whatever the putt had, so the weight barely matters
+               and the line is everything. */
             tee: { x: 110, y: 320 },
-            hole: { x: 850, y: 320 },
+            hole: { x: 790, y: 245 },
             // A globe, as the name always said: a ring of wall round a
             // round rink, with no way in but the tunnel.
             arcs: [arc(725, 320, 165, 0, 360, 26)],
@@ -1060,73 +1072,86 @@
     var ALPINE = [
         {
             name: 'First Tracks',
-            blurb: 'One chute across the fairway. Watch a slide come down, then go in behind it.',
+            blurb: 'One chute across the fairway, and the flag behind a moraine. Go in behind a slide, and bank it off the slab.',
             par: 3,
             /* The terms, stated once and plainly: a chute runs down the
                middle of the field, a slide comes down it every four seconds,
                and anything it is over goes with it into the drift at the
                foot. The gap between two slides is three and a half seconds
                wide and a putt crosses the chute in a third of one, so the
-               shot is always there — the hole is learning to wait for it. A
-               boulder past the chute stands on the line and the cup sits in a
-               dip, so the putt is aimed past the boulder and let in. */
+               shot is always there — the hole is learning to wait for it.
+               Past the chute a moraine comes down from the top and the flag
+               is tucked in behind it, so the putt at the flag ends in the
+               stones. The puzzle is a slab of granite across the bottom
+               corner: sent along the bottom behind a slide, a putt meets the
+               slab square and goes straight up the far side to the flag. */
             tee: { x: 110, y: 320 },
-            hole: { x: 850, y: 320 },
+            hole: { x: 840, y: 230 },
             avalanches: [chute(430, 0, 120, 540, 'down', 4.2, 0.6)],
             sand: [r(400, 540, 180, 100)],
-            rough: [r(0, 0, 430, 70), r(550, 0, 410, 70), r(0, 570, 400, 70), r(580, 570, 380, 70)],
-            // A boulder past the chute on the straight line, and the cup in a dip.
-            blocks: [block('rock', oval(700, 320, 18, 18, 12))],
-            hills: [bowl(850, 320, 70, 35)]
+            rough: [r(0, 0, 430, 70), r(0, 570, 400, 70)],
+            // The moraine, and the slab in the corner that turns a putt up behind it.
+            blocks: [block('rock', smooth([640, 0, 760, 0, 760, 300, 720, 400, 660, 380, 650, 200], 2))],
+            rails: [rail(804, 572, 900, 499, 24)],
+            hills: [bowl(840, 230, 60, 25)]
         },
         {
             name: 'Cold Snap',
-            blurb: 'The rink will not slow you down, and the far bank is a lake.',
+            blurb: 'The rink will not slow you down, the far bank is a lake, and an inlet of it lies under the flag.',
             par: 3,
             /* A frozen tarn the shot crosses before it can stop, and open
-               water beyond it. The rink keeps nearly all of what the putt
-               had, so the weight that reaches the cup off grass runs into
-               the lake off ice — and a fishing hut in the middle of it stands
-               on the straight line, so the crossing is a line beside it. */
+               water beyond it — with an inlet of the lake reaching in under
+               the flag, so the putt at the flag goes into the inlet unless it
+               is quick enough to skip it, and a skip off ice is too quick to
+               stop. The rink keeps nearly all of what the putt had, so the
+               weight that reaches the cup off grass runs into the lake off
+               ice: the way in is round the inlet's end and up, soft. */
             tee: { x: 110, y: 540 },
-            hole: { x: 790, y: 150 },
-            water: [shape([890, 0, 960, 0, 960, 640, 885, 640, 900, 480, 875, 320, 895, 160])],
-            ice: [shape(smooth([300, 120, 480, 70, 680, 120, 680, 500, 480, 560, 300, 500], 1))],
-            // A fishing hut in the middle of the tarn, on the straight line.
-            blocks: [block('hut', smooth([450, 300, 510, 300, 510, 360, 450, 360], 0))]
+            hole: { x: 800, y: 95 },
+            water: [
+                shape([890, 0, 960, 0, 960, 640, 885, 640, 900, 480, 875, 320, 895, 160]),
+                // The inlet under the flag.
+                shape(smooth([600, 190, 760, 160, 885, 170, 885, 250, 760, 250, 610, 235], 1))
+            ],
+            ice: [shape(smooth([300, 120, 480, 70, 680, 120, 680, 500, 480, 560, 300, 500], 1))]
         },
         {
             name: 'Crevasse',
-            blurb: 'The chute runs out into a crevasse. Cross it between slides, or climb round the top in the deep snow.',
+            blurb: 'The chute runs out into a crevasse, and a spur of rock hides the flag. Cross between slides, or climb round the top.',
             par: 3,
             /* First Tracks with the drift taken away: the foot of this chute
                is open water, so a slide that catches the ball costs a stroke
                rather than a yard. That makes the line across it a gamble on
                timing, and the hole offers the other bet too — the chute stops
                short of the top cushion, and the way over its head is long,
-               slow and safe, through deep snow and past a boulder. Another
-               boulder stands on the line beyond the chute, in front of a cup
-               in a dip. Played right to left. */
+               slow and safe, through deep snow and past a boulder. Beyond the
+               chute a spur of rock reaches up from the bottom cushion past
+               the line, and the flag is up and round it in a dip: a hole of
+               two judgements, when to cross and where to stop. Played right
+               to left. */
             tee: { x: 850, y: 380 },
-            hole: { x: 110, y: 380 },
+            hole: { x: 140, y: 250 },
             avalanches: [chute(420, 120, 110, 320, 'down', 3.6, 0)],
             water: [r(390, 440, 170, 200)],
             rough: [r(320, 0, 310, 120)],
             bumpers: [post(475, 62, 24)],
-            // A boulder past the chute on the straight line, and the cup in a dip.
-            blocks: [block('rock', oval(290, 380, 18, 18, 12))],
-            hills: [bowl(110, 380, 70, 35)]
+            // The spur, and the cup in a dip round it.
+            blocks: [block('rock', smooth([0, 640, 0, 420, 150, 380, 300, 250, 345, 270, 260, 450, 170, 640], 2))],
+            hills: [bowl(140, 250, 60, 30)]
         },
         {
             name: 'Rush Hour',
-            blurb: 'Two chutes across the slope, running opposite ways on different clocks. Played up the field.',
+            blurb: 'Two lanes of slides running opposite ways, a rock spine between them, and a slab to bank off. Played up the field.',
             par: 3,
-            /* Two lanes of traffic and a verge between them: each chute runs
+            /* Two lanes of traffic and a central reservation: each chute runs
                the width of the field into a drift of its own, one slide going
-               right and the other left, every 3.8 and every 4.6 seconds. One
-               putt can cross both if it is timed for both, and past a boulder
-               in front of the flag; two putts with a stop on the verge only
-               ever have to time one. */
+               right and the other left, every 3.8 and every 4.6 seconds, and
+               a spine of rock runs along the verge between them, so the putt
+               at the flag ends against it. The puzzle is a slab standing on
+               the verge past the spine's right end: across the low lane
+               behind a slide, off the slab, and across the high lane in front
+               of the next — two clocks and one bank, and an ace. Two putts
+               with a stop on the verge only ever have to time one. */
             tee: { x: 480, y: 590 },
             hole: { x: 480, y: 70 },
             avalanches: [
@@ -1134,8 +1159,9 @@
                 chute(110, 170, 850, 100, 'left', 4.6, 1.7)
             ],
             sand: [r(850, 350, 110, 140), r(0, 150, 110, 140)],
-            // A boulder in front of the flag, and the cup in a dip.
-            blocks: [block('rock', oval(480, 145, 10, 10, 12))],
+            // The spine along the verge, and the slab past its end.
+            blocks: [block('rock', smooth([280, 300, 480, 290, 680, 300, 690, 320, 680, 340, 480, 350, 280, 340, 270, 320], 1))],
+            rails: [rail(810, 365, 809, 275, 24)],
             hills: [bowl(480, 70, 45, 35)]
         },
         {
@@ -1196,19 +1222,17 @@
             par: 3,
             /* The terms: lava is water that never lets the ball skip. A ball
                that reaches it at any pace is gone, a stroke and a replay. The
-               path is wide — a hundred and fifty pixels at the pinch — and it
-               kinks round a tongue of the upper flow that sits on the line
-               from the tee, so the first putt is played to the bend rather
-               than at the flag, and a boulder further up the path stands on
-               the straight line too. */
+               path is wide — a hundred and thirty pixels at the pinch — and
+               it kinks round a tongue of the upper flow that reaches down
+               across the line from the tee, so the putt at the flag is in the
+               lava and the first putt is played to the bend. Past the tongue
+               the path opens up the hill to the flag. */
             tee: { x: 110, y: 540 },
             hole: { x: 840, y: 120 },
             lava: [
-                poly(0, 0, 640, 0, 560, 90, 500, 200, 470, 330, 410, 300, 330, 280, 180, 330, 0, 380),
-                poly(260, 640, 380, 500, 560, 460, 640, 330, 760, 260, 960, 240, 960, 640)
-            ],
-            // A boulder in the corridor, on the straight line.
-            blocks: [block('rock', oval(620, 247, 18, 18, 12))]
+                poly(0, 0, 640, 0, 560, 90, 505, 200, 490, 370, 440, 330, 410, 300, 330, 280, 180, 330, 0, 380),
+                poly(240, 640, 360, 530, 560, 500, 660, 360, 780, 290, 960, 270, 960, 640)
+            ]
         },
         {
             name: 'Lava Tube',
@@ -1230,17 +1254,20 @@
             name: 'Old Faithful',
             blurb: 'A geyser in front of a lava channel. Catch it blowing and it throws you over. Or take the long way.',
             par: 3,
+            // Straight at the flag is over the geyser: when and how hard is the puzzle.
+            straight: true,
             /* The geyser blows for a second in every three, and a ball that
                rolls over it then is thrown up and carried on over the
                channel; a ball that rolls over it quiet rolls on into the
                lava. So the straight line is two judgements at once — when,
                and how hard, because the ball flies further the faster it
                arrives — and the bunker behind the cup catches the ones that
-               were early enough and too firm. A rock past the channel stands
-               on the line, so the throw has to be aimed beside it and the dip
-               round the cup does the rest. The bridge in the rough at the
-               foot of the channel is the way round for anyone who would
-               rather not. */
+               were early enough and too firm, and the dip round the cup does
+               the rest. It is a straight putt, and a puzzle all the same: the
+               geyser is the only way over, and it has to be met at the right
+               moment and the right pace. The bridge in the rough at the foot
+               of the channel is the way round for anyone who would rather
+               not. */
             tee: { x: 110, y: 320 },
             hole: { x: 800, y: 320 },
             lava: [shape([475, 0, 590, 0, 600, 120, 580, 250, 600, 380, 585, 500, 470, 500, 480, 380, 462, 250, 482, 120])],
@@ -1248,9 +1275,7 @@
             rough: [r(440, 500, 180, 140)],
             vents: [vent(390, 320, 3.2, 0, 1.1)],
             blocks: [
-                block('rock', smooth([0, 0, 200, 0, 150, 100, 0, 140])), block('rock', smooth([960, 640, 760, 640, 820, 560, 960, 520])),
-                // A rock past the lava on the straight line; the cup in a dip.
-                block('rock', oval(690, 320, 12, 12, 12))
+                block('rock', smooth([0, 0, 200, 0, 150, 100, 0, 140])), block('rock', smooth([960, 640, 760, 640, 820, 560, 960, 520]))
             ],
             hills: [bowl(800, 320, 65, 35)]
         },
@@ -1399,15 +1424,17 @@
             name: 'Binary',
             blurb: 'Two black holes, one above the line and one below. Thread the pair.',
             par: 3,
-            /* A pair of black holes either side of the straight line, and an
-               asteroid between them on it. Each bends a passing putt towards
-               itself, so the way through is bent one way and then the other;
-               the asteroid takes the putt that tries to split the difference. */
-            tee: { x: 110, y: 320 },
+            /* A pair of black holes, and the tee set high so the line to the
+               flag runs past the mouth of the first: aimed at the flag, the
+               putt falls in. Each well bends a passing putt towards itself,
+               so the way through is slung round the outside of the first and
+               back past the second — bent one way and then the other, which
+               is the puzzle. */
+            tee: { x: 110, y: 150 },
             hole: { x: 860, y: 320 },
             hills: [bowl(400, 200, 140, 140), bowl(620, 440, 140, 140)],
             lava: [shape(oval(400, 200, 34, 34, 18)), shape(oval(620, 440, 34, 34, 18))],
-            bumpers: [post(510, 320, 15), post(200, 520, 18), post(820, 140, 18)]
+            bumpers: [post(200, 520, 18), post(820, 140, 18)]
         },
         {
             name: 'Mission Control',
@@ -1530,48 +1557,55 @@
             ]
         },
         {
-            name: 'Pumpkin Patch',
-            blurb: 'Up the field through two winds blowing opposite ways, past three pumpkins.',
-            par: 4,
-            /* Played up the field across two lanes of wind going opposite
-               ways, so a ball that crosses both is pushed one way and then
-               back: aimed square, the two nearly cancel; aimed off, one wins.
-               A pumpkin stands between the two winds on the straight line,
-               and the near one sits beside it rather than on it.
-               Each wind runs out onto open grass, never into the fan of the
-               other — a wind that blew a ball into a wall would never let it
-               stop. */
-            tee: { x: 480, y: 600 },
-            hole: { x: 480, y: 70 },
-            blocks: [block('fan', [0, 290, 70, 290, 70, 430, 0, 430]), block('fan', [890, 110, 960, 110, 960, 250, 890, 250])],
-            slopes: [
-                { x: 80, y: 300, w: 620, h: 120, ax: 140, ay: 0, wind: true },
-                { x: 260, y: 120, w: 620, h: 120, ax: -140, ay: 0, wind: true }
-            ],
-            bumpers: [post(300, 480, 24), post(660, 480, 24), post(430, 440, 24), post(480, 270, 18)]
-        },
-        {
             name: 'Windmill Hill',
-            blurb: 'A windmill with a door through it, a wind along the top and a hill by the flag.',
-            par: 4,
-            /* The card's close: the mill stands across the line with a
-               tunnel through it from door to door, a wind blows along the top
-               of the field from a fan at the left, and a mound by the flag
-               sheds what comes in too wide. The straight way is through the
-               mill; the windy way is over the top and round. A pumpkin on the
-               line out of the tee means neither starts at the flag, and the
+            blurb: 'A windmill across the line with a door through it, a wind along the top and a hill by the flag.',
+            par: 3,
+            /* The mill stands square across the line from the tee, so the
+               putt at the flag meets its wall — and a tunnel runs through it
+               from door to door, below the line, so the putt into the near
+               door comes out of the far one already lined up on the flag.
+               That is the ace, and it has to be found: the door is not where
+               the flag is. A wind blows along the top of the field from a
+               fan at the left, so the way round over the top is pushed on;
+               a mound below the flag sheds what comes in too low, and the
                mill pond behind the flag takes the bank off the far cushion
                that used to bring everything back. */
             tee: { x: 100, y: 560 },
             hole: { x: 850, y: 300 },
-            blocks: [block('windmill', oval(480, 300, 56, 56, 20)), block('fan', [0, 60, 70, 60, 70, 200, 0, 200])],
-            hills: [mound(700, 470, 110, 150)],
+            blocks: [block('windmill', oval(480, 410, 56, 56, 20)), block('fan', [0, 60, 70, 60, 70, 200, 0, 200])],
+            hills: [mound(780, 480, 90, 150)],
             slopes: [{ x: 80, y: 50, w: 560, h: 160, ax: 140, ay: 0, wind: true }],
-            tunnels: [tunnel(350, 300, 615, 300)],
-            // A pumpkin on the straight line out of the tee.
-            bumpers: [post(290, 494, 22)],
+            tunnels: [tunnel(350, 410, 615, 410)],
             // The mill pond behind the flag: no banking in off the far cushion.
             water: [shape(smooth([905, 170, 960, 160, 960, 440, 910, 430, 890, 300], 1))]
+        },
+        {
+            name: 'Pumpkin Patch',
+            blurb: 'Up the field through two winds blowing opposite ways, and through the gate in the hedge.',
+            par: 4,
+            /* The card's close, played up the field across two lanes of wind
+               going opposite ways with a hedgerow between them, and the field
+               gate in the hedge off to the right of the line. The putt at the
+               flag meets the hedge. The way is through the gate: aimed left
+               of it, so the low wind carries the ball across to it, and then
+               the high wind blows it back across the top towards the flag —
+               both winds used, which is the whole card in one hole. Each wind
+               runs out onto open grass, never into the fan of the other, and
+               the hedge meets both fans so there is no way round its ends. */
+            tee: { x: 480, y: 600 },
+            hole: { x: 480, y: 70 },
+            blocks: [
+                block('fan', [0, 290, 70, 290, 70, 430, 0, 430]), block('fan', [890, 110, 960, 110, 960, 250, 890, 250]),
+                // The hedgerow, and the gate in it.
+                block('hedge', [0, 252, 640, 252, 640, 278, 0, 278]),
+                block('hedge', [730, 252, 960, 252, 960, 278, 730, 278])
+            ],
+            slopes: [
+                { x: 80, y: 300, w: 620, h: 120, ax: 140, ay: 0, wind: true },
+                { x: 260, y: 110, w: 620, h: 120, ax: -140, ay: 0, wind: true }
+            ],
+            // Three pumpkins out of the tee, either side of the line.
+            bumpers: [post(300, 480, 24), post(660, 480, 24), post(430, 440, 24)]
         }
     ];
 
@@ -1587,46 +1621,43 @@
     var DUNES = [
         {
             name: 'Saddle',
-            blurb: 'Two dunes either side of the line, a saddle between them and a cactus beyond it. Curve it past.',
+            blurb: 'Two dunes either side of the line and a saddle between them. Keep it in the channel.',
             par: 3,
+            // Down the saddle is straight at the flag: the channel is the hole.
+            straight: true,
             /* The terms: a dune sheds a ball off whichever side it meets.
                Two side by side leave a saddle on the straight line, and the
-               saddle is a channel — a putt down it is held there by both
-               dunes. A cactus stands on the line past the saddle, so the ace
-               comes through the saddle a little off its middle and lets a
-               dune's shoulder bend it past the cactus. Over the shoulder of
-               either is the long way round. */
+               saddle is a channel — a putt down its middle is held there by
+               both dunes, and one a little off it is shed by the dune it
+               strays onto, the further the slower. So the putt at the flag
+               is the hole, and the question is how firm: firm enough to hold
+               the channel, soft enough to stop. Over the shoulder of either
+               dune is the long way round. */
             tee: { x: 110, y: 330 },
             hole: { x: 850, y: 300 },
             hills: [mound(470, 160, 130, 180), mound(470, 480, 130, 180)],
             blocks: [
                 block('rock', smooth([960, 0, 960, 150, 880, 110, 820, 0])),
-                block('rock', smooth([0, 640, 0, 520, 100, 560, 140, 640])),
-                // A cactus past the saddle, on the straight line.
-                block('bed', oval(650, 308, 16, 16, 12))
+                block('rock', smooth([0, 640, 0, 520, 100, 560, 140, 640]))
             ]
         },
         {
             name: 'Sinkhole',
-            blurb: 'A sinkhole on the line. Carry it with pace, or climb out of it if you come up short.',
+            blurb: 'Round the end of the ridge, and a sinkhole in the turn. Take it with pace, or climb out of it.',
             par: 3,
-            /* A bowl is a dune turned inside out: whatever stops in it rolls
-               to the bottom and waits there, and the putt out is uphill both
-               ways. Straight up the field crosses it — a bowl gives back on
-               the way out what it took on the way in — and meets a rock in
-               front of the flag, so the putt that carries the sinkhole is the
-               one that crosses it off-centre and lets it bend the line past
-               the rock. Cacti stand either side for anybody going round. */
-            tee: { x: 480, y: 590 },
-            hole: { x: 480, y: 90 },
-            hills: [bowl(480, 330, 150, 130)],
-            blocks: [
-                block('rock', smooth([0, 0, 220, 0, 160, 120, 0, 180])),
-                block('rock', smooth([960, 0, 960, 180, 800, 120, 740, 0])),
-                // A rock past the sinkhole, in front of the flag.
-                block('rock', oval(480, 135, 16, 16, 12))
-            ],
-            bumpers: [post(300, 200, 20), post(660, 200, 20)]
+            /* A sandstone ridge runs in from the right across most of the
+               field, the tee below it and the flag above, so the way is round
+               its far end — and the turn is a sinkhole. A bowl is a dune
+               turned inside out: whatever stops in it rolls to the bottom and
+               waits there, and the putt out is uphill every way. Carried with
+               pace, the turn costs nothing; come up short and the next putt
+               climbs out. Round the far side of the sinkhole is safe and
+               long. A bank off the left cushion that crosses the sinkhole fast
+               enough is the bold line, and a rare one. */
+            tee: { x: 700, y: 570 },
+            hole: { x: 760, y: 120 },
+            hills: [bowl(250, 300, 120, 100)],
+            blocks: [block('rock', smooth([960, 220, 960, 340, 600, 340, 470, 300, 450, 260, 600, 220], 2))]
         },
         {
             name: 'Oasis',
@@ -1733,19 +1764,21 @@
         },
         {
             name: 'Curling',
-            blurb: 'A long sheet of ice to the house. Weight is everything, and a snowman guards the button.',
+            blurb: 'A long sheet of ice to the house. Weight is everything — and mind the skater.',
             par: 3,
+            // Straight down the sheet is curling: the question is the weight.
+            straight: true,
             /* Curling, near enough: a sheet of ice from the tee to a target
-               dished round the cup, and snowbanks either side. Ice keeps three
-               times the roll of grass, so the weight that reaches the house is
-               a whisper; a snowman stands guard on the line in front of it,
-               so the stone is played past his shoulder and the dish brings it
-               in. */
+               dished gently round the cup near the end of the sheet, and
+               snowbanks either side. Ice keeps three times the roll of grass,
+               so the weight that reaches the house is a whisper and the one
+               that slides through it is off the end into the snow. The line
+               is straight down the sheet and the question is the weight —
+               and when, because a skater is doing laps across the line. */
             tee: { x: 110, y: 320 },
-            hole: { x: 820, y: 320 },
+            hole: { x: 850, y: 320 },
             ice: [shape(smooth([200, 230, 900, 230, 900, 410, 200, 410], 0))],
-            hills: [bowl(820, 320, 75, 45)],
-            blocks: [block('snowman', oval(660, 320, 12, 12, 12))],
+            hills: [bowl(850, 320, 60, 25)],
             rough: [r(0, 0, 960, 120), r(0, 520, 960, 120)],
             // A skater doing laps of the sheet, across the line twice a lap.
             skaters: [skater(450, 320, 130, 60, 1.0, Math.PI)]
@@ -1769,8 +1802,10 @@
         },
         {
             name: 'Ice Fishing',
-            blurb: 'A frozen lake with fishing holes cut in it. Glide between them — and not too far.',
+            blurb: 'A frozen lake with fishing holes cut in it. Glide between them — or skip the one on the line.',
             par: 3,
+            // At full weight the putt at the flag skips the hole on its line: the bold way.
+            straight: true,
             /* A sheet of ice with five holes cut through it, and two fishing
                huts. A ball on ice goes where it was sent, so the line between
                the holes is a line you have to choose before you strike —
@@ -1781,13 +1816,12 @@
             hole: { x: 830, y: 330 },
             ice: [shape(smooth([200, 120, 560, 80, 900, 140, 900, 520, 560, 570, 200, 520], 1))],
             water: [
-                shape(oval(380, 250, 26, 24, 14)), shape(oval(470, 400, 28, 26, 14)), shape(oval(580, 290, 26, 26, 14)),
-                shape(oval(660, 450, 24, 24, 14)), shape(oval(700, 200, 26, 24, 14))
+                shape(oval(380, 250, 26, 25, 14)), shape(oval(470, 400, 28, 27, 14)), shape(oval(560, 326, 28, 27, 14)),
+                shape(oval(660, 450, 24, 23, 14)), shape(oval(700, 200, 26, 25, 14))
             ],
             blocks: [
                 block('hut', smooth([300, 470, 360, 470, 360, 530, 300, 530], 0)),
-                block('hut', smooth([600, 100, 660, 100, 660, 160, 600, 160], 0)),
-                block('hut', smooth([495, 300, 545, 300, 545, 350, 495, 350], 0))
+                block('hut', smooth([600, 100, 660, 100, 660, 160, 600, 160], 0))
             ],
             rough: [r(920, 0, 40, 640)]
         },
@@ -1798,39 +1832,36 @@
             /* An S of two curved walls across a strip of ice: whichever bend
                the ball meets turns it, and the ice keeps it going into the
                other. The putt that threads both is the ace; one that meets
-               only one is turned somewhere else entirely. A snowman stands at
-               the way out of the S on the straight line. */
+               only one is turned somewhere else entirely. The flag stands
+               off the end of the S rather than in line with the tee, so the
+               putt at it runs into the second bend's wall. */
             tee: { x: 110, y: 540 },
-            hole: { x: 850, y: 110 },
+            hole: { x: 780, y: 90 },
             arcs: [arc(330, 330, 200, 0, 90, 24), arc(630, 330, 200, 180, 270, 24)],
             ice: [shape(smooth([200, 380, 760, 260, 760, 380, 200, 500], 0))],
             blocks: [
                 block('rock', smooth([0, 0, 260, 0, 200, 120, 0, 200])),
-                block('rock', smooth([960, 640, 700, 640, 760, 520, 960, 440])),
-                // A snowman at the way out of the S, on the straight line.
-                block('snowman', oval(740, 175, 12, 12, 12))
+                block('rock', smooth([960, 640, 700, 640, 760, 520, 960, 440]))
             ]
         },
         {
             name: 'Bobsleigh',
-            blurb: 'A bobsleigh run: two hairpins down the mountain, all of it ice. Mind the spectator and the hole in the ice.',
+            blurb: 'A bobsleigh run: two hairpins down the mountain, all of it ice. Mind the skater and the hole in the ice.',
             par: 4,
             /* The card's close: out along the top, round a hairpin, back
                along the middle, round another and down to the flag, every
                inch iced. Played a leg at a time it is three putts and par.
-               A snowman watches from the middle straight and a hole is cut in
-               the ice on the run in, so a leg is a line as well as a weight:
-               without them it was two easy rides and a closer that was not. */
+               A skater cuts figures of eight across the first leg and a hole
+               is cut in the ice on the run in, so a leg is a line and a
+               moment as well as a weight. */
             tee: { x: 100, y: 100 },
             hole: { x: 860, y: 540 },
             blocks: [
                 block('bed', smooth([0, 190, 700, 190, 760, 220, 760, 230, 700, 260, 0, 260], 0)),
-                block('bed', smooth([960, 380, 260, 380, 200, 410, 200, 420, 260, 450, 960, 450], 0)),
-                // A spectator on the middle straight.
-                block('snowman', oval(430, 320, 12, 12, 12))
+                block('bed', smooth([960, 380, 260, 380, 200, 410, 200, 420, 260, 450, 960, 450], 0))
             ],
             // A hole cut in the ice on the run in to the flag.
-            water: [shape(oval(600, 545, 32, 30, 16))],
+            water: [shape(oval(600, 528, 30, 28, 16))],
             arcs: [arc(760, 225, 160, -90, 90, 26), arc(200, 415, 160, 90, 270, 26)],
             ice: [shape([0, 0, 960, 0, 960, 640, 0, 640])],
             // A skater cutting figures of eight on the top straight.
@@ -1903,20 +1934,21 @@
             /* Two platters side by side, the top one turning against the
                clock and the bottom one with it, so where they nearly meet
                both are running towards the flag: a soft putt into the gap
-               is picked up and thrown on. The mug stands where the straight
-               line would come out. */
-            tee: { x: 110, y: 360 },
-            hole: { x: 850, y: 250 },
-            turntables: [turntable(420, 225, 100, -1.6), turntable(420, 460, 100, 1.6)],
-            blocks: [block('mug', oval(700, 300, 34, 34, 16))]
+               is picked up and thrown on, along the gap's own line — and
+               the flag is on that line, not the tee's. The putt at the flag
+               crosses the top record and meets its spindle. The puzzle is
+               to stop aiming at the flag and aim at the gap. */
+            tee: { x: 110, y: 140 },
+            hole: { x: 850, y: 342 },
+            turntables: [turntable(420, 225, 100, -1.6), turntable(420, 460, 100, 1.6)]
         },
         {
             name: 'Sugar Rush',
             blurb: 'Sugar spilt in two drifts, the blotter at the side and a pencil to bank off at the bottom.',
             par: 3,
             /* Played down the desk, diagonally, past two drifts of spilt
-               sugar — sand, in all but taste — and a drawing pin. The
-               pencil along the bottom edge is the bank to the flag. */
+               sugar — sand, in all but taste. The pencil along the bottom
+               edge is the bank to the flag. */
             tee: { x: 110, y: 120 },
             hole: { x: 840, y: 520 },
             sand: [
@@ -1927,8 +1959,7 @@
             blocks: [
                 block('pencil', [560, 540, 800, 580, 796, 604, 556, 564]),
                 block('book', [720, 100, 960, 100, 960, 230, 720, 230])
-            ],
-            bumpers: [post(600, 380, 18)]
+            ]
         },
         {
             name: 'Deadline',
@@ -2016,20 +2047,21 @@
             name: 'Hall of Mirrors',
             blurb: 'Mirrors at every angle and the flag behind them. Every line is a bank shot.',
             par: 3,
-            /* Five mirrors, three of them on the slant, and a post on the
-               straight line out of the tee. A mirror is a cushion like any other,
-               so the hole is a bank shot — or two — and there are more ways
-               in than there look. */
+            /* Five mirrors, two of them on the slant and one standing upright
+               across the line from the tee, so the putt at the flag comes
+               straight back. A mirror is a cushion like any other, so the
+               hole is a bank shot — or two — and a puzzle: there are more
+               ways in than there look. */
             tee: { x: 120, y: 540 },
             hole: { x: 820, y: 150 },
             blocks: [
-                block('mirror', [330, 340, 460, 210, 474, 224, 344, 354]),
+                block('mirror', [436, 290, 450, 290, 450, 440, 436, 440]),
                 block('mirror', [560, 480, 690, 350, 704, 364, 574, 494]),
                 block('mirror', [600, 30, 760, 30, 760, 44, 600, 44]),
                 block('mirror', [700, 270, 880, 270, 880, 284, 700, 284]),
                 block('mirror', [60, 200, 74, 200, 74, 380, 60, 380])
             ],
-            bumpers: [post(300, 130, 22), post(560, 580, 22), post(250, 468, 18)]
+            bumpers: [post(300, 130, 22), post(560, 580, 22)]
         },
         {
             name: 'Big Top',
