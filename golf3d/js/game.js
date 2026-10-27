@@ -40,6 +40,22 @@
         return b[0];
     }
 
+    /* The club for a long-game tee: the one whose full swing runs out
+       nearest the cup. Nearest rather than "the shortest that reaches" — a
+       par 3 a metre and a half past the 7 iron's run is a 7 iron, not a driver
+       swung at half. Only clubs that fly count: a putter or a mallet rolls the
+       whole way and is never what you stand on a tee box with. */
+    function teeClub(hole) {
+        var b = bag(), d = Math.sqrt(Math.pow(hole.cup.x - hole.tee.x, 2) + Math.pow(hole.cup.z - hole.tee.z, 2));
+        var best = null, i, c;
+        for (i = 0; i < b.length; i++) {
+            c = b[i];
+            if (!c.carry || !c.total) continue;
+            if (!best || Math.abs(c.total - d) < Math.abs(best.total - d)) best = c;
+        }
+        return best || state.club;
+    }
+
     function toast(msg, kind) {
         // Nothing talks over the demo screen. The caddie's running
         // commentary is for a player who pressed Simulate and wants to know
@@ -235,6 +251,11 @@
         if (state.bag.indexOf(state.club) < 0) {
             state.club = clubById(state.club ? state.club.id : C.DEFAULT_CLUB);
         }
+        /* Except on the long game's tee, where the club you finished the last
+           hole with is the putter autoPutt handed you on its green. Every one
+           of those holes started with a putter on the tee. A tee there is a
+           fresh choice, so it is made for the distance (teeClub). */
+        if (hole.longGame && !state.course.isRange) state.club = teeClub(hole);
         if (G3.bag && G3.bag.setBag) {
             G3.bag.setBag(state.bag);
             G3.bag.setSelected(state.club.id);
