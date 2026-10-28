@@ -2299,6 +2299,20 @@
         return srgbCanvas(cv);
     }
 
+    // The lit floor of the spotlight: a warm pool, soft all the way out.
+    function poolTexture() {
+        var cv = document.createElement('canvas');
+        cv.width = cv.height = 128;
+        var g = cv.getContext('2d');
+        var grd = g.createRadialGradient(64, 64, 2, 64, 64, 64);
+        grd.addColorStop(0, 'rgba(255, 244, 226, 0.30)');
+        grd.addColorStop(0.45, 'rgba(255, 244, 226, 0.14)');
+        grd.addColorStop(1, 'rgba(255, 244, 226, 0)');
+        g.fillStyle = grd;
+        g.fillRect(0, 0, 128, 128);
+        return srgbCanvas(cv);
+    }
+
     function buildLabel(club) {
         var idle = labelTexture(club, false);
         var sprite = new THREE.Sprite(new THREE.SpriteMaterial({
@@ -2437,6 +2451,9 @@
        1.62 clears the first with room and the second by miles. */
     var SCRIM_DEPTH = 1.62;
     var SCRIM = 0.72;          // …and how dark it gets, fully open
+    var POOL_DEPTH = 1.55;     // the spotlight's pool, between the row and the scrim
+    var SPOT = 2.2;            // the spotlight, fully open…
+    var SPOT_REACH = 2.6;      // …and how far it carries, in front of the lens
 
     /* And the corner the shut bag stands in, in the same spirit: how far out
        toward the left edge, and how far its tallest head crests above whatever
@@ -2872,6 +2889,45 @@
         B.rim.position.set(0.1, 1.35, -1.0);
         B.clubRig.add(B.rim);
 
+        /* And a spotlight, because the studio above was still only half the
+           light on the row. The other half was the course's: its sky, its sun
+           and its fill land on the heads like on anything else, and they are
+           whatever the hole's weather made them — the same five clubs read
+           bright on a clear afternoon and murky at dusk. This one is the
+           course's least: hung above the lens, aimed at the middle of the
+           row, the same light on every hole under every sky (and render.js
+           turns the course's own down while it is on). `place` aims it every
+           frame.
+
+           Its reach is short on purpose. The row is a metre and a half from
+           it and the turf behind is further; with no reach it lit a bright
+           pool on the grass, through the scrim, and barely touched the clubs
+           it was there for. The gentle decay keeps the near and far heads of
+           the row within a third of each other.
+
+           It is always in the scene and only ever turned to nothing. A light
+           added or removed changes every lit material's program, which is a
+           recompile of the whole course the moment you open the bag. */
+        B.spot = new THREE.SpotLight(0xfff7ea, 0, SPOT_REACH, 0.75, 0.6, 0.4);
+        scene.add(B.spot);
+        scene.add(B.spot.target);
+
+        /* What a spotlight looks like from the seats: a lit pool behind what
+           it is on. Drawn on the scrim's side of the row, so the heads' own
+           depth cuts them out of it exactly as they cut themselves out of the
+           scrim, and the cards (sprites, drawn last) sit over it. */
+        B.pool = new THREE.Mesh(
+            new THREE.PlaneGeometry(1, 1),
+            new THREE.MeshBasicMaterial({
+                map: poolTexture(), transparent: true, opacity: 0,
+                depthWrite: false, fog: false, blending: THREE.AdditiveBlending
+            })
+        );
+        B.pool.renderOrder = 7;
+        B.pool.visible = false;
+        B.pool.frustumCulled = false;
+        scene.add(B.pool);
+
         /* The scrim: the course, dimmed, while the row is out.
 
            The picker has always claimed to dim the course behind the clubs
@@ -2992,6 +3048,21 @@
             B.scrim.scale.set(sh * aspect * 2.4, sh * 2.4, 1);
         }
 
+        /* The spotlight and its pool, on the middle of the band the row is
+           laid out in (fitOpen): above the lens and a little to the right,
+           pointed down at it. */
+        if (B.spot) {
+            var oh = Math.tan((camera.fov || 52) * Math.PI / 360) * OPEN_DEPTH;
+            var mid = oh * (BAND.bottom - BAND.top);
+            atCamera(B.spot.position, camera, oh * aspect * 0.3, oh * 1.6, -0.15);
+            atCamera(B.spot.target.position, camera, 0, mid, -OPEN_DEPTH);
+            var ph = oh * POOL_DEPTH / OPEN_DEPTH;
+            B.pool.visible = k > 0.005;
+            B.pool.material.opacity = k;
+            put(B.pool, camera, 0, mid * POOL_DEPTH / OPEN_DEPTH, -POOL_DEPTH, 1, 0, 0);
+            B.pool.scale.set(ph * aspect * 1.9, ph * 1.5, 1);
+        }
+
         // The clubs: the same place when shut, the middle of the view when
         // open, squaring up to the camera as they come.
         put(B.clubRig, camera,
@@ -3001,6 +3072,13 @@
             BAG_SCALE + (B.openScale - BAG_SCALE) * k,   // up to the lens
             -TWIST + TWIST * k,
             0.1 - 0.1 * k);
+    }
+
+    // A point given in the camera's own frame, written into `out` in the world's.
+    function atCamera(out, camera, x, y, z) {
+        _off.set(x, y, z);
+        _off.applyQuaternion(camera.quaternion);
+        out.copy(camera.position).add(_off);
     }
 
     function put(rig, camera, x, y, z, scale, twistY, twistX) {
@@ -3055,6 +3133,7 @@
         if (B.lamp) B.lamp.intensity = 0.30 + 0.95 * B.open01;
         if (B.fill) B.fill.intensity = 0.12 + 0.38 * B.open01;
         if (B.rim) B.rim.intensity = 0.14 + 0.45 * B.open01;
+        if (B.spot) B.spot.intensity = SPOT * B.open01;
         B.clubs.forEach(function (c) {
             // A club that is not in this hole's bag is not on screen and has
             // no slot in the arrangement to be moved towards.

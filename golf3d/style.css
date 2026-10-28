@@ -3783,6 +3783,13 @@ body.compact-ui .picker { padding-top: 52px; }
     pointer-events: none;
 }
 .swipe-cue[hidden] { display: none; }
+/* Nor while the picker is up: the lane is a panel up the middle of the stage,
+   which is where the row comes out, and it is drawn over the canvas — so it
+   sat across the clubs and took the taps meant for them. You cannot swing a
+   club you are still choosing (see `.stage.picker-open .controls`). */
+.stage.picker-open .swipe,
+.stage.picker-open .arc,
+.stage.picker-open .needle,
 .stage.flying .swipe,
 .stage.flying .arc,
 .stage.flying .needle,
