@@ -3997,6 +3997,9 @@
        strength. Without it the shaded face of every rail on the course is the
        flat ambient colour and the hole reads as a diagram; with it there is a
        bounce off the ground and the boxes turn into objects. */
+    // How much of the course's light is taken away with the bag fully open.
+    var COURSE_DIM = 0.7;
+
     function lights(group, hole, theme, weather) {
         var cx = (hole.bounds.minX + hole.bounds.maxX) / 2;
         var cz = (hole.bounds.minZ + hole.bounds.maxZ) / 2;
@@ -4053,6 +4056,9 @@
         fill.target.position.set(cx, 0, cz);
         group.add(fill);
         group.add(fill.target);
+        // Kept with what they were lit at, for the bag to turn down (frame).
+        R.courseLights = [amb, sun, fill];
+        R.courseLights.forEach(function (l) { l.userData.base = l.intensity; });
     }
 
     /* How far a hole asks you to see.
@@ -5309,6 +5315,18 @@
         if (G3.bag) {
             G3.bag.setVisible(!R.fly && !R.replay && R.cam.mode !== 'demo');
             G3.bag.update(dt, R.camera, R.camera.aspect);
+            /* And the course's own light goes down as the clubs come out.
+               Those three are the hole's weather — a dusk sky, a low sun — and
+               they light the clubs as well as the course, so the same row read
+               bright on one hole and murky on the next. Turned most of the way
+               down, what is left on the clubs is the bag's studio and its
+               spotlight, which are the same everywhere. The course is behind
+               the scrim by then and going dark anyway; the sky and the water
+               are unlit and keep their colour. */
+            var dim = 1 - COURSE_DIM * G3.bag.state.open01;
+            if (R.courseLights) R.courseLights.forEach(function (l) {
+                l.intensity = l.userData.base * dim;
+            });
         }
 
         if (R.fx && G3.postfx.render(R.scene, R.camera, sunOnScreen(), dt)) return;
