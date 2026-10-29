@@ -1470,7 +1470,9 @@
        already loaded is kept as a fraction of the swing, so swapping clubs
        mid-aim changes the shot rather than resetting it. */
     function pickClub(club) {
-        if (!club || club === state.club) return;
+        // Only out of the bag in hand, so the green's putter-only bag holds
+        // for every caller, G3.game.pickClub included.
+        if (!club || club === state.club || bag().indexOf(club) < 0) return;
         var frac = state.aim.power / state.club.power;
         state.club = club;
         state.aim.power = Math.min(maxPower(club), frac * club.power);
