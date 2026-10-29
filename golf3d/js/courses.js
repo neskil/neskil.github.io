@@ -2534,7 +2534,7 @@
            walk down with a bag; a hole made entirely of green is a lane you
            putt along, whatever else is in the way. The difference matters to
            exactly one thing — whether arriving on a green should hand you the
-           putter (game.autoPutt) — and it is a property of the ground rather
+           putter (game.syncLie) — and it is a property of the ground rather
            than of the course it happens to be filed under, so it is read off
            the pads rather than written on each hole by hand. */
         h.longGame = h.pads.some(function (p) {
@@ -7629,7 +7629,7 @@
         par: 0,
         open: true,
         blurb: 'Targets at 10 to 50 m, unlimited balls, and the swing school.',
-        bag: ['driver', 'iron', 'chipper', 'wedge', 'putter', 'mallet', 'checker'],
+        bag: ['driver', 'iron5', 'iron', 'iron9', 'chipper', 'wedge', 'putter', 'mallet', 'checker'],
         pads: [
             pad(7, 2, 6, 6, 0.1, 'wood'),                         // elevated tee deck
             pad(8.5, 3.5, 3, 3, 0.14, 'green'),                   // tee mat

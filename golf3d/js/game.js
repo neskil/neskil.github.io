@@ -29,8 +29,14 @@
     /* The bag this hole is played out of, and finding a club inside it. Most
        holes are the whole default bag; some name their own (courses.bagFor),
        and on those a club that is not in the bag is not a club — asking for it
-       by id, by number key or by cycling gets you the first one that is. */
+       by id, by number key or by cycling gets you the first one that is.
+
+       On a long-game green the bag is the putter and nothing else (syncLie),
+       and this is the one place that says so: the picker, the number keys,
+       cycling and the autoplay bot all ask here, so none of them can hand
+       you a wedge on the green. */
     function bag() {
+        if (state && state.greenBag) return state.greenBag;
         return (state && state.bag) || C.CLUBS;
     }
 
@@ -248,11 +254,12 @@
            one of them. Kept if it survived the change, so walking down a
            course does not keep resetting you to the driver. */
         state.bag = G3.bagFor(hole);
+        state.greenBag = null;
         if (state.bag.indexOf(state.club) < 0) {
             state.club = clubById(state.club ? state.club.id : C.DEFAULT_CLUB);
         }
         /* Except on the long game's tee, where the club you finished the last
-           hole with is the putter autoPutt handed you on its green. Every one
+           hole with is the putter syncLie handed you on its green. Every one
            of those holes started with a putter on the tee. A tee there is a
            fresh choice, so it is made for the distance (teeClub). */
         if (hole.longGame && !state.course.isRange) state.club = teeClub(hole);
@@ -1546,40 +1553,49 @@
                 if (state && state.course.isRange) resetRangeBall();
             }, 2000);
         } else {
-            autoPutt();
+            syncLie();
         }
         syncHud();
     }
 
-    /* On the green, take the putter out.
+    /* On the green, the putter and nothing else.
 
        Nobody walks up to a ball twelve feet from the pin holding a driver, and
-       until now the game made you remember not to: the club stayed in your
-       hand from the tee all the way to the hole, so the commonest thing that
-       happened on Ashdown Park's greens was a full swing nobody meant to play.
-       Arriving on a putting surface now hands you the putter, once, and you
-       are free to put it back — this only ever fires the moment a shot ends,
-       so a club chosen after that is a club you keep.
+       for a long time the game made you remember not to: the club stayed in
+       your hand from the tee all the way to the hole, so the commonest thing
+       that happened on Ashdown Park's greens was a full swing nobody meant to
+       play. Then arriving on a green handed you the putter but let you put it
+       back, and a chip off the putting surface was still one key away — a
+       shot no real course allows, played from the one place every club but
+       one is the wrong club.
 
-       It fires on the **long game only**, and that restriction is the whole
-       reason this is safe. Five of the seven courses are mini golf, where the
-       floor is green from the tee mat to the cup and choosing loft over the
-       thing in the way is the entire game — switching to a putter every time
-       the ball stopped would be fighting the player on every stroke of
-       Tidewater and Highland. `hole.longGame` is read off the ground rather
-       than off the course id (courses.build), so a hole with fairway and rough
-       on it gets this and a lane does not. */
-    function autoPutt() {
-        var hole = state.world.hole;
-        if (!hole.longGame) return;
-        var putter = null, b = bag(), i;
-        for (i = 0; i < b.length; i++) if (b[i].id === 'putter') putter = b[i];
-        if (!putter || state.club === putter) return;
-        var b = state.world.ball;
-        var lie = P.surfaceUnder(hole, b.x, b.z, b.y + C.STEP_UP);
-        if (!lie || lie.pad.kind !== 'green') return;
-        pickClub(putter);
-        toast('On the green — putter');
+       So a ball at rest on a long-game green is played with the putter, and
+       the bag says so: `bag()` is the putter alone until the ball is off the
+       green again, at which point the whole bag comes back. Off the green the
+       putter stays in it, because putting from the fringe is a real shot.
+
+       It is the **long game only**, and that restriction is the whole reason
+       this is safe. Most of the courses are mini golf, where the floor is
+       green from the tee mat to the cup and choosing loft over the thing in
+       the way is the entire game — taking the bag away there would end it.
+       `hole.longGame` is read off the ground rather than off the course id
+       (courses.build), so a hole with fairway and rough on it gets this and a
+       lane does not; the range is left alone, because its tee mat is green. */
+    function syncLie() {
+        var hole = state.world.hole, b = state.world.ball, putter = null, i;
+        for (i = 0; i < state.bag.length; i++) if (state.bag[i].id === 'putter') putter = state.bag[i];
+        var lie = putter && hole.longGame && !state.course.isRange
+            ? P.surfaceUnder(hole, b.x, b.z, b.y + C.STEP_UP) : null;
+        var onGreen = !!(lie && lie.pad.kind === 'green');
+        if (onGreen === !!state.greenBag) return;
+        state.greenBag = onGreen ? [putter] : null;
+        if (G3.bag && G3.bag.setBag) G3.bag.setBag(bag());
+        if (onGreen && state.club !== putter) {
+            pickClub(putter);
+            toast('On the green — putter');
+        } else {
+            syncClubs();
+        }
     }
 
     function holeComplete(pickedUp) {

@@ -128,7 +128,9 @@
     var CLUB_LOOK = {
         putter:  { name: '#7dd3fc', metal: 0x38bdf8, steel: 0x515f72, shine: 34, finish: 'satin' },
         driver:  { name: '#8ab4ff', metal: 0x1f6fff, steel: 0x2f3b4f, shine: 82, finish: 'pvd' },
+        iron5:   { name: '#fdba74', metal: 0xf97316, steel: 0x9aa6b4, shine: 76, finish: 'brushed' },
         iron:    { name: '#c4b5fd', metal: 0x8b5cf6, steel: 0x9aa6b4, shine: 76, finish: 'brushed' },
+        iron9:   { name: '#fda4af', metal: 0xf43f5e, steel: 0x9aa6b4, shine: 76, finish: 'brushed' },
         chipper: { name: '#86efac', metal: 0x22c55e, steel: 0x929daa, shine: 70, finish: 'satin' },
         wedge:   { name: '#fde68a', metal: 0xeab308, steel: 0x76828f, shine: 96, finish: 'chrome' },
         mallet:  { name: '#f0abfc', metal: 0xc026d3, steel: 0x4a5568, shine: 30, finish: 'satin' },
@@ -611,11 +613,12 @@
 
     /* ── one club ──────────────────────────────────────────────────────── */
 
-    // Real lengths, in metres. A driver is 45 inches, a 7 iron 38, wedges 35.5,
+    // Real lengths, in metres. A driver is 45 inches, a 7 iron 38 with the 5
+    // and the 9 a step either side of it, wedges 35.5,
     // a putter 34 — and the mallet is a putter, which it was not until the
     // mallet had a head of its own: it fell through to the default 0.95.
     var LENGTHS = {
-        driver: 1.14, iron: 0.97, chipper: 0.95, wedge: 0.90, checker: 0.92,
+        driver: 1.14, iron5: 0.98, iron: 0.97, iron9: 0.96, chipper: 0.95, wedge: 0.90, checker: 0.92,
         putter: 0.86, mallet: 0.86
     };
 
@@ -1422,7 +1425,9 @@
        sole hangs below the leading one, per metre of sole. `lie` is the
        angle between shaft and ground, which climbs as the shaft shortens. */
     var IRONS = {
+        iron5:   { len: 0.080, heel: 0.031, toe: 0.047, neck: 0.035, sole: 0.018, cavity: true, lie: 61.5 },
         iron:    { len: 0.078, heel: 0.033, toe: 0.050, neck: 0.036, sole: 0.019, cavity: true, lie: 62.5 },
+        iron9:   { len: 0.076, heel: 0.035, toe: 0.053, neck: 0.038, sole: 0.021, cavity: true, lie: 63 },
         chipper: { len: 0.075, heel: 0.036, toe: 0.054, neck: 0.040, sole: 0.022, cavity: true, lie: 63.5 },
         wedge:   { len: 0.080, heel: 0.035, toe: 0.059, neck: 0.044, sole: 0.026, drop: true, bounce: 0.14, lie: 64 },
         checker: { len: 0.078, heel: 0.035, toe: 0.056, neck: 0.042, sole: 0.024, drop: true, bounce: 0.08, lie: 64 }
