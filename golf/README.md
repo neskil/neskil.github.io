@@ -1,18 +1,18 @@
 # Pocket Links
 
-A 2D mini golf game with thirteen courses of six holes, climbing from a walled
-garden past a volcano and out into space — plus one more that is generated from a seed and is
+A 2D mini golf game with fourteen courses of six holes, climbing from a walled
+garden past a volcano and out into space and ending in a garden of puzzles — plus one more that is generated from a seed and is
 different every time you ask for one. Each course is a place with a trick of
 its own: parkland corners and posts, the sea's water, a farm's wind, a wood's
 hills and sweeping bars, the desert's dunes, a meadow's tunnels, a winter ice
 run's curves, a mountain's avalanche chutes, a funfair's turnstiles and
-travelators, a volcano's lava and geysers, a desk's record player and the
-black holes of space — and the first card walks
+travelators, a volcano's lava and geysers, a desk's record player, the
+black holes of space and a zen garden's puzzles — and the first card walks
 through six of those places in six holes, with an ace to find on every one. A first visit is handed
 that card and a reason to finish it; every hole gives up to three stars, and
 stars open the next card. Up to four can play on one screen. Any course can be
-dressed in any of thirteen biomes, autumn, winter, desert, a moonlit night, a
-study desk and deep space among them. A hole may run on the slant, bend round a curve, rise over a hill
+dressed in any of fourteen biomes, autumn, winter, desert, a moonlit night, a
+study desk, deep space and a zen garden among them. A hole may run on the slant, bend round a curve, rise over a hill
 and have a windmill, a big wheel, a snowman or a turning record in the middle
 of it.
 Canvas, plain ES5-flavoured JavaScript, no build step and no dependencies —
@@ -47,7 +47,7 @@ same as everything else here, open `index.html` and it runs.
 | `tests.html` | Headless test harness for the logic. Open it; green is green. |
 | `ui-tests.html` | The same, for the page — the bar, the ☰ panel, the picker, the title, a party, the turned and side layouts. |
 
-## The thirteen courses
+## The fourteen courses
 
 `GOLF.COURSES` is a rack of cards, each `{ id, name, blurb, holes }`, and
 `GOLF.COURSE` is whichever one is being played. Everything downstream — the
@@ -61,8 +61,8 @@ and built round one thing that place does, and the order is the order the
 stars open them — `unlock` on each card: the Short Six from the start, then the
 Old Course at 4, Tidewater at 10, Harvest Wind at 16, the Wild Six at 22, the
 Dunes at 28, the Warren at 34, the Ice Run at 40, Avalanche Pass at 46, the
-Midnight Funfair at 52, Desk Job at 58, Ember Ridge at 64 and Orbit at 70, and
-the draw, which the generator puts last, at 78. Each threshold is about a third of the stars the
+Midnight Funfair at 52, Desk Job at 58, Ember Ridge at 64, Orbit at 70 and the
+Puzzle Garden at 76, and the draw, which the generator puts last, at 84. Each threshold is about a third of the stars the
 cards above it can give, so finishing holes is enough and playing them well is
 quicker. The cards alternate: one that recombines what has gone before, then
 one built round something new.
@@ -208,7 +208,7 @@ follow `GOLF.BARE_KEY_COURSE` by id (see [Saving](#saving)).
   the river. Every hole has a safe way that costs strokes and a quick way that
   costs nerve, and par is set for the player who takes one chance in the
   round, not all of them. Every hole on it has lava, and the suite says so.
-- **Orbit** (space) is the last card, and the one where the hills come back
+- **Orbit** (space) is the last of the biome cards, and the one where the hills come back
   as gravity. A black hole is a bowl with a hole of **void** at its heart —
   void is lava drawn as nothing at all — so the ball that falls in is gone,
   and the ball that skims the well is slung round it. Liftoff is one well to
@@ -218,6 +218,24 @@ follow `GOLF.BARE_KEY_COURSE` by id (see [Saving](#saving)).
   the mouth of the first, so the way in is slung round one and back past the
   other, and
   Mission Control a spinning station, two wells and a wormhole home.
+- **The Puzzle Garden** (zen) is the last card, and nothing but puzzles. Every
+  flag is shut away where no putt at it can reach, and every hole has a key a
+  card above taught: Keyhole a walled garden reached only by a tunnel, whose
+  path inside runs on the one heading a board on the lawn gives the putt;
+  Special Delivery a pen whose only door is a belt, with the flag on the side
+  a putt landing on the belt drifts to; Rabbit Run two burrows whose three
+  legs lie on one line; Periscope two fences the height of the hole with their
+  gates in line, up off one board, level through both gates and down off the
+  other; Lazy Susan a shelf of books open only to a record, which carries a
+  gentle putt three quarters round and lets it go into the shelf; Hitchhiker a
+  pocket under a wall of rock that only a slide down the chute can put a ball
+  into. The holes the tunnels and the boards make are set in a **zen**
+  garden — moss, raked gravel, bamboo fences, stone lanterns, a koi pond,
+  cherry blossom and a wind chime — and the belt, the record and the slide
+  stay where they live, at the funfair, on the desk and on the mountain.
+  Every ace on it is a forward shot that uses the key: the lab counts a shot
+  struck backwards into the cushion behind the tee, or one that needs more
+  than two cushions, as a show-off and not as an ace a player would find.
 
 **What went, and why.** The rack used to be fifty-one holes over five cards —
 an eighteen and a six that both taught the basics, and three nines that
@@ -1175,12 +1193,12 @@ where the skater is on it.
 ## Biomes, and what a hole is drawn as
 
 A field of flat blue rectangles is a diagram of a hole rather than a place,
-and thirteen courses in one palette are one course wearing thirteen names. So each
+and fourteen courses in one palette are one course wearing fourteen names. So each
 card is drawn in a biome — the Short Six in a walled **garden**, the Old
 Course in **parkland**, Tidewater by the **seaside**, the Wild Six in
 **woodland**, the Warren in a **meadow**, Avalanche Pass on the **alpine**
-mountain, Ember Ridge on a **volcanic** one, Desk Job on a **study** desk and
-Orbit in **space** — and the draw takes one from
+mountain, Ember Ridge on a **volcanic** one, Desk Job on a **study** desk,
+Orbit in **space** and the Puzzle Garden in a **zen** garden — and the draw takes one from
 its seed. Nothing about play depends on the biome: the mountain's chutes and
 the volcano's lava and geysers are hazards in the hole's data, and they are
 drawn as themselves in whatever biome the hole is dressed in. A biome is a turf colour, a water (a pond with reeds and
@@ -1221,7 +1239,7 @@ leaves on the pond), **winter** (snowy logs, snow pines, a snowman for a post,
 a skin of ice on the water), **desert** (sandstone, acacias, cacti, a
 tumbleweed) and **moonlit**, a night course lit by lanterns round the cushion
 and posts that glow, with the moon on the water. The **Scenery** row in the
-course picker — or `S` — puts any course in any of the thirteen, or back in its
+course picker — or `S` — puts any course in any of the fourteen, or back in its
 own; the choice is kept in `miniGolf.scenery.v1` and survives Reset progress,
 which is about the player's record, not their taste.
 

@@ -5,7 +5,8 @@
    rectangles is a diagram of a hole rather than a place, and five courses
    drawn in one palette are one course wearing five names. So each card has a
    *biome* — parkland, garden, seaside, woodland, meadow, autumn, winter,
-   the mountain, desert, a volcano, a moonlit night, a desk in a study and the deck of a ship in space — and this file is everything the renderer needs
+   the mountain, desert, a volcano, a moonlit night, a desk in a study, the deck
+   of a ship in space and a zen garden — and this file is everything the renderer needs
    to dress a hole in one: the palettes and materials, the outline of each
    hazard as one rounded shape rather than a stack of rectangles, and where
    the decoration goes.
@@ -239,9 +240,24 @@
             clouds: 0,
             grade: { a: 'rgba(150, 120, 255, 0.10)', b: 'rgba(0, 0, 30, 0.22)' },
             backdrop: '#02030a', plan: '#1f2650'
+        },
+        /* The puzzle card's garden: moss for a lawn, white gravel raked in
+           lines for the bunkers, a koi pond, bamboo fences, stone lanterns
+           for posts and a cherry in blossom over the edge. */
+        zen: {
+            name: 'Zen Garden',
+            turf: { h: 96, s: 36, l: 34 },
+            rough: { fill: 'rgba(40, 62, 22, 0.55)', tuft: 'rgba(170, 200, 110, 0.30)', edge: 'rgba(30, 48, 16, 0.5)' },
+            sand: { base: '#ece8dc', rake: 'rgba(120, 112, 92, 0.34)', lip: 'rgba(90, 84, 70, 0.34)' },
+            water: { kind: 'pond', top: '#2f7d78', deep: '#123f45', wave: 'rgba(210, 245, 235, 0.22)', shore: 'rgba(150, 150, 140, 0.9)', duck: false, koi: true, bank: '#5e5d55', bed: '#6f6a58', sky: '#cfe9e4' },
+            wall: 'bamboo', bumper: 'lantern', rim: 'stone', canopy: 'blossom',
+            border: ['pebble', 'stone', 'pebble', 'moss'], lawn: ['pebble'],
+            leaves: ['#f9a8d4', '#fbcfe8', '#fda4af'],
+            ambient: [{ kind: 'petal', n: 12 }], sound: ['chimes', 'birds'],
+            backdrop: '#0b130c', plan: '#56703f'
         }
     };
-    var ORDER = ['parkland', 'garden', 'seaside', 'woodland', 'meadow', 'autumn', 'winter', 'alpine', 'desert', 'volcanic', 'night', 'study', 'space'];
+    var ORDER = ['parkland', 'garden', 'seaside', 'woodland', 'meadow', 'autumn', 'winter', 'alpine', 'desert', 'volcanic', 'night', 'study', 'space', 'zen'];
     ORDER.forEach(function (k) { THEMES[k].id = k; });
 
     /* The biome a course is drawn in. A card names its own; the draw takes
@@ -466,7 +482,7 @@
         var rand = rng(holeSeed(hole));
         var keep = keepouts(hole);
         var W = C.WORLD_W, H = C.WORLD_H;
-        var out = { decals: [], shore: [], pads: [], ducks: [], canopies: [], lamps: [], moon: null };
+        var out = { decals: [], shore: [], pads: [], ducks: [], koi: [], canopies: [], lamps: [], moon: null };
 
         /* Decals grow in patches, the way flowers and fallen leaves do: a
            handful of centres, each with a few round it. Spread evenly they
@@ -539,7 +555,7 @@
                paddles round, and where the moon sits on a pond after dark —
                never near enough the shore for either to touch it. */
             var deep = null;
-            if (theme.water.duck !== false || theme.water.moon) {
+            if (theme.water.duck !== false || theme.water.moon || theme.water.koi) {
                 for (var gx = 20; gx < W; gx += 20) {
                     for (var gy = 20; gy < H; gy += 20) {
                         if (!P.zoneAt(water, gx, gy)) continue;
@@ -552,6 +568,11 @@
                 var lap = { x: deep.x, y: deep.y, r: Math.min(60, deep.d - 26), p: rand() * 6 };
                 if (theme.water.duck !== false) out.ducks.push(lap);
                 if (theme.water.moon) out.moon = lap;
+                // Two koi, one each way round, the second nearer the middle.
+                if (theme.water.koi) {
+                    out.koi.push({ x: lap.x, y: lap.y, r: lap.r, p: lap.p, dir: 1, c1: '#f97316', c2: '#fff7ed' });
+                    out.koi.push({ x: lap.x, y: lap.y, r: lap.r * 0.55, p: lap.p + 2.4, dir: -1, c1: '#fff7ed', c2: '#ef4444' });
+                }
             }
         }
 
