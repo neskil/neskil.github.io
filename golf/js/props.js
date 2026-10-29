@@ -116,12 +116,14 @@
         night:    { kerb: 'stone', soil: '#2c3328', plants: ['shrub', 'flowers'], flowers: ['#e0e7ff', '#c7d2fe'] },
         // A planter on the desk; a hydroponics tray on the ship.
         study:    { kerb: 'book', soil: '#3b2a1c', plants: ['shrub', 'flowers'], flowers: ['#fef3c7', '#fda4af'] },
-        space:    { kerb: 'hull', soil: '#10131c', plants: ['boulder', 'pebble'], flowers: ['#a5f3fc'] }
+        space:    { kerb: 'hull', soil: '#10131c', plants: ['boulder', 'pebble'], flowers: ['#a5f3fc'] },
+        // Raked gravel round a stone and a clipped azalea.
+        zen:      { kerb: 'bamboo', soil: '#e6e1d3', plants: ['boulder', 'shrub', 'pebble'], flowers: ['#f9a8d4', '#fbcfe8'] }
     };
     var SHRUB = {
         parkland: ['#1f5a2a', '#3f8a46'], garden: ['#22602e', '#4f9a4f'], meadow: ['#3a6a26', '#6a9a3a'],
         autumn: ['#8f2f14', '#e98a2e'], night: ['#12302a', '#21453b'], woodland: ['#1d4a2b', '#2f6a3a'],
-        study: ['#21592a', '#47a052']
+        study: ['#21592a', '#47a052'], zen: ['#2f5a2c', '#5f8f45']
     };
     // A rock in the biome it lies in.
     /* What a rock is made of where it stands: the stone's colour lit and
@@ -136,6 +138,7 @@
         desert: { kind: 'sandstone', top: '#d08f58', side: '#7a4526', gap: '#4d2a16', on: 'strata' },
         seaside: { kind: 'stone', top: '#a6a195', side: '#55514a', gap: '#2f2c27', on: 'lichen' },
         study: { kind: 'stone', top: '#9b968c', side: '#4d4a44', gap: '#2a2824', on: 'none' },
+        zen: { kind: 'stone', top: '#8f938b', side: '#454842', gap: '#24261f', on: 'moss' },
         _: { kind: 'stone', top: '#999b93', side: '#4a4b46', gap: '#282a25', on: 'moss' }
     };
 
@@ -431,6 +434,15 @@
             g.lineDashOffset = 3;
             g.lineWidth = w * 0.35;
             g.strokeStyle = 'rgba(15, 55, 20, 0.5)';
+            g.stroke();
+            g.setLineDash([]);
+        } else if (kind === 'bamboo') {
+            // Two culms along the band, a node every so often, and twine.
+            along(w * 0.04 + 1, m.grain, 1);
+            joints(1.6, 30 + hash(seed) * 10, 'rgba(80, 72, 24, 0.6)', seed % 30);
+            g.setLineDash([2.4, 2.2, 2.4, 78]);
+            g.lineWidth = w;
+            g.strokeStyle = 'rgba(42, 33, 22, 0.85)';
             g.stroke();
             g.setLineDash([]);
         } else {
@@ -2670,7 +2682,7 @@
             g.moveTo(a.x + Math.cos(f) * (a.r + off), a.y + Math.sin(f) * (a.r + off));
             g.arc(a.x, a.y, a.r + off, f, t, false);
         });
-        var gap = { brick: 11, stone: 14, granite: 16, basalt: 10, timber: 70, driftwood: 60, log: 0, snowlog: 0, sandstone: 0, hedge: 0 }[kind] || 0;
+        var gap = { brick: 11, stone: 14, granite: 16, basalt: 10, timber: 70, driftwood: 60, bamboo: 40, log: 0, snowlog: 0, sandstone: 0, hedge: 0 }[kind] || 0;
         if (gap) {
             var len = (t - f) * a.r;
             for (var sAlong = gap / 2, row = 0; sAlong < len; sAlong += gap, row++) {

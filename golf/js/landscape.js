@@ -585,6 +585,8 @@
 
         if (dec) {
             var i;
+            // Koi, under the pads.
+            for (i = 0; i < (dec.koi || []).length; i++) koi(g, dec.koi[i], clock);
             for (i = 0; i < dec.pads.length; i++) {
                 if (w.pads === 'leaf') floatingLeaf(g, dec.pads[i], clock, theme);
                 else pad(g, dec.pads[i], clock);
@@ -691,6 +693,33 @@
             g.arc(0, 0, 1.4, 0, Math.PI * 2);
             g.fill();
         }
+        g.restore();
+    }
+
+    // A koi circling the deepest part of a pond, a little below the surface,
+    // its tail working.
+    function koi(g, d, clock) {
+        var a = clock * 0.2 * d.dir + d.p;
+        var x = d.x + Math.cos(a) * d.r, y = d.y + Math.sin(a) * d.r * 0.75;
+        var wag = Math.sin(clock * 5 + d.p) * 0.4;
+        g.save();
+        g.translate(x, y);
+        g.rotate(a + d.dir * Math.PI / 2);
+        g.scale(1.35, 1.35);
+        g.globalAlpha = 0.82;
+        g.fillStyle = 'rgba(0, 20, 20, 0.25)';
+        g.beginPath(); g.ellipse(1.5, 2.5, 9, 3.8, 0, 0, Math.PI * 2); g.fill();
+        g.fillStyle = d.c1;
+        g.beginPath(); g.ellipse(0, 0, 9, 3.6, 0, 0, Math.PI * 2); g.fill();
+        g.save();
+        g.translate(-8, 0); g.rotate(wag);
+        g.beginPath(); g.moveTo(0, 0); g.lineTo(-7, -4); g.lineTo(-5, 0); g.lineTo(-7, 4); g.closePath(); g.fill();
+        g.restore();
+        g.fillStyle = 'rgba(255, 255, 255, 0.45)';
+        g.beginPath(); g.ellipse(2.5, -4, 2.4, 1, 0.5, 0, Math.PI * 2); g.ellipse(2.5, 4, 2.4, 1, -0.5, 0, Math.PI * 2); g.fill();
+        g.fillStyle = d.c2;
+        g.beginPath(); g.ellipse(3, -0.6, 3.2, 2.2, 0.3, 0, Math.PI * 2); g.fill();
+        g.beginPath(); g.ellipse(-3.5, 0.8, 2.4, 1.6, -0.2, 0, Math.PI * 2); g.fill();
         g.restore();
     }
 
@@ -856,6 +885,14 @@
                 g.fillStyle = 'rgba(0,0,0,0.22)'; g.beginPath(); g.ellipse(1, 1.5, 7, 5, 0, 0, Math.PI * 2); g.fill();
                 g.fillStyle = '#b8b2a5'; g.beginPath(); g.ellipse(0, 0, 7, 5, 0, 0, Math.PI * 2); g.fill();
                 g.fillStyle = 'rgba(255,255,255,0.25)'; g.beginPath(); g.ellipse(-2, -1.5, 3, 1.8, 0, 0, Math.PI * 2); g.fill();
+                break;
+            // A cushion of moss, the zen garden's flower bed.
+            case 'moss':
+                g.fillStyle = 'rgba(0,0,0,0.18)'; g.beginPath(); g.ellipse(1, 1.5, 6.5, 4.5, 0, 0, Math.PI * 2); g.fill();
+                for (k = 0; k < 7; k++) {
+                    g.fillStyle = k % 2 ? '#5f8a3a' : '#86ad4f';
+                    g.beginPath(); g.arc(Math.cos(k * 0.9 + d.t * 6) * 3.4 * (k ? 1 : 0), Math.sin(k * 0.9 + d.t * 6) * 2.4 * (k ? 1 : 0), 2.6, 0, Math.PI * 2); g.fill();
+                }
                 break;
             case 'pebble':
                 g.fillStyle = '#d6d0c4';
@@ -1387,7 +1424,9 @@
         // the pages on the face towards you.
         book:      { top: '#7f2a2a', side: '#efe4c8', move: '#9a3a32', grain: 'rgba(250,215,120,0.55)', hi: 'rgba(255,230,210,0.25)' },
         // Hull plating: panels, seams and rivets.
-        hull:      { top: '#5d6673', side: '#2b3038', move: '#7a8594', grain: 'rgba(15,20,26,0.45)', hi: 'rgba(200,230,255,0.32)' }
+        hull:      { top: '#5d6673', side: '#2b3038', move: '#7a8594', grain: 'rgba(15,20,26,0.45)', hi: 'rgba(200,230,255,0.32)' },
+        // A bamboo fence, seen from above: culms laid along it, tied.
+        bamboo:    { top: '#b3b462', side: '#5d5c2a', move: '#c9c878', grain: 'rgba(70,66,20,0.40)', hi: 'rgba(255,255,215,0.32)' }
     };
 
     function material(theme) { return MATERIAL[theme.wall] || MATERIAL.timber; }
@@ -1445,11 +1484,34 @@
             if (along) { g.moveTo(R.x + a0, R.y + b0); g.lineTo(R.x + a1, R.y + b1); }
             else { g.moveTo(R.x + b0, R.y + a0); g.lineTo(R.x + b1, R.y + a1); }
         }
+        function band(a0, b0, la, lb) {
+            if (along) g.fillRect(R.x + a0, R.y + b0, la, lb);
+            else g.fillRect(R.x + b0, R.y + a0, lb, la);
+        }
         var k, a;
         g.strokeStyle = m.grain;
         g.lineWidth = 1;
         g.beginPath();
-        if (kind === 'book') {
+        if (kind === 'bamboo') {
+            // Culms side by side, each lit along its top and shaded along
+            // its underside, with a node every hand's breadth; and twine
+            // round the bundle at intervals, in pairs.
+            var culms = Math.max(1, Math.round(wid / 12)), cw = wid / culms;
+            for (k = 0; k < culms; k++) {
+                var c0 = k * cw;
+                if (k) line(0, c0, len, c0);
+                g.fillStyle = 'rgba(255, 255, 220, 0.22)'; band(0, c0 + cw * 0.16, len, cw * 0.24);
+                g.fillStyle = 'rgba(60, 58, 10, 0.20)'; band(0, c0 + cw * 0.7, len, cw * 0.24);
+                for (a = 10 + hash(seed + k * 3.1) * 28; a < len - 6; a += 32 + hash(seed + a * 0.3 + k) * 22) {
+                    g.fillStyle = 'rgba(80, 72, 24, 0.6)'; band(a, c0 + 0.8, 1.6, cw - 1.6);
+                    g.fillStyle = 'rgba(255, 250, 200, 0.4)'; band(a + 1.6, c0 + 0.8, 1.1, cw - 1.6);
+                }
+            }
+            g.stroke();
+            g.fillStyle = 'rgba(42, 33, 22, 0.85)';
+            for (a = 30 + hash(seed) * 30; a < len - 16; a += 84) { band(a, 0, 2.4, wid); band(a + 4.5, 0, 2.4, wid); }
+            g.beginPath();
+        } else if (kind === 'book') {
             // Books end to end, each a cover of its own colour, with the
             // gilt of a title across it.
             g.stroke();
@@ -1827,6 +1889,34 @@
                 g.stroke();
                 g.fillStyle = 'rgba(255, 255, 255, 0.75)';
                 g.beginPath(); g.ellipse(cx + hl.x, cy + hl.y, r * 0.22, r * 0.12, Math.atan2(hl.y, hl.x) + Math.PI / 2, 0, Math.PI * 2); g.fill();
+                break;
+            case 'lantern':
+                // A stone lantern from above: the six-sided roof with its
+                // ridges running out from the finial, and the light of the
+                // fire box showing warm under the eaves.
+                g.fillStyle = 'rgba(255, 196, 110, 0.34)';
+                g.beginPath(); g.arc(cx, cy, r * 1.08, 0, Math.PI * 2); g.fill();
+                grad = g.createRadialGradient(cx + hl.x, cy + hl.y, r * 0.1, cx, cy, r);
+                grad.addColorStop(0, '#d6d3c8'); grad.addColorStop(1, '#77746b');
+                g.fillStyle = grad;
+                g.beginPath();
+                for (k = 0; k < 6; k++) {
+                    var ra = k * Math.PI / 3 + Math.PI / 6;
+                    g[k ? 'lineTo' : 'moveTo'](cx + Math.cos(ra) * r * 0.94, cy + Math.sin(ra) * r * 0.94);
+                }
+                g.closePath(); g.fill();
+                g.strokeStyle = 'rgba(55, 52, 46, 0.55)'; g.lineWidth = 1;
+                g.stroke();
+                g.beginPath();
+                for (k = 0; k < 6; k++) {
+                    var rb = k * Math.PI / 3 + Math.PI / 6;
+                    g.moveTo(cx, cy); g.lineTo(cx + Math.cos(rb) * r * 0.94, cy + Math.sin(rb) * r * 0.94);
+                }
+                g.stroke();
+                g.fillStyle = 'rgba(95, 138, 58, 0.7)';
+                for (k = 0; k < 3; k++) { g.beginPath(); g.arc(cx + Math.cos(k * 2.3 + b.x) * r * 0.55, cy + Math.sin(k * 2.3 + b.x) * r * 0.55, 1.4, 0, Math.PI * 2); g.fill(); }
+                g.fillStyle = '#a9a59a'; g.beginPath(); g.arc(cx, cy, r * 0.28, 0, Math.PI * 2); g.fill();
+                g.fillStyle = 'rgba(255, 255, 245, 0.45)'; g.beginPath(); g.arc(cx - r * 0.08, cy - r * 0.1, r * 0.11, 0, Math.PI * 2); g.fill();
                 break;
             case 'lamp':
                 // A lantern globe, lit: the light it throws is ambience.js's.

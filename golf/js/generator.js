@@ -1453,7 +1453,7 @@
             /* The endless card, and so the last rung of the ladder: nine
                holes nobody has played are the reward for having played the
                ones somebody built. See progress.js. */
-            unlock: 78,
+            unlock: 84,
             holes: holes
         };
     }
