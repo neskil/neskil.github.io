@@ -93,7 +93,7 @@ places where the answer is GLSL rather than a property. What is left in
 
 ## The bag
 
-Five clubs by default, in `config.js`, and two more a hole may ask for — and
+Seven clubs by default, in `config.js`, and two more a hole may ask for — and
 **mini golf has a bag of its own**: every hole on a mini, crazy or adventure
 course is played with the putter and the mallet (`CONFIG.MINI_BAG`), a hole
 marked `needsLoft` adds the pitch and the wedge, and a hole may still name its
@@ -106,15 +106,46 @@ simulation never hears the word "club", it is handed a launch angle and a
 speed — and it is now a loft, a ceiling and one number about what happens
 *after* the ball lands. See [Backspin](#backspin).
 
-| Club | Loft | Full swing | Carry | Apex | Total on green | What it is for |
-| --- | --- | --- | --- | --- | --- | --- |
-| Putter | 0° | 10.5 | — | — | 8.0 | Rolls flat and true. Full power is still a tap, which is what makes it the club you can aim. |
-| Driver | 10° | 32 | 19.4 | 1.01 | 42.5 | The reach club. The longest flight in the bag and the lowest that really flies — a metre of air, enough to carry water, and it still runs when it lands. |
-| 7 Iron | 16° | 18 | 9.8 | 0.83 | 21.4 | The long approach: three quarters of a driver, and it *carries* three quarters of that. |
-| Pitch | 45° | 11.7 | 7.6 | 2.03 | 14.1 | Up steep and down steeper. Stops near where it lands. |
-| Wedge | 58° | 12.1 | 7.3 | 3.05 | 12.7 | The lob: straight up, over anything, and it does not run when it lands. |
-| Mallet | 0° | 17 | — | — | 13.3 | Not in the default bag. A putter with a hammer behind it, handed out on holes that are played along the floor. |
-| Checker | 38° | 13.5 | 9.9 | 2.06 | 11.4 | Not in the default bag. An iron's carry with a unit and a bit of run on the end of it: `bite: 0.78`. |
+| Club | Key | Loft | Full swing | Carry | Apex | Total on fairway | What it is for |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Putter | 1 | 0° | 10.5 | — | — | 5.5 (8.0 on green) | Rolls flat and true. Full power is still a tap, which is what makes it the club you can aim. On a long-game green it is the only club (see [Putting](#putting)). |
+| Driver | 2 | 12° | 24 | 31.4 | 3.47 | 41.4 | The reach club. Comes off low, climbs, and still runs when it lands. |
+| 5 Iron | 3 | 17° | 17.9 | 20.7 | 3.39 | 27.0 | The long iron: the second shot on a par 5, and the long par 3. |
+| 7 Iron | 4 | 22° | 14.4 | 13.9 | 3.21 | 17.9 | The long approach. Carries what the driver runs into. |
+| 9 Iron | 5 | 32° | 13.3 | 11.0 | 3.21 | 14.1 | The short iron: high at the flag, and it still releases a little. |
+| Pitch | 6 | 45° | 12.3 | 8.1 | 3.10 | 10.5 | Up steep and down steeper. Stops near where it lands. |
+| Wedge | 7 | 58° | 12.7 | 7.5 | 3.53 | 9.6 | The lob: straight up, over anything, and it does not run when it lands. |
+| Mallet | 8 | 0° | 17 | — | — | 9.9 (13.3 on green) | Not in the default bag. A putter with a hammer behind it, handed out on holes that are played along the floor. |
+| Checker | 9 | 38° | 13.1 | 10.0 | 3.32 | 10.4 | Not in the default bag. An iron's carry with almost none of the run: `bite: 0.78`. |
+
+Every full swing tops out between three and three and a half metres, the way a
+real bag does — a tour 7 iron peaks as high as a drive — and each club down
+the bag lands steeper than the one before it, 27° for the driver to 62° for
+the wedge. That is the lift (`CONFIG.AIR_LIFT`, by loft), solved per club
+together with its power so that every club still runs to where it did; see
+[The flight](#the-flight). Carry and total are the picker's card, and
+`tests.html` measures both off a flat fairway ("what the card says"), because
+for a long while the pitch's and the wedge's said 14.6 and 13.0 after the turf
+had made them 10.5 and 9.6.
+
+### The flight
+
+A struck ball is lifted square to its path by an amount that depends on its
+loft, and the lift wears off as it flies (`physics.carryFlight`,
+`CONFIG.AIR_LIFT`, `AIR_DECAY`). There is no drag: lift does no work, so the
+ball lands as fast as it left and the turf's run is the run it was tuned for.
+The shape is a struck ball's rather than a thrown one's — low off the face,
+the top past halfway, down steeper than it went up.
+
+The first lift was one figure that stopped at 32°, so only the driver and the
+7 iron had it, and the pitch and wedge flew the plain arc. Measured against a
+real bag that was backwards: the 7 iron topped out at two metres and the pitch
+under that, against the driver's three and a half. The table is solved, not
+drawn — it rises to the 7 iron and falls again, because a 45° face already
+launches the ball at the sky and needs less help getting there. It applies
+everywhere, mini golf's chips included; full swings on a green finish within
+half a metre of where they did. A topped shot is struck without spin and gets
+none of it.
 
 ### Backspin
 
@@ -125,10 +156,9 @@ write two clubs that differ in what happens after the ball comes down. Every
 club in the file until now said how far and how high; none of them could say
 whether the thing stops.
 
-The numbers in the table above are what that buys. The Checker and the 7 Iron
-carry within a tenth of a unit of each other — 9.9 against 9.8 — and finish
-ten units apart, because the iron's landing hands it eleven units of run and
-the Checker's hands it one and a bit.
+The numbers in the table above are what that buys. The Checker and the 9 Iron
+carry within a unit of each other — 10.0 against 11.0 — and the iron runs on
+another three, where the Checker's landing leaves it under half a unit.
 
 It is not in the default bag, and the reason is the same one that keeps the
 mallet out of it: a club that lands and stops would be the answer to half the
@@ -147,7 +177,7 @@ which club supplies which.
 A hole may name its own bag — `bag: ['putter', 'mallet']` — out of
 `CONFIG.ALL_CLUBS`, and `G3.bagFor(hole)` is the one place that resolves it.
 Everything downstream reads that rather than `CONFIG.CLUBS`: the number keys,
-the cycle, the modelled bag in the corner (`bag.setBag`), the auto-putt, and
+the cycle, the modelled bag in the corner (`bag.setBag`), the green lock, and
 the bot in `tests.html`, which plays every hole out of the bag the hole hands
 out. So "solvable" now means solvable with the clubs you are actually given.
 
@@ -419,10 +449,10 @@ topped, and the same key again for straight.
 
 | shape | what it does | clubs |
 | --- | --- | --- |
-| draw | starts right of the aim, curves back left onto it, runs on | driver, 7 iron |
-| fade | the mirror, and lands with extra backspin (`SHAPE.FADE_BITE`) | driver, 7 iron |
-| backspin | the same flight, stops where it lands (`SHAPE.BACKSPIN`) | 7 iron, pitch, wedge |
-| topped | low (`SHAPE.TOPPED_LOFT` of the loft), under the branches, runs | driver, 7 iron, pitch |
+| draw | starts right of the aim, curves back left onto it, runs on | driver, the irons |
+| fade | the mirror, and lands with extra backspin (`SHAPE.FADE_BITE`) | driver, the irons |
+| backspin | the same flight, stops where it lands (`SHAPE.BACKSPIN`) | the irons, pitch, wedge |
+| topped | low (`SHAPE.TOPPED_LOFT` of the loft), under the branches, runs | driver, the irons, pitch |
 
 All of it is `swing.js` `shape`, and none of it is new to the simulation: the
 bends are the sidespin a mishit already got (`world.spin`), the stop is the
@@ -674,7 +704,7 @@ shaft's width to the hosel's, as a real one does; see "Modelling the heads".)
 
 ### What a club's card says
 
-Each club carries its own card the whole time the row is open, so five clubs are
+Each club carries its own card the whole time the row is open, so the clubs are
 compared at a glance rather than one at a time. Two versions of that card are
 worth contrasting.
 
@@ -1602,15 +1632,20 @@ swing, so where the ball *stops* starts to matter as much as where it is going.
 
 The numbers it is built against, measured off a flat lie at full power:
 
-| | Putter | Driver | 7 Iron | Pitch | Wedge |
-| --- | --- | --- | --- | --- | --- |
-| Green | 8.0 | 42.5 | 21.4 | 14.1 | 12.7 |
-| Fairway | 5.7 | 31.5 | 15.5 | 10.6 | 9.4 |
-| Rough | 3.0 | 23.8 | 11.6 | 8.7 | 8.2 |
-| Sand | 1.9 | 30.3 | 14.9 | 11.3 | 10.6 |
+| | Putter | Driver | 5 Iron | 7 Iron | 9 Iron | Pitch | Wedge |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Green | 8.0 | 52.6 | 34.6 | 23.2 | 18.4 | 14.0 | 12.9 |
+| Fairway | 5.5 | 41.4 | 27.0 | 17.9 | 14.1 | 10.5 | 9.6 |
+| Rough | 3.4 | 36.1 | 23.6 | 15.8 | 12.4 | 9.2 | 8.5 |
+| Sand | 1.9 | 43.8 | 28.9 | 19.4 | 15.4 | 11.6 | 10.8 |
 
-Carry is the same everywhere — 19.4 for the driver, 9.5 for the iron, 7.6 and
-7.3 for the two wedges — and what the surface decides is what happens after it.
+(Measured at the current release. The course was first built when the driver was
+a 10° club carrying 19.4, so the figures quoted in the rest of this section are
+that bag's.)
+
+Carry is the same everywhere — 31.4 for the driver, 20.7 and 13.9 and 11.0 for
+the irons, 8.1 and 7.5 for the two wedges — and what the surface decides is what
+happens after it.
 Fairway and rough have landings of their own (`CONFIG.LANDING`): turf takes far
 more off a first bounce than a felt green does, so a drive on to grass hops once,
 runs, and stops, where with one figure for every surface a drive off a bluff
@@ -3021,15 +3056,21 @@ loft exactly as it was before.
 
 ## Putting
 
-On the long game, arriving on a green hands you the putter.
+On the long game, a ball at rest on a green is played with the putter and
+nothing else (`game.syncLie`).
 
-Nobody walks up to a ball twelve feet from the pin holding a driver, and until
-now the game made you remember not to: the club stayed in your hand from the
-tee all the way to the hole, so the commonest thing that happened on Ashdown
-Park's greens was a full swing nobody meant to play. It fires the moment a shot
-ends and never again, so a club chosen after that is a club you keep.
+Nobody walks up to a ball twelve feet from the pin holding a driver, and for a
+long time the game made you remember not to: the club stayed in your hand from
+the tee all the way to the hole, so the commonest thing that happened on Ashdown
+Park's greens was a full swing nobody meant to play. Then arriving on a green
+handed you the putter but let you put it back, so a chip off the putting
+surface was still one key away. Now the bag *is* the putter while the ball is
+on the green: `game.bag()` answers with it alone, and the picker, the number
+keys, the cycle and the autoplay caddie all ask there. Once a putt runs off the
+green the whole bag comes back. Off the green the putter stays in the bag,
+because putting from the fringe is a real shot.
 
-It fires on the **long game only**, and that restriction is what makes it safe.
+It applies to the **long game only**, and that restriction is what makes it safe.
 Seven of the ten courses are mini or crazy golf, where the floor is green from the tee
 mat to the cup and choosing loft over the thing in the way is the entire game —
 switching to a putter every time the ball stopped would be fighting the player
@@ -4528,7 +4569,7 @@ out candidate shots on every hole, keeps the one that finishes nearest the cup,
 and plays all hundred and eight. If a hole is sealed off, unreachable, or has a cup buried where
 nothing can settle, the bot never holes out and the suite goes red. It is
 deterministic, so a failure is reproducible rather than "sometimes red", it
-plays out of the same five clubs the player gets, its candidates include a wait
+plays out of the same clubs the player gets, its candidates include a wait
 before striking (the timing holes are only solvable with one, and a bot that
 always fires at `t=0` would report a false failure), and a chosen shot has to
 actually go somewhere — without that rule the greedy

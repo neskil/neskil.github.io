@@ -8,7 +8,7 @@
    — the renderer scales to the viewport, the simulation never sees a pixel. */
 window.G3 = window.G3 || {};
 
-G3.VERSION = '1.110.0';
+G3.VERSION = '1.111.0';
 
 G3.CONFIG = {
     BALL_R: 0.16,
@@ -226,27 +226,38 @@ G3.CONFIG = {
     SPIN_ACCEL: 0.55,
     SPIN_LAND: 0.25,
 
-    /* The long game's flight: backspin, as lift (physics.carryFlight). A
-       struck ball is pushed square to the way it is going by AIR_LIFT times
-       its own speed, and the spin wears off at AIR_DECAY per second, so the
-       lift is strong off the face and nearly gone by the time the ball comes
-       down. Without it every shot was a parabola — up at the launch angle,
-       the top exactly halfway, down at the launch angle — which is a thrown
-       ball, not a struck one. With it a drive starts low, climbs, peaks past
-       halfway and drops in steeper than it rose, and the iron hangs.
+    /* The flight: backspin, as lift (physics.carryFlight). A struck ball is
+       pushed square to the way it is going by its lift times its own speed,
+       and the spin wears off at AIR_DECAY per second, so the lift is strong
+       off the face and nearly gone by the time the ball comes down. Without
+       it every shot was a parabola — up at the launch angle, the top exactly
+       halfway, down at the launch angle — which is a thrown ball, not a
+       struck one. With it a drive starts low, climbs, peaks past halfway and
+       drops in steeper than it rose, and the irons hang.
 
        There is no drag, on purpose. Lift does no work, so the ball lands as
        fast as it left and the turf's run is the run it was tuned for; drag
        took a fifth off every drive's total for a shape that the decaying
        lift gives on its own.
 
-       AIR_LOFT is which launches fly it: the driver and the iron, and a
-       topped one of either, wherever they are played. The pitch and the
-       wedge are steep enough that a parabola is what they look like anyway,
-       and mini golf's chips are built on the plain arc. */
-    AIR_LIFT: 1.4,
+       AIR_LIFT is the lift by loft, in degrees, read between the points
+       (physics.liftFor). A more lofted face spins the ball harder, and on a
+       real course that is what keeps the top of every full swing at much the
+       same height: a tour 7 iron peaks as high as a drive, and a wedge only
+       a little under it. The first lift was one figure that stopped at 32°
+       and left the pitch and the wedge on the plain arc, which put the
+       iron's top at two metres and the pitch's under that against the
+       driver's three and a half — a bag of skimmers under one real flight.
+
+       The points are the bag's own lofts, each solved together with its
+       club's power (CLUBS) for a top between three and three and a half
+       metres and the run the club already had, so no club's finishing spot
+       moved. They are solved, not drawn, which is why they fall again past
+       the 7 iron: a 45° face already launches the ball at the sky and needs
+       less help getting there than a 22° one. A topped shot is struck
+       without spin and gets none. */
+    AIR_LIFT: [[12, 1.4], [17, 1.89], [22, 2.39], [32, 2.05], [45, 1.4], [58, 0.48]],
     AIR_DECAY: 3,
-    AIR_LOFT: 32 * Math.PI / 180,
 
     /* The swing gate itself — what a shot past a full swing has to do to keep
        its line. All of the difficulty is these numbers.
@@ -451,12 +462,33 @@ G3.CONFIG = {
            under half a driver, and it stops. At 30° it flew twelve and climbed
            nearly two, so it got over a tree as well as a pond; at 22° with the
            flight's lift it flies thirteen and climbs two, and finishes where
-           it did. */
+           it did. With the lift every loft gets now (AIR_LIFT) it climbs three
+           and a quarter — as high as a drive, the way a real 7 iron does —
+           and comes down at 47° rather than 33°, still finishing at eighteen. */
+        /* The irons either side of the 7 are the gaps the long game's own
+           holes leave. A par 5 is seventy to ninety metres, so the second
+           shot after a drive is twenty-five to forty-five — past the 7 iron's
+           eighteen and short of a driver's forty, which left a driver swung
+           at two thirds off the fairway as the only answer. The par 4s leave
+           nine to eighteen, where the 7 iron and the pitch were four metres
+           of run apart with nothing in between. */
         {
-            id: 'iron', name: '7 Iron', short: '7i', key: '3',
-            loft: 22 * Math.PI / 180, power: 14.7, carry: 13.1, total: 17.9,
+            id: 'iron5', name: '5 Iron', short: '5i', key: '3',
+            loft: 17 * Math.PI / 180, power: 17.9, carry: 20.7, total: 27.0,
+            shapes: ['draw', 'fade', 'backspin', 'topped'],
+            blurb: 'The long iron. The second shot on a par 5, and the long par 3.'
+        },
+        {
+            id: 'iron', name: '7 Iron', short: '7i', key: '4',
+            loft: 22 * Math.PI / 180, power: 14.4, carry: 13.9, total: 17.9,
             shapes: ['draw', 'fade', 'backspin', 'topped'],
             blurb: 'The long approach. Carries what the driver runs into.'
+        },
+        {
+            id: 'iron9', name: '9 Iron', short: '9i', key: '5',
+            loft: 32 * Math.PI / 180, power: 13.3, carry: 11.0, total: 14.1,
+            shapes: ['draw', 'fade', 'backspin', 'topped'],
+            blurb: 'The short iron. High at the flag, and it still releases a little.'
         },
         /* The top of the bag is set at the lofts these clubs really carry:
            a pitching wedge is 45° and a lob wedge is 58°, and at 22° and 42°
@@ -468,16 +500,23 @@ G3.CONFIG = {
            face without touching the ceiling would have moved every landing
            spot on the course: 11.7 at 45° and 12.1 at 58° carry what 14 at
            22° and 11.5 at 42° carried. What changes is the height and the
-           stopping, which is the whole reason to reach for either. */
+           stopping, which is the whole reason to reach for either.
+
+           Then the lift reached them (AIR_LIFT): on the plain arc the pitch
+           topped out under two metres, lower than the iron, and the wedge
+           under three. Lifted, the pitch climbs three and the wedge three and
+           a half, and both finish where they did. The run these two cards
+           used to give, 14.6 and 13.0, was older than the turf they land on;
+           the card is measured now (tests.html, "what the card says"). */
         {
-            id: 'chipper', name: 'Pitch', short: 'PW', key: '4',
-            loft: 45 * Math.PI / 180, power: 11.7, carry: 7.6, total: 14.6,
+            id: 'chipper', name: 'Pitch', short: 'PW', key: '6',
+            loft: 45 * Math.PI / 180, power: 12.3, carry: 8.1, total: 10.5,
             shapes: ['backspin', 'topped'],
             blurb: 'Up steep and down steeper. Stops near where it lands.'
         },
         {
-            id: 'wedge', name: 'Wedge', short: 'LW', key: '5',
-            loft: 58 * Math.PI / 180, power: 12.1, carry: 7.3, total: 13.0,
+            id: 'wedge', name: 'Wedge', short: 'LW', key: '7',
+            loft: 58 * Math.PI / 180, power: 12.7, carry: 7.5, total: 9.6,
             shapes: ['backspin'],
             blurb: 'The lob. Straight up over water, sand and trees.'
         }
@@ -497,7 +536,7 @@ G3.CONFIG = {
        reach would quietly become the answer to half the course. */
     EXTRA_CLUBS: [
         {
-            id: 'mallet', name: 'Mallet', short: 'ML', key: '6',
+            id: 'mallet', name: 'Mallet', short: 'ML', key: '8',
             loft: 0, power: 17, carry: 0, total: 13.3,
             blurb: 'A putter with a hammer behind it. Rolls flat, and rolls a long way.'
         },
@@ -519,8 +558,8 @@ G3.CONFIG = {
            are built on the assumption that arriving and staying are two
            different problems. */
         {
-            id: 'checker', name: 'Checker', short: 'CK', key: '7',
-            loft: 38 * Math.PI / 180, power: 13.5, bite: 0.78, carry: 9.9, total: 11.5,
+            id: 'checker', name: 'Checker', short: 'CK', key: '9',
+            loft: 38 * Math.PI / 180, power: 13.1, bite: 0.78, carry: 10.0, total: 10.4,
             blurb: 'Lands and stops. The one club that gives up its run on purpose.'
         }
     ],
