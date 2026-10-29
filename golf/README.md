@@ -1008,8 +1008,11 @@ curves come later (see [Designing a hole](#designing-a-hole)).
 can never be, and that is where the picture puts something — a flower bed
 edged in the biome's own brick or timber and planted with what grows there, a
 copse when it is big, a palm, a clipped hedge, a rock, a sandcastle, a
-windmill, a fan, a hut or a barn, a pyramid, a snowman, a lighthouse, and the fair's big
-top, carousel, big wheel and mirrors. `look` is read by the renderer and
+windmill, a fan, a hut or a barn, a pyramid, a snowman, a lighthouse, the fair's big
+top, carousel, big wheel and mirrors, the desk's book, pencil, tonearm, mug
+and inkpot, a planet, and four just for fun — an igloo in a snowbank, a
+parasol and a towel on the sand, a scarecrow in a vegetable patch with a crow
+on its arm, and a rocket on its launch pad. `look` is read by the renderer and
 nothing else. Blocks are what shape a field: beds round off its corners, a
 copse is the inside of a dogleg, a rock outcrop is the shore a ball banks off.
 A rock is drawn as an outcrop of boulders packed into the outline out to the
@@ -1022,7 +1025,16 @@ the shape of its outline, ridged from its crown to its corners. A hut is a
 building seen from a little in front — a pitched roof, its near wall with a
 door and a window — and which building is the place's: a striped beach hut by
 the sea, a fishing hut with snow on its roof, icicles and a smoking stovepipe
-on the ice, a slate-roofed shed, and a red barn on a big plot. A ball inside one is impossible
+on the ice, a slate-roofed shed, and a red barn on a big plot. The things that
+stand up — the lighthouse, the snowman, the igloo, the scarecrow, the rocket —
+share that view: a level circle is an ellipse half as deep as it is wide, height
+runs up the screen, each is lit from the left and casts its shadow to the lower
+right, and a band round a drum is drawn as only the half of it that faces you.
+So the lighthouse is a tower in red and white bands with a gallery, a lit
+lantern and a red cap, and the snowman three balls with a scarf wound round
+his neck and a top hat. Because they reach past their footprint, the cached
+layer they are painted into is grown for them (`TALL` in props.js), or a
+lighthouse's glow would end in a square. A ball inside one is impossible
 rather than merely unlikely — the suite fires at them and checks — and the
 caddie's walking map counts a block's hollow as solid.
 

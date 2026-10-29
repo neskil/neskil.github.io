@@ -645,6 +645,12 @@
             lighthouse(g, pole(pts), w, v);
             return;
         }
+        // The fun ones: an igloo in a snowbank, a parasol on the sand, a
+        // scarecrow in a vegetable patch, a rocket on its pad.
+        if (look === 'igloo' || look === 'parasol' || look === 'scarecrow' || look === 'rocket') {
+            funProp(g, pts, w, v, look, seed);
+            return;
+        }
         if (look === 'castle') {
             m = { top: '#e6cf98', side: '#b8975a', hi: 'rgba(255, 250, 230, 0.55)', grain: 'rgba(150, 110, 60, 0.3)' };
             solid(g, pts, w, m, v, 9, '#dcc48c');
@@ -1032,127 +1038,443 @@
        snow stacked away from the viewer, each smaller than the one under
        it, all inside the bottom one — which is the block, rail and all —
        with stick arms, a scarf, a carrot and a hat. */
+    /* A snowman of three balls, the big one on the ground and each above
+       sitting into the one below, seen from above and a little in front:
+       stick arms, coal buttons, a scarf wound once round the neck with its
+       end hanging down the front, a carrot nose and a top hat. */
     function snowman(g, p, w, v, seed) {
-        var r0 = p.r + w / 2, up = sv(v, 0, -1), side = sv(v, 1, 0), lt = sv(v, -0.35, -0.4), sh = sv(v, Math.min(6, r0 * 0.2), Math.min(9, r0 * 0.3));
+        var r0 = p.r + w / 2, F = standFrame(p, v);
+        var rb = r0, rm = r0 * 0.7, rh = r0 * 0.5, hm = r0 * 0.62, hh = r0 * 1.12;
+        var scarf = ['#dc2626', '#2563eb', '#16a34a', '#9333ea'][(hash(seed) * 4) | 0];
         g.save();
-        g.fillStyle = 'rgba(30, 50, 75, 0.22)';
-        g.beginPath();
-        g.arc(p.x + sh.x, p.y + sh.y, r0, 0, Math.PI * 2);
-        g.fill();
-        function ball(k, rr) {
-            var x = p.x + up.x * r0 * k, y = p.y + up.y * r0 * k;
-            var gr = g.createRadialGradient(x + lt.x * rr, y + lt.y * rr, rr * 0.08, x, y, rr);
-            gr.addColorStop(0, '#ffffff');
-            gr.addColorStop(0.65, '#e9f0f7');
-            gr.addColorStop(1, '#b4c4d6');
-            g.fillStyle = gr;
-            g.beginPath();
-            g.arc(x, y, rr, 0, Math.PI * 2);
-            g.fill();
-            return { x: x, y: y, r: rr };
-        }
-        ball(0, r0);
-        // Stick arms, out from the middle ball to the edge of the bottom one.
-        var mid = { x: p.x + up.x * r0 * 0.2, y: p.y + up.y * r0 * 0.2 };
-        g.strokeStyle = '#5b3a1e';
         g.lineCap = 'round';
-        g.lineWidth = 2.2;
-        [-1, 1].forEach(function (d) {
-            var ex = mid.x + side.x * d * r0 * 0.92 + up.x * r0 * 0.18, ey = mid.y + side.y * d * r0 * 0.92 + up.y * r0 * 0.18;
-            g.beginPath();
-            g.moveTo(mid.x + side.x * d * r0 * 0.5, mid.y + side.y * d * r0 * 0.5);
-            g.lineTo(ex, ey);
-            g.moveTo(ex - side.x * d * r0 * 0.14, ey - side.y * d * r0 * 0.14);
-            g.lineTo(ex - side.x * d * r0 * 0.04 + up.x * r0 * 0.12, ey - side.y * d * r0 * 0.04 + up.y * r0 * 0.12);
+        g.lineJoin = 'round';
+        // Shadow, and the skirt of trodden snow it stands in.
+        var s0 = F.at(0, 0, 0), sd = sv(v, 1, 0.8);
+        g.fillStyle = 'rgba(30, 50, 75, 0.22)';
+        g.beginPath(); g.ellipse(s0.x + sd.x * r0 * 0.5, s0.y + sd.y * r0 * 0.5, r0 * 1.15, r0 * 0.75, Math.atan2(sd.y, sd.x), 0, TAU); g.fill();
+        function ball(h, r) {
+            var c = F.at(0, 0, h), l = sv(v, -0.38, -0.42);
+            var gr = g.createRadialGradient(c.x + l.x * r, c.y + l.y * r, r * 0.08, c.x, c.y, r);
+            gr.addColorStop(0, '#ffffff');
+            gr.addColorStop(0.6, '#eef3f8');
+            gr.addColorStop(1, '#b7c6d6');
+            g.fillStyle = gr;
+            g.beginPath(); g.arc(c.x, c.y, r, 0, TAU); g.fill();
+            g.strokeStyle = 'rgba(100, 125, 155, 0.45)';
+            g.lineWidth = 1;
             g.stroke();
-        });
-        var chest = ball(0.2, r0 * 0.7);
-        // Coal buttons down the front.
-        g.fillStyle = '#1f2937';
-        for (var i = 0; i < 2; i++) {
-            g.beginPath();
-            g.arc(chest.x - up.x * chest.r * (0.25 + i * 0.35), chest.y - up.y * chest.r * (0.25 + i * 0.35), Math.max(1.5, r0 * 0.05), 0, Math.PI * 2);
-            g.fill();
+            return c;
         }
-        // The scarf: a ring at the neck and an end hanging down one side.
-        var scarf = hash(seed) < 0.5 ? '#dc2626' : '#2563eb';
-        var nx = p.x + up.x * r0 * 0.36, ny = p.y + up.y * r0 * 0.36;
-        g.fillStyle = scarf;
-        g.beginPath();
-        g.arc(nx, ny, r0 * 0.5, 0, Math.PI * 2);
-        g.fill();
+        ball(0, rb);
+        // Stick arms out of the middle ball, each with two twigs at its end.
+        g.strokeStyle = '#5b3a1e';
+        g.lineWidth = Math.max(1.8, r0 * 0.07);
+        [-1, 1].forEach(function (d) {
+            var a0 = F.at(d * rm * 0.75, 0, hm), a1 = F.at(d * rb * 1.25, -rb * 0.1, hm + r0 * 0.28);
+            g.beginPath(); g.moveTo(a0.x, a0.y); g.lineTo(a1.x, a1.y); g.stroke();
+            var t1 = F.at(d * rb * 1.42, -rb * 0.1, hm + r0 * 0.48), t2 = F.at(d * rb * 1.45, -rb * 0.05, hm + r0 * 0.16);
+            g.beginPath(); g.moveTo(a1.x, a1.y); g.lineTo(t1.x, t1.y); g.moveTo(a1.x, a1.y); g.lineTo(t2.x, t2.y); g.stroke();
+        });
+        var mid = ball(hm, rm);
+        // Coal buttons down the front of the middle ball.
+        g.fillStyle = '#1f2937';
+        for (var i = 0; i < 3; i++) {
+            var bt = F.at(0, rm * (0.55 - i * 0.04), hm - rm * (0.35 - i * 0.32));
+            g.beginPath(); g.arc(bt.x, bt.y, Math.max(1.3, r0 * 0.06), 0, TAU); g.fill();
+        }
+        // The scarf: a band round the neck, and its end down the front.
+        var nk = F.at(0, 0, (hm + hh) / 2 + r0 * 0.05);
         g.strokeStyle = scarf;
-        g.lineWidth = Math.max(3, r0 * 0.12);
-        g.beginPath();
-        g.moveTo(nx + side.x * r0 * 0.3, ny + side.y * r0 * 0.3);
-        g.lineTo(nx + side.x * r0 * 0.42 - up.x * r0 * 0.38, ny + side.y * r0 * 0.42 - up.y * r0 * 0.38);
-        g.stroke();
-        var head = ball(0.4, r0 * 0.44);
-        // Eyes and a carrot on the near side of the head.
+        g.lineWidth = Math.max(3, r0 * 0.2);
+        g.beginPath(); g.ellipse(nk.x, nk.y, rh * 1.02, rh * 0.5, F.rot, 0.05, Math.PI - 0.05); g.stroke();
+        var e0 = F.at(rh * 0.45, rh * 0.75, (hm + hh) / 2), e1 = F.at(rh * 0.7, rm * 0.9, hm - rm * 0.1);
+        g.lineWidth = Math.max(2.6, r0 * 0.17);
+        g.beginPath(); g.moveTo(e0.x, e0.y); g.lineTo(e1.x, e1.y); g.stroke();
+        g.strokeStyle = 'rgba(255, 255, 255, 0.75)';
+        g.lineWidth = Math.max(1, r0 * 0.05);
+        [0.4, 0.7].forEach(function (k) {
+            var c = { x: e0.x + (e1.x - e0.x) * k, y: e0.y + (e1.y - e0.y) * k }, R = F.R;
+            g.beginPath(); g.moveTo(c.x - R.x * r0 * 0.08, c.y - R.y * r0 * 0.08); g.lineTo(c.x + R.x * r0 * 0.08, c.y + R.y * r0 * 0.08); g.stroke();
+        });
+        var head = ball(hh, rh);
+        // Coal eyes and smile, and a carrot nose pointing out of the picture.
         g.fillStyle = '#111827';
         [-1, 1].forEach(function (d) {
-            g.beginPath();
-            g.arc(head.x + side.x * d * head.r * 0.32 - up.x * head.r * 0.12, head.y + side.y * d * head.r * 0.32 - up.y * head.r * 0.12, Math.max(1.4, head.r * 0.1), 0, Math.PI * 2);
-            g.fill();
+            var e = F.at(d * rh * 0.32, rh * 0.5, hh + rh * 0.12);
+            g.beginPath(); g.arc(e.x, e.y, Math.max(1.2, r0 * 0.055), 0, TAU); g.fill();
         });
-        var nose = { x: head.x - up.x * head.r * 0.35, y: head.y - up.y * head.r * 0.35 };
+        for (i = -2; i <= 2; i++) {
+            var m = F.at(i * rh * 0.16, rh * 0.82, hh - rh * 0.3 + Math.abs(i) * rh * 0.06);
+            g.beginPath(); g.arc(m.x, m.y, Math.max(0.8, r0 * 0.035), 0, TAU); g.fill();
+        }
+        var n0 = F.at(0, rh * 0.75, hh - rh * 0.02), n1 = F.at(rh * 0.15, rh * 1.6, hh - rh * 0.2);
         g.fillStyle = '#f97316';
         g.beginPath();
-        g.moveTo(nose.x + side.x * head.r * 0.12, nose.y + side.y * head.r * 0.12);
-        g.lineTo(nose.x - side.x * head.r * 0.12, nose.y - side.y * head.r * 0.12);
-        g.lineTo(nose.x - up.x * head.r * 0.6 + side.x * head.r * 0.08, nose.y - up.y * head.r * 0.6 + side.y * head.r * 0.08);
+        g.moveTo(n0.x - F.R.x * rh * 0.14, n0.y - F.R.y * rh * 0.14 - 1);
+        g.lineTo(n0.x + F.R.x * rh * 0.14, n0.y + F.R.y * rh * 0.14 + 1);
+        g.lineTo(n1.x, n1.y);
         g.closePath();
         g.fill();
-        // A top hat at the back of the head: brim, then crown.
-        var hx = head.x + up.x * head.r * 0.45, hy = head.y + up.y * head.r * 0.45;
-        g.fillStyle = '#1f2937';
-        g.beginPath();
-        g.ellipse(hx, hy, head.r * 0.7, head.r * 0.42, Math.atan2(side.y, side.x), 0, Math.PI * 2);
+        // The top hat: brim, crown and a band round it.
+        var hb = hh + rh * 0.62, HF = standFrame(F.at(0, -rh * 0.1, 0), v);
+        ringAt(g, HF, hb, rh * 0.95, '#111827');
+        drumPath(g, HF, hb, rh * 0.6, hb + rh * 0.95, rh * 0.58);
+        g.fillStyle = drumShade(g, HF, hb, rh * 0.6, '#4b5563', '#030712');
         g.fill();
-        g.fillStyle = '#374151';
-        g.beginPath();
-        g.ellipse(hx + up.x * head.r * 0.12, hy + up.y * head.r * 0.12, head.r * 0.42, head.r * 0.28, Math.atan2(side.y, side.x), 0, Math.PI * 2);
+        bandPath(g, HF, hb + rh * 0.08, rh * 0.6, hb + rh * 0.28, rh * 0.6);
+        g.fillStyle = scarf;
         g.fill();
+        ringAt(g, HF, hb + rh * 0.95, rh * 0.58, '#1f2937');
         g.restore();
     }
 
-    /* A lighthouse seen from above and a little in front: a white tower
-       with a red band, narrowing as it rises away from the viewer, a dark
-       gallery round the top and the lantern lit inside it. The foot of the
-       tower is the block. */
+    /* Round things that stand up off the ground — a lighthouse, a
+       snowman, an igloo — are drawn in the view the huts are: from above and
+       a little in front, so a level circle is an ellipse half as deep as it
+       is wide and height runs up the screen. F(a, b, h) is the point `a`
+       across, `b` back into the picture and `h` up off the ground. */
+    function standFrame(p, v) {
+        var R = sv(v, 1, 0), D = sv(v, 0, 1), U = sv(v, 0, -1);
+        return {
+            R: R, U: U, rot: Math.atan2(R.y, R.x),
+            at: function (a, b, h) { return { x: p.x + R.x * a + D.x * b * 0.55 + U.x * h, y: p.y + R.y * a + D.y * b * 0.55 + U.y * h }; }
+        };
+    }
+
+    function ringAt(g, F, h, r, fill) {
+        var c = F.at(0, 0, h);
+        g.beginPath();
+        g.ellipse(c.x, c.y, r, r * 0.55, F.rot, 0, TAU);
+        if (fill) { g.fillStyle = fill; g.fill(); }
+    }
+
+    // The side of an upright frustum from height h0 (radius r0) to h1 (r1),
+    // as one closed outline: the near half of the bottom rim, up one side,
+    // the far half of the top rim, and down the other.
+    function drumPath(g, F, h0, r0, h1, r1) {
+        var a0 = F.at(0, 0, h0), a1 = F.at(0, 0, h1);
+        g.beginPath();
+        g.ellipse(a0.x, a0.y, r0, r0 * 0.55, F.rot, 0, Math.PI);
+        g.ellipse(a1.x, a1.y, r1, r1 * 0.55, F.rot, Math.PI, TAU);
+        g.closePath();
+    }
+
+    // A band round a drum between two heights, as much of it as faces the
+    // viewer: the near halves of the two rims.
+    function bandPath(g, F, h0, r0, h1, r1) {
+        var a0 = F.at(0, 0, h0), a1 = F.at(0, 0, h1);
+        g.beginPath();
+        g.ellipse(a0.x, a0.y, r0, r0 * 0.55, F.rot, 0, Math.PI);
+        g.ellipse(a1.x, a1.y, r1, r1 * 0.55, F.rot, Math.PI, 0, true);
+        g.closePath();
+    }
+
+    // Lit from the left, in shade on the right, across a drum.
+    function drumShade(g, F, h, r, light, dark) {
+        var c = F.at(0, 0, h), gr = g.createLinearGradient(c.x - F.R.x * r, c.y - F.R.y * r, c.x + F.R.x * r, c.y + F.R.y * r);
+        gr.addColorStop(0, light);
+        gr.addColorStop(0.45, 'rgba(255, 255, 255, 0)');
+        gr.addColorStop(1, dark);
+        return gr;
+    }
+
+    /* A lighthouse on its rock: a tower in red and white bands narrowing
+       as it rises, a black gallery with its railing, the lantern lit
+       behind its glass and a red cap — and its long shadow over the grass.
+       The foot of the tower is the block. */
     function lighthouse(g, p, w, v) {
-        var r0 = p.r + w / 2, up = sv(v, 0, -1), lt = sv(v, -0.35, -0.4), sh = sv(v, Math.min(8, r0 * 0.3), Math.min(12, r0 * 0.4));
+        var r0 = p.r + w / 2, F = standFrame(p, v), H = r0 * 1.55, rb = r0 * 0.74, rt = r0 * 0.46;
         g.save();
-        g.fillStyle = 'rgba(20, 40, 60, 0.25)';
+        // The shadow, long and to the lower right.
+        var s0 = F.at(0, 0, 0), sd = sv(v, 1, 0.7);
+        g.fillStyle = 'rgba(20, 40, 60, 0.24)';
         g.beginPath();
-        g.arc(p.x + sh.x, p.y + sh.y, r0, 0, Math.PI * 2);
+        g.ellipse(s0.x + sd.x * r0 * 0.9, s0.y + sd.y * r0 * 0.9, r0 * 1.5, r0 * 0.6, Math.atan2(sd.y, sd.x), 0, TAU);
         g.fill();
-        function disc(k, rr, a, b) {
-            var x = p.x + up.x * r0 * k, y = p.y + up.y * r0 * k;
-            var gr = g.createRadialGradient(x + lt.x * rr, y + lt.y * rr, rr * 0.1, x, y, rr);
-            gr.addColorStop(0, a);
-            gr.addColorStop(1, b);
-            g.fillStyle = gr;
-            g.beginPath();
-            g.arc(x, y, rr, 0, Math.PI * 2);
-            g.fill();
-            return { x: x, y: y, r: rr };
+        // The rock it stands on.
+        ringAt(g, F, 0, r0, '#8d8a80');
+        ringAt(g, F, 2, r0 * 0.96, '#a8a49a');
+        g.fillStyle = 'rgba(0, 0, 0, 0.18)';
+        for (var k = 0; k < 7; k++) {
+            var q = F.at(Math.cos(k * 0.9) * r0 * 0.8, Math.sin(k * 0.9) * r0 * 0.8, 2);
+            g.beginPath(); g.arc(q.x, q.y, 1.6 + (k % 3), 0, TAU); g.fill();
         }
-        disc(0, r0, '#ffffff', '#c9d2dc');
-        disc(0.12, r0 * 0.86, '#ef4444', '#991b1b');
-        disc(0.22, r0 * 0.72, '#ffffff', '#cbd5e1');
-        disc(0.32, r0 * 0.6, '#ef4444', '#991b1b');
-        var gal = disc(0.4, r0 * 0.5, '#374151', '#111827');
-        var lamp = disc(0.42, r0 * 0.34, '#fef9c3', '#facc15');
-        g.fillStyle = 'rgba(253, 224, 71, 0.25)';
-        g.beginPath();
-        g.arc(lamp.x, lamp.y, gal.r * 1.6, 0, Math.PI * 2);
+        // The tower, banded, and shaded across.
+        drumPath(g, F, 2, rb, H, rt);
+        g.fillStyle = '#f8fafc';
         g.fill();
-        // The cap on the lantern.
-        g.fillStyle = '#7f1d1d';
-        g.beginPath();
-        g.arc(lamp.x + up.x * lamp.r * 0.15, lamp.y + up.y * lamp.r * 0.15, lamp.r * 0.45, 0, Math.PI * 2);
+        g.save();
+        g.clip();
+        for (var b = 0; b < 4; b++) {
+            var hA = 2 + (H - 2) * (b * 2 + 1) / 8, hB = 2 + (H - 2) * (b * 2 + 2) / 8;
+            var rA = rb + (rt - rb) * (hA / H), rB = rb + (rt - rb) * (hB / H);
+            bandPath(g, F, hA, rA, hB, rB);
+            g.fillStyle = '#dc2626';
+            g.fill();
+        }
+        drumPath(g, F, 2, rb, H, rt);
+        g.fillStyle = drumShade(g, F, H / 2, rb, 'rgba(255, 255, 255, 0.35)', 'rgba(15, 23, 42, 0.45)');
         g.fill();
+        g.restore();
+        drumPath(g, F, 2, rb, H, rt);
+        g.strokeStyle = 'rgba(15, 23, 42, 0.45)';
+        g.lineWidth = 1;
+        g.stroke();
+        // A door at the foot and a window up the near side.
+        var d = F.at(0, rb * 0.95, 2);
+        g.fillStyle = '#1f2937';
+        g.beginPath();
+        g.moveTo(d.x - F.R.x * rb * 0.18, d.y - F.R.y * rb * 0.18);
+        g.lineTo(d.x - F.R.x * rb * 0.18 + F.U.x * H * 0.2, d.y - F.R.y * rb * 0.18 + F.U.y * H * 0.2);
+        g.lineTo(d.x + F.R.x * rb * 0.18 + F.U.x * H * 0.2, d.y + F.R.y * rb * 0.18 + F.U.y * H * 0.2);
+        g.lineTo(d.x + F.R.x * rb * 0.18, d.y + F.R.y * rb * 0.18);
+        g.fill();
+        var wn = F.at(0, (rb + rt) / 2 * 0.95, H * 0.58);
+        g.fillStyle = '#1e293b';
+        g.fillRect(wn.x - 1.6, wn.y - 2.4, 3.2, 4.8);
+        // The gallery: a black deck, wider than the tower, and its railing.
+        ringAt(g, F, H, rt * 1.35, '#1f2937');
+        ringAt(g, F, H + 1.2, rt * 1.25, '#374151');
+        g.strokeStyle = 'rgba(203, 213, 225, 0.8)';
+        g.lineWidth = 0.8;
+        for (var i = 0; i < 12; i++) {
+            var a = i / 12 * TAU, q0 = F.at(Math.cos(a) * rt * 1.28, Math.sin(a) * rt * 1.28, H + 1), q1 = F.at(Math.cos(a) * rt * 1.28, Math.sin(a) * rt * 1.28, H + 5);
+            g.beginPath(); g.moveTo(q0.x, q0.y); g.lineTo(q1.x, q1.y); g.stroke();
+        }
+        ringAt(g, F, H + 5, rt * 1.28);
+        g.stroke();
+        // The lantern: glass, lit, under a red cap with a vent on top.
+        var lh = r0 * 0.38, lr = rt * 0.82, lc = F.at(0, 0, H + lh / 2);
+        var glow = g.createRadialGradient(lc.x, lc.y, 1, lc.x, lc.y, r0 * 1.4);
+        glow.addColorStop(0, 'rgba(254, 240, 138, 0.55)');
+        glow.addColorStop(1, 'rgba(254, 240, 138, 0)');
+        g.fillStyle = glow;
+        g.beginPath(); g.arc(lc.x, lc.y, r0 * 1.4, 0, TAU); g.fill();
+        drumPath(g, F, H + 1, lr, H + lh, lr);
+        var lg = drumShade(g, F, H + lh / 2, lr, 'rgba(255, 255, 255, 0.9)', 'rgba(202, 138, 4, 0.9)');
+        g.fillStyle = '#fde047';
+        g.fill();
+        g.fillStyle = lg;
+        g.fill();
+        g.strokeStyle = '#1f2937';
+        g.lineWidth = 0.8;
+        for (i = -1; i <= 1; i++) {
+            var m0 = F.at(i * lr * 0.6, lr * 0.85, H + 1), m1 = F.at(i * lr * 0.6, lr * 0.85, H + lh);
+            g.beginPath(); g.moveTo(m0.x, m0.y); g.lineTo(m1.x, m1.y); g.stroke();
+        }
+        drumPath(g, F, H + lh, lr * 1.12, H + lh + r0 * 0.28, lr * 0.2);
+        g.fillStyle = drumShade(g, F, H + lh, lr, '#f87171', '#7f1d1d');
+        g.fill();
+        ringAt(g, F, H + lh, lr * 1.12);
+        g.strokeStyle = '#7f1d1d';
+        g.stroke();
+        var tip = F.at(0, 0, H + lh + r0 * 0.3);
+        g.fillStyle = '#1f2937';
+        g.beginPath(); g.arc(tip.x, tip.y, 1.6, 0, TAU); g.fill();
+        g.restore();
+    }
+
+    /* The fun props. Each is drawn on a ground of its own — a snowbank, a
+       patch of sand, a tilled bed, a launch pad — which is the block's
+       outline and its kerb, and the thing itself stands at the roomiest
+       point of it, seen from above and a little in front. */
+    function funProp(g, pts, w, v, look, seed) {
+        var p = pole(pts), R = Math.max(12, Math.min(p.r * 0.95, 48)), F = standFrame(p, v), i, k, q;
+        g.save();
+        g.lineCap = 'round';
+        g.lineJoin = 'round';
+        if (look === 'igloo') {
+            solid(g, pts, w, { top: '#eef4fa', side: '#9fb4c8', hi: 'rgba(255, 255, 255, 0.8)', grain: 'rgba(100, 130, 160, 0.3)' }, v, 8, '#f6f9fc');
+            // Drifts on the bank.
+            g.save(); trace(g, pts, 0, 0); g.clip();
+            g.fillStyle = 'rgba(150, 180, 210, 0.22)';
+            for (i = 0; i < 6; i++) {
+                q = { x: p.x + (hash(seed + i) - 0.5) * p.r * 2.2, y: p.y + (hash(seed + i * 2.3) - 0.5) * p.r * 2.2 };
+                g.beginPath(); g.ellipse(q.x, q.y, 18 + hash(seed + i * 3) * 18, 5, 0.2, 0, TAU); g.fill();
+            }
+            g.restore();
+            // Shadow, then the dome.
+            var sd = sv(v, 1, 0.8), s0 = F.at(0, 0, 0);
+            g.fillStyle = 'rgba(40, 70, 100, 0.25)';
+            g.beginPath(); g.ellipse(s0.x + sd.x * R * 0.4, s0.y + sd.y * R * 0.4, R * 1.15, R * 0.7, Math.atan2(sd.y, sd.x), 0, TAU); g.fill();
+            var dc = F.at(0, 0, R * 0.38);
+            function dome() {
+                g.beginPath();
+                g.ellipse(s0.x, s0.y, R, R * 0.55, F.rot, 0, Math.PI);
+                g.ellipse(dc.x, dc.y, R, R * 0.92, F.rot, Math.PI, TAU);
+                g.closePath();
+            }
+            dome();
+            var lt = sv(v, -0.4, -0.5), dg = g.createRadialGradient(dc.x + lt.x * R * 0.7, dc.y + lt.y * R * 0.7, R * 0.1, dc.x, dc.y, R * 1.15);
+            dg.addColorStop(0, '#ffffff'); dg.addColorStop(0.6, '#e6eef6'); dg.addColorStop(1, '#a9bdd1');
+            g.fillStyle = dg; g.fill();
+            // The courses of snow blocks: rings round the dome, and the joints
+            // between blocks staggered course by course.
+            g.save(); dome(); g.clip();
+            g.strokeStyle = 'rgba(110, 140, 175, 0.45)';
+            g.lineWidth = 1;
+            for (k = 1; k <= 4; k++) {
+                var hk = R * 0.38 * (k / 2.2), rk = Math.sqrt(Math.max(0, 1 - (k / 5) * (k / 5))) * R, ck = F.at(0, 0, hk + (k - 1) * R * 0.05);
+                g.beginPath(); g.ellipse(ck.x, ck.y, rk, rk * 0.55, F.rot, 0, Math.PI); g.stroke();
+                for (var j = -3; j <= 3; j++) {
+                    var a = Math.PI / 2 + (j + (k % 2) * 0.5) * 0.42;
+                    if (a < 0.15 || a > Math.PI - 0.15) continue;
+                    var b0 = F.at(Math.cos(a) * rk, Math.sin(a) * rk, hk + (k - 1) * R * 0.05);
+                    var b1 = F.at(Math.cos(a) * rk * 0.92, Math.sin(a) * rk * 0.92, hk + (k - 1) * R * 0.05 + R * 0.2);
+                    g.beginPath(); g.moveTo(b0.x, b0.y); g.lineTo(b1.x, b1.y); g.stroke();
+                }
+            }
+            g.restore();
+            dome();
+            g.strokeStyle = 'rgba(90, 120, 155, 0.6)'; g.lineWidth = 1.2; g.stroke();
+            // The way in: a short tunnel out of the near side, dark inside.
+            var tw = R * 0.42, t0 = F.at(0, R * 0.75, 0), t1 = F.at(0, R * 1.25, 0);
+            g.fillStyle = '#e9f0f7';
+            g.beginPath();
+            g.ellipse(t1.x, t1.y, tw, tw * 0.55, F.rot, 0, Math.PI);
+            g.lineTo(t1.x - F.R.x * tw + F.U.x * tw * 0.9, t1.y - F.R.y * tw + F.U.y * tw * 0.9);
+            g.lineTo(t0.x - F.R.x * tw + F.U.x * tw * 0.9, t0.y - F.R.y * tw + F.U.y * tw * 0.9);
+            g.lineTo(t0.x + F.R.x * tw + F.U.x * tw * 0.9, t0.y + F.R.y * tw + F.U.y * tw * 0.9);
+            g.lineTo(t1.x + F.R.x * tw + F.U.x * tw * 0.9, t1.y + F.R.y * tw + F.U.y * tw * 0.9);
+            g.closePath(); g.fill();
+            g.strokeStyle = 'rgba(90, 120, 155, 0.5)'; g.stroke();
+            var mo = F.at(0, R * 1.25, tw * 0.45);
+            g.fillStyle = '#26323f';
+            g.beginPath(); g.ellipse(mo.x, mo.y, tw * 0.62, tw * 0.62, F.rot, Math.PI, TAU); g.lineTo(mo.x + F.R.x * tw * 0.62, mo.y + F.R.y * tw * 0.62 + tw * 0.4);
+            g.lineTo(mo.x - F.R.x * tw * 0.62, mo.y - F.R.y * tw * 0.62 + tw * 0.4); g.closePath(); g.fill();
+        } else if (look === 'parasol') {
+            solid(g, pts, w, { top: '#ead7a4', side: '#b8975a', hi: 'rgba(255, 250, 230, 0.55)', grain: 'rgba(150, 110, 60, 0.3)' }, v, 7, '#efdcab');
+            var paint = ['#e11d48', '#2563eb', '#16a34a', '#f59e0b'][(hash(seed) * 4) | 0];
+            // A striped towel half under it, and a bucket.
+            var ta = sv(v, 1, 0.35), tl = Math.hypot(ta.x, ta.y); ta = { x: ta.x / tl, y: ta.y / tl };
+            var tn = { x: -ta.y, y: ta.x }, tc = { x: p.x + ta.x * R * 0.35 + tn.x * R * 0.35, y: p.y + ta.y * R * 0.35 + tn.y * R * 0.35 };
+            g.save(); g.translate(tc.x, tc.y); g.rotate(Math.atan2(ta.y, ta.x));
+            for (i = 0; i < 6; i++) {
+                g.fillStyle = i % 2 ? '#ffffff' : ['#0ea5e9', '#f97316', '#a855f7'][(hash(seed + 1) * 3) | 0];
+                g.fillRect(-R * 0.9 + i * R * 0.3, -R * 0.38, R * 0.3, R * 0.76);
+            }
+            g.restore();
+            var bk = F.at(-R * 0.85, R * 0.6, 0);
+            g.fillStyle = '#facc15'; g.beginPath(); g.arc(bk.x, bk.y, Math.max(3, R * 0.14), 0, TAU); g.fill();
+            g.strokeStyle = '#b45309'; g.lineWidth = 1; g.stroke();
+            // The parasol's shadow, then the canopy in eight panels.
+            var top = F.at(0, 0, R * 0.9), ps = sv(v, R * 0.35, R * 0.5);
+            g.fillStyle = 'rgba(80, 60, 20, 0.28)';
+            g.beginPath(); g.arc(p.x + ps.x, p.y + ps.y, R * 0.95, 0, TAU); g.fill();
+            g.strokeStyle = '#e5e7eb'; g.lineWidth = 2;
+            g.beginPath(); g.moveTo(p.x, p.y); g.lineTo(top.x, top.y); g.stroke();
+            for (i = 0; i < 8; i++) {
+                var a0 = i / 8 * TAU, a1 = (i + 1) / 8 * TAU;
+                g.fillStyle = i % 2 ? '#ffffff' : paint;
+                g.beginPath();
+                g.moveTo(top.x, top.y);
+                g.lineTo(top.x + Math.cos(a0) * R, top.y + Math.sin(a0) * R * 0.8);
+                g.quadraticCurveTo(top.x + Math.cos((a0 + a1) / 2) * R * 0.92, top.y + Math.sin((a0 + a1) / 2) * R * 0.74,
+                                   top.x + Math.cos(a1) * R, top.y + Math.sin(a1) * R * 0.8);
+                g.closePath(); g.fill();
+            }
+            var cg = g.createRadialGradient(top.x - R * 0.3, top.y - R * 0.3, R * 0.1, top.x, top.y, R);
+            cg.addColorStop(0, 'rgba(255, 255, 255, 0.3)'); cg.addColorStop(1, 'rgba(0, 0, 0, 0.18)');
+            g.fillStyle = cg;
+            g.beginPath(); g.ellipse(top.x, top.y, R, R * 0.8, 0, 0, TAU); g.fill();
+            g.fillStyle = '#f8fafc'; g.beginPath(); g.arc(top.x, top.y, 2.4, 0, TAU); g.fill();
+        } else if (look === 'scarecrow') {
+            // A tilled vegetable patch: furrows, and rows of cabbages.
+            solid(g, pts, w, material('timber'), v, EXT, '#5b3a22');
+            g.save(); trace(g, pts, 0, 0); g.clip();
+            var bb = boxOf(pts);
+            g.strokeStyle = 'rgba(30, 15, 5, 0.35)'; g.lineWidth = 3;
+            for (var fy = bb.y0 + 8; fy < bb.y1; fy += 14) { g.beginPath(); g.moveTo(bb.x0, fy); g.lineTo(bb.x1, fy); g.stroke(); }
+            for (fy = bb.y0 + 15; fy < bb.y1; fy += 14) {
+                for (var fx = bb.x0 + 10 + (fy % 28 ? 0 : 7); fx < bb.x1; fx += 16) {
+                    if (Math.hypot(fx - p.x, fy - p.y) < R * 0.5) continue;
+                    g.fillStyle = hash(fx * 0.3 + fy) < 0.5 ? '#4d7c2f' : '#6b9b3a';
+                    g.beginPath(); g.arc(fx, fy, 3.6, 0, TAU); g.fill();
+                    g.fillStyle = 'rgba(190, 230, 140, 0.5)';
+                    g.beginPath(); g.arc(fx - 1, fy - 1, 1.4, 0, TAU); g.fill();
+                }
+            }
+            g.restore();
+            // The scarecrow: post, crossbar in a check shirt, straw hands, a
+            // sack head under a straw hat, and a crow on one arm.
+            var H = R * 1.25, s1 = F.at(0, 0, 0), sh2 = sv(v, 1, 0.8);
+            g.strokeStyle = 'rgba(0, 0, 0, 0.25)'; g.lineWidth = 3;
+            g.beginPath(); g.moveTo(s1.x, s1.y); g.lineTo(s1.x + sh2.x * H * 0.8, s1.y + sh2.y * H * 0.8); g.stroke();
+            var post0 = F.at(0, 0, 0), post1 = F.at(0, 0, H);
+            g.strokeStyle = '#7c5a36'; g.lineWidth = 3;
+            g.beginPath(); g.moveTo(post0.x, post0.y); g.lineTo(post1.x, post1.y); g.stroke();
+            var aL = F.at(-R * 0.75, 0, H * 0.72), aR = F.at(R * 0.75, 0, H * 0.72);
+            g.strokeStyle = '#b91c1c'; g.lineWidth = Math.max(4, R * 0.18);
+            g.beginPath(); g.moveTo(aL.x, aL.y); g.lineTo(aR.x, aR.y); g.stroke();
+            g.strokeStyle = 'rgba(255, 255, 255, 0.35)'; g.lineWidth = 1;
+            for (k = -3; k <= 3; k++) {
+                q = F.at(k * R * 0.2, 0, H * 0.72);
+                g.beginPath(); g.moveTo(q.x, q.y - R * 0.08); g.lineTo(q.x, q.y + R * 0.08); g.stroke();
+            }
+            var body0 = F.at(0, 0, H * 0.4), body1 = F.at(0, 0, H * 0.78);
+            g.strokeStyle = '#b91c1c'; g.lineWidth = Math.max(7, R * 0.34);
+            g.beginPath(); g.moveTo(body0.x, body0.y); g.lineTo(body1.x, body1.y); g.stroke();
+            g.strokeStyle = '#eab308'; g.lineWidth = 1.2;
+            [aL, aR, body0].forEach(function (e, n) {
+                for (var t = -2; t <= 2; t++) {
+                    var dx = n < 2 ? (n ? 1 : -1) * 5 : t * 1.5, dy = n < 2 ? t * 1.5 : 5;
+                    g.beginPath(); g.moveTo(e.x, e.y); g.lineTo(e.x + dx, e.y + dy); g.stroke();
+                }
+            });
+            var hd = F.at(0, 0, H * 0.95);
+            g.fillStyle = '#d6b98c'; g.beginPath(); g.arc(hd.x, hd.y, R * 0.2, 0, TAU); g.fill();
+            g.fillStyle = '#3f2a14';
+            g.beginPath(); g.arc(hd.x - R * 0.07, hd.y + R * 0.02, 1.3, 0, TAU); g.arc(hd.x + R * 0.07, hd.y + R * 0.02, 1.3, 0, TAU); g.fill();
+            var HF2 = standFrame(F.at(0, 0, 0), v), hb = H * 1.05;
+            ringAt(g, HF2, hb, R * 0.36, '#ca8a04');
+            drumPath(g, HF2, hb, R * 0.2, hb + R * 0.2, R * 0.16);
+            g.fillStyle = '#eab308'; g.fill();
+            // The crow.
+            var cr = F.at(R * 0.62, 0, H * 0.72 + 3);
+            g.fillStyle = '#111827';
+            g.beginPath(); g.ellipse(cr.x, cr.y - 2, 4.5, 3, -0.3, 0, TAU); g.fill();
+            g.beginPath(); g.arc(cr.x + 4, cr.y - 5, 2.4, 0, TAU); g.fill();
+            g.fillStyle = '#f59e0b';
+            g.beginPath(); g.moveTo(cr.x + 6, cr.y - 5.5); g.lineTo(cr.x + 9, cr.y - 4.8); g.lineTo(cr.x + 6, cr.y - 4.2); g.fill();
+        } else {
+            // A launch pad: concrete, its ring of hazard stripes, and the
+            // rocket standing on it.
+            solid(g, pts, w, { top: '#9ca3af', side: '#4b5563', hi: 'rgba(255, 255, 255, 0.45)', grain: 'rgba(0, 0, 0, 0.3)' }, v, 7, '#6b7280');
+            g.save(); trace(g, pts, 0, 0); g.clip();
+            g.strokeStyle = '#facc15'; g.lineWidth = 6; g.setLineDash([8, 8]);
+            g.beginPath(); g.arc(p.x, p.y, R * 0.92, 0, TAU); g.stroke();
+            g.setLineDash([]);
+            g.fillStyle = 'rgba(0, 0, 0, 0.35)';
+            g.beginPath(); g.arc(p.x, p.y, R * 0.5, 0, TAU); g.fill();
+            g.restore();
+            var rr = R * 0.32, RH = R * 1.9, sd2 = sv(v, 1, 0.7), base = F.at(0, 0, 0);
+            g.fillStyle = 'rgba(0, 0, 0, 0.3)';
+            g.beginPath(); g.ellipse(base.x + sd2.x * RH * 0.45, base.y + sd2.y * RH * 0.45, RH * 0.55, rr * 0.9, Math.atan2(sd2.y, sd2.x), 0, TAU); g.fill();
+            // Fins: two out to the sides and one towards the viewer.
+            g.fillStyle = '#dc2626';
+            [-1, 1].forEach(function (d) {
+                var f0 = F.at(d * rr, 0, RH * 0.32), f1 = F.at(d * rr * 2.1, 0, 0), f2 = F.at(d * rr, 0, 0);
+                g.beginPath(); g.moveTo(f0.x, f0.y); g.lineTo(f1.x, f1.y); g.lineTo(f2.x, f2.y); g.closePath(); g.fill();
+            });
+            drumPath(g, F, 0, rr, RH * 0.72, rr);
+            g.fillStyle = drumShade(g, F, RH * 0.36, rr, 'rgba(255, 255, 255, 1)', '#94a3b8');
+            g.fillStyle = '#f1f5f9'; g.fill();
+            g.fillStyle = drumShade(g, F, RH * 0.36, rr, 'rgba(255, 255, 255, 0.6)', 'rgba(30, 41, 59, 0.45)'); g.fill();
+            bandPath(g, F, RH * 0.1, rr, RH * 0.17, rr); g.fillStyle = '#dc2626'; g.fill();
+            bandPath(g, F, RH * 0.6, rr, RH * 0.66, rr); g.fillStyle = '#dc2626'; g.fill();
+            var nf = F.at(0, rr * 0.4, 0), fn0 = F.at(0, rr, RH * 0.3), fn1 = F.at(0, rr * 1.9, 0);
+            g.fillStyle = '#b91c1c';
+            g.beginPath(); g.moveTo(fn0.x, fn0.y); g.lineTo(fn1.x, fn1.y); g.lineTo(nf.x, nf.y); g.closePath(); g.fill();
+            // The nose cone and a porthole.
+            drumPath(g, F, RH * 0.72, rr, RH, 0.5);
+            g.fillStyle = '#dc2626'; g.fill();
+            g.fillStyle = drumShade(g, F, RH * 0.8, rr, 'rgba(255, 255, 255, 0.5)', 'rgba(60, 0, 0, 0.45)'); g.fill();
+            var ph = F.at(0, rr * 0.9, RH * 0.48);
+            g.fillStyle = '#1e3a8a'; g.beginPath(); g.arc(ph.x, ph.y, rr * 0.38, 0, TAU); g.fill();
+            g.strokeStyle = '#cbd5e1'; g.lineWidth = 1.4; g.stroke();
+            g.fillStyle = 'rgba(255, 255, 255, 0.6)'; g.beginPath(); g.arc(ph.x - rr * 0.12, ph.y - rr * 0.12, rr * 0.1, 0, TAU); g.fill();
+        }
         g.restore();
     }
 
@@ -1178,47 +1500,123 @@
        block's own outline, with the rail round it, drawn as the thing. */
     function deskProp(g, pts, w, v, look, seed) {
         var ax = axisOf(pts), L = ax.len + w, Wd = ax.wid + w;
-        var COVERS = ['#7f2a2a', '#1f4e79', '#2f5d3a', '#6b4a8a', '#8a5a1f'];
-        var m = look === 'book' ? { top: COVERS[(hash(seed) * COVERS.length) | 0], side: '#efe4c8', hi: 'rgba(255, 235, 215, 0.3)', grain: 'rgba(0,0,0,0.2)' }
+        var COVERS = ['#7f2a2a', '#1f4e79', '#2f5d3a', '#6b4a8a', '#8a5a1f', '#0f5e63'];
+        var cover = COVERS[(hash(seed) * COVERS.length) | 0];
+        var m = look === 'book' ? { top: cover, side: '#efe4c8', hi: 'rgba(255, 235, 215, 0.3)', grain: 'rgba(0,0,0,0.2)' }
               : look === 'pencil' ? { top: '#f4c430', side: '#a87d12', hi: 'rgba(255, 250, 210, 0.45)', grain: 'rgba(0,0,0,0.2)' }
-              : { top: '#c9ced6', side: '#5b6370', hi: 'rgba(255, 255, 255, 0.5)', grain: 'rgba(0,0,0,0.2)' };
+              : { top: '#3a3f47', side: '#1c1f24', hi: 'rgba(255, 255, 255, 0.35)', grain: 'rgba(0,0,0,0.2)' };
         solid(g, pts, w, m, v, EXT, m.top);
         g.save();
         g.translate(ax.cx, ax.cy);
         g.rotate(Math.atan2(ax.uy, ax.ux));
-        var hl = L / 2, hw = Wd / 2;
+        var hl = L / 2, hw = Wd / 2, i;
         if (look === 'book') {
-            g.fillStyle = 'rgba(0, 0, 0, 0.25)';
-            g.fillRect(-hl + 1, -hw + 1, 9, Wd - 2);             // the spine
-            g.fillStyle = 'rgba(250, 215, 120, 0.75)';
-            g.fillRect(-hl * 0.45, -hw * 0.18, hl * 0.9, 2.2);   // the title
-            g.fillRect(-hl * 0.3, hw * 0.08, hl * 0.6, 1.4);
-            g.strokeStyle = 'rgba(250, 215, 120, 0.45)';
+            // Cloth: a fine weave across the cover.
+            g.save();
+            g.beginPath(); g.rect(-hl + 1, -hw + 1, L - 2, Wd - 2); g.clip();
+            g.strokeStyle = 'rgba(255, 255, 255, 0.05)';
             g.lineWidth = 1;
-            g.strokeRect(-hl + 14, -hw + 5, L - 20, Wd - 10);
+            for (i = -hl; i < hl + Wd; i += 3) { g.beginPath(); g.moveTo(i, -hw); g.lineTo(i - Wd, hw); g.stroke(); }
+            // Lit towards the top of the cover, shaded towards the bottom.
+            var cg = g.createLinearGradient(0, -hw, 0, hw);
+            cg.addColorStop(0, 'rgba(255, 255, 255, 0.12)');
+            cg.addColorStop(1, 'rgba(0, 0, 0, 0.18)');
+            g.fillStyle = cg;
+            g.fillRect(-hl, -hw, L, Wd);
+            g.restore();
+            // The spine along the top edge, rounded, with raised bands.
+            var sg = g.createLinearGradient(0, -hw, 0, -hw + 14);
+            sg.addColorStop(0, 'rgba(0, 0, 0, 0.45)');
+            sg.addColorStop(0.5, 'rgba(255, 255, 255, 0.12)');
+            sg.addColorStop(1, 'rgba(0, 0, 0, 0.3)');
+            g.fillStyle = sg;
+            g.fillRect(-hl + 1, -hw + 1, L - 2, 13);
+            g.fillStyle = 'rgba(250, 215, 120, 0.55)';
+            for (i = 0; i < 4; i++) g.fillRect(-hl + L * (0.18 + i * 0.21), -hw + 2, 3, 11);
+            // A gold frame, a label with the title on it, and gold corners.
+            g.strokeStyle = 'rgba(250, 215, 120, 0.55)';
+            g.lineWidth = 1.2;
+            g.strokeRect(-hl + 8, -hw + 19, L - 16, Wd - 26);
+            var lw = Math.min(L * 0.42, 110), lh2 = Math.min(Wd * 0.22, 22);
+            g.fillStyle = '#efe4c8';
+            g.fillRect(-lw / 2, 4 - lh2 / 2, lw, lh2);
+            g.strokeStyle = 'rgba(120, 90, 40, 0.6)';
+            g.lineWidth = 0.8;
+            g.strokeRect(-lw / 2 + 2, 4 - lh2 / 2 + 2, lw - 4, lh2 - 4);
+            g.fillStyle = 'rgba(60, 40, 20, 0.7)';
+            g.fillRect(-lw * 0.32, 4 - 1.5, lw * 0.64, 2);
+            g.fillStyle = 'rgba(250, 215, 120, 0.85)';
+            [[-hl + 1, hw - 1, 1, -1], [hl - 1, hw - 1, -1, -1], [hl - 1, -hw + 14, -1, 1]].forEach(function (c) {
+                g.beginPath(); g.moveTo(c[0], c[1]); g.lineTo(c[0] + c[2] * 10, c[1]); g.lineTo(c[0], c[1] + c[3] * 10); g.closePath(); g.fill();
+            });
+            // A ribbon bookmark out of the bottom edge.
+            var rx = -hl + L * (0.3 + hash(seed + 2) * 0.4);
+            g.fillStyle = ['#b91c1c', '#facc15', '#1d4ed8'][(hash(seed + 4) * 3) | 0];
+            g.beginPath();
+            g.moveTo(rx - 3, hw - 2); g.lineTo(rx + 3, hw - 2); g.lineTo(rx + 3, hw + 12); g.lineTo(rx, hw + 9); g.lineTo(rx - 3, hw + 12);
+            g.closePath(); g.fill();
         } else if (look === 'pencil') {
-            // Facets down the length, a sharpened end and an eraser.
+            // Facets down the length, the lit one paler, a sharpened end and
+            // an eraser in its ferrule.
+            g.fillStyle = 'rgba(255, 245, 190, 0.45)';
+            g.fillRect(-hl + 26, -hw * 0.33, L - 48, hw * 0.4);
             g.strokeStyle = 'rgba(120, 80, 0, 0.35)';
             g.lineWidth = 1;
             g.beginPath(); g.moveTo(-hl + 26, -hw * 0.33); g.lineTo(hl - 22, -hw * 0.33);
             g.moveTo(-hl + 26, hw * 0.33); g.lineTo(hl - 22, hw * 0.33); g.stroke();
+            g.fillStyle = 'rgba(40, 20, 0, 0.55)';
+            g.fillRect(-hl + 40, -1, 26, 2);
             g.fillStyle = '#e8c49a';
             g.beginPath(); g.moveTo(hl - 22, -hw); g.lineTo(hl + 2, 0); g.lineTo(hl - 22, hw); g.closePath(); g.fill();
             g.fillStyle = '#374151';
             g.beginPath(); g.moveTo(hl - 6, -hw * 0.3); g.lineTo(hl + 2, 0); g.lineTo(hl - 6, hw * 0.3); g.closePath(); g.fill();
             g.fillStyle = '#b8bec8'; g.fillRect(-hl + 14, -hw, 12, Wd);
+            g.fillStyle = 'rgba(0, 0, 0, 0.2)';
+            for (i = 0; i < 3; i++) g.fillRect(-hl + 16 + i * 4, -hw, 1, Wd);
             g.fillStyle = '#f9a8b4'; g.fillRect(-hl, -hw, 14, Wd);
+            g.fillStyle = 'rgba(255, 255, 255, 0.35)'; g.fillRect(-hl + 2, -hw + 2, 10, hw * 0.5);
         } else {
-            // The arm: a counterweight and pivot at one end, the headshell
-            // at the other.
-            g.fillStyle = '#3f4652';
-            g.beginPath(); g.arc(-hl + hw, 0, hw * 1.1, 0, TAU); g.fill();
-            g.fillStyle = '#9aa3af';
-            g.beginPath(); g.arc(-hl + hw, 0, hw * 0.55, 0, TAU); g.fill();
-            g.fillStyle = 'rgba(255, 255, 255, 0.5)';
-            g.fillRect(-hl + hw * 2.2, -1, L - hw * 4, 2);
+            /* The arm lying in its rest on a brushed plinth: the pivot and
+               its counterweight at one end, a chrome tube with a crank near
+               the head, and the headshell with its finger lift. */
+            g.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+            g.lineWidth = 1;
+            for (i = -hw + 3; i < hw; i += 2.5) { g.beginPath(); g.moveTo(-hl + 3, i); g.lineTo(hl - 3, i); g.stroke(); }
+            var px = -hl + Math.max(hw * 1.2, 16), pr = Math.max(hw * 0.95, 11);
+            g.fillStyle = '#111317';
+            g.beginPath(); g.arc(px, 0, pr, 0, TAU); g.fill();
+            var pg = g.createRadialGradient(px - pr * 0.3, -pr * 0.3, 1, px, 0, pr * 0.7);
+            pg.addColorStop(0, '#f1f5f9'); pg.addColorStop(1, '#64748b');
+            g.fillStyle = pg;
+            g.beginPath(); g.arc(px, 0, pr * 0.62, 0, TAU); g.fill();
+            // Counterweight behind the pivot.
+            var cw = Math.max(hw * 0.75, 9);
             g.fillStyle = '#1f2937';
-            g.fillRect(hl - 22, -hw * 0.9, 20, hw * 1.8);
+            g.fillRect(-hl + 2, -cw / 2, px - (-hl + 2) - pr * 0.4, cw);
+            g.fillStyle = 'rgba(255, 255, 255, 0.18)';
+            g.fillRect(-hl + 2, -cw / 2, px - (-hl + 2) - pr * 0.4, cw * 0.3);
+            // The tube, cranked near the head.
+            var hx = hl - 26, kx = hx - Math.min(40, L * 0.18), tube = Math.max(3, hw * 0.28);
+            g.lineCap = 'round';
+            g.strokeStyle = '#94a3b8';
+            g.lineWidth = tube;
+            g.beginPath(); g.moveTo(px, 0); g.lineTo(kx, 0); g.lineTo(hx, -hw * 0.35); g.stroke();
+            g.strokeStyle = 'rgba(255, 255, 255, 0.8)';
+            g.lineWidth = tube * 0.35;
+            g.beginPath(); g.moveTo(px + pr * 0.6, -tube * 0.25); g.lineTo(kx, -tube * 0.25); g.lineTo(hx, -hw * 0.35 - tube * 0.25); g.stroke();
+            // Headshell, cartridge and finger lift.
+            g.save();
+            g.translate(hx, -hw * 0.35);
+            g.rotate(-0.25);
+            g.fillStyle = '#111827';
+            g.fillRect(-2, -hw * 0.5, 24, hw);
+            g.fillStyle = '#b91c1c';
+            g.fillRect(6, -hw * 0.3, 10, hw * 0.6);
+            g.strokeStyle = '#cbd5e1';
+            g.lineWidth = 1.5;
+            g.beginPath(); g.moveTo(14, -hw * 0.5); g.quadraticCurveTo(18, -hw * 0.95, 24, -hw * 0.85); g.stroke();
+            g.restore();
+            g.lineCap = 'butt';
         }
         g.restore();
     }
@@ -1226,7 +1624,7 @@
     /* A mug of coffee, an ink pot and a planet: round, the block's disc
        and its rail. */
     function roundProp(g, p, w, v, look, seed) {
-        var r0 = p.r + w / 2, sh = sv(v, Math.min(7, r0 * 0.2), Math.min(10, r0 * 0.3)), lt = sv(v, -0.35, -0.4), gr;
+        var r0 = p.r + w / 2, sh = sv(v, Math.min(7, r0 * 0.2), Math.min(10, r0 * 0.3)), lt = sv(v, -0.35, -0.4), gr, k;
         g.save();
         g.fillStyle = 'rgba(0, 0, 0, 0.28)';
         g.beginPath(); g.arc(p.x + sh.x, p.y + sh.y, r0, 0, TAU); g.fill();
@@ -1241,31 +1639,92 @@
             g.fillStyle = '#3b2312'; g.beginPath(); g.arc(p.x, p.y, r0 * 0.8, 0, TAU); g.fill();
             g.strokeStyle = 'rgba(214, 160, 100, 0.55)'; g.lineWidth = 2;
             g.beginPath(); g.arc(p.x, p.y, r0 * 0.66, 0.4, 5.2); g.stroke();
+            g.fillStyle = 'rgba(255, 255, 255, 0.22)';
+            g.beginPath(); g.ellipse(p.x + lt.x * r0 * 0.35, p.y + lt.y * r0 * 0.35, r0 * 0.28, r0 * 0.12, -0.7, 0, TAU); g.fill();
+            // A wisp of steam.
+            var up = sv(v, 0.3, -1);
+            g.strokeStyle = 'rgba(255, 255, 255, 0.35)';
+            g.lineWidth = 2.2; g.lineCap = 'round';
+            g.beginPath();
+            g.moveTo(p.x, p.y);
+            g.bezierCurveTo(p.x + up.x * r0 * 0.5 + 6, p.y + up.y * r0 * 0.5, p.x + up.x * r0 - 6, p.y + up.y * r0, p.x + up.x * r0 * 1.5, p.y + up.y * r0 * 1.5);
+            g.stroke();
         } else if (look === 'inkpot') {
+            /* A glass ink pot, the ink glossy inside it and a drip down its
+               near side, and a quill standing in it. */
             gr = g.createRadialGradient(p.x + lt.x * r0, p.y + lt.y * r0, r0 * 0.1, p.x, p.y, r0);
-            gr.addColorStop(0, 'rgba(220, 240, 255, 0.95)'); gr.addColorStop(1, 'rgba(120, 150, 180, 0.9)');
+            gr.addColorStop(0, 'rgba(235, 245, 255, 0.98)'); gr.addColorStop(0.7, 'rgba(160, 185, 210, 0.95)'); gr.addColorStop(1, 'rgba(90, 115, 145, 0.95)');
             g.fillStyle = gr; g.beginPath(); g.arc(p.x, p.y, r0, 0, TAU); g.fill();
-            g.fillStyle = '#121a4a'; g.beginPath(); g.arc(p.x, p.y, r0 * 0.72, 0, TAU); g.fill();
-            g.fillStyle = 'rgba(255, 255, 255, 0.35)';
-            g.beginPath(); g.ellipse(p.x + lt.x * r0 * 0.4, p.y + lt.y * r0 * 0.4, r0 * 0.25, r0 * 0.1, -0.7, 0, TAU); g.fill();
+            g.strokeStyle = 'rgba(255, 255, 255, 0.6)'; g.lineWidth = 1.5;
+            g.beginPath(); g.arc(p.x, p.y, r0 * 0.92, Math.PI * 1.05, Math.PI * 1.6); g.stroke();
+            g.fillStyle = '#1e293b'; g.beginPath(); g.arc(p.x, p.y, r0 * 0.7, 0, TAU); g.fill();
+            var ig = g.createRadialGradient(p.x + lt.x * r0 * 0.4, p.y + lt.y * r0 * 0.4, 1, p.x, p.y, r0 * 0.6);
+            ig.addColorStop(0, '#3b4ba8'); ig.addColorStop(1, '#0b1033');
+            g.fillStyle = ig; g.beginPath(); g.arc(p.x, p.y, r0 * 0.58, 0, TAU); g.fill();
+            g.fillStyle = 'rgba(255, 255, 255, 0.45)';
+            g.beginPath(); g.ellipse(p.x + lt.x * r0 * 0.3, p.y + lt.y * r0 * 0.3, r0 * 0.2, r0 * 0.07, -0.7, 0, TAU); g.fill();
+            var dd = sv(v, 0.25, 1);
+            g.fillStyle = 'rgba(15, 23, 70, 0.9)';
+            g.beginPath();
+            g.moveTo(p.x + dd.x * r0 * 0.55 - 3, p.y + dd.y * r0 * 0.55);
+            g.lineTo(p.x + dd.x * r0 * 0.55 + 3, p.y + dd.y * r0 * 0.55);
+            g.lineTo(p.x + dd.x * r0 * 1.02, p.y + dd.y * r0 * 1.02);
+            g.closePath(); g.fill();
+            g.beginPath(); g.arc(p.x + dd.x * r0 * 1.02, p.y + dd.y * r0 * 1.02, 2.4, 0, TAU); g.fill();
+            // The quill: shaft out of the ink, leaning up and right, and its vane.
+            var qd = sv(v, 0.55, -1), ql = Math.hypot(qd.x, qd.y); qd = { x: qd.x / ql, y: qd.y / ql };
+            var qn = { x: -qd.y, y: qd.x }, Lq = r0 * 2.1, q0 = { x: p.x + qd.x * r0 * 0.1, y: p.y + qd.y * r0 * 0.1 };
+            g.lineCap = 'round';
+            g.strokeStyle = '#e7e0cf'; g.lineWidth = 1.6;
+            g.beginPath(); g.moveTo(q0.x, q0.y); g.lineTo(q0.x + qd.x * Lq, q0.y + qd.y * Lq); g.stroke();
+            g.fillStyle = '#f8f5ec';
+            g.beginPath();
+            g.moveTo(q0.x + qd.x * Lq * 0.3, q0.y + qd.y * Lq * 0.3);
+            g.quadraticCurveTo(q0.x + qd.x * Lq * 0.6 + qn.x * r0 * 0.5, q0.y + qd.y * Lq * 0.6 + qn.y * r0 * 0.5, q0.x + qd.x * Lq * 1.05, q0.y + qd.y * Lq * 1.05);
+            g.quadraticCurveTo(q0.x + qd.x * Lq * 0.65 - qn.x * r0 * 0.3, q0.y + qd.y * Lq * 0.65 - qn.y * r0 * 0.3, q0.x + qd.x * Lq * 0.3, q0.y + qd.y * Lq * 0.3);
+            g.fill();
+            g.strokeStyle = 'rgba(120, 110, 95, 0.45)'; g.lineWidth = 0.7;
+            for (k = 0; k < 7; k++) {
+                var t = 0.38 + k * 0.09, bx = q0.x + qd.x * Lq * t, by = q0.y + qd.y * Lq * t;
+                g.beginPath(); g.moveTo(bx, by); g.lineTo(bx + qn.x * r0 * 0.3 + qd.x * 4, by + qn.y * r0 * 0.3 + qd.y * 4); g.stroke();
+            }
+            g.lineCap = 'butt';
         } else {
-            var hue = Math.floor(hash(seed) * 360);
+            /* A planet: banded, lit from one side, with a thin bright rim of
+               atmosphere — and on most, a ring that passes behind it and in
+               front of it, as a ring does. */
+            var hue = Math.floor(hash(seed) * 360), ringed = hash(seed + 3) < 0.6, tilt = -0.4 + (hash(seed + 5) - 0.5) * 0.3;
+            function ring(from, to) {
+                g.lineWidth = Math.max(3, r0 * 0.12);
+                g.strokeStyle = 'rgba(230, 220, 200, 0.75)';
+                g.beginPath(); g.ellipse(p.x, p.y, r0 * 1.05, r0 * 0.32, tilt, from, to); g.stroke();
+                g.lineWidth = Math.max(1.5, r0 * 0.05);
+                g.strokeStyle = 'rgba(180, 160, 130, 0.6)';
+                g.beginPath(); g.ellipse(p.x, p.y, r0 * 0.9, r0 * 0.26, tilt, from, to); g.stroke();
+            }
+            if (ringed) ring(Math.PI, TAU);
             g.save();
             g.beginPath(); g.arc(p.x, p.y, r0 * 0.8, 0, TAU); g.clip();
             g.fillStyle = 'hsl(' + hue + ', 55%, 52%)';
             g.fillRect(p.x - r0, p.y - r0, r0 * 2, r0 * 2);
-            for (var k = -3; k <= 3; k++) {
+            for (k = -3; k <= 3; k++) {
                 g.fillStyle = k % 2 ? 'hsla(' + (hue + 20) + ', 60%, 40%, 0.55)' : 'hsla(' + (hue - 15) + ', 50%, 70%, 0.35)';
-                g.fillRect(p.x - r0, p.y + k * r0 * 0.24 - r0 * 0.07, r0 * 2, r0 * 0.14);
+                g.beginPath();
+                g.ellipse(p.x, p.y + k * r0 * 0.24, r0 * 1.1, r0 * 0.07 + hash(seed + k) * r0 * 0.04, 0, 0, TAU);
+                g.fill();
+            }
+            if (hash(seed + 7) < 0.5) {
+                g.fillStyle = 'hsla(' + (hue + 180) + ', 45%, 60%, 0.55)';
+                g.beginPath(); g.ellipse(p.x + r0 * 0.25, p.y + r0 * 0.2, r0 * 0.16, r0 * 0.09, 0, 0, TAU); g.fill();
             }
             gr = g.createRadialGradient(p.x + lt.x * r0, p.y + lt.y * r0, r0 * 0.1, p.x, p.y, r0 * 0.8);
             gr.addColorStop(0, 'rgba(255, 255, 255, 0.25)'); gr.addColorStop(1, 'rgba(0, 0, 20, 0.6)');
             g.fillStyle = gr; g.fillRect(p.x - r0, p.y - r0, r0 * 2, r0 * 2);
             g.restore();
-            if (hash(seed + 3) < 0.6) {
-                g.strokeStyle = 'rgba(230, 220, 200, 0.7)'; g.lineWidth = Math.max(2, r0 * 0.07);
-                g.beginPath(); g.ellipse(p.x, p.y, r0 * 0.98, r0 * 0.3, -0.4, 0, TAU); g.stroke();
-            }
+            g.strokeStyle = 'hsla(' + hue + ', 80%, 85%, 0.45)';
+            g.lineWidth = 1.5;
+            g.beginPath(); g.arc(p.x, p.y, r0 * 0.8, Math.PI * 0.9, Math.PI * 1.75); g.stroke();
+            if (ringed) ring(0, Math.PI);
         }
         g.restore();
     }
@@ -2643,6 +3102,9 @@
         for (i = 0; i < (course.blocks || []).length; i++) drawBlock(g, course.blocks[i], theme, v, course);
     }
 
+    // How far past its footprint a look reaches, as a share of its size.
+    var TALL = { lighthouse: 2, snowman: 1.2, igloo: 0.6, inkpot: 1.4, mug: 1, rocket: 1.8, scarecrow: 1.2, parasol: 0.5 };
+
     // The box the still walls' layer has to cover for these.
     function extent(course) {
         var b = { x0: Infinity, y0: Infinity, x1: -Infinity, y1: -Infinity };
@@ -2652,7 +3114,10 @@
             b.y0 = Math.min(b.y0, a.y - r); b.y1 = Math.max(b.y1, a.y + r);
         });
         (course.blocks || []).forEach(function (k) {
-            var bb = boxOf(k.pts), pad = (k.w || 20) / 2 + 40;
+            // Things that stand up — a lighthouse and its glow, a snowman's
+            // hat — reach well past their footprint.
+            var bb = boxOf(k.pts), tall = TALL[k.look] || 0;
+            var pad = (k.w || 20) / 2 + 40 + tall * Math.max(bb.x1 - bb.x0, bb.y1 - bb.y0);
             b.x0 = Math.min(b.x0, bb.x0 - pad); b.x1 = Math.max(b.x1, bb.x1 + pad);
             b.y0 = Math.min(b.y0, bb.y0 - pad); b.y1 = Math.max(b.y1, bb.y1 + pad);
         });

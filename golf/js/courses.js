@@ -684,7 +684,8 @@
                 shape(smooth([760, 0, 960, 0, 960, 330, 900, 270, 860, 120], 1))
             ],
             sand: [shape(smooth([330, 446, 640, 446, 670, 510, 640, 574, 320, 574, 300, 510], 1))],
-            blocks: [block('hut', smooth([30, 520, 110, 520, 110, 600, 30, 600], 0))]
+            // A parasol and a towel on the beach in the corner.
+            blocks: [block('parasol', smooth([30, 520, 110, 520, 110, 600, 30, 600], 0))]
         },
         {
             name: 'Ducks and Drakes',
@@ -1369,7 +1370,8 @@
             tee: { x: 110, y: 400 },
             hole: { x: 850, y: 400 },
             hills: [bowl(480, 300, 170, 120)],
-            blocks: [block('planet', oval(480, 560, 40, 40, 18))],
+            // The rocket the card is named for, on its pad.
+            blocks: [block('rocket', oval(480, 560, 40, 40, 18))],
             bumpers: [post(860, 560, 18), post(300, 100, 16)]
         },
         mirror({
@@ -1482,7 +1484,8 @@
             hole: { x: 850, y: 320 },
             blocks: [
                 block('fan', [400, 0, 560, 0, 560, 70, 400, 70]),
-                block('bed', smooth([0, 640, 0, 500, 120, 540, 190, 640])),
+                // A vegetable patch with its scarecrow, and a bed.
+                block('scarecrow', smooth([0, 640, 0, 500, 120, 540, 190, 640])),
                 block('bed', smooth([960, 640, 760, 640, 820, 560, 960, 520]))
             ],
             slopes: [{ x: 400, y: 80, w: 160, h: 400, ax: 0, ay: 150, wind: true }],
@@ -1760,7 +1763,8 @@
             hole: { x: 470, y: 300 },
             arcs: [arc(470, 300, 190, 95, 415, 24)],
             hills: [bowl(470, 300, 100, 25)],
-            blocks: [block('bed', smooth([960, 0, 960, 260, 860, 230, 780, 120, 760, 0]))]
+            // A snowbank in the corner, and an igloo on it.
+            blocks: [block('igloo', smooth([960, 0, 960, 260, 860, 230, 780, 120, 760, 0]))]
         },
         {
             name: 'Curling',
