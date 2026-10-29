@@ -611,6 +611,10 @@ button,
     gap: 0.18rem;
     padding: clamp(0.8rem, 5vh, 2.6rem) 1rem 0;
     text-align: center;
+    /* `.stage` sets line-height to 0 for the canvas, and the stats line sets
+       none of its own: the moment it wrapped, on a phone, both lines were
+       drawn on the same row. */
+    line-height: 1.35;
     background: radial-gradient(ellipse at 50% 62%, rgba(4, 14, 24, 0), rgba(4, 14, 24, 0.34) 78%);
     opacity: 0;
     pointer-events: none;
@@ -3779,6 +3783,13 @@ body.compact-ui .picker { padding-top: 52px; }
     pointer-events: none;
 }
 .swipe-cue[hidden] { display: none; }
+/* Nor while the picker is up: the lane is a panel up the middle of the stage,
+   which is where the row comes out, and it is drawn over the canvas — so it
+   sat across the clubs and took the taps meant for them. You cannot swing a
+   club you are still choosing (see `.stage.picker-open .controls`). */
+.stage.picker-open .swipe,
+.stage.picker-open .arc,
+.stage.picker-open .needle,
 .stage.flying .swipe,
 .stage.flying .arc,
 .stage.flying .needle,

@@ -3897,8 +3897,15 @@
                 massif(-10, 20, 13, 2.6, 5),
                 [hill(6, 27, 1.9, -0.22), hill(6.5, 34, 2.2, 0.35)]
             );
-            var park = commons(-6, [
-                [{ d: 6, y: 1.6 },      [4, rgh], [9, fwy], [9, rgh]],
+            /* The tee box is four and a half units deeper than it was
+               built, and the tee the same distance further back: a livelier
+               landing (CONFIG.LAND_FIRM) ran the drive on up the climb to the
+               green instead of stopping at the foot of it, which is where the
+               second shot lives. `mow` pins the seed the original rows gave,
+               so the fairway's edge is the same edge; the rough's hummocks
+               are dealt again, because they keep clear of the tee. */
+            var park = commons(-10.5, [
+                [{ d: 10.5, y: 1.6 },   [4, rgh], [9, fwy], [9, rgh]],
                 [5,                     [4, rgh], [9, fwy], [9, rgh]],
                 [{ d: 4, sz: -0.09 },   [4, rgh], [9, fwy], [9, rgh]],
                 [{ d: 4, sz: -0.09 },   [4, rgh], [8, fwy], [10, rgh]],
@@ -3910,7 +3917,7 @@
                 [{ d: 4, sz: 0.15 }, [6, rgh], [11, fwy], [5, rgh]],
                 [9,  [5, rgh], [12, fwy], [5, rgh]],
                 [5,  [22, rgh]]
-            ], { e: 5, w: 24 });
+            ], { e: 5, w: 24, mow: 13344 });
             /* The lake is three pools stepping down the fall, each in its own
                hollow and at its own level — one sheet of water cannot lie on
                ground that drops two units along it, which is why it used to
@@ -3939,7 +3946,7 @@
                     crags(1.4, 46, 3, 5, 7137, { s: 1.3, h: 1.0 }),
                     [tree(21.4, 45.5), tree(21.4, 53.5), tree(23.6, 30.5), tree(24.2, 36)]
                 ),
-                tee: { x: 8.5, z: -3.5 }, cup: { x: 12.5, z: 48 }
+                tee: { x: 8.5, z: -8 }, cup: { x: 12.5, z: 48 }
             });
         })()
     ];
@@ -5940,7 +5947,7 @@
                     crags(20.5, 16, 3, 4, 8117, { s: 1.15, h: 0.9 }),
                     [tree(2.2, 55), tree(4, 58)]
                 ),
-                tee: { x: 11, z: 3 }, cup: { x: 11.5, z: 55.5 }
+                tee: { x: 11, z: 2 }, cup: { x: 11.5, z: 55.5 }
             });
         })(),
         (function () {

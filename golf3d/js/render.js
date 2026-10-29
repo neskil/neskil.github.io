@@ -3997,6 +3997,9 @@
        strength. Without it the shaded face of every rail on the course is the
        flat ambient colour and the hole reads as a diagram; with it there is a
        bounce off the ground and the boxes turn into objects. */
+    // How much of the course's light is taken away with the bag fully open.
+    var COURSE_DIM = 0.7;
+
     function lights(group, hole, theme, weather) {
         var cx = (hole.bounds.minX + hole.bounds.maxX) / 2;
         var cz = (hole.bounds.minZ + hole.bounds.maxZ) / 2;
@@ -4053,6 +4056,9 @@
         fill.target.position.set(cx, 0, cz);
         group.add(fill);
         group.add(fill.target);
+        // Kept with what they were lit at, for the bag to turn down (frame).
+        R.courseLights = [amb, sun, fill];
+        R.courseLights.forEach(function (l) { l.userData.base = l.intensity; });
     }
 
     /* How far a hole asks you to see.
@@ -4379,7 +4385,7 @@
     var LINE_ALPHA = 0.92;
     var LINE_HALF = 0.032;
     var LINE_GROW = 0.0035;
-    var _path = { valid: false, x: 0, y: 0, z: 0, yaw: 0, power: 0, loft: 0, over: 0, bend: 0, spin: 0, bite: 0, t: 0 };
+    var _path = { valid: false, x: 0, y: 0, z: 0, yaw: 0, power: 0, loft: 0, over: 0, bend: 0, spin: 0, bite: 0, topped: false, t: 0 };
 
     function clearPathCache() { _path.valid = false; }
 
@@ -4392,13 +4398,13 @@
             _path.yaw === aim.yaw && _path.power === aim.power &&
             _path.loft === aim.loft && _path.over === (aim.over || 0) &&
             _path.bend === (aim.bend || 0) && _path.spin === (aim.spin || 0) &&
-            _path.bite === (aim.bite || 0) && _path.t === t) return false;
+            _path.bite === (aim.bite || 0) && _path.topped === !!aim.topped && _path.t === t) return false;
         _path.valid = true;
         _path.x = b.x; _path.y = b.y; _path.z = b.z;
         _path.yaw = aim.yaw; _path.power = aim.power; _path.loft = aim.loft;
         _path.over = aim.over || 0;
         // A shaped shot (swing.js) is the same aim on a different flight.
-        _path.bend = aim.bend || 0; _path.spin = aim.spin || 0; _path.bite = aim.bite || 0;
+        _path.bend = aim.bend || 0; _path.spin = aim.spin || 0; _path.bite = aim.bite || 0; _path.topped = !!aim.topped;
         _path.t = t;
         return true;
     }
@@ -4429,7 +4435,7 @@
         var spread = P.spray(aim.over || 0);
         var angle = C.CONE_ANGLE + spread.yaw;
         var seconds = 0.5 + frac * 0.5;
-        var pts = P.previewPath(world, aim.yaw + (aim.bend || 0), aim.power, aim.loft, seconds, aim.bite, aim.spin);
+        var pts = P.previewPath(world, aim.yaw + (aim.bend || 0), aim.power, aim.loft, seconds, aim.bite, aim.spin, aim.topped);
 
         /* Under MIN_POWER there is no shot to preview: launch() refuses it and
            previewPath hands back nothing. Park the cone and the arrowhead
@@ -5309,6 +5315,18 @@
         if (G3.bag) {
             G3.bag.setVisible(!R.fly && !R.replay && R.cam.mode !== 'demo');
             G3.bag.update(dt, R.camera, R.camera.aspect);
+            /* And the course's own light goes down as the clubs come out.
+               Those three are the hole's weather — a dusk sky, a low sun — and
+               they light the clubs as well as the course, so the same row read
+               bright on one hole and murky on the next. Turned most of the way
+               down, what is left on the clubs is the bag's studio and its
+               spotlight, which are the same everywhere. The course is behind
+               the scrim by then and going dark anyway; the sky and the water
+               are unlit and keep their colour. */
+            var dim = 1 - COURSE_DIM * G3.bag.state.open01;
+            if (R.courseLights) R.courseLights.forEach(function (l) {
+                l.intensity = l.userData.base * dim;
+            });
         }
 
         if (R.fx && G3.postfx.render(R.scene, R.camera, sunOnScreen(), dt)) return;

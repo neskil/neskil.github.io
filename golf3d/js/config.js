@@ -8,7 +8,7 @@
    — the renderer scales to the viewport, the simulation never sees a pixel. */
 window.G3 = window.G3 || {};
 
-G3.VERSION = '1.107.0';
+G3.VERSION = '1.110.0';
 
 G3.CONFIG = {
     BALL_R: 0.16,
@@ -33,7 +33,16 @@ G3.CONFIG = {
        headless tests step at a fixed dt and trust the result. */
     FRICTION: {
         green: 0.30,
-        fairway: 0.22, // mown, but not shaved: a driver runs about a fifth less
+        /* Mown, but not shaved. It used to be 0.22, which with ROLL's 1.0 put
+           nearly all of a fairway's grip in the half that is proportional to
+           speed: a landing drive lost half its pace in under half a second
+           and then dawdled, so the long clubs felt as if the turf caught them
+           and the last of every run was a crawl. A little more than the green's
+           here and more of the constant half (ROLL) is a ball that carries on
+           after it lands and then stops. It may not go under the green's: drag
+           is what a fast ball feels, and a putt struck from the apron must
+           never run further than the same putt on the green. */
+        fairway: 0.28,
         wood: 0.55,    // bridges and ramps: slick, you carry your speed
         /* Ice, and the number is chosen off the length of a lane rather than
            off any physics. A putter at full power coasts v/-ln(k): eight and a
@@ -49,7 +58,7 @@ G3.CONFIG = {
            shape of the ground does more of the work. */
         glass: 0.40,
         sand: 0.004,   // a bunker eats a shot
-        rough: 0.06,
+        rough: 0.135,  // was 0.06, for the same reason as the fairway: ROLL holds it now
         cup: 0.004     // the bottom of the hole: whatever lands here stays
     },
     FRICTION_DEFAULT: 0.30,
@@ -67,12 +76,15 @@ G3.CONFIG = {
        rough a lot. Wood and ice have none on purpose — they are the slick
        surfaces and a plank that stopped a ball would not be a ramp. Sand's
        drag already stops anything. Landing bounces never see it: it is
-       applied to a rolling ball only. */
+       applied to a rolling ball only.
+
+       The fairway's and the rough's were 1.0 and 2.0 under much heavier drag;
+       see the note on FRICTION.fairway for why the weight moved here. */
     ROLL: {
         green: 0.25,
         glass: 0.15,
-        fairway: 1.0,
-        rough: 2.0
+        fairway: 2.4,
+        rough: 4.0
     },
     ROLL_DEFAULT: 0,
 
@@ -116,6 +128,39 @@ G3.CONFIG = {
     },
     HOLD_DEFAULT: 0.22,
 
+    /* Turf sitting a slow ball down: the speed, per surface, under which the
+       ground starts to take hold of a ball. Below it the rolling resistance
+       climbs from ROLL's to the whole of the surface's HOLD (as a
+       deceleration, g·HOLD) at a standstill — physics.runOut has the
+       arithmetic, and it stays exact.
+
+       It is the other half of HOLD. A ball does not have one grip for
+       standing still and another for rolling slowly: the grass that keeps a
+       stopped ball on a bank is the grass that stops a slow one there. With
+       the two numbers apart — HOLD.fairway is a deceleration of 5.8, ROLL's
+       was 1 — a ball on any slope between about four degrees and the angle
+       of repose was too heavy for the rolling half and too quick for the
+       standing half, and settled into a walking-pace creep it never came out
+       of: a putt that just missed would trickle down a gentle green for ten
+       seconds, a ball short of a rising fairway would ease back down the
+       whole of it. Now a slow ball on ground that would hold it stops, and
+       one on ground that would not goes down it at a proper roll.
+
+       Only what a ball sinks into. Wood, glass and ice are hard, and a plank
+       that grabbed a slow ball would not send half measures back down a
+       ramp. And only the long game's grass: a mini golf green is felt, and
+       its holes are built to the hole lab's ace windows at the pace a putt
+       always had — sitting the ball down there closed three of them. A ball
+       faster than this never feels it, so a putt's length is its pace as it
+       always was, give or take its last few centimetres. */
+    SIT: {
+        green: 1.0,
+        fairway: 1.5,
+        rough: 1.5,
+        sand: 1.5
+    },
+    SIT_DEFAULT: 0,
+
     /* The driver's ceiling, and so the top of the meter. At full power the
        ball would coast v0 / -ln(k) ≈ 23 units on grass. That is
        longer than any mini golf hole here and shorter than most of a links
@@ -125,7 +170,7 @@ G3.CONFIG = {
        will not take a ball arriving much above 7. On the long courses the same
        number is a tee shot, and the skill is in what the ground does with it
        afterwards. */
-    MAX_POWER: 28,
+    MAX_POWER: 24,
     MIN_POWER: 0.9,
 
     /* Past a full swing the meter keeps going. OVERDRAW is how much further,
@@ -180,6 +225,28 @@ G3.CONFIG = {
        curving along the ground would be a putt with a mind of its own. */
     SPIN_ACCEL: 0.55,
     SPIN_LAND: 0.25,
+
+    /* The long game's flight: backspin, as lift (physics.carryFlight). A
+       struck ball is pushed square to the way it is going by AIR_LIFT times
+       its own speed, and the spin wears off at AIR_DECAY per second, so the
+       lift is strong off the face and nearly gone by the time the ball comes
+       down. Without it every shot was a parabola — up at the launch angle,
+       the top exactly halfway, down at the launch angle — which is a thrown
+       ball, not a struck one. With it a drive starts low, climbs, peaks past
+       halfway and drops in steeper than it rose, and the iron hangs.
+
+       There is no drag, on purpose. Lift does no work, so the ball lands as
+       fast as it left and the turf's run is the run it was tuned for; drag
+       took a fifth off every drive's total for a shape that the decaying
+       lift gives on its own.
+
+       AIR_LOFT is which launches fly it: the driver and the iron, and a
+       topped one of either, wherever they are played. The pitch and the
+       wedge are steep enough that a parabola is what they look like anyway,
+       and mini golf's chips are built on the plain arc. */
+    AIR_LIFT: 1.4,
+    AIR_DECAY: 3,
+    AIR_LOFT: 32 * Math.PI / 180,
 
     /* The swing gate itself — what a shot past a full swing has to do to keep
        its line. All of the difficulty is these numbers.
@@ -362,10 +429,16 @@ G3.CONFIG = {
            up for over a second: three times the height, half as much again in
            carry, and a quarter more in all, because a ball coming down
            steeper runs out less. The putter, the mallet and both wedges are
-           shared with mini golf and are untouched. */
+           shared with mini golf and are untouched.
+
+           Then the flight got its lift (AIR_LIFT), and the driver went back
+           down to 12°: a lifted ball does its own climbing, so it comes off
+           the face low, rises and hangs, where at 21° it had been a lob. 24
+           of pace at 12° runs out exactly as far as 28 at 21° did and carries
+           two units more of it, because more of the distance is in the air. */
         {
             id: 'driver', name: 'Driver', short: 'DR', key: '2',
-            loft: 21 * Math.PI / 180, power: 28, carry: 29.1, total: 39.5,
+            loft: 12 * Math.PI / 180, power: 24, carry: 31.4, total: 41.4,
             shapes: ['draw', 'fade', 'topped'],
             blurb: 'The reach club. Up and away, and it still runs.'
         },
@@ -375,11 +448,13 @@ G3.CONFIG = {
            lands, which is
            what a green with water in front of it needs and what nothing else
            in the bag could do. It is also the club for a long second shot:
-           under half a driver, and it stops. At 30° it now flies twelve and
-           climbs nearly two, so it gets over a tree as well as a pond. */
+           under half a driver, and it stops. At 30° it flew twelve and climbed
+           nearly two, so it got over a tree as well as a pond; at 22° with the
+           flight's lift it flies thirteen and climbs two, and finishes where
+           it did. */
         {
             id: 'iron', name: '7 Iron', short: '7i', key: '3',
-            loft: 30 * Math.PI / 180, power: 16, carry: 12.3, total: 17.8,
+            loft: 22 * Math.PI / 180, power: 14.7, carry: 13.1, total: 17.9,
             shapes: ['draw', 'fade', 'backspin', 'topped'],
             blurb: 'The long approach. Carries what the driver runs into.'
         },
@@ -396,13 +471,13 @@ G3.CONFIG = {
            stopping, which is the whole reason to reach for either. */
         {
             id: 'chipper', name: 'Pitch', short: 'PW', key: '4',
-            loft: 45 * Math.PI / 180, power: 11.7, carry: 7.6, total: 14.1,
+            loft: 45 * Math.PI / 180, power: 11.7, carry: 7.6, total: 14.6,
             shapes: ['backspin', 'topped'],
             blurb: 'Up steep and down steeper. Stops near where it lands.'
         },
         {
             id: 'wedge', name: 'Wedge', short: 'LW', key: '5',
-            loft: 58 * Math.PI / 180, power: 12.1, carry: 7.3, total: 12.7,
+            loft: 58 * Math.PI / 180, power: 12.1, carry: 7.3, total: 13.0,
             shapes: ['backspin'],
             blurb: 'The lob. Straight up over water, sand and trees.'
         }
@@ -445,7 +520,7 @@ G3.CONFIG = {
            different problems. */
         {
             id: 'checker', name: 'Checker', short: 'CK', key: '7',
-            loft: 38 * Math.PI / 180, power: 13.5, bite: 0.78, carry: 9.9, total: 11.4,
+            loft: 38 * Math.PI / 180, power: 13.5, bite: 0.78, carry: 9.9, total: 11.5,
             blurb: 'Lands and stops. The one club that gives up its run on purpose.'
         }
     ],
@@ -492,6 +567,15 @@ G3.CONFIG = {
         rough:   { grip: 0.55, bounce: 0.16 }
     },
     LANDING_DEFAULT: null,   // filled in below, from LAND_GRIP and BOUNCE
+    /* How hard a landing has to be to cost a surface its whole grip. A ball
+       that comes down from a real flight pays all of it; a hop pays in
+       proportion to how hard it lands, so a grass-height skip on the way out
+       of a drive costs a few per cent rather than another thirty. Every full
+       swing in the bag lands harder than this, so the first bounce is the
+       one LANDING describes; it was the second and third that used to take
+       the same again and leave a driver running out at a third of the pace
+       it landed with. */
+    LAND_FIRM: 2.5,
     STOP_SPEED: 0.24,     // below this on a lie that will hold it, the ball is at rest
 
     /* Strokes over par at which a hole is picked up: a shot that ends there

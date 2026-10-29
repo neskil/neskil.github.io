@@ -47,9 +47,18 @@
     function landingOf(kind) {
         return C.LANDING[kind] || C.LANDING_DEFAULT;
     }
+    // What one landing keeps of the ground speed: the surface's whole grip
+    // from a real fall, less of it from a hop. See CONFIG.LAND_FIRM.
+    function landGrip(grip, impact) {
+        return 1 - (1 - grip) * Math.min(1, impact / C.LAND_FIRM);
+    }
     // The constant part of the ground's drag, per surface. See CONFIG.ROLL.
     function rollOf(kind) {
         return C.ROLL[kind] !== undefined ? C.ROLL[kind] : C.ROLL_DEFAULT;
+    }
+    // The speed below which this surface starts to sit a ball down. See CONFIG.SIT.
+    function sitOf(kind) {
+        return C.SIT[kind] !== undefined ? C.SIT[kind] : C.SIT_DEFAULT;
     }
     // The steepest lie this surface will hold a stopped ball on. See CONFIG.HOLD.
     function holdOf(kind) {
@@ -1041,6 +1050,7 @@
             time: w.time,
             grounded: w.grounded,
             spin: w.spin || 0,
+            lift: w.lift || 0,
             slowFor: w.slowFor,
             moving: w.moving,
             sunk: w.sunk,
@@ -1067,7 +1077,65 @@
        loft and the same power. The simulation still does not hear the word
        "club": it is handed an angle, a speed and now a number for how much the
        first bounce costs. config.js decides which club supplies which. */
-    function launch(world, yaw, power, loft, bite) {
+    /* ── the long game's flight ─────────────────────────────────────────
+
+       A struck ball with backspin on it is lifted, square to the way it is
+       going, and the spin wears off as it flies (CONFIG.AIR_*). That is the
+       whole of the model and it is enough: lift does no work, so the ball
+       lands at the pace a plain arc would have given it, and the run after
+       it is the run the turf is tuned for — but it comes off the face low,
+       climbs, hangs past halfway and falls more steeply than it rose, which
+       is the shape a drive has and a parabola never does.
+
+       Only the long clubs' launches fly it (`flies`, CONFIG.AIR_LOFT): the
+       driver and the iron, wherever they are handed out. The pitch and the
+       wedge go up and come down steeply either way, and mini golf's chips
+       are built on the plain arc. `hole` is taken for the day a course wants
+       its own air; nothing reads it yet. */
+    function flies(hole, loft) {
+        return loft > 0 && loft <= C.AIR_LOFT;
+    }
+
+    function carryFlight(world, dt) {
+        var b = world.ball;
+        var h = Math.sqrt(b.vx * b.vx + b.vz * b.vz);
+        var lf = world.lift * dt;
+        // Square to the velocity in its own upright plane: (−vy·ĥ, |h|),
+        // scaled by the speed it already carries. Both components come off
+        // the velocity as it was.
+        if (h > 1e-4) {
+            var k = 1 - lf * b.vy / h;
+            b.vy += lf * h;
+            b.vx *= k;
+            b.vz *= k;
+        }
+        world.lift *= Math.exp(-C.AIR_DECAY * dt);
+    }
+
+    /* How long a full flight off flat ground lasts, for the swing's shapes
+       (swing.js), which bend a ball by the time it spends in the air. A
+       plain arc has a formula; a lifted one is flown, on the same step. */
+    function hangTime(hole, power, loft) {
+        var g = gravityOf(hole);
+        var vy = Math.sin(loft) * power, h = Math.cos(loft) * power;
+        if (!flies(hole, loft)) return 2 * vy / g;
+        var lift = C.AIR_LIFT, y = 0, t = 0, dt = C.SIM_DT / 4, lf, k;
+        while (t < 30) {
+            lf = lift * dt;
+            k = 1 - lf * vy / h;
+            vy += lf * h;
+            h *= k;
+            lift *= Math.exp(-C.AIR_DECAY * dt);
+            vy -= g * dt;
+            y += vy * dt;
+            t += dt;
+            if (y <= 0 && vy < 0) break;
+        }
+        return t;
+    }
+
+    // `topped` is a shot struck without backspin: no lift.
+    function launch(world, yaw, power, loft, bite, topped) {
         /* The ceiling is the longest club's ceiling, plus its overdraw, plus
            what a clean strike at the top of that overdraw is worth (deliver).
            The meter is allowed past a full swing and the gate is allowed to
@@ -1097,6 +1165,7 @@
         world.loopFor = 0;
         world.firstLand = null;
         world.carry = 0;
+        world.lift = !topped && flies(world.hole, l) ? C.AIR_LIFT : 0;
         if (b.vy > 0.01) world.grounded = false;
         return true;
     }
@@ -1403,6 +1472,62 @@
     // every substep, never held on to.
     var _lie = { x: 0, z: 0 };
 
+    /* One stretch of v' = -a·v - c, from v0, for at most `t` seconds and never
+       below `floor`. v(t) = (v0 + c/a)·e^(-at) - c/a, which holds for a
+       negative `a` as well (the sitting-down stretch below can have one), and
+       the straight line v0 - c·t when `a` is nothing. Writes the speed it
+       ends on, the distance and the time into `out`. */
+    function coast(v0, a, c, t, floor, out) {
+        var T, q;
+        if (Math.abs(a) < 1e-9) {
+            T = c > 0 ? Math.min(t, (v0 - floor) / c) : t;
+            out.v = v0 - c * T;
+            out.cover = (v0 - 0.5 * c * T) * T;
+        } else {
+            q = c / a;
+            T = (floor + q) * (v0 + q) > 0 && Math.abs(floor + q) > 1e-12 ?
+                Math.log((v0 + q) / (floor + q)) / a : Infinity;
+            T = Math.min(t, T >= 0 ? T : Infinity);
+            var e = Math.exp(-a * T);
+            out.v = (v0 + q) * e - q;
+            out.cover = (v0 + q) * (1 - e) / a - q * T;
+        }
+        if (out.v < floor) out.v = floor;
+        out.t = T;
+        return out;
+    }
+
+    /* What one step of rolling does to a ball's ground speed on this surface:
+       the drag, the rolling resistance, and below CONFIG.SIT the grass
+       sitting the ball down. That last one is a rolling resistance that grows
+       as the ball slows, from the surface's own c at sit·(1 - c/h) to the
+       whole of its hold h = g·HOLD at a standstill, so the ground that will
+       keep a stopped ball on a slope is the same ground that stops a slow one
+       there — and still linear in v, so the step stays exact. Only on turf,
+       which is the long game's (`hole.long`): mini golf's green is felt, and
+       its putts are built to the pace they always had. Answers false when the
+       surface has nothing to add to the pure drag. */
+    var _seg = { v: 0, cover: 0, t: 0 };
+    var _run = { v: 0, cover: 0 };
+    function runOut(kind, grav, s0, dt, turf, out) {
+        var a = -lnFrictionOf(kind), c = rollOf(kind), sit = turf ? sitOf(kind) : 0;
+        var h = sit > 0 ? grav * holdOf(kind) : 0;
+        var vx = h > c ? sit * (1 - c / h) : 0;       // where sitting down takes over
+        if (c <= 0 && vx <= 0) return false;
+        var v = s0, left = dt, cover = 0;
+        if (v > vx) {
+            coast(v, a, c, left, vx, _seg);
+            v = _seg.v; cover += _seg.cover; left -= _seg.t;
+        }
+        if (left > 0 && vx > 0 && v > 0) {
+            coast(v, a - h / sit, h, left, 0, _seg);
+            v = _seg.v; cover += _seg.cover;
+        }
+        out.v = v > 0 ? v : 0;
+        out.cover = cover;
+        return true;
+    }
+
     function substep(world, dt, events) {
         var b = world.ball, hole = world.hole;
         var grav = gravityOf(hole);
@@ -1462,21 +1587,17 @@
                 var decay = Math.pow(fr, dt);
                 var travel = (decay - 1) / lnFrictionOf(pad.kind);   // ∫₀^dt k^s ds
 
-                /* Rolling resistance, the constant half of the drag (CONFIG.ROLL).
-                   With it the speed obeys v' = -a·v - c, which still has an
-                   exact solution, so the step stays as frame-rate independent
-                   as the pure decay above: v(t) = (v0 + c/a)·e^(-at) - c/a,
-                   and it reaches zero at ts = ln(1 + a·v0/c) / a. decay and
+                /* Rolling resistance, the constant half of the drag (CONFIG.ROLL),
+                   and the grass sitting the ball down as it slows (CONFIG.SIT).
+                   Both keep the speed on v' = -a·v - c, which has an exact
+                   solution, so the step stays as frame-rate independent as the
+                   pure decay above; runOut has the arithmetic. decay and
                    travel are rewritten as the factors of v0 that this step
                    keeps and covers, so nothing below has to know. */
-                var rr = rollOf(pad.kind);
                 var s0 = Math.sqrt(b.vx * b.vx + b.vz * b.vz);
-                if (rr > 0 && s0 > 1e-9) {
-                    var ra = -lnFrictionOf(pad.kind), q = rr / ra;
-                    var t = Math.min(dt, Math.log(1 + s0 / q) / ra);
-                    var e = Math.exp(-ra * t);
-                    travel = ((s0 + q) * (1 - e) / ra - q * t) / s0;
-                    decay = t < dt ? 0 : Math.max(0, ((s0 + q) * e - q) / s0);
+                if (s0 > 1e-9 && runOut(pad.kind, grav, s0, dt, !!hole.long, _run)) {
+                    travel = _run.cover / s0;
+                    decay = _run.v / s0;
                 }
                 var climb = b.vx * sx + b.vz * sz;                   // rise rate along the lie
 
@@ -1515,6 +1636,13 @@
                     b.vy = climb > 0 ? climb : 0;
                 } else {
                     b.y = next.y + C.BALL_R;
+                    /* On the ground the ground is the height, so a grounded
+                       ball has no vertical speed of its own. The cup's lip can
+                       hand one a little as the ball grazes it, and kept, that
+                       was counted by speedOf for ever: a ball sitting still
+                       beside the hole, never slow enough to be at rest, until
+                       the shot clock ran out. */
+                    b.vy = 0;
                     // Rolled on to a launch pad. A trampoline does not ask how
                     // you got there, so this is the same event as landing on
                     // one and it goes through the same counter.
@@ -1547,6 +1675,7 @@
                     b.vz += (-ovx / gs) * sa;
                 }
             }
+            if (world.lift) carryFlight(world, dt);
             b.vy -= grav * dt;
             if (hole.wells) {
                 var wa = wellPull(hole, b.x, b.z);
@@ -1601,6 +1730,7 @@
             if (land && b.y - C.BALL_R <= land.y) {
                 b.y = land.y + C.BALL_R;
                 if (!world.firstLand) world.firstLand = { x: b.x, y: b.y, z: b.z };
+                world.lift = 0;          // the flight is over; a hop is a plain arc
                 var impact = -b.vy;
                 var kick = springKick(world, land.pad);
                 if (kick) {
@@ -1610,8 +1740,9 @@
                     b.vy = kick;
                 } else {
                     var lands = landingOf(land.pad.kind);
-                    b.vx *= lands.grip;
-                    b.vz *= lands.grip;
+                    var grip = landGrip(lands.grip, Math.max(0, impact));
+                    b.vx *= grip;
+                    b.vz *= grip;
                     b.vy = impact * lands.bounce;
                 }
                 /* Backspin, spent on the first thing the ball touches. It is
@@ -1775,9 +1906,9 @@
        spends its whole window reaching the wall would otherwise come off it in
        three dots. A second wall inside that window is where honest prediction
        ends, so that is where it stops. */
-    function previewPath(world, yaw, power, loft, seconds, bite, spin) {
+    function previewPath(world, yaw, power, loft, seconds, bite, spin, topped) {
         var w = cloneWorld(world);
-        if (!launch(w, yaw, power, loft, bite)) return [];
+        if (!launch(w, yaw, power, loft, bite, topped)) return [];
         // A shaped shot (swing.js) bends from the clubface on; launch() clears
         // the spin, so it goes on after, exactly as the game plays it.
         w.spin = spin || 0;
@@ -1819,6 +1950,8 @@
         wallPointVelocity: wallPointVelocity,
         ballTop: ballTop,
         createWorld: createWorld,
+        flies: flies,
+        hangTime: hangTime,
         cloneWorld: cloneWorld,
         launch: launch,
         overdraw: overdraw,
@@ -1835,6 +1968,7 @@
         frictionOf: frictionOf,
         wellPull: wellPull,
         rollOf: rollOf,
+        sitOf: sitOf,
         landingOf: landingOf,
         holdOf: holdOf,
         gravityOf: gravityOf,
