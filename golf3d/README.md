@@ -1529,7 +1529,7 @@ sand, or somewhere it never arrives.
 
 | # | Hole | Par | What it asks |
 | --- | --- | --- | --- |
-| 1 | Cold Store | 3 | Twenty units of bare ice and a patch of grass at the end. Half a swing is too much — and a stack of ice blocks on the line, so the ace is one cushion off a wall. |
+| 1 | Cold Store | 3 | The pin is on a mat beside the tee, behind the racking down the middle of the store. Putt away from it: up the ice, round the banked end and back down the other aisle — thirty units for a gap of four, which only ice can do. Short stops on the ice; the mat is where it has to die, and past it is the open door. |
 | 2 | The Salt Line | 3 | A bar of grit across the sheet with one gap in it. Sand keeps four thousandths of the ball's speed. |
 | 3 | The Draught | 3 | The sheet falls east and ice holds nothing, so the gutter of ordinary grass at the bottom of it is the hole. A pillar stands where the putt at the flag crosses the sheet. |
 | 4 | The Sluice | 3 | A belt across the corner and grit on the far side of it. The belt is a governor — whatever pace a ball brings, it leaves at the belt's — so the pin is past the spot where that pace dies, and the line up the west side has to bring some of its own. |

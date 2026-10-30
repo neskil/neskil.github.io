@@ -5088,27 +5088,48 @@
     var icehouse = [
         build({
             /* The opener, and it teaches the one number the course is built
-               on by giving you nowhere to hide from it: twenty units of bare
-               ice with a patch of grass at the end. Half a swing of the putter
-               is already too much.
+               on — a putter runs thirty-odd units on ice — by pointing you
+               away from the flag. The pin is on a mat of grass beside the
+               tee, on the far side of the racking down the middle of the
+               store, and the only way to it is up the ice, round the banked
+               end and back down the other side: thirty units to cover a gap
+               of four.
 
-               And a stack of ice blocks in the middle of the store, on the
-               line. It was a lane with nothing on it, so the putt at the flag
-               was the ace and the hole asked how hard and nothing else (README
-               → "The hole lab"). Now the straight putt stops on the stack and
-               the ace is off a wall: ice keeps a bank's angle the way it keeps
-               everything else, so one cushion off either side runs the length
-               of the store to the pin — the course's first lesson and its
-               second in one shot. */
+               It was a straight lane with a stack of ice blocks in the
+               middle, there only because the putt at the flag would otherwise
+               have been the ace (README → "The hole lab"), and nobody could
+               say what it was for. Here what is between you and the pin is
+               the store itself, and the question is the course's: where do
+               you want the ball to run out of speed? Not on the ice — short
+               of the pace and it stops halfway down the far aisle, and a ball
+               on ice is a ball nothing has stopped — and not past the mat,
+               which ends at an open door. On the mat.
+
+               The end is banked (a `channel` round the curve, laid on both
+               aisles where they meet it so the seam is one surface), which is
+               what lets a ball round it without the rail taking its pace:
+               the bank turns it and the ice keeps the rest. The mallet is the
+               ace, firm enough to come all the way home; the putter at full
+               gets round and leaves a putt from the far aisle or the mat. */
             name: 'Cold Store', par: 3,
-            blurb: 'Twenty units of ice and a patch of grass at the end of it. Half a swing is too much.',
-            pads: [
-                pad(0, 0, 6, 3),
-                pad(0, 3, 6, 17, 0, ice),
-                pad(0, 20, 6, 6)
-            ],
-            extra: [wall(2.4, 11.4, 1.2, 1.2, 0.9, { base: -0.1 })],
-            tee: { x: 3, z: 1.5 }, cup: { x: 3, z: 23 }
+            blurb: 'The pin is beside you, behind the racking. Putt away from it — the ice brings the ball all the way round. Stop it on the grass.',
+            pads: (function () {
+                var W = 8, L = 15, R = W / 2, aisle = 3.2, mat = 2.8, cz = L - R;
+                var bend = channel(R, cz, R, 1.6, 0.35, 0, Math.PI);
+                function banked(p) { p.bumps = [bend]; return p; }
+                var end = banked(pad(0, cz, W, R, 0, ice));
+                end.round = { nw: R, ne: R };
+                return [
+                    pad(0, 0, aisle, 3),                                    // the tee
+                    banked(pad(0, 3, aisle, cz - 3, 0, ice)),               // up
+                    end,                                                    // round
+                    banked(pad(W - aisle, mat, aisle, cz - mat, 0, ice)),   // and back
+                    pad(W - aisle, 0, aisle, mat)                           // the mat
+                ];
+            })(),
+            gaps: [brink({ x: 4.8, z: 0, w: 3.2, d: 0 }, 0.4)],         // the door
+            extra: [wall(3.2, -0.2, 1.6, 11.2, 0.8, { base: -0.1 })],   // the racking
+            tee: { x: 1.6, z: 1.5 }, cup: { x: 6.4, z: 1.5 }
         }),
         build({
             /* Grit across the ice, with a gap in it. Sand keeps four
