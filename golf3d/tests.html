@@ -881,7 +881,8 @@
 
             // A ball dropped in from above cannot bounce back out of a hole
             // this deep.
-            var lobbed = shootFrom(lab({ cup: { x: 5, z: 6.9 } }), { x: 5, z: 2 }, 0, 9.5, C.CLUBS[3].loft);
+            var lobbed = shootFrom(lab({ cup: { x: 5, z: 6.9 } }), { x: 5, z: 2 }, 0, 9.5,
+                C.ALL_CLUBS.filter(function (c) { return c.id === 'chipper'; })[0].loft);
             assert('a ball that lands in the cup stays in', lobbed.sunk);
 
             /* A raised green with an open edge — a tabletop, a summit — puts
@@ -1562,6 +1563,19 @@
                                     // they have to agree; inside it the inlay
                                     // may sink and may not rise.
                                     var lay = a.inlay ? a : b, bed = a.inlay ? b : a;
+                                    /* …but only where the bed is the ground.
+                                       Grass on a Coral Keys clifftop overlaps
+                                       the island under the cliff as well as the
+                                       cliff, and the island is not what it is
+                                       laid into; the ground at a point is the
+                                       highest pad there, as the flush check
+                                       further down reads it too. */
+                                    if (h.pads.some(function (o) {
+                                        return o !== bed && !o.inlay &&
+                                            P.padContains(o, x0 + sx2, z0 + sz2) &&
+                                            P.padHeight(o, x0 + sx2, z0 + sz2) >
+                                                P.padHeight(bed, x0 + sx2, z0 + sz2) + 0.35;
+                                    })) continue;
                                     var stand = P.padHeight(lay, x0 + sx2, z0 + sz2) -
                                                 P.padHeight(bed, x0 + sx2, z0 + sz2);
                                     if (stand > proud) { proud = stand; proudAt = tag; }
@@ -1682,6 +1696,13 @@
                     for (i = 0; i < hole.pads.length; i++) {
                         q = hole.pads[i];
                         if (q === p || q.kind === 'sand') continue;
+                        // A cliff standing over a beach (a mesa, a Coral Keys
+                        // headland), or the grass laid on top of one, is a
+                        // cliff and not a bunker's lip: nothing is meant to
+                        // climb it, and the ball is never asked to.
+                        if (q.stands || (q.inlay && hole.pads.some(function (o) {
+                            return o.stands && P.padContains(o, px + dx * probe, pz + dz * probe);
+                        }))) continue;
                         if (!P.padContains(q, px + dx * probe, pz + dz * probe)) continue;
                         // The probe says *which* pad is outside; the height is
                         // read back at the edge itself. Reading it at the probe
@@ -2851,9 +2872,18 @@
             var green = lab({ pads: [A.pad(0, 0, 10, 60)], cup: { x: 5, z: 55 } });
             var free = shootFrom(green, { x: 5, z: 2 }, 0, 13.5, 38 * Math.PI / 180, 0, undefined, 0);
             var checked = shootFrom(green, { x: 5, z: 2 }, 0, 13.5, 38 * Math.PI / 180, 0, undefined, 0.78);
+            var landsAt = (function () {
+                var w = P.createWorld(green, { x: 5, z: 2 }, 0), i;
+                P.launch(w, 0, 13.5, 38 * Math.PI / 180, 0.78);
+                for (i = 0; i < 4000 && !w.firstLand; i++) P.advance(w, C.SIM_DT, {});
+                return w.firstLand ? w.firstLand.z : 0;
+            })();
+            // Run measured from the first landing, so a steeper flight that
+            // runs less to begin with is not counted as the spin's doing.
             assert('backspin costs the shot most of its run and none of its carry',
-                checked.ball.z < free.ball.z - 6 && checked.ball.z > 8,
-                'checked ' + checked.ball.z.toFixed(1) + ' against ' + free.ball.z.toFixed(1));
+                checked.ball.z - landsAt < 0.3 * (free.ball.z - landsAt) && checked.ball.z > landsAt - 0.3,
+                'ran ' + (checked.ball.z - landsAt).toFixed(1) + ' against ' + (free.ball.z - landsAt).toFixed(1) +
+                    ' from ' + landsAt.toFixed(1));
             assert('and it is spent on the first landing, not on every one',
                 (function () {
                     var w = P.createWorld(green, { x: 5, z: 2 }, 0), i;
@@ -3011,7 +3041,7 @@
             var pit = C.ALL_CLUBS.filter(function (c) { return c.id === 'chipper'; })[0];
             function flight(h) {
                 var w = P.createWorld(h, { x: 5, z: 2 }, 0), top = 0, carry = null, i, ev;
-                P.launch(w, 0, pit.power, pit.loft);
+                P.launch(w, 0, pit.power, pit.loft, 0, true);
                 for (i = 0; i < 6000 && !P.done(w); i++) {
                     ev = P.advance(w, C.SIM_DT, {});
                     if (w.ball.y > top) top = w.ball.y;
@@ -3021,7 +3051,8 @@
             }
             var e = flight(earth), m = flight(moon);
             /* Carry goes as 1/g and so does apex, so two fifths of a g is two
-               and a half times both. Asserted as a ratio rather than as two
+               and a half times both. Struck topped, so with no lift in it: the
+               lift does not scale with g, and this is about gravity alone. Asserted as a ratio rather than as two
                numbers, because the point is the relationship: change
                CONFIG.GRAVITY and this still holds. */
             assert('a shot in two fifths of a g carries about two and a half times as far',
@@ -3812,10 +3843,10 @@
                     under.top > tp.top * 1.3);
             });
 
-            /* The flight itself (CONFIG.AIR_*): a long club's launch is lifted
+            /* The flight itself (CONFIG.AIR_*): every lofted launch is lifted
                and the lift wears off, so a drive tops out past halfway and
-               comes down steeper than it went up. A pitch is still a plain
-               arc, and a topped drive gets no lift at all. */
+               comes down steeper than it went up, and a topped drive gets no
+               lift at all. */
             (function () {
                 function arc(cl, topped) {
                     var w = P.createWorld(field, from, 0), top = 0, topZ = 0, vy = 0, vz = 0, t = 0, i;
@@ -3834,8 +3865,40 @@
                     (d.fall * 180 / Math.PI).toFixed(0) + '° against ' + (dr.loft * 180 / Math.PI).toFixed(0) + '°');
                 assert('…for as long as hangTime says', Math.abs(P.hangTime(field, dr.power, dr.loft) - d.t) < 0.03,
                     P.hangTime(field, dr.power, dr.loft).toFixed(3) + ' against ' + d.t.toFixed(3));
-                assert('a pitch is still a plain arc', Math.abs(p.at - 0.5) < 0.02 && !P.flies(field, pw.loft),
+                assert('a pitch is lifted too, and tops out past halfway', p.at > 0.52 && P.flies(field, pw.loft),
                     (p.at * 100).toFixed(1) + '%');
+                /* What a real bag does and the first lift did not: the top of
+                   every full swing at much the same height, and each club
+                   down the bag landing steeper than the one before it. On the
+                   plain arc the pitch peaked lower than the 7 iron and both
+                   at about half a drive. */
+                var lofted = C.CLUBS.filter(function (c) { return c.loft > 0; }), prev = null, flat = [], steep = true;
+                lofted.forEach(function (c) {
+                    var a = arc(c);
+                    if (a.top < 0.85 * d.top || a.top > 1.1 * d.top) flat.push(c.name + ' ' + a.top.toFixed(2));
+                    if (prev && a.fall <= prev.fall) steep = false;
+                    prev = a;
+                });
+                assert('every full swing tops out within a stride of the drive', flat.length === 0,
+                    flat.join(', ') + ' against ' + d.top.toFixed(2));
+                assert('…and each club down the bag comes down steeper', steep);
+
+                /* What the card says. The picker prints every club's carry and
+                   run, and the tee hands you the club whose run is nearest
+                   the cup (game.teeClub), so both have to be what a full swing
+                   on flat fairway does. The pitch's and the wedge's said 14.6
+                   and 13.0 for a long while after the turf had made them 10.5
+                   and 9.6; nothing measured them. */
+                C.ALL_CLUBS.filter(function (c) { return c.loft > 0; }).forEach(function (c) {
+                    var w = P.createWorld(field, from, 0), i;
+                    P.launch(w, 0, c.power, c.loft, c.bite);
+                    for (i = 0; i < 4000 && !w.firstLand; i++) P.advance(w, C.SIM_DT, {});
+                    var carry = w.firstLand.z;
+                    P.settle(w);
+                    assert('what the card says: ' + c.name + ' carries ' + c.carry + ' and runs to ' + c.total,
+                        Math.abs(carry - c.carry) < 0.15 && Math.abs(w.ball.z - c.total) < 0.15,
+                        carry.toFixed(2) + ' / ' + w.ball.z.toFixed(2));
+                });
                 assert('a drive struck topped is not lifted', tp.top < d.top * 0.6 && Math.abs(tp.at - 0.5) < 0.02,
                     tp.top.toFixed(2) + ' against ' + d.top.toFixed(2));
             })();
@@ -4278,7 +4341,7 @@
                off the list. */
             var L = G3.lab;
             var OPEN = ['skelter/Bounce Alley', 'skelter/The Gravitron', 'cinder/Fumarole',
-                        'cinder/Blowhole', 'apogee/Apogee'];
+                        'apogee/Apogee'];
             var CLOCKED = ['works/The Mill', 'clockwork/Pendulum'];
             assert('the lab module is loaded', !!L);
             var b0 = performance.now(), held = 0;

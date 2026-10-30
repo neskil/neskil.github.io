@@ -684,7 +684,8 @@
                 shape(smooth([760, 0, 960, 0, 960, 330, 900, 270, 860, 120], 1))
             ],
             sand: [shape(smooth([330, 446, 640, 446, 670, 510, 640, 574, 320, 574, 300, 510], 1))],
-            blocks: [block('hut', smooth([30, 520, 110, 520, 110, 600, 30, 600], 0))]
+            // A parasol and a towel on the beach in the corner.
+            blocks: [block('parasol', smooth([30, 520, 110, 520, 110, 600, 30, 600], 0))]
         },
         {
             name: 'Ducks and Drakes',
@@ -1206,7 +1207,7 @@
 
     /* ── Ember Ridge — the volcano ──────────────────────────────────────
 
-       The last card, and the one most made of choices. Lava is water that
+       The card most made of choices. Lava is water that
        never lets a ball skip, so every crossing is a risk taken or a long
        way round; and the geysers are the risk. A vent blows for a second in
        every three, and a ball rolling over it then is thrown up and over
@@ -1347,7 +1348,7 @@
 
     /* ── Orbit — space ─────────────────────────────────────────────────
 
-       The last card, past the volcano: a deck in space, and the card of
+       Past the volcano: a deck in space, and the card of
        gravity. A well is a hill that gathers, drawn as rings closing in;
        a black hole is a well with the dark at the bottom of it, which takes
        the ball at any pace. What bends a putt round a black hole is what
@@ -1369,7 +1370,8 @@
             tee: { x: 110, y: 400 },
             hole: { x: 850, y: 400 },
             hills: [bowl(480, 300, 170, 120)],
-            blocks: [block('planet', oval(480, 560, 40, 40, 18))],
+            // The rocket the card is named for, on its pad.
+            blocks: [block('rocket', oval(480, 560, 40, 40, 18))],
             bumpers: [post(860, 560, 18), post(300, 100, 16)]
         },
         mirror({
@@ -1482,7 +1484,8 @@
             hole: { x: 850, y: 320 },
             blocks: [
                 block('fan', [400, 0, 560, 0, 560, 70, 400, 70]),
-                block('bed', smooth([0, 640, 0, 500, 120, 540, 190, 640])),
+                // A vegetable patch with its scarecrow, and a bed.
+                block('scarecrow', smooth([0, 640, 0, 500, 120, 540, 190, 640])),
                 block('bed', smooth([960, 640, 760, 640, 820, 560, 960, 520]))
             ],
             slopes: [{ x: 400, y: 80, w: 160, h: 400, ax: 0, ay: 150, wind: true }],
@@ -1760,7 +1763,8 @@
             hole: { x: 470, y: 300 },
             arcs: [arc(470, 300, 190, 95, 415, 24)],
             hills: [bowl(470, 300, 100, 25)],
-            blocks: [block('bed', smooth([960, 0, 960, 260, 860, 230, 780, 120, 760, 0]))]
+            // A snowbank in the corner, and an igloo on it.
+            blocks: [block('igloo', smooth([960, 0, 960, 260, 860, 230, 780, 120, 760, 0]))]
         },
         {
             name: 'Curling',
@@ -2099,6 +2103,124 @@
         }
     ];
 
+    /* ── The Puzzle Garden — zen ────────────────────────────────────────
+
+       The card past the last card, and the one made only of puzzles. Every
+       flag is shut away where no putt at it can reach, and every hole has a
+       key the earlier cards taught — a tunnel that keeps the heading it was
+       given, a belt that carries, a pair of boards, a record that turns, a
+       slide that runs on a clock. Seeing the key is the puzzle; the ace is
+       the forward shot that uses it, never a ricochet off the cushion behind
+       the tee. Each hole is set where its key lives: the tunnels and the
+       boards in a zen garden, the belt at the funfair, the record on the
+       desk and the slide on the mountain. */
+
+    var PUZZLE = [
+        {
+            name: 'Keyhole',
+            blurb: 'A walled garden with no gate, a tunnel into it and a board on the lawn.',
+            par: 3,
+            /* A tunnel keeps the heading it was given, and the path inside
+               the wall runs from its far mouth to the flag on the diagonal —
+               so the putt has to go in at that angle, and nothing on the way
+               from the tee gives it but the board. Off the board, into the
+               mouth, along the path. Any other heading comes out into the
+               moss beds either side and stops there. */
+            theme: 'zen',
+            tee: { x: 120, y: 150 },
+            hole: { x: 840, y: 230 },
+            walls: [r(600, 160, 320, 24), r(600, 456, 320, 24), r(600, 160, 24, 320), r(896, 160, 24, 320)],
+            tunnels: [tunnel(440, 450, 650, 420)],
+            rails: [rail(274, 575, 383, 584)],
+            rough: [poly(624, 184, 846, 184, 624, 406), poly(896, 214, 896, 456, 654, 456)],
+            // Raked gravel and a stone either side of the wall, where
+            // nothing the hole asks for goes.
+            blocks: [block('bed', smooth([640, 40, 920, 30, 930, 110, 660, 125], 2)),
+                     block('bed', smooth([650, 530, 930, 515, 935, 610, 660, 615], 2))]
+        },
+        {
+            name: 'Special Delivery',
+            blurb: 'A pen with one way in, and a belt running through it.',
+            par: 3,
+            /* The pen's only door is the belt. A ball on a belt keeps what
+               it had across the belt, less the grass's friction, so a putt
+               that lands on it from the tee drifts the way it was going as
+               it is carried down — and the flag stands on that side of the
+               pen, not under the belt's end. */
+            theme: 'night',
+            tee: { x: 150, y: 160 },
+            hole: { x: 835, y: 500 },
+            walls: [r(600, 300, 24, 340), r(886, 300, 24, 340), r(600, 300, 135, 24), r(815, 300, 95, 24)],
+            belts: [belt(735, 80, 80, 300, 'down', 160)]
+        },
+        {
+            name: 'Rabbit Run',
+            blurb: 'Two burrows, and a flag behind two fences.',
+            par: 3,
+            /* Keyhole's idea twice. Each burrow comes out on the heading it
+               went in on, and the three legs — tee to the first mouth, out
+               of it to the second, out of that to the flag — are laid on the
+               one line, twenty degrees up. Aim at the first mouth along the
+               line the other two show and it is an ace; any other heading
+               comes out somewhere in the pens. */
+            theme: 'zen',
+            tee: { x: 90, y: 330 },
+            hole: { x: 871, y: 471 },
+            walls: [r(0, 420, 500, 24), r(476, 420, 24, 220), r(500, 300, 460, 24), r(500, 300, 24, 340)],
+            tunnels: [tunnel(325, 244, 90, 590), tunnel(372, 487, 570, 580)],
+            blocks: [block('bed', smooth([620, 70, 900, 50, 915, 215, 650, 240], 2))]
+        },
+        {
+            name: 'Periscope',
+            blurb: 'Two fences from top to bottom, a gate in each, and two boards.',
+            par: 3,
+            /* The fences run the height of the hole and their gates stand in
+               line, far enough apart that only a level ball goes through
+               both. Up from the tee, off
+               the first board, level through the slot, off the second and
+               down to the flag: a periscope. It needs the weight to travel
+               the three legs, which is most of the dial. */
+            theme: 'zen',
+            tee: { x: 260, y: 440 },
+            hole: { x: 700, y: 440 },
+            // Two fences the height of the hole, a gate in each, in line.
+            walls: [r(420, 0, 24, 140), r(420, 220, 24, 420), r(516, 0, 24, 140), r(516, 220, 24, 420)],
+            blocks: [block('bed', smooth([790, 520, 915, 505, 925, 595, 800, 600], 2))],
+            rails: [rail(297, 123, 198, 208), rail(757, 217, 672, 118)]
+        },
+        {
+            name: 'Lazy Susan',
+            blurb: 'The flag on a shelf of books whose open end faces the record.',
+            par: 3,
+            /* The shelf is open towards the record and nowhere else. A firm
+               putt across the record is thrown off it; a gentle one onto its
+               near edge is carried three quarters of the way round and let
+               go along the top, straight into the shelf. */
+            theme: 'study',
+            tee: { x: 250, y: 590 },
+            hole: { x: 285, y: 215 },
+            turntables: [turntable(500, 330, 150, -2.0)],
+            walls: [r(100, 110, 200, 20), r(100, 250, 200, 20), r(80, 110, 20, 160)]
+        },
+        {
+            name: 'Hitchhiker',
+            blurb: 'A pocket under a wall of rock, and a chute that runs into it.',
+            par: 3,
+            /* The pocket is open only to the chute. Round the end of the
+               rock and into the chute as the slide comes down it, and the
+               slide carries the ball into the pocket and lets it go in the
+               rough — on the flag, if it was caught in the right lane. Put
+               it in the chute any other way and the next slide finishes the
+               job a stroke later. */
+            theme: 'alpine',
+            tee: { x: 520, y: 195 },
+            hole: { x: 750, y: 565 },
+            blocks: [block('rock', [160, 395, 960, 395, 960, 440, 160, 440])],
+            avalanches: [chute(40, 462, 580, 150, 'right', 3.6, 0)],
+            rough: [r(620, 452, 340, 188)]
+        }
+    ];
+
     /* The rack. `GOLF.COURSE` is whichever card is being played — the first
        one unless something says otherwise — and every consumer downstream
        keeps reading exactly that, so a course is chosen in one place and
@@ -2214,9 +2336,17 @@
             id: 'orbit',
             theme: 'space',
             name: 'Orbit',
-            blurb: 'Black holes to slingshot round, planets to bank off and a wormhole. The last card.',
+            blurb: 'Black holes to slingshot round, planets to bank off and a wormhole.',
             unlock: 70,
             holes: ORBIT
+        },
+        {
+            id: 'puzzle',
+            theme: 'zen',
+            name: 'The Puzzle Garden',
+            blurb: 'Six flags shut away, and on every hole the key to an ace. The last card.',
+            unlock: 76,
+            holes: PUZZLE
         }
     ];
 

@@ -1461,7 +1461,7 @@
                deliberate one made here as well as in courses.js. Pinned by
                id rather than by rack position, because the order of the rack
                is a matter of taste and the length of a card is not. */
-            var counts = { short: 6, links: 6, tide: 6, harvest: 6, wild: 6, dunes: 6, warren: 6, icerun: 6, alpine: 6, funfair: 6, desk: 6, ember: 6, orbit: 6 };
+            var counts = { short: 6, links: 6, tide: 6, harvest: 6, wild: 6, dunes: 6, warren: 6, icerun: 6, alpine: 6, funfair: 6, desk: 6, ember: 6, orbit: 6, puzzle: 6 };
             Object.keys(counts).forEach(function (id) {
                 var c = byId(id);
                 assert(id + ' is on the rack', !!c);
@@ -1580,8 +1580,17 @@
             var ember = byId('ember');
             assert('ember: every hole has lava', ember && ember.holes.every(function (h) { return h.lava.length > 0; }));
             var orbit = byId('orbit');
-            assert('orbit: is the last hand-built card the stars open',
-                orbit && GOLF.COURSES.every(function (c) { return (c.unlock || 0) <= orbit.unlock; }));
+            assert('orbit: comes after every card but the puzzles',
+                orbit && GOLF.COURSES.every(function (c) { return c.id === 'puzzle' || (c.unlock || 0) <= orbit.unlock; }));
+            // The puzzles are the last card, and every hole on it has a key
+            // the earlier cards taught: a tunnel, a belt, a board, a record
+            // or a chute.
+            var puzzle = byId('puzzle');
+            assert('puzzle: is the last hand-built card the stars open',
+                puzzle && GOLF.COURSES.every(function (c) { return (c.unlock || 0) <= puzzle.unlock; }));
+            assert('puzzle: every hole has its key', puzzle && puzzle.holes.every(function (h) {
+                return h.tunnels.length || h.belts.length || h.rails.length || h.turntables.length || h.avalanches.length;
+            }));
             // And the desk is the card of the turntable.
             var desk = byId('desk');
             assert('desk: the record player is on the card', desk && desk.holes.some(function (h) { return h.turntables.length > 0; }));

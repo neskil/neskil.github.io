@@ -12,6 +12,42 @@ to be worked out again.
 
 ---
 
+## The rework queue — the owner's list, one map at a time
+
+Holes the owner has played and sent back, in the order they came in. Work them
+top down, one per merge, and strike each off (move it to "Done" with its
+version) when it ships. Measure a long-game hole with
+`node golf3d/tools/human-check.mjs <course>` as well as `par-check.mjs`: the
+perfect bot reads a hole's shape, the one with hands reads whether it is fair.
+
+1. **Midnight** (`clockwork`, hole 6) — too convoluted to read. Two paths and
+   neither can be aced, so neither is the risky one and there is no reward
+   for picking it. Simplify it, and give one route the ace and the risk.
+2. **Turnstile** (`works`, hole 5) — boring; the idea behind it does not come
+   across. Find the one idea it is about and build the hole round that.
+
+Done:
+
+- **Coral Keys** (v1.114.0) — "too hard"; one big island a hole, a carry and
+  a way round on each. See "Where it stands".
+- **Switchback** (`quarry` 3, v1.114.0) — the tall ramp is a quarter-pipe the
+  mallet aces by weight; par 3 now.
+- **The Letterbox** (`tidewater` 3, v1.114.0) — the pin is in a boathouse:
+  post it through the slot from the tee, or carry the jetty and putt in at
+  the door.
+- **Cold Store** (`icehouse` 1, v1.115.0) — the box is gone: the pin is
+  beside the tee behind racking, and the ice brings a putt sent away from it
+  back round the aisle.
+- **The Cold Room** (`icehouse` 6, v1.115.0) — the green on a dais: putt up
+  the ice ramp, or fly the face with the Checker.
+- **Blowhole** (`cinder` 5, v1.115.0) — a hollow with the vent in its floor
+  that throws whatever rolls in up on to the green, by the pace it came in
+  with.
+- **Deadlift** (`apogee` 4, v1.115.0) — the launch pads read again on every
+  course: the green's grass had been growing over them.
+
+---
+
 ## Where it stands (v1.82.0)
 
 - **The long game flies.** The driver is 21° at 28 and the iron 30° at 16:
@@ -21,16 +57,18 @@ to be worked out again.
   their tees moved six back (The Elbow, Homeward, Long Way Round, Burnside;
   `moor` takes `z0` for that). Deadlift's pads went 13 → 15 so the new driver
   still gets over both steps.
-- **Coral Keys**, the fifth long course: island-hopping across a lagoon
-  (`isle`, `keyGreen`, `keys` in courses.js). Its keys are **low domes** now
-  (v1.96.0), with palms and shallows: the raft-with-corners was the grass,
-  which `addTerrain` laid on the square grid with the disc itself cut out of
-  it, not the ground. Keep a dome under a sixteenth — steeper ran balls off
-  the end of Two Ways Home's long island into a spot the bot could not get
-  back to the green from. Their outlines are dealt per island by `coast` (a stronger, seeded wave):
-  the keys you must land on are kept near 0.15 of wildness, because the bot
-  — and a person — cannot find a target that bites in by half; the bare sand
-  islets take the wild shapes.
+- **Coral Keys**, the fifth long course, rebuilt (v1.114.0): one big island
+  a hole with the sea let in as coves and bays (`island`, `cliff`, `lay`,
+  `keys` in courses.js; bays are `wave.bays` in physics.padRadius), tees on
+  2.6 headlands, a carry and a way round on every hole. Measured with
+  `tools/human-check.mjs` (`CONFIG.BOT_HANDS`, 3° and 8%): the old string of
+  keys averaged about four over par with four balls in the sea a round, the
+  new course about five under with one — still the hardest long course for
+  that player (Ashdown is about seven under). Two things it found that the
+  perfect bot never would: a holed putt on a key used to come back as a
+  splash (the cup's floor is below the sea sheet; physics.drown now leaves a
+  ball inside a cup alone), and the islands' sand costs nothing to play
+  from, so the beach is where a bail-out lands, not a penalty.
 - The owner asked whether there are too many long courses. Five is the count
   now; rather than naturalise all four of the older ones hole by hole, new
   concepts (this one) are the better spend than a fifth pass over the same
@@ -308,11 +346,12 @@ tee shows (Sea Legs' was).
    (`node golf3d/tools/hole-lab.mjs --coarse`; 42 before v1.105.0 made
    Caldera a par 4 in stages on purpose). Some are par 4s played in
    stages and fine as they are; the mini par 3s among them are the list.
-10. **The putt at the flag, on the ten holes that still drop it** (README →
+10. **The putt at the flag, on the nine holes that still drop it** (README →
    "The hole lab"; v1.105.0 rebuilt twelve). Two kinds, and they want
    different answers:
-   - *Launch pads in a row* — Bounce Alley, The Gravitron, Fumarole, Blowhole,
-     Apogee. A pad leaves the heading alone, so the ace through it is the line
+   - *Launch pads in a row* — Bounce Alley, The Gravitron, Fumarole, Apogee
+     (Blowhole came off in v1.115.0, rebuilt as a hollow with the vent in its
+     floor). A pad leaves the heading alone, so the ace through it is the line
      from the tee. Moving the pad or the pin off the line is the obvious fix and
      it fails the other way: the bot's fan starts at the cup's bearing, finds no
      pad there and cannot finish the hole (every variant tried left it short).
@@ -359,9 +398,9 @@ and a banked floor is `padHeight` learning a curved profile.
 **The loop is built (v1.90.0)** — not as ground (a height field has no
 ceiling) but as a track the ball rides, with honest energy and a fall off the
 top: README → "The loop", on Helter Skelter's *Loop the Loop*. The camera
-swings to the side to watch a ride (v1.99.0), and the second loop is the
-bobsleigh at the end of Icehouse Yard (v1.100.0, The Cold Room), where the ice
-hands a ball that falls off it all the way back down the hall.
+swings to the side to watch a ride (v1.99.0). A second loop, a bobsleigh on
+The Cold Room (v1.100.0), went when that hole was rebuilt round its dais
+(v1.115.0); Loop the Loop is the only one now.
 
 ### Then: Challenge mode (the owner's idea) — built (v1.70.0)
 

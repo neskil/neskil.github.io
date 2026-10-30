@@ -2586,7 +2586,9 @@
         }
         if (w.splash && now - state.splashAt > 650) penaltyReset();
 
-        if (ev.sunk && state.phase === 'rolling') holeComplete(false);
+        // Aim as well as rolling: a ball at rest that a slide or a gate carries
+        // into the cup is holed on the strokes already played.
+        if (ev.sunk && (state.phase === 'rolling' || state.phase === 'aim')) holeComplete(false);
         if (ev.rest && state.phase === 'rolling') {
             state.phase = 'aim';
             state.aim.angle = Math.atan2(w.course.hole.y - w.ball.y, w.course.hole.x - w.ball.x);

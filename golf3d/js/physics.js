@@ -390,6 +390,18 @@
         for (i = 0; i < w.terms.length; i++) {
             s += w.terms[i][1] * Math.sin(w.terms[i][0] * ang + w.terms[i][2]);
         }
+        /* Bays (courses.island): the sea let into the shore round one bearing,
+           `[bearing, depth, half-width]`, depth a fraction of the radius and
+           the profile a raised cosine, so the shore turns into a bay without a
+           corner at either end of it. */
+        if (w.bays) {
+            for (i = 0; i < w.bays.length; i++) {
+                c = ang - w.bays[i][0];
+                c -= Math.round(c / (Math.PI * 2)) * Math.PI * 2;
+                if (c < 0) c = -c;
+                if (c < w.bays[i][2]) s -= w.bays[i][1] * 0.5 * (1 + Math.cos(Math.PI * c / w.bays[i][2]));
+            }
+        }
         return r * (1 + s);
     }
 
@@ -1077,7 +1089,7 @@
        loft and the same power. The simulation still does not hear the word
        "club": it is handed an angle, a speed and now a number for how much the
        first bounce costs. config.js decides which club supplies which. */
-    /* ── the long game's flight ─────────────────────────────────────────
+    /* ── the flight ─────────────────────────────────────────────────────
 
        A struck ball with backspin on it is lifted, square to the way it is
        going, and the spin wears off as it flies (CONFIG.AIR_*). That is the
@@ -1087,13 +1099,24 @@
        climbs, hangs past halfway and falls more steeply than it rose, which
        is the shape a drive has and a parabola never does.
 
-       Only the long clubs' launches fly it (`flies`, CONFIG.AIR_LOFT): the
-       driver and the iron, wherever they are handed out. The pitch and the
-       wedge go up and come down steeply either way, and mini golf's chips
-       are built on the plain arc. `hole` is taken for the day a course wants
-       its own air; nothing reads it yet. */
+       How hard a launch is lifted depends on its loft (`liftFor`,
+       CONFIG.AIR_LIFT, read between the bag's own lofts): every face spins
+       the ball, so the wedges climb on their spin the way the irons do
+       rather than flying a plain arc. `hole` is taken for the day a course
+       wants its own air; nothing reads it yet. */
+    function liftFor(hole, loft) {
+        var t = C.AIR_LIFT, deg = loft * 180 / Math.PI, i, a, b;
+        if (!(loft > 0)) return 0;
+        if (deg <= t[0][0]) return t[0][1];
+        for (i = 1; i < t.length; i++) {
+            a = t[i - 1]; b = t[i];
+            if (deg <= b[0]) return a[1] + (b[1] - a[1]) * (deg - a[0]) / (b[0] - a[0]);
+        }
+        return t[t.length - 1][1];
+    }
+
     function flies(hole, loft) {
-        return loft > 0 && loft <= C.AIR_LOFT;
+        return liftFor(hole, loft) > 0;
     }
 
     function carryFlight(world, dt) {
@@ -1119,7 +1142,7 @@
         var g = gravityOf(hole);
         var vy = Math.sin(loft) * power, h = Math.cos(loft) * power;
         if (!flies(hole, loft)) return 2 * vy / g;
-        var lift = C.AIR_LIFT, y = 0, t = 0, dt = C.SIM_DT / 4, lf, k;
+        var lift = liftFor(hole, loft), y = 0, t = 0, dt = C.SIM_DT / 4, lf, k;
         while (t < 30) {
             lf = lift * dt;
             k = 1 - lf * vy / h;
@@ -1165,7 +1188,7 @@
         world.loopFor = 0;
         world.firstLand = null;
         world.carry = 0;
-        world.lift = !topped && flies(world.hole, l) ? C.AIR_LIFT : 0;
+        world.lift = topped ? 0 : liftFor(world.hole, l);
         if (b.vy > 0.01) world.grounded = false;
         return true;
     }
@@ -1449,6 +1472,17 @@
         var b = world.ball;
         var w = waterAt(world.hole, b.x, b.z);
         if (!w || b.y - C.BALL_R > w.y) return false;
+        /* A cup is lined. On Coral Keys the greens sit a third of a unit over
+           a sea sheet that runs under the whole hole, and the bottom of a cup
+           is CUP_DEPTH down — under the sea's surface. Without this a ball
+           falling into the cup crossed the waterline a substep before it was
+           low enough to count as holed, and a holed putt came back as a
+           splash and a stroke. */
+        var cup = world.hole.cup;
+        if (cup && cup.y > w.y) {
+            var cdx = b.x - cup.x, cdz = b.z - cup.z;
+            if (cdx * cdx + cdz * cdz < C.HOLE_R * C.HOLE_R) return false;
+        }
         b.y = w.y;
         b.vx = b.vy = b.vz = 0;
         world.splash = true;
@@ -1951,6 +1985,7 @@
         ballTop: ballTop,
         createWorld: createWorld,
         flies: flies,
+        liftFor: liftFor,
         hangTime: hangTime,
         cloneWorld: cloneWorld,
         launch: launch,

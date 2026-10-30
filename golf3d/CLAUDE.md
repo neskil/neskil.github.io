@@ -105,6 +105,18 @@ node golf3d/tools/hole-lab.mjs --coarse               # every drawn hole, ~15 mi
 Run it after moving a drawn hole's tee or cup or anything on the line between
 them; `hole-lab.html?course=<id>` draws the same traces on the hole's plan.
 
+And for the long game, the card a person would score rather than the perfect
+one (README → `tools/human-check.mjs`):
+
+```sh
+node golf3d/tools/par-check.mjs keys                  # the perfect bot: the hole's shape
+node golf3d/tools/human-check.mjs keys --rounds 12    # the bot with hands: is it fair
+```
+
+Run both after reshaping a long hole. The perfect bot strikes every ball where
+it meant to, so it cannot tell a needle from a fairway; Coral Keys scored ten
+under for it and was the course people found too hard.
+
 `shader-tests.html` skips its GPU half with a note (not a failure) when there
 is no WebGL, so it is safe to run anywhere; on this box it runs on SwiftShader:
 
