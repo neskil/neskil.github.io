@@ -5580,29 +5580,67 @@
             tee: { x: 2.4, z: 2 }, cup: { x: 2.4, z: 21.5 }
         }),
         build({
-            /* Three vents in twenty units of ash, and this time none of them
-               is a lift — they are simply in the way. A launch pad is the one
-               obstacle in the game that does not stop a ball, redirect it or
-               slow it down: it throws the ball in the air and hands it back
-               travelling exactly as it was, a second and a half later and a
-               long way further on. So a hole made of them is not a hole you
-               steer past, it is a hole you either miss or accept.
+            /* A blowhole: a hollow in the lawn with a vent at the bottom of
+               it, and the green on a shelf above the far side. It was three
+               vents scattered over a lane, which was a hole you either missed
+               or accepted, and the putt at the flag dropped (README → "The
+               hole lab").
 
-               They are staggered so that the line round the first is the line
-               into the second, which is the only way three of anything is a
-               plan rather than three attempts at the same shot. And they are
-               rated low — 7.6 is a bounce a unit and a half high — because a
-               vent you cannot survive is a coin toss, and a vent that costs
-               you the length of the hole is a hole. */
+               The hollow is the hole. Its sides fall into the floor from
+               every direction, so the vent at the bottom is the one thing on
+               the card you cannot miss: anything rolled into the hollow is
+               gathered on to it and thrown up the face — the mountain running
+               everything downhill, and the vent the only way up. What you own
+               is the pace you bring. The vent throws the ball the same height
+               every time and hands it back travelling as it was, so a ball
+               that comes in slowly is thrown on to the front of the shelf and
+               one that comes in hot is thrown off the back of it. Too slow to
+               clear the face, and it falls back in and the blowhole coughs it
+               up again, weaker each time, until it settles at the bottom.
+
+               And the hollow bends the line. A ball that comes in down one
+               side is turned by that side towards the middle, so the shot
+               aimed at the pin is pulled off it on the way to the vent and
+               lands wide. The ace is a firm mallet in down the right-hand
+               side of the hollow, which turns it back across the vent at the
+               pin — with nothing on the right of the shelf and nothing behind
+               it. The safe way is a gentle putt down the middle: it is
+               gathered, thrown on to the front of the shelf, and leaves a
+               putt for two. */
             name: 'Blowhole', par: 3,
-            blurb: 'Three vents and no way to steer once one has you. The line round the first is the line into the second.',
-            pads: [
-                pad(0, 0, 8, 20),
-                sprung(2.4, 6.5, 1.1, 7.6),
-                sprung(5.8, 10.5, 1.1, 7.6),
-                sprung(3.2, 14.5, 1.1, 7.6)
+            blurb: 'Everything rolls into the hollow and the vent at the bottom throws it up on to the shelf. How far depends on how hard you came in.',
+            pads: (function () {
+                // A hollow in nine pads, most of a `dish`: the floor, a ramp
+                // off each side and the two corners at the tee end, with the
+                // shelf's face where the far ramp would be.
+                var W = 9, cx = 4.5, cz = 9.5, b = 1.3, a = 4.5, run = a - b,
+                    dep = 0.8, k = dep / run;
+                return [
+                    pad(0, 0, W, cz - a),                                  // the tee
+                    pad(cx - b, cz - b, 2 * b, 2 * b, -dep),               // the floor
+                    pad(cx - a, cz - b, run, 2 * b, 0, 'green', -k, 0),    // west side
+                    pad(cx + b, cz - b, run, 2 * b, -dep, 'green', k, 0),  // east side
+                    pad(cx - b, cz - a, 2 * b, run, 0, 'green', 0, -k),    // the near side
+                    pad(cx - a, cz - a, run, run, dep, 'green', -k, -k),   // and its corners
+                    pad(cx + b, cz - a, run, run, 0, 'green', k, -k),
+                    sprung(cx, cz, 1.1, 10, -dep),                         // the blowhole
+                    pad(0, cz + b, 7.8, 7, 0.6)                            // the shelf
+                ];
+            })(),
+            gaps: [
+                brink({ x: 0, z: 17.8, w: 7.8, d: 0 }, 0.4),       // off the back
+                brink({ x: 7.8, z: 11.3, w: 0, d: 6.5 }, 0.4),     // and off the right
+                /* The hollow's two near corners are the two sides added
+                   together, so they rise out of the lawn towards the fence
+                   rather than falling into the hollow — the shoulders either
+                   side of its mouth. Open, not railed: a rail on a seam is a
+                   box as tall as the highest ground it guards, and these were
+                   two of them standing either side of the hollow. The face
+                   turns a ball just as a rail would. */
+                { x: 0, z: 4.8, w: 3.2, d: 0.4 },
+                { x: 5.8, z: 4.8, w: 3.2, d: 0.4 }
             ],
-            tee: { x: 4, z: 1.8 }, cup: { x: 5.8, z: 17.6 }
+            tee: { x: 2, z: 1.8 }, cup: { x: 6.6, z: 14.4 }
         }),
         build({
             /* The finisher, and it is the whole course in one hole: the vent
