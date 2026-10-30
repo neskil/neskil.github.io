@@ -3209,7 +3209,7 @@
                                 only way through the front fence. Time it
                                 and you are on the green in one shot, and
                                 the ace is on: the lawn leans a
-                                twenty-fifth to the east and the pin is
+                                thirtieth to the east and the pin is
                                 tucked behind the fence on that side, so
                                 the line is at the gate rather than the
                                 flag and the fall carries the ball across
@@ -3235,7 +3235,7 @@
                than a dare; the dare is the last hole's. */
             name: 'Turnstile', par: 3,
             blurb: 'A fenced green with a turnstile in the front. Time the bar and go for it, or walk round to the back gate.',
-            pads: [pad(0, 0, 9, 15, 0, 'green', -0.04, 0)],
+            pads: [pad(0, 0, 9, 15, 0, 'green', -0.03, 0)],
             extra: [].concat(
                 // the front fence, with the gate the turnstile turns in
                 aperture(0, 7, 5.4, 0.4, { gap: 2.1, at: 2.2, h: 0.62 }),
