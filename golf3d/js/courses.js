@@ -3160,30 +3160,65 @@
             tee: { x: 3.5, z: 1.5 }, cup: { x: 5.2, z: 14 }
         }),
         build({
-            /* The hole the course needed and did not have: one that turns.
-               Five of the six here were a lane with a mechanism in the middle
-               of it, which is five ways of asking the same question, so this
-               one goes north, then east, then north again — and the second
-               blade stands in the corner, where you cannot back off and wait
-               for it because the ball has to be somewhere while you do.
+            /* A green with a fence round it and two ways in: the turnstile in
+               the front, or the gate at the back. That is the whole hole, and
+               it is meant to be read in one look from the tee.
 
-               The bunker keeps a line through it, on the far side of the lane.
-               A band of sand across the whole floor is not a decision, it is a
-               toll; two metres of grass past the edge of it is. */
-            name: 'Turnstile', par: 4,
-            blurb: 'North, east, north — with a blade in the lane, a blade in the corner and sand between them.',
-            pads: [
-                pad(0, 0, 5, 8),
-                pad(0, 8, 3.2, 3.5, 0, 'sand'), pad(3.2, 8, 1.8, 3.5),
-                pad(0, 11.5, 5, 4),
-                pad(5, 11.5, 7, 4),
-                pad(7, 15.5, 5, 4)
-            ],
-            extra: [
-                spinner(2.5, 4, 3.4, 0.4, { spin: -1.5 }),
-                spinner(8.5, 13.5, 3.4, 0.4, { spin: 2.1 })
-            ],
-            tee: { x: 2.5, z: 1.4 }, cup: { x: 9.5, z: 17.6 }
+               It used to be north, east, north with a blade in each leg and a
+               bunker between them — three things to get past and none of them
+               a choice, at twenty-odd units of lane that no ball in the bag
+               could cover in one, so nothing on it could be holed from the tee
+               whatever you did. Turning was the right instinct and a corridor
+               with two spinners in it was not the way to have it.
+
+                 the turnstile  one bar turning on a post in the gate, the
+                                only way through the front fence. Time it
+                                and you are on the green in one shot, and
+                                the ace is on: the lawn leans a
+                                twenty-fifth to the east and the pin is
+                                tucked behind the fence on that side, so
+                                the line is at the gate rather than the
+                                flag and the fall carries the ball across
+                                to the cup (The Mill's trick, README → "The
+                                hole lab"). A putt at the flag meets the
+                                fence. Mistime it and the bar sends you
+                                back down the lawn.
+                 the way round  the lawn carries on up the east side,
+                                past the corner of the fence and round to
+                                the gate in the back of it, which is wide
+                                and has nothing in it. Nothing here moves
+                                and nothing on it can go wrong — and it is
+                                too far round to finish in one, so it is a
+                                putt to the back and a putt down to the
+                                pin. A stroke dearer than the ace, and a
+                                stroke cheaper than the bar.
+
+               Fifth on the course because it is the first hole here that hands
+               you the choice between the two: First Gear's sand is a way round
+               the gate that costs you the putt after it, and this is a way
+               round that costs you exactly one shot and gives up the ace. The
+               bar is slow and short, so the front door is a fair bet rather
+               than a dare; the dare is the last hole's. */
+            name: 'Turnstile', par: 3,
+            blurb: 'A fenced green with a turnstile in the front. Time the bar and go for it, or walk round to the back gate.',
+            pads: [pad(0, 0, 9, 15, 0, 'green', -0.04, 0)],
+            extra: [].concat(
+                // the front fence, with the gate the turnstile turns in
+                aperture(0, 7, 5.4, 0.4, { gap: 2.1, at: 2.2, h: 0.62 }),
+                // the east fence, and the back one, with the gate between
+                [
+                    wall(5.0, 7.4, 0.4, 4.0, 0.62, { base: -0.1 }),
+                    wall(0, 11.0, 2.2, 0.4, 0.62, { base: -0.1 })
+                ],
+                [spinner(2.2, 7.2, 1.8, 0.3, { spin: 1.1 })]
+            ),
+            tee: { x: 3.0, z: 1.6 }, cup: { x: 4.1, z: 10.2 },
+            decor: [
+                sign(-1.6, 5.6, { yaw: 0.4 }),
+                barrel(-1.8, 8.2),
+                crate(-1.8, 9.4, { yaw: 0.3 }),
+                crate(10.6, 3.4, { yaw: -0.4 })
+            ]
         }),
         build({
             name: 'Grand Finale', par: 4,
