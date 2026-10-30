@@ -231,6 +231,7 @@
     function loadHole(i, again) {
         closeGate();
         endReplay(true);
+        hideSwingCard();
         tape = null;
         saidLocked = false;
         /* A new hole is a new hole for the caddie too. Whatever it was doing
@@ -1194,11 +1195,14 @@
 
     /* ── the swing card ──
 
-       After a touch swing, a small card docked in the top-left corner of the
-       stage says why the ball went where it did: the swipe drawn small against a straight line and
-       the lean that was forgiven, and a line for each thing that was read.
-       It stays while the ball flies and goes when the next swing starts. */
-    var cardTimer = 0;
+       After a touch swing, a card over the controls says why the ball went
+       where it did: the swipe drawn small against a straight line and the lean
+       that was forgiven, and a line for each thing that was read.
+
+       It is the lesson, so it waits to be read: no timer. It goes when it is
+       tapped, when the next swing starts, or when the hole changes. It used
+       to be a small corner card gone after five seconds, which was usually
+       before the ball had stopped and always before anyone had read it. */
 
     function showSwingCard(read, frac, drawn, sw, cross) {
         var card = $('swing-card');
@@ -1214,12 +1218,19 @@
         card.classList.remove('show');
         void card.offsetWidth;
         card.classList.add('show');
-        clearTimeout(cardTimer);
-        cardTimer = setTimeout(hideSwingCard, 5000);
+        placeSwingCard();
+    }
+
+    // Just over the controls, whose height is the layout's to decide.
+    function placeSwingCard() {
+        var card = $('swing-card');
+        if (card.hidden) return;
+        var stage = $('stage').getBoundingClientRect();
+        var ctl = document.querySelector('.controls').getBoundingClientRect();
+        card.style.bottom = Math.round(stage.bottom - ctl.top + 8) + 'px';
     }
 
     function hideSwingCard() {
-        clearTimeout(cardTimer);
         $('swing-card').hidden = true;
     }
 
@@ -5129,6 +5140,7 @@
             measurePickerBand();
             if (state) drawPowerTicks(state.club);
             if (state) syncStyle();
+            placeSwingCard();
         });
 
         $('banner-next').addEventListener('click', nextHole);
@@ -5161,6 +5173,13 @@
         });
         $('needle').addEventListener('pointerdown', pressNeedle);
         $('swipe').addEventListener('pointerdown', onSwipeDown);
+        // The swing card is read, then tapped away (showSwingCard). Taken here
+        // so the tap does not also land on the course and turn the aim.
+        $('swing-card').addEventListener('pointerdown', function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            hideSwingCard();
+        });
         $('swipe').addEventListener('pointermove', onSwipeMove);
         $('swipe').addEventListener('pointerup', onSwipeUp);
         $('swipe').addEventListener('pointercancel', onSwipeUp);

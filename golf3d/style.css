@@ -4106,43 +4106,46 @@ body.lane-swing .swipe-hint {
 
 /* ── the swing card ─────────────────────────────────────────────────────── */
 
-/* Docked in the top-left corner under the chips, and only as big as what it
-   says: the swipe drawn small, the grade, one short line per thing read.
-   It was a full-width panel across the top of the course at first, and that
-   is the part of the screen the ball flies through — so it is narrow, small
-   type, and see-through enough to keep the sky. Each line is coloured by how
-   it went, so it reads at a glance before it is read at all. */
+/* Over the controls, across the stage, and big enough to read from arm's
+   length: the swipe drawn small, the grade, one line per thing read. It was a
+   small card in the top-left corner and that undersold it — this is the one
+   thing on screen that says *why*, so it sits where the eye already is after
+   a swing (the thumb's end of the screen) and stays until tapped. game.js
+   `placeSwingCard` sets `bottom` from the controls. Each line is coloured by
+   how it went, so it reads at a glance before it is read at all. */
 .swing-card {
     position: absolute;
-    left: 10px;
-    top: 84px;
+    left: 50%;
+    bottom: 140px;
+    transform: translateX(-50%);
+    width: min(calc(100% - 24px), 420px);
+    box-sizing: border-box;
     display: flex;
-    gap: 0.5rem;
+    gap: 0.75rem;
     align-items: flex-start;
-    max-width: min(62%, 250px);
-    padding: 0.4rem 0.55rem 0.45rem 0.4rem;
-    line-height: 1.25;
-    border-radius: 12px;
-    background: rgba(6, 20, 32, 0.66);
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+    padding: 0.6rem 0.75rem 0.65rem 0.6rem;
+    line-height: 1.3;
+    border-radius: 16px;
+    background: rgba(6, 20, 32, 0.78);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
     backdrop-filter: blur(6px);
     -webkit-backdrop-filter: blur(6px);
-    pointer-events: none;
-    z-index: 5;
+    cursor: pointer;
+    z-index: 6;
     color: #eaf6ff;
 }
 .swing-card[hidden] { display: none; }
 .swing-card.show { animation: cardIn 0.22s ease-out; }
 @keyframes cardIn {
-    from { opacity: 0; transform: translateY(-6px); }
-    to { opacity: 1; transform: translateY(0); }
+    from { opacity: 0; transform: translate(-50%, 8px); }
+    to { opacity: 1; transform: translate(-50%, 0); }
 }
 .sc2-svg {
     flex: none;
-    width: 26px;
-    height: 44px;
-    border-radius: 7px;
+    width: 40px;
+    height: 68px;
+    border-radius: 9px;
     background: rgba(226, 232, 240, 0.12);
     overflow: visible;
 }
@@ -4151,12 +4154,20 @@ body.lane-swing .swipe-hint {
 .sc2-trail { fill: none; stroke-width: 4; stroke-linecap: round; stroke-linejoin: round; stroke: #4ade80; }
 .sc2-svg.meh .sc2-trail { stroke: #fbbf24; }
 .sc2-svg.bad .sc2-trail { stroke: #f87171; }
-.sc2-body { min-width: 0; flex: 1 1 auto; }
+.sc2-body { min-width: 0; flex: 1 1 auto; position: relative; }
+.sc2-close {
+    position: absolute;
+    top: 0.1rem;
+    right: 0;
+    font-size: 0.62rem;
+    letter-spacing: 0.04em;
+    color: rgba(234, 246, 255, 0.5);
+}
 .sc2-grade {
     display: block;
     font-family: 'Outfit', sans-serif;
     font-weight: 800;
-    font-size: 0.78rem;
+    font-size: 1.05rem;
     letter-spacing: 0.05em;
     text-transform: uppercase;
 }
@@ -4166,10 +4177,10 @@ body.lane-swing .swipe-hint {
 .sc2-grade.off { color: #fdba74; }
 .sc2-grade.bad { color: #fca5a5; }
 .sc2-rows { list-style: none; margin: 0.1rem 0 0; padding: 0; display: grid; gap: 0.05rem; }
-.sc2-rows li { display: flex; gap: 0.35rem; font-size: 0.66rem; white-space: nowrap; }
-.sc2-rows b { flex: none; width: 2.7rem; font-weight: 700; color: rgba(234, 246, 255, 0.6); }
+.sc2-rows li { display: flex; gap: 0.45rem; font-size: 0.82rem; white-space: nowrap; }
+.sc2-rows b { flex: none; width: 3.4rem; font-weight: 700; color: rgba(234, 246, 255, 0.6); }
 .sc2-rows span { overflow: hidden; text-overflow: ellipsis; }
-.sc2-rows li::before { content: '●'; flex: none; font-size: 0.5rem; line-height: 1.9; }
+.sc2-rows li::before { content: '●'; flex: none; font-size: 0.6rem; line-height: 2; }
 .sc2-rows li.good::before { color: #4ade80; }
 .sc2-rows li.meh::before { color: #fbbf24; }
 .sc2-rows li.bad::before { color: #f87171; }
