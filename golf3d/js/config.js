@@ -8,7 +8,7 @@
    — the renderer scales to the viewport, the simulation never sees a pixel. */
 window.G3 = window.G3 || {};
 
-G3.VERSION = '1.111.1';
+G3.VERSION = '1.115.0';
 
 G3.CONFIG = {
     BALL_R: 0.16,
@@ -907,6 +907,25 @@ G3.CONFIG = {
        what the mode is for — you are meant to be able to follow it. */
     BOT_FAN: 12,
     BOT_PAUSE: 1.1,
+    /* The bot's hands, for when it is standing in for a person rather than
+       proving a hole can be done (bot.js, `opts.hands`; tools/human-check.mjs).
+
+       The greedy bot strikes every ball exactly where it meant to, and picks
+       its weight out of thousands of trial shots — so its card says a hole
+       *can* be played, and nothing at all about whether it is fair. Coral Keys
+       scored ten under par for it and was too hard for people: a line that
+       finishes nearest the flag in a perfect world is very often the line
+       that finishes in the sea a few degrees either side of it.
+
+       These are a decent amateur's misses, as one standard deviation: how far
+       off the line the ball leaves and how far off the weight. Aim on screen
+       is exact, so the line is the small one; the weight is a meter read by
+       eye, and that is where people actually miss. A putt is a shorter,
+       steadier stroke, so it has its own pair. */
+    BOT_HANDS: {
+        yaw: 3 * Math.PI / 180, power: 0.08,
+        putt: { yaw: 1.5 * Math.PI / 180, power: 0.09 }
+    },
     /* The wind-up: how long the aim takes to swing round to the shot it has
        chosen, and how long the meter then takes to fill. Together they are the
        lead the plan is made for — see planShot — so lengthening either one

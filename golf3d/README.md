@@ -22,8 +22,9 @@ is the moor itself — crests, hollows, a punchbowl, a spiral, a burn round a
 dogleg, a tarn on top of four units of hillside and a gorge two units deep
 across the last of it; and
 Redstone Canyon, which is the only one made of ground that is *missing*; and
-Coral Keys, six holes of island-hopping across a lagoon, where the sea is the
-course and every shot is a carry to the next key. three.js (vendored, r128), plain ES5-flavoured JavaScript, no
+Coral Keys, six holes round the coasts of big islands in a lagoon, where every
+hole has a line across the water that saves a shot and a way round on dry
+land that does not. three.js (vendored, r128), plain ES5-flavoured JavaScript, no
 build step and no other dependencies — same as everything else here, open
 `index.html` and it runs.
 
@@ -81,6 +82,7 @@ them.
 | `turntable.html` + `tools/turntable.mjs` | [The turntable](#the-pictures-which-neither-suite-can-see): every hole drawn from eight fixed angles, as one contact sheet per course, with the audit's findings printed under each row. |
 | `js/lab.js`, `hole-lab.html` + `tools/hole-lab.mjs` | [The hole lab](#the-hole-lab): every line and weight from the tee out of every club in the bag — how many are aces and how wide their windows are, whether a shot aimed straight at the flag drops, and the caddie's card. The page draws the traces on the hole's plan; the tool prints the numbers. Pure, no install. |
 | `tools/par-check.mjs` | The bot plays a course and prints its card against par — a reading of each hole's shape (a par 4 it drives in one has no second shot). Plain Node, no install. PLAN.md §0 sets the line it is measured against. |
+| `tools/human-check.mjs` | The same bot with a person's hands (`CONFIG.BOT_HANDS`: every stroke off line and off weight by a normal draw, and the shot chosen knowing it), playing a course many rounds and printing the average, the spread and the balls in the water per hole. The reading of whether a hole is *fair*, which the perfect bot cannot give: it threads any gap because in its world nothing lands either side of the line. Seeded; `--rounds`, `--hole`, `--seed`. |
 
 The three files above `weather.js` in that list are three of the four different
 jobs the renderer used to do in one file. Picking colours, drawing a texture,
@@ -980,7 +982,7 @@ approach.
 | Whinstone Links | long | `links` | No flat lies and no straight edges. The ground is the hazard, and on one hole it is a sandhill. |
 | Dunmore Heath | long | `heath` | The long game again, shaped rather than furnished: crests, hollows, a punchbowl, a whorl, one dry ravine and a hillside you climb — and moorland water, a burn, a tarn and a pond. |
 | Redstone Canyon | long | `canyon` | Ground that is missing, six ways. A canyon across the drive, down the side of the hole, flooded under a par three, biting a piece out of the fairway, twice, and at the end of a dogleg round a mesa. |
-| Coral Keys | long | `lagoon` | Islands in a lagoon and nothing between them. Every tee is a sea stack, every key is grass on a low dome of beach with palms on it and shallows round it, and every shot is a carry: a chain of keys, an atoll, two ways down a bay, one long carry. `isle` and `keyGreen` in courses.js; the shallows are `render.addShelf`. The dome is a sixteenth at its steepest — at a tenth, balls ran off the end of the long island in Two Ways Home and the bot could not get back to the green from there. |
+| Coral Keys | long | `lagoon` | One big island a hole (two on the par five), with the sea let into it as a cove, a bay or the lagoon inside a crescent, and every hole a choice between the carry and the way round: a cove at the flag, a shelf of turf above the beach, a key in the crook of a crescent, a lagoon between two islands, a Cape-style slanting shore, and a clifftop green round a point. Tees stand on headlands 2.6 up. `island`, `cliff` (with `sheer` for a sea cliff, render.addPad) and `lay` in courses.js; bays are dips in the disc's outline (`wave.bays`, physics.padRadius); the shallows are `render.addShelf`. Built to `tools/human-check.mjs` rather than to the perfect bot, which had scored the first version (a string of small keys) ten under while people found it too hard. |
 
 **Sea Legs**, the first hole anybody plays, is a bounce hole: one lane, one
 baffle reaching in from the east rail, and a rail across the far corner set at
@@ -1076,9 +1078,10 @@ Tidewater is built round the one thing a chip can do that a putt cannot —
 leave the ground — and each asks for it differently, with a safe target and a
 short one: **Stepping Stones** is two carries, by a big stone out east or a
 little one on the line; **Short Side** tucks the pin behind sand on the near
-right with the fat of the green open on the left; **The Letterbox** is four
-walls and no door at the end of a lane that turns, so you walk it round and
-chip in or post it from the tee over the bay; **Tabletop** puts the green a
+right with the fat of the green open on the left; **The Letterbox** puts the
+pin indoors, in a boathouse across the bay with two ways in — post it through
+the slot in the front from the tee, where a miss is in the water, or land on the
+jetty and putt in by the front door, which costs a stroke; **Tabletop** puts the green a
 metre up, off to the right of an apron that runs under it, with every edge a
 brink; **The Reach** goes out to a rock off to the right and back across the
 water into a crater that gathers whatever lands in it. And then
@@ -1339,8 +1342,11 @@ What the first sweep found (v1.105.0), over the seventy-eight drawn holes:
   goes through the pad, because that is where its fan of shots starts — move
   the pad off the line and the suite's proof breaks before the straight putt
   does. The Springboard got round it with a wider lane and the kicker; Bounce
-  Alley, The Gravitron, Fumarole, Blowhole and Apogee did not, and they are the
-  open half of the list.
+  Alley, The Gravitron, Fumarole and Apogee did not, and they are the open half
+  of the list. Blowhole was rebuilt round a hollow instead (see
+  [Cinder Cone](#cinder-cone)): the sides of the hollow bend the line on the
+  way to the vent, so the putt at the flag lands wide and the ace is aimed off
+  it.
 - **A rock may not stand on a green** (tests.html, "nothing grows or stands out
   of a bunker or a green"), and every drawn hole is green, so the blocks on the
   line are walls.
@@ -1506,7 +1512,14 @@ Three things about them were each wrong once and are worth writing down:
 - **A decal has to clear the grass.** A green wears a stack of shells a little
   over a tenth of a unit tall, so a ring painted five centimetres up is a ring
   inside a lawn — the near rim shows and the far rim is behind the blades. A
-  pipe mouth came out as a black hole with a pink smile under it.
+  pipe mouth came out as a black hole with a pink smile under it. A launch pad
+  had the same fault one level down for most of its life: the pad is a wooden
+  inlay with no grass of its own, but the green it is laid into grew a flat
+  sheet of blades straight over it, so on every hole with one the face was
+  buried and only the torus rim showed — a thin ring on the grass ("the
+  bouncing pads are not showing", on Deadlift). A flat pad's mat is now
+  punched round any bare inlay in it (`render.bareInlays`), as a landform's
+  always was.
 - **And it has to clear `INLAY_LIFT`, not equal it.** A launch pad is an inlay
   and an inlay is already lifted by that much; a ring at the same height as the
   disc it sits on comes out as a band of speckle.
@@ -1526,12 +1539,12 @@ sand, or somewhere it never arrives.
 
 | # | Hole | Par | What it asks |
 | --- | --- | --- | --- |
-| 1 | Cold Store | 3 | Twenty units of bare ice and a patch of grass at the end. Half a swing is too much — and a stack of ice blocks on the line, so the ace is one cushion off a wall. |
+| 1 | Cold Store | 3 | The pin is on a mat beside the tee, behind the racking down the middle of the store. Putt away from it: up the ice, round the banked end and back down the other aisle — thirty units for a gap of four, which only ice can do. Short stops on the ice; the mat is where it has to die, and past it is the open door. |
 | 2 | The Salt Line | 3 | A bar of grit across the sheet with one gap in it. Sand keeps four thousandths of the ball's speed. |
 | 3 | The Draught | 3 | The sheet falls east and ice holds nothing, so the gutter of ordinary grass at the bottom of it is the hole. A pillar stands where the putt at the flag crosses the sheet. |
 | 4 | The Sluice | 3 | A belt across the corner and grit on the far side of it. The belt is a governor — whatever pace a ball brings, it leaves at the belt's — so the pin is past the spot where that pace dies, and the line up the west side has to bring some of its own. |
 | 5 | Glass Table | 3 | An iced green half a unit up. Nothing to run up, nothing to stop on, and one club in the bag that arrives and stays. |
-| 6 | The Cold Room | 3 | A bobsleigh run: an ice hall that keeps every bit of a firm mallet's pace, into a loop (the game's second, and the first not at a fair), and out on to the only grass in the building. Short of the pace the loop wants and the ice hands the ball all the way back down the hall; the belt lane up the side, against the run, is the way without the nerve. |
+| 6 | The Cold Room | 3 | The finale, and both questions at once. The green is a dais across the room with a sheer face to the tee and one way up it on the ground, an ice ramp on the left: a putt up it has one place to stop, the top, and short comes back to your feet while long goes over the back into the grit. The bold line is the mallet in off the left wall and up the ramp at an angle; the Checker flies the face and sits down, which is the safe two. |
 
 #### Helter Skelter
 
@@ -1571,7 +1584,7 @@ only things on the course that move a ball sideways at all.
 | 2 | Fumarole | 3 | The vent is the lift, and the shelf it throws you on to is open at both ends. Short and long cost the same thing: the lawn runs on underneath, so a miss is played again from the grass. |
 | 3 | Lava Tube | 3 | Eleven units of crater lake — more than anything in the bag carries — and two mouths in the ash in front of it. Both cross: the narrow one comes out at the pin, the wide one in the far corner with a putt to play. |
 | 4 | The Scree | 4 | A shelf with the drop down one side of it and two bands of scree that push south *and* east at once. On Crosstown a belt across the hole costs you the line; here it costs you the ball. |
-| 5 | Blowhole | 3 | Three vents, none of them a lift. A launch pad is the one obstacle in the game that neither stops the ball nor turns it — it hands the ball back travelling exactly as it was, a second later and somewhere else. |
+| 5 | Blowhole | 3 | A hollow in the lawn with the vent at the bottom and the green on a shelf above it. Everything rolled in is gathered on to the vent and thrown up, and the pace you came in with is how far up the shelf it lands — off the back if you came in hot. The sides bend the line, so the ace is a firm mallet in down the right of the hollow, with nothing beside the pin or behind it; a gentle putt down the middle is the safe two. |
 | 6 | Caldera | 4 | The whole course in one hole: the vent to get up, the belt along the rim to be carried along, and the tube to get in. The crater has no way into it along the ground, and no ace: the tube points at the pin across the floor, and a block in front of the pin stops the flight from the lawn that used to be one. |
 
 **Caldera is the hole the belt's own physics wrote.** A travelator has a speed

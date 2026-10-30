@@ -961,7 +961,7 @@
 
        Every shell is registered with R.shells, because the wind moves them
        (see `swayShells`) and a mat that does not move is a carpet. */
-    function addShells(group, pad, cup, holed, cx, cy, cz, shape) {
+    function addShells(group, pad, cup, holed, cx, cy, cz, shape, bare) {
         var set = R.surf.shells[pad.kind];
         if (!set) return;
         var sx = pad.sx || 0, sz = pad.sz || 0;
@@ -983,9 +983,9 @@
                 for (t = 0; t < tp.count; t++) tp.setY(t, tp.getY(t) + height * f);
                 tp.needsUpdate = true;
             } else if (holed) {
-                geo = shellShape(pad, cup);
-            } else if (pad.r || pad.round) {
-                geo = shellShape(pad, null);
+                geo = shellShape(pad, cup, bare);
+            } else if (pad.r || pad.round || (bare && bare.length)) {
+                geo = shellShape(pad, null, bare);
             } else {
                 geo = new THREE.PlaneGeometry(pad.w, pad.d, 1, 1);
                 geo.rotateX(-Math.PI / 2);
@@ -1067,20 +1067,92 @@
         return shape;
     }
 
-    function shellShape(pad, cup) {
+    function shellShape(pad, cup, bare) {
         var hw = pad.w / 2, hd = pad.d / 2;
+        var cx = pad.x + hw, cz = pad.z + hd;
         // The disc's own outline, or the slab's — rounded corners and all.
         var shape = pad.r ? discShape(pad) : slabShape(pad);
+        // A cup inside something already cut out needs no hole of its own,
+        // and a hole inside a hole is one a ShapeGeometry cannot triangulate.
+        if (cup && (bare || []).some(function (q) { return P.padContains(q, cup.x, cup.z); })) cup = null;
         if (cup) {
             var hole = new THREE.Path();
-            var cx = pad.x + hw, cz = pad.z + hd;
             // A shade wider than the cup, so no blade hangs over the rim.
             hole.absarc(cup.x - cx, -(cup.z - cz), C.HOLE_R * 1.08, 0, Math.PI * 2, true);
             shape.holes.push(hole);
         }
+        // And whatever is laid into it that grows nothing (bareInlays): the
+        // inlay's own outline, moved from its middle to where it sits in this
+        // pad's shape space (y is minus world z, as everywhere here).
+        var i, q, ox, oy, pts;
+        for (i = 0; i < (bare || []).length; i++) {
+            q = bare[i];
+            ox = q.x + q.w / 2 - cx;
+            oy = -(q.z + q.d / 2 - cz);
+            pts = discShape(q).getPoints(40).map(function (p) {
+                return new THREE.Vector2(p.x + ox, p.y + oy);
+            });
+            shape.holes.push(new THREE.Path(pts));
+        }
         var geo = new THREE.ShapeGeometry(shape, 36);
         geo.rotateX(-Math.PI / 2);
         return geo;
+    }
+
+    /* The inlays a flat pad's grass has to stop at.
+
+       `addTerrain` has always cut its mat round anything laid into it
+       (cutUnder: "the grass may not keep a single blade inside one"). A flat
+       pad never did — its mat is one sheet over the whole outline — and a
+       launch pad is an inlay in a flat green on every course that has one. So
+       the wooden disc and the mark painted on it were three centimetres up
+       under a lawn eleven and a half tall, and all that showed through the
+       blades from the tee was the rim: a thin ring on the grass where a sprung
+       face should have been. Deadlift, on a grey moon under a white sun, is
+       where it was finally called out, and it was the same on every hole.
+
+       Only an inlay that grows nothing of its own, wholly inside the pad and
+       flush with it — or a shorter lawn laid into scrub (below). Grass laid
+       into grass of its own height is a lawn on a lawn and, nested, would
+       want holes that overlap, which a ShapeGeometry cannot triangulate; and
+       anything touching the cup or another hole is left as it was for the same
+       reason. */
+    function bareInlays(pads, pad, cup) {
+        var out = [], i, j, k, q, qx, qz, a, inside, clear, grows;
+        if (!SHELL_HEIGHT[pad.kind] || pad.bumps || pad.field) return out;
+        /* Biggest first, so where grass is nested in grass the outer lawn is
+           the one cut out and the inner one is left to it. */
+        var list = (pads || []).slice().sort(function (m, n) { return (n.r || 0) - (m.r || 0); });
+        for (i = 0; i < list.length; i++) {
+            q = list[i];
+            if (q === pad || !q.inlay || !q.r) continue;
+            /* Grass laid into scrub is cut out of the scrub too: a Coral Keys
+               clifftop is rough with its fairway and green laid on it, and
+               scrub a quarter of a unit tall stood straight up through a green
+               a tenth of one. A shorter lawn in a longer one is the only grass
+               cut; a lawn in a lawn of its own height is left as it was. */
+            grows = SHELL_HEIGHT[q.kind];
+            if (grows && !(pad.kind === 'rough' && grows < SHELL_HEIGHT.rough)) continue;
+            qx = q.x + q.w / 2; qz = q.z + q.d / 2;
+            if (Math.abs(P.padHeight(pad, qx, qz) - P.padHeight(q, qx, qz)) > 0.06) continue;
+            inside = P.padContains(pad, qx, qz);
+            for (k = 0; k < 12 && inside; k++) {
+                a = k / 12 * Math.PI * 2;
+                inside = P.padContains(pad, qx + Math.cos(a) * q.r * 1.05,
+                                            qz + Math.sin(a) * q.r * 1.05);
+            }
+            if (!inside) continue;
+            // A cup is either well clear of the cut or, for a green, well
+            // inside it, where the green's own hole stands in for the cup's.
+            clear = !cup || Math.hypot(cup.x - qx, cup.z - qz) > q.r + C.HOLE_R * 1.2 ||
+                (grows && Math.hypot(cup.x - qx, cup.z - qz) < (q.rIn || q.r) - C.HOLE_R * 1.2);
+            for (j = 0; j < out.length && clear; j++) {
+                clear = Math.hypot(out[j].x + out[j].w / 2 - qx, out[j].z + out[j].d / 2 - qz) >
+                    out[j].r + q.r + 0.02;
+            }
+            if (clear) out.push(q);
+        }
+        return out;
     }
 
     /* The wind, in the grass. One sine per shell with the pad's own phase in
@@ -2184,7 +2256,7 @@
         }
         return R.surf.rainbow;
     }
-    /* The shallows round an island (courses.isle's `shelf`): a band on the
+    /* The shallows round an island (courses.island's `shelf`): a band on the
        water's surface from the shore outwards, pale turquoise at the beach
        and fading to nothing over `out` units — the colour a lagoon goes
        where the sand is a hand under it. The water is all but opaque (it
@@ -2243,7 +2315,11 @@
         // nothing reaches the surrounding ground as it always did. Either way
         // it is deep enough for the shaft, because a cup that comes out of the
         // bottom of its own green is worse than any seam.
-        var floor = supportUnder(pads, pad, cy);
+        // A sea cliff (courses.cliff, `sheer`) stands partly on its island and
+        // partly over the water, and has to go all the way down on both: cut
+        // off at the island's top, its seaward face would stop a hand's
+        // breadth over the waves with daylight under it.
+        var floor = pad.sheer ? null : supportUnder(pads, pad, cy);
         var least = holed ? C.CUP_DEPTH + 0.25 : 0.2;
         /* Every slab reaches down to something — the pad below it, or the
            ground the whole course is standing on. There used to be one
@@ -2307,7 +2383,8 @@
         group.add(mesh);
 
         // …and the grass standing on it, if it is the sort of pad that grows.
-        addShells(group, pad, cup, holed, cx, cy, cz);
+        addShells(group, pad, cup, holed, cx, cy, cz, null,
+            bareInlays(pads, pad, holed ? cup : null));
     }
 
     /* ── the machinery ──────────────────────────────────────────────────
@@ -2433,11 +2510,15 @@
         group.add(face);
         // Two darker rings on the face, which is what a sprung membrane looks
         // like and, more usefully, what makes the middle of one findable.
-        var inner = new THREE.Mesh(new THREE.RingGeometry(r * 0.36, r * 0.46, 28),
-            markMat(0x1a1420, 0.35));
-        inner.rotation.x = -Math.PI / 2;
-        inner.position.set(cx, y + 0.004, cz);
-        group.add(inner);
+        // (There was only ever one, at a third opacity, which under the grass
+        // that used to cover the face nobody could tell.)
+        var ringMat = markMat(0x1a1420, 0.5);
+        [[0.3, 0.38], [0.64, 0.72]].forEach(function (b) {
+            var ring = new THREE.Mesh(new THREE.RingGeometry(r * b[0], r * b[1], 32), ringMat);
+            ring.rotation.x = -Math.PI / 2;
+            ring.position.set(cx, y + 0.004, cz);
+            group.add(ring);
+        });
         var rim = new THREE.Mesh(new THREE.TorusGeometry(r * 1.02, 0.055, 8, 32),
             new THREE.MeshLambertMaterial({ color: col }));
         rim.rotation.x = -Math.PI / 2;

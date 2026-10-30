@@ -1563,6 +1563,19 @@
                                     // they have to agree; inside it the inlay
                                     // may sink and may not rise.
                                     var lay = a.inlay ? a : b, bed = a.inlay ? b : a;
+                                    /* …but only where the bed is the ground.
+                                       Grass on a Coral Keys clifftop overlaps
+                                       the island under the cliff as well as the
+                                       cliff, and the island is not what it is
+                                       laid into; the ground at a point is the
+                                       highest pad there, as the flush check
+                                       further down reads it too. */
+                                    if (h.pads.some(function (o) {
+                                        return o !== bed && !o.inlay &&
+                                            P.padContains(o, x0 + sx2, z0 + sz2) &&
+                                            P.padHeight(o, x0 + sx2, z0 + sz2) >
+                                                P.padHeight(bed, x0 + sx2, z0 + sz2) + 0.35;
+                                    })) continue;
                                     var stand = P.padHeight(lay, x0 + sx2, z0 + sz2) -
                                                 P.padHeight(bed, x0 + sx2, z0 + sz2);
                                     if (stand > proud) { proud = stand; proudAt = tag; }
@@ -1683,6 +1696,13 @@
                     for (i = 0; i < hole.pads.length; i++) {
                         q = hole.pads[i];
                         if (q === p || q.kind === 'sand') continue;
+                        // A cliff standing over a beach (a mesa, a Coral Keys
+                        // headland), or the grass laid on top of one, is a
+                        // cliff and not a bunker's lip: nothing is meant to
+                        // climb it, and the ball is never asked to.
+                        if (q.stands || (q.inlay && hole.pads.some(function (o) {
+                            return o.stands && P.padContains(o, px + dx * probe, pz + dz * probe);
+                        }))) continue;
                         if (!P.padContains(q, px + dx * probe, pz + dz * probe)) continue;
                         // The probe says *which* pad is outside; the height is
                         // read back at the edge itself. Reading it at the probe
@@ -4321,7 +4341,7 @@
                off the list. */
             var L = G3.lab;
             var OPEN = ['skelter/Bounce Alley', 'skelter/The Gravitron', 'cinder/Fumarole',
-                        'cinder/Blowhole', 'apogee/Apogee'];
+                        'apogee/Apogee'];
             var CLOCKED = ['works/The Mill', 'clockwork/Pendulum'];
             assert('the lab module is loaded', !!L);
             var b0 = performance.now(), held = 0;

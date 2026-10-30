@@ -231,6 +231,7 @@
     function loadHole(i, again) {
         closeGate();
         endReplay(true);
+        hideSwingCard();
         tape = null;
         saidLocked = false;
         /* A new hole is a new hole for the caddie too. Whatever it was doing
@@ -263,6 +264,11 @@
            of those holes started with a putter on the tee. A tee there is a
            fresh choice, so it is made for the distance (teeClub). */
         if (hole.longGame && !state.course.isRange) state.club = teeClub(hole);
+        /* And a mini tee is the mallet's. Left to the rule above, a driver
+           carried in from the last round fell through to the bag's first club,
+           which is the putter — nine units of roll on a lane the mallet runs
+           the length of. A hole whose own bag has no mallet keeps that rule. */
+        else if (hole.mini && clubById('mallet').id === 'mallet') state.club = clubById('mallet');
         if (G3.bag && G3.bag.setBag) {
             G3.bag.setBag(state.bag);
             G3.bag.setSelected(state.club.id);
@@ -1189,11 +1195,14 @@
 
     /* ── the swing card ──
 
-       After a touch swing, a small card docked in the top-left corner of the
-       stage says why the ball went where it did: the swipe drawn small against a straight line and
-       the lean that was forgiven, and a line for each thing that was read.
-       It stays while the ball flies and goes when the next swing starts. */
-    var cardTimer = 0;
+       After a touch swing, a card over the controls says why the ball went
+       where it did: the swipe drawn small against a straight line and the lean
+       that was forgiven, and a line for each thing that was read.
+
+       It is the lesson, so it waits to be read: no timer. It goes when it is
+       tapped, when the next swing starts, or when the hole changes. It used
+       to be a small corner card gone after five seconds, which was usually
+       before the ball had stopped and always before anyone had read it. */
 
     function showSwingCard(read, frac, drawn, sw, cross) {
         var card = $('swing-card');
@@ -1209,12 +1218,19 @@
         card.classList.remove('show');
         void card.offsetWidth;
         card.classList.add('show');
-        clearTimeout(cardTimer);
-        cardTimer = setTimeout(hideSwingCard, 5000);
+        placeSwingCard();
+    }
+
+    // Just over the controls, whose height is the layout's to decide.
+    function placeSwingCard() {
+        var card = $('swing-card');
+        if (card.hidden) return;
+        var stage = $('stage').getBoundingClientRect();
+        var ctl = document.querySelector('.controls').getBoundingClientRect();
+        card.style.bottom = Math.round(stage.bottom - ctl.top + 8) + 'px';
     }
 
     function hideSwingCard() {
-        clearTimeout(cardTimer);
         $('swing-card').hidden = true;
     }
 
@@ -1248,6 +1264,11 @@
         var fullY = y0 + len * SW.markAt();
         attrs('sw-guide', { x1: x0, y1: y0, x2: x0, y2: y0 + len });
         attrs('sw-full', { x1: x0 - 16, y1: fullY, x2: x0 + 16, y2: fullY });
+        // The cup, at the pull that runs that far (syncRun); parked off the
+        // lane when no pull on this track gets there.
+        var pinY = runPin >= 0 ? y0 + len * runPin : -99;
+        attrs('sw-pin', { x1: x0 - 24, y1: pinY, x2: x0 + 24, y2: pinY });
+        attrs('sw-pin-label', { x: x0 + 30, y: pinY + 4 });
         attrs('sw-ball', { cx: s ? s.low.x - r.left : x0, cy: s ? s.low.y - r.top : y0 });
         var cone = '';
         if (s && s.through) {
@@ -2134,6 +2155,102 @@
         lastDistance = text;
         $('to-cup').textContent = text;
         $('shud-dist').textContent = text;
+    }
+
+    /* ── how far, roughly ──
+
+       The distance above is the question and the meter answered it in units
+       of power, so choosing a club meant learning thirteen numbers by feel.
+       This says it in metres: how far the loaded shot goes, how far a full
+       swing goes, and a flag on the meter (and in the touch swing's lane) at
+       the power that runs the ball as far as the cup.
+
+       Measured, not guessed: the club in hand, struck as loaded (shape and
+       all), on a flat, windless field of the ground it will mostly be played
+       over — fairway on the long game, where the picker's carry and roll are
+       measured too, the green once on it, and the floor of the lane on a mini
+       hole. "≈" because there is no slope, wind or wall on that field. One
+       table per club, ground, shape and gravity, made on first ask and read
+       by interpolation. */
+    var RUN_STEPS = 26;
+    var runTables = {};
+    var lastRun = null, runPin = -1;
+
+    function runKind() {
+        var hole = state.world.hole, b = state.world.ball;
+        var lie = P.surfaceUnder(hole, b.x, b.z, b.y + C.STEP_UP);
+        var kind = lie ? lie.pad.kind : null;
+        if (hole.longGame) return kind === 'green' ? 'green' : 'fairway';
+        return kind && kind !== 'sand' && C.FRICTION[kind] !== undefined ? kind : 'green';
+    }
+
+    function runTable(club, kind, shape, gravity) {
+        var key = club.id + '|' + kind + '|' + shape + '|' + gravity;
+        if (runTables[key]) return runTables[key];
+        var field = {
+            pads: [G3.authoring.pad(-150, -20, 300, 320, 0, kind)],
+            water: [], walls: [], gravity: gravity,
+            tee: { x: 0, z: 0, y: 0 }, cup: { x: 0, z: 1000, y: 0 }
+        };
+        var top = maxPower(club), out = [], i, p, s, w;
+        for (i = 0; i <= RUN_STEPS; i++) {
+            p = top * i / RUN_STEPS;
+            out.push(0);
+            if (p < C.MIN_POWER) continue;
+            s = { yaw: 0, power: P.deliver(p, club.power), loft: club.loft, bite: club.bite || 0, spin: 0, topped: false };
+            if (shape !== 'straight') s = SW.shape(s, shape, club.loft, club.bite, P.gravityOf(field), 0, field);
+            w = P.createWorld(field, { x: 0, z: 0, y: C.BALL_R }, 0);
+            if (!P.launch(w, s.yaw, s.power, s.loft, s.bite, s.topped)) continue;
+            w.spin = s.spin || 0;
+            P.settle(w);
+            out[i] = Math.sqrt(w.ball.x * w.ball.x + w.ball.z * w.ball.z);
+        }
+        return (runTables[key] = out);
+    }
+
+    // The run at a power, off the table.
+    function runAt(t, power, club) {
+        var f = Math.max(0, Math.min(RUN_STEPS, power / maxPower(club) * RUN_STEPS));
+        var i = Math.min(RUN_STEPS - 1, Math.floor(f));
+        return t[i] + (t[i + 1] - t[i]) * (f - i);
+    }
+
+    // And the other way: the power that runs `d`, or -1 past the track's end.
+    function powerFor(t, d, club) {
+        for (var i = 1; i <= RUN_STEPS; i++) {
+            if (t[i] < d) continue;
+            var f = i - 1 + (t[i] > t[i - 1] ? (d - t[i - 1]) / (t[i] - t[i - 1]) : 1);
+            return maxPower(club) * Math.max(0, f) / RUN_STEPS;
+        }
+        return -1;
+    }
+
+    function metres(d) { return (d < 20 ? d.toFixed(1) : String(Math.round(d))) + ' m'; }
+
+    /* Asked every frame while aiming, and a string compare away from free:
+       the key is everything the answer depends on. */
+    function syncRun() {
+        var club = state.club, b = state.world.ball, cup = state.world.hole.cup;
+        var key = [club.id, shapeNow(), state.aim.power.toFixed(2), b.x.toFixed(2), b.z.toFixed(2)].join('|');
+        if (key === lastRun) return;
+        lastRun = key;
+        var t = runTable(club, runKind(), shapeNow(), state.world.hole.gravity || 1);
+        var full = metres(runAt(t, club.power, club));
+        $('power-dist').textContent = state.aim.power >= C.MIN_POWER
+            ? '≈ ' + metres(runAt(t, state.aim.power, club)) + ' of ' + full
+            : 'full ≈ ' + full;
+        /* Only inside a full swing. Past it the run is real and the line is
+           not (physics.spray), so a flag in the hatching would be pointing at
+           a shot the game does not promise — and on a par 5 it is where the
+           driver's flag would always be, inviting the overswing. */
+        var p = powerFor(t, Math.hypot(cup.x - b.x, cup.z - b.z), club);
+        var pin = p < 0 || p > club.power ? -1 : p / maxPower(club);
+        $('power-pin').hidden = pin < 0;
+        if (pin >= 0) $('power-pin').style.left = (pin * 100).toFixed(1) + '%';
+        if (pin !== runPin) {
+            runPin = pin;
+            if (!$('swipe').hidden) drawSwipe();
+        }
     }
 
     /* The meter reads in fractions of the club in hand, and it runs past 100%:
@@ -4884,6 +5001,7 @@
             tickGate(dt);
             tickArc(dt);
             tickNeedle(dt);
+            syncRun();
             // Gates and blades keep their own time whether or not the ball is
             // rolling, so the preview you aim with is the course you will hit.
             state.world.time += dt;
@@ -5022,6 +5140,7 @@
             measurePickerBand();
             if (state) drawPowerTicks(state.club);
             if (state) syncStyle();
+            placeSwingCard();
         });
 
         $('banner-next').addEventListener('click', nextHole);
@@ -5054,6 +5173,13 @@
         });
         $('needle').addEventListener('pointerdown', pressNeedle);
         $('swipe').addEventListener('pointerdown', onSwipeDown);
+        // The swing card is read, then tapped away (showSwingCard). Taken here
+        // so the tap does not also land on the course and turn the aim.
+        $('swing-card').addEventListener('pointerdown', function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            hideSwingCard();
+        });
         $('swipe').addEventListener('pointermove', onSwipeMove);
         $('swipe').addEventListener('pointerup', onSwipeUp);
         $('swipe').addEventListener('pointercancel', onSwipeUp);
