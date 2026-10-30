@@ -5153,27 +5153,48 @@
     var icehouse = [
         build({
             /* The opener, and it teaches the one number the course is built
-               on by giving you nowhere to hide from it: twenty units of bare
-               ice with a patch of grass at the end. Half a swing of the putter
-               is already too much.
+               on — a putter runs thirty-odd units on ice — by pointing you
+               away from the flag. The pin is on a mat of grass beside the
+               tee, on the far side of the racking down the middle of the
+               store, and the only way to it is up the ice, round the banked
+               end and back down the other side: thirty units to cover a gap
+               of four.
 
-               And a stack of ice blocks in the middle of the store, on the
-               line. It was a lane with nothing on it, so the putt at the flag
-               was the ace and the hole asked how hard and nothing else (README
-               → "The hole lab"). Now the straight putt stops on the stack and
-               the ace is off a wall: ice keeps a bank's angle the way it keeps
-               everything else, so one cushion off either side runs the length
-               of the store to the pin — the course's first lesson and its
-               second in one shot. */
+               It was a straight lane with a stack of ice blocks in the
+               middle, there only because the putt at the flag would otherwise
+               have been the ace (README → "The hole lab"), and nobody could
+               say what it was for. Here what is between you and the pin is
+               the store itself, and the question is the course's: where do
+               you want the ball to run out of speed? Not on the ice — short
+               of the pace and it stops halfway down the far aisle, and a ball
+               on ice is a ball nothing has stopped — and not past the mat,
+               which ends at an open door. On the mat.
+
+               The end is banked (a `channel` round the curve, laid on both
+               aisles where they meet it so the seam is one surface), which is
+               what lets a ball round it without the rail taking its pace:
+               the bank turns it and the ice keeps the rest. The mallet is the
+               ace, firm enough to come all the way home; the putter at full
+               gets round and leaves a putt from the far aisle or the mat. */
             name: 'Cold Store', par: 3,
-            blurb: 'Twenty units of ice and a patch of grass at the end of it. Half a swing is too much.',
-            pads: [
-                pad(0, 0, 6, 3),
-                pad(0, 3, 6, 17, 0, ice),
-                pad(0, 20, 6, 6)
-            ],
-            extra: [wall(2.4, 11.4, 1.2, 1.2, 0.9, { base: -0.1 })],
-            tee: { x: 3, z: 1.5 }, cup: { x: 3, z: 23 }
+            blurb: 'The pin is beside you, behind the racking. Putt away from it — the ice brings the ball all the way round. Stop it on the grass.',
+            pads: (function () {
+                var W = 8, L = 15, R = W / 2, aisle = 3.2, mat = 2.8, cz = L - R;
+                var bend = channel(R, cz, R, 1.6, 0.35, 0, Math.PI);
+                function banked(p) { p.bumps = [bend]; return p; }
+                var end = banked(pad(0, cz, W, R, 0, ice));
+                end.round = { nw: R, ne: R };
+                return [
+                    pad(0, 0, aisle, 3),                                    // the tee
+                    banked(pad(0, 3, aisle, cz - 3, 0, ice)),               // up
+                    end,                                                    // round
+                    banked(pad(W - aisle, mat, aisle, cz - mat, 0, ice)),   // and back
+                    pad(W - aisle, 0, aisle, mat)                           // the mat
+                ];
+            })(),
+            gaps: [brink({ x: 4.8, z: 0, w: 3.2, d: 0 }, 0.4)],         // the door
+            extra: [wall(3.2, -0.2, 1.6, 11.2, 0.8, { base: -0.1 })],   // the racking
+            tee: { x: 1.6, z: 1.5 }, cup: { x: 6.4, z: 1.5 }
         }),
         build({
             /* Grit across the ice, with a gap in it. Sand keeps four
@@ -5266,43 +5287,44 @@
             tee: { x: 4.5, z: 2 }, cup: { x: 4.5, z: 11.9 }
         }),
         build({
-            /* The finisher, and the course's own ride: a bobsleigh run. It was
-               a hall with a belt at the corner, which was The Sluice again a
-               second time; this is the second loop in the game and the first
-               that is not at a fair (`loop`, physics.js "the loop").
+            /* The finisher, and it asks the course's two questions at once:
+               where do you want the ball to run out of speed, and when do you
+               reach for the Checker. It was a bobsleigh hall into a loop,
+               which was Helter Skelter's ride brought indoors and asked
+               neither.
 
-               The hall is ice, so whatever the mallet gives the ball at the
-               tee it still has at the foot of the loop — and the loop wants
-               about fourteen there, which is a firm mallet and nothing less.
-               Not quite enough and it comes off near the top, falls inside
-               the loop, and the ice hands it all the way back down the hall to
-               you. Over the top, and it comes out of the far side on to the
-               first honest grass the course has offered in six holes, running
-               at the pin.
+               The green is a dais across the middle of the room, eight tenths
+               of a unit up, with a sheer face towards the tee and one way up
+               it along the ground: a ramp of ice on the left. Ice on a slope
+               holds nothing (CONFIG.HOLD.ice), so a putt up the ramp has one
+               place to stop and it is the top. Short of the pace and the ramp
+               hands it back to your feet; over it, across the dais and down
+               the ice behind to the grit at the back of the room, which is a
+               lie nothing in the bag but the Checker gets out of. That is the
+               bold line: the mallet in off the left wall, so it climbs the
+               ramp at an angle and carries on across the dais to the pin
+               with the last of its pace.
 
-               The way that does not need the nerve is the belt lane up the
-               east side, running back at you: a putt has to beat the belt,
-               and on ice a putt that does not is a putt that comes home. The
-               housing is Loop the Loop's, set three units further on, so the
-               mouth and the belt are the only roads north. */
+               Or don't putt. The Checker flies the face and sits down on the
+               grass, and the only thing it asks is enough: short of the dais
+               it hits the face and the ice brings it home, and a full one
+               flies the lot into the grit. Anything from most of a swing to
+               all of one lands on the dais and leaves a putt — the safe two,
+               and now and then it pitches by the pin and stays. */
             name: 'The Cold Room', par: 3,
-            blurb: 'An ice hall into a bobsleigh loop: hit it hard enough and it goes over the top and out on to the grass. Or beat the belt up the side.',
+            bag: ['putter', 'mallet', 'checker'],
+            blurb: 'The green is up on a dais. Putt up the ice ramp and stop it at the top, or fly the face with the Checker and let it sit.',
             pads: [
-                pad(0, 0, 7, 3),
-                pad(0, 3, 7, 7.5, 0, ice),
-                pad(0, 10.5, 5.5, 3.9, 0, 'wood'),             // under the ride
-                belt(5.5, 10.5, 1.5, 3.9, 0, -6),              // the long way, against the run
-                pad(0, 14.4, 7, 6.6),
-                pad(0, 21, 7, 1.6, 0, 'sand')
+                pad(0, 0, 8, 3),                                 // the tee
+                pad(0, 3, 8, 0.5, 0, ice),
+                pad(0, 3.5, 3.4, 3, 0, ice, 0, 0.8 / 3),         // the ramp
+                pad(3.4, 3.5, 4.6, 3, 0, ice),                   // under the face
+                pad(0, 6.5, 8, 5, 0.8),                          // the dais
+                pad(0, 11.5, 8, 3, 0.8, ice, 0, -0.8 / 3),       // and down the back
+                pad(0, 14.5, 8, 1.5, 0, ice),
+                pad(0, 16, 8, 2, 0, 'sand')                      // the grit
             ],
-            loops: [loop(2.5, 12.7, 0, 1.1, 1)],
-            extra: [
-                wall(0, 11, 1.95, 3.2, 0.6, { base: -0.1 }),         // west
-                wall(2.86, 11, 2.64, 0.5, 0.6, { base: -0.1 }),      // across the way out
-                wall(2.86, 11.5, 0.24, 0.95, 0.6, { base: -0.1 }),   // between the lanes
-                wall(4.08, 11.5, 1.42, 2.7, 0.6, { base: -0.1 })     // and east
-            ],
-            tee: { x: 2.5, z: 1.5 }, cup: { x: 3.5, z: 18 }
+            tee: { x: 1, z: 1.5 }, cup: { x: 4.8, z: 8.6 }
         })
     ];
 
@@ -5645,29 +5667,67 @@
             tee: { x: 2.4, z: 2 }, cup: { x: 2.4, z: 21.5 }
         }),
         build({
-            /* Three vents in twenty units of ash, and this time none of them
-               is a lift — they are simply in the way. A launch pad is the one
-               obstacle in the game that does not stop a ball, redirect it or
-               slow it down: it throws the ball in the air and hands it back
-               travelling exactly as it was, a second and a half later and a
-               long way further on. So a hole made of them is not a hole you
-               steer past, it is a hole you either miss or accept.
+            /* A blowhole: a hollow in the lawn with a vent at the bottom of
+               it, and the green on a shelf above the far side. It was three
+               vents scattered over a lane, which was a hole you either missed
+               or accepted, and the putt at the flag dropped (README → "The
+               hole lab").
 
-               They are staggered so that the line round the first is the line
-               into the second, which is the only way three of anything is a
-               plan rather than three attempts at the same shot. And they are
-               rated low — 7.6 is a bounce a unit and a half high — because a
-               vent you cannot survive is a coin toss, and a vent that costs
-               you the length of the hole is a hole. */
+               The hollow is the hole. Its sides fall into the floor from
+               every direction, so the vent at the bottom is the one thing on
+               the card you cannot miss: anything rolled into the hollow is
+               gathered on to it and thrown up the face — the mountain running
+               everything downhill, and the vent the only way up. What you own
+               is the pace you bring. The vent throws the ball the same height
+               every time and hands it back travelling as it was, so a ball
+               that comes in slowly is thrown on to the front of the shelf and
+               one that comes in hot is thrown off the back of it. Too slow to
+               clear the face, and it falls back in and the blowhole coughs it
+               up again, weaker each time, until it settles at the bottom.
+
+               And the hollow bends the line. A ball that comes in down one
+               side is turned by that side towards the middle, so the shot
+               aimed at the pin is pulled off it on the way to the vent and
+               lands wide. The ace is a firm mallet in down the right-hand
+               side of the hollow, which turns it back across the vent at the
+               pin — with nothing on the right of the shelf and nothing behind
+               it. The safe way is a gentle putt down the middle: it is
+               gathered, thrown on to the front of the shelf, and leaves a
+               putt for two. */
             name: 'Blowhole', par: 3,
-            blurb: 'Three vents and no way to steer once one has you. The line round the first is the line into the second.',
-            pads: [
-                pad(0, 0, 8, 20),
-                sprung(2.4, 6.5, 1.1, 7.6),
-                sprung(5.8, 10.5, 1.1, 7.6),
-                sprung(3.2, 14.5, 1.1, 7.6)
+            blurb: 'Everything rolls into the hollow and the vent at the bottom throws it up on to the shelf. How far depends on how hard you came in.',
+            pads: (function () {
+                // A hollow in nine pads, most of a `dish`: the floor, a ramp
+                // off each side and the two corners at the tee end, with the
+                // shelf's face where the far ramp would be.
+                var W = 9, cx = 4.5, cz = 9.5, b = 1.3, a = 4.5, run = a - b,
+                    dep = 0.8, k = dep / run;
+                return [
+                    pad(0, 0, W, cz - a),                                  // the tee
+                    pad(cx - b, cz - b, 2 * b, 2 * b, -dep),               // the floor
+                    pad(cx - a, cz - b, run, 2 * b, 0, 'green', -k, 0),    // west side
+                    pad(cx + b, cz - b, run, 2 * b, -dep, 'green', k, 0),  // east side
+                    pad(cx - b, cz - a, 2 * b, run, 0, 'green', 0, -k),    // the near side
+                    pad(cx - a, cz - a, run, run, dep, 'green', -k, -k),   // and its corners
+                    pad(cx + b, cz - a, run, run, 0, 'green', k, -k),
+                    sprung(cx, cz, 1.1, 10, -dep),                         // the blowhole
+                    pad(0, cz + b, 7.8, 7, 0.6)                            // the shelf
+                ];
+            })(),
+            gaps: [
+                brink({ x: 0, z: 17.8, w: 7.8, d: 0 }, 0.4),       // off the back
+                brink({ x: 7.8, z: 11.3, w: 0, d: 6.5 }, 0.4),     // and off the right
+                /* The hollow's two near corners are the two sides added
+                   together, so they rise out of the lawn towards the fence
+                   rather than falling into the hollow — the shoulders either
+                   side of its mouth. Open, not railed: a rail on a seam is a
+                   box as tall as the highest ground it guards, and these were
+                   two of them standing either side of the hollow. The face
+                   turns a ball just as a rail would. */
+                { x: 0, z: 4.8, w: 3.2, d: 0.4 },
+                { x: 5.8, z: 4.8, w: 3.2, d: 0.4 }
             ],
-            tee: { x: 4, z: 1.8 }, cup: { x: 5.8, z: 17.6 }
+            tee: { x: 2, z: 1.8 }, cup: { x: 6.6, z: 14.4 }
         }),
         build({
             /* The finisher, and it is the whole course in one hole: the vent
