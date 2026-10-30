@@ -1091,6 +1091,17 @@ button,
     font-variant-numeric: tabular-nums;
 }
 
+/* And the same pair in metres (game.js `syncRun`) — how far this shot goes on
+   the flat, and how far a full one does. Not upper-cased: "M" reads as mega,
+   and never broken: a "≈" left at the end of a line reads as nothing. */
+.power-dist {
+    margin-left: 0.6rem;
+    white-space: nowrap;
+    text-transform: none;
+    letter-spacing: 0.02em;
+    font-variant-numeric: tabular-nums;
+}
+
 /* ── the view dial ──────────────────────────────────────────────────────── */
 
 /* Aiming and looking used to be the same gesture, which meant every side-on
@@ -1481,6 +1492,29 @@ button,
     left: 76.92%;
     width: 3px;
     background: rgba(255, 255, 255, 0.75);
+}
+
+/* The cup: the power that runs a ball as far as the cup on the flat (game.js
+   `syncRun`). The flag's own orange, with a dark edge so it still reads where
+   the fill has gone amber underneath it. */
+.power-pin {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 3px;
+    margin-left: -1px;
+    background: #fb923c;
+    box-shadow: 0 0 0 1px rgba(6, 33, 47, 0.55), 0 0 8px rgba(251, 146, 60, 0.8);
+    pointer-events: none;
+}
+.power-pin::after {
+    content: '';
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    border-left: 9px solid #fb923c;
+    border-top: 5px solid transparent;
+    border-bottom: 5px solid transparent;
 }
 
 /* And the overdraw: the stretch past a full swing, hatched so it reads as
@@ -3756,6 +3790,25 @@ body.compact-ui .picker { padding-top: 52px; }
     transition: opacity 0.15s;
 }
 .swipe.held .sw-full { opacity: 0.9; }
+.sw-pin {
+    stroke: #fb923c;
+    stroke-width: 3;
+    stroke-linecap: round;
+    opacity: 0;
+}
+.sw-pin-label {
+    fill: #fdba74;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    paint-order: stroke;
+    stroke: rgba(6, 33, 47, 0.6);
+    stroke-width: 3px;
+    opacity: 0;
+}
+.swipe.held .sw-pin,
+.swipe.held .sw-pin-label { opacity: 0.95; }
 .sw-cone { fill: rgba(74, 222, 128, 0.22); stroke: rgba(74, 222, 128, 0.7); stroke-width: 1; }
 .sw-trail {
     fill: none;
@@ -3809,6 +3862,14 @@ body.lane-swing .power-hit { pointer-events: none; }
 body.lane-swing .power-cue,
 body.lane-swing .power-grip { opacity: 0; }
 body.lane-swing #btn-swing { display: none; }
+/* …and the meter itself goes. The lane draws the pull, the full swing and
+   the cup already, so the bar under it was a second copy of the same reading
+   for the eye to split across; the line over it keeps the distances. */
+body.lane-swing .power-hit,
+body.lane-swing .power-word,
+body.lane-swing #power-val,
+body.lane-swing .power-of { display: none; }
+body.lane-swing .power-dist { margin-left: 0; font-size: 0.85rem; font-weight: 600; color: var(--ink); }
 body.lane-swing .swipe-hint {
     display: grid;
     place-items: center;
