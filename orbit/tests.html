@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pocket Orbit — Physics Tests</title>
+    <meta name="robots" content="noindex">
+    <style>
+        body { background: #0f172a; color: #f8fafc; font-family: system-ui, monospace; padding: 1.5rem; line-height: 1.5; }
+        h1 { font-size: 1.4rem; margin-bottom: 1rem; color: #22d3ee; }
+        .pass { color: #34d399; }
+        .fail { color: #f87171; font-weight: bold; }
+        #summary { font-size: 1.2rem; margin-bottom: 1rem; padding: 0.5rem; background: #1e293b; border-radius: 6px; }
+        .test-row { margin-bottom: 0.25rem; font-family: monospace; }
+    </style>
+</head>
+<body>
+    <h1>🛰️ Pocket Orbit — Test Suite</h1>
+    <div id="summary">Running tests…</div>
+    <div id="results"></div>
+
+    <script type="module">
+        import * as S from './js/sim.js';
+        import { createPilot, fly } from './js/pilot.js';
+
+        const results = document.getElementById('results');
+        let passed = 0, failed = 0;
+        function ok(cond, name, detail = '') {
+            const row = document.createElement('div');
+            row.className = 'test-row ' + (cond ? 'pass' : 'fail');
+            row.textContent = (cond ? '✓ ' : '✗ ') + name + (detail ? ' — ' + detail : '');
+            results.appendChild(row);
+            cond ? passed++ : failed++;
+        }
+        const near = (a, b, tol) => Math.abs(a - b) <= tol;
+        const f4 = (x) => x.toFixed(4);
+        const blank = { moon: null, stations: [] };
+
+        // ── Orbits on rails ──
+        {
+            const c = S.circular(2, 0, 1, 0);
+            ok(near(Math.hypot(c.vx, c.vy), 1 / Math.sqrt(2), 1e-12), 'a circular orbit has speed 1/√r');
+            const later = S.circular(2, 0, 1, 2 * Math.PI * Math.pow(2, 1.5));
+            ok(near(later.x, 2, 1e-9) && near(later.y, 0, 1e-9), 'and comes back after 2π·r^1.5');
+            const q = S.circular(2, 0, 1, Math.PI * Math.pow(2, 1.5) / 2);
+            ok(q.y > 1.99, 'and runs anticlockwise');
+        }
+
+        // ── Elements ──
+        {
+            const c = S.circular(1.5, 0.7, 1, 0);
+            const o = S.elements(c.x, c.y, c.vx, c.vy);
+            ok(near(o.e, 0, 1e-9) && near(o.rp, 1.5, 1e-9) && near(o.ra, 1.5, 1e-9), 'a circular orbit has e = 0 and both apsides at r');
+            ok(near(o.period, 2 * Math.PI * Math.pow(1.5, 1.5), 1e-9), 'and the right period');
+            // At periapsis of a known ellipse, moving anticlockwise.
+            const rp = 1.3, ra = 3;
+            const v = S.apsisSpeed(rp, ra);
+            const e = S.elements(rp, 0, 0, v);
+            ok(near(e.rp, rp, 1e-9) && near(e.ra, ra, 1e-9), 'vis-viva at an apsis gives the ellipse asked for', `${f4(e.rp)}–${f4(e.ra)}`);
+            ok(near(e.tAp, e.period / 2, 1e-6), 'apoapsis is half an orbit from periapsis');
+            ok(near(e.argPe, 0, 1e-9), 'periapsis points the right way');
+            const esc = S.elements(1.3, 0, 0, Math.sqrt(2 / 1.3) * 1.01);
+            ok(!esc.bound && esc.ra === Infinity, 'just past escape speed there is no apoapsis');
+            const retro = S.elements(2, 0, 0, -0.5);
+            ok(retro.dir === -1 && retro.bound, 'a clockwise orbit is still an orbit, flagged as going the other way');
+        }
+
+        // ── The integrator ──
+        {
+            const c = S.circular(1.3, 0, 1, 0);
+            const s = { ...c };
+            const T = 2 * Math.PI * Math.pow(1.3, 1.5);
+            S.coast(blank, s, 0, T * 10);
+            ok(Math.hypot(s.x - c.x, s.y - c.y) < 1e-4, 'ten low orbits close on themselves', `${Math.hypot(s.x - c.x, s.y - c.y).toExponential(1)} off`);
+            const v = S.apsisSpeed(1.3, 6);
+            const e = { x: 1.3, y: 0, vx: 0, vy: v };
+            const o0 = S.elements(e.x, e.y, e.vx, e.vy);
+            S.coast(blank, e, 0, o0.period * 5);
+            const o1 = S.elements(e.x, e.y, e.vx, e.vy);
+            ok(near(o1.energy, o0.energy, 1e-8), 'energy holds over five eccentric orbits', (o1.energy - o0.energy).toExponential(1));
+            ok(near(o1.ra, 6, 1e-4), 'and so does apoapsis');
+        }
+
+        // ── Hazards ──
+        {
+            const g = S.createGame(S.LEVELS[0]);
+            S.step(g, 20);
+            ok(g.status === 'crash', 'the first mission’s arc comes down into the air if you do nothing');
+            const L = S.LEVELS.find((l) => l.id === 'higher');
+            const h = S.createGame(L);
+            h.ship.vx *= 1.5; h.ship.vy *= 1.5;
+            S.step(h, 400);
+            ok(h.status === 'escape', 'one and a half times orbital speed escapes', h.status);
+        }
+
+        // ── Burns ──
+        {
+            const L = S.LEVELS.find((l) => l.id === 'higher');
+            const g = S.createGame(L);
+            const r0 = S.elements(g.ship.x, g.ship.y, g.ship.vx, g.ship.vy).ra;
+            const spent = S.step(g, 0.5, { dir: 'pro', maxDv: 0.05 });
+            ok(near(spent, 0.05, 1e-9) && near(g.dvUsed, 0.05, 1e-9), 'a burn stops at exactly the Δv asked for', f4(spent));
+            const o = S.elements(g.ship.x, g.ship.y, g.ship.vx, g.ship.vy);
+            ok(o.ra > r0 + 0.1 && near(o.rp, 1.3, 0.02), 'prograde raises the far side and leaves the near side');
+
+            const g2 = S.createGame(L);
+            S.step(g2, 0.3, { dir: 'out' });
+            const o2 = S.elements(g2.ship.x, g2.ship.y, g2.ship.vx, g2.ship.vy);
+            const s0 = S.createGame(L).ship;
+            const e0 = S.elements(s0.x, s0.y, s0.vx, s0.vy).energy;
+            ok(Math.abs(o2.energy - e0) < 0.002, 'a radial burn barely changes the energy', (o2.energy - e0).toExponential(1));
+
+            const g3 = S.createGame({ ...L, dv: 0.02 });
+            S.step(g3, 2, { dir: 'pro' });
+            ok(near(g3.dvUsed, 0.02, 1e-12) && g3.empty, 'the engine stops when the fuel runs out');
+
+            const g4 = S.createGame(L);
+            S.step(g4, 0.2, { dir: 'pro', fine: true });
+            ok(near(g4.dvUsed, S.THRUST * S.FINE * 0.2, 1e-9), 'fine throttle is a fifth of full');
+        }
+
+        // ── Docking ──
+        {
+            const D = S.LEVELS.find((l) => l.id === 'depot');
+            const g = S.createGame(D);
+            const st = S.station(g, 'depot');
+            const T = S.stationState(g.world, st, 0);
+            g.ship = { x: T.x + 0.03, y: T.y, vx: T.vx + 0.06, vy: T.vy };
+            S.step(g, 0.01);
+            ok(!g.docked, 'too fast and the tractor beam lets you go by');
+            g.ship = { x: T.x + 0.03, y: T.y, vx: T.vx, vy: T.vy + 0.01 };
+            g.t = 0;
+            S.step(g, 0.01);
+            ok(g.docked === 'depot' && g.status === 'won', 'slow and close and you are docked, which finishes the mission');
+
+            const M = S.LEVELS.find((l) => l.id === 'milk');
+            const m = S.createGame(M);
+            ok(m.docked === 'hub', 'the milk run starts docked at the Hub');
+            S.step(m, 5);
+            const hub = S.stationState(m.world, S.station(m, 'hub'), m.t);
+            ok(m.docked === 'hub' && Math.hypot(hub.x - m.ship.x, hub.y - m.ship.y) < 1e-9, 'and stays with it while you wait');
+            S.step(m, 0.1, { dir: 'pro' });
+            ok(!m.docked, 'any burn undocks');
+            S.step(m, 0.02);
+            ok(!m.docked, 'and the Hub does not grab you straight back');
+        }
+
+        // ── Prediction ──
+        {
+            const L = S.LEVELS.find((l) => l.id === 'ring');
+            const g = S.createGame(L);
+            S.step(g, 0.9, { dir: 'pro', maxDv: 0.1 });
+            const p = S.predict(g, S.station(g, 'ring'));
+            // Fly the same coast for real and compare against the path drawn.
+            const t1 = p.times[Math.floor(p.times.length / 2)];
+            const i = p.times.indexOf(t1);
+            const copy = { ...g, ship: { ...g.ship }, events: [] };
+            S.step(copy, t1 - g.t);
+            ok(Math.hypot(copy.ship.x - p.pts[i * 2], copy.ship.y - p.pts[i * 2 + 1]) < 1e-6, 'the predicted path is the path you fly');
+            ok(p.closest && p.closest.d > 0, 'and it finds a closest approach to the target', p.closest && f4(p.closest.d));
+            const first = S.createGame(S.LEVELS[0]);
+            ok(S.predict(first).end === 'crash', 'a path into the air is shown ending there');
+        }
+
+        // ── The moon ──
+        {
+            const L = S.LEVELS.find((l) => l.id === 'moon');
+            const g = S.createGame(L);
+            const m = S.moonState(g.world, 0);
+            ok(S.reference(g).body === 'planet', 'in low orbit you are falling round the planet');
+            g.ship = { x: m.x + 0.5, y: m.y, vx: m.vx, vy: m.vy + Math.sqrt(S.MOON.mu / 0.5) };
+            ok(S.reference(g).body === 'moon', 'near the Moon, round the Moon');
+            ok(S.SOI > 1.5 && S.SOI < 2, 'its sphere of influence is about 1.7 planet radii', f4(S.SOI));
+            const o = S.shipOrbit(g);
+            ok(near(o.e, 0, 1e-6) && near(o.rp, 0.5, 1e-6), 'and the orbit is measured from it');
+        }
+
+        // ── Every mission can be flown, and at three stars ──
+        function autopilot(L) {
+            const g = S.createGame(L);
+            const p = createPilot();
+            let guard = 0;
+            while (g.status === 'flying' && g.t < 1500 && guard++ < 400000) {
+                const r = fly(p, g);
+                if (r.cmd) S.step(g, 0.01, r.cmd);
+                else S.step(g, Math.max(0.001, Math.min(r.wakeAt - g.t, 0.5)));
+            }
+            return g;
+        }
+        for (const L of S.LEVELS) {
+            if (L.free) continue;
+            const g = autopilot(L);
+            ok(g.status === 'won', `${L.id}: the autopilot finishes it`, `${g.status} after ${g.t.toFixed(1)}`);
+            ok(g.dvUsed <= L.stars[1], `${L.id}: inside the three-star Δv`, `${Math.round(g.dvUsed * S.MS)} of ${Math.round(L.stars[1] * S.MS)} m/s`);
+            ok(L.dv >= L.stars[0] * 1.3, `${L.id}: the fuel leaves room for mistakes`);
+            ok(L.stars[1] < L.stars[0] && L.stars[0] < L.dv, `${L.id}: the star thresholds are in order`);
+        }
+
+        // ── Free flight ──
+        {
+            const L = S.LEVELS.find((l) => l.free);
+            const g = S.createGame(L);
+            S.step(g, 3, { dir: 'pro' });
+            ok(!g.empty && S.fuelLeft(g) === Infinity, 'free flight never runs dry');
+            ok(g.world.stations.some((s) => s.parent === 'moon'), 'and has a station round the Moon');
+            const gate = S.station(g, 'gate');
+            const a = S.stationState(g.world, gate, 7), m = S.moonState(g.world, 7);
+            ok(near(Math.hypot(a.x - m.x, a.y - m.y), gate.a, 1e-9), 'which keeps its distance from the Moon');
+        }
+
+        const summary = document.getElementById('summary');
+        summary.textContent = `${passed} passed, ${failed} failed`;
+        summary.className = failed ? 'fail' : 'pass';
+    </script>
+</body>
+</html>
