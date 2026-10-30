@@ -1342,8 +1342,11 @@ What the first sweep found (v1.105.0), over the seventy-eight drawn holes:
   goes through the pad, because that is where its fan of shots starts — move
   the pad off the line and the suite's proof breaks before the straight putt
   does. The Springboard got round it with a wider lane and the kicker; Bounce
-  Alley, The Gravitron, Fumarole, Blowhole and Apogee did not, and they are the
-  open half of the list.
+  Alley, The Gravitron, Fumarole and Apogee did not, and they are the open half
+  of the list. Blowhole was rebuilt round a hollow instead (see
+  [Cinder Cone](#cinder-cone)): the sides of the hollow bend the line on the
+  way to the vent, so the putt at the flag lands wide and the ace is aimed off
+  it.
 - **A rock may not stand on a green** (tests.html, "nothing grows or stands out
   of a bunker or a green"), and every drawn hole is green, so the blocks on the
   line are walls.
@@ -1509,7 +1512,14 @@ Three things about them were each wrong once and are worth writing down:
 - **A decal has to clear the grass.** A green wears a stack of shells a little
   over a tenth of a unit tall, so a ring painted five centimetres up is a ring
   inside a lawn — the near rim shows and the far rim is behind the blades. A
-  pipe mouth came out as a black hole with a pink smile under it.
+  pipe mouth came out as a black hole with a pink smile under it. A launch pad
+  had the same fault one level down for most of its life: the pad is a wooden
+  inlay with no grass of its own, but the green it is laid into grew a flat
+  sheet of blades straight over it, so on every hole with one the face was
+  buried and only the torus rim showed — a thin ring on the grass ("the
+  bouncing pads are not showing", on Deadlift). A flat pad's mat is now
+  punched round any bare inlay in it (`render.bareInlays`), as a landform's
+  always was.
 - **And it has to clear `INLAY_LIFT`, not equal it.** A launch pad is an inlay
   and an inlay is already lifted by that much; a ring at the same height as the
   disc it sits on comes out as a band of speckle.
@@ -1529,12 +1539,12 @@ sand, or somewhere it never arrives.
 
 | # | Hole | Par | What it asks |
 | --- | --- | --- | --- |
-| 1 | Cold Store | 3 | Twenty units of bare ice and a patch of grass at the end. Half a swing is too much — and a stack of ice blocks on the line, so the ace is one cushion off a wall. |
+| 1 | Cold Store | 3 | The pin is on a mat beside the tee, behind the racking down the middle of the store. Putt away from it: up the ice, round the banked end and back down the other aisle — thirty units for a gap of four, which only ice can do. Short stops on the ice; the mat is where it has to die, and past it is the open door. |
 | 2 | The Salt Line | 3 | A bar of grit across the sheet with one gap in it. Sand keeps four thousandths of the ball's speed. |
 | 3 | The Draught | 3 | The sheet falls east and ice holds nothing, so the gutter of ordinary grass at the bottom of it is the hole. A pillar stands where the putt at the flag crosses the sheet. |
 | 4 | The Sluice | 3 | A belt across the corner and grit on the far side of it. The belt is a governor — whatever pace a ball brings, it leaves at the belt's — so the pin is past the spot where that pace dies, and the line up the west side has to bring some of its own. |
 | 5 | Glass Table | 3 | An iced green half a unit up. Nothing to run up, nothing to stop on, and one club in the bag that arrives and stays. |
-| 6 | The Cold Room | 3 | A bobsleigh run: an ice hall that keeps every bit of a firm mallet's pace, into a loop (the game's second, and the first not at a fair), and out on to the only grass in the building. Short of the pace the loop wants and the ice hands the ball all the way back down the hall; the belt lane up the side, against the run, is the way without the nerve. |
+| 6 | The Cold Room | 3 | The finale, and both questions at once. The green is a dais across the room with a sheer face to the tee and one way up it on the ground, an ice ramp on the left: a putt up it has one place to stop, the top, and short comes back to your feet while long goes over the back into the grit. The bold line is the mallet in off the left wall and up the ramp at an angle; the Checker flies the face and sits down, which is the safe two. |
 
 #### Helter Skelter
 
@@ -1574,7 +1584,7 @@ only things on the course that move a ball sideways at all.
 | 2 | Fumarole | 3 | The vent is the lift, and the shelf it throws you on to is open at both ends. Short and long cost the same thing: the lawn runs on underneath, so a miss is played again from the grass. |
 | 3 | Lava Tube | 3 | Eleven units of crater lake — more than anything in the bag carries — and two mouths in the ash in front of it. Both cross: the narrow one comes out at the pin, the wide one in the far corner with a putt to play. |
 | 4 | The Scree | 4 | A shelf with the drop down one side of it and two bands of scree that push south *and* east at once. On Crosstown a belt across the hole costs you the line; here it costs you the ball. |
-| 5 | Blowhole | 3 | Three vents, none of them a lift. A launch pad is the one obstacle in the game that neither stops the ball nor turns it — it hands the ball back travelling exactly as it was, a second later and somewhere else. |
+| 5 | Blowhole | 3 | A hollow in the lawn with the vent at the bottom and the green on a shelf above it. Everything rolled in is gathered on to the vent and thrown up, and the pace you came in with is how far up the shelf it lands — off the back if you came in hot. The sides bend the line, so the ace is a firm mallet in down the right of the hollow, with nothing beside the pin or behind it; a gentle putt down the middle is the safe two. |
 | 6 | Caldera | 4 | The whole course in one hole: the vent to get up, the belt along the rim to be carried along, and the tube to get in. The crater has no way into it along the ground, and no ace: the tube points at the pin across the floor, and a block in front of the pin stops the flight from the lawn that used to be one. |
 
 **Caldera is the hole the belt's own physics wrote.** A travelator has a speed

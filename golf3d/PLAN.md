@@ -25,16 +25,6 @@ perfect bot reads a hole's shape, the one with hands reads whether it is fair.
    for picking it. Simplify it, and give one route the ace and the risk.
 2. **Turnstile** (`works`, hole 5) — boring; the idea behind it does not come
    across. Find the one idea it is about and build the hole round that.
-3. **The Cold Room** (`icehouse`, hole 6) — reads as a random arrangement,
-   no original idea in it. Same ask as Turnstile: one idea, built round.
-4. **Blowhole** (`cinder`, hole 5) — the same complaint: random, no
-   originality. Already on the lab's OPEN list for a straight-at-the-flag
-   ace, which a rebuild should take off it.
-5. **Cold Store** (`icehouse`, hole 1) — "why is there a box in the middle,
-   what is the challenge". The opener of the ice course: it should teach the
-   ice in one obvious lesson, not put an obstacle in the way of nothing.
-6. **Deadlift** (`apogee`, hole 4) — the owner likes how it looks; the
-   launch pads do not read. Make the bouncing pads visible from the tee.
 
 Done:
 
@@ -45,6 +35,16 @@ Done:
 - **The Letterbox** (`tidewater` 3, v1.114.0) — the pin is in a boathouse:
   post it through the slot from the tee, or carry the jetty and putt in at
   the door.
+- **Cold Store** (`icehouse` 1, v1.115.0) — the box is gone: the pin is
+  beside the tee behind racking, and the ice brings a putt sent away from it
+  back round the aisle.
+- **The Cold Room** (`icehouse` 6, v1.115.0) — the green on a dais: putt up
+  the ice ramp, or fly the face with the Checker.
+- **Blowhole** (`cinder` 5, v1.115.0) — a hollow with the vent in its floor
+  that throws whatever rolls in up on to the green, by the pace it came in
+  with.
+- **Deadlift** (`apogee` 4, v1.115.0) — the launch pads read again on every
+  course: the green's grass had been growing over them.
 
 ---
 
@@ -346,11 +346,12 @@ tee shows (Sea Legs' was).
    (`node golf3d/tools/hole-lab.mjs --coarse`; 42 before v1.105.0 made
    Caldera a par 4 in stages on purpose). Some are par 4s played in
    stages and fine as they are; the mini par 3s among them are the list.
-10. **The putt at the flag, on the ten holes that still drop it** (README →
+10. **The putt at the flag, on the nine holes that still drop it** (README →
    "The hole lab"; v1.105.0 rebuilt twelve). Two kinds, and they want
    different answers:
-   - *Launch pads in a row* — Bounce Alley, The Gravitron, Fumarole, Blowhole,
-     Apogee. A pad leaves the heading alone, so the ace through it is the line
+   - *Launch pads in a row* — Bounce Alley, The Gravitron, Fumarole, Apogee
+     (Blowhole came off in v1.115.0, rebuilt as a hollow with the vent in its
+     floor). A pad leaves the heading alone, so the ace through it is the line
      from the tee. Moving the pad or the pin off the line is the obvious fix and
      it fails the other way: the bot's fan starts at the cup's bearing, finds no
      pad there and cannot finish the hole (every variant tried left it short).
@@ -397,9 +398,9 @@ and a banked floor is `padHeight` learning a curved profile.
 **The loop is built (v1.90.0)** — not as ground (a height field has no
 ceiling) but as a track the ball rides, with honest energy and a fall off the
 top: README → "The loop", on Helter Skelter's *Loop the Loop*. The camera
-swings to the side to watch a ride (v1.99.0), and the second loop is the
-bobsleigh at the end of Icehouse Yard (v1.100.0, The Cold Room), where the ice
-hands a ball that falls off it all the way back down the hall.
+swings to the side to watch a ride (v1.99.0). A second loop, a bobsleigh on
+The Cold Room (v1.100.0), went when that hole was rebuilt round its dais
+(v1.115.0); Loop the Loop is the only one now.
 
 ### Then: Challenge mode (the owner's idea) — built (v1.70.0)
 
