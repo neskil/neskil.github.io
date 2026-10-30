@@ -6678,113 +6678,115 @@
        `tint` is the group's colour in that picker and `icon` its mark. Both
        live here rather than in the menu, so a new course arrives already filed
        and a new group arrives already dressed. */
-    /* ── Coral Keys: the long game over open water ─────────────────────────
+    /* ── Coral Keys: the long game round a coast ───────────────────────────
 
        Every other long course is one piece of country with trouble cut into
-       it. This one is the other way round: the sea is the course and the
-       ground is what is cut into it, a handful of islands with nothing
-       between them, so every shot is a carry and every carry has to land on
-       something. There is no running a ball up to anything here; what you
-       choose is which island next, and how much water you are prepared to
-       put between you and it.
+       it. This one is islands in a lagoon, and it was built twice.
 
-       An island is a disc of beach with grass inlaid on it (`isle`). The
-       beach is the mercy: sand holds whatever lands on it, so a ball that
-       comes up a yard short of the grass is in a bunker rather than the sea,
-       and a ball that runs through the grass stops in the sand before the far
-       shore. The wave in the edge is the same mown wobble a green has
-       (`shapeDisc`), which is all it takes for nothing out here to be square.
-       The keys are low domes (v1.96.0), with palms on them and shallows
-       round them. They were level for a long time because a domed key came
-       out as a raft with corners — not the ground, which a disc draws in
-       rings, but its grass, which was laid on the square grid with the disc
-       itself as the thing cut out of it (render.addTerrain says so now).
+       The first time (v1.95.0–v1.111) it was a string of small keys with
+       nothing between them, so every shot was a carry to a target a few units
+       across. The perfect bot played it ten under par; people found it too
+       hard, and both were right. A player who strikes every ball where it
+       meant to can thread anything, so the bot never saw what the course
+       actually was — and with a person's misses (CONFIG.BOT_HANDS,
+       tools/human-check.mjs) it averaged six over, with two balls in the sea
+       a round on the worst holes. There was no shot on the card that was
+       safe, so there was no shot on it that was brave either.
 
-       Every tee is up on a sea stack, a flat-topped pillar of sandstone
-       standing out of the water — the one place on the course with any height
-       to it, which is the height the drive needs to get out over the first
-       channel and the reason it is worth looking down from.
+       So each hole is one big island now, and the sea is let into it rather
+       than laid between pieces of it: a cove, a bay, a lagoon in the crook of
+       a crescent. Every hole has a way round on dry land and a line across the
+       water that saves a shot, and which one to take is the hole — the old
+       "carry it or splash" became "carry it, or play round it a stroke
+       longer". And the islands have height: a tee up on a headland, a shelf
+       of turf above the beach, a green on a clifftop with the sea on three
+       sides of it. A cliff is the other kind of trouble a coast has, and it
+       is a kinder one than water — come up short of a shelf and the ball
+       drops back on to the beach below it, a shot down rather than a stroke
+       and a shot.
+
+       An island is a disc of beach (`island`) with grass laid into it
+       (`lay`), and the beach is still the mercy: sand holds whatever lands on
+       it, so a ball that runs through the grass stops before the shore. Its
+       outline is `coast` — the same seeded wave as before, gentler, because
+       a big island is not a pebble — and its bays are dips in that outline
+       (`bays`: physics.padRadius), so the physics, the shallows, the minimap
+       and the slab are all drawn off the one shoreline. A disc is drawn from
+       its own middle, so a bay always points at it; an island the shape of a
+       C is a disc with one very deep bay.
+
+       A cliff (`cliff`) is a disc that stands on the island, with sides
+       (`stands`, as Redstone's mesa does), and grass laid on top of it.
+       `sheer` is a sea cliff: one that hangs over the edge of its island and
+       goes all the way down into the water (render.addPad).
 
        The water is one sheet under the lot, and the stakes are off: there is
        nowhere to go out of bounds that is not already wet. */
     var KEY_SEA = -0.6, KEY_SHORE = -0.28;
-    // The shallows round a key, as the renderer draws them (render.addShelf):
+    // The shallows round an island, as the renderer draws them (render.addShelf):
     // a band on the water's surface, `out` units wide.
     var KEY_SHELF = { y: KEY_SEA + 0.02, out: 2.4 };
     /* A coastline rather than a mown edge. `shapeDisc` gives every disc the
-       same gentle wobble, which on a green is right and on an island makes
-       every key the same pebble at a different size. This is the same wave
-       turned up and dealt per island: an egg, a kidney, a trefoil, a bay bitten
-       out of one side. `wild` is how much — the most the shore comes in, as a
-       fraction of the radius, is twice it — and the shape is seeded off where
-       the island is, so it is the same island on every load. The edge still
-       only ever bites inwards, so everything that measures the island from
-       outside by `pad.r` stays true. */
-    function coast(p, wild, seed) {
-        var rnd = seeded(seed), lobes = [1, 2, 3, 5], w = [], sum = 0, i;
+       same gentle wobble; this is the same wave turned up and dealt per disc,
+       seeded off where it is so it is the same island on every load. `wild`
+       is how much — the most the shore comes in, as a fraction of the radius,
+       is twice it — and `bays` are the sea let in further still, each named
+       by a point it points at, how deep as a fraction of the radius, and how
+       wide as a half-angle. The edge only ever bites inwards, so everything
+       that measures a disc from outside by `pad.r` stays true, and `rIn` is
+       the circle no bite can reach. */
+    function coast(p, wild, seed, bays) {
+        var rnd = seeded(seed), lobes = [1, 2, 3, 5], w = [], sum = 0, i, deep = 0;
+        var cx = p.x + p.w / 2, cz = p.z + p.d / 2;
         for (i = 0; i < lobes.length; i++) { w.push(0.3 + rnd()); sum += w[i]; }
         p.wave = { bite: wild, terms: lobes.map(function (n, k) {
             return [n, wild * w[k] / sum, rnd() * Math.PI * 2];
         }) };
-        p.rIn = Math.min(p.rx, p.rz) * (1 - 2 * wild);
+        if (bays && bays.length) {
+            p.wave.bays = bays.map(function (b) {
+                deep += b[2];
+                return [Math.atan2(b[1] - cz, b[0] - cx), b[2], b[3]];
+            });
+        }
+        p.rIn = Math.max(0.2, Math.min(p.rx, p.rz) * (1 - 2 * wild - deep));
         return p;
     }
-    function isle(cx, cz, rx, rz, opts) {
-        var o = opts || {};
-        var wild = o.wild === undefined ? 0.16 : o.wild;
-        var seed = Math.round(cx * 977 + cz * 7919 + rx * 131) + (o.seed || 0);
-        var base = coast(circle(cx, cz, rx, 'sand', KEY_SHORE + (o.y || 0), rz), wild, seed);
-        base.inlay = false;
-        /* A key is a low dome, not a raft: the middle stands up out of the
-           sea and the beach runs down to the water's edge. One hump along
-           the island's long axis (a `trough`, which is a hump drawn along a
-           line), so an oval key is domed along its length rather than
-           pinched up in the middle, and about a sixteenth at its steepest — a ball
-           on a key still stops on it. The fairway is laid on top of it
-           (`inlay` takes the host's humps), and `build` seats the palms on
-           whatever height the dome put under them. */
-        // Not a sea stack (`y`): a tee is cut flat on top of its pillar.
-        if (o.dome !== 0 && !o.y) {
-            var rs = Math.min(rx, rz) * 1.1, half = Math.abs(rx - rz);
-            var dome = o.dome === undefined ? Math.min(0.55, rs * 0.04) : o.dome;
-            base.bumps = [rx >= rz
-                ? trough(cx - half, cz, cx + half, cz, rs, dome)
-                : trough(cx, cz - half, cx, cz + half, rs, dome)];
-        }
-        // Shallows round it (render.addShelf), except round a sea stack,
-        // which goes straight down into the water as a stack does.
-        if (!o.y) base.shelf = KEY_SHELF;
-        var pads = [base];
-        if (o.bare) { pads.props = []; return pads; }   // a sand islet, nothing on it
-        /* The grass is the beach's own outline drawn smaller — the same wave,
-           so it follows every bay and point of the shore and can never cross
-           it, and the strand round it is even all the way round. */
-        var g = function (r) { return Math.max(1.2, Math.min(r - 1.3, r * 0.8)); };
-        pads.push(coast(inlay([base], cx, cz, g(rx), o.kind || 'fairway', g(rz)), wild, seed));
-        /* Trees are named by bearing and by how far out, as a fraction of the
-           island, so they stay on it whatever size it is drawn at. */
-        var keepIn = pads[1].rIn - 0.7;      // the grass's own wobble, and the trunk
-        pads.props = (o.trees || []).map(function (t, k) {
-            var dx = Math.cos(t[0]) * rx * t[1], dz = Math.sin(t[0]) * rz * t[1];
-            var f = Math.min(1, keepIn / Math.max(1e-6, Math.sqrt(dx * dx + dz * dz)));
-            return tree(cx + dx * f, cz + dz * f,
-                { h: 2.8 + ((k * 7 + Math.round(cx + cz)) % 5) * 0.2, palm: true });
+    function keySeed(cx, cz, rx, o) {
+        return Math.round(cx * 977 + cz * 7919 + rx * 131) + ((o && o.seed) || 0);
+    }
+    /* The island: flat beach at the shore line, with shallows round it. */
+    function island(cx, cz, rx, rz, o) {
+        o = o || {};
+        var p = coast(circle(cx, cz, rx, 'sand', KEY_SHORE, rz),
+            o.wild === undefined ? 0.05 : o.wild, keySeed(cx, cz, rx, o), o.bays);
+        p.inlay = false;
+        p.shelf = KEY_SHELF;
+        return p;
+    }
+    /* Ground standing `h` above the beach, with sides: a headland the tee is
+       on, a shelf above the fairway, a clifftop green. Scrub on top unless it
+       says otherwise, so grass laid on it reads as mown. */
+    function cliff(cx, cz, rx, rz, h, o) {
+        o = o || {};
+        var p = coast(circle(cx, cz, rx, o.kind || 'rough', KEY_SHORE + h, rz),
+            o.wild === undefined ? 0.06 : o.wild, keySeed(cx, cz, rx, o), o.bays);
+        p.inlay = false;
+        p.stands = true;
+        if (o.sheer) { p.sheer = true; p.shelf = KEY_SHELF; }
+        return p;
+    }
+    /* Grass laid into an island or on top of a cliff: fairway, green, rough. */
+    function lay(host, cx, cz, rx, rz, kind, o) {
+        o = o || {};
+        return coast(inlay([host], cx, cz, rx, kind, rz),
+            o.wild === undefined ? 0.08 : o.wild, keySeed(cx, cz, rx, o) + 17, o.bays);
+    }
+    function palms(list) {
+        return list.map(function (t, k) {
+            return tree(t[0], t[1], { h: 2.8 + ((k * 7 + Math.round(t[0] + t[1])) % 5) * 0.2, palm: true });
         });
-        return pads;
     }
-    /* A green island: flat, and the green laid straight into the beach, so
-       what is round a green out here is a bunker in every direction and then
-       the sea. */
-    function keyGreen(cx, cz, rx, rz, gr, wild) {
-        var base = coast(circle(cx, cz, rx, 'sand', KEY_SHORE, rz), wild || 0.1,
-            Math.round(cx * 613 + cz * 3571));
-        base.inlay = false;
-        base.shelf = KEY_SHELF;
-        return [base, inlay([base], cx, cz, gr, 'green')];
-    }
-    function keys(name, par, blurb, isles, tee, cup) {
-        var pads = [].concat.apply([], isles);
-        var extra = [].concat.apply([], isles.map(function (i) { return i.props || []; }));
+    function keys(name, par, blurb, pads, trees, tee, cup) {
         var minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
         pads.forEach(function (p) {
             minX = Math.min(minX, p.x); maxX = Math.max(maxX, p.x + p.w);
@@ -6799,86 +6801,98 @@
             pads: pads,
             water: [rect(minX - M, minZ - M, maxX - minX + 2 * M, maxZ - minZ + 2 * M, KEY_SEA)],
             fence: { x: minX - 2, z: minZ - 2, w: maxX - minX + 4, d: maxZ - minZ + 4 },
-            extra: extra,
+            extra: palms(trees),
             tee: tee, cup: cup
         });
     }
 
     var coral = [
-        /* The first carry, and a short one: an iron over a channel to a big
-           green key, with a couple of sand islets in the channel that will
-           hold a ball that comes up short — and leave a splash shot off a
-           beach the size of a table. */
-        keys('Landfall', 3, 'One channel, one island, one green. Carry the water; the islets in the channel are there if you do not.', [
-            isle(12, 4, 4.5, 4, { y: 2.8, wild: 0.08 }),
-            isle(8.5, 13, 1.8, 1.4, { bare: true, wild: 0.2 }),
-            isle(16.5, 15.5, 1.3, 1.1, { bare: true, wild: 0.22 }),
-            keyGreen(12.5, 24, 9, 7, 4.4, 0.14)
-        ], { x: 12, z: 3 }, { x: 12.5, z: 24 }),
+        (function () {
+            var land = island(13, 18, 15, 17, { bays: [[32, 13.5, 0.85, 0.55]] });
+            var head = cliff(9, 1, 4.4, 3.6, 2.6, { sheer: true });
+            return keys('Landfall', 3, 'Over the cove at the flag, or round it on dry land and a pitch. The island is all yours either way.', [
+                land, head,
+                lay(head, 9, 1, 2.4, 2, 'fairway'),
+                lay(land, 5, 19, 4.5, 7.5, 'fairway'),
+                lay(land, 18.5, 28, 3.2, 2.8, 'green', { wild: 0.05 }),
+                lay(land, 14, 9, 3.5, 2.5, 'rough', { wild: 0.14 }),
+                lay(land, 10, 30, 3, 2, 'rough', { wild: 0.14 })
+            ], [[9.5, 30], [11, 30.6], [2.5, 22]], { x: 9, z: 0.8 }, { x: 19, z: 28.5 });
+        })(),
 
-        /* A line of keys across the bay, and no two the same size: a pebble,
-           a big kidney-shaped key with trees on it, and a sliver of sand
-           before the green. The driver flies to the big one; the iron hops
-           them one at a time. */
-        keys('Stepping Stones', 4, 'A string of keys across the bay, from a pebble to a big one with trees on it. Hop them, or fly to the big one.', [
-            isle(10, 4, 5, 4.5, { y: 2.8, wild: 0.08 }),
-            isle(6, 17, 3.4, 3, { wild: 0.16 }),
-            isle(15, 31, 9, 7, { wild: 0.15, trees: [[0.4, 0.7], [3.6, 0.6]] }),
-            isle(5, 41, 2.4, 1.3, { bare: true, wild: 0.22 }),
-            keyGreen(11, 50, 8, 8, 4.6, 0.12)
-        ], { x: 10, z: 3 }, { x: 11, z: 51 }),
+        (function () {
+            var land = island(15, 39.5, 13, 39);
+            var head = cliff(16, 3, 4.5, 3.6, 2.6, { sheer: true });
+            var shelf = cliff(8, 52, 7, 25, 1.4, { sheer: true });
+            return keys('The Shelf', 4, 'A shelf of turf above the beach, with the sea under its far edge. Drive up on to it for the open look, or stay low and pitch up.', [
+                land, head, shelf,
+                lay(head, 16, 3, 2.4, 2, 'fairway'),
+                lay(shelf, 8.5, 44, 4.2, 13, 'fairway'),
+                lay(shelf, 9, 65, 3.2, 3, 'green', { wild: 0.05 }),
+                lay(land, 20, 36.5, 5, 16, 'fairway'),
+                lay(land, 18, 13, 4, 4.5, 'rough', { wild: 0.14 }),
+                lay(land, 21, 62, 3.5, 5, 'rough', { wild: 0.14 })
+            ], [[21, 60], [22, 63.5], [18, 12]], { x: 16, z: 2.8 }, { x: 9, z: 65.5 });
+        })(),
 
-        /* An atoll: a broken ring of reef round a lagoon, and the green on a
-           key in the middle of it. The reef is all sizes — a long arm on the
-           near side that an iron finds, and some pieces barely worth the
-           name. The straight line is a drive over the reef and the whole of
-           the lagoon at a green that will not keep a driver's run. */
-        keys('The Atoll', 4, 'A broken ring of reef round a lagoon, and the green in the middle. Land on the reef and pitch in, or fly the lot.', (function () {
-            var out = [isle(16, 3, 5, 4.5, { y: 2.8, wild: 0.08 })], k, a;
-            var size = [[7.5, 4.6], [5.4, 4.4], [2.6, 2.2], [4.6, 3.4], [1.8, 1.6], [5.8, 4.2]];
-            for (k = 0; k < 6; k++) {
-                a = -Math.PI / 2 + k * Math.PI / 3;
-                out.push(isle(16 + Math.cos(a) * 15, 34 + Math.sin(a) * 15, size[k][0], size[k][1],
-                    { wild: 0.22, bare: size[k][0] < 2, trees: k === 1 || k === 5 ? [[a, 0.5]] : [] }));
-            }
-            out.push(keyGreen(16, 34, 7.5, 6.8, 4.4, 0.14));
-            return out;
-        })(), { x: 16, z: 2 }, { x: 16, z: 34.5 }),
+        (function () {
+            var land = island(16, 17, 18, 17.5, { bays: [[16, 43, 0.7, 0.95]] });
+            var head = cliff(16, 2.5, 4.4, 3.4, 2.6, { sheer: true });
+            var key = island(16, 34.5, 6.5, 6.5);
+            return keys('The Atoll', 4, 'A crescent of reef round a lagoon, and the green on a key in the middle of it. Drive the key, or take a horn and pitch across.', [
+                land, head, key,
+                lay(head, 16, 2.6, 2.4, 1.9, 'fairway'),
+                lay(land, 16, 12.5, 7, 3.5, 'fairway'),
+                lay(land, 5, 21.5, 3.2, 4.5, 'fairway'),
+                lay(land, 27, 21.5, 3.2, 4.5, 'fairway'),
+                lay(key, 16, 34.5, 4.2, 3.8, 'green', { wild: 0.05 }),
+                lay(land, 6, 11, 3, 2.5, 'rough', { wild: 0.14 }),
+                lay(land, 26, 11, 3, 2.5, 'rough', { wild: 0.14 })
+            ], [[5.5, 11], [26.5, 11], [3, 22]], { x: 16, z: 2.4 }, { x: 16.5, z: 34.5 });
+        })(),
 
-        /* The par five, and two ways home. Left is a chain of keys a drive
-           apart, one big and blobby and one small enough to need finding.
-           Right is one long ragged island down the middle of the bay that
-           turns the hole into a drive and a long iron, for anyone who can
-           hit it off the tee. */
-        keys('Two Ways Home', 5, 'Two ways down the bay: a chain of keys on the left, or one long ragged island on the right for the brave.', [
-            isle(10, 4, 5.5, 5, { y: 2.8, wild: 0.08 }),
-            isle(5, 30, 8, 9, { wild: 0.16, trees: [[3.3, 0.6]] }),
-            isle(5, 54, 6, 6.5, { wild: 0.13, trees: [[2.9, 0.5]] }),
-            isle(30, 43, 5.5, 13, { wild: 0.14, trees: [[0.2, 0.5], [-0.3, 0.45]] }),
-            isle(14, 63, 1.6, 2.6, { bare: true, wild: 0.2 }),
-            keyGreen(20, 75, 9.5, 8.5, 5, 0.1)
-        ], { x: 10, z: 3 }, { x: 20.5, z: 75.5 }),
+        (function () {
+            var land = island(15, 32, 13, 30, { bays: [[40, 69, 0.6, 0.6]] });
+            var home = island(19, 83.5, 14, 14.5);
+            var head = cliff(16, 3, 4.6, 3.6, 2.6, { sheer: true });
+            return keys('Two Ways Home', 5, 'Two islands and a lagoon between them. Over it at the flag in two, or up the right and across the gap in three.', [
+                land, home, head,
+                lay(head, 16, 3, 2.4, 2, 'fairway'),
+                lay(land, 14.5, 34, 5, 9.5, 'fairway'),
+                lay(land, 11.5, 50, 3.5, 4, 'fairway'),
+                lay(home, 12.5, 79, 3.5, 5.5, 'fairway'),
+                lay(home, 24, 87, 4.4, 4, 'green', { wild: 0.05 }),
+                lay(land, 22.5, 22, 2.8, 4, 'rough', { wild: 0.14 }),
+                lay(home, 25, 77, 3, 3, 'rough', { wild: 0.14 })
+            ], [[22.5, 21], [22, 24], [25, 77]], { x: 16, z: 2.8 }, { x: 24.5, z: 87.5 });
+        })(),
 
-        /* One long carry. The tee is the tallest stack on the course, and what
-           it looks out over is twenty units of water and then a big sprawling
-           key; a pebble off to the left is the lay-up, and costs the shot it
-           saves. */
-        keys('The Long Carry', 4, 'Twenty units of water off the tee. Carry it, or lay up on the pebble and take the long way.', [
-            isle(14, 4, 6, 5.5, { y: 3.6, wild: 0.08 }),
-            isle(3, 20, 3, 3.2, { wild: 0.16, trees: [[3.4, 0.4]] }),
-            isle(14, 38, 9, 9.5, { wild: 0.18, trees: [[3.1, 0.6]] }),
-            keyGreen(21, 56, 8, 7, 4.4, 0.12)
-        ], { x: 14, z: 4 }, { x: 21.5, z: 56 }),
+        (function () {
+            var stack = cliff(14, 4, 4.2, 3.8, 2.6, { sheer: true });
+            var land = island(19, 54, 20, 24.5, { bays: [[24, 26.5, 0.55, 0.55]] });
+            return keys('The Cape', 4, 'The shore runs across the line on a slant. Bite off as much water as you dare — the more you carry, the less is left.', [
+                stack, land,
+                lay(stack, 14, 4, 2.4, 2.2, 'fairway'),
+                lay(land, 11, 48.5, 5, 11, 'fairway'),
+                lay(land, 27, 66, 4.4, 4, 'green', { wild: 0.05 }),
+                lay(land, 30, 54, 4, 3, 'rough', { wild: 0.14 }),
+                lay(land, 12, 70, 3, 2.5, 'rough', { wild: 0.14 })
+            ], [[30, 54], [31.5, 55], [12, 70]], { x: 14, z: 4 }, { x: 27.5, z: 67.5 });
+        })(),
 
-        /* Home round the point: a long, crooked key up the left and the green
-           off to the right behind a thin bar of sand. The sandbar is the
-           bail-out and the only thing between the corner and the flag. */
-        keys('Round the Point', 4, 'Up the long key and hard right to the green. The sandbar in the corner will catch you, once.', [
-            isle(8, 4, 5, 5, { y: 2.8, wild: 0.08 }),
-            isle(8, 27, 5.5, 11, { wild: 0.2, trees: [[3.4, 0.5], [2.9, 0.48]] }),
-            isle(19.5, 41, 3.8, 1.6, { bare: true, wild: 0.14 }),
-            keyGreen(30, 46, 9, 8, 4.8, 0.14)
-        ], { x: 8, z: 3 }, { x: 30.5, z: 46.5 })
+        (function () {
+            var land = island(18, 39, 16, 36, { bays: [[44, 46.5, 0.78, 0.6]] });
+            var head = cliff(14, 3, 4.4, 3.6, 2.6, { sheer: true });
+            var point = cliff(29, 65, 7, 8, 1.1, { sheer: true });
+            return keys('Round the Point', 4, 'Up the long arm and across to a green on the clifftop, or cut the corner over the bay. Short is the beach; long is the sea.', [
+                land, head, point,
+                lay(head, 14, 3, 2.4, 2, 'fairway'),
+                lay(land, 11, 39, 5.5, 15.5, 'fairway'),
+                lay(point, 29.5, 65.5, 4.4, 3.8, 'green', { wild: 0.05 }),
+                lay(land, 15, 63, 4, 3, 'rough', { wild: 0.14 }),
+                lay(land, 24, 26, 3, 4, 'rough', { wild: 0.14 })
+            ], [[15, 63], [24, 25.5], [24.5, 27.5]], { x: 14, z: 2.8 }, { x: 30, z: 66.5 });
+        })()
     ];
 
     G3.COURSE_GROUPS = [

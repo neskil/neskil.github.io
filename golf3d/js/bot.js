@@ -55,6 +55,59 @@
         return false;
     }
 
+    /* ── hands ───────────────────────────────────────────────────────
+
+       Everything above and below this plays a perfect stroke: the ball leaves
+       on exactly the line and the weight that were chosen. That is right for
+       the suite, which is asking whether a hole can be done at all, and wrong
+       for the question a course designer asks, which is whether it is fair.
+       A perfect striker happily threads a ball between two splashes, because
+       in its world there is no splash either side of the line it chose.
+
+       `opts.hands` (CONFIG.BOT_HANDS) gives it a person's misses: every shot
+       it plays leaves off line and off weight by a normal draw, and it picks
+       its shot knowing that — each of the best candidates is played several
+       more times with the same misses, and the one with the best *average*
+       wins. So a hole whose only good line is a needle shows up as strokes on
+       the card and balls in the sea, rather than as an eagle. */
+    function gauss(rnd) {
+        var u = Math.max(1e-9, rnd()), v = rnd();
+        return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+    }
+
+    function handFor(club, hands) {
+        return club.loft > 0 || !hands.putt ? hands : hands.putt;
+    }
+
+    /* The stroke actually played, given the one meant. Never past the club's
+       full swing: a person swinging at the top of the meter misses short, not
+       long, and the overdraw is a decision of its own rather than a miss. */
+    function mishit(club, yaw, power, hands, rnd) {
+        var h = handFor(club, hands);
+        return {
+            yaw: yaw + gauss(rnd) * h.yaw,
+            power: Math.max(C.MIN_POWER, Math.min(club.power, power * (1 + gauss(rnd) * h.power)))
+        };
+    }
+
+    /* About how many strokes are left from a finish — the scale a noisy shot
+       has to be judged on, where distance to the cup alone would call a ball
+       in the sea "500 units away" and let one splash in eight outweigh
+       everything else. Rough numbers, and they only have to rank: holed is
+       nothing, on the green is a putt or two by length, off it is a chip or a
+       drive's worth of distance plus a putt, worse out of sand and rough, and
+       a splash is a stroke plus playing again from where it was struck. */
+    function toGo(hole, w, here) {
+        if (w.sunk) return 0;
+        if (w.splash || w.out) return 1 + here;
+        var d = d2(w.ball, hole.cup);
+        var lie = P.surfaceUnder(hole, w.ball.x, w.ball.z, w.ball.y + 0.05);
+        var kind = lie ? lie.pad.kind : 'rough';
+        if (kind === 'green') return d < 0.3 ? 1 : 1 + Math.min(1.2, (d - 0.3) / 12);
+        return 1.8 + d / 26 + (kind === 'sand' ? 0.35 : kind === 'rough' ? 0.15 : 0) +
+            (blockedLie(hole, w.ball, hole.cup, w.time) ? 1 : 0);
+    }
+
     /* One candidate, played out in a throwaway world. */
     function trial(hole, from, yaw, power, loft, time, bite, opts) {
         var w = P.createWorld(hole, from, time);
@@ -90,6 +143,7 @@
         var waits = moves ? [0, 0.45, 0.95, 1.5] : [0];
         var here = d2(from, cup);
         var best = null;
+        var pool = opts.hands ? [] : null;
         bag = bag || C.CLUBS;
 
         function consider(yaw, club, power, wait) {
@@ -106,6 +160,7 @@
             else s = d2(w.ball, cup) +
                 (blockedLie(hole, w.ball, cup, w.time) ? BLOCKED : 0);
             if (!w.sunk && moved < 1 && s >= here) return;
+            if (pool) pool.push({ s: s, yaw: yaw, club: club, power: power, wait: wait, world: w });
             if (!best || s < best.s) {
                 best = { s: s, yaw: yaw, club: club, power: power, wait: wait, world: w };
             }
@@ -144,7 +199,45 @@
                 });
             });
         });
+        if (pool && best) best = steady(hole, from, time, pool, opts, function (n) { sims += n; });
         if (best) best.sims = sims;
+        return best;
+    }
+
+    /* The hands' half of the choice. Every candidate the search found is
+       ranked by strokes left (toGo) rather than by distance, the best dozen
+       distinct ones are each played `opts.tries` more times through mishit,
+       and the lowest average wins — so a safe line to the fat of an island
+       beats a perfect one past the edge of it. */
+    function steady(hole, from, time, pool, opts, count) {
+        var rnd = opts.rng || Math.random, hands = opts.hands;
+        var tries = opts.tries || 8, keep = opts.keep || 12;
+        var seconds = opts.seconds || SECONDS, dt = opts.dt || DT;
+        var here = toGo(hole, { ball: from, time: time }, 0);
+        pool.forEach(function (c) { c.e = toGo(hole, c.world, here); });
+        pool.sort(function (a, b) { return a.e - b.e; });
+        var picked = [], i, j, c, q, sum, w, m;
+        for (i = 0; i < pool.length && picked.length < keep; i++) {
+            c = pool[i];
+            if (picked.some(function (o) {
+                return o.club === c.club && Math.abs(o.yaw - c.yaw) < 0.02 &&
+                    Math.abs(o.power - c.power) < 0.25;
+            })) continue;
+            picked.push(c);
+        }
+        var best = null;
+        for (i = 0; i < picked.length; i++) {
+            c = picked[i]; sum = 0;
+            for (j = 0; j < tries; j++) {
+                m = mishit(c.club, c.yaw, c.power, hands, rnd);
+                w = trial(hole, from, m.yaw, m.power, c.club.loft, time + c.wait, c.club.bite,
+                          { seconds: seconds, dt: dt });
+                sum += w ? toGo(hole, w, here) : 1 + here;
+            }
+            count(tries);
+            q = sum / tries;
+            if (!best || q < best.mean) { best = c; best.mean = q; }
+        }
         return best;
     }
 
@@ -160,6 +253,15 @@
         for (s = 0; s < maxStrokes; s++) {
             shot = bestShot(hole, from, time, bag, opts);
             if (!shot) break;
+            if (opts.hands) {
+                // Meant is not played: strike the chosen shot through the
+                // same hands the choice was made with.
+                var m = mishit(shot.club, shot.yaw, shot.power, opts.hands, opts.rng || Math.random);
+                var hit = trial(hole, from, m.yaw, m.power, shot.club.loft, time + shot.wait,
+                                shot.club.bite, { seconds: opts.seconds || SECONDS, dt: opts.dt || DT });
+                if (hit) shot = { s: shot.s, yaw: m.yaw, power: m.power, club: shot.club,
+                                  wait: shot.wait, world: hit, meant: shot, sims: shot.sims };
+            }
             strokes++;
             shots.push(shot);
             time = shot.world.time;
@@ -181,6 +283,7 @@
         SECONDS: SECONDS,
         DT: DT,
         blockedLie: blockedLie,
+        mishit: mishit,
         bestShot: bestShot,
         play: play
     };

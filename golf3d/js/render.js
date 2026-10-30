@@ -2184,7 +2184,7 @@
         }
         return R.surf.rainbow;
     }
-    /* The shallows round an island (courses.isle's `shelf`): a band on the
+    /* The shallows round an island (courses.island's `shelf`): a band on the
        water's surface from the shore outwards, pale turquoise at the beach
        and fading to nothing over `out` units — the colour a lagoon goes
        where the sand is a hand under it. The water is all but opaque (it
@@ -2243,7 +2243,11 @@
         // nothing reaches the surrounding ground as it always did. Either way
         // it is deep enough for the shaft, because a cup that comes out of the
         // bottom of its own green is worse than any seam.
-        var floor = supportUnder(pads, pad, cy);
+        // A sea cliff (courses.cliff, `sheer`) stands partly on its island and
+        // partly over the water, and has to go all the way down on both: cut
+        // off at the island's top, its seaward face would stop a hand's
+        // breadth over the waves with daylight under it.
+        var floor = pad.sheer ? null : supportUnder(pads, pad, cy);
         var least = holed ? C.CUP_DEPTH + 0.25 : 0.2;
         /* Every slab reaches down to something — the pad below it, or the
            ground the whole course is standing on. There used to be one

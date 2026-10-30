@@ -12,6 +12,42 @@ to be worked out again.
 
 ---
 
+## The rework queue — the owner's list, one map at a time
+
+Holes the owner has played and sent back, in the order they came in. Work them
+top down, one per merge, and strike each off (move it to "Done" with its
+version) when it ships. Measure a long-game hole with
+`node golf3d/tools/human-check.mjs <course>` as well as `par-check.mjs`: the
+perfect bot reads a hole's shape, the one with hands reads whether it is fair.
+
+1. **Midnight** (`clockwork`, hole 6) — too convoluted to read. Two paths and
+   neither can be aced, so neither is the risky one and there is no reward
+   for picking it. Simplify it, and give one route the ace and the risk.
+2. **Turnstile** (`works`, hole 5) — boring; the idea behind it does not come
+   across. Find the one idea it is about and build the hole round that.
+3. **The Cold Room** (`icehouse`, hole 6) — reads as a random arrangement,
+   no original idea in it. Same ask as Turnstile: one idea, built round.
+4. **Blowhole** (`cinder`, hole 5) — the same complaint: random, no
+   originality. Already on the lab's OPEN list for a straight-at-the-flag
+   ace, which a rebuild should take off it.
+5. **Cold Store** (`icehouse`, hole 1) — "why is there a box in the middle,
+   what is the challenge". The opener of the ice course: it should teach the
+   ice in one obvious lesson, not put an obstacle in the way of nothing.
+6. **Deadlift** (`apogee`, hole 4) — the owner likes how it looks; the
+   launch pads do not read. Make the bouncing pads visible from the tee.
+
+Done:
+
+- **Coral Keys** (v1.112.0) — "too hard"; one big island a hole, a carry and
+  a way round on each. See "Where it stands".
+- **Switchback** (`quarry` 3, v1.112.0) — the tall ramp is a quarter-pipe the
+  mallet aces by weight; par 3 now.
+- **The Letterbox** (`tidewater` 3, v1.112.0) — the pin is in a boathouse:
+  post it through the slot from the tee, or carry the jetty and putt in at
+  the door.
+
+---
+
 ## Where it stands (v1.82.0)
 
 - **The long game flies.** The driver is 21° at 28 and the iron 30° at 16:
@@ -21,16 +57,18 @@ to be worked out again.
   their tees moved six back (The Elbow, Homeward, Long Way Round, Burnside;
   `moor` takes `z0` for that). Deadlift's pads went 13 → 15 so the new driver
   still gets over both steps.
-- **Coral Keys**, the fifth long course: island-hopping across a lagoon
-  (`isle`, `keyGreen`, `keys` in courses.js). Its keys are **low domes** now
-  (v1.96.0), with palms and shallows: the raft-with-corners was the grass,
-  which `addTerrain` laid on the square grid with the disc itself cut out of
-  it, not the ground. Keep a dome under a sixteenth — steeper ran balls off
-  the end of Two Ways Home's long island into a spot the bot could not get
-  back to the green from. Their outlines are dealt per island by `coast` (a stronger, seeded wave):
-  the keys you must land on are kept near 0.15 of wildness, because the bot
-  — and a person — cannot find a target that bites in by half; the bare sand
-  islets take the wild shapes.
+- **Coral Keys**, the fifth long course, rebuilt (v1.112.0): one big island
+  a hole with the sea let in as coves and bays (`island`, `cliff`, `lay`,
+  `keys` in courses.js; bays are `wave.bays` in physics.padRadius), tees on
+  2.6 headlands, a carry and a way round on every hole. Measured with
+  `tools/human-check.mjs` (`CONFIG.BOT_HANDS`, 3° and 8%): the old string of
+  keys averaged about four over par with four balls in the sea a round, the
+  new course about five under with one — still the hardest long course for
+  that player (Ashdown is about seven under). Two things it found that the
+  perfect bot never would: a holed putt on a key used to come back as a
+  splash (the cup's floor is below the sea sheet; physics.drown now leaves a
+  ball inside a cup alone), and the islands' sand costs nothing to play
+  from, so the beach is where a bail-out lands, not a penalty.
 - The owner asked whether there are too many long courses. Five is the count
   now; rather than naturalise all four of the older ones hole by hole, new
   concepts (this one) are the better spend than a fifth pass over the same
