@@ -263,6 +263,11 @@
            of those holes started with a putter on the tee. A tee there is a
            fresh choice, so it is made for the distance (teeClub). */
         if (hole.longGame && !state.course.isRange) state.club = teeClub(hole);
+        /* And a mini tee is the mallet's. Left to the rule above, a driver
+           carried in from the last round fell through to the bag's first club,
+           which is the putter — nine units of roll on a lane the mallet runs
+           the length of. A hole whose own bag has no mallet keeps that rule. */
+        else if (hole.mini && clubById('mallet').id === 'mallet') state.club = clubById('mallet');
         if (G3.bag && G3.bag.setBag) {
             G3.bag.setBag(state.bag);
             G3.bag.setSelected(state.club.id);
