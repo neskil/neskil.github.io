@@ -5222,43 +5222,44 @@
             tee: { x: 4.5, z: 2 }, cup: { x: 4.5, z: 11.9 }
         }),
         build({
-            /* The finisher, and the course's own ride: a bobsleigh run. It was
-               a hall with a belt at the corner, which was The Sluice again a
-               second time; this is the second loop in the game and the first
-               that is not at a fair (`loop`, physics.js "the loop").
+            /* The finisher, and it asks the course's two questions at once:
+               where do you want the ball to run out of speed, and when do you
+               reach for the Checker. It was a bobsleigh hall into a loop,
+               which was Helter Skelter's ride brought indoors and asked
+               neither.
 
-               The hall is ice, so whatever the mallet gives the ball at the
-               tee it still has at the foot of the loop — and the loop wants
-               about fourteen there, which is a firm mallet and nothing less.
-               Not quite enough and it comes off near the top, falls inside
-               the loop, and the ice hands it all the way back down the hall to
-               you. Over the top, and it comes out of the far side on to the
-               first honest grass the course has offered in six holes, running
-               at the pin.
+               The green is a dais across the middle of the room, eight tenths
+               of a unit up, with a sheer face towards the tee and one way up
+               it along the ground: a ramp of ice on the left. Ice on a slope
+               holds nothing (CONFIG.HOLD.ice), so a putt up the ramp has one
+               place to stop and it is the top. Short of the pace and the ramp
+               hands it back to your feet; over it, across the dais and down
+               the ice behind to the grit at the back of the room, which is a
+               lie nothing in the bag but the Checker gets out of. That is the
+               bold line: the mallet in off the left wall, so it climbs the
+               ramp at an angle and carries on across the dais to the pin
+               with the last of its pace.
 
-               The way that does not need the nerve is the belt lane up the
-               east side, running back at you: a putt has to beat the belt,
-               and on ice a putt that does not is a putt that comes home. The
-               housing is Loop the Loop's, set three units further on, so the
-               mouth and the belt are the only roads north. */
+               Or don't putt. The Checker flies the face and sits down on the
+               grass, and the only thing it asks is enough: short of the dais
+               it hits the face and the ice brings it home, and a full one
+               flies the lot into the grit. Anything from most of a swing to
+               all of one lands on the dais and leaves a putt — the safe two,
+               and now and then it pitches by the pin and stays. */
             name: 'The Cold Room', par: 3,
-            blurb: 'An ice hall into a bobsleigh loop: hit it hard enough and it goes over the top and out on to the grass. Or beat the belt up the side.',
+            bag: ['putter', 'mallet', 'checker'],
+            blurb: 'The green is up on a dais. Putt up the ice ramp and stop it at the top, or fly the face with the Checker and let it sit.',
             pads: [
-                pad(0, 0, 7, 3),
-                pad(0, 3, 7, 7.5, 0, ice),
-                pad(0, 10.5, 5.5, 3.9, 0, 'wood'),             // under the ride
-                belt(5.5, 10.5, 1.5, 3.9, 0, -6),              // the long way, against the run
-                pad(0, 14.4, 7, 6.6),
-                pad(0, 21, 7, 1.6, 0, 'sand')
+                pad(0, 0, 8, 3),                                 // the tee
+                pad(0, 3, 8, 0.5, 0, ice),
+                pad(0, 3.5, 3.4, 3, 0, ice, 0, 0.8 / 3),         // the ramp
+                pad(3.4, 3.5, 4.6, 3, 0, ice),                   // under the face
+                pad(0, 6.5, 8, 5, 0.8),                          // the dais
+                pad(0, 11.5, 8, 3, 0.8, ice, 0, -0.8 / 3),       // and down the back
+                pad(0, 14.5, 8, 1.5, 0, ice),
+                pad(0, 16, 8, 2, 0, 'sand')                      // the grit
             ],
-            loops: [loop(2.5, 12.7, 0, 1.1, 1)],
-            extra: [
-                wall(0, 11, 1.95, 3.2, 0.6, { base: -0.1 }),         // west
-                wall(2.86, 11, 2.64, 0.5, 0.6, { base: -0.1 }),      // across the way out
-                wall(2.86, 11.5, 0.24, 0.95, 0.6, { base: -0.1 }),   // between the lanes
-                wall(4.08, 11.5, 1.42, 2.7, 0.6, { base: -0.1 })     // and east
-            ],
-            tee: { x: 2.5, z: 1.5 }, cup: { x: 3.5, z: 18 }
+            tee: { x: 1, z: 1.5 }, cup: { x: 4.8, z: 8.6 }
         })
     ];
 

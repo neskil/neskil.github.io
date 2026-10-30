@@ -1534,7 +1534,7 @@ sand, or somewhere it never arrives.
 | 3 | The Draught | 3 | The sheet falls east and ice holds nothing, so the gutter of ordinary grass at the bottom of it is the hole. A pillar stands where the putt at the flag crosses the sheet. |
 | 4 | The Sluice | 3 | A belt across the corner and grit on the far side of it. The belt is a governor — whatever pace a ball brings, it leaves at the belt's — so the pin is past the spot where that pace dies, and the line up the west side has to bring some of its own. |
 | 5 | Glass Table | 3 | An iced green half a unit up. Nothing to run up, nothing to stop on, and one club in the bag that arrives and stays. |
-| 6 | The Cold Room | 3 | A bobsleigh run: an ice hall that keeps every bit of a firm mallet's pace, into a loop (the game's second, and the first not at a fair), and out on to the only grass in the building. Short of the pace the loop wants and the ice hands the ball all the way back down the hall; the belt lane up the side, against the run, is the way without the nerve. |
+| 6 | The Cold Room | 3 | The finale, and both questions at once. The green is a dais across the room with a sheer face to the tee and one way up it on the ground, an ice ramp on the left: a putt up it has one place to stop, the top, and short comes back to your feet while long goes over the back into the grit. The bold line is the mallet in off the left wall and up the ramp at an angle; the Checker flies the face and sits down, which is the safe two. |
 
 #### Helter Skelter
 
