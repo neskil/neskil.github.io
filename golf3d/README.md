@@ -969,7 +969,7 @@ approach.
 | Quarry Ridge | mini | `quarry` | Ramps, a road with a corner in it and a long way down off every edge. Height as a hazard. Two ramps to one shelf, a pillar with a stair down its side, and a cannon with a plank beside it. |
 | Tidewater Reach | mini | `lagoon` | The loft course. Almost nothing here can be reached along the floor, and every carry has a safe target and a short one. |
 | Highland Steps | mini | `highland` | The same lesson from the other side: things in the way rather than things missing, and the ground handed back as a tool. A curved backboard, a slanted wall, a stair that climbs round a pool. |
-| Windmill Works | crazy | `works` | Gates, blades and a windmill, after dark. Timing — and a slower way round on the holes that would otherwise be one shot: sand past First Gear's gate, a lay-by off The Sweeper's floor. |
+| Windmill Works | crazy | `works` | Gates, blades and a windmill, after dark. Timing — and a slower way round on the holes that would otherwise be one shot: sand past First Gear's gate, a lay-by off The Sweeper's floor, a back gate round Turnstile's fence. |
 | Pinball Parlour | crazy | `arcade` | A table, not a course: bumpers, a plunger chute and two banks set across the throat. The posts *are* the route — and on Bumper City, a dome-topped table, the shot is up a side lane and off a kicker at the pin. |
 | Clockwork Court | crazy | `clockwork` | Six mechanisms at six rates. Two bats that stop, a pendulum, three staggered cogs, a ratchet, and a finish with two lanes to pick between. |
 | The Millrace | crazy | `mill` | The same machines with the river underneath them. A mistimed shot is a stroke here rather than a bounce, so laying up is a real option for the first time on a timing course. |
@@ -1303,7 +1303,7 @@ between them a tutorial hole runs 0.3–0.9%, a skill hole 0.1–0.3% and a clos
 **A putt struck straight at the flag never drops.** A hole whose ace is the line
 at the pin asks how hard and never where. `tests.html` holds every drawn hole
 with no clock on it to that — at every weight, half a degree either side — and
-the two timing holes rebuilt to it as well (`CLOCKED`): a clock makes the check
+the timing holes rebuilt to it as well (`CLOCKED`): a clock makes the check
 twelve times dearer, since it is played at twelve moments of the slowest beat,
 so the other clocked holes are left to the tool. A putt is any club under nine
 degrees, the suite's `LOFTED` line; a lofted club at the flag is reported apart,
