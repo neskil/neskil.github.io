@@ -2936,20 +2936,54 @@
             tee: { x: 2.5, z: 1.5 }, cup: { x: 3.6, z: 10.8 }
         }),
         build({
-            /* Up the ramp and round a banked turn. The outside of the corner
-               rises (a `channel` on the arc round its inside corner), so a
-               ball with pace is carried round to the right instead of dying
-               into the far rail and rolling back down — and a ball with too
-               much climbs the bank and comes off it at an angle nobody
-               chose. The bank is laid on the ramp and the shelf alike, so
-               the seam between them stays one surface. */
-            name: 'Switchback', par: 4,
-            blurb: 'Up the ramp and round the banked turn. Too slow and it rolls back down.',
-            pads: [pad(0, 0, 4, 10)].concat(shape([
-                pad(0, 10, 4, 4, 0, 'green', 0, 0.3),
-                pad(0, 14, 10, 4, 1.2)
-            ], [channel(4, 14, 4.2, 1.6, 0.5, Math.PI / 2, Math.PI)])),
-            tee: { x: 2, z: 1.5 }, cup: { x: 8.4, z: 16 }
+            /* A quarter-pipe across the whole hole, and the shelf on top of
+               it. The face is a curve rather than a ramp: flat where it
+               leaves the floor and steepening all the way to the lip, so it
+               reads as something you send the ball up rather than along, and
+               it is wood, so a ball that does not reach the top comes back
+               down it to you. It used to be a straight ramp a metre and a
+               fifth tall with a banked turn at the top, and the mallet could
+               not get over it, let alone round the turn to the pin.
+
+               The flag is up on the shelf over the far right of the face, and
+               the face is what decides whether you reach it. Climbing it on a
+               slant takes the uphill half of the ball's pace and leaves the
+               sideways half alone, so the ball comes over the lip turned
+               across the face — and the less it had left, the more it turned.
+               Aimed at the flag, the face swings it off the right-hand end of
+               the shelf into the pool. Aimed left of it, the weight is the
+               whole shot: soft and it rolls back down the face, firm enough
+               and it comes over the lip swinging right onto the pin, harder
+               and it runs straight on past it and off the back. Every aim up
+               the left half of the face has its own weight; none of them is
+               a full whack. The safe way is square up the face at the left
+               end, onto the shelf short of the pin, and a putt along it.
+
+               The trough is the half-pipe's own profile, laid on its side:
+               its spine is the foot of the face, on the pad's south edge, and
+               its radius is twice the face's depth, so the pad ends halfway
+               up the curve — the steep half, at the lip — and is lifted by
+               twice the shelf's height to put that point level with the
+               shelf. The back of the shelf and the far end of the face and
+               the shelf are brinks over the quarry pool; the rail on the left
+               is the only edge up there that is not a swim. */
+            name: 'Switchback', par: 3,
+            blurb: 'A quarter-pipe up to the shelf, and it turns whatever climbs it on a slant. Too soft rolls back down; too firm is the pool.',
+            pads: [
+                pad(0, 0, 9, 4),
+                (function () {
+                    var p = pad(0, 4, 9, 2.2, 1.4, 'wood');      // the face, up to 0.7
+                    p.bumps = [trough(-1, 4, 10, 4, 4.4, -1.4)];
+                    return p;
+                })(),
+                pad(0, 6.2, 9, 3.5, 0.7)                         // the shelf
+            ],
+            water: [rect(-2, 9.7, 14, 3, -0.9), rect(9, 4, 3, 5.7, -0.9)],
+            gaps: [
+                brink({ x: 0, z: 9.7, w: 9, d: 0 }, 0.4),         // off the back…
+                { x: 8.6, z: 4.1, w: 0.8, d: 6 }                  // …and the far end
+            ],
+            tee: { x: 1.5, z: 1.2 }, cup: { x: 7.2, z: 7.7 }
         }),
         build({
             /* The road turns now, and that is the whole difference between
