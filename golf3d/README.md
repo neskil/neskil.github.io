@@ -1509,7 +1509,14 @@ Three things about them were each wrong once and are worth writing down:
 - **A decal has to clear the grass.** A green wears a stack of shells a little
   over a tenth of a unit tall, so a ring painted five centimetres up is a ring
   inside a lawn — the near rim shows and the far rim is behind the blades. A
-  pipe mouth came out as a black hole with a pink smile under it.
+  pipe mouth came out as a black hole with a pink smile under it. A launch pad
+  had the same fault one level down for most of its life: the pad is a wooden
+  inlay with no grass of its own, but the green it is laid into grew a flat
+  sheet of blades straight over it, so on every hole with one the face was
+  buried and only the torus rim showed — a thin ring on the grass ("the
+  bouncing pads are not showing", on Deadlift). A flat pad's mat is now
+  punched round any bare inlay in it (`render.bareInlays`), as a landform's
+  always was.
 - **And it has to clear `INLAY_LIFT`, not equal it.** A launch pad is an inlay
   and an inlay is already lifted by that much; a ring at the same height as the
   disc it sits on comes out as a band of speckle.
