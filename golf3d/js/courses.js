@@ -3270,31 +3270,62 @@
             ]
         }),
         build({
-            /* Four walls and no door — and now it is round a corner. The lane
-               goes up and turns right, and the letterbox stands at the far end
-               of the turn, so the hole has the two ways every hole on the card
-               ought to. Round, which is a putt up the leg and a putt along the
-               top to the foot of the box, and then the short chip in; or the
-               pitch from the tee straight over the bay into the box, which is
-               the ace and is also the way into the water. It was a box in the
-               middle of a straight lane seven units from the tee, which was
-               one pitch and nothing to decide. */
+            /* A boathouse across the bay with the pin indoors, and two ways in:
+               the letterbox or the front door. That is the whole hole, and it
+               is what you see from the tee — a timber front with a slot in it
+               and the pin framed in the slot, and off to your left a jetty
+               running up to a door.
+
+               Post it, and it is the bold line. The slot is two units wide and
+               a little over one high, and nothing on the ground reaches it, so
+               the question is the weight rather than the line: a pitch at about
+               four fifths, or a wedge a touch harder, is in the slot. Short or
+               long hits the front, and the front stands in the water — a miss
+               is a stroke and the same shot again. Through it, the back rail is
+               a unit and a bit behind the pin, so everything that gets in on
+               the line comes back off it to the cup or leaves a tap.
+
+               Knock, and it is the safe one. The jetty is a fat target over
+               half the water; from it the door is a putt, and through the door
+               the pin is six units away across the room, and from all but one
+               corner of the jetty there is no straight line through the door to
+               it. Three, nearly always, against the two the letterbox nearly
+               always gives you.
+
+               The front is four units tall because it has to be. The pitch and
+               the wedge both climb past three and a half since the flight got
+               its height (v1.111.0), so anything lower is a wall you lob — from
+               the front of the tee, or from the jetty over the door — and then
+               the letterbox is decoration. Four is out of reach of a full swing
+               from anywhere on the hole; a thrash past it sails the house.
+
+               It used to be a pen at the end of an L-shaped lane — four rails
+               round the cup, which was a chip over a kerb with nothing to read
+               from the tee and nothing to decide. */
             name: 'The Letterbox', par: 3, needsLoft: true,
-            blurb: 'Four walls and no door, round the corner. Walk it round and post it in, or post it from the tee.',
+            blurb: 'The pin is indoors. Post it through the letterbox from the tee, or land on the jetty and knock at the door.',
             pads: [
-                pad(0, 0, 4.5, 9),
-                pad(0, 9, 4.5, 4.5),
-                pad(4.5, 9, 9, 4.5)
+                pad(0, 0, 5, 3.4),                  // the tee
+                pad(-1, 6.4, 10.6, 6),              // the boathouse floor
+                pad(6.6, 1.6, 2.4, 4.8)             // the jetty up to the front door
             ],
-            water: [rect(4.5, -2, 12, 11, -0.7)],
-            extra: pen(9.4, 9, 4.1, 4.5, { h: 0.6 }),
-            tee: { x: 2.25, z: 1.5 }, cup: { x: 11.45, z: 11.25 },
+            water: [rect(-6, -2, 24, 8.41, -0.7)],
+            gaps: [{ x: -1.2, z: 6.2, w: 11, d: 0.4 }],     // the front is the front rail
+            /* One front in two apertures, because an aperture has one opening:
+               the letterbox (sill and lintel — README's "window", laid long and
+               low) on the tee's line, and the door (a doorway, with the lintel
+               every doorway gets) at the head of the jetty. */
+            extra: [].concat(
+                aperture(-1, 6.4, 6.4, 0.3, { gap: 2.0, at: 3.5, sill: 0.5, head: 1.7, h: 4.1, kind: 'beam' }),
+                aperture(5.4, 6.4, 4.2, 0.3, { gap: 1.4, at: 2.4, sill: 0, head: 1.0, h: 4.1, kind: 'beam' })
+            ),
+            tee: { x: 2.5, z: 1.6 }, cup: { x: 2.5, z: 11.3 },
             decor: [
-                buoy(8.5, 4.5, -0.7),
-                piling(5.2, 1.0, -0.7),
-                sailboat(12.5, 3.5, { yaw: -0.6 }),
-                palm(-1.8, 12.6),
-                palm(14.6, 14.2, { yaw: 2.4 })
+                buoy(5.6, 4.6, -0.7),
+                piling(10.8, 3.0, -0.7),
+                sailboat(13.5, 6.5, { yaw: -0.6 }),
+                palm(-2.2, 13.2),
+                palm(11.6, 13.4, { yaw: 2.4 })
             ]
         }),
         build({

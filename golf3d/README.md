@@ -1076,9 +1076,10 @@ Tidewater is built round the one thing a chip can do that a putt cannot —
 leave the ground — and each asks for it differently, with a safe target and a
 short one: **Stepping Stones** is two carries, by a big stone out east or a
 little one on the line; **Short Side** tucks the pin behind sand on the near
-right with the fat of the green open on the left; **The Letterbox** is four
-walls and no door at the end of a lane that turns, so you walk it round and
-chip in or post it from the tee over the bay; **Tabletop** puts the green a
+right with the fat of the green open on the left; **The Letterbox** puts the
+pin indoors, in a boathouse across the bay with two ways in — post it through
+the slot in the front from the tee, where a miss is in the water, or land on the
+jetty and putt in by the front door, which costs a stroke; **Tabletop** puts the green a
 metre up, off to the right of an apron that runs under it, with every edge a
 brink; **The Reach** goes out to a rock off to the right and back across the
 water into a crater that gathers whatever lands in it. And then
