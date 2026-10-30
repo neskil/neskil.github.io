@@ -63,10 +63,9 @@ the real direction of spin. `img/clouds.webp` is not a photograph: it is
 procedural noise sampled on the sphere, made by the same script. To rebuild
 both, run `tools/textures.py` (see the usage line at its top).
 
-## Release
+## On the landing page
 
-The game is not on the landing page and not in `sitemap.xml` yet. Per
-AGENTS.md → "Release flow", the card waits for approval. When it gets one,
-add the card to the games shelf in `index.html` and a preview to
-`assets/preview/`, then add the URL to `sitemap.xml`. The page already
-carries its OG tags and JSON-LD (`assets/og/orbit.png`).
+The card sits on the games shelf of the root `index.html` (`#card-orbit`),
+with its stars badge read from `localStorage['orbit.best']` and three card-back
+previews in `assets/preview/orbit*.webp`. The page is in `sitemap.xml`, with
+its link preview at `assets/og/orbit.png`.

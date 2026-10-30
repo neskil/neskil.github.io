@@ -34,8 +34,7 @@ Folder-based routing — each major page or app is fully isolated with its own
   Tycoon), `/paper-plane/` (Paper Plane Glider), `/sand/` (Sand Clock),
   `/terrarium/` (Pocket Weather Terrarium), `/fika/` (Fika Generator),
   `/name-song/` (Sound of Your Name), `/bil/` (Leasa · Hyra · Köpa, the
-  Swedish car calculator) and `/orbit/` (Pocket Orbit, not yet on the
-  landing page) each own their HTML, logic, assets, and
+  Swedish car calculator) and `/orbit/` (Pocket Orbit) each own their HTML, logic, assets, and
   styling — see the doc map above before working in any of them. The last
   eight keep their rules in DOM-free modules (`js/sim.js`, `js/flight.js`,
   `js/weather.js`, `js/deck.js`, `js/compose.js`, `js/model.js`, and

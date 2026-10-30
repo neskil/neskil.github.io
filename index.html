@@ -200,6 +200,12 @@
             --hue: 52;
         }
 
+        html[data-theme="card-orbit"] {
+            --bg-color-1: #14100e;
+            --bg-color-2: #211714;
+            --hue: 8;
+        }
+
         html[data-theme="card-fika"] {
             --bg-color-1: #171009;
             --bg-color-2: #24180e;
@@ -1967,6 +1973,18 @@
             color: rgb(253, 224, 71);
         }
 
+        #card-orbit {
+            --accent-rgb: 216, 72, 56;
+            --card-bg-gradient: linear-gradient(135deg, rgba(40, 24, 20, 0.66) 0%, rgba(15, 22, 35, 0.60) 100%);
+            --card-hover-gradient: linear-gradient(135deg, rgba(64, 32, 26, 0.82) 0%, rgba(20, 28, 48, 0.75) 100%);
+            --card-border: rgba(216, 72, 56, 0.24);
+            --card-hover-border: rgba(255, 181, 63, 0.50);
+        }
+
+        #card-orbit .card-link {
+            color: rgb(255, 181, 63);
+        }
+
         #card-fika {
             --accent-rgb: 224, 164, 88;
             --card-bg-gradient: linear-gradient(135deg, rgba(40, 26, 18, 0.66) 0%, rgba(15, 22, 35, 0.60) 100%);
@@ -3428,7 +3446,7 @@
                 <button type="button" class="shelf-head" aria-expanded="true" aria-controls="shelf-games-body">
                     <span class="shelf-icon" aria-hidden="true">🎮</span>
                     <span class="shelf-text"><span class="shelf-title">Games</span><span class="shelf-blurb">Things to play. Mostly logistics, occasionally golf.</span></span>
-                    <span class="shelf-count">6</span>
+                    <span class="shelf-count">7</span>
                     <svg class="shelf-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6" /></svg>
                 </button>
             </h2>
@@ -3815,6 +3833,64 @@
                                     <div class="peek-stat"><span class="stat-icon">📄</span> 3 designs or your own &bull; 10 missions &bull; daily bin</div>
                                 </div>
                                 <a class="peek-launch" href="paper-plane/index.html">Fold and throw <svg viewBox="0 0 24 24">
+                                        <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" stroke-linejoin="round" fill="none" />
+                                    </svg></a>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card card-metal flip-card" id="card-orbit">
+                        <div class="card-flip-inner">
+                            <button type="button" class="card-face card-face-front flip-open" aria-expanded="false"
+                                aria-controls="card-orbit-panel">
+                                <div>
+                                    <div class="card-icon">
+                                        <svg viewBox="0 0 24 24">
+                                            <circle cx="12" cy="10" r="4.4" fill="currentColor" fill-opacity="0.18"/>
+                                            <path d="M9 13.4L4.2 21M11 14.3l-1.2 7.4M13 14.3l1.2 7.4M15 13.4l4.8 7.6"/>
+                                            <ellipse cx="12" cy="10" rx="10.2" ry="3.4" opacity="0.45" stroke-dasharray="1.4 1.6" transform="rotate(-18 12 10)"/>
+                                        </svg>
+                                    </div>
+                                    <h3 class="card-title">Pocket Orbit</h3>
+                                    <p class="card-desc">Fly a cargo tug round a pocket-sized Earth with real orbital mechanics. Catch moving stations, run a delivery round, reach the Moon.</p>
+                                    <div class="card-stat-chip" id="stat-orbit">
+                                        <span class="stat-icon">🛰️</span> 7 missions
+                                    </div>
+                                </div>
+                                <span class="card-link">Take a look <svg viewBox="0 0 24 24">
+                                        <path d="M3.6 12a8.4 8.4 0 0 1 14.4-5.9" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" stroke-linejoin="round" fill="none" />
+                                        <path d="M18.4 2.8v3.7h-3.7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                            stroke-linejoin="round" fill="none" />
+                                        <path d="M20.4 12a8.4 8.4 0 0 1-14.4 5.9" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" stroke-linejoin="round" fill="none" />
+                                        <path d="M5.6 21.2v-3.7h3.7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                            stroke-linejoin="round" fill="none" />
+                                    </svg></span>
+                            </button>
+                            <div class="card-face card-face-back peek-back" id="card-orbit-panel" role="dialog" aria-modal="true"
+                                aria-label="Pocket Orbit">
+                                <button type="button" class="card-close" data-flip-close aria-label="Close">
+                                    <svg viewBox="0 0 24 24">
+                                        <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" />
+                                    </svg>
+                                </button>
+                                <div class="peek-shot">
+                                <img data-src="assets/preview/orbit.webp" alt="Earth from above the North Pole with a cargo tug burning onto a transfer orbit towards Ring Station, beside a typed mission order, an amber telemetry dial and a panel of bakelite keys." width="800" height="420"
+                                    decoding="async">
+                                <img data-src="assets/preview/orbit-2.webp" alt="The tug falling towards the Moon on Moonshot, its periapsis marked, as the autopilot lines up the braking burn." width="800" height="420"
+                                    decoding="async">
+                                <img data-src="assets/preview/orbit-3.webp" alt="A flight report for Catch the Depot: three stars and a red rubber stamp, with the fuel spent against the star thresholds." width="800" height="420"
+                                    decoding="async">
+                                </div>
+                                <div class="peek-body">
+                                    <div class="peek-title">Pocket Orbit</div>
+                                    <p class="peek-text">Thrust the way you are going and the far side of your orbit rises; to catch something ahead of you, slow down. Seven missions teach it by doing it, from lifting periapsis out of the air through Hohmann transfers to moving stations and a delivery round, to a capture around the Moon. The dotted path is the one you will fly, ghosts show where you and your target will meet, and "Show me" hands the controls to an autopilot that narrates as it flies. Earth is NASA's Blue Marble, seen from above the pole.</p>
+                                    <div class="peek-stat"><span class="stat-icon">★</span> 7 missions &bull; autopilot demo &bull; Moon sandbox</div>
+                                </div>
+                                <a class="peek-launch" href="orbit/index.html">Begin the countdown <svg viewBox="0 0 24 24">
                                         <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2"
                                             stroke-linecap="round" stroke-linejoin="round" fill="none" />
                                     </svg></a>
@@ -4743,6 +4819,7 @@
                 'card-name-song': 275,
                 'card-fika': 30,
                 'card-paper-plane': 52,
+                'card-orbit': 8,
                 'card-elevator': 38,
                 'card-terrarium': 170,
                 'card-supply-chain': 45,
@@ -5109,6 +5186,16 @@
                 const planeBest = JSON.parse(localStorage.getItem('paperplane.best') || 'null');
                 if (planeBadge && planeBest && planeBest.distance > 0) {
                     planeBadge.innerHTML = `<span class="stat-icon">✈️</span> Best: <span class="stat-val">${planeBest.distance.toFixed(1)} m</span>`;
+                }
+            } catch (e) {}
+
+            // Pocket Orbit: stars earned across its seven missions.
+            try {
+                const orbitBadge = document.getElementById('stat-orbit');
+                const orbitBest = JSON.parse(localStorage.getItem('orbit.best') || '{}');
+                const orbitStars = Object.values(orbitBest).reduce((n, b) => n + ((b && b.stars) || 0), 0);
+                if (orbitBadge && orbitStars > 0) {
+                    orbitBadge.innerHTML = `<span class="stat-icon">★</span> Stars: <span class="stat-val">${orbitStars} / 21</span>`;
                 }
             } catch (e) {}
 
