@@ -38,11 +38,11 @@ perfect bot reads a hole's shape, the one with hands reads whether it is fair.
 
 Done:
 
-- **Coral Keys** (v1.112.0) — "too hard"; one big island a hole, a carry and
+- **Coral Keys** (v1.114.0) — "too hard"; one big island a hole, a carry and
   a way round on each. See "Where it stands".
-- **Switchback** (`quarry` 3, v1.112.0) — the tall ramp is a quarter-pipe the
+- **Switchback** (`quarry` 3, v1.114.0) — the tall ramp is a quarter-pipe the
   mallet aces by weight; par 3 now.
-- **The Letterbox** (`tidewater` 3, v1.112.0) — the pin is in a boathouse:
+- **The Letterbox** (`tidewater` 3, v1.114.0) — the pin is in a boathouse:
   post it through the slot from the tee, or carry the jetty and putt in at
   the door.
 
@@ -57,7 +57,7 @@ Done:
   their tees moved six back (The Elbow, Homeward, Long Way Round, Burnside;
   `moor` takes `z0` for that). Deadlift's pads went 13 → 15 so the new driver
   still gets over both steps.
-- **Coral Keys**, the fifth long course, rebuilt (v1.112.0): one big island
+- **Coral Keys**, the fifth long course, rebuilt (v1.114.0): one big island
   a hole with the sea let in as coves and bays (`island`, `cliff`, `lay`,
   `keys` in courses.js; bays are `wave.bays` in physics.padRadius), tees on
   2.6 headlands, a carry and a way round on every hole. Measured with
