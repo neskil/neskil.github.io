@@ -1072,6 +1072,9 @@
         var cx = pad.x + hw, cz = pad.z + hd;
         // The disc's own outline, or the slab's — rounded corners and all.
         var shape = pad.r ? discShape(pad) : slabShape(pad);
+        // A cup inside something already cut out needs no hole of its own,
+        // and a hole inside a hole is one a ShapeGeometry cannot triangulate.
+        if (cup && (bare || []).some(function (q) { return P.padContains(q, cup.x, cup.z); })) cup = null;
         if (cup) {
             var hole = new THREE.Path();
             // A shade wider than the cup, so no blade hangs over the rim.
@@ -1109,17 +1112,27 @@
        where it was finally called out, and it was the same on every hole.
 
        Only an inlay that grows nothing of its own, wholly inside the pad and
-       flush with it. Grass laid into grass (Coral Keys's fairways in their
-       rough) is a lawn on a lawn and, nested as they are, would want holes
-       that overlap, which a ShapeGeometry cannot triangulate; and anything
-       touching the cup or another hole is left as it was for the same
+       flush with it — or a shorter lawn laid into scrub (below). Grass laid
+       into grass of its own height is a lawn on a lawn and, nested, would
+       want holes that overlap, which a ShapeGeometry cannot triangulate; and
+       anything touching the cup or another hole is left as it was for the same
        reason. */
     function bareInlays(pads, pad, cup) {
-        var out = [], i, j, k, q, qx, qz, a, inside, clear;
+        var out = [], i, j, k, q, qx, qz, a, inside, clear, grows;
         if (!SHELL_HEIGHT[pad.kind] || pad.bumps || pad.field) return out;
-        for (i = 0; i < (pads || []).length; i++) {
-            q = pads[i];
-            if (q === pad || !q.inlay || !q.r || SHELL_HEIGHT[q.kind]) continue;
+        /* Biggest first, so where grass is nested in grass the outer lawn is
+           the one cut out and the inner one is left to it. */
+        var list = (pads || []).slice().sort(function (m, n) { return (n.r || 0) - (m.r || 0); });
+        for (i = 0; i < list.length; i++) {
+            q = list[i];
+            if (q === pad || !q.inlay || !q.r) continue;
+            /* Grass laid into scrub is cut out of the scrub too: a Coral Keys
+               clifftop is rough with its fairway and green laid on it, and
+               scrub a quarter of a unit tall stood straight up through a green
+               a tenth of one. A shorter lawn in a longer one is the only grass
+               cut; a lawn in a lawn of its own height is left as it was. */
+            grows = SHELL_HEIGHT[q.kind];
+            if (grows && !(pad.kind === 'rough' && grows < SHELL_HEIGHT.rough)) continue;
             qx = q.x + q.w / 2; qz = q.z + q.d / 2;
             if (Math.abs(P.padHeight(pad, qx, qz) - P.padHeight(q, qx, qz)) > 0.06) continue;
             inside = P.padContains(pad, qx, qz);
@@ -1129,7 +1142,10 @@
                                             qz + Math.sin(a) * q.r * 1.05);
             }
             if (!inside) continue;
-            clear = !cup || Math.hypot(cup.x - qx, cup.z - qz) > q.r + C.HOLE_R * 1.2;
+            // A cup is either well clear of the cut or, for a green, well
+            // inside it, where the green's own hole stands in for the cup's.
+            clear = !cup || Math.hypot(cup.x - qx, cup.z - qz) > q.r + C.HOLE_R * 1.2 ||
+                (grows && Math.hypot(cup.x - qx, cup.z - qz) < (q.rIn || q.r) - C.HOLE_R * 1.2);
             for (j = 0; j < out.length && clear; j++) {
                 clear = Math.hypot(out[j].x + out[j].w / 2 - qx, out[j].z + out[j].d / 2 - qz) >
                     out[j].r + q.r + 0.02;
