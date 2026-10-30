@@ -20,11 +20,8 @@ version) when it ships. Measure a long-game hole with
 `node golf3d/tools/human-check.mjs <course>` as well as `par-check.mjs`: the
 perfect bot reads a hole's shape, the one with hands reads whether it is fair.
 
-1. **Midnight** (`clockwork`, hole 6) — too convoluted to read. Two paths and
-   neither can be aced, so neither is the risky one and there is no reward
-   for picking it. Simplify it, and give one route the ace and the risk.
-2. **Turnstile** (`works`, hole 5) — boring; the idea behind it does not come
-   across. Find the one idea it is about and build the hole round that.
+Nothing open. "Deadline" (a nice biome, maps too simple, water on a table)
+is waiting on the owner to say which course they meant.
 
 Done:
 
@@ -43,6 +40,17 @@ Done:
 - **Blowhole** (`cinder` 5, v1.115.0) — a hollow with the vent in its floor
   that throws whatever rolls in up on to the green, by the pace it came in
   with.
+- **Turnstile** (`works` 5, v1.116.0) — a fenced green with two ways in:
+  time the bar in the front gate and let the lawn's lean carry it to the pin,
+  or walk round to the back gate for a sure two. Par 3 now.
+- **Midnight** (`clockwork` 6, v1.116.0) — five pieces where there were
+  nine: a clock lane with two weights at their own rates and a bank to the
+  pin, or the empty wide lane round the spine for a two. Par 3 now.
+
+  One caveat on measuring these with `human-check.mjs`: its hands miss the
+  line and the weight but never the moment, so a timing hole reads easier to
+  it than to a person (Midnight averages 1.5, Pendulum 1.58). A timing miss
+  in BOT_HANDS would be the next step for the crazy courses.
 - **Deadlift** (`apogee` 4, v1.115.0) — the launch pads read again on every
   course: the green's grass had been growing over them.
 
