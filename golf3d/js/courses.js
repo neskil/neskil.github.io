@@ -3194,30 +3194,65 @@
             tee: { x: 3.5, z: 1.5 }, cup: { x: 5.2, z: 14 }
         }),
         build({
-            /* The hole the course needed and did not have: one that turns.
-               Five of the six here were a lane with a mechanism in the middle
-               of it, which is five ways of asking the same question, so this
-               one goes north, then east, then north again — and the second
-               blade stands in the corner, where you cannot back off and wait
-               for it because the ball has to be somewhere while you do.
+            /* A green with a fence round it and two ways in: the turnstile in
+               the front, or the gate at the back. That is the whole hole, and
+               it is meant to be read in one look from the tee.
 
-               The bunker keeps a line through it, on the far side of the lane.
-               A band of sand across the whole floor is not a decision, it is a
-               toll; two metres of grass past the edge of it is. */
-            name: 'Turnstile', par: 4,
-            blurb: 'North, east, north — with a blade in the lane, a blade in the corner and sand between them.',
-            pads: [
-                pad(0, 0, 5, 8),
-                pad(0, 8, 3.2, 3.5, 0, 'sand'), pad(3.2, 8, 1.8, 3.5),
-                pad(0, 11.5, 5, 4),
-                pad(5, 11.5, 7, 4),
-                pad(7, 15.5, 5, 4)
-            ],
-            extra: [
-                spinner(2.5, 4, 3.4, 0.4, { spin: -1.5 }),
-                spinner(8.5, 13.5, 3.4, 0.4, { spin: 2.1 })
-            ],
-            tee: { x: 2.5, z: 1.4 }, cup: { x: 9.5, z: 17.6 }
+               It used to be north, east, north with a blade in each leg and a
+               bunker between them — three things to get past and none of them
+               a choice, at twenty-odd units of lane that no ball in the bag
+               could cover in one, so nothing on it could be holed from the tee
+               whatever you did. Turning was the right instinct and a corridor
+               with two spinners in it was not the way to have it.
+
+                 the turnstile  one bar turning on a post in the gate, the
+                                only way through the front fence. Time it
+                                and you are on the green in one shot, and
+                                the ace is on: the lawn leans a
+                                thirtieth to the east and the pin is
+                                tucked behind the fence on that side, so
+                                the line is at the gate rather than the
+                                flag and the fall carries the ball across
+                                to the cup (The Mill's trick, README → "The
+                                hole lab"). A putt at the flag meets the
+                                fence. Mistime it and the bar sends you
+                                back down the lawn.
+                 the way round  the lawn carries on up the east side,
+                                past the corner of the fence and round to
+                                the gate in the back of it, which is wide
+                                and has nothing in it. Nothing here moves
+                                and nothing on it can go wrong — and it is
+                                too far round to finish in one, so it is a
+                                putt to the back and a putt down to the
+                                pin. A stroke dearer than the ace, and a
+                                stroke cheaper than the bar.
+
+               Fifth on the course because it is the first hole here that hands
+               you the choice between the two: First Gear's sand is a way round
+               the gate that costs you the putt after it, and this is a way
+               round that costs you exactly one shot and gives up the ace. The
+               bar is slow and short, so the front door is a fair bet rather
+               than a dare; the dare is the last hole's. */
+            name: 'Turnstile', par: 3,
+            blurb: 'A fenced green with a turnstile in the front. Time the bar and go for it, or walk round to the back gate.',
+            pads: [pad(0, 0, 9, 15, 0, 'green', -0.03, 0)],
+            extra: [].concat(
+                // the front fence, with the gate the turnstile turns in
+                aperture(0, 7, 5.4, 0.4, { gap: 2.1, at: 2.2, h: 0.62 }),
+                // the east fence, and the back one, with the gate between
+                [
+                    wall(5.0, 7.4, 0.4, 4.0, 0.62, { base: -0.1 }),
+                    wall(0, 11.0, 2.2, 0.4, 0.62, { base: -0.1 })
+                ],
+                [spinner(2.2, 7.2, 1.8, 0.3, { spin: 1.1 })]
+            ),
+            tee: { x: 3.0, z: 1.6 }, cup: { x: 4.1, z: 10.2 },
+            decor: [
+                sign(-1.6, 5.6, { yaw: 0.4 }),
+                barrel(-1.8, 8.2),
+                crate(-1.8, 9.4, { yaw: 0.3 }),
+                crate(10.6, 3.4, { yaw: -0.4 })
+            ]
         }),
         build({
             name: 'Grand Finale', par: 4,
@@ -4676,43 +4711,57 @@
             tee: { x: 2.5, z: 1.6 }, cup: { x: 2.5, z: 16 }
         }),
         build({
-            /* The last hole on the last timing course, and it is the only one
-               here that offers a way round rather than a way through. The court
-               is nine wide and split down the middle for its whole length:
-               everything the hole has is on one side or the other, and the two
-               sides are different problems.
+            /* The last hole on the course asks for the whole of it — two
+               things moving at their own rates, and the moment they agree —
+               and offers a way out of the question for a stroke.
 
-                 the west lane  a sliding gate and then a bat, both of them
-                                fast. Two moments, and they are eight units
-                                apart, which is long enough that arriving at
-                                the second with the pace the first wanted is
-                                the actual difficulty.
-                 the east lane  no clock at all — a door in a wall and a bar to
-                                roll under. Nothing on that side is timed and
-                                nothing on it is wide.
+               It used to be a court nine wide and twenty-four long with a
+               spine down the middle and six pieces of furniture either side
+               of it: a gate and a bat on one, a door, a bar to roll under and
+               a bumper on the other. Neither side could be holed in one, so
+               the choice between them was a choice between two ways of taking
+               three, and nobody could see from the tee what any of it was for.
 
-               So the choice is not "which is easier", it is "which kind of
-               hard": a hole that asks whether you would rather count or aim,
-               at midnight, with everything running. */
-            name: 'Midnight', par: 4,
-            blurb: 'Two lanes to the same flag: one with a clock on it, one with a door. Count, or aim.',
-            pads: [pad(0, 0, 9, 24)],
-            extra: [].concat(
-                // the spine, with a way into each lane at the top
-                [wall(4.3, 3.4, 0.4, 14.4, 0.62, { base: -0.1 })],
-                // west: a gate, then a bat
-                [
-                    wall(0, 6.6, 1.1, 0.4, 0.6, { base: -0.1 }),
-                    wall(3.1, 6.6, 1.2, 0.4, 0.6, { base: -0.1 }),
-                    slider(1.2, 6.6, 1.5, 0.4, { amp: 0.62, speed: 2.0 })
-                ],
-                [flipper(2.15, 13.4, 2.6, { rest: -0.5, arc: 1.0, speed: 2.4 })],
-                // east: a door and a bar, neither of which is counting
-                aperture(4.7, 7.6, 4.5, 0.4, { gap: 1.2, at: 1.5, h: 1.7, head: 1.1 }),
-                beam(5.1, 14.2, 3.6, 0.5),
-                [bumper(6.6, 20.4)]
-            ),
-            tee: { x: 4.5, z: 1.6 }, cup: { x: 4.5, z: 21.8 }
+               Now the spine splits the court into a narrow lane and a wide
+               one, and the green runs across the top of both.
+
+                 the clock lane  two weights swinging across it, the near one
+                                 at two radians a second and the far one at
+                                 one and a third, so they line up out of the
+                                 way only now and then — that is midnight.
+                                 Straight up the middle when they do, off
+                                 the bank in the corner at the top, and along
+                                 to the pin: the ace, and it wants the whole
+                                 mallet. Miss the first weight and it sends
+                                 you back to the tee; miss the second and you
+                                 are halfway up a lane with a clock still
+                                 running in front of you.
+                 the long way    nothing moves in it. Up the wide lane and
+                                 out onto the green beside the pin, and a putt.
+                                 It cannot be holed in one — the pin is round
+                                 the end of the spine from it — so it is a two,
+                                 every time, which is a stroke worse than the
+                                 ace and a stroke better than the weight.
+
+               The pin sits just round the end of the spine, so a putt at the
+               flag runs down the lane's east side into the far weight's post
+               (README → "The hole lab"). A ball that glances off the spine is
+               stopped by that post before it can slide up to the top. */
+            name: 'Midnight', par: 3,
+            blurb: 'The clock lane: two weights at two rates, then the bank to the pin. Or the long way, and a putt.',
+            pads: [pad(0, 0, 7.5, 14)],
+            extra: [
+                // the spine, between the clock lane and the long way
+                wall(2.4, 3.6, 0.4, 6.6, 0.62, { base: -0.1 }),
+                // two weights at two rates
+                slider(0.6, 5.0, 0.8, 0.4, { amp: 0.6, speed: 2.0 }),
+                slider(0.6, 8.0, 0.8, 0.4, { amp: 0.6, speed: 1.3 }),
+                // the far weight's post, which catches a putt at the flag
+                wall(2.0, 8.0, 0.4, 0.4, 0.62, { base: -0.1 }),
+                // and the bank that turns the lane onto the pin
+                bank(1.0, 12.2, 2.0, -Math.PI / 4)
+            ],
+            tee: { x: 1.0, z: 1.6 }, cup: { x: 3.0, z: 12.0 }
         })
     ];
 
