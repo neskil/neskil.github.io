@@ -4711,43 +4711,57 @@
             tee: { x: 2.5, z: 1.6 }, cup: { x: 2.5, z: 16 }
         }),
         build({
-            /* The last hole on the last timing course, and it is the only one
-               here that offers a way round rather than a way through. The court
-               is nine wide and split down the middle for its whole length:
-               everything the hole has is on one side or the other, and the two
-               sides are different problems.
+            /* The last hole on the course asks for the whole of it — two
+               things moving at their own rates, and the moment they agree —
+               and offers a way out of the question for a stroke.
 
-                 the west lane  a sliding gate and then a bat, both of them
-                                fast. Two moments, and they are eight units
-                                apart, which is long enough that arriving at
-                                the second with the pace the first wanted is
-                                the actual difficulty.
-                 the east lane  no clock at all — a door in a wall and a bar to
-                                roll under. Nothing on that side is timed and
-                                nothing on it is wide.
+               It used to be a court nine wide and twenty-four long with a
+               spine down the middle and six pieces of furniture either side
+               of it: a gate and a bat on one, a door, a bar to roll under and
+               a bumper on the other. Neither side could be holed in one, so
+               the choice between them was a choice between two ways of taking
+               three, and nobody could see from the tee what any of it was for.
 
-               So the choice is not "which is easier", it is "which kind of
-               hard": a hole that asks whether you would rather count or aim,
-               at midnight, with everything running. */
-            name: 'Midnight', par: 4,
-            blurb: 'Two lanes to the same flag: one with a clock on it, one with a door. Count, or aim.',
-            pads: [pad(0, 0, 9, 24)],
-            extra: [].concat(
-                // the spine, with a way into each lane at the top
-                [wall(4.3, 3.4, 0.4, 14.4, 0.62, { base: -0.1 })],
-                // west: a gate, then a bat
-                [
-                    wall(0, 6.6, 1.1, 0.4, 0.6, { base: -0.1 }),
-                    wall(3.1, 6.6, 1.2, 0.4, 0.6, { base: -0.1 }),
-                    slider(1.2, 6.6, 1.5, 0.4, { amp: 0.62, speed: 2.0 })
-                ],
-                [flipper(2.15, 13.4, 2.6, { rest: -0.5, arc: 1.0, speed: 2.4 })],
-                // east: a door and a bar, neither of which is counting
-                aperture(4.7, 7.6, 4.5, 0.4, { gap: 1.2, at: 1.5, h: 1.7, head: 1.1 }),
-                beam(5.1, 14.2, 3.6, 0.5),
-                [bumper(6.6, 20.4)]
-            ),
-            tee: { x: 4.5, z: 1.6 }, cup: { x: 4.5, z: 21.8 }
+               Now the spine splits the court into a narrow lane and a wide
+               one, and the green runs across the top of both.
+
+                 the clock lane  two weights swinging across it, the near one
+                                 at two radians a second and the far one at
+                                 one and a third, so they line up out of the
+                                 way only now and then — that is midnight.
+                                 Straight up the middle when they do, off
+                                 the bank in the corner at the top, and along
+                                 to the pin: the ace, and it wants the whole
+                                 mallet. Miss the first weight and it sends
+                                 you back to the tee; miss the second and you
+                                 are halfway up a lane with a clock still
+                                 running in front of you.
+                 the long way    nothing moves in it. Up the wide lane and
+                                 out onto the green beside the pin, and a putt.
+                                 It cannot be holed in one — the pin is round
+                                 the end of the spine from it — so it is a two,
+                                 every time, which is a stroke worse than the
+                                 ace and a stroke better than the weight.
+
+               The pin sits just round the end of the spine, so a putt at the
+               flag runs down the lane's east side into the far weight's post
+               (README → "The hole lab"). A ball that glances off the spine is
+               stopped by that post before it can slide up to the top. */
+            name: 'Midnight', par: 3,
+            blurb: 'The clock lane: two weights at two rates, then the bank to the pin. Or the long way, and a putt.',
+            pads: [pad(0, 0, 7.5, 14)],
+            extra: [
+                // the spine, between the clock lane and the long way
+                wall(2.4, 3.6, 0.4, 6.6, 0.62, { base: -0.1 }),
+                // two weights at two rates
+                slider(0.6, 5.0, 0.8, 0.4, { amp: 0.6, speed: 2.0 }),
+                slider(0.6, 8.0, 0.8, 0.4, { amp: 0.6, speed: 1.3 }),
+                // the far weight's post, which catches a putt at the flag
+                wall(2.0, 8.0, 0.4, 0.4, 0.62, { base: -0.1 }),
+                // and the bank that turns the lane onto the pin
+                bank(1.0, 12.2, 2.0, -Math.PI / 4)
+            ],
+            tee: { x: 1.0, z: 1.6 }, cup: { x: 3.0, z: 12.0 }
         })
     ];
 
