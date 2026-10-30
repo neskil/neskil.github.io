@@ -22,8 +22,9 @@ is the moor itself — crests, hollows, a punchbowl, a spiral, a burn round a
 dogleg, a tarn on top of four units of hillside and a gorge two units deep
 across the last of it; and
 Redstone Canyon, which is the only one made of ground that is *missing*; and
-Coral Keys, six holes of island-hopping across a lagoon, where the sea is the
-course and every shot is a carry to the next key. three.js (vendored, r128), plain ES5-flavoured JavaScript, no
+Coral Keys, six holes round the coasts of big islands in a lagoon, where every
+hole has a line across the water that saves a shot and a way round on dry
+land that does not. three.js (vendored, r128), plain ES5-flavoured JavaScript, no
 build step and no other dependencies — same as everything else here, open
 `index.html` and it runs.
 
@@ -81,6 +82,7 @@ them.
 | `turntable.html` + `tools/turntable.mjs` | [The turntable](#the-pictures-which-neither-suite-can-see): every hole drawn from eight fixed angles, as one contact sheet per course, with the audit's findings printed under each row. |
 | `js/lab.js`, `hole-lab.html` + `tools/hole-lab.mjs` | [The hole lab](#the-hole-lab): every line and weight from the tee out of every club in the bag — how many are aces and how wide their windows are, whether a shot aimed straight at the flag drops, and the caddie's card. The page draws the traces on the hole's plan; the tool prints the numbers. Pure, no install. |
 | `tools/par-check.mjs` | The bot plays a course and prints its card against par — a reading of each hole's shape (a par 4 it drives in one has no second shot). Plain Node, no install. PLAN.md §0 sets the line it is measured against. |
+| `tools/human-check.mjs` | The same bot with a person's hands (`CONFIG.BOT_HANDS`: every stroke off line and off weight by a normal draw, and the shot chosen knowing it), playing a course many rounds and printing the average, the spread and the balls in the water per hole. The reading of whether a hole is *fair*, which the perfect bot cannot give: it threads any gap because in its world nothing lands either side of the line. Seeded; `--rounds`, `--hole`, `--seed`. |
 
 The three files above `weather.js` in that list are three of the four different
 jobs the renderer used to do in one file. Picking colours, drawing a texture,
@@ -980,7 +982,7 @@ approach.
 | Whinstone Links | long | `links` | No flat lies and no straight edges. The ground is the hazard, and on one hole it is a sandhill. |
 | Dunmore Heath | long | `heath` | The long game again, shaped rather than furnished: crests, hollows, a punchbowl, a whorl, one dry ravine and a hillside you climb — and moorland water, a burn, a tarn and a pond. |
 | Redstone Canyon | long | `canyon` | Ground that is missing, six ways. A canyon across the drive, down the side of the hole, flooded under a par three, biting a piece out of the fairway, twice, and at the end of a dogleg round a mesa. |
-| Coral Keys | long | `lagoon` | Islands in a lagoon and nothing between them. Every tee is a sea stack, every key is grass on a low dome of beach with palms on it and shallows round it, and every shot is a carry: a chain of keys, an atoll, two ways down a bay, one long carry. `isle` and `keyGreen` in courses.js; the shallows are `render.addShelf`. The dome is a sixteenth at its steepest — at a tenth, balls ran off the end of the long island in Two Ways Home and the bot could not get back to the green from there. |
+| Coral Keys | long | `lagoon` | One big island a hole (two on the par five), with the sea let into it as a cove, a bay or the lagoon inside a crescent, and every hole a choice between the carry and the way round: a cove at the flag, a shelf of turf above the beach, a key in the crook of a crescent, a lagoon between two islands, a Cape-style slanting shore, and a clifftop green round a point. Tees stand on headlands 2.6 up. `island`, `cliff` (with `sheer` for a sea cliff, render.addPad) and `lay` in courses.js; bays are dips in the disc's outline (`wave.bays`, physics.padRadius); the shallows are `render.addShelf`. Built to `tools/human-check.mjs` rather than to the perfect bot, which had scored the first version (a string of small keys) ten under while people found it too hard. |
 
 **Sea Legs**, the first hole anybody plays, is a bounce hole: one lane, one
 baffle reaching in from the east rail, and a rail across the far corner set at
@@ -1076,9 +1078,10 @@ Tidewater is built round the one thing a chip can do that a putt cannot —
 leave the ground — and each asks for it differently, with a safe target and a
 short one: **Stepping Stones** is two carries, by a big stone out east or a
 little one on the line; **Short Side** tucks the pin behind sand on the near
-right with the fat of the green open on the left; **The Letterbox** is four
-walls and no door at the end of a lane that turns, so you walk it round and
-chip in or post it from the tee over the bay; **Tabletop** puts the green a
+right with the fat of the green open on the left; **The Letterbox** puts the
+pin indoors, in a boathouse across the bay with two ways in — post it through
+the slot in the front from the tee, where a miss is in the water, or land on the
+jetty and putt in by the front door, which costs a stroke; **Tabletop** puts the green a
 metre up, off to the right of an apron that runs under it, with every edge a
 brink; **The Reach** goes out to a rock off to the right and back across the
 water into a crater that gathers whatever lands in it. And then

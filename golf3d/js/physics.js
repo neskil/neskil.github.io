@@ -390,6 +390,18 @@
         for (i = 0; i < w.terms.length; i++) {
             s += w.terms[i][1] * Math.sin(w.terms[i][0] * ang + w.terms[i][2]);
         }
+        /* Bays (courses.island): the sea let into the shore round one bearing,
+           `[bearing, depth, half-width]`, depth a fraction of the radius and
+           the profile a raised cosine, so the shore turns into a bay without a
+           corner at either end of it. */
+        if (w.bays) {
+            for (i = 0; i < w.bays.length; i++) {
+                c = ang - w.bays[i][0];
+                c -= Math.round(c / (Math.PI * 2)) * Math.PI * 2;
+                if (c < 0) c = -c;
+                if (c < w.bays[i][2]) s -= w.bays[i][1] * 0.5 * (1 + Math.cos(Math.PI * c / w.bays[i][2]));
+            }
+        }
         return r * (1 + s);
     }
 
@@ -1460,6 +1472,17 @@
         var b = world.ball;
         var w = waterAt(world.hole, b.x, b.z);
         if (!w || b.y - C.BALL_R > w.y) return false;
+        /* A cup is lined. On Coral Keys the greens sit a third of a unit over
+           a sea sheet that runs under the whole hole, and the bottom of a cup
+           is CUP_DEPTH down — under the sea's surface. Without this a ball
+           falling into the cup crossed the waterline a substep before it was
+           low enough to count as holed, and a holed putt came back as a
+           splash and a stroke. */
+        var cup = world.hole.cup;
+        if (cup && cup.y > w.y) {
+            var cdx = b.x - cup.x, cdz = b.z - cup.z;
+            if (cdx * cdx + cdz * cdz < C.HOLE_R * C.HOLE_R) return false;
+        }
         b.y = w.y;
         b.vx = b.vy = b.vz = 0;
         world.splash = true;
