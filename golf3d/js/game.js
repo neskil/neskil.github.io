@@ -555,19 +555,20 @@
     }
 
     /* Every ball on the range says how far it went, how much of that was in
-       the air, and where it stopped in terms of the boards — "38 m" means
-       little until it is "just past the 30". */
+       the air, and where it stopped in terms of the boards — "212 m" means
+       little until it is "just past the 200". */
     function judgeRangeShot(w) {
         var d = Math.hypot(w.ball.x - w.hole.tee.x, w.ball.z - w.hole.tee.z);
         var t = targetUnder(w.hole, w.ball.x, w.ball.z);
         var where = t ? 'on the ' + t.dist + ' m green' : null;
         if (!where) {
             var near = null, ts = w.hole.targets || [], i;
-            for (i = 0; i < ts.length; i++) if (ts[i].dist <= d) near = ts[i];
+            for (i = 0; i < ts.length; i++) if (ts[i].dist <= d * G3.distance.scale(w.hole)) near = ts[i];
             where = near ? 'past the ' + near.dist + ' m board' : 'short of the first board';
         }
-        toast(state.club.name + ' · ' + d.toFixed(1) + ' m' +
-              (w.carry ? ' (carry ' + w.carry.toFixed(1) + ')' : '') + ' — ' + where,
+        var D = G3.distance;
+        toast(state.club.name + ' · ' + D.said(d, w.hole) +
+              (w.carry ? ' (carry ' + D.said(w.carry, w.hole).replace(' m', '') + ')' : '') + ' — ' + where,
               t ? 'good' : undefined);
         if (school.lesson === 'line' && !state.shotOver) {
             if (t) creditLesson('line', 'On the ' + t.dist + ' m green, dead on the cone.');
@@ -1350,11 +1351,6 @@
         var fullY = y0 + len * SW.markAt();
         attrs('sw-guide', { x1: x0, y1: y0, x2: x0, y2: y0 + len });
         attrs('sw-full', { x1: x0 - 16, y1: fullY, x2: x0 + 16, y2: fullY });
-        // The cup, at the pull that runs that far (syncRun); parked off the
-        // lane when no pull on this track gets there.
-        var pinY = runPin >= 0 ? y0 + len * runPin : -99;
-        attrs('sw-pin', { x1: x0 - 24, y1: pinY, x2: x0 + 24, y2: pinY });
-        attrs('sw-pin-label', { x: x0 + 30, y: pinY + 4 });
         attrs('sw-ball', { cx: s ? s.low.x - r.left : x0, cy: s ? s.low.y - r.top : y0 });
         var cone = '';
         if (s && s.through) {
@@ -1742,7 +1738,7 @@
             state.phase = 'holed';
             A.ace();
             var d = Math.hypot(hole.cup.x - hole.tee.x, hole.cup.z - hole.tee.z);
-            toast('In the cup from ' + d.toFixed(1) + ' m!', 'good');
+            toast('In the cup from ' + G3.distance.said(d, hole) + '!', 'good');
             // Holed is on a green by any reading — it counts for the line lesson.
             if (school.lesson === 'line' && !state.shotOver) creditLesson('line', 'Holed it, inside the line.');
             setTimeout(function () {
@@ -2081,7 +2077,7 @@
            backswing is not a puzzle, it is a surprise. So the card names the
            clubs whenever there are not five of them. */
         $('hc-meta').textContent = 'Par ' + hole.par + ' · ' +
-            Math.hypot(hole.cup.x - b.x, hole.cup.z - b.z).toFixed(1) + ' m' +
+            G3.distance.toFlag(Math.hypot(hole.cup.x - b.x, hole.cup.z - b.z), hole) +
             (state.bag !== C.CLUBS
                 ? ' · ' + state.bag.map(function (c) { return c.name; }).join(' + ') + ' only'
                 : '') +
@@ -2253,16 +2249,17 @@
     }
 
     /* How far there is left to go, which is the number the club choice is
-       really about. Updated every frame while the ball is rolling — and, like
+       really about — to the nearest ten metres, and not at all inside twenty
+       (G3.distance). Updated every frame while the ball is rolling — and, like
        syncWind above, spending most of those frames writing the string that is
        already there, which is a layout the browser did not need to do. Both
        are one string compare away from being free, so that is what they are. */
     var lastDistance = null;
 
     function syncDistance() {
-        var b = state.world.ball, cup = state.course.holes[state.holeIndex].cup;
+        var hole = state.course.holes[state.holeIndex], b = state.world.ball, cup = hole.cup;
         var d = Math.hypot(cup.x - b.x, cup.z - b.z);
-        var text = state.world.sunk ? 'in' : d.toFixed(1) + ' m';
+        var text = state.world.sunk ? 'in' : G3.distance.toFlag(d, hole);
         if (text === lastDistance) return;
         lastDistance = text;
         $('to-cup').textContent = text;
@@ -2273,9 +2270,12 @@
 
        The distance above is the question and the meter answered it in units
        of power, so choosing a club meant learning thirteen numbers by feel.
-       This says it in metres: how far the loaded shot goes, how far a full
-       swing goes, and a flag on the meter (and in the touch swing's lane) at
-       the power that runs the ball as far as the cup.
+       This says it in metres — roughly: the band a full swing of the club in
+       hand lands in, thirty per cent wide (G3.distance.band). It used to be
+       exact, with the loaded shot's run beside it and a flag on the meter at
+       the pull that ran the ball to the cup, and that was the shot played for
+       you: drag until the ball sits on the flag. What is left is the club's
+       reach and the flag's distance, and the pull in between is yours.
 
        Measured, not guessed: the club in hand, struck as loaded (shape and
        all), on a flat, windless field of the ground it will mostly be played
@@ -2286,13 +2286,16 @@
        by interpolation. */
     var RUN_STEPS = 26;
     var runTables = {};
-    var lastRun = null, runPin = -1;
+    var lastRun = null;
 
     function runKind() {
         var hole = state.world.hole, b = state.world.ball;
         var lie = P.surfaceUnder(hole, b.x, b.z, b.y + C.STEP_UP);
         var kind = lie ? lie.pad.kind : null;
-        if (hole.longGame) return kind === 'green' ? 'green' : 'fairway';
+        /* A tee mat is green underfoot and a drive off it lands on fairway:
+           measured on green, the range's driver read sixty units. */
+        var onTee = Math.abs(b.x - hole.tee.x) + Math.abs(b.z - hole.tee.z) < 0.5;
+        if (hole.longGame) return kind === 'green' && !onTee ? 'green' : 'fairway';
         return kind && kind !== 'sand' && C.FRICTION[kind] !== undefined ? kind : 'green';
     }
 
@@ -2327,42 +2330,15 @@
         return t[i] + (t[i + 1] - t[i]) * (f - i);
     }
 
-    // And the other way: the power that runs `d`, or -1 past the track's end.
-    function powerFor(t, d, club) {
-        for (var i = 1; i <= RUN_STEPS; i++) {
-            if (t[i] < d) continue;
-            var f = i - 1 + (t[i] > t[i - 1] ? (d - t[i - 1]) / (t[i] - t[i - 1]) : 1);
-            return maxPower(club) * Math.max(0, f) / RUN_STEPS;
-        }
-        return -1;
-    }
-
-    function metres(d) { return (d < 20 ? d.toFixed(1) : String(Math.round(d))) + ' m'; }
-
     /* Asked every frame while aiming, and a string compare away from free:
        the key is everything the answer depends on. */
     function syncRun() {
-        var club = state.club, b = state.world.ball, cup = state.world.hole.cup;
-        var key = [club.id, shapeNow(), state.aim.power.toFixed(2), b.x.toFixed(2), b.z.toFixed(2)].join('|');
+        var club = state.club, hole = state.world.hole, kind = runKind();
+        var key = [club.id, shapeNow(), kind, hole.gravity || 1, hole.longGame].join('|');
         if (key === lastRun) return;
         lastRun = key;
-        var t = runTable(club, runKind(), shapeNow(), state.world.hole.gravity || 1);
-        var full = metres(runAt(t, club.power, club));
-        $('power-dist').textContent = state.aim.power >= C.MIN_POWER
-            ? '≈ ' + metres(runAt(t, state.aim.power, club)) + ' of ' + full
-            : 'full ≈ ' + full;
-        /* Only inside a full swing. Past it the run is real and the line is
-           not (physics.spray), so a flag in the hatching would be pointing at
-           a shot the game does not promise — and on a par 5 it is where the
-           driver's flag would always be, inviting the overswing. */
-        var p = powerFor(t, Math.hypot(cup.x - b.x, cup.z - b.z), club);
-        var pin = p < 0 || p > club.power ? -1 : p / maxPower(club);
-        $('power-pin').hidden = pin < 0;
-        if (pin >= 0) $('power-pin').style.left = (pin * 100).toFixed(1) + '%';
-        if (pin !== runPin) {
-            runPin = pin;
-            if (!$('swipe').hidden) drawSwipe();
-        }
+        var t = runTable(club, kind, shapeNow(), hole.gravity || 1);
+        $('power-dist').textContent = 'full ' + G3.distance.bandText(runAt(t, club.power, club), hole);
     }
 
     /* The meter reads in fractions of the club in hand, and it runs past 100%:
@@ -2536,16 +2512,16 @@
         $('picker-name').textContent = club.name;
         $('picker-blurb').textContent = club.blurb;
         /* The figures the club's own card carries (bag.js), written out:
-           loft, power, carry distance, and rollout / bite. */
-        var carryText = club.carry ? ' · carry <b>' + club.carry + 'm</b>' : '';
-        var totalText = club.total ? ' · total <b>' + club.total + 'm</b>' : '';
+           loft, reach and bite. */
+        // Rough, like the meter's: a band, in the hole's own metres.
+        var totalText = club.total ? ' · reach <b>' + G3.distance.bandText(club.total, state.world.hole) + '</b>' : '';
         var biteText = club.bite ? ' · bite <b>' + Math.round(club.bite * 100) + '%</b>' : '';
         // One line on a phone: the key only where there is a keyboard
         // (style.css hides .pk-key on touch), and the power units left to the
-        // card — metres are the figures anyone chooses a club by.
+        // card — a reach in metres is what anyone chooses a club by.
         $('picker-stats').innerHTML =
             '<span class="pk-key">Key <b>' + club.key + '</b> · </span>loft <b>' +
-            Math.round(club.loft * 180 / Math.PI) + '°</b>' + carryText + totalText + biteText +
+            Math.round(club.loft * 180 / Math.PI) + '°</b>' + totalText + biteText +
             (club.id === state.club.id ? ' · <b>in hand</b>' : '');
 
         var container = $('picker-clubs');

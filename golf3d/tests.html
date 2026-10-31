@@ -4028,10 +4028,11 @@
             // is a board that lies.
             assert('the range has five targets', (range.targets || []).length === 5);
             (range.targets || []).forEach(function (t) {
-                var d = Math.hypot((t.x0 + t.x1) / 2 - range.tee.x, (t.z0 + t.z1) / 2 - range.tee.z);
-                assert('the ' + t.dist + ' m board is ' + t.dist + ' m from the tee', Math.abs(d - t.dist) <= 0.5,
+                var d = Math.hypot((t.x0 + t.x1) / 2 - range.tee.x, (t.z0 + t.z1) / 2 - range.tee.z) *
+                        G3.distance.scale(range);
+                assert('the ' + t.dist + ' m board is ' + t.dist + ' m from the tee', Math.abs(d - t.dist) <= 0.5 * C.LONG_M,
                        'measured ' + d.toFixed(2));
-                // Off-centre: the 30 m green has the cup in the middle of it.
+                // Off-centre: the 200 m green has the cup in the middle of it.
                 var s = P.surfaceUnder(range, t.x0 + 1, t.z0 + 1, 5);
                 assert('the ' + t.dist + ' m target is green underfoot', !!(s && s.pad.kind === 'green'));
             });
