@@ -70,6 +70,11 @@ Folder-based routing — each major page or app is fully isolated with its own
   - **`/wow/`** is Warcraft-themed on the owner's request: night
     sky, gilded Cinzel type, party frames and quest log. Keep it in the
     game's look rather than the site's slate glass.
+  - **`/golf3d/`** (Loft Links) is a clubhouse at dusk on the owner's
+    request: peat and moss grounds, chalk ink, brass as the one accent,
+    opaque matte plates with small radii, Barlow Semi Condensed. No blur, no
+    glow, no gloss: do not bring the glass back. The palette is the `:root`
+    block in `golf3d/style.css`.
   - **`/orbit/`** is a 1957 space-programme control room on the owner's
     request: matte enamel-green riveted plates, cream bakelite keys with
     indicator lamps, amber readouts, typewritten paper orders (Oswald,

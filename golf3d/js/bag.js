@@ -89,7 +89,7 @@
        names on the club cards and the maker's patch on the bag alike. What
        the first pass did instead, and why it did not work, is under `labels`
        below. */
-    var FACE = '"Outfit", system-ui, -apple-system, "Segoe UI", sans-serif';
+    var FACE = '"Barlow Semi Condensed", system-ui, -apple-system, "Segoe UI", sans-serif';
     var FIGS = '"JetBrains Mono", ui-monospace, "SFMono-Regular", monospace';
 
     /* One palette per club, and it is the same palette everywhere the club
@@ -2166,7 +2166,7 @@
         g.textAlign = 'center';
         g.textBaseline = 'middle';
         g.font = '800 16px ' + FACE;
-        g.fillStyle = held ? tint.name : 'rgba(159, 182, 201, 0.82)';
+        g.fillStyle = held ? tint.name : 'rgba(167, 160, 136, 0.82)';
         var bandText = held ? 'IN HAND' : 'KEY ' + club.key;
         if (club.bite) bandText += ' \u00b7 BITE ' + Math.round(club.bite * 100) + '%';
         g.fillText(bandText, W / 2, 4 + BAND_H / 2);
@@ -2192,20 +2192,32 @@
         return srgbCanvas(cv);
     }
 
+    /* The card's two distances, in the long game's metres (G3.distance) —
+       carry and total are measured on a fairway, so that is the scale they
+       belong to. Rough, like the meter: carry to the nearest ten and the
+       total as the band a full swing lands in, not a figure to the decimal. */
+    function cardCarry(club) {
+        return club.carry ? String(Math.round(club.carry * C.LONG_M / 10) * 10) : '\u2014';
+    }
+    function cardTotal(club) {
+        if (!club.total) return String(club.power);
+        var b = G3.distance.band(club.total, null, C.LONG_M);
+        return b ? b[0] + '\u2013' + b[1] : '<' + C.NEAR;
+    }
+
     /* Side by side, for a card standing in a row: carry & loft on the left,
        total distance, power & bite on the right. */
     function sideBySideFigures(g, W, H, rule, deg, club, frac, tint) {
         var top = rule + 22;
         var x2 = Math.round(W * 0.54);
-        var carryStr = club.carry ? String(club.carry) : '\u2014';
-        var totalStr = club.total ? String(club.total) : String(club.power);
+        var carryStr = cardCarry(club), totalStr = cardTotal(club);
 
-        g.fillStyle = 'rgba(159, 182, 201, 0.9)';
+        g.fillStyle = 'rgba(167, 160, 136, 0.9)';
         g.font = '700 15px ' + FACE;
         g.fillText('CARRY \u00b7 ' + deg + '\u00b0', 28, top);
         g.fillText('TOTAL \u00b7 PWR ' + club.power, x2, top);
 
-        g.fillStyle = '#eaf6ff';
+        g.fillStyle = '#ebe4cf';
         g.font = '700 34px ' + FIGS;
         g.fillText(carryStr, 28, top + 34);
         g.fillText(totalStr, x2, top + 34);
@@ -2233,15 +2245,14 @@
     function stackedFigures(g, W, H, rule, deg, club, frac, tint) {
         var mid = rule + 56;                 // the carry line
         var low = H - 30;                    // …and the total line
-        var carryStr = club.carry ? String(club.carry) : '\u2014';
-        var totalStr = club.total ? String(club.total) : String(club.power);
+        var carryStr = cardCarry(club), totalStr = cardTotal(club);
 
-        g.fillStyle = 'rgba(159, 182, 201, 0.9)';
+        g.fillStyle = 'rgba(167, 160, 136, 0.9)';
         g.font = '700 16px ' + FACE;
         g.fillText('CARRY \u00b7 ' + deg + '\u00b0', 26, mid - 34);
         g.fillText('TOTAL \u00b7 PWR ' + club.power, 26, low - 34);
 
-        g.fillStyle = '#eaf6ff';
+        g.fillStyle = '#ebe4cf';
         g.font = '700 46px ' + FIGS;
         g.fillText(carryStr, 26, mid);
         g.fillText(totalStr, 26, low);
