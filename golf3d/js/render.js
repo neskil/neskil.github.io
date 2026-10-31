@@ -4226,17 +4226,18 @@
         cv.width = 256;
         cv.height = 128;
         var c = cv.getContext('2d');
-        c.fillStyle = '#0f2a3a';
+        // A painted yardage board: club green, a cream rule, cream figures.
+        c.fillStyle = '#1f3a26';
         c.beginPath();
-        if (c.roundRect) c.roundRect(4, 4, 248, 120, 22); else c.rect(4, 4, 248, 120);
+        if (c.roundRect) c.roundRect(4, 4, 248, 120, 8); else c.rect(4, 4, 248, 120);
         c.fill();
-        c.lineWidth = 6;
-        c.strokeStyle = '#f8fafc';
+        c.lineWidth = 5;
+        c.strokeStyle = '#ece3c8';
         c.stroke();
-        c.fillStyle = '#f8fafc';
+        c.fillStyle = '#ece3c8';
         // Three figures and a unit have to fit inside the frame.
         for (var px = 72; px > 40; px -= 4) {
-            c.font = '800 ' + px + 'px Outfit, Inter, system-ui, sans-serif';
+            c.font = '800 ' + px + 'px "Barlow Semi Condensed", system-ui, sans-serif';
             if (c.measureText(text).width <= 216) break;
         }
         c.textAlign = 'center';
