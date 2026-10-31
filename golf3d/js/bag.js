@@ -2192,13 +2192,25 @@
         return srgbCanvas(cv);
     }
 
+    /* The card's two distances, in the long game's metres (G3.distance) —
+       carry and total are measured on a fairway, so that is the scale they
+       belong to. Rough, like the meter: carry to the nearest ten and the
+       total as the band a full swing lands in, not a figure to the decimal. */
+    function cardCarry(club) {
+        return club.carry ? String(Math.round(club.carry * C.LONG_M / 10) * 10) : '\u2014';
+    }
+    function cardTotal(club) {
+        if (!club.total) return String(club.power);
+        var b = G3.distance.band(club.total, null, C.LONG_M);
+        return b ? b[0] + '\u2013' + b[1] : '<' + C.NEAR;
+    }
+
     /* Side by side, for a card standing in a row: carry & loft on the left,
        total distance, power & bite on the right. */
     function sideBySideFigures(g, W, H, rule, deg, club, frac, tint) {
         var top = rule + 22;
         var x2 = Math.round(W * 0.54);
-        var carryStr = club.carry ? String(club.carry) : '\u2014';
-        var totalStr = club.total ? String(club.total) : String(club.power);
+        var carryStr = cardCarry(club), totalStr = cardTotal(club);
 
         g.fillStyle = 'rgba(159, 182, 201, 0.9)';
         g.font = '700 15px ' + FACE;
@@ -2233,8 +2245,7 @@
     function stackedFigures(g, W, H, rule, deg, club, frac, tint) {
         var mid = rule + 56;                 // the carry line
         var low = H - 30;                    // …and the total line
-        var carryStr = club.carry ? String(club.carry) : '\u2014';
-        var totalStr = club.total ? String(club.total) : String(club.power);
+        var carryStr = cardCarry(club), totalStr = cardTotal(club);
 
         g.fillStyle = 'rgba(159, 182, 201, 0.9)';
         g.font = '700 16px ' + FACE;

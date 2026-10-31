@@ -7801,22 +7801,24 @@
     /* The targets are data rather than five anonymous greens: the renderer
        stands a distance board behind each one and game.js reports which of
        them a ball stopped on, both off this one list. `dist` is the distance
-       from the tee to the middle of the green, and is what the board says —
-       tests.html measures it, so a green moved without its number fails. */
+       from the tee to the middle of the green in metres as the range reads
+       them (CONFIG.LONG_M to the unit), and is what the board says —
+       tests.html measures it, so a green moved without its number fails.
+       Fifty metres apart, out to the 250 a full drive just about reaches. */
     var RANGE_TEE = { x: 10, z: 5 };
     var RANGE_TARGETS = [
-        { dist: 10, x: 7, z: 13, w: 6,  d: 4 },
-        { dist: 20, x: 6, z: 22, w: 8,  d: 5 },
-        { dist: 30, x: 5, z: 32, w: 10, d: 6 },
-        { dist: 40, x: 5, z: 42, w: 10, d: 6 },
-        { dist: 50, x: 4, z: 52, w: 12, d: 6 }
+        { dist: 50,  x: 7, z: 12.1, w: 6,  d: 4 },
+        { dist: 100, x: 6, z: 20.7, w: 8,  d: 5 },
+        { dist: 150, x: 5, z: 29.3, w: 10, d: 6 },
+        { dist: 200, x: 5, z: 38.4, w: 10, d: 6 },
+        { dist: 250, x: 4, z: 47.5, w: 12, d: 6 }
     ];
 
     var rangeHole = build({
         name: 'Driving Range',
         par: 0,
         open: true,
-        blurb: 'Targets at 10 to 50 m, unlimited balls, and the swing school.',
+        blurb: 'Targets at 50 to 250 m, unlimited balls, and the swing school.',
         bag: ['driver', 'iron5', 'iron', 'iron9', 'chipper', 'wedge', 'putter', 'mallet', 'checker'],
         pads: [
             pad(7, 2, 6, 6, 0.1, 'wood'),                         // elevated tee deck
@@ -7834,7 +7836,7 @@
             pad(19, 44, 6, 7, -0.15, 'sand')
         ]),
         tee: RANGE_TEE,
-        cup: { x: 10, z: 35 }
+        cup: { x: 10, z: 41.4 }                                // on the 200
     });
     rangeHole.targets = RANGE_TARGETS.map(function (t) {
         return { dist: t.dist, x0: t.x, z0: t.z, x1: t.x + t.w, z1: t.z + t.d };
@@ -7844,7 +7846,7 @@
         id: 'range',
         group: 'practice',
         name: 'Driving Range',
-        blurb: 'Targets at 10 to 50 m, unlimited balls, and the swing school.',
+        blurb: 'Targets at 50 to 250 m, unlimited balls, and the swing school.',
         theme: 'parkland',
         isRange: true,
         holes: [rangeHole]

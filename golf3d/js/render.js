@@ -4234,7 +4234,11 @@
         c.strokeStyle = '#f8fafc';
         c.stroke();
         c.fillStyle = '#f8fafc';
-        c.font = '800 72px Outfit, Inter, system-ui, sans-serif';
+        // Three figures and a unit have to fit inside the frame.
+        for (var px = 72; px > 40; px -= 4) {
+            c.font = '800 ' + px + 'px Outfit, Inter, system-ui, sans-serif';
+            if (c.measureText(text).width <= 216) break;
+        }
         c.textAlign = 'center';
         c.textBaseline = 'middle';
         c.fillText(text, 128, 68);
@@ -4252,7 +4256,7 @@
            board is a bigger one, so all five read at about the same size. */
         hole.targets.forEach(function (t, i) {
             var x = i % 2 ? t.x1 + 0.7 : t.x0 - 0.7, z = (t.z0 + t.z1) / 2;
-            var k = 0.55 + t.dist * 0.02;
+            var k = 0.55 + t.dist / G3.distance.scale(hole) * 0.02;   // off the units, not the words
             var post = new THREE.Mesh(postGeo, postMat);
             post.scale.y = k;
             post.position.set(x, 0.65 * k, z);

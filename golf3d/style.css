@@ -1494,29 +1494,6 @@ button,
     background: rgba(255, 255, 255, 0.75);
 }
 
-/* The cup: the power that runs a ball as far as the cup on the flat (game.js
-   `syncRun`). The flag's own orange, with a dark edge so it still reads where
-   the fill has gone amber underneath it. */
-.power-pin {
-    position: absolute;
-    top: 0;
-    bottom: 0;
-    width: 3px;
-    margin-left: -1px;
-    background: #fb923c;
-    box-shadow: 0 0 0 1px rgba(6, 33, 47, 0.55), 0 0 8px rgba(251, 146, 60, 0.8);
-    pointer-events: none;
-}
-.power-pin::after {
-    content: '';
-    position: absolute;
-    top: 3px;
-    left: 3px;
-    border-left: 9px solid #fb923c;
-    border-top: 5px solid transparent;
-    border-bottom: 5px solid transparent;
-}
-
 /* And the overdraw: the stretch past a full swing, hatched so it reads as
    somewhere you have to mean to go. Power that is real and accuracy that is
    not — see CONFIG.OVERDRAW. */
@@ -3790,25 +3767,6 @@ body.compact-ui .picker { padding-top: 52px; }
     transition: opacity 0.15s;
 }
 .swipe.held .sw-full { opacity: 0.9; }
-.sw-pin {
-    stroke: #fb923c;
-    stroke-width: 3;
-    stroke-linecap: round;
-    opacity: 0;
-}
-.sw-pin-label {
-    fill: #fdba74;
-    font-size: 11px;
-    font-weight: 700;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    paint-order: stroke;
-    stroke: rgba(6, 33, 47, 0.6);
-    stroke-width: 3px;
-    opacity: 0;
-}
-.swipe.held .sw-pin,
-.swipe.held .sw-pin-label { opacity: 0.95; }
 .sw-cone { fill: rgba(74, 222, 128, 0.22); stroke: rgba(74, 222, 128, 0.7); stroke-width: 1; }
 .sw-trail {
     fill: none;
