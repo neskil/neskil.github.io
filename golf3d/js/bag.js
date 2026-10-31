@@ -645,8 +645,10 @@
        out the far side of whatever club is parked there. Cut to a stub short
        enough to clear the next row down, a club still reads as a club — head,
        ferrule and a hand's width of shaft — without appearing to belong to
-       its neighbour's card. */
-    var STUB = 0.34;
+       its neighbour's card — and short enough to end behind its own card
+       rather than poking out under it, which read as a stray line hanging off
+       every card in the grid. */
+    var STUB = 0.22;
 
     function buildClub(club, M) {
         var g = new THREE.Group();
@@ -2304,20 +2306,6 @@
         return srgbCanvas(cv);
     }
 
-    // The lit floor of the spotlight: a warm pool, soft all the way out.
-    function poolTexture() {
-        var cv = document.createElement('canvas');
-        cv.width = cv.height = 128;
-        var g = cv.getContext('2d');
-        var grd = g.createRadialGradient(64, 64, 2, 64, 64, 64);
-        grd.addColorStop(0, 'rgba(255, 244, 226, 0.30)');
-        grd.addColorStop(0.45, 'rgba(255, 244, 226, 0.14)');
-        grd.addColorStop(1, 'rgba(255, 244, 226, 0)');
-        g.fillStyle = grd;
-        g.fillRect(0, 0, 128, 128);
-        return srgbCanvas(cv);
-    }
-
     function buildLabel(club) {
         var idle = labelTexture(club, false);
         var sprite = new THREE.Sprite(new THREE.SpriteMaterial({
@@ -2427,7 +2415,10 @@
         // card that covers the head is a caption standing in front of the
         // thing it captions, and the head — the face, and how far back it
         // leans — is what the row is opened to compare.
-        card.drop = halfH + 0.06;
+        // Clearing it by a hair rather than a stride: on a phone, where the
+        // row wraps, a wide gap left every head floating on its own over a
+        // card that looked unrelated to it.
+        card.drop = halfH + 0.025;
         card.tail = card.drop + halfH;
         // A row has to clear the heads of the row under it, not just its own
         // card: the head stands HEAD_TOP above its line and the card hangs
@@ -2455,8 +2446,9 @@
        closest the camera is ever allowed to the ball is four units, so
        1.62 clears the first with room and the second by miles. */
     var SCRIM_DEPTH = 1.62;
-    var SCRIM = 0.72;          // …and how dark it gets, fully open
-    var POOL_DEPTH = 1.55;     // the spotlight's pool, between the row and the scrim
+    var SCRIM = 0.86;          // …and how dark it gets, fully open
+    var LAYER = 1;             // the bag's own camera layer (see build)
+    var AMB = 0.55;            // its ambient, fully open, on that layer alone
     var SPOT = 2.2;            // the spotlight, fully open…
     var SPOT_REACH = 2.6;      // …and how far it carries, in front of the lens
 
@@ -2917,21 +2909,12 @@
         scene.add(B.spot);
         scene.add(B.spot.target);
 
-        /* What a spotlight looks like from the seats: a lit pool behind what
-           it is on. Drawn on the scrim's side of the row, so the heads' own
-           depth cuts them out of it exactly as they cut themselves out of the
-           scrim, and the cards (sprites, drawn last) sit over it. */
-        B.pool = new THREE.Mesh(
-            new THREE.PlaneGeometry(1, 1),
-            new THREE.MeshBasicMaterial({
-                map: poolTexture(), transparent: true, opacity: 0,
-                depthWrite: false, fog: false, blending: THREE.AdditiveBlending
-            })
-        );
-        B.pool.renderOrder = 7;
-        B.pool.visible = false;
-        B.pool.frustumCulled = false;
-        scene.add(B.pool);
+        /* There was a lit pool drawn behind the row as well — what a
+           spotlight looks like from the seats. On a phone, where the row wraps
+           into a grid, it was a big pale ellipse on the turf between the
+           cards, and the owner read it as bad lighting. The scrim is darker
+           instead (SCRIM), so the row stands out by what is behind it being
+           quiet rather than by a glow. */
 
         /* The scrim: the course, dimmed, while the row is out.
 
@@ -2975,7 +2958,25 @@
         // own typeface has actually arrived.
         watchFonts();
 
+        /* An ambient of the bag's own, for the row's shadowed sides once the
+           course's sky is no longer lighting them (see LAYER). Nothing while
+           the bag is shut. */
+        B.amb = new THREE.HemisphereLight(0xe8f1ff, 0x262c36, 0);
+        scene.add(B.amb);
+
+        /* Everything the bag draws and every light it owns lives on a layer
+           of its own. The camera normally looks at both, so a shut bag is in
+           the scene like anything else; with the picker open the course is
+           drawn alone and blurred, and then the bag's layer on its own — and
+           a light only counts on a layer the camera is looking at, so the row
+           is lit by the bag's studio and spotlight and nothing of the hole's
+           weather (postfx.js `backdrop`). */
+        [B.rig, B.clubRig, B.spot, B.spot.target, B.scrim, B.amb].forEach(function (root) {
+            root.traverse(function (o) { o.layers.set(LAYER); });
+        });
+
         B.ray = new THREE.Raycaster();
+        B.ray.layers.set(LAYER);
         B.ndc = new THREE.Vector2();
         B.ready = true;
         setSelected(C.DEFAULT_CLUB);
@@ -3044,7 +3045,8 @@
            the moment the lens opens between the measurement and the frame. */
         if (B.scrim) {
             var sh = Math.tan((camera.fov || 52) * Math.PI / 360) * SCRIM_DEPTH;
-            B.scrim.visible = k > 0.005;
+            // Not drawn when the course behind is blurred instead (`backdrop`).
+            B.scrim.visible = k > 0.005 && !B.backdrop;
             B.scrim.material.opacity = SCRIM * k;
             B.scrim.scale.set(sh * aspect * 2.4, sh * 2.4, 1);
             put(B.scrim, camera, 0, 0, -SCRIM_DEPTH, 1, 0, 0);
@@ -3053,19 +3055,14 @@
             B.scrim.scale.set(sh * aspect * 2.4, sh * 2.4, 1);
         }
 
-        /* The spotlight and its pool, on the middle of the band the row is
-           laid out in (fitOpen): above the lens and a little to the right,
-           pointed down at it. */
+        /* The spotlight, on the middle of the band the row is laid out in
+           (fitOpen): above the lens and a little to the right, pointed down
+           at it. */
         if (B.spot) {
             var oh = Math.tan((camera.fov || 52) * Math.PI / 360) * OPEN_DEPTH;
             var mid = oh * (BAND.bottom - BAND.top);
             atCamera(B.spot.position, camera, oh * aspect * 0.3, oh * 1.6, -0.15);
             atCamera(B.spot.target.position, camera, 0, mid, -OPEN_DEPTH);
-            var ph = oh * POOL_DEPTH / OPEN_DEPTH;
-            B.pool.visible = k > 0.005;
-            B.pool.material.opacity = k;
-            put(B.pool, camera, 0, mid * POOL_DEPTH / OPEN_DEPTH, -POOL_DEPTH, 1, 0, 0);
-            B.pool.scale.set(ph * aspect * 1.9, ph * 1.5, 1);
         }
 
         // The clubs: the same place when shut, the middle of the view when
@@ -3139,6 +3136,7 @@
         if (B.fill) B.fill.intensity = 0.12 + 0.38 * B.open01;
         if (B.rim) B.rim.intensity = 0.14 + 0.45 * B.open01;
         if (B.spot) B.spot.intensity = SPOT * B.open01;
+        if (B.amb) B.amb.intensity = AMB * B.open01;
         B.clubs.forEach(function (c) {
             // A club that is not in this hole's bag is not on screen and has
             // no slot in the arrangement to be moved towards.
@@ -3353,6 +3351,11 @@
     function setHover(id) { if (id !== B.hover) B.settled = false; B.hover = id; }
     function isExpanded() { return B.expanded; }
 
+    /* Whether the renderer is blurring the course behind the open row, in
+       which case the scrim stands down — it would be a dark plane over the
+       blur. Without the post chain (an old phone) the scrim is the backdrop. */
+    function setBackdrop(on) { B.backdrop = !!on; }
+
     /* What the DOM is using at the top and the bottom of the stage, as
        fractions of its height. Clamped rather than trusted: a mid-transition
        measurement or a stage of no height should move the clubs a little, not
@@ -3374,6 +3377,8 @@
         setHover: setHover,
         setBand: setBand,
         isExpanded: isExpanded,
+        setBackdrop: setBackdrop,
+        LAYER: LAYER,
         // The palette, so the DOM can say a club in the same colour the canvas
         // does rather than keeping a second copy of it.
         look: look,

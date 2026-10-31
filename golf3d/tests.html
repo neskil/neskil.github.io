@@ -3647,6 +3647,97 @@
             })();
             var drawn = SW.swipeReport(read(gesture(0.3, 0.3, 36, 30), 'off', both));
             assert('a crooked shaped swipe reports the line and the shape', drawn[0].tier !== 'good' && drawn[1].what === 'Shape');
+
+            /* ── past a full swing, on the green, and on Easy strike ── */
+            (function () {
+                var crooked = gesture(0.3, 0.3, 0, 40);
+                var at100 = SW.swipeRead(crooked, { over: 0, feel: 'normal', timing: 'off' });
+                var at130 = SW.swipeRead(crooked, { over: 1, feel: 'normal', timing: 'off' });
+                assert('a swipe at a full swing costs a miss at face value', at100.mult === 1);
+                assert('the top of the overdraw multiplies it by 1 + OVER_MULT',
+                    approx(at130.mult, 1 + S.OVER_MULT), at130.mult.toFixed(2));
+                var shot = { yaw: 0, power: 20 };
+                var hit100 = SW.apply(shot, SW.swipeGate(at100)), hit130 = SW.apply(shot, SW.swipeGate(at130));
+                assert('so the same crooked swipe goes further wrong past 100%',
+                    Math.abs(hit130.yaw) > Math.abs(hit100.yaw) * 1.5 && hit130.power < hit100.power,
+                    hit100.yaw.toFixed(3) + ' / ' + hit130.yaw.toFixed(3));
+                assert('a shape asked for is not an overdraw: rawOver decides the multiple',
+                    SW.swipeRead(crooked, { over: 0.45, rawOver: 0, feel: 'normal', timing: 'off' }).mult === 1);
+                var lazy130 = SW.swipeRead(gesture(0.15, 0.6), { over: 1, feel: 'normal', timing: 'rhythm' });
+                var lazy100 = SW.swipeRead(gesture(0.15, 0.6), { over: 0, feel: 'normal', timing: 'rhythm' });
+                assert('and quitting on it past 100% costs more distance', lazy130.weight < lazy100.weight);
+                assert('the tempo band narrows past a full swing',
+                    SW.swipeTempo({ back: 0.3, through: 0.22 }, 'rhythm', 0).said === 'clean' &&
+                    SW.swipeTempo({ back: 0.3, through: 0.22 }, 'rhythm', 1).said === 'rushed');
+
+                // Putting.
+                assert('a putt\'s line is judged tighter',
+                    SW.swipeTol(0, 'normal', true) < SW.swipeTol(0, 'normal'));
+                var lean = F.normal.TOL * 0.8;
+                assert('a lean that is clean on a full swing misses on a putt',
+                    SW.swipeOff(lean, 0, 'normal') === 0 && SW.swipeOff(lean, 0, 'normal', true) > 0);
+                var jab = SW.swipeRead(gesture(0.6, 0.12), { over: 0, feel: 'normal', timing: 'rhythm', putt: true });
+                var snatch = SW.swipeRead(gesture(0.6, 0.12), { over: 0, feel: 'normal', timing: 'rhythm' });
+                assert('a rushed putt runs long; a rushed swing never does',
+                    jab.weight > 1 && snatch.weight === 1, jab.weight.toFixed(3));
+                assert('a putt\'s miss costs more than a full swing\'s', jab.mult > 1);
+
+                // Easy strike.
+                SW.setAssist(true);
+                var easy = SW.swipeRead(crooked, { over: 1, feel: 'normal', timing: 'off' });
+                var easyHit = SW.apply(shot, SW.swipeGate(easy));
+                var wide = SW.windowFor(0.5), slow = SW.speedFor(0.5), arcW = SW.arcWin(0.5), nW = SW.needleStart(0.5).win;
+                var easyPutt = SW.swipeRead(gesture(0.6, 0.12), { over: 0, feel: 'normal', timing: 'rhythm', putt: true });
+                SW.setAssist(false);
+                assert('Easy strike: no multiple past 100%', easy.mult === 1);
+                assert('Easy strike: a miss lands at a share of its cost',
+                    Math.abs(easyHit.yaw) < Math.abs(hit130.yaw) * 0.5 + 1e-9);
+                assert('Easy strike: every style\'s zone is wider, and the marker slower',
+                    wide > SW.windowFor(0.5) && slow < SW.speedFor(0.5) &&
+                    arcW > SW.arcWin(0.5) && nW > SW.needleStart(0.5).win);
+                assert('Easy strike: a rushed putt does not run long', easyPutt.weight <= 1);
+                assert('Easy strike: off again by default', !SW.assisted());
+            })();
+
+            /* ── backspin, by the club and the swing, and by touch ── */
+            (function () {
+                var club = function (id) { return C.ALL_CLUBS.filter(function (c) { return c.id === id; })[0]; };
+                var wedge = club('wedge'), iron = club('iron'), putter = club('putter');
+                assert('a putt can make no backspin', SW.spinCap(putter.loft, 1) === 0);
+                assert('a wedge at 130% spins it far harder than a 7 iron at half a swing',
+                    SW.spinCap(wedge.loft, 1.3) > 3 * SW.spinCap(iron.loft, 0.5),
+                    SW.spinCap(wedge.loft, 1.3).toFixed(2) + ' vs ' + SW.spinCap(iron.loft, 0.5).toFixed(2));
+                var clubsUp = C.CLUBS.filter(function (c) { return c.loft > 0; }), rising = true, prev = -1;
+                clubsUp.forEach(function (c) { var k = SW.spinCap(c.loft, 1); if (k <= prev) rising = false; prev = k; });
+                assert('more loft, more spin, all the way down the bag', rising);
+                assert('the snap asks for nothing until it is more than a wobble',
+                    SW.followSpin(100, 100 + S.SNAP.MIN_PX, 500) === 0);
+                assert('and for all of it a sixth of a lane further down',
+                    SW.followSpin(100, 100 + S.SNAP.MIN_PX + S.SNAP.PX * 500, 500) === 1 &&
+                    approx(SW.followSpin(100, 100 + S.SNAP.MIN_PX + S.SNAP.PX * 250, 500), 0.5));
+                assert('no snap leaves the club\'s own bite alone',
+                    SW.spinBite(0.3, 0, wedge.loft, 1) === 0.3);
+                assert('a full snap on a wedge past 100% checks it back (bite over 1), and no further than SPIN.MAX',
+                    SW.spinBite(0, 1, wedge.loft, 1.3) > 1 && SW.spinBite(0, 1, wedge.loft, 1.3) <= C.SPIN.MAX);
+                // And it does what it says on the ground: same flight, less run.
+                var field = { pads: [G3.authoring.pad(-50, -5, 100, 120, 0, 'green')], water: [], walls: [],
+                              tee: { x: 0, z: 0, y: 0 }, cup: { x: 0, z: 500, y: 0 } };
+                function runs(bite) {
+                    var w = P.createWorld(field, { x: 0, z: 0, y: C.BALL_R }, 0), i;
+                    P.launch(w, 0, wedge.power, wedge.loft, 0);
+                    w.ball.bite = bite;           // as the snap writes it, in flight
+                    for (i = 0; i < 4000 && !w.firstLand; i++) P.advance(w, C.SIM_DT, {});
+                    var land = w.firstLand.z;
+                    P.settle(w);
+                    return w.ball.z - land;
+                }
+                var plain = runs(0), spun = runs(SW.spinBite(0, 1, wedge.loft, 1.3));
+                assert('a snapped wedge lands where a plain one does and does not run on',
+                    spun < 0.25 * plain, spun.toFixed(2) + ' vs ' + plain.toFixed(2));
+                var rep = SW.swipeReport({ angle: 0, line: 0, tempo: { said: null }, times: {}, timing: 'off', weight: 1, mult: 1,
+                    spin: { ask: 0.6, cap: 1, bite: 0.5 } }, { frac: 1 });
+                assert('the swing card says what the snap asked for', rep.some(function (r) { return r.what === 'Spin'; }));
+            })();
         })();
 
         section('The arcade arc');

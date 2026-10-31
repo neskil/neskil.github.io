@@ -8,7 +8,7 @@
    — the renderer scales to the viewport, the simulation never sees a pixel. */
 window.G3 = window.G3 || {};
 
-G3.VERSION = '1.116.0';
+G3.VERSION = '1.117.0';
 
 G3.CONFIG = {
     BALL_R: 0.16,
@@ -213,6 +213,16 @@ G3.CONFIG = {
        the top of the bar a decision instead of a mistake. */
     OVER_GAIN: 0.14,
 
+    /* A flushed full swing (game.js `strike`): a lofted club struck Perfect
+       — whichever style judged it — from FLUSH_FROM of a full swing up gets
+       FLUSH more pace, eased in to all of it at 100%. Owner's call: a hit at
+       100% read as weak. Only a perfect strike earns it, and only past what
+       the cone previews, so the courses — tuned on the bot's clean ceiling —
+       and the cards keep their numbers; it is the prize for the strike. Pace,
+       not distance: about twice it comes off the run. */
+    FLUSH: 0.045,
+    FLUSH_FROM: 0.85,
+
     /* Sidespin, the one thing a shot can carry that is not in its velocity.
        Only the swing gate puts it there (see swing.js): a pull draws and a
        push fades, so a mishit keeps being the same mishit all the way to the
@@ -323,7 +333,7 @@ G3.CONFIG = {
        the thumb has to come back up before the backswing counts as over, so a
        wobble at the bottom is not a swing. */
     SWIPE: {
-        DEFAULT: { feel: 'normal', timing: 'snap', shapes: 'on', where: 'all' },
+        DEFAULT: { assist: 'off', feel: 'normal', timing: 'snap', shapes: 'on', where: 'all' },
         FEEL: {
             easy:   { TOL: 8 * Math.PI / 180,   SPAN: 18 * Math.PI / 180, FLOOR: 0.75 },
             normal: { TOL: 3.5 * Math.PI / 180, SPAN: 11 * Math.PI / 180, FLOOR: 0.9 },
@@ -350,8 +360,45 @@ G3.CONFIG = {
             DUFF: 0.5, DUFF_POWER: [0.12, 0.25], DUFF_YAW: 6 * Math.PI / 180,
             SHANK_POWER: [0.15, 0.3], SHANK_YAW: [35 * Math.PI / 180, 65 * Math.PI / 180], SHANK_RIGHT: 0.75
         },
-        TURN_PX: 14
+        TURN_PX: 14,
+        /* Past a full swing a bad swipe costs more than its share: every
+           consequence — the push or pull, the bend, the weight — is
+           multiplied by 1 + OVER_MULT × the overdraw, so the top of the bar
+           doubles and a half what the same swipe costs at 100%. The tempo's
+           clean band narrows there by TIGHTEN, like the line's. */
+        OVER_MULT: 1.5,
+        /* Putting (a club with no loft). TOL is the line's clean band as a
+           share of the feel's, MULT what a miss costs over a full swing's, and
+           JAB how much long a fully rushed stroke runs — on a putt a snatch
+           goes long, where everywhere else a miss only ever comes up short. */
+        PUTT: { TOL: 0.55, MULT: 1.4, JAB: 0.22 },
+        /* Backspin by touch (swing.js `followSpin`): swipe up through the
+           ball, then snap back down. FOLLOW seconds after the strike is how
+           long the snap is read for; MIN_PX of it is a wobble, and PX more
+           (as a share of the lane) is all the spin there is to ask for. */
+        SNAP: { FOLLOW: 0.6, MIN_PX: 14, PX: 0.16 }
     },
+
+    /* What backspin a strike can put on the ball, whichever way it is asked
+       for (the backspin shape, or the touch swing's snap). A wedge spins a
+       ball far harder than a long iron, and a full swing far harder than a
+       half one: the bite asked for is BITE × the loft's share (LOFT, read
+       between the points, degrees) × the meter's fraction (to 130%). MAX is
+       the ceiling, and it is over 1 — a wedge flushed past a full swing
+       lands and checks back a little. */
+    SPIN: {
+        LOFT: [[0, 0], [12, 0.3], [22, 0.7], [32, 1], [45, 1.15], [58, 1.3]],
+        BITE: 0.62,
+        MAX: 1.12
+    },
+
+    /* Easy strike (the Swing panel's toggle, swing.js `setAssist`): every
+       style's strike made forgiving. WIN widens the gate's, the arc's and the
+       needle's clean zones, SPEED slows the meter's marker, TOL widens the
+       swipe's lean, TEMPO adds doublings to its clean tempo band, and COST is
+       what share of a miss's push, pull and weight still lands. Off, the
+       overdraw and putting multipliers above apply; on, they do not. */
+    ASSIST: { WIN: 1.6, SPEED: 0.75, TOL: 2, TEMPO: 0.6, COST: 0.5 },
 
     /* The arcade arc (swing.js `arc…`), in fractions of the dial per second.
        SPEED is the climb, BACK the swing back — a touch slower, because the
