@@ -63,6 +63,13 @@
         '  gl_FragColor = vec4(c, 1.0);' +
         '}';
 
+    /* The club picker's backdrop: the course, blurred, darkened by `dim`, laid
+       over the sharp one at `k` — so it fades in with the bag as it opens. */
+    var BACK_FS =
+        'uniform sampler2D tDiffuse; uniform float dim; uniform float k;' +
+        'varying vec2 vUv;' +
+        'void main(){ gl_FragColor = vec4(texture2D(tDiffuse, vUv).rgb * dim, k); }';
+
     /* The composite. Everything the eye is told about the weather happens in
        here, which is why the grade is a handful of uniforms rather than a
        handful of materials: a hole can go from noon to a rain squall without
@@ -238,6 +245,9 @@
             FX.mBright = material(BRIGHT_FS, FX.uBright);
             FX.mBlur = material(BLUR_FS, FX.uBlur);
             FX.mComp = material(COMP_FS, FX.uComp);
+            FX.uBack = { tDiffuse: { value: null }, dim: { value: 0.5 }, k: { value: 0 } };
+            FX.mBack = material(BACK_FS, FX.uBack);
+            FX.mBack.transparent = true;
 
             resize(renderer.domElement.width || 2, renderer.domElement.height || 2);
 
@@ -341,8 +351,15 @@
     /* `sun` is where the light shafts converge and how much of the sun is
        actually on the screen — see sunOnScreen() in render.js. Rays fade out
        with it rather than switching off, or a slow pan past the sun would pop.
-       Passing nothing means no rays this frame. */
-    function render(scene, camera, sun, dt) {
+       Passing nothing means no rays this frame.
+
+       `front` is the club picker, when it is open: { k, dim, layer }. The
+       course is drawn alone (layer 0), blurred at quarter size, laid back over
+       itself darkened by `dim` at strength `k`, and then the bag's own layer is
+       drawn sharp on top — lit by its own lights alone, since a light is only
+       counted on a layer the camera is looking at. That is what makes the row
+       read the same under every sky. */
+    function render(scene, camera, sun, dt, front) {
         if (!FX.ok) return false;
         var u = FX.uComp;
         var tier = tierFor();
@@ -352,9 +369,13 @@
         if (sun) u.sunUv.value.copy(sun.uv);
         u.time.value = (u.time.value + (dt || 0.016)) % 1000;
 
-        FX.renderer.setRenderTarget(FX.rt);
-        FX.renderer.clear();
-        FX.renderer.render(scene, camera);
+        if (front && front.k > 0.002) {
+            backdrop(scene, camera, front);
+        } else {
+            FX.renderer.setRenderTarget(FX.rt);
+            FX.renderer.clear();
+            FX.renderer.render(scene, camera);
+        }
 
         var wantBloom = tier >= 1 ? base.bloom : 0;
         var wantRays = tier >= 2 ? base.rays * vis : 0;
@@ -380,6 +401,40 @@
         u.grain.value = tier >= 1 ? base.grain : 0;
         draw(FX.mComp, null);
         return true;
+    }
+
+    function backdrop(scene, camera, front) {
+        var r = FX.renderer, mask = camera.layers.mask, auto = r.autoClear;
+        camera.layers.set(0);
+        r.setRenderTarget(FX.rt);
+        r.clear();
+        r.render(scene, camera);
+        // Half size, then quarter, blurred wide at each: a soft gaussian of
+        // the whole course for the price of six small passes.
+        FX.uBlur.tDiffuse.value = FX.rt.texture;
+        FX.uBlur.dir.value.set(1.5 / FX.a1.width, 0);
+        draw(FX.mBlur, FX.a2);
+        FX.uBlur.tDiffuse.value = FX.a2.texture;
+        FX.uBlur.dir.value.set(0, 1.5 / FX.a1.height);
+        draw(FX.mBlur, FX.a1);
+        FX.uBlur.tDiffuse.value = FX.a1.texture;
+        FX.uBlur.dir.value.set(1 / FX.b1.width, 0);
+        draw(FX.mBlur, FX.b1);
+        blur(FX.b1, FX.b2, FX.b1, 2.0);
+        blur(FX.b1, FX.b2, FX.b1, 3.0);
+        // Over the sharp course, without clearing it, then the bag on top
+        // with the depth cleared, so nothing on the course can cut into it.
+        r.autoClear = false;
+        FX.uBack.tDiffuse.value = FX.b1.texture;
+        FX.uBack.dim.value = front.dim;
+        FX.uBack.k.value = Math.min(1, front.k);
+        draw(FX.mBack, FX.rt);
+        r.setRenderTarget(FX.rt);
+        r.clearDepth();
+        camera.layers.set(front.layer);
+        r.render(scene, camera);
+        camera.layers.mask = mask;
+        r.autoClear = auto;
     }
 
     G3.postfx = {

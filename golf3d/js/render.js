@@ -90,6 +90,9 @@
 
         R.scene = new THREE.Scene();
         R.camera = new THREE.PerspectiveCamera(52, 1, 0.1, 400);
+        // The bag draws on a layer of its own (bag.js LAYER); the camera looks
+        // at it as well as the course, except in the picker's split pass.
+        R.camera.layers.enable(1);
 
         // The surface textures are shared and live in textures.js; this is
         // the point where the context is known, and the anisotropy limit with
@@ -4080,6 +4083,9 @@
        bounce off the ground and the boxes turn into objects. */
     // How much of the course's light is taken away with the bag fully open.
     var COURSE_DIM = 0.7;
+    /* How dark the blurred course behind the open picker is: see-through,
+       but quiet enough that a card reads against any sky. */
+    var BACK_DIM = 0.3;
 
     function lights(group, hole, theme, weather) {
         var cx = (hole.bounds.minX + hole.bounds.maxX) / 2;
@@ -4281,6 +4287,7 @@
         if (R.holeGroup) disposeGroup(R.holeGroup);
         R.movers = [];
         R.waterMats = [];
+        R.waterHidden = false;
         R.shells = [];
         R.canopies = [];
         R.bobbers = [];
@@ -5398,9 +5405,16 @@
            picture that says the camera is not really up there. The demo's
            orbit is the same picture and the same tell, with the extra reason
            that there is nobody there to pick a club out of it. */
+        var front = null;
         if (G3.bag) {
             G3.bag.setVisible(!R.fly && !R.replay && R.cam.mode !== 'demo');
+            // With the post chain the course behind the open row is blurred
+            // (postfx.js `backdrop`) and the bag lit on its own layer, so the
+            // course keeps its light and its water; without it, the scrim.
+            G3.bag.setBackdrop(!!R.fx);
             G3.bag.update(dt, R.camera, R.camera.aspect);
+            var open01 = G3.bag.state.open01;
+            if (R.fx && open01 > 0.002) front = { k: open01, dim: BACK_DIM, layer: G3.bag.LAYER };
             /* And the course's own light goes down as the clubs come out.
                Those three are the hole's weather — a dusk sky, a low sun — and
                they light the clubs as well as the course, so the same row read
@@ -5409,15 +5423,35 @@
                spotlight, which are the same everywhere. The course is behind
                the scrim by then and going dark anyway; the sky and the water
                are unlit and keep their colour. */
-            var dim = 1 - COURSE_DIM * G3.bag.state.open01;
+            var dim = 1 - (R.fx ? 0 : COURSE_DIM * open01);
             if (R.courseLights) R.courseLights.forEach(function (l) {
                 l.intensity = l.userData.base * dim;
             });
+            hideWaterUnderBag(!R.fx && open01 > 0.5);
         }
 
-        if (R.fx && G3.postfx.render(R.scene, R.camera, sunOnScreen(), dt)) return;
+        if (R.fx && G3.postfx.render(R.scene, R.camera, sunOnScreen(), dt, front)) return;
         R.renderer.setRenderTarget(null);
         R.renderer.render(R.scene, R.camera);
+    }
+
+    /* Without the post chain the open picker's backdrop is the bag's scrim,
+       and the water — unlit and transparent — came through it as a bright
+       blue line across the row. So on that path, while the bag is mostly
+       open, the water is simply not drawn; behind a scrim that dark nothing
+       is missed. (With the chain the course is blurred instead and keeps it.) Walked only when the answer changes, and the hole's
+       build resets it (a new hole's water starts drawn). */
+    function hideWaterUnderBag(hide) {
+        if (!!R.waterHidden === hide) return;
+        R.waterHidden = hide;
+        R.scene.traverse(function (o) {
+            var m = o.material;
+            if (!m) return;
+            var water = Array.isArray(m)
+                ? m.some(function (x) { return R.waterMats.indexOf(x) >= 0; })
+                : R.waterMats.indexOf(m) >= 0;
+            if (water) o.visible = !hide;
+        });
     }
 
     /* Where the sun lands on the screen, and how much of it is on there. The

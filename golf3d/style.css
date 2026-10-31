@@ -732,6 +732,24 @@ button,
     .picker-club-btn { padding: 0.2rem 0.45rem; font-size: 0.75rem; }
 }
 
+/* On a touch screen the modelled cards are the buttons, and a second row of
+   them in text sat right on top of the heads — two sets of the same seven
+   clubs, overlapping. The text row stays for the keyboard and for screen
+   readers (it is the radiogroup), just not drawn; the key numbers go with it,
+   since a phone has no keys to press. game.js measures the band from
+   whichever of the two is the last thing drawn. */
+@media (pointer: coarse) {
+    .picker-clubs {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip-path: inset(50%);
+        white-space: nowrap;
+    }
+    .picker-stats .pk-key { display: none; }
+}
+
 /* ── compact overlay, for when the scoreboard is off screen ─────────────── */
 
 /* Hole, par, strokes and distance — the four figures that move during a
@@ -4162,3 +4180,5 @@ body.lane-swing .swipe-hint {
 /* A replay is the camera's moment: the card steps aside rather than sitting
    on the replay's own label. */
 .stage.replaying .swing-card { display: none; }
+/* Nor over the club picker, where it sat across the bottom row of cards. */
+.stage.picker-open .swing-card { display: none; }

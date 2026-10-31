@@ -463,6 +463,12 @@
         var shot = g ? SW.apply(asked, g) : { yaw: asked.yaw, power: asked.power, spin: 0 };
         // A touch swing that quit on it gives distance away (swing.js `swipeRead`).
         if (g && g.weight) shot.power *= g.weight;
+        // A perfect full swing with a lofted club is flushed (CONFIG.FLUSH).
+        var flush = flushOf(g, frac, state.club);
+        if (flush) {
+            shot.power *= 1 + flush;
+            if (g.read) g.read.flush = flush;
+        }
         /* A scribbled one is a duff or a shank: short, and a shank sideways —
            never under what the physics will launch, so the stroke still counts. */
         if (g && g.junk) {
@@ -473,7 +479,7 @@
         // strike delivered (swing.js `shape`) — picked on the ball, or drawn
         // with the swipe, which brings its own measure of how well it was.
         shot = SW.shape(shot, g && g.junk ? 'straight' : (g && g.shapeName) || shapeNow(), state.club.loft, state.club.bite,
-            P.gravityOf(state.world.hole), g ? (g.shapeOff !== undefined ? g.shapeOff : g.off) : 0, state.world.hole);
+            P.gravityOf(state.world.hole), g ? (g.shapeOff !== undefined ? g.shapeOff : g.off) : 0, state.world.hole, frac);
         if (!P.launch(state.world, shot.yaw, shot.power, shot.loft, shot.bite, shot.topped)) return;
         // The range asks of every shot whether it went past the line (see
         // judgeRangeShot), and the gate is gone by the time it lands.
@@ -509,6 +515,14 @@
         A.putt(feel);
         state.aim.power = 0;
         syncHud();
+    }
+
+    // What a flush adds to the pace: nothing unless the strike was judged
+    // perfect, the club flies, and the meter was near a full swing.
+    function flushOf(g, frac, club) {
+        if (!g || !g.perfect || g.junk || (club.loft || 0) < 9 * Math.PI / 180) return 0;
+        var f = Math.max(0, Math.min(1, (frac - C.FLUSH_FROM) / (1 - C.FLUSH_FROM)));
+        return C.FLUSH * f * f * (3 - 2 * f);
     }
 
     /* ── the range and its swing school ───────────────────────────────────
@@ -757,7 +771,13 @@
         backspin: { at: [0, 0.62],  says: 'stops dead' }
     };
 
-    function shapesOf(club) { return ['straight'].concat((club || state.club).shapes || []); }
+    /* On the touch swing backspin is not picked, it is swung: snap back down
+       after the strike (swing.js `followSpin`). So it leaves the ball there. */
+    function shapesOf(club) {
+        var list = (club || state.club).shapes || [];
+        if (styleLive() === 'swipe') list = list.filter(function (n) { return n !== 'backspin'; });
+        return ['straight'].concat(list);
+    }
 
     function shapeNow() {
         if (!state) return 'straight';
@@ -870,7 +890,7 @@
     var STYLES = ['meter', 'swipe', 'arc', 'needle'];
     var STYLE_INFO = {
         meter:  { icon: '\u25AD', name: 'Meter', says: 'Drag the bar, press Swing. Past the white line, strike in the green.' },
-        swipe:  { icon: '\uD83D\uDC46', name: 'Touch swing', says: 'Pull down from the ball and swipe up through it. Straight is straight.' },
+        swipe:  { icon: '\uD83D\uDC46', name: 'Touch swing', says: 'Pull down from the ball and swipe up through it. Snap back down after it for backspin.' },
         arc:    { icon: '\u25E0', name: 'Arcade', says: 'Three taps: start the swing, stop the power, strike as the needle comes home.' },
         needle: { icon: '\u2194', name: 'Needle', says: 'Pull down to load, let go, and tap while the needle is in the middle.' }
     };
@@ -889,12 +909,15 @@
        course. Kept as one JSON key; anything missing or unknown in it falls
        back to CONFIG.SWIPE.DEFAULT. */
     var TUNE_ROWS = [
+        { key: 'assist', label: 'Easy strike', opts: [['off', 'Off'], ['on', 'On']] },
         { key: 'where', label: 'Courses', opts: [['all', 'Every course'], ['long', 'Long game']] },
         { key: 'feel', label: 'Line', opts: [['easy', 'Easy'], ['normal', 'Normal'], ['hard', 'Hard']] },
         { key: 'timing', label: 'Timing', opts: [['off', 'Off'], ['rhythm', 'Rhythm'], ['snap', 'Snap']] },
         { key: 'shapes', label: 'Swipe shapes', opts: [['off', 'Off'], ['on', 'Curve to bend']] }
     ];
     var TUNE_SAYS = {
+        assist: { off: 'Strikes are judged in full: past 100% and on the green a miss costs more.',
+                  on: 'Forgiving strikes in every style — wider zones, gentler misses, no extra cost past 100%.' },
         where: { all: 'Your swing style on every course, mini golf included.',
                  long: 'Your swing style on the long game and the range; the meter elsewhere.' },
         feel: { easy: 'A swipe can lean about 8° and still be straight.',
@@ -919,6 +942,7 @@
 
     function setTune(key, value) {
         tune[key] = value;
+        SW.setAssist(tune.assist === 'on');
         try { localStorage.setItem(C.TUNE_KEY, JSON.stringify(tune)); } catch (e) { /* ignore */ }
         syncStyle();
         A.tick(0.4);
@@ -1090,6 +1114,7 @@
             up: [], needle: live === 'needle'
         };
         setPower(0);
+        endFollow();
         hideSwingCard();
         $('swipe').classList.add('held');
         drawSwipe();
@@ -1183,6 +1208,8 @@
             through: sw.up.concat([[cross.x, cross.y]])
         }, {
             over: over, feel: tune.feel, timing: tune.timing,
+            rawOver: P.overdraw(state.aim.power, state.club.power),
+            putt: (state.club.loft || 0) < 9 * Math.PI / 180,
             shapes: !picked && tune.shapes === 'on' && bendable.length ? bendable : null
         });
         var g = SW.swipeGate(read);
@@ -1192,6 +1219,61 @@
         endSwipe();
         strike(g);
         showSwingCard(read, frac, drawn, sw, cross);
+        if (state.phase === 'rolling' && !g.junk && (state.club.loft || 0) > 0) startFollow(sw, cross, read, frac);
+    }
+
+    /* ── the snap: backspin by touch ──
+
+       The thumb is still down when the ball leaves. For a moment after the
+       strike (SWIPE.SNAP.FOLLOW) the game keeps reading it: carry on up and
+       it is a plain shot; snap back down and the further it comes, the more
+       backspin — as much as this club at this swing can make (swing.js
+       `spinCap`), so a wedge at 130% checks hard and a 7 iron at half a swing
+       barely at all. The bite is written onto the ball in flight, which is
+       allowed because physics spends it on the first landing and not before;
+       once the ball is down the snap has nothing left to change. */
+    var follow = null;
+
+    function startFollow(sw, cross, read, frac) {
+        follow = {
+            id: sw.id, top: cross.y, len: sw.len, t0: performance.now() / 1000,
+            world: state.world, bite0: state.world.ball.bite || 0, loft: state.club.loft,
+            frac: frac, read: read, ask: 0
+        };
+    }
+
+    function onFollowMove(e) {
+        if (!follow || e.pointerId !== follow.id) return;
+        if (performance.now() / 1000 - follow.t0 > C.SWIPE.SNAP.FOLLOW) { endFollow(); return; }
+        var list = e.getCoalescedEvents ? e.getCoalescedEvents() : null;
+        if (!list || !list.length) list = [e];
+        for (var i = 0; i < list.length; i++) {
+            var y = list[i].clientY;
+            if (y < follow.top) follow.top = y;
+            follow.ask = Math.max(follow.ask, SW.followSpin(follow.top, y, follow.len));
+        }
+        spinBall();
+    }
+
+    function spinBall() {
+        var w = follow.world;
+        if (w !== state.world || w.firstLand || !w.moving) return;
+        w.ball.bite = SW.spinBite(follow.bite0, follow.ask, follow.loft, follow.frac);
+    }
+
+    function tickFollow() {
+        if (follow && performance.now() / 1000 - follow.t0 > C.SWIPE.SNAP.FOLLOW) endFollow();
+    }
+
+    function endFollow() {
+        var f = follow;
+        if (!f) return;
+        follow = null;
+        if (f.world !== state.world) return;
+        f.read.spin = { ask: f.ask, cap: SW.spinCap(f.loft, f.frac),
+                        bite: SW.spinBite(f.bite0, f.ask, f.loft, f.frac) };
+        if (f.ask > 0.1) A.tick(0.3 + 0.5 * f.ask);
+        if (!$('swing-card').hidden) fillSwingRows(f.read, f.frac);
     }
 
     /* ── the swing card ──
@@ -1207,10 +1289,7 @@
 
     function showSwingCard(read, frac, drawn, sw, cross) {
         var card = $('swing-card');
-        var rows = SW.swipeReport(read, { frac: frac });
-        $('sc2-rows').innerHTML = rows.map(function (r) {
-            return '<li class="' + r.tier + '"><b>' + r.what + '</b><span>' + r.says + '</span></li>';
-        }).join('');
+        fillSwingRows(read, frac);
         var gr = SW.grade(SW.swipeGate(read));
         $('sc2-grade').textContent = gr.word;
         $('sc2-grade').className = 'sc2-grade ' + gr.tier;
@@ -1219,6 +1298,13 @@
         card.classList.remove('show');
         void card.offsetWidth;
         card.classList.add('show');
+        placeSwingCard();
+    }
+
+    function fillSwingRows(read, frac) {
+        $('sc2-rows').innerHTML = SW.swipeReport(read, { frac: frac }).map(function (r) {
+            return '<li class="' + r.tier + '"><b>' + r.what + '</b><span>' + r.says + '</span></li>';
+        }).join('');
         placeSwingCard();
     }
 
@@ -1566,6 +1652,7 @@
             return;
         }
         state.phase = 'aim';
+        if (!state.course.isRange) turnToCup();
         if (state.course.isRange) {
             judgeRangeShot(w);
             setTimeout(function () {
@@ -1575,6 +1662,31 @@
             syncLie();
         }
         syncHud();
+    }
+
+    /* After every stroke the aim swings round to face the cup from wherever
+       the ball stopped, and the camera rides the aim — so the next shot starts
+       looking at the flag rather than down the line of the last one. A short
+       eased turn rather than a cut, and it gives way the moment anything else
+       turns the aim (a drag, a key, the bot): `set` is the yaw it last wrote,
+       and a different one means someone else has hold of it. */
+    var aimTurn = null;
+    var AIM_TURN_SECONDS = 0.65;
+
+    function turnToCup() {
+        var b = state.world.ball, cup = state.world.hole.cup;
+        if (Math.hypot(cup.x - b.x, cup.z - b.z) < 1e-3) return;
+        var to = Math.atan2(cup.x - b.x, cup.z - b.z);
+        aimTurn = { from: state.aim.yaw, to: turnTowards(state.aim.yaw, to, 1), t: 0, set: state.aim.yaw };
+    }
+
+    function tickAimTurn(dt) {
+        if (!aimTurn) return;
+        if (sim || demo || state.phase !== 'aim' || state.aim.yaw !== aimTurn.set) { aimTurn = null; return; }
+        aimTurn.t = Math.min(1, aimTurn.t + dt / AIM_TURN_SECONDS);
+        var e = aimTurn.t * aimTurn.t * (3 - 2 * aimTurn.t);
+        state.aim.yaw = aimTurn.set = aimTurn.from + (aimTurn.to - aimTurn.from) * e;
+        if (aimTurn.t >= 1) aimTurn = null;
     }
 
     /* On the green, the putter and nothing else.
@@ -2201,7 +2313,7 @@
             out.push(0);
             if (p < C.MIN_POWER) continue;
             s = { yaw: 0, power: P.deliver(p, club.power), loft: club.loft, bite: club.bite || 0, spin: 0, topped: false };
-            if (shape !== 'straight') s = SW.shape(s, shape, club.loft, club.bite, P.gravityOf(field), 0, field);
+            if (shape !== 'straight') s = SW.shape(s, shape, club.loft, club.bite, P.gravityOf(field), 0, field, p / club.power);
             w = P.createWorld(field, { x: 0, z: 0, y: C.BALL_R }, 0);
             if (!P.launch(w, s.yaw, s.power, s.loft, s.bite, s.topped)) continue;
             w.spin = s.spin || 0;
@@ -2400,14 +2512,16 @@
         $('picker-name').textContent = club.name;
         $('picker-blurb').textContent = club.blurb;
         /* The figures the club's own card carries (bag.js), written out:
-           loft, power, reach and bite. */
+           loft, reach and bite. */
         // Rough, like the meter's: a band, in the hole's own metres.
         var totalText = club.total ? ' · reach <b>' + G3.distance.bandText(club.total, state.world.hole) + '</b>' : '';
         var biteText = club.bite ? ' · bite <b>' + Math.round(club.bite * 100) + '%</b>' : '';
+        // One line on a phone: the key only where there is a keyboard
+        // (style.css hides .pk-key on touch), and the power units left to the
+        // card — a reach in metres is what anyone chooses a club by.
         $('picker-stats').innerHTML =
-            'Key <b>' + club.key + '</b> · loft <b>' +
-            Math.round(club.loft * 180 / Math.PI) + '°</b> · full swing <b>' +
-            club.power + '</b>' + totalText + biteText +
+            '<span class="pk-key">Key <b>' + club.key + '</b> · </span>loft <b>' +
+            Math.round(club.loft * 180 / Math.PI) + '°</b>' + totalText + biteText +
             (club.id === state.club.id ? ' · <b>in hand</b>' : '');
 
         var container = $('picker-clubs');
@@ -2507,6 +2621,9 @@
                 btnEl.setAttribute('aria-checked', isSelected ? 'true' : 'false');
                 btnEl.setAttribute('tabindex', isActive ? '0' : '-1');
             }
+            // Measured again now the text row is there: on the first open it
+            // was built after the band was taken.
+            if (needsRebuild) measurePickerBand();
         }
     }
 
@@ -2522,7 +2639,13 @@
         var stage = $('stage').getBoundingClientRect();
         var ctl = document.querySelector('.controls');
         if (!stage.height || !ctl) return;
+        // The lower of the stats line and the text row of clubs under it —
+        // the row is only drawn where there is a pointer to use it with, and
+        // the cards were laid out under the stats alone, so on a desktop the
+        // row sat across the heads.
         var text = $('picker-stats').getBoundingClientRect();
+        var row = $('picker-clubs') ? $('picker-clubs').getBoundingClientRect() : null;
+        if (row && row.height > 2 && row.bottom > text.bottom) text = row;
         var bar = ctl.getBoundingClientRect();
         /* The shot controls stand down while the picker is up (see
            `.stage.picker-open .controls`), and the clubs get the strip they
@@ -4946,6 +5069,7 @@
         // itself is the one interruption nobody asked for.
         else tickIdle(now);
         if (sim) tickSim(Math.min(0.25, raw));
+        tickFollow();
 
         if (state.phase === 'rolling') {
             /* Under the bot, the same step it planned on. Its shot was chosen
@@ -4977,6 +5101,7 @@
             tickGate(dt);
             tickArc(dt);
             tickNeedle(dt);
+            tickAimTurn(dt);
             syncRun();
             // Gates and blades keep their own time whether or not the ball is
             // rolling, so the preview you aim with is the course you will hit.
@@ -4995,7 +5120,10 @@
         // One object, refilled: the renderer reads it within the call and the
         // preview compares its fields against the last frame's, so handing it a
         // fresh literal every frame was sixty allocations a second for nothing.
-        intent.show = state.phase === 'aim';
+        // Not under the open bag: the aim is drawn over everything (depth
+        // test off), so it came through the picker's dark backdrop as a
+        // green chevron among the cards.
+        intent.show = state.phase === 'aim' && !(G3.bag && G3.bag.isExpanded());
         intent.yaw = state.aim.yaw;
         // What the club delivers, not what the meter reads: past a full swing
         // the two are different (physics.deliver) and the cone has to draw the
@@ -5011,7 +5139,8 @@
         intent.bend = intent.spin = 0;
         intent.topped = false;
         if (shapeNow() !== 'straight') {
-            var fly = SW.shape(intent, shapeNow(), state.club.loft, state.club.bite, P.gravityOf(state.world.hole), 0, state.world.hole);
+            var fly = SW.shape(intent, shapeNow(), state.club.loft, state.club.bite, P.gravityOf(state.world.hole), 0, state.world.hole,
+                state.aim.power / state.club.power);
             intent.loft = fly.loft;
             intent.power = fly.power;
             intent.bite = fly.bite;
@@ -5139,6 +5268,7 @@
         $('btn-shape').addEventListener('click', function () { toggleShapePad(); });
         buildStylePad();
         buildTune();
+        SW.setAssist(tune.assist === 'on');
         $('btn-style').addEventListener('click', function () { toggleStylePad(); });
         $('style-close').addEventListener('click', function () { toggleStylePad(false); });
         $('arc').addEventListener('pointerdown', function (e) {
@@ -5157,6 +5287,11 @@
             hideSwingCard();
         });
         $('swipe').addEventListener('pointermove', onSwipeMove);
+        // The snap after a touch strike: the lane has gone by then, so the
+        // thumb is read wherever it is.
+        window.addEventListener('pointermove', onFollowMove);
+        window.addEventListener('pointerup', function (e) { if (follow && e.pointerId === follow.id) endFollow(); });
+        window.addEventListener('pointercancel', function (e) { if (follow && e.pointerId === follow.id) endFollow(); });
         $('swipe').addEventListener('pointerup', onSwipeUp);
         $('swipe').addEventListener('pointercancel', onSwipeUp);
         // A press anywhere else closes the shape pad, the way a menu shuts.

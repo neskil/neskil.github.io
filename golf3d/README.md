@@ -429,6 +429,33 @@ way the ball was hit. game.js "swing styles" is the thumb and the pictures.
   so the three new styles cost a miss at no less than their `FLOOR` of the
   overdraw — otherwise their accuracy would be decoration. A clean strike is
   untouched, exactly as the meter's.
+- **Past 100%, and on the green, a touch miss costs more** (`swipeMult`):
+  every consequence — push, pull, bend, the weight a lazy swing loses — is
+  multiplied by `1 + SWIPE.OVER_MULT ×` the meter's own overdraw (×2.5 at the
+  top), and the tempo's clean band narrows there like the line's. A putt (a
+  club under 9° of loft) has a tighter line (`SWIPE.PUTT.TOL`), costs
+  `PUTT.MULT` more, and is the one stroke where a snatch runs *long*
+  (`PUTT.JAB`). The card names the multiple when it bit.
+- **Backspin by touch** (`followSpin`, game.js "the snap"): on the touch swing
+  backspin is not picked on the ball, it is swung — after the swipe crosses
+  the ball, snap back down, and the further back (out to `SWIPE.SNAP.PX` of
+  the lane, within `SNAP.FOLLOW` seconds) the more spin. It is written onto
+  the ball in flight, which physics allows because the bite is spent on the
+  first landing. How much spin a strike *can* make, whichever way it was
+  asked for (the snap or the backspin shape), is the club's loft times the
+  meter's fraction (`spinCap`, `CONFIG.SPIN`): a wedge at 130% checks hard,
+  over a bite of 1, and a 7 iron at half a swing barely at all.
+- **A flushed full swing** (`CONFIG.FLUSH`, game.js `flushOf`): a lofted club
+  struck Perfect in any judged style, from 85% of a full swing up, leaves with
+  up to 4½% more pace. The cone does not preview it and the cards do not
+  count it — the courses are tuned on the clean ceiling, and a global boost
+  measured at +17% on a drive's total and broke fifteen long holes — so it is
+  only ever the prize for the strike.
+- **Easy strike** (the Swing panel's first row, `swing.js setAssist`,
+  `CONFIG.ASSIST`): every style forgiving at once — wider clean zones for the
+  gate, the arc and the needle, a slower marker, twice the swipe's lean and a
+  wider tempo band, half of every miss's cost, and none of the overdraw or
+  putting multiples. Off by default.
 
 Every strike, in any style, pops one word over the stage (`grade`: Perfect,
 Great, Good, Pulled/Pushed, Shanked, Whiff) and buzzes a phone that can
@@ -543,6 +570,24 @@ Four of those are recent and each replaced something that did not work:
   away — the course goes dark, the row does not, out of one plane and no second
   pass. The stylesheet keeps a vignette, which is all it was ever able to do
   honestly.
+- **…and with the post chain it is blurred instead** (postfx.js `backdrop`).
+  The owner wanted the course to stay see-through, and the spotlight's lit
+  pool on the turf read as bad lighting, so the pool is gone and the scrim is
+  now only the fallback for a device without the chain. Everything the bag
+  draws and every light it owns is on its own camera layer (`bag.LAYER`); with
+  the picker open the course is drawn alone, blurred at quarter size, laid back
+  over itself darkened (render.js `BACK_DIM`) as the bag opens, and then the
+  bag's layer is drawn sharp on top with the depth cleared. A light only counts
+  on a layer the camera is looking at, so the row is lit by the bag's studio,
+  spotlight and its own ambient (`AMB`) and nothing of the hole's weather — the
+  same clubs on every course under every sky. The bag's raycaster looks at the
+  same layer, or a tap would find nothing.
+- **On a touch screen the text row of clubs is not drawn.** It is the
+  keyboard's radiogroup and stays in the page for that and for screen readers,
+  but on a phone it sat right across the heads, a second copy of the cards.
+  Where it is drawn (a fine pointer), `measurePickerBand` lays the cards out
+  under it rather than under the stats line. The swing card and the aim
+  stand down while the picker is up too.
 - **The club in hand is marked with a colour rather than a brightness.** The
   mark used to be emissive on the club's own materials, and that cannot work
   across a bag: a driver crown is nearly black on purpose, and the light needed
@@ -4878,7 +4923,9 @@ with neither: some people want a hole with weather on it and nothing else.
 ## Controls
 
 Drag back from the ball and let go; drag sideways to swing the aim, and the
-camera swings with it. Where the camera stands *relative to* that aim is the
+camera swings with it. When a stroke comes to rest the aim (and so the camera)
+turns to face the cup from wherever the ball stopped (game.js `turnToCup`),
+giving way at once to a drag, a key or the caddie. Where the camera stands *relative to* that aim is the
 [view dial](#the-view-dial), not the drag. Keys: <kbd>←</kbd><kbd>→</kbd> aim,
 <kbd>↑</kbd><kbd>↓</kbd> power, <kbd>shift</kbd>+<kbd>1</kbd>–<kbd>0</kbd> that
 many tenths of a full swing (<kbd>Home</kbd> empty, <kbd>End</kbd> a full
