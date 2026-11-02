@@ -199,6 +199,12 @@ runs the length of one, and the same hole is a single committed shot that is
 either in or fifteen units past. It stays out of the default bag because a flat
 club with that much reach would quietly become the answer to half the course.
 
+Which club is in hand on a mini tee follows from the same split: the mallet,
+because the lane is the hole, except on a hole flagged `needsLoft`, which
+starts with the Pitch (or, where the hole's own bag has no Pitch, the club in
+it that flies the shortest: the Checker on Glass Table) — the mallet is the one club sure to be wrong on a hole
+that cannot be played along the floor (`loftClub` in `game.js`).
+
 The bag is modelled once, for every club the game knows about, and `setBag`
 decides which of them are in the mouth of it, in the open row and pickable —
 rebuilding a putter's geometry on the tee of the fourth hole is not something

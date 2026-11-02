@@ -62,6 +62,21 @@
         return best || state.club;
     }
 
+    /* The club for a mini tee that has to be chipped from. A hole flagged
+       `needsLoft` cannot be played along the floor, so the mallet the other
+       mini tees start with is the one club sure to be wrong here: the Pitch
+       if the bag has it, which is the chip, or else the club in it that flies
+       the shortest — Glass Table hands out an iron and a checker, and the
+       checker is the one it was built for. */
+    function loftClub() {
+        var b = bag(), best = null, i;
+        for (i = 0; i < b.length; i++) {
+            if (b[i].id === 'chipper') return b[i];
+            if (b[i].carry && (!best || b[i].carry < best.carry)) best = b[i];
+        }
+        return best;
+    }
+
     function toast(msg, kind) {
         // Nothing talks over the demo screen. The caddie's running
         // commentary is for a player who pressed Simulate and wants to know
@@ -264,10 +279,12 @@
            of those holes started with a putter on the tee. A tee there is a
            fresh choice, so it is made for the distance (teeClub). */
         if (hole.longGame && !state.course.isRange) state.club = teeClub(hole);
-        /* And a mini tee is the mallet's. Left to the rule above, a driver
+        /* And a mini tee is the mallet's — unless the hole has to be chipped
+           from, when it is the chip's (loftClub). Left to the rule above, a driver
            carried in from the last round fell through to the bag's first club,
            which is the putter — nine units of roll on a lane the mallet runs
            the length of. A hole whose own bag has no mallet keeps that rule. */
+        else if (hole.mini && hole.needsLoft && loftClub()) state.club = loftClub();
         else if (hole.mini && clubById('mallet').id === 'mallet') state.club = clubById('mallet');
         if (G3.bag && G3.bag.setBag) {
             G3.bag.setBag(state.bag);
