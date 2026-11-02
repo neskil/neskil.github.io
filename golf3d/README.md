@@ -363,12 +363,19 @@ through over a shot that can barely go wrong is a hoop for its own sake.
 plain object, which is what lets `tests.html` cover the gate, every swing style,
 both edges of every miss and the bound on the envelope without a browser.
 
-### Swing styles (on trial)
+### Swing styles (the touch swing, and three in dev mode)
 
-Four ways to hit the ball, picked from 🏌 Swing in ☰ (`STYLE_KEY`; the old
-touch-swing on/off, `SWIPE_KEY`, is read once so a player who had it keeps it),
-on every course or on the long game and the range only — the panel's
-**Courses** setting, which is for every style. Each style's arithmetic is in
+**The touch swing is the game's swing** (the owner's call). The other three
+are kept, behind dev mode: `?dev=1` turns it on and `?dev=0` off, and the
+choice is remembered (`DEV_KEY`). Outside dev mode 🏌 Swing in ☰ opens the
+touch swing's settings and nothing else, and the swing school on the range
+(which teaches the meter) stays down. **A round struck with any other style
+is not recorded** (`state.devSwing`, `finishRound`) — a record is a claim
+about the swing everyone plays — and the card says so.
+
+In dev mode the four are picked from the same panel (`STYLE_KEY`), on every
+course or on the long game and the range only — the panel's **Courses**
+setting, which is for every style. Each style's arithmetic is in
 `swing.js` and each ends as a gate-shaped object handed to `strike`, so the
 push, the pull, the bend and the [shapes](#shot-shaping) are the same whichever
 way the ball was hit. game.js "swing styles" is the thumb and the pictures.
@@ -436,15 +443,24 @@ way the ball was hit. game.js "swing styles" is the thumb and the pictures.
   club under 9° of loft) has a tighter line (`SWIPE.PUTT.TOL`), costs
   `PUTT.MULT` more, and is the one stroke where a snatch runs *long*
   (`PUTT.JAB`). The card names the multiple when it bit.
-- **Backspin by touch** (`followSpin`, game.js "the snap"): on the touch swing
-  backspin is not picked on the ball, it is swung — after the swipe crosses
-  the ball, snap back down, and the further back (out to `SWIPE.SNAP.PX` of
-  the lane, within `SNAP.FOLLOW` seconds) the more spin. It is written onto
-  the ball in flight, which physics allows because the bite is spent on the
-  first landing. How much spin a strike *can* make, whichever way it was
-  asked for (the snap or the backspin shape), is the club's loft times the
-  meter's fraction (`spinCap`, `CONFIG.SPIN`): a wedge at 130% checks hard,
-  over a bite of 1, and a 7 iron at half a swing barely at all.
+- **Backspin by touch** (`swipeSpin`, game.js `onSwipeUp`): on the touch
+  swing backspin is not picked on the ball, it is swung — swipe up and let go
+  *before* the start line. Where you let go, as a share of the way back up,
+  is the spin: all of it at about three quarters (`SWIPE.SPIN_AT`, a dashed
+  gold "spin" tick in the lane), less either side, and under `MIN` no shot.
+  A swipe through the start is the plain strike it always was. A club with no
+  loft has no spin, so a putt let go early is still no shot. The swipe up is
+  timed as if it had gone the whole way, or every spin shot would read as
+  rushed. How much spin a strike *can* make, whichever way it was asked for
+  (the release or the backspin shape), is the club's loft times the meter's
+  fraction (`spinCap`, `CONFIG.SPIN`): a wedge at 130% checks back, over a
+  bite of 1, and a 7 iron at half a swing barely bites. (It replaced a snap
+  back down after the strike, which the owner found convoluted.)
+- **Rhythm also wants a sensible pace** (`TIMING.rhythm.PACE*`): an even swing
+  that is far too quick or far too slow used to read as clean. Now the swipe
+  up is also held to about a quarter of a second, a doubling either side
+  free, and the miss weighed at `PACE_W` — a little, not a lot. Rhythm is the
+  default timing now.
 - **A flushed full swing** (`CONFIG.FLUSH`, game.js `flushOf`): a lofted club
   struck Perfect in any judged style, from 85% of a full swing up, leaves with
   up to 4½% more pace. The cone does not preview it and the cards do not

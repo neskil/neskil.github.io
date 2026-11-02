@@ -32,7 +32,7 @@
 
         gtag('config', 'G-9GP823TGLB');
     </script>
-    <link rel="stylesheet" href="style.css?v=1.119.0">
+    <link rel="stylesheet" href="style.css?v=1.120.0">
 <script type="application/ld+json">
     {
         "@context": "https://schema.org",
@@ -145,7 +145,7 @@
                     <button class="chip" id="btn-music" title="Background music (J)" aria-label="Turn the music off"><span id="music-icon">♪</span><span class="chip-text"> Jazz</span></button>
                     <button class="chip" id="btn-fps" title="Show the frame rate (P)" aria-pressed="false"><span id="fps-icon">▦</span><span class="chip-text"> FPS</span></button>
                     <button class="chip" id="btn-fly" title="A look at the hole before you play it" aria-pressed="true">🎬<span class="chip-text"> Flyover</span></button>
-                    <button class="chip" id="btn-style" title="How you swing on the long game (trial)" aria-haspopup="dialog" aria-expanded="false" aria-controls="style-pad">🏌<span class="chip-text"> Swing: <span id="style-now">Meter</span></span></button>
+                    <button class="chip" id="btn-style" title="Touch swing settings" aria-haspopup="dialog" aria-expanded="false" aria-controls="style-pad">🏌<span class="chip-text"> Swing: <span id="style-now">Touch swing</span></span></button>
                     <button class="chip" id="btn-water" title="Reflections, foam and glitter on the water (O)" aria-label="Turn the fancy water off"><span id="water-icon">≈</span><span class="chip-text"> Water</span></button>
                 </div>
                 <button class="chip chip-menu" id="btn-menu" title="More" aria-label="More controls"
@@ -346,6 +346,8 @@
                 <svg class="swipe-svg" aria-hidden="true">
                     <line class="sw-guide" id="sw-guide"/>
                     <line class="sw-full" id="sw-full"/>
+                    <line class="sw-spin" id="sw-spin"/>
+                    <text class="sw-spin-label" id="sw-spin-label">spin</text>
                     <polygon class="sw-cone" id="sw-cone"/>
                     <polyline class="sw-trail" id="sw-trail"/>
                     <circle class="sw-ball" id="sw-ball" r="15"/>
@@ -409,16 +411,16 @@
                  four on trial, built from STYLE_INFO. -->
             <div class="style-pad" id="style-pad" hidden role="dialog" aria-label="Swing style">
                 <div class="st-head">
-                    <span><b>Swing style</b><small>pick one, then tune the touch swing below</small></span>
+                    <span><b>Swing</b><small id="st-sub">Settings for the touch swing.</small></span>
                     <button type="button" class="st-close" id="style-close" aria-label="Close">✕</button>
                 </div>
                 <div class="st-list" id="style-list"></div>
                 <!-- What the touch swing reads, and how hard; plus where any
                      style applies. game.js `buildTune` from TUNE_ROWS. -->
                 <div class="tune">
-                    <p class="tn-title">Touch swing settings <small>try them and say which is fun</small></p>
+                    <p class="tn-title">Touch swing</p>
                     <div class="tn-rows" id="tune-rows"></div>
-                    <p class="tn-says" id="tune-says" aria-live="polite">Each one says what it does when you pick it.</p>
+                    <p class="tn-says" id="tune-says" aria-live="polite">Pick a setting to see what it does.</p>
                 </div>
             </div>
 
@@ -853,30 +855,30 @@
 
     <!-- Load order is dependency order: config, then the pure logic, then the
          things that touch the screen. game.js boots itself on DOMContentLoaded. -->
-    <script src="js/config.js?v=1.119.0"></script>
-    <script src="js/themes.js?v=1.119.0"></script>
-    <script src="js/physics.js?v=1.119.0"></script>
-    <script src="js/courses.js?v=1.119.0"></script>
-    <script src="js/audit.js?v=1.119.0"></script>
-    <script src="js/custom.js?v=1.119.0"></script>
-    <script src="js/scoring.js?v=1.119.0"></script>
-    <script src="js/swing.js?v=1.119.0"></script>
-    <script src="js/school.js?v=1.119.0"></script>
-    <script src="js/audio.js?v=1.119.0"></script>
-    <script src="js/music.js?v=1.119.0"></script>
-    <script src="js/bag.js?v=1.119.0"></script>
-    <script src="js/textures.js?v=1.119.0"></script>
-    <script src="js/shaders.js?v=1.119.0"></script>
-    <script src="js/postfx.js?v=1.119.0"></script>
-    <script src="js/weather.js?v=1.119.0"></script>
-    <script src="js/flyover.js?v=1.119.0"></script>
-    <script src="js/replay.js?v=1.119.0"></script>
-    <script src="js/bot.js?v=1.119.0"></script>
-    <script src="js/models.js?v=1.119.0"></script>
-    <script src="js/life.js?v=1.119.0"></script>
-    <script src="js/render.js?v=1.119.0"></script>
-    <script src="js/minimap.js?v=1.119.0"></script>
-    <script src="js/debug.js?v=1.119.0"></script>
-    <script src="js/game.js?v=1.119.0"></script>
+    <script src="js/config.js?v=1.120.0"></script>
+    <script src="js/themes.js?v=1.120.0"></script>
+    <script src="js/physics.js?v=1.120.0"></script>
+    <script src="js/courses.js?v=1.120.0"></script>
+    <script src="js/audit.js?v=1.120.0"></script>
+    <script src="js/custom.js?v=1.120.0"></script>
+    <script src="js/scoring.js?v=1.120.0"></script>
+    <script src="js/swing.js?v=1.120.0"></script>
+    <script src="js/school.js?v=1.120.0"></script>
+    <script src="js/audio.js?v=1.120.0"></script>
+    <script src="js/music.js?v=1.120.0"></script>
+    <script src="js/bag.js?v=1.120.0"></script>
+    <script src="js/textures.js?v=1.120.0"></script>
+    <script src="js/shaders.js?v=1.120.0"></script>
+    <script src="js/postfx.js?v=1.120.0"></script>
+    <script src="js/weather.js?v=1.120.0"></script>
+    <script src="js/flyover.js?v=1.120.0"></script>
+    <script src="js/replay.js?v=1.120.0"></script>
+    <script src="js/bot.js?v=1.120.0"></script>
+    <script src="js/models.js?v=1.120.0"></script>
+    <script src="js/life.js?v=1.120.0"></script>
+    <script src="js/render.js?v=1.120.0"></script>
+    <script src="js/minimap.js?v=1.120.0"></script>
+    <script src="js/debug.js?v=1.120.0"></script>
+    <script src="js/game.js?v=1.120.0"></script>
 </body>
 </html>

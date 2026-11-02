@@ -480,10 +480,19 @@
         // with the swipe, which brings its own measure of how well it was.
         shot = SW.shape(shot, g && g.junk ? 'straight' : (g && g.shapeName) || shapeNow(), state.club.loft, state.club.bite,
             P.gravityOf(state.world.hole), g ? (g.shapeOff !== undefined ? g.shapeOff : g.off) : 0, state.world.hole, frac);
+        /* A backspin swipe: as much of the spin this club at this swing can
+           make as the release asked for (swing.js `spinBite`). Written after
+           launch as well, because launch caps a bite under 1 and a wedge past
+           a full swing is allowed to check back. */
+        var ask = g && g.read && g.read.spin ? g.read.spin.ask : 0;
+        if (ask) shot.bite = SW.spinBite(shot.bite, ask, state.club.loft, frac);
         if (!P.launch(state.world, shot.yaw, shot.power, shot.loft, shot.bite, shot.topped)) return;
+        if (ask) state.world.ball.bite = shot.bite;
         // The range asks of every shot whether it went past the line (see
         // judgeRangeShot), and the gate is gone by the time it lands.
         state.shotOver = state.aim.power > state.club.power + 1e-9;
+        // A dev swing on the card: this round will not be recorded.
+        if (!sim && !demo && styleLive() !== 'swipe' && !state.course.isRange) state.devSwing = true;
         // A shape's strike is not a lesson's, and nor is a swipe: the school
         // teaches the meter.
         if (g && state.course.isRange && !g.shape && !g.swipe && !g.arc && !g.needle) markGateLesson(g);
@@ -621,7 +630,9 @@
 
     // Shown on the range only, and drawn whenever a lesson or its count changes.
     function syncSchool() {
-        var on = !!(state && state.course && state.course.isRange);
+        // The school teaches the meter's gate, so it is only up when the
+        // meter is the swing — which is dev mode now (see "swing styles").
+        var on = !!(state && state.course && state.course.isRange) && styleLive() === 'meter';
         if (!school.progress) loadSchool();
         $('school').hidden = !on;
         if (on) drawSchool();
@@ -736,12 +747,14 @@
         if (g.read) return;
         if (g.shape) { sayShape(g); return; }
         if (g.swipe || g.arc || g.needle) { saySwipe(g); return; }
-        if (g.perfect) { toast('Flushed it — all of the overdraw, none of the spray'); return; }
+        if (g.perfect) { toast('Pure strike. Full power, on line.'); return; }
         var a = Math.abs(g.off);
-        var way = g.off < 0 ? 'pulled' : 'pushed';
-        if (a < 0.34) toast('A touch ' + (g.off < 0 ? 'early' : 'late') + ' — ' + way + ' a little');
-        else if (a < 0.75) toast('Off the middle — ' + way + ', and it will bend');
-        else toast(g.struck ? 'Thrashed it — ' + way + ' miles' : 'Never swung — the club came through on its own', 'bad');
+        var side = g.off < 0 ? 'left' : 'right';
+        var when = g.off < 0 ? 'early' : 'late';
+        if (!g.struck) toast('No strike. The swing ran out.', 'bad');
+        else if (a < 0.34) toast('A bit ' + when + '. Ball goes a bit ' + side + '.');
+        else if (a < 0.75) toast('Too ' + when + '. Ball curves ' + side + '.');
+        else toast('Much too ' + when + '. Ball goes far ' + side + '.', 'bad');
     }
 
     /* ── shot shaping ───────────────────────────────────────────────────────
@@ -764,15 +777,16 @@
        (+x right, +y down — the screen's way), and the few words under it on
        the pad. The ball button's dot and the pad's dots both read `at`. */
     var SHAPE_INFO = {
-        topped:   { at: [0, -0.62], says: 'low, and runs' },
+        topped:   { at: [0, -0.62], says: 'low, rolls far' },
         draw:     { at: [-0.62, 0], says: 'curves left' },
         straight: { at: [0, 0],     says: '' },
         fade:     { at: [0.62, 0],  says: 'curves right' },
-        backspin: { at: [0, 0.62],  says: 'stops dead' }
+        backspin: { at: [0, 0.62],  says: 'stops fast' }
     };
 
-    /* On the touch swing backspin is not picked, it is swung: snap back down
-       after the strike (swing.js `followSpin`). So it leaves the ball there. */
+    /* On the touch swing backspin is not picked, it is swung: let go at about
+       three quarters of the way back up (swing.js `swipeSpin`). So it leaves
+       the ball there. */
     function shapesOf(club) {
         var list = (club || state.club).shapes || [];
         if (styleLive() === 'swipe') list = list.filter(function (n) { return n !== 'backspin'; });
@@ -857,19 +871,18 @@
        was asked for: clean, over-cooked or under-cooked, in that shape's own
        words. */
     var SHAPE_MISS = {
-        draw: ['Hooked it — that draw kept turning', 'Hung out right — the draw never came back'],
-        fade: ['Pulled it — the fade never turned', 'Sliced it — the fade kept going'],
-        backspin: ['Caught it thin — no spin on that one', 'Caught it thin — no spin on that one'],
-        topped: ['Dug it in — even lower than you wanted', 'Got under it — that one is up in the air']
+        draw: ['Too much curve. Ball hooks left.', 'Too little curve. Ball stays right.'],
+        fade: ['Too little curve. Ball stays left.', 'Too much curve. Ball slices right.'],
+        backspin: ['Thin strike. No spin.', 'Thin strike. No spin.'],
+        topped: ['Too low.', 'Too high.']
     };
 
     function sayShape(g) {
-        if (g.perfect) { toast('Shaped it — a clean ' + SHAPE_SAYS[g.shape].toLowerCase(), 'good'); return; }
-        if (!g.struck) { toast('Never swung — the club came through on its own', 'bad'); return; }
+        if (g.perfect) { toast(SHAPE_SAYS[g.shape] + '. Good strike.', 'good'); return; }
+        if (!g.struck) { toast('No strike. The swing ran out.', 'bad'); return; }
         var a = Math.abs(g.off);
         var said = SHAPE_MISS[g.shape][g.off < 0 ? 0 : 1];
-        toast(a < 0.34 ? 'Nearly — ' + said.charAt(0).toLowerCase() + said.slice(1) + ', a little' : said,
-            a < 0.75 ? undefined : 'bad');
+        toast(a < 0.34 ? 'Almost. ' + said : said, a < 0.75 ? undefined : 'bad');
     }
 
     /* ── swing styles ───────────────────────────────────────────────────────
@@ -889,17 +902,27 @@
        that are gestures, and drives the arc and the needle's tap. */
     var STYLES = ['meter', 'swipe', 'arc', 'needle'];
     var STYLE_INFO = {
-        meter:  { icon: '\u25AD', name: 'Meter', says: 'Drag the bar, press Swing. Past the white line, strike in the green.' },
-        swipe:  { icon: '\uD83D\uDC46', name: 'Touch swing', says: 'Pull down from the ball and swipe up through it. Snap back down after it for backspin.' },
-        arc:    { icon: '\u25E0', name: 'Arcade', says: 'Three taps: start the swing, stop the power, strike as the needle comes home.' },
-        needle: { icon: '\u2194', name: 'Needle', says: 'Pull down to load, let go, and tap while the needle is in the middle.' }
+        meter:  { icon: '\u25AD', name: 'Meter', says: 'Drag the bar. Press Swing. Past the white line, strike in the green zone.' },
+        swipe:  { icon: '\uD83D\uDC46', name: 'Touch swing', says: 'Pull down. Swipe up through the ball. For backspin, let go at ¾.' },
+        arc:    { icon: '\u25E0', name: 'Arcade', says: 'Tap three times: start, set the power, strike when the needle comes back.' },
+        needle: { icon: '\u2194', name: 'Needle', says: 'Pull down. Let go. Tap when the needle is in the middle.' }
     };
+    /* The touch swing is the game's swing (the owner's call). The other three
+       stay, behind dev mode — ?dev=1 turns it on and ?dev=0 off, and the
+       choice is kept — and a round struck with any of them is not recorded
+       (`finishRound`): a record is a claim about the one swing everyone plays. */
+    var dev = (function () {
+        var m = /[?&]dev=([01])/.exec(location.search || '');
+        try {
+            if (m) localStorage.setItem(C.DEV_KEY, m[1]);
+            return localStorage.getItem(C.DEV_KEY) === '1';
+        } catch (e) { return !!m && m[1] === '1'; }
+    })();
     var styleWanted = (function () {
         try {
             var v = localStorage.getItem(C.STYLE_KEY);
-            if (STYLES.indexOf(v) >= 0) return v;
-            return localStorage.getItem(C.SWIPE_KEY) === '1' ? 'swipe' : 'meter';
-        } catch (e) { return 'meter'; }
+            return STYLES.indexOf(v) >= 0 ? v : 'swipe';
+        } catch (e) { return 'swipe'; }
     })();
     /* ── touch swing settings ──
 
@@ -916,18 +939,18 @@
         { key: 'shapes', label: 'Swipe shapes', opts: [['off', 'Off'], ['on', 'Curve to bend']] }
     ];
     var TUNE_SAYS = {
-        assist: { off: 'Strikes are judged in full: past 100% and on the green a miss costs more.',
-                  on: 'Forgiving strikes in every style — wider zones, gentler misses, no extra cost past 100%.' },
-        where: { all: 'Your swing style on every course, mini golf included.',
-                 long: 'Your swing style on the long game and the range; the meter elsewhere.' },
-        feel: { easy: 'A swipe can lean about 8° and still be straight.',
-                normal: 'About 3½° of lean is forgiven; a real drift costs you.',
-                hard: 'Under 2° — a swipe has to be ruler-straight.' },
+        assist: { off: 'Full rules. A miss costs more past 100% and on the green.',
+                  on: 'Easy rules. Misses cost less. No extra cost past 100%.' },
+        where: { all: 'Use this swing on all courses.',
+                 long: 'Use this swing on the long game and the range only.' },
+        feel: { easy: 'You can lean about 8°. It is still straight.',
+                normal: 'You can lean about 3½°. More goes off line.',
+                hard: 'You can lean less than 2°.' },
         timing: { off: 'Only the line counts.',
-                  rhythm: 'Swipe up at the same pace you pulled down.',
-                  snap: 'Swipe up in about a fifth of a second, however far you pulled — length and speed together.' },
-        shapes: { off: 'A curved swipe is just a crooked one.',
-                  on: 'Bow the swipe out right and back for a draw, left for a fade.' }
+                  rhythm: 'Swipe up at the speed you pulled down. Not too fast, not too slow.',
+                  snap: 'Swipe up in about 0.2 seconds.' },
+        shapes: { off: 'A curved swipe is a bad swipe.',
+                  on: 'Curve the swipe right for a draw. Curve it left for a fade.' }
     };
     var tune = (function () {
         var raw = {};
@@ -954,6 +977,7 @@
         TUNE_ROWS.forEach(function (r) {
             var row = document.createElement('div');
             row.className = 'tn-row';
+            row.dataset.key = r.key;
             row.innerHTML = '<span class="tn-label">' + r.label + '</span>';
             var seg = document.createElement('div');
             seg.className = 'tn-seg';
@@ -988,7 +1012,10 @@
 
     // The style that hits *this* shot: the one picked, where the trial runs.
     function styleLive() {
-        if (!state || !state.course || styleWanted === 'meter') return 'meter';
+        if (!state || !state.course) return 'meter';
+        // Outside dev mode it is the touch swing, everywhere.
+        if (!dev) return 'swipe';
+        if (styleWanted === 'meter') return 'meter';
         if (state.course.isRange || tune.where === 'all') return styleWanted;
         var c = G3.courseById(holeRef(state.holeIndex).id) || state.course;
         return c.group === 'long' ? styleWanted : 'meter';
@@ -1007,9 +1034,11 @@
         if (swipe) endSwipe();
         toggleStylePad(false);
         syncStyle();
+        syncSchool();
         A.tick(0.5);
         toast(STYLE_INFO[name].name + (name !== 'meter' && styleLive() === 'meter'
-            ? ' — set Courses to every course to use it here' : ' — ' + STYLE_INFO[name].says));
+            ? '. Set Courses to all courses to use it here.' : '. ' + STYLE_INFO[name].says) +
+            (name !== 'swipe' ? ' Rounds with it are not recorded.' : ''));
     }
 
     function buildStylePad() {
@@ -1041,8 +1070,18 @@
     function syncStyle() {
         var live = styleLive(), open = styleOpen();
         var lane = live === 'swipe' || live === 'needle';
-        $('btn-style').classList.toggle('on', styleWanted !== 'meter');
-        $('style-now').textContent = STYLE_INFO[styleWanted].name;
+        var shown = dev ? styleWanted : 'swipe';
+        $('btn-style').classList.toggle('on', dev && shown !== 'swipe');
+        $('style-now').textContent = STYLE_INFO[shown].name + (dev ? ' (dev)' : '');
+        /* Outside dev mode the panel is the touch swing's settings and
+           nothing else: no list of styles, and no "which courses" row,
+           since the touch swing is played everywhere. */
+        $('style-pad').classList.toggle('dev', dev);
+        $('style-list').hidden = !dev;
+        $('st-sub').textContent = dev ? 'Dev mode. Other styles do not count for records.' : 'Settings for the touch swing.';
+        Array.prototype.forEach.call(document.querySelectorAll('#tune-rows .tn-row'), function (row) {
+            if (row.dataset.key === 'where') row.hidden = !dev;
+        });
         Array.prototype.forEach.call($('style-list').children, function (b) {
             b.classList.toggle('on', b.dataset.style === styleWanted);
             b.setAttribute('aria-pressed', b.dataset.style === styleWanted ? 'true' : 'false');
@@ -1114,7 +1153,6 @@
             up: [], needle: live === 'needle'
         };
         setPower(0);
-        endFollow();
         hideSwingCard();
         $('swipe').classList.add('held');
         drawSwipe();
@@ -1178,11 +1216,27 @@
             startNeedle();
             return;
         }
-        // Let go before coming back through: no shot. The meter empties so
-        // nothing half-loaded is left lying on it for Swing to find.
+        /* Let go on the way back up, short of the start: a backspin strike,
+           if the club has loft and the thumb got far enough (SWIPE.SPIN_AT).
+           Most spin at about three quarters of the way. Anything else is no
+           shot, and the meter empties so nothing half-loaded is left lying on
+           it for Swing to find. */
+        if (!wasNeedle && pulled && swipe.through && e.type === 'pointerup' && (state.club.loft || 0) > 0) {
+            var depth = swipe.low.y - swipe.y0;
+            var at = depth > 0 ? (swipe.low.y - e.clientY) / depth : 0;
+            if (SW.swipeSpin(at) >= 0) {
+                var now = (e.timeStamp > 0 ? e.timeStamp : performance.now()) / 1000;
+                swipeStrike({ x: e.clientX, y: e.clientY, t: now }, at);
+                return;
+            }
+        }
         endSwipe();
         setPower(0);
-        if (pulled && !wasNeedle) toast('No swing — swipe up past where you started to hit it');
+        if (pulled && !wasNeedle) {
+            toast((state.club.loft || 0) > 0
+                ? 'No shot. Swipe up past the start, or let go at ¾ for backspin.'
+                : 'No shot. Swipe up past the start.');
+        }
     }
 
     function endSwipe() {
@@ -1191,7 +1245,8 @@
         drawSwipe();
     }
 
-    function swipeStrike(cross) {
+    // `upTo` is set for a backspin strike: how far back up the thumb let go.
+    function swipeStrike(cross, upTo) {
         var sw = swipe;
         if (state.aim.power < C.MIN_POWER) {
             endSwipe();
@@ -1204,7 +1259,7 @@
         // one, if the club can bend and the setting is on.
         var bendable = (state.club.shapes || []).filter(function (n) { return n === 'draw' || n === 'fade'; });
         var read = SW.swipeRead({
-            pts: sw.pts, x0: sw.x0, y0: sw.y0, low: sw.low, cross: cross,
+            pts: sw.pts, x0: sw.x0, y0: sw.y0, low: sw.low, cross: cross, upTo: upTo,
             through: sw.up.concat([[cross.x, cross.y]])
         }, {
             over: over, feel: tune.feel, timing: tune.timing,
@@ -1219,61 +1274,6 @@
         endSwipe();
         strike(g);
         showSwingCard(read, frac, drawn, sw, cross);
-        if (state.phase === 'rolling' && !g.junk && (state.club.loft || 0) > 0) startFollow(sw, cross, read, frac);
-    }
-
-    /* ── the snap: backspin by touch ──
-
-       The thumb is still down when the ball leaves. For a moment after the
-       strike (SWIPE.SNAP.FOLLOW) the game keeps reading it: carry on up and
-       it is a plain shot; snap back down and the further it comes, the more
-       backspin — as much as this club at this swing can make (swing.js
-       `spinCap`), so a wedge at 130% checks hard and a 7 iron at half a swing
-       barely at all. The bite is written onto the ball in flight, which is
-       allowed because physics spends it on the first landing and not before;
-       once the ball is down the snap has nothing left to change. */
-    var follow = null;
-
-    function startFollow(sw, cross, read, frac) {
-        follow = {
-            id: sw.id, top: cross.y, len: sw.len, t0: performance.now() / 1000,
-            world: state.world, bite0: state.world.ball.bite || 0, loft: state.club.loft,
-            frac: frac, read: read, ask: 0
-        };
-    }
-
-    function onFollowMove(e) {
-        if (!follow || e.pointerId !== follow.id) return;
-        if (performance.now() / 1000 - follow.t0 > C.SWIPE.SNAP.FOLLOW) { endFollow(); return; }
-        var list = e.getCoalescedEvents ? e.getCoalescedEvents() : null;
-        if (!list || !list.length) list = [e];
-        for (var i = 0; i < list.length; i++) {
-            var y = list[i].clientY;
-            if (y < follow.top) follow.top = y;
-            follow.ask = Math.max(follow.ask, SW.followSpin(follow.top, y, follow.len));
-        }
-        spinBall();
-    }
-
-    function spinBall() {
-        var w = follow.world;
-        if (w !== state.world || w.firstLand || !w.moving) return;
-        w.ball.bite = SW.spinBite(follow.bite0, follow.ask, follow.loft, follow.frac);
-    }
-
-    function tickFollow() {
-        if (follow && performance.now() / 1000 - follow.t0 > C.SWIPE.SNAP.FOLLOW) endFollow();
-    }
-
-    function endFollow() {
-        var f = follow;
-        if (!f) return;
-        follow = null;
-        if (f.world !== state.world) return;
-        f.read.spin = { ask: f.ask, cap: SW.spinCap(f.loft, f.frac),
-                        bite: SW.spinBite(f.bite0, f.ask, f.loft, f.frac) };
-        if (f.ask > 0.1) A.tick(0.3 + 0.5 * f.ask);
-        if (!$('swing-card').hidden) fillSwingRows(f.read, f.frac);
     }
 
     /* ── the swing card ──
@@ -1352,6 +1352,13 @@
         attrs('sw-guide', { x1: x0, y1: y0, x2: x0, y2: y0 + len });
         attrs('sw-full', { x1: x0 - 16, y1: fullY, x2: x0 + 16, y2: fullY });
         attrs('sw-ball', { cx: s ? s.low.x - r.left : x0, cy: s ? s.low.y - r.top : y0 });
+        // Where to let go for backspin, once there is a pull to measure it on.
+        var spinY = -99;
+        if (s && !s.needle && (state.club.loft || 0) > 0 && s.low.y - s.y0 > 30) {
+            spinY = s.low.y - r.top - C.SWIPE.SPIN_AT.IDEAL * (s.low.y - s.y0);
+        }
+        attrs('sw-spin', { x1: x0 - 14, y1: spinY, x2: x0 + 14, y2: spinY });
+        attrs('sw-spin-label', { x: x0 + 20, y: spinY + 4 });
         var cone = '';
         if (s && s.through) {
             var tx = s.low.x - r.left, ty = s.low.y - r.top;
@@ -1416,7 +1423,7 @@
             // Set before it had climbed far enough to hit anything.
             setPower(0);
             syncStyle();
-            toast('Too soft — let the needle climb before you set the power');
+            toast('Too soft. Let the needle climb, then set the power.');
             return;
         }
         var g = SW.arcGate(a);
@@ -1531,24 +1538,16 @@
 
     function saySwipe(g) {
         if (g.perfect) {
-            toast(g.arc ? 'Struck on the line — pure' : g.needle ? 'Dead centre — pure' : 'Straight through it — pure', 'good');
+            toast('Pure strike.', 'good');
             return;
         }
         var a = Math.abs(g.off);
-        var way = g.off < 0 ? 'left' : 'right';
-        var did = g.off < 0 ? 'pulled' : 'pushed';
-        if (g.arc) {
-            var when = g.off < 0 ? 'early' : 'late';
-            if (!g.struck) { toast('Never struck — the needle ran out', 'bad'); return; }
-            toast((a < 0.34 ? 'A touch ' + when : a < 0.75 ? 'Struck ' + when : 'Way ' + when) +
-                ' — ' + did + (a < 0.34 ? ' a little' : a < 0.75 ? ', and it will bend' : ' miles'),
-                a < 0.75 ? undefined : 'bad');
-            return;
-        }
-        var verb = g.needle ? 'Needle ' : 'Swiped ';
-        if (a < 0.34) toast(verb + 'a touch ' + way + ' — ' + did + ' a little');
-        else if (a < 0.75) toast(verb + way + ' — ' + did + ', and it will bend');
-        else toast(verb + 'way ' + way + ' — ' + did + ' miles', 'bad');
+        var side = g.off < 0 ? 'left' : 'right';
+        if (g.arc && !g.struck) { toast('No strike. The needle ran out.', 'bad'); return; }
+        var why = g.arc ? (g.off < 0 ? 'early' : 'late') : side;
+        if (a < 0.34) toast('A bit ' + why + '. Ball goes a bit ' + side + '.');
+        else if (a < 0.75) toast('Too ' + why + '. Ball curves ' + side + '.');
+        else toast('Much too ' + why + '. Ball goes far ' + side + '.', 'bad');
     }
 
     /* ── the grade ──
@@ -1944,9 +1943,10 @@
        rounds have always been thrown away. */
     function finishRound() {
         var res;
-        if (autoUsed || multi()) {
+        if (autoUsed || multi() || state.devSwing) {
             res = {
                 save: state.save, isBest: false, unrecorded: true, shared: multi() && !autoUsed,
+                why: autoUsed ? 'caddie' : state.devSwing ? 'dev' : 'shared',
                 totals: S.totals(state.scores, state.course.holes)
             };
         } else {
@@ -4419,7 +4419,9 @@
            having: a card that says nothing about *not* being kept is a card
            that has quietly lost somebody a record they thought they set. */
         $('card-sub').textContent = state.course.name +
-            (res && res.unrecorded ? ' — not recorded: the caddie has had the club this session.'
+            (res && res.unrecorded ? (res.why === 'dev' ? ' — not recorded. You used a dev swing.'
+                : res.why === 'shared' ? ' — not recorded. Pass and play rounds are not kept.'
+                : ' — not recorded. The caddie played this session.')
              : res && res.isBest && state.course.isShowcase ? ' — your best showcase yet, against par.'
              : res && res.isBest ? ' — a new personal best.' : '');
         $('card-body').innerHTML =
@@ -5069,7 +5071,6 @@
         // itself is the one interruption nobody asked for.
         else tickIdle(now);
         if (sim) tickSim(Math.min(0.25, raw));
-        tickFollow();
 
         if (state.phase === 'rolling') {
             /* Under the bot, the same step it planned on. Its shot was chosen
@@ -5287,11 +5288,6 @@
             hideSwingCard();
         });
         $('swipe').addEventListener('pointermove', onSwipeMove);
-        // The snap after a touch strike: the lane has gone by then, so the
-        // thumb is read wherever it is.
-        window.addEventListener('pointermove', onFollowMove);
-        window.addEventListener('pointerup', function (e) { if (follow && e.pointerId === follow.id) endFollow(); });
-        window.addEventListener('pointercancel', function (e) { if (follow && e.pointerId === follow.id) endFollow(); });
         $('swipe').addEventListener('pointerup', onSwipeUp);
         $('swipe').addEventListener('pointercancel', onSwipeUp);
         // A press anywhere else closes the shape pad, the way a menu shuts.

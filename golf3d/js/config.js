@@ -8,7 +8,7 @@
    — the renderer scales to the viewport, the simulation never sees a pixel. */
 window.G3 = window.G3 || {};
 
-G3.VERSION = '1.119.0';
+G3.VERSION = '1.120.0';
 
 G3.CONFIG = {
     BALL_R: 0.16,
@@ -333,7 +333,7 @@ G3.CONFIG = {
        the thumb has to come back up before the backswing counts as over, so a
        wobble at the bottom is not a swing. */
     SWIPE: {
-        DEFAULT: { assist: 'off', feel: 'normal', timing: 'snap', shapes: 'on', where: 'all' },
+        DEFAULT: { assist: 'off', feel: 'normal', timing: 'rhythm', shapes: 'on', where: 'all' },
         FEEL: {
             easy:   { TOL: 8 * Math.PI / 180,   SPAN: 18 * Math.PI / 180, FLOOR: 0.75 },
             normal: { TOL: 3.5 * Math.PI / 180, SPAN: 11 * Math.PI / 180, FLOOR: 0.9 },
@@ -341,7 +341,11 @@ G3.CONFIG = {
         },
         TIGHTEN: 0.45,
         TIMING: {
-            rhythm: { IDEAL: 1, TOL: 0.6, SPAN: 1.6 },
+            /* Rhythm also asks for a sensible pace: the swipe up near PACE
+               seconds, PACE_TOL doublings either side clean, PACE_SPAN more
+               the worst — and weighed at PACE_W, so an even swing that is
+               far too quick or too slow costs a little, not a lot. */
+            rhythm: { IDEAL: 1, TOL: 0.6, SPAN: 1.6, PACE: 0.25, PACE_TOL: 1, PACE_SPAN: 1.5, PACE_W: 0.6 },
             snap:   { TARGET: 0.22, TOL: 0.55, SPAN: 1.4 },
             LINE: 0.6,
             POWER_LOSS: 0.3
@@ -372,11 +376,13 @@ G3.CONFIG = {
            JAB how much long a fully rushed stroke runs — on a putt a snatch
            goes long, where everywhere else a miss only ever comes up short. */
         PUTT: { TOL: 0.55, MULT: 1.4, JAB: 0.22 },
-        /* Backspin by touch (swing.js `followSpin`): swipe up through the
-           ball, then snap back down. FOLLOW seconds after the strike is how
-           long the snap is read for; MIN_PX of it is a wobble, and PX more
-           (as a share of the lane) is all the spin there is to ask for. */
-        SNAP: { FOLLOW: 0.6, MIN_PX: 14, PX: 0.16 }
+        /* Backspin by touch (swing.js `swipeSpin`): swipe up, and let go
+           before you reach the start. Where you let go, as a share of the way
+           back up, is the spin: all of it within FLAT of IDEAL, none by SPAN
+           past that either side. Under MIN is no shot at all — a thumb that
+           slipped, not a swing. A club with no loft has no spin to give, so
+           letting go early with a putter is still no shot. */
+        SPIN_AT: { MIN: 0.45, IDEAL: 0.75, FLAT: 0.05, SPAN: 0.25 }
     },
 
     /* What backspin a strike can put on the ball, whichever way it is asked
@@ -915,6 +921,10 @@ G3.CONFIG = {
     SWIPE_KEY: 'loftLinks.touchSwing',
     // The swing panel's settings (feel, timing, shapes, where), as JSON.
     TUNE_KEY: 'loftLinks.swingTune',
+    /* Dev mode ('1' or absent), switched with ?dev=1 and ?dev=0 and kept.
+       It shows the swing styles other than the touch swing (game.js "swing
+       styles"); a round struck with one of them is not recorded. */
+    DEV_KEY: 'loftLinks.dev',
     /* Pass-and-play: how many are sharing the device, 1 to 4 (game.js →
        "pass and play"), and the ball each of them plays. White is player one's
        because it is the ball everybody already has; the other three are a
