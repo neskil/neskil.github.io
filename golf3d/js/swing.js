@@ -232,14 +232,15 @@
         return Math.min(Math.max(C.SPIN.MAX, bite || 0), (bite || 0) + add);
     }
 
-    /* The touch swing's snap: after the swipe has gone up through the ball,
-       how far the thumb came back down, as the spin it asks for (0..1).
-       `top` is the highest the follow-through got, `y` where the thumb is
-       now, `lane` the lane's length in pixels. */
-    function followSpin(top, y, lane) {
-        var S = C.SWIPE.SNAP, back = (y || 0) - (top || 0) - S.MIN_PX;
-        if (!(back > 0) || !(lane > 0)) return 0;
-        return Math.min(1, back / (S.PX * lane));
+    /* The touch swing's backspin: let go on the way back up, short of the
+       start. `at` is how far back up the thumb got, 0 at the bottom of the
+       pull and 1 at the start line. Returns the spin asked for, 0..1, or -1
+       when it is too short to be a swing at all (SWIPE.SPIN_AT). */
+    function swipeSpin(at) {
+        var S = C.SWIPE.SPIN_AT;
+        if (!(at >= S.MIN)) return -1;
+        var miss = Math.max(0, Math.abs(at - S.IDEAL) - S.FLAT);
+        return Math.max(0, Math.min(1, 1 - miss / S.SPAN));
     }
 
     function bendOf(name) { return name === 'draw' ? 1 : name === 'fade' ? -1 : 0; }
@@ -389,14 +390,27 @@
         var T = C.SWIPE.TIMING[mode];
         if (!T || !(times.through > 0)) return { amount: 0, ratio: 1, said: null };
         // Narrower past a full swing, like the line; wider on Easy strike.
-        var tol = assist ? T.TOL + C.ASSIST.TEMPO : T.TOL * (1 - C.SWIPE.TIGHTEN * ease(over));
+        var narrow = assist ? 1 : 1 - C.SWIPE.TIGHTEN * ease(over);
+        var tol = assist ? T.TOL + C.ASSIST.TEMPO : T.TOL * narrow;
         var ratio = mode === 'rhythm'
             ? (times.back > 0 ? times.back / times.through : 1)        // >1: the swipe was the quicker half
             : T.TARGET / times.through;                                // >1: quicker than the target
         var l = Math.log(ratio) / Math.LN2 - Math.log(T.IDEAL || 1) / Math.LN2;
         var a = Math.abs(l);
         var amount = a <= tol ? 0 : Math.min(1, (a - tol) / T.SPAN) * (l > 0 ? -1 : 1);
-        return { amount: amount, ratio: ratio, said: amount < 0 ? 'rushed' : amount > 0 ? 'lazy' : 'clean' };
+        var why = amount ? 'rhythm' : null;
+        /* Rhythm alone let an even swing of any speed through: a flick down
+           and a flick up, or a crawl both ways, both read as clean. So the
+           swipe up is also held to a sensible pace, and costs a little when
+           it is not. Whichever of the two is the bigger miss is the one. */
+        if (mode === 'rhythm' && T.PACE) {
+            var lp = Math.log(T.PACE / times.through) / Math.LN2, ap = Math.abs(lp);
+            var ptol = assist ? T.PACE_TOL + C.ASSIST.TEMPO : T.PACE_TOL * narrow;
+            var pace = ap <= ptol ? 0 : Math.min(1, (ap - ptol) / T.PACE_SPAN) * (lp > 0 ? -1 : 1) * T.PACE_W;
+            if (Math.abs(pace) > Math.abs(amount)) { amount = pace; why = 'pace'; }
+        }
+        return { amount: amount, ratio: ratio, why: why,
+                 said: amount < 0 ? 'rushed' : amount > 0 ? 'lazy' : 'clean' };
     }
 
     /* How far the through-swing bowed out from the straight line between its
@@ -509,6 +523,14 @@
         var angle = swipeAngle(g.low, g.cross);
         var line = swipeOff(angle, over, opt.feel, putt);
         var times = swipeTimes(g.pts, g.y0, g.low.y, g.cross.t);
+        /* A backspin swipe stops short (`g.upTo` of the way back up), so its
+           swipe up covered less ground: timed as if it had gone the whole way,
+           or every spin shot would read as rushed. */
+        var spin = null;
+        if (g.upTo !== undefined && g.upTo < 1) {
+            times.through *= 0.9 / Math.max(0.2, g.upTo - 0.1);
+            spin = { at: g.upTo, ask: Math.max(0, swipeSpin(g.upTo)) };
+        }
         var tempo = swipeTempo(times, opt.timing, over);
         var bow = swipeBow(g.through, g.low, g.cross);
         var shape = opt.shapes ? swipeShape(bow, opt.shapes) : null;
@@ -523,6 +545,7 @@
         var mess = swipeMess(g.pts, g.y0, g.low.y - g.y0);
         return {
             angle: angle, line: line, times: times, tempo: tempo, timing: opt.timing || 'off', putt: putt, mult: mult,
+            spin: mess.junk ? null : spin,
             bow: bow, shape: mess.junk ? null : shape, off: off, weight: weight, over: over, feel: opt.feel,
             mess: mess, junk: mess.junk ? swipeJunk(opt.rand) : null,
             perfect: !mess.junk && off === 0 && tempo.amount === 0 && (!shape || shape.cook === 0)
@@ -555,64 +578,62 @@
 
     /* Why it went where it went, one short line per thing that was read:
        what it was, what it said, and whether that was good. game.js prints it
-       on a small card after the shot, beside a drawing of the swipe — short,
-       because the card sits over the course the ball is flying across. */
+       on a small card after the shot, beside a drawing of the swipe.
+
+       The words follow the owner's ask: short, plain, written as a person
+       would say it — close to ASD-STE100. One fact per line, simple words,
+       no slang ("snatched", "quit on it"), a number only where it helps. */
+    // "2.5×", or just "much" past five — a big number reads as a glitch.
+    function times(k) { return k >= 5 ? 'much' : k.toFixed(1) + '×'; }
+
     function swipeReport(read, power) {
         var out = [];
         if (read.junk) {
-            out.push({ what: 'Swing', says: 'a scribble, not a swing — ' +
-                (read.junk.kind === 'duff' ? 'duffed' : 'shanked'), tier: 'bad' });
-            out.push({ what: 'Path', says: read.mess.ratio.toFixed(1) + '× a clean swing\'s', tier: 'bad' });
+            out.push({ what: 'Swing', says: 'Not a swing. Ball ' +
+                (read.junk.kind === 'duff' ? 'duffed.' : 'shanked.'), tier: 'bad' });
+            out.push({ what: 'Path', says: 'Too long and not straight.', tier: 'bad' });
             return out;
         }
         var deg = Math.round(Math.abs(read.angle) * 180 / Math.PI);
         var side = read.angle > 0 ? 'right' : 'left';
         out.push(read.line === 0
-            ? { what: 'Line', says: deg ? 'straight (' + deg + '° ' + side + ')' : 'dead straight', tier: 'good' }
-            : { what: 'Line', says: deg + '° ' + side + ' — ' + (read.angle > 0 ? 'pushed' : 'pulled'),
+            ? { what: 'Line', says: deg ? 'Straight (' + deg + '° ' + side + ').' : 'Straight.', tier: 'good' }
+            : { what: 'Line', says: deg + '° ' + side + '. Ball goes ' + side + '.',
                 tier: Math.abs(read.line) < 0.5 ? 'meh' : 'bad' });
-        var t = read.tempo, tm = read.times;
+        var t = read.tempo, tm = read.times, ms = Math.round(tm.through * 1000) + ' ms';
+        var tier = t.amount === 0 ? 'good' : Math.abs(t.amount) < 0.5 ? 'meh' : 'bad';
         if (read.timing === 'rhythm' && t.said) {
             var r = t.ratio;
-            out.push(t.said === 'clean'
-                ? { what: 'Tempo', says: 'even', tier: 'good' }
-                : t.said === 'rushed'
-                    ? { what: 'Tempo', says: 'rushed — up ' + r.toFixed(1) + '× quicker', tier: t.amount > -0.5 ? 'meh' : 'bad' }
-                    : { what: 'Tempo', says: 'lazy — up ' + (1 / r).toFixed(1) + '× slower', tier: t.amount < 0.5 ? 'meh' : 'bad' });
+            out.push({ what: 'Tempo', tier: tier, says: t.said === 'clean' ? 'Even.'
+                : t.why === 'pace' ? (t.said === 'rushed' ? 'Too fast, ' : 'Too slow, ') + ms + '.'
+                : 'Up ' + times(t.said === 'rushed' ? r : 1 / r) + (t.said === 'rushed' ? ' faster' : ' slower') + ' than down.' });
         } else if (read.timing === 'snap' && t.said) {
-            var ms = Math.round(tm.through * 1000) + ' ms';
-            out.push(t.said === 'clean'
-                ? { what: 'Speed', says: 'crisp, ' + ms, tier: 'good' }
-                : t.said === 'rushed'
-                    ? { what: 'Speed', says: 'snatched, ' + ms, tier: t.amount > -0.5 ? 'meh' : 'bad' }
-                    : { what: 'Speed', says: 'quit on it, ' + ms, tier: t.amount < 0.5 ? 'meh' : 'bad' });
+            out.push({ what: 'Speed', tier: tier, says: (t.said === 'clean' ? 'Good, '
+                : t.said === 'rushed' ? 'Too fast, ' : 'Too slow, ') + ms + '.' });
         }
         if (read.shape) {
-            var nm = read.shape.name;
-            out.push(read.shape.cook === 0
-                ? { what: 'Shape', says: nm + ' — clean', tier: 'good' }
-                : read.shape.cook > 0
-                    ? { what: 'Shape', says: nm + ' — too much, ' + (nm === 'draw' ? 'hooks' : 'slices'), tier: 'meh' }
-                    : { what: 'Shape', says: nm + ' — too little', tier: 'meh' });
+            var nm = read.shape.name === 'draw' ? 'Draw' : 'Fade';
+            out.push({ what: 'Shape', tier: read.shape.cook === 0 ? 'good' : 'meh',
+                says: nm + (read.shape.cook === 0 ? '. Good.' : read.shape.cook > 0 ? '. Too much curve.' : '. Too little curve.') });
+        }
+        if (read.spin) {
+            var S = C.SWIPE.SPIN_AT, a = read.spin.ask;
+            out.push({ what: 'Spin', tier: a >= 0.95 ? 'good' : a > 0 ? 'meh' : 'bad',
+                says: a >= 0.95 ? 'Full backspin.'
+                    : (a > 0 ? Math.round(a * 100) + '%. ' : 'None. ') +
+                      (read.spin.at < S.IDEAL ? 'Let go later.' : 'Let go sooner.') });
         }
         if (power) {
             var pc = Math.round(power.frac * 100);
             var lost = Math.round((1 - read.weight) * 100);
-            var said = lost > 0 ? ', −' + lost + '% lazy' : lost < 0 ? ', +' + (-lost) + '% jabbed' : '';
-            // Past a full swing, say what it multiplied — it is why the miss
+            var said = pc + '%.';
+            if (lost > 0) said += ' Lost ' + lost + '%.';
+            else if (lost < 0) said += ' ' + (-lost) + '% too hard.';
+            if (read.flush) said += ' Pure strike, +' + Math.round(read.flush * 100) + '%.';
+            // Past a full swing, say what it multiplied: it is why the miss
             // went as far wrong as it did.
-            var x = read.mult > 1.05 && !read.perfect && (pc > 100 || read.putt)
-                ? ' · misses ×' + read.mult.toFixed(1) : '';
-            if (read.flush) said += ' — flushed, +' + Math.round(read.flush * 100) + '% pace';
-            out.push({ what: 'Power', says: pc + '%' + said + x,
-                       tier: lost ? 'meh' : pc > 100 ? 'hot' : 'good' });
-        }
-        // The snap after the strike, once it has been read (game.js).
-        if (read.spin) {
-            out.push(read.spin.ask < 0.05
-                ? { what: 'Spin', says: 'none — snap back down after the strike to spin it', tier: 'meh' }
-                : { what: 'Spin', says: Math.round(read.spin.ask * 100) + '% snap — bites ' +
-                    Math.round(read.spin.bite * 100) + '% of its run', tier: 'good' });
+            if (read.mult > 1.05 && !read.perfect && (pc > 100 || read.putt)) said += ' Miss ×' + read.mult.toFixed(1) + '.';
+            out.push({ what: 'Power', says: said, tier: lost ? 'meh' : pc > 100 ? 'hot' : 'good' });
         }
         return out;
     }
@@ -766,7 +787,7 @@
         assisted: assisted,
         spinCap: spinCap,
         spinBite: spinBite,
-        followSpin: followSpin,
+        swipeSpin: swipeSpin,
         swipeMult: swipeMult,
         SHAPES: SHAPES,
         bendOf: bendOf,

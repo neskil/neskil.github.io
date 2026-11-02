@@ -3559,6 +3559,15 @@
             assert('rhythm: much faster up is rushed, and pulls', rushed.tempo.said === 'rushed' && rushed.off < 0);
             assert('rhythm: much slower up is lazy, pushes, and costs distance',
                 lazy.tempo.said === 'lazy' && lazy.off > 0 && lazy.weight < 1);
+            /* Rhythm alone let an even swing of any speed through. Now an even
+               swing that is far too quick or far too slow costs something —
+               a little, less than a broken rhythm does. */
+            var flick = read(gesture(0.04, 0.04), 'rhythm'), crawl = read(gesture(1.6, 1.6), 'rhythm');
+            assert('rhythm: even but far too quick is still too fast', flick.tempo.said === 'rushed' && flick.tempo.why === 'pace');
+            assert('rhythm: even but far too slow is still too slow', crawl.tempo.said === 'lazy' && crawl.tempo.why === 'pace');
+            assert('rhythm: an even swing at a normal pace is clean', read(gesture(0.25, 0.25), 'rhythm').tempo.said === 'clean');
+            assert('rhythm: a pace miss costs less than a rhythm miss can',
+                Math.abs(flick.tempo.amount) <= S.TIMING.rhythm.PACE_W + 1e-9);
             var crisp = read(gesture(0.5, S.TIMING.snap.TARGET), 'snap'),
                 snatched = read(gesture(0.5, 0.05), 'snap'), quit = read(gesture(0.5, 0.9), 'snap');
             assert('snap: the target time through is clean, however long the pull took',
@@ -3595,8 +3604,8 @@
             var rep = SW.swipeReport(lazy, { frac: 0.8 });
             assert('the card names the line, the tempo and the power',
                 rep.length === 3 && rep[0].what === 'Line' && rep[1].what === 'Tempo' && rep[2].what === 'Power', JSON.stringify(rep));
-            assert('and says what was wrong with the tempo', /lazy/.test(rep[1].says) && rep[1].tier !== 'good');
-            assert('and what it cost', /−\d+%/.test(rep[2].says), rep[2].says);
+            assert('and says what was wrong with the tempo', /slower/.test(rep[1].says) && rep[1].tier !== 'good', rep[1].says);
+            assert('and what it cost', /Lost \d+%/.test(rep[2].says), rep[2].says);
             assert('in lines short enough for a small card',
                 rep.every(function (r) { return r.says.length <= 26; }), JSON.stringify(rep));
 
@@ -3625,7 +3634,7 @@
                 assert('a scribble is read as junk, never as perfect', !!junky.junk && !junky.perfect);
                 var jg = SW.swipeGate(junky);
                 assert('and its gate carries it', jg.junk === junky.junk && !jg.perfect && SW.grade(jg).tier === 'bad');
-                assert('the card says what it was', /scribble/.test(SW.swipeReport(junky)[0].says));
+                assert('the card says what it was', /Not a swing/.test(SW.swipeReport(junky)[0].says));
             })();
             (function () {
                 var J = C.SWIPE.JUNK, seq, k;
@@ -3710,12 +3719,28 @@
                 var clubsUp = C.CLUBS.filter(function (c) { return c.loft > 0; }), rising = true, prev = -1;
                 clubsUp.forEach(function (c) { var k = SW.spinCap(c.loft, 1); if (k <= prev) rising = false; prev = k; });
                 assert('more loft, more spin, all the way down the bag', rising);
-                assert('the snap asks for nothing until it is more than a wobble',
-                    SW.followSpin(100, 100 + S.SNAP.MIN_PX, 500) === 0);
-                assert('and for all of it a sixth of a lane further down',
-                    SW.followSpin(100, 100 + S.SNAP.MIN_PX + S.SNAP.PX * 500, 500) === 1 &&
-                    approx(SW.followSpin(100, 100 + S.SNAP.MIN_PX + S.SNAP.PX * 250, 500), 0.5));
-                assert('no snap leaves the club\'s own bite alone',
+                var A = S.SPIN_AT;
+                assert('letting go at three quarters of the way up is all the spin there is',
+                    SW.swipeSpin(A.IDEAL) === 1 && SW.swipeSpin(A.IDEAL + A.FLAT * 0.9) === 1 && SW.swipeSpin(A.IDEAL - A.FLAT * 0.9) === 1);
+                assert('further from it, less — and the same either side',
+                    SW.swipeSpin(0.55) > 0 && SW.swipeSpin(0.55) < 1 && approx(SW.swipeSpin(0.55), SW.swipeSpin(0.95)));
+                assert('too short to be a swing is no shot at all', SW.swipeSpin(A.MIN - 0.01) === -1 && SW.swipeSpin(0.1) === -1);
+                // A whole spin swipe: pulled 200 px, let go 150 px back up.
+                (function () {
+                    var g = gesture(0.3, 0.3);
+                    var at = 0.75, cutAt = 200 - 200 * at;
+                    g.pts = g.pts.filter(function (p) { return !(p[2] > 0.3 && p[1] < cutAt); });
+                    g.through = g.through.filter(function (p) { return p[1] >= cutAt; });
+                    g.cross = { x: 0, y: cutAt, t: 0.3 + 0.3 * at };
+                    g.upTo = at;
+                    var r = SW.swipeRead(g, { over: 0, feel: 'normal', timing: 'rhythm' });
+                    assert('a spin swipe reads as full backspin', r.spin && r.spin.ask === 1);
+                    assert('and it is timed as if it had gone the whole way, so it is not rushed',
+                        r.tempo.said === 'clean', r.tempo.said + ' ' + r.times.through.toFixed(3));
+                    var full = SW.swipeRead(gesture(0.3, 0.3), { over: 0, feel: 'normal', timing: 'rhythm' });
+                    assert('a swipe through the start carries no spin', full.spin === null);
+                })();
+                assert('no spin leaves the club\'s own bite alone',
                     SW.spinBite(0.3, 0, wedge.loft, 1) === 0.3);
                 assert('a full snap on a wedge past 100% checks it back (bite over 1), and no further than SPIN.MAX',
                     SW.spinBite(0, 1, wedge.loft, 1.3) > 1 && SW.spinBite(0, 1, wedge.loft, 1.3) <= C.SPIN.MAX);
@@ -3725,18 +3750,20 @@
                 function runs(bite) {
                     var w = P.createWorld(field, { x: 0, z: 0, y: C.BALL_R }, 0), i;
                     P.launch(w, 0, wedge.power, wedge.loft, 0);
-                    w.ball.bite = bite;           // as the snap writes it, in flight
+                    w.ball.bite = bite;           // as strike() writes it, past launch's cap
                     for (i = 0; i < 4000 && !w.firstLand; i++) P.advance(w, C.SIM_DT, {});
                     var land = w.firstLand.z;
                     P.settle(w);
                     return w.ball.z - land;
                 }
                 var plain = runs(0), spun = runs(SW.spinBite(0, 1, wedge.loft, 1.3));
-                assert('a snapped wedge lands where a plain one does and does not run on',
+                assert('a spun wedge lands where a plain one does and does not run on',
                     spun < 0.25 * plain, spun.toFixed(2) + ' vs ' + plain.toFixed(2));
-                var rep = SW.swipeReport({ angle: 0, line: 0, tempo: { said: null }, times: {}, timing: 'off', weight: 1, mult: 1,
-                    spin: { ask: 0.6, cap: 1, bite: 0.5 } }, { frac: 1 });
-                assert('the swing card says what the snap asked for', rep.some(function (r) { return r.what === 'Spin'; }));
+                var rep = SW.swipeReport({ angle: 0, line: 0, tempo: { said: null }, times: { through: 0.3 }, timing: 'off', weight: 1, mult: 1,
+                    spin: { ask: 0.6, at: 0.6 } }, { frac: 1 });
+                var row = rep.filter(function (r) { return r.what === 'Spin'; })[0];
+                assert('the swing card says how much spin, and which way to fix it',
+                    row && /60%/.test(row.says) && /later/.test(row.says), row && row.says);
             })();
         })();
 
