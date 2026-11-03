@@ -644,6 +644,14 @@ G3.CONFIG = {
     MINI_GROUPS: ['mini', 'crazy', 'adventure'],
 
     RESTITUTION: 0.62,    // horizontal speed kept after a rail bounce
+    /* A pop bumper (courses.bumper, physics.popBumper) is not a rail: it is
+       round, it gives back more than a rail does, and it fires. `give` is the
+       share of the speed it was struck at that comes back off it, and `kick`
+       is the least it sends the ball away at whatever it was struck at — a
+       ball that dribbles up to one is thrown off it at walking pace, which is
+       what the coil under a real one is for and the whole of why a pinball
+       table is not a lane with posts in it. */
+    BUMPER: { give: 0.8, kick: 1.8 },
     BOUNCE: 0.34,         // vertical speed kept after landing
     LAND_GRIP: 0.86,      // horizontal speed kept on each landing
     LAND_REST: 0.55,      // slower than this after a bounce and it settles

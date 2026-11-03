@@ -1270,6 +1270,59 @@
 
     var SCRATCH = {};
 
+    /* A pop bumper: the one wall that is round, and the one that hands the
+       ball more than it was given.
+
+       It was a square post for a long time — "the solver only knows boxes" —
+       and it played like one: a ball that met a face came straight back, one
+       that met a corner went somewhere neither of you chose, and a table of
+       them was a field of little walls painted pink. A circle is the cheaper
+       collider of the two (a distance and a square root, no transform), and it
+       is the honest shape for the thing drawn: every point of a round post
+       turns the ball by the angle it met it at, so a line at one is a line off
+       it, which is what lets a bumper be aimed at rather than merely avoided.
+
+       And it fires. The ball leaves along the normal at `give` of the speed it
+       arrived with, or at `kick` if that is more (CONFIG.BUMPER), so a ball
+       that reaches one at all is thrown off it at a pace of its own — and that
+       pace does not care how hard the shot was, which on a hole built round a
+       bumper makes the weight the bumper's business and the line yours.
+       `events.bumped` names the post, so the table can light the one that
+       fired (render.bumped) and the game can ring it.
+
+       A `post` (courses.post) is the same circle with no coil in it: a rubber
+       ring on a peg, which a pinball table has as many of as it has bumpers.
+       It turns a ball like a bumper and gives back what a rail does, so a
+       carom off one still asks how hard — which is what it is for, standing
+       in front of the bumpers where a kick would make every glancing line an
+       ace at any weight.
+
+       Only a square, unturned, motionless wall of one of those two kinds is
+       round: the editor lets any wall wear the kind, and a long one wearing it
+       is a pink rail rather than a very wide circle. */
+    function isPost(w) {
+        return (w.kind === 'bumper' || w.kind === 'post') &&
+            w.w === w.d && !w.yaw && !w.move && !w.spin && !w.swing;
+    }
+
+    function popBumper(b, w, dx, dz, events) {
+        var rr = w.w / 2 + C.BALL_R, q = dx * dx + dz * dz, d, nx, nz, vn, out;
+        if (q >= rr * rr) return;
+        d = Math.sqrt(q);
+        if (d > 1e-9) { nx = dx / d; nz = dz / d; } else { nx = 0; nz = -1; }
+        b.x = w.x + w.w / 2 + nx * rr;
+        b.z = w.z + w.d / 2 + nz * rr;
+        vn = b.vx * nx + b.vz * nz;
+        if (vn < 0) {
+            out = w.kind === 'post' ? -vn * C.RESTITUTION :
+                Math.max(-vn * C.BUMPER.give, C.BUMPER.kick);
+            b.vx += (out - vn) * nx;
+            b.vz += (out - vn) * nz;
+            events.bounce = true;
+            if (w.kind === 'bumper') events.bumped = w;
+        }
+    }
+
     function collideWalls(world, dt, events) {
         var b = world.ball, walls = world.hole.walls, i, w, B, hit, vn, wv, wn, dx, dz, reach;
         for (i = 0; i < walls.length; i++) {
@@ -1297,6 +1350,8 @@
             dx = b.x - (w.x + w.w / 2); dz = b.z - (w.z + w.d / 2);
             reach = (w.w + w.d) / 2 + (w.move ? Math.abs(w.move.amp) : 0) + C.BALL_R;
             if (dx * dx + dz * dz > reach * reach) continue;
+            // A post is round and has a coil in it, and is no box at all.
+            if (isPost(w)) { popBumper(b, w, dx, dz, events); continue; }
 
             B = wallBox(w, world.time, SCRATCH);
             // A sail's own height is in the box rather than on the wall: the
@@ -1972,6 +2027,7 @@
     }
 
     G3.physics = {
+        isPost: isPost,
         padHeight: padHeight,
         padContains: padContains,
         mowEdge: mowEdge,

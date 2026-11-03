@@ -1610,6 +1610,11 @@
 
     function handleEvents(ev) {
         var b = state.world.ball, now = performance.now();
+        // A pop bumper rings and lights, whichever bounce it also was.
+        if (ev.bumped) {
+            if (A.pop) A.pop(P.groundSpeed(b));
+            if (R.bumped) R.bumped(ev.bumped);
+        }
         if (ev.bounce && now - lastBounceAt > 60) {
             lastBounceAt = now;
             A.bounce(P.groundSpeed(b));

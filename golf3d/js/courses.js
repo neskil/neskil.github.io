@@ -309,7 +309,14 @@
         var o = opts || {};
         var s = size === undefined ? 0.5 : size;
         return wall(cx - s / 2, cz - s / 2, s, s, o.h === undefined ? 0.5 : o.h,
-            { base: -0.1, kind: 'bumper' });
+            { base: -0.1, kind: o.kind || 'bumper' });
+    }
+
+    /* A rubber post: round like a bumper and with nothing behind it, so it
+       turns the ball and keeps a rail's share of its speed rather than firing
+       it (physics.popBumper). The piece to stand in front of the bumpers. */
+    function post(cx, cz, size) {
+        return bumper(cx, cz, size === undefined ? 0.34 : size, { kind: 'post', h: 0.42 });
     }
 
     /* A bank: a wall standing at an angle, authored by its middle, its length
@@ -1029,7 +1036,11 @@
             pitch: o.pitch || 0,
             roll: o.roll || 0,
             scale: o.scale || 1,
-            variant: o.variant || 0
+            variant: o.variant || 0,
+            // The arcade's dressings carry a little more: a skyline's length
+            // and a marquee's words (render.addDecor).
+            w: o.w || 0,
+            text: o.text || ''
         };
     }
 
@@ -1045,6 +1056,16 @@
     function pine(x, z, y, opts) { return decor('pine', x, z, y, opts); }
     function sign(x, z, y, opts) { return decor('sign', x, z, y, opts); }
     function windmill(x, z, y, opts) { return decor('windmill', x, z, y, opts); }
+    /* The arcade's own (Pinball Parlour): a city of lit towers standing on the
+       basement floor behind a table, an upright cabinet with its screen on, a
+       neon marquee with words in it, and a lamp let into the baize — a round
+       insert or (variant 1) an arrow along `yaw` — which is how a pinball
+       table tells you where the shot is without saying so. Lamps chase: each
+       lights a beat after the one before it in the list. */
+    function skyline(x, z, y, opts) { return decor('skyline', x, z, y, opts); }
+    function cabinet(x, z, y, opts) { return decor('cabinet', x, z, y, opts); }
+    function marquee(x, z, y, opts) { return decor('marquee', x, z, y, opts); }
+    function lamp(x, z, y, opts) { return decor('lamp', x, z, y, opts); }
 
     /* ── the open country ───────────────────────────────────────────────
 
@@ -4447,39 +4468,84 @@
             extra: [bumper(1.6, 12), bumper(3.25, 13.7), bumper(5.4, 12)],
             tee: { x: 1.2, z: 1.2 }, cup: { x: 3.5, z: 16.6 }
         }),
-        build({
-            /* A pinball table, at last, rather than a lane with posts on it:
-               the top of it is a dome, and the pin is up inside the dome.
-               Eight posts still stand between the tee and the pin and there is
-               still no line through them — but a table has a way round the
-               outside, and so does this one.
+        (function () {
+            /* A city block of pop bumpers with the pin in the middle of it,
+               and the doors into the block on the diagonals.
 
-               Up either side of the posts runs a lane a metre wide with
-               nothing in it, and at the top of each lane, where the dome
-               begins, a kicker is set at forty-five degrees: a ball sent up
-               the lane at the right weight comes off it travelling straight
-               across the table at the pin. Too hard and it finds the dome,
-               which is a curved backboard and hands it round and back; too
-               soft and it dies in the lane. Through the posts is luck. Off
-               the kicker is a shot. */
-            name: 'Bumper City', par: 3,
-            blurb: 'Eight posts and no line through them. Up the side lane and off the kicker is the shot; through the posts is luck.',
-            pads: [(function () {
-                var p = pad(0, 0, 8, 19);
-                p.round = { nw: 4, ne: 4, sw: 1.1, se: 1.1 };
-                return p;
-            })()],
-            extra: [
-                bumper(4, 13.3),
-                bumper(2.7, 11.4), bumper(5.3, 11.4),
-                bumper(4, 9.4),
-                bumper(2.3, 7.2), bumper(5.7, 7.2),
-                bumper(3.1, 5.0), bumper(4.9, 5.0),
-                bank(0.95, 15.65, 1.7, -Math.PI / 4),
-                bank(7.05, 15.65, 1.7, Math.PI / 4)
-            ],
-            tee: { x: 4, z: 1.5 }, cup: { x: 4, z: 15.5 }
-        }),
+               It was eight square posts in a diamond and a kicker up each side
+               lane (v1.70.0 to v1.122.0), and the hole lab never found an ace
+               on it: the kickers turned a ball that came straight up a lane,
+               and nothing on the table sent one straight up a lane. The posts
+               were boxes, and a field of boxes is a field of little walls.
+
+               Now the posts are round and three of them fire (physics.
+               popBumper), and they stand round the cup at three, twelve and
+               nine o'clock with a rubber post at six — the one in front, on
+               the line from the tee, and passive, because a kick there would
+               make every glancing line an ace at any weight. Two more rubber
+               posts stand in the street halfway up and shade the doors from
+               the tee, so nothing goes in on a straight line.
+
+               What does go in is the bank. Off either side rail, about four
+               units up, the ball comes back across the table on the diagonal
+               and through the bottom door of the block on that side — a
+               mallet at two thirds of the swing or more. The lamps let into
+               the baize say so: a chase of arrows to each rail and back to
+               the block, which is what the inserts on a real table are for.
+               Short of the block is a putt through a door; hit at the
+               bumpers and they hand it back at walking pace; and behind the
+               block are the two drains, which is where a ball that comes off
+               the top of the dome too hard ends up. */
+            var W = 7, L = 12.5, cx = 3.5, cz = 7.8, R = 0.72;
+            var p = pad(0, 0, W, L);
+            p.round = { nw: W / 2, ne: W / 2, sw: 1.4, se: 1.4 };
+            function at(deg, r) {
+                var t = deg * Math.PI / 180;
+                return { x: cx + Math.cos(t) * r, z: cz + Math.sin(t) * r };
+            }
+            p.voids = [60, 120].map(function (deg) {
+                var q = at(deg, 1.9);
+                return { x: q.x, z: q.z, r: 0.5 };
+            });
+            var front = at(-90, R), east = at(0, R), north = at(90, R), west = at(180, R);
+            var lamps = [], k;
+            // The chase to each rail and back to the block, mirrored.
+            [1, -1].forEach(function (sx) {
+                var out = Math.atan2(0.8 * sx, 0.6), back = Math.atan2(-0.64 * sx, 0.77);
+                lamps.push(lamp(cx + sx * 1.15, 2.3, 0.006, { yaw: out, variant: 1 }));
+                lamps.push(lamp(cx + sx * 1.95, 2.9, 0.006, { yaw: out, variant: 1 }));
+                lamps.push(lamp(cx + sx * 2.55, 5.0, 0.006, { yaw: back, variant: 3 }));
+                lamps.push(lamp(cx + sx * 1.9, 5.8, 0.006, { yaw: back, variant: 3 }));
+            });
+            // And the block itself, ringed in round inserts.
+            for (k = 0; k < 8; k++) {
+                var q = at(22.5 + k * 45, 1.35);
+                if (k === 1 || k === 2) continue;           // the drains are there
+                lamps.push(lamp(q.x, q.z, 0.006, { variant: 4 }));
+            }
+            return build({
+                name: 'Bumper City', par: 3,
+                blurb: 'The pin is in a block of pop bumpers with its doors on the diagonals. Bank it off a side rail and through one; anything else, the bumpers hand back.',
+                pads: [p],
+                extra: [
+                    post(front.x, front.z),
+                    bumper(east.x, east.z), bumper(north.x, north.z), bumper(west.x, west.z),
+                    post(cx - 0.4, 4.4), post(cx + 0.4, 4.4),
+                    bumper(1.3, 9.9), bumper(5.7, 9.9)
+                ],
+                decor: lamps.concat([
+                    skyline(cx, 15.2, { w: 13, variant: 0 }),
+                    marquee(cx, 13.9, { w: 3.4, scale: 1.5, text: 'BUMPER CITY' }),
+                    cabinet(-1.5, 3.2, { yaw: Math.PI / 2, scale: 1.3, variant: 0 }),
+                    cabinet(-1.5, 6.4, { yaw: Math.PI / 2, scale: 1.3, variant: 1 }),
+                    cabinet(-1.5, 9.6, { yaw: Math.PI / 2, scale: 1.3, variant: 2 }),
+                    cabinet(8.5, 3.2, { yaw: -Math.PI / 2, scale: 1.3, variant: 3 }),
+                    cabinet(8.5, 6.4, { yaw: -Math.PI / 2, scale: 1.3, variant: 0 }),
+                    cabinet(8.5, 9.6, { yaw: -Math.PI / 2, scale: 1.3, variant: 1 })
+                ]),
+                tee: { x: cx, z: 1.4 }, cup: { x: cx, z: cz }
+            });
+        })(),
         build({
             /* Tilt was a leaning table with two posts on it, and the lean was
                the whole hole — which meant there was one shot on it and the
@@ -7284,7 +7350,7 @@
 
     G3.authoring = {
         pad: pad, wall: wall, spinner: spinner, slider: slider,
-        beam: beam, pen: pen, bumper: bumper, bank: bank, arc: arc,
+        beam: beam, pen: pen, bumper: bumper, post: post, bank: bank, arc: arc,
         trough: trough, channel: channel, bowl: bowl, dish: dish, bands: bands, tilt: tilt,
         commons: commons,
         sprung: sprung, belt: belt, pipe: pipe, pipes: pipes, loop: loop,
@@ -7299,6 +7365,7 @@
         contour: contour, scoop: scoop, relief: relief,
         buoy: buoy, piling: piling, bench: bench, boat: boat, sailboat: sailboat, bin: bin,
         barrel: barrel, crate: crate, palm: palm, pine: pine, sign: sign, windmill: windmill,
+        skyline: skyline, cabinet: cabinet, marquee: marquee, lamp: lamp,
         RAIL_T: RAIL_T, SCOOP: SCOOP,
         CUP_FLAT: CUP_FLAT, TEE_FLAT: TEE_FLAT, CUP_PATCH: CUP_PATCH
     };

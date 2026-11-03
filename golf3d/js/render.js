@@ -2988,6 +2988,8 @@
             }
             dg.rotation.z += 0.02;
             dg.rotation.x -= 0.01;
+        } else if (kind === 'skyline' || kind === 'cabinet' || kind === 'marquee' || kind === 'lamp') {
+            addArcadeProp(dg, d, kind);
         } else if (PROP_SCALE[kind]) {
             // Land props from the CC0 kits: barrel, crate, palm, pine, sign, windmill.
             var pMesh = G3.getModelMesh ? G3.getModelMesh(kind, surf.model) : null;
@@ -3022,6 +3024,162 @@
         }
     }
 
+    /* ── the arcade's dressings (courses.skyline, cabinet, marquee, lamp) ──
+
+       All four are self-lit (MeshBasicMaterial): the parlour is a basement at
+       night and what you see of a city or a cabinet in the dark is its
+       lights. The windows and the screen are one small canvas each, drawn
+       once and shared, so a skyline of a dozen towers is a dozen boxes and
+       one texture. Nothing here is solid — decor never is (courses.decor). */
+    var _arcadeTex = {};
+    function arcadeTex(name) {
+        if (_arcadeTex[name]) return _arcadeTex[name];
+        var cv = document.createElement('canvas'), g2, i, j, rnd = seededRandom(name.length * 97 + 13);
+        if (name === 'windows') {
+            cv.width = 64; cv.height = 64;
+            g2 = cv.getContext('2d');
+            g2.fillStyle = '#120a1f'; g2.fillRect(0, 0, 64, 64);
+            var lit = ['#ffd58a', '#ffe9b8', '#7fe8ff', '#ff8fd0'];
+            for (i = 0; i < 4; i++) for (j = 0; j < 8; j++) {
+                var r = rnd();
+                g2.fillStyle = r < 0.42 ? '#241736' : lit[Math.floor(rnd() * lit.length)];
+                g2.fillRect(i * 16 + 4, j * 8 + 2, 8, 4);
+            }
+        } else if (name === 'screen') {
+            cv.width = 64; cv.height = 64;
+            g2 = cv.getContext('2d');
+            var gr = g2.createLinearGradient(0, 0, 0, 64);
+            gr.addColorStop(0, '#1b0e3d'); gr.addColorStop(1, '#3a1260');
+            g2.fillStyle = gr; g2.fillRect(0, 0, 64, 64);
+            g2.fillStyle = '#ff4fa3'; g2.fillRect(8, 40, 48, 3);
+            for (i = 0; i < 6; i++) { g2.fillStyle = i % 2 ? '#3ee0ff' : '#ffd23f'; g2.fillRect(10 + i * 8, 14 + (i % 3) * 6, 5, 5); }
+        } else {
+            // A marquee's words, in neon: the glow is the canvas's own shadow.
+            cv.width = 512; cv.height = 96;
+            g2 = cv.getContext('2d');
+            g2.fillStyle = '#0d0618'; g2.fillRect(0, 0, 512, 96);
+            g2.font = 'bold 62px sans-serif'; g2.textAlign = 'center'; g2.textBaseline = 'middle';
+            g2.shadowColor = '#ff4fa3'; g2.shadowBlur = 18;
+            g2.fillStyle = '#ffd1ec'; g2.fillText(name.slice(5), 256, 50);
+            g2.strokeStyle = '#3ee0ff'; g2.lineWidth = 4; g2.shadowColor = '#3ee0ff';
+            g2.strokeRect(8, 8, 496, 80);
+        }
+        var tex = new THREE.CanvasTexture(cv);
+        if (name === 'windows') { tex.wrapS = tex.wrapT = THREE.RepeatWrapping; }
+        _arcadeTex[name] = tex;
+        return tex;
+    }
+
+    function seededRandom(seed) {
+        var s = (seed % 2147483647 + 2147483647) % 2147483647 || 1;
+        return function () { s = (s * 16807) % 2147483647; return (s - 1) / 2147483646; };
+    }
+
+    var ARCADE_HUES = [0xff4fa3, 0x3ee0ff, 0xffd23f, 0x9b6bff];
+
+    function addArcadeProp(dg, d, kind) {
+        var m, geo, i, rnd = seededRandom(Math.round(d.x * 131 + d.z * 977) + 7);
+        if (kind === 'skyline') {
+            /* Towers along local x, d.w long, standing on the floor. The window
+               texture is repeated by each face's own size so a tall tower has
+               more floors rather than taller windows. */
+            var len = d.w || 8, x0 = -len / 2, roof = new THREE.MeshBasicMaterial({ color: 0x150c22 });
+            var tallest = null, tH = 0;
+            while (x0 < len / 2 - 0.4) {
+                var bw = 0.7 + rnd() * 0.7, bd = 0.8 + rnd() * 0.8, bh = 2.4 + rnd() * 4.6;
+                geo = new THREE.BoxGeometry(bw, bh, bd);
+                var uv = geo.attributes.uv;
+                for (i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * bw * 1.4, uv.getY(i) * bh * 0.9);
+                var win = new THREE.MeshBasicMaterial({ map: arcadeTex('windows') });
+                m = new THREE.Mesh(geo, [win, win, roof, roof, win, win]);
+                m.position.set(x0 + bw / 2, bh / 2, (rnd() - 0.5) * 0.8);
+                dg.add(m);
+                if (bh > tH) { tH = bh; tallest = m; }
+                x0 += bw + 0.08 + rnd() * 0.25;
+            }
+            if (tallest) {
+                // A red light on the tallest roof, blinking (glowPosts).
+                var beacon = new THREE.Mesh(new THREE.SphereGeometry(0.09, 8, 6),
+                    new THREE.MeshBasicMaterial({ color: 0xff3344 }));
+                beacon.position.set(tallest.position.x, tH + 0.12, tallest.position.z);
+                dg.add(beacon);
+                (R.lamps || (R.lamps = [])).push({ mesh: beacon, k: -1, blink: true });
+            }
+        } else if (kind === 'cabinet') {
+            /* An upright, by its side profile: the classic cabinet outline —
+               kick plate, control panel jutting out, the screen set back
+               under the marquee's overhang — extruded across its width, with
+               a neon line round both sides so it reads as a machine from
+               behind as well as from in front. A box with a screen on it read
+               as a box. */
+            var hue = ARCADE_HUES[d.variant % ARCADE_HUES.length];
+            var shell = new THREE.MeshLambertMaterial({ color: new THREE.Color(hue).multiplyScalar(0.3) });
+            var side = new THREE.Shape(), prof = [
+                [0.36, 0], [0.36, 0.86], [0.56, 0.98], [0.5, 1.06], [0.22, 1.12],
+                [0.3, 1.78], [0.46, 1.84], [0.46, 2.1], [-0.4, 2.1], [-0.4, 0]
+            ];
+            side.moveTo(prof[0][0], prof[0][1]);
+            for (i = 1; i < prof.length; i++) side.lineTo(prof[i][0], prof[i][1]);
+            side.closePath();
+            geo = new THREE.ExtrudeGeometry(side, { depth: 0.86, bevelEnabled: false });
+            geo.rotateY(-Math.PI / 2);            // profile in (z, y), extruded along x
+            geo.translate(0.43, 0, 0);
+            m = new THREE.Mesh(geo, shell);
+            m.castShadow = true;
+            dg.add(m);
+            var trim = new THREE.LineBasicMaterial({ color: hue });
+            [-0.435, 0.435].forEach(function (sx) {
+                var pts = prof.concat([prof[0]]).map(function (q) { return new THREE.Vector3(sx, q[1], q[0]); });
+                dg.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), trim));
+            });
+            // The screen, lying in the recess between the panel and the hood.
+            m = new THREE.Mesh(new THREE.PlaneGeometry(0.7, 0.62), new THREE.MeshBasicMaterial({ map: arcadeTex('screen') }));
+            m.position.set(0, 1.45, 0.27); m.rotation.x = -0.12; dg.add(m);
+            m = new THREE.Mesh(new THREE.PlaneGeometry(0.8, 0.22), new THREE.MeshBasicMaterial({ color: hue }));
+            m.position.set(0, 1.97, 0.465); dg.add(m);
+            for (i = 0; i < 3; i++) {
+                m = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 0.04, 10),
+                    new THREE.MeshBasicMaterial({ color: ARCADE_HUES[(d.variant + i + 1) % ARCADE_HUES.length] }));
+                m.position.set(-0.2 + i * 0.2, 1.03, 0.44); m.rotation.x = 0.55; dg.add(m);
+            }
+            // And the light it throws on the floor in front of it.
+            m = new THREE.Mesh(new THREE.CircleGeometry(0.9, 24), new THREE.MeshBasicMaterial({
+                color: hue, transparent: true, opacity: 0.18, blending: THREE.AdditiveBlending, depthWrite: false
+            }));
+            m.rotation.x = -Math.PI / 2; m.position.set(0, 0.02, 0.7); dg.add(m);
+        } else if (kind === 'marquee') {
+            var mw = d.w || 4;
+            var sign = new THREE.Mesh(new THREE.PlaneGeometry(mw, mw * 96 / 512),
+                new THREE.MeshBasicMaterial({ map: arcadeTex('text:' + (d.text || 'ARCADE')), side: THREE.DoubleSide }));
+            // Faces -z, back down the table to whoever is reading it.
+            sign.position.y = 2.6; sign.rotation.y = Math.PI; dg.add(sign);
+            for (i = -1; i <= 1; i += 2) {
+                m = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 2.6, 6), R.surf.decor.metalDark);
+                m.position.set(i * mw * 0.4, 1.3, -0.03); dg.add(m);
+            }
+        } else {
+            // A lamp in the baize: a round insert, or an arrow along +z.
+            var col = ARCADE_HUES[d.variant >> 1 & 3], shape;
+            if (d.variant & 1) {
+                shape = new THREE.Shape();
+                shape.moveTo(0, 0.26); shape.lineTo(0.17, -0.12); shape.lineTo(0, -0.04); shape.lineTo(-0.17, -0.12);
+                shape.closePath();
+                geo = new THREE.ShapeGeometry(shape);
+            } else {
+                geo = new THREE.CircleGeometry(0.13, 20);
+            }
+            var lampMat = new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.5, depthWrite: false });
+            m = new THREE.Mesh(geo, lampMat);
+            m.rotation.x = -Math.PI / 2;
+            if (d.variant & 1) m.rotation.z = Math.PI;      // +z after the lay-down
+            // Over the baize's blades rather than under them (SHELL_HEIGHT).
+            m.position.y = SHELL_HEIGHT.green + 0.01;
+            dg.add(m);
+            var lamps = R.lamps || (R.lamps = []);
+            lamps.push({ mesh: m, k: lamps.filter(function (l) { return !l.blink; }).length });
+        }
+    }
+
     // The floating decor, on the same clock as the waves and a little rougher
     // when the wind is up.
     function bobDecor(wind) {
@@ -3034,9 +3192,101 @@
         }
     }
 
+    /* A pop bumper and a rubber post, drawn as the round things they are
+       (physics.isPost) rather than as the box the solver used to meet.
+
+       A bumper is built the way a real one is, from the table up: a dark
+       base flush with the baize, a pale body, the chrome ring that is the part
+       that fires, and a coloured cap with a lamp in it. The caps take turns
+       through three colours down the list so a table of them reads as a
+       table of them, and each has a material of its own so it can light on
+       its own: `R.bumped` (called by the game off `events.bumped`) fires the
+       flash, a pool of light opens on the baize under it, and both fade over
+       a quarter of a second in `glowPosts`. Between hits the caps breathe a
+       little, out of step with each other — a pinball table is never dark.
+
+       A post is a chrome peg with a black rubber ring round it at the height
+       of the ball's middle, which is where the ball meets it. */
+    var POST_CAPS = [0xff4fa3, 0x3ee0ff, 0xffd23f];
+    function addPost(group, wall) {
+        // Measured from the ground it stands on: courses.bumper sinks the
+        // solid a tenth below the baize, so that is where the table is.
+        var r = wall.w / 2, base = 0, top = wall.h - 0.1;
+        var g = new THREE.Group(), mesh, k = (R.posts || (R.posts = [])).length;
+        g.position.set(wall.x + r, (wall.base || 0) + 0.1, wall.z + wall.d / 2);
+        function part(geo, mat, y) {
+            var m = new THREE.Mesh(geo, mat);
+            m.position.y = y;
+            m.castShadow = true;
+            m.receiveShadow = true;
+            g.add(m);
+            return m;
+        }
+        var chrome = R.surf.chrome || (R.surf.chrome = new THREE.MeshPhongMaterial({
+            color: 0xc9d2da, shininess: 140, specular: 0xffffff
+        }));
+        if (wall.kind === 'post') {
+            var rubber = R.surf.rubber || (R.surf.rubber = new THREE.MeshLambertMaterial({ color: 0x17151c }));
+            part(new THREE.CylinderGeometry(r * 0.42, r * 0.48, top - base, 14), chrome, base + (top - base) / 2);
+            mesh = part(new THREE.TorusGeometry(r * 0.74, r * 0.26, 8, 22), rubber, C.BALL_R);
+            mesh.rotation.x = Math.PI / 2;
+            part(new THREE.CylinderGeometry(r * 0.56, r * 0.5, 0.05, 14), chrome, top);
+            group.add(g);
+            return;
+        }
+        var colour = POST_CAPS[k % POST_CAPS.length];
+        var lamp = new THREE.MeshPhongMaterial({
+            color: new THREE.Color(colour).lerp(new THREE.Color(0xffffff), 0.35),
+            emissive: new THREE.Color(colour), emissiveIntensity: 0.5,
+            shininess: 90, specular: 0xffffff
+        });
+        var body = R.surf.postBody || (R.surf.postBody = new THREE.MeshPhongMaterial({
+            color: 0xf1ecf4, shininess: 60, specular: 0x8a8a8a
+        }));
+        part(new THREE.CylinderGeometry(r * 1.08, r * 1.14, 0.06, 24), R.surf.decor.metalDark, 0.03);
+        part(new THREE.CylinderGeometry(r * 0.86, r * 0.9, top - 0.14, 24), body, 0.06 + (top - 0.14) / 2);
+        mesh = part(new THREE.TorusGeometry(r * 0.92, 0.035, 8, 28), chrome, C.BALL_R);
+        mesh.rotation.x = Math.PI / 2;
+        part(new THREE.CylinderGeometry(r * 1.0, r * 0.94, 0.1, 24), lamp, top - 0.03);
+        part(new THREE.SphereGeometry(r * 0.62, 18, 8, 0, Math.PI * 2, 0, Math.PI / 2), lamp, top + 0.02);
+        var pool = new THREE.Mesh(new THREE.CircleGeometry(r * 2.3, 28), new THREE.MeshBasicMaterial({
+            color: colour, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false
+        }));
+        pool.rotation.x = -Math.PI / 2;
+        pool.position.y = 0.012;
+        g.add(pool);
+        group.add(g);
+        R.posts.push({ wall: wall, lamp: lamp, pool: pool, flash: 0, ph: k * 2.1 });
+    }
+
+    // The table answering a hit (game.js, off physics' events.bumped).
+    R.bumped = function (wall) {
+        for (var i = 0; i < (R.posts || []).length; i++) {
+            if (R.posts[i].wall === wall) { R.posts[i].flash = 1; return; }
+        }
+    };
+
+    function glowPosts(dt) {
+        var i, p, t = R.clock || 0;
+        for (i = 0; i < (R.posts || []).length; i++) {
+            p = R.posts[i];
+            p.flash = Math.max(0, p.flash - dt * 4);
+            p.lamp.emissiveIntensity = 0.45 + 0.15 * Math.sin(t * 1.7 + p.ph) + p.flash * 1.6;
+            p.pool.material.opacity = 0.08 + p.flash * 0.55;
+        }
+        /* The lamps chase: a wave runs down the list, each lit a beat after
+           the one before it, the way the inserts on a table point at a shot. */
+        for (i = 0; i < (R.lamps || []).length; i++) {
+            p = R.lamps[i];
+            if (p.blink) { p.mesh.visible = (t % 1.6) < 0.25; continue; }
+            p.mesh.material.opacity = 0.35 + 0.65 * Math.pow(Math.max(0, Math.cos(t * 3.2 - p.k * 0.9)), 6);
+        }
+    }
+
     function addWall(group, wall) {
         if (wall.kind === 'tree') { addTree(group, wall); return; }
         if (wall.kind === 'rock') { addRock(group, wall); return; }
+        if (P.isPost(wall)) { addPost(group, wall); return; }
         if (wall.sails) { addSails(group, wall); return; }
         var B = P.wallBox(wall, 0);
         var geo = new THREE.BoxGeometry(wall.w, wall.h, wall.d);
@@ -4291,6 +4541,8 @@
         R.shells = [];
         R.canopies = [];
         R.bobbers = [];
+        R.posts = [];
+        R.lamps = [];
 
         /* One set of surfaces per hole: the textures behind them are the
            theme's and are only redrawn when the theme changes (textures.js),
@@ -5378,6 +5630,7 @@
         swayShells(wind);
         swayTrees(wind);
         bobDecor(wind);
+        glowPosts(dt);
         if (G3.life) G3.life.update(dt, R.clock);
 
         var i;

@@ -2227,7 +2227,8 @@
                finite coordinates, must not sit within the cup or tee clearing,
                and must never be solid walls. */
             var decorCount = 0, badDecor = '';
-            var VALID_DECOR = ['buoy', 'piling', 'bench', 'boat', 'rowboat', 'sailboat', 'bin', 'barrel', 'crate', 'palm', 'pine', 'sign', 'windmill'];
+            var VALID_DECOR = ['buoy', 'piling', 'bench', 'boat', 'rowboat', 'sailboat', 'bin', 'barrel', 'crate', 'palm', 'pine', 'sign', 'windmill',
+                               'skyline', 'cabinet', 'marquee', 'lamp'];
             ALL.forEach(function (entry) {
                 (entry.hole.decor || []).forEach(function (d) {
                     decorCount++;
@@ -2251,7 +2252,8 @@
             assert('there is decor to check', decorCount > 0, decorCount + ' decor props');
 
             // Authoring decor helpers & flexible argument handling
-            var helperKinds = ['buoy', 'piling', 'bench', 'boat', 'sailboat', 'bin', 'barrel', 'crate', 'palm', 'pine', 'sign', 'windmill'];
+            var helperKinds = ['buoy', 'piling', 'bench', 'boat', 'sailboat', 'bin', 'barrel', 'crate', 'palm', 'pine', 'sign', 'windmill',
+                               'skyline', 'cabinet', 'marquee', 'lamp'];
             var helpersOk = helperKinds.every(function (k) {
                 return typeof A[k] === 'function' && A[k](1, 2).kind === k;
             });
