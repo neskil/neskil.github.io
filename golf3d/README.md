@@ -1031,13 +1031,13 @@ approach.
 | Course | Group | Theme | What it is about |
 | --- | --- | --- | --- |
 | Seaside Green | mini | `seaside` | The opener, played with a putter and a mallet. A bounce off an angled rail, a slipway round a corner, one slow gate, a first bridge to fly, a horseshoe that leans at the sea wall, and a jetty with a bend in it. Two safe putts and one ace line on every hole. |
-| Quarry Ridge | mini | `quarry` | Height, both ways: ground that is missing and ground that is in the way. A curved backboard behind a bricked-up door, a drop off a pillar with a stair down its side, a quarter-pipe that turns what climbs it, a slanted wall only the chipper goes over, a road with a corner in it, and a cannon with a plank beside it. The best six of the old Quarry Ridge and Highland Steps (v1.121.0). |
+| Quarry Ridge | mini | `quarry` | Height, both ways: ground that is missing and ground that is in the way. A curved backboard behind a bricked-up door, a drop off a pillar with a stair down its side, a quarter-pipe that turns what climbs it, a slanted wall only the chipper goes over, a road with a corner in it, and a cannon with a plank beside it. The best six of the old Quarry Ridge and Highland Steps (v1.122.0). |
 | Tidewater Reach | mini | `lagoon` | The loft course. Almost nothing here can be reached along the floor, and every carry has a safe target and a short one. |
 | Windmill Works | crazy | `works` | Gates, blades and a windmill, after dark. Timing — and a slower way round on the holes that would otherwise be one shot: sand past First Gear's gate, a lay-by off The Sweeper's floor, a back gate round Turnstile's fence. |
 | Pinball Parlour | crazy | `arcade` | A table, not a course: bumpers, a plunger chute and two banks set across the throat. The posts *are* the route — and on Bumper City, a dome-topped table, the shot is up a side lane and off a kicker at the pin. |
-| Clockwork Court | crazy | `clockwork` | The moment. One bar over a plank, two bells round a corner, two doors with a different clock behind each, a weir and a two-road mill race where a mistimed shot is a stroke, and a clock lane with two weights to finish. The best six of the old Clockwork Court, The Belfry and The Millrace (v1.121.0). |
+| Clockwork Court | crazy | `clockwork` | The moment. One bar over a plank, two bells round a corner, two doors with a different clock behind each, a weir and a two-road mill race where a mistimed shot is a stroke, and a clock lane with two weights to finish. The best six of the old Clockwork Court, The Belfry and The Millrace (v1.122.0). |
 | Icehouse Yard | adventure | `icehouse` | Nothing stops. A putter runs eight and a half units on grass and thirty-two on ice. |
-| Cinder Cone | adventure | `volcano` | Machinery on a mountainside: a launch pad over a wall, a belt running back at you, a pipe under the lake, a loop-the-loop, a vent in the floor of a hollow, and Caldera, which asks for all of it. The best six of the old Helter Skelter and Cinder Cone (v1.121.0). |
+| Cinder Cone | adventure | `volcano` | Machinery on a mountainside: a launch pad over a wall, a belt running back at you, a pipe under the lake, a loop-the-loop, a vent in the floor of a hollow, and Caldera, which asks for all of it. The best six of the old Helter Skelter and Cinder Cone (v1.122.0). |
 | Apogee Yard | adventure | `lunar` | The floor sits still and the ball does not: six holes at six gravities. Light takes distance away as a defence; heavy takes the air. |
 | Ashdown Park | long | `parkland` | The long game, on a hillside: bluffs, a crest, a cross-fall into a lake, and two round greens. No fence — the park carries on past the stakes. |
 | Whinstone Links | long | `links` | No flat lies and no straight edges. The ground is the hazard, and on one hole it is a sandhill. |
@@ -1045,9 +1045,9 @@ approach.
 | Redstone Canyon | long | `canyon` | Ground that is missing, six ways. A canyon across the drive, down the side of the hole, flooded under a par three, biting a piece out of the fairway, twice, and at the end of a dogleg round a mesa. |
 | Coral Keys | long | `lagoon` | One big island a hole (two on the par five), with the sea let into it as a cove, a bay or the lagoon inside a crescent, and every hole a choice between the carry and the way round: a cove at the flag, a shelf of turf above the beach, a key in the crook of a crescent, a lagoon between two islands, a Cape-style slanting shore, and a clifftop green round a point. Tees stand on headlands 2.6 up. `island`, `cliff` (with `sheer` for a sea cliff, render.addPad) and `lay` in courses.js; bays are dips in the disc's outline (`wave.bays`, physics.padRadius); the shallows are `render.addShelf`. Built to `tools/human-check.mjs` rather than to the perfect bot, which had scored the first version (a string of small keys) ten under while people found it too hard. |
 
-### Fourteen courses, from eighteen (v1.121.0)
+### Fourteen courses, from eighteen (v1.122.0)
 
-There were eighteen until v1.121.0, and three sets of them were teaching the
+There were eighteen until v1.122.0, and three sets of them were teaching the
 same lesson. Quarry Ridge and Highland Steps were both height — ground missing
 and ground in the way. Clockwork Court, The Belfry and The Millrace were all
 timing, and fourteen of their eighteen holes were a straight lane with one
@@ -1110,8 +1110,8 @@ thirteen, and why The Bend lost two units off each leg.
 | --- | --- | --- | --- |
 | Sea Legs | the 45° bank | up the open side, then across | the mallet up the open side and off the angle |
 | The Bend | the slipway: the top leg falls about a twentieth towards the cup | into the corner, then down the slope | shave the inside corner onto the slipway (the putter will do it), or the mallet off the outside rail |
-| Harbour Gate | one bar of beach with the gap at the tee's end, and a slow gate; the pin is off the line of the gap | through the gap, then past the gate when it has moved | the mallet off the east rail beside the gap, back out through it and on to the pin while the gate is at its west end (v1.121.0; the putt at the flag used to drop, timed, and now dies in the sand) |
-| Low Tide | a bay with an inlet running up the far green to just short of the flag, which is round the head of it | over the bridge, then round the head of the inlet | the mallet into the bridge rail and back up the landing along the inlet's edge into the cup; a pitch at the flag lands in the inlet (v1.121.0 — it was a lane with a band of water across it) |
+| Harbour Gate | one bar of beach with the gap at the tee's end, and a slow gate; the pin is off the line of the gap | through the gap, then past the gate when it has moved | the mallet off the east rail beside the gap, back out through it and on to the pin while the gate is at its west end (v1.122.0; the putt at the flag used to drop, timed, and now dies in the sand) |
+| Low Tide | a bay with an inlet running up the far green to just short of the flag, which is round the head of it | over the bridge, then round the head of the inlet | the mallet into the bridge rail and back up the landing along the inlet's edge into the cup; a pitch at the flag lands in the inlet (v1.122.0 — it was a lane with a band of water across it) |
 | The Horseshoe | the return leg leans at the sea wall, and the cup is against it | round the long way, four putts, par | a pitch across the bay onto the cup's line, and the lean rolls it in |
 | The Jetty | the kink, no rails, and the far green leaning gently east to the pin | a putt along each plank, par | the mallet dead straight down the one line where all three planks overlap, and the lean takes it across to the pin — the longest shot on the card |
 
@@ -1121,7 +1121,7 @@ seconds, so it never shuts the hole and waiting for it costs nothing. It is a
 preview of the crazy courses rather than a test of timing. It replaced **The
 Zigzag**, two bars of beach with the gap at opposite ends, because no rolled ball
 could thread both bars in one. Bouncing a ball off two rails takes too much out
-of it to reach the cup. Its first bar is kept. Until v1.121.0 its ace was the putt
+of it to reach the cup. Its first bar is kept. Until v1.122.0 its ace was the putt
 at the flag timed past the gate, which is a weight and a moment and never a line;
 the pin is a little west of the gap's line now, so that putt dies in the sand,
 and the ace is a bank off the east rail beside the gap. The suite holds it to the
@@ -1149,7 +1149,7 @@ it, every edge a brink except the outside of the bend, which keeps its wall
 because a corner with nothing on the outside of it is a corner nobody can hold.
 
 The rest of Quarry was three straight lanes with one thing in the middle, and
-v1.82.0 gave each a second way. (Step Up and Halfpipe went in v1.121.0, when
+v1.82.0 gave each a second way. (Step Up and Halfpipe went in v1.122.0, when
 Quarry and Highland became one course.) **Step Up** has two ramps to one shelf — a long
 gentle one on the left, a short steep one on the right that only a firm hit
 gets over — and a pool between them at the foot of the face, which is where
@@ -1171,17 +1171,17 @@ Tidewater and Highland are why the bag has more than two clubs. Every hole on
 Tidewater is built round the one thing a chip can do that a putt cannot —
 leave the ground — and each asks for it differently, with a safe target and a
 short one: **Stepping Stones** is two carries, by a big stone out east or a
-little one on the line — or, since v1.121.0, one full carry to the near end of a
+little one on the line — or, since v1.122.0, one full carry to the near end of a
 green lying across the bay, with its back rail bringing the ball to the pin;
 **Short Side** tucks the pin behind sand on the near right with the fat of the
 green open on the left, and the whole green leans a fortieth towards it, so a
 chip landed just left of the sand is carried round behind it while a chip at
-the flag lands in the bunker against a timber face (v1.121.0); **The Letterbox** puts the
+the flag lands in the bunker against a timber face (v1.122.0); **The Letterbox** puts the
 pin indoors, in a boathouse across the bay with two ways in — post it through
 the slot in the front from the tee, where a miss is in the water, or land on the
 jetty and putt in by the front door, which costs a stroke; **Tabletop** puts the green a
 metre up, off to the right of an apron that runs under it, with every edge a
-brink — since v1.121.0 a long shallow table with a timber backboard, the pin at
+brink — since v1.122.0 a long shallow table with a timber backboard, the pin at
 its far end just past where a chip on the flag's line can reach the top, so the
 ace is a carry to the near end and off the board; **The Reach** goes out to a rock off to the right and back across the
 water into a crater that gathers whatever lands in it. And then
@@ -1192,7 +1192,7 @@ suddenly the wrong one; pitch the corner, land it short of the bar and let it
 run.
 
 Highland turned the same screw with ground instead of water; The Backboard
-and Over the Top are on Quarry Ridge now, and the other four went in v1.121.0.
+and Over the Top are on Quarry Ridge now, and the other four went in v1.122.0.
 **Stairway** is
 four flights with no ramp that climb round a pool — east, north, west — with
 the pin on the top landing right over the tee: a chip per riser, a corner cut,
@@ -1220,7 +1220,7 @@ be flown carry `needsLoft: true` and are replayed by the bot with the lofted
 clubs taken away (see [Tests](#tests)).
 
 The crazy courses each own one mechanism and the difference between them
-is what the mechanism is *for*. (There were five until v1.121.0. The Millrace
+is what the mechanism is *for*. (There were five until v1.122.0. The Millrace
 and The Belfry below are holes on Clockwork Court now — Three Against Two,
 Change Ringing, The Weir and Full Flow — and the rest of their holes, Two
 Planks, The Undershot and Rounds among them, are gone.) Windmill Works asks you to find the gap;
@@ -1653,7 +1653,7 @@ sand, or somewhere it never arrives.
 
 #### Helter Skelter
 
-Gone since v1.121.0: The Springboard, Through the Pipe and Loop the Loop are on
+Gone since v1.122.0: The Springboard, Through the Pipe and Loop the Loop are on
 Cinder Cone now, and Crosstown, Bounce Alley and The Gravitron went with the
 course. What it was, for the record — the other half of the idea: the floor is as grippy as a green has always been
 and has machinery in it instead. **The Springboard** is the introduction and it

@@ -25,7 +25,7 @@ is waiting on the owner to say which course they meant.
 
 Done:
 
-- **Fewer courses, and the mini holes the lab flagged** (v1.121.0) — the
+- **Fewer courses, and the mini holes the lab flagged** (v1.122.0) — the
   owner's "some maps, specially mini golf, still need improvement, and we
   could reduce the number of maps and consolidate some of them". Eighteen
   courses are fourteen: Quarry + Highland, Clockwork + Belfry + Millrace and
@@ -367,7 +367,7 @@ tee shows (Sea Legs' was).
    built now as the hole lab (v1.105.0, README → "The hole lab"). It said 43
    of the 78 drawn holes had no ace from the tee at 1° and 25 weights
    (`node golf3d/tools/hole-lab.mjs --coarse`), 38 of 78 at v1.120.0, and
-   after v1.121.0's consolidation and rebuilds it is 22 of 54 (flukes 6 → 1,
+   after v1.122.0's consolidation and rebuilds it is 22 of 54 (flukes 6 → 1,
    putts at the flag that drop 9 → 2), and none of them is a mini
    par 3 — the mini ones left are three par 4s played in stages (The Ledge,
    Under the Boardwalk, The Reach). The rest are crazy and adventure: Through
@@ -376,7 +376,7 @@ tee shows (Sea Legs' was).
    (in stages on purpose) and five of Apogee Yard's six. On a timing hole the
    sweep's four moments can miss a window, so read those with care.
 10. **The putt at the flag, on the two holes that still drop it** (README →
-   "The hole lab"; v1.105.0 rebuilt twelve; v1.121.0 took Bounce Alley, The
+   "The hole lab"; v1.105.0 rebuilt twelve; v1.122.0 took Bounce Alley, The
    Gravitron, Fumarole, Headrace, Half Time and Rounds out with their courses
    and rebuilt Harbour Gate). Two kinds, and they want different answers:
    - *Launch pads in a row* — Apogee (Blowhole came off in v1.115.0, rebuilt
@@ -394,7 +394,7 @@ tee shows (Sea Legs' was).
    - *Timed at the flag* — First Gear. A putt at the pin that drops at the
      right moment, which is the oldest shot in crazy golf and the rule Pocket
      Links made anyway ("or at any moment of a clock"). Harbour Gate was the
-     other one on a mini course and was rebuilt in v1.121.0 (the ace banks out
+     other one on a mini course and was rebuilt in v1.122.0 (the ace banks out
      through the gap now); the suite does not check clocked holes unless they
      are in `CLOCKED`.
 

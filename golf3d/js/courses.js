@@ -3415,7 +3415,7 @@
        way. It was two courses — Quarry Ridge, ramps and ledges with a long way
        down, and Highland Steps, walls and banks to fly or throw the ball at —
        and they were teaching the same lesson from either side, so the best
-       six of their twelve holes are one card now (v1.121.0). The six that
+       six of their twelve holes are one card now (v1.122.0). The six that
        went were the straight lanes the hole lab had no ace on (Step Up,
        Halfpipe, The Gorge, Two Roads, Crown) and Stairway, whose ace was a
        chip at the flag.
@@ -4599,7 +4599,7 @@
 
        Windmill Works asks you to find the gap and Pinball Parlour makes the
        furniture the route. This one asks for the *moment*. It is three courses
-       folded into one (v1.121.0): Clockwork Court's single mechanisms, The
+       folded into one (v1.122.0): Clockwork Court's single mechanisms, The
        Belfry's pairs geared to each other and The Millrace's machines over
        water had become eighteen holes asking one question, most of them a
        straight lane with a machine across it. These are the six with a shape
@@ -5025,7 +5025,7 @@
        and a loop — on the side of a mountain, so most of it is pointing
        downhill. It was two courses, Helter Skelter's fairground and Cinder
        Cone's volcano, built from the same four machines; the best six of their
-       twelve are one card now (v1.121.0). Of the six that went, three were the
+       twelve are one card now (v1.122.0). Of the six that went, three were the
        pad holes whose ace was the putt at the flag (Bounce Alley, The
        Gravitron, Fumarole) and three were lanes with no ace at all
        (Crosstown, Lava Tube, The Scree).
@@ -5279,7 +5279,7 @@
        changes what the ball *weighs*.
 
        `hole.gravity` was written for one hole on Helter Skelter (The
-       Gravitron, gone since v1.121.0) and it is the
+       Gravitron, gone since v1.122.0) and it is the
        cheapest hole-shaped idea in the file: nothing about the course changes
        and everything about playing it does. Carry goes as 1/g and so does
        apex, so half a g is a bag where every club reaches twice as far and
