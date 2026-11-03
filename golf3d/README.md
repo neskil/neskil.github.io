@@ -1,16 +1,14 @@
 # Loft Links
 
-Eighteen six-hole courses of 3D golf in four kinds. **Mini golf**: four courses
-of lanes, rails, ledges and one horseshoe. **Crazy golf**: five of blades,
-gates, bumpers, angled banks and pendulums, where the shot is a matter of
-timing rather than of aim — of what a mistimed one costs on The Millrace, where
-every machine stands over water, and of counting bars rather than beats in The
-Belfry, where every hole has two machines geared to each other. **Adventure
-golf**: four where the floor itself is the obstacle — ice that will not let
-the ball stop, travelators that carry it off, launch pads that throw it in the
-air, pipes that put it somewhere else entirely, a volcano where all of that
-is pointed downhill, and Apogee Yard, where the floor is ordinary and the
-*ball* is not: six holes at six gravities, from three tenths of a g to two and
+Fourteen six-hole courses of 3D golf in four kinds. **Mini golf**: three
+courses of lanes, rails, ledges, banks and carries. **Crazy golf**: three of
+blades, gates, bumpers, angled banks and pendulums, where the shot is a matter
+of timing rather than of aim — and on Clockwork Court of bells geared to each
+other and a mill race under the machinery, where a mistimed shot is a stroke.
+**Adventure golf**: three where the floor itself is the obstacle — ice that
+will not let the ball stop, belts that carry it off, launch pads that throw it
+in the air and pipes that put it somewhere else entirely, all on the side of a
+volcano, and Apogee Yard, where the floor is ordinary and the *ball* is not: six holes at six gravities, from three tenths of a g to two and
 two fifths. **The long game**: five full-size courses with no fence on any of
 them — four built out of the shape of their own ground, and one with almost no
 ground at all — Ashdown
@@ -32,8 +30,8 @@ Two rules run through the whole card. **A course gets harder as you play it** �
 hole one introduces something, the middle develops it and the sixth asks for all
 of it at once — and the same climb runs across each group, so the four mini
 courses are in the order of how much they ask for and so are the crazy, the
-adventure and the long ones. **A hole is not the hole beside it**: a hundred and eight holes
-on one list is a hundred and eight chances to write the same corridor again, and
+adventure and the long ones. **A hole is not the hole beside it**: eighty-four holes
+on one list is eighty-four chances to write the same corridor again, and
 the way out is the *plan* rather than the furniture. See
 [The order the holes are in](#the-order-the-holes-are-in).
 
@@ -51,7 +49,7 @@ them.
 | `index.html` | Page shell: scoreboard, canvas, power/loft controls, banner, course picker, scorecard. |
 | `style.css` | Page chrome. The course itself is all WebGL. |
 | `js/config.js` | Every tuning constant. Nothing else holds a magic number. |
-| `js/courses.js` | The hundred and eight holes, as data, plus the rail generator, the band layout the long-game courses are written in — rows that tilt and carry their level into the next one, and a cross-fall that puts a whole hole on the side of a hill — the dune fields the links is made of, the landforms the two parkland courses are shaped by, the bag each hole is played out of, and the [draw](#the-draw) behind the picker's die. |
+| `js/courses.js` | The eighty-four holes, as data, plus the rail generator, the band layout the long-game courses are written in — rows that tilt and carry their level into the next one, and a cross-fall that puts a whole hole on the side of a hill — the dune fields the links is made of, the landforms the two parkland courses are shaped by, the bag each hole is played out of, and the [draw](#the-draw) behind the picker's die. |
 | `js/physics.js` | The simulation. No three.js, no DOM, pure. |
 | `js/audit.js` | The [geometry audit](#the-pictures-which-neither-suite-can-see): the faults that are invisible to the ball and obvious in a screenshot. Pure — read by `tests.html`, by the inspector and by the turntable. |
 | `js/scoring.js` | Scorecard arithmetic and the save file. |
@@ -233,7 +231,7 @@ bridges and the ramps into choices rather than requirements — at seven and a
 half units of carry a pitch flies most of the water at Seaside's Low Tide.
 (Seaside itself now hands out a putter and a mallet, and the pitch only where
 flying is the point — see [The courses](#the-courses).) Tidewater Reach
-and Highland Steps were built the other way round, from the carries outward:
+and Highland Steps (now half of Quarry Ridge) were built the other way round, from the carries outward:
 they take the ground away and let the numbers in this table decide what is
 reachable, which is why so many of their holes have no route along the floor at
 all.
@@ -1023,7 +1021,7 @@ say what it cost rather than how long it went on.
 
 ## The courses
 
-Eighteen, six holes each, filed under four groups — and the group is not a
+Fourteen, six holes each, filed under four groups — and the group is not a
 heading in the picker, it is a tab (see [The picker](#the-picker)). The four
 are not variations of one another: a mini golf hole is one swing and a putt, a
 crazy golf hole is a mechanism you have to time, an adventure hole is a floor
@@ -1033,23 +1031,47 @@ approach.
 | Course | Group | Theme | What it is about |
 | --- | --- | --- | --- |
 | Seaside Green | mini | `seaside` | The opener, played with a putter and a mallet. A bounce off an angled rail, a slipway round a corner, one slow gate, a first bridge to fly, a horseshoe that leans at the sea wall, and a jetty with a bend in it. Two safe putts and one ace line on every hole. |
-| Quarry Ridge | mini | `quarry` | Ramps, a road with a corner in it and a long way down off every edge. Height as a hazard. Two ramps to one shelf, a pillar with a stair down its side, and a cannon with a plank beside it. |
+| Quarry Ridge | mini | `quarry` | Height, both ways: ground that is missing and ground that is in the way. A curved backboard behind a bricked-up door, a drop off a pillar with a stair down its side, a quarter-pipe that turns what climbs it, a slanted wall only the chipper goes over, a road with a corner in it, and a cannon with a plank beside it. The best six of the old Quarry Ridge and Highland Steps (v1.122.0). |
 | Tidewater Reach | mini | `lagoon` | The loft course. Almost nothing here can be reached along the floor, and every carry has a safe target and a short one. |
-| Highland Steps | mini | `highland` | The same lesson from the other side: things in the way rather than things missing, and the ground handed back as a tool. A curved backboard, a slanted wall, a stair that climbs round a pool. |
 | Windmill Works | crazy | `works` | Gates, blades and a windmill, after dark. Timing — and a slower way round on the holes that would otherwise be one shot: sand past First Gear's gate, a lay-by off The Sweeper's floor, a back gate round Turnstile's fence. |
 | Pinball Parlour | crazy | `arcade` | A table, not a course: bumpers, a plunger chute and two banks set across the throat. The posts *are* the route — and on Bumper City, a dome-topped table, the shot is up a side lane and off a kicker at the pin. |
-| Clockwork Court | crazy | `clockwork` | Six mechanisms at six rates. Two bats that stop, a pendulum, three staggered cogs, a ratchet, and a finish with two lanes to pick between. |
-| The Millrace | crazy | `mill` | The same machines with the river underneath them. A mistimed shot is a stroke here rather than a bounce, so laying up is a real option for the first time on a timing course. |
-| The Belfry | crazy | `belfry` | Two machines on every hole, geared to each other: 2:1, 3:2, 1:4, and four shutters a quarter-beat apart. Counting bars rather than beats. |
+| Clockwork Court | crazy | `clockwork` | The moment. One bar over a plank, two bells round a corner, two doors with a different clock behind each, a weir and a two-road mill race where a mistimed shot is a stroke, and a clock lane with two weights to finish. The best six of the old Clockwork Court, The Belfry and The Millrace (v1.122.0). |
 | Icehouse Yard | adventure | `icehouse` | Nothing stops. A putter runs eight and a half units on grass and thirty-two on ice. |
-| Helter Skelter | adventure | `fairground` | Launch pads, travelators, pipes and a loop-the-loop. The floor decides; you only decide how hard. |
-| Cinder Cone | adventure | `volcano` | The same machinery pointed downhill. Belts that run back at you, vents that are the only way up, and two lava tubes — a narrow one at the pin and a wide one that leaves a putt. |
+| Cinder Cone | adventure | `volcano` | Machinery on a mountainside: a launch pad over a wall, a belt running back at you, a pipe under the lake, a loop-the-loop, a vent in the floor of a hollow, and Caldera, which asks for all of it. The best six of the old Helter Skelter and Cinder Cone (v1.122.0). |
 | Apogee Yard | adventure | `lunar` | The floor sits still and the ball does not: six holes at six gravities. Light takes distance away as a defence; heavy takes the air. |
 | Ashdown Park | long | `parkland` | The long game, on a hillside: bluffs, a crest, a cross-fall into a lake, and two round greens. No fence — the park carries on past the stakes. |
 | Whinstone Links | long | `links` | No flat lies and no straight edges. The ground is the hazard, and on one hole it is a sandhill. |
 | Dunmore Heath | long | `heath` | The long game again, shaped rather than furnished: crests, hollows, a punchbowl, a whorl, one dry ravine and a hillside you climb — and moorland water, a burn, a tarn and a pond. |
 | Redstone Canyon | long | `canyon` | Ground that is missing, six ways. A canyon across the drive, down the side of the hole, flooded under a par three, biting a piece out of the fairway, twice, and at the end of a dogleg round a mesa. |
 | Coral Keys | long | `lagoon` | One big island a hole (two on the par five), with the sea let into it as a cove, a bay or the lagoon inside a crescent, and every hole a choice between the carry and the way round: a cove at the flag, a shelf of turf above the beach, a key in the crook of a crescent, a lagoon between two islands, a Cape-style slanting shore, and a clifftop green round a point. Tees stand on headlands 2.6 up. `island`, `cliff` (with `sheer` for a sea cliff, render.addPad) and `lay` in courses.js; bays are dips in the disc's outline (`wave.bays`, physics.padRadius); the shallows are `render.addShelf`. Built to `tools/human-check.mjs` rather than to the perfect bot, which had scored the first version (a string of small keys) ten under while people found it too hard. |
+
+### Fourteen courses, from eighteen (v1.122.0)
+
+There were eighteen until v1.122.0, and three sets of them were teaching the
+same lesson. Quarry Ridge and Highland Steps were both height — ground missing
+and ground in the way. Clockwork Court, The Belfry and The Millrace were all
+timing, and fourteen of their eighteen holes were a straight lane with one
+machine across it that the hole lab found no ace on, or only a fluke. Helter
+Skelter and Cinder Cone were built from the same four machines. Each set is one
+course now, made of its best six holes, judged by the rules in [`golf/README.md`
+→ "Designing a hole"](../golf/README.md#designing-a-hole) and measured with the
+hole lab: a hole stayed if it had a shape as well as an idea — a corner, a
+choice of doors, two roads — and went if it was a lane with an X in the middle,
+or a hole whose ace was the putt at the flag. The long game was left at five.
+
+| Course now | Kept | Gone |
+| --- | --- | --- |
+| Quarry Ridge | The Backboard, The Drop, Switchback, Over the Top, The Ledge, The Cannon | Step Up, Halfpipe, Stairway, The Gorge, Two Roads, Crown |
+| Clockwork Court | Pendulum, Three Against Two, Change Ringing, The Weir, Full Flow, Midnight | Escapement, The Gearbox, The Cogs, Ratchet, Headrace, Two Planks, The Undershot, The Tailrace, Half Time, Rounds, The Tenor, Full Circle |
+| Cinder Cone | The Springboard, The Ash Slide, Through the Pipe, Loop the Loop, Blowhole, Caldera | Crosstown, Bounce Alley, The Gravitron, Fumarole, Lava Tube, The Scree |
+
+The merged courses keep the ids `quarry`, `clockwork` and `cinder`, so a
+record set there before is a record for a different six holes, the same as
+after any rebuild. `highland`, `millrace`, `belfry` and `skelter` are gone from
+the picker; their themes stay in `themes.js`, because the hole editor offers
+every theme to a hole of your own. The write-ups of the holes that went are
+left below where they explain something still in the code — The Belfry's
+Rounds is why the shutters' spacing rule exists — and are marked as gone.
 
 **Sea Legs**, the first hole anybody plays, is a bounce hole: one lane, one
 baffle reaching in from the east rail, and a rail across the far corner set at
@@ -1088,8 +1110,8 @@ thirteen, and why The Bend lost two units off each leg.
 | --- | --- | --- | --- |
 | Sea Legs | the 45° bank | up the open side, then across | the mallet up the open side and off the angle |
 | The Bend | the slipway: the top leg falls about a twentieth towards the cup | into the corner, then down the slope | shave the inside corner onto the slipway (the putter will do it), or the mallet off the outside rail |
-| Harbour Gate | one bar of beach with the gap at the tee's end, and a slow gate | through the gap, then past the gate when it has moved | at the flag: the inside edge of the gap, timed past the gate |
-| Low Tide | the bridge and the water | over the bridge, then putt | the mallet across the bridge all the way to the cup, or a pitch at the pin |
+| Harbour Gate | one bar of beach with the gap at the tee's end, and a slow gate; the pin is off the line of the gap | through the gap, then past the gate when it has moved | the mallet off the east rail beside the gap, back out through it and on to the pin while the gate is at its west end (v1.122.0; the putt at the flag used to drop, timed, and now dies in the sand) |
+| Low Tide | a bay with an inlet running up the far green to just short of the flag, which is round the head of it | over the bridge, then round the head of the inlet | the mallet into the bridge rail and back up the landing along the inlet's edge into the cup; a pitch at the flag lands in the inlet (v1.122.0 — it was a lane with a band of water across it) |
 | The Horseshoe | the return leg leans at the sea wall, and the cup is against it | round the long way, four putts, par | a pitch across the bay onto the cup's line, and the lean rolls it in |
 | The Jetty | the kink, no rails, and the far green leaning gently east to the pin | a putt along each plank, par | the mallet dead straight down the one line where all three planks overlap, and the lean takes it across to the pin — the longest shot on the card |
 
@@ -1099,7 +1121,11 @@ seconds, so it never shuts the hole and waiting for it costs nothing. It is a
 preview of the crazy courses rather than a test of timing. It replaced **The
 Zigzag**, two bars of beach with the gap at opposite ends, because no rolled ball
 could thread both bars in one. Bouncing a ball off two rails takes too much out
-of it to reach the cup. Its first bar is kept.
+of it to reach the cup. Its first bar is kept. Until v1.122.0 its ace was the putt
+at the flag timed past the gate, which is a weight and a moment and never a line;
+the pin is a little west of the gap's line now, so that putt dies in the sand,
+and the ace is a bank off the east rail beside the gap. The suite holds it to the
+straight-putt rule at twelve moments of the gate (`CLOCKED`).
 
 **The Bend**'s slipway is the first ground on the course that is *for*
 something. It carries a ball that gets round the corner at any pace down to the
@@ -1123,7 +1149,8 @@ it, every edge a brink except the outside of the bend, which keeps its wall
 because a corner with nothing on the outside of it is a corner nobody can hold.
 
 The rest of Quarry was three straight lanes with one thing in the middle, and
-v1.82.0 gave each a second way. **Step Up** has two ramps to one shelf — a long
+v1.82.0 gave each a second way. (Step Up and Halfpipe went in v1.122.0, when
+Quarry and Highland became one course.) **Step Up** has two ramps to one shelf — a long
 gentle one on the left, a short steep one on the right that only a firm hit
 gets over — and a pool between them at the foot of the face, which is where
 the line at the flag goes. **The Drop** keeps the drop off the front of the
@@ -1144,13 +1171,19 @@ Tidewater and Highland are why the bag has more than two clubs. Every hole on
 Tidewater is built round the one thing a chip can do that a putt cannot —
 leave the ground — and each asks for it differently, with a safe target and a
 short one: **Stepping Stones** is two carries, by a big stone out east or a
-little one on the line; **Short Side** tucks the pin behind sand on the near
-right with the fat of the green open on the left; **The Letterbox** puts the
+little one on the line — or, since v1.122.0, one full carry to the near end of a
+green lying across the bay, with its back rail bringing the ball to the pin;
+**Short Side** tucks the pin behind sand on the near right with the fat of the
+green open on the left, and the whole green leans a fortieth towards it, so a
+chip landed just left of the sand is carried round behind it while a chip at
+the flag lands in the bunker against a timber face (v1.122.0); **The Letterbox** puts the
 pin indoors, in a boathouse across the bay with two ways in — post it through
 the slot in the front from the tee, where a miss is in the water, or land on the
 jetty and putt in by the front door, which costs a stroke; **Tabletop** puts the green a
 metre up, off to the right of an apron that runs under it, with every edge a
-brink; **The Reach** goes out to a rock off to the right and back across the
+brink — since v1.122.0 a long shallow table with a timber backboard, the pin at
+its far end just past where a chip on the flag's line can reach the top, so the
+ace is a carry to the near end and off the board; **The Reach** goes out to a rock off to the right and back across the
 water into a crater that gathers whatever lands in it. And then
 **Under the Boardwalk**, which is the joke at the course's expense: a bar too
 tall to fly across the top of a dogleg, standing high enough off the ground
@@ -1158,7 +1191,9 @@ that a putt runs under it. The club that has answered every other hole is
 suddenly the wrong one; pitch the corner, land it short of the bar and let it
 run.
 
-Highland turns the same screw with ground instead of water. **Stairway** is
+Highland turned the same screw with ground instead of water; The Backboard
+and Over the Top are on Quarry Ridge now, and the other four went in v1.122.0.
+**Stairway** is
 four flights with no ramp that climb round a pool — east, north, west — with
 the pin on the top landing right over the tee: a chip per riser, a corner cut,
 or one lob up two steps at once. **Over the Top** is a wall nothing goes round
@@ -1184,8 +1219,11 @@ Which holes are which is not a matter of taste in the tests: the ones that must
 be flown carry `needsLoft: true` and are replayed by the bot with the lofted
 clubs taken away (see [Tests](#tests)).
 
-The five crazy courses each own one mechanism and the difference between them
-is what the mechanism is *for*. Windmill Works asks you to find the gap;
+The crazy courses each own one mechanism and the difference between them
+is what the mechanism is *for*. (There were five until v1.122.0. The Millrace
+and The Belfry below are holes on Clockwork Court now — Three Against Two,
+Change Ringing, The Weir and Full Flow — and the rest of their holes, Two
+Planks, The Undershot and Rounds among them, are gone.) Windmill Works asks you to find the gap;
 Clockwork Court asks you to find the moment. Pinball Parlour asks for neither —
 the obstacles there are not between you and the cup, they *are* the route, which
 is why it is the one course built out of things that do not move. **The
@@ -1323,7 +1361,7 @@ trouble as well as more of it: an angle that does the turning for you, ground
 that does it, a thing that moves, a hazard that costs you a stroke, a hole that
 is not aimed at the flag, and a hole with nothing to bounce off at all.
 
-The same climb runs across a group. The four mini courses are in order of how
+The same climb runs across a group. The three mini courses are in order of how
 much they ask for and so are the crazy, the adventure and the long ones, which
 is what `G3.COURSES` is ordered by and what `nextCourseId` hands you at the end
 of a round.
@@ -1332,8 +1370,8 @@ Because the order carries meaning, moving a hole is a change to the course and
 not a tidy-up. Nothing else depends on it — a hole's ground is seeded from its
 own *name* (`nameSeed`), so reordering a card cannot reshape a single hump.
 
-**A hole is not the hole beside it.** A hundred and eight holes on one list is a
-hundred and eight chances to write the same corridor again, and the escape is the plan
+**A hole is not the hole beside it.** Eighty-four holes on one list is
+eighty-four chances to write the same corridor again, and the escape is the plan
 rather than the furniture. Before the pass that broke this up, forty-eight of
 the sixty holes then on the card were a rectangle running north with the tee at
 one end and the cup at the other, and the only thing that made one different
@@ -1615,7 +1653,9 @@ sand, or somewhere it never arrives.
 
 #### Helter Skelter
 
-The second of the three, and the other half of the idea: the floor is as grippy as a green has always been
+Gone since v1.122.0: The Springboard, Through the Pipe and Loop the Loop are on
+Cinder Cone now, and Crosstown, Bounce Alley and The Gravitron went with the
+course. What it was, for the record — the other half of the idea: the floor is as grippy as a green has always been
 and has machinery in it instead. **The Springboard** is the introduction and it
 is deliberately blunt — a wall too tall to fly, and a bag with nothing in it
 that flies. The pad is over on the west side and the pin on the east, with a
@@ -2159,7 +2199,7 @@ after the first few rounds:
 
 | Mode | Draws from | When it runs out |
 | --- | --- | --- |
-| **Anything** | all eighteen | — |
+| **Anything** | all fourteen | — |
 | **Same kind** | the last *kind* tab you looked at, not the kind you are standing in | widens to anything |
 | **New to you** | courses with no finished round on them | the ones you have played *least* |
 | **Beat a best** | courses that already have a record on them | widens to anything |
@@ -2175,7 +2215,7 @@ the kind rather than pointing at it: *right now that is mini golf*.
 Two rules hold across all four. **Never the course you are already on** — a
 surprise that hands you back the hole you are looking at is the one result
 nobody wants — and **a mode never comes back empty**. "New to you" stops
-meaning anything the moment you have played all eighteen and "beat a best"
+meaning anything the moment you have played all fourteen and "beat a best"
 means nothing before the first round is finished; a button that does nothing on
 press is worse than one that widens its net, so each mode has a written-down
 fallback, `shuffleDraw` reports whether it took it, and the option says so out
@@ -2236,7 +2276,7 @@ never heard of it.
 
 The demo does not read them, and does not read the mode either. Both are what
 somebody wants dealt to *them*; the attract loop is showing the game to a room
-it is talking to, and it draws from all eighteen — see `demoRound`.
+it is talking to, and it draws from all fourteen — see `demoRound`.
 
 **The draw itself is pure.** `G3.shuffleDraw` and `G3.randomCourseId` in
 `courses.js` take the mode, where you are standing, which tab is open, which
@@ -3419,7 +3459,7 @@ is no frame at all.
 
 🤖 **Autoplay**, in the ☰ menu with the other things you do to a round. Press
 it and `js/bot.js`, the same greedy player that proves in `tests.html` that all
-hundred and eight holes are solvable, takes the club and plays — from wherever your ball
+eighty-four holes are solvable, takes the club and plays — from wherever your ball
 is standing, and then **on**: the next hole when this one is holed, and the
 next course when the sixth one is. Press it again, or <kbd>Esc</kbd>, to take
 the club back.
@@ -3526,7 +3566,7 @@ one player.
 
 ## The showcase: the game in eight holes
 
-A hundred and eight holes is a lot to walk before you know what is in them, and
+Eighty-four holes is a lot to walk before you know what is in them, and
 the order they are written in shows you six holes of one kind of golf before it
 shows you a second. The showcase is the other way in, and it is what a new game
 plays: **two holes from every kind, eight in all, each out of a different
@@ -4640,13 +4680,13 @@ the four things that can move it says otherwise.
 
 Open `tests.html`. Over 2,460 assertions covering the surfaces, the collision
 geometry, the cup, the integrator, the bag, the ground that does something, the
-walls you go through, all hundred and eight holes of course data, the scorecard and the
+walls you go through, all eighty-four holes of course data, the scorecard and the
 intro flyover's path.
 
 The one worth knowing about is the **bot** (`js/bot.js`, and the game plays it
 too — see [autoplay](#the-caddie-autoplay)): a greedy player fans
 out candidate shots on every hole, keeps the one that finishes nearest the cup,
-and plays all hundred and eight. If a hole is sealed off, unreachable, or has a cup buried where
+and plays all eighty-four. If a hole is sealed off, unreachable, or has a cup buried where
 nothing can settle, the bot never holes out and the suite goes red. It is
 deterministic, so a failure is reproducible rather than "sometimes red", it
 plays out of the same clubs the player gets, its candidates include a wait
@@ -4812,7 +4852,7 @@ Every one of those passed the whole of `tests.html`, on shipped holes.
 
 **`turntable.html`** is the eye's half. It draws every hole in the game with the
 game's own renderer from eight fixed angles and lays them out as one contact
-sheet per course — a hundred and eight holes in eighteen pictures. The angles are not
+sheet per course — eighty-four holes in fourteen pictures. The angles are not
 decoration; each is there for something the others hide:
 
 | View | What only it shows |
@@ -4824,7 +4864,7 @@ decoration; each is there for something the others hide:
 | **hero at 40°** | The picture the hole would be sold with, which is a fair question to ask of it. |
 
 ```sh
-node golf3d/tools/turntable.mjs                        # all eighteen, ~7 minutes
+node golf3d/tools/turntable.mjs                        # all fourteen, ~6 minutes
 node golf3d/tools/turntable.mjs quarry --hole 4 --tile 640 --views graze,hero
 ```
 

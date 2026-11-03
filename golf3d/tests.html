@@ -1016,8 +1016,8 @@
 
         section('Course data');
         (function () {
-            assert('eighteen courses', G3.COURSES.length === 18);
-            assert('a hundred and eight holes in total', ALL.length === 108);
+            assert('fourteen courses', G3.COURSES.length === 14);
+            assert('eighty-four holes in total', ALL.length === 84);
             assert('courseById finds a course', G3.courseById('quarry').id === 'quarry');
             assert('courseById falls back to the first', G3.courseById('nope').id === G3.COURSES[0].id);
 
@@ -1097,7 +1097,7 @@
             (function () {
                 var ids = G3.COURSES.map(function (c) { return c.id; });
                 var modeIds = G3.SHUFFLE_MODES.map(function (m) { return m.id; });
-                // A save file with a record on the four mini golf courses and
+                // A save file with a record on every mini golf course and
                 // nothing anywhere else, which is what most save files look
                 // like after an evening.
                 var played = { courses: {} };
@@ -1159,7 +1159,7 @@
 
                 var fresh = G3.shuffleDraw({ mode: 'fresh', from: 'seaside', save: played });
                 assert('"new to you" offers only what has never been finished',
-                    fresh.courses.length === G3.COURSES.length - 4 && !fresh.eased &&
+                    fresh.courses.length === G3.COURSES.length - G3.coursesInGroup('mini').length && !fresh.eased &&
                     fresh.courses.every(function (c) { return !played.courses[c.id]; }));
                 var everywhere = G3.shuffleDraw({ mode: 'fresh', from: 'quarry', save: all });
                 assert('and when there is nothing new left it offers the least played',
@@ -1169,7 +1169,7 @@
 
                 var rec = G3.shuffleDraw({ mode: 'record', from: 'seaside', save: played });
                 assert('"beat a best" offers only courses with a record on them',
-                    rec.courses.length === 3 && !rec.eased &&
+                    rec.courses.length === G3.coursesInGroup('mini').length - 1 && !rec.eased &&
                     rec.courses.every(function (c) { return c.group === 'mini'; }));
                 var norec = G3.shuffleDraw({ mode: 'record', from: 'seaside', save: S.emptySave() });
                 assert('and before the first round it widens rather than offering nothing',
@@ -3091,7 +3091,7 @@
                 });
             });
             assert('the flippers on the course are all real ones', !worst, worst);
-            assert('there are flippers to check', swung >= 3, swung + ' found');
+            assert('there are flippers to check', swung >= 2, swung + ' found');
             assert('and a hole where down is a different number', shifted >= 1);
         })();
 
@@ -4459,9 +4459,8 @@
                the rule to stay on it, so fixing one fails this until it comes
                off the list. */
             var L = G3.lab;
-            var OPEN = ['skelter/Bounce Alley', 'skelter/The Gravitron', 'cinder/Fumarole',
-                        'apogee/Apogee'];
-            var CLOCKED = ['works/The Mill', 'works/Turnstile', 'clockwork/Pendulum', 'clockwork/Midnight'];
+            var OPEN = ['apogee/Apogee'];
+            var CLOCKED = ['works/The Mill', 'works/Turnstile', 'clockwork/Pendulum', 'clockwork/Midnight', 'seaside/Harbour Gate'];
             assert('the lab module is loaded', !!L);
             var b0 = performance.now(), held = 0;
             ALL.forEach(function (entry) {

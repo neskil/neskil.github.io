@@ -637,10 +637,11 @@
                out of the way: no vertex of any prop stands within a unit of the
                hole's own footprint, where the ball could pass through it, or in
                the corridor behind the tee the camera watches the shot from. */
-            var drawnThemes = 0, worldFault = '';
+            var drawnThemes = 0, drawnCourses = 0, worldFault = '';
             G3.COURSES.forEach(function (course) {
                 if (course.group === 'long' || !course.holes[0] || course.holes[0].open) return;
                 var h = course.holes[0];
+                drawnCourses++;
                 var ok = attempt(course.id + ': its world builds', function () {
                     R.buildHole(h, course.theme, null);
                     for (var k = 0; k < 4; k++) R.frame(0.25, P.createWorld(h, { x: h.tee.x, z: h.tee.z }, 0), { yaw: 0, power: 0 });
@@ -672,7 +673,7 @@
                     }
                 });
             });
-            assert('every drawn theme has a world round its holes', drawnThemes >= 13 && !/no world|fairway/.test(worldFault),
+            assert('every drawn theme has a world round its holes', drawnCourses >= 9 && drawnThemes === drawnCourses && !/no world|fairway/.test(worldFault),
                 drawnThemes + ' themes; ' + worldFault);
             assert('and nothing in it stands on a hole or between the camera and the shot', !worldFault, worldFault);
         }

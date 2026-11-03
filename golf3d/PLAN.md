@@ -25,6 +25,21 @@ is waiting on the owner to say which course they meant.
 
 Done:
 
+- **Fewer courses, and the mini holes the lab flagged** (v1.122.0) — the
+  owner's "some maps, specially mini golf, still need improvement, and we
+  could reduce the number of maps and consolidate some of them". Eighteen
+  courses are fourteen: Quarry + Highland, Clockwork + Belfry + Millrace and
+  Helter Skelter + Cinder Cone are one course each, made of their best six
+  (README → "Fourteen courses, from eighteen"). Then five mini holes rebuilt
+  to the hole lab: Harbour Gate (the timed putt at the flag no longer drops;
+  the ace banks off the east rail out through the gap, and the hole is in
+  `CLOCKED`), Low Tide (a J round an inlet instead of a lane with a band of
+  water; the chip at the flag lands in the inlet), Stepping Stones (an ace at
+  last — a full carry off the back rail), Short Side (a lean round the sand
+  and a timber face behind it) and Tabletop (a long shallow table with a
+  backboard to bank off). Every mini par 3 has an ace now. Still open on the
+  long game: the owner chose to keep five long courses, so merging Ashdown,
+  Whinstone and Dunmore into one would be the next cut if fewer is wanted.
 - **Coral Keys** (v1.114.0) — "too hard"; one big island a hole, a carry and
   a way round on each. See "Where it stands".
 - **Switchback** (`quarry` 3, v1.114.0) — the tall ramp is a quarter-pipe the
@@ -349,17 +364,23 @@ tee shows (Sea Legs' was).
 9. **An ace line on every mini hole.** On most of them the right play is two
    safe putts; one risky line per hole that can drop makes every tee worth a
    go. §2's "the bot could prove a hole is ace-able" is the check for it —
-   built now as the hole lab (v1.105.0, README → "The hole lab"), and it says
-   43 of the 78 drawn holes have no ace from the tee at 1° and 25 weights
-   (`node golf3d/tools/hole-lab.mjs --coarse`; 42 before v1.105.0 made
-   Caldera a par 4 in stages on purpose). Some are par 4s played in
-   stages and fine as they are; the mini par 3s among them are the list.
-10. **The putt at the flag, on the nine holes that still drop it** (README →
-   "The hole lab"; v1.105.0 rebuilt twelve). Two kinds, and they want
-   different answers:
-   - *Launch pads in a row* — Bounce Alley, The Gravitron, Fumarole, Apogee
-     (Blowhole came off in v1.115.0, rebuilt as a hollow with the vent in its
-     floor). A pad leaves the heading alone, so the ace through it is the line
+   built now as the hole lab (v1.105.0, README → "The hole lab"). It said 43
+   of the 78 drawn holes had no ace from the tee at 1° and 25 weights
+   (`node golf3d/tools/hole-lab.mjs --coarse`), 38 of 78 at v1.120.0, and
+   after v1.122.0's consolidation and rebuilds it is 22 of 54 (flukes 6 → 1,
+   putts at the flag that drop 9 → 2), and none of them is a mini
+   par 3 — the mini ones left are three par 4s played in stages (The Ledge,
+   Under the Boardwalk, The Reach). The rest are crazy and adventure: Through
+   the Wall, The Sweeper, Grand Finale, five of Pinball Parlour's six, Three
+   Against Two, Change Ringing, The Weir, Full Flow, Through the Pipe, Caldera
+   (in stages on purpose) and five of Apogee Yard's six. On a timing hole the
+   sweep's four moments can miss a window, so read those with care.
+10. **The putt at the flag, on the two holes that still drop it** (README →
+   "The hole lab"; v1.105.0 rebuilt twelve; v1.122.0 took Bounce Alley, The
+   Gravitron, Fumarole, Headrace, Half Time and Rounds out with their courses
+   and rebuilt Harbour Gate). Two kinds, and they want different answers:
+   - *Launch pads in a row* — Apogee (Blowhole came off in v1.115.0, rebuilt
+     as a hollow with the vent in its floor). A pad leaves the heading alone, so the ace through it is the line
      from the tee. Moving the pad or the pin off the line is the obvious fix and
      it fails the other way: the bot's fan starts at the cup's bearing, finds no
      pad there and cannot finish the hole (every variant tried left it short).
@@ -368,13 +389,14 @@ tee shows (Sea Legs' was).
      landing; or a smarter bot, one that aims at the pads as well as the pin.
      The Gravitron also has its doorway skipped: a full putter lands on the
      second pad over the wall, and a mallet at nine tenths flies both moats.
-     These five are `OPEN` in tests.html and must leave it when fixed.
-   - *Timed at the flag* — Harbour Gate, First Gear, Headrace, Half Time,
-     Rounds. A putt at the pin that drops at the right moment, which is the
-     oldest shot in crazy golf and the rule Pocket Links made anyway ("or at any
-     moment of a clock"). Rounds is a wave ridden straight down the lane by
-     design. Worth the owner's call before any of them changes; the suite does
-     not check clocked holes unless they are in `CLOCKED`.
+     (The Gravitron is gone; the note stands for the next pad hole.) Apogee is
+     `OPEN` in tests.html and must leave it when fixed.
+   - *Timed at the flag* — First Gear. A putt at the pin that drops at the
+     right moment, which is the oldest shot in crazy golf and the rule Pocket
+     Links made anyway ("or at any moment of a clock"). Harbour Gate was the
+     other one on a mini course and was rebuilt in v1.122.0 (the ace banks out
+     through the gap now); the suite does not check clocked holes unless they
+     are in `CLOCKED`.
 
 ### Next: curved surfaces — started (v1.67.0)
 

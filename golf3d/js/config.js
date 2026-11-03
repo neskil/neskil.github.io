@@ -8,7 +8,7 @@
    — the renderer scales to the viewport, the simulation never sees a pixel. */
 window.G3 = window.G3 || {};
 
-G3.VERSION = '1.121.0';
+G3.VERSION = '1.122.0';
 
 G3.CONFIG = {
     BALL_R: 0.16,
@@ -98,9 +98,10 @@ G3.CONFIG = {
        up a ramp looking like a bug because it was one.
 
        These are the tangents of an angle of repose, so 0.22 is about twelve
-       degrees. That is steep for a green and it is not a free choice: the
-       cup on Tidewater's 'Short Side' sits on a lie of 0.16, and a green that
-       will not hold a ball beside its own hole is a green nobody can putt on.
+       degrees. That is steep for a green and it was not a free choice: the
+       cup on Tidewater's old 'Short Side' sat on a lie of 0.16 (it is on a
+       lean of a fortieth since v1.122.0), and a green that will not hold a
+       ball beside its own hole is a green nobody can putt on.
        It was 0.18 (and the fairway 0.26, the rough 0.40) until a ball that
        had all but stopped on a hillside kept creeping off it once too often;
        a fifth more grip is what makes a slow ball on a bank stay put.
