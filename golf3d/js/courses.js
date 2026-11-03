@@ -2756,9 +2756,10 @@
                sand does the refusing. The tee stands in line with the end of
                the bar and the pin a little west of that line, right behind
                the gate's track, so the shot at the flag crosses the whole
-               depth of the sand — two units of it — and a full mallet comes
-               out the other side at a walking pace and stops short of the
-               gate's track. Nothing on the line was added to stop it; it is
+               depth of the sand — two and a half units of it — and a full
+               mallet comes out the other side at a walking pace and stops
+               short of the gate's track. (It was two until v1.123.0, when the
+               mallet got stronger and a full one ran through two.) Nothing on the line was added to stop it; it is
                the beach that was always there, and the flag now stands where
                the beach is in the way.
 
@@ -2777,8 +2778,8 @@
             blurb: 'Through the gap in the beach, then past the gate. It drifts; it never shuts.',
             pads: [
                 pad(0, 0, 6, 4),
-                pad(0, 4, 4, 2, 0, 'sand'), pad(4, 4, 2, 2),
-                pad(0, 6, 6, 6.5)
+                pad(0, 4, 4, 2.6, 0, 'sand'), pad(4, 4, 2, 2.6),
+                pad(0, 6.6, 6, 5.9)
             ],
             extra: [slider(1.6, 8.6, 2.0, 0.4, { amp: 1.5, speed: 0.7 })],
             tee: { x: 4, z: 2.4 }, cup: { x: 3.1, z: 9.6 },
@@ -4464,8 +4465,10 @@
                is the width of the gap the line out of the chute at the flag
                used to thread (README → "The hole lab"). The shot now is the
                one the plunger is for: off the chute's wall and through the
-               pins on the inside of it. */
-            extra: [bumper(1.6, 12), bumper(3.25, 13.7), bumper(5.4, 12)],
+               pins on the inside of it. The pins are a size up since they went
+               round (physics.popBumper): a circle inscribed in the old square
+               opened the gap again by the width of its corners. */
+            extra: [bumper(1.6, 12, 0.6), bumper(3.25, 13.7, 0.6), bumper(5.4, 12, 0.6)],
             tee: { x: 1.2, z: 1.2 }, cup: { x: 3.5, z: 16.6 }
         }),
         (function () {
@@ -4697,7 +4700,9 @@
                the bank does the turning: straight down the plank, past the
                bar, and off the bank to the pin. A putt at the flag runs off
                the side of the plank. A lean would have done it more gently and
-               left a lip where the plank meets the green. */
+               left a lip where the plank meets the green. The tee is west of
+               the plank's middle (v1.123.0), so the line at the flag leaves
+               the boards before the bar can knock it back on to them. */
             name: 'Pendulum', par: 3,
             blurb: 'One plank over the water and one bar sweeping across it.',
             pads: [
@@ -4711,7 +4716,7 @@
                 slider(2.4, 8.6, 1.2, 0.4, { amp: 2.4, speed: 1.3 }),
                 bank(3.2, 12.8, 2.2, Math.PI / 4)
             ],
-            tee: { x: 3, z: 1.5 }, cup: { x: 1.0, z: 12.8 }
+            tee: { x: 2.4, z: 1.5 }, cup: { x: 1.0, z: 12.8 }
         }),
         build({
             /* Three against two, which is the first rhythm anybody learns that
@@ -4958,14 +4963,16 @@
                an obstacle you cross slowly — it is one you do not cross at
                all. The gap is a metre and a half wide at the far side, which
                makes this the first hole on the course where the line matters
-               as much as the weight. */
+               as much as the weight. The strip is 2.2 deep: at 1.6, the mallet
+               of v1.123.0 (CONFIG, EXTRA_CLUBS) crossed it at full swing on
+               the line at the flag and stopped at the pin. */
             name: 'The Salt Line', par: 3,
             blurb: 'A bar of grit across the ice with one gap in it. Sand does not let go.',
             pads: [
                 pad(0, 0, 6, 2.5),
                 pad(0, 2.5, 6, 6.5, 0, ice),
-                pad(0, 9, 4.4, 1.6, 0, 'sand'), pad(4.4, 9, 1.6, 1.6, 0, ice),
-                pad(0, 10.6, 6, 8, 0, ice),
+                pad(0, 9, 4.4, 2.2, 0, 'sand'), pad(4.4, 9, 1.6, 2.2, 0, ice),
+                pad(0, 11.2, 6, 7.4, 0, ice),
                 pad(0, 18.6, 6, 5)
             ],
             tee: { x: 2, z: 1.4 }, cup: { x: 3.4, z: 21 }
@@ -4985,7 +4992,10 @@
                crosses it, so that putt is not the ace any more: the aces are
                aimed north of the flag and let the fall bring them down past
                the pillar to the gutter, or come off the rail beside the ledge
-               first. */
+               first. The pillar stands square on that line rather than with
+               its corner in it — a corner sent the putt at the flag north to
+               the back rail and round into the gutter, once the stronger
+               mallet of v1.123.0 had the pace to get there. */
             name: 'The Draught', par: 3,
             blurb: 'The whole sheet falls east and ice holds nothing. The gutter at the bottom is the hole.',
             pads: [
@@ -4993,7 +5003,7 @@
                 pad(2.4, 0, 5.6, 18, 0.72, ice, -0.12857, 0),
                 pad(8, 0, 2.6, 18)
             ],
-            extra: [wall(4.9, 7.5, 1.0, 1.0, 1.1, { base: -0.3 })],
+            extra: [wall(4.3, 7.5, 1.0, 1.0, 1.1, { base: -0.3 })],
             tee: { x: 1.2, z: 2 }, cup: { x: 9.3, z: 15 }
         }),
         build({
@@ -5066,7 +5076,12 @@
                it hits the face and the ice brings it home, and a full one
                flies the lot into the grit. Anything from most of a swing to
                all of one lands on the dais and leaves a putt — the safe two,
-               and now and then it pitches by the pin and stays. */
+               and now and then it pitches by the pin and stays.
+
+               The pin went back a quarter of a unit in v1.123.0: with the
+               stronger mallet a full putt at the flag found the left wall,
+               the ramp and the pin on its own, which is the bold line played
+               by accident. */
             name: 'The Cold Room', par: 3,
             bag: ['putter', 'mallet', 'checker'],
             blurb: 'The green is up on a dais. Putt up the ice ramp and stop it at the top, or fly the face with the Checker and let it sit.',
@@ -5080,7 +5095,7 @@
                 pad(0, 14.5, 8, 1.5, 0, ice),
                 pad(0, 16, 8, 2, 0, 'sand')                      // the grit
             ],
-            tee: { x: 1, z: 1.5 }, cup: { x: 4.8, z: 8.6 }
+            tee: { x: 1, z: 1.5 }, cup: { x: 4.8, z: 8.85 }
         })
     ];
 
