@@ -525,15 +525,41 @@
        Inside the cup there is no green at all — the ground there is the floor
        of the hole, a cup's depth below. That one substitution is what makes the
        cup a hole rather than a rule: a ball whose centre crosses the rim runs
-       out of support and falls, exactly as it would over any other edge. */
+       out of support and falls, exactly as it would over any other edge.
+
+       And under a pad that `stands` there is no ground at all (v1.123.0). A
+       standing disc — Redstone's mesa, The Ait's island, every cliff on Coral
+       Keys — is ground of its own with sides, drawn as a solid slab all the
+       way down, and it is laid *over* ground that carries on underneath it:
+       the commons under the mesa, the island's beach under a headland or a
+       shelf. To the ceiling rule that is exactly a bridge. A ball on the beach
+       looked up, saw the cliff's top above its ceiling, passed over it, and
+       was handed the beach running on beneath — so the kerb backstop never
+       fired (there was ground ahead the ball could stand on) and neither did
+       the mid-air face test (there was support at the ball's own height). A
+       putt rolled straight into the face of The Shelf and came to rest a unit
+       inside the cliff, on sand nobody could see; a low iron flew into it and
+       out of the far side. Redstone's mesa, "short and left meets rock and
+       comes back", let the ball roll under three units of rock.
+
+       So a standing pad that is over the ceiling here is a statement that the
+       point is *inside* it, and nothing below can be stood on. That is the
+       answer a cliff over nothing already got, which is what the backstop and
+       the face test were written for: no support, ground above, so a face.
+       It costs a flag read on the branch that was already skipping the pad,
+       which is only taken beside a riser or under a bridge, and a bridge does
+       not stand. */
     var INLAY_EPS = 1e-6;
 
     function surfaceUnder(hole, x, z, ceil) {
-        var best = null, bestY = -Infinity, pads = hole.pads, i, h;
+        var best = null, bestY = -Infinity, pads = hole.pads, i, h, buried = false;
         for (i = 0; i < pads.length; i++) {
             if (!padContains(pads[i], x, z)) continue;
             h = padHeight(pads[i], x, z);
-            if (h > ceil) continue;
+            if (h > ceil) {
+                if (pads[i].stands) buried = true;
+                continue;
+            }
             /* Highest wins, as it always has. The second clause is the one
                exception the game allows to "pads must not overlap": a pad
                marked `inlay` is laid *into* the one below it at the same
@@ -550,6 +576,11 @@
                 bestY = h; best = pads[i];
             }
         }
+        /* Inside a standing pad, below its top: in the rock, not under a deck.
+           Before the cup on purpose — a cup cut into a clifftop green is a
+           shaft in that rock too, and below the green the shaft's floor is the
+           only floor there is, as it is on any green with nothing under it. */
+        if (buried) return null;
 
         var cup = hole.cup;
         if (cup && best !== null && Math.abs(bestY - cup.y) < 0.06) {
@@ -1708,6 +1739,23 @@
                         nz = b.z; b.vz = -b.vz * C.RESTITUTION; events.bounce = true;
                     }
                     next = surfaceUnder(hole, nx, nz, lift);
+                    /* And the corner between the two (v1.123.0). A face that
+                       runs square to an axis is always caught by one of the
+                       two tests above; a face that runs across them — the
+                       curved side of a disc that stands, a cliff on Coral Keys
+                       — can be crossed by the step as a whole while neither
+                       half of it alone reaches the rock. Let through, the ball
+                       ran on into the cliff, found nothing under it and fell
+                       inside it, and the last-resort shove put it out through
+                       the nearest side of the cliff's bounding box: on a
+                       headland, that is the sea. Both axes are blocked, then,
+                       and both bounce. */
+                    if (!next && surfaceUnder(hole, nx, nz, Infinity)) {
+                        nx = b.x; b.vx = -b.vx * C.RESTITUTION;
+                        nz = b.z; b.vz = -b.vz * C.RESTITUTION;
+                        events.bounce = true;
+                        next = surfaceUnder(hole, nx, nz, lift);
+                    }
                 }
 
                 b.x = nx; b.z = nz;
@@ -1811,7 +1859,20 @@
                     if (inFace(hole, px, b.z, b.y)) {
                         b.z = pz; b.vz = -b.vz * C.RESTITUTION; events.bounce = true;
                     }
-                    if (inFace(hole, b.x, b.z, b.y)) ejectFromFace(hole, b, events);
+                    // The corner, as on the ground: across a curved face the
+                    // whole step can be in the rock when neither half of it
+                    // is. Where the ball came from is still open air, so it
+                    // goes back there; only a ball that was already inside is
+                    // left for the shove.
+                    if (inFace(hole, b.x, b.z, b.y)) {
+                        if (!inFace(hole, px, pz, b.y)) {
+                            b.x = px; b.vx = -b.vx * C.RESTITUTION;
+                            b.z = pz; b.vz = -b.vz * C.RESTITUTION;
+                            events.bounce = true;
+                        } else {
+                            ejectFromFace(hole, b, events);
+                        }
+                    }
                     land = surfaceUnder(hole, b.x, b.z, b.y);
                 }
             }

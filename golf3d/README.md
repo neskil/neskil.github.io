@@ -2981,6 +2981,18 @@ Details that are easy to get wrong and are pinned by tests:
   fires. Without it a terrace swallows balls and a raised green can be holed
   from underneath.
 
+  **A pad that `stands` is not a bridge** (v1.123.0). Redstone's mesa, The
+  Ait's island and every Coral Keys cliff are laid *over* ground that runs on
+  beneath them, and to the rule above that is a deck with a pad under it: a
+  putt at the face of The Shelf rolled a unit into the rock and stopped there,
+  on beach nobody could see. So `surfaceUnder` hands back nothing at all where
+  a standing pad is over the ceiling — inside the rock, not under a deck — and
+  the backstop and the face test treat it as they treat a cliff over nothing.
+  Both also take the **corner** now: across a curved face a step can be in the
+  rock when neither of its halves is, and then both axes bounce. Let through,
+  the ball fell inside the cliff and the last-resort shove put it out through
+  the side of the cliff's bounding box, which on a headland is the sea.
+
   **The centre, not the crown.** Reading "inside a face" off the top of the
   ball leaves a radius-deep band around every riser in which the centre is
   already under the surface and nothing has fired — so a shot that grazes the

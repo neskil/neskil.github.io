@@ -740,6 +740,27 @@
                 under.ball.z > 12 && under.ball.y < 1,
                 'z ' + under.ball.z.toFixed(2) + ' y ' + under.ball.y.toFixed(2));
 
+            /* …and a pad that `stands` is not a bridge, though to the ceiling
+               rule it looked exactly like one (v1.123.0). The Shelf's cliff is
+               a disc of turf 1.4 over the island's beach, and the beach runs on
+               underneath it — so a putt at the face saw ground it could stand
+               on, rolled into the rock and stopped a unit inside it, and a low
+               iron flew in through one side. Both are this hole's own shots,
+               and both must come back off the face onto the beach. */
+            (function () {
+                var shelf = G3.courseById('keys').holes[1];
+                var rock = shelf.pads.filter(function (p) { return p.stands && p.rz === 25; })[0];
+                function buried(w) {
+                    return P.padContains(rock, w.ball.x, w.ball.z) && w.ball.y < rock.y;
+                }
+                var putt = shootFrom(shelf, { x: 17, z: 40 }, -Math.PI / 2, 20, 0);
+                var iron = shootFrom(shelf, { x: 19, z: 45 }, -Math.PI / 2, 12, 0.15);
+                assert('a ball rolled or flown into a cliff standing on a beach comes back off its face',
+                    !!rock && !buried(putt) && !buried(iron) && putt.ball.x > 13 && iron.ball.x > 13,
+                    'putt x ' + putt.ball.x.toFixed(2) + ' y ' + putt.ball.y.toFixed(2) +
+                    ', iron x ' + iron.ball.x.toFixed(2) + ' y ' + iron.ball.y.toFixed(2));
+            })();
+
             /* The band a riser used to leak through. Reading "inside the face"
                off the ball's crown rather than its centre leaves a radius of
                clearance in which the centre is already under the surface and
