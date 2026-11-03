@@ -36,6 +36,8 @@
        cycling and the autoplay bot all ask here, so none of them can hand
        you a wedge on the green. */
     function bag() {
+        // `greenBag` is whatever the lie leaves you — the putter on a green,
+        // the bag without the driver in a bunker (syncLie).
         if (state && state.greenBag) return state.greenBag;
         return (state && state.bag) || C.CLUBS;
     }
@@ -272,6 +274,7 @@
            course does not keep resetting you to the driver. */
         state.bag = G3.bagFor(hole);
         state.greenBag = null;
+        state.lieBagFor = null;
         if (state.bag.indexOf(state.club) < 0) {
             state.club = clubById(state.club ? state.club.id : C.DEFAULT_CLUB);
         }
@@ -504,6 +507,9 @@
            a full swing is allowed to check back. */
         var ask = g && g.read && g.read.spin ? g.read.spin.ask : 0;
         if (ask) shot.bite = SW.spinBite(shot.bite, ask, state.club.loft, frac);
+        // Last, so nothing above can put back what a bunker takes away
+        // (physics.fromLie): out of sand a long club has a lower ceiling.
+        shot.power = P.fromLie(shot.power, state.club, lie && lie.pad.kind);
         if (!P.launch(state.world, shot.yaw, shot.power, shot.loft, shot.bite, shot.topped)) return;
         if (ask) state.world.ball.bite = shot.bite;
         // The range asks of every shot whether it went past the line (see
@@ -1729,18 +1735,43 @@
        `hole.longGame` is read off the ground rather than off the course id
        (courses.build), so a hole with fairway and rough on it gets this and a
        lane does not; the range is left alone, because its tee mat is green. */
+    /* And in a bunker, the bag without the driver.
+
+       A club whose `sand` is 0 cannot be swung from sand (physics.playable),
+       so while the ball sits in a bunker the bag is everything else — the
+       irons capped (physics.fromLie), the wedges and the putter whole. If the
+       driver was in your hand it is swapped for the next club down the bag
+       that will play, which is the 5 iron. Any hole but the range, whose tee
+       mat is all there is to stand on. */
     function syncLie() {
         var hole = state.world.hole, b = state.world.ball, putter = null, i;
         for (i = 0; i < state.bag.length; i++) if (state.bag[i].id === 'putter') putter = state.bag[i];
-        var lie = putter && hole.longGame && !state.course.isRange
-            ? P.surfaceUnder(hole, b.x, b.z, b.y + C.STEP_UP) : null;
-        var onGreen = !!(lie && lie.pad.kind === 'green');
-        if (onGreen === !!state.greenBag) return;
-        state.greenBag = onGreen ? [putter] : null;
+        var under = state.course.isRange ? null : P.surfaceUnder(hole, b.x, b.z, b.y + C.STEP_UP);
+        var kind = under ? under.pad.kind : null;
+        var lieBag = null, why = null;
+        if (putter && hole.longGame && kind === 'green') {
+            lieBag = [putter];
+            why = 'green';
+        } else if (kind === 'sand') {
+            lieBag = state.bag.filter(function (c) { return P.playable(c, kind); });
+            if (lieBag.length && lieBag.length < state.bag.length) why = 'sand';
+            else lieBag = null;
+        }
+        if (why === (state.lieBagFor || null)) return;
+        state.greenBag = lieBag;
+        state.lieBagFor = why;
         if (G3.bag && G3.bag.setBag) G3.bag.setBag(bag());
-        if (onGreen && state.club !== putter) {
+        if (why === 'green' && state.club !== putter) {
             pickClub(putter);
             toast('On the green — putter');
+        } else if (why === 'sand' && lieBag.indexOf(state.club) < 0) {
+            // The next club down the bag that will play from here.
+            var at = state.bag.indexOf(state.club), next = lieBag[0];
+            for (i = at + 1; i < state.bag.length; i++) {
+                if (lieBag.indexOf(state.bag[i]) >= 0) { next = state.bag[i]; break; }
+            }
+            pickClub(next);
+            toast('In the bunker — no driver from sand');
         } else {
             syncClubs();
         }
@@ -2345,10 +2376,16 @@
     var runTables = {};
     var lastRun = null;
 
+    // What the ball is sitting on, as the strike will read it.
+    function lieKind() {
+        var b = state.world.ball;
+        var lie = P.surfaceUnder(state.world.hole, b.x, b.z, b.y + C.STEP_UP);
+        return lie ? lie.pad.kind : null;
+    }
+
     function runKind() {
         var hole = state.world.hole, b = state.world.ball;
-        var lie = P.surfaceUnder(hole, b.x, b.z, b.y + C.STEP_UP);
-        var kind = lie ? lie.pad.kind : null;
+        var kind = lieKind();
         /* A tee mat is green underfoot and a drive off it lands on fairway:
            measured on green, the range's driver read sixty units. */
         var onTee = Math.abs(b.x - hole.tee.x) + Math.abs(b.z - hole.tee.z) < 0.5;
@@ -2391,11 +2428,16 @@
        the key is everything the answer depends on. */
     function syncRun() {
         var club = state.club, hole = state.world.hole, kind = runKind();
-        var key = [club.id, shapeNow(), kind, hole.gravity || 1, hole.longGame].join('|');
+        // Out of a bunker a long club's full swing is its sand ceiling, and
+        // the readout says so rather than promising the fairway's distance.
+        var cap = P.lieCeiling(club, lieKind());
+        var capped = cap < club.power;
+        var key = [club.id, shapeNow(), kind, hole.gravity || 1, hole.longGame, capped].join('|');
         if (key === lastRun) return;
         lastRun = key;
         var t = runTable(club, kind, shapeNow(), hole.gravity || 1);
-        $('power-dist').textContent = 'full ' + G3.distance.bandText(runAt(t, club.power, club), hole);
+        $('power-dist').textContent = (capped ? 'sand: max ' : 'full ') +
+            G3.distance.bandText(runAt(t, capped ? cap : club.power, club), hole);
     }
 
     /* The meter reads in fractions of the club in hand, and it runs past 100%:
@@ -5218,6 +5260,8 @@
             intent.spin = fly.spin;
             intent.topped = !!fly.topped;
         }
+        // And out of a bunker, the cap the strike will put on it.
+        intent.power = P.fromLie(intent.power, state.club, lieKind());
         // How far past a full swing this is, 0..1. The renderer opens the cone
         // by exactly the spread physics would apply — the club's ceiling is
         // the only part of that sum the renderer has no way to know.

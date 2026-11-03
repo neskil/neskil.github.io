@@ -4079,6 +4079,32 @@
                         Math.abs(carry - c.carry) < 0.15 && Math.abs(w.ball.z - c.total) < 0.15,
                         carry.toFixed(2) + ' / ' + w.ball.z.toFixed(2));
                 });
+                /* Out of a bunker: no driver at all, the irons capped at
+                   their `sand` fraction and below that untouched, the wedges
+                   and the putter whole (physics.fromLie, game.syncLie). */
+                var dr0 = club('driver'), i7 = club('iron'), lw = club('wedge'), pw = club('chipper'), pt = club('putter');
+                assert('the driver cannot be played from sand', !P.playable(dr0, 'sand') && P.playable(dr0, 'fairway'));
+                assert('the wedges and the putter can, and lose nothing',
+                    [lw, pw, pt].every(function (c) {
+                        return P.playable(c, 'sand') && P.fromLie(c.power * 1.2, c, 'sand') === c.power * 1.2;
+                    }));
+                assert('every iron is capped in sand, and only at the top of its swing',
+                    C.CLUBS.filter(function (c) { return /^iron/.test(c.id); }).every(function (c) {
+                        return c.sand > 0 && c.sand < 1 &&
+                            Math.abs(P.fromLie(c.power, c, 'sand') - c.power * c.sand) < 1e-9 &&
+                            P.fromLie(c.power * c.sand * 0.5, c, 'sand') === c.power * c.sand * 0.5 &&
+                            P.fromLie(c.power, c, 'fairway') === c.power;
+                    }), i7.sand);
+                (function () {
+                    var bunker = {
+                        pads: [A.pad(-60, -10, 120, 30, 0, 'sand', 0, 0), A.pad(-60, 20, 120, 140, 0, 'fairway', 0, 0)],
+                        water: [], walls: [], tee: { x: 0, z: 0, y: 0 }, cup: { x: 0, z: 60, y: 0 }
+                    };
+                    var shot = G3.bot.bestShot(bunker, from, 0, C.CLUBS, { fan: 6 });
+                    assert('the bot does not take the driver out of a bunker either',
+                        shot && shot.club.id !== 'driver' && P.fromLie(shot.power, shot.club, 'sand') === shot.power,
+                        shot && shot.club.id + ' @' + shot.power.toFixed(2));
+                })();
                 assert('a drive struck topped is not lifted', tp.top < d.top * 0.6 && Math.abs(tp.at - 0.5) < 0.02,
                     tp.top.toFixed(2) + ' against ' + d.top.toFixed(2));
             })();
