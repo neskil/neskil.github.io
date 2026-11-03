@@ -1653,6 +1653,25 @@ button,
     to { transform: scale(1); opacity: 1; }
 }
 
+/* Three stars under the term: gold for earned, a dim outline for not. */
+.banner-stars {
+    font-size: 1.35rem;
+    letter-spacing: 0.12em;
+    color: var(--gold);
+    line-height: 1.1;
+    margin: 0.1rem 0 0.25rem;
+}
+.banner-stars[hidden] { display: none; }
+.banner-stars .bs-new {
+    display: inline-block;
+    margin-left: 0.5rem;
+    font-size: 0.7rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    vertical-align: 0.3em;
+    color: var(--under);
+}
+
 .banner-detail {
     font-size: 0.95rem;
     color: var(--ink-dim);
@@ -2522,6 +2541,22 @@ kbd {
     background: rgba(24, 27, 19, 0.66);
 }
 
+/* Your best on the hole, along the top edge once it has been played. A plan
+   with no stars on it is one the showcase is leaning towards. */
+.cc-stars {
+    position: absolute;
+    top: 0;
+    right: 0;
+    font-size: 0.56rem;
+    line-height: 1;
+    letter-spacing: 0.04em;
+    padding: 2px 3px;
+    color: var(--gold);
+    background: rgba(24, 27, 19, 0.66);
+    border-bottom-left-radius: 5px;
+}
+.cc-stars-total { color: var(--gold); }
+
 .cc-num { left: 0; border-top-right-radius: 5px; }
 .cc-par { right: 0; border-top-left-radius: 5px; color: var(--cg-tint); }
 
@@ -2999,6 +3034,13 @@ kbd {
 .card-table td { padding: 0.32rem 0; border-top: 1px solid rgba(255, 255, 255, 0.06); }
 .card-table td.n { color: var(--ink-dim); width: 1.8rem; }
 .card-table td.nm { font-weight: 500; }
+.card-stars {
+    margin-left: 0.45rem;
+    font-size: 0.72rem;
+    letter-spacing: 0.04em;
+    color: var(--gold);
+    white-space: nowrap;
+}
 /* A showcase card says where each hole lives, under its name: it is the
    course you would go to for the other five. */
 .card-from {
