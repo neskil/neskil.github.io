@@ -109,24 +109,36 @@ speed — and it is now a loft, a ceiling and one number about what happens
 | Club | Key | Loft | Full swing | Carry | Apex | Total on fairway | What it is for |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | Putter | 1 | 0° | 10.5 | — | — | 5.5 (8.0 on green) | Rolls flat and true. Full power is still a tap, which is what makes it the club you can aim. On a long-game green it is the only club (see [Putting](#putting)). |
-| Driver | 2 | 12° | 24 | 31.4 | 3.47 | 41.4 | The reach club. Comes off low, climbs, and still runs when it lands. |
+| Driver | 2 | 12° | 24 | 31.4 | 3.47 | 41.4 | The reach club. Comes off low, climbs, and still runs when it lands. Not playable from sand. |
 | 5 Iron | 3 | 17° | 17.9 | 20.7 | 3.39 | 27.0 | The long iron: the second shot on a par 5, and the long par 3. |
 | 7 Iron | 4 | 22° | 14.4 | 13.9 | 3.21 | 17.9 | The long approach. Carries what the driver runs into. |
 | 9 Iron | 5 | 32° | 13.3 | 11.0 | 3.21 | 14.1 | The short iron: high at the flag, and it still releases a little. |
 | Pitch | 6 | 45° | 12.3 | 8.1 | 3.10 | 10.5 | Up steep and down steeper. Stops near where it lands. |
-| Wedge | 7 | 58° | 12.7 | 7.5 | 3.53 | 9.6 | The lob: straight up, over anything, and it does not run when it lands. |
+| Wedge | 7 | 52° | 13.3 | 8.8 | 3.79 | 11.2 | The lob: straight up, over anything, and it does not run when it lands. |
 | Mallet | 8 | 0° | 17 | — | — | 9.9 (13.3 on green) | Not in the default bag. A putter with a hammer behind it, handed out on holes that are played along the floor. |
 | Checker | 9 | 38° | 13.1 | 10.0 | 3.32 | 10.4 | Not in the default bag. An iron's carry with almost none of the run: `bite: 0.78`. |
 
 Every full swing tops out between three and three and a half metres, the way a
 real bag does — a tour 7 iron peaks as high as a drive — and each club down
-the bag lands steeper than the one before it, 27° for the driver to 62° for
+the bag lands steeper than the one before it, 27° for the driver to 61° for
 the wedge. That is the lift (`CONFIG.AIR_LIFT`, by loft), solved per club
 together with its power so that every club still runs to where it did; see
 [The flight](#the-flight). Carry and total are the picker's card, and
 `tests.html` measures both off a flat fairway ("what the card says"), because
 for a long while the pitch's and the wedge's said 14.6 and 13.0 after the turf
-had made them 10.5 and 9.6.
+had made them 10.5 and 9.6. The wedge was 58° and 12.7 until v1.124.0, and it
+was the weakest full swing in the bag; more pace at 58° sent it up past every
+other club's apex before it bought much distance, so it is 52° now.
+
+**Out of a bunker** the bag changes (`game.syncLie`, the same place that hands
+you the putter on a green). The driver is not in it: its `sand` is 0, and the
+club in hand drops to the 5 iron. The irons stay, but each is capped at a
+fraction of its own ceiling (`club.sand`, `physics.fromLie`): 0.80 for the 5
+iron, 0.85 for the 7, 0.90 for the 9, which keeps about 18, 13.5 and 12 metres
+of their full swings. It is a cap, not a scale: a half swing from sand is the
+half swing it is from the fairway. The putter and both wedges have no `sand`
+and lose nothing. The shot, the aim preview, the "full ≈" readout (which reads
+"sand: max ≈" there) and the bot all go through the same function.
 
 ### The flight
 
@@ -2329,7 +2341,8 @@ fault everywhere else.
   quickest, and the least willing to hold a ball on a slope), `fairway` (mown
   longer, so a driver runs about a fifth less), `wood` (bridges and ramps:
   slick, you carry your speed, and a ball left on one goes back down it),
-  `sand` (a bunker eats a shot and holds whatever lands in it), `rough`.
+  `sand` (a bunker eats a shot and holds whatever lands in it, and caps the
+  long clubs played out of it — see [the bag](#the-bag)), `rough`.
   `sx`/`sz` tilt it, `bumps` curve it, `r` makes it a disc. Pads must not
   overlap unless one is clearly a bridge above another or one is an `inlay`;
   anything else fighting for the same point would make the surface lookup
