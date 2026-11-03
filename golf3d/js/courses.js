@@ -3119,32 +3119,59 @@
             ]
         }),
         build({
-            /* Short-sided: the pin is tucked in behind the sand on the near
-               right, a step from the bank at the back, and the whole of the
-               left of the green is open. So there are two pitches. The safe
-               one is to the fat of the green on the left and a putt across;
-               the brave one goes straight at the flag over the bay and the
-               bunker, and it has a club-length to stop in before the bank
-               behind the pin sends it back. It used to be seven units of
-               lane with the sand straight across it, one pitch at the flag
-               and nothing to choose. */
+            /* Short-sided: the pin is tucked in behind the sand on the right,
+               a step from the bank at the back, and the whole of the left of
+               the green is open. Two pitches, and neither of them is at the
+               flag.
+
+               The safe one is to the fat of the green on the left and two
+               putts across. The bold one is to the same green, but to the
+               near edge of it, just left of the bunker: the whole green
+               leans to the right — a fortieth, the same fall from the left
+               rail to the right one, so every seam meets level (README → "A
+               lean across a seam is a lip") — and a pitch landed by the sand
+               runs on up the green and is carried round behind the bunker to
+               the pin. That is the ace: a line a few degrees left of the flag
+               and most of a full swing, the slope doing the turning, the way
+               The Mill's lawn does. Land it further left and the slope only
+               brings it part of the way; land it in the sand and it is a
+               bunker shot.
+
+               A pitch straight at the flag is in the sand, because the bunker
+               runs as deep as the club carries on that line, and the back of
+               the bunker is a revetted face of sleepers — knee-high timber
+               along its far edge, the board a real pot bunker has. It is what
+               keeps the pin hidden: without it a pitch into the sand kicked up
+               off the first bounce, hopped out over the lip and ran into the
+               cup, and the hole's ace was the shot at the flag again — which
+               is what it had been before this layout, a full pitch at the pin
+               (the hole lab had it at 96% of a swing). The bay is narrower
+               than it was so the green can be deeper, which is what gives the
+               slope room to work.
+
+               It used to be a pitch at the flag over the bay and the bunker,
+               with a club-length to stop in before the bank behind the pin
+               sent it back — and before that, seven units of lane with the
+               sand straight across it. */
             name: 'Short Side', par: 3, needsLoft: true,
-            blurb: 'The pin hides behind the sand on the right. The fat of the green is on the left — go there, or go at it.',
+            blurb: 'The pin hides behind the sand on the right, and the green leans towards it. Land on the fat of the green, or land it by the sand and let the slope bring it round.',
             pads: [
                 pad(1, 0, 6, 4.5),
-                pad(-1, 8.5, 6, 4.5),                       // the fat of the green
-                pad(5, 8.5, 6, 1.6, 0, 'sand'),             // the trap, short right
-                pad(5, 10.1, 6, 2.9),                        // the pin's shelf
-                pad(-1, 13, 12, 1.6, 0, 'green', 0, 0.2)    // the bank behind it all
+                pad(-1, 7, 7.2, 6, 0.3, 'green', -0.025, 0),          // the fat of the green
+                pad(6.2, 7, 4.8, 3.2, 0.12, 'sand', -0.025, 0),       // the trap, short right
+                pad(6.2, 10.2, 4.8, 2.8, 0.12, 'green', -0.025, 0),   // the pin's shelf
+                pad(-1, 13, 12, 1.6, 0.3, 'green', -0.025, 0.2)       // the bank behind it all
             ],
-            water: [rect(-5, 4.5, 20, 4, -0.7)],
+            water: [rect(-5, 4.5, 20, 2.5, -0.7)],
             gaps: [shore(rect(1, 4.5, 6, 0.01), 0.4)],
-            tee: { x: 4, z: 1.8 }, cup: { x: 8.6, z: 11.6 },
+            // the bunker's revetted back face, between the sand and the pin
+            extra: [wall(6.2, 9.92, 4.8, 0.28, 0.7, { base: -0.1, kind: 'beam' })],
+            tee: { x: 4, z: 1.8 }, cup: { x: 7.2, z: 12.3 },
             decor: [
                 palm(-2.4, 14.5),
                 palm(12.4, 13.8, { yaw: 1.4 }),
-                buoy(-1.5, 6.4, -0.7),
-                boat(9.5, 6.2, -0.7, { yaw: -0.5 }),
+                buoy(-1.5, 6.0, -0.7),
+                boat(9.8, 5.6, -0.7, { yaw: -0.5 }),
                 piling(0.2, 5.0, -0.7)
             ]
         }),
@@ -3208,8 +3235,36 @@
             ]
         }),
         build({
+            /* A long table a metre up, out to the right across the far side
+               of the bay, with a timber backboard along its back edge and the
+               pin at its far right-hand end, in front of the board.
+
+               The pin is out of reach on its own line. The table runs away
+               from the tee as it goes right, so the line at the flag crosses
+               the front of it a little further off than a pitch carries up a
+               metre: a shot at the flag comes down on the apron in front of
+               the table, however hard it is hit, and runs away underneath.
+               The near end of the table, on the left, is well within reach.
+
+               So the bold line is a bank. Land on the left half of the table
+               with most of a full swing, run on up into the backboard, and it
+               hands the ball back down and to the right, along the table to
+               the pin — the angle in is the angle out, off a flat board, a
+               line you can read from the tee (golf README, "A bank to learn on
+               is flat"). Too far left and it comes back down the table short
+               of the pin; too far right and it comes off the board too wide
+               and runs off the far end of the table.
+
+               The safe way is the one the hole always had: land short on the
+               apron to the left and chip up. The board makes that chip kinder
+               than it was, because a chip up that runs on is stopped at the
+               back of the table instead of rolling off it.
+
+               It used to be a deeper table with the pin in the middle of it,
+               and the only ace was a full pitch at the flag that landed on the
+               front edge and ran in (the hole lab had it at 96% of a swing). */
             name: 'Tabletop', par: 3, needsLoft: true,
-            blurb: 'The green is a metre up, out to the right, with nothing to run up. Land it on top, or land short and chip.',
+            blurb: 'The green is a metre up, out to the right, with a board along the back. Land on the near end and bank it off the board, or land short and chip.',
             pads: [
                 pad(0, 0, 6, 4.5),
                 /* The apron runs under the table rather than up to it — pads
@@ -3219,18 +3274,20 @@
                    this hole is hard rather than cruel. The table is out to the
                    right of the apron rather than in the middle of it, so the
                    safe pitch and the brave one are aimed at different places,
-                   and every edge of it is a brink: long or wide rolls off on to
-                   the apron, which is a chip back rather than a kerb that
-                   saves you. */
-                pad(0.5, 7.5, 11, 8),
-                pad(5.6, 9.4, 4.4, 4.2, 0.9)
+                   and the three edges without a board are brinks: short or wide
+                   rolls off on to the apron, which is a chip back rather than a
+                   kerb that saves you. */
+                pad(0.5, 7.5, 12, 8),
+                pad(5.6, 8.2, 5.8, 2.6, 0.9)
             ],
-            water: [rect(-5, 4.5, 22, 3, -0.7), rect(-5, 7.5, 5.5, 9, -0.7), rect(11.5, 7.5, 6, 9, -0.7)],
+            water: [rect(-5, 4.5, 23, 3, -0.7), rect(-5, 7.5, 5.5, 9, -0.7), rect(12.5, 7.5, 6, 9, -0.7)],
             gaps: [
                 { x: 0.05, z: 4.1, w: 5.9, d: 0.8 },       // the tee's own shoreline
-                brink({ x: 5.6, z: 9.4, w: 4.4, d: 4.2 }, 0.4)   // …and every edge of the table
+                brink({ x: 5.6, z: 8.2, w: 5.8, d: 2.6 }, 0.4)   // …and every edge of the table
             ],
-            tee: { x: 3.4, z: 3.2 }, cup: { x: 7.8, z: 11.6 },
+            // the backboard: a timber board standing on the back edge of the table
+            extra: [wall(5.6, 10.5, 5.8, 0.3, 0.7, { base: 0.8, kind: 'beam' })],
+            tee: { x: 3.4, z: 3.2 }, cup: { x: 10.5, z: 9.2 },
             decor: [
                 palm(-1.6, 15.4),
                 palm(13.2, 16.0, { yaw: 1.8 }),
