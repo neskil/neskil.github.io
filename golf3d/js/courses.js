@@ -385,6 +385,110 @@
         return { ring: g, r: r, a: a, cx: cx, cz: cz };
     }
 
+    /* A road that bends: a pad laid along a centreline instead of over a
+       rectangle (physics.laneHas has the shape). It is written the way you
+       would drive it — set off from (x, z) heading along `dir`, then a list
+       of pieces:
+
+         ['line', length, opts]          straight on
+         ['arc', radius, turn, opts]     round a radius through `turn` radians
+
+       `dir` and `turn` are yaws, the same sense a shot's aim is measured in:
+       0 is up the hole (+z), and a positive turn swings the road towards +x.
+       Each piece leaves in the direction the last one arrived in, so however
+       it is written the road has no kink in it — which is the whole reason
+       it is authored as a drive and not as a list of points.
+
+       `o` is the rest of the pad: `w` its width, `y`, `kind`, and `caps`
+       for round ends — true for both, or 'start' or 'end' (a road that stops
+       in mid-air looks better stopping in a curve; one that runs on under a
+       green wants to stop square, short of the cup). A piece's opts:
+
+         bank   (arc) the outside of the turn raised by this much — a
+                `channel` along the outer edge whose profile reaches to the
+                inner one, so the inside of the turn is a flat gutter and the
+                outside a lip. It eases in and out past the ends of the arc
+                (the channel's rounded end), so a straight before and after a
+                banked turn meets it without a step. `{ a, r, lip, span }`
+                sets the profile's radius, how far outside the edge its spine
+                runs, and the stretch of the turn it runs along, as fractions
+                of it ([0, 1] by default) — the ease is the channel's rounded
+                end, about `r` long, so a turn that has to be level where it
+                finishes stops its spine short of the end by that much.
+         kerb   'in', 'out' or 'both': a rail along that side, laid by
+                `enclose` off the ground (laneRails) — a road gets none
+                otherwise, because a road on a ledge is a brink on both sides
+                unless somebody says it is not. On a straight, in and out are
+                the sides of the nearest turn (the next one, else the last).
+
+       Arcs of more than half a turn are cut in two, because that is the
+       widest wedge laneHas can test without an atan2. */
+    function road(o, pieces) {
+        var P = G3.physics, hw = o.w / 2, x = o.x, z = o.z, yaw = o.dir || 0, s = 0;
+        var ux = Math.sin(yaw), uz = Math.cos(yaw), segs = [], bumps = [];
+        pieces.forEach(function (pc) {
+            var opt, len, R, turn, parts, k, dt, side, cx, cz, a0, a1, g, first;
+            if (pc[0] === 'line') {
+                opt = pc[2] || {};
+                len = pc[1];
+                segs.push({ x0: x, z0: z, ux: ux, uz: uz, len: len, s0: s, kerb: opt.kerb });
+                x += ux * len; z += uz * len; s += len;
+                return;
+            }
+            R = pc[1]; turn = pc[2]; opt = pc[3] || {};
+            parts = Math.max(1, Math.ceil(Math.abs(turn) / Math.PI - 1e-9));
+            first = segs.length;
+            for (k = 0; k < parts; k++) {
+                dt = turn / parts;
+                // A positive turn is clockwise in atan2's sense: its centre is
+                // on the road's +x side when heading up the hole.
+                side = dt > 0 ? 1 : -1;
+                cx = x + side * R * uz; cz = z - side * R * ux;
+                a0 = Math.atan2(z - cz, x - cx);
+                a1 = a0 - dt;
+                g = {
+                    cx: cx, cz: cz, R: R, a0: a0, sweep: -dt, len: R * Math.abs(dt), s0: s,
+                    turn: -side, kerb: opt.kerb,
+                    in2: R > hw ? (R - hw) * (R - hw) : 0, out2: (R + hw) * (R + hw),
+                    sx: Math.cos(a0), sz: Math.sin(a0), ex: Math.cos(a1), ez: Math.sin(a1)
+                };
+                segs.push(g);
+                x = cx + Math.cos(a1) * R; z = cz + Math.sin(a1) * R;
+                yaw += dt; ux = Math.sin(yaw); uz = Math.cos(yaw);
+                s += g.len;
+            }
+            if (opt.bank) {
+                // One channel for the whole authored turn: two meeting at a
+                // cut would each round off there and add up to a hump.
+                var b = typeof opt.bank === 'number' ? { a: opt.bank } : opt.bank;
+                var lip = b.lip || 0, g0 = segs[first], span = b.span || [0, 1];
+                var from = g0.a0 + g0.sweep * parts * span[0], to = g0.a0 + g0.sweep * parts * span[1];
+                bumps.push(channel(g0.cx, g0.cz, R + hw + lip, b.r || 2 * hw + lip, b.a,
+                    Math.min(from, to), Math.max(from, to)));
+            }
+        });
+        var lane = { hw: hw, segs: segs, length: s, x0: o.x, z0: o.z, x1: x, z1: z,
+                     cap0: o.caps === true || o.caps === 'start',
+                     cap1: o.caps === true || o.caps === 'end' };
+        // `in`/`out` on a straight borrow the sense of the nearest turn.
+        segs.forEach(function (g, i) {
+            if (g.R || !g.kerb || g.kerb === 'both') return;
+            var j, near = null;
+            for (j = i + 1; j < segs.length && !near; j++) if (segs[j].R) near = segs[j];
+            for (j = i - 1; j >= 0 && !near; j--) if (segs[j].R) near = segs[j];
+            g.kerbSide = near ? (g.kerb === 'in' ? -near.turn : near.turn) : 0;
+        });
+        var minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
+        P.laneOutline(lane, 0.1).forEach(function (q) {
+            minX = Math.min(minX, q[0]); maxX = Math.max(maxX, q[0]);
+            minZ = Math.min(minZ, q[1]); maxZ = Math.max(maxZ, q[1]);
+        });
+        var p = pad(minX, minZ, maxX - minX, maxZ - minZ, o.y, o.kind);
+        p.lane = lane;
+        if (bumps.length) p.bumps = bumps;
+        return p;
+    }
+
     /* A funnel green: a flat floor, four ramps up to a rim, and four corners
        that are the two ramps beside them added together. That last part is the
        whole trick — a corner built as the sum of its neighbours meets both of
@@ -2025,9 +2129,57 @@
         return wall(p.x + p.w, p.z + a, RAIL_T, b - a, h, { base: base });
     }
 
+    /* The kerbs along a road (courses.road), wherever a piece asked for one
+       and nowhere else — a road's box is not its outline, so the edge walk
+       above has nothing to say about it. The same rail the edge walk would
+       build, on the same line (a half-thickness outside the edge) and to the
+       same height rule as `railFor`, off the ground along that edge. A kerb
+       round a turn is `arc`'s chords with one `bend` the renderer draws as a
+       single smooth kerb, exactly as a rounded corner's is; one along a
+       straight is a turned rail. */
+    function laneRails(p, out) {
+        var P = G3.physics, L = p.lane, at = [0, 0, 0, 0];
+        L.segs.forEach(function (g) {
+            if (!g.kerb) return;
+            var sides = g.kerb === 'both' ? [1, -1]
+                : g.R ? [g.kerb === 'in' ? -g.turn : g.turn] : [g.kerbSide];
+            sides.forEach(function (side) {
+                if (!side) return;
+                var lo = Infinity, hi = -Infinity, k, y, off = side * (L.hw - 0.02);
+                for (k = 0; k <= 6; k++) {
+                    P.lanePoint(L, g.s0 + g.len * k / 6, at);
+                    y = P.padHeight(p, at[0] + at[2] * off, at[1] + at[3] * off);
+                    lo = Math.min(lo, y); hi = Math.max(hi, y);
+                }
+                var base = lo - 0.35, h = (hi - lo) + RAIL_H + 0.35;
+                if (!g.R) {
+                    P.lanePoint(L, g.s0 + g.len / 2, at);
+                    var m = side * (L.hw + RAIL_T / 2);
+                    // Marked, as a bend is, so nothing mistakes it for a
+                    // turned rail somebody placed (the editor's import).
+                    var kb = bank(at[0] + at[2] * m, at[1] + at[3] * m, g.len + RAIL_T,
+                        Math.atan2(-g.uz, g.ux), { t: RAIL_T, h: h, base: base });
+                    kb.lane = true;
+                    out.push(kb);
+                    return;
+                }
+                // The + side is the inside of a turn whose sweep is negative.
+                var Rk = g.R + (side === -g.turn ? -1 : 1) * (L.hw + RAIL_T / 2);
+                var a0 = Math.min(g.a0, g.a0 + g.sweep), a1 = Math.max(g.a0, g.a0 + g.sweep);
+                var bend = { cx: g.cx, cz: g.cz, R: Rk, a0: a0, a1: a1,
+                             t: RAIL_T, base: base, h: h, lane: true };
+                arc(g.cx, g.cz, Rk, a0, a1, {
+                    t: RAIL_T, n: Math.max(4, Math.ceil(Rk * (a1 - a0) / 0.35)),
+                    base: base, h: h, kind: 'rail'
+                }).forEach(function (w) { w.bend = bend; out.push(w); });
+            });
+        });
+    }
+
     function enclose(pads, gaps) {
         var out = [], i;
         for (i = 0; i < pads.length; i++) {
+            if (pads[i].lane) { laneRails(pads[i], out); continue; }
             edgeRails(pads, pads[i], 's', gaps, out);
             edgeRails(pads, pads[i], 'n', gaps, out);
             edgeRails(pads, pads[i], 'w', gaps, out);
@@ -2086,7 +2238,7 @@
         });
         if (!R) return;
         pads.forEach(function (p) {
-            if (p.r || p.bumps || p.field || p.inlay || p.west || p.east || p.voids ||
+            if (p.r || p.lane || p.bumps || p.field || p.inlay || p.west || p.east || p.voids ||
                 p.push || p.spring || p.hover || p.round) return;
             var r = Math.min(R, Math.min(p.w, p.d) / 4), out = {}, any = false;
             if (r < 0.45) return;
@@ -3445,9 +3597,9 @@
        The order is the climb: a bank that hands the ball back (The Backboard),
        a drop with a backboard of its own (The Drop), a quarter-pipe that turns
        what climbs it (Switchback), a wall only the chipper goes over (Over the
-       Top), two metres of road with a corner in it (The Ledge), and the cannon
-       to finish. Four of the six are played along the floor; the two that
-       want loft say so from the tee. */
+       Top), a road banked round a bend over the pool (The Ledge), and the
+       cannon to finish. Four of the six are played along the floor; the two
+       that want loft say so from the tee. */
 
     var quarry = [
         build({
@@ -3596,27 +3748,64 @@
             tee: { x: 5.2, z: 1.6 }, cup: { x: 1.8, z: 10.6 }
         }),
         build({
-            /* The road turns now, and that is the whole difference between
-               this and the hole it replaced. A straight ledge is one shot you
-               either hit straight or do not; a ledge with a corner in it is
-               two, and the second is played from wherever the first left you.
+            /* A road round the quarry face, banked like a velodrome, and the
+               green hanging off the end of the bend over the drop (v1.123.0).
 
-               Every edge of the road is a brink — one gap rectangle covers all
-               of it — except the outside of the bend, which keeps its wall.
-               That is not mercy: a corner with nothing on the outside of it is
-               a corner nobody can hold, and the wall is the thing you aim at
-               rather than the thing that saves you. */
-            name: 'The Ledge', par: 4,
-            blurb: 'Two metres of quarry road with a corner in it, and a long way down off every edge.',
+               It used to be four rectangles making two metres of road with
+               two right angles in it, every edge a brink except the outside
+               of the first corner, which kept its wall so the corner could be
+               held. The lab found no ace on it at all, and the owner's
+               verdict was the fair one: where is the risk and the reward? A
+               right angle with a wall on it is a bank shot or two putts, and
+               neither is a decision. So the corners went, and the road is a
+               `road` now — a pad laid along a curved centreline
+               (physics.laneHas), a straight up the hole and a quarter-turn
+               round to the left, with no corner anywhere along it.
+
+               The turn is the hole. Its outside is raised (a `bank`, the
+               channel laid along the outer edge) and is a bare lip with the
+               quarry pool under it; its inside is a flat gutter with a kerb,
+               and the kerb carries on down the straight. So the weight is the
+               whole shot, and the three weights do three different things:
+
+               - **soft** — anything the putter has, and the mallet's first
+                 half — climbs the bank, runs out of pace and comes back down
+                 it into the gutter, where the kerb holds it. Safe, and no
+                 nearer than a putt: nothing that slow gets round.
+               - **firm** — the mallet at about three fifths — rides the bank
+                 high round the bend, and the bank turns it through the
+                 quarter it needs on to the green and the pin, which is set
+                 where the turned ball arrives.
+               - **too firm** is quicker than the bank can turn, and goes
+                 straight on over the lip: a stroke, and the shot again.
+
+               The putt at the flag is across the crook of the bend, over the
+               pool. And the green itself is a brink all round (`gaps`), so a
+               firm ball that gets round and misses the cup is in the water
+               behind it as well. It was a par four played in stages; it is a
+               par three now, two safe putts or the mallet and nerve, which is
+               the shape of every other hole on the card.
+
+               The bank stops short of the end of the turn (`span`) so that
+               its rounded end has faded to nothing before the green: the cup
+               has to sit on level ground, and an inlaid green has to lie
+               flush with the road it is laid over. */
+            name: 'The Ledge', par: 3,
+            blurb: 'A quarry road banked round the bend. Firm rides the bank to the pin; too firm goes over the lip.',
             pads: [
-                pad(0, 0, 5, 4, 1),
-                pad(1.4, 4, 2.2, 5, 1),
-                pad(1.4, 9, 6.8, 2.4, 1),
-                pad(6, 11.4, 5.2, 5, 1)
+                road({ x: 2.5, z: 0.2, dir: 0, w: 2.4, y: 1, caps: 'start' }, [
+                    ['line', 4, { kerb: 'in' }],
+                    ['arc', 3.2, Math.PI / 2, {
+                        kerb: 'in', bank: { a: 0.9, lip: 0.5, r: 2.6, span: [0, 0.7] }
+                    }],
+                    ['line', 0.7, { kerb: 'in' }]
+                ]),
+                // On a pillar of its own, and laid over the end of the road.
+                Object.assign(circle(7.6, 7.4, 1.7, 'green', 1), { stands: true })
             ],
-            water: [rect(-4, 4, 16, 7.4, -1.2)],
-            gaps: [{ x: -4, z: 3.4, w: 16, d: 7.9 }],
-            tee: { x: 2.5, z: 1.5 }, cup: { x: 8.6, z: 13.9 }
+            water: [rect(-1.5, 1.6, 12.8, 9.4, -1.2)],
+            gaps: [brink({ x: 5.9, z: 5.7, w: 3.4, d: 3.4 })],
+            tee: { x: 2.5, z: 1.4 }, cup: { x: 7.6, z: 7.1 }
         }),
         build({
             /* The finisher, and it is the only hole on the course that asks
@@ -7435,7 +7624,7 @@
     G3.authoring = {
         pad: pad, wall: wall, spinner: spinner, slider: slider,
         beam: beam, pen: pen, bumper: bumper, post: post, bank: bank, arc: arc,
-        trough: trough, channel: channel, bowl: bowl, dish: dish, bands: bands, tilt: tilt,
+        trough: trough, channel: channel, road: road, bowl: bowl, dish: dish, bands: bands, tilt: tilt,
         commons: commons,
         sprung: sprung, belt: belt, pipe: pipe, pipes: pipes, loop: loop,
         aperture: aperture, flipper: flipper, mill: mill,

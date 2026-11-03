@@ -419,6 +419,8 @@
             return q <= rr * rr;
         }
         if (z < pad.z || z > pad.z + pad.d) return false;
+        // A road (courses.road): the box is only its bounds — see laneHas.
+        if (pad.lane) return x >= pad.x && x <= pad.x + pad.w && laneHas(pad.lane, x, z);
         /* Holes in the ground (Challenge mode's `voids`): circles where the
            pad is simply not there, so a ball rolling over one drops through. */
         if (pad.voids) {
@@ -509,6 +511,140 @@
         for (i = 0; i < w.length; i++) n += w[i][1] * Math.sin(w[i][0] * z + w[i][2]);
         x = knot(r.c, z) + e.s * cap(z - r.z0, r.t0) * cap(r.z1 - z, r.t1) * (knot(r.h, z) + n);
         return x < e.lo ? e.lo : x > e.hi ? e.hi : x;
+    }
+
+    /* ── the road ──
+
+       Every pad above is a rectangle with something done to it — a corner
+       rounded, a side mown, a disc inscribed in it — and every one of them
+       still has four sides that run along x and z. Which is why every bend on
+       a drawn hole was a right angle: a road that turns was two rectangles
+       meeting at a corner, and the best that could be done for it was to
+       round the outside of that corner off.
+
+       `pad.lane` is ground laid along a line rather than over a box: a road of
+       one width whose centreline is a chain of straights and arcs of circles,
+       each leaving in the direction the last one arrived in, so the road bends
+       without a kink anywhere along it (courses.road writes one the way a
+       driver would — so far straight on, then round a radius through so many
+       degrees). The pad's x/z/w/d are its bounds and nothing more, so
+       everything that only wants to know roughly where a pad is — the hole's
+       bounds, the camera, the slab's depth — is unchanged; everything that
+       asks where the ground actually *is* comes here.
+
+         hw     half the road's width
+         cap0   true for a round end where the road starts, cap1 where it
+         cap1   finishes; otherwise it stops square across itself
+         segs   the pieces, in order, each `s0` along the road from its start:
+                  a straight  { x0, z0, ux, uz, len }
+                  an arc      { cx, cz, R, a0, sweep, len } — angles atan2's,
+                              as courses.arc measures them, the sweep signed
+                              and never more than half a turn, so the wedge
+                              below is two cross products and no atan2
+
+       Height is not the road's business. A road is a pad, so its level is
+       pad.y and anything shaped into it is `bumps` like any other pad's — a
+       banked turn is a `channel` laid along the outside of an arc — and
+       padHeight and padGrad never learn the road is there.
+
+       Asked of every pad under the ball on every substep, so the cheap answers
+       go first: the bounds (padContains), then per piece the band of radius or
+       the span along it, and the sideways test last. */
+    var LANE_EPS = 1e-9;
+    function laneHas(L, x, z) {
+        var segs = L.segs, hw = L.hw, i, g, px, pz, t, q;
+        for (i = 0; i < segs.length; i++) {
+            g = segs[i];
+            if (g.R) {
+                px = x - g.cx; pz = z - g.cz;
+                q = px * px + pz * pz;
+                if (q < g.in2 || q > g.out2) continue;
+                // Inside the wedge: past the start radius and short of the
+                // end one, both in the turn's own sense.
+                if ((g.sx * pz - g.sz * px) * g.turn < -LANE_EPS) continue;
+                if ((g.ex * pz - g.ez * px) * g.turn > LANE_EPS) continue;
+                return true;
+            }
+            px = x - g.x0; pz = z - g.z0;
+            t = px * g.ux + pz * g.uz;
+            if (t < -LANE_EPS || t > g.len + LANE_EPS) continue;
+            t = px * g.uz - pz * g.ux;
+            if (t <= hw && t >= -hw) return true;
+        }
+        if (L.cap0) {
+            px = x - L.x0; pz = z - L.z0;
+            if (px * px + pz * pz <= hw * hw) return true;
+        }
+        if (!L.cap1) return false;
+        px = x - L.x1; pz = z - L.z1;
+        return px * px + pz * pz <= hw * hw;
+    }
+
+    /* Where a road is at `s` along it: the point on the centreline and the
+       unit vector square to it on the side a positive (yaw-wise) turn bends
+       towards, written into `out` as [x, z, nx, nz]. Not hot — the renderer
+       walks a road with it once, to draw it, and the rails are laid off it —
+       so it is a plain search through the pieces. */
+    function lanePoint(L, s, out) {
+        var segs = L.segs, i, g, t, a;
+        out = out || [0, 0, 0, 0];
+        for (i = 0; i < segs.length - 1 && s > segs[i].s0 + segs[i].len; i++) { /* find it */ }
+        g = segs[i];
+        t = Math.max(0, Math.min(g.len, s - g.s0));
+        if (!g.R) {
+            out[0] = g.x0 + g.ux * t; out[1] = g.z0 + g.uz * t;
+            out[2] = g.uz; out[3] = -g.ux;
+            return out;
+        }
+        a = g.a0 + g.sweep * t / g.len;
+        out[0] = g.cx + Math.cos(a) * g.R; out[1] = g.cz + Math.sin(a) * g.R;
+        // A positive turn of yaw is clockwise in atan2's sense (turn -1) and
+        // bends towards its centre, so that side's normal points inwards on
+        // it and outwards on a turn the other way.
+        out[2] = g.turn * Math.cos(a); out[3] = g.turn * Math.sin(a);
+        return out;
+    }
+
+    /* Where to sample a road so that no chord is longer than `step`: both
+       ends of every straight, and an arc cut evenly. Shared by the outline
+       below and by the renderer's ribbon, so the two agree to the vertex. */
+    function laneCuts(L, step) {
+        var cuts = [], i, k, g, n;
+        for (i = 0; i < L.segs.length; i++) {
+            g = L.segs[i];
+            n = g.R ? Math.max(2, Math.ceil(g.len / step)) : 1;
+            for (k = 0; k < n; k++) cuts.push(g.s0 + g.len * k / n);
+        }
+        cuts.push(L.length);
+        return cuts;
+    }
+
+    /* A road's outline, walked once round anticlockwise (atan2's sense, as
+       every other outline in the game is walked): along the side a positive
+       turn bends towards, round the far end, back along the other side and
+       round the near end. `step` is the longest chord on a curve. */
+    function laneOutline(L, step) {
+        var cuts = laneCuts(L, step), near = [], far = [], out, i, k, p = [0, 0, 0, 0];
+        var m = Math.max(4, Math.ceil(Math.PI * L.hw / step));
+        for (i = 0; i < cuts.length; i++) {
+            lanePoint(L, cuts[i], p);
+            near.push([p[0] + p[2] * L.hw, p[1] + p[3] * L.hw]);
+            far.push([p[0] - p[2] * L.hw, p[1] - p[3] * L.hw]);
+        }
+        out = near;
+        // A round end, from the + side round to the - side through `dir`.
+        function end(x, z, nx, nz, dx, dz) {
+            for (k = 1; k < m; k++) {
+                var t = Math.PI * k / m, c = Math.cos(t), s = Math.sin(t);
+                out.push([x + (nx * c + dx * s) * L.hw, z + (nz * c + dz * s) * L.hw]);
+            }
+        }
+        lanePoint(L, L.length, p);
+        if (L.cap1) end(p[0], p[1], p[2], p[3], -p[3], p[2]);
+        for (i = far.length - 1; i >= 0; i--) out.push(far[i]);
+        lanePoint(L, 0, p);
+        if (L.cap0) end(p[0], p[1], -p[2], -p[3], p[3], -p[2]);
+        return out;
     }
 
     /* The floor of the cup, as a pad the rest of the code can treat like any
@@ -2092,6 +2228,9 @@
         padHeight: padHeight,
         padContains: padContains,
         mowEdge: mowEdge,
+        lanePoint: lanePoint,
+        laneCuts: laneCuts,
+        laneOutline: laneOutline,
         padRadius: padRadius,
         surfaceUnder: surfaceUnder,
         surfaceTop: surfaceTop,

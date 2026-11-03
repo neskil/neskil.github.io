@@ -394,6 +394,11 @@ What the numbers have come out as, and what to aim for:
   the hole is a staged one whether it means to be or not.
 - **The caddie finds anything over about 0.1%.** Its stroke count says what
   par is, not how hard the hole feels: it will ace a 0.1% hole every time.
+- **A banked turn is a weight shot, and a right angle is not.** A bank can
+  turn a ball only as fast as its slope holds it, so one line gives three
+  answers — soft falls to the inside, right rides round, firm goes over the
+  top — where a corner with a wall on it is a bank shot or two putts (Loft
+  Links' The Ledge).
 - **A round post is a poor bank.** Its deflection doubles any error in the
   line, so a carom off one is a 0.01% shot. A flat face — a board, a rock, a
   mirror — gives a window ten times wider for the same idea.

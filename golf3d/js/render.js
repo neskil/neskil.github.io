@@ -905,6 +905,7 @@
        that the rail standing on the curve hides the facets. A pad with no
        rounding comes out as the four corners it always was. */
     function slabShape(pad) {
+        if (pad.lane) return laneShape(pad);
         var shape = new THREE.Shape();
         var hw = pad.w / 2, hd = pad.d / 2, c = pad.round || {};
         // Counter-clockwise in shape space, each corner as [x, y, its world
@@ -929,6 +930,22 @@
                 else shape.lineTo(ox + Math.cos(a) * r, oy + Math.sin(a) * r);
                 first = false;
             }
+        }
+        shape.closePath();
+        return shape;
+    }
+
+    /* A road's outline (courses.road) in the same shape space: its box is
+       only its bounds, so the slab, its grass and the hole punched for a cup
+       all come off the curve physics.laneOutline walks — the one the ball
+       rolls off. A chord of a tenth keeps a two-metre road round to the eye
+       at any distance the camera gets to. */
+    function laneShape(pad) {
+        var cx = pad.x + pad.w / 2, cz = pad.z + pad.d / 2;
+        var pts = P.laneOutline(pad.lane, 0.1), shape = new THREE.Shape(), i;
+        for (i = 0; i < pts.length; i++) {
+            if (i) shape.lineTo(pts[i][0] - cx, -(pts[i][1] - cz));
+            else shape.moveTo(pts[i][0] - cx, -(pts[i][1] - cz));
         }
         shape.closePath();
         return shape;
@@ -987,7 +1004,7 @@
                 tp.needsUpdate = true;
             } else if (holed) {
                 geo = shellShape(pad, cup, bare);
-            } else if (pad.r || pad.round || (bare && bare.length)) {
+            } else if (pad.r || pad.round || pad.lane || (bare && bare.length)) {
                 geo = shellShape(pad, null, bare);
             } else {
                 geo = new THREE.PlaneGeometry(pad.w, pad.d, 1, 1);
@@ -1258,6 +1275,7 @@
     function padOutline(pad, step) {
         var pts = [], i, n, a;
         var cx = pad.x + pad.w / 2, cz = pad.z + pad.d / 2;
+        if (pad.lane) return P.laneOutline(pad.lane, Math.min(step, 0.25));
         if (pad.r) {
             n = Math.max(24, Math.ceil(2 * Math.PI * pad.r / step));
             for (i = 0; i < n; i++) {
@@ -1650,6 +1668,69 @@
         return geo;
     }
 
+    /* The top of a shaped road (courses.road with a `bank`, or any bumps),
+       as a ribbon rather than a grid: rows square across the road at every
+       step along it, so the edge is the outline physics walks and a banked
+       turn is drawn along the curve it is banked round. Every vertex is
+       padHeight, as everywhere else. A round end is a fan off the middle of
+       the last row, and the stretch of road under an inlay is cut and the
+       grass conformed to it as a grid's is (cutUnder). */
+    function laneTerrainGeometry(pad, res, cx, cy, cz, cover, anyCut) {
+        var L = pad.lane, step = Math.min(res, 0.3), cuts = [], i, j, k, g, n;
+        for (i = 0; i < L.segs.length; i++) {
+            g = L.segs[i];
+            n = Math.max(1, Math.ceil(g.len / step));
+            for (k = 0; k < n; k++) cuts.push(g.s0 + g.len * k / n);
+        }
+        cuts.push(L.length);
+        var m = Math.max(4, 2 * Math.ceil(L.hw / 0.3)), pos = [], idx = [], at = [0, 0, 0, 0], u;
+        function vert(px, pz) {
+            pos.push(px - cx, P.padHeight(pad, px, pz) - cy, pz - cz);
+            return pos.length / 3 - 1;
+        }
+        for (i = 0; i < cuts.length; i++) {
+            P.lanePoint(L, cuts[i], at);
+            for (j = 0; j <= m; j++) {
+                u = L.hw * (2 * j / m - 1);
+                vert(at[0] + at[2] * u, at[1] + at[3] * u);
+            }
+        }
+        // Row i along the road, column j across it towards the + side
+        // (lanePoint's normal), wound so every face looks up.
+        for (i = 0; i < cuts.length - 1; i++) {
+            for (j = 0; j < m; j++) {
+                var a = i * (m + 1) + j, b = a + 1, c = a + m + 2, d = a + m + 1;
+                idx.push(a, c, b, a, d, c);
+            }
+        }
+        if (L.cap0 || L.cap1) {
+            // Far end from the + side round to the - side, near end the other
+            // way, each bulging away from the road (as laneOutline walks them).
+            var q = Math.max(4, Math.ceil(Math.PI * L.hw / step));
+            [[0, -1], [cuts.length - 1, 1]].forEach(function (e) {
+                if (!(e[1] > 0 ? L.cap1 : L.cap0)) return;
+                P.lanePoint(L, cuts[e[0]], at);
+                var f = e[1], row = e[0] * (m + 1), mid = row + m / 2, prev = f > 0 ? row + m : row, t, cur;
+                var nx = at[2] * f, nz = at[3] * f, dx = -at[3] * f, dz = at[2] * f;
+                for (k = 1; k <= q; k++) {
+                    t = Math.PI * k / q;
+                    cur = k === q ? (f > 0 ? row : row + m)
+                        : vert(at[0] + (nx * Math.cos(t) + dx * Math.sin(t)) * L.hw,
+                               at[1] + (nz * Math.cos(t) + dz * Math.sin(t)) * L.hw);
+                    idx.push(mid, cur, prev);
+                    prev = cur;
+                }
+            });
+        }
+        var geo = new THREE.BufferGeometry();
+        geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(pos), 3));
+        geo.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(pos.length / 3 * 2), 2));
+        geo.setIndex(idx);
+        if (cover && cover.length) cutUnder(geo, cover, cx, cz, anyCut, pad, cy);
+        geo.computeVertexNormals();
+        return geo;
+    }
+
     /* The flat square the cup is cut out of, which is what the hole in the
        grid above is a hole for. It is flat because courses.js promises it is:
        nothing rolls within CUP_FLAT of a cup, and this patch is well inside
@@ -1687,7 +1768,9 @@
         });
         geo.rotateX(-Math.PI / 2);      // lay it flat: extrusion now runs +y
         geo.translate(0, -thick / 2, 0);// centred on its middle, like the box
-        if (pad.inlay) levelRim(geo);
+        // (A disc that stands — a green on a pillar, laid over the end of a
+        // road — has a real wall, and keeps the wall's own light.)
+        if (pad.inlay && !pad.stands) levelRim(geo);
         return geo;
     }
 
@@ -1807,8 +1890,12 @@
         /* Is the cup cut into this pad? Same question addPad asks, and the
            same answer: it has to be inside the footprint and the pad has to be
            the surface the cup's own mouth is at. */
+        /* …and never a road: the cup's patch is a square cut out of the
+           rectangular grid, and a road's ground is a ribbon. A cup goes on a
+           level road (a slab, punched like any other) or on a green laid at
+           the end of it. */
         var holed = cup && P.padContains(pad, cup.x, cup.z) &&
-            Math.abs(P.padHeight(pad, cup.x, cup.z) - cup.y) < 0.06 && !pad.r;
+            Math.abs(P.padHeight(pad, cup.x, cup.z) - cup.y) < 0.06 && !pad.r && !pad.lane;
         var cut = null;
         if (holed) {
             // Clamped to what the pad can actually spare, though courses.js
@@ -1822,7 +1909,9 @@
         var res = terrainRes(pad);
         var geo = pad.r
             ? discTerrainGeometry(pad, res, cx, cy, cz)
-            : terrainGeometry(pad, res, cx, cy, cz, cut, cover.concat(holes), holes.length > 0);
+            : pad.lane
+                ? laneTerrainGeometry(pad, res, cx, cy, cz, cover, false)
+                : terrainGeometry(pad, res, cx, cy, cz, cut, cover.concat(holes), holes.length > 0);
         worldUv(geo, TX.SCALE[pad.kind] || TX.SCALE.green, cx, cz);
         if (holes.length) addVoidRims(group, pad);
         if (pad.hue) { tintRainbow(geo, pad, cx, cy, cz, RAINBOW_GLASS); mat = rainbowGlass(); }
@@ -1856,7 +1945,9 @@
            grid with the disc itself as the thing to cut — which is how a
            domed fairway on Coral Keys came out as a square mat.) */
         var grassOn = geo;
-        if (cover.length && !pad.r) {
+        if (cover.length && pad.lane) {
+            grassOn = laneTerrainGeometry(pad, res, cx, cy, cz, cover, true);
+        } else if (cover.length && !pad.r) {
             grassOn = terrainGeometry(pad, res, cx, cy, cz, cut, cover, true);
             if (rockGeo) splitSteep(grassOn);
         }
@@ -2356,10 +2447,10 @@
         if (pad.hover) thick = Math.max(least, 0.4);
         var geo = pad.r
             ? discGeometry(pad, thick, cup, holed)
-            : holed || pad.round
+            : holed || pad.round || pad.lane
                 ? punchedSlab(pad, thick, holed ? cup : null)
                 : new THREE.BoxGeometry(pad.w, thick, pad.d);
-        if ((holed || pad.round) && !pad.r) {
+        if ((holed || pad.round || pad.lane) && !pad.r) {
             // The box is centred on its own middle; the extruded slab is built
             // that way too, so both share the placement below.
             geo.translate(0, thick / 2, 0);
@@ -2379,7 +2470,7 @@
         // what lets every pad of a kind share one material (buildSurfaces).
         worldUv(geo, TX.SCALE[pad.kind] || TX.SCALE.green, cx, cz);
         var mesh = new THREE.Mesh(geo,
-            padMaterial(pad.kind, pad.inlay ? 'inlay' : (holed || pad.stands ? 'slab' : 'box')));
+            padMaterial(pad.kind, pad.inlay && !pad.stands ? 'inlay' : (holed || pad.stands ? 'slab' : 'box')));
         mesh.position.set(cx, cy - thick / 2 + (pad.r ? INLAY_LIFT : 0), cz);
         mesh.receiveShadow = true;
         mesh.castShadow = true;

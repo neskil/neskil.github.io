@@ -1031,7 +1031,7 @@ approach.
 | Course | Group | Theme | What it is about |
 | --- | --- | --- | --- |
 | Seaside Green | mini | `seaside` | The opener, played with a putter and a mallet. A bounce off an angled rail, a slipway round a corner, one slow gate, a first bridge to fly, a horseshoe that leans at the sea wall, and a jetty with a bend in it. Two safe putts and one ace line on every hole. |
-| Quarry Ridge | mini | `quarry` | Height, both ways: ground that is missing and ground that is in the way. A curved backboard behind a bricked-up door, a drop off a pillar with a stair down its side, a quarter-pipe that turns what climbs it, a slanted wall only the chipper goes over, a road with a corner in it, and a cannon with a plank beside it. The best six of the old Quarry Ridge and Highland Steps (v1.122.0). |
+| Quarry Ridge | mini | `quarry` | Height, both ways: ground that is missing and ground that is in the way. A curved backboard behind a bricked-up door, a drop off a pillar with a stair down its side, a quarter-pipe that turns what climbs it, a slanted wall only the chipper goes over, a road banked round a bend over the pool, and a cannon with a plank beside it. The best six of the old Quarry Ridge and Highland Steps (v1.122.0). |
 | Tidewater Reach | mini | `lagoon` | The loft course. Almost nothing here can be reached along the floor, and every carry has a safe target and a short one. |
 | Windmill Works | crazy | `works` | Gates, blades and a windmill, after dark. Timing — and a slower way round on the holes that would otherwise be one shot: sand past First Gear's gate, a lay-by off The Sweeper's floor, a back gate round Turnstile's fence. |
 | Pinball Parlour | crazy | `arcade` | A table, not a course: bumpers, a plunger chute and two banks set across the throat. The posts *are* the route — and on Bumper City, a dome-topped table, the shot is up a side lane and off a kicker at the pin. |
@@ -1144,9 +1144,18 @@ that leg gathers where the pin is. The lean has to run *along* x rather than acr
 it, because the return leg shares its whole western edge with the top of the
 horseshoe and two pads only meet without a step where the tilt runs along the
 seam. **The Jetty** is a plank over the shallows with a kink in the middle, and
-**The Ledge** is the same idea in a quarry: two metres of road with a corner in
-it, every edge a brink except the outside of the bend, which keeps its wall
-because a corner with nothing on the outside of it is a corner nobody can hold.
+**The Ledge** was the same idea in a quarry — two metres of road with two
+right angles in it, every edge a brink but the outside of the first corner —
+and the hole lab found no ace on it at all. Since v1.123.0 it is a `road`: a
+straight up the hole and a quarter-turn round to the left with no corner
+anywhere along it, the turn banked on the outside like a velodrome with a bare
+lip over the quarry pool, a kerb along the whole inside, and the green on a
+pillar of its own hanging off the end of the bend, a brink all round. The
+weight is the shot, and the three weights do three things: soft (anything the
+putter has) climbs the bank, comes back down into the gutter and leaves a putt;
+the mallet at about three fifths rides the bank round and is turned on to the
+pin; too firm is quicker than the bank can turn and goes straight on over the
+lip. The putt at the flag is across the crook of the bend, over the pool.
 
 The rest of Quarry was three straight lanes with one thing in the middle, and
 v1.82.0 gave each a second way. (Step Up and Halfpipe went in v1.122.0, when
@@ -2441,6 +2450,53 @@ fault everywhere else.
 - **arc** — a curved rail: `arc(cx, cz, R, a0, a1)` is chords of `bank`, one per
   ten degrees, each a rail's thickness longer than its chord so neighbours
   overlap. Angles are `atan2(z, x)`; a chord's yaw is −θ − π/2.
+- **road** — ground that bends, and the first pad in the game whose rectangle
+  is not its shape at all (v1.123.0). Every other pad is a box with something
+  done to it — a corner rounded, a side mown, a disc inscribed in it — and every
+  one of them still has four sides running along x and z, which is why every
+  bend on a drawn hole was a right angle: two rectangles meeting at a corner,
+  with the outside of the corner rounded off at best. A road is laid along a
+  centreline instead, and written the way it would be driven:
+
+  ```js
+  road({ x: 2.5, z: 0.2, dir: 0, w: 2.4, y: 1, caps: 'start' }, [
+      ['line', 4, { kerb: 'in' }],                       // straight on
+      ['arc', 3.2, Math.PI / 2, { kerb: 'in', bank: { a: 0.9, lip: 0.5, r: 2.6, span: [0, 0.7] } }],
+      ['line', 0.7, { kerb: 'in' }]                      // round a radius, then on
+  ])
+  ```
+
+  `dir` and each turn are yaws, the sense a shot's aim is measured in — 0 is up
+  the hole, and a positive turn swings the road towards +x. Each piece leaves in
+  the direction the last arrived in, so however it is written the road has no
+  kink anywhere along it; that is the whole reason it is a drive and not a list
+  of points. `caps` rounds an end (`true` for both, or `'start'` or `'end'`); an
+  end that runs on under a green stays square and stops short of the cup. A
+  road gets no rail of its own — on a ledge both sides are a brink unless
+  somebody says otherwise — and a piece's `kerb` (`'in'`, `'out'` or `'both'`,
+  on a straight the sides of the nearest turn) asks `enclose` for one, laid off
+  the ground as `railFor` lays any rail; a kerb round a turn is chords with one
+  `bend`, drawn as a single smooth kerb exactly as a rounded corner's is.
+
+  A road is a pad, so its height is not its business: its level is `y`, and a
+  `bank` on a turn is a `channel` laid along the outer edge with its profile
+  reaching the inner one — a flat gutter inside, a lip outside — which
+  `padHeight` and `padGrad` already know. The channel's rounded end is the ease
+  in and out, about `r` long, so a turn that has to be level where it finishes
+  stops its spine short with `span`. The pad's `x/z/w/d` are its bounds and
+  nothing more. What reads the shape is the same short list as for a rounded
+  corner: `physics.padContains` (`laneHas` — per piece, a band of radius or a
+  span along it and then a cross product, no `atan2`, because this is asked of
+  every pad on every substep), `physics.laneOutline` for anything that walks
+  the edge — the slab's extruded outline (`render.slabShape`) and its grass,
+  the skirt, the inspector, the editor's plan — and `render`'s ribbon of rows
+  square across the road for a banked one, whose cup would need a square patch
+  a ribbon has not got: a cup goes on a level road or on a green laid over the
+  end of one. The minimap and hole-lab.html sample `padContains` a pixel at a
+  time and draw the curve for nothing. The editor carries a road whole, draws
+  its outline and exports it as data; it has no handles for a centreline, so a
+  road is not something to drag there. **The Ledge** on Quarry Ridge is the
+  first one.
 - **contour / scoop** — the same humps, applied to a *drawn* hole, off a seed
   made from the hole's own name so a hole's ground is the same on every load.
   Every bunker on a drawn hole gets `scoop`'s dish automatically in `build()`;

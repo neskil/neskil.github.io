@@ -248,6 +248,16 @@
                 o.w = o.d = o.r * 2;
             } else if (s.r) { o.r = num(s.r, 0.5); o.inlay = true; squareUp(o); }
             else if (s.inlay) o.inlay = true;
+            /* A road (courses.road) is carried whole, with the bank shaped
+               into it: the plan draws its outline and exports it as it came,
+               but has no handles for a centreline, so it is not something
+               to drag or resize here — its box is only its bounds. */
+            if (s.lane) {
+                o.lane = JSON.parse(JSON.stringify(s.lane));
+                o.x = num(s.x, 0); o.z = num(s.z, 0); o.w = num(s.w, 1); o.d = num(s.d, 1);
+                if (s.bumps) o.bumps = JSON.parse(JSON.stringify(s.bumps));
+                if (s.stands) o.stands = true;
+            }
         }
         if (key === 'water') o.y = num(s.y, -0.6);
         if (key === 'extra') {
@@ -516,6 +526,14 @@
        walked off the same physics.padRadius the ball rolls off, so the plan
        cannot promise a shape the hole does not have. */
     function padPath(p) {
+        if (p.lane) {
+            ctx.beginPath();
+            P.laneOutline(p.lane, 0.2).forEach(function (q, i) {
+                ctx[i ? 'lineTo' : 'moveTo'](sx(q[0]), sz(q[1]));
+            });
+            ctx.closePath();
+            return;
+        }
         if (!p.r) { rectPath(p); return; }
         var cx = sx(p.x + p.w / 2), cz = sz(p.z + p.d / 2);
         var n = Math.max(32, Math.round(p.r * view.scale)), i, a, rr;
@@ -2980,6 +2998,12 @@
     }
 
     function padCall(p) {
+        // A road goes back out as the data it came in as: build lays its
+        // kerbs again off `lane`, as it lays a rounded corner's.
+        if (p.lane) {
+            return 'Object.assign(pad(' + [n(p.x), n(p.z), n(p.w), n(p.d), n(p.y), "'" + p.kind + "'"].join(', ') +
+                '), ' + JSON.stringify({ lane: p.lane, bumps: p.bumps }) + ')';
+        }
         if (p.spring) {
             return 'sprung(' + [n(p.x + p.w / 2), n(p.z + p.d / 2),
                 n(p.r || Math.min(p.w, p.d) / 2), n(p.spring), n(p.y)].join(', ') + ')';
@@ -3139,8 +3163,9 @@
         var authoredWalls = (h.extra && h.extra.length) ? h.extra
             : h.walls.filter(function (wl) {
                 // A rounded corner's chords are turned rails too, and derived:
-                // `build` lays them again off the ground (courses.cornerRails).
-                return !wl.bend && (wl.kind !== 'rail' || wl.move || wl.spin || wl.swing || wl.yaw);
+                // `build` lays them again off the ground (courses.cornerRails),
+                // as it lays a road's kerbs (courses.laneRails).
+                return !wl.bend && !wl.lane && (wl.kind !== 'rail' || wl.move || wl.spin || wl.swing || wl.yaw);
             });
         return normalize({
             name: h.name, blurb: h.blurb, par: h.par, theme: course.theme,
@@ -3150,7 +3175,8 @@
             pads: h.pads.map(function (p) {
                 return { x: p.x, z: p.z, w: p.w, d: p.d, y: p.y, kind: p.kind,
                     sx: p.sx, sz: p.sz, r: p.r, inlay: p.inlay,
-                    push: p.push, spring: p.spring };
+                    push: p.push, spring: p.spring,
+                    lane: p.lane, bumps: p.lane ? p.bumps : undefined };
             }),
             extra: authoredWalls,
             water: h.water,

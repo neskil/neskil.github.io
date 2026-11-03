@@ -428,8 +428,11 @@ tee shows (Sea Legs' was).
    (`node golf3d/tools/hole-lab.mjs --coarse`), 38 of 78 at v1.120.0, and
    after v1.122.0's consolidation and rebuilds it is 22 of 54 (flukes 6 → 1,
    putts at the flag that drop 9 → 2), and none of them is a mini
-   par 3 — the mini ones left are three par 4s played in stages (The Ledge,
-   Under the Boardwalk, The Reach). The rest are crazy and adventure: Through
+   par 3 — the mini ones left are two par 4s played in stages (Under the
+   Boardwalk, The Reach). The Ledge was the third, and since v1.123.0 it is a
+   par 3 with an ace: a banked turn (`road`, README → the authoring
+   vocabulary) that a firm mallet rides round to the pin and a firmer one
+   goes over the top of. The rest are crazy and adventure: Through
    the Wall, The Sweeper, Grand Finale, five of Pinball Parlour's six, Three
    Against Two, Change Ringing, The Weir, Full Flow, Through the Pipe and five
    of Apogee Yard's six (Caldera, which was on this list, got its ace through

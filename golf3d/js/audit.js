@@ -56,7 +56,9 @@
        clears the ground by a little is a stone still sitting in the grass. */
     var AFLOAT = 0.26;
 
-    function isRect(p) { return !p.r; }
+    // A disc and a road (courses.road) are not their boxes; the rules below
+    // that walk a box's edges leave them to tests.html, which asks padContains.
+    function isRect(p) { return !p.r && !p.lane; }
 
     function fmt(n) { return (Math.round(n * 1000) / 1000).toString(); }
     function at(x, z) { return '(' + (Math.round(x * 100) / 100) + ', ' + (Math.round(z * 100) / 100) + ')'; }
