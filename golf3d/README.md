@@ -1426,7 +1426,9 @@ What the first sweep found (v1.105.0), over the seventy-eight drawn holes:
   whatever pace a ball brings, it leaves at the belt's — and the grass at the
   end took that pace off at one spot, which was where the pin was. 0.32% now.
 - **Caldera's only ace was the shot the hole says not to play**, the vent flown
-  straight across the crater. It has none now, which is fair for a par 4.
+  straight across the crater. It had none after this, and in v1.123.0 the
+  block came out again, the pin moved out of reach of the vent and the tube
+  became the ace (0.208%, skill; see [Cinder Cone](#cinder-cone)).
 - **Three fixes did all twelve.** A block on the line, where a wall gives the
   bold line its bank (the ice store, the ash, the crater). A lean, with the pin
   moved off the line, where the obstacle is a door or a plank the bold line has
@@ -1692,17 +1694,31 @@ only things on the course that move a ball sideways at all.
 | 3 | Lava Tube | 3 | Eleven units of crater lake — more than anything in the bag carries — and two mouths in the ash in front of it. Both cross: the narrow one comes out at the pin, the wide one in the far corner with a putt to play. |
 | 4 | The Scree | 4 | A shelf with the drop down one side of it and two bands of scree that push south *and* east at once. On Crosstown a belt across the hole costs you the line; here it costs you the ball. |
 | 5 | Blowhole | 3 | A hollow in the lawn with the vent at the bottom and the green on a shelf above it. Everything rolled in is gathered on to the vent and thrown up, and the pace you came in with is how far up the shelf it lands — off the back if you came in hot. The sides bend the line, so the ace is a firm mallet in down the right of the hollow, with nothing beside the pin or behind it; a gentle putt down the middle is the safe two. |
-| 6 | Caldera | 4 | The whole course in one hole: the vent to get up, the belt along the rim to be carried along, and the tube to get in. The crater has no way into it along the ground, and no ace: the tube points at the pin across the floor, and a block in front of the pin stops the flight from the lawn that used to be one. |
+| 6 | Caldera | 4 | The whole course in one hole: the vent to get up, the belt along the rim to be carried along, and the tube to get in. The crater has no way into it along the ground. The lawn ends in a half circle round the vent, and the pin is in the far half of a wide crater floor, out of reach of any line through the vent, so the flight from the lawn leaves a putt across. The ace is the tube: land at the start of the belt, ride all of it, and the tube puts you in. |
 
 **Caldera is the hole the belt's own physics wrote.** A travelator has a speed
 of its own that a ball approaches from either side, so it does not matter how
 hard the shot on to the rim is hit: everything arrives at the mouth at about the
 same pace and comes out of the far end at that pace, which is a putt's worth
 across the crater floor. The machine spends the shot for you and the only thing
-you own is getting on to it. The bot, handed the hole cold, used to hole it in
-one by rolling a putter into the vent and flying the whole crater, which is
-what the block on the floor is for: that flight lands short of it now and
-leaves a putt, the same as the tube does.
+you own is getting on to it — and, nearly, where: twelve units of belt is not
+quite enough to reach the belt's own pace, so a ball that lands at the start of
+it and rides all of it comes out of the tube a little quicker, and the tube
+points at the pin from just far enough that only those reach it. That is the
+ace, about 0.2% of the sweep, all of it through the tube.
+
+It was rebuilt in v1.123.0, when the owner found the caddie stuck on it and the
+block in front of the pin "a stupid box". The vent was the cause of both. It
+stood on the line from the tee to the pin, so the putt at the flag went through
+it and flew the crater at the pin, and the block was there to stop that until
+the stronger mallet flew the block. And the lawn ran on past the vent to an open
+shore, so a ball that came off the vent soft stopped on a strip with the lake in
+front and the vent behind. Getting out of there takes two shots, back and then
+over the vent again, and a one-shot search shuffled along the lip until it ran
+out of strokes. Now the lawn ends in a half circle round the vent, railed all
+the way, so there is no grass past it. The block is gone, and the pin has moved
+to the far half of a wider crater floor, out of reach of any line through the
+vent: the flight from the lawn comes down in the near half and leaves a putt.
 
 #### Apogee Yard
 

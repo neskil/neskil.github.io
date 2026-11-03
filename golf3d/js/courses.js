@@ -5341,38 +5341,80 @@
 
                The belt is what makes the ride readable. A travelator has a
                speed of its own that a ball approaches from either side, so it
-               does not matter how hard the second shot is hit: everything
-               arrives at the mouth at about six units per second and comes out
-               of the far end at the same, which is a putt's worth of pace
-               across a crater floor eleven wide. The machine spends the shot
-               for you, and the only thing you own is getting on to it.
+               hardly matters how hard the shot on to the rim is hit: whatever
+               lands on the belt comes out of the tube at four and a bit units
+               a second, which is a putt's worth of pace across the crater
+               floor. The machine spends the shot for you, and the only thing
+               you own is getting on to it — and, since v1.123.0, *where*.
 
-               The tube comes out on the east side of the floor, aimed at the
-               pin, and a block stands on the floor in front of the pin on the
-               line from the tee. The flight from the lawn used to be the only
-               ace on the hole, and it was a putt struck at the flag (README →
-               "The hole lab") — the uncomfortable shot paid better than the
-               road the hole is about. It lands short of the block now and
-               leaves a putt round it, the same as the tube does. */
+               Rebuilt in v1.123.0 on two notes from the owner: the caddie got
+               stuck here, and the block that stood in front of the pin was "a
+               stupid box". Both came from where the vent was.
+
+               The caddie first. The lawn used to run on half a unit past the
+               vent to an open shore, and a ball that came off the vent too
+               soft dropped on to that strip — past the machine, with the lake
+               in front of it and the vent behind it. The way on from there is
+               two shots, back off the lip and through the vent again, and a
+               search that scores a shot by how near the pin it finishes cannot
+               see two shots: it shuffled the ball a unit east and a unit west
+               along the lip until it ran out of strokes. With the mallet at
+               seventeen it went there off the tee every time. So the lawn ends
+               at the vent now. Its far end is a half circle with the vent laid
+               into the top of it, railed all the way round, and there is no
+               grass past the machine for a ball to stop on; the curve hands a
+               ball running up either side of the lawn on to the vent, where
+               the square corners used to keep it beside it.
+
+               Then the box. The vent stood on the line from the tee to the
+               pin, and a launch pad leaves a ball's heading alone, so the putt
+               at the flag went through the vent and flew the crater at the pin
+               (README → "The hole lab"). The block was there to stop that, and
+               the stronger mallet flew it. Now the pin is out of the vent's
+               reach instead: the crater floor is wider, the cup is in its far
+               half under the end of the rim, and every line through the vent
+               from the tee comes down in the near half and leaves a putt
+               across. The putt at the flag misses the vent altogether and
+               finishes on the rail.
+
+               And the tube is the ace now, which it never was. Twelve units of
+               belt is not quite enough for a ball to reach the belt's own
+               pace, so a ball that lands at the near end and rides all of it
+               comes out of the tube a little quicker than one that lands half
+               way along. The tube points at the pin from three and a half
+               units off — the quick ones reach it and the rest stop a putt
+               short. Aim a few degrees left of the middle of the vent with a
+               bit over half a mallet, land at the start of the belt, and it is
+               in: a skill hole's share of the sweep, all of it through the
+               tube. */
             name: 'Caldera', par: 4,
             blurb: 'Up the vent, along the rim on the scree, and in through the tube. There is no other road into the crater.',
             pads: [
-                pad(0, 0, 8, 10),
-                sprung(4, 8.2, 1.3, 10.4),
+                (function () {
+                    // The lawn's far end is a half circle round the vent.
+                    var p = pad(0, 0, 8, 10);
+                    p.round = { sw: 1.1, se: 1.1, nw: 4, ne: 4 };
+                    return p;
+                })(),
+                /* A ball's width short of the top of the curve rather than
+                   touching it: a ball against the rail there is still over
+                   the vent, and the grass, which is cut round the vent as a
+                   hole in its outline, cannot triangulate a hole that touches
+                   the edge (it drew the lawn's corner off and grass over the
+                   vent). */
+                sprung(4, 8.55, 1.3, 10.4),
                 pad(0, 11, 2, 3.5, 2.2, 'wood'),
                 belt(2, 11, 12, 3.5, 3.5, 0, { y: 2.2, kind: 'wood' }),
                 pad(14, 11, 3.4, 3.5, 2.2, 'wood'),
-                pad(0, 15, 9, 10, 1)
+                pad(0, 15, 12, 10, 1)
             ],
             water: [rect(-2, 10, 22, 5, -0.8)],
             gaps: [
-                { x: -1, z: 9.5, w: 21, d: 1.0 },        // the lawn's shoreline
                 { x: -0.6, z: 10.7, w: 8.6, d: 0.6 },    // the face of the rim, where you land
                 { x: -1, z: 14.7, w: 21, d: 0.9 }        // and the crater's own
             ],
-            warps: [pipe(15.7, 12.75, 7.4, 17.4, Math.atan2(4.5 - 7.4, 21.5 - 17.4), 0.95)],
-            extra: [wall(3.9, 18.9, 1.0, 1.0, 0.9, { base: 0.7 })],
-            tee: { x: 4, z: 2 }, cup: { x: 4.5, z: 21.5 }
+            warps: [pipe(15.7, 12.75, 7.5, 17, Math.atan2(10 - 7.5, 19.5 - 17), 0.95)],
+            tee: { x: 4, z: 2 }, cup: { x: 10, z: 19.5 }
         })
     ];
 

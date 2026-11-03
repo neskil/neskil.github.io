@@ -31,7 +31,11 @@ and in the order they came in. Strike one off (move it to "Done") when it ships:
    you don't need to re-test all maps)". Done in this round: 17 → 20 (13.3 →
    15.8 on a green).
 3. **Caldera** (Cinder Cone) — "bot gets stuck on Caldera" and "a stupid box in
-   front of the hole that should be removed."
+   front of the hole that should be removed." Done in this round: the caddie's
+   lie was a strip of lawn past the vent (the lake in front of it, the vent
+   behind it), and the lawn now ends in a half circle round the vent. The box
+   is gone, the pin is out of reach of the vent, and the tube is the ace
+   (0.208%, skill). See README → Cinder Cone.
 4. **The Shelf** (Coral Keys) — "the cliff for the green, the vertical surface
    can be passed through. There is no collision."
 5. **The Ledge** (Quarry Ridge) — "a bit weird, where is the risk reward? Can
@@ -66,6 +70,11 @@ and in the order they came in. Strike one off (move it to "Done") when it ships:
     The auto play bot, that is." A greedy one-shot search is what stalls it on
     Caldera and Dead Weight both: a route that goes away from the cup first
     (a ramp, a pad, a pipe, the long way round) never wins on distance.
+    Caldera's case is taken out of the hole (v1.123.0, item 3), but the shape
+    of it is worth keeping as a test for any planner: at mallet 17 the caddie
+    went off the tee on to the lawn's lip at about (4–6, 9.97), past the vent,
+    and putted a unit east and a unit west along it until it ran out of
+    strokes.
 
 Still waiting: "Deadline" (a nice biome, maps too simple, water on a table)
 is waiting on the owner to say which course they meant.
@@ -419,9 +428,10 @@ tee shows (Sea Legs' was).
    par 3 — the mini ones left are three par 4s played in stages (The Ledge,
    Under the Boardwalk, The Reach). The rest are crazy and adventure: Through
    the Wall, The Sweeper, Grand Finale, five of Pinball Parlour's six, Three
-   Against Two, Change Ringing, The Weir, Full Flow, Through the Pipe, Caldera
-   (in stages on purpose) and five of Apogee Yard's six. On a timing hole the
-   sweep's four moments can miss a window, so read those with care.
+   Against Two, Change Ringing, The Weir, Full Flow, Through the Pipe and five
+   of Apogee Yard's six (Caldera, which was on this list, got its ace through
+   the tube in v1.123.0). On a timing hole the sweep's four moments can miss a
+   window, so read those with care.
 10. **The putt at the flag, on the two holes that still drop it** (README →
    "The hole lab"; v1.105.0 rebuilt twelve; v1.122.0 took Bounce Alley, The
    Gravitron, Fumarole, Headrace, Half Time and Rounds out with their courses
