@@ -3064,31 +3064,58 @@
 
     var tidewater = [
         build({
-            /* Two carries, but not in a line. The old hole was three squares
-               stacked north of one another, so the only question was how far;
-               now the stones are off to either side and the first carry is a
-               choice. The big stone out east is the safe one — a wide target,
-               and from it a long diagonal second over the bay to a green that
-               reaches out towards it. The little stone on the line is the
-               short way: half the second shot, and a third of the room to
-               stop on. Nothing carries the whole bay from the tee. */
+            /* Two stones and a green across a bay, and the green is the one
+               thing on the hole you can carry to from the tee — just. It lies
+               across the far side, off to the right and end on to you, with
+               its near end at the very limit of a full pitch; the pin is
+               tucked at that end, a stride behind the front rail with the
+               water in front of it. So the hole is read sideways rather than
+               down a lane, and every shot on it is a different length.
+
+               The safe way is the big stone, half left and a soft pitch away:
+               a fat target with a rail round it to stop against, and from it
+               the second comes in along the length of the green, so a pitch
+               anywhere near the line stays on and leaves a putt. The little
+               stone, half right, sits on the line at the flag: a smaller
+               target for the same carry, and from it the pitch is a tap over
+               a stride of water. Either way it is two carries and a putt,
+               which is par, and nothing on the floor gets off the tee.
+
+               The bold way carries the lot, and the ace is a bank, not a
+               pitch at the flag. Nothing stops beside a pin that close to the
+               front: a full pitch at the flag either drops in the water or
+               lands past the cup and runs on into the back rail, which it
+               meets at an angle and leaves for the far end of the green. Aim
+               at the near end instead, a few degrees left of the flag, with
+               nine tenths of a full swing or more, and the back rail sends it
+               back down across the green to the cup. The lab's window is four
+               and a half degrees wide across the top tenth of the dial — about
+               one shot in seven hundred of the sweep, a skill hole's share and
+               the most giving on this course, which is right for the hole that
+               opens it. Short of the green is the bay; on the green but off
+               the line is a putt for two.
+
+               It used to be the stones and a green out of reach of everything
+               from the tee: two carries and a putt, and no ace at all (the lab
+               said 0.000%), which was a gap on the first hole of a course
+               that is about what a pitch can do. */
             name: 'Stepping Stones', par: 3, needsLoft: true,
-            blurb: 'Two carries, and two stones to make the first one to. The big one is safe; the little one is short.',
+            blurb: 'Two stones on the way across: the big one is safe, the little one short. Or carry it all to the near end and let the back rail bring it to the pin.',
             pads: [
-                pad(0, 0, 5.5, 4.5),
-                pad(6.4, 6, 3.8, 3.8),          // the big stone, out east
-                pad(0.8, 7.8, 2.2, 2.2),        // the little one, on the line
-                pad(-0.5, 13, 9, 5.5)           // the green, reaching east
+                pad(0, 0, 5.5, 4.5),            // the tee
+                pad(3.0, 5.3, 3.6, 3.4),        // the big stone, half left from the tee
+                pad(-2.4, 5.0, 1.8, 1.8),       // the little one, half right, on the flag's line
+                pad(-7, 7.6, 7.8, 2.6)          // the green, end on, off to the right
             ],
-            water: [rect(-5, 4.5, 20, 8.5, -0.7)],
-            tee: { x: 2.75, z: 1.8 }, cup: { x: 1.8, z: 16 },
+            water: [rect(-9, 4.5, 20, 5.7, -0.7)],
+            tee: { x: 2.75, z: 1.8 }, cup: { x: -2.3, z: 8.8 },
             decor: [
-                palm(-1.6, 17.6),
-                palm(9.8, 18.2, { yaw: 2 }),
-                buoy(4.4, 9.8, -0.7),
-                sailboat(13.5, 10.5, { yaw: 0.8 }),
-                piling(-1.2, 6.2, -0.7),
-                piling(5.6, 5.2, -0.7)
+                palm(-5.8, 11.6),
+                palm(3.4, 12.0, { yaw: 2 }),
+                buoy(-4.6, 5.6, -0.7),
+                sailboat(9.4, 9.4, { yaw: 0.8 }),
+                piling(-5.6, 7.0, -0.7),
+                piling(8.0, 4.9, -0.7)
             ]
         }),
         build({
