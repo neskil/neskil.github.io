@@ -115,7 +115,7 @@ speed — and it is now a loft, a ceiling and one number about what happens
 | 9 Iron | 5 | 32° | 13.3 | 11.0 | 3.21 | 14.1 | The short iron: high at the flag, and it still releases a little. |
 | Pitch | 6 | 45° | 12.3 | 8.1 | 3.10 | 10.5 | Up steep and down steeper. Stops near where it lands. |
 | Wedge | 7 | 58° | 12.7 | 7.5 | 3.53 | 9.6 | The lob: straight up, over anything, and it does not run when it lands. |
-| Mallet | 8 | 0° | 17 | — | — | 9.9 (13.3 on green) | Not in the default bag. A putter with a hammer behind it, handed out on holes that are played along the floor. |
+| Mallet | 8 | 0° | 20 | — | — | 12.1 (15.8 on green) | Not in the default bag. A putter with a hammer behind it, handed out on holes that are played along the floor. |
 | Checker | 9 | 38° | 13.1 | 10.0 | 3.32 | 10.4 | Not in the default bag. An iron's carry with almost none of the run: `bite: 0.78`. |
 
 Every full swing tops out between three and three and a half metres, the way a

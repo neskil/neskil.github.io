@@ -583,15 +583,19 @@ G3.CONFIG = {
        you may only putt down is a good hole and a putter is the wrong club for
        it: 10.5 of power runs about nine units, which is most of a mini golf
        lane and nowhere near a hole in one, so a putting hole played with the
-       putter is two safe taps and no decision in either of them. Seventeen
+       putter is two safe taps and no decision in either of them. Twenty
        runs the length of one, which turns the same hole into a single
        committed shot that is either in or fifteen units past — and that is the
        hole. It is not in the default bag because a flat club with that much
-       reach would quietly become the answer to half the course. */
+       reach would quietly become the answer to half the course.
+
+       It was seventeen (13.3 on a green) until v1.123.0, when the owner found
+       it short in the hand: a mallet is the club you reach for when a putter
+       will not get there, and it should not need the whole swing to do it. */
     EXTRA_CLUBS: [
         {
             id: 'mallet', name: 'Mallet', short: 'ML', key: '8',
-            loft: 0, power: 17, carry: 0, total: 13.3,
+            loft: 0, power: 20, carry: 0, total: 15.8,
             blurb: 'A putter with a hammer behind it. Rolls flat, and rolls a long way.'
         },
         /* The first club in the bag that is not a loft and a ceiling.
