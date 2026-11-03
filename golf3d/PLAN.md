@@ -50,6 +50,17 @@ and in the order they came in. Strike one off (move it to "Done") when it ships:
 8. **Orbit** (Apogee Yard) — "the black hole model is very ugly, please
    improve. Perhaps the same shader as mentioned before." One shader for the
    pipe mouth, the sky portal and the well.
+9. **The long game, upwards** — "in general nice when the long game maps have
+   some verticality. For the Grand Canyon inspired ones I'd like some really
+   high cliffs as part of the design." Redstone first (the canyon country),
+   then height wherever a long hole is flat for no reason.
+10. **The Backboard** (Quarry Ridge) — "a good concept that is lacking in
+    execution. Also don't like the X style corners sticking out. Please fix."
+    If the crossed corners are rails overrunning each other, that is every
+    fenced hole, not this one.
+11. **The Flippers** (Pinball Parlour) — "have the bad square box thing again."
+    The post in its throat is a bumper; round pop bumpers answer it, and the
+    whole Parlour gets the same pass (Plunger Lane, Two Ramps, The Slingshots).
 
 Still waiting: "Deadline" (a nice biome, maps too simple, water on a table)
 is waiting on the owner to say which course they meant.
