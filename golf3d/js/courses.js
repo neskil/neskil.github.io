@@ -4622,46 +4622,70 @@
             ],
             tee: { x: 4.5, z: 1.5 }, cup: { x: 4.5, z: 14.2 }
         }),
-        build({
-            /* The finisher, and the one hole on the course with two honest
-               routes to the flag. A wall across the table with a doorway cut in
-               the left of it and a window cut in the right, and the two are
-               different shots rather than two of the same:
+        (function () {
+            /* The finisher: the jackpot is a hole in the table.
 
-                 the door    is on the floor and a metre wide. A putt goes
-                             through it and nothing else does, so it is a line,
-                             and it puts you on the far side with the pace you
-                             chose.
-                 the window  starts half a unit up and is wider. Nothing on the
-                             ground gets through, so it is a weight — and the
-                             ball arrives on the other side already in the air,
-                             which is a different lie again.
+               It was a straight wall across a rectangle with a door in it, a
+               window over it and five square posts (v1.70.0 to v1.122.0), and
+               the owner called it what it was — weird, and boxes. The idea
+               worth keeping was the most pinball thing there is: a ball that
+               drops down a hole in the playfield and comes out somewhere
+               across the room.
 
-               A gate would have been the obvious thing here and this course has
-               one already. A wall with two ways through it is the thing a gate
-               cannot be: a choice that is still a choice after you have made
-               it.
+               So that is the hole now. The pin stands in the vault, a curved
+               wall round the front and sides of it, open only at the back
+               under the dome. The mouth is low on the left, behind a pop
+               bumper on the line to it and a rubber post beside it, and it
+               comes out at the top of the dome firing straight down at the
+               pin. A pipe keeps the pace it was given (physics.warpUnder), so
+               finding the mouth is the line and the run in from the dome is
+               the weight: firm enough that it carries through the gap behind
+               the bumper, soft enough that what comes out the far end stops
+               at the pin rather than running on into the vault wall.
 
-               And a third way, because this is a pinball table and a ball
-               vanishing down a hole to reappear somewhere across the room is
-               the most pinball thing there is. The mouth is tucked behind the
-               left-hand post where nobody aims on purpose, and it comes out
-               past the wall on the right — so the luckiest shot on the hole is
-               a bad one, which is also true of pinball. */
-            name: 'Jackpot', par: 4,
-            bag: ['putter', 'mallet', 'chipper', 'wedge'],   // a lofted route is part of the hole
-            blurb: 'A door on the floor, a window in the air, and a hole in the table for the lucky. Three ways past one wall.',
-            pads: [pad(0, 0, 9.4, 21)],
-            warps: [pipe(1.4, 6.6, 7.7, 13.4, 0, 0.85)],
-            extra: [].concat(
-                [bumper(2.2, 5), bumper(7.2, 5)],
-                aperture(-0.2, 9.6, 4.9, 0.4, { gap: 1.1, at: 2.3, h: 1.7, head: 1.1 }),
-                aperture(4.7, 9.6, 5.1, 0.4, { gap: 1.7, at: 2.4, h: 1.6, sill: 0.5, head: 1.45 }),
-                [bumper(2.6, 14.4), bumper(6.8, 14.4)],
-                [bumper(4.7, 17.6)]
-            ),
-            tee: { x: 4.7, z: 1.5 }, cup: { x: 4.7, z: 19.4 }
-        })
+               The safe way is the long one: a putt to the foot of the vault,
+               a second round the end of it and up behind, and in from the
+               back. Nothing on the table goes in on a straight line — the
+               vault is in the way of a putt at the flag and its wall stands
+               higher than a pitch at the flag comes down. Par is three now;
+               it was four with three doors and none of them led anywhere. */
+            var W = 9.4, L = 19, cx = 4.7, cz = 15.4, mx = 1.4, mz = 8.4;
+            var p = pad(0, 0, W, L);
+            p.round = { nw: W / 2, ne: W / 2, sw: 1.8, se: 1.8 };
+            var lamps = [], k, dx = mx - cx, dz = mz - 1.5, yaw = Math.atan2(dx, dz);
+            // A chase from the tee to the mouth, round the near side of the
+            // bumper, and a ring of inserts round the mouth itself.
+            for (k = 0; k < 4; k++) {
+                lamps.push(lamp(cx + dx * (0.16 + k * 0.13) - 0.45, 1.5 + dz * (0.16 + k * 0.13),
+                    0.006, { yaw: yaw, variant: 1 }));
+            }
+            for (k = 0; k < 6; k++) {
+                var t = k / 6 * Math.PI * 2;
+                lamps.push(lamp(mx + Math.cos(t) * 0.85, mz + Math.sin(t) * 0.85, 0.006, { variant: 6 }));
+            }
+            return build({
+                name: 'Jackpot', par: 3,
+                bag: ['putter', 'mallet', 'chipper', 'wedge'],
+                blurb: 'The pin is in the vault and the vault opens at the back. Go round, or find the hole in the table — it comes out over the pin.',
+                pads: [p],
+                warps: [pipe(mx, mz, cx, cz + 2.75, Math.PI, 0.45)],
+                extra: [].concat(
+                    arc(cx, cz, 2.6, 175 * Math.PI / 180, 365 * Math.PI / 180, { h: 1.3, t: 0.3 }),
+                    [bumper(2.6, 6.4), bumper(6.8, 6.4), post(mx - 0.7, mz - 0.6), bumper(4.7, 9.6),
+                     bumper(1.6, 15.2), bumper(7.8, 15.2)]
+                ),
+                decor: lamps.concat([
+                    marquee(cx, 20.6, { w: 3.2, scale: 1.6, text: 'JACKPOT' }),
+                    cabinet(-1.5, 4.0, { yaw: Math.PI / 2, scale: 1.3, variant: 2 }),
+                    cabinet(-1.5, 8.5, { yaw: Math.PI / 2, scale: 1.3, variant: 0 }),
+                    cabinet(-1.5, 13.0, { yaw: Math.PI / 2, scale: 1.3, variant: 3 }),
+                    cabinet(10.9, 4.0, { yaw: -Math.PI / 2, scale: 1.3, variant: 1 }),
+                    cabinet(10.9, 8.5, { yaw: -Math.PI / 2, scale: 1.3, variant: 2 }),
+                    cabinet(10.9, 13.0, { yaw: -Math.PI / 2, scale: 1.3, variant: 0 })
+                ]),
+                tee: { x: cx, z: 1.5 }, cup: { x: cx, z: cz }
+            });
+        })()
     ];
 
     /* ── crazy golf, the last of three: Clockwork Court ────────────────────
