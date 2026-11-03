@@ -2724,13 +2724,34 @@
 
                It replaced The Zigzag, two bars of beach with the gap at
                opposite ends, and keeps one of them: a bar of sand across the
-               lane with the gap at the east end. The tee is at that end too,
-               so the safe two is plain — a putt through the gap, and a putt
-               past the gate when it is out of the way. The ace is the line at
-               the flag, which shaves the inside edge of the gap and crosses
-               the gate's path, so it is a line *and* a moment; or bank it off
-               the east rail through the middle of the gap, which is the same
-               moment from further away. */
+               lane with the gap at the east end. The safe two is plain — a
+               putt up through the gap, and a putt past the gate when it is out
+               of the way.
+
+               The ace used to be the line at the flag, timed past the gate,
+               and that made it a hole with no question in it: a mallet struck
+               straight at the pin dropped at the right moment (README → "The
+               hole lab"). So the tee and the pin have both moved, and the
+               sand does the refusing. The tee stands in line with the end of
+               the bar and the pin a little west of that line, right behind
+               the gate's track, so the shot at the flag crosses the whole
+               depth of the sand — two units of it — and a full mallet comes
+               out the other side at a walking pace and stops short of the
+               gate's track. Nothing on the line was added to stop it; it is
+               the beach that was always there, and the flag now stands where
+               the beach is in the way.
+
+               The ace is a bank. Aim up and to the right, at the east rail
+               where it runs past the gap; the rail turns the ball back out
+               through the middle of the gap, and it runs on across the
+               gate's track to the pin. The rail takes some of the angle off
+               the way back, so the line is several degrees wide and wants
+               the top third of the dial — a line and a weight a person can
+               find again. And a moment: the gate drifts across right in
+               front of the flag, and the bank only gets past it while the
+               gate is down at the west end of its run, so it is the first
+               hole on the game where the bold shot waits for the clock and
+               the safe one does not have to. */
             name: 'Harbour Gate', par: 3,
             blurb: 'Through the gap in the beach, then past the gate. It drifts; it never shuts.',
             pads: [
@@ -2739,7 +2760,7 @@
                 pad(0, 6, 6, 6.5)
             ],
             extra: [slider(1.6, 8.6, 2.0, 0.4, { amp: 1.5, speed: 0.7 })],
-            tee: { x: 5, z: 1.5 }, cup: { x: 3, z: 11 },
+            tee: { x: 4, z: 2.4 }, cup: { x: 3.1, z: 9.6 },
             decor: [
                 piling(-1.8, 5.0),
                 piling(7.8, 7.0),
@@ -2750,23 +2771,64 @@
         }),
         build({
             /* Water, and the first time the bag has anything that flies in
-               it. The bridge is the safe way and two putts; the pitch over the
-               shallows at the pin is the short way. And the ace is neither of
-               those — it is the mallet across the bridge, firm enough to run
-               all the way to the cup, along a plank with nothing between it
-               and the water on the inside. */
+               it. The tide is out of the bay between the tee and the far
+               green, all but one channel: an inlet that runs on up the
+               middle of the far green, between a lawn on the west and the
+               bridge's landing on the east, and stops just short of the flag.
+               So the far green goes round the head of the inlet, and it is
+               set off to the west of the tee — a lawn wider than the tee box,
+               come down to the water where a pitch can reach it.
+
+               It was a rectangle with a band of water straight across it and
+               the pin straight over the water from the tee, and the pitch at
+               the flag dropped nine times out of ten: the short way and the
+               ace were the same shot (README → "The hole lab"). The inlet is
+               the fix. A pitch carries about eight units from this tee and
+               the inlet runs on for nearly eleven, so a pitch at the flag
+               comes down in the channel, every weight of it, and costs a
+               stroke. The shot at the flag along the ground is in the bay
+               before it has started.
+
+               Three ways round it, then:
+
+               - **The bridge, which is the safe way.** A putt up the plank
+                 with the rail on the right, and a putt round the head of the
+                 inlet to the pin. The landing has the inlet on its inside for
+                 as long as the bridge does, so even the safe way is a putt
+                 with water beside it — but a slow one is never in.
+               - **Loft, which is the short way.** A pitch over the bay onto
+                 the bridge's landing or the lawn, and a putt. It cannot be
+                 the ace, because the inlet is between where it lands and the
+                 cup.
+               - **The mallet, which is the ace.** The idea the old hole had
+                 and the one worth keeping: across the bridge and all the way
+                 to the cup. Aim up and to the right, onto the plank and into
+                 its rail; the rail turns the ball back up the landing, along
+                 the edge of the inlet, and round the head of it into the cup.
+                 Too much angle and the ball is off the landing into the
+                 channel, too little and it runs past the pin on the east —
+                 a line a few degrees wide that wants the top of the dial, and
+                 water on the side the miss goes. */
             name: 'Low Tide', par: 3, bag: MINI_LOFT,
             blurb: 'The bridge is the safe way. Loft is the short way.',
-            pads: [pad(0, 0, 5, 5), pad(3.5, 5, 1.5, 4, 0, 'wood'), pad(0, 9, 5, 6)],
-            water: [rect(0, 5, 3.5, 4, -0.55)],
-            gaps: [shore(rect(0, 5, 3.5, 4))],
-            tee: { x: 1.6, z: 2 }, cup: { x: 2.3, z: 12.5 },
+            pads: [
+                pad(0, 0, 5, 5),
+                pad(3.5, 5, 1.5, 4, 0, 'wood'),
+                pad(-2, 8.5, 3.5, 7.1),
+                pad(1.5, 12.4, 2, 3.2),
+                pad(3.5, 9, 1.5, 6.6)
+            ],
+            water: [rect(-2, 5, 3.5, 3.5, -0.55), rect(1.5, 5, 2, 7.4, -0.55)],
+            gaps: [shore(rect(-2, 5, 3.5, 3.5)), shore(rect(1.5, 5, 2, 7.4))],
+            tee: { x: 2.5, z: 1.5 }, cup: { x: 2.9, z: 14.2 },
             decor: [
                 piling(3.2, 5.5, -0.55),
                 piling(3.2, 8.5, -0.55),
-                buoy(1.5, 7.0, -0.55),
-                piling(-0.8, 7.0, -0.55),
-                buoy(-3.0, 7.0)
+                piling(3.2, 10.6, -0.55),
+                buoy(2.4, 9.4, -0.55),
+                buoy(-0.6, 6.6, -0.55),
+                boat(-1.6, 2.4, { yaw: 0.7 }),
+                buoy(-3.4, 11.0)
             ]
         }),
         build({
