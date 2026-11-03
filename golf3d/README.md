@@ -1104,8 +1104,8 @@ thirteen, and why The Bend lost two units off each leg.
 | --- | --- | --- | --- |
 | Sea Legs | the 45° bank | up the open side, then across | the mallet up the open side and off the angle |
 | The Bend | the slipway: the top leg falls about a twentieth towards the cup | into the corner, then down the slope | shave the inside corner onto the slipway (the putter will do it), or the mallet off the outside rail |
-| Harbour Gate | one bar of beach with the gap at the tee's end, and a slow gate | through the gap, then past the gate when it has moved | at the flag: the inside edge of the gap, timed past the gate |
-| Low Tide | the bridge and the water | over the bridge, then putt | the mallet across the bridge all the way to the cup, or a pitch at the pin |
+| Harbour Gate | one bar of beach with the gap at the tee's end, and a slow gate; the pin is off the line of the gap | through the gap, then past the gate when it has moved | the mallet off the east rail beside the gap, back out through it and on to the pin while the gate is at its west end (v1.121.0; the putt at the flag used to drop, timed, and now dies in the sand) |
+| Low Tide | a bay with an inlet running up the far green to just short of the flag, which is round the head of it | over the bridge, then round the head of the inlet | the mallet into the bridge rail and back up the landing along the inlet's edge into the cup; a pitch at the flag lands in the inlet (v1.121.0 — it was a lane with a band of water across it) |
 | The Horseshoe | the return leg leans at the sea wall, and the cup is against it | round the long way, four putts, par | a pitch across the bay onto the cup's line, and the lean rolls it in |
 | The Jetty | the kink, no rails, and the far green leaning gently east to the pin | a putt along each plank, par | the mallet dead straight down the one line where all three planks overlap, and the lean takes it across to the pin — the longest shot on the card |
 
@@ -1115,7 +1115,11 @@ seconds, so it never shuts the hole and waiting for it costs nothing. It is a
 preview of the crazy courses rather than a test of timing. It replaced **The
 Zigzag**, two bars of beach with the gap at opposite ends, because no rolled ball
 could thread both bars in one. Bouncing a ball off two rails takes too much out
-of it to reach the cup. Its first bar is kept.
+of it to reach the cup. Its first bar is kept. Until v1.121.0 its ace was the putt
+at the flag timed past the gate, which is a weight and a moment and never a line;
+the pin is a little west of the gap's line now, so that putt dies in the sand,
+and the ace is a bank off the east rail beside the gap. The suite holds it to the
+straight-putt rule at twelve moments of the gate (`CLOCKED`).
 
 **The Bend**'s slipway is the first ground on the course that is *for*
 something. It carries a ball that gets round the corner at any pace down to the
@@ -1161,13 +1165,19 @@ Tidewater and Highland are why the bag has more than two clubs. Every hole on
 Tidewater is built round the one thing a chip can do that a putt cannot —
 leave the ground — and each asks for it differently, with a safe target and a
 short one: **Stepping Stones** is two carries, by a big stone out east or a
-little one on the line; **Short Side** tucks the pin behind sand on the near
-right with the fat of the green open on the left; **The Letterbox** puts the
+little one on the line — or, since v1.121.0, one full carry to the near end of a
+green lying across the bay, with its back rail bringing the ball to the pin;
+**Short Side** tucks the pin behind sand on the near right with the fat of the
+green open on the left, and the whole green leans a fortieth towards it, so a
+chip landed just left of the sand is carried round behind it while a chip at
+the flag lands in the bunker against a timber face (v1.121.0); **The Letterbox** puts the
 pin indoors, in a boathouse across the bay with two ways in — post it through
 the slot in the front from the tee, where a miss is in the water, or land on the
 jetty and putt in by the front door, which costs a stroke; **Tabletop** puts the green a
 metre up, off to the right of an apron that runs under it, with every edge a
-brink; **The Reach** goes out to a rock off to the right and back across the
+brink — since v1.121.0 a long shallow table with a timber backboard, the pin at
+its far end just past where a chip on the flag's line can reach the top, so the
+ace is a carry to the near end and off the board; **The Reach** goes out to a rock off to the right and back across the
 water into a crater that gathers whatever lands in it. And then
 **Under the Boardwalk**, which is the joke at the course's expense: a bar too
 tall to fly across the top of a dogleg, standing high enough off the ground
