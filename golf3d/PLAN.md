@@ -61,6 +61,11 @@ and in the order they came in. Strike one off (move it to "Done") when it ships:
 11. **The Flippers** (Pinball Parlour) — "have the bad square box thing again."
     The post in its throat is a bumper; round pop bumpers answer it, and the
     whole Parlour gets the same pass (Plunger Lane, Two Ramps, The Slingshots).
+12. **The autoplay caddie** — "bot gets stuck on Dead Weight" (Apogee Yard),
+    and "perhaps the bot needs some pathfinding algos as well to make a plan?
+    The auto play bot, that is." A greedy one-shot search is what stalls it on
+    Caldera and Dead Weight both: a route that goes away from the cup first
+    (a ramp, a pad, a pipe, the long way round) never wins on distance.
 
 Still waiting: "Deadline" (a nice biome, maps too simple, water on a table)
 is waiting on the owner to say which course they meant.
