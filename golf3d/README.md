@@ -3606,6 +3606,30 @@ its home world, never the playtest), checks that the dice change the deal and
 that every course can come up, and that a showcase record goes to the round
 furthest under par rather than the shortest.
 
+### Stars, and the dice leaning towards what you have not played
+
+Every hole gives up to **three stars**, the same as the 2D game next door:
+three under par, two at par, one for holing out, none for a pick-up
+(`scoring.js → stars`). They are kept per hole in the save
+(`save.holes['<course>:<index>'] = { plays, best, stars }`), keyed by the
+hole's **home** course — a showcase hole is filed where it lives, so its stars
+are the same wherever you meet it. `game.js → noteHole` writes it as each hole
+ends: the play is counted for any human round (pass and play counts a hole
+once), the stars only where `finishRound` would keep a record. The demo, a
+caddie session, a dealt Challenge hole and an editor playtest write nothing.
+The banner shows the hole's stars, the picker shows each plan's best and each
+course's total, and the showcase button the total over every course.
+
+`plays` is what the dice read. A hole weighs `1 / (1 + plays)²` — never played
+is four times as likely as once, nine times as likely as twice, and never zero
+— and a course weighs its holes' average, with a save from before hole counts
+falling back to its rounds. `dealShowcase(rng, save)` picks each course by
+that and then the hole inside it; `randomCourseId` (every shuffle mode, the
+end of a shuffled round, `?course=random`) picks out of the mode's draw by it.
+With no save, or everything played alike, the weights are equal and the pick
+is exactly the even one — `weightedIndex` gives `floor(n × length)` to the
+digit, which is what the older tests holding the dice still check.
+
 ## Challenge mode: maths in a grid world
 
 The button under the showcase. Six holes whose ground is a mathematical

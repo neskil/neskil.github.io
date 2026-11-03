@@ -1347,6 +1347,68 @@
                     G3.nextCourseId('seaside') !== 'showcase');
             })();
 
+            /* The dice lean towards what the save has not played. Equal play is
+               the even draw to the digit; a played course or hole is drawn
+               less, never not at all. */
+            (function () {
+                function lcg(seed) {
+                    var s = seed >>> 0;
+                    return function () { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
+                }
+                assert('equal weights pick exactly as the unweighted dice did',
+                    [0, 0.1, 0.5, 0.75, 0.999].every(function (n) {
+                        return G3.weightedIndex([1, 1, 1, 1, 1, 1], n) === Math.floor(n * 6);
+                    }));
+                assert('a broken source still picks the first',
+                    G3.weightedIndex([1, 2], NaN) === 0 && G3.weightedIndex([1, 2], 1) === 0 &&
+                    G3.weightedIndex([0, 0], 0.5) === 0);
+                assert('a hole never played outweighs one played once four to one',
+                    G3.holeWeight(null, 'seaside', 0) === 1 &&
+                    G3.holeWeight({ holes: { 'seaside:0': { plays: 1 } } }, 'seaside', 0) === 0.25);
+
+                // Every course but one played eight times over: the shuffle
+                // should find the one nearly every time, and the others still sometimes.
+                var played = { courses: {}, holes: {} };
+                G3.COURSES.forEach(function (c) {
+                    if (c.id !== 'quarry') played.courses[c.id] = { rounds: 8 };
+                });
+                var hits = 0, others = 0, rng = lcg(7), k;
+                for (k = 0; k < 400; k++) {
+                    var id = G3.randomCourseId({ mode: 'any', from: 'seaside', save: played, rng: rng });
+                    if (id === 'quarry') hits++; else others++;
+                }
+                assert('the shuffle leans hard towards the course never played', hits > 300, hits + ' of 400');
+                assert('…and still draws the played ones now and then', others > 0, others + ' of 400');
+
+                // Holes played out of a showcase count against their course too.
+                var seen = { courses: {}, holes: {} };
+                G3.coursesInGroup('mini').forEach(function (c) {
+                    c.holes.forEach(function (h, i) { seen.holes[c.id + ':' + i] = { plays: 3 }; });
+                });
+                var fresh = G3.coursesInGroup('mini')[0];
+                fresh.holes.forEach(function (h, i) { delete seen.holes[fresh.id + ':' + i]; });
+                var dealt = 0;
+                for (k = 0; k < 200; k++) {
+                    var d = G3.dealShowcase(lcg(k * 977 + 3), seen);
+                    if (d.from.some(function (f) { return f.id === fresh.id; })) dealt++;
+                }
+                assert('the showcase deals the unplayed course in nearly every deal', dealt > 185, dealt + ' of 200');
+
+                // Within a course, the one hole not played yet comes up most.
+                var one = { courses: {}, holes: {} }, c0 = G3.coursesInGroup('mini')[0];
+                c0.holes.forEach(function (h, i) { if (i !== 4) one.holes[c0.id + ':' + i] = { plays: 5 }; });
+                var four = 0, total = 0;
+                for (k = 0; k < 300; k++) {
+                    G3.dealShowcase(lcg(k * 131 + 9), one).from.forEach(function (f) {
+                        if (f.id !== c0.id) return;
+                        total++;
+                        if (f.index === 4) four++;
+                    });
+                }
+                assert('…and inside a course, the hole not played yet', total > 0 && four / total > 0.8,
+                    four + ' of ' + total);
+            })();
+
             /* A hole may name its own bag, and there are three ways to get
                that wrong that nothing else would catch: naming a club that
                does not exist (`bagFor` drops it, and a hole meant to be
@@ -4167,6 +4229,37 @@
             assert('…and level par on an easy deal does not beat it',
                 !sc3.isBest && sc3.save.courses.showcase.bestVsPar === -1);
 
+            /* Stars, as the 2D game gives them: three under par, two at
+               par, one holed, none picked up. */
+            assert('under par is three stars, par two, over one',
+                S.stars(2, 3) === 3 && S.stars(1, 2) === 3 && S.stars(3, 3) === 2 && S.stars(5, 3) === 1);
+            assert('a pick-up is no star', S.stars(3 + C.PICKUP, 3) === 0 && S.stars(undefined, 3) === 0);
+            assert('stars are drawn three wide', S.starText(2) === '\u2605\u2605\u2606' &&
+                S.starText(0) === '\u2606\u2606\u2606');
+
+            var h1 = S.recordHole(S.emptySave(), 'seaside', 2, 4, 3);
+            assert('a hole counts its play and its stars',
+                h1.stars === 1 && S.holeRecord(h1.save, 'seaside', 2).plays === 1 &&
+                S.holeRecord(h1.save, 'seaside', 2).stars === 1 && h1.isBest);
+            var h2 = S.recordHole(h1.save, 'seaside', 2, 2, 3);
+            assert('a better score raises the stars and says so',
+                h2.moreStars && S.holeRecord(h2.save, 'seaside', 2).stars === 3 &&
+                S.holeRecord(h2.save, 'seaside', 2).best === 2 && S.holeRecord(h1.save, 'seaside', 2).stars === 1);
+            var h3 = S.recordHole(h2.save, 'seaside', 2, 6, 3);
+            assert('a worse one keeps the stars and the best, and still counts the play',
+                !h3.moreStars && S.holeRecord(h3.save, 'seaside', 2).stars === 3 &&
+                S.holeRecord(h3.save, 'seaside', 2).plays === 3);
+            var h4 = S.recordHole(h3.save, 'seaside', 2, 1, 3, { scored: false });
+            assert('an unscored play counts and earns nothing',
+                h4.stars === 0 && S.holeRecord(h4.save, 'seaside', 2).plays === 4 &&
+                S.holeRecord(h4.save, 'seaside', 2).best === 2);
+            assert('a course adds up its holes\' stars, out of three each',
+                S.courseStars(h4.save, G3.COURSES[0]).got === (G3.COURSES[0].id === 'seaside' ? 3 : 0) &&
+                S.courseStars(h4.save, G3.COURSES[0]).max === G3.COURSES[0].holes.length * 3);
+            var kept = S.recordRound(h4.save, 'seaside', card, holes);
+            assert('finishing a round keeps the holes\' records',
+                S.holeRecord(kept.save, 'seaside', 2).stars === 3);
+
             // Round-trip through localStorage under a scratch key, so running
             // the tests never costs anyone their records.
             var realKey = C.SAVE_KEY;
@@ -4176,6 +4269,12 @@
                 var back = S.load();
                 assert('a save round-trips', back.courses.seaside.best === third.save.courses.seaside.best &&
                     back.aces === third.save.aces);
+                S.save(h4.save);
+                assert('hole records round-trip', S.holeRecord(S.load(), 'seaside', 2).plays === 4 &&
+                    S.holeRecord(S.load(), 'seaside', 2).stars === 3);
+                localStorage.setItem(C.SAVE_KEY, JSON.stringify({ holes: { 'seaside:0': { plays: 'x', stars: 9 }, bad: null } }));
+                assert('nonsense hole fields are dropped or clamped',
+                    S.holeRecord(S.load(), 'seaside', 0).plays === 0 && S.holeRecord(S.load(), 'seaside', 0).stars === 3);
                 localStorage.setItem(C.SAVE_KEY, '{not json');
                 assert('a corrupt save loads as empty', S.load().rounds === 0);
                 localStorage.setItem(C.SAVE_KEY, JSON.stringify({ courses: { seaside: { best: 'x' } }, rounds: 'y' }));

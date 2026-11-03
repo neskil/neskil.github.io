@@ -228,7 +228,8 @@
     // A fresh deal, from its first tee. Play again is newRound('showcase'),
     // which is the same eight holes.
     function newShowcase() {
-        G3.SHOWCASE = G3.dealShowcase();
+        // Leaning towards the holes this save has played least.
+        G3.SHOWCASE = G3.dealShowcase(null, state && state.save ? state.save : S.load());
         newRound('showcase');
     }
 
@@ -1766,6 +1767,7 @@
         state.scores[state.holeIndex] = state.strokes;
         state.phase = 'holed';
         syncSwing();
+        var noted = noteHole(hole);
 
         var t = S.term(state.strokes, hole.par);
         if (pickedUp) A.out();
@@ -1789,6 +1791,7 @@
                 ' · par ' + hole.par;
             $('banner').className = 'banner show';
         }
+        drawBannerStars(noted);
         var up = multi() ? nextToPlay() : -1;
         if (multi()) {
             $('banner-detail').textContent = state.players[state.turn].name + ' · ' +
@@ -1973,6 +1976,43 @@
         }
         state.phase = 'finished';
         openCard(res);
+    }
+
+    /* The hole into the save, under its home course and number — a
+       showcase hole is filed where it lives, so its stars are the same stars
+       wherever you meet it. Its play is counted for the showcase's and the
+       shuffle's dice whoever played it; its stars only for a round that could
+       set a record (finishRound says why). Nothing at all for the demo or a
+       session the caddie has played, for a dealt Challenge hole that will
+       never come round again, or for a draft in the editor.
+
+       Returns what the banner should say, or null for nothing. */
+    function noteHole(hole) {
+        if (demo || autoUsed) return null;
+        var ref = holeRef(state.holeIndex), home = G3.courseById(ref.id);
+        if (!home || home.playtest || home.isChallenge || home.isShowcase || home.isRange) return null;
+        // Pass and play: one play per hole, however many balls went round it.
+        var counted = multi() && state.players.some(function (p, j) {
+            return j !== state.turn && typeof p.scores[state.holeIndex] === 'number';
+        });
+        var solo = !multi() && !state.devSwing;
+        if (!counted) {
+            var res = S.recordHole(state.save, ref.id, ref.index, state.strokes, hole.par, { scored: solo });
+            state.save = S.save(res.save);
+            return solo ? res : null;
+        }
+        return null;
+    }
+
+    // Three stars under the term, and a word when they beat what you held.
+    function drawBannerStars(res) {
+        var el = $('banner-stars');
+        if (!el) return;
+        el.hidden = !res;
+        if (!res) return;
+        el.innerHTML = '<span class="bs-stars">' + S.starText(res.stars) + '</span>' +
+            (res.moreStars && res.was.plays > 0 ? '<span class="bs-new">new best</span>' : '');
+        el.setAttribute('aria-label', res.stars + (res.stars === 1 ? ' star' : ' stars'));
     }
 
     function hideBanner() { $('banner').className = 'banner'; }
@@ -3958,6 +3998,7 @@
         G3.coursesInGroup(menuGroup).forEach(function (course) {
             var rec = S.courseRecord(save, course.id);
             var par = S.coursePar(course.holes);
+            var got = S.courseStars(save, course);
             // Expanded from the start on a wide screen, where the strip of
             // plans never crowded anything out. On a phone every card starts
             // closed except the one the picker is nudging you towards, so
@@ -3981,6 +4022,7 @@
                 '<span class="cc-blurb">' + course.blurb + '</span>' +
                 '<span class="cc-meta">' + course.holes.length + ' holes · par ' + par +
                 ' · best ' + (rec.best === null ? '—' : rec.best + ' (' + S.formatVsPar(rec.bestVsPar) + ')') +
+                ' · <span class="cc-stars-total">\u2605 ' + got.got + '/' + got.max + '</span>' +
                 '</span>';
             top.addEventListener('click', function () { takeCourse(course.id); });
             topRow.appendChild(top);
@@ -4025,7 +4067,11 @@
                 var cell = document.createElement('button');
                 cell.type = 'button';
                 cell.className = 'cc-hole';
-                cell.title = hole.name + ' — par ' + hole.par;
+                var hr = S.holeRecord(save, course.id, i);
+                cell.title = hole.name + ' — par ' + hole.par +
+                    (hr.plays ? ' · ' + hr.stars + (hr.stars === 1 ? ' star' : ' stars') +
+                        ' · played ' + hr.plays + (hr.plays === 1 ? ' time' : ' times')
+                        : ' · not played yet');
                 // The plan pass below reads these rather than counting its
                 // way through the DOM, so the ordering above is free to change.
                 cell.setAttribute('data-course', course.id);
@@ -4033,7 +4079,8 @@
                 cell.innerHTML =
                     '<canvas class="cc-map"></canvas>' +
                     '<span class="cc-num">' + (i + 1) + '</span>' +
-                    '<span class="cc-par">' + hole.par + '</span>';
+                    '<span class="cc-par">' + hole.par + '</span>' +
+                    (hr.plays ? '<span class="cc-stars" aria-hidden="true">' + S.starText(hr.stars) + '</span>' : '');
                 cell.addEventListener('click', function () { takeCourse(course.id, i); });
                 strip.appendChild(cell);
             });
@@ -4319,10 +4366,13 @@
     /* The showcase button's second line: what it is, and once you have one
        on the card, how your best went. */
     function drawShowcase() {
-        var rec = S.courseRecord(state && state.save ? state.save : S.load(), 'showcase');
+        var save = state && state.save ? state.save : S.load();
+        var rec = S.courseRecord(save, 'showcase');
+        var all = S.totalStars(save, G3.COURSES.filter(function (c) { return !c.playtest; }));
         $('menu-showcase-sub').textContent =
-            'Two holes from every kind of golf, eight in all. A new deal every round.' +
-            (rec.best === null ? '' : ' Your best: ' + S.formatVsPar(rec.bestVsPar) + ' against par.');
+            'Two holes from every kind of golf, eight in all, leaning towards ones you have not played.' +
+            (rec.best === null ? '' : ' Your best: ' + S.formatVsPar(rec.bestVsPar) + ' against par.') +
+            (all.got ? ' \u2605 ' + all.got + ' of ' + all.max + ' stars.' : '');
     }
 
     // The round behind the list is a showcase nobody has started yet.
@@ -4422,6 +4472,8 @@
             t = typeof sc === 'number' ? S.term(sc, holes[i].par) : null;
             rows += '<tr><td class="n">' + (i + 1) + '</td>' +
                 '<td class="nm">' + holes[i].name +
+                (typeof sc === 'number' && !state.course.isChallenge
+                    ? '<span class="card-stars">' + S.starText(S.stars(sc, holes[i].par)) + '</span>' : '') +
                 (state.course.isShowcase
                     ? '<span class="card-from">' + G3.courseById(holeRef(i).id).name + '</span>'
                     : '') + '</td>' +
