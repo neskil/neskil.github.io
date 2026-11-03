@@ -20,7 +20,38 @@ version) when it ships. Measure a long-game hole with
 `node golf3d/tools/human-check.mjs <course>` as well as `par-check.mjs`: the
 perfect bot reads a hole's shape, the one with hands reads whether it is fair.
 
-Nothing open. "Deadline" (a nice biome, maps too simple, water on a table)
+Open — round two of the owner's notes (v1.123.0), each in their own words
+and in the order they came in. Strike one off (move it to "Done") when it ships:
+
+1. **Bumper City** (Pinball Parlour) — "bot can't ace it, and the bumpers are
+   just boxes. There is no fun decor or props." In hand: pop bumpers are round
+   and kick (`physics.popBumper`, `CONFIG.BUMPER`); the table is being rebuilt
+   round a ring of them with a bank shot through a gap; arcade decor to come.
+2. **The mallet** — "should have some more power as well (just change that,
+   you don't need to re-test all maps)". Done in this round: 17 → 20 (13.3 →
+   15.8 on a green).
+3. **Caldera** (Cinder Cone) — "bot gets stuck on Caldera" and "a stupid box in
+   front of the hole that should be removed."
+4. **The Shelf** (Coral Keys) — "the cliff for the green, the vertical surface
+   can be passed through. There is no collision."
+5. **The Ledge** (Quarry Ridge) — "a bit weird, where is the risk reward? Can
+   there be smooth edges and round? Perhaps we give up compatibility with the
+   level editor for existing maps and design freely. Perhaps there is a slope
+   that allows you to ace but if you overshoot the ball goes down, and if you do
+   a chill hit you are more safe but can't ace. Also the 90 degree turns can go,
+   you can make curves and other geometry." The last sentence is a standing
+   rule for every rebuild from here on, not just this hole.
+6. **Jackpot** (Pinball Parlour) — "also a weird map", and "also has those dumb
+   square boxes."
+7. **Wormholes** (every `pipe`) — "would be better with more effect, like a
+   black hole opens in the sky and lets the ball out instead of an instant
+   teleport. And the entry hole should be nicer — some shader maybe? Like the
+   cargo lander game's black hole shader" (`cargo-lander/render/shaders.js`).
+8. **Orbit** (Apogee Yard) — "the black hole model is very ugly, please
+   improve. Perhaps the same shader as mentioned before." One shader for the
+   pipe mouth, the sky portal and the well.
+
+Still waiting: "Deadline" (a nice biome, maps too simple, water on a table)
 is waiting on the owner to say which course they meant.
 
 Done:
