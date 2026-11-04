@@ -4725,7 +4725,10 @@
         // through the turn and the wind-up — and `shot`, `fromYaw` and `toYaw`
         // are filled in by planShot when there is something to aim at.
         sim = { stage: 'rest', t: C.BOT_PAUSE, strokes: 0, at: 0, said: false,
-                shot: null, fromYaw: 0, toYaw: 0 };
+                shot: null, fromYaw: 0, toYaw: 0, plan: null, from: null, ms: 0 };
+        // A fresh plan for every start: the lies it has played from are this
+        // attempt's, and a graph from the last time round is not worth the risk.
+        caddie = null;
         state.aim.power = 0;
         syncPower();
         syncSim();
@@ -4782,10 +4785,10 @@
         }
         if (sim.stage === 'think') {
             if (state.phase !== 'aim' || modalUp()) return;
-            // Said on one frame, done on the next: the search stops the world
-            // for a moment and this is what stands in front of it.
+            // Said on one frame, thought on the frames after it: the plan is
+            // made a slice at a time (thinkSim), and this stands in front of it.
             if (!sim.said) { sim.said = true; toast('The caddie is reading the hole…'); return; }
-            planShot();
+            thinkSim();
             return;
         }
         if (sim.stage === 'turn') {
@@ -4828,16 +4831,56 @@
         }
     }
 
+    /* The caddie's plan for the hole (bot.js, "the plan"): a graph of where
+       shots come to rest, kept for every stroke on the hole so the later ones
+       cost little. Keyed by the hole and the bag, because the long game hands
+       over the putter alone on a green and a plan made with a driver in the
+       bag is a plan for somebody else. */
+    var caddie = null;     // { hole, bag, planner }
+
+    function caddieFor(hole, b) {
+        if (!caddie || caddie.hole !== hole || caddie.bag !== b) {
+            caddie = { hole: hole, bag: b, planner: new G3.bot.Planner(hole, b, {
+                fan: C.BOT_FAN,
+                // From a ball stopping to the next one struck: the rest, the
+                // turn and the wind-up. What a node's clock is moved on by.
+                gap: C.BOT_PAUSE + C.BOT_TURN + C.BOT_WIND
+            }) };
+        }
+        return caddie.planner;
+    }
+
+    /* The thinking, a slice of each frame at a time. The plan is a fixed
+       number of simulated shots whatever the frames are doing (bot.js,
+       Planner.step), so slicing it changes when it is ready and never what it
+       says. The first shot on a hole is the long think, a second or so on a
+       phone; the rest reuse the graph and are over in a frame or two. */
+    function thinkSim() {
+        var w = state.world, b = w.ball, t0 = performance.now(), done = false;
+        if (!sim.plan) {
+            sim.from = { x: b.x, y: b.y, z: b.z };
+            sim.plan = caddieFor(w.hole, bag());
+            sim.plan.begin(sim.from, w.time + C.BOT_TURN + C.BOT_WIND);
+            sim.ms = 0;
+        }
+        while (!done && performance.now() - t0 < C.BOT_SLICE) done = sim.plan.step(4);
+        sim.ms += performance.now() - t0;
+        if (done) planShot();
+    }
+
     function planShot() {
-        var w = state.world, b = w.ball;
-        var from = { x: b.x, y: b.y, z: b.z };
+        var w = state.world;
+        var from = sim.from;
         var lead = C.BOT_TURN + C.BOT_WIND;
         var t0 = performance.now();
         /* Planned for the world the wind-up is about to arrive in, not the one
            it is leaving: every blade and gate on the hole will have turned by
            `lead` before this shot is struck, and a shot chosen for the wrong
-           moment is chosen against a different hole. */
-        var shot = G3.bot.bestShot(w.hole, from, w.time + lead, bag(), { fan: C.BOT_FAN });
+           moment is chosen against a different hole. The route was worked out
+           over the last few frames; the shot itself is chosen now, for now. */
+        var shot = sim.plan.choose(from, w.time + lead);
+        sim.plan = null;
+        sim.ms += performance.now() - t0;
         if (!shot) { stopSim('The caddie cannot see a shot from there'); return; }
         sim.shot = shot;
         sim.at = w.time + lead + shot.wait;
@@ -4855,8 +4898,7 @@
         setPower(0);
         toast(shot.club.name + ' — ' + shot.power.toFixed(1) +
               (shot.wait ? ', on the beat' : '') +
-              ' · ' + shot.sims + ' shots tried in ' +
-              Math.round(performance.now() - t0) + 'ms');
+              ' · ' + shot.sims + ' shots tried in ' + Math.round(sim.ms) + 'ms');
     }
 
     function playPlanned() {

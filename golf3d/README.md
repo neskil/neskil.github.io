@@ -64,7 +64,7 @@ them.
 | `js/postfx.js` | What happens to the picture after the course is drawn: bloom, light shafts, tone mapping, grade. |
 | `js/flyover.js` | The intro sweep's path: four keys, a curve through them, and the rule that keeps it out of the hillside. Pure — no three.js, no DOM. |
 | `js/replay.js` | The ace replay's tape: every shot recorded a physics step at a time, read back for a hole in one with the cut to the cup and the slow motion timed off it. Pure — `render.js` places the camera, `game.js` plays the tape. |
-| `js/bot.js` | The greedy player: fan out candidate shots, keep the one that finishes nearest the cup, refine twice. Pure — no three.js, no DOM. What proves every hole is solvable in `tests.html`, and what plays for you in [autoplay](#the-caddie-autoplay). |
+| `js/bot.js` | The greedy player: fan out candidate shots, keep the one that finishes nearest the cup, refine twice. And the caddie's [plan](#the-plan-v11280) over it: a graph of where shots come to rest, searched for a route to the cup. Pure — no three.js, no DOM. What proves every hole is solvable in `tests.html`, and what plays for you in [autoplay](#the-caddie-autoplay). |
 | `js/life.js` | What is on a hole that is not the hole: the long game's [dressing](#the-life-on-the-long-game) and its flock, ducks and butterflies, and the [world round each drawn hole](#the-worlds-round-the-drawn-holes) — a recipe per theme. Static props are built as one mesh per hole; what moves is stepped every frame. Loaded before `render.js` on every page that loads it. |
 | `js/render.js` | The course, in three.js: geometry, lights, camera and the frame. |
 | `js/minimap.js` | The hole from above, drawn per pixel out of `physics.surfaceUnder` — the course picker's plans and the one on the hole card. |
@@ -3620,8 +3620,9 @@ is no frame at all.
 ## The caddie: autoplay
 
 🤖 **Autoplay**, in the ☰ menu with the other things you do to a round. Press
-it and `js/bot.js`, the same greedy player that proves in `tests.html` that all
-eighty-four holes are solvable, takes the club and plays — from wherever your ball
+it and `js/bot.js`, the same player that proves in `tests.html` that all
+eighty-four holes are solvable — with [a plan](#the-plan-v11280) on top of it —
+takes the club and plays — from wherever your ball
 is standing, and then **on**: the next hole when this one is holed, and the
 next course when the sixth one is. Press it again, or <kbd>Esc</kbd>, to take
 the club back.
@@ -3664,8 +3665,8 @@ hole would play out of your lie — is the most useful answer in the game to the
 question a stuck player is actually asking.
 
 It is the only way to *see* the thing the suite has only ever counted. The bot
-reads the hole (a couple of hundred whole shots simulated, which is the pause
-you are watching), picks a club, aims, loads the meter and swings — through the
+reads the hole (a few hundred whole shots simulated on the first stroke of a
+hole, fewer on the rest, which is the pause you are watching), picks a club, aims, loads the meter and swings — through the
 same four things a player touches, so what you are watching is a shot the game
 played rather than a line drawn on top of one. Then it rests a beat, looks at
 where the ball actually finished, and does it again. Each shot says which club,
@@ -3686,9 +3687,12 @@ Four details make it watchable and honest:
   `BOT_TURN + BOT_WIND` from now rather than as it is: every blade and gate on
   the hole turns during a wind-up, and a shot chosen for the wrong moment is a
   shot chosen against a different hole.
-- **It thinks on the frame after it says so.** The search stops the world for
-  about a tenth of a second, and a freeze under a message reads as thought
-  where the same freeze under a still course reads as a stall.
+- **It thinks after it says so, and a slice of a frame at a time.** The
+  route is worked out over the frames after the message, `BOT_SLICE`
+  milliseconds of each (game.js → `thinkSim`), and only choosing the shot
+  itself stops the world, for about as long as the old greedy search did. The
+  plan is a fixed count of simulated shots, so slicing it changes when it is
+  ready and never what it says.
 - **The roll is stepped at a fixed 1/60 while it plays.** `physics.advance`
   sub-steps by speed rather than to a fixed clock, so a frame of any other
   length is a slightly different roll — and the plan was made at 1/60. Left-over
@@ -3701,6 +3705,66 @@ The bot played here has a narrower fan than the one the suite runs (`BOT_FAN`
 against the suite's 16), because there a shot costs whatever it costs and here a
 player is holding still while it thinks. `BOT_PAUSE` is the beat between shots
 and `BOT_MAX_STROKES` is where it gives up and hands the club back.
+
+### The plan (v1.128.0)
+
+The owner's note was "bot gets stuck on Dead Weight", and then "perhaps the bot
+needs some pathfinding algos as well to make a plan?" — after "bot gets stuck
+on Caldera" a round earlier. Both stalls were the same thing. A greedy search
+plays the shot that finishes nearest the cup, and that is the one shot that
+never works where the road goes away from the flag first:
+
+- **Dead Weight.** Two g, a gap nothing flies, the plank off to the east. At the
+  game's fan of 12 the tee shot stopped on the brink at (2.26, 7.85), straight
+  at the cup, and the next eleven were a putter at 1.93 east to (3.12, 7.99)
+  and back west to (1.99, 7.99): every forward shot falls off, the plank's foot
+  is a unit and a half east and *further* from the cup, and a sideways putt
+  moves 1.1 units, so it passes the rule that a shot has to go somewhere.
+- **Caldera, as it was.** The lawn ran half a unit past the vent with no rail.
+  A soft ball stopped on that lip with the lake in front and the vent behind,
+  the way out was two shots long (back, then over the vent), and the caddie
+  putted along the lip, 3.67 to 4.80 and back, until it ran out. The hole is
+  rebuilt (Cinder Cone), and the lip lives on as a synthetic hole in
+  `tests.html`.
+
+So the caddie plans now (`bot.js` → "the plan", `G3.bot.Planner`). Where shots
+come to rest are the nodes of a graph and shots are its edges; rests within half
+a unit on the same level are one node. A* over it from the ball, steered by a
+rough strokes-to-go read off the distance and the lie, until a route to the cup
+is found that nothing open could beat or the budget is spent (1,800 simulated
+shots on a hole's first stroke, 700 on each after it, with the graph kept for
+the hole). The values are backed up from the cup, and the shot is the greedy
+search run once more with those values in place of the distance, so it still
+refines and still holes out, but towards the first shot of the best route. The
+ball's own lie gets a fan of 72 lines shared between the clubs, which is what
+finds Bumper City's ace, a three-degree window off a rail. With hands, the
+misses are averaged over the plan's values instead of over `toGo`. Nothing in
+it is random, and the answer does not depend on how the thinking is sliced —
+`tests.html` holds both.
+
+It is the autoplay caddie and the demo that plan; `play(…, { plan: true })` is
+the same thing headless. `tests.html`'s every-hole sweep, the hole lab and
+`par-check.mjs`/`human-check.mjs` still run the greedy search, so their numbers
+did not move.
+
+Every drawn and long hole, at the game's settings (`BOT_FAN`,
+`BOT_MAX_STROKES`), once with a perfect strike and four seeded rounds with
+`BOT_HANDS`. A stall is a hole where two or more shots end within half a unit of
+a lie already played from (a splash back to the tee counts):
+
+| | Not holed | Stalls | Against par, per hole |
+| --- | --- | --- | --- |
+| Greedy, perfect strike | 1 of 84 (Dead Weight) | 2 | −1.45 |
+| Planned, perfect strike | 0 of 84 | 0 | −1.74 |
+| Greedy, hands | 4 of 336 (Dead Weight ×3, The Cannon) | 14 | −0.56 |
+| Planned, hands | 0 of 336 | 8 | −0.90 |
+
+The first stroke of a hole costs a little more than twice what the greedy one
+did — 846 ms of thinking on average in Node against 419 ms, most of it spread
+over frames, and the longest the long game's (2.6 s at most, on Elbow Point;
+Redstone's Switchback is 2.3). The moment that stops the world is about what it
+was on a hole with a clock and shorter on every hole without one, because there
+the fan the plan already played is handed back rather than played again.
 
 ## Pass and play
 

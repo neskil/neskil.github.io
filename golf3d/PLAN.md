@@ -40,11 +40,23 @@ order they came in (the ones already shipped are under "Done", v1.126.0):
     and "perhaps the bot needs some pathfinding algos as well to make a plan?
     The auto play bot, that is." A greedy one-shot search is what stalls it: a
     route that goes away from the cup first (a ramp, a pad, a pipe, the long
-    way round) never wins on distance. In hand. Two cases to keep as tests:
-    Caldera's old lip (at mallet 17 the caddie went off the tee on to the
-    lawn past the vent at about (4–6, 9.97) and putted a unit east and a unit
-    west along it until it ran out of strokes), and Bumper City's bank ace,
-    which the greedy search finds at fan 20 and 36 and misses at 12, 16, 24.
+    way round) never wins on distance. Done in this round (v1.128.0): the
+    caddie plans (README → "The plan"). A graph of where shots come to rest,
+    A* over it to the cup, values backed up from the cup, and the greedy
+    search scored by those values in place of the distance — resumable, so
+    the game thinks a slice of each frame at a time, and deterministic. At
+    the game's settings it holes all 84 holes with a perfect strike (greedy
+    left Dead Weight unfinished) and all 336 seeded rounds with hands (greedy
+    left four), at −1.74 a hole against par rather than −1.45 (−0.90 rather
+    than −0.56 with hands). Both cases are tests: Caldera's old lip is a synthetic hole in `tests.html` that the
+    greedy caddie still shuffles along and the planner backs off, and Bumper
+    City's bank ace is found from the tee. Still open: only autoplay and the
+    demo plan; the suite's every-hole sweep, the hole lab and the two
+    `tools/` checks keep the greedy search (and their numbers). Coral Keys
+    with hands reads about a third of a stroke worse a hole under the plan,
+    which is the plan trusting a perfect-strike route on a course of narrow
+    carries; a timing miss in the hands, and expanding interior nodes with
+    the hands' spread, are the next steps if that matters.
 13. **Pinball Parlour, as a course** — "could have nicer flippers and a bit more
     fun design. The increasing complexity for every level kind of deal, and
     vary props and decor." Shipped in part (v1.126.0): hinged flippers drawn
