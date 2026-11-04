@@ -2132,10 +2132,34 @@
         }
     }
 
+    /* Whether the floor carries on just past one end of a run of rail, on the
+       line the rail stands on: a pad there at this edge's height. */
+    function floorPast(pads, p, side, t, dir) {
+        var s = t + dir * PROBE, o = RAIL_T / 2, along = (side === 'n' || side === 's') ? p.w : p.d;
+        var e = Math.max(0, Math.min(along, t)), x, z, ex, ez, h;
+        if (side === 's') { x = p.x + s; z = p.z - o; ex = p.x + e; ez = p.z; }
+        else if (side === 'n') { x = p.x + s; z = p.z + p.d + o; ex = p.x + e; ez = p.z + p.d; }
+        else if (side === 'w') { x = p.x - o; z = p.z + s; ex = p.x; ez = p.z + e; }
+        else { x = p.x + p.w + o; z = p.z + s; ex = p.x + p.w; ez = p.z + e; }
+        h = heightAt(pads, x, z, p);
+        return h !== null && Math.abs(h - G3.physics.padHeight(p, ex, ez)) < 0.3;
+    }
+
     function railFor(p, side, run, pads) {
-        // Overhang the ends by a thickness so corners meet and seal. Walls are
-        // allowed to overlap; the solver resolves them one at a time.
-        var a = run.t0 - RAIL_T, b = run.t1 + RAIL_T;
+        /* Overhang the ends by a thickness so an outside corner meets and
+           seals: the two rails' ends between them fill the square where the
+           corner is. Walls are allowed to overlap; the solver resolves them
+           one at a time.
+
+           Not where the floor carries on past the end, though — an inside
+           corner, where a five-wide tee pad meets an eight-wide green, or
+           the place a neighbour opens the edge. The rail on the other side
+           of that corner already fills the square, so an overhang there is
+           a stub of rail standing on the next pad's floor, and the two stubs
+           crossing were the X every inside corner on the mini courses wore
+           (v1.123.0). */
+        var a = run.t0 - (floorPast(pads, p, side, run.t0, -1) ? 0 : RAIL_T);
+        var b = run.t1 + (floorPast(pads, p, side, run.t1, 1) ? 0 : RAIL_T);
         var base = run.lo - 0.35;
         var h = (run.hi - run.lo) + RAIL_H + 0.35;
         if (side === 's') return wall(p.x + a, p.z - RAIL_T, b - a, RAIL_T, h, { base: base });
@@ -4825,7 +4849,11 @@
             ],
             extra: [bumper(4.5, 4.2)],
             decor: arcadeRoom(9, 18, 'TWO RAMPS', 1, [jukebox, cabinet]),
-            tee: { x: 4.5, z: 1.6 }, cup: { x: 6.6, z: 15 }
+            /* The pin was at x 6.6 until the stubs of rail crossed at every
+               inside corner came out (railFor): two of them had been
+               narrowing the steep ramp's mouth, and without them the putt at
+               the flag went up it and dropped. */
+            tee: { x: 4.5, z: 1.6 }, cup: { x: 6.9, z: 15 }
         }),
         build({
             /* Two banks across the mouth of the table, set as a V that opens

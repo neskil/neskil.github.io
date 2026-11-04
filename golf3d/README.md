@@ -2641,6 +2641,20 @@ left the same lane with square corners; with `cornerRails` taken out it
 counts fifty. It also holds every real hole to a rail per rounded corner and
 no curve within reach of a tee or a cup.
 
+**Inside corners meet clean** (v1.123.0). `railFor` runs each straight rail a
+thickness past both ends of its run, which is how an *outside* corner seals: the
+two rails' ends fill the square between them. At an *inside* corner — a
+five-wide tee box into an eight-wide green, a dogleg's elbow — the rail across
+the corner already fills that square, so the overrun was a 0.3 stub of rail
+standing on the next pad's floor, and the two stubs crossed in an X: the
+owner's "X style corners sticking out", fifty-three stubs on thirteen fenced
+holes. A run now overruns an end only where the floor does not carry on past it
+(`floorPast`), so a collinear join and an outside corner overlap as before and
+an inside corner is a plain L. One hole leaned on a stub without meaning to:
+Two Ramps had two narrowing each ramp's mouth, and with them gone the putt at
+the flag went up the steep ramp and dropped, so its pin is three tenths east
+(0.122% of the coarse sweep is still an ace, off the mallet).
+
 ### Relief on a drawn hole
 
 **A drawn hole is flat unless it says `rolling: true`.** Every mini, crazy and
