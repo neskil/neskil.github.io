@@ -1058,7 +1058,7 @@ approach.
 | Ashdown Park | long | `parkland` | The long game, on a hillside: bluffs, a crest, a cross-fall into a lake, and two round greens. No fence — the park carries on past the stakes. |
 | Whinstone Links | long | `links` | No flat lies and no straight edges. The ground is the hazard, and on one hole it is a sandhill. |
 | Dunmore Heath | long | `heath` | The long game again, shaped rather than furnished: crests, hollows, a punchbowl, a whorl, one dry ravine and a hillside you climb — and moorland water, a burn, a tarn and a pond. |
-| Redstone Canyon | long | `canyon` | Ground that is missing, six ways. A canyon across the drive, down the side of the hole, flooded under a par three, biting a piece out of the fairway, twice, and at the end of a dogleg round a mesa. |
+| Redstone Canyon | long | `canyon` | Ground that is missing, six ways, and since v1.130.0 really missing: every piece of the course stands on its own banded walls out of a canyon floor that is out of play. A wall across the drive, a ledge along the rim, a rim seven up over a mesa, a pinnacle tee, benches to climb, and a temple to go round. |
 | Coral Keys | long | `lagoon` | One big island a hole (two on the par five), with the sea let into it as a cove, a bay or the lagoon inside a crescent, and every hole a choice between the carry and the way round: a cove at the flag, a shelf of turf above the beach, a key in the crook of a crescent, a lagoon between two islands, a Cape-style slanting shore, and a clifftop green round a point. Tees stand on headlands 2.6 up. `island`, `cliff` (with `sheer` for a sea cliff, render.addPad) and `lay` in courses.js; bays are dips in the disc's outline (`wave.bays`, physics.padRadius); the shallows are `render.addShelf`. Built to `tools/human-check.mjs` rather than to the perfect bot, which had scored the first version (a string of small keys) ten under while people found it too hard. |
 
 ### Fourteen courses, from eighteen (v1.122.0)
@@ -2204,67 +2204,79 @@ finishes up to twelve units off the line it was aimed down.
 
 ### Redstone Canyon
 
-The fourth long course, and the first one made of ground that is **missing**.
-Ashdown is a park, Whinstone is a dune field and Dunmore is a moor; all three
-are built out of ground that rises. Dunmore's last hole is the exception and it
-is the best decision on that card — a gorge two units deep across the fairway,
-which is neither a water hazard nor a bunker but ground you are entitled to
-play out of and will wish you had not had to. Here that happens six times, and
-the course is the argument that *where* a canyon runs changes the question
-entirely.
+The fourth long course, and the one made of ground that is **missing**. Ashdown
+is a park, Whinstone is a dune field and Dunmore is a moor; all three are built
+out of ground that rises. This one is built out of a canyon.
 
-The 2026 rebuild (PLAN.md §0) held it to the line Ashdown set: every crossing
-sits where a drive off *that* tee comes down, the par fours are fifty-odd and the
-fives about eighty, and the bot's drive no longer reaches any green on the card.
+It was a plain with gorges carved into it until the owner sent it back — "for
+the Grand Canyon inspired ones I'd like some really high cliffs as part of the
+design" — and a carved gorge cannot have them. Its walls are ground, ground
+that steep is a cosine with a grassy lip, and past a unit or so deep it is a
+trap besides (see [The gorge](#the-gorge)). So since v1.130.0 the course is
+built **the other way up**:
+
+- **The floor is the bottom of the world.** `CANYON_FLOOR`, four units down,
+  runs eighteen units past the stakes, is drawn as the surround's own bare
+  rock, and is out of play wherever it is (`pad.oob`, which
+  `physics.markOutOfBounds` reads as well as the stakes). The river is a
+  `burn` laid into it as a pond. A ball that goes over an edge falls the height
+  of the wall, lands where you can see it, and costs a stroke and the shot
+  again.
+- **Everything that is played stands on its own walls out of it.** A `butte`
+  is Coral Keys' `cliff` without the beach: a disc with `coast`'s seeded edge
+  and bays, marked `stands` (its face is solid — `surfaceUnder` treats a
+  standing pad above the ceiling as rock) and `sheer` (its face goes all the
+  way down). Fairways, greens and bunkers are laid into the tops with `lay`.
+- **Out of play is bare rock.** `rock()` marks a piece `oob` and the renderer
+  draws its top in the surround's material with no grass: the bench a rim
+  stands on (`ledge`), the band of rock behind a green, and the `temple`s —
+  stepped buttes of three tiers, each standing inside the one below, up to
+  fourteen units off the floor.
+- **The walls are banded by height.** `theme.strata` lists the canyon's beds
+  bottom up — schist at the river, Tapeats and the grey-green shale, the
+  Redwall to the plateaus, red Supai and Hermit beds up the rims, the pale
+  Coconino, the buff Kaibab cap — and `render.strataOn` colours the cut-earth
+  material by *world* height, so one bed runs level across every face on the
+  hole. Finer bedding inside each bed and a faint vertical streak keep it from
+  reading as stripes.
+
+What decides how high anything can be is the bag. **No club lifts a ball more
+than about three and a half units off flat ground**, so a piece of ground two
+units over the shot is a full club's climb, three is out of reach, and
+everything taller is gone round or played *down* from. The tall walls on this
+course are the ones you play down off or past; the ones you play up are a unit
+and a half to two.
 
 | # | Hole | Par | What it asks |
 | --- | --- | --- | --- |
-| 1 | First Cut | 4 | Nine units of canyon across the fairway exactly where a full drive comes down — a struck one lands on the top of the far bank, anything under nine tenths of a swing is in the bottom. Carry it, or lay up short and carry it with the second. Sand short-right of a green up a short rise. |
-| 2 | The Rim | 4 | The canyon runs the length of the hole down the left and the fairway leans at it. The landing zone is pinched between the lip and a bunker on the right, and the green is a strip five wide and thirteen long laid along the lip, with sand the other side of it. |
-| 3 | Stone Bridge | 3 | Off a two-unit mesa, over a canyon flooded west of a bridge of rock and dry east of it, to a wide, shallow green on the far lip. Only a full iron carries the pool at the pin; the bridge is the run-in to the right end of the green. |
-| 4 | Long Way Round | 4 | Off a mesa with the canyon eating the east half of the fairway. Carry the bite at the flag — just in reach of a struck drive — or go round down the west lane and come in over the spring that guards the green's left. Hugging the lip on the way past is the third line. |
-| 5 | Switchback | 5 | Off a mesa and over the first crossing to a sixteen-unit island set east of the line (or lay up and take two more canyons to get home), over the second back west, and in to a green behind a bunker. |
-| 6 | Redstone | 5 | A dogleg left round a mesa that stands higher than any club lifts a ball: up the right of it, round its corner as tight as you dare, then over the canyon to a green in a hollow on the far shelf. |
+| 1 | First Cut | 4 | A gorge nine units across where the drive comes down, its far side a unit and a half over the tee — so the first thing on the hole is six units of red wall square across the line, with the river at its foot. Only a struck driver is still high enough to land on top. Lay up and climb it with the second. |
+| 2 | The Rim | 4 | A ledge: the drop and the river down one side, a band of rock three units high down the other, sand where the drive comes down. The green is out on a point below the rim with the void on three sides of it. |
+| 3 | Stone Bridge | 3 | Off a rim seven units up, down on to a mesa five below across the river — a full iron's carry with the fall adding a quarter. Or out to a bench a short iron away and across the arch of rock to the green, two small steps down. |
+| 4 | Long Way Round | 4 | Off a pinnacle eight units up, with the hole laid out below: carry the side canyon at the flag (a struck drive from up here goes forty), or go round by the west lane, a bench the fairway steps down on to and off again. |
+| 5 | Switchback | 5 | Up four benches of a cliff band, east, west and east again, each a unit and four tenths over the last and a slot clear of it. Every shot is a full one; a ball that comes back off a face goes down the slot. |
+| 6 | Redstone | 5 | Up the east of a temple fourteen units high, round its north shoulder, then over the canyon to a green on a mesa two units over the shelf you play from and seven over the floor. |
 
-Two rules came out of building it, and both are about `ravine` rather than
-about any hole:
+Three rules came out of building it:
 
-- **A crossing is banked on the far side and sheer on the near one.** Past
-  about a unit of depth that is not a style: nothing in the bag gets a ball out
-  of a lie hard against a two-unit cliff, so the wall the ball has to come back
-  up must be a ramp — and a *near* wall wide enough to play out of is a ramp a
-  drive skips clean across the canyon off.
-- **A canyon that runs *along* the hole cannot cross a row that climbs.** A
-  ravine is authored at absolute heights — lip at nought, floor at `-depth` —
-  while a tilted row carries its level into the next one, so thirty units of
-  climbing ground beside a lengthwise cut leaves the lip two and a half units
-  below the fairway next to it. What that builds is not a canyon but a trench
-  with an inside cliff nothing can escape. The Rim therefore takes its height
-  from the field and from the depth of the cut, and the only tilt laid over it
-  is a cross-fall, which lifts every pad on the hole including the canyon's
-  own. A crossing lives inside one flat row and is free of this, which is why
-  the tees on the other holes can stand on mesas.
+- **No tall wall stands on ground a ball can lie on.** The foot of every face
+  over a unit and a half is the floor, a slot down to it, or a ledge of bare
+  rock — all out. The short faces that do stand on playable ground (the band
+  behind a green, the rim beside a fairway) always have the target on the
+  other side of the ball from them.
+- **Nothing standing overlaps anything at its own height.** Two slabs with
+  their tops at one level flicker against each other, and `tests.html` fails
+  two non-inlay pads that share ground within 0.35 of each other (their order
+  in the array would decide the lie). So where two pieces of ground join it
+  is a real step — four tenths, *down* the line of play, so a ball rolls on
+  across it — and the stone bridge stands four tenths under the bench and four
+  over the mesa.
+- **A standing slab goes down to what it stands on**, which is why every piece
+  is `sheer`: a bench that overhangs a lower one and stops at its top leaves
+  daylight under the part that hangs over the floor.
 
-Two more came out of the rebuild:
-
-- **A mesa is a row cell with a height of its own** (`[w, rgh, MESA]`), not a
-  landform. A landform is a slope; a cell lifted 3.2 above its row is a kerb
-  taller than `STEP_UP` on every side, drawn in the canyon's rock colour, and
-  higher than any club lifts a ball — so it is gone round rather than carried,
-  which is what makes Redstone's dogleg a real one.
-- **Water goes in a hole in the ground, never on a canyon floor.** The theme's
-  surround is drawn at `surroundY` (-1.1) as one unbroken plane, and every
-  ravine floor is about two units down, so anything on a floor — a pool, or a
-  ball — is under it and out of sight; a pool cut into a floor would also stand
-  above the gravel beside it, which the audit calls an error. Stone Bridge's
-  pool is a null cell lip to lip at -0.7 instead, and the spring on Long Way
-  Round is one in the green's row.
-
-The rough is scrub and the furniture is stone: `crags` and nothing else, which
-is what a canyon rim has on it. Placing them is the one thing that needs care —
-a cluster whose scatter reaches over the cut stands in mid-air over the floor,
-and the geometry audit catches it as `prop-afloat` rather than leaving it for
-the turntable.
+The rough is scrub and the furniture is stone: `crags` and nothing else, kept
+well in from the edges, because a stone half over the drop stands in mid-air
+and the audit catches it as `prop-afloat`.
 
 ## The plans
 
@@ -2942,6 +2954,9 @@ with what it is laid into), which made the mesa a plate floating three units
 over the fairway, and `hummocks` would otherwise roll its top, which sends a
 disc down the terrain path — drawn for ground you look *across*, so from
 above the top was simply missing. The Ait's island stands the same way.
+And then the whole of Redstone went that way (v1.130.0): none of its canyons
+is carved any more, every piece of it is a standing disc over an
+out-of-play floor — see [Redstone Canyon](#redstone-canyon).
 
 **What the suite grew when the ground did.** Four assertions arrived with the
 height, and three of the four caught something the same afternoon they were
