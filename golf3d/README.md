@@ -1146,7 +1146,7 @@ horseshoe and two pads only meet without a step where the tilt runs along the
 seam. **The Jetty** is a plank over the shallows with a kink in the middle, and
 **The Ledge** was the same idea in a quarry — two metres of road with two
 right angles in it, every edge a brink but the outside of the first corner —
-and the hole lab found no ace on it at all. Since v1.123.0 it is a `road`: a
+and the hole lab found no ace on it at all. Since v1.126.0 it is a `road`: a
 straight up the hole and a quarter-turn round to the left with no corner
 anywhere along it, the turn banked on the outside like a velodrome with a bare
 lip over the quarry pool, a kerb along the whole inside, and the green on a
@@ -1243,10 +1243,10 @@ of aim each and a bank right there to throw a near miss across the table, or
 round the outside, which is wider and twice as long and lands you in the pair of
 posts guarding the pin. **The Flippers** uses the same furniture the other way
 up: a V that funnels everything into a window a metre wide, with the two bats on
-the far side of it — hinged at the rail end since v1.123.0, the way a real
+the far side of it — hinged at the rail end since v1.126.0, the way a real
 flipper is (`flipper` with `hinge`, physics.wallBox).
 
-**The posts went round in v1.123.0**, and three of every four started firing.
+**The posts went round in v1.126.0**, and three of every four started firing.
 `bumper` is a pop bumper now (`physics.popBumper`): a circle rather than a box,
 that hands the ball back at `CONFIG.BUMPER.give` of the speed it arrived with or
 at `kick`, whichever is more — so a ball that reaches one at all leaves it at a
@@ -1322,7 +1322,7 @@ when it would have no size, so one function writes all of these:
 The window is the only obstacle in the game a rolling ball cannot pass and a
 lofted one can — the exact inverse of `beam`, which is the only one the other
 way round. **Jackpot** put a doorway and a window in the same wall until
-v1.123.0, when it became a curved vault round the pin, open at the back, with a
+v1.126.0, when it became a curved vault round the pin, open at the back, with a
 pipe mouth low on the left that comes out over the pin from the top of the dome
 — a hole in the table, which is the most pinball thing there is.
 
@@ -1451,7 +1451,7 @@ What the first sweep found (v1.105.0), over the seventy-eight drawn holes:
   whatever pace a ball brings, it leaves at the belt's — and the grass at the
   end took that pace off at one spot, which was where the pin was. 0.32% now.
 - **Caldera's only ace was the shot the hole says not to play**, the vent flown
-  straight across the crater. It had none after this, and in v1.123.0 the
+  straight across the crater. It had none after this, and in v1.126.0 the
   block came out again, the pin moved out of reach of the vent and the tube
   became the ace (0.208%, skill; see [Cinder Cone](#cinder-cone)).
 - **Three fixes did all twelve.** A block on the line, where a wall gives the
@@ -1732,7 +1732,7 @@ it and rides all of it comes out of the tube a little quicker, and the tube
 points at the pin from just far enough that only those reach it. That is the
 ace, about 0.2% of the sweep, all of it through the tube.
 
-It was rebuilt in v1.123.0, when the owner found the caddie stuck on it and the
+It was rebuilt in v1.126.0, when the owner found the caddie stuck on it and the
 block in front of the pin "a stupid box". The vent was the cause of both. It
 stood on the line from the tee to the pin, so the putt at the flag went through
 it and flew the crater at the pin, and the block was there to stop that until
@@ -2467,7 +2467,7 @@ fault everywhere else.
   ten degrees, each a rail's thickness longer than its chord so neighbours
   overlap. Angles are `atan2(z, x)`; a chord's yaw is −θ − π/2.
 - **road** — ground that bends, and the first pad in the game whose rectangle
-  is not its shape at all (v1.123.0). Every other pad is a box with something
+  is not its shape at all (v1.126.0). Every other pad is a box with something
   done to it — a corner rounded, a side mown, a disc inscribed in it — and every
   one of them still has four sides running along x and z, which is why every
   bend on a drawn hole was a right angle: two rectangles meeting at a corner,
@@ -3069,7 +3069,7 @@ Details that are easy to get wrong and are pinned by tests:
   fires. Without it a terrace swallows balls and a raised green can be holed
   from underneath.
 
-  **A pad that `stands` is not a bridge** (v1.123.0). Redstone's mesa, The
+  **A pad that `stands` is not a bridge** (v1.126.0). Redstone's mesa, The
   Ait's island and every Coral Keys cliff are laid *over* ground that runs on
   beneath them, and to the rule above that is a deck with a pad under it: a
   putt at the face of The Shelf rolled a unit into the rock and stopped there,

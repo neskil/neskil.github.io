@@ -420,14 +420,14 @@ tee shows (Sea Legs' was).
    after v1.122.0's consolidation and rebuilds it is 22 of 54 (flukes 6 → 1,
    putts at the flag that drop 9 → 2), and none of them is a mini
    par 3 — the mini ones left are two par 4s played in stages (Under the
-   Boardwalk, The Reach). The Ledge was the third, and since v1.123.0 it is a
+   Boardwalk, The Reach). The Ledge was the third, and since v1.126.0 it is a
    par 3 with an ace: a banked turn (`road`, README → the authoring
    vocabulary) that a firm mallet rides round to the pin and a firmer one
    goes over the top of. The rest are crazy and adventure: Through
    the Wall, The Sweeper, Grand Finale, five of Pinball Parlour's six, Three
    Against Two, Change Ringing, The Weir, Full Flow, Through the Pipe and five
    of Apogee Yard's six (Caldera, which was on this list, got its ace through
-   the tube in v1.123.0). On a timing hole the sweep's four moments can miss a
+   the tube in v1.126.0). On a timing hole the sweep's four moments can miss a
    window, so read those with care.
 10. **The putt at the flag, on the two holes that still drop it** (README →
    "The hole lab"; v1.105.0 rebuilt twelve; v1.122.0 took Bounce Alley, The

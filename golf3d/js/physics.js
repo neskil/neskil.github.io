@@ -663,7 +663,7 @@
        cup a hole rather than a rule: a ball whose centre crosses the rim runs
        out of support and falls, exactly as it would over any other edge.
 
-       And under a pad that `stands` there is no ground at all (v1.123.0). A
+       And under a pad that `stands` there is no ground at all (v1.126.0). A
        standing disc — Redstone's mesa, The Ait's island, every cliff on Coral
        Keys — is ground of its own with sides, drawn as a solid slab all the
        way down, and it is laid *over* ground that carries on underneath it:
@@ -1888,7 +1888,7 @@
                         nz = b.z; b.vz = -b.vz * C.RESTITUTION; events.bounce = true;
                     }
                     next = surfaceUnder(hole, nx, nz, lift);
-                    /* And the corner between the two (v1.123.0). A face that
+                    /* And the corner between the two (v1.126.0). A face that
                        runs square to an axis is always caught by one of the
                        two tests above; a face that runs across them — the
                        curved side of a disc that stands, a cliff on Coral Keys

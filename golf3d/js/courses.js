@@ -284,7 +284,7 @@
        Unless it says `hinge`: -1 hinges it at its west end and +1 at its
        east (as it lies at `rest`), and then it is the real thing, a bat
        turning about a pin at one end (physics.wallBox) — the Parlour's, since
-       v1.123.0. Still authored by its middle at rest, so a hinged flipper and
+       v1.126.0. Still authored by its middle at rest, so a hinged flipper and
        a centred one drawn on the same plan stand in the same place. */
     function flipper(cx, cz, len, opts) {
         var o = opts || {};
@@ -2925,7 +2925,7 @@
                the gate's track, so the shot at the flag crosses the whole
                depth of the sand — two and a half units of it — and a full
                mallet comes out the other side at a walking pace and stops
-               short of the gate's track. (It was two until v1.123.0, when the
+               short of the gate's track. (It was two until v1.126.0, when the
                mallet got stronger and a full one ran through two.) Nothing on the line was added to stop it; it is
                the beach that was always there, and the flag now stands where
                the beach is in the way.
@@ -3764,7 +3764,7 @@
         }),
         build({
             /* A road round the quarry face, banked like a velodrome, and the
-               green hanging off the end of the bend over the drop (v1.123.0).
+               green hanging off the end of the bend over the drop (v1.126.0).
 
                It used to be four rectangles making two metres of road with
                two right angles in it, every edge a brink except the outside
@@ -4656,7 +4656,7 @@
        first seven courses already had — which is the point: crazy golf is not
        a different engine, it is the same one with the aiming taken away.
 
-       Since v1.123.0 the course is played in the order of what each table
+       Since v1.126.0 the course is played in the order of what each table
        adds, one piece at a time: the chute and three bumpers, then banks and
        rubber posts, then both round a block of bumpers you bank into, then
        height, then bats that move, and the finisher with a hole in the table
@@ -4839,7 +4839,7 @@
             extra: [
                 bank(1.8, 5.4, 2.6, 0.5),
                 bank(5.2, 5.4, 2.6, -0.5),
-                /* Bats now, not blades (v1.123.0): each hinged at the rail
+                /* Bats now, not blades (v1.126.0): each hinged at the rail
                    end like a real flipper, resting tip-down and flicking up
                    through a radian on a rate of its own, so the two open the
                    table on a pattern rather than on a beat. */
@@ -4945,7 +4945,7 @@
                bar, and off the bank to the pin. A putt at the flag runs off
                the side of the plank. A lean would have done it more gently and
                left a lip where the plank meets the green. The tee is west of
-               the plank's middle (v1.123.0), so the line at the flag leaves
+               the plank's middle (v1.126.0), so the line at the flag leaves
                the boards before the bar can knock it back on to them. */
             name: 'Pendulum', par: 3,
             blurb: 'One plank over the water and one bar sweeping across it.',
@@ -5208,7 +5208,7 @@
                all. The gap is a metre and a half wide at the far side, which
                makes this the first hole on the course where the line matters
                as much as the weight. The strip is 2.2 deep: at 1.6, the mallet
-               of v1.123.0 (CONFIG, EXTRA_CLUBS) crossed it at full swing on
+               of v1.126.0 (CONFIG, EXTRA_CLUBS) crossed it at full swing on
                the line at the flag and stopped at the pin. */
             name: 'The Salt Line', par: 3,
             blurb: 'A bar of grit across the ice with one gap in it. Sand does not let go.',
@@ -5239,7 +5239,7 @@
                first. The pillar stands square on that line rather than with
                its corner in it — a corner sent the putt at the flag north to
                the back rail and round into the gutter, once the stronger
-               mallet of v1.123.0 had the pace to get there. */
+               mallet of v1.126.0 had the pace to get there. */
             name: 'The Draught', par: 3,
             blurb: 'The whole sheet falls east and ice holds nothing. The gutter at the bottom is the hole.',
             pads: [
@@ -5322,7 +5322,7 @@
                all of one lands on the dais and leaves a putt — the safe two,
                and now and then it pitches by the pin and stays.
 
-               The pin went back a quarter of a unit in v1.123.0: with the
+               The pin went back a quarter of a unit in v1.126.0: with the
                stronger mallet a full putt at the flag found the left wall,
                the ramp and the pin on its own, which is the bold line played
                by accident. */
@@ -5565,9 +5565,9 @@
                lands on the belt comes out of the tube at four and a bit units
                a second, which is a putt's worth of pace across the crater
                floor. The machine spends the shot for you, and the only thing
-               you own is getting on to it — and, since v1.123.0, *where*.
+               you own is getting on to it — and, since v1.126.0, *where*.
 
-               Rebuilt in v1.123.0 on two notes from the owner: the caddie got
+               Rebuilt in v1.126.0 on two notes from the owner: the caddie got
                stuck here, and the block that stood in front of the pin was "a
                stupid box". Both came from where the vent was.
 

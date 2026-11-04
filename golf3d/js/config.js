@@ -589,7 +589,7 @@ G3.CONFIG = {
        hole. It is not in the default bag because a flat club with that much
        reach would quietly become the answer to half the course.
 
-       It was seventeen (13.3 on a green) until v1.123.0, when the owner found
+       It was seventeen (13.3 on a green) until v1.126.0, when the owner found
        it short in the hand: a mallet is the club you reach for when a putter
        will not get there, and it should not need the whole swing to do it. */
     EXTRA_CLUBS: [
