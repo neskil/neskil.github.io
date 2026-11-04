@@ -1810,7 +1810,9 @@
             shape.holes.push(hole);
         }
         var geo = new THREE.ExtrudeGeometry(shape, {
-            depth: thick, bevelEnabled: false, curveSegments: 44
+            depth: thick, bevelEnabled: false, curveSegments: 44,
+            // A weathered wall is cut into, so it needs rings to cut.
+            steps: pad.weathered ? Math.min(12, Math.max(1, Math.ceil(thick / 1.1))) : 1
         });
         geo.rotateX(-Math.PI / 2);      // lay it flat: extrusion now runs +y
         geo.translate(0, -thick / 2, 0);// centred on its middle, like the box
@@ -1818,6 +1820,48 @@
         // road — has a real wall, and keeps the wall's own light.)
         if (pad.inlay && !pad.stands) levelRim(geo);
         return geo;
+    }
+
+    /* A canyon wall, weathered (courses.butte marks the pads that want it).
+
+       An extruded disc's wall is a drum: one perfect vertical face all the
+       way round, lit the same from top to bottom, and a butte drawn that way
+       read as a stack of tins however its beds were coloured. A real wall is
+       buttresses and the gullies between them, cut back further where the
+       rock is softer. So the wall is drawn in rings and every ring is pulled
+       *in* from the outline by a recess that is a function of where it is —
+       round the wall and up it — with a narrow deep gully where two waves
+       agree and a shallow one elsewhere. Only ever in, and never at the rim:
+       the outline at the top is the one the ball plays off, and a face that
+       bulged past it would be rock a ball flies through. The recess fades in
+       over the first unit below the rim, so the cap and the wall still meet
+       on the edge they share. Flat-shaded afterwards, which is what puts a lit
+       side and a shadowed side on every buttress. */
+    var WEATHER_DEEP = 0.45;     // the deepest a gully cuts back into a wall
+
+    function weatherWall(geo, pad, thick, cy) {
+        var pos = geo.attributes.position, gs = geo.groups, k, i, end;
+        var seed = pad.x * 0.37 + pad.z * 0.61;
+        for (k = 0; k < gs.length; k++) {
+            if (gs[k].materialIndex !== 1) continue;
+            for (i = gs[k].start, end = gs[k].start + gs[k].count; i < end; i++) {
+                var x = pos.getX(i), y = pos.getY(i), z = pos.getZ(i);
+                var r = Math.sqrt(x * x + z * z), below = thick / 2 - y;
+                if (r < 1e-6 || below < 1e-4) continue;
+                var a = Math.atan2(z, x), wy = cy - thick / 2 + y;
+                var m1 = Math.max(3, Math.round(r * 1.6)), m2 = Math.max(5, Math.round(r * 3.1));
+                var f = 0.5 + 0.32 * Math.sin(a * m1 + seed + wy * 0.35) +
+                    0.18 * Math.sin(a * m2 - seed * 1.7 + wy * 0.9 + Math.sin(a * m1 * 2 + seed) * 1.2);
+                var gully = f < 0.55 ? 0 : f > 0.95 ? 1 : (f - 0.55) / 0.4;
+                gully = gully * gully * (3 - 2 * gully);
+                var cut = Math.min(WEATHER_DEEP, r * 0.06) * (0.25 * f + 0.75 * gully) * Math.min(1, below / 0.9);
+                var q = (r - cut) / r;
+                pos.setX(i, x * q);
+                pos.setZ(i, z * q);
+            }
+        }
+        pos.needsUpdate = true;
+        geo.computeVertexNormals();
     }
 
     /* Point an inlay's rim wall at the sky.
@@ -2531,6 +2575,7 @@
             // that way too, so both share the placement below.
             geo.translate(0, thick / 2, 0);
         }
+        if (pad.r && pad.weathered) weatherWall(geo, pad, thick, cy);
         if (sx || sz) {
             // Shear about the pad's own centre: y' = y + sx·x + sz·z. Vertical
             // edges stay vertical, so a tilted pad still meets its neighbours.
@@ -4452,6 +4497,17 @@
         // move the same vertices, and ground that rolls under a hillside puts a
         // hump through it.
         if (plan) flatR = Math.max(flatR, plan.outer);
+        /* …and under a floor that is part of the hole (Redstone's canyon
+           floor, `oob`): it runs well past the stakes, it is drawn down to
+           meet this ground at its edge, and it has no skirt to keep the
+           noise away from it, so the flat has to reach past it instead. */
+        else if (hole.pads.some(function (p) { return p.oob && !p.stands; })) {
+            hole.pads.forEach(function (p) {
+                flatR = Math.max(flatR, 2 + Math.hypot(
+                    Math.max(Math.abs(p.x - cx), Math.abs(p.x + p.w - cx)),
+                    Math.max(Math.abs(p.z - cz), Math.abs(p.z + p.d - cz))));
+            });
+        }
         var amp = theme.relief || 0;
         R.groundAt = function (x, z) {
             return theme.surroundY + (amp ? surRelief(x, z, Math.hypot(x - cx, z - cz), amp, flatR) : 0);

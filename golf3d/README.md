@@ -2241,6 +2241,16 @@ built **the other way up**:
   material by *world* height, so one bed runs level across every face on the
   hole. Finer bedding inside each bed and a faint vertical streak keep it from
   reading as stripes.
+- **The walls are weathered** (v1.133.0). An extruded disc is a drum, and a
+  butte drawn as one read as a stack of tins whatever its beds were. A `butte`
+  is marked `weathered`, and `render.weatherWall` draws its wall in rings and
+  pulls each ring *in* from the outline — buttresses, and deep gullies where
+  two waves agree — never past it (that outline is the face the ball plays
+  off) and never at the rim, so the cap still meets the wall. A temple is a
+  tall base and one offset summit rather than three even tiers, every wall
+  that comes down on the floor stands in a fan of scree, and the floor's own
+  edge is let down to the country (`CANYON_COUNTRY`) so its rectangle does not
+  show; the surround stays flat out past it.
 
 What decides how high anything can be is the bag. **No club lifts a ball more
 than about three and a half units off flat ground**, so a piece of ground two
