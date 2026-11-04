@@ -359,11 +359,23 @@
        a chord the turn reads as a curve to the eye and to the ball alike.
        Each bank is a rail's thickness longer than its chord so neighbours
        overlap: a gap between two would be a hole in the rail exactly where the
-       ball is pressing hardest. `n` defaults to one chord per ten degrees. */
+       ball is pressing hardest. `n` defaults to one chord per ten degrees.
+
+       `drawn` asks the renderer to draw the arc as the one curve it is
+       (render.addBend), finished round at both ends, rather than as its
+       chords — which side-on read as a fan of flat boards. Its value is what
+       the curve is made of, any of the renderer's wall kinds ('rock' for
+       quarry stone). A curved wall standing on its own, like The
+       Backboard's, wants it; a rail along an edge does not need it. */
     function arc(cx, cz, R, a0, a1, opts) {
         var o = opts || {}, out = [], i, t0, t1, tm, chord;
         var n = o.n || Math.max(3, Math.ceil(Math.abs(a1 - a0) / (Math.PI / 18)));
         var t = o.t === undefined ? 0.34 : o.t;
+        var bend = o.drawn ? {
+            cx: cx, cz: cz, R: R, a0: Math.min(a0, a1), a1: Math.max(a0, a1), t: t,
+            base: o.base === undefined ? -0.1 : o.base, h: o.h === undefined ? 0.62 : o.h,
+            kind: o.drawn, cap0: true, cap1: true
+        } : null;
         for (i = 0; i < n; i++) {
             t0 = a0 + (a1 - a0) * i / n;
             t1 = a0 + (a1 - a0) * (i + 1) / n;
@@ -373,6 +385,7 @@
             // to (cos yaw, -sin yaw) — so the tangent at tm is yaw -tm - π/2.
             out.push(bank(cx + Math.cos(tm) * R, cz + Math.sin(tm) * R, chord + t,
                 -tm - Math.PI / 2, { t: t, h: o.h, base: o.base, kind: o.kind }));
+            if (bend) out[i].bend = bend;
         }
         return out;
     }
@@ -2103,8 +2116,15 @@
     /* The rail round a rounded corner: an arc of chords (`arc`) on the same
        line the straight rails stand on — a rail's half-thickness outside the
        edge — and built to the same height rule as `railFor`, off the ground
-       at both ends of the curve and in the middle of it. */
-    function cornerRails(p, out) {
+       at both ends of the curve and in the middle of it.
+
+       A `gaps` rectangle opens a curve the way it opens a straight edge: a
+       chord whose foot on the ground's edge is in one is left out, and each
+       run of chords either side is a kerb of its own. `roundCorners` never
+       rounds a corner near a gap, so only a hole that writes its own
+       `pad.round` can ask for this — a curved lip with nothing on it, which
+       is The Backboard's (v1.123.0). */
+    function cornerRails(p, out, gaps) {
         var P = G3.physics, c = p.round, k, r, cx, cz, a0, lo, hi, j, a, y;
         var spec = [['sw', 0, 0, Math.PI], ['se', 1, 0, Math.PI * 1.5],
                     ['ne', 1, 1, 0], ['nw', 0, 1, Math.PI / 2]];
@@ -2123,11 +2143,28 @@
             /* The chords are what the ball meets; `bend` is what the eye
                does. The renderer draws one smooth kerb per bend instead of
                the chords, which side-on read as a fan of flat boards. */
-            var bend = { cx: cx, cz: cz, R: r + RAIL_T / 2, a0: a0, a1: a0 + Math.PI / 2,
-                         t: RAIL_T, base: lo - 0.35, h: (hi - lo) + RAIL_H + 0.35 };
+            var n = Math.max(4, Math.ceil(r / 0.22)), da = Math.PI / 2 / n, i0 = 0, i;
+            for (i = 0; i <= n; i++) {
+                a = a0 + (i + 0.5) * da;
+                if (i < n && !inAny(gaps, cx + Math.cos(a) * r, cz + Math.sin(a) * r)) continue;
+                if (i > i0) kerb(a0 + i0 * da, a0 + i * da, i - i0,
+                    i0 > 0 || past(a0, 1), i < n || past(a0 + Math.PI / 2, -1));
+                i0 = i + 1;
+            }
+        }
+        // Whether the straight edge just past one end of the curve is open.
+        function past(e, s) {
+            var x = cx + Math.cos(e) * r + s * Math.sin(e) * 0.15, z = cz + Math.sin(e) * r - s * Math.cos(e) * 0.15;
+            return inAny(gaps, x, z);
+        }
+        // `cap0`/`cap1`: an end that stops at a gap rather than running on
+        // into the next rail, which the renderer finishes round.
+        function kerb(from, to, m, cap0, cap1) {
+            var bend = { cx: cx, cz: cz, R: r + RAIL_T / 2, a0: from, a1: to,
+                         t: RAIL_T, base: lo - 0.35, h: (hi - lo) + RAIL_H + 0.35,
+                         cap0: cap0, cap1: cap1 };
             arc(cx, cz, bend.R, bend.a0, bend.a1, {
-                t: RAIL_T, n: Math.max(4, Math.ceil(r / 0.22)),
-                base: bend.base, h: bend.h, kind: 'rail'
+                t: RAIL_T, n: m, base: bend.base, h: bend.h, kind: 'rail'
             }).forEach(function (w) { w.bend = bend; out.push(w); });
         }
     }
@@ -2223,7 +2260,7 @@
             edgeRails(pads, pads[i], 'n', gaps, out);
             edgeRails(pads, pads[i], 'w', gaps, out);
             edgeRails(pads, pads[i], 'e', gaps, out);
-            if (pads[i].round) cornerRails(pads[i], out);
+            if (pads[i].round) cornerRails(pads[i], out, gaps);
         }
         return out;
     }
@@ -3642,27 +3679,82 @@
 
     var quarry = [
         build({
-            /* The front door is bricked up and the back of the green is a
-               curved bank — a half-ring of ground rising round the far side of
-               the cup — so a ball sent past either end of the wall climbs the
-               bank and is handed back down it towards the pin. Which end is the
-               choice: the near one off the tee is short and the bank catches
-               it square; the far one is the long way round and comes back at
-               an angle. It used to be a straight bank across the back of a
-               straight lane, which hands the ball back the way it came and
-               onto the wall. */
+            /* The front door is bricked up, so the ball goes round the end of
+               the wall and the curved backboard behind the pin hands it back.
+
+               The owner's word for the last version was "a good concept that
+               is lacking in execution", and it was: a five-wide tee box
+               butted into an eight-wide green, a straight bar of rail across
+               the front of the cup, and a half-ring of bank behind it that
+               nobody could see from the tee — with the rails at the join of
+               the two boxes running past each other in an X (railFor, which
+               every inside corner on the mini courses wore until v1.123.0).
+
+               So it is one table now, and no part of it is square (v1.123.0):
+
+               - **The table** is a single slab nine across and thirteen long,
+                 its near corners rounded and its far end a half circle. There
+                 is no join between the tee and the green to have a corner in.
+               - **The door** is a crescent of brick round the front of the
+                 cup, two units out from it and finished round at both ends
+                 (`arc`'s `drawn`). It closes every line from the tee at the
+                 pin, so the putt at the flag dies on it.
+               - **The backboard** is the half circle: from a unit and a half
+                 out from the cup the green rises to six tenths at the edge,
+                 on a ring centred on the cup (`channel`), so whatever climbs it comes
+                 back down the slope at the pin — the bank is a central force,
+                 and a ball that slows to a stop on it has nothing left to go
+                 anywhere but the middle. A stone board stands round the far
+                 side of it from the north round to the west.
+               - **The lip** is the rest of it. From the north-east round to
+                 the east there is no board, and down the whole east side
+                 there is no rail (`gaps`, which `cornerRails` honours since
+                 v1.123.0): the quarry edge.
+
+               The near end of the door is the bold way: up the east side
+               between the brick and the drop, firm, and the bank brings it
+               back to the pin. Too firm goes over the lip and off the edge,
+               which is a stroke; short of the right weight climbs a little
+               way, comes back and stops a short putt from the pin. The far end is the
+               safe way, the long way round on the walled side, soft: the bank
+               there stops at the north, so a ball round the west end runs out
+               on flat green behind the door and leaves a putt back round it.
+               The bank used to run the whole half circle, and then the far
+               end was a free ace off the west rail as well, with nothing to
+               lose for it.
+
+               The hole lab, full sweep: the mallet aces 0.35% of it, a
+               tutorial hole's share for the course's first hole, and the
+               widest window is the shot — from straight up the table at 88%
+               of the mallet to twenty-six degrees out towards the edge at
+               half, a weight for every line, with the lip over the top of
+               each. No putt at the flag drops. It was 0.075% in three thin
+               windows, the widest of them off the east rail. */
             name: 'The Backboard', par: 3,
             blurb: 'The front door is bricked up. Send it round the end of the wall and let the curved bank hand it back.',
-            pads: [
-                pad(3, 0, 5, 5),
-                (function () {
-                    var p = pad(0, 5, 8, 9);
-                    p.bumps = [channel(4, 9.6, 2.9, 1.3, 0.5, 0, Math.PI)];
-                    return p;
-                })()
+            pads: [(function () {
+                var p = pad(0, 0, 9, 13);
+                p.round = { sw: 2.2, se: 2.2, nw: 4.5, ne: 4.5 };
+                p.bumps = [channel(4.5, 8.5, 4.5, 3.0, 0.6, -0.2, 1.9)];
+                p.res = 0.45;
+                return p;
+            })()],
+            gaps: [
+                rect(-1, 8.48, 11, 10),         // the far curve, which the board stands on instead
+                rect(8.8, 2.2, 1, 6.31)         // and the quarry edge down the east side
             ],
-            extra: [wall(1.9, 7.6, 4.2, 0.32, 0.62, { base: -0.1 })],
-            tee: { x: 5.5, z: 1.6 }, cup: { x: 4, z: 9.6 }
+            extra: arc(4.5, 8.5, 2.0, -2.97, -0.7, { t: 0.4, h: 0.72, drawn: 'mill' })
+                .concat(arc(4.5, 8.5, 4.5 + 0.17, 70 * Math.PI / 180, Math.PI,
+                    { t: 0.34, base: -0.35, h: 1.55, drawn: 'rock' })),
+            tee: { x: 6.2, z: 2.2 }, cup: { x: 4.5, z: 8.5 },
+            decor: [
+                crate(10.6, 11.6, { yaw: 0.5 }),
+                crate(11.3, 10.7, { yaw: -0.2 }),
+                barrel(10.2, 12.9),
+                barrel(-1.6, 3.2),
+                crate(-1.9, 4.4, { yaw: 0.3 }),
+                sign(8.3, -0.9, { yaw: -0.5 })
+            ]
         }),
         build({
             /* Rolling, and it is the one mini golf hole that is. The drop

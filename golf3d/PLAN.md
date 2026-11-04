@@ -39,7 +39,17 @@ order they came in (the ones already shipped are under "Done", v1.126.0):
 10. **The Backboard** (Quarry Ridge) — "a good concept that is lacking in
     execution. Also don't like the X style corners sticking out. Please fix."
     If the crossed corners are rails overrunning each other, that is every
-    fenced hole, not this one. In hand.
+    fenced hole, not this one. Done in this round: they were — `railFor`
+    overran both ends of every run, which at an inside corner is a stub on
+    the next pad's floor, fifty-three of them on thirteen holes, and it
+    overruns now only where the floor stops (README → "Rounded corners"; Two
+    Ramps' pin moved three tenths, because two stubs had been closing its
+    putt at the flag). The hole is one rounded table with a brick crescent
+    round the front of the cup, a banked half circle behind it with a stone
+    board round its far side, and an open lip and quarry edge on the near
+    side: firm round the near end is the ace and too firm is over the edge,
+    soft round the far end is the putt. 0.075% → 0.350% (tutorial), and no
+    putt at the flag drops (README → "Fourteen courses, from eighteen").
 12. **The autoplay caddie** — "bot gets stuck on Dead Weight" (Apogee Yard),
     and "perhaps the bot needs some pathfinding algos as well to make a plan?
     The auto play bot, that is." A greedy one-shot search is what stalls it: a

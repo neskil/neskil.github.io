@@ -1673,26 +1673,37 @@
 
                 /* A rounded corner gives up the ground within its radius of
                    the corner, so it may not be anywhere near the tee's or the
-                   cup's flat — and every one has its bend of rail. */
-                var corners = 0, near = [], bendSet = [];
+                   cup's flat — and every one has its bend of rail, unless a
+                   gap opens the whole curve (a gap may open part of one, and
+                   then the rail is in pieces either side of it). A curved
+                   wall drawn as a bend of its own (`arc`'s `drawn`) is not
+                   a corner's, and nor is a road's kerb round a turn. */
+                var corners = 0, near = [], bare = [], bendSet = [];
+                h.walls.forEach(function (wl) { if (wl.bend && bendSet.indexOf(wl.bend) < 0) bendSet.push(wl.bend); });
                 h.pads.forEach(function (p) {
                     if (!p.round) return;
-                    [['sw', p.x, p.z], ['se', p.x + p.w, p.z], ['nw', p.x, p.z + p.d],
-                     ['ne', p.x + p.w, p.z + p.d]].forEach(function (k) {
+                    [['sw', p.x, p.z, 1, 1, Math.PI * 1.25], ['se', p.x + p.w, p.z, -1, 1, Math.PI * 1.75],
+                     ['nw', p.x, p.z + p.d, 1, -1, Math.PI * 0.75],
+                     ['ne', p.x + p.w, p.z + p.d, -1, -1, Math.PI * 0.25]].forEach(function (k) {
                         var r = p.round[k[0]];
                         if (!r) return;
                         corners++;
                         if (Math.hypot(h.tee.x - k[1], h.tee.z - k[2]) < r + 1.1 ||
                             Math.hypot(h.cup.x - k[1], h.cup.z - k[2]) < r + 1.25) near.push(k[0]);
+                        var ox = k[1] + k[3] * r, oz = k[2] + k[4] * r;
+                        var railed = bendSet.some(function (b) {
+                            return Math.abs(b.cx - ox) < 1e-9 && Math.abs(b.cz - oz) < 1e-9 && !b.kind && !b.lane;
+                        });
+                        var mx = ox + Math.cos(k[5]) * r, mz = oz + Math.sin(k[5]) * r;
+                        var open = (h.gaps || []).some(function (g) {
+                            return mx >= g.x && mx <= g.x + g.w && mz >= g.z && mz <= g.z + g.d;
+                        });
+                        if (!railed && !open) bare.push(k[0]);
                     });
                 });
-                // (A road's kerb round a turn is a bend too, and belongs to no corner.)
-                h.walls.forEach(function (wl) {
-                    if (wl.bend && !wl.bend.lane && bendSet.indexOf(wl.bend) < 0) bendSet.push(wl.bend);
-                });
                 assert(tag + ': no rounded corner takes ground from the tee or the cup', !near.length, near.join(' '));
-                assert(tag + ': every rounded corner has its rail', bendSet.length === corners,
-                    bendSet.length + ' bends for ' + corners + ' corners');
+                assert(tag + ': every rounded corner has its rail', !bare.length,
+                    bare.join(' ') + ' of ' + corners + ' corners bare');
 
                 /* Pads may only overlap when the surface lookup can tell them
                    apart. There are two ways to earn that. One is being clearly
