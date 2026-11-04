@@ -1050,7 +1050,7 @@ approach.
 | Quarry Ridge | mini | `quarry` | Height, both ways: ground that is missing and ground that is in the way. A curved backboard behind a bricked-up door, a drop off a pillar with a stair down its side, a quarter-pipe that turns what climbs it, a slanted wall only the chipper goes over, a road banked round a bend over the pool, and a cannon with a plank beside it. The best six of the old Quarry Ridge and Highland Steps (v1.122.0). |
 | Tidewater Reach | mini | `lagoon` | The loft course. Almost nothing here can be reached along the floor, and every carry has a safe target and a short one. |
 | Windmill Works | crazy | `works` | Gates, blades and a windmill, after dark. Timing — and a slower way round on the holes that would otherwise be one shot: sand past First Gear's gate, a lay-by off The Sweeper's floor, a back gate round Turnstile's fence. |
-| Pinball Parlour | crazy | `arcade` | A table, not a course, and a room round every table. Round pop bumpers that fire and rubber posts that do not, a plunger chute, slingshots, ramps, hinged flippers and a hole in the table — one more piece on each hole than the last. Bumper City is a block of bumpers you bank into; Jackpot is a vault you get into through the floor. |
+| Pinball Parlour | crazy | `arcade` | A table, not a course, and a room round every table. Round pop bumpers that fire and rubber posts that do not, a plunger chute, slingshots that kick, ramps, flippers that fire and a hole in the table — one more piece on each hole than the last. Bumper City is a block of bumpers you bank into; Jackpot is a vault you get into through the floor. |
 | Clockwork Court | crazy | `clockwork` | The moment. One bar over a plank, two bells round a corner, two doors with a different clock behind each, a weir and a two-road mill race where a mistimed shot is a stroke, and a clock lane with two weights to finish. The best six of the old Clockwork Court, The Belfry and The Millrace (v1.122.0). |
 | Icehouse Yard | adventure | `icehouse` | Nothing stops. A putter runs eight and a half units on grass and thirty-two on ice. |
 | Cinder Cone | adventure | `volcano` | Machinery on a mountainside: a launch pad over a wall, a belt running back at you, a pipe under the lake, a loop-the-loop, a vent in the floor of a hollow, and Caldera, which asks for all of it. The best six of the old Helter Skelter and Cinder Cone (v1.122.0). |
@@ -1270,16 +1270,28 @@ Change Ringing, The Weir and Full Flow — and the rest of their holes, Two
 Planks, The Undershot and Rounds among them, are gone.) Windmill Works asks you to find the gap;
 Clockwork Court asks you to find the moment. Pinball Parlour asks for neither —
 the obstacles there are not between you and the cup, they *are* the route, which
-is why it is the one course built out of things that do not move. **The
-Slingshots** is the clearest case: two rails set across the table at thirty-five
-degrees with a post in the throat between them, so there are four ways past and
-not one of them is straight. A window either side of the post with half a metre
-of aim each and a bank right there to throw a near miss across the table, or
-round the outside, which is wider and twice as long and lands you in the pair of
-posts guarding the pin. **The Flippers** uses the same furniture the other way
-up: a V that funnels everything into a window a metre wide, with the two bats on
-the far side of it — hinged at the rail end since v1.126.0, the way a real
-flipper is (`flipper` with `hinge`, physics.wallBox).
+is why it is the one course built out of things that give the ball pace rather
+than only taking it away. **The Slingshots** is the clearest case since v1.134.0:
+the pin is beside the tee behind a wall up the middle of the table, and the way
+to it is away from it — a firm putt up into a slingshot at the far end, which
+fires it back round the end of the wall and down to the pin. **The Flippers**
+has two bats that fire, hung down the rails; roll past one as it comes up and it
+sends you up the table, off the far rail and in.
+
+**Slingshots and firing bats** (v1.134.0) are the two pieces that made those
+holes. `slingshot(a, b, c)` is a triangle of rubber, `a`–`b` the face with a
+kicker behind it: met at more than `CONFIG.SLING.trip` it fires the ball back
+off its face at `kick` or `give` of what it brought, whichever is more
+(physics.collideWalls) — the pop bumper's rule along a line — and rolled along,
+it is a rail. Its other two sides are plain rubber so nothing gets in behind the
+face, and the renderer and minimap draw the three as one piece off the face's
+`tri`. A flipper with `snap` (physics.snapAt) moves the way a real one does: at
+rest most of its beat, up through its arc in a tenth of it at a constant rate,
+held, and eased back down. Off a sine a bat pushed a ball at whatever pace it
+happened to be turning at, which was never much; off a snap, the tip on the way
+up is moving faster than a full putt, and the ball leaves with that. A ball that
+stops anywhere a firing bat sweeps is not at rest (`physics.inSweep`): it waits
+to be flipped, rather than lying in the bat's path to be swept through.
 
 **The posts went round in v1.126.0**, and three of every four started firing.
 `bumper` is a pop bumper now (`physics.popBumper`): a circle rather than a box,
@@ -1289,10 +1301,10 @@ pace of its own, and it lights and rings as it does (`render.bumped`,
 `audio.pop`). `post` is the same circle with no coil, a rubber ring that gives
 back a rail's share, and it is what stands in front of the bumpers: a kick on
 the line from the tee made every glancing putt an ace at any weight. The course
-runs in order of what it adds — Plunger Lane (bumpers), The Slingshots (banks
-and posts), Bumper City (both, and a bank shot into a block of them), Two Ramps
-(height), The Flippers (bats that move) and Jackpot (a pipe, a vault and all of
-it) — and every table stands in a room of its own: cabinets, claw machines,
+runs in order of what it adds — Plunger Lane (bumpers), The Slingshots
+(kickers), Bumper City (bumpers that fire, and a bank shot into a block of
+them), Two Ramps (height), The Flippers (bats that fire) and Jackpot (a pipe, a
+vault and all of it) — and every table stands in a room of its own: cabinets, claw machines,
 jukeboxes, fruit machines, a skyline behind Bumper City, and the hole's name in
 neon over the far end (`courses.arcadeRoom`).
 
@@ -1379,7 +1391,7 @@ like this and play like a wall.
 
 Both are authored the way everything else in `courses.js` is —
 `aperture(x, z, w, d, { gap, at, sill, head })`, `flipper(cx, cz, len, { rest,
-arc, speed })` — and the one number to watch is `gap` against the jambs, since
+arc, speed, hinge, snap })` — and the one number to watch is `gap` against the jambs, since
 a wall may not be thinner than 0.24 anywhere.
 
 `flipper()` is a nicer way to say it, not the only way: `wall()` takes `swing`

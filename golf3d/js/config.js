@@ -8,7 +8,7 @@
    — the renderer scales to the viewport, the simulation never sees a pixel. */
 window.G3 = window.G3 || {};
 
-G3.VERSION = '1.133.0';
+G3.VERSION = '1.134.0';
 
 G3.CONFIG = {
     BALL_R: 0.16,
@@ -675,6 +675,12 @@ G3.CONFIG = {
        what the coil under a real one is for and the whole of why a pinball
        table is not a lane with posts in it. */
     BUMPER: { give: 0.8, kick: 1.8 },
+    /* A slingshot (courses.sling, physics.collideWalls): the same coil behind
+       a rubber face instead of round a post. It fires off its face at `kick`
+       or `give` of what it was met with, but only past `trip` — under that the
+       ball is rolling along it, not hitting it, and a kicker that fired at a
+       ball leaning on it would never let it go. */
+    SLING: { give: 1.0, kick: 4.5, trip: 0.35 },
     BOUNCE: 0.34,         // vertical speed kept after landing
     LAND_GRIP: 0.86,      // horizontal speed kept on each landing
     LAND_REST: 0.55,      // slower than this after a bounce and it settles

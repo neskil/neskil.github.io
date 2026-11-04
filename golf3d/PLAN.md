@@ -44,22 +44,24 @@ order they came in (the ones already shipped are under "Done", v1.126.0):
    drums, scree laid at the feet, and the floor's edge let down into the
    country. Still open: height on the other long courses where a hole is flat
    for no reason.
-13. **Pinball Parlour, as a course** — "could have nicer flippers and a bit more
-    fun design. The increasing complexity for every level kind of deal, and
-    vary props and decor." Shipped in part (v1.126.0): hinged flippers drawn
-    as flippers, the course in order of what each table adds, a different
-    room round every table. Still open: **The Flippers and The Slingshots have
-    no ace at all.** Every flipper layout tried on a flat table either sent the
-    only ace straight up the middle (the putt at the flag) or starved the top
-    of the table; a flipper hole probably wants the ball *fired* by a bat — a
-    swing profile that snaps and holds rather than a sine — and a pin where a
-    flicked ball goes.
-
 Still waiting: "Deadline" (a nice biome, maps too simple, water on a table)
 is waiting on the owner to say which course they meant.
 
 Done:
 
+- **Pinball Parlour, as a course** (v1.126.0, finished in v1.134.0) — "could
+  have nicer flippers and a bit more fun design. The increasing complexity for
+  every level kind of deal, and vary props and decor." v1.126.0 drew hinged
+  bats as flippers, ordered the course by what each table adds and put a
+  different room round every table; The Flippers and The Slingshots still had
+  no ace. Now they do, out of two new pieces (README → "Slingshots and firing
+  bats"). The Slingshots: the pin beside the tee behind a wall up the middle,
+  two kickers at the far end, and a firm mallet up into the left one fired back
+  round the wall to the pin (0.67%, tutorial). The Flippers: two bats hung down
+  the rails that snap rather than swing, and fire a ball they meet on the way up
+  across the table, off the far rail and in, or into the other bat first (0.48%,
+  tutorial, every ace through a bat; the bot with hands 2.4). Neither drops the
+  putt at the flag.
 - **Wormholes, and Orbit's black hole** (v1.129.0) — "a black hole opens in the
   sky and lets the ball out instead of an instant teleport … some shader maybe?
   Like the cargo lander game's" and "Orbit, the black hole model is very ugly".

@@ -3603,6 +3603,79 @@
                 C.MAX_POWER / -Math.log(C.FRICTION.green) > C.CONE_RANGE);
         })();
 
+        /* ── slingshots and bats that fire ─────────────────────────────── */
+
+        /* The two pieces that gave The Slingshots and The Flippers their aces
+           (README → "Slingshots and firing bats"). Each one's whole claim is a
+           pace it hands the ball that the ball did not bring, so that is what
+           is measured: a slow ball fired off a kicker's face, a bat that lies
+           still and then outruns a putt, and a ball that stops in a bat's path
+           waiting to be flipped rather than being swept through. */
+        section('Slingshots and bats that fire');
+        (function () {
+            var table = A.pad(0, 0, 8, 8);
+            function holeOf(extra, cup) {
+                return A.build({ name: 'test', par: 3, pads: [table], extra: extra,
+                    tee: { x: 1, z: 1 }, cup: cup || { x: 7, z: 7 } });
+            }
+            // A slingshot whose face runs along z at x 4, facing the tee side.
+            var sh = A.slingshot({ x: 4, z: 6 }, { x: 4, z: 2 }, { x: 5.5, z: 4 });
+            assert('a slingshot is three walls, the face first and carrying the triangle',
+                sh.length === 3 && sh[0].kick && sh[0].tri && sh[0].tri.length === 3 &&
+                    sh[1].kind === 'slingback' && sh[2].kind === 'slingback' && !sh[1].kick);
+            var h = holeOf(sh);
+            function rollAt(x, z, vx, vz) {
+                var w = P.createWorld(h, { x: x, z: z }, 0);
+                w.ball.vx = vx; w.ball.vz = vz; w.moving = true;
+                var ev = {}, k, kicked = false, off = null;
+                for (k = 0; k < 60; k++) {
+                    ev = {}; P.advance(w, 1 / 120, ev);
+                    if (ev.kicked && !kicked) { kicked = true; off = w.ball.vx; }
+                }
+                return { w: w, kicked: kicked, off: off };
+            }
+            var slow = rollAt(3.4, 4, 1.5, 0);
+            assert('a slow ball into the face is fired back off it at the kicker\'s pace',
+                slow.kicked && slow.off < -C.SLING.kick * 0.95,
+                'left at ' + (slow.off === null ? 'never' : slow.off.toFixed(2)) + ' (kick ' + C.SLING.kick + ')');
+            var crawl = rollAt(3.75, 4, 0.2, 0);
+            assert('…and one leaning on it is not fired at all', !crawl.kicked);
+            var plain = holeOf([A.bank(4, 4, 4, Math.PI / 2)]);
+            var w = P.createWorld(plain, { x: 3.4, z: 4 }, 0), k;
+            w.ball.vx = 1.5; w.moving = true;
+            for (k = 0; k < 60; k++) P.advance(w, 1 / 120, {});
+            assert('a plain bank in the same place hands back only a rail\'s share',
+                w.ball.vx > -1.5 * C.RESTITUTION - 0.05 && w.ball.vx < 0, w.ball.vx.toFixed(2));
+
+            // A bat that fires, hung down a rail, and what its beat looks like.
+            var bat = A.flipper(0.38, 4.4, 2.8, { hinge: -1, rest: Math.PI / 2, arc: -0.9, speed: 2.4, snap: true });
+            var T = 2 * Math.PI / bat.swing.speed, t, yaws = [], fast = 0, still = 0, B;
+            for (t = 0; t < T; t += T / 400) {
+                B = P.wallBox(bat, t);
+                yaws.push(B.yaw);
+                if (Math.abs(B.spin) < 1e-9) still++;
+                fast = Math.max(fast, Math.abs(B.spin));
+            }
+            assert('a snapping bat lies still for most of its beat', still / yaws.length > 0.6,
+                Math.round(still / yaws.length * 100) + '%');
+            assert('…and comes up through its whole arc', approx(Math.min.apply(null, yaws), Math.PI / 2 - 0.9, 1e-6) &&
+                approx(Math.max.apply(null, yaws), Math.PI / 2, 1e-6));
+            var tip = fast * 2.8;
+            assert('its tip on the way up outruns a putt across a lane, and nothing passes through it in a frame',
+                tip > 6 && tip / 60 < bat.d + C.BALL_R,
+                'tip ' + tip.toFixed(1) + '/s, ' + (tip / 60).toFixed(2) + ' a frame');
+            var swept = holeOf([bat]);
+            assert('a ball beside the bat at rest is in its path', P.inSweep(swept, 1.4, 4.0));
+            assert('…and one across the table is not', !P.inSweep(swept, 6, 4));
+            w = P.createWorld(swept, { x: 1.4, z: 4.0 }, 0);
+            w.ball.vx = 0.05; w.moving = true;
+            var hit = false;
+            for (k = 0; k < 60 * 4 && !P.done(w); k++) { var e = {}; P.advance(w, 1 / 60, e); if (e.struck) hit = true; }
+            assert('a ball that stops in its path waits there to be flipped, and is',
+                hit && Math.hypot(w.ball.x - 1.4, w.ball.z - 4.0) > 2,
+                'ended at ' + w.ball.x.toFixed(2) + ', ' + w.ball.z.toFixed(2));
+        })();
+
         /* ── the swing gate ────────────────────────────────────────────── */
 
         section('The swing gate');
