@@ -1397,6 +1397,28 @@
         return power * (1 + C.OVER_GAIN * t * t);
     }
 
+    /* What a club can deliver from where the ball lies — today, that is
+       whether it is in a bunker. Out of sand an iron keeps CONFIG's
+       `club.sand` of its ceiling and no more: a cap rather than a scale, so a
+       half swing out of a bunker is the same half swing it always was, and
+       only the top of the meter is gone. A club with no `sand` — the putter,
+       both wedges, anything from EXTRA_CLUBS — loses nothing, and one whose
+       `sand` is 0 (the driver) cannot be played from there at all (playable).
+
+       `kind` is the surface under the ball (surfaceUnder's pad.kind). The
+       shot, its preview, the distance readout and the bot all ask here, so
+       the cone never draws a shot out of a bunker that will not be played. */
+    function lieCeiling(club, kind) {
+        return kind === 'sand' && club && club.sand !== undefined ? club.power * club.sand : Infinity;
+    }
+    function fromLie(power, club, kind) {
+        return Math.min(power, lieCeiling(club, kind));
+    }
+    // Whether the club can be swung from this lie at all.
+    function playable(club, kind) {
+        return lieCeiling(club, kind) >= C.MIN_POWER;
+    }
+
     /* How wild the shot gets, as the half-angle it can leave off line by and
        the fraction of its weight it can be out by. Nothing at or inside a full
        swing sprays at all — inside 100% the ball goes exactly where the cone
@@ -2260,6 +2282,9 @@
         launch: launch,
         overdraw: overdraw,
         deliver: deliver,
+        lieCeiling: lieCeiling,
+        fromLie: fromLie,
+        playable: playable,
         spray: spray,
         sprayShot: sprayShot,
         advance: advance,

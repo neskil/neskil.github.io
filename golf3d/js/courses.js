@@ -7112,7 +7112,7 @@
                page's own font — so a die here is a tofu box on the one chip
                that is selected by default. */
             id: 'any', name: 'Anything', icon: '\u2733',
-            blurb: 'Any course on the list, except the one you are playing.',
+            blurb: 'Any course on the list except the one you are playing, leaning towards the ones you have played least.',
             eased: 'Nowhere else to go — this draws from all of them.'
         },
         {
@@ -7250,11 +7250,58 @@
        it defaults to Math.random and is clamped rather than trusted, because a
        source that returns exactly 1 (or nothing at all) should cost you a
        slightly unfair draw, not an undefined course id. */
+    /* ── leaning towards what you have not played ────────────────────────
+
+       The dice are weighted by the save file. A hole's weight is
+       1 / (1 + plays)², so a hole you have never played is four times as
+       likely as one you have played once and nine times as likely as one you
+       have played twice — never zero, because a favourite coming round again
+       is part of a shuffle too. A course weighs what its holes weigh on
+       average, which counts showcase holes played out of it as well as full
+       rounds on it; a save written before holes were counted falls back to
+       its rounds, so an old save leans the same way from the first draw.
+
+       With no save, or with everything played equally, every weight is the
+       same and the pick is exactly the even one it always was — which is
+       what the tests holding the dice rely on. */
+    function holePlays(save, id, index) {
+        var h = save && save.holes ? save.holes[id + ':' + index] : null;
+        return h && typeof h.plays === 'number' && h.plays > 0 ? h.plays : 0;
+    }
+
+    function weightOf(plays) { return 1 / ((1 + plays) * (1 + plays)); }
+
+    G3.holeWeight = function (save, id, index) { return weightOf(holePlays(save, id, index)); };
+
+    G3.courseWeight = function (save, course) {
+        var rounds = roundsOn(save, course.id), sum = 0, i;
+        for (i = 0; i < course.holes.length; i++) {
+            sum += weightOf(Math.max(rounds, holePlays(save, course.id, i)));
+        }
+        return course.holes.length ? sum / course.holes.length : 1;
+    };
+
+    /* One index out of a list of weights. `n` is clamped rather than trusted,
+       for the reason randomCourseId gives; equal weights give
+       floor(n × length), the unweighted pick to the last digit. */
+    function weightedIndex(weights, n) {
+        var total = 0, i;
+        for (i = 0; i < weights.length; i++) total += weights[i];
+        if (!(total > 0)) return 0;
+        var at = (typeof n === 'number' && n >= 0 && n < 1 ? n : 0) * total;
+        for (i = 0; i < weights.length; i++) {
+            at -= weights[i];
+            if (at < 0) return i;
+        }
+        return weights.length - 1;
+    }
+    G3.weightedIndex = weightedIndex;
+
     G3.randomCourseId = function (opts) {
         var draw = G3.shuffleDraw(opts);
         var rng = (opts && opts.rng) || Math.random;
-        var n = rng();
-        var i = Math.floor((typeof n === 'number' && n >= 0 && n < 1 ? n : 0) * draw.courses.length);
+        var save = (opts && opts.save) || null;
+        var i = weightedIndex(draw.courses.map(function (c) { return G3.courseWeight(save, c); }), rng());
         return draw.courses[Math.max(0, Math.min(draw.courses.length - 1, i))].id;
     };
 
@@ -7290,20 +7337,21 @@
        is filed under mini golf only so the picker has a shelf for it. */
     G3.SHOWCASE_PER_KIND = 2;
 
-    G3.dealShowcase = function (rng) {
+    /* `save` leans the deal towards holes you have played least (see the
+       weights above the shuffle's dice): the course by how much of it you
+       have seen, then the hole within it by its own count. Left out, the
+       deal is the even one. */
+    G3.dealShowcase = function (rng, save) {
         var rnd = rng || Math.random;
-        // Clamped rather than trusted, for the reason randomCourseId gives.
-        function pick(n) {
-            var v = rnd();
-            var i = Math.floor((typeof v === 'number' && v >= 0 && v < 1 ? v : 0) * n);
-            return Math.max(0, Math.min(n - 1, i));
-        }
         var holes = [], from = [], themes = [];
         G3.COURSE_GROUPS.forEach(function (group) {
             var pool = G3.coursesInGroup(group.id).filter(function (c) { return !c.playtest; });
             for (var k = 0; k < G3.SHOWCASE_PER_KIND && pool.length; k++) {
-                var course = pool.splice(pick(pool.length), 1)[0];
-                var i = pick(course.holes.length);
+                var c = weightedIndex(pool.map(function (p) { return G3.courseWeight(save, p); }), rnd());
+                var course = pool.splice(c, 1)[0];
+                var i = weightedIndex(course.holes.map(function (h, j) {
+                    return G3.holeWeight(save, course.id, j);
+                }), rnd());
                 holes.push(course.holes[i]);
                 from.push({ id: course.id, index: i });
                 themes.push(course.theme);

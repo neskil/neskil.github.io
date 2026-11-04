@@ -55,7 +55,91 @@
     }
 
     function emptySave() {
-        return { courses: {}, rounds: 0, aces: 0 };
+        return { courses: {}, holes: {}, rounds: 0, aces: 0 };
+    }
+
+    /* ── stars, and the holes behind them ──────────────────────────────
+
+       The same three stars the 2D game next door gives: three for beating
+       par, two for matching it, one for getting it down at all and none for
+       a pick-up. Under par rather than "an ace" for the third, because on a
+       par two those are the same thing and on a par five they are not — and
+       a star only luck can get you is not a goal.
+
+       A pick-up is scored at par + PICKUP and reads as no star. A ball holed
+       with exactly that last stroke scores the same number and reads the same
+       way: one star lost on a hole played eight over is cheaper than a second
+       field on every card to tell the two apart.
+
+       Kept per hole, by its home course and its number, so a hole is the same
+       hole whether it was met at home or in a showcase deal — and `plays` is
+       what the showcase and the shuffle read to lean towards holes you have
+       not seen. */
+    function stars(score, par) {
+        if (typeof score !== 'number' || score < 1 || score >= par + C.PICKUP) return 0;
+        if (score < par) return 3;
+        if (score === par) return 2;
+        return 1;
+    }
+
+    function starText(n) {
+        var s = '', i;
+        for (i = 0; i < 3; i++) s += i < n ? '\u2605' : '\u2606';
+        return s;
+    }
+
+    function holeKey(courseId, index) { return courseId + ':' + index; }
+
+    function emptyHole() { return { plays: 0, best: null, stars: 0 }; }
+
+    function holeRecord(saveData, courseId, index) {
+        var h = saveData && saveData.holes ? saveData.holes[holeKey(courseId, index)] : null;
+        return h || emptyHole();
+    }
+
+    /* Fold one finished hole into the save. `scored: false` counts the play
+       and nothing else — a pass-and-play hole was still seen, so the showcase
+       should still lean away from it, but whose stars would they be? */
+    function recordHole(prev, courseId, index, score, par, opts) {
+        var scored = !(opts && opts.scored === false);
+        var was = holeRecord(prev, courseId, index);
+        var got = scored ? stars(score, par) : 0;
+        var next = copySave(prev);
+        var isBest = scored && typeof score === 'number' && (was.best === null || score < was.best);
+        next.holes[holeKey(courseId, index)] = {
+            plays: (was.plays || 0) + 1,
+            best: isBest ? score : was.best,
+            stars: Math.max(was.stars || 0, got)
+        };
+        return { save: next, stars: got, was: was, isBest: isBest, moreStars: got > (was.stars || 0) };
+    }
+
+    // Stars held on a course, out of three a hole.
+    function courseStars(saveData, course) {
+        var got = 0, i;
+        for (i = 0; i < course.holes.length; i++) got += holeRecord(saveData, course.id, i).stars;
+        return { got: got, max: course.holes.length * 3 };
+    }
+
+    function totalStars(saveData, courses) {
+        var got = 0, max = 0;
+        courses.forEach(function (c) {
+            var s = courseStars(saveData, c);
+            got += s.got; max += s.max;
+        });
+        return { got: got, max: max };
+    }
+
+    // A save one level deep, so a record folded in never edits the one it came from.
+    function copySave(prev) {
+        var next = { courses: {}, holes: {}, rounds: prev.rounds || 0, aces: prev.aces || 0 }, id;
+        for (id in prev.courses) {
+            if (Object.prototype.hasOwnProperty.call(prev.courses, id)) next.courses[id] = prev.courses[id];
+        }
+        for (id in prev.holes || {}) {
+            if (Object.prototype.hasOwnProperty.call(prev.holes, id)) next.holes[id] = prev.holes[id];
+        }
+        return next;
     }
 
     function load() {
@@ -75,6 +159,17 @@
                     if (typeof c.rounds === 'number') e.rounds = c.rounds;
                     if (Array.isArray(c.bestCard)) e.bestCard = c.bestCard;
                     s.courses[id] = e;
+                }
+            }
+            if (d.holes && typeof d.holes === 'object') {
+                for (var k in d.holes) {
+                    if (!Object.prototype.hasOwnProperty.call(d.holes, k)) continue;
+                    var h = d.holes[k], o = emptyHole();
+                    if (!h || typeof h !== 'object') continue;
+                    if (typeof h.plays === 'number' && h.plays >= 0) o.plays = Math.floor(h.plays);
+                    if (typeof h.best === 'number') o.best = h.best;
+                    if (typeof h.stars === 'number') o.stars = Math.max(0, Math.min(3, Math.floor(h.stars)));
+                    s.holes[k] = o;
                 }
             }
             return s;
@@ -109,10 +204,9 @@
         var aces = 0, i;
         for (i = 0; i < scores.length; i++) if (scores[i] === 1) aces++;
 
-        var next = { courses: {}, rounds: (prev.rounds || 0) + 1, aces: (prev.aces || 0) + aces };
-        for (var id in prev.courses) {
-            if (Object.prototype.hasOwnProperty.call(prev.courses, id)) next.courses[id] = prev.courses[id];
-        }
+        var next = copySave(prev);
+        next.rounds = (prev.rounds || 0) + 1;
+        next.aces = (prev.aces || 0) + aces;
         var isBest = byPar
             ? was.bestVsPar === null || t.vsPar < was.bestVsPar
             : was.best === null || t.strokes < was.best;
@@ -135,7 +229,13 @@
         courseRecord: courseRecord,
         load: load,
         save: save,
-        recordRound: recordRound
+        recordRound: recordRound,
+        stars: stars,
+        starText: starText,
+        holeRecord: holeRecord,
+        recordHole: recordHole,
+        courseStars: courseStars,
+        totalStars: totalStars
     };
 
 })(window.G3);

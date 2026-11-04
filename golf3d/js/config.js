@@ -8,7 +8,7 @@
    — the renderer scales to the viewport, the simulation never sees a pixel. */
 window.G3 = window.G3 || {};
 
-G3.VERSION = '1.122.0';
+G3.VERSION = '1.125.0';
 
 G3.CONFIG = {
     BALL_R: 0.16,
@@ -392,9 +392,11 @@ G3.CONFIG = {
        half one: the bite asked for is BITE × the loft's share (LOFT, read
        between the points, degrees) × the meter's fraction (to 130%). MAX is
        the ceiling, and it is over 1 — a wedge flushed past a full swing
-       lands and checks back a little. */
+       lands and checks back a little. The top point is the wedge's loft, and
+       it moved with the wedge (58° to 52°, v1.124.0): past the last point the
+       share holds, so the wedge keeps all the spin it had. */
     SPIN: {
-        LOFT: [[0, 0], [12, 0.3], [22, 0.7], [32, 1], [45, 1.15], [58, 1.3]],
+        LOFT: [[0, 0], [12, 0.3], [22, 0.7], [32, 1], [45, 1.15], [52, 1.3]],
         BITE: 0.62,
         MAX: 1.12
     },
@@ -468,8 +470,9 @@ G3.CONFIG = {
        that carries furthest on flat ground and so reads like the right
        number — but it is a *clamp*, and the bag's highest club sat one
        degree under it. Anything genuinely lofted was quietly flattened
-       back to a wedge. A lob wedge is 58° in the real bag and it is 58°
-       here, so the ceiling has to be above it. */
+       back to a wedge. A lob wedge is 58° in the real bag and it was 58°
+       here, so the ceiling had to be above it; the wedge is 52° now (see
+       the club) and the ceiling stayed where it was. */
     MAX_LOFT: 62 * Math.PI / 180,
 
     /* The bag. A club is a loft and a ceiling on power, and that is the whole
@@ -480,7 +483,19 @@ G3.CONFIG = {
        still a tap.
 
        Order matters: it is the order they appear in the bag and the order the
-       number keys select. */
+       number keys select.
+
+       `sand` is what the club keeps out of a bunker: its ceiling there, as a
+       fraction of its own. An iron cannot be swung at full length out of
+       sand — the meter still runs and the swing is still yours, it is just
+       that nothing past that fraction of the club's power reaches the ball,
+       so a half swing out of a bunker is the half swing it always was. The
+       5 iron keeps about eighteen metres, the 7 iron thirteen and a half and
+       the 9 iron twelve, so the ladder down the bag holds from sand. The
+       driver's is 0: it is not in the bag at all while the ball is in a
+       bunker (game.js syncLie). The two wedges and the putter have no `sand`
+       — those are the clubs built to come out of one, and they lose nothing
+       (physics.fromLie). */
     CLUBS: [
         {
             id: 'putter', name: 'Putter', short: 'PT', key: '1',
@@ -503,7 +518,7 @@ G3.CONFIG = {
            two units more of it, because more of the distance is in the air. */
         {
             id: 'driver', name: 'Driver', short: 'DR', key: '2',
-            loft: 12 * Math.PI / 180, power: 24, carry: 31.4, total: 41.4,
+            loft: 12 * Math.PI / 180, power: 24, carry: 31.4, total: 41.4, sand: 0,
             shapes: ['draw', 'fade', 'topped'],
             blurb: 'The reach club. Up and away, and it still runs.'
         },
@@ -528,19 +543,19 @@ G3.CONFIG = {
            of run apart with nothing in between. */
         {
             id: 'iron5', name: '5 Iron', short: '5i', key: '3',
-            loft: 17 * Math.PI / 180, power: 17.9, carry: 20.7, total: 27.0,
+            loft: 17 * Math.PI / 180, power: 17.9, carry: 20.7, total: 27.0, sand: 0.80,
             shapes: ['draw', 'fade', 'backspin', 'topped'],
             blurb: 'The long iron. The second shot on a par 5, and the long par 3.'
         },
         {
             id: 'iron', name: '7 Iron', short: '7i', key: '4',
-            loft: 22 * Math.PI / 180, power: 14.4, carry: 13.9, total: 17.9,
+            loft: 22 * Math.PI / 180, power: 14.4, carry: 13.9, total: 17.9, sand: 0.85,
             shapes: ['draw', 'fade', 'backspin', 'topped'],
             blurb: 'The long approach. Carries what the driver runs into.'
         },
         {
             id: 'iron9', name: '9 Iron', short: '9i', key: '5',
-            loft: 32 * Math.PI / 180, power: 13.3, carry: 11.0, total: 14.1,
+            loft: 32 * Math.PI / 180, power: 13.3, carry: 11.0, total: 14.1, sand: 0.90,
             shapes: ['draw', 'fade', 'backspin', 'topped'],
             blurb: 'The short iron. High at the flag, and it still releases a little.'
         },
@@ -568,9 +583,17 @@ G3.CONFIG = {
             shapes: ['backspin', 'topped'],
             blurb: 'Up steep and down steeper. Stops near where it lands.'
         },
+        /* The wedge was 58° and 12.7 of pace for a long while, and it read as
+           the weakest swing in the bag: a full one fell short of the pitch
+           beside it. More pace at 58° sends it up past every other club's
+           apex (tests.html, "every full swing tops out within a stride of the
+           drive") before it buys much distance, so the face came down to 52°
+           with the pace up to 13.3: a sixth more carry and run, a full one
+           finishing just past the pitch, and it still lands steeper than
+           anything else in the bag. */
         {
             id: 'wedge', name: 'Wedge', short: 'LW', key: '7',
-            loft: 58 * Math.PI / 180, power: 12.7, carry: 7.5, total: 9.6,
+            loft: 52 * Math.PI / 180, power: 13.3, carry: 8.8, total: 11.2,
             shapes: ['backspin'],
             blurb: 'The lob. Straight up over water, sand and trees.'
         }

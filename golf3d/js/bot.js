@@ -108,6 +108,15 @@
             (blockedLie(hole, w.ball, hole.cup, w.time) ? 1 : 0);
     }
 
+    /* What a ball at `from` is standing in. Out of a bunker the long clubs
+       have a lower ceiling (physics.fromLie), and a bot that did not know
+       would plan a drive the game will not play — so every stroke it chooses
+       or strikes is capped by this, misses included. */
+    function lieAt(hole, from) {
+        var under = P.surfaceUnder(hole, from.x, from.z, from.y + C.STEP_UP);
+        return under ? under.pad.kind : null;
+    }
+
     /* One candidate, played out in a throwaway world. */
     function trial(hole, from, yaw, power, loft, time, bite, opts) {
         var w = P.createWorld(hole, from, time);
@@ -145,8 +154,18 @@
         var best = null;
         var pool = opts.hands ? [] : null;
         bag = bag || C.CLUBS;
+        var lie = lieAt(hole, from);
+        // A club the lie will not take is not in the bag for this stroke —
+        // the driver in a bunker (physics.playable) — as it is not in the
+        // player's.
+        var allowed = bag.filter(function (c) { return P.playable(c, lie); });
+        if (allowed.length) bag = allowed;
+        // The fan is spread over the swing the lie allows, not the club's
+        // whole one, or two of every three tries out of a bunker are the cap.
+        function top(club) { return Math.min(club.power, P.lieCeiling(club, lie)); }
 
         function consider(yaw, club, power, wait) {
+            power = P.fromLie(power, club, lie);
             // The club's own backspin, so the bot is playing the clubs the
             // player is handed rather than five-sixths of them.
             sims++;
@@ -170,7 +189,7 @@
         bag.forEach(function (club) {
             for (i = 0; i < fan; i++) {
                 [0.35, 0.7, 1].forEach(function (f) {
-                    consider(base + (i / fan) * Math.PI * 2, club, club.power * f, 0);
+                    consider(base + (i / fan) * Math.PI * 2, club, top(club) * f, 0);
                 });
             }
         });
@@ -185,7 +204,7 @@
                    hole nobody could finish. */
                 [0.25, 0.5, 0.75, 0.9, 1].forEach(function (f) {
                     waits.forEach(function (wait) {
-                        consider(b0.yaw + k * 0.11, club, club.power * f, wait);
+                        consider(b0.yaw + k * 0.11, club, top(club) * f, wait);
                     });
                 });
             });
@@ -195,7 +214,7 @@
             [-0.7, -0.35, 0, 0.35, 0.7].forEach(function (dp) {
                 waits.forEach(function (wait) {
                     consider(b1.yaw + k * 0.03, b1.club,
-                        Math.max(C.MIN_POWER, Math.min(b1.club.power, b1.power + dp)), wait);
+                        Math.max(C.MIN_POWER, Math.min(top(b1.club), b1.power + dp)), wait);
                 });
             });
         });
@@ -211,7 +230,7 @@
        beats a perfect one past the edge of it. */
     function steady(hole, from, time, pool, opts, count) {
         var rnd = opts.rng || Math.random, hands = opts.hands;
-        var tries = opts.tries || 8, keep = opts.keep || 12;
+        var tries = opts.tries || 8, keep = opts.keep || 12, lie = lieAt(hole, from);
         var seconds = opts.seconds || SECONDS, dt = opts.dt || DT;
         var here = toGo(hole, { ball: from, time: time }, 0);
         pool.forEach(function (c) { c.e = toGo(hole, c.world, here); });
@@ -230,6 +249,7 @@
             c = picked[i]; sum = 0;
             for (j = 0; j < tries; j++) {
                 m = mishit(c.club, c.yaw, c.power, hands, rnd);
+                m.power = P.fromLie(m.power, c.club, lie);
                 w = trial(hole, from, m.yaw, m.power, c.club.loft, time + c.wait, c.club.bite,
                           { seconds: seconds, dt: dt });
                 sum += w ? toGo(hole, w, here) : 1 + here;
@@ -257,6 +277,7 @@
                 // Meant is not played: strike the chosen shot through the
                 // same hands the choice was made with.
                 var m = mishit(shot.club, shot.yaw, shot.power, opts.hands, opts.rng || Math.random);
+                m.power = P.fromLie(m.power, shot.club, lieAt(hole, from));
                 var hit = trial(hole, from, m.yaw, m.power, shot.club.loft, time + shot.wait,
                                 shot.club.bite, { seconds: opts.seconds || SECONDS, dt: opts.dt || DT });
                 if (hit) shot = { s: shot.s, yaw: m.yaw, power: m.power, club: shot.club,

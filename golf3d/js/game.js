@@ -36,6 +36,8 @@
        cycling and the autoplay bot all ask here, so none of them can hand
        you a wedge on the green. */
     function bag() {
+        // `greenBag` is whatever the lie leaves you — the putter on a green,
+        // the bag without the driver in a bunker (syncLie).
         if (state && state.greenBag) return state.greenBag;
         return (state && state.bag) || C.CLUBS;
     }
@@ -228,7 +230,8 @@
     // A fresh deal, from its first tee. Play again is newRound('showcase'),
     // which is the same eight holes.
     function newShowcase() {
-        G3.SHOWCASE = G3.dealShowcase();
+        // Leaning towards the holes this save has played least.
+        G3.SHOWCASE = G3.dealShowcase(null, state && state.save ? state.save : S.load());
         newRound('showcase');
     }
 
@@ -271,6 +274,9 @@
            course does not keep resetting you to the driver. */
         state.bag = G3.bagFor(hole);
         state.greenBag = null;
+        state.lieBagFor = null;
+        state.lieCards = null;
+        if (G3.bag && G3.bag.setLie) G3.bag.setLie(null);
         if (state.bag.indexOf(state.club) < 0) {
             state.club = clubById(state.club ? state.club.id : C.DEFAULT_CLUB);
         }
@@ -503,6 +509,9 @@
            a full swing is allowed to check back. */
         var ask = g && g.read && g.read.spin ? g.read.spin.ask : 0;
         if (ask) shot.bite = SW.spinBite(shot.bite, ask, state.club.loft, frac);
+        // Last, so nothing above can put back what a bunker takes away
+        // (physics.fromLie): out of sand a long club has a lower ceiling.
+        shot.power = P.fromLie(shot.power, state.club, lie && lie.pad.kind);
         if (!P.launch(state.world, shot.yaw, shot.power, shot.loft, shot.bite, shot.topped)) return;
         if (ask) state.world.ball.bite = shot.bite;
         // The range asks of every shot whether it went past the line (see
@@ -1733,21 +1742,78 @@
        `hole.longGame` is read off the ground rather than off the course id
        (courses.build), so a hole with fairway and rough on it gets this and a
        lane does not; the range is left alone, because its tee mat is green. */
+    /* And in a bunker, the bag without the driver.
+
+       A club whose `sand` is 0 cannot be swung from sand (physics.playable),
+       so while the ball sits in a bunker the bag is everything else — the
+       irons capped (physics.fromLie), the wedges and the putter whole. If the
+       driver was in your hand it is swapped for the next club down the bag
+       that will play, which is the 5 iron. Any hole but the range, whose tee
+       mat is all there is to stand on. */
     function syncLie() {
         var hole = state.world.hole, b = state.world.ball, putter = null, i;
         for (i = 0; i < state.bag.length; i++) if (state.bag[i].id === 'putter') putter = state.bag[i];
-        var lie = putter && hole.longGame && !state.course.isRange
-            ? P.surfaceUnder(hole, b.x, b.z, b.y + C.STEP_UP) : null;
-        var onGreen = !!(lie && lie.pad.kind === 'green');
-        if (onGreen === !!state.greenBag) return;
-        state.greenBag = onGreen ? [putter] : null;
+        var under = state.course.isRange ? null : P.surfaceUnder(hole, b.x, b.z, b.y + C.STEP_UP);
+        var kind = under ? under.pad.kind : null;
+        var lieBag = null, why = null;
+        if (putter && hole.longGame && kind === 'green') {
+            lieBag = [putter];
+            why = 'green';
+        } else if (kind === 'sand') {
+            lieBag = state.bag.filter(function (c) { return P.playable(c, kind); });
+            if (lieBag.length && lieBag.length < state.bag.length) why = 'sand';
+            else lieBag = null;
+        }
+        if (why === (state.lieBagFor || null)) return;
+        state.greenBag = lieBag;
+        state.lieBagFor = why;
+        // The cards in the bag say what each club reaches from here.
+        state.lieCards = why === 'sand' ? lieCards(lieBag, kind) : null;
+        if (G3.bag && G3.bag.setLie) G3.bag.setLie(state.lieCards);
         if (G3.bag && G3.bag.setBag) G3.bag.setBag(bag());
-        if (onGreen && state.club !== putter) {
+        if (why === 'green' && state.club !== putter) {
             pickClub(putter);
             toast('On the green — putter');
+        } else if (why === 'sand' && lieBag.indexOf(state.club) < 0) {
+            // The next club down the bag that will play from here.
+            var at = state.bag.indexOf(state.club), next = lieBag[0];
+            for (i = at + 1; i < state.bag.length; i++) {
+                if (lieBag.indexOf(state.bag[i]) >= 0) { next = state.bag[i]; break; }
+            }
+            pickClub(next);
+            toast('In the bunker — no driver from sand');
         } else {
             syncClubs();
         }
+    }
+
+    /* A club's card as the lie leaves it: carry, total and power at the
+       ceiling the lie allows (physics.lieCeiling), measured exactly as the
+       club's own card is — a full swing on a flat, windless fairway
+       (tests.html, "what the card says"). Only for a club the lie caps;
+       the rest keep their own card. Measured once a club and kept. */
+    var lieCardMemo = {};
+    function lieCards(clubs, kind) {
+        var out = null;
+        clubs.forEach(function (club) {
+            var cap = P.lieCeiling(club, kind);
+            if (!(cap < club.power) || !club.total) return;
+            var key = club.id + '|' + kind;
+            if (!lieCardMemo[key]) {
+                var field = {
+                    pads: [G3.authoring.pad(-60, -10, 120, 160, 0, 'fairway', 0, 0)],
+                    water: [], walls: [], tee: { x: 0, z: 0, y: 0 }, cup: { x: 0, z: 140, y: 0 }
+                };
+                var w = P.createWorld(field, { x: 0, z: 0, y: C.BALL_R }, 0), i;
+                P.launch(w, 0, cap, club.loft, club.bite);
+                for (i = 0; i < 4000 && !w.firstLand; i++) P.advance(w, C.SIM_DT, {});
+                var carry = w.firstLand ? w.firstLand.z : 0;
+                P.settle(w);
+                lieCardMemo[key] = { power: Math.round(cap * 10) / 10, carry: carry, total: w.ball.z };
+            }
+            (out = out || {})[club.id] = lieCardMemo[key];
+        });
+        return out;
     }
 
     function holeComplete(pickedUp) {
@@ -1771,6 +1837,7 @@
         state.scores[state.holeIndex] = state.strokes;
         state.phase = 'holed';
         syncSwing();
+        var noted = noteHole(hole);
 
         var t = S.term(state.strokes, hole.par);
         if (pickedUp) A.out();
@@ -1794,6 +1861,7 @@
                 ' · par ' + hole.par;
             $('banner').className = 'banner show';
         }
+        drawBannerStars(noted);
         var up = multi() ? nextToPlay() : -1;
         if (multi()) {
             $('banner-detail').textContent = state.players[state.turn].name + ' · ' +
@@ -1978,6 +2046,43 @@
         }
         state.phase = 'finished';
         openCard(res);
+    }
+
+    /* The hole into the save, under its home course and number — a
+       showcase hole is filed where it lives, so its stars are the same stars
+       wherever you meet it. Its play is counted for the showcase's and the
+       shuffle's dice whoever played it; its stars only for a round that could
+       set a record (finishRound says why). Nothing at all for the demo or a
+       session the caddie has played, for a dealt Challenge hole that will
+       never come round again, or for a draft in the editor.
+
+       Returns what the banner should say, or null for nothing. */
+    function noteHole(hole) {
+        if (demo || autoUsed) return null;
+        var ref = holeRef(state.holeIndex), home = G3.courseById(ref.id);
+        if (!home || home.playtest || home.isChallenge || home.isShowcase || home.isRange) return null;
+        // Pass and play: one play per hole, however many balls went round it.
+        var counted = multi() && state.players.some(function (p, j) {
+            return j !== state.turn && typeof p.scores[state.holeIndex] === 'number';
+        });
+        var solo = !multi() && !state.devSwing;
+        if (!counted) {
+            var res = S.recordHole(state.save, ref.id, ref.index, state.strokes, hole.par, { scored: solo });
+            state.save = S.save(res.save);
+            return solo ? res : null;
+        }
+        return null;
+    }
+
+    // Three stars under the term, and a word when they beat what you held.
+    function drawBannerStars(res) {
+        var el = $('banner-stars');
+        if (!el) return;
+        el.hidden = !res;
+        if (!res) return;
+        el.innerHTML = '<span class="bs-stars">' + S.starText(res.stars) + '</span>' +
+            (res.moreStars && res.was.plays > 0 ? '<span class="bs-new">new best</span>' : '');
+        el.setAttribute('aria-label', res.stars + (res.stars === 1 ? ' star' : ' stars'));
     }
 
     function hideBanner() { $('banner').className = 'banner'; }
@@ -2310,10 +2415,16 @@
     var runTables = {};
     var lastRun = null;
 
+    // What the ball is sitting on, as the strike will read it.
+    function lieKind() {
+        var b = state.world.ball;
+        var lie = P.surfaceUnder(state.world.hole, b.x, b.z, b.y + C.STEP_UP);
+        return lie ? lie.pad.kind : null;
+    }
+
     function runKind() {
         var hole = state.world.hole, b = state.world.ball;
-        var lie = P.surfaceUnder(hole, b.x, b.z, b.y + C.STEP_UP);
-        var kind = lie ? lie.pad.kind : null;
+        var kind = lieKind();
         /* A tee mat is green underfoot and a drive off it lands on fairway:
            measured on green, the range's driver read sixty units. */
         var onTee = Math.abs(b.x - hole.tee.x) + Math.abs(b.z - hole.tee.z) < 0.5;
@@ -2356,11 +2467,16 @@
        the key is everything the answer depends on. */
     function syncRun() {
         var club = state.club, hole = state.world.hole, kind = runKind();
-        var key = [club.id, shapeNow(), kind, hole.gravity || 1, hole.longGame].join('|');
+        // Out of a bunker a long club's full swing is its sand ceiling, and
+        // the readout says so rather than promising the fairway's distance.
+        var cap = P.lieCeiling(club, lieKind());
+        var capped = cap < club.power;
+        var key = [club.id, shapeNow(), kind, hole.gravity || 1, hole.longGame, capped].join('|');
         if (key === lastRun) return;
         lastRun = key;
         var t = runTable(club, kind, shapeNow(), hole.gravity || 1);
-        $('power-dist').textContent = 'full ' + G3.distance.bandText(runAt(t, club.power, club), hole);
+        $('power-dist').textContent = (capped ? 'sand: max ' : 'full ') +
+            G3.distance.bandText(runAt(t, capped ? cap : club.power, club), hole);
     }
 
     /* The meter reads in fractions of the club in hand, and it runs past 100%:
@@ -2536,7 +2652,10 @@
         /* The figures the club's own card carries (bag.js), written out:
            loft, reach and bite. */
         // Rough, like the meter's: a band, in the hole's own metres.
-        var totalText = club.total ? ' · reach <b>' + G3.distance.bandText(club.total, state.world.hole) + '</b>' : '';
+        // Out of a bunker, the reach the sand leaves it (syncLie, lieCards).
+        var card = (state.lieCards && state.lieCards[club.id]) || club;
+        var totalText = card.total ? ' · reach <b>' + G3.distance.bandText(card.total, state.world.hole) + '</b>' +
+            (card !== club ? ' from sand' : '') : '';
         var biteText = club.bite ? ' · bite <b>' + Math.round(club.bite * 100) + '%</b>' : '';
         // One line on a phone: the key only where there is a keyboard
         // (style.css hides .pk-key on touch), and the power units left to the
@@ -3963,6 +4082,7 @@
         G3.coursesInGroup(menuGroup).forEach(function (course) {
             var rec = S.courseRecord(save, course.id);
             var par = S.coursePar(course.holes);
+            var got = S.courseStars(save, course);
             // Expanded from the start on a wide screen, where the strip of
             // plans never crowded anything out. On a phone every card starts
             // closed except the one the picker is nudging you towards, so
@@ -3986,6 +4106,7 @@
                 '<span class="cc-blurb">' + course.blurb + '</span>' +
                 '<span class="cc-meta">' + course.holes.length + ' holes · par ' + par +
                 ' · best ' + (rec.best === null ? '—' : rec.best + ' (' + S.formatVsPar(rec.bestVsPar) + ')') +
+                ' · <span class="cc-stars-total">\u2605 ' + got.got + '/' + got.max + '</span>' +
                 '</span>';
             top.addEventListener('click', function () { takeCourse(course.id); });
             topRow.appendChild(top);
@@ -4030,7 +4151,11 @@
                 var cell = document.createElement('button');
                 cell.type = 'button';
                 cell.className = 'cc-hole';
-                cell.title = hole.name + ' — par ' + hole.par;
+                var hr = S.holeRecord(save, course.id, i);
+                cell.title = hole.name + ' — par ' + hole.par +
+                    (hr.plays ? ' · ' + hr.stars + (hr.stars === 1 ? ' star' : ' stars') +
+                        ' · played ' + hr.plays + (hr.plays === 1 ? ' time' : ' times')
+                        : ' · not played yet');
                 // The plan pass below reads these rather than counting its
                 // way through the DOM, so the ordering above is free to change.
                 cell.setAttribute('data-course', course.id);
@@ -4038,7 +4163,8 @@
                 cell.innerHTML =
                     '<canvas class="cc-map"></canvas>' +
                     '<span class="cc-num">' + (i + 1) + '</span>' +
-                    '<span class="cc-par">' + hole.par + '</span>';
+                    '<span class="cc-par">' + hole.par + '</span>' +
+                    (hr.plays ? '<span class="cc-stars" aria-hidden="true">' + S.starText(hr.stars) + '</span>' : '');
                 cell.addEventListener('click', function () { takeCourse(course.id, i); });
                 strip.appendChild(cell);
             });
@@ -4324,10 +4450,13 @@
     /* The showcase button's second line: what it is, and once you have one
        on the card, how your best went. */
     function drawShowcase() {
-        var rec = S.courseRecord(state && state.save ? state.save : S.load(), 'showcase');
+        var save = state && state.save ? state.save : S.load();
+        var rec = S.courseRecord(save, 'showcase');
+        var all = S.totalStars(save, G3.COURSES.filter(function (c) { return !c.playtest; }));
         $('menu-showcase-sub').textContent =
-            'Two holes from every kind of golf, eight in all. A new deal every round.' +
-            (rec.best === null ? '' : ' Your best: ' + S.formatVsPar(rec.bestVsPar) + ' against par.');
+            'Two holes from every kind of golf, eight in all, leaning towards ones you have not played.' +
+            (rec.best === null ? '' : ' Your best: ' + S.formatVsPar(rec.bestVsPar) + ' against par.') +
+            (all.got ? ' \u2605 ' + all.got + ' of ' + all.max + ' stars.' : '');
     }
 
     // The round behind the list is a showcase nobody has started yet.
@@ -4427,6 +4556,8 @@
             t = typeof sc === 'number' ? S.term(sc, holes[i].par) : null;
             rows += '<tr><td class="n">' + (i + 1) + '</td>' +
                 '<td class="nm">' + holes[i].name +
+                (typeof sc === 'number' && !state.course.isChallenge
+                    ? '<span class="card-stars">' + S.starText(S.stars(sc, holes[i].par)) + '</span>' : '') +
                 (state.course.isShowcase
                     ? '<span class="card-from">' + G3.courseById(holeRef(i).id).name + '</span>'
                     : '') + '</td>' +
@@ -5171,6 +5302,8 @@
             intent.spin = fly.spin;
             intent.topped = !!fly.topped;
         }
+        // And out of a bunker, the cap the strike will put on it.
+        intent.power = P.fromLie(intent.power, state.club, lieKind());
         // How far past a full swing this is, 0..1. The renderer opens the cone
         // by exactly the spread physics would apply — the club's ceiling is
         // the only part of that sum the renderer has no way to know.
