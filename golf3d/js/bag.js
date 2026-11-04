@@ -2171,6 +2171,7 @@
         g.fillStyle = held ? tint.name : 'rgba(167, 160, 136, 0.82)';
         var bandText = held ? 'IN HAND' : 'KEY ' + club.key;
         if (club.bite) bandText += ' \u00b7 BITE ' + Math.round(club.bite * 100) + '%';
+        if (LIE && LIE[club.id]) bandText += ' \u00b7 SAND';
         g.fillText(bandText, W / 2, 4 + BAND_H / 2);
 
         /* The name, in the page's own face, in one flat colour: a gradient
@@ -2186,7 +2187,7 @@
 
         g.textAlign = 'left';
         var deg = Math.round(club.loft * 180 / Math.PI);
-        var frac = club.power / maxPower();
+        var frac = figures(club).power / maxPower();
 
         if (CARD === CARDS.grid) stackedFigures(g, W, H, rule, deg, club, frac, tint);
         else sideBySideFigures(g, W, H, rule, deg, club, frac, tint);
@@ -2199,11 +2200,13 @@
        belong to. Rough, like the meter: carry to the nearest ten and the
        total as the band a full swing lands in, not a figure to the decimal. */
     function cardCarry(club) {
-        return club.carry ? String(Math.round(club.carry * C.LONG_M / 10) * 10) : '\u2014';
+        var f = figures(club);
+        return f.carry ? String(Math.round(f.carry * C.LONG_M / 10) * 10) : '\u2014';
     }
     function cardTotal(club) {
-        if (!club.total) return String(club.power);
-        var b = G3.distance.band(club.total, null, C.LONG_M);
+        var f = figures(club);
+        if (!f.total) return String(f.power);
+        var b = G3.distance.band(f.total, null, C.LONG_M);
         return b ? b[0] + '\u2013' + b[1] : '<' + C.NEAR;
     }
 
@@ -2217,7 +2220,7 @@
         g.fillStyle = 'rgba(167, 160, 136, 0.9)';
         g.font = '700 15px ' + FACE;
         g.fillText('CARRY \u00b7 ' + deg + '\u00b0', 28, top);
-        g.fillText('TOTAL \u00b7 PWR ' + club.power, x2, top);
+        g.fillText('TOTAL \u00b7 PWR ' + figures(club).power, x2, top);
 
         g.fillStyle = '#ebe4cf';
         g.font = '700 34px ' + FIGS;
@@ -2252,7 +2255,7 @@
         g.fillStyle = 'rgba(167, 160, 136, 0.9)';
         g.font = '700 16px ' + FACE;
         g.fillText('CARRY \u00b7 ' + deg + '\u00b0', 26, mid - 34);
-        g.fillText('TOTAL \u00b7 PWR ' + club.power, 26, low - 34);
+        g.fillText('TOTAL \u00b7 PWR ' + figures(club).power, 26, low - 34);
 
         g.fillStyle = '#ebe4cf';
         g.font = '700 46px ' + FIGS;
@@ -2349,6 +2352,22 @@
        shape the layout has asked for, or the typeface that has just arrived.
        Which face is showing survives the swap; the card under it does not
        otherwise change. */
+    /* What the lie leaves a club, when it is not the club's own card: out of
+       a bunker an iron reaches only its sand ceiling (physics.fromLie), and a
+       card promising its fairway distance there would be the one figure on
+       screen that is wrong. `LIE` is club id → { power, carry, total }, from
+       game.js syncLie, measured the way the club's own card is; a club not in
+       it — every club off the sand, and the wedges and putter in it — reads
+       its own. Redrawn only when it changes, which is once a lie. */
+    var LIE = null;
+    function figures(club) { return (LIE && LIE[club.id]) || club; }
+    function setLie(map) {
+        var key = map ? JSON.stringify(map) : '';
+        if (key === (LIE ? JSON.stringify(LIE) : '')) return;
+        LIE = map || null;
+        redrawCards();
+    }
+
     function redrawCards() {
         _labelled.forEach(function (c) {
             var held = c.label.material.map === c.label.userData.held;
@@ -3382,6 +3401,8 @@
         pick: pick,
         toggle: toggle,
         setBag: setBag,
+        setLie: setLie,
+        figures: figures,
         setVisible: setVisible,
         setExpanded: setExpanded,
         setSelected: setSelected,

@@ -138,7 +138,11 @@ iron, 0.85 for the 7, 0.90 for the 9, which keeps about 18, 13.5 and 12 metres
 of their full swings. It is a cap, not a scale: a half swing from sand is the
 half swing it is from the fairway. The putter and both wedges have no `sand`
 and lose nothing. The shot, the aim preview, the "full ≈" readout (which reads
-"sand: max ≈" there) and the bot all go through the same function.
+"sand: max ≈" there) and the bot all go through the same function. So do the
+bag's cards (v1.125.0): in a bunker each capped iron's card shows its carry,
+total and power at the sand ceiling with SAND in its band, and the picker's
+reach line says "from sand" — measured the way the club's own card is, a full
+swing on a flat fairway (`game.lieCards`, handed to `bag.setLie`).
 
 ### The flight
 

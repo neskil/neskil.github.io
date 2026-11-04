@@ -275,6 +275,8 @@
         state.bag = G3.bagFor(hole);
         state.greenBag = null;
         state.lieBagFor = null;
+        state.lieCards = null;
+        if (G3.bag && G3.bag.setLie) G3.bag.setLie(null);
         if (state.bag.indexOf(state.club) < 0) {
             state.club = clubById(state.club ? state.club.id : C.DEFAULT_CLUB);
         }
@@ -1760,6 +1762,9 @@
         if (why === (state.lieBagFor || null)) return;
         state.greenBag = lieBag;
         state.lieBagFor = why;
+        // The cards in the bag say what each club reaches from here.
+        state.lieCards = why === 'sand' ? lieCards(lieBag, kind) : null;
+        if (G3.bag && G3.bag.setLie) G3.bag.setLie(state.lieCards);
         if (G3.bag && G3.bag.setBag) G3.bag.setBag(bag());
         if (why === 'green' && state.club !== putter) {
             pickClub(putter);
@@ -1775,6 +1780,35 @@
         } else {
             syncClubs();
         }
+    }
+
+    /* A club's card as the lie leaves it: carry, total and power at the
+       ceiling the lie allows (physics.lieCeiling), measured exactly as the
+       club's own card is — a full swing on a flat, windless fairway
+       (tests.html, "what the card says"). Only for a club the lie caps;
+       the rest keep their own card. Measured once a club and kept. */
+    var lieCardMemo = {};
+    function lieCards(clubs, kind) {
+        var out = null;
+        clubs.forEach(function (club) {
+            var cap = P.lieCeiling(club, kind);
+            if (!(cap < club.power) || !club.total) return;
+            var key = club.id + '|' + kind;
+            if (!lieCardMemo[key]) {
+                var field = {
+                    pads: [G3.authoring.pad(-60, -10, 120, 160, 0, 'fairway', 0, 0)],
+                    water: [], walls: [], tee: { x: 0, z: 0, y: 0 }, cup: { x: 0, z: 140, y: 0 }
+                };
+                var w = P.createWorld(field, { x: 0, z: 0, y: C.BALL_R }, 0), i;
+                P.launch(w, 0, cap, club.loft, club.bite);
+                for (i = 0; i < 4000 && !w.firstLand; i++) P.advance(w, C.SIM_DT, {});
+                var carry = w.firstLand ? w.firstLand.z : 0;
+                P.settle(w);
+                lieCardMemo[key] = { power: Math.round(cap * 10) / 10, carry: carry, total: w.ball.z };
+            }
+            (out = out || {})[club.id] = lieCardMemo[key];
+        });
+        return out;
     }
 
     function holeComplete(pickedUp) {
@@ -2613,7 +2647,10 @@
         /* The figures the club's own card carries (bag.js), written out:
            loft, reach and bite. */
         // Rough, like the meter's: a band, in the hole's own metres.
-        var totalText = club.total ? ' · reach <b>' + G3.distance.bandText(club.total, state.world.hole) + '</b>' : '';
+        // Out of a bunker, the reach the sand leaves it (syncLie, lieCards).
+        var card = (state.lieCards && state.lieCards[club.id]) || club;
+        var totalText = card.total ? ' · reach <b>' + G3.distance.bandText(card.total, state.world.hole) + '</b>' +
+            (card !== club ? ' from sand' : '') : '';
         var biteText = club.bite ? ' · bite <b>' + Math.round(club.bite * 100) + '%</b>' : '';
         // One line on a phone: the key only where there is a keyboard
         // (style.css hides .pk-key on touch), and the power units left to the
