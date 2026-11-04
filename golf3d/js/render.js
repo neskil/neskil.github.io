@@ -768,7 +768,13 @@
                 fairway: shells('fairway', TX.shellFor('fairway'),
                     new THREE.Color(theme.grass[1]).multiplyScalar(0.84).getStyle(),
                     SHELL_LAYERS, TX.MOW_WIDE),
-                rough: shells('rough', TX.shellFor('rough'), '#3c6b34', SHELL_LAYERS)
+                /* And none on the rough. It was mown in the same stripes as
+                   the fairway until v1.134.1, which on the long game striped
+                   every rectangle of property from stake to stake, so the one
+                   shape a hole is played on — the fairway's mown edge,
+                   wandering through the rough (courses `mow`) — was the one
+                   shape you could not see from anywhere. */
+                rough: shells('rough', TX.shellFor('rough'), '#3c6b34', SHELL_LAYERS, 0)
             },
             walls: {
                 rail: theme.glow ? glow(paint(theme.rail), theme.rail) : paint(theme.rail),
