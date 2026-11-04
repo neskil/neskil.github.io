@@ -1620,9 +1620,10 @@
     function handleEvents(ev) {
         var b = state.world.ball, now = performance.now();
         // A pop bumper rings and lights, whichever bounce it also was.
-        if (ev.bumped) {
+        // A slingshot's kicker is the same coil, so it answers the same way.
+        if (ev.bumped || ev.kicked) {
             if (A.pop) A.pop(P.groundSpeed(b));
-            if (R.bumped) R.bumped(ev.bumped);
+            if (R.bumped) R.bumped(ev.bumped || ev.kicked);
         }
         if (ev.bounce && now - lastBounceAt > 60) {
             lastBounceAt = now;

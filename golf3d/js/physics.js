@@ -1243,11 +1243,17 @@
            blade (wallPointVelocity). A bat that swept through the ball without
            hitting it would look exactly like this and play like a wall. */
         if (w.swing) {
-            var sw = w.swing;
+            var sw = w.swing, rate;
             var ph = t * sw.speed + (sw.phase || 0);
-            var half = (sw.to - sw.from) / 2;
-            var rate = half * Math.sin(ph) * sw.speed;
-            yaw += sw.from + half * (1 - Math.cos(ph));
+            if (sw.snap) {
+                snapAt(sw.snap, ph, SNAP);
+                yaw += sw.from + (sw.to - sw.from) * SNAP.p;
+                rate = (sw.to - sw.from) * SNAP.dp * sw.speed;
+            } else {
+                var half = (sw.to - sw.from) / 2;
+                rate = half * Math.sin(ph) * sw.speed;
+                yaw += sw.from + half * (1 - Math.cos(ph));
+            }
             spin += rate;
             /* A hinged one (courses.flipper with `hinge`) turns about one end,
                the way a real flipper does, so its middle goes round the hinge
@@ -1274,6 +1280,62 @@
         B.src = w;
         if (w.sails) millSail(w.sails, t, B);
         return B;
+    }
+
+    /* A flipper that fires (courses.flipper with `snap`): the way a real one
+       moves, which is not a sine. It lies at rest most of the beat, comes up
+       through its whole arc in a sliver of it at a constant rate — the punch,
+       and the only part of the beat with any pace in it — holds at the top,
+       and falls back eased. A ball the bat meets on the way up leaves with
+       the bat's own speed at that point added (wallPointVelocity), which at
+       the tip is several times a putt's; one that meets it at rest or held
+       is turned the way a rail turns it.
+
+       `up`, `hold` and `down` are shares of the beat (one turn of phase);
+       what is left over is rest. `p` is the share of the arc, `dp` its rate
+       per radian of phase. */
+    var SNAP = { p: 0, dp: 0 };
+    function snapAt(s, ph, out) {
+        var f = ph / (2 * Math.PI);
+        f -= Math.floor(f);
+        if (f < s.up) {
+            out.p = f / s.up; out.dp = 1 / s.up;
+        } else if (f < s.up + s.hold) {
+            out.p = 1; out.dp = 0;
+        } else if (f < s.up + s.hold + s.down) {
+            var u = (f - s.up - s.hold) / s.down;
+            out.p = (1 + Math.cos(Math.PI * u)) / 2;
+            out.dp = -Math.PI * Math.sin(Math.PI * u) / (2 * s.down);
+        } else {
+            out.p = 0; out.dp = 0;
+        }
+        out.dp /= 2 * Math.PI;
+        return out;
+    }
+
+    /* Whether a ball at (x, z) is somewhere a firing bat will sweep. A ball
+       that comes to a stop there is not at rest, because the bat is about to
+       hit it: the shot carries on until it does (substep's rest test), the way
+       a ball that rolls down on to a real flipper is flipped rather than left
+       lying in its path to be swept through. The arc is tried at eight angles
+       past rest, which at a radian's arc is a sixth of a unit at the tip —
+       inside the ball's own width. */
+    var SWEEP = { cx: 0, cz: 0, hw: 0, hd: 0, yaw: 0 };
+    function inSweep(hole, x, z) {
+        var walls = hole.walls, i, k, w, sw, yaw;
+        for (i = 0; i < walls.length; i++) {
+            w = walls[i]; sw = w.swing;
+            if (!sw || !sw.snap || !sw.hinge) continue;
+            SWEEP.hw = w.w / 2; SWEEP.hd = w.d / 2;
+            for (k = 1; k <= 8; k++) {
+                yaw = (w.yaw || 0) + sw.from + (sw.to - sw.from) * k / 8;
+                SWEEP.yaw = yaw;
+                SWEEP.cx = sw.hinge.x + Math.cos(yaw) * sw.reach;
+                SWEEP.cz = sw.hinge.z - Math.sin(yaw) * sw.reach;
+                if (circleBox(x, z, C.BALL_R, SWEEP)) return true;
+            }
+        }
+        return false;
     }
 
     /* A windmill's sails: the fourth way a wall moves, and the first that
@@ -1728,8 +1790,19 @@
 
             vn = b.vx * hit.nx + b.vz * hit.nz;
             if (vn < 0) {
-                b.vx -= (1 + C.RESTITUTION) * vn * hit.nx;
-                b.vz -= (1 + C.RESTITUTION) * vn * hit.nz;
+                /* A slingshot (courses.sling) is a rail with a kicker behind
+                   its rubber: a ball that meets it at more than a crawl is
+                   fired back off its face at the kicker's pace or what it
+                   brought, whichever is more — the bumper's rule along a
+                   line. A ball rolling along it, or leaning on it, is under
+                   the trip and gets a rail. */
+                var back = -vn * C.RESTITUTION;
+                if (w.kick && -vn > C.SLING.trip) {
+                    back = Math.max(-vn * C.SLING.give, C.SLING.kick);
+                    events.kicked = w;
+                }
+                b.vx += (back - vn) * hit.nx;
+                b.vz += (back - vn) * hit.nz;
                 events.bounce = true;
             }
             wv = wallPointVelocity(B, hit.cx, hit.cz);
@@ -2328,6 +2401,8 @@
             } else {
                 settled = world.slowFor > C.SLOPE_SETTLE;
             }
+            // In a firing bat's path it is not at rest, it is waiting to be hit.
+            if (settled && inSweep(hole, b.x, b.z)) settled = false;
             if (settled) {
                 b.vx = b.vy = b.vz = 0;
                 if (world.moving) events.rest = true;
@@ -2425,6 +2500,7 @@
 
     G3.physics = {
         isPost: isPost,
+        inSweep: inSweep,
         padHeight: padHeight,
         padContains: padContains,
         mowEdge: mowEdge,

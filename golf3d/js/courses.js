@@ -298,6 +298,19 @@
             speed: o.speed === undefined ? 2.2 : o.speed,
             phase: o.phase || 0
         };
+        /* `snap` is a bat that fires (physics.snapAt): at rest most of its
+           beat, up through the arc in a tenth of it, held, and back. The
+           default rise is slow enough that the tip of a 2.6 bat on a beat of
+           about two seconds moves a fifth of a unit a frame, which the solver
+           meets without the bat passing through the ball. */
+        if (o.snap) {
+            var sn = o.snap === true ? {} : o.snap;
+            w.swing.snap = {
+                up: sn.up === undefined ? 0.1 : sn.up,
+                hold: sn.hold === undefined ? 0.15 : sn.hold,
+                down: sn.down === undefined ? 0.25 : sn.down
+            };
+        }
         if (o.hinge) {
             var arm = o.hinge * (len / 2 - t / 2);
             w.swing.hinge = { x: cx + Math.cos(rest) * arm, z: cz - Math.sin(rest) * arm };
@@ -350,6 +363,32 @@
         var t = o.t === undefined ? 0.34 : o.t;
         return wall(cx - len / 2, cz - t / 2, len, t, o.h === undefined ? 0.62 : o.h,
             { base: o.base === undefined ? -0.1 : o.base, yaw: yaw, kind: o.kind || 'rail' });
+    }
+
+    /* A slingshot: the pinball piece the second Parlour table is named for.
+       A triangle of rubber, `a`–`b` the face with the kicker behind it and `c`
+       the corner it is braced back to; met on the face at more than a crawl it
+       fires the ball back off it (physics.collideWalls, CONFIG.SLING) rather
+       than handing back a rail's share, and rolled along it, it is a rail.
+       The two other sides are plain rubber, there so nothing gets in behind
+       the face — a lone kicking bank with a gap behind it is a trap the ball
+       is fired round and round in.
+
+       Three walls, the face first, which carries the whole triangle
+       (`tri`) for the renderer and the minimap to draw as one piece; the sides
+       are kind 'slingback' and are drawn by it rather than as boards. */
+    function slingshot(a, b, c, opts) {
+        var o = opts || {}, t = o.t === undefined ? 0.26 : o.t, h = o.h === undefined ? 0.5 : o.h;
+        function side(p, q, kind) {
+            var dx = q.x - p.x, dz = q.z - p.z, len = Math.sqrt(dx * dx + dz * dz);
+            var w = wall((p.x + q.x) / 2 - (len + t) / 2, (p.z + q.z) / 2 - t / 2, len + t, t, h,
+                { base: -0.1, yaw: Math.atan2(-dz, dx), kind: kind });
+            return w;
+        }
+        var face = side(a, b, 'sling');
+        face.kick = true;
+        face.tri = [{ x: a.x, z: a.z }, { x: b.x, z: b.z }, { x: c.x, z: c.z }];
+        return [face, side(b, c, 'slingback'), side(c, a, 'slingback')];
     }
 
     /* A curved rail: an arc of short banks round (cx, cz) at radius R, from
@@ -4822,33 +4861,48 @@
             decor: arcadeRoom(7, 18, 'PLUNGER LANE', 0),
             tee: { x: 1.2, z: 1.2 }, cup: { x: 3.5, z: 16.6 }
         }),
-        build({
-            /* The box with no door has gone next door to Tidewater, where a
-               hole that can only be answered upwards belongs. What stands here
-               instead is the piece of pinball furniture the file could not
-               write until `bank` existed: two rails set across the table at
-               thirty-five degrees, apex towards the player, with a post in the
-               throat between them.
+        (function () {
+            /* The table the slingshots are named for, and the first on the
+               course with something on it that gives the ball pace instead
+               of only taking it away.
 
-               So there are four ways past and not one of them is straight. A
-               window either side of the post, half a metre of aim each and the
-               bank right there to throw a near miss across the table; or round
-               the outside, which is wider and twice as long and lands you in
-               the pair of posts guarding the pin. Nothing here moves. It does
-               not need to — an angled wall is a machine for turning a good
-               line into somebody else's. */
-            name: 'The Slingshots', par: 3,
-            blurb: 'Two banks pointing the wrong way, a post in the throat, and no straight line anywhere.',
-            pads: [pad(0, 0, 9, 16)],
-            extra: [
-                bank(2.2, 8.2, 3.2, -0.6),
-                bank(6.8, 8.2, 3.2, 0.6),
-                bumper(4.5, 7.6, 0.6),
-                bumper(2.2, 12.4), bumper(6.8, 12.4)
-            ],
-            decor: arcadeRoom(9, 16, 'SLINGSHOTS', 3, [claw, jukebox]),
-            tee: { x: 4.5, z: 1.5 }, cup: { x: 4.5, z: 14.2 }
-        }),
+               It was two banks set across the table as a V with a post in the
+               throat (v1.70.0 to v1.132.0), and nothing on it was ever an
+               ace: a bank only hands back a rail's share, so every line off
+               one died short of anything. Now the two are slingshots — a
+               triangle of rubber with a kicker behind the face
+               (courses.slingshot, physics.collideWalls) — up at the far end in
+               the corners, and the pin is back down beside the tee, behind a
+               wall that runs up the middle of the table from the near rail.
+
+               So the way to the pin is away from it. A firm putt up the left
+               lane into the left slingshot's face is fired back across the
+               table, round the end of the wall and down the right side; the
+               kick is the pace, and how firmly it was met is how far down the
+               lane it comes. The safe way is two putts round the end of the
+               wall, short of the kickers — and a putt round it struck too hard
+               reaches the right one, which fires it back across the top. A
+               putt at the flag hits the wall. */
+            var W = 8, L = 12, p = pad(0, 0, W, L);
+            p.round = { nw: 3, ne: 3, sw: 1.2, se: 1.2 };
+            var lamps = [], k, yaw = Math.atan2(4.3, -2.5);
+            // The chase from the left kicker's face to the pin.
+            for (k = 0; k < 4; k++) {
+                lamps.push(lamp(1.9 + k * 0.95, 8.3 - k * 0.55, 0.006, { yaw: yaw, variant: 1 }));
+            }
+            return build({
+                name: 'The Slingshots', par: 3,
+                blurb: 'The pin is beside the tee and a wall is in the way. Putt up into a slingshot and it fires you back round the end of it.',
+                pads: [p],
+                extra: [].concat(
+                    [wall(3.8, 0, 0.4, 6, 0.62), post(4.0, 6.0, 0.4)],
+                    slingshot({ x: 2.6, z: 9.4 }, { x: 0.25, z: 8.0 }, { x: 0.25, z: 9.4 }),
+                    slingshot({ x: W - 0.25, z: 8.0 }, { x: W - 2.6, z: 9.4 }, { x: W - 0.25, z: 9.4 })
+                ),
+                decor: lamps.concat(arcadeRoom(W, L, 'SLINGSHOTS', 3, [claw, jukebox])),
+                tee: { x: 2, z: 1.4 }, cup: { x: 5.9, z: 6.2 }
+            });
+        })(),
         (function () {
             /* A city block of pop bumpers with the pin in the middle of it,
                and the doors into the block on the diagonals.
@@ -4952,29 +5006,49 @@
                the flag went up it and dropped. */
             tee: { x: 4.5, z: 1.6 }, cup: { x: 6.9, z: 15 }
         }),
-        build({
-            /* Two banks across the mouth of the table, set as a V that opens
-               towards the tee, and they are what turns this from a lane with
-               blades in it into a table. There is no way down either side any
-               more: everything is gathered into a window a metre wide, and the
-               bats are on the other side of it. */
-            name: 'The Flippers', par: 3,
-            blurb: 'Banks that funnel you in, and two bats waiting on the other side of the gap.',
-            pads: [pad(0, 0, 7, 16)],
-            extra: [
-                bank(1.8, 5.4, 2.6, 0.5),
-                bank(5.2, 5.4, 2.6, -0.5),
-                /* Bats now, not blades (v1.126.0): each hinged at the rail
-                   end like a real flipper, resting tip-down and flicking up
-                   through a radian on a rate of its own, so the two open the
-                   table on a pattern rather than on a beat. */
-                flipper(1.7, 8.6, 2.6, { hinge: -1, rest: 0.5, arc: -1.0, speed: 1.9 }),
-                flipper(4.8, 11.4, 2.6, { hinge: 1, rest: -0.5, arc: 1.0, speed: 2.3 }),
-                bumper(3.5, 3.2)
-            ],
-            decor: arcadeRoom(7, 16, 'FLIPPERS', 2, [cabinet, claw]),
-            tee: { x: 3.5, z: 1.5 }, cup: { x: 2.2, z: 14.4 }
-        }),
+        (function () {
+            /* Two bats that fire, hung down the rails.
+
+               The bats were sines (v1.126.0 to v1.132.0) behind a funnel of
+               banks, and a sine is a blade that stops: it pushes a ball at the
+               pace it happens to be turning at, which is never much, so
+               nothing a bat touched ever went anywhere and the hole had no ace.
+               A real flipper lies still and then fires. These do
+               (courses.flipper `snap`, physics.snapAt): at rest most of their
+               beat, flat against the rail like a stretch of it, then up
+               through a radian in a quarter of a second and held, and a ball
+               the bat meets on the way up leaves at the bat's own pace — at
+               the tip, more than a full putt. A ball that stops anywhere a bat
+               sweeps is not at rest (physics.inSweep); it gets flipped.
+
+               The left bat, swung out across the lane, fires up and to the
+               right: off the far rail and down on to the pin, which stands at
+               the top of the table on the right behind a rubber post on the
+               line from the tee, with another on the rail where a plain bank
+               would have done the bat's work for it. The right bat, lower and
+               quicker, fires across the table — into the left one, if it
+               catches you right, and that is the long way to the same pin.
+               The safe way is up the middle, short of both, and in from below. */
+            var W = 7, L = 15, p = pad(0, 0, W, L);
+            p.round = { nw: 3, ne: 1.4, sw: 1.2, se: 1.2 };   // the pin keeps most of its corner
+            var lamps = [], k, yaw = Math.atan2(4.8, 3.6);
+            // The chase the left bat fires along: to the far rail, and the pin.
+            for (k = 0; k < 4; k++) {
+                lamps.push(lamp(2.1 + k * 1.05, 7.7 + k * 0.8, 0.006, { yaw: yaw, variant: 1 }));
+            }
+            return build({
+                name: 'The Flippers', par: 3,
+                blurb: 'Two bats hung on the rails, each firing on a beat of its own. Roll past one as it fires and it sends you up the table.',
+                pads: [p],
+                extra: [
+                    flipper(0.38, 7.4, 2.8, { hinge: -1, rest: Math.PI / 2, arc: -0.9, speed: 2.4, snap: true }),
+                    flipper(6.62, 5.4, 2.8, { hinge: -1, rest: Math.PI / 2, arc: 0.9, speed: 2.9, snap: true }),
+                    post(5.62, 11.16), post(6.55, 9.75)
+                ],
+                decor: lamps.concat(arcadeRoom(W, L, 'FLIPPERS', 2, [cabinet, claw])),
+                tee: { x: 2.4, z: 1.4 }, cup: { x: 6.0, z: 12.3 }
+            });
+        })(),
         (function () {
             /* The finisher: the jackpot is a hole in the table.
 
@@ -7807,7 +7881,7 @@
 
     G3.authoring = {
         pad: pad, wall: wall, spinner: spinner, slider: slider,
-        beam: beam, pen: pen, bumper: bumper, post: post, bank: bank, arc: arc,
+        beam: beam, pen: pen, bumper: bumper, post: post, bank: bank, slingshot: slingshot, arc: arc,
         trough: trough, channel: channel, road: road, bowl: bowl, dish: dish, bands: bands, tilt: tilt,
         commons: commons,
         sprung: sprung, belt: belt, pipe: pipe, pipes: pipes, loop: loop,

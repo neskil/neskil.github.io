@@ -3717,6 +3717,9 @@
         if (wall.kind === 'tree') { addTree(group, wall); return; }
         if (wall.kind === 'rock') { addRock(group, wall); return; }
         if (P.isPost(wall)) { addPost(group, wall); return; }
+        // A slingshot is drawn whole off its face; its two backs are in it.
+        if (wall.kind === 'slingback') return;
+        if (wall.tri) { addSling(group, wall); return; }
         if (wall.sails) { addSails(group, wall); return; }
         var B = P.wallBox(wall, 0);
         if (wall.swing && wall.kind === 'blade') { addFlipper(group, wall, B); return; }
@@ -3759,6 +3762,66 @@
        Built in the bat's own frame about its middle, so it rides R.movers
        exactly as the box did (syncMovers puts the middle where wallBox says
        and turns it to its yaw). */
+    /* A slingshot (courses.slingshot): a white triangle of plastic on the
+       table with a lit insert let into its top, and a band of rubber round
+       its three sides at the height the ball meets it — the face the kicker
+       is behind in the hole's own pink. Lit and flashed like a pop bumper
+       (R.posts, glowPosts), off the same event. Built in world coordinates:
+       the shape's points are the table's. */
+    var SLING_RUBBER = 0xff4fa3;
+    function addSling(group, wall) {
+        var tri = wall.tri, base = wall.base || 0, h = wall.h, k;
+        var mx = (tri[0].x + tri[1].x + tri[2].x) / 3, mz = (tri[0].z + tri[1].z + tri[2].z) / 3;
+        // The triangle pulled in (or pushed out) towards its middle by `d`.
+        function grown(d) {
+            return tri.map(function (p) {
+                var dx = p.x - mx, dz = p.z - mz, r = Math.sqrt(dx * dx + dz * dz) || 1;
+                return { x: p.x + dx / r * d, z: p.z + dz / r * d };
+            });
+        }
+        function shapeOf(pts, hole) {
+            var sh = new THREE.Shape();
+            sh.moveTo(pts[0].x, pts[0].z);
+            for (k = 1; k < pts.length; k++) sh.lineTo(pts[k].x, pts[k].z);
+            sh.closePath();
+            if (hole) {
+                var hp = new THREE.Path();
+                hp.moveTo(hole[0].x, hole[0].z);
+                for (k = hole.length - 1; k >= 1; k--) hp.lineTo(hole[k].x, hole[k].z);
+                hp.closePath();
+                sh.holes.push(hp);
+            }
+            return sh;
+        }
+        function slab(shape, depth, top, mat) {
+            var geo = new THREE.ExtrudeGeometry(shape, { depth: depth, bevelEnabled: false });
+            geo.rotateX(Math.PI / 2);              // shape's y → world z, extruded down
+            geo.translate(0, top, 0);
+            var m = new THREE.Mesh(geo, mat);
+            m.castShadow = true;
+            m.receiveShadow = true;
+            group.add(m);
+            return m;
+        }
+        var body = R.surf.flipperBody || (R.surf.flipperBody = new THREE.MeshPhongMaterial({
+            color: 0xf5f2f7, shininess: 70, specular: 0x9a9a9a
+        }));
+        var rubber = R.surf.slingRubber || (R.surf.slingRubber = new THREE.MeshLambertMaterial({ color: SLING_RUBBER }));
+        var top = base + h;
+        slab(shapeOf(grown(-0.12)), h, top, body);
+        slab(shapeOf(grown(0.02), grown(-0.12)), 0.16, C.BALL_R + 0.08, rubber);
+        var lamp = new THREE.MeshPhongMaterial({
+            color: 0x3ee0ff, emissive: 0x3ee0ff, emissiveIntensity: 0.5, shininess: 90
+        });
+        slab(shapeOf(grown(-0.34)), 0.012, top + 0.012, lamp).castShadow = false;
+        var pool = slab(shapeOf(grown(0.35)), 0.004, 0.014, new THREE.MeshBasicMaterial({
+            color: SLING_RUBBER, transparent: true, opacity: 0.08, depthWrite: false,
+            blending: THREE.AdditiveBlending
+        }));
+        pool.castShadow = pool.receiveShadow = false;
+        R.posts.push({ wall: wall, lamp: lamp, pool: pool, flash: 0, ph: mx * 1.3 });
+    }
+
     function addFlipper(group, wall, B) {
         var len = wall.w, t = wall.d, h = wall.h, sw = wall.swing;
         var heel = sw.hinge ? (sw.reach > 0 ? -1 : 1) : -1;   // which end is the heel, in local x
