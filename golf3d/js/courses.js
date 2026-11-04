@@ -2468,7 +2468,9 @@
                 // own with walls, drawn as a solid disc; humps would make it
                 // terrain, and a disc of terrain is drawn for the ground
                 // round it, not for a table three units up.
-                if (p.kind !== 'rough' || p.stands) return false;
+                // …and ground that is out wherever it is (Redstone's canyon
+                // floor) is bare rock, not rough anybody plays out of.
+                if (p.kind !== 'rough' || p.stands || p.oob) return false;
                 if (Math.abs(p.sx || 0) + Math.abs(p.sz || 0) > HUMMOCK.tilt) return false;
                 // The row's tilt is not the only slope already there: a hole's
                 // own landforms run through its rough, and a hummock on the
@@ -2507,7 +2509,7 @@
         // Onto every piece of ground a hummock can reach — and that reach
         // includes how far a mown edge can carry a pad past its own cell.
         for (q = 0; q < ground.length; q++) {
-            if (ground[q].stands) continue;
+            if (ground[q].stands || ground[q].oob) continue;
             var p = ground[q], x0 = p.west ? p.west.lo : p.x, x1 = p.east ? p.east.hi : p.x + p.w;
             var mine = made.filter(function (m) {
                 var dx = Math.max(x0 - m.cx, 0, m.cx - x1), dz = Math.max(p.z - m.cz, 0, m.cz - p.z - p.d);
@@ -6392,6 +6394,7 @@
        (audit → prop-afloat). */
 
     var CANYON_FLOOR = -4;   // the bottom of the canyon, and out of play
+    var CANYON_COUNTRY = -4.6;   // themes → canyon.surroundY, which the floor's edge comes down to
 
     /* A piece of the canyon country standing on its own walls: Coral Keys'
        `cliff` without the beach under it. The edge is `coast`'s seeded
@@ -6404,6 +6407,7 @@
         p.inlay = false;
         p.stands = true;
         p.sheer = true;
+        p.weathered = true;          // its wall is cut into buttresses (render.weatherWall)
         if (o.sx || o.sz) {
             p.sx = o.sx || 0;
             p.sz = o.sz || 0;
@@ -6416,13 +6420,14 @@
        (`oob`), drawn without grass on it. */
     function rock(p) { p.oob = true; return p; }
 
-    /* A butte nobody plays — a temple, in the canyon's own word: tiers of
-       bare rock, each standing inside the one below it, so its skyline steps
-       in the way the beds it is cut from do rather than standing up as one
-       drum. `r` is the base's half-width, `top` the height of the cap. */
+    /* A butte nobody plays — a temple, in the canyon's own word: a tall
+       weathered base with a narrower summit standing on it, set off its
+       middle, so the skyline steps in once where a hard bed caps a soft one.
+       Three even tiers were tried first and read as a stack of drums. `r` is
+       the base's half-width, `top` the height of the summit. */
     function temple(cx, cz, r, top, o) {
         o = o || {};
-        var tiers = o.tiers || [[1, 0.45], [0.72, 0.76], [0.46, 1]];
+        var tiers = o.tiers || [[1, 0.7], [0.56, 1]];
         return tiers.map(function (t, i) {
             return rock(butte(cx + (o.lean || 0) * i, cz + (o.leanZ || 0) * i, r * t[0], r * t[0] * (o.rz || 1.15),
                 CANYON_FLOOR + (top - CANYON_FLOOR) * t[1], { wild: 0.13, seed: (o.seed || 0) + i * 37 + 5 }));
@@ -6446,12 +6451,38 @@
        bottom: `burn`'s lobes laid into the floor as a pond, so it is held in
        by the floor's own ground. */
     function redrock(h) {
-        var f = h.fence, M = 18;
+        var f = h.fence, M = 24, P = G3.physics;
         var floor = pad(f.x - M, f.z - M, f.w + 2 * M, f.d + 2 * M, CANYON_FLOOR, 'rough');
         floor.oob = true;
         var ground = [floor];
-        var r = h.river;
-        var water = r ? [pond(ground, burn(r.pts, r.r, r.depth, r.seed))] : [];
+        var r = h.river, lobes = r ? burn(r.pts, r.r, r.depth, r.seed) : [];
+        var water = r ? [pond(ground, lobes)] : [];
+        /* Scree at the foot of every wall that comes down on the floor: a
+           string of low humps round the outline, so a face meets the floor
+           in a fan of fallen rock rather than a ruled line. Not in the river,
+           and not where something else stands over the spot. */
+        var rnd = seeded(nameSeed(h.name) ^ 0x51ee), scree = [];
+        h.pads.forEach(function (p) {
+            if (!p.stands || !p.r) return;
+            var cx = p.x + p.w / 2, cz = p.z + p.d / 2, n = Math.ceil(2 * Math.PI * p.r / 2.2), k;
+            for (k = 0; k < n; k++) {
+                var t = (k + rnd() * 0.6) / n * Math.PI * 2, rr = P.padRadius(p, t) + 0.3 + rnd() * 0.5;
+                var x = cx + Math.cos(t) * rr, z = cz + Math.sin(t) * rr, sr = 1.6 + rnd() * 1.2;
+                if (h.pads.some(function (q) { return q.stands && P.padContains(q, x, z); })) continue;
+                if (lobes.some(function (L) { return Math.hypot(L[0] - x, L[1] - z) < L[2] + sr; })) continue;
+                scree.push(hill(x, z, sr, 0.16 + rnd() * 0.2));
+            }
+        });
+        /* …and the floor's own edge let down to the country it carries on
+           into: four troughs along its sides that meet the surround (themes →
+           canyon.surroundY, -4.6) a hair above it, so there is no step for
+           the eye to find where the rectangle ends. */
+        var E = 6, drop = CANYON_FLOOR - CANYON_COUNTRY - 0.02;
+        var x0 = floor.x, z0 = floor.z, x1 = floor.x + floor.w, z1 = floor.z + floor.d;
+        var edge = [[x0, z0, x1, z0], [x1, z0, x1, z1], [x1, z1, x0, z1], [x0, z1, x0, z0]].map(function (L) {
+            return { line: L, r: E, a: -drop, cx: (L[0] + L[2]) / 2, cz: (L[1] + L[3]) / 2 };
+        });
+        floor.bumps = (floor.bumps || []).concat(scree, edge);
         return build({
             name: h.name, par: h.par, long: true, shaped: true, open: true,
             blurb: h.blurb,
@@ -6720,7 +6751,7 @@
                     lay(mesa, 6, 76, 4.8, 4.4, 'green', { wild: 0.05 })
                 ]),
                 fence: { x: -5, z: -4, w: 40, d: 88 },
-                river: { pts: [[-22, 63.5], [-6, 64.5], [10, 63.2], [24, 64.6], [44, 63.8], [56, 64.2]], r: 1.6, depth: 0.6, seed: 9603 },
+                river: { pts: [[-18, 63.5], [-6, 64.5], [10, 63.2], [24, 64.6], [40, 63.8], [49, 64.2]], r: 1.6, depth: 0.6, seed: 9603 },
                 extra: [].concat(
                     crags(33.5, 20, 1.6, 4, 9601, { s: 1.35, h: 1.05 }),
                     crags(16.5, 55, 1.6, 4, 9607, { s: 1.25, h: 0.95 }),
