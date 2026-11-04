@@ -83,10 +83,13 @@ Done:
   tarn with a way round, a ridge with a drop down one side and a closer to the
   chalet. Theme `alpine` (clear high air: `air` pushes the fog back; granite
   `strata` with snow from ten units up), firs, chalet, cairns, a chairlift and
-  a waterfall. The bot with hands scores 18.8 (-5.3), every hole within a
-  stroke and a quarter of par. Not done: a snowfield surface (it would play as
-  sand does — README → "Alpenglow Pass"), and the hero views are still paler
-  than the tee views, because the fog there is the weather's.
+  a waterfall, and a faceted, snow-capped range round every hole
+  (`theme.range`, render.addRange) with the crags nobody plays crowned
+  (render.addCrown). The bot with hands scores 18.8 (-5.3), every hole within
+  a stroke and a quarter of par. Not done: a snowfield surface (it would play
+  as sand does — README → "Alpenglow Pass"); the hero views are still a little
+  paler than the tee views; the tee crags keep their flat tops, since a tee
+  stands on them.
 
 - **Pinball Parlour, as a course** (v1.126.0, finished in v1.134.0) — "could
   have nicer flippers and a bit more fun design. The increasing complexity for

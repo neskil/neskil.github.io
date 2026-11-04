@@ -1874,6 +1874,44 @@
         geo.computeVertexNormals();
     }
 
+    /* A granite top for a crag nobody plays (courses `crown`): the cut
+       face's outline at the rim, then two rings drawn in and up, jittered,
+       to a point — so a crag reads as an outcrop rather than a drum with a
+       lid on it. Scenery only: the ball plays the flat top it stands over,
+       which nothing in the bag reaches. Drawn in the cut-earth material, so
+       a theme's strata (and its snowline) run on up it. */
+    function addCrown(group, pad, cy) {
+        var cx = pad.x + pad.w / 2, cz = pad.z + pad.d / 2, n = 18, i, a, rr, h = Math.min(pad.rx, pad.rz) * 0.9;
+        var rings = [[1, 0], [0.62, 0.45], [0.28, 0.82]], pts = [], k;
+        for (k = 0; k < rings.length; k++) {
+            var ring = [];
+            for (i = 0; i < n; i++) {
+                a = i / n * Math.PI * 2;
+                var jr = k ? 0.75 + treeHash(cx + i, cz + k) * 0.5 : 0.99;
+                rr = P.padRadius(pad, a) * rings[k][0] * jr;
+                ring.push([Math.cos(a) * rr, rings[k][1] * h * (k ? 0.8 + treeHash(cz + i, cx - k) * 0.4 : 1), Math.sin(a) * rr]);
+            }
+            pts.push(ring);
+        }
+        var apex = [pad.rx * 0.08, h, -pad.rz * 0.06], pos = [];
+        function t(p, q, w) { pos.push(p[0], p[1], p[2], q[0], q[1], q[2], w[0], w[1], w[2]); }
+        for (k = 0; k < rings.length - 1; k++) {
+            for (i = 0; i < n; i++) {
+                var A = pts[k][i], B = pts[k][(i + 1) % n], C2 = pts[k + 1][i], D = pts[k + 1][(i + 1) % n];
+                t(A, C2, B); t(B, C2, D);
+            }
+        }
+        for (i = 0; i < n; i++) t(pts[rings.length - 1][i], apex, pts[rings.length - 1][(i + 1) % n]);
+        var geo = new THREE.BufferGeometry();
+        geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+        geo.computeVertexNormals();
+        var mesh = new THREE.Mesh(geo, R.surf.side);
+        mesh.position.set(cx, cy, cz);
+        mesh.castShadow = true;
+        mesh.receiveShadow = true;
+        group.add(mesh);
+    }
+
     /* Point an inlay's rim wall at the sky.
 
        An inlay is flush with the ground it is laid into and is lifted twelve
@@ -2612,6 +2650,7 @@
         mesh.receiveShadow = true;
         mesh.castShadow = true;
         group.add(mesh);
+        if (pad.crown) addCrown(group, pad, cy);
         if (pad.oob) return;
 
         // …and the grass standing on it, if it is the sort of pad that grows.
@@ -4907,6 +4946,84 @@
 
     var _ridgeSun = new THREE.Vector3();
 
+    /* A mountain range round the hole, for a theme that names one
+       (`theme.range`, the alpine course's): scenery only, never solid, and
+       well outside the property — it starts past the skirt and runs a
+       hundred-odd units out, between the hole and the horizon ridges.
+
+       Drums are what the first attempt was, and the arithmetic of a disc
+       cannot be anything else, so this is ground instead: a ring of terrain
+       whose height is ridged noise — one minus the folded value noise, three
+       octaves, squared — which is what draws sharp crests with gullies
+       between them rather than rounded hills. It rises out of the valley
+       over its first thirty units, so it stands *behind* the hole rather
+       than beside it, and the near ring is kept lower than the far so the
+       massif climbs away from the course. Every triangle is coloured on its
+       own, and flat-shaded, which is what makes it faceted granite: snow
+       above a ragged snowline where the ground is gentle enough to hold it
+       (so the gullies fill and the steep faces stay rock), rock on anything
+       steep, and dark forest on the low slopes. */
+    function rangeHeight(R, x, z, r, r0) {
+        var f = [1 / 46, 1 / 21, 1 / 9], w = [0.62, 0.28, 0.1], h = 0, k, n, rid;
+        for (k = 0; k < 3; k++) {
+            n = surNoise(x * f[k] + 31.7 * k, z * f[k] - 17.3 * k);
+            rid = 1 - Math.abs(2 * n - 1);
+            h += w[k] * rid * rid;
+        }
+        var t = (r - r0) / 30, env = t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * t);
+        var climb = 0.55 + 0.45 * Math.min(1, (r - r0) / (R.depth || 110));
+        return env * climb * R.peak * (0.18 + 0.95 * h);
+    }
+
+    function addRange(group, hole, theme, plan) {
+        var R = theme.range;
+        if (!R || !hole.open) return;
+        var b = hole.bounds, cx = (b.minX + b.maxX) / 2, cz = (b.minZ + b.maxZ) / 2;
+        var r0 = (plan ? plan.outer : Math.hypot(b.maxX - cx, b.maxZ - cz) + 30) + (R.gap || 8);
+        var r1 = r0 + (R.depth || 110), K = 18, N = 168, base = theme.surroundY - 1.5;
+        var rings = [], k, j, rr, a, x, z;
+        for (k = 0; k <= K; k++) {
+            rr = r0 + (r1 - r0) * Math.pow(k / K, 1.25);
+            var ring = [];
+            for (j = 0; j < N; j++) {
+                a = j / N * Math.PI * 2;
+                x = cx + Math.cos(a) * rr; z = cz + Math.sin(a) * rr;
+                ring.push([x, base + rangeHeight(R, x, z, rr, r0), z]);
+            }
+            rings.push(ring);
+        }
+        var pos = [], col = [], c = new THREE.Color();
+        var rock = new THREE.Color(R.rock || '#6f737a'), snow = new THREE.Color(R.snow || '#f2f6fa');
+        var wood = new THREE.Color(R.forest || '#2e4a34'), e1 = new THREE.Vector3(), e2 = new THREE.Vector3();
+        var snowline = base + R.peak * (R.snowline || 0.5), treeline = base + R.peak * (R.treeline || 0.2);
+        function tri(p, q, w) {
+            e1.set(q[0] - p[0], q[1] - p[1], q[2] - p[2]);
+            e2.set(w[0] - p[0], w[1] - p[1], w[2] - p[2]);
+            e1.cross(e2).normalize();
+            var ny = Math.abs(e1.y), hm = (p[1] + q[1] + w[1]) / 3;
+            var jit = (surNoise(p[0] * 0.13, p[2] * 0.13) - 0.5) * R.peak * 0.18;
+            if (hm > snowline + jit && ny > 0.56) c.copy(snow);
+            else if (hm < treeline + jit * 0.5 && ny > 0.62) c.copy(wood).multiplyScalar(0.85 + 0.3 * surNoise(p[0] * 0.3, p[2] * 0.3));
+            else c.copy(rock).multiplyScalar(0.78 + 0.4 * surNoise(p[0] * 0.21 + 5, p[2] * 0.21));
+            [p, q, w].forEach(function (v) { pos.push(v[0] - cx, v[1], v[2] - cz); col.push(c.r, c.g, c.b); });
+        }
+        for (k = 0; k < K; k++) {
+            for (j = 0; j < N; j++) {
+                var A = rings[k][j], B = rings[k][(j + 1) % N], C2 = rings[k + 1][j], D = rings[k + 1][(j + 1) % N];
+                // Wound so the face looks up (outward and round is down).
+                tri(A, B, C2);
+                tri(B, D, C2);
+            }
+        }
+        var geo = new THREE.BufferGeometry();
+        geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+        geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+        geo.computeVertexNormals();
+        var mesh = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ vertexColors: true }));
+        mesh.position.set(cx, 0, cz);
+        group.add(mesh);
+    }
+
     function addRidges(group, hole, theme, weather) {
         var ridge = theme.ridge;
         // No hills on a theme that has none: the arcade is a basement and the
@@ -5317,6 +5434,7 @@
         addSurround(g, hole, theme, skirt);
         addSkirt(g, hole, theme, skirt);
         addRidges(g, hole, theme, weather);
+        addRange(g, hole, theme, skirt);
 
         var i;
         for (i = 0; i < hole.pads.length; i++) addPad(g, hole.pads[i], theme, hole.cup, hole.pads);

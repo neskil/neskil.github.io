@@ -2317,16 +2317,22 @@ meadows are `commons` rows, climbing and falling (`sz`), leaning (`tilt`) and
 shaped by hill fields that stay in the rough, so every fairway is inside what
 it holds a ball on and none is flat. The rock is Redstone's `butte` in granite —
 standing, sheer, weathered — for a crag a tee is perched on, a cliff band
-behind a green, a crest along a ridge, and the `peak`s round every hole: a
-weathered base and an offset summit standing out past the ground, so their
-walls run all the way down into the valley. The ground falls away round the
+behind a green, a crest along a ridge — the ones nobody plays crowned with a
+faceted top (`granite`, render.addCrown) so they read as outcrops rather than
+drums. The mountains are not buttes at all: `theme.range` (render.addRange) is
+a ring of scenery terrain from past the skirt out a hundred and ten units and
+up to forty high, ridged noise for sharp crests and gullies, flat-shaded and
+coloured a triangle at a time — snow above a ragged snowline where the ground
+is gentle enough to hold it, rock on the steep faces, forest on the low
+slopes — so the horizon behind every hole is a range rather than a few
+columns by the stakes. Never solid. The ground falls away round the
 edge of every hole as the skirt does on the other long courses, a long way,
 because the valley floor (`surroundY`) is five units down.
 
 The `alpine` theme is clear high air: a deep blue sky, a pale-blue horizon,
-a high white sun, and `air: 1.7`, which pushes the whole fog fade back (short
+a high white sun, and `air: 2`, which pushes the whole fog fade back (short
 of the surround's rim) so the ranges stand sharp rather than paling into
-haze. Meadow turf a shade yellower than a lowland's; granite banded by
+haze; its weather list has no grey day in it for the same reason. Meadow turf a shade yellower than a lowland's; granite banded by
 `strata` the way the canyon is, grey beds and then **snow from ten units up**,
 so every cliff and peak tall enough is capped without anything being painted
 on; a horizon range peaking at eighteen with snow on its tops; glacier water,
@@ -2337,6 +2343,7 @@ What is new to draw:
 
 - **Firs** (`tree(…, { fir: true })`, `forest(…, { fir: true })`): a spire of
   four narrowing skirts of dark needles rather than the two-cone conifer.
+- **The range** (`theme.range`) and **crowned crags** (`granite`), above.
 - **A chalet, a cairn, a chairlift and a waterfall** (`chalet`, `cairn`,
   `lift`, `waterfall` in courses.js, `render.addAlpineProp`). Decor, so never
   solid. The lift runs `w` along `yaw` and every tower finds the ground under

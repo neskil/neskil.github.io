@@ -184,11 +184,10 @@
            these are the longest holes on the card. */
         canyon: ['clear', 'golden', 'fair', 'overcast', 'clear', 'golden'],
         /* High country, and the air up there is the point: clear and fair
-           most of the round, a golden hour on the snow, and one grey day,
-           because a mountain has them. No mist or dust — a haze is exactly
-           what clear high air is not, and it would take the peaks off the
-           horizon the course is built under. */
-        alpine: ['clear', 'fair', 'golden', 'clear', 'overcast', 'fair']
+           all round, with a golden hour on the snow. No mist, dust or grey
+           day — a haze is exactly what clear high air is not, and it would
+           take the range off the horizon the course is built under. */
+        alpine: ['clear', 'fair', 'golden', 'clear', 'fair', 'clear']
     };
 
     // Skies a course is happy to open on.

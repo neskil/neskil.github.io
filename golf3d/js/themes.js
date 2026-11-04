@@ -43,6 +43,9 @@
                 what a course played indoors or inside a works wants.
      air        how much further than usual the fog starts and ends (the
                 mountain's thin air, render.buildHole). Leave it out for 1.
+     range      mountains between the hole and the horizon (render.addRange):
+                `peak` how tall, `depth` how far they run, `snowline` and
+                `treeline` as fractions of the peak, and the three colours.
      relief     how many units the surrounding ground rolls, out where it can
                 no longer touch the hole. Leave it out for a floor that is
                 meant to be a floor.
@@ -402,13 +405,20 @@
         alpine: {
             sky: [0x1f5fc4, 0xb2cfec],
             fog: 0xb2cfec,
-            air: 1.7,
+            air: 2.0,
             sun: 0xfffaf0, sunPos: [-11, 13, 8], ambient: 0xa8c2df, ambientI: 0.6,
             grass: ['#74ad4c', '#679f44'],
             rail: 0xd9d4c8,
             surroundY: -5.4, surround: 'rock', ground: '#3f5a3a',
             relief: 4.6,
             ridge: { colour: '#3e4957', cap: '#f6f9fc', peak: 18, rough: 0.64 },
+            /* …and the range itself, near enough to be mountains rather than
+               a skyline (render.addRange): faceted granite from past the
+               skirt out a hundred and ten units, up to forty high, snow above
+               half of that where the ground is gentle enough to hold it, dark
+               forest on the low slopes. */
+            range: { peak: 40, depth: 110, gap: 8, snowline: 0.56, treeline: 0.22,
+                rock: '#5c6067', snow: '#f2f6fa', forest: '#2a4430' },
             water: 0x4cc4c4,
             side: '#6b6e74',
             strata: [

@@ -7114,15 +7114,14 @@
         }
         return out;
     }
-    /* A peak round a hole: a weathered granite base and a narrower summit
-       standing on it, bare (out of play, if a ball ever got there), tall
-       enough that both carry snow. They stand out past the ground, so
-       their walls go all the way down into the valley. */
-    function peak(cx, cz, r, top, seed) {
-        return [
-            rock(butte(cx, cz, r, r * 1.15, top * 0.62, { wild: 0.14, seed: seed })),
-            rock(butte(cx + r * 0.12, cz - r * 0.1, r * 0.55, r * 0.62, top, { wild: 0.14, seed: seed + 3 }))
-        ];
+    /* A crag nobody plays: weathered granite, bare, with a faceted top
+       drawn over it (render.addCrown) so it reads as an outcrop rather than
+       a drum. The mountains themselves are scenery — themes → alpine.range,
+       render.addRange — out past the skirt. */
+    function granite(cx, cz, rx, rz, y, o) {
+        var p = rock(butte(cx, cz, rx, rz, y, o));
+        p.crown = true;
+        return p;
     }
     function alp(h) {
         return build(Object.assign({ long: true, shaped: true, open: true }, h));
@@ -7156,7 +7155,7 @@
             return alp({
                 name: 'The Perch', par: 3,
                 blurb: 'Off a granite crag and down on to a meadow green, with the glacier stream running past it.',
-                pads: g.concat(peak(-24, 34, 8, 18, 1), peak(42, 6, 7, 15, 2), peak(14, 64, 9, 19, 3), [crag,
+                pads: g.concat([crag,
                     lay(crag, 10, 1.6, 2.0, 1.8, 'fairway'),
                     inlay(g, 16.2, 28, 1.3, snd, 1.1),
                     inlay(g, 5.2, 32.6, 1.3, snd, 1.0),
@@ -7198,8 +7197,8 @@
             return alp({
                 name: 'High Pasture', par: 4,
                 blurb: 'Up a climbing meadow to a green on a shelf under the cliffs. Carry the bank, or lay up under it and pitch.',
-                pads: g.concat(peak(-24, 40, 8, 17, 4), peak(44, 56, 8, 18, 5), [
-                    rock(butte(12, 67, 16, 6, 13.5, { wild: 0.1 })),
+                pads: g.concat([
+                    granite(12, 67, 16, 6, 13.5, { wild: 0.1 }),
                     inlay(g, 6.4, 30, 1.4, snd, 1.2),
                     inlay(g, 12, 52, 4.6, grn, 4.2)
                 ]),
@@ -7241,7 +7240,7 @@
             return alp({
                 name: 'Two Fords', par: 5,
                 blurb: 'Down a valley with the glacier stream across it twice. Carry the first ford off the tee and the second is in reach.',
-                pads: g.concat(peak(-24, 60, 8, 17, 6), peak(50, 30, 9, 19, 7), peak(12, 112, 10, 20, 8), [
+                pads: g.concat([
                     inlay(g, 16.4, 78.5, 1.4, snd, 1.2),
                     inlay(g, 10.5, 75, 4.6, grn, 4.2)
                 ]),
@@ -7281,8 +7280,8 @@
             return alp({
                 name: 'The Tarn', par: 4,
                 blurb: 'Over a glacier tarn under a waterfall, or round it on the fairway out east.',
-                pads: g.concat(peak(-24, 56, 7, 16, 9), peak(52, 36, 8, 18, 10), peak(16, 92, 9, 19, 11), [knoll, lay(knoll, 8, 2.8, 1.8, 1.6, 'fairway'),
-                    rock(butte(-6.5, 23, 6, 9, 11, { wild: 0.1 })),
+                pads: g.concat([knoll, lay(knoll, 8, 2.8, 1.8, 1.6, 'fairway'),
+                    granite(-6.5, 23, 6, 9, 11, { wild: 0.1 }),
                     inlay(g, 13.6, 55.5, 1.4, snd, 1.2),
                     inlay(g, 8, 59, 4.6, grn, 4.2)
                 ]),
@@ -7323,8 +7322,8 @@
             return alp({
                 name: 'Knife Edge', par: 4,
                 blurb: 'Down the crest of a ridge with the mountain falling away on one side, to a green out on the edge.',
-                pads: g.concat(peak(46, 20, 8, 19, 12), peak(42, 72, 8, 17, 13), peak(-36, 40, 10, 14, 14), [
-                    rock(butte(28, 35, 5, 16, 13.5, { wild: 0.1 })),
+                pads: g.concat([
+                    granite(28, 35, 5, 16, 13.5, { wild: 0.1 }),
                     inlay(g, 6.2, 61, 4.2, grn, 4.0)
                 ]),
                 fence: land.fence,
@@ -7360,7 +7359,7 @@
             return alp({
                 name: 'Alpenglow', par: 4,
                 blurb: 'Off a crag, round a knoll of firs, over the stream to a green below the chalet.',
-                pads: g.concat(peak(-24, 22, 8, 16, 15), peak(18, 90, 10, 20, 16), peak(54, 50, 8, 18, 17), [crag,
+                pads: g.concat([crag,
                     lay(crag, 20, 2, 2.0, 1.8, 'fairway'),
                     inlay(g, 14.6, 51.6, 1.3, snd, 1.1),
                     inlay(g, 9, 56, 4.4, grn, 4.2)
