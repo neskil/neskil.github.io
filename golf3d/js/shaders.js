@@ -641,7 +641,128 @@
         '		smoothstep(0.30, 0.76, sBig * 0.7 + sMid * 0.3));'
     ].join('\n');
 
+    /* ── the black hole ─────────────────────────────────────────────────
+
+       One shader for the three things in the game that eat a ball (v1.123.0):
+       the mouth of a pipe, the hole that opens in the sky over its exit to
+       let the ball back out, and a gravity well. The look is the one the
+       owner liked in Cargo Lander's (cargo-lander/render/shaders.js, the
+       gravity-well quad and the lensing in its post pass), carried over into
+       a world with a camera that walks round it:
+
+         · **an event horizon** — black, and opaque, so whatever is behind it
+           is simply gone, ball included. Its edge is a thin photon ring, the
+           one sharp line in the picture, so the size of the thing reads at
+           any distance.
+         · **an accretion disc** — value noise sampled round a circle, so it
+           has no seam where the angle wraps, in a frame that turns faster the
+           nearer the middle it is (the inside of a disc out-orbits the
+           outside) and is wound by the log of the radius, so the streaks come
+           out as spiral arms rather than spokes. White-hot at the horizon,
+           `hot` through the bright band at `ring`, `cool` at the rim.
+         · **rings feeding in** — Cargo Lander's "shrinking circles": a
+           fract() of log radius plus time, so a ring keeps its spacing in
+           proportion as it closes, brighter the nearer it gets.
+         · **the pull** — the disc darkens what it is laid over, deepest at
+           the middle (`shade`), which on the ground reads as the floor
+           falling away into it. The bending of what is *behind* it is not in
+           here at all: a shader cannot see behind itself. That is postfx.js
+           (`lens`), which has the finished picture to bend.
+
+       Written premultiplied — the colour is light added, the alpha is how
+       much of the scene behind is put out — so one draw both darkens and
+       glows, and the material is blended ONE, ONE_MINUS_SRC_ALPHA.
+
+       `vP` is the quad's own coordinate, −1..1, so 1 is the edge of the
+       effect whatever `size` (the world radius) is. `FACING` turns the quad
+       to the camera — the sky portal and the glow round a well's core —
+       and without it the quad lies wherever its mesh puts it, which for the
+       mouth and the well's disc is flat on the ground. `open` grows the
+       whole thing from a point, which is how the sky portal opens. */
+    var BLACKHOLE_VS = [
+        'uniform float size;',
+        'varying vec2 vP;',
+        'void main(){',
+        '  vP = position.xy;',
+        '#ifdef FACING',
+        // Set back along the view ray by most of its own radius, scaled up to
+        // match, so it looks exactly the same size and stands *behind* what is
+        // at its middle: a ball leaving the portal comes out in front of it
+        // rather than through the black.
+        '  vec4 mv = modelViewMatrix * vec4(0.0, 0.0, 0.0, 1.0);',
+        '  float dv = length(mv.xyz), kv = (dv + size * 0.6) / max(dv, 0.001);',
+        '  mv.xyz *= kv;',
+        '  mv.xy += position.xy * size * kv;',
+        '  gl_Position = projectionMatrix * mv;',
+        '#else',
+        '  gl_Position = projectionMatrix * modelViewMatrix * vec4(position.xy * size, 0.0, 1.0);',
+        '#endif',
+        '}'
+    ].join('\n');
+
+    var BLACKHOLE_FS = [
+        'uniform float time, open, hor, ring, feed, shade, gulp, spin, beam;',
+        'uniform vec3 hot, cool;',
+        'varying vec2 vP;',
+
+        'float bhHash(vec2 p){',
+        '  p = fract(p * vec2(123.34, 456.21));',
+        '  p += dot(p, p + 45.32);',
+        '  return fract(p.x * p.y);',
+        '}',
+        'float bhNoise(vec2 p){',
+        '  vec2 i = floor(p), f = fract(p);',
+        '  vec2 u = f * f * (3.0 - 2.0 * f);',
+        '  return mix(mix(bhHash(i), bhHash(i + vec2(1.0, 0.0)), u.x),',
+        '             mix(bhHash(i + vec2(0.0, 1.0)), bhHash(i + vec2(1.0, 1.0)), u.x), u.y);',
+        '}',
+
+        'void main(){',
+        '  float o = max(open, 0.001);',
+        '  vec2 p = vP / o;',
+        '  float r = length(p);',
+        '  if (r >= 1.0) discard;',
+        '  float a = atan(p.y, p.x);',
+        '  float lr = log(r + 0.0001);',
+        // The inside out-orbits the outside, and a gulp spins the lot up.
+        '  float w = spin * time * (0.35 + 0.75 / (r * 3.0 + 0.3)) * (1.0 + gulp * 2.0);',
+        '  float ang = a + w + spin * lr * 1.7;',
+        '  vec2 c = vec2(cos(ang), sin(ang));',
+        '  float n = bhNoise(c * (2.5 + r * 5.0) + 7.3) * 0.62 + bhNoise(c * (6.0 + r * 12.0) - 3.1) * 0.38;',
+        '  float arms = 0.5 + 0.5 * sin(3.0 * a + spin * (lr * 6.0 - time * 2.2));',
+        // The disc: nothing inside the horizon, the bright band at `ring`, a
+        // long fall-off to the rim.
+        '  float inner = smoothstep(hor * 0.98, ring, r);',
+        '  float outer = 1.0 - smoothstep(ring, 1.0, r);',
+        '  float disc = inner * outer * outer;',
+        '  float glow = disc * (0.18 + 1.25 * n * n * (0.45 + 0.55 * arms));',
+        // Rings feeding in: as the clock runs a constant phase means a
+        // smaller radius, so they close on the middle.
+        '  float fc = fract(lr * 2.4 + time * 0.85);',
+        '  float fr = smoothstep(0.6, 0.8, fc) * (1.0 - smoothstep(0.8, 1.0, fc));',
+        '  glow += fr * feed * pow(1.0 - r, 1.4) * smoothstep(hor, hor * 1.6, r);',
+        // The photon ring, the one hard edge.
+        '  float ph = (r - hor * 1.05) / (0.02 + 0.01 * gulp);',
+        '  glow += exp(-ph * ph) * (1.3 + gulp * 1.5);',
+        // One side of a disc that is coming at you is brighter than the side
+        // going away; on the ground it turns with the disc.
+        '  glow *= 1.0 + beam * cos(a - w * 0.25 - 0.7);',
+        '  glow *= 1.0 + gulp * 0.9;',
+        '  float heat = 1.0 - smoothstep(hor, 1.0, r);',
+        '  vec3 col = mix(cool, hot, smoothstep(0.15, 0.75, heat));',
+        '  col = mix(col, vec3(1.25, 1.12, 1.0), smoothstep(0.82, 1.0, heat) * 0.7);',
+        '  float hole = 1.0 - smoothstep(hor * 0.9, hor, r);',
+        '  float edge = 1.0 - smoothstep(0.78, 1.0, r);',
+        '  float fade = smoothstep(0.0, 0.3, open);',
+        '  vec3 rgb = col * glow * (1.0 - hole) * edge * fade;',
+        '  float alpha = max(hole, shade * pow(1.0 - r, 1.3) * edge) * fade;',
+        '  gl_FragColor = vec4(rgb, clamp(alpha, 0.0, 1.0));',
+        '}'
+    ].join('\n');
+
     G3.shaders = {
+        BLACKHOLE_VS: BLACKHOLE_VS,
+        BLACKHOLE_FS: BLACKHOLE_FS,
         SKY_VS: SKY_VS,
         SKY_FS: SKY_FS,
         WATER_VS: WATER_VS,

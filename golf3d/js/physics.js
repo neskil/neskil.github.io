@@ -850,20 +850,173 @@
         return null;
     }
 
+    /* ── the wormhole ───────────────────────────────────────────────────
+
+       What happens between the two ends (v1.123.0). For a hundred releases
+       a pipe was a teleport: the step that found the ball over a mouth put
+       it down rolling out of the far end, and the player saw a ball blink
+       out of one place and into another — which reads as a bug, not as a
+       pipe. The owner asked for a black hole that swallows it and another
+       that opens in the sky and lets it out.
+
+       So taking a pipe starts a ride, `world.warping`, and while it is set
+       the step is the ride and nothing else — no ground, no walls, no cup,
+       no water, no question of being at rest — exactly as it is on a loop
+       (`world.ride`). The ball is *carried*, along a path that is a pure
+       function of the time since it went in (`warpPoint`), in three parts
+       (CONFIG.WARP_SWALLOW / WARP_DARK / WARP_DROP):
+
+         swallow  a spiral into the middle of the mouth, turning the way the
+                  ball was already going round it and sinking as it goes.
+                  The ball's own velocity is carried in and faded out over
+                  the first part of it, so it does not stop dead at the rim.
+         dark     the ball is nowhere; it sits at the sky portal, unseen,
+                  while the renderer opens the portal round it.
+         drop     out of the portal and down to the exit: a fall from rest
+                  in the height, and in the run a curve that leaves the
+                  portal still and reaches the ground at the pace the ball
+                  will roll on with, so the landing carries straight into the
+                  roll instead of jerking.
+
+       And the ride ends where the teleport always did: on the ground at
+       exactly (tx, tz), at exactly the speed it went in, along exactly the
+       pipe's yaw, with no vertical speed — then the lock, as before. So the
+       only thing the ride changes about any shot is the clock, about a
+       second of it, and every hole built round a pipe is the hole it was.
+       The one place that second could matter is a hole with something
+       moving on it, where the ball now arrives a second later into a
+       different phase of the machine.
+
+       The path is not physics and does not pretend to be: nothing collides
+       with it, it cannot be stopped, and it is the same path every time for
+       the same entry. Which is what lets the bot, the lab and the tests run
+       it headless and get the answer the screen will show, and what lets
+       the replay carry it as numbers (`cloneWarp`). The renderer draws the
+       ball where this says and both black holes round it (render.js, "the
+       black hole"). */
     function takeWarp(world, events) {
-        var b = world.ball;
-        var w = warpUnder(world.hole, b);
-        if (!w) return;
+        var b = world.ball, hole = world.hole;
+        var w = warpUnder(hole, b);
+        if (!w) return false;
         var sp = Math.sqrt(b.vx * b.vx + b.vz * b.vz);
-        var out = surfaceTop(world.hole, w.tx, w.tz);
-        b.x = w.tx; b.z = w.tz;
-        b.y = (out ? out.y : 0) + C.BALL_R;
-        b.vx = Math.sin(w.yaw) * sp;
-        b.vz = Math.cos(w.yaw) * sp;
+        var out = surfaceTop(hole, w.tx, w.tz);
+        var dx = b.x - w.x, dz = b.z - w.z;
+        var D = Math.max(C.WARP_BACK[0], Math.min(C.WARP_BACK[1], sp * C.WARP_DROP * 0.5));
+        var ey = (out ? out.y : 0) + C.BALL_R;
+        world.warping = {
+            w: w, sp: sp, t: 0,
+            // Where it went in, and how it was going: the spiral starts here.
+            x0: b.x, y0: b.y, z0: b.z, vx0: b.vx, vz0: b.vz,
+            r0: Math.sqrt(dx * dx + dz * dz), a0: Math.atan2(dz, dx),
+            // Round the way it was already turning about the middle.
+            turn: dx * b.vz - dz * b.vx < 0 ? -1 : 1,
+            /* The exit, and the portal over it. `k` is the curve of the run
+               down: s^k from the portal to the exit, which leaves at rest and
+               arrives at sp when k = sp·DROP/D — exactly 2, uniform
+               acceleration, wherever the back distance was not clamped. */
+            ey: ey, back: D,
+            k: Math.max(1, Math.min(6, sp * C.WARP_DROP / D)),
+            px: w.tx - Math.sin(w.yaw) * D, py: ey + C.WARP_UP, pz: w.tz - Math.cos(w.yaw) * D
+        };
+        world.grounded = false;
+        world.fall = null;
+        events.warp = true;
+        placeOnWarp(world);
+        return true;
+    }
+
+    function warpLength() { return C.WARP_SWALLOW + C.WARP_DARK + C.WARP_DROP; }
+
+    /* Which part of the ride `t` seconds in is, and how far through it:
+       { phase: 'swallow' | 'dark' | 'drop', s: 0..1 }. */
+    function warpPhase(wr, t, out) {
+        out = out || {};
+        if (t === undefined) t = wr.t;
+        if (t < C.WARP_SWALLOW) { out.phase = 'swallow'; out.s = t / C.WARP_SWALLOW; }
+        else if (t < C.WARP_SWALLOW + C.WARP_DARK) { out.phase = 'dark'; out.s = (t - C.WARP_SWALLOW) / C.WARP_DARK; }
+        else { out.phase = 'drop'; out.s = Math.min(1, (t - C.WARP_SWALLOW - C.WARP_DARK) / C.WARP_DROP); }
+        return out;
+    }
+
+    // Where the ball's middle is `t` seconds into the ride, into out.x/y/z.
+    var _wph = {};
+    function warpAt(wr, t, out) {
+        var w = wr.w, ph = warpPhase(wr, t, _wph), s = ph.s;
+        if (ph.phase === 'swallow') {
+            var r = wr.r0 * (1 - Math.pow(s, 1.5));
+            var a = wr.a0 + wr.turn * C.WARP_TURNS * 2 * Math.PI * s * s;
+            var carry = t * (1 - s) * (1 - s);
+            out.x = w.x + Math.cos(a) * r + wr.vx0 * carry;
+            out.z = w.z + Math.sin(a) * r + wr.vz0 * carry;
+            out.y = wr.y0 - C.WARP_SINK * s * s;
+        } else if (ph.phase === 'dark') {
+            out.x = wr.px; out.y = wr.py; out.z = wr.pz;
+        } else {
+            var run = wr.back * Math.pow(s, wr.k);
+            out.x = wr.px + Math.sin(w.yaw) * run;
+            out.z = wr.pz + Math.cos(w.yaw) * run;
+            out.y = wr.ey + (wr.py - wr.ey) * (1 - s * s);
+        }
+        return out;
+    }
+
+    /* The ball's place and velocity `t` seconds in, for anything that wants
+       the ride without a world — the renderer's portal, the replay, the
+       tests. The velocity is a difference over a millisecond either side,
+       kept inside the part of the ride `t` is in, because it is only ever
+       for looking at: the camera's pull, the trail, the spin of the ball. */
+    var _wa = { x: 0, y: 0, z: 0 }, _wb = { x: 0, y: 0, z: 0 }, _wq = {};
+    function warpPoint(wr, t, out) {
+        out = out || {};
+        if (t === undefined) t = wr.t;
+        warpAt(wr, t, out);
+        var ph = warpPhase(wr, t, _wq).phase, h = 1e-3, lo = t - h, hi = t + h;
+        var a0 = ph === 'swallow' ? 0 : ph === 'dark' ? C.WARP_SWALLOW : C.WARP_SWALLOW + C.WARP_DARK;
+        var a1 = ph === 'swallow' ? C.WARP_SWALLOW : ph === 'dark' ? C.WARP_SWALLOW + C.WARP_DARK : warpLength();
+        lo = Math.max(a0, lo); hi = Math.min(a1 - 1e-9, hi);
+        warpAt(wr, lo, _wa); warpAt(wr, hi, _wb);
+        var span = hi - lo;
+        out.vx = span > 0 ? (_wb.x - _wa.x) / span : 0;
+        out.vy = span > 0 ? (_wb.y - _wa.y) / span : 0;
+        out.vz = span > 0 ? (_wb.z - _wa.z) / span : 0;
+        out.phase = ph;
+        return out;
+    }
+
+    var _wp = {};
+    function placeOnWarp(world) {
+        var b = world.ball, p = warpPoint(world.warping, world.warping.t, _wp);
+        b.x = p.x; b.y = p.y; b.z = p.z;
+        b.vx = p.vx; b.vy = p.vy; b.vz = p.vz;
+    }
+
+    /* A step of the ride. The phase changes are events, for the sound and
+       the light: `warpOpen` the moment the sky portal starts to open, and
+       `warpOut` on the landing — after which the ball is on the ground at the
+       exit, rolling, exactly where the instant pipe used to leave it. */
+    function rideWarp(world, dt, events) {
+        var wr = world.warping, was = wr.t;
+        wr.t += dt;
+        if (was < C.WARP_SWALLOW && wr.t >= C.WARP_SWALLOW) events.warpOpen = true;
+        if (wr.t < warpLength()) { placeOnWarp(world); return; }
+        var b = world.ball, w = wr.w;
+        b.x = w.tx; b.z = w.tz; b.y = wr.ey;
+        b.vx = Math.sin(w.yaw) * wr.sp;
+        b.vz = Math.cos(w.yaw) * wr.sp;
         b.vy = 0;
+        world.warping = null;
         world.grounded = true;
         world.warpFor = C.WARP_LOCK;
-        events.warp = true;
+        events.warpOut = true;
+    }
+
+    // A copy that can be stepped on its own; the pipe and the numbers that
+    // were fixed when the ball went in are shared, only the clock is not.
+    function cloneWarp(wr) {
+        if (!wr) return null;
+        var c = {}, k;
+        for (k in wr) if (Object.prototype.hasOwnProperty.call(wr, k)) c[k] = wr[k];
+        return c;
     }
 
     /* ── the loop ───────────────────────────────────────────────────────
@@ -1225,6 +1378,7 @@
             out: false,
             sprung: 0,          // springs fired this shot; each is worth less
             warpFor: 0,         // seconds before a mouth will swallow again
+            warping: null,      // inside a pipe: see "the wormhole"
             ride: null,         // on a loop: { loop, frame, th, v, base }
             fall: null,         // off the top of one, and inside it
             loopFor: 0,         // seconds before a loop will take the ball again
@@ -1249,6 +1403,7 @@
             out: w.out,
             sprung: w.sprung || 0,
             warpFor: w.warpFor || 0,
+            warping: cloneWarp(w.warping),
             ride: w.ride ? { loop: w.ride.loop, frame: w.ride.frame, th: w.ride.th,
                 v: w.ride.v, base: w.ride.base } : null,
             loopFor: w.loopFor || 0,
@@ -1362,6 +1517,7 @@
         world.overCup = false;
         world.sprung = 0;
         world.warpFor = 0;
+        world.warping = null;
         world.ride = null;
         world.fall = null;
         world.loopFor = 0;
@@ -1832,6 +1988,11 @@
             rideLoop(world, dt, events);
             return;
         }
+        // …and inside a pipe the pipe is: see "the wormhole".
+        if (world.warping) {
+            rideWarp(world, dt, events);
+            return;
+        }
         if (world.grounded) world.fall = null;
 
         if (world.grounded) {
@@ -2099,7 +2260,7 @@
            the floor beside a rail should swallow the ball that has just come
            off the rail, not the one that is still inside it. */
         if (world.warpFor > 0) world.warpFor -= dt;
-        else takeWarp(world, events);
+        else if (hole.warps && takeWarp(world, events)) return;
 
         // …and the loops, on the same terms: after the walls.
         if (world.loopFor > 0) world.loopFor -= dt;
@@ -2306,6 +2467,10 @@
         outOfBounds: outOfBounds,
         fenceRects: fenceRects,
         warpUnder: warpUnder,
+        warpPoint: warpPoint,
+        warpPhase: warpPhase,
+        warpLength: warpLength,
+        cloneWarp: cloneWarp,
         loopFrame: loopFrame,
         loopPoint: loopPoint,
         loopBase: loopBase,

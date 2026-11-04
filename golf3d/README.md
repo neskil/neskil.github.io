@@ -1555,7 +1555,7 @@ next.
 | **Ice** | A surface, like sand or wood: `kind: 'ice'` | `CONFIG.FRICTION` / `CONFIG.HOLD` | Keeps 72% of its speed per second where a green keeps 30% — a full putter runs 32 units instead of 9. Holds a stopped ball on a gradient of two thirds of a degree, so any fall at all is a one-way street. |
 | **Travelator** | An acceleration on a pad: `pad.push = { x, z }` | `physics.substep`, grounded branch | Drag balances it at `|push| / -ln(friction)`, so a belt has a *speed* rather than a shove, and a ball put down against the run of it is turned round instead of stopped. |
 | **Launch pad** | An upward speed given to anything that touches it: `pad.spring` | landing and rolling, both | `sqrt(2·GRAVITY·h)` reaches height h — 8.5 clears two units, 10.4 clears three. |
-| **Pipe** | A mouth and where it puts you: `hole.warps = [{ x, z, r, tx, tz, yaw }]` | `physics.takeWarp` | One way. A two-way pipe is two of them; `pipes()` returns the pair. |
+| **Pipe** | A mouth and where it puts you: `hole.warps = [{ x, z, r, tx, tz, yaw }]` | `physics.takeWarp` / `rideWarp` | One way. A two-way pipe is two of them; `pipes()` returns the pair. The trip takes `warpLength()`, about 1.2 s, and changes nothing else — see [The wormhole](#the-wormhole). |
 | **Loop** | A track the ball rides round the inside of: `hole.loops = [{ x, z, yaw, R, shift }]`, `loop()` in courses.js | `physics.takeLoop` / `rideLoop` | About √(5gR) at the foot to make the top, and the boards take more — a 1.1 loop wants about 14, a firm mallet. Under that it comes off the top or rolls back out. See [The loop](#the-loop). |
 | **Gravity** | One number on the hole: `hole.gravity` | `physics.gravityOf` | Carry goes as 1/g and so does apex, so two fifths of a g is two and a half times both. The gradient a surface holds a ball on does not move at all. |
 
@@ -1596,6 +1596,71 @@ without a single wall. The exit direction belongs to the pipe rather than to
 the ball, because a pipe has a mouth and coming out of one pointing wherever
 you happened to enter would make the far end unaimable — which is the one thing
 the far end has to be.
+
+#### The wormhole
+
+For a hundred releases a pipe was a teleport, and it looked like one: a ball
+blinking out of the mouth and rolling out of the far end on the same step. The
+owner asked for a black hole that swallows it and another that opens in the sky
+and lets it out (v1.123.0), and that is now what it is — without moving a
+single number any hole was built on.
+
+**The trip is a ride, the way a loop is** (`world.warping`, physics.js "the
+wormhole"). While it is set the step is the ride and nothing else — no ground,
+no walls, no cup — and the ball is carried along a path that is a pure function
+of the time since it went in (`warpPoint`): a spiral into the middle of the
+mouth, sinking (`WARP_SWALLOW`); nowhere, while a portal opens `WARP_UP` above
+the exit and back along its heading (`WARP_DARK`); then a fall out of it that
+leaves the portal still and reaches the ground at the pace the ball will roll
+on with (`WARP_DROP`). **And it ends exactly where the teleport did**: on the
+ground at `(tx, tz)`, at the speed it went in, along the pipe's `yaw`, with no
+vertical speed, then `WARP_LOCK`. `tests.html` holds all five to the bit, with a
+wall standing across the drop that nothing is allowed to touch.
+
+So the one thing a pipe now costs is about 1.2 seconds of the clock, and the
+one place that could matter is a hole with something moving past the exit — the
+ball arrives into a later phase of it. None of the three pipe holes has one. The
+roll after the exit is sliced into steps differently from before (the step that
+lands it is not the step the teleport used), which is the frame-rate wobble any
+roll has. On the hole lab it moves a shot or two at the edge of a window and
+nothing else — the same windows, the same widest, the same card:
+
+| Hole | Ace share before | After | Caddie |
+| --- | --- | --- | --- |
+| Through the Pipe | 0.000% | 0.000% | 2 → 2 |
+| Caldera | 0.208% skill, 5 windows | 0.206% skill, 5 windows | 1 → 1 |
+| Jackpot | 0.433% tutorial, 13 windows | 0.436% tutorial, 13 windows | 1 → 1 |
+
+**The black holes are one shader** (shaders.js `BLACKHOLE_*`), ported from the
+one the owner liked in Cargo Lander: an event horizon that is properly black
+with a photon ring round it, an accretion disc of noise sampled round a circle
+(so it has no seam) in a frame that turns faster towards the middle and is
+wound by the log of the radius (so the streaks are spiral arms), and rings
+feeding in — Cargo Lander's "shrinking circles". It lies flat in the floor for a
+mouth, its bright band on the mouth's own rim and its disc darkening the ground
+three quarters of a radius past it, and it flares while it eats; it faces the
+camera for the portal, which grows from a point through the dark and closes
+after the landing. The bending of what is *behind* a black hole is not in the
+shader, because a shader cannot see behind itself: postfx.js's composite does
+it (`lens`, fed by render.js `lensList`), round the portal and a well's core —
+not round a mouth, where a round lens over a disc seen at a slant looked like a
+fault.
+
+The renderer draws the ball where the ride says, shrinking into the mouth and
+growing out of the portal (`warpScale`); the trail stops at the mouth and starts
+again at the portal rather than drawing a line across the hole; the map hides
+the ball while it is nowhere; and the camera cuts, in the dark, to a seat that
+holds the portal and the landing both (`watchWarp`), the side it was already on
+first and the first with a clear line to both. The replay carries the ride on
+its tape and asks it where the ball is, so an ace through a pipe replays
+through the portal too.
+
+**A gravity well is the same black hole** (`addWells`): the disc on the ground
+reaching out to where the pull falls to a tenth of the hole's gravity
+(`wellReach`) so it says how far the bend goes, a horizon the size of the core
+that eats the ball, a black sphere standing in it that the near half of the disc
+passes in front of, and the glow and the lens round that. It replaced a black
+ball and two flat rings (the owner on Orbit: "very ugly").
 
 And one that is about drawing rather than physics: **the ground under
 machinery is kept flat**, the same way it is under the tee and the cup
@@ -1692,10 +1757,12 @@ Three things about them were each wrong once and are worth writing down:
   disc it sits on comes out as a band of speckle.
 - **A flat ring is only visible from one side of itself.** Even clear of
   both, a decal round a dark hole reads from the near edge and vanishes at the
-  far one. The rims on the mouth and the launch pad are real geometry — a torus
-  standing a third of `STEP_UP` proud, which is well inside a kerb the ball
-  would climb anyway, and not solid: nothing on the course is a wall unless it
-  is in `walls`.
+  far one. The rim on the launch pad is real geometry — a torus standing a
+  third of `STEP_UP` proud, which is well inside a kerb the ball would climb
+  anyway, and not solid: nothing on the course is a wall unless it is in
+  `walls`. The pipe mouth had one too until it became a black hole (see [The
+  wormhole](#the-wormhole)): a disc that is lit, and lifted clear of the shells,
+  has no far side to lose.
 
 #### Icehouse Yard
 

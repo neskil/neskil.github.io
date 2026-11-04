@@ -738,6 +738,34 @@ G3.CONFIG = {
     WARP_LOCK: 0.4,
     WARP_MOUTH: 0.18,
 
+    /* The trip through a pipe (physics.js, "the wormhole", v1.123.0). It
+       used to be instant: the ball vanished from the mouth and was rolling
+       out of the far end on the same step, which read as a glitch rather
+       than a journey. Now it is a ride in three parts, each a fixed length so
+       the whole trip costs the player the same wait whatever went in:
+
+         WARP_SWALLOW  the ball spirals into the mouth and sinks out of sight,
+                       WARP_TURNS times round on the way, WARP_SINK down;
+         WARP_DARK     nothing to see but a hole opening in the sky over the
+                       exit — WARP_UP above the ground there, and back along
+                       the exit's heading by as much as the ball will roll in
+                       half the drop (clamped to WARP_BACK), so the arc comes
+                       down moving the way it is about to roll;
+         WARP_DROP     the ball falls out of it and lands on the exit.
+
+       A little over a second in all, which is as long as it can be before it
+       stops being a show and starts being a wait. None of these numbers
+       touches where the ball comes out or how fast: the ride ends on exactly
+       the spot, heading and pace the instant pipe gave, so every hole built
+       on a pipe plays as it did, a second later. */
+    WARP_SWALLOW: 0.42,
+    WARP_DARK: 0.2,
+    WARP_DROP: 0.55,
+    WARP_TURNS: 1.25,
+    WARP_SINK: 0.45,
+    WARP_UP: 3.0,
+    WARP_BACK: [0.4, 2.4],
+
     /* A loop-the-loop (physics.js, "the loop"). LOOP_MOUTH is how far past the
        foot of the loop a rolling ball is still caught by it — a step's worth,
        so a fast ball cannot skip over the mouth between two substeps — and

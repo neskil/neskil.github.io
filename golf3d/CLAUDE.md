@@ -194,7 +194,9 @@ none, because it reads as coverage.
   A hole's `loops` are the fourth: a track the ball is carried round, and
   while it rides (`world.ride`) the step skips the ground, the walls and the
   cup entirely — so a new per-step rule that has to hold on a loop goes in
-  `rideLoop`, not after it.
+  `rideLoop`, not after it. A pipe's trip is the same kind of ride
+  (`world.warping`, `rideWarp`), and the same goes for it — README → "The
+  wormhole".
 - **The intro flyover ends *at* the live seat, not near it.** `flyover.js` is
   handed the pose `render.js`'s `seatFor` has just worked out and makes it the
   last key of the path, re-read every frame; that exactness is the whole
