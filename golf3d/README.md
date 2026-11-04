@@ -1229,12 +1229,12 @@ yours to fly. The other three keep a flat answer on purpose, because a course
 where every shot is the same shot is not varied, it is uniform: **The
 Backboard** bricks up the front door and puts a curved bank round the back of
 the cup that hands a ball sent past the end of the wall back to the pin (rebuilt
-in v1.123.0, below); **Two Roads** is a long low road up the west under a beam
+in v1.127.0, below); **Two Roads** is a long low road up the west under a beam
 or a high shelf up the east you chip onto, with a burn between them; and **The
 Gorge** is narrow on the left and wide on the right, under the pin, so you can
 carry the narrow side and putt across or fly the whole width at the flag.
 
-**The Backboard** (Quarry Ridge's first hole) was rebuilt in v1.123.0 on the
+**The Backboard** (Quarry Ridge's first hole) was rebuilt in v1.127.0 on the
 owner's "a good concept that is lacking in execution", and with nothing square
 left in it. It is one rounded table rather than a tee box butted into a green,
 so there is no join to have a corner in: the near corners are rounded and the
@@ -2660,7 +2660,7 @@ left the same lane with square corners; with `cornerRails` taken out it
 counts fifty. It also holds every real hole to a rail per rounded corner and
 no curve within reach of a tee or a cup.
 
-**Inside corners meet clean** (v1.123.0). `railFor` runs each straight rail a
+**Inside corners meet clean** (v1.127.0). `railFor` runs each straight rail a
 thickness past both ends of its run, which is how an *outside* corner seals: the
 two rails' ends fill the square between them. At an *inside* corner — a
 five-wide tee box into an eight-wide green, a dogleg's elbow — the rail across

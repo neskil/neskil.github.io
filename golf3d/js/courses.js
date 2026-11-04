@@ -2123,7 +2123,7 @@
        run of chords either side is a kerb of its own. `roundCorners` never
        rounds a corner near a gap, so only a hole that writes its own
        `pad.round` can ask for this — a curved lip with nothing on it, which
-       is The Backboard's (v1.123.0). */
+       is The Backboard's (v1.127.0). */
     function cornerRails(p, out, gaps) {
         var P = G3.physics, c = p.round, k, r, cx, cz, a0, lo, hi, j, a, y;
         var spec = [['sw', 0, 0, Math.PI], ['se', 1, 0, Math.PI * 1.5],
@@ -2194,7 +2194,7 @@
            of that corner already fills the square, so an overhang there is
            a stub of rail standing on the next pad's floor, and the two stubs
            crossing were the X every inside corner on the mini courses wore
-           (v1.123.0). */
+           (v1.127.0). */
         var a = run.t0 - (floorPast(pads, p, side, run.t0, -1) ? 0 : RAIL_T);
         var b = run.t1 + (floorPast(pads, p, side, run.t1, 1) ? 0 : RAIL_T);
         var base = run.lo - 0.35;
@@ -3688,9 +3688,9 @@
                the front of the cup, and a half-ring of bank behind it that
                nobody could see from the tee — with the rails at the join of
                the two boxes running past each other in an X (railFor, which
-               every inside corner on the mini courses wore until v1.123.0).
+               every inside corner on the mini courses wore until v1.127.0).
 
-               So it is one table now, and no part of it is square (v1.123.0):
+               So it is one table now, and no part of it is square (v1.127.0):
 
                - **The table** is a single slab nine across and thirteen long,
                  its near corners rounded and its far end a half circle. There
@@ -3709,7 +3709,7 @@
                - **The lip** is the rest of it. From the north-east round to
                  the east there is no board, and down the whole east side
                  there is no rail (`gaps`, which `cornerRails` honours since
-                 v1.123.0): the quarry edge.
+                 v1.127.0): the quarry edge.
 
                The near end of the door is the bold way: up the east side
                between the brick and the drop, firm, and the bank brings it
