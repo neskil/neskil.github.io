@@ -812,6 +812,10 @@
             leafWarm: new THREE.MeshLambertMaterial({
                 color: new THREE.Color(0x6aa43f).multiplyScalar(1 - wet * 0.22)
             }),
+            // A fir's needles, darker and bluer than any broadleaf (addTree).
+            fir: new THREE.MeshLambertMaterial({
+                color: new THREE.Color(0x2c5638).multiplyScalar(1 - wet * 0.22)
+            }),
             // Two leaf greens, so a treeline is not one colour repeated.
             leaf: [
                 new THREE.MeshLambertMaterial({
@@ -3113,7 +3117,22 @@
         crownAt.position.set(B.cx, top - crown * 0.4, B.cz);
         group.add(crownAt);
         var lift = crown * 0.4;
-        if (a < 0.5) {
+        if (wall.fir) {
+            /* A mountain fir (courses.tree `fir`): a spire rather than a
+               cone, four skirts of needles each narrower than the one under
+               it, from a little off the ground to a point well over the
+               trunk — the shape that sheds snow, and the one an alpine
+               treeline is drawn in. */
+            var spire = crown * 0.82;
+            for (i = 0; i < 4; i++) {
+                geo = new THREE.ConeGeometry(spire * (1 - i * 0.2), spire * (1.5 - i * 0.12), 7);
+                mesh = new THREE.Mesh(geo, R.surf.fir);
+                mesh.position.set(0, lift - h * 0.42 + i * spire * 0.78, 0);
+                mesh.rotation.y = a * 6.283 + i;
+                mesh.castShadow = true;
+                crownAt.add(mesh);
+            }
+        } else if (a < 0.5) {
             // A conifer: two skirts, the upper one narrower and higher.
             for (i = 0; i < 2; i++) {
                 geo = new THREE.ConeGeometry(crown * (1 - i * 0.34), crown * (2.1 - i * 0.5), 8);
@@ -3208,6 +3227,126 @@
     /* Visual decor: props drawn to dress the hole. They are non-solid and have
        no presence in physics.js. Geometries are disposed cleanly by disposeGroup. */
     var PROP_SCALE = { barrel: 0.45, crate: 0.45, palm: 0.75, pine: 1.8, sign: 2.2, windmill: 1.8 };
+
+    /* The mountain's own (Alpenglow Pass): a timber chalet, a cairn, a
+       chairlift on its cable and a waterfall off a cliff band. None of them
+       is solid — decor never is — so each stands where nothing is played
+       through it, and each reads the ground it stands on rather than being
+       told a height: the lift's towers find the hillside under each one and
+       a waterfall finds the water (or the ground) at its own foot. */
+    var _fallTex = null;
+    function fallTexture() {
+        if (_fallTex) return _fallTex;
+        var c = document.createElement('canvas'), g, i, x;
+        c.width = 64; c.height = 128;
+        g = c.getContext('2d');
+        g.fillStyle = 'rgba(214,240,240,0.55)';
+        g.fillRect(0, 0, 64, 128);
+        for (i = 0; i < 46; i++) {
+            x = (i * 37) % 64;
+            g.fillStyle = 'rgba(255,255,255,' + (0.25 + ((i * 13) % 7) / 10) + ')';
+            g.fillRect(x, ((i * 53) % 128) - 40, 1 + (i % 3), 50 + (i * 29) % 70);
+        }
+        _fallTex = new THREE.CanvasTexture(c);
+        _fallTex.wrapS = _fallTex.wrapT = THREE.RepeatWrapping;
+        return _fallTex;
+    }
+    function groundUnder(hole, theme, wx, wz) {
+        var w = hole && P.waterAt ? P.waterAt(hole, wx, wz) : null;
+        var g = hole && P.surfaceTop ? P.surfaceTop(hole, wx, wz) : null;
+        if (w && (!g || w.y > g.y)) return w.y;
+        if (g) return g.y;
+        return theme && theme.surroundY !== undefined ? theme.surroundY : 0;
+    }
+    function addAlpineProp(dg, d, kind, hole, theme) {
+        var surf = R.surf.decor, stone = R.surf.walls.rock, m, i, k;
+        function box(w, h, dd, mat, x, y, z) {
+            var b = new THREE.Mesh(new THREE.BoxGeometry(w, h, dd), mat);
+            b.position.set(x, y, z);
+            b.castShadow = true;
+            b.receiveShadow = true;
+            dg.add(b);
+            return b;
+        }
+        if (kind === 'chalet') {
+            // White plaster below, dark timber above, a long low gable roof
+            // and a balcony across the front.
+            box(4.2, 1.5, 3.0, surf.buoyWhite, 0, 0.55, 0);
+            box(4.2, 1.3, 3.0, surf.wood, 0, 1.95, 0);
+            for (k = -1; k <= 1; k += 2) {
+                m = box(4.8, 0.14, 2.2, surf.metalDark, 0, 3.05, k * 0.86);
+                m.rotation.x = k * 0.62;
+            }
+            box(4.4, 0.08, 0.7, surf.woodPale, 0, 1.4, 1.78);
+            box(4.4, 0.4, 0.06, surf.woodPale, 0, 1.62, 2.12);
+            box(0.45, 0.9, 0.45, stone, 1.3, 3.3, -0.4);
+            for (i = -1; i <= 1; i++) box(0.5, 0.55, 0.05, surf.binBody, i * 1.3, 0.75, 1.52);
+        } else if (kind === 'cairn') {
+            for (i = 0; i < 4; i++) {
+                var sg = new THREE.DodecahedronGeometry(0.42 - i * 0.08, 0);
+                sg.scale(1, 0.55, 1);
+                m = new THREE.Mesh(sg, stone);
+                m.position.set((i % 2 ? 0.05 : -0.04), 0.18 + i * 0.36, (i % 3 ? -0.04 : 0.05));
+                m.rotation.y = i * 1.3;
+                m.castShadow = true;
+                dg.add(m);
+            }
+        } else if (kind === 'lift') {
+            /* Towers every ten units along `yaw` for `w`, each standing on
+               whatever ground is under it, a pair of cables strung between
+               their heads and a chair on them every few units. */
+            var len = d.w || 40, span = 10, n = Math.max(1, Math.round(len / span)), tops = [];
+            var sy = Math.sin(d.yaw || 0), cy = Math.cos(d.yaw || 0);
+            for (i = 0; i <= n; i++) {
+                var lz = i * len / n;
+                var gy = groundUnder(hole, theme, d.x + sy * lz, d.z + cy * lz) - dg.position.y;
+                var top = gy + 6.2;
+                box(0.32, top - gy, 0.32, surf.metalDark, 0, (top + gy) / 2, lz);
+                box(2.0, 0.16, 0.24, surf.metalDark, 0, top, lz);
+                tops.push(new THREE.Vector3(0, top, lz));
+            }
+            for (k = -1; k <= 1; k += 2) {
+                for (i = 0; i < n; i++) {
+                    var a = tops[i].clone(), b = tops[i + 1].clone(), seg = b.clone().sub(a);
+                    var cab = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, seg.length(), 4), surf.metalDark);
+                    cab.position.set(k * 0.9, (a.y + b.y) / 2 - 0.15, (a.z + b.z) / 2);
+                    cab.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), seg.normalize());
+                    dg.add(cab);
+                    for (var t = 0.25; t < 1; t += 0.5) {
+                        var cz = a.z + (b.z - a.z) * t, cyy = a.y + (b.y - a.y) * t - 0.15;
+                        box(0.03, 1.0, 0.03, surf.metalDark, k * 0.9, cyy - 0.5, cz);
+                        box(0.7, 0.08, 0.5, k < 0 ? surf.buoyRed : surf.boatHull, k * 0.9, cyy - 1.0, cz);
+                        box(0.7, 0.45, 0.06, k < 0 ? surf.buoyRed : surf.boatHull, k * 0.9, cyy - 0.8, cz - 0.24);
+                    }
+                }
+            }
+        } else if (kind === 'waterfall') {
+            // A sheet of falling water from the lip it is placed on down to
+            // whatever is at its foot, and the spray where it lands.
+            var foot = groundUnder(hole, theme, d.x + Math.sin(d.yaw || 0) * 0.9, d.z + Math.cos(d.yaw || 0) * 0.9);
+            var drop = Math.max(0.5, dg.position.y - foot), wide = d.w || 1.6;
+            var tex = fallTexture().clone();
+            tex.needsUpdate = true;
+            tex.repeat.set(Math.max(1, wide / 1.2), Math.max(1, drop / 2.5));
+            var sheet = new THREE.Mesh(new THREE.PlaneGeometry(wide, drop, 1, 4), new THREE.MeshBasicMaterial({
+                map: tex, transparent: true, depthWrite: false, side: THREE.DoubleSide, color: 0xeaf8f6
+            }));
+            var sp = sheet.geometry.attributes.position;
+            for (i = 0; i < sp.count; i++) {
+                // Out over the lip at the top and plumb below it.
+                var f = 0.5 - sp.getY(i) / drop;
+                sp.setZ(i, 0.55 * (1 - f) * (1 - f) + 0.2);
+            }
+            sheet.position.set(0, -drop / 2, 0.15);
+            dg.add(sheet);
+            var mist = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.35, depthWrite: false });
+            for (i = 0; i < 5; i++) {
+                m = new THREE.Mesh(new THREE.IcosahedronGeometry(0.45 + (i % 3) * 0.2, 1), mist);
+                m.position.set((i - 2) * wide * 0.22, -drop + 0.25, 0.6 + (i % 2) * 0.3);
+                dg.add(m);
+            }
+        }
+    }
 
     function addDecor(group, item, theme, hole) {
         var d = item || {};
@@ -3362,6 +3501,8 @@
         } else if (kind === 'skyline' || kind === 'cabinet' || kind === 'marquee' || kind === 'lamp' ||
                    kind === 'jukebox' || kind === 'claw' || kind === 'fruit') {
             addArcadeProp(dg, d, kind);
+        } else if (kind === 'chalet' || kind === 'cairn' || kind === 'lift' || kind === 'waterfall') {
+            addAlpineProp(dg, d, kind, hole, theme);
         } else if (PROP_SCALE[kind]) {
             // Land props from the CC0 kits: barrel, crate, palm, pine, sign, windmill.
             var pMesh = G3.getModelMesh ? G3.getModelMesh(kind, surf.model) : null;
@@ -5162,6 +5303,13 @@
         // ...and on a clear day the hole itself stands in clear air. See fogClear().
         R.fogNear = Math.max(R.fogNear, fogClear(hole, weather));
         R.fogFar = Math.max(R.fogFar, R.fogNear * 2.4);
+        /* …and a theme with thin air in it (`air`, the mountain's) pushes the
+           whole fade back, short of the surround's rim, so the ranges stand
+           sharp against the sky rather than paling into it. */
+        if (theme.air) {
+            R.fogNear *= theme.air;
+            R.fogFar = Math.min(R.fogFar * theme.air, 280);
+        }
         R.scene.fog = new THREE.Fog(skyTint(theme.fog, weather, false), R.fogNear, R.fogFar);
         g.add(skyDome(theme, weather));
         lights(g, hole, theme, weather);

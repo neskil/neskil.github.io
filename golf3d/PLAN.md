@@ -76,6 +76,18 @@ is waiting on the owner to say which course they meant.
 
 Done:
 
+- **Alpenglow Pass, a long course on a new biome** (v1.13x.0) — "perhaps new
+  biome for long game maps", with the verticality asked for in item 9. Six
+  holes, par 24, on a mountainside: a downhill par three off a crag, an uphill
+  four to a shelf, a five down a valley over the stream twice, a carry over a
+  tarn with a way round, a ridge with a drop down one side and a closer to the
+  chalet. Theme `alpine` (clear high air: `air` pushes the fog back; granite
+  `strata` with snow from ten units up), firs, chalet, cairns, a chairlift and
+  a waterfall. The bot with hands scores 18.8 (-5.3), every hole within a
+  stroke and a quarter of par. Not done: a snowfield surface (it would play as
+  sand does — README → "Alpenglow Pass"), and the hero views are still paler
+  than the tee views, because the fog there is the weather's.
+
 - **Pinball Parlour, as a course** (v1.126.0, finished in v1.134.0) — "could
   have nicer flippers and a bit more fun design. The increasing complexity for
   every level kind of deal, and vary props and decor." v1.126.0 drew hinged

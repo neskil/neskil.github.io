@@ -1,6 +1,6 @@
 # Loft Links
 
-Fourteen six-hole courses of 3D golf in four kinds. **Mini golf**: three
+Fifteen six-hole courses of 3D golf in four kinds. **Mini golf**: three
 courses of lanes, rails, ledges, banks and carries. **Crazy golf**: three of
 blades, gates, bumpers, angled banks and pendulums, where the shot is a matter
 of timing rather than of aim — and on Clockwork Court of bells geared to each
@@ -9,7 +9,7 @@ other and a mill race under the machinery, where a mistimed shot is a stroke.
 will not let the ball stop, belts that carry it off, launch pads that throw it
 in the air and pipes that put it somewhere else entirely, all on the side of a
 volcano, and Apogee Yard, where the floor is ordinary and the *ball* is not: six holes at six gravities, from three tenths of a g to two and
-two fifths. **The long game**: five full-size courses with no fence on any of
+two fifths. **The long game**: six full-size courses with no fence on any of
 them — four built out of the shape of their own ground, and one with almost no
 ground at all — Ashdown
 Park, a parkland falling three units off a bluff and climbing back to a shelf,
@@ -19,10 +19,11 @@ of a hill down the right of one of them; Dunmore Heath, where the interest
 is the moor itself — crests, hollows, a punchbowl, a spiral, a burn round a
 dogleg, a tarn on top of four units of hillside and a gorge two units deep
 across the last of it; and
-Redstone Canyon, which is the only one made of ground that is *missing*; and
+Redstone Canyon, which is the only one made of ground that is *missing*;
 Coral Keys, six holes round the coasts of big islands in a lagoon, where every
 hole has a line across the water that saves a shot and a way round on dry
-land that does not. three.js (vendored, r128), plain ES5-flavoured JavaScript, no
+land that does not; and Alpenglow Pass, a mountainside of granite crags, a
+glacier tarn and stream, fir woods and snow-capped peaks. three.js (vendored, r128), plain ES5-flavoured JavaScript, no
 build step and no other dependencies — same as everything else here, open
 `index.html` and it runs.
 
@@ -30,8 +31,8 @@ Two rules run through the whole card. **A course gets harder as you play it** �
 hole one introduces something, the middle develops it and the sixth asks for all
 of it at once — and the same climb runs across each group, so the four mini
 courses are in the order of how much they ask for and so are the crazy, the
-adventure and the long ones. **A hole is not the hole beside it**: eighty-four holes
-on one list is eighty-four chances to write the same corridor again, and
+adventure and the long ones. **A hole is not the hole beside it**: ninety holes
+on one list is ninety chances to write the same corridor again, and
 the way out is the *plan* rather than the furniture. See
 [The order the holes are in](#the-order-the-holes-are-in).
 
@@ -49,7 +50,7 @@ them.
 | `index.html` | Page shell: scoreboard, canvas, power/loft controls, banner, course picker, scorecard. |
 | `style.css` | Page chrome. The course itself is all WebGL. |
 | `js/config.js` | Every tuning constant. Nothing else holds a magic number. |
-| `js/courses.js` | The eighty-four holes, as data, plus the rail generator, the band layout the long-game courses are written in — rows that tilt and carry their level into the next one, and a cross-fall that puts a whole hole on the side of a hill — the dune fields the links is made of, the landforms the two parkland courses are shaped by, the bag each hole is played out of, and the [draw](#the-draw) behind the picker's die. |
+| `js/courses.js` | The ninety holes, as data, plus the rail generator, the band layout the long-game courses are written in — rows that tilt and carry their level into the next one, and a cross-fall that puts a whole hole on the side of a hill — the dune fields the links is made of, the landforms the two parkland courses are shaped by, the bag each hole is played out of, and the [draw](#the-draw) behind the picker's die. |
 | `js/physics.js` | The simulation. No three.js, no DOM, pure. |
 | `js/audit.js` | The [geometry audit](#the-pictures-which-neither-suite-can-see): the faults that are invisible to the ball and obvious in a screenshot. Pure — read by `tests.html`, by the inspector and by the turntable. |
 | `js/scoring.js` | Scorecard arithmetic and the save file. |
@@ -1037,7 +1038,7 @@ say what it cost rather than how long it went on.
 
 ## The courses
 
-Fourteen, six holes each, filed under four groups — and the group is not a
+Fifteen, six holes each, filed under four groups — and the group is not a
 heading in the picker, it is a tab (see [The picker](#the-picker)). The four
 are not variations of one another: a mini golf hole is one swing and a putt, a
 crazy golf hole is a mechanism you have to time, an adventure hole is a floor
@@ -1060,6 +1061,7 @@ approach.
 | Dunmore Heath | long | `heath` | The long game again, shaped rather than furnished: crests, hollows, a punchbowl, a whorl, one dry ravine and a hillside you climb — and moorland water, a burn, a tarn and a pond. |
 | Redstone Canyon | long | `canyon` | Ground that is missing, six ways, and since v1.130.0 really missing: every piece of the course stands on its own banded walls out of a canyon floor that is out of play. A wall across the drive, a ledge along the rim, a rim seven up over a mesa, a pinnacle tee, benches to climb, and a temple to go round. |
 | Coral Keys | long | `lagoon` | One big island a hole (two on the par five), with the sea let into it as a cove, a bay or the lagoon inside a crescent, and every hole a choice between the carry and the way round: a cove at the flag, a shelf of turf above the beach, a key in the crook of a crescent, a lagoon between two islands, a Cape-style slanting shore, and a clifftop green round a point. Tees stand on headlands 2.6 up. `island`, `cliff` (with `sheer` for a sea cliff, render.addPad) and `lay` in courses.js; bays are dips in the disc's outline (`wave.bays`, physics.padRadius); the shallows are `render.addShelf`. Built to `tools/human-check.mjs` rather than to the perfect bot, which had scored the first version (a string of small keys) ten under while people found it too hard. |
+| Alpenglow Pass | long | `alpine` | A mountainside: off granite crags, up a pasture to a shelf under a snow-capped cliff band, down a valley over the glacier stream twice, across a tarn under a waterfall, along a ridge with the drop down one side, and down to the chalet. Firs, a chairlift, cairns, and peaks round every hole. |
 
 ### Fourteen courses, from eighteen (v1.122.0)
 
@@ -1442,8 +1444,8 @@ Because the order carries meaning, moving a hole is a change to the course and
 not a tidy-up. Nothing else depends on it — a hole's ground is seeded from its
 own *name* (`nameSeed`), so reordering a card cannot reshape a single hump.
 
-**A hole is not the hole beside it.** Eighty-four holes on one list is
-eighty-four chances to write the same corridor again, and the escape is the plan
+**A hole is not the hole beside it.** Ninety holes on one list is
+ninety chances to write the same corridor again, and the escape is the plan
 rather than the furniture. Before the pass that broke this up, forty-eight of
 the sixty holes then on the card were a rectangle running north with the tee at
 one end and the cup at the other, and the only thing that made one different
@@ -2302,6 +2304,66 @@ The rough is scrub and the furniture is stone: `crags` and nothing else, kept
 well in from the edges, because a stone half over the drop stands in mid-air
 and the audit catches it as `prop-afloat`.
 
+### Alpenglow Pass
+
+The sixth long course (v1.13x.0), on a new biome: high country, and the first
+long course where the height goes *up* from the hole as well as down from it.
+The owner asked for "perhaps new biome for long game maps", and for
+verticality — "really high cliffs" — on the long game generally, and a
+mountainside is the one place both are the same request.
+
+It is built out of the two vocabularies the long game already had. The
+meadows are `commons` rows, climbing and falling (`sz`), leaning (`tilt`) and
+shaped by hill fields that stay in the rough, so every fairway is inside what
+it holds a ball on and none is flat. The rock is Redstone's `butte` in granite —
+standing, sheer, weathered — for a crag a tee is perched on, a cliff band
+behind a green, a crest along a ridge, and the `peak`s round every hole: a
+weathered base and an offset summit standing out past the ground, so their
+walls run all the way down into the valley. The ground falls away round the
+edge of every hole as the skirt does on the other long courses, a long way,
+because the valley floor (`surroundY`) is five units down.
+
+The `alpine` theme is clear high air: a deep blue sky, a pale-blue horizon,
+a high white sun, and `air: 1.7`, which pushes the whole fog fade back (short
+of the surround's rim) so the ranges stand sharp rather than paling into
+haze. Meadow turf a shade yellower than a lowland's; granite banded by
+`strata` the way the canyon is, grey beds and then **snow from ten units up**,
+so every cliff and peak tall enough is capped without anything being painted
+on; a horizon range peaking at eighteen with snow on its tops; glacier water,
+milky turquoise; and its own weather list (`weather.js`), clear and fair most
+of the round with a golden hour and one grey day, and no mist or dust.
+
+What is new to draw:
+
+- **Firs** (`tree(…, { fir: true })`, `forest(…, { fir: true })`): a spire of
+  four narrowing skirts of dark needles rather than the two-cone conifer.
+- **A chalet, a cairn, a chairlift and a waterfall** (`chalet`, `cairn`,
+  `lift`, `waterfall` in courses.js, `render.addAlpineProp`). Decor, so never
+  solid. The lift runs `w` along `yaw` and every tower finds the ground under
+  it; a waterfall falls from the height it is placed at to whatever water or
+  ground is at its foot.
+
+| # | Hole | Par | What it asks |
+| --- | --- | --- | --- |
+| 1 | The Perch | 3 | Off a granite crag seven and a half units up, down on to a meadow green twenty-eight away, with the glacier stream across its front and sand behind it. The fall adds a third to every club; short is wet. |
+| 2 | High Pasture | 4 | Up a climbing meadow: a brook across the flat where a full drive finishes, so the drive is the club that stops short, then over the brook and up a bank to a shelf under a snow-capped cliff band. |
+| 3 | Two Fords | 5 | Down a valley from six units up, with the stream across it twice: carry the first ford off the tee and the second is in reach; lay up and it is three shots with a ford in front of two of them. |
+| 4 | The Tarn | 4 | Off a granite knoll over a glacier tarn under a waterfall to the landing beyond, or round it on the fairway out east — and a pool off the green's west side for the short iron from over the lake. |
+| 5 | Knife Edge | 4 | Down the crest of a spur seven and a half up, leaning at a drop that is the whole west side of the hole, a granite crest on the east; the green is out on the edge, so the short way in is along the drop. |
+| 6 | Alpenglow | 4 | Off a crag, round a knoll of firs, over the stream to a green below the chalet, with the chairlift running up the mountain beside it. |
+
+**A snowfield was considered and left out.** On this bag a snow surface would
+play exactly as sand does — it holds what lands on it and takes distance off
+the next shot — so it would be a colour rather than a decision, and a new
+surface costs a friction, a landing, a hold, a sound, a texture and a place in
+every table that lists them. The snow is on the rock, where it belongs.
+
+How it measures (12 rounds with `BOT_HANDS`): 18.8 against par 24, every hole
+between two thirds of a stroke and a stroke and a quarter under par — about
+where Coral Keys sits (the course rebuilt to that tool), and a stroke or two
+closer to par than Ashdown and Dunmore. The perfect bot plays it in 11. It is
+in `tests.html`'s `REBUILT` list, so every drive on it leaves a real second.
+
 ## The plans
 
 The course picker used to be a list of names, and with ten courses that are
@@ -2378,7 +2440,7 @@ after the first few rounds:
 
 | Mode | Draws from | When it runs out |
 | --- | --- | --- |
-| **Anything** | all fourteen | — |
+| **Anything** | all fifteen | — |
 | **Same kind** | the last *kind* tab you looked at, not the kind you are standing in | widens to anything |
 | **New to you** | courses with no finished round on them | the ones you have played *least* |
 | **Beat a best** | courses that already have a record on them | widens to anything |
@@ -2394,7 +2456,7 @@ the kind rather than pointing at it: *right now that is mini golf*.
 Two rules hold across all four. **Never the course you are already on** — a
 surprise that hands you back the hole you are looking at is the one result
 nobody wants — and **a mode never comes back empty**. "New to you" stops
-meaning anything the moment you have played all fourteen and "beat a best"
+meaning anything the moment you have played all fifteen and "beat a best"
 means nothing before the first round is finished; a button that does nothing on
 press is worse than one that widens its net, so each mode has a written-down
 fallback, `shuffleDraw` reports whether it took it, and the option says so out
@@ -2402,7 +2464,7 @@ loud in place of its own description: *you have finished a round on all of them
 — this draws from the ones you have played least*. It **replaces** the
 description rather than joining it, because "only courses you have never
 finished" is no longer true of what the button would draw, and printing it
-beside a count of fourteen is a flat contradiction. The count is always what
+beside a count of fifteen is a flat contradiction. The count is always what
 the draw would really offer, widened net included, so the figure and the
 sentence beside it can never disagree.
 
@@ -2455,7 +2517,7 @@ never heard of it.
 
 The demo does not read them, and does not read the mode either. Both are what
 somebody wants dealt to *them*; the attract loop is showing the game to a room
-it is talking to, and it draws from all fourteen — see `demoRound`.
+it is talking to, and it draws from all fifteen — see `demoRound`.
 
 **The draw itself is pure.** `G3.shuffleDraw` and `G3.randomCourseId` in
 `courses.js` take the mode, where you are standing, which tab is open, which
@@ -3727,7 +3789,7 @@ is no frame at all.
 
 🤖 **Autoplay**, in the ☰ menu with the other things you do to a round. Press
 it and `js/bot.js`, the same player that proves in `tests.html` that all
-eighty-four holes are solvable — with [a plan](#the-plan-v11280) on top of it —
+ninety holes are solvable — with [a plan](#the-plan-v11280) on top of it —
 takes the club and plays — from wherever your ball
 is standing, and then **on**: the next hole when this one is holed, and the
 next course when the sixth one is. Press it again, or <kbd>Esc</kbd>, to take
@@ -3898,7 +3960,7 @@ one player.
 
 ## The showcase: the game in eight holes
 
-Eighty-four holes is a lot to walk before you know what is in them, and
+Ninety holes is a lot to walk before you know what is in them, and
 the order they are written in shows you six holes of one kind of golf before it
 shows you a second. The showcase is the other way in, and it is what a new game
 plays: **two holes from every kind, eight in all, each out of a different
@@ -5036,13 +5098,13 @@ the four things that can move it says otherwise.
 
 Open `tests.html`. Over 2,460 assertions covering the surfaces, the collision
 geometry, the cup, the integrator, the bag, the ground that does something, the
-walls you go through, all eighty-four holes of course data, the scorecard and the
+walls you go through, all ninety holes of course data, the scorecard and the
 intro flyover's path.
 
 The one worth knowing about is the **bot** (`js/bot.js`, and the game plays it
 too — see [autoplay](#the-caddie-autoplay)): a greedy player fans
 out candidate shots on every hole, keeps the one that finishes nearest the cup,
-and plays all eighty-four. If a hole is sealed off, unreachable, or has a cup buried where
+and plays all ninety. If a hole is sealed off, unreachable, or has a cup buried where
 nothing can settle, the bot never holes out and the suite goes red. It is
 deterministic, so a failure is reproducible rather than "sometimes red", it
 plays out of the same clubs the player gets, its candidates include a wait
@@ -5208,7 +5270,7 @@ Every one of those passed the whole of `tests.html`, on shipped holes.
 
 **`turntable.html`** is the eye's half. It draws every hole in the game with the
 game's own renderer from eight fixed angles and lays them out as one contact
-sheet per course — eighty-four holes in fourteen pictures. The angles are not
+sheet per course — ninety holes in fifteen pictures. The angles are not
 decoration; each is there for something the others hide:
 
 | View | What only it shows |
@@ -5220,7 +5282,7 @@ decoration; each is there for something the others hide:
 | **hero at 40°** | The picture the hole would be sold with, which is a fair question to ask of it. |
 
 ```sh
-node golf3d/tools/turntable.mjs                        # all fourteen, ~6 minutes
+node golf3d/tools/turntable.mjs                        # all fifteen, ~6 minutes
 node golf3d/tools/turntable.mjs quarry --hole 4 --tile 640 --views graze,hero
 ```
 

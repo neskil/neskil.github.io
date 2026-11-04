@@ -41,6 +41,8 @@
                 of the sky this camera has above the horizon. 7 is a coast
                 across the water, 12 is an alp. Leave it out and the horizon is flat, which is
                 what a course played indoors or inside a works wants.
+     air        how much further than usual the fog starts and ends (the
+                mountain's thin air, render.buildHole). Leave it out for 1.
      relief     how many units the surrounding ground rolls, out where it can
                 no longer touch the hole. Leave it out for a floor that is
                 meant to be a floor.
@@ -386,6 +388,32 @@
                 [-99, '#4b3b37'], [-3.3, '#7a5337'], [-2.3, '#86795b'], [-1.1, '#927461'],
                 [-0.2, '#a9553a'], [1.6, '#b3603e'], [2.4, '#a24d33'], [4.2, '#b8683f'],
                 [5.4, '#8f402b'], [6.8, '#d9c49b'], [8.0, '#b7946a'], [9.2, '#cfb68e']
+            ]
+        },
+        /* High country (Alpenglow Pass): clear thin air, a deep blue overhead
+           paling to the snowfields on the horizon, and a high white sun that
+           still rakes across a meadow because the meadow is never level. The
+           fog is the pale blue of distance rather than a haze, so the ranges
+           read sharp. Meadow turf a shade yellower than a lowland's; granite
+           for the cut face, banded the way `strata` bands the canyon's — grey
+           beds, a darker one, and snow from ten units up, so a cliff tall
+           enough is snow-capped on its own; and the tarn and the stream the
+           milky turquoise of glacier water. */
+        alpine: {
+            sky: [0x1f5fc4, 0xb2cfec],
+            fog: 0xb2cfec,
+            air: 1.7,
+            sun: 0xfffaf0, sunPos: [-11, 13, 8], ambient: 0xa8c2df, ambientI: 0.6,
+            grass: ['#74ad4c', '#679f44'],
+            rail: 0xd9d4c8,
+            surroundY: -5.4, surround: 'rock', ground: '#3f5a3a',
+            relief: 4.6,
+            ridge: { colour: '#3e4957', cap: '#f6f9fc', peak: 18, rough: 0.64 },
+            water: 0x4cc4c4,
+            side: '#6b6e74',
+            strata: [
+                [-99, '#55585d'], [-2.5, '#63666b'], [1.2, '#6e7176'], [3.4, '#5e6166'],
+                [5.0, '#76797e'], [7.6, '#84878c'], [10.0, '#eef2f6']
             ]
         },
         /* The yard where the ball weighs a different amount on every hole, and

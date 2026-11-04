@@ -6,7 +6,7 @@
    it. What it has never been able to say is whether the hole *looks* built:
    two pads that miss each other by a centimetre leave a crack in the floor and
    pass every assertion in the file, because nothing the ball does can find it.
-   Eighty-four holes is far too many to check that by eye more than once, and
+   Ninety holes is far too many to check that by eye more than once, and
    "more than once" is the only kind of checking worth having.
 
    So this is the other half, and it is written to one rule: **every finding

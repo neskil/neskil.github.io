@@ -1,4 +1,4 @@
-/* Fourteen courses of six holes, as data.
+/* Fifteen courses of six holes, as data.
 
    A hole is a set of pads (the ground), a set of walls (things that bounce),
    a set of water rectangles (things that punish), a tee and a cup. Everything
@@ -6,8 +6,8 @@
    look — is derived below, because a hole that has to repeat itself is a hole
    that will one day disagree with itself.
 
-   Three of the fourteen courses are mini golf, three are crazy golf, three
-   are adventure golf and five are the long game — tee, fairway, rough, sand,
+   Three of the fifteen courses are mini golf, three are crazy golf, three
+   are adventure golf and six are the long game — tee, fairway, rough, sand,
    trees, green — authored through `bands` and `tree` rather than a hole at a
    time; see the comment above them. They use the same pads, the same walls
    and the same solver as everything else, which is the point: a parkland hole
@@ -24,8 +24,8 @@
    how much they ask for, and so are the crazy, the adventure and the long
    ones.
 
-   **A hole is not the hole beside it.** Eighty-four holes on one list is
-   eighty-four chances to write the same corridor again, and the way out is the
+   **A hole is not the hole beside it.** Ninety holes on one list is
+   ninety chances to write the same corridor again, and the way out is the
    plan rather than the furniture: a hole that turns, a hole that goes round
    something, a hole played over a corner, a hole with two ways to the green
    and a reason to pick one. If a new hole's plan can be described as "a lane
@@ -1063,6 +1063,7 @@
             { base: (o.y || 0) - 0.4, kind: 'tree' });
         if (o.y === undefined) w.seat = 0.4;      // how far its base sinks
         if (o.palm) w.palm = true;                // drawn as a palm (render.addTree)
+        if (o.fir) w.fir = true;                  // …or as a mountain fir
         return w;
     }
 
@@ -1088,7 +1089,7 @@
             for (i = 0; i < clear.length && ok; i++) {
                 if (Math.hypot(clear[i].x - x, clear[i].z - z) < clear[i].r) ok = false;
             }
-            if (ok) out.push(tree(x, z, { t: 0.42 + rnd() * 0.3, h: 2.6 + rnd() * 1.4 }));
+            if (ok) out.push(tree(x, z, { t: 0.42 + rnd() * 0.3, h: 2.6 + rnd() * 1.4, fir: o.fir }));
         }
         return out;
     }
@@ -1223,6 +1224,13 @@
     function pine(x, z, y, opts) { return decor('pine', x, z, y, opts); }
     function sign(x, z, y, opts) { return decor('sign', x, z, y, opts); }
     function windmill(x, z, y, opts) { return decor('windmill', x, z, y, opts); }
+    /* The mountain's (Alpenglow Pass, render.addAlpineProp): a chalet, a
+       cairn, a chairlift running `w` along `yaw` from (x, z), and a waterfall
+       `w` wide off the lip it is placed on at height `y`. */
+    function chalet(x, z, y, opts) { return decor('chalet', x, z, y, opts); }
+    function cairn(x, z, y, opts) { return decor('cairn', x, z, y, opts); }
+    function lift(x, z, y, opts) { return decor('lift', x, z, y, opts); }
+    function waterfall(x, z, y, opts) { return decor('waterfall', x, z, y, opts); }
     /* The arcade's own (Pinball Parlour): a city of lit towers standing on the
        basement floor behind a table, an upright cabinet with its screen on, a
        neon marquee with words in it, and a lamp let into the baize — a round
@@ -7064,6 +7072,312 @@
         })()
     ];
 
+    /* ── the long game, the sixth: Alpenglow Pass ─────────────────────────
+
+       High country, and the first long course where the height goes *up*
+       from the ground the hole is on as well as down from it. Every other
+       long course is a piece of country with its trouble cut in; this one
+       is a mountainside, so the ground falls away round the edge of every
+       hole into the valley (the skirt does that, a long way, because the
+       surround is five units down), and what stands on it stands tall:
+       granite crags a tee is perched on, a cliff band behind a green with
+       snow on its top, a crest along a ridge.
+
+       The rock is Redstone's `butte` — a standing, sheer, weathered disc —
+       in granite, and banded the same way (themes → alpine.strata: grey
+       beds, and snow from ten units up, so a cliff tall enough is capped
+       on its own). The tops nobody plays are bare (`rock`); the crags a
+       tee stands on are scrub with a tee laid into them. The meadows are
+       rows (`commons`) climbing and falling, with the hill fields kept in
+       the rough so the fairways stay inside what they hold a ball on. The
+       water is glacier water, milky turquoise: a stream crossing in a flat
+       row as a `burn`, and a tarn under a waterfall. The woods are firs.
+
+       Every wall that stands on ground a ball can lie on has the target on
+       the other side of the ball from it — a crag behind a tee, a cliff
+       behind a green — and stands in a fan of scree, so a ball that runs to
+       its foot rolls back off it. A snowfield was considered as a hazard of
+       its own and left out: on this bag it would play exactly as sand does
+       (it holds what lands and gives up distance), so it would be a colour
+       rather than a decision, and the snow is on the rock where it belongs.
+       (v1.13x.0) */
+
+    /* The fan of fallen rock at the foot of a crag: low humps strung round
+       its outline, for the ground it stands on. */
+    function talus(p, a, seed) {
+        var P = G3.physics, cx = p.x + p.w / 2, cz = p.z + p.d / 2, out = [];
+        var rnd = seeded(seed || 7), n = Math.ceil(2 * Math.PI * p.r / 1.8), k, t, rr;
+        for (k = 0; k < n; k++) {
+            t = (k + rnd() * 0.5) / n * Math.PI * 2;
+            rr = P.padRadius(p, t) + 0.5;
+            out.push(hill(cx + Math.cos(t) * rr, cz + Math.sin(t) * rr, 2.2 + rnd() * 0.8, a * (0.7 + rnd() * 0.6)));
+        }
+        return out;
+    }
+    /* A peak round a hole: a weathered granite base and a narrower summit
+       standing on it, bare (out of play, if a ball ever got there), tall
+       enough that both carry snow. They stand out past the ground, so
+       their walls go all the way down into the valley. */
+    function peak(cx, cz, r, top, seed) {
+        return [
+            rock(butte(cx, cz, r, r * 1.15, top * 0.62, { wild: 0.14, seed: seed })),
+            rock(butte(cx + r * 0.12, cz - r * 0.1, r * 0.55, r * 0.62, top, { wild: 0.14, seed: seed + 3 }))
+        ];
+    }
+    function alp(h) {
+        return build(Object.assign({ long: true, shaped: true, open: true }, h));
+    }
+
+    var alpine = [
+        (function () {
+            /* The perch. The tee is on a granite crag seven and a half units
+               over the meadow, and the green is down there twenty-eight units
+               away — a big downhill par three, where the fall adds a third to
+               every club and the question is how much of it to give back.
+               The glacier stream runs across the front of the green, five
+               units short of the flag, with a bunker either side of the back
+               of it: short is wet and long is sand, so the club is the shot,
+               and the green tilts back at the water.
+               Firs both sides; scree round the crag's foot so a topped one
+               comes off it on to the meadow. */
+            var crag = butte(10, 1, 4.6, 4.2, 7.5, { wild: 0.08 });
+            var land = commons(-6, [
+                [14,  [22, rgh]],
+                [9,   [6, rgh], [11, fwy], [5, rgh]],
+                [6,   [22, rgh]],
+                [{ d: 13, sz: 0.07 }, [22, rgh]],
+                [4,   [22, rgh]]
+            ], { m: 12 });
+            var field = talus(crag, 0.7, 9701)
+                .concat(massif(-6, 24, 6, 1.6, 5), massif(29, 16, 5, 1.6, 5))
+                .concat([hill(18, 10, 3, 0.45), hill(20, 38, 3, -0.4), hill(11, 12.5, 3, -0.25)]);
+            var g = shape(land.pads, field);
+            var stream = pond(g, burn([[-10, 20.4], [2, 20.0], [9, 20.6], [17, 20.1], [34, 20.5]], 1.25, 0.5, 9703));
+            return alp({
+                name: 'The Perch', par: 3,
+                blurb: 'Off a granite crag and down on to a meadow green, with the glacier stream running past it.',
+                pads: g.concat(peak(-24, 34, 8, 18, 1), peak(42, 6, 7, 15, 2), peak(14, 64, 9, 19, 3), [crag,
+                    lay(crag, 10, 1.6, 2.0, 1.8, 'fairway'),
+                    inlay(g, 16.2, 28, 1.3, snd, 1.1),
+                    inlay(g, 5.2, 32.6, 1.3, snd, 1.0),
+                    inlay(g, 11, 28.6, 3.8, grn, 3.4)
+                ]),
+                fence: land.fence,
+                water: [stream],
+                extra: [].concat(
+                    forest(-6, 8, 4, 8, 8, 9705, { fir: true }),
+                    forest(26, 34, 4, 6, 7, 9707, { fir: true }),
+                    crags(19.5, 4, 1.6, 3, 9709, { s: 1.2, h: 0.9 })
+                ),
+                tee: { x: 10, z: 1.6 }, cup: { x: 11.4, z: 29 }
+            });
+        })(),
+        (function () {
+            /* Up the pasture to a shelf. The fairway climbs three and a half
+               units in twenty-eight — a slope a ball stops on and a drive
+               does not run far up — to a flat landing at the foot of a bank,
+               and the green is on a shelf two units over it with a cliff band
+               behind it, snow on its top. A brook runs across the flat, so a
+               full drive up the slope finishes in it: the drive is the club
+               that stops short. Then the second is the hole — over the brook
+               and up the bank to the flag, and a ball short on the bank comes
+               back down into the water. Firs down the east side; a pot bunker
+               where a lay-up drive comes to rest on the west. */
+            var land = commons(0, [
+                [6,                  [5, rgh], [10, fwy], [9, rgh]],
+                [{ d: 14, sz: 0.12 }, [5, rgh], [11, fwy], [8, rgh]],
+                [{ d: 14, sz: 0.12 }, [4, rgh], [12, fwy], [8, rgh]],
+                [8,                  [24, rgh]],
+                [{ d: 3.5, sz: 0.55 }, [24, rgh]],
+                [{ d: 13, sz: 0.05 }, [24, rgh]],
+                [4,                  [24, rgh]]
+            ], { m: 12 });
+            var field = massif(-6, 30, 6, 1.8, 5).concat([hill(20.5, 52, 3, 0.45), hill(-6, 6, 4, 0.8), hill(30, 10, 5, 1.2)]);
+            var g = shape(land.pads, field);
+            var brook = pond(g, burn([[-10, 38.2], [5, 37.7], [15, 38.5], [34, 38.0]], 1.3, 0.5, 9717));
+            return alp({
+                name: 'High Pasture', par: 4,
+                blurb: 'Up a climbing meadow to a green on a shelf under the cliffs. Carry the bank, or lay up under it and pitch.',
+                pads: g.concat(peak(-24, 40, 8, 17, 4), peak(44, 56, 8, 18, 5), [
+                    rock(butte(12, 67, 16, 6, 13.5, { wild: 0.1 })),
+                    inlay(g, 6.4, 30, 1.4, snd, 1.2),
+                    inlay(g, 12, 52, 4.6, grn, 4.2)
+                ]),
+                fence: land.fence,
+                water: [brook],
+                extra: [].concat(
+                    forest(20.5, 25, 2.2, 12, 9, 9711, { fir: true }),
+                    forest(-6.5, 14, 4, 7, 7, 9713, { fir: true }),
+                    crags(2, 50, 1.5, 3, 9715, { s: 1.2, h: 0.9 })
+                ),
+                tee: { x: 10, z: 2 }, cup: { x: 12.5, z: 52.5 }
+            });
+        })(),
+        (function () {
+            /* Down the valley, and the glacier stream across it twice. The
+               tee is at the top, six units over the green, and the fairway
+               falls a tenth of a unit for every one along, with two flat
+               rows where the stream crosses. The first is where a struck
+               drive comes down — over it and the second can carry the other
+               ford to the green; lay up short of it and the hole is three
+               shots with a ford in front of the second and the third. Firs on
+               both sides of the valley, and the mountain falls away beyond. */
+            var land = commons(0, [
+                [{ d: 6, y: 6 },      [6, rgh], [10, fwy], [10, rgh]],
+                [{ d: 16, sz: -0.1 }, [6, rgh], [11, fwy], [9, rgh]],
+                [{ d: 8, sz: -0.1 },  [7, rgh], [12, fwy], [7, rgh]],
+                [7,                   [26, rgh]],
+                [{ d: 15, sz: -0.1 }, [9, rgh], [12, fwy], [5, rgh]],
+                [10,                  [9, rgh], [12, fwy], [5, rgh]],
+                [7,                   [26, rgh]],
+                [{ d: 16, sz: 0.05 }, [4, rgh], [14, fwy], [8, rgh]],
+                [4,                   [26, rgh]]
+            ], { m: 12 });
+            var field = massif(-7, 50, 5, 1.5, 5).concat(massif(33, 42, 5, 1.6, 5), massif(-6, 12, 5, 1.4, 5),
+                [hill(23, 80, 3, 0.4), hill(3, 46, 2.6, 0.35)]);
+            var g = shape(land.pads, field);
+            var ford1 = pond(g, burn([[-10, 33.4], [4, 33.9], [14, 33.1], [26, 34.0], [36, 33.5]], 1.3, 0.55, 9721));
+            var ford2 = pond(g, burn([[-10, 65.6], [6, 65.0], [18, 66.0], [36, 65.4]], 1.3, 0.55, 9723));
+            return alp({
+                name: 'Two Fords', par: 5,
+                blurb: 'Down a valley with the glacier stream across it twice. Carry the first ford off the tee and the second is in reach.',
+                pads: g.concat(peak(-24, 60, 8, 17, 6), peak(50, 30, 9, 19, 7), peak(12, 112, 10, 20, 8), [
+                    inlay(g, 16.4, 78.5, 1.4, snd, 1.2),
+                    inlay(g, 10.5, 75, 4.6, grn, 4.2)
+                ]),
+                fence: land.fence,
+                water: [ford1, ford2],
+                extra: [].concat(
+                    forest(-6, 24, 4, 7, 8, 9725, { fir: true }),
+                    forest(32, 56, 4, 7, 8, 9727, { fir: true }),
+                    forest(-6, 76, 4, 6, 7, 9729, { fir: true })
+                ),
+                tee: { x: 11, z: 2 }, cup: { x: 11, z: 75.5 }
+            });
+        })(),
+        (function () {
+            /* The tarn. A glacier lake lies across the line from the tee,
+               under a granite cliff band on its west shore with a waterfall
+               coming off it into the water, and the tee is up on a knoll of
+               granite looking across it. Straight over is a drive that has
+               to carry thirty units of lake to the landing beyond it, and it
+               leaves a short iron. Round is the fairway out east of the water,
+               a drive and a longer second that never sees the lake at all —
+               though it does see the pool off the west side of the green, which
+               the short iron from over the lake has behind it. */
+            var land = commons(0, [
+                [8,   [4, rgh], [8, fwy], [18, rgh]],
+                [30,  [18, rgh], [9, fwy], [3, rgh]],
+                [15,  [3, rgh], [24, fwy], [3, rgh]],
+                [{ d: 12, sz: 0.06 }, [3, rgh], [13, fwy], [14, rgh]],
+                [4,   [30, rgh]]
+            ], { m: 12 });
+            var field = massif(27, 63, 6, 1.4, 5).concat([hill(-6, 55, 4, 0.8), hill(34, 20, 5, 1.2), hill(16, 4, 2.6, 0.35),
+                hill(22.5, 24, 4, 0.35), hill(15, 42, 4.5, -0.3)]);
+            var g = shape(land.pads, field);
+            var tarn = pond(g, mere(7, 24, 9, 7.5, 1.6, 9731));
+            var pool = pond(g, mere(0.1, 59, 2.8, 3.8, 1.0, 9739));
+            var knoll = butte(8, 2, 3.6, 3.2, 2.4, { wild: 0.08 });
+            return alp({
+                name: 'The Tarn', par: 4,
+                blurb: 'Over a glacier tarn under a waterfall, or round it on the fairway out east.',
+                pads: g.concat(peak(-24, 56, 7, 16, 9), peak(52, 36, 8, 18, 10), peak(16, 92, 9, 19, 11), [knoll, lay(knoll, 8, 2.8, 1.8, 1.6, 'fairway'),
+                    rock(butte(-6.5, 23, 6, 9, 11, { wild: 0.1 })),
+                    inlay(g, 13.6, 55.5, 1.4, snd, 1.2),
+                    inlay(g, 8, 59, 4.6, grn, 4.2)
+                ]),
+                fence: land.fence,
+                water: [tarn, pool],
+                decor: [waterfall(-1.1, 22.5, 10.8, { yaw: Math.PI / 2, w: 1.8 })],
+                extra: [].concat(
+                    forest(36, 34, 4, 9, 9, 9733, { fir: true }),
+                    forest(-6, 49, 4, 6, 6, 9735, { fir: true }),
+                    crags(24, 49, 1.4, 3, 9737, { s: 1.1, h: 0.8 })
+                ),
+                tee: { x: 8, z: 3 }, cup: { x: 8.5, z: 59.5 }
+            });
+        })(),
+        (function () {
+            /* Along the ridge. The hole runs down the crest of a spur seven
+               and a half units up, falling two over its length, and the west
+               side of it is the mountain falling away
+               — a unit and a half of scrub past the stakes and then nothing, a
+               long way down — with the whole hole leaning at it by a
+               fourteenth, and the fairway running a couple of units in from it.
+               The east side is a granite crest with snow on it, six units over
+               the rough at its foot and the far side of the ball from every
+               shot on the hole. The
+               green is out on the west edge, so the short way in is along the
+               drop and the safe way is from the right, with the slope to
+               putt back across. Cairns mark the edge. */
+            var land = commons(0, [
+                [{ d: 6, y: 7.5 },     [4, rgh], [10, fwy], [10, rgh]],
+                [{ d: 17, sz: -0.06 }, [3, rgh], [10, fwy], [11, rgh]],
+                [{ d: 17, sz: -0.05 }, [2, rgh], [10, fwy], [12, rgh]],
+                [{ d: 12, sz: -0.05 }, [1.5, rgh], [10, fwy], [12.5, rgh]],
+                [12,                   [1.5, rgh], [10, fwy], [12.5, rgh]],
+                [4,                    [24, rgh]]
+            ], { m: 12, w: 1.5 });
+            var field = massif(30, 10, 5, 1.8, 5).concat([hill(19, 24, 2.6, 0.4), hill(17, 64, 3, -0.35)]);
+            var g = shape(tilt(land.pads, 0.07, 0, 0, 0), field);
+            return alp({
+                name: 'Knife Edge', par: 4,
+                blurb: 'Down the crest of a ridge with the mountain falling away on one side, to a green out on the edge.',
+                pads: g.concat(peak(46, 20, 8, 19, 12), peak(42, 72, 8, 17, 13), peak(-36, 40, 10, 14, 14), [
+                    rock(butte(28, 35, 5, 16, 13.5, { wild: 0.1 })),
+                    inlay(g, 6.2, 61, 4.2, grn, 4.0)
+                ]),
+                fence: land.fence,
+                decor: [cairn(-0.8, 14), cairn(-0.7, 33), cairn(-0.9, 52, { scale: 1.2 })],
+                extra: [].concat(
+                    forest(30, 62, 4, 5, 6, 9741, { fir: true }),
+                    crags(21, 27, 1.6, 4, 9743, { s: 1.2, h: 0.9 })
+                ),
+                tee: { x: 9, z: 2 }, cup: { x: 6, z: 61.5 }
+            });
+        })(),
+        (function () {
+            /* The finish, down to the chalet. The tee is on a crag five and a
+               half units over the meadow, and the hole bends left round a
+               knoll of firs: cut the corner over the trees, or play out right
+               and come back. Then the stream across the hole, and the green
+               on the far bank below the chalet terrace, with the chairlift
+               running up the mountain beside it. */
+            var crag = butte(20, 1.5, 4, 3.6, 5.5, { wild: 0.08 });
+            var land = commons(0, [
+                [9.5, [28, rgh]],
+                [16.5, [12, rgh], [11, fwy], [5, rgh]],
+                [14,  [6, rgh], [14, fwy], [8, rgh]],
+                [8,   [28, rgh]],
+                [{ d: 14, sz: 0.06 }, [4, rgh], [12, fwy], [12, rgh]],
+                [5,   [28, rgh]]
+            ], { m: 12 });
+            var field = talus(crag, 0.65, 9751)
+                .concat(massif(5, 18, 6, 1.8, 5), [hill(24, 58, 3, 0.4), hill(-6, 34, 4, 0.9),
+                    hill(17.5, 17, 4, 0.3), hill(13, 31, 4, -0.3)]);
+            var g = shape(land.pads, field);
+            var stream = pond(g, burn([[-10, 44.2], [6, 43.6], [18, 44.6], [38, 44.0]], 1.3, 0.55, 9753));
+            return alp({
+                name: 'Alpenglow', par: 4,
+                blurb: 'Off a crag, round a knoll of firs, over the stream to a green below the chalet.',
+                pads: g.concat(peak(-24, 22, 8, 16, 15), peak(18, 90, 10, 20, 16), peak(54, 50, 8, 18, 17), [crag,
+                    lay(crag, 20, 2, 2.0, 1.8, 'fairway'),
+                    inlay(g, 14.6, 51.6, 1.3, snd, 1.1),
+                    inlay(g, 9, 56, 4.4, grn, 4.2)
+                ]),
+                fence: land.fence,
+                water: [stream],
+                decor: [chalet(9, 70.5, { yaw: Math.PI }), lift(34, -8, { yaw: 0.05, w: 84 })],
+                extra: [].concat(
+                    forest(5, 17.5, 3.4, 4, 9, 9755, { fir: true, gap: 1.5 }),
+                    forest(-6, 56, 4, 7, 7, 9757, { fir: true }),
+                    crags(26, 14, 1.4, 3, 9759, { s: 1.1, h: 0.8 })
+                ),
+                tee: { x: 20, z: 2 }, cup: { x: 9.5, z: 56.5 }
+            });
+        })()
+    ];
+
     G3.COURSE_GROUPS = [
         {
             id: 'mini', name: 'Mini golf', icon: '\u2691',
@@ -7223,6 +7537,14 @@
             blurb: 'Six holes across a lagoon, and no fairway between the islands — only the next island. Every shot is a carry.',
             theme: 'lagoon',
             holes: coral
+        },
+        {
+            id: 'alpine',
+            group: 'long',
+            name: 'Alpenglow Pass',
+            blurb: 'Six holes on a mountainside: off granite crags, up to a shelf under the snow, down a valley over the glacier stream, across a tarn and along a ridge.',
+            theme: 'alpine',
+            holes: alpine
         }
     ];
 
@@ -7888,6 +8210,7 @@
         aperture: aperture, flipper: flipper, mill: mill,
         tree: tree, treeline: treeline, forest: forest, crag: crag, crags: crags,
         decor: decor, buoy: buoy, piling: piling, bench: bench, boat: boat, bin: bin,
+        chalet: chalet, cairn: cairn, lift: lift, waterfall: waterfall,
         hill: hill, ring: ring, pond: pond, burn: burn, mere: mere, carve: carve, gully: gully, clearOf: clearOf, widen: widen, ridge: ridge, whorl: whorl, ravine: ravine,
         shape: shape, dunes: dunes, ground: ground, circle: circle, inlay: inlay, dress: dress,
         keep: keep,
