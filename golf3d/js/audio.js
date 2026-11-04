@@ -278,6 +278,12 @@
             var p = Math.max(0.1, Math.min(1, speed / 12));
             tone(320 + p * 220, 0.06, 'square', 0.03 + p * 0.05, 180);
         },
+        // A pop bumper firing: the bell and the coil together, bright and
+        // short, and the same whatever hit it, because the bumper decides.
+        pop: function () {
+            tone(1320, 0.09, 'triangle', 0.07, 1760);
+            tone(660, 0.05, 'square', 0.035, 330);
+        },
         land: function (speed) {
             var p = Math.max(0.1, Math.min(1, speed / 10));
             noise(0.07, 180 + p * 120, 1.2, 0.05 + p * 0.07, 'lowpass');

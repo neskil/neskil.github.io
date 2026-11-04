@@ -115,7 +115,7 @@ speed — and it is now a loft, a ceiling and one number about what happens
 | 9 Iron | 5 | 32° | 13.3 | 11.0 | 3.21 | 14.1 | The short iron: high at the flag, and it still releases a little. |
 | Pitch | 6 | 45° | 12.3 | 8.1 | 3.10 | 10.5 | Up steep and down steeper. Stops near where it lands. |
 | Wedge | 7 | 52° | 13.3 | 8.8 | 3.79 | 11.2 | The lob: straight up, over anything, and it does not run when it lands. |
-| Mallet | 8 | 0° | 17 | — | — | 9.9 (13.3 on green) | Not in the default bag. A putter with a hammer behind it, handed out on holes that are played along the floor. |
+| Mallet | 8 | 0° | 20 | — | — | 12.1 (15.8 on green) | Not in the default bag. A putter with a hammer behind it, handed out on holes that are played along the floor. |
 | Checker | 9 | 38° | 13.1 | 10.0 | 3.32 | 10.4 | Not in the default bag. An iron's carry with almost none of the run: `bite: 0.78`. |
 
 Every full swing tops out between three and three and a half metres, the way a
@@ -1047,10 +1047,10 @@ approach.
 | Course | Group | Theme | What it is about |
 | --- | --- | --- | --- |
 | Seaside Green | mini | `seaside` | The opener, played with a putter and a mallet. A bounce off an angled rail, a slipway round a corner, one slow gate, a first bridge to fly, a horseshoe that leans at the sea wall, and a jetty with a bend in it. Two safe putts and one ace line on every hole. |
-| Quarry Ridge | mini | `quarry` | Height, both ways: ground that is missing and ground that is in the way. A curved backboard behind a bricked-up door, a drop off a pillar with a stair down its side, a quarter-pipe that turns what climbs it, a slanted wall only the chipper goes over, a road with a corner in it, and a cannon with a plank beside it. The best six of the old Quarry Ridge and Highland Steps (v1.122.0). |
+| Quarry Ridge | mini | `quarry` | Height, both ways: ground that is missing and ground that is in the way. A curved backboard behind a bricked-up door, a drop off a pillar with a stair down its side, a quarter-pipe that turns what climbs it, a slanted wall only the chipper goes over, a road banked round a bend over the pool, and a cannon with a plank beside it. The best six of the old Quarry Ridge and Highland Steps (v1.122.0). |
 | Tidewater Reach | mini | `lagoon` | The loft course. Almost nothing here can be reached along the floor, and every carry has a safe target and a short one. |
 | Windmill Works | crazy | `works` | Gates, blades and a windmill, after dark. Timing — and a slower way round on the holes that would otherwise be one shot: sand past First Gear's gate, a lay-by off The Sweeper's floor, a back gate round Turnstile's fence. |
-| Pinball Parlour | crazy | `arcade` | A table, not a course: bumpers, a plunger chute and two banks set across the throat. The posts *are* the route — and on Bumper City, a dome-topped table, the shot is up a side lane and off a kicker at the pin. |
+| Pinball Parlour | crazy | `arcade` | A table, not a course, and a room round every table. Round pop bumpers that fire and rubber posts that do not, a plunger chute, slingshots, ramps, hinged flippers and a hole in the table — one more piece on each hole than the last. Bumper City is a block of bumpers you bank into; Jackpot is a vault you get into through the floor. |
 | Clockwork Court | crazy | `clockwork` | The moment. One bar over a plank, two bells round a corner, two doors with a different clock behind each, a weir and a two-road mill race where a mistimed shot is a stroke, and a clock lane with two weights to finish. The best six of the old Clockwork Court, The Belfry and The Millrace (v1.122.0). |
 | Icehouse Yard | adventure | `icehouse` | Nothing stops. A putter runs eight and a half units on grass and thirty-two on ice. |
 | Cinder Cone | adventure | `volcano` | Machinery on a mountainside: a launch pad over a wall, a belt running back at you, a pipe under the lake, a loop-the-loop, a vent in the floor of a hollow, and Caldera, which asks for all of it. The best six of the old Helter Skelter and Cinder Cone (v1.122.0). |
@@ -1160,9 +1160,18 @@ that leg gathers where the pin is. The lean has to run *along* x rather than acr
 it, because the return leg shares its whole western edge with the top of the
 horseshoe and two pads only meet without a step where the tilt runs along the
 seam. **The Jetty** is a plank over the shallows with a kink in the middle, and
-**The Ledge** is the same idea in a quarry: two metres of road with a corner in
-it, every edge a brink except the outside of the bend, which keeps its wall
-because a corner with nothing on the outside of it is a corner nobody can hold.
+**The Ledge** was the same idea in a quarry — two metres of road with two
+right angles in it, every edge a brink but the outside of the first corner —
+and the hole lab found no ace on it at all. Since v1.126.0 it is a `road`: a
+straight up the hole and a quarter-turn round to the left with no corner
+anywhere along it, the turn banked on the outside like a velodrome with a bare
+lip over the quarry pool, a kerb along the whole inside, and the green on a
+pillar of its own hanging off the end of the bend, a brink all round. The
+weight is the shot, and the three weights do three things: soft (anything the
+putter has) climbs the bank, comes back down into the gutter and leaves a putt;
+the mallet at about three fifths rides the bank round and is turned on to the
+pin; too firm is quicker than the bank can turn and goes straight on over the
+lip. The putt at the flag is across the crook of the bend, over the pool.
 
 The rest of Quarry was three straight lanes with one thing in the middle, and
 v1.82.0 gave each a second way. (Step Up and Halfpipe went in v1.122.0, when
@@ -1250,7 +1259,23 @@ of aim each and a bank right there to throw a near miss across the table, or
 round the outside, which is wider and twice as long and lands you in the pair of
 posts guarding the pin. **The Flippers** uses the same furniture the other way
 up: a V that funnels everything into a window a metre wide, with the two bats on
-the far side of it.
+the far side of it — hinged at the rail end since v1.126.0, the way a real
+flipper is (`flipper` with `hinge`, physics.wallBox).
+
+**The posts went round in v1.126.0**, and three of every four started firing.
+`bumper` is a pop bumper now (`physics.popBumper`): a circle rather than a box,
+that hands the ball back at `CONFIG.BUMPER.give` of the speed it arrived with or
+at `kick`, whichever is more — so a ball that reaches one at all leaves it at a
+pace of its own, and it lights and rings as it does (`render.bumped`,
+`audio.pop`). `post` is the same circle with no coil, a rubber ring that gives
+back a rail's share, and it is what stands in front of the bumpers: a kick on
+the line from the tee made every glancing putt an ace at any weight. The course
+runs in order of what it adds — Plunger Lane (bumpers), The Slingshots (banks
+and posts), Bumper City (both, and a bank shot into a block of them), Two Ramps
+(height), The Flippers (bats that move) and Jackpot (a pipe, a vault and all of
+it) — and every table stands in a room of its own: cabinets, claw machines,
+jukeboxes, fruit machines, a skyline behind Bumper City, and the hole's name in
+neon over the far end (`courses.arcadeRoom`).
 
 The Millrace asks a fourth question, and it is not about the machine at all —
 it is about the price of getting it wrong. Every obstacle on the other three
@@ -1312,10 +1337,10 @@ when it would have no size, so one function writes all of these:
 
 The window is the only obstacle in the game a rolling ball cannot pass and a
 lofted one can — the exact inverse of `beam`, which is the only one the other
-way round. **Jackpot** puts a doorway and a window in the same wall so the two
-routes are two different shots to the same place, and adds a pipe mouth behind
-the left-hand post so the luckiest line on the hole is a bad one, which is also
-true of pinball.
+way round. **Jackpot** put a doorway and a window in the same wall until
+v1.126.0, when it became a curved vault round the pin, open at the back, with a
+pipe mouth low on the left that comes out over the pin from the top of the dome
+— a hole in the table, which is the most pinball thing there is.
 
 A doorway always gets a lintel, and that is not decoration. Without one it is
 two blocks with a gap between them — which is what the older holes wrote by
@@ -1442,7 +1467,9 @@ What the first sweep found (v1.105.0), over the seventy-eight drawn holes:
   whatever pace a ball brings, it leaves at the belt's — and the grass at the
   end took that pace off at one spot, which was where the pin was. 0.32% now.
 - **Caldera's only ace was the shot the hole says not to play**, the vent flown
-  straight across the crater. It has none now, which is fair for a par 4.
+  straight across the crater. It had none after this, and in v1.126.0 the
+  block came out again, the pin moved out of reach of the vent and the tube
+  became the ace (0.208%, skill; see [Cinder Cone](#cinder-cone)).
 - **Three fixes did all twelve.** A block on the line, where a wall gives the
   bold line its bank (the ice store, the ash, the crater). A lean, with the pin
   moved off the line, where the obstacle is a door or a plank the bold line has
@@ -1708,17 +1735,31 @@ only things on the course that move a ball sideways at all.
 | 3 | Lava Tube | 3 | Eleven units of crater lake — more than anything in the bag carries — and two mouths in the ash in front of it. Both cross: the narrow one comes out at the pin, the wide one in the far corner with a putt to play. |
 | 4 | The Scree | 4 | A shelf with the drop down one side of it and two bands of scree that push south *and* east at once. On Crosstown a belt across the hole costs you the line; here it costs you the ball. |
 | 5 | Blowhole | 3 | A hollow in the lawn with the vent at the bottom and the green on a shelf above it. Everything rolled in is gathered on to the vent and thrown up, and the pace you came in with is how far up the shelf it lands — off the back if you came in hot. The sides bend the line, so the ace is a firm mallet in down the right of the hollow, with nothing beside the pin or behind it; a gentle putt down the middle is the safe two. |
-| 6 | Caldera | 4 | The whole course in one hole: the vent to get up, the belt along the rim to be carried along, and the tube to get in. The crater has no way into it along the ground, and no ace: the tube points at the pin across the floor, and a block in front of the pin stops the flight from the lawn that used to be one. |
+| 6 | Caldera | 4 | The whole course in one hole: the vent to get up, the belt along the rim to be carried along, and the tube to get in. The crater has no way into it along the ground. The lawn ends in a half circle round the vent, and the pin is in the far half of a wide crater floor, out of reach of any line through the vent, so the flight from the lawn leaves a putt across. The ace is the tube: land at the start of the belt, ride all of it, and the tube puts you in. |
 
 **Caldera is the hole the belt's own physics wrote.** A travelator has a speed
 of its own that a ball approaches from either side, so it does not matter how
 hard the shot on to the rim is hit: everything arrives at the mouth at about the
 same pace and comes out of the far end at that pace, which is a putt's worth
 across the crater floor. The machine spends the shot for you and the only thing
-you own is getting on to it. The bot, handed the hole cold, used to hole it in
-one by rolling a putter into the vent and flying the whole crater, which is
-what the block on the floor is for: that flight lands short of it now and
-leaves a putt, the same as the tube does.
+you own is getting on to it — and, nearly, where: twelve units of belt is not
+quite enough to reach the belt's own pace, so a ball that lands at the start of
+it and rides all of it comes out of the tube a little quicker, and the tube
+points at the pin from just far enough that only those reach it. That is the
+ace, about 0.2% of the sweep, all of it through the tube.
+
+It was rebuilt in v1.126.0, when the owner found the caddie stuck on it and the
+block in front of the pin "a stupid box". The vent was the cause of both. It
+stood on the line from the tee to the pin, so the putt at the flag went through
+it and flew the crater at the pin, and the block was there to stop that until
+the stronger mallet flew the block. And the lawn ran on past the vent to an open
+shore, so a ball that came off the vent soft stopped on a strip with the lake in
+front and the vent behind. Getting out of there takes two shots, back and then
+over the vent again, and a one-shot search shuffled along the lip until it ran
+out of strokes. Now the lawn ends in a half circle round the vent, railed all
+the way, so there is no grass past it. The block is gone, and the pin has moved
+to the far half of a wider crater floor, out of reach of any line through the
+vent: the flight from the lawn comes down in the near half and leaves a putt.
 
 #### Apogee Yard
 
@@ -2442,6 +2483,53 @@ fault everywhere else.
 - **arc** — a curved rail: `arc(cx, cz, R, a0, a1)` is chords of `bank`, one per
   ten degrees, each a rail's thickness longer than its chord so neighbours
   overlap. Angles are `atan2(z, x)`; a chord's yaw is −θ − π/2.
+- **road** — ground that bends, and the first pad in the game whose rectangle
+  is not its shape at all (v1.126.0). Every other pad is a box with something
+  done to it — a corner rounded, a side mown, a disc inscribed in it — and every
+  one of them still has four sides running along x and z, which is why every
+  bend on a drawn hole was a right angle: two rectangles meeting at a corner,
+  with the outside of the corner rounded off at best. A road is laid along a
+  centreline instead, and written the way it would be driven:
+
+  ```js
+  road({ x: 2.5, z: 0.2, dir: 0, w: 2.4, y: 1, caps: 'start' }, [
+      ['line', 4, { kerb: 'in' }],                       // straight on
+      ['arc', 3.2, Math.PI / 2, { kerb: 'in', bank: { a: 0.9, lip: 0.5, r: 2.6, span: [0, 0.7] } }],
+      ['line', 0.7, { kerb: 'in' }]                      // round a radius, then on
+  ])
+  ```
+
+  `dir` and each turn are yaws, the sense a shot's aim is measured in — 0 is up
+  the hole, and a positive turn swings the road towards +x. Each piece leaves in
+  the direction the last arrived in, so however it is written the road has no
+  kink anywhere along it; that is the whole reason it is a drive and not a list
+  of points. `caps` rounds an end (`true` for both, or `'start'` or `'end'`); an
+  end that runs on under a green stays square and stops short of the cup. A
+  road gets no rail of its own — on a ledge both sides are a brink unless
+  somebody says otherwise — and a piece's `kerb` (`'in'`, `'out'` or `'both'`,
+  on a straight the sides of the nearest turn) asks `enclose` for one, laid off
+  the ground as `railFor` lays any rail; a kerb round a turn is chords with one
+  `bend`, drawn as a single smooth kerb exactly as a rounded corner's is.
+
+  A road is a pad, so its height is not its business: its level is `y`, and a
+  `bank` on a turn is a `channel` laid along the outer edge with its profile
+  reaching the inner one — a flat gutter inside, a lip outside — which
+  `padHeight` and `padGrad` already know. The channel's rounded end is the ease
+  in and out, about `r` long, so a turn that has to be level where it finishes
+  stops its spine short with `span`. The pad's `x/z/w/d` are its bounds and
+  nothing more. What reads the shape is the same short list as for a rounded
+  corner: `physics.padContains` (`laneHas` — per piece, a band of radius or a
+  span along it and then a cross product, no `atan2`, because this is asked of
+  every pad on every substep), `physics.laneOutline` for anything that walks
+  the edge — the slab's extruded outline (`render.slabShape`) and its grass,
+  the skirt, the inspector, the editor's plan — and `render`'s ribbon of rows
+  square across the road for a banked one, whose cup would need a square patch
+  a ribbon has not got: a cup goes on a level road or on a green laid over the
+  end of one. The minimap and hole-lab.html sample `padContains` a pixel at a
+  time and draw the curve for nothing. The editor carries a road whole, draws
+  its outline and exports it as data; it has no handles for a centreline, so a
+  road is not something to drag there. **The Ledge** on Quarry Ridge is the
+  first one.
 - **contour / scoop** — the same humps, applied to a *drawn* hole, off a seed
   made from the hole's own name so a hole's ground is the same on every load.
   Every bunker on a drawn hole gets `scoop`'s dish automatically in `build()`;
@@ -2997,6 +3085,18 @@ Details that are easy to get wrong and are pinned by tests:
   from a bridge — under a bridge there is a pad *below* the ball, and it never
   fires. Without it a terrace swallows balls and a raised green can be holed
   from underneath.
+
+  **A pad that `stands` is not a bridge** (v1.126.0). Redstone's mesa, The
+  Ait's island and every Coral Keys cliff are laid *over* ground that runs on
+  beneath them, and to the rule above that is a deck with a pad under it: a
+  putt at the face of The Shelf rolled a unit into the rock and stopped there,
+  on beach nobody could see. So `surfaceUnder` hands back nothing at all where
+  a standing pad is over the ceiling — inside the rock, not under a deck — and
+  the backstop and the face test treat it as they treat a cliff over nothing.
+  Both also take the **corner** now: across a curved face a step can be in the
+  rock when neither of its halves is, and then both axes bounce. Let through,
+  the ball fell inside the cliff and the last-resort shove put it out through
+  the side of the cliff's bounding box, which on a headland is the sea.
 
   **The centre, not the crown.** Reading "inside a face" off the top of the
   ball leaves a radius-deep band around every riser in which the centre is

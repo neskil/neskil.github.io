@@ -905,6 +905,7 @@
        that the rail standing on the curve hides the facets. A pad with no
        rounding comes out as the four corners it always was. */
     function slabShape(pad) {
+        if (pad.lane) return laneShape(pad);
         var shape = new THREE.Shape();
         var hw = pad.w / 2, hd = pad.d / 2, c = pad.round || {};
         // Counter-clockwise in shape space, each corner as [x, y, its world
@@ -929,6 +930,22 @@
                 else shape.lineTo(ox + Math.cos(a) * r, oy + Math.sin(a) * r);
                 first = false;
             }
+        }
+        shape.closePath();
+        return shape;
+    }
+
+    /* A road's outline (courses.road) in the same shape space: its box is
+       only its bounds, so the slab, its grass and the hole punched for a cup
+       all come off the curve physics.laneOutline walks — the one the ball
+       rolls off. A chord of a tenth keeps a two-metre road round to the eye
+       at any distance the camera gets to. */
+    function laneShape(pad) {
+        var cx = pad.x + pad.w / 2, cz = pad.z + pad.d / 2;
+        var pts = P.laneOutline(pad.lane, 0.1), shape = new THREE.Shape(), i;
+        for (i = 0; i < pts.length; i++) {
+            if (i) shape.lineTo(pts[i][0] - cx, -(pts[i][1] - cz));
+            else shape.moveTo(pts[i][0] - cx, -(pts[i][1] - cz));
         }
         shape.closePath();
         return shape;
@@ -987,7 +1004,7 @@
                 tp.needsUpdate = true;
             } else if (holed) {
                 geo = shellShape(pad, cup, bare);
-            } else if (pad.r || pad.round || (bare && bare.length)) {
+            } else if (pad.r || pad.round || pad.lane || (bare && bare.length)) {
                 geo = shellShape(pad, null, bare);
             } else {
                 geo = new THREE.PlaneGeometry(pad.w, pad.d, 1, 1);
@@ -1258,6 +1275,7 @@
     function padOutline(pad, step) {
         var pts = [], i, n, a;
         var cx = pad.x + pad.w / 2, cz = pad.z + pad.d / 2;
+        if (pad.lane) return P.laneOutline(pad.lane, Math.min(step, 0.25));
         if (pad.r) {
             n = Math.max(24, Math.ceil(2 * Math.PI * pad.r / step));
             for (i = 0; i < n; i++) {
@@ -1650,6 +1668,69 @@
         return geo;
     }
 
+    /* The top of a shaped road (courses.road with a `bank`, or any bumps),
+       as a ribbon rather than a grid: rows square across the road at every
+       step along it, so the edge is the outline physics walks and a banked
+       turn is drawn along the curve it is banked round. Every vertex is
+       padHeight, as everywhere else. A round end is a fan off the middle of
+       the last row, and the stretch of road under an inlay is cut and the
+       grass conformed to it as a grid's is (cutUnder). */
+    function laneTerrainGeometry(pad, res, cx, cy, cz, cover, anyCut) {
+        var L = pad.lane, step = Math.min(res, 0.3), cuts = [], i, j, k, g, n;
+        for (i = 0; i < L.segs.length; i++) {
+            g = L.segs[i];
+            n = Math.max(1, Math.ceil(g.len / step));
+            for (k = 0; k < n; k++) cuts.push(g.s0 + g.len * k / n);
+        }
+        cuts.push(L.length);
+        var m = Math.max(4, 2 * Math.ceil(L.hw / 0.3)), pos = [], idx = [], at = [0, 0, 0, 0], u;
+        function vert(px, pz) {
+            pos.push(px - cx, P.padHeight(pad, px, pz) - cy, pz - cz);
+            return pos.length / 3 - 1;
+        }
+        for (i = 0; i < cuts.length; i++) {
+            P.lanePoint(L, cuts[i], at);
+            for (j = 0; j <= m; j++) {
+                u = L.hw * (2 * j / m - 1);
+                vert(at[0] + at[2] * u, at[1] + at[3] * u);
+            }
+        }
+        // Row i along the road, column j across it towards the + side
+        // (lanePoint's normal), wound so every face looks up.
+        for (i = 0; i < cuts.length - 1; i++) {
+            for (j = 0; j < m; j++) {
+                var a = i * (m + 1) + j, b = a + 1, c = a + m + 2, d = a + m + 1;
+                idx.push(a, c, b, a, d, c);
+            }
+        }
+        if (L.cap0 || L.cap1) {
+            // Far end from the + side round to the - side, near end the other
+            // way, each bulging away from the road (as laneOutline walks them).
+            var q = Math.max(4, Math.ceil(Math.PI * L.hw / step));
+            [[0, -1], [cuts.length - 1, 1]].forEach(function (e) {
+                if (!(e[1] > 0 ? L.cap1 : L.cap0)) return;
+                P.lanePoint(L, cuts[e[0]], at);
+                var f = e[1], row = e[0] * (m + 1), mid = row + m / 2, prev = f > 0 ? row + m : row, t, cur;
+                var nx = at[2] * f, nz = at[3] * f, dx = -at[3] * f, dz = at[2] * f;
+                for (k = 1; k <= q; k++) {
+                    t = Math.PI * k / q;
+                    cur = k === q ? (f > 0 ? row : row + m)
+                        : vert(at[0] + (nx * Math.cos(t) + dx * Math.sin(t)) * L.hw,
+                               at[1] + (nz * Math.cos(t) + dz * Math.sin(t)) * L.hw);
+                    idx.push(mid, cur, prev);
+                    prev = cur;
+                }
+            });
+        }
+        var geo = new THREE.BufferGeometry();
+        geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(pos), 3));
+        geo.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(pos.length / 3 * 2), 2));
+        geo.setIndex(idx);
+        if (cover && cover.length) cutUnder(geo, cover, cx, cz, anyCut, pad, cy);
+        geo.computeVertexNormals();
+        return geo;
+    }
+
     /* The flat square the cup is cut out of, which is what the hole in the
        grid above is a hole for. It is flat because courses.js promises it is:
        nothing rolls within CUP_FLAT of a cup, and this patch is well inside
@@ -1687,7 +1768,9 @@
         });
         geo.rotateX(-Math.PI / 2);      // lay it flat: extrusion now runs +y
         geo.translate(0, -thick / 2, 0);// centred on its middle, like the box
-        if (pad.inlay) levelRim(geo);
+        // (A disc that stands — a green on a pillar, laid over the end of a
+        // road — has a real wall, and keeps the wall's own light.)
+        if (pad.inlay && !pad.stands) levelRim(geo);
         return geo;
     }
 
@@ -1807,8 +1890,12 @@
         /* Is the cup cut into this pad? Same question addPad asks, and the
            same answer: it has to be inside the footprint and the pad has to be
            the surface the cup's own mouth is at. */
+        /* …and never a road: the cup's patch is a square cut out of the
+           rectangular grid, and a road's ground is a ribbon. A cup goes on a
+           level road (a slab, punched like any other) or on a green laid at
+           the end of it. */
         var holed = cup && P.padContains(pad, cup.x, cup.z) &&
-            Math.abs(P.padHeight(pad, cup.x, cup.z) - cup.y) < 0.06 && !pad.r;
+            Math.abs(P.padHeight(pad, cup.x, cup.z) - cup.y) < 0.06 && !pad.r && !pad.lane;
         var cut = null;
         if (holed) {
             // Clamped to what the pad can actually spare, though courses.js
@@ -1822,7 +1909,9 @@
         var res = terrainRes(pad);
         var geo = pad.r
             ? discTerrainGeometry(pad, res, cx, cy, cz)
-            : terrainGeometry(pad, res, cx, cy, cz, cut, cover.concat(holes), holes.length > 0);
+            : pad.lane
+                ? laneTerrainGeometry(pad, res, cx, cy, cz, cover, false)
+                : terrainGeometry(pad, res, cx, cy, cz, cut, cover.concat(holes), holes.length > 0);
         worldUv(geo, TX.SCALE[pad.kind] || TX.SCALE.green, cx, cz);
         if (holes.length) addVoidRims(group, pad);
         if (pad.hue) { tintRainbow(geo, pad, cx, cy, cz, RAINBOW_GLASS); mat = rainbowGlass(); }
@@ -1856,7 +1945,9 @@
            grid with the disc itself as the thing to cut — which is how a
            domed fairway on Coral Keys came out as a square mat.) */
         var grassOn = geo;
-        if (cover.length && !pad.r) {
+        if (cover.length && pad.lane) {
+            grassOn = laneTerrainGeometry(pad, res, cx, cy, cz, cover, true);
+        } else if (cover.length && !pad.r) {
             grassOn = terrainGeometry(pad, res, cx, cy, cz, cut, cover, true);
             if (rockGeo) splitSteep(grassOn);
         }
@@ -2356,10 +2447,10 @@
         if (pad.hover) thick = Math.max(least, 0.4);
         var geo = pad.r
             ? discGeometry(pad, thick, cup, holed)
-            : holed || pad.round
+            : holed || pad.round || pad.lane
                 ? punchedSlab(pad, thick, holed ? cup : null)
                 : new THREE.BoxGeometry(pad.w, thick, pad.d);
-        if ((holed || pad.round) && !pad.r) {
+        if ((holed || pad.round || pad.lane) && !pad.r) {
             // The box is centred on its own middle; the extruded slab is built
             // that way too, so both share the placement below.
             geo.translate(0, thick / 2, 0);
@@ -2379,7 +2470,7 @@
         // what lets every pad of a kind share one material (buildSurfaces).
         worldUv(geo, TX.SCALE[pad.kind] || TX.SCALE.green, cx, cz);
         var mesh = new THREE.Mesh(geo,
-            padMaterial(pad.kind, pad.inlay ? 'inlay' : (holed || pad.stands ? 'slab' : 'box')));
+            padMaterial(pad.kind, pad.inlay && !pad.stands ? 'inlay' : (holed || pad.stands ? 'slab' : 'box')));
         mesh.position.set(cx, cy - thick / 2 + (pad.r ? INLAY_LIFT : 0), cz);
         mesh.receiveShadow = true;
         mesh.castShadow = true;
@@ -2988,6 +3079,9 @@
             }
             dg.rotation.z += 0.02;
             dg.rotation.x -= 0.01;
+        } else if (kind === 'skyline' || kind === 'cabinet' || kind === 'marquee' || kind === 'lamp' ||
+                   kind === 'jukebox' || kind === 'claw' || kind === 'fruit') {
+            addArcadeProp(dg, d, kind);
         } else if (PROP_SCALE[kind]) {
             // Land props from the CC0 kits: barrel, crate, palm, pine, sign, windmill.
             var pMesh = G3.getModelMesh ? G3.getModelMesh(kind, surf.model) : null;
@@ -3022,6 +3116,226 @@
         }
     }
 
+    /* ── the arcade's dressings (courses.skyline, cabinet, marquee, lamp) ──
+
+       All four are self-lit (MeshBasicMaterial): the parlour is a basement at
+       night and what you see of a city or a cabinet in the dark is its
+       lights. The windows and the screen are one small canvas each, drawn
+       once and shared, so a skyline of a dozen towers is a dozen boxes and
+       one texture. Nothing here is solid — decor never is (courses.decor). */
+    var _arcadeTex = {};
+    function arcadeTex(name) {
+        if (_arcadeTex[name]) return _arcadeTex[name];
+        var cv = document.createElement('canvas'), g2, i, j, rnd = seededRandom(name.length * 97 + 13);
+        if (name === 'windows') {
+            cv.width = 64; cv.height = 64;
+            g2 = cv.getContext('2d');
+            g2.fillStyle = '#120a1f'; g2.fillRect(0, 0, 64, 64);
+            var lit = ['#ffd58a', '#ffe9b8', '#7fe8ff', '#ff8fd0'];
+            for (i = 0; i < 4; i++) for (j = 0; j < 8; j++) {
+                var r = rnd();
+                g2.fillStyle = r < 0.42 ? '#241736' : lit[Math.floor(rnd() * lit.length)];
+                g2.fillRect(i * 16 + 4, j * 8 + 2, 8, 4);
+            }
+        } else if (name === 'screen') {
+            cv.width = 64; cv.height = 64;
+            g2 = cv.getContext('2d');
+            var gr = g2.createLinearGradient(0, 0, 0, 64);
+            gr.addColorStop(0, '#1b0e3d'); gr.addColorStop(1, '#3a1260');
+            g2.fillStyle = gr; g2.fillRect(0, 0, 64, 64);
+            g2.fillStyle = '#ff4fa3'; g2.fillRect(8, 40, 48, 3);
+            for (i = 0; i < 6; i++) { g2.fillStyle = i % 2 ? '#3ee0ff' : '#ffd23f'; g2.fillRect(10 + i * 8, 14 + (i % 3) * 6, 5, 5); }
+        } else if (name === 'reels') {
+            cv.width = 192; cv.height = 64;
+            g2 = cv.getContext('2d');
+            for (i = 0; i < 3; i++) {
+                g2.fillStyle = '#fbf6ea'; g2.fillRect(i * 64 + 4, 2, 56, 60);
+                g2.fillStyle = '#d8283a'; g2.font = 'bold 48px sans-serif';
+                g2.textAlign = 'center'; g2.textBaseline = 'middle';
+                g2.fillText('7', i * 64 + 32, 34);
+            }
+        } else {
+            // A marquee's words, in neon: the glow is the canvas's own shadow.
+            cv.width = 512; cv.height = 96;
+            g2 = cv.getContext('2d');
+            g2.fillStyle = '#0d0618'; g2.fillRect(0, 0, 512, 96);
+            g2.font = 'bold 62px sans-serif'; g2.textAlign = 'center'; g2.textBaseline = 'middle';
+            g2.shadowColor = '#ff4fa3'; g2.shadowBlur = 18;
+            g2.fillStyle = '#ffd1ec'; g2.fillText(name.slice(5), 256, 50);
+            g2.strokeStyle = '#3ee0ff'; g2.lineWidth = 4; g2.shadowColor = '#3ee0ff';
+            g2.strokeRect(8, 8, 496, 80);
+        }
+        var tex = new THREE.CanvasTexture(cv);
+        if (name === 'windows') { tex.wrapS = tex.wrapT = THREE.RepeatWrapping; }
+        _arcadeTex[name] = tex;
+        return tex;
+    }
+
+    function seededRandom(seed) {
+        var s = (seed % 2147483647 + 2147483647) % 2147483647 || 1;
+        return function () { s = (s * 16807) % 2147483647; return (s - 1) / 2147483646; };
+    }
+
+    var ARCADE_HUES = [0xff4fa3, 0x3ee0ff, 0xffd23f, 0x9b6bff];
+
+    function addArcadeProp(dg, d, kind) {
+        var m, geo, i, rnd = seededRandom(Math.round(d.x * 131 + d.z * 977) + 7);
+        if (kind === 'skyline') {
+            /* Towers along local x, d.w long, standing on the floor. The window
+               texture is repeated by each face's own size so a tall tower has
+               more floors rather than taller windows. */
+            var len = d.w || 8, x0 = -len / 2, roof = new THREE.MeshBasicMaterial({ color: 0x150c22 });
+            var tallest = null, tH = 0;
+            while (x0 < len / 2 - 0.4) {
+                var bw = 0.7 + rnd() * 0.7, bd = 0.8 + rnd() * 0.8, bh = 2.4 + rnd() * 4.6;
+                geo = new THREE.BoxGeometry(bw, bh, bd);
+                var uv = geo.attributes.uv;
+                for (i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * bw * 1.4, uv.getY(i) * bh * 0.9);
+                var win = new THREE.MeshBasicMaterial({ map: arcadeTex('windows') });
+                m = new THREE.Mesh(geo, [win, win, roof, roof, win, win]);
+                m.position.set(x0 + bw / 2, bh / 2, (rnd() - 0.5) * 0.8);
+                dg.add(m);
+                if (bh > tH) { tH = bh; tallest = m; }
+                x0 += bw + 0.08 + rnd() * 0.25;
+            }
+            if (tallest) {
+                // A red light on the tallest roof, blinking (glowPosts).
+                var beacon = new THREE.Mesh(new THREE.SphereGeometry(0.09, 8, 6),
+                    new THREE.MeshBasicMaterial({ color: 0xff3344 }));
+                beacon.position.set(tallest.position.x, tH + 0.12, tallest.position.z);
+                dg.add(beacon);
+                (R.lamps || (R.lamps = [])).push({ mesh: beacon, k: -1, blink: true });
+            }
+        } else if (kind === 'cabinet') {
+            /* An upright, by its side profile: the classic cabinet outline —
+               kick plate, control panel jutting out, the screen set back
+               under the marquee's overhang — extruded across its width, with
+               a neon line round both sides so it reads as a machine from
+               behind as well as from in front. A box with a screen on it read
+               as a box. */
+            var hue = ARCADE_HUES[d.variant % ARCADE_HUES.length];
+            var shell = new THREE.MeshLambertMaterial({ color: new THREE.Color(hue).multiplyScalar(0.3) });
+            var side = new THREE.Shape(), prof = [
+                [0.36, 0], [0.36, 0.86], [0.56, 0.98], [0.5, 1.06], [0.22, 1.12],
+                [0.3, 1.78], [0.46, 1.84], [0.46, 2.1], [-0.4, 2.1], [-0.4, 0]
+            ];
+            side.moveTo(prof[0][0], prof[0][1]);
+            for (i = 1; i < prof.length; i++) side.lineTo(prof[i][0], prof[i][1]);
+            side.closePath();
+            geo = new THREE.ExtrudeGeometry(side, { depth: 0.86, bevelEnabled: false });
+            geo.rotateY(-Math.PI / 2);            // profile in (z, y), extruded along x
+            geo.translate(0.43, 0, 0);
+            m = new THREE.Mesh(geo, shell);
+            m.castShadow = true;
+            dg.add(m);
+            var trim = new THREE.LineBasicMaterial({ color: hue });
+            [-0.435, 0.435].forEach(function (sx) {
+                var pts = prof.concat([prof[0]]).map(function (q) { return new THREE.Vector3(sx, q[1], q[0]); });
+                dg.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), trim));
+            });
+            // The screen, lying in the recess between the panel and the hood.
+            m = new THREE.Mesh(new THREE.PlaneGeometry(0.7, 0.62), new THREE.MeshBasicMaterial({ map: arcadeTex('screen') }));
+            m.position.set(0, 1.45, 0.27); m.rotation.x = -0.12; dg.add(m);
+            m = new THREE.Mesh(new THREE.PlaneGeometry(0.8, 0.22), new THREE.MeshBasicMaterial({ color: hue }));
+            m.position.set(0, 1.97, 0.465); dg.add(m);
+            for (i = 0; i < 3; i++) {
+                m = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 0.04, 10),
+                    new THREE.MeshBasicMaterial({ color: ARCADE_HUES[(d.variant + i + 1) % ARCADE_HUES.length] }));
+                m.position.set(-0.2 + i * 0.2, 1.03, 0.44); m.rotation.x = 0.55; dg.add(m);
+            }
+            // And the light it throws on the floor in front of it.
+            m = new THREE.Mesh(new THREE.CircleGeometry(0.9, 24), new THREE.MeshBasicMaterial({
+                color: hue, transparent: true, opacity: 0.18, blending: THREE.AdditiveBlending, depthWrite: false
+            }));
+            m.rotation.x = -Math.PI / 2; m.position.set(0, 0.02, 0.7); dg.add(m);
+        } else if (kind === 'jukebox') {
+            /* A jukebox: a cabinet with a round head, a lit arch over the
+               front and a row of coloured tubes standing in the grille. */
+            var jh = ARCADE_HUES[d.variant % ARCADE_HUES.length];
+            var wood = new THREE.MeshLambertMaterial({ color: 0x3a1f2e });
+            m = new THREE.Mesh(new THREE.BoxGeometry(1.0, 1.15, 0.62), wood);
+            m.position.y = 0.575; m.castShadow = true; dg.add(m);
+            m = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 0.62, 24, 1, false, -Math.PI / 2, Math.PI), wood);
+            m.rotation.x = Math.PI / 2; m.rotation.z = Math.PI / 2; m.position.y = 1.15; dg.add(m);
+            m = new THREE.Mesh(new THREE.TorusGeometry(0.42, 0.05, 8, 24, Math.PI), new THREE.MeshBasicMaterial({ color: jh }));
+            m.position.set(0, 1.15, 0.32); dg.add(m);
+            for (i = 0; i < 5; i++) {
+                m = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.62, 8),
+                    new THREE.MeshBasicMaterial({ color: ARCADE_HUES[(d.variant + i) % ARCADE_HUES.length] }));
+                m.position.set(-0.3 + i * 0.15, 0.62, 0.32); dg.add(m);
+            }
+            m = new THREE.Mesh(new THREE.PlaneGeometry(0.6, 0.3), new THREE.MeshBasicMaterial({ map: arcadeTex('screen') }));
+            m.position.set(0, 1.12, 0.315); dg.add(m);
+        } else if (kind === 'claw') {
+            /* A claw machine: a lit base, a glass case with prizes heaped in
+               it and the claw hanging over them, and a sign on the roof. */
+            var ch = ARCADE_HUES[d.variant % ARCADE_HUES.length];
+            var baseMat = new THREE.MeshLambertMaterial({ color: new THREE.Color(ch).multiplyScalar(0.45) });
+            m = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.85, 1.0), baseMat);
+            m.position.y = 0.425; m.castShadow = true; dg.add(m);
+            m = new THREE.Mesh(new THREE.BoxGeometry(0.96, 1.0, 0.96), new THREE.MeshPhongMaterial({
+                color: 0xbfe8ff, transparent: true, opacity: 0.22, shininess: 120, specular: 0xffffff, depthWrite: false
+            }));
+            m.position.y = 1.35; dg.add(m);
+            for (i = 0; i < 7; i++) {
+                m = new THREE.Mesh(new THREE.SphereGeometry(0.11 + rnd() * 0.05, 10, 8),
+                    new THREE.MeshLambertMaterial({ color: ARCADE_HUES[i % ARCADE_HUES.length] }));
+                m.position.set((rnd() - 0.5) * 0.65, 0.95 + rnd() * 0.12, (rnd() - 0.5) * 0.65); dg.add(m);
+            }
+            m = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.5, 6), R.surf.decor.metalDark);
+            m.position.set(0.1, 1.6, 0); dg.add(m);
+            m = new THREE.Mesh(new THREE.ConeGeometry(0.1, 0.16, 6, 1, true), R.surf.chrome || R.surf.decor.metalDark);
+            m.position.set(0.1, 1.3, 0); m.rotation.x = Math.PI; dg.add(m);
+            m = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.22, 1.0), new THREE.MeshBasicMaterial({ color: ch }));
+            m.position.y = 1.96; dg.add(m);
+        } else if (kind === 'fruit') {
+            /* A fruit machine: three reels showing sevens behind a window, a
+               lit crown, and the lever down the right-hand side. */
+            var fh = ARCADE_HUES[d.variant % ARCADE_HUES.length];
+            var fbody = new THREE.MeshLambertMaterial({ color: new THREE.Color(fh).multiplyScalar(0.4) });
+            m = new THREE.Mesh(new THREE.BoxGeometry(0.85, 1.7, 0.62), fbody);
+            m.position.y = 0.85; m.castShadow = true; dg.add(m);
+            m = new THREE.Mesh(new THREE.PlaneGeometry(0.66, 0.3), new THREE.MeshBasicMaterial({ map: arcadeTex('reels') }));
+            m.position.set(0, 1.2, 0.315); dg.add(m);
+            m = new THREE.Mesh(new THREE.BoxGeometry(0.87, 0.24, 0.64), new THREE.MeshBasicMaterial({ color: fh }));
+            m.position.y = 1.82; dg.add(m);
+            m = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.55, 8), R.surf.chrome || R.surf.decor.metalDark);
+            m.position.set(0.5, 1.25, 0.05); dg.add(m);
+            m = new THREE.Mesh(new THREE.SphereGeometry(0.08, 12, 10), new THREE.MeshBasicMaterial({ color: 0xff3344 }));
+            m.position.set(0.5, 1.55, 0.05); dg.add(m);
+        } else if (kind === 'marquee') {
+            var mw = d.w || 4;
+            var sign = new THREE.Mesh(new THREE.PlaneGeometry(mw, mw * 96 / 512),
+                new THREE.MeshBasicMaterial({ map: arcadeTex('text:' + (d.text || 'ARCADE')), side: THREE.DoubleSide }));
+            // Faces -z, back down the table to whoever is reading it.
+            sign.position.y = 2.6; sign.rotation.y = Math.PI; dg.add(sign);
+            for (i = -1; i <= 1; i += 2) {
+                m = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 2.6, 6), R.surf.decor.metalDark);
+                m.position.set(i * mw * 0.4, 1.3, -0.03); dg.add(m);
+            }
+        } else {
+            // A lamp in the baize: a round insert, or an arrow along +z.
+            var col = ARCADE_HUES[d.variant >> 1 & 3], shape;
+            if (d.variant & 1) {
+                shape = new THREE.Shape();
+                shape.moveTo(0, 0.26); shape.lineTo(0.17, -0.12); shape.lineTo(0, -0.04); shape.lineTo(-0.17, -0.12);
+                shape.closePath();
+                geo = new THREE.ShapeGeometry(shape);
+            } else {
+                geo = new THREE.CircleGeometry(0.13, 20);
+            }
+            var lampMat = new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.5, depthWrite: false });
+            m = new THREE.Mesh(geo, lampMat);
+            m.rotation.x = -Math.PI / 2;
+            if (d.variant & 1) m.rotation.z = Math.PI;      // +z after the lay-down
+            // Over the baize's blades rather than under them (SHELL_HEIGHT).
+            m.position.y = SHELL_HEIGHT.green + 0.01;
+            dg.add(m);
+            var lamps = R.lamps || (R.lamps = []);
+            lamps.push({ mesh: m, k: lamps.filter(function (l) { return !l.blink; }).length });
+        }
+    }
+
     // The floating decor, on the same clock as the waves and a little rougher
     // when the wind is up.
     function bobDecor(wind) {
@@ -3034,11 +3348,104 @@
         }
     }
 
+    /* A pop bumper and a rubber post, drawn as the round things they are
+       (physics.isPost) rather than as the box the solver used to meet.
+
+       A bumper is built the way a real one is, from the table up: a dark
+       base flush with the baize, a pale body, the chrome ring that is the part
+       that fires, and a coloured cap with a lamp in it. The caps take turns
+       through three colours down the list so a table of them reads as a
+       table of them, and each has a material of its own so it can light on
+       its own: `R.bumped` (called by the game off `events.bumped`) fires the
+       flash, a pool of light opens on the baize under it, and both fade over
+       a quarter of a second in `glowPosts`. Between hits the caps breathe a
+       little, out of step with each other — a pinball table is never dark.
+
+       A post is a chrome peg with a black rubber ring round it at the height
+       of the ball's middle, which is where the ball meets it. */
+    var POST_CAPS = [0xff4fa3, 0x3ee0ff, 0xffd23f];
+    function addPost(group, wall) {
+        // Measured from the ground it stands on: courses.bumper sinks the
+        // solid a tenth below the baize, so that is where the table is.
+        var r = wall.w / 2, base = 0, top = wall.h - 0.1;
+        var g = new THREE.Group(), mesh, k = (R.posts || (R.posts = [])).length;
+        g.position.set(wall.x + r, (wall.base || 0) + 0.1, wall.z + wall.d / 2);
+        function part(geo, mat, y) {
+            var m = new THREE.Mesh(geo, mat);
+            m.position.y = y;
+            m.castShadow = true;
+            m.receiveShadow = true;
+            g.add(m);
+            return m;
+        }
+        var chrome = R.surf.chrome || (R.surf.chrome = new THREE.MeshPhongMaterial({
+            color: 0xc9d2da, shininess: 140, specular: 0xffffff
+        }));
+        if (wall.kind === 'post') {
+            var rubber = R.surf.rubber || (R.surf.rubber = new THREE.MeshLambertMaterial({ color: 0x17151c }));
+            part(new THREE.CylinderGeometry(r * 0.42, r * 0.48, top - base, 14), chrome, base + (top - base) / 2);
+            mesh = part(new THREE.TorusGeometry(r * 0.74, r * 0.26, 8, 22), rubber, C.BALL_R);
+            mesh.rotation.x = Math.PI / 2;
+            part(new THREE.CylinderGeometry(r * 0.56, r * 0.5, 0.05, 14), chrome, top);
+            group.add(g);
+            return;
+        }
+        var colour = POST_CAPS[k % POST_CAPS.length];
+        var lamp = new THREE.MeshPhongMaterial({
+            color: new THREE.Color(colour).lerp(new THREE.Color(0xffffff), 0.35),
+            emissive: new THREE.Color(colour), emissiveIntensity: 0.5,
+            shininess: 90, specular: 0xffffff
+        });
+        var body = R.surf.postBody || (R.surf.postBody = new THREE.MeshPhongMaterial({
+            color: 0xf1ecf4, shininess: 60, specular: 0x8a8a8a
+        }));
+        part(new THREE.CylinderGeometry(r * 1.08, r * 1.14, 0.06, 24), R.surf.decor.metalDark, 0.03);
+        part(new THREE.CylinderGeometry(r * 0.86, r * 0.9, top - 0.14, 24), body, 0.06 + (top - 0.14) / 2);
+        mesh = part(new THREE.TorusGeometry(r * 0.92, 0.035, 8, 28), chrome, C.BALL_R);
+        mesh.rotation.x = Math.PI / 2;
+        part(new THREE.CylinderGeometry(r * 1.0, r * 0.94, 0.1, 24), lamp, top - 0.03);
+        part(new THREE.SphereGeometry(r * 0.62, 18, 8, 0, Math.PI * 2, 0, Math.PI / 2), lamp, top + 0.02);
+        var pool = new THREE.Mesh(new THREE.CircleGeometry(r * 2.3, 28), new THREE.MeshBasicMaterial({
+            color: colour, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false
+        }));
+        pool.rotation.x = -Math.PI / 2;
+        pool.position.y = 0.012;
+        g.add(pool);
+        group.add(g);
+        R.posts.push({ wall: wall, lamp: lamp, pool: pool, flash: 0, ph: k * 2.1 });
+    }
+
+    // The table answering a hit (game.js, off physics' events.bumped).
+    R.bumped = function (wall) {
+        for (var i = 0; i < (R.posts || []).length; i++) {
+            if (R.posts[i].wall === wall) { R.posts[i].flash = 1; return; }
+        }
+    };
+
+    function glowPosts(dt) {
+        var i, p, t = R.clock || 0;
+        for (i = 0; i < (R.posts || []).length; i++) {
+            p = R.posts[i];
+            p.flash = Math.max(0, p.flash - dt * 4);
+            p.lamp.emissiveIntensity = 0.45 + 0.15 * Math.sin(t * 1.7 + p.ph) + p.flash * 1.6;
+            p.pool.material.opacity = 0.08 + p.flash * 0.55;
+        }
+        /* The lamps chase: a wave runs down the list, each lit a beat after
+           the one before it, the way the inserts on a table point at a shot. */
+        for (i = 0; i < (R.lamps || []).length; i++) {
+            p = R.lamps[i];
+            if (p.blink) { p.mesh.visible = (t % 1.6) < 0.25; continue; }
+            p.mesh.material.opacity = 0.35 + 0.65 * Math.pow(Math.max(0, Math.cos(t * 3.2 - p.k * 0.9)), 6);
+        }
+    }
+
     function addWall(group, wall) {
         if (wall.kind === 'tree') { addTree(group, wall); return; }
         if (wall.kind === 'rock') { addRock(group, wall); return; }
+        if (P.isPost(wall)) { addPost(group, wall); return; }
         if (wall.sails) { addSails(group, wall); return; }
         var B = P.wallBox(wall, 0);
+        if (wall.swing && wall.kind === 'blade') { addFlipper(group, wall, B); return; }
         var geo = new THREE.BoxGeometry(wall.w, wall.h, wall.d);
         // One material per kind, shared by every wall wearing it (see
         // buildSurfaces) — a hole has up to twenty rails and one coat of paint.
@@ -3064,6 +3471,72 @@
                 group.add(post);
             }
         }
+    }
+
+    /* A flipper, drawn as a pinball flipper rather than as the box it is to
+       the solver: a bat that tapers from a round heel to a round tip, a white
+       body over a red rubber band at the height of the ball's middle, and a
+       chrome cap on the pin it turns about — the heel end for a hinged one
+       (courses.flipper `hinge`), the middle for one that is not. The outline
+       is the box's own length and, at the heel, its thickness; the tip is a
+       quarter narrower than the box, which is a few millimetres of lie at the
+       one end and the whole difference between a bat and a plank.
+
+       Built in the bat's own frame about its middle, so it rides R.movers
+       exactly as the box did (syncMovers puts the middle where wallBox says
+       and turns it to its yaw). */
+    function addFlipper(group, wall, B) {
+        var len = wall.w, t = wall.d, h = wall.h, sw = wall.swing;
+        var heel = sw.hinge ? (sw.reach > 0 ? -1 : 1) : -1;   // which end is the heel, in local x
+        function outline(grow) {
+            var r0 = t / 2 + grow, r1 = t * 0.375 + grow;
+            var x0 = heel * (len / 2 - t / 2), x1 = -heel * (len / 2 - t * 0.375);
+            var shape = new THREE.Shape(), k, a, n = 12;
+            // Round the heel, then the tip, joined by the two tangents.
+            for (k = 0; k <= n; k++) {
+                a = Math.PI / 2 + k / n * Math.PI;
+                if (heel > 0) a += Math.PI;
+                var px = x0 + Math.cos(a) * r0, pz = Math.sin(a) * r0;
+                if (k) shape.lineTo(px, pz); else shape.moveTo(px, pz);
+            }
+            for (k = 0; k <= n; k++) {
+                a = -Math.PI / 2 + k / n * Math.PI;
+                if (heel > 0) a += Math.PI;
+                shape.lineTo(x1 + Math.cos(a) * r1, Math.sin(a) * r1);
+            }
+            shape.closePath();
+            return shape;
+        }
+        function slab(shape, depth, y0, mat) {
+            var geo = new THREE.ExtrudeGeometry(shape, { depth: depth, bevelEnabled: false, curveSegments: 6 });
+            geo.rotateX(Math.PI / 2);              // shape's y → world z, extruded down
+            geo.translate(0, y0 + depth, 0);
+            var m = new THREE.Mesh(geo, mat);
+            m.castShadow = true;
+            m.receiveShadow = true;
+            return m;
+        }
+        var body = R.surf.flipperBody || (R.surf.flipperBody = new THREE.MeshPhongMaterial({
+            color: 0xf5f2f7, shininess: 70, specular: 0x9a9a9a
+        }));
+        var rubber = R.surf.flipperRubber || (R.surf.flipperRubber = new THREE.MeshLambertMaterial({ color: 0xd8283a }));
+        var bat = new THREE.Group();
+        // Centred on the box's middle in y, which is where syncMovers puts it.
+        bat.add(slab(outline(-0.02), h, -h / 2, body));
+        bat.add(slab(outline(0.015), 0.16, C.BALL_R - 0.08 - (B.base + h / 2) + (wall.base || 0) + 0.1, rubber));
+        bat.position.set(B.cx, B.base + h / 2, B.cz);
+        bat.rotation.y = B.yaw;
+        group.add(bat);
+        R.movers.push({ mesh: bat, wall: wall, h: h });
+
+        var px = sw.hinge ? sw.hinge.x : B.cx, pz = sw.hinge ? sw.hinge.z : B.cz;
+        var chrome = R.surf.chrome || (R.surf.chrome = new THREE.MeshPhongMaterial({
+            color: 0xc9d2da, shininess: 140, specular: 0xffffff
+        }));
+        var pin = new THREE.Mesh(new THREE.CylinderGeometry(t * 0.32, t * 0.36, h + 0.06, 16), chrome);
+        pin.position.set(px, B.base + (h + 0.06) / 2, pz);
+        pin.castShadow = true;
+        group.add(pin);
     }
 
     /* The kerb round a rounded corner (courses.cornerRails), drawn as the one
@@ -4291,6 +4764,8 @@
         R.shells = [];
         R.canopies = [];
         R.bobbers = [];
+        R.posts = [];
+        R.lamps = [];
 
         /* One set of surfaces per hole: the textures behind them are the
            theme's and are only redrawn when the theme changes (textures.js),
@@ -5378,6 +5853,7 @@
         swayShells(wind);
         swayTrees(wind);
         bobDecor(wind);
+        glowPosts(dt);
         if (G3.life) G3.life.update(dt, R.clock);
 
         var i;

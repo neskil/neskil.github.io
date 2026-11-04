@@ -404,6 +404,101 @@
                     'finished at x ' + back.ball.x.toFixed(2) + ', z ' + back.ball.z.toFixed(2));
             })();
 
+            /* A road (courses.road): ground laid along a centreline of
+               straights and arcs, so it is the outline that has to be right
+               and not the box. Inside by a hair at either edge is road and
+               outside by a hair is not, all the way along; the pieces meet
+               without a kink; a square end stops square and a round one
+               bulges; the kerbs are where they were asked for; and a banked
+               turn is high on the outside and level again where its span
+               says it stops. */
+            (function () {
+                var rd = A.road({ x: 0, z: 0, dir: 0, w: 2, y: 0.5 }, [
+                    ['line', 3, { kerb: 'in' }],
+                    ['arc', 4, Math.PI / 2, { kerb: 'both', bank: { a: 0.6, span: [0, 0.5] } }],
+                    ['line', 2]
+                ]);
+                var L = rd.lane, n = 120, k, at = [0, 0, 0, 0], out = 0, hair = 0.04;
+                for (k = 0; k <= n; k++) {
+                    P.lanePoint(L, L.length * k / n, at);
+                    if (!P.padContains(rd, at[0], at[1])) out++;
+                    if (!P.padContains(rd, at[0] + at[2] * (L.hw - hair), at[1] + at[3] * (L.hw - hair))) out++;
+                    if (!P.padContains(rd, at[0] - at[2] * (L.hw - hair), at[1] - at[3] * (L.hw - hair))) out++;
+                    if (P.padContains(rd, at[0] + at[2] * (L.hw + hair), at[1] + at[3] * (L.hw + hair))) out++;
+                    if (P.padContains(rd, at[0] - at[2] * (L.hw + hair), at[1] - at[3] * (L.hw + hair))) out++;
+                }
+                assert('a road is its width either side of its centreline, all the way along', !out,
+                    out + ' samples on the wrong side');
+                var turn = 0, prev = null, ol = P.laneOutline(L, 0.1), i, h0, h1;
+                for (k = 1; k < n; k++) {
+                    P.lanePoint(L, L.length * k / n, at);
+                    h1 = Math.atan2(-at[3], at[2]);
+                    if (prev !== null) {
+                        h0 = h1 - prev; h0 -= Math.round(h0 / (Math.PI * 2)) * Math.PI * 2;
+                        turn = Math.max(turn, Math.abs(h0));
+                    }
+                    prev = h1;
+                }
+                assert('…and bends without a kink', turn < 0.05, 'turns ' + turn.toFixed(3) + ' in one step');
+                P.lanePoint(L, L.length, at);
+                assert('…ends at the end of its last piece, heading where that piece left it',
+                    Math.abs(at[0] - 6) < 1e-9 && Math.abs(at[1] - 7) < 1e-9 && Math.abs(at[2]) < 1e-9,
+                    at.map(function (v) { return v.toFixed(3); }).join(', '));
+                assert('…and stops square across itself unless it has caps',
+                    !P.padContains(rd, 6.1, 7) && !P.padContains(rd, 0, -0.1) &&
+                    P.padContains(A.road({ x: 0, z: 0, dir: 0, w: 2, caps: true }, [['line', 3]]), 0, -0.9));
+                var inside = 0;
+                for (i = 0; i < ol.length; i++) {
+                    var q0 = ol[i], q1 = ol[(i + 1) % ol.length];
+                    inside += (q1[0] - q0[0]) * (q1[1] + q0[1]);
+                }
+                assert('its outline is walked anticlockwise, as every outline is', inside < 0);
+                var h = A.build({ name: 'Road Lab', par: 3, pads: [rd],
+                    tee: { x: 0, z: 1 }, cup: { x: 5.5, z: 7 } });
+                var bends = [], straight = 0;
+                h.walls.forEach(function (wl) {
+                    if (wl.bend && bends.indexOf(wl.bend) < 0) bends.push(wl.bend);
+                    else if (!wl.bend) straight++;
+                });
+                assert('a road is railed only where a piece asks: a kerb each side of the turn and one down the straight',
+                    bends.length === 2 && straight === 1 && bends.every(function (b) { return b.lane; }),
+                    bends.length + ' bends and ' + straight + ' straight rails');
+                // Inside the turn's banked half, by its outside and inside edge.
+                var ox = 4 - Math.cos(Math.PI / 8) * 4.9, oz = 3 + Math.sin(Math.PI / 8) * 4.9;
+                var ix = 4 - Math.cos(Math.PI / 8) * 3.1, iz = 3 + Math.sin(Math.PI / 8) * 3.1;
+                assert('a banked turn stands high on the outside and level on the inside',
+                    P.padHeight(rd, ox, oz) > 0.5 + 0.3 && Math.abs(P.padHeight(rd, ix, iz) - 0.5) < 0.05,
+                    P.padHeight(rd, ox, oz).toFixed(3) + ' outside, ' + P.padHeight(rd, ix, iz).toFixed(3) + ' inside');
+                assert('…and is level again by the end of the road its span stops short of',
+                    Math.abs(P.padHeight(rd, 5, 7.9) - 0.5) < 1e-9 && Math.abs(P.padHeight(rd, 5, 6.1) - 0.5) < 1e-9);
+
+                /* The Ledge is built round that banked turn, and what it
+                   promises is three weights doing three things (courses.js
+                   has the reasons): soft is safe and short, firm can be
+                   holed, too firm goes over the lip. Measured from the tee up
+                   the road, so a change to the bank, the kerb or the bag that
+                   quietly takes one of the three away fails here by name. */
+                var ledge = G3.courseById('quarry').holes.filter(function (x) { return x.name === 'The Ledge'; })[0];
+                var putter = C.ALL_CLUBS.filter(function (c) { return c.id === 'putter'; })[0];
+                var mallet = C.ALL_CLUBS.filter(function (c) { return c.id === 'mallet'; })[0];
+                var from = { x: ledge.tee.x, z: ledge.tee.z, y: ledge.tee.y + C.BALL_R };
+                var wet = '', holed = 0, over = 0, a, f, w2;
+                for (a = -6; a <= 18; a += 6) {
+                    for (f = 0.1; f <= 1 + 1e-9; f += 0.1) {
+                        w2 = shootFrom(ledge, from, a * Math.PI / 180, putter.power * f, 0, 0, 1 / 60);
+                        if ((w2.splash || w2.out) && !wet) wet = a + '° at ' + Math.round(f * 100) + '%';
+                    }
+                    for (f = 0.56; f <= 0.66 + 1e-9; f += 0.02) {
+                        if (shootFrom(ledge, from, a * Math.PI / 180, mallet.power * f, 0, 0, 1 / 60).sunk) holed++;
+                    }
+                    w2 = shootFrom(ledge, from, a * Math.PI / 180, mallet.power, 0, 0, 1 / 60);
+                    if (w2.splash || w2.out) over++;
+                }
+                assert('The Ledge: a putt up the road never goes over the edge, at any weight', !wet, wet);
+                assert('…the mallet at three fifths rides the bank round to the pin', holed > 0, holed + ' holed');
+                assert('…and the mallet flat out goes over the lip', over === 5, over + ' of 5 lines');
+            })();
+
             /* A rounded corner (courses.roundCorners) is three things that
                have to agree: the ground stops on the curve, an arc of rail
                stands on it, and the straight rails either side stop where
@@ -739,6 +834,27 @@
             assert('a ball rolling under a bridge still gets through',
                 under.ball.z > 12 && under.ball.y < 1,
                 'z ' + under.ball.z.toFixed(2) + ' y ' + under.ball.y.toFixed(2));
+
+            /* …and a pad that `stands` is not a bridge, though to the ceiling
+               rule it looked exactly like one (v1.126.0). The Shelf's cliff is
+               a disc of turf 1.4 over the island's beach, and the beach runs on
+               underneath it — so a putt at the face saw ground it could stand
+               on, rolled into the rock and stopped a unit inside it, and a low
+               iron flew in through one side. Both are this hole's own shots,
+               and both must come back off the face onto the beach. */
+            (function () {
+                var shelf = G3.courseById('keys').holes[1];
+                var rock = shelf.pads.filter(function (p) { return p.stands && p.rz === 25; })[0];
+                function buried(w) {
+                    return P.padContains(rock, w.ball.x, w.ball.z) && w.ball.y < rock.y;
+                }
+                var putt = shootFrom(shelf, { x: 17, z: 40 }, -Math.PI / 2, 20, 0);
+                var iron = shootFrom(shelf, { x: 19, z: 45 }, -Math.PI / 2, 12, 0.15);
+                assert('a ball rolled or flown into a cliff standing on a beach comes back off its face',
+                    !!rock && !buried(putt) && !buried(iron) && putt.ball.x > 13 && iron.ball.x > 13,
+                    'putt x ' + putt.ball.x.toFixed(2) + ' y ' + putt.ball.y.toFixed(2) +
+                    ', iron x ' + iron.ball.x.toFixed(2) + ' y ' + iron.ball.y.toFixed(2));
+            })();
 
             /* The band a riser used to leak through. Reading "inside the face"
                off the ball's crown rather than its centre leaves a radius of
@@ -1570,7 +1686,10 @@
                             Math.hypot(h.cup.x - k[1], h.cup.z - k[2]) < r + 1.25) near.push(k[0]);
                     });
                 });
-                h.walls.forEach(function (wl) { if (wl.bend && bendSet.indexOf(wl.bend) < 0) bendSet.push(wl.bend); });
+                // (A road's kerb round a turn is a bend too, and belongs to no corner.)
+                h.walls.forEach(function (wl) {
+                    if (wl.bend && !wl.bend.lane && bendSet.indexOf(wl.bend) < 0) bendSet.push(wl.bend);
+                });
                 assert(tag + ': no rounded corner takes ground from the tee or the cup', !near.length, near.join(' '));
                 assert(tag + ': every rounded corner has its rail', bendSet.length === corners,
                     bendSet.length + ' bends for ' + corners + ' corners');
@@ -2132,6 +2251,20 @@
                         if (d > worstSeam) { worstSeam = d; seamAt = entry.course.id + '/' + entry.hole.name; }
                     }
                     var x, z;
+                    /* A road's box is only its bounds, so a road is walked
+                       round its own outline instead (anticlockwise, so the
+                       outward normal of each chord is its direction turned a
+                       quarter to the right). */
+                    if (p.lane) {
+                        var ol = P.laneOutline(p.lane, 0.2), k2, q0, q1, ln;
+                        for (k2 = 0; k2 < ol.length; k2++) {
+                            q0 = ol[k2]; q1 = ol[(k2 + 1) % ol.length];
+                            ln = Math.hypot(q1[0] - q0[0], q1[1] - q0[1]) || 1;
+                            seam((q0[0] + q1[0]) / 2, (q0[1] + q1[1]) / 2,
+                                (q1[1] - q0[1]) / ln, -(q1[0] - q0[0]) / ln);
+                        }
+                        return;
+                    }
                     for (x = p.x; x <= p.x + p.w + 1e-9; x += 0.2) {
                         seam(Math.min(x, p.x + p.w), p.z, 0, -1);
                         seam(Math.min(x, p.x + p.w), p.z + p.d, 0, 1);
@@ -2289,7 +2422,8 @@
                finite coordinates, must not sit within the cup or tee clearing,
                and must never be solid walls. */
             var decorCount = 0, badDecor = '';
-            var VALID_DECOR = ['buoy', 'piling', 'bench', 'boat', 'rowboat', 'sailboat', 'bin', 'barrel', 'crate', 'palm', 'pine', 'sign', 'windmill'];
+            var VALID_DECOR = ['buoy', 'piling', 'bench', 'boat', 'rowboat', 'sailboat', 'bin', 'barrel', 'crate', 'palm', 'pine', 'sign', 'windmill',
+                               'skyline', 'cabinet', 'marquee', 'lamp', 'jukebox', 'claw', 'fruit'];
             ALL.forEach(function (entry) {
                 (entry.hole.decor || []).forEach(function (d) {
                     decorCount++;
@@ -2313,7 +2447,8 @@
             assert('there is decor to check', decorCount > 0, decorCount + ' decor props');
 
             // Authoring decor helpers & flexible argument handling
-            var helperKinds = ['buoy', 'piling', 'bench', 'boat', 'sailboat', 'bin', 'barrel', 'crate', 'palm', 'pine', 'sign', 'windmill'];
+            var helperKinds = ['buoy', 'piling', 'bench', 'boat', 'sailboat', 'bin', 'barrel', 'crate', 'palm', 'pine', 'sign', 'windmill',
+                               'skyline', 'cabinet', 'marquee', 'lamp', 'jukebox', 'claw', 'fruit'];
             var helpersOk = helperKinds.every(function (k) {
                 return typeof A[k] === 'function' && A[k](1, 2).kind === k;
             });

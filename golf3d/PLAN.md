@@ -20,11 +20,61 @@ version) when it ships. Measure a long-game hole with
 `node golf3d/tools/human-check.mjs <course>` as well as `par-check.mjs`: the
 perfect bot reads a hole's shape, the one with hands reads whether it is fair.
 
-Nothing open. "Deadline" (a nice biome, maps too simple, water on a table)
+Open — round two of the owner's notes, each in their own words and in the
+order they came in (the ones already shipped are under "Done", v1.126.0):
+
+7. **Wormholes** (every `pipe`) — "would be better with more effect, like a
+   black hole opens in the sky and lets the ball out instead of an instant
+   teleport. And the entry hole should be nicer — some shader maybe? Like the
+   cargo lander game's black hole shader" (`cargo-lander/render/shaders.js`).
+   Keep the exit's place and pace exactly (a short scripted ride from a sky
+   portal, like the loop's `world.ride`), so no hole has to be re-measured.
+8. **Orbit** (Apogee Yard) — "the black hole model is very ugly, please
+   improve. Perhaps the same shader as mentioned before." One shader for the
+   pipe mouth, the sky portal and the well.
+9. **The long game, upwards** — "in general nice when the long game maps have
+   some verticality. For the Grand Canyon inspired ones I'd like some really
+   high cliffs as part of the design." Redstone first (the canyon country),
+   then height wherever a long hole is flat for no reason.
+10. **The Backboard** (Quarry Ridge) — "a good concept that is lacking in
+    execution. Also don't like the X style corners sticking out. Please fix."
+    If the crossed corners are rails overrunning each other, that is every
+    fenced hole, not this one. In hand.
+12. **The autoplay caddie** — "bot gets stuck on Dead Weight" (Apogee Yard),
+    and "perhaps the bot needs some pathfinding algos as well to make a plan?
+    The auto play bot, that is." A greedy one-shot search is what stalls it: a
+    route that goes away from the cup first (a ramp, a pad, a pipe, the long
+    way round) never wins on distance. In hand. Two cases to keep as tests:
+    Caldera's old lip (at mallet 17 the caddie went off the tee on to the
+    lawn past the vent at about (4–6, 9.97) and putted a unit east and a unit
+    west along it until it ran out of strokes), and Bumper City's bank ace,
+    which the greedy search finds at fan 20 and 36 and misses at 12, 16, 24.
+13. **Pinball Parlour, as a course** — "could have nicer flippers and a bit more
+    fun design. The increasing complexity for every level kind of deal, and
+    vary props and decor." Shipped in part (v1.126.0): hinged flippers drawn
+    as flippers, the course in order of what each table adds, a different
+    room round every table. Still open: **The Flippers and The Slingshots have
+    no ace at all.** Every flipper layout tried on a flat table either sent the
+    only ace straight up the middle (the putt at the flag) or starved the top
+    of the table; a flipper hole probably wants the ball *fired* by a bat — a
+    swing profile that snaps and holds rather than a sine — and a pin where a
+    flicked ball goes.
+
+Still waiting: "Deadline" (a nice biome, maps too simple, water on a table)
 is waiting on the owner to say which course they meant.
 
 Done:
 
+- **Round two of the owner's notes, the first half** (v1.126.0). Bumper City
+  (a block of round pop bumpers round the pin, entered by a bank off a side
+  rail; 0.71%, the bot with hands 2.5), the mallet (17 → 20), Caldera (no box,
+  no lip past the vent, the tube is the ace; par 3), The Shelf (a cliff that
+  stands on a beach is rock — every `stands` pad, physics.surfaceUnder),
+  The Ledge (a banked curve, the `road` primitive; soft is safe, firm aces,
+  too firm is wet; par 3), Jackpot (a vault and a hole in the table; par 3),
+  and The Flippers' square post. Six holes the stronger mallet reopened to the
+  putt at the flag were closed again: Harbour Gate, The Salt Line, The
+  Draught, Pendulum, The Cold Room, Plunger Lane.
 - **Fewer courses, and the mini holes the lab flagged** (v1.122.0) — the
   owner's "some maps, specially mini golf, still need improvement, and we
   could reduce the number of maps and consolidate some of them". Eighteen
@@ -369,12 +419,16 @@ tee shows (Sea Legs' was).
    (`node golf3d/tools/hole-lab.mjs --coarse`), 38 of 78 at v1.120.0, and
    after v1.122.0's consolidation and rebuilds it is 22 of 54 (flukes 6 → 1,
    putts at the flag that drop 9 → 2), and none of them is a mini
-   par 3 — the mini ones left are three par 4s played in stages (The Ledge,
-   Under the Boardwalk, The Reach). The rest are crazy and adventure: Through
+   par 3 — the mini ones left are two par 4s played in stages (Under the
+   Boardwalk, The Reach). The Ledge was the third, and since v1.126.0 it is a
+   par 3 with an ace: a banked turn (`road`, README → the authoring
+   vocabulary) that a firm mallet rides round to the pin and a firmer one
+   goes over the top of. The rest are crazy and adventure: Through
    the Wall, The Sweeper, Grand Finale, five of Pinball Parlour's six, Three
-   Against Two, Change Ringing, The Weir, Full Flow, Through the Pipe, Caldera
-   (in stages on purpose) and five of Apogee Yard's six. On a timing hole the
-   sweep's four moments can miss a window, so read those with care.
+   Against Two, Change Ringing, The Weir, Full Flow, Through the Pipe and five
+   of Apogee Yard's six (Caldera, which was on this list, got its ace through
+   the tube in v1.126.0). On a timing hole the sweep's four moments can miss a
+   window, so read those with care.
 10. **The putt at the flag, on the two holes that still drop it** (README →
    "The hole lab"; v1.105.0 rebuilt twelve; v1.122.0 took Bounce Alley, The
    Gravitron, Fumarole, Headrace, Half Time and Rounds out with their courses

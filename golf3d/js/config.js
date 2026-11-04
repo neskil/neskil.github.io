@@ -8,7 +8,7 @@
    — the renderer scales to the viewport, the simulation never sees a pixel. */
 window.G3 = window.G3 || {};
 
-G3.VERSION = '1.125.0';
+G3.VERSION = '1.126.0';
 
 G3.CONFIG = {
     BALL_R: 0.16,
@@ -606,15 +606,19 @@ G3.CONFIG = {
        you may only putt down is a good hole and a putter is the wrong club for
        it: 10.5 of power runs about nine units, which is most of a mini golf
        lane and nowhere near a hole in one, so a putting hole played with the
-       putter is two safe taps and no decision in either of them. Seventeen
+       putter is two safe taps and no decision in either of them. Twenty
        runs the length of one, which turns the same hole into a single
        committed shot that is either in or fifteen units past — and that is the
        hole. It is not in the default bag because a flat club with that much
-       reach would quietly become the answer to half the course. */
+       reach would quietly become the answer to half the course.
+
+       It was seventeen (13.3 on a green) until v1.126.0, when the owner found
+       it short in the hand: a mallet is the club you reach for when a putter
+       will not get there, and it should not need the whole swing to do it. */
     EXTRA_CLUBS: [
         {
             id: 'mallet', name: 'Mallet', short: 'ML', key: '8',
-            loft: 0, power: 17, carry: 0, total: 13.3,
+            loft: 0, power: 20, carry: 0, total: 15.8,
             blurb: 'A putter with a hammer behind it. Rolls flat, and rolls a long way.'
         },
         /* The first club in the bag that is not a loft and a ceiling.
@@ -663,6 +667,14 @@ G3.CONFIG = {
     MINI_GROUPS: ['mini', 'crazy', 'adventure'],
 
     RESTITUTION: 0.62,    // horizontal speed kept after a rail bounce
+    /* A pop bumper (courses.bumper, physics.popBumper) is not a rail: it is
+       round, it gives back more than a rail does, and it fires. `give` is the
+       share of the speed it was struck at that comes back off it, and `kick`
+       is the least it sends the ball away at whatever it was struck at — a
+       ball that dribbles up to one is thrown off it at walking pace, which is
+       what the coil under a real one is for and the whole of why a pinball
+       table is not a lane with posts in it. */
+    BUMPER: { give: 0.8, kick: 1.8 },
     BOUNCE: 0.34,         // vertical speed kept after landing
     LAND_GRIP: 0.86,      // horizontal speed kept on each landing
     LAND_REST: 0.55,      // slower than this after a bounce and it settles

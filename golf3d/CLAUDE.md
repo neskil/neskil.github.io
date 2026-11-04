@@ -218,7 +218,8 @@ none, because it reads as coverage.
   wall wide enough to play out of is a ramp a drive bounces clean across the
   gorge off. See README → "The gorge".
 - **A pad's rectangle is not its outline any more.** `build` rounds a fenced
-  hole's outside corners (`pad.round`), so anything new that reasons about
+  hole's outside corners (`pad.round`), and a `road` (`pad.lane`) is a curve
+  whose box is only its bounds, so anything new that reasons about
   where a pad's ground is must ask `physics.padContains` rather than read
   `x`/`w`/`z`/`d`, and anything that draws a slab goes through `slabShape`.
   README → "Rounded corners".

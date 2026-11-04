@@ -182,6 +182,15 @@
             // sail that happens to be down at the start of the clock.
             B = wl.sails ? { cx: wl.x + wl.w / 2, cz: wl.z + wl.d / 2, hw: wl.w / 2, hd: wl.d / 2, yaw: 0 }
                 : P.wallBox(wl, 0);
+            // A bumper and a rubber post are round (physics.isPost), and the
+            // plan says so rather than drawing the box nobody plays.
+            if (P.isPost && P.isPost(wl)) {
+                g.fillStyle = wl.kind === 'post' ? '#e8e8ee' : '#f0409a';
+                g.beginPath();
+                g.arc(toX(B.cx), toY(B.cz), Math.max(1.4, B.hw * scale), 0, 6.283);
+                g.fill();
+                continue;
+            }
             if (wl.kind === 'tree') {
                 g.fillStyle = 'rgb(' + TREE.join(',') + ')';
                 g.beginPath();
