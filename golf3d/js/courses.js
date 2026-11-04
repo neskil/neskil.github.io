@@ -6359,7 +6359,7 @@
        grassy lip; past three units deep it is also a trap, because nothing in
        the bag climbs out of a lie at the foot of a wall.
 
-       So since v1.129.0 the course is built the other way up. The floor of
+       So since v1.130.0 the course is built the other way up. The floor of
        the canyon is the bottom of the world (`CANYON_FLOOR`, four units down,
        with the Colorado's thread of water in it), and every piece of ground
        that is played stands on its own walls out of it: a plateau, a rim, a

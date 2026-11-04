@@ -364,7 +364,7 @@
             grass: ['#7c9c4a', '#6f9042'],
             rail: 0xb08a63,
             /* Just under the canyon floor (courses.js, CANYON_FLOOR = -4),
-               which is where the country is: since v1.129.0 every piece of
+               which is where the country is: since v1.130.0 every piece of
                the course stands on its own walls out of that floor, so the
                surround is the floor carried on to the horizon rather than a
                desert plane the canyons are cut into. It used to sit at -1.1

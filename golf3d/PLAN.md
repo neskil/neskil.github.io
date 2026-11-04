@@ -26,7 +26,7 @@ order they came in (the ones already shipped are under "Done", v1.126.0):
 9. **The long game, upwards** — "in general nice when the long game maps have
    some verticality. For the Grand Canyon inspired ones I'd like some really
    high cliffs as part of the design." Redstone first (the canyon country),
-   then height wherever a long hole is flat for no reason. In hand (v1.129.0):
+   then height wherever a long hole is flat for no reason. In hand (v1.130.0):
    Redstone is built the other way up — every piece of ground stands on its
    own walls (`butte`, a `stands` + `sheer` disc) out of a canyon floor four
    units down that is out of play wherever it is (`pad.oob`, physics
