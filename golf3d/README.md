@@ -1657,7 +1657,9 @@ through the portal too.
 
 **A gravity well is the same black hole** (`addWells`): the disc on the ground
 reaching out to where the pull falls to a tenth of the hole's gravity
-(`wellReach`) so it says how far the bend goes, a horizon the size of the core
+(`wellReach`) so it says how far the bend goes — its feeding rings hold their
+light out to that edge and a faint violet line is drawn on it (`rim`), because
+from the tee the outer half of a plain disc was too faint to read — a horizon the size of the core
 that eats the ball, a black sphere standing in it that the near half of the disc
 passes in front of, and the glow and the lens round that. It replaced a black
 ball and two flat rings (the owner on Orbit: "very ugly").

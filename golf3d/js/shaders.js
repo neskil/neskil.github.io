@@ -701,7 +701,7 @@
     ].join('\n');
 
     var BLACKHOLE_FS = [
-        'uniform float time, open, hor, ring, feed, shade, gulp, spin, beam;',
+        'uniform float time, open, hor, ring, feed, shade, gulp, spin, beam, rim;',
         'uniform vec3 hot, cool;',
         'varying vec2 vP;',
 
@@ -740,7 +740,9 @@
         // smaller radius, so they close on the middle.
         '  float fc = fract(lr * 2.4 + time * 0.85);',
         '  float fr = smoothstep(0.6, 0.8, fc) * (1.0 - smoothstep(0.8, 1.0, fc));',
-        '  glow += fr * feed * pow(1.0 - r, 1.4) * smoothstep(hor, hor * 1.6, r);',
+        // With `rim` they hold their light out to the edge rather than
+        // fading with the disc, because on a well the edge is the news.
+        '  glow += fr * feed * mix(pow(1.0 - r, 1.4), 0.4, rim) * smoothstep(hor, hor * 1.6, r);',
         // The photon ring, the one hard edge.
         '  float ph = (r - hor * 1.05) / (0.02 + 0.01 * gulp);',
         '  glow += exp(-ph * ph) * (1.3 + gulp * 1.5);',
@@ -755,6 +757,10 @@
         '  float edge = 1.0 - smoothstep(0.78, 1.0, r);',
         '  float fade = smoothstep(0.0, 0.3, open);',
         '  vec3 rgb = col * glow * (1.0 - hole) * edge * fade;',
+        // A well's reach (render.js `wellReach`): a faint line where the
+        // pull falls to a tenth of g, outside the fade so it holds its own.
+        '  float rl = (r - 0.93) / 0.03;',
+        '  rgb += cool * rim * exp(-rl * rl) * (0.75 + 0.25 * sin(a * 6.0 - time * spin)) * fade;',
         '  float alpha = max(hole, shade * pow(1.0 - r, 1.3) * edge) * fade;',
         '  gl_FragColor = vec4(rgb, clamp(alpha, 0.0, 1.0));',
         '}'

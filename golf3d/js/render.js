@@ -2306,7 +2306,7 @@
             var top = P.surfaceTop(hole, w.x, w.z), y = top ? markY(top.pad, w.x, w.z) : MARK_LIFT;
             var reach = wellReach(hole, w);
             var disc = blackHole({ size: reach, hor: w.core / reach,
-                ring: Math.min(0.7, w.core * 1.9 / reach), feed: 2.4, shade: 0.95, beam: 0.35, gain: 1.3 });
+                ring: Math.min(0.7, w.core * 1.9 / reach), feed: 2.4, shade: 0.95, beam: 0.35, gain: 1.3, rim: 0.9 });
             disc.rotation.x = -Math.PI / 2;
             disc.position.set(w.x, y, w.z);
             group.add(disc);
@@ -2739,6 +2739,7 @@
                 gulp: { value: 0 },
                 spin: { value: o.spin || 1 },
                 beam: { value: o.beam || 0 },
+                rim: { value: o.rim || 0 },
                 hot: { value: lin(o.hot || BH_HOT).multiplyScalar(o.gain || 1) },
                 cool: { value: lin(o.cool || BH_COOL).multiplyScalar(o.gain || 1) }
             },
