@@ -2241,7 +2241,7 @@ built **the other way up**:
   material by *world* height, so one bed runs level across every face on the
   hole. Finer bedding inside each bed and a faint vertical streak keep it from
   reading as stripes.
-- **The walls are weathered** (v1.13x.0). An extruded disc is a drum, and a
+- **The walls are weathered** (v1.133.0). An extruded disc is a drum, and a
   butte drawn as one read as a stack of tins whatever its beds were. A `butte`
   is marked `weathered`, and `render.weatherWall` draws its wall in rings and
   pulls each ring *in* from the outline — buttresses, and deep gullies where

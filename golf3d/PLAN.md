@@ -39,7 +39,7 @@ order they came in (the ones already shipped are under "Done", v1.126.0):
    at the foot of each) and Redstone (round a temple fourteen high, over the
    canyon to a green on a mesa) followed in v1.131.0. The bot with hands went
    from 7.7 under par to about one under over the six, every hole within a
-   stroke of its par. Then (v1.13x.0) the walls were weathered into
+   stroke of its par. Then (v1.133.0) the walls were weathered into
    buttresses and gullies, the temples given one summit instead of three
    drums, scree laid at the feet, and the floor's edge let down into the
    country. Still open: height on the other long courses where a hole is flat
