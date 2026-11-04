@@ -821,7 +821,11 @@
     function markOutOfBounds(world, events) {
         var b = world.ball;
         if (world.sunk || world.splash || world.out) return;
-        if (!outOfBounds(world.hole, b.x, b.z)) return;
+        /* …or on ground that is out wherever it is: a pad marked `oob` (the
+           floor of Redstone's canyon, far below everything that is played) is
+           somewhere a ball can be seen to land and may never be played from. */
+        var lie = surfaceUnder(world.hole, b.x, b.z, b.y + C.STEP_UP);
+        if (!outOfBounds(world.hole, b.x, b.z) && !(lie && lie.pad.oob)) return;
         world.out = true;
         events.out = true;
     }

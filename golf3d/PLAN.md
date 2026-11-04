@@ -26,7 +26,16 @@ order they came in (the ones already shipped are under "Done", v1.126.0):
 9. **The long game, upwards** — "in general nice when the long game maps have
    some verticality. For the Grand Canyon inspired ones I'd like some really
    high cliffs as part of the design." Redstone first (the canyon country),
-   then height wherever a long hole is flat for no reason.
+   then height wherever a long hole is flat for no reason. In hand (v1.129.0):
+   Redstone is built the other way up — every piece of ground stands on its
+   own walls (`butte`, a `stands` + `sheer` disc) out of a canyon floor four
+   units down that is out of play wherever it is (`pad.oob`, physics
+   `markOutOfBounds`), with the river in it, stepped temples round it and the
+   walls banded by height (`theme.strata`, render `strataOn`). First Cut (a
+   six-unit wall across the drive), The Rim (a ledge between the drop and a
+   band of rock, the green out on a point) and Stone Bridge (off a rim seven
+   up to a mesa, or round by the arch) are done; Long Way Round, Switchback
+   and Redstone are next.
 13. **Pinball Parlour, as a course** — "could have nicer flippers and a bit more
     fun design. The increasing complexity for every level kind of deal, and
     vary props and decor." Shipped in part (v1.126.0): hinged flippers drawn

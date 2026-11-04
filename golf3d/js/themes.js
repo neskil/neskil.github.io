@@ -363,15 +363,30 @@
             sun: 0xffd9a2, sunPos: [-14, 9, 8], ambient: 0xc9a582, ambientI: 0.55,
             grass: ['#7c9c4a', '#6f9042'],
             rail: 0xb08a63,
-            /* Below the canyon floors (about -2), not above them. At -1.1 the
-               desert plane cut straight through every canyon on the course:
-               each read as a tan box a unit deep, and a ball lying on a floor,
-               or a pool laid on one, could not be seen at all. */
-            surroundY: -2.7, surround: 'rock', ground: '#8d4f34',
+            /* Just under the canyon floor (courses.js, CANYON_FLOOR = -4),
+               which is where the country is: since v1.129.0 every piece of
+               the course stands on its own walls out of that floor, so the
+               surround is the floor carried on to the horizon rather than a
+               desert plane the canyons are cut into. It used to sit at -1.1
+               and then -2.7, and each time it cut through the bottom of
+               something. */
+            surroundY: -4.6, surround: 'rock', ground: '#8d4f34',
             relief: 3.9,
             ridge: { colour: '#7d3f2b', cap: '#d9955c', peak: 12, rough: 0.52 },
             water: 0x2f7f9a,
-            side: '#a85c39'
+            side: '#a85c39',
+            /* The beds, bottom up, as the Grand Canyon has them and at the
+               heights the course is built to (render.strataOn): dark schist
+               at the river, the brown Tapeats and the grey-green shale over
+               it, the Redwall from the canyon floor's shoulder to the
+               plateaus the fairways are on, red Supai and Hermit beds up the
+               rims, the pale Coconino band near the top, and the buff
+               Kaibab capping the tallest buttes. */
+            strata: [
+                [-99, '#4b3b37'], [-3.3, '#7a5337'], [-2.3, '#86795b'], [-1.1, '#927461'],
+                [-0.2, '#a9553a'], [1.6, '#b3603e'], [2.4, '#a24d33'], [4.2, '#b8683f'],
+                [5.4, '#8f402b'], [6.8, '#d9c49b'], [8.0, '#b7946a'], [9.2, '#cfb68e']
+            ]
         },
         /* The yard where the ball weighs a different amount on every hole, and
            the palette has one job: to make that look like a reason rather than

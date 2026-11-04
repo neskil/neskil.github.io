@@ -494,6 +494,51 @@
             shader.fragmentShader.replace('#include <alphatest_fragment>', SH.TURF_FS_BODY);
     }
 
+    /* Strata: the cut earth banded by height, for a theme that names its beds
+       (`theme.strata`, the canyon's). A canyon wall is the one face on the
+       card that is the whole picture, and one flat colour on it read as a
+       wall painted red; the eye knows the Grand Canyon by its beds running
+       level across every butte. So the colour is a function of *world*
+       height, not of the face — the same bed comes out at the same level on
+       every cliff on the hole, which is exactly what makes it read as rock
+       laid down rather than paint put on. Each stop is [y, colour], the
+       colour from that height up; the boundaries wander a little with x and
+       z, every bed carries finer bedding inside it, and a faint vertical
+       streak (the desert varnish a wall wears) breaks the bands up. The
+       colours are baked into the source — one program, keyed by the palette
+       and how wet it is — so there is no uniform to keep in step. */
+    function strataOn(mat, stops, damp) {
+        function f(n) { return n.toFixed(4); }
+        function col(hex) {
+            var c = new THREE.Color(hex).multiplyScalar(damp);
+            return 'vec3(' + f(c.r) + ', ' + f(c.g) + ', ' + f(c.b) + ')';
+        }
+        var src = [
+            'varying vec3 vStrata;',
+            'vec3 strataAt(vec3 p) {',
+            '    float h = p.y + 0.22 * sin(p.x * 0.21 + p.z * 0.09) + 0.16 * sin(p.z * 0.33 - p.x * 0.12);',
+            '    vec3 c = ' + col(stops[0][1]) + ';'
+        ], i;
+        for (i = 1; i < stops.length; i++) {
+            src.push('    c = mix(c, ' + col(stops[i][1]) + ', smoothstep(' +
+                f(stops[i][0] - 0.12) + ', ' + f(stops[i][0] + 0.12) + ', h));');
+        }
+        src.push(
+            '    float bed = 0.95 + 0.05 * sin(h * 7.0 + sin(p.x * 0.6 + p.z * 0.4) * 1.4);',
+            '    float streak = 0.93 + 0.07 * sin(p.x * 2.7 + p.z * 1.9 + sin(p.x * 0.5 - p.z * 0.7) * 2.0);',
+            '    return c * bed * streak;',
+            '}', '');
+        var key = 'strata:' + damp.toFixed(3) + ':' + JSON.stringify(stops);
+        mat.onBeforeCompile = function (sh) {
+            sh.vertexShader = 'varying vec3 vStrata;\n' + sh.vertexShader.replace('#include <project_vertex>',
+                '#include <project_vertex>\n    vStrata = (modelMatrix * vec4(transformed, 1.0)).xyz;');
+            sh.fragmentShader = src.join('\n') + sh.fragmentShader.replace('#include <color_fragment>',
+                '#include <color_fragment>\n    diffuseColor.rgb = strataAt(vStrata);');
+        };
+        mat.customProgramCacheKey = function () { return key; };
+        return mat;
+    }
+
     function buildSurfaces(theme) {
         var wet = R.weather ? (R.weather.wet || 0) : 0;
         var tex = TX.surfaces(theme);
@@ -517,6 +562,7 @@
             color: new THREE.Color(theme.side).multiplyScalar(1 - wet * 0.20),
             side: THREE.DoubleSide
         });
+        if (theme.strata) strataOn(side, theme.strata, 1 - wet * 0.20);
 
         function tops(map, shine, dry, soaked) {
             return new THREE.MeshPhongMaterial({
@@ -1916,7 +1962,13 @@
             : pad.lane
                 ? laneTerrainGeometry(pad, res, cx, cy, cz, cover, false)
                 : terrainGeometry(pad, res, cx, cy, cz, cut, cover.concat(holes), holes.length > 0);
-        worldUv(geo, TX.SCALE[pad.kind] || TX.SCALE.green, cx, cz);
+        /* Ground that is out of play wherever it is (courses `oob`, the floor
+           of Redstone's canyon) is the country rather than the course: the
+           surround's own rock, tiled the way the surround is, with nothing
+           growing on it — so the floor between the buttes carries straight
+           on into the plain past the stakes instead of reading as a lawn. */
+        worldUv(geo, pad.oob ? SUR_TILE : (TX.SCALE[pad.kind] || TX.SCALE.green), cx, cz);
+        if (pad.oob) mat = groundMaterial(theme);
         if (holes.length) addVoidRims(group, pad);
         if (pad.hue) { tintRainbow(geo, pad, cx, cy, cz, RAINBOW_GLASS); mat = rainbowGlass(); }
         var rockGeo = pad.rock && !pad.r ? splitSteep(geo) : null;
@@ -1955,7 +2007,7 @@
             grassOn = terrainGeometry(pad, res, cx, cy, cz, cut, cover, true);
             if (rockGeo) splitSteep(grassOn);
         }
-        addShells(group, pad, cup, false, cx, cy, cz, grassOn);
+        if (!pad.oob) addShells(group, pad, cup, false, cx, cy, cz, grassOn);
 
         // …and the cup's patch, which is a second flat surface stitched into
         // the hole left in the grid, with its own mat of grass over it.
@@ -2492,13 +2544,20 @@
         }
         // The tiling rides on the pad rather than on the texture, which is
         // what lets every pad of a kind share one material (buildSurfaces).
-        worldUv(geo, TX.SCALE[pad.kind] || TX.SCALE.green, cx, cz);
-        var mesh = new THREE.Mesh(geo,
-            padMaterial(pad.kind, pad.inlay && !pad.stands ? 'inlay' : (holed || pad.stands ? 'slab' : 'box')));
+        worldUv(geo, pad.oob ? SUR_TILE : (TX.SCALE[pad.kind] || TX.SCALE.green), cx, cz);
+        var look = padMaterial(pad.kind, pad.inlay && !pad.stands ? 'inlay' : (holed || pad.stands ? 'slab' : 'box'));
+        // Out of play is bare rock, as it is in addTerrain: a ledge under a
+        // rim or the top of a butte nobody can reach wears no grass.
+        if (pad.oob) {
+            var bare = groundMaterial(theme);
+            look = look.map(function (m) { return m === R.surf.side ? m : bare; });
+        }
+        var mesh = new THREE.Mesh(geo, look);
         mesh.position.set(cx, cy - thick / 2 + (pad.r ? INLAY_LIFT : 0), cz);
         mesh.receiveShadow = true;
         mesh.castShadow = true;
         group.add(mesh);
+        if (pad.oob) return;
 
         // …and the grass standing on it, if it is the sort of pad that grows.
         addShells(group, pad, cup, holed, cx, cy, cz, null,
