@@ -1824,6 +1824,10 @@
         // A function surface has no smallest hump to read a scale off, and its
         // waves are a few units long: a fixed fine grid, at the floor.
         if (pad.field) return TERRAIN_MIN;
+        /* Or the pad says. A bank three units across is drawn on a unit grid
+           by the rule below, and a curve that is the whole point of the hole
+           comes out in facets (The Backboard, `res: 0.45`). */
+        if (pad.res) return Math.max(TERRAIN_MIN, pad.res);
         var b = pad.bumps, i, least = Infinity;
         for (i = 0; i < (b || []).length; i++) least = Math.min(least, b[i].r);
         if (!isFinite(least)) return TERRAIN_RES;
@@ -3539,8 +3543,9 @@
         group.add(pin);
     }
 
-    /* The kerb round a rounded corner (courses.cornerRails), drawn as the one
-       curve it is rather than as the chords the solver meets. A band of rail
+    /* The kerb round a rounded corner (courses.cornerRails), or a curved wall
+       that asked to be drawn (`arc`'s `drawn`, in `b.kind`'s material), drawn
+       as the one curve it is rather than as the chords the solver meets. A band of rail
        swept round the corner's centre, extruded up — and then its two curved
        faces given the radial normal they would have on a true cylinder, since
        an extrusion is shaded a facet at a time and a lit fan of facets is the
@@ -3570,11 +3575,25 @@
             else if (d < -0.7) nrm.setXYZ(i, -x / l, 0, -z / l);
         }
         nrm.needsUpdate = true;
-        var mesh = new THREE.Mesh(geo, R.surf.walls.rail);
+        var mat = R.surf.walls[b.kind] || R.surf.walls.rail;
+        var mesh = new THREE.Mesh(geo, mat);
         mesh.position.set(b.cx, b.base, b.cz);
         mesh.castShadow = true;
         mesh.receiveShadow = true;
         group.add(mesh);
+        /* An end that stops in the open (`cap0`/`cap1`: a kerb broken by a
+           gap, or a wall standing on its own) is finished round rather than
+           cut off square. The cap's far side is where the chord under it
+           ends — `arc` runs each chord half a thickness past its own end —
+           so what is drawn is what the ball meets, near enough. */
+        [[b.cap0, b.a0], [b.cap1, b.a1]].forEach(function (e) {
+            if (!e[0]) return;
+            var cap = new THREE.Mesh(new THREE.CylinderGeometry(b.t / 2, b.t / 2, b.h, 16), mat);
+            cap.position.set(b.cx + Math.cos(e[1]) * b.R, b.base + b.h / 2, b.cz + Math.sin(e[1]) * b.R);
+            cap.castShadow = true;
+            cap.receiveShadow = true;
+            group.add(cap);
+        });
     }
 
     /* A windmill's sails (courses.mill), and the cap they turn on.

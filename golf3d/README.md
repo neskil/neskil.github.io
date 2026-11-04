@@ -1227,12 +1227,31 @@ near end by the pin is short and over the far end is safe. **Crown** runs a
 ramp up to a shoulder that stops short of the summit, and the last step up is
 yours to fly. The other three keep a flat answer on purpose, because a course
 where every shot is the same shot is not varied, it is uniform: **The
-Backboard** bricks up the front door and puts a curved bank — a `channel` half
-round the back of the cup — that hands a ball sent past either end of the wall
-back towards the pin; **Two Roads** is a long low road up the west under a beam
+Backboard** bricks up the front door and puts a curved bank round the back of
+the cup that hands a ball sent past the end of the wall back to the pin (rebuilt
+in v1.127.0, below); **Two Roads** is a long low road up the west under a beam
 or a high shelf up the east you chip onto, with a burn between them; and **The
 Gorge** is narrow on the left and wide on the right, under the pin, so you can
 carry the narrow side and putt across or fly the whole width at the flag.
+
+**The Backboard** (Quarry Ridge's first hole) was rebuilt in v1.127.0 on the
+owner's "a good concept that is lacking in execution", and with nothing square
+left in it. It is one rounded table rather than a tee box butted into a green,
+so there is no join to have a corner in: the near corners are rounded and the
+far end is a half circle. The door is a crescent of brick round the front of
+the cup, finished round at both ends, which closes every putt at the flag. The
+backboard is the half circle: the green rises from a unit and a half out from
+the cup to six tenths at the edge on a ring centred on the cup, so whatever
+slows to a stop on it rolls back down at the pin, and a stone board stands
+round its far side. From the north-east round to the east there is no board and
+down the whole east side no rail — the quarry edge. So the near end of the door
+is the bold way, up the edge side and firm enough to climb the bank, and too
+firm goes over the lip for a stroke; the far end is the safe way, round the
+walled side and soft, where the bank stops short and leaves a putt back round
+the door. The bank used to run the whole half circle, and the far end was a
+free ace off the west rail. Full sweep: 0.075% in three thin windows before,
+0.350% (tutorial) after, the widest window one weight for every line from
+straight up the table at 88% of the mallet to twenty-six degrees out at half.
 
 Until v1.82.0 fourteen of those eighteen holes were a lane pointed straight at
 the flag with one thing across it, three of Tidewater's were seven units long
@@ -2640,6 +2659,32 @@ from beside each corner, and counts any that leave the hole and would not have
 left the same lane with square corners; with `cornerRails` taken out it
 counts fifty. It also holds every real hole to a rail per rounded corner and
 no curve within reach of a tee or a cup.
+
+**Inside corners meet clean** (v1.127.0). `railFor` runs each straight rail a
+thickness past both ends of its run, which is how an *outside* corner seals: the
+two rails' ends fill the square between them. At an *inside* corner — a
+five-wide tee box into an eight-wide green, a dogleg's elbow — the rail across
+the corner already fills that square, so the overrun was a 0.3 stub of rail
+standing on the next pad's floor, and the two stubs crossed in an X: the
+owner's "X style corners sticking out", fifty-three stubs on thirteen fenced
+holes. A run now overruns an end only where the floor does not carry on past it
+(`floorPast`), so a collinear join and an outside corner overlap as before and
+an inside corner is a plain L. One hole leaned on a stub without meaning to:
+Two Ramps had two narrowing each ramp's mouth, and with them gone the putt at
+the flag went up the steep ramp and dropped, so its pin is three tenths east
+(0.122% of the coarse sweep is still an ace, off the mallet).
+
+Two more things a curve can do, both for a hole that writes its own
+`pad.round` (`roundCorners` never rounds near a gap): **a `gaps` rectangle
+opens a curve** the way it opens a straight edge, leaving the kerb in pieces
+with their open ends drawn round (`cap0`/`cap1` on the bend) — The Backboard's
+lip; and **`arc(…, { drawn: kind })`** carries a bend of its own, so a curved
+wall standing anywhere is drawn as the one smooth piece `addBend` draws a kerb
+as, in that wall kind's material and finished round at both ends — its brick
+door and stone board. The editor drops a drawn arc on import, as it drops
+every chord; it is the price of curves the editor cannot draw. A contoured pad
+may also name its terrain grid (`pad.res`) when the rule off its smallest hump
+would draw a broad curve in facets.
 
 ### Relief on a drawn hole
 

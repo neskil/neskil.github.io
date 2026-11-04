@@ -36,10 +36,6 @@ order they came in (the ones already shipped are under "Done", v1.126.0):
    some verticality. For the Grand Canyon inspired ones I'd like some really
    high cliffs as part of the design." Redstone first (the canyon country),
    then height wherever a long hole is flat for no reason.
-10. **The Backboard** (Quarry Ridge) — "a good concept that is lacking in
-    execution. Also don't like the X style corners sticking out. Please fix."
-    If the crossed corners are rails overrunning each other, that is every
-    fenced hole, not this one. In hand.
 12. **The autoplay caddie** — "bot gets stuck on Dead Weight" (Apogee Yard),
     and "perhaps the bot needs some pathfinding algos as well to make a plan?
     The auto play bot, that is." A greedy one-shot search is what stalls it: a
@@ -65,6 +61,17 @@ is waiting on the owner to say which course they meant.
 
 Done:
 
+- **The Backboard and the crossed corners** (v1.127.0) — "a good concept that
+  is lacking in execution. Also don't like the X style corners sticking out."
+  The X was general: `railFor` ran every rail a thickness past both ends, and
+  at an inside corner that is a stub on the neighbour's floor — 53 of them on
+  13 holes. A rail end now stops where the floor carries on (`floorPast`). The
+  hole is one rounded table, a curved brick door in front of the pin, a banked
+  half circle behind it under a curved stone board, and a lip over the quarry
+  edge for the firm one that runs past (0.35%, tutorial; the putt at the flag
+  never drops). Two Ramps' pin moved 0.3 east: its ramp mouths had been
+  narrowed by stubs, and without them the putt at the flag ran up the steep
+  ramp and in.
 - **Round two of the owner's notes, the first half** (v1.126.0). Bumper City
   (a block of round pop bumpers round the pin, entered by a bank off a side
   rail; 0.71%, the bot with hands 2.5), the mallet (17 → 20), Caldera (no box,
