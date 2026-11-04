@@ -66,9 +66,9 @@ Done:
   gone while the portal opens, dropped out of it — about 1.2 s — and released
   at exactly the exit's place, pace and heading, so the lab's numbers held
   (Caldera 0.208 → 0.206%, Jackpot 0.433 → 0.436%). Lensing in postfx behind
-  the portal and the well's core. Still to look at: the ride on Jackpot and
-  Caldera, a replay through a pipe, and the well's outer reach, which is faint
-  from the tee.
+  the portal and the well's core. Looked at since: the ride on Jackpot and
+  Caldera and a replay through a pipe. The well marks its reach (v1.132.0):
+  a faint violet line where the pull falls to a tenth of the hole's gravity.
 - **The autoplay caddie plans a route** (v1.128.0) — "bot gets stuck on Dead
   Weight" and "perhaps the bot needs some pathfinding algos as well to make a
   plan?" `G3.bot.Planner`: rests are nodes, shots are edges, A* to the cup on
