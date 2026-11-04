@@ -2361,7 +2361,7 @@
                and must never be solid walls. */
             var decorCount = 0, badDecor = '';
             var VALID_DECOR = ['buoy', 'piling', 'bench', 'boat', 'rowboat', 'sailboat', 'bin', 'barrel', 'crate', 'palm', 'pine', 'sign', 'windmill',
-                               'skyline', 'cabinet', 'marquee', 'lamp'];
+                               'skyline', 'cabinet', 'marquee', 'lamp', 'jukebox', 'claw', 'fruit'];
             ALL.forEach(function (entry) {
                 (entry.hole.decor || []).forEach(function (d) {
                     decorCount++;
@@ -2386,7 +2386,7 @@
 
             // Authoring decor helpers & flexible argument handling
             var helperKinds = ['buoy', 'piling', 'bench', 'boat', 'sailboat', 'bin', 'barrel', 'crate', 'palm', 'pine', 'sign', 'windmill',
-                               'skyline', 'cabinet', 'marquee', 'lamp'];
+                               'skyline', 'cabinet', 'marquee', 'lamp', 'jukebox', 'claw', 'fruit'];
             var helpersOk = helperKinds.every(function (k) {
                 return typeof A[k] === 'function' && A[k](1, 2).kind === k;
             });

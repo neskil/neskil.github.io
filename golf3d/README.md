@@ -1034,7 +1034,7 @@ approach.
 | Quarry Ridge | mini | `quarry` | Height, both ways: ground that is missing and ground that is in the way. A curved backboard behind a bricked-up door, a drop off a pillar with a stair down its side, a quarter-pipe that turns what climbs it, a slanted wall only the chipper goes over, a road banked round a bend over the pool, and a cannon with a plank beside it. The best six of the old Quarry Ridge and Highland Steps (v1.122.0). |
 | Tidewater Reach | mini | `lagoon` | The loft course. Almost nothing here can be reached along the floor, and every carry has a safe target and a short one. |
 | Windmill Works | crazy | `works` | Gates, blades and a windmill, after dark. Timing — and a slower way round on the holes that would otherwise be one shot: sand past First Gear's gate, a lay-by off The Sweeper's floor, a back gate round Turnstile's fence. |
-| Pinball Parlour | crazy | `arcade` | A table, not a course: bumpers, a plunger chute and two banks set across the throat. The posts *are* the route — and on Bumper City, a dome-topped table, the shot is up a side lane and off a kicker at the pin. |
+| Pinball Parlour | crazy | `arcade` | A table, not a course, and a room round every table. Round pop bumpers that fire and rubber posts that do not, a plunger chute, slingshots, ramps, hinged flippers and a hole in the table — one more piece on each hole than the last. Bumper City is a block of bumpers you bank into; Jackpot is a vault you get into through the floor. |
 | Clockwork Court | crazy | `clockwork` | The moment. One bar over a plank, two bells round a corner, two doors with a different clock behind each, a weir and a two-road mill race where a mistimed shot is a stroke, and a clock lane with two weights to finish. The best six of the old Clockwork Court, The Belfry and The Millrace (v1.122.0). |
 | Icehouse Yard | adventure | `icehouse` | Nothing stops. A putter runs eight and a half units on grass and thirty-two on ice. |
 | Cinder Cone | adventure | `volcano` | Machinery on a mountainside: a launch pad over a wall, a belt running back at you, a pipe under the lake, a loop-the-loop, a vent in the floor of a hollow, and Caldera, which asks for all of it. The best six of the old Helter Skelter and Cinder Cone (v1.122.0). |
@@ -1243,7 +1243,23 @@ of aim each and a bank right there to throw a near miss across the table, or
 round the outside, which is wider and twice as long and lands you in the pair of
 posts guarding the pin. **The Flippers** uses the same furniture the other way
 up: a V that funnels everything into a window a metre wide, with the two bats on
-the far side of it.
+the far side of it — hinged at the rail end since v1.123.0, the way a real
+flipper is (`flipper` with `hinge`, physics.wallBox).
+
+**The posts went round in v1.123.0**, and three of every four started firing.
+`bumper` is a pop bumper now (`physics.popBumper`): a circle rather than a box,
+that hands the ball back at `CONFIG.BUMPER.give` of the speed it arrived with or
+at `kick`, whichever is more — so a ball that reaches one at all leaves it at a
+pace of its own, and it lights and rings as it does (`render.bumped`,
+`audio.pop`). `post` is the same circle with no coil, a rubber ring that gives
+back a rail's share, and it is what stands in front of the bumpers: a kick on
+the line from the tee made every glancing putt an ace at any weight. The course
+runs in order of what it adds — Plunger Lane (bumpers), The Slingshots (banks
+and posts), Bumper City (both, and a bank shot into a block of them), Two Ramps
+(height), The Flippers (bats that move) and Jackpot (a pipe, a vault and all of
+it) — and every table stands in a room of its own: cabinets, claw machines,
+jukeboxes, fruit machines, a skyline behind Bumper City, and the hole's name in
+neon over the far end (`courses.arcadeRoom`).
 
 The Millrace asks a fourth question, and it is not about the machine at all —
 it is about the price of getting it wrong. Every obstacle on the other three
@@ -1305,10 +1321,10 @@ when it would have no size, so one function writes all of these:
 
 The window is the only obstacle in the game a rolling ball cannot pass and a
 lofted one can — the exact inverse of `beam`, which is the only one the other
-way round. **Jackpot** puts a doorway and a window in the same wall so the two
-routes are two different shots to the same place, and adds a pipe mouth behind
-the left-hand post so the luckiest line on the hole is a bad one, which is also
-true of pinball.
+way round. **Jackpot** put a doorway and a window in the same wall until
+v1.123.0, when it became a curved vault round the pin, open at the back, with a
+pipe mouth low on the left that comes out over the pin from the top of the dome
+— a hole in the table, which is the most pinball thing there is.
 
 A doorway always gets a lintel, and that is not decoration. Without one it is
 two blocks with a gap between them — which is what the older holes wrote by

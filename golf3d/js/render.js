@@ -3079,7 +3079,8 @@
             }
             dg.rotation.z += 0.02;
             dg.rotation.x -= 0.01;
-        } else if (kind === 'skyline' || kind === 'cabinet' || kind === 'marquee' || kind === 'lamp') {
+        } else if (kind === 'skyline' || kind === 'cabinet' || kind === 'marquee' || kind === 'lamp' ||
+                   kind === 'jukebox' || kind === 'claw' || kind === 'fruit') {
             addArcadeProp(dg, d, kind);
         } else if (PROP_SCALE[kind]) {
             // Land props from the CC0 kits: barrel, crate, palm, pine, sign, windmill.
@@ -3144,6 +3145,15 @@
             g2.fillStyle = gr; g2.fillRect(0, 0, 64, 64);
             g2.fillStyle = '#ff4fa3'; g2.fillRect(8, 40, 48, 3);
             for (i = 0; i < 6; i++) { g2.fillStyle = i % 2 ? '#3ee0ff' : '#ffd23f'; g2.fillRect(10 + i * 8, 14 + (i % 3) * 6, 5, 5); }
+        } else if (name === 'reels') {
+            cv.width = 192; cv.height = 64;
+            g2 = cv.getContext('2d');
+            for (i = 0; i < 3; i++) {
+                g2.fillStyle = '#fbf6ea'; g2.fillRect(i * 64 + 4, 2, 56, 60);
+                g2.fillStyle = '#d8283a'; g2.font = 'bold 48px sans-serif';
+                g2.textAlign = 'center'; g2.textBaseline = 'middle';
+                g2.fillText('7', i * 64 + 32, 34);
+            }
         } else {
             // A marquee's words, in neon: the glow is the canvas's own shadow.
             cv.width = 512; cv.height = 96;
@@ -3238,6 +3248,61 @@
                 color: hue, transparent: true, opacity: 0.18, blending: THREE.AdditiveBlending, depthWrite: false
             }));
             m.rotation.x = -Math.PI / 2; m.position.set(0, 0.02, 0.7); dg.add(m);
+        } else if (kind === 'jukebox') {
+            /* A jukebox: a cabinet with a round head, a lit arch over the
+               front and a row of coloured tubes standing in the grille. */
+            var jh = ARCADE_HUES[d.variant % ARCADE_HUES.length];
+            var wood = new THREE.MeshLambertMaterial({ color: 0x3a1f2e });
+            m = new THREE.Mesh(new THREE.BoxGeometry(1.0, 1.15, 0.62), wood);
+            m.position.y = 0.575; m.castShadow = true; dg.add(m);
+            m = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 0.62, 24, 1, false, -Math.PI / 2, Math.PI), wood);
+            m.rotation.x = Math.PI / 2; m.rotation.z = Math.PI / 2; m.position.y = 1.15; dg.add(m);
+            m = new THREE.Mesh(new THREE.TorusGeometry(0.42, 0.05, 8, 24, Math.PI), new THREE.MeshBasicMaterial({ color: jh }));
+            m.position.set(0, 1.15, 0.32); dg.add(m);
+            for (i = 0; i < 5; i++) {
+                m = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.62, 8),
+                    new THREE.MeshBasicMaterial({ color: ARCADE_HUES[(d.variant + i) % ARCADE_HUES.length] }));
+                m.position.set(-0.3 + i * 0.15, 0.62, 0.32); dg.add(m);
+            }
+            m = new THREE.Mesh(new THREE.PlaneGeometry(0.6, 0.3), new THREE.MeshBasicMaterial({ map: arcadeTex('screen') }));
+            m.position.set(0, 1.12, 0.315); dg.add(m);
+        } else if (kind === 'claw') {
+            /* A claw machine: a lit base, a glass case with prizes heaped in
+               it and the claw hanging over them, and a sign on the roof. */
+            var ch = ARCADE_HUES[d.variant % ARCADE_HUES.length];
+            var baseMat = new THREE.MeshLambertMaterial({ color: new THREE.Color(ch).multiplyScalar(0.45) });
+            m = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.85, 1.0), baseMat);
+            m.position.y = 0.425; m.castShadow = true; dg.add(m);
+            m = new THREE.Mesh(new THREE.BoxGeometry(0.96, 1.0, 0.96), new THREE.MeshPhongMaterial({
+                color: 0xbfe8ff, transparent: true, opacity: 0.22, shininess: 120, specular: 0xffffff, depthWrite: false
+            }));
+            m.position.y = 1.35; dg.add(m);
+            for (i = 0; i < 7; i++) {
+                m = new THREE.Mesh(new THREE.SphereGeometry(0.11 + rnd() * 0.05, 10, 8),
+                    new THREE.MeshLambertMaterial({ color: ARCADE_HUES[i % ARCADE_HUES.length] }));
+                m.position.set((rnd() - 0.5) * 0.65, 0.95 + rnd() * 0.12, (rnd() - 0.5) * 0.65); dg.add(m);
+            }
+            m = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.5, 6), R.surf.decor.metalDark);
+            m.position.set(0.1, 1.6, 0); dg.add(m);
+            m = new THREE.Mesh(new THREE.ConeGeometry(0.1, 0.16, 6, 1, true), R.surf.chrome || R.surf.decor.metalDark);
+            m.position.set(0.1, 1.3, 0); m.rotation.x = Math.PI; dg.add(m);
+            m = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.22, 1.0), new THREE.MeshBasicMaterial({ color: ch }));
+            m.position.y = 1.96; dg.add(m);
+        } else if (kind === 'fruit') {
+            /* A fruit machine: three reels showing sevens behind a window, a
+               lit crown, and the lever down the right-hand side. */
+            var fh = ARCADE_HUES[d.variant % ARCADE_HUES.length];
+            var fbody = new THREE.MeshLambertMaterial({ color: new THREE.Color(fh).multiplyScalar(0.4) });
+            m = new THREE.Mesh(new THREE.BoxGeometry(0.85, 1.7, 0.62), fbody);
+            m.position.y = 0.85; m.castShadow = true; dg.add(m);
+            m = new THREE.Mesh(new THREE.PlaneGeometry(0.66, 0.3), new THREE.MeshBasicMaterial({ map: arcadeTex('reels') }));
+            m.position.set(0, 1.2, 0.315); dg.add(m);
+            m = new THREE.Mesh(new THREE.BoxGeometry(0.87, 0.24, 0.64), new THREE.MeshBasicMaterial({ color: fh }));
+            m.position.y = 1.82; dg.add(m);
+            m = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.55, 8), R.surf.chrome || R.surf.decor.metalDark);
+            m.position.set(0.5, 1.25, 0.05); dg.add(m);
+            m = new THREE.Mesh(new THREE.SphereGeometry(0.08, 12, 10), new THREE.MeshBasicMaterial({ color: 0xff3344 }));
+            m.position.set(0.5, 1.55, 0.05); dg.add(m);
         } else if (kind === 'marquee') {
             var mw = d.w || 4;
             var sign = new THREE.Mesh(new THREE.PlaneGeometry(mw, mw * 96 / 512),
@@ -3380,6 +3445,7 @@
         if (P.isPost(wall)) { addPost(group, wall); return; }
         if (wall.sails) { addSails(group, wall); return; }
         var B = P.wallBox(wall, 0);
+        if (wall.swing && wall.kind === 'blade') { addFlipper(group, wall, B); return; }
         var geo = new THREE.BoxGeometry(wall.w, wall.h, wall.d);
         // One material per kind, shared by every wall wearing it (see
         // buildSurfaces) — a hole has up to twenty rails and one coat of paint.
@@ -3405,6 +3471,72 @@
                 group.add(post);
             }
         }
+    }
+
+    /* A flipper, drawn as a pinball flipper rather than as the box it is to
+       the solver: a bat that tapers from a round heel to a round tip, a white
+       body over a red rubber band at the height of the ball's middle, and a
+       chrome cap on the pin it turns about — the heel end for a hinged one
+       (courses.flipper `hinge`), the middle for one that is not. The outline
+       is the box's own length and, at the heel, its thickness; the tip is a
+       quarter narrower than the box, which is a few millimetres of lie at the
+       one end and the whole difference between a bat and a plank.
+
+       Built in the bat's own frame about its middle, so it rides R.movers
+       exactly as the box did (syncMovers puts the middle where wallBox says
+       and turns it to its yaw). */
+    function addFlipper(group, wall, B) {
+        var len = wall.w, t = wall.d, h = wall.h, sw = wall.swing;
+        var heel = sw.hinge ? (sw.reach > 0 ? -1 : 1) : -1;   // which end is the heel, in local x
+        function outline(grow) {
+            var r0 = t / 2 + grow, r1 = t * 0.375 + grow;
+            var x0 = heel * (len / 2 - t / 2), x1 = -heel * (len / 2 - t * 0.375);
+            var shape = new THREE.Shape(), k, a, n = 12;
+            // Round the heel, then the tip, joined by the two tangents.
+            for (k = 0; k <= n; k++) {
+                a = Math.PI / 2 + k / n * Math.PI;
+                if (heel > 0) a += Math.PI;
+                var px = x0 + Math.cos(a) * r0, pz = Math.sin(a) * r0;
+                if (k) shape.lineTo(px, pz); else shape.moveTo(px, pz);
+            }
+            for (k = 0; k <= n; k++) {
+                a = -Math.PI / 2 + k / n * Math.PI;
+                if (heel > 0) a += Math.PI;
+                shape.lineTo(x1 + Math.cos(a) * r1, Math.sin(a) * r1);
+            }
+            shape.closePath();
+            return shape;
+        }
+        function slab(shape, depth, y0, mat) {
+            var geo = new THREE.ExtrudeGeometry(shape, { depth: depth, bevelEnabled: false, curveSegments: 6 });
+            geo.rotateX(Math.PI / 2);              // shape's y → world z, extruded down
+            geo.translate(0, y0 + depth, 0);
+            var m = new THREE.Mesh(geo, mat);
+            m.castShadow = true;
+            m.receiveShadow = true;
+            return m;
+        }
+        var body = R.surf.flipperBody || (R.surf.flipperBody = new THREE.MeshPhongMaterial({
+            color: 0xf5f2f7, shininess: 70, specular: 0x9a9a9a
+        }));
+        var rubber = R.surf.flipperRubber || (R.surf.flipperRubber = new THREE.MeshLambertMaterial({ color: 0xd8283a }));
+        var bat = new THREE.Group();
+        // Centred on the box's middle in y, which is where syncMovers puts it.
+        bat.add(slab(outline(-0.02), h, -h / 2, body));
+        bat.add(slab(outline(0.015), 0.16, C.BALL_R - 0.08 - (B.base + h / 2) + (wall.base || 0) + 0.1, rubber));
+        bat.position.set(B.cx, B.base + h / 2, B.cz);
+        bat.rotation.y = B.yaw;
+        group.add(bat);
+        R.movers.push({ mesh: bat, wall: wall, h: h });
+
+        var px = sw.hinge ? sw.hinge.x : B.cx, pz = sw.hinge ? sw.hinge.z : B.cz;
+        var chrome = R.surf.chrome || (R.surf.chrome = new THREE.MeshPhongMaterial({
+            color: 0xc9d2da, shininess: 140, specular: 0xffffff
+        }));
+        var pin = new THREE.Mesh(new THREE.CylinderGeometry(t * 0.32, t * 0.36, h + 0.06, 16), chrome);
+        pin.position.set(px, B.base + (h + 0.06) / 2, pz);
+        pin.castShadow = true;
+        group.add(pin);
     }
 
     /* The kerb round a rounded corner (courses.cornerRails), drawn as the one

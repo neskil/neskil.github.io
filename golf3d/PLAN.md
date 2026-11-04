@@ -20,37 +20,15 @@ version) when it ships. Measure a long-game hole with
 `node golf3d/tools/human-check.mjs <course>` as well as `par-check.mjs`: the
 perfect bot reads a hole's shape, the one with hands reads whether it is fair.
 
-Open — round two of the owner's notes (v1.123.0), each in their own words
-and in the order they came in. Strike one off (move it to "Done") when it ships:
+Open — round two of the owner's notes, each in their own words and in the
+order they came in (the ones already shipped are under "Done", v1.126.0):
 
-1. **Bumper City** (Pinball Parlour) — "bot can't ace it, and the bumpers are
-   just boxes. There is no fun decor or props." In hand: pop bumpers are round
-   and kick (`physics.popBumper`, `CONFIG.BUMPER`); the table is being rebuilt
-   round a ring of them with a bank shot through a gap; arcade decor to come.
-2. **The mallet** — "should have some more power as well (just change that,
-   you don't need to re-test all maps)". Done in this round: 17 → 20 (13.3 →
-   15.8 on a green).
-3. **Caldera** (Cinder Cone) — "bot gets stuck on Caldera" and "a stupid box in
-   front of the hole that should be removed." Done in this round: the caddie's
-   lie was a strip of lawn past the vent (the lake in front of it, the vent
-   behind it), and the lawn now ends in a half circle round the vent. The box
-   is gone, the pin is out of reach of the vent, and the tube is the ace
-   (0.208%, skill). See README → Cinder Cone.
-4. **The Shelf** (Coral Keys) — "the cliff for the green, the vertical surface
-   can be passed through. There is no collision."
-5. **The Ledge** (Quarry Ridge) — "a bit weird, where is the risk reward? Can
-   there be smooth edges and round? Perhaps we give up compatibility with the
-   level editor for existing maps and design freely. Perhaps there is a slope
-   that allows you to ace but if you overshoot the ball goes down, and if you do
-   a chill hit you are more safe but can't ace. Also the 90 degree turns can go,
-   you can make curves and other geometry." The last sentence is a standing
-   rule for every rebuild from here on, not just this hole.
-6. **Jackpot** (Pinball Parlour) — "also a weird map", and "also has those dumb
-   square boxes."
 7. **Wormholes** (every `pipe`) — "would be better with more effect, like a
    black hole opens in the sky and lets the ball out instead of an instant
    teleport. And the entry hole should be nicer — some shader maybe? Like the
    cargo lander game's black hole shader" (`cargo-lander/render/shaders.js`).
+   Keep the exit's place and pace exactly (a short scripted ride from a sky
+   portal, like the loop's `world.ride`), so no hole has to be re-measured.
 8. **Orbit** (Apogee Yard) — "the black hole model is very ugly, please
    improve. Perhaps the same shader as mentioned before." One shader for the
    pipe mouth, the sky portal and the well.
@@ -61,29 +39,42 @@ and in the order they came in. Strike one off (move it to "Done") when it ships:
 10. **The Backboard** (Quarry Ridge) — "a good concept that is lacking in
     execution. Also don't like the X style corners sticking out. Please fix."
     If the crossed corners are rails overrunning each other, that is every
-    fenced hole, not this one.
-11. **The Flippers** (Pinball Parlour) — "have the bad square box thing again."
-    The post in its throat is a bumper; round pop bumpers answer it, and the
-    whole Parlour gets the same pass (Plunger Lane, Two Ramps, The Slingshots).
+    fenced hole, not this one. In hand.
 12. **The autoplay caddie** — "bot gets stuck on Dead Weight" (Apogee Yard),
     and "perhaps the bot needs some pathfinding algos as well to make a plan?
-    The auto play bot, that is." A greedy one-shot search is what stalls it on
-    Caldera and Dead Weight both: a route that goes away from the cup first
-    (a ramp, a pad, a pipe, the long way round) never wins on distance.
+    The auto play bot, that is." A greedy one-shot search is what stalls it: a
+    route that goes away from the cup first (a ramp, a pad, a pipe, the long
+    way round) never wins on distance. In hand. Two cases to keep as tests:
+    Caldera's old lip (at mallet 17 the caddie went off the tee on to the
+    lawn past the vent at about (4–6, 9.97) and putted a unit east and a unit
+    west along it until it ran out of strokes), and Bumper City's bank ace,
+    which the greedy search finds at fan 20 and 36 and misses at 12, 16, 24.
 13. **Pinball Parlour, as a course** — "could have nicer flippers and a bit more
     fun design. The increasing complexity for every level kind of deal, and
-    vary props and decor."
-    Caldera's case is taken out of the hole (v1.123.0, item 3), but the shape
-    of it is worth keeping as a test for any planner: at mallet 17 the caddie
-    went off the tee on to the lawn's lip at about (4–6, 9.97), past the vent,
-    and putted a unit east and a unit west along it until it ran out of
-    strokes.
+    vary props and decor." Shipped in part (v1.126.0): hinged flippers drawn
+    as flippers, the course in order of what each table adds, a different
+    room round every table. Still open: **The Flippers and The Slingshots have
+    no ace at all.** Every flipper layout tried on a flat table either sent the
+    only ace straight up the middle (the putt at the flag) or starved the top
+    of the table; a flipper hole probably wants the ball *fired* by a bat — a
+    swing profile that snaps and holds rather than a sine — and a pin where a
+    flicked ball goes.
 
 Still waiting: "Deadline" (a nice biome, maps too simple, water on a table)
 is waiting on the owner to say which course they meant.
 
 Done:
 
+- **Round two of the owner's notes, the first half** (v1.126.0). Bumper City
+  (a block of round pop bumpers round the pin, entered by a bank off a side
+  rail; 0.71%, the bot with hands 2.5), the mallet (17 → 20), Caldera (no box,
+  no lip past the vent, the tube is the ace; par 3), The Shelf (a cliff that
+  stands on a beach is rock — every `stands` pad, physics.surfaceUnder),
+  The Ledge (a banked curve, the `road` primitive; soft is safe, firm aces,
+  too firm is wet; par 3), Jackpot (a vault and a hole in the table; par 3),
+  and The Flippers' square post. Six holes the stronger mallet reopened to the
+  putt at the flag were closed again: Harbour Gate, The Salt Line, The
+  Draught, Pendulum, The Cold Room, Plunger Lane.
 - **Fewer courses, and the mini holes the lab flagged** (v1.122.0) — the
   owner's "some maps, specially mini golf, still need improvement, and we
   could reduce the number of maps and consolidate some of them". Eighteen

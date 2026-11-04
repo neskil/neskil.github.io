@@ -1089,8 +1089,20 @@
             var sw = w.swing;
             var ph = t * sw.speed + (sw.phase || 0);
             var half = (sw.to - sw.from) / 2;
+            var rate = half * Math.sin(ph) * sw.speed;
             yaw += sw.from + half * (1 - Math.cos(ph));
-            spin += half * Math.sin(ph) * sw.speed;
+            spin += rate;
+            /* A hinged one (courses.flipper with `hinge`) turns about one end,
+               the way a real flipper does, so its middle goes round the hinge
+               at `reach` along the bat — and a middle that moves has a
+               velocity, which is what makes wallPointVelocity's rigid turn
+               about the middle the same turn about the hinge. */
+            if (sw.hinge) {
+                cx = sw.hinge.x + Math.cos(yaw) * sw.reach;
+                cz = sw.hinge.z - Math.sin(yaw) * sw.reach;
+                vx += rate * (cz - sw.hinge.z);
+                vz -= rate * (cx - sw.hinge.x);
+            }
         }
         // `out` lets a caller reuse one object rather than allocate per call —
         // the solver across thousands of substeps, the renderer once per mover
@@ -1515,7 +1527,8 @@
                it wherever on the stroke the clock has put it; one that turns,
                or that swings, does not move its middle at all. */
             dx = b.x - (w.x + w.w / 2); dz = b.z - (w.z + w.d / 2);
-            reach = (w.w + w.d) / 2 + (w.move ? Math.abs(w.move.amp) : 0) + C.BALL_R;
+            reach = (w.w + w.d) / 2 + (w.move ? Math.abs(w.move.amp) : 0) +
+                (w.swing && w.swing.hinge ? 2 * Math.abs(w.swing.reach) : 0) + C.BALL_R;
             if (dx * dx + dz * dz > reach * reach) continue;
             // A post is round and has a coil in it, and is no box at all.
             if (isPost(w)) { popBumper(b, w, dx, dz, events); continue; }

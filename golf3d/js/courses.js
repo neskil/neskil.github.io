@@ -279,7 +279,13 @@
        `rest` is where it sits and `arc` how far it sweeps, both in radians;
        `speed` is the rate of the sine driving it, so it is at one end of its
        travel every π/speed seconds. Authored by the middle, like `spinner`,
-       because that is the point it turns about. */
+       because that is the point it turns about.
+
+       Unless it says `hinge`: -1 hinges it at its west end and +1 at its
+       east (as it lies at `rest`), and then it is the real thing, a bat
+       turning about a pin at one end (physics.wallBox) — the Parlour's, since
+       v1.123.0. Still authored by its middle at rest, so a hinged flipper and
+       a centred one drawn on the same plan stand in the same place. */
     function flipper(cx, cz, len, opts) {
         var o = opts || {};
         var t = o.t === undefined ? 0.34 : o.t;
@@ -292,6 +298,11 @@
             speed: o.speed === undefined ? 2.2 : o.speed,
             phase: o.phase || 0
         };
+        if (o.hinge) {
+            var arm = o.hinge * (len / 2 - t / 2);
+            w.swing.hinge = { x: cx + Math.cos(rest) * arm, z: cz - Math.sin(rest) * arm };
+            w.swing.reach = -arm;
+        }
         return w;
     }
 
@@ -1170,6 +1181,10 @@
     function cabinet(x, z, y, opts) { return decor('cabinet', x, z, y, opts); }
     function marquee(x, z, y, opts) { return decor('marquee', x, z, y, opts); }
     function lamp(x, z, y, opts) { return decor('lamp', x, z, y, opts); }
+    // And the rest of the room: a jukebox, a claw machine, a fruit machine.
+    function jukebox(x, z, y, opts) { return decor('jukebox', x, z, y, opts); }
+    function claw(x, z, y, opts) { return decor('claw', x, z, y, opts); }
+    function fruit(x, z, y, opts) { return decor('fruit', x, z, y, opts); }
 
     /* ── the open country ───────────────────────────────────────────────
 
@@ -4639,19 +4654,28 @@
        That is what `bumper` is for, and it is the only new piece of vocabulary
        the course needed. Everything else is a wall, a ramp and a gate that the
        first seven courses already had — which is the point: crazy golf is not
-       a different engine, it is the same one with the aiming taken away. */
+       a different engine, it is the same one with the aiming taken away.
+
+       Since v1.123.0 the course is played in the order of what each table
+       adds, one piece at a time: the chute and three bumpers, then banks and
+       rubber posts, then both round a block of bumpers you bank into, then
+       height, then bats that move, and the finisher with a hole in the table
+       and all the rest. */
 
     /* The room round a table: uprights along both sides on the basement
        floor, facing in, and a marquee over the far end with the hole's name
        on it. Every hole on the Parlour wears it, so the course is a room
        rather than six tables floating in the dark (the owner: "there is no
-       fun decor or props"). */
-    function arcadeRoom(W, L, text, seed) {
+       fun decor or props"). `kinds` is what stands along the walls, taken in
+       turn, so each room is furnished differently and six holes are six
+       rooms. */
+    function arcadeRoom(W, L, text, seed, kinds) {
         var out = [], k, n = Math.max(2, Math.round(L / 4.5)), v = seed || 0;
+        var ks = kinds || [cabinet];
         for (k = 0; k < n; k++) {
             var z = 2.5 + k * (L - 4) / (n - 1);
-            out.push(cabinet(-1.5, z, { yaw: Math.PI / 2, scale: 1.3, variant: (v + k) % 4 }));
-            out.push(cabinet(W + 1.5, z, { yaw: -Math.PI / 2, scale: 1.3, variant: (v + k + 2) % 4 }));
+            out.push(ks[k % ks.length](-1.5, z, { yaw: Math.PI / 2, scale: 1.3, variant: (v + k) % 4 }));
+            out.push(ks[(k + 1) % ks.length](W + 1.5, z, { yaw: -Math.PI / 2, scale: 1.3, variant: (v + k + 2) % 4 }));
         }
         if (text) out.push(marquee(W / 2, L + 1.6, { w: 3.4, scale: 1.5, text: text }));
         return out;
@@ -4676,6 +4700,33 @@
             extra: [bumper(1.6, 12, 0.6), bumper(3.25, 13.7, 0.6), bumper(5.4, 12, 0.6)],
             decor: arcadeRoom(7, 18, 'PLUNGER LANE', 0),
             tee: { x: 1.2, z: 1.2 }, cup: { x: 3.5, z: 16.6 }
+        }),
+        build({
+            /* The box with no door has gone next door to Tidewater, where a
+               hole that can only be answered upwards belongs. What stands here
+               instead is the piece of pinball furniture the file could not
+               write until `bank` existed: two rails set across the table at
+               thirty-five degrees, apex towards the player, with a post in the
+               throat between them.
+
+               So there are four ways past and not one of them is straight. A
+               window either side of the post, half a metre of aim each and the
+               bank right there to throw a near miss across the table; or round
+               the outside, which is wider and twice as long and lands you in
+               the pair of posts guarding the pin. Nothing here moves. It does
+               not need to — an angled wall is a machine for turning a good
+               line into somebody else's. */
+            name: 'The Slingshots', par: 3,
+            blurb: 'Two banks pointing the wrong way, a post in the throat, and no straight line anywhere.',
+            pads: [pad(0, 0, 9, 16)],
+            extra: [
+                bank(2.2, 8.2, 3.2, -0.6),
+                bank(6.8, 8.2, 3.2, 0.6),
+                bumper(4.5, 7.6, 0.6),
+                bumper(2.2, 12.4), bumper(6.8, 12.4)
+            ],
+            decor: arcadeRoom(9, 16, 'SLINGSHOTS', 3, [claw, jukebox]),
+            tee: { x: 4.5, z: 1.5 }, cup: { x: 4.5, z: 14.2 }
         }),
         (function () {
             /* A city block of pop bumpers with the pin in the middle of it,
@@ -4773,7 +4824,7 @@
                 pad(0, 12, 9, 6, 1.2)
             ],
             extra: [bumper(4.5, 4.2)],
-            decor: arcadeRoom(9, 18, 'TWO RAMPS', 1),
+            decor: arcadeRoom(9, 18, 'TWO RAMPS', 1, [jukebox, cabinet]),
             tee: { x: 4.5, z: 1.6 }, cup: { x: 6.6, z: 15 }
         }),
         build({
@@ -4788,39 +4839,16 @@
             extra: [
                 bank(1.8, 5.4, 2.6, 0.5),
                 bank(5.2, 5.4, 2.6, -0.5),
-                spinner(1.7, 8.6, 2.6, 0.4, { spin: 1.9 }),
-                spinner(4.8, 11.4, 2.6, 0.4, { spin: -2.3 }),
+                /* Bats now, not blades (v1.123.0): each hinged at the rail
+                   end like a real flipper, resting tip-down and flicking up
+                   through a radian on a rate of its own, so the two open the
+                   table on a pattern rather than on a beat. */
+                flipper(1.7, 8.6, 2.6, { hinge: -1, rest: 0.5, arc: -1.0, speed: 1.9 }),
+                flipper(4.8, 11.4, 2.6, { hinge: 1, rest: -0.5, arc: 1.0, speed: 2.3 }),
                 bumper(3.5, 3.2)
             ],
-            decor: arcadeRoom(7, 16, 'FLIPPERS', 2),
+            decor: arcadeRoom(7, 16, 'FLIPPERS', 2, [cabinet, claw]),
             tee: { x: 3.5, z: 1.5 }, cup: { x: 2.2, z: 14.4 }
-        }),
-        build({
-            /* The box with no door has gone next door to Tidewater, where a
-               hole that can only be answered upwards belongs. What stands here
-               instead is the piece of pinball furniture the file could not
-               write until `bank` existed: two rails set across the table at
-               thirty-five degrees, apex towards the player, with a post in the
-               throat between them.
-
-               So there are four ways past and not one of them is straight. A
-               window either side of the post, half a metre of aim each and the
-               bank right there to throw a near miss across the table; or round
-               the outside, which is wider and twice as long and lands you in
-               the pair of posts guarding the pin. Nothing here moves. It does
-               not need to — an angled wall is a machine for turning a good
-               line into somebody else's. */
-            name: 'The Slingshots', par: 3,
-            blurb: 'Two banks pointing the wrong way, a post in the throat, and no straight line anywhere.',
-            pads: [pad(0, 0, 9, 16)],
-            extra: [
-                bank(2.2, 8.2, 3.2, -0.6),
-                bank(6.8, 8.2, 3.2, 0.6),
-                bumper(4.5, 7.6, 0.6),
-                bumper(2.2, 12.4), bumper(6.8, 12.4)
-            ],
-            decor: arcadeRoom(9, 16, 'SLINGSHOTS', 3),
-            tee: { x: 4.5, z: 1.5 }, cup: { x: 4.5, z: 14.2 }
         }),
         (function () {
             /* The finisher: the jackpot is a hole in the table.
@@ -4874,7 +4902,7 @@
                     [bumper(2.6, 6.4), bumper(6.8, 6.4), post(mx - 0.7, mz - 0.6), bumper(4.7, 9.6),
                      bumper(1.6, 15.2), bumper(7.8, 15.2)]
                 ),
-                decor: lamps.concat(arcadeRoom(W, L, 'JACKPOT', 2)),
+                decor: lamps.concat(arcadeRoom(W, L, 'JACKPOT', 2, [fruit])),
                 tee: { x: cx, z: 1.5 }, cup: { x: cx, z: cz }
             });
         })()
@@ -7639,6 +7667,7 @@
         buoy: buoy, piling: piling, bench: bench, boat: boat, sailboat: sailboat, bin: bin,
         barrel: barrel, crate: crate, palm: palm, pine: pine, sign: sign, windmill: windmill,
         skyline: skyline, cabinet: cabinet, marquee: marquee, lamp: lamp,
+        jukebox: jukebox, claw: claw, fruit: fruit,
         RAIL_T: RAIL_T, SCOOP: SCOOP,
         CUP_FLAT: CUP_FLAT, TEE_FLAT: TEE_FLAT, CUP_PATCH: CUP_PATCH
     };
