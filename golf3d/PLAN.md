@@ -34,8 +34,13 @@ order they came in (the ones already shipped are under "Done", v1.126.0):
    walls banded by height (`theme.strata`, render `strataOn`). First Cut (a
    six-unit wall across the drive), The Rim (a ledge between the drop and a
    band of rock, the green out on a point) and Stone Bridge (off a rim seven
-   up to a mesa, or round by the arch) are done; Long Way Round, Switchback
-   and Redstone are next.
+   up to a mesa, or round by the arch) shipped in v1.130.0; Long Way Round
+   (off a pinnacle eight up), Switchback (four benches up a cliff band, a slot
+   at the foot of each) and Redstone (round a temple fourteen high, over the
+   canyon to a green on a mesa) followed in v1.131.0. The bot with hands went
+   from 7.7 under par to about one under over the six, every hole within a
+   stroke of its par. Still open: height on the other long courses where a
+   hole is flat for no reason.
 13. **Pinball Parlour, as a course** — "could have nicer flippers and a bit more
     fun design. The increasing complexity for every level kind of deal, and
     vary props and decor." Shipped in part (v1.126.0): hinged flippers drawn
