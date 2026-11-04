@@ -1602,7 +1602,7 @@ the far end has to be.
 For a hundred releases a pipe was a teleport, and it looked like one: a ball
 blinking out of the mouth and rolling out of the far end on the same step. The
 owner asked for a black hole that swallows it and another that opens in the sky
-and lets it out (v1.123.0), and that is now what it is — without moving a
+and lets it out (v1.129.0), and that is now what it is — without moving a
 single number any hole was built on.
 
 **The trip is a ride, the way a loop is** (`world.warping`, physics.js "the

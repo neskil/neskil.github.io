@@ -91,7 +91,7 @@
 
         'void main(){',
         /* Gravitational lensing, round each black hole on the screen
-           (render.js `lensList`, v1.123.0) — the half of Cargo Lander's black
+           (render.js `lensList`, v1.129.0) — the half of Cargo Lander's black
            hole a shader on the hole itself cannot do, because it is the
            picture *behind* the hole that bends. A pixel θ from the middle
            looks at what is θ − θE²/θ from it: the light from just behind the

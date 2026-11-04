@@ -2225,7 +2225,7 @@
         group.add(new THREE.LineSegments(geo, new THREE.LineBasicMaterial({ color: 0x27f0ff })));
     }
 
-    /* A gravity well, drawn as the black hole it is (v1.123.0; the owner on
+    /* A gravity well, drawn as the black hole it is (v1.129.0; the owner on
        the sphere and two flat rings it used to be: "very ugly"). Three parts,
        from the shader every black hole in the game shares (see "the black
        hole", below):
@@ -2648,7 +2648,7 @@
     /* ── the black hole ─────────────────────────────────────────────────
 
        Everything in the game that eats a ball is drawn with one shader
-       (shaders.js, BLACKHOLE_*, v1.123.0): a pipe's mouth, the hole that
+       (shaders.js, BLACKHOLE_*, v1.129.0): a pipe's mouth, the hole that
        opens in the sky over its exit, and a gravity well. The owner's
        brief was Cargo Lander's black hole, and the parts of it that matter
        are an event horizon that is properly black, a disc of light turning

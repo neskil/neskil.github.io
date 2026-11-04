@@ -643,7 +643,7 @@
 
     /* ── the black hole ─────────────────────────────────────────────────
 
-       One shader for the three things in the game that eat a ball (v1.123.0):
+       One shader for the three things in the game that eat a ball (v1.129.0):
        the mouth of a pipe, the hole that opens in the sky over its exit to
        let the ball back out, and a gravity well. The look is the one the
        owner liked in Cargo Lander's (cargo-lander/render/shaders.js, the

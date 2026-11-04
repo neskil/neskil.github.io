@@ -8,7 +8,7 @@
    — the renderer scales to the viewport, the simulation never sees a pixel. */
 window.G3 = window.G3 || {};
 
-G3.VERSION = '1.128.0';
+G3.VERSION = '1.129.0';
 
 G3.CONFIG = {
     BALL_R: 0.16,
@@ -738,7 +738,7 @@ G3.CONFIG = {
     WARP_LOCK: 0.4,
     WARP_MOUTH: 0.18,
 
-    /* The trip through a pipe (physics.js, "the wormhole", v1.123.0). It
+    /* The trip through a pipe (physics.js, "the wormhole", v1.129.0). It
        used to be instant: the ball vanished from the mouth and was rolling
        out of the far end on the same step, which read as a glitch rather
        than a journey. Now it is a ride in three parts, each a fixed length so

@@ -852,7 +852,7 @@
 
     /* ── the wormhole ───────────────────────────────────────────────────
 
-       What happens between the two ends (v1.123.0). For a hundred releases
+       What happens between the two ends (v1.129.0). For a hundred releases
        a pipe was a teleport: the step that found the ball over a mouth put
        it down rolling out of the far end, and the player saw a ball blink
        out of one place and into another — which reads as a bug, not as a
