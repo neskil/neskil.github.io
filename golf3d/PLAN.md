@@ -70,6 +70,9 @@ and in the order they came in. Strike one off (move it to "Done") when it ships:
     The auto play bot, that is." A greedy one-shot search is what stalls it on
     Caldera and Dead Weight both: a route that goes away from the cup first
     (a ramp, a pad, a pipe, the long way round) never wins on distance.
+13. **Pinball Parlour, as a course** — "could have nicer flippers and a bit more
+    fun design. The increasing complexity for every level kind of deal, and
+    vary props and decor."
     Caldera's case is taken out of the hole (v1.123.0, item 3), but the shape
     of it is worth keeping as a test for any planner: at mallet 17 the caddie
     went off the tee on to the lawn's lip at about (4–6, 9.97), past the vent,

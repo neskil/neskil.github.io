@@ -4452,6 +4452,22 @@
        first seven courses already had — which is the point: crazy golf is not
        a different engine, it is the same one with the aiming taken away. */
 
+    /* The room round a table: uprights along both sides on the basement
+       floor, facing in, and a marquee over the far end with the hole's name
+       on it. Every hole on the Parlour wears it, so the course is a room
+       rather than six tables floating in the dark (the owner: "there is no
+       fun decor or props"). */
+    function arcadeRoom(W, L, text, seed) {
+        var out = [], k, n = Math.max(2, Math.round(L / 4.5)), v = seed || 0;
+        for (k = 0; k < n; k++) {
+            var z = 2.5 + k * (L - 4) / (n - 1);
+            out.push(cabinet(-1.5, z, { yaw: Math.PI / 2, scale: 1.3, variant: (v + k) % 4 }));
+            out.push(cabinet(W + 1.5, z, { yaw: -Math.PI / 2, scale: 1.3, variant: (v + k + 2) % 4 }));
+        }
+        if (text) out.push(marquee(W / 2, L + 1.6, { w: 3.4, scale: 1.5, text: text }));
+        return out;
+    }
+
     var parlour = [
         build({
             name: 'Plunger Lane', par: 3,
@@ -4469,6 +4485,7 @@
                round (physics.popBumper): a circle inscribed in the old square
                opened the gap again by the width of its corners. */
             extra: [bumper(1.6, 12, 0.6), bumper(3.25, 13.7, 0.6), bumper(5.4, 12, 0.6)],
+            decor: arcadeRoom(7, 18, 'PLUNGER LANE', 0),
             tee: { x: 1.2, z: 1.2 }, cup: { x: 3.5, z: 16.6 }
         }),
         (function () {
@@ -4536,16 +4553,7 @@
                     post(cx - 0.4, 4.4), post(cx + 0.4, 4.4),
                     bumper(1.3, 9.9), bumper(5.7, 9.9)
                 ],
-                decor: lamps.concat([
-                    skyline(cx, 15.2, { w: 13, variant: 0 }),
-                    marquee(cx, 13.9, { w: 3.4, scale: 1.5, text: 'BUMPER CITY' }),
-                    cabinet(-1.5, 3.2, { yaw: Math.PI / 2, scale: 1.3, variant: 0 }),
-                    cabinet(-1.5, 6.4, { yaw: Math.PI / 2, scale: 1.3, variant: 1 }),
-                    cabinet(-1.5, 9.6, { yaw: Math.PI / 2, scale: 1.3, variant: 2 }),
-                    cabinet(8.5, 3.2, { yaw: -Math.PI / 2, scale: 1.3, variant: 3 }),
-                    cabinet(8.5, 6.4, { yaw: -Math.PI / 2, scale: 1.3, variant: 0 }),
-                    cabinet(8.5, 9.6, { yaw: -Math.PI / 2, scale: 1.3, variant: 1 })
-                ]),
+                decor: lamps.concat([skyline(cx, 15.6, { w: 13 })], arcadeRoom(W, L, 'BUMPER CITY', 0)),
                 tee: { x: cx, z: 1.4 }, cup: { x: cx, z: cz }
             });
         })(),
@@ -4576,6 +4584,7 @@
                 pad(0, 12, 9, 6, 1.2)
             ],
             extra: [bumper(4.5, 4.2)],
+            decor: arcadeRoom(9, 18, 'TWO RAMPS', 1),
             tee: { x: 4.5, z: 1.6 }, cup: { x: 6.6, z: 15 }
         }),
         build({
@@ -4594,6 +4603,7 @@
                 spinner(4.8, 11.4, 2.6, 0.4, { spin: -2.3 }),
                 bumper(3.5, 3.2)
             ],
+            decor: arcadeRoom(7, 16, 'FLIPPERS', 2),
             tee: { x: 3.5, z: 1.5 }, cup: { x: 2.2, z: 14.4 }
         }),
         build({
@@ -4620,6 +4630,7 @@
                 bumper(4.5, 7.6, 0.6),
                 bumper(2.2, 12.4), bumper(6.8, 12.4)
             ],
+            decor: arcadeRoom(9, 16, 'SLINGSHOTS', 3),
             tee: { x: 4.5, z: 1.5 }, cup: { x: 4.5, z: 14.2 }
         }),
         (function () {
@@ -4651,7 +4662,7 @@
                it was four with three doors and none of them led anywhere. */
             var W = 9.4, L = 19, cx = 4.7, cz = 15.4, mx = 1.4, mz = 8.4;
             var p = pad(0, 0, W, L);
-            p.round = { nw: W / 2, ne: W / 2, sw: 1.8, se: 1.8 };
+            p.round = { nw: 4.5, ne: 4.5, sw: 1.8, se: 1.8 };   // just short of a dome: the cup keeps its flat
             var lamps = [], k, dx = mx - cx, dz = mz - 1.5, yaw = Math.atan2(dx, dz);
             // A chase from the tee to the mouth, round the near side of the
             // bumper, and a ring of inserts round the mouth itself.
@@ -4674,15 +4685,7 @@
                     [bumper(2.6, 6.4), bumper(6.8, 6.4), post(mx - 0.7, mz - 0.6), bumper(4.7, 9.6),
                      bumper(1.6, 15.2), bumper(7.8, 15.2)]
                 ),
-                decor: lamps.concat([
-                    marquee(cx, 20.6, { w: 3.2, scale: 1.6, text: 'JACKPOT' }),
-                    cabinet(-1.5, 4.0, { yaw: Math.PI / 2, scale: 1.3, variant: 2 }),
-                    cabinet(-1.5, 8.5, { yaw: Math.PI / 2, scale: 1.3, variant: 0 }),
-                    cabinet(-1.5, 13.0, { yaw: Math.PI / 2, scale: 1.3, variant: 3 }),
-                    cabinet(10.9, 4.0, { yaw: -Math.PI / 2, scale: 1.3, variant: 1 }),
-                    cabinet(10.9, 8.5, { yaw: -Math.PI / 2, scale: 1.3, variant: 2 }),
-                    cabinet(10.9, 13.0, { yaw: -Math.PI / 2, scale: 1.3, variant: 0 })
-                ]),
+                decor: lamps.concat(arcadeRoom(W, L, 'JACKPOT', 2)),
                 tee: { x: cx, z: 1.5 }, cup: { x: cx, z: cz }
             });
         })()
@@ -5387,7 +5390,7 @@
                bit over half a mallet, land at the start of the belt, and it is
                in: a skill hole's share of the sweep, all of it through the
                tube. */
-            name: 'Caldera', par: 4,
+            name: 'Caldera', par: 3,
             blurb: 'Up the vent, along the rim on the scree, and in through the tube. There is no other road into the crater.',
             pads: [
                 (function () {
