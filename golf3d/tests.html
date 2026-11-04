@@ -2939,6 +2939,83 @@
             assert('and a hole with no pipes on it warps nothing',
                 !shotEvents(pipeless, { x: 5, z: 2 }, 0, 10.5, 0).events.warp);
 
+            /* ── the wormhole ── (physics.js, v1.129.0)
+               The trip through the pipe is a ride now — swallowed, carried,
+               dropped out of the sky — and the whole promise of it is that it
+               changes the clock and nothing else. So these hold the far end to
+               the instant pipe's numbers exactly: on the spot, at the pace it
+               went in, along the pipe's yaw, flat. A wall stands across the
+               drop on purpose: nothing is allowed to touch a ball in transit.
+               Stepped at 1/2000 so the step that lands it is a step of its
+               own and the state can be read off it before anything rolls. */
+            (function () {
+                var mouthed = lab({
+                    pads: [A.pad(0, 0, 10, 12), A.pad(0, 24, 10, 16)],
+                    warps: [A.pipe(5, 10, 6, 27, 0.25, 1.0)],
+                    walls: [A.wall(0, 25.6, 10, 0.3, 2.5)],
+                    cup: { x: 8, z: 37 }
+                });
+                var wp = mouthed.warps[0], fine = 1 / 2000;
+                var w = P.createWorld(mouthed, { x: 5.3, z: 2 }, 0);
+                P.launch(w, 0, 12, 0);
+                var i, ev, before = null, took = null, out = null, hits = 0, drift = 0, opened = false;
+                var clone = null, cloneAt = 0, pt = {};
+                for (i = 0; i < 40000 && !P.done(w); i++) {
+                    var prev = { x: w.ball.x, z: w.ball.z, s: P.groundSpeed(w.ball), t: w.time };
+                    ev = P.advance(w, fine, {});
+                    if (ev.warp) { took = { t: w.time, sp: w.warping.sp, wr: P.cloneWarp(w.warping) }; before = prev; }
+                    if (ev.warpOpen) opened = true;
+                    if (w.warping) {
+                        if (ev.bounce || ev.land || ev.rim || ev.splash || ev.sunk || ev.out) hits++;
+                        P.warpPoint(w.warping, w.warping.t, pt);
+                        drift = Math.max(drift, Math.abs(pt.x - w.ball.x) + Math.abs(pt.y - w.ball.y) + Math.abs(pt.z - w.ball.z));
+                        if (!clone && w.warping.t > 0.3) { clone = P.cloneWorld(w); cloneAt = i; }
+                    }
+                    if (ev.warpOut) {
+                        out = { t: w.time, x: w.ball.x, y: w.ball.y, z: w.ball.z, vx: w.ball.vx, vy: w.ball.vy, vz: w.ball.vz, grounded: w.grounded };
+                    }
+                }
+                assert('a ball that finds a mouth is taken into a ride, not teleported', !!took && !!out,
+                    took ? 'never came out' : 'never went in');
+                if (!took || !out) return;
+                var top = P.surfaceTop(mouthed, wp.tx, wp.tz).y + C.BALL_R;
+                assert('the ride puts it down on exactly the exit',
+                    out.x === wp.tx && out.z === wp.tz && out.y === top && out.grounded,
+                    out.x.toFixed(4) + ', ' + out.y.toFixed(4) + ', ' + out.z.toFixed(4));
+                var hs = Math.sqrt(out.vx * out.vx + out.vz * out.vz);
+                assert('…at exactly the pace it went in, flat',
+                    approx(hs, took.sp, 1e-9) && out.vy === 0 && approx(took.sp, before.s, 0.02),
+                    hs.toFixed(4) + ' out, ' + took.sp.toFixed(4) + ' in (' + before.s.toFixed(4) + ' a step before), vy ' + out.vy);
+                assert('…along the pipe\'s own yaw',
+                    approx(Math.atan2(out.vx, out.vz), wp.yaw, 1e-9), Math.atan2(out.vx, out.vz).toFixed(4));
+                var lasted = out.t - took.t;
+                assert('the ride is a beat, not a wait', approx(lasted, P.warpLength(), 0.002) && lasted > 0.8 && lasted < 1.4,
+                    lasted.toFixed(3) + 's');
+                assert('nothing touches a ball in transit — the wall across the drop included',
+                    hits === 0 && drift === 0, hits + ' contacts, ' + drift.toExponential(1) + ' off the path');
+                assert('the sky opens part way through', opened);
+                assert('and it settles out of the far end, past the wall', !w.moving && w.ball.z > 26.5,
+                    'z=' + w.ball.z.toFixed(2) + (w.moving ? ', still moving' : ''));
+                /* A world cloned mid-ride (the preview, the bot's trials) rides
+                   on to the same landing on its own clock. */
+                var cev, cout = null;
+                for (i = 0; i < 40000 && clone.warping; i++) {
+                    cev = P.advance(clone, fine, {});
+                    if (cev.warpOut) cout = { x: clone.ball.x, z: clone.ball.z, vx: clone.ball.vx, vz: clone.ball.vz };
+                }
+                assert('a world cloned mid-ride lands where the original did',
+                    !!cout && cout.x === out.x && cout.z === out.z && cout.vx === out.vx && cout.vz === out.vz);
+                /* The portal hangs up and back along the exit, so the drop
+                   comes down moving the way the ball is about to roll. */
+                var pr = took.wr;
+                var p0 = P.warpPoint(pr, C.WARP_SWALLOW + C.WARP_DARK + 1e-6, {});
+                var p1 = P.warpPoint(pr, P.warpLength() - 1e-4, {});
+                assert('the drop starts in the sky and comes down heading along the pipe',
+                    p0.y > top + 2 && p1.y < top + 0.01 &&
+                    (p1.vx * Math.sin(wp.yaw) + p1.vz * Math.cos(wp.yaw)) > 0.9 * took.sp &&
+                    (p0.x - wp.tx) * Math.sin(wp.yaw) + (p0.z - wp.tz) * Math.cos(wp.yaw) < -0.5);
+            })();
+
             // ── the loop ──
             /* physics.js, "the loop". A lane of boards with a loop of radius
                1.1 stood on it, its foot at z = 10 and its way out a unit to

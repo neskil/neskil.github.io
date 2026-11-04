@@ -296,6 +296,17 @@
             noise(0.05, 900, 2.5, 0.04 + p * 0.05);
         },
         sand: function () { noise(0.22, 2600, 0.7, 0.09, 'highpass'); },
+        /* A pipe (physics.js, "the wormhole"): a falling thrum as the ball
+           goes down the mouth, and a rising one with a breath of air as the
+           sky opens over the exit. Two slid tones and a noise, no files. */
+        warpIn: function () {
+            tone(220, 0.45, 'sine', 0.12, 55);
+            tone(330, 0.3, 'triangle', 0.05, 90);
+        },
+        warpOpen: function () {
+            tone(48, 0.5, 'sine', 0.14, 140);
+            noise(0.5, 900, 0.6, 0.05);
+        },
         splash: function () {
             noise(0.4, 900, 0.6, 0.2);
             tone(420, 0.35, 'sine', 0.1, 90);

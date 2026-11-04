@@ -23,15 +23,6 @@ perfect bot reads a hole's shape, the one with hands reads whether it is fair.
 Open — round two of the owner's notes, each in their own words and in the
 order they came in (the ones already shipped are under "Done", v1.126.0):
 
-7. **Wormholes** (every `pipe`) — "would be better with more effect, like a
-   black hole opens in the sky and lets the ball out instead of an instant
-   teleport. And the entry hole should be nicer — some shader maybe? Like the
-   cargo lander game's black hole shader" (`cargo-lander/render/shaders.js`).
-   Keep the exit's place and pace exactly (a short scripted ride from a sky
-   portal, like the loop's `world.ride`), so no hole has to be re-measured.
-8. **Orbit** (Apogee Yard) — "the black hole model is very ugly, please
-   improve. Perhaps the same shader as mentioned before." One shader for the
-   pipe mouth, the sky portal and the well.
 9. **The long game, upwards** — "in general nice when the long game maps have
    some verticality. For the Grand Canyon inspired ones I'd like some really
    high cliffs as part of the design." Redstone first (the canyon country),
@@ -52,6 +43,18 @@ is waiting on the owner to say which course they meant.
 
 Done:
 
+- **Wormholes, and Orbit's black hole** (v1.129.0) — "a black hole opens in the
+  sky and lets the ball out instead of an instant teleport … some shader maybe?
+  Like the cargo lander game's" and "Orbit, the black hole model is very ugly".
+  One shader ported from Cargo Lander (horizon, photon ring, spiral accretion
+  disc, rings feeding in) for the mouth in the floor, a portal in the sky over
+  the exit, and Orbit's well. A pipe is a ride now (`world.warping`): swallowed,
+  gone while the portal opens, dropped out of it — about 1.2 s — and released
+  at exactly the exit's place, pace and heading, so the lab's numbers held
+  (Caldera 0.208 → 0.206%, Jackpot 0.433 → 0.436%). Lensing in postfx behind
+  the portal and the well's core. Still to look at: the ride on Jackpot and
+  Caldera, a replay through a pipe, and the well's outer reach, which is faint
+  from the tee.
 - **The autoplay caddie plans a route** (v1.128.0) — "bot gets stuck on Dead
   Weight" and "perhaps the bot needs some pathfinding algos as well to make a
   plan?" `G3.bot.Planner`: rests are nodes, shots are edges, A* to the cup on

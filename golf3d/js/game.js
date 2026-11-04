@@ -1646,6 +1646,14 @@
         }
         if (ev.out) A.out();
         if (ev.sunk) R.sinkAt(b.x, b.y + C.CUP_DEPTH, b.z);
+        // A pipe (physics.js, "the wormhole"): swallowed, the sky opening,
+        // and the landing on the far side, which is a landing like any other.
+        if (ev.warp && A.warpIn) A.warpIn();
+        if (ev.warpOpen && A.warpOpen) A.warpOpen();
+        if (ev.warpOut) {
+            A.land(P.groundSpeed(b) + 6);
+            if (R.hitAt) R.hitAt(b.x, b.y - C.BALL_R, b.z, 6);
+        }
     }
 
     function resetRangeBall() {
@@ -1982,6 +1990,9 @@
             if (ev & RE.LAND) A.land(spd);
             if (ev & RE.RIM) A.rim(spd);
             if (ev & RE.SUNK) { R.sinkAt(f[k].x, f[k].y + C.CUP_DEPTH, f[k].z); A.ace(); }
+            if ((ev & RE.WARP) && A.warpIn) A.warpIn();
+            if ((ev & RE.OPEN) && A.warpOpen) A.warpOpen();
+            if (ev & RE.OUT) A.land(spd + 6);
         }
         if (s.i > r.i) r.i = s.i;
         if (!r.cut && r.t >= r.tape.cutT) {
@@ -1989,6 +2000,9 @@
             R.cutReplay(r.world.hole, s);
         }
         r.world.time = s.time;
+        // Inside a pipe the renderer needs the ride, for the portal and the
+        // size of the ball; the tape carries it (replay.js `frame`).
+        r.world.warping = r.t >= 0 ? s.warping : null;
         r.world.moving = r.t >= 0 && r.t < end;
         r.world.sunk = r.t >= end;
         R.frame(dt * rate, r.world, replayIntent);
@@ -2272,6 +2286,9 @@
         var dpr = canvas.width / (canvas.clientWidth || canvas.width);
         var b = state.world.ball;
         var dot = $('mm-ball');
+        // Nowhere, for the moment it is between the two ends of a pipe.
+        var gone = !!state.world.warping && P.warpPhase(state.world.warping).phase === 'dark';
+        dot.style.visibility = gone ? 'hidden' : '';
         dot.style.left = ((b.x - miniMapTf.ox) * miniMapTf.scale / dpr) + 'px';
         dot.style.top = ((b.z - miniMapTf.oz) * miniMapTf.scale / dpr) + 'px';
     }

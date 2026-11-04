@@ -2225,30 +2225,50 @@
         group.add(new THREE.LineSegments(geo, new THREE.LineBasicMaterial({ color: 0x27f0ff })));
     }
 
-    /* A gravity well, drawn: a black ball the size of its core sitting on
-       the ground, and an accretion disc round it — two rings, hot inside and
-       violet out, additive and turning (frame) — so it reads from the tee as
-       the thing that will bend the shot and the thing that will eat it. */
+    /* A gravity well, drawn as the black hole it is (v1.129.0; the owner on
+       the sphere and two flat rings it used to be: "very ugly"). Three parts,
+       from the shader every black hole in the game shares (see "the black
+       hole", below):
+
+         · **the disc on the ground**, which is the reading that matters to a
+           player: it reaches out to where the pull falls to a tenth of the
+           hole's gravity (`wellReach`), so the ground it darkens and the rings
+           feeding in across it are the ground the ball will be bent on. Its
+           horizon is the core exactly — inside that the ball is gone.
+         · **a black sphere** standing in the middle, which is the one solid
+           -looking thing: it is drawn opaque and writes depth, so the near
+           half of the disc passes in front of it and the far half behind,
+           the way a disc round a black hole does.
+         · **the glow round the sphere**, turned to the camera: a photon ring
+           on its silhouette and a short bright halo — and postfx bends the
+           picture round it (`lensList`), which is what lifts the far side of
+           the disc up over the top. */
+    function wellReach(hole, w) {
+        var g = P.gravityOf(hole);
+        var d = Math.sqrt(Math.max(0, w.pull / (0.1 * g) - w.core * w.core));
+        return Math.max(w.core * 3, Math.min(w.core * 6, d));
+    }
+
     function addWells(group, hole) {
-        R.wells = [];
         hole.wells.forEach(function (w) {
-            var top = P.surfaceTop(hole, w.x, w.z), y = top ? top.y : 0;
-            var core = new THREE.Mesh(new THREE.SphereGeometry(w.core * 0.85, 24, 16),
-                new THREE.MeshBasicMaterial({ color: 0x000000 }));
-            core.position.set(w.x, y + w.core * 0.5, w.z);
-            group.add(core);
-            var disc = new THREE.Group();
-            [[1.15, 1.9, 0xffb347, 0.9], [1.9, 3.2, 0xb040ff, 0.55]].forEach(function (r) {
-                var m = new THREE.Mesh(new THREE.RingGeometry(w.core * r[0], w.core * r[1], 48, 1),
-                    new THREE.MeshBasicMaterial({ color: r[2], transparent: true, opacity: r[3],
-                        blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
-                m.rotation.x = -Math.PI / 2;
-                disc.add(m);
-            });
-            disc.position.copy(core.position);
-            disc.rotation.z = 0.35;          // tipped, the way they always are
+            var top = P.surfaceTop(hole, w.x, w.z), y = top ? markY(top.pad, w.x, w.z) : MARK_LIFT;
+            var reach = wellReach(hole, w);
+            var disc = blackHole({ size: reach, hor: w.core / reach,
+                ring: Math.min(0.7, w.core * 1.9 / reach), feed: 2.4, shade: 0.95, beam: 0.35, gain: 1.3 });
+            disc.rotation.x = -Math.PI / 2;
+            disc.position.set(w.x, y, w.z);
             group.add(disc);
-            R.wells.push(disc);
+            var rs = w.core * 0.66;
+            var cy = y + rs * 0.42;
+            var core = new THREE.Mesh(new THREE.SphereGeometry(rs, 32, 20),
+                new THREE.MeshBasicMaterial({ color: 0x000000 }));
+            core.position.set(w.x, cy, w.z);
+            group.add(core);
+            var glow = blackHole({ facing: true, size: rs * 2.6, hor: 1 / 2.6, ring: 1.25 / 2.6,
+                feed: 0, shade: 0, beam: 0.55, order: 1 });
+            glow.position.set(w.x, cy, w.z);
+            group.add(glow);
+            R.wells.push({ w: w, disc: disc, glow: glow, core: core, cx: w.x, cy: cy, cz: w.z, rs: rs });
         });
     }
 
@@ -2625,40 +2645,185 @@
         group.add(rim);
     }
 
-    /* A pipe mouth: a bright collar and a throat that goes nowhere the eye can
-       follow, which is the entire visual argument that the ball will come out
-       somewhere else. */
+    /* ── the black hole ─────────────────────────────────────────────────
+
+       Everything in the game that eats a ball is drawn with one shader
+       (shaders.js, BLACKHOLE_*, v1.129.0): a pipe's mouth, the hole that
+       opens in the sky over its exit, and a gravity well. The owner's
+       brief was Cargo Lander's black hole, and the parts of it that matter
+       are an event horizon that is properly black, a disc of light turning
+       round it, rings feeding in, and the picture behind it bending — the
+       last of which is postfx.js's (`lens`), fed from `stepBlackHoles`.
+
+       Each is a quad of side two made the size it should be by the shader's
+       own `size` uniform, so its mesh is never scaled, and the raycasts that
+       pick camera seats never see one: they are effects, not things, and
+       nothing on the course is solid unless it is in `walls`. Every material
+       is in R.holeMats so the frame can wind their clocks together. */
+    var BH_HOT = 0xffb25a, BH_COOL = 0x7d3cff;
+    // How far round the mouth the disc spreads, in mouth radii. The rim of
+    // the mouth itself — where the ball goes in — is the bright band.
+    var MOUTH_REACH = 1.75;
+    var PORTAL_R = 1.0;
+
+    function blackHoleMaterial(o) {
+        var mat = new THREE.ShaderMaterial({
+            defines: o.facing ? { FACING: '' } : {},
+            uniforms: {
+                time: { value: 0 },
+                size: { value: o.size },
+                open: { value: o.open === undefined ? 1 : o.open },
+                hor: { value: o.hor },
+                ring: { value: o.ring },
+                feed: { value: o.feed === undefined ? 1 : o.feed },
+                shade: { value: o.shade === undefined ? 0.6 : o.shade },
+                gulp: { value: 0 },
+                spin: { value: o.spin || 1 },
+                beam: { value: o.beam || 0 },
+                hot: { value: lin(o.hot || BH_HOT).multiplyScalar(o.gain || 1) },
+                cool: { value: lin(o.cool || BH_COOL).multiplyScalar(o.gain || 1) }
+            },
+            vertexShader: SH.BLACKHOLE_VS,
+            fragmentShader: SH.BLACKHOLE_FS,
+            transparent: true,
+            depthWrite: false,
+            premultipliedAlpha: true,
+            side: THREE.DoubleSide
+        });
+        R.holeMats.push(mat);
+        return mat;
+    }
+
+    function blackHole(o) {
+        var m = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), blackHoleMaterial(o));
+        m.frustumCulled = false;
+        m.raycast = function () {};
+        m.renderOrder = o.order || 0;
+        return m;
+    }
+
+    /* A pipe mouth: a black hole lying in the floor. The horizon is a little
+       over half the mouth, the bright band is the mouth's own rim — where a
+       ball rolling past is taken — and the disc and the rings feeding in
+       spread three quarters of a radius beyond it, darkening the ground as
+       they go, so the hole reads as the floor falling away into it rather
+       than as a decal on top. It flares and spins up while it swallows
+       (`gulp`, stepBlackHoles).
+
+       It used to be a black disc, a throat, and a torus in the machine
+       colour. The torus was there because a flat ring under the grass could
+       only be seen from one side (see the note on MARK_LIFT); a lit disc
+       lifted clear of the shells has no far side to lose.
+
+       And with it, shut, the portal that will open in the sky over the exit
+       while a ball is in the pipe — a black hole of its own, turned to face
+       the camera, at the place the ride says (physics.js, "the wormhole"). */
     function addMouth(group, hole, w, theme) {
         var s = P.surfaceTop(hole, w.x, w.z);
         var y = s ? markY(s.pad, w.x, w.z) : MARK_LIFT;
-        var dark = new THREE.Mesh(new THREE.CircleGeometry(w.r * 0.8, 26),
-            new THREE.MeshBasicMaterial({ color: 0x080b12 }));
-        dark.rotation.x = -Math.PI / 2;
-        dark.position.set(w.x, y, w.z);
-        group.add(dark);
-        // And a throat under it, for the moment the ball goes past one at its
-        // own eyeline.
-        var throat = new THREE.Mesh(
-            new THREE.CylinderGeometry(w.r * 0.8, w.r * 0.58, 0.7, 24, 1, true),
-            new THREE.MeshBasicMaterial({ color: 0x0a0d14, side: THREE.BackSide }));
-        throat.position.set(w.x, y - 0.35, w.z);
-        group.add(throat);
-        /* The rim is the one mark on this course with real thickness, and it
-           earns it: a flat ring painted round a black hole is only visible
-           from the side of it nearest the camera — the far half is at a
-           grazing angle behind the near lip and simply is not there, so a
-           mouth came out as a hole with a smile under it. A torus is the same
-           shape with a body, and it reads from every angle a ball is ever
-           looked at from. It stands a third of STEP_UP proud, which is well
-           inside a kerb the ball would climb anyway, and it is not solid:
-           nothing on this course is a wall unless it is in `walls`. */
-        var rim = new THREE.Mesh(
-            new THREE.TorusGeometry(w.r * 0.86, 0.055, 8, 30),
-            new THREE.MeshLambertMaterial({ color: theme.machine || 0xffd34d }));
-        rim.rotation.x = -Math.PI / 2;
-        rim.position.set(w.x, y + 0.045, w.z);
-        rim.castShadow = true;
-        group.add(rim);
+        var disc = blackHole({ size: w.r * MOUTH_REACH, hor: 0.55 / MOUTH_REACH,
+            ring: 0.92 / MOUTH_REACH, feed: 1.1, shade: 0.8, beam: 0.3 });
+        disc.rotation.x = -Math.PI / 2;
+        disc.position.set(w.x, y, w.z);
+        group.add(disc);
+        var portal = blackHole({ facing: true, size: PORTAL_R, hor: 0.3, ring: 0.44,
+            feed: 1.2, shade: 0.2, beam: 0.35, gain: 2.2, open: 0, order: 2 });
+        portal.visible = false;
+        group.add(portal);
+        R.mouths.push({ w: w, disc: disc, portal: portal, gulp: 0, open: 0, after: 9, at: null });
+    }
+
+    /* How the ball is shown on the ride: shrinking into the mouth over the
+       back half of the swallow, gone in the dark, and grown back to full as
+       it leaves the portal. Drawing only — the ball is the same size to the
+       physics throughout, and nothing is colliding with it anyway. */
+    function warpScale(wr) {
+        if (!wr) return 1;
+        var ph = P.warpPhase(wr);
+        if (ph.phase === 'swallow') return 1 - smooth01((ph.s - 0.45) / 0.55);
+        if (ph.phase === 'dark') return 0;
+        return smooth01(ph.s / 0.22);
+    }
+    function smooth01(x) { x = Math.max(0, Math.min(1, x)); return x * x * (3 - 2 * x); }
+
+    /* The frame's work for every black hole on the hole: the shared clock,
+       the mouth's gulp, the sky portal opening and closing, the ball's size,
+       and the list of lenses for postfx. The portal runs off the ride's own
+       clock while there is a ride, so a replay — which carries the ride on
+       its tape — opens it at exactly the moment the shot did; after the
+       landing it closes on the renderer's clock, because by then there is no
+       ride to ask. */
+    var _lensPt = new THREE.Vector3();
+    var _lenses = [];
+    function stepBlackHoles(dt, world) {
+        var i, m, wr = world.warping || null, ph = null;
+        for (i = 0; i < R.holeMats.length; i++) R.holeMats[i].uniforms.time.value = R.clock;
+        if (wr) ph = P.warpPhase(wr);
+        for (i = 0; i < R.mouths.length; i++) {
+            m = R.mouths[i];
+            var mine = !!wr && wr.w === m.w;
+            var eat = mine && ph.phase === 'swallow' ? 1 : 0;
+            m.gulp += (eat - m.gulp) * (1 - Math.pow(eat ? 0.002 : 0.08, dt));
+            m.disc.material.uniforms.gulp.value = m.gulp;
+            var pu = m.portal.material.uniforms;
+            if (mine) {
+                m.at = { x: wr.px, y: wr.py, z: wr.pz };
+                m.after = 0;
+                if (ph.phase === 'swallow') m.open = 0;
+                else if (ph.phase === 'dark') m.open = smooth01(ph.s) * 0.9;
+                else m.open = 0.9 + 0.1 * smooth01(ph.s * 3);
+                // It spits the ball out: a flare as the drop starts.
+                pu.gulp.value = ph.phase === 'drop' ? Math.max(0, 1 - ph.s * 2.5) : (ph.phase === 'dark' ? ph.s * 0.6 : 0);
+            } else if (m.at) {
+                m.after += dt;
+                m.open = 1 - smooth01((m.after - 0.15) / 0.55);
+                pu.gulp.value = 0;
+                if (m.open <= 0) m.at = null;
+            }
+            m.portal.visible = !!m.at && m.open > 0.002;
+            if (m.portal.visible) {
+                m.portal.position.set(m.at.x, m.at.y, m.at.z);
+                pu.open.value = m.open;
+            }
+        }
+        var k = warpScale(wr);
+        R.ball.scale.setScalar(Math.max(1e-3, k));
+        R.ball.visible = k > 0.01;
+    }
+
+    /* Where the lenses are on the screen this frame, for postfx: a centre in
+       uv, a horizon radius in units of the screen's height, and a strength
+       (the square of the Einstein radius over the horizon's, so 1 bends the
+       light right round at the horizon). Only the portal and the wells' cores,
+       because they are round on the screen. A mouth is a disc on the floor
+       seen at a slant, and a round lens over an ellipse was tried and looked
+       like a fault: it dragged the grass in over the horizon and the black
+       came out brown. Called after the camera has moved, which is the only
+       camera it can be right for. */
+    function lensList() {
+        _lenses.length = 0;
+        var cam = R.camera, i, m;
+        cam.updateMatrixWorld();
+        var t = Math.tan(cam.fov * Math.PI / 360);
+        function add(x, y, z, r, k) {
+            if (_lenses.length >= 4 || k <= 0) return;
+            _lensPt.set(x, y, z);
+            var d = _lensPt.distanceTo(cam.position);
+            _lensPt.project(cam);
+            if (_lensPt.z > 1 || _lensPt.z < -1 || d < 0.3) return;
+            var u = _lensPt.x * 0.5 + 0.5, v = _lensPt.y * 0.5 + 0.5;
+            if (u < -0.5 || u > 1.5 || v < -0.5 || v > 1.5) return;
+            _lenses.push({ x: u, y: v, r: r / (2 * d * t), k: k });
+        }
+        for (i = 0; i < R.mouths.length; i++) {
+            m = R.mouths[i];
+            if (m.portal.visible) add(m.at.x, m.at.y, m.at.z, PORTAL_R * 0.3 * m.open, 0.9 * m.open);
+        }
+        for (i = 0; i < R.wells.length; i++) {
+            m = R.wells[i];
+            add(m.cx, m.cy, m.cz, m.rs, 0.8);
+        }
+        return _lenses;
     }
 
     /* A loop-the-loop: the track the ball rides round (physics.js, "the
@@ -4779,6 +4944,13 @@
         if (R.holeGroup) disposeGroup(R.holeGroup);
         R.movers = [];
         R.waterMats = [];
+        // The black holes (see "the black hole"): every material, every
+        // mouth with its sky portal, every well — and the camera that
+        // watches a ball come out of the sky.
+        R.holeMats = [];
+        R.mouths = [];
+        R.wells = [];
+        R.warpCam = null;
         R.waterHidden = false;
         R.shells = [];
         R.canopies = [];
@@ -4891,6 +5063,9 @@
         R.cam.kick = 0;
         R.cam.speedPull = 0;
         clearTrail();
+        // A hole changed with a ball inside a pipe would leave it shrunk.
+        R.ball.scale.setScalar(1);
+        R.ball.visible = true;
     }
 
     /* ── per-frame ──────────────────────────────────────────────────────── */
@@ -4926,7 +5101,9 @@
     function rollBall(pos) {
         var dx = pos.x - R.lastBall.x, dz = pos.z - R.lastBall.z;
         var d = Math.hypot(dx, dz);
-        if (d > 1e-5) {
+        // A unit in a frame is not a roll, it is a pipe: the ball crossing the
+        // hole to the sky portal, unseen, would otherwise spin fifty turns.
+        if (d > 1e-5 && d < 1) {
             R.ball.rotateOnWorldAxis(_axis.set(dz / d, 0, -dx / d), d / C.BALL_R);
         }
         R.lastBall.set(pos.x, pos.y, pos.z);
@@ -5606,6 +5783,23 @@
     function replayCamera(hole, ball, dt) {
         var r = R.replay, RP = C.REPLAY;
         var px, py, pz;
+        // A pipe on the way to an ace: the same cut to the sky portal the
+        // shot had, until the cup seat takes over.
+        if (R.warpCam && !r.seat) {
+            var wc = R.warpCam;
+            if (wc.cut) {
+                R.smooth.pos.set(wc.px, wc.py, wc.pz);
+                R.smooth.target.set(wc.tx, wc.ty, wc.tz);
+                wc.cut = false;
+            }
+            R.smooth.pos.lerp(_camPos.set(wc.px, wc.py, wc.pz), 1 - Math.pow(0.004, dt));
+            R.smooth.target.lerp(_camTarget.set(wc.tx, wc.ty, wc.tz), 1 - Math.pow(0.004, dt));
+            r.head = Math.atan2(Math.sin(wc.w.yaw), Math.cos(wc.w.yaw));
+            R.smooth.started = true;
+            R.camera.position.copy(R.smooth.pos);
+            R.camera.lookAt(R.smooth.target);
+            return true;
+        }
         if (r.seat) {
             px = r.seat.x; py = r.seat.y; pz = r.seat.z;
         } else {
@@ -5662,6 +5856,16 @@
             px = _seat.px; py = _seat.py; pz = _seat.pz;
             tx = _seat.tx; ty = _seat.ty; tz = _seat.tz;
         }
+        if (R.warpCam && R.cam.mode !== 'over' && R.cam.mode !== 'editor' && R.cam.mode !== 'demo') {
+            var wc = R.warpCam;
+            px = wc.px; py = wc.py; pz = wc.pz;
+            tx = wc.tx; ty = wc.ty; tz = wc.tz;
+            if (wc.cut) {
+                R.smooth.pos.set(px, py, pz);
+                R.smooth.target.set(tx, ty, tz);
+                wc.cut = false;
+            }
+        }
 
         if (!R.smooth.started || (R.cam.mode === 'editor' && R.cam.instant)) {
             R.smooth.pos.set(px, py, pz);
@@ -5696,6 +5900,75 @@
             R.loopCam.hold -= dt;
             if (R.loopCam.hold <= 0 || !world.moving) R.loopCam = null;
         }
+    }
+
+    /* The camera through a pipe (physics.js, "the wormhole").
+
+       From the seat behind the ball a pipe is a ball vanishing into the
+       floor and then, across the hole, a ball dropping out of a sky the
+       camera is not looking at. So the moment the ball is gone — the dark,
+       while the portal opens — the picture cuts to a seat that holds both
+       the portal and the exit: off to one side of the exit's heading and
+       behind it, so the drop comes down across the frame and rolls on away
+       from the lens. Cut, not eased, the way the replay cuts to the cup: the
+       ball is nowhere for a fifth of a second, and a camera sweeping across
+       the hole in that time is a smear. It holds for most of a second after
+       the landing and then the ordinary easing carries it back to the seat.
+
+       The seat is picked once, when the ride reaches the dark: the side the
+       camera already stands on first, then the other, then wider and
+       narrower, taking the first with a clear line to both the portal and
+       the landing (a dome or a wall round the exit is exactly where a fixed
+       seat would be looking at the back of something). */
+    var WARP_SEATS = [0.8, 0.45, 1.2, 0.1, 1.6];
+    function watchWarp(world, dt) {
+        var wr = world.warping;
+        if (wr && P.warpPhase(wr).phase !== 'swallow') {
+            if (!R.warpCam || R.warpCam.key !== wr.px + ':' + wr.pz + ':' + wr.w.tx) R.warpCam = warpSeat(world.hole, wr);
+            R.warpCam.hold = 0.85;
+        } else if (R.warpCam) {
+            R.warpCam.hold -= dt;
+            if (R.warpCam.hold <= 0 || !world.moving || wr) R.warpCam = null;
+        }
+    }
+
+    function clearView(p, x, y, z) {
+        _rayFrom.set(p.x, p.y, p.z);
+        _rayDir.set(x - p.x, y - p.y, z - p.z);
+        var len = _rayDir.length();
+        if (len < 1e-3) return true;
+        _rayDir.multiplyScalar(1 / len);
+        _ray.set(_rayFrom, _rayDir);
+        _ray.far = len;
+        var hits = _ray.intersectObject(R.holeGroup, true), i;
+        for (i = 0; i < hits.length; i++) {
+            var o = hits[i].object;
+            if (o.isMesh && o.visible && hits[i].distance < len - 0.5) return false;
+        }
+        return true;
+    }
+
+    function warpSeat(hole, wr) {
+        var w = wr.w, fx = Math.sin(w.yaw), fz = Math.cos(w.yaw);
+        // What it looks at: two fifths of the way from the landing to the portal.
+        var tx = w.tx + (wr.px - w.tx) * 0.4, tz = w.tz + (wr.pz - w.tz) * 0.4;
+        var ty = wr.ey + (wr.py - wr.ey) * 0.4;
+        var dist = 5.4 + wr.back * 0.5;
+        var cam = R.camera.position;
+        var side = ((cam.x - w.tx) * fz - (cam.z - w.tz) * fx) < 0 ? -1 : 1;
+        var best = null, i, k, a, s;
+        for (i = 0; i < WARP_SEATS.length * 2 && !best; i++) {
+            a = WARP_SEATS[i >> 1] * (i & 1 ? -side : side);
+            var bx = -fx * Math.cos(a) + fz * Math.sin(a), bz = -fz * Math.cos(a) - fx * Math.sin(a);
+            s = { x: tx + bx * dist, y: ty + 1.3, z: tz + bz * dist };
+            var top = P.surfaceTop(hole, s.x, s.z);
+            if (top && s.y < top.y + 1.1) s.y = top.y + 1.1;
+            if (clearView(s, w.tx, wr.ey, w.tz) && clearView(s, wr.px, wr.py, wr.pz)) best = s;
+            if (i === 0) k = s;
+        }
+        s = best || k;
+        return { key: wr.px + ':' + wr.pz + ':' + w.tx, w: w, cut: true, hold: 0.85,
+            px: s.x, py: s.y, pz: s.z, tx: tx, ty: ty, tz: tz };
     }
 
     function loopSeat(lc, out) {
@@ -5837,8 +6110,12 @@
         R.cam.kick *= Math.pow(0.008, dt);
         if (R.cam.kick < 0.002) R.cam.kick = 0;
 
-        // The tail only follows a ball that is actually going somewhere.
-        if (world.moving && speed > 1.2) {
+        // The tail only follows a ball that is actually going somewhere — and
+        // not through a pipe, where it would be a line drawn straight across
+        // the hole from the mouth to the sky. It starts again at the portal,
+        // so the drop leaves a streak.
+        var tailed = !world.warping || P.warpPhase(world.warping).phase === 'drop';
+        if (world.moving && speed > 1.2 && tailed) {
             R.trailOn = true;
             pushTrail(world.ball.x, world.ball.y, world.ball.z);
         } else if (R.trailOn) {
@@ -5851,9 +6128,11 @@
         updateAim(world, aim);
         stepParticles(dt);
         stepRipples(dt);
-        if (R.wells) for (var wi = 0; wi < R.wells.length; wi++) R.wells[wi].rotation.y += dt * 0.9;
+        stepBlackHoles(dt, world);
         watchLoop(world, dt);
+        watchWarp(world, dt);
         updateCamera(world.hole, world.ball, dt);
+        if (R.fx && G3.postfx.lens) G3.postfx.lens(lensList());
 
         // The camera has moved; what the air is doing about it, and the two
         // markers that only exist while it is up there.

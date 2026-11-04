@@ -79,6 +79,8 @@
         'uniform float bloom, rays, exposure, contrast, saturation, vignette, grain, aberration, time;',
         'uniform vec2 sunUv;',
         'uniform vec3 tint, lift;',
+        'uniform vec4 lens[' + 4 + '];',
+        'uniform float lensAspect;',
         'varying vec2 vUv;',
 
         // Narkowicz's fit of the ACES curve: lifts the mid-tones a shade and,
@@ -88,6 +90,30 @@
         '}',
 
         'void main(){',
+        /* Gravitational lensing, round each black hole on the screen
+           (render.js `lensList`, v1.129.0) — the half of Cargo Lander's black
+           hole a shader on the hole itself cannot do, because it is the
+           picture *behind* the hole that bends. A pixel θ from the middle
+           looks at what is θ − θE²/θ from it: the light from just behind the
+           horizon is bent out into a ring round it, and the ground and sky
+           round the edge are dragged in towards it. `z` is the horizon's
+           radius in screen heights, `w` is θE² over that squared; the
+           deflection is held flat inside the horizon (which is black anyway)
+           and faded out by five horizons, so there is no edge to see. */
+        '  vec2 uv = vUv;',
+        '  for (int i = 0; i < 4; i++) {',
+        '    vec4 L = lens[i];',
+        '    if (L.w <= 0.0) continue;',
+        '    vec2 d = (vUv - L.xy) * vec2(lensAspect, 1.0);',
+        '    float r = length(d);',
+        '    float reach = L.z * 5.0;',
+        '    if (r >= reach || r < 1e-5) continue;',
+        // …and never past the middle: a pixel that looked through to the far
+        // side would show the hole's surroundings twice, mirrored.
+        '    float defl = min(L.w * L.z * L.z / max(r, L.z), r * 0.8);',
+        '    float fade = 1.0 - smoothstep(reach * 0.45, reach, r);',
+        '    uv -= (d / r) * defl * fade / vec2(lensAspect, 1.0);',
+        '  }',
         '  vec2 off = vUv - 0.5;',
         // A lens is not one lens: the corners split colour a little, and the
         // amount grows with the square of the distance out from the middle.
@@ -96,9 +122,9 @@
         // before it stops reading as a lens and starts reading as a fault.
         '  vec2 ab = off * (aberration * 0.0055 * dot(off, off));',
         '  vec3 c;',
-        '  c.r = texture2D(tScene, vUv + ab).r;',
-        '  c.g = texture2D(tScene, vUv).g;',
-        '  c.b = texture2D(tScene, vUv - ab).b;',
+        '  c.r = texture2D(tScene, uv + ab).r;',
+        '  c.g = texture2D(tScene, uv).g;',
+        '  c.b = texture2D(tScene, uv - ab).b;',
 
         '  if (bloom > 0.0005) {',
         '    vec3 b = texture2D(tBloomA, vUv).rgb * 0.62 + texture2D(tBloomB, vUv).rgb * 0.38;',
@@ -239,7 +265,9 @@
                 time: { value: 0 },
                 sunUv: { value: new THREE.Vector2(0.5, 0.9) },
                 tint: { value: new THREE.Color(1, 1, 1) },
-                lift: { value: new THREE.Color(0, 0, 0) }
+                lift: { value: new THREE.Color(0, 0, 0) },
+                lens: { value: [new THREE.Vector4(), new THREE.Vector4(), new THREE.Vector4(), new THREE.Vector4()] },
+                lensAspect: { value: 1 }
             };
 
             FX.mBright = material(BRIGHT_FS, FX.uBright);
@@ -437,11 +465,26 @@
         r.autoClear = auto;
     }
 
+    /* The black holes on the screen this frame (render.js `lensList`): up to
+       four of { x, y, r, k } — a centre in uv, a horizon radius in screen
+       heights, and a strength. Anything not handed in this frame is off. */
+    function lens(list) {
+        if (!FX.ok) return;
+        var L = FX.uComp.lens.value, i, e;
+        for (i = 0; i < L.length; i++) {
+            e = list && list[i];
+            if (e) L[i].set(e.x, e.y, e.r, e.k);
+            else L[i].set(0, 0, 0, 0);
+        }
+        FX.uComp.lensAspect.value = FX.w / Math.max(1, FX.h);
+    }
+
     G3.postfx = {
         init: init,
         resize: resize,
         render: render,
         setGrade: setGrade,
+        lens: lens,
         get ok() { return FX.ok; },
         get tier() { return FX.tier; },
         state: FX

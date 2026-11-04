@@ -25,6 +25,8 @@
 
     // Event bits on a frame: what the step that ended there ran into.
     var BOUNCE = 1, LAND = 2, RIM = 4, SUNK = 8;
+    // …and the three beats of a pipe (physics.js, "the wormhole").
+    var WARP = 16, OPEN = 32, OUT = 64;
 
     function flat(dx, dz) { return Math.sqrt(dx * dx + dz * dz); }
 
@@ -47,8 +49,14 @@
         return tape;
     }
 
-    function frame(t, b, ev) {
-        return { t: t, x: b.x, y: b.y, z: b.z, vx: b.vx, vy: b.vy, vz: b.vz, ev: ev };
+    /* A frame inside a pipe also carries the ride (`wr`), because the ball's
+       place there is not a thing to interpolate: from the mouth to the sky is
+       one step and a straight line between them is a ball flying under the
+       hole. With the ride on the tape, `sample` asks the ride where the ball
+       is at any moment of it, exactly as the shot did. */
+    function frame(t, b, ev, wr) {
+        return { t: t, x: b.x, y: b.y, z: b.z, vx: b.vx, vy: b.vy, vz: b.vz, ev: ev,
+            wr: wr ? P.cloneWarp(wr) : null };
     }
 
     // One step of the live roll, after physics has advanced it. `ev` is the
@@ -62,8 +70,11 @@
             if (ev.land) bits |= LAND;
             if (ev.rim) bits |= RIM;
             if (ev.sunk) bits |= SUNK;
+            if (ev.warp) bits |= WARP;
+            if (ev.warpOpen) bits |= OPEN;
+            if (ev.warpOut) bits |= OUT;
         }
-        tape.frames.push(frame(world.time - tape.t0, world.ball, bits));
+        tape.frames.push(frame(world.time - tape.t0, world.ball, bits, world.warping));
         if (world.sunk) tape.sunk = true;
     }
 
@@ -131,6 +142,15 @@
         out.vz = a.vz + (b.vz - a.vz) * u;
         out.i = hi === lo ? lo : (u >= 1 ? hi : lo);
         out.time = tape.t0 + Math.max(f[0].t, Math.min(f[n - 1].t, t));
+        // In a pipe: the ride says where, on its own clock (see `frame`).
+        out.warping = null;
+        if (a.wr && (b.wr || hi === lo)) {
+            var wr = out.ride || (out.ride = {}), k;
+            for (k in a.wr) if (Object.prototype.hasOwnProperty.call(a.wr, k)) wr[k] = a.wr[k];
+            wr.t = Math.min(a.wr.t + Math.max(0, t - a.t), P.warpLength() - 1e-6);
+            P.warpPoint(wr, wr.t, out);
+            out.warping = wr;
+        }
         return out;
     }
 
@@ -185,7 +205,7 @@
         rate: rate,
         seats: seats,
         cutTime: cutTime,
-        BOUNCE: BOUNCE, LAND: LAND, RIM: RIM, SUNK: SUNK
+        BOUNCE: BOUNCE, LAND: LAND, RIM: RIM, SUNK: SUNK, WARP: WARP, OPEN: OPEN, OUT: OUT
     };
 
 })(window.G3);
