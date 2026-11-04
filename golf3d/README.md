@@ -458,7 +458,7 @@ way the ball was hit. game.js "swing styles" is the thumb and the pictures.
   untouched, exactly as the meter's.
 - **Past 100%, and on the green, a touch miss costs more** (`swipeMult`):
   every consequence — push, pull, bend, the weight a lazy swing loses — is
-  multiplied by `1 + SWIPE.OVER_MULT ×` the meter's own overdraw (×2.5 at the
+  multiplied by `1 + SWIPE.OVER_MULT ×` the meter's own overdraw (×1.75 at the
   top), and the tempo's clean band narrows there like the line's. A putt (a
   club under 9° of loft) has a tighter line (`SWIPE.PUTT.TOL`), costs
   `PUTT.MULT` more, and is the one stroke where a snatch runs *long*

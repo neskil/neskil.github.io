@@ -8,7 +8,7 @@
    — the renderer scales to the viewport, the simulation never sees a pixel. */
 window.G3 = window.G3 || {};
 
-G3.VERSION = '1.127.0';
+G3.VERSION = '1.127.1';
 
 G3.CONFIG = {
     BALL_R: 0.16,
@@ -369,9 +369,10 @@ G3.CONFIG = {
         /* Past a full swing a bad swipe costs more than its share: every
            consequence — the push or pull, the bend, the weight — is
            multiplied by 1 + OVER_MULT × the overdraw, so the top of the bar
-           doubles and a half what the same swipe costs at 100%. The tempo's
+           costs 1.75× what the same swipe costs at 100% (halved from 2.5× on
+           the owner's request). The tempo's
            clean band narrows there by TIGHTEN, like the line's. */
-        OVER_MULT: 1.5,
+        OVER_MULT: 0.75,
         /* Putting (a club with no loft). TOL is the line's clean band as a
            share of the feel's, MULT what a miss costs over a full swing's, and
            JAB how much long a fully rushed stroke runs — on a putt a snatch
