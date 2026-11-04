@@ -8,7 +8,7 @@
    — the renderer scales to the viewport, the simulation never sees a pixel. */
 window.G3 = window.G3 || {};
 
-G3.VERSION = '1.127.0';
+G3.VERSION = '1.128.0';
 
 G3.CONFIG = {
     BALL_R: 0.16,
@@ -1000,6 +1000,14 @@ G3.CONFIG = {
        what the mode is for — you are meant to be able to follow it. */
     BOT_FAN: 12,
     BOT_PAUSE: 1.1,
+    /* Milliseconds of each frame the caddie may spend on its plan (bot.js,
+       "the plan"; game.js, thinkSim). The plan is a fixed count of simulated
+       shots, so this sets how long the thinking takes and how smooth the
+       frames stay meanwhile, never which shot it ends in. Nothing on screen
+       moves while it thinks, so a frame rate in the thirties costs nothing
+       to look at, and a phone already spending most of a frame drawing
+       gets the plan made in a couple of seconds rather than six. */
+    BOT_SLICE: 20,
     /* The bot's hands, for when it is standing in for a person rather than
        proving a hole can be done (bot.js, `opts.hands`; tools/human-check.mjs).
 

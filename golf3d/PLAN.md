@@ -36,15 +36,6 @@ order they came in (the ones already shipped are under "Done", v1.126.0):
    some verticality. For the Grand Canyon inspired ones I'd like some really
    high cliffs as part of the design." Redstone first (the canyon country),
    then height wherever a long hole is flat for no reason.
-12. **The autoplay caddie** — "bot gets stuck on Dead Weight" (Apogee Yard),
-    and "perhaps the bot needs some pathfinding algos as well to make a plan?
-    The auto play bot, that is." A greedy one-shot search is what stalls it: a
-    route that goes away from the cup first (a ramp, a pad, a pipe, the long
-    way round) never wins on distance. In hand. Two cases to keep as tests:
-    Caldera's old lip (at mallet 17 the caddie went off the tee on to the
-    lawn past the vent at about (4–6, 9.97) and putted a unit east and a unit
-    west along it until it ran out of strokes), and Bumper City's bank ace,
-    which the greedy search finds at fan 20 and 36 and misses at 12, 16, 24.
 13. **Pinball Parlour, as a course** — "could have nicer flippers and a bit more
     fun design. The increasing complexity for every level kind of deal, and
     vary props and decor." Shipped in part (v1.126.0): hinged flippers drawn
@@ -61,6 +52,17 @@ is waiting on the owner to say which course they meant.
 
 Done:
 
+- **The autoplay caddie plans a route** (v1.128.0) — "bot gets stuck on Dead
+  Weight" and "perhaps the bot needs some pathfinding algos as well to make a
+  plan?" `G3.bot.Planner`: rests are nodes, shots are edges, A* to the cup on
+  a shot budget, values backed up from the cup and the greedy search scored
+  by them, so a route that goes away first is played. At the in-game settings
+  it finishes all 84 holes (greedy left Dead Weight), stops shuffling on the
+  old Caldera lip, and aces Bumper City. It thinks in 20 ms slices
+  (`BOT_SLICE`). The hole lab, par-check and human-check still use greedy.
+  Open: with hands it trusts perfect-strike routes a little on narrow carries
+  (Coral Keys a third of a stroke worse a hole), and a long hole's first shot
+  can take two or three seconds to plan.
 - **The Backboard and the crossed corners** (v1.127.0) — "a good concept that
   is lacking in execution. Also don't like the X style corners sticking out."
   The X was general: `railFor` ran every rail a thickness past both ends, and
