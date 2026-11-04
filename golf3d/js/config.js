@@ -8,7 +8,7 @@
    — the renderer scales to the viewport, the simulation never sees a pixel. */
 window.G3 = window.G3 || {};
 
-G3.VERSION = '1.127.1';
+G3.VERSION = '1.127.2';
 
 G3.CONFIG = {
     BALL_R: 0.16,
@@ -351,7 +351,11 @@ G3.CONFIG = {
             LINE: 0.6,
             POWER_LOSS: 0.3
         },
-        BOW: { MIN: 0.09, IDEAL: 0.18, TOL: 0.06, SPAN: 0.14 },
+        /* MIN was 0.09, IDEAL 0.18: a right thumb's own arc up a full pull
+           bows 0.10–0.17 without trying, so a swipe meant straight was read
+           as a clean fade — graded Perfect, and the ball started left and
+           sliced. A shape now has to be drawn on purpose. */
+        BOW: { MIN: 0.15, IDEAL: 0.22, TOL: 0.06, SPAN: 0.14 },
         /* A scribble rather than a swing (swing.js `swipeMess`, `swipeJunk`):
            a path more than RATIO times as long as a clean pull-and-swipe of
            the same depth (plus SLACK px), or more than TURNS changes between
