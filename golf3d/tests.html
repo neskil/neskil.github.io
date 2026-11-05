@@ -1132,8 +1132,8 @@
 
         section('Course data');
         (function () {
-            assert('fourteen courses', G3.COURSES.length === 14);
-            assert('eighty-four holes in total', ALL.length === 84);
+            assert('fifteen courses', G3.COURSES.length === 15);
+            assert('ninety holes in total', ALL.length === 90);
             assert('courseById finds a course', G3.courseById('quarry').id === 'quarry');
             assert('courseById falls back to the first', G3.courseById('nope').id === G3.COURSES[0].id);
 
@@ -2434,7 +2434,8 @@
                and must never be solid walls. */
             var decorCount = 0, badDecor = '';
             var VALID_DECOR = ['buoy', 'piling', 'bench', 'boat', 'rowboat', 'sailboat', 'bin', 'barrel', 'crate', 'palm', 'pine', 'sign', 'windmill',
-                               'skyline', 'cabinet', 'marquee', 'lamp', 'jukebox', 'claw', 'fruit'];
+                               'skyline', 'cabinet', 'marquee', 'lamp', 'jukebox', 'claw', 'fruit',
+                               'chalet', 'cairn', 'lift', 'waterfall'];
             ALL.forEach(function (entry) {
                 (entry.hole.decor || []).forEach(function (d) {
                     decorCount++;
@@ -2459,7 +2460,8 @@
 
             // Authoring decor helpers & flexible argument handling
             var helperKinds = ['buoy', 'piling', 'bench', 'boat', 'sailboat', 'bin', 'barrel', 'crate', 'palm', 'pine', 'sign', 'windmill',
-                               'skyline', 'cabinet', 'marquee', 'lamp', 'jukebox', 'claw', 'fruit'];
+                               'skyline', 'cabinet', 'marquee', 'lamp', 'jukebox', 'claw', 'fruit',
+                               'chalet', 'cairn', 'lift', 'waterfall'];
             var helpersOk = helperKinds.every(function (k) {
                 return typeof A[k] === 'function' && A[k](1, 2).kind === k;
             });
@@ -2645,7 +2647,7 @@
                             });
                     }));
             });
-            assert('there are open holes to check', openHoles === 30, openHoles + ' found');
+            assert('there are open holes to check', openHoles === 36, openHoles + ' found');
 
             var worstLie = 0, worstLieName = '';
             ALL.forEach(function (entry) {
@@ -4795,7 +4797,7 @@
 
             // The long courses rebuilt to the line in PLAN.md §0. One joins
             // this list when it meets it, and is held there from then on.
-            var REBUILT = ['parkland', 'whinstone', 'dunmore', 'redstone'];
+            var REBUILT = ['parkland', 'whinstone', 'dunmore', 'redstone', 'alpine'];
             var b0 = performance.now();
             ALL.forEach(function (entry) {
                 var h = entry.hole;

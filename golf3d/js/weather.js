@@ -182,7 +182,12 @@
            far end of a par five, and the whole of that hole's plan in the
            picker, into a white rectangle. Fog is a function of distance, and
            these are the longest holes on the card. */
-        canyon: ['clear', 'golden', 'fair', 'overcast', 'clear', 'golden']
+        canyon: ['clear', 'golden', 'fair', 'overcast', 'clear', 'golden'],
+        /* High country, and the air up there is the point: clear and fair
+           all round, with a golden hour on the snow. No mist, dust or grey
+           day — a haze is exactly what clear high air is not, and it would
+           take the range off the horizon the course is built under. */
+        alpine: ['clear', 'fair', 'golden', 'clear', 'fair', 'clear']
     };
 
     // Skies a course is happy to open on.

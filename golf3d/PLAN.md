@@ -44,10 +44,52 @@ order they came in (the ones already shipped are under "Done", v1.126.0):
    drums, scree laid at the feet, and the floor's edge let down into the
    country. Still open: height on the other long courses where a hole is flat
    for no reason.
+Proposed next — what a look round the whole game turned up once the owner's
+list was done (v1.134.1), most visible first. Not asked for; each wants the
+owner's yes before it is started.
+
+- **The long game's property reads as a mat.** Every long hole is a rectangle
+  of rough on a plateau with a bank round it, and from the hero seat that is a
+  green rectangle on the heather, the moor or the parkland floor. v1.134.1 took
+  the mower's stripes off the rough, which let the fairway's own wandering
+  edge show; an apron of rough fading down the bank was tried and only drew a
+  soft outline round the same rectangle. The real answer is in the holes: an
+  outline that is not a box (rough that runs out in tongues, gorse and heather
+  and tree lines at the edge, the stakes where the country changes rather than
+  where the slab stops).
+- **Haze from above on the long courses.** The hero and plan views of
+  Dunmore and Ashdown are washed out to the edges ("Less fog on a clear day",
+  below, still open); Alpenglow Pass's `theme.air` is the knob to try on them.
+- **Height where a long hole is flat for no reason** — the rest of item 9, on
+  Ashdown, Whinstone and Dunmore.
+- **The level editor is behind the game.** It does not know slingshots,
+  firing bats, roads or the new decor kinds, so a hole using them cannot be
+  drawn there or survives a round trip through it changed.
+- **A timing miss in the bot's hands** (BOT_HANDS), so human-check stops
+  reading the crazy courses as easier than people find them.
+- **Another biome** after the alpine one, for the long game or a mini course:
+  black-sand volcanic links, an autumn forest, a desert of dunes, or a course
+  under floodlights at night.
+
 Still waiting: "Deadline" (a nice biome, maps too simple, water on a table)
 is waiting on the owner to say which course they meant.
 
 Done:
+
+- **Alpenglow Pass, a long course on a new biome** (v1.135.0) — "perhaps new
+  biome for long game maps", with the verticality asked for in item 9. Six
+  holes, par 24, on a mountainside: a downhill par three off a crag, an uphill
+  four to a shelf, a five down a valley over the stream twice, a carry over a
+  tarn with a way round, a ridge with a drop down one side and a closer to the
+  chalet. Theme `alpine` (clear high air: `air` pushes the fog back; granite
+  `strata` with snow from ten units up), firs, chalet, cairns, a chairlift and
+  a waterfall, and a faceted, snow-capped range round every hole
+  (`theme.range`, render.addRange) with the crags nobody plays crowned
+  (render.addCrown). The bot with hands scores 18.8 (-5.3), every hole within
+  a stroke and a quarter of par. Not done: a snowfield surface (it would play
+  as sand does — README → "Alpenglow Pass"); the hero views are still a little
+  paler than the tee views; the tee crags keep their flat tops, since a tee
+  stands on them.
 
 - **Pinball Parlour, as a course** (v1.126.0, finished in v1.134.0) — "could
   have nicer flippers and a bit more fun design. The increasing complexity for
