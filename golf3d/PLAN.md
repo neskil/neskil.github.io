@@ -76,7 +76,7 @@ is waiting on the owner to say which course they meant.
 
 Done:
 
-- **Alpenglow Pass, a long course on a new biome** (v1.13x.0) — "perhaps new
+- **Alpenglow Pass, a long course on a new biome** (v1.135.0) — "perhaps new
   biome for long game maps", with the verticality asked for in item 9. Six
   holes, par 24, on a mountainside: a downhill par three off a crag, an uphill
   four to a shelf, a five down a valley over the stream twice, a carry over a

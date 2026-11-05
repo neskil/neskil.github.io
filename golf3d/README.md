@@ -2306,7 +2306,7 @@ and the audit catches it as `prop-afloat`.
 
 ### Alpenglow Pass
 
-The sixth long course (v1.13x.0), on a new biome: high country, and the first
+The sixth long course (v1.135.0), on a new biome: high country, and the first
 long course where the height goes *up* from the hole as well as down from it.
 The owner asked for "perhaps new biome for long game maps", and for
 verticality — "really high cliffs" — on the long game generally, and a

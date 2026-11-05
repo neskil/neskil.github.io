@@ -7100,7 +7100,7 @@
        its own and left out: on this bag it would play exactly as sand does
        (it holds what lands and gives up distance), so it would be a colour
        rather than a decision, and the snow is on the rock where it belongs.
-       (v1.13x.0) */
+       (v1.135.0) */
 
     /* The fan of fallen rock at the foot of a crag: low humps strung round
        its outline, for the ground it stands on. */
