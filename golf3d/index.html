@@ -38,7 +38,7 @@
 
         gtag('config', 'G-9GP823TGLB');
     </script>
-    <link rel="stylesheet" href="style.css?v=1.136.0">
+    <link rel="stylesheet" href="style.css?v=1.137.0">
 <script type="application/ld+json">
     {
         "@context": "https://schema.org",
@@ -447,29 +447,6 @@
                              about any of them: 60% is nine units with a putter
                              and nineteen with a driver, and it is the nine and
                              the nineteen you are aiming with. -->
-                        <!-- Shot shape, on the clubs that bend (js/swing.js
-                             `shape`). A ball with a dot where the club will
-                             meet it: dead centre is straight, and pressing it
-                             opens the pad below to move the dot. Floated into
-                             the label's line because on a phone this column
-                             is two hundred pixels wide and there is no second
-                             row to spare. -->
-                        <!-- Where the club meets the ball, picked on the ball itself:
-                             hit the top of it and it is topped, get under it for
-                             backspin, either side to bend it that way. A cycle of
-                             five words through one chip said none of that. Built by
-                             game.js (`buildShapePad`) from SHAPE_INFO. -->
-                        <div class="shape-pad" id="shape-pad" hidden role="dialog" aria-label="Shot shape">
-                            <p class="sp-title">Where do you hit it?</p>
-                            <div class="sp-ball" id="sp-ball"></div>
-                        </div>
-                        <button type="button" class="shape-btn" id="btn-shape" hidden
-                                title="Shot shape: draw Z, fade X, backspin Q, topped E"
-                                aria-haspopup="dialog" aria-expanded="false" aria-controls="shape-pad"
-                                aria-label="Shot shape: Straight. Press to change.">
-                            <span class="shape-ball" aria-hidden="true"><i class="shape-dot" id="shape-dot"></i></span>
-                            <span id="shape-val">Straight</span>
-                        </button>
                         <span class="ctl-label"><span class="power-word">Power </span><b id="power-val">0.0</b><span class="power-of" id="power-of">/ 32</span><span class="power-dist" id="power-dist"></span></span>
                         <!-- The meter has always been a slider you can press
                              and drag; what it did not have was anything that
@@ -598,16 +575,9 @@
                     rather than runs, the <b>pitch</b> goes up steep and stops where it lands,
                     and the <b>wedge</b> is the lob — straight up over water, sand and trees.
                     Each one has its own ceiling on power, so a full swing means something different in every hand.
-                    Most clubs can also <b>shape</b> the shot — the chip above the meter steps through
-                    what the club in hand can play. A <b>draw</b> (<kbd>Z</kbd>) starts out right of your
-                    aim and curves back left onto it, a <b>fade</b> (<kbd>X</kbd>) the other way round and
-                    lands softer: aim at the target and bend the ball round whatever is in between.
-                    <b>Backspin</b> (<kbd>Q</kbd>) stops it where it lands; <b>topped</b> (<kbd>E</kbd>)
-                    keeps it low under the branches and lets it run. The preview shows the shot as
-                    asked for — but a shape has to be <b>struck</b>: Swing starts a marker along the
-                    meter, and you press again on the white line. Early over-cooks it and pulls it
-                    left, late leaves it short of the shape and pushes it right. The shape is for one
-                    shot, and goes back to straight after it.
+                    On the touch swing you can still bend it: bow the swipe to the right for a
+                    <b>draw</b> that starts right and curves back left, to the left for a <b>fade</b>,
+                    and let go about three quarters of the way back up for <b>backspin</b>.
                 </li>
                 <li>
                     <b>The hole introduces itself.</b> Every new hole opens with a flyover: it
@@ -702,7 +672,7 @@
             <p class="sub kb-help">
                 <kbd>←</kbd><kbd>→</kbd> aim · <kbd>↑</kbd><kbd>↓</kbd> power ·
                 <kbd>shift</kbd>+<kbd>1</kbd>–<kbd>0</kbd> tenths of a full swing ·
-                <kbd>home</kbd><kbd>end</kbd> empty or full · <kbd>Z</kbd><kbd>X</kbd><kbd>Q</kbd><kbd>E</kbd> draw, fade, backspin, topped ·
+                <kbd>home</kbd><kbd>end</kbd> empty or full ·
                 <kbd>space</kbd> swing · <kbd>shift</kbd> fine control · <kbd>,</kbd><kbd>.</kbd> view round the ball ·
                 <kbd>L</kbd> lock it · <kbd>0</kbd> straighten · <kbd>V</kbd> seat ·
                 <kbd>F</kbd> fullscreen · <kbd>R</kbd> restart hole · <kbd>M</kbd> sound · <kbd>J</kbd> music · <kbd>O</kbd> fancy water · <kbd>P</kbd> frame rate
@@ -836,7 +806,7 @@
             <span><b>The View dial</b> along the top of the course walks the camera round the ball without moving the shot — the <b>⌖</b> in its middle puts it back behind the ball, and so does a new hole. The <b>🔓</b> beside it locks the camera where it is, so aiming stops swinging the view round; handy on the overview, where a drag to aim otherwise turns the whole hole under you.</span>
             <span class="kb-help"><kbd>←</kbd><kbd>→</kbd> aim · <kbd>↑</kbd><kbd>↓</kbd> power · <kbd>1</kbd>–<kbd>5</kbd> club
                 · <kbd>shift</kbd>+<kbd>1</kbd>–<kbd>0</kbd> tenths of a full swing · <kbd>home</kbd><kbd>end</kbd> empty or full
-                · <kbd>Z</kbd><kbd>X</kbd><kbd>Q</kbd><kbd>E</kbd> draw, fade, backspin, topped · <kbd>space</kbd> swing (<kbd>shift</kbd> for fine control)</span>
+                · <kbd>space</kbd> swing (<kbd>shift</kbd> for fine control)</span>
             <span class="kb-help"><kbd>V</kbd> seat: follow, side on, overview · <kbd>,</kbd><kbd>.</kbd> walk round · <kbd>L</kbd> lock the camera · <kbd>0</kbd> straighten · <kbd>F</kbd> fullscreen · <kbd>R</kbd> restart hole · <kbd>W</kbd> weather · <kbd>M</kbd> sound · <kbd>J</kbd> music · <kbd>O</kbd> fancy water · <kbd>P</kbd> frame rate · scroll to zoom</span>
             <span class="touch-help">Drag sideways to turn, up and down to raise and drop the camera — a tap on its own leaves the aim where it was. Drag the View dial along the top to look at the shot from the side, and hold a nudge button to keep it moving. Pinch to zoom, swipe the bag to switch clubs. Turn your phone sideways for a bigger course.</span>
             <span><button type="button" class="linkish" id="btn-help-2">How to play</button></span>
@@ -864,30 +834,30 @@
 
     <!-- Load order is dependency order: config, then the pure logic, then the
          things that touch the screen. game.js boots itself on DOMContentLoaded. -->
-    <script src="js/config.js?v=1.136.0"></script>
-    <script src="js/themes.js?v=1.136.0"></script>
-    <script src="js/physics.js?v=1.136.0"></script>
-    <script src="js/courses.js?v=1.136.0"></script>
-    <script src="js/audit.js?v=1.136.0"></script>
-    <script src="js/custom.js?v=1.136.0"></script>
-    <script src="js/scoring.js?v=1.136.0"></script>
-    <script src="js/swing.js?v=1.136.0"></script>
-    <script src="js/school.js?v=1.136.0"></script>
-    <script src="js/audio.js?v=1.136.0"></script>
-    <script src="js/music.js?v=1.136.0"></script>
-    <script src="js/bag.js?v=1.136.0"></script>
-    <script src="js/textures.js?v=1.136.0"></script>
-    <script src="js/shaders.js?v=1.136.0"></script>
-    <script src="js/postfx.js?v=1.136.0"></script>
-    <script src="js/weather.js?v=1.136.0"></script>
-    <script src="js/flyover.js?v=1.136.0"></script>
-    <script src="js/replay.js?v=1.136.0"></script>
-    <script src="js/bot.js?v=1.136.0"></script>
-    <script src="js/models.js?v=1.136.0"></script>
-    <script src="js/life.js?v=1.136.0"></script>
-    <script src="js/render.js?v=1.136.0"></script>
-    <script src="js/minimap.js?v=1.136.0"></script>
-    <script src="js/debug.js?v=1.136.0"></script>
-    <script src="js/game.js?v=1.136.0"></script>
+    <script src="js/config.js?v=1.137.0"></script>
+    <script src="js/themes.js?v=1.137.0"></script>
+    <script src="js/physics.js?v=1.137.0"></script>
+    <script src="js/courses.js?v=1.137.0"></script>
+    <script src="js/audit.js?v=1.137.0"></script>
+    <script src="js/custom.js?v=1.137.0"></script>
+    <script src="js/scoring.js?v=1.137.0"></script>
+    <script src="js/swing.js?v=1.137.0"></script>
+    <script src="js/school.js?v=1.137.0"></script>
+    <script src="js/audio.js?v=1.137.0"></script>
+    <script src="js/music.js?v=1.137.0"></script>
+    <script src="js/bag.js?v=1.137.0"></script>
+    <script src="js/textures.js?v=1.137.0"></script>
+    <script src="js/shaders.js?v=1.137.0"></script>
+    <script src="js/postfx.js?v=1.137.0"></script>
+    <script src="js/weather.js?v=1.137.0"></script>
+    <script src="js/flyover.js?v=1.137.0"></script>
+    <script src="js/replay.js?v=1.137.0"></script>
+    <script src="js/bot.js?v=1.137.0"></script>
+    <script src="js/models.js?v=1.137.0"></script>
+    <script src="js/life.js?v=1.137.0"></script>
+    <script src="js/render.js?v=1.137.0"></script>
+    <script src="js/minimap.js?v=1.137.0"></script>
+    <script src="js/debug.js?v=1.137.0"></script>
+    <script src="js/game.js?v=1.137.0"></script>
 </body>
 </html>

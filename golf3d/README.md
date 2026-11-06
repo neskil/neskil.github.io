@@ -506,14 +506,13 @@ from, and the zone breathes while there is a strike to be had.
 ### Shot shaping
 
 The gate is what a swing does to the ball by accident; shaping is what you ask
-it to do. Each club lists the shapes it can play (`shapes` in the bag). The
-button above the meter is a little ball with a dot where the club will meet
-it; pressing it opens a bigger ball to move the dot on — the top tops it,
-underneath spins it back, either side bends it that way, the middle is
-straight — with the shapes the club cannot play greyed out (`SHAPE_INFO` in
-game.js). It replaced a chip that cycled through five words. Or a key each:
-<kbd>Z</kbd> draw, <kbd>X</kbd> fade, <kbd>Q</kbd> backspin, <kbd>E</kbd>
-topped, and the same key again for straight.
+it to do. Each club lists the shapes it can play (`shapes` in the bag). There
+is no picker for them: the ball-with-a-dot button above the meter, the bigger
+ball it opened ("Where do you hit it?") and the <kbd>Z</kbd> <kbd>X</kbd>
+<kbd>Q</kbd> <kbd>E</kbd> keys came out in v1.137.0 on the owner's request. On
+the touch swing a draw or a fade is the bow of the swipe and backspin is
+letting go at three quarters, so the shapes below are still played — swung,
+not picked. Topped is no longer reachable from the page.
 
 | shape | what it does | clubs |
 | --- | --- | --- |
@@ -5420,9 +5419,7 @@ giving way at once to a drag, a key or the caddie. Where the camera stands *rela
 many tenths of a full swing (<kbd>Home</kbd> empty, <kbd>End</kbd> a full
 swing, <kbd>shift</kbd>+<kbd>End</kbd> the overdraw — the ladder itself stops
 at a full swing, because the overdraw is a thing to ask for on purpose and a
-mistyped key should not be able to spray a shot), <kbd>Z</kbd> draw,
-<kbd>X</kbd> fade, <kbd>Q</kbd> backspin, <kbd>E</kbd> topped — the same key
-again is straight (see [Shot shaping](#shot-shaping)), <kbd>1</kbd>–<kbd>4</kbd> club (<kbd>C</kbd>
+mistyped key should not be able to spray a shot), <kbd>1</kbd>–<kbd>4</kbd> club (<kbd>C</kbd>
 cycles), <kbd>space</kbd> hit, <kbd>shift</kbd> for fine control, <kbd>V</kbd>
 the seat — follow, side on, overview — <kbd>,</kbd><kbd>.</kbd> walk the view
 round the ball, <kbd>L</kbd> lock it where it is, <kbd>0</kbd> straighten it,
