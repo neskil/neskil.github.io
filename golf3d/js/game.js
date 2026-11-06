@@ -787,32 +787,16 @@
 
        Draw, fade, backspin or topped — whichever of them the club in hand can
        play (CONFIG `shapes`; swing.js `shape` for what each does to the ball,
-       and why each one has to be struck). The button above the meter is a
-       ball with a dot where the club will meet it, and pressing it opens a
-       bigger ball to move the dot on: the top tops it, underneath spins it
-       back, either side bends it that way. It replaced a chip that cycled
-       through five words, which was a menu you had to read every time and
-       said nothing about what any of them did. A key each from the keyboard
-       still: Z draw, X fade, Q backspin, E topped, and the same key again to
-       go back to straight. On a club with no shapes the button is hidden
-       rather than greyed: a control that is there and does nothing is a
-       question every shot. */
+       and why each one has to be struck). There is no picker for them any
+       more: the ball with a dot above the meter, and the bigger ball it opened
+       to move the dot on ("Where do you hit it?"), came out on the owner's
+       request. On the touch swing a draw or a fade is swung — the bow of the
+       swipe — and so is backspin, by letting go at three quarters; every
+       other shot is struck straight. */
     var SHAPE_SAYS = { straight: 'Straight', draw: 'Draw', fade: 'Fade', backspin: 'Backspin', topped: 'Topped' };
-    var SHAPE_KEYS = { z: 'draw', x: 'fade', q: 'backspin', e: 'topped' };
-    /* Where on the ball each one is struck, as a fraction of the radius
-       (+x right, +y down — the screen's way), and the few words under it on
-       the pad. The ball button's dot and the pad's dots both read `at`. */
-    var SHAPE_INFO = {
-        topped:   { at: [0, -0.62], says: 'low, rolls far' },
-        draw:     { at: [-0.62, 0], says: 'curves left' },
-        straight: { at: [0, 0],     says: '' },
-        fade:     { at: [0.62, 0],  says: 'curves right' },
-        backspin: { at: [0, 0.62],  says: 'stops fast' }
-    };
 
     /* On the touch swing backspin is not picked, it is swung: let go at about
-       three quarters of the way back up (swing.js `swipeSpin`). So it leaves
-       the ball there. */
+       three quarters of the way back up (swing.js `swipeSpin`). */
     function shapesOf(club) {
         var list = (club || state.club).shapes || [];
         if (styleLive() === 'swipe') list = list.filter(function (n) { return n !== 'backspin'; });
@@ -828,69 +812,6 @@
     function setShape(name) {
         if (!state) return;
         state.aim.shape = SW.SHAPES.indexOf(name) >= 0 ? name : 'straight';
-        syncShape();
-    }
-
-    function canShape() {
-        return !!(state && state.phase === 'aim' && !gate && !swipe && !arc && !needle && state.club.shapes);
-    }
-
-    // A key: that shape, or back to straight if it is the one already set.
-    function keyShape(name) {
-        if (!canShape() || shapesOf().indexOf(name) < 0) return false;
-        setShape(shapeNow() === name ? 'straight' : name);
-        A.tick(0.4);
-        return true;
-    }
-
-    function buildShapePad() {
-        var ball = $('sp-ball');
-        SW.SHAPES.forEach(function (name) {
-            var info = SHAPE_INFO[name];
-            var b = document.createElement('button');
-            b.type = 'button';
-            b.className = 'sp-opt sp-' + name;
-            b.dataset.shape = name;
-            b.style.setProperty('--x', info.at[0]);
-            b.style.setProperty('--y', info.at[1]);
-            b.innerHTML = '<i class="sp-dot" aria-hidden="true"></i><span class="sp-label"><b>' +
-                SHAPE_SAYS[name] + '</b>' + (info.says ? '<small>' + info.says + '</small>' : '') + '</span>';
-            b.addEventListener('click', function () {
-                if (!canShape() || b.disabled) return;
-                setShape(name);
-                A.tick(0.4);
-                toggleShapePad(false);
-            });
-            ball.appendChild(b);
-        });
-    }
-
-    function toggleShapePad(open) {
-        var pad = $('shape-pad');
-        if (open === undefined) open = pad.hidden;
-        if (open && !canShape()) open = false;
-        pad.hidden = !open;
-        $('btn-shape').setAttribute('aria-expanded', open ? 'true' : 'false');
-        if (open) syncShape();
-    }
-
-    function syncShape() {
-        var el = $('btn-shape');
-        if (!el || !state) return;
-        var now = shapeNow();
-        el.hidden = !state.club.shapes;
-        if (el.hidden && !$('shape-pad').hidden) toggleShapePad(false);
-        el.classList.toggle('on', now !== 'straight');
-        $('shape-val').textContent = SHAPE_SAYS[now];
-        $('shape-dot').style.setProperty('--x', SHAPE_INFO[now].at[0]);
-        $('shape-dot').style.setProperty('--y', SHAPE_INFO[now].at[1]);
-        el.setAttribute('aria-label', 'Shot shape: ' + SHAPE_SAYS[now] + '. Press to change.');
-        var can = shapesOf();
-        Array.prototype.forEach.call($('sp-ball').children, function (b) {
-            b.disabled = can.indexOf(b.dataset.shape) < 0;
-            b.classList.toggle('on', b.dataset.shape === now);
-            b.setAttribute('aria-pressed', b.dataset.shape === now ? 'true' : 'false');
-        });
     }
 
     /* A shaped strike says what happened to the shape, because that is what
@@ -1175,7 +1096,6 @@
         if (R.pickAt && R.pickAt(ndcX(e), ndcY(e))) { onDown(e); return; }
         e.preventDefault();
         e.stopPropagation();
-        toggleShapePad(false);
         try { $('swipe').setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
         var now = performance.now() / 1000;
         swipe = {
@@ -1417,7 +1337,6 @@
     function pressArc() {
         if (!styleOpen()) return;
         if (!arc) {
-            toggleShapePad(false);
             arc = SW.arcStart(shapeNow());
             setPower(0);
             A.tick(0.5);
@@ -2640,7 +2559,6 @@
         $('club-chip').setAttribute('aria-label',
             'Club in hand: ' + state.club.name + '. Press to pick another.');
         drawPowerTicks(state.club);
-        syncShape();
         syncPicker();
     }
 
@@ -3594,7 +3512,6 @@
            in here that asks for the modifier rather than offering it. */
         else if (k === 'Home') { setPower(0); e.preventDefault(); }
         else if (k === 'End') { setPower(fine ? maxPower() : state.club.power); e.preventDefault(); }
-        else if (SHAPE_KEYS[k.toLowerCase()]) { keyShape(SHAPE_KEYS[k.toLowerCase()]); }
         else if (k === ' ') { shoot(); e.preventDefault(); }
     }
 
@@ -5558,8 +5475,6 @@
         $('btn-map').addEventListener('click', function () { toggleMiniMap(); });
         $('btn-view').addEventListener('click', cycleSeat);
         $('btn-swing').addEventListener('click', shoot);
-        buildShapePad();
-        $('btn-shape').addEventListener('click', function () { toggleShapePad(); });
         buildStylePad();
         buildTune();
         SW.setAssist(tune.assist === 'on');
@@ -5583,12 +5498,6 @@
         $('swipe').addEventListener('pointermove', onSwipeMove);
         $('swipe').addEventListener('pointerup', onSwipeUp);
         $('swipe').addEventListener('pointercancel', onSwipeUp);
-        // A press anywhere else closes the shape pad, the way a menu shuts.
-        document.addEventListener('pointerdown', function (e) {
-            if ($('shape-pad').hidden) return;
-            if (e.target.closest && (e.target.closest('#shape-pad') || e.target.closest('#btn-shape'))) return;
-            toggleShapePad(false);
-        }, true);
         document.addEventListener('pointerdown', function (e) {
             if ($('style-pad').hidden) return;
             if (e.target.closest && (e.target.closest('#style-pad') || e.target.closest('#btn-style'))) return;
