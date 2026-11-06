@@ -761,20 +761,50 @@
 
        One word for how a strike went, whichever style made it, popped up over
        the stage the moment the ball leaves. The toast underneath says which
-       way it went; this says how well, in the size a glance takes in. */
+       way it went; this says how well, in the size a glance takes in.
+
+       The misses get a handful of words each rather than one, because the
+       miss is the strike you see most and the same word every time stops
+       being read. The worst used to be "Sprayed", which is range talk and
+       meant nothing to the people playing; every word for a miss now says
+       which side it went (off < 0 is left), and the worst ones say it the way
+       a golfer shouts it. Short on purpose — it is drawn in capitals, at
+       9vw, on one line, on a phone held upright. */
+    var WORDS = {
+        offL:  ['Pulled', 'Tugged it', 'Left-ish', 'Drifted left'],
+        offR:  ['Pushed', 'Nudged right', 'Right-ish', 'Drifted right'],
+        badL:  ['Hooked!', 'Way left', 'Fore left!', 'Snap hook', 'Yikes'],
+        badR:  ['Sliced!', 'Way right', 'Fore right!', 'Banana ball', 'Oof'],
+        whiff: ['Whiff', 'Air shot', 'Fresh air'],
+        duff:  ['Duffed', 'Chunked', 'Fat one', 'Dug in'],
+        shank: ['Shanked', 'Shank!', 'Sideways?!']
+    };
+
+    /* Which of a list, off the strike itself rather than a dice roll: the
+       big word and the swing card's word are worked out separately for the
+       same shot, and they have to agree. Two shots are never measured the
+       same to the last decimal, so it still changes from shot to shot. */
+    function wordFor(list, g) {
+        var seed = Math.abs(g.off || 0) * 7919.37 + (g.over || 0) * 104.729 + (g.t || 0) * 31.7;
+        var u = seed - Math.floor(seed);
+        return list[Math.min(list.length - 1, Math.floor(u * list.length))];
+    }
+
     function grade(g) {
         if (!g) return null;
-        if (!g.struck) return { word: 'Whiff', tier: 'bad' };
-        if (g.junk) return { word: g.junk.kind === 'duff' ? 'Duffed' : 'Shanked', tier: 'bad' };
+        if (!g.struck) return { word: wordFor(WORDS.whiff, g), tier: 'bad' };
+        if (g.junk) return { word: wordFor(g.junk.kind === 'duff' ? WORDS.duff : WORDS.shank, g), tier: 'bad' };
         if (g.perfect) return { word: 'Perfect', tier: 'perfect' };
         var a = Math.abs(g.off);
         if (a < 0.2) return { word: 'Great', tier: 'great' };
         if (a < 0.45) return { word: 'Good', tier: 'good' };
-        if (a < 0.75) return { word: g.off < 0 ? 'Pulled' : 'Pushed', tier: 'off' };
-        return { word: 'Sprayed', tier: 'bad' };
+        var left = g.off < 0;
+        if (a < 0.75) return { word: wordFor(left ? WORDS.offL : WORDS.offR, g), tier: 'off' };
+        return { word: wordFor(left ? WORDS.badL : WORDS.badR, g), tier: 'bad' };
     }
 
     G3.swing = {
+        WORDS: WORDS,
         arms: arms,
         markAt: markAt,
         windowFor: windowFor,

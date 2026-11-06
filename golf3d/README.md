@@ -495,7 +495,9 @@ way the ball was hit. game.js "swing styles" is the thumb and the pictures.
   putting multiples. Off by default.
 
 Every strike, in any style, pops one word over the stage (`grade`: Perfect,
-Great, Good, Pulled/Pushed, Shanked, Whiff) and buzzes a phone that can
+Great, Good, then a few words for each kind of miss — Pulled, Drifted right,
+Fore left!, Banana ball, Chunked, Shanked, Air shot — that always say which
+side it went; the lists are `swing.js` `WORDS`) and buzzes a phone that can
 (`navigator.vibrate`). The meter itself got the same attention: a glint runs
 along the fill, the bar's rim and the white line light up when it is loaded to
 exactly a full swing, the gate's marker trails a tail you can read its speed

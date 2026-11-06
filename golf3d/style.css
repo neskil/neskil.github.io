@@ -938,6 +938,56 @@ button,
     height: 100%;
 }
 
+/* The third spelling, and the one an iPhone gets: Safari there will take a
+   video fullscreen and nothing else, so ⛶ fills the page instead (game.js
+   `setPageFull`). The viewport is pinned over the page at the height Safari
+   is actually showing — `--page-h`, read off visualViewport — and the page
+   under it stops scrolling, so the course does not slide out from under a
+   thumb. Same immersive layout as the two real ones. */
+html.page-full,
+html.page-full body {
+    overflow: hidden;
+    overscroll-behavior: none;
+}
+
+.viewport.page-full {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    height: var(--page-h, 100dvh);
+    background: linear-gradient(140deg, var(--bg-1) 0%, var(--bg-2) 100%);
+}
+
+.viewport.page-full .topbar {
+    flex: none;
+    margin: 0;
+    padding: 0.55rem 0.8rem;
+}
+
+.viewport.page-full .scoreboard {
+    display: none;
+}
+
+.viewport.page-full .stage-hud {
+    display: block;
+}
+
+.viewport.page-full .stage {
+    flex: 1 1 auto;
+    min-height: 0;
+    border-radius: 0;
+    border: 0;
+}
+
+.viewport.page-full canvas {
+    width: 100%;
+    height: 100%;
+}
+
 .ctl-label {
     display: block;
     font-size: 0.62rem;

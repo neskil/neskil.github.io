@@ -4209,13 +4209,25 @@
             assert('a clean strike is perfect', SW.grade({ struck: true, perfect: true, off: 0 }).word === 'Perfect');
             assert('a near miss is great, then good',
                 SW.grade({ struck: true, off: 0.1 }).tier === 'great' && SW.grade({ struck: true, off: -0.3 }).tier === 'good');
-            assert('a real miss names the side', SW.grade({ struck: true, off: -0.6 }).word === 'Pulled' &&
-                SW.grade({ struck: true, off: 0.6 }).word === 'Pushed');
-            assert('the worst is sprayed, and not swinging is a whiff',
-                SW.grade({ struck: true, off: 1 }).word === 'Sprayed' && SW.grade({ struck: false, off: 1 }).word === 'Whiff');
+            var W = SW.WORDS, has = function (list, g) { return list.indexOf(SW.grade(g).word) >= 0; };
+            assert('a real miss names the side', has(W.offL, { struck: true, off: -0.6 }) &&
+                has(W.offR, { struck: true, off: 0.6 }) && SW.grade({ struck: true, off: 0.6 }).tier === 'off');
+            assert('the worst names the side too, and not swinging is a whiff',
+                has(W.badL, { struck: true, off: -1 }) && has(W.badR, { struck: true, off: 1 }) &&
+                SW.grade({ struck: true, off: 1 }).tier === 'bad' && has(W.whiff, { struck: false, off: 1 }));
             assert('a junk swing says which it was',
-                SW.grade({ struck: true, off: 0, junk: { kind: 'duff' } }).word === 'Duffed' &&
-                SW.grade({ struck: true, off: 0, junk: { kind: 'shank' } }).word === 'Shanked');
+                has(W.duff, { struck: true, off: 0, junk: { kind: 'duff' } }) &&
+                has(W.shank, { struck: true, off: 0, junk: { kind: 'shank' } }));
+            assert('the same strike always gets the same word',
+                SW.grade({ struck: true, off: 0.83, over: 0.4 }).word === SW.grade({ struck: true, off: 0.83, over: 0.4 }).word);
+            var seen = {};
+            for (var gi = 0; gi < 200; gi++) seen[SW.grade({ struck: true, off: 0.75 + gi / 800 }).word] = 1;
+            assert('and a run of misses does not get the same word every time', Object.keys(seen).length === W.badR.length,
+                Object.keys(seen).join(', '));
+            var longest = [].concat(W.offL, W.offR, W.badL, W.badR, W.whiff, W.duff, W.shank)
+                .reduce(function (m, w) { return Math.max(m, w.length); }, 0);
+            assert('every word fits on one line of a phone', longest <= 13, longest + ' characters');
+            assert('nothing says sprayed any more', [].concat(W.offL, W.offR, W.badL, W.badR).join(' ').indexOf('Spray') < 0);
         })();
 
         /* ── scoring ───────────────────────────────────────────────────── */
