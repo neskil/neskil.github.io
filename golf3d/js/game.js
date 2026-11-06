@@ -79,7 +79,7 @@
         return best;
     }
 
-    function toast(msg, kind) {
+    function toast(msg, kind, ms) {
         // Nothing talks over the demo screen. The caddie's running
         // commentary is for a player who pressed Simulate and wants to know
         // what it is thinking; on a title card it is chatter across the one
@@ -97,7 +97,7 @@
         toast._t = setTimeout(function () {
             el.className = 'toast';
             $('stage').classList.remove('toasting');
-        }, 2300);
+        }, ms || 2300);
     }
 
     /* ── round state ────────────────────────────────────────────────────── */
@@ -1167,6 +1167,12 @@
         var live = styleLive();
         if (swipe || (live !== 'swipe' && live !== 'needle') || !styleOpen() || needle) return;
         if (e.button !== undefined && e.button > 0) return;
+        /* The lane is a box over the canvas, and on a short phone screen (an
+           iPhone, with Safari's bars taking their share) its lower corner
+           stands over the top of the bag. A press there that lands on the bag
+           is a press on the bag: handed to the canvas, whose own pointer
+           capture then brings the rest of the gesture with it. */
+        if (R.pickAt && R.pickAt(ndcX(e), ndcY(e))) { onDown(e); return; }
         e.preventDefault();
         e.stopPropagation();
         toggleShapePad(false);
@@ -2307,7 +2313,7 @@
             compactQuery = window.matchMedia(
                 '(max-width: 900px), (max-height: 560px), (pointer: coarse)');
         }
-        var on = (compactQuery ? compactQuery.matches : false) || !!fullscreenElement();
+        var on = (compactQuery ? compactQuery.matches : false) || isFull();
         var was = document.body.classList.contains('compact-ui');
         document.body.classList.toggle('compact-ui', on);
         if (!on) closeTopMenu();
@@ -2533,7 +2539,7 @@
         // The number alone does not say what 100% means on this track, and a
         // screen reader is the one place the white line is invisible.
         $('power-track').setAttribute('aria-valuetext', Math.round(swing * 100) + '%' +
-            (over ? ' — past a full swing, the shot will spray' : ' of a full swing'));
+            (over ? ' — past a full swing, the shot can go wild' : ' of a full swing'));
         syncSwing();
     }
 
@@ -3625,15 +3631,88 @@
         return document.fullscreenElement || document.webkitFullscreenElement || null;
     }
 
+    /* Whether the browser will really do it. An iPhone's Safari carries the
+       method and then refuses it for anything that is not a video — it says
+       so in `fullscreenEnabled`, which is the question to ask rather than
+       whether the function exists. */
+    function nativeFs() {
+        var el = $('viewport');
+        if (!(el.requestFullscreen || el.webkitRequestFullscreen)) return false;
+        var en = document.fullscreenEnabled;
+        if (en === undefined) en = document.webkitFullscreenEnabled;
+        return en !== false;
+    }
+
+    // Opened from the Home Screen: there are no browser bars to take back.
+    function standalone() {
+        if (navigator.standalone === true) return true;
+        return !!(window.matchMedia &&
+            (window.matchMedia('(display-mode: standalone)').matches ||
+             window.matchMedia('(display-mode: fullscreen)').matches));
+    }
+
+    function canFull() { return !standalone(); }
+    function isFull() { return !!fullscreenElement() || pageFull; }
+
+    /* ── the page standing in for fullscreen ─────────────────────────────
+
+       Where the real thing is not on offer — an iPhone — ⛶ still does what it
+       says as far as a page can: the course is pinned over everything else at
+       the height Safari is showing, the scoreboard folds into the overlay, and
+       the page behind it stops scrolling. It is said once that Add to Home
+       Screen is how to lose Safari's own bars as well, because that is the one
+       thing a page cannot do for itself. */
+    var pageFull = false;
+
+    function syncPageH() {
+        if (!pageFull) return;
+        var vv = window.visualViewport;
+        var h = vv ? vv.height : window.innerHeight;
+        document.documentElement.style.setProperty('--page-h', Math.round(h) + 'px');
+    }
+
+    function onPageResize() {
+        if (!pageFull) return;
+        syncPageH();
+        R.resize();
+        measurePickerBand();
+    }
+
+    function setPageFull(on) {
+        if (pageFull === on) return;
+        pageFull = on;
+        document.documentElement.classList.toggle('page-full', on);
+        $('viewport').classList.toggle('page-full', on);
+        if (on) {
+            window.scrollTo(0, 0);
+            syncPageH();
+            if (!fsSeen()) {
+                var ios = /iPhone|iPad|iPod/.test(navigator.userAgent) ||
+                    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+                toast(ios
+                    ? 'Safari keeps its own bars. For true fullscreen: Share → Add to Home Screen'
+                    : 'This browser keeps its own bars. Add to Home Screen to lose them too', '', 6000);
+            }
+        } else {
+            document.documentElement.style.removeProperty('--page-h');
+        }
+        onFullscreenChange();
+    }
+
     function toggleFullscreen() {
+        if (pageFull) { setPageFull(false); return; }
         var el = $('viewport');
         if (fullscreenElement()) {
             (document.exitFullscreen || document.webkitExitFullscreen).call(document);
-        } else if (el.requestFullscreen || el.webkitRequestFullscreen) {
-            (el.requestFullscreen || el.webkitRequestFullscreen).call(el);
-        } else {
-            toast('This browser will not do fullscreen here');
+            return;
         }
+        if (!nativeFs()) { setPageFull(true); return; }
+        // Refused after all (a frame without permission, a browser that
+        // overstated itself): the page version is still better than nothing.
+        try {
+            var p = (el.requestFullscreen || el.webkitRequestFullscreen).call(el);
+            if (p && p.catch) p.catch(function () { setPageFull(true); });
+        } catch (e) { setPageFull(true); }
     }
 
     /* ── starting fullscreen ──────────────────────────────────────────
@@ -3646,8 +3725,7 @@
        bars come and go with the scroll anyway, and a fullscreen nobody asked
        for is a page they cannot find the way out of. */
     function fsAutoAvailable() {
-        var el = $('viewport');
-        if (!(el.requestFullscreen || el.webkitRequestFullscreen)) return false;
+        if (!nativeFs()) return false;
         return !!(window.matchMedia && window.matchMedia('(pointer: fine)').matches);
     }
 
@@ -3659,7 +3737,7 @@
     // Quietly: a press that was not allowed to (a wheel, an Escape) is
     // refused by the browser, and that refusal is nobody's error.
     function enterFullscreen() {
-        if (fullscreenElement()) return;
+        if (isFull()) return;
         var el = $('viewport');
         var go = el.requestFullscreen || el.webkitRequestFullscreen;
         if (!go) return;
@@ -3700,7 +3778,7 @@
     }
 
     function onFullscreenChange() {
-        var on = !!fullscreenElement();
+        var on = isFull();
         syncFsSwitch();
         $('btn-full').classList.toggle('on', on);
         document.body.classList.toggle('is-full', on);
@@ -3731,8 +3809,8 @@
     }
     function syncFsReminder() {
         var el = $('btn-full');
-        var can = !!($('stage').requestFullscreen || $('stage').webkitRequestFullscreen);
-        el.classList.toggle('reminding', can && !fsSeen() && !fullscreenElement());
+        el.style.display = canFull() ? '' : 'none';
+        el.classList.toggle('reminding', canFull() && !fsSeen() && !isFull());
     }
 
     function fsPromptDismissed() {
@@ -3751,11 +3829,11 @@
     function maybeShowFsPrompt() {
         // Not over the demo: the offer is for somebody about to play.
         if (demo) return;
-        if (fsPromptDismissed() || fullscreenElement()) return;
-        if (!($('stage').requestFullscreen || $('stage').webkitRequestFullscreen)) return;
+        if (fsPromptDismissed() || isFull()) return;
+        if (!canFull()) return;
         clearTimeout(fsPromptTimer);
         fsPromptTimer = setTimeout(function () {
-            if (fsPromptDismissed() || fullscreenElement()) return;
+            if (fsPromptDismissed() || isFull()) return;
             $('fs-prompt').classList.add('show');
             document.body.classList.add('fs-offering');
             fsPromptTimer = setTimeout(function () {
@@ -5600,6 +5678,8 @@
         $('howto').addEventListener('click', function (e) { if (e.target === this) closeHowTo(); });
         document.addEventListener('fullscreenchange', onFullscreenChange);
         document.addEventListener('webkitfullscreenchange', onFullscreenChange);
+        if (window.visualViewport) window.visualViewport.addEventListener('resize', onPageResize);
+        window.addEventListener('resize', onPageResize);
         $('card-close').addEventListener('click', closeCard);
         $('card-again').addEventListener('click', function () { newRound(state.course.id); });
         $('card-next').addEventListener('click', function () {

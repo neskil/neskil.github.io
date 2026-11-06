@@ -2783,6 +2783,7 @@
         var body = buildBody(M);
         B.rig.add(body.group);
         B.pickables.push(body.hit);
+        B.bodyHit = body.hit;
 
         /* The clubs live in a rig of their own so that opening the bag can
            carry *them* into the middle of the view while the bag itself stays
@@ -2860,6 +2861,7 @@
                 label: label,
                 pivot: built.pivot,
                 halo: halo,
+                hit: built.hit,
                 labelBase: { x: 0, y: built.len - 0.02, z: 0 },
                 spot: spot,
                 shaft: built.shaft, fullGeo: built.fullGeo, stubGeo: built.stubGeo,
@@ -3368,7 +3370,41 @@
         B.ndc.set(nx, ny);
         B.ray.setFromCamera(B.ndc, camera);
         var hits = B.ray.intersectObjects(B.pickables, false);
-        return hits.length ? 'bag' : null;
+        if (hits.length) return 'bag';
+        return !B.expanded && inBagBox(nx, ny, camera) ? 'bag' : null;
+    }
+
+    /* The shut bag, as a finger sees it: the rectangle round the bag and the
+       heads standing in it, with a margin, rather than the meshes themselves.
+
+       A ray only answers on leather or steel, and what shows of the bag on a
+       phone is a cuff along the bottom edge with four thin shafts above it —
+       so a thumb that came down between two shafts, or just over the cuff,
+       went to the course instead. On an iPhone it was worse again: Safari
+       keeps a band along the bottom of the screen for its own toolbar, which
+       is exactly where the cuff is. The box gives the heads' whole row and a
+       margin round it, so the bag answers wherever it looks like it should. */
+    var _box = null, _corner = null;
+    var BOX_PAD = { x: 0.07, y: 0.05 };    // in NDC: ~14 px on a 393 px phone
+    function inBagBox(nx, ny, camera) {
+        if (!B.bodyHit || (B.rig && !B.rig.visible)) return false;
+        if (!_box) { _box = new THREE.Box3(); _corner = new THREE.Vector3(); }
+        _box.makeEmpty();
+        _box.expandByObject(B.bodyHit);
+        live().forEach(function (c) { if (c.hit) _box.expandByObject(c.hit); });
+        if (_box.isEmpty()) return false;
+        var x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+        for (var i = 0; i < 8; i++) {
+            _corner.set(i & 1 ? _box.max.x : _box.min.x,
+                        i & 2 ? _box.max.y : _box.min.y,
+                        i & 4 ? _box.max.z : _box.min.z).project(camera);
+            if (_corner.x < x0) x0 = _corner.x;
+            if (_corner.x > x1) x1 = _corner.x;
+            if (_corner.y < y0) y0 = _corner.y;
+            if (_corner.y > y1) y1 = _corner.y;
+        }
+        return nx >= x0 - BOX_PAD.x && nx <= x1 + BOX_PAD.x &&
+               ny >= y0 - BOX_PAD.y && ny <= y1 + BOX_PAD.y;
     }
 
     /* The four things that can give the bag something to do again. Anything
