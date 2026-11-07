@@ -55,6 +55,11 @@
         ok(!b.length, 'facts, where there is one, are real sentences', list(b));
         ok(QUESTIONS.filter((q) => q.f).length >= QUESTIONS.length / 2, 'at least half the questions come with a fact');
 
+        b = bad((q) => ![1, 2, 3].includes(q.d));
+        ok(!b.length, 'every question has a difficulty of 1, 2 or 3', list(b));
+        ok([1, 2, 3].every((d) => QUESTIONS.filter((q) => q.d === d).length >= 60), 'at least 60 questions at each level',
+            [1, 2, 3].map((d) => QUESTIONS.filter((q) => q.d === d).length).join('/'));
+
         // ── Typed answers ──
         b = bad((q) => !G.targets(q).every((t) => G.checkFree(q, t)));
         ok(!b.length, 'the answer and every alias is accepted as typed', list(b));
@@ -93,6 +98,27 @@
         const spread = G.pickQuestions(QUESTIONS, { count: 40, rng: r });
         const cats = spread.map((id) => id.split('-')[0]);
         ok(cats.every((c, i) => i === 0 || c !== cats[i - 1]), 'no two questions of the same category in a row');
+
+        // Levels per seat.
+        const lv = G.slotLevels(['mix', 1, 3, 2], 2, 8);
+        ok(lv.join() === '3,2,mix,1,3,2,mix,1', 'each slot is dealt the level of the player who starts it');
+        const dealt = G.pickQuestions(QUESTIONS, { count: 40, levels: G.slotLevels([1, 3, 'mix', 2], 0, 40), rng: rng(11) })
+            .map((id) => QUESTIONS.find((q) => q.id === id));
+        ok(dealt.every((q, i) => i % 4 === 2 || q.d === [1, 3, 'mix', 2][i % 4]), 'and gets a question of that level');
+        ok(new Set(dealt.map((q) => q.id)).size === 40, 'with no repeats');
+        const onlyEasyPres = G.pickQuestions(QUESTIONS, { count: 30, cats: ['pres'], levels: [3], rng: rng(2) });
+        ok(onlyEasyPres.length === Math.min(30, QUESTIONS.filter((q) => q.c === 'pres').length), 'when a level runs dry the slot takes another level rather than come up short');
+        const allSeen = QUESTIONS.map((q) => q.id);
+        const oldest = G.pickQuestions(QUESTIONS, { count: 1, seen: allSeen, rng: rng(4) });
+        const oldish = G.pickQuestions(QUESTIONS, { count: 10, seen: allSeen, rng: rng(4) });
+        ok(oldest[0] === allSeen[0] && oldish.every((id) => allSeen.indexOf(id) < 120), 'with everything asked, the ones asked longest ago come back first');
+
+        // ── Spoken alternatives ──
+        const sc3 = ['Washington', 'Hawaii', 'Alaska'];
+        ok(G.matchSpoken(sc3, [0, 1, 2], 'Alaska') === 2 && G.matchSpoken(sc3, [0, 1, 2], 'I think it’s Alaska') === 2, 'a spoken alternative is recognised, in a sentence too');
+        ok(G.matchSpoken(sc3, [0, 1, 2], 'number two') === 1 && G.matchSpoken(sc3, [0, 1, 2], 'three') === 2, 'or picked by its number');
+        ok(G.matchSpoken(sc3, [1, 2], 'one') === -1 && G.matchSpoken(sc3, [1, 2], 'Washington') !== 0, 'a struck alternative cannot be said');
+        ok(G.matchSpoken(sc3, [0, 1, 2], 'banana') === -1, 'and nonsense picks nothing');
 
         // ── A game ──
         const names = ['Åsa', 'Niklas', 'Johan', 'Lena'];
@@ -172,6 +198,18 @@
         ok(st.map((r) => r.place).join() === '1,2,3,4', 'and places follow');
         t.players[0].stars = 2; t.players[0].points = 2;
         ok(G.standings(t).filter((r) => r.place === 1).length === 2, 'same total and same stars is a shared first place');
+
+        // All-time stats.
+        const fin = { qi: 3, players: [
+            { name: 'Åsa', points: 3, stars: 1 }, { name: 'Niklas', points: 3, stars: 1 },
+            { name: 'Johan', points: 1, stars: 0 }, { name: 'Lena', points: 0, stars: 0 },
+        ] };
+        let all = G.recordGame(null, fin);
+        all = G.recordGame(all, fin);
+        ok(all.games === 2 && all.players['Åsa'].games === 2 && all.players['Åsa'].wins === 2 && all.players['Niklas'].wins === 2,
+            'finished games add up per name, and a shared first place is a win for both');
+        ok(all.players['Åsa'].stars === 2 && all.players['Niklas'].points === 6 && all.players['Johan'].wins === 0, 'points and stars add up too');
+        ok(G.recordGame(all, { qi: 0, players: fin.players.map((p) => ({ ...p, points: 0, stars: 0 })) }).games === 2, 'a game nobody played does not count');
 
         // Saved games.
         const saved = JSON.parse(JSON.stringify(fresh4()));

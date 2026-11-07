@@ -115,26 +115,54 @@ export function shuffle(list, rng = Math.random) {
     return a;
 }
 
+export const LEVELS = ['mix', 1, 2, 3];
+export const LEVEL_NAMES = { mix: 'Mixed', 1: 'Easy', 2: 'Medium', 3: 'Hard' };
+
 /**
- * `count` question ids from the chosen categories: ones not seen in earlier
- * games first, then the rest, and never two of the same category back to back
- * when it can be helped.
+ * `count` question ids from the chosen categories.
+ *
+ * `levels` gives the difficulty wanted for each slot in turn ('mix' for any),
+ * so each player can be dealt the level they asked for on the questions they
+ * start. Within that: questions never asked before come first, then the ones
+ * asked longest ago (`seen` is oldest first), and never two of the same
+ * category back to back when it can be helped. If a level runs dry the slot
+ * takes any level rather than come up short.
  */
-export function pickQuestions(bank, { count, cats = null, seen = [], rng = Math.random }) {
+export function pickQuestions(bank, { count, cats = null, seen = [], rng = Math.random, levels = null }) {
     const pool = bank.filter((q) => !cats || cats.includes(q.c));
-    const seenSet = new Set(seen);
-    const fresh = shuffle(pool.filter((q) => !seenSet.has(q.id)), rng);
-    const old = shuffle(pool.filter((q) => seenSet.has(q.id)), rng);
-    const chosen = fresh.concat(old).slice(0, count);
-    // Spread categories: greedily take the first one that differs from the last.
+    const seenAt = new Map(seen.map((id, i) => [id, i]));
+    const fresh = shuffle(pool.filter((q) => !seenAt.has(q.id)), rng);
+    const old = pool.filter((q) => seenAt.has(q.id)).sort((a, b) => seenAt.get(a.id) - seenAt.get(b.id));
+    const ranked = fresh.concat(old);
+    const taken = new Set();
     const out = [];
-    const rest = chosen.slice();
-    while (rest.length) {
+    for (let i = 0; i < Math.min(count, pool.length); i++) {
+        const want = levels ? levels[i % levels.length] : 'mix';
         const last = out.length ? out[out.length - 1].c : null;
-        const i = Math.max(0, rest.findIndex((q) => q.c !== last));
-        out.push(rest.splice(i, 1)[0]);
+        const free = (q) => !taken.has(q.id);
+        const level = (q) => free(q) && (want === 'mix' || q.d === want);
+        const isNew = (q) => !seenAt.has(q.id);
+        const other = (q) => q.c !== last;
+        const tiers = [
+            (q) => level(q) && isNew(q) && other(q),
+            (q) => level(q) && isNew(q),
+            (q) => level(q) && other(q),
+            level,
+            (q) => free(q) && other(q),
+            free,
+        ];
+        let q;
+        for (const t of tiers) if ((q = ranked.find(t))) break;
+        taken.add(q.id);
+        out.push(q);
     }
     return out.map((q) => q.id);
+}
+
+/** The level each question slot is dealt at: the level of the player who starts it. */
+export function slotLevels(playerLevels, starter, count) {
+    const n = playerLevels.length;
+    return Array.from({ length: count }, (_, i) => playerLevels[(starter + i) % n] ?? 'mix');
 }
 
 // ── The game ────────────────────────────────────────────────────────────
@@ -286,4 +314,58 @@ export function repair(s, bank) {
     const current = s.order[s.qi];
     if (s.phase !== 'over' && !ids.has(current)) return null;
     return s;
+}
+
+// ── All-time stats ──────────────────────────────────────────────────────
+
+/**
+ * Add a finished game to the all-time table, keyed by player name. Everyone
+ * sharing first place gets the win. A game nobody answered anything in
+ * doesn't count.
+ */
+export function recordGame(stats, s) {
+    const out = { games: stats?.games || 0, players: { ...(stats?.players || {}) } };
+    if (!s.players.some((p) => p.points || p.stars) && s.qi === 0) return out;
+    out.games++;
+    const winners = new Set(standings(s).filter((r) => r.place === 1).map((r) => r.index));
+    s.players.forEach((p, i) => {
+        const was = out.players[p.name] || { games: 0, wins: 0, points: 0, stars: 0 };
+        out.players[p.name] = {
+            games: was.games + 1,
+            wins: was.wins + (winners.has(i) ? 1 : 0),
+            points: was.points + p.points,
+            stars: was.stars + p.stars,
+        };
+    });
+    return out;
+}
+
+// ── Spoken answers ──────────────────────────────────────────────────────
+
+const SPOKEN_INDEX = [
+    /^(?:number |option |answer |alternative )?(?:1|one|first|won)$/,
+    /^(?:number |option |answer |alternative )?(?:2|two|second|to|too)$/,
+    /^(?:number |option |answer |alternative )?(?:3|three|third)$/,
+];
+
+/**
+ * Which alternative did someone say? `open` are the indices still pickable.
+ * "Two" or "number two" picks by position; otherwise the alternative the words
+ * are nearest to, if they are near enough. Returns -1 when unsure.
+ */
+export function matchSpoken(choices, open, text) {
+    const said = normalize(text);
+    if (!said) return -1;
+    const byNumber = SPOKEN_INDEX.findIndex((re) => re.test(said));
+    if (byNumber >= 0) return open.includes(byNumber) ? byNumber : -1;
+    const a = said.replace(/ /g, '');
+    let best = -1, bestScore = Infinity, second = Infinity;
+    for (const i of open) {
+        const b = normalize(choices[i]).replace(/ /g, '');
+        let score = levenshtein(a, b) / Math.max(b.length, 1);
+        if (b.length >= 4 && (a.includes(b) || (a.length >= 4 && b.includes(a)))) score = Math.min(score, 0.1);
+        if (score < bestScore) { second = bestScore; bestScore = score; best = i; }
+        else if (score < second) second = score;
+    }
+    return bestScore <= 0.4 && second - bestScore > 0.15 ? best : -1;
 }
