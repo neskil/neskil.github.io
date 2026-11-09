@@ -1406,6 +1406,41 @@
                 assert('every other course is reachable from a given one',
                     Object.keys(seen).length === n && !seen.seaside,
                     Object.keys(seen).length + ' of ' + n);
+
+                // The demo's draw: every hole once before any hole twice, and
+                // the wrap never hands back the hole that was just shown.
+                (function () {
+                    var list = [], keys = {}, d, last = null, repeat = false, total = 0, j;
+                    var r = 0.37;
+                    var rng = function () { r = (r * 9301 + 0.49297) % 1; return r; };
+                    d = G3.demoDraw([], { rng: rng });
+                    total = d.total;
+                    list = d.seen;
+                    keys[G3.demoKey(d.id, d.hole)] = 1;
+                    for (j = 1; j < total; j++) {
+                        d = G3.demoDraw(list, { rng: rng });
+                        var key = G3.demoKey(d.id, d.hole);
+                        if (keys[key]) repeat = true;
+                        keys[key] = 1;
+                        list = d.seen;
+                        last = key;
+                    }
+                    assert('the demo shows every hole once before it shows any twice',
+                        !repeat && Object.keys(keys).length === total && total > 60,
+                        Object.keys(keys).length + ' of ' + total);
+                    var wrapped = G3.demoDraw(list, { rng: function () { return 0; }, last: last });
+                    assert('and when it starts over it starts somewhere new',
+                        wrapped.seen.length === 1 &&
+                        G3.demoKey(wrapped.id, wrapped.hole) !== last);
+                    var junk = G3.demoDraw(['nowhere:9', 42], { rng: fixed(0.5) });
+                    assert('a stored list from another build cannot jam the draw',
+                        !!G3.courseById(junk.id) &&
+                        junk.hole >= 0 && junk.hole < G3.courseById(junk.id).holes.length);
+                    assert('the playtest draft is never in the demo',
+                        G3.COURSES.every(function (c) { return !c.playtest; }) ||
+                        total === G3.COURSES.filter(function (c) { return !c.playtest; })
+                            .reduce(function (s, c) { return s + c.holes.length; }, 0));
+                })();
             })();
 
             /* The showcase: what a new game plays. Two holes from every kind,

@@ -8,7 +8,7 @@
    — the renderer scales to the viewport, the simulation never sees a pixel. */
 window.G3 = window.G3 || {};
 
-G3.VERSION = '1.143.1';
+G3.VERSION = '1.144.0';
 
 G3.CONFIG = {
     BALL_R: 0.16,
@@ -1103,6 +1103,9 @@ G3.CONFIG = {
        not a demo, it is a page that will not sit still. Anything at all
        resets it: a key, a press, a wheel, or a mouse crossing the window. */
     DEMO_IDLE: 45,
+    /* The holes the demo has already shown on this machine, so a visitor who
+       comes back is not shown the same one again (courses.js `demoDraw`). */
+    DEMO_SEEN_KEY: 'loftLinks.demoSeen',
     DEMO_HOLD: 2.6
 };
 

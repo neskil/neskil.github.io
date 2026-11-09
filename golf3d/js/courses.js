@@ -7816,6 +7816,41 @@
         return draw.courses[Math.max(0, Math.min(draw.courses.length - 1, i))].id;
     };
 
+    /* ── the demo's draw: every hole once before any hole twice ──────────
+
+       The demo deals one hole at a time, out of any course, and remembers what
+       it has shown (game.js keeps the list in localStorage) so a visitor who
+       comes back does not get the hole they watched last time. `seen` is a
+       list of "course:hole" keys; what comes back is the pick and the list to
+       store. When everything has been shown the list starts over — but never
+       with the hole that has just been on screen, so the wrap is not a repeat
+       either. Keys for holes that no longer exist are simply never matched,
+       so a stored list from an older build cannot jam the draw. */
+    G3.demoKey = function (id, hole) { return id + ':' + hole; };
+
+    G3.demoDraw = function (seen, opts) {
+        var rng = (opts && opts.rng) || Math.random;
+        var last = opts && opts.last || null;
+        var all = [];
+        G3.COURSES.forEach(function (c) {
+            if (c.playtest) return;
+            for (var h = 0; h < c.holes.length; h++) all.push({ id: c.id, hole: h });
+        });
+        var had = {};
+        (Array.isArray(seen) ? seen : []).forEach(function (k) { had[k] = 1; });
+        var pool = all.filter(function (p) { return !had[G3.demoKey(p.id, p.hole)]; });
+        var kept = Array.isArray(seen) ? seen.slice() : [];
+        if (!pool.length) {
+            kept = [];
+            pool = all.filter(function (p) { return G3.demoKey(p.id, p.hole) !== last; });
+            if (!pool.length) pool = all;
+        }
+        var i = Math.floor(rng() * pool.length);
+        var pick = pool[Math.max(0, Math.min(pool.length - 1, i))];
+        kept.push(G3.demoKey(pick.id, pick.hole));
+        return { id: pick.id, hole: pick.hole, seen: kept, total: all.length };
+    };
+
     G3.shuffleModeById = function (id) {
         for (var i = 0; i < G3.SHUFFLE_MODES.length; i++) {
             if (G3.SHUFFLE_MODES[i].id === id) return G3.SHUFFLE_MODES[i];
