@@ -2042,6 +2042,55 @@
         return out;
     }
 
+    /* The country past the stakes, drawn as country.
+
+       Every long hole is a rectangle of ground: the rows a hole is written
+       in, grown a dozen units of rough on every side so a ball that crosses
+       the line lands on something. Drawn as rough to the edge, that is a
+       green mat on the heather with a bank round it — the stakes in the
+       middle of a lawn and the lawn stopping in a straight line. So the
+       rough beyond the stakes is drawn in the surround's own ground, the
+       same stuff the bank and the country beyond it are made of, with no
+       grass on it: the slab's edge stops reading because there is nothing
+       different on either side of it, and the change is where the stakes
+       are. Not on the line itself — the rough runs on past the stakes in
+       tongues and comes back in bays, by a noise of where you are, between
+       half a unit and seven and a half out, so the edge of the hole is the
+       shape of the country and not of the fence. Scenery only: the ground is
+       rough either way, and out of bounds is the stakes' business. A
+       partition of the triangles rather than an overlay, like splitSteep,
+       and the grass is cut to the same line. Returns the country's share, or
+       null when there is none. */
+    function countryAt(fences, x, z) {
+        var d = Infinity, i, f, dx, dz;
+        for (i = 0; i < fences.length; i++) {
+            f = fences[i];
+            dx = Math.max(f.x - x, 0, x - (f.x + f.w));
+            dz = Math.max(f.z - z, 0, z - (f.z + f.d));
+            d = Math.min(d, Math.sqrt(dx * dx + dz * dz));
+        }
+        if (d < 0.5) return false;
+        var j = (surNoise(x * 0.09, z * 0.09) - 0.5) * 7 + (surNoise(x * 0.27 + 7, z * 0.27 - 3) - 0.5) * 2.2;
+        return d > Math.max(0.5, 3.5 + j);
+    }
+    function splitCountry(geo, hole, cx, cz) {
+        var fences = P.fenceRects(hole);
+        var idx = geo.index.array, pos = geo.attributes.position, keep = [], out = [], t, x, z;
+        for (t = 0; t < idx.length; t += 3) {
+            x = cx + (pos.getX(idx[t]) + pos.getX(idx[t + 1]) + pos.getX(idx[t + 2])) / 3;
+            z = cz + (pos.getZ(idx[t]) + pos.getZ(idx[t + 1]) + pos.getZ(idx[t + 2])) / 3;
+            (countryAt(fences, x, z) ? out : keep).push(idx[t], idx[t + 1], idx[t + 2]);
+        }
+        if (!out.length) return null;
+        geo.setIndex(keep);
+        var g = new THREE.BufferGeometry();
+        g.setAttribute('position', pos);
+        if (geo.attributes.normal) g.setAttribute('normal', geo.attributes.normal);
+        if (geo.attributes.uv) g.setAttribute('uv', geo.attributes.uv.clone());
+        g.setIndex(out);
+        return g;
+    }
+
     function addTerrain(group, pad, theme, cup, pads) {
         var cx = pad.x + pad.w / 2, cz = pad.z + pad.d / 2;
         var cy = P.padHeight(pad, cx, cz);
@@ -2101,6 +2150,15 @@
         if (holes.length) addVoidRims(group, pad);
         if (pad.hue) { tintRainbow(geo, pad, cx, cy, cz, RAINBOW_GLASS); mat = rainbowGlass(); }
         var rockGeo = pad.rock && !pad.r ? splitSteep(geo) : null;
+        var wild = R.country && pad.kind === 'rough' && !pad.oob && !pad.inlay && !pad.r && !pad.lane
+            ? splitCountry(geo, R.country, cx, cz) : null;
+        if (wild) {
+            worldUv(wild, SUR_TILE, cx, cz);
+            var land = new THREE.Mesh(wild, groundMaterial(theme));
+            land.position.set(cx, cy + lift, cz);
+            land.receiveShadow = true;
+            group.add(land);
+        }
         var mesh = new THREE.Mesh(geo, mat);
         mesh.position.set(cx, cy + lift, cz);
         mesh.receiveShadow = true;
@@ -2135,6 +2193,7 @@
         } else if (cover.length && !pad.r) {
             grassOn = terrainGeometry(pad, res, cx, cy, cz, cut, cover, true);
             if (rockGeo) splitSteep(grassOn);
+            if (wild) splitCountry(grassOn, R.country, cx, cz);
         }
         if (!pad.oob) addShells(group, pad, cup, false, cx, cy, cz, grassOn);
 
@@ -5474,7 +5533,10 @@
         addRange(g, hole, theme, skirt);
 
         var i;
+        // The country past the stakes is drawn as country (splitCountry).
+        R.country = hole.open && hole.fence && hole.stakes !== false ? hole : null;
         for (i = 0; i < hole.pads.length; i++) addPad(g, hole.pads[i], theme, hole.cup, hole.pads);
+        R.country = null;
         if (theme.grid) addGrid(g, hole, theme);
         if (theme.glow) addNeonBackdrop(g, hole, theme);
         if (hole.wells) addWells(g, hole);
