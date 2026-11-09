@@ -5312,37 +5312,36 @@
         demoRound();
     }
 
-    /* A course drawn the way the picker's die draws one, and a hole out of the
-       middle of it as readily as the first: a demo that always opens on the
-       same tee is a screenshot, not a demonstration. The draw is
-       deliberately not the player's remembered shuffle mode, nor the kinds
-       they have left the draw — "new to you" and the rest are about a round
-       you are going to play, and this is not one; and the ticks say what
-       somebody wants dealt to them, not what the game may show a room it is
-       talking to. But it does take `from`, so the next course is never the
-       one that has just been on screen. */
+    /* One hole at a time, out of any course, and never one this machine has
+       already been shown: `G3.demoDraw` walks every hole once before it
+       repeats any, and the list of what has been on screen lives in
+       localStorage so it carries across visits. Each hole the caddie finishes
+       is followed by a fresh draw rather than the next hole of the same
+       course — a demo that walks one course is six holes of one world, and
+       this one is the whole game. The draw is deliberately not the player's
+       shuffle mode, nor the kinds they have ticked: those are about a round
+       somebody is going to play, and this is not one. */
+    function demoSeen() {
+        try {
+            var v = JSON.parse(localStorage.getItem(C.DEMO_SEEN_KEY) || '[]');
+            return Array.isArray(v) ? v : [];
+        } catch (e) { return []; }
+    }
+
     function demoRound() {
-        var id = G3.randomCourseId({
-            mode: 'any',
-            from: state && state.course ? state.course.id : null
-        });
-        var course = G3.courseById(id);
+        var last = state && state.course && !state.course.isShowcase ?
+            G3.demoKey(state.course.id, state.holeIndex) : null;
+        var d = G3.demoDraw(demoSeen(), { last: last });
+        try { localStorage.setItem(C.DEMO_SEEN_KEY, JSON.stringify(d.seen)); } catch (e) { /* ignore */ }
         demo.playing = false;
         demo.wait = 0;
-        newRound(id, Math.floor(Math.random() * course.holes.length));
+        newRound(d.id, d.hole);
         syncDemo();
     }
 
     function demoNext() {
-        demo.playing = false;
-        demo.wait = 0;
         stopSim(null);
-        if (state.holeIndex < state.course.holes.length - 1) {
-            loadHole(state.holeIndex + 1);
-            syncDemo();
-        } else {
-            demoRound();
-        }
+        demoRound();
     }
 
     function syncDemo() {
