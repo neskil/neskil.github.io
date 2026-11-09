@@ -4124,6 +4124,27 @@
                 var row = rep.filter(function (r) { return r.what === 'Spin'; })[0];
                 assert('the swing card says how much spin, and which way to fix it',
                     row && /60%/.test(row.says) && /later/.test(row.says), row && row.says);
+                assert('the spin row\'s bar is the spin asked for', row && approx(row.score, 0.6), row && row.score);
+
+                /* The card's bars: every reading has a 0..1 score, a clean
+                   one is full, and the lie line (driver off the deck) is
+                   words only. */
+                var mixed = SW.swipeReport({ angle: 0.2, line: 0.4, tempo: { said: 'rushed', amount: -0.75, ratio: 2, why: 'rhythm' },
+                    times: { through: 0.3 }, timing: 'rhythm', weight: 0.8, mult: 1, deck: true }, { frac: 0.9 });
+                function rowOf(name) { return mixed.filter(function (r) { return r.what === name; })[0]; }
+                assert('the line bar is what is left of a clean line', approx(rowOf('Line').score, 0.6), rowOf('Line').score);
+                assert('the tempo bar is what is left of a clean tempo', approx(rowOf('Tempo').score, 0.25), rowOf('Tempo').score);
+                assert('the power bar is the weight that landed', approx(rowOf('Power').score, 0.8), rowOf('Power').score);
+                assert('the card says when the driver was off the deck, with no bar',
+                    rowOf('Lie') && rowOf('Lie').score === null && /Driver/.test(rowOf('Lie').says));
+                assert('a clean line fills its bar', rep.filter(function (r) { return r.what === 'Line'; })[0].score === 1);
+
+                // The driver off the deck swings as if into the overdraw.
+                assert('off the deck the driver is at least DECK.OVER into the overdraw',
+                    SW.deckOver(0) === C.DECK.OVER && SW.deckOver(1) === 1);
+                assert('which narrows the touch swing\'s line band',
+                    SW.swipeTol(SW.deckOver(0), 'normal') < 0.85 * SW.swipeTol(0, 'normal'));
+                assert('a miss past a full swing costs under twice what it does at 100%', 1 + C.SWIPE.OVER_MULT < 2);
             })();
         })();
 
