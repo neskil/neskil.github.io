@@ -57,9 +57,6 @@ owner's yes before it is started.
   outline that is not a box (rough that runs out in tongues, gorse and heather
   and tree lines at the edge, the stakes where the country changes rather than
   where the slab stops).
-- **Haze from above on the long courses.** The hero and plan views of
-  Dunmore and Ashdown are washed out to the edges ("Less fog on a clear day",
-  below, still open); Alpenglow Pass's `theme.air` is the knob to try on them.
 - **Height where a long hole is flat for no reason** — the rest of item 9, on
   Ashdown, Whinstone and Dunmore.
 - **A timing miss in the bot's hands** (BOT_HANDS), so human-check stops
@@ -72,6 +69,14 @@ Still waiting: "Deadline" (a nice biome, maps too simple, water on a table)
 is waiting on the owner to say which course they meant.
 
 Done:
+
+- **Less fog on a clear day** (v1.13x.0) — the hero and plan views of the
+  long courses washed out to the edges. `theme.air` (Alpenglow's knob) is on
+  every long theme now — Ashdown 1.8, Dunmore 1.7, Redstone 1.6, Whinstone and
+  the lagoon 1.3, the links keeping its sea haze — and the camera that looks
+  down (the game's map, and the turntable, through one `render.overFog`) gets
+  half as much again, so from above the hole stands clear and only the country
+  round it fades.
 
 - **Alpenglow's last drums** (v1.138.0) — the crags the tees stand on and the
   cliff behind the tarn were still cylinders under their tops. A `facets`
@@ -331,8 +336,8 @@ weight, so a rebuilt course still comes in around ten under.
 5. **Greens that differ.** Long thin ones, two-tier ones, raised ones, ones in a
    bowl (`dish`, the Punchbowl), ones behind a bunker, so each approach is its
    own shot.
-6. **Less fog on a clear day.** From above, the haze makes every hole look like
-   every other; the ground has shape now and the fog hides it.
+6. ~~**Less fog on a clear day.**~~ (done, v1.13x.0 — `theme.air` and
+   `render.overFog`; see "Done" above.)
 
 Order of work: ~~Ashdown Park first, by hand, to settle the recipe~~ (done,
 v1.62.0 — all six holes rebuilt: a burn across the landing zone on the

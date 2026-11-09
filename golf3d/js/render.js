@@ -6492,6 +6492,21 @@
 
        The weather on the ground is untouched: the hole is playing in exactly
        the mist it was, and looks it the moment you are back behind the ball. */
+    /* The air for a camera looking down on the hole from `dist` away: past
+       the far corner of the hole, with the horizon still fading — a map with
+       no distance at all reads as a cardboard cut-out. A theme with thin air
+       (`air`) pushes both back by half as much again as it pushes the
+       ground-level fog, so the hole itself stands clear of the haze from
+       above and only the country round it fades. The turntable photographs
+       through this same function. */
+    function overFog(dist, radius) {
+        var k = R.theme && R.theme.air ? 1 + (R.theme.air - 1) * 0.5 : 1;
+        return {
+            near: Math.max(R.fogNear, dist * 0.85 * k),
+            far: Math.max(R.fogFar, (dist * 1.5 + radius * 2.2) * k)
+        };
+    }
+
     function atmosphere(dt) {
         var want = R.cam.mode === 'over' ? 1
                  : (R.cam.mode === 'demo' ? C.DEMO_CAM.LIFT
@@ -6506,14 +6521,10 @@
         if (R.lift < 0.002) R.lift = 0;
         if (R.lift > 0.998) R.lift = 1;
 
-        var dist = R.overDist || 40, radius = R.overRadius || 20;
-        // Past the far corner of the hole, with the horizon still fading —
-        // a map with no distance at all reads as a cardboard cut-out.
-        var near = Math.max(R.fogNear, dist * 0.85);
-        var far = Math.max(R.fogFar, dist * 1.5 + radius * 2.2);
+        var over = overFog(R.overDist || 40, R.overRadius || 20);
         if (R.scene.fog) {
-            R.scene.fog.near = R.fogNear + (near - R.fogNear) * R.lift;
-            R.scene.fog.far = R.fogFar + (far - R.fogFar) * R.lift;
+            R.scene.fog.near = R.fogNear + (over.near - R.fogNear) * R.lift;
+            R.scene.fog.far = R.fogFar + (over.far - R.fogFar) * R.lift;
         }
         // Not quite nothing: a trace of rain still falling says the hole has
         // not stopped being wet just because you are looking down at it.
@@ -6852,6 +6863,7 @@
             return G3.bag ? G3.bag.pick(nx, ny, R.camera, R.scene) : null;
         },
         state: R,
+        overFog: overFog,
         THEMES: G3.THEMES,
         // What the HUD needs to name the sky it is standing under.
         get weather() { return R.weather; }
