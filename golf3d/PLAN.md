@@ -73,7 +73,7 @@ is waiting on the owner to say which course they meant.
 
 Done:
 
-- **Alpenglow's last drums** (v1.13x.0) — the crags the tees stand on and the
+- **Alpenglow's last drums** (v1.138.0) — the crags the tees stand on and the
   cliff behind the tarn were still cylinders under their tops. A `facets`
   butte's wall is now a handful of planes (render.facetRadius): knots round the
   crag cut in by their own depth, a straight chord between each pair, the
