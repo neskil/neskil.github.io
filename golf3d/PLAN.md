@@ -48,8 +48,6 @@ Proposed next — what a look round the whole game turned up once the owner's
 list was done (v1.134.1), most visible first. Not asked for; each wants the
 owner's yes before it is started.
 
-- **Height where a long hole is flat for no reason** — the rest of item 9, on
-  Ashdown, Whinstone and Dunmore.
 - **A timing miss in the bot's hands** (BOT_HANDS), so human-check stops
   reading the crazy courses as easier than people find them.
 - **Another biome** after the alpine one, for the long game or a mini course:
@@ -60,6 +58,16 @@ Still waiting: "Deadline" (a nice biome, maps too simple, water on a table)
 is waiting on the owner to say which course they meant.
 
 Done:
+
+- **Height where a long hole was flat for no reason** (v1.13x.0) — the rest
+  of item 9. The three flattest holes on the older long courses each get a
+  green up a bank: Long Meadow's (Ashdown) a unit and a half up a bank of
+  rough, Bell Heather's shelf (Dunmore) two and a half units over the landing
+  ground up a heather bank, and The Whins' shelf (Whinstone) most of two
+  units up. The approach is played up at the flag and a short one comes back
+  down; the routes and the lay-ups are as they were. Human-check (12 rounds):
+  Long Meadow -1.58, Bell Heather -1.25, The Whins -1.00, each course within a
+  tenth of where it was.
 
 - **The property reads as a mat** (v1.141.0) — every long hole was a green
   rectangle on its plateau. The rough past the stakes is now drawn as the

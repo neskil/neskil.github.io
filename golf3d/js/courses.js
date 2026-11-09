@@ -4167,7 +4167,9 @@
                carries it. Then a long third to a green with a pond off its
                left shoulder, which is where an approach pulled away from the
                sand on the right finishes. The hollow short of the belt
-               gathers the timid drive. */
+               gathers the timid drive. The green stands up a bank of rough a
+               unit and a half high (v1.13x.0), so the third is played up to
+               it and a short one comes back down. */
             var field = [].concat(
                 ridge(5, 16, 14, 16, 4.5, 0.28, 4),
                 massif(28, 26, 13, 2.4, 5),
@@ -4182,7 +4184,7 @@
                 [6,                     [5, rgh], [11, fwy], [6, rgh]],
                 [{ d: 8, sz: 0.2 },     [6, rgh], [11, fwy], [5, rgh]],
                 [12,                    [6, rgh], [11, fwy], [5, rgh]],
-                [5,                     [5, rgh], [12, fwy], [5, rgh]],
+                [{ d: 5, sz: 0.3 },     [22, rgh]],
                 [10,                    [6, rgh], [11, fwy], [5, rgh]],
                 [3,                     [22, rgh]]
             ], { e: 18 });
@@ -4521,7 +4523,7 @@
                them, which leaves the longer approach over the bunker short of
                the green, or narrow down the right between the pots and the
                stakes, which leaves the open line in. The green stands on a
-               shelf a unit up at the end, so the approach is an uphill shot
+               shelf up a bank of rough most of two units high (v1.13x.0), so the approach is an uphill shot
                to a flat table and anything short runs back down the bank. */
             name: 'The Whins', par: 4, open: true,
             blurb: 'Three pots split the landing ground: wide to the left of them, or tight down the stakes for the open line. The green is up on a shelf.',
@@ -4532,7 +4534,8 @@
                 strips: [
                     [28, [21, rgh], [20, fwy], [21, rgh]],
                     [24, [16, rgh], [28, fwy], [18, rgh]],
-                    [{ d: 6, sz: 0.16 }, [20, rgh], [20, fwy], [22, rgh]],
+                    [{ d: 3, sz: 0.45 }, [62, rgh]],
+                    [{ d: 3, sz: 0.1 }, [20, rgh], [20, fwy], [22, rgh]],
                     [18, [21, rgh], [20, fwy], [21, rgh]],
                     [10, [62, rgh]]
                 ],
@@ -6104,6 +6107,9 @@
                wide between them on the line to the flag. Thread it, go round
                either side, or stop short of the pair — and then a climb on to
                the shelf the green sits on, with a hollow off its right side.
+               The shelf stands up a heather bank now (v1.13x.0), two and a
+               half units over the landing ground, so the approach is played
+               up at a green you see the flag of and not the putting surface.
 
                The crest is overlapping humps rather than one wide one because
                a single raised cosine wide enough to cross a hole is also tall
@@ -6118,7 +6124,7 @@
                 [6,                     [7, rgh], [8, fwy], [7, rgh]],
                 [18,                    [7, rgh], [8, fwy], [7, rgh]],
                 [16,                    [5, rgh], [12, fwy], [5, rgh]],
-                [3,                     [6, rgh], [10, fwy], [6, rgh]],
+                [{ d: 3, sz: 0.5 },     [22, rgh]],
                 [{ d: 5, sz: 0.24 },    [6, rgh], [10, fwy], [6, rgh]],
                 [14,                    [6, rgh], [10, fwy], [6, rgh]],
                 [3,                     [22, rgh]]
