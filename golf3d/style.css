@@ -3461,6 +3461,12 @@ body.compact-ui .topbar-menu .chip {
     background: rgba(255, 255, 255, 0.04);
 }
 
+/* Phones: a roomier panel and bigger targets — the default read cramped. */
+@media (pointer: coarse) {
+    body.compact-ui .topbar-menu { min-width: 220px; gap: 0.45rem; padding: 0.55rem; }
+    body.compact-ui .topbar-menu .chip { font-size: 1.12rem; padding: 0.65rem 0.9rem; }
+}
+
 /* …but only the chips that are *off*, and this is where that is said.
 
    `.on` is a state, and both of the rules that repaint a chip for the compact
