@@ -48,15 +48,6 @@ Proposed next — what a look round the whole game turned up once the owner's
 list was done (v1.134.1), most visible first. Not asked for; each wants the
 owner's yes before it is started.
 
-- **The long game's property reads as a mat.** Every long hole is a rectangle
-  of rough on a plateau with a bank round it, and from the hero seat that is a
-  green rectangle on the heather, the moor or the parkland floor. v1.134.1 took
-  the mower's stripes off the rough, which let the fairway's own wandering
-  edge show; an apron of rough fading down the bank was tried and only drew a
-  soft outline round the same rectangle. The real answer is in the holes: an
-  outline that is not a box (rough that runs out in tongues, gorse and heather
-  and tree lines at the edge, the stakes where the country changes rather than
-  where the slab stops).
 - **Height where a long hole is flat for no reason** — the rest of item 9, on
   Ashdown, Whinstone and Dunmore.
 - **A timing miss in the bot's hands** (BOT_HANDS), so human-check stops
@@ -69,6 +60,17 @@ Still waiting: "Deadline" (a nice biome, maps too simple, water on a table)
 is waiting on the owner to say which course they meant.
 
 Done:
+
+- **The property reads as a mat** (v1.13x.0) — every long hole was a green
+  rectangle on its plateau. The rough past the stakes is now drawn as the
+  country it is (render.splitCountry): the surround's own ground, no grass,
+  the same stuff as the bank and the plain beyond, so the slab's edge has
+  nothing to show against; the change is near the stakes instead, in tongues
+  and bays of rough between half a unit and seven and a half out, by a noise
+  of where you are. Scenery only — the ground is rough either way. General
+  to every long hole with stakes (not Coral Keys). Still faint: the slab's own
+  edge where the country meets the bank, which a tree line or gorse at the
+  edge would finish.
 
 - **Less fog on a clear day** (v1.139.0) — the hero and plan views of the
   long courses washed out to the edges. `theme.air` (Alpenglow's knob) is on
