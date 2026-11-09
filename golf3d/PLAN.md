@@ -62,9 +62,6 @@ owner's yes before it is started.
   below, still open); Alpenglow Pass's `theme.air` is the knob to try on them.
 - **Height where a long hole is flat for no reason** — the rest of item 9, on
   Ashdown, Whinstone and Dunmore.
-- **The level editor is behind the game.** It does not know slingshots,
-  firing bats, roads or the new decor kinds, so a hole using them cannot be
-  drawn there or survives a round trip through it changed.
 - **A timing miss in the bot's hands** (BOT_HANDS), so human-check stops
   reading the crazy courses as easier than people find them.
 - **Another biome** after the alpine one, for the long game or a mini course:
@@ -631,6 +628,14 @@ card shapes are already there to hang a third off (`CARDS` in `bag.js`).
   and play"). Open: names a player can type, and a record per player.
 - ~~**1-click level editor sharing**~~ (done, v1.102.0 — README → "The hole
   editor", Share 🔗): the hole travels in the link's fragment.
+- **Catch the hole editor up with the game** — a future job, not a rule. The
+  owner's call (v1.135.0): the editor is no longer kept in step with every
+  change (golf3d/CLAUDE.md → Standing instructions). When it is done, it is
+  one pass: round-trip every drawn hole through the editor's import and
+  export and fix what comes back changed, then teach it what it cannot draw.
+  Known gaps today: slingshots (`kick` faces and `slingback`), firing bats
+  (`swing.snap`, the hinge), round bumpers and posts, and the decor kinds
+  added since v1.100 (arcade, alpine, Redstone). Roads may already survive.
 
 ---
 

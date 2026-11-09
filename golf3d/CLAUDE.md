@@ -56,6 +56,12 @@ point at them.
   commit that added it — its workers load `js/` by the page's own version, so
   a stale string there measures an old build. If a fifth page ever loads
   `js/`, it goes in this list on the same commit.
+- **The hole editor does not have to keep up** (the owner's call, v1.135.0).
+  A new wall kind, pad, decor kind or hole shape is not taught to the editor
+  on the same change, and no test holds the editor to every drawn hole.
+  Catching it up is one job of its own, done when the owner asks for it — it
+  waits in PLAN.md §2. The `?v=` bump above still covers `level-editor.html`:
+  that is the browser cache, not a feature.
 
 ## Verification
 
@@ -179,9 +185,10 @@ none, because it reads as coverage.
   `sails` turns a windmill's four sails in the upright plane (`mill`).
   Anything that filters for movers has to ask about all four — the renderer's
   `R.movers` (sails are a `rotor` there, not a box), the tests' gate-window
-  assertion, the editor's ported copy of that assertion, its ghost boxes, its
-  plan-repaint trigger, its `cloneShape` and its export, and the bot's "does
-  this hole need a wait before striking", which missed flippers until v1.66.0.
+  assertion and the bot's "does this hole need a wait before striking", which
+  missed flippers until v1.66.0. The editor has its own copies (a ported
+  gate-window assertion, ghost boxes, a plan-repaint trigger, `cloneShape`,
+  its export); those wait for its catch-up, per the standing instruction.
   The minimap draws sails as the line they turn in. If you add a fifth kind of
   motion, grep for `w.move || w.spin` before you do anything else.
 - **A pad may now *do* something as well as be somewhere**: `push` is a
