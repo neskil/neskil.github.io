@@ -3992,6 +3992,37 @@
                 read(gesture(0.3, 0.3, 36), 'off', ['fade']).shape === null);
             assert('with shapes off, a bow is no shape', read(gesture(0.3, 0.3, 36), 'off', null).shape === null);
 
+            /* The width of the whole swing (SWIPE.WIDE). A loop — pulled down
+               one side, swiped up the other — read as straight when only the
+               ends of the swipe up were looked at. */
+            (function () {
+                var W = S.WIDE;
+                // Pulled down bowing `pullBow` px, swiped up bowing `upBow`.
+                function loop(pullBow, upBow) {
+                    var g = gesture(0.3, 0.3, upBow);
+                    for (var i = 0; i <= 20; i++) g.pts[i][0] = Math.sin(Math.PI * i / 20) * pullBow;
+                    return g;
+                }
+                var straight = SW.swipeWide(gesture(0.3, 0.3).pts, { x: 0, y: 200 }, { x: 0, y: 0 }, gesture(0.3, 0.3).through);
+                assert('a straight pull and swipe has no width', approx(straight.width, 0, 1e-9));
+                var arc = loop(30, 30);      // a thumb's own arc, down and back up the same side
+                assert('a thumb\'s own arc, retraced, costs nothing', read(arc, 'off').loop === 0 && read(arc, 'off').perfect);
+                var tear = loop(-40, 40);    // down the left, up the right
+                var wide = SW.swipeWide(tear.pts, tear.low, tear.cross, tear.through);
+                assert('a loop is as wide as both sides of it', approx(wide.width, 0.4, 0.01), wide.width.toFixed(3));
+                assert('and a swipe bowing right finishes heading left', wide.finish === -1);
+                var r = read(tear, 'off');
+                assert('so the loop costs line, and pulls it left', r.loop < 0 && r.off < 0 && !r.perfect, r.loop.toFixed(3));
+                assert('though not the whole of a miss', Math.abs(r.loop) <= W.MAX + 1e-9);
+                var mirror = read(loop(40, -40), 'off');
+                assert('the mirror loop pushes it right by the same', approx(mirror.loop, -r.loop, 1e-9));
+                assert('and the card says so', /Too wide a loop\. Ball goes left\./.test(SW.swipeReport(r)[0].says));
+                var drawn = read(gesture(0.3, 0.3, 200 * S.BOW.IDEAL), 'off', both);
+                assert('a shape drawn on purpose is not charged for its own bow', drawn.shape && drawn.loop === 0);
+                var shapedLoop = read(loop(-70, 200 * S.BOW.IDEAL), 'off', both);
+                assert('but a loop round a drawn shape still is', shapedLoop.shape && shapedLoop.loop < 0);
+            })();
+
             // The gate it makes, and the card it writes.
             var gate = SW.swipeGate(read(gesture(0.3, 0.3, 36), 'off', both));
             assert('a swiped shape travels with its gate', gate.shapeName === 'draw' && gate.shapeOff === 0 && gate.swipe);

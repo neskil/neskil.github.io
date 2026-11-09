@@ -440,6 +440,54 @@
         return -best / len;
     }
 
+    /* How wide the whole gesture was, across the line of the swipe up: the
+       pull and the swipe both, as a fraction of the swipe's length. `pts` is
+       the gesture ([x, y, t]…, the strike last), `turn` the bottom of the
+       pull and `cross` the strike. Pull straight down and swipe straight back
+       up and it is 0; down one side and up the other is the width of the
+       loop. Also says which way the swipe was going at the end — its last
+       TAIL of length, against the line — since that is the way it pulls or
+       pushes the ball: −1 finishing left, +1 right, 0 dead on. */
+    function swipeWide(pts, turn, cross, through) {
+        var dx = cross.x - turn.x, dy = cross.y - turn.y;
+        var len = Math.sqrt(dx * dx + dy * dy);
+        if (!(len > 0) || !pts || !pts.length) return { width: 0, finish: 0 };
+        var lo = 0, hi = 0, i, d;
+        for (i = 0; i < pts.length; i++) {
+            // Signed distance from the line, positive to the right of it.
+            d = ((pts[i][0] - turn.x) * dy - (pts[i][1] - turn.y) * dx) / len;
+            if (-d < lo) lo = -d;
+            if (-d > hi) hi = -d;
+        }
+        var finish = 0, path = through || [];
+        if (path.length > 1) {
+            // Walk back from the strike until TAIL of the length is covered.
+            var want = C.SWIPE.WIDE.TAIL * len, got = 0, k = path.length - 1;
+            while (k > 0 && got < want) {
+                var ex = path[k][0] - path[k - 1][0], ey = path[k][1] - path[k - 1][1];
+                got += Math.sqrt(ex * ex + ey * ey);
+                k--;
+            }
+            var tx = path[path.length - 1][0] - path[k][0], ty = path[path.length - 1][1] - path[k][1];
+            // The tail's heading against the line's: + is clockwise on screen,
+            // which, for a line running up the screen, is finishing right.
+            var cr = (dx * ty - dy * tx);
+            finish = Math.abs(cr) < 1e-9 ? 0 : cr > 0 ? 1 : -1;
+        }
+        return { width: (hi - lo) / len, finish: finish };
+    }
+
+    /* What the width costs the line: nothing up to FREE (and a shape drawn
+       on purpose gets its own bow on top of that), then up to MAX of a full
+       miss over SPAN, the way the swipe was heading at the end. */
+    function wideOff(wide, bow, shaped, bowSign) {
+        var W = C.SWIPE.WIDE;
+        var excess = wide.width - W.FREE - (shaped ? Math.abs(bow || 0) : 0);
+        if (!(excess > 0)) return 0;
+        var way = wide.finish || -(bowSign || 0) || 1;
+        return Math.min(1, excess / W.SPAN) * W.MAX * way;
+    }
+
     /* The bow as a shape: null below the threshold (a straight swing), else
        draw for a bow to the right, fade to the left, with an `off` on the
        scale `shape` reads — 0 when the bow is about right, over-cooked when it
@@ -543,9 +591,11 @@
         var tempo = swipeTempo(times, opt.timing, over);
         var bow = swipeBow(g.through, g.low, g.cross);
         var shape = opt.shapes ? swipeShape(bow, opt.shapes) : null;
+        var wide = swipeWide(g.pts, g.low, g.cross, g.through);
+        var loop = wideOff(wide, bow, !!shape, bow > 0 ? 1 : bow < 0 ? -1 : 0);
         // Rushing comes over the top and pulls it; quitting on it blocks it
-        // right. On top of whatever the line already did.
-        var off = Math.max(-1, Math.min(1, line + tempo.amount * C.SWIPE.TIMING.LINE));
+        // right. On top of whatever the line already did, and the loop.
+        var off = Math.max(-1, Math.min(1, line + loop + tempo.amount * C.SWIPE.TIMING.LINE));
         // Quitting on it costs distance, more so past a full swing; on a putt
         // a snatch runs it long as well (SWIPE.PUTT.JAB).
         var cost = assist ? C.ASSIST.COST : 1;
@@ -553,7 +603,7 @@
         if (putt && !assist) weight += Math.max(0, -tempo.amount) * C.SWIPE.PUTT.JAB;
         var mess = swipeMess(g.pts, g.y0, g.low.y - g.y0);
         return {
-            angle: angle, line: line, times: times, tempo: tempo, timing: opt.timing || 'off', putt: putt, mult: mult,
+            angle: angle, line: line, wide: wide, loop: mess.junk ? 0 : loop, times: times, tempo: tempo, timing: opt.timing || 'off', putt: putt, mult: mult,
             spin: mess.junk ? null : spin,
             bow: bow, shape: mess.junk ? null : shape, off: off, weight: weight, over: over, feel: opt.feel, deck: !!opt.deck,
             mess: mess, junk: mess.junk ? swipeJunk(opt.rand) : null,
@@ -609,10 +659,19 @@
         }
         var deg = Math.round(Math.abs(read.angle) * 180 / Math.PI);
         var side = read.angle > 0 ? 'right' : 'left';
-        out.push(read.line === 0
-            ? { what: 'Line', says: deg ? 'Straight (' + deg + '° ' + side + ').' : 'Straight.', tier: 'good', score: 1 }
-            : { what: 'Line', says: deg + '° ' + side + '. Ball goes ' + side + '.',
-                tier: Math.abs(read.line) < 0.5 ? 'meh' : 'bad', score: score(read.line) });
+        var loop = read.loop || 0;
+        if (loop) {
+            // The loop is the bigger story: say it, and which way it sent it.
+            var both = Math.max(-1, Math.min(1, read.line + loop));
+            var way = both > 0 ? 'right' : 'left';
+            out.push({ what: 'Line', tier: Math.abs(both) < 0.5 ? 'meh' : 'bad', score: score(both),
+                       says: 'Too wide a loop. Ball goes ' + way + '.' });
+        } else {
+            out.push(read.line === 0
+                ? { what: 'Line', says: deg ? 'Straight (' + deg + '° ' + side + ').' : 'Straight.', tier: 'good', score: 1 }
+                : { what: 'Line', says: deg + '° ' + side + '. Ball goes ' + side + '.',
+                    tier: Math.abs(read.line) < 0.5 ? 'meh' : 'bad', score: score(read.line) });
+        }
         var t = read.tempo, tm = read.times, ms = Math.round(tm.through * 1000) + ' ms';
         var tier = t.amount === 0 ? 'good' : Math.abs(t.amount) < 0.5 ? 'meh' : 'bad';
         if (read.timing === 'rhythm' && t.said) {
@@ -848,6 +907,7 @@
         swipeTimes: swipeTimes,
         swipeTempo: swipeTempo,
         swipeBow: swipeBow,
+        swipeWide: swipeWide,
         swipeShape: swipeShape,
         swipeMess: swipeMess,
         swipeJunk: swipeJunk,

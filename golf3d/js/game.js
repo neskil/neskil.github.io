@@ -1320,17 +1320,29 @@
         if (card.hidden) return;
         var stage = $('stage').getBoundingClientRect();
         var low = stage.top;
-        ['.topbar', '#viewctl'].forEach(function (sel) {
+        // The hole's own panel too, when it is open: it hangs off the topbar
+        // over the course, and the card used to come up underneath it.
+        ['.topbar', '#viewctl', '#hud-detail'].forEach(function (sel) {
             var el = document.querySelector(sel);
             if (!el || el.hidden || !el.offsetParent) return;
             var r = el.getBoundingClientRect();
             if (r.height && r.bottom > low && r.bottom < stage.top + stage.height * 0.4) low = r.bottom;
         });
         card.style.top = Math.round(low - stage.top + 10) + 'px';
+        /* A message said while the card is up — "Water — one-stroke
+           penalty", say — goes under the card rather than across it. The
+           toast's own place is a fixed height that, on a phone, is the
+           middle of the card's rows. */
+        // Off the layout, not the screen: the card slides in from 8px up
+        // (`cardIn`), and measured mid-slide it ends short of where it lands.
+        var bottom = card.offsetTop + card.offsetHeight;
+        $('stage').style.setProperty('--card-bottom', Math.round(bottom + 8) + 'px');
+        $('stage').classList.add('card-up');
     }
 
     function hideSwingCard() {
         $('swing-card').hidden = true;
+        $('stage').classList.remove('card-up');
     }
 
     // The swipe, scaled into the card's little box (60 × 100), with the
@@ -1376,13 +1388,25 @@
            from the bottom of the pull (the cone stands there too), and a
            thumb drifts sideways on the way back — so a tick left on the start
            column ended up beside the path the thumb was actually taking. */
-        var spinY = -99, spinX = x0;
-        if (s && !s.needle && (state.club.loft || 0) > 0 && s.low.y - s.y0 > 30) {
-            spinY = s.low.y - r.top - C.SWIPE.SPIN_AT.IDEAL * (s.low.y - s.y0);
-            spinX = s.low.x - r.left;
+        /* And inside the lane, always. It used to be put away by drawing it
+           at y = −99, but the SVG lets its drawing spill out of the box (the
+           trail has to follow a thumb that leaves it), so "away" was a line
+           and the word "spin" floating a hundred pixels over the lane, across
+           the course and the stroke card. Now it is hidden when it is not
+           wanted, and clamped to the lane when it is, with the word on
+           whichever side of the tick has room. */
+        var spinOn = !!(s && !s.needle && (state.club.loft || 0) > 0 && s.low.y - s.y0 > 30);
+        var spinY = 0, spinX = x0;
+        if (spinOn) {
+            spinY = Math.max(8, Math.min(r.height - 8, s.low.y - r.top - C.SWIPE.SPIN_AT.IDEAL * (s.low.y - s.y0)));
+            spinX = Math.max(20, Math.min(r.width - 20, s.low.x - r.left));
         }
+        var labelLeft = spinX + 24 + 34 > r.width;
+        $('sw-spin').setAttribute('visibility', spinOn ? 'visible' : 'hidden');
+        $('sw-spin-label').setAttribute('visibility', spinOn ? 'visible' : 'hidden');
+        $('sw-spin-label').setAttribute('text-anchor', labelLeft ? 'end' : 'start');
         attrs('sw-spin', { x1: spinX - 18, y1: spinY, x2: spinX + 18, y2: spinY });
-        attrs('sw-spin-label', { x: spinX + 24, y: spinY + 4 });
+        attrs('sw-spin-label', { x: labelLeft ? spinX - 24 : spinX + 24, y: spinY + 4 });
         var cone = '';
         if (s && s.through) {
             var tx = s.low.x - r.left, ty = s.low.y - r.top;
