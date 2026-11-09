@@ -73,6 +73,13 @@ is waiting on the owner to say which course they meant.
 
 Done:
 
+- **Alpenglow's last drums** (v1.138.0) — the crags the tees stand on and the
+  cliff behind the tarn were still cylinders under their tops. A `facets`
+  butte's wall is now a handful of planes (render.facetRadius): knots round the
+  crag cut in by their own depth, a straight chord between each pair, the
+  depths shifting band by band up the face — still only inward, never at the
+  rim.
+
 - **Alpenglow Pass, a long course on a new biome** (v1.135.0) — "perhaps new
   biome for long game maps", with the verticality asked for in item 9. Six
   holes, par 24, on a mountainside: a downhill par three off a crag, an uphill

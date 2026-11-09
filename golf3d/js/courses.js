@@ -6490,6 +6490,7 @@
         p.stands = true;
         p.sheer = true;
         p.weathered = true;          // its wall is cut into buttresses (render.weatherWall)
+        if (o.facets) p.facets = true;   // …or, in granite, into planes (render.facetRadius)
         if (o.sx || o.sz) {
             p.sx = o.sx || 0;
             p.sz = o.sz || 0;
@@ -7121,6 +7122,7 @@
     function granite(cx, cz, rx, rz, y, o) {
         var p = rock(butte(cx, cz, rx, rz, y, o));
         p.crown = true;
+        p.facets = true;
         return p;
     }
     function alp(h) {
@@ -7139,7 +7141,7 @@
                and the green tilts back at the water.
                Firs both sides; scree round the crag's foot so a topped one
                comes off it on to the meadow. */
-            var crag = butte(10, 1, 4.6, 4.2, 7.5, { wild: 0.08 });
+            var crag = butte(10, 1, 4.6, 4.2, 7.5, { wild: 0.08, facets: true });
             var land = commons(-6, [
                 [14,  [22, rgh]],
                 [9,   [6, rgh], [11, fwy], [5, rgh]],
@@ -7276,7 +7278,7 @@
             var g = shape(land.pads, field);
             var tarn = pond(g, mere(7, 24, 9, 7.5, 1.6, 9731));
             var pool = pond(g, mere(0.1, 59, 2.8, 3.8, 1.0, 9739));
-            var knoll = butte(8, 2, 3.6, 3.2, 2.4, { wild: 0.08 });
+            var knoll = butte(8, 2, 3.6, 3.2, 2.4, { wild: 0.08, facets: true });
             return alp({
                 name: 'The Tarn', par: 4,
                 blurb: 'Over a glacier tarn under a waterfall, or round it on the fairway out east.',
@@ -7342,7 +7344,7 @@
                and come back. Then the stream across the hole, and the green
                on the far bank below the chalet terrace, with the chairlift
                running up the mountain beside it. */
-            var crag = butte(20, 1.5, 4, 3.6, 5.5, { wild: 0.08 });
+            var crag = butte(20, 1.5, 4, 3.6, 5.5, { wild: 0.08, facets: true });
             var land = commons(0, [
                 [9.5, [28, rgh]],
                 [16.5, [12, rgh], [11, fwy], [5, rgh]],

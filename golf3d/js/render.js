@@ -1849,6 +1849,39 @@
        side and a shadowed side on every buttress. */
     var WEATHER_DEEP = 0.45;     // the deepest a gully cuts back into a wall
 
+    /* A granite crag's face (courses `facets`, the alpine crags): not a
+       drum with grooves in it but a handful of big planes. A few knots are
+       set round the crag, each cut in from the outline by its own depth (up
+       to a third of the radius), and the face between two knots is the
+       straight chord joining them — a true plane, which the flat shading
+       lights as one. The depths change from one band of height to the next
+       and the face is blended between bands, so the planes lean and the
+       crag steps back where a bed is softer. Never outside the outline (a
+       chord of a convex outline lies inside it, and the result is clamped
+       to it anyway), and never at the rim. */
+    function facetRadius(pad, a, wy, seed, rOut) {
+        var n = 6 + Math.floor(treeHash(seed, 3.1) * 3), step = Math.PI * 2 / n;
+        var u = ((a % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2) / step, i = Math.floor(u);
+        function knotAngle(k) { return (k + (treeHash(seed + k * 1.7, 9.1) - 0.5) * 0.5) * step; }
+        function chord(band) {
+            var a0 = knotAngle(i), a1 = knotAngle(i + 1);
+            // the jitter can move a knot past `a`; step back or on one knot.
+            if (a < a0 - 1e-9 && u - i < 0.5) { a1 = a0; a0 = knotAngle(i - 1); }
+            else if (a > a1) { a0 = a1; a1 = knotAngle(i + 2); }
+            var c0 = 0.03 + 0.3 * treeHash(seed + (((i % n) + n) % n) * 7.3, band * 3.7 + 1.3);
+            var c1 = 0.03 + 0.3 * treeHash(seed + ((((i + 1) % n) + n) % n) * 7.3, band * 3.7 + 1.3);
+            var r0 = P.padRadius(pad, a0) * (1 - c0), r1 = P.padRadius(pad, a1) * (1 - c1);
+            var ax = Math.cos(a0) * r0, az = Math.sin(a0) * r0, bx = Math.cos(a1) * r1, bz = Math.sin(a1) * r1;
+            var ex = bx - ax, ez = bz - az, dx = Math.cos(a), dz = Math.sin(a);
+            var den = dx * ez - dz * ex;
+            if (Math.abs(den) < 1e-9) return rOut;
+            return Math.min(rOut, (ax * ez - az * ex) / den);
+        }
+        var b = wy / 2.2, j = Math.floor(b), v = b - j;
+        v = v * v * (3 - 2 * v);
+        return chord(j) * (1 - v) + chord(j + 1) * v;
+    }
+
     function weatherWall(geo, pad, thick, cy) {
         var pos = geo.attributes.position, gs = geo.groups, k, i, end;
         var seed = pad.x * 0.37 + pad.z * 0.61;
@@ -1858,13 +1891,17 @@
                 var x = pos.getX(i), y = pos.getY(i), z = pos.getZ(i);
                 var r = Math.sqrt(x * x + z * z), below = thick / 2 - y;
                 if (r < 1e-6 || below < 1e-4) continue;
-                var a = Math.atan2(z, x), wy = cy - thick / 2 + y;
-                var m1 = Math.max(3, Math.round(r * 1.6)), m2 = Math.max(5, Math.round(r * 3.1));
-                var f = 0.5 + 0.32 * Math.sin(a * m1 + seed + wy * 0.35) +
-                    0.18 * Math.sin(a * m2 - seed * 1.7 + wy * 0.9 + Math.sin(a * m1 * 2 + seed) * 1.2);
-                var gully = f < 0.55 ? 0 : f > 0.95 ? 1 : (f - 0.55) / 0.4;
-                gully = gully * gully * (3 - 2 * gully);
-                var cut = Math.min(WEATHER_DEEP, r * 0.06) * (0.25 * f + 0.75 * gully) * Math.min(1, below / 0.9);
+                var a = Math.atan2(z, x), wy = cy - thick / 2 + y, cut;
+                if (pad.facets) {
+                    cut = (r - facetRadius(pad, a, wy, seed, r)) * Math.min(1, below / 0.7);
+                } else {
+                    var m1 = Math.max(3, Math.round(r * 1.6)), m2 = Math.max(5, Math.round(r * 3.1));
+                    var f = 0.5 + 0.32 * Math.sin(a * m1 + seed + wy * 0.35) +
+                        0.18 * Math.sin(a * m2 - seed * 1.7 + wy * 0.9 + Math.sin(a * m1 * 2 + seed) * 1.2);
+                    var gully = f < 0.55 ? 0 : f > 0.95 ? 1 : (f - 0.55) / 0.4;
+                    gully = gully * gully * (3 - 2 * gully);
+                    cut = Math.min(WEATHER_DEEP, r * 0.06) * (0.25 * f + 0.75 * gully) * Math.min(1, below / 0.9);
+                }
                 var q = (r - cut) / r;
                 pos.setX(i, x * q);
                 pos.setZ(i, z * q);
