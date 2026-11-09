@@ -8,7 +8,7 @@
    — the renderer scales to the viewport, the simulation never sees a pixel. */
 window.G3 = window.G3 || {};
 
-G3.VERSION = '1.144.0';
+G3.VERSION = '1.144.1';
 
 G3.CONFIG = {
     BALL_R: 0.16,
@@ -1127,8 +1127,8 @@ G3.CONFIG.LANDING_DEFAULT = { grip: G3.CONFIG.LAND_GRIP, bounce: G3.CONFIG.BOUNC
 
    And the words are rough on purpose. An exact distance to the flag and an
    exact run for the club in hand turned picking a club and a pull into a
-   sum, so neither is said exactly any more: the flag is rounded to the
-   nearest ten metres, a club is a band BAND either side of its full swing
+   sum, so neither is said exactly any more: the flag is rounded (G3.distance's
+   `step`), a club is a band BAND either side of its full swing
    (thirty per cent wide, the spread a real player gets out of one club), and
    inside NEAR there is no number at all — that is a green to read, not a
    figure to match. */
@@ -1138,29 +1138,41 @@ G3.CONFIG.NEAR = 20;
 
 G3.distance = (function (C) {
     function scale(hole) { return hole && hole.longGame ? C.LONG_M : 1; }
-    function tens(m) { return Math.round(m / 10) * 10; }
+    /* Rounded to a step that fits the number: whole metres on a mini lane,
+       fives up to a hundred, tens past it. Tens everywhere turned a mini
+       hole into "< 20 m" and the mallet's reach into "20–20 m". */
+    function step(m) { return m < 30 ? 1 : m < 100 ? 5 : 10; }
+    function round(m) { var k = step(m); return Math.round(m / k) * k; }
+    /* NEAR is the long game's metres; on a lane it is the same distance
+       in units — a green to read, at either scale. */
+    function near(s) { return Math.max(1, Math.round(C.NEAR * s / C.LONG_M)); }
     return {
         scale: scale,
+        round: round,
+        near: function (hole, s) { return near(s || scale(hole)); },
         // A distance that has happened (a shot's length): exact enough to brag about.
         said: function (units, hole) {
             var m = units * scale(hole);
             return (m < C.NEAR ? m.toFixed(1) : String(Math.round(m))) + ' m';
         },
-        // The flag: to the nearest ten, and nothing inside NEAR.
+        // The flag: rounded, and nothing inside NEAR.
         toFlag: function (units, hole) {
-            var m = units * scale(hole);
-            return m < C.NEAR ? '< ' + C.NEAR + ' m' : '≈ ' + tens(m) + ' m';
+            var m = units * scale(hole), n = near(scale(hole));
+            return m < n ? '< ' + n + ' m' : '≈ ' + round(m) + ' m';
         },
         // A club's full swing as a band; [lo, hi] in metres, or null inside NEAR.
         band: function (units, hole, s) {
-            var m = units * (s || scale(hole));
-            var lo = tens(m * (1 - C.BAND)), hi = tens(m * (1 + C.BAND));
-            if (hi < C.NEAR) return null;
-            return [Math.max(C.NEAR, lo), hi];
+            s = s || scale(hole);
+            var m = units * s, n = near(s);
+            var lo = round(m * (1 - C.BAND)), hi = round(m * (1 + C.BAND));
+            if (hi < n) return null;
+            lo = Math.max(n, lo);
+            if (hi <= lo) hi = lo + step(lo);
+            return [lo, hi];
         },
         bandText: function (units, hole, s) {
             var b = this.band(units, hole, s);
-            return b ? b[0] + '–' + b[1] + ' m' : '< ' + C.NEAR + ' m';
+            return b ? b[0] + '–' + b[1] + ' m' : '< ' + near(s || scale(hole)) + ' m';
         }
     };
 })(G3.CONFIG);

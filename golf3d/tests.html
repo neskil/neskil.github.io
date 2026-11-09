@@ -4499,6 +4499,29 @@
             })();
         })();
 
+        section('How far a club goes, in words');
+        (function () {
+            var D = G3.distance, lane = { longGame: false }, long = { longGame: true };
+            /* Every club's full swing reads as a real band at both scales —
+               never "20–20 m", and on a lane in the lane's own metres, not
+               the long game's (the mallet's card once said 70–100 over a
+               picker line saying 20–20 m). */
+            C.ALL_CLUBS.forEach(function (c) {
+                if (!c.total) return;
+                [lane, long].forEach(function (h) {
+                    var b = D.band(c.total, h);
+                    var where = h.longGame ? 'long game' : 'lane';
+                    assert(c.name + ' on a ' + where + ': a band that is wider than a point',
+                        !b || b[1] > b[0], JSON.stringify(b));
+                    assert(c.name + ' on a ' + where + ': the band holds its full swing',
+                        !b || (b[0] <= c.total * D.scale(h) + 0.5 && c.total * D.scale(h) <= b[1] + 0.5),
+                        JSON.stringify(b) + ' vs ' + (c.total * D.scale(h)).toFixed(1));
+                });
+            });
+            assert('a lane putter reads in single metres', D.bandText(8, lane) === '7–9 m', D.bandText(8, lane));
+            assert('a long-game driver still reads in tens', D.bandText(41.4, long) === '190–260 m', D.bandText(41.4, long));
+        })();
+
         section('The range and its swing school');
         (function () {
             var SC = G3.school, SW = G3.swing;
