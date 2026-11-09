@@ -1895,7 +1895,11 @@
     function tickReplay(dt) {
         var r = replay, RP = C.REPLAY, RE = G3.replay;
         var end = RE.length(r.tape);
-        var rate = r.t < 0 ? 1 : RE.rate(r.tape, r.t, r.ball);
+        /* The hold after the drop runs on the wall clock. It used to take the
+           tape's rate like the rest, and once the ball is in the cup that rate
+           is SLOW — so HOLD's 1.8 seconds played as nearly five, with nothing
+           moving on screen, before the banner came back. */
+        var rate = r.t < 0 || r.t >= end ? 1 : RE.rate(r.tape, r.t, r.ball);
         r.t += dt * rate;
         if (r.t >= end + RP.HOLD) { endReplay(false); return; }
 
@@ -5450,6 +5454,19 @@
         window.addEventListener('keydown', onActivity, true);
         window.addEventListener('wheel', onActivity, { capture: true, passive: true });
         window.addEventListener('pointermove', noteActivity, { passive: true });
+        /* Android reads a held finger as a long press, and a long press is the
+           context menu — the copy/share bar, or the link and image sheet.
+           Holding is how half of this game is played (the aim nudges repeat
+           while held, the meter is pressed and then dragged), so over the game
+           a touch long press is refused. The text half of it is the
+           `user-select` rule on `.viewport`; this is the menu half. A mouse's
+           right click keeps its menu. */
+        var lastPointer = '';
+        window.addEventListener('pointerdown', function (e) { lastPointer = e.pointerType; }, true);
+        $('viewport').addEventListener('contextmenu', function (e) {
+            var kind = e.pointerType || lastPointer;
+            if (kind && kind !== 'mouse') e.preventDefault();
+        });
         window.addEventListener('resize', function () {
             R.resize();
             syncCompact();

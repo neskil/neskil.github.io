@@ -301,6 +301,20 @@ body.compact-ui button.chip:hover, body.compact-ui a.chip:hover { background: va
 
 /* ── stage ──────────────────────────────────────────────────────────────── */
 
+/* The game is pressed and held, not read and copied. On Android a finger held
+   still for half a second on any text — a button's label, "Power 0.0 / 32",
+   the meter's "press or drag to load" — selects the word under it and raises
+   the copy/share bar, and neither `touch-action` nor a prevented pointerdown
+   stops that: only this does. The aim nudges are built to be held, so they
+   tripped it every time. Only the swipe lane and the arc had it before. The
+   page below the fold and the modals are reading and stay selectable; the
+   menu half of a long press is game.js's `contextmenu` handler. */
+.viewport {
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+}
+
 .stage {
     position: relative;
     border-radius: 6px;
