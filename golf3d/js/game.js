@@ -4808,10 +4808,12 @@
         // through the turn and the wind-up — and `shot`, `fromYaw` and `toYaw`
         // are filled in by planShot when there is something to aim at.
         sim = { stage: 'rest', t: C.BOT_PAUSE, strokes: 0, at: 0, said: false,
-                shot: null, fromYaw: 0, toYaw: 0, plan: null, from: null, ms: 0 };
+                shot: null, fromYaw: 0, toYaw: 0, job: null, ms: 0 };
         // A fresh plan for every start: the lies it has played from are this
-        // attempt's, and a graph from the last time round is not worth the risk.
-        caddie = null;
+        // attempt's, and a graph from the last time round is not worth the
+        // risk. The one exception is a plan begun during this hole's flyover
+        // (aheadFly), which was begun fresh for exactly this.
+        if (!(ahead && ahead.plan.hole === state.world.hole)) { caddie = null; ahead = null; }
         state.aim.power = 0;
         syncPower();
         syncSim();
@@ -4820,6 +4822,7 @@
     function stopSim(why) {
         if (!sim) return;
         sim = null;
+        ahead = null;
         simAcc = 0;
         syncSim();
         if (why) toast(why);
@@ -4862,6 +4865,7 @@
             return;
         }
         if (sim.stage === 'rest') {
+            aheadRoll();
             sim.t -= beat;
             if (sim.t <= 0) { sim.stage = 'think'; sim.said = false; }
             return;
@@ -4903,7 +4907,9 @@
             if (state.world.time >= sim.at) playPlanned();
             return;
         }
-        // 'watch': the roll is the game's business until it ends.
+        // 'watch': the roll is the game's business until it ends — and the
+        // caddie's next plan is already being made from where it will stop.
+        aheadRoll();
         if (state.phase === 'aim') {
             if (sim.strokes >= C.BOT_MAX_STROKES) {
                 stopSim('The caddie is out of strokes — your club again');
@@ -4920,6 +4926,7 @@
        over the putter alone on a green and a plan made with a driver in the
        bag is a plan for somebody else. */
     var caddie = null;     // { hole, bag, planner }
+    var ahead = null;      // a plan begun before the caddie's turn (aheadFly, aheadRoll)
 
     function caddieFor(hole, b) {
         if (!caddie || caddie.hole !== hole || caddie.bag !== b) {
@@ -4933,37 +4940,95 @@
         return caddie.planner;
     }
 
-    /* The thinking, a slice of each frame at a time. The plan is a fixed
-       number of simulated shots whatever the frames are doing (bot.js,
-       Planner.step), so slicing it changes when it is ready and never what it
-       says. The first shot on a hole is the long think, a second or so on a
-       phone; the rest reuse the graph and are over in a frame or two. */
-    function thinkSim() {
-        var w = state.world, b = w.ball, t0 = performance.now(), done = false;
-        if (!sim.plan) {
-            sim.from = { x: b.x, y: b.y, z: b.z };
-            sim.plan = caddieFor(w.hole, bag());
-            sim.plan.begin(sim.from, w.time + C.BOT_TURN + C.BOT_WIND);
-            sim.ms = 0;
+    /* A plan, made a slice at a time: the route (Planner.step), and then on
+       a hole with nothing moving the choosing as well (Planner.pick, a
+       Search run a few shots at a time). On a hole with a clock the choosing
+       is left for planShot, at the moment it is for. The plan is a fixed
+       number of simulated shots whatever the frames are doing, so slicing
+       it changes when it is ready and never what it says. */
+    function job(from, time) {
+        var pl = caddieFor(state.world.hole, bag());
+        pl.begin(from, time);
+        return { plan: pl, from: from, routed: false, pick: null, shot: undefined, ms: 0 };
+    }
+
+    // One slice of a job; true once nothing is left to do but choose or strike.
+    function work(j) {
+        var t0 = performance.now();
+        while (j.shot === undefined && performance.now() - t0 < C.BOT_SLICE) {
+            if (!j.routed) j.routed = j.plan.step(4);
+            else if (j.plan.moves) break;
+            else if (!j.pick) j.pick = j.plan.pick(j.from, 0);
+            else if (j.pick.run(4)) j.shot = j.plan.finish(j.pick);
         }
-        while (!done && performance.now() - t0 < C.BOT_SLICE) done = sim.plan.step(4);
-        sim.ms += performance.now() - t0;
-        if (done) planShot();
+        j.ms += performance.now() - t0;
+        return j.shot !== undefined || (j.routed && j.plan.moves);
+    }
+
+    /* The thinking is mostly done before the caddie's turn comes. During a
+       hole's flyover the ball is on the tee and nobody is going to move it,
+       and while a ball the caddie struck is rolling it is going exactly where
+       the plan said it would — the roll is stepped at the plan's own 1/60 —
+       so the next plan is begun from there, and is taken up at the think if
+       the ball came to rest where it was meant to. A long hole's first shot
+       is a second or two of the long game's physics, and it is spent behind
+       the flyover and the roll instead of in front of the swing. */
+    function aheadFly() {
+        if (!state.world || state.phase !== 'aim' || !G3.bot) return;
+        if (ahead && ahead.plan.hole !== state.world.hole) ahead = null;
+        if (!ahead) {
+            var b = state.world.ball;
+            caddie = null;
+            ahead = job({ x: b.x, y: b.y, z: b.z }, state.world.time + C.BOT_TURN + C.BOT_WIND);
+        }
+        work(ahead);
+    }
+
+    function sameLie(a, b) {
+        return Math.abs(a.x - b.x) < 1e-4 && Math.abs(a.z - b.z) < 1e-4 && Math.abs(a.y - b.y) < 1e-3;
+    }
+
+    // While it rolls, from where the shot said it would stop; once it has,
+    // from where it did.
+    function aheadRoll() {
+        var w = sim.shot && sim.shot.world, b = state.world.ball, at, t;
+        if (state.phase === 'aim') {
+            at = { x: b.x, y: b.y, z: b.z };
+            t = state.world.time + Math.max(0, sim.t) + C.BOT_TURN + C.BOT_WIND;
+        } else if (w && !w.sunk && !w.splash && !w.out) {
+            at = { x: w.ball.x, y: w.ball.y, z: w.ball.z };
+            t = w.time + C.BOT_PAUSE + C.BOT_TURN + C.BOT_WIND;
+        } else {
+            return;
+        }
+        if (ahead && !sameLie(ahead.from, at)) ahead = null;
+        if (!ahead) ahead = job(at, t);
+        work(ahead);
+    }
+
+    function thinkSim() {
+        var w = state.world, b = w.ball, a = ahead;
+        if (!sim.job) {
+            ahead = null;
+            sim.job = a && a.plan === caddieFor(w.hole, bag()) && sameLie(a.from, b) ? a
+                : job({ x: b.x, y: b.y, z: b.z }, w.time + C.BOT_TURN + C.BOT_WIND);
+        }
+        if (work(sim.job)) planShot();
     }
 
     function planShot() {
-        var w = state.world;
-        var from = sim.from;
+        var w = state.world, j = sim.job;
         var lead = C.BOT_TURN + C.BOT_WIND;
         var t0 = performance.now();
         /* Planned for the world the wind-up is about to arrive in, not the one
            it is leaving: every blade and gate on the hole will have turned by
            `lead` before this shot is struck, and a shot chosen for the wrong
            moment is chosen against a different hole. The route was worked out
-           over the last few frames; the shot itself is chosen now, for now. */
-        var shot = sim.plan.choose(from, w.time + lead);
-        sim.plan = null;
-        sim.ms += performance.now() - t0;
+           over the frames before; on a hole with a clock the shot itself is
+           chosen now, for now. */
+        var shot = j.shot !== undefined ? j.shot : j.plan.choose(j.from, w.time + lead);
+        sim.job = null;
+        sim.ms = j.ms + performance.now() - t0;
         if (!shot) { stopSim('The caddie cannot see a shot from there'); return; }
         sim.shot = shot;
         sim.at = w.time + lead + shot.wait;
@@ -4976,6 +5041,9 @@
         // The club is taken now: it is the one part of a shot that happens
         // before the address rather than during it.
         pickClub(shot.club);
+        // And struck straight: the plan simulated the club as it comes, with
+        // no draw, fade or spin a player may have left picked on the ball.
+        setShape('straight');
         if (G3.bag) G3.bag.setExpanded(false);
         syncPicker();
         setPower(0);
@@ -5023,8 +5091,9 @@
             return;
         }
         // The hole introduces itself first. The flyover is the best thing on
-        // the screen and a caddie with nowhere to be can wait it out.
-        if (R.flying()) return;
+        // the screen and a caddie with nowhere to be can wait it out — and
+        // make its plan for the tee shot meanwhile.
+        if (R.flying()) { aheadFly(); return; }
         if (!w.playing) {
             w.playing = true;
             startSim();

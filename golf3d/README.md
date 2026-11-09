@@ -3880,12 +3880,15 @@ Four details make it watchable and honest:
   `BOT_TURN + BOT_WIND` from now rather than as it is: every blade and gate on
   the hole turns during a wind-up, and a shot chosen for the wrong moment is a
   shot chosen against a different hole.
-- **It thinks after it says so, and a slice of a frame at a time.** The
-  route is worked out over the frames after the message, `BOT_SLICE`
-  milliseconds of each (game.js → `thinkSim`), and only choosing the shot
-  itself stops the world, for about as long as the old greedy search did. The
-  plan is a fixed count of simulated shots, so slicing it changes when it is
-  ready and never what it says.
+- **It thinks ahead, and a slice of a frame at a time.** The plan for the
+  tee shot is made during the hole's flyover, and the plan for every shot
+  after it while the last one is still rolling, from where the plan said it
+  would stop (game.js → `aheadFly`, `aheadRoll`); the roll is stepped at the
+  plan's own 1/60, so it stops there, and the think picks the plan up if it
+  did. All of it, choosing the shot included, is `BOT_SLICE` milliseconds of
+  each frame; only on a hole with a clock is the choosing done in one go, at
+  the moment it is for. The plan is a fixed count of simulated shots, so
+  slicing it changes when it is ready and never what it says.
 - **The roll is stepped at a fixed 1/60 while it plays.** `physics.advance`
   sub-steps by speed rather than to a fixed clock, so a frame of any other
   length is a slightly different roll — and the plan was made at 1/60. Left-over
@@ -3930,10 +3933,10 @@ the hole). The values are backed up from the cup, and the shot is the greedy
 search run once more with those values in place of the distance, so it still
 refines and still holes out, but towards the first shot of the best route. The
 ball's own lie gets a fan of 72 lines shared between the clubs, which is what
-finds Bumper City's ace, a three-degree window off a rail. With hands, the
-misses are averaged over the plan's values instead of over `toGo`. Nothing in
-it is random, and the answer does not depend on how the thinking is sliced —
-`tests.html` holds both.
+finds Bumper City's ace, a three-degree window off a rail. With hands it is
+something else (below). Nothing in it is random but the hands' own draw, and
+the answer does not depend on how the thinking is sliced — `tests.html` holds
+both.
 
 It is the autoplay caddie and the demo that plan; `play(…, { plan: true })` is
 the same thing headless. `tests.html`'s every-hole sweep, the hole lab and
@@ -3958,6 +3961,64 @@ over frames, and the longest the long game's (2.6 s at most, on Elbow Point;
 Redstone's Switchback is 2.3). The moment that stops the world is about what it
 was on a hole with a clock and shorter on every hole without one, because there
 the fan the plan already played is handed back rather than played again.
+
+#### Hands, and the wait
+
+Two things were left open, and both are in `bot.js` → `pick` and `begin`.
+
+**With hands, the caddie is the greedy player told where the traps are.** The
+first plan played a person's misses as if its perfect-strike route were theirs,
+and on Coral Keys, where every good line has the sea either side, it was a third
+of a stroke a hole worse than the greedy player. Pricing each shot on the route
+by striking it six more times through `mishit` did not help (six draws is noise,
+and the caddie spent strokes moving the ball to wherever the noise had been
+kind), and nor did scoring the misses by the plan's values: what differed was
+which shots were tried, and the plan's wider pool hands `steady` more lines that
+are perfect when perfect and nothing like it when missed. So with hands the
+choosing is the greedy search's own — its fan, its scoring, `steady` on `toGo`
+— with a stroke added for a trap (a lie the plan expanded and found no shot from
+that finishes nearer the cup, the brink's own shape) and for a lie already
+played from; the greedy search's own landing is always expanded so a trap cannot
+hide there. The plan's own choice, its misses drawn from a seed of its own, is
+played instead only when the plan rates the greedy shot's intended finish half a
+stroke worse, floored at the eye's estimate so a perfect strike's shortcut is no
+reason. Where the plan has nothing to say it is the greedy player shot for shot
+(`tests.html` holds it on The Bend).
+
+**The wait is spent where nobody is waiting.** A long bag's budget shrinks with
+the bag (two sevenths of a mini hole's), a long bag's inner nodes get a coarser
+fan, a perfectly struck shot into the cup ends its node's expansion, the
+choosing remembers the root's own refinements rather than playing them twice,
+and the choosing is sliced like the rest. And the plan is made ahead: the tee
+shot's during the flyover, every later one's while the last ball is still
+rolling (README → "It thinks ahead" above).
+
+**And the hands miss the moment.** `BOT_HANDS.time` is how far either side of
+the beat a person strikes (0.08 s), drawn only where a wall moves, so the long
+game and every still hole play exactly the rounds they did. `human-check.mjs`
+on Clockwork went from 10.8 a round to 11.8 (par 20); the long courses are
+unchanged by construction.
+
+At the game's settings over the ninety holes (v1.135.0's set, Alpenglow Pass
+included), four seeded rounds with hands; and Coral Keys and Whinstone with
+human-check's own seeds, twelve rounds:
+
+| | Not holed | Stalls | Against par | Coral Keys, hands | Whinstone, hands |
+| --- | --- | --- | --- | --- | --- |
+| Greedy, perfect strike | 1 of 90 | 2 | −1.52 | | |
+| First plan, perfect strike | 0 of 90 | 0 | −1.77 | | |
+| This plan, perfect strike | 0 of 90 | 0 | −1.74 | | |
+| Greedy, hands | 4 of 360 | 15 | −0.56 | −0.63 | −1.03 |
+| First plan, hands | 0 of 360 | 10 | −0.84 | −0.43 | −0.89 |
+| This plan, hands | 0 of 360 | 11 | −0.71 | −0.54 | −1.06 |
+
+Coral Keys is level with the greedy player within the noise of twelve rounds
+(four rounds on other seeds put it a tenth ahead), and the holes the plan was
+for keep most of what it won: Apogee Yard with hands is +1.50 a hole against
+the greedy player's +2.29. The first stroke of a long hole thinks for 0.78 s on
+average in Node, against 1.45 s for the first plan and 0.71 s for the greedy
+search alone, and 1.9 s at the worst (Redstone's Switchback, where the greedy
+search alone is 1.7 s) against 5.1 s.
 
 ## Pass and play
 

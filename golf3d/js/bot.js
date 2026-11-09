@@ -93,6 +93,15 @@
         };
     }
 
+    /* And the moment: how far either side of the beat it meant to strike on
+       a person actually strikes (`hands.time`). Drawn only on a hole where
+       something moves, so every still hole keeps the very same draws, and
+       never before the ball can be struck at all. */
+    function late(hole, hands, rnd, wait) {
+        if (!hands.time || !moving(hole)) return 0;
+        return Math.max(-wait, gauss(rnd) * hands.time);
+    }
+
     /* About how many strokes are left from a finish — the scale a noisy shot
        has to be judged on, where distance to the cup alone would call a ball
        in the sea "500 units away" and let one splash in eight outweigh
@@ -139,122 +148,160 @@
        Holes with moving parts get candidates that wait before striking: a bot
        that always fires at t=0 would report a false failure on a timing hole.
        And a chosen shot has to go somewhere — that is the `moved` rule, and it
-       is the other half of the fix BLOCKED starts. */
-    function bestShot(hole, from, time, bag, opts) {
+       is the other half of the fix BLOCKED starts.
+
+       It is a queue of candidates worked through a few at a time — `run(n)`
+       takes at most n more and says when it is finished — so the game can
+       spread the caddie's choice over frames rather than stop the world for
+       it. `bestShot` is the same search run to the end in one go, candidate
+       for candidate the search it always was. */
+    function Search(hole, from, time, bag, opts) {
         opts = opts || {};
-        var seconds = opts.seconds || SECONDS;
-        var dt = opts.dt || DT;
-        var fan = opts.fan || 16;
-        var sims = 0;
-        var cup = hole.cup;
+        var self = this, fan = opts.fan || 16, cup = hole.cup, i;
         var base = Math.atan2(cup.x - from.x, cup.z - from.z);
+        this.hole = hole; this.from = from; this.time = time; this.opts = opts;
+        this.seconds = opts.seconds || SECONDS;
+        this.dt = opts.dt || DT;
+        this.sims = 0;
         // All four kinds of motion — a flipper (`swing`) and a windmill's
         // `sails` are timing holes too, and this once asked about two of them
         // (golf3d/CLAUDE.md, "a wall may move four ways").
-        var moves = hole.walls.some(function (wl) { return wl.move || wl.spin || wl.swing || wl.sails; });
-        var waits = moves ? [0, 0.45, 0.95, 1.5] : [0];
+        this.waits = moving(hole) ? [0, 0.45, 0.95, 1.5] : [0];
         /* `opts.score` is the planner's (see "the plan", below): strokes to
            go from wherever a candidate comes to rest, read off the route it
            found, in place of the distance to the cup. Everything else about
            the search is the same search. */
-        var score = opts.score || null;
-        var here = score ? opts.here : d2(from, cup);
-        var best = null;
-        var pool = opts.hands ? [] : null;
+        this.score = opts.score || null;
+        this.here = this.score ? opts.here : d2(from, cup);
+        this.best = null;
+        this.pool = opts.hands ? [] : null;
         bag = bag || C.CLUBS;
-        var lie = lieAt(hole, from);
+        this.lie = lieAt(hole, from);
         // A club the lie will not take is not in the bag for this stroke —
         // the driver in a bunker (physics.playable) — as it is not in the
         // player's.
-        var allowed = bag.filter(function (c) { return P.playable(c, lie); });
-        if (allowed.length) bag = allowed;
-        // The fan is spread over the swing the lie allows, not the club's
-        // whole one, or two of every three tries out of a bunker are the cap.
-        function top(club) { return Math.min(club.power, P.lieCeiling(club, lie)); }
-
-        function consider(yaw, club, power, wait, done) {
-            power = P.fromLie(power, club, lie);
-            // The club's own backspin, so the bot is playing the clubs the
-            // player is handed rather than five-sixths of them. A shot the
-            // planner has already played (`done`) is not played twice.
-            var w = done;
-            if (!w) {
-                sims++;
-                w = trial(hole, from, yaw, power, club.loft, time + wait, club.bite,
-                          { seconds: seconds, dt: dt });
-            }
-            if (!w) return;
-            var moved = Math.hypot(w.ball.x - from.x, w.ball.z - from.z);
-            var s;
-            if (w.sunk) s = -1000;
-            else if (score) s = w.splash || w.out ? 1 + here : score(w);
-            else if (w.splash || w.out) s = 500 + d2(w.origin, cup);
-            else s = d2(w.ball, cup) +
-                (blockedLie(hole, w.ball, cup, w.time) ? BLOCKED : 0);
-            if (!w.sunk && moved < 1 && s >= here) return;
-            if (pool) pool.push({ s: s, yaw: yaw, club: club, power: power, wait: wait, world: w });
-            if (!best || s < best.s) {
-                best = { s: s, yaw: yaw, club: club, power: power, wait: wait, world: w };
-            }
-        }
-
-        var i;
+        var allowed = bag.filter(function (c) { return P.playable(c, self.lie); });
+        this.bag = allowed.length ? allowed : bag;
+        this.queue = []; this.qi = 0; this.stage = 0;
+        this.done = false; this.result = null;
+        // A shot the planner has already played (`opts.seed`) is not played
+        // twice: its world comes with it.
         if (opts.seed) {
-            opts.seed.forEach(function (c) { consider(c.yaw, c.club, c.power, 0, c.world); });
+            opts.seed.forEach(function (c) {
+                self.queue.push({ yaw: c.yaw, club: c.club, power: c.power, wait: 0, world: c.world });
+            });
         } else {
-            bag.forEach(function (club) {
+            this.bag.forEach(function (club) {
                 for (i = 0; i < fan; i++) {
                     [0.35, 0.7, 1].forEach(function (f) {
-                        consider(base + (i / fan) * Math.PI * 2, club, top(club) * f, 0);
+                        self.queue.push({ yaw: base + (i / fan) * Math.PI * 2, club: club,
+                                          power: self.top(club) * f, wait: 0 });
                     });
                 }
             });
         }
+    }
 
-        var b0 = best;
-        if (!b0) return null;
-        [-2, -1, 0, 1, 2].forEach(function (k) {
-            bag.forEach(function (club) {
-                /* 0.9 because a window can sit between the last two: Deadlift's
-                   second step takes the mallet at 90–99% and nothing either
-                   side of it, and a bot that only tried 75 and 100 reported a
-                   hole nobody could finish. */
-                [0.25, 0.5, 0.75, 0.9, 1].forEach(function (f) {
-                    waits.forEach(function (wait) {
-                        consider(b0.yaw + k * 0.11, club, top(club) * f, wait);
+    // The fan is spread over the swing the lie allows, not the club's whole
+    // one, or two of every three tries out of a bunker are the cap.
+    Search.prototype.top = function (club) { return Math.min(club.power, P.lieCeiling(club, this.lie)); };
+
+    Search.prototype.trial = function (yaw, club, power, wait) {
+        var memo = this.opts.memo, w;
+        if (memo) {
+            w = memo(yaw, club, power, wait);
+            if (w !== undefined) return w;
+        }
+        this.sims++;
+        return trial(this.hole, this.from, yaw, power, club.loft, this.time + wait, club.bite,
+                     { seconds: this.seconds, dt: this.dt });
+    };
+
+    Search.prototype.consider = function (c) {
+        var hole = this.hole, from = this.from, cup = hole.cup, s, w, moved;
+        if (c.steady !== undefined) return this.mishit(c);
+        // The club's own backspin, so the bot is playing the clubs the
+        // player is handed rather than five-sixths of them.
+        var power = P.fromLie(c.power, c.club, this.lie);
+        w = c.world !== undefined ? c.world : this.trial(c.yaw, c.club, power, c.wait);
+        if (!w) return;
+        moved = Math.hypot(w.ball.x - from.x, w.ball.z - from.z);
+        if (w.sunk) s = -1000;
+        else if (this.score) s = w.splash || w.out ? 1 + this.here : this.score(w);
+        else if (w.splash || w.out) s = 500 + d2(w.origin, cup);
+        else s = d2(w.ball, cup) +
+            (blockedLie(hole, w.ball, cup, w.time) ? BLOCKED : 0) +
+            (this.opts.penalty ? this.opts.penalty(w) : 0);
+        if (!w.sunk && moved < 1 && s >= this.here) return;
+        c = { s: s, yaw: c.yaw, club: c.club, power: power, wait: c.wait, world: w };
+        if (this.pool) this.pool.push(c);
+        if (!this.best || s < this.best.s) this.best = c;
+    };
+
+    Search.prototype.next = function () {
+        var self = this, b = this.best, waits = this.waits;
+        this.queue = []; this.qi = 0;
+        if (this.stage === 0) {
+            if (!b) return this.finish(null);
+            // A holed shot cannot be beaten, so the planner stops at one; the
+            // greedy search refines on regardless, as it always has.
+            if (this.score && !this.pool && b.s === -1000) return this.finish(b);
+            this.stage = 1;
+            [-2, -1, 0, 1, 2].forEach(function (k) {
+                self.bag.forEach(function (club) {
+                    /* 0.9 because a window can sit between the last two:
+                       Deadlift's second step takes the mallet at 90–99% and
+                       nothing either side of it, and a bot that only tried
+                       75 and 100 reported a hole nobody could finish. */
+                    [0.25, 0.5, 0.75, 0.9, 1].forEach(function (f) {
+                        waits.forEach(function (wait) {
+                            self.queue.push({ yaw: b.yaw + k * 0.11, club: club,
+                                              power: self.top(club) * f, wait: wait });
+                        });
                     });
                 });
             });
-        });
-        var b1 = best;
-        [-3, -2, -1, 0, 1, 2, 3].forEach(function (k) {
-            [-0.7, -0.35, 0, 0.35, 0.7].forEach(function (dp) {
-                waits.forEach(function (wait) {
-                    consider(b1.yaw + k * 0.03, b1.club,
-                        Math.max(C.MIN_POWER, Math.min(top(b1.club), b1.power + dp)), wait);
+        } else if (this.stage === 1) {
+            this.stage = 2;
+            [-3, -2, -1, 0, 1, 2, 3].forEach(function (k) {
+                [-0.7, -0.35, 0, 0.35, 0.7].forEach(function (dp) {
+                    waits.forEach(function (wait) {
+                        self.queue.push({ yaw: b.yaw + k * 0.03, club: b.club,
+                            power: Math.max(C.MIN_POWER, Math.min(self.top(b.club), b.power + dp)),
+                            wait: wait });
+                    });
                 });
             });
-        });
-        if (pool && best) best = steady(hole, from, time, pool, opts, function (n) { sims += n; });
-        if (best) best.sims = sims;
-        return best;
-    }
+        } else if (this.stage === 2 && this.pool && b) {
+            this.stage = 3;
+            this.steady();
+        } else if (this.stage === 3) {
+            var i, q, best = null;
+            for (i = 0; i < this.picked.length; i++) {
+                q = this.sums[i] / this.tries;
+                if (!best || q < best.mean) { best = this.picked[i]; best.mean = q; }
+            }
+            this.finish(best);
+        } else {
+            this.finish(b);
+        }
+    };
 
     /* The hands' half of the choice. Every candidate the search found is
-       ranked by strokes left (toGo) rather than by distance, the best dozen
-       distinct ones are each played `opts.tries` more times through mishit,
-       and the lowest average wins — so a safe line to the fat of an island
-       beats a perfect one past the edge of it. */
-    function steady(hole, from, time, pool, opts, count) {
-        var rnd = opts.rng || Math.random, hands = opts.hands;
-        var tries = opts.tries || 8, keep = opts.keep || 12, lie = lieAt(hole, from);
-        var seconds = opts.seconds || SECONDS, dt = opts.dt || DT;
-        // The planner's strokes to go when there is a plan, toGo when not.
-        var value = opts.value || toGo;
-        var here = value(hole, { ball: from, time: time }, 0);
+       ranked by strokes left (toGo, or the planner's value) rather than by
+       distance, the best dozen distinct ones are each played `opts.tries`
+       more times through mishit, and the lowest average wins — so a safe
+       line to the fat of an island beats a perfect one past the edge of it.
+       The misses are drawn up front, in the order they always were, so the
+       same seed is the same round however the playing of them is sliced. */
+    Search.prototype.steady = function () {
+        var opts = this.opts, hole = this.hole, rnd = opts.rng || Math.random, hands = opts.hands;
+        var tries = opts.tries || 8, keep = opts.keep || 12, pool = this.pool, self = this;
+        var value = this.value = opts.value || toGo;
+        var here = this.vhere = value(hole, { ball: this.from, time: this.time }, 0);
         pool.forEach(function (c) { c.e = value(hole, c.world, here); });
         pool.sort(function (a, b) { return a.e - b.e; });
-        var picked = [], i, j, c, q, sum, w, m;
+        var picked = [], i, j, c, m;
         for (i = 0; i < pool.length && picked.length < keep; i++) {
             c = pool[i];
             if (picked.some(function (o) {
@@ -263,21 +310,46 @@
             })) continue;
             picked.push(c);
         }
-        var best = null;
+        this.picked = picked; this.tries = tries; this.sums = [];
         for (i = 0; i < picked.length; i++) {
-            c = picked[i]; sum = 0;
+            c = picked[i];
+            this.sums.push(0);
             for (j = 0; j < tries; j++) {
                 m = mishit(c.club, c.yaw, c.power, hands, rnd);
-                m.power = P.fromLie(m.power, c.club, lie);
-                w = trial(hole, from, m.yaw, m.power, c.club.loft, time + c.wait, c.club.bite,
-                          { seconds: seconds, dt: dt });
-                sum += w ? value(hole, w, here) : 1 + here;
+                self.queue.push({ steady: i, yaw: m.yaw, club: c.club,
+                                  power: P.fromLie(m.power, c.club, this.lie),
+                                  wait: c.wait + late(hole, hands, rnd, c.wait) });
             }
-            count(tries);
-            q = sum / tries;
-            if (!best || q < best.mean) { best = c; best.mean = q; }
         }
-        return best;
+    };
+
+    Search.prototype.mishit = function (c) {
+        this.sims++;
+        var w = trial(this.hole, this.from, c.yaw, c.power, c.club.loft, this.time + c.wait, c.club.bite,
+                      { seconds: this.seconds, dt: this.dt });
+        this.sums[c.steady] += w ? this.value(this.hole, w, this.vhere) : 1 + this.vhere;
+    };
+
+    Search.prototype.finish = function (best) {
+        if (best) best.sims = this.sims;
+        this.result = best;
+        this.done = true;
+    };
+
+    // Take at most n more candidates; true once the search is finished.
+    Search.prototype.run = function (n) {
+        while (n > 0 && !this.done) {
+            if (this.qi >= this.queue.length) { this.next(); continue; }
+            this.consider(this.queue[this.qi++]);
+            n--;
+        }
+        return this.done;
+    };
+
+    function bestShot(hole, from, time, bag, opts) {
+        var s = new Search(hole, from, time, bag, opts);
+        s.run(Infinity);
+        return s.result;
     }
 
     /* ── the plan ────────────────────────────────────────────────────────
@@ -306,16 +378,18 @@
          and it only has to be a guess: it is what the search is steered by,
          not what it decides on.
        - **The graph.** A position is expanded by playing a fan of shots from
-         it (every club, a dozen lines, four weights) and then short
-         refinements round the three most promising — the same coarse-then-
-         fine shape as the greedy search, because a plank is a needle that a
-         coarse fan walks straight past. The ball's own lie gets a fan three
-         times as dense and the greedy search's second stage on top, so
-         whatever the greedy search would have found is in the graph too. Where each shot comes to rest is a
-         child; rests within half a unit of each other, on the same level,
-         are one node, so two ways to the same spot share what was learned
-         from it. A splash or a ball off the edge is no edge at all, and a
-         shot that finds the cup marks the node as one stroke from home.
+         it (every club, a dozen lines — fewer when the bag is long — and
+         four weights) and then short refinements round the three most
+         promising: the same coarse-then-fine shape as the greedy search,
+         because a plank is a needle that a coarse fan walks straight past.
+         The ball's own lie gets a denser fan and the greedy search's second
+         stage on top, so whatever the greedy search would have found is in
+         the graph too. Where each shot comes to rest is a child; rests within
+         half a unit of each other, on the same level, are one node, so two
+         ways to the same spot share what was learned from it. A splash or a
+         ball off the edge is no edge at all, and a shot that finds the cup
+         marks the node as one stroke from home — and, struck perfectly,
+         ends its expansion there, since nothing can beat it.
        - **The route.** A* over that graph from the ball: the open position
          with the fewest strokes so far plus its estimate is expanded next,
          until a route to the cup is found that nothing open could beat, or
@@ -323,11 +397,13 @@
          Then every node's value is backed up from its children — the fewest
          strokes to the cup through anything expanded, the estimate where the
          search stopped — which is Dijkstra run backwards from the cup.
+       - **Hands.** A route found by perfect strikes is a route for a perfect
+         striker, so with `opts.hands` the plan does not choose the shot: the
+         greedy search does, told where the traps are (`pick`).
        - **The shot.** The greedy search is run once more from the ball, with
          the backed-up value in place of the distance (`opts.score`). So it
          still refines and still holes out, but what it refines towards is
-         the first shot of the best route rather than the nearest finish; and
-         with hands, `steady` averages the plan's value over the misses.
+         the first shot of the best route rather than the nearest finish.
        - **Replanning.** The planner keeps its graph for the hole. Every shot
          plans again from where the ball actually is, and a node it has
          expanded before costs nothing to cross, so later shots are cheap.
@@ -336,16 +412,18 @@
        - **Honest.** Every edge is a shot `physics` played out of the bag the
          hole hands out, struck at the moment it would be struck (a node
          carries the time its ball stopped, plus `opts.gap` for the walk up
-         to it). Nothing is random, so the same hole gives the same plan. And
-         where the plan has nothing to say — every child unexplored, or no
-         shot at all — the search is the greedy search it always was.
+         to it). Nothing is random but the hands' own draw, so the same hole
+         gives the same plan. And where the plan has nothing to say — every
+         child unexplored, or no shot at all — the search is the greedy
+         search it always was.
 
-       It is resumable, because the game cannot freeze for a second and a
-       half: `begin` roots a search at the ball, `step(n)` spends at most n
-       more simulated shots on it and says when it is finished, and `choose`
-       picks the shot. The answer depends only on the budget, never on how
-       the steps were sliced, so the game's frames and a headless `play` get
-       the same plan. */
+       All of it is resumable, because the game cannot freeze for a second
+       and a half: `begin` roots a plan at the ball, `step(n)` spends at most
+       n more simulated shots on the route and says when it is finished, and
+       `pick` hands back the choosing as a Search to run in slices too
+       (`choose` is the two in one go). The answer depends only on the
+       budget, never on how the steps were sliced, so the game's frames and
+       a headless `play` get the same plan. */
     var PLAN_SIMS = 1800;     // the first shot on a hole: the whole graph to build
     var REPLAN_SIMS = 700;    // every shot after it, most of the graph cached
     var DEPTH = 6;            // no route is planned past six strokes
@@ -382,13 +460,19 @@
            the clubs (36 each for a putter and a mallet), never fewer than the
            fan. An ace off a bank is a window a few degrees wide (Bumper City's
            mallet off the side rail is three), and the root is the one node
-           whose shot is actually played. */
+           whose shot is actually played. Everywhere else a long bag gets a
+           coarser fan, 48 lines between the clubs and never under six: seven
+           clubs at a dozen lines is a third of a second of the long game's
+           physics for every node, and most of them are a driver from a lie a
+           wedge's length from the pin. */
         this.rootFan = opts.rootFan || Math.max(this.fan, Math.round(72 / this.bag.length));
+        this.innerFan = Math.min(this.fan, Math.max(6, Math.round(48 / this.bag.length)));
         this.gap = opts.gap || 0;
         this.moves = moving(hole);
         this.nodes = [];
         this.cells = {};
         this.visits = [];
+        this.memo = {};
         this.gen = 0;
         this.sims = 0;
     }
@@ -425,18 +509,24 @@
         return n;
     };
 
+    /* A shot the root has already played, by what it was: on a hole with no
+       clock the same line, club, weight and wait is the same world, so the
+       choosing does not play it again. */
+    function memoKey(yaw, club, power, wait) { return yaw + '|' + club.id + '|' + power + '|' + wait; }
+
     /* One node's expansion, a shot at a time. The root's is the greedy
        search's own first two stages, the fan at the root's density, kept
-       whole — worlds, splashes and all — so `choose` can hand it straight
-       back to bestShot as its fan (`opts.seed`) instead of playing it again. */
+       whole — worlds, splashes and all — so `pick` can hand it straight
+       back to the search as its fan (`opts.seed`) instead of playing it
+       again. */
     function Expansion(pl, node, time, root) {
         var hole = pl.hole, from = { x: node.x, y: node.y, z: node.z };
         var base = Math.atan2(hole.cup.x - from.x, hole.cup.z - from.z);
-        var fan = root ? pl.rootFan : pl.fan;
+        var fan = root ? pl.rootFan : pl.innerFan;
         var powers = root ? [0.35, 0.7, 1] : [0.25, 0.5, 0.75, 1];
-        // The lie's rules, as bestShot has them: no club the lie will not
+        // The lie's rules, as the search has them: no club the lie will not
         // take, and every swing spread over what the lie allows.
-        var lie = lieAt(hole, from);
+        var lie = this.lie = lieAt(hole, from);
         var bag = pl.bag.filter(function (c) { return P.playable(c, lie); });
         var q = [], i;
         this.top = function (club) { return Math.min(club.power, P.lieCeiling(club, lie)); };
@@ -451,6 +541,9 @@
         this.pl = pl; this.node = node; this.from = from; this.time = time; this.root = root;
         this.queue = q; this.qi = 0; this.stage = 0; this.done = false;
         this.rests = []; this.seed = root ? [] : null;
+        // Struck perfectly, a shot into the cup ends the expansion: nothing
+        // can beat it. With hands it might well be beaten, so it does not.
+        this.quit = !pl.opts.hands;
     }
 
     Expansion.prototype.run = function (n) {
@@ -461,9 +554,16 @@
             used++;
             w = trial(hole, from, c.yaw, c.power, c.club.loft, this.time, c.club.bite,
                       { seconds: pl.opts.seconds || SECONDS, dt: pl.opts.dt || DT });
-            if (this.seed) this.seed.push({ yaw: c.yaw, club: c.club, power: c.power, world: w });
+            if (this.seed) {
+                this.seed.push({ yaw: c.yaw, club: c.club, power: c.power, world: w });
+                if (!pl.moves) pl.memo[memoKey(c.yaw, c.club, c.power, 0)] = w;
+            }
             if (!w || w.splash || w.out) continue;
-            if (w.sunk) { this.node.sinks = true; continue; }
+            if (w.sunk) {
+                this.node.sinks = true;
+                if (this.quit) this.finish();
+                continue;
+            }
             moved = Math.hypot(w.ball.x - from.x, w.ball.z - from.z);
             if (moved < 0.3) continue;
             this.rests.push({ c: c, x: w.ball.x, y: w.ball.y, z: w.ball.z, t: w.time,
@@ -473,19 +573,17 @@
         return used;
     };
 
-    /* After the fan, the refinements: the three most promising distinct
-       finishes, each tried a little either side and a little firmer and
-       softer. That is how a plank gets found from its foot. After those, or
-       straight away if the fan holed out, the rests become children. */
     Expansion.prototype.next = function () {
         var self = this, top = [], i, r;
+        this.queue = [];
+        this.qi = 0;
         /* The root's second stage is the greedy search's: every club at five
            weights, a little either side of the finish nearest the cup. Off a
            headland tee the coarse fan is every shot in the sea but the ones
            that stay on the tee, and the fairway the greedy search finds from
            there has to be in the graph for the plan to know it is there
            (Coral Keys' Cape shuffled round its tee without this). */
-        if (this.stage === 0 && !this.node.sinks && this.root) {
+        if (this.stage === 0 && this.root && !this.node.sinks) {
             this.stage = 1;
             var hole = this.pl.hole, cup = hole.cup, from = this.from, here = d2(from, cup), b0 = null;
             this.seed.forEach(function (c) {
@@ -496,8 +594,7 @@
                 if (d2(w.ball, from) < 1 && sc >= here) return;
                 if (!b0 || sc < b0.s) b0 = { s: sc, c: c };
             });
-            this.queue = [];
-            this.qi = 0;
+            this.b0 = b0;
             if (b0) {
                 [-2, -1, 1, 2].forEach(function (k) {
                     self.bag.forEach(function (club) {
@@ -509,7 +606,10 @@
             }
             if (this.queue.length) return;
         }
-        if (this.stage === 0 && !this.node.sinks && !this.root) {
+        /* Elsewhere, the refinements: the three most promising distinct
+           finishes, each tried a little either side and a little firmer and
+           softer. That is how a plank gets found from its foot. */
+        if (this.stage === 0 && !this.root && !this.node.sinks) {
             this.stage = 1;
             var sorted = this.rests.slice().sort(function (a, b) { return a.e - b.e; });
             for (i = 0; i < sorted.length && top.length < 3; i++) {
@@ -519,8 +619,6 @@
                 })) continue;
                 top.push(r);
             }
-            this.queue = [];
-            this.qi = 0;
             top.forEach(function (o) {
                 [-0.1, -0.05, 0.05, 0.1].forEach(function (dy) {
                     self.queue.push({ yaw: o.c.yaw + dy, club: o.c.club, power: o.c.power });
@@ -532,27 +630,45 @@
             });
             if (this.queue.length) return;
         }
-        var pl = this.pl, kids = [];
+        this.finish();
+    };
+
+    // The rests become children. With hands, the root remembers which of
+    // them the greedy search would have played for (see `pick`).
+    Expansion.prototype.finish = function () {
+        var self = this, pl = this.pl, kids = [], w = this.b0 && this.b0.c.world;
         this.rests.forEach(function (r) {
             var n = pl.node(r, r.t);
             if (n !== self.node && kids.indexOf(n) < 0) kids.push(n);
         });
         this.node.edges = kids;
+        if (this.root && pl.opts.hands && w && !w.sunk && !w.splash && !w.out) {
+            pl.must = pl.near(w.ball, NEAR);
+        }
+        this.queue = [];
+        this.qi = 0;
         this.done = true;
     };
 
-    /* Root a search at the ball. The first shot on a hole gets the big
+    /* Root a plan at the ball. The first shot on a hole gets the big
        budget, every later one the small one, because by then most of the
        graph it needs is already built. */
     Planner.prototype.begin = function (from, time) {
         this.gen++;
         this.from = { x: from.x, y: from.y, z: from.z };
         this.time = time;
-        this.budget = this.nodes.length ? (this.opts.replanSims || REPLAN_SIMS)
-                                        : (this.opts.planSims || PLAN_SIMS);
+        /* A long bag's shots are the dear ones — seven clubs to a fan, and
+           the long game's ground several times the work a step of a lane is
+           — so past four clubs the budget shrinks with the bag. There the
+           greedy search on its own is most of the way to the answer anyway:
+           open ground, and the root's own two stages are in the graph. */
+        var scale = this.bag.length > 4 ? 2 / this.bag.length : 1;
+        this.budget = Math.round(scale * (this.nodes.length ? (this.opts.replanSims || REPLAN_SIMS)
+                                                            : (this.opts.planSims || PLAN_SIMS)));
         this.spent = 0;
         this.found = Infinity;
         this.open = [];
+        this.must = null;
         this.finished = false;
         var root = this.root = { x: from.x, y: from.y, z: from.z, t: time,
             est: estimate(this.hole, from.x, from.y, from.z),
@@ -587,9 +703,9 @@
         return e;
     };
 
-    // Spend at most n simulated shots; true once the search is finished.
+    // Spend at most n simulated shots; true once the route is worked out.
     Planner.prototype.step = function (n) {
-        var e, used;
+        var e, used, m;
         while (n > 0 && !this.finished) {
             if (this.exp) {
                 used = this.exp.run(n);
@@ -599,6 +715,12 @@
                 this.settle(this.exp.node);
                 this.exp = null;
                 continue;
+            }
+            // With hands, the greedy search's own landing is looked at first.
+            if (this.must) {
+                m = this.must;
+                this.must = null;
+                if (!m.edges) { this.exp = new Expansion(this, m, m.t + this.gap, false); continue; }
             }
             e = this.pop();
             if (!e || e.f >= this.found || this.spent >= this.budget) { this.finished = true; break; }
@@ -642,34 +764,148 @@
         return v;
     };
 
-    /* The shot: bestShot from the ball, scored by the plan. On a hole with
-       nothing moving the root's fan is handed over already played; on one
-       with a clock the world has moved on while the plan was being made, so
-       it is played again at the moment the shot will actually be struck. */
-    Planner.prototype.choose = function (from, time) {
-        var self = this, hole = this.hole, cup = hole.cup, o = {}, k;
+    /* The choosing: the search from the ball, scored by the plan, handed
+       back to run (`Search.run`) and then to `finish`. On a hole with
+       nothing moving the root's fan is handed over already played, and
+       the root's own refinements are remembered (`opts.memo`); on one with
+       a clock the world has moved on while the plan was being made, so it
+       is all played again, at the game's own fan, at the moment the shot
+       will actually be struck.
+
+       With hands it is a different search. A route found by perfect
+       strikes is a route for a perfect striker, and the first plan with
+       hands played as if it were one: a third of a stroke a hole worse than
+       the greedy player on Coral Keys, where every good line has the sea
+       either side. Pricing the route through the misses (six struck per
+       shot on it) was tried and did not help — six draws is noise, and the
+       caddie spent strokes moving the ball to wherever the noise had been
+       kind. Scoring the misses by the plan's values instead of `toGo` did
+       not help either: what differs is which shots are tried, and a wider
+       pool hands `steady` more lines that are perfect when perfect and
+       nothing like it when missed. So with hands the caddie is the greedy
+       player — its own fan, its own scoring, `steady` on `toGo` — told
+       where the traps are. A trap is the stall's own shape: a lie the plan
+       has expanded and found no shot from that finishes nearer the cup by
+       more than a tenth of a stroke — the brink, the lip, a shelf with only
+       water past it — and it costs at least a stroke, in distance to the
+       greedy search and in strokes to `steady`, as does a lie already
+       played from. (Measured against the estimate instead, every green the
+       coarse fan failed to hole out on read as a trap, and the caddie
+       steered away from the pin.) And so a trap cannot go unseen for being
+       the greedy search's own choice, that landing is expanded first
+       (`must`).
+
+       Told where the traps are is not always enough: on Dead Weight with
+       hands the greedy player still ran up to the brink and then took the
+       long way off it. So the plan's own choosing is run as well, its misses
+       drawn from a seed of its own so the caller's draw is untouched, and
+       it is played instead when the plan reckons the greedy shot's intended
+       finish at least half a stroke worse than its own. Where the plan has
+       found nothing to say, that is the greedy search shot for shot. */
+    Planner.prototype.pick = function (from, time) {
+        var self = this, hole = this.hole, cup = hole.cup, o = {}, k, memo = this.memo;
         this.values();
         for (k in this.opts) o[k] = this.opts[k];
-        // Played again, the fan is the game's own, so the one moment the
-        // world stands still for costs what the greedy search always did.
+        this.picking = { from: from, time: time };
+        if (this.opts.hands) {
+            var per = hole.longGame ? 26 : 12;     // estimate's units to the stroke
+            var trap = function (b) {
+                var n = self.near(b, LOOK), v = 0, i, p;
+                if (n && n.edges && !n.sinks && !n.edges.some(function (k) { return k.est < n.est - 0.1; })) {
+                    v = Math.max(1, n.value - n.est);
+                }
+                for (i = 0; i < self.visits.length; i++) {
+                    p = self.visits[i];
+                    if (Math.abs(p.y - b.y) < LEVEL && Math.hypot(p.x - b.x, p.z - b.z) < NEAR) v += 1;
+                }
+                return v;
+            };
+            o.penalty = function (w) { return per * trap(w.ball); };
+            o.value = function (h, w, here) {
+                var g = toGo(h, w, here);
+                return w.sunk || w.splash || w.out ? g : g + trap(w.ball);
+            };
+            var greedy = new Search(hole, from, time, this.bag, o), plain = {};
+            for (k in this.opts) plain[k] = this.opts[k];
+            plain.rng = seeded(7919 * (this.visits.length + 1) + this.gen);
+            var planned = this.planned(from, time, plain);
+            var meant = function (s) {
+                var w = s && s.world;
+                if (!w) return Infinity;
+                if (w.sunk) return 0;
+                if (w.splash || w.out) return 1 + self.valueAt(from);
+                // Never better than the eye says: a perfect strike's shortcut
+                // is no reason to leave the greedy shot.
+                return Math.max(self.valueAt(w.ball), estimate(hole, w.ball.x, w.ball.y, w.ball.z));
+            };
+            return new Pair(greedy, planned, function (a, b) {
+                return !a ? b : !b ? a : meant(b) < meant(a) - 0.5 ? b : a;
+            });
+        }
+        return this.planned(from, time, o);
+    };
+
+    // The plan's own choosing, scored by its values.
+    Planner.prototype.planned = function (from, time, o) {
+        var self = this, hole = this.hole, cup = hole.cup, memo = this.memo;
         o.fan = this.moves ? this.fan : this.rootFan;
         o.here = this.root.value;
         o.seed = this.moves ? null : this.rootExp.seed;
+        o.memo = this.moves ? null : function (yaw, club, power, wait) { return memo[memoKey(yaw, club, power, wait)]; };
         o.score = function (w) { return self.valueAt(w.ball) + d2(w.ball, cup) / 1000; };
         o.value = function (h, w, here) {
             if (w.sunk) return 0;
             if (w.splash || w.out) return 1 + here;
             return self.valueAt(w.ball);
         };
-        var shot = bestShot(hole, from, time, this.bag, o);
-        if (!shot) shot = bestShot(hole, from, time, this.bag, this.opts);
+        return new Search(hole, from, time, this.bag, o);
+    };
+
+    /* Two searches run one after the other, and a rule to pick between
+       their answers — the hands' choosing (`pick`). It runs in slices like
+       either one alone, and counts the shots of both. */
+    function Pair(a, b, rule) { this.a = a; this.b = b; this.rule = rule; this.done = false; this.result = null; }
+
+    Pair.prototype.run = function (n) {
+        if (this.done) return true;
+        if (!this.a.run(n) || !this.b.run(n)) return false;
+        var r = this.rule(this.a.result, this.b.result);
+        if (r) r.sims = (this.a.result ? this.a.result.sims : 0) + (this.b.result ? this.b.result.sims : 0);
+        this.result = r;
+        this.done = true;
+        return true;
+    };
+
+    // A small seeded draw (human-check.mjs's), for misses that must not
+    // disturb the caller's own.
+    function seeded(seed) {
+        var a = seed >>> 0;
+        return function () {
+            a = (a + 0x6D2B79F5) >>> 0;
+            var t = a;
+            t = Math.imul(t ^ (t >>> 15), t | 1);
+            t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+            return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+        };
+    }
+
+    Planner.prototype.finish = function (search) {
+        var p = this.picking, shot = search.result;
+        if (!shot) shot = bestShot(this.hole, p.from, p.time, this.bag, this.opts);
         if (shot) {
             shot.sims += this.spent;
             shot.planned = this.root.value;
             shot.nodes = this.nodes.length;
         }
-        this.visits.push({ x: from.x, y: from.y, z: from.z });
+        this.visits.push({ x: p.from.x, y: p.from.y, z: p.from.z });
+        this.memo = {};
         return shot;
+    };
+
+    Planner.prototype.choose = function (from, time) {
+        var s = this.pick(from, time);
+        s.run(Infinity);
+        return this.finish(s);
     };
 
     // All of it at once, for anything that is not drawing frames meanwhile.
@@ -698,7 +934,8 @@
                 // same hands the choice was made with.
                 var m = mishit(shot.club, shot.yaw, shot.power, opts.hands, opts.rng || Math.random);
                 m.power = P.fromLie(m.power, shot.club, lieAt(hole, from));
-                var hit = trial(hole, from, m.yaw, m.power, shot.club.loft, time + shot.wait,
+                var hit = trial(hole, from, m.yaw, m.power, shot.club.loft,
+                                time + shot.wait + late(hole, opts.hands, opts.rng || Math.random, shot.wait),
                                 shot.club.bite, { seconds: opts.seconds || SECONDS, dt: opts.dt || DT });
                 if (hit) shot = { s: shot.s, yaw: m.yaw, power: m.power, club: shot.club,
                                   wait: shot.wait, world: hit, meant: shot, sims: shot.sims,

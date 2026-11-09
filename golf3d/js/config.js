@@ -1067,7 +1067,13 @@ G3.CONFIG = {
        steadier stroke, so it has its own pair. */
     BOT_HANDS: {
         yaw: 3 * Math.PI / 180, power: 0.08,
-        putt: { yaw: 1.5 * Math.PI / 180, power: 0.09 }
+        putt: { yaw: 1.5 * Math.PI / 180, power: 0.09 },
+        /* And the moment, in seconds: a person meaning to strike on a beat
+           strikes a little either side of it. It is drawn only where a wall
+           moves (bot.js, `late`), so the long game and every still hole play
+           exactly the rounds they did — and the crazy courses stop reading
+           easier to human-check than people find them. */
+        time: 0.08
     },
     /* The wind-up: how long the aim takes to swing round to the shot it has
        chosen, and how long the meter then takes to fill. Together they are the
