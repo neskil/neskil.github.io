@@ -2169,7 +2169,8 @@
         g.textBaseline = 'middle';
         g.font = '800 16px ' + FACE;
         g.fillStyle = held ? tint.name : 'rgba(167, 160, 136, 0.82)';
-        var bandText = held ? 'IN HAND' : 'KEY ' + club.key;
+        var bandText = (held ? 'IN HAND' : 'KEY ' + club.key) +
+            ' \u00b7 LOFT ' + Math.round(club.loft * 180 / Math.PI) + '\u00b0';
         if (club.bite) bandText += ' \u00b7 BITE ' + Math.round(club.bite * 100) + '%';
         if (LIE && LIE[club.id]) bandText += ' \u00b7 SAND';
         g.fillText(bandText, W / 2, 4 + BAND_H / 2);
@@ -2195,95 +2196,92 @@
         return srgbCanvas(cv);
     }
 
-    /* The card's two distances, in the long game's metres (G3.distance) —
-       carry and total are measured on a fairway, so that is the scale they
-       belong to. Rough, like the meter: carry to the nearest ten and the
-       total as the band a full swing lands in, not a figure to the decimal. */
+    /* The card's two distances, in the hole's own metres (G3.distance) —
+       the same scale, rounding and band the picker's "reach" line and the
+       meter use, so the card and the line above the row never disagree.
+       They used to be in the long game's metres on every hole: a mini
+       lane's mallet read 70–100 on its card and 20–20 m over it. Carry and
+       total are measured on a fairway; rough on purpose, like the meter. */
+    var SCALE = C.LONG_M;
+    function setScale(s) {
+        s = s || 1;
+        if (s === SCALE) return;
+        SCALE = s;
+        redrawCards();
+    }
     function cardCarry(club) {
         var f = figures(club);
-        return f.carry ? String(Math.round(f.carry * C.LONG_M / 10) * 10) : '\u2014';
+        if (!f.carry) return '\u2014';
+        var m = f.carry * SCALE, n = G3.distance.near(null, SCALE);
+        // One figure, rounded the way the bands are.
+        return m < n ? '<' + n : String(G3.distance.round(m));
     }
     function cardTotal(club) {
         var f = figures(club);
         if (!f.total) return String(f.power);
-        var b = G3.distance.band(f.total, null, C.LONG_M);
-        return b ? b[0] + '\u2013' + b[1] : '<' + C.NEAR;
+        var b = G3.distance.band(f.total, null, SCALE);
+        return b ? b[0] + '\u2013' + b[1] : '<' + G3.distance.near(null, SCALE);
     }
 
-    /* Side by side, for a card standing in a row: carry & loft on the left,
-       total distance, power & bite on the right. */
+    /* A figure with its unit after it, smaller, on the same baseline — a
+       bare "40–50" read as a score as easily as a distance. */
+    function figure(g, text, x, y, size) {
+        g.fillStyle = '#ebe4cf';
+        g.font = '700 ' + size + 'px ' + FIGS;
+        g.fillText(text, x, y);
+        if (text === '\u2014') return;
+        var w = g.measureText(text).width;
+        g.fillStyle = 'rgba(235, 228, 207, 0.6)';
+        g.font = '700 ' + Math.round(size * 0.5) + 'px ' + FACE;
+        g.fillText(' m', x + w, y + size * 0.12);
+    }
+
+    /* The club's power against the strongest in the bag, as a strip along
+       the card's foot. It sat beside the total and the total ran into it
+       once it was a band ("190–260"). */
+    function powerStrip(g, W, H, frac, tint) {
+        drawPower(g, 26, H - 22, W - 52, 8, frac, tint);
+    }
+
+    /* Side by side, for a card standing in a row: carry on the left, total
+       on the right, the loft drawn between them. */
     function sideBySideFigures(g, W, H, rule, deg, club, frac, tint) {
         var top = rule + 22;
-        var x2 = Math.round(W * 0.54);
-        var carryStr = cardCarry(club), totalStr = cardTotal(club);
+        var x2 = Math.round(W * 0.50);
 
         g.fillStyle = 'rgba(167, 160, 136, 0.9)';
         g.font = '700 15px ' + FACE;
-        g.fillText('CARRY \u00b7 ' + deg + '\u00b0', 28, top);
-        g.fillText('TOTAL \u00b7 PWR ' + figures(club).power, x2, top);
+        g.fillText('CARRY', 28, top);
+        g.fillText('TOTAL \u00b7 FULL SWING', x2, top);
 
-        g.fillStyle = '#ebe4cf';
-        g.font = '700 34px ' + FIGS;
-        g.fillText(carryStr, 28, top + 34);
-        g.fillText(totalStr, x2, top + 34);
+        figure(g, cardCarry(club), 28, top + 34, 34);
+        figure(g, cardTotal(club), x2, top + 34, 34);
 
-        if (club.bite) {
-            roundRect(g, W - 116, top + 42, 88, 22, 6);
-            g.fillStyle = 'rgba(20, 184, 166, 0.25)';
-            g.fill();
-            g.strokeStyle = '#5eead4';
-            g.lineWidth = 1.5;
-            g.stroke();
-            g.fillStyle = '#5eead4';
-            g.font = '800 12px ' + FACE;
-            g.textAlign = 'center';
-            g.fillText('BITE ' + Math.round(club.bite * 100) + '%', W - 72, top + 53);
-            g.textAlign = 'left';
-        } else {
-            drawPower(g, x2, top + 56, W - 28 - x2, 11, frac, tint.name);
-        }
-        drawLoft(g, 126, top + 44, deg, tint.name);
+        drawLoft(g, 140, top + 40, deg, tint.name);
+        powerStrip(g, W, H, frac, tint.name);
     }
 
-    /* Stacked, for a card in a grid: carry and loft on line one, total
-       distance and power/bite on line two. */
+    /* Stacked, for a card in a grid: carry on line one with the loft beside
+       it, total on line two, the power strip at the foot. */
     function stackedFigures(g, W, H, rule, deg, club, frac, tint) {
-        var mid = rule + 56;                 // the carry line
-        var low = H - 30;                    // …and the total line
-        var carryStr = cardCarry(club), totalStr = cardTotal(club);
+        var mid = rule + 54;                 // the carry line
+        var low = H - 40;                    // …and the total line
 
         g.fillStyle = 'rgba(167, 160, 136, 0.9)';
         g.font = '700 16px ' + FACE;
-        g.fillText('CARRY \u00b7 ' + deg + '\u00b0', 26, mid - 34);
-        g.fillText('TOTAL \u00b7 PWR ' + figures(club).power, 26, low - 34);
+        g.fillText('CARRY', 26, mid - 32);
+        g.fillText('TOTAL \u00b7 FULL SWING', 26, low - 32);
 
-        g.fillStyle = '#ebe4cf';
-        g.font = '700 46px ' + FIGS;
-        g.fillText(carryStr, 26, mid);
-        g.fillText(totalStr, 26, low);
+        figure(g, cardCarry(club), 26, mid, 40);
+        figure(g, cardTotal(club), 26, low, 40);
 
-        drawLoft(g, W - 108, mid + 10, deg, tint.name);
-
-        if (club.bite) {
-            roundRect(g, W - 130, low - 16, 104, 24, 6);
-            g.fillStyle = 'rgba(20, 184, 166, 0.25)';
-            g.fill();
-            g.strokeStyle = '#5eead4';
-            g.lineWidth = 1.5;
-            g.stroke();
-            g.fillStyle = '#5eead4';
-            g.font = '800 13px ' + FACE;
-            g.textAlign = 'center';
-            g.fillText('BITE ' + Math.round(club.bite * 100) + '%', W - 78, low - 4);
-            g.textAlign = 'left';
-        } else {
-            drawPower(g, W - 150, low + 4, 124, 14, frac, tint.name);
-        }
+        drawLoft(g, W - 108, mid + 6, deg, tint.name);
+        powerStrip(g, W, H, frac, tint.name);
 
         g.strokeStyle = 'rgba(148, 176, 199, 0.14)';
         g.lineWidth = 2;
         g.beginPath();
-        g.moveTo(26, (mid + low) / 2 - 22); g.lineTo(W - 26, (mid + low) / 2 - 22);
+        g.moveTo(26, (mid + low) / 2 - 20); g.lineTo(W - 26, (mid + low) / 2 - 20);
         g.stroke();
     }
 
@@ -3505,6 +3503,7 @@
         toggle: toggle,
         setBag: setBag,
         setLie: setLie,
+        setScale: setScale,
         figures: figures,
         setVisible: setVisible,
         setExpanded: setExpanded,

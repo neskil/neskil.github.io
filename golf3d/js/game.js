@@ -280,6 +280,7 @@
         state.lieBagFor = null;
         state.lieCards = null;
         if (G3.bag && G3.bag.setLie) G3.bag.setLie(null);
+        if (G3.bag && G3.bag.setScale) G3.bag.setScale(G3.distance.scale(hole));
         if (state.bag.indexOf(state.club) < 0) {
             state.club = clubById(state.club ? state.club.id : C.DEFAULT_CLUB);
         }
@@ -2417,7 +2418,7 @@
     }
 
     /* How far there is left to go, which is the number the club choice is
-       really about — to the nearest ten metres, and not at all inside twenty
+       really about — rounded, and not at all inside NEAR
        (G3.distance). Updated every frame while the ball is rolling — and, like
        syncWind above, spending most of those frames writing the string that is
        already there, which is a layout the browser did not need to do. Both
