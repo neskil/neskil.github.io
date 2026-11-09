@@ -54,10 +54,30 @@ owner's yes before it is started.
   black-sand volcanic links, an autumn forest, a desert of dunes, or a course
   under floodlights at night.
 
+- **The next holes the same way** (found while choosing Apogee Yard,
+  v1.146.0): Windmill Works' *Through the Wall* and *Grand Finale* are still a
+  lane with things across it and have no ace; Icehouse Yard's *The Salt Line*
+  is a straight lane and *Glass Table* two rectangles. They are the flattest
+  plans left on the drawn courses.
+
 Still waiting: "Deadline" (a nice biome, maps too simple, water on a table)
 is waiting on the owner to say which course they meant.
 
 Done:
+
+- **Apogee Yard, rebuilt** (v1.146.0) — the owner's "the courses are a bit too
+  similar and don't really have the game play feeling … start with a few that
+  can be improved the most". The lab picked the course: no ace on five of its
+  six holes, the putt at the flag on the sixth, six plans that were a slab, a
+  gap and a slab. Each hole is now built round what its gravity does: three
+  stones to carry between (Hang Time), a plank that is a slide (Dead Weight),
+  a crater whose far wall is the road (The Crater), a pad that clears both
+  steps in one leap (Deadlift), a round table with the pin behind the well
+  (Orbit) and a flight bent round a black hole on to a crescent (Apogee).
+  Every hole has an ace between 0.04% and 0.39% and none drops the putt at the
+  flag; `OPEN` in tests.html is empty. README → "Apogee Yard" has the table and
+  what was measured. Looked at on the turntable and from three tees in the
+  game; not yet played by a person.
 
 - **Height where a long hole was flat for no reason** (v1.142.0) — the rest
   of item 9. The three flattest holes on the older long courses each get a
@@ -522,9 +542,10 @@ tee shows (Sea Legs' was).
    vocabulary) that a firm mallet rides round to the pin and a firmer one
    goes over the top of. The rest are crazy and adventure: Through
    the Wall, The Sweeper, Grand Finale, five of Pinball Parlour's six, Three
-   Against Two, Change Ringing, The Weir, Full Flow, Through the Pipe and five
-   of Apogee Yard's six (Caldera, which was on this list, got its ace through
-   the tube in v1.126.0). On a timing hole the sweep's four moments can miss a
+   Against Two, Change Ringing, The Weir, Full Flow and Through the Pipe
+   (Caldera, which was on this list, got its ace through the tube in v1.126.0,
+   and five of Apogee Yard's six got theirs when the course was rebuilt in
+   v1.146.0). On a timing hole the sweep's four moments can miss a
    window, so read those with care.
 10. **The putt at the flag, on the two holes that still drop it** (README →
    "The hole lab"; v1.105.0 rebuilt twelve; v1.122.0 took Bounce Alley, The
@@ -540,8 +561,9 @@ tee shows (Sea Legs' was).
      landing; or a smarter bot, one that aims at the pads as well as the pin.
      The Gravitron also has its doorway skipped: a full putter lands on the
      second pad over the wall, and a mallet at nine tenths flies both moats.
-     (The Gravitron is gone; the note stands for the next pad hole.) Apogee is
-     `OPEN` in tests.html and must leave it when fixed.
+     (The Gravitron is gone; the note stands for the next pad hole.) Apogee
+     was rebuilt in v1.146.0 — the pad off the line and a well to bend the
+     flight — so this kind is closed and `OPEN` in tests.html is empty.
    - *Timed at the flag* — First Gear. A putt at the pin that drops at the
      right moment, which is the oldest shot in crazy golf and the rule Pocket
      Links made anyway ("or at any moment of a clock"). Harbour Gate was the

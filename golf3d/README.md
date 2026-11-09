@@ -1552,8 +1552,10 @@ What the first sweep found (v1.105.0), over the seventy-eight drawn holes:
   goes through the pad, because that is where its fan of shots starts — move
   the pad off the line and the suite's proof breaks before the straight putt
   does. The Springboard got round it with a wider lane and the kicker; Bounce
-  Alley, The Gravitron, Fumarole and Apogee did not, and they are the open half
-  of the list. Blowhole was rebuilt round a hollow instead (see
+  Alley, The Gravitron, Fumarole and Apogee did not, and they were the open half
+  of the list (the first three went with their courses in v1.122.0; Apogee was
+  rebuilt in v1.146.0 with the pad off the line and a gravity well to bend the
+  flight, and the bot finds it). Blowhole was rebuilt round a hollow instead (see
   [Cinder Cone](#cinder-cone)): the sides of the hollow bend the line on the
   way to the vent, so the putt at the flag lands wide and the ace is aimed off
   it.
@@ -1920,12 +1922,45 @@ carry ratio and the fact the slope does not budge.
 
 | # | Hole | g | Par | What it asks |
 | --- | --- | --- | --- | --- |
-| 1 | Hang Time | 0.5 | 3 | Fourteen units of nothing between two slabs, which is more than anything in the bag carries at home. One number, said out loud, with nothing else on the hole. |
-| 2 | Dead Weight | 2 | 3 | The inversion. Eight units of gap that nothing can fly at any power, and a plank off to the east that is not the safe route but the only one. |
-| 3 | The Crater | 0.45 | 3 | Light again, and the target is the hole: a round crater green on an island, the rail along its crest, because at this weight nothing stops on flat ground and the rim is the only thing that will. |
-| 4 | Deadlift | 2.4 | 3 | The heaviest hole on the card, and the only one with a motor in it. Two steps of one point two, no ramps, and pads at Helter Skelter's own ratings lifting something twice as heavy — each against its riser, with a funnel of two banks in front of the step to put a rolled ball on it. Played with the mini bag. |
-| 5 | Orbit | 0.5 | 3 | A gravity well in the middle of the yard (`wells`) and the cup round the back of it: swing past close enough that it bends the ball in, not so close that it keeps it. Replaced The Mouth, a pipe hole with one answer. |
-| 6 | Apogee | 0.3 | 3 | The pad throws the ball nine and a half units up and holds it there for the best part of four seconds. Two thirds of a putter is the shot; a full one is forty units and gone. |
+| 1 | Hang Time | 0.5 | 3 | Three round stones in the dust: the tee, a big one half left, and the green — further than anything carries at home, with a rim that gathers a carry landed inside it. Go for it or step across. |
+| 2 | Dead Weight | 2 | 3 | Nothing flies, so the plank is the road, and the plank is a ramp: a heavy ball runs away down it and arrives at the same pace whatever it left with. A line and no weight, and a kicker at the foot turns it on to the pin. |
+| 3 | The Crater | 0.45 | 3 | One round pad sixteen across with a wall 2.6 high, the tee on the rim, the pin on the floor between two meteorites. At this weight the mallet climbs the wall: thirty degrees wide, up the far side and back down to the flag. |
+| 4 | Deadlift | 2.4 | 3 | Two steps of one point two and no ramps. The first pad is rated at twenty: all of the mallet clears both steps in one leap and the leaning top green brings it round a post to the pin; less goes up a step at a time. |
+| 5 | Orbit | 0.5 | 3 | A round table, a gravity well in the middle (`wells`) and the cup straight behind it. Ten degrees wide, either side, and the pull bends it round the back on to the pin. |
+| 6 | Apogee | 0.3 | 3 | The pad throws the ball ten units up for four seconds and a black hole standing in the void bends the flight round on to a crescent green; the further round it lands, the nearer the flag. Putter and mallet only. |
+
+**Rebuilt in v1.146.0.** The six were slabs with a gap between them: the hole
+lab found no ace on five and the putt at the flag dropping on the sixth, and
+every plan was a rectangle, a void and a rectangle. Three things measured on
+the way are worth keeping:
+
+- **The roll does not change with the weight.** A putter runs eight units on a
+  level green at every gravity on the card. What changes is the air (carry and
+  apex go as 1/g) and what a *slope* is worth against that roll — so a light
+  hole is flight, a wall you can climb or a well, and a heavy one is a ramp or
+  a pad. A hole that is level and played along the floor is the same hole at
+  any gravity.
+- **A bowl is all or nothing.** Everything a bowl catches finishes at its
+  middle, so a pin there is holed by every firm shot or by none (6.7% against
+  0.02% for two tenths of a unit of depth). The Crater's pin is nine tenths off
+  the middle and the share is a skill shot's.
+- **A ramp at two g is a governor**, as a belt is: whatever pace goes on at the
+  top, the same comes off at the bottom. Dead Weight's ace is 74–100% of the
+  mallet wide for that reason and two degrees across.
+
+| Hole | Ace before | After | Caddie |
+| --- | --- | --- | --- |
+| Hang Time | none | 0.39% tutorial (wedge) | 2 → 1 |
+| Dead Weight | none | 0.34% tutorial | 2 → 2 |
+| The Crater | none | 0.10% skill | 3 → 2 |
+| Deadlift | none | 0.11% skill | 3 → 1 |
+| Orbit | none | 0.26% skill | 2 → 2 |
+| Apogee | 0.01% fluke, the putt at the flag | 0.04% closer, never | 1 → 2 |
+
+`stage` (a pad rounded all the way to a disc) and `meteor` (a block on a green
+drawn as a stone — a `crag` may not stand on one) are the two helpers it added
+to courses.js. A well with no ground under it is drawn at the yard's level, and
+it pulls on a ball in the air as on the ground, which is all Apogee needed.
 
 There is no water anywhere on the yard, and that is the honest choice rather
 than a saving: a ball that leaves the ground falls past `OOB_Y` and comes back

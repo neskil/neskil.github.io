@@ -3997,7 +3997,7 @@
 
     function addWall(group, wall) {
         if (wall.kind === 'tree') { addTree(group, wall); return; }
-        if (wall.kind === 'rock') { addRock(group, wall); return; }
+        if (wall.kind === 'rock' || wall.kind === 'meteor') { addRock(group, wall); return; }
         if (P.isPost(wall)) { addPost(group, wall); return; }
         // A slingshot is drawn whole off its face; its two backs are in it.
         if (wall.kind === 'slingback') return;

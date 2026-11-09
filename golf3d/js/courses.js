@@ -5884,172 +5884,218 @@
        here falls past `OOB_Y` and comes back as a stroke, which is the same
        price a splash costs and the honest one for a course with no sea on it. */
 
+    /* A round slab: a square pad with every corner rounded to half its width.
+       The yard is built of these now — pads standing on their own in the dust
+       read as landing stages, and a square one reads as a packing case. */
+    function stage(cx, cz, r, y, kind) {
+        var p = pad(cx - r, cz - r, 2 * r, 2 * r, y || 0, kind);
+        p.round = { sw: r, se: r, nw: r, ne: r };
+        return p;
+    }
+
+    /* A meteorite: a block on a green, drawn as the stone it is. A `crag` may
+       not stand on a green (tests.html — it is scenery on the long game, and
+       scenery is seated and reshaped by `build`); this is furniture, a wall
+       with a rock's skin, exactly as big as it is drawn. */
+    function meteor(cx, cz, s, y) {
+        return wall(cx - s / 2, cz - s / 2, s, s, 1.0, { base: (y || 0) - 0.3, kind: 'meteor' });
+    }
+
+    /* The course was six slabs with a gap between them (v1.146.0): the hole
+       lab found no ace on five of the six and a putt at the flag dropping on
+       the sixth, and from above every one of them was a rectangle, a void and
+       a rectangle. The idea was never the trouble — a different weight of
+       ball on every tee — so each hole is rebuilt round the one thing its
+       gravity does that no other hole's can:
+
+         Hang Time    0.5   the carry is longer than it looks: three stones
+         Dead Weight  2     a ramp is a slide: the plank does the work
+         The Crater   0.45  a wall is a road: up the far side and back
+         Deadlift     2.4   the floor has to throw it: one leap or two
+         Orbit        0.5   the pull is most of what the ball feels
+         Apogee       0.3   four seconds in the air, bent by a black hole
+
+       What does not change with the weight is the roll: a putter runs eight
+       units on a level green at every gravity on the card. Only slopes and
+       the air are different, which is why every hole here is one or the
+       other. */
     var apogee = [
         build({
-            /* The introduction, and it is one number said out loud: half a g.
-               Fourteen units of nothing between the two slabs — more than the
-               iron carries at home and more than the driver does — and at half
-               a g every club in the bag flies it with room to spare.
+            /* The introduction, and it is still one number said out loud:
+               half a g. But it is said with a choice now. Three round stones
+               in the dust — the tee, a big one half left and a soft pitch
+               away, and the green, further than anything in the bag carries
+               at home. At half a g the chipper gets there with a full swing.
 
-               Nothing else is on the hole on purpose. The first tee of a
-               course whose whole idea is that the ball weighs less should be a
-               shot the player has already played somewhere else, so that what
-               they notice is the only thing that has changed. */
+               The green has a rim (a `channel`, eight tenths up) and the pin
+               in the floor of it, so a carry that lands inside is gathered
+               rather than thrown out the back: that is the ace, and it is a
+               generous one on purpose (0.4%, the tutorial band). Short of
+               the nerve for it, the near stone is twice the target and
+               leaves a pitch of half the length. */
             name: 'Hang Time', par: 3, gravity: 0.5,
             needsLoft: true,   // a carry: there is no road along the floor
-            blurb: 'Half a g. The gap is wider than anything in the bag carries at home — hit it anyway.',
+            blurb: 'Half a g, and three stones in the dust. The far one is further than anything carries at home — hit it anyway, or step across on the near one.',
             pads: [
-                pad(0, 0, 8, 9),
-                pad(0, 23, 10, 10)
+                stage(4, 3.5, 3.5),
+                stage(-1.5, 11.5, 3),
+                (function () {
+                    var p = stage(6.5, 16.5, 3.4);
+                    p.bumps = [channel(6.5, 16.5, 3.2, 1.9, 0.7)];
+                    return p;
+                })()
             ],
-            gaps: [{ x: -1, z: 8.6, w: 12, d: 14.8 }],
-            tee: { x: 4, z: 2 }, cup: { x: 5, z: 28 }
+            tee: { x: 4, z: 2.5 }, cup: { x: 6.5, z: 16.5 }
         }),
         build({
-            /* And the other way, which is the half of the idea nobody expects.
-               At two g the longest flight in the bag is the driver's, and it is
-               five and a half units; a wedge rises about as high as the rail
-               beside it. So the eight units of gap here cannot be flown by
-               anything, at any power, and the plank is not the safe route — it
-               is the only one.
+            /* And the other way. At two g nothing in the bag flies the gap,
+               so the plank is the only road — and the plank is a ramp now,
+               because the thing a heavy ball does that a light one does not
+               is run away downhill. The tee stands 1.2 above the green and
+               the plank falls all of it in eight units: whatever pace a ball
+               brings to the top, the slope gives it the same pace at the
+               bottom (a governor, like The Sluice's belt), so the hole asks
+               for a line and almost no weight at all. Tap it on straight and
+               the weight does the rest.
 
-               It is off to the east, so the hole is three shots long in the
-               shape of a Z: out to the plank, across it, back to the pin. A
-               heavy ball is the one thing in this game that makes a putt the
-               brave shot. */
+               The pin is round a kicker at the foot (Sea Legs' bank): a ball
+               off the plank meets it with a unit or two of run left and is
+               turned west on to the flag. Or off the tee's east rail and
+               down the plank on the slant, which is the same shot found the
+               hard way. A putt at the flag leaves the tee west of the plank
+               and is lost. It was a level plank off to one side of a Z,
+               three shots long with no ace on it; that shape is kept in
+               tests.html, where it is the planner's proof. */
             name: 'Dead Weight', par: 3, gravity: 2,
-            blurb: 'Twice the weight, and nothing in the bag flies six units. The plank is the road.',
+            blurb: 'Twice the weight, and nothing flies. The plank is a slide: start it straight and let the ball run away with itself.',
             pads: [
-                pad(0, 0, 7, 8),
-                pad(4.4, 8, 1.8, 8, 0, 'wood'),
+                pad(0, 0, 7, 8, 1.2),
+                pad(4.4, 8, 1.8, 8, 1.2, 'wood', 0, -0.15),
                 pad(0, 16, 7, 8)
             ],
             gaps: [{ x: -1, z: 7.6, w: 9, d: 8.8 }],
-            tee: { x: 2.2, z: 2 }, cup: { x: 2.4, z: 21 }
+            extra: [bank(5.3, 20.3, 2.6, Math.PI / 4)],
+            tee: { x: 5.3, z: 2 }, cup: { x: 3.2, z: 20.5 }
         }),
         build({
-            /* Light again, and this time the hole is what you have to stop on.
+            /* Light again, and the hole is the crater: one round pad sixteen
+               across, its wall 2.6 high, the tee on the crest of the rim and
+               the pin on the floor. At home a wall like that is a wall. At
+               0.45 of a g the mallet climbs it, so the wall is a road — and
+               it has to be, because two meteorites lie on the floor, one
+               between the tee and the pin and one behind it.
 
-               A ball that arrives on a flat green at half a g arrives with the
-               same speed it would have had at home and then keeps every bit of
-               it for twice as long a bounce, so the green here is a crater: a
-               floor and a rim, with the rim doing the job the ground cannot.
-               It is an island, and there is nothing behind it, which is the
-               whole reason the rim is worth having.
+               The putt at the flag runs down the wall into the near stone.
+               The ace goes thirty degrees wide of it, down across the floor,
+               up the far wall past the second stone and back down off it to
+               the pin (0.13%, a skill shot, and the same either side). The
+               pin is nine tenths north of the middle rather than in it: a
+               bowl brings everything to its middle, so a pin there is holed
+               by every firm shot or by none, and the hole had no weight in
+               it either way. Anything soft finishes on the floor and leaves
+               a putt.
 
-               One pad, and round: a `channel` laid on the rim curves down to a
-               flat floor wide enough for the cup's clearing. It was nine flat
-               pads — a `bowl`, floor, ramps and corners — and from the demo
-               camera on a phone the facets read as a crumpled sheet.
-
-               And round all the way out now: every corner is rounded to half
-               the pad's width, so the ground is a circle with the crest of the
-               rim on its edge and the rail curved along the crest. It was a
-               round bowl in a square box, which is a crater in a packing case. */
+               It was an island with a rim, twenty units off across a gap,
+               and nothing ever stayed on it. */
             name: 'The Crater', par: 3, gravity: 0.45,
-            needsLoft: true,   // a carry: there is no road along the floor
-            blurb: 'Nothing stops out here. The rim of the crater is the only thing that will.',
-            pads: [pad(0, 0, 8, 8), (function () {
-                var p = pad(1.4, 20.4, 7.2, 7.2, 0);
-                p.bumps = [channel(5, 24, 3.6, 2.2, 0.55)];
-                p.round = { sw: 3.6, se: 3.6, nw: 3.6, ne: 3.6 };
+            blurb: 'The pin is on the crater floor, between two meteorites. At this weight the far wall is a road: go up it and come back.',
+            pads: [(function () {
+                // The crest of the rim is 1.1 inside the rail: the tee's flat.
+                var p = stage(7.9, 7.9, 7.9);
+                p.bumps = [channel(7.9, 7.9, 6.8, 4.6, 2.6)];
                 return p;
             })()],
-            gaps: [{ x: -1, z: 7.6, w: 10, d: 1 }],
-            tee: { x: 4, z: 2 }, cup: { x: 5, z: 24 }
+            extra: [meteor(7.9, 6.2, 1.0), meteor(7.9, 10.5, 1.6)],
+            tee: { x: 7.9, z: 1.1 }, cup: { x: 7.9, z: 8.8 }
         }),
         build({
             /* The heavy hole with a motor in it. Two steps of one point two
-               and no ramp on to either — the same shape Highland's Stairway
-               is, except that there the answer is a club that flies and here
-               there is no such thing. What is left is the floor throwing the
-               ball for you, and it is throwing something twice as heavy: a
-               launch pad rated at fifteen reaches six and a quarter units at
-               home and two and a half at the two and two fifths of a g this
-               hole is played at, so a step of one point two is a step it
-               clears with daylight to spare by the time the ball has travelled
-               far enough forward to land on it. (It was thirteen, which was
-               enough only for the old flat driver skimming in at full pace.)
+               and no ramp on to either, at two and two fifths of a g, where
+               nothing in any bag flies: what is left is the floor throwing
+               the ball for you. Each pad is up against its riser, and two
+               banks in front of each step make a funnel that turns a ball
+               rolling at the step on to the pad.
 
-               The pads are the Helter Skelter pads turned up a notch, and the
-               rest of the difference is what is standing on them. */
+               The first pad is rated at twenty now and the second at fifteen,
+               and that is the hole's decision. Fifteen clears one step.
+               Twenty, met by a full mallet, clears both in one leap and lands
+               on the top green still running — and the top green leans east,
+               with the pin over on that side behind a post. Aim a touch left
+               of straight, land, and the lean brings it round the post to
+               the flag (0.11%). Straight at the flag is the same leap into
+               the post. Anything less than all of the mallet lands on the
+               middle step and goes up by the second pad: three shots, the
+               way it always was. */
             name: 'Deadlift', par: 3, gravity: 2.4,
-            /* It used to be played with the long game's bag, and — against
-               everything above — holed with the driver flown over both steps.
-               With the mallet alone the pads did lift a rolled ball a step at
-               a time, but each pad stood two units short of its riser, so a
-               ball that missed one ran on past it and jammed against the step
-               behind, and nothing in a mini bag gets it off that.
-
-               So each pad is up against its riser now, and two banks in front
-               of each step make a funnel that turns any ball rolling at the
-               step on to the pad. The hole is what the comment always said it
-               was: a floor that throws the ball for you, a step at a time. The
-               bot holes it in three from anywhere on the bottom floor and in
-               two from the middle step. */
-            blurb: 'Two steps up, no ramps, and the pads have twice the weight to lift. Roll it at the step and let the funnel find the pad.',
+            blurb: 'Two steps up, no ramps, and the pads have twice the weight to lift. All of the mallet takes both in one leap; less goes a step at a time.',
             pads: [
                 pad(0, 0, 7, 10),
-                sprung(3.5, 8.7, 1.2, 15),
+                sprung(3.5, 8.7, 1.2, 20),
                 pad(0, 10, 7, 6, 1.2),
                 sprung(3.5, 14.7, 1.2, 15, 1.2),
-                pad(0, 16, 7, 8, 2.4)
+                pad(0, 16, 7, 8, 2.4, 'green', -0.035, 0)
             ],
             extra: [
                 bank(1.2, 9, 2.9, -0.62), bank(5.8, 9, 2.9, 0.62),
-                bank(1.2, 15, 2.9, -0.62, { base: 1.1 }), bank(5.8, 15, 2.9, 0.62, { base: 1.1 })
+                bank(1.2, 15, 2.9, -0.62, { base: 1.1 }), bank(5.8, 15, 2.9, 0.62, { base: 1.1 }),
+                wall(4.75, 20.0, 0.6, 0.6, 0.9, { base: 1.9 })
             ],
-            tee: { x: 3.5, z: 2 }, cup: { x: 3.5, z: 20.5 }
+            tee: { x: 3.5, z: 2 }, cup: { x: 5.2, z: 21.6 }
         }),
         build({
-            /* Orbit, which replaced The Mouth — a pipe hole the owner called
-               no fun, and he was right: twenty-four units of nothing and one
-               way across it is a puzzle with one answer, not a shot.
+            /* A gravity anomaly in the middle of a round table (`wells`,
+               physics.js) and the cup straight behind it. The line at the
+               flag goes into the thing; the good line goes ten degrees wide
+               of it, either side, with most of a mallet, and is bent round
+               the back on to the pin (0.27%). At half a g the pull is most of
+               what the ball feels, which is the reason it is on this course.
 
-               This is a shot. A gravity anomaly sits in the middle of the yard
-               (`wells`, physics.js) and the cup is round the far side of it, so
-               the straight line runs into the thing and the good line runs
-               past it: close enough that it bends the ball in towards the pin,
-               not so close that it keeps it. At half a g the pull is most of
-               what the ball feels, which is the reason it is on this course. */
+               It was a sixteen by twenty-two rectangle with the well off the
+               line and the pin in a corner, and no line from the tee was ever
+               bent as far as the pin: the pull is stronger now (22, from 13)
+               and the pin is three units behind the middle, where the bent
+               lines from both sides cross. */
             name: 'Orbit', par: 3, gravity: 0.5,
-            blurb: 'A gravity well in the middle of the yard and the cup round the back of it. Swing past and let it hand you the pin.',
-            pads: [pad(0, 0, 16, 22)],
-            wells: [{ x: 8.5, z: 11, pull: 13, core: 0.85 }],
-            tee: { x: 4, z: 2 }, cup: { x: 10.5, z: 19.5 }
+            blurb: 'A black hole in the middle of the table and the cup straight behind it. Swing past, either side, and let it hand you the pin.',
+            pads: [stage(9, 9, 9)],
+            wells: [{ x: 9, z: 9, pull: 22, core: 0.85 }],
+            tee: { x: 9, z: 1.6 }, cup: { x: 9, z: 12 }
         }),
         build({
-            /* The finish, and the lightest hole on the card. Three tenths of a
-               g: a launch pad rated at ten and a half throws the ball nine and
-               a half units into the air and holds it there for the best part
-               of four seconds, and everything it does in that time was decided
-               before it left the ground.
+            /* The finish, the lightest hole on the card, and the two things
+               the yard has — a floor that throws the ball and a hole that
+               bends it — in one shot. Three tenths of a g: the pad throws the
+               ball ten units up and holds it there for the best part of four
+               seconds, and for all of that time the black hole standing in
+               the void is pulling on it (a well pulls in the air as on the
+               ground).
 
-               The bag is a putter and a mallet, which is to say nothing that
-               flies, and that is what makes the hole legible. The only thing
-               putting the ball in the air is the floor; the only thing you
-               choose is how fast it is going when it gets there. Two thirds of
-               a putter lands on the front of the shelf and rolls to the pin. A
-               full one is forty units and gone, and the mallet is not a club
-               on this hole at all.
+               The green is a crescent round the far side of the hole, and
+               the flight is bent round with it. A soft putter over the pad
+               barely feels the pull and comes down on the near horn, a long
+               way round from the flag. A firmer one passes closer, is turned
+               further and lands further round, and the pin is past the top
+               of the curve, where only a flight that has been bent nearly a
+               quarter turn comes down. Too close is the horizon. And what
+               lands keeps turning: the kerbs hold it on the crescent while
+               the pull takes it round.
 
-               The band of dust across the back is the only mercy on the yard
-               and it is a grudging one: sand keeps four thousandths of the
-               ball's speed in a second, so anything that reaches it stops
-               where it lands — on the hole, out of position, and a long way
-               from the flag. The shelf is also narrower than the tee and set
-               off to the east of it, so the flight is a line as well as a
-               weight. */
+               The bag is a putter and a mallet, nothing that flies, so the
+               only thing putting the ball in the air is the floor, and all
+               of it was decided before it left. It was a pad, a gap and a
+               shelf in a straight line, and the ace was the putt at the
+               flag — the last hole on the lab's list. */
             name: 'Apogee', par: 3, gravity: 0.3,
-            blurb: 'The pad throws it nine units up and the flight lasts four seconds. Everything is decided before it leaves.',
+            blurb: 'The pad throws it ten units up for four seconds, and the black hole bends the flight round on to the crescent. Everything is decided before it leaves.',
             pads: [
                 pad(0, 0, 8, 8),
-                sprung(4, 5.2, 1.4, 10.5),
-                pad(3, 22, 8, 18),
-                pad(3, 40, 8, 6, 0, 'sand')
+                sprung(4, 5.4, 1.4, 10.5),
+                road({ x: 4, z: 16, dir: 0, w: 4.6, y: 0, caps: true },
+                    [['arc', 8, Math.PI, { kerb: 'both' }]])
             ],
-            gaps: [{ x: -1, z: 7.6, w: 14, d: 14.8 }],
-            tee: { x: 4, z: 2 }, cup: { x: 7.5, z: 36 }
+            wells: [{ x: 12, z: 16, pull: 22, core: 0.9 }],
+            gaps: [{ x: -1, z: 7.6, w: 10, d: 1 }],
+            tee: { x: 4, z: 2 }, cup: { x: 14.14, z: 23.71 }
         })
     ];
 

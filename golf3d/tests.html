@@ -1723,9 +1723,22 @@
                         var r = p.round[k[0]];
                         if (!r) return;
                         corners++;
-                        if (Math.hypot(h.tee.x - k[1], h.tee.z - k[2]) < r + 1.1 ||
-                            Math.hypot(h.cup.x - k[1], h.cup.z - k[2]) < r + 1.25) near.push(k[0]);
+                        /* Measured off the arc, not off the corner: what a
+                           corner gives up is the ground on the corner's side
+                           of the arc's centre and further than r from it. A
+                           distance from the corner point said the same for a
+                           small radius and was wrong for a pad rounded all the
+                           way to a disc (Apogee Yard, v1.146.0), where a tee a
+                           unit and a half inside the rail is nearer the
+                           square's corner than r + 1.1 and nowhere near the
+                           ground the corner took. */
                         var ox = k[1] + k[3] * r, oz = k[2] + k[4] * r;
+                        var cut = function (q, flat) {
+                            var dx = (ox - q.x) * k[3], dz = (oz - q.z) * k[4];   // towards the corner
+                            return dx > 0 && dz > 0 && dx < r + flat && dz < r + flat &&
+                                Math.hypot(dx, dz) > r - flat;
+                        };
+                        if (cut(h.tee, 1.1) || cut(h.cup, 1.25)) near.push(k[0]);
                         var railed = bendSet.some(function (b) {
                             return Math.abs(b.cx - ox) < 1e-9 && Math.abs(b.cz - oz) < 1e-9 && !b.kind && !b.lane;
                         });
@@ -1997,7 +2010,8 @@
                inlays now — ovals laid into the fairway rather than rectangles
                cut out of a row — and an inlay is never scooped: courses.scoop
                says why. */
-            assert('there are scooped bunkers to check', scooped >= 12, scooped + ' found');
+            // Eleven since v1.146.0: Apogee's band of dust went with the old hole.
+            assert('there are scooped bunkers to check', scooped >= 11, scooped + ' found');
 
             /* An inlay lies *flush* with the ground it is laid into, everywhere
                inside its own outline — which is the rule "no inlay is scooped"
@@ -5026,7 +5040,19 @@
                east. The greedy caddie ran up to the brink straight at the cup
                and putted along it until the strokes ran out — the owner's
                "bot gets stuck on Dead Weight". */
-            var dw = hole('apogee', 'Dead Weight');
+            /* The hole itself is a ramp in line with its tee since v1.146.0;
+               the Z it used to be is kept here, as The Lip is below, because
+               a road that goes away from the cup is what the plan is for. */
+            var dw = A.build({
+                name: 'Dead Weight', par: 3, gravity: 2, mini: true,
+                pads: [
+                    A.pad(0, 0, 7, 8),
+                    A.pad(4.4, 8, 1.8, 8, 0, 'wood'),
+                    A.pad(0, 16, 7, 8)
+                ],
+                gaps: [{ x: -1, z: 7.6, w: 9, d: 8.8 }],
+                tee: { x: 2.2, z: 2 }, cup: { x: 2.4, z: 21 }
+            });
             var greedy = BOT.play(dw, MAX, G3.bagFor(dw), { fan: C.BOT_FAN });
             var planned = BOT.play(dw, MAX, G3.bagFor(dw), GAME);
             assert('Dead Weight: the greedy caddie is stuck on the brink (what the plan is for)',
@@ -5196,7 +5222,7 @@
                the rule to stay on it, so fixing one fails this until it comes
                off the list. */
             var L = G3.lab;
-            var OPEN = ['apogee/Apogee'];
+            var OPEN = [];   // empty since v1.146.0: Apogee was the last
             var CLOCKED = ['works/The Mill', 'works/Turnstile', 'clockwork/Pendulum', 'clockwork/Midnight', 'seaside/Harbour Gate'];
             assert('the lab module is loaded', !!L);
             var b0 = performance.now(), held = 0;
