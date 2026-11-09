@@ -8,7 +8,7 @@
    — the renderer scales to the viewport, the simulation never sees a pixel. */
 window.G3 = window.G3 || {};
 
-G3.VERSION = '1.144.1';
+G3.VERSION = '1.145.0';
 
 G3.CONFIG = {
     BALL_R: 0.16,
@@ -351,7 +351,24 @@ G3.CONFIG = {
             LINE: 0.6,
             POWER_LOSS: 0.3
         },
-        BOW: { MIN: 0.09, IDEAL: 0.18, TOL: 0.06, SPAN: 0.14 },
+        /* MIN was 0.09, IDEAL 0.18: a right thumb's own arc up a full pull
+           bows 0.10–0.17 without trying, so a swipe meant straight was read
+           as a clean fade — graded Perfect, and the ball started left and
+           sliced. A shape now has to be drawn on purpose. (Measured on
+           branch ccr-c36dd4d6, which never reached master.) */
+        BOW: { MIN: 0.15, IDEAL: 0.22, TOL: 0.06, SPAN: 0.14 },
+        /* How wide the whole swing was (swing.js `swipeWide`): the pull and
+           the swipe up together, measured across the line of the swipe, as a
+           fraction of its length. A thumb that goes down one side and comes
+           up the other — a loop — read as straight before, because only the
+           two ends of the swipe up were looked at. FREE is let go: a thumb's
+           own arc, retraced, is about 0.17, plus room for a shake on the way
+           down. Past it the line is charged up to MAX of a full miss, over
+           SPAN; the last quarter of the swipe up says which way (a thumb
+           finishing across the line to the left pulls it left). Kept mild on
+           the owner's word — lower MAX if it plays too hard. A shape drawn on
+           purpose is not charged twice: its bow comes off the width first. */
+        WIDE: { FREE: 0.22, SPAN: 0.3, MAX: 0.5, TAIL: 0.25 },
         /* A scribble rather than a swing (swing.js `swipeMess`, `swipeJunk`):
            a path more than RATIO times as long as a clean pull-and-swipe of
            the same depth (plus SLACK px), or more than TURNS changes between

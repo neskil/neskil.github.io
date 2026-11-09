@@ -422,6 +422,17 @@ way the ball was hit. game.js "swing styles" is the thumb and the pictures.
     is clean, past it the −1..1 over its `SPAN` (`swipeOff`), and a miss is
     costed at no less than its `FLOOR` of overdraw. Easy is the swipe as it
     first shipped (8°); normal forgives 3½°, hard under 2°.
+
+    The angle alone let a loop through: pull down one side, come up the
+    other, and the two ends of the swipe up still line up. So the line is
+    also charged for the **width** of the whole gesture (`swipeWide`,
+    `SWIPE.WIDE`): how far the pull and the swipe up spread across the line,
+    as a share of its length. A thumb's own arc, retraced, is about 0.17 and
+    `FREE` lets 0.22 go; past it up to `MAX` (half a full miss, kept mild on
+    the owner's word) over `SPAN`, the way the last quarter of the swipe up
+    was heading — a thumb finishing across the line to the left pulls it
+    left. A shape drawn on purpose has its own bow taken off the width
+    first, so a draw is not charged twice. The card says "Too wide a loop".
   - **Timing** (off / rhythm / snap, `swipeTimes`, `swipeTempo`): *rhythm*
     wants the swipe up at the pace of the pull down; *snap* wants it to take
     about `TIMING.snap.TARGET` (0.22 s) however far you pulled, so length and
