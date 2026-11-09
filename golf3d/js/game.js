@@ -53,12 +53,15 @@
        par 3 a metre and a half past the 7 iron's run is a 7 iron, not a driver
        swung at half. Only clubs that fly count: a putter or a mallet rolls the
        whole way and is never what you stand on a tee box with. */
-    function teeClub(hole) {
-        var b = bag(), d = Math.sqrt(Math.pow(hole.cup.x - hole.tee.x, 2) + Math.pow(hole.cup.z - hole.tee.z, 2));
+    /* `from` and `skip` are for the shots after the tee (`nextClub`): where
+       the ball lies instead of the tee, and a club left out of the choice. */
+    function teeClub(hole, from, skip) {
+        var o = from || hole.tee;
+        var b = bag(), d = Math.sqrt(Math.pow(hole.cup.x - o.x, 2) + Math.pow(hole.cup.z - o.z, 2));
         var best = null, i, c;
         for (i = 0; i < b.length; i++) {
             c = b[i];
-            if (!c.carry || !c.total) continue;
+            if (!c.carry || !c.total || c.id === skip) continue;
             if (!best || Math.abs(c.total - d) < Math.abs(best.total - d)) best = c;
         }
         return best || state.club;
@@ -1197,6 +1200,19 @@
         drawSwipe();
     }
 
+    /* The driver anywhere but the tee is the hardest swing in the bag
+       (CONFIG.DECK). The tee is where the hole put it, as runKind reads it;
+       the range is all tee. */
+    function offDeck() {
+        if (!state || !state.club || state.club.id !== 'driver' || state.course.isRange) return false;
+        var hole = state.world.hole, b = state.world.ball;
+        return Math.abs(b.x - hole.tee.x) + Math.abs(b.z - hole.tee.z) >= 0.5;
+    }
+
+    function deckHard(over) {
+        return offDeck() ? SW.deckOver(over) : over;
+    }
+
     // `upTo` is set for a backspin strike: how far back up the thumb let go.
     function swipeStrike(cross, upTo) {
         var sw = swipe;
@@ -1206,7 +1222,7 @@
             return;
         }
         var picked = shapeNow() !== 'straight' ? shapeNow() : null;
-        var over = SW.shapeOver(picked, P.overdraw(state.aim.power, state.club.power));
+        var over = deckHard(SW.shapeOver(picked, P.overdraw(state.aim.power, state.club.power)));
         // A shape picked on the ball wins; otherwise a bowed swipe may draw
         // one, if the club can bend and the setting is on.
         var bendable = (state.club.shapes || []).filter(function (n) { return n === 'draw' || n === 'fade'; });
@@ -1217,7 +1233,8 @@
             over: over, feel: tune.feel, timing: tune.timing,
             rawOver: P.overdraw(state.aim.power, state.club.power),
             putt: (state.club.loft || 0) < 9 * Math.PI / 180,
-            shapes: !picked && tune.shapes === 'on' && bendable.length ? bendable : null
+            shapes: !picked && tune.shapes === 'on' && bendable.length ? bendable : null,
+            deck: offDeck()
         });
         var g = SW.swipeGate(read);
         g.shape = picked || (read.shape && read.shape.name) || null;
@@ -1255,18 +1272,32 @@
 
     function fillSwingRows(read, frac) {
         $('sc2-rows').innerHTML = SW.swipeReport(read, { frac: frac }).map(function (r) {
-            return '<li class="' + r.tier + '"><b>' + r.what + '</b><span>' + r.says + '</span></li>';
+            // A bar for every reading; a line that is not one (the lie) has none.
+            var bar = r.score === null || r.score === undefined ? '<i class="sc2-bar none"></i>'
+                : '<i class="sc2-bar"><i style="width:' + Math.round(Math.max(0.04, r.score) * 100) + '%"></i></i>';
+            return '<li class="' + r.tier + '"><b>' + r.what + '</b>' + bar + '<span>' + r.says + '</span></li>';
         }).join('');
         placeSwingCard();
     }
 
-    // Just over the controls, whose height is the layout's to decide.
+    /* At the top of the course, under the topbar and the View row — whichever
+       of them reaches lower, since either can float over the stage or stand
+       above it depending on the layout. It used to sit just over the
+       controls, where on a phone it covered the bag and the foot of the
+       lane; up here it is out of the thumb's way and over sky and far
+       fairway, which is what the eye is on while the ball is in the air. */
     function placeSwingCard() {
         var card = $('swing-card');
         if (card.hidden) return;
         var stage = $('stage').getBoundingClientRect();
-        var ctl = document.querySelector('.controls').getBoundingClientRect();
-        card.style.bottom = Math.round(stage.bottom - ctl.top + 8) + 'px';
+        var low = stage.top;
+        ['.topbar', '#viewctl'].forEach(function (sel) {
+            var el = document.querySelector(sel);
+            if (!el || el.hidden || !el.offsetParent) return;
+            var r = el.getBoundingClientRect();
+            if (r.height && r.bottom > low && r.bottom < stage.top + stage.height * 0.4) low = r.bottom;
+        });
+        card.style.top = Math.round(low - stage.top + 10) + 'px';
     }
 
     function hideSwingCard() {
@@ -1304,17 +1335,22 @@
         attrs('sw-guide', { x1: x0, y1: y0, x2: x0, y2: y0 + len });
         attrs('sw-full', { x1: x0 - 16, y1: fullY, x2: x0 + 16, y2: fullY });
         attrs('sw-ball', { cx: s ? s.low.x - r.left : x0, cy: s ? s.low.y - r.top : y0 });
-        // Where to let go for backspin, once there is a pull to measure it on.
-        var spinY = -99;
+        /* Where to let go for backspin, once there is a pull to measure it on.
+           Over the thumb, not over where it went in: the swipe up is read
+           from the bottom of the pull (the cone stands there too), and a
+           thumb drifts sideways on the way back — so a tick left on the start
+           column ended up beside the path the thumb was actually taking. */
+        var spinY = -99, spinX = x0;
         if (s && !s.needle && (state.club.loft || 0) > 0 && s.low.y - s.y0 > 30) {
             spinY = s.low.y - r.top - C.SWIPE.SPIN_AT.IDEAL * (s.low.y - s.y0);
+            spinX = s.low.x - r.left;
         }
-        attrs('sw-spin', { x1: x0 - 14, y1: spinY, x2: x0 + 14, y2: spinY });
-        attrs('sw-spin-label', { x: x0 + 20, y: spinY + 4 });
+        attrs('sw-spin', { x1: spinX - 18, y1: spinY, x2: spinX + 18, y2: spinY });
+        attrs('sw-spin-label', { x: spinX + 24, y: spinY + 4 });
         var cone = '';
         if (s && s.through) {
             var tx = s.low.x - r.left, ty = s.low.y - r.top;
-            var over = SW.shapeOver(shapeNow(), P.overdraw(state.aim.power, state.club.power));
+            var over = deckHard(SW.shapeOver(shapeNow(), P.overdraw(state.aim.power, state.club.power)));
             var half = Math.tan(SW.swipeTol(over)) * (ty - y0);
             cone = [tx, ty, tx - half, y0, tx + half, y0].join(' ');
         }
@@ -1435,7 +1471,7 @@
 
     /* ── the needle ── */
     function startNeedle() {
-        var over = SW.shapeOver(shapeNow(), P.overdraw(state.aim.power, state.club.power));
+        var over = deckHard(SW.shapeOver(shapeNow(), P.overdraw(state.aim.power, state.club.power)));
         needle = SW.needleStart(over);
         A.tick(0.75);
         syncStyle();
@@ -1531,6 +1567,7 @@
         state.aim.power = Math.min(maxPower(club), frac * club.power);
         syncClubs();
         syncPower();
+        if (state.phase === 'aim' && offDeck()) toast('Driver off the fairway: harder to strike');
     }
 
     // dir is +1 or -1; wraps round the bag either way, so a swipe the wrong
@@ -1624,8 +1661,30 @@
             }, 2000);
         } else {
             syncLie();
+            nextClub();
         }
         syncHud();
+    }
+
+    /* The driver goes back in the bag after the shot it was taken out for.
+       It is the tee club: off the deck it is the hardest swing in the bag
+       (swing.js `deckOver`), and a second shot that started with it still in
+       hand was nearly always a second shot struck with it by accident, the
+       way the putter used to follow you onto the tee. So once the ball comes
+       to rest on a long hole with the driver in hand, the club is swapped for
+       the one whose run best fits what is left, the driver left out of the
+       choice. It is a suggestion, not a rule: pick the driver back up and it
+       swings — it only goes back on the next shot. The green's putter and the
+       bunker's swap (syncLie) come first and leave nothing for this to do. */
+    function nextClub() {
+        var hole = state.world.hole;
+        if (!hole.longGame || !state.club || state.club.id !== 'driver') return;
+        // Back on the tee after a penalty: the drive again, driver and all.
+        if (!offDeck()) return;
+        var c = teeClub(hole, state.world.ball, 'driver');
+        if (!c || c === state.club) return;
+        pickClub(c);
+        toast(c.name + ' for the next one');
     }
 
     /* After every stroke the aim swings round to face the cup from wherever

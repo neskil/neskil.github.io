@@ -256,6 +256,15 @@
         return (name && name !== 'straight') ? Math.max(C.SHAPE.GATE, over || 0) : (over || 0);
     }
 
+    /* The driver off the deck (CONFIG.DECK): any lie but the tee. It swings
+       as if it were already that far into the overdraw — the line's clean
+       band and the tempo's narrow by TIGHTEN, the way they do past a full
+       swing — but the miss is not multiplied, because nothing was overdrawn
+       (`swipeMult` reads the meter's own overdraw, not this). */
+    function deckOver(over) {
+        return Math.max(C.DECK.OVER, over || 0);
+    }
+
     /* `shot` is { yaw, power, spin } — the shot after the gate's push or pull,
        if there was a gate. `off` is that gate's timing (−1 early … +1 late,
        0 clean); it decides how much of the shape arrives. Returns the shot to
@@ -546,7 +555,7 @@
         return {
             angle: angle, line: line, times: times, tempo: tempo, timing: opt.timing || 'off', putt: putt, mult: mult,
             spin: mess.junk ? null : spin,
-            bow: bow, shape: mess.junk ? null : shape, off: off, weight: weight, over: over, feel: opt.feel,
+            bow: bow, shape: mess.junk ? null : shape, off: off, weight: weight, over: over, feel: opt.feel, deck: !!opt.deck,
             mess: mess, junk: mess.junk ? swipeJunk(opt.rand) : null,
             perfect: !mess.junk && off === 0 && tempo.amount === 0 && (!shape || shape.cook === 0)
         };
@@ -583,6 +592,10 @@
        The words follow the owner's ask: short, plain, written as a person
        would say it — close to ASD-STE100. One fact per line, simple words,
        no slang ("snatched", "quit on it"), a number only where it helps. */
+    /* Each line's bar on the card: how much of that part of the swing was
+       clean, 1 down to 0, read off the same −1…+1 the strike itself used. */
+    function score(off) { return 1 - Math.min(1, Math.abs(off || 0)); }
+
     // "2.5×", or just "much" past five — a big number reads as a glitch.
     function times(k) { return k >= 5 ? 'much' : k.toFixed(1) + '×'; }
 
@@ -590,35 +603,35 @@
         var out = [];
         if (read.junk) {
             out.push({ what: 'Swing', says: 'Not a swing. Ball ' +
-                (read.junk.kind === 'duff' ? 'duffed.' : 'shanked.'), tier: 'bad' });
-            out.push({ what: 'Path', says: 'Too long and not straight.', tier: 'bad' });
+                (read.junk.kind === 'duff' ? 'duffed.' : 'shanked.'), tier: 'bad', score: 0 });
+            out.push({ what: 'Path', says: 'Too long and not straight.', tier: 'bad', score: 0 });
             return out;
         }
         var deg = Math.round(Math.abs(read.angle) * 180 / Math.PI);
         var side = read.angle > 0 ? 'right' : 'left';
         out.push(read.line === 0
-            ? { what: 'Line', says: deg ? 'Straight (' + deg + '° ' + side + ').' : 'Straight.', tier: 'good' }
+            ? { what: 'Line', says: deg ? 'Straight (' + deg + '° ' + side + ').' : 'Straight.', tier: 'good', score: 1 }
             : { what: 'Line', says: deg + '° ' + side + '. Ball goes ' + side + '.',
-                tier: Math.abs(read.line) < 0.5 ? 'meh' : 'bad' });
+                tier: Math.abs(read.line) < 0.5 ? 'meh' : 'bad', score: score(read.line) });
         var t = read.tempo, tm = read.times, ms = Math.round(tm.through * 1000) + ' ms';
         var tier = t.amount === 0 ? 'good' : Math.abs(t.amount) < 0.5 ? 'meh' : 'bad';
         if (read.timing === 'rhythm' && t.said) {
             var r = t.ratio;
-            out.push({ what: 'Tempo', tier: tier, says: t.said === 'clean' ? 'Even.'
+            out.push({ what: 'Tempo', tier: tier, score: score(t.amount), says: t.said === 'clean' ? 'Even.'
                 : t.why === 'pace' ? (t.said === 'rushed' ? 'Too fast, ' : 'Too slow, ') + ms + '.'
                 : 'Up ' + times(t.said === 'rushed' ? r : 1 / r) + (t.said === 'rushed' ? ' faster' : ' slower') + ' than down.' });
         } else if (read.timing === 'snap' && t.said) {
-            out.push({ what: 'Speed', tier: tier, says: (t.said === 'clean' ? 'Good, '
+            out.push({ what: 'Speed', tier: tier, score: score(t.amount), says: (t.said === 'clean' ? 'Good, '
                 : t.said === 'rushed' ? 'Too fast, ' : 'Too slow, ') + ms + '.' });
         }
         if (read.shape) {
             var nm = read.shape.name === 'draw' ? 'Draw' : 'Fade';
-            out.push({ what: 'Shape', tier: read.shape.cook === 0 ? 'good' : 'meh',
+            out.push({ what: 'Shape', tier: read.shape.cook === 0 ? 'good' : 'meh', score: score(read.shape.cook),
                 says: nm + (read.shape.cook === 0 ? '. Good.' : read.shape.cook > 0 ? '. Too much curve.' : '. Too little curve.') });
         }
         if (read.spin) {
             var S = C.SWIPE.SPIN_AT, a = read.spin.ask;
-            out.push({ what: 'Spin', tier: a >= 0.95 ? 'good' : a > 0 ? 'meh' : 'bad',
+            out.push({ what: 'Spin', tier: a >= 0.95 ? 'good' : a > 0 ? 'meh' : 'bad', score: a,
                 says: a >= 0.95 ? 'Full backspin.'
                     : (a > 0 ? Math.round(a * 100) + '%. ' : 'None. ') +
                       (read.spin.at < S.IDEAL ? 'Let go later.' : 'Let go sooner.') });
@@ -633,8 +646,11 @@
             // Past a full swing, say what it multiplied: it is why the miss
             // went as far wrong as it did.
             if (read.mult > 1.05 && !read.perfect && (pc > 100 || read.putt)) said += ' Miss ×' + read.mult.toFixed(1) + '.';
-            out.push({ what: 'Power', says: said, tier: lost ? 'meh' : pc > 100 ? 'hot' : 'good' });
+            out.push({ what: 'Power', says: said, tier: lost ? 'meh' : pc > 100 ? 'hot' : 'good',
+                       score: read.weight > 1 ? Math.max(0, 2 - read.weight) : Math.max(0, read.weight) });
         }
+        // Why the bands were tighter than usual: no bar, it is not a reading.
+        if (read.deck) out.push({ what: 'Lie', says: 'Driver off the fairway. Harder.', tier: 'meh', score: null });
         return out;
     }
 
@@ -823,6 +839,7 @@
         bendOf: bendOf,
         armsShape: armsShape,
         shapeOver: shapeOver,
+        deckOver: deckOver,
         shape: shape,
         swipeLoad: swipeLoad,
         swipeAngle: swipeAngle,
