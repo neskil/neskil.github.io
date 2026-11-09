@@ -1900,15 +1900,83 @@ body.replaying .stage-hud,
 .dm-title {
     margin: 0;
     font-family: 'Barlow Semi Condensed', system-ui, sans-serif;
-    font-size: clamp(1.5rem, 5vw, 2.2rem);
+    font-size: clamp(1.9rem, 7vw, 2.8rem);
     font-weight: 800;
     line-height: 1;
-    letter-spacing: -0.03em;
+    letter-spacing: -0.01em;
     color: var(--ink);
-    text-shadow: 0 2px 28px rgba(12, 13, 9, 0.7);
+    /* Room for the letters to bob without being clipped by the panel. */
+    padding: 0.08em 0 0.04em;
 }
 
-.dm-title span { color: var(--accent); }
+/* The title floats, and a thin band of rainbow passes along it. That breaks
+   the page's "no gloss" rule on purpose, on the owner's request, and only
+   here: the one screen that is a title card rather than chrome. It is kept
+   dusk-coloured (muted, pastel, narrow) so it reads as light catching the
+   letters rather than as a sign lit up, and the letters are otherwise plain
+   chalk and brass.
+
+   Each letter carries its own copy of the gradient, offset in time by its
+   index, so the band travels left to right across the word; the same index
+   staggers the float, so the word ripples rather than lifting as a block. A
+   background clipped to a *parent's* text would be cleaner, but a child with
+   a transform drops out of that clip in Chromium, so it cannot float. */
+.dm-said {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+}
+
+.dm-word { display: inline-block; white-space: nowrap; }
+.dm-chalk { --base: var(--ink); }
+.dm-brass { --base: var(--accent); }
+
+.dm-title i {
+    display: inline-block;
+    font-style: normal;
+    color: var(--base);
+    filter: drop-shadow(0 2px 6px rgba(12, 13, 9, 0.75));
+    animation: dm-float 3.2s ease-in-out infinite;
+    animation-delay: calc(var(--i) * -0.22s);
+}
+
+@supports ((-webkit-background-clip: text) or (background-clip: text)) {
+    .dm-title i {
+        color: transparent;
+        background-image: linear-gradient(105deg,
+            var(--base) 0%, var(--base) 38%,
+            #e9a2a2 42%, #ecd08e 45%, #b7d99a 48%, #98c9de 51%, #b9a3e3 54%,
+            var(--base) 58%, var(--base) 100%);
+        background-size: 900% 100%;
+        -webkit-background-clip: text;
+        background-clip: text;
+        animation:
+            dm-float 3.2s ease-in-out infinite,
+            dm-shine 5.5s linear infinite;
+        animation-delay:
+            calc(var(--i) * -0.22s),
+            calc(var(--i) * 0.09s);
+    }
+}
+
+@keyframes dm-float {
+    0%, 100% { transform: translateY(0) rotate(0deg); }
+    25%      { transform: translateY(-0.07em) rotate(-1.2deg); }
+    75%      { transform: translateY(0.05em) rotate(1deg); }
+}
+
+/* Background at 100% shows the right end of the gradient (plain base), at 0%
+   the left (plain base too); the band crosses the letter on the way between.
+   Most of the cycle is spent parked off the letter, so the shine is a pass
+   every few seconds rather than a constant shimmer. */
+@keyframes dm-shine {
+    0%   { background-position: 100% 0; }
+    45%  { background-position: 0% 0; }
+    100% { background-position: 0% 0; }
+}
 
 /* What is actually being played, which is the line that turns a title card
    into a demonstration: it names the course and the hole the caddie is
@@ -1979,7 +2047,7 @@ body.demo .stage .banner {
 body.demo .stage .fly-hint { display: none; }
 
 @media (prefers-reduced-motion: reduce) {
-    .demo, .dm-start { animation: none; }
+    .demo, .dm-start, .dm-title i { animation: none; }
 }
 
 /* ── fullscreen prompt ─────────────────────────────────────────────────── */
@@ -3459,6 +3527,12 @@ body.compact-ui .topbar-menu.open {
 body.compact-ui .topbar-menu .chip {
     text-align: left;
     background: rgba(255, 255, 255, 0.04);
+}
+
+/* Phones: a roomier panel and bigger targets — the default read cramped. */
+@media (pointer: coarse) {
+    body.compact-ui .topbar-menu { min-width: 220px; gap: 0.45rem; padding: 0.55rem; }
+    body.compact-ui .topbar-menu .chip { font-size: 1.12rem; padding: 0.65rem 0.9rem; }
 }
 
 /* …but only the chips that are *off*, and this is where that is said.
