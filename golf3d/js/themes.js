@@ -42,7 +42,12 @@
                 across the water, 12 is an alp. Leave it out and the horizon is flat, which is
                 what a course played indoors or inside a works wants.
      air        how much further than usual the fog starts and ends (the
-                mountain's thin air, render.buildHole). Leave it out for 1.
+                mountain's thin air, render.buildHole), and half as much again
+                for a camera looking down (render.overFog) — so from above the
+                hole stands clear and only the country round it fades. The
+                long courses have it; the links keeps the least, because sea
+                haze at the height of a ball is part of the place. Leave it
+                out for 1.
      range      mountains between the hole and the horizon (render.addRange):
                 `peak` how tall, `depth` how far they run, `snowline` and
                 `treeline` as fractions of the peak, and the three colours.
@@ -86,6 +91,7 @@
             side: '#8d7355'
         },
         lagoon: {
+            air: 1.3,
             sky: [0x1f86c8, 0xbfe9f4],
             fog: 0xbfe9f4,
             sun: 0xfff7e6, sunPos: [7, 17, -6], ambient: 0x9adfe8, ambientI: 0.62,
@@ -116,6 +122,7 @@
             side: '#7d7566'
         },
         parkland: {
+            air: 1.8,
             /* The one course that is not mini golf, and the palette says so:
                a long summer afternoon over a lot of grass. The surround is a
                `floor` rather than water or rock because what lies beyond the
@@ -133,6 +140,7 @@
             side: '#8f7a55'
         },
         links: {
+            air: 1.3,
             /* Open country under a big cold sky. The one theme whose surround
                matters: on every other course it is scenery beyond a fence, and
                here it is the horizon the hole runs into, so it is tinted to
@@ -247,6 +255,7 @@
            a high thin overcast, a cool sun, and a surround tinted to the
            heather so the hole runs out into more of the same country. */
         heath: {
+            air: 1.7,
             sky: [0x6b7fa8, 0xd6d2df],
             fog: 0xd6d2df,
             /* Low, for the same reason Whinstone's is low and it matters more
@@ -363,6 +372,7 @@
            course is every wall of every ravine, so it is doing real work
            rather than trimming an edge. */
         canyon: {
+            air: 1.6,
             sky: [0x5c7fb4, 0xecd0ac],
             fog: 0xecd0ac,
             sun: 0xffd9a2, sunPos: [-14, 9, 8], ambient: 0xc9a582, ambientI: 0.55,
