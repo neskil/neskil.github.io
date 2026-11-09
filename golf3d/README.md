@@ -435,11 +435,16 @@ way the ball was hit. game.js "swing styles" is the thumb and the pictures.
     hook or slice. A shape picked on the ball wins over a drawn one, and a club
     that cannot bend does not.
 
-  After the shot a card under the top chips (`showSwingCard`) draws the swipe
-  small against a straight line and the lean that was forgiven, and says one
-  line per thing read — "13° right — pushed right", "snatched — 70 ms, too
-  quick", "draw — just the right bend", "71% of a full swing, 30% lost
-  quitting on it" — coloured by how it went (`swipeReport`).
+  After the shot a card under the topbar and the View row (`showSwingCard`,
+  `placeSwingCard`) draws the swipe small against a straight line and the lean
+  that was forgiven, gives the grade, and says one line per thing read —
+  "13° right — pushed right", "snatched — 70 ms, too quick", "draw — just the
+  right bend", "71% of a full swing, 30% lost quitting on it" — each with a
+  bar for how clean that part was (`swipeReport`'s `score`, 1 down to 0, off
+  the same −1…+1 the strike used) coloured by how it went. It has no plate:
+  it is drawn straight on the scene with a hard drop shadow, on the owner's
+  word that the dark slab did not fit, and it moved up from over the
+  controls, where it covered the bag.
 - **Arcade.** The three-press swing every arcade golf game has had: a half-dial
   over the ball, Swing (or a tap on the dial, or space) to start the needle
   climbing, again to set the power, and the third press as it swings back to
@@ -459,8 +464,8 @@ way the ball was hit. game.js "swing styles" is the thumb and the pictures.
   untouched, exactly as the meter's.
 - **Past 100%, and on the green, a touch miss costs more** (`swipeMult`):
   every consequence — push, pull, bend, the weight a lazy swing loses — is
-  multiplied by `1 + SWIPE.OVER_MULT ×` the meter's own overdraw (×2.5 at the
-  top), and the tempo's clean band narrows there like the line's. A putt (a
+  multiplied by `1 + SWIPE.OVER_MULT ×` the meter's own overdraw (×1.75 at
+  the top — it was ×2.5, which the owner found a lot), and the tempo's clean band narrows there like the line's. A putt (a
   club under 9° of loft) has a tighter line (`SWIPE.PUTT.TOL`), costs
   `PUTT.MULT` more, and is the one stroke where a snatch runs *long*
   (`PUTT.JAB`). The card names the multiple when it bit.
@@ -468,7 +473,9 @@ way the ball was hit. game.js "swing styles" is the thumb and the pictures.
   swing backspin is not picked on the ball, it is swung — swipe up and let go
   *before* the start line. Where you let go, as a share of the way back up,
   is the spin: all of it at about three quarters (`SWIPE.SPIN_AT`, a dashed
-  gold "spin" tick in the lane), less either side, and under `MIN` no shot.
+  gold "spin" tick in the lane, over the bottom of the pull rather than the
+  start, because the swipe up is read from there and a thumb drifts), less
+  either side, and under `MIN` no shot.
   A swipe through the start is the plain strike it always was. A club with no
   loft has no spin, so a putt let go early is still no shot. The swipe up is
   timed as if it had gone the whole way, or every spin shot would read as
@@ -477,6 +484,14 @@ way the ball was hit. game.js "swing styles" is the thumb and the pictures.
   fraction (`spinCap`, `CONFIG.SPIN`): a wedge at 130% checks back, over a
   bite of 1, and a 7 iron at half a swing barely bites. (It replaced a snap
   back down after the strike, which the owner found convoluted.)
+- **The driver is the tee club** (game.js `nextClub`, `offDeck`,
+  `CONFIG.DECK`). Once the ball comes to rest on a long hole with the driver
+  in hand, it is swapped for the club whose run best fits what is left
+  (`teeClub` measured from the ball, the driver left out) — unless the ball
+  is back on the tee after a penalty. Picked back up, it swings, but off the
+  deck the touch swing reads it as `DECK.OVER` into the overdraw: line and
+  tempo bands about a fifth narrower, the miss not multiplied. The card says
+  so on a "Lie" line.
 - **Rhythm also wants a sensible pace** (`TIMING.rhythm.PACE*`): an even swing
   that is far too quick or far too slow used to read as clean. Now the swipe
   up is also held to about a quarter of a second, a doubling either side

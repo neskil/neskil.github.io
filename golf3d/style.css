@@ -3719,15 +3719,20 @@ body.compact-ui .picker { padding-top: 52px; }
 }
 .swipe.held .sw-full { opacity: 0.9; }
 /* Where to let go for backspin: three quarters of the way back up the pull
-   (swing.js `swipeSpin`). Drawn only while a lofted club is pulled back. */
+   (swing.js `swipeSpin`). Drawn only while a lofted club is pulled back,
+   over the thumb's own column and on top of the trail and the cone, which
+   used to cover it. */
 .sw-spin {
     stroke: var(--gold);
-    stroke-width: 2;
-    stroke-dasharray: 4 3;
+    stroke-width: 3;
+    stroke-dasharray: 5 3;
     stroke-linecap: round;
 }
 .sw-spin-label {
     fill: var(--gold);
+    paint-order: stroke;
+    stroke: rgba(18, 20, 14, 0.7);
+    stroke-width: 3px;
     font-size: 11px;
     font-weight: 700;
     letter-spacing: 0.04em;
@@ -4027,83 +4032,120 @@ body.lane-swing .swipe-hint {
 
 /* ── the swing card ─────────────────────────────────────────────────────── */
 
-/* Over the controls, across the stage, and big enough to read from arm's
-   length: the swipe drawn small, the grade, one line per thing read. It was a
-   small card in the top-left corner and that undersold it — this is the one
-   thing on screen that says *why*, so it sits where the eye already is after
-   a swing (the thumb's end of the screen) and stays until tapped. game.js
-   `placeSwingCard` sets `bottom` from the controls. Each line is coloured by
-   how it went, so it reads at a glance before it is read at all. */
+/* At the top of the course, across the stage, and big enough to read from
+   arm's length: the swipe drawn small, the grade, and one line per thing read
+   — each with a bar for how clean that part was and the words for why. It is
+   the one thing on screen that says *why*, so it stays until tapped. game.js
+   `placeSwingCard` sets `top` from the topbar and the View row.
+
+   No plate behind it. It sat on a near-black slab that the owner found did
+   not belong on the course, and over the controls, where it covered the bag.
+   Now it is drawn straight on the scene: chalk ink with a hard dark drop under
+   every letter (a shadow, not a glow — offset, no spread) and bars on a dark
+   track, which reads on sky and turf alike without hiding either. */
 .swing-card {
     position: absolute;
     left: 50%;
-    bottom: 140px;
+    top: 96px;
     transform: translateX(-50%);
-    width: min(calc(100% - 24px), 420px);
+    width: min(calc(100% - 24px), 440px);
     box-sizing: border-box;
     display: flex;
-    gap: 0.75rem;
+    gap: 0.7rem;
     align-items: flex-start;
-    padding: 0.6rem 0.75rem 0.65rem 0.6rem;
+    padding: 0.2rem 0.25rem;
     line-height: 1.3;
-    border-radius: 6px;
-    background: rgba(24, 27, 19, 0.78);
-    border: 1px solid rgba(255, 255, 255, 0.14);
-    box-shadow: 0 2px 0 rgba(0, 0, 0, 0.35);
+    background: none;
+    border: 0;
     cursor: pointer;
     z-index: 6;
-    color: #ebe4cf;
+    color: #f3ecd6;
+    text-shadow: 0 1px 0 rgba(10, 12, 8, 0.9), 0 1px 3px rgba(10, 12, 8, 0.75);
 }
 .swing-card[hidden] { display: none; }
 .swing-card.show { animation: cardIn 0.22s ease-out; }
 @keyframes cardIn {
-    from { opacity: 0; transform: translate(-50%, 8px); }
+    from { opacity: 0; transform: translate(-50%, -8px); }
     to { opacity: 1; transform: translate(-50%, 0); }
 }
 .sc2-svg {
     flex: none;
     width: 40px;
     height: 68px;
-    border-radius: 5px;
-    background: rgba(40, 44, 32, 0.12);
+    margin-top: 0.2rem;
     overflow: visible;
+    filter: drop-shadow(0 1px 1px rgba(10, 12, 8, 0.85));
 }
-.sc2-cone { fill: rgba(156, 191, 110, 0.18); stroke: rgba(156, 191, 110, 0.55); stroke-width: 1; }
-.sc2-ideal { stroke: rgba(255, 255, 255, 0.5); stroke-width: 1.5; stroke-dasharray: 2 3; }
+.sc2-cone { fill: rgba(156, 191, 110, 0.22); stroke: rgba(156, 191, 110, 0.75); stroke-width: 1; }
+.sc2-ideal { stroke: rgba(255, 255, 255, 0.7); stroke-width: 1.5; stroke-dasharray: 2 3; }
 .sc2-trail { fill: none; stroke-width: 4; stroke-linecap: round; stroke-linejoin: round; stroke: #9cbf6e; }
 .sc2-svg.meh .sc2-trail { stroke: #d6a842; }
 .sc2-svg.bad .sc2-trail { stroke: #d06a55; }
 .sc2-body { min-width: 0; flex: 1 1 auto; position: relative; }
 .sc2-close {
     position: absolute;
-    top: 0.1rem;
+    top: 0.35rem;
     right: 0;
-    font-size: 0.62rem;
+    font-size: 0.66rem;
     letter-spacing: 0.04em;
-    color: rgba(235, 228, 207, 0.5);
+    color: rgba(243, 236, 214, 0.75);
 }
 .sc2-grade {
     display: block;
     font-family: 'Barlow Semi Condensed', sans-serif;
     font-weight: 800;
-    font-size: 1.05rem;
+    font-size: 1.45rem;
+    line-height: 1.1;
     letter-spacing: 0.05em;
     text-transform: uppercase;
 }
-.sc2-grade.perfect { color: #e8d29a; }
-.sc2-grade.great { color: #b5cf8e; }
-.sc2-grade.good { color: #e3d4a6; }
-.sc2-grade.off { color: #e3ae7f; }
-.sc2-grade.bad { color: #e0957f; }
-.sc2-rows { list-style: none; margin: 0.1rem 0 0; padding: 0; display: grid; gap: 0.05rem; }
-.sc2-rows li { display: flex; gap: 0.45rem; font-size: 0.82rem; white-space: nowrap; }
-.sc2-rows b { flex: none; width: 3.4rem; font-weight: 700; color: rgba(235, 228, 207, 0.6); }
-.sc2-rows span { overflow: hidden; text-overflow: ellipsis; }
-.sc2-rows li::before { content: '●'; flex: none; font-size: 0.6rem; line-height: 2; }
-.sc2-rows li.good::before { color: #9cbf6e; }
-.sc2-rows li.meh::before { color: #d6a842; }
-.sc2-rows li.bad::before { color: #d06a55; }
-.sc2-rows li.hot::before { color: #d98a4a; }
+.sc2-grade.perfect { color: #f0d98f; }
+.sc2-grade.great { color: #bfdc94; }
+.sc2-grade.good { color: #ecdcab; }
+.sc2-grade.off { color: #f0b27c; }
+.sc2-grade.bad { color: #f09a82; }
+/* Name, bar, words: the bar in a column of its own so the four of them line
+   up and compare at a glance, before a word is read. */
+.sc2-rows {
+    list-style: none;
+    margin: 0.25rem 0 0;
+    padding: 0;
+    display: grid;
+    grid-template-columns: auto 4.6rem minmax(0, 1fr);
+    column-gap: 0.55rem;
+    row-gap: 0.2rem;
+    align-items: center;
+}
+.sc2-rows li { display: contents; font-size: 0.86rem; }
+.sc2-rows b { font-weight: 700; font-size: 0.86rem; color: #f3ecd6; }
+.sc2-rows span { font-size: 0.84rem; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sc2-bar {
+    position: relative;
+    display: block;
+    height: 8px;
+    border-radius: 2px;
+    background: rgba(14, 16, 11, 0.62);
+    box-shadow: inset 0 0 0 1px rgba(243, 236, 214, 0.28), 0 1px 0 rgba(10, 12, 8, 0.6);
+    overflow: hidden;
+}
+.sc2-bar.none { visibility: hidden; }
+.sc2-bar > i {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    border-radius: 2px;
+    background: #9cbf6e;
+    transform-origin: left;
+    animation: barIn 0.45s ease-out;
+}
+@keyframes barIn { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+.sc2-rows li.meh .sc2-bar > i { background: #d6a842; }
+.sc2-rows li.bad .sc2-bar > i { background: #d06a55; }
+.sc2-rows li.hot .sc2-bar > i { background: #d98a4a; }
+@media (prefers-reduced-motion: reduce) {
+    .sc2-bar > i { animation: none; }
+}
 
 /* ── touch swing settings, in the style picker ──────────────────────────── */
 
