@@ -443,7 +443,9 @@ way the ball was hit. game.js "swing styles" is the thumb and the pictures.
   bar for how clean that part was (`swipeReport`'s `score`, 1 down to 0, off
   the same −1…+1 the strike used) coloured by how it went. It has no plate:
   it is drawn straight on the scene with a hard drop shadow, on the owner's
-  word that the dark slab did not fit, and it moved up from over the
+  word that the dark slab did not fit — the swipe drawing in a dark casing
+  of its own, with a dot where the thumb struck, because that line is the
+  *why* and it went faint the moment the plate came off — and it moved up from over the
   controls, where it covered the bag.
 - **Arcade.** The three-press swing every arcade golf game has had: a half-dial
   over the ball, Swing (or a tap on the dial, or space) to start the needle

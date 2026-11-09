@@ -4068,19 +4068,30 @@ body.lane-swing .swipe-hint {
     from { opacity: 0; transform: translate(-50%, -8px); }
     to { opacity: 1; transform: translate(-50%, 0); }
 }
+/* The swipe as it was drawn: the line that says why the ball went where it
+   did, so it is the biggest thing on the card after the grade. With no plate
+   behind it, every stroke carries its own dark casing to stand off the scene. */
 .sc2-svg {
     flex: none;
-    width: 40px;
-    height: 68px;
-    margin-top: 0.2rem;
+    width: 52px;
+    height: 86px;
+    margin-top: 0.15rem;
     overflow: visible;
-    filter: drop-shadow(0 1px 1px rgba(10, 12, 8, 0.85));
 }
-.sc2-cone { fill: rgba(156, 191, 110, 0.22); stroke: rgba(156, 191, 110, 0.75); stroke-width: 1; }
-.sc2-ideal { stroke: rgba(255, 255, 255, 0.7); stroke-width: 1.5; stroke-dasharray: 2 3; }
-.sc2-trail { fill: none; stroke-width: 4; stroke-linecap: round; stroke-linejoin: round; stroke: #9cbf6e; }
-.sc2-svg.meh .sc2-trail { stroke: #d6a842; }
-.sc2-svg.bad .sc2-trail { stroke: #d06a55; }
+.sc2-cone { fill: rgba(14, 16, 11, 0.45); stroke: rgba(170, 205, 122, 0.95); stroke-width: 1.2; }
+.sc2-ideal {
+    stroke: rgba(255, 255, 255, 0.9);
+    stroke-width: 1.6;
+    stroke-dasharray: 2 3;
+    filter: drop-shadow(0 0 1px rgba(10, 12, 8, 0.9));
+}
+.sc2-case { fill: none; stroke: rgba(10, 12, 8, 0.82); stroke-width: 8; stroke-linecap: round; stroke-linejoin: round; }
+.sc2-trail { fill: none; stroke-width: 4.5; stroke-linecap: round; stroke-linejoin: round; stroke: #a8cc78; }
+.sc2-end { fill: #a8cc78; stroke: rgba(10, 12, 8, 0.85); stroke-width: 2; }
+.sc2-svg.meh .sc2-trail { stroke: #e0b04a; }
+.sc2-svg.meh .sc2-end { fill: #e0b04a; }
+.sc2-svg.bad .sc2-trail { stroke: #e0735c; }
+.sc2-svg.bad .sc2-end { fill: #e0735c; }
 .sc2-body { min-width: 0; flex: 1 1 auto; position: relative; }
 .sc2-close {
     position: absolute;
