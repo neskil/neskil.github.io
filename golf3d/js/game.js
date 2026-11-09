@@ -1062,7 +1062,11 @@
     // What syncStyle last drew for, so the cheap check in syncSwing can tell
     // whether anything has changed without touching the layout.
     function styleKey() {
-        return styleWanted + styleLive() + styleOpen() + !!arc + !!needle + tune.where;
+        // Whether the bag is up, too: the lane is narrowed off where the bag
+        // stands (`laneWidth`), and there is no bag on the first frames or
+        // while the flyover has it put away.
+        return styleWanted + styleLive() + styleOpen() + !!arc + !!needle + tune.where +
+            !!(G3.bag && G3.bag.state.rig && G3.bag.state.rig.visible);
     }
 
     /* The lane (the touch swing and the needle's pull) runs from a little
@@ -1077,7 +1081,31 @@
         var bottom = Math.round(ctl.top - stage.top - 34);
         lane.style.top = top + 'px';
         lane.style.height = Math.max(120, bottom - top) + 'px';
+        lane.style.width = laneWidth(stage, top, Math.max(120, bottom - top)) || '';
         if (!swipe) drawSwipe();
+    }
+
+    /* On a phone held upright the lane's lower corner stood over the bag:
+       the stylesheet's width (72% of the stage, at most 300px) is about the
+       middle of the screen less the two corners, and the bag *is* the left
+       corner. A press there already goes to the bag (`onSwipeDown`), but a
+       dashed box drawn across the clubs reads as one thing on top of
+       another, and the part of the lane over the bag's hit boxes was lane
+       that did not swing. So where the two would meet the lane narrows,
+       evenly, until it clears the bag (bag.js `screenBox`) by a small gap —
+       never below LANE_MIN, still a comfortable thumb's width either side of
+       the ball. Returns a CSS width, or nothing to leave the stylesheet's. */
+    var LANE_MIN = 200, LANE_GAP = 10;
+    function laneWidth(stage, top, height) {
+        var bag = G3.bag && G3.bag.screenBox && R.state.camera
+            ? G3.bag.screenBox(R.state.camera, stage.width / Math.max(1, stage.height)) : null;
+        if (!bag) return null;
+        var natural = Math.min(stage.width * 0.72, 300);
+        var bagTop = bag.top * stage.height, bagRight = bag.right * stage.width;
+        if (bagTop >= top + height) return null;               // the bag is below the lane
+        var left = (stage.width - natural) / 2;
+        if (bagRight + LANE_GAP <= left) return null;           // already clear
+        return Math.round(Math.max(LANE_MIN, stage.width - 2 * (bagRight + LANE_GAP))) + 'px';
     }
 
     // How far a pull may go: the whole meter is the lane plus the run down

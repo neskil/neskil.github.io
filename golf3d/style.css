@@ -1509,7 +1509,11 @@ html.page-full body {
     .view-row { gap: 0.45rem; }
     .viewctl .ctl-label { font-size: 0.72rem; }
 
-    .aim-nudge { width: 54px; font-size: 1.5rem; border-radius: 6px; }
+    /* Held, not tapped — they repeat — so the floor is a full 44px however
+       short the row they stand in. With the touch swing on, the meter and
+       Swing leave that row and it shrank to the line of text in it: the
+       nudges were 28px tall in portrait and 25px on a phone on its side. */
+    .aim-nudge { width: 54px; min-height: 44px; font-size: 1.5rem; border-radius: 6px; }
     .swing { padding: 0.95rem 1rem; font-size: 1.05rem; border-radius: 6px; }
 }
 
@@ -3798,19 +3802,15 @@ body.lane-swing .power-word,
 body.lane-swing #power-val,
 body.lane-swing .power-of { display: none; }
 body.lane-swing .power-dist { margin-left: 0; font-size: 0.85rem; font-weight: 600; color: var(--ink); }
+/* The slot Swing leaves stays, empty, so the two nudges still stand either
+   side of where the ball is aimed. It used to say "Pull down · swipe up" —
+   but the lane right above it says that in the same words, and two copies of
+   one instruction is one too many for the eye to reconcile on a phone. */
 body.lane-swing .swipe-hint {
-    display: grid;
-    place-items: center;
+    display: block;
+    visibility: hidden;
     flex: 1 1 auto;
     min-width: 0;
-    padding: 0 0.5rem;
-    font-size: 0.8rem;
-    font-weight: 600;
-    text-align: center;
-    color: rgba(235, 228, 207, 0.85);
-    border: 1px dashed rgba(255, 255, 255, 0.25);
-    border-radius: 6px;
-    align-self: stretch;
 }
 
 /* ── the arcade arc ─────────────────────────────────────────────────────── */
