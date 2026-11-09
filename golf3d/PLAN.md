@@ -70,7 +70,7 @@ is waiting on the owner to say which course they meant.
 
 Done:
 
-- **Less fog on a clear day** (v1.13x.0) — the hero and plan views of the
+- **Less fog on a clear day** (v1.139.0) — the hero and plan views of the
   long courses washed out to the edges. `theme.air` (Alpenglow's knob) is on
   every long theme now — Ashdown 1.8, Dunmore 1.7, Redstone 1.6, Whinstone and
   the lagoon 1.3, the links keeping its sea haze — and the camera that looks
@@ -336,7 +336,7 @@ weight, so a rebuilt course still comes in around ten under.
 5. **Greens that differ.** Long thin ones, two-tier ones, raised ones, ones in a
    bowl (`dish`, the Punchbowl), ones behind a bunker, so each approach is its
    own shot.
-6. ~~**Less fog on a clear day.**~~ (done, v1.13x.0 — `theme.air` and
+6. ~~**Less fog on a clear day.**~~ (done, v1.139.0 — `theme.air` and
    `render.overFog`; see "Done" above.)
 
 Order of work: ~~Ashdown Park first, by hand, to settle the recipe~~ (done,
