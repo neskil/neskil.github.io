@@ -143,9 +143,14 @@ Done:
   it finishes all 84 holes (greedy left Dead Weight), stops shuffling on the
   old Caldera lip, and aces Bumper City. It thinks in 20 ms slices
   (`BOT_SLICE`). The hole lab, par-check and human-check still use greedy.
-  Open: with hands it trusts perfect-strike routes a little on narrow carries
-  (Coral Keys a third of a stroke worse a hole), and a long hole's first shot
-  can take two or three seconds to plan.
+  Then (README → "Hands, and the wait"): with hands it is the greedy player
+  told where the traps are, level with greedy on Coral Keys (−0.54 against
+  −0.63, twelve rounds) and still ahead where it was for (Apogee Yard +1.50
+  against +2.29); a long hole's first shot thinks 0.78 s on average, 1.9 s at
+  worst (was 5.1), made during the flyover and the roll; and the hands miss
+  the moment where a wall moves (Clockwork 10.8 → 11.8 a round). Open: the
+  worst long hole still takes longer than the greedy search alone to plan,
+  so on a phone with the flyover off the tee shot's think is a second or two.
 - **The Backboard and the crossed corners** (v1.127.0) — "a good concept that
   is lacking in execution. Also don't like the X style corners sticking out."
   The X was general: `railFor` ran every rail a thickness past both ends, and

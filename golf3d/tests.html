@@ -4944,14 +4944,19 @@
                 !greedy.sunk || greedy.strokes > dw.par + 2, card(greedy));
             assert('Dead Weight: the caddie with a plan holes it, inside par + 1',
                 planned.sunk && planned.strokes <= dw.par + 1, card(planned));
-            var wet = [], k, r;
-            for (k = 0; k < 3; k++) {
+            /* With hands the caddie is the greedy player told where the traps
+               are, and the plan's own shot where the greedy one runs into one
+               (bot.js, `pick`). Greedy alone averages about eleven here, and
+               so does that design with its plan switched off. */
+            var wet = [], k, r, total = 0;
+            for (k = 0; k < 4; k++) {
                 r = BOT.play(dw, MAX, G3.bagFor(dw), { fan: C.BOT_FAN, plan: true,
                     hands: C.BOT_HANDS, rng: rng(7919 + k * 15485863) });
+                total += r.strokes;
                 if (!r.sunk) wet.push('round ' + (k + 1) + ' ' + card(r));
             }
-            assert('Dead Weight: …and holes it with a person\'s hands, in three seeded rounds',
-                !wet.length, wet.join('; '));
+            assert('Dead Weight: …and holes it with a person\'s hands, four seeded rounds at eight a round or better',
+                !wet.length && total <= 32, wet.join('; ') + ' ' + total + ' in four');
 
             /* Caldera, the course's finisher: up the vent, along the rim on
                the belt, in through the tube. The other half of the owner's
@@ -5035,14 +5040,52 @@
                 same(planned, again), card(planned) + ' then ' + card(again));
             var tee = { x: dw.tee.x, z: dw.tee.z, y: dw.tee.y + C.BALL_R };
             var whole = new BOT.Planner(dw, G3.bagFor(dw), GAME).shot(tee, 0);
-            var sliced = new BOT.Planner(dw, G3.bagFor(dw), GAME), steps = 0;
+            var sliced = new BOT.Planner(dw, G3.bagFor(dw), GAME), steps = 0, picks = 0;
             sliced.begin(tee, 0);
             while (!sliced.step(7)) steps++;
-            var cut = sliced.choose(tee, 0);
-            assert('…and slicing the thinking across frames does not change the shot',
-                steps > 3 && whole && cut && whole.yaw === cut.yaw && whole.power === cut.power &&
+            var choosing = sliced.pick(tee, 0);
+            while (!choosing.run(5)) picks++;
+            var cut = sliced.finish(choosing);
+            assert('…and slicing the thinking across frames, the choosing too, does not change the shot',
+                steps > 3 && picks > 3 && whole && cut && whole.yaw === cut.yaw && whole.power === cut.power &&
                     whole.club === cut.club && whole.sims === cut.sims,
-                steps + ' slices; ' + (whole && whole.sims) + ' sims against ' + (cut && cut.sims));
+                steps + ' + ' + picks + ' slices; ' + (whole && whole.sims) + ' sims against ' + (cut && cut.sims));
+
+            /* With hands the caddie is the greedy player told where the traps
+               are (bot.js, `pick`): its own fan, its own scoring, `steady` on
+               `toGo`, and a penalty only where the plan found a finish worth
+               more than its estimate. So on a hole with no trap in it, it is
+               the greedy player shot for shot — which is what keeps it from
+               the first plan's third of a stroke a hole on Coral Keys, where
+               the wider pool of perfect lines was the trouble. */
+            var OPEN = hole('seaside', 'The Bend');
+            var gr = BOT.play(OPEN, MAX, G3.bagFor(OPEN), { fan: C.BOT_FAN, hands: C.BOT_HANDS, rng: rng(11) });
+            var pr = BOT.play(OPEN, MAX, G3.bagFor(OPEN), { fan: C.BOT_FAN, plan: true, hands: C.BOT_HANDS, rng: rng(11) });
+            assert('with hands, on a hole with no trap, the caddie is the greedy player shot for shot',
+                same(gr, pr), card(gr) + ' against ' + card(pr));
+
+            /* The hands miss the moment as well as the line and the weight
+               (BOT_HANDS.time, bot.js `late`), and only where something
+               moves: a still hole draws nothing extra, so it plays exactly
+               the round it did without, and a hole with a clock does not. */
+            var still = hole('seaside', 'The Bend'), clock = hole('clockwork', 'Pendulum');
+            var noTime = { yaw: C.BOT_HANDS.yaw, power: C.BOT_HANDS.power, putt: C.BOT_HANDS.putt, time: 0 };
+            function handsRound(h, hands) {
+                return BOT.play(h, MAX, G3.bagFor(h), { fan: C.BOT_FAN, hands: hands, rng: rng(23) });
+            }
+            assert('the hands keep time: a still hole plays the same round with a timing miss or without',
+                C.BOT_HANDS.time > 0 && same(handsRound(still, C.BOT_HANDS), handsRound(still, noTime)));
+            assert('…and on a hole with a clock the moment is missed too',
+                !same(handsRound(clock, C.BOT_HANDS), handsRound(clock, noTime)));
+
+            /* A long bag is the dear one, and its first shot is planned in a
+               budget under a third of a mini hole's (bot.js, `begin`): Redstone's
+               Switchback was the slowest first shot in the game. */
+            var sw = hole('redstone', 'Switchback');
+            var swShot = new BOT.Planner(sw, G3.bagFor(sw), GAME).shot(
+                { x: sw.tee.x, z: sw.tee.z, y: sw.tee.y + C.BALL_R }, 0);
+            assert('a long hole\'s first shot is planned in under eight hundred simulated shots',
+                swShot && swShot.sims < 800, swShot ? swShot.sims + ' sims' : 'no shot');
             note('planned in ' + Math.round(performance.now() - b0) + 'ms');
         })();
 
