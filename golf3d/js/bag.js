@@ -3030,20 +3030,25 @@
        in it are meant to show — but half off is a fraction, and the fixed
        offsets this used before were a quarter of the way into a wide screen
        and clean off the side of a narrow one. */
-    function place(camera, aspect) {
-        if (!B.ready) return;
-        var k = B.open01;
-
+    // Where the shut bag stands, in camera space. `place` puts it there and
+    // `screenBox` measures it there, so the two cannot disagree.
+    function bagSpot(camera, aspect) {
         var bagH = Math.tan((camera.fov || 52) * Math.PI / 360) * BAG_DEPTH;
         var bagW = bagH * aspect;
-        var cz = -BAG_DEPTH;
-        var cx = -bagW * BAG_EDGE;
         // Cresting just above the controls, wherever they have ended up: the
         // heads are what say "your clubs are here", so they are the part that
         // has to clear the meter, and the rest of the bag can go under it.
         var crest = Math.max(BAG_LOW, Math.min(BAG_HIGH,
             BAG_CLEAR - (1 - 2 * BAND.bottom)));
-        var cy = bagH * crest - B.crest * BAG_SCALE;
+        return { x: -bagW * BAG_EDGE, y: bagH * crest - B.crest * BAG_SCALE, z: -BAG_DEPTH, w: bagW };
+    }
+
+    function place(camera, aspect) {
+        if (!B.ready) return;
+        var k = B.open01;
+
+        var at = bagSpot(camera, aspect);
+        var cx = at.x, cy = at.y, cz = at.z, bagW = at.w;
         put(B.rig, camera, cx, cy, cz, BAG_SCALE, -TWIST, 0.1);
 
         /* And how far out of the bag the club in hand may stand: a fifth of
@@ -3113,6 +3118,68 @@
         _off.set(x, y, z);
         _off.applyQuaternion(camera.quaternion);
         out.copy(camera.position).add(_off);
+    }
+
+    /* The part of the screen the shut bag covers, as fractions of the canvas
+       from its top left: { left, right, top, bottom }, clipped to the frame.
+       game.js asks so the swipe lane can stand clear of it.
+
+       Worked from the camera handed in rather than from where the rig was
+       last put, because the question comes on a resize — a phone turned over
+       — and the rig is not moved until the next frame. The bag and its clubs
+       are measured in their own space and posed here exactly as `put` poses
+       them. Measured on every call, not kept: which clubs stand in the bag
+       changes from hole to hole, and the call comes only when the lane is
+       placed. */
+    var _corner = null, _pose = null, _inv = null, _m = null;
+    function screenBox(camera, aspect) {
+        if (!B.ready || B.expanded || B.open01 > 0.01) return null;
+        if (!_pose) {
+            _corner = new THREE.Vector3();
+            _pose = new THREE.Object3D();
+            _inv = new THREE.Matrix4();
+            _m = new THREE.Matrix4();
+        }
+        var at = bagSpot(camera, aspect);
+        _pose.position.set(at.x, at.y, at.z);
+        _pose.quaternion.set(0, 0, 0, 1);
+        _pose.rotateY(-TWIST);
+        _pose.rotateX(0.1);
+        _pose.scale.setScalar(BAG_SCALE);
+        _pose.updateMatrix();
+        var t = Math.tan((camera.fov || 52) * Math.PI / 360);
+        var x0 = 1, x1 = -1, y0 = 1, y1 = -1;
+        /* Each mesh's own box, projected one at a time: one box round the
+           lot, turned off-axis by the bag's twist, was nearly twice as wide
+           on the screen as the bag. Meshes only — the rig also carries a
+           sprite, a quad turned to the camera whose box says nothing about
+           where the bag is. The invisible hit boxes count, on purpose: they
+           reach a little past the drawn bag, and a press on one is a press
+           on the bag, so that is the edge anything else should stay clear of. */
+        [B.rig, B.clubRig].forEach(function (rig) {
+            rig.updateMatrixWorld(true);
+            _inv.copy(rig.matrixWorld).invert();
+            rig.traverseVisible(function (o) {
+                if (!o.isMesh || !o.geometry) return;
+                if (!o.geometry.boundingBox) o.geometry.computeBoundingBox();
+                var g = o.geometry.boundingBox;
+                // An empty geometry boxes to NaN, and one NaN poisons the rest.
+                if (!isFinite(g.min.x + g.min.y + g.min.z + g.max.x + g.max.y + g.max.z)) return;
+                _m.multiplyMatrices(_pose.matrix, _m.multiplyMatrices(_inv, o.matrixWorld));
+                for (var i = 0; i < 8; i++) {
+                    _corner.set(i & 1 ? g.max.x : g.min.x,
+                                i & 2 ? g.max.y : g.min.y,
+                                i & 4 ? g.max.z : g.min.z).applyMatrix4(_m);
+                    if (_corner.z > -0.01) continue;
+                    var nx = _corner.x / (-_corner.z * t * aspect), ny = _corner.y / (-_corner.z * t);
+                    x0 = Math.min(x0, nx); x1 = Math.max(x1, nx);
+                    y0 = Math.min(y0, ny); y1 = Math.max(y1, ny);
+                }
+            });
+        });
+        if (x1 < x0 || y1 < y0) return null;
+        var c = function (v) { return Math.max(0, Math.min(1, v)); };
+        return { left: c((x0 + 1) / 2), right: c((x1 + 1) / 2), top: c((1 - y1) / 2), bottom: c((1 - y0) / 2) };
     }
 
     function put(rig, camera, x, y, z, scale, twistY, twistX) {
@@ -3444,6 +3511,7 @@
         setSelected: setSelected,
         setHover: setHover,
         setBand: setBand,
+        screenBox: screenBox,
         isExpanded: isExpanded,
         setBackdrop: setBackdrop,
         LAYER: LAYER,
