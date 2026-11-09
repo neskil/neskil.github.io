@@ -48,8 +48,8 @@ Proposed next — what a look round the whole game turned up once the owner's
 list was done (v1.134.1), most visible first. Not asked for; each wants the
 owner's yes before it is started.
 
-- **A timing miss in the bot's hands** (BOT_HANDS), so human-check stops
-  reading the crazy courses as easier than people find them.
+- **A tree line or gorse along each long hole's edge**, to hide the faint
+  line left where the ground meets the bank (v1.141.0).
 - **Another biome** after the alpine one, for the long game or a mini course:
   black-sand volcanic links, an autumn forest, a desert of dunes, or a course
   under floodlights at night.
