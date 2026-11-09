@@ -1313,9 +1313,16 @@
         var k = (H - 2 * pad) / depth;
         function X(x) { return W / 2 + (x - sw.low.x) * k; }
         function Y(y) { return pad + (y - sw.y0) * k; }
-        $('sc2-trail').setAttribute('points', pts.map(function (p) {
+        var line = pts.map(function (p) {
             return X(p[0]).toFixed(1) + ',' + Y(p[1]).toFixed(1);
-        }).join(' '));
+        }).join(' ');
+        /* The swipe twice: a dark casing under the coloured line, so it reads
+           on sky, turf and snow now that the card has no plate behind it —
+           and a dot where the thumb struck, which is the end the eye wants. */
+        $('sc2-case').setAttribute('points', line);
+        $('sc2-trail').setAttribute('points', line);
+        var end = pts[pts.length - 1];
+        attrs('sc2-end', { cx: end ? X(end[0]) : W / 2, cy: end ? Y(end[1]) : pad });
         var tol = SW.swipeTol(read.over, read.feel), half = Math.tan(tol) * (H - 2 * pad);
         $('sc2-cone').setAttribute('points', [W / 2, H - pad, W / 2 - half, pad, W / 2 + half, pad].join(' '));
         attrs('sc2-ideal', { x1: W / 2, y1: H - pad, x2: W / 2, y2: pad });
