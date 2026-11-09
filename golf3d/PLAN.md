@@ -61,7 +61,7 @@ is waiting on the owner to say which course they meant.
 
 Done:
 
-- **The property reads as a mat** (v1.13x.0) — every long hole was a green
+- **The property reads as a mat** (v1.141.0) — every long hole was a green
   rectangle on its plateau. The rough past the stakes is now drawn as the
   country it is (render.splitCountry): the surround's own ground, no grass,
   the same stuff as the bank and the plain beyond, so the slab's edge has
