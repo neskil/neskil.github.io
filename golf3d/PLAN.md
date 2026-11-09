@@ -59,7 +59,7 @@ is waiting on the owner to say which course they meant.
 
 Done:
 
-- **Height where a long hole was flat for no reason** (v1.13x.0) — the rest
+- **Height where a long hole was flat for no reason** (v1.142.0) — the rest
   of item 9. The three flattest holes on the older long courses each get a
   green up a bank: Long Meadow's (Ashdown) a unit and a half up a bank of
   rough, Bell Heather's shelf (Dunmore) two and a half units over the landing
