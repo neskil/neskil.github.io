@@ -111,6 +111,13 @@ node golf3d/tools/hole-lab.mjs --coarse               # every drawn hole, ~15 mi
 Run it after moving a drawn hole's tee or cup or anything on the line between
 them; `hole-lab.html?course=<id>` draws the same traces on the hole's plan.
 
+And before choosing where a pin goes, the map of where shots finish with no
+pin at all (README → "Where the ball finishes"):
+
+```sh
+node golf3d/tools/rest-map.mjs cinder --hole 3 --club mallet
+```
+
 And for the long game, the card a person would score rather than the perfect
 one (README → `tools/human-check.mjs`):
 
@@ -152,6 +159,36 @@ alone, an `#endif`, the wave LOD's placement, or either side of the JS/GLSL
 uniform boundary each fails a *different* named assertion. If you change the
 suite, re-run that exercise — a shader test that cannot fail is worse than
 none, because it reads as coverage.
+
+## Designing a hole
+
+The owner's standard for a course is **variety and the right level of
+challenge** (v1.146.0–v1.147.0: "the courses are a bit too similar and don't
+really have the game play feeling"). What that has meant in practice:
+
+- **Start from the plan, not the furniture.** Look at the course's contact
+  sheet (`tools/turntable.mjs <course> --views plan,tee,hero`) before drawing
+  anything. If the new hole's plan is a shape the course already has — and
+  above all if it is a rectangle with something across it — change the plan.
+- **Build a hole round one thing only it does**, and let the ground or the
+  machine do it: a wall the ball climbs, a ramp it runs away down, a blade
+  that carries it. A hole that is level and played along the floor is the
+  same hole whatever is stood on it.
+- **Measure it, in this order**: `rest-map.mjs` for where a pin can go,
+  `hole-lab.mjs` for the ace share (README → "The hole lab" has the bands: an
+  opener 0.3–0.9%, a skill hole 0.1–0.3%, a closer 0.05–0.15%), then the
+  turntable and the game for what it looks like. Every par 3 should have a
+  bold line a person can read from the tee and a safe way that costs a stroke.
+- **The suite is there to catch faults, not to pick the design.** If a test
+  fails a hole that plays well and looks right, read the test before bending
+  the hole: ask what fault it was written to catch and whether this is one.
+  Narrow the test to the fault (and say why at the site) rather than work
+  round it — a box where a rock was wanted, a tee moved off a rim, a pad left
+  square. Do not loosen the ones that are the game's own rules: a putt at the
+  flag never drops, a needs-loft hole has no way along the floor, a green
+  holds a ball, the audit's geometry faults.
+- **A count is a floor, never a quota.** "There are N bunkers to check" exists
+  so a check cannot pass by finding nothing. Rebuilding a hole may move it.
 
 ## Things that will bite
 

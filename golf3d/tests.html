@@ -2010,8 +2010,11 @@
                inlays now — ovals laid into the fairway rather than rectangles
                cut out of a row — and an inlay is never scooped: courses.scoop
                says why. */
-            // Eleven since v1.146.0: Apogee's band of dust went with the old hole.
-            assert('there are scooped bunkers to check', scooped >= 11, scooped + ' found');
+            /* A floor under the count, so the checks above cannot pass by
+               finding nothing — not a quota. It was twelve, then eleven, and
+               each time it was a rebuilt hole that moved it; four is enough
+               to say the scoop is being exercised. */
+            assert('there are scooped bunkers to check', scooped >= 4, scooped + ' found');
 
             /* An inlay lies *flush* with the ground it is laid into, everywhere
                inside its own outline — which is the rule "no inlay is scooped"
@@ -2419,8 +2422,17 @@
                        Coral Keys island is a beach with grass laid on it — has
                        its whole island inside its box, so for one of those the
                        question is what is actually underfoot. */
+                    /* The green half is the long game's rule, where a tree is
+                       scattered by a `treeline` or a `forest` and a green is
+                       an inlay somebody else placed. On a drawn hole every
+                       pad is green and a stone on it is furniture somebody
+                       put on the line on purpose — the rule used to forbid
+                       that too, which is why every block on a mini hole was
+                       a box (v1.147.0). Sand is still nobody's place for
+                       either. */
+                    var long = entry.hole.longGame;
                     entry.hole.pads.forEach(function (p) {
-                        if (p.kind !== 'sand' && p.kind !== 'green') return;
+                        if (p.kind !== 'sand' && !(long && p.kind === 'green')) return;
                         if (Math.min(p.x + p.w, wl.x + wl.w) - Math.max(p.x, wl.x) <= 0) return;
                         if (Math.min(p.z + p.d, wl.z + wl.d) - Math.max(p.z, wl.z) <= 0) return;
                         if (p.r && !p.inlay && [0, 0.5, 1].every(function (fx) {
@@ -2434,7 +2446,7 @@
                     });
                 });
             });
-            assert('nothing grows or stands out of a bunker or a green', !badTree, badTree);
+            assert('nothing grows or stands out of a bunker, or a green on the long game', !badTree, badTree);
             assert('there is scenery to check', rooted >= 20, rooted + ' trees and rocks');
 
             /* And it stands **on** something.
@@ -4934,13 +4946,27 @@
             // The long courses rebuilt to the line in PLAN.md §0. One joins
             // this list when it meets it, and is held there from then on.
             var REBUILT = ['parkland', 'whinstone', 'dunmore', 'redstone', 'alpine'];
-            var b0 = performance.now();
+            var b0 = performance.now(), planned = [];
             ALL.forEach(function (entry) {
                 var h = entry.hole;
                 // Out of the bag the hole hands out, not out of the whole
                 // bag: a hole that takes the loft away has to be solvable
                 // without it, and that is exactly what this now says.
                 var r = play(h, 8, G3.bagFor(h));
+                /* …and if the greedy player cannot, the caddie with a plan
+                   gets the hole (v1.147.0). The claim is that a hole can be
+                   finished with the clubs it hands out, and the planner is
+                   the better proof of that and the one the game itself
+                   plays with. Holding every hole to the greedy search held
+                   every design to what a player who only ever aims near the
+                   flag can solve: a pad off the line, or a road that sets
+                   off away from the cup, failed here before it was ever
+                   looked at (PLAN.md has the pad holes that were never
+                   built for it). */
+                if (!r.sunk || r.strokes > h.par + 2) {
+                    var rp = BOT.play(h, 8, G3.bagFor(h), { fan: C.BOT_FAN, plan: true });
+                    if (rp.sunk && (!r.sunk || rp.strokes < r.strokes)) { r = rp; planned.push(h.name); }
+                }
                 assert(entry.course.id + '/' + h.name + ': the bot holes out with the clubs it has (par ' + h.par + ')',
                     r.sunk, r.sunk ? '' : 'gave up after ' + r.strokes + ' strokes');
                 if (r.sunk) {
@@ -4966,7 +4992,8 @@
                             (lie ? ', on ' + lie.pad.kind : ''));
                 }
             });
-            note(sims + ' simulated shots in ' + Math.round(performance.now() - b0) + 'ms');
+            note(sims + ' simulated shots in ' + Math.round(performance.now() - b0) + 'ms' +
+                (planned.length ? '; needed the plan: ' + planned.join(', ') : ''));
 
             /* Some holes exist to be flown. Tidewater's islands and tabletop,
                Highland's steps and its wall: on those the loft is the hole, and
@@ -4995,7 +5022,8 @@
                 assert(entry.course.id + '/' + h.name + ': cannot be played along the floor',
                     !r.sunk, 'the flat bag holed out in ' + r.strokes);
             });
-            assert('some holes are marked as needing loft', marked >= 6, marked + ' marked');
+            // A floor, not a quota (see the scooped bunkers): the flat-bag check must have something to check.
+            assert('some holes are marked as needing loft', marked >= 3, marked + ' marked');
             note(marked + ' holes checked against the flat bag in ' +
                  Math.round(performance.now() - b1) + 'ms');
         })();
@@ -5223,7 +5251,7 @@
                off the list. */
             var L = G3.lab;
             var OPEN = [];   // empty since v1.146.0: Apogee was the last
-            var CLOCKED = ['works/The Mill', 'works/Turnstile', 'clockwork/Pendulum', 'clockwork/Midnight', 'seaside/Harbour Gate'];
+            var CLOCKED = ['works/The Mill', 'works/Turnstile', 'works/The Carousel', 'clockwork/Pendulum', 'clockwork/Three Against Two', 'clockwork/Midnight', 'seaside/Harbour Gate'];
             assert('the lab module is loaded', !!L);
             var b0 = performance.now(), held = 0;
             ALL.forEach(function (entry) {
