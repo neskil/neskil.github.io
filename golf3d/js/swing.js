@@ -878,7 +878,44 @@
         return { word: wordFor(left ? WORDS.badL : WORDS.badR, g), tier: 'bad' };
     }
 
+    /* ── the club at the ball ──────────────────────────────────────────── */
+
+    /* The club in hand stands behind the ball (bag.js `address`), and the
+       touch swing swings it: the thumb going down takes it back, the thumb
+       coming up brings it down, and it meets the ball as the thumb crosses
+       the line it started on — which is the instant the shot is struck. So
+       the picture is the gesture, not an animation played after it.
+
+       Both of these answer in *turns*: nought is the club at address, -1 the
+       top of the biggest backswing there is and +1 the fullest finish. How
+       many degrees a turn is belongs to whoever draws it, because that
+       depends on where the camera is standing (bag.js `backMax`).
+
+       `load` is the swing as a fraction of a full one (power / club power)
+       and `up` how far back up to the line the thumb has come, 0..1. A
+       putter goes back half as far for the same pull: it is a stroke, not
+       a swing. */
+    var CLUB = { PUTT: 0.5, PUTT_THROUGH: 0.3, TAU: 0.085 };
+
+    function clubPose(load, up, putt) {
+        var back = Math.max(0, Math.min(1 + C.OVERDRAW, load || 0)) / (1 + C.OVERDRAW);
+        var u = Math.max(0, Math.min(1, up || 0));
+        return -(putt ? CLUB.PUTT : 1) * back * (1 - u);
+    }
+
+    /* After the ball: from wherever the club was when the shot was struck
+       on to a finish the size of the swing, eased so it is quickest through
+       the ball. `t` is seconds since the strike. */
+    function clubThrough(from, t, frac, putt) {
+        var k = 1 - Math.exp(-Math.max(0, t) / CLUB.TAU);
+        var f = Math.max(0, Math.min(1, frac || 0));
+        var end = putt ? CLUB.PUTT_THROUGH * (0.3 + 0.7 * f) : 0.4 + 0.6 * f;
+        return from + (end - from) * k;
+    }
+
     G3.swing = {
+        clubPose: clubPose,
+        clubThrough: clubThrough,
         WORDS: WORDS,
         arms: arms,
         markAt: markAt,

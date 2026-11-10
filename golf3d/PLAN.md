@@ -81,6 +81,15 @@ is waiting on the owner to say which course they meant.
 
 Done:
 
+- **The club in hand stands at the ball, and the touch swing swings it**
+  (v1.148.0) — the owner's "wouldn't it be cool if you could see the selected
+  club next to the ball, and when you do the swing touch input you also swing
+  the club". README → "The club at the ball". Not done, and worth a look on a
+  phone: the swing is a short one about the middle of the shaft because the
+  camera is too close for a real one; the club is ball-scale, so on a mini
+  hole its shaft runs out through the wall beside the tee; and the dev styles
+  and the bot get the finish without a backswing.
+
 - **Three more holes, and the tests looked at** (v1.147.0) — the owner's
   "continue … evaluate if some tests are too restrictive for good and
   creative design". Holes: *The Carousel* replaces Through the Wall on

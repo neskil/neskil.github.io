@@ -6748,6 +6748,9 @@
             // course keeps its light and its water; without it, the scrim.
             G3.bag.setBackdrop(!!R.fx);
             G3.bag.update(dt, R.camera, R.camera.aspect);
+            // And the club in hand, behind the ball (bag.js `address`).
+            G3.bag.addressUpdate(dt, !!(aim && aim.show && !world.moving && !world.sunk) &&
+                !R.fly && !R.replay && R.cam.mode !== 'demo', world.ball, aim ? aim.yaw : 0, R.camera);
             var open01 = G3.bag.state.open01;
             if (R.fx && open01 > 0.002) front = { k: open01, dim: BACK_DIM, layer: G3.bag.LAYER };
             /* And the course's own light goes down as the clubs come out.
