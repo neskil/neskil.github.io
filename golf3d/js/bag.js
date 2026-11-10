@@ -2609,7 +2609,11 @@
        `spot.closed`, so the club in hand leaves the bunch on selection and
        goes back into it the moment another one is taken. */
     function restSpot(c) {
-        return c.id === B.selected ? heldSpot() : c.spot.closed;
+        /* The club in hand now stands at the ball (see the address club
+           below), so the shut bag keeps every club in its cuff — showing the
+           chosen one a second time beside the bag said nothing new. `heldSpot`
+           stays for the day it is wanted again. */
+        return c.spot.closed;
     }
 
     /* And where it goes when the bag opens: out of it altogether and right up
