@@ -3292,25 +3292,53 @@
             ]
         }),
         build({
-            /* This used to be Double Doors, which was First Gear played twice
-               with the second gate out of phase — a fine idea and the third
-               hole on the course to ask the same question. What stands here
-               instead is the first wall in the file the ball goes *through*:
-               solid across the lane, with one doorway in it, over on the right
-               where the tee shot is not already pointing.
+            /* The carousel: four blades turning in a round-backed room, and
+               the first machine on the course that is on your side. A ball
+               that gets in at the east door is caught by the blade behind it,
+               slides out to the wall, is carried round the back of the room
+               and let go down the west side at the blades' own pace — and
+               the pin is where that pace runs out. Whatever the ball brought
+               in with it, it leaves with the carousel's (a governor, as The
+               Sluice's belt is), so the shot is not a weight. It is getting
+               in: a door nine tenths wide at the top of the tee's lane, off
+               the line the lane points down.
 
-               And then a blade behind it, which is what makes the two halves
-               of the hole different questions rather than the same one twice.
-               The door is a line and the blade is a moment, and neither is any
-               use without the other. */
-            name: 'Through the Wall', par: 3,
-            blurb: 'One door in the wall, off to the right, and one blade behind it. Line first, then the moment.',
-            pads: [pad(0, 0, 7, 18)],
+               This was Through the Wall, a door and a blade in a seven-wide
+               lane, and before that Double Doors — the third lane in a row
+               and the third time the course asked for a line and then a
+               moment. The plan is an arch now, the pin is beside the tee,
+               and the moment is the machine's to keep. Miss the door and
+               the ball is at the foot of the wall with a tap in to come; a
+               ball left in the room is one the next blade may or may not
+               have moved by the time it is played.
+
+               0.38% of the sweep, at any moment of the turn (README → "The
+               hole lab"): 1–12° with half the mallet or more, or off the
+               lane's east rail. The pin a third of a unit further down the
+               lane is holed by nothing, and a third nearer by one shot in a
+               hundred — a governor's ace is a cliff, and it is set on the
+               edge. */
+            name: 'The Carousel', par: 3,
+            blurb: 'Four blades in a round room. Get in at the door and the carousel carries the ball round and sets it down by the pin.',
+            pads: [
+                pad(6, 0, 2, 5),            // the tee's lane
+                /* The room: a square slab with the round wall stood on it.
+                   Rounding the slab itself (`round`, a rail on the curve)
+                   was tried and plays differently — the rail sits inside
+                   the edge, the blades' tips reach it and the ball is
+                   pinched rather than carried. */
+                pad(0, 5, 8, 8),
+                pad(0, 0, 2, 5)             // and the lane it lets you out in
+            ],
             extra: [].concat(
-                aperture(-0.2, 6, 7.4, 0.4, { gap: 1.5, at: 5.4, h: 1.7, head: 1.15 }),
-                [spinner(3.5, 11, 3.8, 0.4, { spin: 1.6 })]
+                arc(4, 9, 4.17, 0, Math.PI, { drawn: 'rail' }),
+                [
+                    spinner(4, 9, 7.5, 0.36, { spin: -0.9 }),
+                    spinner(4, 9, 7.5, 0.36, { spin: -0.9, yaw: Math.PI / 2 })
+                ],
+                aperture(6, 4.4, 2, 0.4, { gap: 0.9, at: 1.3, h: 0.62 })
             ),
-            tee: { x: 2.2, z: 1.6 }, cup: { x: 3.5, z: 15.4 }
+            tee: { x: 7, z: 1.4 }, cup: { x: 1.0, z: 3.9 }
         }),
         build({
             /* The bar runs the length of the floor, and a ball it catches is
@@ -5193,7 +5221,14 @@
                 spinner(2.5, 5, 3.2, 0.4, { spin: 2.1 }),
                 spinner(8, 8, 3.2, 0.4, { spin: 1.4 })
             ],
-            tee: { x: 2.5, z: 1.5 }, cup: { x: 10.5, z: 8 }
+            /* The pin was at the far end of the arm, three units past the
+               second bell, where one shot in twenty thousand finished and
+               the putt at the flag was one of them. It is just round the
+               corner now (v1.147.0), short of the second bell's reach: off
+               the back rail and round, past the first bell on its turn, and
+               the line at the flag meets the corner. The second bell is what
+               a ball that comes round too fast runs on into. */
+            tee: { x: 2.5, z: 1.5 }, cup: { x: 6.1, z: 7.2 }
         }),
         build({
             /* Two doors in one wall, and a different clock behind each of
@@ -5642,15 +5677,23 @@
                cut, it is the hole. It sits off the middle of the floor on
                purpose: a pipe you cannot miss is a corridor with extra steps. */
             name: 'Through the Pipe', par: 3,
-            blurb: 'Nothing in the bag carries this. Find the mouth; it comes out facing the pin.',
+            blurb: 'Nothing in the bag carries this. Find the mouth: it comes out on a green that falls to the pin, at the pace you sent it in with.',
             pads: [
                 pad(0, 0, 8, 10),
-                pad(0, 21, 8, 9)
+                /* The far green falls east, seven hundredths, and the pin
+                   is over on that side (v1.147.0). A pipe hands the ball
+                   back at the pace it went in with, on one line: with the
+                   pin on that line every ball that found the mouth was
+                   holed (3.3% of the sweep), and a ball's width off it none
+                   was. On a lean the pace is how far across it curls, so the
+                   mouth is still the line and the weight is the shot
+                   (0.72%). */
+                pad(0, 21, 8, 9, 0, 'green', -0.07, 0)
             ],
             water: [rect(-2, 10, 12, 11, -0.8)],
             gaps: [shore(rect(-2, 10, 12, 11), 0.6)],
             warps: [pipe(5.6, 7.4, 2.4, 24, 0, 0.95)],
-            tee: { x: 2.6, z: 1.6 }, cup: { x: 4, z: 28 }
+            tee: { x: 2.6, z: 1.6 }, cup: { x: 4.6, z: 27 }
         }),
         build({
             /* A loop-the-loop, and the one ride on the course the ball goes

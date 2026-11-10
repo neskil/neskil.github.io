@@ -1079,7 +1079,7 @@ approach.
 | Seaside Green | mini | `seaside` | The opener, played with a putter and a mallet. A bounce off an angled rail, a slipway round a corner, one slow gate, a first bridge to fly, a horseshoe that leans at the sea wall, and a jetty with a bend in it. Two safe putts and one ace line on every hole. |
 | Quarry Ridge | mini | `quarry` | Height, both ways: ground that is missing and ground that is in the way. A curved backboard behind a bricked-up door, a drop off a pillar with a stair down its side, a quarter-pipe that turns what climbs it, a slanted wall only the chipper goes over, a road banked round a bend over the pool, and a cannon with a plank beside it. The best six of the old Quarry Ridge and Highland Steps (v1.122.0). |
 | Tidewater Reach | mini | `lagoon` | The loft course. Almost nothing here can be reached along the floor, and every carry has a safe target and a short one. |
-| Windmill Works | crazy | `works` | Gates, blades and a windmill, after dark. Timing — and a slower way round on the holes that would otherwise be one shot: sand past First Gear's gate, a lay-by off The Sweeper's floor, a back gate round Turnstile's fence. |
+| Windmill Works | crazy | `works` | Gates, blades and a windmill, after dark. Timing — and a slower way round on the holes that would otherwise be one shot: sand past First Gear's gate, a lay-by off The Sweeper's floor, a back gate round Turnstile's fence. The third is The Carousel: four blades in a round room that carry a ball round and set it down by the pin. |
 | Pinball Parlour | crazy | `arcade` | A table, not a course, and a room round every table. Round pop bumpers that fire and rubber posts that do not, a plunger chute, slingshots that kick, ramps, flippers that fire and a hole in the table — one more piece on each hole than the last. Bumper City is a block of bumpers you bank into; Jackpot is a vault you get into through the floor. |
 | Clockwork Court | crazy | `clockwork` | The moment. One bar over a plank, two bells round a corner, two doors with a different clock behind each, a weir and a two-road mill race where a mistimed shot is a stroke, and a clock lane with two weights to finish. The best six of the old Clockwork Court, The Belfry and The Millrace (v1.122.0). |
 | Icehouse Yard | adventure | `icehouse` | Nothing stops. A putter runs eight and a half units on grass and thirty-two on ice. |
@@ -1559,9 +1559,11 @@ What the first sweep found (v1.105.0), over the seventy-eight drawn holes:
   [Cinder Cone](#cinder-cone)): the sides of the hollow bend the line on the
   way to the vent, so the putt at the flag lands wide and the ace is aimed off
   it.
-- **A rock may not stand on a green** (tests.html, "nothing grows or stands out
-  of a bunker or a green"), and every drawn hole is green, so the blocks on the
-  line are walls.
+- **A rock may not stand on a green** was the suite's rule then, and every
+  drawn hole is green, so the blocks on the line were boxes. Since v1.147.0 the
+  rule is the long game's only (a tree from a `treeline` on a green somebody
+  else inlaid is a mistake; a stone put on a drawn hole's line is furniture),
+  so a new block can be a `crag`, a `tree` or a `meteor`.
 
 The twelve, before and after, from the coarse sweep (`--coarse`, 1° and 25
 weights) so both columns are the same measure:
@@ -1580,6 +1582,45 @@ weights) so both columns are the same measure:
 | The Mill | 0.072% closer | drops | 0.119% skill | never | 1 → 2 |
 | Plunger Lane | 0.267% skill | drops | 0.111% skill | never | 1 → 2 |
 | Pendulum | 0.144% skill | drops | 0.225% skill | never | 1 → 1 |
+
+### Where the ball finishes
+
+The lab measures a hole with its pin in. `tools/rest-map.mjs` is the question
+before that one — the same sweep with the cup parked on the tee, printed as a
+grid of where every shot came to rest:
+
+```sh
+node golf3d/tools/rest-map.mjs cinder --hole 3 --club mallet
+```
+
+A pin goes where two or three shots in a thousand finish, off the line from
+the tee. Thirty is a giveaway and none is a hole with no ace however it is
+dressed. It is how Apogee Yard was rebuilt (v1.146.0) and how three more holes
+got an ace by moving a pin or leaning a green (v1.147.0), and what it showed
+most often is one thing:
+
+**A machine that sets the ball's pace, or its place, makes the ace all or
+nothing.** A belt, a ramp at two g, a pipe and a carousel all hand the ball
+back at their own pace whatever it arrived with; a bowl brings everything to
+its middle. Every shot that reaches one finishes on the same cell, so a pin
+on that cell is holed by all of them and a pin a ball's width off it by none
+— The Carousel's pin is holed by 0.31% of the sweep where it is, by 1% a
+third of a unit nearer and by nothing a third further. Three answers, each
+used once:
+
+- **Make getting on the hard part.** The machine is the reward; the shot is
+  the door in front of it (The Carousel, Dead Weight's plank).
+- **Move the pin off the focus**, so only the shots that arrive unusually
+  reach it (The Crater: nine tenths from the middle of the bowl).
+- **Lean the ground past it.** On a fall the pace a ball has left is how far
+  across it curls, which turns a governor's fixed line back into a weight
+  (Through the Pipe's far green, Deadlift's top step).
+
+| Hole | Before | After | What changed |
+| --- | --- | --- | --- |
+| The Carousel (`works` 3, was Through the Wall) | none | 0.31% tutorial | rebuilt: four blades in a round-backed room carry the ball round and let it go by the pin |
+| Three Against Two (`clockwork` 2) | 0.006% fluke, the putt at the flag | 0.33% tutorial, never | the pin from the far end of the arm to just round the corner, short of the second bell's reach |
+| Through the Pipe (`cinder` 3) | none | 0.66% tutorial | the far green leans east and the pin is across the fall |
 
 ### Adventure golf
 

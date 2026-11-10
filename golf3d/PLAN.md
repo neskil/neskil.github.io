@@ -54,16 +54,50 @@ owner's yes before it is started.
   black-sand volcanic links, an autumn forest, a desert of dunes, or a course
   under floodlights at night.
 
-- **The next holes the same way** (found while choosing Apogee Yard,
-  v1.146.0): Windmill Works' *Through the Wall* and *Grand Finale* are still a
-  lane with things across it and have no ace; Icehouse Yard's *The Salt Line*
-  is a straight lane and *Glass Table* two rectangles. They are the flattest
-  plans left on the drawn courses.
+- **The next holes the same way** — what the lab and the turntable still
+  show after v1.147.0, worst first:
+  - *Grand Finale* (`works` 6): a lane — ramp, blade, water, green — and
+    nothing from the tee reaches the far green at all (rest-map). Wants a new
+    plan, not a pin. Tried and dropped: an S-bend `road` with the mill on its
+    first straight (the banks bring every mallet to one cell halfway round
+    the second bend, a third of them fly the kerb, and nothing reaches a pin
+    past it), and a second carousel (the same hole as the third).
+  - *The Sweeper* (`works` 4): the bar is the width of the floor, so nothing
+    passes it; the only way up the hole is the lay-by, and there is no ace to
+    be had by moving anything. Wants the bar shortened or the idea changed.
+  - *Full Flow* (`clockwork` 5), *Under the Boardwalk* and *The Reach*
+    (`tidewater` 5, 6): par fours with no ace, which a par four may be — look
+    at them for plan, not for share.
+  - *Change Ringing* (`clockwork` 3): 0.011%, a fluke; the far half of the
+    lane takes one mallet in a thousand a cell.
+  - *The Salt Line* and *Glass Table* (`icehouse` 2, 5): fine numbers, the
+    two flattest plans left on the drawn courses.
+  - *Sea Legs*, *Cold Store* and *The Draught* are over 1% (a giveaway by the
+    lab's bands). The first two are openers and were meant to be generous;
+    The Draught is a third hole and could give less.
 
 Still waiting: "Deadline" (a nice biome, maps too simple, water on a table)
 is waiting on the owner to say which course they meant.
 
 Done:
+
+- **Three more holes, and the tests looked at** (v1.147.0) — the owner's
+  "continue … evaluate if some tests are too restrictive for good and
+  creative design". Holes: *The Carousel* replaces Through the Wall on
+  Windmill Works (0.31%); Three Against Two's pin moved to just round its
+  corner (0.33%, and the putt at the flag no longer drops); Through the Pipe's far
+  green leans (0.66%). `tools/rest-map.mjs` is the tool they were found with
+  (README → "Where the ball finishes"). Tests, each a rule that was holding
+  designs rather than catching faults: *the bot holes out* accepts the caddie
+  with a plan where the greedy one fails (a pad off the line, a road that
+  sets off away from the cup); *nothing stands on a green* is the long game's
+  rule only, so a drawn hole may have a rock or a tree on its line; the
+  rounded-corner check measures from the arc (v1.146.0), so a pad may be a
+  disc; and the two "enough to check" counts (scooped bunkers, holes that
+  need loft) are floors of four and three rather than the number there
+  happened to be. Kept as they were, on purpose: a putt at the flag never
+  drops, a needs-loft hole cannot be played along the floor, a green holds a
+  ball, and everything the audit calls a fault.
 
 - **Apogee Yard, rebuilt** (v1.146.0) — the owner's "the courses are a bit too
   similar and don't really have the game play feeling … start with a few that
