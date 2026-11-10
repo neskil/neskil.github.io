@@ -384,6 +384,33 @@ through over a shot that can barely go wrong is a hoop for its own sake.
 plain object, which is what lets `tests.html` cover the gate, every swing style,
 both edges of every miss and the bound on the envelope without a browser.
 
+### The club at the ball
+
+The club in hand stands behind the ball while a shot is aimed: soled, face
+square to the aim, shaft leaning off at its own lie. It is the bag's own model
+(`bag.js` `buildClub`, a second copy built the first time a club is taken) at
+the *ball's* scale, in the course's scene and light rather than on the bag's
+layer, and the simulation has never heard of it.
+
+The touch swing swings it. `game.js` hands every sample of the gesture to
+`G3.bag.address.swing(load, up)`; `swing.js` `clubPose` turns that into a turn
+from 0 (address) to -1 (the top), and the club is back at 0 as the thumb
+crosses the line it started on, which is the instant `strike` plays the shot.
+After it `clubThrough` carries the club to a finish and it is put away until
+the next shot is aimed. Any other way of striking — the dev styles, the bot —
+gets the finish alone.
+
+It is not a golfer's swing and cannot be: the camera stands about where the
+player's shins are, so a real backswing is out of frame a tenth of the way back
+and through the lens after that. The club turns about a point half way up its
+own shaft instead (`HANDS`), which lifts the head as it goes back, and how far
+a whole turn goes is read off the camera each frame (`backMax`) so the head
+never comes more than 0.3 of the way to it.
+
+The models are a left-hander's from behind the ball (hosel toward +z), so the
+rig is mirrored in z: the shaft leans left, toward the bag, and clear of the
+club chip.
+
 ### Swing styles (the touch swing, and three in dev mode)
 
 **The touch swing is the game's swing** (the owner's call). The other three

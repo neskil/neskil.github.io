@@ -533,6 +533,7 @@
         // approach after a drawn drive — and nobody asked for that one.
         setShape('straight');
 
+        if (G3.bag && G3.bag.address) G3.bag.address.strike(frac);
         hideHoleCard();
         state.strokes++;
         state.phase = 'rolling';
@@ -1165,6 +1166,7 @@
             // ways until the thumb lets go.
             swipe.low = { x: swipe.x0, y: Math.max(swipe.y0, y), t: t };
             loadFromPull(y);
+            clubFollows(y);
             return;
         }
         if (y >= swipe.low.y) {
@@ -1177,6 +1179,7 @@
             swipe.up.push([x, y]);
             if (swipe.low.y - y > C.SWIPE.TURN_PX) swipe.through = true;
         }
+        clubFollows(y);
         if (swipe.through && y <= swipe.y0) {
             // Where it came back over the start line, between the last two
             // samples — a fast swipe crosses it between frames.
@@ -1184,6 +1187,15 @@
             f = Math.max(0, Math.min(1, f));
             swipeStrike({ x: prev.x + (x - prev.x) * f, y: swipe.y0, t: prev.t + (t - prev.t) * f });
         }
+    }
+
+    /* The club behind the ball goes where the thumb goes: back as it comes
+       down, and down again as it comes up (bag.js `address`). */
+    function clubFollows(y) {
+        if (!G3.bag || !G3.bag.address) return;
+        var depth = swipe.low.y - swipe.y0;
+        var up = swipe.needle || depth <= 0 ? 0 : (swipe.low.y - y) / depth;
+        G3.bag.address.swing(state.aim.power / state.club.power, up);
     }
 
     function loadFromPull(y) {
@@ -1226,6 +1238,7 @@
     function endSwipe() {
         $('swipe').classList.remove('held');
         swipe = null;
+        if (G3.bag && G3.bag.address) G3.bag.address.rest();
         drawSwipe();
     }
 
