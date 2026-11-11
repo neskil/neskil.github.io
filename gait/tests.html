@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gait Lab — Simulation Tests</title>
+    <meta name="robots" content="noindex">
+    <style>
+        body { background: #0f172a; color: #f8fafc; font-family: system-ui, monospace; padding: 1.5rem; line-height: 1.5; }
+        h1 { font-size: 1.4rem; margin-bottom: 1rem; color: #34d399; }
+        .pass { color: #34d399; }
+        .fail { color: #f87171; font-weight: bold; }
+        #summary { font-size: 1.2rem; margin-bottom: 1rem; padding: 0.5rem; background: #1e293b; border-radius: 6px; }
+        .test-row { margin-bottom: 0.25rem; font-family: monospace; }
+    </style>
+</head>
+<body>
+    <h1>Gait Lab — Test Suite</h1>
+    <div id="summary">Running tests…</div>
+    <div id="results"></div>
+
+    <script type="module">
+        import * as S from './js/sim.js';
+
+        const results = document.getElementById('results');
+        let passed = 0, failed = 0;
+        function ok(cond, name, detail = '') {
+            const row = document.createElement('div');
+            row.className = 'test-row ' + (cond ? 'pass' : 'fail');
+            row.textContent = (cond ? '✓ ' : '✗ ') + name + (detail ? ' — ' + detail : '');
+            results.appendChild(row);
+            cond ? passed++ : failed++;
+        }
+        const near = (a, b, tol) => Math.abs(a - b) <= tol;
+        const bodies = Object.entries(S.PRESETS).map(([key, p]) => [key, S.settle(p)]);
+
+        // ── Bodies ──
+        for (const [key, spec] of bodies) {
+            const v = S.validate(spec);
+            ok(v.ok, key + ' is a valid creature', v.why);
+        }
+        ok(bodies.every(([, s]) => Math.min(...s.nodes.map(n => n[1])) === 0 && Math.min(...s.nodes.map(n => n[0])) === 0), 'every preset stands on the ground at the start line');
+        {
+            const tri = S.PRESETS.tripod;
+            ok(!S.validate({ nodes: tri.nodes.slice(0, 2), links: [[0, 1, 1]] }).ok, 'two joints are not a creature');
+            ok(!S.validate({ nodes: tri.nodes, links: tri.links.map(l => [l[0], l[1], 0]) }).ok, 'nor is a body with no muscle');
+            ok(!S.validate({ nodes: [...tri.nodes, [3, 3]], links: tri.links }).ok, 'nor one with a joint attached to nothing');
+            ok(!S.validate({ nodes: tri.nodes, links: [...tri.links, [1, 0, 0]] }).ok, 'nor one with two links between the same joints');
+            ok(!S.validate({ nodes: [[0, 0], [0.05, 0], [1, 1]], links: [[0, 1, 1], [1, 2, 0]] }).ok, 'nor one with joints on top of each other');
+            ok(!S.validate({ nodes: tri.nodes, links: [[0, 0, 1], [1, 2, 0]] }).ok, 'nor a link from a joint to itself');
+        }
+
+        // ── Physics ──
+        {
+            // A body told to do nothing should stand still: all pull genes zero.
+            for (const [key, spec] of bodies) {
+                const g = new Float32Array(S.genomeLength(spec));
+                g.fill(0.5, 0, 1 + spec.nodes.length);
+                const w = S.createWorld(spec, g);
+                for (let i = 0; i < 5 / S.DT; i++) S.step(w);
+                const speed = Math.max(...Array.from(w.vx, (v, i) => Math.hypot(v, w.vy[i])));
+                if (key === 'tripod') ok(Math.abs(S.distance(w)) < 0.02 && speed < 0.02 && !w.broken, 'a triangle with slack muscles stands where it was put', S.distance(w).toFixed(4) + ' m');
+                ok(Array.from(w.y).every(y => y >= 0 && y < 3) && !w.broken, key + ' with slack muscles stays above ground and in one piece');
+            }
+        }
+        {
+            // Drop a rigid triangle: it lands, settles, and its links keep their lengths.
+            const spec = { nodes: [[0, 1], [1, 1], [0.5, 1.8]], links: [[0, 1, 0], [1, 2, 0], [2, 0, 1]] };
+            const g = new Float32Array(S.genomeLength(spec)).fill(0);
+            const w = S.createWorld(spec, g);
+            for (let i = 0; i < 0.3 / S.DT; i++) S.step(w);
+            ok(near(w.vy[0], -9.8 * 0.3, 0.15), 'things fall at 9.8 m/s²', w.vy[0].toFixed(2) + ' m/s after 0.3 s');
+            for (let i = 0; i < 4 / S.DT; i++) S.step(w);
+            const stretch = Math.max(...w.links.map(l => Math.abs(Math.hypot(w.x[l.a] - w.x[l.b], w.y[l.a] - w.y[l.b]) - l.rest) / l.rest));
+            ok(near(Math.min(...w.y), 0, 1e-6) && stretch < 0.03, 'and come to rest on the ground with their shape intact', (stretch * 100).toFixed(2) + '% stretch');
+        }
+        {
+            // Grip: slide a body along the ground and see which one stops first.
+            const slide = (grip) => {
+                const spec = S.settle(S.PRESETS.tripod);
+                const g = new Float32Array(S.genomeLength(spec)).fill(0);
+                g.fill(grip, 1, 4);
+                const w = S.createWorld(spec, g);
+                w.vx.fill(3);
+                for (let i = 0; i < 3 / S.DT; i++) S.step(w);
+                return S.distance(w);
+            };
+            const slick = slide(0), sticky = slide(1);
+            ok(slick > sticky * 3 && sticky > 0, 'slick feet slide far, grippy feet stop short', slick.toFixed(2) + ' m vs ' + sticky.toFixed(2) + ' m');
+        }
+        {
+            const spec = bodies[0][1], rand = S.rng(7);
+            const g = S.randomGenome(spec, rand);
+            ok(S.race(spec, g) === S.race(spec, g), 'the same genome runs the same race every time');
+            const w = S.createWorld(spec, g);
+            ok(w.links.filter(l => l.muscle).every(l => l.pull >= 0 && l.pull <= S.MAX_PULL), 'no muscle pulls further than ' + S.MAX_PULL * 100 + '% of its length');
+            ok(S.tempoHz([0]) === 0.5 && near(S.tempoHz([1]), 2.2, 1e-9), 'tempo runs from 0.5 to 2.2 beats a second');
+        }
+        {
+            // Nothing a genome can ask for breaks the physics.
+            let bad = 0, far = 0;
+            for (const [, spec] of bodies) {
+                const rand = S.rng(99);
+                for (let i = 0; i < 40; i++) {
+                    const g = i < 2 ? new Float32Array(S.genomeLength(spec)).fill(i) : S.randomGenome(spec, rand);
+                    const d = S.race(spec, g, 5);
+                    if (!Number.isFinite(d)) bad++;
+                    if (Math.abs(d) > 5 * 8) far++;
+                }
+            }
+            ok(bad === 0 && far === 0, '160 random and extreme genomes all finish, none faster than 8 m/s');
+        }
+
+        // ── Evolution ──
+        {
+            const a = S.createPopulation(bodies[0][1], 5), b = S.createPopulation(bodies[0][1], 5), c = S.createPopulation(bodies[0][1], 6);
+            for (let i = 0; i < 4; i++) { S.evolve(a); S.evolve(b); S.evolve(c); }
+            ok(JSON.stringify(a.history) === JSON.stringify(b.history), 'the same seed evolves the same way');
+            ok(JSON.stringify(a.history) !== JSON.stringify(c.history), 'and a different seed a different way');
+            ok(a.gen === 4 && a.history.length === 4 && a.genomes.length === a.size && a.ranked.length === a.size, 'a generation is raced, ranked and replaced');
+            ok(a.ranked.every((r, i) => i === 0 || r.dist <= a.ranked[i - 1].dist), 'ranked best first');
+        }
+        for (const [key, spec] of bodies) {
+            const pop = S.createPopulation(spec, 3, 40);
+            for (let i = 0; i < 30; i++) S.evolve(pop);
+            const h = pop.history, first = h[0], lastGen = h[h.length - 1];
+            ok(h.every((s, i) => i === 0 || s.best >= h[i - 1].best - 1e-9), key + ': the best never gets worse, because the best go through untouched');
+            ok(lastGen.best > Math.max(first.best * 1.5, 8), key + ' learns to cover ground in 30 generations', first.best.toFixed(1) + ' m → ' + lastGen.best.toFixed(1) + ' m');
+            ok(lastGen.mean > first.mean + 2, key + ': and the whole population with it', first.mean.toFixed(1) + ' m → ' + lastGen.mean.toFixed(1) + ' m average');
+        }
+        {
+            const rand = S.rng(1), spec = bodies[2][1];
+            const g = S.randomGenome(spec, rand);
+            let always = true, bounded = true;
+            for (let i = 0; i < 200; i++) {
+                const m = S.mutate(g, rand);
+                if (m.every((v, j) => v === g[j])) always = false;
+                if (m.some(v => v < 0 || v > 1)) bounded = false;
+            }
+            ok(always && bounded, 'a mutation always changes something and keeps every gene in range');
+            const a = new Float32Array(20).fill(0), b = new Float32Array(20).fill(1);
+            const child = S.cross(a, b, rand), ones = child.reduce((s, v) => s + v, 0);
+            ok(child.every(v => v === 0 || v === 1) && ones > 2 && ones < 18, 'a child takes each gene from one parent or the other');
+            ok(S.genomeLength(spec) === 1 + 7 + 2 * 5, 'a genome is one tempo, a grip per joint, a pull and a phase per muscle');
+        }
+
+        // ── Sharing ──
+        for (const [key, spec] of bodies) {
+            const back = S.decode(S.encode(spec));
+            ok(back && JSON.stringify(back.links) === JSON.stringify(spec.links) && back.nodes.every((n, i) => near(n[0], spec.nodes[i][0], 1e-9) && near(n[1], spec.nodes[i][1], 1e-9)), key + ' survives a trip through a link', S.encode(spec));
+        }
+        ok(S.decode('') === null && S.decode('nonsense') === null && S.decode('0000.01m') === null && S.decode('00000a00.zzm') === null, 'a mangled link gives nothing rather than a broken creature');
+
+        const summary = document.getElementById('summary');
+        summary.textContent = passed + ' passed, ' + failed + ' failed';
+        summary.className = failed ? 'fail' : 'pass';
+    </script>
+</body>
+</html>
