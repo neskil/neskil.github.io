@@ -3341,32 +3341,43 @@
             tee: { x: 7, z: 1.4 }, cup: { x: 1.0, z: 3.9 }
         }),
         build({
-            /* The bar runs the length of the floor, and a ball it catches is
-               a ball it carries — back towards the tee, usually, at the pace
-               the bar was doing. That was the whole hole, and the whole hole
-               was one shot: wait for the bar to turn at the far end and run
-               the putt in behind it.
+            /* The line: a conveyor the width of the floor, running east
+               across the way to the green, and the first hole on the course
+               where the machine has no moment to wait for. It is always
+               running. A ball crossing it is carried downstream for as long
+               as it is on the belt, so the putt is a ferry's: aim upstream of
+               the flag, and the slower you cross the further up you aim. A
+               putt at the flag finishes east of it every time.
 
-               The lay-by is the second shot. A bay off the west side of the
-               floor, halfway up, where the bar does not reach: putt into it,
-               watch the bar go by, and run the rest. It is the slow way and
-               it is never a three-putt; the run from the tee is a two at best
-               and a walk back down the lane at worst. */
-            name: 'The Sweeper', par: 3,
-            blurb: 'The bar sweeps the length of the floor. Run in behind it, or pull into the lay-by and let it go past.',
+               Dawdle and the belt keeps you — a ball that stops on it is
+               delivered to the reject bin at the east end, which is sand,
+               and opens on to the green at its top. That is the safe way
+               too, for anyone who would rather be carried than judge it:
+               tap on, ride to the bin, splash out, putt.
+
+               This was The Sweeper, a bar the width of a lane going up and
+               down it. Nothing passed the bar, so the hole was a wait and
+               then a lay-up, and from above it was the course's fourth
+               rectangle with one thing across it. */
+            name: 'The Line', par: 3,
+            blurb: 'The belt never stops. Cross it like a ferry: aim upstream, and further upstream the slower you go.',
             pads: [
-                pad(0, 0, 7, 16),
+                pad(2.5, 0, 4, 4.5),
+                belt(0, 4.5, 10, 4, 18, 0),
+                pad(10, 4.5, 2.4, 4, 0, 'sand'),
                 (function () {
-                    // A D-shaped bay, rounded on the outside like a kerb.
-                    var p = pad(-2.6, 6, 2.6, 4.2);
-                    p.round = { sw: 1.7, nw: 1.7 };
+                    var p = pad(0, 8.5, 12.4, 6);
+                    p.round = { nw: 3, ne: 3 };
                     return p;
                 })()
             ],
-            extra: [
-                slider(0.4, 7.8, 6.2, 0.4, { axis: 'z', amp: 3.4, speed: 1.1 })
-            ],
-            tee: { x: 3.5, z: 1.5 }, cup: { x: 5.2, z: 14 }
+            tee: { x: 4.5, z: 1.5 }, cup: { x: 4.5, z: 12.5 },
+            decor: [
+                crate(-1.6, 5.2, { yaw: 0.3 }),
+                crate(-1.7, 6.6, { yaw: -0.2 }),
+                barrel(-1.5, 7.9),
+                sign(7.6, 1.2, { yaw: -0.5 })
+            ]
         }),
         build({
             /* A green with a fence round it and two ways in: the turnstile in
@@ -3430,18 +3441,50 @@
             ]
         }),
         build({
-            name: 'Grand Finale', par: 4,
-            blurb: 'Ramp, blade, water, green. In that order, if you please.',
+            /* The one hole on the course with a hill in it, and it is all
+               hill: the tee is on top of the works, a chute runs down from
+               it to a lip, and past the lip is the mill race with the green
+               on the far bank. The ball leaves the lip with whatever the
+               putt gave it plus what the chute did, so the weight of the
+               putt is the length of the carry — short is the race, and a
+               full mallet lands deep and comes back off the round wall
+               behind the green.
+
+               The other five holes are machines that will not wait. This
+               one is over as soon as the ball is struck, and the dare is
+               all in the striking. For anybody who would rather not: let it
+               trickle down, and from the foot of the chute a boardwalk
+               runs east and a footbridge crosses the race. Three shots,
+               dry.
+
+               It was "ramp, blade, water, green" in a six-wide lane, a par
+               four on which nothing struck from the tee reached the green
+               at all (README → "Where the ball finishes"). An S-bend with
+               the mill on it was tried in its place and dropped: the banks
+               brought every ball to the same cell. */
+            name: 'Grand Finale', par: 3,
+            blurb: 'Down the chute, off the lip, over the mill race. Or trickle down and take the footbridge.',
             pads: [
-                pad(0, 0, 6, 6),
-                pad(0, 6, 6, 2.5, 0, 'wood', 0, 0.4),
-                pad(0, 8.5, 6, 4, 1),
-                pad(0, 16, 8, 6)
+                pad(0, 0, 3, 3.2, 2),
+                pad(0, 3.2, 3, 6.6, 2, 'wood', 0, -0.30303),
+                pad(0, 9.8, 3, 1.6, 0, 'wood'),
+                pad(0, 11.4, 3, 1.6, 0, 'wood', 0, 0.35),
+                pad(3, 9.8, 3.5, 1.6, 0, 'wood'),          // the boardwalk
+                pad(5, 11.4, 1.5, 4.2, 0, 'wood'),         // and the footbridge
+                (function () {
+                    var p = pad(-3, 15.6, 9.5, 8);
+                    p.round = { nw: 4, ne: 4 };
+                    return p;
+                })()
             ],
-            water: [rect(-3, 12.5, 14, 3.5, -0.9)],
-            gaps: [shore(rect(-3, 12.5, 14, 3.5), 0.7)],
-            extra: [spinner(3, 10.5, 3.6, 0.4, { spin: 1.9, base: 0.9 })],
-            tee: { x: 3, z: 1.5 }, cup: { x: 4, z: 19.5 }
+            water: [rect(-5.5, 11.2, 14.5, 4.4, -0.9)],
+            gaps: [shore(rect(-5.5, 13, 16, 2.6), 0.6)],
+            tee: { x: 1.5, z: 1.4 }, cup: { x: -1.4, z: 18.6 },
+            decor: [
+                windmill(-5.2, 19.5, { yaw: 0.6 }),
+                crate(4.6, 1.2, { yaw: 0.3 }),
+                barrel(4.8, 2.6)
+            ]
         })
     ];
 
@@ -5246,8 +5289,15 @@
                doors are then a metre apart — which is the polite version of
                this hole, and the card says par three either way. */
             name: 'Change Ringing', par: 3,
-            blurb: 'Two doors in one wall with a different clock behind each. Pick the one whose beat you can count.',
-            pads: [pad(0, 0, 8, 18)],
+            blurb: 'Two doors in one wall, a clock behind each, and the pin tucked behind the wall between them. Come through on the angle.',
+            /* The pin was at the far end, four units past both machines,
+               where one mallet in a thousand finished in any cell and the
+               ace was a fluke (0.011%). It is behind the wall between the
+               doors now, and the four units past the machines are gone: a
+               ball through a door on the angle, off the east rail, finishes
+               by it (0.24%), a ball through a door square on runs on into
+               the clock behind it, and the line at the flag is the wall. */
+            pads: [pad(0, 0, 8, 14)],
             extra: [].concat(
                 aperture(-0.2, 7, 4.4, 0.4, { gap: 1.4, at: 2.2, h: 1.7, head: 1.15 }),
                 aperture(4.2, 7, 4.0, 0.4, { gap: 1.4, at: 2.0, h: 1.7, head: 1.15 }),
@@ -5256,7 +5306,7 @@
                     spinner(6.2, 11, 3.0, 0.4, { spin: 1.5 })
                 ]
             ),
-            tee: { x: 4, z: 1.6 }, cup: { x: 4, z: 15.4 }
+            tee: { x: 4, z: 1.6 }, cup: { x: 4.8, z: 8.5 }
         }),
         build({
             /* Over the weir, which is the one place on a mill where the water
