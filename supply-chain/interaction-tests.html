@@ -92,7 +92,25 @@
         // Screen point of a node (its ground anchor sits inside the hit capsule)
         // and of a road's midpoint.
         const at = n => SC.camera.toScreen(n.x, n.y);
-        const mid = e => SC.camera.toScreen((e.a.x + e.b.x) / 2, (e.a.y + e.b.y) / 2);
+        // A point on a road where a tap reaches the road. Buildings win a hit
+        // test over roads and each one claims a 32px capsule around its whole
+        // body, so a road's midpoint can sit under some third site: the world is
+        // random, and that made the road taps below fail about one run in eight.
+        // Walk out from the midpoint to a spot no building claims (with slack).
+        const claimed = (p, ex) => st.nodes.some(n => {
+            if (!n.active || ex.includes(n)) return false;
+            const g = SC.camera.toScreen(n.x, n.y), r = SC.render.nodeIconAnchor(n);
+            const t = Math.max(0, Math.min(1, (p.y - g.y) / ((r.y - g.y) || -1e-6)));
+            return Math.hypot(g.x - p.x, (g.y + (r.y - g.y) * t) - p.y) < 40;
+        });
+        const roadPoint = (a, b) => {
+            for (const t of [0.5, 0.4, 0.6, 0.3, 0.7, 0.2, 0.8]) {
+                const p = SC.camera.toScreen(a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t);
+                if (!claimed(p, [])) return p;
+            }
+            return null;
+        };
+        const mid = e => roadPoint(e.a, e.b) || SC.camera.toScreen((e.a.x + e.b.x) / 2, (e.a.y + e.b.y) / 2);
         const tap = p => SC.input._handleTap(p.x, p.y, false);
         const toastText = () => $('toast').textContent;
 
@@ -106,6 +124,7 @@
                 if (!q || q.blocked || q.len > 700) continue;
                 if (SC.map.segmentCrossesRiver(a.x, a.y, b.x, b.y)) continue;
                 if (q.crossings && q.crossings.length) continue;
+                if (!roadPoint(a, b)) continue; // nowhere on it a tap would reach the road
                 return [a, b];
             }
             return null;
