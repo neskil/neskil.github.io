@@ -448,6 +448,17 @@
         return { ring: g, r: r, a: a, cx: cx, cz: cz };
     }
 
+    /* A table mountain: `channel` with the ring filled in, so the ground is
+       level at `a` all the way across a top of radius R and falls away
+       round it over `r` (physics.spine has the one line that does it). The
+       top is flat to the float, which is what lets a cup stand on it; the
+       flank is built ground, steep on purpose, as a channel's is. */
+    function mesa(cx, cz, R, r, a) {
+        var m = channel(cx, cz, R, r, a);
+        m.ring.fill = true;
+        return m;
+    }
+
     /* A road that bends: a pad laid along a centreline instead of over a
        rectangle (physics.laneHas has the shape). It is written the way you
        would drive it — set off from (x, z) heading along `dir`, then a list
@@ -5651,7 +5662,7 @@
        (Crosstown, Lava Tube, The Scree).
 
        Each machine is met on its own before they are combined: the pad over a
-       wall (The Springboard), a belt running back at you (The Ash Slide), the
+       wall (The Springboard), a hill with the pin on top of it (The Cone), the
        pipe (Through the Pipe), the loop (Loop the Loop), and a vent in the
        floor of a hollow (Blowhole). Then Caldera asks for all of it: up the
        vent, along the rim on the belt — the one piece of ground on the
@@ -5689,36 +5700,45 @@
             tee: { x: 1.4, z: 1.6 }, cup: { x: 6.2, z: 18.9 }
         }),
         build({
-            /* The first hole states the arithmetic and nothing else: two and a
-               half units of ash running back down the slope at four units per
-               second squared, three and a half units in front of the tee.
+            /* The cone the course is named for, which for sixty releases it
+               did not have: a hill in the middle of a round green with the
+               pin on the flat of its top. Nothing rests on the flank. A putt
+               that runs out of pace turns round and comes back down into
+               the moat, and one that gets there has a table four strides
+               across to stop on or run off the far side of.
 
-               Those three numbers are the hole, and they were picked by
-               playing it rather than by working it out. A full swing of the
-               putter reaches the ash with about six of pace left, crosses with
-               two, and stops three short of the pin — so the hole asks for
-               everything the flattest club in the bag has and still leaves you
-               a putt. Four fifths of the same swing is handed back to your
-               feet. And a driver at full power is worse than either: it
-               crosses, hits the far rail and comes all the way home, which is
-               the other half of the lesson and the half this course keeps
-               coming back to. Nothing is lost by being short here. That stops
-               being true on the third hole.
+               A lava bomb lies at the foot of the cone on the line from the
+               tee to the flag, and the pin is over on the east side of the
+               top. So the line is the other way: off the west rail of the
+               tee's lane, which sends the ball up the flank on the slant
+               and across the top to the pin (README → "The hole lab":
+               332–336° with 84% of the mallet or more). From the moat the
+               top is one firm putt from anywhere, so the hole is a three
+               for anybody and a one for the bank.
 
-               A block of tuff sits on the line past the ash, because the mallet
-               straight at the flag used to be the ace and the hole asked how
-               hard and never where (README → "The hole lab"). The line now is
-               off a side wall: across the ash at an angle, which is a longer
-               crossing, so it wants nearly all of the mallet. */
-            name: 'The Ash Slide', par: 3,
-            blurb: 'A band of ash running back down at you. A full swing of the putter just gets over; anything less is returned.',
+               The cone is a `mesa`: a ring of built ground, steep on
+               purpose as a ramp is, filled in level across the top. A
+               crater scooped out of a hump was tried first and is what a
+               volcano wants to be, but a cup has to be cut out of ground
+               that is flat, and the bottom of a scoop is not.
+
+               The Ash Slide stood here: a belt running back at the tee
+               across a six-wide lane, and a block on the line because the
+               putt at the flag was the ace. It asked how hard and never
+               where, and Loop the Loop's east lane still asks it. */
+            name: 'The Cone', par: 3,
+            blurb: 'The pin is on top of the cone. Too soft and it rolls back down to you; and the way up is off the wall, not over the lava bomb.',
             pads: [
-                pad(0, 0, 6, 5),
-                belt(0, 5, 6, 2.5, 0, -4),
-                pad(0, 7.5, 6, 7)
+                pad(-1.5, 0, 3, 5),
+                (function () {
+                    var p = pad(-6, 5, 12, 12);
+                    p.round = { nw: 6, ne: 6, sw: 4, se: 4 };
+                    p.bumps = [mesa(0, 11, 2.3, 3.4, 1.3)];
+                    return p;
+                })()
             ],
-            extra: [wall(2.55, 9.15, 0.9, 0.9, 0.7, { base: -0.1 })],
-            tee: { x: 3, z: 1.5 }, cup: { x: 3, z: 12 }
+            extra: [meteor(0.5, 5.9, 0.8)],
+            tee: { x: 0, z: 1.4 }, cup: { x: 1.0, z: 11 }
         }),
         build({
             /* And the pipes. Eleven units of water, which is more than
@@ -8385,7 +8405,7 @@
     G3.authoring = {
         pad: pad, wall: wall, spinner: spinner, slider: slider,
         beam: beam, pen: pen, bumper: bumper, post: post, bank: bank, slingshot: slingshot, arc: arc,
-        trough: trough, channel: channel, road: road, bowl: bowl, dish: dish, bands: bands, tilt: tilt,
+        trough: trough, channel: channel, mesa: mesa, road: road, bowl: bowl, dish: dish, bands: bands, tilt: tilt,
         commons: commons,
         sprung: sprung, belt: belt, pipe: pipe, pipes: pipes, loop: loop,
         aperture: aperture, flipper: flipper, mill: mill,

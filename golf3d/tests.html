@@ -237,6 +237,16 @@
                 A.channel(10, 12, 4, 2, 0.6),
                 A.channel(10, 12, 7, 1.8, -0.5, 0.3, 2.2)
             ];
+            (function () {
+                var mp = A.pad(0, 0, 20, 20); mp.bumps = [A.mesa(10, 10, 2, 3, 1.5)];
+                assert('a mesa is level at its full height all across its top',
+                    approx(P.padHeight(mp, 10, 10), 1.5, 1e-12) && approx(P.padHeight(mp, 11.9, 10), 1.5, 1e-12) &&
+                    approx(P.padHeight(mp, 10, 8.2), 1.5, 1e-12) && P.slopeAt(mp, 11, 11) === 0,
+                    P.padHeight(mp, 10, 10) + ', ' + P.padHeight(mp, 11.9, 10));
+                assert('and falls away to nothing over its flank',
+                    P.padHeight(mp, 13.5, 10) < 1.5 && P.padHeight(mp, 13.5, 10) > 0 && approx(P.padHeight(mp, 15.01, 10), 0, 1e-12),
+                    P.padHeight(mp, 13.5, 10) + ', ' + P.padHeight(mp, 15.01, 10));
+            })();
             assert('a trough is at its full depth all along its spine',
                 approx(P.padHeight({ x: 0, z: 0, w: 20, d: 20, y: 1, bumps: [curved.bumps[0]] }, 3, 4), 0) &&
                 approx(P.padHeight({ x: 0, z: 0, w: 20, d: 20, y: 1, bumps: [curved.bumps[0]] }, 9, 5), 0));
@@ -2390,9 +2400,18 @@
                         z = h.cup.z + Math.sin(a2) * A.CUP_FLAT * f;
                         s = P.surfaceUnder(h, x, z, Infinity);
                         if (!s || !s.pad.bumps) return;
-                        var off = Math.abs(P.padHeight(s.pad, x, z) -
-                            (s.pad.y + (s.pad.sx || 0) * (x - s.pad.x) +
-                                       (s.pad.sz || 0) * (z - s.pad.z)));
+                        /* Flat, not low: what the renderer needs is a
+                           patch with no relief in it, and a cup on a `mesa`
+                           (cinder/The Cone) stands on one that is level and
+                           a unit above its pad's own plane. So the relief is
+                           measured against what it is worth at the cup. */
+                        var plane = function (px, pz) {
+                            return P.padHeight(s.pad, px, pz) -
+                                (s.pad.y + (s.pad.sx || 0) * (px - s.pad.x) +
+                                           (s.pad.sz || 0) * (pz - s.pad.z));
+                        };
+                        var off = Math.abs(plane(x, z) -
+                            (P.padContains(s.pad, h.cup.x, h.cup.z) ? plane(h.cup.x, h.cup.z) : 0));
                         if (off > worstNearCup) {
                             worstNearCup = off;
                             nearCupName = entry.course.id + '/' + h.name;

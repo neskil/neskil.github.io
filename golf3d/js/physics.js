@@ -179,6 +179,14 @@
             dx = x - (L[0] + ex * t); dz = z - (L[1] + ez * t);
         } else if (m.ring) {
             var g = m.ring, ox = x - g.cx, oz = z - g.cz;
+            /* A filled ring is a table: everything inside the circle is on
+               the spine, so the profile is at its full height all the way
+               across and the flank falls away from the rim (courses
+               `mesa`). Level ground, exactly — which is what a cup needs. */
+            if (g.fill && ox * ox + oz * oz <= g.R * g.R) {
+                _sp.x = 0; _sp.z = 0;
+                return 0;
+            }
             var ang = Math.atan2(oz, ox);
             if (g.a0 !== undefined) {
                 // An arc: an angle outside it is measured from the nearer
