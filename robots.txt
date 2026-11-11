@@ -17,6 +17,7 @@ Disallow: /golf3d/hole-lab.html
 Disallow: /golf3d/shader-tests.html
 Disallow: /golf3d/ui-tests.html
 Disallow: /golf3d/turntable.html
+Disallow: /golf3d/examples/portals-kit/index.html
 Disallow: /cargo-lander/syntax-check.html
 Disallow: /cargo-lander/probe-screenshot.html
 Disallow: /supply-chain/audio-check.html

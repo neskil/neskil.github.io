@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex">
+<title>Portals kit on r128 — Loft Links example</title>
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9GP823TGLB"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { dataLayer.push(arguments); }
+  gtag('js', new Date());
+  gtag('config', 'G-9GP823TGLB');
+</script>
+<style>
+  :root { --ground: #1b1f17; --chalk: #e8e4d4; --brass: #b8964a; }
+  html, body { margin: 0; height: 100%; background: var(--ground); color: var(--chalk); font: 14px/1.4 "Barlow Semi Condensed", system-ui, sans-serif; }
+  canvas { display: block; width: 100vw; height: 100vh; }
+  #note { position: fixed; left: 16px; bottom: 16px; right: 16px; max-width: 46ch; padding: 10px 12px; background: var(--ground); border: 1px solid var(--brass); border-radius: 4px; }
+  #note a { color: var(--brass); }
+</style>
+</head>
+<body>
+<canvas id="view"></canvas>
+<div id="note">Sky, koi and gulls from the <a href="https://github.com/emollick/ai-portals">Portals</a> kit (Ethan Mollick, CC BY-NC-SA 4.0), running on this site's three.js r128. See <a href="README.md">README.md</a>.</div>
+
+<!-- r128 is a classic script that sets window.THREE; the import map lets the r170-era kit's `import 'three'` find it. -->
+<script src="../../vendor/three.min.js"></script>
+<script type="importmap">{ "imports": { "three": "./three-shim.js" } }</script>
+<script type="module">
+import { makeSky } from './kit/sky.js';
+import { makeFlock, makeFishSchool } from './kit/fauna.js';
+
+const THREE = window.THREE;
+window.EXAMPLE = { errors: [] };
+addEventListener('error', (e) => window.EXAMPLE.errors.push(e.message));
+const ce = console.error; console.error = (...a) => { window.EXAMPLE.errors.push(a.join(' ').slice(0, 200)); ce(...a); };
+
+const canvas = document.getElementById('view');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(60, 1, 0.1, 4000);
+camera.position.set(0, 3, 26);
+
+const sky = makeSky();
+scene.add(sky.object);
+const gulls = makeFlock({ preset: 'gulls', count: 40, center: [0, 7, 0] });
+const koi = makeFishSchool({ preset: 'koi', count: 30, center: [0, -2, 0] });
+scene.add(gulls.object, koi.object);
+
+function resize() { renderer.setSize(innerWidth, innerHeight, false); camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); }
+addEventListener('resize', resize); resize();
+
+let t = 0, last = performance.now(), frames = 0;
+function frame(now) {
+  const dt = Math.min(0.05, (now - last) / 1000); last = now; t += dt;
+  camera.position.x = Math.sin(t * 0.1) * 6; camera.lookAt(0, 5, 0);
+  for (const o of [sky, gulls, koi]) if (o.update) o.update(dt, t, camera);
+  renderer.render(scene, camera);
+  window.EXAMPLE.frames = ++frames;
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
