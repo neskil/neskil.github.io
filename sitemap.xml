@@ -84,4 +84,16 @@
     <loc>https://neskil.github.io/name-song/</loc>
     <priority>0.6</priority>
   </url>
+  <url>
+    <loc>https://neskil.github.io/black-hole/</loc>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://neskil.github.io/gait/</loc>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://neskil.github.io/erosion/</loc>
+    <priority>0.7</priority>
+  </url>
 </urlset>
