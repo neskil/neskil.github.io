@@ -384,6 +384,33 @@ through over a shot that can barely go wrong is a hoop for its own sake.
 plain object, which is what lets `tests.html` cover the gate, every swing style,
 both edges of every miss and the bound on the envelope without a browser.
 
+### The club at the ball
+
+The club in hand stands behind the ball while a shot is aimed: soled, face
+square to the aim, shaft leaning off at its own lie. It is the bag's own model
+(`bag.js` `buildClub`, a second copy built the first time a club is taken) at
+the *ball's* scale, in the course's scene and light rather than on the bag's
+layer, and the simulation has never heard of it.
+
+The touch swing swings it. `game.js` hands every sample of the gesture to
+`G3.bag.address.swing(load, up)`; `swing.js` `clubPose` turns that into a turn
+from 0 (address) to -1 (the top), and the club is back at 0 as the thumb
+crosses the line it started on, which is the instant `strike` plays the shot.
+After it `clubThrough` carries the club to a finish and it is put away until
+the next shot is aimed. Any other way of striking — the dev styles, the bot —
+gets the finish alone.
+
+It is not a golfer's swing and cannot be: the camera stands about where the
+player's shins are, so a real backswing is out of frame a tenth of the way back
+and through the lens after that. The club turns about a point half way up its
+own shaft instead (`HANDS`), which lifts the head as it goes back, and how far
+a whole turn goes is read off the camera each frame (`backMax`) so the head
+never comes more than 0.3 of the way to it.
+
+The models are a left-hander's from behind the ball (hosel toward +z), so the
+rig is mirrored in z: the shaft leans left, toward the bag, and clear of the
+club chip.
+
 ### Swing styles (the touch swing, and three in dev mode)
 
 **The touch swing is the game's swing** (the owner's call). The other three
@@ -1079,7 +1106,7 @@ approach.
 | Seaside Green | mini | `seaside` | The opener, played with a putter and a mallet. A bounce off an angled rail, a slipway round a corner, one slow gate, a first bridge to fly, a horseshoe that leans at the sea wall, and a jetty with a bend in it. Two safe putts and one ace line on every hole. |
 | Quarry Ridge | mini | `quarry` | Height, both ways: ground that is missing and ground that is in the way. A curved backboard behind a bricked-up door, a drop off a pillar with a stair down its side, a quarter-pipe that turns what climbs it, a slanted wall only the chipper goes over, a road banked round a bend over the pool, and a cannon with a plank beside it. The best six of the old Quarry Ridge and Highland Steps (v1.122.0). |
 | Tidewater Reach | mini | `lagoon` | The loft course. Almost nothing here can be reached along the floor, and every carry has a safe target and a short one. |
-| Windmill Works | crazy | `works` | Gates, blades and a windmill, after dark. Timing — and a slower way round on the holes that would otherwise be one shot: sand past First Gear's gate, a back gate round Turnstile's fence. The third is The Carousel: four blades in a round room that carry a ball round and set it down by the pin. The fourth is The Line, a belt across the way that is crossed like a river, and the last is a chute, a lip and a carry over the mill race (v1.148.0). |
+| Windmill Works | crazy | `works` | Gates, blades and a windmill, after dark. Timing — and a slower way round on the holes that would otherwise be one shot: sand past First Gear's gate, a back gate round Turnstile's fence. The third is The Carousel: four blades in a round room that carry a ball round and set it down by the pin. The fourth is The Line, a belt across the way that is crossed like a river, and the last is a chute, a lip and a carry over the mill race (v1.149.0). |
 | Pinball Parlour | crazy | `arcade` | A table, not a course, and a room round every table. Round pop bumpers that fire and rubber posts that do not, a plunger chute, slingshots that kick, ramps, flippers that fire and a hole in the table — one more piece on each hole than the last. Bumper City is a block of bumpers you bank into; Jackpot is a vault you get into through the floor. |
 | Clockwork Court | crazy | `clockwork` | The moment. One bar over a plank, two bells round a corner, two doors with a different clock behind each, a weir and a two-road mill race where a mistimed shot is a stroke, and a clock lane with two weights to finish. The best six of the old Clockwork Court, The Belfry and The Millrace (v1.122.0). |
 | Icehouse Yard | adventure | `icehouse` | Nothing stops. A putter runs eight and a half units on grass and thirty-two on ice. |

@@ -730,7 +730,7 @@
         g.userData.clubId = club.id;
         g.userData.len = len;
         return {
-            group: g, hit: hit, head: head, len: len, pivot: pivot,
+            group: g, hit: hit, head: head, len: len, pivot: pivot, at: built.userData.at,
             shaft: shaft, fullGeo: fullGeo, stubGeo: stubGeo, stubLen: stubLen,
             grip: grip, cap: cap
         };
@@ -938,6 +938,7 @@
         g.position.y = HOSEL_SEAT;
         g.add(turn);
         g.userData.neck = at.r;
+        g.userData.at = at;
         return g;
     }
 
@@ -3005,6 +3006,8 @@
             root.traverse(function (o) { o.layers.set(LAYER); });
         });
 
+        buildAddress(scene);
+
         B.ray = new THREE.Raycaster();
         B.ray.layers.set(LAYER);
         B.ndc = new THREE.Vector2();
@@ -3496,7 +3499,187 @@
         if (bottom > 0) BAND.bottom = Math.max(0.06, Math.min(0.45, bottom));
     }
 
+    /* ── the club at the ball ──────────────────────────────────────────── */
+
+    /* The club in hand, stood behind the ball the way it would be addressed:
+       soled on the ground, face square to the aim, shaft leaning off at its
+       own lie to where the player's hands would be. It is the same model the
+       bag holds — `buildClub` again — at the ball's own scale, so a ball that
+       is 0.16 of a unit across its radius gets a club seven and a half times
+       life size, which is to say the right size for that ball.
+
+       Unlike everything else in this file it is *in* the course: on the
+       course's layer, under the course's light, casting a shadow on the
+       grass. Nothing in the simulation knows about it; a wall it stands
+       through is a wall it stands through.
+
+       And the touch swing swings it (swing.js `clubPose`). Not as a golfer
+       would: the camera stands about where the player's shins are, so a real
+       backswing — the head a metre and a half behind the ball and over a
+       shoulder — is out of the picture a tenth of the way back and through
+       the lens shortly after. So the club turns about a point half way up
+       its own shaft (`HANDS`), in the plane the shaft and the aim lie in,
+       which is a short wristy swing whose head lifts as it goes back and
+       stays where it can be seen; and how far back it may go is read off the
+       camera every frame (`backMax`). The finish is ahead of the ball, where
+       there is all the room in the world. */
+    var BALL_M = 0.02135;        // a golf ball's radius, metres
+    var HANDS = 0.55;            // head to the point the club turns about, metres
+    var SWING_BACK = 1.35, SWING_FINISH = 1.75;      // a whole turn each way, radians
+    var AD = {
+        root: null, sh: null, slot: null,
+        built: {},               // club id -> { holder, axis, pivot }
+        id: null,
+        mode: 'rest',            // rest | pull | through
+        want: 0, now: 0, from: 0,        // turns (swing.js `clubPose`)
+        t: 0, frac: 0, away: 0, back: SWING_BACK
+    };
+    var _cam = new THREE.Vector3();
+
+    function isPutter(id) {
+        var c = C.ALL_CLUBS.filter(function (k) { return k.id === id; })[0];
+        return !c || (c.loft || 0) < 9 * Math.PI / 180;
+    }
+
+    function addressClub(id) {
+        if (AD.built[id]) return AD.built[id];
+        var club = C.ALL_CLUBS.filter(function (k) { return k.id === id; })[0];
+        if (!club) return null;
+        var c = buildClub(club, mats(club));
+        c.group.remove(c.hit);
+        c.group.remove(c.pivot);
+
+        /* Undo `mount`: that hung an address-frame head on an upright shaft,
+           and this stands the whole club back up on the head. */
+        var turn = -(c.at.lie + Math.PI / 2);
+        var holder = new THREE.Group();
+        holder.add(c.group);
+        c.group.rotation.x = turn;
+        var seat = v3(0, c.len - 0.004 + HOSEL_SEAT, 0).applyAxisAngle(v3(1, 0, 0), turn);
+        c.group.position.copy(c.at.top).sub(seat);
+
+        /* Then the head to the ball: the sole on the ground, the middle of
+           the face behind the middle of the ball and a finger's width off
+           it. Read off the head itself, so a new head needs nothing here. */
+        holder.updateMatrixWorld(true);
+        var box = new THREE.Box3().setFromObject(c.head);
+        holder.position.set(-box.max.x - BALL_M - 0.006, -box.min.y, -(box.min.z + box.max.z) / 2);
+
+        var d = shaftDir(c.at.lie);
+        var made = {
+            holder: holder,
+            pivot: c.at.top.clone().add(holder.position).addScaledVector(d, HANDS),
+            // aim × shaft: turning about it by a positive angle carries the
+            // head toward the target.
+            axis: v3(0, -d.z, d.y).normalize()
+        };
+        holder.traverse(function (o) { if (o.isMesh) o.castShadow = true; });
+        AD.built[id] = made;
+        return made;
+    }
+
+    function buildAddress(scene) {
+        AD.root = new THREE.Group();
+        AD.sh = new THREE.Group();
+        AD.slot = new THREE.Group();
+        AD.root.add(AD.sh);
+        AD.sh.add(AD.slot);
+        /* Mirrored in z: the heads are modelled with the hosel toward +z,
+           which from behind the ball is a left-hander's club, and the shaft
+           leaning right runs under the club chip. Flipped, it leans left
+           toward the bag it came out of. */
+        var k = C.BALL_R / BALL_M;
+        AD.root.scale.set(k, k, -k);
+        AD.root.visible = false;
+        scene.add(AD.root);
+    }
+
+    function addressTake(id) {
+        if (AD.id === id) return AD.built[id];
+        var made = addressClub(id);
+        if (!made) return null;
+        while (AD.slot.children.length) AD.slot.remove(AD.slot.children[0]);
+        AD.slot.add(made.holder);
+        // `sh` sits on the pivot and the slot puts the club back where it
+        // was — so no turn at all is the club at address.
+        AD.sh.position.copy(made.pivot);
+        AD.slot.position.copy(made.pivot).negate();
+        AD.id = id;
+        return made;
+    }
+
+    /* How far back a whole turn may go, in radians: far enough that the head
+       gets no nearer the camera than 0.3 of the way to it. Only when the
+       camera is behind the ball and near the line — from the side or from
+       above there is nothing to run into. */
+    function backMax(camera) {
+        AD.root.updateMatrixWorld(true);
+        AD.root.worldToLocal(_cam.copy(camera.position));
+        if (_cam.x >= 0 || Math.abs(_cam.z) > 1.5) return SWING_BACK;
+        return Math.min(SWING_BACK, Math.asin(Math.min(1, 0.3 * -_cam.x / HANDS)));
+    }
+
+    /* Called by the renderer every frame. `show` is "a shot is being aimed";
+       the club also stays for the moment after a strike, where it stood, to
+       finish its swing. */
+    function addressUpdate(dt, show, ball, yaw, camera) {
+        if (!AD.root) return;
+        if (AD.mode === 'through') {
+            AD.t += dt;
+            AD.now = G3.swing.clubThrough(AD.from, AD.t, AD.frac, isPutter(AD.id));
+            if (AD.t > 0.7) { AD.mode = 'rest'; AD.away = 1; AD.want = 0; }
+        } else {
+            if (AD.away) {
+                // Put away after the shot; back at address for the next one.
+                AD.now = 0;
+                if (show) AD.away = 0;
+            }
+            AD.now += (AD.want - AD.now) * (1 - Math.pow(AD.mode === 'pull' ? 1e-9 : 1e-4, dt));
+        }
+        var on = !!B.selected && !AD.away && (AD.mode === 'through' || !!show);
+        AD.root.visible = on;
+        if (!on) return;
+        var made = addressTake(B.selected);
+        if (!made) { AD.root.visible = false; return; }
+        if (AD.mode !== 'through') {
+            AD.root.position.set(ball.x, ball.y - C.BALL_R, ball.z);
+            AD.root.rotation.y = yaw - Math.PI / 2;
+            AD.back = backMax(camera);
+        }
+        AD.sh.quaternion.setFromAxisAngle(made.axis, AD.now < 0 ? AD.now * AD.back : AD.now * SWING_FINISH);
+    }
+
+    var address = {
+        // The thumb, mid-gesture (see swing.js `clubPose`).
+        swing: function (load, up) {
+            if (!AD.root || AD.mode === 'through') return;
+            AD.mode = 'pull';
+            AD.want = G3.swing.clubPose(load, up, isPutter(B.selected));
+        },
+        // The gesture ended without a shot: back to address.
+        rest: function () {
+            if (AD.mode !== 'pull') return;
+            AD.mode = 'rest';
+            AD.want = 0;
+        },
+        // The ball has gone. `frac` is the swing as a fraction of a full one.
+        strike: function (frac) {
+            if (!AD.root) return;
+            /* Struck as the thumb crossed the line, which is the club at the
+               ball whatever the easing had got to — a fast swipe is three
+               frames long and the club must not still be on its way down. */
+            AD.from = Math.max(AD.now, -0.1);
+            AD.mode = 'through';
+            AD.t = 0;
+            AD.frac = frac;
+            AD.away = 0;
+        },
+        state: AD
+    };
+
     G3.bag = {
+        address: address,
+        addressUpdate: addressUpdate,
         build: build,
         update: update,
         pick: pick,

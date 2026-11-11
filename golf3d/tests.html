@@ -3895,6 +3895,25 @@
             assert('a lane with no length loads nothing rather than dividing by it',
                 SW.swipeLoad(50, 0) === 0);
 
+            /* The club behind the ball is drawn from the gesture (bag.js
+               `address`), so what these say is what the player sees: it is
+               at the ball when the thumb is on the line, and nowhere else. */
+            assert('the club is at address before the pull, and back at the ball as the thumb crosses the line',
+                SW.clubPose(0, 0, false) === 0 && Math.abs(SW.clubPose(1, 1, false)) < 1e-12 &&
+                Math.abs(SW.clubPose(1 + C.OVERDRAW, 1, true)) < 1e-12);
+            assert('it goes back with the pull and comes down with the thumb, and never past the top',
+                SW.clubPose(0.5, 0, false) < 0 && SW.clubPose(1, 0, false) < SW.clubPose(0.5, 0, false) &&
+                SW.clubPose(1, 0.5, false) > SW.clubPose(1, 0, false) &&
+                approx(SW.clubPose(1 + C.OVERDRAW, 0, false), -1) && SW.clubPose(9, 0, false) >= -1);
+            assert('a putter is a stroke: half the turn for the same pull',
+                approx(SW.clubPose(1, 0, true), SW.clubPose(1, 0, false) / 2));
+            assert('the finish starts where the club was, ends ahead of the ball, and is bigger for a bigger swing',
+                SW.clubThrough(-0.1, 0, 1, false) === -0.1 &&
+                SW.clubThrough(0, 0.05, 1, false) > 0 && SW.clubThrough(0, 0.05, 1, false) < SW.clubThrough(0, 5, 1, false) &&
+                approx(SW.clubThrough(0, 5, 1, false), 1, 1e-6) &&
+                SW.clubThrough(0, 5, 0.3, false) < SW.clubThrough(0, 5, 1, false) &&
+                SW.clubThrough(0, 5, 1, true) < SW.clubThrough(0, 5, 0.3, false));
+
             assert('a straight swipe up is no angle at all', angle(0) === 0);
             assert('drifting right is positive, left negative', angle(30) > 0 && angle(-30) < 0);
             assert('the angle does not care how long the swing was',

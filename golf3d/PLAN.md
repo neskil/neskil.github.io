@@ -59,12 +59,12 @@ owner's yes before it is started.
   - *First Gear* (`works` 1): the putt at the flag drops at one moment of
     the gate, and it is the last rectangle-with-a-thing-across on the course
     bar The Mill, which has earned it. Moving the tee and pin so the line
-    meets the fixed wall was tried (v1.148.0) and took the ace to 0.05% on an
+    meets the fixed wall was tried (v1.149.0) and took the ace to 0.05% on an
     opener; it wants a plan, not a pin.
   - *Full Flow* (`clockwork` 5), *Under the Boardwalk* and *The Reach*
     (`tidewater` 5, 6): par fours with no ace, which a par four may be — look
     at them for plan, not for share.
-  - *Change Ringing* (`clockwork` 3) has a pin and an ace since v1.148.0,
+  - *Change Ringing* (`clockwork` 3) has a pin and an ace since v1.149.0,
     but the ace does not need either clock: the idea (a machine hidden
     behind a door) is still not what the hole plays as.
   - *The Salt Line* and *Glass Table* (`icehouse` 2, 5): fine numbers, the
@@ -78,7 +78,7 @@ is waiting on the owner to say which course they meant.
 
 Done:
 
-- **Windmill Works finished, as an editor** (v1.148.0) — the owner's "don't
+- **Windmill Works finished, as an editor** (v1.149.0) — the owner's "don't
   be afraid to be an editor and remove what doesn't work or is boring".
   *The Sweeper* is gone: *The Line* is a belt across the way to the green,
   crossed like a river (0.26%). *Grand Finale* is a par 3 now, a chute down
@@ -87,6 +87,15 @@ Done:
   is behind the wall between the doors (0.28%). Tried and dropped for the
   fourth: a pair of meshed counter-turning gears — it set the ball down at
   the blades' pace by the pin, which is The Carousel again one hole later.
+
+- **The club in hand stands at the ball, and the touch swing swings it**
+  (v1.148.0) — the owner's "wouldn't it be cool if you could see the selected
+  club next to the ball, and when you do the swing touch input you also swing
+  the club". README → "The club at the ball". Not done, and worth a look on a
+  phone: the swing is a short one about the middle of the shaft because the
+  camera is too close for a real one; the club is ball-scale, so on a mini
+  hole its shaft runs out through the wall beside the tee; and the dev styles
+  and the bot get the finish without a backswing.
 
 - **Three more holes, and the tests looked at** (v1.147.0) — the owner's
   "continue … evaluate if some tests are too restrictive for good and
