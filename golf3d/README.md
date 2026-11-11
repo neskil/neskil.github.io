@@ -1137,7 +1137,7 @@ or a hole whose ace was the putt at the flag. The long game was left at five.
 | --- | --- | --- |
 | Quarry Ridge | The Backboard, The Drop, Switchback, Over the Top, The Ledge, The Cannon | Step Up, Halfpipe, Stairway, The Gorge, Two Roads, Crown |
 | Clockwork Court | Pendulum, Three Against Two, Change Ringing, The Weir, Full Flow, Midnight | Escapement, The Gearbox, The Cogs, Ratchet, Headrace, Two Planks, The Undershot, The Tailrace, Half Time, Rounds, The Tenor, Full Circle |
-| Cinder Cone | The Springboard, The Ash Slide, Through the Pipe, Loop the Loop, Blowhole, Caldera | Crosstown, Bounce Alley, The Gravitron, Fumarole, Lava Tube, The Scree |
+| Cinder Cone | The Springboard, The Cone (v1.150.0, where The Ash Slide stood), Through the Pipe, Loop the Loop, Blowhole, Caldera | Crosstown, Bounce Alley, The Gravitron, Fumarole, Lava Tube, The Scree |
 
 The merged courses keep the ids `quarry`, `clockwork` and `cinder`, so a
 record set there before is a record for a different six holes, the same as

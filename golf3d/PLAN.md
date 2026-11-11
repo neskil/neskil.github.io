@@ -78,6 +78,18 @@ is waiting on the owner to say which course they meant.
 
 Done:
 
+- **The Cone** (v1.150.0) — Cinder Cone had no cone. *The Ash Slide* (a
+  belt across a lane) is gone and the second hole is a hill on a keyhole
+  green with the pin on its flat top and a lava bomb on the line at the flag
+  (0.18%, off the lane's west rail). `mesa` is the new piece of ground: a
+  `channel` with its ring filled in, level across the top (physics.spine).
+  "Flat for CUP_FLAT" now measures relief against the cup's own level, so a
+  cup may stand on raised ground that is flat. Tried and dropped: a scooped
+  crater (not flat, so no cup can be cut in it), a disc inlaid on a ring
+  (stands proud of its bed), and a banked bend into the cone, The Ledge's
+  way (the bend takes the pace the climb needs). Still lanes on this
+  course: The Springboard, Through the Pipe, Loop the Loop, Blowhole.
+
 - **Windmill Works finished, as an editor** (v1.149.0) — the owner's "don't
   be afraid to be an editor and remove what doesn't work or is boring".
   *The Sweeper* is gone: *The Line* is a belt across the way to the green,
