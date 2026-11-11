@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rainmaker — Erosion Tests</title>
+    <meta name="robots" content="noindex">
+    <style>
+        body { background: #0f172a; color: #f8fafc; font-family: system-ui, monospace; padding: 1.5rem; line-height: 1.5; }
+        h1 { font-size: 1.4rem; margin-bottom: 1rem; color: #38bdf8; }
+        .pass { color: #34d399; }
+        .fail { color: #f87171; font-weight: bold; }
+        #summary { font-size: 1.2rem; margin-bottom: 1rem; padding: 0.5rem; background: #1e293b; border-radius: 6px; }
+        .test-row { margin-bottom: 0.25rem; font-family: monospace; }
+    </style>
+</head>
+<body>
+    <h1>Rainmaker — Test Suite</h1>
+    <div id="summary">Running tests…</div>
+    <div id="results"></div>
+
+    <script type="module">
+        import * as S from './js/sim.js';
+
+        const results = document.getElementById('results');
+        let passed = 0, failed = 0;
+        function ok(cond, name, detail = '') {
+            const row = document.createElement('div');
+            row.className = 'test-row ' + (cond ? 'pass' : 'fail');
+            row.textContent = (cond ? '✓ ' : '✗ ') + name + (detail ? ' — ' + detail : '');
+            results.appendChild(row);
+            cond ? passed++ : failed++;
+        }
+        const near = (a, b, tol) => Math.abs(a - b) <= tol;
+        const N = 128;
+        const steepest = (t) => {
+            let m = 0;
+            for (let j = 0; j < t.n; j++) for (let i = 0; i < t.n - 1; i++) m = Math.max(m, Math.abs(t.h[j * t.n + i] - t.h[j * t.n + i + 1]));
+            return m;
+        };
+
+        // ── Making an island ──
+        {
+            const a = S.makeIsland(N, 5), b = S.makeIsland(N, 5), c = S.makeIsland(N, 6);
+            ok(a.h.every((v, i) => v === b.h[i]), 'the same seed makes the same island');
+            ok(a.h.some((v, i) => v !== c.h[i]), 'and another seed another');
+            let rows = [], good = true;
+            for (let seed = 1; seed <= 12; seed++) {
+                const t = S.makeIsland(N, seed), m = S.measure(t);
+                let peak = 0, rim = 0;
+                for (let i = 0; i < N; i++) rim = Math.max(rim, t.h[i], t.h[(N - 1) * N + i], t.h[i * N], t.h[i * N + N - 1]);
+                for (const v of t.h) peak = Math.max(peak, v);
+                rows.push(seed + ': ' + Math.round(m.landShare * 100) + '% land, peak ' + peak.toFixed(2));
+                if (!(m.landShare > 0.3 && m.landShare < 0.75 && peak > 0.45 && peak <= 1 && rim < S.SEA && t.h.every(Number.isFinite))) good = false;
+            }
+            ok(good, 'twelve seeds all give an island: sea all round, a third to three quarters land, a real peak', rows.slice(0, 4).join('; ') + '…');
+            ok(a.base.every((v, i) => v === a.h[i]) && a.base !== a.h, 'and each keeps a picture of itself before the rain');
+        }
+
+        // ── Reading the ground ──
+        {
+            const t = S.makeIsland(16, 1);
+            for (let j = 0; j < 16; j++) for (let i = 0; i < 16; i++) t.h[j * 16 + i] = 0.2 + 0.01 * i + 0.02 * j;
+            const s = S.sample(t, 5.25, 7.5);
+            ok(near(s.h, 0.2 + 0.0525 + 0.15, 1e-6) && near(s.gx, 0.01, 1e-6) && near(s.gy, 0.02, 1e-6), 'on a tilted plane, height and slope between cells are exact');
+            const edge = S.sample(t, -3, 99);
+            ok(Number.isFinite(edge.h), 'and asking off the map is answered from its edge');
+            // Looking straight down at the plane, and at a slant.
+            const down = S.pick(t, [6, 50, 9], [0, -1, 0], 10);
+            ok(down && near(down.x, 6, 0.01) && near(down.y, 9, 0.01) && down.land, 'a ray straight down lands where it was aimed');
+            const d = Math.SQRT1_2, slant = S.pick(t, [0, 12, 8], [d, -d, 0], 10);
+            const hit = S.sample(t, slant.x, slant.y).h * 10;
+            ok(slant && near(12 - slant.x, hit, 0.05), 'a slanted ray stops on the surface, not through it', 'ray at ' + (12 - slant.x).toFixed(2) + ', ground at ' + hit.toFixed(2));
+            ok(S.pick(t, [6, 50, 9], [0, 1, 0], 10) === null, 'and a ray at the sky hits nothing');
+        }
+
+        // ── One drop ──
+        {
+            // A long even slope into the sea.
+            const ramp = () => {
+                const t = S.makeIsland(64, 1);
+                for (let j = 0; j < 64; j++) for (let i = 0; i < 64; i++) t.h[j * 64 + i] = Math.max(0, 0.9 - i * 0.015);
+                t.base.set(t.h);
+                return t;
+            };
+            const t = ramp(), before = S.total(t);
+            const lived = S.drop(t, 5.5, 32.5);
+            ok(lived > 20, 'a drop on a slope runs a long way', lived + ' steps');
+            let high = 0, low = 0, off = 0;
+            for (let j = 0; j < 64; j++) for (let i = 0; i < 64; i++) {
+                const d = t.h[j * 64 + i] - t.base[j * 64 + i];
+                if (i < 20) high += d; else low += d;
+                if (Math.abs(j - 32) > 6) off += Math.abs(d);
+            }
+            ok(high < 0 && low > 0, 'it takes rock from high up and leaves it lower down', 'top ' + high.toExponential(2) + ', bottom ' + low.toExponential(2));
+            ok(off < 1e-9, 'straight down the slope, touching nothing to either side');
+            ok(near(S.total(t) + t.lost, before, 1e-4), 'and what it took is all somewhere', (S.total(t) + t.lost - before).toExponential(2));
+            const flat = S.makeIsland(64, 1);
+            flat.h.fill(0.5); flat.base.set(flat.h);
+            ok(S.drop(flat, 30, 30) === 0 && flat.h.every(v => v === 0.5), 'a drop on dead-flat ground goes nowhere and changes nothing');
+        }
+
+        // ── A lot of rain ──
+        {
+            const a = S.makeIsland(N, 3), b = S.makeIsland(N, 3);
+            const start = S.total(a), land0 = S.measure(a).landShare, steep0 = steepest(a);
+            S.rain(a, 4000); S.rain(b, 4000);
+            ok(a.h.every((v, i) => v === b.h[i]), 'the same island under the same rain wears the same way');
+            S.rain(a, 20000);
+            const early = S.riverShare(a, 0.02);
+            a.flow.fill(0);
+            S.rain(a, 60000);
+            const m = S.measure(a);
+            ok(a.h.every(v => Number.isFinite(v) && v >= 0 && v <= 1.01), 'after 84,000 drops every height is still a sane number');
+            ok(near(S.total(a) + a.lost, start, start * 1e-4), 'rock is moved, never made or destroyed', ((S.total(a) + a.lost - start) / start).toExponential(2) + ' drift');
+            ok(m.deepestCut > 0.02 && m.movedShare > 0.01, 'the rain has cut real valleys', 'deepest ' + m.deepestCut.toFixed(3) + ', ' + (m.movedShare * 100).toFixed(1) + '% of the island moved');
+            ok(m.tallestFill > 0.005, 'and filled hollows');
+            ok(steepest(a) < Math.max(steep0 * 3, 0.2), 'without drilling pits or raising spikes', 'steepest step ' + steepest(a).toFixed(3) + ', was ' + steep0.toFixed(3));
+            a.flow.fill(0);
+            S.rain(a, 20000);
+            const late = S.riverShare(a, 0.02);
+            ok(late > 0.1, 'water does not run off evenly: the busiest fiftieth of the land carries over five times its share', Math.round(late * 100) + '% of it (' + Math.round(early * 100) + '% early on)');
+            ok(Math.abs(m.landShare - land0) < 0.12, 'the coast moves, but the island is still an island', Math.round(land0 * 100) + '% → ' + Math.round(m.landShare * 100) + '% land');
+            let high0 = 0, high1 = 0;
+            for (let i = 0; i < a.h.length; i++) { if (a.base[i] > 0.5) { high0 += a.base[i]; high1 += a.h[i]; } }
+            ok(high1 < high0, 'and its high ground is lower than it was');
+            const sea = S.makeIsland(N, 3), drops0 = sea.drops;
+            S.rain(sea, 500, { x: 3, y: 3, r: 2 });
+            ok(sea.h.every((v, i) => v === sea.base[i]) && sea.drops > drops0, 'rain on the sea changes nothing');
+            const local = S.makeIsland(N, 3);
+            S.rain(local, 3000, { x: N / 2, y: N / 2, r: 8 });
+            let worst = 0, at = 0;
+            for (let i = 0; i < local.h.length; i++) { const cut = local.base[i] - local.h[i]; if (cut > worst) { worst = cut; at = i; } }
+            const away = Math.hypot(at % N - N / 2, Math.floor(at / N) - N / 2);
+            ok(worst > 0 && away < 30, 'a cloudburst cuts deepest close to where it fell', away.toFixed(0) + ' cells from its middle');
+        }
+        {
+            const t = S.makeIsland(N, 2);
+            S.rain(t, 3000);
+            const wet = t.flow.reduce((s, v) => s + v, 0);
+            S.dry(t, 0.5);
+            ok(near(t.flow.reduce((s, v) => s + v, 0), wet / 2, wet * 1e-4), 'old water drains away at the rate asked');
+        }
+
+        // ── A hand in it ──
+        {
+            const t = S.makeIsland(N, 4), k = 64 * N + 64, was = t.h[k];
+            S.sculpt(t, 64, 64, 10, 0.1);
+            ok(near(t.h[k], was + 0.1, 1e-6) && near(t.base[k], was + 0.1, 1e-6), 'raising a hill lifts the land and its before-picture together');
+            ok(t.h[64 * N + 80] === t.base[64 * N + 80] && S.measure(t).moved === 0, 'so the hand is never counted as the rain\'s work');
+            S.sculpt(t, 64, 64, 10, -5);
+            ok(t.h[k] === 0, 'digging stops at the bottom');
+            S.sculpt(t, 1, 1, 6, 0.5);
+            ok(t.h[0] === t.base[0] && t.h[N + 1] < S.SEA, 'and the rim of the map stays under water whatever is piled there');
+        }
+
+        const summary = document.getElementById('summary');
+        summary.textContent = passed + ' passed, ' + failed + ' failed';
+        summary.className = failed ? 'fail' : 'pass';
+    </script>
+</body>
+</html>

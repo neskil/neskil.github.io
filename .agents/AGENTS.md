@@ -40,6 +40,12 @@ Folder-based routing — each major page or app is fully isolated with its own
   `js/weather.js`, `js/deck.js`, `js/compose.js`, `js/model.js`, and
   `orbit/`'s `js/sim.js` with its autopilot `js/pilot.js`) that their
   `tests.html` imports directly; README.md's layout table says which is which.
+- **Built, not yet released**: `/black-hole/` (Pocket Black Hole), `/gait/`
+  (Gait Lab) and `/erosion/` (Rainmaker) are finished and tested but have no
+  landing-page card, sitemap entry, OG image or JSON-LD yet — see "Release
+  flow" below. Each keeps its rules in a DOM-free module (`js/geodesic.js`,
+  `js/sim.js`, `js/sim.js`) with a `tests.html`; README.md's layout table
+  describes them.
 - **Release flow**: build new projects in their own isolated directory. Do
   NOT add a card for one to the root `index.html` until it's completed,
   tested, and approved. While a project is under active development, an

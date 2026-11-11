@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pocket Black Hole — Geodesic Tests</title>
+    <meta name="robots" content="noindex">
+    <style>
+        body { background: #0f172a; color: #f8fafc; font-family: system-ui, monospace; padding: 1.5rem; line-height: 1.5; }
+        h1 { font-size: 1.4rem; margin-bottom: 1rem; color: #fbbf24; }
+        .pass { color: #34d399; }
+        .fail { color: #f87171; font-weight: bold; }
+        #summary { font-size: 1.2rem; margin-bottom: 1rem; padding: 0.5rem; background: #1e293b; border-radius: 6px; }
+        .test-row { margin-bottom: 0.25rem; font-family: monospace; }
+    </style>
+</head>
+<body>
+    <h1>Pocket Black Hole — Test Suite</h1>
+    <div id="summary">Running tests…</div>
+    <div id="results"></div>
+
+    <script type="module">
+        import * as G from './js/geodesic.js';
+
+        const results = document.getElementById('results');
+        let passed = 0, failed = 0;
+        function ok(cond, name, detail = '') {
+            const row = document.createElement('div');
+            row.className = 'test-row ' + (cond ? 'pass' : 'fail');
+            row.textContent = (cond ? '✓ ' : '✗ ') + name + (detail ? ' — ' + detail : '');
+            results.appendChild(row);
+            cond ? passed++ : failed++;
+        }
+        const near = (a, b, tol) => Math.abs(a - b) <= tol;
+        const quick = { keepPath: false };
+
+        // ── The knife edge ──
+        ok(near(G.B_CRIT, 2.598076, 1e-6), 'the critical aim is 3√3/2 radii');
+        ok(G.trace(G.B_CRIT - 0.01, quick).captured, 'a hair inside it, light is caught');
+        ok(!G.trace(G.B_CRIT + 0.01, quick).captured, 'a hair outside it, light escapes');
+        ok(G.trace(0, quick).captured && G.trace(1.2, quick).captured && G.trace(-2, quick).captured, 'anything aimed nearer is caught, from either side');
+        {
+            // Bisect for the edge the integrator actually has, and compare with theory.
+            let lo = 2, hi = 3;
+            for (let i = 0; i < 30; i++) { const m = (lo + hi) / 2; G.trace(m, quick).captured ? lo = m : hi = m; }
+            ok(near(lo, G.B_CRIT, 2e-3), 'bisecting the integrator finds the same edge', lo.toFixed(5) + ' vs ' + G.B_CRIT.toFixed(5));
+        }
+
+        // ── Bending ──
+        {
+            // Far from the hole the turn is Einstein's 4GM/c²b = 2/b, plus (15π/16)/b² at next order.
+            const rows = [];
+            let good = true;
+            for (const b of [50, 100, 200]) {
+                const t = G.trace(b, { start: 5000, step: 0.01, keepPath: false });
+                const want = 2 / b + 15 * Math.PI / 16 / (b * b);
+                rows.push(b + ': ' + t.deflection.toExponential(4) + ' vs ' + want.toExponential(4));
+                if (!near(t.deflection, want, want * 0.005)) good = false;
+            }
+            ok(good, 'weak-field bending matches Einstein to half a percent', rows.join('; '));
+            const sun = G.trace(696340 / G.rsKm(1), { start: 5e7, step: 0.02, keepPath: false, maxSteps: 4000 });
+            ok(near(sun.deflection * 206265, 1.75, 0.02), 'starlight grazing the Sun bends 1.75 arcseconds', (sun.deflection * 206265).toFixed(3) + '″');
+        }
+        {
+            let prev = Infinity, mono = true;
+            for (const b of [2.7, 3, 4, 6, 9, 15]) { const d = G.trace(b, quick).deflection; if (!(d < prev && d > 0)) mono = false; prev = d; }
+            ok(mono, 'the nearer the miss, the bigger the turn');
+            ok(G.trace(G.B_CRIT + 1e-4, quick).deflection > 2 * Math.PI, 'right at the edge, light goes all the way round before leaving');
+            const a = G.trace(3.3, quick), b = G.trace(-3.3, quick);
+            ok(near(a.deflection, b.deflection, 1e-9), 'above and below the hole mirror each other');
+        }
+        {
+            // Closest approach for an escaping ray solves b² = r³/(r − 1).
+            const b = 4, t = G.trace(b, { step: 0.005, keepPath: false });
+            let r = 3; for (let i = 0; i < 60; i++) r = Math.cbrt(b * b * (r - 1));
+            ok(near(t.rMin, r, 2e-3), 'closest approach agrees with the closed form', t.rMin.toFixed(4) + ' vs ' + r.toFixed(4));
+            ok(G.trace(G.B_CRIT + 0.001, quick).rMin > G.R_PHOTON - 0.01, 'nothing that escapes ever dips inside the photon sphere');
+        }
+        {
+            // Angular momentum is conserved along the path.
+            const t = G.trace(3, { step: 0.01, keepPath: false }), e = t.end;
+            const h = Math.abs(e[0] * e[3] - e[1] * e[2]);
+            ok(near(h * h, t.h2, 1e-6), 'the integrator keeps angular momentum', (h * h).toFixed(8) + ' vs ' + t.h2);
+        }
+        {
+            // The equation written the other way: u'' + u = (3/2)u² along a traced path.
+            const t = G.trace(3.5, { step: 0.002 });
+            const pts = t.points.filter(p => Math.hypot(p[0], p[1]) < 8);
+            const u = pts.map(p => 1 / Math.hypot(p[0], p[1]));
+            const ph = pts.map(p => Math.atan2(p[1], p[0]));
+            let worst = 0;
+            for (let i = 40; i < pts.length - 40; i += 40) {
+                const h1 = ph[i] - ph[i - 40], h2 = ph[i + 40] - ph[i];
+                if (Math.abs(h1) > 1 || Math.abs(h2) > 1) continue;           // across the ±π seam
+                const d2 = 2 * (h1 * u[i + 40] - (h1 + h2) * u[i] + h2 * u[i - 40]) / (h1 * h2 * (h1 + h2));
+                worst = Math.max(worst, Math.abs(d2 + u[i] - 1.5 * u[i] * u[i]));
+            }
+            ok(worst < 2e-3, 'a traced path satisfies the orbit equation u″ + u = 3u²/2', 'worst residual ' + worst.toExponential(2));
+        }
+        {
+            const t = G.trace(5);
+            ok(t.points.length > 50 && t.points.every(p => Number.isFinite(p[0]) && Number.isFinite(p[1])), 'paths come back as finite points to draw');
+            ok(G.trace(G.B_CRIT, { maxSteps: 500, keepPath: false }).steps <= 500, 'and a step budget is honoured');
+        }
+
+        // ── The numbers on the panel ──
+        ok(near(G.rsKm(1), 2.953, 1e-3), 'the Sun squeezed to a black hole would be 2.95 km in radius');
+        ok(near(G.rsKm(4.3e6) / 149597870.7, 0.0849, 1e-3), 'Sagittarius A* is under a tenth of an AU in radius');
+        ok(near(G.shadowDiameter(), 5.196, 1e-3), 'the shadow is 5.2 radii across, 2.6 times the horizon');
+        ok(near(G.orbitSpeed(G.R_ISCO), 0.5, 1e-12), 'gas at the inner edge of the disc moves at half the speed of light');
+        ok(near(G.orbitSpeed(G.R_PHOTON), 1, 1e-12), 'and at the photon sphere an orbit needs the speed of light itself');
+        ok(G.clockRate(1) === 0 && near(G.clockRate(4), Math.sqrt(0.75), 1e-12) && G.clockRate(1e9) > 0.999999, 'clocks stop at the horizon and run true far away');
+        ok(near(G.orbitPeriod(3) * G.rsSeconds(6.5e9) / 86400, 34.2, 0.3), 'M87*\'s inner disc laps in about 34 days');
+        ok(near(G.hawkingKelvin(1), 6.17e-8, 1e-9), 'a solar-mass hole glows at sixty billionths of a kelvin');
+        {
+            const toward = G.discShift(4, 1), away = G.discShift(4, -1), across = G.discShift(4, 0);
+            ok(toward > 1 && away < across && across < 1, 'gas coming at you is blueshifted, gas across your line only redshifted', [toward, across, away].map(x => x.toFixed(3)).join(' / '));
+            ok(Math.pow(toward / away, 4) > 25, 'so one side of the disc is some thirty times brighter', Math.pow(toward / away, 4).toFixed(0) + '×');
+        }
+        ok(G.fmtLength(8.86) === '8.86 km' && G.fmtLength(8.8e6) === '8.8 million km' && G.fmtLength(2.54e7) === '0.17 AU' && G.fmtLength(3.84e10) === '257 AU' && G.fmtLength(0.5) === '500 m', 'lengths read in sensible units');
+        ok(G.fmtTime(4.5e-4) === '450 µs' && G.fmtTime(90) === '90 s' && G.fmtTime(1800) === '30 min' && G.fmtTime(2.96e6) === '34.3 days', 'and so do times');
+
+        const summary = document.getElementById('summary');
+        summary.textContent = passed + ' passed, ' + failed + ' failed';
+        summary.className = failed ? 'fail' : 'pass';
+    </script>
+</body>
+</html>
