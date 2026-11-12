@@ -5697,8 +5697,11 @@
                         G3.THEMES[w.theme].sky.length === 2 && G3.THEMES[w.theme].grass.length === 2;
                 }));
             var themes = {}, lives = {};
-            PW.WORLDS.forEach(function (w) { themes[w.theme] = true; lives[w.place.world] = true; });
-            assert('no two holes share a palette, or a world', Object.keys(themes).length === PW.WORLDS.length &&
+            /* A world may hold more than one hole since the Iron River: a
+               hole sculpted to a spot (`place.at`) is somewhere of its own in
+               it. What must not happen is two holes in the same place. */
+            PW.WORLDS.forEach(function (w) { themes[w.theme] = true; lives[w.place.world + '|' + JSON.stringify(w.place.at || null)] = true; });
+            assert('no two holes share a palette, or a place in a world', Object.keys(themes).length === PW.WORLDS.length &&
                 Object.keys(lives).length === PW.WORLDS.length);
             assert('none of them borrows a course\'s', PW.WORLDS.every(function (w) {
                 return !G3.COURSES.some(function (c) { return c.theme === w.theme; });
