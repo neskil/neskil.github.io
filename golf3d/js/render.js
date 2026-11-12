@@ -5749,12 +5749,15 @@
                 if (!p.ghost) boxes.push(bx);
             });
             R.placeKeep = boxes.length > 8 ? [all] : boxes;
-            /* A sculpted hole's rough is the world's own ground, seen as the
-               world's picture, and the ball rolls on a baked copy of it that
-               is smoother than the original. So over the whole of such a
-               hole the world is set back half a unit: a tree still stands
-               in front of the ball, a wrinkle of turf does not bury it. */
-            R.placeSoft = ghost ? all : [0, 0, 0, 0];
+            /* Round the whole of a hole the world is set back a little
+               (0.7 of a unit along the eye's line). A placed hole stands on
+               the world's ground and a sculpted one's rough *is* that
+               ground, seen as the world's picture over a baked copy that is
+               smoother than the original; either way a wrinkle of ice or
+               turf a hand high must not cut a rail or bury a ball. A tree,
+               a stall or a pillar is far more than that in front, and still
+               is. */
+            R.placeSoft = [all[0] - 2.5, all[1] - 2.5, all[2] + 2.5, all[3] + 2.5];
         }
         R.live = false;
         if (R.plate) R.plate.visible = false;
@@ -5902,6 +5905,14 @@
                 '    vec3 a = 2.43 * y - 2.51, b = 0.59 * y - 0.03, c = 0.14 * y;',
                 '    return (-b - sqrt(max(b * b - 4.0 * a * c, 0.0))) / (2.0 * a);',
                 '}',
+                // One over the distance to one texel of the depth half, in
+                // this game's units; nothing there is nought.
+                'float inv(vec2 t) {',
+                '    t = clamp(t, vec2(0.0), size - 1.0);',
+                '    vec3 e = texture2D(map, vec2((t.x + 0.5) / size.x, 0.5 * (t.y + 0.5) / size.y)).rgb;',
+                '    float n = (floor(e.r * 255.0 + 0.5) * 256.0 + floor(e.g * 255.0 + 0.5)) / 65534.0;',
+                '    return n < 0.9995 ? scale / (wNear * pow(wFar / wNear, n)) : 0.0;',
+                '}',
                 'void main() {',
                 '    vec2 cuv = vec2(vUv.x, 0.5 + 0.5 * clamp(vUv.y, 0.75 / size.y, 1.0));',
                 '    vec3 c = texture2D(map, cuv).rgb;',
@@ -5920,20 +5931,27 @@
                 '        c = clamp((c - gLift) / max(gTint, vec3(0.05)), 0.0, 0.86);',
                 '        c = unaces(c) / max(gExp, 0.05);',
                 '    }',
-                // The depth half, read at a texel's centre so nothing is blended.
-                '    vec2 duv = (floor(vUv * size) + 0.5) / size;',
-                '    vec3 e = texture2D(map, vec2(duv.x, 0.5 * min(duv.y, 1.0 - 0.75 / size.y))).rgb;',
-                '    float n = (floor(e.r * 255.0 + 0.5) * 256.0 + floor(e.g * 255.0 + 0.5)) / 65534.0;',
+                /* The depth half. Four texels round the pixel, each read at
+                   its own centre and decoded, then blended as 1/distance
+                   (sky is 0): where the world's outline crosses the hole
+                   the edge is a line through the texels, not their
+                   staircase. The world is drawn at half the stage's
+                   resolution on a phone, and read one texel at a time its
+                   outline against a rail was saw-toothed (the owner:
+                   "still a little bugged"). */
+                '    vec2 dp = vUv * size - 0.5, df = fract(dp), dt = floor(dp);',
+                '    float iz = mix(mix(inv(dt), inv(dt + vec2(1.0, 0.0)), df.x),',
+                '                   mix(inv(dt + vec2(0.0, 1.0)), inv(dt + vec2(1.0, 1.0)), df.x), df.y);',
                 '    float depth = 0.9999995;',
-                '    if (n < 0.9995) {',
-                '        float z = wNear * pow(wFar / wNear, n) / scale;',
+                '    if (iz > 0.00002) {',
+                '        float z = 1.0 / iz;',
                 '        vec3 at = (camWorld * vec4(vRay * z, 1.0)).xyz;',
                 '        bool ours = false;',
                 '        for (int i = 0; i < 8; i++) {',
                 '            vec4 k = keep[i];',
                 '            if (at.x > k.x && at.x < k.z && at.z > k.y && at.z < k.w) ours = true;',
                 '        }',
-                '        if (at.x > soft.x && at.x < soft.z && at.z > soft.y && at.z < soft.w) z += 0.5;',
+                '        if (at.x > soft.x && at.x < soft.z && at.z > soft.y && at.z < soft.w) z += 0.7;',
                 '        if (!ours) depth = clamp(0.5 * (pB - pA * z) / z + 0.5, 0.0, 0.9999995);',
                 '    }',
                 '    gl_FragDepth = depth;',

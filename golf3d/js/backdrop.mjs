@@ -256,7 +256,7 @@ function bestU(W, seat) {
 }
 
 const _ray = new THREE.Raycaster(), _down = new THREE.Vector3(0, -1, 0);
-function groundUnder(W, x, y, z) {
+function groundUnder(W, x, y, z, any) {
     try {
         _ray.set(_t.set(x, y, z), _down);
         _ray.camera = engine.camera;
@@ -268,10 +268,15 @@ function groundUnder(W, x, y, z) {
             // Ground, not furniture: a lantern, a bird or a cloud puff under
             // the flight is not somewhere to lay a hole. Only something
             // broad counts — and nothing instanced, which is always a crowd.
-            if (o.isInstancedMesh || o.isSkinnedMesh) continue;
-            if (!o.geometry.boundingSphere) o.geometry.computeBoundingSphere();
-            const sc = o.matrixWorld.getMaxScaleOnAxis();
-            if (o.geometry.boundingSphere.radius * sc < 30) continue;
+            // (`any` asks for whatever is solid instead — the top of a loaf,
+            // a book, a stall — for a hole that plays over a world's things.)
+            if (o.isSkinnedMesh) continue;
+            if (!any) {
+                if (o.isInstancedMesh) continue;
+                if (!o.geometry.boundingSphere) o.geometry.computeBoundingSphere();
+                const sc = o.matrixWorld.getMaxScaleOnAxis();
+                if (o.geometry.boundingSphere.radius * sc < 30) continue;
+            } else if (m.alphaTest > 0 || m.alphaMap || (m.transparent && m.opacity < 0.6)) continue;
             if (m.transparent && m.depthWrite === false) continue;
             let v = o, shown = true;
             while (v) { if (!v.visible) { shown = false; break; } v = v.parent; }
@@ -329,7 +334,7 @@ G3.backdrop = {
     get building() { return !!loading; },
     /* The world's own ground, for sculpting a hole to it (tools/world-ground.mjs):
        the height under a point in world coordinates, or null over nothing. */
-    groundAt(x, z, from) { return cur ? groundUnder(cur, x, from === undefined ? 2000 : from, z) : null; },
+    groundAt(x, z, from, any) { return cur ? groundUnder(cur, x, from === undefined || from === null ? 2000 : from, z, any) : null; },
     pathAt(u) { if (!cur) return null; const v = cur.path.pointAt(u, new THREE.Vector3()); return [v.x, v.y, v.z]; },
     // A place edited by hand (the console, a tuning script): work it out again.
     reanchor() { if (cur) cur.anchor = null; },
