@@ -202,9 +202,12 @@ really have the game play feeling"). What that has meant in practice:
 - **`vendor/portals/` is somebody else's, under CC BY-NC-SA 4.0, and is not
   edited.** It is Portals' engine and worlds on three.js r170, a second
   three.js beside this game's r128; they never share an object. Everything
-  that adapts it is `js/backdrop.mjs`. The live world is drawn *behind* the
-  hole with no shared depth, so a hole is placed on open ground — README →
-  "The World Tour" has how a hole is fitted and how to look at one
+  that adapts it is `js/backdrop.mjs`. The two pictures share depth through
+  one canvas — the world's picture in the top half, each pixel's distance in
+  the bottom — which `render.js → addWorldPlate` writes into this renderer's
+  depth buffer, so the world can stand in front of the hole. Change the
+  packing on one side and you change it on the other. README → "The World
+  Tour" has that, how a hole is fitted, and how to look at one
   (`?world=<id>&live=1`, `G3.backdrop.debug()`). The suites cannot see it.
 
 - **A `color-mix()` over an undefined custom property is a dropped

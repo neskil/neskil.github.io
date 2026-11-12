@@ -5700,8 +5700,27 @@
                 // the middle of the hole, for seating it on the world's ground
                 cx: (hole.tee.x + hole.cup.x) / 2, cz: (hole.tee.z + hole.cup.z) / 2 };
         }
+        if (place) {
+            /* The hole's own ground plan, which the world never covers:
+               each pad's box and a margin, up to eight of them. A hole of
+               more pads than that, or one whose ground is the world's own
+               (a `ghost` pad, hidden when the world is live — the ball rolls
+               on rough that is only there as the world's picture), keeps
+               its whole bounding box instead. */
+            var boxes = [], all = [Infinity, Infinity, -Infinity, -Infinity], ghost = false;
+            (hole.pads || []).forEach(function (p) {
+                if (p.ghost) ghost = true;
+                // A pad is written from its corner; a round inlay from its middle.
+                var m = 0.8, bx = p.w === undefined
+                    ? [p.x - p.r - m, p.z - p.r - m, p.x + p.r + m, p.z + p.r + m]
+                    : [p.x - m, p.z - m, p.x + p.w + m, p.z + p.d + m];
+                all = [Math.min(all[0], bx[0]), Math.min(all[1], bx[1]), Math.max(all[2], bx[2]), Math.max(all[3], bx[3])];
+                if (!p.ghost) boxes.push(bx);
+            });
+            R.placeKeep = ghost || boxes.length > 8 ? [all] : boxes;
+        }
         R.live = false;
-        if (R.scene) R.scene.background = null;
+        if (R.plate) R.plate.visible = false;
         if (G3.backdrop) G3.backdrop.want(place ? place.world : null);
     }
     // backdrop.mjs is a module and arrives after the first hole is built.
@@ -5720,17 +5739,28 @@
                 Math.max(2, Math.round(cv.width * k)), Math.max(2, Math.round(cv.height * k)));
         }
         if (live) {
-            if (!R.bgTex) {
-                R.bgTex = new THREE.CanvasTexture(B.canvas);
-                R.bgTex.minFilter = R.bgTex.magFilter = THREE.LinearFilter;
-                R.bgTex.generateMipmaps = false;
-                if (THREE.sRGBEncoding !== undefined) R.bgTex.encoding = THREE.sRGBEncoding;
-            }
+            if (!R.plate) addWorldPlate(B);
             R.bgTex.needsUpdate = true;
+            var u = R.plate.material.uniforms, I = B.info, P = R.camera.projectionMatrix.elements;
+            u.size.value.set(I.w, I.h);
+            u.wNear.value = I.near; u.wFar.value = I.far; u.scale.value = I.scale;
+            u.pA.value = P[10]; u.pB.value = P[14];
+            u.invProj.value.copy(R.camera.projectionMatrixInverse);
+            u.camWorld.value.copy(R.camera.matrixWorld);
+            for (var kq = 0; kq < 8; kq++) {
+                var kb = R.placeKeep[kq] || [0, 0, 0, 0];
+                u.keep.value[kq].set(kb[0], kb[1], kb[2], kb[3]);
+            }
+            var gc = R.fx && G3.postfx && G3.postfx.ok ? G3.postfx.state.uComp : null;
+            u.gOn.value = gc ? 1 : 0;
+            if (gc) {
+                u.gExp.value = gc.exposure.value; u.gSat.value = gc.saturation.value; u.gCon.value = gc.contrast.value;
+                u.gTint.value.copy(gc.tint.value); u.gLift.value.copy(gc.lift.value);
+            }
         }
         if (live === R.live) return;
         R.live = live;
-        R.scene.background = live ? R.bgTex : null;
+        if (R.plate) R.plate.visible = live;
         if (R.outer) R.outer.visible = !live;
         for (var q = 0; q < (R.ghosts || []).length; q++) R.ghosts[q].visible = !live;
         if (live) {
@@ -5739,6 +5769,105 @@
         } else if (R.fogKeep) {
             R.fogNear = R.fogKeep.near; R.fogFar = R.fogKeep.far;
         }
+    }
+
+    /* The world's picture, and how far away each pixel of it is.
+
+       backdrop.mjs hands over one canvas: the world as its camera saw it in
+       the top half, and under it the distance to each pixel (16 bits on a
+       log scale in red and green). This is one sheet across the whole view,
+       drawn before anything else, that paints the picture and writes that
+       distance into the depth buffer — in this camera's units, a world unit
+       being `scale` of ours. Everything the game then draws is tested
+       against it like any other geometry: a pillar of the world between
+       the camera and the green is in front of the green.
+
+       With one exception, which is the game. Whatever of the world stands
+       inside the hole's own plan (`keep`, each pad's box and a margin) is painted
+       but pushed to the far plane: the playing surface is never cut by a
+       fold of somebody else's terrain, and a ball is never lost under it. */
+    function addWorldPlate(B) {
+        R.bgTex = new THREE.CanvasTexture(B.canvas);
+        R.bgTex.minFilter = R.bgTex.magFilter = THREE.LinearFilter;
+        R.bgTex.generateMipmaps = false;
+        var mat = new THREE.ShaderMaterial({
+            depthTest: true, depthWrite: true, depthFunc: THREE.AlwaysDepth, fog: false, toneMapped: false,
+            uniforms: {
+                map: { value: R.bgTex }, size: { value: new THREE.Vector2(2, 2) },
+                wNear: { value: 0.1 }, wFar: { value: 5000 }, scale: { value: 1 },
+                pA: { value: -1 }, pB: { value: -0.2 },
+                invProj: { value: new THREE.Matrix4() }, camWorld: { value: new THREE.Matrix4() },
+                keep: { value: [0, 1, 2, 3, 4, 5, 6, 7].map(function () { return new THREE.Vector4(); }) },
+                gOn: { value: 0 }, gExp: { value: 1 }, gSat: { value: 1 }, gCon: { value: 1 },
+                gTint: { value: new THREE.Color(1, 1, 1) }, gLift: { value: new THREE.Color(0, 0, 0) }
+            },
+            vertexShader: [
+                'uniform mat4 invProj;',
+                'varying vec2 vUv; varying vec3 vRay;',
+                'void main() {',
+                '    vUv = uv;',
+                '    vec4 v = invProj * vec4(position.xy, 1.0, 1.0);',
+                '    v.xyz /= v.w;',
+                '    vRay = v.xyz / -v.z;',      // the view ray, one unit deep
+                '    gl_Position = vec4(position.xy, 0.0, 1.0);',
+                '}'
+            ].join('\n'),
+            fragmentShader: [
+                'uniform sampler2D map; uniform vec2 size;',
+                'uniform float wNear, wFar, scale, pA, pB;',
+                'uniform mat4 camWorld; uniform vec4 keep[8];',
+                'uniform float gOn, gExp, gSat, gCon; uniform vec3 gTint, gLift;',
+                'varying vec2 vUv; varying vec3 vRay;',
+                // postfx.js's tone curve, backwards.
+                'vec3 unaces(vec3 y) {',
+                '    vec3 a = 2.43 * y - 2.51, b = 0.59 * y - 0.03, c = 0.14 * y;',
+                '    return (-b - sqrt(max(b * b - 4.0 * a * c, 0.0))) / (2.0 * a);',
+                '}',
+                'void main() {',
+                '    vec2 cuv = vec2(vUv.x, 0.5 + 0.5 * clamp(vUv.y, 0.75 / size.y, 1.0));',
+                '    vec3 c = texture2D(map, cuv).rgb;',
+                '    c = pow(c, vec3(2.2));',
+                /* The world arrives graded by its own makers, and this
+                   game's grade (postfx.js: tone curve, tint, saturation,
+                   contrast) is about to be laid over the whole frame. So the
+                   picture is put through that grade backwards first, and
+                   comes out the other side the colour it went in. The
+                   brightest end is held back: undone exactly it would be
+                   several times white, and bloom a second time. */
+                '    if (gOn > 0.5) {',
+                '        c = (c - 0.5) / gCon + 0.5;',
+                '        float l = dot(c, vec3(0.2126, 0.7152, 0.0722));',
+                '        c = mix(vec3(l), c, 1.0 / gSat);',
+                '        c = clamp((c - gLift) / max(gTint, vec3(0.05)), 0.0, 0.86);',
+                '        c = unaces(c) / max(gExp, 0.05);',
+                '    }',
+                // The depth half, read at a texel's centre so nothing is blended.
+                '    vec2 duv = (floor(vUv * size) + 0.5) / size;',
+                '    vec3 e = texture2D(map, vec2(duv.x, 0.5 * min(duv.y, 1.0 - 0.75 / size.y))).rgb;',
+                '    float n = (floor(e.r * 255.0 + 0.5) * 256.0 + floor(e.g * 255.0 + 0.5)) / 65534.0;',
+                '    float depth = 0.9999995;',
+                '    if (n < 0.9995) {',
+                '        float z = wNear * pow(wFar / wNear, n) / scale;',
+                '        vec3 at = (camWorld * vec4(vRay * z, 1.0)).xyz;',
+                '        bool ours = false;',
+                '        for (int i = 0; i < 8; i++) {',
+                '            vec4 k = keep[i];',
+                '            if (at.x > k.x && at.x < k.z && at.z > k.y && at.z < k.w) ours = true;',
+                '        }',
+                '        if (!ours) depth = clamp(0.5 * (pB - pA * z) / z + 0.5, 0.0, 0.9999995);',
+                '    }',
+                '    gl_FragDepth = depth;',
+                '    gl_FragColor = vec4(c, 1.0);',
+                '    #include <encodings_fragment>',
+                '}'
+            ].join('\n')
+        });
+        mat.extensions = { fragDepth: true };
+        R.plate = new THREE.Mesh(new THREE.PlaneBufferGeometry(2, 2), mat);
+        R.plate.frustumCulled = false;
+        R.plate.renderOrder = -1e6;
+        R.plate.visible = false;
+        R.scene.add(R.plate);
     }
 
     /* ── per-frame ──────────────────────────────────────────────────────── */
