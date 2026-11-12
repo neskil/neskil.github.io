@@ -4205,11 +4205,11 @@
        COURSE_GROUPS. */
     var ALL_GROUP = {
         id: 'all', name: 'Everything', icon: '\u2756', tint: '#e4dcc4',
-        blurb: 'Every world and every course, side by side. Press one to play it; the tabs beside this one file them by kind and show each course hole by hole.'
+        blurb: 'Every world and every course, side by side.'
     };
     var WORLDS_GROUP = {
         id: 'worlds', name: 'Worlds', icon: '\u25CE', tint: '#dcc28a',
-        blurb: 'The World Tour\u2019s holes, each built inside a world from Portals. Pick one to play by itself.'
+        blurb: 'The World Tour\u2019s holes, each inside a world from Portals, one at a time.'
     };
     /* …and the last *kind* tab that was, which is not always the same thing:
        the draw is a tab of its own now, and "same kind" still has to mean a
@@ -4218,6 +4218,7 @@
        outside the picker, where the kind is the one you are standing on. */
     var menuKind = null;
     var menuSuggest = null;    // …and the course being offered, if any
+    var menuPick = null;       // the card whose page is open, or null for the grid
     /* A course has been picked and the round is being built. Loading one is the
        longest thing a press on this page can start, and a phone that has not
        repainted yet is a phone still collecting taps: without this the second
@@ -4249,12 +4250,11 @@
     function openMenu(suggestId) {
         menuTaking = false;
         menuSuggest = suggestId || null;
-        menuGroup = suggestId ? groupOf(suggestId) :
-            ALL_GROUP.id;
-        /* Never on the draw: the list is what was asked for, and a picker that
-           opens on the tab that picks for you has answered the question
-           instead of asking it. And "same kind" has to be a kind of golf,
-           which the worlds are not. */
+        /* It opens on everything. A course on offer (the end of a round
+           nudging at the next) opens on that course's page, one press from
+           playing it, with its own kind's tab behind it. */
+        menuGroup = suggestId ? groupOf(suggestId) : ALL_GROUP.id;
+        menuPick = suggestId || null;
         menuKind = state && state.course ? kindOf(state.course.id) : G3.COURSE_GROUPS[0].id;
         if (suggestId) menuKind = menuGroup;
         $('menu').className = 'modal show';
@@ -4276,6 +4276,11 @@
         /* With nothing on offer, what is on offer is the round waiting
            behind the list — or the tour. */
         if (!menuSuggest) focus = showcaseWaiting() ? $('menu-showcase') : $('menu-portals');
+        // How much of all of it is done, across the top.
+        var got = 0, max = 0;
+        pickables().forEach(function (o) { got += o.got; max += o.max; });
+        $('menu-progress-text').textContent = '\u2605 ' + got + ' / ' + max;
+        $('menu-progress-bar').style.width = (max ? Math.round(100 * got / max) : 0) + '%';
         // Keyboard and screen reader land on what is being offered.
         if (focus) { try { focus.focus(); } catch (e) { /* ignore */ } }
     }
@@ -4320,62 +4325,171 @@
         syncLive();
     }
 
-    /* The grid: one card for everything that can be picked, and the same
-       card for all of it — a sky over its ground, a name, what kind of thing
-       it is and its stars. A tour hole and a six-hole course sit side by
-       side and are picked the same way, with one press (the owner: "new and
-       legacy maps both equally pickable"). `only` narrows it to the worlds.
-       They are dealt alternately, so neither kind is the one you scroll to. */
-    function drawGrid(only) {
-        var save = state && state.save ? state.save : S.load();
-        var host = $('menu-worlds');
-        host.innerHTML = '';
-        function card(o) {
-            var el = document.createElement('button');
-            el.type = 'button';
-            el.className = 'world' + (o.seen ? '' : ' unfound');
-            el.setAttribute('role', 'listitem');
-            el.style.setProperty('--w-ground', o.th.grass[0]);
-            el.style.setProperty('--w-tint', o.tint);
-            el.title = o.title;
-            el.innerHTML =
-                '<span class="world-sky" style="background:linear-gradient(' + hexOf(o.th.sky[0]) + ',' + hexOf(o.th.sky[1]) + ')">' +
-                '<span class="world-tag">' + o.tag + '</span></span>' +
-                '<span class="world-text"><span class="world-name">' + o.name + '</span>' +
-                '<span class="world-meta">' + o.meta + ' \u00B7 ' +
-                (o.seen ? '<span class="world-stars">' + o.stars + '</span>'
-                        : '<span class="world-new">new</span>') + '</span></span>';
-            el.addEventListener('click', function () {
-                if (menuTaking) return;
-                menuTaking = true;
-                maybeAutoFullscreen();
-                o.go();
-            });
-            return el;
-        }
-        var worlds = G3.portals.WORLDS.map(function (w) {
+    /* Everything that can be picked, as one list of the same shape of
+       thing: a tour hole and a six-hole course differ in what they are, not
+       in how they are shown or chosen. */
+    function pickables() {
+        var save = state && state.save ? state.save : S.load(), out = [];
+        G3.portals.WORLDS.forEach(function (w) {
             var rec = S.holeRecord(save, 'world-' + w.id, 0);
-            return card({ th: G3.THEMES[w.theme], tint: WORLDS_GROUP.tint, tag: 'World', name: w.title,
-                title: w.caption, meta: w.world + ' \u00B7 1 hole', seen: rec.plays > 0, stars: S.starText(rec.stars),
-                go: function () { visitWorld(w.id); } });
+            out.push({ key: 'world-' + w.id, group: WORLDS_GROUP.id, tint: WORLDS_GROUP.tint, tag: 'World',
+                th: G3.THEMES[w.theme], name: w.title, where: w.world, blurb: w.hole.blurb || w.caption,
+                course: G3.courseById('world-' + w.id), holes: 1, par: w.hole.par,
+                best: rec.best === undefined ? null : rec.best, played: rec.plays > 0,
+                got: rec.stars || 0, max: 3, sculpted: !!(w.place && w.place.at) });
         });
-        var courses = [];
-        if (!only) G3.COURSE_GROUPS.forEach(function (g) {
+        G3.COURSE_GROUPS.forEach(function (g) {
             G3.coursesInGroup(g.id).forEach(function (c) {
                 var rec = S.courseRecord(save, c.id), got = S.courseStars(save, c);
-                courses.push(card({ th: G3.THEMES[c.theme] || G3.THEMES.seaside, tint: g.tint, tag: g.name, name: c.name,
-                    title: c.blurb, meta: c.holes.length + ' holes \u00B7 par ' + S.coursePar(c.holes),
-                    seen: rec.best !== null || got.got > 0, stars: '\u2605 ' + got.got + '/' + got.max,
-                    go: function () { newRound(c.id); } }));
+                out.push({ key: c.id, group: g.id, tint: g.tint, tag: g.name,
+                    th: G3.THEMES[c.theme] || G3.THEMES.seaside, name: c.name, where: '', blurb: c.blurb,
+                    course: c, holes: c.holes.length, par: S.coursePar(c.holes),
+                    best: rec.best, bestVsPar: rec.bestVsPar, played: rec.best !== null || got.got > 0,
+                    got: got.got, max: got.max });
             });
         });
+        return out;
+    }
+    function pickable(key) {
+        var all = pickables();
+        for (var i = 0; i < all.length; i++) if (all[i].key === key) return all[i];
+        return null;
+    }
+    function starPips(got, max) {
+        // Three pips whatever the total: none, some, most, all.
+        var n = got <= 0 ? 0 : got >= max ? 3 : got * 2 >= max ? 2 : 1;
+        return '<span class="pips" aria-label="' + got + ' of ' + max + ' stars">' +
+            '★★★'.slice(0, n) + '<i>' + '★★★'.slice(n) + '</i></span>';
+    }
+
+    /* The grid: one card for each, and the same card for all of them — the
+       plan of its first hole over its own sky, a tag in its kind's colour,
+       its name, and three pips for its stars. Every tab is this grid,
+       narrowed. Pressing a card does not start anything: it opens that
+       card's page (drawDetail), which is where a round is started — the way
+       a level is chosen in a game, and the same two presses for all of it.
+       On "Everything" worlds and courses are dealt alternately, so neither
+       kind is the one you scroll to. */
+    function drawGrid(filter) {
+        var host = $('menu-worlds');
+        host.innerHTML = '';
+        var all = pickables(), worlds = [], courses = [], list = [];
+        all.forEach(function (o) {
+            if (filter !== ALL_GROUP.id && o.group !== filter) return;
+            (o.group === WORLDS_GROUP.id ? worlds : courses).push(o);
+        });
         for (var i = 0; i < Math.max(worlds.length, courses.length); i++) {
-            if (worlds[i]) host.appendChild(worlds[i]);
-            if (courses[i]) host.appendChild(courses[i]);
+            if (worlds[i]) list.push(worlds[i]);
+            if (courses[i]) list.push(courses[i]);
         }
-        $('menu-worlds-label').textContent = only
-            ? 'The World Tour\u2019s holes, one at a time'
-            : worlds.length + ' worlds and ' + courses.length + ' courses \u00B7 one press plays it';
+        list.forEach(function (o) {
+            var el = document.createElement('button');
+            el.type = 'button';
+            el.className = 'world' + (o.played ? '' : ' unfound') + (o.key === menuSuggest ? ' up-next' : '');
+            el.setAttribute('role', 'listitem');
+            el.style.setProperty('--w-tint', o.tint);
+            el.title = o.blurb;
+            el.innerHTML =
+                '<span class="world-sky" style="background:linear-gradient(' + hexOf(o.th.sky[0]) + ',' + hexOf(o.th.sky[1]) + ')">' +
+                '<canvas class="cc-map" data-course="' + o.key + '" data-hole="0"></canvas>' +
+                '<span class="world-tag">' + o.tag + '</span>' +
+                (o.played ? '' : '<span class="world-new">new</span>') + '</span>' +
+                '<span class="world-text"><span class="world-name">' + o.name + '</span>' +
+                '<span class="world-meta">' + (o.holes === 1 ? 'Par ' + o.par : o.holes + ' holes') +
+                starPips(o.got, o.max) + '</span></span>';
+            el.addEventListener('click', function () {
+                menuPick = o.key;
+                drawCourses();
+                drawPlans();
+            });
+            host.appendChild(el);
+        });
+        $('menu-worlds-label').textContent = list.length + (list.length === 1 ? ' to play' : ' to play') +
+            ' · pick one to see it';
+        host.scrollTop = 0;
+        return host.firstChild;
+    }
+
+    /* One card's page. What it is and where, how you have done on it, every
+       hole of it as a plan you can start on, and one large button that
+       plays it. A tour hole has one plan; a course has six. Back is the
+       grid it came from. */
+    function drawDetail(key) {
+        var o = pickable(key), host = $('menu-detail');
+        host.innerHTML = '';
+        if (!o) return null;
+        var save = state && state.save ? state.save : S.load();
+        host.style.setProperty('--cg-tint', o.tint);
+        var back = document.createElement('button');
+        back.type = 'button';
+        back.className = 'linkish md-back';
+        back.textContent = '← Back';
+        back.addEventListener('click', function () { menuPick = null; drawCourses(); drawPlans(); });
+        host.appendChild(back);
+
+        var head = document.createElement('div');
+        head.className = 'md-head';
+        head.style.background = 'linear-gradient(' + hexOf(o.th.sky[0]) + ',' + hexOf(o.th.sky[1]) + ')';
+        head.innerHTML = '<span class="world-tag">' + o.tag + '</span>' +
+            (key === menuSuggest ? '<span class="world-new">up next</span>' : '') +
+            '<span class="md-title"><b>' + o.name + '</b>' +
+            (o.where ? '<span>in ' + o.where + (o.sculpted ? ' · on its own ground' : '') + '</span>' : '') + '</span>';
+        host.appendChild(head);
+
+        var blurb = document.createElement('p');
+        blurb.className = 'md-blurb';
+        blurb.textContent = o.blurb;
+        host.appendChild(blurb);
+
+        var stats = document.createElement('div');
+        stats.className = 'md-stats';
+        stats.innerHTML =
+            '<span><b>' + o.holes + '</b>' + (o.holes === 1 ? 'hole' : 'holes') + '</span>' +
+            '<span><b>' + o.par + '</b>par</span>' +
+            '<span><b>' + (o.best === null || o.best === undefined ? '—' : o.best) + '</b>best</span>' +
+            '<span><b class="md-gold">★ ' + o.got + '/' + o.max + '</b>stars</span>';
+        host.appendChild(stats);
+
+        var strip = document.createElement('div');
+        strip.className = 'cc-holes' + (o.holes === 1 ? ' one' : '');
+        var shape = 0;
+        o.course.holes.forEach(function (hole) {
+            var b = hole.bounds;
+            shape += (b.maxX - b.minX) / Math.max(0.001, b.maxZ - b.minZ);
+        });
+        // The cells take the course's own proportions (a lane is tall, a
+        // links hole nearly square), averaged and clamped.
+        strip.style.setProperty('--cc-shape', Math.max(0.4, Math.min(1.5, shape / o.holes)).toFixed(3));
+        o.course.holes.forEach(function (hole, i) {
+            var cell = document.createElement('button');
+            cell.type = 'button';
+            cell.className = 'cc-hole';
+            var hr = S.holeRecord(save, o.key, i);
+            cell.title = hole.name + ' — par ' + hole.par +
+                (hr.plays ? ' · ' + hr.stars + (hr.stars === 1 ? ' star' : ' stars') : ' · not played yet');
+            cell.innerHTML =
+                '<canvas class="cc-map" data-course="' + o.key + '" data-hole="' + i + '"></canvas>' +
+                '<span class="cc-num">' + (i + 1) + '</span>' +
+                '<span class="cc-par">' + hole.par + '</span>' +
+                (hr.plays ? '<span class="cc-stars" aria-hidden="true">' + S.starText(hr.stars) + '</span>' : '');
+            cell.addEventListener('click', function () { takeCourse(o.key, i); });
+            strip.appendChild(cell);
+        });
+        if (o.holes > 1) {
+            var hint = document.createElement('p');
+            hint.className = 'sh-label';
+            hint.textContent = 'Or start on a hole';
+            host.appendChild(hint);
+        }
+        host.appendChild(strip);
+
+        var go = document.createElement('button');
+        go.type = 'button';
+        go.className = 'md-play';
+        go.innerHTML = '<b>Play</b><span>' + (o.holes === 1 ? o.name : 'from hole 1') + '</span>';
+        go.addEventListener('click', function () { takeCourse(o.key); });
+        host.insertBefore(go, o.holes > 1 ? host.querySelector('.sh-label') : strip);
+        return go;
     }
 
     function syncLive() {
@@ -4416,8 +4530,6 @@
             if (!courses.length) return;
             host.appendChild(menuTab(group, courses.length, 'menu-list'));
         });
-        host.appendChild(menuTab(G3.SHUFFLE_GROUP,
-            G3.shuffleDraw(shuffleOpts()).courses.length, 'shuffle'));
 
         var g = openTab();
         $('menu-tab-blurb').textContent = g.blurb;
@@ -4460,8 +4572,9 @@
             (menuSuggest && groupOf(menuSuggest) === group.id && !on
                 ? '<span class="mt-dot" title="up next"></span>' : '');
         tab.addEventListener('click', function () {
-            if (menuGroup === group.id) return;
+            if (menuGroup === group.id && !menuPick) return;
             menuGroup = group.id;
+            menuPick = null;
             // "Same kind" means the kind you are looking at, so the draw and
             // its counts move with the tabs — and the draw's own tab, which is
             // not a kind, leaves that pointing where it last was.
@@ -4474,136 +4587,37 @@
         return tab;
     }
 
-    /* The cards of the open tab. Returns what focus should land on.
-
-       On the draw's tab there are no cards: the list steps aside for
-       `#shuffle` and the button that makes the draw is what focus lands on.
-       Emptying the list rather than merely hiding it is what keeps the plans
-       cheap — `drawPlans` walks whatever cells it finds, and a hidden tab's
-       are cells with no laid-out size to be drawn at. */
+    /* What is under the tabs. One of three things is ever on screen: the
+       grid of the open tab, the page of the card picked from it, or — from
+       the link under the featured row — what "Surprise me" draws from.
+       Returns what focus should land on. */
     function drawCourses() {
-        var save = state ? state.save : S.load();
-        var host = $('menu-list');
-        host.innerHTML = '';
-        var onDraw = menuGroup === G3.SHUFFLE_GROUP.id, onWorlds = menuGroup === WORLDS_GROUP.id || menuGroup === ALL_GROUP.id;
-        host.hidden = onDraw || onWorlds;
+        var onDraw = menuGroup === G3.SHUFFLE_GROUP.id;
+        $('menu-list').hidden = true;
         $('shuffle').hidden = !onDraw;
-        $('menu-worlds-panel').hidden = !onWorlds;
+        $('menu-worlds-panel').hidden = onDraw || !!menuPick;
+        $('menu-detail').hidden = onDraw || !menuPick;
+        $('menu-tabs').hidden = !!menuPick && !onDraw;
+        $('menu-tab-blurb').hidden = !!menuPick && !onDraw;
+        // A card's page has the dialog to itself.
+        $('menu-featured').hidden = !!menuPick && !onDraw;
         if (onDraw) return $('shuffle-go');
-        if (onWorlds) { drawGrid(menuGroup === WORLDS_GROUP.id); return $('menu-worlds').firstChild; }
-        var focus = null, firstHead = null;
-
-        G3.coursesInGroup(menuGroup).forEach(function (course) {
-            var rec = S.courseRecord(save, course.id);
-            var par = S.coursePar(course.holes);
-            var got = S.courseStars(save, course);
-            // Expanded from the start on a wide screen, where the strip of
-            // plans never crowded anything out. On a phone every card starts
-            // closed except the one the picker is nudging you towards, so
-            // opening the list costs one screen rather than four.
-            var opened = !document.body.classList.contains('compact-ui') || course.id === menuSuggest;
-            var card = document.createElement('div');
-            card.className = 'course-card' + (course.id === menuSuggest ? ' up-next' : '') +
-                (opened ? ' expanded' : '');
-
-            var stripId = 'cc-holes-' + course.id;
-
-            var topRow = document.createElement('div');
-            topRow.className = 'cc-top';
-
-            var top = document.createElement('button');
-            top.type = 'button';
-            top.className = 'cc-head';
-            top.innerHTML =
-                '<span class="cc-name">' + course.name +
-                (course.id === menuSuggest ? '<span class="cc-next">up next</span>' : '') + '</span>' +
-                '<span class="cc-blurb">' + course.blurb + '</span>' +
-                '<span class="cc-meta">' + course.holes.length + ' holes · par ' + par +
-                ' · best ' + (rec.best === null ? '—' : rec.best + ' (' + S.formatVsPar(rec.bestVsPar) + ')') +
-                ' · <span class="cc-stars-total">\u2605 ' + got.got + '/' + got.max + '</span>' +
-                '</span>';
-            top.addEventListener('click', function () { takeCourse(course.id); });
-            topRow.appendChild(top);
-
-            // Only the strip of hole plans collapses — the head above stays
-            // a one-tap "start from hole 1", same as before this button
-            // existed, so folding a card away never costs that shortcut.
-            var toggle = document.createElement('button');
-            toggle.type = 'button';
-            toggle.className = 'cc-toggle';
-            toggle.setAttribute('aria-controls', stripId);
-            toggle.setAttribute('aria-expanded', opened ? 'true' : 'false');
-            toggle.setAttribute('aria-label', 'Hole plans for ' + course.name);
-            toggle.title = 'Show hole plans';
-            toggle.textContent = '⌄';
-            toggle.addEventListener('click', function () {
-                var open = card.classList.toggle('expanded');
-                toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
-            });
-            topRow.appendChild(toggle);
-            card.appendChild(topRow);
-
-            var strip = document.createElement('div');
-            strip.className = 'cc-holes';
-            strip.id = stripId;
-            /* The cells are shaped like the course's own holes. A mini golf
-               lane is two and a half times as deep as it is wide and a links
-               hole is nearly square; one aspect ratio for both letterboxes
-               whichever it was not chosen for, and six thin green ribbons in
-               six square frames is a picker that shows you nothing. Averaged
-               over the course and clamped, because one odd hole should not
-               reshape the other five. */
-            var shape = 0;
-            course.holes.forEach(function (hole) {
-                var b = hole.bounds;
-                shape += (b.maxX - b.minX) / Math.max(0.001, b.maxZ - b.minZ);
-            });
-            shape = Math.max(0.4, Math.min(1.5, shape / course.holes.length));
-            strip.style.setProperty('--cc-shape', shape.toFixed(3));
-
-            course.holes.forEach(function (hole, i) {
-                var cell = document.createElement('button');
-                cell.type = 'button';
-                cell.className = 'cc-hole';
-                var hr = S.holeRecord(save, course.id, i);
-                cell.title = hole.name + ' — par ' + hole.par +
-                    (hr.plays ? ' · ' + hr.stars + (hr.stars === 1 ? ' star' : ' stars') +
-                        ' · played ' + hr.plays + (hr.plays === 1 ? ' time' : ' times')
-                        : ' · not played yet');
-                // The plan pass below reads these rather than counting its
-                // way through the DOM, so the ordering above is free to change.
-                cell.setAttribute('data-course', course.id);
-                cell.setAttribute('data-hole', i);
-                cell.innerHTML =
-                    '<canvas class="cc-map"></canvas>' +
-                    '<span class="cc-num">' + (i + 1) + '</span>' +
-                    '<span class="cc-par">' + hole.par + '</span>' +
-                    (hr.plays ? '<span class="cc-stars" aria-hidden="true">' + S.starText(hr.stars) + '</span>' : '');
-                cell.addEventListener('click', function () { takeCourse(course.id, i); });
-                strip.appendChild(cell);
-            });
-            card.appendChild(strip);
-            host.appendChild(card);
-            if (!firstHead) firstHead = top;
-            if (course.id === menuSuggest) focus = top;
-        });
-
-        host.scrollTop = 0;
-        return focus || firstHead;
+        if (menuPick) { $('menu-worlds').innerHTML = ''; return drawDetail(menuPick); }
+        $('menu-detail').innerHTML = '';
+        return drawGrid(menuGroup);
     }
 
     /* Drawn after the modal is up, so the canvases have a laid-out size to be
        measured against — and one frame later, so the picker appears at once
-       rather than after a tab's worth of holes has been rasterised. Only the
-       open tab is drawn, which is most of what made this cheap again. */
+       rather than after a screen of plans has been rasterised. Only what is
+       on screen has canvases at all: the grid or one card's page. */
     function drawPlans() {
         if (!G3.minimap) return;
-        var host = $('menu-list');
         requestAnimationFrame(function () {
-            var cells = host.querySelectorAll('.cc-hole'), k;
+            var cells = $('menu').querySelectorAll('canvas[data-course]'), k;
             for (k = 0; k < cells.length; k++) {
-                G3.minimap.into(cells[k].querySelector('.cc-map'),
-                    cells[k].getAttribute('data-course'),
+                if (!cells[k].clientWidth) continue;
+                G3.minimap.into(cells[k], cells[k].getAttribute('data-course'),
                     parseInt(cells[k].getAttribute('data-hole'), 10));
             }
         });
@@ -6119,9 +6133,22 @@
             openMenu(G3.nextCourseId(state.course.id));
         });
         $('shuffle-go').addEventListener('click', function () { takeRandom(); });
+        $('menu-surprise').addEventListener('click', function () { maybeAutoFullscreen(); takeRandom(); });
+        $('menu-draw-settings').addEventListener('click', function () {
+            menuPick = null;
+            menuGroup = menuGroup === G3.SHUFFLE_GROUP.id ? ALL_GROUP.id : G3.SHUFFLE_GROUP.id;
+            drawShuffle(); drawTabs(); drawCourses(); drawPlans();
+        });
         $('menu-portals').addEventListener('click', takeJourney);
         // The live worlds behind the tour's holes, on or off (render.js → setLive).
         $('menu-live').addEventListener('click', function () { R.setLive(!R.liveWanted); syncLive(); });
+        // render.js gave up on the live world for this machine.
+        window.addEventListener('g3-live-off', function (e) {
+            toast(e.detail === 'crash'
+                ? 'Live worlds are off: the last one did not finish loading. Switch them back on in Courses.'
+                : 'Live worlds switched off: this device was struggling. Switch them back on in Courses.');
+            syncLive();
+        });
         $('menu-showcase').addEventListener('click', takeShowcase);
         $('menu-challenge').addEventListener('click', takeChallenge);
         /* No toast on this one: it is pressed with the picker open, and the

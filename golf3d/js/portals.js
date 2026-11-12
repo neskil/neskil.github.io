@@ -87,7 +87,7 @@
        `u` is how far along that world's own flight path the tee stands,
        `scale` its units to one of ours, `lift` and `turn` a nudge up and
        round (backdrop.mjs → anchorFor). */
-    var PLACES = {"breakfast": ["breakfast-table"], "turtle": ["world-turtle", {"u": 0.12, "at": {"x": -95.58, "z": 148.41, "y": 150, "yaw": 0.6981, "scale": 2.5}}], "gasgiant": ["storm-bands"], "abyss": ["kelp-cathedral"], "carnival": ["carnival-on-the-frozen-river"], "mushroom": ["spore-rain"], "orrery": ["long-library"], "stairs": ["stairway-everywhere"], "attic": ["the-toppling"], "threebody": ["airbrush-black-hole"], "clouds": ["cloud-armada"], "forge": ["obsidian-forge"], "ironriver": ["obsidian-forge", {"u": 0.5, "at": {"x": -45, "z": 2.5, "y": 0, "yaw": 0, "scale": 2.5}}]};
+    var PLACES = {"breakfast": ["breakfast-table"], "turtle": ["world-turtle", {"u": 0.02, "at": {"x": -95.58, "z": 148.41, "y": 150, "yaw": 0.6981, "scale": 2.5}}], "gasgiant": ["storm-bands"], "abyss": ["kelp-cathedral"], "carnival": ["carnival-on-the-frozen-river"], "mushroom": ["spore-rain"], "orrery": ["long-library"], "stairs": ["stairway-everywhere"], "attic": ["the-toppling"], "threebody": ["airbrush-black-hole"], "clouds": ["cloud-armada"], "forge": ["obsidian-forge"], "nave": ["kelp-cathedral", {"u": 0.3, "at": {"x": 0, "z": 50, "y": -41, "yaw": 3.1416, "scale": 3}}], "ironriver": ["obsidian-forge", {"u": 0.5, "at": {"x": -45, "z": 2.5, "y": 0, "yaw": 0, "scale": 2.5}}]};
     function add(w) {
         w.hole.scene = w.scene || w.id; w.hole.worldId = w.id;
         var q = PLACES[w.id];
@@ -500,6 +500,37 @@
         })()
     });
 
+    /* Sculpted to its world, the third that is. The Kelp Cathedral is a
+       trench: a level floor a few strides wide and two banks that climb away
+       from it for as far as the kelp grows. So the hole is a half-pipe.
+       The tee is up on the head wall, the drive runs down into the trench,
+       and nothing hit along it is ever lost — the banks hand it back to the
+       floor. The green is not on the floor. It is a shelf cut into the east
+       bank, four units up, and the ball has to be sent up the bank to it
+       with the weight to stop: short and it comes all the way back down. */
+    add({
+        id: 'nave', title: 'The Nave', world: 'Kelp Cathedral, the trench', kind: 'ocean', tier: 2,
+        caption: 'A par four down the floor of a sea trench, to a green cut into its bank. The trench is the world\'s own.',
+        theme: 'nave',
+        hole: (function () {
+            var G = (G3.TOUR_GROUND || {}).nave, field = G ? [{ grid: G }] : [];
+            function on(p, inlay) { p.field = field; if (inlay) p.inlay = true; return p; }
+            var ground = on(pad(-24, -3, 48, 79, 0, 'rough'));
+            ground.ghost = true;
+            return world({
+                name: 'The Nave', par: 4, long: true,
+                blurb: 'Down the head wall and along the floor: the banks send everything back to the middle. The green is a shelf up the left bank, and what does not stay on it comes all the way down.',
+                pads: [
+                    ground,
+                    on(pad(-1.5, -1.5, 3, 3, 0, 'fairway'), true),
+                    on(pad(-3, 14, 6, 38, 0, 'fairway'), true),
+                    on(pad(-20, 60, 8, 8, 0, 'green'), true)
+                ],
+                tee: { x: 0, z: 0 }, cup: { x: -16, z: 64 }
+            });
+        })()
+    });
+
     /* ── the shelves ────────────────────────────────────────────────────── */
 
     var KINDS = {
@@ -537,6 +568,15 @@
             sky: [0x021420, 0x0b4f66], fog: 0x0a4358,
             sun: 0x9fe8ff, sunPos: [3, 18, 4], ambient: 0x2a8aa0, ambientI: 0.85,
             grass: ['#1f8f7a', '#1a806d'], rail: 0x3fe0b0, machine: 0x8dfcff,
+            cloudLum: 0.08, birds: false,
+            surroundY: -0.42, surround: 'rock', ground: '#0c3440',
+            water: 0x0d5f78, side: '#0e4a52'
+        },
+        // The same sea, for the hole that lies on its bed: sand, not a mat.
+        nave: {
+            sky: [0x021420, 0x0b4f66], fog: 0x0a4358,
+            sun: 0x9fe8ff, sunPos: [3, 18, 4], ambient: 0x2a8aa0, ambientI: 0.85,
+            grass: ['#3f9c8c', '#378c7d'], rail: 0x3fe0b0, machine: 0x8dfcff,
             cloudLum: 0.08, birds: false,
             surroundY: -0.42, surround: 'rock', ground: '#0c3440',
             water: 0x0d5f78, side: '#0e4a52'

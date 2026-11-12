@@ -5769,6 +5769,13 @@
                 assert('…and every strip laid on it lies on the same ground', rh.pads.slice(1).every(function (q) {
                     return q.inlay && Math.abs(P.padHeight(q, q.x + 1, q.z + 1) - P.padHeight(rh.pads[0], q.x + 1, q.z + 1)) < 1e-9;
                 }));
+                var nv = PW.byId('nave'), nh = nv.hole, ng = G3.TOUR_GROUND && G3.TOUR_GROUND.nave;
+                assert('the nave\'s hole stands on ground baked from the kelp trench', !!ng && ng.h.length === ng.nx * ng.nz &&
+                    nh.pads[0].ghost === true && nh.pads[0].field[0].grid === ng && !!nv.place.at);
+                assert('…it is a half-pipe: both banks stand over the floor, and the green is a shelf up one of them',
+                    P.padHeight(nh.pads[0], -18, 30) > P.padHeight(nh.pads[0], 0, 30) + 3 &&
+                    P.padHeight(nh.pads[0], 18, 30) > P.padHeight(nh.pads[0], 0, 30) + 3 &&
+                    nh.cup.y > P.padHeight(nh.pads[0], 0, 64) + 2.5);
             })();
 
             // A journey.

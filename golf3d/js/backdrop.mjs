@@ -27,12 +27,20 @@ const canvas = document.createElement('canvas');
 const size = { w: 640, h: 360 };
 let engine = null, cur = null, wanted = null, loading = null, failed = {};
 let clock = 0;
+const coarse = !!(window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
+/* A mark left while a world is building and taken away once it has been
+   drawn (or the page is left in the ordinary way). If it is still there at
+   the next visit the build killed the page, and render.js does not try
+   again until asked. */
+const MARK = 'golf3d.worldBuilding';
+const mark = (v) => { try { v ? localStorage.setItem(MARK, v) : localStorage.removeItem(MARK); } catch (e) { /* ignore */ } };
+window.addEventListener('pagehide', () => mark(null));
 const info = { near: 0.1, far: 5000, scale: 1, w: 2, h: 2 };
 
 function boot() {
     if (engine) return engine;
     engine = new Engine(canvas, [], {
-        freeze: true, hold: true, single: true, quality: 'medium', pixelRatio: 1,
+        freeze: true, hold: true, single: true, quality: coarse ? 'low' : 'medium', pixelRatio: 1,
         samples: 0, checkShaders: false
     });
     // The engine sizes itself to the window; this one is sized to the stage.
@@ -151,11 +159,12 @@ async function want2(id) {
     if (cur && cur.def.id === id) return true;
     const E = boot();
     const def = { id, name: id, load: () => import('../vendor/portals/src/worlds/' + id + '.js') };
+    mark(id);
     const job = loading = E._load(def, seedOf(id));
     let W = null;
     try { W = await job; } catch (e) { failed[id] = true; console.warn('backdrop: ' + id + ' did not build', e); }
     if (loading === job) loading = null;
-    if (!W) return false;
+    if (!W) { mark(null); return false; }
     if (W.portal && W.portal.group) W.portal.group.visible = false;
     if (wanted !== id) { try { E._dispose(W); } catch (e) { /* ignore */ } return want2(wanted); }
     if (cur) { try { E._dispose(cur); } catch (e) { /* ignore */ } }
@@ -306,6 +315,7 @@ function frame(dt, cam, place, seat, w, h) {
         // this machine the world is still shown, behind everything.
         if (!W.flat) { try { drawDepth(W, c, w, h); } catch (e) { W.flat = true; console.warn('backdrop depth', e); } }
     } catch (e) { failed[W.def.id] = true; cur = null; console.warn('backdrop draw', e); return false; }
+    if (!W.shown) { W.shown = (W.shown0 = (W.shown0 || 0) + 1) > 3; if (W.shown) mark(null); }
     info.near = c.near; info.far = c.far; info.scale = A.scale; info.w = w; info.h = h;
     return true;
 }

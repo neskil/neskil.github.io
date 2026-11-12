@@ -4514,3 +4514,100 @@ body.lane-swing .swipe-hint {
 
 /* The picker is a grid of everything now, and a grid wants the width. */
 #menu .modal-inner { width: min(780px, 100%); }
+
+/* ── the picker, as a level select ───────────────────────────────────────
+   One grid for every tab, one page for whatever is picked from it, and the
+   way back to the round pinned to the bottom. */
+.menu-progress { display: flex; align-items: center; gap: 0.6rem; margin: 0.1rem 0 0.6rem; font-size: 0.8rem; color: var(--gold); }
+.mp-bar { flex: 1; height: 4px; background: #3a352a; border-radius: 2px; overflow: hidden; }
+.mp-bar i { display: block; height: 100%; width: 0; background: var(--gold); }
+
+.menu-featured { grid-template-columns: 1fr 1fr 1fr; }
+.surprise-go { --cg-tint: #c4b5fd; }
+@media (max-width: 30rem) {
+    .menu-featured { gap: 0.35rem; }
+    .menu-featured .sh-go { flex-direction: column; align-items: center; gap: 0.2rem; padding: 0.55rem 0.2rem; min-height: 60px; text-align: center; }
+    .menu-featured .sh-go b { font-size: 0.86rem; }
+}
+
+/* The tabs are one row of named chips; on a phone the row scrolls sideways
+   rather than shrinking its names away or stacking four deep over the grid. */
+.menu-tabs { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; }
+.menu-tabs::-webkit-scrollbar { display: none; }
+.menu-tabs[hidden] { display: none; }
+.menu-tab { flex: 0 0 auto; grid-template-columns: auto auto auto; min-height: 44px; padding: 0.45rem 0.8rem; font-size: 0.9rem; white-space: nowrap; }
+.mt-name { display: inline; }
+@media (max-width: 520px) {
+    .menu-tabs { display: flex; gap: 0.35rem; margin-right: -1.4rem; padding-right: 1.4rem; }
+    .menu-tab:first-child { grid-column: auto; }
+}
+
+.world-grid { grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr)); gap: 0.55rem; }
+@media (max-width: 520px) { .world-grid { grid-template-columns: 1fr 1fr; } }
+.world { grid-template-rows: auto auto; }
+.world.up-next { border-color: var(--gold); }
+.world-sky { aspect-ratio: 16 / 10; overflow: hidden; }
+.world-sky::after { display: none; }
+.world-sky .cc-map { position: absolute; inset: 0; width: 100%; height: 100%; }
+.world-sky .world-new, .md-head .world-new {
+    position: absolute; right: 0.3rem; top: 0.3rem; z-index: 1;
+    padding: 0.05rem 0.35rem; font-size: 0.62rem; font-weight: 600;
+    color: #10140c; background: var(--under); border-radius: 3px;
+}
+.world-meta { display: flex; justify-content: space-between; align-items: center; gap: 0.4rem; font-size: 0.78rem; }
+.world-name { font-size: 0.95rem; }
+.pips { color: var(--gold); letter-spacing: 0.06em; white-space: nowrap; }
+.pips i { font-style: normal; color: #4a4536; }
+
+.menu-detail { display: grid; gap: 0.7rem; }
+.menu-detail[hidden] { display: none; }
+.md-back { justify-self: start; padding: 0.5rem 0; min-height: 44px; font-size: 0.95rem; }
+.md-head {
+    position: relative;
+    display: flex; align-items: flex-end;
+    min-height: 6.5rem;
+    padding: 0.8rem;
+    border: 1px solid var(--panel-border);
+    border-radius: 6px;
+}
+.md-title { display: grid; gap: 0.1rem; padding: 0.35rem 0.6rem; background: #1c1f16; border-radius: 4px; }
+.md-title b { font-size: 1.5rem; line-height: 1.1; }
+.md-title span { font-size: 0.82rem; color: var(--ink-dim); }
+.md-blurb { margin: 0; font-size: 0.95rem; line-height: 1.45; color: var(--ink); }
+.md-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.4rem; }
+.md-stats span {
+    display: grid; gap: 0.1rem; justify-items: center;
+    padding: 0.45rem 0.2rem;
+    font-size: 0.68rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-dim);
+    background: var(--panel); border: 1px solid var(--panel-border); border-radius: 5px;
+}
+.md-stats b { font-size: 1.15rem; letter-spacing: 0; color: var(--ink); }
+.md-stats .md-gold { color: var(--gold); }
+.md-play {
+    display: flex; align-items: baseline; justify-content: center; gap: 0.6rem;
+    width: 100%; min-height: 56px;
+    font: inherit; color: #1a1712;
+    background: #dcc28a; border: 1px solid #dcc28a; border-radius: 6px;
+    cursor: pointer;
+}
+.md-play b { font-size: 1.35rem; letter-spacing: 0.02em; }
+.md-play span { font-size: 0.85rem; }
+.md-play:hover { background: #e8d29f; }
+.md-play:active { transform: translateY(1px); }
+.md-play:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.menu-detail .cc-holes { padding: 0; gap: 5px; }
+.menu-detail .cc-holes.one { grid-template-columns: 1fr; }
+.menu-detail .cc-holes.one .cc-hole { aspect-ratio: 16 / 9; }
+.menu-detail .cc-num, .menu-detail .cc-par { font-size: 0.72rem; padding: 3px 5px; }
+.menu-detail .cc-stars { font-size: 0.7rem; }
+
+/* Back to the round, always in reach. */
+#menu .modal-actions {
+    position: sticky; bottom: -1.4rem;
+    margin: 1rem -1.4rem -1.4rem; padding: 0.7rem 1.4rem;
+    background: rgb(28, 31, 22);
+    border-top: 1px solid var(--panel-border);
+}
+.tour-credit .linkish { min-height: 32px; }
+.menu-featured[hidden] { display: none; }
+.md-play { align-items: center; }
