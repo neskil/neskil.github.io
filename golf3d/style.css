@@ -4611,3 +4611,5 @@ body.lane-swing .swipe-hint {
 .tour-credit .linkish { min-height: 32px; }
 .menu-featured[hidden] { display: none; }
 .md-play { align-items: center; }
+/* On a card's page the plans are the page, never folded away. */
+.compact-ui .menu-detail .cc-holes { display: grid; max-height: none; opacity: 1; padding: 0; overflow: visible; pointer-events: auto; }
