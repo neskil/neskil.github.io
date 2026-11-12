@@ -2110,7 +2110,8 @@
            its earth wall is a hand's breadth of cut sand and not a column down
            to the surround — and it is lifted the same hair a flat inlay is, or
            its rim z-fights with the ground it is exactly flush with. */
-        var base = pad.inlay ? -0.4 : (theme.surroundY - 0.5) - cy;
+        // …and a hovering one (a portal world's island) is a slab, as in addPad.
+        var base = pad.inlay ? -0.4 : pad.hover ? -0.9 : (theme.surroundY - 0.5) - cy;
         var lift = pad.inlay ? INLAY_LIFT : 0;
         var mat = R.surf.pads[pad.kind]
             ? R.surf.pads[pad.kind].slab[0] : R.surf.pads.green.slab[0];
@@ -4734,6 +4735,8 @@
        same vertex. Null for the holes that do not get one. */
     function skirtPlan(hole, theme) {
         if (!hole.open || theme.surround === 'water') return null;
+        // A portal world's islands hang in the air: no bank down to anything.
+        if (hole.portal && !hole.grounded) return null;
 
         var b = hole.bounds;
         var cx = (b.minX + b.maxX) / 2, cz = (b.minZ + b.maxZ) / 2;
@@ -5524,13 +5527,20 @@
             R.fogFar = Math.min(R.fogFar * theme.air, 280);
         }
         R.scene.fog = new THREE.Fog(skyTint(theme.fog, weather, false), R.fogNear, R.fogFar);
-        g.add(skyDome(theme, weather));
+        /* Everything that is the place rather than the hole — sky, ground
+           out to the horizon, ridges, a world's set piece — goes in a group of
+           its own, so that a hole played inside a live world (backdrop.mjs)
+           can put all of it away at once and take it back if the world goes. */
+        var og = new THREE.Group();
+        g.add(og);
+        R.outer = og;
+        og.add(skyDome(theme, weather));
         lights(g, hole, theme, weather);
         var skirt = skirtPlan(hole, theme);
-        addSurround(g, hole, theme, skirt);
-        addSkirt(g, hole, theme, skirt);
-        addRidges(g, hole, theme, weather);
-        addRange(g, hole, theme, skirt);
+        addSurround(og, hole, theme, skirt);
+        addSkirt(og, hole, theme, skirt);
+        addRidges(og, hole, theme, weather);
+        addRange(og, hole, theme, skirt);
 
         var i;
         // The country past the stakes is drawn as country (splitCountry).
@@ -5538,7 +5548,7 @@
         for (i = 0; i < hole.pads.length; i++) addPad(g, hole.pads[i], theme, hole.cup, hole.pads);
         R.country = null;
         if (theme.grid) addGrid(g, hole, theme);
-        if (theme.glow) addNeonBackdrop(g, hole, theme);
+        if (theme.glow) addNeonBackdrop(og, hole, theme);
         if (hole.wells) addWells(g, hole);
         // The grid world's effects switch on with the theme (see hitAt), and
         // its tail is drawn larger, because it is a light and not a smudge.
@@ -5569,6 +5579,8 @@
         // The long game's dressing, and what lives on it (life.js).
         if (G3.life) G3.life.build(g, hole, themeName, theme.surround === 'water', R.groundAt, R.groundMat);
         if (hole.targets) addBoards(g, hole);
+        // A portal world's set piece, and the door past its flag (worlds.js).
+        if (G3.worlds) G3.worlds.build(og, hole, theme);
 
         // The rain, the mist banks and whatever is drifting in the air are
         // parented to the hole, so the next hole disposes them with it.
@@ -5599,6 +5611,7 @@
         }
         if (R.sky) R.sky.uniforms.sunDir.value.copy(R.sunDir);
 
+        setPlace(hole);
         R.scene.add(g);
         R.holeGroup = g;
         R.smooth.started = false;
@@ -5616,6 +5629,90 @@
         // A hole changed with a ball inside a pipe would leave it shrunk.
         R.ball.scale.setScalar(1);
         R.ball.visible = true;
+    }
+
+    /* ── the live world behind a tour hole ──────────────────────────────
+
+       A hole that names a `place` is played inside a world from Portals,
+       drawn by that project's own engine into a canvas of its own
+       (backdrop.mjs has how). Here it is only a picture: the canvas becomes
+       the scene's background, the hole's own sky and country are put away
+       (R.outer), and the fog is pushed out past the hole so the far end of a
+       green does not fade to a sky that is no longer there.
+
+       All of it is conditional on the world actually being drawn this frame.
+       While it is building, on a machine that cannot run it, or with live
+       worlds switched off, `stepPlace` does nothing and the hole stands in
+       its theme's own sky with worlds.js's simple set piece — a complete
+       hole either way. */
+    var LIVE_KEY = 'golf3d.liveWorlds';
+    function liveWanted() {
+        if (R.liveOverride !== undefined) return R.liveOverride;
+        try {
+            var v = localStorage.getItem(LIVE_KEY);
+            if (v === '0') return false;
+            if (v === '1') return true;
+        } catch (e) { /* ignore */ }
+        // A second renderer drawing a whole world is a desktop's job by
+        // default; a phone gets the simple scenery unless it asks.
+        return !(window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
+    }
+    function setLive(on) {
+        try { localStorage.setItem(LIVE_KEY, on ? '1' : '0'); } catch (e) { /* ignore */ }
+        R.liveOverride = undefined;
+        if (R.hole) setPlace(R.hole);
+        return liveWanted();
+    }
+
+    function setPlace(hole) {
+        R.hole = hole;
+        var place = hole && hole.place && liveWanted() ? hole.place : null;
+        R.place = place;
+        if (place) {
+            var yaw = Math.atan2(hole.cup.x - hole.tee.x, hole.cup.z - hole.tee.z);
+            R.placeSeat = { x: hole.tee.x - Math.sin(yaw) * 9, y: (hole.tee.y || 0) + 4.2, h: 4.2,
+                z: hole.tee.z - Math.cos(yaw) * 9, yaw: yaw,
+                // the middle of the hole, for seating it on the world's ground
+                cx: (hole.tee.x + hole.cup.x) / 2, cz: (hole.tee.z + hole.cup.z) / 2 };
+        }
+        R.live = false;
+        if (R.scene) R.scene.background = null;
+        if (G3.backdrop) G3.backdrop.want(place ? place.world : null);
+    }
+    // backdrop.mjs is a module and arrives after the first hole is built.
+    window.addEventListener('g3-backdrop', function () {
+        if (R.place && G3.backdrop) G3.backdrop.want(R.place.world);
+    });
+
+    function stepPlace(dt) {
+        var B = G3.backdrop, live = false;
+        if (R.place && B) {
+            var cv = R.renderer.domElement;
+            // Three quarters of the stage's own pixels, and never more than
+            // a 720p frame: it is behind everything and half of it is sky.
+            var k = Math.min(0.75, 1280 / Math.max(1, cv.width));
+            live = B.frame(dt, R.camera, R.place, R.placeSeat,
+                Math.max(2, Math.round(cv.width * k)), Math.max(2, Math.round(cv.height * k)));
+        }
+        if (live) {
+            if (!R.bgTex) {
+                R.bgTex = new THREE.CanvasTexture(B.canvas);
+                R.bgTex.minFilter = R.bgTex.magFilter = THREE.LinearFilter;
+                R.bgTex.generateMipmaps = false;
+                if (THREE.sRGBEncoding !== undefined) R.bgTex.encoding = THREE.sRGBEncoding;
+            }
+            R.bgTex.needsUpdate = true;
+        }
+        if (live === R.live) return;
+        R.live = live;
+        R.scene.background = live ? R.bgTex : null;
+        if (R.outer) R.outer.visible = !live;
+        if (live) {
+            R.fogKeep = { near: R.fogNear, far: R.fogFar };
+            R.fogNear = 400; R.fogFar = 1200;
+        } else if (R.fogKeep) {
+            R.fogNear = R.fogKeep.near; R.fogFar = R.fogKeep.far;
+        }
     }
 
     /* ── per-frame ──────────────────────────────────────────────────────── */
@@ -6690,10 +6787,14 @@
         stepParticles(dt);
         stepRipples(dt);
         stepBlackHoles(dt, world);
+        if (G3.worlds) G3.worlds.step(dt, R.clock);
         watchLoop(world, dt);
         watchWarp(world, dt);
         updateCamera(world.hole, world.ball, dt);
         if (R.fx && G3.postfx.lens) G3.postfx.lens(lensList());
+
+        // The live world behind the hole, from where the camera now is.
+        stepPlace(dt);
 
         // The camera has moved; what the air is doing about it, and the two
         // markers that only exist while it is up there.
@@ -6921,6 +7022,9 @@
         viewLabel: viewLabel,
         setLock: setLock,
         setWaterQuality: setWaterQuality,
+        setLive: setLive,
+        get liveWanted() { return liveWanted(); },
+        get live() { return !!R.live; },
         get prettyWater() { return R.prettyWater; },
         cam: R.cam,
         // The bag picks against these, and nothing else needs them.

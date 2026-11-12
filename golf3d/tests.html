@@ -25,6 +25,7 @@
     <script src="js/config.js"></script>
     <script src="js/physics.js"></script>
     <script src="js/courses.js"></script>
+    <script src="js/portals.js"></script>
     <script src="js/custom.js"></script>
     <script src="js/audit.js"></script>
     <script src="js/scoring.js"></script>
@@ -5679,6 +5680,96 @@
             var capped = tapeOf(pw - 0.05, C.SIM_DT).tape;
             RP.MAX_FRAMES = held;
             assert('a tape past its cap is not playable', capped.full && !RE.playable(capped, hole));
+        })();
+
+        /* ── the portal worlds ─────────────────────────────────────────── */
+
+        section('PORTALS');
+        (function () {
+            var PW = G3.portals, ids = {}, dup = false;
+            PW.WORLDS.forEach(function (w) { if (ids[w.id]) dup = true; ids[w.id] = true; });
+            assert('there are at least a dozen worlds, each with its own id', PW.WORLDS.length >= 12 && !dup);
+            assert('every hole has a name, a caption, a shelf, a palette — and a world it is played in',
+                PW.WORLDS.every(function (w) {
+                    return w.title && w.caption && PW.KINDS[w.kind] && G3.THEMES[w.theme] &&
+                        w.world && w.place && w.place.world && w.hole.place === w.place && w.hole.inWorld === w.world &&
+                        G3.THEMES[w.theme].sky.length === 2 && G3.THEMES[w.theme].grass.length === 2;
+                }));
+            var themes = {}, lives = {};
+            PW.WORLDS.forEach(function (w) { themes[w.theme] = true; lives[w.place.world] = true; });
+            assert('no two holes share a palette, or a world', Object.keys(themes).length === PW.WORLDS.length &&
+                Object.keys(lives).length === PW.WORLDS.length);
+            assert('none of them borrows a course\'s', PW.WORLDS.every(function (w) {
+                return !G3.COURSES.some(function (c) { return c.theme === w.theme; });
+            }));
+
+            // The ground: a tee and a cup that are standing on something.
+            PW.WORLDS.forEach(function (w) {
+                var h = w.hole;
+                var tee = P.surfaceTop(h, h.tee.x, h.tee.z), cup = P.surfaceTop(h, h.cup.x, h.cup.z);
+                assert(w.id + ': the tee and the cup are on the ground', !!tee && !!cup);
+                assert(w.id + ': the cup is in bounds and the hole is a portal',
+                    !P.outOfBounds(h, h.cup.x, h.cup.z) && h.portal === true && h.scene === w.id);
+                var g = { x: 0, z: 0 };
+                var flat = cup && Math.abs(P.padHeight(cup.pad, h.cup.x + 0.3, h.cup.z) - P.padHeight(cup.pad, h.cup.x - 0.3, h.cup.z)) < 0.02 &&
+                    Math.abs(P.padHeight(cup.pad, h.cup.x, h.cup.z + 0.3) - P.padHeight(cup.pad, h.cup.x, h.cup.z - 0.3)) < 0.02;
+                assert(w.id + ': the cup is cut into level ground', flat);
+                // Nothing solid stands on the tee or the cup.
+                var clear = h.walls.every(function (wl) {
+                    if (wl.move || wl.spin || wl.swing || wl.sails) return true;
+                    var B = P.wallBox(wl, 0);
+                    return !P.circleBox(h.cup.x, h.cup.z, C.HOLE_R + 0.05, B) || B.base > h.cup.y + 0.5 || B.top < h.cup.y - 0.2;
+                });
+                assert(w.id + ': no wall stands in the cup', clear);
+            });
+
+            // And the bot holes every one, out of the bag the world hands out.
+            PW.WORLDS.forEach(function (w) {
+                var r = G3.bot.play(w.hole, 10, G3.bagFor(w.hole));
+                assert(w.id + ': the bot holes out', r.sunk, r.strokes + ' strokes');
+                assert(w.id + ': …in no more than two over its par', r.sunk && r.strokes <= w.hole.par + 2,
+                    r.strokes + ' against ' + w.hole.par);
+            });
+
+            // A journey.
+            function lcg(seed) { var s = seed >>> 0; return function () { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; }; }
+            var shape = true, kinds = true, climbs = true, k, d, seen = {};
+            for (k = 0; k < 60; k++) {
+                d = PW.deal(lcg(k * 7919 + 1));
+                if (d.holes.length !== PW.LENGTH || d.themes.length !== PW.LENGTH || d.from.length !== PW.LENGTH) shape = false;
+                var u = {};
+                d.worlds.forEach(function (id, i) {
+                    u[id] = true; seen[id] = true;
+                    if (d.holes[i] !== PW.byId(id).hole || d.themes[i] !== PW.byId(id).theme ||
+                        d.from[i].id !== 'world-' + id) shape = false;
+                    if (i && PW.byId(id).tier < PW.byId(d.worlds[i - 1]).tier) climbs = false;
+                });
+                if (Object.keys(u).length !== PW.LENGTH) shape = false;
+            }
+            assert('a journey is six different worlds, each drawn in its own palette', shape && d.isPortals);
+            assert('…and it climbs', climbs);
+            assert('sixty journeys reach every world', Object.keys(seen).length === PW.WORLDS.length);
+            var a = PW.deal(lcg(42)), b = PW.deal(lcg(42)), c2 = PW.deal(lcg(43));
+            assert('a seed is a journey', a.worlds.join() === b.worlds.join());
+            assert('and another seed is another', a.worlds.join() !== c2.worlds.join() ||
+                PW.deal(lcg(44)).worlds.join() !== a.worlds.join());
+
+            // The dice lean towards worlds this save has not been to.
+            var save = { holes: {} }, fresh = PW.WORLDS[PW.WORLDS.length - 1].id, got = 0;
+            PW.WORLDS.forEach(function (w) { if (w.id !== fresh) save.holes['world-' + w.id + ':0'] = { plays: 6, best: 3, stars: 2 }; });
+            for (k = 0; k < 40; k++) if (PW.deal(lcg(k * 131 + 9), save).worlds.indexOf(fresh) >= 0) got++;
+            assert('the one world never played is dealt nearly every time', got >= 36, got + ' of 40');
+            assert('a journey can be asked to begin somewhere', PW.deal(lcg(5), null, 'forge').worlds[0] === 'forge');
+
+            // How the rest of the game reaches them.
+            assert('courseById answers to the journey, the library and one world',
+                G3.courseById('portals').isPortals && G3.courseById('portal-library').holes.length === PW.WORLDS.length &&
+                G3.courseById('world-turtle').holes.length === 1 && G3.courseById('world-turtle').holes[0] === PW.byId('turtle').hole);
+            assert('and nothing in the clubhouse lists them', !G3.COURSES.some(function (c) { return c.isPortals; }) &&
+                G3.courseById('seaside').id === 'seaside');
+            var rec = S.recordHole(S.load ? { holes: {} } : {}, 'world-turtle', 0, 2, 3, { scored: true });
+            assert('a world keeps its stars under its own name', rec.stars === 3 &&
+                S.holeRecord(rec.save, 'world-turtle', 0).plays === 1);
         })();
 
         /* ── done ──────────────────────────────────────────────────────── */

@@ -4314,3 +4314,134 @@ body.lane-swing .swipe-hint {
     body.compact-ui .view-home { width: 32px; height: 32px; font-size: 0.95rem; }
     body.compact-ui .view-row { gap: 0.35rem; }
 }
+
+/* ── the portal ──────────────────────────────────────────────────────────
+   Between two worlds the stage is one colour for a moment: the next world's
+   sky, closing in from the edges to the middle and then opening out again
+   (game.js → throughPortal sets the two colours). A clip-path, not a scale —
+   a scaled disc pixelates and a clipped sheet does not. */
+.portal-wipe {
+    --pw-in: #f0a868;
+    --pw-out: #2b1a4a;
+    position: absolute;
+    inset: 0;
+    z-index: 40;
+    pointer-events: none;
+    opacity: 0;
+    background: radial-gradient(circle at 50% 50%, var(--pw-in) 0%, var(--pw-out) 70%);
+}
+.portal-wipe.closing {
+    opacity: 1;
+    pointer-events: auto;
+    animation: portal-close 0.62s cubic-bezier(0.6, 0, 0.9, 0.4) both;
+}
+.portal-wipe.opening {
+    opacity: 1;
+    animation: portal-open 0.65s cubic-bezier(0.1, 0.6, 0.3, 1) both;
+}
+@keyframes portal-close {
+    from { clip-path: circle(0% at 50% 50%); }
+    to   { clip-path: circle(75% at 50% 50%); }
+}
+@keyframes portal-open {
+    from { clip-path: circle(75% at 50% 50%); opacity: 1; }
+    to   { clip-path: circle(75% at 50% 50%); opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .portal-wipe { display: none; }
+}
+
+/* ── the picker's front page ─────────────────────────────────────────────
+   One door, the worlds it has shown you, and the clubhouse. Opaque matte
+   plates like everything else here; the door's eye is the one thing in the
+   dialog that turns. */
+.menu-home { display: grid; gap: 0.75rem; margin-top: 0.8rem; }
+
+.door {
+    --cg-tint: #dcc28a;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 0.9rem;
+    min-width: 0;
+    font: inherit;
+    text-align: left;
+    color: var(--ink);
+    padding: 1rem 1rem;
+    border-radius: 6px;
+    border: 1px solid color-mix(in srgb, var(--cg-tint) 60%, transparent);
+    background: #23201a;
+    cursor: pointer;
+    transition: background 0.18s, border-color 0.18s;
+}
+.door:hover { background: #2c281f; border-color: var(--cg-tint); }
+.door:active { transform: translateY(1px); }
+.door:focus-visible { outline: 2px solid var(--cg-tint); outline-offset: 2px; }
+.door-text { display: grid; gap: 0.2rem; min-width: 0; flex: 1; }
+.door-text b { font-size: 1.3rem; font-weight: 700; letter-spacing: 0.01em; }
+.door-sub { font-size: 0.86rem; color: var(--ink-dim); line-height: 1.35; }
+.door-go { font-size: 1.3rem; color: var(--cg-tint); }
+
+/* The eye: the sky of the world the door would open on first, wound round
+   (game.js sets --eye-a and --eye-b). */
+.door-eye {
+    --eye-a: #2b1a4a;
+    --eye-b: #f0a868;
+    flex: none;
+    width: 3.4rem;
+    height: 3.4rem;
+    border-radius: 50%;
+    border: 2px solid var(--cg-tint);
+    background: conic-gradient(from 0deg, var(--eye-a), var(--eye-b), var(--eye-a), var(--eye-b), var(--eye-a));
+    animation: door-turn 9s linear infinite;
+}
+@keyframes door-turn { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .door-eye { animation: none; } }
+
+.door-club { padding: 0.6rem 0.8rem; background: transparent; border-color: var(--panel-border); }
+.door-club .door-text b { font-size: 1rem; }
+.door-mark { font-size: 1.3rem; width: 2rem; text-align: center; flex: none; }
+
+.world-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(7.2rem, 1fr));
+    gap: 0.45rem;
+}
+.world {
+    display: grid;
+    grid-template-rows: 2.4rem auto;
+    min-width: 0;
+    padding: 0;
+    font: inherit;
+    text-align: left;
+    color: var(--ink);
+    border: 1px solid var(--panel-border);
+    border-radius: 5px;
+    background: var(--panel);
+    overflow: hidden;
+    cursor: pointer;
+    transition: border-color 0.18s;
+}
+.world:hover { border-color: #dcc28a; }
+.world:focus-visible { outline: 2px solid #dcc28a; outline-offset: 2px; }
+.world-sky { display: block; position: relative; }
+.world-sky::after {
+    /* its ground, as a strip along the bottom of its sky */
+    content: '';
+    position: absolute;
+    left: 0; right: 0; bottom: 0;
+    height: 28%;
+    background: var(--w-ground, #3b8f45);
+}
+.world-text { display: grid; gap: 0.05rem; padding: 0.35rem 0.5rem 0.45rem; min-width: 0; }
+.world-name { font-size: 0.86rem; font-weight: 600; line-height: 1.2; }
+.world-meta { font-size: 0.72rem; color: var(--ink-dim); }
+.world-stars { color: var(--gold); letter-spacing: 0.08em; }
+.world-new { color: var(--under); text-transform: uppercase; letter-spacing: 0.08em; }
+
+.menu-back { margin: 0.5rem 0 0.2rem; padding: 0.3rem 0; font-size: 0.9rem; }
+.menu-classic > .sub { margin-top: 0.2rem; }
+
+.tour-credit { margin: 0; font-size: 0.74rem; color: var(--ink-dim); line-height: 1.5; }
+.tour-credit a { color: inherit; }
+.tour-credit .linkish { font-size: inherit; margin-left: 0.4rem; }

@@ -39,12 +39,14 @@
     <script src="js/themes.js"></script>
     <script src="js/physics.js"></script>
     <script src="js/courses.js"></script>
+    <script src="js/portals.js"></script>
     <script src="js/textures.js"></script>
     <script src="js/shaders.js"></script>
     <script src="js/postfx.js"></script>
     <script src="js/weather.js"></script>
     <script src="js/models.js"></script>
     <script src="js/life.js"></script>
+    <script src="js/worlds.js"></script>
     <script src="js/render.js"></script>
 
     <script>
@@ -749,6 +751,37 @@
             assert('every drawn theme has a world round its holes', drawnCourses >= 9 && drawnThemes === drawnCourses && !/no world|fairway/.test(worldFault),
                 drawnThemes + ' themes; ' + worldFault);
             assert('and nothing in it stands on a hole or between the camera and the shot', !worldFault, worldFault);
+        }
+
+        /* The World Tour's holes: every one builds with its simple set piece
+           (worlds.js — what stands round a hole until its live world has
+           loaded, and for good where it never does) and draws a frame
+           without a word from the driver. The live worlds themselves are
+           another renderer and another three.js (backdrop.mjs) and are not
+           this suite's to compile. */
+        if (G3.portals && G3.worlds) {
+            section('WORLD TOUR');
+            drainErrors();
+            var tourFault = '', tourCount = 0;
+            G3.portals.WORLDS.forEach(function (w) {
+                if (tourFault) return;
+                var got = attempt(w.id + ' builds', function () {
+                    R.buildHole(w.hole, w.theme, null);
+                    renderOnce();
+                });
+                var errs = drainErrors();
+                if (!got.ok || errs.length || unlinkedPrograms().length) {
+                    tourFault = w.id + ': ' + errs.join(' | ').slice(0, 300);
+                    return;
+                }
+                if (!G3.worlds.SCENES[w.hole.scene]) { tourFault = w.id + ' has no set piece'; return; }
+                if (!R.state.outer || R.state.outer.children.length < 2) { tourFault = w.id + ' has no outer group to put away'; return; }
+                tourCount++;
+            });
+            assert('every tour hole builds with its set piece and draws clean',
+                !tourFault && tourCount === G3.portals.WORLDS.length, tourFault);
+            assert('with no live world drawn, the hole keeps its own sky',
+                R.state.live === false && R.state.outer.visible === true && !R.state.scene.background);
         }
 
         } catch (e) {

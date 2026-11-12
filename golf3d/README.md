@@ -1,5 +1,9 @@
 # Loft Links
 
+A **World Tour** of twelve holes, each played inside a world borrowed from
+Ethan Mollick's Portals ([The World Tour](#the-world-tour-every-hole-in-a-world))
+— and behind it, in the clubhouse, the game this started as:
+
 Fifteen six-hole courses of 3D golf in four kinds. **Mini golf**: three
 courses of lanes, rails, ledges, banks and carries. **Crazy golf**: three of
 blades, gates, bumpers, angled banks and pendulums, where the shot is a matter
@@ -52,6 +56,10 @@ them.
 | `js/config.js` | Every tuning constant. Nothing else holds a magic number. |
 | `js/courses.js` | The ninety holes, as data, plus the rail generator, the band layout the long-game courses are written in — rows that tilt and carry their level into the next one, and a cross-fall that puts a whole hole on the side of a hill — the dune fields the links is made of, the landforms the two parkland courses are shaped by, the bag each hole is played out of, and the [draw](#the-draw) behind the picker's die. |
 | `js/physics.js` | The simulation. No three.js, no DOM, pure. |
+| `js/portals.js` | [The World Tour](#the-world-tour-every-hole-in-a-world): the twelve holes — hole, palette, shelf, caption and the Portals world each is played in — the tour's deal, and `courseById` taught to answer `portals`, `portal-library` and `world-<id>`. Written with `G3.authoring`; loaded straight after `courses.js` on every page that loads that. |
+| `js/worlds.js` | The tour holes' stand-in set pieces, for when the live world is not drawn. three.js primitives only. Loaded before `render.js`. |
+| `js/backdrop.mjs`, `vendor/portals/` | The live worlds: Portals' own engine, kit, twelve worlds and three.js r170 (vendored unmodified, CC BY-NC-SA 4.0), and the module that builds one behind a hole and fits the hole into it. |
+| `tools/portal-check.mjs`, `tools/portal-shot.mjs` | Every world played by the caddie with its ace share and widest windows; and one shot on one world, traced. Plain Node. |
 | `js/audit.js` | The [geometry audit](#the-pictures-which-neither-suite-can-see): the faults that are invisible to the ball and obvious in a screenshot. Pure — read by `tests.html`, by the inspector and by the turntable. |
 | `js/scoring.js` | Scorecard arithmetic and the save file. |
 | `js/swing.js` | The swing gate (what a shot past a full swing costs), shot shapes, the arithmetic of the four swing styles and the strike grade. No DOM, no three.js. |
@@ -4158,6 +4166,93 @@ A shared round is nobody's personal best, so it is not recorded, the same rule
 as a round the caddie has had the club in; the range and the demo are always
 one player.
 
+## The World Tour: every hole in a world
+
+What a new game plays, and the front of the picker (v1.151.0). Twelve holes,
+each played **inside a world from Ethan Mollick's
+[Portals](https://github.com/emollick/ai-portals)** — the owner asked for its
+worlds to be borrowed, for courses pushed further than the fifteen had gone,
+and for a way into a round that did not have to be figured out. It is golf
+all the way through: a tee, a flag, a card, "Next hole →". What is borrowed
+is the place.
+
+| Hole | Played in | What it is |
+| --- | --- | --- |
+| The Butter Knife | Breakfast Kingdom | Up a ramp and over a gap to the placemat, or walk the teaspoon, a ball wide. |
+| Up the Shell | The World Turtle | 0.8 g. Along the neck and up a table mountain. No rail anywhere. |
+| The Marble Run | Marble Run, Falling Dominoes | Three chutes tipping opposite ways and a tray at the bottom — or pitch off the top and miss all three. |
+| Balloon Hop | Living Balloons over a Gas Giant | A third of a g. The pads throw the ball and it stays thrown. |
+| Slack Water | Kelp Cathedral | Two currents and a bank of still water between. Step off at the gap, or pitch over the weed. |
+| Loop and Rink | Carnival on the Frozen River | A loop-the-loop, then a rink where the only thing that stops a ball is the rug the flag is in. |
+| The Fairy Ring | Spore Rain | Eight toadstool bumpers round the flag and one big cap in front that throws the ball over them. |
+| The Orrery | Library with a Brass Orrery | Three arms on one spindle at three speeds. |
+| The Cloud Ladder | The Cloud Armada | Four landings at four heights, 0.7 g, nothing rolls between them. |
+| Three Doors Down | Stairway Everywhere | Four landings and three doors in the floor; one putt can take two of them to the flag. |
+| The Three-Body Problem | Airbrushed Black Hole | Three black holes and the cup where they cancel. |
+| The Forge | Black Glass and Lava | A belt running at a hammer, a pad over a river of iron, an anvil with a flag in it. |
+
+**The hole** is `portals.js → WORLDS`: `{ id, title, world, kind, caption,
+theme, tier, hole, place }`, written with `G3.authoring`. `world()` makes each
+`open`, `calm`, `bare` and unstaked — no rail unless something stands there
+(`kerb`), and off the edge is out (`OOB_Y`). A **tour** is six of them
+(`portals.deal`): picked by the showcase's weights (never played is four times
+as likely as once), never the same shelf twice running, in order of `tier`.
+`courseById('portals')` is the tour in play, `portal-library` all twelve,
+`world-<id>` one by itself — also the key its stars are kept under. Records
+are against par. Between two holes the stage closes on the next world's sky
+and opens on its tee (`game.js → throughPortal`, `.portal-wipe`).
+
+**The world is the real one.** `vendor/portals/` is Portals' engine, kit,
+twelve worlds and three.js r170, unmodified (its README has the licence:
+CC BY-NC-SA 4.0, credited in the picker). `js/backdrop.mjs` — an ES module,
+loaded last under an import map, and nothing waits for it — builds the world a
+hole names with that engine and draws it into a canvas of its own;
+`render.js → stepPlace` makes that canvas the scene's background, puts the
+hole's own sky and country away (`R.outer`) and pushes the fog out. Two
+renderers and two three.js versions, one picture.
+
+**And the hole is fitted into it** (`backdrop.mjs → fitAt`). The seat behind
+the ball on the tee is put on the world's own flight path, looking the way
+the flight looks, so the view from the tee is one its makers composed. A ray
+cast straight down through the world's geometry says how high the flight is
+over the ground there, and *that height sets the scale*: forty metres up
+makes the hole a course laid across the country below; skimming a table top
+makes it a toy on the tablecloth. A second ray under the middle of the hole
+is the ground the hole stands on. Only broad, upward-facing, uninstanced
+meshes count as ground — a lantern under the flight is not somewhere to lay a
+hole. With no `place.u` the flight is searched for where it passes lowest
+over level ground (`bestU`); `PLACES` in portals.js overrides `u`, `scale`,
+`lift`, `turn`, `dx`/`dz`, or says `ground: false` for a world with nothing
+under it. The golf is always drawn over the world — there is no shared depth
+buffer — which is why a hole is seated on open ground rather than among
+things that should stand in front of it.
+
+**Without it the hole is still a hole.** Until the world has built — a second
+or two — and for good on a phone, with "Live worlds: off" in the picker
+(`render.setLive`, remembered; `&live=0|1` for a session) or where a second
+WebGL context cannot be had, the hole stands under its own theme's sky
+(`portals.js → THEMES`) with a simple stand-in set piece in this game's own
+three.js (`worlds.js → SCENES`).
+
+**Measuring one**: `node tools/portal-check.mjs` plays every hole with the
+caddie and sweeps the tee for aces; `tools/portal-shot.mjs` traces one shot.
+`tests.html` holds each to a tee and a cup on level ground, a world of its
+own, a bot that holes out within two of par, and the deal to its shape;
+`shader-tests.html` builds every stand-in. The live worlds are another
+renderer and are looked at, not asserted: `?world=<id>&live=1`, and
+`G3.backdrop.debug()` in the console says where the hole landed.
+
+### The picker's front page
+
+The picker opened on two feature buttons, five tabs, fifteen cards and ninety
+plans, and the owner found it "so hard to figure out". It opens now on one
+decision: **Play the World Tour**. Under that is every tour hole as a small
+sky over its own ground — each playable by itself, with its stars or the word
+*new* — and under those **The clubhouse**, which is the old picker, whole:
+showcase, challenge, the four kinds, the draw (`game.js → showMenuPage`,
+`drawHome`). A classic round that ends by offering the next course opens the
+clubhouse on it.
+
 ## The showcase: the game in eight holes
 
 Ninety holes is a lot to walk before you know what is in them, and
@@ -5711,6 +5806,10 @@ the same draw the picker's own button makes, so `&hole=` still counts from 1
 into whichever course came up. It is the one value of `course=` that makes a
 link *not* reproducible, which is the point of it and the reason a screenshot
 should never use it.
+
+`?world=<id>` opens one [tour hole](#the-world-tour-every-hole-in-a-world) by itself;
+`?course=portals` deals a tour, `?course=portal-library` is all twelve, and
+`&live=0|1` switches the live world behind it off or on.
 
 `&fly=0` and `&fly=1` force the intro
 [flyover](#the-fourth-camera-which-is-not-a-seat) off or on for the session,

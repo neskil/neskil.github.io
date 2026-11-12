@@ -246,6 +246,47 @@
         newRound('challenge');
     }
 
+    /* A fresh journey: six portal worlds, one hole each, leaning towards
+       the ones this save has not been to (portals.js → deal). `first` is a
+       world to begin in, for the door a player picked out of the gallery.
+       Play again is newRound('portals'), the same six. */
+    function newJourney(first) {
+        G3.JOURNEY = G3.portals.deal(null, state && state.save ? state.save : S.load(), first);
+        newRound('portals');
+    }
+
+    /* One world on its own, out of the gallery: a round of one hole. */
+    function visitWorld(id) { newRound('world-' + id); }
+
+    /* From one world to the next. The screen closes on the next world's sky
+       from the middle outwards, the hole behind it is swapped, and it opens
+       again on the new tee. The swap happens while the screen is one
+       colour, so nobody sees a hole being built.
+
+       Reduced motion gets the swap and no wipe. `then` runs exactly once
+       either way, and a second press while it is closing is ignored — the
+       same latch the picker keeps (menuTaking), for the same impatient
+       thumb. */
+    var portalBusy = false;
+    function throughPortal(themeName, then) {
+        var el = $('portal-wipe');
+        if (!el || reducedMotion()) { then(); return; }
+        if (portalBusy) return;
+        portalBusy = true;
+        var th = G3.THEMES[themeName] || {}, sky = th.sky || [0x1b2a55, 0xf0a868];
+        var hex = function (n) { return '#' + ('000000' + n.toString(16)).slice(-6); };
+        el.style.setProperty('--pw-in', hex(sky[1]));
+        el.style.setProperty('--pw-out', hex(sky[0]));
+        el.className = 'portal-wipe closing';
+        if (A.warpIn) A.warpIn();
+        setTimeout(function () {
+            then();
+            if (A.warpOpen) A.warpOpen();
+            el.className = 'portal-wipe opening';
+            setTimeout(function () { el.className = 'portal-wipe'; portalBusy = false; }, 650);
+        }, 620);
+    }
+
     /* `again` is a hole being restarted rather than arrived at, which is the
        one difference that matters here: the intro flyover is a first look at a
        hole, and you have already had it. */
@@ -1934,7 +1975,8 @@
                 $('banner-detail').textContent;
         }
         $('banner-next').textContent = up >= 0 ? state.players[up].name + ' to play →'
-            : last ? 'See the card →' : 'Next hole →';
+            : last ? 'See the card →'
+            : 'Next hole →';
         /* An ace gets shown again, at once: an instant replay, the moment
            the drop has landed, with the banner held back until it is over —
            Autoplay included, since the replay holds the frame and the walk
@@ -2085,6 +2127,11 @@
             setTurn(0);
         }
         if (state.holeIndex < state.course.holes.length - 1) {
+            if (state.course.isPortals) {
+                var to = state.holeIndex + 1;
+                throughPortal(themeAt(to), function () { loadHole(to); });
+                return;
+            }
             loadHole(state.holeIndex + 1);
         } else {
             finishRound();
@@ -2117,7 +2164,7 @@
             };
         } else {
             res = S.recordRound(state.save, state.course.id, state.scores, state.course.holes,
-                                { byPar: !!(state.course.isShowcase || state.course.isChallenge) });
+                                { byPar: !!(state.course.isShowcase || state.course.isChallenge || state.course.isPortals) });
             state.save = S.save(res.save);
         }
         state.phase = 'finished';
@@ -2209,7 +2256,7 @@
                strokes it took were strokes on a different eight holes. */
             $('best-round').textContent = rec.best === null
                 ? '\u2014'
-                : state.course.isShowcase || state.course.isChallenge ? S.formatVsPar(rec.bestVsPar)
+                : state.course.isShowcase || state.course.isChallenge || state.course.isPortals ? S.formatVsPar(rec.bestVsPar)
                 : rec.best + ' (' + S.formatVsPar(rec.bestVsPar) + ')';
 
             $('shud-hole').textContent = (state.holeIndex + 1) + '/' + state.course.holes.length;
@@ -2242,6 +2289,11 @@
        course's, and that course is where you would go to play the rest. */
     function courseLabel() {
         var c = state.course;
+        // A journey says how far through it you are, in worlds.
+        if (c.isPortals) {
+            return c.single ? 'World Tour \u00B7 one hole'
+                : 'World Tour \u00B7 hole ' + (state.holeIndex + 1) + ' of ' + c.holes.length;
+        }
         if (!c.isShowcase) return c.name;
         return c.name + ' \u00B7 ' + G3.courseById(holeRef(state.holeIndex).id).name;
     }
@@ -2284,6 +2336,7 @@
             (state.bag !== C.CLUBS
                 ? ' · ' + state.bag.map(function (c) { return c.name; }).join(' + ') + ' only'
                 : '') +
+            (hole.inWorld ? ' · in ' + hole.inWorld : '') +
             (state.weather ? ' · ' + state.weather.icon + ' ' + state.weather.label : '');
         $('hole-card').classList.add('show');
         // The card and the overlay's drawer say the same thing; whichever was
@@ -4106,7 +4159,7 @@
         }
         // Challenge mode is no kind of golf in the list, so the picker opens
         // where it would with nothing in hand.
-        if (c && c.isChallenge) return G3.COURSE_GROUPS[0].id;
+        if (c && (c.isChallenge || c.isPortals)) return G3.COURSE_GROUPS[0].id;
         return c ? c.group : G3.COURSE_GROUPS[0].id;
     }
 
@@ -4119,19 +4172,118 @@
            opens on the tab that picks for you has answered the question
            instead of asking it. */
         menuKind = menuGroup;
-        drawShowcase();
-        drawChallenge();
-        drawShuffle();
-        drawTabs();
-        var focus = drawCourses();
-        /* With nothing on offer and a showcase nobody has started behind the
-           list, the showcase is what is on offer. */
-        if (!suggestId && showcaseWaiting()) focus = $('menu-showcase');
+        /* Two pages: the front, which is the portal and the worlds it has
+           shown you, and the clubhouse, which is the fifteen courses. A
+           course on offer (the end of a classic round nudging at the next)
+           opens the clubhouse on it; anything else opens the front. */
         $('menu').className = 'modal show';
-        // Keyboard and screen reader land on the course being offered, or on
-        // the first one in the open tab if nothing is.
+        showMenuPage(suggestId ? 'classic' : 'home');
+    }
+
+    /* Which of the two is on screen. The clubhouse is drawn when it is opened
+       rather than behind the front page: its plans are sized off cells that
+       have to be laid out to have a size (drawPlans). */
+    function showMenuPage(page) {
+        var classic = page === 'classic', focus;
+        $('menu-home').hidden = classic;
+        $('menu-classic').hidden = !classic;
+        $('menu-title').textContent = classic ? 'The clubhouse' : 'Where to?';
+        if (classic) {
+            drawShowcase();
+            drawChallenge();
+            drawShuffle();
+            drawTabs();
+            focus = drawCourses();
+            /* With nothing on offer and a showcase nobody has started behind
+               the list, the showcase is what is on offer. */
+            if (!menuSuggest && showcaseWaiting()) focus = $('menu-showcase');
+            drawPlans();
+        } else {
+            drawHome();
+            focus = $('menu-portals');
+        }
+        // Keyboard and screen reader land on what is being offered.
         if (focus) { try { focus.focus(); } catch (e) { /* ignore */ } }
-        drawPlans();
+    }
+
+    function hexOf(n) { return '#' + ('000000' + n.toString(16)).slice(-6); }
+
+    // A journey nobody has started is behind the list: that one is on offer.
+    function journeyWaiting() {
+        return !!(state && state.course && state.course.isPortals && !state.course.single &&
+                  state.world && state.strokes === 0 && !anyPlayed());
+    }
+
+    /* The front page. The door says what pressing it does — carry on, or
+       begin — and wears the sky of a world this save has not been to. Under
+       it, every world there is, each drawn as its own sky over its own
+       ground and each a door to that one world: the ones this save has holed
+       out in carry their stars, the rest say "new". Nothing is locked. A
+       gallery of grey blanks was the first version, and it was a second list
+       to be puzzled by on the one page whose job is not to have one. */
+    function drawHome() {
+        var save = state && state.save ? state.save : S.load();
+        var PW = G3.portals, found = 0, stars = 0;
+        var host = $('menu-worlds');
+        host.innerHTML = '';
+        PW.WORLDS.forEach(function (w) {
+            var rec = S.holeRecord(save, 'world-' + w.id, 0);
+            var th = G3.THEMES[w.theme], seen = rec.plays > 0;
+            if (seen) found++;
+            stars += rec.stars || 0;
+            var el = document.createElement('button');
+            el.type = 'button';
+            el.className = 'world' + (seen ? '' : ' unfound');
+            el.setAttribute('role', 'listitem');
+            el.style.setProperty('--w-ground', th.grass[0]);
+            el.title = w.caption;
+            el.innerHTML =
+                '<span class="world-sky" style="background:linear-gradient(' + hexOf(th.sky[0]) + ',' + hexOf(th.sky[1]) + ')"></span>' +
+                '<span class="world-text"><span class="world-name">' + w.title + '</span>' +
+                '<span class="world-meta">' + w.world + ' \u00B7 ' +
+                (seen ? '<span class="world-stars">' + S.starText(rec.stars) + '</span>'
+                      : '<span class="world-new">new</span>') + '</span></span>';
+            el.addEventListener('click', function () {
+                if (menuTaking) return;
+                menuTaking = true;
+                maybeAutoFullscreen();
+                visitWorld(w.id);
+            });
+            host.appendChild(el);
+        });
+        $('menu-worlds-label').textContent = 'Or pick a hole \u00B7 ' + found + ' of ' + PW.WORLDS.length + ' played';
+
+        var rec = S.courseRecord(save, 'portals');
+        var waiting = journeyWaiting();
+        var mid = state && state.course && state.course.isPortals && !state.course.single &&
+            state.phase !== 'finished' && !waiting;
+        $('menu-portals-title').textContent = mid ? 'Start a new World Tour' : 'Play the World Tour';
+        $('menu-portals-sub').textContent =
+            PW.LENGTH + ' holes, each in a different world, and a new six every round.' +
+            (rec.best === null ? '' : ' Your best: ' + S.formatVsPar(rec.bestVsPar) + ' against par.') +
+            (stars ? ' \u2605 ' + stars + ' of ' + PW.WORLDS.length * 3 + ' stars.' : '');
+        // The eye wears the sky of the world the door opens on.
+        var first = waiting ? G3.THEMES[themeAt(0)] : G3.THEMES[PW.WORLDS[found % PW.WORLDS.length].theme];
+        $('menu-portals').style.setProperty('--eye-a', hexOf(first.sky[0]));
+        $('menu-portals').style.setProperty('--eye-b', hexOf(first.sky[1]));
+        syncLive();
+        $('menu-classic-sub').textContent =
+            'The ' + G3.COURSES.filter(function (c) { return !c.playtest; }).length +
+            ' original courses, the showcase and the maths challenge.';
+    }
+
+    function syncLive() {
+        var on = R.liveWanted, el = $('menu-live');
+        el.textContent = 'Live worlds: ' + (on ? 'on' : 'off');
+        el.setAttribute('aria-checked', on ? 'true' : 'false');
+    }
+
+    function takeJourney() {
+        if (menuTaking) return;
+        maybeAutoFullscreen();
+        if (journeyWaiting()) { closeMenu(); return; }
+        menuTaking = true;
+        newJourney();
     }
 
     /* The tabs. Each carries the group's mark, its name and how many courses
@@ -4724,6 +4876,9 @@
             (res && res.unrecorded ? (res.why === 'dev' ? ' — not recorded. You used a dev swing.'
                 : res.why === 'shared' ? ' — not recorded. Pass and play rounds are not kept.'
                 : ' — not recorded. The caddie played this session.')
+             : state.course.isPortals && !state.course.single && res && tourMedal(res.totals)
+                ? ' — ' + tourMedal(res.totals) + (res.isBest ? ' Your best tour yet.' : '')
+             : res && res.isBest && state.course.isPortals && !state.course.single ? ' — your best tour yet, against par.'
              : res && res.isBest && state.course.isShowcase ? ' — your best showcase yet, against par.'
              : res && res.isBest ? ' — a new personal best.' : '');
         $('card-body').innerHTML =
@@ -4814,7 +4969,9 @@
                the card before the press. */
             /* And a showcase offers another one. It is a draw already, so it
                outranks the shuffle switch: the deal is the surprise. */
-            next.textContent = state.course.isShowcase
+            next.textContent = state.course.isPortals
+                ? '\u25CE Another tour'
+                : state.course.isShowcase
                 ? '\u2726 Deal another showcase'
                 : state.course.isChallenge
                 ? '\u223F New ground, new cups'
@@ -4824,6 +4981,17 @@
         } else {
             next.hidden = true;
         }
+    }
+
+    /* What a finished tour was worth, said on its card: gold three or more
+       under its par, silver at par or better, bronze for getting round. A
+       tour is six different holes every time, so the medal — like the
+       record — is against par and never a count of strokes. */
+    function tourMedal(t) {
+        if (!t || t.played < state.course.holes.length) return '';
+        return t.vsPar <= -3 ? '\uD83E\uDD47 A gold tour, ' + S.formatVsPar(t.vsPar) + '.'
+            : t.vsPar <= 0 ? '\uD83E\uDD48 A silver tour, ' + S.formatVsPar(t.vsPar) + '.'
+            : '\uD83E\uDD49 A bronze tour, ' + S.formatVsPar(t.vsPar) + '.';
     }
 
     function closeCard() { $('scorecard').className = 'modal'; maybeFly(); }
@@ -5246,6 +5414,11 @@
             loadHole(state.holeIndex + 1);
             return;
         }
+        if (state.course.isPortals) {
+            newJourney();
+            toast('Autoplay — another tour');
+            return;
+        }
         if (state.course.isShowcase) {
             newShowcase();
             toast('Autoplay — a new showcase');
@@ -5411,7 +5584,7 @@
         if (!demo) return;
         maybeAutoFullscreen();
         stopDemo();
-        newShowcase();
+        newJourney();
         /* That round was built with nothing in front of it, so its sweep has
            already started and the picker is about to stand over it. Cut it and
            put it back to pending: it then plays when the picker closes, which
@@ -5810,6 +5983,10 @@
         $('card-again').addEventListener('click', function () { newRound(state.course.id); });
         $('card-next').addEventListener('click', function () {
             closeCard();
+            if (state.course.isPortals) {
+                newJourney();
+                return;
+            }
             if (state.course.isShowcase) {
                 newShowcase();
                 return;
@@ -5829,6 +6006,11 @@
             openMenu(G3.nextCourseId(state.course.id));
         });
         $('shuffle-go').addEventListener('click', function () { takeRandom(); });
+        $('menu-portals').addEventListener('click', takeJourney);
+        // The live worlds behind the tour's holes, on or off (render.js → setLive).
+        $('menu-live').addEventListener('click', function () { R.setLive(!R.liveWanted); syncLive(); });
+        $('menu-open-classic').addEventListener('click', function () { showMenuPage('classic'); });
+        $('menu-back').addEventListener('click', function () { showMenuPage('home'); });
         $('menu-showcase').addEventListener('click', takeShowcase);
         $('menu-challenge').addEventListener('click', takeChallenge);
         /* No toast on this one: it is pressed with the picker open, and the
@@ -5875,10 +6057,14 @@
         // driver taking a picture of the game should never be handed a demo,
         // and one taking a picture of the demo should not have to wait for it.
         if (q.demo === '0' || q.demo === '1') demoOverride = q.demo === '1';
+        // &live=0|1: the live world behind a tour hole, off or on for the session.
+        if (q.live === '0' || q.live === '1') R.state.liveOverride = q.live === '1';
         /* ?course=random draws one the same way the picker's button does,
            under whatever mode is remembered. The rest of the query string
            still means what it did: ?hole= counts from 1 into whatever course
            came up. */
+        // ?world=<id>: one portal world by itself (portals.js).
+        if (q.world && G3.portals.byId(q.world)) q.course = 'world-' + q.world;
         if (q.course === 'random') q.course = G3.randomCourseId(shuffleOpts());
         if (q.course) {
             var course = G3.courseById(q.course);
@@ -5897,7 +6083,7 @@
             /* Something has to be on screen behind the menu, and it may as
                well be the round the menu is offering first: a showcase, the
                same one leaving the demo deals. */
-            newShowcase();
+            newJourney();
             openMenuArriving();
         }
 
