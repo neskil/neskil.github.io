@@ -5697,8 +5697,11 @@
                         G3.THEMES[w.theme].sky.length === 2 && G3.THEMES[w.theme].grass.length === 2;
                 }));
             var themes = {}, lives = {};
-            PW.WORLDS.forEach(function (w) { themes[w.theme] = true; lives[w.place.world] = true; });
-            assert('no two holes share a palette, or a world', Object.keys(themes).length === PW.WORLDS.length &&
+            /* A world may hold more than one hole since the Iron River: a
+               hole sculpted to a spot (`place.at`) is somewhere of its own in
+               it. What must not happen is two holes in the same place. */
+            PW.WORLDS.forEach(function (w) { themes[w.theme] = true; lives[w.place.world + '|' + JSON.stringify(w.place.at || null)] = true; });
+            assert('no two holes share a palette, or a place in a world', Object.keys(themes).length === PW.WORLDS.length &&
                 Object.keys(lives).length === PW.WORLDS.length);
             assert('none of them borrows a course\'s', PW.WORLDS.every(function (w) {
                 return !G3.COURSES.some(function (c) { return c.theme === w.theme; });
@@ -5757,6 +5760,14 @@
                     h.tee.y > 8 && h.cup.y > 3 && P.waterAt(h, h.cup.x, h.cup.z) && h.cup.y > P.waterAt(h, h.cup.x, h.cup.z).y + 1);
                 assert('…and every strip mown into it lies on the same ground', h.pads.slice(1).every(function (q) {
                     return q.inlay && Math.abs(P.padHeight(q, q.x + 1, q.z + 1) - P.padHeight(h.pads[0], q.x + 1, q.z + 1)) < 1e-9;
+                }));
+                var r = PW.byId('ironriver'), rh = r.hole, rg = G3.TOUR_GROUND && G3.TOUR_GROUND.ironriver;
+                assert('the iron river\'s hole stands on ground baked from the forge', !!rg && rg.h.length === rg.nx * rg.nz &&
+                    rh.pads[0].ghost === true && rh.pads[0].field[0].grid === rg && !!r.place.at && rh.water[0].ghost === true);
+                assert('…its tee is on the bridge, ten units over its green, and the canyon under the bridge is the hazard',
+                    rh.tee.y - rh.cup.y > 10 && P.padHeight(rh.pads[0], 16, 8) < 0.15 && P.padHeight(rh.pads[0], 16, 0) > 12);
+                assert('…and every strip laid on it lies on the same ground', rh.pads.slice(1).every(function (q) {
+                    return q.inlay && Math.abs(P.padHeight(q, q.x + 1, q.z + 1) - P.padHeight(rh.pads[0], q.x + 1, q.z + 1)) < 1e-9;
                 }));
             })();
 

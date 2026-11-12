@@ -5717,7 +5717,13 @@
                 all = [Math.min(all[0], bx[0]), Math.min(all[1], bx[1]), Math.max(all[2], bx[2]), Math.max(all[3], bx[3])];
                 if (!p.ghost) boxes.push(bx);
             });
-            R.placeKeep = ghost || boxes.length > 8 ? [all] : boxes;
+            R.placeKeep = boxes.length > 8 ? [all] : boxes;
+            /* A sculpted hole's rough is the world's own ground, seen as the
+               world's picture, and the ball rolls on a baked copy of it that
+               is smoother than the original. So over the whole of such a
+               hole the world is set back half a unit: a tree still stands
+               in front of the ball, a wrinkle of turf does not bury it. */
+            R.placeSoft = ghost ? all : [0, 0, 0, 0];
         }
         R.live = false;
         if (R.plate) R.plate.visible = false;
@@ -5747,6 +5753,7 @@
             u.pA.value = P[10]; u.pB.value = P[14];
             u.invProj.value.copy(R.camera.projectionMatrixInverse);
             u.camWorld.value.copy(R.camera.matrixWorld);
+            u.soft.value.set(R.placeSoft[0], R.placeSoft[1], R.placeSoft[2], R.placeSoft[3]);
             for (var kq = 0; kq < 8; kq++) {
                 var kb = R.placeKeep[kq] || [0, 0, 0, 0];
                 u.keep.value[kq].set(kb[0], kb[1], kb[2], kb[3]);
@@ -5798,6 +5805,7 @@
                 pA: { value: -1 }, pB: { value: -0.2 },
                 invProj: { value: new THREE.Matrix4() }, camWorld: { value: new THREE.Matrix4() },
                 keep: { value: [0, 1, 2, 3, 4, 5, 6, 7].map(function () { return new THREE.Vector4(); }) },
+                soft: { value: new THREE.Vector4() },
                 gOn: { value: 0 }, gExp: { value: 1 }, gSat: { value: 1 }, gCon: { value: 1 },
                 gTint: { value: new THREE.Color(1, 1, 1) }, gLift: { value: new THREE.Color(0, 0, 0) }
             },
@@ -5815,7 +5823,7 @@
             fragmentShader: [
                 'uniform sampler2D map; uniform vec2 size;',
                 'uniform float wNear, wFar, scale, pA, pB;',
-                'uniform mat4 camWorld; uniform vec4 keep[8];',
+                'uniform mat4 camWorld; uniform vec4 keep[8]; uniform vec4 soft;',
                 'uniform float gOn, gExp, gSat, gCon; uniform vec3 gTint, gLift;',
                 'varying vec2 vUv; varying vec3 vRay;',
                 // postfx.js's tone curve, backwards.
@@ -5854,6 +5862,7 @@
                 '            vec4 k = keep[i];',
                 '            if (at.x > k.x && at.x < k.z && at.z > k.y && at.z < k.w) ours = true;',
                 '        }',
+                '        if (at.x > soft.x && at.x < soft.z && at.z > soft.y && at.z < soft.w) z += 0.5;',
                 '        if (!ours) depth = clamp(0.5 * (pB - pA * z) / z + 0.5, 0.0, 0.9999995);',
                 '    }',
                 '    gl_FragDepth = depth;',

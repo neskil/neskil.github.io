@@ -1,6 +1,6 @@
 # Loft Links
 
-A **World Tour** of twelve holes, each played inside a world borrowed from
+A **World Tour** of thirteen holes, each played inside a world borrowed from
 Ethan Mollick's Portals ([The World Tour](#the-world-tour-every-hole-in-a-world))
 — and beside it in the same picker, the game this started as:
 
@@ -56,7 +56,7 @@ them.
 | `js/config.js` | Every tuning constant. Nothing else holds a magic number. |
 | `js/courses.js` | The ninety holes, as data, plus the rail generator, the band layout the long-game courses are written in — rows that tilt and carry their level into the next one, and a cross-fall that puts a whole hole on the side of a hill — the dune fields the links is made of, the landforms the two parkland courses are shaped by, the bag each hole is played out of, and the [draw](#the-draw) behind the picker's die. |
 | `js/physics.js` | The simulation. No three.js, no DOM, pure. |
-| `js/portals.js` | [The World Tour](#the-world-tour-every-hole-in-a-world): the twelve holes — hole, palette, shelf, caption and the Portals world each is played in — the tour's deal, and `courseById` taught to answer `portals`, `portal-library` and `world-<id>`. Written with `G3.authoring`; loaded straight after `courses.js` on every page that loads that. |
+| `js/portals.js` | [The World Tour](#the-world-tour-every-hole-in-a-world): the thirteen holes — hole, palette, shelf, caption and the Portals world each is played in — the tour's deal, and `courseById` taught to answer `portals`, `portal-library` and `world-<id>`. Written with `G3.authoring`; loaded straight after `courses.js` on every page that loads that. |
 | `js/worlds.js` | The tour holes' stand-in set pieces, for when the live world is not drawn. three.js primitives only. Loaded before `render.js`. |
 | `js/backdrop.mjs`, `vendor/portals/` | The live worlds: Portals' own engine, kit, twelve worlds and three.js r170 (vendored unmodified, CC BY-NC-SA 4.0), and the module that builds one behind a hole and fits the hole into it. |
 | `js/tour-ground.js`, `tools/world-ground.mjs`, `tools/bake-ground.mjs` | Ground baked from a Portals world for a hole sculpted to it (generated), the tool that reads a world's terrain, and the one that bakes a piece of it. |
@@ -4169,7 +4169,7 @@ one player.
 
 ## The World Tour: every hole in a world
 
-What a new game plays, and the front of the picker (v1.151.0). Twelve holes,
+What a new game plays, and the front of the picker (v1.151.0). Thirteen holes now,
 each played **inside a world from Ethan Mollick's
 [Portals](https://github.com/emollick/ai-portals)** — the owner asked for its
 worlds to be borrowed, for courses pushed further than the fifteen had gone,
@@ -4198,7 +4198,7 @@ theme, tier, hole, place }`, written with `G3.authoring`. `world()` makes each
 (`kerb`), and off the edge is out (`OOB_Y`). A **tour** is six of them
 (`portals.deal`): picked by the showcase's weights (never played is four times
 as likely as once), never the same shelf twice running, in order of `tier`.
-`courseById('portals')` is the tour in play, `portal-library` all twelve,
+`courseById('portals')` is the tour in play, `portal-library` all of them,
 `world-<id>` one by itself — also the key its stars are kept under. Records
 are against par. Between two holes the stage closes on the next world's sky
 and opens on its tee (`game.js → throughPortal`, `.portal-wipe`).
@@ -4254,6 +4254,15 @@ Three things to know:
   puts the picture through postfx.js's grade backwards (tone curve, tint,
   saturation, contrast), so the grade laid over the whole frame returns it
   to what it was. Before, a world was graded twice and came out garish.
+
+**The Iron River is the second sculpted hole** (v1.154.0), and the thirteenth
+of the tour: a par four in the Obsidian Forge, off the one bridge over its
+canyon of lava, forty metres up, to a green far below on the east bank. The
+canyon, the bridge and the ridge the ball runs down are that world's own,
+sampled at 2.5 units and baked at one. Over a sculpted hole the world's depth
+is set back half a unit instead of to the far plane (`R.placeSoft`), so the
+world's trees and rocks stand in front of the ball while a wrinkle of its
+turf, which the smoother baked copy does not have, cannot bury it.
 
 **A hole can be sculpted to its spot, and Across the Shell is** (v1.152.0).
 Its ground is not drawn by anybody: it is a headland on the south coast of
@@ -4318,6 +4327,13 @@ course and the draw (`game.js → drawMenu`, `drawHome`, `WORLDS_GROUP`). It
 opens on Worlds unless a drawn course is in play or on offer. For two
 versions the tour was a front page and the courses a second page behind a
 door; the owner wanted "the new and old style maps next to each other".
+
+It opens on **Everything** (v1.154.0): one grid in which a tour hole and a
+six-hole course are the same card — a sky over its ground, a tag in its
+kind's colour, a name, its stars — dealt alternately and each played with one
+press (`game.js → drawGrid`, `ALL_GROUP`). The owner wanted the two "both
+equally pickable"; a tab apiece still made one of them the default and the
+other a detour. The kind tabs remain for the hole-by-hole view of a course.
 
 ## The showcase: the game in eight holes
 
@@ -5874,7 +5890,7 @@ link *not* reproducible, which is the point of it and the reason a screenshot
 should never use it.
 
 `?world=<id>` opens one [tour hole](#the-world-tour-every-hole-in-a-world) by itself;
-`?course=portals` deals a tour, `?course=portal-library` is all twelve, and
+`?course=portals` deals a tour, `?course=portal-library` is all of them, and
 `&live=0|1` switches the live world behind it off or on.
 
 `&fly=0` and `&fly=1` force the intro

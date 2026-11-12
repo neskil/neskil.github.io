@@ -2351,12 +2351,15 @@ kbd {
     color: var(--ink-dim);
 }
 
-/* Narrow enough that even two names to a row will not fit: keep the mark and
-   the count, drop the words, and let all four sit on one line again. The blurb
-   underneath is still saying which kind is open. */
-@media (max-width: 420px) {
-    .menu-tab { flex: 1 1 0; grid-template-columns: auto auto; justify-content: center; }
-    .mt-name { display: none; }
+/* On a phone the tabs are buttons a thumb can read and hit: two to a row,
+   each with its name, each at least 44px tall, and the one that shows
+   everything across the top. They were seven icons with a number on one line
+   (the owner, with a screenshot: "too small and hard to select on mobile"). */
+@media (max-width: 520px) {
+    .menu-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 0.4rem; }
+    .menu-tab { min-height: 44px; padding: 0.5rem 0.65rem; font-size: 0.92rem; }
+    .menu-tab:first-child { grid-column: 1 / -1; }
+    .mt-icon { font-size: 1.1rem; }
 }
 
 /* The open tab's colour, and the one thing in this dialog every tinted rule
@@ -4454,12 +4457,12 @@ body.lane-swing .swipe-hint {
 
 .world-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(7.2rem, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(8.4rem, 1fr));
     gap: 0.45rem;
 }
 .world {
     display: grid;
-    grid-template-rows: 2.4rem auto;
+    grid-template-rows: 3rem auto;
     min-width: 0;
     padding: 0;
     font: inherit;
@@ -4483,6 +4486,22 @@ body.lane-swing .swipe-hint {
     height: 28%;
     background: var(--w-ground, #3b8f45);
 }
+/* What kind of thing the card is, in its kind's colour: an opaque label on
+   the sky, so a world and a course are told apart at a glance and by nothing
+   else. */
+.world-tag {
+    position: absolute;
+    left: 0.3rem; top: 0.3rem;
+    z-index: 1;
+    padding: 0.05rem 0.35rem;
+    font-size: 0.62rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #1a1712;
+    background: var(--w-tint, #dcc28a);
+    border-radius: 3px;
+}
 .world-text { display: grid; gap: 0.05rem; padding: 0.35rem 0.5rem 0.45rem; min-width: 0; }
 .world-name { font-size: 0.86rem; font-weight: 600; line-height: 1.2; }
 .world-meta { font-size: 0.72rem; color: var(--ink-dim); }
@@ -4492,3 +4511,6 @@ body.lane-swing .swipe-hint {
 .tour-credit { margin: 0; font-size: 0.74rem; color: var(--ink-dim); line-height: 1.5; }
 .tour-credit a { color: inherit; }
 .tour-credit .linkish { font-size: inherit; margin-left: 0.4rem; }
+
+/* The picker is a grid of everything now, and a grid wants the width. */
+#menu .modal-inner { width: min(780px, 100%); }

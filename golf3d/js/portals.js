@@ -87,7 +87,7 @@
        `u` is how far along that world's own flight path the tee stands,
        `scale` its units to one of ours, `lift` and `turn` a nudge up and
        round (backdrop.mjs → anchorFor). */
-    var PLACES = {"breakfast": ["breakfast-table"], "turtle": ["world-turtle", {"u": 0.12, "at": {"x": -95.58, "z": 148.41, "y": 150, "yaw": 0.6981, "scale": 2.5}}], "gasgiant": ["storm-bands"], "abyss": ["kelp-cathedral"], "carnival": ["carnival-on-the-frozen-river"], "mushroom": ["spore-rain"], "orrery": ["long-library"], "stairs": ["stairway-everywhere"], "attic": ["the-toppling"], "threebody": ["airbrush-black-hole"], "clouds": ["cloud-armada"], "forge": ["obsidian-forge"]};
+    var PLACES = {"breakfast": ["breakfast-table"], "turtle": ["world-turtle", {"u": 0.12, "at": {"x": -95.58, "z": 148.41, "y": 150, "yaw": 0.6981, "scale": 2.5}}], "gasgiant": ["storm-bands"], "abyss": ["kelp-cathedral"], "carnival": ["carnival-on-the-frozen-river"], "mushroom": ["spore-rain"], "orrery": ["long-library"], "stairs": ["stairway-everywhere"], "attic": ["the-toppling"], "threebody": ["airbrush-black-hole"], "clouds": ["cloud-armada"], "forge": ["obsidian-forge"], "ironriver": ["obsidian-forge", {"u": 0.5, "at": {"x": -45, "z": 2.5, "y": 0, "yaw": 0, "scale": 2.5}}]};
     function add(w) {
         w.hole.scene = w.scene || w.id; w.hole.worldId = w.id;
         var q = PLACES[w.id];
@@ -460,6 +460,46 @@
         })
     });
 
+    /* Sculpted to its world, the second that is, and the tour's one hole
+       about height. The Obsidian Forge has a river of lava in a canyon and
+       one bridge of black glass over it, forty metres up. The tee is on the
+       west end of that bridge. The green is far below on the east bank,
+       where the canyon has run out and the ground is level beside the
+       river — so the whole hole is downhill, and the east bank between is a
+       ridge that falls away south with the lava along its right side.
+
+       Two ways down. Along the bridge and round: a putt's width of glass
+       with the canyon either side, then the ridge. Or straight at it: a
+       drive off the bridge, across the corner of the canyon, to land on the
+       ridge and run. All of the ground is the world's (tour-ground.js); what
+       is laid on it is a tee, the deck, a strip down the ridge and a green. */
+    add({
+        id: 'ironriver', title: 'The Iron River', world: 'Black Glass and Lava', kind: 'bizarre', tier: 3,
+        caption: 'A par four off a bridge of black glass, across a canyon of lava and down the far bank. The canyon is the world\'s own.',
+        theme: 'ironriver',
+        hole: (function () {
+            var G = (G3.TOUR_GROUND || {}).ironriver, field = G ? [{ grid: G }] : [];
+            function on(p, inlay) { p.field = field; if (inlay) p.inlay = true; return p; }
+            var ground = on(pad(-8, -8, 66, 64, 0, 'rough'));
+            ground.ghost = true;
+            var lava = A.rect(-30, -30, 120, 120, 0.15);
+            lava.ghost = true;
+            return world({
+                name: 'The Iron River', par: 4, long: true,
+                blurb: 'Off the bridge. Along it and round is the long way; across the corner of the canyon is a drive that has to carry the iron and hold the ridge.',
+                pads: [
+                    ground,
+                    // the deck: no wider than the glass it is laid on
+                    on(pad(3.5, -1.2, 26, 2.4, 0, 'fairway'), true),
+                    on(pad(31, 5, 8, 31, 0, 'fairway'), true),
+                    on(pad(34, 40, 8, 8, 0, 'green'), true)
+                ],
+                water: [lava],
+                tee: { x: 5, z: 0 }, cup: { x: 38, z: 44 }
+            });
+        })()
+    });
+
     /* ── the shelves ────────────────────────────────────────────────────── */
 
     var KINDS = {
@@ -566,6 +606,17 @@
             sky: [0x120806, 0x7a2a12], fog: 0x6a2410,
             sun: 0xffa860, sunPos: [0, 9, 12], ambient: 0x9a4a30, ambientI: 0.8,
             grass: ['#4a4a52', '#404048'], rail: 0x2a2a30, machine: 0xffd24a,
+            stars: 0.2, cloudLum: 0.2, birds: false,
+            surroundY: -0.42, surround: 'rock', ground: '#1c1412',
+            water: 0xff5a1a, side: '#2c2224'
+        },
+        /* The same forge, for the hole that is laid on its rock rather than
+           built over it: the strips are black glass, not a factory floor,
+           and the light is cooler so they do not go the colour of the lava. */
+        ironriver: {
+            sky: [0x120806, 0x7a2a12], fog: 0x6a2410,
+            sun: 0xffe2c4, sunPos: [0, 9, 12], ambient: 0x8a6a70, ambientI: 0.75,
+            grass: ['#3a3d48', '#30333d'], rail: 0x2a2a30, machine: 0xffd24a,
             stars: 0.2, cloudLum: 0.2, birds: false,
             surroundY: -0.42, surround: 'rock', ground: '#1c1412',
             water: 0xff5a1a, side: '#2c2224'

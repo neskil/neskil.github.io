@@ -472,6 +472,9 @@
         for (var i = 0; i < W.movers.length; i++) W.movers[i](t, dt);
     }
 
+    // The canyon hole stands in the same forge.
+    SCENES.ironriver = SCENES.forge;
+
     G3.worlds = { build: build, step: step, SCENES: SCENES, state: W };
 
 })(window.G3);
