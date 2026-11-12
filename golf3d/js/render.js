@@ -4468,7 +4468,13 @@
        be visible from the tee at forty units and from the overview at eighty,
        which is why they are as tall as they are and why they get the brightest
        white on the hole. Spaced by eye rather than by division, so a long side
-       and a short side have stakes the same distance apart. */
+       and a short side have stakes the same distance apart.
+
+       Half as many as there were, shorter and off-white (v1.155.0): at one
+       every four and a half units in the brightest white on the hole they
+       were the first thing in every picture of the long game (the owner:
+       "too much out of bounds white markers"). A line needs enough posts to
+       be read as a line, and that is one every nine. */
     function addStakes(group, hole, theme) {
         // A hole whose boundary is the edge of the world marks nothing
         // (Challenge mode: the glass runs out, and that is the line).
@@ -4476,10 +4482,10 @@
         var rects = P.fenceRects(hole);
         if (!rects.length) return;
         var mat = new THREE.MeshPhongMaterial({
-            color: 0xf2f4ef, shininess: 26, specular: 0x555a55
+            color: 0xd9d4c2, shininess: 12, specular: 0x33342f
         });
-        var geo = new THREE.CylinderGeometry(0.09, 0.11, 1.15, 6);
-        var gap = 4.5, r, i, k;
+        var geo = new THREE.CylinderGeometry(0.06, 0.08, 0.8, 6);
+        var gap = 9, r, i, k;
         /* Nothing within this of the tee. A boundary can legitimately run
            behind a teeing ground and two of these holes have one that does,
            but the bag rides in front of the camera at a fixed offset and a
@@ -4524,7 +4530,7 @@
                     var top = P.surfaceTop(hole, x, z);
                     if (!top) continue;
                     var m = new THREE.Mesh(geo, mat);
-                    m.position.set(x, top.y + 0.5, z);
+                    m.position.set(x, top.y + 0.35, z);
                     m.castShadow = true;
                     group.add(m);
                 }
@@ -5560,12 +5566,22 @@
            terrain, and only its tee, fairway and green are laid over it. So
            a ghost is built like anything else and put away while the world
            is on screen (stepPlace); without the world it is the ground. */
+        /* …and what is laid over it is a `veil`: a strip of mown fairway
+           or a tee draped on the world's ground. With the world on screen a
+           veil is drawn half through, so the world's own turf, rock or glass
+           shows in it and the strip is a change of colour in that ground
+           rather than a sheet on top of it. The green stays solid: it is
+           the one surface a putt has to be read on. */
         R.ghosts = [];
-        var n0;
+        R.veils = [];
+        var n0, sculpted = hole.pads.some(function (p) { return p.ghost; });
         for (i = 0; i < hole.pads.length; i++) {
             n0 = g.children.length;
             addPad(g, hole.pads[i], theme, hole.cup, hole.pads);
             if (hole.pads[i].ghost) while (n0 < g.children.length) R.ghosts.push(g.children[n0++]);
+            else if (sculpted && hole.pads[i].inlay && hole.pads[i].kind !== 'green') {
+                while (n0 < g.children.length) R.veils.push(g.children[n0++]);
+            }
         }
         R.country = null;
         if (theme.grid) addGrid(g, hole, theme);
@@ -5678,9 +5694,24 @@
             if (v === '0') return false;
             if (v === '1') return true;
         } catch (e) { /* ignore */ }
-        // A second renderer drawing a whole world is a desktop's job by
-        // default; a phone gets the simple scenery unless it asks.
-        return !(window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
+        /* On by default, everywhere — a phone too. It used to be a
+           desktop's job only, and the owner's phone, which runs the game at
+           sixty frames, was shown the stand-in scenery and wondered where
+           the worlds were. What protects a machine that cannot do it is
+           measured, not guessed: the world's resolution is stepped down
+           while the frame rate is poor and live worlds are switched off if
+           that is not enough (stepPlace), and a build that killed the page
+           last time is not tried again (backdrop.mjs leaves a mark while it
+           builds). */
+        try {
+            if (localStorage.getItem('golf3d.worldBuilding')) {
+                localStorage.removeItem('golf3d.worldBuilding');
+                localStorage.setItem(LIVE_KEY, '0');
+                setTimeout(function () { window.dispatchEvent(new CustomEvent('g3-live-off', { detail: 'crash' })); }, 3000);
+                return false;
+            }
+        } catch (e) { /* ignore */ }
+        return !(navigator.deviceMemory && navigator.deviceMemory <= 2);
     }
     function setLive(on) {
         try { localStorage.setItem(LIVE_KEY, on ? '1' : '0'); } catch (e) { /* ignore */ }
@@ -5740,11 +5771,36 @@
             var cv = R.renderer.domElement;
             // Three quarters of the stage's own pixels, and never more than
             // a 720p frame: it is behind everything and half of it is sky.
-            var k = Math.min(0.75, 1280 / Math.max(1, cv.width));
+            if (R.liveK === undefined) {
+                R.liveCoarse = !!(window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
+                R.liveK = R.liveCoarse ? 0.5 : 0.75;
+            }
+            var k = Math.min(R.liveK, (R.liveCoarse ? 900 : 1280) / Math.max(1, cv.width));
             live = B.frame(dt, R.camera, R.place, R.placeSeat,
                 Math.max(2, Math.round(cv.width * k)), Math.max(2, Math.round(cv.height * k)));
         }
         if (live) {
+            /* How it is going. Two seconds at a time: a poor frame rate
+               takes a quarter off the world's resolution, down to a third of
+               the stage; still poor at the bottom for six seconds and live
+               worlds are switched off, with a line to say so. `?live=1`
+               (R.liveOverride) is somebody asking for it regardless. */
+            var now = performance.now();
+            if (!R.liveT0) { R.liveT0 = now; R.liveN = 0; R.liveBad = 0; }
+            R.liveN++;
+            if (now - R.liveT0 > 2000) {
+                var fps = R.liveN * 1000 / (now - R.liveT0);
+                R.liveT0 = now; R.liveN = 0;
+                if (fps < 26 && R.liveK > 0.34) { R.liveK = Math.max(0.33, R.liveK * 0.75); R.liveBad = 0; }
+                else if (fps < 16) R.liveBad++;
+                else R.liveBad = 0;
+                if (R.liveBad >= 3 && R.liveOverride === undefined) {
+                    R.liveBad = 0;
+                    setLive(false);
+                    window.dispatchEvent(new CustomEvent('g3-live-off', { detail: 'slow' }));
+                    return;
+                }
+            }
             if (!R.plate) addWorldPlate(B);
             R.bgTex.needsUpdate = true;
             var u = R.plate.material.uniforms, I = B.info, P = R.camera.projectionMatrix.elements;
@@ -5770,6 +5826,21 @@
         if (R.plate) R.plate.visible = live;
         if (R.outer) R.outer.visible = !live;
         for (var q = 0; q < (R.ghosts || []).length; q++) R.ghosts[q].visible = !live;
+        (R.veils || []).forEach(function (top) {
+            top.traverse(function (m) {
+                if (!m.isMesh || !m.material || Array.isArray(m.material)) return;
+                if (!m.userData.solid) {
+                    m.userData.solid = m.material;
+                    m.userData.veil = m.material.clone();
+                    m.userData.veil.transparent = true;
+                    m.userData.veil.opacity = 0.5;
+                    m.userData.veil.depthWrite = false;
+                    if (m.material.onBeforeCompile) m.userData.veil.onBeforeCompile = m.material.onBeforeCompile;
+                    if (m.material.customProgramCacheKey) m.userData.veil.customProgramCacheKey = m.material.customProgramCacheKey;
+                }
+                m.material = live ? m.userData.veil : m.userData.solid;
+            });
+        });
         if (live) {
             R.fogKeep = { near: R.fogNear, far: R.fogFar };
             R.fogNear = 400; R.fogFar = 1200;

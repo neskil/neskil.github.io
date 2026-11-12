@@ -474,6 +474,7 @@
 
     // The canyon hole stands in the same forge.
     SCENES.ironriver = SCENES.forge;
+    SCENES.nave = SCENES.abyss;
 
     G3.worlds = { build: build, step: step, SCENES: SCENES, state: W };
 

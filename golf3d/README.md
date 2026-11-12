@@ -1,6 +1,6 @@
 # Loft Links
 
-A **World Tour** of thirteen holes, each played inside a world borrowed from
+A **World Tour** of fourteen holes, each played inside a world borrowed from
 Ethan Mollick's Portals ([The World Tour](#the-world-tour-every-hole-in-a-world))
 — and beside it in the same picker, the game this started as:
 
@@ -56,7 +56,7 @@ them.
 | `js/config.js` | Every tuning constant. Nothing else holds a magic number. |
 | `js/courses.js` | The ninety holes, as data, plus the rail generator, the band layout the long-game courses are written in — rows that tilt and carry their level into the next one, and a cross-fall that puts a whole hole on the side of a hill — the dune fields the links is made of, the landforms the two parkland courses are shaped by, the bag each hole is played out of, and the [draw](#the-draw) behind the picker's die. |
 | `js/physics.js` | The simulation. No three.js, no DOM, pure. |
-| `js/portals.js` | [The World Tour](#the-world-tour-every-hole-in-a-world): the thirteen holes — hole, palette, shelf, caption and the Portals world each is played in — the tour's deal, and `courseById` taught to answer `portals`, `portal-library` and `world-<id>`. Written with `G3.authoring`; loaded straight after `courses.js` on every page that loads that. |
+| `js/portals.js` | [The World Tour](#the-world-tour-every-hole-in-a-world): the fourteen holes — hole, palette, shelf, caption and the Portals world each is played in — the tour's deal, and `courseById` taught to answer `portals`, `portal-library` and `world-<id>`. Written with `G3.authoring`; loaded straight after `courses.js` on every page that loads that. |
 | `js/worlds.js` | The tour holes' stand-in set pieces, for when the live world is not drawn. three.js primitives only. Loaded before `render.js`. |
 | `js/backdrop.mjs`, `vendor/portals/` | The live worlds: Portals' own engine, kit, twelve worlds and three.js r170 (vendored unmodified, CC BY-NC-SA 4.0), and the module that builds one behind a hole and fits the hole into it. |
 | `js/tour-ground.js`, `tools/world-ground.mjs`, `tools/bake-ground.mjs` | Ground baked from a Portals world for a hole sculpted to it (generated), the tool that reads a world's terrain, and the one that bakes a piece of it. |
@@ -4169,7 +4169,7 @@ one player.
 
 ## The World Tour: every hole in a world
 
-What a new game plays, and the front of the picker (v1.151.0). Thirteen holes now,
+What a new game plays, and the front of the picker (v1.151.0). Fourteen holes now,
 each played **inside a world from Ethan Mollick's
 [Portals](https://github.com/emollick/ai-portals)** — the owner asked for its
 worlds to be borrowed, for courses pushed further than the fifteen had gone,
@@ -4255,6 +4255,14 @@ Three things to know:
   saturation, contrast), so the grade laid over the whole frame returns it
   to what it was. Before, a world was graded twice and came out garish.
 
+**The Nave is the third** (v1.155.0): a par four down the Kelp Cathedral's
+trench, which is a level floor between two banks — a half-pipe — to a green
+that is a shelf levelled into one bank (`bake-ground --flat`). And on a
+sculpted hole the strips laid over the world's ground are **veils**
+(`R.veils`): with the world on screen the tee and fairway are drawn half
+through, so the world's own turf or rock shows in them, and only the green
+stays solid.
+
 **The Iron River is the second sculpted hole** (v1.154.0), and the thirteenth
 of the tour: a par four in the Obsidian Forge, off the one bridge over its
 canyon of lava, forty metres up, to a green far below on the east bank. The
@@ -4304,6 +4312,19 @@ own, a bot that holes out within two of par, and the deal to its shape;
 renderer and are looked at, not asserted: `?world=<id>&live=1`, and
 `G3.backdrop.debug()` in the console says where the hole landed.
 
+### Live worlds are on by default, on a phone too
+
+They were a desktop's default only, and the owner's phone — which runs the
+game at sixty frames — showed the stand-in scenery (v1.155.0). Now
+`render.js → liveWanted` says yes unless the player has said no or the
+device reports 2 GB or less. What protects a weak machine is measured:
+`stepPlace` takes a quarter off the world's resolution each two seconds the
+frame rate is under 26, down to a third of the stage, and switches live
+worlds off (with a toast, `g3-live-off`) if it is still under 16 at the
+bottom. `backdrop.mjs` leaves a mark in localStorage while a world builds; a
+mark still there at the next visit means the build killed the page, and
+live worlds stay off until asked for. `?live=1` overrides all of it.
+
 ### The wait for a world
 
 A world takes a moment to build. The hole used to come up at once on its
@@ -4334,6 +4355,18 @@ kind's colour, a name, its stars — dealt alternately and each played with one
 press (`game.js → drawGrid`, `ALL_GROUP`). The owner wanted the two "both
 equally pickable"; a tab apiece still made one of them the default and the
 other a detour. The kind tabs remain for the hole-by-hole view of a course.
+
+**And it is a level select** (v1.155.0). Every tab is the same grid of the
+same card — the plan of the first hole over the theme's sky, a tag, the name,
+three pips for its stars — and pressing a card opens that card's page
+(`drawDetail`): what it is, holes/par/best/stars, one large **Play**, and
+every hole as a plan to start on. Two presses for anything, worlds and
+courses alike; the detailed list the kind tabs used to show is gone, and so
+is the fifth way of doing things it was. **Surprise me** is the third
+featured button beside Showcase and Challenge, and what it draws from is
+behind a link under the grid, not a tab. The tabs are one row of named chips
+that scrolls sideways on a phone. A bar under the title is every star there
+is; *Keep playing* is pinned to the bottom.
 
 ## The showcase: the game in eight holes
 
