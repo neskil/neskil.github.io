@@ -302,7 +302,9 @@ function frame(dt, cam, place, seat, w, h) {
     try {
         engine.renderer.setViewport(0, h, w, h);
         engine.post.render(W.scene, c, W.post, clock, 1);
-        drawDepth(W, c, w, h);
+        // The picture is what matters: if the depth pass cannot be drawn on
+        // this machine the world is still shown, behind everything.
+        if (!W.flat) { try { drawDepth(W, c, w, h); } catch (e) { W.flat = true; console.warn('backdrop depth', e); } }
     } catch (e) { failed[W.def.id] = true; cur = null; console.warn('backdrop draw', e); return false; }
     info.near = c.near; info.far = c.far; info.scale = A.scale; info.w = w; info.h = h;
     return true;

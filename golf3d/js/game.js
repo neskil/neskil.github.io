@@ -283,8 +283,8 @@
         el.className = 'portal-wipe closing';
         if (A.warpIn) A.warpIn();
         setTimeout(function () {
-            then();
-            portalBusy = false;
+            // Whatever the swap does, the screen is not left shut on it.
+            try { then(); } finally { portalBusy = false; }
             // A world still building keeps it shut (holdForWorld, below).
             if (!curtain.up) openWipe();
         }, 620);
@@ -4203,6 +4203,10 @@
        the one the picker opens on unless a drawn course is on offer. It is
        not a kind the draw can reach for, so it lives here and not in
        COURSE_GROUPS. */
+    var ALL_GROUP = {
+        id: 'all', name: 'Everything', icon: '\u2756', tint: '#e4dcc4',
+        blurb: 'Every world and every course, side by side. Press one to play it; the tabs beside this one file them by kind and show each course hole by hole.'
+    };
     var WORLDS_GROUP = {
         id: 'worlds', name: 'Worlds', icon: '\u25CE', tint: '#dcc28a',
         blurb: 'The World Tour\u2019s holes, each built inside a world from Portals. Pick one to play by itself.'
@@ -4231,7 +4235,7 @@
         }
         // Challenge mode is no kind of golf in the list, so the picker opens
         // where it would with nothing in hand.
-        if (c && c.isPortals) return WORLDS_GROUP.id;
+        if (c && c.isPortals) return ALL_GROUP.id;
         if (c && c.isChallenge) return G3.COURSE_GROUPS[0].id;
         return c ? c.group : G3.COURSE_GROUPS[0].id;
     }
@@ -4239,19 +4243,20 @@
     // …and the kind of golf, where the worlds' tab is no answer.
     function kindOf(id) {
         var g = groupOf(id);
-        return g === WORLDS_GROUP.id ? G3.COURSE_GROUPS[0].id : g;
+        return g === WORLDS_GROUP.id || g === ALL_GROUP.id ? G3.COURSE_GROUPS[0].id : g;
     }
 
     function openMenu(suggestId) {
         menuTaking = false;
         menuSuggest = suggestId || null;
         menuGroup = suggestId ? groupOf(suggestId) :
-            (state && state.course ? groupOf(state.course.id) : WORLDS_GROUP.id);
+            ALL_GROUP.id;
         /* Never on the draw: the list is what was asked for, and a picker that
            opens on the tab that picks for you has answered the question
            instead of asking it. And "same kind" has to be a kind of golf,
            which the worlds are not. */
-        menuKind = menuGroup === WORLDS_GROUP.id ? G3.COURSE_GROUPS[0].id : menuGroup;
+        menuKind = state && state.course ? kindOf(state.course.id) : G3.COURSE_GROUPS[0].id;
+        if (suggestId) menuKind = menuGroup;
         $('menu').className = 'modal show';
         drawMenu();
     }
@@ -4293,34 +4298,11 @@
     function drawHome() {
         var save = state && state.save ? state.save : S.load();
         var PW = G3.portals, found = 0, stars = 0;
-        var host = $('menu-worlds');
-        host.innerHTML = '';
         PW.WORLDS.forEach(function (w) {
-            var rec = S.holeRecord(save, 'world-' + w.id, 0);
-            var th = G3.THEMES[w.theme], seen = rec.plays > 0;
-            if (seen) found++;
-            stars += rec.stars || 0;
-            var el = document.createElement('button');
-            el.type = 'button';
-            el.className = 'world' + (seen ? '' : ' unfound');
-            el.setAttribute('role', 'listitem');
-            el.style.setProperty('--w-ground', th.grass[0]);
-            el.title = w.caption;
-            el.innerHTML =
-                '<span class="world-sky" style="background:linear-gradient(' + hexOf(th.sky[0]) + ',' + hexOf(th.sky[1]) + ')"></span>' +
-                '<span class="world-text"><span class="world-name">' + w.title + '</span>' +
-                '<span class="world-meta">' + w.world + ' \u00B7 ' +
-                (seen ? '<span class="world-stars">' + S.starText(rec.stars) + '</span>'
-                      : '<span class="world-new">new</span>') + '</span></span>';
-            el.addEventListener('click', function () {
-                if (menuTaking) return;
-                menuTaking = true;
-                maybeAutoFullscreen();
-                visitWorld(w.id);
-            });
-            host.appendChild(el);
+            var r = S.holeRecord(save, 'world-' + w.id, 0);
+            if (r.plays > 0) found++;
+            stars += r.stars || 0;
         });
-        $('menu-worlds-label').textContent = 'Pick a hole \u00B7 ' + found + ' of ' + PW.WORLDS.length + ' played';
 
         var rec = S.courseRecord(save, 'portals');
         var waiting = journeyWaiting();
@@ -4336,6 +4318,64 @@
         $('menu-portals').style.setProperty('--eye-a', hexOf(first.sky[0]));
         $('menu-portals').style.setProperty('--eye-b', hexOf(first.sky[1]));
         syncLive();
+    }
+
+    /* The grid: one card for everything that can be picked, and the same
+       card for all of it — a sky over its ground, a name, what kind of thing
+       it is and its stars. A tour hole and a six-hole course sit side by
+       side and are picked the same way, with one press (the owner: "new and
+       legacy maps both equally pickable"). `only` narrows it to the worlds.
+       They are dealt alternately, so neither kind is the one you scroll to. */
+    function drawGrid(only) {
+        var save = state && state.save ? state.save : S.load();
+        var host = $('menu-worlds');
+        host.innerHTML = '';
+        function card(o) {
+            var el = document.createElement('button');
+            el.type = 'button';
+            el.className = 'world' + (o.seen ? '' : ' unfound');
+            el.setAttribute('role', 'listitem');
+            el.style.setProperty('--w-ground', o.th.grass[0]);
+            el.style.setProperty('--w-tint', o.tint);
+            el.title = o.title;
+            el.innerHTML =
+                '<span class="world-sky" style="background:linear-gradient(' + hexOf(o.th.sky[0]) + ',' + hexOf(o.th.sky[1]) + ')">' +
+                '<span class="world-tag">' + o.tag + '</span></span>' +
+                '<span class="world-text"><span class="world-name">' + o.name + '</span>' +
+                '<span class="world-meta">' + o.meta + ' \u00B7 ' +
+                (o.seen ? '<span class="world-stars">' + o.stars + '</span>'
+                        : '<span class="world-new">new</span>') + '</span></span>';
+            el.addEventListener('click', function () {
+                if (menuTaking) return;
+                menuTaking = true;
+                maybeAutoFullscreen();
+                o.go();
+            });
+            return el;
+        }
+        var worlds = G3.portals.WORLDS.map(function (w) {
+            var rec = S.holeRecord(save, 'world-' + w.id, 0);
+            return card({ th: G3.THEMES[w.theme], tint: WORLDS_GROUP.tint, tag: 'World', name: w.title,
+                title: w.caption, meta: w.world + ' \u00B7 1 hole', seen: rec.plays > 0, stars: S.starText(rec.stars),
+                go: function () { visitWorld(w.id); } });
+        });
+        var courses = [];
+        if (!only) G3.COURSE_GROUPS.forEach(function (g) {
+            G3.coursesInGroup(g.id).forEach(function (c) {
+                var rec = S.courseRecord(save, c.id), got = S.courseStars(save, c);
+                courses.push(card({ th: G3.THEMES[c.theme] || G3.THEMES.seaside, tint: g.tint, tag: g.name, name: c.name,
+                    title: c.blurb, meta: c.holes.length + ' holes \u00B7 par ' + S.coursePar(c.holes),
+                    seen: rec.best !== null || got.got > 0, stars: '\u2605 ' + got.got + '/' + got.max,
+                    go: function () { newRound(c.id); } }));
+            });
+        });
+        for (var i = 0; i < Math.max(worlds.length, courses.length); i++) {
+            if (worlds[i]) host.appendChild(worlds[i]);
+            if (courses[i]) host.appendChild(courses[i]);
+        }
+        $('menu-worlds-label').textContent = only
+            ? 'The World Tour\u2019s holes, one at a time'
+            : worlds.length + ' worlds and ' + courses.length + ' courses \u00B7 one press plays it';
     }
 
     function syncLive() {
@@ -4368,6 +4408,8 @@
     function drawTabs() {
         var host = $('menu-tabs');
         host.innerHTML = '';
+        host.appendChild(menuTab(ALL_GROUP, G3.portals.WORLDS.length +
+            G3.COURSES.filter(function (c) { return !c.playtest; }).length, 'menu-worlds-panel'));
         host.appendChild(menuTab(WORLDS_GROUP, G3.portals.WORLDS.length, 'menu-worlds-panel'));
         G3.COURSE_GROUPS.forEach(function (group) {
             var courses = G3.coursesInGroup(group.id);
@@ -4384,7 +4426,7 @@
            not have to repaint it. The draw's panel owns its own, which is also
            the fallback every tinted rule in this dialog resolves against —
            see style.css, `#menu .modal-inner`. */
-        if (g.id !== G3.SHUFFLE_GROUP.id && g !== WORLDS_GROUP) $('menu-list').style.setProperty('--cg-tint', g.tint);
+        if (g.id !== G3.SHUFFLE_GROUP.id && g !== WORLDS_GROUP && g !== ALL_GROUP) $('menu-list').style.setProperty('--cg-tint', g.tint);
         $('shuffle').style.setProperty('--cg-tint', G3.SHUFFLE_GROUP.tint);
     }
 
@@ -4392,6 +4434,7 @@
     function openTab() {
         if (menuGroup === G3.SHUFFLE_GROUP.id) return G3.SHUFFLE_GROUP;
         if (menuGroup === WORLDS_GROUP.id) return WORLDS_GROUP;
+        if (menuGroup === ALL_GROUP.id) return ALL_GROUP;
         var g = G3.COURSE_GROUPS.filter(function (x) { return x.id === menuGroup; })[0];
         return g || G3.COURSE_GROUPS[0];
     }
@@ -4422,7 +4465,7 @@
             // "Same kind" means the kind you are looking at, so the draw and
             // its counts move with the tabs — and the draw's own tab, which is
             // not a kind, leaves that pointing where it last was.
-            if (group.id !== G3.SHUFFLE_GROUP.id && group !== WORLDS_GROUP) menuKind = group.id;
+            if (group.id !== G3.SHUFFLE_GROUP.id && group !== WORLDS_GROUP && group !== ALL_GROUP) menuKind = group.id;
             drawShuffle();
             drawTabs();
             drawCourses();
@@ -4442,12 +4485,12 @@
         var save = state ? state.save : S.load();
         var host = $('menu-list');
         host.innerHTML = '';
-        var onDraw = menuGroup === G3.SHUFFLE_GROUP.id, onWorlds = menuGroup === WORLDS_GROUP.id;
+        var onDraw = menuGroup === G3.SHUFFLE_GROUP.id, onWorlds = menuGroup === WORLDS_GROUP.id || menuGroup === ALL_GROUP.id;
         host.hidden = onDraw || onWorlds;
         $('shuffle').hidden = !onDraw;
         $('menu-worlds-panel').hidden = !onWorlds;
         if (onDraw) return $('shuffle-go');
-        if (onWorlds) return $('menu-worlds').firstChild;
+        if (onWorlds) { drawGrid(menuGroup === WORLDS_GROUP.id); return $('menu-worlds').firstChild; }
         var focus = null, firstHead = null;
 
         G3.coursesInGroup(menuGroup).forEach(function (course) {
