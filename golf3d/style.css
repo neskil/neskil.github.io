@@ -3543,7 +3543,7 @@ body.compact-ui .topbar-menu {
     overscroll-behavior: contain;
 }
 body.compact-ui .tm-primary { display: grid; gap: 0.35rem; }
-body.compact-ui .tm-primary .chip {
+body.compact-ui .topbar-menu .tm-primary .chip {
     font-size: 1.15rem;
     padding: 0.85rem 0.9rem;
     font-weight: 700;
@@ -3551,20 +3551,24 @@ body.compact-ui .tm-primary .chip {
 body.compact-ui #btn-courses { background: var(--accent); color: #16180f; border-color: transparent; }
 body.compact-ui .tm-primary > .chip:not(#btn-courses) { display: block; }
 body.compact-ui .tm-quick { display: grid; grid-template-columns: 1fr 1fr; gap: 0.35rem; }
-body.compact-ui .tm-quick .chip { font-size: 1rem; padding: 0.6rem 0.5rem; text-align: center; }
-body.compact-ui .tm-fold {
+body.compact-ui .topbar-menu .tm-quick .chip { font-size: 1rem; padding: 0.6rem 0.5rem; text-align: center; }
+body.compact-ui .topbar-menu button.chip.tm-fold {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    font-size: 0.95rem;
-    padding: 0.55rem 0.9rem;
-    opacity: 0.9;
+    font-size: 1.15rem;
+    padding: 0.85rem 0.9rem;
+    font-weight: 700;
 }
 body.compact-ui .tm-fold[aria-expanded="true"] .tm-caret { transform: rotate(180deg); }
 body.compact-ui .tm-caret { display: inline-block; transition: transform 0.15s ease; }
 body.compact-ui .tm-group { display: none; gap: 0.3rem; padding-left: 0.5rem; border-left: 2px solid var(--ov-border); }
 body.compact-ui .tm-group.open { display: grid; }
-body.compact-ui .tm-group .chip { font-size: 0.95rem; padding: 0.5rem 0.8rem; }
+body.compact-ui .topbar-menu .tm-group .chip { font-size: 1.05rem; padding: 0.7rem 0.9rem; }
+body.compact-ui .tm-about { margin: 0; padding: 0.3rem 0.4rem; font-size: 0.85rem; line-height: 1.5; color: var(--ink-dim); }
+body.compact-ui .tm-about a { color: inherit; }
+.tm-about { display: none; }
+body.compact-ui .tm-about { display: block; }
 
 /* …but only the chips that are *off*, and this is where that is said.
 
