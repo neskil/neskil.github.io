@@ -59,6 +59,7 @@ them.
 | `js/portals.js` | [The World Tour](#the-world-tour-every-hole-in-a-world): the twelve holes — hole, palette, shelf, caption and the Portals world each is played in — the tour's deal, and `courseById` taught to answer `portals`, `portal-library` and `world-<id>`. Written with `G3.authoring`; loaded straight after `courses.js` on every page that loads that. |
 | `js/worlds.js` | The tour holes' stand-in set pieces, for when the live world is not drawn. three.js primitives only. Loaded before `render.js`. |
 | `js/backdrop.mjs`, `vendor/portals/` | The live worlds: Portals' own engine, kit, twelve worlds and three.js r170 (vendored unmodified, CC BY-NC-SA 4.0), and the module that builds one behind a hole and fits the hole into it. |
+| `js/tour-ground.js`, `tools/world-ground.mjs`, `tools/bake-ground.mjs` | Ground baked from a Portals world for a hole sculpted to it (generated), the tool that reads a world's terrain, and the one that bakes a piece of it. |
 | `tools/portal-check.mjs`, `tools/portal-shot.mjs` | Every world played by the caddie with its ace share and widest windows; and one shot on one world, traced. Plain Node. |
 | `js/audit.js` | The [geometry audit](#the-pictures-which-neither-suite-can-see): the faults that are invisible to the ball and obvious in a screenshot. Pure — read by `tests.html`, by the inspector and by the turntable. |
 | `js/scoring.js` | Scorecard arithmetic and the save file. |
@@ -4226,6 +4227,31 @@ over level ground (`bestU`); `PLACES` in portals.js overrides `u`, `scale`,
 under it. The golf is always drawn over the world — there is no shared depth
 buffer — which is why a hole is seated on open ground rather than among
 things that should stand in front of it.
+
+**A hole can be sculpted to its spot, and Across the Shell is** (v1.152.0).
+Its ground is not drawn by anybody: it is a headland on the south coast of
+the country on the turtle's back, read off that world's own geometry and
+baked into the hole. Two tools do it. `tools/world-ground.mjs <hole>` loads
+the world through the game and prints a height map of it (or writes a fine
+grid with `--box … --step … --json`): that is how a spot is found — the
+turtle's land turned out to be twenty-metre plateaus with cliffs to a sea at
+150. `tools/bake-ground.mjs` then takes a placing (`--pin` a golf point to a
+world point, `--yaw`, `--scale`, `--y0` for the height that is golf's zero),
+resamples the grid into golf units, smooths the mesh's facets out, levels a
+tee and a green (`--flat`), writes `js/tour-ground.js` and prints the
+`place.at` for portals.js — an exact placing, which `backdrop.anchorFor`
+uses as given instead of searching.
+
+In the hole that ground is one `rough` pad carrying a `grid` field term
+(`physics.fieldAt`: bilinear, the cell's own slope, the edge carried on
+level), with the fairway and green as square inlays carrying the *same*
+term, so every strip lies on the hills exactly. The pad and the sea under it
+are marked `ghost`: with the live world on screen they are put away
+(`render.js`, `R.ghosts`) and the ball rolls on what looks like — and
+measures as — the world's own country, with only a tee, mown strips and a
+green laid over it. Without the world the same pad is drawn, so the fallback
+has the same hills. `place.u` on such a hole is only the world's clock: the
+turtle's sun sets as its flight goes on, and 0.12 is daylight.
 
 **Without it the hole is still a hole.** Until the world has built — a second
 or two — and for good on a phone, with "Live worlds: off" in the picker

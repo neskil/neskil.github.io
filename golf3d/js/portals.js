@@ -87,7 +87,7 @@
        `u` is how far along that world's own flight path the tee stands,
        `scale` its units to one of ours, `lift` and `turn` a nudge up and
        round (backdrop.mjs → anchorFor). */
-    var PLACES = {"breakfast": ["breakfast-table"], "turtle": ["world-turtle", {"u": 0.3, "scale": 4}], "gasgiant": ["storm-bands"], "abyss": ["kelp-cathedral"], "carnival": ["carnival-on-the-frozen-river"], "mushroom": ["spore-rain"], "orrery": ["long-library"], "stairs": ["stairway-everywhere"], "attic": ["the-toppling"], "threebody": ["airbrush-black-hole"], "clouds": ["cloud-armada"], "forge": ["obsidian-forge"]};
+    var PLACES = {"breakfast": ["breakfast-table"], "turtle": ["world-turtle", {"u": 0.12, "at": {"x": -95.58, "z": 148.41, "y": 150, "yaw": 0.6981, "scale": 2.5}}], "gasgiant": ["storm-bands"], "abyss": ["kelp-cathedral"], "carnival": ["carnival-on-the-frozen-river"], "mushroom": ["spore-rain"], "orrery": ["long-library"], "stairs": ["stairway-everywhere"], "attic": ["the-toppling"], "threebody": ["airbrush-black-hole"], "clouds": ["cloud-armada"], "forge": ["obsidian-forge"]};
     function add(w) {
         w.hole.scene = w.scene || w.id; w.hole.worldId = w.id;
         var q = PLACES[w.id];
@@ -125,30 +125,44 @@
         })
     });
 
-    /* The long one. The world on the turtle's back is country — a coast, a
-       city, a mountain — and at the scale the flight sees it from, a golf
-       hole laid across it is a real one: a drive down a fairway, then the
-       ground stops. The green is on the far side of a gap with the pin
-       behind a bunker; the carry is an iron's, and the strip of rough down
-       the left is the way round for anyone who would rather walk. */
+    /* Sculpted to its world, and the first of the tour that is. The ground
+       here is not drawn by anybody: it is the country on the turtle's back
+       itself — a headland on the south coast of the shell-world, sampled
+       through that world's own geometry and baked (tour-ground.js, the two
+       tools beside it). The tee is on the crown of the headland, thirteen
+       units over the sea. The fairway falls away down its spine, through a
+       dip, to a ridge; from the ridge the green is across a saddle on the
+       next plateau, with the sea left of everything and long of the green.
+
+       So the ball rolls on the world's own hills, and with the world on
+       screen its ground is the world's ground: the `ghost` pad and sea are
+       drawn only when the world is not, and what is laid over the country is
+       a tee, two strips of mown fairway and a green. */
     add({
         id: 'turtle', title: 'Across the Shell', world: 'The World Turtle', kind: 'bizarre', tier: 2,
-        caption: 'A par four laid across the country on a turtle\'s back: a drive, then a carry to the green.',
+        caption: 'A par four on a headland of the country on a turtle\'s back. The hills are the world\'s own.',
         theme: 'turtle',
-        hole: world({
-            name: 'Across the Shell', par: 4, long: true,
-            blurb: 'Drive down the fairway, then carry the gap to the green — or take the strip of rough round the left. Nothing has a rail.',
-            pads: [
-                pad(3, 0, 12, 36, 0, 'fairway'),
-                pad(-2, 0, 5, 62, 0, 'rough'),
-                pad(15, 0, 4, 36, 0, 'rough'),
-                pad(3, 46, 16, 16, 0, 'fairway'),
-                circle(11, 54, 4.6, 'green'),
-                circle(9.5, 48.2, 1.7, 'sand', -0.12),
-                circle(16.4, 55.5, 1.5, 'sand', -0.12)
-            ],
-            tee: { x: 9, z: 3 }, cup: { x: 11.6, z: 55 }
-        })
+        hole: (function () {
+            var G = (G3.TOUR_GROUND || {}).turtle, field = G ? [{ grid: G }] : [];
+            function on(p, inlay) { p.field = field; if (inlay) p.inlay = true; return p; }
+            var ground = on(pad(-6, -4, 52, 70, 0, 'rough'));
+            ground.ghost = true;
+            var sea = A.rect(-30, -30, 100, 120, 0.15);
+            sea.ghost = true;
+            return world({
+                name: 'Across the Shell', par: 4, long: true,
+                blurb: 'Off the crown of the headland, down its spine and through the dip to the ridge. The green is across the saddle to the right — and the sea is left of all of it.',
+                pads: [
+                    ground,
+                    on(pad(6, 1, 8, 22, 0, 'fairway'), true),
+                    on(pad(5, 31, 10, 12, 0, 'fairway'), true),
+                    on(pad(22, 47, 6, 9, 0, 'fairway'), true),
+                    on(pad(28.5, 50, 9, 9, 0, 'green'), true)
+                ],
+                water: [sea],
+                tee: { x: 10, z: 4 }, cup: { x: 33, z: 54.5 }
+            });
+        })()
     });
 
     /* A third of a g, over the bands of a gas giant, and three balloons to

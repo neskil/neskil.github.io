@@ -262,6 +262,23 @@
                     g.x += dr * dx - dt * dz;
                     g.z += dr * dz + dt * dx;
                 }
+            } else if (t.grid) {
+                /* A baked height map: the ground of somewhere else, sampled
+                   on a square grid and read back bilinearly (the World
+                   Tour's holes sculpted to a Portals world — portals.js,
+                   tools/bake-ground.mjs). Off the grid it is the edge
+                   carried on, level. The slope is the cell's own, so it
+                   steps at a cell edge the way the mesh drawn from the same
+                   samples does. */
+                var G = t.grid, fx = (x - G.x0) / G.d, fz = (z - G.z0) / G.d;
+                fx = fx < 0 ? 0 : fx > G.nx - 1 ? G.nx - 1 : fx;
+                fz = fz < 0 ? 0 : fz > G.nz - 1 ? G.nz - 1 : fz;
+                var ix = Math.min(G.nx - 2, Math.floor(fx)), iz = Math.min(G.nz - 2, Math.floor(fz));
+                var ux = fx - ix, uz = fz - iz, o = iz * G.nx + ix, H = G.h;
+                var h00 = H[o], h10 = H[o + 1], h01 = H[o + G.nx], h11 = H[o + G.nx + 1];
+                f += (t.a === undefined ? 1 : t.a) * ((h00 * (1 - ux) + h10 * ux) * (1 - uz) + (h01 * (1 - ux) + h11 * ux) * uz);
+                if (fx > 0 && fx < G.nx - 1) g.x += (t.a === undefined ? 1 : t.a) * ((h10 - h00) * (1 - uz) + (h11 - h01) * uz) / G.d;
+                if (fz > 0 && fz < G.nz - 1) g.z += (t.a === undefined ? 1 : t.a) * ((h01 - h00) * (1 - ux) + (h11 - h10) * ux) / G.d;
             } else if (t.gauss) {
                 dx = x - t.gauss[0]; dz = z - t.gauss[1];
                 v = t.a * Math.exp(-(dx * dx + dz * dz) / (2 * t.s * t.s));
@@ -2519,6 +2536,7 @@
         surfaceUnder: surfaceUnder,
         surfaceTop: surfaceTop,
         waterAt: waterAt,
+        fieldAt: fieldAt,
         wallBox: wallBox,
         circleBox: circleBox,
         wallPointVelocity: wallPointVelocity,

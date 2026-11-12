@@ -85,6 +85,17 @@ const _yaw = new THREE.Quaternion(), _up = new THREE.Vector3(0, 1, 0), _g = new 
 /* Where the hole stands in the world: the seat on the tee is on the path at
    `u`, and the hole runs the way the path does. Worked out once per hole. */
 function anchorFor(W, place, seat) {
+    /* A hole sculpted to a spot says exactly where it is: golf's origin at a
+       point of the world, golf's +z along a compass heading, golf's y = 0 at
+       a height, and the scale. Its ground was baked from the world's at that
+       same placing (tools/bake-ground.mjs), so nothing is searched for. */
+    if (place.at) {
+        const s = place.at.scale || 1, turn = place.at.yaw || 0;
+        _yaw.setFromAxisAngle(_up, turn);
+        _q.set(seat.x, 0, seat.z).multiplyScalar(s).applyQuaternion(_yaw);
+        return { x: place.at.x + _q.x, y: place.at.y, z: place.at.z + _q.z, turn, u: place.u === undefined ? 0.3 : place.u,
+            sx: seat.x, sy: 0, sz: seat.z, scale: s, ground: place.at.y, height: null, py: place.at.y };
+    }
     const fit = place.u === undefined ? bestU(W, seat) : fitAt(W, place.u, seat, place);
     const A = fit || fitAt(W, 0.35, seat, { ground: false });
     if (place.scale) A.scale = place.scale;
@@ -212,6 +223,10 @@ G3.backdrop = {
     canvas, want, frame,
     get current() { return cur ? cur.def.id : null; },
     get building() { return !!loading; },
+    /* The world's own ground, for sculpting a hole to it (tools/world-ground.mjs):
+       the height under a point in world coordinates, or null over nothing. */
+    groundAt(x, z, from) { return cur ? groundUnder(cur, x, from === undefined ? 2000 : from, z) : null; },
+    pathAt(u) { if (!cur) return null; const v = cur.path.pointAt(u, new THREE.Vector3()); return [v.x, v.y, v.z]; },
     // A place edited by hand (the console, a tuning script): work it out again.
     reanchor() { if (cur) cur.anchor = null; },
     // For placing a hole: what the world is and where the hole ended up in it.
