@@ -489,8 +489,8 @@
                 blurb: 'Off the bridge. Along it and round is the long way; across the corner of the canyon is a drive that has to carry the iron and hold the ridge.',
                 pads: [
                     ground,
-                    on(pad(3, -2, 4, 4, 0, 'fairway'), true),
-                    on(pad(7, -1.5, 22, 3, 0, 'fairway'), true),
+                    // the deck: no wider than the glass it is laid on
+                    on(pad(3.5, -1.2, 26, 2.4, 0, 'fairway'), true),
                     on(pad(31, 5, 8, 31, 0, 'fairway'), true),
                     on(pad(34, 40, 8, 8, 0, 'green'), true)
                 ],
