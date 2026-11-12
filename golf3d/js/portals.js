@@ -476,7 +476,7 @@
     add({
         id: 'ironriver', title: 'The Iron River', world: 'Black Glass and Lava', kind: 'bizarre', tier: 3,
         caption: 'A par four off a bridge of black glass, across a canyon of lava and down the far bank. The canyon is the world\'s own.',
-        theme: 'forge',
+        theme: 'ironriver',
         hole: (function () {
             var G = (G3.TOUR_GROUND || {}).ironriver, field = G ? [{ grid: G }] : [];
             function on(p, inlay) { p.field = field; if (inlay) p.inlay = true; return p; }
@@ -606,6 +606,17 @@
             sky: [0x120806, 0x7a2a12], fog: 0x6a2410,
             sun: 0xffa860, sunPos: [0, 9, 12], ambient: 0x9a4a30, ambientI: 0.8,
             grass: ['#4a4a52', '#404048'], rail: 0x2a2a30, machine: 0xffd24a,
+            stars: 0.2, cloudLum: 0.2, birds: false,
+            surroundY: -0.42, surround: 'rock', ground: '#1c1412',
+            water: 0xff5a1a, side: '#2c2224'
+        },
+        /* The same forge, for the hole that is laid on its rock rather than
+           built over it: the strips are black glass, not a factory floor,
+           and the light is cooler so they do not go the colour of the lava. */
+        ironriver: {
+            sky: [0x120806, 0x7a2a12], fog: 0x6a2410,
+            sun: 0xffe2c4, sunPos: [0, 9, 12], ambient: 0x8a6a70, ambientI: 0.75,
+            grass: ['#3a3d48', '#30333d'], rail: 0x2a2a30, machine: 0xffd24a,
             stars: 0.2, cloudLum: 0.2, birds: false,
             surroundY: -0.42, surround: 'rock', ground: '#1c1412',
             water: 0xff5a1a, side: '#2c2224'
