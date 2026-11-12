@@ -38,7 +38,7 @@
 
         gtag('config', 'G-9GP823TGLB');
     </script>
-    <link rel="stylesheet" href="style.css?v=1.154.0">
+    <link rel="stylesheet" href="style.css?v=1.155.1">
 <script type="application/ld+json">
     {
         "@context": "https://schema.org",
@@ -129,30 +129,40 @@
                      the screen, and there is nothing on the course to say so. -->
                 <button class="chip" id="btn-full" title="Play fullscreen (F)" aria-label="Play fullscreen">⛶<span class="chip-text"> Full</span></button>
                 <div class="topbar-menu" id="topbar-menu">
-                    <button class="chip" id="btn-courses" title="Pick a course">Courses</button>
-                    <button class="chip" id="btn-range" title="Driving range practice (T)">🎯<span class="chip-text"> Range</span></button>
-                    <button class="chip" id="btn-restart" title="Restart this hole (R)">↻ Hole</button>
-                    <button class="chip" id="btn-card" title="Scorecard">Card</button>
-                    <button class="chip" id="btn-map" title="Show the course map" aria-pressed="false">🗺️<span class="chip-text"> Map</span></button>
-                    <!-- The caddie, and an ordinary control: it plays the hole
-                         out from wherever your ball is standing and then keeps
-                         going — the next hole, and at the end of a course the
-                         next course. Pressing it again, or Esc, takes the club
-                         back. It sits with the things you do to a round rather
-                         than with the settings, and it costs the session's
-                         records: see game.js → finishRound. -->
-                    <!-- Pass and play: 1 to 4 players sharing the device, a turn
-                         each per hole and a ball of their own (game.js). -->
-                    <button class="chip" id="btn-players" title="Pass and play — players sharing this device (1–4)" aria-pressed="false">👥<span class="chip-text"> Players</span> <span id="players-count">1</span></button>
-                    <button class="chip" id="btn-sim" title="Let the caddie play on — hole after hole, course after course" aria-pressed="false">🤖<span class="chip-text"> Autoplay</span></button>
-                    <button class="chip" id="btn-help" title="How to play (H)" aria-label="How to play">?<span class="chip-text"> How to play</span></button>
-                    <a class="chip" id="chip-editor" href="level-editor.html" title="Build a hole of your own">&#9998;<span class="chip-text"> Editor</span></a>
-                    <button class="chip" id="btn-mute" title="Sound (M)" aria-label="Unmute"><span id="mute-icon">🔇</span><span class="chip-text"> Sound</span></button>
-                    <button class="chip" id="btn-music" title="Background music (J)" aria-label="Turn the music off"><span id="music-icon">♪</span><span class="chip-text"> Jazz</span></button>
-                    <button class="chip" id="btn-fps" title="Show the frame rate (P)" aria-pressed="false"><span id="fps-icon">▦</span><span class="chip-text"> FPS</span></button>
-                    <button class="chip" id="btn-fly" title="A look at the hole before you play it" aria-pressed="true">🎬<span class="chip-text"> Flyover</span></button>
-                    <button class="chip" id="btn-style" title="Touch swing settings" aria-haspopup="dialog" aria-expanded="false" aria-controls="style-pad">🏌<span class="chip-text"> Swing: <span id="style-now">Touch swing</span></span></button>
-                    <button class="chip" id="btn-water" title="Reflections, foam and glitter on the water (O)" aria-label="Turn the fancy water off"><span id="water-icon">≈</span><span class="chip-text"> Water</span></button>
+                    <!-- Compact layout: three big things you reach for, a row of
+                         quick tiles, then two folds. Desktop ignores the
+                         grouping (display: contents) and shows every chip in
+                         the bar as before. Ids are unchanged: game.js binds
+                         them by name. -->
+                    <div class="tm-primary">
+                        <button class="chip" id="btn-courses" title="Pick a course">Courses</button>
+                        <button class="chip" id="btn-restart" title="Restart this hole (R)">↻ Hole</button>
+                        <button class="chip" id="btn-card" title="Scorecard">Card</button>
+                    </div>
+                    <div class="tm-quick">
+                        <button class="chip" id="btn-range" title="Driving range practice (T)">🎯<span class="chip-text"> Range</span></button>
+                        <button class="chip" id="btn-map" title="Show the course map" aria-pressed="false">🗺️<span class="chip-text"> Map</span></button>
+                    </div>
+                    <button type="button" class="chip tm-fold" data-fold="tm-more" aria-expanded="false">More <span class="tm-caret" aria-hidden="true">▾</span></button>
+                    <div class="tm-group" id="tm-more" data-group>
+                        <button class="chip" id="btn-players" title="Pass and play — players sharing this device (1–4)" aria-pressed="false">👥<span class="chip-text"> Players</span> <span id="players-count">1</span></button>
+                        <button class="chip" id="btn-sim" title="Let the caddie play on — hole after hole, course after course" aria-pressed="false">🤖<span class="chip-text"> Autoplay</span></button>
+                        <a class="chip" id="chip-editor" href="level-editor.html" title="Build a hole of your own">&#9998;<span class="chip-text"> Editor</span></a>
+                    </div>
+                    <button type="button" class="chip tm-fold" data-fold="tm-settings" aria-expanded="false">⚙ Settings &amp; help <span class="tm-caret" aria-hidden="true">▾</span></button>
+                    <div class="tm-group" id="tm-settings" data-group>
+                        <button class="chip" id="btn-help" title="How to play (H)" aria-label="How to play">?<span class="chip-text"> How to play</span></button>
+                        <button class="chip" id="btn-style" title="Touch swing settings" aria-haspopup="dialog" aria-expanded="false" aria-controls="style-pad">🏌<span class="chip-text"> Swing: <span id="style-now">Touch swing</span></span></button>
+                        <button class="chip" id="btn-mute" title="Sound (M)" aria-label="Unmute"><span id="mute-icon">🔇</span><span class="chip-text"> Sound</span></button>
+                        <button class="chip" id="btn-music" title="Background music (J)" aria-label="Turn the music off"><span id="music-icon">♪</span><span class="chip-text"> Jazz</span></button>
+                        <button class="chip" id="btn-water" title="Reflections, foam and glitter on the water (O)" aria-label="Turn the fancy water off"><span id="water-icon">≈</span><span class="chip-text"> Water</span></button>
+                        <button class="chip" id="btn-fly" title="A look at the hole before you play it" aria-pressed="true">🎬<span class="chip-text"> Flyover</span></button>
+                        <button class="chip" id="btn-fps" title="Show the frame rate (P)" aria-pressed="false"><span id="fps-icon">▦</span><span class="chip-text"> FPS</span></button>
+                    </div>
+                    <button type="button" class="chip tm-fold" data-fold="tm-about" aria-expanded="false">ⓘ About <span class="tm-caret" aria-hidden="true">▾</span></button>
+                    <div class="tm-group" id="tm-about" data-group>
+                        <p class="tm-about">Loft Links, by Niklas Billgren. The tour's worlds are from <a href="https://github.com/emollick/ai-portals" target="_blank" rel="noopener">Portals</a> by Ethan Mollick, CC BY-NC-SA 4.0.</p>
+                    </div>
                 </div>
                 <button class="chip chip-menu" id="btn-menu" title="More" aria-label="More controls"
                         aria-expanded="false" aria-controls="topbar-menu">☰</button>
@@ -769,7 +779,7 @@
             <div class="worlds-panel" id="menu-worlds-panel" role="tabpanel" hidden>
                 <p class="sh-label" id="menu-worlds-label">Pick a hole</p>
                 <div class="world-grid" id="menu-worlds" role="list" aria-labelledby="menu-worlds-label"></div>
-                <p class="tour-credit">The worlds are from <a href="https://github.com/emollick/ai-portals" target="_blank" rel="noopener">Portals</a> by Ethan Mollick, CC BY-NC-SA 4.0.
+                <p class="tour-credit">
                     <button type="button" class="linkish" id="menu-live" role="switch" aria-checked="true">Live worlds: on</button></p>
             </div>
             <div id="menu-list" class="course-list" role="tabpanel"></div>
@@ -873,34 +883,34 @@
 
     <!-- Load order is dependency order: config, then the pure logic, then the
          things that touch the screen. game.js boots itself on DOMContentLoaded. -->
-    <script src="js/config.js?v=1.154.0"></script>
-    <script src="js/themes.js?v=1.154.0"></script>
-    <script src="js/physics.js?v=1.154.0"></script>
-    <script src="js/courses.js?v=1.154.0"></script>
-    <script src="js/tour-ground.js?v=1.154.0"></script>
-    <script src="js/portals.js?v=1.154.0"></script>
-    <script src="js/audit.js?v=1.154.0"></script>
-    <script src="js/custom.js?v=1.154.0"></script>
-    <script src="js/scoring.js?v=1.154.0"></script>
-    <script src="js/swing.js?v=1.154.0"></script>
-    <script src="js/school.js?v=1.154.0"></script>
-    <script src="js/audio.js?v=1.154.0"></script>
-    <script src="js/music.js?v=1.154.0"></script>
-    <script src="js/bag.js?v=1.154.0"></script>
-    <script src="js/textures.js?v=1.154.0"></script>
-    <script src="js/shaders.js?v=1.154.0"></script>
-    <script src="js/postfx.js?v=1.154.0"></script>
-    <script src="js/weather.js?v=1.154.0"></script>
-    <script src="js/flyover.js?v=1.154.0"></script>
-    <script src="js/replay.js?v=1.154.0"></script>
-    <script src="js/bot.js?v=1.154.0"></script>
-    <script src="js/models.js?v=1.154.0"></script>
-    <script src="js/life.js?v=1.154.0"></script>
-    <script src="js/worlds.js?v=1.154.0"></script>
-    <script src="js/render.js?v=1.154.0"></script>
-    <script src="js/minimap.js?v=1.154.0"></script>
-    <script src="js/debug.js?v=1.154.0"></script>
-    <script src="js/game.js?v=1.154.0"></script>
+    <script src="js/config.js?v=1.155.1"></script>
+    <script src="js/themes.js?v=1.155.1"></script>
+    <script src="js/physics.js?v=1.155.1"></script>
+    <script src="js/courses.js?v=1.155.1"></script>
+    <script src="js/tour-ground.js?v=1.155.1"></script>
+    <script src="js/portals.js?v=1.155.1"></script>
+    <script src="js/audit.js?v=1.155.1"></script>
+    <script src="js/custom.js?v=1.155.1"></script>
+    <script src="js/scoring.js?v=1.155.1"></script>
+    <script src="js/swing.js?v=1.155.1"></script>
+    <script src="js/school.js?v=1.155.1"></script>
+    <script src="js/audio.js?v=1.155.1"></script>
+    <script src="js/music.js?v=1.155.1"></script>
+    <script src="js/bag.js?v=1.155.1"></script>
+    <script src="js/textures.js?v=1.155.1"></script>
+    <script src="js/shaders.js?v=1.155.1"></script>
+    <script src="js/postfx.js?v=1.155.1"></script>
+    <script src="js/weather.js?v=1.155.1"></script>
+    <script src="js/flyover.js?v=1.155.1"></script>
+    <script src="js/replay.js?v=1.155.1"></script>
+    <script src="js/bot.js?v=1.155.1"></script>
+    <script src="js/models.js?v=1.155.1"></script>
+    <script src="js/life.js?v=1.155.1"></script>
+    <script src="js/worlds.js?v=1.155.1"></script>
+    <script src="js/render.js?v=1.155.1"></script>
+    <script src="js/minimap.js?v=1.155.1"></script>
+    <script src="js/debug.js?v=1.155.1"></script>
+    <script src="js/game.js?v=1.155.1"></script>
 
     <!-- The live worlds behind the tour's holes: Portals' own engine and its
          own three.js (r170, a module), drawing into a canvas render.js uses as
@@ -908,6 +918,6 @@
     <script type="importmap">
     { "imports": { "three": "./vendor/portals/vendor/three/three.module.min.js", "three/addons/": "./vendor/portals/vendor/three/addons/" } }
     </script>
-    <script type="module" src="js/backdrop.mjs?v=1.154.0"></script>
+    <script type="module" src="js/backdrop.mjs?v=1.155.1"></script>
 </body>
 </html>
