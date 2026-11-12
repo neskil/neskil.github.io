@@ -25,6 +25,7 @@
     <script src="js/config.js"></script>
     <script src="js/physics.js"></script>
     <script src="js/courses.js"></script>
+    <script src="js/tour-ground.js"></script>
     <script src="js/portals.js"></script>
     <script src="js/custom.js"></script>
     <script src="js/audit.js"></script>
@@ -5730,6 +5731,34 @@
                 assert(w.id + ': …in no more than two over its par', r.sunk && r.strokes <= w.hole.par + 2,
                     r.strokes + ' against ' + w.hole.par);
             });
+
+            // The sculpted ground: a baked height map read back bilinearly.
+            (function () {
+                var G = { x0: 0, z0: 0, d: 2, nx: 3, nz: 3, h: [0, 1, 2, 1, 3, 5, 2, 5, 9] };
+                var g = { x: 0, z: 0 }, e = 1e-4, ok = true, exact = true;
+                [[0, 0, 0], [2, 2, 3], [4, 4, 9], [2, 0, 1], [1, 1, 1.25]].forEach(function (q) {
+                    if (Math.abs(P.fieldAt([{ grid: G }], q[0], q[1], g) - q[2]) > 1e-9) exact = false;
+                });
+                assert('a grid term reads its samples back, and half way between them', exact);
+                [[0.7, 1.3], [2.6, 0.4], [3.1, 3.5], [1.2, 2.9]].forEach(function (q) {
+                    P.fieldAt([{ grid: G }], q[0], q[1], g);
+                    var gx = g.x, gz = g.z;
+                    var fx = (P.fieldAt([{ grid: G }], q[0] + e, q[1], g) - P.fieldAt([{ grid: G }], q[0] - e, q[1], g)) / (2 * e);
+                    var fz = (P.fieldAt([{ grid: G }], q[0], q[1] + e, g) - P.fieldAt([{ grid: G }], q[0], q[1] - e, g)) / (2 * e);
+                    if (Math.abs(fx - gx) > 1e-5 || Math.abs(fz - gz) > 1e-5) ok = false;
+                });
+                assert('…and its slope is the slope of what it reads', ok);
+                assert('off the grid it is the edge carried on, level',
+                    P.fieldAt([{ grid: G }], -5, 1, g) === P.fieldAt([{ grid: G }], 0, 1, g) && g.x === 0);
+                var t = PW.byId('turtle'), h = t.hole, tg = G3.TOUR_GROUND && G3.TOUR_GROUND.turtle;
+                assert('the turtle\'s hole stands on ground baked from its world', !!tg && tg.h.length === tg.nx * tg.nz &&
+                    h.pads[0].ghost === true && h.pads[0].field[0].grid === tg && !!t.place.at && h.water[0].ghost === true);
+                assert('…its tee is high on the headland and its green above the sea',
+                    h.tee.y > 8 && h.cup.y > 3 && P.waterAt(h, h.cup.x, h.cup.z) && h.cup.y > P.waterAt(h, h.cup.x, h.cup.z).y + 1);
+                assert('…and every strip mown into it lies on the same ground', h.pads.slice(1).every(function (q) {
+                    return q.inlay && Math.abs(P.padHeight(q, q.x + 1, q.z + 1) - P.padHeight(h.pads[0], q.x + 1, q.z + 1)) < 1e-9;
+                }));
+            })();
 
             // A journey.
             function lcg(seed) { var s = seed >>> 0; return function () { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; }; }

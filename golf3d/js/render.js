@@ -1547,6 +1547,10 @@
        off the pad the mat belongs to, because the vertex has moved across
        ground that rolls. */
     function conform(pos, i, inlay, cx, cz, pad, cy) {
+        // A square strip laid in (a tour fairway) has no radius to be pulled
+        // on to — padRadius of one is NaN — so its edge is left ragged by half
+        // a cell, under the strip.
+        if (!inlay.r) return;
         var qx = inlay.x + inlay.w / 2, qz = inlay.z + inlay.d / 2;
         var dx = cx + pos.getX(i) - qx, dz = cz + pos.getZ(i) - qz;
         var d = Math.hypot(dx, dz);
@@ -2173,11 +2177,17 @@
             group.add(rock);
         }
 
-        var skirt = new THREE.Mesh(skirtGeometry(pad, base, cx, cy, cz),
-            R.surf.side);
-        skirt.position.set(cx, cy + lift, cz);
-        skirt.receiveShadow = true;
-        group.add(skirt);
+        /* …except a strip mown into ground that rolls (a tour hole's fairway
+           on a baked field): it has no edge of its own to wall, and a skirt
+           hung off its middle height stood up as a box wherever the ground
+           beside it was lower. */
+        if (!(pad.inlay && pad.field)) {
+            var skirt = new THREE.Mesh(skirtGeometry(pad, base, cx, cy, cz),
+                R.surf.side);
+            skirt.position.set(cx, cy + lift, cz);
+            skirt.receiveShadow = true;
+            group.add(skirt);
+        }
 
         /* The grass gets the ground's own surface to stand on, and where
            anything is laid into the pad it gets its *own* copy cut harder —
@@ -5545,7 +5555,18 @@
         var i;
         // The country past the stakes is drawn as country (splitCountry).
         R.country = hole.open && hole.fence && hole.stakes !== false ? hole : null;
-        for (i = 0; i < hole.pads.length; i++) addPad(g, hole.pads[i], theme, hole.cup, hole.pads);
+        /* A `ghost` pad or water is ground the live world already draws — a
+           tour hole sculpted to its world's own terrain is played on that
+           terrain, and only its tee, fairway and green are laid over it. So
+           a ghost is built like anything else and put away while the world
+           is on screen (stepPlace); without the world it is the ground. */
+        R.ghosts = [];
+        var n0;
+        for (i = 0; i < hole.pads.length; i++) {
+            n0 = g.children.length;
+            addPad(g, hole.pads[i], theme, hole.cup, hole.pads);
+            if (hole.pads[i].ghost) while (n0 < g.children.length) R.ghosts.push(g.children[n0++]);
+        }
         R.country = null;
         if (theme.grid) addGrid(g, hole, theme);
         if (theme.glow) addNeonBackdrop(og, hole, theme);
@@ -5569,7 +5590,11 @@
                 addBend(g, hole.walls[i].bend);
             }
         }
-        for (i = 0; i < hole.water.length; i++) addWater(g, hole.water[i], theme);
+        for (i = 0; i < hole.water.length; i++) {
+            n0 = g.children.length;
+            addWater(g, hole.water[i], theme);
+            if (hole.water[i].ghost) while (n0 < g.children.length) R.ghosts.push(g.children[n0++]);
+        }
         addCup(g, hole);
         // No ring on the tee any more: it sat round the ball at every
         // address and said where the ball was while the ball said so itself
@@ -5707,6 +5732,7 @@
         R.live = live;
         R.scene.background = live ? R.bgTex : null;
         if (R.outer) R.outer.visible = !live;
+        for (var q = 0; q < (R.ghosts || []).length; q++) R.ghosts[q].visible = !live;
         if (live) {
             R.fogKeep = { near: R.fogNear, far: R.fogFar };
             R.fogNear = 400; R.fogFar = 1200;

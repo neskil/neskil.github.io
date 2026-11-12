@@ -11,7 +11,7 @@ const js = join(dirname(fileURLToPath(import.meta.url)), '..', 'js');
 const ctx = { console, Math, performance: { now: () => Date.now() } };
 ctx.window = ctx;
 vm.createContext(ctx);
-for (const f of ['config.js', 'themes.js', 'physics.js', 'courses.js', 'portals.js', 'swing.js', 'bot.js', 'lab.js']) {
+for (const f of ['config.js', 'themes.js', 'physics.js', 'courses.js', 'tour-ground.js', 'portals.js', 'swing.js', 'bot.js', 'lab.js']) {
     vm.runInContext(readFileSync(join(js, f), 'utf8'), ctx, { filename: f });
 }
 const G3 = ctx.G3, P = G3.physics;
