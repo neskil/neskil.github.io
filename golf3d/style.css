@@ -164,7 +164,8 @@ body::before {
    drops the wrapper out of the layout and its chips sit in the topbar row
    exactly as they used to. The compact rules further down put the wrapper
    back and turn it into a panel. */
-.topbar-menu { display: contents; }
+.topbar-menu, .tm-primary, .tm-quick, .tm-group { display: contents; }
+.tm-fold { display: none; }
 .chip-menu { display: none; }
 
 /* Chips are icons in the row and words in the panel — a lone "?" reads fine
@@ -3532,11 +3533,38 @@ body.compact-ui .topbar-menu .chip {
     background: rgba(255, 255, 255, 0.04);
 }
 
-/* Phones: a roomier panel and bigger targets — the default read cramped. */
-@media (pointer: coarse) {
-    body.compact-ui .topbar-menu { min-width: 220px; gap: 0.45rem; padding: 0.55rem; }
-    body.compact-ui .topbar-menu .chip { font-size: 1.12rem; padding: 0.65rem 0.9rem; }
+/* Phones: bigger targets, but sized to the bar rather than to the screen.
+   The three primary actions are the big ones; the rest are tiles and folds. */
+body.compact-ui .topbar-menu {
+    width: min(260px, calc(100vw - 24px));
+    max-height: calc(100vh - 90px);
+    max-height: calc(100dvh - 90px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
 }
+body.compact-ui .tm-primary { display: grid; gap: 0.35rem; }
+body.compact-ui .tm-primary .chip {
+    font-size: 1.15rem;
+    padding: 0.85rem 0.9rem;
+    font-weight: 700;
+}
+body.compact-ui #btn-courses { background: var(--accent); color: #16180f; border-color: transparent; }
+body.compact-ui .tm-primary > .chip:not(#btn-courses) { display: block; }
+body.compact-ui .tm-quick { display: grid; grid-template-columns: 1fr 1fr; gap: 0.35rem; }
+body.compact-ui .tm-quick .chip { font-size: 1rem; padding: 0.6rem 0.5rem; text-align: center; }
+body.compact-ui .tm-fold {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.95rem;
+    padding: 0.55rem 0.9rem;
+    opacity: 0.9;
+}
+body.compact-ui .tm-fold[aria-expanded="true"] .tm-caret { transform: rotate(180deg); }
+body.compact-ui .tm-caret { display: inline-block; transition: transform 0.15s ease; }
+body.compact-ui .tm-group { display: none; gap: 0.3rem; padding-left: 0.5rem; border-left: 2px solid var(--ov-border); }
+body.compact-ui .tm-group.open { display: grid; }
+body.compact-ui .tm-group .chip { font-size: 0.95rem; padding: 0.5rem 0.8rem; }
 
 /* …but only the chips that are *off*, and this is where that is said.
 

@@ -6069,8 +6069,21 @@
         $('hole-name').addEventListener('click', function () { showHoleCard(true); });
         $('hud-toggle').addEventListener('click', function () { toggleHudDetail(); });
         $('btn-menu').addEventListener('click', toggleTopMenu);
-        // Anything picked out of the menu is the last thing the menu is for.
-        $('topbar-menu').addEventListener('click', closeTopMenu);
+        // The two folds open in place; everything else picked out of the
+        // menu is the last thing the menu is for. Toggles in Settings stay
+        // open so several can be flipped in a row.
+        $('topbar-menu').addEventListener('click', function (e) {
+            var t = e.target && e.target.closest ? e.target.closest('button, a') : null;
+            if (t && t.getAttribute('data-fold')) {
+                var g = $(t.getAttribute('data-fold'));
+                var o = !g.classList.contains('open');
+                g.classList.toggle('open', o);
+                t.setAttribute('aria-expanded', o ? 'true' : 'false');
+                return;
+            }
+            if (t && $('tm-settings').contains(t) && t.id !== 'btn-help' && t.id !== 'btn-style') return;
+            closeTopMenu();
+        });
         // A press anywhere else shuts it, the way a menu should.
         document.addEventListener('pointerdown', function (e) {
             if (!$('topbar-menu').classList.contains('open')) return;
