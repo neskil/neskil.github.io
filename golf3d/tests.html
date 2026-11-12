@@ -5758,6 +5758,14 @@
                 assert('…and every strip mown into it lies on the same ground', h.pads.slice(1).every(function (q) {
                     return q.inlay && Math.abs(P.padHeight(q, q.x + 1, q.z + 1) - P.padHeight(h.pads[0], q.x + 1, q.z + 1)) < 1e-9;
                 }));
+                var r = PW.byId('ironriver'), rh = r.hole, rg = G3.TOUR_GROUND && G3.TOUR_GROUND.ironriver;
+                assert('the iron river\'s hole stands on ground baked from the forge', !!rg && rg.h.length === rg.nx * rg.nz &&
+                    rh.pads[0].ghost === true && rh.pads[0].field[0].grid === rg && !!r.place.at && rh.water[0].ghost === true);
+                assert('…its tee is on the bridge, ten units over its green, and the canyon under the bridge is the hazard',
+                    rh.tee.y - rh.cup.y > 10 && P.padHeight(rh.pads[0], 16, 8) < 0.15 && P.padHeight(rh.pads[0], 16, 0) > 12);
+                assert('…and every strip laid on it lies on the same ground', rh.pads.slice(1).every(function (q) {
+                    return q.inlay && Math.abs(P.padHeight(q, q.x + 1, q.z + 1) - P.padHeight(rh.pads[0], q.x + 1, q.z + 1)) < 1e-9;
+                }));
             })();
 
             // A journey.
