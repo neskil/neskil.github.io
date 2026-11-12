@@ -5710,8 +5710,10 @@
             var boxes = [], all = [Infinity, Infinity, -Infinity, -Infinity], ghost = false;
             (hole.pads || []).forEach(function (p) {
                 if (p.ghost) ghost = true;
-                var hw = (p.r !== undefined ? p.r : p.w / 2) + 0.8, hd = (p.r !== undefined ? p.r : p.d / 2) + 0.8;
-                var bx = [p.x - hw, p.z - hd, p.x + hw, p.z + hd];
+                // A pad is written from its corner; a round inlay from its middle.
+                var m = 0.8, bx = p.w === undefined
+                    ? [p.x - p.r - m, p.z - p.r - m, p.x + p.r + m, p.z + p.r + m]
+                    : [p.x - m, p.z - m, p.x + p.w + m, p.z + p.d + m];
                 all = [Math.min(all[0], bx[0]), Math.min(all[1], bx[1]), Math.max(all[2], bx[2]), Math.max(all[3], bx[3])];
                 if (!p.ghost) boxes.push(bx);
             });
