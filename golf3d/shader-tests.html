@@ -39,12 +39,14 @@
     <script src="js/themes.js"></script>
     <script src="js/physics.js"></script>
     <script src="js/courses.js"></script>
+    <script src="js/portals.js"></script>
     <script src="js/textures.js"></script>
     <script src="js/shaders.js"></script>
     <script src="js/postfx.js"></script>
     <script src="js/weather.js"></script>
     <script src="js/models.js"></script>
     <script src="js/life.js"></script>
+    <script src="js/worlds.js"></script>
     <script src="js/render.js"></script>
 
     <script>
@@ -749,6 +751,38 @@
             assert('every drawn theme has a world round its holes', drawnCourses >= 9 && drawnThemes === drawnCourses && !/no world|fairway/.test(worldFault),
                 drawnThemes + ' themes; ' + worldFault);
             assert('and nothing in it stands on a hole or between the camera and the shot', !worldFault, worldFault);
+        }
+
+        /* The portal worlds: every set piece builds, the portal's own shader
+           links, and a frame of each draws without a word from the driver. */
+        if (G3.portals && G3.worlds) {
+            section('PORTAL WORLDS');
+            drainErrors();
+            var portalFault = '', portalCount = 0;
+            G3.portals.WORLDS.forEach(function (w) {
+                if (portalFault) return;
+                var got = attempt(w.id + ' builds', function () {
+                    G3.worlds.setNext(w.theme);
+                    R.buildHole(w.hole, w.theme, null);
+                    G3.worlds.open();
+                    renderOnce();
+                });
+                var errs = drainErrors();
+                if (!got.ok || errs.length || unlinkedPrograms().length) {
+                    portalFault = w.id + ': ' + errs.join(' | ').slice(0, 300);
+                    return;
+                }
+                if (!G3.worlds.portal || !G3.worlds.SCENES[w.hole.scene]) { portalFault = w.id + ' has no door or no scene'; return; }
+                portalCount++;
+            });
+            assert('every portal world builds, with its set piece and its door, and draws clean',
+                !portalFault && portalCount === G3.portals.WORLDS.length, portalFault);
+            assert('the door takes the next world\'s sky',
+                !!G3.worlds.portal && G3.worlds.portal.u.top.value.getHex() ===
+                    new THREE.Color(G3.THEMES[G3.portals.WORLDS[G3.portals.WORLDS.length - 1].theme].sky[0]).getHex());
+            // A course hole gets neither.
+            R.buildHole(G3.COURSES[0].holes[0], G3.COURSES[0].theme, null);
+            assert('and a course hole has no door', !G3.worlds.portal);
         }
 
         } catch (e) {

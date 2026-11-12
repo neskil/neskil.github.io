@@ -2110,7 +2110,8 @@
            its earth wall is a hand's breadth of cut sand and not a column down
            to the surround — and it is lifted the same hair a flat inlay is, or
            its rim z-fights with the ground it is exactly flush with. */
-        var base = pad.inlay ? -0.4 : (theme.surroundY - 0.5) - cy;
+        // …and a hovering one (a portal world's island) is a slab, as in addPad.
+        var base = pad.inlay ? -0.4 : pad.hover ? -0.9 : (theme.surroundY - 0.5) - cy;
         var lift = pad.inlay ? INLAY_LIFT : 0;
         var mat = R.surf.pads[pad.kind]
             ? R.surf.pads[pad.kind].slab[0] : R.surf.pads.green.slab[0];
@@ -4734,6 +4735,8 @@
        same vertex. Null for the holes that do not get one. */
     function skirtPlan(hole, theme) {
         if (!hole.open || theme.surround === 'water') return null;
+        // A portal world's islands hang in the air: no bank down to anything.
+        if (hole.portal && !hole.grounded) return null;
 
         var b = hole.bounds;
         var cx = (b.minX + b.maxX) / 2, cz = (b.minZ + b.maxZ) / 2;
@@ -5569,6 +5572,8 @@
         // The long game's dressing, and what lives on it (life.js).
         if (G3.life) G3.life.build(g, hole, themeName, theme.surround === 'water', R.groundAt, R.groundMat);
         if (hole.targets) addBoards(g, hole);
+        // A portal world's set piece, and the door past its flag (worlds.js).
+        if (G3.worlds) G3.worlds.build(g, hole, theme);
 
         // The rain, the mist banks and whatever is drifting in the air are
         // parented to the hole, so the next hole disposes them with it.
@@ -6690,6 +6695,7 @@
         stepParticles(dt);
         stepRipples(dt);
         stepBlackHoles(dt, world);
+        if (G3.worlds) G3.worlds.step(dt, R.clock);
         watchLoop(world, dt);
         watchWarp(world, dt);
         updateCamera(world.hole, world.ball, dt);

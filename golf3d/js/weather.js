@@ -246,7 +246,10 @@
         return h;
     }
 
-    function listFor(theme) { return BY_THEME[theme] || BY_THEME.seaside; }
+    // A portal world brings its own list (portals.js → PORTAL_SKIES).
+    function listFor(theme) {
+        return BY_THEME[theme] || (G3.PORTAL_SKIES && G3.PORTAL_SKIES[theme]) || BY_THEME.seaside;
+    }
 
     /* A shuffle, not a hash per hole. Hashing the hole number and taking it
        modulo the list was the obvious thing and it was wrong: six samples of a

@@ -1,8 +1,10 @@
 # Claude Code — Project Context (golf3d)
 
-**Loft Links**: fifteen six-hole courses of 3D golf in four groups — mini,
-crazy, adventure and the long game — on vendored three.js (r128), ES5-flavoured
-plain JavaScript, no build step. Open `index.html` and it runs.
+**Loft Links**: twelve portal worlds — a hole each, dealt six at a time as a
+journey, and what a new game plays — in front of fifteen six-hole courses of 3D
+golf in four groups (mini, crazy, adventure and the long game), on vendored
+three.js (r128), ES5-flavoured plain JavaScript, no build step. Open
+`index.html` and it runs.
 
 Doc map: **[README.md](README.md)** owns the architecture, the file roles and
 load order, why each shader is written the way it is, the course-authoring
@@ -191,6 +193,15 @@ really have the game play feeling"). What that has meant in practice:
   so a check cannot pass by finding nothing. Rebuilding a hole may move it.
 
 ## Things that will bite
+
+- **A portal world is not a course hole, and the course rules are not its
+  rules.** `portals.js → world()` builds every one open, unrailed and
+  unstaked, and `tests.html` holds them to their own short list (a tee and a
+  cup on level ground, the bot holes out). The hole lab's ace bands and "a
+  putt at the flag never drops" are the drawn courses'. After touching one,
+  run `node tools/portal-check.mjs`; README → "Portals" has the rest. A new
+  world needs a `THEMES` entry and a `SCENES` entry under the same id, and
+  nothing in its set piece may stand on a pad.
 
 - **A `color-mix()` over an undefined custom property is a dropped
   declaration, not a fallback colour.** The picker's tint used to be declared

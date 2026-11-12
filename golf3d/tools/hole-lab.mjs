@@ -27,7 +27,7 @@ function load() {
     const ctx = { console, Math, performance: { now: () => Date.now() } };
     ctx.window = ctx;
     vm.createContext(ctx);
-    for (const f of ['config.js', 'physics.js', 'courses.js', 'swing.js', 'bot.js', 'lab.js']) {
+    for (const f of ['config.js', 'physics.js', 'courses.js', 'portals.js', 'swing.js', 'bot.js', 'lab.js']) {
         vm.runInContext(readFileSync(join(js, f), 'utf8'), ctx, { filename: f });
     }
     return ctx.G3;
