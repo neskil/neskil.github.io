@@ -1,24 +1,21 @@
-/* The set pieces of the portal worlds, and the portal.
+/* The simple set pieces of the World Tour's holes.
 
-   portals.js says what a world *is* — its ground, its palette, its rules.
-   This says what is standing round it: the turtle under the shell, the gas
-   giant under the balloons, the big wheel beside the rink. None of it is
-   solid and none of it is ever on the line of play: the rule scenery may not
-   break (the ball hits what you can see) is kept by keeping every piece off
-   the pads, under them or beyond them.
+   Each tour hole is played inside a world from Ethan Mollick's Portals, drawn
+   live behind it (backdrop.mjs). This is what stands round the hole when that
+   is not there: while the world is still building, on a phone, with live
+   worlds switched off, or on a machine that cannot run a second renderer.
+   A turtle under the shell, a gas giant under the balloons, a big wheel
+   beside the rink — original stand-ins in this game's own three.js, a few
+   primitives each, so a tour hole is never a hole in an empty sky.
 
-   Everything is built out of three.js's own primitives at build time — no
-   model, no image — and parented to the hole's group, so the next hole
-   disposes it with the rest (render.js → disposeGroup). What moves is moved by
-   `step`, off the renderer's clock.
-
-   And the portal: a ring standing just past the flag, with the next world's
-   sky turning in it. It is dim while the hole is being played and opens when
-   the ball drops; game.js walks through it (game.js → throughPortal). */
+   None of it is solid and none of it is on the line of play. Everything is
+   parented to the group it is handed (render.js's `outer`, which a live
+   world puts away whole) and disposed with the hole. What moves is moved by
+   `step`, off the renderer's clock. */
 (function (G3) {
     'use strict';
 
-    var W = { movers: [], portal: null, next: null };
+    var W = { movers: [] };
     var T; // THREE, read at build time so this file can load without it
 
     function mat(colour, o) {
@@ -457,111 +454,24 @@
         put(g, light, e.cx, 1.5, e.z0 + 22);
     };
 
-    /* ── the portal ─────────────────────────────────────────────────────── */
-
-    var PORTAL_VS = [
-        'varying vec2 vUv;',
-        'void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }'
-    ].join('\n');
-    /* The next world's sky, wound into a spiral: its top colour in the
-       middle, its horizon at the rim, and arms of light turning between them.
-       `open` is 0 while the hole is in play — a dim eye — and 1 once the ball
-       has dropped. */
-    var PORTAL_FS = [
-        'varying vec2 vUv;',
-        'uniform vec3 top; uniform vec3 bottom; uniform float time; uniform float open;',
-        'void main() {',
-        '  vec2 p = vUv * 2.0 - 1.0;',
-        '  float r = length(p);',
-        '  if (r > 1.0) discard;',
-        '  float a = atan(p.y, p.x);',
-        '  float arms = 0.5 + 0.5 * sin(a * 3.0 + log(r + 0.05) * 6.0 - time * (1.2 + open * 2.4));',
-        '  float rings = 0.5 + 0.5 * sin(r * 22.0 - time * 3.0);',
-        '  vec3 c = mix(top, bottom, smoothstep(0.0, 0.95, r));',
-        '  c += bottom * arms * (0.25 + 0.75 * open) * (1.0 - r * 0.5);',
-        '  c += vec3(1.0) * rings * 0.08 * open;',
-        '  c += vec3(1.0) * smoothstep(0.35, 0.0, r) * open * 0.6;',
-        '  c *= 0.45 + 0.75 * open;',
-        '  float edge = 1.0 - smoothstep(0.9, 1.0, r);',
-        '  gl_FragColor = vec4(c, edge * (0.82 + 0.18 * open));',
-        '}'
-    ].join('\n');
-
-    function skyOf(themeName) {
-        var th = (G3.THEMES || {})[themeName];
-        return th ? th.sky : [0x2b1a4a, 0xf0a868];
-    }
-
-    /* Where it stands: a unit and a half past the flag on the line from the
-       tee, facing back down that line, its foot a hand above the green. Past
-       the flag is past where anybody is aiming, and it is not solid in any
-       case — a ball goes through it as it goes through the flag. */
-    function addPortal(g, hole, theme) {
-        var tee = hole.tee, cup = hole.cup;
-        var dx = cup.x - tee.x, dz = cup.z - tee.z, L = Math.hypot(dx, dz) || 1;
-        var Rr = 1.15, x = cup.x + dx / L * 1.7, z = cup.z + dz / L * 1.7, y = cup.y + Rr + 0.35;
-        var sky = skyOf(W.next);
-        var u = {
-            top: { value: new T.Color(sky[0]) }, bottom: { value: new T.Color(sky[1]) },
-            time: { value: 0 }, open: { value: 0 }
-        };
-        var grp = new T.Group();
-        var eye = new T.Mesh(new T.CircleGeometry(Rr, 48), new T.ShaderMaterial({
-            uniforms: u, vertexShader: PORTAL_VS, fragmentShader: PORTAL_FS,
-            transparent: true, side: T.DoubleSide, fog: false, depthWrite: false
-        }));
-        grp.add(eye);
-        var ring = torus(Rr, 0.09, glow(theme.machine || 0xffd98a), 64);
-        grp.add(ring);
-        var halo = torus(Rr + 0.12, 0.05, glow(0xffffff, { opacity: 0.5, add: true }), 64);
-        grp.add(halo);
-        grp.position.set(x, y, z);
-        grp.rotation.y = Math.atan2(dx, dz);
-        g.add(grp);
-        W.portal = { g: grp, u: u, open: 0, want: 0, halo: halo };
-    }
-
     /* ── build and step ─────────────────────────────────────────────────── */
 
     W.tex = [];
 
-    function build(g, hole, theme) {
+    function build(g, hole) {
         T = window.THREE;
         W.movers = [];
-        W.portal = null;
         W.tex.forEach(function (t) { t.dispose(); });
         W.tex = [];
         if (!hole.portal || !T) return;
-        var set = new T.Group();
         var scene = SCENES[hole.scene];
-        if (scene) scene(set, hole, extent(hole));
-        g.add(set);
-        addPortal(g, hole, theme);
+        if (scene) scene(g, hole, extent(hole));
     }
 
     function step(dt, t) {
-        var i;
-        for (i = 0; i < W.movers.length; i++) W.movers[i](t, dt);
-        var p = W.portal;
-        if (!p) return;
-        p.open += (p.want - p.open) * (1 - Math.pow(0.02, dt));
-        p.u.time.value = t;
-        p.u.open.value = p.open;
-        p.g.scale.setScalar(1 + p.open * 0.35 + Math.sin(t * 2) * 0.012);
-        p.halo.rotation.z = t * 0.6;
+        for (var i = 0; i < W.movers.length; i++) W.movers[i](t, dt);
     }
 
-    G3.worlds = {
-        build: build,
-        step: step,
-        SCENES: SCENES,
-        PORTAL_VS: PORTAL_VS, PORTAL_FS: PORTAL_FS,
-        // game.js: which world is behind the door, before the hole is built.
-        setNext: function (themeName) { W.next = themeName; },
-        // …and the ball has dropped.
-        open: function () { if (W.portal) W.portal.want = 1; },
-        get portal() { return W.portal; },
-        state: W
-    };
+    G3.worlds = { build: build, step: step, SCENES: SCENES, state: W };
 
 })(window.G3);

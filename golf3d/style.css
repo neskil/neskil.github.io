@@ -4441,3 +4441,7 @@ body.lane-swing .swipe-hint {
 
 .menu-back { margin: 0.5rem 0 0.2rem; padding: 0.3rem 0; font-size: 0.9rem; }
 .menu-classic > .sub { margin-top: 0.2rem; }
+
+.tour-credit { margin: 0; font-size: 0.74rem; color: var(--ink-dim); line-height: 1.5; }
+.tour-credit a { color: inherit; }
+.tour-credit .linkish { font-size: inherit; margin-left: 0.4rem; }

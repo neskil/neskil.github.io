@@ -5689,14 +5689,16 @@
             var PW = G3.portals, ids = {}, dup = false;
             PW.WORLDS.forEach(function (w) { if (ids[w.id]) dup = true; ids[w.id] = true; });
             assert('there are at least a dozen worlds, each with its own id', PW.WORLDS.length >= 12 && !dup);
-            assert('every world has a title, a caption, a shelf and a palette of its own',
+            assert('every hole has a name, a caption, a shelf, a palette — and a world it is played in',
                 PW.WORLDS.every(function (w) {
                     return w.title && w.caption && PW.KINDS[w.kind] && G3.THEMES[w.theme] &&
+                        w.world && w.place && w.place.world && w.hole.place === w.place && w.hole.inWorld === w.world &&
                         G3.THEMES[w.theme].sky.length === 2 && G3.THEMES[w.theme].grass.length === 2;
                 }));
-            var themes = {};
-            PW.WORLDS.forEach(function (w) { themes[w.theme] = true; });
-            assert('no two worlds share a palette', Object.keys(themes).length === PW.WORLDS.length);
+            var themes = {}, lives = {};
+            PW.WORLDS.forEach(function (w) { themes[w.theme] = true; lives[w.place.world] = true; });
+            assert('no two holes share a palette, or a world', Object.keys(themes).length === PW.WORLDS.length &&
+                Object.keys(lives).length === PW.WORLDS.length);
             assert('none of them borrows a course\'s', PW.WORLDS.every(function (w) {
                 return !G3.COURSES.some(function (c) { return c.theme === w.theme; });
             }));

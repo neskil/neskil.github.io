@@ -1,8 +1,8 @@
 # Claude Code — Project Context (golf3d)
 
-**Loft Links**: twelve portal worlds — a hole each, dealt six at a time as a
-journey, and what a new game plays — in front of fifteen six-hole courses of 3D
-golf in four groups (mini, crazy, adventure and the long game), on vendored
+**Loft Links**: a World Tour of twelve holes, each played inside a world from
+Ethan Mollick's Portals and dealt six at a time — what a new game plays — in
+front of fifteen six-hole courses of 3D golf in four groups (mini, crazy, adventure and the long game), on vendored
 three.js (r128), ES5-flavoured plain JavaScript, no build step. Open
 `index.html` and it runs.
 
@@ -194,14 +194,18 @@ really have the game play feeling"). What that has meant in practice:
 
 ## Things that will bite
 
-- **A portal world is not a course hole, and the course rules are not its
+- **A tour hole is not a course hole, and the course rules are not its
   rules.** `portals.js → world()` builds every one open, unrailed and
-  unstaked, and `tests.html` holds them to their own short list (a tee and a
-  cup on level ground, the bot holes out). The hole lab's ace bands and "a
-  putt at the flag never drops" are the drawn courses'. After touching one,
-  run `node tools/portal-check.mjs`; README → "Portals" has the rest. A new
-  world needs a `THEMES` entry and a `SCENES` entry under the same id, and
-  nothing in its set piece may stand on a pad.
+  unstaked, and `tests.html` holds them to their own short list. The hole
+  lab's ace bands and "a putt at the flag never drops" are the drawn
+  courses'. After touching one, run `node tools/portal-check.mjs`.
+- **`vendor/portals/` is somebody else's, under CC BY-NC-SA 4.0, and is not
+  edited.** It is Portals' engine and worlds on three.js r170, a second
+  three.js beside this game's r128; they never share an object. Everything
+  that adapts it is `js/backdrop.mjs`. The live world is drawn *behind* the
+  hole with no shared depth, so a hole is placed on open ground — README →
+  "The World Tour" has how a hole is fitted and how to look at one
+  (`?world=<id>&live=1`, `G3.backdrop.debug()`). The suites cannot see it.
 
 - **A `color-mix()` over an undefined custom property is a dropped
   declaration, not a fallback colour.** The picker's tint used to be declared

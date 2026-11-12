@@ -64,10 +64,15 @@
             minX = Math.min(minX, p.x); maxX = Math.max(maxX, p.x + p.w);
             minZ = Math.min(minZ, p.z); maxZ = Math.max(maxZ, p.z + p.d);
         });
-        h.open = true; h.calm = true; h.bare = true; h.mini = true; h.stakes = false;
+        // Short holes are played out of the mini bag; a long one says so.
+        h.open = true; h.calm = true; h.bare = true; h.mini = !h.long; h.stakes = false;
         h.portal = true;
-        // An island with daylight under it, unless the world has a floor.
-        if (!h.grounded) h.pads.forEach(function (p) { if (!p.inlay) p.hover = true; });
+        /* Every pad is a slab a hand thick, not a column down to anything:
+           a hole is laid on a world's ground (backdrop.mjs) and whatever it
+           had underneath would stand up out of that ground as a block. A
+           `grounded` hole's own stand-in floor is just under the slab
+           (its theme's surroundY); the rest hang in the air. */
+        h.pads.forEach(function (p) { if (!p.inlay) p.hover = true; });
         h.fence = { x: minX - m, z: minZ - m, w: maxX - minX + 2 * m, d: maxZ - minZ + 2 * m };
         return A.build(h);
     }
@@ -78,7 +83,19 @@
     /* ── the worlds ─────────────────────────────────────────────────────── */
 
     var WORLDS = [];
-    function add(w) { w.hole.scene = w.scene || w.id; w.hole.worldId = w.id; WORLDS.push(w); }
+    /* Which of Portals' worlds each hole is played inside, and where in it:
+       `u` is how far along that world's own flight path the tee stands,
+       `scale` its units to one of ours, `lift` and `turn` a nudge up and
+       round (backdrop.mjs → anchorFor). */
+    var PLACES = {"breakfast": ["breakfast-table"], "turtle": ["world-turtle", {"u": 0.3, "scale": 4}], "gasgiant": ["storm-bands"], "abyss": ["kelp-cathedral"], "carnival": ["carnival-on-the-frozen-river"], "mushroom": ["spore-rain"], "orrery": ["long-library"], "stairs": ["stairway-everywhere"], "attic": ["the-toppling"], "threebody": ["airbrush-black-hole"], "clouds": ["cloud-armada"], "forge": ["obsidian-forge"]};
+    function add(w) {
+        w.hole.scene = w.scene || w.id; w.hole.worldId = w.id;
+        var q = PLACES[w.id];
+        if (q) { w.place = { world: q[0] };
+            if (q[1]) for (var k in q[1]) w.place[k] = q[1][k]; w.hole.place = w.place; }
+        w.hole.inWorld = w.world;
+        WORLDS.push(w);
+    }
 
     /* Breakfast, at the size of a crumb. The table stops, the placemat is
        three and a half units off across nothing, and the butter knife
@@ -86,11 +103,11 @@
        the ball flies the gap; the teaspoon lying across is the other way,
        a plank a ball wide. Sugar cubes on the mat. */
     add({
-        id: 'breakfast', title: 'Breakfast, from Down Here', kind: 'home', tier: 1,
+        id: 'breakfast', title: 'The Butter Knife', world: 'Breakfast Kingdom', kind: 'home', tier: 1,
         caption: 'A table the size of a county. Up the butter knife and over the edge, or across the teaspoon.',
         theme: 'breakfast',
         hole: world({
-            name: 'Breakfast, from Down Here', par: 3, bag: ROLL,
+            name: 'The Butter Knife', par: 3, bag: ROLL,
             blurb: 'Up the butter knife and fly the gap to the placemat — or walk the teaspoon, a ball wide.',
             pads: [
                 pad(0, 0, 9, 8, 0, 'wood'),
@@ -108,27 +125,29 @@
         })
     });
 
-    /* The world is a disc on the back of a turtle, as everybody knew. The
-       tee is on its head, the neck is the road, and the pin is on the top of
-       the shell: a table mountain with the cup on the flat of it. Enough to
-       climb and no more — there is nothing round the shell but the fall. */
+    /* The long one. The world on the turtle's back is country — a coast, a
+       city, a mountain — and at the scale the flight sees it from, a golf
+       hole laid across it is a real one: a drive down a fairway, then the
+       ground stops. The green is on the far side of a gap with the pin
+       behind a bunker; the carry is an iron's, and the strip of rough down
+       the left is the way round for anyone who would rather walk. */
     add({
-        id: 'turtle', title: 'The World Turtle', kind: 'bizarre', tier: 1,
-        caption: 'A green on the back of a turtle swimming between the stars. Up the shell, and stop.',
+        id: 'turtle', title: 'Across the Shell', world: 'The World Turtle', kind: 'bizarre', tier: 2,
+        caption: 'A par four laid across the country on a turtle\'s back: a drive, then a carry to the green.',
         theme: 'turtle',
         hole: world({
-            name: 'The World Turtle', par: 3, bag: ROLL, gravity: 0.8,
-            blurb: 'From the head, along the neck and up the shell. The pin is on the flat at the top, and the shell has no rail.',
+            name: 'Across the Shell', par: 4, long: true,
+            blurb: 'Drive down the fairway, then carry the gap to the green — or take the strip of rough round the left. Nothing has a rail.',
             pads: [
-                pad(6.9, 0, 2.2, 5.6, 0, 'green'),
-                (function () {
-                    var p = disc(8, 12, 7);
-                    p.bumps = [mesa(8, 12.5, 2.2, 3.4, 1.3)];
-                    return p;
-                })()
+                pad(3, 0, 12, 36, 0, 'fairway'),
+                pad(-2, 0, 5, 62, 0, 'rough'),
+                pad(15, 0, 4, 36, 0, 'rough'),
+                pad(3, 46, 16, 16, 0, 'fairway'),
+                circle(11, 54, 4.6, 'green'),
+                circle(9.5, 48.2, 1.7, 'sand', -0.12),
+                circle(16.4, 55.5, 1.5, 'sand', -0.12)
             ],
-            extra: [post(5.6, 9.4), post(10.4, 9.4), post(8, 16.6)],
-            tee: { x: 8, z: 1.4 }, cup: { x: 8, z: 13.2 }
+            tee: { x: 9, z: 3 }, cup: { x: 11.6, z: 55 }
         })
     });
 
@@ -138,11 +157,11 @@
        balloon's pad is off to one side — land beside it and take two more,
        or come down on it still running and be thrown on to the third. */
     add({
-        id: 'gasgiant', title: 'Balloons over a Gas Giant', kind: 'alien', tier: 2,
+        id: 'gasgiant', title: 'Balloon Hop', world: 'Living Balloons over a Gas Giant', kind: 'alien', tier: 2,
         caption: 'A third of a g, three balloons and nothing under them for a thousand miles.',
         theme: 'gasgiant',
         hole: world({
-            name: 'Balloons over a Gas Giant', par: 3, bag: ROLL, gravity: 0.35,
+            name: 'Balloon Hop', par: 3, bag: ROLL, gravity: 0.35,
             blurb: 'The pads throw the ball and at this weight it stays thrown. Balloon to balloon — or both hops in one.',
             pads: [
                 disc(4, 3.2, 3.2), sprung(4, 5.4, 0.9, 7.6),
@@ -167,7 +186,7 @@
        at the far end and a sand pocket past that. The pitch straight over
        the weed is there for anyone who wants it. */
     add({
-        id: 'abyss', title: 'Slack Water', kind: 'ocean', tier: 2,
+        id: 'abyss', title: 'Slack Water', world: 'Kelp Cathedral', kind: 'ocean', tier: 2,
         caption: 'Two currents on the sea floor and a bank of still water between them. Step off at the gap.',
         theme: 'abyss',
         hole: world({
@@ -201,11 +220,11 @@
        ice: the rug is the only place a ball comes to rest, so the shot is the
        weight that gets round the loop and no more. A skater goes round. */
     add({
-        id: 'carnival', title: 'Carnival on the Ice', kind: 'city', tier: 2,
+        id: 'carnival', title: 'Loop and Rink', world: 'Carnival on the Frozen River', kind: 'city', tier: 2,
         caption: 'A loop-the-loop on a frozen river, and one rug of green on the rink beyond it.',
         theme: 'carnival',
         hole: world({
-            name: 'Carnival on the Ice', grounded: true, par: 3, bag: ROLL,
+            name: 'Loop and Rink', grounded: true, par: 3, bag: ROLL,
             blurb: 'Round the loop and out on to the rink. Nothing stops on ice except on the rug — and the rug is where the flag is.',
             pads: [
                 pad(0, 0, 4, 4, 0, 'green'),
@@ -230,7 +249,7 @@
        the right pace and you come down inside the ring. Bumpers in a wood
        fire the ball like bumpers anywhere. */
     add({
-        id: 'mushroom', title: 'The Fairy Ring', kind: 'wild', tier: 2,
+        id: 'mushroom', title: 'The Fairy Ring', world: 'Spore Rain', kind: 'wild', tier: 2,
         caption: 'Toadstools in a ring round the flag, and one big cap in front of them that throws.',
         theme: 'mushroom',
         hole: world({
@@ -258,7 +277,7 @@
        all of them. Straight across is through every arm. Round the rim is
        under none of them and half as far again. */
     add({
-        id: 'orrery', title: 'The Orrery', kind: 'interior', tier: 2,
+        id: 'orrery', title: 'The Orrery', world: 'Library with a Brass Orrery', kind: 'interior', tier: 2,
         caption: 'Three brass arms on one spindle, each at its own speed, and the flag across the table.',
         theme: 'orrery',
         hole: world({
@@ -282,11 +301,11 @@
        left-hand door is the top of the house, and the way down from there is
        the stair. */
     add({
-        id: 'stairs', title: 'Stairs That Go Everywhere', kind: 'after', tier: 3,
+        id: 'stairs', title: 'Three Doors Down', world: 'Stairway Everywhere', kind: 'after', tier: 3,
         caption: 'Four landings, three doors in the floor and one staircase. After M. C. Escher.',
         theme: 'stairs',
         hole: world({
-            name: 'Stairs That Go Everywhere', par: 3, bag: ROLL,
+            name: 'Three Doors Down', par: 3, bag: ROLL,
             blurb: 'Two doors in the floor. The right one leads through another to the flag in one putt; the left is the long way down the stairs.',
             pads: [
                 pad(0, 0, 7, 7, 0, 'green'),
@@ -317,7 +336,7 @@
        the bottom with the flag in it. A ball let go at the top will get to
        the tray by itself; what the tee decides is where on the tray. */
     add({
-        id: 'attic', title: 'The Marble Run', kind: 'home', tier: 1,
+        id: 'attic', title: 'The Marble Run', world: 'Marble Run, Falling Dominoes', kind: 'home', tier: 1,
         caption: 'Three wooden chutes in an attic, each tipping the other way, and a tin tray at the bottom.',
         theme: 'attic',
         hole: world({
@@ -354,7 +373,7 @@
        them. The saddle between a pair is the door; through it square and at
        pace and the third stops you about where the flag is. */
     add({
-        id: 'threebody', title: 'The Three-Body Problem', kind: 'alien', tier: 3,
+        id: 'threebody', title: 'The Three-Body Problem', world: 'Airbrushed Black Hole', kind: 'alien', tier: 3,
         caption: 'Three black holes and the one still point between them. That is where the flag is.',
         theme: 'threebody',
         hole: world({
@@ -370,29 +389,25 @@
         })
     });
 
-    /* A ladder of clouds. Four of them, each higher than the last and none
-       touching, at seven tenths of a g: nothing rolls from one to the next,
-       so the whole hole is carries and the question on each is how much of
-       the cloud you want left when you land. */
+    /* An armada of airships at sunset, and a par five flown from deck to
+       deck: three carries of a drive each at seven tenths of a g, where
+       everything carries half as far again as it does at home. Each deck is
+       smaller than the last and the last is the green. Short is the sky. */
     add({
-        id: 'clouds', title: 'The Cloud Ladder', kind: 'sky', tier: 2,
-        caption: 'Four clouds at four heights and no way between them but up.',
+        id: 'clouds', title: 'Deck to Deck', world: 'The Cloud Armada', kind: 'sky', tier: 3,
+        caption: 'A par five across four decks in the sky, at seven tenths of a g.',
         theme: 'clouds',
         hole: world({
-            name: 'The Cloud Ladder', par: 4, bag: ['putter', 'chipper', 'wedge'], gravity: 0.7,
-            needsLoft: true,
-            blurb: 'Every cloud is a carry from the last and a little higher. Land soft: a cloud has no edges.',
+            name: 'Deck to Deck', par: 5, long: true, gravity: 0.7,
+            blurb: 'Three carries and a putt. Everything flies half as far again up here — pick the club for the gap, not for the yardage you know.',
             pads: [
-                disc(4, 3, 3, 0),
-                disc(9.5, 11, 3.2, 0.9),
-                disc(3.5, 19.5, 3.2, 1.8),
-                (function () {
-                    var p = disc(10.5, 28, 3.8, 2.7);
-                    p.bumps = [channel(10.5, 28, 3.5, 1.8, 0.5)];
-                    return p;
-                })()
+                disc(8, 6, 6, 0, 'fairway'),
+                disc(3, 40, 9, 0, 'fairway'),
+                disc(17, 74, 8, 0, 'fairway'),
+                disc(8, 106, 7.5, 0, 'fairway'),
+                circle(8, 106, 4.8, 'green')
             ],
-            tee: { x: 4, z: 2 }, cup: { x: 10.5, z: 28 }
+            tee: { x: 8, z: 4 }, cup: { x: 8, z: 107 }
         })
     });
 
@@ -402,7 +417,7 @@
        the anvil, which is a bowl with the flag in it. All of it on one swing
        if the hammer is up. */
     add({
-        id: 'forge', title: 'The Forge', kind: 'bizarre', tier: 3,
+        id: 'forge', title: 'The Forge', world: 'Black Glass and Lava', kind: 'bizarre', tier: 3,
         caption: 'A conveyor, a hammer, a river of iron and an anvil with a flag in it.',
         theme: 'forge',
         hole: world({
@@ -419,7 +434,7 @@
                     return p;
                 })()
             ],
-            water: [A.rect(-6, 20, 18, 4.6, -1.4)],
+            water: [A.rect(-6, 20, 18, 4.6, -0.3)],
             extra: [
                 kerb(0, 0, 6, 0), kerb(0, 0, 0, 5), kerb(6, 0, 6, 5), kerb(0, 5, 1.5, 5), kerb(4.5, 5, 6, 5),
                 kerb(1.5, 5, 1.5, 14), kerb(4.5, 5, 4.5, 14),
@@ -469,7 +484,7 @@
             sun: 0x9fe8ff, sunPos: [3, 18, 4], ambient: 0x2a8aa0, ambientI: 0.85,
             grass: ['#1f8f7a', '#1a806d'], rail: 0x3fe0b0, machine: 0x8dfcff,
             cloudLum: 0.08, birds: false,
-            surroundY: -2.2, surround: 'rock', ground: '#0c3440', relief: 3.2,
+            surroundY: -0.42, surround: 'rock', ground: '#0c3440',
             water: 0x0d5f78, side: '#0e4a52'
         },
         carnival: {
@@ -477,7 +492,7 @@
             sun: 0xffd9a8, sunPos: [7, 11, -8], ambient: 0x8e8fd8, ambientI: 0.85,
             grass: ['#c0392b', '#a93226'], rail: 0xffd166, machine: 0xff5aa0,
             stars: 0.8, cloudLum: 0.3, birds: false,
-            surroundY: -1.2, surround: 'rock', ground: '#b8cfe6', relief: 0.6,
+            surroundY: -0.42, surround: 'rock', ground: '#b8cfe6',
             water: 0x2a6f9c, side: '#9db8d2'
         },
         mushroom: {
@@ -485,7 +500,7 @@
             sun: 0xd8ffc0, sunPos: [-6, 14, 5], ambient: 0x5fae7a, ambientI: 0.8,
             grass: ['#3b8f45', '#327e3c'], rail: 0xf2e6c8, machine: 0xff5d5d,
             stars: 0.3, cloudLum: 0.15, birds: false,
-            surroundY: -1.4, surround: 'floor', floor: '#14301c', relief: 1.2,
+            surroundY: -0.42, surround: 'floor', floor: '#14301c',
             water: 0x2b6f8f, side: '#3a2a1a'
         },
         orrery: {
@@ -493,7 +508,7 @@
             sun: 0xffe4b0, sunPos: [5, 15, -5], ambient: 0x8a7a9c, ambientI: 0.8,
             grass: ['#1f4f4a', '#1a4540'], rail: 0xd9a441,
             stars: 1, cloudLum: 0.08, birds: false,
-            surroundY: -3.2, surround: 'floor', floor: '#2a1c16',
+            surroundY: -0.42, surround: 'floor', floor: '#2a1c16',
             water: 0x2b6f8f, side: '#8a6a2a'
         },
         stairs: {
@@ -509,7 +524,7 @@
             sun: 0xffd9a0, sunPos: [-10, 9, 4], ambient: 0xb98a5c, ambientI: 0.75,
             grass: ['#5d8f8a', '#52807b'], rail: 0xe9c48a,
             cloudLum: 0.3, birds: false, motes: true,
-            surroundY: -1.6, surround: 'floor', floor: '#5a3d26',
+            surroundY: -0.42, surround: 'floor', floor: '#5a3d26',
             water: 0x2b6f8f, side: '#8a5f38'
         },
         threebody: {
@@ -522,7 +537,7 @@
                 saturation: 1.15, vignette: 0.45, grain: 0.02, aberration: 1.0,
                 lift: [0, 0, 0], tint: [1, 1, 1] },
             machine: 0xffb347, stars: 1, cloudLum: 0.1, birds: false,
-            surroundY: -2.4, surround: 'floor', floor: '#04030c',
+            surroundY: -0.42, surround: 'floor', floor: '#04030c',
             water: 0xffb347, side: '#150d30'
         },
         clouds: {
@@ -538,7 +553,7 @@
             sun: 0xffa860, sunPos: [0, 9, 12], ambient: 0x9a4a30, ambientI: 0.8,
             grass: ['#4a4a52', '#404048'], rail: 0x2a2a30, machine: 0xffd24a,
             stars: 0.2, cloudLum: 0.2, birds: false,
-            surroundY: -2.4, surround: 'rock', ground: '#1c1412', relief: 2.4,
+            surroundY: -0.42, surround: 'rock', ground: '#1c1412',
             water: 0xff5a1a, side: '#2c2224'
         }
     };
@@ -564,8 +579,8 @@
     function course(id, ref, list, extra) {
         var holes = list.map(function (w) { return w.hole; });
         var c = {
-            id: id, group: 'portals', name: 'Portals',
-            blurb: 'Every hole a world of its own, and every cup a door to the next.',
+            id: id, group: 'portals', name: 'World Tour',
+            blurb: 'Six holes, each in a world of its own.',
             theme: list[0].theme, holes: holes, isPortals: true,
             worlds: list.map(function (w) { return w.id; }),
             themes: list.map(function (w) { return w.theme; }),
