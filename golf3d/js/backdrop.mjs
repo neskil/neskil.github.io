@@ -27,6 +27,7 @@ const canvas = document.createElement('canvas');
 const size = { w: 640, h: 360 };
 let engine = null, cur = null, wanted = null, loading = null, failed = {};
 let clock = 0;
+const info = { near: 0.1, far: 5000, scale: 1, w: 2, h: 2 };
 
 function boot() {
     if (engine) return engine;
@@ -39,13 +40,97 @@ function boot() {
         const w = size.w, h = size.h;
         if (w < 2 || h < 2) return;
         this.w = w; this.h = h;
-        this.renderer.setPixelRatio(1); this.renderer.setSize(w, h, false);
+        // Twice the height: the picture in the top half, its depth below.
+        this.renderer.setPixelRatio(1); this.renderer.setSize(w, 2 * h, false);
+        depthRT.setSize(w, h);
         this.post.setSize(w, h, 1);
         this.portalRT.setSize(w, h);
         this.camera.aspect = this.portalCam.aspect = w / h;
     };
     engine._resize();
     return engine;
+}
+
+/* ── depth ──────────────────────────────────────────────────────────────
+
+   The hole and the world are drawn by two renderers that share nothing, so
+   for the world to stand in front of the hole as well as behind it the
+   world has to say how far away each of its pixels is. After the picture,
+   the world is drawn once more with one plain material that writes distance
+   from the camera (16 bits on a log scale, in red and green) into a buffer,
+   and that buffer is copied into the bottom half of the canvas. render.js
+   reads both halves from the one texture and writes the distance into its
+   own depth buffer before it draws the hole (`addWorldPlate`).
+
+   Only what is solid is drawn: glows, sprites, particles, sky domes and
+   anything cut out by an alpha map are left out, because a plain material
+   would draw each as the whole sheet it is cut from. */
+const depthRT = new THREE.WebGLRenderTarget(4, 4, { minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter });
+const depthMat = new THREE.ShaderMaterial({
+    side: THREE.DoubleSide,
+    uniforms: { uNear: { value: 0.1 }, uFar: { value: 5000 } },
+    vertexShader: `
+        #include <common>
+        #include <skinning_pars_vertex>
+        varying float vZ;
+        void main() {
+            #include <skinbase_vertex>
+            #include <begin_vertex>
+            #include <skinning_vertex>
+            #include <project_vertex>
+            vZ = -mvPosition.z;
+        }`,
+    fragmentShader: `
+        uniform float uNear, uFar;
+        varying float vZ;
+        void main() {
+            float n = clamp(log(max(vZ, uNear) / uNear) / log(uFar / uNear), 0., 1.) * 65534.;
+            float hi = floor(n / 256.);
+            gl_FragColor = vec4(hi / 255., floor(n - hi * 256.) / 255., 0., 1.);
+        }`
+});
+const blitScene = new THREE.Scene(), blitCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+const blitMat = new THREE.ShaderMaterial({
+    depthTest: false, depthWrite: false,
+    uniforms: { t: { value: depthRT.texture } },
+    vertexShader: 'varying vec2 vUv; void main() { vUv = uv; gl_Position = vec4(position.xy, 0., 1.); }',
+    fragmentShader: 'uniform sampler2D t; varying vec2 vUv; void main() { gl_FragColor = vec4(texture2D(t, vUv).rgb, 1.); }'
+});
+{ const q = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), blitMat); q.frustumCulled = false; blitScene.add(q); }
+
+function solid(o) {
+    if (!o.isMesh) return false;
+    const m = Array.isArray(o.material) ? o.material[0] : o.material;
+    if (!m) return false;
+    if (m.depthWrite === false || m.depthTest === false || m.side === THREE.BackSide) return false;
+    if (m.transparent && (m.opacity < 0.6 || m.blending !== THREE.NormalBlending)) return false;
+    if (m.alphaTest > 0 || m.alphaMap) return false;
+    return true;
+}
+const _white = new THREE.Color(0xffffff), _keep = new THREE.Color();
+function drawDepth(W, c, w, h) {
+    const r = engine.renderer, sc = W.scene;
+    // What is not solid is found now and again, not every frame.
+    if (!W.soft || (W.softAt = (W.softAt || 0) + 1) > 90) {
+        W.soft = []; W.softAt = 0;
+        sc.traverse(o => { if ((o.isMesh || o.isPoints || o.isLine || o.isSprite) && !solid(o)) W.soft.push(o); });
+    }
+    const hid = [];
+    for (const o of W.soft) if (o.visible) { o.visible = false; hid.push(o); }
+    const bg = sc.background, om = sc.overrideMaterial, ac = r.autoClear, a = r.getClearAlpha();
+    r.getClearColor(_keep);
+    depthMat.uniforms.uNear.value = c.near; depthMat.uniforms.uFar.value = c.far;
+    try {
+        sc.background = null; sc.overrideMaterial = depthMat;
+        r.setRenderTarget(depthRT); r.setClearColor(_white, 1); r.autoClear = true;
+        r.render(sc, c);
+        r.setRenderTarget(null); r.setViewport(0, 0, w, h); r.autoClear = false;
+        r.render(blitScene, blitCam);
+    } finally {
+        sc.background = bg; sc.overrideMaterial = om; r.autoClear = ac; r.setClearColor(_keep, a);
+        r.setRenderTarget(null);
+        for (const o of hid) o.visible = true;
+    }
 }
 
 function seedOf(id) { let h = 2166136261; for (const c of id) { h ^= c.charCodeAt(0); h = Math.imul(h, 16777619); } return h >>> 0; }
@@ -214,13 +299,20 @@ function frame(dt, cam, place, seat, w, h) {
     clock += dt; W.time += dt;
     try { if (W.world.update) W.world.update(dt, W.time, c, A.u); }
     catch (e) { if (!W._err) { W._err = 1; console.warn('backdrop update', e); } }
-    try { engine.post.render(W.scene, c, W.post, clock, 1); }
-    catch (e) { failed[W.def.id] = true; cur = null; console.warn('backdrop draw', e); return false; }
+    try {
+        engine.renderer.setViewport(0, h, w, h);
+        engine.post.render(W.scene, c, W.post, clock, 1);
+        drawDepth(W, c, w, h);
+    } catch (e) { failed[W.def.id] = true; cur = null; console.warn('backdrop draw', e); return false; }
+    info.near = c.near; info.far = c.far; info.scale = A.scale; info.w = w; info.h = h;
     return true;
 }
 
 G3.backdrop = {
-    canvas, want, frame,
+    canvas, want, frame, info,
+    failed(id) { return !!failed[id]; },
+    // The next world's files, fetched while this hole is played: nothing is built.
+    fetch(id) { if (id && !failed[id]) import('../vendor/portals/src/worlds/' + id + '.js').catch(() => {}); },
     get current() { return cur ? cur.def.id : null; },
     get building() { return !!loading; },
     /* The world's own ground, for sculpting a hole to it (tools/world-ground.mjs):

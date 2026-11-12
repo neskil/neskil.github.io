@@ -644,6 +644,13 @@
     G3.portals = {
         WORLDS: WORLDS, KINDS: KINDS, LENGTH: LENGTH,
         byId: byId,
+        // …and by the Portals world its hole is played in.
+        byWorld: function (world) {
+            for (var i = 0; i < WORLDS.length; i++) {
+                if (WORLDS[i].hole.place && WORLDS[i].hole.place.world === world) return WORLDS[i];
+            }
+            return null;
+        },
         deal: dealJourney,
         // Every world as one course: the turntable, the suite and the lab.
         library: function () {

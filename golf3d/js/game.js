@@ -268,23 +268,86 @@
        same latch the picker keeps (menuTaking), for the same impatient
        thumb. */
     var portalBusy = false;
+    function wipeSkies(el, themeName) {
+        var th = G3.THEMES[themeName] || {}, sky = th.sky || [0x1b2a55, 0xf0a868];
+        var hex = function (n) { return '#' + ('000000' + n.toString(16)).slice(-6); };
+        el.style.setProperty('--pw-in', hex(sky[1]));
+        el.style.setProperty('--pw-out', hex(sky[0]));
+    }
     function throughPortal(themeName, then) {
         var el = $('portal-wipe');
         if (!el || reducedMotion()) { then(); return; }
         if (portalBusy) return;
         portalBusy = true;
-        var th = G3.THEMES[themeName] || {}, sky = th.sky || [0x1b2a55, 0xf0a868];
-        var hex = function (n) { return '#' + ('000000' + n.toString(16)).slice(-6); };
-        el.style.setProperty('--pw-in', hex(sky[1]));
-        el.style.setProperty('--pw-out', hex(sky[0]));
+        wipeSkies(el, themeName);
         el.className = 'portal-wipe closing';
         if (A.warpIn) A.warpIn();
         setTimeout(function () {
             then();
-            if (A.warpOpen) A.warpOpen();
-            el.className = 'portal-wipe opening';
-            setTimeout(function () { el.className = 'portal-wipe'; portalBusy = false; }, 650);
+            portalBusy = false;
+            // A world still building keeps it shut (holdForWorld, below).
+            if (!curtain.up) openWipe();
         }, 620);
+    }
+    function openWipe() {
+        var el = $('portal-wipe');
+        if (A.warpOpen) A.warpOpen();
+        el.className = 'portal-wipe opening';
+        setTimeout(function () { if (el.className === 'portal-wipe opening') el.className = 'portal-wipe'; }, 650);
+    }
+
+    /* The wait for a world.
+
+       A tour hole is played inside a live world, and a world takes a moment
+       to build — a second or two on a desktop, several on a phone. The hole
+       used to come up at once on its plain stand-in scenery and the world
+       popped in behind it whenever it was done, in the middle of the intro
+       or the first swing (the owner: "the loading is a bit off"). Now the
+       screen that closes between two worlds stays closed until the world is
+       actually being drawn, says where you are going while it waits, and
+       opens on the finished picture. The intro flyover waits behind it
+       (modalUp).
+
+       It never waits for long, or for nothing: a world already built opens
+       at once, live worlds switched off never close it, a world that fails
+       opens on the stand-in, and so does one that has taken twenty seconds —
+       with a line to say so. */
+    var curtain = { up: false, timer: 0, t0: 0 };
+    var WORLD_WAIT = 20000;
+    function holdForWorld(hole, i) {
+        var el = $('portal-wipe'), B = G3.backdrop;
+        clearInterval(curtain.timer);
+        var wanted = el && hole && hole.place && R.liveWanted && !demo;
+        // The world after this one: its files are fetched while this hole is
+        // played, so the next wait is the building and not the download.
+        var nx = state.course.holes[i + 1];
+        if (wanted && nx && nx.place) {
+            setTimeout(function () { if (G3.backdrop) G3.backdrop.fetch(nx.place.world); }, 4000);
+        }
+        if (!wanted || (B && (B.current === hole.place.world || B.failed(hole.place.world)))) {
+            if (curtain.up) { curtain.up = false; openWipe(); }
+            return;
+        }
+        var w = G3.portals.byWorld(hole.place.world);
+        $('pw-kicker').textContent = state.course.single ? 'World Tour' : 'Hole ' + (i + 1) + ' of ' + state.course.holes.length;
+        $('pw-title').textContent = hole.name || (w ? w.title : '');
+        $('pw-world').textContent = w ? 'in ' + w.world : '';
+        $('pw-note').textContent = 'Building the world\u2026';
+        wipeSkies(el, themeAt(i));
+        curtain.up = true; curtain.t0 = Date.now();
+        if (!/closing/.test(el.className)) el.className = 'portal-wipe holding';
+        curtain.timer = setInterval(function () {
+            var waited = Date.now() - curtain.t0, B2 = G3.backdrop;
+            var live = R.live, lost = (B2 && B2.failed(hole.place.world)) || (!B2 && waited > 6000);
+            if (portalBusy || (!live && !lost && waited < WORLD_WAIT)) return;
+            // Two frames of the world on screen before it is shown.
+            if (live && waited < 350) return;
+            clearInterval(curtain.timer);
+            curtain.up = false;
+            if (!live) toast('This world is taking its time \u2014 playing on without it');
+            openWipe();
+            maybeFly();
+        }, 120);
     }
 
     /* `again` is a hole being restarted rather than arrived at, which is the
@@ -373,6 +436,7 @@
         syncSchool();
         state.flyPending = !again;
         showHoleCard();
+        holdForWorld(hole, i);
         maybeFly();
     }
 
@@ -422,7 +486,7 @@
     }
 
     function modalUp() {
-        return $('menu').classList.contains('show') ||
+        return curtain.up || $('menu').classList.contains('show') ||
                $('howto').classList.contains('show') ||
                $('scorecard').classList.contains('show');
     }
@@ -4135,6 +4199,14 @@
        different kind. */
 
     var menuGroup = null;      // which tab is open
+    /* The tour's holes are a tab like any kind of golf: the first one, and
+       the one the picker opens on unless a drawn course is on offer. It is
+       not a kind the draw can reach for, so it lives here and not in
+       COURSE_GROUPS. */
+    var WORLDS_GROUP = {
+        id: 'worlds', name: 'Worlds', icon: '\u25CE', tint: '#dcc28a',
+        blurb: 'The World Tour\u2019s holes, each built inside a world from Portals. Pick one to play by itself.'
+    };
     /* …and the last *kind* tab that was, which is not always the same thing:
        the draw is a tab of its own now, and "same kind" still has to mean a
        kind of golf. So the shuffle tab borrows the one you were last looking
@@ -4159,49 +4231,46 @@
         }
         // Challenge mode is no kind of golf in the list, so the picker opens
         // where it would with nothing in hand.
-        if (c && (c.isChallenge || c.isPortals)) return G3.COURSE_GROUPS[0].id;
+        if (c && c.isPortals) return WORLDS_GROUP.id;
+        if (c && c.isChallenge) return G3.COURSE_GROUPS[0].id;
         return c ? c.group : G3.COURSE_GROUPS[0].id;
+    }
+
+    // …and the kind of golf, where the worlds' tab is no answer.
+    function kindOf(id) {
+        var g = groupOf(id);
+        return g === WORLDS_GROUP.id ? G3.COURSE_GROUPS[0].id : g;
     }
 
     function openMenu(suggestId) {
         menuTaking = false;
         menuSuggest = suggestId || null;
         menuGroup = suggestId ? groupOf(suggestId) :
-            (state && state.course ? groupOf(state.course.id) : G3.COURSE_GROUPS[0].id);
+            (state && state.course ? groupOf(state.course.id) : WORLDS_GROUP.id);
         /* Never on the draw: the list is what was asked for, and a picker that
            opens on the tab that picks for you has answered the question
-           instead of asking it. */
-        menuKind = menuGroup;
-        /* Two pages: the front, which is the portal and the worlds it has
-           shown you, and the clubhouse, which is the fifteen courses. A
-           course on offer (the end of a classic round nudging at the next)
-           opens the clubhouse on it; anything else opens the front. */
+           instead of asking it. And "same kind" has to be a kind of golf,
+           which the worlds are not. */
+        menuKind = menuGroup === WORLDS_GROUP.id ? G3.COURSE_GROUPS[0].id : menuGroup;
         $('menu').className = 'modal show';
-        showMenuPage(suggestId ? 'classic' : 'home');
+        drawMenu();
     }
 
-    /* Which of the two is on screen. The clubhouse is drawn when it is opened
-       rather than behind the front page: its plans are sized off cells that
-       have to be laid out to have a size (drawPlans). */
-    function showMenuPage(page) {
-        var classic = page === 'classic', focus;
-        $('menu-home').hidden = classic;
-        $('menu-classic').hidden = !classic;
-        $('menu-title').textContent = classic ? 'The clubhouse' : 'Where to?';
-        if (classic) {
-            drawShowcase();
-            drawChallenge();
-            drawShuffle();
-            drawTabs();
-            focus = drawCourses();
-            /* With nothing on offer and a showcase nobody has started behind
-               the list, the showcase is what is on offer. */
-            if (!menuSuggest && showcaseWaiting()) focus = $('menu-showcase');
-            drawPlans();
-        } else {
-            drawHome();
-            focus = $('menu-portals');
-        }
+    /* The whole picker: the three dealt rounds on top, then the tabs and
+       whichever panel is open. The cards are drawn after the dialog is
+       showing — their plans are sized off cells that have to be laid out to
+       have a size (drawPlans). */
+    function drawMenu() {
+        drawHome();
+        drawShowcase();
+        drawChallenge();
+        drawShuffle();
+        drawTabs();
+        var focus = drawCourses();
+        drawPlans();
+        /* With nothing on offer, what is on offer is the round waiting
+           behind the list — or the tour. */
+        if (!menuSuggest) focus = showcaseWaiting() ? $('menu-showcase') : $('menu-portals');
         // Keyboard and screen reader land on what is being offered.
         if (focus) { try { focus.focus(); } catch (e) { /* ignore */ } }
     }
@@ -4251,7 +4320,7 @@
             });
             host.appendChild(el);
         });
-        $('menu-worlds-label').textContent = 'Or pick a hole \u00B7 ' + found + ' of ' + PW.WORLDS.length + ' played';
+        $('menu-worlds-label').textContent = 'Pick a hole \u00B7 ' + found + ' of ' + PW.WORLDS.length + ' played';
 
         var rec = S.courseRecord(save, 'portals');
         var waiting = journeyWaiting();
@@ -4267,9 +4336,6 @@
         $('menu-portals').style.setProperty('--eye-a', hexOf(first.sky[0]));
         $('menu-portals').style.setProperty('--eye-b', hexOf(first.sky[1]));
         syncLive();
-        $('menu-classic-sub').textContent =
-            'The ' + G3.COURSES.filter(function (c) { return !c.playtest; }).length +
-            ' original courses, the showcase and the maths challenge.';
     }
 
     function syncLive() {
@@ -4302,6 +4368,7 @@
     function drawTabs() {
         var host = $('menu-tabs');
         host.innerHTML = '';
+        host.appendChild(menuTab(WORLDS_GROUP, G3.portals.WORLDS.length, 'menu-worlds-panel'));
         G3.COURSE_GROUPS.forEach(function (group) {
             var courses = G3.coursesInGroup(group.id);
             if (!courses.length) return;
@@ -4317,13 +4384,14 @@
            not have to repaint it. The draw's panel owns its own, which is also
            the fallback every tinted rule in this dialog resolves against —
            see style.css, `#menu .modal-inner`. */
-        if (g.id !== G3.SHUFFLE_GROUP.id) $('menu-list').style.setProperty('--cg-tint', g.tint);
+        if (g.id !== G3.SHUFFLE_GROUP.id && g !== WORLDS_GROUP) $('menu-list').style.setProperty('--cg-tint', g.tint);
         $('shuffle').style.setProperty('--cg-tint', G3.SHUFFLE_GROUP.tint);
     }
 
     /* Whichever of the five is open — a kind of golf, or the draw. */
     function openTab() {
         if (menuGroup === G3.SHUFFLE_GROUP.id) return G3.SHUFFLE_GROUP;
+        if (menuGroup === WORLDS_GROUP.id) return WORLDS_GROUP;
         var g = G3.COURSE_GROUPS.filter(function (x) { return x.id === menuGroup; })[0];
         return g || G3.COURSE_GROUPS[0];
     }
@@ -4354,7 +4422,7 @@
             // "Same kind" means the kind you are looking at, so the draw and
             // its counts move with the tabs — and the draw's own tab, which is
             // not a kind, leaves that pointing where it last was.
-            if (group.id !== G3.SHUFFLE_GROUP.id) menuKind = group.id;
+            if (group.id !== G3.SHUFFLE_GROUP.id && group !== WORLDS_GROUP) menuKind = group.id;
             drawShuffle();
             drawTabs();
             drawCourses();
@@ -4374,10 +4442,12 @@
         var save = state ? state.save : S.load();
         var host = $('menu-list');
         host.innerHTML = '';
-        var onDraw = menuGroup === G3.SHUFFLE_GROUP.id;
-        host.hidden = onDraw;
+        var onDraw = menuGroup === G3.SHUFFLE_GROUP.id, onWorlds = menuGroup === WORLDS_GROUP.id;
+        host.hidden = onDraw || onWorlds;
         $('shuffle').hidden = !onDraw;
+        $('menu-worlds-panel').hidden = !onWorlds;
         if (onDraw) return $('shuffle-go');
+        if (onWorlds) return $('menu-worlds').firstChild;
         var focus = null, firstHead = null;
 
         G3.coursesInGroup(menuGroup).forEach(function (course) {
@@ -4571,7 +4641,7 @@
         return {
             mode: shuffleMode,
             from: state && state.course ? state.course.id : null,
-            group: menuKind || (state && state.course ? groupOf(state.course.id) : null),
+            group: menuKind || (state && state.course ? kindOf(state.course.id) : null),
             kinds: shuffleKindIds(),
             save: state ? state.save : null
         };
@@ -6009,8 +6079,6 @@
         $('menu-portals').addEventListener('click', takeJourney);
         // The live worlds behind the tour's holes, on or off (render.js → setLive).
         $('menu-live').addEventListener('click', function () { R.setLive(!R.liveWanted); syncLive(); });
-        $('menu-open-classic').addEventListener('click', function () { showMenuPage('classic'); });
-        $('menu-back').addEventListener('click', function () { showMenuPage('home'); });
         $('menu-showcase').addEventListener('click', takeShowcase);
         $('menu-challenge').addEventListener('click', takeChallenge);
         /* No toast on this one: it is pressed with the picker open, and the

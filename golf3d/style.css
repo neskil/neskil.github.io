@@ -4347,15 +4347,69 @@ body.lane-swing .swipe-hint {
     from { clip-path: circle(75% at 50% 50%); opacity: 1; }
     to   { clip-path: circle(75% at 50% 50%); opacity: 0; }
 }
+.portal-wipe.holding { opacity: 1; pointer-events: auto; }
+/* What it says while a world is building behind it (game.js → holdForWorld):
+   an opaque plate, where you are going, and a bar that only says "working". */
+.pw-card {
+    position: absolute;
+    left: 50%; top: 50%;
+    transform: translate(-50%, -50%);
+    display: none;
+    gap: 0.25rem;
+    min-width: 13rem;
+    max-width: 80%;
+    padding: 0.9rem 1.1rem 1rem;
+    text-align: center;
+    color: var(--ink);
+    background: #23201a;
+    border: 1px solid #dcc28a;
+    border-radius: 6px;
+}
+.portal-wipe.holding .pw-card { display: grid; }
+.pw-kicker { font-size: 0.72rem; letter-spacing: 0.14em; text-transform: uppercase; color: #dcc28a; }
+.pw-title { font-size: 1.5rem; font-weight: 700; line-height: 1.15; }
+.pw-world { font-size: 0.9rem; color: var(--ink-dim); }
+.pw-note { font-size: 0.74rem; color: var(--ink-dim); }
+.pw-bar {
+    display: block;
+    height: 3px;
+    margin: 0.55rem 0 0.3rem;
+    background: #3a352a;
+    border-radius: 2px;
+    overflow: hidden;
+}
+.pw-bar i {
+    display: block;
+    width: 35%;
+    height: 100%;
+    background: #dcc28a;
+    animation: pw-run 1.3s ease-in-out infinite alternate;
+}
+@keyframes pw-run { from { transform: translateX(-20%); } to { transform: translateX(205%); } }
 @media (prefers-reduced-motion: reduce) {
-    .portal-wipe { display: none; }
+    .portal-wipe.closing, .portal-wipe.opening { animation: none; }
+    .portal-wipe.opening { opacity: 0; }
+    .pw-bar i { animation: none; width: 100%; opacity: 0.5; }
 }
 
-/* ── the picker's front page ─────────────────────────────────────────────
-   One door, the worlds it has shown you, and the clubhouse. Opaque matte
-   plates like everything else here; the door's eye is the one thing in the
-   dialog that turns. */
-.menu-home { display: grid; gap: 0.75rem; margin-top: 0.8rem; }
+/* ── the picker's top ────────────────────────────────────────────────────
+   Three ways to be dealt a round: the World Tour across the top, the
+   showcase and the challenge side by side under it. Opaque matte plates
+   like everything else here; the door's eye is the one thing that turns. */
+.menu-featured {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.5rem;
+    margin: 0.8rem 0 0.85rem;
+}
+.menu-featured .door { grid-column: 1 / -1; }
+.menu-featured .sh-go { margin: 0; align-items: flex-start; }
+@media (max-width: 30rem) {
+    .menu-featured .sh-sub { display: none; }
+}
+.worlds-panel { display: grid; gap: 0.6rem; }
+.worlds-panel[hidden] { display: none; }
+.worlds-panel .sh-label { margin: 0; }
 
 .door {
     --cg-tint: #dcc28a;
@@ -4367,7 +4421,7 @@ body.lane-swing .swipe-hint {
     font: inherit;
     text-align: left;
     color: var(--ink);
-    padding: 1rem 1rem;
+    padding: 0.75rem 0.9rem;
     border-radius: 6px;
     border: 1px solid color-mix(in srgb, var(--cg-tint) 60%, transparent);
     background: #23201a;
@@ -4397,10 +4451,6 @@ body.lane-swing .swipe-hint {
 }
 @keyframes door-turn { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .door-eye { animation: none; } }
-
-.door-club { padding: 0.6rem 0.8rem; background: transparent; border-color: var(--panel-border); }
-.door-club .door-text b { font-size: 1rem; }
-.door-mark { font-size: 1.3rem; width: 2rem; text-align: center; flex: none; }
 
 .world-grid {
     display: grid;
@@ -4438,9 +4488,6 @@ body.lane-swing .swipe-hint {
 .world-meta { font-size: 0.72rem; color: var(--ink-dim); }
 .world-stars { color: var(--gold); letter-spacing: 0.08em; }
 .world-new { color: var(--under); text-transform: uppercase; letter-spacing: 0.08em; }
-
-.menu-back { margin: 0.5rem 0 0.2rem; padding: 0.3rem 0; font-size: 0.9rem; }
-.menu-classic > .sub { margin-top: 0.2rem; }
 
 .tour-credit { margin: 0; font-size: 0.74rem; color: var(--ink-dim); line-height: 1.5; }
 .tour-credit a { color: inherit; }

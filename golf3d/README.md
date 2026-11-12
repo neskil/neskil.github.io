@@ -2,7 +2,7 @@
 
 A **World Tour** of twelve holes, each played inside a world borrowed from
 Ethan Mollick's Portals ([The World Tour](#the-world-tour-every-hole-in-a-world))
-— and behind it, in the clubhouse, the game this started as:
+— and beside it in the same picker, the game this started as:
 
 Fifteen six-hole courses of 3D golf in four kinds. **Mini golf**: three
 courses of lanes, rails, ledges, banks and carries. **Crazy golf**: three of
@@ -4224,9 +4224,36 @@ meshes count as ground — a lantern under the flight is not somewhere to lay a
 hole. With no `place.u` the flight is searched for where it passes lowest
 over level ground (`bestU`); `PLACES` in portals.js overrides `u`, `scale`,
 `lift`, `turn`, `dx`/`dz`, or says `ground: false` for a world with nothing
-under it. The golf is always drawn over the world — there is no shared depth
-buffer — which is why a hole is seated on open ground rather than among
-things that should stand in front of it.
+under it.
+
+**The two pictures share depth** (v1.153.0). They are drawn by two renderers
+that share no object, and until this version the golf was simply painted
+over the world: a pillar between the camera and the green was behind the
+green (the owner: "the occlusion is weird in the 3D space"). Now the world
+is drawn twice a frame — once as itself, and once with one plain material
+that writes each pixel's distance from the camera, 16 bits on a log scale in
+red and green (`backdrop.mjs → drawDepth`). The canvas is twice as tall as
+the picture: the picture on top, the distance under it. `render.js →
+addWorldPlate` draws one sheet across the view before anything else, which
+paints the top half and writes the bottom half into this renderer's own
+depth buffer, converted to its units and its projection. Everything the game
+draws after that is depth-tested against the world like any other geometry.
+Three things to know:
+
+- **Only what is solid is in the depth pass.** Sprites, particles, glows,
+  sky domes and anything cut out by an alpha map are skipped (`solid()`):
+  a plain material would draw each as the whole sheet it is cut from. A
+  world's shader-displaced surface is drawn where its undisplaced geometry
+  is.
+- **The hole's own plan is never covered.** Whatever of the world stands
+  inside a pad's box and a margin (`R.placeKeep`; the whole bounding box for a sculpted hole) is painted but pushed
+  to the far plane, so a fold of terrain cannot cut the playing surface or
+  swallow a ball. That is also what lets a sculpted hole show the world's
+  ground as its own.
+- **The world's colours come through as its makers graded them.** The sheet
+  puts the picture through postfx.js's grade backwards (tone curve, tint,
+  saturation, contrast), so the grade laid over the whole frame returns it
+  to what it was. Before, a world was graded twice and came out garish.
 
 **A hole can be sculpted to its spot, and Across the Shell is** (v1.152.0).
 Its ground is not drawn by anybody: it is a headland on the south coast of
@@ -4268,16 +4295,29 @@ own, a bot that holes out within two of par, and the deal to its shape;
 renderer and are looked at, not asserted: `?world=<id>&live=1`, and
 `G3.backdrop.debug()` in the console says where the hole landed.
 
-### The picker's front page
+### The wait for a world
 
-The picker opened on two feature buttons, five tabs, fifteen cards and ninety
-plans, and the owner found it "so hard to figure out". It opens now on one
-decision: **Play the World Tour**. Under that is every tour hole as a small
-sky over its own ground — each playable by itself, with its stars or the word
-*new* — and under those **The clubhouse**, which is the old picker, whole:
-showcase, challenge, the four kinds, the draw (`game.js → showMenuPage`,
-`drawHome`). A classic round that ends by offering the next course opens the
-clubhouse on it.
+A world takes a moment to build. The hole used to come up at once on its
+stand-in scenery and the world popped in behind it mid-intro (the owner:
+"the loading is a bit off"). Now the screen that closes between two worlds
+stays closed until the world is being drawn, with a plate that says where
+you are going, and opens on the finished picture (`game.js → holdForWorld`);
+the intro flyover waits behind it. It opens at once for a world already
+built or with live worlds off, and after twenty seconds or a failed build it
+opens on the stand-in and says so. While a hole is played the next world's
+files are fetched (`backdrop.fetch`), so the next wait is the build alone.
+
+### The picker: everything side by side
+
+One page (v1.153.0). On top, three ways to be dealt a round: **Play the
+World Tour** across the width, **Showcase** and **Challenge** side by side
+under it. Then one row of tabs that files everything there is: **Worlds**
+first — every tour hole as a small sky over its own ground, playable by
+itself, with its stars or the word *new* — then the four kinds of drawn
+course and the draw (`game.js → drawMenu`, `drawHome`, `WORLDS_GROUP`). It
+opens on Worlds unless a drawn course is in play or on offer. For two
+versions the tour was a front page and the courses a second page behind a
+door; the owner wanted "the new and old style maps next to each other".
 
 ## The showcase: the game in eight holes
 

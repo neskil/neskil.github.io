@@ -38,7 +38,7 @@
 
         gtag('config', 'G-9GP823TGLB');
     </script>
-    <link rel="stylesheet" href="style.css?v=1.152.0">
+    <link rel="stylesheet" href="style.css?v=1.153.0">
 <script type="application/ld+json">
     {
         "@context": "https://schema.org",
@@ -94,7 +94,7 @@
             <a class="home-link" href="../index.html" title="Back to home" aria-label="Back to home">&#8592;</a>
             <div class="brand">
                 <h1 class="title">Loft <span>Links</span></h1>
-                <p class="tagline">A World Tour of twelve holes in twelve worlds, and fifteen courses in the clubhouse.</p>
+                <p class="tagline">A World Tour of twelve holes in twelve worlds, beside fifteen courses of every kind of golf.</p>
             </div>
 
             <!-- Six figures on one line is a paragraph; the four that change
@@ -514,7 +514,15 @@
             <!-- Between two holes of the World Tour: the next world's sky
                  closing over the stage, and opening again on its tee.
                  game.js → throughPortal. -->
-            <div class="portal-wipe" id="portal-wipe" aria-hidden="true"></div>
+            <div class="portal-wipe" id="portal-wipe" role="status">
+                <div class="pw-card">
+                    <span class="pw-kicker" id="pw-kicker"></span>
+                    <b class="pw-title" id="pw-title"></b>
+                    <span class="pw-world" id="pw-world"></span>
+                    <span class="pw-bar" aria-hidden="true"><i></i></span>
+                    <span class="pw-note" id="pw-note"></span>
+                </div>
+            </div>
 
             <div class="fs-prompt" id="fs-prompt">
                 <span>Play fullscreen for the full course view</span>
@@ -713,18 +721,17 @@
                 </span>
                 <span class="sh-mark" aria-hidden="true"></span>
             </button>
-            <!-- The front of the picker, and there is one decision on it.
+            <!-- One picker, and everything in it side by side.
 
-                 The list this replaced asked a newcomer to choose between two
-                 feature buttons, five tabs, fifteen cards and ninety plans
-                 before a ball had been struck (the owner: "it's so hard to
-                 figure out"). This asks nothing: one door, and what is behind
-                 it is dealt for you — the World Tour, six holes each played
-                 inside a different world (portals.js). Under it is every
-                 hole of the tour, to play by itself.
-                 The fifteen courses are all still here, one press down, in
-                 the clubhouse. game.js → drawHome. -->
-            <div class="menu-home" id="menu-home">
+                 Three ways to be dealt a round sit on top: the World Tour
+                 (six holes, each inside a different world — portals.js), the
+                 showcase and the challenge. Under them one row of tabs files
+                 every hole and course there is — the tour's worlds first,
+                 then the four kinds of drawn course, then the draw. The tour
+                 used to be a front page and the courses a second page behind
+                 a door (the owner: "I want the new and old style maps next
+                 to each other"). game.js → drawMenu. -->
+            <div class="menu-featured" id="menu-featured">
                 <button type="button" class="door" id="menu-portals">
                     <span class="door-eye" aria-hidden="true"></span>
                     <span class="door-text">
@@ -733,51 +740,38 @@
                     </span>
                     <span class="door-go" aria-hidden="true">&#x2192;</span>
                 </button>
-                <p class="sh-label" id="menu-worlds-label">Or pick a hole</p>
-                <div class="world-grid" id="menu-worlds" role="list" aria-labelledby="menu-worlds-label"></div>
-                <p class="tour-credit">The worlds are from <a href="https://github.com/emollick/ai-portals" target="_blank" rel="noopener">Portals</a> by Ethan Mollick, CC BY-NC-SA 4.0.
-                    <button type="button" class="linkish" id="menu-live" role="switch" aria-checked="true">Live worlds: on</button></p>
-                <button type="button" class="door door-club" id="menu-open-classic">
-                    <span class="door-mark" aria-hidden="true">&#x26F3;</span>
-                    <span class="door-text">
-                        <b>The clubhouse</b>
-                        <span class="door-sub" id="menu-classic-sub">The fifteen original courses, the showcase and the maths challenge.</span>
+                <!-- The showcase: two holes from every kind of golf, eight in
+                     all. courses.js → dealShowcase. -->
+                <button type="button" class="sh-go showcase-go" id="menu-showcase">
+                    <span class="sh-die" aria-hidden="true">&#x2726;</span>
+                    <span class="sh-go-text">
+                        <b>Showcase</b>
+                        <span class="sh-sub" id="menu-showcase-sub">Two holes from every kind of golf, eight in all. A new deal every round.</span>
                     </span>
-                    <span class="door-go" aria-hidden="true">&#x2192;</span>
+                </button>
+                <!-- Challenge mode: six mathematical surfaces drawn in neon,
+                     and a new cup on every one each round.
+                     courses.js → dealChallenge. -->
+                <button type="button" class="sh-go challenge-go" id="menu-challenge">
+                    <span class="sh-die" aria-hidden="true">&#x223F;</span>
+                    <span class="sh-go-text">
+                        <b>Challenge</b>
+                        <span class="sh-sub" id="menu-challenge-sub">Six mathematical surfaces in a grid world, and a new cup on every one each round.</span>
+                    </span>
                 </button>
             </div>
-            <!-- …and the clubhouse: the picker as it was, whole. -->
-            <div class="menu-classic" id="menu-classic" hidden>
-            <button type="button" class="linkish menu-back" id="menu-back">&#x2190; Back</button>
-            <p class="sub">The original courses. Records are kept per course — tap a plan to start on that hole.</p>
-            <!-- The showcase: two holes from every kind of golf, eight in all,
-                 and what a new game plays — it is the round loaded behind
-                 this list when it first opens, so "Keep playing" is this too.
-                 Above the tabs rather than in one, because it is every kind
-                 at once. courses.js → dealShowcase. -->
-            <button type="button" class="sh-go showcase-go" id="menu-showcase">
-                <span class="sh-die" aria-hidden="true">&#x2726;</span>
-                <span class="sh-go-text">
-                    <b>Showcase</b>
-                    <span class="sh-sub" id="menu-showcase-sub">Two holes from every kind of golf, eight in all. A new deal every round.</span>
-                </span>
-            </button>
-            <!-- Challenge mode: six mathematical surfaces drawn in neon, and a
-                 new cup on every one each round. Beside the showcase rather
-                 than in a tab for the same reason — it is no kind of golf in
-                 the list. courses.js → dealChallenge. -->
-            <button type="button" class="sh-go challenge-go" id="menu-challenge">
-                <span class="sh-die" aria-hidden="true">&#x223F;</span>
-                <span class="sh-go-text">
-                    <b>Challenge</b>
-                    <span class="sh-sub" id="menu-challenge-sub">Six mathematical surfaces in a grid world, and a new cup on every one each round.</span>
-                </span>
-            </button>
             <!-- One tab per kind of golf. Fifteen courses shown flat is a list
                  nobody reads; shown a kind at a time it is three or four. -->
             <div class="menu-tabs" id="menu-tabs" role="tablist"
                  aria-label="Kind of course"></div>
             <p class="menu-tab-blurb" id="menu-tab-blurb"></p>
+            <!-- The tour's holes, each to play by itself: the first tab. -->
+            <div class="worlds-panel" id="menu-worlds-panel" role="tabpanel" hidden>
+                <p class="sh-label" id="menu-worlds-label">Pick a hole</p>
+                <div class="world-grid" id="menu-worlds" role="list" aria-labelledby="menu-worlds-label"></div>
+                <p class="tour-credit">The worlds are from <a href="https://github.com/emollick/ai-portals" target="_blank" rel="noopener">Portals</a> by Ethan Mollick, CC BY-NC-SA 4.0.
+                    <button type="button" class="linkish" id="menu-live" role="switch" aria-checked="true">Live worlds: on</button></p>
+            </div>
             <div id="menu-list" class="course-list" role="tabpanel"></div>
             <!-- Shuffle: the other way through fifteen courses, for when the
                  list has stopped being a choice and started being a menu you
@@ -821,7 +815,6 @@
                     <span class="sh-keep-text">Draw again at the end of every round</span>
                     <span class="sh-mark" aria-hidden="true"></span>
                 </button>
-            </div>
             </div>
             <div class="modal-actions">
                 <button type="button" id="menu-close">Keep playing</button>
@@ -880,34 +873,34 @@
 
     <!-- Load order is dependency order: config, then the pure logic, then the
          things that touch the screen. game.js boots itself on DOMContentLoaded. -->
-    <script src="js/config.js?v=1.152.0"></script>
-    <script src="js/themes.js?v=1.152.0"></script>
-    <script src="js/physics.js?v=1.152.0"></script>
-    <script src="js/courses.js?v=1.152.0"></script>
-    <script src="js/tour-ground.js?v=1.152.0"></script>
-    <script src="js/portals.js?v=1.152.0"></script>
-    <script src="js/audit.js?v=1.152.0"></script>
-    <script src="js/custom.js?v=1.152.0"></script>
-    <script src="js/scoring.js?v=1.152.0"></script>
-    <script src="js/swing.js?v=1.152.0"></script>
-    <script src="js/school.js?v=1.152.0"></script>
-    <script src="js/audio.js?v=1.152.0"></script>
-    <script src="js/music.js?v=1.152.0"></script>
-    <script src="js/bag.js?v=1.152.0"></script>
-    <script src="js/textures.js?v=1.152.0"></script>
-    <script src="js/shaders.js?v=1.152.0"></script>
-    <script src="js/postfx.js?v=1.152.0"></script>
-    <script src="js/weather.js?v=1.152.0"></script>
-    <script src="js/flyover.js?v=1.152.0"></script>
-    <script src="js/replay.js?v=1.152.0"></script>
-    <script src="js/bot.js?v=1.152.0"></script>
-    <script src="js/models.js?v=1.152.0"></script>
-    <script src="js/life.js?v=1.152.0"></script>
-    <script src="js/worlds.js?v=1.152.0"></script>
-    <script src="js/render.js?v=1.152.0"></script>
-    <script src="js/minimap.js?v=1.152.0"></script>
-    <script src="js/debug.js?v=1.152.0"></script>
-    <script src="js/game.js?v=1.152.0"></script>
+    <script src="js/config.js?v=1.153.0"></script>
+    <script src="js/themes.js?v=1.153.0"></script>
+    <script src="js/physics.js?v=1.153.0"></script>
+    <script src="js/courses.js?v=1.153.0"></script>
+    <script src="js/tour-ground.js?v=1.153.0"></script>
+    <script src="js/portals.js?v=1.153.0"></script>
+    <script src="js/audit.js?v=1.153.0"></script>
+    <script src="js/custom.js?v=1.153.0"></script>
+    <script src="js/scoring.js?v=1.153.0"></script>
+    <script src="js/swing.js?v=1.153.0"></script>
+    <script src="js/school.js?v=1.153.0"></script>
+    <script src="js/audio.js?v=1.153.0"></script>
+    <script src="js/music.js?v=1.153.0"></script>
+    <script src="js/bag.js?v=1.153.0"></script>
+    <script src="js/textures.js?v=1.153.0"></script>
+    <script src="js/shaders.js?v=1.153.0"></script>
+    <script src="js/postfx.js?v=1.153.0"></script>
+    <script src="js/weather.js?v=1.153.0"></script>
+    <script src="js/flyover.js?v=1.153.0"></script>
+    <script src="js/replay.js?v=1.153.0"></script>
+    <script src="js/bot.js?v=1.153.0"></script>
+    <script src="js/models.js?v=1.153.0"></script>
+    <script src="js/life.js?v=1.153.0"></script>
+    <script src="js/worlds.js?v=1.153.0"></script>
+    <script src="js/render.js?v=1.153.0"></script>
+    <script src="js/minimap.js?v=1.153.0"></script>
+    <script src="js/debug.js?v=1.153.0"></script>
+    <script src="js/game.js?v=1.153.0"></script>
 
     <!-- The live worlds behind the tour's holes: Portals' own engine and its
          own three.js (r170, a module), drawing into a canvas render.js uses as
@@ -915,6 +908,6 @@
     <script type="importmap">
     { "imports": { "three": "./vendor/portals/vendor/three/three.module.min.js", "three/addons/": "./vendor/portals/vendor/three/addons/" } }
     </script>
-    <script type="module" src="js/backdrop.mjs?v=1.152.0"></script>
+    <script type="module" src="js/backdrop.mjs?v=1.153.0"></script>
 </body>
 </html>
