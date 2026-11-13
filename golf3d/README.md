@@ -4183,7 +4183,7 @@ is the place.
 | Up the Shell | The World Turtle | 0.8 g. Along the neck and up a table mountain. No rail anywhere. |
 | The Marble Run | Marble Run, Falling Dominoes | Three chutes and a tray at the bottom the long way round, or out through the hatch at the first turn and down by the flag. Coming round that turn sets the world's dominoes going. |
 | Balloon Hop | Living Balloons over a Gas Giant | A third of a g. The pads throw the ball and it stays thrown. |
-| Slack Water | Kelp Cathedral | Two currents and a bank of still water between. Step off at the gap, or pitch over the weed. |
+| Slack Water | Kelp Cathedral | Two currents across the line, one each way, and a bank of still water between. A current carries a ball sideways for as long as it is in it: stop on the slack, or go through both in one putt round the weed. |
 | Loop and Rink | Carnival on the Frozen River | A loop-the-loop, then a rink where the only thing that stops a ball is the rug the flag is in. |
 | The Fairy Ring | Spore Rain | Eight toadstool bumpers round the flag and one big cap in front that throws the ball over them. |
 | The Orrery | Library with a Brass Orrery | Three arms on one spindle at three speeds. |
@@ -4293,6 +4293,18 @@ is laid on anything now:
 - **The world is always built at `medium`**, whatever the device: a hole is
   baked from that level's ground, and a different level is different
   geometry.
+
+**What a hole does to a world is undone for the next hole** (v1.158.0,
+`unsculpt`). Two holes share the breakfast table and a world is kept between
+them, so the first version left the cloth pressed to the last hole's shape.
+Two switches on a placing came with it: `press: false` clears the strips but
+moves no ground (a laid table: pressing the cloth to a bake that includes the
+teapot drew it up over the teapot), and `reach` is how far, in the hole's
+units, land may be moved (1.6 unless said). `reach` is what lets a hole be
+*groomed*: `tools/groom-ground.mjs <id> --path "x,z x,z …" --width w` blurs
+the baked grid along the line of play and leaves the country either side, and
+because the world is pressed to the grid the picture is groomed with it.
+Across the Shell's dip, which every ball finished in, was filled that way.
 
 **A world can have an event the golf sets going** (v1.157.0).
 `place.event = { from, to, secs, gate | at, say }` moves the world's own

@@ -172,6 +172,12 @@ function sculpt(W, place) {
     const inStrip = (gx, gz) => rects.some((r) => gx > r[0] && gx < r[2] && gz > r[1] && gz < r[3]);
     W.scene.updateMatrixWorld(true);
     let moved = 0, cleared = 0;
+    const undo = W.undo = [];
+    /* `press: false` is a hole played on ground that is already what the
+       bake says, with things standing on it that the bake also has (a laid
+       table): pressing the cloth to those heights drew it up over every cup
+       and plate. Such a hole only has its strips cleared. */
+    const press = place.press !== false;
     W.scene.traverse((o) => {
         if (!o.isMesh || !o.geometry || !o.geometry.attributes || !o.geometry.attributes.position) return;
         const m = Array.isArray(o.material) ? o.material[0] : o.material;
@@ -183,6 +189,7 @@ function sculpt(W, place) {
                 _p.setFromMatrixPosition(_m4).applyMatrix4(o.matrixWorld);
                 const g = toGolf(_p.x, _p.z);
                 if (!inStrip(g[0], g[1])) continue;
+                if (!any) { const keep = o.instanceMatrix.array.slice(); undo.push(() => { o.instanceMatrix.array.set(keep); o.instanceMatrix.needsUpdate = true; }); }
                 _s3.setFromMatrixPosition(_m4);
                 _m4.makeScale(0, 0, 0).setPosition(_s3);
                 o.setMatrixAt(i, _m4); any = true; cleared++;
@@ -190,12 +197,13 @@ function sculpt(W, place) {
             if (any) o.instanceMatrix.needsUpdate = true;
             return;
         }
-        if (o.isSkinnedMesh) return;
+        if (o.isSkinnedMesh || !press) return;
         if (!o.geometry.boundingSphere) o.geometry.computeBoundingSphere();
         if (o.geometry.boundingSphere.radius * o.matrixWorld.getMaxScaleOnAxis() < 30) return;
         const pos = o.geometry.attributes.position, nor = o.geometry.attributes.normal;
         _inv.copy(o.matrixWorld).invert();
         let n = 0;
+        const was = pos.array.slice(), wasN = nor ? nor.array.slice() : null;
         for (let i = 0; i < pos.count; i++) {
             _p.fromBufferAttribute(pos, i).applyMatrix4(o.matrixWorld);
             const g = toGolf(_p.x, _p.z);
@@ -206,7 +214,9 @@ function sculpt(W, place) {
             const gy = gridAt(g[0], g[1]), diff = at.y + gy * s - _p.y;
             // …and only where the bake is this ground: not a sea bed under
             // a sea the bake stopped at, not the far side of a cliff it rounded.
-            if (Math.abs(diff) > 1.6 * s || (gy <= 0.02 && diff > 0)) continue;
+            // `reach` is how far, in the hole's units, the land may be moved:
+            // a groomed hole (tools/groom-ground.mjs) fills its own dips.
+            if (Math.abs(diff) > (place.reach || 1.6) * s || (gy <= 0.02 && diff > 0)) continue;
             const u = e / F, w = 1 - u * u * (3 - 2 * u);
             _p.y += diff * w;
             _p.applyMatrix4(_inv);
@@ -216,10 +226,22 @@ function sculpt(W, place) {
             pos.needsUpdate = true; moved += n;
             if (nor) o.geometry.computeVertexNormals();
             o.geometry.computeBoundingSphere(); o.geometry.computeBoundingBox();
+            undo.push(() => {
+                pos.array.set(was); pos.needsUpdate = true;
+                if (wasN) { o.geometry.attributes.normal.array.set(wasN); o.geometry.attributes.normal.needsUpdate = true; }
+                o.geometry.computeBoundingSphere(); o.geometry.computeBoundingBox();
+            });
         }
     });
     W.soft = null;
     return { moved, cleared };
+}
+
+// Put the world back the way its makers left it.
+function unsculpt(W) {
+    if (!W.undo) return;
+    for (const f of W.undo) { try { f(); } catch (e) { /* a mesh that has gone */ } }
+    W.undo = null; W.soft = null;
 }
 
 function seedOf(id) { let h = 2166136261; for (const c of id) { h ^= c.charCodeAt(0); h = Math.imul(h, 16777619); } return h >>> 0; }
@@ -382,9 +404,16 @@ function frame(dt, cam, place, seat, w, h) {
     if (w !== size.w || h !== size.h) { size.w = w; size.h = h; engine._resize(); }
     if (!W.anchor || W.anchor.key !== place) { W.anchor = anchorFor(W, place, seat); W.anchor.key = place; }
     const A = W.anchor, c = engine.camera;
-    if (place.at && place.grid && !(W.sculpted || (W.sculpted = new Set())).has(place)) {
-        W.sculpted.add(place);
-        try { info.sculpt = sculpt(W, place); } catch (e) { console.warn('backdrop sculpt', e); }
+    /* One world can hold two holes (the breakfast table has The Butter
+       Knife and The Sugar Gate), and a world is kept between them. So what
+       one hole does to the world's ground is undone before the next hole is
+       drawn in it: the first version left the cloth pressed to the last
+       hole's shape, and The Butter Knife was played on The Sugar Gate's. */
+    if (W.sculptFor !== place) {
+        unsculpt(W);
+        W.sculptFor = place;
+        info.sculpt = null;
+        if (place.at && place.grid) try { info.sculpt = sculpt(W, place); } catch (e) { console.warn('backdrop sculpt', e); }
     }
     /* A world's own event, set going by the golf (render.js → stepPlace):
        most of what moves in a Portals world moves with `u`, how far along
