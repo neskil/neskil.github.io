@@ -103,25 +103,8 @@ piece — a test insists on one).
 
 ## The owner's ideas waiting their turn
 
-- **The transition between worlds** (asked after v1.159.1): "improve the
-  transition animation. Perhaps the camera can sweep down into the hole
-  (which is portal-esque) and play the current animation to hide the
-  loading between worlds." What happens now: on the sink, `throughPortal`
-  closes the stage on the next world's sky (`.portal-wipe`), and
-  `holdForWorld` keeps it closed with the next hole's name until the world
-  is drawn (up to 20 s). The idea: on the sink the camera dives down the
-  cup — the cup is the portal — and the dive hands over to the existing
-  wipe, which then hides the build. Pieces: a camera path in `render.js`
-  from the seat to just under the cup's lip (the flyover's machinery,
-  `flyover.js`, already flies keyed paths); a dark disc over the cup as the
-  "inside"; and the wipe's opening as the arrival.
-- **Preloading:** only the next world's *files* are fetched, 4 s into the
-  current hole (`holdForWorld` → `backdrop.fetch`); nothing is built in
-  advance, so the wait between holes is the build itself (a few seconds
-  on a phone). Building the next world while this one plays would mean two
-  worlds in memory and the frame rate of both at once. A cheaper step: start
-  the build at the sink, during the celebration and the dive, so the wipe
-  has less to hide.
+Both done in v1.162.0 (see "After the handoff was written" below and README
+→ "Down the cup" / "The wait for a world").
 
 ## What I would do next, in order
 
@@ -185,3 +168,16 @@ not have. Designs first; what was actually built is in `js/portals.js`.
   playable — a real `custard` surface would need a FRICTION entry and a
   texture. The rapids', custard's and pyramid's ace shares are 0: the bold
   lines are within a yard in a tee-sweep but want a pin moved to hold them.
+- **v1.162.0, down the cup.** The owner's transition idea, and his
+  follow-up while it was being built ("Can the flag fly off like a speedy
+  rocket as well?"): on *Next hole* the flag launches on a spark trail, the
+  camera arcs over the cup and falls into it, and the wipe opens out of the
+  cup on the next sky. The next world is built from 1.2 s after the sink, six
+  milliseconds a frame (`backdrop.prepare`), and swapped in when the next
+  hole asks. Checked here on SwiftShader by posing the dive frame by frame
+  and by one live run (built ahead, swapped in, opened on the new world);
+  **not yet seen on his phone.** Things to ask about: whether the dive is
+  the right length (`C.DIVE.DUR`, 1.15 s), whether the frame rate dips
+  noticeably during the celebration or an ace replay while the next world
+  builds (if it does, raise `PREPARE_AFTER` or lower the 6 ms slice in
+  `backdrop.mjs → boot`), and how long the wipe now holds between worlds.

@@ -303,6 +303,12 @@
             tone(220, 0.45, 'sine', 0.12, 55);
             tone(330, 0.3, 'triangle', 0.05, 90);
         },
+        // The flag going off like a rocket as the camera dives for the cup
+        // (render.js → startDive): a climbing rasp over a rush of air.
+        rocket: function () {
+            tone(140, 0.6, 'sawtooth', 0.045, 1400);
+            noise(0.7, 1600, 0.7, 0.07);
+        },
         warpOpen: function () {
             tone(48, 0.5, 'sine', 0.14, 140);
             noise(0.5, 900, 0.6, 0.05);
