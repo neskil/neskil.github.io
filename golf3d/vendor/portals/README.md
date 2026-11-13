@@ -2,7 +2,7 @@
 
 Part of **Portals** by Ethan Mollick — https://github.com/emollick/ai-portals,
 release s8f (November 2026) — copied here unmodified: its engine (`src/core`),
-its shared kit (`src/kit`), twelve of its 471 worlds (`src/worlds`, with their
+its shared kit (`src/kit`), seventeen of its 471 worlds (`src/worlds`, with their
 set pieces in `src/parts`) and its copy of three.js r170 (`vendor/three`).
 
 Loft Links plays each hole of its World Tour inside one of these worlds:
@@ -21,5 +21,7 @@ section names further borrowed shaders.
 The worlds used: `breakfast-table`, `world-turtle`, `storm-bands`,
 `kelp-cathedral`, `carnival-on-the-frozen-river`, `spore-rain`, `long-library`,
 `stairway-everywhere`, `the-toppling`, `airbrush-black-hole`, `cloud-armada`,
-`obsidian-forge`. To add one, copy its file from upstream `src/worlds` along
+`obsidian-forge`, and since Loft Links v1.159.0 `paper-boat-rapids`,
+`attic-railway`, `islands-in-custard`, `pyramid-of-khufu` and
+`moon-in-dry-dock`. To add one, copy its file from upstream `src/worlds` along
 with everything it imports, and name it in `js/portals.js → PLACES`.

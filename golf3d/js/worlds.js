@@ -476,6 +476,9 @@
     SCENES.ironriver = SCENES.forge;
     SCENES.nave = SCENES.abyss;
     SCENES.table = SCENES.breakfast;
+    // The five worlds of v1.159.0 borrow a set piece for when their world is not on screen.
+    SCENES.rapids = SCENES.mushroom; SCENES.railway = SCENES.attic; SCENES.custard = SCENES.breakfast;
+    SCENES.pyramid = SCENES.stairs; SCENES.drydock = SCENES.threebody;
 
     G3.worlds = { build: build, step: step, SCENES: SCENES, state: W };
 

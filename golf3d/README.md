@@ -1,6 +1,6 @@
 # Loft Links
 
-A **World Tour** of fifteen holes, each played inside a world borrowed from
+A **World Tour** of twenty holes, each played inside a world borrowed from
 Ethan Mollick's Portals ([The World Tour](#the-world-tour-every-hole-in-a-world))
 — and beside it in the same picker, the game this started as:
 
@@ -56,7 +56,7 @@ them.
 | `js/config.js` | Every tuning constant. Nothing else holds a magic number. |
 | `js/courses.js` | The ninety holes, as data, plus the rail generator, the band layout the long-game courses are written in — rows that tilt and carry their level into the next one, and a cross-fall that puts a whole hole on the side of a hill — the dune fields the links is made of, the landforms the two parkland courses are shaped by, the bag each hole is played out of, and the [draw](#the-draw) behind the picker's die. |
 | `js/physics.js` | The simulation. No three.js, no DOM, pure. |
-| `js/portals.js` | [The World Tour](#the-world-tour-every-hole-in-a-world): the fifteen holes — hole, palette, shelf, caption and the Portals world each is played in — the tour's deal, and `courseById` taught to answer `portals`, `portal-library` and `world-<id>`. Written with `G3.authoring`; loaded straight after `courses.js` on every page that loads that. |
+| `js/portals.js` | [The World Tour](#the-world-tour-every-hole-in-a-world): the twenty holes — hole, palette, shelf, caption and the Portals world each is played in — the tour's deal, and `courseById` taught to answer `portals`, `portal-library` and `world-<id>`. Written with `G3.authoring`; loaded straight after `courses.js` on every page that loads that. |
 | `js/worlds.js` | The tour holes' stand-in set pieces, for when the live world is not drawn. three.js primitives only. Loaded before `render.js`. |
 | `js/backdrop.mjs`, `vendor/portals/` | The live worlds: Portals' own engine, kit, twelve worlds and three.js r170 (vendored unmodified, CC BY-NC-SA 4.0), and the module that builds one behind a hole and fits the hole into it. |
 | `js/tour-ground.js`, `tools/world-ground.mjs`, `tools/bake-ground.mjs` | Ground baked from a Portals world for a hole sculpted to it (generated), the tool that reads a world's terrain, and the one that bakes a piece of it. |
