@@ -185,3 +185,11 @@ not have. Designs first; what was actually built is in `js/portals.js`.
   playable — a real `custard` surface would need a FRICTION entry and a
   texture. The rapids', custard's and pyramid's ace shares are 0: the bold
   lines are within a yard in a tee-sweep but want a pin moved to hold them.
+- **Three Doors Down** (`stairs`), v1.161.1: looked at live for the first
+  time. The landings were a dead khaki grey from a theme written for a white
+  Escher print; the world is pale rose stone under a periwinkle evening. The
+  landings are now its stone a shade into shadow (the white ball still
+  reads) with the pale border its own stairs have, and `u` is pinned at 0.55,
+  where a stone pier stands under the tee and the upper landings sit over a
+  chequered plaza; the searched spot had a ladder through the tee. Play
+  unchanged (0.28%, skill). **Not yet seen by him.**
