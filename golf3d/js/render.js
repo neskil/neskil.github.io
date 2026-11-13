@@ -5569,9 +5569,10 @@
         /* …and what is laid over it is a `veil`: a strip of mown fairway
            or a tee draped on the world's ground. With the world on screen a
            veil is drawn half through, so the world's own turf, rock or glass
-           shows in it and the strip is a change of colour in that ground
-           rather than a sheet on top of it. The green stays solid: it is
-           the one surface a putt has to be read on. */
+           is put away like the ghost, and the strip is painted into the
+           world's own picture instead (the plate's decals) — a change of
+           colour in that ground, not a sheet on top of it. The green stays
+           drawn: it is the one surface a putt has to be read on. */
         R.ghosts = [];
         R.veils = [];
         var n0, sculpted = hole.pads.some(function (p) { return p.ghost; });
@@ -5739,6 +5740,7 @@
                on rough that is only there as the world's picture), keeps
                its whole bounding box instead. */
             var boxes = [], all = [Infinity, Infinity, -Infinity, -Infinity], ghost = false;
+            var ghostHole = (hole.pads || []).some(function (p) { return p.ghost; });
             (hole.pads || []).forEach(function (p) {
                 if (p.ghost) ghost = true;
                 // A pad is written from its corner; a round inlay from its middle.
@@ -5746,7 +5748,8 @@
                     ? [p.x - p.r - m, p.z - p.r - m, p.x + p.r + m, p.z + p.r + m]
                     : [p.x - m, p.z - m, p.x + p.w + m, p.z + p.d + m];
                 all = [Math.min(all[0], bx[0]), Math.min(all[1], bx[1]), Math.max(all[2], bx[2]), Math.max(all[3], bx[3])];
-                if (!p.ghost) boxes.push(bx);
+                // (a sculpted hole's tee and fairway are paint, not pads: only its green is drawn)
+                if (!p.ghost && !(ghostHole && p.inlay && p.kind !== 'green')) boxes.push(bx);
             });
             R.placeKeep = boxes.length > 8 ? [all] : boxes;
             /* Round the whole of a hole the world is set back a little
@@ -5758,8 +5761,33 @@
                a stall or a pillar is far more than that in front, and still
                is. */
             R.placeSoft = [all[0] - 2.5, all[1] - 2.5, all[2] + 2.5, all[3] + 2.5];
+            /* A sculpted hole hands the world three things (backdrop.mjs →
+               sculpt): the ground it was baked to, so the world's own
+               terrain is pressed to exactly that shape — a levelled tee is
+               level in the world's picture too; the strips mown into it,
+               which the world clears of trees and stones; and here, the
+               same strips as paint (the plate's decals). The green is the
+               one surface still drawn by this game, lying on ground that
+               now matches it, with a collar of the same paint round it. */
+            R.placeDecals = null;
+            place.grid = null; place.clear = [];
+            var gp = (hole.pads || []).filter(function (p) { return p.ghost && p.field && p.field[0] && p.field[0].grid; })[0];
+            if (gp) {
+                var th = R.theme || {}, tint = new THREE.Color((th.grass || ['#3fa56a'])[0]);
+                var rects = [];
+                (hole.pads || []).forEach(function (p) {
+                    if (p.ghost || !p.inlay || p.w === undefined) return;
+                    place.clear.push([p.x - 0.8, p.z - 0.8, p.x + p.w + 0.8, p.z + p.d + 0.8]);
+                    var g = p.kind === 'green' ? 1.3 : 0, k = p.kind === 'green' ? 1.25 : 1;
+                    rects.push([p.x - g, p.z - g, p.x + p.w + g, p.z + p.d + g, [tint.r * k, tint.g * k, tint.b * k]]);
+                });
+                place.grid = gp.field[0].grid;
+                R.placeDecals = { grid: place.grid, rects: rects.slice(0, 6), dirty: true };
+            }
         }
         R.live = false;
+        R.eventFired = false;
+        if (G3.backdrop && G3.backdrop.rewind) G3.backdrop.rewind();
         if (R.plate) R.plate.visible = false;
         if (G3.backdrop) G3.backdrop.want(place ? place.world : null);
     }
@@ -5768,17 +5796,30 @@
         if (R.place && G3.backdrop) G3.backdrop.want(R.place.world);
     });
 
-    function stepPlace(dt) {
+    function stepPlace(dt, world) {
         var B = G3.backdrop, live = false;
+        /* Something in the world that happens because of the golf: a place
+           may name an `event`, and it is set going the first time the ball
+           is that far from the tee towards the flag (half way, unless it
+           says) or drops. The Marble Run's is the dominoes beside it going
+           over in a wave. backdrop.mjs plays it; a new hole rewinds it. */
+        if (R.place && R.place.event && B && B.play && world && world.ball && !R.eventFired) {
+            var h = world.hole, tx = h.cup.x - h.tee.x, tz = h.cup.z - h.tee.z;
+            var along = ((world.ball.x - h.tee.x) * tx + (world.ball.z - h.tee.z) * tz) / Math.max(1e-6, tx * tx + tz * tz);
+            if (world.sunk || along >= (R.place.event.at === undefined ? 0.5 : R.place.event.at)) {
+                R.eventFired = true;
+                B.play();
+            }
+        }
         if (R.place && B) {
             var cv = R.renderer.domElement;
             // Three quarters of the stage's own pixels, and never more than
             // a 720p frame: it is behind everything and half of it is sky.
             if (R.liveK === undefined) {
                 R.liveCoarse = !!(window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
-                R.liveK = R.liveCoarse ? 0.5 : 0.75;
+                R.liveK = R.liveKMax = R.liveCoarse ? 0.7 : 0.8;
             }
-            var k = Math.min(R.liveK, (R.liveCoarse ? 900 : 1280) / Math.max(1, cv.width));
+            var k = Math.min(R.liveK, (R.liveCoarse ? 1100 : 1440) / Math.max(1, cv.width));
             live = B.frame(dt, R.camera, R.place, R.placeSeat,
                 Math.max(2, Math.round(cv.width * k)), Math.max(2, Math.round(cv.height * k)));
         }
@@ -5789,14 +5830,25 @@
                worlds are switched off, with a line to say so. `?live=1`
                (R.liveOverride) is somebody asking for it regardless. */
             var now = performance.now();
-            if (!R.liveT0) { R.liveT0 = now; R.liveN = 0; R.liveBad = 0; }
+            if (!R.liveT0) { R.liveT0 = now + 6000; R.liveN = 0; R.liveBad = 0; R.liveGood = 0; }
+            /* Nothing is measured for six seconds after a world comes up:
+               it is still compiling its shaders then, and judged on those
+               seconds every world was taken down to a third of the stage
+               and left there (the owner's phone, at sixty frames a second,
+               showing a world made of blocks). And there is a way back up:
+               three good windows running give a step of resolution back. */
+            if (now < R.liveT0) R.liveN = 0;
             R.liveN++;
             if (now - R.liveT0 > 2000) {
                 var fps = R.liveN * 1000 / (now - R.liveT0);
                 R.liveT0 = now; R.liveN = 0;
-                if (fps < 26 && R.liveK > 0.34) { R.liveK = Math.max(0.33, R.liveK * 0.75); R.liveBad = 0; }
-                else if (fps < 16) R.liveBad++;
-                else R.liveBad = 0;
+                if (fps < 26 && R.liveK > 0.34) { R.liveK = Math.max(0.33, R.liveK * 0.75); R.liveBad = 0; R.liveGood = 0; }
+                else if (fps < 16) { R.liveBad++; R.liveGood = 0; }
+                else {
+                    R.liveBad = 0;
+                    R.liveGood = fps > 48 ? (R.liveGood || 0) + 1 : 0;
+                    if (R.liveGood >= 3 && R.liveK < R.liveKMax) { R.liveK = Math.min(R.liveKMax, R.liveK / 0.75); R.liveGood = 0; }
+                }
                 if (R.liveBad >= 3 && R.liveOverride === undefined) {
                     R.liveBad = 0;
                     setLive(false);
@@ -5813,6 +5865,25 @@
             u.invProj.value.copy(R.camera.projectionMatrixInverse);
             u.camWorld.value.copy(R.camera.matrixWorld);
             u.soft.value.set(R.placeSoft[0], R.placeSoft[1], R.placeSoft[2], R.placeSoft[3]);
+            var D = R.placeDecals;
+            u.decalOn.value = D ? 1 : 0;
+            if (D && D.dirty) {
+                D.dirty = false;
+                if (R.gridTex) R.gridTex.dispose();
+                var gd = new Float32Array(D.grid.nx * D.grid.nz * 4), gi;
+                for (gi = 0; gi < D.grid.nx * D.grid.nz; gi++) gd[gi * 4] = D.grid.h[gi];
+                R.gridTex = new THREE.DataTexture(gd, D.grid.nx, D.grid.nz, THREE.RGBAFormat, THREE.FloatType);
+                R.gridTex.minFilter = R.gridTex.magFilter = THREE.NearestFilter;
+                R.gridTex.needsUpdate = true;
+                u.gridTex.value = R.gridTex;
+                u.gridBox.value.set(D.grid.x0, D.grid.z0, D.grid.d, 0);
+                u.gridN.value.set(D.grid.nx, D.grid.nz);
+                for (gi = 0; gi < 6; gi++) {
+                    var dr = D.rects[gi] || [0, 0, 0, 0, [0, 0, 0]];
+                    u.decal.value[gi].set(dr[0], dr[1], dr[2], dr[3]);
+                    u.decalTint.value[gi].set(dr[4][0], dr[4][1], dr[4][2]);
+                }
+            }
             for (var kq = 0; kq < 8; kq++) {
                 var kb = R.placeKeep[kq] || [0, 0, 0, 0];
                 u.keep.value[kq].set(kb[0], kb[1], kb[2], kb[3]);
@@ -5829,21 +5900,9 @@
         if (R.plate) R.plate.visible = live;
         if (R.outer) R.outer.visible = !live;
         for (var q = 0; q < (R.ghosts || []).length; q++) R.ghosts[q].visible = !live;
-        (R.veils || []).forEach(function (top) {
-            top.traverse(function (m) {
-                if (!m.isMesh || !m.material || Array.isArray(m.material)) return;
-                if (!m.userData.solid) {
-                    m.userData.solid = m.material;
-                    m.userData.veil = m.material.clone();
-                    m.userData.veil.transparent = true;
-                    m.userData.veil.opacity = 0.5;
-                    m.userData.veil.depthWrite = false;
-                    if (m.material.onBeforeCompile) m.userData.veil.onBeforeCompile = m.material.onBeforeCompile;
-                    if (m.material.customProgramCacheKey) m.userData.veil.customProgramCacheKey = m.material.customProgramCacheKey;
-                }
-                m.material = live ? m.userData.veil : m.userData.solid;
-            });
-        });
+        // …and its tee and fairway, which the world's picture now carries.
+        (R.veils || []).forEach(function (top) { top.visible = !live; });
+        if (live) { R.liveT0 = performance.now() + 6000; R.liveN = 0; R.liveBad = 0; R.liveGood = 0; }
         if (live) {
             R.fogKeep = { near: R.fogNear, far: R.fogFar };
             R.fogNear = 400; R.fogFar = 1200;
@@ -5880,6 +5939,10 @@
                 invProj: { value: new THREE.Matrix4() }, camWorld: { value: new THREE.Matrix4() },
                 keep: { value: [0, 1, 2, 3, 4, 5, 6, 7].map(function () { return new THREE.Vector4(); }) },
                 soft: { value: new THREE.Vector4() },
+                decalOn: { value: 0 },
+                decal: { value: [0, 1, 2, 3, 4, 5].map(function () { return new THREE.Vector4(); }) },
+                decalTint: { value: [0, 1, 2, 3, 4, 5].map(function () { return new THREE.Vector3(); }) },
+                gridTex: { value: null }, gridBox: { value: new THREE.Vector4(0, 0, 1, 0) }, gridN: { value: new THREE.Vector2(1, 1) },
                 gOn: { value: 0 }, gExp: { value: 1 }, gSat: { value: 1 }, gCon: { value: 1 },
                 gTint: { value: new THREE.Color(1, 1, 1) }, gLift: { value: new THREE.Color(0, 0, 0) }
             },
@@ -5899,6 +5962,8 @@
                 'uniform float wNear, wFar, scale, pA, pB;',
                 'uniform mat4 camWorld; uniform vec4 keep[8]; uniform vec4 soft;',
                 'uniform float gOn, gExp, gSat, gCon; uniform vec3 gTint, gLift;',
+                'uniform float decalOn; uniform vec4 decal[6]; uniform vec3 decalTint[6];',
+                'uniform sampler2D gridTex; uniform vec4 gridBox; uniform vec2 gridN;',
                 'varying vec2 vUv; varying vec3 vRay;',
                 // postfx.js's tone curve, backwards.
                 'vec3 unaces(vec3 y) {',
@@ -5917,6 +5982,54 @@
                 '    vec2 cuv = vec2(vUv.x, 0.5 + 0.5 * clamp(vUv.y, 0.75 / size.y, 1.0));',
                 '    vec3 c = texture2D(map, cuv).rgb;',
                 '    c = pow(c, vec3(2.2));',
+                /* The depth half. Four texels round the pixel, each read at
+                   its own centre and decoded, then blended as 1/distance
+                   (sky is 0): where the world's outline crosses the hole
+                   the edge is a line through the texels, not their
+                   staircase. */
+                '    vec2 dp = vUv * size - 0.5, df = fract(dp), dt = floor(dp);',
+                '    float iz = mix(mix(inv(dt), inv(dt + vec2(1.0, 0.0)), df.x),',
+                '                   mix(inv(dt + vec2(0.0, 1.0)), inv(dt + vec2(1.0, 1.0)), df.x), df.y);',
+                '    float depth = 0.9999995;',
+                '    if (iz > 0.00002) {',
+                '        float z = 1.0 / iz;',
+                '        vec3 at = (camWorld * vec4(vRay * z, 1.0)).xyz;',
+                '        bool ours = false;',
+                '        for (int i = 0; i < 8; i++) {',
+                '            vec4 k = keep[i];',
+                '            if (at.x > k.x && at.x < k.z && at.z > k.y && at.z < k.w) ours = true;',
+                '        }',
+                /* The mown ground of a sculpted hole is not a sheet laid on
+                   the world: it is paint on the world's own picture. This
+                   pixel of the world is at `at` in the hole's own
+                   coordinates; if that is on the hole's ground (within a
+                   stride of the baked height there) and inside a tee or a
+                   fairway, it takes the turf's colour — keeping the light
+                   and shade the world gave it, striped the way a mower
+                   leaves it, with a soft edge that wanders a little. So a
+                   fairway follows every fold of the land exactly, because
+                   it is the land. */
+                '        if (decalOn > 0.5) {',
+                '            vec2 gq = (at.xz - gridBox.xy) / gridBox.z;',
+                '            if (gq.x > -0.5 && gq.y > -0.5 && gq.x < gridN.x - 0.5 && gq.y < gridN.y - 0.5) {',
+                '                float gh = texture2D(gridTex, (floor(gq + 0.5) + 0.5) / gridN).r;',
+                '                if (abs(at.y - gh) < 1.3) {',
+                '                    float lum = dot(c, vec3(0.2126, 0.7152, 0.0722));',
+                '                    float wob = 0.4 * sin(at.x * 1.7 + at.z * 0.9) * sin(at.z * 1.3 - at.x * 0.6);',
+                '                    float stripe = 0.93 + 0.07 * step(0.0, sin(at.z * 2.1 + at.x * 0.35));',
+                '                    for (int j = 0; j < 6; j++) {',
+                '                        vec4 k = decal[j];',
+                '                        vec2 q = abs(at.xz - 0.5 * (k.xy + k.zw)) - 0.5 * (k.zw - k.xy) + 1.4;',
+                '                        float d = length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - 1.4;',
+                '                        float a = (1.0 - smoothstep(-0.45, 0.4, d + wob)) * step(0.001, k.z - k.x);',
+                '                        c = mix(c, decalTint[j] * (0.3 + 1.5 * lum) * stripe, a * 0.86);',
+                '                    }',
+                '                }',
+                '            }',
+                '        }',
+                '        if (at.x > soft.x && at.x < soft.z && at.z > soft.y && at.z < soft.w) z += 0.7;',
+                '        if (!ours) depth = clamp(0.5 * (pB - pA * z) / z + 0.5, 0.0, 0.9999995);',
+                '    }',
                 /* The world arrives graded by its own makers, and this
                    game's grade (postfx.js: tone curve, tint, saturation,
                    contrast) is about to be laid over the whole frame. So the
@@ -5930,29 +6043,6 @@
                 '        c = mix(vec3(l), c, 1.0 / gSat);',
                 '        c = clamp((c - gLift) / max(gTint, vec3(0.05)), 0.0, 0.86);',
                 '        c = unaces(c) / max(gExp, 0.05);',
-                '    }',
-                /* The depth half. Four texels round the pixel, each read at
-                   its own centre and decoded, then blended as 1/distance
-                   (sky is 0): where the world's outline crosses the hole
-                   the edge is a line through the texels, not their
-                   staircase. The world is drawn at half the stage's
-                   resolution on a phone, and read one texel at a time its
-                   outline against a rail was saw-toothed (the owner:
-                   "still a little bugged"). */
-                '    vec2 dp = vUv * size - 0.5, df = fract(dp), dt = floor(dp);',
-                '    float iz = mix(mix(inv(dt), inv(dt + vec2(1.0, 0.0)), df.x),',
-                '                   mix(inv(dt + vec2(0.0, 1.0)), inv(dt + vec2(1.0, 1.0)), df.x), df.y);',
-                '    float depth = 0.9999995;',
-                '    if (iz > 0.00002) {',
-                '        float z = 1.0 / iz;',
-                '        vec3 at = (camWorld * vec4(vRay * z, 1.0)).xyz;',
-                '        bool ours = false;',
-                '        for (int i = 0; i < 8; i++) {',
-                '            vec4 k = keep[i];',
-                '            if (at.x > k.x && at.x < k.z && at.z > k.y && at.z < k.w) ours = true;',
-                '        }',
-                '        if (at.x > soft.x && at.x < soft.z && at.z > soft.y && at.z < soft.w) z += 0.7;',
-                '        if (!ours) depth = clamp(0.5 * (pB - pA * z) / z + 0.5, 0.0, 0.9999995);',
                 '    }',
                 '    gl_FragDepth = depth;',
                 '    gl_FragColor = vec4(c, 1.0);',
@@ -7047,7 +7137,7 @@
         if (R.fx && G3.postfx.lens) G3.postfx.lens(lensList());
 
         // The live world behind the hole, from where the camera now is.
-        stepPlace(dt);
+        stepPlace(dt, world);
 
         // The camera has moved; what the air is doing about it, and the two
         // markers that only exist while it is up there.

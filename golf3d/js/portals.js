@@ -87,7 +87,7 @@
        `u` is how far along that world's own flight path the tee stands,
        `scale` its units to one of ours, `lift` and `turn` a nudge up and
        round (backdrop.mjs → anchorFor). */
-    var PLACES = {"breakfast": ["breakfast-table"], "turtle": ["world-turtle", {"u": 0.02, "at": {"x": -95.58, "z": 148.41, "y": 150, "yaw": 0.6981, "scale": 2.5}}], "gasgiant": ["storm-bands"], "abyss": ["kelp-cathedral"], "carnival": ["carnival-on-the-frozen-river"], "mushroom": ["spore-rain"], "orrery": ["long-library"], "stairs": ["stairway-everywhere"], "attic": ["the-toppling"], "threebody": ["airbrush-black-hole"], "clouds": ["cloud-armada"], "forge": ["obsidian-forge"], "nave": ["kelp-cathedral", {"u": 0.3, "at": {"x": 0, "z": 50, "y": -41, "yaw": 3.1416, "scale": 3}}], "ironriver": ["obsidian-forge", {"u": 0.5, "at": {"x": -45, "z": 2.5, "y": 0, "yaw": 0, "scale": 2.5}}]};
+    var PLACES = {"breakfast": ["breakfast-table"], "turtle": ["world-turtle", {"u": 0.02, "at": {"x": -95.58, "z": 148.41, "y": 150, "yaw": 0.6981, "scale": 2.5}}], "gasgiant": ["storm-bands"], "abyss": ["kelp-cathedral"], "carnival": ["carnival-on-the-frozen-river"], "mushroom": ["spore-rain"], "orrery": ["long-library"], "stairs": ["stairway-everywhere"], "attic": ["the-toppling", {"event": {"from": -0.035, "to": 0.09, "secs": 6, "at": 0.45}}], "threebody": ["airbrush-black-hole"], "clouds": ["cloud-armada"], "forge": ["obsidian-forge"], "table": ["breakfast-table", {"u": 0.3, "at": {"x": -90, "z": -47, "y": 45, "yaw": 3.1416, "scale": 3.5}}], "nave": ["kelp-cathedral", {"u": 0.3, "at": {"x": 0, "z": 50, "y": -41, "yaw": 3.1416, "scale": 3}}], "ironriver": ["obsidian-forge", {"u": 0.5, "at": {"x": -45, "z": 2.5, "y": 0, "yaw": 0, "scale": 2.5}}]};
     function add(w) {
         w.hole.scene = w.scene || w.id; w.hole.worldId = w.id;
         var q = PLACES[w.id];
@@ -531,6 +531,39 @@
         })()
     });
 
+    /* Sculpted to its world, the fourth that is, and the first sculpted to
+       a world's *things* rather than its land. The Breakfast Kingdom is a
+       laid table, and this hole is played on the tablecloth itself: the
+       sample that was baked took the top of everything solid on it
+       (world-ground --any), so the dish, the sugar cubes, the plate and the
+       teapot are the hole's own ground, as high as they stand.
+
+       From the mat the straight line at the flag is shut by a row of sugar
+       cubes. Left of them is a gate one cube wide, and through it an alley
+       between the teapot and the rim of the plate, with the cup at its far
+       end. Or chip the cubes. Either side of the table is the floor. */
+    add({
+        id: 'table', title: 'The Sugar Gate', world: 'Breakfast Kingdom, the cloth', kind: 'home', tier: 1,
+        caption: 'A par three on the tablecloth itself, through a gate of sugar cubes. The breakfast things are the world\'s own.',
+        theme: 'table',
+        hole: (function () {
+            var G = (G3.TOUR_GROUND || {}).table, field = G ? [{ grid: G }] : [];
+            function on(p, inlay) { p.field = field; if (inlay) p.inlay = true; return p; }
+            var cloth = on(pad(-9.6, -0.8, 15.7, 28.4, 0, 'fairway'));
+            cloth.ghost = true;
+            return world({
+                name: 'The Sugar Gate', par: 3, bag: LOFT,
+                blurb: 'The cubes shut the straight line. Thread the gate on their left and run the alley between the teapot and the plate \u2014 or chip the lot.',
+                pads: [
+                    cloth,
+                    on(pad(-0.8, -0.6, 1.6, 1.4, 0, 'fairway'), true),
+                    on(pad(-0.1, 24.5, 2.5, 2.5, 0, 'green'), true)
+                ],
+                tee: { x: 0, z: 0 }, cup: { x: 1.14, z: 25.7 }
+            });
+        })()
+    });
+
     /* ── the shelves ────────────────────────────────────────────────────── */
 
     var KINDS = {
@@ -662,6 +695,10 @@
             water: 0xff5a1a, side: '#2c2224'
         }
     };
+    // The same breakfast, for the hole on the cloth itself: gingham, not felt.
+    THEMES.table = {};
+    Object.keys(THEMES.breakfast).forEach(function (k) { THEMES.table[k] = THEMES.breakfast[k]; });
+    THEMES.table.grass = ['#8fa9d6', '#829dcc'];
     G3.THEMES = G3.THEMES || {};
     Object.keys(THEMES).forEach(function (k) { G3.THEMES[k] = THEMES[k]; });
     /* No weather in a world that has none: a clear sky and a fair one, the
