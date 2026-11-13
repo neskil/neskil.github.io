@@ -87,7 +87,7 @@
        `u` is how far along that world's own flight path the tee stands,
        `scale` its units to one of ours, `lift` and `turn` a nudge up and
        round (backdrop.mjs → anchorFor). */
-    var PLACES = {"breakfast": ["breakfast-table", {"u": 0.2, "at": {"x": -82.95, "z": -58.9, "y": 45.3, "yaw": 3.1416, "scale": 1.4}}], "turtle": ["world-turtle", {"reach": 4, "u": 0.02, "at": {"x": -95.58, "z": 148.41, "y": 150, "yaw": 0.6981, "scale": 2.5}}], "gasgiant": ["storm-bands", {"lift": 95}], "abyss": ["kelp-cathedral"], "carnival": ["carnival-on-the-frozen-river"], "mushroom": ["spore-rain", {"u": 0.9}], "orrery": ["long-library"], "stairs": ["stairway-everywhere", {"u": 0.55}], "attic": ["the-toppling", {"event": {"from": -0.035, "to": 0.09, "secs": 6, "gate": [14.9, 2.4, 1.7], "say": "The dominoes are going over."}}], "threebody": ["airbrush-black-hole"], "clouds": ["cloud-armada"], "forge": ["obsidian-forge"], "table": ["breakfast-table", {"press": false, "u": 0.3, "at": {"x": -90, "z": -47, "y": 45, "yaw": 3.1416, "scale": 3.5}}], "nave": ["kelp-cathedral", {"u": 0.3, "at": {"x": 0, "z": 50, "y": -41, "yaw": 3.1416, "scale": 3}}], "rapids": ["paper-boat-rapids", {"u": 0.8}], "railway": ["attic-railway", {"u": 0.6}], "custard": ["islands-in-custard", {"u": 0.5}], "pyramid": ["pyramid-of-khufu", {"u": 0.1}], "drydock": ["moon-in-dry-dock", {"u": 0.1}], "ironriver": ["obsidian-forge", {"u": 0.5, "at": {"x": -45, "z": 2.5, "y": 0, "yaw": 0, "scale": 2.5}}]};
+    var PLACES = {"breakfast": ["breakfast-table", {"u": 0.2, "at": {"x": -82.95, "z": -58.9, "y": 45.3, "yaw": 3.1416, "scale": 1.4}}], "turtle": ["world-turtle", {"reach": 4, "u": 0.02, "at": {"x": -95.58, "z": 148.41, "y": 150, "yaw": 0.6981, "scale": 2.5}}], "gasgiant": ["storm-bands", {"lift": 95}], "abyss": ["kelp-cathedral"], "carnival": ["carnival-on-the-frozen-river"], "mushroom": ["spore-rain", {"u": 0.9}], "orrery": ["long-library"], "stairs": ["stairway-everywhere", {"u": 0.55}], "attic": ["the-toppling", {"event": {"from": -0.035, "to": 0.09, "secs": 6, "gate": [14.9, 2.4, 1.7], "say": "The dominoes are going over."}}], "threebody": ["airbrush-black-hole", {"u": 0.2, "turn": -0.5, "hide": ["ship"]}], "clouds": ["cloud-armada"], "forge": ["obsidian-forge"], "table": ["breakfast-table", {"press": false, "u": 0.3, "at": {"x": -90, "z": -47, "y": 45, "yaw": 3.1416, "scale": 3.5}}], "nave": ["kelp-cathedral", {"u": 0.3, "at": {"x": 0, "z": 50, "y": -41, "yaw": 3.1416, "scale": 3}}], "rapids": ["paper-boat-rapids", {"u": 0.8}], "railway": ["attic-railway", {"u": 0.6}], "custard": ["islands-in-custard", {"u": 0.5}], "pyramid": ["pyramid-of-khufu", {"u": 0.1}], "drydock": ["moon-in-dry-dock", {"u": 0.1}], "ironriver": ["obsidian-forge", {"u": 0.5, "at": {"x": -45, "z": 2.5, "y": 0, "yaw": 0, "scale": 2.5}}]};
     function add(w) {
         w.hole.scene = w.scene || w.id; w.hole.worldId = w.id;
         var q = PLACES[w.id];
@@ -906,18 +906,26 @@
             surroundY: -0.42, surround: 'floor', floor: '#5a3d26',
             water: 0x2b6f8f, side: '#8a5f38'
         },
+        /* The world is a 1970s paperback cover in seven inks (ink black,
+           ultramarine, magenta, cadmium orange, cream, teal, ice), flat and
+           unglowing. The sheet is its ink black ruled in its orange, the
+           three wells are painted in its disc's orange and magenta, and the
+           hole is turned so the cover's own black hole stands behind the
+           flag: the three little ones in front of the big one. */
         threebody: {
             sky: [0x02030a, 0x1a0f2e], fog: 0x120a22,
-            sun: 0xffd9a0, sunPos: [-7, 11, 9], ambient: 0x8a6cff, ambientI: 0.8,
+            sun: 0xffe2a6, sunPos: [-7, 11, 9], ambient: 0xbfd4ff, ambientI: 0.7,
             grass: ['#0d0a1e', '#0a0818'], rail: 0xffb347,
             glow: true, motes: false,
+            glass: { color: 0x04040c, emissive: 0x000000, specular: 0x1c2b8f },
+            wellHot: 0xff6a14, wellCool: 0xd4226b,
             grid: { colour: '#ffb347', floor: '#5a3cff', every: 1, floorEvery: 3 },
-            grade: { bloom: 0.22, threshold: 0.62, rays: 0, exposure: 0.74, contrast: 1.12,
-                saturation: 1.15, vignette: 0.45, grain: 0.02, aberration: 1.0,
+            grade: { bloom: 0.14, threshold: 0.7, rays: 0, exposure: 0.8, contrast: 1.05,
+                saturation: 1.05, vignette: 0.25, grain: 0, aberration: 0,
                 lift: [0, 0, 0], tint: [1, 1, 1] },
             machine: 0xffb347, stars: 1, cloudLum: 0.1, birds: false,
             surroundY: -0.42, surround: 'floor', floor: '#04030c',
-            water: 0xffb347, side: '#150d30'
+            water: 0xffb347, side: '#08081a'
         },
         clouds: {
             sky: [0x2f7fe0, 0xffd9c2], fog: 0xffe6d6,

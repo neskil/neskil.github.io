@@ -495,6 +495,14 @@ function frame(dt, cam, place, seat, w, h) {
     clock += dt; W.time += dt;
     try { if (W.world.update) W.world.update(dt, W.time, c, uNow); }
     catch (e) { if (!W._err) { W._err = 1; console.warn('backdrop update', e); } }
+    /* What the world's own flight carries along with its camera (a ship
+       flown from behind, a boat ridden) is, from the tee, a hull across the
+       bottom of the picture: `place.hide` names it, and after the world has
+       posed it for the frame it is put away. */
+    if (place.hide) {
+        if (!place._hid || place._hid.W !== W) place._hid = { W, list: place.hide.map((n) => W.scene.getObjectByName(n)).filter(Boolean) };
+        for (const o of place._hid.list) o.visible = false;
+    }
     try {
         engine.renderer.setViewport(0, h, w, h);
         engine.post.render(W.scene, c, W.post, clock, 1);
