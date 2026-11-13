@@ -87,7 +87,7 @@
        `u` is how far along that world's own flight path the tee stands,
        `scale` its units to one of ours, `lift` and `turn` a nudge up and
        round (backdrop.mjs → anchorFor). */
-    var PLACES = {"breakfast": ["breakfast-table", {"u": 0.2, "at": {"x": -82.95, "z": -58.9, "y": 45.3, "yaw": 3.1416, "scale": 1.4}}], "turtle": ["world-turtle", {"reach": 4, "u": 0.02, "at": {"x": -95.58, "z": 148.41, "y": 150, "yaw": 0.6981, "scale": 2.5}}], "gasgiant": ["storm-bands", {"lift": 95}], "abyss": ["kelp-cathedral"], "carnival": ["carnival-on-the-frozen-river"], "mushroom": ["spore-rain", {"u": 0.9}], "orrery": ["long-library"], "stairs": ["stairway-everywhere"], "attic": ["the-toppling", {"event": {"from": -0.035, "to": 0.09, "secs": 6, "gate": [14.9, 2.4, 1.7], "say": "The dominoes are going over."}}], "threebody": ["airbrush-black-hole"], "clouds": ["cloud-armada"], "forge": ["obsidian-forge"], "table": ["breakfast-table", {"press": false, "u": 0.3, "at": {"x": -90, "z": -47, "y": 45, "yaw": 3.1416, "scale": 3.5}}], "nave": ["kelp-cathedral", {"u": 0.3, "at": {"x": 0, "z": 50, "y": -41, "yaw": 3.1416, "scale": 3}}], "rapids": ["paper-boat-rapids", {"u": 0.8}], "railway": ["attic-railway", {"u": 0.6}], "custard": ["islands-in-custard", {"u": 0.5}], "pyramid": ["pyramid-of-khufu", {"u": 0.1}], "drydock": ["moon-in-dry-dock", {"u": 0.1}], "ironriver": ["obsidian-forge", {"u": 0.5, "at": {"x": -45, "z": 2.5, "y": 0, "yaw": 0, "scale": 2.5}}]};
+    var PLACES = {"breakfast": ["breakfast-table", {"u": 0.2, "at": {"x": -82.95, "z": -58.9, "y": 45.3, "yaw": 3.1416, "scale": 1.4}}], "turtle": ["world-turtle", {"reach": 4, "u": 0.02, "at": {"x": -95.58, "z": 148.41, "y": 150, "yaw": 0.6981, "scale": 2.5}}], "gasgiant": ["storm-bands", {"lift": 95}], "abyss": ["kelp-cathedral"], "carnival": ["carnival-on-the-frozen-river"], "mushroom": ["spore-rain", {"u": 0.9}], "orrery": ["long-library"], "stairs": ["stairway-everywhere", {"u": 0.55}], "attic": ["the-toppling", {"event": {"from": -0.035, "to": 0.09, "secs": 6, "gate": [14.9, 2.4, 1.7], "say": "The dominoes are going over."}}], "threebody": ["airbrush-black-hole"], "clouds": ["cloud-armada"], "forge": ["obsidian-forge"], "table": ["breakfast-table", {"press": false, "u": 0.3, "at": {"x": -90, "z": -47, "y": 45, "yaw": 3.1416, "scale": 3.5}}], "nave": ["kelp-cathedral", {"u": 0.3, "at": {"x": 0, "z": 50, "y": -41, "yaw": 3.1416, "scale": 3}}], "rapids": ["paper-boat-rapids", {"u": 0.8}], "railway": ["attic-railway", {"u": 0.6}], "custard": ["islands-in-custard", {"u": 0.5}], "pyramid": ["pyramid-of-khufu", {"u": 0.1}], "drydock": ["moon-in-dry-dock", {"u": 0.1}], "ironriver": ["obsidian-forge", {"u": 0.5, "at": {"x": -45, "z": 2.5, "y": 0, "yaw": 0, "scale": 2.5}}]};
     function add(w) {
         w.hole.scene = w.scene || w.id; w.hole.worldId = w.id;
         var q = PLACES[w.id];
@@ -887,13 +887,16 @@
             surroundY: -0.42, surround: 'floor', floor: '#2a1c16',
             water: 0x2b6f8f, side: '#8a6a2a'
         },
+        /* The world is pale rose stone under a periwinkle evening, not the
+           white Escher print the first theme guessed at: the landings are
+           its stone a shade into shadow, so the white ball still reads. */
         stairs: {
-            sky: [0xd9d4c6, 0xf4f1e8], fog: 0xf0ede3,
-            sun: 0xffffff, sunPos: [-8, 12, -6], ambient: 0xcfcabb, ambientI: 0.75,
-            grass: ['#8d8a80', '#817e74'], rail: 0x2b2a27, machine: 0x1c1b19,
+            sky: [0x6f78d8, 0xd8c8e8], fog: 0xb8b0e0,
+            sun: 0xffe6c8, sunPos: [-8, 12, -6], ambient: 0xaaa6e6, ambientI: 0.8,
+            grass: ['#c4a196', '#b8958b'], rail: 0xf0e2d4, machine: 0x3a2f4a,
             cloudLum: 1, birds: false, motes: false,
-            surroundY: -40, surround: 'floor', floor: '#e6e2d6',
-            water: 0x9a978c, side: '#bdb9ac'
+            surroundY: -40, surround: 'floor', floor: '#d8c8d8',
+            water: 0x9a978c, side: '#9a88a8'
         },
         attic: {
             sky: [0x3a2a1e, 0xc98f58], fog: 0xb07d4c,
