@@ -87,7 +87,7 @@
        `u` is how far along that world's own flight path the tee stands,
        `scale` its units to one of ours, `lift` and `turn` a nudge up and
        round (backdrop.mjs → anchorFor). */
-    var PLACES = {"breakfast": ["breakfast-table"], "turtle": ["world-turtle", {"u": 0.02, "at": {"x": -95.58, "z": 148.41, "y": 150, "yaw": 0.6981, "scale": 2.5}}], "gasgiant": ["storm-bands"], "abyss": ["kelp-cathedral"], "carnival": ["carnival-on-the-frozen-river"], "mushroom": ["spore-rain"], "orrery": ["long-library"], "stairs": ["stairway-everywhere"], "attic": ["the-toppling", {"event": {"from": -0.035, "to": 0.09, "secs": 6, "gate": [14.9, 2.4, 1.7], "say": "The dominoes are going over."}}], "threebody": ["airbrush-black-hole"], "clouds": ["cloud-armada"], "forge": ["obsidian-forge"], "table": ["breakfast-table", {"u": 0.3, "at": {"x": -90, "z": -47, "y": 45, "yaw": 3.1416, "scale": 3.5}}], "nave": ["kelp-cathedral", {"u": 0.3, "at": {"x": 0, "z": 50, "y": -41, "yaw": 3.1416, "scale": 3}}], "ironriver": ["obsidian-forge", {"u": 0.5, "at": {"x": -45, "z": 2.5, "y": 0, "yaw": 0, "scale": 2.5}}]};
+    var PLACES = {"breakfast": ["breakfast-table", {"u": 0.2, "at": {"x": -82.95, "z": -58.9, "y": 45.3, "yaw": 3.1416, "scale": 1.4}}], "turtle": ["world-turtle", {"reach": 4, "u": 0.02, "at": {"x": -95.58, "z": 148.41, "y": 150, "yaw": 0.6981, "scale": 2.5}}], "gasgiant": ["storm-bands", {"lift": 95}], "abyss": ["kelp-cathedral"], "carnival": ["carnival-on-the-frozen-river"], "mushroom": ["spore-rain"], "orrery": ["long-library"], "stairs": ["stairway-everywhere"], "attic": ["the-toppling", {"event": {"from": -0.035, "to": 0.09, "secs": 6, "gate": [14.9, 2.4, 1.7], "say": "The dominoes are going over."}}], "threebody": ["airbrush-black-hole"], "clouds": ["cloud-armada"], "forge": ["obsidian-forge"], "table": ["breakfast-table", {"press": false, "u": 0.3, "at": {"x": -90, "z": -47, "y": 45, "yaw": 3.1416, "scale": 3.5}}], "nave": ["kelp-cathedral", {"u": 0.3, "at": {"x": 0, "z": 50, "y": -41, "yaw": 3.1416, "scale": 3}}], "ironriver": ["obsidian-forge", {"u": 0.5, "at": {"x": -45, "z": 2.5, "y": 0, "yaw": 0, "scale": 2.5}}]};
     function add(w) {
         w.hole.scene = w.scene || w.id; w.hole.worldId = w.id;
         var q = PLACES[w.id];
@@ -130,9 +130,18 @@
        itself — a headland on the south coast of the shell-world, sampled
        through that world's own geometry and baked (tour-ground.js, the two
        tools beside it). The tee is on the crown of the headland, thirteen
-       units over the sea. The fairway falls away down its spine, through a
-       dip, to a ridge; from the ridge the green is across a saddle on the
-       next plateau, with the sea left of everything and long of the green.
+       units over the sea. The fairway falls away down its spine and the
+       green is round to the right on the next plateau, with the sea left of
+       everything and long of the green.
+
+       The spine was a dip and a ridge as the world has them until v1.158.0,
+       and the dip was where every ball finished, in a fold nothing in the
+       bag got out of cleanly (the owner: "hard with all the hills, and weird
+       geometry between the hills that you get stuck on"). The line of play
+       is groomed now (tools/groom-ground.mjs): the folds are rolled out of
+       it and the dip is filled to a long easy fall, and because the world's
+       ground is pressed to the bake (backdrop.mjs → sculpt, `reach`) it is
+       rolled out of the picture as well. Off the line it is the turtle's.
 
        So the ball rolls on the world's own hills, and with the world on
        screen its ground is the world's ground: the `ghost` pad and sea are
@@ -151,12 +160,12 @@
             sea.ghost = true;
             return world({
                 name: 'Across the Shell', par: 4, long: true,
-                blurb: 'Off the crown of the headland, down its spine and through the dip to the ridge. The green is across the saddle to the right — and the sea is left of all of it.',
+                blurb: 'Off the crown of the headland and down its spine, which has been mown and rolled. The green is round to the right at the far end — and the sea is left of all of it.',
                 pads: [
                     ground,
-                    on(pad(6, 1, 8, 22, 0, 'fairway'), true),
+                    on(pad(6, 1, 8, 30, 0, 'fairway'), true),
                     on(pad(5, 31, 10, 12, 0, 'fairway'), true),
-                    on(pad(22, 47, 6, 9, 0, 'fairway'), true),
+                    on(pad(15, 43, 13.5, 9, 0, 'fairway'), true),
                     on(pad(28.5, 50, 9, 9, 0, 'green'), true)
                 ],
                 water: [sea],
@@ -192,39 +201,59 @@
         })
     });
 
-    /* The sea floor, and the water is moving. Two currents and a slack
-       between them: one runs north up the west side, one back south down the
-       east, and the green is the bank in the middle with weed along both its
-       edges and a gap in each. Ride the first and step off through its gap;
-       miss it and the top current hands you to the second, which has its gap
-       at the far end and a sand pocket past that. The pitch straight over
-       the weed is there for anyone who wants it. */
+    /* The sea floor, and the water is moving. Between the tee and the flag
+       are two currents running opposite ways across the line, with a bank of
+       slack water between them: the first sets east, the second sets back
+       west. A current does not stop a ball, it carries it — sideways, for as
+       long as the ball is in it — so a putt across one is aimed upstream of
+       where it is meant to land, and the slower it is struck the further
+       upstream that has to be.
+
+       The safe hole is three putts: over the first current to the slack, over
+       the second to the green, and in. The bold one is a single putt through
+       both, which bends east and then back west round the clump of weed
+       standing on the slack exactly where the straight line goes. A ball that
+       dies in a current is taken to the pocket of sand at its end.
+
+       It was a race round a walled bank until v1.158.0, with a gap in the
+       weed to step off through. The sand the race was made of took the
+       ball's own pace in a yard, so nothing could be steered off it (the
+       owner: "impossible with the mallet"), and the chipper went straight
+       over the weed ("too easy with pitch"). So the currents are slick now,
+       the bag is the two putters, and there is nothing to pitch over. */
     add({
         id: 'abyss', title: 'Slack Water', world: 'Kelp Cathedral', kind: 'ocean', tier: 2,
-        caption: 'Two currents on the sea floor and a bank of still water between them. Step off at the gap.',
+        caption: 'Two currents across the line, one each way, and a bank of still water between them.',
         theme: 'abyss',
         hole: world({
-            name: 'Slack Water', grounded: true, par: 3, bag: ['putter', 'mallet', 'chipper'], gravity: 0.7,
-            blurb: 'The current will take you round. Get off through the gap in the weed — or pitch straight over it.',
+            name: 'Slack Water', grounded: true, par: 3, bag: ROLL, gravity: 0.7,
+            blurb: 'A current carries the ball sideways for as long as it is in it. Aim upstream and stop on the slack — or go through both in one, round the weed.',
             pads: [
-                pad(0, 0, 4.5, 5, 0, 'green'),
-                belt(0.5, 5, 3, 9, 0, 3.2, { kind: 'sand' }),
-                belt(0.5, 14, 12, 3, 3.2, 0, { kind: 'sand' }),
-                belt(9.5, 5, 3, 9, 0, -3.2, { kind: 'sand' }),
-                pad(3.5, 5.6, 6, 8.4, 0, 'green'),
-                pad(8.5, 1, 5, 4, 0, 'sand')
+                pad(4, 0, 6, 4, 0, 'green'),
+                belt(0, 4, 14, 3.4, 2.6, 0, { kind: 'wood' }),
+                pad(14, 4, 3, 3.4, 0, 'sand'),
+                pad(1.5, 7.4, 11, 2.6, 0, 'green'),
+                belt(0, 10, 14, 3.4, -2.6, 0, { kind: 'wood' }),
+                pad(-3, 10, 3, 3.4, 0, 'sand'),
+                pad(2.5, 13.4, 9, 5, 0, 'green')
             ],
             extra: [
-                // weed: the west edge of the bank, open from z 10.6 to 12.4
-                kerb(3.5, 5.6, 3.5, 10.6, 0, 0.7), kerb(3.5, 12.4, 3.5, 14, 0, 0.7),
-                // …and the east edge, open from 5.6 to 7.4
-                kerb(9.5, 7.4, 9.5, 14, 0, 0.7),
-                // the outside of the race
-                kerb(0.5, 5, 0.5, 17), kerb(0.5, 17, 12.5, 17), kerb(12.5, 5, 12.5, 17),
-                kerb(8.5, 1, 13.5, 1), kerb(13.5, 1, 13.5, 5), kerb(8.5, 1, 8.5, 5),
-                kerb(3.5, 5.6, 8.5, 5.6, 0, 0.7)
+                // the weed on the slack, on the straight line
+                bumper(7, 8.7, 0.55),
+                // the tee bank
+                kerb(4, 0, 10, 0), kerb(4, 0, 4, 4), kerb(10, 0, 10, 4),
+                // the first current's near side, and its pocket
+                kerb(0, 4, 4, 4), kerb(10, 4, 17, 4), kerb(0, 4, 0, 7.4), kerb(17, 4, 17, 7.4), kerb(12.5, 7.4, 17, 7.4),
+                kerb(0, 7.4, 1.5, 7.4),
+                // the ends of the slack
+                kerb(1.5, 7.4, 1.5, 10), kerb(12.5, 7.4, 12.5, 10),
+                // the second current's far side, and its pocket
+                kerb(-3, 10, 1.5, 10), kerb(-3, 10, -3, 13.4), kerb(-3, 13.4, 2.5, 13.4), kerb(14, 10, 14, 13.4), kerb(12.5, 10, 14, 10),
+                kerb(11.5, 13.4, 14, 13.4),
+                // the green
+                kerb(2.5, 13.4, 2.5, 18.4), kerb(11.5, 13.4, 11.5, 18.4), kerb(2.5, 18.4, 11.5, 18.4)
             ],
-            tee: { x: 2, z: 2.2 }, cup: { x: 6.5, z: 9.4 }
+            tee: { x: 7, z: 1.5 }, cup: { x: 7, z: 16.2 }
         })
     });
 
@@ -574,9 +603,9 @@
                 pads: [
                     cloth,
                     on(pad(-0.8, -0.6, 1.6, 1.4, 0, 'fairway'), true),
-                    on(pad(-0.1, 24.5, 2.5, 2.5, 0, 'green'), true)
+                    on(pad(-1.7, 24.4, 2.4, 2.4, 0, 'green'), true)
                 ],
-                tee: { x: 0, z: 0 }, cup: { x: 1.14, z: 25.7 }
+                tee: { x: 0, z: 0 }, cup: { x: -0.5, z: 25.6 }
             });
         })()
     });
