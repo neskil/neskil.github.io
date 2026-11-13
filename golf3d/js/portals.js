@@ -87,7 +87,7 @@
        `u` is how far along that world's own flight path the tee stands,
        `scale` its units to one of ours, `lift` and `turn` a nudge up and
        round (backdrop.mjs → anchorFor). */
-    var PLACES = {"breakfast": ["breakfast-table", {"u": 0.2, "at": {"x": -82.95, "z": -58.9, "y": 45.3, "yaw": 3.1416, "scale": 1.4}}], "turtle": ["world-turtle", {"reach": 4, "u": 0.02, "at": {"x": -95.58, "z": 148.41, "y": 150, "yaw": 0.6981, "scale": 2.5}}], "gasgiant": ["storm-bands", {"lift": 95}], "abyss": ["kelp-cathedral"], "carnival": ["carnival-on-the-frozen-river"], "mushroom": ["spore-rain", {"u": 0.9}], "orrery": ["long-library"], "stairs": ["stairway-everywhere"], "attic": ["the-toppling", {"event": {"from": -0.035, "to": 0.09, "secs": 6, "gate": [14.9, 2.4, 1.7], "say": "The dominoes are going over."}}], "threebody": ["airbrush-black-hole"], "clouds": ["cloud-armada"], "forge": ["obsidian-forge"], "table": ["breakfast-table", {"press": false, "u": 0.3, "at": {"x": -90, "z": -47, "y": 45, "yaw": 3.1416, "scale": 3.5}}], "nave": ["kelp-cathedral", {"u": 0.3, "at": {"x": 0, "z": 50, "y": -41, "yaw": 3.1416, "scale": 3}}], "rapids": ["paper-boat-rapids"], "railway": ["attic-railway"], "custard": ["islands-in-custard"], "pyramid": ["pyramid-of-khufu"], "drydock": ["moon-in-dry-dock"], "ironriver": ["obsidian-forge", {"u": 0.5, "at": {"x": -45, "z": 2.5, "y": 0, "yaw": 0, "scale": 2.5}}]};
+    var PLACES = {"breakfast": ["breakfast-table", {"u": 0.2, "at": {"x": -82.95, "z": -58.9, "y": 45.3, "yaw": 3.1416, "scale": 1.4}}], "turtle": ["world-turtle", {"reach": 4, "u": 0.02, "at": {"x": -95.58, "z": 148.41, "y": 150, "yaw": 0.6981, "scale": 2.5}}], "gasgiant": ["storm-bands", {"lift": 95}], "abyss": ["kelp-cathedral"], "carnival": ["carnival-on-the-frozen-river"], "mushroom": ["spore-rain", {"u": 0.9}], "orrery": ["long-library"], "stairs": ["stairway-everywhere"], "attic": ["the-toppling", {"event": {"from": -0.035, "to": 0.09, "secs": 6, "gate": [14.9, 2.4, 1.7], "say": "The dominoes are going over."}}], "threebody": ["airbrush-black-hole"], "clouds": ["cloud-armada"], "forge": ["obsidian-forge"], "table": ["breakfast-table", {"press": false, "u": 0.3, "at": {"x": -90, "z": -47, "y": 45, "yaw": 3.1416, "scale": 3.5}}], "nave": ["kelp-cathedral", {"u": 0.3, "at": {"x": 0, "z": 50, "y": -41, "yaw": 3.1416, "scale": 3}}], "rapids": ["paper-boat-rapids", {"u": 0.8}], "railway": ["attic-railway", {"u": 0.6}], "custard": ["islands-in-custard", {"u": 0.5}], "pyramid": ["pyramid-of-khufu"], "drydock": ["moon-in-dry-dock", {"u": 0.1}], "ironriver": ["obsidian-forge", {"u": 0.5, "at": {"x": -45, "z": 2.5, "y": 0, "yaw": 0, "scale": 2.5}}]};
     function add(w) {
         w.hole.scene = w.scene || w.id; w.hole.worldId = w.id;
         var q = PLACES[w.id];
@@ -681,26 +681,25 @@
     });
 
     /* Ile flottante: meringue islands in a bowl of custard. An island is a
-       green and plays like one. The custard is not out and not a hazard in
-       the rules — it is just very slow, slower than sand has any right to be
-       — so the hole is a question of how much of it to cross. Island to
-       island the long way is three easy putts over three short gaps. Straight
-       at the flag is one long one through the middle of the bowl, which only
-       gets there if it crosses the one small island in the middle on the
-       way: a yard of fast ground between two stretches of slow. */
+       green and plays like one; the custard takes whatever lands in it and
+       keeps it, like a bunker, and it is a long splash out. So the hole is
+       pitching: island to island the safe way, three short carries, each on
+       to a target a few strides across — or one long pitch from the tee
+       island to the flag's, over all of it.
+       (It was a putting hole on slow custard in the first draft; no surface
+       here is slow and still playable, so it became this.) */
     add({
         id: 'custard', title: 'Île Flottante', world: 'The Floating Islands', kind: 'bizarre', tier: 2,
-        caption: 'Meringue islands in custard. The islands are greens; the custard is very slow.',
+        caption: 'Meringue islands in custard. Pitch from one to the next, or all the way in one.',
         theme: 'custard',
         hole: (function () {
             function isle(cx, cz, r) { var p = disc(cx, cz, r, 0, 'green'); p.inlay = true; return p; }
             return world({
-                name: 'Île Flottante', par: 3, bag: ROLL,
-                blurb: 'The islands are fast and the custard is slow. Hop the short gaps the long way round — or go straight through the bowl, over the little island in the middle.',
+                name: 'Île Flottante', par: 3, bag: LOFT,
+                blurb: 'The islands are greens and the custard keeps whatever lands in it. Hop island to island — or pitch the whole bowl in one.',
                 pads: [
-                    pad(0, 0, 14, 19, 0, 'rough'),
-                    isle(3, 3, 2.6), isle(10, 6.5, 2.5), isle(4, 12, 2.6), isle(10.5, 15.5, 2.4),
-                    isle(6.9, 9.3, 1.2)
+                    pad(0, 0, 14, 19, 0, 'sand'),
+                    isle(3, 3, 2.6), isle(10, 6.5, 2.3), isle(4, 11.5, 2.3), isle(10.5, 15.5, 2.6)
                 ],
                 extra: [
                     kerb(0, 0, 14, 0), kerb(0, 0, 0, 19), kerb(14, 0, 14, 19), kerb(0, 19, 14, 19)

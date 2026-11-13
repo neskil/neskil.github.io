@@ -138,5 +138,9 @@ not have. Designs first; what was actually built is in `js/portals.js`.
   tools but not looked at live, and each still wants its `u` pinned after
   a look (`world-shot.mjs`, or the scratch recipe: load `?world=<id>&live=1`,
   `Object.assign(G3.render.state.place, {u: …}); G3.backdrop.reanchor()`).
-  The rapids' and custard's ace shares are still 0 — the bold lines exist
-  (a tee-sweep shows them within a yard) but want a pin moved to hold them.
+  All five were loaded live once (SwiftShader) and build and look right;
+  `u` is pinned on four, `pyramid` is not yet. Île Flottante became a
+  chipping hole (custard is sand) because no surface is slow and still
+  playable — a real `custard` surface would need a FRICTION entry and a
+  texture. The rapids', custard's and pyramid's ace shares are 0: the bold
+  lines are within a yard in a tee-sweep but want a pin moved to hold them.
