@@ -87,7 +87,7 @@
        `u` is how far along that world's own flight path the tee stands,
        `scale` its units to one of ours, `lift` and `turn` a nudge up and
        round (backdrop.mjs → anchorFor). */
-    var PLACES = {"breakfast": ["breakfast-table", {"u": 0.2, "at": {"x": -82.95, "z": -58.9, "y": 45.3, "yaw": 3.1416, "scale": 1.4}}], "turtle": ["world-turtle", {"reach": 4, "u": 0.02, "at": {"x": -95.58, "z": 148.41, "y": 150, "yaw": 0.6981, "scale": 2.5}}], "gasgiant": ["storm-bands", {"lift": 95}], "abyss": ["kelp-cathedral"], "carnival": ["carnival-on-the-frozen-river"], "mushroom": ["spore-rain"], "orrery": ["long-library"], "stairs": ["stairway-everywhere"], "attic": ["the-toppling", {"event": {"from": -0.035, "to": 0.09, "secs": 6, "gate": [14.9, 2.4, 1.7], "say": "The dominoes are going over."}}], "threebody": ["airbrush-black-hole"], "clouds": ["cloud-armada"], "forge": ["obsidian-forge"], "table": ["breakfast-table", {"press": false, "u": 0.3, "at": {"x": -90, "z": -47, "y": 45, "yaw": 3.1416, "scale": 3.5}}], "nave": ["kelp-cathedral", {"u": 0.3, "at": {"x": 0, "z": 50, "y": -41, "yaw": 3.1416, "scale": 3}}], "ironriver": ["obsidian-forge", {"u": 0.5, "at": {"x": -45, "z": 2.5, "y": 0, "yaw": 0, "scale": 2.5}}]};
+    var PLACES = {"breakfast": ["breakfast-table", {"u": 0.2, "at": {"x": -82.95, "z": -58.9, "y": 45.3, "yaw": 3.1416, "scale": 1.4}}], "turtle": ["world-turtle", {"reach": 4, "u": 0.02, "at": {"x": -95.58, "z": 148.41, "y": 150, "yaw": 0.6981, "scale": 2.5}}], "gasgiant": ["storm-bands", {"lift": 95}], "abyss": ["kelp-cathedral"], "carnival": ["carnival-on-the-frozen-river"], "mushroom": ["spore-rain", {"u": 0.9}], "orrery": ["long-library"], "stairs": ["stairway-everywhere"], "attic": ["the-toppling", {"event": {"from": -0.035, "to": 0.09, "secs": 6, "gate": [14.9, 2.4, 1.7], "say": "The dominoes are going over."}}], "threebody": ["airbrush-black-hole"], "clouds": ["cloud-armada"], "forge": ["obsidian-forge"], "table": ["breakfast-table", {"press": false, "u": 0.3, "at": {"x": -90, "z": -47, "y": 45, "yaw": 3.1416, "scale": 3.5}}], "nave": ["kelp-cathedral", {"u": 0.3, "at": {"x": 0, "z": 50, "y": -41, "yaw": 3.1416, "scale": 3}}], "rapids": ["paper-boat-rapids"], "railway": ["attic-railway"], "custard": ["islands-in-custard"], "pyramid": ["pyramid-of-khufu"], "drydock": ["moon-in-dry-dock"], "ironriver": ["obsidian-forge", {"u": 0.5, "at": {"x": -45, "z": 2.5, "y": 0, "yaw": 0, "scale": 2.5}}]};
     function add(w) {
         w.hole.scene = w.scene || w.id; w.hole.worldId = w.id;
         var q = PLACES[w.id];
@@ -610,6 +610,169 @@
         })()
     });
 
+    /* ── five more worlds (v1.159.0) ──────────────────────────────────────
+       Five of Portals' other worlds, each a small place with one strong
+       thing in it — the kind a mini hole stands in best — and each hole one
+       mechanic the tour did not have. Written in one pass and measured
+       (tools/portal-check.mjs, tools/tee-sweep.mjs); none has been played on
+       a phone yet. HANDOFF.md has the designs and what is left to check. */
+
+    /* A river that runs with the shot, and faster than a putt by the end of
+       it: three reaches, each quicker than the last, and then the fall. The
+       green is a still pool off the last reach. Nothing stops in the river,
+       so the putt is not at the flag — it is across the stream at the bank
+       above the pool, at a pace that has it there as the water brings it
+       down. There is an eddy of sand half way for anyone who would rather
+       take two, and a bar of shingle at the bottom where everything that
+       missed the pool fetches up: from there it is a putt back up against
+       the stream. */
+    add({
+        id: 'rapids', title: 'Shoot the Rapids', world: 'Paper Boat Rapids', kind: 'wild', tier: 2,
+        caption: 'A river that runs with the shot, a still pool off its last reach, and a bar of shingle below.',
+        theme: 'rapids',
+        hole: world({
+            name: 'Shoot the Rapids', grounded: true, par: 3, bag: ROLL,
+            blurb: 'The river takes the ball and nothing stops in it. Putt across the stream so the water brings you down to the pool — miss and it is the shingle at the bottom.',
+            pads: [
+                pad(0, 0, 5, 3, 0, 'green'),
+                belt(0, 3, 5, 5, 0, 1.2, { kind: 'wood' }),
+                belt(0, 8, 5, 5, 0, 1.9, { kind: 'wood' }),
+                belt(0, 13, 5, 7, 0, 2.6, { kind: 'wood' }),
+                pad(5, 14.5, 5, 5.5, 0, 'green'),
+                pad(5, 8.5, 2.6, 3, 0, 'sand'),
+                pad(0, 20, 5, 2.6, 0, 'sand')
+            ],
+            extra: [
+                kerb(0, 0, 5, 0), kerb(0, 0, 0, 22.6), kerb(0, 22.6, 5, 22.6), kerb(5, 20, 5, 22.6),
+                kerb(5, 0, 5, 8.5), kerb(5, 11.5, 5, 14.5),
+                kerb(5, 8.5, 7.6, 8.5), kerb(7.6, 8.5, 7.6, 11.5), kerb(5, 11.5, 7.6, 11.5),
+                kerb(5, 14.5, 10, 14.5), kerb(10, 14.5, 10, 20), kerb(5, 20, 10, 20),
+                bumper(2.6, 10.5, 0.7)
+            ],
+            tee: { x: 1.2, z: 1.5 }, cup: { x: 8, z: 17.4 }
+        })
+    });
+
+    /* A model railway in an attic, and the hole goes straight across both
+       its tracks. A train runs on each, opposite ways and at different
+       speeds, and each is as long as the lane is wide: the crossing is open
+       for a little over a third of the time. One train is a matter of
+       waiting. Both on one putt is the two gaps coming round together, and
+       a weight that is through the second before it shuts. */
+    add({
+        id: 'railway', title: 'The Level Crossing', world: 'The Attic Line', kind: 'home', tier: 1,
+        caption: 'A straight putt over two tracks of a model railway, with a train on each.',
+        theme: 'railway',
+        hole: world({
+            name: 'The Level Crossing', grounded: true, par: 3, bag: ROLL,
+            blurb: 'Two tracks, two trains, opposite ways. Wait for one and stop between them — or go when both gaps come round together.',
+            pads: [pad(0, 0, 5, 18, 0, 'green')],
+            extra: [
+                kerb(0, 0, 5, 0), kerb(0, 18, 5, 18),
+                kerb(0, 0, 0, 5.2), kerb(5, 0, 5, 5.2),
+                kerb(0, 6.8, 0, 10.2), kerb(5, 6.8, 5, 10.2),
+                kerb(0, 11.8, 0, 18), kerb(5, 11.8, 5, 18),
+                slider(0.5, 5.5, 4, 1.0, { amp: 5.5, speed: 1.1, h: 0.9 }),
+                slider(0.5, 10.5, 4, 1.0, { amp: 5.5, speed: 0.8, phase: 2.1, h: 0.9 }),
+                post(1.4, 14.2), post(3.6, 14.2)
+            ],
+            tee: { x: 2.5, z: 1.5 }, cup: { x: 2.5, z: 15.8 }
+        })
+    });
+
+    /* Ile flottante: meringue islands in a bowl of custard. An island is a
+       green and plays like one. The custard is not out and not a hazard in
+       the rules — it is just very slow, slower than sand has any right to be
+       — so the hole is a question of how much of it to cross. Island to
+       island the long way is three easy putts over three short gaps. Straight
+       at the flag is one long one through the middle of the bowl, which only
+       gets there if it crosses the one small island in the middle on the
+       way: a yard of fast ground between two stretches of slow. */
+    add({
+        id: 'custard', title: 'Île Flottante', world: 'The Floating Islands', kind: 'bizarre', tier: 2,
+        caption: 'Meringue islands in custard. The islands are greens; the custard is very slow.',
+        theme: 'custard',
+        hole: (function () {
+            function isle(cx, cz, r) { var p = disc(cx, cz, r, 0, 'green'); p.inlay = true; return p; }
+            return world({
+                name: 'Île Flottante', par: 3, bag: ROLL,
+                blurb: 'The islands are fast and the custard is slow. Hop the short gaps the long way round — or go straight through the bowl, over the little island in the middle.',
+                pads: [
+                    pad(0, 0, 14, 19, 0, 'rough'),
+                    isle(3, 3, 2.6), isle(10, 6.5, 2.5), isle(4, 12, 2.6), isle(10.5, 15.5, 2.4),
+                    isle(6.9, 9.3, 1.2)
+                ],
+                extra: [
+                    kerb(0, 0, 14, 0), kerb(0, 0, 0, 19), kerb(14, 0, 14, 19), kerb(0, 19, 14, 19)
+                ],
+                tee: { x: 3, z: 2.6 }, cup: { x: 10.5, z: 15.8 }
+            });
+        })()
+    });
+
+    /* One face of a pyramid, as four courses of stone, each a ball-drop
+       higher than the last, with a ramp at alternate ends. Run the ramps and
+       it is a zig-zag: east, west, east, and back along the cap to the flag.
+       Or pitch it a course at a time. Or one wedge from the sand to the cap,
+       which is twelve wide and four deep with a wall behind it. A ball that
+       comes back off a course comes down to the one below, not out. */
+    add({
+        id: 'pyramid', title: 'The Stepped Side', world: 'The Great Pyramid of Giza', kind: 'city', tier: 3,
+        caption: 'Four courses of stone and a ramp at alternate ends. The flag is on the top one.',
+        theme: 'pyramid',
+        hole: world({
+            name: 'The Stepped Side', grounded: true, par: 3, bag: LOFT,
+            blurb: 'Run the ramps and it is a zig-zag to the top. Or pitch a course at a time — or one wedge all the way to the cap.',
+            pads: [
+                pad(0, 0, 12, 3, 0, 'green'), pad(0, 3, 9, 3, 0, 'green'),
+                pad(9, 3, 3, 3, 0, 'wood', 0, 1 / 3),
+                pad(0, 6, 12, 3, 1, 'wood'), pad(3, 9, 9, 3, 1, 'wood'),
+                pad(0, 9, 3, 3, 1, 'wood', 0, 1 / 3),
+                pad(0, 12, 12, 3, 2, 'wood'), pad(0, 15, 9, 3, 2, 'wood'),
+                pad(9, 15, 3, 3, 2, 'wood', 0, 1 / 3),
+                pad(0, 18, 12, 4, 3, 'green')
+            ],
+            extra: [
+                // the risers
+                wall(0, 5.7, 9, 0.3, 1.1, { base: -0.1 }),
+                wall(3, 11.7, 9, 0.3, 1.1, { base: 0.9 }),
+                wall(0, 17.7, 9, 0.3, 1.1, { base: 1.9 }),
+                // the sides
+                kerb(0, 0, 12, 0), kerb(0, 0, 0, 6), kerb(12, 0, 12, 6, 0, 1.6),
+                kerb(0, 6, 0, 12, 1, 1.6), kerb(12, 6, 12, 12, 1),
+                kerb(0, 12, 0, 18, 2), kerb(12, 12, 12, 18, 2, 1.6),
+                kerb(0, 18, 0, 22, 3), kerb(12, 18, 12, 22, 3), kerb(0, 22, 12, 22, 3, 1.2)
+            ],
+            tee: { x: 2, z: 1.5 }, cup: { x: 2.6, z: 20.2 }
+        })
+    });
+
+    /* The moon, in dry dock, and a sixth of a g. From one gantry to another
+       across the dock, with a buoy of a platform half way for the faint of
+       heart. At this weight a wedge hangs for four seconds and a full one
+       leaves the dock altogether: the whole hole is how little to hit it,
+       and the far deck has a wall at the back for the shot that was still a
+       little too much. */
+    add({
+        id: 'drydock', title: 'Dry Dock', world: 'The Moon in Dry Dock', kind: 'alien', tier: 3,
+        caption: 'A sixth of a g, and one pitch across the dock from gantry to gantry.',
+        theme: 'drydock',
+        hole: world({
+            name: 'Dry Dock', par: 3, bag: LOFT, gravity: 0.17,
+            blurb: 'A sixth of a g: everything goes six times as far as your hands expect. Across the dock in one — the back wall is there to be used.',
+            pads: [
+                pad(0, 0, 5, 5, 0, 'wood'),
+                disc(2.5, 13, 2.2, 0, 'wood'),
+                pad(-1, 21, 7, 7, 0, 'green')
+            ],
+            extra: [
+                kerb(0, 0, 5, 0), kerb(0, 0, 0, 5), kerb(5, 0, 5, 5),
+                kerb(-1, 28, 6, 28, 0, 1.8), kerb(-1, 21, -1, 28), kerb(6, 21, 6, 28)
+            ],
+            tee: { x: 2.5, z: 2 }, cup: { x: 2.5, z: 25.5 }
+        })
+    });
+
     /* ── the shelves ────────────────────────────────────────────────────── */
 
     var KINDS = {
@@ -742,6 +905,44 @@
         }
     };
     // The same breakfast, for the hole on the cloth itself: gingham, not felt.
+    // The five worlds of v1.159.0.
+    THEMES.rapids = {
+        sky: [0x7fb6d8, 0xe9f4e2], fog: 0xd8ecd8,
+        sun: 0xfff6dc, sunPos: [8, 12, -5], ambient: 0xa8d0b8, ambientI: 0.75,
+        grass: ['#4f9e58', '#458f4e'], rail: 0xf3ead2,
+        surroundY: -6, surround: 'floor', floor: '#3f7f9a',
+        water: 0x4fa8c8, side: '#c9b98a', birds: false
+    };
+    THEMES.railway = {
+        sky: [0x2e2218, 0xb98a58], fog: 0xa07448,
+        sun: 0xffe0b0, sunPos: [-8, 10, 6], ambient: 0xb08a60, ambientI: 0.75,
+        grass: ['#4f8a4a', '#467c42'], rail: 0x8a2f24, machine: 0xd0342c,
+        cloudLum: 0.3, birds: false, motes: true,
+        surroundY: -0.42, surround: 'floor', floor: '#6a4a2e',
+        water: 0x2b6f8f, side: '#7a5534'
+    };
+    THEMES.custard = {
+        sky: [0xf6dc8a, 0xfff6d8], fog: 0xfff0c0,
+        sun: 0xfff4d0, sunPos: [6, 14, -4], ambient: 0xf8e2a8, ambientI: 0.8,
+        grass: ['#f4efe6', '#e9e2d6'], rail: 0xb8742a,
+        surroundY: -5, surround: 'floor', floor: '#e8c860',
+        water: 0xf0d060, side: '#e2c070', sand: '#f2d46a', birds: false
+    };
+    THEMES.pyramid = {
+        sky: [0x3f8fd8, 0xf6e2b8], fog: 0xf0dcb0,
+        sun: 0xfff2cc, sunPos: [9, 14, -8], ambient: 0xe8cfa0, ambientI: 0.7,
+        grass: ['#c9a25e', '#bd9654'], rail: 0xe6cf9a,
+        surroundY: -0.42, surround: 'floor', floor: '#d9bd84',
+        water: 0x3f8fb8, side: '#c4a468', birds: false
+    };
+    THEMES.drydock = {
+        sky: [0x04060c, 0x1c2430], fog: 0x141a24,
+        sun: 0xe8f0ff, sunPos: [-6, 12, 8], ambient: 0x7a8aa8, ambientI: 0.7,
+        grass: ['#8f98a4', '#838c98'], rail: 0xf0b030, machine: 0xf0b030,
+        stars: 0.5, cloudLum: 0.1, birds: false,
+        surroundY: -60, surround: 'floor', floor: '#141a24',
+        water: 0x2a3a52, side: '#4a5260'
+    };
     THEMES.table = {};
     Object.keys(THEMES.breakfast).forEach(function (k) { THEMES.table[k] = THEMES.breakfast[k]; });
     THEMES.table.grass = ['#8fa9d6', '#829dcc'];

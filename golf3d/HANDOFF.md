@@ -124,3 +124,19 @@ not have. Designs first; what was actually built is in `js/portals.js`.
 | **Île Flottante** (`custard`) | `islands-in-custard` | Meringue islands (fast) in custard (very slow, not out). Island to island round the long way, or straight through the custard with everything you have. |
 | **The Stepped Side** (`pyramid`) | `pyramid-of-khufu` | Four courses of stone, each a ball-drop higher, with a ramp on alternate ends. Run the ramps and it is a zig-zag of three putts; pitch a course at a time; or one wedge to the cap, which is two metres square. |
 | **Dry Dock** (`drydock`) | `moon-in-dry-dock` | A sixth of a g. One pitch across the dock from gantry to gantry that hangs for four seconds, to a deck with a back wall to play off. Everything goes six times as far as the hand expects. |
+
+## After the handoff was written
+
+- **The Fairy Ring** (`mushroom`): "quite broken also" — on his phone the
+  flight search put the hole under a fallen leaf and inside a mushroom's
+  gills. Pinned to `u: 0.9`, a clear patch by a log (scale 0.5). A world
+  with no `u` is searched for a spot, and the search can land differently
+  on another device; **pin `u` on every placed hole** the same way when it
+  is next looked at.
+- **The five new worlds** are in (`rapids`, `railway`, `custard`, `pyramid`,
+  `drydock`), with the Portals files copied unmodified. Measured with the
+  tools but not looked at live, and each still wants its `u` pinned after
+  a look (`world-shot.mjs`, or the scratch recipe: load `?world=<id>&live=1`,
+  `Object.assign(G3.render.state.place, {u: …}); G3.backdrop.reanchor()`).
+  The rapids' and custard's ace shares are still 0 — the bold lines exist
+  (a tee-sweep shows them within a yard) but want a pin moved to hold them.
