@@ -26,6 +26,10 @@ const G3 = window.G3;
 const canvas = document.createElement('canvas');
 const size = { w: 640, h: 360 };
 let engine = null, cur = null, wanted = null, loading = null, failed = {};
+/* The next world, built ahead (prepare, below): kept beside `cur` and never
+   drawn until it is asked for, and `early` while its build may only take a
+   slice of each frame because a hole is still being played in front of it. */
+let spare = null, early = false;
 let clock = 0;
 const ev = { on: false, t: 0 };
 const coarse = !!(window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
@@ -57,6 +61,13 @@ function boot() {
         this.camera.aspect = this.portalCam.aspect = w / h;
     };
     engine._resize();
+    /* How long a build may hold the page between two frames. The engine is
+       made `hold`, which says "as long as it likes" — right for a world
+       built behind the closed portal, where nothing else is on screen. A
+       world built ahead while a hole is still on screen is built a few
+       milliseconds a frame instead, the way Portals builds its next world
+       during a flight. */
+    engine._budget = function () { return early ? 6 : 1e9; };
     return engine;
 }
 
@@ -251,8 +262,12 @@ function seedOf(id) { let h = 2166136261; for (const c of id) { h ^= c.charCodeA
    world nobody is waiting for any more is thrown away as soon as it lands. */
 async function want(id) {
     wanted = id;
+    // Whatever is asked for now is wanted on screen: no more slices.
+    early = false;
+    if (spare && spare.def.id !== id) dropSpare();
     if (!id) return false;
     if (cur && cur.def.id === id) return true;
+    if (spare) return takeSpare();
     if (failed[id]) return false;
     if (loading) { try { await loading; } catch (e) { /* its own caller hears */ } return want2(id); }
     return want2(id);
@@ -260,6 +275,7 @@ async function want(id) {
 async function want2(id) {
     if (wanted !== id) return false;
     if (cur && cur.def.id === id) return true;
+    if (spare && spare.def.id === id) return takeSpare();
     const E = boot();
     const def = { id, name: id, load: () => import('../vendor/portals/src/worlds/' + id + '.js') };
     mark(id);
@@ -274,6 +290,48 @@ async function want2(id) {
     cur = W;
     cur.anchor = null;
     return true;
+}
+
+/* Build the next hole's world while this one is still on screen — from the
+   sink, during the celebration and the dive into the cup, so that the
+   portal has less to hide. Nothing is shown: the world is kept aside, and
+   `want` swaps it in at once when the next hole asks for it. Asking for
+   anything else throws it away. Peak memory is what it always was (a
+   world has always been built while the last one still stood); it is held
+   a little longer. Refused while anything else is building. */
+async function prepare(id) {
+    if (!id || failed[id] || loading || (cur && cur.def.id === id) || (spare && spare.def.id === id)) return false;
+    const E = boot();
+    const def = { id, name: id, load: () => import('../vendor/portals/src/worlds/' + id + '.js') };
+    early = true;
+    mark(id);
+    const job = loading = E._load(def, seedOf(id));
+    let W = null;
+    try { W = await job; } catch (e) { failed[id] = true; console.warn('backdrop: ' + id + ' did not build', e); }
+    if (loading === job) loading = null;
+    early = false;
+    mark(null);
+    if (!W) return false;
+    if (W.portal && W.portal.group) W.portal.group.visible = false;
+    // Still on its way to being wanted (the hole it is for, or this one still
+    // being played), or asked for meanwhile — a `want` waiting on this build
+    // runs after this line and finds it.
+    if (wanted === id || (cur && wanted === cur.def.id)) { spare = W; return true; }
+    try { E._dispose(W); } catch (e) { /* ignore */ }
+    return false;
+}
+function takeSpare() {
+    if (cur) { try { engine._dispose(cur); } catch (e) { /* ignore */ } }
+    cur = spare; spare = null;
+    cur.anchor = null;
+    // Built is not drawn: the first frames are the risky ones as well.
+    mark(cur.def.id);
+    return true;
+}
+function dropSpare() {
+    if (!spare) return;
+    try { engine._dispose(spare); } catch (e) { /* ignore */ }
+    spare = null;
 }
 
 const _p = new THREE.Vector3(), _q = new THREE.Vector3(), _t = new THREE.Vector3();
@@ -450,13 +508,17 @@ function frame(dt, cam, place, seat, w, h) {
 }
 
 G3.backdrop = {
-    canvas, want, frame, info,
+    canvas, want, prepare, frame, info,
     failed(id) { return !!failed[id]; },
     play() { ev.on = true; },
     rewind() { ev.on = false; ev.t = 0; },
     // The next world's files, fetched while this hole is played: nothing is built.
     fetch(id) { if (id && !failed[id]) import('../vendor/portals/src/worlds/' + id + '.js').catch(() => {}); },
     get current() { return cur ? cur.def.id : null; },
+    // The current world has been drawn (not merely built, which a world
+    // swapped in from `prepare` is until its first frames).
+    get shown() { return !!(cur && cur.shown); },
+    get ahead() { return spare ? spare.def.id : null; },
     get building() { return !!loading; },
     /* The world's own ground, for sculpting a hole to it (tools/world-ground.mjs):
        the height under a point in world coordinates, or null over nothing. */

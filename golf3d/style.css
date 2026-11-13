@@ -4401,6 +4401,8 @@ body.lane-swing .swipe-hint {
     border-radius: 6px;
 }
 .portal-wipe.holding .pw-card { display: grid; }
+/* A world built ahead is only waiting for its first frames: no card. */
+.portal-wipe.holding.quiet .pw-card { display: none; }
 .pw-kicker { font-size: 0.72rem; letter-spacing: 0.14em; text-transform: uppercase; color: #dcc28a; }
 .pw-title { font-size: 1.5rem; font-weight: 700; line-height: 1.15; }
 .pw-world { font-size: 0.9rem; color: var(--ink-dim); }
