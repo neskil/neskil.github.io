@@ -612,9 +612,9 @@
             /* Glass, for the grid world: dark, glossy and faintly lit from
                inside, with no texture and no blades — and the grid is part of
                it (gridGlass), so the lines lie exactly on the surface. */
-            glass: gridGlass(new THREE.MeshPhongMaterial({
+            glass: gridGlass(new THREE.MeshPhongMaterial(Object.assign({
                 color: 0x05030f, emissive: 0x10032e, shininess: 260, specular: 0x1c0c38
-            }), theme),
+            }, theme.glass)), theme),
             rough: tops(tex.rough, 3 + wet * 40, 0x000000, 0x7d8a92),
             // The greens get the most of everything: a bump map of the same
             // blades that are in the colour map, so the light rakes across the
@@ -2500,12 +2500,16 @@
         return Math.max(w.core * 3, Math.min(w.core * 6, d));
     }
 
-    function addWells(group, hole) {
+    // A theme can paint the wells' discs in its own world's inks
+    // (`wellHot`, `wellCool`); the default is gold into violet.
+    function addWells(group, hole, theme) {
+        var hot = theme && theme.wellHot, cool = theme && theme.wellCool;
         hole.wells.forEach(function (w) {
             var top = P.surfaceTop(hole, w.x, w.z), y = top ? markY(top.pad, w.x, w.z) : MARK_LIFT;
             var reach = wellReach(hole, w);
             var disc = blackHole({ size: reach, hor: w.core / reach,
-                ring: Math.min(0.7, w.core * 1.9 / reach), feed: 2.4, shade: 0.95, beam: 0.35, gain: 1.3, rim: 0.9 });
+                ring: Math.min(0.7, w.core * 1.9 / reach), feed: 2.4, shade: 0.95, beam: 0.35, gain: 1.3, rim: 0.9,
+                hot: hot, cool: cool });
             disc.rotation.x = -Math.PI / 2;
             disc.position.set(w.x, y, w.z);
             group.add(disc);
@@ -2516,7 +2520,7 @@
             core.position.set(w.x, cy, w.z);
             group.add(core);
             var glow = blackHole({ facing: true, size: rs * 2.6, hor: 1 / 2.6, ring: 1.25 / 2.6,
-                feed: 0, shade: 0, beam: 0.55, order: 1 });
+                feed: 0, shade: 0, beam: 0.55, order: 1, hot: hot, cool: cool });
             glow.position.set(w.x, cy, w.z);
             group.add(glow);
             R.wells.push({ w: w, disc: disc, glow: glow, core: core, cx: w.x, cy: cy, cz: w.z, rs: rs });
@@ -5587,9 +5591,11 @@
             }
         }
         R.country = null;
-        if (theme.grid) addGrid(g, hole, theme);
+        // The grid on the floor is off the course, with the rest of the
+        // scenery: in a live world it put a band of lines across the horizon.
+        if (theme.grid) addGrid(og, hole, theme);
         if (theme.glow) addNeonBackdrop(og, hole, theme);
-        if (hole.wells) addWells(g, hole);
+        if (hole.wells) addWells(g, hole, theme);
         // The grid world's effects switch on with the theme (see hitAt), and
         // its tail is drawn larger, because it is a light and not a smudge.
         R.glow = !!theme.glow;

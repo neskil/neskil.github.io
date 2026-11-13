@@ -189,3 +189,13 @@ not have. Designs first; what was actually built is in `js/portals.js`.
   where a stone pier stands under the tee and the upper landings sit over a
   chequered plaza; the searched spot had a ladder through the tee. Play
   unchanged (0.28%, skill). **Not yet seen by him.**
+- **The Three-Body Problem** (`threebody`), v1.162.2: looked at live for the
+  first time. The world is a 1970s airbrushed paperback cover in seven flat
+  inks; the hole was a glowing violet synthwave slab with a violet band of
+  floor grid across the horizon (the floor grid was in the course group, not
+  `R.outer`, so the live world never put it away). Now the sheet is the
+  cover's ink black ruled in its orange, the wells are painted in its disc's
+  orange and magenta, the bloom and aberration are down, `u` is pinned at 0.2
+  and the hole turned (`place.turn` -0.5) so the cover's own black hole
+  stands behind the flag, and the chrome ship the world parks at its camera
+  is hidden (`place.hide`, new). Play unchanged. **Not yet seen by him.**

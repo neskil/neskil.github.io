@@ -4315,6 +4315,17 @@ watches the ball, `G3.backdrop.play()` runs it, a new hole rewinds it, and
 `say` is toasted. The Marble Run's is the dominoes beside it going over in
 a wave as the ball comes round the first turn; the owner asked for it.
 
+**A world's own vehicle can be put away** (v1.162.2). Some worlds fly a ship
+or ride a boat with their camera, and from the tee it is a hull across the
+bottom of the picture: `place.hide` names the world's objects to hide
+(`['ship']` for the Airbrushed Abyss), and `backdrop.mjs` hides them each
+frame after the world has posed them. `place.turn` (radians) turns the hole
+on its anchor, which is how The Three-Body Problem puts the cover's black
+hole behind its flag. A grid theme can set its glass's own colours
+(`glass: { color, emissive, specular }`) and a hole's wells can be painted in
+a world's inks (`wellHot`, `wellCool`); the floor grid off the course is
+scenery now (`R.outer`), so a live world puts it away.
+
 **The world's resolution follows the frame rate, and not for the first six
 seconds** (`stepPlace`). It starts at 0.7 of the stage on a phone and 0.8
 elsewhere, drops a quarter per poor two-second window to a third, and
