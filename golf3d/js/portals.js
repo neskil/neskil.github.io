@@ -87,7 +87,7 @@
        `u` is how far along that world's own flight path the tee stands,
        `scale` its units to one of ours, `lift` and `turn` a nudge up and
        round (backdrop.mjs → anchorFor). */
-    var PLACES = {"breakfast": ["breakfast-table", {"u": 0.2, "at": {"x": -82.95, "z": -58.9, "y": 45.3, "yaw": 3.1416, "scale": 1.4}}], "turtle": ["world-turtle", {"reach": 4, "u": 0.02, "at": {"x": -95.58, "z": 148.41, "y": 150, "yaw": 0.6981, "scale": 2.5}}], "gasgiant": ["storm-bands", {"lift": 95}], "abyss": ["kelp-cathedral"], "carnival": ["carnival-on-the-frozen-river"], "mushroom": ["spore-rain", {"u": 0.9}], "orrery": ["long-library"], "stairs": ["stairway-everywhere"], "attic": ["the-toppling", {"event": {"from": -0.035, "to": 0.09, "secs": 6, "gate": [14.9, 2.4, 1.7], "say": "The dominoes are going over."}}], "threebody": ["airbrush-black-hole"], "clouds": ["cloud-armada"], "forge": ["obsidian-forge"], "table": ["breakfast-table", {"press": false, "u": 0.3, "at": {"x": -90, "z": -47, "y": 45, "yaw": 3.1416, "scale": 3.5}}], "nave": ["kelp-cathedral", {"u": 0.3, "at": {"x": 0, "z": 50, "y": -41, "yaw": 3.1416, "scale": 3}}], "rapids": ["paper-boat-rapids", {"u": 0.8}], "railway": ["attic-railway", {"u": 0.6}], "custard": ["islands-in-custard", {"u": 0.5}], "pyramid": ["pyramid-of-khufu"], "drydock": ["moon-in-dry-dock", {"u": 0.1}], "ironriver": ["obsidian-forge", {"u": 0.5, "at": {"x": -45, "z": 2.5, "y": 0, "yaw": 0, "scale": 2.5}}]};
+    var PLACES = {"breakfast": ["breakfast-table", {"u": 0.2, "at": {"x": -82.95, "z": -58.9, "y": 45.3, "yaw": 3.1416, "scale": 1.4}}], "turtle": ["world-turtle", {"reach": 4, "u": 0.02, "at": {"x": -95.58, "z": 148.41, "y": 150, "yaw": 0.6981, "scale": 2.5}}], "gasgiant": ["storm-bands", {"lift": 95}], "abyss": ["kelp-cathedral"], "carnival": ["carnival-on-the-frozen-river"], "mushroom": ["spore-rain", {"u": 0.9}], "orrery": ["long-library"], "stairs": ["stairway-everywhere"], "attic": ["the-toppling", {"event": {"from": -0.035, "to": 0.09, "secs": 6, "gate": [14.9, 2.4, 1.7], "say": "The dominoes are going over."}}], "threebody": ["airbrush-black-hole"], "clouds": ["cloud-armada"], "forge": ["obsidian-forge"], "table": ["breakfast-table", {"press": false, "u": 0.3, "at": {"x": -90, "z": -47, "y": 45, "yaw": 3.1416, "scale": 3.5}}], "nave": ["kelp-cathedral", {"u": 0.3, "at": {"x": 0, "z": 50, "y": -41, "yaw": 3.1416, "scale": 3}}], "rapids": ["paper-boat-rapids", {"u": 0.8}], "railway": ["attic-railway", {"u": 0.6}], "custard": ["islands-in-custard", {"u": 0.5}], "pyramid": ["pyramid-of-khufu", {"u": 0.1}], "drydock": ["moon-in-dry-dock", {"u": 0.1}], "ironriver": ["obsidian-forge", {"u": 0.5, "at": {"x": -45, "z": 2.5, "y": 0, "yaw": 0, "scale": 2.5}}]};
     function add(w) {
         w.hole.scene = w.scene || w.id; w.hole.worldId = w.id;
         var q = PLACES[w.id];
@@ -493,37 +493,47 @@
     });
 
     /* The forge, and the last of a journey that gets this far. A conveyor
-       runs at a hammer that comes down across it; past the hammer the floor
-       stops at a river of iron and a pad throws whatever reaches it over to
-       the anvil, which is a bowl with the flag in it. All of it on one swing
-       if the hammer is up. */
+       runs down the middle of the floor at a hammer that slides across it;
+       past the hammer is a launch pad the size of a hand, a low wall, a
+       river of iron, and the anvil, a bowl with the flag in it. A ball kept
+       on the belt the whole way arrives fast, and if it rolls over the pad
+       it is thrown over the wall and the iron and comes down in the bowl:
+       all of it on one swing, if the line is right and the hammer is out of
+       the way. Off the belt it slows on the floor and stops at the wall, and
+       the pad is a short putt away.
+
+       Until v1.161.0 nothing reached the anvil from the tee at all — the belt
+       delivered every ball at a crawl a yard short of the pad, and the pad
+       only throws a ball up, so the carry was never there — and it was a par
+       four the caddie played in two putts. Then, with the belt quicker, its
+       walls funnelled every line on to the pad and it was a giveaway. The
+       walls are gone and the pad is small and a hand right of the middle. */
     add({
         id: 'forge', title: 'The Forge', world: 'Black Glass and Lava', kind: 'bizarre', tier: 3,
-        caption: 'A conveyor, a hammer, a river of iron and an anvil with a flag in it.',
+        caption: 'A conveyor at a hammer, a launch pad the size of a hand, a river of iron and an anvil with the flag in it.',
         theme: 'forge',
         hole: world({
-            name: 'The Forge', grounded: true, par: 4, bag: ROLL,
-            blurb: 'The belt runs at the hammer. Past it the floor throws you over the iron, on to the anvil.',
+            name: 'The Forge', grounded: true, par: 3, bag: ROLL,
+            blurb: 'Stay on the belt, past the hammer and over the little pad, and it throws you over the iron into the anvil. Off the belt is a putt to the pad.',
             pads: [
                 pad(0, 0, 6, 5, 0, 'green'),
-                belt(1.5, 5, 3, 9, 0, 2.6),
+                belt(1.5, 5, 3, 9, 0, 7),
+                pad(0, 5, 1.5, 9, 0, 'green'), pad(4.5, 5, 1.5, 9, 0, 'green'),
                 pad(0, 14, 6, 6, 0, 'green'),
-                sprung(3, 18.4, 1.1, 9.5),
+                sprung(3.4, 17, 0.4, 12.7),
                 (function () {
-                    var p = disc(3, 29, 4.2, 1.2);
-                    p.bumps = [channel(3, 29, 3.9, 2.0, 0.7)];
+                    var p = disc(3, 26.6, 4.2, 1.2);
+                    p.bumps = [channel(3, 26.6, 3.9, 2.0, 0.7)];
                     return p;
                 })()
             ],
-            water: [A.rect(-6, 20, 18, 4.6, -0.3)],
+            water: [A.rect(-6, 19.6, 18, 2.8, -0.3)],
             extra: [
-                kerb(0, 0, 6, 0), kerb(0, 0, 0, 5), kerb(6, 0, 6, 5), kerb(0, 5, 1.5, 5), kerb(4.5, 5, 6, 5),
-                kerb(1.5, 5, 1.5, 14), kerb(4.5, 5, 4.5, 14),
-                kerb(0, 14, 1.5, 14), kerb(4.5, 14, 6, 14), kerb(0, 14, 0, 20), kerb(6, 14, 6, 20),
-                slider(1.5, 9.4, 1.6, 0.5, { axis: 'x', amp: 0.7, speed: 1.7, h: 0.8 }),
-                bank(1.2, 18.6, 2.6, -0.6), bank(4.8, 18.6, 2.6, 0.6)
+                kerb(0, 0, 6, 0), kerb(0, 0, 0, 20), kerb(6, 0, 6, 20),
+                slider(1.5, 9.4, 1.5, 0.5, { axis: 'x', amp: 1.6, speed: 1.4, h: 0.8 }),
+                kerb(0, 19.3, 6, 19.3, 0, 0.5)
             ],
-            tee: { x: 3, z: 2 }, cup: { x: 3, z: 29 }
+            tee: { x: 3, z: 2 }, cup: { x: 3, z: 26.6 }
         })
     });
 
@@ -670,7 +680,7 @@
                 kerb(5, 14.5, 10, 14.5), kerb(10, 14.5, 10, 20), kerb(5, 20, 10, 20),
                 bumper(2.6, 10.5, 0.7)
             ],
-            tee: { x: 1.2, z: 1.5 }, cup: { x: 8, z: 17.4 }
+            tee: { x: 1.2, z: 1.5 }, cup: { x: 6.4, z: 17.6 }
         })
     });
 
@@ -719,22 +729,23 @@
                 name: 'Île Flottante', par: 3, bag: LOFT,
                 blurb: 'The islands are greens and the custard keeps whatever lands in it. Hop island to island — or pitch the whole bowl in one.',
                 pads: [
-                    pad(0, 0, 14, 19, 0, 'sand'),
-                    isle(3, 3, 2.6), isle(10, 6.5, 2.3), isle(4, 11.5, 2.3), isle(10.5, 15.5, 2.6)
+                    pad(0, 0, 13, 16.5, 0, 'sand'),
+                    isle(3, 3, 2.6), isle(9.6, 5.6, 2.2), isle(3.8, 9.6, 2.2), isle(9.4, 12.6, 2.6)
                 ],
                 extra: [
-                    kerb(0, 0, 14, 0), kerb(0, 0, 0, 19), kerb(14, 0, 14, 19), kerb(0, 19, 14, 19)
+                    kerb(0, 0, 13, 0), kerb(0, 0, 0, 16.5), kerb(13, 0, 13, 16.5), kerb(0, 16.5, 13, 16.5)
                 ],
-                tee: { x: 3, z: 2.6 }, cup: { x: 10.5, z: 15.8 }
+                tee: { x: 3, z: 2.6 }, cup: { x: 9.5, z: 13.1 }
             });
         })()
     });
 
-    /* One face of a pyramid, as four courses of stone, each a ball-drop
-       higher than the last, with a ramp at alternate ends. Run the ramps and
-       it is a zig-zag: east, west, east, and back along the cap to the flag.
-       Or pitch it a course at a time. Or one wedge from the sand to the cap,
-       which is twelve wide and four deep with a wall behind it. A ball that
+    /* One face of a pyramid, as courses of stone, each a step higher than
+       the last, with a ramp at alternate ends. Run the ramps and it is a
+       zig-zag: east, west, and up the last slope to the cap and the flag.
+       Or pitch it: a wedge carries on to the third course, and the third
+       course's back half is one slope up to the cap, so a pitch with the
+       right weight on it runs up on to the top and at the flag. A ball that
        comes back off a course comes down to the one below, not out. */
     add({
         id: 'pyramid', title: 'The Stepped Side', world: 'The Great Pyramid of Giza', kind: 'city', tier: 3,
@@ -742,28 +753,37 @@
         theme: 'pyramid',
         hole: world({
             name: 'The Stepped Side', grounded: true, par: 3, bag: LOFT,
-            blurb: 'Run the ramps and it is a zig-zag to the top. Or pitch a course at a time — or one wedge all the way to the cap.',
-            pads: [
-                pad(0, 0, 12, 3, 0, 'green'), pad(0, 3, 9, 3, 0, 'green'),
-                pad(9, 3, 3, 3, 0, 'wood', 0, 1 / 3),
-                pad(0, 6, 12, 3, 1, 'wood'), pad(3, 9, 9, 3, 1, 'wood'),
-                pad(0, 9, 3, 3, 1, 'wood', 0, 1 / 3),
-                pad(0, 12, 12, 3, 2, 'wood'), pad(0, 15, 9, 3, 2, 'wood'),
-                pad(9, 15, 3, 3, 2, 'wood', 0, 1 / 3),
-                pad(0, 18, 12, 4, 3, 'green')
-            ],
-            extra: [
-                // the risers
-                wall(0, 5.7, 9, 0.3, 1.1, { base: -0.1 }),
-                wall(3, 11.7, 9, 0.3, 1.1, { base: 0.9 }),
-                wall(0, 17.7, 9, 0.3, 1.1, { base: 1.9 }),
-                // the sides
-                kerb(0, 0, 12, 0), kerb(0, 0, 0, 6), kerb(12, 0, 12, 6, 0, 1.6),
-                kerb(0, 6, 0, 12, 1, 1.6), kerb(12, 6, 12, 12, 1),
-                kerb(0, 12, 0, 18, 2), kerb(12, 12, 12, 18, 2, 1.6),
-                kerb(0, 18, 0, 22, 3), kerb(12, 18, 12, 22, 3), kerb(0, 22, 12, 22, 3, 1.2)
-            ],
-            tee: { x: 2, z: 1.5 }, cup: { x: 2.6, z: 20.2 }
+            blurb: 'Run the ramps and it is a zig-zag to the top. Or pitch on to the third course and let the slope run it up to the flag.',
+            pads: (function () {
+                // Four courses each D deep and H higher than the last; the
+                // cap is the fifth. (Three units and one high until
+                // v1.161.0, which put the cap out of a wedge's reach.)
+                var D = 2.0, H = 0.65, r = 1 / D * H;
+                return [
+                    pad(0, 0, 12, D, 0, 'green'), pad(0, D, 9, D, 0, 'green'),
+                    pad(9, D, 3, D, 0, 'wood', 0, r),
+                    pad(0, 2 * D, 12, D, H, 'wood'), pad(3, 3 * D, 9, D, H, 'wood'),
+                    pad(0, 3 * D, 3, D, H, 'wood', 0, r),
+                    // the third course: its back half is one slope up to the cap
+                    pad(0, 4 * D, 12, D, 2 * H, 'wood'), pad(0, 5 * D, 12, D, 2 * H, 'wood', 0, r),
+                    pad(0, 6 * D, 12, 4, 3 * H, 'green')
+                ];
+            })(),
+            extra: (function () {
+                var D = 2.0, H = 0.65;
+                return [
+                    // the risers
+                    wall(0, 2 * D - 0.3, 9, 0.3, H + 0.1, { base: -0.1 }),
+                    wall(3, 4 * D - 0.3, 9, 0.3, H + 0.1, { base: H - 0.1 }),
+                    // the sides
+                    kerb(0, 0, 12, 0), kerb(0, 0, 0, 2 * D), kerb(12, 0, 12, 2 * D, 0, 1.4),
+                    kerb(0, 2 * D, 0, 4 * D, H, 1.4), kerb(12, 2 * D, 12, 4 * D, H),
+                    kerb(0, 4 * D, 0, 6 * D, 2 * H), kerb(12, 4 * D, 12, 6 * D, 2 * H, 1.4),
+                    kerb(0, 6 * D, 0, 6 * D + 4, 3 * H), kerb(12, 6 * D, 12, 6 * D + 4, 3 * H),
+                    kerb(0, 6 * D + 4, 12, 6 * D + 4, 3 * H, 1.2)
+                ];
+            })(),
+            tee: { x: 2, z: 2.6 }, cup: { x: 2.4, z: 12.6 }
         })
     });
 
