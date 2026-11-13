@@ -5567,8 +5567,7 @@
            a ghost is built like anything else and put away while the world
            is on screen (stepPlace); without the world it is the ground. */
         /* …and what is laid over it is a `veil`: a strip of mown fairway
-           or a tee draped on the world's ground. With the world on screen a
-           veil is drawn half through, so the world's own turf, rock or glass
+           or a tee draped on that ground. With the world on screen a veil
            is put away like the ghost, and the strip is painted into the
            world's own picture instead (the plate's decals) — a change of
            colour in that ground, not a sheet on top of it. The green stays
@@ -5801,14 +5800,20 @@
         /* Something in the world that happens because of the golf: a place
            may name an `event`, and it is set going the first time the ball
            is that far from the tee towards the flag (half way, unless it
-           says) or drops. The Marble Run's is the dominoes beside it going
-           over in a wave. backdrop.mjs plays it; a new hole rewinds it. */
+           says), or passes through its `gate` — a spot on the hole,
+           [x, z, r] — or drops. The Marble Run's is the dominoes beside it
+           going over in a wave, set off as the ball comes round the first
+           turn. backdrop.mjs plays it; a new hole rewinds it. */
         if (R.place && R.place.event && B && B.play && world && world.ball && !R.eventFired) {
             var h = world.hole, tx = h.cup.x - h.tee.x, tz = h.cup.z - h.tee.z;
             var along = ((world.ball.x - h.tee.x) * tx + (world.ball.z - h.tee.z) * tz) / Math.max(1e-6, tx * tx + tz * tz);
-            if (world.sunk || along >= (R.place.event.at === undefined ? 0.5 : R.place.event.at)) {
+            var eg = R.place.event.gate, hit;
+            if (eg) hit = (world.ball.x - eg[0]) * (world.ball.x - eg[0]) + (world.ball.z - eg[1]) * (world.ball.z - eg[1]) < eg[2] * eg[2];
+            else hit = along >= (R.place.event.at === undefined ? 0.5 : R.place.event.at);
+            if (world.sunk || hit) {
                 R.eventFired = true;
                 B.play();
+                if (R.live && R.place.event.say) window.dispatchEvent(new CustomEvent('g3-world-event', { detail: R.place.event.say }));
             }
         }
         if (R.place && B) {
@@ -5842,7 +5847,8 @@
             if (now - R.liveT0 > 2000) {
                 var fps = R.liveN * 1000 / (now - R.liveT0);
                 R.liveT0 = now; R.liveN = 0;
-                if (fps < 26 && R.liveK > 0.34) { R.liveK = Math.max(0.33, R.liveK * 0.75); R.liveBad = 0; R.liveGood = 0; }
+                if (R.liveOverride) { /* asked for by name: left as it is, for a screenshot */ }
+                else if (fps < 26 && R.liveK > 0.34) { R.liveK = Math.max(0.33, R.liveK * 0.75); R.liveBad = 0; R.liveGood = 0; }
                 else if (fps < 16) { R.liveBad++; R.liveGood = 0; }
                 else {
                     R.liveBad = 0;
@@ -6016,13 +6022,13 @@
                 '                if (abs(at.y - gh) < 1.3) {',
                 '                    float lum = dot(c, vec3(0.2126, 0.7152, 0.0722));',
                 '                    float wob = 0.4 * sin(at.x * 1.7 + at.z * 0.9) * sin(at.z * 1.3 - at.x * 0.6);',
-                '                    float stripe = 0.93 + 0.07 * step(0.0, sin(at.z * 2.1 + at.x * 0.35));',
+                '                    float stripe = 0.9 + 0.1 * smoothstep(-0.15, 0.15, sin(at.z * 2.1 + at.x * 0.35));',
                 '                    for (int j = 0; j < 6; j++) {',
                 '                        vec4 k = decal[j];',
                 '                        vec2 q = abs(at.xz - 0.5 * (k.xy + k.zw)) - 0.5 * (k.zw - k.xy) + 1.4;',
                 '                        float d = length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - 1.4;',
                 '                        float a = (1.0 - smoothstep(-0.45, 0.4, d + wob)) * step(0.001, k.z - k.x);',
-                '                        c = mix(c, decalTint[j] * (0.3 + 1.5 * lum) * stripe, a * 0.86);',
+                '                        c = mix(c, decalTint[j] * (0.5 + 0.8 * min(lum, 0.6)) * stripe, a * 0.9);',
                 '                    }',
                 '                }',
                 '            }',

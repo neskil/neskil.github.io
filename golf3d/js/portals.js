@@ -87,7 +87,7 @@
        `u` is how far along that world's own flight path the tee stands,
        `scale` its units to one of ours, `lift` and `turn` a nudge up and
        round (backdrop.mjs → anchorFor). */
-    var PLACES = {"breakfast": ["breakfast-table"], "turtle": ["world-turtle", {"u": 0.02, "at": {"x": -95.58, "z": 148.41, "y": 150, "yaw": 0.6981, "scale": 2.5}}], "gasgiant": ["storm-bands"], "abyss": ["kelp-cathedral"], "carnival": ["carnival-on-the-frozen-river"], "mushroom": ["spore-rain"], "orrery": ["long-library"], "stairs": ["stairway-everywhere"], "attic": ["the-toppling", {"event": {"from": -0.035, "to": 0.09, "secs": 6, "at": 0.45}}], "threebody": ["airbrush-black-hole"], "clouds": ["cloud-armada"], "forge": ["obsidian-forge"], "table": ["breakfast-table", {"u": 0.3, "at": {"x": -90, "z": -47, "y": 45, "yaw": 3.1416, "scale": 3.5}}], "nave": ["kelp-cathedral", {"u": 0.3, "at": {"x": 0, "z": 50, "y": -41, "yaw": 3.1416, "scale": 3}}], "ironriver": ["obsidian-forge", {"u": 0.5, "at": {"x": -45, "z": 2.5, "y": 0, "yaw": 0, "scale": 2.5}}]};
+    var PLACES = {"breakfast": ["breakfast-table"], "turtle": ["world-turtle", {"u": 0.02, "at": {"x": -95.58, "z": 148.41, "y": 150, "yaw": 0.6981, "scale": 2.5}}], "gasgiant": ["storm-bands"], "abyss": ["kelp-cathedral"], "carnival": ["carnival-on-the-frozen-river"], "mushroom": ["spore-rain"], "orrery": ["long-library"], "stairs": ["stairway-everywhere"], "attic": ["the-toppling", {"event": {"from": -0.035, "to": 0.09, "secs": 6, "gate": [14.9, 2.4, 1.7], "say": "The dominoes are going over."}}], "threebody": ["airbrush-black-hole"], "clouds": ["cloud-armada"], "forge": ["obsidian-forge"], "table": ["breakfast-table", {"u": 0.3, "at": {"x": -90, "z": -47, "y": 45, "yaw": 3.1416, "scale": 3.5}}], "nave": ["kelp-cathedral", {"u": 0.3, "at": {"x": 0, "z": 50, "y": -41, "yaw": 3.1416, "scale": 3}}], "ironriver": ["obsidian-forge", {"u": 0.5, "at": {"x": -45, "z": 2.5, "y": 0, "yaw": 0, "scale": 2.5}}]};
     function add(w) {
         w.hole.scene = w.scene || w.id; w.hole.worldId = w.id;
         var q = PLACES[w.id];
@@ -348,14 +348,30 @@
     /* A marble run in an attic. Three wooden chutes, each tipping the other
        way and each ending in a drop on to the one below, and a tin tray at
        the bottom with the flag in it. A ball let go at the top will get to
-       the tray by itself; what the tee decides is where on the tray. */
+       the tray by itself, and it gets there four and a half metres from the
+       flag whatever was done to it — which was the whole hole until v1.157.0,
+       and the owner's word for it was "no skill ceiling": every line and
+       every weight from the tee finished on the same spot.
+
+       So the first turn has a board across its corner and a hatch in its far
+       rail. The board turns a ball that comes down the right-hand side of
+       the top chute square along the turn's outside edge, where the turn's
+       tilt does not have time to bring it back to the second chute, and it
+       goes out through the hatch: three metres of air and down on to the
+       tray, running at the flag. Down the left and it is the long way round
+       as before. The right line is a tap-in; the right line at the right
+       weight is the ace (tools/portal-check.mjs has the window); and the
+       edge of the hatch is the attic floor.
+
+       Coming round that turn is also what sets the world's dominoes going
+       (PLACES → event). */
     add({
         id: 'attic', title: 'The Marble Run', world: 'Marble Run, Falling Dominoes', kind: 'home', tier: 1,
-        caption: 'Three wooden chutes in an attic, each tipping the other way, and a tin tray at the bottom.',
+        caption: 'Three wooden chutes in an attic and a tin tray at the bottom. There is a hatch at the first turn.',
         theme: 'attic',
         hole: world({
             name: 'The Marble Run', grounded: true, par: 3, bag: ['putter', 'chipper', 'wedge'],
-            blurb: 'Let it go and the run will take it to the tray, a long putt from the flag. Or pitch straight off the top and miss out all three chutes.',
+            blurb: 'Let it go down the left and the run takes it the long way round to the tray. Firm down the right-hand side and it leaves by the hatch at the first turn, and lands by the flag.',
             pads: [
                 pad(0, 0, 3.4, 3.4, 6.6, 'green'),
                 pad(3.4, 0.4, 10, 2.6, 6.6, 'wood', -0.2, 0),
@@ -369,16 +385,17 @@
             extra: [
                 kerb(0, 0, 3.4, 0, 6.6), kerb(0, 0, 0, 3.4, 6.6), kerb(0, 3.4, 3.4, 3.4, 6.6),
                 kerb(3.4, 0.4, 16.4, 0.4, 4.2, 3.0), kerb(3.4, 3, 13.4, 3, 4.6, 2.6),
-                kerb(16.4, 0.4, 16.4, 6.6, 3.2, 2.4), kerb(13.4, 6.6, 16.4, 6.6, 3.2, 1.4),
+                kerb(16.4, 0.4, 16.4, 6.6, 3.2, 2.4), kerb(13.4, 6.6, 15.0, 6.6, 3.2, 1.4),
+                kerb(13.9, 0.4, 16.4, 2.9, 4.0, 1.6),
                 kerb(3.4, 4, 13.4, 4, 1.4, 2.4), kerb(3.4, 6.6, 13.4, 6.6, 1.4, 2.4),
                 kerb(0.4, 4, 0.4, 10.6, 0.5, 1.6), kerb(0.4, 4, 3.4, 4, 1.2, 1.0), kerb(0.4, 10.6, 3.4, 10.6, 0.5, 0.9),
                 kerb(3.4, 6.6, 3.4, 8, 0.5, 1.5), kerb(13.4, 3, 13.4, 4, 3.2, 2.6),
                 kerb(3.4, 8, 9.4, 8, 0.1, 1.0), kerb(3.4, 10.6, 9.4, 10.6, 0.1, 1.0),
                 kerb(9.4, 6.8, 16.4, 6.8), kerb(16.4, 6.8, 16.4, 13.8), kerb(9.4, 13.8, 16.4, 13.8),
                 kerb(9.4, 6.8, 9.4, 8), kerb(9.4, 10.6, 9.4, 13.8),
-                post(12.6, 10.4), post(13.4, 12.6), post(15.2, 10.2)
+                post(12.6, 10.4), post(12.2, 12.4), post(13.0, 8.2)
             ],
-            tee: { x: 1.4, z: 1.7 }, cup: { x: 14.3, z: 11.8 }
+            tee: { x: 1.4, z: 1.7 }, cup: { x: 14.2, z: 12.9 }
         })
     });
 
