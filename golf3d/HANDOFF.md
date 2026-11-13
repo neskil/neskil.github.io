@@ -158,6 +158,16 @@ not have. Designs first; what was actually built is in `js/portals.js`.
   with `moments: [0..6]`), aces come only while the arm is on the left.
   `portal-check` samples two moments and calls it a closer (0.06%); the
   open half of the swing is nearer 0.5%. **Not yet seen by him.**
+- **v1.161.0, the measured sweep.** The Forge: nothing reached the anvil
+  from the tee and it was a par four played in two putts; the belt is
+  quicker and unwalled, the launch pad is small and off the middle, par 3,
+  0.25%. Shoot the Rapids' flag moved to where bold putts finish (0.04%).
+  Île Flottante's far island brought into a wedge's reach (0.05%). The
+  Stepped Side rebuilt lower and shorter, its third course a slope up to
+  the cap, because a wedge only carries nine units in the mini bag
+  (0.035%); its `u` is pinned. Deck to Deck (par 5, caddie 3) and the
+  holes he has not mentioned are otherwise sound by the numbers. All not
+  yet seen by him.
 - **The Fairy Ring** (`mushroom`): "quite broken also" — on his phone the
   flight search put the hole under a fallen leaf and inside a mushroom's
   gills. Pinned to `u: 0.9`, a clear patch by a log (scale 0.5). A world
