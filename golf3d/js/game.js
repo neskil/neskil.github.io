@@ -274,20 +274,37 @@
         el.style.setProperty('--pw-in', hex(sky[1]));
         el.style.setProperty('--pw-out', hex(sky[0]));
     }
-    function throughPortal(themeName, then) {
+    /* `dive` is the way out of a hole that was holed: the camera goes down
+       the cup first (render.js → startDive) — the cup is the portal — and
+       the wipe starts closing on the next sky while it is still falling, so
+       the last thing seen of a world is the inside of its hole and the
+       first thing seen of the next is the sky the wipe is painted in. The
+       swap waits for both: the dive has reached the rim by the time the
+       wipe is shut. */
+    var WIPE_CLOSE = 620;
+    function throughPortal(themeName, then, dive) {
         var el = $('portal-wipe');
         if (!el || reducedMotion()) { then(); return; }
         if (portalBusy) return;
         portalBusy = true;
-        wipeSkies(el, themeName);
-        el.className = 'portal-wipe closing';
-        if (A.warpIn) A.warpIn();
+        var lead = 0;
+        if (dive && R.startDive && R.startDive(state.world.hole, state.world.ball)) {
+            lead = Math.max(0, C.DIVE.DUR * 1000 - WIPE_CLOSE);
+            if (A.rocket) A.rocket();
+        }
         setTimeout(function () {
-            // Whatever the swap does, the screen is not left shut on it.
-            try { then(); } finally { portalBusy = false; }
-            // A world still building keeps it shut (holdForWorld, below).
-            if (!curtain.up) openWipe();
-        }, 620);
+            wipeSkies(el, themeName);
+            el.className = 'portal-wipe closing';
+            if (A.warpIn) A.warpIn();
+            setTimeout(function () {
+                // Whatever the swap does, the screen is not left shut on it.
+                try { then(); } finally { portalBusy = false; }
+                // A world still building keeps it shut (holdForWorld, below),
+                // and says where it is going while it does.
+                if (!curtain.up) openWipe();
+                else el.className = curtainClass();
+            }, WIPE_CLOSE);
+        }, lead);
     }
     function openWipe() {
         var el = $('portal-wipe');
@@ -312,8 +329,12 @@
        at once, live worlds switched off never close it, a world that fails
        opens on the stand-in, and so does one that has taken twenty seconds —
        with a line to say so. */
-    var curtain = { up: false, timer: 0, t0: 0 };
+    var curtain = { up: false, timer: 0, t0: 0, built: false };
     var WORLD_WAIT = 20000;
+    /* A world built ahead (prepareNext) is only waiting for its first frames
+       — a fraction of a second — and a card saying "building" would be a
+       flash of something untrue, so the wipe holds on its colour alone. */
+    function curtainClass() { return 'portal-wipe holding' + (curtain.built ? ' quiet' : ''); }
     function holdForWorld(hole, i) {
         var el = $('portal-wipe'), B = G3.backdrop;
         clearInterval(curtain.timer);
@@ -324,10 +345,15 @@
         if (wanted && nx && nx.place) {
             setTimeout(function () { if (G3.backdrop) G3.backdrop.fetch(nx.place.world); }, 4000);
         }
-        if (!wanted || (B && (B.current === hole.place.world || B.failed(hole.place.world)))) {
+        // A world built and already drawn (the breakfast table's second
+        // hole) opens at once; one built ahead and not yet drawn waits for
+        // its first frames like any other, quietly.
+        var built = !!(B && B.current === hole.place.world);
+        if (!wanted || (B && ((built && B.shown) || B.failed(hole.place.world)))) {
             if (curtain.up) { curtain.up = false; openWipe(); }
             return;
         }
+        curtain.built = built;
         var w = G3.portals.byWorld(hole.place.world);
         $('pw-kicker').textContent = state.course.single ? 'World Tour' : 'Hole ' + (i + 1) + ' of ' + state.course.holes.length;
         $('pw-title').textContent = hole.name || (w ? w.title : '');
@@ -335,7 +361,7 @@
         $('pw-note').textContent = 'Building the world\u2026';
         wipeSkies(el, themeAt(i));
         curtain.up = true; curtain.t0 = Date.now();
-        if (!/closing/.test(el.className)) el.className = 'portal-wipe holding';
+        if (!/closing/.test(el.className)) el.className = curtainClass();
         curtain.timer = setInterval(function () {
             var waited = Date.now() - curtain.t0, B2 = G3.backdrop;
             var live = R.live, lost = (B2 && B2.failed(hole.place.world)) || (!B2 && waited > 6000);
@@ -348,6 +374,25 @@
             openWipe();
             maybeFly();
         }, 120);
+    }
+
+    /* The next world, built while this hole's celebration plays (backdrop.mjs
+       → prepare): a moment after the sink, so the burst and the cup's sound
+       have their frames, and only if the hole is still holed by then — a
+       restart or the menu in that moment means the build is not wanted. It
+       is built a few milliseconds a frame, so the frame rate dips a little
+       here rather than the wait between the worlds being the whole build.
+       Pass and play is left out: the same hole is played again first. */
+    function prepareNext() {
+        if (!state.course.isPortals || demo || !R.liveWanted) return;
+        var at = state.holeIndex, course = state.course, nx = course.holes[at + 1];
+        if (!nx || !nx.place) return;
+        setTimeout(function () {
+            var B = G3.backdrop;
+            if (!B || !B.prepare || !state || state.course !== course ||
+                state.holeIndex !== at || state.phase !== 'holed') return;
+            B.prepare(nx.place.world);
+        }, C.DIVE.PREPARE_AFTER * 1000);
     }
 
     /* `again` is a hole being restarted rather than arrived at, which is the
@@ -2034,6 +2079,7 @@
         }
         drawBannerStars(noted);
         var up = multi() ? nextToPlay() : -1;
+        if (up < 0 && !last) prepareNext();
         if (multi()) {
             $('banner-detail').textContent = state.players[state.turn].name + ' · ' +
                 $('banner-detail').textContent;
@@ -2193,7 +2239,8 @@
         if (state.holeIndex < state.course.holes.length - 1) {
             if (state.course.isPortals) {
                 var to = state.holeIndex + 1;
-                throughPortal(themeAt(to), function () { loadHole(to); });
+                endReplay(true);
+                throughPortal(themeAt(to), function () { loadHole(to); }, state.phase === 'holed');
                 return;
             }
             loadHole(state.holeIndex + 1);

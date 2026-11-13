@@ -8,7 +8,7 @@
    — the renderer scales to the viewport, the simulation never sees a pixel. */
 window.G3 = window.G3 || {};
 
-G3.VERSION = '1.161.1';
+G3.VERSION = '1.162.1';
 
 G3.CONFIG = {
     BALL_R: 0.16,
@@ -951,6 +951,24 @@ G3.CONFIG = {
         SEAT_DIST: 3.0,     // the cup camera: this far from the cup…
         SEAT_UP: 1.15,      // …and this far above it
         MAX_FRAMES: 6000    // a tape longer than this stops recording
+    },
+
+    /* Down the cup, between two worlds of the tour (render.js → startDive,
+       game.js → throughPortal). The camera leaves wherever it was watching
+       the ball drop, comes over the cup and falls into it, ending at the
+       lip looking down, where everything is the inside of the hole; the
+       wipe on to the next world's sky starts closing while it falls. */
+    DIVE: {
+        DUR: 1.15,          // seat to rim; the wipe closes over the last 0.62 s
+        OVER: 1.2,          // the top of the arc: this far back from the cup…
+        UP_MIN: 2.2,        // …and at least this high over it…
+        UP_MAX: 5,          // …and no higher than this
+        LIP_FILL: 0.36,     // it stops where the picture's wider half reaches this far across the lip…
+        END_MIN: 0.3,       // …but no lower over it than this…
+        END_MAX: 1.2,       // …and no higher
+        PIN_LIFT: 30,       // the flag launches this far straight up…
+        PIN_BY: 0.5,        // …in this share of the dive, then is gone
+        PREPARE_AFTER: 1.2  // the next world starts building this long after the sink
     },
 
     /* The demo's own camera. Nobody is aiming, so the seat behind the ball is

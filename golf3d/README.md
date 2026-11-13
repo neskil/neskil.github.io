@@ -4396,6 +4396,37 @@ built or with live worlds off, and after twenty seconds or a failed build it
 opens on the stand-in and says so. While a hole is played the next world's
 files are fetched (`backdrop.fetch`), so the next wait is the build alone.
 
+**And the build starts at the sink** (v1.162.0). A moment after the ball
+drops (`DIVE.PREPARE_AFTER`) the next world is built behind the celebration
+(`game.js → prepareNext`, `backdrop.prepare`): kept aside, never drawn, and
+swapped in at once when the next hole asks for it (`want` → `takeSpare`);
+anything else asked for throws it away. The engine is made `hold`, which
+lets a build hold the page as long as it likes; that is right behind a
+closed portal and wrong with a hole on screen, so `backdrop.mjs` replaces
+the engine's `_budget` on its instance: six milliseconds a frame while a
+world is built ahead (`early`), unlimited again the moment anything is
+`want`ed. Peak memory is unchanged — a world was always built while the last
+still stood — it is only held longer. A world swapped in like that is built
+but not drawn, so the portal still waits for its first frames, without the
+plate (`curtain.built`, `.portal-wipe.quiet`). Before v1.162.0 the plate
+never showed between two holes at all: the wipe kept its `closing` class
+while it held, and only `holding` shows the plate.
+
+### Down the cup
+
+Between two worlds the cup is the portal (the owner's idea, v1.162.0). On
+*Next hole* after a hole is holed, the flag goes off like a rocket on a trail
+of sparks, and the camera leaves wherever it watched the drop, arcs up over
+the cup and falls into it (`render.js → startDive`, `diveCamera`, `C.DIVE`),
+stopping just over the lip where the cup fills the picture — the height
+worked out from the field of view, so a phone held either way ends on the
+inside of the hole and the ball lying in it, never on the ball's dimples.
+The wipe on to the next sky starts closing while it falls (`throughPortal`'s
+`dive`), so it opens out of the cup. The pose holds at the lip until the
+next hole is built (`buildHole` clears `R.dive`). It runs whenever the hole
+is over (`phase === 'holed'`, a picked-up ball included); reduced motion
+gets neither the dive nor the wipe.
+
 ### The picker: everything side by side
 
 One page (v1.153.0). On top, three ways to be dealt a round: **Play the
