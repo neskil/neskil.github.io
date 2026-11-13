@@ -5776,6 +5776,19 @@
                     P.padHeight(nh.pads[0], -18, 30) > P.padHeight(nh.pads[0], 0, 30) + 3 &&
                     P.padHeight(nh.pads[0], 18, 30) > P.padHeight(nh.pads[0], 0, 30) + 3 &&
                     nh.cup.y > P.padHeight(nh.pads[0], 0, 64) + 2.5);
+                var tb = PW.byId('table'), th2 = tb.hole, tgr = G3.TOUR_GROUND && G3.TOUR_GROUND.table;
+                assert('the sugar gate is played on a cloth baked from the breakfast table and what stands on it',
+                    !!tgr && th2.pads[0].ghost === true && th2.pads[0].field[0].grid === tgr && !!tb.place.at);
+                assert('…the cubes stand across the line to the flag, and the cloth at the tee and the cup is level',
+                    (function () {
+                        // Somewhere on the straight line, between a third and two thirds
+                        // of the way, something stands most of a unit off the cloth.
+                        var top = 0, t;
+                        for (t = 0.33; t <= 0.67; t += 0.01) {
+                            top = Math.max(top, P.padHeight(th2.pads[0], th2.tee.x + (th2.cup.x - th2.tee.x) * t, th2.tee.z + (th2.cup.z - th2.tee.z) * t));
+                        }
+                        return top > 0.7;
+                    })() && Math.abs(th2.tee.y) < 0.1 && Math.abs(th2.cup.y) < 0.1);
             })();
 
             // A journey.

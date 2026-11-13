@@ -27,6 +27,7 @@ const canvas = document.createElement('canvas');
 const size = { w: 640, h: 360 };
 let engine = null, cur = null, wanted = null, loading = null, failed = {};
 let clock = 0;
+const ev = { on: false, t: 0 };
 const coarse = !!(window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
 /* A mark left while a world is building and taken away once it has been
    drawn (or the page is left in the ordinary way). If it is still there at
@@ -40,7 +41,7 @@ const info = { near: 0.1, far: 5000, scale: 1, w: 2, h: 2 };
 function boot() {
     if (engine) return engine;
     engine = new Engine(canvas, [], {
-        freeze: true, hold: true, single: true, quality: coarse ? 'low' : 'medium', pixelRatio: 1,
+        freeze: true, hold: true, single: true, quality: 'medium', pixelRatio: 1,   // one level everywhere: a hole is baked to this level's ground
         samples: 0, checkShaders: false
     });
     // The engine sizes itself to the window; this one is sized to the stage.
@@ -139,6 +140,86 @@ function drawDepth(W, c, w, h) {
         r.setRenderTarget(null);
         for (const o of hid) o.visible = true;
     }
+}
+
+/* ── the hole's ground, put into the world ──────────────────────────────
+
+   A sculpted hole is played on a copy of the world's ground, baked once
+   (tools/bake-ground.mjs): smoothed a little, with a tee and a green
+   levelled into it. The world's own terrain is not that copy — and laid one
+   over the other the differences showed as a green hanging in the air over
+   a slope, or a ball rolling a hand above the turf. So the world is edited
+   to agree. Once per hole, every vertex of its ground inside the hole's
+   plan is moved to the height the bake has there, feathered back to the
+   world's own shape over a few units outside it; what stands in the strips
+   the hole mows (`place.clear`: trees, stones, tufts, all instanced) is
+   taken out. After this the world's picture *is* the hole's ground, and
+   render.js paints the fairways on it.
+
+   vendor/portals/ is not touched: this moves vertices of the world as it
+   was built in memory, for this visit. */
+const _m4 = new THREE.Matrix4(), _inv = new THREE.Matrix4(), _n = new THREE.Vector3(), _s3 = new THREE.Vector3();
+function sculpt(W, place) {
+    const G = place.grid, at = place.at, s = at.scale || 1, c = Math.cos(at.yaw || 0), sn = Math.sin(at.yaw || 0);
+    const toGolf = (wx, wz) => { const dx = (wx - at.x) / s, dz = (wz - at.z) / s; return [dx * c - dz * sn, dx * sn + dz * c]; };
+    const x1 = G.x0 + (G.nx - 1) * G.d, z1 = G.z0 + (G.nz - 1) * G.d, F = 3;
+    const gridAt = (gx, gz) => {
+        const fx = Math.max(0, Math.min(G.nx - 1.001, (gx - G.x0) / G.d)), fz = Math.max(0, Math.min(G.nz - 1.001, (gz - G.z0) / G.d));
+        const ix = Math.floor(fx), iz = Math.floor(fz), ux = fx - ix, uz = fz - iz, h = G.h, k = iz * G.nx + ix;
+        return (h[k] * (1 - ux) + h[k + 1] * ux) * (1 - uz) + (h[k + G.nx] * (1 - ux) + h[k + G.nx + 1] * ux) * uz;
+    };
+    const rects = place.clear || [];
+    const inStrip = (gx, gz) => rects.some((r) => gx > r[0] && gx < r[2] && gz > r[1] && gz < r[3]);
+    W.scene.updateMatrixWorld(true);
+    let moved = 0, cleared = 0;
+    W.scene.traverse((o) => {
+        if (!o.isMesh || !o.geometry || !o.geometry.attributes || !o.geometry.attributes.position) return;
+        const m = Array.isArray(o.material) ? o.material[0] : o.material;
+        if (!m || m.side === THREE.BackSide || (m.transparent && m.depthWrite === false)) return;
+        if (o.isInstancedMesh) {
+            let any = false;
+            for (let i = 0; i < o.count; i++) {
+                o.getMatrixAt(i, _m4);
+                _p.setFromMatrixPosition(_m4).applyMatrix4(o.matrixWorld);
+                const g = toGolf(_p.x, _p.z);
+                if (!inStrip(g[0], g[1])) continue;
+                _s3.setFromMatrixPosition(_m4);
+                _m4.makeScale(0, 0, 0).setPosition(_s3);
+                o.setMatrixAt(i, _m4); any = true; cleared++;
+            }
+            if (any) o.instanceMatrix.needsUpdate = true;
+            return;
+        }
+        if (o.isSkinnedMesh) return;
+        if (!o.geometry.boundingSphere) o.geometry.computeBoundingSphere();
+        if (o.geometry.boundingSphere.radius * o.matrixWorld.getMaxScaleOnAxis() < 30) return;
+        const pos = o.geometry.attributes.position, nor = o.geometry.attributes.normal;
+        _inv.copy(o.matrixWorld).invert();
+        let n = 0;
+        for (let i = 0; i < pos.count; i++) {
+            _p.fromBufferAttribute(pos, i).applyMatrix4(o.matrixWorld);
+            const g = toGolf(_p.x, _p.z);
+            const e = Math.hypot(Math.max(G.x0 - g[0], g[0] - x1, 0), Math.max(G.z0 - g[1], g[1] - z1, 0));
+            if (e >= F) continue;
+            // Ground only: the top of the land, not a cliff's face or a bridge's underside.
+            if (nor) { _n.fromBufferAttribute(nor, i).transformDirection(o.matrixWorld); if (_n.y < 0.35) continue; }
+            const gy = gridAt(g[0], g[1]), diff = at.y + gy * s - _p.y;
+            // …and only where the bake is this ground: not a sea bed under
+            // a sea the bake stopped at, not the far side of a cliff it rounded.
+            if (Math.abs(diff) > 1.6 * s || (gy <= 0.02 && diff > 0)) continue;
+            const u = e / F, w = 1 - u * u * (3 - 2 * u);
+            _p.y += diff * w;
+            _p.applyMatrix4(_inv);
+            pos.setXYZ(i, _p.x, _p.y, _p.z); n++;
+        }
+        if (n) {
+            pos.needsUpdate = true; moved += n;
+            if (nor) o.geometry.computeVertexNormals();
+            o.geometry.computeBoundingSphere(); o.geometry.computeBoundingBox();
+        }
+    });
+    W.soft = null;
+    return { moved, cleared };
 }
 
 function seedOf(id) { let h = 2166136261; for (const c of id) { h ^= c.charCodeAt(0); h = Math.imul(h, 16777619); } return h >>> 0; }
@@ -256,7 +337,7 @@ function bestU(W, seat) {
 }
 
 const _ray = new THREE.Raycaster(), _down = new THREE.Vector3(0, -1, 0);
-function groundUnder(W, x, y, z) {
+function groundUnder(W, x, y, z, any) {
     try {
         _ray.set(_t.set(x, y, z), _down);
         _ray.camera = engine.camera;
@@ -268,10 +349,15 @@ function groundUnder(W, x, y, z) {
             // Ground, not furniture: a lantern, a bird or a cloud puff under
             // the flight is not somewhere to lay a hole. Only something
             // broad counts — and nothing instanced, which is always a crowd.
-            if (o.isInstancedMesh || o.isSkinnedMesh) continue;
-            if (!o.geometry.boundingSphere) o.geometry.computeBoundingSphere();
-            const sc = o.matrixWorld.getMaxScaleOnAxis();
-            if (o.geometry.boundingSphere.radius * sc < 30) continue;
+            // (`any` asks for whatever is solid instead — the top of a loaf,
+            // a book, a stall — for a hole that plays over a world's things.)
+            if (o.isSkinnedMesh) continue;
+            if (!any) {
+                if (o.isInstancedMesh) continue;
+                if (!o.geometry.boundingSphere) o.geometry.computeBoundingSphere();
+                const sc = o.matrixWorld.getMaxScaleOnAxis();
+                if (o.geometry.boundingSphere.radius * sc < 30) continue;
+            } else if (m.alphaTest > 0 || m.alphaMap || (m.transparent && m.opacity < 0.6)) continue;
             if (m.transparent && m.depthWrite === false) continue;
             let v = o, shown = true;
             while (v) { if (!v.visible) { shown = false; break; } v = v.parent; }
@@ -296,6 +382,20 @@ function frame(dt, cam, place, seat, w, h) {
     if (w !== size.w || h !== size.h) { size.w = w; size.h = h; engine._resize(); }
     if (!W.anchor || W.anchor.key !== place) { W.anchor = anchorFor(W, place, seat); W.anchor.key = place; }
     const A = W.anchor, c = engine.camera;
+    if (place.at && place.grid && !(W.sculpted || (W.sculpted = new Set())).has(place)) {
+        W.sculpted.add(place);
+        try { info.sculpt = sculpt(W, place); } catch (e) { console.warn('backdrop sculpt', e); }
+    }
+    /* A world's own event, set going by the golf (render.js → stepPlace):
+       most of what moves in a Portals world moves with `u`, how far along
+       its flight the camera is, so an event is a run of `u` either side of
+       where the hole stands. Held at its start until played. */
+    let uNow = A.u;
+    if (place.event) {
+        if (ev.on && ev.t < 1) ev.t = Math.min(1, ev.t + dt / (place.event.secs || 5));
+        const k = ev.t * ev.t * (3 - 2 * ev.t);
+        uNow = A.u + (place.event.from || 0) + ((place.event.to || 0) - (place.event.from || 0)) * k;
+    }
     _yaw.setFromAxisAngle(_up, A.turn);
     _p.set(cam.position.x - A.sx, cam.position.y - A.sy, cam.position.z - A.sz)
         .multiplyScalar(A.scale).applyQuaternion(_yaw);
@@ -306,7 +406,7 @@ function frame(dt, cam, place, seat, w, h) {
     c.updateProjectionMatrix();
     c.updateMatrixWorld(true);
     clock += dt; W.time += dt;
-    try { if (W.world.update) W.world.update(dt, W.time, c, A.u); }
+    try { if (W.world.update) W.world.update(dt, W.time, c, uNow); }
     catch (e) { if (!W._err) { W._err = 1; console.warn('backdrop update', e); } }
     try {
         engine.renderer.setViewport(0, h, w, h);
@@ -323,13 +423,15 @@ function frame(dt, cam, place, seat, w, h) {
 G3.backdrop = {
     canvas, want, frame, info,
     failed(id) { return !!failed[id]; },
+    play() { ev.on = true; },
+    rewind() { ev.on = false; ev.t = 0; },
     // The next world's files, fetched while this hole is played: nothing is built.
     fetch(id) { if (id && !failed[id]) import('../vendor/portals/src/worlds/' + id + '.js').catch(() => {}); },
     get current() { return cur ? cur.def.id : null; },
     get building() { return !!loading; },
     /* The world's own ground, for sculpting a hole to it (tools/world-ground.mjs):
        the height under a point in world coordinates, or null over nothing. */
-    groundAt(x, z, from) { return cur ? groundUnder(cur, x, from === undefined ? 2000 : from, z) : null; },
+    groundAt(x, z, from, any) { return cur ? groundUnder(cur, x, from === undefined || from === null ? 2000 : from, z, any) : null; },
     pathAt(u) { if (!cur) return null; const v = cur.path.pointAt(u, new THREE.Vector3()); return [v.x, v.y, v.z]; },
     // A place edited by hand (the console, a tuning script): work it out again.
     reanchor() { if (cur) cur.anchor = null; },

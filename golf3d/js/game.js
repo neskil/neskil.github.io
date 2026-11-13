@@ -6162,6 +6162,8 @@
                 : 'Live worlds switched off: this device was struggling. Switch them back on in Courses.');
             syncLive();
         });
+        // Something in the world happened because of the golf (render.js → stepPlace).
+        window.addEventListener('g3-world-event', function (e) { toast(e.detail); });
         $('menu-showcase').addEventListener('click', takeShowcase);
         $('menu-challenge').addEventListener('click', takeChallenge);
         /* No toast on this one: it is pressed with the picker open, and the

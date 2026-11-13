@@ -1,6 +1,6 @@
 # Claude Code — Project Context (golf3d)
 
-**Loft Links**: a World Tour of fourteen holes, each played inside a world from
+**Loft Links**: a World Tour of fifteen holes, each played inside a world from
 Ethan Mollick's Portals and dealt six at a time — what a new game plays — in
 front of fifteen six-hole courses of 3D golf in four groups (mini, crazy, adventure and the long game), on vendored
 three.js (r128), ES5-flavoured plain JavaScript, no build step. Open

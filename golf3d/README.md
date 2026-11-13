@@ -1,6 +1,6 @@
 # Loft Links
 
-A **World Tour** of fourteen holes, each played inside a world borrowed from
+A **World Tour** of fifteen holes, each played inside a world borrowed from
 Ethan Mollick's Portals ([The World Tour](#the-world-tour-every-hole-in-a-world))
 — and beside it in the same picker, the game this started as:
 
@@ -56,7 +56,7 @@ them.
 | `js/config.js` | Every tuning constant. Nothing else holds a magic number. |
 | `js/courses.js` | The ninety holes, as data, plus the rail generator, the band layout the long-game courses are written in — rows that tilt and carry their level into the next one, and a cross-fall that puts a whole hole on the side of a hill — the dune fields the links is made of, the landforms the two parkland courses are shaped by, the bag each hole is played out of, and the [draw](#the-draw) behind the picker's die. |
 | `js/physics.js` | The simulation. No three.js, no DOM, pure. |
-| `js/portals.js` | [The World Tour](#the-world-tour-every-hole-in-a-world): the fourteen holes — hole, palette, shelf, caption and the Portals world each is played in — the tour's deal, and `courseById` taught to answer `portals`, `portal-library` and `world-<id>`. Written with `G3.authoring`; loaded straight after `courses.js` on every page that loads that. |
+| `js/portals.js` | [The World Tour](#the-world-tour-every-hole-in-a-world): the fifteen holes — hole, palette, shelf, caption and the Portals world each is played in — the tour's deal, and `courseById` taught to answer `portals`, `portal-library` and `world-<id>`. Written with `G3.authoring`; loaded straight after `courses.js` on every page that loads that. |
 | `js/worlds.js` | The tour holes' stand-in set pieces, for when the live world is not drawn. three.js primitives only. Loaded before `render.js`. |
 | `js/backdrop.mjs`, `vendor/portals/` | The live worlds: Portals' own engine, kit, twelve worlds and three.js r170 (vendored unmodified, CC BY-NC-SA 4.0), and the module that builds one behind a hole and fits the hole into it. |
 | `js/tour-ground.js`, `tools/world-ground.mjs`, `tools/bake-ground.mjs` | Ground baked from a Portals world for a hole sculpted to it (generated), the tool that reads a world's terrain, and the one that bakes a piece of it. |
@@ -4181,7 +4181,7 @@ is the place.
 | --- | --- | --- |
 | The Butter Knife | Breakfast Kingdom | Up a ramp and over a gap to the placemat, or walk the teaspoon, a ball wide. |
 | Up the Shell | The World Turtle | 0.8 g. Along the neck and up a table mountain. No rail anywhere. |
-| The Marble Run | Marble Run, Falling Dominoes | Three chutes tipping opposite ways and a tray at the bottom — or pitch off the top and miss all three. |
+| The Marble Run | Marble Run, Falling Dominoes | Three chutes and a tray at the bottom the long way round, or out through the hatch at the first turn and down by the flag. Coming round that turn sets the world's dominoes going. |
 | Balloon Hop | Living Balloons over a Gas Giant | A third of a g. The pads throw the ball and it stays thrown. |
 | Slack Water | Kelp Cathedral | Two currents and a bank of still water between. Step off at the gap, or pitch over the weed. |
 | Loop and Rink | Carnival on the Frozen River | A loop-the-loop, then a rink where the only thing that stops a ball is the rug the flag is in. |
@@ -4191,6 +4191,9 @@ is the place.
 | Three Doors Down | Stairway Everywhere | Four landings and three doors in the floor; one putt can take two of them to the flag. |
 | The Three-Body Problem | Airbrushed Black Hole | Three black holes and the cup where they cancel. |
 | The Forge | Black Glass and Lava | A belt running at a hammer, a pad over a river of iron, an anvil with a flag in it. |
+| The Iron River | Black Glass and Lava | Sculpted. A par four off the bridge over the lava canyon to a green far below on the east bank. |
+| The Nave | Kelp Cathedral | Sculpted. A par four down the trench, a half-pipe, to a shelf levelled into one bank. |
+| The Sugar Gate | Breakfast Kingdom | Sculpted. A par three the length of the breakfast table, played off the cloth itself between what is laid on it. |
 
 **The hole** is `portals.js → WORLDS`: `{ id, title, world, kind, caption,
 theme, tier, hole, place }`, written with `G3.authoring`. `world()` makes each
@@ -4257,11 +4260,55 @@ Three things to know:
 
 **The Nave is the third** (v1.155.0): a par four down the Kelp Cathedral's
 trench, which is a level floor between two banks — a half-pipe — to a green
-that is a shelf levelled into one bank (`bake-ground --flat`). And on a
-sculpted hole the strips laid over the world's ground are **veils**
-(`R.veils`): with the world on screen the tee and fairway are drawn half
-through, so the world's own turf or rock shows in them, and only the green
-stays solid.
+that is a shelf levelled into one bank (`bake-ground --flat`).
+
+**How a sculpted hole and its world are one thing** (v1.157.0, the third
+go at it). The first two laid the hole's tee, fairway and green over the
+world's ground as sheets, solid and then half through, and on a phone they
+hovered: the baked ground is a smoothed copy sampled at a unit, the world's
+is a mesh with facets, and wherever the two disagreed by a hand a sheet
+stood off the land or sank into it (the owner, with three screenshots of
+Across the Shell: "quite broken… rethink that from the start"). So nothing
+is laid on anything now:
+
+- **The world's ground is pressed to the hole's** (`backdrop.mjs →
+  sculpt`, once per world and placing). Every upward-facing vertex of the
+  world's broad ground meshes inside the hole's grid is moved to the baked
+  height there — the height the ball is rolled on — with a three-unit
+  feather at the edge and a limit on how far a vertex may be moved, so a
+  cliff stays a cliff. A levelled tee is level in the world's own picture.
+  The world's instanced trees and stones standing on a tee, fairway or
+  green are taken out (`place.clear`). Nothing in `vendor/portals/` is
+  edited: this is done to the built world in memory.
+- **A fairway is paint** (`render.js → addWorldPlate`, the decals). The
+  plate already knows where each pixel of the world is in the hole's
+  coordinates; a pixel on the hole's ground and inside a tee or fairway
+  takes the turf's colour, keeping the world's light and shade, with a
+  mower's stripe and a soft edge that wanders. It follows every fold
+  because it is the land. The grid goes to the shader as a float texture.
+- **Only the green is still drawn by the game**, on ground that now matches
+  it, with a collar of the same paint. The strips the game would have
+  drawn (`R.veils`) are put away with the ghosts while the world is on
+  screen, and are the fallback without it.
+- **The world is always built at `medium`**, whatever the device: a hole is
+  baked from that level's ground, and a different level is different
+  geometry.
+
+**A world can have an event the golf sets going** (v1.157.0).
+`place.event = { from, to, secs, gate | at, say }` moves the world's own
+clock (`u`, round the hole's anchor) from `from` to `to` over `secs` the
+first time the ball passes through `gate` (`[x, z, r]` on the hole) — or
+is `at` of the way from tee to flag — or drops. `render.js → stepPlace`
+watches the ball, `G3.backdrop.play()` runs it, a new hole rewinds it, and
+`say` is toasted. The Marble Run's is the dominoes beside it going over in
+a wave as the ball comes round the first turn; the owner asked for it.
+
+**The world's resolution follows the frame rate, and not for the first six
+seconds** (`stepPlace`). It starts at 0.7 of the stage on a phone and 0.8
+elsewhere, drops a quarter per poor two-second window to a third, and
+comes back a step after three good ones. Nothing is measured while a world
+is still compiling its shaders: judged on those seconds, every world was
+taken to a third and left there. `?live=1` pins it.
 
 **The Iron River is the second sculpted hole** (v1.154.0), and the thirteenth
 of the tour: a par four in the Obsidian Forge, off the one bridge over its
