@@ -101,6 +101,28 @@ from upstream release s8f into `vendor/portals/src/` unmodified, list it in
 `js/portals.js`, and a `SCENES` alias in `js/worlds.js` (the fallback set
 piece — a test insists on one).
 
+## The owner's ideas waiting their turn
+
+- **The transition between worlds** (asked after v1.159.1): "improve the
+  transition animation. Perhaps the camera can sweep down into the hole
+  (which is portal-esque) and play the current animation to hide the
+  loading between worlds." What happens now: on the sink, `throughPortal`
+  closes the stage on the next world's sky (`.portal-wipe`), and
+  `holdForWorld` keeps it closed with the next hole's name until the world
+  is drawn (up to 20 s). The idea: on the sink the camera dives down the
+  cup — the cup is the portal — and the dive hands over to the existing
+  wipe, which then hides the build. Pieces: a camera path in `render.js`
+  from the seat to just under the cup's lip (the flyover's machinery,
+  `flyover.js`, already flies keyed paths); a dark disc over the cup as the
+  "inside"; and the wipe's opening as the arrival.
+- **Preloading:** only the next world's *files* are fetched, 4 s into the
+  current hole (`holdForWorld` → `backdrop.fetch`); nothing is built in
+  advance, so the wait between holes is the build itself (a few seconds
+  on a phone). Building the next world while this one plays would mean two
+  worlds in memory and the frame rate of both at once. A cheaper step: start
+  the build at the sink, during the celebration and the dive, so the wipe
+  has less to hide.
+
 ## What I would do next, in order
 
 1. Send him the five fixes above and wait for the phone.
@@ -127,6 +149,15 @@ not have. Designs first; what was actually built is in `js/portals.js`.
 
 ## After the handoff was written
 
+- **The Orrery** (`orrery`): "borderline cruel" — three arms at three
+  speeds covering the whole table, the hub on the straight line, the edge
+  of the table off the world. Rebuilt in v1.160.0: one arm hinged at the
+  spindle that swings over to the right and back (`A.flipper` with `hinge`),
+  a rim of kerbs round the table, the flag right of the hub. Measured over
+  seven moments of the swing (the scratch `moments` recipe: `G3.lab.sweep`
+  with `moments: [0..6]`), aces come only while the arm is on the left.
+  `portal-check` samples two moments and calls it a closer (0.06%); the
+  open half of the swing is nearer 0.5%. **Not yet seen by him.**
 - **The Fairy Ring** (`mushroom`): "quite broken also" — on his phone the
   flight search put the hole under a fallen leaf and inside a mushroom's
   gills. Pinned to `u: 0.9`, a clear patch by a log (scale 0.5). A world

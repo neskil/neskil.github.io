@@ -315,25 +315,46 @@
         })
     });
 
-    /* An orrery: a brass table with three arms turning on one spindle at
-       three speeds, the way the planets do, and the flag on the far side of
-       all of them. Straight across is through every arm. Round the rim is
-       under none of them and half as far again. */
+    /* An orrery: a brass table, one arm hinged at the spindle in the
+       middle, and a brass rim round the table to play off. The arm lies to
+       the left of the spindle, swings up over the top and down to the
+       right, and comes back: on the left it is out of the way, on the right
+       it is across the straight line to the flag. So the bold putt is
+       straight past the hub while the arm is on its way back over to the
+       left, and it is a one. The safe way is out to the right wide of the
+       arm's reach, or off the rim — a two either way.
+
+       (A first redraw in the same version had one arm turning right round
+       on the spindle. An arm that is a whole diameter crosses any line
+       near the middle of the table at almost every angle, so the window for
+       getting past it was an instant, not a gap; this swings, and a gap is
+       half of every swing.)
+
+       It was three arms at three speeds until v1.160.0, the longest of them
+       reaching nearly to the edge of the table, and the hub standing on the
+       straight line to the flag: no line was clear of all of them at once,
+       the edge of the table was off the world, and the caddie could not
+       make it in under two (the owner: "borderline cruel"). */
     add({
         id: 'orrery', title: 'The Orrery', world: 'Library with a Brass Orrery', kind: 'interior', tier: 2,
-        caption: 'Three brass arms on one spindle, each at its own speed, and the flag across the table.',
+        caption: 'One brass arm swinging over the spindle and back, a rim to play off, and the flag past the arm.',
         theme: 'orrery',
         hole: world({
             name: 'The Orrery', grounded: true, par: 3, bag: ROLL,
-            blurb: 'Three arms sweep the table at three speeds. Wait for the gap and go through the middle, or creep round the rim.',
+            blurb: 'The arm swings over to the right and back. Putt straight past the hub while it is on the left — or go round wide of it and off the rim.',
             pads: [disc(9, 10, 9.4)],
-            extra: [
-                spinner(9, 10, 5.0, 0.34, { spin: 1.5 }),
-                spinner(9, 10, 9.6, 0.34, { spin: -0.8, yaw: 0.7 }),
-                spinner(9, 10, 14.4, 0.34, { spin: 0.45, yaw: 1.9 }),
-                wall(8.4, 9.4, 1.2, 1.2, 0.9, { base: -0.1, kind: 'meteor' })
-            ],
-            tee: { x: 9, z: 1.5 }, cup: { x: 9, z: 18.2 }
+            extra: (function () {
+                var out = [A.flipper(9 - 2.03, 10, 4.4, { rest: 0, arc: Math.PI, speed: 0.9, hinge: 1 }),
+                    wall(8.4, 9.4, 1.2, 1.2, 0.9, { base: -0.1, kind: 'meteor' })];
+                // the rim: twenty straight lengths round the table's edge
+                var n = 20, r = 9.15, k, a0, a1;
+                for (k = 0; k < n; k++) {
+                    a0 = k / n * TAU; a1 = (k + 1) / n * TAU;
+                    out.push(kerb(9 + Math.sin(a0) * r, 10 + Math.cos(a0) * r, 9 + Math.sin(a1) * r, 10 + Math.cos(a1) * r, 0, 0.45));
+                }
+                return out;
+            })(),
+            tee: { x: 9, z: 4.8 }, cup: { x: 11.8, z: 15.8 }
         })
     });
 
