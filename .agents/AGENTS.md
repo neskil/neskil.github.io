@@ -52,7 +52,7 @@ Folder-based routing — each major page or app is fully isolated with its own
   tested, and approved. While a project is under active development, an
   "Under Construction" flip card (`#card-wip`, class `.flip-card`) can go in
   `<main class="grid">` on `index.html` to preview it — its CSS
-  (`#card-wip`, `.flip-card`, `.wip-body`) stays defined in `index.html`
+  (`#card-wip`, `.flip-card`, `.wip-body`) stays defined in `style.css`
   even when unused, so a WIP card can be dropped back in without rebuilding
   the styles.
 

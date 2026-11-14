@@ -907,6 +907,7 @@ window.VizApp = (function () {
 
     return {
         ROSTER: ROSTER,
+        scenes: scenes,
         register: register,
         makeOrbit: makeOrbit,
         makeQualityLadder: makeQualityLadder,

@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex">
+    <title>Data Room — Headless Tests</title>
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-9GP823TGLB"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag() { dataLayer.push(arguments); }
+        gtag('js', new Date());
+        gtag('config', 'G-9GP823TGLB');
+    </script>
+    <style>
+        body { background: #070b16; color: #e2e8f0; font-family: ui-monospace, monospace; padding: 1rem; }
+        #summary { font-size: 1.2rem; margin-bottom: 0.75rem; padding: 0.5rem 0.75rem; border-radius: 8px; background: #ffffff0d; }
+        .pass { color: #4ade80; }
+        .fail { color: #f87171; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div id="summary">running…</div>
+    <div id="results"></div>
+
+    <script src="../vendor/three.min.js"></script>
+    <script src="js/app.js"></script>
+    <script src="js/data/land.js"></script>
+    <script src="js/data/ports.js"></script>
+    <script src="js/scene-globe.js"></script>
+    <script src="js/data/city.js"></script>
+    <script src="js/scene-city.js"></script>
+    <script src="js/scene-particles.js"></script>
+    <script src="js/scene-nebula.js"></script>
+    <script src="js/scene-boids.js"></script>
+    <script src="js/scene-mandelbulb.js"></script>
+    <script src="js/scene-attractor.js"></script>
+    <script src="js/scene-waves.js"></script>
+
+    <script>
+    (function () {
+        'use strict';
+
+        var passed = 0, failed = 0;
+        var out = document.getElementById('results');
+
+        function assert(name, cond, detail) {
+            var div = document.createElement('div');
+            if (cond) {
+                passed++;
+                div.className = 'pass';
+                div.textContent = '✓ ' + name;
+            } else {
+                failed++;
+                div.className = 'fail';
+                div.textContent = 'FAIL: ' + name + (detail ? ' — ' + detail : '');
+            }
+            out.appendChild(div);
+        }
+
+        // 1. Core utilities
+        assert('VizApp.clamp bounds below, within, and above',
+            VizApp.clamp(-5, 0, 10) === 0 &&
+            VizApp.clamp(4, 0, 10) === 4 &&
+            VizApp.clamp(99, 0, 10) === 10);
+
+        var camWide = { fov: 50, aspect: 16 / 9 };
+        var camTall = { fov: 50, aspect: 9 / 16 };
+        assert('VizApp.fitDistance backs off further on portrait aspect than landscape',
+            VizApp.fitDistance(camTall, 10) > VizApp.fitDistance(camWide, 10));
+
+        // 2. Datasets: VizLand, VizPorts, VizCity
+        assert('VizLand mask is loaded with 60 latitude bands and land/coast helpers',
+            window.VizLand && Array.isArray(VizLand.ROWS) && VizLand.ROWS.length === 60 &&
+            typeof VizLand.isLand === 'function' && typeof VizLand.isCoast === 'function' &&
+            VizLand.isLand(59.3, 18.0) === true && VizLand.isLand(0, -140) === false);
+
+        assert('VizPorts defines major ports and lanes referencing valid port objects',
+            window.VizPorts && Array.isArray(VizPorts.ports) && VizPorts.ports.length >= 20 &&
+            Array.isArray(VizPorts.lanes) && VizPorts.lanes.length >= 30 &&
+            VizPorts.lanes.every(function (l) {
+                return l.a && l.b && l.a.id !== l.b.id && l.weight > 0 && typeof l.corridor === 'string';
+            }));
+
+        assert('VizCity contains all 23 repository buildings sorted descending by LOC',
+            window.VizCity && Array.isArray(VizCity.blocks) && VizCity.blocks.length >= 23 &&
+            VizCity.maxLoc > 0 &&
+            VizCity.blocks.every(function (b, i) {
+                return b.id && b.label && b.href && b.files >= 1 && b.loc > 0 &&
+                       (i === 0 || VizCity.blocks[i - 1].loc >= b.loc);
+            }));
+
+        // 3. Roster & scene registration
+        assert('All 8 ROSTER scenes are registered',
+            Array.isArray(VizApp.ROSTER) && VizApp.ROSTER.length === 8 &&
+            VizApp.ROSTER.every(function (r) { return !!VizApp.scenes[r.id]; }));
+
+        var mockCanvas = document.createElement('canvas');
+        var mockRenderer = {
+            domElement: mockCanvas,
+            getPixelRatio: function () { return 1; },
+            setPixelRatio: function () {},
+            setSize: function () {},
+            capabilities: { isWebGL2: true }
+        };
+        var mockCtx = {
+            THREE: window.THREE,
+            renderer: mockRenderer,
+            width: 800,
+            height: 600,
+            dpr: 1,
+            canvas: mockCanvas,
+            readout: VizApp.readout,
+            reducedMotion: false,
+            pointer: { x: 0, y: 0, px: 0, py: 0, inside: false }
+        };
+
+        VizApp.ROSTER.forEach(function (entry) {
+            var mod = VizApp.scenes[entry.id];
+            assert(entry.id + ': has title, blurb, accent, and init/update/dispose',
+                typeof mod.title === 'string' && mod.title.length > 0 &&
+                typeof mod.blurb === 'string' && mod.blurb.length > 0 &&
+                /^#[0-9a-fA-F]{6}$/.test(mod.accent) &&
+                typeof mod.init === 'function' &&
+                typeof mod.update === 'function' &&
+                typeof mod.dispose === 'function');
+
+            var built = null;
+            var err = null;
+            try {
+                built = mod.init(mockCtx);
+                if (mod.resize) mod.resize(800, 600);
+                mod.update(0.016, 0.5);
+                mod.dispose();
+            } catch (e) {
+                err = e.message || String(e);
+            }
+            assert(entry.id + ': init -> resize -> update -> dispose lifecycle succeeds',
+                err === null && built && built.scene instanceof THREE.Scene && built.camera instanceof THREE.Camera,
+                err);
+        });
+
+        var summary = document.getElementById('summary');
+        summary.textContent = passed + ' passed, ' + failed + ' failed';
+    })();
+    </script>
+</body>
+</html>

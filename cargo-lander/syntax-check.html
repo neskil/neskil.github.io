@@ -8,6 +8,7 @@
      level-editor.html DOM; run-tests.sh covers it via ?runTests=1 instead.
      Keep the script list in sync with index.html when adding files. -->
 <html lang="en"><head><meta name="robots" content="noindex"></head><body>
+<div id="summary">running…</div>
 <pre id="err">loading…</pre>
 <script>
   const errs = [];
@@ -83,10 +84,12 @@
     'physics fog mixin':          () => typeof CargoPhysics.prototype.fogDensityAt === 'function' && typeof CargoPhysics.prototype.updateAltitudeFog === 'function',
     'physics mixins':             () => typeof CargoPhysics.prototype.initLevel === 'function',
   };
+  let passed = 0;
   for (const [name, fn] of Object.entries(checks)) {
-    try { if (!fn()) errs.push('ASSERT FAILED: ' + name); }
+    try { if (fn()) passed++; else errs.push('ASSERT FAILED: ' + name); }
     catch (e) { errs.push('ASSERT THREW: ' + name + ' — ' + e.message); }
   }
   document.getElementById('err').textContent = errs.join('\n') || 'no errors';
+  document.getElementById('summary').textContent = `${passed} passed, ${errs.length} failed`;
 </script>
 </body></html>

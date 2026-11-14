@@ -970,7 +970,7 @@ body.launched .tagline { color: var(--gold-hi); font-style: normal; font-family:
   const campIO = new IntersectionObserver(es => {
     if (!es[0].isIntersecting) return;
     campIO.disconnect();
-    loadScript("vendor/three.min.js").then(() => loadScript("js/world.js")).catch(() => $("world").classList.add("no-gl"));
+    loadScript("../vendor/three.min.js").then(() => loadScript("js/world.js")).catch(() => $("world").classList.add("no-gl"));
   }, { rootMargin: "600px" });
   campIO.observe($("camp"));
 

@@ -1,6 +1,6 @@
 // Paper Plane Glider — the office in 3D. The same job as flyview.js (aim,
 // throw, play the flight back, say how it went) with the room built in
-// three.js (vendor/three.min.js, loaded by app.js before this is made) and
+// three.js (../vendor/three.min.js, loaded by app.js before this is made) and
 // the flight from flight3d.js, so it can curve, veer and hit the walls.
 //
 // World and body axes as in flight3d.js. The plane is built from model.js's
