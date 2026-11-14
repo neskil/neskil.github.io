@@ -22,6 +22,11 @@ merged to `master`, pushed, and the page has refreshed. So:
   `G3.VERSION` and every `?v=`), or their phone keeps the old JS after the push.
 - No pull request unless they ask for one; merge with `--no-ff`, re-run the
   checks on the merged result, then push.
+- **It is a one-person project.** Nobody else works on it, so there is no
+  reviewer to wait for and no one else's branch to protect. When `master` has
+  moved under you, that is the owner's other Claude sessions: merge it in,
+  resolve the conflict (usually only version strings — take the higher one and
+  bump past it), re-run the checks and push, rather than stopping to ask.
 
 ## Read these first
 
